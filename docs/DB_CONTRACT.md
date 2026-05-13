@@ -91,6 +91,13 @@ Event scoring fields:
 - `impact`: `high`, `medium`, or `low`.
 - `signal`: `bullish`, `bearish`, `volatile`, or `neutral`.
 
+Event copy fields:
+
+- `title`: headline or normalized event title.
+- `quick_take`: one-line takeaway shown directly under the title in feed lists.
+- `summary`: longer summary for the event detail page.
+- `reason`: scoring/explanation text for why the event matters.
+
 Do not use the old event names `impact_level`, `confidence`, or `direction` in
 the new schema. Their replacements are `delivery_level`, `impact`, and
 `signal`.

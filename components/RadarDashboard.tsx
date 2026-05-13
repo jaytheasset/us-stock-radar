@@ -12,6 +12,7 @@ type EventRow = {
   impact_level?: string | null;
   confidence?: string | null;
   title?: string | null;
+  quick_take?: string | null;
   summary?: string | null;
   detected_at?: string | null;
   event_date?: string | null;
@@ -365,7 +366,9 @@ function EventsTable({
               <td>{event.event_type || "-"}</td>
               <td className="title-cell">
                 <strong>{event.title || "-"}</strong>
-                {event.summary ? <div className="summary">{event.summary}</div> : null}
+                {event.quick_take || event.summary ? (
+                  <div className="summary">{event.quick_take || event.summary}</div>
+                ) : null}
               </td>
               <td>{event.source_code || event.source_channel || "-"}</td>
               <td>{formatDate(event.detected_at || event.event_date)}</td>

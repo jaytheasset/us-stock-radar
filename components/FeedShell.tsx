@@ -20,6 +20,7 @@ export type FeedItem = {
   source: string;
   eventType: string;
   title: string;
+  quickTake?: string;
   summary: string;
   scoreReason: string;
   score: number;
@@ -583,7 +584,7 @@ function FeedRow({ item, showChart }: { item: FeedItem; showChart: boolean }) {
           <span className={`source-badge ${item.sourceGroup}`}>{item.sourceGroup}</span>
           <strong>{item.title}</strong>
         </div>
-        <p>{item.summary}</p>
+        <p>{item.quickTake || item.summary}</p>
       </div>
       <div className="signal-cell">
         <span className={`signal-badge ${item.signal}`}>{item.signal}</span>

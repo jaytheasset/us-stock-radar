@@ -131,6 +131,7 @@ create table if not exists events (
   impact event_impact not null,
   signal event_signal not null,
   title text not null,
+  quick_take text,
   summary text,
   reason text,
   event_date date,

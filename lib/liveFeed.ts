@@ -17,6 +17,7 @@ export type LiveFeedItem = {
   source: string;
   eventType: string;
   title: string;
+  quickTake: string;
   summary: string;
   scoreReason: string;
   score: number;
@@ -125,6 +126,15 @@ function mapEventRow(
   const signal = deriveSignal(row);
   const detectedAt = readString(row, ["detected_at", "created_at", "event_date"]);
   const quoteValues = formatQuote(quote);
+  const summary =
+    readString(row, ["summary"]) ||
+    readMetadataString(row, ["summary", "long_summary"]) ||
+    readString(row, ["reason"]) ||
+    "No summary available yet.";
+  const quickTake =
+    readString(row, ["quick_take", "quickTake", "quick_take_text"]) ||
+    readMetadataString(row, ["quick_take", "quickTake", "quick_take_text"]) ||
+    summary;
 
   return {
     id: readString(row, ["id"]) || `${ticker}-${detectedAt || "event"}`,
@@ -138,10 +148,11 @@ function mapEventRow(
     source: formatSource(readString(row, ["source_code", "source", "source_channel"])),
     eventType: readString(row, ["event_type"]) || "event",
     title: readString(row, ["title"]) || "Untitled event",
-    summary: readString(row, ["summary", "reason"]) || "No summary available yet.",
+    quickTake,
+    summary,
     scoreReason:
       readString(row, ["reason", "score_reason"]) ||
-      readString(row, ["summary"]) ||
+      summary ||
       "Event score was derived from the available database fields.",
     score,
     deliveryLevel: deriveDeliveryLevel(row, score),
@@ -368,6 +379,18 @@ function readString(row: DbEventRow | QuoteRow | undefined, keys: string[]) {
     const value = row[key];
     if (typeof value === "string" && value.trim()) return value.trim();
     if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  }
+
+  return "";
+}
+
+function readMetadataString(row: DbEventRow | undefined, keys: string[]) {
+  const metadata = row?.metadata;
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return "";
+
+  for (const key of keys) {
+    const value = (metadata as Record<string, unknown>)[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
   }
 
   return "";
