@@ -1151,12 +1151,12 @@ td {
 .event-type-badge {
   flex-direction: column;
   border: 1px solid #b9cffd;
-  min-width: 54px;
-  padding: 4px 7px;
+  min-width: 74px;
+  padding: 4px 9px;
   color: #0f55ff;
   background: #eef5ff;
-  gap: 1px;
-  line-height: 1.05;
+  gap: 2px;
+  line-height: 1.08;
   text-align: center;
   white-space: normal;
 }
