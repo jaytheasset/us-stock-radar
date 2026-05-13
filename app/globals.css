@@ -903,7 +903,7 @@ td {
 
 .feed-row {
   display: grid;
-  grid-template-columns: 40px 128px 72px minmax(400px, 1fr) 78px;
+  grid-template-columns: 40px 128px 72px minmax(0, 1fr) 78px;
   align-items: center;
   gap: 16px;
   min-height: 128px;
@@ -4035,7 +4035,7 @@ td {
   }
 
   .feed-row {
-    grid-template-columns: 40px 128px 78px minmax(300px, 1fr) 86px;
+    grid-template-columns: 40px 128px 78px minmax(0, 1fr) 86px;
     gap: 14px;
   }
 
