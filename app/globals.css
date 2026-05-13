@@ -1121,6 +1121,7 @@ td {
 }
 
 .source-badge,
+.event-type-badge,
 .signal-badge,
 .delivery-badge {
   display: inline-flex;
@@ -1132,6 +1133,46 @@ td {
   font-weight: 700;
   line-height: 1.15;
   text-transform: uppercase;
+}
+
+.event-type-badge {
+  border: 1px solid #b9cffd;
+  padding: 5px 7px;
+  color: #0f55ff;
+  background: #eef5ff;
+  white-space: nowrap;
+}
+
+.event-type-badge.earnings {
+  border-color: #bcd4ff;
+  color: #1457b7;
+  background: #eef5ff;
+}
+
+.event-type-badge.dilution,
+.event-type-badge.risk {
+  border-color: #ffd0d4;
+  color: #d7232a;
+  background: #fff1f2;
+}
+
+.event-type-badge.deal {
+  border-color: #d3c5ff;
+  color: #5c3dff;
+  background: #f3efff;
+}
+
+.event-type-badge.clinical,
+.event-type-badge.market {
+  border-color: #bfe6d0;
+  color: #14753a;
+  background: #edf9f1;
+}
+
+.event-type-badge.regulatory {
+  border-color: #ffdca6;
+  color: #a86100;
+  background: #fff7e6;
 }
 
 .source-badge {
@@ -3608,7 +3649,7 @@ td {
   font-weight: 400;
 }
 
-.feed-page :is(.source-badge, .signal-badge, .delivery-badge),
+.feed-page :is(.source-badge, .event-type-badge, .signal-badge, .delivery-badge),
 .feed-page :is(.feed-tabs button, .feed-controls button, .news-filter-controls button, .map-range-controls button),
 .feed-page :is(.feed-pagination a, .feed-pagination strong, .feed-pagination .pagination-step),
 .feed-page :is(.source-activity-actions button, .premium-card button),
@@ -4494,10 +4535,43 @@ html[data-theme="dark"] .news-rail-header a {
 }
 
 html[data-theme="dark"] .source-badge,
+html[data-theme="dark"] .event-type-badge,
 html[data-theme="dark"] .delivery-badge.alert {
   border-color: #315fbc;
   color: #8fb4ff;
   background: #152849;
+}
+
+html[data-theme="dark"] .event-type-badge.earnings {
+  border-color: #315fbc;
+  color: #8fb4ff;
+  background: #152849;
+}
+
+html[data-theme="dark"] .event-type-badge.dilution,
+html[data-theme="dark"] .event-type-badge.risk {
+  border-color: #6d2f36;
+  color: #ff8a91;
+  background: #33151a;
+}
+
+html[data-theme="dark"] .event-type-badge.deal {
+  border-color: #5742a2;
+  color: #c4a6ff;
+  background: #271a49;
+}
+
+html[data-theme="dark"] .event-type-badge.clinical,
+html[data-theme="dark"] .event-type-badge.market {
+  border-color: #256c46;
+  color: #6ee7a1;
+  background: #123322;
+}
+
+html[data-theme="dark"] .event-type-badge.regulatory {
+  border-color: #72511c;
+  color: #f3c16c;
+  background: #33250f;
 }
 
 html[data-theme="dark"] .source-badge.filings {

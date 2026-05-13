@@ -7,6 +7,7 @@ import type { MarketBar } from "@/lib/integrations";
 
 type FeedTone = "bullish" | "bearish" | "volatile" | "neutral";
 type SourceGroup = "news" | "filings" | "market";
+type EventBadgeTone = "general" | "earnings" | "dilution" | "risk" | "deal" | "clinical" | "regulatory" | "market";
 
 export type FeedItem = {
   id: string;
@@ -240,6 +241,33 @@ const marketPulse = [
 ];
 
 const tabs = ["All", "News", "Filings", "Market", "Alerts", "Watchlist"];
+
+const eventTypeBadgeConfig: Record<string, { label: string; tone: EventBadgeTone }> = {
+  contract_award: { label: "Contract", tone: "deal" },
+  current_report: { label: "8-K Update", tone: "regulatory" },
+  earnings_delay: { label: "Earnings Delay", tone: "earnings" },
+  earnings_preview: { label: "Earnings Preview", tone: "earnings" },
+  earnings_result: { label: "Earnings", tone: "earnings" },
+  financing_dilution: { label: "Dilution", tone: "dilution" },
+  going_concern: { label: "Going Concern", tone: "risk" },
+  clinical_update: { label: "Clinical", tone: "clinical" },
+  partnership: { label: "Partnership", tone: "deal" },
+  price_momentum: { label: "Momentum", tone: "market" },
+  product_competition: { label: "Competition", tone: "market" },
+  product_delay: { label: "Product Delay", tone: "risk" },
+  product_launch: { label: "Product Launch", tone: "general" },
+  production_update: { label: "Production", tone: "general" },
+  project_update: { label: "Project Update", tone: "general" },
+  prospectus_supplement: { label: "Prospectus", tone: "dilution" },
+  quarterly_report: { label: "10-Q", tone: "regulatory" },
+  regulatory_approval: { label: "Approval", tone: "clinical" },
+  reverse_split: { label: "Reverse Split", tone: "risk" },
+  mna: { label: "M&A", tone: "deal" },
+  merger_acquisition: { label: "M&A", tone: "deal" },
+  insider_buy: { label: "Insider Buy", tone: "deal" },
+  dividend: { label: "Dividend", tone: "market" },
+  fda_catalyst: { label: "FDA Catalyst", tone: "clinical" },
+};
 
 const situationCards = [
   {
@@ -562,6 +590,8 @@ function feedPageHref(page: number, limit: number, basePath = "/feed") {
 }
 
 function FeedRow({ item, showChart }: { item: FeedItem; showChart: boolean }) {
+  const eventBadge = getEventTypeBadge(item.eventType);
+
   return (
     <a className={`feed-row${showChart ? "" : " no-chart"}`} href={`/events/${item.id}`}>
       <FeedTime value={item.time} />
@@ -581,7 +611,7 @@ function FeedRow({ item, showChart }: { item: FeedItem; showChart: boolean }) {
       </div>
       <div className="event-cell">
         <div className="event-title-line">
-          <span className={`source-badge ${item.sourceGroup}`}>{item.sourceGroup}</span>
+          <span className={`event-type-badge ${eventBadge.tone}`}>{eventBadge.label}</span>
           <strong>{item.title}</strong>
         </div>
         <p>{item.quickTake || item.summary}</p>
@@ -592,6 +622,20 @@ function FeedRow({ item, showChart }: { item: FeedItem; showChart: boolean }) {
       </div>
     </a>
   );
+}
+
+function getEventTypeBadge(eventType: string) {
+  const normalized = eventType.trim().toLowerCase();
+  return eventTypeBadgeConfig[normalized] ?? { label: formatEventTypeLabel(normalized), tone: "general" as const };
+}
+
+function formatEventTypeLabel(eventType: string) {
+  if (!eventType) return "Event";
+  return eventType
+    .split("_")
+    .filter(Boolean)
+    .map((word) => (word.length <= 3 ? word.toUpperCase() : word[0].toUpperCase() + word.slice(1)))
+    .join(" ");
 }
 
 function FeedTime({ value }: { value: string }) {
