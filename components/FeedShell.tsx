@@ -243,39 +243,53 @@ const tabs = ["All", "News", "Filings", "Market", "Alerts", "Watchlist"];
 
 const situationCards = [
   {
-    label: "Today's Alert",
+    label: "Today's Alerts",
     value: "42",
     delta: "+16.7%",
     tone: "positive",
     icon: "AL",
   },
   {
-    label: "Today's News",
-    value: "188",
-    delta: "+22.1%",
-    tone: "positive",
-    icon: "NW",
-  },
-  {
-    label: "Today's Filings",
-    value: "215",
-    delta: "+28.4%",
-    tone: "positive",
-    icon: "CAL",
-  },
-  {
-    label: "High Impact",
-    value: "27",
-    delta: "+12.5%",
-    tone: "positive",
-    icon: "HI",
-  },
-  {
-    label: "Dilution Risk Alerts",
+    label: "Dilution Risk",
     value: "14",
     delta: "-7.1%",
     tone: "negative",
     icon: "DR",
+  },
+  {
+    label: "Delisting Watch",
+    value: "6",
+    delta: "+3",
+    tone: "negative",
+    icon: "DL",
+  },
+  {
+    label: "Earnings",
+    value: "31",
+    delta: "+9.4%",
+    tone: "positive",
+    icon: "ER",
+  },
+  {
+    label: "Insider Buys",
+    value: "18",
+    delta: "+5.8%",
+    tone: "positive",
+    icon: "IB",
+  },
+  {
+    label: "Dividends",
+    value: "24",
+    delta: "+2.1%",
+    tone: "positive",
+    icon: "DV",
+  },
+  {
+    label: "FDA Catalysts",
+    value: "9",
+    delta: "+4",
+    tone: "positive",
+    icon: "FD",
   },
 ];
 
