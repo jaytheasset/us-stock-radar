@@ -83,12 +83,12 @@ export async function getLiveFeedViewModel({
     highImpactNews: rankingItems
       .filter(isIndividualStockNews)
       .sort((a, b) => b.score - a.score)
-      .slice(0, 3)
+      .slice(0, 4)
       .map(toRankedEvent),
     alertFilings: rankingItems
       .filter((item) => item.sourceGroup === "filings")
       .sort((a, b) => b.score - a.score)
-      .slice(0, 3)
+      .slice(0, 4)
       .map(toRankedEvent),
     marketPulseItems,
   };
