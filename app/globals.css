@@ -1140,11 +1140,20 @@ td {
 }
 
 .event-type-badge {
+  flex-direction: column;
   border: 1px solid #b9cffd;
-  padding: 5px 7px;
+  min-width: 54px;
+  padding: 4px 7px;
   color: #0f55ff;
   background: #eef5ff;
-  white-space: nowrap;
+  gap: 1px;
+  line-height: 1.05;
+  text-align: center;
+  white-space: normal;
+}
+
+.event-type-badge span {
+  display: block;
 }
 
 .event-type-badge.earnings {

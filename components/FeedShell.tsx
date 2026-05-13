@@ -584,7 +584,7 @@ function FeedRow({ item, showChart }: { item: FeedItem; showChart: boolean }) {
       </div>
       <div className="event-cell">
         <div className="event-title-line">
-          <span className={`event-type-badge ${eventBadge.tone}`}>{eventBadge.label}</span>
+          <EventTypeBadge label={eventBadge.label} tone={eventBadge.tone} />
           <strong>{item.title}</strong>
         </div>
         <p>{item.quickTake || item.summary}</p>
@@ -594,6 +594,16 @@ function FeedRow({ item, showChart }: { item: FeedItem; showChart: boolean }) {
         <span className={`delivery-badge ${item.deliveryLevel}`}>{item.deliveryLevel}</span>
       </div>
     </a>
+  );
+}
+
+function EventTypeBadge({ label, tone }: { label: string; tone: string }) {
+  return (
+    <span className={`event-type-badge ${tone}`} aria-label={label}>
+      {label.split(" ").map((word, index) => (
+        <span key={`${word}-${index}`}>{word}</span>
+      ))}
+    </span>
   );
 }
 

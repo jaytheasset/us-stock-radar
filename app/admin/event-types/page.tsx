@@ -105,7 +105,7 @@ export default function AdminEventTypesPage() {
                     {rows.map((row) => (
                       <tr key={row.code}>
                         <td>
-                          <span className={`event-type-badge ${row.tone}`}>{row.label}</span>
+                          <EventTypeBadge label={row.label} tone={row.tone} />
                         </td>
                         <td>
                           <code>{row.code}</code>
@@ -127,5 +127,15 @@ export default function AdminEventTypesPage() {
         })}
       </section>
     </main>
+  );
+}
+
+function EventTypeBadge({ label, tone }: { label: string; tone: string }) {
+  return (
+    <span className={`event-type-badge ${tone}`} aria-label={label}>
+      {label.split(" ").map((word, index) => (
+        <span key={`${word}-${index}`}>{word}</span>
+      ))}
+    </span>
   );
 }
