@@ -4569,8 +4569,11 @@ html[data-theme="dark"] table th {
 }
 
 html[data-theme="dark"] .feed-pagination-status,
+html[data-theme="dark"] .feed-pagination a,
 html[data-theme="dark"] .feed-pagination .pagination-step,
 html[data-theme="dark"] .feed-pagination .pagination-ellipsis,
+html[data-theme="dark"] .feed-pagination .pagination-step span,
+html[data-theme="dark"] .feed-pagination a span,
 html[data-theme="dark"] .feed-page-size summary {
   border-color: transparent;
   color: var(--muted);
@@ -4578,11 +4581,14 @@ html[data-theme="dark"] .feed-page-size summary {
 }
 
 html[data-theme="dark"] .feed-pagination a {
+  border-color: transparent;
   background: transparent;
 }
 
 html[data-theme="dark"] .feed-pagination strong {
-  border-color: #8fb4ff;
+  border: 0;
+  border-bottom: 2px solid #8fb4ff;
+  border-radius: 0;
   color: #8fb4ff;
   background: transparent;
 }
