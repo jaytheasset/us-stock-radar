@@ -12,6 +12,11 @@ const adminSections = [
     description: "Sector, sub-category, FMP industry, and theme-group registry.",
   },
   {
+    href: "/admin/event-types",
+    title: "Event Types",
+    description: "Feed badge labels, alert filter keys, filing coverage, and planned event families.",
+  },
+  {
     href: "/admin/sources",
     title: "Source Jobs",
     description: "Source job routes and external collection URLs.",

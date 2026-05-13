@@ -20,6 +20,7 @@ The initial schema should stay centered on these entities:
 - `sources`
 - `source_runs`
 - `raw_items`
+- `event_types`
 - `events`
 - `event_links`
 - `market_snapshots`
@@ -82,6 +83,11 @@ investment-event normalization.
 `events`  
 Normalized investable events extracted from raw items. The UI should usually
 read this table for event lists and detail pages.
+
+`event_types`
+Canonical event-type registry used by `events.event_type`, feed badges, alert
+filters, and parser output. The current seed is 6-K/8-K heavy; new filing
+families should add or update `event_types` before parser rollout.
 
 Event scoring fields:
 

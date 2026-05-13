@@ -1,6 +1,7 @@
 -- US Stock Radar DB schema v1 draft.
 -- Review-only file. Do not apply to Supabase until explicitly approved.
 -- After this schema, apply docs/db/taxonomy_seed.sql for sector/theme seed rows.
+-- Seed event_types from lib/eventTypeRegistry.ts before inserting events.
 
 create extension if not exists pgcrypto;
 
@@ -79,6 +80,21 @@ create table if not exists sources (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists event_types (
+  code text primary key,
+  label text not null,
+  category text not null,
+  badge_tone text not null,
+  source_groups source_group[] not null default '{}',
+  status text not null default 'active',
+  covered_forms text[] not null default '{}',
+  description text,
+  examples jsonb not null default '[]'::jsonb,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists source_runs (
   id uuid primary key default gen_random_uuid(),
   source_code text not null references sources(code),
@@ -125,7 +141,7 @@ create table if not exists events (
   source_group source_group not null,
   ticker text,
   market text,
-  event_type text not null,
+  event_type text not null references event_types(code),
   score integer not null check (score >= 0 and score <= 100),
   delivery_level event_delivery_level not null,
   impact event_impact not null,

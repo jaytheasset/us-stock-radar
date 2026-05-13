@@ -20,7 +20,9 @@ GET /api/sources/health?full=true
 ```text
 /admin
 /admin/db
+/admin/event-types
 /admin/sources
+/admin/taxonomy
 /admin/prompts
 /admin/integrations
 ```
