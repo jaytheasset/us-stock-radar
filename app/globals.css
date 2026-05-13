@@ -752,6 +752,15 @@ td {
   line-height: 1.15;
 }
 
+.situation-window {
+  display: block;
+  margin-top: 2px;
+  color: #7d8aa0;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.1;
+}
+
 .situation-card p {
   margin-top: 5px;
   color: #62718b;
@@ -4478,7 +4487,8 @@ html[data-theme="dark"] .premium-card h2,
 html[data-theme="dark"] .sidebar-event-copy p,
 html[data-theme="dark"] .market-moving-row p,
 html[data-theme="dark"] .situation-card h2,
-html[data-theme="dark"] .situation-card p {
+html[data-theme="dark"] .situation-card p,
+html[data-theme="dark"] .situation-window {
   color: var(--muted);
 }
 

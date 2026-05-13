@@ -245,49 +245,49 @@ const situationCards = [
   {
     label: "Today's Alerts",
     value: "42",
-    delta: "+16.7%",
+    window: "Last 24H",
     tone: "positive",
     icon: "AL",
   },
   {
     label: "Dilution Risk",
     value: "14",
-    delta: "-7.1%",
+    window: "Last 7D",
     tone: "negative",
     icon: "DR",
   },
   {
     label: "Delisting Watch",
     value: "6",
-    delta: "+3",
+    window: "Last 30D",
     tone: "negative",
     icon: "DL",
   },
   {
     label: "Earnings",
     value: "31",
-    delta: "+9.4%",
+    window: "Last 7D",
     tone: "positive",
     icon: "ER",
   },
   {
     label: "Insider Buys",
     value: "18",
-    delta: "+5.8%",
+    window: "Last 14D",
     tone: "positive",
     icon: "IB",
   },
   {
     label: "Dividends",
     value: "24",
-    delta: "+2.1%",
+    window: "Last 30D",
     tone: "positive",
     icon: "DV",
   },
   {
     label: "FDA Catalysts",
     value: "9",
-    delta: "+4",
+    window: "Last 30D",
     tone: "positive",
     icon: "FD",
   },
@@ -377,6 +377,7 @@ export function FeedShell({
                   <div>
                     <h2>{card.label}</h2>
                     <strong>{card.value}</strong>
+                    <span className="situation-window">{card.window}</span>
                   </div>
                 </article>
               ))}
