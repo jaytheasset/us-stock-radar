@@ -16,6 +16,12 @@ export type MarketPulseItem = {
   tone: FeedTone;
 };
 
+export type SituationCardItem = {
+  label: string;
+  value: string;
+  window: string;
+};
+
 export type FeedItem = {
   id: string;
   time: string;
@@ -72,6 +78,8 @@ type FeedShellProps = {
   };
   dbError?: string;
   marketPulseItems?: MarketPulseItem[];
+  situationCards?: SituationCardItem[];
+  feedDateLabel?: string;
 };
 
 const fallbackFeedItems: FeedItem[] = [
@@ -248,9 +256,16 @@ const fallbackMarketPulse: MarketPulseItem[] = [
   { label: "GLD", value: "+0.34%", detail: "Gold", tone: "bullish" as const },
 ];
 
-const tabs = ["All", "News", "Filings", "Market", "Alerts", "Watchlist"];
+const tabs = [
+  { label: "All", value: "all" },
+  { label: "News", value: "news" },
+  { label: "Filings", value: "filings" },
+  { label: "Market", value: "market" },
+  { label: "Alerts", value: "alerts" },
+  { label: "Watchlist", value: "watchlist", disabled: true },
+];
 
-const situationCards = [
+const fallbackSituationCards: SituationCardItem[] = [
   {
     label: "Today's Alerts",
     value: "42",
@@ -308,7 +323,11 @@ export function FeedShell({
   pageInfo,
   dbError,
   marketPulseItems = fallbackMarketPulse,
+  situationCards = fallbackSituationCards,
+  feedDateLabel = defaultFeedDateLabel(),
 }: FeedShellProps) {
+  const activeTabValue = activeTab.trim().toLowerCase();
+
   return (
     <main className={`feed-page${pageVariant === "news" ? " news-feed-page" : ""}`}>
       <header className="feed-nav">
@@ -350,7 +369,7 @@ export function FeedShell({
           <div className="feed-heading">
             <div>
               <h1>Today</h1>
-              <span>May 13, 2026</span>
+              <span>{feedDateLabel}</span>
             </div>
             {showHeadingControls ? (
               <div className="feed-controls">
@@ -384,9 +403,19 @@ export function FeedShell({
           {showTabs ? (
             <div className="feed-tabs" aria-label="Feed filters">
               {tabs.map((tab) => (
-                <button className={tab === activeTab ? "active" : ""} type="button" key={tab}>
-                  {tab}
-                </button>
+                tab.disabled ? (
+                  <span className="disabled" aria-disabled="true" key={tab.value}>
+                    {tab.label}
+                  </span>
+                ) : (
+                  <a
+                    className={tab.value === activeTabValue ? "active" : ""}
+                    href={feedTabHref(tab.value, pageInfo?.limit ?? 20, paginationBasePath)}
+                    key={tab.value}
+                  >
+                    {tab.label}
+                  </a>
+                )
               ))}
             </div>
           ) : null}
@@ -404,7 +433,12 @@ export function FeedShell({
           </div>
 
           {pageInfo ? (
-            <FeedPagination basePath={paginationBasePath} pageInfo={pageInfo} showPageSizeControl={showPageSizeControl} />
+            <FeedPagination
+              activeTab={activeTabValue}
+              basePath={paginationBasePath}
+              pageInfo={pageInfo}
+              showPageSizeControl={showPageSizeControl}
+            />
           ) : null}
         </section>
 
@@ -446,11 +480,22 @@ export function FeedShell({
   );
 }
 
+function defaultFeedDateLabel() {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date());
+}
+
 function FeedPagination({
+  activeTab,
   basePath,
   pageInfo,
   showPageSizeControl,
 }: {
+  activeTab: string;
   basePath: string;
   pageInfo: {
     page: number;
@@ -481,7 +526,7 @@ function FeedPagination({
 
       <div className="feed-pagination-controls">
         {pageInfo.page > 1 ? (
-          <a href={feedPageHref(previousPage, pageInfo.limit, basePath)} className="pagination-step">
+          <a href={feedPageHref(previousPage, pageInfo.limit, basePath, activeTab)} className="pagination-step">
             <span aria-hidden="true">&lt;</span>
             Previous
           </a>
@@ -503,7 +548,7 @@ function FeedPagination({
                 {item}
               </strong>
             ) : (
-              <a href={feedPageHref(item, pageInfo.limit, basePath)} key={item}>
+              <a href={feedPageHref(item, pageInfo.limit, basePath, activeTab)} key={item}>
                 {item}
               </a>
             ),
@@ -511,7 +556,7 @@ function FeedPagination({
         </div>
 
         {pageInfo.hasNext ? (
-          <a href={feedPageHref(nextPage, pageInfo.limit, basePath)} className="pagination-step">
+          <a href={feedPageHref(nextPage, pageInfo.limit, basePath, activeTab)} className="pagination-step">
             Next
             <span aria-hidden="true">&gt;</span>
           </a>
@@ -528,7 +573,7 @@ function FeedPagination({
           <summary>{pageInfo.limit} per page</summary>
           <div>
             {[10, 20, 50, 100].map((limit) => (
-              <a className={limit === pageInfo.limit ? "active" : ""} href={feedPageHref(1, limit, basePath)} key={limit}>
+              <a className={limit === pageInfo.limit ? "active" : ""} href={feedPageHref(1, limit, basePath, activeTab)} key={limit}>
                 {limit} per page
               </a>
             ))}
@@ -562,13 +607,18 @@ function buildPaginationItems(currentPage: number, totalPages: number | null): A
   return [1, "ellipsis", currentPage - 1, currentPage, currentPage + 1, "ellipsis", totalPages];
 }
 
-function feedPageHref(page: number, limit: number, basePath = "/feed") {
+function feedPageHref(page: number, limit: number, basePath = "/feed", activeTab = "all") {
   const params = new URLSearchParams();
   params.set("page", String(page));
   if (limit !== 20) params.set("limit", String(limit));
+  if (activeTab && activeTab !== "all") params.set("tab", activeTab);
 
   const query = params.toString();
   return query ? `${basePath}?${query}` : basePath;
+}
+
+function feedTabHref(tab: string, limit: number, basePath = "/feed") {
+  return feedPageHref(1, limit, basePath, tab);
 }
 
 function FeedRow({ item, showChart }: { item: FeedItem; showChart: boolean }) {

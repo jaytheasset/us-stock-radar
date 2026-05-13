@@ -578,7 +578,9 @@ td {
 .icon-button,
 .avatar-button,
 .feed-controls button,
-.feed-tabs button {
+.feed-tabs button,
+.feed-tabs a,
+.feed-tabs span {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -797,7 +799,7 @@ td {
   margin-bottom: 26px;
 }
 
-.feed-tabs button {
+.feed-tabs :is(button, a, span) {
   min-width: 66px;
   min-height: 36px;
   border-radius: 6px;
@@ -805,12 +807,19 @@ td {
   color: #263755;
   font-size: 13px;
   font-weight: 700;
+  text-decoration: none;
 }
 
-.feed-tabs button.active {
+.feed-tabs :is(button, a).active {
   border-color: #9bbcff;
   color: #0f55ff;
   background: #edf4ff;
+}
+
+.feed-tabs span.disabled {
+  cursor: not-allowed;
+  color: #8a96aa;
+  background: #f5f7fa;
 }
 
 .news-search-filters {
@@ -3663,7 +3672,7 @@ td {
 }
 
 .feed-page :is(.source-badge, .event-type-badge, .signal-badge, .delivery-badge),
-.feed-page :is(.feed-tabs button, .feed-controls button, .news-filter-controls button, .map-range-controls button),
+.feed-page :is(.feed-tabs button, .feed-tabs a, .feed-tabs span, .feed-controls button, .news-filter-controls button, .map-range-controls button),
 .feed-page :is(.feed-pagination a, .feed-pagination strong, .feed-pagination .pagination-step),
 .feed-page :is(.source-activity-actions button, .premium-card button),
 .news-shell :is(.news-tabs button, .news-sort-button, .news-filter-row button, .news-panel-title button),
@@ -4273,6 +4282,8 @@ html[data-theme="dark"] .source-job-row,
 html[data-theme="dark"] .feed-search,
 html[data-theme="dark"] .icon-button,
 html[data-theme="dark"] .feed-tabs button,
+html[data-theme="dark"] .feed-tabs a,
+html[data-theme="dark"] .feed-tabs span,
 html[data-theme="dark"] .news-search-filters,
 html[data-theme="dark"] .news-filter-search,
 html[data-theme="dark"] .news-filter-controls button,
@@ -4323,7 +4334,7 @@ html[data-theme="dark"] .view-toggle span {
   background: var(--muted);
 }
 
-html[data-theme="dark"] .feed-tabs button.active,
+html[data-theme="dark"] .feed-tabs :is(button, a).active,
 html[data-theme="dark"] .feed-pagination strong,
 html[data-theme="dark"] .ranking-number,
 html[data-theme="dark"] .news-rank,
@@ -4342,6 +4353,11 @@ html[data-theme="dark"] .sidebar-score span {
   border-color: #315fbc;
   color: #8fb4ff;
   background: #152849;
+}
+
+html[data-theme="dark"] .feed-tabs span.disabled {
+  color: var(--muted);
+  background: var(--surface-muted);
 }
 
 html[data-theme="dark"] .sidebar-score-mini.filings strong {

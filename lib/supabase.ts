@@ -4,8 +4,26 @@ type FetchEventsParams = {
   limit: number;
   page?: number;
   ticker?: string;
+  sourceCode?: string;
   impact?: string;
   eventType?: string;
+  eventTypes?: string[];
+  sourceGroup?: "news" | "filings" | "market";
+  deliveryLevel?: "archive" | "feed" | "alert";
+  alertOnly?: boolean;
+  detectedAfter?: string;
+  keywordIlike?: string;
+};
+
+type FetchEventCountParams = Omit<FetchEventsParams, "limit" | "page">;
+
+type EventFilterParams = Omit<FetchEventsParams, "limit" | "page">;
+
+export type SupabaseCountResult = {
+  ok: boolean;
+  status: number;
+  count: number | null;
+  error?: string;
 };
 
 function cleanSupabaseUrl(value: string) {
@@ -46,9 +64,7 @@ export async function fetchEvents(params: FetchEventsParams) {
     offset: String((page - 1) * limit),
   };
 
-  if (params.ticker) search.ticker = `eq.${params.ticker.toUpperCase()}`;
-  if (params.impact) search.impact_level = `eq.${params.impact}`;
-  if (params.eventType) search.event_type = `eq.${params.eventType}`;
+  applyEventFilters(search, params);
 
   const result = await supabaseRest("events", search);
 
@@ -58,6 +74,24 @@ export async function fetchEvents(params: FetchEventsParams) {
     data: Array.isArray(result.data) ? result.data : [],
     count: Array.isArray(result.data) ? result.data.length : 0,
     total: result.count,
+    error: result.error,
+  };
+}
+
+export async function fetchEventCount(params: FetchEventCountParams): Promise<SupabaseCountResult> {
+  const search: Record<string, string> = {
+    select: "id",
+    limit: "1",
+  };
+
+  applyEventFilters(search, params);
+
+  const result = await supabaseRest("events", search);
+
+  return {
+    ok: result.ok,
+    status: result.status,
+    count: result.count ?? null,
     error: result.error,
   };
 }
@@ -77,6 +111,21 @@ export async function fetchEventById(id: string) {
     data,
     error: result.error,
   };
+}
+
+function applyEventFilters(search: Record<string, string>, params: EventFilterParams) {
+  if (params.ticker) search.ticker = `eq.${params.ticker.toUpperCase()}`;
+  if (params.sourceCode) search.source_code = `eq.${params.sourceCode}`;
+  if (params.impact) search.impact = `eq.${params.impact}`;
+  if (params.eventType) search.event_type = `eq.${params.eventType}`;
+  if (params.eventTypes?.length) search.event_type = `in.(${params.eventTypes.join(",")})`;
+  if (params.sourceGroup) search["metadata->>source_group"] = `eq.${params.sourceGroup}`;
+  if (params.deliveryLevel) {
+    search.delivery_level = params.deliveryLevel === "alert" ? "in.(alert,telegram)" : `eq.${params.deliveryLevel}`;
+  }
+  if (params.alertOnly) search["metadata->alert_policy->>visibility"] = "eq.alert";
+  if (params.detectedAfter) search.detected_at = `gte.${params.detectedAfter}`;
+  if (params.keywordIlike) search.keyword = `ilike.${params.keywordIlike}`;
 }
 
 async function supabaseRest(table: string, search: Record<string, string>) {

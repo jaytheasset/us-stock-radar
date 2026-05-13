@@ -8,10 +8,13 @@ export default async function Home() {
 
   return (
     <FeedShell
+      activeTab={viewModel.activeTab}
       feedItems={viewModel.feedItems}
+      feedDateLabel={viewModel.feedDateLabel}
       highImpactNews={viewModel.highImpactNews}
       alertFilings={viewModel.alertFilings}
       marketPulseItems={viewModel.marketPulseItems}
+      situationCards={viewModel.situationCards}
       pageInfo={{
         page: viewModel.page,
         limit: viewModel.limit,

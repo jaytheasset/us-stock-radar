@@ -1,9 +1,10 @@
 import { fetchDailyBars, fetchFmpQuotes, type MarketBar } from "@/lib/integrations";
 import { type RankedEvent } from "@/lib/radarRankings";
-import { fetchEventById, fetchEvents } from "@/lib/supabase";
+import { fetchEventById, fetchEventCount, fetchEvents } from "@/lib/supabase";
 
 export type FeedTone = "bullish" | "bearish" | "volatile" | "neutral";
 export type SourceGroup = "news" | "filings" | "market";
+export type FeedTab = "all" | "news" | "filings" | "market" | "alerts" | "watchlist";
 
 export type LiveFeedItem = {
   id: string;
@@ -36,6 +37,12 @@ export type MarketPulseItem = {
   tone: FeedTone;
 };
 
+export type SituationCardItem = {
+  label: string;
+  value: string;
+  window: string;
+};
+
 type DbEventRow = Record<string, unknown>;
 type QuoteRow = Record<string, unknown>;
 
@@ -51,12 +58,16 @@ const marketPulseSymbols = [
 export async function getLiveFeedViewModel({
   page,
   limit,
+  tab = "all",
 }: {
   page: number;
   limit: number;
+  tab?: FeedTab;
 }) {
+  const activeTab = normalizeFeedTab(tab);
+  const feedFilters = feedTabToEventFilters(activeTab);
   const [feedResult, rankingResult] = await Promise.all([
-    fetchEvents({ page, limit }),
+    fetchEvents({ page, limit, ...feedFilters }),
     fetchEvents({ page: 1, limit: 100 }),
   ]);
 
@@ -67,6 +78,7 @@ export async function getLiveFeedViewModel({
     fetchChartMap(feedRows),
     fetchMarketPulseItems(),
   ]);
+  const situationCards = await fetchSituationCards();
 
   const feedItems = feedRows.map((row) => mapEventRow(row, quotes, charts));
   const rankingItems = rankingRows.map((row) => mapEventRow(row, quotes));
@@ -76,6 +88,8 @@ export async function getLiveFeedViewModel({
     error: feedResult.error,
     page,
     limit,
+    activeTab,
+    feedDateLabel: formatFeedDate(new Date()),
     total: feedResult.total ?? null,
     hasNext:
       typeof feedResult.total === "number" ? page * limit < feedResult.total : feedRows.length === limit,
@@ -91,6 +105,7 @@ export async function getLiveFeedViewModel({
       .slice(0, 4)
       .map(toRankedEvent),
     marketPulseItems,
+    situationCards,
   };
 }
 
@@ -212,6 +227,59 @@ function hasIndividualTicker(value: string) {
   }
 
   return /^[A-Z][A-Z0-9.-]{0,9}$/.test(ticker);
+}
+
+export function normalizeFeedTab(value: string | undefined): FeedTab {
+  const normalized = (value || "all").trim().toLowerCase();
+  if (
+    normalized === "news" ||
+    normalized === "filings" ||
+    normalized === "market" ||
+    normalized === "alerts" ||
+    normalized === "watchlist"
+  ) {
+    return normalized;
+  }
+
+  return "all";
+}
+
+function feedTabToEventFilters(tab: FeedTab) {
+  if (tab === "news") return { sourceGroup: "news" as const };
+  if (tab === "filings") return { sourceGroup: "filings" as const };
+  if (tab === "market") return { sourceGroup: "market" as const };
+  if (tab === "alerts") return { alertOnly: true };
+  return {};
+}
+
+async function fetchSituationCards(): Promise<SituationCardItem[]> {
+  const now = new Date();
+  const counts = await Promise.all([
+    fetchEventCount({ alertOnly: true, detectedAfter: hoursAgo(now, 24) }),
+    fetchEventCount({
+      eventTypes: ["financing_dilution", "prospectus_supplement"],
+      detectedAfter: daysAgo(now, 7),
+    }),
+    fetchEventCount({ eventTypes: ["delisting_watch", "reverse_split"], detectedAfter: daysAgo(now, 30) }),
+    fetchEventCount({
+      eventTypes: ["earnings_result", "earnings_delay", "earnings_preview", "general_trigger"],
+      detectedAfter: daysAgo(now, 7),
+      keywordIlike: "*earn*",
+    }),
+    fetchEventCount({ eventTypes: ["insider_buy"], detectedAfter: daysAgo(now, 14) }),
+    fetchEventCount({ eventTypes: ["dividend", "dividend_distribution"], detectedAfter: daysAgo(now, 30) }),
+    fetchEventCount({ sourceCode: "fda", detectedAfter: daysAgo(now, 30) }),
+  ]);
+
+  return [
+    { label: "Today's Alerts", value: formatCount(counts[0].count), window: "Last 24H" },
+    { label: "Dilution Risk", value: formatCount(counts[1].count), window: "Last 7D" },
+    { label: "Delisting Watch", value: formatCount(counts[2].count), window: "Last 30D" },
+    { label: "Earnings", value: formatCount(counts[3].count), window: "Last 7D" },
+    { label: "Insider Buys", value: formatCount(counts[4].count), window: "Last 14D" },
+    { label: "Dividends", value: formatCount(counts[5].count), window: "Last 30D" },
+    { label: "FDA Catalysts", value: formatCount(counts[6].count), window: "Last 30D" },
+  ];
 }
 
 async function fetchQuoteMap(rows: DbEventRow[]) {
@@ -388,6 +456,31 @@ function formatDetectedTime(value: string) {
     minute: "2-digit",
     hour12: true,
   }).format(date);
+}
+
+function formatFeedDate(date: Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
+}
+
+function hoursAgo(now: Date, hours: number) {
+  const date = new Date(now);
+  date.setHours(date.getHours() - hours);
+  return date.toISOString();
+}
+
+function daysAgo(now: Date, days: number) {
+  const date = new Date(now);
+  date.setDate(date.getDate() - days);
+  return date.toISOString();
+}
+
+function formatCount(value: number | null) {
+  return typeof value === "number" ? value.toLocaleString("en-US") : "N/A";
 }
 
 function formatSource(value: string) {
