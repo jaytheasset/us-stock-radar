@@ -29,8 +29,24 @@ export type LiveFeedItem = {
   chartProvider: "polygon" | "fmp" | "none";
 };
 
+export type MarketPulseItem = {
+  label: string;
+  value: string;
+  detail: string;
+  tone: FeedTone;
+};
+
 type DbEventRow = Record<string, unknown>;
 type QuoteRow = Record<string, unknown>;
+
+const marketPulseSymbols = [
+  { symbol: "SPY", label: "SPY", detail: "Large caps" },
+  { symbol: "QQQ", label: "QQQ", detail: "Growth" },
+  { symbol: "IWM", label: "IWM", detail: "Small caps" },
+  { symbol: "DIA", label: "DIA", detail: "Dow" },
+  { symbol: "TLT", label: "TLT", detail: "Treasury bonds" },
+  { symbol: "GLD", label: "GLD", detail: "Gold" },
+];
 
 export async function getLiveFeedViewModel({
   page,
@@ -46,8 +62,11 @@ export async function getLiveFeedViewModel({
 
   const feedRows = toRows(feedResult.data);
   const rankingRows = toRows(rankingResult.data);
-  const quotes = await fetchQuoteMap([...feedRows, ...rankingRows]);
-  const charts = await fetchChartMap(feedRows);
+  const [quotes, charts, marketPulseItems] = await Promise.all([
+    fetchQuoteMap([...feedRows, ...rankingRows]),
+    fetchChartMap(feedRows),
+    fetchMarketPulseItems(),
+  ]);
 
   const feedItems = feedRows.map((row) => mapEventRow(row, quotes, charts));
   const rankingItems = rankingRows.map((row) => mapEventRow(row, quotes));
@@ -71,6 +90,7 @@ export async function getLiveFeedViewModel({
       .sort((a, b) => b.score - a.score)
       .slice(0, 3)
       .map(toRankedEvent),
+    marketPulseItems,
   };
 }
 
@@ -216,6 +236,30 @@ async function fetchQuoteMap(rows: DbEventRow[]) {
   return new Map<string, QuoteRow>(entries);
 }
 
+async function fetchMarketPulseItems(): Promise<MarketPulseItem[]> {
+  const result = await fetchFmpQuotes(marketPulseSymbols.map((item) => item.symbol));
+  const data = Array.isArray(result.data) ? result.data : [];
+  const quoteMap = new Map(
+    data
+      .filter((row): row is QuoteRow => Boolean(row) && typeof row === "object")
+      .map((row) => [readString(row, ["symbol"]).toUpperCase(), row] as [string, QuoteRow])
+      .filter(([symbol]) => Boolean(symbol)),
+  );
+
+  return marketPulseSymbols.map((item) => {
+    const quote = quoteMap.get(item.symbol);
+    const changePct = readNumber(quote, ["changePercentage", "changesPercentage"]);
+    const tone = deriveMarketPulseTone(changePct);
+
+    return {
+      label: item.label,
+      value: Number.isFinite(changePct) ? formatSignedPercent(changePct) : "N/A",
+      detail: item.detail,
+      tone,
+    };
+  });
+}
+
 type ChartResult = {
   bars: MarketBar[];
   provider: "polygon" | "fmp" | "none";
@@ -262,6 +306,18 @@ function formatQuote(quote?: QuoteRow) {
     change: Number.isFinite(changePct) ? `${sign}${Math.abs(changePct).toFixed(2)}%` : "+0.00%",
     updatedAt: timestamp ? formatDetectedTime(new Date(timestamp * 1000).toISOString()) : "",
   };
+}
+
+function deriveMarketPulseTone(changePct: number): FeedTone {
+  if (!Number.isFinite(changePct)) return "neutral";
+  if (changePct > 0.05) return "bullish";
+  if (changePct < -0.05) return "bearish";
+  return "neutral";
+}
+
+function formatSignedPercent(value: number) {
+  const sign = value < 0 ? "-" : "+";
+  return `${sign}${Math.abs(value).toFixed(2)}%`;
 }
 
 function deriveSourceGroup(row: DbEventRow): SourceGroup {

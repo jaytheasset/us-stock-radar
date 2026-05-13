@@ -11,6 +11,7 @@ export default async function Home() {
       feedItems={viewModel.feedItems}
       highImpactNews={viewModel.highImpactNews}
       alertFilings={viewModel.alertFilings}
+      marketPulseItems={viewModel.marketPulseItems}
       pageInfo={{
         page: viewModel.page,
         limit: viewModel.limit,

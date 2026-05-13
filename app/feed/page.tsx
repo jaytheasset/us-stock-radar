@@ -22,6 +22,7 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
       feedItems={viewModel.feedItems}
       highImpactNews={viewModel.highImpactNews}
       alertFilings={viewModel.alertFilings}
+      marketPulseItems={viewModel.marketPulseItems}
       pageInfo={{
         page: viewModel.page,
         limit: viewModel.limit,

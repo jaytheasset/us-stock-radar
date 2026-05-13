@@ -9,6 +9,13 @@ import type { MarketBar } from "@/lib/integrations";
 type FeedTone = "bullish" | "bearish" | "volatile" | "neutral";
 type SourceGroup = "news" | "filings" | "market";
 
+export type MarketPulseItem = {
+  label: string;
+  value: string;
+  detail: string;
+  tone: FeedTone;
+};
+
 export type FeedItem = {
   id: string;
   time: string;
@@ -64,6 +71,7 @@ type FeedShellProps = {
     itemCount: number;
   };
   dbError?: string;
+  marketPulseItems?: MarketPulseItem[];
 };
 
 const fallbackFeedItems: FeedItem[] = [
@@ -231,13 +239,13 @@ const marketMovingNews = [
   },
 ];
 
-const marketPulse = [
+const fallbackMarketPulse: MarketPulseItem[] = [
   { label: "SPY", value: "+0.42%", detail: "Large caps", tone: "bullish" as const },
   { label: "QQQ", value: "+0.68%", detail: "Growth", tone: "bullish" as const },
   { label: "IWM", value: "-0.11%", detail: "Small caps", tone: "bearish" as const },
-  { label: "VIX", value: "18.4", detail: "Volatility", tone: "neutral" as const },
-  { label: "10Y", value: "4.31%", detail: "Treasury", tone: "volatile" as const },
-  { label: "DXY", value: "104.2", detail: "Dollar", tone: "neutral" as const },
+  { label: "DIA", value: "+0.18%", detail: "Dow", tone: "bullish" as const },
+  { label: "TLT", value: "-0.21%", detail: "Treasury bonds", tone: "bearish" as const },
+  { label: "GLD", value: "+0.34%", detail: "Gold", tone: "bullish" as const },
 ];
 
 const tabs = ["All", "News", "Filings", "Market", "Alerts", "Watchlist"];
@@ -299,6 +307,7 @@ export function FeedShell({
   showPageSizeControl = true,
   pageInfo,
   dbError,
+  marketPulseItems = fallbackMarketPulse,
 }: FeedShellProps) {
   return (
     <main className={`feed-page${pageVariant === "news" ? " news-feed-page" : ""}`}>
@@ -409,7 +418,7 @@ export function FeedShell({
           ) : sidebarMode === "default" ? (
             <>
               <SidebarPanel title="Market Pulse">
-                <MarketPulseGrid items={marketPulse} />
+                <MarketPulseGrid items={marketPulseItems} />
               </SidebarPanel>
 
               <SidebarPanel title="Market-Moving News">
@@ -753,12 +762,7 @@ function MarketMovingList({
 function MarketPulseGrid({
   items,
 }: {
-  items: Array<{
-    label: string;
-    value: string;
-    detail: string;
-    tone: FeedTone;
-  }>;
+  items: MarketPulseItem[];
 }) {
   return (
     <div className="market-pulse-grid">
