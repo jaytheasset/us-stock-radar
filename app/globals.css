@@ -1713,16 +1713,16 @@ td {
 }
 
 .industry-ticker-list .ticker-mover {
-  color: #52627f;
+  color: #5f6f88;
   font-weight: 400;
 }
 
 .industry-ticker-list .ticker-mover.bullish {
-  color: #12833a;
+  color: #5f6f88;
 }
 
 .industry-ticker-list .ticker-mover.bearish {
-  color: #d92d20;
+  color: #9a5d5b;
 }
 
 .sector-detail-row span {
@@ -1747,14 +1747,14 @@ td {
 
 .trend-mini polyline {
   fill: none;
-  stroke: #16a34a;
+  stroke: #8da0ba;
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 2;
 }
 
 .trend-mini.bearish polyline {
-  stroke: #e53935;
+  stroke: #9aa6b8;
 }
 
 .sector-detail-foot {
@@ -4401,11 +4401,16 @@ html[data-theme="dark"] .industry-ticker-list .ticker-list-label {
 }
 
 html[data-theme="dark"] .industry-ticker-list .ticker-mover.bullish {
-  color: #6ee79e;
+  color: var(--muted);
 }
 
 html[data-theme="dark"] .industry-ticker-list .ticker-mover.bearish {
-  color: #ff8a82;
+  color: #d9a3a0;
+}
+
+html[data-theme="dark"] .trend-mini polyline,
+html[data-theme="dark"] .trend-mini.bearish polyline {
+  stroke: #7f8da3;
 }
 
 html[data-theme="dark"] .sector-mover-card {
