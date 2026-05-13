@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: us-stock-radar
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start -- -p $PORT
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: APP_BASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: FMP_API_KEY
+        sync: false
+      - key: POLYGON_API_KEY
+        sync: false
+      - key: NAS_BASE_URL
+        sync: false
+      - key: NAS_INGEST_TOKEN
+        sync: false
+      - key: FDA_INGEST_URL
+        sync: false
+      - key: ACCESSWIRE_INGEST_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-5-mini
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
