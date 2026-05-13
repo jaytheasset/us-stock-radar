@@ -1151,8 +1151,8 @@ td {
 .event-type-badge {
   flex-direction: column;
   border: 1px solid #b9cffd;
-  min-width: 74px;
-  padding: 4px 9px;
+  min-width: 88px;
+  padding: 5px 10px;
   color: #0f55ff;
   background: #eef5ff;
   gap: 2px;
