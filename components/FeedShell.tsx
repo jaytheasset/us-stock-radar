@@ -246,50 +246,36 @@ const situationCards = [
     label: "Today's Alerts",
     value: "42",
     window: "Last 24H",
-    tone: "positive",
-    icon: "AL",
   },
   {
     label: "Dilution Risk",
     value: "14",
     window: "Last 7D",
-    tone: "negative",
-    icon: "DR",
   },
   {
     label: "Delisting Watch",
     value: "6",
     window: "Last 30D",
-    tone: "negative",
-    icon: "DL",
   },
   {
     label: "Earnings",
     value: "31",
     window: "Last 7D",
-    tone: "positive",
-    icon: "ER",
   },
   {
     label: "Insider Buys",
     value: "18",
     window: "Last 14D",
-    tone: "positive",
-    icon: "IB",
   },
   {
     label: "Dividends",
     value: "24",
     window: "Last 30D",
-    tone: "positive",
-    icon: "DV",
   },
   {
     label: "FDA Catalysts",
     value: "9",
     window: "Last 30D",
-    tone: "positive",
-    icon: "FD",
   },
 ];
 
@@ -373,7 +359,6 @@ export function FeedShell({
             <section className="situation-strip" aria-label="Market situation board">
               {situationCards.map((card) => (
                 <article className="situation-card" key={card.label}>
-                  <div className={`situation-icon ${card.tone}`}>{card.icon}</div>
                   <div>
                     <h2>{card.label}</h2>
                     <strong>{card.value}</strong>
