@@ -80,6 +80,35 @@ export default async function AdminDbPage() {
 
       <section className="data-panel">
         <div className="panel-header">
+          <h2>Live Feed Field Contract</h2>
+          <span className="muted">Canonical column first, legacy read fallback until DB migration</span>
+        </div>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Field</th>
+                <th>Canonical</th>
+                <th>Fallback</th>
+                <th>Usage</th>
+              </tr>
+            </thead>
+            <tbody>
+              {readout.liveFeedEventFieldContract.map((row) => (
+                <tr key={row.field}>
+                  <td className="ticker">{row.field}</td>
+                  <td>{row.canonical}</td>
+                  <td>{row.legacyFallback}</td>
+                  <td>{row.usage}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="data-panel">
+        <div className="panel-header">
           <h2>Current Supabase Reference</h2>
           <span className="muted">Existing DB, not the new contract</span>
         </div>

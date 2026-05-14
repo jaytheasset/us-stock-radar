@@ -25,6 +25,39 @@ export const eventScoringPolicy = {
   signal: ["bullish", "bearish", "volatile", "neutral"],
 };
 
+export const liveFeedEventFieldContract = [
+  {
+    field: "source_group",
+    canonical: "events.source_group",
+    legacyFallback: "events.metadata.source_group, then source_code/event_type heuristic",
+    usage: "Live Feed tabs, notification filters, cross-source dedupe scope.",
+  },
+  {
+    field: "quick_take",
+    canonical: "events.quick_take",
+    legacyFallback: "events.metadata.quick_take, then events.summary",
+    usage: "One-line text under the feed headline.",
+  },
+  {
+    field: "score",
+    canonical: "events.score",
+    legacyFallback: "events.metadata.score/event_score/alert_score, then impact + confidence derived score",
+    usage: "Ranking and delivery threshold calculation.",
+  },
+  {
+    field: "delivery_level",
+    canonical: "events.delivery_level",
+    legacyFallback: "events.metadata.delivery_level or events.metadata.alert_policy.visibility, then score thresholds",
+    usage: "Archive/feed/alert visibility and alert tab filtering.",
+  },
+  {
+    field: "signal",
+    canonical: "events.signal",
+    legacyFallback: "events.metadata.signal, events.market_direction, or events.direction",
+    usage: "Bullish/bearish/volatile/neutral UI badge and filters.",
+  },
+];
+
 export const taxonomyTickerFlow = [
   {
     step: "1",

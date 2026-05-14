@@ -1,4 +1,5 @@
 import { fetchDailyBars, fetchFmpQuotes, type MarketBar } from "@/lib/integrations";
+import { resolveCanonicalEventFields } from "@/lib/eventFieldMapping";
 import { type RankedEvent } from "@/lib/radarRankings";
 import { fetchEventById, fetchEventCount, fetchEvents } from "@/lib/supabase";
 
@@ -156,9 +157,7 @@ function mapEventRow(
   const ticker = readString(row, ["ticker", "symbol"]) || "N/A";
   const quote = quotes.get(ticker.toUpperCase());
   const chart = charts.get(ticker.toUpperCase());
-  const score = deriveScore(row);
-  const impact = deriveImpact(row);
-  const signal = deriveSignal(row);
+  const canonical = resolveCanonicalEventFields(row);
   const detectedAt = readString(row, ["detected_at", "created_at", "event_date"]);
   const quoteValues = formatQuote(quote);
   const summary =
@@ -166,10 +165,7 @@ function mapEventRow(
     readMetadataString(row, ["summary", "long_summary"]) ||
     readString(row, ["reason"]) ||
     "No summary available yet.";
-  const quickTake =
-    readString(row, ["quick_take", "quickTake", "quick_take_text"]) ||
-    readMetadataString(row, ["quick_take", "quickTake", "quick_take_text"]) ||
-    summary;
+  const quickTake = canonical.quickTake || summary;
 
   return {
     id: readString(row, ["id"]) || `${ticker}-${detectedAt || "event"}`,
@@ -179,7 +175,7 @@ function mapEventRow(
     changeAmount: quoteValues.changeAmount,
     change: quoteValues.change,
     updatedAt: quoteValues.updatedAt || formatDetectedTime(detectedAt),
-    sourceGroup: deriveSourceGroup(row),
+    sourceGroup: canonical.sourceGroup,
     source: formatSource(readString(row, ["source_code", "source", "source_channel"])),
     eventType: readString(row, ["event_type"]) || "event",
     title: readString(row, ["title"]) || "Untitled event",
@@ -189,11 +185,11 @@ function mapEventRow(
       readString(row, ["reason", "score_reason"]) ||
       summary ||
       "Event score was derived from the available database fields.",
-    score,
-    deliveryLevel: deriveDeliveryLevel(row, score),
-    impact,
-    signal,
-    trend: buildTrend(signal, score),
+    score: canonical.score,
+    deliveryLevel: canonical.deliveryLevel,
+    impact: canonical.impact,
+    signal: canonical.signal,
+    trend: buildTrend(canonical.signal, canonical.score),
     chartBars: chart?.bars || [],
     chartProvider: chart?.provider || "none",
   };
