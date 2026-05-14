@@ -25,6 +25,29 @@ export const eventScoringPolicy = {
   signal: ["bullish", "bearish", "volatile", "neutral"],
 };
 
+export const taxonomyTickerFlow = [
+  {
+    step: "1",
+    table: "tickers",
+    purpose: "Stores raw FMP sector/industry for each symbol.",
+  },
+  {
+    step: "2",
+    table: "fmp_industry_mappings",
+    purpose: "Maps raw FMP industry into our sector and sub-category tree.",
+  },
+  {
+    step: "3",
+    table: "ticker_classifications",
+    purpose: "Stores the current ticker-to-sector/sub-category assignment, including manual overrides.",
+  },
+  {
+    step: "4",
+    table: "market_group_snapshots",
+    purpose: "Caches sector/sub-category performance and top symbols for Market tab and value-map UI.",
+  },
+];
+
 export const canonicalTables: CanonicalTable[] = [
   {
     name: "sources",

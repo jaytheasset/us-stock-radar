@@ -1,4 +1,9 @@
-import { currentReferenceTables, canonicalTables, eventScoringPolicy } from "@/lib/dbRegistry";
+import {
+  currentReferenceTables,
+  canonicalTables,
+  eventScoringPolicy,
+  taxonomyTickerFlow,
+} from "@/lib/dbRegistry";
 import { getServerEnv } from "@/lib/env";
 
 export async function getDbReadout() {
@@ -9,6 +14,7 @@ export async function getDbReadout() {
     generatedAt: new Date().toISOString(),
     mode: "read-only",
     eventScoringPolicy,
+    taxonomyTickerFlow,
     canonicalTables,
     currentReference: counts,
   };

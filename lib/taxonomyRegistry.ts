@@ -362,7 +362,7 @@ export const taxonomyCanonicalTables = [
     col("sort_order", "integer", "Admin display order", true),
     col("is_active", "boolean", "Visible and usable flag", true),
   ]),
-  table("market_sub_categories", "Sector child buckets used by filters and market-moving views.", [
+  table("market_sub_categories", "Sector child buckets used by filters and market-moving views. Static ticker lists do not live here; ticker membership comes from ticker_classifications.", [
     col("sector_code", "text", "References market_sectors.code", true),
     col("slug", "text", "Stable sub-category slug", true),
     col("name", "text", "Display name", true),
@@ -387,7 +387,7 @@ export const taxonomyCanonicalTables = [
     col("sort_order", "integer", "Admin display order", true),
     col("is_active", "boolean", "Visible and usable flag", true),
   ]),
-  table("ticker_classifications", "Current classification for a ticker with room for rule, LLM, and manual override.", [
+  table("ticker_classifications", "Current ticker-to-sector/sub-category assignment. This is the sector ticker membership table, generated from FMP mappings with room for manual override.", [
     col("symbol", "text", "References tickers.symbol", true),
     col("sector_code", "text", "Current canonical sector"),
     col("sub_category_slug", "text", "Current canonical sub-category"),
@@ -397,6 +397,21 @@ export const taxonomyCanonicalTables = [
     col("reason", "text", "Short classification reason"),
     col("updated_at", "timestamptz", "Last classification update", true),
     col("metadata", "jsonb", "Rule hits, LLM trace, and source payload"),
+  ]),
+  table("market_group_snapshots", "Cached sector and sub-category market performance for Market tab, value maps, and top-mover lists.", [
+    col("id", "uuid", "Primary key", true),
+    col("scope", "text", "sector or sub_category", true),
+    col("sector_code", "text", "References market_sectors.code", true),
+    col("sub_category_slug", "text", "References market_sub_categories.slug when scope is sub_category"),
+    col("window", "text", "1d, 5d, 1m, or 3m", true),
+    col("as_of", "timestamptz", "Snapshot time", true),
+    col("change_pct", "numeric", "Weighted or average percentage change for the group", true),
+    col("volume", "numeric", "Aggregate or representative trading volume"),
+    col("market_cap", "numeric", "Aggregate market cap for the group"),
+    col("ticker_count", "integer", "Number of active symbols included", true),
+    col("top_symbols", "jsonb", "Top movers in the group, e.g. [{symbol, price, change_pct, volume}]", true),
+    col("source", "text", "fmp, polygon, calculated, or mixed", true),
+    col("metadata", "jsonb", "Calculation method, provider payload references, and exclusions"),
   ]),
   table("ticker_theme_members", "Ticker-to-theme membership for watchlists, rankings, and market-moving views.", [
     col("symbol", "text", "References tickers.symbol", true),

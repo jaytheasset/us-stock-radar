@@ -111,6 +111,33 @@ export default async function AdminDbPage() {
         </div>
       </section>
 
+      <section className="data-panel">
+        <div className="panel-header">
+          <h2>Sector Ticker Flow</h2>
+          <span className="muted">FMP-driven ticker membership, not static sector ticker lists</span>
+        </div>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Step</th>
+                <th>Table</th>
+                <th>Purpose</th>
+              </tr>
+            </thead>
+            <tbody>
+              {readout.taxonomyTickerFlow.map((step) => (
+                <tr key={step.step}>
+                  <td className="ticker">{step.step}</td>
+                  <td className="ticker">{step.table}</td>
+                  <td>{step.purpose}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <section className="definition-list">
         {readout.canonicalTables.map((table) => (
           <article className="definition-card" key={table.name}>
