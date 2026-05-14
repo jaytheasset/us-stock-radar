@@ -162,7 +162,6 @@ function mapEventRow(
   const quoteValues = formatQuote(quote);
   const summary =
     readString(row, ["summary"]) ||
-    readMetadataString(row, ["summary", "long_summary"]) ||
     readString(row, ["reason"]) ||
     "No summary available yet.";
   const quickTake = canonical.quickTake || summary;
@@ -384,54 +383,6 @@ function formatSignedPercent(value: number) {
   return `${sign}${Math.abs(value).toFixed(2)}%`;
 }
 
-function deriveSourceGroup(row: DbEventRow): SourceGroup {
-  const value = readString(row, ["source_group"]).toLowerCase();
-  if (value === "news" || value === "filings" || value === "market") return value;
-
-  const source = `${readString(row, ["source_code"])} ${readString(row, ["source_channel"])} ${readString(row, ["event_type"])}`.toLowerCase();
-  if (source.includes("sec") || source.includes("edgar") || /\b(8-k|10-k|10-q|s-1|form4|filing)\b/.test(source)) {
-    return "filings";
-  }
-  if (source.includes("fmp") || source.includes("polygon") || source.includes("market")) {
-    return "market";
-  }
-  return "news";
-}
-
-function deriveImpact(row: DbEventRow): "high" | "medium" | "low" {
-  const impact = readString(row, ["impact", "impact_level"]).toLowerCase();
-  if (impact === "high" || impact === "medium" || impact === "low") return impact;
-  return "medium";
-}
-
-function deriveSignal(row: DbEventRow): FeedTone {
-  const value = readString(row, ["signal", "market_direction", "direction"]).toLowerCase();
-  if (value === "bullish" || value === "up") return "bullish";
-  if (value === "bearish" || value === "down") return "bearish";
-  if (value === "volatile" || value === "volatility_watch" || value === "mixed") return "volatile";
-  return "neutral";
-}
-
-function deriveScore(row: DbEventRow) {
-  const directScore = readNumber(row, ["score"]);
-  if (Number.isFinite(directScore)) return clampScore(directScore);
-
-  const impact = deriveImpact(row);
-  const confidence = readString(row, ["confidence"]).toLowerCase();
-  const base = impact === "high" ? 82 : impact === "medium" ? 68 : 52;
-  const confidenceBoost = confidence === "high" ? 4 : confidence === "low" ? -4 : 0;
-
-  return clampScore(base + confidenceBoost);
-}
-
-function deriveDeliveryLevel(row: DbEventRow, score: number): "archive" | "feed" | "alert" {
-  const value = readString(row, ["delivery_level", "impact_level"]).toLowerCase();
-  if (value === "archive" || value === "feed" || value === "alert") return value;
-  if (score >= 75) return "alert";
-  if (score >= 50) return "feed";
-  return "archive";
-}
-
 function buildTrend(signal: FeedTone, score: number) {
   const start = signal === "bearish" ? 50 : 22;
   const direction = signal === "bearish" ? -1 : signal === "neutral" ? 0 : 1;
@@ -529,18 +480,6 @@ function readString(row: DbEventRow | QuoteRow | undefined, keys: string[]) {
   return "";
 }
 
-function readMetadataString(row: DbEventRow | undefined, keys: string[]) {
-  const metadata = row?.metadata;
-  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return "";
-
-  for (const key of keys) {
-    const value = (metadata as Record<string, unknown>)[key];
-    if (typeof value === "string" && value.trim()) return value.trim();
-  }
-
-  return "";
-}
-
 function readNumber(row: DbEventRow | QuoteRow | undefined, keys: string[]) {
   if (!row) return Number.NaN;
 
@@ -553,8 +492,4 @@ function readNumber(row: DbEventRow | QuoteRow | undefined, keys: string[]) {
   }
 
   return Number.NaN;
-}
-
-function clampScore(value: number) {
-  return Math.max(0, Math.min(100, Math.round(value)));
 }

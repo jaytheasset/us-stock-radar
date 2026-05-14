@@ -81,15 +81,15 @@ export default async function AdminDbPage() {
       <section className="data-panel">
         <div className="panel-header">
           <h2>Live Feed Field Contract</h2>
-          <span className="muted">Canonical column first, legacy read fallback until DB migration</span>
+          <span className="muted">Canonical events columns used by feed reads, filters, and rankings</span>
         </div>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
                 <th>Field</th>
-                <th>Canonical</th>
-                <th>Fallback</th>
+                <th>Column</th>
+                <th>Required</th>
                 <th>Usage</th>
               </tr>
             </thead>
@@ -97,8 +97,8 @@ export default async function AdminDbPage() {
               {readout.liveFeedEventFieldContract.map((row) => (
                 <tr key={row.field}>
                   <td className="ticker">{row.field}</td>
-                  <td>{row.canonical}</td>
-                  <td>{row.legacyFallback}</td>
+                  <td>{row.column}</td>
+                  <td>{row.required ? "Yes" : "No"}</td>
                   <td>{row.usage}</td>
                 </tr>
               ))}

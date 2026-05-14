@@ -28,32 +28,32 @@ export const eventScoringPolicy = {
 export const liveFeedEventFieldContract = [
   {
     field: "source_group",
-    canonical: "events.source_group",
-    legacyFallback: "events.metadata.source_group, then source_code/event_type heuristic",
+    column: "events.source_group",
+    required: true,
     usage: "Live Feed tabs, notification filters, cross-source dedupe scope.",
   },
   {
     field: "quick_take",
-    canonical: "events.quick_take",
-    legacyFallback: "events.metadata.quick_take, then events.summary",
+    column: "events.quick_take",
+    required: false,
     usage: "One-line text under the feed headline.",
   },
   {
     field: "score",
-    canonical: "events.score",
-    legacyFallback: "events.metadata.score/event_score/alert_score, then impact + confidence derived score",
+    column: "events.score",
+    required: true,
     usage: "Ranking and delivery threshold calculation.",
   },
   {
     field: "delivery_level",
-    canonical: "events.delivery_level",
-    legacyFallback: "events.metadata.delivery_level or events.metadata.alert_policy.visibility, then score thresholds",
+    column: "events.delivery_level",
+    required: true,
     usage: "Archive/feed/alert visibility and alert tab filtering.",
   },
   {
     field: "signal",
-    canonical: "events.signal",
-    legacyFallback: "events.metadata.signal, events.market_direction, or events.direction",
+    column: "events.signal",
+    required: true,
     usage: "Bullish/bearish/volatile/neutral UI badge and filters.",
   },
 ];
