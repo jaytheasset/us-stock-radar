@@ -1,9 +1,18 @@
 import Link from "next/link";
-import { sectorMappings, taxonomyStats, themeGroups } from "@/lib/taxonomyRegistry";
+import {
+  sectorMappings,
+  taxonomyStats,
+  themeGroups,
+  themeSubThemes,
+} from "@/lib/taxonomyRegistry";
 
 export const dynamic = "force-dynamic";
 
 const sectors = Array.from(new Set(sectorMappings.map((item) => item.sector)));
+const subThemeCounts = themeSubThemes.reduce<Record<string, number>>((counts, subTheme) => {
+  counts[subTheme.themeGroupSlug] = (counts[subTheme.themeGroupSlug] || 0) + 1;
+  return counts;
+}, {});
 
 export default function AdminTaxonomyPage() {
   return (
@@ -39,6 +48,11 @@ export default function AdminTaxonomyPage() {
           <span className="status-value">{taxonomyStats.themeGroups}</span>
           <span className="pill ok">{taxonomyStats.implementedThemes} implemented</span>
         </article>
+        <article className="status-tile">
+          <span className="status-label">Sub Themes</span>
+          <span className="status-value">{taxonomyStats.themeSubThemes}</span>
+          <span className="pill ok">{taxonomyStats.implementedSubThemes} implemented</span>
+        </article>
       </section>
 
       <section className="data-panel">
@@ -53,12 +67,58 @@ export default function AdminTaxonomyPage() {
                 <h3>{theme.name}</h3>
                 <code>{theme.slug}</code>
                 <p className="muted">{theme.description}</p>
+                <p className="muted">{subThemeCounts[theme.slug] || 0} sub themes</p>
               </div>
               <span className={`pill ${theme.status === "implemented" ? "ok" : ""}`}>
                 {theme.status}
               </span>
             </article>
           ))}
+        </div>
+      </section>
+
+      <section className="data-panel">
+        <div className="panel-header">
+          <h2>Theme Sub Themes</h2>
+          <span className="muted">manual keywords and seed symbols for LLM/event matching</span>
+        </div>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Theme Group</th>
+                <th>Sub Theme</th>
+                <th>Keywords</th>
+                <th>Seed Symbols</th>
+                <th>Description</th>
+                <th>Sources</th>
+              </tr>
+            </thead>
+            <tbody>
+              {themeSubThemes.map((subTheme) => (
+                <tr key={subTheme.slug}>
+                  <td>
+                    <code>{subTheme.themeGroupSlug}</code>
+                  </td>
+                  <td className="ticker">
+                    {subTheme.name}
+                    <br />
+                    <code>{subTheme.slug}</code>
+                  </td>
+                  <td>{subTheme.keywords.join(", ")}</td>
+                  <td>{subTheme.seedSymbols.join(", ")}</td>
+                  <td>{subTheme.description}</td>
+                  <td>
+                    {subTheme.references.map((reference) => (
+                      <a className="text-link" href={reference.url} key={reference.url}>
+                        {reference.label}
+                      </a>
+                    ))}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
 

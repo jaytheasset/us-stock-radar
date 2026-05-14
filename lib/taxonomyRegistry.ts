@@ -9,6 +9,21 @@ export type ThemeGroup = {
   sortOrder: number;
 };
 
+export type ThemeSubTheme = {
+  slug: string;
+  themeGroupSlug: string;
+  name: string;
+  status: ThemeGroupStatus;
+  keywords: string[];
+  seedSymbols: string[];
+  description: string;
+  references: Array<{
+    label: string;
+    url: string;
+  }>;
+  sortOrder: number;
+};
+
 export type SectorMapping = {
   sector: string;
   subCategory: string;
@@ -74,6 +89,156 @@ export const themeGroups: ThemeGroup[] = [
     description: "Regulatory, agency, court, White House, and enforcement actions with market impact.",
     sortOrder: 80,
   },
+];
+
+export const themeSubThemes: ThemeSubTheme[] = [
+  subTheme(
+    "ai_data_center",
+    "ai_infrastructure",
+    "AI Infrastructure",
+    [
+      "AI factory",
+      "accelerated computing",
+      "GPU cluster",
+      "AI server",
+      "rack-scale architecture",
+      "liquid cooling",
+      "optical interconnect",
+      "InfiniBand",
+      "Ethernet",
+      "NVLink",
+      "DPU",
+      "power/cooling",
+      "sovereign AI",
+    ],
+    ["NVDA", "AMD", "AVGO", "MRVL", "ANET", "DELL", "SMCI", "VRT", "ETN", "CLS"],
+    "Full-stack infrastructure for AI training and inference, including compute, networking, storage, power, and cooling at rack or data-center scale.",
+    [{ label: "NVIDIA Data Center", url: "https://www.nvidia.com/en-us/data-center/" }],
+    10,
+  ),
+  subTheme(
+    "ai_data_center",
+    "ai_data_centers",
+    "AI Data Centers",
+    [
+      "hyperscale data center",
+      "colocation",
+      "neocloud",
+      "GPU cloud",
+      "AI cloud",
+      "data center REIT",
+      "leased GPU capacity",
+      "power-backed campus",
+      "sovereign cloud",
+      "AI hosting",
+    ],
+    ["EQIX", "DLR", "CRWV", "NBIS", "IREN", "AMZN", "MSFT", "GOOGL", "ORCL"],
+    "Physical data-center, colocation, REIT, and GPU-cloud operators that provide large-scale AI compute capacity.",
+    [
+      { label: "CoreWeave Investor Relations", url: "https://investors.coreweave.com/overview/default.aspx" },
+    ],
+    20,
+  ),
+  subTheme(
+    "ai_data_center",
+    "ai_chips_hbm",
+    "AI Chips & HBM",
+    [
+      "GPU",
+      "AI accelerator",
+      "custom ASIC",
+      "HBM3E",
+      "HBM4",
+      "HBM4E",
+      "CoWoS",
+      "advanced packaging",
+      "chiplet",
+      "interposer",
+      "memory bandwidth",
+      "server DRAM",
+      "CXL",
+    ],
+    ["NVDA", "AMD", "AVGO", "MRVL", "TSM", "ASML", "AMAT", "LRCX", "MU"],
+    "AI compute supply chain focused on accelerators, high-bandwidth memory, advanced packaging, and memory bandwidth bottlenecks.",
+    [{ label: "Micron HBM4", url: "https://www.micron.com/products/memory/hbm/hbm4" }],
+    30,
+  ),
+  subTheme(
+    "ai_data_center",
+    "ai_software_agents",
+    "AI Software Agents",
+    [
+      "AI agent",
+      "agentic AI",
+      "Copilot",
+      "autonomous workflow",
+      "tool calling",
+      "RAG",
+      "reasoning model",
+      "inference token",
+      "multi-step task",
+      "workflow automation",
+      "enterprise AI",
+    ],
+    ["MSFT", "GOOGL", "AMZN", "META", "CRM", "NOW", "PLTR", "SNOW", "ORCL", "ADBE"],
+    "Software and platform layer that can indirectly increase inference demand through agents, tool use, retrieval, and enterprise workflow automation.",
+    [{ label: "OpenAI Agents Tools", url: "https://openai.com/index/new-tools-for-building-agents/" }],
+    40,
+  ),
+  subTheme(
+    "ai_data_center",
+    "cloud_capex",
+    "Cloud Capex",
+    [
+      "hyperscaler capex",
+      "AI capex",
+      "cloud infrastructure buildout",
+      "GPU procurement",
+      "finance lease",
+      "technical infrastructure",
+      "server capex",
+      "data center backlog",
+      "AI cluster expansion",
+    ],
+    ["MSFT", "AMZN", "GOOGL", "META", "ORCL", "CRWV", "NBIS"],
+    "Hyperscaler and AI-cloud investment cycle, with capex and lease commitments driving infrastructure demand.",
+    [
+      {
+        label: "Microsoft FY2026 Q3 Earnings",
+        url: "https://www.microsoft.com/en-us/investor/events/fy-2026/earnings-fy-2026-q3",
+      },
+    ],
+    50,
+  ),
+  subTheme(
+    "ai_data_center",
+    "data_center_power_demand",
+    "Data Center Power Demand",
+    [
+      "electricity demand",
+      "grid interconnection",
+      "power purchase agreement",
+      "PPA",
+      "nuclear power",
+      "gas turbine",
+      "renewables",
+      "substation",
+      "transformer",
+      "UPS",
+      "backup power",
+      "cooling",
+      "water usage",
+    ],
+    ["CEG", "VST", "NEE", "SO", "DUK", "D", "ETR", "GEV", "ETN", "PWR", "TT", "BE"],
+    "Power, grid, cooling, and equipment demand tied to AI data-center expansion and interconnection constraints.",
+    [
+      {
+        label: "IEA Energy and AI",
+        url: "https://www.iea.org/reports/key-questions-on-energy-and-ai/executive-summary",
+      },
+    ],
+    60,
+  ),
 ];
 
 export const sectorMappings: SectorMapping[] = [
@@ -340,7 +505,9 @@ export const taxonomyStats = {
   subCategories: sectorMappings.length,
   fmpIndustries: sectorMappings.reduce((count, item) => count + item.fmpIndustries.length, 0),
   themeGroups: themeGroups.length,
+  themeSubThemes: themeSubThemes.length,
   implementedThemes: themeGroups.filter((theme) => theme.status === "implemented").length,
+  implementedSubThemes: themeSubThemes.filter((theme) => theme.status === "implemented").length,
 };
 
 export const taxonomyCanonicalTables = [
@@ -387,6 +554,18 @@ export const taxonomyCanonicalTables = [
     col("sort_order", "integer", "Admin display order", true),
     col("is_active", "boolean", "Visible and usable flag", true),
   ]),
+  table("theme_sub_categories", "Theme child buckets with keywords and seed symbols. This is the manual/LLM guide layer that FMP industry cannot provide.", [
+    col("slug", "text", "Stable sub-theme slug, primary key", true),
+    col("theme_group_slug", "text", "References theme_groups.slug", true),
+    col("name", "text", "Display name", true),
+    col("status", "text", "implemented or planned", true),
+    col("keywords", "text[]", "Trigger keywords and phrases used by parsers, LLM prompts, and trend screens", true),
+    col("seed_symbols", "text[]", "Representative tickers used as a starting basket, not a hard membership list", true),
+    col("description", "text", "Admin-facing meaning"),
+    col("sort_order", "integer", "Admin display order", true),
+    col("is_active", "boolean", "Visible and usable flag", true),
+    col("metadata", "jsonb", "Source links, prompt hints, and classification notes"),
+  ]),
   table("ticker_classifications", "Current ticker-to-sector/sub-category assignment. This is the sector ticker membership table, generated from FMP mappings with room for manual override.", [
     col("symbol", "text", "References tickers.symbol", true),
     col("sector_code", "text", "Current canonical sector"),
@@ -416,6 +595,7 @@ export const taxonomyCanonicalTables = [
   table("ticker_theme_members", "Ticker-to-theme membership for watchlists, rankings, and market-moving views.", [
     col("symbol", "text", "References tickers.symbol", true),
     col("theme_group_slug", "text", "References theme_groups.slug", true),
+    col("theme_sub_category_slug", "text", "Optional references theme_sub_categories.slug"),
     col("method", "text", "rule, llm, manual, or unknown", true),
     col("confidence", "numeric", "0 to 1 confidence"),
     col("reason", "text", "Why the ticker belongs to the theme"),
@@ -424,6 +604,7 @@ export const taxonomyCanonicalTables = [
   table("event_theme_links", "Theme links at event level; this is separate from ticker membership.", [
     col("event_id", "uuid", "References events.id", true),
     col("theme_group_slug", "text", "References theme_groups.slug", true),
+    col("theme_sub_category_slug", "text", "Optional references theme_sub_categories.slug"),
     col("method", "text", "rule, llm, manual, or unknown", true),
     col("confidence", "numeric", "0 to 1 confidence"),
     col("reason", "text", "Why this event is tied to the theme"),
@@ -432,6 +613,7 @@ export const taxonomyCanonicalTables = [
   table("theme_snapshots", "Theme-level market context for Market-Moving News.", [
     col("id", "uuid", "Primary key", true),
     col("theme_group_slug", "text", "References theme_groups.slug", true),
+    col("theme_sub_category_slug", "text", "Optional references theme_sub_categories.slug"),
     col("as_of", "timestamptz", "Snapshot time", true),
     col("change_pct", "numeric", "Theme or basket percentage change"),
     col("volume_score", "numeric", "Relative volume or activity score"),
@@ -455,6 +637,30 @@ function map(
     slug,
     fmpIndustries,
     notes,
+  };
+}
+
+function subTheme(
+  themeGroupSlug: string,
+  slug: string,
+  name: string,
+  keywords: string[],
+  seedSymbols: string[],
+  description: string,
+  references: Array<{ label: string; url: string }>,
+  sortOrder: number,
+  status: ThemeGroupStatus = "implemented",
+): ThemeSubTheme {
+  return {
+    slug,
+    themeGroupSlug,
+    name,
+    status,
+    keywords,
+    seedSymbols,
+    description,
+    references,
+    sortOrder,
   };
 }
 
