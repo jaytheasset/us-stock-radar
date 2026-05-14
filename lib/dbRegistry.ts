@@ -56,6 +56,12 @@ export const liveFeedEventFieldContract = [
     required: true,
     usage: "Bullish/bearish/volatile/neutral UI badge and filters.",
   },
+  {
+    field: "market_scope",
+    column: "events.market_scope",
+    required: true,
+    usage: "Separates company or transaction-centered events from sector, theme, and macro Market-Moving News.",
+  },
 ];
 
 export const taxonomyTickerFlow = [
@@ -170,6 +176,7 @@ export const canonicalTables: CanonicalTable[] = [
       column("delivery_level", "text", "archive when score < 50, feed when 50-74, alert when >= 75", true),
       column("impact", "text", "high, medium, or low", true),
       column("signal", "text", "bullish, bearish, volatile, or neutral", true),
+      column("market_scope", "text", "company, sector, theme, or macro", true),
       column("title", "text", "User-facing title", true),
       column("quick_take", "text", "One-line feed card takeaway shown under the title"),
       column("summary", "text", "Longer event summary for detail pages"),

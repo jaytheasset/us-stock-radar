@@ -27,6 +27,7 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
       highImpactNews={viewModel.highImpactNews}
       alertFilings={viewModel.alertFilings}
       marketPulseItems={viewModel.marketPulseItems}
+      marketMovingNews={viewModel.marketMovingNews}
       situationCards={viewModel.situationCards}
       pageInfo={{
         page: viewModel.page,

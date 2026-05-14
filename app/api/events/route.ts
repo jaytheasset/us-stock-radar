@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
   const impact = searchParams.get("impact") || "";
   const eventType = searchParams.get("event_type") || "";
   const sourceGroup = normalizeSourceGroup(searchParams.get("source_group"));
+  const marketScope = normalizeMarketScope(searchParams.get("market_scope"));
   const deliveryLevel = normalizeDeliveryLevel(searchParams.get("delivery_level"));
   const signal = normalizeSignal(searchParams.get("signal"));
 
@@ -19,6 +20,7 @@ export async function GET(request: NextRequest) {
     impact,
     eventType,
     sourceGroup,
+    marketScope,
     deliveryLevel,
     signal,
   });
@@ -30,6 +32,11 @@ export async function GET(request: NextRequest) {
 
 function normalizeSourceGroup(value: string | null) {
   if (value === "news" || value === "filings" || value === "market") return value;
+  return undefined;
+}
+
+function normalizeMarketScope(value: string | null) {
+  if (value === "company" || value === "sector" || value === "theme" || value === "macro") return value;
   return undefined;
 }
 

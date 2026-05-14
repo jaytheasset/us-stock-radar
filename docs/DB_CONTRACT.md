@@ -115,6 +115,26 @@ Event scoring fields:
   to 74, and `alert` when score is 75 or higher.
 - `impact`: `high`, `medium`, or `low`.
 - `signal`: `bullish`, `bearish`, `volatile`, or `neutral`.
+- `market_scope`: `company`, `sector`, `theme`, or `macro`.
+
+Market scope rules:
+
+- `company`: company-centered or transaction-centered event with a clear
+  primary ticker. Related tickers can still exist for counterparties, merger
+  targets, customers, peers, or affected names.
+- `sector`: sector or industry-level news where no single company is the main
+  subject.
+- `theme`: investment-theme news such as AI data center, crypto, defense, GLP-1,
+  or policy themes.
+- `macro`: rates, Fed, CPI, jobs, dollar, oil, tariffs, geopolitical market
+  shock, or other broad market variables.
+
+Do not infer `market_scope` from ticker count alone. Multiple tickers can still
+be `company` when the event has one primary issuer or transaction subject.
+
+`source_group` and `market_scope` are different. A market-moving article is
+still usually `source_group = news`; `market_scope` decides whether it is
+company, sector, theme, or macro news.
 
 Event copy fields:
 
@@ -213,6 +233,14 @@ Event list pages read from:
 - optional `market_snapshots`
 - optional `ticker_classifications`
 - optional `ticker_theme_members`
+
+Market-Moving News reads from:
+
+- `events` where `source_group = news`
+- `market_scope in ('sector', 'theme', 'macro')`
+- optional `event_tickers`
+- optional `event_theme_links`
+- optional sector classification links
 
 Event detail pages read from:
 

@@ -38,6 +38,13 @@ exception
   when duplicate_object then null;
 end $$;
 
+do $$
+begin
+  create type event_market_scope as enum ('company', 'sector', 'theme', 'macro');
+exception
+  when duplicate_object then null;
+end $$;
+
 alter table events
   add column if not exists source_group source_group,
   add column if not exists quick_take text,
@@ -45,6 +52,7 @@ alter table events
   add column if not exists delivery_level event_delivery_level,
   add column if not exists impact event_impact,
   add column if not exists signal event_signal,
+  add column if not exists market_scope event_market_scope default 'company',
   add column if not exists group_dedupe_key text,
   add column if not exists cross_group_event_key text,
   add column if not exists metadata jsonb default '{}'::jsonb;
@@ -63,6 +71,8 @@ alter table events
   alter column delivery_level set not null,
   alter column impact set not null,
   alter column signal set not null,
+  alter column market_scope set default 'company',
+  alter column market_scope set not null,
   alter column group_dedupe_key set not null,
   alter column metadata set default '{}'::jsonb,
   alter column metadata set not null;
@@ -94,6 +104,13 @@ create index if not exists events_score_idx
 create index if not exists events_signal_idx
   on events(signal, detected_at desc);
 
+create index if not exists events_market_scope_score_idx
+  on events(market_scope, score desc, detected_at desc);
+
+create index if not exists events_news_market_scope_idx
+  on events(source_group, market_scope, detected_at desc)
+  where source_group = 'news';
+
 create index if not exists events_cross_group_key_idx
   on events(cross_group_event_key)
   where cross_group_event_key is not null;
@@ -104,4 +121,5 @@ comment on column events.score is '0-100 score. Delivery level is derived upstre
 comment on column events.delivery_level is 'Canonical archive/feed/alert visibility. Do not store alert visibility in metadata.';
 comment on column events.impact is 'Canonical high/medium/low impact label.';
 comment on column events.signal is 'Canonical bullish/bearish/volatile/neutral signal. Replaces market_direction/direction.';
+comment on column events.market_scope is 'Canonical event scope. Use company for clear primary issuer or transaction subject; do not infer scope from ticker count alone.';
 comment on column events.metadata is 'Raw/debug/extra payload only. Not used for live-feed canonical filters.';

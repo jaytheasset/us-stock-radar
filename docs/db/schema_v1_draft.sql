@@ -56,6 +56,13 @@ end $$;
 
 do $$
 begin
+  create type event_market_scope as enum ('company', 'sector', 'theme', 'macro');
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
   create type classification_method as enum ('rule', 'llm', 'manual', 'unknown');
 exception
   when duplicate_object then null;
@@ -146,6 +153,7 @@ create table if not exists events (
   delivery_level event_delivery_level not null,
   impact event_impact not null,
   signal event_signal not null,
+  market_scope event_market_scope not null default 'company',
   title text not null,
   quick_take text,
   summary text,
@@ -180,6 +188,13 @@ create index if not exists events_type_delivery_idx
 
 create index if not exists events_score_idx
   on events(score desc, delivery_level);
+
+create index if not exists events_market_scope_score_idx
+  on events(market_scope, score desc, detected_at desc);
+
+create index if not exists events_news_market_scope_idx
+  on events(source_group, market_scope, detected_at desc)
+  where source_group = 'news';
 
 create index if not exists events_cross_group_key_idx
   on events(cross_group_event_key)

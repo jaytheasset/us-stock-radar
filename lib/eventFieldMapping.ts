@@ -2,6 +2,7 @@ export type EventSourceGroup = "news" | "filings" | "market";
 export type EventSignal = "bullish" | "bearish" | "volatile" | "neutral";
 export type EventDeliveryLevel = "archive" | "feed" | "alert";
 export type EventImpact = "high" | "medium" | "low";
+export type EventMarketScope = "company" | "sector" | "theme" | "macro";
 
 type EventRow = Record<string, unknown>;
 
@@ -12,6 +13,7 @@ export type CanonicalEventFields = {
   deliveryLevel: EventDeliveryLevel;
   signal: EventSignal;
   impact: EventImpact;
+  marketScope: EventMarketScope;
 };
 
 export function resolveCanonicalEventFields(row: EventRow): CanonicalEventFields {
@@ -22,6 +24,7 @@ export function resolveCanonicalEventFields(row: EventRow): CanonicalEventFields
     deliveryLevel: normalizeDeliveryLevel(readString(row, ["delivery_level"])) || "archive",
     signal: normalizeSignal(readString(row, ["signal"])) || "neutral",
     impact: normalizeImpact(readString(row, ["impact"])) || "medium",
+    marketScope: normalizeMarketScope(readString(row, ["market_scope"])) || "company",
   };
 }
 
@@ -53,6 +56,14 @@ function normalizeSignal(value: string): EventSignal | null {
 function normalizeImpact(value: string): EventImpact | null {
   const normalized = value.trim().toLowerCase();
   if (normalized === "high" || normalized === "medium" || normalized === "low") return normalized;
+  return null;
+}
+
+function normalizeMarketScope(value: string): EventMarketScope | null {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "company" || normalized === "sector" || normalized === "theme" || normalized === "macro") {
+    return normalized;
+  }
   return null;
 }
 

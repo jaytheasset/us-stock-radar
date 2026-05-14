@@ -9,6 +9,8 @@ type FetchEventsParams = {
   eventType?: string;
   eventTypes?: string[];
   sourceGroup?: "news" | "filings" | "market";
+  marketScope?: "company" | "sector" | "theme" | "macro";
+  marketScopes?: Array<"company" | "sector" | "theme" | "macro">;
   deliveryLevel?: "archive" | "feed" | "alert";
   signal?: "bullish" | "bearish" | "volatile" | "neutral";
   alertOnly?: boolean;
@@ -136,6 +138,8 @@ function applyEventFilters(search: Record<string, string>, params: EventFilterPa
   if (params.eventType) search.event_type = `eq.${params.eventType}`;
   if (params.eventTypes?.length) search.event_type = `in.(${params.eventTypes.join(",")})`;
   if (params.sourceGroup) search.source_group = `eq.${params.sourceGroup}`;
+  if (params.marketScope) search.market_scope = `eq.${params.marketScope}`;
+  if (params.marketScopes?.length) search.market_scope = `in.(${params.marketScopes.join(",")})`;
   if (params.impact) search.impact = `eq.${params.impact}`;
   if (params.signal) search.signal = `eq.${params.signal}`;
   if (params.deliveryLevel) {

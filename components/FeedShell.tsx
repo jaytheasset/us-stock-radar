@@ -8,6 +8,7 @@ import type { MarketBar } from "@/lib/integrations";
 
 type FeedTone = "bullish" | "bearish" | "volatile" | "neutral";
 type SourceGroup = "news" | "filings" | "market";
+type MarketScope = "company" | "sector" | "theme" | "macro";
 
 export type MarketPulseItem = {
   label: string;
@@ -22,6 +23,13 @@ export type SituationCardItem = {
   window: string;
 };
 
+export type MarketMovingNewsItem = {
+  label: string;
+  title: string;
+  score: number;
+  signal: FeedTone;
+};
+
 export type FeedItem = {
   id: string;
   time: string;
@@ -31,6 +39,7 @@ export type FeedItem = {
   change: string;
   updatedAt: string;
   sourceGroup: SourceGroup;
+  marketScope?: MarketScope;
   source: string;
   eventType: string;
   title: string;
@@ -78,6 +87,7 @@ type FeedShellProps = {
   };
   dbError?: string;
   marketPulseItems?: MarketPulseItem[];
+  marketMovingNews?: MarketMovingNewsItem[];
   situationCards?: SituationCardItem[];
   feedDateLabel?: string;
 };
@@ -226,7 +236,7 @@ const fallbackFeedItems: FeedItem[] = [
   },
 ];
 
-const marketMovingNews = [
+const fallbackMarketMovingNews: MarketMovingNewsItem[] = [
   {
     label: "Macro",
     title: "Treasury yields hold near session highs before Fed speakers",
@@ -323,6 +333,7 @@ export function FeedShell({
   pageInfo,
   dbError,
   marketPulseItems = fallbackMarketPulse,
+  marketMovingNews = fallbackMarketMovingNews,
   situationCards = fallbackSituationCards,
   feedDateLabel = defaultFeedDateLabel(),
 }: FeedShellProps) {
@@ -785,26 +796,25 @@ function SidebarEventList({
 function MarketMovingList({
   items,
 }: {
-  items: Array<{
-    label: string;
-    title: string;
-    score: number;
-    signal: FeedTone;
-  }>;
+  items: MarketMovingNewsItem[];
 }) {
   return (
     <div className="market-moving-list">
-      {items.map((item) => (
-        <article className="market-moving-row" key={item.title}>
-          <span className={`market-label ${item.signal}`}>{item.label}</span>
-          <div>
-            <p>{item.title}</p>
-            <small>
-              Score {item.score} - {item.signal}
-            </small>
-          </div>
-        </article>
-      ))}
+      {items.length ? (
+        items.map((item) => (
+          <article className="market-moving-row" key={item.title}>
+            <span className={`market-label ${item.signal}`}>{item.label}</span>
+            <div>
+              <p>{item.title}</p>
+              <small>
+                Score {item.score} - {item.signal}
+              </small>
+            </div>
+          </article>
+        ))
+      ) : (
+        <div className="sidebar-empty-state">No market-moving news yet.</div>
+      )}
     </div>
   );
 }

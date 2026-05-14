@@ -5,6 +5,7 @@ import { fetchEventById, fetchEventCount, fetchEvents } from "@/lib/supabase";
 
 export type FeedTone = "bullish" | "bearish" | "volatile" | "neutral";
 export type SourceGroup = "news" | "filings" | "market";
+export type MarketScope = "company" | "sector" | "theme" | "macro";
 export type FeedTab = "all" | "news" | "filings" | "market" | "alerts" | "watchlist";
 
 export type LiveFeedItem = {
@@ -16,6 +17,7 @@ export type LiveFeedItem = {
   change: string;
   updatedAt: string;
   sourceGroup: SourceGroup;
+  marketScope: MarketScope;
   source: string;
   eventType: string;
   title: string;
@@ -36,6 +38,13 @@ export type MarketPulseItem = {
   value: string;
   detail: string;
   tone: FeedTone;
+};
+
+export type MarketMovingNewsItem = {
+  label: string;
+  title: string;
+  score: number;
+  signal: FeedTone;
 };
 
 export type SituationCardItem = {
@@ -67,13 +76,20 @@ export async function getLiveFeedViewModel({
 }) {
   const activeTab = normalizeFeedTab(tab);
   const feedFilters = feedTabToEventFilters(activeTab);
-  const [feedResult, rankingResult] = await Promise.all([
+  const [feedResult, rankingResult, marketMovingResult] = await Promise.all([
     fetchEvents({ page, limit, ...feedFilters }),
     fetchEvents({ page: 1, limit: 100 }),
+    fetchEvents({
+      page: 1,
+      limit: 8,
+      sourceGroup: "news",
+      marketScopes: ["sector", "theme", "macro"],
+    }),
   ]);
 
   const feedRows = toRows(feedResult.data);
   const rankingRows = toRows(rankingResult.data);
+  const marketMovingRows = toRows(marketMovingResult.data);
   const [quotes, charts, marketPulseItems] = await Promise.all([
     fetchQuoteMap([...feedRows, ...rankingRows]),
     fetchChartMap(feedRows),
@@ -105,6 +121,7 @@ export async function getLiveFeedViewModel({
       .sort((a, b) => b.score - a.score)
       .slice(0, 4)
       .map(toRankedEvent),
+    marketMovingNews: marketMovingRows.map(toMarketMovingNewsItem),
     marketPulseItems,
     situationCards,
   };
@@ -175,6 +192,7 @@ function mapEventRow(
     change: quoteValues.change,
     updatedAt: quoteValues.updatedAt || formatDetectedTime(detectedAt),
     sourceGroup: canonical.sourceGroup,
+    marketScope: canonical.marketScope,
     source: formatSource(readString(row, ["source_code", "source", "source_channel"])),
     eventType: readString(row, ["event_type"]) || "event",
     title: readString(row, ["title"]) || "Untitled event",
@@ -211,8 +229,26 @@ function toRankedEvent(item: LiveFeedItem): RankedEvent {
   };
 }
 
+function toMarketMovingNewsItem(row: DbEventRow): MarketMovingNewsItem {
+  const canonical = resolveCanonicalEventFields(row);
+
+  return {
+    label: formatMarketScopeLabel(canonical.marketScope),
+    title: readString(row, ["title"]) || "Untitled market-moving event",
+    score: canonical.score,
+    signal: canonical.signal,
+  };
+}
+
+function formatMarketScopeLabel(value: MarketScope) {
+  if (value === "macro") return "Macro";
+  if (value === "sector") return "Sector";
+  if (value === "theme") return "Theme";
+  return "Company";
+}
+
 function isIndividualStockNews(item: LiveFeedItem) {
-  return item.sourceGroup === "news" && hasIndividualTicker(item.ticker);
+  return item.sourceGroup === "news" && item.marketScope === "company" && hasIndividualTicker(item.ticker);
 }
 
 function hasIndividualTicker(value: string) {
