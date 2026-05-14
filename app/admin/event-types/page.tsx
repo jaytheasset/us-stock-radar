@@ -66,7 +66,7 @@ export default function AdminEventTypesPage() {
           </div>
           <div>
             <dt>Current filing coverage</dt>
-            <dd>Seeded around 6-K and 8-K current-report analysis.</dd>
+            <dd>Seeded with fixed large filing categories first. News categories will be added separately.</dd>
           </div>
           <div>
             <dt>Expansion rule</dt>

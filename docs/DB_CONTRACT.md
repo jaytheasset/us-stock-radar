@@ -23,6 +23,8 @@ The initial schema should stay centered on these entities:
 - `event_types`
 - `events`
 - `event_links`
+- `event_analysis`
+- `event_tickers`
 - `market_snapshots`
 - `tickers`
 - `market_sectors`
@@ -89,6 +91,23 @@ Canonical event-type registry used by `events.event_type`, feed badges, alert
 filters, and parser output. The current seed is 6-K/8-K heavy; new filing
 families should add or update `event_types` before parser rollout.
 
+Approved filing event types:
+
+- `listing_risk`: Listing Risk
+- `dilution_risk`: Dilution Risk
+- `earnings`: Earnings
+- `sales_performance`: Sales Performance
+- `product_update`: Product Update
+- `leadership_governance`: Leadership / Governance
+- `insider_ownership`: Insider / Ownership
+- `shareholder_vote`: Shareholder Vote
+- `strategic_transaction`: Strategic Transaction
+- `financial_risk`: Financial Risk
+- `legal_risk`: Legal Risk
+- `dividends`: Dividends
+- `fda_clinical`: FDA / Clinical
+- `other`: Other
+
 Event scoring fields:
 
 - `score`: integer from 0 to 100.
@@ -112,6 +131,18 @@ the new schema. Their replacements are `delivery_level`, `impact`, and
 Connections between event rows that describe the same underlying corporate
 action or related follow-up. This prevents cross-group merging while still
 letting the UI show related news, filings, and market items together.
+
+`event_analysis`  
+One detailed analysis record per event. Use this for detail-page sections that
+are too long for the live feed: why it matters, bullish points, bearish points,
+key evidence, and what to watch next. `events.quick_take` and `events.summary`
+remain the canonical short and long summaries; do not duplicate them here.
+
+`event_tickers`  
+Ticker links for an event. Use `role` to distinguish primary, related, peer,
+mentioned, sector constituent, and theme constituent symbols. Detail pages use
+this for Related Tickers. List pages can still rely on `events.ticker` for the
+main symbol.
 
 `market_snapshots`  
 Market context from FMP, Polygon, or other providers. Stores prices, market cap,
@@ -186,6 +217,8 @@ Event list pages read from:
 Event detail pages read from:
 
 - `events`
+- `event_analysis`
+- `event_tickers`
 - `event_links`
 - `raw_items`
 - `market_snapshots`

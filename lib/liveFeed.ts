@@ -251,29 +251,22 @@ async function fetchSituationCards(): Promise<SituationCardItem[]> {
   const now = new Date();
   const counts = await Promise.all([
     fetchEventCount({ alertOnly: true, detectedAfter: hoursAgo(now, 24) }),
-    fetchEventCount({
-      eventTypes: ["financing_dilution", "prospectus_supplement"],
-      detectedAfter: daysAgo(now, 7),
-    }),
-    fetchEventCount({ eventTypes: ["delisting_watch", "reverse_split"], detectedAfter: daysAgo(now, 30) }),
-    fetchEventCount({
-      eventTypes: ["earnings_result", "earnings_delay", "earnings_preview", "general_trigger"],
-      detectedAfter: daysAgo(now, 7),
-      keywordIlike: "*earn*",
-    }),
-    fetchEventCount({ eventTypes: ["insider_buy"], detectedAfter: daysAgo(now, 14) }),
-    fetchEventCount({ eventTypes: ["dividend", "dividend_distribution"], detectedAfter: daysAgo(now, 30) }),
-    fetchEventCount({ sourceCode: "fda", detectedAfter: daysAgo(now, 30) }),
+    fetchEventCount({ eventTypes: ["dilution_risk"], detectedAfter: daysAgo(now, 7) }),
+    fetchEventCount({ eventTypes: ["listing_risk"], detectedAfter: daysAgo(now, 30) }),
+    fetchEventCount({ eventTypes: ["earnings"], detectedAfter: daysAgo(now, 7) }),
+    fetchEventCount({ eventTypes: ["insider_ownership"], detectedAfter: daysAgo(now, 14) }),
+    fetchEventCount({ eventTypes: ["dividends"], detectedAfter: daysAgo(now, 30) }),
+    fetchEventCount({ eventTypes: ["fda_clinical"], detectedAfter: daysAgo(now, 30) }),
   ]);
 
   return [
     { label: "Today's Alerts", value: formatCount(counts[0].count), window: "Last 24H" },
     { label: "Dilution Risk", value: formatCount(counts[1].count), window: "Last 7D" },
-    { label: "Delisting Watch", value: formatCount(counts[2].count), window: "Last 30D" },
+    { label: "Listing Risk", value: formatCount(counts[2].count), window: "Last 30D" },
     { label: "Earnings", value: formatCount(counts[3].count), window: "Last 7D" },
-    { label: "Insider Buys", value: formatCount(counts[4].count), window: "Last 14D" },
+    { label: "Insider / Ownership", value: formatCount(counts[4].count), window: "Last 14D" },
     { label: "Dividends", value: formatCount(counts[5].count), window: "Last 30D" },
-    { label: "FDA Catalysts", value: formatCount(counts[6].count), window: "Last 30D" },
+    { label: "FDA / Clinical", value: formatCount(counts[6].count), window: "Last 30D" },
   ];
 }
 

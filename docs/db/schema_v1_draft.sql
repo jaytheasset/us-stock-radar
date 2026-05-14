@@ -203,6 +203,42 @@ create unique index if not exists event_links_pair_idx
     link_type
   );
 
+create table if not exists event_analysis (
+  event_id uuid primary key references events(id) on delete cascade,
+  analysis_scope text not null default 'company'
+    check (analysis_scope in ('company', 'sector', 'theme', 'market')),
+  why_it_matters text,
+  bullish_points jsonb not null default '[]'::jsonb,
+  bearish_points jsonb not null default '[]'::jsonb,
+  key_evidence jsonb not null default '[]'::jsonb,
+  watch_next jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  metadata jsonb not null default '{}'::jsonb
+);
+
+create index if not exists event_analysis_scope_idx
+  on event_analysis(analysis_scope);
+
+create table if not exists event_tickers (
+  event_id uuid not null references events(id) on delete cascade,
+  symbol text not null,
+  role text not null default 'related'
+    check (role in ('primary', 'related', 'peer', 'mentioned', 'sector_constituent', 'theme_constituent')),
+  relevance_score integer check (relevance_score is null or (relevance_score >= 0 and relevance_score <= 100)),
+  sort_order integer not null default 100,
+  reason text,
+  created_at timestamptz not null default now(),
+  metadata jsonb not null default '{}'::jsonb,
+  primary key (event_id, symbol, role)
+);
+
+create index if not exists event_tickers_symbol_idx
+  on event_tickers(symbol, role);
+
+create index if not exists event_tickers_event_sort_idx
+  on event_tickers(event_id, sort_order);
+
 create table if not exists market_snapshots (
   id uuid primary key default gen_random_uuid(),
   ticker text not null,
