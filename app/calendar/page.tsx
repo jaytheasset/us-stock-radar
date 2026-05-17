@@ -12,12 +12,12 @@ import {
 const categoryTabs = [
   { label: "All" },
   { label: "Earnings" },
-  { label: "Listing Risk" },
   { label: "IPO" },
-  { label: "Deals & Offerings" },
   { label: "FDA & Clinical" },
+  { label: "Listing Risk" },
+  { label: "Deals / Offering" },
   { label: "Dividends" },
-  { label: "Shareholder" },
+  { label: "Shareholder Vote" },
 ];
 
 const miniCalendar = [
@@ -55,7 +55,7 @@ const calendarDays = [
       { time: "Before Market", ticker: "TSLA", title: "Q1 earnings release", type: "Pre-Market", category: "Earnings", tone: "pre", impact: "High", status: "Confirmed" },
       { time: "9:30 AM", ticker: "NEWU", title: "Expected first trading day", type: "IPO Listing", category: "IPO", tone: "ipo", impact: "Medium", status: "Tentative" },
       { time: "After Market", ticker: "CRM", title: "Q1 earnings release", type: "Post-Market", category: "Earnings", tone: "post", impact: "Medium", status: "Confirmed" },
-      { time: "4:00 PM", ticker: "MSTR", title: "Convertible note offering closing", type: "Offering Closing", category: "Deals & Offerings", tone: "deal", impact: "High", status: "Confirmed" },
+      { time: "4:00 PM", ticker: "MSTR", title: "Convertible note offering closing", type: "Offering Closing", category: "Deals / Offering", tone: "deal", impact: "High", status: "Confirmed" },
     ],
   },
   {
@@ -77,7 +77,7 @@ const calendarDays = [
       { time: "8:30 AM", ticker: "ABBV", title: "Earnings call", type: "Earnings Call", category: "Earnings", tone: "call", impact: "Medium", status: "Confirmed" },
       { time: "Market Close", ticker: "ARQT", title: "PDUFA target action date", type: "PDUFA Date", category: "FDA & Clinical", tone: "fda", impact: "High", status: "Tentative" },
       { time: "Record Date", ticker: "ARDC", title: "Monthly dividend record date", type: "Dividend Record", category: "Dividends", tone: "dividend", impact: "Low", status: "Confirmed" },
-      { time: "2:00 PM", ticker: "AMC", title: "Special shareholder meeting", type: "Shareholder Meeting", category: "Shareholder", tone: "shareholder", impact: "Medium", status: "Confirmed" },
+      { time: "2:00 PM", ticker: "AMC", title: "Special shareholder meeting", type: "Shareholder Meeting", category: "Shareholder Vote", tone: "shareholder", impact: "Medium", status: "Confirmed" },
     ],
   },
 ];
@@ -322,9 +322,9 @@ export default function CalendarPage() {
                       {event.showDate ? <b>{event.date}</b> : null}
                       <small>{event.time}</small>
                     </span>
+                    <em className="calendar-list-type">{event.category}</em>
+                    <strong className="calendar-list-ticker">{event.ticker}</strong>
                     <span className="calendar-list-event">
-                      <em>{event.category}</em>
-                      <strong>{event.ticker}</strong>
                       <b>{event.title}</b>
                       <small>{event.type}</small>
                     </span>

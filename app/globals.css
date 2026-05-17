@@ -8524,7 +8524,7 @@ html[data-theme="dark"] .calendar-event-meta strong {
 
 .calendar-category-tabs {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
   border: 1px solid #dbe3ee;
   border-radius: 8px 8px 0 0;
   background: #ffffff;
@@ -8921,7 +8921,8 @@ html[data-theme="dark"] .calendar-event-meta strong {
 
 .calendar-list-row {
   display: grid;
-  grid-template-columns: 112px minmax(0, 1fr) 108px;
+  grid-template-columns: 112px 154px 74px minmax(0, 1fr) 108px;
+  align-items: center;
   gap: 18px;
   min-height: 74px;
   border: 0;
@@ -8960,13 +8961,11 @@ html[data-theme="dark"] .calendar-event-meta strong {
   font-size: 12px;
 }
 
-.calendar-list-event {
-  grid-template-columns: auto 72px minmax(0, 1fr);
-  gap: 5px 12px;
-}
-
-.calendar-list-event em {
-  align-self: start;
+.calendar-list-type {
+  align-self: center;
+  justify-self: start;
+  max-width: 154px;
+  overflow: hidden;
   border-radius: 5px;
   padding: 3px 7px;
   color: #0f55ff;
@@ -8974,12 +8973,22 @@ html[data-theme="dark"] .calendar-event-meta strong {
   font-size: 10px;
   font-style: normal;
   font-weight: 800;
+  line-height: 1.2;
+  text-overflow: ellipsis;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
-.calendar-list-event strong {
+.calendar-list-ticker {
+  align-self: center;
+  justify-self: start;
   color: #07122f;
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.calendar-list-event {
+  gap: 5px;
 }
 
 .calendar-list-event b {
@@ -8992,7 +9001,6 @@ html[data-theme="dark"] .calendar-event-meta strong {
 }
 
 .calendar-list-event small {
-  grid-column: 3;
   margin-top: 0;
 }
 
