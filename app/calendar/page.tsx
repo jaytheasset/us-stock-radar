@@ -18,15 +18,13 @@ import {
 const categoryTabs = [
   { label: "All", count: 25, icon: CalendarDays },
   { label: "Earnings", count: 4, icon: BarChart3, active: true },
-  { label: "Shareholder", count: 3, icon: Users },
-  { label: "Dividends", count: 4, icon: CircleDollarSign },
   { label: "Listing Risk", count: 2, icon: ShieldAlert },
-  { label: "Deals / Offering", count: 4, icon: Handshake },
-  { label: "Filings", count: 1, icon: CalendarDays },
-  { label: "FDA / Clinical", count: 0, icon: FlaskConical },
-  { label: "Investor Events", count: 0, icon: Users },
-  { label: "Legal / Policy", count: 0, icon: Scale },
-  { label: "Other", count: 7, icon: AlertTriangle },
+  { label: "Deals & Offerings", count: 4, icon: Handshake },
+  { label: "FDA & Clinical", count: 0, icon: FlaskConical },
+  { label: "Dividends", count: 4, icon: CircleDollarSign },
+  { label: "Shareholder", count: 3, icon: Users },
+  { label: "Legal & Policy", count: 0, icon: Scale },
+  { label: "More", count: 8, icon: ChevronDown },
 ];
 
 const miniCalendar = [
