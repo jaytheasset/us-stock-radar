@@ -116,7 +116,7 @@ Approved filing event types:
 Calendar category groups:
 
 - `earnings`: earnings releases and calls.
-- `ipo`: IPO expected, pricing, listing, and IPO lock-up dates.
+- `ipo`: IPO and SPAC expected, pricing, listing, lock-up, redemption, extension vote, and de-SPAC dates.
 - `listing_risk`: exchange compliance, reverse split, delisting, or listing deadlines.
 - `deals_offering`: offerings, rights, warrants, tender offers, mergers, and deal deadlines.
 - `fda_clinical`: PDUFA, advisory committee, clinical readout, and medical conference dates.

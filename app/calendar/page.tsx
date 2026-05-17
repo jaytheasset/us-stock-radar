@@ -13,7 +13,7 @@ import {
 const categoryTabs = [
   { label: "All" },
   { label: "Earnings" },
-  { label: "IPO" },
+  { label: "IPO / SPAC" },
   { label: "FDA & Clinical" },
   { label: "Listing Risk" },
   { label: "Deals / Offering" },
@@ -46,7 +46,7 @@ const calendarDays = [
       { time: "Pre-Market", ticker: "PFE", title: "Q1 earnings release", type: "Pre-Market", category: "Earnings", tone: "pre", impact: "Medium", status: "Confirmed" },
       { time: "4:30 PM", ticker: "PFE", title: "Earnings call", type: "Earnings Call", category: "Earnings", tone: "call", impact: "Medium", status: "Confirmed" },
       { time: "Pre-Market", ticker: "HD", title: "Q1 earnings release", type: "Pre-Market", category: "Earnings", tone: "pre", impact: "Medium", status: "Confirmed" },
-      { time: "10:00 AM", ticker: "ABVX", title: "IPO pricing expected", type: "IPO Pricing", category: "IPO", tone: "ipo", impact: "Medium", status: "Tentative" },
+      { time: "10:00 AM", ticker: "ABVX", title: "IPO pricing expected", type: "IPO Pricing", category: "IPO / SPAC", tone: "ipo", impact: "Medium", status: "Tentative" },
     ],
   },
   {
@@ -54,7 +54,7 @@ const calendarDays = [
     date: "May 21",
     events: [
       { time: "Pre-Market", ticker: "TSLA", title: "Q1 earnings release", type: "Pre-Market", category: "Earnings", tone: "pre", impact: "High", status: "Confirmed" },
-      { time: "9:30 AM", ticker: "NEWU", title: "Expected first trading day", type: "IPO Listing", category: "IPO", tone: "ipo", impact: "Medium", status: "Tentative" },
+      { time: "9:30 AM", ticker: "NEWU", title: "Expected first trading day", type: "IPO Listing", category: "IPO / SPAC", tone: "ipo", impact: "Medium", status: "Tentative" },
       { time: "After-Hours", ticker: "CRM", title: "Q1 earnings release", type: "After-Hours", category: "Earnings", tone: "post", impact: "Medium", status: "Confirmed" },
       { time: "4:00 PM", ticker: "MSTR", title: "Convertible note offering closing", type: "Offering Closing", category: "Deals / Offering", tone: "deal", impact: "High", status: "Confirmed" },
     ],
@@ -100,7 +100,7 @@ function getEventSummary(event: (typeof calendarDays)[number]["events"][number])
   if (event.category === "Earnings") {
     return "Quarterly results, guidance, and margin commentary are the key watch points.";
   }
-  if (event.category === "IPO") return "Pricing, listing timing, and first-day liquidity can drive early volatility.";
+  if (event.category === "IPO / SPAC") return "Pricing, listing timing, redemptions, and first-day liquidity can drive early volatility.";
   if (event.category === "Listing Risk") return "Compliance deadline may affect listing status and reverse split risk.";
   if (event.category === "Deals / Offering") return "Financing close can change dilution, cash runway, and deal certainty.";
   if (event.category === "FDA & Clinical") return "Regulatory timing can create binary catalyst risk for the stock.";
