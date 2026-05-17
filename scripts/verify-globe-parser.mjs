@@ -36,6 +36,28 @@ const synthetic = stripGlobeNewswireAnalysisBoilerplate(
     "example@example.com",
   ].join("\n"),
 );
+const syntheticCaution = stripGlobeNewswireAnalysisBoilerplate(
+  [
+    "Company authorizes a new share repurchase program.",
+    "The board approved repurchases over a three-year period.",
+    "",
+    "CAUTION CONCERNING FORWARD-LOOKING STATEMENTS",
+    "This press release contains statements that we believe to be forward-looking statements.",
+    "These statements are subject to risks and uncertainties.",
+  ].join("\n"),
+);
+const syntheticOutlook = stripGlobeNewswireAnalysisBoilerplate(
+  [
+    "Company reports quarterly results and provides business update.",
+    "",
+    "OUTLOOK",
+    "The following forward-looking context is provided to assist investors in understanding management's operational priorities, and is subject to risks described under \"Cautionary Statement Regarding Forward-Looking Statements\" below.",
+    "Management's operational priorities include expanding sales coverage and deploying contracted capacity.",
+    "",
+    "CAUTIONARY STATEMENT REGARDING FORWARD-LOOKING STATEMENTS",
+    "This press release contains forward-looking statements within the meaning of the Private Securities Litigation Reform Act of 1995.",
+  ].join("\n"),
+);
 
 if (!synthetic.text?.includes("material commercial update")) {
   failures.push("synthetic boilerplate test: article content was removed");
@@ -45,6 +67,24 @@ if (synthetic.text?.includes("Forward-Looking Statements")) {
 }
 if (synthetic.removedSections.length !== 1) {
   failures.push("synthetic boilerplate test: removed section was not recorded");
+}
+if (!syntheticCaution.text?.includes("share repurchase program")) {
+  failures.push("synthetic caution test: article content was removed");
+}
+if (/forward[- ]looking statements?/i.test(syntheticCaution.text || "")) {
+  failures.push("synthetic caution test: forward-looking section was not removed");
+}
+if (syntheticCaution.removedSections.length !== 1) {
+  failures.push("synthetic caution test: removed section was not recorded");
+}
+if (!syntheticOutlook.text?.includes("operational priorities include expanding sales coverage")) {
+  failures.push("synthetic outlook test: material outlook content was removed");
+}
+if (/Private Securities Litigation Reform Act/i.test(syntheticOutlook.text || "")) {
+  failures.push("synthetic outlook test: legal boilerplate was not removed");
+}
+if (syntheticOutlook.removedSections.length !== 1) {
+  failures.push("synthetic outlook test: removed section was not recorded");
 }
 
 console.log(`GlobeNewswire parser verification`);
@@ -116,5 +156,11 @@ function formatTickers(tickers) {
 }
 
 function hasForwardLookingBoilerplate(value) {
-  return /forward[- ]looking statements?|safe harbor statement|cautionary (?:note|statement)/i.test(value);
+  return [
+    /(?:^|\n)\s*((?:(?:Caution|Cautionary|Special Note|Notice|Note|Disclosure)(?:\s+(?:Note|Statement|Statements))?\s+(?:Concerning|Regarding|About|On|With Respect To)\s+)?Forward[- ]Looking (?:Statements?|Information)(?:\s+(?:and|&)\s+[A-Za-z -]+)?)[ \t.:;-]*(?:\n|$)/i,
+    /(?:^|\n)\s*(Safe Harbor Statement)\s*(?:\n|$)/i,
+    /(?:^|\n)\s*(This (?:press|news) release contains [^\n]{0,320}forward[- ]looking statements?)/i,
+    /(?:^|\n)\s*(Certain statements (?:in|contained in|included in) this (?:press|news) release [^\n]{0,320}forward[- ]looking statements?)/i,
+    /\bPrivate Securities Litigation Reform Act\b/i,
+  ].some((pattern) => pattern.test(value));
 }

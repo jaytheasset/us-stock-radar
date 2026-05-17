@@ -392,11 +392,10 @@ export function stripGlobeNewswireAnalysisBoilerplate(bodyText: string | null) {
 
 function findBoilerplateCut(bodyText: string) {
   const candidates = [
-    findPatternCut(bodyText, /(?:^|\n)\s*(Forward[- ]Looking Statements?|Forward[- ]Looking Information)\s*(?:\n|$)/i, "Forward-Looking Statements"),
     findPatternCut(
       bodyText,
-      /(?:^|\n)\s*(Cautionary (?:Note|Statement) Regarding Forward[- ]Looking Statements?)\s*(?:\n|$)/i,
-      "Cautionary Note Regarding Forward-Looking Statements",
+      /(?:^|\n)\s*((?:(?:Caution|Cautionary|Special Note|Notice|Note|Disclosure)(?:\s+(?:Note|Statement|Statements))?\s+(?:Concerning|Regarding|About|On|With Respect To)\s+)?Forward[- ]Looking (?:Statements?|Information)(?:\s+(?:and|&)\s+[A-Za-z -]+)?)[ \t.:;-]*(?:\n|$)/i,
+      "Forward-Looking Statements",
     ),
     findPatternCut(bodyText, /(?:^|\n)\s*(Safe Harbor Statement)\s*(?:\n|$)/i, "Safe Harbor Statement"),
     findPatternCut(
@@ -406,7 +405,22 @@ function findBoilerplateCut(bodyText: string) {
     ),
     findPatternCut(
       bodyText,
+      /(?:^|\n)\s*(This (?:press|news) release contains [^\n]{0,320}forward[- ]looking statements?)/i,
+      "Forward-Looking Statements",
+    ),
+    findPatternCut(
+      bodyText,
       /(?:^|\n)\s*(Certain statements in this (?:press|news) release are forward-looking statements?)/i,
+      "Forward-Looking Statements",
+    ),
+    findPatternCut(
+      bodyText,
+      /(?:^|\n)\s*(Certain statements (?:in|contained in|included in) this (?:press|news) release [^\n]{0,320}forward[- ]looking statements?)/i,
+      "Forward-Looking Statements",
+    ),
+    findPatternCut(
+      bodyText,
+      /(?:^|\n)\s*((?:Statements|Information) (?:contained|included) in this (?:press|news) release [^\n]{0,320}forward[- ]looking)/i,
       "Forward-Looking Statements",
     ),
   ].filter((item): item is { index: number; label: string } => Boolean(item));
