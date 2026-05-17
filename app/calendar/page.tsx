@@ -8,7 +8,6 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleDollarSign,
-  Download,
   FlaskConical,
   Handshake,
   Scale,
@@ -247,12 +246,7 @@ export default function CalendarPage() {
           <section className="calendar-board-panel">
             <div className="calendar-filter-toolbar">
               <button type="button">
-                <span>Exchange</span>
-                <b>All</b>
-                <ChevronDown size={13} />
-              </button>
-              <button type="button">
-                <span>Cap</span>
+                <span>Event Type</span>
                 <b>All</b>
                 <ChevronDown size={13} />
               </button>
@@ -267,12 +261,7 @@ export default function CalendarPage() {
                 <ChevronDown size={13} />
               </button>
               <button type="button">
-                <span>Timing</span>
-                <b>All</b>
-                <ChevronDown size={13} />
-              </button>
-              <button type="button">
-                <span>Impact</span>
+                <span>Market Cap</span>
                 <b>All</b>
                 <ChevronDown size={13} />
               </button>
@@ -280,11 +269,6 @@ export default function CalendarPage() {
                 <input type="checkbox" />
                 Watchlist Only
               </label>
-              <button type="button" className="calendar-filter-action">
-                <Download size={14} />
-                Export
-                <ChevronDown size={14} />
-              </button>
             </div>
 
             <div className="calendar-week-board">

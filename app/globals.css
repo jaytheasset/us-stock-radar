@@ -8796,10 +8796,6 @@ html[data-theme="dark"] .calendar-event-meta strong {
   margin: 0 2px 0 0;
 }
 
-.calendar-filter-action {
-  margin-left: 2px;
-}
-
 .calendar-week-board {
   display: grid;
   grid-template-columns: repeat(5, minmax(150px, 1fr));
@@ -9267,9 +9263,6 @@ html[data-theme="dark"] .calendar-event-meta strong {
     flex-direction: column;
   }
 
-  .calendar-filter-action {
-    margin-left: 0;
-  }
 }
 
 html[data-theme="dark"] .market-calendar-page {
