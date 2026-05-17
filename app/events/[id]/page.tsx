@@ -980,23 +980,49 @@ async function buildDbBackedProfile(item: LiveFeedItem, event: FeedItem): Promis
 }
 
 function mapRelatedTickerRows(rows: Record<string, unknown>[], fallback: RelatedTicker[]) {
-  const related = rows
+  const rankedRows = rows
     .filter((row) => readRowString(row, "role") !== "primary")
-    .sort((a, b) => readRowNumber(a, "sort_order") - readRowNumber(b, "sort_order"))
-    .slice(0, 8)
-    .map((row) => {
-      const symbol = readRowString(row, "symbol").toUpperCase();
-      return {
-        symbol,
-        name: readMetadataString(row, "name") || symbol,
-        price: "N/A",
-        change: "",
-        tone: "neutral" as const,
-      };
-    })
-    .filter((row) => row.symbol);
+    .sort((a, b) => {
+      const roleDiff = getRelatedTickerRolePriority(a) - getRelatedTickerRolePriority(b);
+      return roleDiff || readRowNumber(a, "sort_order") - readRowNumber(b, "sort_order");
+    });
+  const seenSymbols = new Set<string>();
+  const related: RelatedTicker[] = [];
+
+  for (const row of rankedRows) {
+    const symbol = readRowString(row, "symbol").toUpperCase();
+    if (!symbol || seenSymbols.has(symbol)) {
+      continue;
+    }
+    seenSymbols.add(symbol);
+    related.push({
+      symbol,
+      name: readMetadataString(row, "name") || symbol,
+      price: "N/A",
+      change: "",
+      tone: "neutral" as const,
+    });
+    if (related.length >= 8) {
+      break;
+    }
+  }
 
   return related.length ? related : fallback;
+}
+
+function getRelatedTickerRolePriority(row: Record<string, unknown>) {
+  const role = readRowString(row, "role");
+  const rolePriority: Record<string, number> = {
+    counterparty: 1,
+    customer: 2,
+    supplier: 2,
+    peer: 3,
+    related: 4,
+    sector_constituent: 5,
+    theme_constituent: 5,
+    mentioned: 6,
+  };
+  return rolePriority[role] ?? 99;
 }
 
 function mapRelatedNewsRows(rows: Record<string, unknown>[]): RelatedStory[] {
