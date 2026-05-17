@@ -17,21 +17,17 @@ import {
 } from "lucide-react";
 
 const categoryTabs = [
-  { label: "All", count: 356, icon: CalendarDays },
-  { label: "Listing Risk", count: 26, icon: ShieldAlert },
-  { label: "Dilution Risk", count: 63, icon: CircleDollarSign },
-  { label: "Earnings", count: 186, icon: BarChart3, active: true },
-  { label: "Insider / Ownership", count: 54, icon: Users },
-  { label: "Shareholder Vote", count: 48, icon: Users },
-  { label: "Strategic Transaction", count: 31, icon: Handshake },
-  { label: "Financial Risk", count: 19, icon: AlertTriangle },
-  { label: "Legal Risk", count: 22, icon: Scale },
-  { label: "Dividends", count: 72, icon: CircleDollarSign },
-  { label: "FDA / Clinical", count: 41, icon: FlaskConical },
-  { label: "Leadership / Governance", count: 17, icon: Users },
-  { label: "Sales Performance", count: 36, icon: BarChart3 },
-  { label: "Product Update", count: 29, icon: Beaker },
-  { label: "Other", count: 12, icon: CalendarDays },
+  { label: "All", count: 25, icon: CalendarDays },
+  { label: "Earnings", count: 4, icon: BarChart3, active: true },
+  { label: "Shareholder", count: 3, icon: Users },
+  { label: "Dividends", count: 4, icon: CircleDollarSign },
+  { label: "Listing Risk", count: 2, icon: ShieldAlert },
+  { label: "Deals / Offering", count: 4, icon: Handshake },
+  { label: "Filings", count: 1, icon: CalendarDays },
+  { label: "FDA / Clinical", count: 0, icon: FlaskConical },
+  { label: "Investor Events", count: 0, icon: Users },
+  { label: "Legal / Policy", count: 0, icon: Scale },
+  { label: "Other", count: 7, icon: AlertTriangle },
 ];
 
 const miniCalendar = [
@@ -250,14 +246,41 @@ export default function CalendarPage() {
 
           <section className="calendar-board-panel">
             <div className="calendar-filter-toolbar">
-              <button type="button">Exchange <b>All</b></button>
-              <button type="button">Market Cap <b>All</b></button>
-              <button type="button">Signal <b>All</b></button>
-              <label>
+              <button type="button">
+                <span>Exchange</span>
+                <b>All</b>
+                <ChevronDown size={13} />
+              </button>
+              <button type="button">
+                <span>Cap</span>
+                <b>All</b>
+                <ChevronDown size={13} />
+              </button>
+              <button type="button">
+                <span>Status</span>
+                <b>All</b>
+                <ChevronDown size={13} />
+              </button>
+              <button type="button">
+                <span>Source</span>
+                <b>All</b>
+                <ChevronDown size={13} />
+              </button>
+              <button type="button">
+                <span>Timing</span>
+                <b>All</b>
+                <ChevronDown size={13} />
+              </button>
+              <button type="button">
+                <span>Impact</span>
+                <b>All</b>
+                <ChevronDown size={13} />
+              </button>
+              <label className="calendar-watchlist-filter">
                 <input type="checkbox" />
                 Watchlist Only
               </label>
-              <button type="button">
+              <button type="button" className="calendar-filter-action">
                 <Download size={14} />
                 Export
                 <ChevronDown size={14} />

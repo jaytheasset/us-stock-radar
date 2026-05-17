@@ -8760,28 +8760,44 @@ html[data-theme="dark"] .calendar-event-meta strong {
 .calendar-filter-toolbar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 6px 16px;
   border-bottom: 1px solid #dbe3ee;
-  padding-bottom: 14px;
+  padding: 8px 0 10px;
 }
 
 .calendar-filter-toolbar button,
 .calendar-filter-toolbar label {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-height: 34px;
-  padding: 0 12px;
+  gap: 5px;
+  min-height: 26px;
+  border: 0;
+  padding: 0;
+  color: #52627f;
+  background: transparent;
   font-size: 12px;
-}
-
-.calendar-filter-toolbar b {
-  color: #64728a;
   font-weight: 600;
 }
 
-.calendar-filter-toolbar button:last-child {
-  margin-left: auto;
+.calendar-filter-toolbar b {
+  color: #07122f;
+  font-weight: 700;
+}
+
+.calendar-watchlist-filter {
+  margin-left: 2px;
+}
+
+.calendar-watchlist-filter input {
+  width: 13px;
+  height: 13px;
+  min-height: 0;
+  margin: 0 2px 0 0;
+}
+
+.calendar-filter-action {
+  margin-left: 2px;
 }
 
 .calendar-week-board {
@@ -9251,7 +9267,7 @@ html[data-theme="dark"] .calendar-event-meta strong {
     flex-direction: column;
   }
 
-  .calendar-filter-toolbar button:last-child {
+  .calendar-filter-action {
     margin-left: 0;
   }
 }
