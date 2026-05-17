@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ExternalLink,
 } from "lucide-react";
 
 const categoryTabs = [
@@ -351,8 +352,14 @@ export default function CalendarPage() {
                       <p>{getEventSummary(event)}</p>
                       <small>{event.type}</small>
                       <span className="calendar-event-links">
-                        <a href={relatedNewsHref(event.ticker)}>News</a>
-                        <a href={relatedFilingHref(event.ticker)}>Filings</a>
+                        <a href={relatedNewsHref(event.ticker)}>
+                          News
+                          <ExternalLink size={12} />
+                        </a>
+                        <a href={relatedFilingHref(event.ticker)}>
+                          Filings
+                          <ExternalLink size={12} />
+                        </a>
                       </span>
                     </span>
                     <span className="calendar-list-meta">
@@ -384,8 +391,14 @@ export default function CalendarPage() {
                             <h3>{event.title}</h3>
                             <p>{getEventSummary(event)}</p>
                             <div className="calendar-event-links">
-                              <a href={relatedNewsHref(event.ticker)}>News</a>
-                              <a href={relatedFilingHref(event.ticker)}>Filings</a>
+                              <a href={relatedNewsHref(event.ticker)}>
+                                News
+                                <ExternalLink size={12} />
+                              </a>
+                              <a href={relatedFilingHref(event.ticker)}>
+                                Filings
+                                <ExternalLink size={12} />
+                              </a>
                             </div>
                           </article>
                         ))

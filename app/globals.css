@@ -9062,20 +9062,28 @@ html[data-theme="dark"] .calendar-event-meta strong {
 .calendar-event-links {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 2px;
+  gap: 14px;
+  margin-top: 3px;
 }
 
 .calendar-event-links a {
-  border: 1px solid #d2dbea;
-  border-radius: 999px;
-  padding: 3px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  padding: 0;
   color: #0f55ff;
-  background: #ffffff;
-  font-size: 10px;
-  font-weight: 800;
-  line-height: 1;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
   text-decoration: none;
+}
+
+.calendar-event-links a svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2;
 }
 
 .calendar-summary-strip {
