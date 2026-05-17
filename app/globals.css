@@ -8647,15 +8647,17 @@ html[data-theme="dark"] .calendar-event-meta strong {
 .mini-calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 5px;
+  gap: 6px 4px;
 }
 
 .mini-calendar-grid span,
 .mini-calendar-grid button {
   display: grid;
   place-items: center;
+  justify-self: center;
+  width: 28px;
+  height: 28px;
   min-width: 0;
-  min-height: 26px;
   border: 0;
   border-radius: 999px;
   color: #263755;
@@ -8665,6 +8667,7 @@ html[data-theme="dark"] .calendar-event-meta strong {
 }
 
 .mini-calendar-weekday {
+  height: 22px;
   color: #64728a;
   font-size: 11px;
 }
@@ -8674,6 +8677,8 @@ html[data-theme="dark"] .calendar-event-meta strong {
 }
 
 .mini-calendar-grid button.selected {
+  width: 30px;
+  height: 30px;
   color: #ffffff;
   background: #0f55ff;
 }
