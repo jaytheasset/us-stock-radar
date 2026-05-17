@@ -27,6 +27,16 @@ const adminSections = [
     description: "LLM prompt drafts, versions, and output targets.",
   },
   {
+    href: "/admin/prompts/news-event-test",
+    title: "News Prompt Test",
+    description: "Run a GlobeNewswire raw item through the news analysis prompt without DB writes.",
+  },
+  {
+    href: "/admin/news-ingest",
+    title: "News Ingest",
+    description: "Run GlobeNewswire ingest and inspect source runs, events, and coverage skips.",
+  },
+  {
     href: "/admin/integrations",
     title: "Integrations",
     description: "External API/env registry without exposing secrets.",

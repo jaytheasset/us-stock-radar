@@ -6,10 +6,18 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "refresh:market-snapshots": "node scripts/refresh-market-group-snapshots.js",
+    "sync:market-universe": "node scripts/sync-fmp-universe.js",
+    "qa:alert-route": "node scripts/qa-alert-route.mjs",
+    "qa:calendar-route": "node scripts/qa-calendar-route.mjs",
+    "qa:news-routes": "node scripts/qa-news-routes.mjs",
+    "qa:globe-ingest": "node scripts/qa-globe-ingest.mjs",
+    "verify:globe-parser": "node --experimental-strip-types scripts/verify-globe-parser.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "fast-xml-parser": "^5.8.0",
+    "lucide-react": "^1.16.0",
     "next": "^16.0.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"

@@ -109,8 +109,45 @@ export default async function AdminDbPage() {
 
       <section className="data-panel">
         <div className="panel-header">
-          <h2>Current Supabase Reference</h2>
-          <span className="muted">Existing DB, not the new contract</span>
+          <h2>Live DB Snapshot</h2>
+          <span className="muted">Actual Supabase counts used by feed, detail pages, and market cache</span>
+        </div>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Group</th>
+                <th>Readout</th>
+                <th>Table</th>
+                <th>Rows</th>
+                <th>Status</th>
+                <th>Error</th>
+              </tr>
+            </thead>
+            <tbody>
+              {readout.liveSnapshot.map((item) => (
+                <tr key={`${item.group}-${item.label}-${item.table}`}>
+                  <td>{item.group}</td>
+                  <td className="ticker">{item.label}</td>
+                  <td>{item.table}</td>
+                  <td>{item.count ?? "-"}</td>
+                  <td>
+                    <span className={`pill ${item.ok ? "ok" : "bad"}`}>
+                      HTTP {item.status}
+                    </span>
+                  </td>
+                  <td>{item.error || "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="data-panel">
+        <div className="panel-header">
+          <h2>Canonical Supabase Tables</h2>
+          <span className="muted">Direct table read checks for the current DB contract</span>
         </div>
         <div className="table-wrap">
           <table>
@@ -124,7 +161,7 @@ export default async function AdminDbPage() {
             </thead>
             <tbody>
               {readout.currentReference.map((table) => (
-                <tr key={table.table}>
+                <tr key={table.label}>
                   <td className="ticker">{table.table}</td>
                   <td>
                     <span className={`pill ${table.ok ? "ok" : "bad"}`}>

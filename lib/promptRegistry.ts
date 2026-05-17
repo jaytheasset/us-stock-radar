@@ -1,3 +1,11 @@
+import {
+  NEWS_EVENT_ANALYSIS_PROMPT_KEY,
+  NEWS_EVENT_ANALYSIS_PROMPT_VERSION,
+  newsEventAnalysisInputTemplate,
+  newsEventAnalysisResponseSchema,
+  newsEventAnalysisSystemPrompt,
+} from "@/lib/prompts/newsEventAnalysis";
+
 export type PromptTemplateDraft = {
   key: string;
   version: string;
@@ -8,9 +16,30 @@ export type PromptTemplateDraft = {
   inputTables: string[];
   outputTarget: string;
   notes: string;
+  systemPrompt?: string;
+  userInputTemplate?: string;
+  responseSchema?: unknown;
+  runtimeNotes?: string;
 };
 
 export const promptTemplates: PromptTemplateDraft[] = [
+  {
+    key: NEWS_EVENT_ANALYSIS_PROMPT_KEY,
+    version: NEWS_EVENT_ANALYSIS_PROMPT_VERSION,
+    task: "Newswire event analysis",
+    model: "gpt-5-mini",
+    status: "draft",
+    owner: "ai",
+    inputTables: ["raw_items"],
+    outputTarget: "events + event_analysis + event_tickers",
+    notes:
+      "Structured news analysis contract. Runtime sends system instructions, article JSON input, and strict JSON schema separately.",
+    systemPrompt: newsEventAnalysisSystemPrompt,
+    userInputTemplate: newsEventAnalysisInputTemplate,
+    responseSchema: newsEventAnalysisResponseSchema,
+    runtimeNotes:
+      "OpenAI call: instructions = systemPrompt, input = JSON.stringify(article input), text.format = responseSchema.",
+  },
   {
     key: "press_release_event_enrichment",
     version: "v1",

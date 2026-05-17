@@ -1,108 +1,1349 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { feedItems, getFeedItem } from "@/lib/feedMock";
-import { getLiveEventDetail } from "@/lib/liveFeed";
+import { ExternalLink, TrendingDown, TrendingUp } from "lucide-react";
+import { PriceChartCard } from "./PriceChartCard";
+import { SectorThemeContextPanel } from "./SectorThemeContextPanel";
+import { feedItems, getFeedItem, type FeedItem } from "@/lib/feedMock";
+import { getEventTypeBadge } from "@/lib/eventTypeRegistry";
+import { fetchFmpProfile } from "@/lib/integrations";
+import { getLiveEventDetail, type LiveFeedItem } from "@/lib/liveFeed";
+import { parseGlobeNewswireArticleHtml } from "@/lib/sources/globe/parser";
+import { fetchEventAnalysis, fetchEventTickers, fetchEventsByTicker, supabaseSelect } from "@/lib/supabase";
+import type { DetailTone, PriceChartSeries, PricePoint, PriceRange, SectorThemeContext } from "./detailTypes";
 
-export const dynamic = "force-dynamic";
+type StockDetailPageProps = {
+  params: Promise<{ id: string }>;
+};
+
+type DetailProfile = {
+  company: string;
+  exchange: string;
+  price: string;
+  changeAmount: string;
+  change: string;
+  detectedAt: string;
+  confidence: string;
+  credibility: string;
+  historicalAccuracy: string;
+  articleReliability: string;
+  sourceUrl: string;
+  sourceReleaseType: string;
+  sourceType: string;
+  issuer: string;
+  publishedAt: string;
+  verification: string;
+  theme: string;
+  quickTake: string;
+  whyItMatters: string;
+  bullCase: string[];
+  bearCase: string[];
+  summary: string;
+  keyEvidence: string[];
+  watchNext: string[];
+  relatedTickers: RelatedTicker[];
+  relatedNews: RelatedStory[];
+  recentFilings: RecentFiling[];
+  context: SectorThemeContext;
+  priceSeries: PriceChartSeries;
+  fullTextHtml?: string | null;
+  fullTextSourceUrl?: string;
+};
+
+type RelatedTicker = {
+  symbol: string;
+  name: string;
+  price: string;
+  change: string;
+  tone: DetailTone;
+};
+
+type RelatedStory = {
+  title: string;
+  source: string;
+  age: string;
+};
+
+type RecentFiling = {
+  form: string;
+  eventType: string;
+  title: string;
+  filedAt: string;
+  score: number;
+};
+
+const defaultEvent = feedItems[0];
+const globeInvuArticleUrl =
+  "https://www.globenewswire.com/news-release/2026/05/15/3296065/0/en/investview-inc-invu-reports-financial-results-and-operational-highlights-for-the-first-quarter-ended-march-31-2026.html";
+
+const detailProfiles: Record<string, DetailProfile> = {
+  INVU: {
+    company: "Investview, Inc.",
+    exchange: "OTCQB",
+    price: "$0.05",
+    changeAmount: "-$0.00",
+    change: "-8.10%",
+    detectedAt: "May 15, 2026 4:15 PM ET",
+    confidence: "Medium",
+    credibility: "Medium",
+    historicalAccuracy: "N/A",
+    articleReliability: "Medium",
+    sourceUrl: globeInvuArticleUrl,
+    sourceReleaseType: "Official Release",
+    sourceType: "Company Press Release",
+    issuer: "Investview",
+    publishedAt: "May 15, 2026 - 16:15 ET",
+    verification: "Original source linked",
+    theme: "Financial Results",
+    quickTake:
+      "INVU reports steep revenue declines, widening operating losses, dwindling cash, and regulatory headwinds in Poland.",
+    whyItMatters:
+      "Revenue pressure, losses, and shrinking liquidity raise execution risk for the OTC-listed company.",
+    bullCase: [
+      "Management still reports active business units across fintech and education.",
+      "Any recovery in Conectiv activity could stabilize revenue.",
+      "Lower digital asset exposure may reduce balance sheet volatility.",
+    ],
+    bearCase: [
+      "Q1 revenue fell sharply year over year.",
+      "Operating losses widened while cash declined.",
+      "Polish regulatory action remains a material uncertainty.",
+    ],
+    summary:
+      "Investview posted Q1 revenue down about 61% to $3.9M, with operating losses widening to $2.8M. Cash and digital assets fell to $9.5M, while Conectiv revenue was hit by a Polish regulator decision.",
+    keyEvidence: [
+      "Gross revenue fell 62.2% year over year.",
+      "Net loss from operations was $2.8M.",
+      "Cash, equivalents, and digital assets were $9.5M at quarter end.",
+    ],
+    watchNext: [
+      "Polish regulatory developments affecting Conectiv.",
+      "Liquidity runway and any financing actions.",
+      "Revenue stabilization in direct-to-consumer units.",
+    ],
+    relatedTickers: [
+      { symbol: "HOOD", name: "Robinhood Markets", price: "$92.14", change: "+1.80%", tone: "bullish" },
+      { symbol: "COIN", name: "Coinbase", price: "$241.77", change: "-0.92%", tone: "bearish" },
+      { symbol: "SOFI", name: "SoFi Technologies", price: "$10.82", change: "+0.44%", tone: "bullish" },
+    ],
+    relatedNews: [
+      { title: "Small-cap financial technology names trade on earnings risk", source: "Stock Radar", age: "Today" },
+      { title: "Crypto-linked balance sheets remain sensitive to digital asset moves", source: "Stock Radar", age: "Today" },
+      { title: "Regulatory headlines weigh on OTC fintech watchlist", source: "Stock Radar", age: "Today" },
+      { title: "Revenue declines keep microcap earnings reports in focus", source: "Stock Radar", age: "Today" },
+    ],
+    recentFilings: [
+      {
+        form: "10-Q",
+        eventType: "Earnings",
+        title: "Quarterly report for Q1 2026",
+        filedAt: "May 15",
+        score: 55,
+      },
+      {
+        form: "8-K",
+        eventType: "Financial Risk",
+        title: "Operating update and regulatory matter disclosure",
+        filedAt: "May 15",
+        score: 51,
+      },
+      {
+        form: "4",
+        eventType: "Insider / Ownership",
+        title: "Recent ownership transaction report",
+        filedAt: "May 2",
+        score: 34,
+      },
+      {
+        form: "DEF 14A",
+        eventType: "Shareholder Vote",
+        title: "Annual meeting proxy materials",
+        filedAt: "Apr 25",
+        score: 32,
+      },
+    ],
+    context: {
+      sector: "Financial Services",
+      industry: "Fintech & Digital Assets",
+      themeGroup: "Crypto & Digital Assets",
+      subTheme: "Retail Trading",
+      periods: {
+        "1D": {
+          sectorChange: "+0.88%",
+          industryChange: "-1.20%",
+          themeScore: 58,
+          themeSignal: "bearish",
+          topMovers: [
+            { symbol: "INVU", change: "-8.10%", trend: [46, 44, 41, 39, 42, 38, 35, 34, 31, 29] },
+            { symbol: "COIN", change: "-0.92%", trend: [42, 41, 39, 40, 38, 37, 35, 36, 34, 33] },
+            { symbol: "HOOD", change: "+1.80%", trend: [34, 35, 37, 36, 39, 40, 42, 43, 45, 47] },
+          ],
+        },
+        "5D": {
+          sectorChange: "+1.14%",
+          industryChange: "-2.74%",
+          themeScore: 56,
+          themeSignal: "volatile",
+          topMovers: [
+            { symbol: "INVU", change: "-12.40%", trend: [52, 49, 47, 44, 45, 41, 38, 36, 33, 31] },
+            { symbol: "COIN", change: "-3.62%", trend: [46, 44, 42, 43, 40, 39, 37, 35, 34, 32] },
+            { symbol: "SOFI", change: "+2.18%", trend: [31, 32, 34, 33, 36, 38, 39, 41, 42, 44] },
+          ],
+        },
+        "30D": {
+          sectorChange: "+3.90%",
+          industryChange: "-6.20%",
+          themeScore: 52,
+          themeSignal: "volatile",
+          topMovers: [
+            { symbol: "INVU", change: "-24.80%", trend: [64, 60, 58, 55, 51, 49, 44, 40, 36, 32] },
+            { symbol: "COIN", change: "+6.30%", trend: [35, 36, 38, 41, 40, 43, 45, 48, 50, 52] },
+            { symbol: "HOOD", change: "+9.45%", trend: [32, 34, 36, 39, 41, 42, 45, 49, 51, 55] },
+          ],
+        },
+      },
+    },
+    priceSeries: buildPriceSeries({
+      lastClose: 0.05,
+      previousClose: 0.055,
+      trend: [46, 44, 41, 39, 42, 38, 35, 34, 31, 29, 30, 27],
+      volumeBase: 620_000,
+    }),
+  },
+  NVDA: {
+    company: "NVIDIA Corporation",
+    exchange: "NASDAQ",
+    price: "$125.47",
+    changeAmount: "$2.29",
+    change: "+1.86%",
+    detectedAt: "May 13, 2026 11:05 AM ET",
+    confidence: "High",
+    credibility: "High",
+    historicalAccuracy: "93%",
+    articleReliability: "High",
+    sourceUrl: "https://www.businesswire.com/",
+    sourceReleaseType: "Official Release",
+    sourceType: "Company Press Release",
+    issuer: "NVIDIA",
+    publishedAt: "Jun 18, 2025 · 08:00 ET",
+    verification: "Original source linked",
+    theme: "AI Infrastructure",
+    quickTake:
+      "NVIDIA expanded availability for its data center platform, increasing enterprise access through major cloud partners.",
+    whyItMatters:
+      "The update reinforces NVIDIA's lead in accelerated computing and keeps investor attention on AI infrastructure demand.",
+    bullCase: [
+      "Broader cloud availability can pull more enterprise workloads onto NVIDIA platforms.",
+      "Partner distribution lowers adoption friction for large customers.",
+      "Data center demand remains the central growth driver for the stock.",
+    ],
+    bearCase: [
+      "Supply constraints can limit near-term upside.",
+      "Cloud partner timing may delay revenue recognition.",
+      "Valuation leaves less room for execution misses.",
+    ],
+    summary:
+      "The company announced wider platform availability across cloud partners. The event is company-specific, AI infrastructure linked, and likely relevant for investors tracking data center growth.",
+    keyEvidence: [
+      "Platform availability expanded through major cloud partners.",
+      "Management positioned the release around enterprise AI deployment.",
+      "The announcement supports continued demand for accelerated computing infrastructure.",
+    ],
+    watchNext: [
+      "Cloud partner rollout timing and capacity signals.",
+      "Any follow-up guidance around data center demand.",
+      "Competitive responses from AMD, custom ASIC vendors, and hyperscalers.",
+    ],
+    relatedTickers: [
+      { symbol: "AMD", name: "Advanced Micro Devices", price: "$173.21", change: "+2.35%", tone: "bullish" },
+      { symbol: "AVGO", name: "Broadcom", price: "$1,497.89", change: "+2.10%", tone: "bullish" },
+      { symbol: "MRVL", name: "Marvell Technology", price: "$71.32", change: "+1.62%", tone: "bullish" },
+      { symbol: "SMCI", name: "Super Micro Computer", price: "$926.75", change: "+3.45%", tone: "bullish" },
+      { symbol: "VRT", name: "Vertiv", price: "$96.42", change: "+1.84%", tone: "bullish" },
+    ],
+    relatedNews: [
+      { title: "AI server demand keeps infrastructure suppliers in focus", source: "Business Wire", age: "1h ago" },
+      { title: "Cloud capex comments lift data center watchlist", source: "PR Newswire", age: "3h ago" },
+      { title: "Semiconductor names rise with accelerated computing demand", source: "GlobeNewswire", age: "5h ago" },
+      { title: "AI infrastructure supply chain stays active after platform update", source: "Accesswire", age: "7h ago" },
+    ],
+    recentFilings: [
+      {
+        form: "10-Q",
+        eventType: "Earnings",
+        title: "Quarterly report with data center revenue disclosure",
+        filedAt: "May 9",
+        score: 72,
+      },
+      {
+        form: "8-K",
+        eventType: "Product Update",
+        title: "Corporate update tied to new platform availability",
+        filedAt: "May 6",
+        score: 64,
+      },
+      {
+        form: "4",
+        eventType: "Insider / Ownership",
+        title: "Director transaction report filed",
+        filedAt: "May 2",
+        score: 41,
+      },
+      {
+        form: "S-8",
+        eventType: "Shareholder Vote",
+        title: "Equity incentive plan registration statement",
+        filedAt: "Apr 28",
+        score: 36,
+      },
+    ],
+    context: {
+      sector: "Technology",
+      industry: "Semiconductors & Compute",
+      themeGroup: "AI & Data Center",
+      subTheme: "AI Infrastructure",
+      periods: {
+        "1D": {
+          sectorChange: "+2.84%",
+          industryChange: "+4.32%",
+          themeScore: 92,
+          themeSignal: "bullish",
+          topMovers: [
+            { symbol: "NVDA", change: "+4.86%", trend: [34, 38, 37, 42, 45, 44, 49, 53, 56, 60] },
+            { symbol: "AMD", change: "+3.92%", trend: [30, 31, 34, 33, 37, 40, 39, 43, 46, 50] },
+            { symbol: "AVGO", change: "+2.74%", trend: [42, 41, 44, 47, 46, 48, 52, 51, 55, 57] },
+          ],
+        },
+        "5D": {
+          sectorChange: "+6.41%",
+          industryChange: "+8.76%",
+          themeScore: 94,
+          themeSignal: "bullish",
+          topMovers: [
+            { symbol: "NVDA", change: "+8.92%", trend: [31, 34, 33, 37, 40, 42, 45, 44, 49, 54] },
+            { symbol: "AMD", change: "+7.38%", trend: [29, 31, 35, 34, 38, 41, 43, 42, 46, 50] },
+            { symbol: "MRVL", change: "+6.12%", trend: [24, 26, 25, 29, 32, 34, 33, 37, 40, 43] },
+          ],
+        },
+        "30D": {
+          sectorChange: "+14.20%",
+          industryChange: "+22.40%",
+          themeScore: 90,
+          themeSignal: "bullish",
+          topMovers: [
+            { symbol: "NVDA", change: "+24.10%", trend: [22, 24, 27, 29, 33, 36, 39, 43, 47, 52] },
+            { symbol: "AVGO", change: "+18.64%", trend: [28, 30, 32, 35, 34, 38, 42, 45, 49, 53] },
+            { symbol: "MU", change: "+15.28%", trend: [20, 22, 24, 23, 29, 31, 35, 38, 41, 45] },
+          ],
+        },
+      },
+    },
+    priceSeries: buildPriceSeries({
+      lastClose: 125.47,
+      previousClose: 123.18,
+      trend: [44, 47, 46, 49, 52, 50, 55, 58, 57, 61, 64, 63, 67, 70, 69, 73, 76, 79],
+      volumeBase: 12_400_000,
+    }),
+  },
+  PLTR: {
+    company: "Palantir Technologies Inc.",
+    exchange: "NASDAQ",
+    price: "$21.84",
+    changeAmount: "$0.57",
+    change: "+2.67%",
+    detectedAt: "May 13, 2026 9:22 AM ET",
+    confidence: "High",
+    credibility: "High",
+    historicalAccuracy: "90%",
+    articleReliability: "High",
+    sourceUrl: "https://www.prnewswire.com/news-releases/",
+    sourceReleaseType: "Official Release",
+    sourceType: "Company Press Release",
+    issuer: "Palantir",
+    publishedAt: "May 13, 2026 · 09:22 ET",
+    verification: "Original source linked",
+    theme: "Enterprise AI",
+    quickTake:
+      "Palantir disclosed an expanded commercial AI agreement, pointing to continued enterprise demand for AI workflow platforms.",
+    whyItMatters:
+      "Contract expansion is one of the cleaner company-specific signals because it ties the AI narrative to paying customers.",
+    bullCase: [
+      "Multi-year platform access can support revenue visibility.",
+      "Commercial traction expands the story beyond government contracts.",
+      "Enterprise AI budgets remain active despite macro uncertainty.",
+    ],
+    bearCase: [
+      "Deal size and timing may not be enough to change near-term estimates.",
+      "High expectations can limit upside from routine wins.",
+      "Customer concentration remains a watch item.",
+    ],
+    summary:
+      "The event highlights new commercial AI demand and gives investors a company-specific data point for platform adoption.",
+    keyEvidence: [
+      "Announcement described an expanded commercial relationship.",
+      "The customer use case centers on AI workflow deployment.",
+      "The event was scored as high impact because it is directly tied to growth narrative.",
+    ],
+    watchNext: [
+      "Whether management quantifies annual contract value.",
+      "Follow-on customer wins in the same vertical.",
+      "Margin commentary as commercial deployments scale.",
+    ],
+    relatedTickers: [
+      { symbol: "SNOW", name: "Snowflake", price: "$164.22", change: "+1.24%", tone: "bullish" },
+      { symbol: "CRM", name: "Salesforce", price: "$291.14", change: "+0.88%", tone: "bullish" },
+      { symbol: "NOW", name: "ServiceNow", price: "$812.08", change: "+1.02%", tone: "bullish" },
+      { symbol: "MSFT", name: "Microsoft", price: "$415.12", change: "+0.41%", tone: "bullish" },
+    ],
+    relatedNews: [
+      { title: "Enterprise AI software names move higher on contract activity", source: "PR Newswire", age: "2h ago" },
+      { title: "Large customers keep AI workflow spending active", source: "Business Wire", age: "4h ago" },
+      { title: "Software infrastructure watchlist sees renewed inflows", source: "Accesswire", age: "6h ago" },
+      { title: "AI workflow platforms draw fresh enterprise budget attention", source: "GlobeNewswire", age: "8h ago" },
+    ],
+    recentFilings: [
+      {
+        form: "8-K",
+        eventType: "Strategic Transaction",
+        title: "Material commercial agreement update",
+        filedAt: "May 10",
+        score: 78,
+      },
+      {
+        form: "10-Q",
+        eventType: "Earnings",
+        title: "Quarterly results and commercial revenue commentary",
+        filedAt: "May 5",
+        score: 69,
+      },
+      {
+        form: "4",
+        eventType: "Insider / Ownership",
+        title: "Officer transaction report filed",
+        filedAt: "Apr 30",
+        score: 43,
+      },
+      {
+        form: "DEF 14A",
+        eventType: "Shareholder Vote",
+        title: "Annual meeting proxy statement filed",
+        filedAt: "Apr 24",
+        score: 39,
+      },
+    ],
+    context: {
+      sector: "Technology",
+      industry: "Software & Cloud",
+      themeGroup: "AI & Data Center",
+      subTheme: "AI Software Agents",
+      periods: {
+        "1D": {
+          sectorChange: "+2.84%",
+          industryChange: "+2.18%",
+          themeScore: 86,
+          themeSignal: "bullish",
+          topMovers: [
+            { symbol: "PLTR", change: "+2.67%", trend: [26, 28, 27, 31, 34, 33, 37, 39, 41, 44] },
+            { symbol: "SNOW", change: "+4.12%", trend: [32, 35, 34, 38, 42, 45, 43, 48, 50, 54] },
+            { symbol: "DDOG", change: "+3.20%", trend: [28, 29, 32, 31, 35, 37, 39, 38, 42, 45] },
+          ],
+        },
+        "5D": {
+          sectorChange: "+6.41%",
+          industryChange: "+5.74%",
+          themeScore: 88,
+          themeSignal: "bullish",
+          topMovers: [
+            { symbol: "SNOW", change: "+9.18%", trend: [27, 30, 29, 33, 37, 40, 42, 41, 46, 50] },
+            { symbol: "PLTR", change: "+7.64%", trend: [24, 25, 28, 31, 30, 35, 38, 40, 43, 47] },
+            { symbol: "DDOG", change: "+5.82%", trend: [25, 27, 29, 28, 32, 35, 36, 39, 41, 44] },
+          ],
+        },
+        "30D": {
+          sectorChange: "+14.20%",
+          industryChange: "+11.60%",
+          themeScore: 84,
+          themeSignal: "bullish",
+          topMovers: [
+            { symbol: "PLTR", change: "+21.30%", trend: [21, 23, 26, 29, 32, 36, 39, 43, 46, 51] },
+            { symbol: "SNOW", change: "+16.42%", trend: [25, 27, 29, 34, 33, 37, 41, 44, 48, 52] },
+            { symbol: "CRM", change: "+9.88%", trend: [30, 31, 34, 33, 36, 39, 41, 44, 45, 48] },
+          ],
+        },
+      },
+    },
+    priceSeries: buildPriceSeries({
+      lastClose: 21.84,
+      previousClose: 21.27,
+      trend: [32, 35, 34, 38, 41, 40, 44, 48, 46, 51, 54, 53, 58, 61, 64, 63, 68, 71],
+      volumeBase: 8_900_000,
+    }),
+  },
+};
 
 export function generateStaticParams() {
   return feedItems.map((item) => ({ id: item.id }));
 }
 
-export default async function EventDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function StockNewsDetailPage({ params }: StockDetailPageProps) {
   const { id } = await params;
-  const mockEvent = getFeedItem(id);
-  const liveEvent = mockEvent ? null : await getLiveEventDetail(id);
-  const event = mockEvent || liveEvent?.item;
-
-  if (!event) notFound();
+  const liveDetail = isUuid(id) ? await getLiveEventDetail(id) : { item: null };
+  const liveItem = liveDetail.item;
+  const event = liveItem ? toDetailEvent(liveItem) : getFeedItem(id) || defaultEvent;
+  let profile = liveItem
+    ? await buildDbBackedProfile(liveItem, event)
+    : detailProfiles[event.ticker] || buildFallbackProfile(event);
+  profile = await attachTickerMarketCap(profile, event.ticker);
+  const fullTextUrl = isGlobeNewswireUrl(profile.sourceUrl)
+    ? profile.sourceUrl
+    : event.id === "globe-invu-q1-2026-results"
+      ? globeInvuArticleUrl
+      : "";
+  if (fullTextUrl) {
+    profile = await attachGlobeFullText(profile, fullTextUrl);
+  }
+  const eventBadge = getEventTypeBadge(event.eventType);
 
   return (
-    <main className="event-detail-page">
-      <header className="detail-nav">
-        <Link className="brand-lockup" href="/feed" aria-label="Back to live feed">
+    <main className="feed-page stock-detail-page">
+      <header className="feed-nav">
+        <Link className="brand-lockup" href="/" aria-label="US Stock Radar home">
           <span className="brand-mark">SR</span>
           <span>STOCK RADAR</span>
         </Link>
-        <Link className="text-link" href="/feed">
-          Live Feed
-        </Link>
+        <nav className="feed-nav-links" aria-label="Primary">
+          {[
+            { label: "Live Feed", href: "/feed" },
+            { label: "Watchlist", href: "#" },
+            { label: "News", href: "/news" },
+            { label: "Filings", href: "/filings" },
+            { label: "Alerts", href: "#" },
+            { label: "Premium", href: "#" },
+          ].map((item) => (
+            <Link className={item.label === "News" ? "active" : ""} href={item.href} key={item.label}>
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+        <div className="feed-search" role="search">
+          <span aria-hidden="true">/</span>
+          <input aria-label="Search" placeholder="Search tickers, companies, or keywords" />
+        </div>
+        <div className="feed-actions">
+          <button className="icon-button" type="button" aria-label="Notifications">
+            <span aria-hidden="true">!</span>
+            <span className="notification-dot">3</span>
+          </button>
+          <button className="avatar-button" type="button" aria-label="User menu">
+            N
+          </button>
+        </div>
       </header>
 
-      <div className="detail-layout">
-        <article className="detail-main">
-          <div className="detail-ad-slot top">Responsive ad slot</div>
-
-          <section className="detail-hero">
-            <div className="detail-badges">
-              <span className={`source-badge ${event.sourceGroup}`}>{event.sourceGroup}</span>
-              <span className={`signal-badge ${event.signal}`}>{event.signal}</span>
-              <span className={`delivery-badge ${event.deliveryLevel}`}>{event.deliveryLevel}</span>
+      <div className="stock-detail-shell">
+        <article className="stock-detail-main">
+          <div className="stock-detail-kicker-row">
+            <div className="stock-detail-breadcrumb">
+              <Link href="/news">News</Link>
+              <span>/</span>
+              <span>Analysis</span>
             </div>
-            <h1>{event.title}</h1>
-            <p>{event.summary}</p>
-          </section>
+            <div className="stock-detail-source-line">
+              <span>{event.source}</span>
+              <span>{profile.detectedAt}</span>
+            </div>
+          </div>
 
-          <section className="detail-section">
-            <h2>Key Takeaway</h2>
-            <p>{event.scoreReason}</p>
-          </section>
-
-          <section className="detail-metrics" aria-label="Event details">
-            <Metric label="Ticker" value={event.ticker} />
-            <Metric label="Source" value={event.source} />
-            <Metric label="Event Type" value={event.eventType} />
-            <Metric label="Score" value={String(event.score)} />
-            <Metric label="Impact" value={event.impact} />
-            <Metric label="Detected" value={event.time} />
-          </section>
-
-          <div className="detail-ad-slot inline">In-article responsive ad slot</div>
-
-          <section className="detail-section">
-            <h2>Analysis Shell</h2>
-            <p>
-              Full article text, filing extraction, AI analysis, related events, and source links
-              will be connected here after the DB pipeline is wired.
-            </p>
-          </section>
-
-          <section className="detail-section">
-            <h2>Related Events</h2>
-            <div className="related-shell">
-              <span>Related news</span>
-              <span>Related filings</span>
-              <span>Market context</span>
+          <section className="stock-detail-hero">
+            <div className="stock-detail-title-block">
+              <h1>{event.title}</h1>
+              <div className="stock-detail-meta">
+                <span className="ticker-chip">{profile.exchange}:{event.ticker}</span>
+                <span>{profile.company}</span>
+                <span className={`signal-badge ${event.signal}`}>{event.signal}</span>
+                <span className={`source-badge impact-badge ${event.signal}`}>Impact {event.score}</span>
+              </div>
             </div>
           </section>
+
+          <section className="stock-detail-top-grid">
+            <PriceChartCard
+              change={profile.change}
+              changeAmount={profile.changeAmount}
+              price={profile.price}
+              series={profile.priceSeries}
+              ticker={event.ticker}
+              tone={event.signal}
+            />
+
+            <div className="stock-detail-card quick-analysis-panel">
+              <div className="quick-take-card quick-take-block">
+                <div className="card-heading-row">
+                  <h2>Quick Take</h2>
+                  <span>{profile.theme}</span>
+                </div>
+                <p>{profile.quickTake}</p>
+                <div className="detail-chip-row">
+                  <span>{eventBadge.label}</span>
+                  <span>{event.impact} impact</span>
+                  <span>{event.deliveryLevel}</span>
+                </div>
+              </div>
+
+              <div className="quick-case-grid">
+                <CaseList title="Bullish" tone="bullish" items={profile.bullCase} />
+                <CaseList title="Bearish" tone="bearish" items={profile.bearCase} />
+              </div>
+            </div>
+          </section>
+
+          <section className="stock-detail-card-grid two-up insight-summary-grid">
+            <AnalysisCard title="Why It Matters" body={profile.whyItMatters} />
+            <section className="stock-detail-card summary-card">
+              <h2>Summary</h2>
+              <p>{profile.summary}</p>
+            </section>
+          </section>
+
+          <section className="stock-detail-card-grid two-up insight-summary-grid">
+            <AnalysisList title="Key Evidence" items={profile.keyEvidence} />
+            <AnalysisList title="What To Watch Next" numbered items={profile.watchNext} />
+          </section>
+
+          <SectorThemeContextPanel context={profile.context} ticker={event.ticker} />
+
         </article>
 
-        <aside className="detail-sidebar">
-          <div className="detail-ad-slot rail">Sidebar responsive ad slot</div>
-          <section className="detail-side-panel">
-            <h2>Market Context</h2>
-            <Metric label="Price" value={event.price} />
-            <Metric label="Change" value={event.change} />
-            <Metric label="Signal" value={event.signal} />
+        <aside className="stock-detail-rail">
+          <section className="stock-detail-card recent-filings-card">
+            <div className="card-heading-row">
+              <div>
+                <h2>Recent Filings</h2>
+                <p>{event.ticker} filings context</p>
+              </div>
+              <Link href="/filings">View all</Link>
+            </div>
+            <div className="recent-filings-list">
+              {profile.recentFilings.slice(0, 4).map((filing) => (
+                <Link href="/filings" key={`${filing.form}-${filing.title}`}>
+                  <span className="filing-form-chip">{filing.form}</span>
+                  <div>
+                    <strong>{filing.title}</strong>
+                    <span>{filing.eventType} - {filing.filedAt}</span>
+                  </div>
+                  <b>{filing.score}</b>
+                </Link>
+              ))}
+            </div>
           </section>
-          <section className="detail-side-panel">
-            <h2>Next Actions</h2>
-            <Link href="/feed">Back to Live Feed</Link>
-            <a href="#">Open source</a>
+
+          <section className="stock-detail-card detail-score-card">
+            <h2>Event Snapshot</h2>
+            <div className={`detail-score-main ${event.signal}`}>
+              <strong>{event.score}</strong>
+              <span>Impact</span>
+            </div>
+            <MetricRow label="Source Group" value={event.sourceGroup} />
+            <MetricRow label="Event Type" value={eventBadge.label} />
+            <MetricRow label="Signal" value={event.signal} />
+          </section>
+
+          <section className="stock-detail-card related-news-card">
+            <div className="card-heading-row">
+              <h2>Related News</h2>
+              <Link href="/news">View all</Link>
+            </div>
+            <div className="related-news-list">
+              {profile.relatedNews.slice(0, 4).map((story) => (
+                <Link href="/news" key={story.title}>
+                  <strong>{story.title}</strong>
+                  <span>{story.source} - {story.age}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          <section className="stock-detail-card alert-card">
+            <span>Premium</span>
+            <h2>Real-time alerts for this event type</h2>
+            <p>Track similar high-impact stock news, source changes, and follow-up catalysts.</p>
+            <button type="button">Upgrade to Premium</button>
+          </section>
+
+          <section className="stock-detail-card source-confidence-card">
+            <h2>Source & Evidence</h2>
+            <div className="source-confidence-top">
+              <strong>{event.source}</strong>
+              <span>{profile.sourceReleaseType}</span>
+            </div>
+            <MetricRow label="Source Type" value={profile.sourceType} />
+            <MetricRow label="Issuer" value={profile.issuer} />
+            <MetricRow label="Published" value={profile.publishedAt} />
+            <MetricRow label="Verification" value={profile.verification} />
+            <a className="source-original-link" href={profile.sourceUrl} target="_blank" rel="noreferrer">
+              <span>View Original Source</span>
+              <ExternalLink size={14} aria-hidden="true" />
+            </a>
           </section>
         </aside>
+
+        {profile.fullTextHtml ? (
+          <section className="stock-detail-card full-text-card">
+            <div className="card-heading-row">
+              <div>
+                <h2>Original Release Text</h2>
+                <p>Full source text preserved for reader review. This section is not used for LLM analysis.</p>
+              </div>
+              <a href={profile.fullTextSourceUrl || profile.sourceUrl} target="_blank" rel="noreferrer">
+                Source
+              </a>
+            </div>
+            <div
+              className="full-text-content"
+              dangerouslySetInnerHTML={{ __html: profile.fullTextHtml }}
+            />
+          </section>
+        ) : null}
       </div>
     </main>
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function buildFallbackProfile(event: FeedItem): DetailProfile {
+  return {
+    company: `${event.ticker} Corporation`,
+    exchange: getExchange(event.ticker),
+    price: event.price,
+    changeAmount: event.change.startsWith("-") ? "-$0.46" : "$0.14",
+    change: event.change,
+    detectedAt: `May 13, 2026 ${event.time} ET`,
+    confidence: event.impact === "high" ? "High" : "Medium",
+    credibility: "Medium",
+    historicalAccuracy: "88%",
+    articleReliability: "Medium",
+    sourceUrl: getSourceUrl(event.source),
+    sourceReleaseType: event.source === "SEC" ? "Official Filing" : "Official Release",
+    sourceType: event.source === "SEC" ? "SEC Filing" : "Company Press Release",
+    issuer: event.ticker,
+    publishedAt: `May 13, 2026 · ${event.time} ET`,
+    verification: "Original source linked",
+    theme: "Company News",
+    quickTake: event.summary,
+    whyItMatters: event.scoreReason,
+    bullCase: [
+      "The event gives investors a fresh company-specific signal.",
+      "Follow-up disclosures may improve visibility.",
+      "The headline can attract short-term trading attention.",
+    ],
+    bearCase: [
+      "The announcement may not be material enough to change estimates.",
+      "Market reaction can fade without additional detail.",
+      "Execution risk remains until management provides proof points.",
+    ],
+    summary: event.summary,
+    keyEvidence: [
+      "Source headline and summary were parsed from the event feed.",
+      "Event type and impact score are shown as normalized feed fields.",
+      "Detailed source extraction will be connected after the analysis table is finalized.",
+    ],
+    watchNext: [
+      "Source updates or company follow-up statements.",
+      "Price and volume reaction across the next session.",
+      "Related filings, guidance, or analyst commentary.",
+    ],
+    relatedTickers: [
+      { symbol: "SPY", name: "S&P 500 ETF", price: "$529.12", change: "+0.42%", tone: "bullish" },
+      { symbol: "QQQ", name: "Nasdaq 100 ETF", price: "$451.30", change: "+0.68%", tone: "bullish" },
+      { symbol: "IWM", name: "Russell 2000 ETF", price: "$205.10", change: "-0.11%", tone: "bearish" },
+    ],
+    relatedNews: [
+      { title: "Company-specific catalysts remain active across the live feed", source: "Stock Radar", age: "1h ago" },
+      { title: "High impact stock news list updates with new source items", source: "Stock Radar", age: "2h ago" },
+      { title: "Watchlist alerts will use this event type after filter wiring", source: "Stock Radar", age: "4h ago" },
+      { title: "Related company updates are grouped for detail-page context", source: "Stock Radar", age: "6h ago" },
+    ],
+    recentFilings: [
+      {
+        form: "8-K",
+        eventType: "Product Update",
+        title: "Recent corporate update filed",
+        filedAt: "May 12",
+        score: 62,
+      },
+      {
+        form: "10-Q",
+        eventType: "Earnings",
+        title: "Latest quarterly report",
+        filedAt: "May 8",
+        score: 58,
+      },
+      {
+        form: "4",
+        eventType: "Insider / Ownership",
+        title: "Recent insider transaction filing",
+        filedAt: "May 3",
+        score: 45,
+      },
+      {
+        form: "DEF 14A",
+        eventType: "Shareholder Vote",
+        title: "Recent proxy statement filing",
+        filedAt: "Apr 29",
+        score: 38,
+      },
+    ],
+    context: {
+      sector: "Technology",
+      industry: "Company Watchlist",
+      periods: {
+        "1D": {
+          sectorChange: "+0.62%",
+          industryChange: "+0.44%",
+          themeScore: event.score,
+          themeSignal: event.signal,
+          topMovers: [
+            { symbol: event.ticker, change: event.change, trend: event.trend },
+            { symbol: "SPY", change: "+0.42%", trend: [41, 42, 43, 42, 44, 45, 46, 47, 48, 49] },
+            { symbol: "QQQ", change: "+0.68%", trend: [38, 40, 41, 43, 42, 45, 47, 46, 49, 51] },
+          ],
+        },
+        "5D": {
+          sectorChange: "+1.90%",
+          industryChange: "+1.28%",
+          themeScore: Math.min(event.score + 2, 99),
+          themeSignal: event.signal,
+          topMovers: [
+            { symbol: event.ticker, change: "+3.18%", trend: [31, 32, 34, 33, 36, 38, 37, 40, 42, 44] },
+            { symbol: "SPY", change: "+1.24%", trend: [38, 39, 40, 41, 40, 42, 43, 44, 45, 46] },
+            { symbol: "QQQ", change: "+2.08%", trend: [34, 36, 35, 38, 40, 41, 43, 42, 45, 47] },
+          ],
+        },
+        "30D": {
+          sectorChange: "+4.85%",
+          industryChange: "+3.60%",
+          themeScore: Math.min(event.score + 4, 99),
+          themeSignal: event.signal,
+          topMovers: [
+            { symbol: event.ticker, change: "+7.42%", trend: [25, 26, 29, 31, 30, 34, 37, 39, 42, 45] },
+            { symbol: "SPY", change: "+3.70%", trend: [32, 33, 35, 36, 38, 37, 40, 42, 43, 45] },
+            { symbol: "QQQ", change: "+5.18%", trend: [28, 30, 32, 35, 34, 38, 41, 43, 46, 49] },
+          ],
+        },
+      },
+    },
+    priceSeries: buildPriceSeries({
+      lastClose: parsePrice(event.price),
+      previousClose: estimatePreviousClose(parsePrice(event.price), event.change),
+      trend: event.trend,
+      volumeBase: 3_800_000,
+    }),
+  };
+}
+
+async function attachGlobeFullText(profile: DetailProfile, sourceUrl: string): Promise<DetailProfile> {
+  try {
+    const response = await fetch(sourceUrl, {
+      cache: "no-store",
+      headers: {
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "User-Agent": "US-Stock-Radar/0.1 detail full text preview",
+      },
+    });
+
+    if (!response.ok) {
+      return profile;
+    }
+
+    const html = await response.text();
+    const article = parseGlobeNewswireArticleHtml(html, sourceUrl);
+
+    return {
+      ...profile,
+      fullTextHtml: article.bodyHtml,
+      fullTextSourceUrl: article.url || sourceUrl,
+      sourceUrl: article.url || profile.sourceUrl,
+    };
+  } catch {
+    return profile;
+  }
+}
+
+function isGlobeNewswireUrl(value: string) {
+  return /(^|\/\/)(www\.)?globenewswire\.com\//i.test(value);
+}
+
+async function attachTickerMarketCap(profile: DetailProfile, ticker: string): Promise<DetailProfile> {
+  if (!isRealTicker(ticker) || profile.context.marketCap || profile.context.themeGroup || profile.context.subTheme) {
+    return profile;
+  }
+
+  const marketCap = await fetchTickerMarketCap(ticker);
+  if (!marketCap) {
+    return profile;
+  }
+
+  return {
+    ...profile,
+    context: {
+      ...profile.context,
+      marketCap,
+    },
+  };
+}
+
+async function fetchTickerMarketCap(ticker: string) {
+  const symbol = ticker.trim().toUpperCase();
+  const cached = await supabaseSelect("tickers", {
+    select: "symbol,market_cap",
+    symbol: `eq.${symbol}`,
+    limit: "1",
+  });
+  const cachedRow = toRows(cached.data)[0] || null;
+  const cachedMarketCap = readRowNumber(cachedRow, "market_cap");
+  if (cachedMarketCap > 0) {
+    return formatMarketCap(cachedMarketCap);
+  }
+
+  const profileResult = await fetchFmpProfile(symbol);
+  const profileRow = toRows(profileResult.data)[0] || toRecord(profileResult.data);
+  const liveMarketCap =
+    readRowNumber(profileRow, "marketCap") ||
+    readRowNumber(profileRow, "mktCap") ||
+    readRowNumber(profileRow, "market capitalization");
+
+  return liveMarketCap > 0 ? formatMarketCap(liveMarketCap) : "";
+}
+
+function toDetailEvent(item: LiveFeedItem): FeedItem {
+  return {
+    id: item.id,
+    time: item.time,
+    ticker: item.ticker,
+    price: item.price,
+    change: item.change,
+    sourceGroup: item.sourceGroup,
+    source: item.source,
+    eventType: item.eventType,
+    title: item.title,
+    summary: item.quickTake || item.summary,
+    scoreReason: item.scoreReason,
+    score: item.score,
+    deliveryLevel: item.deliveryLevel,
+    impact: item.impact,
+    signal: item.signal,
+    trend: item.trend,
+  };
+}
+
+async function buildDbBackedProfile(item: LiveFeedItem, event: FeedItem): Promise<DetailProfile> {
+  const fallback = detailProfiles[item.ticker] || buildFallbackProfile(event);
+  const ticker = item.ticker.trim().toUpperCase();
+  const canLoadTickerContext = isRealTicker(ticker);
+  const [analysisResult, tickersResult, relatedNewsResult, recentFilingsResult] = await Promise.all([
+    fetchEventAnalysis(item.id),
+    fetchEventTickers(item.id),
+    canLoadTickerContext
+      ? fetchEventsByTicker({ ticker, sourceGroup: "news", excludeId: item.id, limit: 4 })
+      : Promise.resolve({ ok: true, status: 200, data: [], error: undefined }),
+    canLoadTickerContext
+      ? fetchEventsByTicker({ ticker, sourceGroup: "filings", excludeId: item.id, limit: 4 })
+      : Promise.resolve({ ok: true, status: 200, data: [], error: undefined }),
+  ]);
+  const analysis = toRecord(analysisResult.data);
+  const tickerRows = toRows(tickersResult.data);
+  const relatedNews = mapRelatedNewsRows(toRows(relatedNewsResult.data));
+  const recentFilings = mapRecentFilingRows(toRows(recentFilingsResult.data));
+  const relatedTickers = mapRelatedTickerRows(tickerRows, fallback.relatedTickers);
+  const publishedLabel = formatDetailDateTime(item.detectedAtRaw, `${item.time} ET`);
+
+  return {
+    ...fallback,
+    price: item.price,
+    changeAmount: item.changeAmount,
+    change: item.change,
+    detectedAt: publishedLabel,
+    confidence: item.impact === "high" ? "High" : item.impact === "medium" ? "Medium" : "Low",
+    sourceReleaseType: item.sourceGroup === "filings" ? "Official Filing" : "Official Release",
+    sourceType: item.sourceGroup === "filings" ? "SEC Filing" : "Company Press Release",
+    sourceUrl: item.sourceUrl || fallback.sourceUrl,
+    issuer: ticker || fallback.issuer,
+    publishedAt: publishedLabel,
+    quickTake: item.quickTake || item.summary || fallback.quickTake,
+    whyItMatters: readRowString(analysis, "why_it_matters") || item.scoreReason || fallback.whyItMatters,
+    bullCase: toStringArray(analysis?.bullish_points, fallback.bullCase),
+    bearCase: toStringArray(analysis?.bearish_points, fallback.bearCase),
+    summary: item.summary || fallback.summary,
+    keyEvidence: toStringArray(analysis?.key_evidence, fallback.keyEvidence),
+    watchNext: toStringArray(analysis?.watch_next, fallback.watchNext),
+    relatedTickers,
+    relatedNews: relatedNews.length ? relatedNews : fallback.relatedNews,
+    recentFilings: recentFilings.length ? recentFilings : fallback.recentFilings,
+  };
+}
+
+function mapRelatedTickerRows(rows: Record<string, unknown>[], fallback: RelatedTicker[]) {
+  const related = rows
+    .filter((row) => readRowString(row, "role") !== "primary")
+    .sort((a, b) => readRowNumber(a, "sort_order") - readRowNumber(b, "sort_order"))
+    .slice(0, 8)
+    .map((row) => {
+      const symbol = readRowString(row, "symbol").toUpperCase();
+      return {
+        symbol,
+        name: readMetadataString(row, "name") || symbol,
+        price: "N/A",
+        change: "",
+        tone: "neutral" as const,
+      };
+    })
+    .filter((row) => row.symbol);
+
+  return related.length ? related : fallback;
+}
+
+function mapRelatedNewsRows(rows: Record<string, unknown>[]): RelatedStory[] {
+  return rows.slice(0, 4).map((row) => ({
+    title: readRowString(row, "title") || "Related event",
+    source: formatSourceLabel(readRowString(row, "source_code")),
+    age: formatShortDate(readRowString(row, "detected_at")),
+  }));
+}
+
+function mapRecentFilingRows(rows: Record<string, unknown>[]): RecentFiling[] {
+  return rows.slice(0, 4).map((row) => {
+    const eventType = readRowString(row, "event_type") || "other";
+    const badge = getEventTypeBadge(eventType);
+    return {
+      form: readMetadataString(row, "form_type") || readMetadataString(row, "formType") || "SEC",
+      eventType: badge.label,
+      title: readRowString(row, "title") || "Recent filing",
+      filedAt: formatShortDate(readRowString(row, "detected_at")),
+      score: readRowNumber(row, "score"),
+    };
+  });
+}
+
+function toRows(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value)
+    ? value.filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === "object")
+    : [];
+}
+
+function toRecord(value: unknown) {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+function toStringArray(value: unknown, fallback: string[]) {
+  if (!Array.isArray(value)) return fallback;
+
+  const items = value
+    .map((item) => {
+      if (typeof item === "string") return item.trim();
+      if (item && typeof item === "object") {
+        const record = item as Record<string, unknown>;
+        return readRowString(record, "text") || readRowString(record, "title") || readRowString(record, "point");
+      }
+      return "";
+    })
+    .filter(Boolean);
+
+  return items.length ? items : fallback;
+}
+
+function readRowString(row: Record<string, unknown> | null, key: string) {
+  if (!row) return "";
+  const value = row[key];
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return "";
+}
+
+function readRowNumber(row: Record<string, unknown> | null, key: string) {
+  if (!row) return 0;
+  const value = row[key];
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && Number.isFinite(Number(value))) return Number(value);
+  return 0;
+}
+
+function formatMarketCap(value: number) {
+  if (value >= 1_000_000_000_000) return `$${(value / 1_000_000_000_000).toFixed(2)}T`;
+  if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(1)}B`;
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+  return `$${Math.round(value).toLocaleString("en-US")}`;
+}
+
+function readMetadataString(row: Record<string, unknown>, key: string) {
+  const metadata = row.metadata;
+  if (!metadata || typeof metadata !== "object") return "";
+  return readRowString(metadata as Record<string, unknown>, key);
+}
+
+function formatShortDate(value: string) {
+  if (!value) return "Recent";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "America/New_York",
+  }).format(date);
+}
+
+function formatDetailDateTime(value: string, fallback = "Recent") {
+  if (!value) return fallback;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return fallback;
+
+  return `${new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "America/New_York",
+  }).format(date)} · ${new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "America/New_York",
+  }).format(date)} ET`;
+}
+
+function formatSourceLabel(value: string) {
+  const normalized = value.toLowerCase();
+  const labels: Record<string, string> = {
+    accesswire: "Accesswire",
+    businesswire: "Business Wire",
+    globe: "GlobeNewswire",
+    globenewswire: "GlobeNewswire",
+    newsfile: "Newsfile",
+    prnewswire: "PR Newswire",
+    sec_edgar: "SEC",
+  };
+
+  return labels[normalized] || value || "Stock Radar";
+}
+
+function isRealTicker(value: string) {
+  return Boolean(value && value !== "N/A" && value !== "NA" && /^[A-Z][A-Z0-9.-]{0,9}$/.test(value));
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function buildPriceSeries({
+  lastClose,
+  previousClose,
+  trend,
+  volumeBase,
+}: {
+  lastClose: number;
+  previousClose: number;
+  trend: number[];
+  volumeBase: number;
+}): PriceChartSeries {
+  const ranges: Record<PriceRange, { labels: string[]; spread: number; volumeMultiplier: number }> = {
+    "1D": {
+      labels: ["9:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "1:00", "1:30", "2:00", "2:30", "3:00"],
+      spread: 1,
+      volumeMultiplier: 1,
+    },
+    "5D": {
+      labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Mon", "Tue", "Wed", "Thu", "Fri", "Mon", "Today"],
+      spread: 1.8,
+      volumeMultiplier: 1.15,
+    },
+    "1M": {
+      labels: ["W1", "W1", "W2", "W2", "W3", "W3", "W4", "W4", "W5", "W5", "W6", "Today"],
+      spread: 2.6,
+      volumeMultiplier: 1.25,
+    },
+    "3M": {
+      labels: ["M1", "M1", "M1", "M2", "M2", "M2", "M3", "M3", "M3", "M3", "M3", "Today"],
+      spread: 3.6,
+      volumeMultiplier: 1.35,
+    },
+    "1Y": {
+      labels: ["Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May"],
+      spread: 5,
+      volumeMultiplier: 1.55,
+    },
+  };
+
+  return {
+    previousClose,
+    periods: {
+      "1D": makePricePoints(ranges["1D"], lastClose, previousClose, trend, volumeBase),
+      "5D": makePricePoints(ranges["5D"], lastClose, previousClose, trend, volumeBase),
+      "1M": makePricePoints(ranges["1M"], lastClose, previousClose, trend, volumeBase),
+      "3M": makePricePoints(ranges["3M"], lastClose, previousClose, trend, volumeBase),
+      "1Y": makePricePoints(ranges["1Y"], lastClose, previousClose, trend, volumeBase),
+    },
+  };
+}
+
+function makePricePoints(
+  range: { labels: string[]; spread: number; volumeMultiplier: number },
+  lastClose: number,
+  previousClose: number,
+  trend: number[],
+  volumeBase: number,
+): PricePoint[] {
+  const sampledTrend = sampleTrend(trend, range.labels.length);
+  const minTrend = Math.min(...sampledTrend);
+  const maxTrend = Math.max(...sampledTrend);
+  const trendRange = maxTrend - minTrend || 1;
+  const effectiveSpread = lastClose < 1
+    ? Math.max(Math.max(lastClose, previousClose) * 0.12, 0.002)
+    : range.spread;
+  const lowBand = Math.max(0, Math.min(previousClose, lastClose) - effectiveSpread);
+  const highBand = Math.max(previousClose, lastClose) + effectiveSpread * 0.55;
+  const closes = sampledTrend.map((value, index) => {
+    const normalized = (value - minTrend) / trendRange;
+    const drift = (index / Math.max(sampledTrend.length - 1, 1)) * (lastClose - previousClose) * 0.38;
+    return roundPrice(lowBand + normalized * (highBand - lowBand) + drift);
+  });
+  closes[closes.length - 1] = roundPrice(lastClose);
+
+  let cumulativeValue = 0;
+  let cumulativeVolume = 0;
+
+  return closes.map((close, index) => {
+    const priorClose = index === 0 ? previousClose : closes[index - 1];
+    const volatility = Math.max(Math.abs(close - priorClose), effectiveSpread * 0.18);
+    const open = roundPrice(priorClose + (index % 2 === 0 ? -1 : 1) * volatility * 0.28);
+    const high = roundPrice(Math.max(open, close) + volatility * 0.46);
+    const low = roundPrice(Math.max(0, Math.min(open, close) - volatility * 0.42));
+    const volume = Math.round(volumeBase * range.volumeMultiplier * (0.58 + (index + 1) / range.labels.length * 0.42 + (index % 3) * 0.08));
+    cumulativeValue += close * volume;
+    cumulativeVolume += volume;
+
+    return {
+      close,
+      high,
+      low,
+      open,
+      time: range.labels[index],
+      volume,
+      vwap: roundPrice(cumulativeValue / cumulativeVolume),
+    };
+  });
+}
+
+function sampleTrend(trend: number[], count: number) {
+  const values = trend.length ? trend : [30, 33, 31, 37, 40, 44];
+
+  return Array.from({ length: count }, (_, index) => {
+    const sourceIndex = Math.round((index / Math.max(count - 1, 1)) * (values.length - 1));
+    return values[sourceIndex];
+  });
+}
+
+function parsePrice(price: string) {
+  const parsed = Number(price.replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(parsed) ? parsed : 100;
+}
+
+function estimatePreviousClose(lastClose: number, changePercent: string) {
+  const parsedPercent = Number(changePercent.replace(/[^0-9.-]/g, ""));
+  if (!Number.isFinite(parsedPercent)) {
+    return lastClose;
+  }
+
+  return roundPrice(lastClose / (1 + parsedPercent / 100));
+}
+
+function roundPrice(value: number) {
+  return Number(value.toFixed(2));
+}
+
+function getSourceUrl(source: string) {
+  const sourceUrls: Record<string, string> = {
+    Accesswire: "https://www.accesswire.com/",
+    "Business Wire": "https://www.businesswire.com/",
+    GlobeNewswire: "https://www.globenewswire.com/",
+    "PR Newswire": "https://www.prnewswire.com/news-releases/",
+    SEC: "https://www.sec.gov/edgar/search/",
+  };
+
+  return sourceUrls[source] || "https://www.sec.gov/edgar/search/";
+}
+
+function getExchange(ticker: string) {
+  const exchanges: Record<string, string> = {
+    AMC: "NYSE",
+    ARDC: "NYSE",
+    GLD: "NYSEARCA",
+    LAC: "NYSE",
+    MSTR: "NASDAQ",
+    NLST: "OTCQB",
+    NVDA: "NASDAQ",
+    PLTR: "NASDAQ",
+    PRSO: "NASDAQ",
+    TSLA: "NASDAQ",
+    TYBT: "OTC",
+  };
+
+  return exchanges[ticker] || "NASDAQ";
+}
+
+function AnalysisCard({ title, body }: { title: string; body: string }) {
   return (
-    <div className="detail-metric">
+    <section className="stock-detail-card analysis-card">
+      <h2>{title}</h2>
+      <p>{body}</p>
+    </section>
+  );
+}
+
+function AnalysisList({
+  title,
+  items,
+  tone,
+  numbered,
+}: {
+  title: string;
+  items: string[];
+  tone?: DetailTone;
+  numbered?: boolean;
+}) {
+  const ToneIcon = tone === "bullish" ? TrendingUp : tone === "bearish" ? TrendingDown : null;
+
+  return (
+    <section className={`stock-detail-card analysis-card${tone ? ` ${tone}` : ""}`}>
+      <h2 className={ToneIcon ? `analysis-title ${tone}` : undefined}>
+        {ToneIcon ? <ToneIcon aria-hidden="true" strokeWidth={2.2} /> : null}
+        <span>{title}</span>
+      </h2>
+      <ol className={numbered ? "numbered" : undefined}>
+        {items.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function CaseList({ title, items, tone }: { title: string; items: string[]; tone: "bullish" | "bearish" }) {
+  const ToneIcon = tone === "bullish" ? TrendingUp : TrendingDown;
+
+  return (
+    <div className={`case-list ${tone}`}>
+      <h2 className={`analysis-title ${tone}`}>
+        <ToneIcon aria-hidden="true" strokeWidth={2.2} />
+        <span>{title}</span>
+      </h2>
+      <ol>
+        {items.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function MetricRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="detail-metric-row">
       <span>{label}</span>
       <strong>{value}</strong>
     </div>

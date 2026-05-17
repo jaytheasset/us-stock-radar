@@ -653,15 +653,17 @@ function FeedRow({ item, showChart }: { item: FeedItem; showChart: boolean }) {
         <span className={item.change.startsWith("-") ? "bearish" : "bullish"}>{item.change}</span>
       </div>
       <div className="event-cell">
-        <div className="event-title-line">
+        <div className="event-index-row">
           <EventTypeBadge label={eventBadge.label} tone={eventBadge.tone} />
+        </div>
+        <div className="event-title-line">
           <strong>{item.title}</strong>
         </div>
         <p>{item.quickTake || item.summary}</p>
       </div>
-      <div className="signal-cell">
+      <div className="feed-signal-cell">
         <span className={`signal-badge ${item.signal}`}>{item.signal}</span>
-        <span className={`delivery-badge ${item.deliveryLevel}`}>{item.deliveryLevel}</span>
+        <span className={`source-badge impact-badge ${item.signal}`}>Impact {item.score}</span>
       </div>
     </a>
   );
@@ -670,9 +672,7 @@ function FeedRow({ item, showChart }: { item: FeedItem; showChart: boolean }) {
 function EventTypeBadge({ label, tone }: { label: string; tone: string }) {
   return (
     <span className={`event-type-badge ${tone}`} aria-label={label}>
-      {label.split(" ").map((word, index) => (
-        <span key={`${word}-${index}`}>{word}</span>
-      ))}
+      <span>{label}</span>
     </span>
   );
 }

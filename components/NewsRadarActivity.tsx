@@ -27,8 +27,8 @@ export function NewsRadarActivity({ items }: { items: NewsRadarActivityItem[] })
     <section className="source-activity-panel">
       <div className="news-insight-header">
         <div>
-          <span>News Radar Activity</span>
-          <h2>Processed / checked source flow</h2>
+          <h2>Market News Radar</h2>
+          <p>Market-moving events analyzed in real time</p>
         </div>
         <div className="map-range-controls" aria-label="News radar activity range">
           {rangeOptions.map((option) => (

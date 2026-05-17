@@ -11,6 +11,7 @@ export type FeedTab = "all" | "news" | "filings" | "market" | "alerts" | "watchl
 export type LiveFeedItem = {
   id: string;
   time: string;
+  detectedAtRaw: string;
   ticker: string;
   price: string;
   changeAmount: string;
@@ -19,6 +20,7 @@ export type LiveFeedItem = {
   sourceGroup: SourceGroup;
   marketScope: MarketScope;
   source: string;
+  sourceUrl: string;
   eventType: string;
   title: string;
   quickTake: string;
@@ -77,13 +79,14 @@ export async function getLiveFeedViewModel({
   const activeTab = normalizeFeedTab(tab);
   const feedFilters = feedTabToEventFilters(activeTab);
   const [feedResult, rankingResult, marketMovingResult] = await Promise.all([
-    fetchEvents({ page, limit, ...feedFilters }),
-    fetchEvents({ page: 1, limit: 100 }),
+    fetchEvents({ page, limit, excludeDeliveryLevel: "archive", ...feedFilters }),
+    fetchEvents({ page: 1, limit: 100, excludeDeliveryLevel: "archive" }),
     fetchEvents({
       page: 1,
-      limit: 8,
+      limit: 30,
       sourceGroup: "news",
       marketScopes: ["sector", "theme", "macro"],
+      excludeDeliveryLevel: "archive",
     }),
   ]);
 
@@ -121,14 +124,17 @@ export async function getLiveFeedViewModel({
       .sort((a, b) => b.score - a.score)
       .slice(0, 4)
       .map(toRankedEvent),
-    marketMovingNews: marketMovingRows.map(toMarketMovingNewsItem),
+    marketMovingNews: marketMovingRows
+      .sort((a, b) => readNumber(b, ["score"]) - readNumber(a, ["score"]))
+      .slice(0, 8)
+      .map(toMarketMovingNewsItem),
     marketPulseItems,
     situationCards,
   };
 }
 
 export async function getRankingViewModel(sourceGroup: "news" | "filings") {
-  const result = await fetchEvents({ page: 1, limit: 100 });
+  const result = await fetchEvents({ page: 1, limit: 100, excludeDeliveryLevel: "archive" });
   const rows = toRows(result.data);
   const quotes = await fetchQuoteMap(rows);
   const items = rows
@@ -176,6 +182,9 @@ function mapEventRow(
   const chart = charts.get(ticker.toUpperCase());
   const canonical = resolveCanonicalEventFields(row);
   const detectedAt = readString(row, ["detected_at", "created_at", "event_date"]);
+  const sourcePublishedAt =
+    readString(row, ["published_at"]) ||
+    readMetadataString(row, ["published_at", "publishedAt", "source_published_at", "published_time"]);
   const quoteValues = formatQuote(quote);
   const summary =
     readString(row, ["summary"]) ||
@@ -186,6 +195,7 @@ function mapEventRow(
   return {
     id: readString(row, ["id"]) || `${ticker}-${detectedAt || "event"}`,
     time: formatDetectedTime(detectedAt),
+    detectedAtRaw: sourcePublishedAt || detectedAt,
     ticker,
     price: quoteValues.price,
     changeAmount: quoteValues.changeAmount,
@@ -194,6 +204,7 @@ function mapEventRow(
     sourceGroup: canonical.sourceGroup,
     marketScope: canonical.marketScope,
     source: formatSource(readString(row, ["source_code", "source", "source_channel"])),
+    sourceUrl: readString(row, ["source_link", "url"]) || readMetadataString(row, ["source_url"]),
     eventType: readString(row, ["event_type"]) || "event",
     title: readString(row, ["title"]) || "Untitled event",
     quickTake,
@@ -233,11 +244,36 @@ function toMarketMovingNewsItem(row: DbEventRow): MarketMovingNewsItem {
   const canonical = resolveCanonicalEventFields(row);
 
   return {
-    label: formatMarketScopeLabel(canonical.marketScope),
+    label: readMarketMovingLabel(row, canonical.marketScope),
     title: readString(row, ["title"]) || "Untitled market-moving event",
     score: canonical.score,
     signal: canonical.signal,
   };
+}
+
+function readMarketMovingLabel(row: DbEventRow, marketScope: MarketScope) {
+  if (marketScope === "macro") {
+    return (
+      readMetadataString(row, ["macro_category", "macroCategory", "policy_area", "policyArea"]) ||
+      "Macro"
+    );
+  }
+
+  if (marketScope === "sector") {
+    return (
+      readMetadataString(row, ["sector_name", "sectorName", "sector", "industry_group", "industryGroup"]) ||
+      "Sector"
+    );
+  }
+
+  if (marketScope === "theme") {
+    return (
+      readMetadataString(row, ["theme_group_name", "themeGroupName", "theme_group", "themeGroup", "theme"]) ||
+      "Theme"
+    );
+  }
+
+  return formatMarketScopeLabel(marketScope);
 }
 
 function formatMarketScopeLabel(value: MarketScope) {
@@ -278,7 +314,9 @@ export function normalizeFeedTab(value: string | undefined): FeedTab {
 function feedTabToEventFilters(tab: FeedTab) {
   if (tab === "news") return { sourceGroup: "news" as const };
   if (tab === "filings") return { sourceGroup: "filings" as const };
-  if (tab === "market") return { sourceGroup: "market" as const };
+  if (tab === "market") {
+    return { sourceGroup: "news" as const, marketScopes: ["sector", "theme", "macro"] as MarketScope[] };
+  }
   if (tab === "alerts") return { alertOnly: true };
   return {};
 }
@@ -521,4 +559,9 @@ function readNumber(row: DbEventRow | QuoteRow | undefined, keys: string[]) {
   }
 
   return Number.NaN;
+}
+
+function readMetadataString(row: DbEventRow | undefined, keys: string[]) {
+  if (!row || !row.metadata || typeof row.metadata !== "object") return "";
+  return readString(row.metadata as Record<string, unknown>, keys);
 }

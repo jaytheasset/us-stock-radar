@@ -1,7 +1,9 @@
 import { FeedShell, type FeedItem } from "@/components/FeedShell";
+import { NewsSearchFilters as ClientNewsSearchFilters } from "@/components/NewsSearchFilters";
 import { NewsRadarActivity, type NewsRadarActivityItem } from "@/components/NewsRadarActivity";
-import { sectorMappings } from "@/lib/taxonomyRegistry";
-import { redirect } from "next/navigation";
+import { SectorPerformanceMap } from "@/components/SectorPerformanceMap";
+import { getLiveFeedViewModel } from "@/lib/liveFeed";
+import { sectorMappings, themeSubThemes } from "@/lib/taxonomyRegistry";
 
 type NewsPageProps = {
   searchParams?: Promise<{
@@ -38,6 +40,8 @@ type SectorIndustryMover = {
   marketCap?: string;
   trend?: number[];
 };
+
+type ThemeValueTone = "bullish" | "bearish" | "volatile";
 
 const sectorSeeds: Record<string, { change: string; tone: SectorMoverTone; volume: string }> = {
   Technology: { change: "+2.84%", tone: "bullish", volume: "1.34x volume" },
@@ -228,6 +232,7 @@ const themeValueMap = [
     avgScore: 81,
     momentum: "+24.6%",
     tone: "bullish",
+    subThemes: buildThemeSubThemeRows("ai_data_center", 92, "bullish"),
   },
   {
     theme: "Power & Energy",
@@ -237,6 +242,7 @@ const themeValueMap = [
     avgScore: 76,
     momentum: "+8.7%",
     tone: "bullish",
+    subThemes: buildThemeSubThemeRows("power_energy_resources", 84, "bullish"),
   },
   {
     theme: "Healthcare Momentum",
@@ -246,6 +252,7 @@ const themeValueMap = [
     avgScore: 73,
     momentum: "+6.1%",
     tone: "volatile",
+    subThemes: buildThemeSubThemeRows("healthcare_momentum", 79, "volatile"),
   },
   {
     theme: "Policy & Regulation",
@@ -255,6 +262,7 @@ const themeValueMap = [
     avgScore: 78,
     momentum: "-3.4%",
     tone: "bearish",
+    subThemes: buildThemeSubThemeRows("policy_regulation", 76, "bearish"),
   },
   {
     theme: "Crypto & Digital Assets",
@@ -264,8 +272,38 @@ const themeValueMap = [
     avgScore: 66,
     momentum: "+4.2%",
     tone: "volatile",
+    subThemes: buildThemeSubThemeRows("crypto_digital_assets", 68, "volatile"),
   },
 ];
+
+function buildThemeSubThemeRows(themeGroupSlug: string, baseScore: number, tone: ThemeValueTone) {
+  return themeSubThemes
+    .filter((subTheme) => subTheme.themeGroupSlug === themeGroupSlug)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((subTheme, index) => ({
+      name: subTheme.name,
+      newsCount: Math.max(3, 14 - index * 2),
+      score: Math.max(52, baseScore - 4 - index * 3),
+      tickers: subTheme.seedSymbols.slice(0, 3).map((symbol, tickerIndex) => ({
+        symbol,
+        change: themeTickerChange(tone, index, tickerIndex),
+      })),
+    }));
+}
+
+function themeTickerChange(tone: ThemeValueTone, subThemeIndex: number, tickerIndex: number) {
+  const value = Math.max(0.18, 4.86 - subThemeIndex * 0.48 - tickerIndex * 0.54);
+  const sign =
+    tone === "bearish"
+      ? subThemeIndex % 2 === 0 || tickerIndex < 2
+        ? "-"
+        : "+"
+      : tone === "volatile" && (subThemeIndex + tickerIndex) % 3 === 1
+        ? "-"
+        : "+";
+
+  return `${sign}${value.toFixed(2)}%`;
+}
 
 const searchVolumeTrends = [
   {
@@ -661,13 +699,8 @@ const newsSeed: Array<Omit<FeedItem, "id" | "sourceGroup" | "updatedAt" | "score
 export default async function NewsPage({ searchParams }: NewsPageProps) {
   const params = await searchParams;
   const page = Math.max(1, Number(params?.page || 1) || 1);
-
-  if (params?.limit) {
-    redirect(page > 1 ? `/news?page=${page}` : "/news");
-  }
-
   const limit = 20;
-  const feedItems = buildNewsItems(page, limit);
+  const viewModel = await getLiveFeedViewModel({ page, limit, tab: "news" });
 
   return (
     <FeedShell
@@ -677,125 +710,94 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
       sidebarMode="premiumOnly"
       premiumPlacement="bottom"
       sidebarSlot={<NewsSidebarInsights />}
-      feedItems={feedItems}
+      feedItems={viewModel.feedItems}
+      feedDateLabel={viewModel.feedDateLabel}
+      highImpactNews={viewModel.highImpactNews}
+      alertFilings={viewModel.alertFilings}
+      marketPulseItems={viewModel.marketPulseItems}
+      marketMovingNews={viewModel.marketMovingNews}
+      situationCards={viewModel.situationCards}
       paginationBasePath="/news"
-      searchFilterSlot={<NewsSearchFilters />}
+      searchFilterSlot={<ClientNewsSearchFilters />}
       showCharts={false}
       showHeadingControls={false}
       showSituationStrip={false}
       showTabs={false}
       showPageSizeControl={false}
+      dbError={viewModel.ok ? undefined : viewModel.error}
       pageInfo={{
         page,
         limit,
-        hasNext: page * limit < NEWS_TOTAL,
-        total: NEWS_TOTAL,
-        itemCount: feedItems.length,
+        hasNext: viewModel.hasNext,
+        total: viewModel.total,
+        itemCount: viewModel.feedItems.length,
       }}
     />
   );
 }
 
 function NewsSidebarInsights() {
-  const selectedSector = sectorMovers[0];
-
   return (
     <div className="news-sidebar-insights">
       <NewsRadarActivity items={sourceActivity} />
 
-      <section className="sector-movers-card">
-        <div className="news-insight-header">
-          <div>
-            <span>Sector Valuemap</span>
-            <h2>Sector heat by daily change</h2>
-          </div>
-          <div className="map-range-controls" aria-label="Sector value map range">
-            <button className="active" type="button">
-              Today
-            </button>
-            <button type="button">5D</button>
-            <button type="button">1M</button>
-            <button type="button">3M</button>
-          </div>
-        </div>
-
-        <div className="sector-map-grid">
-          {sectorMovers.map((sector) => (
-            <article
-              className={`sector-map-tile ${sector.tone}${sector.sector === selectedSector.sector ? " active" : ""}`}
-              key={sector.sector}
-            >
-              <div className="sector-map-title">
-                <strong>{sector.sector}</strong>
-                <b>{sector.change}</b>
-              </div>
-            </article>
-          ))}
-        </div>
-
-        <div className="sector-detail-card">
-          <div className="sector-detail-heading">
-            <strong>{selectedSector.sector}</strong>
-          </div>
-
-          <div className="sector-detail-table">
-            <div className="sector-detail-row head">
-              <span>Industry</span>
-              <span>Daily Change</span>
-              <span>Market Cap</span>
-              <span>Trend</span>
-            </div>
-            {selectedSector.industries.map((industry) => (
-              <div className="sector-detail-row with-tickers" key={`detail-${industry.name}`}>
-                <strong>{industry.name}</strong>
-                <b className={industry.change.startsWith("-") ? "bearish" : "bullish"}>{industry.change}</b>
-                <span>{industry.marketCap || "-"}</span>
-                <TrendMini values={industry.trend || bullishTrend.slice(0, 12)} tone={industry.change.startsWith("-") ? "bearish" : "bullish"} />
-                <div className="industry-ticker-list" aria-label={`${industry.name} top movers`}>
-                  <span className="ticker-list-label">Top movers</span>
-                  {industry.tickerMovers.slice(0, 4).map((ticker) => (
-                    <span className={`ticker-mover ${ticker.change.startsWith("-") ? "bearish" : "bullish"}`} key={`${industry.name}-${ticker.symbol}`}>
-                      {ticker.symbol} {ticker.change}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="sector-detail-foot">
-            <span>Color by daily change</span>
-            <span>Mock data as of 12:08 AM ET</span>
-          </div>
-        </div>
-      </section>
+      <SectorPerformanceMap sectors={sectorMovers} />
 
       <section className="theme-value-card">
         <div className="news-insight-header">
           <div>
-            <span>Theme Value Map</span>
-            <h2>Theme heat by news impact</h2>
+            <h2>Theme Signal Map</h2>
+            <p>Market themes moving on high-impact news</p>
           </div>
           <button type="button">View all</button>
         </div>
 
         <div className="theme-value-list">
           {themeValueMap.map((item) => (
-            <article className="theme-value-row" key={item.theme}>
-              <div className="theme-value-topline">
-                <strong>{item.theme}</strong>
-                <span className={item.tone}>{item.momentum}</span>
+            <details className="theme-value-row" key={item.theme}>
+              <summary className="theme-value-summary">
+                <div className="theme-value-topline">
+                  <strong>{item.theme}</strong>
+                  <span className={item.tone}>{item.momentum}</span>
+                </div>
+                <div className="theme-value-meta">
+                  <span>{item.newsCount} news</span>
+                  <span>Avg {item.avgScore}</span>
+                  <span>{item.signal}</span>
+                </div>
+                <div className="theme-value-meter" aria-label={`${item.theme} score ${item.score}`}>
+                  <span style={{ width: `${item.score}%` }} />
+                </div>
+                <span className="theme-expand-cue">
+                  <span className="theme-expand-show">Show {item.subThemes.length} sub themes</span>
+                  <span className="theme-expand-hide">Hide sub themes</span>
+                </span>
+                <strong className="theme-score">{item.score}</strong>
+              </summary>
+              <div className="theme-subtheme-block">
+                <span>All sub themes</span>
+                <div>
+                  {item.subThemes.map((subTheme) => (
+                    <div className="theme-subtheme-row" key={`${item.theme}-${subTheme.name}`}>
+                      <div>
+                        <strong>{subTheme.name}</strong>
+                        <small>{subTheme.newsCount} news - Score {subTheme.score}</small>
+                      </div>
+                      <div className="theme-subtheme-tickers">
+                        {subTheme.tickers.map((ticker) => (
+                          <span
+                            className={ticker.change.startsWith("-") ? "bearish" : "bullish"}
+                            key={`${subTheme.name}-${ticker.symbol}`}
+                          >
+                            {ticker.symbol} {ticker.change}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="theme-value-meta">
-                <span>{item.newsCount} news</span>
-                <span>Avg {item.avgScore}</span>
-                <span>{item.signal}</span>
-              </div>
-              <div className="theme-value-meter" aria-label={`${item.theme} score ${item.score}`}>
-                <span style={{ width: `${item.score}%` }} />
-              </div>
-              <strong className="theme-score">{item.score}</strong>
-            </article>
+            </details>
           ))}
         </div>
       </section>
@@ -834,47 +836,12 @@ function NewsSidebarInsights() {
   );
 }
 
-function NewsSearchFilters() {
+function ActiveChip({ label, tone }: { label: string; tone: "alert" | "bullish" | "neutral" }) {
   return (
-    <section className="news-search-filters" aria-label="News search filters">
-      <div className="news-filter-search">
-        <span aria-hidden="true">/</span>
-        <input aria-label="Search news" placeholder="Search ticker, company, source, or headline" />
-      </div>
-      <div className="news-filter-controls">
-        <button className="active" type="button">
-          High Impact
-        </button>
-        <button type="button">Bullish</button>
-        <button type="button">Bearish</button>
-        <button type="button">Dilution</button>
-        <button type="button">FDA</button>
-        <button type="button">Earnings</button>
-        <button type="button">Source</button>
-        <button type="button">Sort: Newest</button>
-      </div>
-    </section>
-  );
-}
-
-function TrendMini({ values, tone }: { values: number[]; tone: "bullish" | "bearish" }) {
-  const width = 78;
-  const height = 26;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = Math.max(max - min, 1);
-  const points = values
-    .map((value, index) => {
-      const x = (index / Math.max(values.length - 1, 1)) * width;
-      const y = height - ((value - min) / range) * (height - 4) - 2;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
-
-  return (
-    <svg className={`trend-mini ${tone}`} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${tone} trend`}>
-      <polyline points={points} />
-    </svg>
+    <button className={`news-active-chip ${tone}`} type="button">
+      {label}
+      <span aria-hidden="true">×</span>
+    </button>
   );
 }
 

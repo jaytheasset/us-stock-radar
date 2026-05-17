@@ -22,6 +22,24 @@ export type FeedItem = {
 
 export const feedItems: FeedItem[] = [
   {
+    id: "globe-invu-q1-2026-results",
+    time: "4:15 PM",
+    ticker: "INVU",
+    price: "$0.05",
+    change: "-8.10%",
+    sourceGroup: "news",
+    source: "GlobeNewswire",
+    eventType: "earnings",
+    title: "Investview Reports Q1 2026 Financial Results and Operational Highlights",
+    summary: "INVU reported steep revenue declines, wider operating losses, lower cash, and regulatory headwinds in Poland.",
+    scoreReason: "Revenue decline, losses, liquidity pressure, and regulatory issues create bearish investor relevance.",
+    score: 55,
+    deliveryLevel: "feed",
+    impact: "medium",
+    signal: "bearish",
+    trend: [46, 44, 41, 39, 42, 38, 35, 34, 31, 29, 30, 27],
+  },
+  {
     id: "nvda-data-center-platform",
     time: "11:05 AM",
     ticker: "NVDA",

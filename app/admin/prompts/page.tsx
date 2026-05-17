@@ -27,7 +27,7 @@ export default function AdminPromptsPage() {
                 <p className="muted">{prompt.task}</p>
               </div>
               <span className={`pill ${prompt.status === "active" ? "ok" : "warn"}`}>
-                {prompt.version} · {prompt.status}
+                {prompt.version} - {prompt.status}
               </span>
             </div>
             <dl className="readout-grid">
@@ -47,10 +47,55 @@ export default function AdminPromptsPage() {
                 <dt>Notes</dt>
                 <dd>{prompt.notes}</dd>
               </div>
+              {prompt.runtimeNotes ? (
+                <div className="prompt-wide">
+                  <dt>Runtime Request</dt>
+                  <dd>{prompt.runtimeNotes}</dd>
+                </div>
+              ) : null}
+              {prompt.systemPrompt ? (
+                <div className="prompt-wide">
+                  <dt>System Prompt</dt>
+                  <dd>
+                    <pre className="json-block prompt-body-block">{prompt.systemPrompt}</pre>
+                  </dd>
+                </div>
+              ) : null}
+              {prompt.userInputTemplate ? (
+                <div className="prompt-wide">
+                  <dt>User Input Template</dt>
+                  <dd>
+                    <pre className="json-block prompt-body-block">{prompt.userInputTemplate}</pre>
+                  </dd>
+                </div>
+              ) : null}
+              {prompt.responseSchema ? (
+                <div className="prompt-wide">
+                  <dt>Response Schema</dt>
+                  <dd>
+                    <span>{getResponseSchemaSummary(prompt.responseSchema)}</span>
+                    <details className="prompt-details">
+                      <summary>View full response schema</summary>
+                      <pre className="json-block">{JSON.stringify(prompt.responseSchema, null, 2)}</pre>
+                    </details>
+                  </dd>
+                </div>
+              ) : null}
             </dl>
           </article>
         ))}
       </section>
     </main>
   );
+}
+
+function getResponseSchemaSummary(schema: unknown) {
+  if (!schema || typeof schema !== "object" || !("properties" in schema)) {
+    return "Code-managed";
+  }
+
+  const properties = (schema as { properties?: unknown }).properties;
+  if (!properties || typeof properties !== "object") return "Code-managed";
+
+  return `Strict JSON schema - ${Object.keys(properties).length} top-level fields`;
 }

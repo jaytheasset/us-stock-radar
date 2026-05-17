@@ -26,6 +26,9 @@ The initial schema should stay centered on these entities:
 - `event_analysis`
 - `event_tickers`
 - `market_snapshots`
+- `market_quotes`
+- `market_bars`
+- `market_group_snapshots`
 - `tickers`
 - `market_sectors`
 - `market_sub_categories`
@@ -80,7 +83,9 @@ and run metadata.
 
 `raw_items`  
 Raw article, filing, press release, market item, or source item before
-investment-event normalization.
+investment-event normalization. Keep full parsed text in `body_text`, and keep
+LLM-ready cleaned text in `analysis_text` when boilerplate or formatting needs
+to be excluded from analysis without deleting the original text.
 
 `events`  
 Normalized investable events extracted from raw items. The UI should usually
@@ -142,6 +147,11 @@ Event copy fields:
 - `quick_take`: one-line takeaway shown directly under the title in feed lists.
 - `summary`: longer summary for the event detail page.
 - `reason`: scoring/explanation text for why the event matters.
+- `source_url` and `published_at`: original source link and source timestamp for
+  list/detail pages.
+- `sector`, `industry_group`, `theme_group`, `sub_theme`: canonical analysis
+  outputs when relevant. Do not hide these in `metadata` when the LLM produces
+  them.
 
 Do not use the old event names `impact_level`, `confidence`, or `direction` in
 the new schema. Their replacements are `delivery_level`, `impact`, and
@@ -160,13 +170,27 @@ remain the canonical short and long summaries; do not duplicate them here.
 
 `event_tickers`  
 Ticker links for an event. Use `role` to distinguish primary, related, peer,
-mentioned, sector constituent, and theme constituent symbols. Detail pages use
-this for Related Tickers. List pages can still rely on `events.ticker` for the
-main symbol.
+customer, supplier, counterparty, mentioned, sector constituent, and theme
+constituent symbols. Detail pages use this for Related Tickers. List pages can
+still rely on `events.ticker` and `events.market` for the main symbol.
 
 `market_snapshots`  
 Market context from FMP, Polygon, or other providers. Stores prices, market cap,
 float, volume, and provider payloads.
+
+`market_quotes` and `market_bars`
+Short-lived caches for quote and OHLCV chart API calls. UI pages should prefer
+these caches instead of calling FMP or Polygon directly for every render.
+
+`market_group_snapshots`
+Cached sector, industry-group, theme, and sub-theme performance. Industry-group
+snapshots are built from the ticker universe by selecting the largest companies
+until the basket reaches about 85% of that group's total market cap, with
+minimum and maximum constituent limits. The ticker universe can include active
+US-listed and OTC companies above $50M market cap, but performance snapshots
+should use active constituents above $300M market cap so small OTC names do not
+distort group moves. Store actual coverage, selected ticker count, minimum
+market-cap threshold, and calculation trace in `raw_payload`.
 
 `tickers`  
 Ticker universe and raw provider profile fields. This is where FMP sector,
@@ -225,12 +249,18 @@ Dashboard pages read from:
 - `events`
 - `deliveries`
 - `market_snapshots`
+- `market_quotes`
+- `market_bars`
+- `market_group_snapshots`
 - `theme_snapshots`
 
 Event list pages read from:
 
 - `events`
 - optional `market_snapshots`
+- optional `market_quotes`
+- optional `market_bars`
+- optional `market_group_snapshots`
 - optional `ticker_classifications`
 - optional `ticker_theme_members`
 
@@ -241,6 +271,7 @@ Market-Moving News reads from:
 - optional `event_tickers`
 - optional `event_theme_links`
 - optional sector classification links
+- optional `market_group_snapshots`
 
 Event detail pages read from:
 

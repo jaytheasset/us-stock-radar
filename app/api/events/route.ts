@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
   const marketScope = normalizeMarketScope(searchParams.get("market_scope"));
   const deliveryLevel = normalizeDeliveryLevel(searchParams.get("delivery_level"));
   const signal = normalizeSignal(searchParams.get("signal"));
+  const includeArchive = searchParams.get("include_archive") === "true";
 
   const result = await fetchEvents({
     limit,
@@ -22,6 +23,7 @@ export async function GET(request: NextRequest) {
     sourceGroup,
     marketScope,
     deliveryLevel,
+    excludeDeliveryLevel: deliveryLevel || includeArchive ? undefined : "archive",
     signal,
   });
 

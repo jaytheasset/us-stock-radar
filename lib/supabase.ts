@@ -12,6 +12,7 @@ type FetchEventsParams = {
   marketScope?: "company" | "sector" | "theme" | "macro";
   marketScopes?: Array<"company" | "sector" | "theme" | "macro">;
   deliveryLevel?: "archive" | "feed" | "alert";
+  excludeDeliveryLevel?: "archive" | "feed" | "alert";
   signal?: "bullish" | "bearish" | "volatile" | "neutral";
   alertOnly?: boolean;
   detectedAfter?: string;
@@ -29,13 +30,22 @@ export type SupabaseCountResult = {
   error?: string;
 };
 
+type SupabaseMutationOptions = {
+  onConflict?: string;
+  prefer?: string;
+};
+
 function cleanSupabaseUrl(value: string) {
   return value.replace(/\/rest\/v1\/?$/i, "").replace(/\/$/, "");
 }
 
 function getSupabaseAuth() {
   const env = getServerEnv();
-  const key = env.supabaseServiceRoleKey || env.supabaseAnonKey;
+  const serviceKey =
+    env.supabaseServiceRoleKey && !env.supabaseServiceRoleKey.startsWith("sb_secret_")
+      ? env.supabaseServiceRoleKey
+      : "";
+  const key = serviceKey || env.supabaseAnonKey;
 
   return {
     baseUrl: cleanSupabaseUrl(env.supabaseUrl),
@@ -111,6 +121,70 @@ export async function fetchEventById(id: string) {
   };
 }
 
+export async function fetchEventAnalysis(eventId: string) {
+  const result = await supabaseRest("event_analysis", {
+    select: "*",
+    event_id: `eq.${eventId}`,
+    limit: "1",
+  });
+
+  const data = Array.isArray(result.data) ? result.data[0] || null : null;
+
+  return {
+    ok: result.ok,
+    status: result.status,
+    data,
+    error: result.error,
+  };
+}
+
+export async function fetchEventTickers(eventId: string) {
+  const result = await supabaseRest("event_tickers", {
+    select: "*",
+    event_id: `eq.${eventId}`,
+    order: "sort_order.asc",
+    limit: "50",
+  });
+
+  return {
+    ok: result.ok,
+    status: result.status,
+    data: Array.isArray(result.data) ? result.data : [],
+    error: result.error,
+  };
+}
+
+export async function fetchEventsByTicker({
+  ticker,
+  sourceGroup,
+  excludeId,
+  limit = 4,
+}: {
+  ticker: string;
+  sourceGroup?: "news" | "filings" | "market";
+  excludeId?: string;
+  limit?: number;
+}) {
+  const search: Record<string, string> = {
+    select: "*",
+    ticker: `eq.${ticker.toUpperCase()}`,
+    order: "detected_at.desc",
+    limit: String(Math.max(1, Math.min(limit, 20))),
+  };
+
+  if (sourceGroup) search.source_group = `eq.${sourceGroup}`;
+  if (excludeId) search.id = `neq.${excludeId}`;
+
+  const result = await supabaseRest("events", search);
+
+  return {
+    ok: result.ok,
+    status: result.status,
+    data: Array.isArray(result.data) ? result.data : [],
+    error: result.error,
+  };
+}
+
 function buildEventSearch(
   params: EventFilterParams,
   options: {
@@ -145,6 +219,9 @@ function applyEventFilters(search: Record<string, string>, params: EventFilterPa
   if (params.deliveryLevel) {
     const deliveryFilter = params.deliveryLevel === "alert" ? "eq.alert" : `eq.${params.deliveryLevel}`;
     search.delivery_level = deliveryFilter;
+  }
+  if (!params.deliveryLevel && params.excludeDeliveryLevel) {
+    search.delivery_level = `neq.${params.excludeDeliveryLevel}`;
   }
   if (params.alertOnly) search.delivery_level = "eq.alert";
   if (params.detectedAfter) search.detected_at = `gte.${params.detectedAfter}`;
@@ -202,6 +279,120 @@ async function supabaseRest(table: string, search: Record<string, string>) {
       status: 0,
       data: null,
       count: null,
+      error: error instanceof Error ? error.message : "Unknown Supabase error",
+    };
+  }
+}
+
+export async function supabaseSelect(table: string, search: Record<string, string>) {
+  return supabaseRest(table, search);
+}
+
+export async function supabaseUpsert(
+  table: string,
+  payload: Record<string, unknown> | Array<Record<string, unknown>>,
+  options: SupabaseMutationOptions = {},
+) {
+  const { baseUrl, key } = getSupabaseAuth();
+
+  if (!baseUrl) {
+    return { ok: false, status: 0, data: null, error: "SUPABASE_URL is missing" };
+  }
+
+  if (!key) {
+    return {
+      ok: false,
+      status: 0,
+      data: null,
+      error: "A Supabase API key is missing",
+    };
+  }
+
+  const url = new URL(`${baseUrl}/rest/v1/${table}`);
+  if (options.onConflict) {
+    url.searchParams.set("on_conflict", options.onConflict);
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Prefer: options.prefer || "resolution=merge-duplicates,return=representation",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const body = await response.text();
+    const data = parseBody(body);
+
+    return {
+      ok: response.ok,
+      status: response.status,
+      data,
+      error: response.ok ? undefined : readError(data, response.statusText),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      data: null,
+      error: error instanceof Error ? error.message : "Unknown Supabase error",
+    };
+  }
+}
+
+export async function supabaseDelete(table: string, search: Record<string, string>) {
+  const { baseUrl, key } = getSupabaseAuth();
+
+  if (!baseUrl) {
+    return { ok: false, status: 0, data: null, error: "SUPABASE_URL is missing" };
+  }
+
+  if (!key) {
+    return {
+      ok: false,
+      status: 0,
+      data: null,
+      error: "A Supabase API key is missing",
+    };
+  }
+
+  const url = new URL(`${baseUrl}/rest/v1/${table}`);
+  for (const [name, value] of Object.entries(search)) {
+    if (value) url.searchParams.set(name, value);
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: "DELETE",
+      cache: "no-store",
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Accept: "application/json",
+        Prefer: "return=representation",
+      },
+    });
+
+    const body = await response.text();
+    const data = parseBody(body);
+
+    return {
+      ok: response.ok,
+      status: response.status,
+      data,
+      error: response.ok ? undefined : readError(data, response.statusText),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      data: null,
       error: error instanceof Error ? error.message : "Unknown Supabase error",
     };
   }

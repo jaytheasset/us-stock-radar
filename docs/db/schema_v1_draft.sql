@@ -126,7 +126,9 @@ create table if not exists raw_items (
   published_at timestamptz,
   fetched_at timestamptz not null default now(),
   body_text text,
+  analysis_text text,
   raw_payload jsonb not null default '{}'::jsonb,
+  metadata jsonb not null default '{}'::jsonb,
   dedupe_key text
 );
 
@@ -146,6 +148,9 @@ create table if not exists events (
   raw_item_id uuid references raw_items(id),
   source_code text not null references sources(code),
   source_group source_group not null,
+  source_name text,
+  source_url text,
+  published_at timestamptz,
   ticker text,
   market text,
   event_type text not null references event_types(code),
@@ -154,6 +159,10 @@ create table if not exists events (
   impact event_impact not null,
   signal event_signal not null,
   market_scope event_market_scope not null default 'company',
+  sector text,
+  industry_group text,
+  theme_group text,
+  sub_theme text,
   title text not null,
   quick_take text,
   summary text,
@@ -238,8 +247,9 @@ create index if not exists event_analysis_scope_idx
 create table if not exists event_tickers (
   event_id uuid not null references events(id) on delete cascade,
   symbol text not null,
+  exchange text,
   role text not null default 'related'
-    check (role in ('primary', 'related', 'peer', 'mentioned', 'sector_constituent', 'theme_constituent')),
+    check (role in ('primary', 'related', 'peer', 'customer', 'supplier', 'counterparty', 'mentioned', 'sector_constituent', 'theme_constituent')),
   relevance_score integer check (relevance_score is null or (relevance_score >= 0 and relevance_score <= 100)),
   sort_order integer not null default 100,
   reason text,
@@ -253,6 +263,65 @@ create index if not exists event_tickers_symbol_idx
 
 create index if not exists event_tickers_event_sort_idx
   on event_tickers(event_id, sort_order);
+
+create table if not exists event_calendar_items (
+  id uuid primary key default gen_random_uuid(),
+  source_event_id uuid references events(id) on delete cascade,
+  raw_item_id uuid references raw_items(id) on delete set null,
+  source_code text references sources(code),
+  source_group source_group not null,
+  ticker text,
+  company_name text,
+  calendar_event_key text not null,
+  calendar_event_type text not null,
+  calendar_group text not null,
+  calendar_title text not null,
+  event_date date,
+  event_time time,
+  event_timezone text,
+  date_precision text not null default 'exact'
+    check (date_precision in ('exact', 'month', 'quarter', 'year', 'unknown')),
+  estimated_start_date date,
+  estimated_end_date date,
+  is_estimated boolean not null default false,
+  confidence text not null default 'medium'
+    check (confidence in ('high', 'medium', 'low')),
+  calendar_status text not null default 'tentative'
+    check (calendar_status in ('tentative', 'confirmed', 'superseded', 'cancelled')),
+  confirmation_source text not null default 'news',
+  confirmed_at timestamptz,
+  confirmed_by_event_id uuid references events(id) on delete set null,
+  superseded_by_item_id uuid references event_calendar_items(id) on delete set null,
+  source_url text,
+  evidence text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  metadata jsonb not null default '{}'::jsonb,
+  check (
+    event_date is not null
+    or estimated_start_date is not null
+    or estimated_end_date is not null
+  )
+);
+
+create index if not exists event_calendar_items_date_idx
+  on event_calendar_items(event_date, estimated_start_date, calendar_group);
+
+create index if not exists event_calendar_items_event_idx
+  on event_calendar_items(source_event_id);
+
+create index if not exists event_calendar_items_key_idx
+  on event_calendar_items(calendar_event_key);
+
+create index if not exists event_calendar_items_ticker_idx
+  on event_calendar_items(ticker, event_date)
+  where ticker is not null;
+
+create index if not exists event_calendar_items_type_idx
+  on event_calendar_items(calendar_event_type, event_date);
+
+create index if not exists event_calendar_items_status_date_idx
+  on event_calendar_items(calendar_status, event_date, estimated_start_date);
 
 create table if not exists market_snapshots (
   id uuid primary key default gen_random_uuid(),
@@ -270,6 +339,68 @@ create table if not exists market_snapshots (
 
 create index if not exists market_snapshots_ticker_fetched_idx
   on market_snapshots(ticker, fetched_at desc);
+
+create table if not exists market_quotes (
+  symbol text primary key,
+  provider text not null default 'fmp',
+  price numeric,
+  change_amount numeric,
+  change_percent numeric,
+  previous_close numeric,
+  volume numeric,
+  fetched_at timestamptz not null default now(),
+  expires_at timestamptz not null,
+  raw_payload jsonb not null default '{}'::jsonb
+);
+
+create index if not exists market_quotes_expires_idx
+  on market_quotes(expires_at);
+
+create table if not exists market_bars (
+  symbol text not null,
+  range text not null,
+  interval text not null, -- 5min, 30min, 2hour, or 1day
+  provider text not null,
+  provider_label text not null,
+  previous_close numeric not null,
+  latest_price numeric not null,
+  change_amount numeric not null,
+  change_percent numeric not null,
+  bars jsonb not null,
+  fetched_at timestamptz not null default now(),
+  expires_at timestamptz not null,
+  raw_payload jsonb not null default '{}'::jsonb,
+  primary key (symbol, range, interval)
+);
+
+create index if not exists market_bars_expires_idx
+  on market_bars(expires_at);
+
+create table if not exists market_group_snapshots (
+  scope text not null check (scope in ('sector', 'industry_group', 'theme', 'sub_theme')),
+  group_key text not null,
+  group_name text not null,
+  parent_key text,
+  range text not null,
+  interval text not null,
+  provider_label text not null,
+  change_percent numeric not null,
+  market_cap_label text,
+  trend_points jsonb not null default '[]'::jsonb,
+  top_movers jsonb not null default '[]'::jsonb,
+  constituent_symbols jsonb not null default '[]'::jsonb,
+  sort_order integer not null default 0,
+  fetched_at timestamptz not null default now(),
+  expires_at timestamptz not null,
+  raw_payload jsonb not null default '{}'::jsonb,
+  primary key (scope, group_key, range, interval)
+);
+
+create index if not exists market_group_snapshots_expires_idx
+  on market_group_snapshots(expires_at);
+
+create index if not exists market_group_snapshots_parent_idx
+  on market_group_snapshots(parent_key, range, interval, sort_order);
 
 create table if not exists tickers (
   symbol text primary key,
