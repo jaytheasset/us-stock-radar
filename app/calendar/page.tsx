@@ -246,7 +246,12 @@ export default function CalendarPage() {
           <section className="calendar-board-panel">
             <div className="calendar-filter-toolbar">
               <button type="button">
-                <span>Event Type</span>
+                <span>Exchange</span>
+                <b>All</b>
+                <ChevronDown size={13} />
+              </button>
+              <button type="button">
+                <span>Market Cap</span>
                 <b>All</b>
                 <ChevronDown size={13} />
               </button>
@@ -256,12 +261,12 @@ export default function CalendarPage() {
                 <ChevronDown size={13} />
               </button>
               <button type="button">
-                <span>Source</span>
+                <span>Timing</span>
                 <b>All</b>
                 <ChevronDown size={13} />
               </button>
               <button type="button">
-                <span>Market Cap</span>
+                <span>Impact</span>
                 <b>All</b>
                 <ChevronDown size={13} />
               </button>
