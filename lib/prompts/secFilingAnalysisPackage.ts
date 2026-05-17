@@ -153,6 +153,7 @@ function buildTextSections({
 
   for (const attachment of attachmentTexts) {
     if (remaining < 1_000) break;
+    if (isAttachmentAlreadyIncluded(bodyText, stringValue(attachment.text))) continue;
     const type = nullableString(attachment.type) || "Exhibit";
     const description = nullableString(attachment.description);
     const label = description ? `${type} - ${description}` : type;
@@ -160,6 +161,17 @@ function buildTextSections({
   }
 
   return sections;
+}
+
+function isAttachmentAlreadyIncluded(bodyText: string, attachmentText: string) {
+  const body = compactComparableText(bodyText);
+  const attachment = compactComparableText(attachmentText);
+  if (!body || !attachment || attachment.length < 500) return false;
+  return body.includes(attachment.slice(0, Math.min(1_000, attachment.length)));
+}
+
+function compactComparableText(value: string) {
+  return value.replace(/\s+/g, " ").trim();
 }
 
 function compactText(value: string) {

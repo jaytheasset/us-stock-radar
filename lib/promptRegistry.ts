@@ -5,6 +5,13 @@ import {
   newsEventAnalysisResponseSchema,
   newsEventAnalysisSystemPrompt,
 } from "@/lib/prompts/newsEventAnalysis";
+import {
+  SEC_FILING_ANALYSIS_PROMPT_KEY,
+  SEC_FILING_ANALYSIS_PROMPT_VERSION,
+  secFilingAnalysisInputTemplate,
+  secFilingAnalysisResponseSchema,
+  secFilingAnalysisSystemPrompt,
+} from "@/lib/prompts/secFilingAnalysis";
 
 export type PromptTemplateDraft = {
   key: string;
@@ -52,15 +59,21 @@ export const promptTemplates: PromptTemplateDraft[] = [
     notes: "Summaries, extracted facts, risk flags, and confidence support for newswire events.",
   },
   {
-    key: "sec_filing_event_enrichment",
-    version: "v1",
+    key: SEC_FILING_ANALYSIS_PROMPT_KEY,
+    version: SEC_FILING_ANALYSIS_PROMPT_VERSION,
     task: "SEC filing event enrichment",
     model: "gpt-5-mini",
     status: "draft",
     owner: "ai",
     inputTables: ["raw_items", "events"],
-    outputTarget: "events.metadata.llm",
-    notes: "Facts-first filing analysis. LLM output should enrich deterministic SEC parser results.",
+    outputTarget: "events + event_analysis + event_tickers + event_calendar_items",
+    notes:
+      "Facts-first SEC filing analysis. Calendar items from exact filing dates are stored as confirmed schedules.",
+    systemPrompt: secFilingAnalysisSystemPrompt,
+    userInputTemplate: secFilingAnalysisInputTemplate,
+    responseSchema: secFilingAnalysisResponseSchema,
+    runtimeNotes:
+      "OpenAI call: instructions = systemPrompt, input = JSON.stringify({ filing_package }), text.format = responseSchema.",
   },
   {
     key: "fda_announcement_enrichment",

@@ -70,6 +70,7 @@ function normalizeCalendarGroup(value: string | null) {
     "dividends",
     "listing_risk",
     "deals_offering",
+    "filings",
     "fda_clinical",
     "investor_events",
     "legal_policy",

@@ -4,6 +4,7 @@ export type CalendarGroup =
   | "dividends"
   | "listing_risk"
   | "deals_offering"
+  | "filings"
   | "fda_clinical"
   | "investor_events"
   | "legal_policy"
@@ -138,6 +139,13 @@ export const calendarEventDefinitions: CalendarEventDefinition[] = [
     group: "deals_offering",
     groupLabel: "Deals / Offering",
     description: "Expected merger or acquisition closing date.",
+  },
+  {
+    code: "sec_filing_due_date",
+    label: "SEC Filing Due Date",
+    group: "filings",
+    groupLabel: "Filings",
+    description: "Expected SEC report, amendment, or restatement filing date.",
   },
   {
     code: "fda_pdufa_date",
