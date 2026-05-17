@@ -113,6 +113,17 @@ Approved filing event types:
 - `fda_clinical`: FDA / Clinical
 - `other`: Other
 
+Calendar category groups:
+
+- `earnings`: earnings releases and calls.
+- `ipo`: IPO expected, pricing, listing, and IPO lock-up dates.
+- `listing_risk`: exchange compliance, reverse split, delisting, or listing deadlines.
+- `deals_offering`: offerings, rights, warrants, tender offers, mergers, and deal deadlines.
+- `fda_clinical`: PDUFA, advisory committee, clinical readout, and medical conference dates.
+- `dividends`: ex-dividend, record, and payment dates.
+- `shareholder`: shareholder meetings, votes, and record dates.
+- `filings`, `investor_events`, `legal_policy`, and `other` are lower-priority calendar groups and should not be top-level UI tabs unless product needs change.
+
 Event scoring fields:
 
 - `score`: integer from 0 to 100.

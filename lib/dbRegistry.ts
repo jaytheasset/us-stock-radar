@@ -259,7 +259,7 @@ export const canonicalTables: CanonicalTable[] = [
       column("company_name", "text", "Issuer or company display name"),
       column("calendar_event_key", "text", "Cross-source key used to connect tentative news schedules with confirmed filing schedules", true),
       column("calendar_event_type", "text", "Scheduled event type such as earnings_call or fda_pdufa_date", true),
-      column("calendar_group", "text", "Tab group such as earnings, filings, dividends, listing_risk, or fda_clinical", true),
+      column("calendar_group", "text", "Tab group such as earnings, ipo, dividends, listing_risk, or fda_clinical", true),
       column("calendar_title", "text", "User-facing calendar title", true),
       column("event_date", "date", "Exact calendar date when known"),
       column("event_time", "time", "Exact event time when known"),

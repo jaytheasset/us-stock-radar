@@ -3,6 +3,7 @@ export type CalendarGroup =
   | "shareholder"
   | "dividends"
   | "listing_risk"
+  | "ipo"
   | "deals_offering"
   | "filings"
   | "fda_clinical"
@@ -97,6 +98,34 @@ export const calendarEventDefinitions: CalendarEventDefinition[] = [
     group: "listing_risk",
     groupLabel: "Listing Risk",
     description: "Exchange delisting hearing or appeal date.",
+  },
+  {
+    code: "ipo_expected_date",
+    label: "Expected IPO Date",
+    group: "ipo",
+    groupLabel: "IPO",
+    description: "Expected IPO date or target listing window.",
+  },
+  {
+    code: "ipo_pricing_date",
+    label: "IPO Pricing Date",
+    group: "ipo",
+    groupLabel: "IPO",
+    description: "Expected IPO pricing date.",
+  },
+  {
+    code: "ipo_listing_date",
+    label: "IPO Listing Date",
+    group: "ipo",
+    groupLabel: "IPO",
+    description: "Expected first trading day or listing date.",
+  },
+  {
+    code: "ipo_lockup_expiration",
+    label: "IPO Lock-Up Expiration",
+    group: "ipo",
+    groupLabel: "IPO",
+    description: "IPO-related lock-up expiration date.",
   },
   {
     code: "offering_closing",

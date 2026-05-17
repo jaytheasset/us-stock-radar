@@ -10,7 +10,7 @@ import {
   CircleDollarSign,
   FlaskConical,
   Handshake,
-  Scale,
+  Rocket,
   ShieldAlert,
   Users,
 } from "lucide-react";
@@ -19,12 +19,11 @@ const categoryTabs = [
   { label: "All", count: 25, icon: CalendarDays },
   { label: "Earnings", count: 4, icon: BarChart3, active: true },
   { label: "Listing Risk", count: 2, icon: ShieldAlert },
+  { label: "IPO", count: 0, icon: Rocket },
   { label: "Deals & Offerings", count: 4, icon: Handshake },
   { label: "FDA & Clinical", count: 0, icon: FlaskConical },
   { label: "Dividends", count: 4, icon: CircleDollarSign },
   { label: "Shareholder", count: 3, icon: Users },
-  { label: "Legal & Policy", count: 0, icon: Scale },
-  { label: "More", count: 8, icon: ChevronDown },
 ];
 
 const miniCalendar = [
