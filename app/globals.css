@@ -8652,18 +8652,21 @@ html[data-theme="dark"] .calendar-event-meta strong {
 
 .mini-calendar-grid span,
 .mini-calendar-grid button {
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   justify-self: center;
   width: 28px;
   height: 28px;
   min-width: 0;
+  padding: 0;
   border: 0;
   border-radius: 999px;
   color: #263755;
   background: transparent;
   font-size: 12px;
   font-weight: 600;
+  line-height: 1;
 }
 
 .mini-calendar-weekday {
