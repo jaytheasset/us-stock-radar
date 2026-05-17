@@ -400,22 +400,27 @@ function findBoilerplateCut(bodyText: string) {
     findPatternCut(bodyText, /(?:^|\n)\s*(Safe Harbor Statement)\s*(?:\n|$)/i, "Safe Harbor Statement"),
     findPatternCut(
       bodyText,
-      /(?:^|\n)\s*(This (?:press|news) release contains forward-looking statements?)/i,
+      /(?:^|\n)\s*((?:Legal\s+)?Disclaimer)\s*\n\s*This (?:press|news) release contains [^\n]{0,320}["“”'‘’]?forward[- ]looking["“”'‘’]?\s+statements?/i,
+      "Forward-Looking Disclaimer",
+    ),
+    findPatternCut(
+      bodyText,
+      /(?:^|\n)\s*(This (?:press|news) release contains ["“”'‘’]?forward[- ]looking["“”'‘’]?\s+statements?)/i,
       "Forward-Looking Statements",
     ),
     findPatternCut(
       bodyText,
-      /(?:^|\n)\s*(This (?:press|news) release contains [^\n]{0,320}forward[- ]looking statements?)/i,
+      /(?:^|\n)\s*(This (?:press|news) release contains [^\n]{0,320}["“”'‘’]?forward[- ]looking["“”'‘’]?\s+statements?)/i,
       "Forward-Looking Statements",
     ),
     findPatternCut(
       bodyText,
-      /(?:^|\n)\s*(Certain statements in this (?:press|news) release are forward-looking statements?)/i,
+      /(?:^|\n)\s*(Certain statements in this (?:press|news) release are ["“”'‘’]?forward[- ]looking["“”'‘’]?\s+statements?)/i,
       "Forward-Looking Statements",
     ),
     findPatternCut(
       bodyText,
-      /(?:^|\n)\s*(Certain statements (?:in|contained in|included in) this (?:press|news) release [^\n]{0,320}forward[- ]looking statements?)/i,
+      /(?:^|\n)\s*(Certain statements (?:in|contained in|included in) this (?:press|news) release [^\n]{0,320}["“”'‘’]?forward[- ]looking["“”'‘’]?\s+statements?)/i,
       "Forward-Looking Statements",
     ),
     findPatternCut(

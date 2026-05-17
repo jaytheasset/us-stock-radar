@@ -58,6 +58,16 @@ const syntheticOutlook = stripGlobeNewswireAnalysisBoilerplate(
     "This press release contains forward-looking statements within the meaning of the Private Securities Litigation Reform Act of 1995.",
   ].join("\n"),
 );
+const syntheticDisclaimer = stripGlobeNewswireAnalysisBoilerplate(
+  [
+    "Company presents randomized clinical trial data.",
+    "The data showed a numeric survival trend in a targeted patient subgroup.",
+    "",
+    "Disclaimer",
+    "This press release contains “forward-looking” statements within the meaning of the safe harbor provisions of the Private Securities Litigation Reform Act of 1995.",
+    "The company assumes no obligation to update these forward-looking statements.",
+  ].join("\n"),
+);
 
 if (!synthetic.text?.includes("material commercial update")) {
   failures.push("synthetic boilerplate test: article content was removed");
@@ -85,6 +95,15 @@ if (/Private Securities Litigation Reform Act/i.test(syntheticOutlook.text || ""
 }
 if (syntheticOutlook.removedSections.length !== 1) {
   failures.push("synthetic outlook test: removed section was not recorded");
+}
+if (!syntheticDisclaimer.text?.includes("numeric survival trend")) {
+  failures.push("synthetic disclaimer test: article content was removed");
+}
+if (/Private Securities Litigation Reform Act/i.test(syntheticDisclaimer.text || "")) {
+  failures.push("synthetic disclaimer test: legal boilerplate was not removed");
+}
+if (syntheticDisclaimer.removedSections.length !== 1) {
+  failures.push("synthetic disclaimer test: removed section was not recorded");
 }
 
 console.log(`GlobeNewswire parser verification`);
@@ -159,8 +178,8 @@ function hasForwardLookingBoilerplate(value) {
   return [
     /(?:^|\n)\s*((?:(?:Caution|Cautionary|Special Note|Notice|Note|Disclosure)(?:\s+(?:Note|Statement|Statements))?\s+(?:Concerning|Regarding|About|On|With Respect To)\s+)?Forward[- ]Looking (?:Statements?|Information)(?:\s+(?:and|&)\s+[A-Za-z -]+)?)[ \t.:;-]*(?:\n|$)/i,
     /(?:^|\n)\s*(Safe Harbor Statement)\s*(?:\n|$)/i,
-    /(?:^|\n)\s*(This (?:press|news) release contains [^\n]{0,320}forward[- ]looking statements?)/i,
-    /(?:^|\n)\s*(Certain statements (?:in|contained in|included in) this (?:press|news) release [^\n]{0,320}forward[- ]looking statements?)/i,
+    /(?:^|\n)\s*(This (?:press|news) release contains [^\n]{0,320}["“”'‘’]?forward[- ]looking["“”'‘’]?\s+statements?)/i,
+    /(?:^|\n)\s*(Certain statements (?:in|contained in|included in) this (?:press|news) release [^\n]{0,320}["“”'‘’]?forward[- ]looking["“”'‘’]?\s+statements?)/i,
     /\bPrivate Securities Litigation Reform Act\b/i,
   ].some((pattern) => pattern.test(value));
 }
