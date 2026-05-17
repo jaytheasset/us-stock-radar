@@ -13,6 +13,18 @@ export type SourceJob = {
 
 export const sourceJobs: SourceJob[] = [
   {
+    source: "sec_edgar",
+    label: "SEC EDGAR",
+    jobRoute: "/api/sources/sec/ingest",
+    sourceUrls: [
+      {
+        label: "SEC EDGAR current filings Atom feed",
+        primary: true,
+        url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=8-K&owner=include&start=0&count=10&output=atom",
+      },
+    ],
+  },
+  {
     source: "globe",
     label: "GlobeNewswire",
     jobRoute: "/jobs/globe",
@@ -255,10 +267,14 @@ export async function runSourceJob(source: string, body: unknown) {
 
 async function probeSourceUrl(item: { label: string; url: string }): Promise<UrlProbeResult> {
   try {
+    const env = getServerEnv();
+    const userAgent = item.url.includes("sec.gov") && env.secUserAgent
+      ? env.secUserAgent
+      : "US-Stock-Radar/0.1 source-health-check";
     const response = await timedFetch(item.url, {
       headers: {
         Accept: "application/rss+xml, application/json, text/html, */*",
-        "User-Agent": "US-Stock-Radar/0.1 source-health-check",
+        "User-Agent": userAgent,
       },
     });
 

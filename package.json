@@ -12,6 +12,7 @@
     "qa:calendar-route": "node scripts/qa-calendar-route.mjs",
     "qa:news-routes": "node scripts/qa-news-routes.mjs",
     "qa:globe-ingest": "node scripts/qa-globe-ingest.mjs",
+    "qa:sec-raw-ingest": "node scripts/qa-sec-raw-ingest.mjs",
     "verify:globe-parser": "node --experimental-strip-types scripts/verify-globe-parser.mjs",
     "typecheck": "tsc --noEmit"
   },
