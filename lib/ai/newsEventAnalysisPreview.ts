@@ -4,12 +4,15 @@ import { fetchGlobeNewswireRawItems, type GlobeParsedRawItem, type GlobeTickerMe
 
 type PreviewOptions = {
   dryRun?: boolean;
+  sourceUniqueId?: string;
+  searchLimit?: number;
 };
 
 type OpenAIResponseBody = {
   id?: string;
   status?: string;
   output_text?: string;
+  usage?: OpenAIUsage;
   output?: Array<{
     type?: string;
     content?: Array<{
@@ -22,6 +25,33 @@ type OpenAIResponseBody = {
   };
 };
 
+type OpenAIUsage = {
+  input_tokens?: number;
+  output_tokens?: number;
+  total_tokens?: number;
+  input_tokens_details?: {
+    cached_tokens?: number;
+  };
+  output_tokens_details?: {
+    reasoning_tokens?: number;
+  };
+  [key: string]: unknown;
+};
+
+type CostEstimate = {
+  model: string;
+  currency: "USD";
+  estimatedUsd: number;
+  inputTokens: number;
+  cachedInputTokens: number;
+  billedInputTokens: number;
+  outputTokens: number;
+  inputUsdPerMillion: number;
+  cachedInputUsdPerMillion: number;
+  outputUsdPerMillion: number;
+  pricing: string;
+};
+
 export type NewsEventAnalysisRunResult = {
   ok: boolean;
   stage: "openai" | "complete";
@@ -32,28 +62,38 @@ export type NewsEventAnalysisRunResult = {
   input: NewsEventAnalysisInput;
   analysis?: Record<string, unknown> | null;
   outputText?: string;
+  usage?: OpenAIUsage | null;
+  costEstimate?: CostEstimate | null;
+  prompt?: {
+    key: string;
+    version: string;
+  };
   error?: string;
   rawOpenAIResponse?: OpenAIResponseBody | null;
 };
 
 export async function runNewsEventAnalysisPreview(options: PreviewOptions = {}) {
+  const fetchLimit = options.sourceUniqueId ? clampInt(options.searchLimit, 1, 50, 20) : 1;
   const rawResult = await fetchGlobeNewswireRawItems({
-    limit: 1,
+    limit: fetchLimit,
     includeArticleBody: true,
-    articleBodyLimit: 1,
+    articleBodyLimit: fetchLimit,
   });
 
-  if (!rawResult.ok || !rawResult.items[0]) {
+  const rawItem = options.sourceUniqueId
+    ? rawResult.items.find((item) => item.source_unique_id === options.sourceUniqueId)
+    : rawResult.items[0];
+
+  if (!rawResult.ok || !rawItem) {
     return {
       ok: false,
       stage: "raw_fetch",
       status: rawResult.status,
-      error: rawResult.error || "No GlobeNewswire raw item returned",
+      error: rawResult.error || sourceItemNotFoundMessage(options.sourceUniqueId, fetchLimit),
       rawResult,
     };
   }
 
-  const rawItem = rawResult.items[0];
   const input = buildInputFromGlobeRawItem(rawItem);
   const prompt = buildNewsEventAnalysisPrompt(input);
 
@@ -147,6 +187,7 @@ export async function runNewsEventAnalysisForRawItem(
 
   const outputText = readResponseOutputText(responseBody);
   const analysis = parseAnalysisJson(outputText);
+  const usage = responseBody?.usage || null;
 
   return {
     ok: Boolean(analysis),
@@ -158,6 +199,12 @@ export async function runNewsEventAnalysisForRawItem(
     input,
     analysis,
     outputText,
+    usage,
+    costEstimate: estimateCost(env.openAiModel, usage),
+    prompt: {
+      key: prompt.key,
+      version: prompt.version,
+    },
     error: analysis ? undefined : "OpenAI response did not contain parseable JSON",
   };
 }
@@ -194,6 +241,7 @@ function summarizeRawItem(item: GlobeParsedRawItem) {
   return {
     source_code: item.source_code,
     source_group: item.source_group,
+    source_unique_id: item.source_unique_id,
     source_url: item.source_url,
     title: item.title,
     published_at: item.published_at,
@@ -204,17 +252,78 @@ function summarizeRawItem(item: GlobeParsedRawItem) {
   };
 }
 
+function clampInt(value: number | undefined, min: number, max: number, fallback: number) {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(value as number)));
+}
+
+function sourceItemNotFoundMessage(sourceUniqueId: string | undefined, searchLimit: number) {
+  if (!sourceUniqueId) return "No GlobeNewswire raw item returned";
+  return `GlobeNewswire raw item ${sourceUniqueId} was not found in the latest ${searchLimit} items`;
+}
+
+function estimateCost(model: string, usage: OpenAIUsage | null): CostEstimate | null {
+  const pricing = getPricing(model);
+  if (!pricing || !usage) return null;
+
+  const inputTokens = numberValue(usage.input_tokens);
+  const outputTokens = numberValue(usage.output_tokens);
+  const cachedInputTokens = Math.min(
+    inputTokens,
+    numberValue(usage.input_tokens_details?.cached_tokens),
+  );
+  const billedInputTokens = Math.max(0, inputTokens - cachedInputTokens);
+  const estimatedUsd =
+    (billedInputTokens * pricing.inputUsdPerMillion +
+      cachedInputTokens * pricing.cachedInputUsdPerMillion +
+      outputTokens * pricing.outputUsdPerMillion) /
+    1_000_000;
+
+  return {
+    model,
+    currency: "USD",
+    estimatedUsd: Number(estimatedUsd.toFixed(8)),
+    inputTokens,
+    cachedInputTokens,
+    billedInputTokens,
+    outputTokens,
+    inputUsdPerMillion: pricing.inputUsdPerMillion,
+    cachedInputUsdPerMillion: pricing.cachedInputUsdPerMillion,
+    outputUsdPerMillion: pricing.outputUsdPerMillion,
+    pricing: pricing.label,
+  };
+}
+
+function getPricing(model: string) {
+  const normalized = model.trim().toLowerCase();
+  if (normalized === "gpt-5-mini") {
+    return {
+      inputUsdPerMillion: 0.25,
+      cachedInputUsdPerMillion: 0.025,
+      outputUsdPerMillion: 2,
+      label: "OpenAI API pricing for gpt-5-mini checked 2026-05-17",
+    };
+  }
+
+  return null;
+}
+
+function numberValue(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
 function readResponseOutputText(body: OpenAIResponseBody | null) {
   if (!body) return "";
   if (typeof body.output_text === "string") return body.output_text;
 
+  const parts: string[] = [];
   for (const item of body.output || []) {
     for (const content of item.content || []) {
-      if (typeof content.text === "string") return content.text;
+      if (typeof content.text === "string") parts.push(content.text);
     }
   }
 
-  return "";
+  return parts.join("");
 }
 
 function parseAnalysisJson(value: string) {

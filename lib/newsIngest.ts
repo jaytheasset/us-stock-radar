@@ -190,6 +190,7 @@ export async function runGlobeNewsIngest(options: GlobeIngestOptions = {}) {
             outputText: analysisRun.outputText || "",
             model: analysisRun.model || "",
             openAiResponseId: analysisRun.openAiResponseId || null,
+            usage: analysisRun.usage || null,
           });
           resultItems.push({
             ok: true,
@@ -218,6 +219,7 @@ export async function runGlobeNewsIngest(options: GlobeIngestOptions = {}) {
           outputText: analysisRun.outputText || "",
           model: analysisRun.model || "",
           openAiResponseId: analysisRun.openAiResponseId || null,
+          usage: analysisRun.usage || null,
         });
 
         stats.event_upserted_count += 1;
@@ -484,6 +486,7 @@ async function persistAiTrace({
   outputText,
   model,
   openAiResponseId,
+  usage,
 }: {
   rawItemId: string;
   eventId: string | null;
@@ -491,6 +494,7 @@ async function persistAiTrace({
   outputText: string;
   model: string;
   openAiResponseId: string | null;
+  usage: Record<string, unknown> | null;
 }) {
   const aiRunId = randomUUID();
   const now = new Date().toISOString();
@@ -507,7 +511,7 @@ async function persistAiTrace({
         status: "completed",
         started_at: now,
         finished_at: now,
-        usage: {},
+        usage: usage || {},
         metadata: {
           openai_response_id: openAiResponseId,
         },
