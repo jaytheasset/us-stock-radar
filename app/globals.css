@@ -8934,7 +8934,7 @@ html[data-theme="dark"] .calendar-event-meta strong {
 
 .calendar-list-row {
   display: grid;
-  grid-template-columns: 112px 154px 74px minmax(0, 1fr) 108px;
+  grid-template-columns: 112px 74px minmax(0, 1fr) 108px;
   align-items: start;
   gap: 18px;
   min-height: 96px;
@@ -8979,7 +8979,7 @@ html[data-theme="dark"] .calendar-event-meta strong {
 }
 
 .calendar-list-type {
-  align-self: center;
+  align-self: start;
   justify-self: start;
   max-width: 154px;
   overflow: hidden;

@@ -345,9 +345,9 @@ export default function CalendarPage() {
                       {event.showDate ? <b>{event.date}</b> : null}
                       <small>{event.time}</small>
                     </span>
-                    <em className="calendar-list-type">{event.category}</em>
                     <strong className="calendar-list-ticker">{event.ticker}</strong>
                     <span className="calendar-list-event">
+                      <em className="calendar-list-type">{event.category}</em>
                       <b>{event.title}</b>
                       <p>{getEventSummary(event)}</p>
                       <small>{event.type}</small>
