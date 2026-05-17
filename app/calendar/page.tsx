@@ -35,16 +35,16 @@ const calendarDays = [
     events: [
       { time: "8:00 AM", ticker: "NVDA", title: "Q1 earnings release", type: "Earnings Release", category: "Earnings", tone: "release", impact: "High", status: "Confirmed" },
       { time: "5:00 PM", ticker: "NVDA", title: "Earnings call", type: "Earnings Call", category: "Earnings", tone: "call", impact: "Medium", status: "Confirmed" },
-      { time: "After Market", ticker: "AMC", title: "Q1 earnings release", type: "Post-Market", category: "Earnings", tone: "post", impact: "Medium", status: "Tentative" },
+      { time: "After-Hours", ticker: "AMC", title: "Q1 earnings release", type: "After-Hours", category: "Earnings", tone: "post", impact: "Medium", status: "Tentative" },
     ],
   },
   {
     day: "Tue",
     date: "May 20",
     events: [
-      { time: "Before Market", ticker: "PFE", title: "Q1 earnings release", type: "Pre-Market", category: "Earnings", tone: "pre", impact: "Medium", status: "Confirmed" },
+      { time: "Pre-Market", ticker: "PFE", title: "Q1 earnings release", type: "Pre-Market", category: "Earnings", tone: "pre", impact: "Medium", status: "Confirmed" },
       { time: "4:30 PM", ticker: "PFE", title: "Earnings call", type: "Earnings Call", category: "Earnings", tone: "call", impact: "Medium", status: "Confirmed" },
-      { time: "Before Market", ticker: "HD", title: "Q1 earnings release", type: "Pre-Market", category: "Earnings", tone: "pre", impact: "Medium", status: "Confirmed" },
+      { time: "Pre-Market", ticker: "HD", title: "Q1 earnings release", type: "Pre-Market", category: "Earnings", tone: "pre", impact: "Medium", status: "Confirmed" },
       { time: "10:00 AM", ticker: "ABVX", title: "IPO pricing expected", type: "IPO Pricing", category: "IPO", tone: "ipo", impact: "Medium", status: "Tentative" },
     ],
   },
@@ -52,9 +52,9 @@ const calendarDays = [
     day: "Wed",
     date: "May 21",
     events: [
-      { time: "Before Market", ticker: "TSLA", title: "Q1 earnings release", type: "Pre-Market", category: "Earnings", tone: "pre", impact: "High", status: "Confirmed" },
+      { time: "Pre-Market", ticker: "TSLA", title: "Q1 earnings release", type: "Pre-Market", category: "Earnings", tone: "pre", impact: "High", status: "Confirmed" },
       { time: "9:30 AM", ticker: "NEWU", title: "Expected first trading day", type: "IPO Listing", category: "IPO", tone: "ipo", impact: "Medium", status: "Tentative" },
-      { time: "After Market", ticker: "CRM", title: "Q1 earnings release", type: "Post-Market", category: "Earnings", tone: "post", impact: "Medium", status: "Confirmed" },
+      { time: "After-Hours", ticker: "CRM", title: "Q1 earnings release", type: "After-Hours", category: "Earnings", tone: "post", impact: "Medium", status: "Confirmed" },
       { time: "4:00 PM", ticker: "MSTR", title: "Convertible note offering closing", type: "Offering Closing", category: "Deals / Offering", tone: "deal", impact: "High", status: "Confirmed" },
     ],
   },
@@ -62,9 +62,9 @@ const calendarDays = [
     day: "Thu",
     date: "May 22",
     events: [
-      { time: "Before Market", ticker: "AMZN", title: "Q1 earnings release", type: "Pre-Market", category: "Earnings", tone: "pre", impact: "High", status: "Confirmed" },
+      { time: "Pre-Market", ticker: "AMZN", title: "Q1 earnings release", type: "Pre-Market", category: "Earnings", tone: "pre", impact: "High", status: "Confirmed" },
       { time: "12:00 PM", ticker: "MNPR", title: "Nasdaq compliance deadline", type: "Listing Deadline", category: "Listing Risk", tone: "risk", impact: "High", status: "Confirmed" },
-      { time: "After Market", ticker: "AAPL", title: "Q2 earnings release", type: "Post-Market", category: "Earnings", tone: "post", impact: "Medium", status: "Confirmed" },
+      { time: "After-Hours", ticker: "AAPL", title: "Q2 earnings release", type: "After-Hours", category: "Earnings", tone: "post", impact: "Medium", status: "Confirmed" },
       { time: "5:00 PM", ticker: "AAPL", title: "Earnings call", type: "Earnings Call", category: "Earnings", tone: "call", impact: "Medium", status: "Confirmed" },
     ],
   },
@@ -72,7 +72,7 @@ const calendarDays = [
     day: "Fri",
     date: "May 23",
     events: [
-      { time: "Before Market", ticker: "XOM", title: "Q1 earnings release", type: "Pre-Market", category: "Earnings", tone: "pre", impact: "Medium", status: "Confirmed" },
+      { time: "Pre-Market", ticker: "XOM", title: "Q1 earnings release", type: "Pre-Market", category: "Earnings", tone: "pre", impact: "Medium", status: "Confirmed" },
       { time: "11:00 AM", ticker: "XOM", title: "Earnings call", type: "Earnings Call", category: "Earnings", tone: "call", impact: "Medium", status: "Confirmed" },
       { time: "8:30 AM", ticker: "ABBV", title: "Earnings call", type: "Earnings Call", category: "Earnings", tone: "call", impact: "Medium", status: "Confirmed" },
       { time: "Market Close", ticker: "ARQT", title: "PDUFA target action date", type: "PDUFA Date", category: "FDA & Clinical", tone: "fda", impact: "High", status: "Tentative" },
@@ -96,7 +96,7 @@ const watchlistEvents = [
 
 function getEventSummary(event: (typeof calendarDays)[number]["events"][number]) {
   if (event.type.includes("Earnings Call")) return "Management commentary and guidance timing may reset near-term expectations.";
-  if (event.type.includes("Earnings") || event.type.includes("Pre-Market") || event.type.includes("Post-Market")) {
+  if (event.category === "Earnings") {
     return "Quarterly results, guidance, and margin commentary are the key watch points.";
   }
   if (event.category === "IPO") return "Pricing, listing timing, and first-day liquidity can drive early volatility.";
@@ -292,7 +292,7 @@ export default function CalendarPage() {
                 ["release", "Earnings Release"],
                 ["call", "Earnings Call"],
                 ["pre", "Pre-Market"],
-                ["post", "Post-Market"],
+                ["post", "After-Hours"],
                 ["other", "Other / Unscheduled"],
               ].map(([tone, label]) => (
                 <div key={tone}>

@@ -8983,9 +8983,9 @@ html[data-theme="dark"] .calendar-event-meta strong {
   padding: 3px 7px;
   color: #0f55ff;
   background: #eef5ff;
-  font-size: 10px;
+  font-size: 9px;
   font-style: normal;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.2;
   text-overflow: ellipsis;
   text-transform: uppercase;
@@ -8996,8 +8996,8 @@ html[data-theme="dark"] .calendar-event-meta strong {
   align-self: center;
   justify-self: start;
   color: #07122f;
-  font-size: 15px;
-  font-weight: 800;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .calendar-list-event {
@@ -9007,8 +9007,8 @@ html[data-theme="dark"] .calendar-event-meta strong {
 .calendar-list-event b {
   overflow: hidden;
   color: #07122f;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
