@@ -8595,10 +8595,10 @@ html[data-theme="dark"] .calendar-event-meta strong {
 .calendar-left-rail {
   display: grid;
   align-content: start;
-  gap: 14px;
+  gap: 0;
   overflow: hidden;
   border-right: 1px solid #dbe3ee;
-  padding: 14px;
+  padding: 0 14px;
 }
 
 .calendar-left-rail > * {
@@ -8612,13 +8612,14 @@ html[data-theme="dark"] .calendar-event-meta strong {
 .calendar-legend,
 .calendar-selected-panel,
 .calendar-side-card {
-  border: 1px solid #dbe3ee;
-  border-radius: 8px;
-  background: #ffffff;
+  border: 0;
+  border-bottom: 1px solid #dbe3ee;
+  border-radius: 0;
+  background: transparent;
 }
 
 .calendar-mini-panel {
-  padding: 14px;
+  padding: 14px 0 16px;
 }
 
 .mini-calendar-head {
@@ -8688,8 +8689,7 @@ html[data-theme="dark"] .calendar-event-meta strong {
 
 .calendar-left-actions {
   display: grid;
-  gap: 8px;
-  padding: 10px;
+  padding: 8px 0;
 }
 
 .calendar-left-actions button {
@@ -8698,14 +8698,19 @@ html[data-theme="dark"] .calendar-event-meta strong {
   gap: 9px;
   width: 100%;
   min-width: 0;
-  min-height: 40px;
-  border: 1px solid #dbe3ee;
-  border-radius: 7px;
-  padding: 0 12px;
+  min-height: 34px;
+  border: 0;
+  border-bottom: 1px solid #edf2f7;
+  border-radius: 0;
+  padding: 0;
   color: #07122f;
-  background: #ffffff;
+  background: transparent;
   font-size: 13px;
   font-weight: 700;
+}
+
+.calendar-left-actions button:last-child {
+  border-bottom: 0;
 }
 
 .calendar-left-actions .action-chevron {
@@ -8713,7 +8718,7 @@ html[data-theme="dark"] .calendar-event-meta strong {
 }
 
 .calendar-legend {
-  padding: 14px;
+  padding: 14px 0 16px;
 }
 
 .calendar-legend h2 {
@@ -8889,16 +8894,21 @@ html[data-theme="dark"] .calendar-event-meta strong {
 .calendar-summary-strip {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 14px;
-  padding: 20px 0 0;
+  gap: 0;
+  border-top: 1px solid #dbe3ee;
+  padding: 12px 0 0;
 }
 
 .calendar-summary-card {
-  min-height: 112px;
-  border: 1px solid #dbe3ee;
-  border-radius: 8px;
-  padding: 14px;
-  background: #ffffff;
+  min-height: 92px;
+  border-right: 1px solid #e1e8f1;
+  border-radius: 0;
+  padding: 8px 14px 10px;
+  background: transparent;
+}
+
+.calendar-summary-card:last-child {
+  border-right: 0;
 }
 
 .calendar-summary-card div {
@@ -8949,14 +8959,14 @@ html[data-theme="dark"] .calendar-event-meta strong {
 .calendar-right-rail {
   display: grid;
   align-content: start;
-  gap: 12px;
+  gap: 0;
   border-left: 1px solid #dbe3ee;
-  padding: 14px;
+  padding: 0 16px;
 }
 
 .calendar-selected-panel,
 .calendar-side-card {
-  padding: 14px;
+  padding: 16px 0;
 }
 
 .calendar-panel-title,
