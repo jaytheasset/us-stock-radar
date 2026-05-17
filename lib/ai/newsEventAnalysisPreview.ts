@@ -8,6 +8,21 @@ type PreviewOptions = {
   searchLimit?: number;
 };
 
+const NEWS_EVENT_ANALYSIS_MAX_OUTPUT_TOKENS = 4000;
+const NEWS_CALENDAR_EVENT_TYPE_ALLOWLIST = new Set([
+  "earnings_release",
+  "earnings_call",
+  "investor_day",
+  "conference_presentation",
+  "ex_dividend_date",
+  "dividend_record_date",
+  "dividend_payment_date",
+  "fda_pdufa_date",
+  "fda_advisory_committee",
+  "clinical_data_readout",
+  "medical_conference",
+]);
+
 type OpenAIResponseBody = {
   id?: string;
   status?: string;
@@ -162,7 +177,7 @@ export async function runNewsEventAnalysisForRawItem(
       model: env.openAiModel,
       instructions: prompt.system,
       input: prompt.user,
-      max_output_tokens: 2500,
+      max_output_tokens: NEWS_EVENT_ANALYSIS_MAX_OUTPUT_TOKENS,
       text: {
         format: {
           ...prompt.responseFormat.json_schema,
@@ -186,13 +201,13 @@ export async function runNewsEventAnalysisForRawItem(
   }
 
   const outputText = readResponseOutputText(responseBody);
-  const analysis = parseAnalysisJson(outputText);
+  const analysis = filterNewsCalendarItems(parseAnalysisJson(outputText));
   const usage = responseBody?.usage || null;
 
   return {
     ok: Boolean(analysis),
     stage: "complete",
-    status: response.status,
+    status: analysis ? response.status : 502,
     model: env.openAiModel,
     openAiResponseId: responseBody?.id || null,
     sourceItem: summarizeRawItem(rawItem),
@@ -339,6 +354,18 @@ function parseAnalysisJson(value: string) {
       return null;
     }
   }
+}
+
+function filterNewsCalendarItems(analysis: Record<string, unknown> | null) {
+  if (!analysis) return null;
+  const calendarItems = Array.isArray(analysis.calendar_items) ? analysis.calendar_items : [];
+  return {
+    ...analysis,
+    calendar_items: calendarItems.filter((item) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return false;
+      return NEWS_CALENDAR_EVENT_TYPE_ALLOWLIST.has(String((item as Record<string, unknown>).calendar_event_type || ""));
+    }),
+  };
 }
 
 function extractJsonObject(value: string) {
