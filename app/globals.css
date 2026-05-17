@@ -8523,9 +8523,8 @@ html[data-theme="dark"] .calendar-event-meta strong {
 }
 
 .calendar-category-tabs {
-  display: flex;
-  overflow: hidden;
-  overflow-x: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   border: 1px solid #dbe3ee;
   border-radius: 8px 8px 0 0;
   background: #ffffff;
@@ -8533,20 +8532,21 @@ html[data-theme="dark"] .calendar-event-meta strong {
 
 .calendar-category-tabs button {
   display: flex;
-  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  gap: 9px;
-  min-width: 154px;
-  min-height: 56px;
+  gap: 6px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 10px;
   border: 0;
   border-right: 1px solid #e0e7f0;
-  border-bottom: 3px solid transparent;
+  border-bottom: 1px solid #e0e7f0;
+  box-shadow: inset 0 -3px 0 transparent;
   color: #07122f;
   background: #ffffff;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
-  white-space: nowrap;
+  text-align: center;
 }
 
 .calendar-category-tabs::-webkit-scrollbar {
@@ -8563,7 +8563,7 @@ html[data-theme="dark"] .calendar-event-meta strong {
 }
 
 .calendar-category-tabs button.active {
-  border-bottom-color: #0f55ff;
+  box-shadow: inset 0 -3px 0 #0f55ff;
   color: #0f55ff;
   background: #f8fbff;
 }
