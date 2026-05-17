@@ -675,7 +675,12 @@ function absoluteSecUrl(value: string | null, base?: string) {
   const href = stringValue(value);
   if (!href) return null;
   try {
-    return new URL(href, base || SEC_BASE_URL).toString();
+    const url = new URL(href, base || SEC_BASE_URL);
+    const inlineDocPath = url.pathname === "/ix" ? url.searchParams.get("doc") : null;
+    if (inlineDocPath && inlineDocPath.startsWith("/Archives/")) {
+      return new URL(inlineDocPath, SEC_BASE_URL).toString();
+    }
+    return url.toString();
   } catch {
     return null;
   }

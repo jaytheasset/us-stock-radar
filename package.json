@@ -13,6 +13,7 @@
     "qa:news-routes": "node scripts/qa-news-routes.mjs",
     "qa:globe-ingest": "node scripts/qa-globe-ingest.mjs",
     "qa:sec-raw-ingest": "node scripts/qa-sec-raw-ingest.mjs",
+    "qa:sec-filing-package": "node scripts/qa-sec-filing-package.mjs",
     "verify:globe-parser": "node --experimental-strip-types scripts/verify-globe-parser.mjs",
     "typecheck": "tsc --noEmit"
   },
