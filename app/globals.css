@@ -8897,6 +8897,12 @@ html[data-theme="dark"] .calendar-event-meta strong {
 .week-event-card.call { border-left-color: #25b66b; }
 .week-event-card.pre { border-left-color: #9a6bff; }
 .week-event-card.post { border-left-color: #ff9f1c; }
+.week-event-card.risk { border-left-color: #d7192a; }
+.week-event-card.ipo { border-left-color: #0f8b8d; }
+.week-event-card.deal { border-left-color: #7c4dff; }
+.week-event-card.fda { border-left-color: #14a06f; }
+.week-event-card.dividend { border-left-color: #0f55ff; }
+.week-event-card.shareholder { border-left-color: #64728a; }
 
 .calendar-empty-day {
   display: grid;
@@ -8906,6 +8912,109 @@ html[data-theme="dark"] .calendar-event-meta strong {
   font-size: 13px;
   font-weight: 600;
   text-align: center;
+}
+
+.calendar-list-board {
+  display: grid;
+  border-top: 0;
+}
+
+.calendar-list-row {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) 108px;
+  gap: 18px;
+  min-height: 74px;
+  border: 0;
+  border-bottom: 1px solid #dbe3ee;
+  padding: 13px 0;
+  color: #07122f;
+  background: transparent;
+  text-align: left;
+}
+
+.calendar-list-date,
+.calendar-list-event,
+.calendar-list-meta {
+  display: grid;
+  align-content: center;
+  min-width: 0;
+}
+
+.calendar-list-date b {
+  color: #07122f;
+  font-size: 13px;
+}
+
+.calendar-list-date small,
+.calendar-list-event small,
+.calendar-list-meta small {
+  margin-top: 4px;
+  color: #64728a;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.calendar-list-event {
+  grid-template-columns: auto 72px minmax(0, 1fr);
+  gap: 5px 12px;
+}
+
+.calendar-list-event em {
+  align-self: start;
+  border-radius: 5px;
+  padding: 3px 7px;
+  color: #0f55ff;
+  background: #eef5ff;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.calendar-list-event strong {
+  color: #07122f;
+  font-size: 14px;
+}
+
+.calendar-list-event b {
+  overflow: hidden;
+  color: #07122f;
+  font-size: 14px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-list-event small {
+  grid-column: 3;
+  margin-top: 0;
+}
+
+.calendar-list-meta {
+  justify-items: end;
+}
+
+.calendar-list-meta b {
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.calendar-list-meta .impact-high {
+  color: #d7192a;
+  background: #fff0f2;
+}
+
+.calendar-list-meta .impact-medium {
+  color: #a76600;
+  background: #fff5df;
+}
+
+.calendar-list-meta .impact-low {
+  color: #52627f;
+  background: #eef3fb;
 }
 
 .calendar-summary-strip {

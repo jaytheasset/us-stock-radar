@@ -1,3 +1,6 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import {
   Bell,
   CalendarDays,
@@ -7,14 +10,14 @@ import {
 } from "lucide-react";
 
 const categoryTabs = [
-  { label: "All", count: 25 },
-  { label: "Earnings", count: 4, active: true },
-  { label: "Listing Risk", count: 2 },
-  { label: "IPO", count: 0 },
-  { label: "Deals & Offerings", count: 4 },
-  { label: "FDA & Clinical", count: 0 },
-  { label: "Dividends", count: 4 },
-  { label: "Shareholder", count: 3 },
+  { label: "All" },
+  { label: "Earnings" },
+  { label: "Listing Risk" },
+  { label: "IPO" },
+  { label: "Deals & Offerings" },
+  { label: "FDA & Clinical" },
+  { label: "Dividends" },
+  { label: "Shareholder" },
 ];
 
 const miniCalendar = [
@@ -30,48 +33,51 @@ const calendarDays = [
     day: "Mon",
     date: "May 19",
     events: [
-      { time: "8:00 AM", ticker: "NVDA", title: "Q1 earnings release", type: "Earnings Release", tone: "release" },
-      { time: "5:00 PM", ticker: "NVDA", title: "Earnings call", type: "Earnings Call", tone: "call" },
-      { time: "After Market", ticker: "AMC", title: "Q1 earnings release", type: "Post-Market", tone: "post" },
+      { time: "8:00 AM", ticker: "NVDA", title: "Q1 earnings release", type: "Earnings Release", category: "Earnings", tone: "release", impact: "High", status: "Confirmed" },
+      { time: "5:00 PM", ticker: "NVDA", title: "Earnings call", type: "Earnings Call", category: "Earnings", tone: "call", impact: "Medium", status: "Confirmed" },
+      { time: "After Market", ticker: "AMC", title: "Q1 earnings release", type: "Post-Market", category: "Earnings", tone: "post", impact: "Medium", status: "Tentative" },
     ],
   },
   {
     day: "Tue",
     date: "May 20",
     events: [
-      { time: "Before Market", ticker: "PFE", title: "Q1 earnings release", type: "Pre-Market", tone: "pre" },
-      { time: "4:30 PM", ticker: "PFE", title: "Earnings call", type: "Earnings Call", tone: "call" },
-      { time: "Before Market", ticker: "HD", title: "Q1 earnings release", type: "Pre-Market", tone: "pre" },
-      { time: "5:00 PM", ticker: "HD", title: "Earnings call", type: "Earnings Call", tone: "call" },
+      { time: "Before Market", ticker: "PFE", title: "Q1 earnings release", type: "Pre-Market", category: "Earnings", tone: "pre", impact: "Medium", status: "Confirmed" },
+      { time: "4:30 PM", ticker: "PFE", title: "Earnings call", type: "Earnings Call", category: "Earnings", tone: "call", impact: "Medium", status: "Confirmed" },
+      { time: "Before Market", ticker: "HD", title: "Q1 earnings release", type: "Pre-Market", category: "Earnings", tone: "pre", impact: "Medium", status: "Confirmed" },
+      { time: "10:00 AM", ticker: "ABVX", title: "IPO pricing expected", type: "IPO Pricing", category: "IPO", tone: "ipo", impact: "Medium", status: "Tentative" },
     ],
   },
   {
     day: "Wed",
     date: "May 21",
     events: [
-      { time: "Before Market", ticker: "TSLA", title: "Q1 earnings release", type: "Pre-Market", tone: "pre" },
-      { time: "4:30 PM", ticker: "TSLA", title: "Earnings call", type: "Earnings Call", tone: "call" },
-      { time: "After Market", ticker: "CRM", title: "Q1 earnings release", type: "Post-Market", tone: "post" },
+      { time: "Before Market", ticker: "TSLA", title: "Q1 earnings release", type: "Pre-Market", category: "Earnings", tone: "pre", impact: "High", status: "Confirmed" },
+      { time: "9:30 AM", ticker: "NEWU", title: "Expected first trading day", type: "IPO Listing", category: "IPO", tone: "ipo", impact: "Medium", status: "Tentative" },
+      { time: "After Market", ticker: "CRM", title: "Q1 earnings release", type: "Post-Market", category: "Earnings", tone: "post", impact: "Medium", status: "Confirmed" },
+      { time: "4:00 PM", ticker: "MSTR", title: "Convertible note offering closing", type: "Offering Closing", category: "Deals & Offerings", tone: "deal", impact: "High", status: "Confirmed" },
     ],
   },
   {
     day: "Thu",
     date: "May 22",
     events: [
-      { time: "Before Market", ticker: "AMZN", title: "Q1 earnings release", type: "Pre-Market", tone: "pre" },
-      { time: "4:30 PM", ticker: "AMZN", title: "Earnings call", type: "Earnings Call", tone: "call" },
-      { time: "After Market", ticker: "AAPL", title: "Q2 earnings release", type: "Post-Market", tone: "post" },
-      { time: "5:00 PM", ticker: "AAPL", title: "Earnings call", type: "Earnings Call", tone: "call" },
+      { time: "Before Market", ticker: "AMZN", title: "Q1 earnings release", type: "Pre-Market", category: "Earnings", tone: "pre", impact: "High", status: "Confirmed" },
+      { time: "12:00 PM", ticker: "MNPR", title: "Nasdaq compliance deadline", type: "Listing Deadline", category: "Listing Risk", tone: "risk", impact: "High", status: "Confirmed" },
+      { time: "After Market", ticker: "AAPL", title: "Q2 earnings release", type: "Post-Market", category: "Earnings", tone: "post", impact: "Medium", status: "Confirmed" },
+      { time: "5:00 PM", ticker: "AAPL", title: "Earnings call", type: "Earnings Call", category: "Earnings", tone: "call", impact: "Medium", status: "Confirmed" },
     ],
   },
   {
     day: "Fri",
     date: "May 23",
     events: [
-      { time: "Before Market", ticker: "XOM", title: "Q1 earnings release", type: "Pre-Market", tone: "pre" },
-      { time: "11:00 AM", ticker: "XOM", title: "Earnings call", type: "Earnings Call", tone: "call" },
-      { time: "Before Market", ticker: "ABBV", title: "Q1 earnings release", type: "Pre-Market", tone: "pre" },
-      { time: "8:30 AM", ticker: "ABBV", title: "Earnings call", type: "Earnings Call", tone: "call" },
+      { time: "Before Market", ticker: "XOM", title: "Q1 earnings release", type: "Pre-Market", category: "Earnings", tone: "pre", impact: "Medium", status: "Confirmed" },
+      { time: "11:00 AM", ticker: "XOM", title: "Earnings call", type: "Earnings Call", category: "Earnings", tone: "call", impact: "Medium", status: "Confirmed" },
+      { time: "8:30 AM", ticker: "ABBV", title: "Earnings call", type: "Earnings Call", category: "Earnings", tone: "call", impact: "Medium", status: "Confirmed" },
+      { time: "Market Close", ticker: "ARQT", title: "PDUFA target action date", type: "PDUFA Date", category: "FDA & Clinical", tone: "fda", impact: "High", status: "Tentative" },
+      { time: "Record Date", ticker: "ARDC", title: "Monthly dividend record date", type: "Dividend Record", category: "Dividends", tone: "dividend", impact: "Low", status: "Confirmed" },
+      { time: "2:00 PM", ticker: "AMC", title: "Special shareholder meeting", type: "Shareholder Meeting", category: "Shareholder", tone: "shareholder", impact: "Medium", status: "Confirmed" },
     ],
   },
 ];
@@ -89,6 +95,45 @@ const watchlistEvents = [
 ];
 
 export default function CalendarPage() {
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [viewMode, setViewMode] = useState<"Month" | "Week" | "List">("List");
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    let total = 0;
+    for (const day of calendarDays) {
+      for (const event of day.events) {
+        total += 1;
+        counts.set(event.category, (counts.get(event.category) || 0) + 1);
+      }
+    }
+    counts.set("All", total);
+    return counts;
+  }, []);
+  const filteredDays = useMemo(
+    () =>
+      calendarDays.map((day) => ({
+        ...day,
+        events: activeCategory === "All" ? day.events : day.events.filter((event) => event.category === activeCategory),
+      })),
+    [activeCategory],
+  );
+  const listItems = useMemo(
+    () =>
+      filteredDays.flatMap((day) =>
+        day.events.map((event) => ({
+          ...event,
+          day: day.day,
+          date: day.date,
+        })),
+      ),
+    [filteredDays],
+  );
+
+  function selectCategory(label: string) {
+    setActiveCategory(label);
+    setViewMode(label === "All" ? "List" : "Week");
+  }
+
   return (
     <main className="market-calendar-page">
       <header className="feed-nav calendar-nav">
@@ -136,20 +181,30 @@ export default function CalendarPage() {
             </button>
             <button type="button">Today</button>
             <div className="calendar-view-toggle" aria-label="Calendar view">
-              <button type="button">Month</button>
-              <button type="button" className="active">
-                Week
-              </button>
-              <button type="button">List</button>
+              {(["Month", "Week", "List"] as const).map((mode) => (
+                <button
+                  type="button"
+                  className={viewMode === mode ? "active" : ""}
+                  key={mode}
+                  onClick={() => setViewMode(mode)}
+                >
+                  {mode}
+                </button>
+              ))}
             </div>
           </div>
         </div>
 
         <div className="calendar-category-tabs" aria-label="Calendar event categories">
           {categoryTabs.map((tab) => (
-            <button type="button" className={tab.active ? "active" : ""} key={tab.label}>
+            <button
+              type="button"
+              className={activeCategory === tab.label ? "active" : ""}
+              key={tab.label}
+              onClick={() => selectCategory(tab.label)}
+            >
               <span>{tab.label}</span>
-              <b>{tab.count}</b>
+              <b>{categoryCounts.get(tab.label) || 0}</b>
             </button>
           ))}
         </div>
@@ -251,33 +306,55 @@ export default function CalendarPage() {
               </label>
             </div>
 
-            <div className="calendar-week-board">
-              {calendarDays.map((day) => (
-                <article className="calendar-week-column" key={`${day.day}-${day.date}`}>
-                  <header>
-                    <strong>{day.day}</strong>
-                    <span>{day.date}</span>
-                  </header>
-                  <div className="calendar-column-events">
-                    {day.events.length === 0 ? (
-                      <div className="calendar-empty-day">No events scheduled</div>
-                    ) : (
-                      day.events.map((event) => (
-                        <button type="button" className={`week-event-card ${event.tone}`} key={`${event.ticker}-${event.time}-${event.title}`}>
-                          <span>
-                            <b>{event.time}</b>
-                            <strong>{event.ticker}</strong>
-                            <Bell size={12} />
-                          </span>
-                          <p>{event.title}</p>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </article>
-              ))}
-            </div>
-
+            {viewMode === "List" ? (
+              <div className="calendar-list-board">
+                {listItems.map((event) => (
+                  <button type="button" className="calendar-list-row" key={`${event.date}-${event.ticker}-${event.time}-${event.title}`}>
+                    <span className="calendar-list-date">
+                      <b>{event.date}</b>
+                      <small>{event.time}</small>
+                    </span>
+                    <span className="calendar-list-event">
+                      <em>{event.category}</em>
+                      <strong>{event.ticker}</strong>
+                      <b>{event.title}</b>
+                      <small>{event.type}</small>
+                    </span>
+                    <span className="calendar-list-meta">
+                      <b className={`impact-${event.impact.toLowerCase()}`}>{event.impact}</b>
+                      <small>{event.status}</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className={`calendar-week-board ${viewMode === "Month" ? "month-mode" : ""}`}>
+                {filteredDays.map((day) => (
+                  <article className="calendar-week-column" key={`${day.day}-${day.date}`}>
+                    <header>
+                      <strong>{day.day}</strong>
+                      <span>{day.date}</span>
+                    </header>
+                    <div className="calendar-column-events">
+                      {day.events.length === 0 ? (
+                        <div className="calendar-empty-day">No events scheduled</div>
+                      ) : (
+                        day.events.map((event) => (
+                          <button type="button" className={`week-event-card ${event.tone}`} key={`${event.ticker}-${event.time}-${event.title}`}>
+                            <span>
+                              <b>{event.time}</b>
+                              <strong>{event.ticker}</strong>
+                              <Bell size={12} />
+                            </span>
+                            <p>{event.title}</p>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
           </section>
 
           <aside className="calendar-right-rail">
