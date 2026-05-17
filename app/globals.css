@@ -8481,12 +8481,12 @@ html[data-theme="dark"] .calendar-event-meta strong {
 .market-calendar-controls button,
 .calendar-filter-toolbar button,
 .calendar-filter-toolbar label {
-  min-height: 42px;
-  border: 1px solid #d2dbea;
-  border-radius: 7px;
-  padding: 0 14px;
+  min-height: 30px;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
   color: #263755;
-  background: #ffffff;
+  background: transparent;
   font-size: 13px;
   font-weight: 600;
 }
@@ -8495,21 +8495,22 @@ html[data-theme="dark"] .calendar-event-meta strong {
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  min-width: 244px;
+  min-width: 0;
   justify-content: center;
 }
 
 .calendar-view-toggle {
-  display: inline-grid;
-  grid-template-columns: repeat(3, minmax(72px, 1fr));
-  overflow: hidden;
-  border: 1px solid #d2dbea;
-  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
 }
 
 .calendar-view-toggle button {
   border: 0;
-  border-right: 1px solid #d2dbea;
+  border-bottom: 2px solid transparent;
   border-radius: 0;
 }
 
@@ -8518,8 +8519,9 @@ html[data-theme="dark"] .calendar-event-meta strong {
 }
 
 .calendar-view-toggle button.active {
-  color: #ffffff;
-  background: #0f55ff;
+  color: #0f55ff;
+  background: transparent;
+  border-bottom-color: #0f55ff;
 }
 
 .calendar-category-tabs {
@@ -9511,10 +9513,14 @@ html[data-theme="dark"] .calendar-summary-card {
   background: transparent;
 }
 
-html[data-theme="dark"] .calendar-category-tabs button.active,
-html[data-theme="dark"] .calendar-view-toggle button.active {
+html[data-theme="dark"] .calendar-category-tabs button.active {
   color: #ffffff;
   background: #0f55ff;
+}
+
+html[data-theme="dark"] .calendar-view-toggle button.active {
+  color: #6ea2ff;
+  background: transparent;
 }
 
 html[data-theme="dark"] .calendar-category-tabs b,
