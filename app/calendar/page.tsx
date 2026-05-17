@@ -18,14 +18,20 @@ import {
 
 const categoryTabs = [
   { label: "All", count: 356, icon: CalendarDays },
-  { label: "Earnings", count: 186, icon: BarChart3, active: true },
-  { label: "Shareholder", count: 48, icon: Users },
-  { label: "Dividends", count: 72, icon: CircleDollarSign },
   { label: "Listing Risk", count: 26, icon: ShieldAlert },
-  { label: "Deals / Offering", count: 63, icon: Handshake },
+  { label: "Dilution Risk", count: 63, icon: CircleDollarSign },
+  { label: "Earnings", count: 186, icon: BarChart3, active: true },
+  { label: "Insider / Ownership", count: 54, icon: Users },
+  { label: "Shareholder Vote", count: 48, icon: Users },
+  { label: "Strategic Transaction", count: 31, icon: Handshake },
+  { label: "Financial Risk", count: 19, icon: AlertTriangle },
+  { label: "Legal Risk", count: 22, icon: Scale },
+  { label: "Dividends", count: 72, icon: CircleDollarSign },
   { label: "FDA / Clinical", count: 41, icon: FlaskConical },
-  { label: "Investor Events", count: 54, icon: Users },
-  { label: "Legal / Policy", count: 22, icon: Scale },
+  { label: "Leadership / Governance", count: 17, icon: Users },
+  { label: "Sales Performance", count: 36, icon: BarChart3 },
+  { label: "Product Update", count: 29, icon: Beaker },
+  { label: "Other", count: 12, icon: CalendarDays },
 ];
 
 const miniCalendar = [
