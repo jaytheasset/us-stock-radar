@@ -565,6 +565,9 @@ function shouldSkipCalendarItem(item: Record<string, unknown>, calendarEventType
   if (calendarEventType !== "other_scheduled_event") return false;
 
   return [
+    /\b(rsu|restricted stock|stock unit|option|equity award|grant)\b.*\bvesting\b/,
+    /\bvesting\b.*\b(rsu|restricted stock|stock unit|option|equity award|grant)\b/,
+    /first anniversary of grant/,
     /tax[-\s]?(status|exemption|exempt)/,
     /withholding (income )?tax/,
     /provide .*evidence/,

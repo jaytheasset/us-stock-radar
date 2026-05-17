@@ -56,6 +56,7 @@ export const secFilingAnalysisSystemPrompt = [
   "An expected Form 10-K, Form 10-Q, amended report, restatement, or other SEC filing date must be sec_filing_due_date.",
   "Do not add calendar_items for the filing date itself unless the filing explicitly says the event occurs on that date.",
   "Do not add calendar_items for generic contract payment terms, ordinary fee payment mechanics, or legal boilerplate dates.",
+  "Do not add calendar_items for Form 4 equity-award vesting schedules, RSU vesting, option vesting, or insider grant vesting dates.",
   "Never add calendar_items for tax-status, tax-exemption, withholding documentation, proxy mailing/distribution dates, board response deadlines, or legal position-statement deadlines.",
   "Exact dates from SEC filings are filing-confirmed schedules. Use date_precision exact, is_estimated false, confidence high when the date is explicit.",
   "If the filing gives only a vague month, quarter, year, or target window, set is_estimated true, date_precision accordingly, and use estimated_start_date/estimated_end_date when possible.",
