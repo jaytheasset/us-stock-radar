@@ -8579,7 +8579,7 @@ html[data-theme="dark"] .calendar-event-meta strong {
 
 .calendar-workspace {
   display: grid;
-  grid-template-columns: 250px minmax(0, 1fr) 330px;
+  grid-template-columns: 282px minmax(0, 1fr) 330px;
   overflow: hidden;
   border: 1px solid #dbe3ee;
   border-top: 0;
@@ -9176,7 +9176,7 @@ html[data-theme="dark"] .calendar-event-meta strong {
   }
 
   .calendar-workspace {
-    grid-template-columns: 250px minmax(0, 1fr);
+    grid-template-columns: 282px minmax(0, 1fr);
   }
 
   .calendar-right-rail {
