@@ -94,6 +94,28 @@ const watchlistEvents = [
   { ticker: "AAPL", company: "Apple Inc.", label: "Q2 Earnings Release", date: "May 22" },
 ];
 
+function getEventSummary(event: (typeof calendarDays)[number]["events"][number]) {
+  if (event.type.includes("Earnings Call")) return "Management commentary and guidance timing may reset near-term expectations.";
+  if (event.type.includes("Earnings") || event.type.includes("Pre-Market") || event.type.includes("Post-Market")) {
+    return "Quarterly results, guidance, and margin commentary are the key watch points.";
+  }
+  if (event.category === "IPO") return "Pricing, listing timing, and first-day liquidity can drive early volatility.";
+  if (event.category === "Listing Risk") return "Compliance deadline may affect listing status and reverse split risk.";
+  if (event.category === "Deals / Offering") return "Financing close can change dilution, cash runway, and deal certainty.";
+  if (event.category === "FDA & Clinical") return "Regulatory timing can create binary catalyst risk for the stock.";
+  if (event.category === "Dividends") return "Record date confirms shareholder eligibility for the announced distribution.";
+  if (event.category === "Shareholder Vote") return "Vote outcome can affect governance, financing authority, or strategic plans.";
+  return "Scheduled event with potential market relevance.";
+}
+
+function relatedNewsHref(ticker: string) {
+  return `/news?query=${encodeURIComponent(ticker)}`;
+}
+
+function relatedFilingHref(ticker: string) {
+  return `/filings?query=${encodeURIComponent(ticker)}`;
+}
+
 export default function CalendarPage() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [viewMode, setViewMode] = useState<"Month" | "Week" | "List">("List");
@@ -317,7 +339,7 @@ export default function CalendarPage() {
             {viewMode === "List" ? (
               <div className="calendar-list-board">
                 {listRows.map((event) => (
-                  <button type="button" className="calendar-list-row" key={`${event.date}-${event.ticker}-${event.time}-${event.title}`}>
+                  <article className="calendar-list-row" key={`${event.date}-${event.ticker}-${event.time}-${event.title}`}>
                     <span className={`calendar-list-date ${event.showDate ? "" : "time-only"}`}>
                       {event.showDate ? <b>{event.date}</b> : null}
                       <small>{event.time}</small>
@@ -326,13 +348,18 @@ export default function CalendarPage() {
                     <strong className="calendar-list-ticker">{event.ticker}</strong>
                     <span className="calendar-list-event">
                       <b>{event.title}</b>
+                      <p>{getEventSummary(event)}</p>
                       <small>{event.type}</small>
+                      <span className="calendar-event-links">
+                        <a href={relatedNewsHref(event.ticker)}>News</a>
+                        <a href={relatedFilingHref(event.ticker)}>Filings</a>
+                      </span>
                     </span>
                     <span className="calendar-list-meta">
                       <b className={`impact-${event.impact.toLowerCase()}`}>{event.impact}</b>
                       <small>{event.status}</small>
                     </span>
-                  </button>
+                  </article>
                 ))}
               </div>
             ) : (
@@ -348,14 +375,19 @@ export default function CalendarPage() {
                         <div className="calendar-empty-day">No events scheduled</div>
                       ) : (
                         day.events.map((event) => (
-                          <button type="button" className={`week-event-card ${event.tone}`} key={`${event.ticker}-${event.time}-${event.title}`}>
+                          <article className={`week-event-card ${event.tone}`} key={`${event.ticker}-${event.time}-${event.title}`}>
                             <span>
                               <b>{event.time}</b>
                               <strong>{event.ticker}</strong>
                               <Bell size={12} />
                             </span>
-                            <p>{event.title}</p>
-                          </button>
+                            <h3>{event.title}</h3>
+                            <p>{getEventSummary(event)}</p>
+                            <div className="calendar-event-links">
+                              <a href={relatedNewsHref(event.ticker)}>News</a>
+                              <a href={relatedFilingHref(event.ticker)}>Filings</a>
+                            </div>
+                          </article>
                         ))
                       )}
                     </div>

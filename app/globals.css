@@ -8851,8 +8851,8 @@ html[data-theme="dark"] .calendar-event-meta strong {
 
 .week-event-card {
   display: grid;
-  gap: 7px;
-  min-height: 64px;
+  gap: 6px;
+  min-height: 104px;
   border: 1px solid #dbe3ee;
   border-left: 3px solid #0f55ff;
   border-radius: 6px;
@@ -8885,13 +8885,24 @@ html[data-theme="dark"] .calendar-event-meta strong {
   color: #64728a;
 }
 
-.week-event-card p {
+.week-event-card h3 {
   overflow: hidden;
   color: #07122f;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.week-event-card p {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #52627f;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .week-event-card.call { border-left-color: #25b66b; }
@@ -8922,9 +8933,9 @@ html[data-theme="dark"] .calendar-event-meta strong {
 .calendar-list-row {
   display: grid;
   grid-template-columns: 112px 154px 74px minmax(0, 1fr) 108px;
-  align-items: center;
+  align-items: start;
   gap: 18px;
-  min-height: 74px;
+  min-height: 96px;
   border: 0;
   border-bottom: 1px solid #dbe3ee;
   padding: 13px 0;
@@ -9000,6 +9011,17 @@ html[data-theme="dark"] .calendar-event-meta strong {
   white-space: nowrap;
 }
 
+.calendar-list-event p {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #52627f;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 .calendar-list-event small {
   margin-top: 0;
 }
@@ -9029,6 +9051,25 @@ html[data-theme="dark"] .calendar-event-meta strong {
 .calendar-list-meta .impact-low {
   color: #52627f;
   background: #eef3fb;
+}
+
+.calendar-event-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.calendar-event-links a {
+  border: 1px solid #d2dbea;
+  border-radius: 999px;
+  padding: 3px 8px;
+  color: #0f55ff;
+  background: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  text-decoration: none;
 }
 
 .calendar-summary-strip {
