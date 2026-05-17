@@ -350,7 +350,6 @@ export default function CalendarPage() {
                       <em className="calendar-list-type">{event.category}</em>
                       <b>{event.title}</b>
                       <p>{getEventSummary(event)}</p>
-                      <small>{event.type}</small>
                       <span className="calendar-event-links">
                         <a href={relatedNewsHref(event.ticker)}>
                           News
