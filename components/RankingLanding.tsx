@@ -23,6 +23,7 @@ export function RankingLanding({ title, eyebrow, description, items }: RankingLa
           <a className={title.includes("Filings") ? "active" : ""} href="/filings">
             Filings
           </a>
+          <a href="/calendar">Calendar</a>
           <a href="#">Alerts</a>
           <a href="#">Premium</a>
         </nav>

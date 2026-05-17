@@ -352,6 +352,7 @@ export function FeedShell({
             { label: "Watchlist", href: "#" },
             { label: "News", href: "/news" },
             { label: "Filings", href: "/filings" },
+            { label: "Calendar", href: "/calendar" },
             { label: "Alerts", href: "#" },
             { label: "Premium", href: "#" },
           ].map((item) => (
