@@ -1,29 +1,20 @@
 import {
-  AlertTriangle,
-  BarChart3,
-  Beaker,
   Bell,
   CalendarDays,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  CircleDollarSign,
-  FlaskConical,
-  Handshake,
-  Rocket,
-  ShieldAlert,
-  Users,
 } from "lucide-react";
 
 const categoryTabs = [
-  { label: "All", count: 25, icon: CalendarDays },
-  { label: "Earnings", count: 4, icon: BarChart3, active: true },
-  { label: "Listing Risk", count: 2, icon: ShieldAlert },
-  { label: "IPO", count: 0, icon: Rocket },
-  { label: "Deals & Offerings", count: 4, icon: Handshake },
-  { label: "FDA & Clinical", count: 0, icon: FlaskConical },
-  { label: "Dividends", count: 4, icon: CircleDollarSign },
-  { label: "Shareholder", count: 3, icon: Users },
+  { label: "All", count: 25 },
+  { label: "Earnings", count: 4, active: true },
+  { label: "Listing Risk", count: 2 },
+  { label: "IPO", count: 0 },
+  { label: "Deals & Offerings", count: 4 },
+  { label: "FDA & Clinical", count: 0 },
+  { label: "Dividends", count: 4 },
+  { label: "Shareholder", count: 3 },
 ];
 
 const miniCalendar = [
@@ -83,15 +74,6 @@ const calendarDays = [
       { time: "8:30 AM", ticker: "ABBV", title: "Earnings call", type: "Earnings Call", tone: "call" },
     ],
   },
-];
-
-const summaryCards = [
-  { label: "Earnings Release", value: 28, change: "+7", icon: BarChart3, tone: "blue" },
-  { label: "Earnings Call", value: 34, change: "+9", icon: Bell, tone: "green" },
-  { label: "Pre-Market", value: 12, change: "-2", icon: Beaker, tone: "purple" },
-  { label: "Post-Market", value: 14, change: "+3", icon: CalendarDays, tone: "orange" },
-  { label: "Other Events", value: 8, change: "0", icon: AlertTriangle, tone: "gray" },
-  { label: "Total Events", value: 96, change: "+17", icon: CalendarDays, tone: "dark" },
 ];
 
 const highImpact = [
@@ -164,16 +146,12 @@ export default function CalendarPage() {
         </div>
 
         <div className="calendar-category-tabs" aria-label="Calendar event categories">
-          {categoryTabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button type="button" className={tab.active ? "active" : ""} key={tab.label}>
-                <Icon size={18} />
-                <span>{tab.label}</span>
-                <b>{tab.count}</b>
-              </button>
-            );
-          })}
+          {categoryTabs.map((tab) => (
+            <button type="button" className={tab.active ? "active" : ""} key={tab.label}>
+              <span>{tab.label}</span>
+              <b>{tab.count}</b>
+            </button>
+          ))}
         </div>
 
         <div className="calendar-workspace">
@@ -300,23 +278,6 @@ export default function CalendarPage() {
               ))}
             </div>
 
-            <div className="calendar-summary-strip">
-              {summaryCards.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <section className={`calendar-summary-card ${item.tone}`} key={item.label}>
-                    <div>
-                      <Icon size={22} />
-                    </div>
-                    <span>{item.label}</span>
-                    <strong>{item.value}</strong>
-                    <p>
-                      vs last week <b className={item.change.startsWith("-") ? "down" : "up"}>{item.change}</b>
-                    </p>
-                  </section>
-                );
-              })}
-            </div>
           </section>
 
           <aside className="calendar-right-rail">
