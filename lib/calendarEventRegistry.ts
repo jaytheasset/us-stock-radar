@@ -50,6 +50,13 @@ export const calendarEventDefinitions: CalendarEventDefinition[] = [
     description: "Shareholder vote deadline or vote date.",
   },
   {
+    code: "shareholder_record_date",
+    label: "Shareholder Record Date",
+    group: "shareholder",
+    groupLabel: "Shareholder",
+    description: "Record date for shareholder meeting or vote eligibility.",
+  },
+  {
     code: "ex_dividend_date",
     label: "Ex-Dividend Date",
     group: "dividends",
@@ -107,10 +114,10 @@ export const calendarEventDefinitions: CalendarEventDefinition[] = [
   },
   {
     code: "warrant_redemption_deadline",
-    label: "Warrant Redemption Deadline",
+    label: "Warrant Deadline",
     group: "deals_offering",
     groupLabel: "Deals / Offering",
-    description: "Warrant redemption or exercise deadline.",
+    description: "Warrant redemption, exercise, or expiration deadline.",
   },
   {
     code: "lockup_expiration",

@@ -328,6 +328,7 @@ function buildCalendarRows({
   const rawPayload = toRecord(rawRow.raw_payload) || {};
   const ticker = primaryTicker.ticker || null;
   const companyName = nullableString(rawPayload.company_name) || ticker;
+  const secEventType = normalizeEventType(stringValue(analysis.event_type));
   const rows: Record<string, unknown>[] = [];
 
   for (const item of recordArray(analysis.calendar_items)) {
@@ -337,7 +338,9 @@ function buildCalendarRows({
 
     if (!eventDate && !estimatedStartDate && !estimatedEndDate) continue;
 
-    const calendarEventType = normalizeCalendarEventType(stringValue(item.calendar_event_type));
+    const calendarEventType = normalizeCalendarEventTypeForItem(stringValue(item.calendar_event_type), item, secEventType);
+    if (shouldSkipCalendarItem(item, calendarEventType)) continue;
+
     const datePrecision = normalizeDatePrecision(stringValue(item.date_precision), eventDate);
     const isEstimated = Boolean(item.is_estimated) || datePrecision !== "exact";
     const calendarStatus = calendarStatusForFiling(datePrecision, isEstimated, Boolean(eventDate));
@@ -530,6 +533,46 @@ function buildCalendarEventKey({
 function normalizeEventType(value: string) {
   const normalized = value.trim().toLowerCase();
   return allowedEventTypes.has(normalized) ? normalized : "other";
+}
+
+function normalizeCalendarEventTypeForItem(
+  value: string,
+  item: Record<string, unknown>,
+  secEventType: string,
+) {
+  const normalized = normalizeCalendarEventType(value);
+  const text = [value, item.calendar_title, item.evidence].map((part) => stringValue(part).toLowerCase()).join("\n");
+
+  if (
+    secEventType === "dividends" &&
+    (normalized === "shareholder_record_date" || text.includes("record date") || text.includes("shareholding position"))
+  ) {
+    return "dividend_record_date";
+  }
+
+  if (
+    text.includes("warrant") &&
+    /\b(expiration|expires|expire|exercisable|exercise|redemption|redeem)\b/.test(text)
+  ) {
+    return "warrant_redemption_deadline";
+  }
+
+  return normalized;
+}
+
+function shouldSkipCalendarItem(item: Record<string, unknown>, calendarEventType: string) {
+  const text = [item.calendar_title, item.evidence].map((part) => stringValue(part).toLowerCase()).join("\n");
+  if (calendarEventType !== "other_scheduled_event") return false;
+
+  return [
+    /tax[-\s]?(status|exemption|exempt)/,
+    /withholding (income )?tax/,
+    /provide .*evidence/,
+    /submit .*evidence/,
+    /proxy (mailing|distribution|distributed|statement will be distributed)/,
+    /board response/,
+    /position statement/,
+  ].some((pattern) => pattern.test(text));
 }
 
 function normalizeSignal(value: string): Signal {
