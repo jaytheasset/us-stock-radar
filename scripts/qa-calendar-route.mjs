@@ -26,6 +26,7 @@ const created = {
   rawItemId: "",
   eventId: "",
   calendarItemId: "",
+  duplicateCalendarItemId: "",
 };
 
 try {
@@ -55,7 +56,7 @@ try {
     source_name: "GlobeNewswire",
     source_url: rawItem.source_url,
     published_at: now,
-    ticker: "NVDA",
+    ticker: "QCAL",
     market: "NASDAQ",
     event_type: "earnings",
     score: 55,
@@ -81,9 +82,9 @@ try {
     raw_item_id: created.rawItemId,
     source_code: "globe",
     source_group: "news",
-    ticker: "NVDA",
-    company_name: "NVIDIA",
-    calendar_event_key: `nvda:earnings_call:${tomorrow}:09:00:00:qa-calendar-route`,
+    ticker: "QCAL",
+    company_name: "QA Calendar",
+    calendar_event_key: `qcal:earnings_call:${tomorrow}:09:00:00:qa-calendar-route`,
     calendar_event_type: "earnings_call",
     calendar_group: "earnings",
     calendar_title: "Q1 earnings conference call",
@@ -107,30 +108,64 @@ try {
   created.calendarItemId = calendarItem.id;
   check("calendar item inserted", Boolean(created.calendarItemId), calendarItem);
 
-  const calendar = await getLocalJson("/api/calendar?group=earnings&limit=50");
+  const duplicateCalendarItem = await insertOne("event_calendar_items", {
+    source_event_id: created.eventId,
+    raw_item_id: created.rawItemId,
+    source_code: "globe",
+    source_group: "news",
+    ticker: "QCAL",
+    company_name: "QA Calendar",
+    calendar_event_key: `qcal:earnings_call:${tomorrow}:09:00:00:qa-calendar-route-correction`,
+    calendar_event_type: "earnings_call",
+    calendar_group: "earnings",
+    calendar_title: "Corrected Q1 earnings call",
+    event_date: tomorrow,
+    event_time: "09:00:00",
+    event_timezone: "America/New_York",
+    date_precision: "exact",
+    estimated_start_date: null,
+    estimated_end_date: null,
+    is_estimated: false,
+    confidence: "high",
+    calendar_status: "tentative",
+    confirmation_source: "news",
+    confirmed_at: null,
+    confirmed_by_event_id: null,
+    superseded_by_item_id: null,
+    source_url: rawItem.source_url,
+    evidence: "Corrected QA duplicate for the same earnings call date and time.",
+    metadata: { qa: true, temporary: true, duplicate: true },
+  });
+  created.duplicateCalendarItemId = duplicateCalendarItem.id;
+  check("duplicate calendar item inserted", Boolean(created.duplicateCalendarItemId), duplicateCalendarItem);
+
+  const calendar = await getLocalJson("/api/calendar?ticker=QCAL&source_group=news&limit=50");
   const rows = Array.isArray(calendar.data) ? calendar.data : [];
-  const returned = rows.find((row) => row.id === created.calendarItemId);
+  const returned = rows.find((row) => row.id === created.calendarItemId || row.id === created.duplicateCalendarItemId);
   check("calendar item returned by /api/calendar", Boolean(returned), calendar);
+  check("duplicate calendar items collapse to one API row", rows.length === 1, calendar);
   check("calendar item keeps group", returned?.calendar_group === "earnings", returned);
   check("calendar item keeps type", returned?.calendar_event_type === "earnings_call", returned);
   check("calendar item keeps tentative status", returned?.calendar_status === "tentative", returned);
-  check("calendar item keeps calendar event key", returned?.calendar_event_key === calendarItem.calendar_event_key, returned);
+  check("calendar item keeps calendar event key", typeof returned?.calendar_event_key === "string", returned);
   check("calendar item keeps event link", returned?.source_event_id === created.eventId, returned);
 
-  const tentativeCalendar = await getLocalJson("/api/calendar?status=tentative&limit=50");
+  const tentativeCalendar = await getLocalJson("/api/calendar?ticker=QCAL&status=tentative&limit=50");
   const tentativeRows = Array.isArray(tentativeCalendar.data) ? tentativeCalendar.data : [];
   check(
     "calendar status filter returns tentative item",
-    tentativeRows.some((row) => row.id === created.calendarItemId),
+    tentativeRows.length === 1 &&
+      tentativeRows.some((row) => row.id === created.calendarItemId || row.id === created.duplicateCalendarItemId),
     tentativeCalendar,
   );
 
   const cleanupResult = await cleanup();
   check("temporary rows cleaned up", cleanupResult.ok, cleanupResult);
 
-  const afterCleanup = await getLocalJson("/api/calendar?group=earnings&limit=50");
+  const afterCleanup = await getLocalJson("/api/calendar?ticker=QCAL&source_group=news&limit=50");
   const stillVisible =
-    Array.isArray(afterCleanup.data) && afterCleanup.data.some((row) => row.id === created.calendarItemId);
+    Array.isArray(afterCleanup.data) &&
+    afterCleanup.data.some((row) => row.id === created.calendarItemId || row.id === created.duplicateCalendarItemId);
   check("temporary calendar item no longer visible after cleanup", !stillVisible, afterCleanup);
 
   printAndExit();
@@ -165,6 +200,7 @@ async function insertOne(table, payload) {
 async function cleanup() {
   const errors = [];
   for (const [table, search] of [
+    ["event_calendar_items", { id: `eq.${created.duplicateCalendarItemId || "00000000-0000-0000-0000-000000000000"}` }],
     ["event_calendar_items", { id: `eq.${created.calendarItemId || "00000000-0000-0000-0000-000000000000"}` }],
     ["events", { id: `eq.${created.eventId || "00000000-0000-0000-0000-000000000000"}` }],
     ["raw_items", { id: `eq.${created.rawItemId || "00000000-0000-0000-0000-000000000000"}` }],

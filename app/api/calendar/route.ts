@@ -40,18 +40,73 @@ export async function GET(request: NextRequest) {
   }
 
   const result = await supabaseSelect("event_calendar_items", query);
+  const rows = Array.isArray(result.data) ? dedupeCalendarRows(result.data) : [];
 
   return NextResponse.json(
     {
       ok: result.ok,
       status: result.status,
-      data: Array.isArray(result.data) ? result.data : [],
-      count: Array.isArray(result.data) ? result.data.length : 0,
+      data: rows,
+      count: rows.length,
       error: result.error,
     },
     {
       status: result.ok ? 200 : result.status || 502,
     },
+  );
+}
+
+function dedupeCalendarRows(rows: unknown[]) {
+  const byKey = new Map<string, { row: Record<string, unknown>; index: number }>();
+
+  rows.forEach((value, index) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return;
+    const row = value as Record<string, unknown>;
+    const key = buildCalendarDedupeKey(row);
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, { row, index });
+      return;
+    }
+    if (compareCalendarRows(row, existing.row) > 0) {
+      byKey.set(key, { row, index: existing.index });
+    }
+  });
+
+  return Array.from(byKey.values())
+    .sort((a, b) => a.index - b.index)
+    .map((item) => item.row);
+}
+
+function buildCalendarDedupeKey(row: Record<string, unknown>) {
+  const ticker = stringValue(row.ticker).toUpperCase() || "MARKET";
+  const type = normalizeCalendarEventType(stringValue(row.calendar_event_type));
+  const eventDate = normalizeDateLike(row.event_date);
+  const estimatedStart = normalizeDateLike(row.estimated_start_date);
+  const estimatedEnd = normalizeDateLike(row.estimated_end_date);
+  const datePart = eventDate || `${estimatedStart || "unknown"}:${estimatedEnd || "unknown"}`;
+  const timePart = normalizeTimeLike(row.event_time) || "all_day";
+  return [ticker, type, datePart, timePart].join("|");
+}
+
+function compareCalendarRows(candidate: Record<string, unknown>, current: Record<string, unknown>) {
+  return calendarRowRank(candidate) - calendarRowRank(current);
+}
+
+function calendarRowRank(row: Record<string, unknown>) {
+  const status = stringValue(row.calendar_status);
+  const sourceGroup = stringValue(row.source_group);
+  const confidence = stringValue(row.confidence);
+  const exactDate = normalizeDateLike(row.event_date);
+  const isEstimated = Boolean(row.is_estimated);
+  const updatedAt = Date.parse(stringValue(row.updated_at) || stringValue(row.created_at));
+
+  return (
+    (status === "confirmed" ? 1_000_000_000_000_000 : 0) +
+    (sourceGroup === "filings" ? 1_000_000_000_000 : 0) +
+    (confidence === "high" ? 1_000_000_000 : confidence === "medium" ? 500_000_000 : 0) +
+    (exactDate && !isEstimated ? 1_000_000 : 0) +
+    (Number.isFinite(updatedAt) ? updatedAt : 0)
   );
 }
 
@@ -104,6 +159,23 @@ function normalizeDate(value: string | null) {
   const date = value?.trim() || "";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return undefined;
   return date;
+}
+
+function normalizeDateLike(value: unknown) {
+  const text = stringValue(value);
+  const match = text.match(/^\d{4}-\d{2}-\d{2}/);
+  return match ? match[0] : "";
+}
+
+function normalizeTimeLike(value: unknown) {
+  const text = stringValue(value);
+  const match = text.match(/^(\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (!match) return "";
+  return `${match[1]}:${match[2]}:${match[3] || "00"}`;
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function clampInt(value: number, min: number, max: number) {
