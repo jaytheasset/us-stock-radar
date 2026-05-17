@@ -8796,7 +8796,7 @@ html[data-theme="dark"] .calendar-event-meta strong {
 
 .calendar-week-column {
   display: grid;
-  grid-template-rows: 72px 1fr;
+  grid-template-rows: 42px 1fr;
   min-width: 0;
   border-right: 1px solid #dbe3ee;
 }
@@ -8806,21 +8806,22 @@ html[data-theme="dark"] .calendar-event-meta strong {
 }
 
 .calendar-week-column header {
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   border-bottom: 1px solid #dbe3ee;
   background: #fbfdff;
 }
 
 .calendar-week-column header strong {
   color: #07122f;
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .calendar-week-column header span {
-  margin-top: 3px;
   color: #263755;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 
