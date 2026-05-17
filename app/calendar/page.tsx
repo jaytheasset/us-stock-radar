@@ -128,6 +128,14 @@ export default function CalendarPage() {
       ),
     [filteredDays],
   );
+  const listRows = useMemo(
+    () =>
+      listItems.map((event, index) => ({
+        ...event,
+        showDate: index === 0 || listItems[index - 1]?.date !== event.date,
+      })),
+    [listItems],
+  );
 
   function selectCategory(label: string) {
     setActiveCategory(label);
@@ -308,10 +316,10 @@ export default function CalendarPage() {
 
             {viewMode === "List" ? (
               <div className="calendar-list-board">
-                {listItems.map((event) => (
+                {listRows.map((event) => (
                   <button type="button" className="calendar-list-row" key={`${event.date}-${event.ticker}-${event.time}-${event.title}`}>
-                    <span className="calendar-list-date">
-                      <b>{event.date}</b>
+                    <span className={`calendar-list-date ${event.showDate ? "" : "time-only"}`}>
+                      {event.showDate ? <b>{event.date}</b> : null}
                       <small>{event.time}</small>
                     </span>
                     <span className="calendar-list-event">
