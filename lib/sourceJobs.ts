@@ -27,7 +27,7 @@ export const sourceJobs: SourceJob[] = [
   {
     source: "globe",
     label: "GlobeNewswire",
-    jobRoute: "/jobs/globe",
+    jobRoute: "/api/sources/globe/ingest",
     sourceUrls: [
       {
         label: "GlobeNewswire exchange search",
@@ -209,7 +209,11 @@ export async function probeSourceJobs(full = false) {
   );
 }
 
-export async function runSourceJob(source: string, body: unknown) {
+export async function runSourceJob(
+  source: string,
+  body: unknown,
+  options: { baseUrlOverride?: string } = {},
+) {
   const env = getServerEnv();
   const job = getSourceJob(source);
 
@@ -221,7 +225,9 @@ export async function runSourceJob(source: string, body: unknown) {
     };
   }
 
-  if (!env.appBaseUrl) {
+  const baseUrl = options.baseUrlOverride || env.appBaseUrl;
+
+  if (!baseUrl) {
     return {
       ok: false,
       status: 0,
@@ -229,21 +235,25 @@ export async function runSourceJob(source: string, body: unknown) {
     };
   }
 
-  const url = `${env.appBaseUrl.replace(/\/$/, "")}${job.jobRoute}`;
+  const url = `${baseUrl.replace(/\/$/, "")}${job.jobRoute}`;
   const safeBody =
     body && typeof body === "object" && !Array.isArray(body)
       ? { skipTelegram: true, includePreview: true, dryRun: true, ...body }
       : { skipTelegram: true, includePreview: true, dryRun: true };
 
   try {
-    const response = await timedFetch(url, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
+    const response = await timedFetch(
+      url,
+      {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(safeBody),
       },
-      body: JSON.stringify(safeBody),
-    });
+      source === "globe" ? 120000 : undefined,
+    );
     const data = await response.json().catch(() => null);
 
     return {
@@ -297,9 +307,9 @@ async function probeSourceUrl(item: { label: string; url: string }): Promise<Url
   }
 }
 
-async function timedFetch(input: string | URL, init: RequestInit = {}) {
+async function timedFetch(input: string | URL, init: RequestInit = {}, timeoutMs = 15000) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     return await fetch(input, {

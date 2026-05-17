@@ -66,10 +66,10 @@ try {
   };
 
   console.log(JSON.stringify({ ok: summary.checksFailed === 0, summary, checks }, null, 2));
-  process.exit(summary.checksFailed === 0 ? 0 : 1);
+  process.exitCode = summary.checksFailed === 0 ? 0 : 1;
 } catch (error) {
   console.error(JSON.stringify({ ok: false, error: error.message, checks }, null, 2));
-  process.exit(1);
+  process.exitCode = 1;
 }
 
 async function getJson(path) {

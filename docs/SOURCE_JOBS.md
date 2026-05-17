@@ -4,13 +4,14 @@ Source job configuration lives in `lib/sourceJobs.ts`.
 
 ## Job Routes
 
-These routes are hosted by the existing `APP_BASE_URL` server. The Next.js app
-exposes wrapper routes under `/api/source-jobs/:source/run`, but these are not
-called automatically because they can trigger collection.
+Most routes are hosted by the existing `APP_BASE_URL` server. GlobeNewswire is
+the current exception and uses the canonical Next.js ingest route. The Next.js
+app exposes wrapper routes under `/api/source-jobs/:source/run`, but these are
+not called automatically because they can trigger collection.
 
 | Source | Server job route |
 | --- | --- |
-| GlobeNewswire | `POST /jobs/globe` |
+| GlobeNewswire | `POST /api/sources/globe/ingest` |
 | Business Wire | `POST /jobs/businesswire` |
 | PR Newswire | `POST /jobs/prnewswire` |
 | Newsfile | `POST /jobs/newsfile` |
@@ -52,3 +53,7 @@ The wrapper defaults to:
 ```
 
 Do not add automatic polling from the Next.js UI without explicit approval.
+
+GlobeNewswire's wrapper executes against the current Next.js request origin so
+local dry-run checks hit the canonical route. Other sources still use their
+configured `APP_BASE_URL` job routes.

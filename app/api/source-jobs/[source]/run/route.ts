@@ -9,7 +9,9 @@ export async function POST(
 ) {
   const { source } = await context.params;
   const body = await request.json().catch(() => ({}));
-  const result = await runSourceJob(source, body);
+  const result = await runSourceJob(source, body, {
+    baseUrlOverride: source === "globe" ? request.nextUrl.origin : undefined,
+  });
 
   return NextResponse.json(result, {
     status: result.ok ? 200 : result.status || 502,

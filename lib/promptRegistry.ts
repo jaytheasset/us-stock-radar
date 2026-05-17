@@ -38,7 +38,7 @@ export const promptTemplates: PromptTemplateDraft[] = [
     status: "draft",
     owner: "ai",
     inputTables: ["raw_items"],
-    outputTarget: "events + event_analysis + event_tickers",
+    outputTarget: "events + event_analysis + event_tickers + event_calendar_items",
     notes:
       "Structured news analysis contract. Runtime sends system instructions, article JSON input, and strict JSON schema separately.",
     systemPrompt: newsEventAnalysisSystemPrompt,
