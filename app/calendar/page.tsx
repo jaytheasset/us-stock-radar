@@ -85,8 +85,6 @@ const calendarDays = [
       { time: "8:30 AM", ticker: "ABBV", title: "Earnings call", type: "Earnings Call", tone: "call" },
     ],
   },
-  { day: "Sat", date: "May 24", events: [] },
-  { day: "Sun", date: "May 25", events: [] },
 ];
 
 const summaryCards = [
@@ -153,7 +151,7 @@ export default function CalendarPage() {
           <div className="market-calendar-controls">
             <button type="button" className="calendar-range-button">
               <CalendarDays size={16} />
-              May 19 - May 25, 2026
+              May 19 - May 23, 2026
               <ChevronDown size={15} />
             </button>
             <button type="button">Today</button>

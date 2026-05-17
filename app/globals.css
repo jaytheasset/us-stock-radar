@@ -8537,8 +8537,8 @@ html[data-theme="dark"] .calendar-event-meta strong {
   align-items: center;
   justify-content: center;
   gap: 9px;
-  min-width: 174px;
-  min-height: 62px;
+  min-width: 154px;
+  min-height: 56px;
   border: 0;
   border-right: 1px solid #e0e7f0;
   border-bottom: 3px solid transparent;
@@ -8580,6 +8580,7 @@ html[data-theme="dark"] .calendar-event-meta strong {
 .calendar-workspace {
   display: grid;
   grid-template-columns: 250px minmax(0, 1fr) 330px;
+  overflow: hidden;
   border: 1px solid #dbe3ee;
   border-top: 0;
   background: #ffffff;
@@ -8595,8 +8596,15 @@ html[data-theme="dark"] .calendar-event-meta strong {
   display: grid;
   align-content: start;
   gap: 14px;
+  overflow: hidden;
   border-right: 1px solid #dbe3ee;
   padding: 14px;
+}
+
+.calendar-left-rail > * {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
 }
 
 .calendar-mini-panel,
@@ -8646,6 +8654,7 @@ html[data-theme="dark"] .calendar-event-meta strong {
 .mini-calendar-grid button {
   display: grid;
   place-items: center;
+  min-width: 0;
   min-height: 26px;
   border: 0;
   border-radius: 999px;
@@ -8679,6 +8688,8 @@ html[data-theme="dark"] .calendar-event-meta strong {
   display: flex;
   align-items: center;
   gap: 9px;
+  width: 100%;
+  min-width: 0;
   min-height: 40px;
   border: 1px solid #dbe3ee;
   border-radius: 7px;
@@ -8729,6 +8740,7 @@ html[data-theme="dark"] .calendar-event-meta strong {
 .legend-dot.other { background: #9aa7ba; }
 
 .calendar-board-panel {
+  overflow: hidden;
   padding: 14px 20px 0;
 }
 
@@ -8761,8 +8773,8 @@ html[data-theme="dark"] .calendar-event-meta strong {
 
 .calendar-week-board {
   display: grid;
-  grid-template-columns: repeat(7, minmax(130px, 1fr));
-  min-height: 560px;
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
+  min-height: 540px;
   border: 1px solid #dbe3ee;
   border-top: 0;
   border-radius: 0 0 8px 8px;
@@ -9156,7 +9168,7 @@ html[data-theme="dark"] .calendar-event-meta strong {
   }
 
   .calendar-workspace {
-    grid-template-columns: 230px minmax(0, 1fr);
+    grid-template-columns: 250px minmax(0, 1fr);
   }
 
   .calendar-right-rail {
