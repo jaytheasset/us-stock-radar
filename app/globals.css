@@ -8968,6 +8968,10 @@ html[data-theme="dark"] .calendar-event-meta strong {
   font-weight: 600;
 }
 
+.calendar-list-date small {
+  padding-left: 20px;
+}
+
 .calendar-list-date.time-only small {
   margin-top: 0;
   color: #263755;
