@@ -1,209 +1,118 @@
 import {
   AlertTriangle,
-  CalendarClock,
+  BarChart3,
+  Beaker,
+  Bell,
   CalendarDays,
-  CheckCircle2,
+  ChevronDown,
+  ChevronLeft,
   ChevronRight,
-  CircleDot,
-  Clock3,
-  FileText,
-  Landmark,
-  Newspaper,
+  CircleDollarSign,
+  Download,
+  FlaskConical,
+  Handshake,
+  Scale,
+  ShieldAlert,
+  Users,
 } from "lucide-react";
 
-const calendarStats = [
-  { label: "Today", value: "8", detail: "3 confirmed" },
-  { label: "This Week", value: "21", detail: "14 filings" },
-  { label: "High Impact", value: "7", detail: "Impact 75+" },
-  { label: "Tentative", value: "5", detail: "News sourced" },
+const categoryTabs = [
+  { label: "All", count: 356, icon: CalendarDays },
+  { label: "Earnings", count: 186, icon: BarChart3, active: true },
+  { label: "Shareholder", count: 48, icon: Users },
+  { label: "Dividends", count: 72, icon: CircleDollarSign },
+  { label: "Listing Risk", count: 26, icon: ShieldAlert },
+  { label: "Deals / Offering", count: 63, icon: Handshake },
+  { label: "FDA / Clinical", count: 41, icon: FlaskConical },
+  { label: "Investor Events", count: 54, icon: Users },
+  { label: "Legal / Policy", count: 22, icon: Scale },
 ];
 
-const filterTabs = [
-  "All",
-  "Earnings",
-  "Shareholder",
-  "Dividends",
-  "Listing Risk",
-  "Deals / Offering",
-  "FDA / Clinical",
+const miniCalendar = [
+  ["28", "29", "30", "1", "2", "3", "4"],
+  ["5", "6", "7", "8", "9", "10", "11"],
+  ["12", "13", "14", "15", "16", "17", "18"],
+  ["19", "20", "21", "22", "23", "24", "25"],
+  ["26", "27", "28", "29", "30", "31", "1"],
 ];
 
-const weekDays = [
+const calendarDays = [
   {
-    label: "Mon",
-    date: "25",
-    tone: "quiet",
+    day: "Mon",
+    date: "May 19",
     events: [
-      { ticker: "CGC", type: "Filing Due" },
-      { ticker: "SKE", type: "Offering" },
+      { time: "8:00 AM", ticker: "NVDA", title: "Q1 earnings release", type: "Earnings Release", tone: "release" },
+      { time: "5:00 PM", ticker: "NVDA", title: "Earnings call", type: "Earnings Call", tone: "call" },
+      { time: "After Market", ticker: "AMC", title: "Q1 earnings release", type: "Post-Market", tone: "post" },
     ],
   },
   {
-    label: "Tue",
-    date: "26",
-    tone: "active",
+    day: "Tue",
+    date: "May 20",
     events: [
-      { ticker: "XTLB", type: "Record Date" },
-      { ticker: "AVX", type: "Proxy" },
+      { time: "Before Market", ticker: "PFE", title: "Q1 earnings release", type: "Pre-Market", tone: "pre" },
+      { time: "4:30 PM", ticker: "PFE", title: "Earnings call", type: "Earnings Call", tone: "call" },
+      { time: "Before Market", ticker: "HD", title: "Q1 earnings release", type: "Pre-Market", tone: "pre" },
+      { time: "5:00 PM", ticker: "HD", title: "Earnings call", type: "Earnings Call", tone: "call" },
     ],
   },
   {
-    label: "Wed",
-    date: "27",
-    tone: "active",
+    day: "Wed",
+    date: "May 21",
     events: [
-      { ticker: "VIV", type: "Dividend" },
-      { ticker: "U", type: "Form 4" },
+      { time: "Before Market", ticker: "TSLA", title: "Q1 earnings release", type: "Pre-Market", tone: "pre" },
+      { time: "4:30 PM", ticker: "TSLA", title: "Earnings call", type: "Earnings Call", tone: "call" },
+      { time: "After Market", ticker: "CRM", title: "Q1 earnings release", type: "Post-Market", tone: "post" },
     ],
   },
   {
-    label: "Thu",
-    date: "28",
-    tone: "quiet",
-    events: [{ ticker: "VELO", type: "ATM" }],
-  },
-  {
-    label: "Fri",
-    date: "29",
-    tone: "risk",
+    day: "Thu",
+    date: "May 22",
     events: [
-      { ticker: "AVX", type: "Meeting" },
-      { ticker: "BURU", type: "Listing" },
+      { time: "Before Market", ticker: "AMZN", title: "Q1 earnings release", type: "Pre-Market", tone: "pre" },
+      { time: "4:30 PM", ticker: "AMZN", title: "Earnings call", type: "Earnings Call", tone: "call" },
+      { time: "After Market", ticker: "AAPL", title: "Q2 earnings release", type: "Post-Market", tone: "post" },
+      { time: "5:00 PM", ticker: "AAPL", title: "Earnings call", type: "Earnings Call", tone: "call" },
     ],
   },
+  {
+    day: "Fri",
+    date: "May 23",
+    events: [
+      { time: "Before Market", ticker: "XOM", title: "Q1 earnings release", type: "Pre-Market", tone: "pre" },
+      { time: "11:00 AM", ticker: "XOM", title: "Earnings call", type: "Earnings Call", tone: "call" },
+      { time: "Before Market", ticker: "ABBV", title: "Q1 earnings release", type: "Pre-Market", tone: "pre" },
+      { time: "8:30 AM", ticker: "ABBV", title: "Earnings call", type: "Earnings Call", tone: "call" },
+    ],
+  },
+  { day: "Sat", date: "May 24", events: [] },
+  { day: "Sun", date: "May 25", events: [] },
 ];
 
-const calendarEvents = [
-  {
-    date: "May 26",
-    weekday: "Tue",
-    time: "All day",
-    ticker: "XTLB",
-    title: "Record date for extraordinary meeting voting eligibility",
-    source: "SEC 6-K",
-    group: "Shareholder",
-    status: "Confirmed",
-    tone: "neutral",
-    impact: "80",
-    meta: "Psyga acquisition vote",
-  },
-  {
-    date: "May 27",
-    weekday: "Wed",
-    time: "All day",
-    ticker: "VIV",
-    title: "Interest on capital dividend record date",
-    source: "SEC 6-K",
-    group: "Dividends",
-    status: "Confirmed",
-    tone: "bullish",
-    impact: "65",
-    meta: "R$600M capital return",
-  },
-  {
-    date: "May 29",
-    weekday: "Fri",
-    time: "Market day",
-    ticker: "AVX",
-    title: "Annual shareholder meeting with possible reverse split vote",
-    source: "SEC 8-K",
-    group: "Shareholder",
-    status: "Confirmed",
-    tone: "bearish",
-    impact: "82",
-    meta: "Bid-price deficiency context",
-  },
-  {
-    date: "Jun 15",
-    weekday: "Mon",
-    time: "10:00 AM ET",
-    ticker: "CGC",
-    title: "FY2026 results release, 10-K due date, and investor webcast",
-    source: "SEC 8-K",
-    group: "Earnings",
-    status: "Confirmed",
-    tone: "bearish",
-    impact: "80",
-    meta: "Restatement and material weakness",
-  },
-  {
-    date: "Jun 22",
-    weekday: "Mon",
-    time: "4:00 PM ET",
-    ticker: "XTLB",
-    title: "Extraordinary general meeting for acquisition and financing proposals",
-    source: "SEC 6-K",
-    group: "Deals / Offering",
-    status: "Confirmed",
-    tone: "volatile",
-    impact: "80",
-    meta: "ADS issuance and Psyga deal",
-  },
-  {
-    date: "Jul 6",
-    weekday: "Mon",
-    time: "All day",
-    ticker: "AVX",
-    title: "Nasdaq bid-price compliance deadline",
-    source: "SEC 8-K",
-    group: "Listing Risk",
-    status: "Confirmed",
-    tone: "bearish",
-    impact: "82",
-    meta: "Minimum bid requirement",
-  },
-  {
-    date: "Oct 29",
-    weekday: "Thu",
-    time: "All day",
-    ticker: "BURU",
-    title: "NYSE American compliance plan period end",
-    source: "SEC 8-K",
-    group: "Listing Risk",
-    status: "Confirmed",
-    tone: "bearish",
-    impact: "78",
-    meta: "Exchange compliance deadline",
-  },
-  {
-    date: "Q2 2027",
-    weekday: "Window",
-    time: "Estimated",
-    ticker: "SKE",
-    title: "Target commencement of Eskay commercial production",
-    source: "SEC 6-K",
-    group: "Deals / Offering",
-    status: "Tentative",
-    tone: "volatile",
-    impact: "80",
-    meta: "Long-range production window",
-  },
+const summaryCards = [
+  { label: "Earnings Release", value: 28, change: "+7", icon: BarChart3, tone: "blue" },
+  { label: "Earnings Call", value: 34, change: "+9", icon: Bell, tone: "green" },
+  { label: "Pre-Market", value: 12, change: "-2", icon: Beaker, tone: "purple" },
+  { label: "Post-Market", value: 14, change: "+3", icon: CalendarDays, tone: "orange" },
+  { label: "Other Events", value: 8, change: "0", icon: AlertTriangle, tone: "gray" },
+  { label: "Total Events", value: 96, change: "+17", icon: CalendarDays, tone: "dark" },
 ];
 
-const highRiskDates = [
-  { ticker: "AVX", label: "Listing deadline", date: "Jul 6", tone: "bearish" },
-  { ticker: "BURU", label: "Compliance plan ends", date: "Oct 29", tone: "bearish" },
-  { ticker: "CGC", label: "Restated results", date: "Jun 15", tone: "bearish" },
-  { ticker: "XTLB", label: "Deal vote", date: "Jun 22", tone: "volatile" },
+const highImpact = [
+  { ticker: "TSLA", company: "Tesla, Inc.", label: "Q1 Earnings Release", date: "May 21", impact: "High" },
+  { ticker: "NVDA", company: "NVIDIA Corporation", label: "Q1 Earnings Release", date: "May 19", impact: "High" },
+  { ticker: "AAPL", company: "Apple Inc.", label: "Q2 Earnings Release", date: "May 22", impact: "Medium" },
 ];
 
-const sourceMix = [
-  { label: "SEC confirmed", value: "18" },
-  { label: "News tentative", value: "5" },
-  { label: "Awaiting filing", value: "3" },
-];
-
-const groupSummary = [
-  { label: "Earnings", value: "6", tone: "neutral" },
-  { label: "Shareholder", value: "5", tone: "volatile" },
-  { label: "Listing Risk", value: "4", tone: "bearish" },
-  { label: "Dividends", value: "3", tone: "bullish" },
-  { label: "Deals / Offering", value: "3", tone: "volatile" },
+const watchlistEvents = [
+  { ticker: "TSLA", company: "Tesla, Inc.", label: "Q1 Earnings Release", date: "May 21" },
+  { ticker: "AMZN", company: "Amazon.com, Inc.", label: "Q1 Earnings Release", date: "May 22" },
+  { ticker: "AAPL", company: "Apple Inc.", label: "Q2 Earnings Release", date: "May 22" },
 ];
 
 export default function CalendarPage() {
   return (
-    <main className="calendar-page">
+    <main className="market-calendar-page">
       <header className="feed-nav calendar-nav">
         <a className="brand-lockup" href="/feed" aria-label="US Stock Radar feed">
           <span className="brand-mark">SR</span>
@@ -214,15 +123,15 @@ export default function CalendarPage() {
           <a href="#">Watchlist</a>
           <a href="/news">News</a>
           <a href="/filings">Filings</a>
+          <a href="#">Alerts</a>
           <a className="active" href="/calendar">
             Calendar
           </a>
-          <a href="#">Alerts</a>
           <a href="#">Premium</a>
         </nav>
         <label className="feed-search">
           <span>/</span>
-          <input aria-label="Search calendar" placeholder="Search ticker, event type, or date" />
+          <input aria-label="Search calendar" placeholder="Search stocks, companies, events..." />
         </label>
         <div className="feed-actions">
           <button className="icon-button" type="button" aria-label="Notifications">
@@ -235,170 +144,245 @@ export default function CalendarPage() {
         </div>
       </header>
 
-      <section className="calendar-shell">
-        <div className="calendar-heading">
+      <section className="market-calendar-shell">
+        <div className="market-calendar-hero">
           <div>
-            <span>Event Calendar</span>
-            <h1>Upcoming market dates</h1>
-            <p>May 2026 - Filing-confirmed dates first</p>
+            <h1>Market Calendar</h1>
+            <p>Browse upcoming corporate, regulatory, and market-moving events by category.</p>
           </div>
-          <div className="calendar-heading-actions">
-            <button className="active" type="button">
-              Today
+          <div className="market-calendar-controls">
+            <button type="button" className="calendar-range-button">
+              <CalendarDays size={16} />
+              May 19 - May 25, 2026
+              <ChevronDown size={15} />
             </button>
-            <button type="button">Week</button>
-            <button type="button">Month</button>
+            <button type="button">Today</button>
+            <div className="calendar-view-toggle" aria-label="Calendar view">
+              <button type="button">Month</button>
+              <button type="button" className="active">
+                Week
+              </button>
+              <button type="button">List</button>
+            </div>
           </div>
         </div>
 
-        <div className="calendar-stat-strip">
-          {calendarStats.map((item) => (
-            <section className="calendar-stat-card" key={item.label}>
-              <span>{item.label}</span>
-              <strong>{item.value}</strong>
-              <p>{item.detail}</p>
-            </section>
-          ))}
+        <div className="calendar-category-tabs" aria-label="Calendar event categories">
+          {categoryTabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button type="button" className={tab.active ? "active" : ""} key={tab.label}>
+                <Icon size={18} />
+                <span>{tab.label}</span>
+                <b>{tab.count}</b>
+              </button>
+            );
+          })}
         </div>
 
-        <div className="calendar-content-grid">
-          <section className="calendar-main-panel">
-            <div className="calendar-filter-row">
-              {filterTabs.map((tab, index) => (
-                <button className={index === 0 ? "active" : ""} type="button" key={tab}>
-                  {tab}
+        <div className="calendar-workspace">
+          <aside className="calendar-left-rail">
+            <section className="calendar-mini-panel">
+              <div className="mini-calendar-head">
+                <button type="button" aria-label="Previous month">
+                  <ChevronLeft size={16} />
                 </button>
-              ))}
-            </div>
-
-            <div className="calendar-week-strip" aria-label="Calendar week">
-              {weekDays.map((day) => (
-                <article className={`calendar-day-card ${day.tone}`} key={`${day.label}-${day.date}`}>
-                  <div>
-                    <span>{day.label}</span>
-                    <strong>{day.date}</strong>
-                  </div>
-                  <ul>
-                    {day.events.map((event) => (
-                      <li key={`${event.ticker}-${event.type}`}>
-                        <b>{event.ticker}</b>
-                        <span>{event.type}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </article>
-              ))}
-            </div>
-
-            <div className="calendar-agenda">
-              <div className="calendar-section-heading">
-                <div>
-                  <span>Agenda</span>
-                  <h2>Scheduled events</h2>
-                </div>
-                <button type="button">Export</button>
+                <strong>May 2026</strong>
+                <button type="button" aria-label="Next month">
+                  <ChevronRight size={16} />
+                </button>
               </div>
-
-              {calendarEvents.map((event) => (
-                <article className="calendar-event-row" key={`${event.ticker}-${event.title}`}>
-                  <div className="calendar-date-cell">
-                    <span>{event.weekday}</span>
-                    <strong>{event.date}</strong>
-                    <small>{event.time}</small>
-                  </div>
-                  <div className="calendar-event-icon" aria-hidden="true">
-                    {iconForGroup(event.group)}
-                  </div>
-                  <div className="calendar-event-copy">
-                    <div className="calendar-event-kicker">
-                      <b>{event.ticker}</b>
-                      <span>{event.source}</span>
-                      <em className={`status-${event.status.toLowerCase()}`}>{event.status}</em>
-                    </div>
-                    <h3>{event.title}</h3>
-                    <p>{event.meta}</p>
-                  </div>
-                  <div className="calendar-event-meta">
-                    <span>{event.group}</span>
-                    <b className={event.tone}>{event.tone}</b>
-                    <strong>Impact {event.impact}</strong>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <aside className="calendar-sidebar">
-            <section className="calendar-side-panel">
-              <div className="calendar-side-heading">
-                <AlertTriangle size={17} />
-                <h2>High-risk dates</h2>
-              </div>
-              <div className="calendar-side-list">
-                {highRiskDates.map((item) => (
-                  <a href="#" key={`${item.ticker}-${item.date}`}>
-                    <span>
-                      <b>{item.ticker}</b>
-                      <small>{item.label}</small>
-                    </span>
-                    <em className={item.tone}>{item.date}</em>
-                  </a>
+              <div className="mini-calendar-grid" aria-label="May 2026 mini calendar">
+                {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((day) => (
+                  <span className="mini-calendar-weekday" key={day}>
+                    {day}
+                  </span>
                 ))}
-              </div>
-            </section>
-
-            <section className="calendar-side-panel">
-              <div className="calendar-side-heading">
-                <CheckCircle2 size={17} />
-                <h2>Source status</h2>
-              </div>
-              <div className="calendar-source-mix">
-                {sourceMix.map((item) => (
-                  <div key={item.label}>
-                    <span>{item.label}</span>
-                    <strong>{item.value}</strong>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="calendar-side-panel">
-              <div className="calendar-side-heading">
-                <CalendarDays size={17} />
-                <h2>Groups</h2>
-              </div>
-              <div className="calendar-group-list">
-                {groupSummary.map((item) => (
-                  <button type="button" key={item.label}>
-                    <span>{item.label}</span>
-                    <b className={item.tone}>{item.value}</b>
+                {miniCalendar.flat().map((day, index) => (
+                  <button
+                    type="button"
+                    className={`${day === "19" ? "selected" : ""} ${index < 3 || index > 33 ? "muted" : ""}`}
+                    key={`${day}-${index}`}
+                  >
+                    {day}
                   </button>
                 ))}
               </div>
             </section>
 
-            <section className="calendar-premium-panel">
-              <span>Premium</span>
-              <h2>Real-time event alerts</h2>
-              <p>Track filing-confirmed dates, news-sourced windows, and ticker watchlists.</p>
+            <section className="calendar-left-actions">
               <button type="button">
-                Upgrade
-                <ChevronRight size={15} />
+                <CalendarDays size={15} />
+                Today
               </button>
+              <button type="button">
+                <CalendarDays size={15} />
+                Next 7 Days
+                <ChevronRight className="action-chevron" size={14} />
+              </button>
+              <button type="button">
+                <CalendarDays size={15} />
+                Next 30 Days
+                <ChevronRight className="action-chevron" size={14} />
+              </button>
+            </section>
+
+            <section className="calendar-legend">
+              <h2>Event Legend</h2>
+              {[
+                ["release", "Earnings Release"],
+                ["call", "Earnings Call"],
+                ["pre", "Pre-Market"],
+                ["post", "Post-Market"],
+                ["other", "Other / Unscheduled"],
+              ].map(([tone, label]) => (
+                <div key={tone}>
+                  <span className={`legend-dot ${tone}`} />
+                  <p>{label}</p>
+                </div>
+              ))}
+            </section>
+          </aside>
+
+          <section className="calendar-board-panel">
+            <div className="calendar-filter-toolbar">
+              <button type="button">Exchange <b>All</b></button>
+              <button type="button">Market Cap <b>All</b></button>
+              <button type="button">Signal <b>All</b></button>
+              <label>
+                <input type="checkbox" />
+                Watchlist Only
+              </label>
+              <button type="button">
+                <Download size={14} />
+                Export
+                <ChevronDown size={14} />
+              </button>
+            </div>
+
+            <div className="calendar-week-board">
+              {calendarDays.map((day) => (
+                <article className="calendar-week-column" key={`${day.day}-${day.date}`}>
+                  <header>
+                    <strong>{day.day}</strong>
+                    <span>{day.date}</span>
+                  </header>
+                  <div className="calendar-column-events">
+                    {day.events.length === 0 ? (
+                      <div className="calendar-empty-day">No events scheduled</div>
+                    ) : (
+                      day.events.map((event) => (
+                        <button type="button" className={`week-event-card ${event.tone}`} key={`${event.ticker}-${event.time}-${event.title}`}>
+                          <span>
+                            <b>{event.time}</b>
+                            <strong>{event.ticker}</strong>
+                            <Bell size={12} />
+                          </span>
+                          <p>{event.title}</p>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <div className="calendar-summary-strip">
+              {summaryCards.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <section className={`calendar-summary-card ${item.tone}`} key={item.label}>
+                    <div>
+                      <Icon size={22} />
+                    </div>
+                    <span>{item.label}</span>
+                    <strong>{item.value}</strong>
+                    <p>
+                      vs last week <b className={item.change.startsWith("-") ? "down" : "up"}>{item.change}</b>
+                    </p>
+                  </section>
+                );
+              })}
+            </div>
+          </section>
+
+          <aside className="calendar-right-rail">
+            <section className="calendar-selected-panel">
+              <div className="calendar-panel-title">
+                <h2>Selected Event</h2>
+                <button type="button" aria-label="Close selected event">x</button>
+              </div>
+              <span className="calendar-kicker">Earnings Release</span>
+              <h3>NVIDIA Corporation</h3>
+              <p>NVDA</p>
+              <div className="calendar-selected-facts">
+                <span>Mon, May 19, 2026</span>
+                <span>8:00 AM ET</span>
+                <span>Pre-Market</span>
+              </div>
+              <div className="calendar-chip-row">
+                <b>Large Cap</b>
+                <b>Semiconductors</b>
+              </div>
+            </section>
+
+            <section className="calendar-side-card">
+              <h2>This Week in Earnings</h2>
+              <div className="calendar-donut-row">
+                <div className="calendar-donut">
+                  <strong>96</strong>
+                  <span>Total Events</span>
+                </div>
+                <div className="calendar-donut-legend">
+                  <p><i className="pre" />Pre-Market <b>40</b></p>
+                  <p><i className="post" />After-Market <b>30</b></p>
+                  <p><i className="call" />Both <b>20</b></p>
+                  <p><i className="other" />TBD <b>6</b></p>
+                </div>
+              </div>
+            </section>
+
+            <section className="calendar-side-card">
+              <div className="calendar-panel-link-title">
+                <h2>High-Impact Upcoming</h2>
+                <a href="#">View all</a>
+              </div>
+              <div className="calendar-side-event-list">
+                {highImpact.map((event) => (
+                  <a href="#" key={`${event.ticker}-${event.date}`}>
+                    <span>
+                      <b>{event.ticker}</b>
+                      <small>{event.company}</small>
+                      <em>{event.label}</em>
+                    </span>
+                    <strong className={event.impact.toLowerCase()}>{event.impact}</strong>
+                    <p>{event.date}</p>
+                  </a>
+                ))}
+              </div>
+            </section>
+
+            <section className="calendar-side-card">
+              <div className="calendar-panel-link-title">
+                <h2>My Watchlist Events</h2>
+                <a href="#">View all</a>
+              </div>
+              <div className="calendar-side-event-list watchlist">
+                {watchlistEvents.map((event) => (
+                  <a href="#" key={`${event.ticker}-${event.date}`}>
+                    <span>
+                      <b>{event.ticker}</b>
+                      <small>{event.company}</small>
+                      <em>{event.label}</em>
+                    </span>
+                    <p>{event.date}</p>
+                  </a>
+                ))}
+              </div>
             </section>
           </aside>
         </div>
       </section>
     </main>
   );
-}
-
-function iconForGroup(group: string) {
-  if (group === "Earnings") return <CalendarClock size={18} />;
-  if (group === "Shareholder") return <Landmark size={18} />;
-  if (group === "Dividends") return <CircleDot size={18} />;
-  if (group === "Listing Risk") return <AlertTriangle size={18} />;
-  if (group === "Deals / Offering") return <FileText size={18} />;
-  if (group === "FDA / Clinical") return <Newspaper size={18} />;
-  return <Clock3 size={18} />;
 }
