@@ -340,7 +340,7 @@ async function fetchFilingDetail({
 
   const companyName = readCompanyNameFromDetailHtml(html);
   const documents = parseFilingDocuments(html, detailUrl, formType);
-  const selectedDocuments = selectDocumentsForText(documents, attachmentLimit);
+  const selectedDocuments = selectDocumentsForText(documents, attachmentLimit, formType);
   let documentsFetched = 0;
   let documentsFailed = 0;
   const documentsWithText: SecDocument[] = [];
@@ -439,15 +439,27 @@ function parseFilingDocuments(html: string, detailUrl: string, formType: string 
   return documents;
 }
 
-function selectDocumentsForText(documents: SecDocument[], attachmentLimit: number) {
+function selectDocumentsForText(documents: SecDocument[], attachmentLimit: number, formType: string | null) {
   const selected = new Set<string>();
   const primary = documents.find((document) => document.isPrimary);
   if (primary?.url) selected.add(primary.url);
 
+  if (isS3FamilyForm(formType)) {
+    for (const document of documents) {
+      if (!document.url || document.isPrimary) continue;
+      if (isFilingFeeTableDocument(document)) selected.add(document.url);
+    }
+  }
+
+  let selectedAttachmentCount = 0;
   for (const document of documents) {
-    if (selected.size >= attachmentLimit + 1) break;
+    if (selectedAttachmentCount >= attachmentLimit) break;
     if (!document.url || document.isPrimary) continue;
-    if (isInterestingAttachment(document)) selected.add(document.url);
+    if (selected.has(document.url)) continue;
+    if (isInterestingAttachment(document)) {
+      selected.add(document.url);
+      selectedAttachmentCount += 1;
+    }
   }
 
   return selected;
@@ -474,6 +486,15 @@ function isInterestingAttachment(document: SecDocument) {
   if (type.startsWith("EX-23")) return true;
   if (type.startsWith("EX-24")) return true;
   return false;
+}
+
+function isS3FamilyForm(formType: string | null) {
+  return /^S-3(?:ASR|\/A)?$/i.test(normalizeFormType(formType));
+}
+
+function isFilingFeeTableDocument(document: SecDocument) {
+  const label = `${stringValue(document.type)} ${stringValue(document.description)} ${stringValue(document.document)}`;
+  return /\b(?:EX-FILING FEES|FILING FEE|FEE TABLE|EX-107|EX107|107)\b/i.test(label);
 }
 
 function buildCombinedText(documents: SecDocument[]) {
