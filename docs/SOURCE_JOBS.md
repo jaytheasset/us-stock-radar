@@ -5,7 +5,7 @@ Source job configuration lives in `lib/sourceJobs.ts`.
 ## Job Routes
 
 Most routes are hosted by the existing `APP_BASE_URL` server. GlobeNewswire,
-Business Wire, PR Newswire, Newsfile, OFAC, DOJ, DEA, and White House are the current exceptions
+Business Wire, PR Newswire, Newsfile, OFAC, DOJ, DEA, White House, FDA, and Nasdaq Trader are the current exceptions
 and use canonical Next.js ingest routes. The Next.js app exposes wrapper routes under
 `/api/source-jobs/:source/run`, but these are not called automatically because
 they can trigger collection.
@@ -20,6 +20,8 @@ they can trigger collection.
 | DOJ | `POST /api/sources/doj/ingest` |
 | DEA | `POST /api/sources/dea/ingest` |
 | White House | `POST /api/sources/whitehouse/ingest` |
+| FDA | `POST /api/sources/fda/ingest` |
+| Nasdaq Trader | `POST /api/sources/nasdaq-trader/ingest` |
 
 ## Health Routes
 
@@ -55,7 +57,7 @@ The wrapper defaults to:
 
 Do not add automatic polling from the Next.js UI without explicit approval.
 
-GlobeNewswire, Business Wire, PR Newswire, Newsfile, OFAC, DOJ, DEA, and White House wrappers execute
+GlobeNewswire, Business Wire, PR Newswire, Newsfile, OFAC, DOJ, DEA, White House, FDA, and Nasdaq Trader wrappers execute
 against the current Next.js request origin so local dry-run checks hit their
 canonical routes. Other sources still use their configured `APP_BASE_URL` job
 routes.
@@ -90,3 +92,19 @@ body HTML from each item page, and tags ceremonial, nomination, and general
 political-promo items as `low_value_filtered`. Trade, sanctions, energy,
 healthcare, technology, defense, tax/budget/regulation, labor, infrastructure,
 agriculture, and commodity policy items remain LLM candidates.
+
+FDA uses official RSS feeds for Press Releases, What's New: Drugs, What's New:
+Vaccines/Blood/Biologics, and MedWatch Safety Alerts. The parser hydrates FDA
+page body HTML, keeps full text for display, and tags static databases,
+conference/training pages, guidance indexes, and static product-label pages as
+`low_value_filtered` before LLM analysis.
+
+Nasdaq Trader uses the official trade-halts RSS feed. Short volatility-pause
+codes such as `LUDP` and `M` are treated as deterministic ticker archive items
+without LLM analysis; material halt codes such as news pending, SEC suspension,
+non-compliance, filing delinquency, regulatory concern, and corporate action
+remain company-event candidates.
+
+Accesswire is not configured as a canonical source job yet. The existing env
+keys support a NAS ingest bridge, but no stable public RSS/API route has been
+confirmed in this repo.

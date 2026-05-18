@@ -1,7 +1,7 @@
 import { CALENDAR_EVENT_TYPE_VALUES } from "@/lib/calendarEventRegistry";
 
 export const NEWS_EVENT_ANALYSIS_PROMPT_KEY = "news_event_analysis";
-export const NEWS_EVENT_ANALYSIS_PROMPT_VERSION = "v16";
+export const NEWS_EVENT_ANALYSIS_PROMPT_VERSION = "v17";
 
 export const SOURCE_GROUP_VALUES = ["news"] as const;
 export const MARKET_SCOPE_VALUES = ["company", "sector", "theme", "macro"] as const;
@@ -90,10 +90,12 @@ export const newsEventAnalysisSystemPrompt = [
   "Choose primary_ticker from the body text. Use a U.S.-listed ticker, ADR, or OTC symbol when available; do not invent one from metadata.",
   "Use related_tickers only for named peers, customers, suppliers, counterparties, owners, or directly affected issuers supported by the article.",
   "Choose event_type from the core development, not from the release format.",
+  "Use fda_clinical for FDA approvals, clearances, CRLs, safety-label changes, clinical results, PDUFA dates, or advisory committee catalysts.",
   "Use capital_return only when the core development is an actual share repurchase, buyback authorization, repurchase allocation increase, or announced capital return program centered on repurchases.",
   "Do not use capital_return for financing, capital markets activity, capital allocation commentary, strategy updates, liquidity improvement, or transformation plans unless the article discloses a concrete repurchase/buyback action.",
   "For dividends use dividends. If buybacks and dividends both appear, follow the core development.",
   "Score by materiality, price sensitivity, specificity, source strength, timeliness, and market interest.",
+  "Score is a 0-100 integer scale, not a 0-10 scale. Around 50 means feed-worthy, and 75 or higher means alert-worthy.",
   "Choose signal from the likely stock read-through for the primary ticker. Use volatile or neutral when direction is mixed.",
   "Create calendar_items only when the date itself is an investable catalyst or shareholder entitlement: earnings/results call, dividend ex/record/payment, or FDA/clinical scheduled milestone.",
   "If no useful scheduled catalyst exists, return an empty calendar_items array.",

@@ -16,6 +16,8 @@ import { fetchOfacRawItems } from "@/lib/sources/ofac/parser";
 import { fetchDojRawItems } from "@/lib/sources/doj/parser";
 import { fetchDeaRawItems } from "@/lib/sources/dea/parser";
 import { fetchWhiteHouseRawItems } from "@/lib/sources/whitehouse/parser";
+import { fetchFdaRawItems } from "@/lib/sources/fda/parser";
+import { fetchNasdaqTraderRawItems } from "@/lib/sources/nasdaqtrader/parser";
 import { canonicalizeAnalysisTickersWithCache } from "@/lib/tickerCanonicalizer";
 import { buildNewsTickerProxiesWithCache, type NewsTickerProxy } from "@/lib/newsTickerProxies";
 import { supabaseDelete, supabaseSelect, supabaseUpsert } from "@/lib/supabase";
@@ -208,6 +210,34 @@ export async function runWhiteHouseNewsIngest(options: NewsIngestOptions = {}) {
       fetchErrorLabel: "White House raw fetch failed",
       ingestErrorLabel: "White House ingest error",
       fetchRawItems: fetchWhiteHouseRawItems as NewsSourceConfig["fetchRawItems"],
+    },
+    options,
+  );
+}
+
+export async function runFdaNewsIngest(options: NewsIngestOptions = {}) {
+  return runNewsIngestForSource(
+    {
+      sourceCode: "fda",
+      sourceName: "FDA",
+      parserName: "fda",
+      fetchErrorLabel: "FDA raw fetch failed",
+      ingestErrorLabel: "FDA ingest error",
+      fetchRawItems: fetchFdaRawItems as NewsSourceConfig["fetchRawItems"],
+    },
+    options,
+  );
+}
+
+export async function runNasdaqTraderNewsIngest(options: NewsIngestOptions = {}) {
+  return runNewsIngestForSource(
+    {
+      sourceCode: "nasdaq_trader",
+      sourceName: "Nasdaq Trader",
+      parserName: "nasdaq_trader",
+      fetchErrorLabel: "Nasdaq Trader raw fetch failed",
+      ingestErrorLabel: "Nasdaq Trader ingest error",
+      fetchRawItems: fetchNasdaqTraderRawItems as NewsSourceConfig["fetchRawItems"],
     },
     options,
   );
@@ -1507,6 +1537,8 @@ function sourceDisplayName(sourceCode: string) {
   if (sourceCode === "doj") return "DOJ";
   if (sourceCode === "dea") return "DEA";
   if (sourceCode === "whitehouse") return "White House";
+  if (sourceCode === "fda") return "FDA";
+  if (sourceCode === "nasdaq_trader") return "Nasdaq Trader";
   if (sourceCode === "globe") return "GlobeNewswire";
   return sourceCode || "news";
 }

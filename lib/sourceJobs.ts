@@ -156,6 +156,46 @@ export const sourceJobs: SourceJob[] = [
       },
     ],
   },
+  {
+    source: "fda",
+    label: "FDA",
+    jobRoute: "/api/sources/fda/ingest",
+    sourceUrls: [
+      {
+        label: "FDA press releases RSS",
+        primary: true,
+        url: "https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/press-releases/rss.xml",
+      },
+      {
+        label: "FDA What's New: Drugs RSS",
+        url: "https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/drugs/rss.xml",
+      },
+      {
+        label: "FDA What's New: Vaccines, Blood, and Biologics RSS",
+        url: "https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/biologics/rss.xml",
+      },
+      {
+        label: "FDA MedWatch Safety Alerts RSS",
+        url: "https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/medwatch/rss.xml",
+      },
+    ],
+  },
+  {
+    source: "nasdaq_trader",
+    label: "Nasdaq Trader",
+    jobRoute: "/api/sources/nasdaq-trader/ingest",
+    sourceUrls: [
+      {
+        label: "Nasdaq Trader trade halts RSS",
+        primary: true,
+        url: "https://www.nasdaqtrader.com/rss.aspx?feed=tradehalts",
+      },
+      {
+        label: "Nasdaq Trader trade halt code definitions",
+        url: "https://classic.nasdaqtrader.com/Trader.aspx?id=tradehaltcodes",
+      },
+    ],
+  },
 ];
 
 type UrlProbeResult = {
@@ -273,7 +313,9 @@ export async function runSourceJob(
         source === "ofac" ||
         source === "doj" ||
         source === "dea" ||
-        source === "whitehouse"
+        source === "whitehouse" ||
+        source === "fda" ||
+        source === "nasdaq_trader"
         ? 120000
         : undefined,
     );
