@@ -123,10 +123,13 @@ export type SecS3AmendmentInfo = {
 };
 
 export type SecS3OfferingTerms = {
+  registration_statement_kind: SecS3Field | null;
   offering_type: SecS3Field | null;
   security_type: SecS3Field | null;
   primary_or_resale: SecS3Field | null;
   offering_amount: SecS3MoneyField | null;
+  shelf_capacity: SecS3MoneyField | null;
+  atm_program_size: SecS3MoneyField | null;
   resale_share_count: SecS3CountField | null;
   current_shares_outstanding: SecS3CountField | null;
   warrant_coverage: SecS3Field | null;
@@ -277,6 +280,7 @@ export function parseSecS3Filing(input: SecS3ParseInput): SecS3FilingFacts {
   const privatePlacementReference = findSentenceField(s3Text, /\b(?:private placement|PIPE|securities purchase agreement)\b/i);
   const offeringTerms = buildS3OfferingTerms({
     currentSharesOutstanding,
+    feeTableTotals: feeTable.totals,
     primaryOrResale,
     registrationStatementKind,
     resaleShareCount,
@@ -417,13 +421,32 @@ function findProspectusStatus(text: string): SecS3Field | null {
 }
 
 function findPrimaryOrResale(text: string): SecS3Field | null {
-  if (/\b(?:resale by the selling stockholders|resale by selling stockholders|selling stockholders? named in this prospectus|selling shareholders? named in this prospectus)\b/i.test(text)) {
-    return field("resale", text, /\b(?:resale by the selling stockholders|resale by selling stockholders|selling stockholders? named in this prospectus|selling shareholders? named in this prospectus)\b/i, "high");
+  const resale = field(
+    "resale",
+    text,
+    /\b(?:resale by the selling stockholders|resale by selling stockholders|selling stockholders? named in this prospectus|selling shareholders? named in this prospectus|selling stockholders? may offer and sell|selling shareholders? may offer and sell)\b/i,
+    "high",
+  );
+  const primaryStrong = field(
+    "primary",
+    text,
+    /\b(?:we are offering|we have entered into[^.\n]{0,220}?(?:sales agreement|equity distribution agreement)|ATM Prospectus Supplement|dividend reinvestment and stock purchase plan|participants in the plan may[^.\n]{0,180}?purchase shares)\b/i,
+    "medium",
+  );
+  const primaryGeneric = field(
+    "primary",
+    text,
+    /\b(?:we may offer|we may sell|company may offer)\b/i,
+    "medium",
+  );
+  if (primaryStrong && resale) {
+    return {
+      value: "mixed",
+      evidence: truncate(`${primaryStrong.evidence} ${resale.evidence}`, 420),
+      confidence: "medium",
+    };
   }
-  if (/\b(?:we may offer|we are offering|we may sell|company may offer)\b/i.test(text)) {
-    return field("primary", text, /\b(?:we may offer|we are offering|we may sell|company may offer)\b/i, "medium");
-  }
-  return null;
+  return resale || primaryStrong || primaryGeneric;
 }
 
 function buildS3AmendmentInfo({
@@ -631,6 +654,7 @@ function findShareCount(text: string, patterns: RegExp[]): SecS3CountField | nul
 
 function buildS3OfferingTerms({
   currentSharesOutstanding,
+  feeTableTotals,
   primaryOrResale,
   registrationStatementKind,
   resaleShareCount,
@@ -638,18 +662,32 @@ function buildS3OfferingTerms({
   s3Text,
 }: {
   currentSharesOutstanding: SecS3CountField | null;
+  feeTableTotals: SecS3FeeTableTotals;
   primaryOrResale: SecS3Field | null;
   registrationStatementKind: SecS3Field | null;
   resaleShareCount: SecS3CountField | null;
   securitiesRegistered: SecS3Field[];
   s3Text: string;
 }): SecS3OfferingTerms {
+  const offeringType = findS3OfferingType({
+    primaryOrResale,
+    registrationStatementKind,
+    securitiesRegistered,
+    s3Text,
+  });
+  const atmProgramSize = findMoneyField(s3Text, [
+    /\b(?:ATM Prospectus Supplement|equity distribution agreement|sales agreement)[^.\n]{0,360}?(?:up to|maximum aggregate offering price of)\s+(\$[\d,.]+\s*(?:thousand|million|billion|m|bn)?)/i,
+    /\b(?:up to|maximum aggregate offering price of)\s+(\$[\d,.]+\s*(?:thousand|million|billion|m|bn)?)[^.\n]{0,360}?(?:ATM Prospectus Supplement|equity distribution agreement|sales agreement)\b/i,
+  ]);
+  const shelfCapacity = feeTableTotals.total_offering_amount;
   const offeringAmount =
-    primaryOrResale?.value === "resale"
+    atmProgramSize ||
+    (primaryOrResale?.value === "resale"
       ? findMoneyField(s3Text, [/\baggregate offering price\b[^.\n]{0,180}?(\$[\d,.]+\s*(?:thousand|million|billion|m|bn)?)/i])
       : findMoneyField(s3Text, [
           /\b(?:aggregate offering price of|up to)\s+(\$[\d,.]+\s*(?:thousand|million|billion|m|bn)?)/i,
-        ]);
+        ])) ||
+    shelfCapacity;
   const warrantCoverage = findSentenceField(s3Text, /\bwarrants?\s+to\s+purchase\b|\bwarrant shares\b/i);
   const conversionPrice = findPriceField(s3Text, [
     /\b(?:conversion price|initial conversion price|convertible at)\s*(?:of)?\s*(\$[\d,.]+)/i,
@@ -657,9 +695,12 @@ function buildS3OfferingTerms({
   const securityType = securitiesRegistered[0] || null;
   const fields = [
     registrationStatementKind,
+    offeringType,
     securityType,
     primaryOrResale,
     offeringAmount,
+    shelfCapacity,
+    atmProgramSize,
     resaleShareCount,
     currentSharesOutstanding,
     warrantCoverage,
@@ -667,16 +708,88 @@ function buildS3OfferingTerms({
   ];
 
   return {
-    offering_type: registrationStatementKind,
+    registration_statement_kind: registrationStatementKind,
+    offering_type: offeringType,
     security_type: securityType,
     primary_or_resale: primaryOrResale,
     offering_amount: offeringAmount,
+    shelf_capacity: shelfCapacity,
+    atm_program_size: atmProgramSize,
     resale_share_count: resaleShareCount,
     current_shares_outstanding: currentSharesOutstanding,
     warrant_coverage: warrantCoverage,
     conversion_price: conversionPrice,
     extracted_field_count: fields.filter(Boolean).length,
   };
+}
+
+function findS3OfferingType({
+  primaryOrResale,
+  registrationStatementKind,
+  securitiesRegistered,
+  s3Text,
+}: {
+  primaryOrResale: SecS3Field | null;
+  registrationStatementKind: SecS3Field | null;
+  securitiesRegistered: SecS3Field[];
+  s3Text: string;
+}): SecS3Field | null {
+  const atm = field(
+    "atm",
+    s3Text,
+    /\b(?:ATM Prospectus Supplement|equity distribution agreement|sales agreement)[^.\n]{0,420}?(?:at-the-market|at the market|offer and sell|offered and sold|common stock)\b/i,
+    "high",
+  );
+  if (atm) return atm;
+
+  const drip = field(
+    "dividend_reinvestment_plan",
+    s3Text,
+    /\b(?:dividend reinvestment and stock purchase plan|dividend reinvestment plan|stock purchase plan)\b/i,
+    "high",
+  );
+  if (drip) return drip;
+
+  if (primaryOrResale?.value === "mixed") {
+    return {
+      value: "mixed_shelf",
+      evidence: primaryOrResale.evidence,
+      confidence: "medium",
+    };
+  }
+
+  if (primaryOrResale?.value === "resale") {
+    return {
+      value: "resale_registration",
+      evidence: primaryOrResale.evidence,
+      confidence: primaryOrResale.confidence,
+    };
+  }
+
+  const securities = new Set(securitiesRegistered.map((item) => item.value));
+  const hasUniversalShelfText = /\b(?:unallocated\s+\(universal\)\s+shelf|universal shelf)\b/i.test(s3Text);
+  const hasMultipleShelfSecurities =
+    securities.size >= 3 ||
+    (securities.has("common_stock") && (securities.has("preferred_stock") || securities.has("debt_securities")) && securities.has("warrants"));
+  if (hasUniversalShelfText || hasMultipleShelfSecurities) {
+    return {
+      value: "universal_shelf",
+      evidence: hasUniversalShelfText
+        ? pickEvidenceSentence(s3Text, s3Text.search(/\b(?:unallocated\s+\(universal\)\s+shelf|universal shelf)\b/i))
+        : "Registration covers multiple shelf security classes.",
+      confidence: hasUniversalShelfText ? "high" : "medium",
+    };
+  }
+
+  if (registrationStatementKind) {
+    return {
+      value: "shelf_registration",
+      evidence: registrationStatementKind.evidence,
+      confidence: registrationStatementKind.confidence,
+    };
+  }
+
+  return null;
 }
 
 type SellingStockholderBaseRow = {
@@ -743,6 +856,14 @@ function parseSplitSellingStockholderRows(section: string): SellingStockholderBa
       continue;
     }
     if (!inTable) continue;
+
+    const inlineRow = parseInlineSellingStockholderRow(line);
+    if (inlineRow) {
+      rows.push(inlineRow);
+      nameBuffer.length = 0;
+      continue;
+    }
+
     const rowName = line.match(/^(.+?)\s+\((\d+[A-Za-z]?)\)$/);
     const rowFootnoteOnly = line.match(/^\((\d+[A-Za-z]?)\)$/);
     if (rowName || (rowFootnoteOnly && nameBuffer.length)) {
@@ -792,6 +913,36 @@ function parseSplitSellingStockholderRows(section: string): SellingStockholderBa
   }
 
   return rows;
+}
+
+function parseInlineSellingStockholderRow(line: string): SellingStockholderBaseRow | null {
+  const cells = [
+    ...line.matchAll(/(?:\(?\d+[A-Za-z]?\)?|\d[\d,]*(?:\.\d+)?\s*%?|<\s*1\s*%|less than one percent|less than 1%|--|-|\*)/gi),
+  ];
+  if (cells.length < 3) return null;
+
+  const firstCell = cells[0];
+  const firstCellIndex = firstCell.index ?? -1;
+  if (firstCellIndex <= 2) return null;
+
+  const holderText = compactText(line.slice(0, firstCellIndex));
+  if (!holderText || !/[A-Za-z]/.test(holderText) || isSellingStockholderTableNoise(holderText)) return null;
+
+  const footnoteMatch = holderText.match(/^(.*?)\s+\((\d+[A-Za-z]?)\)$/);
+  const holderName = compactText(footnoteMatch?.[1] || holderText);
+  const footnoteId = footnoteMatch?.[2] || null;
+  const values = cells
+    .map((cell) => cleanSellingTableLine(cell[0]))
+    .filter((cell) => !isFootnoteToken(cell));
+  if (values.length < 3) return null;
+
+  return buildSellingStockholderBaseRow({
+    holderName,
+    footnoteId,
+    values,
+    addressHint: null,
+    evidence: line,
+  });
 }
 
 function buildSellingStockholderBaseRow({
@@ -972,6 +1123,7 @@ function cleanSellingFootnoteLine(value: string) {
 function readSellingStockholderNumericCell(value: string) {
   const text = compactText(value).replace(/\s+/g, " ");
   if (isPlaceholderCell(text)) return text;
+  if (/^(?:<\s*1\s*%|less than one percent|less than 1%)$/i.test(text)) return "less than 1%";
   if (/^\d[\d,]*(?:\.\d+)?\s*%?$/.test(text)) return text.includes("%") ? text : text;
   if (/^\d[\d,]*(?:\.\d+)?\s+%$/.test(text)) return text.replace(/\s+%$/, "%");
   return null;
@@ -982,6 +1134,7 @@ function isPercentCell(value: string | null | undefined) {
 }
 
 function isPlaceholderCell(value: string | null | undefined) {
+  if (/^(?:\*|N\/A)$/i.test(stringValue(value))) return true;
   return /^(?:-|--|—|–|\*)$/.test(stringValue(value));
 }
 
@@ -1468,6 +1621,7 @@ function normalizeShareCount(value: string) {
   const match = value.match(/(\d[\d,.]*)/);
   if (!match) return null;
   const parsed = Number(match[1].replace(/,/g, ""));
+  if (parsed > 0 && parsed < 1) return null;
   return Number.isFinite(parsed) ? parsed : null;
 }
 

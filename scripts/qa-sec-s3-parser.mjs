@@ -23,6 +23,9 @@ const rawItemId = String(args.get("rawItemId") || "").trim();
 const latest = args.get("latest") === "true";
 const fetchFeeTable = args.get("fetchFeeTable") !== "false";
 const limit = readInt(args.get("limit"), 5, 1, 20);
+const countPerForm = readInt(args.get("countPerForm"), Math.max(limit, 5), 1, 40);
+const balancedLive = args.get("balancedLive") !== "false";
+const requireFormCoverage = args.get("requireFormCoverage") === "true";
 const formTypes = String(args.get("formTypes") || "S-3,S-3ASR,S-3/A");
 const checks = [];
 
@@ -32,6 +35,15 @@ try {
 
   const rawItems = await collectRawItems();
   check("S-3 raw samples found", rawItems.length > 0, { sourceMode, limit, formTypes });
+  if (requireFormCoverage) {
+    for (const formType of parseCsv(formTypes)) {
+      check(`S-3 raw samples include ${formType}`, rawItems.some((item) => readRawFormType(item) === normalizeFormType(formType)), {
+        sourceMode,
+        formTypes,
+        available_forms: Array.from(new Set(rawItems.map(readRawFormType).filter(Boolean))),
+      });
+    }
+  }
 
   const samples = [];
   for (const rawItem of rawItems) {
@@ -138,10 +150,13 @@ function summarize(parsed, qaSource) {
     private_placement_reference_present: Boolean(parsed.private_placement_reference),
     fee_table: parsed.fee_table,
     offering_terms: {
+      registration_statement_kind: parsed.offering_terms.registration_statement_kind?.value || null,
       offering_type: parsed.offering_terms.offering_type?.value || null,
       security_type: parsed.offering_terms.security_type?.value || null,
       primary_or_resale: parsed.offering_terms.primary_or_resale?.value || null,
       offering_amount: parsed.offering_terms.offering_amount?.text || null,
+      shelf_capacity: parsed.offering_terms.shelf_capacity?.text || null,
+      atm_program_size: parsed.offering_terms.atm_program_size?.text || null,
       resale_share_count: parsed.offering_terms.resale_share_count?.text || null,
       current_shares_outstanding: parsed.offering_terms.current_shares_outstanding?.text || null,
       warrant_coverage: parsed.offering_terms.warrant_coverage?.text || null,
@@ -187,15 +202,32 @@ async function collectDbRawItems() {
     order: "fetched_at.desc",
     limit: "500",
   });
+  const requestedForms = new Set(parseCsv(formTypes).map(normalizeFormType));
   return rows
-    .filter((row) => /^S-3/i.test(stringValue(row.raw_payload?.form_type || row.metadata?.form_type)))
+    .filter((row) => {
+      const formType = readRawFormType(row);
+      return requestedForms.size ? requestedForms.has(formType) : /^S-3/i.test(formType);
+    })
     .slice(0, limit)
     .map((row) => ({ ...row, qa_source: "db" }));
 }
 
 async function collectLiveRawItems() {
+  const forms = parseCsv(formTypes);
+  if (balancedLive && forms.length > 1) {
+    const rows = [];
+    for (const formType of forms) {
+      rows.push(...(await fetchLiveRawItemsForForms([formType], countPerForm)));
+    }
+    return rows;
+  }
+  return fetchLiveRawItemsForForms(forms, limit);
+}
+
+async function fetchLiveRawItemsForForms(forms, requestedLimit) {
+  const formQuery = forms.join(",");
   const result = await getLocalJson(
-    `/api/sources/sec/raw-preview?formTypes=${encodeURIComponent(formTypes)}&limit=${limit}&countPerForm=${Math.max(limit, 5)}&attachmentLimit=2`,
+    `/api/sources/sec/raw-preview?formTypes=${encodeURIComponent(formQuery)}&limit=${requestedLimit}&countPerForm=${requestedLimit}&attachmentLimit=2`,
   );
   if (!result?.ok) throw new Error(`live raw-preview failed: ${result?.error || "unknown error"}`);
   return Array.isArray(result.items) ? result.items.map((item) => ({ ...item, qa_source: "live" })) : [];
@@ -384,6 +416,9 @@ function printAndExit(samples) {
     sample_count: sampleList.length,
     db_sample_count: sampleList.filter((sample) => sample.qa_source === "db").length,
     live_sample_count: sampleList.filter((sample) => sample.qa_source === "live").length,
+    form_counts: countBy(sampleList, (sample) => sample.form_type || "unknown"),
+    offering_type_counts: countBy(sampleList, (sample) => sample.offering_terms?.offering_type || "unknown"),
+    selling_stockholder_sample_count: sampleList.filter((sample) => Number(sample.selling_stockholders?.count || 0) > 0).length,
     checks_passed: checks.filter((item) => item.ok).length,
     checks_failed: checks.filter((item) => !item.ok).length,
   };
@@ -395,6 +430,29 @@ function readInt(value, fallback, min, max) {
   const parsed = value ? Number(value) : fallback;
   if (!Number.isFinite(parsed)) return fallback;
   return Math.max(min, Math.min(max, Math.floor(parsed)));
+}
+
+function countBy(items, getKey) {
+  return items.reduce((acc, item) => {
+    const key = String(getKey(item) || "unknown");
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+}
+
+function parseCsv(value) {
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function readRawFormType(row) {
+  return normalizeFormType(row?.raw_payload?.form_type || row?.metadata?.form_type || row?.form_type || "");
+}
+
+function normalizeFormType(value) {
+  return stringValue(value).toUpperCase().replace(/\s+/g, "");
 }
 
 function short(value) {

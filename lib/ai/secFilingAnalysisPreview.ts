@@ -346,10 +346,13 @@ async function buildParentS3Context({
     resale_share_count: parsed.resale_share_count?.text || null,
     current_shares_outstanding: parsed.current_shares_outstanding?.text || null,
     offering_terms: {
+      registration_statement_kind: parsed.offering_terms.registration_statement_kind?.value || null,
       offering_type: parsed.offering_terms.offering_type?.value || null,
       security_type: parsed.offering_terms.security_type?.value || null,
       primary_or_resale: parsed.offering_terms.primary_or_resale?.value || null,
       offering_amount: parsed.offering_terms.offering_amount?.text || null,
+      shelf_capacity: parsed.offering_terms.shelf_capacity?.text || null,
+      atm_program_size: parsed.offering_terms.atm_program_size?.text || null,
       resale_share_count: parsed.offering_terms.resale_share_count?.text || null,
       current_shares_outstanding: parsed.offering_terms.current_shares_outstanding?.text || null,
       warrant_coverage: parsed.offering_terms.warrant_coverage?.value || null,
