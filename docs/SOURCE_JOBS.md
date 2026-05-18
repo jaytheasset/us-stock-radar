@@ -5,7 +5,7 @@ Source job configuration lives in `lib/sourceJobs.ts`.
 ## Job Routes
 
 Most routes are hosted by the existing `APP_BASE_URL` server. GlobeNewswire,
-Business Wire, PR Newswire, Newsfile, OFAC, DOJ, DEA, White House, FDA, and Nasdaq Trader are the current exceptions
+Business Wire, PR Newswire, Newsfile, Access Newswire, OFAC, DOJ, DEA, White House, FDA, and Nasdaq Trader are the current exceptions
 and use canonical Next.js ingest routes. The Next.js app exposes wrapper routes under
 `/api/source-jobs/:source/run`, but these are not called automatically because
 they can trigger collection.
@@ -16,6 +16,7 @@ they can trigger collection.
 | Business Wire | `POST /api/sources/businesswire/ingest` |
 | PR Newswire | `POST /api/sources/prnewswire/ingest` |
 | Newsfile | `POST /api/sources/newsfile/ingest` |
+| Access Newswire | `POST /api/sources/accesswire/ingest` |
 | OFAC | `POST /api/sources/ofac/ingest` |
 | DOJ | `POST /api/sources/doj/ingest` |
 | DEA | `POST /api/sources/dea/ingest` |
@@ -57,7 +58,7 @@ The wrapper defaults to:
 
 Do not add automatic polling from the Next.js UI without explicit approval.
 
-GlobeNewswire, Business Wire, PR Newswire, Newsfile, OFAC, DOJ, DEA, White House, FDA, and Nasdaq Trader wrappers execute
+GlobeNewswire, Business Wire, PR Newswire, Newsfile, Access Newswire, OFAC, DOJ, DEA, White House, FDA, and Nasdaq Trader wrappers execute
 against the current Next.js request origin so local dry-run checks hit their
 canonical routes. Other sources still use their configured `APP_BASE_URL` job
 routes.
@@ -110,6 +111,10 @@ without LLM analysis; material halt codes such as news pending, SEC suspension,
 non-compliance, filing delinquency, regulatory concern, and corporate action
 remain company-event candidates.
 
-Accesswire is not configured as a canonical source job yet. The existing env
-keys support a NAS ingest bridge, but no stable public RSS/API route has been
-confirmed in this repo.
+Access Newswire uses the public article HTML parser for individual release
+hydration and attempts the same `POST /newsroom/api` endpoint used by the
+public newsroom pages for release discovery. Current server-side direct API
+requests can return a Cloudflare challenge, so the Next.js ingest route falls
+back to the configured `ACCESSWIRE_INGEST_URL` NAS bridge when direct raw fetch
+fails. The NAS bridge URL and token must not be printed; responses only expose
+a redacted bridge host when fallback is attempted.

@@ -12,6 +12,7 @@ import { fetchGlobeNewswireRawItems, type GlobeParsedRawItem } from "@/lib/sourc
 import { fetchBusinessWireRawItems } from "@/lib/sources/businesswire/parser";
 import { fetchPRNewswireRawItems } from "@/lib/sources/prnewswire/parser";
 import { fetchNewsfileRawItems } from "@/lib/sources/newsfile/parser";
+import { fetchAccesswireRawItems } from "@/lib/sources/accesswire/parser";
 import { fetchOfacRawItems } from "@/lib/sources/ofac/parser";
 import { fetchDojRawItems } from "@/lib/sources/doj/parser";
 import { fetchDeaRawItems } from "@/lib/sources/dea/parser";
@@ -154,6 +155,20 @@ export async function runNewsfileNewsIngest(options: NewsIngestOptions = {}) {
       fetchErrorLabel: "Newsfile raw fetch failed",
       ingestErrorLabel: "Newsfile ingest error",
       fetchRawItems: fetchNewsfileRawItems as NewsSourceConfig["fetchRawItems"],
+    },
+    options,
+  );
+}
+
+export async function runAccesswireNewsIngest(options: NewsIngestOptions = {}) {
+  return runNewsIngestForSource(
+    {
+      sourceCode: "accesswire",
+      sourceName: "Access Newswire",
+      parserName: "accesswire",
+      fetchErrorLabel: "Access Newswire raw fetch failed",
+      ingestErrorLabel: "Access Newswire ingest error",
+      fetchRawItems: fetchAccesswireRawItems as NewsSourceConfig["fetchRawItems"],
     },
     options,
   );
@@ -1539,6 +1554,7 @@ function sourceDisplayName(sourceCode: string) {
   if (sourceCode === "businesswire") return "Business Wire";
   if (sourceCode === "prnewswire") return "PR Newswire";
   if (sourceCode === "newsfile") return "Newsfile";
+  if (sourceCode === "accesswire") return "Access Newswire";
   if (sourceCode === "ofac") return "OFAC";
   if (sourceCode === "doj") return "DOJ";
   if (sourceCode === "dea") return "DEA";

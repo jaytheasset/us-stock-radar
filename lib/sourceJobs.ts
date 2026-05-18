@@ -97,6 +97,22 @@ export const sourceJobs: SourceJob[] = [
     ],
   },
   {
+    source: "accesswire",
+    label: "Access Newswire",
+    jobRoute: "/api/sources/accesswire/ingest",
+    sourceUrls: [
+      {
+        label: "Access Newswire public newsroom",
+        primary: true,
+        url: "https://www.accessnewswire.com/newsroom",
+      },
+      {
+        label: "Access Newswire newsroom API used by public newsroom pages",
+        url: "https://www.accessnewswire.com/newsroom/api",
+      },
+    ],
+  },
+  {
     source: "ofac",
     label: "OFAC",
     jobRoute: "/api/sources/ofac/ingest",
@@ -310,6 +326,7 @@ export async function runSourceJob(
         source === "businesswire" ||
         source === "prnewswire" ||
         source === "newsfile" ||
+        source === "accesswire" ||
         source === "ofac" ||
         source === "doj" ||
         source === "dea" ||
