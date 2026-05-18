@@ -542,6 +542,7 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
 
         if (dryRun) {
           const dryRunScore = clampScore(numberValue(analysis.score));
+          const dryRunDisplay = displayLevelForAnalysis(analysis, dryRunScore);
           const effectiveCoverage = duplicateDecision || coverage;
           if (effectiveCoverage.dropEvent) {
             stats.skipped_count += 1;
@@ -571,13 +572,15 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
                   action: "skip_event",
                   reason: effectiveCoverage.reason,
                   decision: effectiveCoverage.decision,
-                  computed_delivery_level: deliveryLevelFromScore(dryRunScore),
-                  computed_impact: impactFromScore(dryRunScore),
+                  computed_delivery_level: dryRunDisplay.deliveryLevel,
+                  computed_impact: dryRunDisplay.impact,
+                  display_reason: dryRunDisplay.reason,
                 }
               : {
                   action: "persist_event",
-                  computed_delivery_level: deliveryLevelFromScore(dryRunScore),
-                  computed_impact: impactFromScore(dryRunScore),
+                  computed_delivery_level: dryRunDisplay.deliveryLevel,
+                  computed_impact: dryRunDisplay.impact,
+                  display_reason: dryRunDisplay.reason,
                 },
             ticker_proxies: tickerProxies,
             ticker_canonicalization: {
@@ -835,7 +838,7 @@ async function persistAnalyzedEvent({
   const groupDedupeKey = buildGroupDedupeKey(rawItem);
   const existing = await findExistingEvent(groupDedupeKey);
   const id = stringValue(existing?.id) || randomUUID();
-  const deliveryLevel = deliveryLevelFromScore(score);
+  const displayLevel = displayLevelForAnalysis(analysis, score);
   const sourceEvidence = sourceEvidenceForNewsItem(config, rawItem);
   const payload = {
     id,
@@ -849,8 +852,8 @@ async function persistAnalyzedEvent({
     market: primaryTicker.exchange,
     event_type: eventType,
     score,
-    delivery_level: deliveryLevel,
-    impact: impactFromScore(score),
+    delivery_level: displayLevel.deliveryLevel,
+    impact: displayLevel.impact,
     signal,
     market_scope: marketScope,
     sector: nullableString(analysis.sector),
@@ -875,6 +878,7 @@ async function persistAnalyzedEvent({
       openai_response_id: openAiResponseId,
       prompt_key: promptKey,
       prompt_version: promptVersion,
+      display_decision: displayLevel.reason || null,
       source_unique_id: rawItem.source_unique_id,
       body_tickers: analysis.tickers || [],
       related_tickers: analysis.related_tickers || [],
@@ -1665,6 +1669,29 @@ function impactFromScore(score: number): Impact {
   if (score >= 75) return "high";
   if (score >= 50) return "medium";
   return "low";
+}
+
+function displayLevelForAnalysis(
+  analysis: Record<string, unknown>,
+  score: number,
+): { deliveryLevel: DeliveryLevel; impact: Impact; reason: string | null } {
+  const primaryTicker = readPrimaryTicker(analysis);
+  const hasUsTicker = hasUsListedTicker(analysis, primaryTicker);
+  const eventType = stringValue(analysis.event_type);
+
+  if (eventType === "fda_clinical" && !hasUsTicker) {
+    return {
+      deliveryLevel: "archive",
+      impact: "low",
+      reason: "tickerless_fda_clinical_archive_only",
+    };
+  }
+
+  return {
+    deliveryLevel: deliveryLevelFromScore(score),
+    impact: impactFromScore(score),
+    reason: null,
+  };
 }
 
 function analysisScopeFromMarketScope(value: MarketScope): AnalysisScope {
