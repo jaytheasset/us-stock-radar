@@ -98,6 +98,11 @@ Vaccines/Blood/Biologics, and MedWatch Safety Alerts. The parser hydrates FDA
 page body HTML, keeps full text for display, and tags static databases,
 conference/training pages, guidance indexes, and static product-label pages as
 `low_value_filtered` before LLM analysis.
+The FDA Next.js ingest route tries the direct parser first. If direct FDA raw
+fetch fails, it falls back to the configured `FDA_INGEST_URL` NAS bridge and
+passes the same `limit`, `dryRun`, `force`, and `sourceUniqueId` options. The
+NAS bridge URL and token must not be printed; responses only expose a redacted
+bridge host when fallback is attempted.
 
 Nasdaq Trader uses the official trade-halts RSS feed. Short volatility-pause
 codes such as `LUDP` and `M` are treated as deterministic ticker archive items
