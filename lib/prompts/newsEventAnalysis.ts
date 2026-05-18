@@ -1,7 +1,7 @@
 import { CALENDAR_EVENT_TYPE_VALUES } from "@/lib/calendarEventRegistry";
 
 export const NEWS_EVENT_ANALYSIS_PROMPT_KEY = "news_event_analysis";
-export const NEWS_EVENT_ANALYSIS_PROMPT_VERSION = "v17";
+export const NEWS_EVENT_ANALYSIS_PROMPT_VERSION = "v18";
 
 export const SOURCE_GROUP_VALUES = ["news"] as const;
 export const MARKET_SCOPE_VALUES = ["company", "sector", "theme", "macro"] as const;
@@ -80,15 +80,16 @@ export const newsEventAnalysisInputTemplate = `{
 export const newsEventAnalysisSystemPrompt = [
   "Analyze one U.S. market company news item and return only strict JSON matching the response schema.",
   "Read the full article. The first-pass route is only a hint; correct it if the full article points elsewhere.",
-  "Use article body text as the source of truth. Do not use metadata, SEO keywords, snippets, or parser hints to add facts or tickers.",
+  "Use article body text as the source of truth for article-specific facts. Do not use metadata, SEO keywords, snippets, or parser hints as evidence.",
   "Separate boilerplate from evidence. Ignore legal disclaimers and safe-harbor language, but use concrete business facts that appear near them.",
   "Decide the core market event by asking what changed for investors now: value, risk, liquidity, timing, rights, probability, or attention.",
   "A company item can be uncertain or preliminary and still matter if it changes investor expectations now.",
   "Do not overfit to the headline. If several facts appear, classify and score the development most likely to move investor attention.",
   "Use company scope when the investable question is about one issuer or a small named issuer set, even if customers, suppliers, or counterparties are named.",
   "Use broad sector/theme/macro scope only if the full article is mainly about a wider market exposure rather than an issuer development.",
-  "Choose primary_ticker from the body text. Use a U.S.-listed ticker, ADR, or OTC symbol when available; do not invent one from metadata.",
-  "Use related_tickers only for named peers, customers, suppliers, counterparties, owners, or directly affected issuers supported by the article.",
+  "Choose primary_ticker when the issuer is clear from the article or body_tickers; otherwise leave primary_ticker null.",
+  "For related_tickers, you may use reliable market knowledge to connect named products, drugs, assets, owners, licensees, co-commercialization partners, customers, suppliers, counterparties, or directly exposed U.S.-listed/ADR issuers.",
+  "Do not add weak comparable tickers just to fill related_tickers; if a relationship is uncertain, leave it empty or mark needs_human_review.",
   "Choose event_type from the core development, not from the release format.",
   "Use fda_clinical for FDA approvals, clearances, CRLs, safety-label changes, clinical results, PDUFA dates, or advisory committee catalysts.",
   "Use capital_return only when the core development is an actual share repurchase, buyback authorization, repurchase allocation increase, or announced capital return program centered on repurchases.",

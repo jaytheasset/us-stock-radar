@@ -1,6 +1,7 @@
 import { getServerEnv } from "@/lib/env";
 import { evaluateCalendarItemPolicy } from "@/lib/calendarPolicy";
 import { buildNewsEventAnalysisPrompt, type NewsEventAnalysisInput } from "@/lib/prompts/newsEventAnalysis";
+import { buildNewsClinicalFdaAnalysisPrompt } from "@/lib/prompts/newsClinicalFdaAnalysis";
 import {
   buildNewsRouteClassificationPrompt,
   type NewsRouteClassification,
@@ -118,6 +119,7 @@ export async function runNewsEventAnalysisPreview(options: PreviewOptions = {}) 
   const input = buildInputFromGlobeRawItem(rawItem);
   const routePrompt = buildNewsRouteClassificationPrompt(input);
   const prompt = buildNewsEventAnalysisPrompt(input);
+  const clinicalFdaPrompt = buildNewsClinicalFdaAnalysisPrompt(input, null);
   const sectorThemePolicyPrompt = buildNewsSectorThemePolicyAnalysisPrompt(input, null);
 
   if (options.dryRun) {
@@ -138,6 +140,12 @@ export async function runNewsEventAnalysisPreview(options: PreviewOptions = {}) 
           version: prompt.version,
           system: prompt.system,
           responseFormat: prompt.responseFormat,
+        },
+        clinical_fda: {
+          key: clinicalFdaPrompt.key,
+          version: clinicalFdaPrompt.version,
+          system: clinicalFdaPrompt.system,
+          responseFormat: clinicalFdaPrompt.responseFormat,
         },
         broad_market: {
           key: sectorThemePolicyPrompt.key,
@@ -265,9 +273,7 @@ export async function runNewsEventAnalysisForRawItem(
     };
   }
 
-  const prompt = routeClassification.route === "broad_market"
-    ? buildNewsSectorThemePolicyAnalysisPrompt(input, routeClassification)
-    : buildNewsEventAnalysisPrompt(input, routeClassification);
+  const prompt = buildSecondPassNewsAnalysisPrompt(input, routeClassification);
 
   const analysisResponse = await runStructuredOpenAiJson({
     apiKey: env.openAiApiKey,
@@ -502,10 +508,20 @@ function normalizeNewsRouteClassification(value: Record<string, unknown> | null)
   const route = readString(value.route);
   const confidence = readString(value.confidence);
   return {
-    route: route === "broad_market" || route === "skip" ? route : "company",
+    route: route === "clinical_fda" || route === "broad_market" || route === "skip" ? route : "company",
     confidence: confidence === "high" || confidence === "low" ? confidence : "medium",
     reason: readString(value.reason) || "",
   };
+}
+
+function buildSecondPassNewsAnalysisPrompt(input: NewsEventAnalysisInput, routeClassification: NewsRouteClassification) {
+  if (routeClassification.route === "clinical_fda") {
+    return buildNewsClinicalFdaAnalysisPrompt(input, routeClassification);
+  }
+  if (routeClassification.route === "broad_market") {
+    return buildNewsSectorThemePolicyAnalysisPrompt(input, routeClassification);
+  }
+  return buildNewsEventAnalysisPrompt(input, routeClassification);
 }
 
 function normalizeNewsAnalysis(analysis: Record<string, unknown> | null, input: NewsEventAnalysisInput) {

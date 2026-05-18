@@ -6,6 +6,12 @@ import {
   newsEventAnalysisSystemPrompt,
 } from "@/lib/prompts/newsEventAnalysis";
 import {
+  NEWS_CLINICAL_FDA_ANALYSIS_PROMPT_KEY,
+  NEWS_CLINICAL_FDA_ANALYSIS_PROMPT_VERSION,
+  newsClinicalFdaAnalysisInputTemplate,
+  newsClinicalFdaAnalysisSystemPrompt,
+} from "@/lib/prompts/newsClinicalFdaAnalysis";
+import {
   NEWS_ROUTE_CLASSIFICATION_PROMPT_KEY,
   NEWS_ROUTE_CLASSIFICATION_PROMPT_VERSION,
   newsRouteClassificationResponseSchema,
@@ -50,9 +56,9 @@ export const promptTemplates: PromptTemplateDraft[] = [
     status: "draft",
     owner: "ai",
     inputTables: ["raw_items"],
-    outputTarget: "runtime route: company vs sector/theme/policy",
+    outputTarget: "runtime route: company vs clinical/FDA vs sector/theme/policy",
     notes:
-      "First-pass classifier that decides whether a news item should be skipped or use the company or broad-market analysis prompt.",
+      "First-pass classifier that decides whether a news item should be skipped or use the company, clinical/FDA, or broad-market analysis prompt.",
     systemPrompt: newsRouteClassificationSystemPrompt,
     userInputTemplate: newsEventAnalysisInputTemplate,
     responseSchema: newsRouteClassificationResponseSchema,
@@ -92,6 +98,23 @@ export const promptTemplates: PromptTemplateDraft[] = [
     responseSchema: newsEventAnalysisResponseSchema,
     runtimeNotes:
       "Used after news_route_classification returns broad_market. Runtime does not inspect article keywords for proxies.",
+  },
+  {
+    key: NEWS_CLINICAL_FDA_ANALYSIS_PROMPT_KEY,
+    version: NEWS_CLINICAL_FDA_ANALYSIS_PROMPT_VERSION,
+    task: "Clinical and FDA news analysis",
+    model: "gpt-5-mini",
+    status: "draft",
+    owner: "ai",
+    inputTables: ["raw_items"],
+    outputTarget: "events + event_analysis + event_tickers + event_calendar_items",
+    notes:
+      "Dedicated source-neutral clinical/FDA analysis. Any news source can route here when the article's market question is clinical, FDA, drug, device, diagnostic, or biopharma.",
+    systemPrompt: newsClinicalFdaAnalysisSystemPrompt,
+    userInputTemplate: newsClinicalFdaAnalysisInputTemplate,
+    responseSchema: newsEventAnalysisResponseSchema,
+    runtimeNotes:
+      "Used after news_route_classification returns clinical_fda. Ticker linkage is useful for navigation but not the reason an investable clinical/FDA catalyst exists.",
   },
   {
     key: "press_release_event_enrichment",
