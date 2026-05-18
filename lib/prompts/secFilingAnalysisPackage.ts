@@ -1,3 +1,5 @@
+import { parseSecS3Filing } from "@/lib/sources/sec/s3Parser";
+
 export const SEC_FILING_PACKAGE_VERSION = "sec_filing_package_v1";
 
 export type SecFilingPackageOptions = {
@@ -52,6 +54,7 @@ export function buildSecFilingAnalysisPackage(rawItem: RawItemRow, options: SecF
     documents.find((document) => Boolean(document.isPrimary))?.url ||
     null;
   const formType = nullableString(rawPayload.form_type) || nullableString(metadata.form_type);
+  const hardParsers = buildHardParserFacts(rawItem, formType);
   const packageDocuments = documents.map((document) => ({
     type: nullableString(document.type),
     description: nullableString(document.description),
@@ -87,6 +90,8 @@ export function buildSecFilingAnalysisPackage(rawItem: RawItemRow, options: SecF
     tickers: Array.isArray(rawPayload.tickers) ? rawPayload.tickers : [],
     form_type: formType,
     form_family: classifySecFormFamily(formType),
+    analysis_strategy: readAnalysisStrategy(hardParsers),
+    hard_parsers: hardParsers,
     filed_at: nullableString(rawItem.published_at),
     title: nullableString(rawItem.title),
     filing_detail_url: nullableString(rawItem.source_url),
@@ -122,6 +127,66 @@ export function classifySecFormFamily(formType: string | null) {
   if (form.startsWith("SC 13")) return "ownership";
   if (form.startsWith("SC TO") || form === "CB" || form === "CB/A") return "tender_offer";
   return "other";
+}
+
+function buildHardParserFacts(rawItem: RawItemRow, formType: string | null) {
+  if (/^S-3(?:ASR|\/A)?$/i.test(stringValue(formType))) {
+    const parsed = parseSecS3Filing({
+      rawItemId: nullableString(rawItem.id),
+      sourceUniqueId: nullableString(rawItem.source_unique_id),
+      sourceUrl: nullableString(rawItem.source_url),
+      title: nullableString(rawItem.title),
+      publishedAt: nullableString(rawItem.published_at),
+      bodyText: nullableString(rawItem.body_text),
+      analysisText: nullableString(rawItem.analysis_text),
+      rawPayload: rawItem.raw_payload,
+      metadata: rawItem.metadata,
+    });
+
+    return {
+      s3: {
+        parser_version: parsed.parser_version,
+        form_type: parsed.form_type,
+        is_s3_family: parsed.is_s3_family,
+        registration_statement_kind: parsed.registration_statement_kind?.value || null,
+        registration_status: parsed.registration_status?.value || null,
+        prospectus_status: parsed.prospectus_status?.value || null,
+        primary_or_resale: parsed.primary_or_resale?.value || null,
+        securities_registered: parsed.securities_registered.map((item) => item.value),
+        shares_registered: parsed.shares_registered?.text || null,
+        resale_share_count: parsed.resale_share_count?.text || null,
+        current_shares_outstanding: parsed.current_shares_outstanding?.text || null,
+        selling_stockholders: {
+          count: parsed.selling_stockholders.length,
+          rows: parsed.selling_stockholders.map((holder) => ({
+            holder_name: holder.holder_name,
+            shares_offered_for_resale: holder.shares_offered_for_resale?.text || null,
+            beneficially_owned_before: holder.beneficially_owned_before?.text || null,
+            beneficially_owned_after: holder.beneficially_owned_after?.text || null,
+            percent_after: holder.percent_after?.text || null,
+          })),
+        },
+        fee_table: {
+          present: parsed.fee_table.present,
+          text_available: parsed.fee_table.text_available,
+          row_count: parsed.fee_table.rows.length,
+          total_offering_amount: parsed.fee_table.totals.total_offering_amount?.text || null,
+          net_fee_due: parsed.fee_table.totals.net_fee_due?.text || null,
+        },
+        amendment: parsed.amendment.router_payload,
+        analysis_strategy: parsed.amendment.analysis_strategy,
+        needs_human_review: parsed.needs_human_review,
+        review_reasons: parsed.review_reasons,
+      },
+    };
+  }
+
+  return {};
+}
+
+function readAnalysisStrategy(hardParsers: Record<string, unknown>) {
+  const s3 = toRecord(hardParsers.s3);
+  return stringValue(s3?.analysis_strategy) || "full_analysis_current_filing";
 }
 
 function buildTextSections({

@@ -43,13 +43,22 @@ try {
     check(`${summary.qa_source} ${summary.accession_number} recognizes S-3 family`, parsed.is_s3_family, summary);
     check(`${summary.qa_source} ${summary.accession_number} sees primary document`, parsed.documents.some((document) => document.is_primary), summary);
     check(`${summary.qa_source} ${summary.accession_number} extracts registration status`, Boolean(parsed.registration_status?.value), summary);
-    check(`${summary.qa_source} ${summary.accession_number} extracts primary/resale`, Boolean(parsed.primary_or_resale?.value), summary);
+    if (!parsed.amendment.requires_parent_registration_context) {
+      check(`${summary.qa_source} ${summary.accession_number} extracts primary/resale`, Boolean(parsed.primary_or_resale?.value), summary);
+    }
+    if (parsed.amendment.is_amendment) {
+      check(`${summary.qa_source} ${summary.accession_number} extracts amendment number`, Boolean(parsed.amendment.amendment_number?.value), summary);
+      check(`${summary.qa_source} ${summary.accession_number} extracts registration number`, Boolean(parsed.amendment.registration_number?.value), summary);
+      check(`${summary.qa_source} ${summary.accession_number} selects amendment analysis strategy`, Boolean(parsed.amendment.analysis_strategy), summary);
+    }
     check(`${summary.qa_source} ${summary.accession_number} extracts securities`, parsed.securities_registered.length > 0, summary);
     if (parsed.primary_or_resale?.value === "resale" && parsed.selling_stockholders_section) {
       check(`${summary.qa_source} ${summary.accession_number} extracts selling stockholder rows`, parsed.selling_stockholders.length > 0, summary);
     }
-    check(`${summary.qa_source} ${summary.accession_number} lists fee table document`, parsed.fee_table.present, summary);
-    if (fetchFeeTable) {
+    if (!parsed.amendment.is_amendment || parsed.fee_table.present) {
+      check(`${summary.qa_source} ${summary.accession_number} lists fee table document`, parsed.fee_table.present, summary);
+    }
+    if (fetchFeeTable && parsed.fee_table.present) {
       check(`${summary.qa_source} ${summary.accession_number} extracts fee table row`, parsed.fee_table.rows.length > 0, summary);
     }
     check(`${summary.qa_source} ${summary.accession_number} extracts at least six facts`, parsed.extracted_field_count >= 6, summary);
@@ -91,6 +100,22 @@ function summarize(parsed, qaSource) {
     registration_statement_kind: parsed.registration_statement_kind?.value || null,
     registration_status: parsed.registration_status?.value || null,
     prospectus_status: parsed.prospectus_status?.value || null,
+    amendment: {
+      is_amendment: parsed.amendment.is_amendment,
+      amendment_number: parsed.amendment.amendment_number?.text || null,
+      registration_number: parsed.amendment.registration_number?.value || null,
+      amendment_type: parsed.amendment.amendment_type?.value || null,
+      includes_full_prospectus: parsed.amendment.includes_full_prospectus,
+      unchanged_remainder_not_included: parsed.amendment.unchanged_remainder_not_included,
+      requires_parent_registration_context: parsed.amendment.requires_parent_registration_context,
+      analysis_strategy: parsed.amendment.analysis_strategy,
+      added_exhibits: parsed.amendment.added_exhibits.map((document) =>
+        [document.type, document.description].filter(Boolean).join(" - "),
+      ),
+      routine_archive_signals: parsed.amendment.routine_archive_signals.map((signal) => signal.value),
+      material_change_signals: parsed.amendment.material_change_signals.map((signal) => signal.value),
+      amendment_excerpt_present: Boolean(parsed.amendment.amendment_excerpt),
+    },
     primary_or_resale: parsed.primary_or_resale?.value || null,
     securities_registered: parsed.securities_registered.map((item) => item.value),
     shares_registered: parsed.shares_registered?.text || null,

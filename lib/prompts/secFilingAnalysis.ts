@@ -9,7 +9,7 @@ import {
 } from "@/lib/prompts/newsEventAnalysis";
 
 export const SEC_FILING_ANALYSIS_PROMPT_KEY = "sec_filing_analysis";
-export const SEC_FILING_ANALYSIS_PROMPT_VERSION = "v1";
+export const SEC_FILING_ANALYSIS_PROMPT_VERSION = "v2";
 
 export const SEC_EVENT_TYPE_VALUES = [
   "listing_risk",
@@ -24,6 +24,7 @@ export const SEC_EVENT_TYPE_VALUES = [
   "financial_risk",
   "legal_risk",
   "dividends",
+  "capital_return",
   "fda_clinical",
   "other",
 ] as const;
@@ -46,6 +47,10 @@ export const secFilingAnalysisSystemPrompt = [
   "Do not infer market_scope from ticker count alone. A merger, financing, contract, or litigation filing with multiple tickers can still be company-scoped.",
   "Set related_tickers only when the filing clearly names affected peers, customers, suppliers, counterparties, acquirers, targets, or financing parties.",
   "Do not generate related news. Related news is resolved later from the database.",
+  "If filing_package.analysis_strategy is routine_amendment_archive, do not re-analyze the parent registration; return archive-level output only.",
+  "If filing_package.analysis_strategy is cheap_amendment_router, judge only whether the amendment changes offering economics, resale overhang, selling holders, fee table, distribution plan, or material terms.",
+  "For S-3/A amendments, do not treat exhibit-only, consent-only, signature, or unchanged-remainder filings as fresh dilution events.",
+  "If an S-3/A amendment has material change signals, focus the analysis on the changed terms and reference parent registration context only when supplied.",
   "Extract calendar_items only for scheduled investor-relevant dates or deadlines stated in the filing.",
   "Use calendar_items for earnings releases/calls, shareholder meetings/votes, dividend dates, reverse split effective dates, listing/deal deadlines, tender/rights/warrant expirations, offering closings, merger votes/closings, FDA/clinical dates, investor events, court hearings, and policy/effective dates.",
   "A webcast, conference call, or audio call tied to financial results must be earnings_call, not investor_day or conference_presentation.",
@@ -56,8 +61,10 @@ export const secFilingAnalysisSystemPrompt = [
   "An expected Form 10-K, Form 10-Q, amended report, restatement, or other SEC filing date must be sec_filing_due_date.",
   "Do not add calendar_items for the filing date itself unless the filing explicitly says the event occurs on that date.",
   "Do not add calendar_items for generic contract payment terms, ordinary fee payment mechanics, or legal boilerplate dates.",
+  "Do not add calendar_items for product launch, product rollout, platform availability, contract start, deployment target, project completion, first production, expected revenue start, or management roadmap dates; put them in what_to_watch_next instead.",
   "Do not add calendar_items for Form 4 equity-award vesting schedules, RSU vesting, option vesting, or insider grant vesting dates.",
   "Never add calendar_items for tax-status, tax-exemption, withholding documentation, proxy mailing/distribution dates, board response deadlines, or legal position-statement deadlines.",
+  "For buybacks, share repurchase authorizations, repurchase allocation increases, or repurchase-led capital return programs use capital_return. For dividend-led events use dividends.",
   "Exact dates from SEC filings are filing-confirmed schedules. Use date_precision exact, is_estimated false, confidence high when the date is explicit.",
   "If the filing gives only a vague month, quarter, year, or target window, set is_estimated true, date_precision accordingly, and use estimated_start_date/estimated_end_date when possible.",
   "If no useful scheduled event exists, return an empty calendar_items array.",
