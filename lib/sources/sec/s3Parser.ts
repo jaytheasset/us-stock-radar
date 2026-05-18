@@ -98,36 +98,25 @@ export type SecS3SellingStockholderRow = {
   confidence: "high" | "medium" | "low";
 };
 
-export type SecS3AmendmentAnalysisStrategy =
-  | "full_analysis_current_filing"
-  | "routine_amendment_archive"
-  | "cheap_amendment_router"
-  | "material_amendment_analysis_with_parent";
-
 export type SecS3AmendmentInfo = {
   is_amendment: boolean;
   amendment_number: SecS3CountField | null;
   registration_number: SecS3Field | null;
-  amendment_type: SecS3Field | null;
   includes_full_prospectus: boolean;
   unchanged_remainder_not_included: boolean;
-  requires_parent_registration_context: boolean;
   added_exhibits: SecS3DocumentSummary[];
-  routine_archive_signals: SecS3Field[];
-  material_change_signals: SecS3Field[];
-  analysis_strategy: SecS3AmendmentAnalysisStrategy;
+  limited_scope_signal_candidates: SecS3Field[];
+  change_signal_candidates: SecS3Field[];
   router_payload: {
     form_type: string | null;
     accession_number: string | null;
     registration_number: string | null;
     amendment_number: number | null;
-    amendment_type: string | null;
     includes_full_prospectus: boolean;
     unchanged_remainder_not_included: boolean;
-    requires_parent_registration_context: boolean;
     added_exhibits: string[];
-    routine_archive_signals: string[];
-    material_change_signals: string[];
+    limited_scope_signal_candidates: string[];
+    change_signal_candidates: string[];
     amendment_excerpt: string | null;
   };
   amendment_excerpt: string | null;
@@ -453,57 +442,32 @@ function buildS3AmendmentInfo({
   const registrationNumber = isS3Family(formType) ? findRegistrationNumber(s3Text) : null;
   const amendmentExcerpt = isAmendment ? extractAmendmentExcerpt(s3Text) : null;
   const addedExhibits = isAmendment ? documents.filter((document) => isS3AmendmentAddedExhibit(document)) : [];
-  const routineArchiveSignals = isAmendment ? findRoutineAmendmentSignals(amendmentExcerpt || s3Text) : [];
-  const materialChangeSignals = isAmendment ? findMaterialAmendmentSignals(amendmentExcerpt || s3Text) : [];
+  const limitedScopeSignals = isAmendment ? findLimitedScopeAmendmentSignalCandidates(amendmentExcerpt || s3Text) : [];
+  const changeSignals = isAmendment ? findAmendmentChangeSignalCandidates(amendmentExcerpt || s3Text) : [];
   const unchangedRemainderNotIncluded = /\b(?:remainder|rest)\s+of\s+the\s+registration\s+statement[\s\S]{0,180}?\bunchanged\b[\s\S]{0,180}?\bnot\s+been\s+included\b/i.test(
     amendmentExcerpt || s3Text,
   );
   const includesFullProspectus = isAmendment ? hasFullProspectusText(s3Text) && !unchangedRemainderNotIncluded : false;
-  const amendmentType = isAmendment
-    ? findS3AmendmentType({
-        addedExhibits,
-        amendmentExcerpt,
-        includesFullProspectus,
-        materialChangeSignals,
-        routineArchiveSignals,
-        unchangedRemainderNotIncluded,
-      })
-    : null;
-  const analysisStrategy = chooseS3AmendmentAnalysisStrategy({
-    amendmentType,
-    isAmendment,
-    materialChangeSignals,
-    routineArchiveSignals,
-    unchangedRemainderNotIncluded,
-  });
-  const requiresParentRegistrationContext =
-    analysisStrategy === "material_amendment_analysis_with_parent" ||
-    (isAmendment && (unchangedRemainderNotIncluded || amendmentType?.value === "exhibit_only" || amendmentType?.value === "part_ii_only"));
 
   return {
     is_amendment: isAmendment,
     amendment_number: amendmentNumber,
     registration_number: registrationNumber,
-    amendment_type: amendmentType,
     includes_full_prospectus: includesFullProspectus,
     unchanged_remainder_not_included: unchangedRemainderNotIncluded,
-    requires_parent_registration_context: requiresParentRegistrationContext,
     added_exhibits: addedExhibits,
-    routine_archive_signals: routineArchiveSignals,
-    material_change_signals: materialChangeSignals,
-    analysis_strategy: analysisStrategy,
+    limited_scope_signal_candidates: limitedScopeSignals,
+    change_signal_candidates: changeSignals,
     router_payload: {
       form_type: formType,
       accession_number: accessionNumber,
       registration_number: registrationNumber?.value || null,
       amendment_number: amendmentNumber?.value || null,
-      amendment_type: amendmentType?.value || null,
       includes_full_prospectus: includesFullProspectus,
       unchanged_remainder_not_included: unchangedRemainderNotIncluded,
-      requires_parent_registration_context: requiresParentRegistrationContext,
       added_exhibits: addedExhibits.map(formatDocumentLabel),
-      routine_archive_signals: routineArchiveSignals.map((signal) => signal.value),
-      material_change_signals: materialChangeSignals.map((signal) => signal.value),
+      limited_scope_signal_candidates: limitedScopeSignals.map((signal) => signal.value),
+      change_signal_candidates: changeSignals.map((signal) => signal.value),
       amendment_excerpt: amendmentExcerpt,
     },
     amendment_excerpt: amendmentExcerpt,
@@ -562,7 +526,7 @@ function extractNamedSection(text: string, heading: string, stopHeadings: string
   return compactText(source.slice(0, end));
 }
 
-function findRoutineAmendmentSignals(text: string): SecS3Field[] {
+function findLimitedScopeAmendmentSignalCandidates(text: string): SecS3Field[] {
   const signals: Array<[string, RegExp]> = [
     ["sole_purpose_exhibit_filing", /\bsole\s+purpose\b[\s\S]{0,180}?\bfiling\s+Exhibit\b/i],
     ["consists_solely_of_limited_sections", /\bconsists\s+solely\s+of\b[\s\S]{0,220}?\b(?:cover page|explanatory note|part ii|exhibit|signature pages?)\b/i],
@@ -572,7 +536,7 @@ function findRoutineAmendmentSignals(text: string): SecS3Field[] {
   return uniqueFields(signals.map(([value, pattern]) => field(value, text, pattern, "high")).filter(Boolean) as SecS3Field[]);
 }
 
-function findMaterialAmendmentSignals(text: string): SecS3Field[] {
+function findAmendmentChangeSignalCandidates(text: string): SecS3Field[] {
   const signals: Array<[string, RegExp]> = [
     ["offering_amount_change", /\b(?:increase|increased|decrease|decreased|change|changed|amend|amended|update|updated)[^.\n]{0,180}?\b(?:offering amount|maximum aggregate offering price|aggregate offering price|shelf amount)\b/i],
     ["shares_registered_change", /\b(?:increase|increased|decrease|decreased|change|changed|amend|amended|update|updated)[^.\n]{0,180}?\b(?:shares registered|shares being registered|number of shares|securities being registered)\b/i],
@@ -584,57 +548,6 @@ function findMaterialAmendmentSignals(text: string): SecS3Field[] {
     ["post_effective_amendment", /\bpost-effective amendment\b/i],
   ];
   return uniqueFields(signals.map(([value, pattern]) => field(value, text, pattern, "medium")).filter(Boolean) as SecS3Field[]);
-}
-
-function findS3AmendmentType({
-  addedExhibits,
-  amendmentExcerpt,
-  includesFullProspectus,
-  materialChangeSignals,
-  routineArchiveSignals,
-  unchangedRemainderNotIncluded,
-}: {
-  addedExhibits: SecS3DocumentSummary[];
-  amendmentExcerpt: string | null;
-  includesFullProspectus: boolean;
-  materialChangeSignals: SecS3Field[];
-  routineArchiveSignals: SecS3Field[];
-  unchangedRemainderNotIncluded: boolean;
-}): SecS3Field {
-  const evidence = amendmentExcerpt || "S-3/A amendment filing.";
-  if (materialChangeSignals.length) {
-    return { value: "material_terms_amendment", evidence: materialChangeSignals[0]?.evidence || evidence, confidence: "medium" };
-  }
-  if (unchangedRemainderNotIncluded && addedExhibits.length) {
-    return { value: "exhibit_only", evidence, confidence: "high" };
-  }
-  if (unchangedRemainderNotIncluded || routineArchiveSignals.length) {
-    return { value: "part_ii_only", evidence, confidence: "high" };
-  }
-  if (includesFullProspectus) {
-    return { value: "full_amendment", evidence, confidence: "medium" };
-  }
-  return { value: "unknown_amendment", evidence, confidence: "low" };
-}
-
-function chooseS3AmendmentAnalysisStrategy({
-  amendmentType,
-  isAmendment,
-  materialChangeSignals,
-  routineArchiveSignals,
-  unchangedRemainderNotIncluded,
-}: {
-  amendmentType: SecS3Field | null;
-  isAmendment: boolean;
-  materialChangeSignals: SecS3Field[];
-  routineArchiveSignals: SecS3Field[];
-  unchangedRemainderNotIncluded: boolean;
-}): SecS3AmendmentAnalysisStrategy {
-  if (!isAmendment) return "full_analysis_current_filing";
-  if (materialChangeSignals.length) return "material_amendment_analysis_with_parent";
-  if (unchangedRemainderNotIncluded && routineArchiveSignals.length) return "routine_amendment_archive";
-  if (amendmentType?.value === "exhibit_only") return "routine_amendment_archive";
-  return "cheap_amendment_router";
 }
 
 function hasFullProspectusText(text: string) {
@@ -1480,7 +1393,7 @@ function buildReviewReasons({
   if (!isS3Family(formType)) reasons.push("not_s3_family");
   if (!s3Text) reasons.push("no_text_available");
   if (!registrationStatus) reasons.push("registration_status_not_found");
-  if (!primaryOrResale && !amendment.requires_parent_registration_context) reasons.push("primary_or_resale_not_found");
+  if (!primaryOrResale && !amendment.is_amendment) reasons.push("primary_or_resale_not_found");
   if (!securitiesRegistered.length) reasons.push("securities_registered_not_found");
   if (!sharesRegistered && primaryOrResale?.value === "resale") reasons.push("resale_share_count_not_found");
   if (primaryOrResale?.value === "resale" && /\bselling\s+(?:stockholders?|shareholders?)\b/i.test(s3Text) && !sellingStockholders.length) {

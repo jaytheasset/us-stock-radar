@@ -90,7 +90,6 @@ export function buildSecFilingAnalysisPackage(rawItem: RawItemRow, options: SecF
     tickers: Array.isArray(rawPayload.tickers) ? rawPayload.tickers : [],
     form_type: formType,
     form_family: classifySecFormFamily(formType),
-    analysis_strategy: readAnalysisStrategy(hardParsers),
     hard_parsers: hardParsers,
     filed_at: nullableString(rawItem.published_at),
     title: nullableString(rawItem.title),
@@ -174,7 +173,6 @@ function buildHardParserFacts(rawItem: RawItemRow, formType: string | null) {
           net_fee_due: parsed.fee_table.totals.net_fee_due?.text || null,
         },
         amendment: parsed.amendment.router_payload,
-        analysis_strategy: parsed.amendment.analysis_strategy,
         needs_human_review: parsed.needs_human_review,
         review_reasons: parsed.review_reasons,
       },
@@ -183,12 +181,6 @@ function buildHardParserFacts(rawItem: RawItemRow, formType: string | null) {
 
   return {};
 }
-
-function readAnalysisStrategy(hardParsers: Record<string, unknown>) {
-  const s3 = toRecord(hardParsers.s3);
-  return stringValue(s3?.analysis_strategy) || "full_analysis_current_filing";
-}
-
 function buildTextSections({
   bodyText,
   attachmentTexts,

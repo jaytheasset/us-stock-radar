@@ -85,20 +85,6 @@ export async function runSecFilingAnalysisPreview(options: PreviewOptions = {}) 
 export async function runSecFilingAnalysisForRawRow(rawItem: RawItemRow): Promise<SecFilingAnalysisRunResult> {
   const input = await buildInputFromSecRawRowWithContext(rawItem);
   const prompt = buildSecFilingAnalysisPrompt(input);
-  const deterministicArchive = buildDeterministicArchiveAnalysis(rawItem, input);
-  if (deterministicArchive) {
-    return {
-      ok: true,
-      stage: "complete",
-      status: 200,
-      model: "deterministic/sec-s3a-amendment-router-v1",
-      openAiResponseId: null,
-      sourceItem: summarizeRawRow(rawItem),
-      input,
-      analysis: deterministicArchive,
-      outputText: JSON.stringify(deterministicArchive),
-    };
-  }
 
   const env = getServerEnv();
 
@@ -229,12 +215,6 @@ async function attachParentRegistrationContext(input: SecFilingAnalysisInput, ra
   const s3 = readRecord(hardParsers?.s3);
   const amendment = readRecord(s3?.amendment);
   if (!filingPackage || !s3 || !amendment || amendment.is_amendment !== true) return;
-
-  const analysisStrategy = stringValue(s3.analysis_strategy) || stringValue(filingPackage.analysis_strategy);
-  if (analysisStrategy === "routine_amendment_archive") return;
-  if (analysisStrategy !== "material_amendment_analysis_with_parent" && amendment.requires_parent_registration_context !== true) {
-    return;
-  }
 
   const registrationNumber = stringValue(amendment.registration_number);
   if (!registrationNumber) return;
@@ -451,56 +431,6 @@ function sameRegistrationNumber(left: string | null | undefined, right: string |
   const leftValue = normalize(left);
   const rightValue = normalize(right);
   return Boolean(leftValue && rightValue && leftValue === rightValue);
-}
-
-function buildDeterministicArchiveAnalysis(rawItem: RawItemRow, input: SecFilingAnalysisInput) {
-  const filingPackage = readRecord(input.filing_package) || {};
-  const hardParsers = readRecord(filingPackage.hard_parsers) || {};
-  const s3 = readRecord(hardParsers.s3);
-  if (stringValue(s3?.analysis_strategy) !== "routine_amendment_archive") return null;
-
-  const amendment = readRecord(s3?.amendment) || {};
-  const rawPayload = readRecord(rawItem.raw_payload) || {};
-  const ticker = stringValue(rawPayload.ticker);
-  const exchange = stringValue(rawPayload.exchange);
-  const amendmentNumber = amendment.amendment_number ? `Amendment No. ${amendment.amendment_number}` : "S-3/A amendment";
-  const addedExhibits = Array.isArray(amendment.added_exhibits) ? amendment.added_exhibits.map(stringValue).filter(Boolean) : [];
-  const exhibitText = addedExhibits.length ? ` Added exhibits: ${addedExhibits.slice(0, 3).join(", ")}.` : "";
-  const summary =
-    `${amendmentNumber} appears routine: the parser found no offering term, fee table, selling stockholder, or distribution-change signal.${exhibitText} Open the original filing for full details if needed.`;
-
-  return {
-    source_group: "filings",
-    market_scope: "company",
-    event_type: "other",
-    event_title: `${ticker || stringValue(rawPayload.company_name) || "Issuer"} routine S-3/A amendment`,
-    primary_ticker: {
-      ticker: ticker || null,
-      exchange: exchange || null,
-    },
-    tickers: ticker ? [{ ticker, exchange: exchange || null, role: "primary" }] : [],
-    sector: null,
-    industry_group: null,
-    theme_group: null,
-    sub_theme: null,
-    score: 10,
-    score_reason: "Routine amendment; no material term change signal.",
-    signal: "neutral",
-    quick_take: "Routine S-3/A amendment archived without full SEC analysis.",
-    summary,
-    why_it_matters: "The amendment does not appear to change offering economics or resale overhang.",
-    bullish_points: [],
-    bearish_points: [],
-    key_evidence: [
-      "S-3/A parser classified the amendment as routine.",
-      ...addedExhibits.slice(0, 2).map((item) => `Added exhibit: ${item}`),
-    ].slice(0, 3),
-    what_to_watch_next: ["Review the parent registration statement if this issuer becomes relevant."],
-    related_tickers: [],
-    calendar_items: [],
-    confidence: "medium",
-    needs_human_review: false,
-  };
 }
 
 function readRawItemResult(result: { ok: boolean; status: number; error?: string; data: unknown }) {
