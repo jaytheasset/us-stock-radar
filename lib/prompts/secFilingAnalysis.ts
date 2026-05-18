@@ -50,7 +50,7 @@ export const secFilingAnalysisSystemPrompt = [
   "If filing_package.analysis_strategy is routine_amendment_archive, do not re-analyze the parent registration; return archive-level output only.",
   "If filing_package.analysis_strategy is cheap_amendment_router, judge only whether the amendment changes offering economics, resale overhang, selling holders, fee table, distribution plan, or material terms.",
   "For S-3/A amendments, do not treat exhibit-only, consent-only, signature, or unchanged-remainder filings as fresh dilution events.",
-  "If an S-3/A amendment has material change signals, focus the analysis on the changed terms and reference parent registration context only when supplied.",
+  "If an S-3/A amendment has material change signals, focus the analysis on the changed terms and use filing_package.parent_registration_context only as background from the parent registration.",
   "Extract calendar_items only for scheduled investor-relevant dates or deadlines stated in the filing.",
   "Use calendar_items for earnings releases/calls, shareholder meetings/votes, dividend dates, reverse split effective dates, listing/deal deadlines, tender/rights/warrant expirations, offering closings, merger votes/closings, FDA/clinical dates, investor events, court hearings, and policy/effective dates.",
   "A webcast, conference call, or audio call tied to financial results must be earnings_call, not investor_day or conference_presentation.",

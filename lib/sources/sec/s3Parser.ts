@@ -450,7 +450,7 @@ function buildS3AmendmentInfo({
 }): SecS3AmendmentInfo {
   const isAmendment = normalizeForm(formType) === "S-3/A";
   const amendmentNumber = isAmendment ? findAmendmentNumber(s3Text) : null;
-  const registrationNumber = isAmendment ? findRegistrationNumber(s3Text) : null;
+  const registrationNumber = isS3Family(formType) ? findRegistrationNumber(s3Text) : null;
   const amendmentExcerpt = isAmendment ? extractAmendmentExcerpt(s3Text) : null;
   const addedExhibits = isAmendment ? documents.filter((document) => isS3AmendmentAddedExhibit(document)) : [];
   const routineArchiveSignals = isAmendment ? findRoutineAmendmentSignals(amendmentExcerpt || s3Text) : [];
