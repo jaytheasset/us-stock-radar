@@ -185,6 +185,18 @@ export const eventTypeDefinitions: EventTypeDefinition[] = [
     examples: ["monthly distribution", "special dividend", "dividend suspension"],
   },
   {
+    code: "capital_return",
+    label: "Capital Return",
+    category: "Cross-source Events",
+    tone: "market",
+    sourceGroups: ["news", "filings"],
+    status: "active",
+    coveredForms: [...currentReportForms, "10-Q", "10-Q/A", "10-K", "10-K/A", "20-F", "20-F/A"],
+    description:
+      "Share repurchase, buyback authorization, repurchase allocation increase, or capital return program where repurchases are the primary event.",
+    examples: ["share repurchase authorization", "buyback program", "repurchase allocation increase"],
+  },
+  {
     code: "fda_clinical",
     label: "FDA / Clinical",
     category: "Filing Events",

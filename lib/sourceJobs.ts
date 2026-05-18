@@ -39,7 +39,7 @@ export const sourceJobs: SourceJob[] = [
   {
     source: "businesswire",
     label: "Business Wire",
-    jobRoute: "/jobs/businesswire",
+    jobRoute: "/api/sources/businesswire/ingest",
     sourceUrls: [
       businessWireFeed("Earnings News", "G1QFDERJXkJeEF9YXA==", true),
       businessWireFeed("IPO News", "G1QFDERJXkJeEF9YXQ=="),
@@ -65,19 +65,29 @@ export const sourceJobs: SourceJob[] = [
   {
     source: "prnewswire",
     label: "PR Newswire",
-    jobRoute: "/jobs/prnewswire",
+    jobRoute: "/api/sources/prnewswire/ingest",
     sourceUrls: [
-      {
-        label: "PR Newswire RSS",
-        primary: true,
-        url: "https://www.prnewswire.com/rss/news-releases-list.rss",
-      },
+      prNewswireFeed("Earnings", "financial-services-latest-news/earnings-list.rss", true),
+      prNewswireFeed("Dividends", "financial-services-latest-news/dividends-list.rss"),
+      prNewswireFeed("Conference Call Announcements", "financial-services-latest-news/conference-call-announcements-list.rss"),
+      prNewswireFeed("Acquisitions, Mergers and Takeovers", "financial-services-latest-news/acquisitions-mergers-and-takeovers-list.rss"),
+      prNewswireFeed("Stock Offering", "financial-services-latest-news/stock-offering-list.rss"),
+      prNewswireFeed("Stock Split", "financial-services-latest-news/stock-split-list.rss"),
+      prNewswireFeed("Business Technology", "business-technology-latest-news/business-technology-list.rss"),
+      prNewswireFeed("Consumer Technology", "consumer-technology-latest-news/consumer-technology-latest-news-list.rss"),
+      prNewswireFeed("Energy", "energy-latest-news/energy-latest-news-list.rss"),
+      prNewswireFeed("Environment", "environment-latest-news/environment-latest-news-list.rss"),
+      prNewswireFeed("Health", "health-latest-news/health-latest-news-list.rss"),
+      prNewswireFeed("Heavy Industry & Manufacturing", "heavy-industry-manufacturing-latest-news/heavy-industry-manufacturing-latest-news-list.rss"),
+      prNewswireFeed("Policy & Public Interest", "policy-public-interest-latest-news/policy-public-interest-latest-news-list.rss"),
+      prNewswireFeed("Telecommunications", "telecommunications-latest-news/telecommunications-latest-news-list.rss"),
+      prNewswireFeed("Travel", "travel-latest-news/travel-latest-news-list.rss"),
     ],
   },
   {
     source: "newsfile",
     label: "Newsfile",
-    jobRoute: "/jobs/newsfile",
+    jobRoute: "/api/sources/newsfile/ingest",
     sourceUrls: [
       {
         label: "Newsfile Last 25 Stories",
@@ -89,43 +99,39 @@ export const sourceJobs: SourceJob[] = [
   {
     source: "ofac",
     label: "OFAC",
-    jobRoute: "/jobs/ofac",
+    jobRoute: "/api/sources/ofac/ingest",
     sourceUrls: [
       {
-        label: "Treasury OFAC press releases",
+        label: "OFAC recent actions",
         primary: true,
-        url: "https://home.treasury.gov/news/press-releases",
+        url: "https://ofac.treasury.gov/recent-actions",
       },
     ],
   },
   {
     source: "doj",
     label: "DOJ",
-    jobRoute: "/jobs/doj",
+    jobRoute: "/api/sources/doj/ingest",
     sourceUrls: [
       {
         label: "DOJ press release API",
         primary: true,
-        url: "https://www.justice.gov/api/v1/press_releases.json",
+        url: "https://www.justice.gov/api/v1/press_releases.json?pagesize=20&sort=date&direction=DESC",
       },
     ],
   },
   {
     source: "dea",
     label: "DEA",
-    jobRoute: "/jobs/dea",
+    jobRoute: "/api/sources/dea/ingest",
     sourceUrls: [
       {
-        label: "DEA press releases filtered",
+        label: "DOJ press release API filtered client-side for DEA component",
         primary: true,
-        url: "https://www.dea.gov/press-releases?f%5B0%5D=press_divisions%3A36",
+        url: "https://www.justice.gov/api/v1/press_releases.json?pagesize=50&sort=date&direction=DESC",
       },
       {
-        label: "DEA alternate filtered path",
-        url: "https://www.dea.gov/what-we-do/news/press-releases?f%5B0%5D=press_divisions%3A36",
-      },
-      {
-        label: "DEA press releases fallback",
+        label: "DEA public press releases page",
         url: "https://www.dea.gov/press-releases",
       },
     ],
@@ -133,7 +139,7 @@ export const sourceJobs: SourceJob[] = [
   {
     source: "whitehouse",
     label: "White House",
-    jobRoute: "/jobs/whitehouse",
+    jobRoute: "/api/sources/whitehouse/ingest",
     sourceUrls: [
       {
         label: "Presidential actions",
@@ -166,6 +172,14 @@ function businessWireFeed(label: string, rss: string, primary = false) {
     label,
     primary,
     url: `https://feed.businesswire.com/rss/home/?rss=${encodeURIComponent(rss)}`,
+  };
+}
+
+function prNewswireFeed(label: string, path: string, primary = false) {
+  return {
+    label,
+    primary,
+    url: `https://www.prnewswire.com/rss/${path}`,
   };
 }
 
@@ -252,7 +266,16 @@ export async function runSourceJob(
         },
         body: JSON.stringify(safeBody),
       },
-      source === "globe" ? 120000 : undefined,
+      source === "globe" ||
+        source === "businesswire" ||
+        source === "prnewswire" ||
+        source === "newsfile" ||
+        source === "ofac" ||
+        source === "doj" ||
+        source === "dea" ||
+        source === "whitehouse"
+        ? 120000
+        : undefined,
     );
     const data = await response.json().catch(() => null);
 

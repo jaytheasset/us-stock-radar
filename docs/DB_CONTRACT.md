@@ -110,8 +110,19 @@ Approved filing event types:
 - `financial_risk`: Financial Risk
 - `legal_risk`: Legal Risk
 - `dividends`: Dividends
+- `capital_return`: Capital Return
 - `fda_clinical`: FDA / Clinical
 - `other`: Other
+
+Approved cross-source event types:
+
+- `capital_return`: buyback, share repurchase authorization, repurchase allocation increase, or capital return program where repurchases/capital return are the primary development. This can come from news or SEC filings.
+
+Dividend/capital-return split:
+
+- Use `dividends` when dividend amount, payout policy, ex-date, record date, or payment date is the primary event.
+- Use `capital_return` when buyback authorization, repurchase allocation, or a capital return program is the primary event.
+- If both buyback and dividend appear, classify by the headline/core market-moving development. Buyback-led combined announcements should be `capital_return`.
 
 Calendar category groups:
 

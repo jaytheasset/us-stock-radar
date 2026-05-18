@@ -1,7 +1,7 @@
 import { CALENDAR_EVENT_TYPE_VALUES } from "@/lib/calendarEventRegistry";
 
 export const NEWS_EVENT_ANALYSIS_PROMPT_KEY = "news_event_analysis";
-export const NEWS_EVENT_ANALYSIS_PROMPT_VERSION = "v4";
+export const NEWS_EVENT_ANALYSIS_PROMPT_VERSION = "v16";
 
 export const SOURCE_GROUP_VALUES = ["news"] as const;
 export const MARKET_SCOPE_VALUES = ["company", "sector", "theme", "macro"] as const;
@@ -31,6 +31,7 @@ export const NEWS_EVENT_TYPE_VALUES = [
   "financial_risk",
   "legal_risk",
   "dividends",
+  "capital_return",
   "fda_clinical",
   "policy_regulation",
   "macro_market",
@@ -77,38 +78,31 @@ export const newsEventAnalysisInputTemplate = `{
 }`;
 
 export const newsEventAnalysisSystemPrompt = [
-  "Analyze one U.S. market news item and return only strict JSON matching the provided response schema.",
-  "Coverage rule: analyze only news that has a plausible investment impact on U.S.-listed stocks, U.S. equity sectors, U.S. market themes, or U.S. macro/policy conditions.",
-  "If the article is only about foreign-listed securities or a foreign stock market with no clear U.S. equity, U.S. sector, U.S. theme, or U.S. macro/policy impact, set event_type to other, score 0-20, signal neutral, confidence low, needs_human_review true, and explain that it is outside U.S. equity relevance.",
-  "Use article body text as the source of truth. Do not use metadata, SEO keywords, or snippets to add material facts or tickers.",
-  "metadata_tickers_debug_only is for contamination checks only.",
-  "Treat legal disclaimer language as non-evidence, including forward-looking statement cautions, safe harbor text, risk-and-uncertainty disclaimers, and no-obligation-to-update language.",
-  "Do not copy legal boilerplate phrases into quick_take, summary, why_it_matters, score_reason, key_evidence, bullish_points, bearish_points, or what_to_watch_next.",
-  "If a paragraph says forward-looking context and then gives concrete business priorities, dates, financial figures, contracts, products, or operational plans, ignore the disclaimer framing but use the concrete facts.",
-  "Do not use a foreign exchange ticker as primary_ticker unless the article also identifies a U.S.-listed share class, ADR, or U.S.-listed company exposure.",
-  "Classify sector, industry_group, theme_group, and sub_theme by your judgment from the article, not by parser defaults.",
-  "Do not infer market_scope from ticker count alone. A multi-ticker transaction can still be company-scoped.",
-  "Choose event_type based on the most market-moving concrete development in the article, not only the headline, release format, or first paragraph.",
-  "If an article contains multiple developments, classify by the development most likely to affect investor attention, valuation, liquidity, or near-term trading.",
-  "Use earnings only when the main investable content is financial results, guidance, or an earnings/results call. Do not default to earnings when financial results are secondary to a more material contract, financing, regulatory, legal, clinical, listing, dividend, or strategic development.",
-  "Keep quick_take and summary centered on the same primary development used for event_type.",
-  "Set related_tickers only for sector, theme, or macro events unless the article clearly names affected peers, customers, suppliers, or counterparties.",
-  "Do not generate related news. Related news is resolved later from the database.",
-  "For news, extract calendar_items only for earnings/results calls, investor days/conferences/presentations with a specific date, dividend ex-date/record date/payment date, and FDA/PDUFA/advisory committee/clinical readout/trial result dates.",
-  "This news calendar allowlist is exhaustive. Do not create news calendar_items for filing due dates, management cease trade order dates, listing compliance deadlines, financing or offering closing dates, shareholder vote dates, or other legal/regulatory dates.",
-  "Do not create calendar_items for operational or commercial milestones such as contract start dates, deployment targets, expected revenue commencement, product rollout targets, planned commercial launches, planned closings, management priorities, or replay availability.",
-  "Do not add calendar_items for ordinary publication dates or past dates unless the article explicitly says the event occurs on that date.",
-  "For clinical or conference items, do not create a calendar item when the article is reporting results that were already released or presented; create one only for a future scheduled readout, presentation, regulatory date, or decision date.",
-  "Use vague month, quarter, or year windows only for FDA/clinical/regulatory milestone timing; put other vague milestones in what_to_watch_next instead of calendar_items.",
-  "If no useful scheduled event exists, return an empty calendar_items array.",
-  "Score 0-49 archive-level, 50-74 feed-level, 75-89 alert-level, 90-100 urgent-level.",
-  "All text fields must contain only article facts or market analysis. Do not write site routing, UI copy, archive/feed/alert labels, or instructions to read the original source.",
-  "For score 0-49 archive-level items, quick_take and summary must still be factual article summaries only. Keep why_it_matters, bullish_points, bearish_points, key_evidence, and what_to_watch_next minimal or empty unless there is specific U.S. market relevance.",
+  "Analyze one U.S. market company news item and return only strict JSON matching the response schema.",
+  "Read the full article. The first-pass route is only a hint; correct it if the full article points elsewhere.",
+  "Use article body text as the source of truth. Do not use metadata, SEO keywords, snippets, or parser hints to add facts or tickers.",
+  "Separate boilerplate from evidence. Ignore legal disclaimers and safe-harbor language, but use concrete business facts that appear near them.",
+  "Decide the core market event by asking what changed for investors now: value, risk, liquidity, timing, rights, probability, or attention.",
+  "A company item can be uncertain or preliminary and still matter if it changes investor expectations now.",
+  "Do not overfit to the headline. If several facts appear, classify and score the development most likely to move investor attention.",
+  "Use company scope when the investable question is about one issuer or a small named issuer set, even if customers, suppliers, or counterparties are named.",
+  "Use broad sector/theme/macro scope only if the full article is mainly about a wider market exposure rather than an issuer development.",
+  "Choose primary_ticker from the body text. Use a U.S.-listed ticker, ADR, or OTC symbol when available; do not invent one from metadata.",
+  "Use related_tickers only for named peers, customers, suppliers, counterparties, owners, or directly affected issuers supported by the article.",
+  "Choose event_type from the core development, not from the release format.",
+  "Use capital_return only when the core development is an actual share repurchase, buyback authorization, repurchase allocation increase, or announced capital return program centered on repurchases.",
+  "Do not use capital_return for financing, capital markets activity, capital allocation commentary, strategy updates, liquidity improvement, or transformation plans unless the article discloses a concrete repurchase/buyback action.",
+  "For dividends use dividends. If buybacks and dividends both appear, follow the core development.",
   "Score by materiality, price sensitivity, specificity, source strength, timeliness, and market interest.",
-  "Keep output short: quick_take one sentence under 22 words; summary 1-3 sentences under 65 words total; why_it_matters one sentence under 35 words.",
-  "Keep score_reason under 18 words.",
-  "Keep bullish_points, bearish_points, key_evidence, and what_to_watch_next to at most 3 items each, and each item under 16 words.",
-  "Use compact phrases, not full article-style paragraphs.",
+  "Choose signal from the likely stock read-through for the primary ticker. Use volatile or neutral when direction is mixed.",
+  "Create calendar_items only when the date itself is an investable catalyst or shareholder entitlement: earnings/results call, dividend ex/record/payment, or FDA/clinical scheduled milestone.",
+  "If no useful scheduled catalyst exists, return an empty calendar_items array.",
+  "Output format is strict: quick_take must be one sentence under 30 words.",
+  "summary must be 1-3 sentences under 90 words total.",
+  "why_it_matters must be one sentence under 45 words.",
+  "score_reason must be under 24 words.",
+  "bullish_points, bearish_points, key_evidence, and what_to_watch_next must each contain at most 4 items, each under 20 words.",
+  "Do not write UI labels, routing labels, or instructions to read the original source.",
 ].join("\n");
 
 export const newsEventAnalysisResponseSchema = {
@@ -230,12 +224,18 @@ export const newsEventAnalysisResponseSchema = {
   },
 } as const;
 
-export function buildNewsEventAnalysisPrompt(input: NewsEventAnalysisInput) {
+export function buildNewsEventAnalysisPrompt(
+  input: NewsEventAnalysisInput,
+  routeClassification?: Record<string, unknown> | null,
+) {
   return {
     key: NEWS_EVENT_ANALYSIS_PROMPT_KEY,
     version: NEWS_EVENT_ANALYSIS_PROMPT_VERSION,
     system: newsEventAnalysisSystemPrompt,
-    user: JSON.stringify(input),
+    user: JSON.stringify({
+      ...input,
+      route_classification: routeClassification || null,
+    }),
     responseFormat: {
       type: "json_schema",
       json_schema: {

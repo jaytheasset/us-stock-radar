@@ -32,6 +32,12 @@ export type SectorMapping = {
   notes?: string;
 };
 
+export type CanonicalMarketGroupMatch = {
+  sector: string;
+  subCategory?: string;
+  slug?: string;
+};
+
 export const themeGroups: ThemeGroup[] = [
   {
     slug: "ai_data_center",
@@ -1355,7 +1361,10 @@ export const themeSubThemes: ThemeSubTheme[] = [
 ];
 
 export const sectorMappings: SectorMapping[] = [
-  map("Technology", "Semiconductors & Compute", "semiconductors_compute", ["Semiconductors"]),
+  map("Technology", "Semiconductors & Compute", "semiconductors_compute", [
+    "Semiconductors",
+    "Semiconductors & Semiconductor Equipment",
+  ]),
   map("Technology", "Software & Cloud", "software_cloud", [
     "Software - Services",
     "Software - Infrastructure",
@@ -1615,6 +1624,88 @@ export const sectorMappings: SectorMapping[] = [
   map("Other", "ETF / Funds / Government / CEF", "etf_funds_government_cef", [], "Use asset_type or instrument_type, not only FMP industry."),
   map("Other", "Education", "education", ["Education & Training Services"]),
 ];
+
+const sectorNameAliases: Record<string, string> = {
+  "communication services": "Communication Services",
+  "communications": "Communication Services",
+  "consumer discretionary": "Consumer Cyclical",
+  "consumer staples": "Consumer Defensive",
+  "health care": "Healthcare",
+  "information technology": "Technology",
+  "materials": "Basic Materials",
+};
+
+const subCategoryNameAliases: Record<string, string> = {
+  "advertising and media": "Advertising & Information Services",
+  "automobiles and components": "Autos & Mobility",
+  "autos and components": "Autos & Mobility",
+  "biotechnology and pharmaceuticals": "Biotechnology",
+  "cybersecurity and network services": "Cybersecurity",
+  "financial technology": "Payments & Lending",
+  "fintech and digital assets": "Payments & Lending",
+  "medical devices and services": "Medical Devices & Diagnostics",
+  "pharmaceuticals and biotechnology": "Biotechnology",
+  "semiconductor and semiconductor equipment": "Semiconductors & Compute",
+  "semiconductors and semiconductor equipment": "Semiconductors & Compute",
+  "software and services": "Software & Cloud",
+  "technology hardware and equipment": "Hardware & Electronics",
+};
+
+const canonicalMarketGroupLookup = buildCanonicalMarketGroupLookup();
+
+export function resolveCanonicalMarketGroup(value: string): CanonicalMarketGroupMatch | null {
+  return canonicalMarketGroupLookup.get(normalizeTaxonomyLookupValue(value)) || null;
+}
+
+function buildCanonicalMarketGroupLookup() {
+  const lookup = new Map<string, CanonicalMarketGroupMatch>();
+  const add = (value: string | undefined, match: CanonicalMarketGroupMatch) => {
+    if (!value) return;
+    const key = normalizeTaxonomyLookupValue(value);
+    if (key && !lookup.has(key)) lookup.set(key, match);
+  };
+
+  for (const mapping of sectorMappings) {
+    const industryMatch = {
+      sector: mapping.sector,
+      subCategory: mapping.subCategory,
+      slug: mapping.slug,
+    };
+
+    add(mapping.sector, { sector: mapping.sector });
+    add(mapping.subCategory, industryMatch);
+    add(mapping.slug, industryMatch);
+    for (const industry of mapping.fmpIndustries) add(industry, industryMatch);
+  }
+
+  for (const [alias, sector] of Object.entries(sectorNameAliases)) {
+    add(alias, { sector });
+  }
+
+  for (const [alias, subCategory] of Object.entries(subCategoryNameAliases)) {
+    const mapping = sectorMappings.find((item) => item.subCategory === subCategory);
+    if (mapping) {
+      add(alias, {
+        sector: mapping.sector,
+        subCategory: mapping.subCategory,
+        slug: mapping.slug,
+      });
+    }
+  }
+
+  return lookup;
+}
+
+function normalizeTaxonomyLookupValue(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[_/-]+/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 export const taxonomyStats = {
   sectors: new Set(sectorMappings.map((item) => item.sector)).size,

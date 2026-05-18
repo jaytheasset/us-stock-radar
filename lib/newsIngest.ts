@@ -5,9 +5,19 @@ import {
   NEWS_EVENT_TYPE_VALUES,
   SIGNAL_VALUES,
 } from "@/lib/prompts/newsEventAnalysis";
+import { evaluateCalendarItemPolicy } from "@/lib/calendarPolicy";
 import { getCalendarEventGroup, normalizeCalendarEventType } from "@/lib/calendarEventRegistry";
 import { runNewsEventAnalysisForRawItem } from "@/lib/ai/newsEventAnalysisPreview";
 import { fetchGlobeNewswireRawItems, type GlobeParsedRawItem } from "@/lib/sources/globe/parser";
+import { fetchBusinessWireRawItems } from "@/lib/sources/businesswire/parser";
+import { fetchPRNewswireRawItems } from "@/lib/sources/prnewswire/parser";
+import { fetchNewsfileRawItems } from "@/lib/sources/newsfile/parser";
+import { fetchOfacRawItems } from "@/lib/sources/ofac/parser";
+import { fetchDojRawItems } from "@/lib/sources/doj/parser";
+import { fetchDeaRawItems } from "@/lib/sources/dea/parser";
+import { fetchWhiteHouseRawItems } from "@/lib/sources/whitehouse/parser";
+import { canonicalizeAnalysisTickersWithCache } from "@/lib/tickerCanonicalizer";
+import { buildNewsTickerProxiesWithCache, type NewsTickerProxy } from "@/lib/newsTickerProxies";
 import { supabaseDelete, supabaseSelect, supabaseUpsert } from "@/lib/supabase";
 
 type SourceGroup = "news" | "filings" | "market";
@@ -27,10 +37,52 @@ type TickerRole =
   | "sector_constituent"
   | "theme_constituent";
 
-type GlobeIngestOptions = {
+type NewsIngestOptions = {
   limit?: number;
   dryRun?: boolean;
   force?: boolean;
+  sourceUniqueId?: string;
+};
+
+type NewsRawItem = Omit<GlobeParsedRawItem, "source_code"> & {
+  source_code: string;
+};
+
+type NewsRawFetchResult = {
+  ok: boolean;
+  status: number;
+  error?: string;
+  items: NewsRawItem[];
+  diagnostics: Record<string, unknown>;
+};
+
+type NewsSourceConfig = {
+  sourceCode: string;
+  sourceName: string;
+  parserName: string;
+  fetchErrorLabel: string;
+  ingestErrorLabel: string;
+  fetchRawItems: (options: {
+    limit: number;
+    sourceUniqueId?: string;
+    includeArticleBody: boolean;
+    articleBodyLimit: number;
+  }) => Promise<NewsRawFetchResult>;
+};
+
+type EventDedupe = {
+  key: string | null;
+  normalizedTitle: string;
+  sourceCode: string;
+  eventType: string;
+  marketScope: MarketScope;
+  publishedDate: string | null;
+  topicTokens: string[];
+};
+
+type DuplicateInRun = {
+  key: string | null;
+  tokenOverlap: number | null;
 };
 
 type PersistedRow = Record<string, unknown>;
@@ -49,13 +101,128 @@ const allowedTickerRoles = new Set<string>([
   "theme_constituent",
 ]);
 
-export async function runGlobeNewsIngest(options: GlobeIngestOptions = {}) {
+export async function runGlobeNewsIngest(options: NewsIngestOptions = {}) {
+  return runNewsIngestForSource(
+    {
+      sourceCode: "globe",
+      sourceName: "GlobeNewswire",
+      parserName: "globe",
+      fetchErrorLabel: "Globe raw fetch failed",
+      ingestErrorLabel: "Globe ingest error",
+      fetchRawItems: fetchGlobeNewswireRawItems as NewsSourceConfig["fetchRawItems"],
+    },
+    options,
+  );
+}
+
+export async function runBusinessWireNewsIngest(options: NewsIngestOptions = {}) {
+  return runNewsIngestForSource(
+    {
+      sourceCode: "businesswire",
+      sourceName: "Business Wire",
+      parserName: "businesswire",
+      fetchErrorLabel: "Business Wire raw fetch failed",
+      ingestErrorLabel: "Business Wire ingest error",
+      fetchRawItems: fetchBusinessWireRawItems as NewsSourceConfig["fetchRawItems"],
+    },
+    options,
+  );
+}
+
+export async function runPRNewswireNewsIngest(options: NewsIngestOptions = {}) {
+  return runNewsIngestForSource(
+    {
+      sourceCode: "prnewswire",
+      sourceName: "PR Newswire",
+      parserName: "prnewswire",
+      fetchErrorLabel: "PR Newswire raw fetch failed",
+      ingestErrorLabel: "PR Newswire ingest error",
+      fetchRawItems: fetchPRNewswireRawItems as NewsSourceConfig["fetchRawItems"],
+    },
+    options,
+  );
+}
+
+export async function runNewsfileNewsIngest(options: NewsIngestOptions = {}) {
+  return runNewsIngestForSource(
+    {
+      sourceCode: "newsfile",
+      sourceName: "Newsfile",
+      parserName: "newsfile",
+      fetchErrorLabel: "Newsfile raw fetch failed",
+      ingestErrorLabel: "Newsfile ingest error",
+      fetchRawItems: fetchNewsfileRawItems as NewsSourceConfig["fetchRawItems"],
+    },
+    options,
+  );
+}
+
+export async function runOfacNewsIngest(options: NewsIngestOptions = {}) {
+  return runNewsIngestForSource(
+    {
+      sourceCode: "ofac",
+      sourceName: "OFAC",
+      parserName: "ofac",
+      fetchErrorLabel: "OFAC raw fetch failed",
+      ingestErrorLabel: "OFAC ingest error",
+      fetchRawItems: fetchOfacRawItems as NewsSourceConfig["fetchRawItems"],
+    },
+    options,
+  );
+}
+
+export async function runDojNewsIngest(options: NewsIngestOptions = {}) {
+  return runNewsIngestForSource(
+    {
+      sourceCode: "doj",
+      sourceName: "DOJ",
+      parserName: "doj",
+      fetchErrorLabel: "DOJ raw fetch failed",
+      ingestErrorLabel: "DOJ ingest error",
+      fetchRawItems: fetchDojRawItems as NewsSourceConfig["fetchRawItems"],
+    },
+    options,
+  );
+}
+
+export async function runDeaNewsIngest(options: NewsIngestOptions = {}) {
+  return runNewsIngestForSource(
+    {
+      sourceCode: "dea",
+      sourceName: "DEA",
+      parserName: "dea",
+      fetchErrorLabel: "DEA raw fetch failed",
+      ingestErrorLabel: "DEA ingest error",
+      fetchRawItems: fetchDeaRawItems as NewsSourceConfig["fetchRawItems"],
+    },
+    options,
+  );
+}
+
+export async function runWhiteHouseNewsIngest(options: NewsIngestOptions = {}) {
+  return runNewsIngestForSource(
+    {
+      sourceCode: "whitehouse",
+      sourceName: "White House",
+      parserName: "whitehouse",
+      fetchErrorLabel: "White House raw fetch failed",
+      ingestErrorLabel: "White House ingest error",
+      fetchRawItems: fetchWhiteHouseRawItems as NewsSourceConfig["fetchRawItems"],
+    },
+    options,
+  );
+}
+
+async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIngestOptions = {}) {
   const limit = clampInt(options.limit ?? 1, 1, 20);
   const dryRun = Boolean(options.dryRun);
   const force = Boolean(options.force);
+  const sourceUniqueId = nullableString(options.sourceUniqueId);
   const runId = randomUUID();
   const startedAt = new Date().toISOString();
   const resultItems: Array<Record<string, unknown>> = [];
+  const seenRunEventKeys = new Set<string>();
+  const seenRunEvents: EventDedupe[] = [];
   const stats = {
     checked_count: 0,
     raw_upserted_count: 0,
@@ -65,6 +232,12 @@ export async function runGlobeNewsIngest(options: GlobeIngestOptions = {}) {
     skipped_count: 0,
     skipped_non_english_count: 0,
     skipped_outside_coverage_count: 0,
+    skipped_low_impact_broad_scope_count: 0,
+    skipped_low_impact_tickerless_count: 0,
+    skipped_no_us_market_target_count: 0,
+    skipped_low_value_raw_count: 0,
+    skipped_route_classifier_count: 0,
+    deterministic_archive_count: 0,
   };
 
   if (!dryRun) {
@@ -73,13 +246,13 @@ export async function runGlobeNewsIngest(options: GlobeIngestOptions = {}) {
         "source_runs",
         {
           id: runId,
-          source_code: "globe",
+          source_code: config.sourceCode,
           source_group: "news",
           run_type: "manual_ingest",
           status: "running",
           started_at: startedAt,
           stats: { requested_limit: limit },
-          metadata: { source: "GlobeNewswire", dry_run: false, force },
+          metadata: { source: config.sourceName, dry_run: false, force },
         },
         { onConflict: "id" },
       ),
@@ -88,15 +261,16 @@ export async function runGlobeNewsIngest(options: GlobeIngestOptions = {}) {
   }
 
   try {
-    const rawResult = await fetchGlobeNewswireRawItems({
+    const rawResult = await config.fetchRawItems({
       limit,
+      sourceUniqueId: sourceUniqueId || undefined,
       includeArticleBody: true,
       articleBodyLimit: limit,
     });
 
     if (!rawResult.ok) {
       if (!dryRun) {
-        await finishSourceRun(runId, "failed", startedAt, stats, rawResult.error || "Globe raw fetch failed", {
+        await finishSourceRun(config, runId, "failed", startedAt, stats, rawResult.error || config.fetchErrorLabel, {
           raw_result: rawResult,
         });
       }
@@ -105,13 +279,13 @@ export async function runGlobeNewsIngest(options: GlobeIngestOptions = {}) {
         ok: false,
         stage: "raw_fetch",
         status: rawResult.status,
-        error: rawResult.error || "Globe raw fetch failed",
+        error: rawResult.error || config.fetchErrorLabel,
         rawResult,
       };
     }
 
     stats.checked_count = rawResult.items.length;
-    stats.skipped_non_english_count = rawResult.diagnostics.skippedNonEnglish || 0;
+    stats.skipped_non_english_count = numberValue(rawResult.diagnostics.skippedNonEnglish);
 
     for (const rawItem of rawResult.items) {
       try {
@@ -132,16 +306,91 @@ export async function runGlobeNewsIngest(options: GlobeIngestOptions = {}) {
           continue;
         }
 
-        const persistedRaw = dryRun ? null : await persistRawItem(rawItem, runId);
+        const persistedRaw = dryRun ? null : await persistRawItem(config, rawItem, runId);
         if (persistedRaw) stats.raw_upserted_count += 1;
 
-        if (!force && persistedRaw && isRawItemSkippedOutsideCoverage(persistedRaw)) {
+        const rawSkipDecision = readRawItemPrefilterSkipDecision(rawItem);
+        if (rawSkipDecision) {
           stats.skipped_count += 1;
-          stats.skipped_outside_coverage_count += 1;
+          incrementSkipStats(stats, rawSkipDecision.decision);
           resultItems.push({
             ok: true,
             skipped: true,
-            reason: "outside_us_market_coverage",
+            dryRun,
+            reason: rawSkipDecision.decision,
+            raw_item_id: persistedRaw?.id || null,
+            source_unique_id: rawItem.source_unique_id,
+            title: rawItem.title,
+            raw_item: dryRun ? summarizeRaw(rawItem) : undefined,
+            storage_decision: {
+              action: "skip_before_llm",
+              reason: rawSkipDecision.reason,
+              decision: rawSkipDecision.decision,
+            },
+          });
+          continue;
+        }
+
+        const deterministicArchive = buildDeterministicArchiveAnalysis(rawItem);
+        if (deterministicArchive) {
+          stats.deterministic_archive_count += 1;
+
+          if (dryRun) {
+            resultItems.push({
+              ok: true,
+              dryRun: true,
+              raw_item: summarizeRaw(rawItem),
+              analysis: deterministicArchive,
+              storage_decision: {
+                action: "persist_deterministic_archive",
+                reason: "LLM skipped for low-priority ticker archive.",
+              },
+            });
+            continue;
+          }
+
+          if (!persistedRaw) {
+            throw new Error("Raw item was not persisted");
+          }
+
+          const persistedEvent = await persistAnalyzedEvent({
+            config,
+            rawItem,
+            rawItemId: stringValue(persistedRaw.id),
+          analysis: deterministicArchive,
+          model: "",
+          openAiResponseId: null,
+          promptKey: NEWS_EVENT_ANALYSIS_PROMPT_KEY,
+          promptVersion: NEWS_EVENT_ANALYSIS_PROMPT_VERSION,
+        });
+
+          stats.event_upserted_count += 1;
+          resultItems.push({
+            ok: true,
+            deterministic_archive: true,
+            raw_item_id: persistedRaw.id,
+            source_unique_id: rawItem.source_unique_id,
+            event_id: persistedEvent.id,
+            ticker: persistedEvent.ticker,
+            market: persistedEvent.market,
+            title: persistedEvent.title,
+            score: persistedEvent.score,
+            delivery_level: persistedEvent.delivery_level,
+            signal: persistedEvent.signal,
+            event_type: persistedEvent.event_type,
+            source_url: persistedEvent.source_url,
+          });
+          continue;
+        }
+
+        const existingSkipDecision = !force && persistedRaw ? readRawItemEventSkipDecision(persistedRaw) : null;
+        if (existingSkipDecision && persistedRaw) {
+          stats.skipped_count += 1;
+          incrementSkipStats(stats, existingSkipDecision.decision);
+          resultItems.push({
+            ok: true,
+            skipped: true,
+            reason: existingSkipDecision.decision,
             raw_item_id: persistedRaw.id,
             source_unique_id: rawItem.source_unique_id,
             title: rawItem.title,
@@ -150,6 +399,84 @@ export async function runGlobeNewsIngest(options: GlobeIngestOptions = {}) {
         }
 
         const analysisRun = await runNewsEventAnalysisForRawItem(rawItem);
+        if (analysisRun.skipped || analysisRun.routeClassification?.route === "skip") {
+          const decision = {
+            dropEvent: true,
+            decision: "route_classifier_skip",
+            reason:
+              analysisRun.skipReason ||
+              analysisRun.routeClassification?.reason ||
+              "First-pass LLM classified the item as not useful for U.S. stock investors.",
+          };
+          stats.skipped_count += 1;
+          incrementSkipStats(stats, decision.decision);
+
+          if (dryRun) {
+            resultItems.push({
+              ok: true,
+              skipped: true,
+              dryRun: true,
+              reason: decision.decision,
+              raw_item: summarizeRaw(rawItem),
+              route_classification: analysisRun.routeClassification || null,
+              analysis: null,
+              storage_decision: {
+                action: "skip_before_analysis",
+                reason: decision.reason,
+                decision: decision.decision,
+              },
+              prompt: {
+                route_key: analysisRun.prompt?.routeKey || analysisRun.prompt?.key || null,
+                route_version: analysisRun.prompt?.routeVersion || analysisRun.prompt?.version || null,
+                analysis_key: null,
+                analysis_version: null,
+              },
+              usage: {
+                routing: analysisRun.routingUsage || null,
+                analysis: null,
+              },
+              costEstimate: {
+                routing: analysisRun.routingCostEstimate || null,
+                analysis: null,
+              },
+            });
+            continue;
+          }
+
+          if (!persistedRaw) {
+            throw new Error("Raw item was not persisted");
+          }
+
+          await markRawItemSkippedForEventStorage(config, persistedRaw, rawItem, decision);
+          await persistAiTrace({
+            rawItemId: stringValue(persistedRaw.id),
+            eventId: null,
+            analysis: {
+              llm_skipped: true,
+              analysis_source: "news_route_classification",
+              archive_reason: decision.decision,
+              route_classification: analysisRun.routeClassification || null,
+            },
+            outputText: analysisRun.routeOutputText || "",
+            model: analysisRun.model || "",
+            openAiResponseId: analysisRun.openAiResponseId || null,
+            usage: analysisRun.routingUsage || null,
+            promptKey: analysisRun.prompt?.routeKey || analysisRun.prompt?.key || NEWS_EVENT_ANALYSIS_PROMPT_KEY,
+            promptVersion:
+              analysisRun.prompt?.routeVersion || analysisRun.prompt?.version || NEWS_EVENT_ANALYSIS_PROMPT_VERSION,
+            routeClassification: analysisRun.routeClassification || null,
+          });
+          resultItems.push({
+            ok: true,
+            skipped: true,
+            reason: decision.decision,
+            raw_item_id: persistedRaw.id,
+            source_unique_id: rawItem.source_unique_id,
+            title: rawItem.title,
+          });
+          continue;
+        }
+
         if (!analysisRun.ok || !analysisRun.analysis) {
           stats.failed_count += 1;
           resultItems.push({
@@ -163,13 +490,87 @@ export async function runGlobeNewsIngest(options: GlobeIngestOptions = {}) {
         }
 
         stats.analyzed_count += 1;
+        const tickerCanonicalization = await canonicalizeAnalysisTickersWithCache(analysisRun.analysis);
+        const analysis = tickerCanonicalization.analysis;
+        const tickerProxies = await buildAnalysisTickerProxies(analysis);
+        const coverage = evaluateCoverageForStorage(analysis, tickerProxies);
+        const eventDedupe = buildAnalyzedEventDedupe(rawItem, analysis);
+        const duplicateInRun = findDuplicateInRun(eventDedupe, seenRunEventKeys, seenRunEvents);
+        const existingDuplicateEvent =
+          !force && !dryRun && eventDedupe.key ? await findExistingEventByCrossGroupKey(eventDedupe.key) : null;
+        const duplicateDecision = !coverage.dropEvent && (duplicateInRun || existingDuplicateEvent)
+          ? {
+              dropEvent: true,
+              decision: "duplicate_event",
+              reason: duplicateInRun
+                ? `Duplicate news event already appeared earlier in this ingest run: ${duplicateInRun.key || "similar broad-market policy item"}.`
+                : "Duplicate news event already exists from another raw item or source.",
+            }
+          : null;
+        const analysisPromptKey = analysisRun.prompt?.key || NEWS_EVENT_ANALYSIS_PROMPT_KEY;
+        const analysisPromptVersion = analysisRun.prompt?.version || NEWS_EVENT_ANALYSIS_PROMPT_VERSION;
 
         if (dryRun) {
+          const dryRunScore = clampScore(numberValue(analysis.score));
+          const effectiveCoverage = duplicateDecision || coverage;
+          if (effectiveCoverage.dropEvent) {
+            stats.skipped_count += 1;
+            incrementSkipStats(stats, effectiveCoverage.decision);
+          } else {
+            rememberRunEvent(eventDedupe, seenRunEventKeys, seenRunEvents);
+          }
           resultItems.push({
             ok: true,
             dryRun: true,
+            skipped: effectiveCoverage.dropEvent,
             raw_item: summarizeRaw(rawItem),
-            analysis: analysisRun.analysis,
+            route_classification: analysisRun.routeClassification || null,
+            analysis,
+            event_dedupe: eventDedupe.key
+              ? {
+                  key: eventDedupe.key,
+                  normalized_title: eventDedupe.normalizedTitle,
+                  duplicate_in_run: Boolean(duplicateInRun),
+                  duplicate_key: duplicateInRun?.key || null,
+                  token_overlap: duplicateInRun?.tokenOverlap || null,
+                  topic_tokens: eventDedupe.topicTokens,
+                }
+              : null,
+            storage_decision: effectiveCoverage.dropEvent
+              ? {
+                  action: "skip_event",
+                  reason: effectiveCoverage.reason,
+                  decision: effectiveCoverage.decision,
+                  computed_delivery_level: deliveryLevelFromScore(dryRunScore),
+                  computed_impact: impactFromScore(dryRunScore),
+                }
+              : {
+                  action: "persist_event",
+                  computed_delivery_level: deliveryLevelFromScore(dryRunScore),
+                  computed_impact: impactFromScore(dryRunScore),
+                },
+            ticker_proxies: tickerProxies,
+            ticker_canonicalization: {
+              corrections: tickerCanonicalization.corrections,
+              unresolved_symbols: tickerCanonicalization.unresolved_symbols,
+              removed_non_equity_symbols: tickerCanonicalization.removed_non_equity_symbols,
+              removed_foreign_symbols: tickerCanonicalization.removed_foreign_symbols,
+              lookup_error: tickerCanonicalization.lookup_error || null,
+            },
+            prompt: {
+              route_key: analysisRun.prompt?.routeKey || null,
+              route_version: analysisRun.prompt?.routeVersion || null,
+              analysis_key: analysisPromptKey,
+              analysis_version: analysisPromptVersion,
+            },
+            usage: {
+              routing: analysisRun.routingUsage || null,
+              analysis: analysisRun.usage || null,
+            },
+            costEstimate: {
+              routing: analysisRun.routingCostEstimate || null,
+              analysis: analysisRun.costEstimate || null,
+            },
           });
           continue;
         }
@@ -178,55 +579,68 @@ export async function runGlobeNewsIngest(options: GlobeIngestOptions = {}) {
           throw new Error("Raw item was not persisted");
         }
 
-        const coverage = evaluateCoverageForStorage(analysisRun.analysis);
-        if (coverage.dropEvent) {
+        const effectiveCoverage = duplicateDecision || coverage;
+        if (effectiveCoverage.dropEvent) {
           stats.skipped_count += 1;
-          stats.skipped_outside_coverage_count += 1;
-          await markRawItemSkippedOutsideCoverage(persistedRaw, rawItem, coverage.reason);
+          incrementSkipStats(stats, effectiveCoverage.decision);
+          await markRawItemSkippedForEventStorage(config, persistedRaw, rawItem, effectiveCoverage);
           await persistAiTrace({
             rawItemId: stringValue(persistedRaw.id),
             eventId: null,
-            analysis: analysisRun.analysis,
+            analysis,
             outputText: analysisRun.outputText || "",
             model: analysisRun.model || "",
             openAiResponseId: analysisRun.openAiResponseId || null,
             usage: analysisRun.usage || null,
+            promptKey: analysisPromptKey,
+            promptVersion: analysisPromptVersion,
+            routeClassification: analysisRun.routeClassification || null,
           });
           resultItems.push({
             ok: true,
             skipped: true,
-            reason: "outside_us_market_coverage",
+            reason: effectiveCoverage.decision,
             raw_item_id: persistedRaw.id,
             source_unique_id: rawItem.source_unique_id,
             title: rawItem.title,
-            score: clampScore(numberValue(analysisRun.analysis.score)),
-            market_scope: normalizeMarketScope(stringValue(analysisRun.analysis.market_scope)),
+            score: clampScore(numberValue(analysis.score)),
+            market_scope: normalizeMarketScope(stringValue(analysis.market_scope)),
           });
           continue;
         }
 
+        rememberRunEvent(eventDedupe, seenRunEventKeys, seenRunEvents);
         const persistedEvent = await persistAnalyzedEvent({
+          config,
           rawItem,
           rawItemId: stringValue(persistedRaw.id),
-          analysis: analysisRun.analysis,
+          analysis,
           model: analysisRun.model || "",
           openAiResponseId: analysisRun.openAiResponseId || null,
+          promptKey: analysisPromptKey,
+          promptVersion: analysisPromptVersion,
         });
         await persistAiTrace({
           rawItemId: stringValue(persistedRaw.id),
           eventId: stringValue(persistedEvent.id),
-          analysis: analysisRun.analysis,
+          analysis,
           outputText: analysisRun.outputText || "",
           model: analysisRun.model || "",
           openAiResponseId: analysisRun.openAiResponseId || null,
           usage: analysisRun.usage || null,
+          promptKey: analysisPromptKey,
+          promptVersion: analysisPromptVersion,
+          routeClassification: analysisRun.routeClassification || null,
         });
 
         stats.event_upserted_count += 1;
         resultItems.push({
           ok: true,
           raw_item_id: persistedRaw.id,
+          source_unique_id: rawItem.source_unique_id,
           event_id: persistedEvent.id,
+          ticker: persistedEvent.ticker,
+          market: persistedEvent.market,
           title: persistedEvent.title,
           score: persistedEvent.score,
           delivery_level: persistedEvent.delivery_level,
@@ -249,11 +663,12 @@ export async function runGlobeNewsIngest(options: GlobeIngestOptions = {}) {
     const partial = stats.failed_count > 0 && stats.event_upserted_count > 0;
     if (!dryRun) {
       await finishSourceRun(
+        config,
         runId,
         ok || partial ? "completed" : "failed",
         startedAt,
         stats,
-        ok ? undefined : "One or more Globe items failed",
+        ok ? undefined : `One or more ${config.sourceName} items failed`,
         {
           raw_diagnostics: rawResult.diagnostics,
           partial,
@@ -273,11 +688,12 @@ export async function runGlobeNewsIngest(options: GlobeIngestOptions = {}) {
   } catch (error) {
     if (!dryRun) {
       await finishSourceRun(
+        config,
         runId,
         "failed",
         startedAt,
         stats,
-        error instanceof Error ? error.message : "Unknown Globe ingest error",
+        error instanceof Error ? error.message : `Unknown ${config.ingestErrorLabel}`,
       );
     }
 
@@ -286,13 +702,13 @@ export async function runGlobeNewsIngest(options: GlobeIngestOptions = {}) {
       stage: "ingest",
       runId: dryRun ? null : runId,
       stats,
-      error: error instanceof Error ? error.message : "Unknown Globe ingest error",
+      error: error instanceof Error ? error.message : `Unknown ${config.ingestErrorLabel}`,
       items: resultItems,
     };
   }
 }
 
-async function persistRawItem(rawItem: GlobeParsedRawItem, runId: string) {
+async function persistRawItem(config: NewsSourceConfig, rawItem: NewsRawItem, runId: string) {
   const existing = await findExistingRawItem(rawItem);
   const id = stringValue(existing?.id) || randomUUID();
   const existingMetadata = toRecord(existing?.metadata) || {};
@@ -311,9 +727,12 @@ async function persistRawItem(rawItem: GlobeParsedRawItem, runId: string) {
     raw_payload: rawItem.raw_payload,
     metadata: {
       ...existingMetadata,
-      parser: "globe",
+      parser: config.parserName,
       ticker_source: rawItem.raw_payload.ticker_source || null,
       removed_analysis_sections: rawItem.raw_payload.removed_analysis_sections || [],
+      candidate_class: rawItem.raw_payload.candidate_class || null,
+      candidate_reason: rawItem.raw_payload.candidate_reason || null,
+      candidate_signals: rawItem.raw_payload.candidate_signals || [],
     },
     dedupe_key: rawItem.dedupe_key,
   };
@@ -323,10 +742,11 @@ async function persistRawItem(rawItem: GlobeParsedRawItem, runId: string) {
   return firstRow(result.data) || payload;
 }
 
-async function markRawItemSkippedOutsideCoverage(
+async function markRawItemSkippedForEventStorage(
+  config: NewsSourceConfig,
   rawRow: PersistedRow,
-  rawItem: GlobeParsedRawItem,
-  reason: string,
+  rawItem: NewsRawItem,
+  coverage: EventStorageDecision,
 ) {
   const metadata = toRecord(rawRow.metadata) || {};
   const result = await supabaseUpsert(
@@ -346,8 +766,9 @@ async function markRawItemSkippedOutsideCoverage(
       dedupe_key: rawItem.dedupe_key,
       metadata: {
         ...metadata,
-        ingest_decision: "outside_us_market_coverage",
-        coverage_reason: reason,
+        parser: config.parserName,
+        ingest_decision: coverage.decision,
+        coverage_reason: coverage.reason,
         event_created: false,
       },
     },
@@ -357,33 +778,41 @@ async function markRawItemSkippedOutsideCoverage(
 }
 
 async function persistAnalyzedEvent({
+  config,
   rawItem,
   rawItemId,
   analysis,
   model,
   openAiResponseId,
+  promptKey,
+  promptVersion,
 }: {
-  rawItem: GlobeParsedRawItem;
+  config: NewsSourceConfig;
+  rawItem: NewsRawItem;
   rawItemId: string;
   analysis: Record<string, unknown>;
   model: string;
   openAiResponseId: string | null;
+  promptKey: string;
+  promptVersion: string;
 }) {
   const score = clampScore(numberValue(analysis.score));
   const eventType = normalizeEventType(stringValue(analysis.event_type));
   const signal = normalizeSignal(stringValue(analysis.signal));
   const marketScope = normalizeMarketScope(stringValue(analysis.market_scope));
   const primaryTicker = readPrimaryTicker(analysis);
+  const tickerProxies = await buildAnalysisTickerProxies(analysis);
   const groupDedupeKey = buildGroupDedupeKey(rawItem);
   const existing = await findExistingEvent(groupDedupeKey);
   const id = stringValue(existing?.id) || randomUUID();
   const deliveryLevel = deliveryLevelFromScore(score);
+  const sourceEvidence = sourceEvidenceForNewsItem(config, rawItem);
   const payload = {
     id,
     raw_item_id: rawItemId,
     source_code: rawItem.source_code,
     source_group: "news" satisfies SourceGroup,
-    source_name: "GlobeNewswire",
+    source_name: config.sourceName,
     source_url: rawItem.source_url,
     published_at: rawItem.published_at,
     ticker: primaryTicker.ticker,
@@ -398,27 +827,36 @@ async function persistAnalyzedEvent({
     industry_group: nullableString(analysis.industry_group),
     theme_group: nullableString(analysis.theme_group),
     sub_theme: nullableString(analysis.sub_theme),
-    title: stringValue(rawItem.title) || "Untitled GlobeNewswire item",
+    title: stringValue(rawItem.title) || `Untitled ${config.sourceName} item`,
     quick_take: stringValue(analysis.quick_take),
     summary: stringValue(analysis.summary),
     reason: stringValue(analysis.score_reason),
     detected_at: new Date().toISOString(),
     group_dedupe_key: groupDedupeKey,
-    cross_group_event_key: buildCrossGroupEventKey(primaryTicker.ticker, eventType, rawItem.title),
+    cross_group_event_key: buildAnalyzedEventDedupe(rawItem, analysis).key,
     metadata: {
-      issuer: nullableString(rawItem.raw_payload.source_name),
-      source_type: "Company Press Release",
-      source_release_type: "Official Release",
+      issuer: sourceEvidence.issuer,
+      source_type: sourceEvidence.sourceType,
+      source_release_type: sourceEvidence.sourceReleaseType,
       confidence: stringValue(analysis.confidence),
       needs_human_review: Boolean(analysis.needs_human_review),
       score_reason: stringValue(analysis.score_reason),
       openai_model: model,
       openai_response_id: openAiResponseId,
-      prompt_key: NEWS_EVENT_ANALYSIS_PROMPT_KEY,
-      prompt_version: NEWS_EVENT_ANALYSIS_PROMPT_VERSION,
+      prompt_key: promptKey,
+      prompt_version: promptVersion,
       source_unique_id: rawItem.source_unique_id,
       body_tickers: analysis.tickers || [],
       related_tickers: analysis.related_tickers || [],
+      related_ticker_proxies: tickerProxies,
+      ticker_canonicalization: analysis.ticker_canonicalization || null,
+      llm_skipped: Boolean(analysis.llm_skipped),
+      analysis_source: nullableString(analysis.analysis_source),
+      archive_reason: nullableString(analysis.archive_reason),
+      low_value_reasons: analysis.low_value_reasons || [],
+      candidate_class: nullableString(analysis.candidate_class) || nullableString(rawItem.raw_payload.candidate_class),
+      candidate_reason: nullableString(analysis.candidate_reason) || nullableString(rawItem.raw_payload.candidate_reason),
+      candidate_signals: analysis.candidate_signals || rawItem.raw_payload.candidate_signals || [],
     },
   };
 
@@ -428,17 +866,42 @@ async function persistAnalyzedEvent({
 
   await Promise.all([
     persistEventAnalysis(eventRow, analysis, marketScope),
-    replaceEventTickers(stringValue(eventRow.id), analysis, primaryTicker),
-    replaceEventCalendarItems({
-      eventRow,
-      rawItem,
-      rawItemId,
-      analysis,
-      primaryTicker,
-    }),
+    replaceEventTickers(stringValue(eventRow.id), analysis, primaryTicker, tickerProxies),
+      replaceEventCalendarItems({
+        eventRow,
+        rawItem,
+        rawItemId,
+        analysis,
+        primaryTicker,
+        promptKey,
+        promptVersion,
+      }),
   ]);
 
   return eventRow;
+}
+
+function sourceEvidenceForNewsItem(config: NewsSourceConfig, rawItem: NewsRawItem) {
+  const sourceName = sourceDisplayName(config.sourceCode);
+  const rawSourceName = nullableString(rawItem.raw_payload.source_name);
+
+  if (isGovernmentNewsSource(config.sourceCode)) {
+    return {
+      issuer: sourceName,
+      sourceReleaseType: "Official Release",
+      sourceType: "Government Release",
+    };
+  }
+
+  return {
+    issuer: rawSourceName || config.sourceName || sourceName,
+    sourceReleaseType: "Official Release",
+    sourceType: "Company Press Release",
+  };
+}
+
+function isGovernmentNewsSource(sourceCode: string) {
+  return ["ofac", "doj", "dea", "whitehouse"].includes(sourceCode.trim().toLowerCase());
 }
 
 async function persistEventAnalysis(
@@ -457,6 +920,9 @@ async function persistEventAnalysis(
     metadata: {
       confidence: stringValue(analysis.confidence),
       needs_human_review: Boolean(analysis.needs_human_review),
+      llm_skipped: Boolean(analysis.llm_skipped),
+      analysis_source: nullableString(analysis.analysis_source),
+      archive_reason: nullableString(analysis.archive_reason),
     },
   };
 
@@ -468,9 +934,10 @@ async function replaceEventTickers(
   eventId: string,
   analysis: Record<string, unknown>,
   primaryTicker: { ticker: string | null; exchange: string | null },
+  tickerProxies: NewsTickerProxy[] = [],
 ) {
   await assertMutation(supabaseDelete("event_tickers", { event_id: `eq.${eventId}` }), "delete event tickers");
-  const rows = buildTickerRows(eventId, analysis, primaryTicker);
+  const rows = buildTickerRows(eventId, analysis, primaryTicker, tickerProxies);
   if (!rows.length) return;
 
   const result = await supabaseUpsert("event_tickers", rows, {
@@ -487,6 +954,9 @@ async function persistAiTrace({
   model,
   openAiResponseId,
   usage,
+  promptKey,
+  promptVersion,
+  routeClassification,
 }: {
   rawItemId: string;
   eventId: string | null;
@@ -495,6 +965,9 @@ async function persistAiTrace({
   model: string;
   openAiResponseId: string | null;
   usage: Record<string, unknown> | null;
+  promptKey: string;
+  promptVersion: string;
+  routeClassification?: Record<string, unknown> | null;
 }) {
   const aiRunId = randomUUID();
   const now = new Date().toISOString();
@@ -505,8 +978,8 @@ async function persistAiTrace({
         id: aiRunId,
         event_id: eventId,
         raw_item_id: rawItemId,
-        prompt_key: NEWS_EVENT_ANALYSIS_PROMPT_KEY,
-        prompt_version: NEWS_EVENT_ANALYSIS_PROMPT_VERSION,
+        prompt_key: promptKey,
+        prompt_version: promptVersion,
         model,
         status: "completed",
         started_at: now,
@@ -514,6 +987,7 @@ async function persistAiTrace({
         usage: usage || {},
         metadata: {
           openai_response_id: openAiResponseId,
+          route_classification: routeClassification || null,
         },
       },
       { onConflict: "id" },
@@ -541,6 +1015,7 @@ async function persistAiTrace({
 }
 
 async function finishSourceRun(
+  config: NewsSourceConfig,
   runId: string,
   status: "completed" | "failed" | "skipped",
   startedAt: string,
@@ -552,7 +1027,7 @@ async function finishSourceRun(
     "source_runs",
     {
       id: runId,
-      source_code: "globe",
+      source_code: config.sourceCode,
       source_group: "news",
       run_type: "manual_ingest",
       status,
@@ -567,7 +1042,7 @@ async function finishSourceRun(
   await assertMutation(result, "finish source run");
 }
 
-async function findExistingRawItem(rawItem: GlobeParsedRawItem) {
+async function findExistingRawItem(rawItem: NewsRawItem) {
   const search: Record<string, string> = rawItem.source_unique_id
     ? {
         select: "*",
@@ -596,34 +1071,52 @@ async function findExistingEvent(groupDedupeKey: string) {
   return firstRow(result.data);
 }
 
+async function findExistingEventByCrossGroupKey(crossGroupEventKey: string) {
+  const result = await supabaseSelect("events", {
+    select: "*",
+    source_group: "eq.news",
+    cross_group_event_key: `eq.${crossGroupEventKey}`,
+    limit: "1",
+  });
+  return firstRow(result.data);
+}
+
 function buildTickerRows(
   eventId: string,
   analysis: Record<string, unknown>,
   primaryTicker: { ticker: string | null; exchange: string | null },
+  tickerProxies: NewsTickerProxy[] = [],
 ) {
   const rows: Array<Record<string, unknown>> = [];
   const seen = new Set<string>();
+  const seenSymbols = new Set<string>();
   const push = (input: {
     symbol: string | null;
     exchange?: string | null;
     role?: string | null;
     reason?: string | null;
+    relevanceScore?: number | null;
     sortOrder?: number;
+    metadata?: Record<string, unknown>;
+    skipIfSymbolSeen?: boolean;
   }) => {
     const symbol = stringValue(input.symbol).toUpperCase();
     if (!symbol) return;
+    if (input.skipIfSymbolSeen && seenSymbols.has(symbol)) return;
     const role = normalizeTickerRole(input.role || "related");
     const key = `${symbol}:${role}`;
     if (seen.has(key)) return;
     seen.add(key);
+    seenSymbols.add(symbol);
     rows.push({
       event_id: eventId,
       symbol,
       exchange: nullableString(input.exchange),
       role,
+      relevance_score: input.relevanceScore ?? null,
       sort_order: input.sortOrder ?? rows.length + 1,
       reason: nullableString(input.reason),
-      metadata: {},
+      metadata: input.metadata || {},
     });
   };
 
@@ -653,7 +1146,43 @@ function buildTickerRows(
     });
   }
 
+  for (const proxy of tickerProxies) {
+    push({
+      symbol: proxy.ticker,
+      exchange: proxy.exchange,
+      role: proxy.role,
+      reason: proxy.reason,
+      relevanceScore: proxy.relevanceScore,
+      metadata: proxy.metadata,
+      skipIfSymbolSeen: true,
+    });
+  }
+
   return rows.map((row, index) => ({ ...row, sort_order: index + 1 }));
+}
+
+async function buildAnalysisTickerProxies(analysis: Record<string, unknown>) {
+  const hasLlmRelatedTicker = recordArray(analysis.related_tickers).some((item) => stringValue(item.ticker));
+  if (hasLlmRelatedTicker) return [];
+
+  const primaryTicker = readPrimaryTicker(analysis);
+  const excludeSymbols = [
+    primaryTicker.ticker,
+    ...recordArray(analysis.tickers).map((item) => stringValue(item.ticker)),
+    ...recordArray(analysis.related_tickers).map((item) => stringValue(item.ticker)),
+  ].filter((value): value is string => Boolean(value));
+
+  return buildNewsTickerProxiesWithCache(
+    {
+      marketScope: stringValue(analysis.market_scope),
+      sector: nullableString(analysis.sector),
+      industryGroup: nullableString(analysis.industry_group),
+      themeGroup: nullableString(analysis.theme_group),
+      subTheme: nullableString(analysis.sub_theme),
+      score: numberValue(analysis.score),
+    },
+    { excludeSymbols },
+  );
 }
 
 async function replaceEventCalendarItems({
@@ -662,12 +1191,16 @@ async function replaceEventCalendarItems({
   rawItemId,
   analysis,
   primaryTicker,
+  promptKey,
+  promptVersion,
 }: {
   eventRow: Record<string, unknown>;
-  rawItem: GlobeParsedRawItem;
+  rawItem: NewsRawItem;
   rawItemId: string;
   analysis: Record<string, unknown>;
   primaryTicker: { ticker: string | null; exchange: string | null };
+  promptKey: string;
+  promptVersion: string;
 }) {
   const eventId = stringValue(eventRow.id);
   await assertMutation(
@@ -681,6 +1214,8 @@ async function replaceEventCalendarItems({
     rawItemId,
     analysis,
     primaryTicker,
+    promptKey,
+    promptVersion,
   });
 
   if (!rows.length) return;
@@ -695,12 +1230,16 @@ function buildCalendarRows({
   rawItemId,
   analysis,
   primaryTicker,
+  promptKey,
+  promptVersion,
 }: {
   eventRow: Record<string, unknown>;
-  rawItem: GlobeParsedRawItem;
+  rawItem: NewsRawItem;
   rawItemId: string;
   analysis: Record<string, unknown>;
   primaryTicker: { ticker: string | null; exchange: string | null };
+  promptKey: string;
+  promptVersion: string;
 }) {
   const eventId = stringValue(eventRow.id);
   const sourceUrl = stringValue(eventRow.source_url) || rawItem.source_url;
@@ -722,6 +1261,18 @@ function buildCalendarRows({
     const calendarEventType = normalizeCalendarEventType(stringValue(item.calendar_event_type));
     const datePrecision = normalizeDatePrecision(stringValue(item.date_precision), eventDate);
     const isEstimated = Boolean(item.is_estimated) || datePrecision !== "exact";
+    const calendarPolicy = evaluateCalendarItemPolicy({
+      sourceGroup: rawItem.source_group,
+      calendarEventType,
+      calendarTitle: nullableString(item.calendar_title),
+      evidence: nullableString(item.evidence),
+      datePrecision,
+      eventDate,
+      estimatedStartDate,
+      estimatedEndDate,
+    });
+    if (!calendarPolicy.keep) continue;
+
     const calendarStatus = calendarStatusForSource(rawItem.source_group, datePrecision, isEstimated, Boolean(eventDate));
     const eventTime = normalizeTimeString(item.event_time);
     const calendarTitle =
@@ -764,8 +1315,8 @@ function buildCalendarRows({
       evidence: nullableString(item.evidence),
       metadata: {
         raw_calendar_item: item,
-        prompt_key: NEWS_EVENT_ANALYSIS_PROMPT_KEY,
-        prompt_version: NEWS_EVENT_ANALYSIS_PROMPT_VERSION,
+        prompt_key: promptKey,
+        prompt_version: promptVersion,
       },
     });
   }
@@ -822,25 +1373,208 @@ function readPrimaryTicker(analysis: Record<string, unknown>) {
   };
 }
 
-function evaluateCoverageForStorage(analysis: Record<string, unknown>) {
+type EventStorageDecision = {
+  dropEvent: boolean;
+  decision: string;
+  reason: string;
+};
+
+function evaluateCoverageForStorage(
+  analysis: Record<string, unknown>,
+  tickerProxies: NewsTickerProxy[] = [],
+): EventStorageDecision {
   const marketScope = normalizeMarketScope(stringValue(analysis.market_scope));
   const primaryTicker = readPrimaryTicker(analysis);
+  const hasUsTicker = hasUsListedTicker(analysis, primaryTicker);
+  const score = clampScore(numberValue(analysis.score));
+  const isBroadScope = marketScope === "sector" || marketScope === "theme" || marketScope === "macro";
 
-  if (marketScope !== "company") return { dropEvent: false, reason: "" };
-  if (isUsListedExchange(primaryTicker.exchange)) return { dropEvent: false, reason: "" };
+  if (marketScope === "company" && !hasUsTicker) {
+    return {
+      dropEvent: true,
+      decision: "outside_us_market_coverage",
+      reason: "Company-scoped item has no U.S.-listed/OTC ticker or broad U.S. market impact.",
+    };
+  }
 
-  const hasUsTicker = recordArray(analysis.tickers).some((item) => isUsListedExchange(stringValue(item.exchange)));
-  if (hasUsTicker) return { dropEvent: false, reason: "" };
+  if (isBroadScope && score < 50) {
+    return {
+      dropEvent: true,
+      decision: "low_impact_broad_scope",
+      reason: "Sector/theme/macro item below feed threshold is not stored because broad-scope archive has no display surface.",
+    };
+  }
+
+  if (isBroadScope && !hasUsTicker && tickerProxies.length === 0) {
+    return {
+      dropEvent: true,
+      decision: "no_us_listed_market_target",
+      reason: "Sector/theme/macro item has no direct U.S.-listed ticker or supported proxy target.",
+    };
+  }
+
+  return { dropEvent: false, decision: "", reason: "" };
+}
+
+function readRawItemEventSkipDecision(row: PersistedRow) {
+  const metadata = toRecord(row.metadata);
+  const decision = stringValue(metadata?.ingest_decision);
+  if (
+    decision === "outside_us_market_coverage" ||
+    decision === "low_impact_broad_scope" ||
+    decision === "low_impact_tickerless_broad_scope" ||
+    decision === "no_us_listed_market_target"
+    || decision === "route_classifier_skip"
+    || decision === "duplicate_event"
+  ) {
+    return {
+      decision,
+      reason: stringValue(metadata?.coverage_reason),
+    };
+  }
+  return null;
+}
+
+function buildDeterministicArchiveAnalysis(rawItem: NewsRawItem) {
+  if (stringValue(rawItem.raw_payload.candidate_class) !== "ticker_archive_candidate") return null;
+
+  const primaryTicker = readPrimaryTickerFromRawItem(rawItem);
+  if (!primaryTicker.ticker) return null;
+
+  const lowValueReasons = stringArray(rawItem.raw_payload.low_value_reasons);
+  const candidateSignals = stringArray(rawItem.raw_payload.candidate_signals);
+  const eventType = eventTypeForLowValueReasons(lowValueReasons);
+  const sourceName = sourceDisplayName(rawItem.source_code);
+  const reasonText = lowValueReasons.length ? lowValueReasons.join(", ") : `low-priority ${sourceName} pattern`;
+  const quickTake = `Low-priority ${sourceName} archive item for ${primaryTicker.ticker}; review the original release for details.`;
 
   return {
-    dropEvent: true,
-    reason: "Company-scoped item has no U.S.-listed/OTC ticker or broad U.S. market impact.",
+    event_type: eventType,
+    score: 15,
+    delivery_level: "archive",
+    impact: "low",
+    signal: "neutral",
+    market_scope: "company",
+    confidence: "high",
+    needs_human_review: false,
+    primary_ticker: {
+      ticker: primaryTicker.ticker,
+      exchange: primaryTicker.exchange,
+      company_name: null,
+    },
+    tickers: [
+      {
+        ticker: primaryTicker.ticker,
+        exchange: primaryTicker.exchange,
+        role: "primary",
+        reason: `Ticker found in ${sourceName} release body.`,
+      },
+    ],
+    related_tickers: [],
+    sector: null,
+    industry_group: null,
+    theme_group: null,
+    sub_theme: null,
+    quick_take: quickTake,
+    summary:
+      "This release was stored as a low-priority ticker archive item without LLM analysis. It appears to be routine promotional, legal, conference, award, local, personnel, or corporate-update material. Review the original release for details.",
+    score_reason: `LLM skipped because ${sourceName} parser marked this ticker item as low priority: ${reasonText}.`,
+    why_it_matters:
+      "Stored for ticker history and source traceability only; not treated as a feed or alert signal.",
+    bullish_points: [],
+    bearish_points: [],
+    key_evidence: [
+      stringValue(rawItem.title),
+      stringValue(rawItem.raw_payload.candidate_reason),
+    ].filter(Boolean),
+    what_to_watch_next: [`Open the original ${sourceName} release if this archive item becomes relevant.`],
+    calendar_items: [],
+    llm_skipped: true,
+    analysis_source: `deterministic_${rawItem.source_code}_low_value_archive`,
+    archive_reason: "low_value_ticker_archive",
+    low_value_reasons: lowValueReasons,
+    candidate_class: rawItem.raw_payload.candidate_class,
+    candidate_reason: rawItem.raw_payload.candidate_reason,
+    candidate_signals: candidateSignals,
   };
 }
 
-function isRawItemSkippedOutsideCoverage(row: PersistedRow) {
-  const metadata = toRecord(row.metadata);
-  return metadata?.ingest_decision === "outside_us_market_coverage";
+function sourceDisplayName(sourceCode: string) {
+  if (sourceCode === "businesswire") return "Business Wire";
+  if (sourceCode === "prnewswire") return "PR Newswire";
+  if (sourceCode === "newsfile") return "Newsfile";
+  if (sourceCode === "ofac") return "OFAC";
+  if (sourceCode === "doj") return "DOJ";
+  if (sourceCode === "dea") return "DEA";
+  if (sourceCode === "whitehouse") return "White House";
+  if (sourceCode === "globe") return "GlobeNewswire";
+  return sourceCode || "news";
+}
+
+function readPrimaryTickerFromRawItem(rawItem: NewsRawItem) {
+  const tickers = recordArray(rawItem.raw_payload.tickers);
+  const preferred = tickers.find((ticker) => Boolean(ticker.usListed)) || tickers[0];
+  const ticker = nullableString(preferred?.symbol || preferred?.ticker);
+  return {
+    ticker: ticker ? ticker.toUpperCase() : null,
+    exchange: nullableString(preferred?.exchange),
+  };
+}
+
+function eventTypeForLowValueReasons(reasons: string[]) {
+  const reasonSet = new Set(reasons);
+  if (reasonSet.has("shareholder_lawsuit_ad")) return "legal_risk";
+  if (reasonSet.has("personnel_or_culture")) return "leadership_governance";
+  if (
+    reasonSet.has("local_opening") ||
+    reasonSet.has("marketing_campaign") ||
+    reasonSet.has("private_product_promo")
+  ) {
+    return "product_update";
+  }
+  return "other";
+}
+
+function readRawItemPrefilterSkipDecision(rawItem: NewsRawItem) {
+  const candidateClass = stringValue(rawItem.raw_payload.candidate_class);
+  if (candidateClass !== "low_value_filtered") return null;
+
+  return {
+    decision: "low_value_raw_prefilter",
+    reason: stringValue(rawItem.raw_payload.candidate_reason) || "Raw parser marked item as low-value before LLM.",
+  };
+}
+
+function incrementSkipStats(stats: Record<string, number>, decision: string) {
+  if (decision === "outside_us_market_coverage") {
+    stats.skipped_outside_coverage_count = numberValue(stats.skipped_outside_coverage_count) + 1;
+  }
+  if (decision === "low_impact_tickerless_broad_scope") {
+    stats.skipped_low_impact_tickerless_count = numberValue(stats.skipped_low_impact_tickerless_count) + 1;
+  }
+  if (decision === "low_impact_broad_scope") {
+    stats.skipped_low_impact_broad_scope_count = numberValue(stats.skipped_low_impact_broad_scope_count) + 1;
+  }
+  if (decision === "no_us_listed_market_target") {
+    stats.skipped_no_us_market_target_count = numberValue(stats.skipped_no_us_market_target_count) + 1;
+  }
+  if (decision === "low_value_raw_prefilter") {
+    stats.skipped_low_value_raw_count = numberValue(stats.skipped_low_value_raw_count) + 1;
+  }
+  if (decision === "route_classifier_skip") {
+    stats.skipped_route_classifier_count = numberValue(stats.skipped_route_classifier_count) + 1;
+  }
+}
+
+function hasUsListedTicker(
+  analysis: Record<string, unknown>,
+  primaryTicker: { ticker: string | null; exchange: string | null },
+) {
+  if (primaryTicker.ticker && isUsListedExchange(primaryTicker.exchange)) return true;
+
+  return [...recordArray(analysis.tickers), ...recordArray(analysis.related_tickers)].some((item) =>
+    isUsListedExchange(stringValue(item.exchange)),
+  );
 }
 
 function isUsListedExchange(value: string | null) {
@@ -855,6 +1589,8 @@ function isUsListedExchange(value: string | null) {
     normalized === "NYSE_AMERICAN" ||
     normalized === "NYSE_ARCA" ||
     normalized === "AMEX" ||
+    normalized === "CBOE" ||
+    normalized === "BATS" ||
     normalized === "OTC" ||
     normalized === "OTCQX" ||
     normalized === "OTCQB" ||
@@ -901,13 +1637,260 @@ function analysisScopeFromMarketScope(value: MarketScope): AnalysisScope {
   return value === "macro" ? "market" : value;
 }
 
-function buildCrossGroupEventKey(ticker: string | null, eventType: string, title: string | null) {
+function buildTickerEventDedupeKey(ticker: string | null, eventType: string, title: string | null) {
   if (!ticker) return null;
-  return `${ticker}:${eventType}:${slugify(title || "")}`.slice(0, 180);
+  return `${ticker}:${eventType}:${slugify(normalizeNewsTitleForDedupe(title || ""))}`.slice(0, 180);
 }
 
-function buildGroupDedupeKey(rawItem: GlobeParsedRawItem) {
-  return rawItem.dedupe_key || `globe:${rawItem.source_url.toLowerCase()}`;
+function buildGroupDedupeKey(rawItem: NewsRawItem) {
+  return rawItem.dedupe_key || `${rawItem.source_code}:${rawItem.source_url.toLowerCase()}`;
+}
+
+function buildAnalyzedEventDedupe(rawItem: NewsRawItem, analysis: Record<string, unknown>): EventDedupe {
+  const primaryTicker = readPrimaryTicker(analysis);
+  const eventType = normalizeEventType(stringValue(analysis.event_type));
+  const marketScope = normalizeMarketScope(stringValue(analysis.market_scope));
+  const normalizedTitle = normalizeNewsTitleForDedupe(rawItem.title || "");
+  const publishedDate = readPublishedDate(rawItem.published_at);
+  const topicTokens = buildEventTopicTokens(rawItem, analysis);
+  const isBroadScope = marketScope === "sector" || marketScope === "theme" || marketScope === "macro";
+  const tickerKey = buildTickerEventDedupeKey(primaryTicker.ticker, eventType, rawItem.title);
+  const broadKey = isBroadScope
+    ? buildBroadMarketEventDedupeKey({
+        sourceCode: rawItem.source_code,
+        eventType,
+        marketScope,
+        publishedDate,
+        topicTokens,
+      })
+    : null;
+
+  return {
+    key: broadKey || tickerKey,
+    normalizedTitle,
+    sourceCode: rawItem.source_code,
+    eventType,
+    marketScope,
+    publishedDate,
+    topicTokens,
+  };
+}
+
+function buildBroadMarketEventDedupeKey({
+  sourceCode,
+  eventType,
+  marketScope,
+  publishedDate,
+  topicTokens,
+}: {
+  sourceCode: string;
+  eventType: string;
+  marketScope: MarketScope;
+  publishedDate: string | null;
+  topicTokens: string[];
+}) {
+  if (!publishedDate || topicTokens.length < 2) return null;
+  return [
+    sourceCode,
+    marketScope,
+    eventType,
+    publishedDate,
+    topicTokens.slice(0, 8).join("-"),
+  ].join(":").slice(0, 180);
+}
+
+function findDuplicateInRun(
+  eventDedupe: EventDedupe,
+  seenRunEventKeys: Set<string>,
+  seenRunEvents: EventDedupe[],
+): DuplicateInRun | null {
+  if (eventDedupe.key && seenRunEventKeys.has(eventDedupe.key)) {
+    return { key: eventDedupe.key, tokenOverlap: 1 };
+  }
+
+  const isBroadScope =
+    eventDedupe.marketScope === "sector" ||
+    eventDedupe.marketScope === "theme" ||
+    eventDedupe.marketScope === "macro";
+  if (!isBroadScope || !eventDedupe.publishedDate || eventDedupe.topicTokens.length < 3) return null;
+
+  for (const seen of seenRunEvents) {
+    const seenBroadScope = seen.marketScope === "sector" || seen.marketScope === "theme" || seen.marketScope === "macro";
+    if (!seenBroadScope) continue;
+    if (seen.sourceCode !== eventDedupe.sourceCode) continue;
+    if (seen.eventType !== eventDedupe.eventType) continue;
+    if (seen.publishedDate !== eventDedupe.publishedDate) continue;
+
+    const overlap = tokenOverlapRatio(eventDedupe.topicTokens, seen.topicTokens);
+    if (overlap >= 0.42) {
+      return { key: seen.key, tokenOverlap: overlap };
+    }
+  }
+
+  return null;
+}
+
+function rememberRunEvent(
+  eventDedupe: EventDedupe,
+  seenRunEventKeys: Set<string>,
+  seenRunEvents: EventDedupe[],
+) {
+  if (eventDedupe.key) seenRunEventKeys.add(eventDedupe.key);
+  seenRunEvents.push(eventDedupe);
+}
+
+function tokenOverlapRatio(left: string[], right: string[]) {
+  if (!left.length || !right.length) return 0;
+  const leftSet = new Set(left);
+  const rightSet = new Set(right);
+  let intersection = 0;
+  for (const token of leftSet) {
+    if (rightSet.has(token)) intersection += 1;
+  }
+  return intersection / Math.min(leftSet.size, rightSet.size);
+}
+
+function buildEventTopicTokens(rawItem: NewsRawItem, analysis: Record<string, unknown>) {
+  const pieces = [
+    rawItem.title,
+    analysis.quick_take,
+    analysis.sector,
+    analysis.industry_group,
+    analysis.theme_group,
+    analysis.sub_theme,
+  ];
+  const normalized = normalizeTopicText(pieces.filter(Boolean).join(" "));
+  const tokens = normalized
+    .split(/\s+/)
+    .map(normalizeTopicToken)
+    .filter((token) => token.length >= 3 && !TOPIC_DEDUPE_STOPWORDS.has(token));
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const token of tokens) {
+    if (seen.has(token)) continue;
+    seen.add(token);
+    result.push(token);
+  }
+
+  return result.sort();
+}
+
+function normalizeTopicText(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/&[a-z0-9#]+;/gi, " ")
+    .replace(/u\.s\.|united states|american/g, "us")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeTopicToken(value: string) {
+  const token = value.trim();
+  const mapped = TOPIC_DEDUPE_TOKEN_MAP[token];
+  if (mapped) return mapped;
+  return token.replace(/ies$/, "y").replace(/s$/, "");
+}
+
+function readPublishedDate(value: string | null | undefined) {
+  if (!value) return null;
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) return null;
+  return new Date(parsed).toISOString().slice(0, 10);
+}
+
+const TOPIC_DEDUPE_TOKEN_MAP: Record<string, string> = {
+  cuban: "cuba",
+  chinese: "china",
+  imposing: "sanction",
+  imposes: "sanction",
+  imposed: "sanction",
+  sanctions: "sanction",
+  sanctioned: "sanction",
+  tariffs: "tariff",
+  deals: "deal",
+  agreements: "agreement",
+  restrictions: "restriction",
+  officials: "official",
+  responsible: "responsibility",
+  threats: "threat",
+  workers: "worker",
+  farmers: "farmer",
+  industries: "industry",
+  pipelines: "pipeline",
+  contracts: "contract",
+  contracting: "contract",
+  retirement: "retire",
+  savings: "saving",
+};
+
+const TOPIC_DEDUPE_STOPWORDS = new Set([
+  "about",
+  "across",
+  "action",
+  "actions",
+  "act",
+  "again",
+  "against",
+  "also",
+  "america",
+  "and",
+  "announce",
+  "announced",
+  "announces",
+  "authorizing",
+  "before",
+  "bring",
+  "broadens",
+  "broaden",
+  "deliver",
+  "delivering",
+  "donald",
+  "during",
+  "executive",
+  "expands",
+  "fact",
+  "federal",
+  "for",
+  "from",
+  "government",
+  "house",
+  "into",
+  "issued",
+  "its",
+  "january",
+  "new",
+  "order",
+  "over",
+  "official",
+  "president",
+  "presidential",
+  "promotes",
+  "regime",
+  "responsibility",
+  "sheet",
+  "signed",
+  "state",
+  "states",
+  "that",
+  "the",
+  "their",
+  "those",
+  "through",
+  "trump",
+  "under",
+  "united",
+  "white",
+  "will",
+  "with",
+]);
+
+function normalizeNewsTitleForDedupe(value: string) {
+  return value
+    .replace(/^\s*(?:retransmission|correction|correcting and replacing|updated?|update)\s*[:\-]\s*/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function slugify(value: string) {
@@ -918,7 +1901,7 @@ function slugify(value: string) {
     .slice(0, 80);
 }
 
-function summarizeRaw(rawItem: GlobeParsedRawItem) {
+function summarizeRaw(rawItem: NewsRawItem) {
   return {
     source_unique_id: rawItem.source_unique_id,
     source_url: rawItem.source_url,
@@ -926,6 +1909,9 @@ function summarizeRaw(rawItem: GlobeParsedRawItem) {
     published_at: rawItem.published_at,
     body_chars: rawItem.body_text?.length || 0,
     analysis_chars: stringValue(rawItem.raw_payload.analysis_text).length,
+    candidate_class: rawItem.raw_payload.candidate_class || null,
+    candidate_reason: rawItem.raw_payload.candidate_reason || null,
+    candidate_signals: rawItem.raw_payload.candidate_signals || [],
   };
 }
 

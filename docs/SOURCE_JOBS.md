@@ -4,21 +4,22 @@ Source job configuration lives in `lib/sourceJobs.ts`.
 
 ## Job Routes
 
-Most routes are hosted by the existing `APP_BASE_URL` server. GlobeNewswire is
-the current exception and uses the canonical Next.js ingest route. The Next.js
-app exposes wrapper routes under `/api/source-jobs/:source/run`, but these are
-not called automatically because they can trigger collection.
+Most routes are hosted by the existing `APP_BASE_URL` server. GlobeNewswire,
+Business Wire, PR Newswire, Newsfile, OFAC, DOJ, DEA, and White House are the current exceptions
+and use canonical Next.js ingest routes. The Next.js app exposes wrapper routes under
+`/api/source-jobs/:source/run`, but these are not called automatically because
+they can trigger collection.
 
 | Source | Server job route |
 | --- | --- |
 | GlobeNewswire | `POST /api/sources/globe/ingest` |
-| Business Wire | `POST /jobs/businesswire` |
-| PR Newswire | `POST /jobs/prnewswire` |
-| Newsfile | `POST /jobs/newsfile` |
-| OFAC | `POST /jobs/ofac` |
-| DOJ | `POST /jobs/doj` |
-| DEA | `POST /jobs/dea` |
-| White House | `POST /jobs/whitehouse` |
+| Business Wire | `POST /api/sources/businesswire/ingest` |
+| PR Newswire | `POST /api/sources/prnewswire/ingest` |
+| Newsfile | `POST /api/sources/newsfile/ingest` |
+| OFAC | `POST /api/sources/ofac/ingest` |
+| DOJ | `POST /api/sources/doj/ingest` |
+| DEA | `POST /api/sources/dea/ingest` |
+| White House | `POST /api/sources/whitehouse/ingest` |
 
 ## Health Routes
 
@@ -54,6 +55,38 @@ The wrapper defaults to:
 
 Do not add automatic polling from the Next.js UI without explicit approval.
 
-GlobeNewswire's wrapper executes against the current Next.js request origin so
-local dry-run checks hit the canonical route. Other sources still use their
-configured `APP_BASE_URL` job routes.
+GlobeNewswire, Business Wire, PR Newswire, Newsfile, OFAC, DOJ, DEA, and White House wrappers execute
+against the current Next.js request origin so local dry-run checks hit their
+canonical routes. Other sources still use their configured `APP_BASE_URL` job
+routes.
+
+PR Newswire uses multiple event and sector RSS feeds instead of the noisy
+all-release RSS. The parser tags raw items with `candidate_class`; items marked
+`low_value_filtered` are skipped before LLM analysis.
+
+OFAC uses `https://ofac.treasury.gov/recent-actions` as the canonical source.
+When an OFAC action links to a Treasury press release, the parser keeps the OFAC
+action URL as `source_url` and appends the Treasury press release body to
+`analysis_text` for market-relevance analysis.
+
+DOJ uses `https://www.justice.gov/api/v1/press_releases.json` with
+`sort=date&direction=DESC`; the API defaults to old archive items if those sort
+params are omitted. The parser tags local individual criminal matters as
+`low_value_filtered` before LLM analysis and keeps antitrust, securities fraud,
+FCPA, False Claims Act, export/sanctions, cyber/crypto, defense procurement, and
+public-company enforcement items as LLM candidates.
+
+DEA uses the DOJ press release API as the canonical fetch path and filters for
+the `Drug Enforcement Administration (DEA)` component client-side. The public
+DEA.gov press-release HTML page is kept as a reference URL, but it is not the
+parser's primary fetch path because direct HTML requests can be blocked by the
+site edge layer. Routine local drug-crime items are tagged `low_value_filtered`;
+controlled-substance policy, pharma distribution enforcement, public-health drug
+supply, cartel/security, and darknet/crypto items remain LLM candidates.
+
+White House uses the public HTML archive pages for Presidential Actions, Fact
+Sheets, and Releases. The parser fetches archive list pages, hydrates article
+body HTML from each item page, and tags ceremonial, nomination, and general
+political-promo items as `low_value_filtered`. Trade, sanctions, energy,
+healthcare, technology, defense, tax/budget/regulation, labor, infrastructure,
+agriculture, and commodity policy items remain LLM candidates.

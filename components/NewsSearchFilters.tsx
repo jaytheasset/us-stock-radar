@@ -13,6 +13,7 @@ const eventTypeOptions = [
   "Sales Performance",
   "Leadership / Governance",
   "Dividends",
+  "Capital Return",
   "Other",
 ];
 

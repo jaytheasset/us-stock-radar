@@ -9,8 +9,17 @@ export async function POST(
 ) {
   const { source } = await context.params;
   const body = await request.json().catch(() => ({}));
+  const useRequestOrigin =
+    source === "globe" ||
+    source === "businesswire" ||
+    source === "prnewswire" ||
+    source === "newsfile" ||
+    source === "ofac" ||
+    source === "doj" ||
+    source === "dea" ||
+    source === "whitehouse";
   const result = await runSourceJob(source, body, {
-    baseUrlOverride: source === "globe" ? request.nextUrl.origin : undefined,
+    baseUrlOverride: useRequestOrigin ? request.nextUrl.origin : undefined,
   });
 
   return NextResponse.json(result, {

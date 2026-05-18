@@ -6,6 +6,18 @@ import {
   newsEventAnalysisSystemPrompt,
 } from "@/lib/prompts/newsEventAnalysis";
 import {
+  NEWS_ROUTE_CLASSIFICATION_PROMPT_KEY,
+  NEWS_ROUTE_CLASSIFICATION_PROMPT_VERSION,
+  newsRouteClassificationResponseSchema,
+  newsRouteClassificationSystemPrompt,
+} from "@/lib/prompts/newsRouteClassification";
+import {
+  NEWS_SECTOR_THEME_POLICY_ANALYSIS_PROMPT_KEY,
+  NEWS_SECTOR_THEME_POLICY_ANALYSIS_PROMPT_VERSION,
+  newsSectorThemePolicyAnalysisInputTemplate,
+  newsSectorThemePolicyAnalysisSystemPrompt,
+} from "@/lib/prompts/newsSectorThemePolicyAnalysis";
+import {
   SEC_FILING_ANALYSIS_PROMPT_KEY,
   SEC_FILING_ANALYSIS_PROMPT_VERSION,
   secFilingAnalysisInputTemplate,
@@ -31,6 +43,23 @@ export type PromptTemplateDraft = {
 
 export const promptTemplates: PromptTemplateDraft[] = [
   {
+    key: NEWS_ROUTE_CLASSIFICATION_PROMPT_KEY,
+    version: NEWS_ROUTE_CLASSIFICATION_PROMPT_VERSION,
+    task: "News route classification",
+    model: "gpt-5-mini",
+    status: "draft",
+    owner: "ai",
+    inputTables: ["raw_items"],
+    outputTarget: "runtime route: company vs sector/theme/policy",
+    notes:
+      "First-pass classifier that decides whether a news item should be skipped or use the company or broad-market analysis prompt.",
+    systemPrompt: newsRouteClassificationSystemPrompt,
+    userInputTemplate: newsEventAnalysisInputTemplate,
+    responseSchema: newsRouteClassificationResponseSchema,
+    runtimeNotes:
+      "OpenAI call runs before detailed analysis. Runtime skips low-value items before second-pass analysis when route=skip.",
+  },
+  {
     key: NEWS_EVENT_ANALYSIS_PROMPT_KEY,
     version: NEWS_EVENT_ANALYSIS_PROMPT_VERSION,
     task: "Newswire event analysis",
@@ -46,6 +75,23 @@ export const promptTemplates: PromptTemplateDraft[] = [
     responseSchema: newsEventAnalysisResponseSchema,
     runtimeNotes:
       "OpenAI call: instructions = systemPrompt, input = JSON.stringify(article input), text.format = responseSchema.",
+  },
+  {
+    key: NEWS_SECTOR_THEME_POLICY_ANALYSIS_PROMPT_KEY,
+    version: NEWS_SECTOR_THEME_POLICY_ANALYSIS_PROMPT_VERSION,
+    task: "Broad-market news analysis",
+    model: "gpt-5-mini",
+    status: "draft",
+    owner: "ai",
+    inputTables: ["raw_items"],
+    outputTarget: "events + event_analysis + event_tickers",
+    notes:
+      "Dedicated broad-market news analysis. The LLM identifies the exposure path; runtime maps only that sector/theme classification to cached ticker data.",
+    systemPrompt: newsSectorThemePolicyAnalysisSystemPrompt,
+    userInputTemplate: newsSectorThemePolicyAnalysisInputTemplate,
+    responseSchema: newsEventAnalysisResponseSchema,
+    runtimeNotes:
+      "Used after news_route_classification returns broad_market. Runtime does not inspect article keywords for proxies.",
   },
   {
     key: "press_release_event_enrichment",
