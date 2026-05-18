@@ -1417,9 +1417,11 @@ function evaluateCoverageForStorage(
   const primaryTicker = readPrimaryTicker(analysis);
   const hasUsTicker = hasUsListedTicker(analysis, primaryTicker);
   const score = clampScore(numberValue(analysis.score));
+  const eventType = stringValue(analysis.event_type);
   const isBroadScope = marketScope === "sector" || marketScope === "theme" || marketScope === "macro";
+  const keepTickerlessClinicalFda = eventType === "fda_clinical" && score >= 50;
 
-  if (marketScope === "company" && !hasUsTicker) {
+  if (marketScope === "company" && !hasUsTicker && !keepTickerlessClinicalFda) {
     return {
       dropEvent: true,
       decision: "outside_us_market_coverage",

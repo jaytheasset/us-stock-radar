@@ -438,6 +438,7 @@ function classifyFdaCandidate({
   const sectorImpactSignals = findSectorImpactSignals(text, feedKind);
   const highValueAgencyAction = hasHighValueAgencyActionSignal(text, feedKind);
   const titleHighValueAgencyAction = hasHighValueAgencyActionSignal(titleText, feedKind);
+  const safetyRecallAction = hasFdaSafetyRecallAction(text, feedKind);
   const signals = [
     ...sectorImpactSignals.map((signal) => `sector:${signal}`),
     ...lowValueReasons.map((reason) => `low_value:${reason}`),
@@ -456,7 +457,7 @@ function classifyFdaCandidate({
     };
   }
 
-  if (lowValueReasons.length > 0 && !titleHighValueAgencyAction) {
+  if (lowValueReasons.length > 0 && !titleHighValueAgencyAction && !safetyRecallAction) {
     return {
       candidateClass: "low_value_filtered",
       reason: `Filtered before LLM as low-value FDA page: ${lowValueReasons.join(", ")}`,
@@ -506,11 +507,18 @@ function hasHighValueAgencyActionSignal(text: string, feedKind: FdaFeedConfig["k
   return [
     /\bfda\s+(?:approves?|approved|clears?|cleared|grants?|issued?|announced?|finalizes?|launches?)\b/i,
     /\bmay be harmful\b/i,
+    /\b(?:early alert|potentially high-risk device issue|medical device recalls?)\b/i,
     /\b(?:issued?|grants?)\s+(?:an?\s+)?approval\b/i,
     /\b(?:complete response letter|crl|safety alert|drug safety communication|warning letter|shortage)\b/i,
     /\b(?:breakthrough therapy|orphan drug|fast track|priority review|pdufa date|advisory committee)\b/i,
     /\b(?:voluntary|nationwide|class i|class ii)\s+recall\b/i,
   ].some((pattern) => pattern.test(text));
+}
+
+function hasFdaSafetyRecallAction(text: string, feedKind: FdaFeedConfig["kind"]) {
+  const safetyPattern =
+    /\b(?:early alert|potentially high-risk device issue|medical device recalls?|class\s+(?:i|ii)\s+recall|nationwide recall|voluntary recall|safety alert|drug safety communication|boxed warning|contamination|defect)\b/i;
+  return safetyPattern.test(text) || (feedKind === "medwatch" && /\b(?:recall|removes?|removing|corrected?|replaced?)\b/i.test(text));
 }
 
 function findSectorImpactSignals(text: string, feedKind: FdaFeedConfig["kind"]) {

@@ -8,6 +8,7 @@ const ANALYSIS_TEXT_VERSION = "globe_analysis_text_v1";
 
 type FetchOptions = {
   searchUrl?: string;
+  sourceUniqueId?: string;
   limit?: number;
   includeArticleBody?: boolean;
   articleBodyLimit?: number;
@@ -76,7 +77,8 @@ export async function fetchGlobeNewswireRawItems(
 ): Promise<GlobeRawFetchResult> {
   const searchUrl = options.searchUrl || GLOBE_EXCHANGE_SEARCH_URL;
   const fetchedAt = new Date().toISOString();
-  const limit = clampNumber(options.limit ?? 50, 1, 100);
+  const sourceUniqueId = normalizeSourceUniqueId(options.sourceUniqueId);
+  const limit = sourceUniqueId ? 100 : clampNumber(options.limit ?? 50, 1, 100);
   const includeArticleBody = options.includeArticleBody ?? false;
   const articleBodyLimit = includeArticleBody
     ? clampNumber(options.articleBodyLimit ?? limit, 0, limit)
@@ -113,7 +115,10 @@ export async function fetchGlobeNewswireRawItems(
       fetchedAt,
     });
     const englishItems = parsedItems.filter(isEnglishGlobeNewswireItem);
-    const searchItems = englishItems.slice(0, limit);
+    const filteredItems = sourceUniqueId
+      ? englishItems.filter((item) => normalizeSourceUniqueId(item.source_unique_id) === sourceUniqueId)
+      : englishItems;
+    const searchItems = filteredItems.slice(0, sourceUniqueId ? 1 : limit);
 
     let articleBodiesFetched = 0;
     const items: GlobeParsedRawItem[] = [];
@@ -718,6 +723,12 @@ function absolutizeGlobeUrl(value: string | null | undefined) {
 
 function readReleaseId(url: string) {
   return url.match(/\/news-release\/\d{4}\/\d{2}\/\d{2}\/(\d+)\//)?.[1] || null;
+}
+
+function normalizeSourceUniqueId(value: string | null | undefined) {
+  if (!value) return null;
+  const trimmed = String(value).trim();
+  return readReleaseId(trimmed) || trimmed || null;
 }
 
 function buildDedupeKey(sourceUniqueId: string | null, sourceUrl: string) {

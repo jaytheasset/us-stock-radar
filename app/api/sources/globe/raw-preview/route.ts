@@ -8,8 +8,10 @@ export async function GET(request: NextRequest) {
   const limit = readNumber(params.get("limit"), 10, 1, 50);
   const includeArticleBody = params.get("includeArticleBody") !== "false";
   const articleBodyLimit = readNumber(params.get("articleBodyLimit"), Math.min(limit, 3), 0, limit);
+  const sourceUniqueId = readString(params.get("sourceUniqueId"));
   const result = await fetchGlobeNewswireRawItems({
     limit,
+    sourceUniqueId,
     includeArticleBody,
     articleBodyLimit,
   });
@@ -23,4 +25,8 @@ function readNumber(value: string | null, fallback: number, min: number, max: nu
   const parsed = value ? Number(value) : fallback;
   if (!Number.isFinite(parsed)) return fallback;
   return Math.max(min, Math.min(max, Math.floor(parsed)));
+}
+
+function readString(value: string | null) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
