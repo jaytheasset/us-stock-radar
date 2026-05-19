@@ -25,8 +25,12 @@ try {
   check("SEC filing analysis selected source item", Boolean(result.sourceItem?.id), result.sourceItem);
   check("SEC filing analysis produced analysis", Boolean(result.analysis), result.analysis);
   check("SEC filing analysis produced calendar items", Array.isArray(result.analysis?.calendar_items), result.analysis);
+  if (result.skipped || result.stage === "skipped") {
+    check("SEC filing analysis skipped without persistence", result.skipped === true && !result.event?.id, result);
+    check("SEC filing analysis skip has reason", Boolean(result.skipReason || result.analysis?.archive_summary), result);
+  }
 
-  if (!dryRun) {
+  if (!dryRun && !result.skipped && result.stage !== "skipped") {
     const calendarItems = Array.isArray(result.calendarItems) ? result.calendarItems : [];
     check("SEC filing event was persisted", Boolean(result.event?.id), result.event);
     check("SEC filing calendar rows persisted", calendarItems.length > 0, result);
@@ -42,6 +46,10 @@ try {
           ticker,
           dryRun,
           force,
+          skipped: Boolean(result.skipped),
+          skipReason: result.skipReason || null,
+          prompt: result.prompt || null,
+          costEstimate: result.costEstimate || null,
           selected: result.sourceItem,
           event: result.event
             ? {

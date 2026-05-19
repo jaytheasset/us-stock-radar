@@ -30,6 +30,12 @@ import {
   secFilingAnalysisResponseSchema,
   secFilingAnalysisSystemPrompt,
 } from "@/lib/prompts/secFilingAnalysis";
+import {
+  SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY,
+  SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION,
+  secS3OfferingAnalysisResponseSchema,
+  secS3OfferingAnalysisSystemPrompt,
+} from "@/lib/prompts/secS3OfferingAnalysis";
 
 export type PromptTemplateDraft = {
   key: string;
@@ -56,9 +62,9 @@ export const promptTemplates: PromptTemplateDraft[] = [
     status: "draft",
     owner: "ai",
     inputTables: ["raw_items"],
-    outputTarget: "runtime route: company vs clinical/FDA vs sector/theme/policy",
+    outputTarget: "runtime route: company vs offering/dilution vs insider/ownership vs clinical/FDA vs sector/theme/policy",
     notes:
-      "First-pass classifier that decides whether a news item should be skipped or use the company, clinical/FDA, or broad-market analysis prompt.",
+      "First-pass classifier that decides whether a news item should be skipped or use company, offering/dilution, insider/ownership, clinical/FDA, or broad-market analysis.",
     systemPrompt: newsRouteClassificationSystemPrompt,
     userInputTemplate: newsEventAnalysisInputTemplate,
     responseSchema: newsRouteClassificationResponseSchema,
@@ -92,12 +98,12 @@ export const promptTemplates: PromptTemplateDraft[] = [
     inputTables: ["raw_items"],
     outputTarget: "events + event_analysis + event_tickers",
     notes:
-      "Dedicated broad-market news analysis. The LLM identifies the exposure path; runtime maps only that sector/theme classification to cached ticker data.",
+      "Dedicated broad-market news analysis. The LLM identifies the exposure path; runtime may map that sector/theme classification to cached ticker proxies.",
     systemPrompt: newsSectorThemePolicyAnalysisSystemPrompt,
     userInputTemplate: newsSectorThemePolicyAnalysisInputTemplate,
     responseSchema: newsEventAnalysisResponseSchema,
     runtimeNotes:
-      "Used after news_route_classification returns broad_market. Runtime does not inspect article keywords for proxies.",
+      "Used after news_route_classification returns broad_market. Runtime does not inspect article keywords for proxies; it maps only LLM sector/theme fields against cached taxonomy/FMP data.",
   },
   {
     key: NEWS_CLINICAL_FDA_ANALYSIS_PROMPT_KEY,
@@ -143,6 +149,23 @@ export const promptTemplates: PromptTemplateDraft[] = [
     responseSchema: secFilingAnalysisResponseSchema,
     runtimeNotes:
       "OpenAI call: instructions = systemPrompt, input = JSON.stringify({ filing_package }), text.format = responseSchema.",
+  },
+  {
+    key: SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY,
+    version: SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION,
+    task: "SEC S-3 offering analysis",
+    model: "gpt-5-mini",
+    status: "draft",
+    owner: "ai",
+    inputTables: ["raw_items"],
+    outputTarget: "skip_analysis or events + event_analysis + event_tickers + event_calendar_items + offering_display_model",
+    notes:
+      "Dedicated S-3/S-3ASR/S-3/A contract. Source text is authoritative; parser candidates are only hints. The LLM decides skip, archive, or offering analysis and may emit the dilution/offering display model.",
+    systemPrompt: secS3OfferingAnalysisSystemPrompt,
+    userInputTemplate: secFilingAnalysisInputTemplate,
+    responseSchema: secS3OfferingAnalysisResponseSchema,
+    runtimeNotes:
+      "Runtime selects this prompt only for the S-3 family. skip_analysis preserves raw_items only; analyze_offering normally maps to dilution_risk. offering_display_model is for the user-facing dilution detail UI.",
   },
   {
     key: "fda_announcement_enrichment",

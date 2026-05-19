@@ -246,10 +246,7 @@ export function parseSecS3Filing(input: SecS3ParseInput): SecS3FilingFacts {
   });
   const primaryOrResale = findPrimaryOrResale(s3Text);
   let securitiesRegistered = findSecuritiesRegistered(s3Text);
-  const sharesRegistered = findShareCount(s3Text, [
-    /\b(?:preliminary prospectus|prospectus)\s+(\d[\d,.]*\s+(?:shares of common stock|common shares|ordinary shares|shares))\b/i,
-    /\b(?:up to|resale of|register(?:ing)?(?: the resale of)?)\s+(\d[\d,.]*\s+(?:shares of common stock|common shares|ordinary shares|shares))\b/i,
-  ]);
+  const sharesRegistered = findRegisteredShareCount(s3Text);
   if (primaryOrResale?.value === "resale" && /\bshares of common stock\b/i.test(sharesRegistered?.text || "")) {
     securitiesRegistered = [
       {
@@ -259,9 +256,12 @@ export function parseSecS3Filing(input: SecS3ParseInput): SecS3FilingFacts {
       },
     ];
   }
-  const resaleShareCount = findShareCount(s3Text, [
-    /\b(?:resale by|resale of|selling stockholders?.{0,120}?up to|selling shareholders?.{0,120}?up to)\s+(\d[\d,.]*\s+(?:shares of common stock|common shares|ordinary shares|shares))\b/i,
-  ]);
+  const resaleShareCount =
+    primaryOrResale?.value === "resale" && sharesRegistered
+      ? sharesRegistered
+      : findShareCount(s3Text, [
+          /\b(?:resale by|resale of|selling stockholders?.{0,120}?up to|selling shareholders?.{0,120}?up to)\s+(\d[\d,.]*\s+(?:shares of common stock|common shares|ordinary shares|shares))\b/i,
+        ]);
   const currentSharesOutstanding = findShareCount(s3Text, [
     /\b(\d[\d,.]*\s+(?:shares of common stock|common shares|ordinary shares|shares))\s+(?:were|are)?\s*(?:issued and outstanding|outstanding)\b/i,
   ]);
@@ -652,6 +652,71 @@ function findShareCount(text: string, patterns: RegExp[]): SecS3CountField | nul
   return null;
 }
 
+function findRegisteredShareCount(text: string): SecS3CountField | null {
+  const coverCandidate = findBestRegisteredShareCountCandidate(extractProspectusCoverText(text));
+  if (coverCandidate) return coverCandidate;
+
+  return findShareCount(text, [
+    /\b(?:preliminary prospectus|prospectus)\s+(\d[\d,.]*\s+(?:shares of common stock|common shares|ordinary shares|shares))\b/i,
+    /\b(?:up to|resale of|register(?:ing)?(?: the resale of)?)\s+(\d[\d,.]*\s+(?:shares of common stock|common shares|ordinary shares|shares))\b/i,
+  ]);
+}
+
+function findBestRegisteredShareCountCandidate(text: string): SecS3CountField | null {
+  const source = compactText(text);
+  if (!source) return null;
+
+  const candidates: Array<SecS3CountField & { rank: number; index: number }> = [];
+  const pattern = /\b(\d[\d,.]*\s+(?:shares of common stock|common shares|ordinary shares|shares))\b/gi;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(source))) {
+    if (!match[1]) continue;
+    const valueText = match[1].trim();
+    const evidence = pickEvidenceSentence(source, match.index || 0);
+    const rank = rankRegisteredShareCountCandidate(valueText, evidence, match.index || 0);
+    if (rank < 0) continue;
+    candidates.push({
+      value: normalizeShareCount(valueText),
+      text: valueText,
+      evidence,
+      confidence: rank >= 7 ? "high" : "medium",
+      rank,
+      index: match.index || 0,
+    });
+  }
+
+  candidates.sort((left, right) => {
+    const leftValue = left.value || 0;
+    const rightValue = right.value || 0;
+    return right.rank - left.rank || rightValue - leftValue || left.index - right.index;
+  });
+
+  const best = candidates[0];
+  if (!best) return null;
+  return {
+    value: best.value,
+    text: best.text,
+    evidence: best.evidence,
+    confidence: best.confidence,
+  };
+}
+
+function rankRegisteredShareCountCandidate(valueText: string, evidence: string, index: number) {
+  const context = compactText(`${valueText} ${evidence}`);
+  if (/\b(?:authorized|outstanding|beneficially owned|owned prior|owned before|owned after|post-offering|after this offering|fee table|calculated solely)\b/i.test(context)) {
+    return -1;
+  }
+
+  let rank = 0;
+  if (/\bshares of common stock\b/i.test(valueText)) rank += 3;
+  if (/\b(?:this prospectus relates to|prospectus relates to|offered hereby|offer and resale|resale by|selling stockholders?|selling shareholders?|register(?:ing)?|up to)\b/i.test(evidence)) {
+    rank += 5;
+  }
+  if (/\b(?:underlying|issuable upon|upon exercise|conversion|warrant|pre-funded)\b/i.test(evidence)) rank -= 2;
+  if (index < 1_500) rank += 1;
+  return rank;
+}
+
 function buildS3OfferingTerms({
   currentSharesOutstanding,
   feeTableTotals,
@@ -1028,6 +1093,7 @@ function parseSellingStockholderComponents(text: string): SecS3SellingStockholde
     if (!evidence || !/\bshares?\b/i.test(evidence)) continue;
     const match = evidence.match(/\b(\d[\d,.]*)\s+((?:shares of common stock|common shares|ordinary shares|first warrant shares|second warrant shares|warrant shares|shares)[^;.]*)/i);
     if (!match) continue;
+    if (isLikelyTrancheOrdinalShareFalsePositive(evidence, match.index || 0, match[1])) continue;
     const shareText = `${match[1]} shares`;
     const amountText = evidence.match(/\$\s*\d[\d,.]*/)?.[0] || "";
     components.push({
@@ -1052,6 +1118,13 @@ function parseSellingStockholderComponents(text: string): SecS3SellingStockholde
   }
 
   return components;
+}
+
+function isLikelyTrancheOrdinalShareFalsePositive(evidence: string, index: number, valueText: string) {
+  const value = normalizeShareCount(valueText);
+  if (value === null || value >= 100) return false;
+  const before = evidence.slice(Math.max(0, index - 24), index + valueText.length + 32);
+  return /\b(?:tranche|series)\s+[A-Z]-\d+\s+warrant\s+shares?\b/i.test(before);
 }
 
 function parseBeneficialOwnershipCaps(text: string): SecS3PercentField[] {
@@ -1171,7 +1244,7 @@ function isPotentialSellingStockholderNameFragment(value: string) {
 
 function inferSellingStockholderComponentType(value: string) {
   if (/\bdoes not include|excludes?\b/i.test(value)) return "excluded_shares";
-  if (/\bwarrant\b/i.test(value)) return "warrant_shares";
+  if (/\bwarrants?\b/i.test(value)) return "warrant_shares";
   if (/\bpreferred\b/i.test(value)) return "preferred_conversion_shares";
   if (/\bnote\b|\bconversion\b/i.test(value)) return "note_conversion_shares";
   if (/\bcommon stock\b|\bcommon shares\b/i.test(value)) return "common_shares";

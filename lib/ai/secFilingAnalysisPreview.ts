@@ -1,6 +1,20 @@
 import { getServerEnv } from "@/lib/env";
+import {
+  buildSecOfferingAuditPrompt,
+  SEC_OFFERING_AUDIT_PROMPT_KEY,
+  SEC_OFFERING_AUDIT_PROMPT_VERSION,
+} from "@/lib/prompts/secOfferingAudit";
 import { buildSecFilingAnalysisPackage } from "@/lib/prompts/secFilingAnalysisPackage";
 import { buildSecFilingAnalysisPrompt, type SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
+import {
+  buildSecS3OfferingAnalysisPrompt,
+  SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY,
+} from "@/lib/prompts/secS3OfferingAnalysis";
+import {
+  applySecOfferingScorePolicy,
+  buildSecOfferingDilutionMetrics,
+  resolveSecOfferingMarketContext,
+} from "@/lib/secOfferingMarketContext";
 import { parseSecS3Filing, type SecS3FilingFacts } from "@/lib/sources/sec/s3Parser";
 import { supabaseSelect } from "@/lib/supabase";
 
@@ -18,6 +32,7 @@ type OpenAIResponseBody = {
   id?: string;
   status?: string;
   output_text?: string;
+  usage?: OpenAIUsage;
   output?: Array<{
     type?: string;
     content?: Array<{
@@ -30,16 +45,83 @@ type OpenAIResponseBody = {
   };
 };
 
+type OpenAIUsage = {
+  input_tokens?: number;
+  output_tokens?: number;
+  total_tokens?: number;
+  input_tokens_details?: {
+    cached_tokens?: number;
+  };
+  output_tokens_details?: {
+    reasoning_tokens?: number;
+  };
+  [key: string]: unknown;
+};
+
+type CostEstimate = {
+  model: string;
+  currency: "USD";
+  estimatedUsd: number;
+  inputTokens: number;
+  cachedInputTokens: number;
+  billedInputTokens: number;
+  outputTokens: number;
+  inputUsdPerMillion: number;
+  cachedInputUsdPerMillion: number;
+  outputUsdPerMillion: number;
+  pricing: string;
+};
+
+type OpenAiPrompt = {
+  key: string;
+  version: string;
+  system: string;
+  user: string;
+  responseFormat: {
+    json_schema: Record<string, unknown>;
+  };
+};
+
+type OpenAiPromptRun = {
+  ok: boolean;
+  status: number;
+  openAiResponseId: string | null;
+  outputText: string;
+  parsed: Record<string, unknown> | null;
+  usage: OpenAIUsage | null;
+  attempts: number;
+  error?: string;
+  rawOpenAIResponse?: OpenAIResponseBody | null;
+};
+
 export type SecFilingAnalysisRunResult = {
   ok: boolean;
   stage: "raw_item" | "openai" | "complete";
   status: number;
   model?: string;
   openAiResponseId?: string | null;
+  auditOpenAiResponseId?: string | null;
   sourceItem?: ReturnType<typeof summarizeRawRow>;
   input?: SecFilingAnalysisInput;
+  audit?: Record<string, unknown> | null;
   analysis?: Record<string, unknown> | null;
+  auditOutputText?: string;
   outputText?: string;
+  auditUsage?: OpenAIUsage | null;
+  usage?: OpenAIUsage | null;
+  costEstimate?: CostEstimate | null;
+  prompt?: {
+    key: string;
+    version: string;
+    system?: string;
+    responseFormat?: unknown;
+    audit?: {
+      key: string;
+      version: string;
+      system?: string;
+      responseFormat?: unknown;
+    };
+  };
   error?: string;
   rawOpenAIResponse?: OpenAIResponseBody | null;
 };
@@ -56,7 +138,8 @@ export async function runSecFilingAnalysisPreview(options: PreviewOptions = {}) 
   }
 
   const input = await buildInputFromSecRawRowWithContext(rawResult.rawItem);
-  const prompt = buildSecFilingAnalysisPrompt(input);
+  const prompt = buildSecFilingPromptForInput(input);
+  const auditPrompt = isS3FilingInput(input) ? buildSecOfferingAuditPrompt(input) : null;
 
   if (options.dryRun) {
     return {
@@ -69,7 +152,16 @@ export async function runSecFilingAnalysisPreview(options: PreviewOptions = {}) 
         version: prompt.version,
         system: prompt.system,
         responseFormat: prompt.responseFormat,
+        audit: auditPrompt
+          ? {
+              key: auditPrompt.key,
+              version: auditPrompt.version,
+              system: auditPrompt.system,
+              responseFormat: auditPrompt.responseFormat,
+            }
+          : undefined,
       },
+      audit: null,
       analysis: null,
     };
   }
@@ -82,10 +174,45 @@ export async function runSecFilingAnalysisPreview(options: PreviewOptions = {}) 
   };
 }
 
+export async function runSecFilingAnalysisPreviewForRawItem(rawItem: RawItemRow, options: { dryRun?: boolean } = {}) {
+  const input = await buildInputFromSecRawRowWithContext(rawItem);
+  const prompt = buildSecFilingPromptForInput(input);
+  const auditPrompt = isS3FilingInput(input) ? buildSecOfferingAuditPrompt(input) : null;
+
+  if (options.dryRun !== false) {
+    return {
+      ok: true,
+      stage: "dry_run",
+      sourceItem: summarizeRawRow(rawItem),
+      input,
+      prompt: {
+        key: prompt.key,
+        version: prompt.version,
+        system: prompt.system,
+        responseFormat: prompt.responseFormat,
+        audit: auditPrompt
+          ? {
+              key: auditPrompt.key,
+              version: auditPrompt.version,
+              system: auditPrompt.system,
+              responseFormat: auditPrompt.responseFormat,
+            }
+          : undefined,
+      },
+      audit: null,
+      analysis: null,
+    };
+  }
+
+  const analysisResult = await runSecFilingAnalysisForRawRow(rawItem);
+  return {
+    ...analysisResult,
+    stage: analysisResult.ok ? "complete" : analysisResult.stage,
+  };
+}
+
 export async function runSecFilingAnalysisForRawRow(rawItem: RawItemRow): Promise<SecFilingAnalysisRunResult> {
   const input = await buildInputFromSecRawRowWithContext(rawItem);
-  const prompt = buildSecFilingAnalysisPrompt(input);
-
   const env = getServerEnv();
 
   if (!env.openAiApiKey) {
@@ -99,55 +226,191 @@ export async function runSecFilingAnalysisForRawRow(rawItem: RawItemRow): Promis
     };
   }
 
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    cache: "no-store",
-    headers: {
-      Authorization: `Bearer ${env.openAiApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: env.openAiModel,
-      instructions: prompt.system,
-      input: prompt.user,
-      max_output_tokens: 5000,
-      text: {
-        format: {
-          ...prompt.responseFormat.json_schema,
-          type: "json_schema",
+  let audit: Record<string, unknown> | null = null;
+  let auditRun: OpenAiPromptRun | null = null;
+  if (isS3FilingInput(input)) {
+    const auditPrompt = buildSecOfferingAuditPrompt(input);
+    auditRun = await runOpenAiJsonPrompt(env, auditPrompt);
+    if (!auditRun.ok || !auditRun.parsed) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: auditRun.status,
+        error: `SEC offering audit failed after ${auditRun.attempts} attempt(s): ${auditRun.error || "no parseable JSON"}`,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        auditOutputText: auditRun.outputText,
+        auditUsage: auditRun.usage,
+        rawOpenAIResponse: auditRun.rawOpenAIResponse,
+        prompt: {
+          key: auditPrompt.key,
+          version: auditPrompt.version,
         },
-      },
-    }),
-  });
+      };
+    }
+    audit = auditRun.parsed;
+    attachOfferingSecurityAudit(input, audit);
+  }
 
-  const responseBody = (await response.json().catch(() => null)) as OpenAIResponseBody | null;
-  if (!response.ok) {
+  const prompt = buildSecFilingPromptForInput(input);
+  const analysisRun = await runOpenAiJsonPrompt(env, prompt);
+  if (!analysisRun.ok) {
     return {
       ok: false,
       stage: "openai",
-      status: response.status,
-      error: responseBody?.error?.message || response.statusText,
+      status: analysisRun.status,
+      error: `SEC filing analysis failed after ${analysisRun.attempts} attempt(s): ${analysisRun.error || "unknown OpenAI error"}`,
       sourceItem: summarizeRawRow(rawItem),
       input,
-      rawOpenAIResponse: responseBody,
+      audit,
+      auditOpenAiResponseId: auditRun?.openAiResponseId || null,
+      auditOutputText: auditRun?.outputText,
+      auditUsage: auditRun?.usage || null,
+      rawOpenAIResponse: analysisRun.rawOpenAIResponse,
     };
   }
 
-  const outputText = readResponseOutputText(responseBody);
-  const analysis = parseAnalysisJson(outputText);
-
+  const parsedAnalysis = analysisRun.parsed;
+  const analysisWithAudit = parsedAnalysis
+    ? audit
+      ? { ...parsedAnalysis, offering_security_audit: audit }
+      : parsedAnalysis
+    : null;
+  const analysis = analysisWithAudit ? applySecOfferingScorePolicy(readRecord(input.filing_package) || {}, analysisWithAudit) : null;
+  const usage = combineUsage(auditRun?.usage || null, analysisRun.usage);
   return {
     ok: Boolean(analysis),
     stage: "complete",
-    status: response.status,
+    status: analysisRun.status,
     model: env.openAiModel,
-    openAiResponseId: responseBody?.id || null,
+    openAiResponseId: analysisRun.openAiResponseId,
+    auditOpenAiResponseId: auditRun?.openAiResponseId || null,
     sourceItem: summarizeRawRow(rawItem),
     input,
+    audit,
     analysis,
-    outputText,
+    auditOutputText: auditRun?.outputText,
+    outputText: analysisRun.outputText,
+    auditUsage: auditRun?.usage || null,
+    usage,
+    costEstimate: estimateCost(env.openAiModel, usage),
+    prompt: {
+      key: prompt.key,
+      version: prompt.version,
+      audit: auditRun
+        ? {
+            key: SEC_OFFERING_AUDIT_PROMPT_KEY,
+            version: SEC_OFFERING_AUDIT_PROMPT_VERSION,
+          }
+        : undefined,
+    },
     error: analysis ? undefined : "OpenAI response did not contain parseable JSON",
   };
+}
+
+async function runOpenAiJsonPrompt(env: ReturnType<typeof getServerEnv>, prompt: OpenAiPrompt): Promise<OpenAiPromptRun> {
+  const maxAttempts = 3;
+  let lastRun: OpenAiPromptRun | null = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const response = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        cache: "no-store",
+        headers: {
+          Authorization: `Bearer ${env.openAiApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: env.openAiModel,
+          instructions: prompt.system,
+          input: prompt.user,
+          max_output_tokens: readMaxOutputTokens(prompt.key),
+          text: {
+            format: {
+              ...prompt.responseFormat.json_schema,
+              type: "json_schema",
+            },
+          },
+        }),
+      });
+
+      const responseBody = (await response.json().catch(() => null)) as OpenAIResponseBody | null;
+      const outputText = readResponseOutputText(responseBody);
+      const parsed = response.ok ? parseAnalysisJson(outputText) : null;
+      lastRun = {
+        ok: response.ok && Boolean(parsed),
+        status: response.status,
+        openAiResponseId: responseBody?.id || null,
+        outputText,
+        parsed,
+        usage: responseBody?.usage || null,
+        attempts: attempt,
+        error: response.ok
+          ? parsed
+            ? undefined
+            : "OpenAI response did not contain parseable JSON"
+          : responseBody?.error?.message || response.statusText || `<HTTP ${response.status}>`,
+        rawOpenAIResponse: responseBody,
+      };
+
+      if (lastRun.ok || !shouldRetryOpenAiRun(lastRun.status, lastRun.error)) return lastRun;
+    } catch (error) {
+      lastRun = {
+        ok: false,
+        status: 0,
+        openAiResponseId: null,
+        outputText: "",
+        parsed: null,
+        usage: null,
+        attempts: attempt,
+        error: error instanceof Error ? error.message : String(error),
+        rawOpenAIResponse: null,
+      };
+    }
+
+    if (attempt < maxAttempts) {
+      await waitForRetry(attempt);
+    }
+  }
+
+  return lastRun || {
+    ok: false,
+    status: 0,
+    openAiResponseId: null,
+    outputText: "",
+    parsed: null,
+    usage: null,
+    attempts: maxAttempts,
+    error: "OpenAI request failed before response",
+    rawOpenAIResponse: null,
+  };
+}
+
+function shouldRetryOpenAiRun(status: number, error: string | undefined) {
+  if (status === 0) return true;
+  if (status === 408 || status === 409 || status === 425 || status === 429) return true;
+  if (status >= 500 && status <= 599) return true;
+  return /\b(?:timeout|temporarily|rate limit|overloaded|upstream|gateway|socket|network)\b/i.test(error || "");
+}
+
+function waitForRetry(attempt: number) {
+  const delayMs = attempt === 1 ? 1_000 : 3_000;
+  return new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
+function attachOfferingSecurityAudit(input: SecFilingAnalysisInput, audit: Record<string, unknown>) {
+  const filingPackage = readRecord(input.filing_package);
+  if (!filingPackage) return;
+
+  filingPackage.offering_security_audit = audit;
+  const marketContext = readRecord(filingPackage.market_context) as Parameters<typeof buildSecOfferingDilutionMetrics>[1];
+  filingPackage.dilution_metrics = buildSecOfferingDilutionMetrics(filingPackage, marketContext);
+}
+
+function readMaxOutputTokens(promptKey: string) {
+  if (promptKey === SEC_OFFERING_AUDIT_PROMPT_KEY) return 12000;
+  return promptKey === SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY ? 8000 : 5000;
 }
 
 export async function findSecRawItem(options: PreviewOptions = {}) {
@@ -203,10 +466,38 @@ export function buildInputFromSecRawRow(rawItem: RawItemRow): SecFilingAnalysisI
   };
 }
 
+function buildSecFilingPromptForInput(input: SecFilingAnalysisInput) {
+  return isS3FilingInput(input) ? buildSecS3OfferingAnalysisPrompt(input) : buildSecFilingAnalysisPrompt(input);
+}
+
+function isS3FilingInput(input: SecFilingAnalysisInput) {
+  const filingPackage = readRecord(input.filing_package);
+  const formType = stringValue(filingPackage?.form_type).toUpperCase().replace(/\s+/g, "");
+  if (/^S-3(?:ASR|\/A)?$/.test(formType)) return true;
+
+  const hardParsers = readRecord(filingPackage?.hard_parsers);
+  const s3 = readRecord(hardParsers?.s3);
+  return s3?.is_s3_family === true;
+}
+
 async function buildInputFromSecRawRowWithContext(rawItem: RawItemRow): Promise<SecFilingAnalysisInput> {
   const input = buildInputFromSecRawRow(rawItem);
   await attachParentRegistrationContext(input, rawItem);
+  await attachSecOfferingMarketContext(input);
   return input;
+}
+
+async function attachSecOfferingMarketContext(input: SecFilingAnalysisInput) {
+  if (!isS3FilingInput(input)) return;
+
+  const filingPackage = readRecord(input.filing_package);
+  if (!filingPackage) return;
+
+  const primaryTicker = readRecord(filingPackage.primary_ticker);
+  const symbol = stringValue(primaryTicker?.ticker);
+  const marketContext = await resolveSecOfferingMarketContext(symbol);
+  filingPackage.market_context = marketContext;
+  filingPackage.dilution_metrics = buildSecOfferingDilutionMetrics(filingPackage, marketContext);
 }
 
 async function attachParentRegistrationContext(input: SecFilingAnalysisInput, rawItem: RawItemRow) {
@@ -515,6 +806,66 @@ function readResponseOutputText(body: OpenAIResponseBody | null) {
   return "";
 }
 
+function combineUsage(...items: Array<OpenAIUsage | null | undefined>): OpenAIUsage | null {
+  const usages = items.filter((item): item is OpenAIUsage => Boolean(item));
+  if (!usages.length) return null;
+
+  return {
+    input_tokens: usages.reduce((sum, item) => sum + finiteNumber(item.input_tokens), 0),
+    output_tokens: usages.reduce((sum, item) => sum + finiteNumber(item.output_tokens), 0),
+    total_tokens: usages.reduce((sum, item) => sum + finiteNumber(item.total_tokens), 0),
+    input_tokens_details: {
+      cached_tokens: usages.reduce((sum, item) => sum + finiteNumber(item.input_tokens_details?.cached_tokens), 0),
+    },
+    output_tokens_details: {
+      reasoning_tokens: usages.reduce((sum, item) => sum + finiteNumber(item.output_tokens_details?.reasoning_tokens), 0),
+    },
+  };
+}
+
+function estimateCost(model: string, usage: OpenAIUsage | null): CostEstimate | null {
+  const pricing = getPricing(model);
+  if (!pricing || !usage) return null;
+
+  const inputTokens = finiteNumber(usage.input_tokens);
+  const outputTokens = finiteNumber(usage.output_tokens);
+  const cachedInputTokens = Math.min(inputTokens, finiteNumber(usage.input_tokens_details?.cached_tokens));
+  const billedInputTokens = Math.max(0, inputTokens - cachedInputTokens);
+  const estimatedUsd =
+    (billedInputTokens * pricing.inputUsdPerMillion +
+      cachedInputTokens * pricing.cachedInputUsdPerMillion +
+      outputTokens * pricing.outputUsdPerMillion) /
+    1_000_000;
+
+  return {
+    model,
+    currency: "USD",
+    estimatedUsd: Number(estimatedUsd.toFixed(8)),
+    inputTokens,
+    cachedInputTokens,
+    billedInputTokens,
+    outputTokens,
+    inputUsdPerMillion: pricing.inputUsdPerMillion,
+    cachedInputUsdPerMillion: pricing.cachedInputUsdPerMillion,
+    outputUsdPerMillion: pricing.outputUsdPerMillion,
+    pricing: pricing.label,
+  };
+}
+
+function getPricing(model: string) {
+  const normalized = model.trim().toLowerCase();
+  if (normalized === "gpt-5-mini") {
+    return {
+      inputUsdPerMillion: 0.25,
+      cachedInputUsdPerMillion: 0.025,
+      outputUsdPerMillion: 2,
+      label: "OpenAI API pricing for gpt-5-mini checked 2026-05-17",
+    };
+  }
+
+  return null;
+}
+
 function parseAnalysisJson(value: string) {
   if (!value) return null;
   try {
@@ -538,6 +889,10 @@ function extractJsonObject(value: string) {
   const end = value.lastIndexOf("}");
   if (start < 0 || end <= start) return "";
   return value.slice(start, end + 1);
+}
+
+function finiteNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
 function readRecord(value: unknown): Record<string, unknown> | null {
