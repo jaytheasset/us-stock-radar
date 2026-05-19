@@ -10,6 +10,11 @@ import { readMarketGroupSnapshotCache, type MarketGroupSnapshotPayload } from "@
 import { parseGlobeNewswireArticleHtml } from "@/lib/sources/globe/parser";
 import { fetchEventAnalysis, fetchEventTickers, fetchEventsByTicker, supabaseSelect } from "@/lib/supabase";
 import { themeGroups, themeSubThemes } from "@/lib/taxonomyRegistry";
+import {
+  DilutionShareOverhang,
+  type DilutionShareOverhangBarSegment,
+  type DilutionShareOverhangBreakdownRow,
+} from "@/components/DilutionShareOverhang";
 import type { ContextRange, DetailTone, PriceChartSeries, PricePoint, PriceRange, SectorThemeContext, TopMover } from "./detailTypes";
 
 export const dynamic = "force-dynamic";
@@ -788,120 +793,7 @@ function NewsDilutionSnapshotCard({ model }: { model: ReturnType<typeof buildNew
 }
 
 function NewsShareOverhangCard({ model }: { model: ReturnType<typeof buildNewsDilutionOfferingModel> }) {
-  return (
-    <section className="stock-detail-card dilution-overhang-card dilution-overhang-wide-card">
-      <div className="dilution-overhang-body">
-        <div className="dilution-overhang-chart" aria-label={model.overhangAriaLabel}>
-          <div className="dilution-overhang-plot">
-            <div className="dilution-overhang-heading">
-              <div>
-                <h2>Share Overhang</h2>
-                <p>{model.overhangSubtitle}</p>
-              </div>
-              <div className="dilution-overhang-score">
-                <span>{model.overhangLevel}</span>
-                <strong>{model.dilutionRatioPercentValue}</strong>
-                <small>{model.overhangScoreNote}</small>
-              </div>
-            </div>
-
-            {model.hasCurrentSharesMarker ? (
-              <span
-                className={`dilution-overhang-marker current${model.currentSharesScalePosition > 92 ? " edge" : ""}`}
-                style={{ left: `${model.currentSharesScalePosition}%` }}
-              >
-                <b>Current shares</b>
-                <strong>{model.currentSharesCompact}</strong>
-              </span>
-            ) : null}
-            {model.hasPotentialSupplyMarker ? (
-              <span
-                className={`dilution-overhang-marker total${model.supplyScalePosition < 22 ? " low" : ""}`}
-                style={{ left: `${model.supplyScalePosition}%` }}
-              >
-                <b>{model.potentialSupplyLabel}</b>
-                <strong>{model.potentialSupplyCompact}</strong>
-                <em>{model.dilutionRatioValue}</em>
-              </span>
-            ) : null}
-
-            <div className="dilution-overhang-bar">
-              {model.segments.length ? (
-                model.segments.map((segment) => (
-                  <span className={segment.className} key={segment.label} style={{ width: `${segment.width}%` }}>
-                    <b>{segment.label}</b>
-                    <em>{segment.compact} / {segment.ratio}</em>
-                  </span>
-                ))
-              ) : (
-                <span className="registered" style={{ width: `${model.supplyScalePosition}%` }}>
-                  <b>{model.potentialSupplyLabel}</b>
-                  <em>{model.potentialSupplyCompact}</em>
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="dilution-overhang-labels">
-            {model.overhangAxisTicks.map((tick, index) => (
-              <span
-                key={tick.value}
-                className={index === 0 ? "tick-zero" : index === model.overhangAxisTicks.length - 1 ? "tick-max" : undefined}
-                style={{ left: `${tick.position}%` }}
-              >
-                {tick.label}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <div className="dilution-overhang-detail-grid">
-          <section className="dilution-overhang-panel">
-            <h3>Supply Details</h3>
-            <div className="dilution-overhang-facts">
-              <div>
-                <span>Current Shares Outstanding</span>
-                <strong>{model.currentSharesCompact}</strong>
-              </div>
-              <div>
-                <span>{model.primaryExposureLabel}</span>
-                <strong>{model.primaryExposureCompact}</strong>
-              </div>
-              <div>
-                <span>{model.potentialSupplyLabel}</span>
-                <strong className="danger">{model.potentialSupplyCompact}</strong>
-              </div>
-              <div>
-                <span>Overhang Level</span>
-                <strong><mark>{model.overhangLevel}</mark></strong>
-              </div>
-            </div>
-          </section>
-
-          <section className="dilution-overhang-panel">
-            <div className="dilution-breakdown-heading">
-              <h3>Breakdown</h3>
-              <span>% of current</span>
-            </div>
-            <div className="dilution-breakdown-list">
-              {model.segments.map((segment) => (
-                <div key={segment.label}>
-                  <span className="dilution-breakdown-label">
-                    <i className={segment.className} />
-                    {segment.label}
-                  </span>
-                  <strong>{segment.compact}</strong>
-                  <b>{segment.ratio}</b>
-                </div>
-              ))}
-            </div>
-            <p className="dilution-overhang-note">
-              {model.followupNote}
-            </p>
-          </section>
-        </div>
-      </div>
-    </section>
-  );
+  return <DilutionShareOverhang model={model} />;
 }
 
 function DilutionMetric({ metric }: { metric: DilutionMetricItem }) {
@@ -1044,35 +936,94 @@ function buildNewsDilutionOfferingModel(event: FeedItem, profile: DetailProfile)
     searchText: buildOfferingSearchText(event.title, profile.summary, profile.keyEvidence, profile.watchNext, metadata, originalTerms),
   });
   const displayCopy = buildNewsOfferingDisplayCopy(offeringDisplayMode);
+  const commonShareLabel = isResale ? "Resale shares" : "Common shares";
   const components = [
-    { label: "Common shares", value: commonShares, className: "common" },
+    { label: commonShareLabel, value: commonShares, className: isResale ? "registered-supply" : "common" },
     { label: "Pre-funded warrants", value: prefundedWarrantShares, className: "prefunded" },
     { label: "Warrants", value: commonWarrantShares, className: "warrant" },
     { label: offeringDisplayMode === "convertible" ? "Conversion shares" : "Convertibles", value: convertibleShareExposure, className: "conversion" },
   ].filter((segment) => segment.value > 0);
   const componentRatios = components.map((segment) => ratioPercent(segment.value, currentShares));
-  const overhangAxisMaxPercent = buildOverhangAxisMaxPercent([
-    totalPotentialDilutionPercent,
-    immediateDilutionPercent,
-    ...componentRatios,
-  ]);
-  const overhangAxisTicks = buildOverhangAxisTicks(overhangAxisMaxPercent);
-  const currentSharesScalePosition = scaleOverhangValue(100, overhangAxisMaxPercent);
-  const supplyScalePosition = scaleOverhangValue(totalPotentialDilutionPercent, overhangAxisMaxPercent);
-  let usedWidth = 0;
-  const segments = components.map((segment, index) => {
+  const supplyComponentTotal = components.reduce((total, segment) => total + segment.value, 0);
+  const displayedPotentialSupply = Math.max(totalPotentialShareExposure, supplyComponentTotal);
+  const additiveScaleBaseShares =
+    currentShares && displayedPotentialSupply
+      ? currentShares + displayedPotentialSupply
+      : Math.max(currentShares || 0, displayedPotentialSupply || 0);
+  const currentSharesBarWidth = scaleShareAmount(currentShares, additiveScaleBaseShares);
+  const supplyBarWidth = scaleShareAmount(displayedPotentialSupply, additiveScaleBaseShares);
+  const supplyComponentSegments = components.map((segment, index) => {
+    const width = scaleShareAmount(segment.value, additiveScaleBaseShares);
     const ratio = componentRatios[index] || 0;
-    const rawWidth = ratio ? Math.max(2, scaleOverhangValue(ratio, overhangAxisMaxPercent)) : Math.max(8, 100 / components.length);
-    const width = index === components.length - 1 ? Math.max(2, Math.min(100 - usedWidth, rawWidth)) : Math.min(100 - usedWidth, rawWidth);
-    usedWidth += width;
-
     return {
-      ...segment,
-      compact: formatCompactShareCount(segment.value) || "N/A",
-      ratio: formatPercentCompact(ratio) || "N/A",
+      key: `news-supply-${index}`,
+      className: segment.className,
+      label: segment.label,
+      value: formatCompactShareCount(segment.value) || "N/A",
+      note: currentShares ? `${formatPercentCompact(ratio) || "N/A"} of current shares` : "Potential",
       width,
+      compact: width < 24,
     };
   });
+  const remainingPotentialSupply = Math.max(0, displayedPotentialSupply - supplyComponentTotal);
+  const fallbackSupplyClassName =
+    offeringDisplayMode === "convertible" ? "conversion" : isResale ? "registered-supply" : "common";
+  const overhangBarSegmentCandidates: Array<DilutionShareOverhangBarSegment | null> = [
+    currentShares
+      ? {
+          key: "current-base",
+          className: "current-base",
+          label: "Current shares",
+          value: currentSharesCompact,
+          width: currentSharesBarWidth,
+          compact: currentSharesBarWidth < 24,
+        }
+      : null,
+    ...supplyComponentSegments,
+    displayedPotentialSupply && !supplyComponentSegments.length
+      ? {
+          key: "news-total-supply",
+          className: fallbackSupplyClassName,
+          label: displayCopy.potentialSupplyLabel,
+          value: potentialSupplyCompact,
+          note: currentShares ? `${dilutionRatioValue} of current shares` : "Potential",
+          width: supplyBarWidth,
+          compact: supplyBarWidth < 24,
+        }
+      : null,
+    remainingPotentialSupply && supplyComponentSegments.length
+      ? {
+          key: "news-other-supply",
+          className: "extra-supply",
+          label: "Other potential supply",
+          value: formatCompactShareCount(remainingPotentialSupply) || "N/A",
+          note: currentShares
+            ? `${formatPercentCompact(ratioPercent(remainingPotentialSupply, currentShares)) || "N/A"} of current shares`
+            : "Potential",
+          width: scaleShareAmount(remainingPotentialSupply, additiveScaleBaseShares),
+          compact: scaleShareAmount(remainingPotentialSupply, additiveScaleBaseShares) < 24,
+        }
+      : null,
+  ];
+  const overhangBarSegments = overhangBarSegmentCandidates.filter(
+    (segment): segment is DilutionShareOverhangBarSegment => Boolean(segment && segment.width > 0),
+  );
+  const overhangBreakdownRows: DilutionShareOverhangBreakdownRow[] = components.map((segment, index) => ({
+    key: `news-breakdown-${index}`,
+    className: segment.className,
+    label: segment.label,
+    value: formatCompactShareCount(segment.value) || "N/A",
+    ratio: formatPercentCompact(componentRatios[index] || 0) || "N/A",
+  }));
+  if (!overhangBreakdownRows.length && displayedPotentialSupply) {
+    overhangBreakdownRows.push({
+      key: "news-breakdown-total",
+      className: fallbackSupplyClassName,
+      label: displayCopy.potentialSupplyLabel,
+      value: potentialSupplyCompact,
+      ratio: dilutionRatioPercentValue,
+    });
+  }
   const companyCash = isResale ? "$0 from resale" : formatMoneyNumber(offeringAmount) || "Not disclosed";
   const priceComparison = formatPriceComparison({
     discountToMarketPercent,
@@ -1141,12 +1092,10 @@ function buildNewsDilutionOfferingModel(event: FeedItem, profile: DetailProfile)
     "This financing can improve liquidity, but potential share supply may create dilution and selling-pressure risk.";
 
   return {
+    canRenderOverhangChart: canCalculatePotentialSupply,
     currentSharesCompact,
-    currentSharesScalePosition,
     dilutionRatioPercentValue,
     dilutionRatioValue,
-    hasCurrentSharesMarker: Boolean(currentShares),
-    hasPotentialSupplyMarker: canCalculatePotentialSupply,
     immediateExposureCompact,
     impactMetrics,
     investorTakeaway,
@@ -1155,17 +1104,20 @@ function buildNewsDilutionOfferingModel(event: FeedItem, profile: DetailProfile)
     overhangAriaLabel: canCalculatePotentialSupply
       ? `${displayCopy.potentialSupplyLabel} equals ${dilutionRatioValue} of current shares`
       : `${displayCopy.potentialSupplyLabel} is not calculable from disclosed terms`,
-    overhangAxisTicks,
+    overhangBarSegments,
+    overhangBreakdownRows,
     overhangScoreNote: displayCopy.overhangScoreNote,
+    overhangScoreCaption: displayCopy.overhangScoreNote,
     overhangSubtitle: displayCopy.overhangSubtitle,
+    overhangNote: displayCopy.followupNote,
+    overhangUnavailableMessage: `${displayCopy.potentialSupplyLabel} could not be calculated from disclosed share counts.`,
     potentialSupplyCompact,
     potentialSupplyLabel: displayCopy.potentialSupplyLabel,
     primaryExposureCompact,
     primaryExposureLabel: displayCopy.primaryExposureLabel,
-    segments,
     sourceNote,
     summaryParagraphs,
-    supplyScalePosition,
+    supplyDetailLabel: displayCopy.potentialSupplyLabel,
   };
 }
 
@@ -2668,40 +2620,9 @@ function formatPercentCompact(value: number) {
   return `${value >= 100 ? value.toFixed(0) : value.toFixed(1)}%`;
 }
 
-function buildOverhangAxisMaxPercent(values: number[]) {
-  const observedMax = Math.max(100, ...values.filter((value) => Number.isFinite(value) && value > 0));
-  if (observedMax <= 100) return 100;
-
-  const breakpoints = [150, 200, 250, 300, 400, 500, 750, 1000, 1500, 2000];
-  const bounded = breakpoints.find((breakpoint) => observedMax <= breakpoint);
-  if (bounded) return bounded;
-  return Math.ceil(observedMax / 1000) * 1000;
-}
-
-function buildOverhangAxisTicks(axisMax: number) {
-  const step = axisMax <= 100 ? 25 : axisMax <= 200 ? 50 : axisMax <= 500 ? 100 : axisMax <= 1000 ? 250 : 500;
-  const values = new Set<number>([0, axisMax]);
-
-  for (let value = step; value < axisMax; value += step) {
-    values.add(value);
-  }
-
-  if (axisMax > 100) {
-    values.add(100);
-  }
-
-  return [...values]
-    .sort((a, b) => a - b)
-    .map((value) => ({
-      label: `${value}%`,
-      position: scaleOverhangValue(value, axisMax),
-      value,
-    }));
-}
-
-function scaleOverhangValue(value: number, axisMax: number) {
-  if (!Number.isFinite(value) || !Number.isFinite(axisMax) || axisMax <= 0) return 0;
-  return Math.min(100, Math.max(0, (value / axisMax) * 100));
+function scaleShareAmount(value: number, maxValue: number) {
+  if (!Number.isFinite(value) || !Number.isFinite(maxValue) || value <= 0 || maxValue <= 0) return 0;
+  return Math.min(100, Math.max(0, (value / maxValue) * 100));
 }
 
 function formatMoneyNumber(value: number) {

@@ -5,6 +5,11 @@ import { getLiveEventDetail, type LiveFeedItem } from "@/lib/liveFeed";
 import { fetchEventAnalysis, fetchEventById, fetchEventsByTicker, supabaseSelect } from "@/lib/supabase";
 import { PriceChartCard } from "@/app/events/[id]/PriceChartCard";
 import { SectorThemeContextPanel } from "@/app/events/[id]/SectorThemeContextPanel";
+import {
+  DilutionShareOverhang,
+  type DilutionShareOverhangBarSegment,
+  type DilutionShareOverhangBreakdownRow,
+} from "@/components/DilutionShareOverhang";
 import type { DetailTone, PriceChartSeries, PricePoint, PriceRange, SectorThemeContext } from "@/app/events/[id]/detailTypes";
 
 type FilingDetailPageProps = {
@@ -64,17 +69,7 @@ type RelatedStory = {
   age: string;
 };
 
-type ShareOverhangBarSegment = {
-  key: string;
-  className: string;
-  label: string;
-  value: string;
-  note?: string;
-  width: number;
-  compact?: boolean;
-};
-
-const OVERHANG_SEGMENT_CODES = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+type ShareOverhangBarSegment = DilutionShareOverhangBarSegment;
 
 const commonFilingEvents: Record<string, FilingEvent> = {
   "tsla-8k-operational-update": {
@@ -701,151 +696,43 @@ function DilutionLongSummary({ model }: { model: ReturnType<typeof buildDilution
 }
 
 function ShareOverhangCard({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
+  const overhangBreakdownRows: DilutionShareOverhangBreakdownRow[] = [];
+  if (model.hasConversionSegment) {
+    overhangBreakdownRows.push({
+      key: "conversion",
+      className: "conversion",
+      label: model.conversionBreakdownLabel,
+      value: model.conversionSharesCompact,
+      ratio: model.conversionRatioValue,
+    });
+  }
+  if (model.hasWarrantSegment) {
+    overhangBreakdownRows.push({
+      key: "warrant",
+      className: "warrant",
+      label: model.warrantSegmentLabel,
+      value: model.warrantSharesCompact,
+      ratio: model.warrantRatioValue,
+    });
+  }
+  if (!model.hasPoolSegments && model.potentialSupplyCompact !== "Not disclosed") {
+    overhangBreakdownRows.push({
+      key: "registered",
+      className: "registered",
+      label: model.supplyBreakdownLabel,
+      value: model.potentialSupplyCompact,
+      ratio: model.dilutionRatioPercentValue,
+    });
+  }
+
   return (
-    <section className="stock-detail-card dilution-overhang-card dilution-overhang-wide-card">
-      <div className="dilution-overhang-body">
-        <div className="dilution-overhang-chart" aria-label={`Potential resale supply equals ${model.dilutionRatioValue} of current shares`}>
-          <div className="dilution-overhang-heading">
-            <div>
-              <h2>Share Overhang</h2>
-              <p>{model.overhangSubtitle}</p>
-            </div>
-            <div className="dilution-overhang-score">
-              <span>{model.overhangLevel}</span>
-              <strong>{model.dilutionRatioPercentValue}</strong>
-              <small>{model.overhangScoreCaption}</small>
-            </div>
-          </div>
-
-          {model.canRenderOverhangChart ? (
-            <div className="dilution-overhang-plot">
-            <div className="dilution-overhang-bar">
-              {model.overhangBarSegments.map((segment, index) => (
-                <span
-                  key={segment.key}
-                  className={`${segment.className}${segment.compact ? " compact" : ""}`}
-                  style={{ width: `${segment.width}%` }}
-                  title={`${segment.label}: ${segment.value}${segment.note ? ` ${segment.note}` : ""}`}
-                >
-                  {segment.compact ? (
-                    <b>{OVERHANG_SEGMENT_CODES[index] || index + 1}</b>
-                  ) : (
-                    <>
-                      <b>{OVERHANG_SEGMENT_CODES[index] || index + 1}</b>
-                      <span>
-                        <em>{segment.label}</em>
-                        <strong>{segment.value}</strong>
-                      </span>
-                    </>
-                  )}
-                </span>
-              ))}
-            </div>
-            <div className="dilution-overhang-segment-legend">
-              {model.overhangBarSegments.map((segment, index) => (
-                <span key={segment.key}>
-                  <b>{OVERHANG_SEGMENT_CODES[index] || index + 1}. {segment.label}</b>
-                  <strong>
-                    <span>{segment.value}</span>
-                    {segment.note ? <em>({segment.note})</em> : null}
-                  </strong>
-                </span>
-              ))}
-            </div>
-            <div className="dilution-overhang-total-note">
-              <strong>Total Potential Overhang</strong>
-              <span>
-                <b>{model.potentialSupplyCompact}</b>
-                <i>/</i>
-                <b>{model.currentSharesCompact}</b>
-                <i>=</i>
-                <strong>{model.dilutionRatioValue}</strong>
-                <em>potential supply vs. current shares</em>
-              </span>
-            </div>
-          </div>
-          ) : (
-            <div className="dilution-overhang-unavailable">
-              <div>
-                <span>Current shares</span>
-                <strong>{model.currentSharesCompact}</strong>
-              </div>
-              <div>
-                <span>{model.supplyDetailLabel}</span>
-                <strong>Not disclosed</strong>
-              </div>
-              <p>{model.overhangUnavailableMessage}</p>
-            </div>
-          )}
-        </div>
-
-        <div className="dilution-overhang-detail-grid">
-          <section className="dilution-overhang-panel">
-            <h3>Supply Details</h3>
-            <div className="dilution-overhang-facts">
-              <div>
-                <span>Current Shares Outstanding</span>
-                <strong>{model.currentSharesCompact}</strong>
-              </div>
-              <div>
-                <span>{model.supplyDetailLabel}</span>
-                <strong>{model.potentialSupplyCompact}</strong>
-              </div>
-              <div>
-                <span>Total Overhang</span>
-                <strong className="danger">{model.dilutionRatioValue}</strong>
-              </div>
-              <div>
-                <span>Overhang Level</span>
-                <strong><mark>{model.overhangLevel}</mark></strong>
-              </div>
-            </div>
-          </section>
-
-          <section className="dilution-overhang-panel">
-            <div className="dilution-breakdown-heading">
-              <h3>Breakdown</h3>
-              <span>% of current</span>
-            </div>
-            <div className="dilution-breakdown-list">
-              {model.hasConversionSegment ? (
-                <div>
-                  <span className="dilution-breakdown-label">
-                    <i className="conversion" />
-                    {model.conversionBreakdownLabel}
-                  </span>
-                  <strong>{model.conversionSharesCompact}</strong>
-                  <b>{model.conversionRatioValue}</b>
-                </div>
-              ) : null}
-              {model.hasWarrantSegment ? (
-                <div>
-                  <span className="dilution-breakdown-label">
-                    <i className="warrant" />
-                    {model.warrantSegmentLabel}
-                  </span>
-                  <strong>{model.warrantSharesCompact}</strong>
-                  <b>{model.warrantRatioValue}</b>
-                </div>
-              ) : null}
-              {!model.hasPoolSegments && model.potentialSupplyCompact !== "Not disclosed" ? (
-                <div>
-                  <span className="dilution-breakdown-label">
-                    <i className="registered" />
-                    {model.supplyBreakdownLabel}
-                  </span>
-                  <strong>{model.potentialSupplyCompact}</strong>
-                  <b>{model.dilutionRatioPercentValue}</b>
-                </div>
-              ) : null}
-            </div>
-            <p className="dilution-overhang-note">
-              High share overhang may create selling pressure. Monitor warrant exercise and note conversion activity.
-            </p>
-          </section>
-        </div>
-      </div>
-    </section>
+    <DilutionShareOverhang
+      model={{
+        ...model,
+        overhangAriaLabel: `Potential supply equals ${model.dilutionRatioValue} of current shares`,
+        overhangBreakdownRows,
+      }}
+    />
   );
 }
 
