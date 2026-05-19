@@ -517,6 +517,7 @@ export default async function StockNewsDetailPage({ params }: StockDetailPagePro
     profile = await attachGlobeFullText(profile, fullTextUrl);
   }
   const eventBadge = getEventTypeBadge(event.eventType);
+  const useDilutionOfferingTemplate = shouldUseNewsDilutionOfferingTemplate(event, profile);
 
   return (
     <main className="feed-page stock-detail-page">
@@ -583,7 +584,7 @@ export default async function StockNewsDetailPage({ params }: StockDetailPagePro
             </div>
           </section>
 
-          {event.eventType === "dilution_risk" && profile.offeringTerms ? (
+          {useDilutionOfferingTemplate ? (
             <NewsDilutionOfferingTemplate event={event} profile={profile} />
           ) : (
             <>
@@ -911,6 +912,27 @@ function DilutionMetric({ metric }: { metric: DilutionMetricItem }) {
       {metric.note ? <em>{metric.note}</em> : null}
     </div>
   );
+}
+
+function shouldUseNewsDilutionOfferingTemplate(event: FeedItem, profile: DetailProfile) {
+  if (event.eventType !== "dilution_risk" || !profile.offeringTerms) return false;
+
+  const row = profile.offeringTerms;
+  const metadata = toRecord(row.metadata);
+  const originalTerms = toRecord(metadata?.original_offering_terms);
+  const metrics = toRecord(metadata?.dilution_metrics) || toRecord(originalTerms?.dilution_metrics);
+  const explicitSupplyValues = [
+    readOfferingNumber(row, "total_potential_share_exposure", metrics, ["total_potential_share_exposure"]),
+    readOfferingNumber(row, "total_potential_share_exposure", originalTerms, ["total_potential_share_exposure", "count"]),
+    readOfferingNumber(row, "shares_offered", originalTerms, ["shares_offered", "count"]),
+    readOfferingNumber(row, "common_shares_offered", originalTerms, ["common_shares", "count"]),
+    readOfferingNumber(row, "prefunded_warrant_shares", originalTerms, ["prefunded_warrants", "shares", "count"]),
+    readOfferingNumber(row, "common_warrant_shares", originalTerms, ["common_warrants", "shares", "count"]),
+    readOfferingNumber(row, "convertible_share_exposure", originalTerms, ["convertible_securities", "share_exposure", "count"]),
+    readOfferingNumber(row, "immediate_share_exposure", metrics, ["immediate_share_exposure"]),
+  ];
+
+  return explicitSupplyValues.some((value) => value > 0);
 }
 
 function buildNewsDilutionOfferingModel(event: FeedItem, profile: DetailProfile) {
