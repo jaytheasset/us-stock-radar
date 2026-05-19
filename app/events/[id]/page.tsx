@@ -1003,11 +1003,14 @@ function buildNewsDilutionOfferingModel(event: FeedItem, profile: DetailProfile)
   const discountToMarketPercent =
     readOfferingNumber(row, "discount_to_market_percent", metrics, ["discount_to_market_percent"]) ||
     (offeringPrice && marketReferencePrice ? ((marketReferencePrice - offeringPrice) / marketReferencePrice) * 100 : 0);
-  const overhangLevel = formatRiskLabel(readRowString(row, "dilution_scale") || readRowString(metrics, "dilution_scale"));
+  const canCalculatePotentialSupply = Boolean(totalPotentialShareExposure && currentShares);
+  const overhangLevel = canCalculatePotentialSupply
+    ? formatRiskLabel(readRowString(row, "dilution_scale") || readRowString(metrics, "dilution_scale"))
+    : "NEEDS REVIEW";
   const currentSharesCompact = formatCompactShareCount(currentShares) || "Not disclosed";
   const potentialSupplyCompact = formatCompactShareCount(totalPotentialShareExposure) || "Not disclosed";
   const immediateExposureCompact = formatCompactShareCount(immediateShareExposure) || "Not disclosed";
-  const dilutionRatioPercentValue = formatPercentCompact(totalPotentialDilutionPercent) || "N/A";
+  const dilutionRatioPercentValue = canCalculatePotentialSupply ? formatPercentCompact(totalPotentialDilutionPercent) || "N/A" : "N/A";
   const dilutionRatioValue = dilutionRatioPercentValue || "N/A";
   const sourceConfidence = readRowString(metadata, "source_confidence") || "medium";
   const sourceNote = `Preliminary news terms - ${sourceConfidence} confidence`;
@@ -1121,13 +1124,15 @@ function buildNewsDilutionOfferingModel(event: FeedItem, profile: DetailProfile)
     dilutionRatioPercentValue,
     dilutionRatioValue,
     hasCurrentSharesMarker: Boolean(currentShares),
-    hasPotentialSupplyMarker: Boolean(totalPotentialShareExposure && currentShares),
+    hasPotentialSupplyMarker: canCalculatePotentialSupply,
     immediateExposureCompact,
     impactMetrics,
     investorTakeaway,
     followupNote: displayCopy.followupNote,
     overhangLevel,
-    overhangAriaLabel: `${displayCopy.potentialSupplyLabel} equals ${dilutionRatioValue} of current shares`,
+    overhangAriaLabel: canCalculatePotentialSupply
+      ? `${displayCopy.potentialSupplyLabel} equals ${dilutionRatioValue} of current shares`
+      : `${displayCopy.potentialSupplyLabel} is not calculable from disclosed terms`,
     overhangAxisTicks,
     overhangScoreNote: displayCopy.overhangScoreNote,
     overhangSubtitle: displayCopy.overhangSubtitle,
