@@ -129,7 +129,7 @@ Calendar category groups:
 - `earnings`: earnings releases and calls.
 - `ipo`: IPO and SPAC expected, pricing, listing, lock-up, redemption, extension vote, and de-SPAC dates.
 - `listing_risk`: exchange compliance, reverse split, delisting, or listing deadlines.
-- `deals_offering`: offerings, rights, warrants, tender offers, mergers, and deal deadlines.
+- `deals_offering`: dilution and financing-related dates such as offerings, rights offerings, warrant deadlines, and lock-up expirations.
 - `fda_clinical`: PDUFA, advisory committee, clinical readout, and medical conference dates.
 - `dividends`: ex-dividend, record, and payment dates.
 - `shareholder`: shareholder meetings, votes, and record dates.
@@ -189,6 +189,32 @@ One detailed analysis record per event. Use this for detail-page sections that
 are too long for the live feed: why it matters, bullish points, bearish points,
 key evidence, and what to watch next. `events.quick_take` and `events.summary`
 remain the canonical short and long summaries; do not duplicate them here.
+
+`event_offering_terms`
+Structured terms for `dilution_risk` financing events. News and filings share
+this table, but each event row remains separate by `event_id`; use `event_links`
+to connect a preliminary news item to a later filing confirmation.
+
+For complex offerings, keep components separated:
+
+- `common_shares_offered`: immediate common share issuance.
+- `resale_share_count`: selling-holder resale supply. Use this for registered
+  resale shares even when the underlying security is common stock.
+- `prefunded_warrant_shares`: near-immediate share exposure from nominal-price
+  pre-funded warrants.
+- `common_warrant_shares`: future ordinary/common warrant overhang.
+- `convertible_share_exposure`: future share exposure from convertible notes or
+  similar instruments when disclosed.
+- `total_potential_share_exposure`: disclosed total potential share exposure, or
+  the sum of known components when no total is disclosed.
+
+Do not collapse pre-funded warrants and ordinary warrants into one field.
+Derived metrics should distinguish immediate dilution from future overhang.
+Keep `security_type` and supply relationship separate: `security_type =
+common_stock` describes the instrument, while `primary_or_resale = resale` or
+`resale_share_count` describes the investor-facing supply relationship. UI and
+analysis labels should say `Resale shares` / `Registered resale shares`, not
+generic `Common shares`, when the common stock is being registered for resale.
 
 `event_tickers`  
 Ticker links for an event. Use `role` to distinguish primary, related, peer,

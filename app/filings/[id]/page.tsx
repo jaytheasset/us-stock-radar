@@ -1058,9 +1058,9 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
   const offeringAmount = isResale ? "" : readDbMoneyValue(offeringTerms, "offering_amount", "offering_amount_text") || findMoneyAmount(sourceText);
   const isShelfLike = isShelf || /shelf/i.test(offeringType);
   const salesAgent = isResale ? "" : findSalesAgent(sourceText);
-  const dbPoolBreakdown = buildDbOfferingPoolBreakdown(offeringTerms);
+  const dbPoolBreakdown = buildDbOfferingPoolBreakdown(offeringTerms, { isResale });
   const sourceBackedPoolBreakdown = buildRegisteredPoolBreakdown(sourceText);
-  const llmPoolBreakdown = buildLlmPoolBreakdown(llmDisplayModel);
+  const llmPoolBreakdown = buildLlmPoolBreakdown(llmDisplayModel, { isResale });
   const poolBreakdown = dbPoolBreakdown.length ? dbPoolBreakdown : mergePoolBreakdown(llmPoolBreakdown, sourceBackedPoolBreakdown);
   const poolBreakdownTotal = poolBreakdown.reduce((total, item) => total + item.shareCount, 0);
   const dbPotentialSupply =
@@ -1220,7 +1220,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
   const supplyComponentSegments = poolBreakdown.map((item, index) => ({
     key: `supply-component-${index}`,
     className: overhangSegmentClassName(item.label),
-    label: formatOverhangComponentLabel(item.label),
+    label: formatOverhangComponentLabel(item.label, { isResale }),
     value: formatCompactShareCount(item.shareCount) || item.shares,
     note: currentCount ? `${formatPercentCompact((item.shareCount / currentCount) * 100) || "Not disclosed"} of current shares` : "Potential",
     width: scaleShareAmount(item.shareCount, additiveScaleBaseShares),
@@ -1719,7 +1719,7 @@ function compactRows(rows: Array<DilutionDisclosureRow | null>) {
   return rows.filter((item): item is DilutionDisclosureRow => Boolean(item));
 }
 
-function buildLlmPoolBreakdown(model: Record<string, unknown> | null) {
+function buildLlmPoolBreakdown(model: Record<string, unknown> | null, options: { isResale: boolean }) {
   return recordArray(model?.supply_segments)
     .map((segment) => {
       const shares = readPlainRecord(segment.shares);
@@ -1730,7 +1730,7 @@ function buildLlmPoolBreakdown(model: Record<string, unknown> | null) {
 
       return {
         detail: readRowString(segment, "timing_or_condition") || readRowString(segment, "evidence") || "LLM-selected supply component",
-        label: formatLlmPoolSegmentLabel(segment),
+        label: formatLlmPoolSegmentLabel(segment, options),
         shareCount,
         shares: `${shareCount.toLocaleString("en-US")} shares`,
       };
@@ -1738,13 +1738,13 @@ function buildLlmPoolBreakdown(model: Record<string, unknown> | null) {
     .filter((item): item is { label: string; shares: string; detail: string; shareCount: number } => Boolean(item));
 }
 
-function buildDbOfferingPoolBreakdown(terms: Record<string, unknown> | null) {
+function buildDbOfferingPoolBreakdown(terms: Record<string, unknown> | null, options: { isResale: boolean }) {
   return [
     dbPoolComponent(
-      "Common shares",
+      options.isResale ? "Resale shares" : "Common shares",
       readRowNumber(terms, "common_shares_offered"),
       readRowString(terms, "common_shares_offered_text"),
-      "Common shares in the current offering pool"
+      options.isResale ? "Common stock registered for resale in the current pool" : "Common shares in the current offering pool"
     ),
     dbPoolComponent(
       "Pre-funded warrant shares",
@@ -1812,13 +1812,14 @@ function mergePoolBreakdown(
   });
 }
 
-function formatLlmPoolSegmentLabel(segment: Record<string, unknown>) {
+function formatLlmPoolSegmentLabel(segment: Record<string, unknown>, options: { isResale: boolean }) {
   const instrumentType = readRowString(segment, "instrument_type");
   const label = readRowString(segment, "label");
   const text = `${instrumentType} ${label}`.toLowerCase();
 
   if (text.includes("warrant")) return "Warrant shares";
   if (text.includes("convertible") || text.includes("conversion") || text.includes("note")) return "Notes conversion";
+  if (options.isResale && /\b(common|ordinary|ads|resale)\b/.test(text)) return "Resale shares";
   return label || "Other registered shares";
 }
 
@@ -2342,13 +2343,14 @@ function buildAdditiveOverhangAxisTicks({
   ];
 }
 
-function formatOverhangComponentLabel(label: string) {
+function formatOverhangComponentLabel(label: string, options: { isResale?: boolean } = {}) {
   const text = label.toLowerCase();
   if (/registered|shelf/.test(text)) return "Registered shelf shares";
   if (/resale/.test(text)) return "Registered resale shares";
   if (/pre[-_\s]?funded/.test(text)) return "Pre-funded warrants";
   if (/warrant/.test(text)) return "Warrants";
   if (/convert|note/.test(text)) return "Convertible notes";
+  if (options.isResale && /common|ordinary|ads/.test(text)) return "Resale shares";
   if (/common|ordinary|ads/.test(text)) return "Common shares";
   return label || "Potential supply";
 }
