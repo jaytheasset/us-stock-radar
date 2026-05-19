@@ -1,7 +1,7 @@
 import { CALENDAR_EVENT_TYPE_VALUES } from "@/lib/calendarEventRegistry";
 
 export const NEWS_EVENT_ANALYSIS_PROMPT_KEY = "news_event_analysis";
-export const NEWS_EVENT_ANALYSIS_PROMPT_VERSION = "v18";
+export const NEWS_EVENT_ANALYSIS_PROMPT_VERSION = "v20";
 
 export const SOURCE_GROUP_VALUES = ["news"] as const;
 export const MARKET_SCOPE_VALUES = ["company", "sector", "theme", "macro"] as const;
@@ -64,6 +64,31 @@ export type NewsEventAnalysisInput = {
     ticker: string;
     exchange?: string | null;
   }>;
+  market_context: NewsPromptMarketContext | null;
+};
+
+export type NewsPromptMarketContext = {
+  available: boolean;
+  symbols: string[];
+  items: Array<{
+    symbol: string;
+    name: string | null;
+    exchange: string | null;
+    asset_type: string | null;
+    sector: string | null;
+    industry: string | null;
+    price: number | null;
+    previous_close: number | null;
+    market_cap: number | null;
+    shares_outstanding: number | null;
+    public_float: number | null;
+    volume: number | null;
+    avg_volume: number | null;
+    as_of: string | null;
+    data_quality: "complete" | "partial" | "missing";
+    field_sources: Record<string, string | null>;
+  }>;
+  notes: string[];
 };
 
 export const newsEventAnalysisInputTemplate = `{
@@ -74,7 +99,8 @@ export const newsEventAnalysisInputTemplate = `{
   "title": "{{title}}",
   "body_text": "{{body_text}}",
   "body_tickers": {{body_tickers_json}},
-  "metadata_tickers_debug_only": {{metadata_tickers_json}}
+  "metadata_tickers_debug_only": {{metadata_tickers_json}},
+  "market_context": {{market_context_json}}
 }`;
 
 export const newsEventAnalysisSystemPrompt = [
@@ -87,7 +113,8 @@ export const newsEventAnalysisSystemPrompt = [
   "Do not overfit to the headline. If several facts appear, classify and score the development most likely to move investor attention.",
   "Use company scope when the investable question is about one issuer or a small named issuer set, even if customers, suppliers, or counterparties are named.",
   "Use broad sector/theme/macro scope only if the full article is mainly about a wider market exposure rather than an issuer development.",
-  "Choose primary_ticker when the issuer is clear from the article or body_tickers; otherwise leave primary_ticker null.",
+  "When the article's primary issuer is clear, actively identify its ticker and exchange for primary_ticker even if body_tickers is empty.",
+  "When market_context is provided, use price, previous_close, market_cap, shares_outstanding, public_float, volume, avg_volume, sector, industry, data_quality, and as_of as market background.",
   "For related_tickers, you may use reliable market knowledge to connect named products, drugs, assets, owners, licensees, co-commercialization partners, customers, suppliers, counterparties, or directly exposed U.S.-listed/ADR issuers.",
   "Do not add weak comparable tickers just to fill related_tickers; if a relationship is uncertain, leave it empty or mark needs_human_review.",
   "Choose event_type from the core development, not from the release format.",
@@ -95,6 +122,9 @@ export const newsEventAnalysisSystemPrompt = [
   "Use capital_return only when the core development is an actual share repurchase, buyback authorization, repurchase allocation increase, or announced capital return program centered on repurchases.",
   "Do not use capital_return for financing, capital markets activity, capital allocation commentary, strategy updates, liquidity improvement, or transformation plans unless the article discloses a concrete repurchase/buyback action.",
   "For dividends use dividends. If buybacks and dividends both appear, follow the core development.",
+  "For dilution_risk, registered direct, public offering, PIPE, ATM, convertible, warrant, pre-funded warrant, or shelf takedown news, fill offering_terms with only the disclosed terms.",
+  "For non-offering news, set offering_terms.is_offering false and use null values or empty arrays inside offering_terms.",
+  "Do not calculate dilution percentages, discount to market, or market-cap percentages in offering_terms; code will calculate those from market_context.",
   "Score by materiality, price sensitivity, specificity, source strength, timeliness, and market interest.",
   "Score is a 0-100 integer scale, not a 0-10 scale. Around 50 means feed-worthy, and 75 or higher means alert-worthy.",
   "Choose signal from the likely stock read-through for the primary ticker. Use volatile or neutral when direction is mixed.",
@@ -133,6 +163,7 @@ export const newsEventAnalysisResponseSchema = {
     "what_to_watch_next",
     "related_tickers",
     "calendar_items",
+    "offering_terms",
     "confidence",
     "needs_human_review",
   ],
@@ -220,6 +251,138 @@ export const newsEventAnalysisResponseSchema = {
           confidence: { type: "string", enum: CONFIDENCE_VALUES },
           evidence: { type: "string" },
         },
+      },
+    },
+    offering_terms: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "is_offering",
+        "offering_type",
+        "security_type",
+        "primary_or_resale",
+        "offering_amount",
+        "shares_offered",
+        "offering_price",
+        "warrants",
+        "use_of_proceeds",
+        "closing_date",
+        "evidence",
+        "needs_human_review",
+      ],
+      properties: {
+        is_offering: { type: "boolean" },
+        offering_type: {
+          type: ["string", "null"],
+          enum: [
+            "registered_direct",
+            "public_offering",
+            "private_placement",
+            "atm",
+            "shelf_takedown",
+            "convertible_financing",
+            "warrant_exercise",
+            "rights_offering",
+            "mixed",
+            "other",
+            null,
+          ],
+        },
+        security_type: {
+          type: ["string", "null"],
+          enum: [
+            "common_stock",
+            "common_shares",
+            "ordinary_shares",
+            "ads",
+            "units",
+            "warrants",
+            "prefunded_warrants",
+            "convertible_notes",
+            "mixed",
+            "other",
+            null,
+          ],
+        },
+        primary_or_resale: {
+          type: ["string", "null"],
+          enum: ["primary", "resale", "mixed", "not_disclosed", null],
+        },
+        offering_amount: {
+          type: "object",
+          additionalProperties: false,
+          required: ["value_text", "amount", "currency", "evidence"],
+          properties: {
+            value_text: { type: ["string", "null"] },
+            amount: { type: ["number", "null"] },
+            currency: { type: ["string", "null"] },
+            evidence: { type: ["string", "null"] },
+          },
+        },
+        shares_offered: {
+          type: "object",
+          additionalProperties: false,
+          required: ["value_text", "count", "evidence"],
+          properties: {
+            value_text: { type: ["string", "null"] },
+            count: { type: ["number", "null"] },
+            evidence: { type: ["string", "null"] },
+          },
+        },
+        offering_price: {
+          type: "object",
+          additionalProperties: false,
+          required: ["value_text", "price", "currency", "evidence"],
+          properties: {
+            value_text: { type: ["string", "null"] },
+            price: { type: ["number", "null"] },
+            currency: { type: ["string", "null"] },
+            evidence: { type: ["string", "null"] },
+          },
+        },
+        warrants: {
+          type: "object",
+          additionalProperties: false,
+          required: ["included", "coverage_text", "exercise_price", "expiration_text", "evidence"],
+          properties: {
+            included: { type: "boolean" },
+            coverage_text: { type: ["string", "null"] },
+            exercise_price: {
+              type: "object",
+              additionalProperties: false,
+              required: ["value_text", "price", "currency", "evidence"],
+              properties: {
+                value_text: { type: ["string", "null"] },
+                price: { type: ["number", "null"] },
+                currency: { type: ["string", "null"] },
+                evidence: { type: ["string", "null"] },
+              },
+            },
+            expiration_text: { type: ["string", "null"] },
+            evidence: { type: ["string", "null"] },
+          },
+        },
+        use_of_proceeds: {
+          type: "object",
+          additionalProperties: false,
+          required: ["value_text", "evidence"],
+          properties: {
+            value_text: { type: ["string", "null"] },
+            evidence: { type: ["string", "null"] },
+          },
+        },
+        closing_date: {
+          type: "object",
+          additionalProperties: false,
+          required: ["value", "date_precision", "evidence"],
+          properties: {
+            value: { type: ["string", "null"] },
+            date_precision: { type: "string", enum: DATE_PRECISION_VALUES },
+            evidence: { type: ["string", "null"] },
+          },
+        },
+        evidence: { type: "array", items: { type: "string" } },
+        needs_human_review: { type: "boolean" },
       },
     },
     confidence: { type: "string", enum: CONFIDENCE_VALUES },

@@ -1,9 +1,15 @@
 import { getServerEnv } from "@/lib/env";
 import { evaluateCalendarItemPolicy } from "@/lib/calendarPolicy";
-import { buildNewsEventAnalysisPrompt, type NewsEventAnalysisInput } from "@/lib/prompts/newsEventAnalysis";
+import { resolveNewsPromptMarketContext } from "@/lib/newsMarketContext";
+import {
+  buildNewsEventAnalysisPrompt,
+  type NewsEventAnalysisInput,
+  type NewsPromptMarketContext,
+} from "@/lib/prompts/newsEventAnalysis";
 import { buildNewsClinicalFdaAnalysisPrompt } from "@/lib/prompts/newsClinicalFdaAnalysis";
 import {
   buildNewsRouteClassificationPrompt,
+  NEWS_ROUTE_VALUES,
   type NewsRouteClassification,
 } from "@/lib/prompts/newsRouteClassification";
 import { buildNewsSectorThemePolicyAnalysisPrompt } from "@/lib/prompts/newsSectorThemePolicyAnalysis";
@@ -13,6 +19,12 @@ type PreviewOptions = {
   dryRun?: boolean;
   sourceUniqueId?: string;
   searchLimit?: number;
+};
+
+type NewsAnalysisOptions = {
+  persistMarketContext?: boolean;
+  refreshMarketContext?: boolean;
+  marketContextSymbols?: string[];
 };
 
 export type NewsAnalysisRawItem = Omit<GlobeParsedRawItem, "source_code"> & {
@@ -116,7 +128,7 @@ export async function runNewsEventAnalysisPreview(options: PreviewOptions = {}) 
     };
   }
 
-  const input = buildInputFromGlobeRawItem(rawItem);
+  const input = await buildInputFromNewsRawItem(rawItem);
   const routePrompt = buildNewsRouteClassificationPrompt(input);
   const prompt = buildNewsEventAnalysisPrompt(input);
   const clinicalFdaPrompt = buildNewsClinicalFdaAnalysisPrompt(input, null);
@@ -180,8 +192,9 @@ export async function runNewsEventAnalysisPreview(options: PreviewOptions = {}) 
 
 export async function runNewsEventAnalysisForRawItem(
   rawItem: NewsAnalysisRawItem,
+  options: NewsAnalysisOptions = {},
 ): Promise<NewsEventAnalysisRunResult> {
-  const input = buildInputFromGlobeRawItem(rawItem);
+  const routeInput = buildInputFromGlobeRawItem(rawItem);
   const env = getServerEnv();
 
   if (!env.openAiApiKey) {
@@ -191,11 +204,11 @@ export async function runNewsEventAnalysisForRawItem(
       status: 0,
       error: "OPENAI_API_KEY is missing",
       sourceItem: summarizeRawItem(rawItem),
-      input,
+      input: routeInput,
     };
   }
 
-  const routePrompt = buildNewsRouteClassificationPrompt(input);
+  const routePrompt = buildNewsRouteClassificationPrompt(routeInput);
   let routeResponse = await runStructuredOpenAiJson({
     apiKey: env.openAiApiKey,
     model: env.openAiModel,
@@ -210,7 +223,7 @@ export async function runNewsEventAnalysisForRawItem(
       status: routeResponse.response.status,
       error: routeResponse.body?.error?.message || routeResponse.response.statusText,
       sourceItem: summarizeRawItem(rawItem),
-      input,
+      input: routeInput,
       rawOpenAIResponse: routeResponse.body,
     };
   }
@@ -241,7 +254,7 @@ export async function runNewsEventAnalysisForRawItem(
       status: 502,
       error: "OpenAI route classification did not contain parseable JSON",
       sourceItem: summarizeRawItem(rawItem),
-      input,
+      input: routeInput,
       routeOutputText,
       rawOpenAIResponse: routeResponse.body,
     };
@@ -258,7 +271,7 @@ export async function runNewsEventAnalysisForRawItem(
       model: env.openAiModel,
       openAiResponseId: routeResponse.body?.id || null,
       sourceItem: summarizeRawItem(rawItem),
-      input,
+      input: routeInput,
       routeClassification,
       analysis: null,
       routeOutputText,
@@ -273,6 +286,11 @@ export async function runNewsEventAnalysisForRawItem(
     };
   }
 
+  const input = await buildInputFromNewsRawItem(rawItem, {
+    persistMarketContext: Boolean(options.persistMarketContext),
+    refreshMarketContext: options.refreshMarketContext ?? true,
+    marketContextSymbols: routeClassification.candidate_tickers.map((ticker) => ticker.ticker),
+  });
   const prompt = buildSecondPassNewsAnalysisPrompt(input, routeClassification);
 
   const analysisResponse = await runStructuredOpenAiJson({
@@ -396,6 +414,25 @@ export function buildInputFromGlobeRawItem(item: NewsAnalysisRawItem): NewsEvent
       ticker: ticker.symbol,
       exchange: ticker.exchange,
     })),
+    market_context: null,
+  };
+}
+
+async function buildInputFromNewsRawItem(
+  item: NewsAnalysisRawItem,
+  options: NewsAnalysisOptions = {},
+): Promise<NewsEventAnalysisInput> {
+  const input = buildInputFromGlobeRawItem(item);
+  const symbols = [
+    ...input.body_tickers.map((ticker) => ticker.ticker),
+    ...(options.marketContextSymbols || []),
+  ];
+  return {
+    ...input,
+    market_context: await resolveNewsPromptMarketContext(symbols, {
+      refresh: options.refreshMarketContext ?? true,
+      persist: Boolean(options.persistMarketContext),
+    }),
   };
 }
 
@@ -508,10 +545,29 @@ function normalizeNewsRouteClassification(value: Record<string, unknown> | null)
   const route = readString(value.route);
   const confidence = readString(value.confidence);
   return {
-    route: route === "clinical_fda" || route === "broad_market" || route === "skip" ? route : "company",
+    route: NEWS_ROUTE_VALUES.includes(route as NewsRouteClassification["route"])
+      ? (route as NewsRouteClassification["route"])
+      : "company",
     confidence: confidence === "high" || confidence === "low" ? confidence : "medium",
     reason: readString(value.reason) || "",
+    candidate_tickers: sanitizeRouteCandidateTickers(value.candidate_tickers),
   };
+}
+
+function sanitizeRouteCandidateTickers(value: unknown): NewsRouteClassification["candidate_tickers"] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  return value.flatMap((item) => {
+    const record = readRecord(item);
+    const ticker = sanitizeTickerSymbol(record?.ticker);
+    if (!record || !ticker || seen.has(ticker)) return [];
+    seen.add(ticker);
+    return [{
+      ticker,
+      exchange: readString(record.exchange),
+      reason: readString(record.reason) || "",
+    }];
+  }).slice(0, 6);
 }
 
 function buildSecondPassNewsAnalysisPrompt(input: NewsEventAnalysisInput, routeClassification: NewsRouteClassification) {
@@ -539,11 +595,261 @@ function normalizeNewsAnalysis(analysis: Record<string, unknown> | null, input: 
     primary_ticker: primaryTicker,
     tickers,
     related_tickers: sanitizeRelatedTickerArray(analysis.related_tickers, excludedRelatedSymbols),
+    offering_terms: normalizeNewsOfferingTerms(analysis.offering_terms, input, primaryTicker.ticker),
     calendar_items: calendarItems.filter((item) => {
       if (!item || typeof item !== "object" || Array.isArray(item)) return false;
       return shouldKeepNewsCalendarItem(item as Record<string, unknown>, analysis, input);
     }),
   };
+}
+
+function normalizeNewsOfferingTerms(
+  value: unknown,
+  input: NewsEventAnalysisInput,
+  primarySymbol: string | null,
+) {
+  const record = readRecord(value);
+  const isOffering = record?.is_offering === true;
+  const offeringTerms = {
+    is_offering: isOffering,
+    offering_type: readString(record?.offering_type),
+    security_type: readString(record?.security_type),
+    primary_or_resale: readString(record?.primary_or_resale),
+    offering_amount: sanitizeMoneyTerm(record?.offering_amount),
+    shares_offered: sanitizeNumberTerm(record?.shares_offered),
+    offering_price: sanitizePriceTerm(record?.offering_price),
+    warrants: sanitizeWarrantTerms(record?.warrants),
+    use_of_proceeds: sanitizeTextTerm(record?.use_of_proceeds),
+    closing_date: sanitizeDateTerm(record?.closing_date),
+    evidence: sanitizeStringArray(record?.evidence),
+    needs_human_review: Boolean(record?.needs_human_review),
+  };
+
+  if (!isOffering) {
+    return {
+      ...emptyNewsOfferingTerms(),
+      dilution_metrics: emptyNewsOfferingDilutionMetrics(),
+      market_context_used: null,
+    };
+  }
+
+  const marketContext = findOfferingMarketContext(input, primarySymbol);
+  return {
+    ...offeringTerms,
+    market_context_used: marketContext
+      ? {
+          symbol: marketContext.symbol,
+          price: marketContext.price,
+          previous_close: marketContext.previous_close,
+          market_cap: marketContext.market_cap,
+          shares_outstanding: marketContext.shares_outstanding,
+          public_float: marketContext.public_float,
+          volume: marketContext.volume,
+          avg_volume: marketContext.avg_volume,
+          as_of: marketContext.as_of,
+          data_quality: marketContext.data_quality,
+        }
+      : null,
+    dilution_metrics: buildNewsOfferingDilutionMetrics(offeringTerms, marketContext),
+  };
+}
+
+function emptyNewsOfferingTerms() {
+  return {
+    is_offering: false,
+    offering_type: null,
+    security_type: null,
+    primary_or_resale: null,
+    offering_amount: sanitizeMoneyTerm(null),
+    shares_offered: sanitizeNumberTerm(null),
+    offering_price: sanitizePriceTerm(null),
+    warrants: sanitizeWarrantTerms(null),
+    use_of_proceeds: sanitizeTextTerm(null),
+    closing_date: sanitizeDateTerm(null),
+    evidence: [],
+    needs_human_review: false,
+  };
+}
+
+function sanitizeMoneyTerm(value: unknown) {
+  const record = readRecord(value);
+  return {
+    value_text: readString(record?.value_text),
+    amount: finiteNumber(record?.amount) ?? parseLooseNumber(record?.value_text),
+    currency: readString(record?.currency),
+    evidence: readString(record?.evidence),
+  };
+}
+
+function sanitizeNumberTerm(value: unknown) {
+  const record = readRecord(value);
+  return {
+    value_text: readString(record?.value_text),
+    count: finiteNumber(record?.count) ?? parseLooseNumber(record?.value_text),
+    evidence: readString(record?.evidence),
+  };
+}
+
+function sanitizePriceTerm(value: unknown) {
+  const record = readRecord(value);
+  return {
+    value_text: readString(record?.value_text),
+    price: finiteNumber(record?.price) ?? parseLooseNumber(record?.value_text),
+    currency: readString(record?.currency),
+    evidence: readString(record?.evidence),
+  };
+}
+
+function sanitizeTextTerm(value: unknown) {
+  const record = readRecord(value);
+  return {
+    value_text: readString(record?.value_text),
+    evidence: readString(record?.evidence),
+  };
+}
+
+function sanitizeDateTerm(value: unknown) {
+  const record = readRecord(value);
+  const precision = readString(record?.date_precision);
+  return {
+    value: readString(record?.value),
+    date_precision:
+      precision === "exact" || precision === "month" || precision === "quarter" || precision === "year"
+        ? precision
+        : "unknown",
+    evidence: readString(record?.evidence),
+  };
+}
+
+function sanitizeWarrantTerms(value: unknown) {
+  const record = readRecord(value);
+  return {
+    included: record?.included === true,
+    coverage_text: readString(record?.coverage_text),
+    exercise_price: sanitizePriceTerm(record?.exercise_price),
+    expiration_text: readString(record?.expiration_text),
+    evidence: readString(record?.evidence),
+  };
+}
+
+function buildNewsOfferingDilutionMetrics(
+  offeringTerms: {
+    offering_amount: ReturnType<typeof sanitizeMoneyTerm>;
+    shares_offered: ReturnType<typeof sanitizeNumberTerm>;
+    offering_price: ReturnType<typeof sanitizePriceTerm>;
+  },
+  marketContext: NewsPromptMarketContext["items"][number] | null,
+) {
+  const offeringAmount = offeringTerms.offering_amount.amount;
+  const sharesOffered = offeringTerms.shares_offered.count;
+  const offeringPrice = offeringTerms.offering_price.price;
+  const marketPrice = marketContext?.price ?? marketContext?.previous_close ?? null;
+  const marketCap = marketContext?.market_cap ?? null;
+  const sharesOutstanding = marketContext?.shares_outstanding ?? null;
+  const publicFloat = marketContext?.public_float ?? null;
+  const estimatedDilutionPercent = percent(sharesOffered, sharesOutstanding);
+  const floatOverhangPercent = percent(sharesOffered, publicFloat);
+  const offeringAmountPercentOfMarketCap = percent(offeringAmount, marketCap);
+  const discountToMarketPercent =
+    isPositiveNumber(offeringPrice) && isPositiveNumber(marketPrice)
+      ? roundPercent(((marketPrice - offeringPrice) / marketPrice) * 100)
+      : null;
+  const maxShareImpactPercent = maxNumber([estimatedDilutionPercent, floatOverhangPercent]);
+
+  return {
+    available: Boolean(
+      offeringAmount ||
+        sharesOffered ||
+        offeringPrice ||
+        marketCap ||
+        sharesOutstanding ||
+        publicFloat ||
+        estimatedDilutionPercent ||
+        offeringAmountPercentOfMarketCap,
+    ),
+    shares_offered: sharesOffered,
+    shares_outstanding_market: sharesOutstanding,
+    public_float_market: publicFloat,
+    market_cap: marketCap,
+    market_reference_price: marketPrice,
+    offering_amount: offeringAmount,
+    offering_price: offeringPrice,
+    estimated_dilution_percent: estimatedDilutionPercent,
+    float_overhang_percent: floatOverhangPercent,
+    offering_amount_percent_of_market_cap: offeringAmountPercentOfMarketCap,
+    discount_to_market_percent: discountToMarketPercent,
+    max_share_impact_percent: maxShareImpactPercent,
+    dilution_scale: classifyNewsDilutionScale(maxShareImpactPercent, offeringAmountPercentOfMarketCap),
+    calculation_notes: buildNewsOfferingCalculationNotes({
+      sharesOffered,
+      sharesOutstanding,
+      publicFloat,
+      marketCap,
+      marketPrice,
+    }),
+  };
+}
+
+function emptyNewsOfferingDilutionMetrics() {
+  return {
+    available: false,
+    shares_offered: null,
+    shares_outstanding_market: null,
+    public_float_market: null,
+    market_cap: null,
+    market_reference_price: null,
+    offering_amount: null,
+    offering_price: null,
+    estimated_dilution_percent: null,
+    float_overhang_percent: null,
+    offering_amount_percent_of_market_cap: null,
+    discount_to_market_percent: null,
+    max_share_impact_percent: null,
+    dilution_scale: "unknown",
+    calculation_notes: [],
+  };
+}
+
+function findOfferingMarketContext(input: NewsEventAnalysisInput, primarySymbol: string | null) {
+  const items = input.market_context?.items || [];
+  if (!items.length) return null;
+  if (primarySymbol) {
+    const match = items.find((item) => item.symbol === primarySymbol);
+    if (match) return match;
+  }
+  return items[0] || null;
+}
+
+function buildNewsOfferingCalculationNotes({
+  sharesOffered,
+  sharesOutstanding,
+  publicFloat,
+  marketCap,
+  marketPrice,
+}: {
+  sharesOffered: number | null;
+  sharesOutstanding: number | null;
+  publicFloat: number | null;
+  marketCap: number | null;
+  marketPrice: number | null;
+}) {
+  const notes: string[] = [];
+  if (!sharesOffered) notes.push("shares_offered_not_available");
+  if (!sharesOutstanding) notes.push("shares_outstanding_not_available");
+  if (!publicFloat) notes.push("public_float_not_available");
+  if (!marketCap) notes.push("market_cap_not_available");
+  if (!marketPrice) notes.push("market_price_not_available");
+  return notes;
+}
+
+function classifyNewsDilutionScale(shareImpactPercent: number | null, amountPercent: number | null) {
+  const value = Math.max(shareImpactPercent || 0, amountPercent || 0);
+  if (!value) return "unknown";
+  if (value >= 50) return "severe";
+  if (value >= 25) return "high";
+  if (value >= 10) return "elevated";
+  if (value >= 5) return "moderate";
+  return "low";
 }
 
 function shouldKeepNewsCalendarItem(
@@ -611,6 +917,14 @@ function sanitizeRelatedTickerArray(value: unknown, excludedSymbols: Set<string>
   });
 }
 
+function sanitizeStringArray(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    const text = readString(item);
+    return text ? [text] : [];
+  });
+}
+
 function sanitizeTickerSymbol(value: unknown) {
   if (typeof value !== "string") return null;
   const raw = value.trim().replace(/^\$/, "");
@@ -655,6 +969,43 @@ function readRecord(value: unknown): Record<string, unknown> | null {
 
 function readString(value: unknown) {
   return typeof value === "string" && value.trim() ? value : null;
+}
+
+function finiteNumber(value: unknown) {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseLooseNumber(value: unknown) {
+  const text = readString(value)?.toLowerCase();
+  if (!text) return null;
+  const match = text.match(/(\d[\d,.]*)\s*(thousand|million|billion|k|m|bn)?/i);
+  if (!match) return null;
+  const base = Number(match[1].replace(/,/g, ""));
+  if (!Number.isFinite(base)) return null;
+  const scale = match[2]?.toLowerCase();
+  if (scale === "thousand" || scale === "k") return base * 1_000;
+  if (scale === "million" || scale === "m") return base * 1_000_000;
+  if (scale === "billion" || scale === "bn") return base * 1_000_000_000;
+  return base;
+}
+
+function percent(numerator: number | null, denominator: number | null) {
+  if (!isPositiveNumber(numerator) || !isPositiveNumber(denominator)) return null;
+  return roundPercent((numerator / denominator) * 100);
+}
+
+function isPositiveNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+function roundPercent(value: number) {
+  return Number(value.toFixed(2));
+}
+
+function maxNumber(values: Array<number | null>) {
+  const numbers = values.filter(isPositiveNumber);
+  return numbers.length ? Math.max(...numbers) : null;
 }
 
 function trimForModel(value: string) {

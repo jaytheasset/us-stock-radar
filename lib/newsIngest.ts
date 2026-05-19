@@ -161,6 +161,16 @@ export async function runNewsfileNewsIngest(options: NewsIngestOptions = {}) {
 }
 
 export async function runAccesswireNewsIngest(options: NewsIngestOptions = {}) {
+  return runAccesswireNewsIngestWithRawFetcher(
+    fetchAccesswireRawItems as NewsSourceConfig["fetchRawItems"],
+    options,
+  );
+}
+
+export async function runAccesswireNewsIngestWithRawFetcher(
+  fetchRawItems: NewsSourceConfig["fetchRawItems"],
+  options: NewsIngestOptions = {},
+) {
   return runNewsIngestForSource(
     {
       sourceCode: "accesswire",
@@ -168,7 +178,7 @@ export async function runAccesswireNewsIngest(options: NewsIngestOptions = {}) {
       parserName: "accesswire",
       fetchErrorLabel: "Access Newswire raw fetch failed",
       ingestErrorLabel: "Access Newswire ingest error",
-      fetchRawItems: fetchAccesswireRawItems as NewsSourceConfig["fetchRawItems"],
+      fetchRawItems,
     },
     options,
   );
@@ -443,7 +453,10 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
           continue;
         }
 
-        const analysisRun = await runNewsEventAnalysisForRawItem(rawItem);
+        const analysisRun = await runNewsEventAnalysisForRawItem(rawItem, {
+          persistMarketContext: !dryRun,
+          refreshMarketContext: true,
+        });
         if (analysisRun.skipped || analysisRun.routeClassification?.route === "skip") {
           const decision = {
             dropEvent: true,
@@ -611,6 +624,7 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
               analysis_key: analysisPromptKey,
               analysis_version: analysisPromptVersion,
             },
+            market_context: analysisRun.input.market_context,
             usage: {
               routing: analysisRun.routingUsage || null,
               analysis: analysisRun.usage || null,
@@ -915,16 +929,24 @@ async function persistAnalyzedEvent({
 
   await Promise.all([
     persistEventAnalysis(eventRow, analysis, marketScope),
+    persistNewsOfferingTerms({
+      eventRow,
+      rawItemId,
+      analysis,
+      model,
+      promptKey,
+      promptVersion,
+    }),
     replaceEventTickers(stringValue(eventRow.id), analysis, primaryTicker, tickerProxies),
-      replaceEventCalendarItems({
-        eventRow,
-        rawItem,
-        rawItemId,
-        analysis,
-        primaryTicker,
-        promptKey,
-        promptVersion,
-      }),
+    replaceEventCalendarItems({
+      eventRow,
+      rawItem,
+      rawItemId,
+      analysis,
+      primaryTicker,
+      promptKey,
+      promptVersion,
+    }),
   ]);
 
   return eventRow;
@@ -977,6 +999,113 @@ async function persistEventAnalysis(
 
   const result = await supabaseUpsert("event_analysis", payload, { onConflict: "event_id" });
   await assertMutation(result, "upsert event analysis");
+}
+
+async function persistNewsOfferingTerms({
+  eventRow,
+  rawItemId,
+  analysis,
+  model,
+  promptKey,
+  promptVersion,
+}: {
+  eventRow: Record<string, unknown>;
+  rawItemId: string;
+  analysis: Record<string, unknown>;
+  model: string;
+  promptKey: string;
+  promptVersion: string;
+}) {
+  const offeringTerms = toRecord(analysis.offering_terms);
+  if (offeringTerms?.is_offering !== true) return;
+
+  const offeringAmount = toRecord(offeringTerms.offering_amount);
+  const sharesOffered = toRecord(offeringTerms.shares_offered);
+  const offeringPrice = toRecord(offeringTerms.offering_price);
+  const warrants = toRecord(offeringTerms.warrants);
+  const warrantExercisePrice = toRecord(warrants?.exercise_price);
+  const useOfProceeds = toRecord(offeringTerms.use_of_proceeds);
+  const closingDate = toRecord(offeringTerms.closing_date);
+  const marketContext = toRecord(offeringTerms.market_context_used);
+  const metrics = toRecord(offeringTerms.dilution_metrics);
+
+  const payload = {
+    event_id: stringValue(eventRow.id),
+    raw_item_id: rawItemId,
+    sec_form_type: null,
+    prospectus_type: "other",
+    offering_type: normalizeOfferingType(offeringTerms.offering_type),
+    security_type: normalizeOfferingSecurityType(offeringTerms.security_type),
+    primary_or_resale: normalizePrimaryOrResale(offeringTerms.primary_or_resale),
+    registration_status: "not_disclosed",
+    offering_amount_text: nullableString(offeringAmount?.value_text),
+    offering_amount: nullableNumber(offeringAmount?.amount),
+    offering_amount_currency: nullableString(offeringAmount?.currency),
+    shares_offered_text: nullableString(sharesOffered?.value_text),
+    shares_offered: nullableNumber(sharesOffered?.count),
+    market_reference_price: nullableNumber(metrics?.market_reference_price),
+    market_reference_price_source: readMarketReferenceSource(marketContext),
+    market_context_as_of: nullableString(marketContext?.as_of),
+    market_cap: nullableNumber(metrics?.market_cap),
+    market_cap_source: marketContext ? "news_market_context.market_cap" : null,
+    shares_outstanding_market: nullableNumber(metrics?.shares_outstanding_market),
+    shares_outstanding_market_source: marketContext ? "news_market_context.shares_outstanding" : null,
+    public_float_market: nullableNumber(metrics?.public_float_market),
+    public_float_market_source: marketContext ? "news_market_context.public_float" : null,
+    volume: nullableNumber(marketContext?.volume),
+    avg_volume: nullableNumber(marketContext?.avg_volume),
+    market_context: marketContext || {},
+    offering_price_text: nullableString(offeringPrice?.value_text),
+    offering_price: nullableNumber(offeringPrice?.price),
+    offering_price_currency: nullableString(offeringPrice?.currency),
+    discount_to_market_percent: nullableNumber(metrics?.discount_to_market_percent),
+    discount_to_market_basis: metrics?.discount_to_market_percent !== null ? "news_market_context" : null,
+    warrant_coverage_text: nullableString(warrants?.coverage_text),
+    warrant_exercise_price_text: nullableString(warrantExercisePrice?.value_text),
+    warrant_exercise_price: nullableNumber(warrantExercisePrice?.price),
+    warrant_exercise_price_currency: nullableString(warrantExercisePrice?.currency),
+    use_of_proceeds: nullableString(useOfProceeds?.value_text),
+    closing_date: normalizeDateString(closingDate?.value),
+    estimated_dilution_percent: nullableNumber(metrics?.estimated_dilution_percent),
+    float_overhang_percent: nullableNumber(metrics?.float_overhang_percent),
+    offering_amount_percent_of_market_cap: nullableNumber(metrics?.offering_amount_percent_of_market_cap),
+    max_share_impact_percent: nullableNumber(metrics?.max_share_impact_percent),
+    dilution_scale: normalizeDilutionScale(metrics?.dilution_scale),
+    overhang_level: normalizeDilutionScale(metrics?.dilution_scale),
+    dilution_risk_summary: nullableString(analysis.summary),
+    next_trigger: stringArray(analysis.what_to_watch_next)[0] || null,
+    field_confidence: {
+      source_group: "news",
+      source_confidence: "medium",
+      offering_amount: offeringAmount?.amount ? "medium" : "low",
+      shares_offered: sharesOffered?.count ? "medium" : "low",
+      offering_price: offeringPrice?.price ? "medium" : "low",
+      market_context: marketContext ? stringValue(marketContext.data_quality) || "partial" : "missing",
+    },
+    field_evidence: {
+      offering_amount: nullableString(offeringAmount?.evidence),
+      shares_offered: nullableString(sharesOffered?.evidence),
+      offering_price: nullableString(offeringPrice?.evidence),
+      warrant_coverage: nullableString(warrants?.evidence),
+      warrant_exercise_price: nullableString(warrantExercisePrice?.evidence),
+      use_of_proceeds: nullableString(useOfProceeds?.evidence),
+      closing_date: nullableString(closingDate?.evidence),
+      evidence: stringArray(offeringTerms.evidence),
+    },
+    needs_human_review: Boolean(offeringTerms.needs_human_review || analysis.needs_human_review),
+    extraction_model: model,
+    prompt_key: promptKey,
+    prompt_version: promptVersion,
+    metadata: {
+      source_group: "news",
+      source_precedence: "preliminary_news_terms",
+      source_confidence: "medium",
+      original_offering_terms: offeringTerms,
+    },
+  };
+
+  const result = await supabaseUpsert("event_offering_terms", payload, { onConflict: "event_id" });
+  await assertMutation(result, "upsert event offering terms");
 }
 
 async function replaceEventTickers(
@@ -2070,10 +2199,81 @@ function normalizeConfidence(value: string) {
   return "medium";
 }
 
+function normalizeOfferingType(value: unknown) {
+  const normalized = stringValue(value);
+  if (
+    normalized === "atm" ||
+    normalized === "registered_direct" ||
+    normalized === "private_placement" ||
+    normalized === "resale_registration" ||
+    normalized === "warrant_exercise" ||
+    normalized === "convertible_financing" ||
+    normalized === "rights_offering" ||
+    normalized === "mixed" ||
+    normalized === "other"
+  ) {
+    return normalized;
+  }
+  if (normalized === "shelf_takedown" || normalized === "shelf_registration") return "shelf_registration";
+  return "unknown";
+}
+
+function normalizeOfferingSecurityType(value: unknown) {
+  const normalized = stringValue(value);
+  if (
+    normalized === "common_stock" ||
+    normalized === "common_shares" ||
+    normalized === "ordinary_shares" ||
+    normalized === "ads" ||
+    normalized === "units" ||
+    normalized === "warrants" ||
+    normalized === "prefunded_warrants" ||
+    normalized === "convertible_notes" ||
+    normalized === "debt" ||
+    normalized === "mixed" ||
+    normalized === "other"
+  ) {
+    return normalized;
+  }
+  return "unknown";
+}
+
+function normalizePrimaryOrResale(value: unknown) {
+  const normalized = stringValue(value);
+  if (normalized === "primary" || normalized === "resale" || normalized === "mixed") return normalized;
+  return "not_disclosed";
+}
+
+function normalizeDilutionScale(value: unknown) {
+  const normalized = stringValue(value);
+  if (
+    normalized === "low" ||
+    normalized === "moderate" ||
+    normalized === "elevated" ||
+    normalized === "high" ||
+    normalized === "severe"
+  ) {
+    return normalized;
+  }
+  return "unknown";
+}
+
+function readMarketReferenceSource(marketContext: Record<string, unknown> | null) {
+  if (!marketContext) return null;
+  if (nullableNumber(marketContext.price) !== null) return "news_market_context.price";
+  if (nullableNumber(marketContext.previous_close) !== null) return "news_market_context.previous_close";
+  return null;
+}
+
 function stringValue(value: unknown) {
   if (typeof value === "string") return value.trim();
   if (typeof value === "number" && Number.isFinite(value)) return String(value);
   return "";
+}
+
+function nullableNumber(value: unknown) {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function numberValue(value: unknown) {
