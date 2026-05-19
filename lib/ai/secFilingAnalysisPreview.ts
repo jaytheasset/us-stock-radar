@@ -7,6 +7,11 @@ import {
 import { buildSecFilingAnalysisPackage } from "@/lib/prompts/secFilingAnalysisPackage";
 import { buildSecFilingAnalysisPrompt, type SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
 import {
+  buildSecS3AmendmentTriagePrompt,
+  SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
+  SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
+} from "@/lib/prompts/secS3AmendmentTriage";
+import {
   buildSecS3OfferingAnalysisPrompt,
   SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY,
 } from "@/lib/prompts/secS3OfferingAnalysis";
@@ -103,10 +108,13 @@ export type SecFilingAnalysisRunResult = {
   auditOpenAiResponseId?: string | null;
   sourceItem?: ReturnType<typeof summarizeRawRow>;
   input?: SecFilingAnalysisInput;
+  triage?: Record<string, unknown> | null;
   audit?: Record<string, unknown> | null;
   analysis?: Record<string, unknown> | null;
+  triageOutputText?: string;
   auditOutputText?: string;
   outputText?: string;
+  triageUsage?: OpenAIUsage | null;
   auditUsage?: OpenAIUsage | null;
   usage?: OpenAIUsage | null;
   costEstimate?: CostEstimate | null;
@@ -115,6 +123,12 @@ export type SecFilingAnalysisRunResult = {
     version: string;
     system?: string;
     responseFormat?: unknown;
+    triage?: {
+      key: string;
+      version: string;
+      system?: string;
+      responseFormat?: unknown;
+    };
     audit?: {
       key: string;
       version: string;
@@ -140,6 +154,7 @@ export async function runSecFilingAnalysisPreview(options: PreviewOptions = {}) 
   const input = await buildInputFromSecRawRowWithContext(rawResult.rawItem);
   const prompt = buildSecFilingPromptForInput(input);
   const auditPrompt = isS3FilingInput(input) ? buildSecOfferingAuditPrompt(input) : null;
+  const triagePrompt = isS3AmendmentInput(input) ? buildSecS3AmendmentTriagePrompt(input) : null;
 
   if (options.dryRun) {
     return {
@@ -152,6 +167,14 @@ export async function runSecFilingAnalysisPreview(options: PreviewOptions = {}) 
         version: prompt.version,
         system: prompt.system,
         responseFormat: prompt.responseFormat,
+        triage: triagePrompt
+          ? {
+              key: triagePrompt.key,
+              version: triagePrompt.version,
+              system: triagePrompt.system,
+              responseFormat: triagePrompt.responseFormat,
+            }
+          : undefined,
         audit: auditPrompt
           ? {
               key: auditPrompt.key,
@@ -178,6 +201,7 @@ export async function runSecFilingAnalysisPreviewForRawItem(rawItem: RawItemRow,
   const input = await buildInputFromSecRawRowWithContext(rawItem);
   const prompt = buildSecFilingPromptForInput(input);
   const auditPrompt = isS3FilingInput(input) ? buildSecOfferingAuditPrompt(input) : null;
+  const triagePrompt = isS3AmendmentInput(input) ? buildSecS3AmendmentTriagePrompt(input) : null;
 
   if (options.dryRun !== false) {
     return {
@@ -190,6 +214,14 @@ export async function runSecFilingAnalysisPreviewForRawItem(rawItem: RawItemRow,
         version: prompt.version,
         system: prompt.system,
         responseFormat: prompt.responseFormat,
+        triage: triagePrompt
+          ? {
+              key: triagePrompt.key,
+              version: triagePrompt.version,
+              system: triagePrompt.system,
+              responseFormat: triagePrompt.responseFormat,
+            }
+          : undefined,
         audit: auditPrompt
           ? {
               key: auditPrompt.key,
@@ -212,7 +244,7 @@ export async function runSecFilingAnalysisPreviewForRawItem(rawItem: RawItemRow,
 }
 
 export async function runSecFilingAnalysisForRawRow(rawItem: RawItemRow): Promise<SecFilingAnalysisRunResult> {
-  const input = await buildInputFromSecRawRowWithContext(rawItem);
+  const input = await buildInputFromSecRawRowWithParentContext(rawItem);
   const env = getServerEnv();
 
   if (!env.openAiApiKey) {
@@ -225,6 +257,76 @@ export async function runSecFilingAnalysisForRawRow(rawItem: RawItemRow): Promis
       input,
     };
   }
+
+  let triage: Record<string, unknown> | null = null;
+  let triageRun: OpenAiPromptRun | null = null;
+  if (isS3AmendmentInput(input)) {
+    const triagePrompt = buildSecS3AmendmentTriagePrompt(input);
+    triageRun = await runOpenAiJsonPrompt(env, triagePrompt);
+    if (!triageRun.ok || !triageRun.parsed) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: triageRun.status,
+        error: `SEC S-3/A triage failed after ${triageRun.attempts} attempt(s): ${triageRun.error || "no parseable JSON"}`,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        triageOutputText: triageRun.outputText,
+        triageUsage: triageRun.usage,
+        rawOpenAIResponse: triageRun.rawOpenAIResponse,
+        prompt: {
+          key: triagePrompt.key,
+          version: triagePrompt.version,
+        },
+      };
+    }
+
+    triage = triageRun.parsed;
+    if (shouldForceS3AmendmentAudit(input, triage)) {
+      triage = {
+        ...triage,
+        triage_action: "needs_offering_audit",
+        material_change: true,
+        material_change_reasons: [
+          ...readStringArray(triage.material_change_reasons),
+          "Concrete S-3/A offering or resale terms present without parent registration context",
+        ].slice(0, 4),
+        needs_human_review: true,
+      };
+    }
+    attachS3AmendmentTriage(input, triage);
+
+    if (stringValue(triage.triage_action) === "skip_analysis") {
+      const usage = combineUsage(triageRun.usage);
+      const analysis = buildS3AmendmentSkipAnalysis(input, triage);
+      return {
+        ok: true,
+        stage: "complete",
+        status: triageRun.status,
+        model: env.openAiModel,
+        openAiResponseId: triageRun.openAiResponseId,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        triage,
+        audit: null,
+        analysis,
+        triageOutputText: triageRun.outputText,
+        triageUsage: triageRun.usage,
+        usage,
+        costEstimate: estimateCost(env.openAiModel, usage),
+        prompt: {
+          key: triagePrompt.key,
+          version: triagePrompt.version,
+          triage: {
+            key: SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
+            version: SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
+          },
+        },
+      };
+    }
+  }
+
+  await attachSecOfferingMarketContext(input);
 
   let audit: Record<string, unknown> | null = null;
   let auditRun: OpenAiPromptRun | null = null;
@@ -239,6 +341,9 @@ export async function runSecFilingAnalysisForRawRow(rawItem: RawItemRow): Promis
         error: `SEC offering audit failed after ${auditRun.attempts} attempt(s): ${auditRun.error || "no parseable JSON"}`,
         sourceItem: summarizeRawRow(rawItem),
         input,
+        triage,
+        triageOutputText: triageRun?.outputText,
+        triageUsage: triageRun?.usage || null,
         auditOutputText: auditRun.outputText,
         auditUsage: auditRun.usage,
         rawOpenAIResponse: auditRun.rawOpenAIResponse,
@@ -262,8 +367,11 @@ export async function runSecFilingAnalysisForRawRow(rawItem: RawItemRow): Promis
       error: `SEC filing analysis failed after ${analysisRun.attempts} attempt(s): ${analysisRun.error || "unknown OpenAI error"}`,
       sourceItem: summarizeRawRow(rawItem),
       input,
+      triage,
       audit,
       auditOpenAiResponseId: auditRun?.openAiResponseId || null,
+      triageOutputText: triageRun?.outputText,
+      triageUsage: triageRun?.usage || null,
       auditOutputText: auditRun?.outputText,
       auditUsage: auditRun?.usage || null,
       rawOpenAIResponse: analysisRun.rawOpenAIResponse,
@@ -277,7 +385,7 @@ export async function runSecFilingAnalysisForRawRow(rawItem: RawItemRow): Promis
       : parsedAnalysis
     : null;
   const analysis = analysisWithAudit ? applySecOfferingScorePolicy(readRecord(input.filing_package) || {}, analysisWithAudit) : null;
-  const usage = combineUsage(auditRun?.usage || null, analysisRun.usage);
+  const usage = combineUsage(triageRun?.usage || null, auditRun?.usage || null, analysisRun.usage);
   return {
     ok: Boolean(analysis),
     stage: "complete",
@@ -287,16 +395,25 @@ export async function runSecFilingAnalysisForRawRow(rawItem: RawItemRow): Promis
     auditOpenAiResponseId: auditRun?.openAiResponseId || null,
     sourceItem: summarizeRawRow(rawItem),
     input,
+    triage,
     audit,
     analysis,
+    triageOutputText: triageRun?.outputText,
     auditOutputText: auditRun?.outputText,
     outputText: analysisRun.outputText,
+    triageUsage: triageRun?.usage || null,
     auditUsage: auditRun?.usage || null,
     usage,
     costEstimate: estimateCost(env.openAiModel, usage),
     prompt: {
       key: prompt.key,
       version: prompt.version,
+      triage: triageRun
+        ? {
+            key: SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
+            version: SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
+          }
+        : undefined,
       audit: auditRun
         ? {
             key: SEC_OFFERING_AUDIT_PROMPT_KEY,
@@ -408,7 +525,14 @@ function attachOfferingSecurityAudit(input: SecFilingAnalysisInput, audit: Recor
   filingPackage.dilution_metrics = buildSecOfferingDilutionMetrics(filingPackage, marketContext);
 }
 
+function attachS3AmendmentTriage(input: SecFilingAnalysisInput, triage: Record<string, unknown>) {
+  const filingPackage = readRecord(input.filing_package);
+  if (!filingPackage) return;
+  filingPackage.s3_amendment_triage = triage;
+}
+
 function readMaxOutputTokens(promptKey: string) {
+  if (promptKey === SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY) return 2500;
   if (promptKey === SEC_OFFERING_AUDIT_PROMPT_KEY) return 12000;
   return promptKey === SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY ? 8000 : 5000;
 }
@@ -480,10 +604,132 @@ function isS3FilingInput(input: SecFilingAnalysisInput) {
   return s3?.is_s3_family === true;
 }
 
+function isS3AmendmentInput(input: SecFilingAnalysisInput) {
+  const filingPackage = readRecord(input.filing_package);
+  const formType = stringValue(filingPackage?.form_type).toUpperCase().replace(/\s+/g, "");
+  if (formType === "S-3/A") return true;
+
+  const hardParsers = readRecord(filingPackage?.hard_parsers);
+  const s3 = readRecord(hardParsers?.s3);
+  const amendment = readRecord(s3?.amendment);
+  return s3?.is_s3_family === true && amendment?.is_amendment === true;
+}
+
+function shouldForceS3AmendmentAudit(input: SecFilingAnalysisInput, triage: Record<string, unknown>) {
+  if (stringValue(triage.triage_action) !== "skip_analysis") return false;
+
+  const filingPackage = readRecord(input.filing_package);
+  if (!filingPackage || readRecord(filingPackage.parent_registration_context)) return false;
+
+  const hardParsers = readRecord(filingPackage.hard_parsers);
+  const s3 = readRecord(hardParsers?.s3);
+  const amendment = readRecord(s3?.amendment);
+  if (!s3 || amendment?.is_amendment !== true) return false;
+
+  const offeringTerms = readRecord(s3.offering_terms);
+  const feeTable = readRecord(s3.fee_table);
+  const sellingStockholders = readRecord(s3.selling_stockholders);
+  const addedExhibits = Array.isArray(amendment?.added_exhibits) ? amendment.added_exhibits.map(stringValue) : [];
+  const onlyConsentOrExhibitUpdate =
+    addedExhibits.length > 0 &&
+    addedExhibits.every((item) => /(?:ex-?23\.1|consent|auditor)/i.test(item)) &&
+    !stringValue(offeringTerms?.resale_share_count) &&
+    !stringValue(s3.resale_share_count) &&
+    !stringValue(offeringTerms?.offering_amount) &&
+    !stringValue(offeringTerms?.atm_program_size);
+
+  if (onlyConsentOrExhibitUpdate) return false;
+
+  return Boolean(
+    stringValue(offeringTerms?.resale_share_count) ||
+      stringValue(s3.resale_share_count) ||
+      stringValue(offeringTerms?.offering_amount) ||
+      stringValue(offeringTerms?.atm_program_size) ||
+      stringValue(offeringTerms?.conversion_price) ||
+      finiteNumber(feeTable?.row_count) ||
+      finiteNumber(sellingStockholders?.count),
+  );
+}
+
+function buildS3AmendmentSkipAnalysis(input: SecFilingAnalysisInput, triage: Record<string, unknown>) {
+  const filingPackage = readRecord(input.filing_package) || {};
+  const primaryTicker = readRecord(filingPackage.primary_ticker);
+  const archiveSummary =
+    stringValue(triage.archive_summary) ||
+    "Routine S-3/A amendment with no changed offering economics or dilution terms.";
+  const routineReasons = readStringArray(triage.routine_reasons).slice(0, 3);
+  const materialReasons = readStringArray(triage.material_change_reasons).slice(0, 3);
+  const keyEvidence = routineReasons.length ? routineReasons : ["No material offering-term change identified"];
+  const confidence = normalizeTriageConfidence(stringValue(triage.confidence));
+  const ticker = stringValue(primaryTicker?.ticker);
+  const exchange = stringValue(primaryTicker?.exchange);
+  const tickers = normalizeAnalysisTickers(filingPackage.tickers);
+
+  return {
+    analysis_action: "skip_analysis",
+    s3_case: "amendment",
+    archive_summary: archiveSummary,
+    offering_display_model: null,
+    source_group: "filings",
+    market_scope: "company",
+    event_type: "other",
+    event_title: "Routine S-3/A amendment",
+    primary_ticker: {
+      ticker: ticker || null,
+      exchange: exchange || null,
+    },
+    tickers,
+    sector: null,
+    industry_group: null,
+    theme_group: null,
+    sub_theme: null,
+    score: 10,
+    score_reason: "routine s-3/a amendment",
+    signal: "neutral",
+    quick_take: archiveSummary,
+    summary: archiveSummary,
+    why_it_matters: "No new offering economics or dilution mechanics were identified.",
+    bullish_points: [],
+    bearish_points: [],
+    key_evidence: keyEvidence,
+    what_to_watch_next: materialReasons,
+    related_tickers: [],
+    calendar_items: [],
+    confidence,
+    needs_human_review: Boolean(triage.needs_human_review),
+  };
+}
+
+function normalizeAnalysisTickers(value: unknown) {
+  const items = Array.isArray(value) ? value : [];
+  return items
+    .map((item) => {
+      const record = readRecord(item);
+      const ticker = stringValue(record?.ticker);
+      if (!ticker) return null;
+      return {
+        ticker,
+        exchange: stringValue(record?.exchange) || null,
+        role: stringValue(record?.role) || "issuer",
+      };
+    })
+    .filter(Boolean);
+}
+
+function normalizeTriageConfidence(value: string) {
+  const normalized = value.toLowerCase();
+  return normalized === "high" || normalized === "low" ? normalized : "medium";
+}
+
 async function buildInputFromSecRawRowWithContext(rawItem: RawItemRow): Promise<SecFilingAnalysisInput> {
+  const input = await buildInputFromSecRawRowWithParentContext(rawItem);
+  await attachSecOfferingMarketContext(input);
+  return input;
+}
+
+async function buildInputFromSecRawRowWithParentContext(rawItem: RawItemRow): Promise<SecFilingAnalysisInput> {
   const input = buildInputFromSecRawRow(rawItem);
   await attachParentRegistrationContext(input, rawItem);
-  await attachSecOfferingMarketContext(input);
   return input;
 }
 

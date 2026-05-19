@@ -31,6 +31,12 @@ import {
   secFilingAnalysisSystemPrompt,
 } from "@/lib/prompts/secFilingAnalysis";
 import {
+  SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
+  SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
+  secS3AmendmentTriageResponseSchema,
+  secS3AmendmentTriageSystemPrompt,
+} from "@/lib/prompts/secS3AmendmentTriage";
+import {
   SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY,
   SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION,
   secS3OfferingAnalysisResponseSchema,
@@ -149,6 +155,23 @@ export const promptTemplates: PromptTemplateDraft[] = [
     responseSchema: secFilingAnalysisResponseSchema,
     runtimeNotes:
       "OpenAI call: instructions = systemPrompt, input = JSON.stringify({ filing_package }), text.format = responseSchema.",
+  },
+  {
+    key: SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
+    version: SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
+    task: "SEC S-3/A amendment triage",
+    model: "gpt-5-mini",
+    status: "draft",
+    owner: "ai",
+    inputTables: ["raw_items"],
+    outputTarget: "skip_analysis or route to SEC S-3 offering audit",
+    notes:
+      "Lightweight S-3/A first pass. It checks whether the amendment itself changed material offering terms before running numeric offering audit.",
+    systemPrompt: secS3AmendmentTriageSystemPrompt,
+    userInputTemplate: secFilingAnalysisInputTemplate,
+    responseSchema: secS3AmendmentTriageResponseSchema,
+    runtimeNotes:
+      "Runtime runs this before the offering audit only for S-3/A. Routine amendments return skip_analysis and do not run audit or detailed analysis.",
   },
   {
     key: SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY,

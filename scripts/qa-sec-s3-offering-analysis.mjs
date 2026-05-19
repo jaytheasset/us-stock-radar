@@ -39,10 +39,12 @@ try {
       const s3Evidence = filingPackage?.router_evidence?.s3 || {};
       const marketContext = filingPackage?.market_context || {};
       const dilutionMetrics = filingPackage?.dilution_metrics || {};
-      const audit = preview?.audit || filingPackage?.offering_security_audit || {};
+      const triage = preview?.triage || filingPackage?.s3_amendment_triage || null;
+      const audit = preview?.audit || filingPackage?.offering_security_audit || null;
       const analysis = preview?.analysis || {};
       const displayModel = analysis?.offering_display_model || null;
       const promptKey = preview?.prompt?.key || null;
+      const triagePromptKey = preview?.prompt?.triage?.key || (promptKey === "sec_s3_amendment_triage" ? promptKey : null);
       const auditPromptKey = preview?.prompt?.audit?.key || null;
       const hasDisplayModelContract =
         Boolean(promptSchema?.properties?.offering_display_model) ||
@@ -59,6 +61,8 @@ try {
         stage: preview?.stage || null,
         prompt_key: promptKey,
         prompt_version: preview?.prompt?.version || null,
+        triage_prompt_key: triagePromptKey,
+        triage_prompt_version: preview?.prompt?.triage?.version || (promptKey === "sec_s3_amendment_triage" ? preview?.prompt?.version : null),
         audit_prompt_key: auditPromptKey,
         audit_prompt_version: preview?.prompt?.audit?.version || null,
         has_display_model_contract: hasDisplayModelContract,
@@ -73,6 +77,15 @@ try {
           ? s3Evidence.important_tables.selling_stockholders.length
           : 0,
         analysis_action: analysis?.analysis_action || null,
+        triage: triage
+          ? {
+              triage_action: triage.triage_action || null,
+              material_change: triage.material_change ?? null,
+              material_change_reasons: Array.isArray(triage.material_change_reasons) ? triage.material_change_reasons : [],
+              routine_reasons: Array.isArray(triage.routine_reasons) ? triage.routine_reasons : [],
+              needs_human_review: triage.needs_human_review ?? null,
+            }
+          : null,
         audit: audit
           ? {
               audit_action: audit.audit_action || null,
@@ -135,25 +148,39 @@ try {
       };
       samples.push(summary);
 
+      const isS3Amendment = formType.toUpperCase() === "S-3/A";
+      const finalActionSkipsStorage = summary.analysis_action === "skip_analysis";
+
       check(`${formType} preview returned ok for ${summary.accession_number}`, preview?.ok === true, summary);
-      check(`${formType} uses S-3 offering prompt for ${summary.accession_number}`, summary.prompt_key === "sec_s3_offering_analysis", summary);
-      check(`${formType} has S-3 offering audit prompt for ${summary.accession_number}`, summary.audit_prompt_key === "sec_offering_security_audit", summary);
+      if (isS3Amendment) {
+        check(`${formType} runs S-3/A amendment triage for ${summary.accession_number}`, summary.triage_prompt_key === "sec_s3_amendment_triage", summary);
+      } else {
+        check(`${formType} uses S-3 offering prompt for ${summary.accession_number}`, summary.prompt_key === "sec_s3_offering_analysis", summary);
+        check(`${formType} has S-3 offering audit prompt for ${summary.accession_number}`, summary.audit_prompt_key === "sec_offering_security_audit", summary);
+      }
       if (dryRun || summary.analysis_action === "analyze_offering") {
         check(`${formType} has offering display model contract for ${summary.accession_number}`, summary.has_display_model_contract, summary);
       }
-      check(`${formType} has offering audit contract for ${summary.accession_number}`, summary.has_audit_contract, summary);
+      if (!isS3Amendment || !finalActionSkipsStorage) {
+        check(`${formType} has offering audit contract for ${summary.accession_number}`, summary.has_audit_contract, summary);
+      }
       check(`${formType} has S-3 router evidence for ${summary.accession_number}`, summary.router_excerpt_chars > 500, summary);
       check(`${formType} has important S-3 sections for ${summary.accession_number}`, summary.important_section_count > 0, summary);
-      check(`${formType} has market context contract for ${summary.accession_number}`, Boolean(filingPackage?.market_context), summary);
-      check(`${formType} has dilution metrics contract for ${summary.accession_number}`, Boolean(filingPackage?.dilution_metrics), summary);
+      if (!isS3Amendment || !finalActionSkipsStorage) {
+        check(`${formType} has market context contract for ${summary.accession_number}`, Boolean(filingPackage?.market_context), summary);
+        check(`${formType} has dilution metrics contract for ${summary.accession_number}`, Boolean(filingPackage?.dilution_metrics), summary);
+      }
 
       if (!dryRun) {
-        check(`${formType} returns offering audit for ${summary.accession_number}`, Boolean(summary.audit?.audit_action), summary);
+        if (isS3Amendment && finalActionSkipsStorage) {
+          check(`${formType} routine amendment skips offering audit for ${summary.accession_number}`, !summary.audit?.audit_action, summary);
+        } else {
+          check(`${formType} returns offering audit for ${summary.accession_number}`, Boolean(summary.audit?.audit_action), summary);
+        }
         check(`${formType} returns S-3 action for ${summary.accession_number}`, isS3Action(summary.analysis_action), summary);
         const scoreFloor = readOptionalNumber(summary.dilution_metrics.preliminary_score_floor);
         const scoreCap = readOptionalNumber(summary.dilution_metrics.preliminary_score_cap);
         const deliveryHint = summary.dilution_metrics.delivery_hint;
-        const finalActionSkipsStorage = summary.analysis_action === "skip_analysis";
         if (!finalActionSkipsStorage && scoreFloor !== null) {
           check(`${formType} score respects policy floor for ${summary.accession_number}`, Number(summary.score) >= scoreFloor, summary);
         }
