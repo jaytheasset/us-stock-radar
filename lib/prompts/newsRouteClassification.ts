@@ -47,6 +47,8 @@ export const newsRouteClassificationSystemPrompt = [
   "Do not analyze score, signal, or related tickers here. Only choose the better second-pass route.",
   "Return candidate_tickers for market context before second-pass analysis: clear body tickers, active tickers for clear primary issuers, and obvious sponsor/right-holder tickers.",
   "Keep candidate_tickers short and only include symbols useful for price, float, market cap, or volume context.",
+  "Do not copy raw parser, formatter, schema, or structured-field wording into user-facing analysis.",
+  "Use the underlying values only as evidence, then rewrite them in natural investor-facing language that explains what happened and why it matters.",
   "When unsure, ask whether this belongs on a U.S. stock investor's screen today. If not, choose skip.",
   "Keep reason under 20 words.",
 ].join("\n");

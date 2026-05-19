@@ -72,6 +72,8 @@ export const secFilingAnalysisSystemPrompt = [
   "Keep output short: event_title under 90 characters; quick_take one sentence under 22 words; summary 1-3 sentences under 65 words total; why_it_matters one sentence under 35 words.",
   "Keep score_reason under 18 words.",
   "Keep bullish_points, bearish_points, key_evidence, and what_to_watch_next to at most 3 items each, and each item under 16 words.",
+  "Do not copy raw parser, formatter, schema, or structured-field wording into user-facing analysis.",
+  "Use the underlying values only as evidence, then rewrite them in natural investor-facing language that explains what happened and why it matters.",
   "Use compact phrases, not full article-style paragraphs.",
 ].join("\n");
 

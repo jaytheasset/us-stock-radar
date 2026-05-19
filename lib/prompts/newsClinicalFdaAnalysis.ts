@@ -35,6 +35,8 @@ export const newsClinicalFdaAnalysisSystemPrompt = [
   "why_it_matters must be one sentence under 45 words.",
   "score_reason must be under 24 words.",
   "bullish_points, bearish_points, key_evidence, and what_to_watch_next must each contain at most 4 items, each under 20 words.",
+  "Do not copy raw parser, formatter, schema, or structured-field wording into user-facing analysis.",
+  "Use the underlying values only as evidence, then rewrite them in natural investor-facing language that explains what happened and why it matters.",
   "Do not write UI labels, routing labels, or instructions to read the original source.",
 ].join("\n");
 
