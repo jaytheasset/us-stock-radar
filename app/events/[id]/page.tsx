@@ -6,9 +6,13 @@ import { feedItems, getFeedItem, type FeedItem } from "@/lib/feedMock";
 import { getEventTypeBadge } from "@/lib/eventTypeRegistry";
 import { fetchFmpProfile } from "@/lib/integrations";
 import { getLiveEventDetail, type LiveFeedItem } from "@/lib/liveFeed";
+import { readMarketGroupSnapshotCache, type MarketGroupSnapshotPayload } from "@/lib/marketDataCache";
 import { parseGlobeNewswireArticleHtml } from "@/lib/sources/globe/parser";
 import { fetchEventAnalysis, fetchEventTickers, fetchEventsByTicker, supabaseSelect } from "@/lib/supabase";
-import type { DetailTone, PriceChartSeries, PricePoint, PriceRange, SectorThemeContext } from "./detailTypes";
+import { themeGroups, themeSubThemes } from "@/lib/taxonomyRegistry";
+import type { ContextRange, DetailTone, PriceChartSeries, PricePoint, PriceRange, SectorThemeContext, TopMover } from "./detailTypes";
+
+export const dynamic = "force-dynamic";
 
 type StockDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -17,6 +21,7 @@ type StockDetailPageProps = {
 type DetailProfile = {
   company: string;
   exchange: string;
+  identityChips?: string[];
   price: string;
   changeAmount: string;
   change: string;
@@ -46,6 +51,7 @@ type DetailProfile = {
   priceSeries: PriceChartSeries;
   fullTextHtml?: string | null;
   fullTextSourceUrl?: string;
+  offeringTerms?: Record<string, unknown> | null;
 };
 
 type RelatedTicker = {
@@ -69,6 +75,16 @@ type RecentFiling = {
   filedAt: string;
   score: number;
 };
+
+type DilutionMetricItem = {
+  label: string;
+  value: string;
+  note?: string;
+  emphasis?: boolean;
+  tone?: "danger" | "neutral" | "positive";
+};
+
+type NewsOfferingDisplayMode = "standard" | "forward_sale" | "convertible";
 
 const defaultEvent = feedItems[0];
 const globeInvuArticleUrl =
@@ -497,7 +513,7 @@ export default async function StockNewsDetailPage({ params }: StockDetailPagePro
     : event.id === "globe-invu-q1-2026-results"
       ? globeInvuArticleUrl
       : "";
-  if (fullTextUrl) {
+  if (!profile.fullTextHtml && fullTextUrl) {
     profile = await attachGlobeFullText(profile, fullTextUrl);
   }
   const eventBadge = getEventTypeBadge(event.eventType);
@@ -512,7 +528,7 @@ export default async function StockNewsDetailPage({ params }: StockDetailPagePro
         <nav className="feed-nav-links" aria-label="Primary">
           {[
             { label: "Live Feed", href: "/feed" },
-            { label: "Watchlist", href: "#" },
+            { label: "Watchlist", href: "/watchlist" },
             { label: "News", href: "/news" },
             { label: "Filings", href: "/filings" },
             { label: "Alerts", href: "#" },
@@ -556,59 +572,68 @@ export default async function StockNewsDetailPage({ params }: StockDetailPagePro
             <div className="stock-detail-title-block">
               <h1>{event.title}</h1>
               <div className="stock-detail-meta">
-                <span className="ticker-chip">{profile.exchange}:{event.ticker}</span>
-                <span>{profile.company}</span>
+                {getDetailIdentityChips(event, profile).map((chip, index) => (
+                  <span className={index === 0 ? "ticker-chip" : undefined} key={`${chip}-${index}`}>
+                    {chip}
+                  </span>
+                ))}
                 <span className={`signal-badge ${event.signal}`}>{event.signal}</span>
                 <span className={`source-badge impact-badge ${event.signal}`}>Impact {event.score}</span>
               </div>
             </div>
           </section>
 
-          <section className="stock-detail-top-grid">
-            <PriceChartCard
-              change={profile.change}
-              changeAmount={profile.changeAmount}
-              price={profile.price}
-              series={profile.priceSeries}
-              ticker={event.ticker}
-              tone={event.signal}
-            />
+          {event.eventType === "dilution_risk" && profile.offeringTerms ? (
+            <NewsDilutionOfferingTemplate event={event} profile={profile} />
+          ) : (
+            <>
+              <section className="stock-detail-top-grid">
+                <PriceChartCard
+                  change={profile.change}
+                  changeAmount={profile.changeAmount}
+                  price={profile.price}
+                  series={profile.priceSeries}
+                  ticker={event.ticker}
+                  tone={event.signal}
+                />
 
-            <div className="stock-detail-card quick-analysis-panel">
-              <div className="quick-take-card quick-take-block">
-                <div className="card-heading-row">
-                  <h2>Quick Take</h2>
-                  <span>{profile.theme}</span>
+                <div className="stock-detail-card quick-analysis-panel">
+                  <div className="quick-take-card quick-take-block">
+                    <div className="card-heading-row">
+                      <h2>Quick Take</h2>
+                      <span>{profile.theme}</span>
+                    </div>
+                    <p>{profile.quickTake}</p>
+                    <div className="detail-chip-row">
+                      <span>{eventBadge.label}</span>
+                      <span>{event.impact} impact</span>
+                      <span>{event.deliveryLevel}</span>
+                    </div>
+                  </div>
+
+                  <div className="quick-case-grid">
+                    <CaseList title="Bullish" tone="bullish" items={profile.bullCase} />
+                    <CaseList title="Bearish" tone="bearish" items={profile.bearCase} />
+                  </div>
                 </div>
-                <p>{profile.quickTake}</p>
-                <div className="detail-chip-row">
-                  <span>{eventBadge.label}</span>
-                  <span>{event.impact} impact</span>
-                  <span>{event.deliveryLevel}</span>
-                </div>
-              </div>
+              </section>
 
-              <div className="quick-case-grid">
-                <CaseList title="Bullish" tone="bullish" items={profile.bullCase} />
-                <CaseList title="Bearish" tone="bearish" items={profile.bearCase} />
-              </div>
-            </div>
-          </section>
+              <section className="stock-detail-card-grid two-up insight-summary-grid">
+                <AnalysisCard title="Why It Matters" body={profile.whyItMatters} />
+                <section className="stock-detail-card summary-card">
+                  <h2>Summary</h2>
+                  <p>{profile.summary}</p>
+                </section>
+              </section>
 
-          <section className="stock-detail-card-grid two-up insight-summary-grid">
-            <AnalysisCard title="Why It Matters" body={profile.whyItMatters} />
-            <section className="stock-detail-card summary-card">
-              <h2>Summary</h2>
-              <p>{profile.summary}</p>
-            </section>
-          </section>
+              <section className="stock-detail-card-grid two-up insight-summary-grid">
+                <AnalysisList title="Key Evidence" items={profile.keyEvidence} />
+                <AnalysisList title="What To Watch Next" numbered items={profile.watchNext} />
+              </section>
 
-          <section className="stock-detail-card-grid two-up insight-summary-grid">
-            <AnalysisList title="Key Evidence" items={profile.keyEvidence} />
-            <AnalysisList title="What To Watch Next" numbered items={profile.watchNext} />
-          </section>
-
-          <SectorThemeContextPanel context={profile.context} ticker={event.ticker} />
+              <SectorThemeContextPanel context={profile.context} ticker={event.ticker} />
+            </>
+          )}
 
         </article>
 
@@ -705,6 +730,567 @@ export default async function StockNewsDetailPage({ params }: StockDetailPagePro
       </div>
     </main>
   );
+}
+
+function NewsDilutionOfferingTemplate({ event, profile }: { event: FeedItem; profile: DetailProfile }) {
+  const model = buildNewsDilutionOfferingModel(event, profile);
+
+  return (
+    <>
+      <section className="stock-detail-top-grid">
+        <PriceChartCard
+          change={profile.change}
+          changeAmount={profile.changeAmount}
+          price={profile.price}
+          series={profile.priceSeries}
+          ticker={event.ticker}
+          tone={event.signal}
+        />
+
+        <NewsDilutionSnapshotCard model={model} />
+      </section>
+
+      <section className="stock-detail-card dilution-long-summary">
+        <h2>Dilution Summary</h2>
+        {model.summaryParagraphs.map((paragraph) => (
+          <p key={paragraph}>{paragraph}</p>
+        ))}
+      </section>
+
+      <NewsShareOverhangCard model={model} />
+
+      <SectorThemeContextPanel context={profile.context} ticker={event.ticker} />
+    </>
+  );
+}
+
+function NewsDilutionSnapshotCard({ model }: { model: ReturnType<typeof buildNewsDilutionOfferingModel> }) {
+  return (
+    <section className="stock-detail-card dilution-investor-card dilution-snapshot-panel">
+      <div className="dilution-investor-header">
+        <div>
+          <h2>Dilution Snapshot</h2>
+        </div>
+      </div>
+
+      <div className="dilution-impact-metrics">
+        {model.impactMetrics.map((metric) => (
+          <DilutionMetric key={metric.label} metric={metric} />
+        ))}
+      </div>
+
+      <div className="dilution-warning-strip">
+        <p>{model.investorTakeaway}</p>
+      </div>
+    </section>
+  );
+}
+
+function NewsShareOverhangCard({ model }: { model: ReturnType<typeof buildNewsDilutionOfferingModel> }) {
+  return (
+    <section className="stock-detail-card dilution-overhang-card dilution-overhang-wide-card">
+      <div className="dilution-overhang-body">
+        <div className="dilution-overhang-chart" aria-label={model.overhangAriaLabel}>
+          <div className="dilution-overhang-plot">
+            <div className="dilution-overhang-heading">
+              <div>
+                <h2>Share Overhang</h2>
+                <p>{model.overhangSubtitle}</p>
+              </div>
+              <div className="dilution-overhang-score">
+                <span>{model.overhangLevel}</span>
+                <strong>{model.dilutionRatioPercentValue}</strong>
+                <small>{model.overhangScoreNote}</small>
+              </div>
+            </div>
+
+            {model.hasCurrentSharesMarker ? (
+              <span
+                className={`dilution-overhang-marker current${model.currentSharesScalePosition > 92 ? " edge" : ""}`}
+                style={{ left: `${model.currentSharesScalePosition}%` }}
+              >
+                <b>Current shares</b>
+                <strong>{model.currentSharesCompact}</strong>
+              </span>
+            ) : null}
+            {model.hasPotentialSupplyMarker ? (
+              <span
+                className={`dilution-overhang-marker total${model.supplyScalePosition < 22 ? " low" : ""}`}
+                style={{ left: `${model.supplyScalePosition}%` }}
+              >
+                <b>{model.potentialSupplyLabel}</b>
+                <strong>{model.potentialSupplyCompact}</strong>
+                <em>{model.dilutionRatioValue}</em>
+              </span>
+            ) : null}
+
+            <div className="dilution-overhang-bar">
+              {model.segments.length ? (
+                model.segments.map((segment) => (
+                  <span className={segment.className} key={segment.label} style={{ width: `${segment.width}%` }}>
+                    <b>{segment.label}</b>
+                    <em>{segment.compact} / {segment.ratio}</em>
+                  </span>
+                ))
+              ) : (
+                <span className="registered" style={{ width: `${model.supplyScalePosition}%` }}>
+                  <b>{model.potentialSupplyLabel}</b>
+                  <em>{model.potentialSupplyCompact}</em>
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="dilution-overhang-labels">
+            {model.overhangAxisTicks.map((tick, index) => (
+              <span
+                key={tick.value}
+                className={index === 0 ? "tick-zero" : index === model.overhangAxisTicks.length - 1 ? "tick-max" : undefined}
+                style={{ left: `${tick.position}%` }}
+              >
+                {tick.label}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="dilution-overhang-detail-grid">
+          <section className="dilution-overhang-panel">
+            <h3>Supply Details</h3>
+            <div className="dilution-overhang-facts">
+              <div>
+                <span>Current Shares Outstanding</span>
+                <strong>{model.currentSharesCompact}</strong>
+              </div>
+              <div>
+                <span>{model.primaryExposureLabel}</span>
+                <strong>{model.primaryExposureCompact}</strong>
+              </div>
+              <div>
+                <span>{model.potentialSupplyLabel}</span>
+                <strong className="danger">{model.potentialSupplyCompact}</strong>
+              </div>
+              <div>
+                <span>Overhang Level</span>
+                <strong><mark>{model.overhangLevel}</mark></strong>
+              </div>
+            </div>
+          </section>
+
+          <section className="dilution-overhang-panel">
+            <div className="dilution-breakdown-heading">
+              <h3>Breakdown</h3>
+              <span>% of current</span>
+            </div>
+            <div className="dilution-breakdown-list">
+              {model.segments.map((segment) => (
+                <div key={segment.label}>
+                  <span className="dilution-breakdown-label">
+                    <i className={segment.className} />
+                    {segment.label}
+                  </span>
+                  <strong>{segment.compact}</strong>
+                  <b>{segment.ratio}</b>
+                </div>
+              ))}
+            </div>
+            <p className="dilution-overhang-note">
+              {model.followupNote}
+            </p>
+          </section>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function DilutionMetric({ metric }: { metric: DilutionMetricItem }) {
+  return (
+    <div className={`dilution-metric${metric.emphasis ? " emphasis" : ""}${metric.tone ? ` ${metric.tone}` : ""}`}>
+      <span>{metric.label}</span>
+      <strong>{metric.value}</strong>
+      {metric.note ? <em>{metric.note}</em> : null}
+    </div>
+  );
+}
+
+function buildNewsDilutionOfferingModel(event: FeedItem, profile: DetailProfile) {
+  const row = profile.offeringTerms || {};
+  const metadata = toRecord(row.metadata);
+  const originalTerms = toRecord(metadata?.original_offering_terms);
+  const metrics = toRecord(metadata?.dilution_metrics) || toRecord(originalTerms?.dilution_metrics);
+  const offeringTypeValue = readRowString(row, "offering_type") || readRowString(originalTerms, "offering_type");
+  const securityTypeValue = readRowString(row, "security_type") || readRowString(originalTerms, "security_type");
+  const rawOfferingType = readRowString(metadata, "raw_offering_type") || readRowString(originalTerms, "offering_type");
+  const normalizedOfferingType = normalizeDisplayToken(offeringTypeValue);
+  const normalizedSecurityType = normalizeDisplayToken(securityTypeValue);
+  const dealLabel = formatOfferingDealLabel({
+    offeringType: offeringTypeValue,
+    rawOfferingType,
+    securityType: securityTypeValue,
+  });
+  const primaryOrResale = readRowString(row, "primary_or_resale") || readRowString(originalTerms, "primary_or_resale");
+  const isResale = primaryOrResale === "resale";
+  const offeringAmount = readOfferingNumber(row, "offering_amount", originalTerms, ["offering_amount", "amount"]);
+  const offeringPrice = readOfferingNumber(row, "offering_price", originalTerms, ["offering_price", "price"]);
+  const marketReferencePrice =
+    readOfferingNumber(row, "market_reference_price", metrics, ["market_reference_price"]) ||
+    readOfferingNumber(row, "market_reference_price", originalTerms, ["market_context_used", "price"]);
+  const currentShares =
+    readOfferingNumber(row, "shares_outstanding_market", metrics, ["shares_outstanding_market"]) ||
+    readOfferingNumber(row, "current_shares_outstanding", originalTerms, ["market_context_used", "shares_outstanding"]);
+  const publicFloat = readOfferingNumber(row, "public_float_market", metrics, ["public_float_market"]);
+  const marketCap = readOfferingNumber(row, "market_cap", metrics, ["market_cap"]);
+  const commonShares =
+    readOfferingNumber(row, "common_shares_offered", originalTerms, ["common_shares", "count"]) ||
+    readOfferingNumber(row, "shares_offered", originalTerms, ["shares_offered", "count"]);
+  const prefundedWarrantShares = readOfferingNumber(
+    row,
+    "prefunded_warrant_shares",
+    originalTerms,
+    ["prefunded_warrants", "shares", "count"],
+  );
+  const warrantCoverageText =
+    readRowString(row, "warrant_coverage_text") ||
+    readDeepString(originalTerms, ["warrants", "coverage_text"]);
+  const commonWarrantShares = readOfferingNumber(
+    row,
+    "common_warrant_shares",
+    originalTerms,
+    ["common_warrants", "shares", "count"],
+  ) || parseLooseShareCount(warrantCoverageText);
+  const convertibleShareExposure = readOfferingNumber(
+    row,
+    "convertible_share_exposure",
+    originalTerms,
+    ["convertible_securities", "share_exposure", "count"],
+  );
+  const convertiblePrincipalAmount = readOfferingNumber(
+    row,
+    "convertible_principal_amount",
+    originalTerms,
+    ["convertible_securities", "principal_amount", "amount"],
+  );
+  const conversionPrice = readOfferingNumber(
+    row,
+    "conversion_price",
+    originalTerms,
+    ["convertible_securities", "conversion_price", "price"],
+  );
+  const immediateShareExposure =
+    readOfferingNumber(row, "immediate_share_exposure", metrics, ["immediate_share_exposure"]) ||
+    sumNumbers([commonShares, prefundedWarrantShares]);
+  const calculatedPotentialShareExposure = sumNumbers([
+    commonShares,
+    prefundedWarrantShares,
+    commonWarrantShares,
+    convertibleShareExposure,
+  ]);
+  const totalPotentialShareExposure =
+    readOfferingNumber(row, "total_potential_share_exposure", metrics, ["total_potential_share_exposure"]) ||
+    calculatedPotentialShareExposure ||
+    readOfferingNumber(row, "shares_offered", metrics, ["shares_offered"]);
+  const immediateDilutionPercent =
+    readOfferingNumber(row, "estimated_dilution_percent", metrics, ["estimated_dilution_percent"]) ||
+    ratioPercent(immediateShareExposure, currentShares);
+  const totalPotentialDilutionPercent =
+    readOfferingNumber(row, "total_potential_dilution_percent", metrics, ["total_potential_dilution_percent"]) ||
+    readOfferingNumber(row, "max_share_impact_percent", metrics, ["max_share_impact_percent"]) ||
+    ratioPercent(totalPotentialShareExposure, currentShares);
+  const totalPotentialFloatPercent =
+    readOfferingNumber(row, "total_potential_float_overhang_percent", metrics, ["total_potential_float_overhang_percent"]) ||
+    readOfferingNumber(row, "float_overhang_percent", metrics, ["float_overhang_percent"]) ||
+    ratioPercent(totalPotentialShareExposure, publicFloat);
+  const discountToMarketPercent =
+    readOfferingNumber(row, "discount_to_market_percent", metrics, ["discount_to_market_percent"]) ||
+    (offeringPrice && marketReferencePrice ? ((marketReferencePrice - offeringPrice) / marketReferencePrice) * 100 : 0);
+  const overhangLevel = formatRiskLabel(readRowString(row, "dilution_scale") || readRowString(metrics, "dilution_scale"));
+  const currentSharesCompact = formatCompactShareCount(currentShares) || "Not disclosed";
+  const potentialSupplyCompact = formatCompactShareCount(totalPotentialShareExposure) || "Not disclosed";
+  const immediateExposureCompact = formatCompactShareCount(immediateShareExposure) || "Not disclosed";
+  const dilutionRatioPercentValue = formatPercentCompact(totalPotentialDilutionPercent) || "N/A";
+  const dilutionRatioValue = dilutionRatioPercentValue || "N/A";
+  const sourceConfidence = readRowString(metadata, "source_confidence") || "medium";
+  const sourceNote = `Preliminary news terms - ${sourceConfidence} confidence`;
+  const offeringDisplayMode = getNewsOfferingDisplayMode({
+    convertiblePrincipalAmount,
+    convertibleShareExposure,
+    normalizedOfferingType,
+    normalizedSecurityType,
+    searchText: buildOfferingSearchText(event.title, profile.summary, profile.keyEvidence, profile.watchNext, metadata, originalTerms),
+  });
+  const displayCopy = buildNewsOfferingDisplayCopy(offeringDisplayMode);
+  const components = [
+    { label: "Common shares", value: commonShares, className: "common" },
+    { label: "Pre-funded warrants", value: prefundedWarrantShares, className: "prefunded" },
+    { label: "Warrants", value: commonWarrantShares, className: "warrant" },
+    { label: offeringDisplayMode === "convertible" ? "Conversion shares" : "Convertibles", value: convertibleShareExposure, className: "conversion" },
+  ].filter((segment) => segment.value > 0);
+  const componentRatios = components.map((segment) => ratioPercent(segment.value, currentShares));
+  const overhangAxisMaxPercent = buildOverhangAxisMaxPercent([
+    totalPotentialDilutionPercent,
+    immediateDilutionPercent,
+    ...componentRatios,
+  ]);
+  const overhangAxisTicks = buildOverhangAxisTicks(overhangAxisMaxPercent);
+  const currentSharesScalePosition = scaleOverhangValue(100, overhangAxisMaxPercent);
+  const supplyScalePosition = scaleOverhangValue(totalPotentialDilutionPercent, overhangAxisMaxPercent);
+  let usedWidth = 0;
+  const segments = components.map((segment, index) => {
+    const ratio = componentRatios[index] || 0;
+    const rawWidth = ratio ? Math.max(2, scaleOverhangValue(ratio, overhangAxisMaxPercent)) : Math.max(8, 100 / components.length);
+    const width = index === components.length - 1 ? Math.max(2, Math.min(100 - usedWidth, rawWidth)) : Math.min(100 - usedWidth, rawWidth);
+    usedWidth += width;
+
+    return {
+      ...segment,
+      compact: formatCompactShareCount(segment.value) || "N/A",
+      ratio: formatPercentCompact(ratio) || "N/A",
+      width,
+    };
+  });
+  const companyCash = isResale ? "$0 from resale" : formatMoneyNumber(offeringAmount) || "Not disclosed";
+  const priceComparison = formatPriceComparison({
+    discountToMarketPercent,
+    marketReferencePrice,
+    offeringPrice,
+  });
+  const primaryExposureCompact =
+    offeringDisplayMode === "convertible"
+      ? formatMoneyNumber(convertiblePrincipalAmount) || "Not disclosed"
+      : immediateExposureCompact;
+  const priceSentence = buildNewsOfferingPriceSentence({
+    conversionPrice,
+    marketReferencePrice,
+    offeringDisplayMode,
+    offeringPrice,
+    priceComparison,
+  });
+  const impactMetrics: DilutionMetricItem[] = [
+    {
+      label: "Current shares",
+      value: currentSharesCompact,
+      note: "Market-context share count.",
+      tone: "neutral",
+    },
+    {
+      label: displayCopy.potentialSupplyLabel,
+      value: potentialSupplyCompact,
+      note: formatSupplyMixSummary(components),
+      emphasis: true,
+      tone: totalPotentialDilutionPercent >= 25 ? "danger" : "neutral",
+    },
+    {
+      label: displayCopy.ratioLabel,
+      value: dilutionRatioValue || "Not disclosed",
+      note: displayCopy.ratioNote,
+      emphasis: true,
+      tone: totalPotentialDilutionPercent >= 25 ? "danger" : "neutral",
+    },
+    {
+      label: offeringDisplayMode === "convertible" ? "Convertible principal" : "Company cash",
+      value: offeringDisplayMode === "convertible" ? primaryExposureCompact : companyCash,
+      note: buildCompanyCashNote({ isResale, offeringDisplayMode }),
+      tone: "neutral",
+    },
+  ];
+  const summaryParagraphs = [
+    profile.summary,
+    [
+      dealLabel ? `${event.ticker} ${dealLabel}.` : "",
+      buildExposureSummarySentence({
+        convertiblePrincipalAmount,
+        immediateExposureCompact,
+        offeringDisplayMode,
+        potentialSupplyCompact,
+      }),
+      priceSentence,
+    ].filter(Boolean).join(" "),
+    [
+      `Share overhang uses ${currentSharesCompact} as the base.`,
+      totalPotentialFloatPercent ? `${displayCopy.floatExposureLabel} equals ${formatPercentCompact(totalPotentialFloatPercent)} of public float.` : "",
+      profile.watchNext[0] || "Watch for closing, warrant exercise, and follow-up filing details.",
+    ].filter(Boolean).join(" "),
+  ].filter(Boolean);
+  const investorTakeaway =
+    profile.whyItMatters ||
+    "This financing can improve liquidity, but potential share supply may create dilution and selling-pressure risk.";
+
+  return {
+    currentSharesCompact,
+    currentSharesScalePosition,
+    dilutionRatioPercentValue,
+    dilutionRatioValue,
+    hasCurrentSharesMarker: Boolean(currentShares),
+    hasPotentialSupplyMarker: Boolean(totalPotentialShareExposure && currentShares),
+    immediateExposureCompact,
+    impactMetrics,
+    investorTakeaway,
+    followupNote: displayCopy.followupNote,
+    overhangLevel,
+    overhangAriaLabel: `${displayCopy.potentialSupplyLabel} equals ${dilutionRatioValue} of current shares`,
+    overhangAxisTicks,
+    overhangScoreNote: displayCopy.overhangScoreNote,
+    overhangSubtitle: displayCopy.overhangSubtitle,
+    potentialSupplyCompact,
+    potentialSupplyLabel: displayCopy.potentialSupplyLabel,
+    primaryExposureCompact,
+    primaryExposureLabel: displayCopy.primaryExposureLabel,
+    segments,
+    sourceNote,
+    summaryParagraphs,
+    supplyScalePosition,
+  };
+}
+
+function getNewsOfferingDisplayMode({
+  convertiblePrincipalAmount,
+  convertibleShareExposure,
+  normalizedOfferingType,
+  normalizedSecurityType,
+  searchText,
+}: {
+  convertiblePrincipalAmount: number;
+  convertibleShareExposure: number;
+  normalizedOfferingType: string;
+  normalizedSecurityType: string;
+  searchText: string;
+}): NewsOfferingDisplayMode {
+  const hasConvertible =
+    normalizedOfferingType === "convertible_financing" ||
+    normalizedSecurityType === "convertible_notes" ||
+    convertiblePrincipalAmount > 0 ||
+    convertibleShareExposure > 0;
+
+  if (hasConvertible) return "convertible";
+
+  if (
+    /\bforward\s+(sale|basis|seller|settlement|contract|agreement|purchase)\b/.test(searchText) ||
+    searchText.includes("physical settlement")
+  ) {
+    return "forward_sale";
+  }
+
+  return "standard";
+}
+
+function buildNewsOfferingDisplayCopy(mode: NewsOfferingDisplayMode) {
+  if (mode === "convertible") {
+    return {
+      floatExposureLabel: "Estimated conversion exposure",
+      followupNote: "News terms are preliminary. Confirm conversion price, capped-call terms, share exposure, and closing details in follow-up filings.",
+      overhangScoreNote: "Estimated conversion exposure vs. current shares",
+      overhangSubtitle: "Conversion overhang breakdown",
+      potentialSupplyLabel: "Estimated conversion shares",
+      primaryExposureLabel: "Convertible Principal",
+      ratioLabel: "Conversion / current",
+      ratioNote: "Estimated conversion shares vs. current shares.",
+    };
+  }
+
+  if (mode === "forward_sale") {
+    return {
+      floatExposureLabel: "Potential settlement supply",
+      followupNote: "Forward-sale terms are preliminary. Confirm settlement timing, final share count, and issuer proceeds in follow-up filings.",
+      overhangScoreNote: "Potential settlement supply vs. current shares",
+      overhangSubtitle: "Forward sale supply breakdown",
+      potentialSupplyLabel: "Potential settlement supply",
+      primaryExposureLabel: "Forward Sale Shares",
+      ratioLabel: "Settlement / current",
+      ratioNote: "Potential settlement shares vs. current shares.",
+    };
+  }
+
+  return {
+    floatExposureLabel: "Potential supply",
+    followupNote: "News terms are preliminary. Confirm final share counts, warrant exercise terms, and closing details in follow-up filings.",
+    overhangScoreNote: "Total potential dilution vs. current shares",
+    overhangSubtitle: "Potential supply breakdown",
+    potentialSupplyLabel: "Potential supply",
+    primaryExposureLabel: "Immediate Share Exposure",
+    ratioLabel: "Supply / current",
+    ratioNote: "Total potential exposure vs. current shares.",
+  };
+}
+
+function buildExposureSummarySentence({
+  convertiblePrincipalAmount,
+  immediateExposureCompact,
+  offeringDisplayMode,
+  potentialSupplyCompact,
+}: {
+  convertiblePrincipalAmount: number;
+  immediateExposureCompact: string;
+  offeringDisplayMode: NewsOfferingDisplayMode;
+  potentialSupplyCompact: string;
+}) {
+  if (offeringDisplayMode === "convertible") {
+    return [
+      `Convertible principal is ${formatMoneyNumber(convertiblePrincipalAmount) || "Not disclosed"}.`,
+      `Estimated conversion exposure is ${potentialSupplyCompact}.`,
+    ]
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  if (offeringDisplayMode === "forward_sale") {
+    return `Forward sale share exposure is ${immediateExposureCompact}; potential settlement supply is ${potentialSupplyCompact}.`;
+  }
+
+  return `Immediate exposure is ${immediateExposureCompact}; total potential supply is ${potentialSupplyCompact}.`;
+}
+
+function buildNewsOfferingPriceSentence({
+  conversionPrice,
+  marketReferencePrice,
+  offeringDisplayMode,
+  offeringPrice,
+  priceComparison,
+}: {
+  conversionPrice: number;
+  marketReferencePrice: number;
+  offeringDisplayMode: NewsOfferingDisplayMode;
+  offeringPrice: number;
+  priceComparison: string;
+}) {
+  if (offeringDisplayMode === "convertible") {
+    if (!conversionPrice && !marketReferencePrice) return "";
+    const context = [
+      conversionPrice ? `conversion ${formatPriceNumber(conversionPrice)}` : "",
+      marketReferencePrice ? `market ${formatPriceNumber(marketReferencePrice)}` : "",
+    ].filter(Boolean);
+    return `Conversion context: ${context.join(" / ")}.`;
+  }
+
+  if (!offeringPrice || !priceComparison) return "";
+  return `Pricing comparison: ${priceComparison}.`;
+}
+
+function buildCompanyCashNote({
+  isResale,
+  offeringDisplayMode,
+}: {
+  isResale: boolean;
+  offeringDisplayMode: NewsOfferingDisplayMode;
+}) {
+  if (offeringDisplayMode === "convertible") return "Principal amount from the news terms.";
+  if (offeringDisplayMode === "forward_sale") return "Forward-sale proceeds depend on settlement.";
+  if (isResale) return "Resale proceeds do not go to the issuer.";
+  return "Gross proceeds from the news terms.";
+}
+
+function buildOfferingSearchText(...values: unknown[]) {
+  return values
+    .map((value) => {
+      if (!value) return "";
+      if (typeof value === "string") return value;
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return "";
+      }
+    })
+    .join(" ")
+    .toLowerCase();
 }
 
 function buildFallbackProfile(event: FeedItem): DetailProfile {
@@ -870,6 +1456,25 @@ function isGlobeNewswireUrl(value: string) {
   return /(^|\/\/)(www\.)?globenewswire\.com\//i.test(value);
 }
 
+function bodyTextToHtml(value: string) {
+  if (!value) return "";
+  return value
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, "<br />")}</p>`)
+    .join("\n");
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 async function attachTickerMarketCap(profile: DetailProfile, ticker: string): Promise<DetailProfile> {
   if (!isRealTicker(ticker) || profile.context.marketCap || profile.context.themeGroup || profile.context.subTheme) {
     return profile;
@@ -937,9 +1542,12 @@ async function buildDbBackedProfile(item: LiveFeedItem, event: FeedItem): Promis
   const fallback = detailProfiles[item.ticker] || buildFallbackProfile(event);
   const ticker = item.ticker.trim().toUpperCase();
   const canLoadTickerContext = isRealTicker(ticker);
-  const [analysisResult, tickersResult, relatedNewsResult, recentFilingsResult] = await Promise.all([
+  const [analysisResult, tickersResult, rawItemResult, offeringTermsResult, aiOutputResult, relatedNewsResult, recentFilingsResult] = await Promise.all([
     fetchEventAnalysis(item.id),
     fetchEventTickers(item.id),
+    fetchRawItem(item.rawItemId),
+    fetchEventOfferingTerms(item.id),
+    fetchEventAiOutputAnalysis(item.id),
     canLoadTickerContext
       ? fetchEventsByTicker({ ticker, sourceGroup: "news", excludeId: item.id, limit: 4 })
       : Promise.resolve({ ok: true, status: 200, data: [], error: undefined }),
@@ -951,8 +1559,27 @@ async function buildDbBackedProfile(item: LiveFeedItem, event: FeedItem): Promis
   const tickerRows = toRows(tickersResult.data);
   const relatedNews = mapRelatedNewsRows(toRows(relatedNewsResult.data));
   const recentFilings = mapRecentFilingRows(toRows(recentFilingsResult.data));
-  const relatedTickers = mapRelatedTickerRows(tickerRows, fallback.relatedTickers);
+  const dbRelatedTickers = mapRelatedTickerRows(tickerRows, []);
+  const relatedTickers = dbRelatedTickers.length ? dbRelatedTickers : fallback.relatedTickers;
+  const context = await buildResolvedMarketContext({
+    dbRelatedTickers,
+    event,
+    fallback: fallback.context,
+    item,
+  });
   const publishedLabel = formatDetailDateTime(item.detectedAtRaw, `${item.time} ET`);
+  const rawItem = toRecord(rawItemResult.data);
+  const offeringTerms =
+    toRecord(offeringTermsResult.data) ||
+    buildOfferingTermsRowFromAiAnalysis(toRecord(aiOutputResult.data));
+  const sourceUrl = item.sourceUrl || readRowString(rawItem, "source_url") || fallback.sourceUrl;
+  const fullTextHtml = buildRawItemFullTextHtml(rawItem);
+  const sourceEvidence = resolveSourceEvidence({
+    fallback,
+    item,
+    rawItem,
+    ticker,
+  });
 
   return {
     ...fallback,
@@ -961,10 +1588,11 @@ async function buildDbBackedProfile(item: LiveFeedItem, event: FeedItem): Promis
     change: item.change,
     detectedAt: publishedLabel,
     confidence: item.impact === "high" ? "High" : item.impact === "medium" ? "Medium" : "Low",
-    sourceReleaseType: item.sourceGroup === "filings" ? "Official Filing" : "Official Release",
-    sourceType: item.sourceGroup === "filings" ? "SEC Filing" : "Company Press Release",
-    sourceUrl: item.sourceUrl || fallback.sourceUrl,
-    issuer: ticker || fallback.issuer,
+    identityChips: buildDetailIdentityChips(item, ticker, sourceEvidence, fallback),
+    sourceReleaseType: sourceEvidence.sourceReleaseType,
+    sourceType: sourceEvidence.sourceType,
+    sourceUrl,
+    issuer: sourceEvidence.issuer,
     publishedAt: publishedLabel,
     quickTake: item.quickTake || item.summary || fallback.quickTake,
     whyItMatters: readRowString(analysis, "why_it_matters") || item.scoreReason || fallback.whyItMatters,
@@ -976,7 +1604,755 @@ async function buildDbBackedProfile(item: LiveFeedItem, event: FeedItem): Promis
     relatedTickers,
     relatedNews: relatedNews.length ? relatedNews : fallback.relatedNews,
     recentFilings: recentFilings.length ? recentFilings : fallback.recentFilings,
+    context,
+    fullTextHtml: fullTextHtml || fallback.fullTextHtml,
+    fullTextSourceUrl: sourceUrl,
+    offeringTerms: offeringTerms || fallback.offeringTerms || null,
   };
+}
+
+function getDetailIdentityChips(event: FeedItem, profile: DetailProfile) {
+  const profileChips = profile.identityChips?.filter((chip) => chip && !/\bN\/A\b/i.test(chip)) || [];
+  const chips = profileChips.length ? profileChips : [`${profile.exchange}:${event.ticker}`, profile.company];
+
+  return chips.filter((chip) => chip && !/\bN\/A\b/i.test(chip));
+}
+
+function buildDetailIdentityChips(
+  item: LiveFeedItem,
+  ticker: string,
+  sourceEvidence: SourceEvidence,
+  fallback: DetailProfile,
+) {
+  if (item.marketScope === "company" && isRealTicker(ticker)) {
+    return [`${fallback.exchange || getExchange(ticker)}:${ticker}`, fallback.company || `${ticker} Corporation`];
+  }
+
+  return [sourceEvidence.issuer || item.source, ...buildClassificationIdentityChips(item)].filter(Boolean);
+}
+
+type SourceEvidence = {
+  issuer: string;
+  sourceReleaseType: string;
+  sourceType: string;
+};
+
+function resolveSourceEvidence({
+  fallback,
+  item,
+  rawItem,
+  ticker,
+}: {
+  fallback: DetailProfile;
+  item: LiveFeedItem;
+  rawItem: Record<string, unknown> | null;
+  ticker: string;
+}): SourceEvidence {
+  const rawPayload = toRecord(rawItem?.raw_payload);
+  const rawSourceName = readRowString(rawPayload, "source_name");
+  const sourceLabel = formatSourceLabel(item.source || rawSourceName);
+
+  if (item.sourceGroup === "filings") {
+    return {
+      issuer: ticker || fallback.issuer,
+      sourceReleaseType: "Official Filing",
+      sourceType: "SEC Filing",
+    };
+  }
+
+  if (isGovernmentSource(sourceLabel)) {
+    return {
+      issuer: sourceLabel,
+      sourceReleaseType: "Official Release",
+      sourceType: "Government Release",
+    };
+  }
+
+  if (item.marketScope !== "company" || !isRealTicker(ticker)) {
+    return {
+      issuer: rawSourceName || sourceLabel || fallback.issuer,
+      sourceReleaseType: "Official Release",
+      sourceType: "Market News Release",
+    };
+  }
+
+  return {
+    issuer: ticker || fallback.issuer,
+    sourceReleaseType: "Official Release",
+    sourceType: "Company Press Release",
+  };
+}
+
+function buildClassificationIdentityChips(item: LiveFeedItem) {
+  const sector = cleanContextValue(item.sector);
+  const industry = cleanContextValue(item.industryGroup, { rejectGenericIndustry: true });
+  const themeGroup = formatThemeGroupChip(item.themeGroup);
+  const subTheme = formatSubThemeChip(item.subTheme);
+
+  if (item.marketScope === "theme") {
+    return uniqueChipLabels([themeGroup, subTheme, industry, sector]).slice(0, 2);
+  }
+
+  if (item.marketScope === "sector") {
+    return uniqueChipLabels([sector, industry]).slice(0, 2);
+  }
+
+  if (item.marketScope === "macro") {
+    return uniqueChipLabels([themeGroup, subTheme, sector, industry, "Macro / Policy"]).slice(0, 2);
+  }
+
+  return uniqueChipLabels([themeGroup, subTheme, sector, industry]).slice(0, 2);
+}
+
+function formatThemeGroupChip(value?: string) {
+  const cleaned = cleanContextValue(value);
+  if (!cleaned) return "";
+  const normalized = normalizeGroupLabel(cleaned);
+  return themeGroups.find((theme) => normalizeGroupLabel(theme.slug) === normalized || normalizeGroupLabel(theme.name) === normalized)?.name || humanizeContextLabel(cleaned);
+}
+
+function formatSubThemeChip(value?: string) {
+  const cleaned = cleanContextValue(value);
+  if (!cleaned) return "";
+  const normalized = normalizeGroupLabel(cleaned);
+  return themeSubThemes.find((theme) => normalizeGroupLabel(theme.slug) === normalized || normalizeGroupLabel(theme.name) === normalized)?.name || humanizeContextLabel(cleaned);
+}
+
+function humanizeContextLabel(value: string) {
+  return value
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+    .replace(/\bAi\b/g, "AI")
+    .replace(/\bIpo\b/g, "IPO")
+    .replace(/\bSpac\b/g, "SPAC")
+    .replace(/\bFda\b/g, "FDA")
+    .replace(/\bOfac\b/g, "OFAC")
+    .replace(/\bDoj\b/g, "DOJ")
+    .replace(/\bDea\b/g, "DEA");
+}
+
+function uniqueChipLabels(values: string[]) {
+  const seen = new Set<string>();
+  const labels: string[] = [];
+
+  for (const value of values) {
+    const label = value.trim();
+    const key = normalizeGroupLabel(label);
+    if (!label || seen.has(key)) continue;
+    seen.add(key);
+    labels.push(label);
+  }
+
+  return labels;
+}
+
+function isGovernmentSource(value: string) {
+  return /^(OFAC|DOJ|DEA|White House)$/i.test(value.trim());
+}
+
+type ContextSnapshotMap = Record<ContextRange, MarketGroupSnapshotPayload[]>;
+type MarketQuoteMover = {
+  changePercent: number;
+  symbol: string;
+};
+
+let contextSnapshotCache:
+  | {
+      expiresAt: number;
+      snapshots: ContextSnapshotMap;
+    }
+  | undefined;
+let marketTopMoverCache:
+  | {
+      expiresAt: number;
+      movers: MarketQuoteMover[];
+    }
+  | undefined;
+
+async function buildResolvedMarketContext({
+  dbRelatedTickers,
+  event,
+  fallback,
+  item,
+}: {
+  dbRelatedTickers: RelatedTicker[];
+  event: FeedItem;
+  fallback: SectorThemeContext;
+  item: LiveFeedItem;
+}): Promise<SectorThemeContext> {
+  const sector = cleanContextValue(item.sector) || cleanContextValue(fallback.sector);
+  const industry =
+    cleanContextValue(item.industryGroup) ||
+    cleanContextValue(fallback.industry, { rejectGenericIndustry: true });
+  const themeGroup = cleanContextValue(item.themeGroup) || cleanContextValue(fallback.themeGroup);
+  const subTheme = cleanContextValue(item.subTheme) || cleanContextValue(fallback.subTheme);
+  const primaryTicker = isRealTicker(event.ticker) ? event.ticker.toUpperCase() : "";
+  const relatedSymbols = dbRelatedTickers.map((ticker) => ticker.symbol).filter(isRealTicker);
+  const [snapshots, marketTopMovers] = await Promise.all([
+    readContextSnapshots(),
+    readMarketQuoteTopMovers(),
+  ]);
+  const moverMode = resolveMoverMode({ industry, relatedSymbols, snapshots, subTheme });
+  const moverGroupName = resolveMoverGroupName({ industry, moverMode, subTheme });
+  const periods = buildResolvedContextPeriods({
+    event,
+    fallback,
+    industry,
+    marketTopMovers,
+    moverMode,
+    primaryTicker,
+    relatedSymbols,
+    sector,
+    snapshots,
+    subTheme,
+    themeGroup,
+  });
+
+  return {
+    ...fallback,
+    contextTitle: primaryTicker || subTheme || themeGroup || industry || sector || "Market",
+    industry,
+    moverGroupName,
+    moverMode,
+    periods,
+    sector,
+    ...(themeGroup ? { themeGroup } : { themeGroup: undefined }),
+    ...(subTheme ? { subTheme } : { subTheme: undefined }),
+  };
+}
+
+async function readContextSnapshots(): Promise<ContextSnapshotMap> {
+  const now = Date.now();
+  if (contextSnapshotCache && contextSnapshotCache.expiresAt > now) {
+    return contextSnapshotCache.snapshots;
+  }
+
+  const [oneDay, fiveDay, thirtyDay] = await Promise.all([
+    readMarketGroupSnapshotCache("1D"),
+    readMarketGroupSnapshotCache("5D"),
+    readMarketGroupSnapshotCache("1M"),
+  ]);
+  const snapshots = {
+    "1D": oneDay.snapshots,
+    "5D": fiveDay.snapshots,
+    "30D": thirtyDay.snapshots,
+  };
+
+  contextSnapshotCache = {
+    expiresAt: now + 30_000,
+    snapshots,
+  };
+  return snapshots;
+}
+
+async function readMarketQuoteTopMovers(): Promise<MarketQuoteMover[]> {
+  const now = Date.now();
+  if (marketTopMoverCache && marketTopMoverCache.expiresAt > now) {
+    return marketTopMoverCache.movers;
+  }
+
+  const result = await supabaseSelect("market_quotes", {
+    select: "symbol,change_percent,expires_at",
+    expires_at: `gt.${new Date().toISOString()}`,
+    order: "change_percent.desc",
+    limit: "8",
+  });
+  let movers = toRows(result.data)
+    .map((row) => ({
+      changePercent: readRowNumber(row, "change_percent"),
+      symbol: readRowString(row, "symbol").toUpperCase(),
+    }))
+    .filter((mover) => isRealTicker(mover.symbol));
+
+  if (!movers.length) {
+    const barsResult = await supabaseSelect("market_bars", {
+      select: "symbol,change_percent,expires_at",
+      range: "eq.1D",
+      interval: "eq.5min-ext",
+      expires_at: `gt.${new Date().toISOString()}`,
+      order: "change_percent.desc",
+      limit: "8",
+    });
+    movers = toRows(barsResult.data)
+      .map((row) => ({
+        changePercent: readRowNumber(row, "change_percent"),
+        symbol: readRowString(row, "symbol").toUpperCase(),
+      }))
+      .filter((mover) => isRealTicker(mover.symbol));
+  }
+
+  marketTopMoverCache = {
+    expiresAt: now + 30_000,
+    movers,
+  };
+  return movers;
+}
+
+function buildResolvedContextPeriods({
+  event,
+  fallback,
+  industry,
+  marketTopMovers,
+  moverMode,
+  primaryTicker,
+  relatedSymbols,
+  sector,
+  snapshots,
+  subTheme,
+  themeGroup,
+}: {
+  event: FeedItem;
+  fallback: SectorThemeContext;
+  industry: string;
+  marketTopMovers: MarketQuoteMover[];
+  moverMode: SectorThemeContext["moverMode"];
+  primaryTicker: string;
+  relatedSymbols: string[];
+  sector: string;
+  snapshots: ContextSnapshotMap;
+  subTheme: string;
+  themeGroup: string;
+}): SectorThemeContext["periods"] {
+  return {
+    "1D": buildResolvedContextPeriod({
+      event,
+      fallbackPeriod: fallback.periods["1D"],
+      industry,
+      marketTopMovers,
+      moverMode,
+      primaryTicker,
+      range: "1D",
+      relatedSymbols,
+      sector,
+      snapshots: snapshots["1D"],
+      subTheme,
+      themeGroup,
+    }),
+    "5D": buildResolvedContextPeriod({
+      event,
+      fallbackPeriod: fallback.periods["5D"],
+      industry,
+      marketTopMovers,
+      moverMode,
+      primaryTicker,
+      range: "5D",
+      relatedSymbols,
+      sector,
+      snapshots: snapshots["5D"],
+      subTheme,
+      themeGroup,
+    }),
+    "30D": buildResolvedContextPeriod({
+      event,
+      fallbackPeriod: fallback.periods["30D"],
+      industry,
+      marketTopMovers,
+      moverMode,
+      primaryTicker,
+      range: "30D",
+      relatedSymbols,
+      sector,
+      snapshots: snapshots["30D"],
+      subTheme,
+      themeGroup,
+    }),
+  };
+}
+
+function buildResolvedContextPeriod({
+  event,
+  fallbackPeriod,
+  industry,
+  marketTopMovers,
+  moverMode,
+  primaryTicker,
+  range,
+  relatedSymbols,
+  sector,
+  snapshots,
+  subTheme,
+  themeGroup,
+}: {
+  event: FeedItem;
+  fallbackPeriod: SectorThemeContext["periods"][ContextRange];
+  industry: string;
+  marketTopMovers: MarketQuoteMover[];
+  moverMode: SectorThemeContext["moverMode"];
+  primaryTicker: string;
+  range: ContextRange;
+  relatedSymbols: string[];
+  sector: string;
+  snapshots: MarketGroupSnapshotPayload[];
+  subTheme: string;
+  themeGroup: string;
+}) {
+  const sectorSnapshot = findGroupSnapshot(snapshots, "sector", sector);
+  const industrySnapshot = findGroupSnapshot(snapshots, "industry_group", industry);
+  const themeSnapshot = findGroupSnapshot(snapshots, "theme", themeGroup);
+  const subThemeSnapshot = findGroupSnapshot(snapshots, "sub_theme", subTheme);
+  const selectedSnapshot =
+    moverMode === "top_movers"
+      ? industrySnapshot
+      : moverMode === "market_top_movers"
+        ? findMarketTopMoverSnapshot(snapshots)
+        : undefined;
+  const topMovers =
+    moverMode === "related"
+      ? buildRelatedTopMovers({
+          event,
+          primaryTicker,
+          range,
+          relatedSymbols,
+          snapshots,
+        })
+      : buildSnapshotTopMovers(selectedSnapshot, event.signal);
+  const resolvedTopMovers =
+    topMovers.length || moverMode !== "market_top_movers"
+      ? topMovers
+      : buildMarketQuoteTopMovers(marketTopMovers, event.signal, range);
+  const fallbackTopMovers = fallbackPeriod.topMovers.filter((mover) => isRealTicker(mover.symbol));
+
+  return {
+    sectorChange: formatSnapshotChange(sectorSnapshot?.changePercent),
+    industryChange: formatSnapshotChange(industrySnapshot?.changePercent),
+    themeChange: formatSnapshotChange(themeSnapshot?.changePercent),
+    subThemeChange: formatSnapshotChange(subThemeSnapshot?.changePercent),
+    themeScore: event.score || fallbackPeriod.themeScore,
+    themeSignal: event.signal,
+    topMovers: resolvedTopMovers.length ? resolvedTopMovers : fallbackTopMovers,
+  };
+}
+
+function buildRelatedTopMovers({
+  event,
+  primaryTicker,
+  range,
+  relatedSymbols,
+  snapshots,
+}: {
+  event: FeedItem;
+  primaryTicker: string;
+  range: ContextRange;
+  relatedSymbols: string[];
+  snapshots: MarketGroupSnapshotPayload[];
+}) {
+  const symbols = uniqueSymbols([...relatedSymbols, primaryTicker ? primaryTicker : ""]).slice(0, 4);
+
+  return symbols.map((symbol, index) => {
+    const snapshotMover = findSnapshotMover(snapshots, symbol);
+    return {
+      change:
+        snapshotMover?.changePercent !== undefined
+          ? formatSignedPercent(snapshotMover.changePercent)
+          : symbol === primaryTicker
+            ? event.change
+            : "+0.00%",
+      symbol,
+      trend: buildContextTrend(event.signal, index, range),
+    };
+  });
+}
+
+function buildSnapshotTopMovers(snapshot: MarketGroupSnapshotPayload | undefined, tone: DetailTone) {
+  if (!snapshot?.topMovers.length) {
+    return [];
+  }
+
+  return snapshot.topMovers.slice(0, 4).map((mover, index) => ({
+    change: formatSignedPercent(mover.changePercent),
+    symbol: mover.symbol.toUpperCase(),
+    trend: snapshot.trendPoints.length
+      ? offsetTrend(snapshot.trendPoints, index)
+      : buildContextTrend(tone, index, "1D"),
+  }));
+}
+
+function buildMarketQuoteTopMovers(movers: MarketQuoteMover[], tone: DetailTone, range: ContextRange): TopMover[] {
+  return movers.slice(0, 4).map((mover, index) => ({
+    change: formatSignedPercent(mover.changePercent),
+    symbol: mover.symbol,
+    trend: buildContextTrend(tone, index, range),
+  }));
+}
+
+function resolveMoverMode({
+  industry,
+  relatedSymbols,
+  snapshots,
+  subTheme,
+}: {
+  industry: string;
+  relatedSymbols: string[];
+  snapshots: ContextSnapshotMap;
+  subTheme: string;
+}): SectorThemeContext["moverMode"] {
+  if (relatedSymbols.length && (subTheme || industry)) {
+    return "related";
+  }
+
+  if (industry && hasSnapshotTopMovers(snapshots, "industry_group", industry)) {
+    return "top_movers";
+  }
+
+  return "market_top_movers";
+}
+
+function resolveMoverGroupName({
+  industry,
+  moverMode,
+  subTheme,
+}: {
+  industry: string;
+  moverMode: SectorThemeContext["moverMode"];
+  subTheme: string;
+}) {
+  if (moverMode === "related") {
+    return subTheme || industry;
+  }
+
+  if (moverMode === "top_movers") {
+    return industry;
+  }
+
+  return "Market";
+}
+
+function findMarketTopMoverSnapshot(snapshots: MarketGroupSnapshotPayload[]) {
+  return snapshots
+    .filter((snapshot) => snapshot.topMovers.length)
+    .sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent))[0];
+}
+
+function hasSnapshotTopMovers(
+  snapshots: ContextSnapshotMap,
+  scope: MarketGroupSnapshotPayload["scope"],
+  label: string,
+) {
+  return Object.values(snapshots).some((items) => Boolean(findGroupSnapshot(items, scope, label)?.topMovers.length));
+}
+
+function findGroupSnapshot(
+  snapshots: MarketGroupSnapshotPayload[],
+  scope: MarketGroupSnapshotPayload["scope"],
+  label: string,
+) {
+  if (!label) return undefined;
+  const normalizedLabel = normalizeGroupLabel(label);
+
+  return snapshots.find(
+    (snapshot) =>
+      snapshot.scope === scope &&
+      (normalizeGroupLabel(snapshot.groupName) === normalizedLabel ||
+        normalizeGroupLabel(snapshot.groupKey) === normalizedLabel),
+  );
+}
+
+function findSnapshotMover(snapshots: MarketGroupSnapshotPayload[], symbol: string) {
+  const normalized = symbol.toUpperCase();
+  for (const snapshot of snapshots) {
+    const mover = snapshot.topMovers.find((item) => item.symbol.toUpperCase() === normalized);
+    if (mover) return mover;
+  }
+  return undefined;
+}
+
+function uniqueSymbols(symbols: string[]) {
+  const seen = new Set<string>();
+  const unique: string[] = [];
+
+  for (const symbol of symbols) {
+    const normalized = symbol.trim().toUpperCase();
+    if (!isRealTicker(normalized) || seen.has(normalized)) continue;
+    seen.add(normalized);
+    unique.push(normalized);
+  }
+
+  return unique;
+}
+
+function cleanContextValue(value?: string, options: { rejectGenericIndustry?: boolean } = {}) {
+  const cleaned = (value || "").trim();
+  if (!cleaned || cleaned === "N/A" || cleaned === "NA") return "";
+  if (options.rejectGenericIndustry && /^(company watchlist|watchlist|company news)$/i.test(cleaned)) return "";
+  return cleaned;
+}
+
+function normalizeGroupLabel(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function formatSnapshotChange(value: number | undefined) {
+  return value === undefined ? "" : formatSignedPercent(value);
+}
+
+function formatSignedPercent(value: number) {
+  const sign = value > 0 ? "+" : value < 0 ? "-" : "";
+  return `${sign}${Math.abs(value).toFixed(2)}%`;
+}
+
+function buildContextTrend(tone: DetailTone, offset: number, range: ContextRange): number[] {
+  const bullish = [34, 35, 38, 37, 40, 42, 43, 45, 47, 50];
+  const bearish = [50, 48, 47, 45, 44, 41, 40, 38, 37, 35];
+  const volatile = [40, 44, 39, 46, 42, 48, 43, 50, 45, 49];
+  const neutral = [40, 41, 40, 42, 41, 42, 43, 42, 43, 44];
+  const base =
+    tone === "bearish"
+      ? bearish
+      : tone === "volatile"
+        ? volatile
+        : tone === "neutral"
+          ? neutral
+          : bullish;
+  const multiplier = range === "30D" ? 1.7 : range === "5D" ? 1.25 : 1;
+
+  return base.map((value, index) => Math.round(value * multiplier + offset * 2 + (index % 3)));
+}
+
+function offsetTrend(values: number[], offset: number) {
+  return values.map((value, index) => Number((value + offset * 0.35 + (index % 2) * 0.1).toFixed(2)));
+}
+
+async function fetchRawItem(rawItemId: string) {
+  if (!rawItemId) {
+    return { ok: true, status: 200, data: null, error: undefined };
+  }
+
+  const result = await supabaseSelect("raw_items", {
+    select: "*",
+    id: `eq.${rawItemId}`,
+    limit: "1",
+  });
+
+  return {
+    ...result,
+    data: Array.isArray(result.data) ? result.data[0] || null : null,
+  };
+}
+
+async function fetchEventOfferingTerms(eventId: string) {
+  if (!eventId) {
+    return { ok: true, status: 200, data: null, error: undefined };
+  }
+
+  const result = await supabaseSelect("event_offering_terms", {
+    select: "*",
+    event_id: `eq.${eventId}`,
+    limit: "1",
+  });
+
+  return {
+    ...result,
+    data: Array.isArray(result.data) ? result.data[0] || null : null,
+  };
+}
+
+async function fetchEventAiOutputAnalysis(eventId: string) {
+  if (!eventId) {
+    return { ok: true, status: 200, data: null, error: undefined };
+  }
+
+  const result = await supabaseSelect("ai_outputs", {
+    select: "payload,created_at",
+    event_id: `eq.${eventId}`,
+    output_type: "eq.news_event_analysis",
+    order: "created_at.desc",
+    limit: "1",
+  });
+
+  const row = Array.isArray(result.data) ? toRecord(result.data[0]) : null;
+  const payload = toRecord(row?.payload);
+  const analysis = toRecord(payload?.analysis);
+
+  return {
+    ...result,
+    data: analysis,
+  };
+}
+
+function buildOfferingTermsRowFromAiAnalysis(analysis: Record<string, unknown> | null) {
+  const offeringTerms = toRecord(analysis?.offering_terms);
+  if (offeringTerms?.is_offering !== true) return null;
+  const metrics = toRecord(offeringTerms.dilution_metrics);
+  const marketContext = toRecord(offeringTerms.market_context_used);
+  const offeringAmount = toRecord(offeringTerms.offering_amount);
+  const sharesOffered = toRecord(offeringTerms.shares_offered);
+  const offeringPrice = toRecord(offeringTerms.offering_price);
+  const commonShares = toRecord(offeringTerms.common_shares);
+  const prefundedWarrants = toRecord(offeringTerms.prefunded_warrants);
+  const prefundedWarrantShares = toRecord(prefundedWarrants?.shares);
+  const prefundedWarrantExercisePrice = toRecord(prefundedWarrants?.exercise_price);
+  const commonWarrants = toRecord(offeringTerms.common_warrants);
+  const commonWarrantShares = toRecord(commonWarrants?.shares);
+  const commonWarrantExercisePrice = toRecord(commonWarrants?.exercise_price);
+  const convertibleSecurities = toRecord(offeringTerms.convertible_securities);
+  const convertiblePrincipal = toRecord(convertibleSecurities?.principal_amount);
+  const convertibleConversionPrice = toRecord(convertibleSecurities?.conversion_price);
+  const convertibleShareExposure = toRecord(convertibleSecurities?.share_exposure);
+  const totalPotentialShareExposure = toRecord(offeringTerms.total_potential_share_exposure);
+  const warrants = toRecord(offeringTerms.warrants);
+  const warrantExercisePrice = toRecord(warrants?.exercise_price);
+
+  return {
+    offering_type: readRowString(offeringTerms, "offering_type"),
+    security_type: readRowString(offeringTerms, "security_type"),
+    primary_or_resale: readRowString(offeringTerms, "primary_or_resale"),
+    offering_amount: readRowNumber(offeringAmount, "amount"),
+    offering_price: readRowNumber(offeringPrice, "price"),
+    shares_offered: readRowNumber(sharesOffered, "count"),
+    common_shares_offered: readRowNumber(commonShares, "count"),
+    prefunded_warrant_shares: readRowNumber(prefundedWarrantShares, "count"),
+    prefunded_warrant_exercise_price: readRowNumber(prefundedWarrantExercisePrice, "price"),
+    common_warrant_shares: readRowNumber(commonWarrantShares, "count"),
+    common_warrant_exercise_price: readRowNumber(commonWarrantExercisePrice, "price"),
+    convertible_principal_amount: readRowNumber(convertiblePrincipal, "amount"),
+    convertible_share_exposure: readRowNumber(convertibleShareExposure, "count"),
+    total_potential_share_exposure: readRowNumber(totalPotentialShareExposure, "count"),
+    market_reference_price: readRowNumber(metrics, "market_reference_price") || readRowNumber(marketContext, "price"),
+    market_cap: readRowNumber(metrics, "market_cap") || readRowNumber(marketContext, "market_cap"),
+    shares_outstanding_market: readRowNumber(metrics, "shares_outstanding_market") || readRowNumber(marketContext, "shares_outstanding"),
+    public_float_market: readRowNumber(metrics, "public_float_market") || readRowNumber(marketContext, "public_float"),
+    warrant_coverage_text: readRowString(commonWarrantShares, "value_text") || readRowString(warrants, "coverage_text"),
+    warrant_exercise_price: readRowNumber(commonWarrantExercisePrice, "price") || readRowNumber(warrantExercisePrice, "price"),
+    conversion_price: readRowNumber(convertibleConversionPrice, "price"),
+    discount_to_market_percent: readRowNumber(metrics, "discount_to_market_percent"),
+    estimated_dilution_percent: readRowNumber(metrics, "estimated_dilution_percent"),
+    immediate_share_exposure: readRowNumber(metrics, "immediate_share_exposure"),
+    future_warrant_overhang_shares: readRowNumber(metrics, "future_warrant_overhang_shares"),
+    immediate_float_impact_percent: readRowNumber(metrics, "immediate_float_impact_percent"),
+    total_potential_dilution_percent: readRowNumber(metrics, "total_potential_dilution_percent"),
+    total_potential_float_overhang_percent: readRowNumber(metrics, "total_potential_float_overhang_percent"),
+    float_overhang_percent: readRowNumber(metrics, "float_overhang_percent"),
+    max_share_impact_percent: readRowNumber(metrics, "max_share_impact_percent"),
+    dilution_scale: readRowString(metrics, "dilution_scale"),
+    metadata: {
+      source_group: "news",
+      source_precedence: "ai_output_fallback",
+      source_confidence: "medium",
+      original_offering_terms: offeringTerms,
+      dilution_metrics: metrics || {},
+    },
+  };
+}
+
+function buildRawItemFullTextHtml(rawItem: Record<string, unknown> | null) {
+  if (!rawItem) return "";
+
+  const rawPayload = toRecord(rawItem.raw_payload);
+  const articlePayload = toRecord(rawPayload?.article_payload);
+  return (
+    readRowString(rawPayload, "full_text_html") ||
+    readRowString(articlePayload, "full_text_html") ||
+    bodyTextToHtml(readRowString(rawItem, "body_text")) ||
+    bodyTextToHtml(readRowString(rawPayload, "body_text")) ||
+    bodyTextToHtml(readRowString(articlePayload, "body_text"))
+  );
 }
 
 function mapRelatedTickerRows(rows: Record<string, unknown>[], fallback: RelatedTicker[]) {
@@ -1103,6 +2479,223 @@ function readMetadataString(row: Record<string, unknown>, key: string) {
   return readRowString(metadata as Record<string, unknown>, key);
 }
 
+function readOfferingNumber(
+  row: Record<string, unknown>,
+  column: string,
+  fallbackRecord?: Record<string, unknown> | null,
+  fallbackPath: string[] = [],
+) {
+  const direct = readRowNumber(row, column);
+  if (direct > 0) return direct;
+  if (!fallbackRecord || !fallbackPath.length) return 0;
+  return readDeepNumber(fallbackRecord, fallbackPath);
+}
+
+function readDeepNumber(record: Record<string, unknown>, path: string[]) {
+  let value: unknown = record;
+  for (const key of path) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return 0;
+    value = (value as Record<string, unknown>)[key];
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && Number.isFinite(Number(value))) return Number(value);
+  return 0;
+}
+
+function readDeepString(record: Record<string, unknown> | null, path: string[]) {
+  if (!record) return "";
+  let value: unknown = record;
+  for (const key of path) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+    value = (value as Record<string, unknown>)[key];
+  }
+
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function parseLooseShareCount(value: string) {
+  if (!value) return 0;
+  const match = value.match(/(\d[\d,.]*)\s*(billion|million|thousand|bn|m|k)?/i);
+  if (!match) return 0;
+  const base = Number(match[1].replace(/,/g, ""));
+  if (!Number.isFinite(base)) return 0;
+  const unit = (match[2] || "").toLowerCase();
+  if (unit === "billion" || unit === "bn") return base * 1_000_000_000;
+  if (unit === "million" || unit === "m") return base * 1_000_000;
+  if (unit === "thousand" || unit === "k") return base * 1_000;
+  return base;
+}
+
+function sumNumbers(values: number[]) {
+  const total = values.filter((value) => Number.isFinite(value) && value > 0).reduce((sum, value) => sum + value, 0);
+  return total > 0 ? total : 0;
+}
+
+function ratioPercent(numerator: number, denominator: number) {
+  if (!numerator || !denominator) return 0;
+  return (numerator / denominator) * 100;
+}
+
+function formatOfferingType(value: string) {
+  if (!value) return "Not disclosed";
+  return value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+    .replace(/\bAtm\b/g, "ATM")
+    .replace(/\bAds\b/g, "ADS");
+}
+
+function formatOfferingDealLabel({
+  offeringType,
+  rawOfferingType,
+  securityType,
+}: {
+  offeringType: string;
+  rawOfferingType: string;
+  securityType: string;
+}) {
+  const normalizedType = normalizeDisplayToken(offeringType);
+  const normalizedRawType = normalizeDisplayToken(rawOfferingType);
+  const normalizedSecurity = normalizeDisplayToken(securityType);
+  const securityLabel = formatSecurityTypeForDeal(normalizedSecurity);
+
+  if (normalizedType === "convertible_financing" || normalizedSecurity === "convertible_notes") {
+    return "convertible financing";
+  }
+
+  if (normalizedType === "warrant_exercise") return "warrant exercise financing";
+  if (normalizedType === "rights_offering") return "rights offering";
+  if (normalizedType === "atm") return "at-the-market offering";
+  if (normalizedType === "registered_direct") return `${securityLabel || "registered direct"} offering`;
+  if (normalizedType === "private_placement") return `${securityLabel || "private placement"} financing`;
+  if (normalizedType === "resale_registration") return `${securityLabel || "resale"} registration`;
+  if (normalizedType === "shelf_registration") return `${securityLabel || "shelf"} registration`;
+
+  if (normalizedSecurity === "units") return "unit offering";
+  if (normalizedType === "mixed" || normalizedSecurity === "mixed") return `${securityLabel || "mixed securities"} offering`;
+  if (securityLabel) return `${securityLabel} offering`;
+  if (normalizedRawType.includes("public")) return "public offering";
+  return "";
+}
+
+function formatSecurityTypeForDeal(value: string) {
+  if (!value || value === "unknown" || value === "other") return "";
+  if (value === "common_stock" || value === "common_shares" || value === "ordinary_shares") return "common stock";
+  if (value === "prefunded_warrants") return "pre-funded warrant";
+  if (value === "convertible_notes") return "convertible note";
+  if (value === "ads") return "ADS";
+  return formatOfferingType(value).toLowerCase();
+}
+
+function formatPriceComparison({
+  discountToMarketPercent,
+  marketReferencePrice,
+  offeringPrice,
+}: {
+  discountToMarketPercent: number;
+  marketReferencePrice: number;
+  offeringPrice: number;
+}) {
+  const comparison = [
+    offeringPrice ? `offering ${formatPriceNumber(offeringPrice)}` : "",
+    marketReferencePrice ? `market ${formatPriceNumber(marketReferencePrice)}` : "",
+  ].filter(Boolean);
+
+  if (Number.isFinite(discountToMarketPercent) && discountToMarketPercent !== 0) {
+    comparison.push(
+      discountToMarketPercent > 0
+        ? `${formatPercentCompact(discountToMarketPercent)} discount`
+        : `${formatPercentCompact(Math.abs(discountToMarketPercent))} premium`,
+    );
+  }
+
+  return comparison.join(" / ");
+}
+
+function normalizeDisplayToken(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[-\s/]+/g, "_")
+    .replace(/[^a-z0-9_]+/g, "")
+    .replace(/^_+|_+$/g, "");
+}
+
+function formatRiskLabel(value: string) {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized || normalized === "unknown") return "UNKNOWN";
+  return normalized.toUpperCase();
+}
+
+function formatCompactShareCount(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return "";
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2)}B`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return Math.round(value).toLocaleString("en-US");
+}
+
+function formatPercentCompact(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return "";
+  return `${value >= 100 ? value.toFixed(0) : value.toFixed(1)}%`;
+}
+
+function buildOverhangAxisMaxPercent(values: number[]) {
+  const observedMax = Math.max(100, ...values.filter((value) => Number.isFinite(value) && value > 0));
+  if (observedMax <= 100) return 100;
+
+  const breakpoints = [150, 200, 250, 300, 400, 500, 750, 1000, 1500, 2000];
+  const bounded = breakpoints.find((breakpoint) => observedMax <= breakpoint);
+  if (bounded) return bounded;
+  return Math.ceil(observedMax / 1000) * 1000;
+}
+
+function buildOverhangAxisTicks(axisMax: number) {
+  const step = axisMax <= 100 ? 25 : axisMax <= 200 ? 50 : axisMax <= 500 ? 100 : axisMax <= 1000 ? 250 : 500;
+  const values = new Set<number>([0, axisMax]);
+
+  for (let value = step; value < axisMax; value += step) {
+    values.add(value);
+  }
+
+  if (axisMax > 100) {
+    values.add(100);
+  }
+
+  return [...values]
+    .sort((a, b) => a - b)
+    .map((value) => ({
+      label: `${value}%`,
+      position: scaleOverhangValue(value, axisMax),
+      value,
+    }));
+}
+
+function scaleOverhangValue(value: number, axisMax: number) {
+  if (!Number.isFinite(value) || !Number.isFinite(axisMax) || axisMax <= 0) return 0;
+  return Math.min(100, Math.max(0, (value / axisMax) * 100));
+}
+
+function formatMoneyNumber(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return "";
+  if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(1)}B`;
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
+  return `$${value.toFixed(2)}`;
+}
+
+function formatPriceNumber(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return "";
+  return `$${value >= 1 ? value.toFixed(2) : value.toFixed(4)}`;
+}
+
+function formatSupplyMixSummary(components: Array<{ label: string; value: number }>) {
+  const disclosed = components.filter((component) => component.value > 0);
+  if (!disclosed.length) return "Potential supply components not disclosed.";
+  return disclosed.map((component) => `${component.label}: ${formatCompactShareCount(component.value)}`).join(" / ");
+}
+
 function formatShortDate(value: string) {
   if (!value) return "Recent";
   const date = new Date(value);
@@ -1138,11 +2731,16 @@ function formatSourceLabel(value: string) {
   const labels: Record<string, string> = {
     accesswire: "Accesswire",
     businesswire: "Business Wire",
+    dea: "DEA",
+    doj: "DOJ",
     globe: "GlobeNewswire",
     globenewswire: "GlobeNewswire",
     newsfile: "Newsfile",
+    ofac: "OFAC",
     prnewswire: "PR Newswire",
     sec_edgar: "SEC",
+    whitehouse: "White House",
+    "white-house": "White House",
   };
 
   return labels[normalized] || value || "Stock Radar";

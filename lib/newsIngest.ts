@@ -1022,20 +1022,41 @@ async function persistNewsOfferingTerms({
   const offeringAmount = toRecord(offeringTerms.offering_amount);
   const sharesOffered = toRecord(offeringTerms.shares_offered);
   const offeringPrice = toRecord(offeringTerms.offering_price);
+  const commonShares = toRecord(offeringTerms.common_shares);
+  const prefundedWarrants = toRecord(offeringTerms.prefunded_warrants);
+  const prefundedWarrantShares = toRecord(prefundedWarrants?.shares);
+  const prefundedWarrantExercisePrice = toRecord(prefundedWarrants?.exercise_price);
+  const commonWarrants = toRecord(offeringTerms.common_warrants);
+  const commonWarrantShares = toRecord(commonWarrants?.shares);
+  const commonWarrantExercisePrice = toRecord(commonWarrants?.exercise_price);
+  const convertibleSecurities = toRecord(offeringTerms.convertible_securities);
+  const convertiblePrincipal = toRecord(convertibleSecurities?.principal_amount);
+  const convertibleConversionPrice = toRecord(convertibleSecurities?.conversion_price);
+  const convertibleShareExposure = toRecord(convertibleSecurities?.share_exposure);
+  const totalPotentialShareExposure = toRecord(offeringTerms.total_potential_share_exposure);
   const warrants = toRecord(offeringTerms.warrants);
   const warrantExercisePrice = toRecord(warrants?.exercise_price);
   const useOfProceeds = toRecord(offeringTerms.use_of_proceeds);
   const closingDate = toRecord(offeringTerms.closing_date);
   const marketContext = toRecord(offeringTerms.market_context_used);
   const metrics = toRecord(offeringTerms.dilution_metrics);
+  const securityType = normalizeOfferingSecurityType(offeringTerms.security_type);
+  const rawOfferingType = nullableString(offeringTerms.offering_type);
+  const offeringType = normalizeOfferingType(offeringTerms.offering_type, {
+    commonWarrantShares: nullableNumber(commonWarrantShares?.count),
+    convertiblePrincipalAmount: nullableNumber(convertiblePrincipal?.amount),
+    convertibleShareExposure: nullableNumber(convertibleShareExposure?.count),
+    prefundedWarrantShares: nullableNumber(prefundedWarrantShares?.count),
+    securityType,
+  });
 
   const payload = {
     event_id: stringValue(eventRow.id),
     raw_item_id: rawItemId,
     sec_form_type: null,
     prospectus_type: "other",
-    offering_type: normalizeOfferingType(offeringTerms.offering_type),
-    security_type: normalizeOfferingSecurityType(offeringTerms.security_type),
+    offering_type: offeringType,
+    security_type: securityType,
     primary_or_resale: normalizePrimaryOrResale(offeringTerms.primary_or_resale),
     registration_status: "not_disclosed",
     offering_amount_text: nullableString(offeringAmount?.value_text),
@@ -1043,6 +1064,25 @@ async function persistNewsOfferingTerms({
     offering_amount_currency: nullableString(offeringAmount?.currency),
     shares_offered_text: nullableString(sharesOffered?.value_text),
     shares_offered: nullableNumber(sharesOffered?.count),
+    common_shares_offered_text: nullableString(commonShares?.value_text),
+    common_shares_offered: nullableNumber(commonShares?.count),
+    prefunded_warrant_shares_text: nullableString(prefundedWarrantShares?.value_text),
+    prefunded_warrant_shares: nullableNumber(prefundedWarrantShares?.count),
+    prefunded_warrant_exercise_price_text: nullableString(prefundedWarrantExercisePrice?.value_text),
+    prefunded_warrant_exercise_price: nullableNumber(prefundedWarrantExercisePrice?.price),
+    prefunded_warrant_exercise_price_currency: nullableString(prefundedWarrantExercisePrice?.currency),
+    common_warrant_shares_text: nullableString(commonWarrantShares?.value_text),
+    common_warrant_shares: nullableNumber(commonWarrantShares?.count),
+    common_warrant_exercise_price_text: nullableString(commonWarrantExercisePrice?.value_text),
+    common_warrant_exercise_price: nullableNumber(commonWarrantExercisePrice?.price),
+    common_warrant_exercise_price_currency: nullableString(commonWarrantExercisePrice?.currency),
+    convertible_principal_amount_text: nullableString(convertiblePrincipal?.value_text),
+    convertible_principal_amount: nullableNumber(convertiblePrincipal?.amount),
+    convertible_principal_amount_currency: nullableString(convertiblePrincipal?.currency),
+    convertible_share_exposure_text: nullableString(convertibleShareExposure?.value_text),
+    convertible_share_exposure: nullableNumber(convertibleShareExposure?.count),
+    total_potential_share_exposure_text: nullableString(totalPotentialShareExposure?.value_text),
+    total_potential_share_exposure: nullableNumber(totalPotentialShareExposure?.count),
     market_reference_price: nullableNumber(metrics?.market_reference_price),
     market_reference_price_source: readMarketReferenceSource(marketContext),
     market_context_as_of: nullableString(marketContext?.as_of),
@@ -1060,13 +1100,24 @@ async function persistNewsOfferingTerms({
     offering_price_currency: nullableString(offeringPrice?.currency),
     discount_to_market_percent: nullableNumber(metrics?.discount_to_market_percent),
     discount_to_market_basis: metrics?.discount_to_market_percent !== null ? "news_market_context" : null,
-    warrant_coverage_text: nullableString(warrants?.coverage_text),
-    warrant_exercise_price_text: nullableString(warrantExercisePrice?.value_text),
-    warrant_exercise_price: nullableNumber(warrantExercisePrice?.price),
-    warrant_exercise_price_currency: nullableString(warrantExercisePrice?.currency),
+    warrant_coverage_text: nullableString(commonWarrantShares?.value_text) || nullableString(warrants?.coverage_text),
+    warrant_exercise_price_text:
+      nullableString(commonWarrantExercisePrice?.value_text) || nullableString(warrantExercisePrice?.value_text),
+    warrant_exercise_price:
+      nullableNumber(commonWarrantExercisePrice?.price) ?? nullableNumber(warrantExercisePrice?.price),
+    warrant_exercise_price_currency:
+      nullableString(commonWarrantExercisePrice?.currency) || nullableString(warrantExercisePrice?.currency),
+    conversion_price_text: nullableString(convertibleConversionPrice?.value_text),
+    conversion_price: nullableNumber(convertibleConversionPrice?.price),
+    conversion_price_currency: nullableString(convertibleConversionPrice?.currency),
     use_of_proceeds: nullableString(useOfProceeds?.value_text),
     closing_date: normalizeDateString(closingDate?.value),
+    immediate_share_exposure: nullableNumber(metrics?.immediate_share_exposure),
+    future_warrant_overhang_shares: nullableNumber(metrics?.future_warrant_overhang_shares),
     estimated_dilution_percent: nullableNumber(metrics?.estimated_dilution_percent),
+    immediate_float_impact_percent: nullableNumber(metrics?.immediate_float_impact_percent),
+    total_potential_dilution_percent: nullableNumber(metrics?.total_potential_dilution_percent),
+    total_potential_float_overhang_percent: nullableNumber(metrics?.total_potential_float_overhang_percent),
     float_overhang_percent: nullableNumber(metrics?.float_overhang_percent),
     offering_amount_percent_of_market_cap: nullableNumber(metrics?.offering_amount_percent_of_market_cap),
     max_share_impact_percent: nullableNumber(metrics?.max_share_impact_percent),
@@ -1079,12 +1130,32 @@ async function persistNewsOfferingTerms({
       source_confidence: "medium",
       offering_amount: offeringAmount?.amount ? "medium" : "low",
       shares_offered: sharesOffered?.count ? "medium" : "low",
+      common_shares: commonShares?.count ? "medium" : "low",
+      prefunded_warrants: prefundedWarrantShares?.count || prefundedWarrantExercisePrice?.price ? "medium" : "low",
+      common_warrants: commonWarrantShares?.count || commonWarrantExercisePrice?.price ? "medium" : "low",
+      convertible_securities:
+        convertiblePrincipal?.amount || convertibleConversionPrice?.price || convertibleShareExposure?.count
+          ? "medium"
+          : "low",
+      total_potential_share_exposure: totalPotentialShareExposure?.count ? "medium" : "low",
       offering_price: offeringPrice?.price ? "medium" : "low",
       market_context: marketContext ? stringValue(marketContext.data_quality) || "partial" : "missing",
     },
     field_evidence: {
       offering_amount: nullableString(offeringAmount?.evidence),
       shares_offered: nullableString(sharesOffered?.evidence),
+      common_shares: nullableString(commonShares?.evidence),
+      prefunded_warrants: nullableString(prefundedWarrants?.evidence),
+      prefunded_warrant_shares: nullableString(prefundedWarrantShares?.evidence),
+      prefunded_warrant_exercise_price: nullableString(prefundedWarrantExercisePrice?.evidence),
+      common_warrants: nullableString(commonWarrants?.evidence),
+      common_warrant_shares: nullableString(commonWarrantShares?.evidence),
+      common_warrant_exercise_price: nullableString(commonWarrantExercisePrice?.evidence),
+      convertible_securities: nullableString(convertibleSecurities?.evidence),
+      convertible_principal_amount: nullableString(convertiblePrincipal?.evidence),
+      convertible_conversion_price: nullableString(convertibleConversionPrice?.evidence),
+      convertible_share_exposure: nullableString(convertibleShareExposure?.evidence),
+      total_potential_share_exposure: nullableString(totalPotentialShareExposure?.evidence),
       offering_price: nullableString(offeringPrice?.evidence),
       warrant_coverage: nullableString(warrants?.evidence),
       warrant_exercise_price: nullableString(warrantExercisePrice?.evidence),
@@ -1100,7 +1171,10 @@ async function persistNewsOfferingTerms({
       source_group: "news",
       source_precedence: "preliminary_news_terms",
       source_confidence: "medium",
+      raw_offering_type: rawOfferingType,
+      offering_method: inferOfferingMethod(rawOfferingType, offeringType),
       original_offering_terms: offeringTerms,
+      dilution_metrics: metrics || {},
     },
   };
 
@@ -2199,8 +2273,29 @@ function normalizeConfidence(value: string) {
   return "medium";
 }
 
-function normalizeOfferingType(value: unknown) {
-  const normalized = stringValue(value);
+function normalizeOfferingType(
+  value: unknown,
+  context: {
+    commonWarrantShares?: number | null;
+    convertiblePrincipalAmount?: number | null;
+    convertibleShareExposure?: number | null;
+    prefundedWarrantShares?: number | null;
+    securityType?: string;
+  } = {},
+) {
+  const normalized = normalizeOfferingToken(value);
+  const hasConvertible =
+    context.securityType === "convertible_notes" ||
+    numberValue(context.convertiblePrincipalAmount) > 0 ||
+    numberValue(context.convertibleShareExposure) > 0;
+  const hasMixedComponents =
+    context.securityType === "mixed" ||
+    context.securityType === "units" ||
+    numberValue(context.prefundedWarrantShares) > 0 ||
+    numberValue(context.commonWarrantShares) > 0;
+
+  if (hasConvertible) return "convertible_financing";
+
   if (
     normalized === "atm" ||
     normalized === "registered_direct" ||
@@ -2215,7 +2310,52 @@ function normalizeOfferingType(value: unknown) {
     return normalized;
   }
   if (normalized === "shelf_takedown" || normalized === "shelf_registration") return "shelf_registration";
+  if (
+    normalized === "public_offering" ||
+    normalized === "underwritten_public_offering" ||
+    normalized === "common_stock_public_offering" ||
+    normalized === "unit_public_offering" ||
+    /(?:^|_)public(?:_|$)/.test(normalized) ||
+    /(?:^|_)underwritten(?:_|$)/.test(normalized)
+  ) {
+    return hasMixedComponents ? "mixed" : "other";
+  }
   return "unknown";
+}
+
+function inferOfferingMethod(rawOfferingType: string | null, normalizedOfferingType: string) {
+  const raw = normalizeOfferingToken(rawOfferingType);
+  if (!raw || raw === normalizedOfferingType) return null;
+  if (
+    raw === "atm" ||
+    raw === "registered_direct" ||
+    raw === "private_placement" ||
+    raw === "rights_offering" ||
+    raw === "shelf_takedown" ||
+    raw === "shelf_registration"
+  ) {
+    return raw === "shelf_takedown" ? "shelf_registration" : raw;
+  }
+  if (
+    raw === "public_offering" ||
+    raw === "underwritten_public_offering" ||
+    raw === "common_stock_public_offering" ||
+    raw === "unit_public_offering" ||
+    /(?:^|_)public(?:_|$)/.test(raw) ||
+    /(?:^|_)underwritten(?:_|$)/.test(raw)
+  ) {
+    return raw;
+  }
+  return null;
+}
+
+function normalizeOfferingToken(value: unknown) {
+  return stringValue(value)
+    .trim()
+    .toLowerCase()
+    .replace(/[-\s/]+/g, "_")
+    .replace(/[^a-z0-9_]+/g, "")
+    .replace(/^_+|_+$/g, "");
 }
 
 function normalizeOfferingSecurityType(value: unknown) {
