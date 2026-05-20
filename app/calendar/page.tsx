@@ -79,10 +79,11 @@ export default async function CalendarPage({
 }) {
   const params = searchParams ? await searchParams : {};
   const selectedDateIso = normalizeDateParam(params.date);
+  const rangeAnchorIso = normalizeDateParam(params.anchor);
   const rangeKey = selectedDateIso ? "today" : normalizeRangeParam(params.range);
   const searchQuery = normalizeSearchParam(params.q);
   const monthAnchorIso = normalizeMonthParam(params.month);
-  const anchor = parseLocalDate(selectedDateIso || monthAnchorIso || formatLocalIsoDate(new Date()));
+  const anchor = parseLocalDate(selectedDateIso || rangeAnchorIso || monthAnchorIso || formatLocalIsoDate(new Date()));
   const initialDateRanges = buildInitialDateRanges(anchor);
   const activeRange = selectedDateIso ? { from: selectedDateIso, to: selectedDateIso, label: "Day" } : initialDateRanges[rangeKey];
   const initialRows = await loadInitialCalendarRows(activeRange);

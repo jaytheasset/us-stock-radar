@@ -580,6 +580,8 @@ function buildMiniCalendar(monthIso: string): { label: string; cells: MiniCalend
 
 function calendarRangeHref(rangeKey: DateRangeKey, anchorIso?: string | null) {
   if (rangeKey === "month" && isIsoDate(anchorIso)) return calendarMonthHref(anchorIso || "");
+  if (rangeKey === "week" && isIsoDate(anchorIso)) return `/calendar?range=week&anchor=${anchorIso}`;
+  if (rangeKey === "today" && isIsoDate(anchorIso)) return calendarDateHref(anchorIso || "");
   return `/calendar?range=${rangeKey}`;
 }
 
@@ -1244,7 +1246,7 @@ export default function CalendarClient({
     setSelectedDateIso(null);
     setSelectedEvent(null);
     rangeControlRef.current?.removeAttribute("open");
-    pushCalendarUrl(calendarRangeHref(nextRange, nextRange === "month" ? anchorIso : null));
+    pushCalendarUrl(calendarRangeHref(nextRange, anchorIso));
   }
 
   function selectCalendarDate(dateIso: string) {
