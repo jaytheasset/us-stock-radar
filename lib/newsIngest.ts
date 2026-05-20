@@ -8,6 +8,7 @@ import {
 import { evaluateCalendarItemPolicy } from "@/lib/calendarPolicy";
 import { getCalendarEventGroup, normalizeCalendarEventType } from "@/lib/calendarEventRegistry";
 import { runNewsEventAnalysisForRawItem } from "@/lib/ai/newsEventAnalysisPreview";
+import { runNasdaqCorporateActionAnalysisForRawItem } from "@/lib/ai/nasdaqCorporateActionAnalysisPreview";
 import { fetchGlobeNewswireRawItems, type GlobeParsedRawItem } from "@/lib/sources/globe/parser";
 import { fetchBusinessWireRawItems } from "@/lib/sources/businesswire/parser";
 import { fetchPRNewswireRawItems } from "@/lib/sources/prnewswire/parser";
@@ -19,6 +20,7 @@ import { fetchDeaRawItems } from "@/lib/sources/dea/parser";
 import { fetchWhiteHouseRawItems } from "@/lib/sources/whitehouse/parser";
 import { fetchFdaRawItems } from "@/lib/sources/fda/parser";
 import { fetchNasdaqTraderRawItems } from "@/lib/sources/nasdaqtrader/parser";
+import { fetchNasdaqCorporateActionsRawItems } from "@/lib/sources/nasdaqtrader/corporateActionsParser";
 import { canonicalizeAnalysisTickersWithCache } from "@/lib/tickerCanonicalizer";
 import { buildNewsTickerProxiesWithCache, type NewsTickerProxy } from "@/lib/newsTickerProxies";
 import { supabaseDelete, supabaseSelect, supabaseUpsert } from "@/lib/supabase";
@@ -45,6 +47,8 @@ type NewsIngestOptions = {
   dryRun?: boolean;
   force?: boolean;
   sourceUniqueId?: string;
+  haltDate?: string;
+  resumptionDate?: string;
 };
 
 type NewsRawItem = Omit<GlobeParsedRawItem, "source_code"> & {
@@ -68,6 +72,8 @@ type NewsSourceConfig = {
   fetchRawItems: (options: {
     limit: number;
     sourceUniqueId?: string;
+    haltDate?: string;
+    resumptionDate?: string;
     includeArticleBody: boolean;
     articleBodyLimit: number;
   }) => Promise<NewsRawFetchResult>;
@@ -241,6 +247,16 @@ export async function runWhiteHouseNewsIngest(options: NewsIngestOptions = {}) {
 }
 
 export async function runFdaNewsIngest(options: NewsIngestOptions = {}) {
+  return runFdaNewsIngestWithRawFetcher(
+    fetchFdaRawItems as NewsSourceConfig["fetchRawItems"],
+    options,
+  );
+}
+
+export async function runFdaNewsIngestWithRawFetcher(
+  fetchRawItems: NewsSourceConfig["fetchRawItems"],
+  options: NewsIngestOptions = {},
+) {
   return runNewsIngestForSource(
     {
       sourceCode: "fda",
@@ -248,7 +264,7 @@ export async function runFdaNewsIngest(options: NewsIngestOptions = {}) {
       parserName: "fda",
       fetchErrorLabel: "FDA raw fetch failed",
       ingestErrorLabel: "FDA ingest error",
-      fetchRawItems: fetchFdaRawItems as NewsSourceConfig["fetchRawItems"],
+      fetchRawItems,
     },
     options,
   );
@@ -266,6 +282,37 @@ export async function runNasdaqTraderNewsIngest(options: NewsIngestOptions = {})
     },
     options,
   );
+}
+
+export async function runNasdaqCorporateActionsNewsIngest(options: NewsIngestOptions = {}) {
+  return runNewsIngestForSource(
+    {
+      sourceCode: "nasdaq_corporate_actions",
+      sourceName: "Nasdaq Corporate Actions",
+      parserName: "nasdaq_corporate_actions",
+      fetchErrorLabel: "Nasdaq Corporate Actions raw fetch failed",
+      ingestErrorLabel: "Nasdaq Corporate Actions ingest error",
+      fetchRawItems: fetchNasdaqCorporateActionsRawItems as NewsSourceConfig["fetchRawItems"],
+    },
+    options,
+  );
+}
+
+function runNewsAnalysisForRawItem(
+  rawItem: NewsRawItem,
+  options: {
+    persistMarketContext?: boolean;
+    refreshMarketContext?: boolean;
+  },
+): ReturnType<typeof runNewsEventAnalysisForRawItem> {
+  if (rawItem.source_code === "nasdaq_corporate_actions") {
+    return runNasdaqCorporateActionAnalysisForRawItem(
+      rawItem as Parameters<typeof runNasdaqCorporateActionAnalysisForRawItem>[0],
+      options,
+    ) as unknown as ReturnType<typeof runNewsEventAnalysisForRawItem>;
+  }
+
+  return runNewsEventAnalysisForRawItem(rawItem, options);
 }
 
 async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIngestOptions = {}) {
@@ -293,9 +340,11 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
     skipped_low_value_raw_count: 0,
     skipped_route_classifier_count: 0,
     deterministic_archive_count: 0,
+    deterministic_event_count: 0,
   };
 
   if (!dryRun) {
+    await ensureSourceReference(config);
     await assertMutation(
       supabaseUpsert(
         "source_runs",
@@ -319,6 +368,8 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
     const rawResult = await config.fetchRawItems({
       limit,
       sourceUniqueId: sourceUniqueId || undefined,
+      haltDate: nullableString(options.haltDate) || undefined,
+      resumptionDate: nullableString(options.resumptionDate) || undefined,
       includeArticleBody: true,
       articleBodyLimit: limit,
     });
@@ -368,6 +419,22 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
         if (rawSkipDecision) {
           stats.skipped_count += 1;
           incrementSkipStats(stats, rawSkipDecision.decision);
+          const haltUpdateResult =
+            rawSkipDecision.decision === "trading_halt_update_only"
+              ? await applyNasdaqTraderHaltUpdate({ rawItem, persistedRaw, dryRun, rawSkipDecision })
+              : null;
+          if (haltUpdateResult) {
+            incrementCounter(
+              stats,
+              dryRun
+                ? "halt_update_preview_count"
+                : haltUpdateResult.updated
+                  ? "halt_update_applied_count"
+                  : "halt_update_missed_count",
+            );
+            resultItems.push(haltUpdateResult);
+            continue;
+          }
           resultItems.push({
             ok: true,
             skipped: true,
@@ -388,17 +455,31 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
 
         const deterministicArchive = buildDeterministicArchiveAnalysis(rawItem);
         if (deterministicArchive) {
-          stats.deterministic_archive_count += 1;
+          if (deterministicArchive.archive_reason) {
+            stats.deterministic_archive_count += 1;
+          } else {
+            stats.deterministic_event_count += 1;
+          }
 
           if (dryRun) {
             resultItems.push({
               ok: true,
               dryRun: true,
+              deterministic_archive: Boolean(deterministicArchive.archive_reason),
+              deterministic_event: !deterministicArchive.archive_reason,
+              source_unique_id: rawItem.source_unique_id,
+              title: rawItem.title,
               raw_item: summarizeRaw(rawItem),
               analysis: deterministicArchive,
+              score: deterministicArchive.score,
+              delivery_level: deterministicArchive.delivery_level,
+              signal: deterministicArchive.signal,
+              event_type: deterministicArchive.event_type,
               storage_decision: {
-                action: "persist_deterministic_archive",
-                reason: "LLM skipped for low-priority ticker archive.",
+                action: deterministicArchive.archive_reason ? "persist_deterministic_archive" : "persist_deterministic_event",
+                reason: deterministicArchive.archive_reason
+                  ? "LLM skipped for low-priority ticker archive."
+                  : "LLM skipped because this official source has structured deterministic halt data.",
               },
             });
             continue;
@@ -422,7 +503,8 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
           stats.event_upserted_count += 1;
           resultItems.push({
             ok: true,
-            deterministic_archive: true,
+            deterministic_archive: Boolean(deterministicArchive.archive_reason),
+            deterministic_event: !deterministicArchive.archive_reason,
             raw_item_id: persistedRaw.id,
             source_unique_id: rawItem.source_unique_id,
             event_id: persistedEvent.id,
@@ -453,7 +535,7 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
           continue;
         }
 
-        const analysisRun = await runNewsEventAnalysisForRawItem(rawItem, {
+        const analysisRun = await runNewsAnalysisForRawItem(rawItem, {
           persistMarketContext: !dryRun,
           refreshMarketContext: true,
         });
@@ -548,8 +630,16 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
         }
 
         stats.analyzed_count += 1;
-        const tickerCanonicalization = await canonicalizeAnalysisTickersWithCache(analysisRun.analysis);
-        const analysis = tickerCanonicalization.analysis;
+        let tickerCanonicalization = await canonicalizeAnalysisTickersWithCache(analysisRun.analysis);
+        let analysis = tickerCanonicalization.analysis;
+        const officialTickerFallback = restoreNasdaqCorporateActionOfficialTickers(rawItem, analysis);
+        if (officialTickerFallback.restored_symbols.length) {
+          analysis = officialTickerFallback.analysis;
+          tickerCanonicalization = {
+            ...tickerCanonicalization,
+            official_nasdaq_corporate_action_restored_symbols: officialTickerFallback.restored_symbols,
+          } as typeof tickerCanonicalization;
+        }
         const tickerProxies = await buildAnalysisTickerProxies(analysis);
         const coverage = evaluateCoverageForStorage(analysis, tickerProxies);
         const eventDedupe = buildAnalyzedEventDedupe(rawItem, analysis);
@@ -889,7 +979,7 @@ async function persistAnalyzedEvent({
     industry_group: nullableString(analysis.industry_group),
     theme_group: nullableString(analysis.theme_group),
     sub_theme: nullableString(analysis.sub_theme),
-    title: stringValue(rawItem.title) || `Untitled ${config.sourceName} item`,
+    title: buildDisplayTitleForNewsItem(config, rawItem, analysis),
     quick_take: stringValue(analysis.quick_take),
     summary: stringValue(analysis.summary),
     reason: stringValue(analysis.score_reason),
@@ -920,6 +1010,7 @@ async function persistAnalyzedEvent({
       candidate_class: nullableString(analysis.candidate_class) || nullableString(rawItem.raw_payload.candidate_class),
       candidate_reason: nullableString(analysis.candidate_reason) || nullableString(rawItem.raw_payload.candidate_reason),
       candidate_signals: analysis.candidate_signals || rawItem.raw_payload.candidate_signals || [],
+      nasdaq_halt_group_key: nullableString(rawItem.raw_payload.halt_group_key),
     },
   };
 
@@ -956,6 +1047,15 @@ function sourceEvidenceForNewsItem(config: NewsSourceConfig, rawItem: NewsRawIte
   const sourceName = sourceDisplayName(config.sourceCode);
   const rawSourceName = nullableString(rawItem.raw_payload.source_name);
 
+  if (config.sourceCode === "nasdaq_trader") {
+    const tradeHalt = toRecord(rawItem.raw_payload.trade_halt);
+    return {
+      issuer: nullableString(tradeHalt?.issueName) || rawSourceName || config.sourceName || sourceName,
+      sourceReleaseType: "Nasdaq Trading Halt Notice",
+      sourceType: "Exchange Trading Halt Notice",
+    };
+  }
+
   if (isGovernmentNewsSource(config.sourceCode)) {
     return {
       issuer: sourceName,
@@ -969,6 +1069,124 @@ function sourceEvidenceForNewsItem(config: NewsSourceConfig, rawItem: NewsRawIte
     sourceReleaseType: "Official Release",
     sourceType: "Company Press Release",
   };
+}
+
+function buildDisplayTitleForNewsItem(
+  config: NewsSourceConfig,
+  rawItem: NewsRawItem,
+  analysis: Record<string, unknown>,
+) {
+  if (rawItem.source_code === "nasdaq_trader") {
+    return buildNasdaqTraderHaltDisplayTitle(rawItem) || stringValue(rawItem.title) || `Untitled ${config.sourceName} item`;
+  }
+
+  if (rawItem.source_code === "nasdaq_corporate_actions") {
+    return buildNasdaqCorporateActionDisplayTitle(rawItem, analysis) || stringValue(rawItem.title) || `Untitled ${config.sourceName} item`;
+  }
+
+  return stringValue(rawItem.title) || `Untitled ${config.sourceName} item`;
+}
+
+function buildNasdaqTraderHaltDisplayTitle(rawItem: NewsRawItem) {
+  const tradeHalt = toRecord(rawItem.raw_payload.trade_halt);
+  const symbol = nullableString(tradeHalt?.issueSymbol) || readPrimaryTickerFromRawItem(rawItem).ticker;
+  if (!symbol) return null;
+  const reasonCode = nullableString(tradeHalt?.reasonCode);
+  const reasonDescription = nullableString(rawItem.raw_payload.reason_description);
+  if (reasonCode === "D") return `${symbol} security deletion notice`;
+  if (reasonCode?.startsWith("IPO")) return `${symbol} IPO trading status update`;
+  if (reasonCode === "M1") return `${symbol} halted for corporate action`;
+  return `${symbol} trading halt${reasonDescription ? `: ${reasonDescription}` : reasonCode ? ` ${reasonCode}` : ""}`;
+}
+
+function buildNasdaqCorporateActionDisplayTitle(rawItem: NewsRawItem, analysis: Record<string, unknown>) {
+  const corporateAction = toRecord(rawItem.raw_payload.corporate_action);
+  const companyName =
+    cleanCompanyName(nullableString(corporateAction?.company_name) || extractNasdaqCorporateActionTitleCompany(rawItem.title));
+  const ticker = readPrimaryTicker(analysis).ticker || readPrimaryTickerFromRawItem(rawItem).ticker;
+  const subject = companyName || ticker || "Nasdaq-listed issuer";
+  const eventFamily = stringValue(rawItem.raw_payload.corporate_action_event_family);
+  const searchText = `${rawItem.title || ""}\n${stringValue(rawItem.raw_payload.analysis_text)}`;
+  const ratio = formatReverseSplitRatio(nullableString(corporateAction?.ratio) || searchText);
+  const effectiveDate =
+    nullableString(corporateAction?.marketplace_effective_date) ||
+    nullableString(corporateAction?.marketplace_effective_date_for_suspension) ||
+    extractAnticipatedTradeDate(searchText);
+
+  if (/new listing/i.test(searchText) && ratio) {
+    return `${subject} to begin Nasdaq trading after ${ratio} reverse split`;
+  }
+
+  if (eventFamily === "reverse_split") {
+    return `${subject} sets ${ratio ? `${ratio} ` : ""}reverse split${effectiveDate ? ` for ${effectiveDate}` : ""}`;
+  }
+
+  if (eventFamily === "merger") {
+    return `${subject} merger closes${effectiveDate ? ` with trading suspension set for ${effectiveDate}` : ""}`;
+  }
+
+  if (eventFamily === "business_combination") {
+    return `${subject} business combination closes${effectiveDate ? ` effective ${effectiveDate}` : ""}`;
+  }
+
+  if (eventFamily === "spin_off") {
+    return `${subject} spin-off distribution dates set`;
+  }
+
+  if (eventFamily === "redemption") {
+    return `${subject} redemption terms set`;
+  }
+
+  if (eventFamily === "symbol_or_cusip_change" && /\bholding company\b/i.test(searchText)) {
+    return `${subject} holding-company reorganization takes effect`;
+  }
+
+  if (eventFamily === "symbol_or_cusip_change") {
+    return `${subject} trading identifier update takes effect`;
+  }
+
+  return null;
+}
+
+function cleanCompanyName(value: string | null | undefined) {
+  const cleaned = nullableString(value)
+    ?.replace(/^Control of\s+/i, "")
+    .replace(/\s+(?:Class\s+[A-Z]\s+)?(?:Common Stock|Common Shares|Ordinary Shares|American Depositary Shares)$/i, "")
+    .replace(/\s+(?:Rights?|Units?|Warrants?)$/i, "")
+    .replace(/\s+\d+(?:\.\d+)?%\s+.*$/i, "")
+    .replace(/\s+(?:Fixed\s*-\s*Rate\s+Reset\s+)?Series\s+[A-Z]\s+.*$/i, "")
+    .replace(/\s+(?:Cumulative\s+)?(?:Perpetual\s+)?Redeemable\s+Preferred\s+Shares?$/i, "")
+    .replace(/\s+Notes?\s+due\s+\d{4}$/i, "")
+    .trim();
+  return cleaned || null;
+}
+
+function extractNasdaqCorporateActionTitleCompany(title: string | null | undefined) {
+  const text = stringValue(title);
+  return (
+    /\bfor\s+(.+?)\s+\([A-Z][A-Z0-9./&\s-]{0,40}\)\s*$/i.exec(text)?.[1] ||
+    /\bof\s+(.+?)\s+\([A-Z][A-Z0-9./&\s-]{0,40}\)\s*$/i.exec(text)?.[1] ||
+    /\bregarding\s+(.+?)\s+\([A-Z][A-Z0-9./&\s-]{0,40}\)/i.exec(text)?.[1] ||
+    null
+  );
+}
+
+function formatReverseSplitRatio(value: string | null | undefined) {
+  const text = stringValue(value);
+  const parenthetical = /\((\d+)\s*[-:]\s*(\d+)\)/.exec(text);
+  if (parenthetical) return `${parenthetical[1]}-for-${parenthetical[2]}`;
+  const direct = /\b(\d+)\s*[-:]\s*(\d+)\s+reverse split/i.exec(text);
+  if (direct) return `${direct[1]}-for-${direct[2]}`;
+  return null;
+}
+
+function extractAnticipatedTradeDate(value: string) {
+  return (
+    /\bAnticipated First Trade Date:\s*([A-Za-z]+\s+\d{1,2},\s+\d{4})/i.exec(value)?.[1] ||
+    /\beffective\s+(?:on\s+)?([A-Za-z]+,\s+[A-Za-z]+\s+\d{1,2},\s+\d{4})/i.exec(value)?.[1] ||
+    /\beffective\s+(?:on\s+)?([A-Za-z]+\s+\d{1,2},\s+\d{4})/i.exec(value)?.[1] ||
+    null
+  );
 }
 
 function isGovernmentNewsSource(sourceCode: string) {
@@ -1292,6 +1510,28 @@ async function finishSourceRun(
     { onConflict: "id" },
   );
   await assertMutation(result, "finish source run");
+}
+
+async function ensureSourceReference(config: NewsSourceConfig) {
+  await assertMutation(
+    supabaseUpsert(
+      "sources",
+      {
+        code: config.sourceCode,
+        name: config.sourceName,
+        source_group: "news",
+        runtime_owner: "manual",
+        enabled: true,
+        metadata: {
+          parser_name: config.parserName,
+          managed_by: "news_ingest",
+        },
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "code" },
+    ),
+    "upsert source reference",
+  );
 }
 
 async function findExistingRawItem(rawItem: NewsRawItem) {
@@ -1690,6 +1930,10 @@ function readRawItemEventSkipDecision(row: PersistedRow) {
 }
 
 function buildDeterministicArchiveAnalysis(rawItem: NewsRawItem) {
+  if (rawItem.source_code === "nasdaq_trader") {
+    return buildDeterministicNasdaqTraderHaltAnalysis(rawItem);
+  }
+
   if (stringValue(rawItem.raw_payload.candidate_class) !== "ticker_archive_candidate") return null;
 
   const primaryTicker = readPrimaryTickerFromRawItem(rawItem);
@@ -1701,6 +1945,18 @@ function buildDeterministicArchiveAnalysis(rawItem: NewsRawItem) {
   const sourceName = sourceDisplayName(rawItem.source_code);
   const reasonText = lowValueReasons.length ? lowValueReasons.join(", ") : `low-priority ${sourceName} pattern`;
   const quickTake = `Low-priority ${sourceName} archive item for ${primaryTicker.ticker}; review the original release for details.`;
+  const archiveEvidenceTitle =
+    rawItem.source_code === "nasdaq_corporate_actions"
+      ? buildNasdaqCorporateActionDisplayTitle(rawItem, {}) || `${primaryTicker.ticker} Nasdaq corporate action archived`
+      : stringValue(rawItem.title);
+  const archiveSummary =
+    rawItem.source_code === "nasdaq_corporate_actions"
+      ? "This Nasdaq corporate action was archived because it appears administrative rather than feed or alert material. Review the original exchange notice if the ticker history becomes relevant."
+      : "This release was stored as a low-priority ticker archive item without LLM analysis. It appears to be routine promotional, legal, conference, award, local, personnel, or corporate-update material. Review the original release for details.";
+  const archiveCandidateReason =
+    rawItem.source_code === "nasdaq_corporate_actions"
+      ? "Lower-priority Nasdaq Trader corporate action: administrative trading-identifier update."
+      : stringValue(rawItem.raw_payload.candidate_reason);
 
   return {
     event_type: eventType,
@@ -1730,16 +1986,15 @@ function buildDeterministicArchiveAnalysis(rawItem: NewsRawItem) {
     theme_group: null,
     sub_theme: null,
     quick_take: quickTake,
-    summary:
-      "This release was stored as a low-priority ticker archive item without LLM analysis. It appears to be routine promotional, legal, conference, award, local, personnel, or corporate-update material. Review the original release for details.",
+    summary: archiveSummary,
     score_reason: `LLM skipped because ${sourceName} parser marked this ticker item as low priority: ${reasonText}.`,
     why_it_matters:
       "Stored for ticker history and source traceability only; not treated as a feed or alert signal.",
     bullish_points: [],
     bearish_points: [],
     key_evidence: [
-      stringValue(rawItem.title),
-      stringValue(rawItem.raw_payload.candidate_reason),
+      archiveEvidenceTitle,
+      archiveCandidateReason,
     ].filter(Boolean),
     what_to_watch_next: [`Open the original ${sourceName} release if this archive item becomes relevant.`],
     calendar_items: [],
@@ -1753,6 +2008,162 @@ function buildDeterministicArchiveAnalysis(rawItem: NewsRawItem) {
   };
 }
 
+function buildDeterministicNasdaqTraderHaltAnalysis(rawItem: NewsRawItem) {
+  const candidateClass = stringValue(rawItem.raw_payload.candidate_class);
+  if (candidateClass !== "company_event") return null;
+
+  const tradeHalt = toRecord(rawItem.raw_payload.trade_halt);
+  const primaryTicker = readPrimaryTickerFromRawItem(rawItem);
+  const symbol = primaryTicker.ticker || nullableString(tradeHalt?.issueSymbol);
+  if (!symbol) return null;
+
+  const reasonCode = nullableString(tradeHalt?.reasonCode)?.toUpperCase() || "";
+  const reasonDescription = nullableString(rawItem.raw_payload.reason_description);
+  const haltDate = nullableString(tradeHalt?.haltDate);
+  const haltTime = nullableString(tradeHalt?.haltTime);
+  const resumptionTradeTime = nullableString(tradeHalt?.resumptionTradeTime);
+  const haltWhen = [haltDate, haltTime].filter(Boolean).join(" ");
+  const eventProfile = nasdaqTraderHaltEventProfile(reasonCode);
+  const title = buildNasdaqTraderHaltDisplayTitle(rawItem) || stringValue(rawItem.title);
+  const reasonPhrase = formatHaltReasonPhrase(reasonDescription);
+  const summaryParts = [
+    `${symbol} was halted${reasonPhrase ? ` for ${reasonPhrase}` : ""}${haltWhen ? ` at ${haltWhen} Eastern Time` : ""}.`,
+    resumptionTradeTime
+      ? `Nasdaq lists a resumption trade time of ${[nullableString(tradeHalt?.resumptionDate), resumptionTradeTime].filter(Boolean).join(" ")} Eastern Time.`
+      : "No resumption trade time is listed in the current notice.",
+  ];
+
+  return {
+    event_type: "listing_risk",
+    score: eventProfile.score,
+    delivery_level: eventProfile.deliveryLevel,
+    impact: eventProfile.impact,
+    signal: eventProfile.signal,
+    market_scope: "company",
+    confidence: "high",
+    needs_human_review: false,
+    primary_ticker: {
+      ticker: symbol,
+      exchange: primaryTicker.exchange || nullableString(tradeHalt?.market) || "NASDAQ",
+      company_name: nullableString(tradeHalt?.issueName),
+    },
+    tickers: [
+      {
+        ticker: symbol,
+        exchange: primaryTicker.exchange || nullableString(tradeHalt?.market) || "NASDAQ",
+        role: "primary",
+        reason: "Ticker from Nasdaq Trader halt notice.",
+      },
+    ],
+    related_tickers: [],
+    sector: null,
+    industry_group: null,
+    theme_group: null,
+    sub_theme: null,
+    quick_take: eventProfile.quickTake(symbol, reasonDescription),
+    summary: summaryParts.join(" "),
+    score_reason: eventProfile.scoreReason(reasonCode, reasonDescription),
+    why_it_matters: eventProfile.whyItMatters,
+    bullish_points: [],
+    bearish_points: eventProfile.bearishPoints,
+    key_evidence: [
+      title,
+      reasonCode ? `Reason code ${reasonCode}${reasonDescription ? `: ${reasonDescription}` : ""}.` : "",
+      haltWhen ? `Halt time: ${haltWhen} Eastern Time.` : "",
+      resumptionTradeTime ? `Resumption trade time: ${resumptionTradeTime} Eastern Time.` : "",
+    ].filter(Boolean),
+    what_to_watch_next: eventProfile.watchNext,
+    calendar_items: [],
+    llm_skipped: true,
+    analysis_source: "deterministic_nasdaq_trader_halt",
+    archive_reason: null,
+    low_value_reasons: [],
+    candidate_class: candidateClass,
+    candidate_reason: rawItem.raw_payload.candidate_reason,
+    candidate_signals: rawItem.raw_payload.candidate_signals || [],
+  };
+}
+
+function nasdaqTraderHaltEventProfile(reasonCode: string) {
+  if (reasonCode === "D") {
+    return {
+      score: 85,
+      deliveryLevel: "alert",
+      impact: "high",
+      signal: "bearish",
+      quickTake: (symbol: string, reason: string | null) =>
+        `${symbol} received a Nasdaq deletion halt${formatHaltReasonPhrase(reason) ? ` tied to ${formatHaltReasonPhrase(reason)}` : ""}.`,
+      scoreReason: (_code: string, _reason: string | null) => "Security deletion directly affects tradability and listing status.",
+      whyItMatters: "Deletion halts can end or sharply impair exchange tradability for current holders.",
+      bearishPoints: ["Exchange deletion can remove normal market liquidity."],
+      watchNext: ["Confirm delisting timing and any OTC or settlement instructions."],
+    };
+  }
+
+  if (reasonCode === "H4" || reasonCode === "H9" || reasonCode === "H10" || reasonCode === "H11") {
+    return {
+      score: 82,
+      deliveryLevel: "alert",
+      impact: "high",
+      signal: "bearish",
+      quickTake: (symbol: string, reason: string | null) =>
+        `${symbol} is halted for ${formatHaltReasonPhrase(reason) || "a regulatory or compliance concern"}.`,
+      scoreReason: (_code: string, _reason: string | null) => "Regulatory or compliance halt can signal listing and liquidity risk.",
+      whyItMatters: "Regulatory halts can block trading and point to unresolved disclosure or listing problems.",
+      bearishPoints: ["Regulatory concern can pressure valuation and liquidity."],
+      watchNext: ["Watch for exchange notices, company filings, and resumption details."],
+    };
+  }
+
+  if (reasonCode === "T1" || reasonCode === "T2" || reasonCode === "T12") {
+    return {
+      score: 78,
+      deliveryLevel: "alert",
+      impact: "high",
+      signal: "volatile",
+      quickTake: (symbol: string, reason: string | null) =>
+        `${symbol} is halted for ${formatHaltReasonPhrase(reason) || "a pending Nasdaq information request"}.`,
+      scoreReason: (_code: string, _reason: string | null) => "Information-related halt can precede material news or unresolved disclosure.",
+      whyItMatters: "Information halts can quickly reprice the stock once news or requested details are released.",
+      bearishPoints: [],
+      watchNext: ["Watch for the company release, Nasdaq update, and resumption time."],
+    };
+  }
+
+  if (reasonCode === "M1" || reasonCode.startsWith("IPO")) {
+    return {
+      score: 62,
+      deliveryLevel: "feed",
+      impact: "medium",
+      signal: "volatile",
+      quickTake: (symbol: string, reason: string | null) =>
+        `${symbol} has a Nasdaq trading status update${formatHaltReasonPhrase(reason) ? ` tied to ${formatHaltReasonPhrase(reason)}` : ""}.`,
+      scoreReason: (_code: string, _reason: string | null) => "Trading mechanics changed, but direction depends on follow-up details.",
+      whyItMatters: "Trading status changes can affect liquidity, order handling, and near-term volatility.",
+      bearishPoints: [],
+      watchNext: ["Confirm opening, quotation, or corporate-action details before trading."],
+    };
+  }
+
+  return {
+    score: 60,
+    deliveryLevel: "feed",
+    impact: "medium",
+    signal: "volatile",
+    quickTake: (symbol: string, reason: string | null) =>
+      `${symbol} has a Nasdaq trading halt${formatHaltReasonPhrase(reason) ? ` for ${formatHaltReasonPhrase(reason)}` : ""}.`,
+    scoreReason: (_code: string, _reason: string | null) => "Official exchange halt changes near-term tradability.",
+    whyItMatters: "A halt can change liquidity and price discovery until Nasdaq posts a resumption update.",
+    bearishPoints: [],
+    watchNext: ["Watch for the resumption quote and trade times."],
+  };
+}
+
+function formatHaltReasonPhrase(value: string | null) {
+  if (!value) return "";
+  return value.replace(/\bNasdaq\b/g, "Nasdaq").replace(/^[A-Z]/, (letter) => letter.toLowerCase());
+}
+
 function sourceDisplayName(sourceCode: string) {
   if (sourceCode === "businesswire") return "Business Wire";
   if (sourceCode === "prnewswire") return "PR Newswire";
@@ -1763,7 +2174,8 @@ function sourceDisplayName(sourceCode: string) {
   if (sourceCode === "dea") return "DEA";
   if (sourceCode === "whitehouse") return "White House";
   if (sourceCode === "fda") return "FDA";
-  if (sourceCode === "nasdaq_trader") return "Nasdaq Trader";
+  if (sourceCode === "nasdaq_corporate_actions") return "Nasdaq Corporate Actions";
+  if (sourceCode === "nasdaq_trader") return "Nasdaq Trading Halt";
   if (sourceCode === "globe") return "GlobeNewswire";
   return sourceCode || "news";
 }
@@ -1776,6 +2188,57 @@ function readPrimaryTickerFromRawItem(rawItem: NewsRawItem) {
     ticker: ticker ? ticker.toUpperCase() : null,
     exchange: nullableString(preferred?.exchange),
   };
+}
+
+function restoreNasdaqCorporateActionOfficialTickers(
+  rawItem: NewsRawItem,
+  analysis: Record<string, unknown>,
+) {
+  if (rawItem.source_code !== "nasdaq_corporate_actions") {
+    return { analysis, restored_symbols: [] as string[] };
+  }
+
+  const officialTickers = recordArray(rawItem.raw_payload.tickers)
+    .map((ticker) => ({
+      ticker: nullableString(ticker.symbol || ticker.ticker)?.toUpperCase() || null,
+      exchange: nullableString(ticker.exchange) || "NASDAQ",
+    }))
+    .filter((ticker): ticker is { ticker: string; exchange: string } => Boolean(ticker.ticker));
+  if (!officialTickers.length) return { analysis, restored_symbols: [] as string[] };
+
+  const primaryTicker = readPrimaryTicker(analysis);
+  const restoredSymbols: string[] = [];
+  const nextAnalysis = { ...analysis };
+
+  if (!primaryTicker.ticker) {
+    const officialPrimary = officialTickers[0];
+    nextAnalysis.primary_ticker = {
+      ticker: officialPrimary.ticker,
+      exchange: officialPrimary.exchange,
+    };
+    restoredSymbols.push(officialPrimary.ticker);
+  }
+
+  const existingTickerKeys = new Set(
+    recordArray(nextAnalysis.tickers)
+      .map((ticker) => nullableString(ticker.ticker)?.toUpperCase())
+      .filter((ticker): ticker is string => Boolean(ticker)),
+  );
+  const nextTickers = [...recordArray(nextAnalysis.tickers)];
+
+  for (const [index, officialTicker] of officialTickers.entries()) {
+    if (existingTickerKeys.has(officialTicker.ticker)) continue;
+    nextTickers.push({
+      ticker: officialTicker.ticker,
+      exchange: officialTicker.exchange,
+      role: index === 0 ? "primary" : "related",
+    });
+    existingTickerKeys.add(officialTicker.ticker);
+    if (!restoredSymbols.includes(officialTicker.ticker)) restoredSymbols.push(officialTicker.ticker);
+  }
+
+  nextAnalysis.tickers = nextTickers;
+  return { analysis: nextAnalysis, restored_symbols: restoredSymbols };
 }
 
 function eventTypeForLowValueReasons(reasons: string[]) {
@@ -1794,12 +2257,216 @@ function eventTypeForLowValueReasons(reasons: string[]) {
 
 function readRawItemPrefilterSkipDecision(rawItem: NewsRawItem) {
   const candidateClass = stringValue(rawItem.raw_payload.candidate_class);
+  if (candidateClass === "halt_status_log") {
+    return {
+      decision: "trading_halt_status_log_only",
+      reason:
+        stringValue(rawItem.raw_payload.candidate_reason) ||
+        "Nasdaq Trader halt stored as raw status data only; not eligible for global feed.",
+    };
+  }
+  if (candidateClass === "halt_update_only") {
+    return {
+      decision: "trading_halt_update_only",
+      reason:
+        stringValue(rawItem.raw_payload.candidate_reason) ||
+        "Nasdaq Trader halt update should update an existing halt rather than create a new feed event.",
+    };
+  }
   if (candidateClass !== "low_value_filtered") return null;
 
   return {
     decision: "low_value_raw_prefilter",
     reason: stringValue(rawItem.raw_payload.candidate_reason) || "Raw parser marked item as low-value before LLM.",
   };
+}
+
+async function applyNasdaqTraderHaltUpdate({
+  rawItem,
+  persistedRaw,
+  dryRun,
+  rawSkipDecision,
+}: {
+  rawItem: NewsRawItem;
+  persistedRaw: PersistedRow | null;
+  dryRun: boolean;
+  rawSkipDecision: { decision: string; reason: string };
+}) {
+  if (rawItem.source_code !== "nasdaq_trader") return null;
+  const details = readNasdaqTraderHaltUpdateDetails(rawItem);
+  if (!details) return null;
+
+  const baseResult = {
+    ok: true,
+    skipped: true,
+    dryRun,
+    reason: rawSkipDecision.decision,
+    raw_item_id: persistedRaw?.id || null,
+    source_unique_id: rawItem.source_unique_id,
+    title: rawItem.title,
+    raw_item: dryRun ? summarizeRaw(rawItem) : undefined,
+    halt_update: details,
+  };
+
+  if (dryRun) {
+    return {
+      ...baseResult,
+      updated: false,
+      storage_decision: {
+        action: "would_update_existing_halt",
+        reason: rawSkipDecision.reason,
+        decision: rawSkipDecision.decision,
+        halt_group_key: details.haltGroupKey,
+      },
+    };
+  }
+
+  const existingEvent = await findExistingNasdaqTraderHaltEventForUpdate(rawItem);
+  if (!existingEvent) {
+    return {
+      ...baseResult,
+      updated: false,
+      storage_decision: {
+        action: "raw_only_no_matching_halt_event",
+        reason: "No matching original Nasdaq halt event was found for this update.",
+        decision: rawSkipDecision.decision,
+        halt_group_key: details.haltGroupKey,
+      },
+    };
+  }
+
+  const existingMetadata = toRecord(existingEvent.metadata) || {};
+  const existingStatus = toRecord(existingMetadata.nasdaq_halt_status) || {};
+  const metadata = {
+    ...existingMetadata,
+    nasdaq_halt_group_key: details.haltGroupKey,
+    nasdaq_halt_status: {
+      ...existingStatus,
+      halt_group_key: details.haltGroupKey,
+      latest_update_source_unique_id: rawItem.source_unique_id,
+      latest_update_raw_item_id: stringValue(persistedRaw?.id),
+      update_reason_code: details.reasonCode,
+      update_reason_description: details.reasonDescription,
+      resumption_date: details.resumptionDate,
+      resumption_quote_time: details.resumptionQuoteTime,
+      resumption_trade_time: details.resumptionTradeTime,
+      updated_at: new Date().toISOString(),
+    },
+  };
+
+  const updatePayload = {
+    ...existingEvent,
+    summary: mergeNasdaqTraderHaltUpdateSummary(stringValue(existingEvent.summary), details),
+    metadata,
+  };
+  const result = await supabaseUpsert("events", updatePayload, { onConflict: "id" });
+  await assertMutation(result, "update Nasdaq Trader halt event");
+
+  return {
+    ...baseResult,
+    updated: true,
+    event_id: stringValue(existingEvent.id),
+    storage_decision: {
+      action: "updated_existing_halt",
+      reason: "Merged Nasdaq halt resumption/update fields into the existing halt event.",
+      decision: rawSkipDecision.decision,
+      halt_group_key: details.haltGroupKey,
+    },
+  };
+}
+
+async function findExistingNasdaqTraderHaltEventForUpdate(rawItem: NewsRawItem) {
+  const details = readNasdaqTraderHaltUpdateDetails(rawItem);
+  if (!details || !details.symbol) return null;
+
+  const result = await supabaseSelect("events", {
+    select: "*",
+    source_code: "eq.nasdaq_trader",
+    source_group: "eq.news",
+    event_type: "eq.listing_risk",
+    ticker: `eq.${details.symbol}`,
+    order: "published_at.desc",
+    limit: "20",
+  });
+  await assertMutation(result, "select matching Nasdaq Trader halt event");
+
+  const rows = recordArray(result.data);
+  return (
+    rows.find((row) => stringValue(toRecord(row.metadata)?.nasdaq_halt_group_key) === details.haltGroupKey) ||
+    rows.find(
+      (row) =>
+        nasdaqHaltGroupKeyFromSourceUniqueId(stringValue(toRecord(row.metadata)?.source_unique_id)) ===
+        details.haltGroupKey,
+    ) ||
+    null
+  );
+}
+
+function readNasdaqTraderHaltUpdateDetails(rawItem: NewsRawItem) {
+  const tradeHalt = toRecord(rawItem.raw_payload.trade_halt);
+  const reasonCode = nullableString(tradeHalt?.reasonCode)?.toUpperCase() || "";
+  if (reasonCode !== "T3" && !["R4", "R9", "C3", "C4", "C9", "C11", "R1", "R2", "MWCQ"].includes(reasonCode)) {
+    return null;
+  }
+
+  const symbol = nullableString(tradeHalt?.issueSymbol) || readPrimaryTickerFromRawItem(rawItem).ticker;
+  const haltDate = nullableString(tradeHalt?.haltDate);
+  const haltTime = nullableString(tradeHalt?.haltTime);
+  const haltGroupKey =
+    nullableString(rawItem.raw_payload.halt_group_key) ||
+    ["nasdaq-trader-halt", symbol, compactNasdaqHaltDate(haltDate), compactNasdaqHaltTime(haltTime)]
+      .filter(Boolean)
+      .join(":");
+
+  return {
+    symbol,
+    haltGroupKey,
+    haltDate,
+    haltTime,
+    reasonCode,
+    reasonDescription: nullableString(rawItem.raw_payload.reason_description),
+    resumptionDate: nullableString(tradeHalt?.resumptionDate),
+    resumptionQuoteTime: nullableString(tradeHalt?.resumptionQuoteTime),
+    resumptionTradeTime: nullableString(tradeHalt?.resumptionTradeTime),
+  };
+}
+
+function mergeNasdaqTraderHaltUpdateSummary(summary: string, details: NonNullable<ReturnType<typeof readNasdaqTraderHaltUpdateDetails>>) {
+  const quoteWhen = formatNasdaqHaltDateTime(details.resumptionDate, details.resumptionQuoteTime);
+  const tradeWhen = formatNasdaqHaltDateTime(details.resumptionDate, details.resumptionTradeTime);
+  const pieces = [
+    quoteWhen ? `quote resumption at ${quoteWhen}` : null,
+    tradeWhen ? `trade resumption at ${tradeWhen}` : null,
+  ].filter((item): item is string => Boolean(item));
+  const updateSentence = pieces.length
+    ? `Nasdaq later listed ${joinSentenceParts(pieces)}.`
+    : "Nasdaq later published an update without a listed resumption time.";
+  if (summary.includes(updateSentence) || (tradeWhen && summary.includes(tradeWhen))) return summary;
+  const cleaned = summary.replace(/\s*No resumption trade time is listed in the current notice\./i, "").trim();
+  if (!cleaned) return updateSentence;
+  return `${cleaned}${cleaned.endsWith(".") ? "" : "."} ${updateSentence}`;
+}
+
+function formatNasdaqHaltDateTime(dateValue: string | null, timeValue: string | null) {
+  return [dateValue, timeValue].filter(Boolean).join(" ") || null;
+}
+
+function joinSentenceParts(parts: string[]) {
+  if (parts.length <= 1) return parts[0] || "";
+  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+}
+
+function nasdaqHaltGroupKeyFromSourceUniqueId(value: string) {
+  const match = /^tradehalt-([A-Z0-9.-]+)-([0-9]+)-([0-9]+)-/i.exec(value);
+  return match ? ["nasdaq-trader-halt", match[1].toUpperCase(), match[2], match[3]].join(":") : null;
+}
+
+function compactNasdaqHaltDate(value: string | null) {
+  return value ? value.replace(/\D/g, "") : null;
+}
+
+function compactNasdaqHaltTime(value: string | null) {
+  return value ? value.replace(/\D/g, "") : null;
 }
 
 function incrementSkipStats(stats: Record<string, number>, decision: string) {
@@ -1818,9 +2485,16 @@ function incrementSkipStats(stats: Record<string, number>, decision: string) {
   if (decision === "low_value_raw_prefilter") {
     stats.skipped_low_value_raw_count = numberValue(stats.skipped_low_value_raw_count) + 1;
   }
+  if (decision === "trading_halt_status_log_only" || decision === "trading_halt_update_only") {
+    stats.skipped_low_value_raw_count = numberValue(stats.skipped_low_value_raw_count) + 1;
+  }
   if (decision === "route_classifier_skip") {
     stats.skipped_route_classifier_count = numberValue(stats.skipped_route_classifier_count) + 1;
   }
+}
+
+function incrementCounter(stats: Record<string, number>, key: string) {
+  stats[key] = numberValue(stats[key]) + 1;
 }
 
 function hasUsListedTicker(

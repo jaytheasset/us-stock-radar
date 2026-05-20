@@ -7,9 +7,13 @@ export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const limit = readNumber(params.get("limit"), 10, 1, 50);
   const sourceUniqueId = readString(params.get("sourceUniqueId"));
+  const haltDate = readString(params.get("haltDate") || params.get("haltdate"));
+  const resumptionDate = readString(params.get("resumptionDate") || params.get("resumedate"));
   const result = await fetchNasdaqTraderRawItems({
     limit,
     sourceUniqueId,
+    haltDate,
+    resumptionDate,
     includeArticleBody: false,
     articleBodyLimit: 0,
   });

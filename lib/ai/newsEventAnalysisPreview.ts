@@ -32,7 +32,7 @@ export type NewsAnalysisRawItem = Omit<GlobeParsedRawItem, "source_code"> & {
 };
 
 const NEWS_ROUTE_CLASSIFICATION_MAX_OUTPUT_TOKENS = 700;
-const NEWS_EVENT_ANALYSIS_MAX_OUTPUT_TOKENS = 4000;
+const NEWS_EVENT_ANALYSIS_MAX_OUTPUT_TOKENS = 6000;
 
 type OpenAIResponseBody = {
   id?: string;
@@ -618,6 +618,11 @@ function normalizeNewsOfferingTerms(
     offering_amount: sanitizeMoneyTerm(record?.offering_amount),
     shares_offered: sanitizeNumberTerm(record?.shares_offered),
     offering_price: sanitizePriceTerm(record?.offering_price),
+    common_shares: sanitizeNumberTerm(record?.common_shares),
+    prefunded_warrants: sanitizePrefundedWarrantTerms(record?.prefunded_warrants),
+    common_warrants: sanitizeCommonWarrantTerms(record?.common_warrants),
+    convertible_securities: sanitizeConvertibleSecurityTerms(record?.convertible_securities),
+    total_potential_share_exposure: sanitizeNumberTerm(record?.total_potential_share_exposure),
     warrants: sanitizeWarrantTerms(record?.warrants),
     use_of_proceeds: sanitizeTextTerm(record?.use_of_proceeds),
     closing_date: sanitizeDateTerm(record?.closing_date),
@@ -663,6 +668,11 @@ function emptyNewsOfferingTerms() {
     offering_amount: sanitizeMoneyTerm(null),
     shares_offered: sanitizeNumberTerm(null),
     offering_price: sanitizePriceTerm(null),
+    common_shares: sanitizeNumberTerm(null),
+    prefunded_warrants: sanitizePrefundedWarrantTerms(null),
+    common_warrants: sanitizeCommonWarrantTerms(null),
+    convertible_securities: sanitizeConvertibleSecurityTerms(null),
+    total_potential_share_exposure: sanitizeNumberTerm(null),
     warrants: sanitizeWarrantTerms(null),
     use_of_proceeds: sanitizeTextTerm(null),
     closing_date: sanitizeDateTerm(null),
@@ -732,34 +742,96 @@ function sanitizeWarrantTerms(value: unknown) {
   };
 }
 
+function sanitizePrefundedWarrantTerms(value: unknown) {
+  const record = readRecord(value);
+  return {
+    included: record?.included === true,
+    shares: sanitizeNumberTerm(record?.shares),
+    exercise_price: sanitizePriceTerm(record?.exercise_price),
+    evidence: readString(record?.evidence),
+  };
+}
+
+function sanitizeCommonWarrantTerms(value: unknown) {
+  const record = readRecord(value);
+  return {
+    included: record?.included === true,
+    shares: sanitizeNumberTerm(record?.shares),
+    exercise_price: sanitizePriceTerm(record?.exercise_price),
+    expiration_text: readString(record?.expiration_text),
+    evidence: readString(record?.evidence),
+  };
+}
+
+function sanitizeConvertibleSecurityTerms(value: unknown) {
+  const record = readRecord(value);
+  return {
+    included: record?.included === true,
+    principal_amount: sanitizeMoneyTerm(record?.principal_amount),
+    conversion_price: sanitizePriceTerm(record?.conversion_price),
+    share_exposure: sanitizeNumberTerm(record?.share_exposure),
+    evidence: readString(record?.evidence),
+  };
+}
+
 function buildNewsOfferingDilutionMetrics(
   offeringTerms: {
     offering_amount: ReturnType<typeof sanitizeMoneyTerm>;
     shares_offered: ReturnType<typeof sanitizeNumberTerm>;
     offering_price: ReturnType<typeof sanitizePriceTerm>;
+    common_shares: ReturnType<typeof sanitizeNumberTerm>;
+    prefunded_warrants: ReturnType<typeof sanitizePrefundedWarrantTerms>;
+    common_warrants: ReturnType<typeof sanitizeCommonWarrantTerms>;
+    convertible_securities: ReturnType<typeof sanitizeConvertibleSecurityTerms>;
+    total_potential_share_exposure: ReturnType<typeof sanitizeNumberTerm>;
+    warrants: ReturnType<typeof sanitizeWarrantTerms>;
   },
   marketContext: NewsPromptMarketContext["items"][number] | null,
 ) {
   const offeringAmount = offeringTerms.offering_amount.amount;
-  const sharesOffered = offeringTerms.shares_offered.count;
+  const headlineSharesOffered = offeringTerms.shares_offered.count;
+  const commonShares = offeringTerms.common_shares.count ?? headlineSharesOffered;
+  const prefundedWarrantShares = offeringTerms.prefunded_warrants.shares.count;
+  const commonWarrantShares =
+    offeringTerms.common_warrants.shares.count ?? parseLooseNumber(offeringTerms.warrants.coverage_text);
+  const convertibleShareExposure = offeringTerms.convertible_securities.share_exposure.count;
+  const immediateShareExposure = sumPositive([commonShares, prefundedWarrantShares]);
+  const futureWarrantOverhangShares = commonWarrantShares;
+  const componentPotentialShareExposure = sumPositive([
+    commonShares,
+    prefundedWarrantShares,
+    commonWarrantShares,
+    convertibleShareExposure,
+  ]);
+  const totalPotentialShareExposure =
+    offeringTerms.total_potential_share_exposure.count ?? componentPotentialShareExposure;
   const offeringPrice = offeringTerms.offering_price.price;
   const marketPrice = marketContext?.price ?? marketContext?.previous_close ?? null;
   const marketCap = marketContext?.market_cap ?? null;
   const sharesOutstanding = marketContext?.shares_outstanding ?? null;
   const publicFloat = marketContext?.public_float ?? null;
-  const estimatedDilutionPercent = percent(sharesOffered, sharesOutstanding);
-  const floatOverhangPercent = percent(sharesOffered, publicFloat);
+  const estimatedDilutionPercent = percent(immediateShareExposure, sharesOutstanding);
+  const immediateFloatImpactPercent = percent(immediateShareExposure, publicFloat);
+  const totalPotentialDilutionPercent = percent(totalPotentialShareExposure, sharesOutstanding);
+  const totalPotentialFloatOverhangPercent = percent(totalPotentialShareExposure, publicFloat);
   const offeringAmountPercentOfMarketCap = percent(offeringAmount, marketCap);
   const discountToMarketPercent =
     isPositiveNumber(offeringPrice) && isPositiveNumber(marketPrice)
       ? roundPercent(((marketPrice - offeringPrice) / marketPrice) * 100)
       : null;
-  const maxShareImpactPercent = maxNumber([estimatedDilutionPercent, floatOverhangPercent]);
+  const maxShareImpactPercent = maxNumber([
+    estimatedDilutionPercent,
+    immediateFloatImpactPercent,
+    totalPotentialDilutionPercent,
+    totalPotentialFloatOverhangPercent,
+  ]);
 
   return {
     available: Boolean(
       offeringAmount ||
-        sharesOffered ||
+        headlineSharesOffered ||
+        immediateShareExposure ||
+        totalPotentialShareExposure ||
         offeringPrice ||
         marketCap ||
         sharesOutstanding ||
@@ -767,7 +839,14 @@ function buildNewsOfferingDilutionMetrics(
         estimatedDilutionPercent ||
         offeringAmountPercentOfMarketCap,
     ),
-    shares_offered: sharesOffered,
+    shares_offered: headlineSharesOffered,
+    common_shares: commonShares,
+    prefunded_warrant_shares: prefundedWarrantShares,
+    common_warrant_shares: commonWarrantShares,
+    convertible_share_exposure: convertibleShareExposure,
+    immediate_share_exposure: immediateShareExposure,
+    future_warrant_overhang_shares: futureWarrantOverhangShares,
+    total_potential_share_exposure: totalPotentialShareExposure,
     shares_outstanding_market: sharesOutstanding,
     public_float_market: publicFloat,
     market_cap: marketCap,
@@ -775,13 +854,18 @@ function buildNewsOfferingDilutionMetrics(
     offering_amount: offeringAmount,
     offering_price: offeringPrice,
     estimated_dilution_percent: estimatedDilutionPercent,
-    float_overhang_percent: floatOverhangPercent,
+    immediate_float_impact_percent: immediateFloatImpactPercent,
+    total_potential_dilution_percent: totalPotentialDilutionPercent,
+    total_potential_float_overhang_percent: totalPotentialFloatOverhangPercent,
+    float_overhang_percent: totalPotentialFloatOverhangPercent,
     offering_amount_percent_of_market_cap: offeringAmountPercentOfMarketCap,
     discount_to_market_percent: discountToMarketPercent,
     max_share_impact_percent: maxShareImpactPercent,
     dilution_scale: classifyNewsDilutionScale(maxShareImpactPercent, offeringAmountPercentOfMarketCap),
     calculation_notes: buildNewsOfferingCalculationNotes({
-      sharesOffered,
+      headlineSharesOffered,
+      immediateShareExposure,
+      totalPotentialShareExposure,
       sharesOutstanding,
       publicFloat,
       marketCap,
@@ -794,6 +878,13 @@ function emptyNewsOfferingDilutionMetrics() {
   return {
     available: false,
     shares_offered: null,
+    common_shares: null,
+    prefunded_warrant_shares: null,
+    common_warrant_shares: null,
+    convertible_share_exposure: null,
+    immediate_share_exposure: null,
+    future_warrant_overhang_shares: null,
+    total_potential_share_exposure: null,
     shares_outstanding_market: null,
     public_float_market: null,
     market_cap: null,
@@ -801,6 +892,9 @@ function emptyNewsOfferingDilutionMetrics() {
     offering_amount: null,
     offering_price: null,
     estimated_dilution_percent: null,
+    immediate_float_impact_percent: null,
+    total_potential_dilution_percent: null,
+    total_potential_float_overhang_percent: null,
     float_overhang_percent: null,
     offering_amount_percent_of_market_cap: null,
     discount_to_market_percent: null,
@@ -821,20 +915,26 @@ function findOfferingMarketContext(input: NewsEventAnalysisInput, primarySymbol:
 }
 
 function buildNewsOfferingCalculationNotes({
-  sharesOffered,
+  headlineSharesOffered,
+  immediateShareExposure,
+  totalPotentialShareExposure,
   sharesOutstanding,
   publicFloat,
   marketCap,
   marketPrice,
 }: {
-  sharesOffered: number | null;
+  headlineSharesOffered: number | null;
+  immediateShareExposure: number | null;
+  totalPotentialShareExposure: number | null;
   sharesOutstanding: number | null;
   publicFloat: number | null;
   marketCap: number | null;
   marketPrice: number | null;
 }) {
   const notes: string[] = [];
-  if (!sharesOffered) notes.push("shares_offered_not_available");
+  if (!headlineSharesOffered) notes.push("headline_shares_offered_not_available");
+  if (!immediateShareExposure) notes.push("immediate_share_exposure_not_available");
+  if (!totalPotentialShareExposure) notes.push("total_potential_share_exposure_not_available");
   if (!sharesOutstanding) notes.push("shares_outstanding_not_available");
   if (!publicFloat) notes.push("public_float_not_available");
   if (!marketCap) notes.push("market_cap_not_available");
@@ -1006,6 +1106,12 @@ function roundPercent(value: number) {
 function maxNumber(values: Array<number | null>) {
   const numbers = values.filter(isPositiveNumber);
   return numbers.length ? Math.max(...numbers) : null;
+}
+
+function sumPositive(values: Array<number | null>) {
+  const numbers = values.filter(isPositiveNumber);
+  if (!numbers.length) return null;
+  return numbers.reduce((sum, value) => sum + value, 0);
 }
 
 function trimForModel(value: string) {

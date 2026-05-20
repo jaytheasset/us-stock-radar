@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerEnv, redactUrl } from "@/lib/env";
-import { runAccesswireNewsIngest } from "@/lib/newsIngest";
+import { runAccesswireNewsIngestWithRawFetcher } from "@/lib/newsIngest";
+import { fetchAccesswireRawItems, type AccesswireRawFetchResult } from "@/lib/sources/accesswire/parser";
 
 export const dynamic = "force-dynamic";
 
@@ -39,45 +40,44 @@ type AccesswireIngestOptions = {
   sourceUniqueId?: string;
 };
 
+type AccesswireRawFetchOptions = {
+  limit: number;
+  sourceUniqueId?: string;
+  includeArticleBody: boolean;
+  articleBodyLimit: number;
+};
+
 async function runAccesswireNewsIngestWithFallback(options: AccesswireIngestOptions) {
-  const directResult = await runAccesswireNewsIngest(options);
-  if (!shouldUseNasFallback(directResult)) return directResult;
+  let nasFallback: Record<string, unknown> | null = null;
 
-  const fallbackResult = await runAccesswireNasBridge(options, directResult);
-  if (fallbackResult.ok && fallbackResult.data) {
-    return {
-      ...fallbackResult.data,
-      nas_fallback: {
-        attempted: true,
-        used: true,
-        source: "ACCESSWIRE_INGEST_URL",
-        url: fallbackResult.redactedUrl,
-        direct_stage: readRecord(directResult)?.stage || null,
-        direct_status: readRecord(directResult)?.status || null,
-        bridge_status: fallbackResult.status,
-      },
-    };
-  }
+  const result = await runAccesswireNewsIngestWithRawFetcher(async (rawOptions) => {
+    const directResult = await fetchAccesswireRawItems(rawOptions);
+    if (!shouldUseNasFallback(directResult)) return directResult;
 
-  return {
-    ...readRecord(directResult),
-    nas_fallback: {
+    const fallbackResult = await runAccesswireNasBridge(rawOptions, directResult);
+    nasFallback = {
       attempted: true,
-      used: false,
+      used: Boolean(fallbackResult.ok && fallbackResult.data),
       source: "ACCESSWIRE_INGEST_URL",
       url: fallbackResult.redactedUrl,
+      direct_stage: "raw_fetch",
+      direct_status: readRecord(directResult)?.status || null,
       bridge_status: fallbackResult.status,
-      bridge_error: fallbackResult.error,
-    },
-  };
+      ...(fallbackResult.error ? { bridge_error: fallbackResult.error } : {}),
+    };
+
+    return fallbackResult.ok && fallbackResult.data ? fallbackResult.data : directResult;
+  }, options);
+
+  return nasFallback ? { ...readRecord(result), nas_fallback: nasFallback } : result;
 }
 
 function shouldUseNasFallback(result: unknown) {
   const record = readRecord(result);
-  return record?.ok === false && record.stage === "raw_fetch";
+  return record?.ok === false;
 }
 
-async function runAccesswireNasBridge(options: AccesswireIngestOptions, directResult: unknown) {
+async function runAccesswireNasBridge(options: AccesswireRawFetchOptions, directResult: unknown) {
   const env = getServerEnv();
   const redactedUrl = redactUrl(env.accesswireIngestUrl);
   if (!env.accesswireIngestUrl) {
@@ -111,14 +111,14 @@ async function runAccesswireNasBridge(options: AccesswireIngestOptions, directRe
       }),
     });
     const data = await response.json().catch(() => null);
-    const record = readRecord(data);
-    const ok = response.ok && record?.ok !== false;
+    const record = normalizeBridgeData(readRecord(data));
+    const ok = response.ok && bridgePayloadOk(record);
 
     return {
       ok,
       status: response.status,
       redactedUrl,
-      data: record,
+      data: record as AccesswireRawFetchResult | null,
       error: ok ? undefined : readBridgeError(record, response.statusText || "Accesswire NAS bridge failed"),
     };
   } catch (error) {
@@ -187,6 +187,18 @@ function readBridgeError(data: Record<string, unknown> | null, fallback: string)
   if (typeof data.message === "string" && data.message.trim()) return data.message;
   if (typeof data.error === "string" && data.error.trim()) return data.error;
   return fallback;
+}
+
+function bridgePayloadOk(data: Record<string, unknown> | null) {
+  if (!data) return false;
+  if (data.ok === false) return false;
+  if (data.status === "failed" || data.status === "error") return false;
+  return Array.isArray(data.items);
+}
+
+function normalizeBridgeData(data: Record<string, unknown> | null) {
+  const nestedResult = readRecord(data?.result);
+  return nestedResult || data;
 }
 
 function readRecord(value: unknown): Record<string, unknown> | null {

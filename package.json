@@ -20,6 +20,7 @@
     "verify:doj-parser": "node --experimental-strip-types scripts/verify-doj-parser.mjs",
     "verify:globe-parser": "node --experimental-strip-types scripts/verify-globe-parser.mjs",
     "verify:newsfile-parser": "node --experimental-strip-types scripts/verify-newsfile-parser.mjs",
+    "verify:nasdaq-trader-parser": "node --experimental-strip-types scripts/verify-nasdaq-trader-parser.mjs",
     "verify:ofac-parser": "node --experimental-strip-types scripts/verify-ofac-parser.mjs",
     "verify:prnewswire-parser": "node --experimental-strip-types scripts/verify-prnewswire-parser.mjs",
     "verify:whitehouse-parser": "node --experimental-strip-types scripts/verify-whitehouse-parser.mjs",

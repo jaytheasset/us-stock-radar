@@ -1,7 +1,7 @@
 import { CALENDAR_EVENT_TYPE_VALUES } from "@/lib/calendarEventRegistry";
 
 export const NEWS_EVENT_ANALYSIS_PROMPT_KEY = "news_event_analysis";
-export const NEWS_EVENT_ANALYSIS_PROMPT_VERSION = "v20";
+export const NEWS_EVENT_ANALYSIS_PROMPT_VERSION = "v24";
 
 export const SOURCE_GROUP_VALUES = ["news"] as const;
 export const MARKET_SCOPE_VALUES = ["company", "sector", "theme", "macro"] as const;
@@ -122,9 +122,19 @@ export const newsEventAnalysisSystemPrompt = [
   "Use capital_return only when the core development is an actual share repurchase, buyback authorization, repurchase allocation increase, or announced capital return program centered on repurchases.",
   "Do not use capital_return for financing, capital markets activity, capital allocation commentary, strategy updates, liquidity improvement, or transformation plans unless the article discloses a concrete repurchase/buyback action.",
   "For dividends use dividends. If buybacks and dividends both appear, follow the core development.",
+  "For fixed-cash consideration events such as cash mergers, tender offers, cash redemptions, and forced cash-outs, compare the cash price with the most relevant available market or reference price. If the cash price is within plus or minus 5%, use neutral and feed-level materiality unless another risk is clearly present. If the cash price is 5% or more above the reference price, use bullish and treat it as an alert candidate. If the cash price is 5% or more below the reference price, use bearish and treat it as an alert candidate.",
+  "Use the current or last reliable trading price when the event is newly disclosed or still tradable. If the stock has already converged near a previously announced deal price, use the pre-announcement price when available and explain that the current price already reflects the deal. If no reliable reference price is available, do not force bullish or bearish direction from transaction mechanics alone.",
   "For dilution_risk, registered direct, public offering, PIPE, ATM, convertible, warrant, pre-funded warrant, or shelf takedown news, fill offering_terms with only the disclosed terms.",
+  "For dilution_risk, separate common shares, pre-funded warrants, ordinary/common warrants, and convertible securities. Do not collapse pre-funded warrants into ordinary warrants.",
+  "For pre-funded warrants, treat the share count as near-immediate share exposure when disclosed because the exercise price is usually nominal.",
+  "For ordinary/common warrants and convertible securities, treat disclosed share coverage as future overhang, not immediate issued shares.",
+  "Set total_potential_share_exposure to the disclosed total if the article gives one; otherwise use the disclosed component counts you can identify without inventing missing numbers.",
   "For non-offering news, set offering_terms.is_offering false and use null values or empty arrays inside offering_terms.",
   "Do not calculate dilution percentages, discount to market, or market-cap percentages in offering_terms; code will calculate those from market_context.",
+  "For dilution_risk analysis, do not merely summarize the financing. Interpret the pressure by comparing disclosed offering price, warrant exercise price, note conversion price, or other exercise/conversion terms against market_context price or previous_close when available.",
+  "For dilution_risk analysis, compare disclosed share issuance, warrant share coverage, convertible share exposure, or offering amount against market_context shares_outstanding, public_float, and market_cap when available.",
+  "In quick_take, why_it_matters, bearish_points, score_reason, and what_to_watch_next, explain the practical market read-through: near-market vs discounted pricing, immediate dilution, future warrant/convertible overhang, and whether the size is small, moderate, or large relative to the issuer.",
+  "If market_context is missing or partial, say which comparison is unavailable instead of pretending precision.",
   "Score by materiality, price sensitivity, specificity, source strength, timeliness, and market interest.",
   "Score is a 0-100 integer scale, not a 0-10 scale. Around 50 means feed-worthy, and 75 or higher means alert-worthy.",
   "Choose signal from the likely stock read-through for the primary ticker. Use volatile or neutral when direction is mixed.",
@@ -132,6 +142,7 @@ export const newsEventAnalysisSystemPrompt = [
   "If no useful scheduled catalyst exists, return an empty calendar_items array.",
   "Output format is strict: quick_take must be one sentence under 30 words.",
   "summary must be 1-3 sentences under 90 words total.",
+  "For dilution_risk only, summary may be 2-4 sentences under 150 words total so it can explain offering structure, immediate dilution, future warrant/convertible overhang, and market-context comparisons.",
   "why_it_matters must be one sentence under 45 words.",
   "score_reason must be under 24 words.",
   "bullish_points, bearish_points, key_evidence, and what_to_watch_next must each contain at most 4 items, each under 20 words.",
@@ -266,6 +277,11 @@ export const newsEventAnalysisResponseSchema = {
         "offering_amount",
         "shares_offered",
         "offering_price",
+        "common_shares",
+        "prefunded_warrants",
+        "common_warrants",
+        "convertible_securities",
+        "total_potential_share_exposure",
         "warrants",
         "use_of_proceeds",
         "closing_date",
@@ -339,6 +355,128 @@ export const newsEventAnalysisResponseSchema = {
             value_text: { type: ["string", "null"] },
             price: { type: ["number", "null"] },
             currency: { type: ["string", "null"] },
+            evidence: { type: ["string", "null"] },
+          },
+        },
+        common_shares: {
+          type: "object",
+          additionalProperties: false,
+          required: ["value_text", "count", "evidence"],
+          properties: {
+            value_text: { type: ["string", "null"] },
+            count: { type: ["number", "null"] },
+            evidence: { type: ["string", "null"] },
+          },
+        },
+        prefunded_warrants: {
+          type: "object",
+          additionalProperties: false,
+          required: ["included", "shares", "exercise_price", "evidence"],
+          properties: {
+            included: { type: "boolean" },
+            shares: {
+              type: "object",
+              additionalProperties: false,
+              required: ["value_text", "count", "evidence"],
+              properties: {
+                value_text: { type: ["string", "null"] },
+                count: { type: ["number", "null"] },
+                evidence: { type: ["string", "null"] },
+              },
+            },
+            exercise_price: {
+              type: "object",
+              additionalProperties: false,
+              required: ["value_text", "price", "currency", "evidence"],
+              properties: {
+                value_text: { type: ["string", "null"] },
+                price: { type: ["number", "null"] },
+                currency: { type: ["string", "null"] },
+                evidence: { type: ["string", "null"] },
+              },
+            },
+            evidence: { type: ["string", "null"] },
+          },
+        },
+        common_warrants: {
+          type: "object",
+          additionalProperties: false,
+          required: ["included", "shares", "exercise_price", "expiration_text", "evidence"],
+          properties: {
+            included: { type: "boolean" },
+            shares: {
+              type: "object",
+              additionalProperties: false,
+              required: ["value_text", "count", "evidence"],
+              properties: {
+                value_text: { type: ["string", "null"] },
+                count: { type: ["number", "null"] },
+                evidence: { type: ["string", "null"] },
+              },
+            },
+            exercise_price: {
+              type: "object",
+              additionalProperties: false,
+              required: ["value_text", "price", "currency", "evidence"],
+              properties: {
+                value_text: { type: ["string", "null"] },
+                price: { type: ["number", "null"] },
+                currency: { type: ["string", "null"] },
+                evidence: { type: ["string", "null"] },
+              },
+            },
+            expiration_text: { type: ["string", "null"] },
+            evidence: { type: ["string", "null"] },
+          },
+        },
+        convertible_securities: {
+          type: "object",
+          additionalProperties: false,
+          required: ["included", "principal_amount", "conversion_price", "share_exposure", "evidence"],
+          properties: {
+            included: { type: "boolean" },
+            principal_amount: {
+              type: "object",
+              additionalProperties: false,
+              required: ["value_text", "amount", "currency", "evidence"],
+              properties: {
+                value_text: { type: ["string", "null"] },
+                amount: { type: ["number", "null"] },
+                currency: { type: ["string", "null"] },
+                evidence: { type: ["string", "null"] },
+              },
+            },
+            conversion_price: {
+              type: "object",
+              additionalProperties: false,
+              required: ["value_text", "price", "currency", "evidence"],
+              properties: {
+                value_text: { type: ["string", "null"] },
+                price: { type: ["number", "null"] },
+                currency: { type: ["string", "null"] },
+                evidence: { type: ["string", "null"] },
+              },
+            },
+            share_exposure: {
+              type: "object",
+              additionalProperties: false,
+              required: ["value_text", "count", "evidence"],
+              properties: {
+                value_text: { type: ["string", "null"] },
+                count: { type: ["number", "null"] },
+                evidence: { type: ["string", "null"] },
+              },
+            },
+            evidence: { type: ["string", "null"] },
+          },
+        },
+        total_potential_share_exposure: {
+          type: "object",
+          additionalProperties: false,
+          required: ["value_text", "count", "evidence"],
+          properties: {
+            value_text: { type: ["string", "null"] },
+            count: { type: ["number", "null"] },
             evidence: { type: ["string", "null"] },
           },
         },

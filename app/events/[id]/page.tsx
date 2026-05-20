@@ -523,6 +523,8 @@ export default async function StockNewsDetailPage({ params }: StockDetailPagePro
   }
   const eventBadge = getEventTypeBadge(event.eventType);
   const useDilutionOfferingTemplate = shouldUseNewsDilutionOfferingTemplate(event, profile);
+  const isNasdaqCorporateAction = isNasdaqCorporateActionDetail(event, profile);
+  const showBullBearCases = shouldShowBullBearCases(event, profile);
 
   return (
     <main className="feed-page stock-detail-page">
@@ -617,10 +619,12 @@ export default async function StockNewsDetailPage({ params }: StockDetailPagePro
                     </div>
                   </div>
 
-                  <div className="quick-case-grid">
-                    <CaseList title="Bullish" tone="bullish" items={profile.bullCase} />
-                    <CaseList title="Bearish" tone="bearish" items={profile.bearCase} />
-                  </div>
+                  {showBullBearCases ? (
+                    <div className="quick-case-grid">
+                      <CaseList title="Bullish" tone="bullish" items={profile.bullCase} />
+                      <CaseList title="Bearish" tone="bearish" items={profile.bearCase} />
+                    </div>
+                  ) : null}
                 </div>
               </section>
 
@@ -637,13 +641,14 @@ export default async function StockNewsDetailPage({ params }: StockDetailPagePro
                 <AnalysisList title="What To Watch Next" numbered items={profile.watchNext} />
               </section>
 
-              <SectorThemeContextPanel context={profile.context} ticker={event.ticker} />
+              {!isNasdaqCorporateAction ? <SectorThemeContextPanel context={profile.context} ticker={event.ticker} /> : null}
             </>
           )}
 
         </article>
 
         <aside className="stock-detail-rail">
+          {!isNasdaqCorporateAction ? (
           <section className="stock-detail-card recent-filings-card">
             <div className="card-heading-row">
               <div>
@@ -665,6 +670,7 @@ export default async function StockNewsDetailPage({ params }: StockDetailPagePro
               ))}
             </div>
           </section>
+          ) : null}
 
           <section className="stock-detail-card detail-score-card">
             <h2>Event Snapshot</h2>
@@ -677,6 +683,7 @@ export default async function StockNewsDetailPage({ params }: StockDetailPagePro
             <MetricRow label="Signal" value={event.signal} />
           </section>
 
+          {!isNasdaqCorporateAction ? (
           <section className="stock-detail-card related-news-card">
             <div className="card-heading-row">
               <h2>Related News</h2>
@@ -691,13 +698,16 @@ export default async function StockNewsDetailPage({ params }: StockDetailPagePro
               ))}
             </div>
           </section>
+          ) : null}
 
+          {!isNasdaqCorporateAction ? (
           <section className="stock-detail-card alert-card">
             <span>Premium</span>
             <h2>Real-time alerts for this event type</h2>
             <p>Track similar high-impact stock news, source changes, and follow-up catalysts.</p>
             <button type="button">Upgrade to Premium</button>
           </section>
+          ) : null}
 
           <section className="stock-detail-card source-confidence-card">
             <h2>Source & Evidence</h2>
@@ -736,6 +746,19 @@ export default async function StockNewsDetailPage({ params }: StockDetailPagePro
       </div>
     </main>
   );
+}
+
+function isNasdaqCorporateActionDetail(event: FeedItem, profile: DetailProfile) {
+  return (
+    event.source === "Nasdaq Corporate Actions" ||
+    profile.sourceType === "Exchange Corporate Action Alert" ||
+    profile.sourceReleaseType === "Nasdaq Trader Alert"
+  );
+}
+
+function shouldShowBullBearCases(event: FeedItem, profile: DetailProfile) {
+  if (!isNasdaqCorporateActionDetail(event, profile)) return true;
+  return ["listing_risk", "strategic_transaction", "dilution_risk", "financial_risk", "capital_return"].includes(event.eventType);
 }
 
 function NewsDilutionOfferingTemplate({ event, profile }: { event: FeedItem; profile: DetailProfile }) {
@@ -1562,6 +1585,7 @@ async function buildDbBackedProfile(item: LiveFeedItem, event: FeedItem): Promis
 
   return {
     ...fallback,
+    company: sourceEvidence.issuer || fallback.company,
     price: item.price,
     changeAmount: item.changeAmount,
     change: item.change,
@@ -1573,6 +1597,7 @@ async function buildDbBackedProfile(item: LiveFeedItem, event: FeedItem): Promis
     sourceUrl,
     issuer: sourceEvidence.issuer,
     publishedAt: publishedLabel,
+    theme: getEventTypeBadge(item.eventType).label || fallback.theme,
     quickTake: item.quickTake || item.summary || fallback.quickTake,
     whyItMatters: readRowString(analysis, "why_it_matters") || item.scoreReason || fallback.whyItMatters,
     bullCase: toStringArray(analysis?.bullish_points, fallback.bullCase),
@@ -1604,7 +1629,11 @@ function buildDetailIdentityChips(
   fallback: DetailProfile,
 ) {
   if (item.marketScope === "company" && isRealTicker(ticker)) {
-    return [`${fallback.exchange || getExchange(ticker)}:${ticker}`, fallback.company || `${ticker} Corporation`];
+    const companyName =
+      sourceEvidence.sourceType === "Exchange Corporate Action Alert"
+        ? sourceEvidence.issuer
+        : fallback.company;
+    return [`${fallback.exchange || getExchange(ticker)}:${ticker}`, companyName || `${ticker} Corporation`];
   }
 
   return [sourceEvidence.issuer || item.source, ...buildClassificationIdentityChips(item)].filter(Boolean);
@@ -1636,6 +1665,25 @@ function resolveSourceEvidence({
       issuer: ticker || fallback.issuer,
       sourceReleaseType: "Official Filing",
       sourceType: "SEC Filing",
+    };
+  }
+
+  if (sourceLabel === "Nasdaq Corporate Actions") {
+    const corporateAction = toRecord(rawPayload?.corporate_action);
+    const companyName = cleanCorporateActionIssuer(readRowString(corporateAction, "company_name"));
+    return {
+      issuer: companyName || ticker || fallback.issuer,
+      sourceReleaseType: "Nasdaq Trader Alert",
+      sourceType: "Exchange Corporate Action Alert",
+    };
+  }
+
+  if (sourceLabel === "Nasdaq Trader") {
+    const tradeHalt = toRecord(rawPayload?.trade_halt);
+    return {
+      issuer: readRowString(tradeHalt, "issueName") || ticker || fallback.issuer,
+      sourceReleaseType: "Nasdaq Trading Halt Notice",
+      sourceType: "Exchange Trading Halt Notice",
     };
   }
 
@@ -1725,6 +1773,17 @@ function uniqueChipLabels(values: string[]) {
   }
 
   return labels;
+}
+
+function cleanCorporateActionIssuer(value: string) {
+  return value
+    .replace(/\s+(?:Class\s+[A-Z]\s+)?(?:Common Stock|Common Shares|Ordinary Shares|American Depositary Shares)$/i, "")
+    .replace(/\s+(?:Rights?|Units?|Warrants?)$/i, "")
+    .replace(/\s+\d+(?:\.\d+)?%\s+.*$/i, "")
+    .replace(/\s+(?:Fixed\s*-\s*Rate\s+Reset\s+)?Series\s+[A-Z]\s+.*$/i, "")
+    .replace(/\s+(?:Cumulative\s+)?(?:Perpetual\s+)?Redeemable\s+Preferred\s+Shares?$/i, "")
+    .replace(/\s+Notes?\s+due\s+\d{4}$/i, "")
+    .trim();
 }
 
 function isGovernmentSource(value: string) {
@@ -2683,6 +2742,9 @@ function formatSourceLabel(value: string) {
     doj: "DOJ",
     globe: "GlobeNewswire",
     globenewswire: "GlobeNewswire",
+    nasdaq_corporate_actions: "Nasdaq Corporate Actions",
+    "nasdaq corporate actions": "Nasdaq Corporate Actions",
+    nasdaq_trader: "Nasdaq Trader",
     newsfile: "Newsfile",
     ofac: "OFAC",
     prnewswire: "PR Newswire",
@@ -2833,6 +2895,8 @@ function getSourceUrl(source: string) {
     Accesswire: "https://www.accesswire.com/",
     "Business Wire": "https://www.businesswire.com/",
     GlobeNewswire: "https://www.globenewswire.com/",
+    "Nasdaq Corporate Actions": "https://www.nasdaqtrader.com/TraderNews.aspx",
+    "Nasdaq Trader": "https://www.nasdaqtrader.com/",
     "PR Newswire": "https://www.prnewswire.com/news-releases/",
     SEC: "https://www.sec.gov/edgar/search/",
   };

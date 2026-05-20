@@ -1011,6 +1011,7 @@ function accesswireFetchHeaders(kind: "api" | "html", feed?: AccesswireFeedConfi
         ? "US-Stock-Radar/0.1 Access Newswire raw parser"
         : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36",
     "X-Requested-With": "XMLHttpRequest",
+    account: "1",
   };
 }
 

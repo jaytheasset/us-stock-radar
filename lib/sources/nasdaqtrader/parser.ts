@@ -3,12 +3,14 @@ import { XMLParser } from "fast-xml-parser";
 const NASDAQ_TRADER_BASE_URL = "https://www.nasdaqtrader.com";
 const NASDAQ_TRADE_HALTS_URL = `${NASDAQ_TRADER_BASE_URL}/rss.aspx?feed=tradehalts`;
 
-const PARSER_VERSION = "nasdaq_trader_trade_halts_parser_v1";
-const ANALYSIS_TEXT_VERSION = "nasdaq_trader_analysis_text_v1";
+const PARSER_VERSION = "nasdaq_trader_trade_halts_parser_v3";
+const ANALYSIS_TEXT_VERSION = "nasdaq_trader_analysis_text_v3";
 
 type FetchOptions = {
   limit?: number;
   sourceUniqueId?: string;
+  haltDate?: string;
+  resumptionDate?: string;
   includeArticleBody?: boolean;
   articleBodyLimit?: number;
 };
@@ -76,9 +78,10 @@ export async function fetchNasdaqTraderRawItems(
   const fetchedAt = new Date().toISOString();
   const sourceUniqueId = normalizeSourceUniqueId(options.sourceUniqueId);
   const limit = sourceUniqueId ? 1 : clampNumber(options.limit ?? 25, 1, 100);
+  const sourceUrl = buildTradeHaltsUrl(options);
 
   try {
-    const response = await fetch(NASDAQ_TRADE_HALTS_URL, {
+    const response = await fetch(sourceUrl, {
       cache: "no-store",
       headers: nasdaqTraderFetchHeaders(),
     });
@@ -91,12 +94,12 @@ export async function fetchNasdaqTraderRawItems(
         fetchedAt,
         count: 0,
         items: [],
-        diagnostics: emptyDiagnostics(response.status, 0),
+        diagnostics: emptyDiagnostics(response.status, 0, sourceUrl),
         error: response.statusText || "Nasdaq Trader trade halt RSS request failed",
       };
     }
 
-    const parsedItems = parseNasdaqTraderRssXml(xml, fetchedAt);
+    const parsedItems = parseNasdaqTraderRssXml(xml, fetchedAt, sourceUrl);
     const selectedItems = parsedItems
       .filter((item) => !sourceUniqueId || normalizeSourceUniqueId(item.source_unique_id) === sourceUniqueId)
       .slice(0, limit);
@@ -113,7 +116,7 @@ export async function fetchNasdaqTraderRawItems(
         articleBodiesFetched: 0,
         parserVersion: PARSER_VERSION,
         skippedNonEnglish: 0,
-        sourceUrl: NASDAQ_TRADE_HALTS_URL,
+        sourceUrl,
         feedStats: [
           {
             label: "Nasdaq Trader trade halts",
@@ -131,13 +134,17 @@ export async function fetchNasdaqTraderRawItems(
       fetchedAt,
       count: 0,
       items: [],
-      diagnostics: emptyDiagnostics(0, 0),
+      diagnostics: emptyDiagnostics(0, 0, sourceUrl),
       error: error instanceof Error ? error.message : "Nasdaq Trader trade halt RSS fetch failed",
     };
   }
 }
 
-export function parseNasdaqTraderRssXml(xml: string, fetchedAt = new Date().toISOString()) {
+export function parseNasdaqTraderRssXml(
+  xml: string,
+  fetchedAt = new Date().toISOString(),
+  sourceUrl = NASDAQ_TRADE_HALTS_URL,
+) {
   const parser = new XMLParser({
     attributeNamePrefix: "@_",
     ignoreAttributes: false,
@@ -155,6 +162,7 @@ export function parseNasdaqTraderRssXml(xml: string, fetchedAt = new Date().toIS
       if (!fields.issueSymbol || !fields.haltDate || !fields.haltTime) return null;
 
       const sourceUniqueId = buildTradeHaltId(fields);
+      const haltGroupKey = buildTradeHaltGroupKey(fields);
       const publishedAt = parseNasdaqDateTime(fields.haltDate, fields.haltTime) || parseNasdaqDate(readString(item.pubDate));
       const reasonDescription = reasonDescriptionForCode(fields.reasonCode);
       const ticker = buildTickerMention(fields);
@@ -167,7 +175,7 @@ export function parseNasdaqTraderRssXml(xml: string, fetchedAt = new Date().toIS
         source_code: "nasdaq_trader" as const,
         source_group: "news" as const,
         source_unique_id: sourceUniqueId,
-        source_url: NASDAQ_TRADE_HALTS_URL,
+        source_url: sourceUrl,
         title: buildTradeHaltTitle(fields),
         published_at: publishedAt,
         fetched_at: fetchedAt,
@@ -178,12 +186,13 @@ export function parseNasdaqTraderRssXml(xml: string, fetchedAt = new Date().toIS
           source_name: "Nasdaq Trader",
           parser_version: PARSER_VERSION,
           feed_label: "Trade Halts",
-          feed_url: NASDAQ_TRADE_HALTS_URL,
+          feed_url: sourceUrl,
           full_text_html: fullTextHtml,
           analysis_text: bodyText,
           analysis_text_version: ANALYSIS_TEXT_VERSION,
           analysis_text_chars: bodyText.length,
           trade_halt: fields,
+          halt_group_key: haltGroupKey,
           reason_description: reasonDescription,
           tickers,
           body_tickers: tickers,
@@ -193,6 +202,7 @@ export function parseNasdaqTraderRssXml(xml: string, fetchedAt = new Date().toIS
           candidate_reason: candidate.reason,
           candidate_signals: candidate.signals,
           low_value_reasons: candidate.lowValueReasons,
+          halt_feed_policy: candidate.feedPolicy,
           sector_impact_signals: candidate.sectorImpactSignals,
         },
       };
@@ -203,21 +213,25 @@ export function parseNasdaqTraderRssXml(xml: string, fetchedAt = new Date().toIS
 function readTradeHaltFields(item: Record<string, unknown>): TradeHaltFields {
   return {
     haltDate: readString(item["ndaq:HaltDate"]),
-    haltTime: readString(item["ndaq:HaltTime"]),
+    haltTime: normalizeTimeText(readString(item["ndaq:HaltTime"])),
     issueSymbol: normalizeSymbol(readString(item["ndaq:IssueSymbol"]) || readString(item.title)),
     issueName: readString(item["ndaq:IssueName"]),
     market: readString(item["ndaq:Market"]),
     reasonCode: normalizeReasonCode(readString(item["ndaq:ReasonCode"])),
     pauseThresholdPrice: readString(item["ndaq:PauseThresholdPrice"]),
     resumptionDate: readString(item["ndaq:ResumptionDate"]),
-    resumptionQuoteTime: readString(item["ndaq:ResumptionQuoteTime"]),
-    resumptionTradeTime: readString(item["ndaq:ResumptionTradeTime"]),
+    resumptionQuoteTime: normalizeTimeText(readString(item["ndaq:ResumptionQuoteTime"])),
+    resumptionTradeTime: normalizeTimeText(readString(item["ndaq:ResumptionTradeTime"])),
   };
 }
 
 function classifyNasdaqTraderCandidate(fields: TradeHaltFields, reasonDescription: string | null) {
   const reasonCode = fields.reasonCode || "";
-  const lowValueReasons = volatilityPauseCodes.has(reasonCode) ? ["volatility_trading_pause"] : [];
+  const lowValueReasons = volatilityPauseCodes.has(reasonCode)
+    ? ["volatility_trading_pause"]
+    : updateOnlyHaltCodes.has(reasonCode)
+      ? ["halt_resumption_update_only"]
+      : [];
   const sectorImpactSignals: string[] = [];
   const signals = [
     `halt_code:${reasonCode || "unknown"}`,
@@ -232,27 +246,57 @@ function classifyNasdaqTraderCandidate(fields: TradeHaltFields, reasonDescriptio
       reason: `Nasdaq Trader halt code ${reasonCode}: ${reasonDescription || "material halt"}.`,
       signals,
       lowValueReasons,
+      feedPolicy: {
+        global_feed: true,
+        event_action: "create_feed_event",
+        reason: "Material halt code selected for global feed coverage.",
+      },
       sectorImpactSignals,
     };
   }
 
   if (volatilityPauseCodes.has(reasonCode)) {
     return {
-      candidateClass: "ticker_archive_candidate",
-      reason: `Nasdaq Trader low-priority volatility pause: ${reasonCode} (${reasonDescription || "volatility pause"}).`,
+      candidateClass: "halt_status_log",
+      reason: `Nasdaq Trader volatility pause excluded from global feed: ${reasonCode} (${reasonDescription || "volatility pause"}).`,
       signals,
       lowValueReasons,
+      feedPolicy: {
+        global_feed: false,
+        event_action: "status_log_only",
+        reason: "Volatility pauses are too frequent for the global feed.",
+      },
+      sectorImpactSignals,
+    };
+  }
+
+  if (updateOnlyHaltCodes.has(reasonCode)) {
+    return {
+      candidateClass: "halt_update_only",
+      reason: `Nasdaq Trader halt update should update an existing halt event, not create a new feed card: ${reasonCode} (${reasonDescription || "halt update"}).`,
+      signals,
+      lowValueReasons,
+      feedPolicy: {
+        global_feed: false,
+        event_action: "update_existing_halt",
+        reason: "Resumption and update notices should not duplicate the original halt card.",
+      },
       sectorImpactSignals,
     };
   }
 
   return {
-    candidateClass: "company_event",
+    candidateClass: "halt_status_log",
     reason: reasonDescription
       ? `Nasdaq Trader trading halt or pause: ${reasonCode} (${reasonDescription}).`
       : "Nasdaq Trader trading halt or pause.",
     signals,
     lowValueReasons,
+    feedPolicy: {
+      global_feed: false,
+      event_action: "review_before_feed",
+      reason: "Unknown or unsupported halt code is stored for traceability but not sent to global feed by default.",
+    },
     sectorImpactSignals,
   };
 }
@@ -277,13 +321,19 @@ function buildTradeHaltText(fields: TradeHaltFields, reasonDescription: string |
 
 function buildTradeHaltTitle(fields: TradeHaltFields) {
   const symbol = fields.issueSymbol || "Unknown";
-  const code = fields.reasonCode ? ` ${fields.reasonCode}` : "";
-  return `Nasdaq Trader halt${code}: ${symbol}`;
+  const description = reasonDescriptionForCode(fields.reasonCode);
+  if (volatilityPauseCodes.has(fields.reasonCode || "")) {
+    return `${symbol} volatility trading pause`;
+  }
+  if (updateOnlyHaltCodes.has(fields.reasonCode || "")) {
+    return `${symbol} trading halt update${description ? `: ${description}` : ""}`;
+  }
+  return `${symbol} trading halt${description ? `: ${description}` : fields.reasonCode ? ` ${fields.reasonCode}` : ""}`;
 }
 
 function buildTickerMention(fields: TradeHaltFields): NasdaqTraderTickerMention | null {
   if (!fields.issueSymbol) return null;
-  const exchange = /^nasdaq$/i.test(fields.market || "") ? "NASDAQ" : "UNKNOWN";
+  const exchange = normalizeExchange(fields.market);
   return {
     exchange,
     symbol: fields.issueSymbol,
@@ -304,6 +354,17 @@ function buildTradeHaltId(fields: TradeHaltFields) {
     .join("-");
 }
 
+function buildTradeHaltGroupKey(fields: TradeHaltFields) {
+  return [
+    "nasdaq-trader-halt",
+    fields.issueSymbol,
+    compactDate(fields.haltDate),
+    compactTime(fields.haltTime),
+  ]
+    .filter(Boolean)
+    .join(":");
+}
+
 function buildDedupeKey(sourceUniqueId: string | null) {
   return `nasdaq_trader:${sourceUniqueId || ""}`;
 }
@@ -311,18 +372,11 @@ function buildDedupeKey(sourceUniqueId: string | null) {
 const materialHaltCodes = new Set([
   "T1",
   "T2",
-  "T3",
   "T12",
   "H4",
   "H9",
   "H10",
   "H11",
-  "R4",
-  "R9",
-  "C3",
-  "C4",
-  "C9",
-  "C11",
   "D",
   "M1",
   "IPO1",
@@ -330,7 +384,8 @@ const materialHaltCodes = new Set([
   "IPOE",
 ]);
 
-const volatilityPauseCodes = new Set(["LUDP", "LUDS", "T5", "T7", "M"]);
+const updateOnlyHaltCodes = new Set(["T3", "R4", "R9", "C3", "C4", "C9", "C11", "R1", "R2", "MWCQ"]);
+const volatilityPauseCodes = new Set(["LUDP", "LUDS", "M", "T5", "T6"]);
 
 function reasonDescriptionForCode(value: string | null) {
   const code = normalizeReasonCode(value);
@@ -371,6 +426,7 @@ function reasonDescriptionForCode(value: string | null) {
       IPOE: "IPO security positioning window extension",
       MWCQ: "Market-wide circuit breaker resumption",
       M: "Volatility trading pause in an exchange-listed issue",
+      D: "Security deletion",
     } as Record<string, string>
   )[code] || null;
 }
@@ -387,8 +443,43 @@ function normalizeSymbol(value: string | null | undefined) {
   return /^[A-Z][A-Z0-9.-]{0,9}$/.test(symbol) ? symbol : null;
 }
 
+function normalizeTimeText(value: string | null | undefined) {
+  const text = String(value || "")
+    .replace(/\s+\./g, ".")
+    .replace(/\s+/g, "")
+    .trim();
+  return text || null;
+}
+
+function normalizeExchange(value: string | null | undefined) {
+  const normalized = String(value || "").trim().toUpperCase();
+  if (normalized === "NASDAQ") return "NASDAQ";
+  if (normalized === "NYSE") return "NYSE";
+  if (normalized === "AMEX") return "AMEX";
+  if (normalized === "NYSE AMERICAN" || normalized === "NYSE_AMERICAN") return "NYSE_AMERICAN";
+  if (normalized === "NYSE ARCA" || normalized === "NYSE_ARCA") return "NYSE_ARCA";
+  return normalized || "UNKNOWN";
+}
+
 function normalizeSourceUniqueId(value: string | null | undefined) {
   return String(value || "").trim().toLowerCase();
+}
+
+function buildTradeHaltsUrl(options: FetchOptions) {
+  const params = new URLSearchParams({ feed: "tradehalts" });
+  const haltDate = normalizeFeedDateParam(options.haltDate);
+  const resumptionDate = normalizeFeedDateParam(options.resumptionDate);
+  if (haltDate) params.set("haltdate", haltDate);
+  if (resumptionDate) params.set("resumedate", resumptionDate);
+  return `${NASDAQ_TRADER_BASE_URL}/rss.aspx?${params.toString()}`;
+}
+
+function normalizeFeedDateParam(value: string | null | undefined) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.length === 8) return digits;
+  const iso = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return `${iso[2]}${iso[3]}${iso[1]}`;
+  return null;
 }
 
 function parseNasdaqDateTime(dateValue: string | null, timeValue: string | null) {
@@ -423,14 +514,14 @@ function nasdaqTraderFetchHeaders() {
   };
 }
 
-function emptyDiagnostics(status: number, itemCount: number): NasdaqTraderRawFetchResult["diagnostics"] {
+function emptyDiagnostics(status: number, itemCount: number, sourceUrl = NASDAQ_TRADE_HALTS_URL): NasdaqTraderRawFetchResult["diagnostics"] {
   return {
     parsedFromFeed: itemCount,
     articleBodiesRequested: 0,
     articleBodiesFetched: 0,
     parserVersion: PARSER_VERSION,
     skippedNonEnglish: 0,
-    sourceUrl: NASDAQ_TRADE_HALTS_URL,
+    sourceUrl,
     feedStats: [
       {
         label: "Nasdaq Trader trade halts",

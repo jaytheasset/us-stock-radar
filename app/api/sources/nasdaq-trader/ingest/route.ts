@@ -12,7 +12,12 @@ export async function POST(request: NextRequest) {
   const dryRun = request.nextUrl.searchParams.get("dryRun") === "true" || bodyRecord.dryRun === true;
   const force = request.nextUrl.searchParams.get("force") === "true" || bodyRecord.force === true;
   const sourceUniqueId = readString(request.nextUrl.searchParams.get("sourceUniqueId"), bodyRecord.sourceUniqueId);
-  const result = await runNasdaqTraderNewsIngest({ limit, dryRun, force, sourceUniqueId });
+  const haltDate = readString(request.nextUrl.searchParams.get("haltDate") || request.nextUrl.searchParams.get("haltdate"), bodyRecord.haltDate);
+  const resumptionDate = readString(
+    request.nextUrl.searchParams.get("resumptionDate") || request.nextUrl.searchParams.get("resumedate"),
+    bodyRecord.resumptionDate,
+  );
+  const result = await runNasdaqTraderNewsIngest({ limit, dryRun, force, sourceUniqueId, haltDate, resumptionDate });
 
   return NextResponse.json(result, {
     status: responseStatus(result),
@@ -24,7 +29,12 @@ export async function GET(request: NextRequest) {
   const dryRun = request.nextUrl.searchParams.get("dryRun") !== "false";
   const force = request.nextUrl.searchParams.get("force") === "true";
   const sourceUniqueId = readString(request.nextUrl.searchParams.get("sourceUniqueId"), null);
-  const result = await runNasdaqTraderNewsIngest({ limit, dryRun, force, sourceUniqueId });
+  const haltDate = readString(request.nextUrl.searchParams.get("haltDate") || request.nextUrl.searchParams.get("haltdate"), null);
+  const resumptionDate = readString(
+    request.nextUrl.searchParams.get("resumptionDate") || request.nextUrl.searchParams.get("resumedate"),
+    null,
+  );
+  const result = await runNasdaqTraderNewsIngest({ limit, dryRun, force, sourceUniqueId, haltDate, resumptionDate });
 
   return NextResponse.json(result, {
     status: responseStatus(result),

@@ -490,7 +490,7 @@ function classifyFdaCandidate({
 
 function findLowValueReasons(text: string) {
   const rules: Array<[string, RegExp]> = [
-    ["data_files_or_static_database", /\b(data files?|downloadable data|database|listing includes|annual reports?|accelerated approvals|novel drug approvals|approval notifications|patent certifications|suitability petitions|potential signals of serious risks)\b/i],
+    ["data_files_or_static_database", /\b(data files?|downloadable data|database|listing includes|list of determinations|determinations including written request|cleared 510\(?k\)? submissions with supporting documents|annual reports?|accelerated approvals|novel drug approvals|approval notifications|patent certifications|suitability petitions|potential signals of serious risks)\b/i],
     ["conference_or_training", /\b(conference|webinar|workshop|training|education|listening session|public meeting|town hall)\b/i],
     ["guidance_resource", /\b(guidance document|draft guidance|question[- ]and[- ]answer|q&a|faq|resource page|user fee amendments|medication errors related)\b/i],
     ["static_product_label_page", /\b(product approval indicated|proper name:|tradename:|stn:\s*(?:bl|bn)\b|package insert)\b/i],
