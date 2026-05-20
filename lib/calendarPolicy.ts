@@ -50,6 +50,8 @@ export const FILING_CALENDAR_EVENT_TYPE_ALLOWLIST = new Set([
   "spac_extension_vote",
   "despac_closing",
   "offering_closing",
+  "registration_effective_date",
+  "shareholder_approval_deadline",
   "rights_offering_deadline",
   "warrant_redemption_deadline",
   "lockup_expiration",
@@ -76,6 +78,15 @@ const fdaClinicalTypes = new Set([
   "medical_conference",
 ]);
 
+const filingOfferingTriggerTypes = new Set([
+  "offering_closing",
+  "registration_effective_date",
+  "shareholder_approval_deadline",
+  "rights_offering_deadline",
+  "warrant_redemption_deadline",
+  "lockup_expiration",
+]);
+
 const operationalRoadmapPatterns = [
   /\bcontract\s+(start|starts|starting|begins|beginning|commence|commencement|implementation|deployment)\b/,
   /\b(product|platform|service|solution|technology)\s+(launch|rollout|availability|deployment|commercialization)\b/,
@@ -99,6 +110,17 @@ const legalNoisePatterns = [
   /proxy (mailing|distribution|distributed|statement will be distributed)/,
   /board response/,
   /position statement/,
+];
+
+const filingOfferingNoisePatterns = [
+  /\bmay\s+(offer|sell|issue|resell)\b.*\bfrom time to time\b/,
+  /\bfrom time to time\b.*\b(may|offer|sell|issue|resell)\b/,
+  /\bintend(s|ed)?\s+to\s+use\s+(the\s+)?proceeds\b/,
+  /\bexpected\s+(deployment|use|application)\b/,
+  /\banticipated\s+(deployment|use|application)\b/,
+  /\bplanned\s+(deployment|use|application)\b/,
+  /\bbase\s+shelf\b.*\b(no|without)\s+(current|specific|concrete)\s+(sale|offering|terms|takedown)\b/,
+  /\buniversal\s+shelf\b.*\b(no|without)\s+(current|specific|concrete)\s+(sale|offering|terms|takedown)\b/,
 ];
 
 export function evaluateCalendarItemPolicy(input: CalendarPolicyInput): CalendarPolicyDecision {
@@ -151,6 +173,16 @@ export function evaluateCalendarItemPolicy(input: CalendarPolicyInput): Calendar
       return { keep: false, reason: "operational roadmap date, not formal filing schedule" };
     }
 
+    if (filingOfferingTriggerTypes.has(calendarEventType)) {
+      if (isVagueDate(datePrecision, input.eventDate)) {
+        return { keep: false, reason: "offering calendar trigger requires exact date" };
+      }
+
+      if (isFilingOfferingNoiseText(text)) {
+        return { keep: false, reason: "offering calendar noise, not actionable dated trigger" };
+      }
+    }
+
     return { keep: true, reason: "allowed filing calendar event" };
   }
 
@@ -168,6 +200,10 @@ function isOperationalRoadmapText(text: string) {
 
 function isLegalNoiseText(text: string) {
   return legalNoisePatterns.some((pattern) => pattern.test(text));
+}
+
+function isFilingOfferingNoiseText(text: string) {
+  return filingOfferingNoisePatterns.some((pattern) => pattern.test(text));
 }
 
 function isFormalCalendarType(calendarEventType: string) {
