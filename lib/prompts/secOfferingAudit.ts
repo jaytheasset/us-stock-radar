@@ -1,7 +1,7 @@
 import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
 
 export const SEC_OFFERING_AUDIT_PROMPT_KEY = "sec_offering_security_audit";
-export const SEC_OFFERING_AUDIT_PROMPT_VERSION = "v2";
+export const SEC_OFFERING_AUDIT_PROMPT_VERSION = "v4";
 
 const AUDIT_CONFIDENCE_VALUES = ["high", "medium", "low", "unknown"] as const;
 const AUDIT_ACTION_VALUES = ["complete", "needs_human_review", "insufficient_evidence"] as const;
@@ -231,16 +231,27 @@ export const secOfferingAuditSystemPrompt = [
   "If the filing states the company will not receive proceeds from selling-stockholder resale, set proceeds_stack.resale_proceeds_to_company to $0 and relationship company_cash. Do not leave it null.",
   "If the company may receive proceeds only from cash warrant exercises, classify that separately as possible_warrant_exercise_proceeds or conditional_company_cash, not as resale proceeds.",
   "Filing fee table amounts are not actual issuer proceeds unless the filing separately states issuer proceeds.",
+  "Do not put fee-table maximum aggregate offering amount into selling_stockholder_proceeds unless the filing separately states estimated selling-holder proceeds outside the fee table. If the only support is the fee table, keep the amount in fee_table_amount_only.",
+  "Set sanity_checks.no_fee_table_amount_as_proceeds true when fee-table dollar amounts are kept only in fee_table_amount_only or context fields and are not used as company proceeds or selling-holder proceeds.",
   "Shares underlying warrants, pre-funded warrants, preferred stock, or convertibles are potential issuable shares.",
   "Do not double count units and their component securities.",
   "Do not treat Rule 415 or a base shelf as a completed sale.",
   "Do not infer specific takedown terms from a base shelf.",
+  "Classify shelf filings by the current actionable mechanism, not by shelf context alone.",
+  "If the filing only creates or updates shelf capacity and has no ATM agreement, no takedown supplement, no selling-holder resale pool, no priced offering, and no concrete warrant/convertible sale mechanics, classify offering_type as shelf.",
+  "If a shelf registration also includes an at-the-market sales agreement, sales-agent language, or a stated ATM program size, classify offering_type as atm. Keep shelf capacity as context or fee-table capacity, not the current mechanism.",
+  "If a shelf registration contains a concrete selling-stockholder resale pool, classify offering_type as resale or mixed depending on whether other active mechanisms are also present.",
+  "Use mixed only when the current filing contains multiple active mechanisms or multiple security structures that must be evaluated together. Do not use mixed merely because a base shelf and a specific ATM/takedown context appear in the same package.",
+  "For automatic shelf registrations, classify offering_type as shelf only when there are no concrete current sale mechanics. If concrete ATM, resale, takedown, warrant, or convertible terms are present, classify by those terms instead.",
+  "Authorized capital stock, authorized shares, charter share capacity, and generic Description of Capital Stock numbers are not offering supply. Never use them in primary_common_shares_registered, registered_resale_supply, or max_registered_stack_share_equivalent.",
   "Do not use public_offering, underwritten_public_offering, or common_stock_public_offering as offering_type. This audit schema is structure-first: plain common-stock public offerings are primary, offerings with units/warrants/pre-funded warrants or multiple securities are mixed, and convertible-note/security deals are convertible_warrant_financing.",
   "If a convertible-note financing is sold by private placement, classify offering_type as convertible_warrant_financing and describe private placement only in source_notes/review context if needed.",
   "EFFECT means registration effectiveness, not completed selling.",
   "For max_registered_stack_share_equivalent, use the best single source-backed maximum share-equivalent pool that should be compared against current shares. Do not add outside/future overhang to the current registered pool.",
+  "If the current registered pool states multiple share-equivalent components in the same offer, such as common shares plus shares underlying pre-funded warrants, include both in the current registered pool and set max_registered_stack_share_equivalent to the combined share-equivalent count when the components are additive and source-backed.",
+  "Pre-funded warrant underlying shares are near-immediate common-share exposure. Do not drop them from max_registered_stack_share_equivalent when they are expressly registered for resale together with common shares.",
   "max_registered_stack_share_equivalent must be a share count only. If the filing only gives a dollar shelf capacity or fee-table dollar amount, set max_registered_stack_share_equivalent to null/not_disclosed and put the dollar amount in fee_table_amount_only or company proceeds as appropriate.",
-  "Do not place dollar amounts, market values, fee table dollar amounts, or shelf capacity dollars into any security_stack share-count field.",
+  "Do not place dollar amounts, market values, fee table dollar amounts, shelf capacity dollars, authorized share counts, or outstanding-share denominator counts into any security_stack supply field.",
   "If a registered pool is explicitly broken into convertible-note shares plus warrant shares and the components reconcile to the total pool, classify those components separately and set registered_pool_reconciles true.",
   "If numbers conflict, leave the uncertain fact null, add an unresolved_conflict, and set needs_human_review true.",
   "Keep evidence snippets short, under 22 words when possible.",

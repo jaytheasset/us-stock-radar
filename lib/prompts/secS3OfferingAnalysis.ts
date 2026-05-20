@@ -4,7 +4,7 @@ import {
 } from "@/lib/prompts/secFilingAnalysis";
 
 export const SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY = "sec_s3_offering_analysis";
-export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v9";
+export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v10";
 
 export const SEC_S3_ANALYSIS_ACTION_VALUES = ["skip_analysis", "routine_archive", "analyze_offering"] as const;
 export const SEC_S3_CASE_VALUES = [
@@ -209,6 +209,11 @@ export const secS3OfferingAnalysisSystemPrompt = [
   "For analyze_offering, set event_type to dilution_risk unless the evidence clearly supports only other. S-3 family filings should almost never be earnings, FDA, leadership, legal, or product events.",
   "Choose s3_case by economic structure, not only by SEC form label. If an S-3ASR contains a concrete selling-stockholder resale pool, use s3_case resale_registration rather than automatic_shelf.",
   "Use s3_case automatic_shelf for S-3ASR base shelf or universal shelf filings only when there is no concrete resale pool, ATM, takedown, warrant/convertible pool, or other current sale mechanics.",
+  "Separate shelf context from the current actionable mechanism. A base shelf can be the registration framework while the current filing is still an ATM program, resale registration, takedown, or mixed financing event.",
+  "If the package contains a stated ATM program amount, at-the-market sales agreement, sales-agent language, or sale-from-time-to-time language under an equity distribution agreement, use s3_case atm_program even if the same package also references a broader shelf registration or automatic shelf.",
+  "If the package only creates shelf capacity and does not include a concrete ATM, resale pool, takedown supplement, priced terms, warrant/convertible pool, or sales agreement, use base_shelf or automatic_shelf according to the form/context.",
+  "Use mixed_shelf only when the current filing has multiple active offering mechanisms or security structures that should be evaluated together, such as primary plus resale, common plus warrants/pre-funded warrants, or ATM plus resale. Do not use mixed_shelf merely because a shelf registration provides background for one concrete mechanism.",
+  "For shelf-plus-ATM filings, describe shelf capacity as context and ATM capacity as the actionable dilution mechanism. Do not call the event automatic_shelf just because the base registration is automatic.",
   "Use structure-first offering classification. Do not introduce public_offering, underwritten_public_offering, or common_stock_public_offering as canonical offering_type values. Treat public offering language as sale method/context, not dilution structure.",
   "For a plain common-stock public offering, the DB-facing canonical offering_type should be other. For a public offering with units, warrants, pre-funded warrants, convertibles, or multiple securities, use mixed or convertible_financing as appropriate. For base shelf or automatic shelf, use shelf_registration. For shelf takedown with concrete terms, classify by the actual securities/structure and preserve shelf takedown as method/context.",
   "If convertible notes or convertible securities are sold in a private placement, classify the structure as convertible_financing and preserve private placement only as sale-method context.",
@@ -232,7 +237,9 @@ export const secS3OfferingAnalysisSystemPrompt = [
   "If warrants or convertibles are part of the registered supply, describe which instruments make up the supply. If future warrants, shelf capacity, or additional securities are outside the current registered pool, put them outside the current supply.",
   "When dilution_metrics.preliminary_score_floor is present, do not score below that floor unless the source terms are clearly stale, routine, or not currently actionable.",
   "When dilution_metrics.preliminary_score_cap is present, do not score above that cap unless the current filing has concrete sale terms, resale overhang, warrant/convertible pressure, or another explicit near-term trigger.",
-  "Use calendar_items only for explicit offering closing dates, registration effective dates, warrant redemption or expiration deadlines, lockup expirations, or shareholder approval deadlines.",
+  "Use calendar_items only for explicit offering closing dates, registration effective dates, warrant redemption or expiration deadlines, lockup expirations, rights deadlines, or financing-related shareholder approval deadlines.",
+  "Use calendar_event_type registration_effective_date for SEC registration effectiveness tied to this offering or resale registration. Do not use policy_effective_date for SEC registration effectiveness.",
+  "Use calendar_event_type shareholder_approval_deadline only when shareholder approval is a financing, warrant, convertible, exchange-limit, or dilution trigger.",
   "Do not add calendar_items for from-time-to-time sale language, intended use of proceeds, expected deployment, ordinary legal boilerplate, or vague future plans.",
   "For primary_ticker, prefer the issuer's U.S.-listed common stock or ADR from the filing package. Do not use warrants, units, rights, or non-common classes as primary unless no common/ADR ticker exists.",
   "Keep output short: event_title under 90 characters; quick_take one sentence under 22 words; summary 1-3 sentences under 65 words total; why_it_matters one sentence under 35 words.",
@@ -245,6 +252,9 @@ export const secS3OfferingAnalysisSystemPrompt = [
   "The dilution/offering narrative is not a filing recap. It must explain investor impact.",
   "Do not merely restate the disclosed terms. For each important fact, connect fact -> mechanism -> market risk.",
   "Explain why the structure matters for shareholders: how much potential supply can enter the market relative to current shares; whether the shares are resale shares, newly issued shares, conversion shares, or warrant shares; whether holders have economic incentive to sell, convert, or exercise; whether the company receives cash, receives no resale proceeds, or receives only conditional warrant cash; what timing trigger could make the overhang actionable; and what remains uncertain or needs follow-up confirmation.",
+  "narrative_summary must be self-contained investor analysis. Do not write UI/meta phrases such as share overhang view uses, chart shows, shown above, shown below, this view, or this page.",
+  "Do not end narrative_summary with imperative fragments such as Confirm holders, Confirm timing, or Review source. If a fact remains uncertain, explain it as an unresolved risk or follow-up variable in a complete sentence.",
+  "Do not repeat the same current-shares and potential-supply arithmetic in a separate final sentence unless it adds a new mechanism or timing implication.",
   "If the registered pool is large versus current shares, explicitly say that the risk is not just dilution but potential selling pressure and repricing risk from a much larger tradable supply base.",
   "Treat company receives no proceeds from resale as a cash-flow limitation, not as a bullish point. It means selling pressure can occur without new cash coming to the issuer, except for separately disclosed warrant cash exercise proceeds.",
   "For complex deals, explain relationships between instruments instead of listing fields. Clearly distinguish the current registered resale pool, convertible-note shares inside that pool, warrant shares inside that pool, and future or additional overhang outside that pool.",
@@ -268,6 +278,7 @@ export const secS3OfferingAnalysisSystemPrompt = [
   "For offering_display_model numeric_value, copy/normalize only directly stated numbers. Do not calculate dilution percent, multiples, share conversions, warrant cash, or ratios unless the filing itself states them.",
   "For offering_display_model evidence fields, use short source labels or short excerpts under 18 words.",
   "For offering_display_model watch_items, source_notes, and review_reasons, use at most 3 items each.",
+  "watch_items must be complete short follow-up items, not clipped commands. Prefer noun phrases such as Registration effectiveness and resale timing, Selling-holder identities and sale schedule, or Warrant exercise activity.",
   "If the source text is too ambiguous to connect amount, price, and share count, set needs_human_review true and explain the uncertainty.",
 ].join("\n");
 

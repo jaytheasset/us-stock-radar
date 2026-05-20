@@ -1354,8 +1354,9 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
   const summaryParagraphs = llmNarrativeSummary
     ? [
         llmNarrativeSummary,
-        `Share overhang view uses ${currentSharesValue} as the base and ${potentialSupplyValue} as potential resale supply. ${nextTrigger}`,
+        buildDilutionFollowUpParagraph(nextTrigger),
       ]
+        .filter(isDisclosedValue)
     : buildDilutionSummaryParagraphs({
         additionalNotesAmount,
         additionalWarrantShares,
@@ -2566,6 +2567,16 @@ function buildDilutionSummaryParagraphs({
       : "";
 
   return [supplyParagraph, poolParagraph, cashParagraph, followUpParagraph].filter(Boolean);
+}
+
+function buildDilutionFollowUpParagraph(nextTrigger: string) {
+  const trigger = cleanDisclosureValue(nextTrigger);
+  if (!isDisclosedValue(trigger)) return "";
+  if (/^(?:confirm|review|check|monitor|watch)\b/i.test(trigger)) {
+    return `The unresolved variable is ${trigger.replace(/^(?:confirm|review|check|monitor|watch)\s+/i, "")}.`;
+  }
+
+  return `The key follow-up variable is ${trigger}.`;
 }
 
 function buildShelfSummaryParagraphs({

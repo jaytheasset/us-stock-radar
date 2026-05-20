@@ -236,6 +236,34 @@ export async function runSecFilingAnalysisPreviewForRawItem(rawItem: RawItemRow,
     };
   }
 
+  const deterministicTriage = isS3AmendmentInput(input) ? buildDeterministicS3AmendmentTriage(input) : null;
+  if (deterministicTriage) {
+    attachS3AmendmentTriage(input, deterministicTriage);
+    return {
+      ok: true,
+      stage: "complete",
+      status: 200,
+      model: getServerEnv().openAiModel,
+      openAiResponseId: null,
+      sourceItem: summarizeRawRow(rawItem),
+      input,
+      triage: deterministicTriage,
+      audit: null,
+      analysis: buildS3AmendmentSkipAnalysis(input, deterministicTriage),
+      triageUsage: null,
+      usage: null,
+      costEstimate: null,
+      prompt: {
+        key: SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
+        version: SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
+        triage: {
+          key: SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
+          version: SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
+        },
+      },
+    };
+  }
+
   const analysisResult = await runSecFilingAnalysisForRawRow(rawItem);
   return {
     ...analysisResult,
@@ -261,27 +289,41 @@ export async function runSecFilingAnalysisForRawRow(rawItem: RawItemRow): Promis
   let triage: Record<string, unknown> | null = null;
   let triageRun: OpenAiPromptRun | null = null;
   if (isS3AmendmentInput(input)) {
-    const triagePrompt = buildSecS3AmendmentTriagePrompt(input);
-    triageRun = await runOpenAiJsonPrompt(env, triagePrompt);
-    if (!triageRun.ok || !triageRun.parsed) {
+    triage = buildDeterministicS3AmendmentTriage(input);
+    const triagePrompt = triage ? null : buildSecS3AmendmentTriagePrompt(input);
+    if (!triage && triagePrompt) {
+      triageRun = await runOpenAiJsonPrompt(env, triagePrompt);
+      if (!triageRun.ok || !triageRun.parsed) {
+        return {
+          ok: false,
+          stage: "openai",
+          status: triageRun.status,
+          error: `SEC S-3/A triage failed after ${triageRun.attempts} attempt(s): ${triageRun.error || "no parseable JSON"}`,
+          sourceItem: summarizeRawRow(rawItem),
+          input,
+          triageOutputText: triageRun.outputText,
+          triageUsage: triageRun.usage,
+          rawOpenAIResponse: triageRun.rawOpenAIResponse,
+          prompt: {
+            key: triagePrompt.key,
+            version: triagePrompt.version,
+          },
+        };
+      }
+
+      triage = triageRun.parsed;
+    }
+    if (!triage) {
       return {
         ok: false,
         stage: "openai",
-        status: triageRun.status,
-        error: `SEC S-3/A triage failed after ${triageRun.attempts} attempt(s): ${triageRun.error || "no parseable JSON"}`,
+        status: 0,
+        error: "SEC S-3/A triage did not produce a decision",
         sourceItem: summarizeRawRow(rawItem),
         input,
-        triageOutputText: triageRun.outputText,
-        triageUsage: triageRun.usage,
-        rawOpenAIResponse: triageRun.rawOpenAIResponse,
-        prompt: {
-          key: triagePrompt.key,
-          version: triagePrompt.version,
-        },
+        triage: null,
       };
     }
-
-    triage = triageRun.parsed;
     if (shouldForceS3AmendmentAudit(input, triage)) {
       triage = {
         ...triage,
@@ -297,26 +339,26 @@ export async function runSecFilingAnalysisForRawRow(rawItem: RawItemRow): Promis
     attachS3AmendmentTriage(input, triage);
 
     if (stringValue(triage.triage_action) === "skip_analysis") {
-      const usage = combineUsage(triageRun.usage);
+      const usage = combineUsage(triageRun?.usage || null);
       const analysis = buildS3AmendmentSkipAnalysis(input, triage);
       return {
         ok: true,
         stage: "complete",
-        status: triageRun.status,
+        status: triageRun?.status || 200,
         model: env.openAiModel,
-        openAiResponseId: triageRun.openAiResponseId,
+        openAiResponseId: triageRun?.openAiResponseId || null,
         sourceItem: summarizeRawRow(rawItem),
         input,
         triage,
         audit: null,
         analysis,
-        triageOutputText: triageRun.outputText,
-        triageUsage: triageRun.usage,
+        triageOutputText: triageRun?.outputText,
+        triageUsage: triageRun?.usage || null,
         usage,
         costEstimate: estimateCost(env.openAiModel, usage),
         prompt: {
-          key: triagePrompt.key,
-          version: triagePrompt.version,
+          key: SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
+          version: SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
           triage: {
             key: SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
             version: SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
@@ -520,9 +562,374 @@ function attachOfferingSecurityAudit(input: SecFilingAnalysisInput, audit: Recor
   const filingPackage = readRecord(input.filing_package);
   if (!filingPackage) return;
 
-  filingPackage.offering_security_audit = audit;
+  const normalizedAudit = normalizeOfferingSecurityAuditForS3Package(filingPackage, audit);
+  filingPackage.offering_security_audit = normalizedAudit;
   const marketContext = readRecord(filingPackage.market_context) as Parameters<typeof buildSecOfferingDilutionMetrics>[1];
   filingPackage.dilution_metrics = buildSecOfferingDilutionMetrics(filingPackage, marketContext);
+}
+
+function normalizeOfferingSecurityAuditForS3Package(
+  filingPackage: Record<string, unknown>,
+  audit: Record<string, unknown>,
+) {
+  const hardParsers = readRecord(filingPackage.hard_parsers);
+  const s3 = readRecord(hardParsers?.s3);
+  if (!s3) return audit;
+
+  const offeringTerms = readRecord(s3.offering_terms);
+  const feeTable = readRecord(s3.fee_table);
+  const auditProceedsStack = readRecord(audit.proceeds_stack);
+  const sellingStockholders = readRecord(s3.selling_stockholders);
+  const sellingHolderCount = Number(sellingStockholders?.count || 0);
+  const registrationKind = stringValue(s3.registration_statement_kind || offeringTerms?.registration_statement_kind).toLowerCase();
+  const offeringType = stringValue(offeringTerms?.offering_type).toLowerCase();
+  const primaryOrResale = stringValue(s3.primary_or_resale || offeringTerms?.primary_or_resale).toLowerCase();
+  const hasParserResaleShareSupply = Boolean(
+    primaryOrResale === "resale" &&
+      (stringValue(s3.resale_share_count) || stringValue(offeringTerms?.resale_share_count)),
+  );
+  const hasDollarShelfCapacity = Boolean(
+    stringValue(offeringTerms?.shelf_capacity) ||
+      stringValue(offeringTerms?.offering_amount) ||
+      stringValue(feeTable?.total_offering_amount) ||
+      stringValue(auditProceedsStack?.company_gross_proceeds) ||
+      stringValue(auditProceedsStack?.company_net_proceeds) ||
+      stringValue(auditProceedsStack?.fee_table_amount_only),
+  );
+  const auditOfferingType = stringValue(audit.offering_type).toLowerCase();
+  const isShelfLike =
+    registrationKind.includes("shelf") ||
+    offeringType.includes("shelf") ||
+    auditOfferingType === "shelf" ||
+    stringValue(filingPackage.form_type).toUpperCase().startsWith("S-3");
+  const hasCurrentIssuerSaleTerms = Boolean(
+    stringValue(offeringTerms?.offering_price) ||
+      stringValue(offeringTerms?.closing_date) ||
+      (offeringType === "atm" && stringValue(offeringTerms?.sales_agent)),
+  );
+
+  const normalized = JSON.parse(JSON.stringify(audit)) as Record<string, unknown>;
+  let normalizedChanged = false;
+  if (
+    normalizeFeeTableProceeds({
+      normalized,
+      proceedsStack: readRecord(normalized.proceeds_stack),
+      feeTable,
+    })
+  ) {
+    normalizedChanged = true;
+  }
+
+  if (isShelfLike && hasDollarShelfCapacity && primaryOrResale !== "resale" && sellingHolderCount === 0 && !hasCurrentIssuerSaleTerms) {
+    normalizeShelfCapacityProceeds({
+      normalized,
+      proceedsStack: readRecord(normalized.proceeds_stack),
+      offeringTerms,
+      feeTable,
+    });
+    normalizedChanged = true;
+  }
+
+  if (!isShelfLike || !hasDollarShelfCapacity || hasParserResaleShareSupply || primaryOrResale === "resale" || sellingHolderCount > 0) {
+    return normalizedChanged ? normalized : audit;
+  }
+
+  const securityStack = readRecord(normalized.security_stack);
+  if (!securityStack) return normalized;
+
+  const clearedFact = buildNotDisclosedAuditFact(
+    "No source-backed registered share count",
+    "Base shelf discloses dollar capacity, not a current registered share-supply count.",
+  );
+  for (const key of [
+    "primary_common_shares_offered",
+    "primary_common_shares_registered",
+    "resale_selling_stockholder_shares",
+    "registered_resale_supply",
+    "pre_funded_warrant_underlying_shares",
+    "warrant_underlying_shares",
+    "common_warrant_max_registered_underlying_shares",
+    "convertible_note_underlying_shares",
+    "preferred_conversion_shares",
+    "equity_line_registered_shares",
+    "additional_future_share_overhang",
+    "max_registered_stack_share_equivalent",
+  ]) {
+    securityStack[key] = clearedFact;
+  }
+
+  normalized.needs_human_review = true;
+  normalized.source_notes = appendUniqueString(
+    normalized.source_notes,
+    "Base shelf share-supply fields cleared: no parser-backed share count; authorized capital stock counts are excluded.",
+  );
+  normalized.review_reasons = appendUniqueString(
+    normalized.review_reasons,
+    "No source-backed share-count supply was found for this base shelf.",
+  );
+  return normalized;
+}
+
+function normalizeFeeTableProceeds({
+  normalized,
+  proceedsStack,
+  feeTable,
+}: {
+  normalized: Record<string, unknown>;
+  proceedsStack: Record<string, unknown> | null;
+  feeTable: Record<string, unknown> | null;
+}) {
+  if (!proceedsStack) return false;
+
+  const feeTableFact = readRecord(proceedsStack.fee_table_amount_only);
+  const feeTableText =
+    factText(feeTableFact) ||
+    stringValue(feeTable?.total_offering_amount) ||
+    stringValue(feeTable?.maximum_aggregate_offering_price);
+  const feeTableAmount = factMoneyValue(feeTableFact) || parseMoneyLike(feeTableText);
+  if (!feeTableAmount && !feeTableText) return false;
+
+  let changed = false;
+  if (!feeTableFact && feeTableText) {
+    proceedsStack.fee_table_amount_only = buildFeeTableOnlyAuditFact(feeTableText, feeTableAmount);
+    changed = true;
+  }
+
+  for (const key of ["company_gross_proceeds", "company_net_proceeds", "resale_proceeds_to_company"]) {
+    const fact = readRecord(proceedsStack[key]);
+    if (isSameMoneyFact(fact, feeTableAmount, feeTableText)) {
+      proceedsStack[key] = buildNotDisclosedMoneyAuditFact(
+        key === "resale_proceeds_to_company" ? "Resale proceeds to company not disclosed" : "Company proceeds not disclosed",
+        "Fee-table amount is registration math, not issuer cash proceeds.",
+      );
+      changed = true;
+    }
+  }
+
+  const sellingHolderFact = readRecord(proceedsStack.selling_stockholder_proceeds);
+  if (isSameMoneyFact(sellingHolderFact, feeTableAmount, feeTableText) && isFeeTableBackedFact(sellingHolderFact)) {
+    proceedsStack.selling_stockholder_proceeds = buildNotDisclosedMoneyAuditFact(
+      "Selling-holder proceeds not separately disclosed",
+      "Fee-table maximum aggregate amount is not separately stated selling-holder proceeds.",
+    );
+    normalized.source_notes = appendUniqueString(
+      normalized.source_notes,
+      "Fee-table maximum amount preserved separately; not treated as company or selling-holder proceeds.",
+    );
+    changed = true;
+  }
+
+  const resaleToCompanyFact = readRecord(proceedsStack.resale_proceeds_to_company);
+  if (stringValue(normalized.offering_type).toLowerCase() === "resale" && factMoneyValue(resaleToCompanyFact) === 0) {
+    const zeroCompanyProceedsFact = buildZeroCompanyProceedsAuditFact(
+      factText(resaleToCompanyFact) || "$0",
+      "Resale registration states issuer receives no resale proceeds.",
+    );
+    for (const key of ["company_gross_proceeds", "company_net_proceeds"]) {
+      const fact = readRecord(proceedsStack[key]);
+      if (!isDisclosedFact(fact)) {
+        proceedsStack[key] = zeroCompanyProceedsFact;
+        changed = true;
+      }
+    }
+  }
+
+  const sanityChecks = readRecord(normalized.sanity_checks);
+  if (sanityChecks) {
+    const stillUsesFeeTableAsProceeds = [
+      proceedsStack.company_gross_proceeds,
+      proceedsStack.company_net_proceeds,
+      proceedsStack.resale_proceeds_to_company,
+      proceedsStack.selling_stockholder_proceeds,
+    ].some((fact) => isSameMoneyFact(readRecord(fact), feeTableAmount, feeTableText) && isFeeTableBackedFact(readRecord(fact)));
+    const nextValue = !stillUsesFeeTableAsProceeds;
+    if (sanityChecks.no_fee_table_amount_as_proceeds !== nextValue) {
+      sanityChecks.no_fee_table_amount_as_proceeds = nextValue;
+      changed = true;
+    }
+  }
+
+  return changed;
+}
+
+function normalizeShelfCapacityProceeds({
+  normalized,
+  proceedsStack,
+  offeringTerms,
+  feeTable,
+}: {
+  normalized: Record<string, unknown>;
+  proceedsStack: Record<string, unknown> | null;
+  offeringTerms: Record<string, unknown> | null;
+  feeTable: Record<string, unknown> | null;
+}) {
+  if (!proceedsStack) return;
+  const shelfCapacityText = firstFactText([
+    proceedsStack.fee_table_amount_only,
+    proceedsStack.shelf_capacity,
+    proceedsStack.company_gross_proceeds,
+    proceedsStack.company_net_proceeds,
+    offeringTerms?.shelf_capacity,
+    offeringTerms?.offering_amount,
+    feeTable?.total_offering_amount,
+  ]);
+  if (!proceedsStack.fee_table_amount_only && shelfCapacityText) {
+    proceedsStack.fee_table_amount_only = {
+      label: "Shelf dollar capacity",
+      value_text: shelfCapacityText,
+      numeric_value: null,
+      unit: "usd",
+      relationship: "shelf_capacity_not_current_proceeds",
+      source: null,
+      evidence: "Base shelf capacity is not current issuer cash proceeds.",
+      confidence: "medium",
+    };
+  }
+  const clearedCashFact = buildNotCurrentCashAuditFact(
+    "No current issuer proceeds disclosed",
+    "Shelf capacity becomes issuer cash only if a later takedown, ATM sale, or prospectus supplement sells securities.",
+  );
+  proceedsStack.company_gross_proceeds = clearedCashFact;
+  proceedsStack.company_net_proceeds = clearedCashFact;
+  normalized.source_notes = appendUniqueString(
+    normalized.source_notes,
+    "Shelf dollar capacity preserved as capacity, not current issuer proceeds.",
+  );
+}
+
+function buildNotDisclosedAuditFact(label: string, evidence: string) {
+  return {
+    label,
+    value_text: null,
+    numeric_value: null,
+    unit: "shares",
+    relationship: "not_disclosed",
+    source: null,
+    evidence,
+    confidence: "unknown",
+  };
+}
+
+function buildNotCurrentCashAuditFact(label: string, evidence: string) {
+  return {
+    label,
+    value_text: null,
+    numeric_value: null,
+    unit: "usd",
+    relationship: "not_current_proceeds",
+    source: null,
+    evidence,
+    confidence: "unknown",
+  };
+}
+
+function buildNotDisclosedMoneyAuditFact(label: string, evidence: string) {
+  return {
+    label,
+    value_text: null,
+    numeric_value: null,
+    unit: "usd",
+    relationship: "not_disclosed",
+    source: null,
+    evidence,
+    confidence: "unknown",
+  };
+}
+
+function buildFeeTableOnlyAuditFact(valueText: string, numericValue: number | null) {
+  return {
+    label: "SEC fee-table maximum amount",
+    value_text: valueText,
+    numeric_value: numericValue,
+    unit: "usd",
+    relationship: "fee_table_only",
+    source: "Fee table",
+    evidence: "SEC fee table maximum aggregate amount.",
+    confidence: "high",
+  };
+}
+
+function buildZeroCompanyProceedsAuditFact(valueText: string, evidence: string) {
+  return {
+    label: "Company proceeds from resale",
+    value_text: valueText,
+    numeric_value: 0,
+    unit: "usd",
+    relationship: "company_cash",
+    source: "Prospectus proceeds disclosure",
+    evidence,
+    confidence: "high",
+  };
+}
+
+function factText(fact: Record<string, unknown> | null) {
+  return stringValue(fact?.value_text || fact?.text || fact?.value || fact?.amount);
+}
+
+function factMoneyValue(fact: Record<string, unknown> | null) {
+  return numberValue(fact?.numeric_value) || parseMoneyLike(factText(fact));
+}
+
+function isDisclosedFact(fact: Record<string, unknown> | null) {
+  return Boolean(factText(fact) || numberValue(fact?.numeric_value) !== null);
+}
+
+function parseMoneyLike(value: unknown) {
+  const text = stringValue(value).toLowerCase();
+  if (!text) return null;
+  const match = text.match(/\$?\s*([\d,.]+)\s*(billion|million|bn|m)?\b/i);
+  if (!match) return null;
+  const base = Number(match[1].replace(/,/g, ""));
+  if (!Number.isFinite(base)) return null;
+  const suffix = match[2] || "";
+  if (suffix === "billion" || suffix === "bn") return base * 1_000_000_000;
+  if (suffix === "million" || suffix === "m") return base * 1_000_000;
+  return base;
+}
+
+function isSameMoneyFact(fact: Record<string, unknown> | null, amount: number | null, text: string | null) {
+  if (!fact) return false;
+  const factAmount = factMoneyValue(fact);
+  if (amount && factAmount && Math.abs(factAmount - amount) <= Math.max(1, amount * 0.0001)) return true;
+  const factTextValue = factText(fact);
+  return Boolean(text && factTextValue && normalizeMoneyText(factTextValue) === normalizeMoneyText(text));
+}
+
+function normalizeMoneyText(value: string) {
+  return value.toLowerCase().replace(/\s+/g, "").replace(/[,$]/g, "");
+}
+
+function isFeeTableBackedFact(fact: Record<string, unknown> | null) {
+  if (!fact) return false;
+  const text = [
+    fact.label,
+    fact.source,
+    fact.evidence,
+    fact.relationship,
+    fact.value_text,
+  ]
+    .map(stringValue)
+    .join(" ")
+    .toLowerCase();
+
+  return /\bfee[-\s]?table\b|maximum aggregate offering|proposed maximum offering|fee_table_only/.test(text);
+}
+
+function appendUniqueString(value: unknown, item: string) {
+  const list = Array.isArray(value) ? value.map((entry) => stringValue(entry)).filter(Boolean) : [];
+  if (!list.includes(item)) list.push(item);
+  return list;
+}
+
+function firstFactText(values: unknown[]) {
+  for (const value of values) {
+    const record = readRecord(value);
+    const text = record
+      ? stringValue(record.value_text || record.text || record.value || record.amount || record.label)
+      : stringValue(value);
+    if (text) return text;
+  }
+  return null;
 }
 
 function attachS3AmendmentTriage(input: SecFilingAnalysisInput, triage: Record<string, unknown>) {
@@ -615,8 +1022,56 @@ function isS3AmendmentInput(input: SecFilingAnalysisInput) {
   return s3?.is_s3_family === true && amendment?.is_amendment === true;
 }
 
+function buildDeterministicS3AmendmentTriage(input: SecFilingAnalysisInput): Record<string, unknown> | null {
+  const filingPackage = readRecord(input.filing_package);
+  const hardParsers = readRecord(filingPackage?.hard_parsers);
+  const s3 = readRecord(hardParsers?.s3);
+  const amendment = readRecord(s3?.amendment);
+  const formType = stringValue(filingPackage?.form_type || amendment?.form_type)
+    .toUpperCase()
+    .replace(/\s+/g, "");
+  if (!s3 || !amendment || (amendment.is_amendment !== true && formType !== "S-3/A")) return null;
+
+  const amendmentExcerpt = stringValue(amendment.amendment_excerpt);
+  const limitedSignals = readFieldValueArray(amendment.limited_scope_signal_candidates);
+  const changeSignals = readFieldValueArray(amendment.change_signal_candidates);
+  const addedExhibits = readS3DocumentLabels(amendment.added_exhibits);
+  const unchangedRemainder = amendment.unchanged_remainder_not_included === true;
+  const onlyRoutineExhibits = addedExhibits.length > 0 && addedExhibits.every(isRoutineS3AmendmentExhibit);
+  const allowedRoutineChangeSignals = new Set(["registration_fee_change", "post_effective_amendment"]);
+  const materialChangeSignals = changeSignals.filter((signal) => !allowedRoutineChangeSignals.has(signal));
+
+  if (materialChangeSignals.length > 0) return null;
+  if (!unchangedRemainder && !onlyRoutineExhibits && !limitedSignals.length && !hasRoutineS3AmendmentText(amendmentExcerpt)) {
+    return null;
+  }
+  if (hasMaterialS3AmendmentChangeText(amendmentExcerpt)) return null;
+
+  const routineReasons = [
+    unchangedRemainder ? "Remainder of the registration statement is unchanged and not included" : "",
+    onlyRoutineExhibits ? `Only routine exhibit/consent items added: ${addedExhibits.slice(0, 4).join(", ")}` : "",
+    ...limitedSignals.map((signal) => signal.replace(/_/g, " ")),
+    changeSignals.includes("registration_fee_change") ? "Fee table update without changed offering economics" : "",
+    changeSignals.includes("post_effective_amendment") ? "Post-effective amendment with limited routine scope" : "",
+  ]
+    .filter(Boolean)
+    .slice(0, 4);
+
+  return {
+    triage_action: "skip_analysis",
+    material_change: false,
+    material_change_reasons: [],
+    routine_reasons: routineReasons.length ? routineReasons : ["Routine S-3/A housekeeping amendment"],
+    archive_summary: "Routine S-3/A amendment limited to housekeeping exhibits, consents, or fee-table cleanup; no changed offering economics were detected.",
+    confidence: "high",
+    needs_human_review: false,
+    deterministic_prefilter: true,
+  };
+}
+
 function shouldForceS3AmendmentAudit(input: SecFilingAnalysisInput, triage: Record<string, unknown>) {
   if (stringValue(triage.triage_action) !== "skip_analysis") return false;
+  if (triage.deterministic_prefilter === true) return false;
 
   const filingPackage = readRecord(input.filing_package);
   if (!filingPackage || readRecord(filingPackage.parent_registration_context)) return false;
@@ -624,7 +1079,10 @@ function shouldForceS3AmendmentAudit(input: SecFilingAnalysisInput, triage: Reco
   const hardParsers = readRecord(filingPackage.hard_parsers);
   const s3 = readRecord(hardParsers?.s3);
   const amendment = readRecord(s3?.amendment);
-  if (!s3 || amendment?.is_amendment !== true) return false;
+  const formType = stringValue(filingPackage.form_type || amendment?.form_type)
+    .toUpperCase()
+    .replace(/\s+/g, "");
+  if (!s3 || (amendment?.is_amendment !== true && formType !== "S-3/A")) return false;
 
   const offeringTerms = readRecord(s3.offering_terms);
   const feeTable = readRecord(s3.fee_table);
@@ -1165,4 +1623,63 @@ function numberValue(value: unknown) {
 function readStringArray(value: unknown) {
   if (!Array.isArray(value)) return [];
   return value.map(stringValue).filter(Boolean);
+}
+
+function readFieldValueArray(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      const record = readRecord(item);
+      return stringValue(record?.value) || stringValue(item);
+    })
+    .filter(Boolean);
+}
+
+function readS3DocumentLabels(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      const record = readRecord(item);
+      if (!record) return stringValue(item);
+      return [stringValue(record.type), stringValue(record.description)].filter(Boolean).join(" ");
+    })
+    .filter(Boolean);
+}
+
+function isRoutineS3AmendmentExhibit(value: string) {
+  const normalized = value.toUpperCase();
+  if (/\bEX-?(?:5|23|24|107)(?:\.|\b)/.test(normalized)) return true;
+  if (/\b(?:CONSENT|LEGAL OPINION|FILING FEE EXHIBIT)\b/.test(normalized)) return true;
+  return /\bEX-?99(?:\.|\b)/.test(normalized) && /\b(?:MASTER SERVICES AGREEMENT|TRUST AGREEMENT|TAX OPINION)\b/.test(normalized);
+}
+
+function hasRoutineS3AmendmentText(value: string) {
+  if (!value) return false;
+  return (
+    /\bsole\s+purpose\b[\s\S]{0,220}?\b(?:filing|file|furnishing|furnish)\b[\s\S]{0,120}?\b(?:exhibit|consent|opinion|fee table|filing fee)\b/i.test(
+      value,
+    ) ||
+    /\bconsists\s+solely\s+of\b[\s\S]{0,220}?\b(?:cover page|explanatory note|part ii|exhibit|signature pages?)\b/i.test(
+      value,
+    ) ||
+    /\b(?:remainder|rest)\s+of\s+the\s+registration\s+statement[\s\S]{0,180}?\bunchanged\b[\s\S]{0,180}?\bnot\s+been\s+included\b/i.test(
+      value,
+    ) ||
+    /\bno\s+other\s+changes?\s+(?:have\s+)?been\s+made\b/i.test(value) ||
+    /\bdelaying\s+amendment\b/i.test(value) ||
+    /\b(?:submitted|filed)\s+to\s+refile\s+Exhibit\s+107\b/i.test(value) ||
+    /\brefil(?:e|ing)\s+Exhibit\s+107\b/i.test(value) ||
+    /\bfiling\s+(?:an?\s+)?updated\s+consent\s+of\b[\s\S]{0,160}?\b(?:independent\s+registered\s+public\s+accounting\s+firm|auditor|accountant)\b/i.test(
+      value,
+    ) ||
+    /\bupdated\s+auditor\s+consent\b/i.test(value)
+  );
+}
+
+function hasMaterialS3AmendmentChangeText(value: string) {
+  if (!value) return false;
+  const materialTerm =
+    "(?:shares?\\s+(?:registered|offered)|number\\s+of\\s+shares|selling\\s+(?:stockholder|shareholder)s?|plan\\s+of\\s+distribution|use\\s+of\\s+proceeds|warrants?|exercise\\s+price|conversion\\s+price|convertible|at-the-market|ATM|sales\\s+agreement|offering\\s+price|net\\s+proceeds|gross\\s+proceeds|maximum\\s+aggregate\\s+offering\\s+price|shelf\\s+amount|securities\\s+purchase\\s+agreement|registered\\s+direct|private\\s+placement)";
+  const changeVerb = "(?:increase|increased|decrease|decreased|amend|amended|modify|modified|revise|revised|update|updated|add|added|remove|removed|change|changed)";
+  return new RegExp(`\\b${changeVerb}\\b[\\s\\S]{0,220}\\b${materialTerm}\\b`, "i").test(value);
 }
