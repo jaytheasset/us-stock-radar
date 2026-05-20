@@ -178,7 +178,7 @@ export default async function NewsArchiveDetailPage({ params }: NewsArchiveDetai
         <nav className="feed-nav-links" aria-label="Primary">
           {[
             { label: "Live Feed", href: "/feed" },
-            { label: "Watchlist", href: "#" },
+            { label: "Watchlist", href: "/watchlist" },
             { label: "News", href: "/news" },
             { label: "Filings", href: "/filings" },
             { label: "Alerts", href: "#" },

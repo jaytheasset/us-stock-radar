@@ -83,6 +83,19 @@ export function barTtlSeconds(range: PriceRange) {
   }
 }
 
+export function groupSnapshotTtlSeconds(range: PriceRange) {
+  switch (range) {
+    case "1D":
+      return 300;
+    case "5D":
+      return 900;
+    case "1M":
+    case "3M":
+    case "1Y":
+      return 3600;
+  }
+}
+
 export function chartIntervalForRange(range: PriceRange) {
   switch (range) {
     case "1D":
@@ -124,6 +137,48 @@ export async function readMarketQuoteCache(symbol: string): Promise<MarketQuoteC
       volume: numberOrUndefined(item.volume),
     },
   };
+}
+
+export async function readMarketQuoteCacheMap(symbols: string[]) {
+  const uniqueSymbols = normalizeSymbols(symbols);
+  if (!uniqueSymbols.length) return new Map<string, Omit<MarketQuoteCachePayload, "symbol" | "rawPayload">>();
+
+  const result = await supabaseSelect("market_quotes", {
+    select: "symbol,provider,price,change_amount,change_percent,previous_close,volume,expires_at",
+    symbol: postgrestIn(uniqueSymbols),
+    expires_at: `gt.${new Date().toISOString()}`,
+    limit: String(uniqueSymbols.length),
+  });
+
+  if (!result.ok) {
+    return new Map<string, Omit<MarketQuoteCachePayload, "symbol" | "rawPayload">>();
+  }
+
+  const rows = Array.isArray(result.data) ? result.data : [];
+  return new Map(
+    rows
+      .map((row) => {
+        if (!row || typeof row !== "object") return null;
+        const item = row as Record<string, unknown>;
+        const symbol = stringOrFallback(item.symbol, "").toUpperCase();
+        if (!symbol) return null;
+
+        return [
+          symbol,
+          {
+            changeAmount: numberOrUndefined(item.change_amount),
+            changePercent: numberOrUndefined(item.change_percent),
+            previousClose: numberOrUndefined(item.previous_close),
+            price: numberOrUndefined(item.price),
+            provider: stringOrFallback(item.provider, "fmp"),
+            volume: numberOrUndefined(item.volume),
+          },
+        ] as [string, Omit<MarketQuoteCachePayload, "symbol" | "rawPayload">];
+      })
+      .filter((entry): entry is [string, Omit<MarketQuoteCachePayload, "symbol" | "rawPayload">] =>
+        Boolean(entry),
+      ),
+  );
 }
 
 export async function writeMarketQuoteCache(payload: MarketQuoteCachePayload) {
@@ -189,6 +244,60 @@ export async function readMarketBarCache(
   };
 }
 
+export async function readMarketBarCacheMap(
+  symbols: string[],
+  range: PriceRange,
+  interval = chartIntervalForRange(range),
+) {
+  const uniqueSymbols = normalizeSymbols(symbols);
+  if (!uniqueSymbols.length) return new Map<string, MarketBarCachePayload>();
+
+  const result = await supabaseSelect("market_bars", {
+    select:
+      "symbol,range,interval,provider,provider_label,previous_close,latest_price,change_amount,change_percent,bars,expires_at",
+    symbol: postgrestIn(uniqueSymbols),
+    range: `eq.${range}`,
+    interval: `eq.${interval}`,
+    expires_at: `gt.${new Date().toISOString()}`,
+    limit: String(uniqueSymbols.length),
+  });
+
+  if (!result.ok) {
+    return new Map<string, MarketBarCachePayload>();
+  }
+
+  const rows = Array.isArray(result.data) ? result.data : [];
+  return new Map(
+    rows
+      .map((row) => {
+        if (!row || typeof row !== "object") return null;
+        const item = row as Record<string, unknown>;
+        const symbol = stringOrFallback(item.symbol, "").toUpperCase();
+        const points = Array.isArray(item.bars)
+          ? item.bars.map(normalizePoint).filter((point): point is PricePoint => Boolean(point))
+          : [];
+        if (!symbol || !points.length) return null;
+
+        return [
+          symbol,
+          {
+            changeAmount: numberOrFallback(item.change_amount, 0),
+            changePercent: numberOrFallback(item.change_percent, 0),
+            interval: stringOrFallback(item.interval, interval),
+            latestPrice: numberOrFallback(item.latest_price, points[points.length - 1].close),
+            points,
+            previousClose: numberOrFallback(item.previous_close, points[0].open),
+            provider: stringOrFallback(item.provider, "polygon") === "fmp" ? "fmp" : "polygon",
+            providerLabel: stringOrFallback(item.provider_label, "Market cache"),
+            range,
+            symbol,
+          },
+        ] as [string, MarketBarCachePayload];
+      })
+      .filter((entry): entry is [string, MarketBarCachePayload] => Boolean(entry)),
+  );
+}
+
 export async function writeMarketBarCache(payload: MarketBarCachePayload) {
   return supabaseUpsert(
     "market_bars",
@@ -246,7 +355,7 @@ export async function writeMarketGroupSnapshots(payloads: MarketGroupSnapshotPay
     payloads.map((payload) => ({
       change_percent: payload.changePercent,
       constituent_symbols: payload.constituentSymbols,
-      expires_at: expiresAt(barTtlSeconds(payload.range)),
+      expires_at: expiresAt(groupSnapshotTtlSeconds(payload.range)),
       fetched_at: new Date().toISOString(),
       group_key: payload.groupKey,
       group_name: payload.groupName,
@@ -267,6 +376,20 @@ export async function writeMarketGroupSnapshots(payloads: MarketGroupSnapshotPay
 
 function expiresAt(ttlSeconds: number) {
   return new Date(Date.now() + ttlSeconds * 1000).toISOString();
+}
+
+function normalizeSymbols(symbols: string[]) {
+  return Array.from(
+    new Set(
+      symbols
+        .map((symbol) => symbol.trim().toUpperCase())
+        .filter((symbol) => symbol && symbol !== "N/A"),
+    ),
+  );
+}
+
+function postgrestIn(values: string[]) {
+  return `in.(${values.map((value) => `"${value.replace(/"/g, '\\"')}"`).join(",")})`;
 }
 
 function normalizeGroupSnapshot(value: unknown): MarketGroupSnapshotPayload | null {

@@ -4,7 +4,7 @@ import {
 } from "@/lib/prompts/secFilingAnalysis";
 
 export const SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY = "sec_s3_offering_analysis";
-export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v10";
+export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v11";
 
 export const SEC_S3_ANALYSIS_ACTION_VALUES = ["skip_analysis", "routine_archive", "analyze_offering"] as const;
 export const SEC_S3_CASE_VALUES = [
@@ -53,6 +53,10 @@ export const SEC_OFFERING_DISPLAY_MEANING_VALUES = [
   "warrant_exercise_price",
   "issuer_cash_proceeds",
   "resale_proceeds_to_company",
+  "private_placement_proceeds",
+  "prefunded_warrant_exercise_cash",
+  "common_warrant_cash_exercise",
+  "sec_registration_value",
   "future_or_excluded_overhang",
   "watch_trigger",
   "not_disclosed",
@@ -68,6 +72,8 @@ export const SEC_OFFERING_DISPLAY_RELATIONSHIP_VALUES = [
   "company_receives_cash",
   "company_receives_no_cash",
   "conditional_cash_if_exercised",
+  "nominal_cash_if_exercised",
+  "fee_calculation_only",
   "context_only",
   "not_applicable",
   "unknown",
@@ -169,12 +175,20 @@ export const secOfferingDisplayModelSchema = {
         "resale_proceeds_to_company",
         "issuer_primary_or_closing_cash",
         "conditional_warrant_cash",
+        "prefunded_warrant_exercise_cash",
+        "common_warrant_cash_exercise_proceeds",
+        "private_placement_proceeds",
+        "sec_registration_value",
         "explanation",
       ],
       properties: {
         resale_proceeds_to_company: secOfferingDisplayFactSchema,
         issuer_primary_or_closing_cash: secOfferingDisplayFactSchema,
         conditional_warrant_cash: secOfferingDisplayFactSchema,
+        prefunded_warrant_exercise_cash: secOfferingDisplayFactSchema,
+        common_warrant_cash_exercise_proceeds: secOfferingDisplayFactSchema,
+        private_placement_proceeds: secOfferingDisplayFactSchema,
+        sec_registration_value: secOfferingDisplayFactSchema,
         explanation: { type: "string" },
       },
     },
@@ -234,6 +248,11 @@ export const secS3OfferingAnalysisSystemPrompt = [
   "Do not write calculated percentages or multiples in event_title, quick_take, summary, why_it_matters, bullish_points, bearish_points, key_evidence, or offering_display_model text. Prefer raw share counts; UI/code will render percent and multiple.",
   "Do not describe a no-proceeds resale as bullish. Resale proceeds going to selling holders are not issuer cash.",
   "If a financing has both company cash proceeds and resale registration, separate issuer cash from selling-holder resale proceeds.",
+  "Do not collapse cash terms into one company proceeds value. Separate resale proceeds to company, primary/placement closing cash, ATM/shelf capacity, pre-funded warrant exercise cash, common warrant cash exercise proceeds, convertible principal, and SEC registration value.",
+  "For mixed deals, key_cash_terms must explain who receives each amount and when: received now, received only if securities are sold, received only if warrants are exercised for cash, received by selling holders, or used only for SEC fee calculation.",
+  "Pre-funded warrant exercise cash is usually nominal and should not be mixed with common warrant cash exercise proceeds. Pre-funded warrants matter primarily as near-immediate share exposure.",
+  "Common warrant cash exercise proceeds are conditional company cash only if holders exercise for cash. Do not treat them as current proceeds.",
+  "SEC fee-table maximum aggregate offering price, total offering amount, or registration value is not company proceeds, not selling-holder proceeds, and not shelf capacity unless the prospectus cover separately states it as shelf capacity. Put it in key_cash_terms.sec_registration_value or source_notes, not issuer_primary_or_closing_cash.",
   "If warrants or convertibles are part of the registered supply, describe which instruments make up the supply. If future warrants, shelf capacity, or additional securities are outside the current registered pool, put them outside the current supply.",
   "When dilution_metrics.preliminary_score_floor is present, do not score below that floor unless the source terms are clearly stale, routine, or not currently actionable.",
   "When dilution_metrics.preliminary_score_cap is present, do not score above that cap unless the current filing has concrete sale terms, resale overhang, warrant/convertible pressure, or another explicit near-term trigger.",
@@ -280,6 +299,7 @@ export const secS3OfferingAnalysisSystemPrompt = [
   "For offering_display_model watch_items, source_notes, and review_reasons, use at most 3 items each.",
   "watch_items must be complete short follow-up items, not clipped commands. Prefer noun phrases such as Registration effectiveness and resale timing, Selling-holder identities and sale schedule, or Warrant exercise activity.",
   "If the source text is too ambiguous to connect amount, price, and share count, set needs_human_review true and explain the uncertainty.",
+  "For resale registrations with pre-funded warrants and ordinary warrants in the same registered pool, total_potential_supply is the Registered Resale Pool. Do not label the whole pool Immediate Share Exposure. Only pre-funded warrant shares are near-immediate exposure; ordinary warrants are conditional future overhang.",
 ].join("\n");
 
 export const secS3OfferingAnalysisResponseSchema = {

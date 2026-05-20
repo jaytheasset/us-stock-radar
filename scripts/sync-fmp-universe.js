@@ -5,6 +5,7 @@ const { Client } = require("pg");
 const defaultLimit = 20000;
 const defaultMinMarketCap = 50_000_000;
 const defaultExchanges = ["NASDAQ", "NYSE", "AMEX", "OTC", "PNK"];
+const stockAssetTypes = ["stock", "adr_or_class", "warrant", "unit"];
 
 main().catch((error) => {
   console.error(error.message);
@@ -30,13 +31,16 @@ async function main() {
     const rows = await fetchFmpUniverse(fmpApiKey, options);
     const normalized = rows.map(normalizeCompanyRow).filter(Boolean);
     const tickers = normalized.filter((row) => row.marketCap >= options.minMarketCap);
-    const classified = tickers
-      .map((row) => ({ row, mapping: mappings.get(row.industry) }))
-      .filter((item) => item.mapping);
+    const classified =
+      options.assetType === "stock"
+        ? tickers
+            .map((row) => ({ row, mapping: mappings.get(row.industry) }))
+            .filter((item) => item.mapping)
+        : [];
 
     if (!options.dryRun) {
       await upsertTickers(client, tickers);
-      await deactivateMissingFmpTickers(client, tickers.map((row) => row.symbol));
+      await deactivateMissingFmpTickers(client, tickers.map((row) => row.symbol), deactivationAssetTypes(options));
       await upsertClassifications(client, classified);
     }
 
@@ -47,6 +51,7 @@ async function main() {
       JSON.stringify(
         {
           dryRun: options.dryRun,
+          assetType: options.assetType,
           fetched: rows.length,
           usable: tickers.length,
           classified: classified.length,
@@ -83,6 +88,7 @@ function loadDotEnv() {
 function parseArgs(args) {
   const options = {
     dryRun: false,
+    assetType: "stock",
     exchanges: defaultExchanges,
     limit: defaultLimit,
     minMarketCap: defaultMinMarketCap,
@@ -97,6 +103,7 @@ function parseArgs(args) {
     const [key, value] = arg.replace(/^--/, "").split("=");
     if (key === "limit") options.limit = clampInt(value, 1, 50000, defaultLimit);
     if (key === "min-market-cap") options.minMarketCap = clampInt(value, 0, Number.MAX_SAFE_INTEGER, defaultMinMarketCap);
+    if (key === "asset-type") options.assetType = parseAssetType(value);
     if (key === "exchanges") {
       options.exchanges = stringValue(value)
         .split(",")
@@ -107,6 +114,10 @@ function parseArgs(args) {
 
   if (!options.exchanges.length) options.exchanges = defaultExchanges;
   return options;
+}
+
+function parseAssetType(value) {
+  return stringValue(value).toLowerCase() === "etf" ? "etf" : "stock";
 }
 
 async function applyTaxonomySeed(client) {
@@ -145,7 +156,7 @@ async function fetchFmpUniverse(apiKey, options) {
     const url = new URL("https://financialmodelingprep.com/stable/company-screener");
     url.searchParams.set("limit", String(options.limit));
     url.searchParams.set("exchange", exchange);
-    url.searchParams.set("isEtf", "false");
+    url.searchParams.set("isEtf", options.assetType === "etf" ? "true" : "false");
     url.searchParams.set("isFund", "false");
     url.searchParams.set("isActivelyTrading", "true");
     url.searchParams.set("marketCapMoreThan", String(options.minMarketCap));
@@ -284,14 +295,19 @@ async function upsertClassifications(client, items) {
   }
 }
 
-async function deactivateMissingFmpTickers(client, activeSymbols) {
+async function deactivateMissingFmpTickers(client, activeSymbols, assetTypes) {
   await client.query(
     `update tickers
      set is_active = false, updated_at = now()
      where metadata->>'provider' = 'fmp'
+       and asset_type = any($2)
        and not (symbol = any($1))`,
-    [activeSymbols],
+    [activeSymbols, assetTypes],
   );
+}
+
+function deactivationAssetTypes(options) {
+  return options.assetType === "etf" ? ["etf"] : stockAssetTypes;
 }
 
 async function readCounts(client) {
@@ -299,6 +315,8 @@ async function readCounts(client) {
     `select
       (select count(*)::int from tickers) as tickers,
       (select count(*)::int from tickers where is_active) as active_tickers,
+      (select count(*)::int from tickers where asset_type = 'etf') as etf_tickers,
+      (select count(*)::int from tickers where asset_type = 'etf' and is_active) as active_etf_tickers,
       (select count(*)::int from ticker_classifications) as classifications,
       (select count(*)::int from fmp_industry_mappings) as fmp_mappings`,
   );

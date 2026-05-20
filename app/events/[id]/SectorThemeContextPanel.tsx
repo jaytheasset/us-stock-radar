@@ -41,7 +41,9 @@ export function SectorThemeContextPanel({
   const [liveMovers, setLiveMovers] = useState<Record<string, LiveMover>>({});
   const [marketDataStatus, setMarketDataStatus] = useState<"loading" | "ready" | "fallback">("loading");
   const symbols = useMemo(() => period.topMovers.map((mover) => mover.symbol), [period.topMovers]);
-  const moverGroupName = context.industry || context.sector || "Sector";
+  const contextTitle = context.contextTitle || (isRealTicker(ticker) ? ticker : "") || context.subTheme || context.themeGroup || context.industry || context.sector || "Market";
+  const moverGroupName = context.moverGroupName || context.subTheme || context.industry || context.sector || "Market";
+  const moverHeading = getMoverHeading(context.moverMode, moverGroupName, range);
   const hasThemeContext = Boolean(context.themeGroup || context.subTheme);
   const metrics = [
     { label: "Sector", name: context.sector, value: period.sectorChange },
@@ -94,7 +96,7 @@ export function SectorThemeContextPanel({
   return (
     <section className="stock-detail-card sector-theme-main-card">
       <div className="card-heading-row context-heading-row">
-        <h2>{ticker} Market Context</h2>
+        <h2>{contextTitle} Market Context</h2>
         <div className="context-range-control" aria-label="Context range">
           {contextRanges.map((item) => (
             <button
@@ -116,13 +118,17 @@ export function SectorThemeContextPanel({
       </div>
       <div className="context-movers main">
         <div className="context-movers-heading">
-          <span>Top Movers in {moverGroupName} / {range}</span>
+          <span>{moverHeading}</span>
           <em>{marketDataStatus === "ready" ? "Live market data" : marketDataStatus === "loading" ? "Updating" : "Fallback"}</em>
         </div>
         <div className="context-mover-list">
-          {period.topMovers.map((mover) => (
-            <TopMoverTile key={mover.symbol} live={liveMovers[mover.symbol]} mover={mover} />
-          ))}
+          {period.topMovers.length ? (
+            period.topMovers.map((mover) => (
+              <TopMoverTile key={mover.symbol} live={liveMovers[mover.symbol]} mover={mover} />
+            ))
+          ) : (
+            <p className="context-empty-state">Market mover data is not available yet.</p>
+          )}
         </div>
       </div>
     </section>
@@ -196,6 +202,26 @@ function getChangeTone(change: string): DetailTone {
 
 function chartRangeForContext(range: ContextRange): PriceRange {
   return range === "30D" ? "1M" : range;
+}
+
+function getMoverHeading(
+  mode: SectorThemeContext["moverMode"],
+  groupName: string,
+  range: ContextRange,
+) {
+  if (mode === "related") {
+    return `Related Tickers in ${groupName} / ${range}`;
+  }
+
+  if (mode === "market_top_movers") {
+    return `Top Movers Today / ${range}`;
+  }
+
+  return `Top Movers in ${groupName} / ${range}`;
+}
+
+function isRealTicker(value: string) {
+  return Boolean(value && value !== "N/A" && value !== "NA" && /^[A-Z][A-Z0-9.-]{0,9}$/.test(value));
 }
 
 function toLiveMover(data: ChartApiResponse): LiveMover {

@@ -3,8 +3,10 @@ import {
   highImpactNewsRankings,
   type RankedEvent,
 } from "@/lib/radarRankings";
+import Link from "next/link";
 import { getEventTypeBadge } from "@/lib/eventTypeRegistry";
 import type { MarketBar } from "@/lib/integrations";
+import { FeedCandleChart } from "@/components/FeedCandleChart";
 
 type FeedTone = "bullish" | "bearish" | "volatile" | "neutral";
 type SourceGroup = "news" | "filings" | "market";
@@ -53,6 +55,11 @@ export type FeedItem = {
   trend: number[];
   chartBars?: MarketBar[];
   chartProvider?: "polygon" | "fmp" | "none";
+  displayTicker?: string;
+  displayPrice?: string;
+  displayChange?: string;
+  displayKind?: "ticker" | "group" | "macro";
+  displayChartBars?: MarketBar[];
   related?: string;
   interactions?: {
     comments: number;
@@ -342,23 +349,23 @@ export function FeedShell({
   return (
     <main className={`feed-page${pageVariant === "news" ? " news-feed-page" : ""}`}>
       <header className="feed-nav">
-        <a className="brand-lockup" href="/" aria-label="US Stock Radar home">
+        <Link className="brand-lockup" href="/" aria-label="US Stock Radar home">
           <span className="brand-mark">SR</span>
           <span>STOCK RADAR</span>
-        </a>
+        </Link>
         <nav className="feed-nav-links" aria-label="Primary">
           {[
             { label: "Live Feed", href: "/feed" },
-            { label: "Watchlist", href: "#" },
+            { label: "Watchlist", href: "/watchlist" },
             { label: "News", href: "/news" },
             { label: "Filings", href: "/filings" },
             { label: "Calendar", href: "/calendar" },
-            { label: "Alerts", href: "#" },
-            { label: "Premium", href: "#" },
+            { label: "Alerts", href: "/alerts" },
+            { label: "Premium", href: "/premium" },
           ].map((item) => (
-            <a className={item.label === activeNavLabel ? "active" : ""} href={item.href} key={item.label}>
+            <Link className={item.label === activeNavLabel ? "active" : ""} href={item.href} key={item.label}>
               {item.label}
-            </a>
+            </Link>
           ))}
         </nav>
         <div className="feed-search" role="search">
@@ -420,13 +427,13 @@ export function FeedShell({
                     {tab.label}
                   </span>
                 ) : (
-                  <a
+                  <Link
                     className={tab.value === activeTabValue ? "active" : ""}
                     href={feedTabHref(tab.value, pageInfo?.limit ?? 20, paginationBasePath)}
                     key={tab.value}
                   >
                     {tab.label}
-                  </a>
+                  </Link>
                 )
               ))}
             </div>
@@ -436,8 +443,13 @@ export function FeedShell({
 
           <div className="feed-list">
             {feedItems.length ? (
-              feedItems.map((item) => (
-                <FeedRow item={item} key={`${item.id}-${item.time}-${item.ticker}-${item.eventType}`} showChart={showCharts} />
+              feedItems.map((item, index) => (
+                <FeedRow
+                  item={item}
+                  key={`${item.id}-${item.time}-${item.ticker}-${item.eventType}`}
+                  rowIndex={index}
+                  showChart={showCharts}
+                />
               ))
             ) : (
               <div className="feed-empty-state">No events found.</div>
@@ -538,10 +550,10 @@ function FeedPagination({
 
       <div className="feed-pagination-controls">
         {pageInfo.page > 1 ? (
-          <a href={feedPageHref(previousPage, pageInfo.limit, basePath, activeTab)} className="pagination-step">
+          <Link href={feedPageHref(previousPage, pageInfo.limit, basePath, activeTab)} className="pagination-step">
             <span aria-hidden="true">&lt;</span>
             Previous
-          </a>
+          </Link>
         ) : (
           <span className="pagination-step disabled" aria-disabled="true">
             <span aria-hidden="true">&lt;</span>
@@ -560,18 +572,18 @@ function FeedPagination({
                 {item}
               </strong>
             ) : (
-              <a href={feedPageHref(item, pageInfo.limit, basePath, activeTab)} key={item}>
+              <Link href={feedPageHref(item, pageInfo.limit, basePath, activeTab)} key={item}>
                 {item}
-              </a>
+              </Link>
             ),
           )}
         </div>
 
         {pageInfo.hasNext ? (
-          <a href={feedPageHref(nextPage, pageInfo.limit, basePath, activeTab)} className="pagination-step">
+          <Link href={feedPageHref(nextPage, pageInfo.limit, basePath, activeTab)} className="pagination-step">
             Next
             <span aria-hidden="true">&gt;</span>
-          </a>
+          </Link>
         ) : (
           <span className="pagination-step disabled" aria-disabled="true">
             Next
@@ -585,9 +597,9 @@ function FeedPagination({
           <summary>{pageInfo.limit} per page</summary>
           <div>
             {[10, 20, 50, 100].map((limit) => (
-              <a className={limit === pageInfo.limit ? "active" : ""} href={feedPageHref(1, limit, basePath, activeTab)} key={limit}>
+              <Link className={limit === pageInfo.limit ? "active" : ""} href={feedPageHref(1, limit, basePath, activeTab)} key={limit}>
                 {limit} per page
-              </a>
+              </Link>
             ))}
           </div>
         </details>
@@ -633,25 +645,35 @@ function feedTabHref(tab: string, limit: number, basePath = "/feed") {
   return feedPageHref(1, limit, basePath, tab);
 }
 
-function FeedRow({ item, showChart }: { item: FeedItem; showChart: boolean }) {
+function FeedRow({ item, rowIndex, showChart }: { item: FeedItem; rowIndex: number; showChart: boolean }) {
   const eventBadge = getEventTypeBadge(item.eventType);
+  const displayKind = item.displayKind || "ticker";
+  const displayTicker = item.displayTicker ?? item.ticker;
+  const displayPrice = item.displayPrice ?? item.price;
+  const displayChange = item.displayChange ?? item.change;
+  const chartBars = displayKind === "ticker" ? item.chartBars : item.displayChartBars;
 
   return (
-    <a className={`feed-row${showChart ? "" : " no-chart"}`} href={`/events/${item.id}`}>
+    <Link className={`feed-row${showChart ? "" : " no-chart"}`} href={`/events/${item.id}`}>
       <FeedTime value={item.time} />
       {showChart ? (
         <div className="sparkline-cell">
-          <CandleVolumeChart
-            bars={item.chartBars}
+          <FeedCandleChart
+            allowFetch={displayKind === "ticker"}
+            bars={chartBars}
             fallbackValues={item.trend}
+            loadDelayMs={rowIndex * 120}
+            symbol={displayKind === "ticker" ? item.ticker : displayTicker}
             tone={item.signal === "bearish" ? "bearish" : "bullish"}
           />
         </div>
       ) : null}
-      <div className="ticker-cell">
-        <strong>{item.ticker}</strong>
-        <span>{item.price}</span>
-        <span className={item.change.startsWith("-") ? "bearish" : "bullish"}>{item.change}</span>
+      <div className={`ticker-cell${displayKind === "ticker" ? "" : " group-context"}`}>
+        <strong>{displayTicker}</strong>
+        <span>{displayPrice}</span>
+        {displayChange ? (
+          <span className={displayChange.startsWith("-") ? "bearish" : "bullish"}>{displayChange}</span>
+        ) : null}
       </div>
       <div className="event-cell">
         <div className="event-index-row">
@@ -666,7 +688,7 @@ function FeedRow({ item, showChart }: { item: FeedItem; showChart: boolean }) {
         <span className={`signal-badge ${item.signal}`}>{item.signal}</span>
         <span className={`source-badge impact-badge ${item.signal}`}>Impact {item.score}</span>
       </div>
-    </a>
+    </Link>
   );
 }
 
@@ -742,7 +764,7 @@ function PremiumCard() {
       <div>
         <span className="premium-kicker">Go Premium</span>
         <h2>Unlock real-time alerts and advanced filters.</h2>
-        <button type="button">Upgrade Now</button>
+        <Link href="/premium">Upgrade Now</Link>
       </div>
       <div className="premium-art" aria-hidden="true">
         PRO
@@ -786,9 +808,9 @@ function SidebarEventList({
         <div className="sidebar-empty-state">No matching events yet.</div>
       )}
       {seeMoreHref ? (
-        <a className="sidebar-see-more" href={seeMoreHref}>
+        <Link className="sidebar-see-more" href={seeMoreHref}>
           See more <span aria-hidden="true">›</span>
-        </a>
+        </Link>
       ) : null}
     </div>
   );

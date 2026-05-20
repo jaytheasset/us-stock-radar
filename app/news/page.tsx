@@ -700,7 +700,13 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
   const params = await searchParams;
   const page = Math.max(1, Number(params?.page || 1) || 1);
   const limit = 20;
-  const viewModel = await getLiveFeedViewModel({ page, limit, tab: "news" });
+  const viewModel = await getLiveFeedViewModel({
+    page,
+    limit,
+    tab: "news",
+    includeCharts: false,
+    includeSharedData: false,
+  });
 
   return (
     <FeedShell

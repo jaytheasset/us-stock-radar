@@ -32,5 +32,8 @@ export type SectorThemeContext = {
   marketCap?: string;
   themeGroup?: string;
   subTheme?: string;
+  contextTitle?: string;
+  moverGroupName?: string;
+  moverMode?: "related" | "top_movers" | "market_top_movers";
   periods: Record<ContextRange, SectorThemePeriod>;
 };

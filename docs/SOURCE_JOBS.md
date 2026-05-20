@@ -115,6 +115,9 @@ Access Newswire uses the public article HTML parser for individual release
 hydration and attempts the same `POST /newsroom/api` endpoint used by the
 public newsroom pages for release discovery. Current server-side direct API
 requests can return a Cloudflare challenge, so the Next.js ingest route falls
-back to the configured `ACCESSWIRE_INGEST_URL` NAS bridge when direct raw fetch
-fails. The NAS bridge URL and token must not be printed; responses only expose
-a redacted bridge host when fallback is attempted.
+back to the configured `ACCESSWIRE_INGEST_URL` NAS raw bridge when direct raw
+fetch fails. The bridge endpoint is expected to return Accesswire raw parser
+results only; LLM analysis and DB writes still run in the main Next.js app.
+The NAS bridge URL and token must not be printed; responses only expose a
+redacted bridge host when fallback is attempted. The deployable bridge lives in
+`nas/accesswire-bridge` and exposes `POST /api/accesswire/raw`.

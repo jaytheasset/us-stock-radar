@@ -187,16 +187,9 @@ export function buildSecOfferingDilutionMetrics(
   const s3 = readRecord(hardParsers?.s3);
   const offeringTerms = readRecord(s3?.offering_terms);
   const feeTable = readRecord(s3?.fee_table);
-  const sellingStockholders = readRecord(s3?.selling_stockholders);
   const offeringAudit = readRecord(filingPackage.offering_security_audit);
   const auditSecurityStack = readRecord(offeringAudit?.security_stack);
   const auditProceedsStack = readRecord(offeringAudit?.proceeds_stack);
-
-  const sellingRows = Array.isArray(sellingStockholders?.rows) ? sellingStockholders.rows : [];
-  const sellingShareSum = sellingRows
-    .map((row) => parseShareCount(readRecord(row)?.shares_offered_for_resale))
-    .filter(isPositiveNumber)
-    .reduce((sum, value) => sum + value, 0);
 
   const sharesOffered = chooseParsedNumber([
     { value: auditSecurityStack?.max_registered_stack_share_equivalent, source: "audit.security_stack.max_registered_stack_share_equivalent" },
@@ -204,12 +197,7 @@ export function buildSecOfferingDilutionMetrics(
     { value: auditSecurityStack?.resale_selling_stockholder_shares, source: "audit.security_stack.resale_selling_stockholder_shares" },
     { value: auditSecurityStack?.primary_common_shares_offered, source: "audit.security_stack.primary_common_shares_offered" },
     { value: auditSecurityStack?.primary_common_shares_registered, source: "audit.security_stack.primary_common_shares_registered" },
-    { value: offeringTerms?.shares_offered, source: "filing.offering_terms.shares_offered" },
-    { value: offeringTerms?.resale_share_count, source: "filing.offering_terms.resale_share_count" },
-    { value: s3?.resale_share_count, source: "filing.s3.resale_share_count" },
-    { value: s3?.shares_registered, source: "filing.s3.shares_registered" },
-    { value: sellingShareSum > 0 ? sellingShareSum : null, source: "filing.selling_stockholders.sum_shares_offered" },
-  ], parseShareCount);
+  ], parseSupplyShareCount);
   const currentShares = chooseParsedNumber([
     { value: auditSecurityStack?.current_shares_outstanding, source: "audit.security_stack.current_shares_outstanding" },
     { value: s3?.current_shares_outstanding, source: "filing.s3.current_shares_outstanding" },
@@ -411,6 +399,54 @@ function parseShareCount(value: unknown): number | null {
   if (scale === "million" || scale === "m") return base * 1_000_000;
   if (scale === "billion" || scale === "bn") return base * 1_000_000_000;
   return base;
+}
+
+function parseSupplyShareCount(value: unknown): number | null {
+  if (isNonSupplyShareCandidate(value)) return null;
+  return parseShareCount(value);
+}
+
+function isNonSupplyShareCandidate(value: unknown) {
+  const record = readRecord(value);
+  if (!record) {
+    const text = stringValue(value).toLowerCase();
+    return isNonSupplyShareText(text);
+  }
+
+  const relationshipText = [
+    record.label,
+    record.relationship,
+    record.unit,
+  ]
+    .map((item) => stringValue(item).toLowerCase())
+    .join(" ");
+  if (/\b(?:current|outstanding|public\s+float|authorized)\b/.test(relationshipText)) return true;
+
+  const evidenceText = [
+    record.value_text,
+    record.text,
+    record.value,
+    record.evidence,
+  ]
+    .map((item) => stringValue(item).toLowerCase())
+    .join(" ");
+  return isNonSupplyShareText(evidenceText);
+}
+
+function isNonSupplyShareText(text: string) {
+  if (!text) return false;
+  if (/\b(?:authorized\s+(?:capital\s+stock|shares?|preferred\s+stock)|we\s+are\s+authorized\s+to\s+issue|capital\s+stock\s+consists|description\s+of\s+capital\s+stock|blank\s+check\s+preferred|undesignated\s+preferred|calculated\s+solely|public\s+float|maximum\s+aggregate\s+offering\s+price|registration\s+fee|fee\s+rate)\b/i.test(text)) {
+    return true;
+  }
+  const denominatorOnly =
+    /\b(?:issued\s+and\s+outstanding|shares?\s+outstanding|beneficially\s+owned|owned\s+prior|owned\s+before|owned\s+after|post-offering|after\s+this\s+offering)\b/i.test(
+      text,
+    );
+  const hasSupplySignal =
+    /\b(?:registered|registering|offered|offer(?:ing)?|resale|sell|sale|issuable|underlying|conversion|convertible|warrant|pre-funded|common\s+stock)\b/i.test(
+      text,
+    );
+  return denominatorOnly && !hasSupplySignal;
 }
 
 function parseMoney(value: unknown): number | null {

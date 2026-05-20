@@ -1,7 +1,14 @@
-import { fetchDailyBars, fetchFmpQuotes, type MarketBar } from "@/lib/integrations";
 import { resolveCanonicalEventFields } from "@/lib/eventFieldMapping";
+import type { MarketBar } from "@/lib/integrations";
+import {
+  readMarketBarCacheMap,
+  readMarketGroupSnapshotCache,
+  readMarketQuoteCacheMap,
+  type MarketGroupSnapshotPayload,
+} from "@/lib/marketDataCache";
 import { type RankedEvent } from "@/lib/radarRankings";
 import { fetchEventById, fetchEventCount, fetchEvents } from "@/lib/supabase";
+import { resolveCanonicalMarketGroup } from "@/lib/taxonomyRegistry";
 
 export type FeedTone = "bullish" | "bearish" | "volatile" | "neutral";
 export type SourceGroup = "news" | "filings" | "market";
@@ -10,6 +17,7 @@ export type FeedTab = "all" | "news" | "filings" | "market" | "alerts" | "watchl
 
 export type LiveFeedItem = {
   id: string;
+  rawItemId: string;
   time: string;
   detectedAtRaw: string;
   ticker: string;
@@ -19,6 +27,10 @@ export type LiveFeedItem = {
   updatedAt: string;
   sourceGroup: SourceGroup;
   marketScope: MarketScope;
+  sector?: string;
+  industryGroup?: string;
+  themeGroup?: string;
+  subTheme?: string;
   source: string;
   sourceUrl: string;
   eventType: string;
@@ -33,6 +45,11 @@ export type LiveFeedItem = {
   trend: number[];
   chartBars: MarketBar[];
   chartProvider: "polygon" | "fmp" | "none";
+  displayTicker: string;
+  displayPrice: string;
+  displayChange: string;
+  displayKind: "ticker" | "group" | "macro";
+  displayChartBars: MarketBar[];
 };
 
 export type MarketPulseItem = {
@@ -57,6 +74,14 @@ export type SituationCardItem = {
 
 type DbEventRow = Record<string, unknown>;
 type QuoteRow = Record<string, unknown>;
+type GroupSnapshotLookup = Map<string, MarketGroupSnapshotPayload>;
+
+type EventClassification = {
+  sector: string;
+  industryGroup: string;
+  themeGroup: string;
+  subTheme: string;
+};
 
 const marketPulseSymbols = [
   { symbol: "SPY", label: "SPY", detail: "Large caps" },
@@ -67,40 +92,104 @@ const marketPulseSymbols = [
   { symbol: "GLD", label: "GLD", detail: "Gold" },
 ];
 
-export async function getLiveFeedViewModel({
-  page,
-  limit,
-  tab = "all",
-}: {
+type SharedFeedData = {
+  rankingRows: DbEventRow[];
+  marketMovingRows: DbEventRow[];
+  marketPulseItems: MarketPulseItem[];
+  situationCards: SituationCardItem[];
+};
+
+const sharedFeedDataTtlMs = 30_000;
+let sharedFeedDataCache: {
+  data?: SharedFeedData;
+  expiresAt: number;
+  promise?: Promise<SharedFeedData>;
+} = { expiresAt: 0 };
+
+type LiveFeedViewModelParams = {
   page: number;
   limit: number;
   tab?: FeedTab;
-}) {
+  includeCharts?: boolean;
+  includeSharedData?: boolean;
+};
+
+type LiveFeedViewModel = Awaited<ReturnType<typeof buildLiveFeedViewModel>>;
+
+const liveFeedViewModelTtlMs = 10_000;
+const liveFeedViewModelCache = new Map<
+  string,
+  {
+    data?: LiveFeedViewModel;
+    expiresAt: number;
+    promise?: Promise<LiveFeedViewModel>;
+  }
+>();
+
+export async function getLiveFeedViewModel(params: LiveFeedViewModelParams) {
+  const activeTab = normalizeFeedTab(params.tab);
+  const cacheKey = [
+    activeTab,
+    params.page,
+    params.limit,
+    params.includeCharts === false ? "no-charts" : "charts",
+    params.includeSharedData === false ? "feed-only" : "full",
+  ].join(":");
+  const cached = liveFeedViewModelCache.get(cacheKey);
+  const now = Date.now();
+
+  if (cached?.data && cached.expiresAt > now) {
+    return cached.data;
+  }
+
+  if (cached?.promise) {
+    return cached.promise;
+  }
+
+  const promise = buildLiveFeedViewModel(params)
+    .then((data) => {
+      liveFeedViewModelCache.set(cacheKey, {
+        data,
+        expiresAt: Date.now() + liveFeedViewModelTtlMs,
+      });
+      return data;
+    })
+    .catch((error) => {
+      liveFeedViewModelCache.delete(cacheKey);
+      throw error;
+    });
+
+  liveFeedViewModelCache.set(cacheKey, {
+    expiresAt: now + liveFeedViewModelTtlMs,
+    promise,
+  });
+
+  return promise;
+}
+
+async function buildLiveFeedViewModel({
+  page,
+  limit,
+  tab = "all",
+  includeCharts,
+  includeSharedData = true,
+}: LiveFeedViewModelParams) {
   const activeTab = normalizeFeedTab(tab);
   const feedFilters = feedTabToEventFilters(activeTab);
-  const [feedResult, rankingResult, marketMovingResult] = await Promise.all([
+  const [feedResult, sharedFeedData] = await Promise.all([
     fetchEvents({ page, limit, excludeDeliveryLevel: "archive", ...feedFilters }),
-    fetchEvents({ page: 1, limit: 100, excludeDeliveryLevel: "archive" }),
-    fetchEvents({
-      page: 1,
-      limit: 30,
-      sourceGroup: "news",
-      marketScopes: ["sector", "theme", "macro"],
-      excludeDeliveryLevel: "archive",
-    }),
+    includeSharedData ? fetchSharedFeedData() : Promise.resolve(emptySharedFeedData()),
   ]);
 
   const feedRows = toRows(feedResult.data);
-  const rankingRows = toRows(rankingResult.data);
-  const marketMovingRows = toRows(marketMovingResult.data);
-  const [quotes, charts, marketPulseItems] = await Promise.all([
+  const { rankingRows, marketMovingRows, marketPulseItems, situationCards } = sharedFeedData;
+  const [quotes, charts, groupSnapshots] = await Promise.all([
     fetchQuoteMap([...feedRows, ...rankingRows]),
-    fetchChartMap(feedRows),
-    fetchMarketPulseItems(),
+    includeCharts === false ? Promise.resolve(new Map<string, ChartResult>()) : fetchChartMap(feedRows),
+    fetchFeedGroupSnapshotLookup(feedRows),
   ]);
-  const situationCards = await fetchSituationCards();
 
-  const feedItems = feedRows.map((row) => mapEventRow(row, quotes, charts));
+  const feedItems = feedRows.map((row) => mapEventRow(row, quotes, charts, groupSnapshots));
   const rankingItems = rankingRows.map((row) => mapEventRow(row, quotes));
 
   return {
@@ -131,6 +220,55 @@ export async function getLiveFeedViewModel({
     marketPulseItems,
     situationCards,
   };
+}
+
+function emptySharedFeedData(): SharedFeedData {
+  return {
+    marketMovingRows: [],
+    marketPulseItems: [],
+    rankingRows: [],
+    situationCards: [],
+  };
+}
+
+async function fetchSharedFeedData(): Promise<SharedFeedData> {
+  const now = Date.now();
+  if (sharedFeedDataCache.data && sharedFeedDataCache.expiresAt > now) {
+    return sharedFeedDataCache.data;
+  }
+
+  if (sharedFeedDataCache.promise) {
+    return sharedFeedDataCache.promise;
+  }
+
+  sharedFeedDataCache.promise = Promise.all([
+    fetchEvents({ page: 1, limit: 100, excludeDeliveryLevel: "archive" }),
+    fetchEvents({
+      page: 1,
+      limit: 30,
+      sourceGroup: "news",
+      marketScopes: ["sector", "theme", "macro"],
+      excludeDeliveryLevel: "archive",
+    }),
+    fetchMarketPulseItems(),
+    fetchSituationCards(),
+  ])
+    .then(([rankingResult, marketMovingResult, marketPulseItems, situationCards]) => ({
+      marketMovingRows: toRows(marketMovingResult.data),
+      marketPulseItems,
+      rankingRows: toRows(rankingResult.data),
+      situationCards,
+    }))
+    .catch(() => ({
+      ...emptySharedFeedData(),
+    }));
+
+  const data = await sharedFeedDataCache.promise;
+  sharedFeedDataCache = {
+    data,
+    expiresAt: Date.now() + sharedFeedDataTtlMs,
+  };
+  return data;
 }
 
 export async function getRankingViewModel(sourceGroup: "news" | "filings") {
@@ -176,11 +314,14 @@ function mapEventRow(
   row: DbEventRow,
   quotes: Map<string, QuoteRow>,
   charts = new Map<string, ChartResult>(),
+  groupSnapshots: GroupSnapshotLookup = new Map(),
 ): LiveFeedItem {
   const ticker = readString(row, ["ticker", "symbol"]) || "N/A";
   const quote = quotes.get(ticker.toUpperCase());
   const chart = charts.get(ticker.toUpperCase());
   const canonical = resolveCanonicalEventFields(row);
+  const classification = readEventClassification(row);
+  const groupDisplay = buildGroupDisplay(row, canonical.marketScope, classification, groupSnapshots);
   const detectedAt = readString(row, ["detected_at", "created_at", "event_date"]);
   const sourcePublishedAt =
     readString(row, ["published_at"]) ||
@@ -194,6 +335,7 @@ function mapEventRow(
 
   return {
     id: readString(row, ["id"]) || `${ticker}-${detectedAt || "event"}`,
+    rawItemId: readString(row, ["raw_item_id"]),
     time: formatDetectedTime(detectedAt),
     detectedAtRaw: sourcePublishedAt || detectedAt,
     ticker,
@@ -203,8 +345,12 @@ function mapEventRow(
     updatedAt: quoteValues.updatedAt || formatDetectedTime(detectedAt),
     sourceGroup: canonical.sourceGroup,
     marketScope: canonical.marketScope,
+    sector: classification.sector,
+    industryGroup: classification.industryGroup,
+    themeGroup: classification.themeGroup,
+    subTheme: classification.subTheme,
     source: formatSource(readString(row, ["source_code", "source", "source_channel"])),
-    sourceUrl: readString(row, ["source_link", "url"]) || readMetadataString(row, ["source_url"]),
+    sourceUrl: readString(row, ["source_url", "source_link", "url"]) || readMetadataString(row, ["source_url"]),
     eventType: readString(row, ["event_type"]) || "event",
     title: readString(row, ["title"]) || "Untitled event",
     quickTake,
@@ -220,11 +366,17 @@ function mapEventRow(
     trend: buildTrend(canonical.signal, canonical.score),
     chartBars: chart?.bars || [],
     chartProvider: chart?.provider || "none",
+    displayTicker: groupDisplay ? groupDisplay.ticker : ticker,
+    displayPrice: groupDisplay ? groupDisplay.price : quoteValues.price,
+    displayChange: groupDisplay ? groupDisplay.change : quoteValues.change,
+    displayKind: groupDisplay ? groupDisplay.kind : "ticker",
+    displayChartBars: groupDisplay ? groupDisplay.bars : chart?.bars || [],
   };
 }
 
 function toRankedEvent(item: LiveFeedItem): RankedEvent {
   return {
+    id: item.id,
     ticker: item.ticker,
     price: item.price,
     changeAmount: item.changeAmount,
@@ -238,6 +390,177 @@ function toRankedEvent(item: LiveFeedItem): RankedEvent {
     signal: item.signal,
     time: item.time,
   };
+}
+
+function readEventClassification(row: DbEventRow): EventClassification {
+  return {
+    sector: readString(row, ["sector"]) || readMetadataString(row, ["sector", "sector_name", "sectorName"]),
+    industryGroup:
+      readString(row, ["industry_group"]) ||
+      readMetadataString(row, ["industry_group", "industryGroup", "industry", "industry_name"]),
+    themeGroup:
+      readString(row, ["theme_group"]) ||
+      readMetadataString(row, ["theme_group", "themeGroup", "theme", "theme_group_name"]),
+    subTheme:
+      readString(row, ["sub_theme"]) ||
+      readMetadataString(row, ["sub_theme", "subTheme", "sub_theme_name"]),
+  };
+}
+
+function buildGroupDisplay(
+  row: DbEventRow,
+  marketScope: MarketScope,
+  classification: EventClassification,
+  snapshots: GroupSnapshotLookup,
+):
+  | {
+      ticker: string;
+      price: string;
+      change: string;
+      kind: "group" | "macro";
+      bars: MarketBar[];
+    }
+  | null {
+  if (marketScope === "company") return null;
+
+  const snapshot = resolveFeedGroupSnapshot(marketScope, classification, snapshots);
+  const fallback = resolveFallbackGroupDisplay(row, marketScope, classification);
+  const ticker = snapshot?.groupName || fallback.label;
+  const price = snapshot ? formatGroupScope(snapshot.scope) : fallback.scopeLabel;
+  const change = snapshot ? formatSignedPercent(snapshot.changePercent) : "";
+
+  return {
+    bars: snapshot ? groupSnapshotToBars(snapshot) : [],
+    change,
+    kind: marketScope === "macro" && !snapshot ? "macro" : "group",
+    price,
+    ticker,
+  };
+}
+
+function resolveFeedGroupSnapshot(
+  marketScope: MarketScope,
+  classification: EventClassification,
+  snapshots: GroupSnapshotLookup,
+) {
+  const candidates =
+    marketScope === "theme"
+      ? [
+          ["sub_theme", classification.subTheme],
+          ["theme", classification.themeGroup],
+          ["industry_group", classification.industryGroup],
+          ["sector", classification.sector],
+        ]
+      : marketScope === "sector"
+        ? [
+            ["industry_group", classification.industryGroup],
+            ["sector", classification.sector],
+          ]
+        : [
+            ["sub_theme", classification.subTheme],
+            ["theme", classification.themeGroup],
+            ["industry_group", classification.industryGroup],
+            ["sector", classification.sector],
+          ];
+
+  for (const [scope, label] of candidates) {
+    const snapshot = lookupGroupSnapshot(snapshots, scope, label);
+    if (snapshot) return snapshot;
+  }
+
+  return null;
+}
+
+function resolveFallbackGroupDisplay(
+  row: DbEventRow,
+  marketScope: MarketScope,
+  classification: EventClassification,
+) {
+  const ordered =
+    marketScope === "theme"
+      ? [
+          ["Sub Theme", classification.subTheme],
+          ["Theme", classification.themeGroup],
+          ["Industry", classification.industryGroup],
+          ["Sector", classification.sector],
+        ]
+      : marketScope === "sector"
+        ? [
+            ["Industry", classification.industryGroup],
+            ["Sector", classification.sector],
+          ]
+        : [
+            ["Theme", classification.themeGroup],
+            ["Sector", classification.sector],
+          ];
+
+  for (const [scopeLabel, label] of ordered) {
+    if (label) return { label: formatGroupLabel(label), scopeLabel };
+  }
+
+  return {
+    label: readMarketMovingLabel(row, marketScope) || formatMarketScopeLabel(marketScope),
+    scopeLabel: formatMarketScopeLabel(marketScope),
+  };
+}
+
+function lookupGroupSnapshot(snapshots: GroupSnapshotLookup, scope: string, label: string) {
+  if (!label) return null;
+  const direct = snapshots.get(groupSnapshotLookupKey(scope, label));
+  if (direct) return direct;
+
+  const canonical = resolveCanonicalMarketGroup(label);
+  if (!canonical) return null;
+
+  const industrySnapshot =
+    canonical.subCategory && scope !== "sector"
+      ? snapshots.get(groupSnapshotLookupKey("industry_group", canonical.subCategory))
+      : null;
+  if (industrySnapshot) return industrySnapshot;
+
+  return snapshots.get(groupSnapshotLookupKey("sector", canonical.sector)) || null;
+}
+
+function groupSnapshotToBars(snapshot: MarketGroupSnapshotPayload): MarketBar[] {
+  const points = snapshot.trendPoints.filter((value) => Number.isFinite(value)).slice(-22);
+  if (!points.length) return [];
+
+  return points.map((close, index) => {
+    const open = index > 0 ? points[index - 1] : close;
+    const spread = Math.max(Math.abs(close - open), 0.05);
+
+    return {
+      close,
+      date: `${snapshot.scope}:${snapshot.groupKey}:${index}`,
+      high: Math.max(open, close) + spread * 0.35,
+      low: Math.min(open, close) - spread * 0.35,
+      open,
+      volume: 1000 + index * 120,
+    };
+  });
+}
+
+function formatGroupScope(value: MarketGroupSnapshotPayload["scope"]) {
+  if (value === "industry_group") return "Industry";
+  if (value === "sub_theme") return "Sub Theme";
+  if (value === "theme") return "Theme";
+  return "Sector";
+}
+
+function formatGroupLabel(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (!/[_-]/.test(trimmed)) return trimmed;
+
+  return trimmed
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+    .replace(/\bAi\b/g, "AI")
+    .replace(/\bIpo\b/g, "IPO")
+    .replace(/\bSpac\b/g, "SPAC")
+    .replace(/\bFda\b/g, "FDA");
 }
 
 function toMarketMovingNewsItem(row: DbEventRow): MarketMovingNewsItem {
@@ -348,37 +671,43 @@ async function fetchQuoteMap(rows: DbEventRow[]) {
   const symbols = Array.from(
     new Set(
       rows
-        .map((row) => readString(row, ["ticker", "symbol"]).toUpperCase())
+        .map((row) => {
+          const canonical = resolveCanonicalEventFields(row);
+          if (canonical.marketScope !== "company") return "";
+          return readString(row, ["ticker", "symbol"]).toUpperCase();
+        })
         .filter((ticker) => ticker && ticker !== "N/A")
     )
   ).slice(0, 40);
 
   if (!symbols.length) return new Map<string, QuoteRow>();
 
-  const result = await fetchFmpQuotes(symbols);
-  const data = Array.isArray(result.data) ? result.data : [];
-
-  const entries: Array<[string, QuoteRow]> = data
-    .filter((row): row is QuoteRow => Boolean(row) && typeof row === "object")
-    .map((row) => [readString(row, ["symbol"]).toUpperCase(), row] as [string, QuoteRow])
-    .filter(([symbol]) => Boolean(symbol));
-
-  return new Map<string, QuoteRow>(entries);
+  const cachedQuotes = await readMarketQuoteCacheMap(symbols);
+  return new Map(
+    Array.from(cachedQuotes.entries()).map(([symbol, quote]) => [
+      symbol,
+      {
+        change: quote.changeAmount,
+        changeAmount: quote.changeAmount,
+        changePercent: quote.changePercent,
+        changePercentage: quote.changePercent,
+        changesPercentage: quote.changePercent,
+        previousClose: quote.previousClose,
+        price: quote.price,
+        provider: quote.provider,
+        symbol,
+        volume: quote.volume,
+      },
+    ]),
+  );
 }
 
 async function fetchMarketPulseItems(): Promise<MarketPulseItem[]> {
-  const result = await fetchFmpQuotes(marketPulseSymbols.map((item) => item.symbol));
-  const data = Array.isArray(result.data) ? result.data : [];
-  const quoteMap = new Map(
-    data
-      .filter((row): row is QuoteRow => Boolean(row) && typeof row === "object")
-      .map((row) => [readString(row, ["symbol"]).toUpperCase(), row] as [string, QuoteRow])
-      .filter(([symbol]) => Boolean(symbol)),
-  );
+  const quoteMap = await readMarketQuoteCacheMap(marketPulseSymbols.map((item) => item.symbol));
 
   return marketPulseSymbols.map((item) => {
     const quote = quoteMap.get(item.symbol);
-    const changePct = readNumber(quote, ["changePercentage", "changesPercentage"]);
+    const changePct = quote?.changePercent ?? Number.NaN;
     const tone = deriveMarketPulseTone(changePct);
 
     return {
@@ -390,6 +719,33 @@ async function fetchMarketPulseItems(): Promise<MarketPulseItem[]> {
   });
 }
 
+async function fetchFeedGroupSnapshotLookup(rows: DbEventRow[]): Promise<GroupSnapshotLookup> {
+  const needsGroupSnapshots = rows.some((row) => {
+    const canonical = resolveCanonicalEventFields(row);
+    return canonical.sourceGroup === "news" && canonical.marketScope !== "company";
+  });
+
+  if (!needsGroupSnapshots) return new Map();
+
+  const result = await readMarketGroupSnapshotCache("1D");
+  if (!result.hit) return new Map();
+
+  return buildGroupSnapshotLookup(result.snapshots);
+}
+
+function buildGroupSnapshotLookup(snapshots: MarketGroupSnapshotPayload[]): GroupSnapshotLookup {
+  const lookup: GroupSnapshotLookup = new Map();
+
+  for (const snapshot of snapshots) {
+    for (const value of [snapshot.groupName, snapshot.groupKey]) {
+      const key = groupSnapshotLookupKey(snapshot.scope, value);
+      if (key && !lookup.has(key)) lookup.set(key, snapshot);
+    }
+  }
+
+  return lookup;
+}
+
 type ChartResult = {
   bars: MarketBar[];
   provider: "polygon" | "fmp" | "none";
@@ -399,34 +755,45 @@ async function fetchChartMap(rows: DbEventRow[]) {
   const symbols = Array.from(
     new Set(
       rows
-        .map((row) => readString(row, ["ticker", "symbol"]).toUpperCase())
+        .map((row) => {
+          const canonical = resolveCanonicalEventFields(row);
+          if (canonical.marketScope !== "company") return "";
+          return readString(row, ["ticker", "symbol"]).toUpperCase();
+        })
         .filter((ticker) => ticker && ticker !== "N/A")
     )
   ).slice(0, 20);
 
   if (!symbols.length) return new Map<string, ChartResult>();
 
-  const results = await Promise.all(
-    symbols.map(async (symbol) => {
-      const result = await fetchDailyBars(symbol, 22);
-      return [
-        symbol,
-        {
-          bars: Array.isArray(result.data) ? result.data : [],
-          provider:
-            result.provider === "polygon" || result.provider === "fmp" ? result.provider : "none",
-        },
-      ] as [string, ChartResult];
-    })
-  );
+  const cachedBars = await readMarketBarCacheMap(symbols, "1D");
+  const results = symbols.map((symbol) => {
+    const cached = cachedBars.get(symbol);
+    return [
+      symbol,
+      {
+        bars: cached
+          ? cached.points.map((point) => ({
+              close: point.close,
+              date: point.time,
+              high: point.high,
+              low: point.low,
+              open: point.open,
+              volume: point.volume,
+            }))
+          : [],
+        provider: cached?.provider || "none",
+      },
+    ] as [string, ChartResult];
+  });
 
   return new Map<string, ChartResult>(results);
 }
 
 function formatQuote(quote?: QuoteRow) {
   const price = readNumber(quote, ["price"]);
-  const change = readNumber(quote, ["change"]);
-  const changePct = readNumber(quote, ["changePercentage", "changesPercentage"]);
+  const change = readNumber(quote, ["change", "changeAmount", "change_amount"]);
+  const changePct = readNumber(quote, ["changePercentage", "changesPercentage", "changePercent", "change_percent"]);
   const timestamp = readNumber(quote, ["timestamp"]);
   const sign = change < 0 || changePct < 0 ? "-" : "+";
 
@@ -448,6 +815,22 @@ function deriveMarketPulseTone(changePct: number): FeedTone {
 function formatSignedPercent(value: number) {
   const sign = value < 0 ? "-" : "+";
   return `${sign}${Math.abs(value).toFixed(2)}%`;
+}
+
+function groupSnapshotLookupKey(scope: string, value: string) {
+  const normalized = normalizeGroupLookupValue(value);
+  return normalized ? `${scope}:${normalized}` : "";
+}
+
+function normalizeGroupLookupValue(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[_/-]+/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function buildTrend(signal: FeedTone, score: number) {
@@ -507,7 +890,14 @@ function formatSource(value: string) {
     businesswire: "Business Wire",
     prnewswire: "PR Newswire",
     newsfile: "Newsfile",
+    ofac: "OFAC",
+    doj: "DOJ",
+    dea: "DEA",
+    whitehouse: "White House",
+    "white-house": "White House",
     fmp: "FMP",
+    nasdaq_corporate_actions: "Nasdaq Corporate Actions",
+    nasdaq_trader: "Nasdaq Trader",
     polygon: "Polygon",
   };
 

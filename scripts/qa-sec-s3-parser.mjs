@@ -63,7 +63,7 @@ try {
       check(`${summary.qa_source} ${summary.accession_number} extracts registration number`, Boolean(parsed.amendment.registration_number?.value), summary);
     }
     check(`${summary.qa_source} ${summary.accession_number} extracts securities`, parsed.securities_registered.length > 0, summary);
-    if (parsed.primary_or_resale?.value === "resale" && parsed.selling_stockholders_section) {
+    if (parsed.primary_or_resale?.value === "resale" && hasSellingStockholderTableHeader(parsed.selling_stockholders_section?.value)) {
       check(`${summary.qa_source} ${summary.accession_number} extracts selling stockholder rows`, parsed.selling_stockholders.length > 0, summary);
     }
     if (!parsed.amendment.is_amendment || parsed.fee_table.present) {
@@ -242,13 +242,23 @@ async function getLocalJson(path) {
 
 async function attachFeeTableText(rawItem) {
   const rawPayload = rawItem.raw_payload && typeof rawItem.raw_payload === "object" ? rawItem.raw_payload : {};
-  const documents = Array.isArray(rawPayload.documents) ? rawPayload.documents : [];
+  let documents = Array.isArray(rawPayload.documents) ? rawPayload.documents : [];
   const existingAttachments = Array.isArray(rawPayload.attachment_texts) ? rawPayload.attachment_texts : [];
-  const feeDocuments = documents.filter((document) =>
-    /\b(?:EX-FILING FEES|FILING FEE|FEE TABLE|EX-107|EX107|107)\b/i.test(
-      `${stringValue(document.type)} ${stringValue(document.description)} ${stringValue(document.document)}`,
-    ),
-  );
+  let feeDocuments = documents.filter(isFilingFeeTableDocument);
+
+  if (!feeDocuments.length) {
+    const fetchedDocuments = await fetchFilingDocumentsFromDetailPage(
+      stringValue(rawPayload.detail_url) || stringValue(rawItem.source_url),
+    );
+    if (fetchedDocuments.length) {
+      const existingUrls = new Set(documents.map((document) => stringValue(document.url)).filter(Boolean));
+      documents = [
+        ...documents,
+        ...fetchedDocuments.filter((document) => !existingUrls.has(stringValue(document.url))),
+      ];
+      feeDocuments = documents.filter(isFilingFeeTableDocument);
+    }
+  }
   if (!feeDocuments.length) return rawItem;
 
   const nextAttachments = [...existingAttachments];
@@ -282,6 +292,52 @@ async function attachFeeTableText(rawItem) {
       attachment_texts: nextAttachments,
     },
   };
+}
+
+async function fetchFilingDocumentsFromDetailPage(detailUrl) {
+  if (!detailUrl) return [];
+  const response = await fetch(detailUrl, {
+    cache: "no-store",
+    headers: {
+      "User-Agent": env.SEC_USER_AGENT || "US-Stock-Radar/0.1 contact@example.com",
+      Accept: "text/html,text/plain,*/*",
+    },
+  });
+  const html = await response.text();
+  if (!response.ok) throw new Error(`SEC detail page fetch failed: HTTP ${response.status}`);
+  return parseFilingDocumentsFromDetailHtml(html, detailUrl);
+}
+
+function parseFilingDocumentsFromDetailHtml(html, detailUrl) {
+  const table = extractFirst(html, /<table[^>]+summary=["']Document Format Files["'][^>]*>([\s\S]*?)<\/table>/i);
+  if (!table) return [];
+
+  const documents = [];
+  for (const rowMatch of table.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)) {
+    const rowHtml = rowMatch[1] || "";
+    const cells = [...rowHtml.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((match) => match[1] || "");
+    if (cells.length < 4) continue;
+
+    const linkHref = extractFirst(cells[2], /<a[^>]+href=["']([^"']+)["'][^>]*>/i);
+    documents.push({
+      sequence: cleanInlineText(cells[0]) || null,
+      description: cleanInlineText(cells[1]) || null,
+      document: cleanInlineText(cells[2]) || null,
+      type: cleanInlineText(cells[3]) || null,
+      size: cleanInlineText(cells[4]) || null,
+      url: absoluteSecUrl(linkHref, detailUrl),
+      isPrimary: false,
+      textCharCount: 0,
+      textTruncated: false,
+    });
+  }
+  return documents;
+}
+
+function isFilingFeeTableDocument(document) {
+  return /\b(?:EX-FILING FEES|FILING FEE|FEE TABLE|EX-107|EX107|107)\b/i.test(
+    `${stringValue(document?.type)} ${stringValue(document?.description)} ${stringValue(document?.document)}`,
+  );
 }
 
 async function fetchSecDocumentText(url) {
@@ -376,6 +432,13 @@ function cleanDocumentText(input) {
     .trim();
 }
 
+function cleanInlineText(value) {
+  return decodeHtmlEntities(String(value || ""))
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function decodeHtmlEntities(value) {
   return value
     .replace(/&nbsp;/gi, " ")
@@ -388,6 +451,25 @@ function decodeHtmlEntities(value) {
     .replace(/&#x2f;/gi, "/")
     .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
     .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCharCode(parseInt(code, 16)));
+}
+
+function extractFirst(value, pattern) {
+  return String(value || "").match(pattern)?.[1] || null;
+}
+
+function absoluteSecUrl(value, base) {
+  const href = stringValue(value);
+  if (!href) return null;
+  try {
+    const url = new URL(href, base || "https://www.sec.gov");
+    const inlineDocPath = url.pathname === "/ix" ? url.searchParams.get("doc") : null;
+    if (inlineDocPath && inlineDocPath.startsWith("/Archives/")) {
+      return new URL(inlineDocPath, "https://www.sec.gov").toString();
+    }
+    return url.toString();
+  } catch {
+    return null;
+  }
 }
 
 function unquoteEnvValue(value) {
@@ -453,6 +535,18 @@ function readRawFormType(row) {
 
 function normalizeFormType(value) {
   return stringValue(value).toUpperCase().replace(/\s+/g, "");
+}
+
+function hasSellingStockholderTableHeader(value) {
+  const text = stringValue(value).replace(/\s+/g, " ");
+  const hasHolderHeader =
+    /\bName\s+of\s+Selling\b[\s\S]{0,120}\b(?:Stockholder|Shareholder)s?\b/i.test(text) ||
+    /\bSelling\s+(?:Stockholder|Shareholder)s?\b[\s\S]{0,120}\bName\b/i.test(text);
+  if (!hasHolderHeader) return false;
+
+  return /\b(?:beneficially\s+owned|owned\s+(?:prior|before|after)|maximum\s+number\s+of\s+shares|shares?\s+(?:to\s+be\s+)?(?:sold|offered|resold)|offered\s+for\s+resale|pursuant\s+to\s+this\s+prospectus)\b/i.test(
+    text,
+  );
 }
 
 function short(value) {

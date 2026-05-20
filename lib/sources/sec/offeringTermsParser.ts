@@ -514,17 +514,40 @@ function pruneFieldsForOfferingContext({
   warrantExercisePrice: SecOfferingPriceField | null;
   conversionPrice: SecOfferingPriceField | null;
 }) {
+  const prunedSharesOffered = isNonOfferingShareSupplyEvidence(sharesOffered?.evidence) ? null : sharesOffered;
+  const prunedWarrantCoverage = isGenericWarrantDescription(warrantCoverage?.evidence) ? null : warrantCoverage;
+
   if (offeringType?.value !== "at_the_market_offering") {
-    return { sharesOffered, offeringPrice, warrantCoverage, warrantExercisePrice, conversionPrice };
+    return { sharesOffered: prunedSharesOffered, offeringPrice, warrantCoverage: prunedWarrantCoverage, warrantExercisePrice, conversionPrice };
   }
 
   return {
-    sharesOffered: hasHistoricalOfferingEvidence(sharesOffered?.evidence) ? null : sharesOffered,
+    sharesOffered: hasHistoricalOfferingEvidence(prunedSharesOffered?.evidence) ? null : prunedSharesOffered,
     offeringPrice: isAtmCompatiblePriceEvidence(offeringPrice?.evidence) ? offeringPrice : null,
-    warrantCoverage: isAtmCompatibleDerivativeEvidence(warrantCoverage?.evidence) ? warrantCoverage : null,
+    warrantCoverage: isAtmCompatibleDerivativeEvidence(prunedWarrantCoverage?.evidence) ? prunedWarrantCoverage : null,
     warrantExercisePrice: isAtmCompatibleDerivativeEvidence(warrantExercisePrice?.evidence) ? warrantExercisePrice : null,
     conversionPrice: isAtmCompatibleDerivativeEvidence(conversionPrice?.evidence) ? conversionPrice : null,
   };
+}
+
+function isNonOfferingShareSupplyEvidence(value?: string) {
+  const text = compactText(value || "");
+  if (!text) return false;
+  if (/\b(?:authorized\s+(?:capital\s+stock|shares?|preferred\s+stock)|we\s+are\s+authorized\s+to\s+issue|capital\s+stock\s+consists|description\s+of\s+capital\s+stock|blank\s+check\s+preferred|undesignated\s+preferred|fee\s+table|calculated\s+solely|public\s+float|available\s+for\s+future\s+issuance|employee\s+stock\s+purchase\s+plan|equity\s+incentive\s+plan|inducement\s+plan|stock\s+option\s+plan|compensation\s+plan|benefit\s+plan)\b/i.test(text)) {
+    return true;
+  }
+  return /\bpreferred stock\b/i.test(text) && !/\b(?:common stock|convertible|conversion|underlying|issuable|resale|selling stockholders?)\b/i.test(text);
+}
+
+function isGenericWarrantDescription(value?: string) {
+  const text = compactText(value || "");
+  if (!text) return false;
+  return (
+    /\b(?:we may issue|we may offer|may be issued|may be offered)\b[\s\S]{0,220}\bwarrants?\b/i.test(text) ||
+    /\bapplicable prospectus supplement\b[\s\S]{0,220}\bwarrants?\b/i.test(text) ||
+    /\bin the case of warrants?\b/i.test(text) ||
+    /\bas the case may be\b[\s\S]{0,180}\bwarrants?\b/i.test(text)
+  );
 }
 
 function hasHistoricalOfferingEvidence(value?: string) {

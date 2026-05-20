@@ -1,6 +1,7 @@
 export type RankedEventSignal = "bullish" | "bearish" | "volatile" | "neutral";
 
 export type RankedEvent = {
+  id?: string;
   ticker: string;
   price: string;
   changeAmount: string;

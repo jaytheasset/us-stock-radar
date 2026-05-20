@@ -694,8 +694,21 @@ function normalizeFeeTableProceeds({
     proceedsStack.fee_table_amount_only = buildFeeTableOnlyAuditFact(feeTableText, feeTableAmount);
     changed = true;
   }
+  if (!readRecord(proceedsStack.sec_registration_value) && feeTableText) {
+    proceedsStack.sec_registration_value = buildFeeTableOnlyAuditFact(feeTableText, feeTableAmount);
+    changed = true;
+  }
 
-  for (const key of ["company_gross_proceeds", "company_net_proceeds", "resale_proceeds_to_company"]) {
+  for (const key of [
+    "company_gross_proceeds",
+    "company_net_proceeds",
+    "resale_proceeds_to_company",
+    "primary_offering_proceeds",
+    "private_placement_proceeds",
+    "possible_warrant_exercise_proceeds",
+    "prefunded_warrant_exercise_proceeds",
+    "common_warrant_cash_exercise_proceeds",
+  ]) {
     const fact = readRecord(proceedsStack[key]);
     if (isSameMoneyFact(fact, feeTableAmount, feeTableText)) {
       proceedsStack[key] = buildNotDisclosedMoneyAuditFact(
@@ -740,6 +753,11 @@ function normalizeFeeTableProceeds({
       proceedsStack.company_gross_proceeds,
       proceedsStack.company_net_proceeds,
       proceedsStack.resale_proceeds_to_company,
+      proceedsStack.primary_offering_proceeds,
+      proceedsStack.private_placement_proceeds,
+      proceedsStack.possible_warrant_exercise_proceeds,
+      proceedsStack.prefunded_warrant_exercise_proceeds,
+      proceedsStack.common_warrant_cash_exercise_proceeds,
       proceedsStack.selling_stockholder_proceeds,
     ].some((fact) => isSameMoneyFact(readRecord(fact), feeTableAmount, feeTableText) && isFeeTableBackedFact(readRecord(fact)));
     const nextValue = !stillUsesFeeTableAsProceeds;
@@ -782,6 +800,18 @@ function normalizeShelfCapacityProceeds({
       relationship: "shelf_capacity_not_current_proceeds",
       source: null,
       evidence: "Base shelf capacity is not current issuer cash proceeds.",
+      confidence: "medium",
+    };
+  }
+  if (!proceedsStack.shelf_capacity && shelfCapacityText) {
+    proceedsStack.shelf_capacity = {
+      label: "Shelf capacity",
+      value_text: shelfCapacityText,
+      numeric_value: null,
+      unit: "usd",
+      relationship: "shelf_capacity_not_current_proceeds",
+      source: "Shelf registration",
+      evidence: "Shelf capacity is not current issuer cash proceeds.",
       confidence: "medium",
     };
   }

@@ -17,6 +17,7 @@ export function RankingLanding({ title, eyebrow, description, items }: RankingLa
         </a>
         <nav className="feed-nav-links ranking-links" aria-label="Primary">
           <a href="/feed">Live Feed</a>
+          <a href="/watchlist">Watchlist</a>
           <a className={title.includes("News") ? "active" : ""} href="/news">
             News
           </a>
@@ -24,8 +25,8 @@ export function RankingLanding({ title, eyebrow, description, items }: RankingLa
             Filings
           </a>
           <a href="/calendar">Calendar</a>
-          <a href="#">Alerts</a>
-          <a href="#">Premium</a>
+          <a href="/alerts">Alerts</a>
+          <a href="/premium">Premium</a>
         </nav>
       </header>
 
@@ -44,22 +45,7 @@ export function RankingLanding({ title, eyebrow, description, items }: RankingLa
         <div className="ranking-table">
           {items.length ? (
             items.map((item, index) => (
-              <article className="ranking-row" key={`${item.ticker}-${item.title}`}>
-                <div className="ranking-number">{index + 1}</div>
-                <RankingQuote item={item} />
-                <div className="ranking-copy">
-                  <strong>{item.ticker}</strong>
-                  <h2>{item.title}</h2>
-                  <p>
-                    {item.source} - {item.eventType} - {item.time}
-                  </p>
-                </div>
-                <div className="ranking-score">
-                  <span>Score</span>
-                  <strong>{item.score}</strong>
-                  <em className={item.signal}>{item.signal}</em>
-                </div>
-              </article>
+              <RankingRow item={item} index={index} key={item.id || `${item.ticker}-${item.title}`} />
             ))
           ) : (
             <div className="ranking-empty-state">No matching events yet.</div>
@@ -67,6 +53,36 @@ export function RankingLanding({ title, eyebrow, description, items }: RankingLa
         </div>
       </section>
     </main>
+  );
+}
+
+function RankingRow({ item, index }: { item: RankedEvent; index: number }) {
+  const detailHref = item.sourceGroup === "filings" && item.id ? `/filings/${item.id}` : "";
+  const content = (
+    <>
+      <div className="ranking-number">{index + 1}</div>
+      <RankingQuote item={item} />
+      <div className="ranking-copy">
+        <strong>{item.ticker}</strong>
+        <h2>{item.title}</h2>
+        <p>
+          {item.source} - {item.eventType} - {item.time}
+        </p>
+      </div>
+      <div className="ranking-score">
+        <span>Score</span>
+        <strong>{item.score}</strong>
+        <em className={item.signal}>{item.signal}</em>
+      </div>
+    </>
+  );
+
+  return detailHref ? (
+    <a className="ranking-row ranking-row-link" href={detailHref}>
+      {content}
+    </a>
+  ) : (
+    <article className="ranking-row">{content}</article>
   );
 }
 

@@ -934,10 +934,13 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
   const isForwardSale =
     /\bforward (?:sale|basis|purchase|transaction|contract|agreement)|physical settlement\b/i.test(structuredClassificationText) ||
     /\bforward (?:sale|purchase) agreement\b/i.test(sourceText);
+  const hasSellingHolderResale = /\b(?:resale|selling stockholders?|selling shareholders?)\b/i.test(classificationText);
   const isResale =
     dbPrimaryOrResale === "Resale" ||
+    /\bresale\b/i.test(dbPrimaryOrResale) ||
     dbOfferingType === "Resale registration" ||
-    (!dbPrimaryOrResale && /\b(?:resale|selling stockholders?|selling shareholders?)\b/i.test(classificationText));
+    /\bresale\b/i.test(dbOfferingType) ||
+    hasSellingHolderResale;
   const resaleProceedsToCompany = readDisplayCashTermValue(llmDisplayModel, "resale_proceeds_to_company");
   const noIssuerProceeds =
     resaleProceedsToCompany === "$0" ||
@@ -1037,14 +1040,19 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     readDbPriceValue(offeringTerms, "conversion_price", "conversion_price_text") ||
     findPriceTerm(sourceText, /(?:conversion price|convertible at|convert into)\s*(?:of)?\s*(\$[\d,.]+)/i);
   const useOfProceeds = isResale || noIssuerProceeds ? "" : findSentence(sourceText, /\buse of proceeds\b|\bnet proceeds\b|\bgeneral corporate purposes\b|\bworking capital\b/i);
-  const warrantCashExerciseProceeds = readDisplayCashTermValue(llmDisplayModel, "conditional_warrant_cash") || findWarrantCashExerciseProceeds(sourceText);
+  const prefundedWarrantExerciseCash = readDisplayCashTermValue(llmDisplayModel, "prefunded_warrant_exercise_cash");
+  const warrantCashExerciseProceeds =
+    readDisplayCashTermValue(llmDisplayModel, "common_warrant_cash_exercise_proceeds") ||
+    readDisplayCashTermValue(llmDisplayModel, "conditional_warrant_cash") ||
+    findWarrantCashExerciseProceeds(sourceText);
   const firstNotePrincipal = findNotePrincipal(sourceText, "First");
   const secondNotePrincipal = findNotePrincipal(sourceText, "Second");
   const pipePrincipalValue = formatMoneyTotal([firstNotePrincipal, secondNotePrincipal]) || "Not disclosed";
   const firstClosingNetProceeds = findClosingNetProceeds(sourceText, "First");
   const secondClosingNetProceeds = findClosingNetProceeds(sourceText, "Second");
+  const issuerPrimaryOrClosingCash = cleanCompanyCashDisclosure(readDisplayCashTermValue(llmDisplayModel, "issuer_primary_or_closing_cash"));
   const closingNetProceedsValue =
-    readDisplayCashTermValue(llmDisplayModel, "issuer_primary_or_closing_cash") ||
+    issuerPrimaryOrClosingCash ||
     formatMoneyTotal([firstClosingNetProceeds, secondClosingNetProceeds], "~") ||
     "Not disclosed";
   const additionalNotesAmount = findAdditionalNotesAmount(sourceText);
@@ -1159,20 +1167,20 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     supplyCountEstimated,
   });
   const overhangShareRead = isDisclosedValue(dilutionRatioValue) ? `${dilutionRatioValue} of current shares` : "";
-  const companyProceeds =
-    isResale && noIssuerProceeds
-      ? "$0 from resale"
-      : isDisclosedValue(closingNetProceedsValue)
-        ? closingNetProceedsValue
-        : isShelfLike && isDisclosedValue(offeringAmount)
-          ? "Future takedown"
-          : offeringAmount || "Not disclosed";
-  const companyProceedsNote =
-    isResale && noIssuerProceeds
-      ? "Resale sales are $0 to the company."
-      : isShelfLike && isDisclosedValue(offeringAmount)
-        ? `${offeringAmount} shelf capacity; cash only if securities are sold later.`
-        : "Gross proceeds from the disclosed terms.";
+  const companyProceeds = buildCompanyProceedsValue({
+    closingNetProceedsValue,
+    isResale,
+    noIssuerProceeds,
+    offeringAmount,
+  });
+  const companyProceedsNote = buildCompanyProceedsNote({
+    closingNetProceedsValue,
+    isResale,
+    noIssuerProceeds,
+    offeringAmount,
+    prefundedWarrantExerciseCash,
+    warrantCashExerciseProceeds,
+  });
   const instrumentPriceSummary = formatInstrumentPriceSummary(warrantExercisePrice, conversionPrice);
   const conversionPriceAmount = parseMoneyValue(conversionPrice);
   const warrantExercisePriceAmount = parseMoneyValue(warrantExercisePrice);
@@ -2140,6 +2148,67 @@ function cleanDisclosureValue(value: string | null | undefined) {
     .replace(/\s+/g, " ")
     .trim()
     .replace(/^[,.;:\-\s]+|[,.;:\-\s]+$/g, "");
+}
+
+function cleanCompanyCashDisclosure(value: string) {
+  const cleaned = cleanDisclosureValue(value);
+  if (!isDisclosedValue(cleaned)) return "";
+  if (
+    /\b(?:fee[-\s]?table|registration value|maximum aggregate offering price|total offering amounts?|sec fee|filing fee)\b/i.test(cleaned) ||
+    /\bshelf capacity\b/i.test(cleaned) ||
+    /^future takedown$/i.test(cleaned)
+  ) {
+    return "";
+  }
+  return cleaned;
+}
+
+function buildCompanyProceedsValue({
+  closingNetProceedsValue,
+  isResale,
+  noIssuerProceeds,
+  offeringAmount,
+}: {
+  closingNetProceedsValue: string;
+  isResale: boolean;
+  noIssuerProceeds: boolean;
+  offeringAmount: string;
+}) {
+  if (isResale && noIssuerProceeds) return "$0 from resale";
+  if (isDisclosedValue(closingNetProceedsValue)) return closingNetProceedsValue;
+  return cleanCompanyCashDisclosure(offeringAmount) || "Not disclosed";
+}
+
+function buildCompanyProceedsNote({
+  closingNetProceedsValue,
+  isResale,
+  noIssuerProceeds,
+  offeringAmount,
+  prefundedWarrantExerciseCash,
+  warrantCashExerciseProceeds,
+}: {
+  closingNetProceedsValue: string;
+  isResale: boolean;
+  noIssuerProceeds: boolean;
+  offeringAmount: string;
+  prefundedWarrantExerciseCash: string;
+  warrantCashExerciseProceeds: string;
+}) {
+  const parts: string[] = [];
+  if (isResale && noIssuerProceeds) parts.push("Selling-holder resales send $0 to the company.");
+  if (!(isResale && noIssuerProceeds) && isDisclosedValue(closingNetProceedsValue)) {
+    parts.push("Company cash from disclosed primary or placement terms.");
+  }
+  if (isDisclosedValue(prefundedWarrantExerciseCash)) {
+    parts.push(`Pre-funded exercise cash is nominal: ${prefundedWarrantExerciseCash}.`);
+  }
+  if (isDisclosedValue(warrantCashExerciseProceeds)) {
+    parts.push(`Common warrant cash only if exercised: ${warrantCashExerciseProceeds}.`);
+  }
+  if (!parts.length && cleanCompanyCashDisclosure(offeringAmount)) {
+    parts.push("Gross proceeds from disclosed primary offering terms.");
+  }
+  return parts.join(" ") || "Company proceeds were not clearly disclosed.";
 }
 
 function findMoneyAmount(sourceText: string) {

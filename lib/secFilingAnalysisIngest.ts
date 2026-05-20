@@ -337,18 +337,21 @@ async function persistEventOfferingTerms({
     toRecord(securityStack?.public_float),
   ]);
   const offeringAmountFact = firstMoneyFact([
+    toRecord(cashTerms?.issuer_primary_or_closing_cash),
+    toRecord(cashTerms?.private_placement_proceeds),
     toRecord(proceedsStack?.company_gross_proceeds),
     toRecord(proceedsStack?.company_net_proceeds),
-    toRecord(proceedsStack?.fee_table_amount_only),
-    toRecord(displayModel?.total_potential_supply),
-    toRecord(securityStack?.max_registered_stack_share_equivalent),
+    toRecord(proceedsStack?.primary_offering_proceeds),
+    toRecord(proceedsStack?.private_placement_proceeds),
   ]);
   const offeringPriceFact = firstFact([toRecord(proceedsStack?.offering_price)]);
   const conversionPriceFact = firstFact([toRecord(proceedsStack?.conversion_price)]);
   const warrantExercisePriceFact = firstFact([toRecord(proceedsStack?.warrant_exercise_price)]);
   const notePrincipalFact = firstFact([toRecord(proceedsStack?.note_principal)]);
   const warrantCashFact = firstFact([
+    toRecord(cashTerms?.common_warrant_cash_exercise_proceeds),
     toRecord(cashTerms?.conditional_warrant_cash),
+    toRecord(proceedsStack?.common_warrant_cash_exercise_proceeds),
     toRecord(proceedsStack?.possible_warrant_exercise_proceeds),
   ]);
 
@@ -388,6 +391,16 @@ async function persistEventOfferingTerms({
     securityType: stringValue(offeringTerms?.security_type) || inferSecurityTypeFromSegments(displaySegments),
     primaryOrResale: stringValue(offeringTerms?.primary_or_resale),
   });
+  const isResaleLikeOffering =
+    /resale|selling[_\s-]?stockholder|selling[_\s-]?shareholder/i.test(
+      [
+        stringValue(offeringTerms?.primary_or_resale),
+        stringValue(offeringTerms?.offering_type),
+        stringValue(audit?.offering_type),
+        stringValue(displayModel?.display_mode),
+      ].join(" "),
+    );
+  const parserOfferingAmount = isResaleLikeOffering ? null : nullableString(offeringTerms?.offering_amount);
 
   const payload = removeUndefined({
     event_id: stringValue(eventRow.id),
@@ -407,7 +420,7 @@ async function persistEventOfferingTerms({
     ),
     registration_status: normalizeRegistrationStatusForDb(stringValue(audit?.registration_status) || stringValue(s3?.registration_status)),
 
-    offering_amount_text: factText(offeringAmountFact) || nullableString(offeringTerms?.offering_amount),
+    offering_amount_text: factText(offeringAmountFact) || parserOfferingAmount,
     offering_amount: factMoneyNumber(offeringAmountFact) || null,
     offering_amount_currency: factCurrency(offeringAmountFact),
     shelf_capacity_text: nullableString(offeringTerms?.shelf_capacity),
@@ -1219,6 +1232,18 @@ function normalizeCalendarEventTypeForItem(
     /\b(expiration|expires|expire|exercisable|exercise|redemption|redeem)\b/.test(text)
   ) {
     return "warrant_redemption_deadline";
+  }
+
+  if (/\bregistration\b/.test(text) && /\beffective(?:ness)?\b/.test(text)) {
+    return "registration_effective_date";
+  }
+
+  if (
+    /\bshareholder\b/.test(text) &&
+    /\bapproval\b/.test(text) &&
+    /\b(deadline|by|before|prior to|no later than|date)\b/.test(text)
+  ) {
+    return "shareholder_approval_deadline";
   }
 
   return normalized;

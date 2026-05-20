@@ -346,6 +346,65 @@ export async function supabaseUpsert(
   }
 }
 
+export async function supabaseUpdate(
+  table: string,
+  search: Record<string, string>,
+  payload: Record<string, unknown>,
+  options: Pick<SupabaseMutationOptions, "prefer"> = {},
+) {
+  const { baseUrl, key } = getSupabaseAuth();
+
+  if (!baseUrl) {
+    return { ok: false, status: 0, data: null, error: "SUPABASE_URL is missing" };
+  }
+
+  if (!key) {
+    return {
+      ok: false,
+      status: 0,
+      data: null,
+      error: "A Supabase API key is missing",
+    };
+  }
+
+  const url = new URL(`${baseUrl}/rest/v1/${table}`);
+  for (const [name, value] of Object.entries(search)) {
+    if (value) url.searchParams.set(name, value);
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: "PATCH",
+      cache: "no-store",
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Prefer: options.prefer || "return=representation",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const body = await response.text();
+    const data = parseBody(body);
+
+    return {
+      ok: response.ok,
+      status: response.status,
+      data,
+      error: response.ok ? undefined : readError(data, response.statusText),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      data: null,
+      error: error instanceof Error ? error.message : "Unknown Supabase error",
+    };
+  }
+}
+
 export async function supabaseDelete(table: string, search: Record<string, string>) {
   const { baseUrl, key } = getSupabaseAuth();
 

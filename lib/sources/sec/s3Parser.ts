@@ -215,11 +215,12 @@ export function parseSecS3Filing(input: SecS3ParseInput): SecS3FilingFacts {
   const metadata = toRecord(input.metadata) || {};
   const documents = recordArray(rawPayload.documents) as SecDocumentPayload[];
   const attachmentTexts = recordArray(rawPayload.attachment_texts) as AttachmentTextPayload[];
-  const formType =
-    nullableString(rawPayload.form_type) ||
-    nullableString(metadata.form_type) ||
-    readFormTypeFromTitle(input.title) ||
-    null;
+  const formType = resolveS3FormType({
+    documents,
+    metadata,
+    rawPayload,
+    title: input.title,
+  });
   const combinedText = compactText(stringValue(input.analysisText) || stringValue(input.bodyText));
   const primaryText = extractPrimaryText(combinedText, formType);
   const attachmentText = compactText(attachmentTexts.map((item) => stringValue(item.text)).join("\n\n"));
@@ -555,6 +556,11 @@ function findLimitedScopeAmendmentSignalCandidates(text: string): SecS3Field[] {
     ["consists_solely_of_limited_sections", /\bconsists\s+solely\s+of\b[\s\S]{0,220}?\b(?:cover page|explanatory note|part ii|exhibit|signature pages?)\b/i],
     ["remainder_unchanged_not_included", /\b(?:remainder|rest)\s+of\s+the\s+registration\s+statement[\s\S]{0,180}?\bunchanged\b[\s\S]{0,180}?\bnot\s+been\s+included\b/i],
     ["exhibit_only_or_consent", /\b(?:filing|furnishing)\s+(?:Exhibit|a consent|an opinion|an indenture)\b/i],
+    ["delaying_amendment", /\bdelaying\s+amendment\b/i],
+    ["incorporation_by_reference_update", /\bincorporat(?:e|ed|ing|ion)\s+by\s+reference\b[\s\S]{0,220}?\b(?:annual report|quarterly report|current report|future filings?)\b/i],
+    ["no_other_changes", /\bno\s+other\s+changes?\s+(?:have\s+)?been\s+made\b/i],
+    ["auditor_consent_update", /\bfiling\s+(?:an?\s+)?updated\s+consent\s+of\b[\s\S]{0,160}?\b(?:independent\s+registered\s+public\s+accounting\s+firm|auditor|accountant)\b/i],
+    ["exhibit_107_refile", /\b(?:submitted|filed)\s+to\s+refile\s+Exhibit\s+107\b|\brefil(?:e|ing)\s+Exhibit\s+107\b/i],
   ];
   return uniqueFields(signals.map(([value, pattern]) => field(value, text, pattern, "high")).filter(Boolean) as SecS3Field[]);
 }
@@ -656,9 +662,12 @@ function findRegisteredShareCount(text: string): SecS3CountField | null {
   const coverCandidate = findBestRegisteredShareCountCandidate(extractProspectusCoverText(text));
   if (coverCandidate) return coverCandidate;
 
+  const bodyCandidate = findBestRegisteredShareCountCandidate(text);
+  if (bodyCandidate) return bodyCandidate;
+
   return findShareCount(text, [
     /\b(?:preliminary prospectus|prospectus)\s+(\d[\d,.]*\s+(?:shares of common stock|common shares|ordinary shares|shares))\b/i,
-    /\b(?:up to|resale of|register(?:ing)?(?: the resale of)?)\s+(\d[\d,.]*\s+(?:shares of common stock|common shares|ordinary shares|shares))\b/i,
+    /\b(?:resale of|register(?:ing)?(?: the resale of)?)\s+(\d[\d,.]*\s+(?:shares of common stock|common shares|ordinary shares|shares))\b/i,
   ]);
 }
 
@@ -672,11 +681,14 @@ function findBestRegisteredShareCountCandidate(text: string): SecS3CountField | 
   while ((match = pattern.exec(source))) {
     if (!match[1]) continue;
     const valueText = match[1].trim();
+    const value = normalizeShareCount(valueText);
+    if (!value) continue;
     const evidence = pickEvidenceSentence(source, match.index || 0);
-    const rank = rankRegisteredShareCountCandidate(valueText, evidence, match.index || 0);
+    const surroundingContext = source.slice(Math.max(0, (match.index || 0) - 180), (match.index || 0) + 320);
+    const rank = rankRegisteredShareCountCandidate(valueText, `${surroundingContext} ${evidence}`, match.index || 0);
     if (rank < 0) continue;
     candidates.push({
-      value: normalizeShareCount(valueText),
+      value,
       text: valueText,
       evidence,
       confidence: rank >= 7 ? "high" : "medium",
@@ -703,7 +715,10 @@ function findBestRegisteredShareCountCandidate(text: string): SecS3CountField | 
 
 function rankRegisteredShareCountCandidate(valueText: string, evidence: string, index: number) {
   const context = compactText(`${valueText} ${evidence}`);
-  if (/\b(?:authorized|outstanding|beneficially owned|owned prior|owned before|owned after|post-offering|after this offering|fee table|calculated solely)\b/i.test(context)) {
+  if (/\b(?:authoriz(?:e|es|ed|ing|ation)|outstanding|beneficially owned|owned prior|owned before|owned after|post-offering|after this offering|fee table|calculated solely|description of capital stock|capital stock consists|blank check preferred|undesignated preferred|available for future issuance|employee stock purchase plan|equity incentive plan|inducement plan|stock option plan|compensation plan|benefit plan)\b/i.test(context)) {
+    return -1;
+  }
+  if (/\bpreferred stock\b/i.test(context) && !/\b(?:common stock|convertible|conversion|underlying|issuable|resale|selling stockholders?)\b/i.test(context)) {
     return -1;
   }
 
@@ -715,6 +730,17 @@ function rankRegisteredShareCountCandidate(valueText: string, evidence: string, 
   if (/\b(?:underlying|issuable upon|upon exercise|conversion|warrant|pre-funded)\b/i.test(evidence)) rank -= 2;
   if (index < 1_500) rank += 1;
   return rank;
+}
+
+function isGenericS3WarrantDescription(value?: string) {
+  const text = compactText(value || "");
+  if (!text) return false;
+  return (
+    /\b(?:we may issue|we may offer|may be issued|may be offered)\b[\s\S]{0,220}\bwarrants?\b/i.test(text) ||
+    /\bapplicable prospectus supplement\b[\s\S]{0,220}\bwarrants?\b/i.test(text) ||
+    /\bin the case of warrants?\b/i.test(text) ||
+    /\bas the case may be\b[\s\S]{0,180}\bwarrants?\b/i.test(text)
+  );
 }
 
 function buildS3OfferingTerms({
@@ -753,7 +779,10 @@ function buildS3OfferingTerms({
           /\b(?:aggregate offering price of|up to)\s+(\$[\d,.]+\s*(?:thousand|million|billion|m|bn)?)/i,
         ])) ||
     shelfCapacity;
-  const warrantCoverage = findSentenceField(s3Text, /\bwarrants?\s+to\s+purchase\b|\bwarrant shares\b/i);
+  const warrantCoverageCandidate = findSentenceField(s3Text, /\bwarrants?\s+to\s+purchase\b|\bwarrant shares\b/i);
+  const warrantCoverage = isGenericS3WarrantDescription(warrantCoverageCandidate?.evidence)
+    ? null
+    : warrantCoverageCandidate;
   const conversionPrice = findPriceField(s3Text, [
     /\b(?:conversion price|initial conversion price|convertible at)\s*(?:of)?\s*(\$[\d,.]+)/i,
   ]);
@@ -912,15 +941,23 @@ function parseSplitSellingStockholderRows(section: string): SellingStockholderBa
   let inTable = false;
 
   for (let index = 0; index < lines.length; index += 1) {
-    const line = cleanSellingTableLine(lines[index]);
+    const rawLine = lines[index];
+    const line = cleanSellingTableLine(rawLine);
     if (!line) continue;
 
-    if (isSellingStockholdersHeaderLine(line)) {
+    if (isSellingStockholdersHeaderAt(lines, index)) {
       inTable = true;
       nameBuffer.length = 0;
       continue;
     }
     if (!inTable) continue;
+
+    const pipedRow = parsePipedSellingStockholderRow(rawLine);
+    if (pipedRow) {
+      rows.push(pipedRow);
+      nameBuffer.length = 0;
+      continue;
+    }
 
     const inlineRow = parseInlineSellingStockholderRow(line);
     if (inlineRow) {
@@ -934,6 +971,10 @@ function parseSplitSellingStockholderRows(section: string): SellingStockholderBa
     if (rowName || (rowFootnoteOnly && nameBuffer.length)) {
       const holderName = rowName ? compactText([...nameBuffer, rowName[1]].join(" ")) : compactText(nameBuffer.join(" "));
       const footnoteId = rowName ? rowName[2] : rowFootnoteOnly?.[1] || null;
+      if (!isPotentialSellingStockholderNameFragment(holderName)) {
+        nameBuffer.length = 0;
+        continue;
+      }
       nameBuffer.length = 0;
       const cells = collectSellingStockholderCells(lines, index + 1);
       if (holderName && cells.values.length >= 3) {
@@ -978,6 +1019,35 @@ function parseSplitSellingStockholderRows(section: string): SellingStockholderBa
   }
 
   return rows;
+}
+
+function parsePipedSellingStockholderRow(line: string): SellingStockholderBaseRow | null {
+  if (!line.includes("|")) return null;
+
+  const cells = line
+    .split("|")
+    .map(cleanSellingTableLine)
+    .filter(Boolean);
+  if (cells.length < 4) return null;
+
+  const holderCell = cells[0];
+  if (!/[A-Za-z]/.test(holderCell) || isSellingStockholderTableNoise(holderCell)) return null;
+
+  const footnoteMatch = holderCell.match(/^(.*?)\s+\(?(\d+[A-Za-z]?)\)?$/);
+  const holderName = compactText(footnoteMatch?.[1] || holderCell);
+  const footnoteId = footnoteMatch?.[2] || null;
+  if (!isPotentialSellingStockholderNameFragment(holderName)) return null;
+
+  const values = cells.slice(1).map(readSellingStockholderNumericCell).filter((cell): cell is string => Boolean(cell));
+  if (values.length < 3) return null;
+
+  return buildSellingStockholderBaseRow({
+    holderName,
+    footnoteId,
+    values,
+    addressHint: null,
+    evidence: line,
+  });
 }
 
 function parseInlineSellingStockholderRow(line: string): SellingStockholderBaseRow | null {
@@ -1211,23 +1281,38 @@ function isPlaceholderCell(value: string | null | undefined) {
   return /^(?:-|--|—|–|\*)$/.test(stringValue(value));
 }
 
-function isSellingStockholdersHeaderLine(value: string) {
-  return (
-    /\bName\s+of\s+Selling\s+(?:Stockholder|Shareholder)s?\b/i.test(value) ||
-    /\bof\s+Selling\s+(?:Stockholder|Shareholder)s?\b/i.test(value)
+function isSellingStockholdersHeaderAt(lines: string[], index: number) {
+  const windowText = lines
+    .slice(index, Math.min(lines.length, index + 10))
+    .map(cleanSellingTableLine)
+    .filter(Boolean)
+    .join(" ");
+
+  return hasSellingStockholderTableHeader(windowText);
+}
+
+function hasSellingStockholderTableHeader(value: string) {
+  const text = cleanSellingTableLine(value);
+  const hasHolderHeader =
+    /\bName\s+of\s+Selling\b[\s\S]{0,120}\b(?:Stockholder|Shareholder)s?\b/i.test(text) ||
+    /\bSelling\s+(?:Stockholder|Shareholder)s?\b[\s\S]{0,120}\bName\b/i.test(text);
+  if (!hasHolderHeader) return false;
+
+  return /\b(?:beneficially\s+owned|owned\s+(?:prior|before|after)|maximum\s+number\s+of\s+shares|shares?\s+(?:to\s+be\s+)?(?:sold|offered|resold)|offered\s+for\s+resale|pursuant\s+to\s+this\s+prospectus)\b/i.test(
+    text,
   );
 }
 
 function isSellingStockholderFootnoteStart(value: string) {
-  return /^\*?\s*$/.test(value) || /^\(\d+[A-Za-z]?\)\b/.test(value);
+  return /^\*?\s*$/.test(value) || /^\(?\d+[A-Za-z]?\)?(?:\s|$)/.test(value);
 }
 
 function isSellingStockholderTableNoise(value: string) {
   if (/^\|+$/.test(value)) return true;
-  if (/^(?:Shares|of|Common|Stock|Maximum|Number|Private|Placement|Immediately|Following|Beneficially|Owned|Prior to|the|Sale of the Private|Being Offered|Offered|for|Resale|for Resale|Offering|Number|Percentage)$/i.test(value)) {
+  if (/^(?:Name|Shares|of|Common|Stock|Stockholder|Stockholders|Shareholder|Shareholders|Maximum|Number|Private|Placement|Immediately|Following|Beneficially|Owned|Prior to|the|Sale of the Private|Being Offered|Offered|for|Resale|for Resale|Offering|Number|Percentage)$/i.test(value)) {
     return true;
   }
-  if (/\b(?:Name of Selling|Shares of Common Stock|Beneficially Owned|Maximum Number|Offered for Resale|Percentage)\b/i.test(value)) {
+  if (/\b(?:Name of Selling|Number of shares|Shares of Common Stock|Common Stock Beneficially Owned|common stock owned|stock owned prior|stock owned after|stock to be sold|pursuant to this Prospectus|Beneficially Owned|Maximum Number|Offered for Resale|Percentage)\b/i.test(value)) {
     return true;
   }
   return false;
@@ -1304,30 +1389,39 @@ function parseS3FeeTable(text: string): { rows: SecS3FeeTableRow[]; totals: SecS
     while (isFootnoteToken(readToken(tokens, cursor))) cursor += 1;
 
     const firstValue = readToken(tokens, cursor);
-    const secondValue = readToken(tokens, cursor + 1);
     let securityType: string | null = null;
     let securityClassTitle: string | null = null;
+    let feeCalculationRule: string | null = null;
     if (isFeeSecurityType(firstValue)) {
       securityType = firstValue;
-      securityClassTitle = secondValue || null;
-      cursor += 2;
-    } else {
-      securityClassTitle = firstValue || null;
       cursor += 1;
+      const classAndRule = readSecurityClassAndFeeRule(tokens, cursor);
+      securityClassTitle = classAndRule.securityClassTitle;
+      cursor = classAndRule.nextIndex;
+      feeCalculationRule = classAndRule.feeCalculationRule;
+    } else {
+      const classAndRule = readSecurityClassAndFeeRule(tokens, cursor);
+      securityClassTitle = classAndRule.securityClassTitle;
+      cursor = classAndRule.nextIndex;
+      feeCalculationRule = classAndRule.feeCalculationRule;
     }
 
     while (isFootnoteToken(readToken(tokens, cursor))) cursor += 1;
-    const feeCalculationRule = readToken(tokens, cursor);
-    cursor += 1;
+    if (!feeCalculationRule) {
+      const rule = readFeeCalculationRule(tokens, cursor);
+      feeCalculationRule = rule.value;
+      cursor = rule.nextIndex;
+    }
 
     const amountRegistered = readAmountRegistered(tokens, cursor);
     cursor = amountRegistered.nextIndex;
     const proposedMaximumOfferingPricePerUnit = readPrice(tokens, cursor);
     cursor = proposedMaximumOfferingPricePerUnit.nextIndex;
-    const maximumAggregateOfferingPrice = readMoney(tokens, cursor);
+    const maximumAggregateOfferingPrice = readMoney(tokens, cursor, true);
     cursor = maximumAggregateOfferingPrice.nextIndex;
-    const feeRate = numberFromText(readToken(tokens, cursor));
-    cursor += 1;
+    const feeRateCandidate = numberFromText(readToken(tokens, cursor));
+    const feeRate = feeRateCandidate !== null && feeRateCandidate > 0 && feeRateCandidate < 1 ? feeRateCandidate : null;
+    if (feeRate !== null) cursor += 1;
     const registrationFee = readMoney(tokens, cursor);
 
     if (!securityType && !securityClassTitle && !amountRegistered.field) continue;
@@ -1390,6 +1484,57 @@ function readTotalMoney(tokens: string[], labelPattern: RegExp) {
   return null;
 }
 
+function readSecurityClassAndFeeRule(tokens: string[], index: number): {
+  securityClassTitle: string | null;
+  feeCalculationRule: string | null;
+  nextIndex: number;
+} {
+  const titleParts: string[] = [];
+  let cursor = index;
+
+  while (cursor < tokens.length) {
+    while (isFootnoteToken(readToken(tokens, cursor))) cursor += 1;
+
+    const rule = readFeeCalculationRule(tokens, cursor);
+    if (rule.value) {
+      return {
+        securityClassTitle: compactText(titleParts.join(" ")) || null,
+        feeCalculationRule: rule.value,
+        nextIndex: rule.nextIndex,
+      };
+    }
+
+    const token = readToken(tokens, cursor);
+    if (!token || /^Fees to be Paid$/i.test(token) || /^Total Offering Amounts$/i.test(token)) break;
+    if (!isPlaceholderToken(token)) titleParts.push(token);
+    cursor += 1;
+  }
+
+  return {
+    securityClassTitle: compactText(titleParts.join(" ")) || null,
+    feeCalculationRule: null,
+    nextIndex: cursor,
+  };
+}
+
+function readFeeCalculationRule(tokens: string[], index: number): { value: string | null; nextIndex: number } {
+  const token = readToken(tokens, index);
+  const nextToken = readToken(tokens, index + 1);
+  const combined = compactText(`${token} ${nextToken}`);
+
+  if (/^Rule$/i.test(token) && /^457\b/i.test(nextToken)) {
+    return { value: compactFeeCalculationRule(combined), nextIndex: index + 2 };
+  }
+  if (/^(?:Rule\s*)?457\b/i.test(token) || /^Other$/i.test(token)) {
+    return { value: compactFeeCalculationRule(token), nextIndex: index + 1 };
+  }
+  return { value: null, nextIndex: index };
+}
+
+function compactFeeCalculationRule(value: string) {
+  return compactText(value).replace(/\(\s+/g, "(").replace(/\s+\)/g, ")");
+}
+
 function readAmountRegistered(tokens: string[], index: number): {
   field: SecS3CountField | SecS3MoneyField | null;
   nextIndex: number;
@@ -1425,9 +1570,13 @@ function readMoney(tokens: string[], index: number, allowBare = false): { field:
     return { field: null, nextIndex: index };
   }
   const moneyText = allowBare && !text.includes("$") ? `$${text}` : text;
+  const normalized = normalizeMoney(moneyText);
+  if (allowBare && !text.includes("$") && normalized.amount !== null && normalized.amount < 1) {
+    return { field: null, nextIndex: index };
+  }
   return {
     field: {
-      value: normalizeMoney(moneyText),
+      value: normalized,
       text: moneyText,
       evidence: moneyText,
       confidence: "high",
@@ -1622,7 +1771,7 @@ function buildReviewReasons({
   if (!primaryOrResale && !amendment.is_amendment) reasons.push("primary_or_resale_not_found");
   if (!securitiesRegistered.length) reasons.push("securities_registered_not_found");
   if (!sharesRegistered && primaryOrResale?.value === "resale") reasons.push("resale_share_count_not_found");
-  if (primaryOrResale?.value === "resale" && /\bselling\s+(?:stockholders?|shareholders?)\b/i.test(s3Text) && !sellingStockholders.length) {
+  if (primaryOrResale?.value === "resale" && hasSellingStockholderTableHeader(s3Text) && !sellingStockholders.length) {
     reasons.push("selling_stockholders_table_not_parsed");
   }
   if (feeTableDocuments.length && !feeTableDocuments.some((document) => document.text_char_count > 0)) {
@@ -1679,6 +1828,41 @@ function readIssuerFromText(text: string) {
 
 function readFormTypeFromTitle(value: unknown) {
   return stringValue(value).match(/\b(S-3ASR|S-3\/A|S-3)\b/i)?.[1]?.toUpperCase() || "";
+}
+
+function resolveS3FormType({
+  documents,
+  metadata,
+  rawPayload,
+  title,
+}: {
+  documents: SecDocumentPayload[];
+  metadata: Record<string, unknown>;
+  rawPayload: Record<string, unknown>;
+  title: unknown;
+}) {
+  return (
+    readS3FormTypeFromDocuments(documents) ||
+    canonicalS3FormType(nullableString(rawPayload.form_type)) ||
+    canonicalS3FormType(nullableString(metadata.form_type)) ||
+    canonicalS3FormType(readFormTypeFromTitle(title)) ||
+    null
+  );
+}
+
+function readS3FormTypeFromDocuments(documents: SecDocumentPayload[]) {
+  const primary = documents.find((document) => Boolean(document.isPrimary) && isS3Family(nullableString(document.type)));
+  if (primary) return canonicalS3FormType(nullableString(primary.type));
+  const anyS3Document = documents.find((document) => isS3Family(nullableString(document.type)));
+  return anyS3Document ? canonicalS3FormType(nullableString(anyS3Document.type)) : null;
+}
+
+function canonicalS3FormType(value: string | null) {
+  const form = normalizeForm(value);
+  if (form === "S-3/A") return "S-3/A";
+  if (form === "S-3ASR") return "S-3ASR";
+  if (form === "S-3") return "S-3";
+  return null;
 }
 
 function isS3Family(formType: string | null) {

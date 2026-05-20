@@ -210,6 +210,18 @@ values
     '{"taxonomy_version":"filing_event_types_v1"}'::jsonb
   ),
   (
+    'capital_return',
+    'Capital Return',
+    'Cross-source Events',
+    'market',
+    array['news','filings']::source_group[],
+    'active',
+    array['8-K','8-K/A','6-K','6-K/A','10-Q','10-Q/A','10-K','10-K/A','20-F','20-F/A'],
+    'Share repurchase, buyback authorization, repurchase allocation increase, or capital return program where repurchases are the primary event.',
+    '["share repurchase authorization","buyback program","repurchase allocation increase","capital return program","combined buyback and dividend update where buyback is primary"]'::jsonb,
+    '{"taxonomy_version":"cross_source_event_types_v1"}'::jsonb
+  ),
+  (
     'fda_clinical',
     'FDA / Clinical',
     'Filing Events',

@@ -500,20 +500,27 @@ function extractDirectRegisteredPoolComponents(source: string) {
 
 function extractConsistingOfRegisteredPoolComponents(source: string) {
   const anchorPattern =
-    /\b(?:(?:this\s+prospectus\s+relates\s+to|prospectus\s+relates\s+to)[\s\S]{0,420}?\bof\s+up\s+to|(?:consisting of|consists of))\b/gi;
+    /\b(?:(?:this\s+prospectus\s+relates\s+to|prospectus\s+relates\s+to)[\s\S]{0,420}?\bof\s+up\s+to|register[\s\S]{0,420}?\bup\s+to|(?:consisting of|consists of))\b/gi;
   let anchor: RegExpExecArray | null;
   while ((anchor = anchorPattern.exec(source))) {
-    const segment = source.slice(anchor.index || 0, (anchor.index || 0) + 2_400);
+    const anchorIndex = anchor.index || 0;
+    const anchorContext = source.slice(Math.max(0, anchorIndex - 260), anchorIndex + 700);
+    if (isNonSupplyS3ComponentContext(anchorContext)) continue;
+
+    const segment = source.slice(anchorIndex, anchorIndex + 2_400);
+    if (isNonSupplyS3ComponentContext(segment.slice(0, 700))) continue;
+
     const tail = segment.slice(180);
     const stop = tail.search(/\n\n|\bThe selling stockholders may offer\b|\bThe registration of these shares\b|\bOur Common Stock\b/i);
     const sentence = stop >= 0 ? segment.slice(0, 180 + stop) : segment;
     const clauses = sentence
-      .split(/\s*\([ivxlcdm]+\)\s+|;\s+|,\s+and\s+/i)
+      .split(/\s*\([a-z]\)\s+|;\s+|,\s+and\s+/i)
       .map((clause) => compactText(clause))
       .filter(Boolean);
 
     const candidates: S3ComponentCandidate[] = [];
     for (const clause of clauses) {
+      if (isNonSupplyS3ComponentContext(clause)) continue;
       const match = clause.match(/\b(\d[\d,]*)\s+shares\s+of\s+(?:our\s+)?common\s+stock\b/i);
       if (!match?.[1]) continue;
 
@@ -533,6 +540,12 @@ function extractConsistingOfRegisteredPoolComponents(source: string) {
   }
 
   return [];
+}
+
+function isNonSupplyS3ComponentContext(text: string) {
+  return /\b(?:authoriz(?:e|es|ed|ing|ation)|charter\s+authoriz|authorized\s+capital|shares?\s+authorized|current\s+shares?\s+outstanding|shares?\s+outstanding|issued\s+and\s+outstanding|outstanding|beneficially\s+owned|owned\s+(?:prior|before|after)|post-offering|after\s+this\s+offering|fee\s+table|calculated\s+solely|aggregate\s+market\s+value|public\s+float|non-affiliates?)\b/i.test(
+    text,
+  );
 }
 
 function extractFutureOrExcludedS3Components(source: string) {

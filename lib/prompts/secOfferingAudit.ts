@@ -1,7 +1,7 @@
 import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
 
 export const SEC_OFFERING_AUDIT_PROMPT_KEY = "sec_offering_security_audit";
-export const SEC_OFFERING_AUDIT_PROMPT_VERSION = "v4";
+export const SEC_OFFERING_AUDIT_PROMPT_VERSION = "v5";
 
 const AUDIT_CONFIDENCE_VALUES = ["high", "medium", "low", "unknown"] as const;
 const AUDIT_ACTION_VALUES = ["complete", "needs_human_review", "insufficient_evidence"] as const;
@@ -30,7 +30,9 @@ const AUDIT_RELATIONSHIP_VALUES = [
   "company_cash",
   "selling_holder_cash",
   "conditional_company_cash",
+  "nominal_prefunded_cash",
   "fee_table_only",
+  "shelf_capacity_not_current_proceeds",
   "context_only",
   "not_disclosed",
   "unknown",
@@ -142,7 +144,15 @@ export const secOfferingAuditResponseSchema = {
         "company_net_proceeds",
         "selling_stockholder_proceeds",
         "resale_proceeds_to_company",
+        "primary_offering_proceeds",
+        "private_placement_proceeds",
+        "atm_program_capacity",
+        "shelf_capacity",
         "possible_warrant_exercise_proceeds",
+        "prefunded_warrant_exercise_proceeds",
+        "common_warrant_cash_exercise_proceeds",
+        "convertible_principal",
+        "sec_registration_value",
         "fee_table_amount_only",
         "note_principal",
         "offering_price",
@@ -154,7 +164,15 @@ export const secOfferingAuditResponseSchema = {
         company_net_proceeds: auditFactSchema,
         selling_stockholder_proceeds: auditFactSchema,
         resale_proceeds_to_company: auditFactSchema,
+        primary_offering_proceeds: auditFactSchema,
+        private_placement_proceeds: auditFactSchema,
+        atm_program_capacity: auditFactSchema,
+        shelf_capacity: auditFactSchema,
         possible_warrant_exercise_proceeds: auditFactSchema,
+        prefunded_warrant_exercise_proceeds: auditFactSchema,
+        common_warrant_cash_exercise_proceeds: auditFactSchema,
+        convertible_principal: auditFactSchema,
+        sec_registration_value: auditFactSchema,
         fee_table_amount_only: auditFactSchema,
         note_principal: auditFactSchema,
         offering_price: auditFactSchema,
@@ -228,9 +246,13 @@ export const secOfferingAuditSystemPrompt = [
   "You may classify which numbers belong inside a registered pool, outside the pool, company proceeds, selling-holder proceeds, fee-table-only amounts, or denominators.",
   "Registered shares are not automatically outstanding shares.",
   "Resale proceeds are not company proceeds.",
+  "Do not collapse proceeds into one company proceeds number. Separate resale proceeds to company, primary offering proceeds, private placement proceeds, ATM program capacity, shelf capacity, pre-funded warrant exercise proceeds, common warrant cash exercise proceeds, convertible principal, and SEC registration value.",
   "If the filing states the company will not receive proceeds from selling-stockholder resale, set proceeds_stack.resale_proceeds_to_company to $0 and relationship company_cash. Do not leave it null.",
-  "If the company may receive proceeds only from cash warrant exercises, classify that separately as possible_warrant_exercise_proceeds or conditional_company_cash, not as resale proceeds.",
+  "If the company may receive proceeds only from cash warrant exercises, classify that separately as common_warrant_cash_exercise_proceeds and possible_warrant_exercise_proceeds with relationship conditional_company_cash, not as resale proceeds.",
+  "If pre-funded warrants have a nominal exercise price, classify the share count as near-immediate share exposure and classify the tiny exercise cash separately as prefunded_warrant_exercise_proceeds with relationship nominal_prefunded_cash. Do not combine it with common warrant cash proceeds.",
+  "If convertible notes or convertible securities disclose principal, put the principal in convertible_principal or note_principal. Do not treat conversion itself as new company cash unless the source says new cash is received.",
   "Filing fee table amounts are not actual issuer proceeds unless the filing separately states issuer proceeds.",
+  "SEC fee-table total offering amount, maximum aggregate offering price, or total offering amounts should go in sec_registration_value and fee_table_amount_only. It is registration math used for SEC fees, not company proceeds and not shelf capacity by itself.",
   "Do not put fee-table maximum aggregate offering amount into selling_stockholder_proceeds unless the filing separately states estimated selling-holder proceeds outside the fee table. If the only support is the fee table, keep the amount in fee_table_amount_only.",
   "Set sanity_checks.no_fee_table_amount_as_proceeds true when fee-table dollar amounts are kept only in fee_table_amount_only or context fields and are not used as company proceeds or selling-holder proceeds.",
   "Shares underlying warrants, pre-funded warrants, preferred stock, or convertibles are potential issuable shares.",
