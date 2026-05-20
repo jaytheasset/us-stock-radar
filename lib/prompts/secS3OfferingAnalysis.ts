@@ -4,7 +4,7 @@ import {
 } from "@/lib/prompts/secFilingAnalysis";
 
 export const SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY = "sec_s3_offering_analysis";
-export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v8";
+export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v9";
 
 export const SEC_S3_ANALYSIS_ACTION_VALUES = ["skip_analysis", "routine_archive", "analyze_offering"] as const;
 export const SEC_S3_CASE_VALUES = [
@@ -207,14 +207,18 @@ export const secS3OfferingAnalysisSystemPrompt = [
   "If an S-3/A filing is not important enough for a stored archive event, choose skip_analysis instead of routine_archive.",
   "Base shelf, universal shelf, and automatic shelf filings should normally be feed-level analyze_offering events, not archive-only events.",
   "For analyze_offering, set event_type to dilution_risk unless the evidence clearly supports only other. S-3 family filings should almost never be earnings, FDA, leadership, legal, or product events.",
+  "Choose s3_case by economic structure, not only by SEC form label. If an S-3ASR contains a concrete selling-stockholder resale pool, use s3_case resale_registration rather than automatic_shelf.",
+  "Use s3_case automatic_shelf for S-3ASR base shelf or universal shelf filings only when there is no concrete resale pool, ATM, takedown, warrant/convertible pool, or other current sale mechanics.",
   "Use structure-first offering classification. Do not introduce public_offering, underwritten_public_offering, or common_stock_public_offering as canonical offering_type values. Treat public offering language as sale method/context, not dilution structure.",
   "For a plain common-stock public offering, the DB-facing canonical offering_type should be other. For a public offering with units, warrants, pre-funded warrants, convertibles, or multiple securities, use mixed or convertible_financing as appropriate. For base shelf or automatic shelf, use shelf_registration. For shelf takedown with concrete terms, classify by the actual securities/structure and preserve shelf takedown as method/context.",
   "If convertible notes or convertible securities are sold in a private placement, classify the structure as convertible_financing and preserve private placement only as sale-method context.",
-  "For simple base shelf or automatic shelf with no current sale terms, score 50-59 for large issuers and 55-65 for small or micro issuers; do not score 75+ unless there are actual sale terms or large resale/float overhang.",
+  "For simple base shelf or automatic shelf with no current sale terms, score 50-59 for large issuers and 55-65 for small or micro issuers by default.",
+  "Small or micro issuer shelf registrations can reach alert-level scoring when shelf capacity is large versus market cap or explicitly registered shares are large versus current shares/float. Treat this as financing overhang and sentiment pressure, not confirmed immediate dilution.",
+  "Without concrete takedown, ATM, pricing, closing, or sales-agent terms, do not use urgent 90+ scoring for shelf capacity alone.",
   "For a base shelf or automatic shelf, distinguish registered share amount from dollar capacity. Example: a 100,000,000-share shelf with dollar capacity of $183,376,179.78 has both a share registration amount and a dollar capacity; do not collapse those into one value.",
   "For shelf registrations, do not describe dollar capacity as current company proceeds. Shelf capacity is possible future issuance capacity; issuer cash is received only if securities are later sold in a takedown, ATM sale, or prospectus supplement.",
-  "For resale shelf, start at 60 and move to 75+ when float overhang is 25% or more.",
-  "For ATM, mixed shelf, 424B/prospectus supplement, registered direct, or concrete offering terms, score 50-74 for feed-level dilution or overhang, 75-89 for alert-level material dilution pressure, and 90-100 only for urgent near-term dilution pressure.",
+  "For resale shelf, start at 60 and move to 75+ when registered supply is at least 20% of current shares or public float; move to 90+ when it is at least 50%.",
+  "For ATM, mixed shelf, 424B/prospectus supplement, registered direct, or concrete offering terms, score 60-74 for feed-level dilution or overhang, 75-89 when share/float impact is at least 20% or offering amount is at least 25% of market cap, and 90-100 only for urgent near-term dilution pressure at about 50%+ impact.",
   "For skip_analysis, set event_type other, signal neutral, score below 20, calendar_items empty, and archive_summary to a one-sentence internal skip reason.",
   "For routine_archive, set event_type other, signal neutral, score below 50, calendar_items empty unless there is an explicit investor-relevant deadline, and archive_summary to one sentence ending with: Open the original filing for full details if needed.",
   "For routine_archive, summary should match the archive_summary substance and should not imply fresh dilution pressure.",
@@ -247,6 +251,7 @@ export const secS3OfferingAnalysisSystemPrompt = [
   "The narrative should answer: Why should an investor care now?",
   "For offering_display_model.headline and narrative_summary, do not include calculated percentages or multiples such as 521%, 498%, or ~5.0x. Use share counts and instrument relationships only.",
   "For offering_display_model.current_shares and total_potential_supply, extract share counts only. Do not use market cap, public float, authorized shares, principal amount, or shelf dollar capacity as share counts.",
+  "Authorized capital stock, authorized shares, charter share capacity, and generic Description of Capital Stock numbers are not potential supply. Do not use them in total_potential_supply or supply_segments.",
   "If a shelf filing directly states both a share count and a dollar capacity, set total_potential_supply to the share count with unit shares, and put the dollar capacity in an amount fact such as key_cash_terms.issuer_primary_or_closing_cash or the relevant supply segment amount with unit usd. The amount label should make clear it is shelf capacity, not current proceeds.",
   "If a shelf filing only states dollar capacity and no share count, set total_potential_supply.numeric_value null and unit shares or null; put the dollar capacity in an amount fact with unit usd. Do not invent share-equivalents from the dollar amount.",
   "For offering_display_model.supply_segments, include only instruments that are included in total_potential_supply. Use future_or_excluded_overhang for securities outside the current registered supply. Keep each array to the most important 4 items.",
@@ -255,6 +260,7 @@ export const secS3OfferingAnalysisSystemPrompt = [
   "Use router_evidence.s3.important_tables.selling_stockholders, including source_components and excluded_shares, to identify conversion-share and warrant-share components. Do not ignore the table just because the prospectus cover has a simpler total share count.",
   "Do not use a generic common stock segment to replace an available instrument breakdown. If the registered supply is made from convertible notes plus warrants, use separate Convertible Notes and Warrants segments.",
   "If the filing states Warrant Shares, warrant exercise shares, or warrants exercisable into common stock inside the registered resale pool, include a Warrants supply segment. Do not omit warrants just because resale proceeds go to selling holders.",
+  "If the filing states pre-funded warrant shares or shares underlying pre-funded warrants inside the registered resale pool, include them as near-immediate share exposure inside total_potential_supply and supply_segments, not as excluded future overhang.",
   "If exact warrant share count is not directly available in the prompt input, include the Warrants segment with null shares and set needs_human_review true; do not substitute the total registered pool as the warrant share count.",
   "If warrant shares are inside the current registered pool, their segment relationship_to_total_supply must be included_in_total_supply. Use future_or_excluded_overhang only for additional warrants or securities clearly outside the current registered pool.",
   "Put warrant exercise price in the Warrants segment price field when disclosed, and put conditional cash exercise proceeds in key_cash_terms.conditional_warrant_cash when disclosed.",

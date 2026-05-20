@@ -456,7 +456,7 @@ function classifyDilutionScale(shareImpactPercent: number | null, amountPercent:
   const value = Math.max(shareImpactPercent || 0, amountPercent || 0);
   if (!value) return "unknown";
   if (value >= 50) return "severe";
-  if (value >= 25) return "high";
+  if (value >= 20) return "high";
   if (value >= 10) return "elevated";
   if (value >= 5) return "moderate";
   return "low";
@@ -467,7 +467,7 @@ function preliminaryScoreFloor(scale: SecOfferingDilutionMetrics["dilution_scale
     case "severe":
       return 90;
     case "high":
-      return 80;
+      return 75;
     case "elevated":
       return 70;
     case "moderate":
@@ -500,7 +500,29 @@ export function applySecOfferingScorePolicy(
   const floor = finiteNumber(metrics.preliminary_score_floor);
   const cap = finiteNumber(metrics.preliminary_score_cap);
   const deliveryHint = stringValue(metrics.delivery_hint);
-  const effectiveCap = cap !== null && floor !== null && cap < floor ? null : cap;
+  const policyReasons = Array.isArray(metrics.score_policy_reasons)
+    ? metrics.score_policy_reasons.map((item) => stringValue(item)).filter(Boolean)
+    : [];
+  const baseShelfNoSaleTerms = policyReasons.some((reason) =>
+    /^(?:base_shelf|automatic_shelf)_goes_to_feed$/.test(reason),
+  );
+  const fallbackShelfCap =
+    policyReasons.includes("small_shelf_capacity_at_least_100pct_market_cap")
+      ? 88
+      : policyReasons.includes("small_shelf_capacity_at_least_50pct_market_cap") ||
+          policyReasons.includes("small_shelf_share_capacity_at_least_20pct")
+        ? 84
+        : policyReasons.includes("large_shelf_capacity_no_alert_without_sale_terms")
+          ? 74
+          : 65;
+  const feedOnlyCap = deliveryHint === "feed" ? 74 : null;
+  const shelfCap =
+    baseShelfNoSaleTerms && deliveryHint === "feed"
+      ? Math.min(cap || fallbackShelfCap, fallbackShelfCap)
+      : null;
+  const policyCap = minNullable([cap, feedOnlyCap, shelfCap]);
+  const effectiveCap =
+    policyCap !== null && deliveryHint !== "feed" && floor !== null && policyCap < floor ? null : policyCap;
   const adjustedScore = clampScore(Math.min(effectiveCap || 100, Math.max(floor || 0, currentScore)));
   const shouldBeFeedOrHigher = deliveryHint === "feed" || deliveryHint === "alert" || deliveryHint === "urgent";
   const adjustedAction = shouldBeFeedOrHigher ? "analyze_offering" : action;
@@ -542,7 +564,11 @@ function buildScorePolicy({
   const reasons: string[] = [];
   let floor = baseFloor;
   let cap: number | null = null;
-  let deliveryHint: SecOfferingDilutionMetrics["delivery_hint"] = baseFloor ? "feed" : null;
+  let deliveryHint: SecOfferingDilutionMetrics["delivery_hint"] =
+    baseFloor !== null && baseFloor >= 50 ? "feed" : null;
+  const hasShareSupply = isPositiveNumber(maxShareImpactPercent);
+  const hasAmountSupply = isPositiveNumber(offeringAmountPercentOfMarketCap);
+  const hasConcreteTerms = hasConcreteOfferingTerms(offeringTerms);
 
   if (s3Case === "routine_amendment") {
     return {
@@ -554,14 +580,38 @@ function buildScorePolicy({
   }
 
   if (s3Case === "base_shelf" || s3Case === "automatic_shelf") {
-    floor = Math.max(floor || 0, 50);
-    cap = isSmallIssuerMarketCap(filingPackage) ? 65 : 59;
+    const smallIssuerShelf = isSmallIssuerMarketCap(filingPackage);
+    floor = smallIssuerShelf ? 55 : 50;
+    cap = smallIssuerShelf ? 65 : 59;
     deliveryHint = "feed";
     reasons.push(`${s3Case}_goes_to_feed`);
 
-    if (isPositiveNumber(offeringAmountPercentOfMarketCap) && offeringAmountPercentOfMarketCap >= 25) {
-      cap = Math.max(cap, 74);
-      reasons.push("large_shelf_capacity_no_alert_without_sale_terms");
+    if (smallIssuerShelf && isPositiveNumber(maxShareImpactPercent) && maxShareImpactPercent >= 50) {
+      floor = Math.max(floor, 88);
+      cap = Math.max(cap, 88);
+      deliveryHint = "alert";
+      reasons.push("small_shelf_share_capacity_at_least_50pct");
+    } else if (smallIssuerShelf && isPositiveNumber(maxShareImpactPercent) && maxShareImpactPercent >= 20) {
+      floor = Math.max(floor, 75);
+      cap = Math.max(cap, 84);
+      deliveryHint = "alert";
+      reasons.push("small_shelf_share_capacity_at_least_20pct");
+    } else if (isPositiveNumber(offeringAmountPercentOfMarketCap) && offeringAmountPercentOfMarketCap >= 25) {
+      if (smallIssuerShelf && offeringAmountPercentOfMarketCap >= 100) {
+        floor = Math.max(floor, 85);
+        cap = Math.max(cap, 88);
+        deliveryHint = "alert";
+        reasons.push("small_shelf_capacity_at_least_100pct_market_cap");
+      } else if (smallIssuerShelf && offeringAmountPercentOfMarketCap >= 50) {
+        floor = Math.max(floor, 75);
+        cap = Math.max(cap, 84);
+        deliveryHint = "alert";
+        reasons.push("small_shelf_capacity_at_least_50pct_market_cap");
+      } else {
+        floor = Math.max(floor, 65);
+        cap = Math.max(cap, 74);
+        reasons.push("large_shelf_capacity_no_alert_without_sale_terms");
+      }
     }
   }
 
@@ -572,20 +622,30 @@ function buildScorePolicy({
   }
 
   if (s3Case === "atm_program" || s3Case === "mixed_shelf") {
-    floor = Math.max(floor || 0, 50);
+    floor = Math.max(floor || 0, 65);
     deliveryHint = "feed";
     reasons.push(`${s3Case}_feed_floor`);
   }
 
-  if (isPositiveNumber(maxShareImpactPercent)) {
+  if (s3Case === "other_s3" && (hasConcreteTerms || hasShareSupply || hasAmountSupply)) {
+    floor = Math.max(floor || 0, 60);
+    deliveryHint = "feed";
+    reasons.push("concrete_s3_terms_feed_floor");
+  }
+
+  if (
+    isPositiveNumber(maxShareImpactPercent) &&
+    s3Case !== "base_shelf" &&
+    s3Case !== "automatic_shelf"
+  ) {
     if (maxShareImpactPercent >= 50) {
       floor = Math.max(floor || 0, 90);
       deliveryHint = "urgent";
       reasons.push("share_or_float_impact_at_least_50pct");
-    } else if (maxShareImpactPercent >= 25) {
+    } else if (maxShareImpactPercent >= 20) {
       floor = Math.max(floor || 0, 75);
       deliveryHint = "alert";
-      reasons.push("share_or_float_impact_at_least_25pct");
+      reasons.push("share_or_float_impact_at_least_20pct");
     }
   }
 
@@ -599,6 +659,11 @@ function buildScorePolicy({
       deliveryHint = "alert";
       reasons.push("offering_amount_at_least_25pct_market_cap");
     }
+  }
+
+  if (!deliveryHint && floor !== null && floor >= 50) {
+    deliveryHint = "feed";
+    reasons.push("score_floor_feed_hint");
   }
 
   if (cap !== null && floor !== null && cap < floor) {
@@ -631,15 +696,40 @@ function classifyS3PolicyCase({
   const registrationKind = stringValue(s3?.registration_statement_kind || offeringTerms?.registration_statement_kind);
   const offeringType = stringValue(offeringTerms?.offering_type);
   const primaryOrResale = stringValue(s3?.primary_or_resale || offeringTerms?.primary_or_resale);
+  const hasConcreteTerms = hasConcreteOfferingTerms(offeringTerms);
+  const isAutomaticShelf =
+    formType === "S-3ASR" ||
+    registrationKind === "automatic_shelf" ||
+    registrationKind === "automatic_shelf_registration" ||
+    registrationKind.includes("automatic_shelf");
 
   if (primaryOrResale === "resale" || offeringType === "resale_registration") return "resale_registration";
   if (offeringType === "atm" || offeringType === "at_the_market") return "atm_program";
+  if (isAutomaticShelf && !hasConcreteTerms) return "automatic_shelf";
+  if (offeringType === "mixed" && (registrationKind.includes("shelf") || formType === "S-3" || formType === "S-3/A") && !hasConcreteTerms) {
+    return "base_shelf";
+  }
   if (offeringType === "mixed") return "mixed_shelf";
-  if (formType === "S-3ASR" || registrationKind === "automatic_shelf") return "automatic_shelf";
-  if (registrationKind.includes("shelf") || offeringType === "shelf_registration" || formType === "S-3") {
+  if (
+    !hasConcreteTerms &&
+    (registrationKind.includes("shelf") || offeringType === "shelf_registration" || formType === "S-3")
+  ) {
     return "base_shelf";
   }
   return "other_s3";
+}
+
+function hasConcreteOfferingTerms(offeringTerms: Record<string, unknown> | null) {
+  if (!offeringTerms) return false;
+  return Boolean(
+    stringValue(offeringTerms.offering_price) ||
+      stringValue(offeringTerms.sales_agent) ||
+      stringValue(offeringTerms.closing_date) ||
+      stringValue(offeringTerms.atm_program_size) ||
+      stringValue(offeringTerms.discount_to_market) ||
+      stringValue(offeringTerms.conversion_price) ||
+      stringValue(offeringTerms.warrant_exercise_price),
+  );
 }
 
 function hasMaterialS3AmendmentSignal(
@@ -704,6 +794,11 @@ function buildCalculationNotes({
 function maxNumber(values: Array<number | null>) {
   const finiteValues = values.filter(isPositiveNumber);
   return finiteValues.length ? Math.max(...finiteValues) : null;
+}
+
+function minNullable(values: Array<number | null>) {
+  const finiteValues = values.filter(isPositiveNumber);
+  return finiteValues.length ? Math.min(...finiteValues) : null;
 }
 
 function firstRecord(value: unknown): PersistedRow | null {
