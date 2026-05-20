@@ -16,6 +16,8 @@ type FilingDetailPageProps = {
   params: Promise<{ id: string }>;
 };
 
+export const dynamic = "force-dynamic";
+
 type FilingEvent = {
   id: string;
   ticker: string;
@@ -52,6 +54,7 @@ type FilingEvent = {
   offeringMarketContext?: Record<string, unknown> | null;
   offeringDilutionMetrics?: Record<string, unknown> | null;
   offeringTerms?: Record<string, unknown> | null;
+  s3Case?: string | null;
 };
 
 type RecentFiling = {
@@ -217,6 +220,10 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
   const { id } = await params;
   const filing = await resolveFilingEvent(id);
   const eventBadge = getEventTypeBadge(filing.eventType);
+  const dilutionModel = filing.eventType === "dilution_risk" ? buildDilutionOfferingModel(filing) : null;
+  const useDilutionDetail = Boolean(
+    dilutionModel && !dilutionModel.isShelfOnly && !dilutionModel.isCommonWarrantOnly
+  );
 
   return (
     <main className="feed-page stock-detail-page filing-detail-page">
@@ -281,8 +288,8 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             </div>
           </section>
 
-          {filing.eventType === "dilution_risk" ? (
-            <DilutionOfferingTemplate filing={filing} />
+          {useDilutionDetail && dilutionModel ? (
+            <DilutionOfferingTemplate eventLabel={eventBadge.label} filing={filing} model={dilutionModel} />
           ) : (
             <CommonFilingTemplate eventLabel={eventBadge.label} filing={filing} />
           )}
@@ -292,8 +299,8 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
           <section className="stock-detail-card recent-filings-card">
             <div className="card-heading-row">
               <div>
-                <h2>{filing.eventType === "dilution_risk" ? "Related Filings" : "Recent Filings"}</h2>
-                <p>{filing.eventType === "dilution_risk" ? `${filing.ticker} related filing history` : `${filing.ticker} filing history`}</p>
+                <h2>{useDilutionDetail ? "Related Filings" : "Recent Filings"}</h2>
+                <p>{useDilutionDetail ? `${filing.ticker} related filing history` : `${filing.ticker} filing history`}</p>
               </div>
               <Link href="/filings">View all</Link>
             </div>
@@ -477,6 +484,11 @@ async function buildDbFilingEvent(item: LiveFeedItem, fallback: FilingEvent): Pr
     offeringMarketContext: readPlainRecord(metadata?.market_context),
     offeringDilutionMetrics: readPlainRecord(metadata?.dilution_metrics),
     offeringTerms: readPlainRecord(offeringTermsResult),
+    s3Case:
+      readRowString(analysis, "s3_case") ||
+      readRowString(analysisMetadata, "s3_case") ||
+      readRowString(metadata, "s3_case") ||
+      null,
   };
 }
 
@@ -633,8 +645,19 @@ function CommonFilingTemplate({ eventLabel, filing }: { eventLabel: string; fili
   );
 }
 
-function DilutionOfferingTemplate({ filing }: { filing: FilingEvent }) {
-  const model = buildDilutionOfferingModel(filing);
+function DilutionOfferingTemplate({
+  eventLabel,
+  filing,
+  model,
+}: {
+  eventLabel: string;
+  filing: FilingEvent;
+  model: ReturnType<typeof buildDilutionOfferingModel>;
+}) {
+
+  if (model.isShelfOnly || model.isCommonWarrantOnly) {
+    return <CommonFilingTemplate eventLabel={eventLabel} filing={filing} />;
+  }
 
   return (
     <>
@@ -890,6 +913,8 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
   const llmDisplayModel = readPlainRecord(filing.offeringDisplayModel);
   const offeringTerms = readPlainRecord(filing.offeringTerms);
   const offeringTermsMetadata = readPlainRecord(offeringTerms?.metadata);
+  const s3Case = cleanDisclosureValue(filing.s3Case || "");
+  const displayMode = readRowString(llmDisplayModel, "display_mode");
   const sourceText = stripHtml(`${filing.title} ${filing.filingBrief} ${filing.summary} ${filing.originalHtml}`);
   const dbOfferingType = formatOfferingEnumLabel(readRowString(offeringTerms, "offering_type"));
   const dbSecurityType = formatOfferingEnumLabel(readRowString(offeringTerms, "security_type"));
@@ -899,6 +924,12 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
   const classificationText = `${dbOfferingType} ${dbSecurityType} ${dbPrimaryOrResale} ${rawOfferingType} ${offeringMethod} ${sourceText}`;
   const structuredClassificationText = `${dbOfferingType} ${dbSecurityType} ${dbPrimaryOrResale} ${rawOfferingType} ${offeringMethod} ${filing.title} ${filing.filingBrief}`;
   const isAtm = dbOfferingType === "ATM" || /\b(?:atm|at-the-market|at the market)\b/i.test(sourceText);
+  const hasActionableAtmMechanism = isActionableAtmMechanism({
+    dbOfferingType,
+    displayMode,
+    offeringTerms,
+    sourceText,
+  });
   const isShelf = /\b(?:shelf|s-3|s-3asr|registration statement)\b/i.test(classificationText);
   const isForwardSale =
     /\bforward (?:sale|basis|purchase|transaction|contract|agreement)|physical settlement\b/i.test(structuredClassificationText) ||
@@ -1020,6 +1051,91 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
   const additionalWarrantShares = findAdditionalWarrantShares(sourceText);
   const effectiveDate = findDateSentence(sourceText, /\beffective\b/i);
   const closingDate = findDateSentence(sourceText, /\bclosing\b|\bclose\b/i);
+  const isShelfOnly =
+    !hasActionableAtmMechanism &&
+    !isResale &&
+    !isForwardSale &&
+    !isRegisteredDirect &&
+    !isPrivatePlacement &&
+    !hasPrefundedWarrants &&
+    !isConvertibleFinancing &&
+    (displayMode === "shelf_capacity" ||
+      s3Case === "base_shelf" ||
+      s3Case === "automatic_shelf" ||
+      (isShelfLike && /\b(?:base shelf|universal shelf|automatic shelf|shelf registration|from time to time)\b/i.test(classificationText)));
+  const hasActionableDilutionMechanism = Boolean(
+    hasActionableAtmMechanism ||
+      isResale ||
+      isForwardSale ||
+      isRegisteredDirect ||
+      hasPrefundedWarrants ||
+      isConvertibleFinancing
+  );
+  const isCommonWarrantOnly =
+    hasWarrants &&
+    !hasActionableDilutionMechanism &&
+    (dbSecurityType === "Warrants" ||
+      dbOfferingType === "Warrant exercise" ||
+      /\b(?:warrant indenture|warrant agreement|warrant amendment|warrant expiration|warrants? expire|warrant redemption|warrant holder)\b/i.test(
+        classificationText
+      ));
+  const llmTotalSupplyValue = readDisplayFactValue(llmDisplayModel, "total_potential_supply");
+  const shelfCapacityValue =
+    normalizePositiveShelfMoney(readDbMoneyValue(offeringTerms, "shelf_capacity", "shelf_capacity_text")) ||
+    normalizePositiveShelfMoney(isMoneyDisclosure(llmTotalSupplyValue) ? llmTotalSupplyValue : "") ||
+    normalizePositiveShelfMoney(offeringAmount) ||
+    normalizePositiveShelfMoney(findShelfCapacity(sourceText)) ||
+    "Not disclosed";
+  const shelfRegisteredSharesValue =
+    (isShareDisclosure(llmTotalSupplyValue) ? formatShareCountValue(llmTotalSupplyValue) || llmTotalSupplyValue : "") ||
+    (isShareDisclosure(sharesOffered) ? formatShareCountValue(sharesOffered) || sharesOffered : "") ||
+    "Not disclosed";
+  const shelfStatus =
+    s3Case === "automatic_shelf" || /\bautomatic shelf|Rule 462\(e\)|effective upon filing\b/i.test(sourceText)
+      ? "Automatic shelf"
+      : /\bnot complete|may not be sold until|not be sold until|preliminary prospectus|subject to completion\b/i.test(sourceText)
+        ? "Filed; effectiveness pending"
+        : "Filed shelf";
+  const shelfSecuritiesCovered =
+    securityType && securityType !== "Not disclosed"
+      ? securityType
+      : findShelfSecuritiesCovered(sourceText) || "Registered securities";
+  const shelfDisplayMode = s3Case === "automatic_shelf" ? "Automatic shelf capacity" : "Base shelf capacity";
+  const shelfIntro =
+    isDisclosedValue(shelfCapacityValue)
+      ? `${filing.company} registered future financing capacity of ${shelfCapacityValue}.`
+      : `${filing.company} filed a shelf registration for possible future securities sales.`;
+  const shelfCapacityNote =
+    isDisclosedValue(shelfCapacityValue)
+      ? "Future issuance capacity, not current proceeds."
+      : "Dollar capacity was not cleanly disclosed.";
+  const shelfShareNote =
+    isDisclosedValue(shelfRegisteredSharesValue)
+      ? "Registered share capacity, not shares already sold."
+      : "No source-backed share count for overhang calculation.";
+  const shelfCompanyProceeds = isDisclosedValue(shelfCapacityValue) ? "Future sales only" : "Not disclosed";
+  const shelfCompanyProceedsNote = "Company receives cash only if securities are later sold.";
+  const shelfSummaryParagraphs = buildShelfSummaryParagraphs({
+    company: filing.company,
+    shelfCapacityValue,
+    shelfRegisteredSharesValue,
+    shelfSecuritiesCovered,
+    shelfStatus,
+    summaryNarrative: readRowString(llmDisplayModel, "narrative_summary"),
+  });
+  const shelfCurrentStateRows = [
+    `Capacity: ${shelfCapacityValue}.`,
+    `Securities covered: ${shelfSecuritiesCovered}.`,
+    isDisclosedValue(shelfRegisteredSharesValue)
+      ? `Registered shares: ${shelfRegisteredSharesValue}.`
+      : "Registered share count is not disclosed, so share overhang is not calculated.",
+    "No current offering price, closing date, or issued share count is established by the shelf alone.",
+  ];
+  const shelfWatchRows = [
+    "Prospectus supplement with pricing, shares, underwriters, or sales agent.",
+    "ATM sale updates or takedown filings that convert shelf capacity into actual issuance.",
+    "Updated shares outstanding after any sale, conversion, or warrant exercise.",
+  ];
   const scoreBand =
     formatDisplayRiskLabel(readRowString(offeringTerms, "overhang_level")) ||
     formatDisplayRiskLabel(readRowString(llmDisplayModel, "risk_label")) ||
@@ -1463,6 +1579,21 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
 
   return {
     disclosureStatus: hasParsedTerms ? "Parsed from current filing text" : "Terms require source review",
+    isShelfOnly,
+    isCommonWarrantOnly,
+    shelfCapacityValue,
+    shelfCapacityNote,
+    shelfCompanyProceeds,
+    shelfCompanyProceedsNote,
+    shelfCurrentStateRows,
+    shelfDisplayMode,
+    shelfIntro,
+    shelfRegisteredSharesValue,
+    shelfSecuritiesCovered,
+    shelfShareNote,
+    shelfStatus,
+    shelfSummaryParagraphs,
+    shelfWatchRows,
     dilutionRead: `${displayOverhangLevel} dilution watch`,
     dilutionRatioPercentValue: canRenderOverhangChart ? estimatedDilutionPercent || dilutionRatioValue : "No supply count",
     estimatedDilutionPercent,
@@ -1841,6 +1972,26 @@ function buildOfferingDisplayType({
   return dbOfferingType || "Equity offering";
 }
 
+function isActionableAtmMechanism({
+  dbOfferingType,
+  displayMode,
+  offeringTerms,
+  sourceText,
+}: {
+  dbOfferingType: string;
+  displayMode: string;
+  offeringTerms: Record<string, unknown> | null;
+  sourceText: string;
+}) {
+  if (dbOfferingType === "At-the-market offering" || dbOfferingType === "ATM") return true;
+  if (displayMode === "atm_capacity") return true;
+  if (isDisclosedValue(readDbMoneyValue(offeringTerms, "atm_program_size", "atm_program_size_text"))) return true;
+
+  return /\b(?:at-the-market sales agreement|equity distribution agreement|sales agreement with|sales agreement, dated|ATM program|at-the-market offering program)\b/i.test(
+    sourceText,
+  );
+}
+
 function buildOfferingDisplayLabels({
   hasPrefundedWarrants,
   isConvertibleFinancing,
@@ -1996,6 +2147,43 @@ function findMoneyAmount(sourceText: string) {
     sourceText.match(/\b(?:gross|net)\s+proceeds\s+(?:were|are|will be|of)?\s*(?:approximately)?\s*(\$[\d,.]+\s*(?:million|billion|m|bn)?)/i)?.[1] ||
     ""
   );
+}
+
+function findShelfCapacity(sourceText: string) {
+  return (
+    sourceText.match(/\b(?:shelf registration|shelf registration statement|registration statement)\b[^.]{0,220}?\b(?:up to|not to exceed|aggregate(?: initial)? offering price(?: of)?|maximum aggregate(?: offering)? price(?: of)?)\s+(\$[\d,.]+\s*(?:million|billion|m|bn)?)/i)?.[1] ||
+    sourceText.match(/\b(?:we may offer and sell|may offer and sell|may sell)\b[^.]{0,160}?\b(?:up to|not to exceed)\s+(\$[\d,.]+\s*(?:million|billion|m|bn)?)/i)?.[1] ||
+    ""
+  );
+}
+
+function findShelfSecuritiesCovered(sourceText: string) {
+  const securities = [
+    /\bclass [a-z] common stock\b|\bcommon stock\b/i.test(sourceText) ? "Common stock" : "",
+    /\bpreferred stock\b/i.test(sourceText) ? "Preferred stock" : "",
+    /\bdebt securities\b|\bnotes\b/i.test(sourceText) ? "Debt securities" : "",
+    /\bwarrants?\b/i.test(sourceText) ? "Warrants" : "",
+    /\bunits?\b/i.test(sourceText) ? "Units" : "",
+    /\brights?\b/i.test(sourceText) ? "Rights" : "",
+  ].filter(Boolean);
+
+  return Array.from(new Set(securities)).slice(0, 5).join(", ");
+}
+
+function isMoneyDisclosure(value: string) {
+  const text = cleanDisclosureValue(value);
+  return Boolean(/\$/.test(text) || /\b(?:usd|dollars?|million|billion|m|bn)\b/i.test(text)) && !/\bshares?\b/i.test(text);
+}
+
+function normalizePositiveShelfMoney(value: string) {
+  const text = cleanDisclosureValue(value);
+  if (!text || !isMoneyDisclosure(text)) return "";
+  return parseMoneyValue(text) > 0 ? text : "";
+}
+
+function isShareDisclosure(value: string) {
+  const text = cleanDisclosureValue(value);
+  return Boolean(/\b(?:shares?|common stock|ordinary shares|ADSs?|units)\b/i.test(text)) && !/\$/.test(text);
 }
 
 function findSalesAgent(sourceText: string) {
@@ -2378,6 +2566,40 @@ function buildDilutionSummaryParagraphs({
       : "";
 
   return [supplyParagraph, poolParagraph, cashParagraph, followUpParagraph].filter(Boolean);
+}
+
+function buildShelfSummaryParagraphs({
+  company,
+  shelfCapacityValue,
+  shelfRegisteredSharesValue,
+  shelfSecuritiesCovered,
+  shelfStatus,
+  summaryNarrative,
+}: {
+  company: string;
+  shelfCapacityValue: string;
+  shelfRegisteredSharesValue: string;
+  shelfSecuritiesCovered: string;
+  shelfStatus: string;
+  summaryNarrative: string;
+}) {
+  const lead = isDisclosedValue(shelfCapacityValue)
+    ? `${company} filed a shelf registration for up to ${shelfCapacityValue} of future securities sales.`
+    : `${company} filed a shelf registration for possible future securities sales.`;
+  const mechanism =
+    `${shelfStatus} means the company has financing capacity available, but pricing, timing, investor demand, and actual issuance still require a future takedown, ATM sale, or prospectus supplement.`;
+  const shareContext = isDisclosedValue(shelfRegisteredSharesValue)
+    ? `The filing also discloses ${shelfRegisteredSharesValue} of registered share capacity, but those shares are not sold by the shelf filing itself.`
+    : "The filing does not provide a source-backed share count, so share overhang and dilution percentage should not be calculated from this shelf alone.";
+  const securities = isDisclosedValue(shelfSecuritiesCovered) ? `Securities covered: ${shelfSecuritiesCovered}.` : "";
+  const safeNarrative =
+    summaryNarrative &&
+    !/\b\d+(?:\.\d+)?%\b/.test(summaryNarrative) &&
+    !/\b(?:urgent|immediate|today)\b/i.test(summaryNarrative)
+      ? summaryNarrative
+      : "";
+
+  return [safeNarrative || lead, mechanism, `${shareContext}${securities ? ` ${securities}` : ""}`];
 }
 
 function buildDilutionCoreSummary({
