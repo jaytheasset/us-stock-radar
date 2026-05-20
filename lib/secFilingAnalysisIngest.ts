@@ -356,16 +356,29 @@ async function persistEventOfferingTerms({
   const futureSegments = recordArray(displayModel?.future_or_excluded_overhang);
   const commonShareExposure = sumDisplaySegmentShares(displaySegments, /common|ordinary|ads/i);
   const prefundedWarrantShares = sumDisplaySegmentShares(displaySegments, /pre[-_\s]?funded/i);
+  const prefundedWarrantExercisePriceFact = firstFact([
+    findDisplaySegmentFact(displaySegments, /pre[-_\s]?funded/i, "price"),
+  ]);
+  const commonWarrantExercisePriceFact = firstFact([
+    findDisplaySegmentFact(displaySegments, /\bwarrant/i, "price", { exclude: /pre[-_\s]?funded/i }),
+    prefundedWarrantShares ? null : warrantExercisePriceFact,
+  ]);
+  const displayCommonWarrantShares = sumDisplaySegmentShares(displaySegments, /\bwarrant/i, {
+    exclude: /pre[-_\s]?funded/i,
+  });
+  const auditCommonWarrantShares = factShareNumber(toRecord(securityStack?.common_warrant_max_registered_underlying_shares));
+  const auditGenericWarrantShares = factShareNumber(toRecord(securityStack?.warrant_underlying_shares));
   const commonWarrantShares =
-    sumDisplaySegmentShares(displaySegments, /warrant/i) ||
-    factShareNumber(toRecord(securityStack?.common_warrant_max_registered_underlying_shares)) ||
-    factShareNumber(toRecord(securityStack?.warrant_underlying_shares));
+    displayCommonWarrantShares ||
+    auditCommonWarrantShares ||
+    (prefundedWarrantShares ? 0 : auditGenericWarrantShares);
   const convertibleShareExposure =
     sumDisplaySegmentShares(displaySegments, /convertible|conversion|note/i) ||
     factShareNumber(toRecord(securityStack?.convertible_note_underlying_shares));
   const futureWarrantShares =
-    sumDisplaySegmentShares(futureSegments, /warrant/i) ||
+    sumDisplaySegmentShares(futureSegments, /\bwarrant/i, { exclude: /pre[-_\s]?funded/i }) ||
     factShareNumber(toRecord(securityStack?.additional_future_share_overhang));
+  const immediateShareExposure = commonShareExposure + prefundedWarrantShares;
   const totalPotentialShareExposure = factShareNumber(totalSupplyFact);
   const currentShares = factShareNumber(currentSharesFact) || numberValue(dilutionMetrics?.current_shares_outstanding);
   const offeringTypeNormalization = normalizeOfferingTypeForDb({
@@ -484,11 +497,14 @@ async function persistEventOfferingTerms({
     common_shares_offered: commonShareExposure || null,
     prefunded_warrant_shares_text: prefundedWarrantShares ? `${prefundedWarrantShares.toLocaleString("en-US")} shares` : null,
     prefunded_warrant_shares: prefundedWarrantShares || null,
+    prefunded_warrant_exercise_price_text: factText(prefundedWarrantExercisePriceFact),
+    prefunded_warrant_exercise_price: factNumber(prefundedWarrantExercisePriceFact) || null,
+    prefunded_warrant_exercise_price_currency: factCurrency(prefundedWarrantExercisePriceFact),
     common_warrant_shares_text: commonWarrantShares ? `${commonWarrantShares.toLocaleString("en-US")} shares` : null,
     common_warrant_shares: commonWarrantShares || null,
-    common_warrant_exercise_price_text: factText(warrantExercisePriceFact),
-    common_warrant_exercise_price: factNumber(warrantExercisePriceFact),
-    common_warrant_exercise_price_currency: factCurrency(warrantExercisePriceFact),
+    common_warrant_exercise_price_text: factText(commonWarrantExercisePriceFact),
+    common_warrant_exercise_price: factNumber(commonWarrantExercisePriceFact) || null,
+    common_warrant_exercise_price_currency: factCurrency(commonWarrantExercisePriceFact),
     convertible_principal_amount_text: factText(notePrincipalFact),
     convertible_principal_amount: factNumber(notePrincipalFact),
     convertible_principal_amount_currency: factCurrency(notePrincipalFact),
@@ -496,7 +512,7 @@ async function persistEventOfferingTerms({
     convertible_share_exposure: convertibleShareExposure || null,
     total_potential_share_exposure_text: factText(totalSupplyFact),
     total_potential_share_exposure: totalPotentialShareExposure || null,
-    immediate_share_exposure: commonShareExposure || null,
+    immediate_share_exposure: immediateShareExposure || null,
     future_warrant_overhang_shares: futureWarrantShares || null,
     total_potential_dilution_percent: numberValue(dilutionMetrics?.estimated_dilution_percent) || null,
     total_potential_float_overhang_percent: numberValue(dilutionMetrics?.float_overhang_percent) || null,
@@ -915,11 +931,31 @@ function readFieldSource(marketContext: Record<string, unknown> | null, key: str
   return nullableString(fieldSources?.[key]);
 }
 
-function sumDisplaySegmentShares(segments: Record<string, unknown>[], pattern: RegExp) {
+function findDisplaySegmentFact(
+  segments: Record<string, unknown>[],
+  pattern: RegExp,
+  field: string,
+  options: { exclude?: RegExp } = {},
+) {
+  const segment = segments.find((item) => segmentMatches(item, pattern, options));
+  return toRecord(segment?.[field]);
+}
+
+function sumDisplaySegmentShares(
+  segments: Record<string, unknown>[],
+  pattern: RegExp,
+  options: { exclude?: RegExp } = {},
+) {
   return segments
-    .filter((segment) => pattern.test(`${stringValue(segment.instrument_type)} ${stringValue(segment.label)}`))
+    .filter((segment) => segmentMatches(segment, pattern, options))
     .map((segment) => factShareNumber(toRecord(segment.shares)))
     .reduce((sum, value) => sum + value, 0);
+}
+
+function segmentMatches(segment: Record<string, unknown>, pattern: RegExp, options: { exclude?: RegExp } = {}) {
+  const text = `${stringValue(segment.instrument_type)} ${stringValue(segment.label)}`;
+  if (options.exclude?.test(text)) return false;
+  return pattern.test(text);
 }
 
 function inferSecurityTypeFromSegments(segments: Record<string, unknown>[]) {
