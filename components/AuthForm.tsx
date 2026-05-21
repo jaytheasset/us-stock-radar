@@ -43,7 +43,7 @@ export function AuthForm({ mode }: AuthFormProps) {
 
       if (mode === "signup" && payload.emailConfirmationRequired) {
         setStatus("success");
-        setMessage("Account created. Check your email to confirm the account before logging in.");
+        setMessage("Check your email to confirm your account, then log in to continue.");
         return;
       }
 
@@ -101,6 +101,11 @@ export function AuthForm({ mode }: AuthFormProps) {
             </label>
 
             {message ? <p className={`${styles.message} ${styles[status] || ""}`}>{message}</p> : null}
+            {isSignup && status === "success" ? (
+              <Link className={styles.inlineAction} href={`/login?next=${encodeURIComponent(nextPath)}`}>
+                Go to login
+              </Link>
+            ) : null}
 
             <button disabled={status === "saving"} type="submit">
               {status === "saving" ? "Please wait..." : isSignup ? "Create Account" : "Log In"}
