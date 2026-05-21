@@ -1,0 +1,469 @@
+#!/usr/bin/env node
+
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+const PLAN_LIMITS = {
+  free: { alertDelayMinutes: 5, channels: ["web"] },
+  ad_free: { alertDelayMinutes: 5, channels: ["web"] },
+  pro: { alertDelayMinutes: 0, channels: ["web", "telegram"] },
+  advanced: { alertDelayMinutes: 0, channels: ["web", "telegram", "email"] },
+  ultimate: { alertDelayMinutes: 0, channels: ["web", "telegram", "email", "webhook", "api"] },
+};
+
+const ALERT_CATEGORIES = new Set([
+  "listing_risk",
+  "dilution_risk",
+  "earnings",
+  "sales_performance",
+  "product_update",
+  "leadership_governance",
+  "insider_ownership",
+  "shareholder_vote",
+  "strategic_transaction",
+  "financial_risk",
+  "legal_risk",
+  "dividends",
+  "capital_return",
+  "fda_clinical",
+  "policy_regulation",
+  "macro_market",
+  "other",
+]);
+
+const args = parseArgs(process.argv.slice(2));
+const eventId = String(args.get("event-id") || args.get("eventId") || "").trim();
+const write = args.has("write");
+const dryRun = !write;
+const env = readLocalEnv();
+const supabaseUrl = cleanSupabaseUrl(env.SUPABASE_URL || "");
+const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
+const key = serviceKey && !serviceKey.startsWith("sb_secret_") ? serviceKey : env.SUPABASE_ANON_KEY || "";
+
+if (!eventId) {
+  console.error("Usage: npm run deliver:event -- --event-id <event-id> [--write]");
+  process.exitCode = 1;
+} else if (!supabaseUrl || !key) {
+  console.error("Supabase env is missing. Check SUPABASE_URL and Supabase API key env values.");
+  process.exitCode = 1;
+} else {
+  let result;
+  try {
+    result = await runDelivery(eventId, { dryRun, write });
+  } catch (error) {
+    result = {
+      ok: false,
+      event: null,
+      candidates: [],
+      skipped: [],
+      writes: [],
+      stats: { candidateCount: 0, skippedCount: 0, writtenCount: 0, duplicateCount: 0 },
+      error: error instanceof Error ? error.message : "Delivery run failed",
+    };
+  }
+
+  console.log(JSON.stringify(toPrintableResult(result), null, 2));
+
+  process.exitCode = result.ok ? 0 : 1;
+}
+
+async function runDelivery(id, options) {
+  const normalized = await normalizeEvent(id);
+  if (!normalized.ok) {
+    return {
+      ok: false,
+      event: null,
+      candidates: [],
+      skipped: [],
+      writes: [],
+      stats: { candidateCount: 0, skippedCount: 0, writtenCount: 0, duplicateCount: 0 },
+      error: normalized.error,
+    };
+  }
+
+  const evaluation = await evaluate(normalized.event);
+  const writes = [];
+
+  if (options.write && !options.dryRun) {
+    for (const candidate of evaluation.candidates) {
+      const deliveredChannels =
+        candidate.deliveryStatus === "sent"
+          ? candidate.eligibleChannels.filter((channel) => channel.channel === "web").map((channel) => channel.channel)
+          : [];
+
+      if (candidate.deliveryStatus === "sent" && !deliveredChannels.length) {
+        writes.push({ ok: true, skipped: true, reason: "NO_CHANNELS_DELIVERED" });
+        continue;
+      }
+
+      writes.push(
+        await insertDelivery({
+          userId: candidate.userId,
+          event: normalized.event,
+          candidate,
+          deliveredChannels,
+        }),
+      );
+    }
+  }
+
+  return {
+    ok: true,
+    event: normalized.event,
+    candidates: evaluation.candidates,
+    skipped: evaluation.skipped,
+    writes,
+    stats: {
+      candidateCount: evaluation.candidates.length,
+      skippedCount: evaluation.skipped.length,
+      writtenCount: writes.filter((writeResult) => writeResult.ok && !writeResult.skipped).length,
+      duplicateCount: writes.filter((writeResult) => writeResult.reason === "DUPLICATE_DELIVERY").length,
+    },
+  };
+}
+
+async function normalizeEvent(id) {
+  const event = await fetchOne("events", { id: `eq.${id}` });
+  if (!event) return { ok: false, error: `Event not found: ${id}` };
+
+  const tickerRows = await fetchRows("event_tickers", {
+    event_id: `eq.${id}`,
+    order: "sort_order.asc",
+    limit: "50",
+  });
+  const tickers = uniqueTickers([...tickerRows.map((row) => row.symbol), event.ticker]);
+  const primaryTicker =
+    uniqueTickers(tickerRows.filter((row) => row.role === "primary").map((row) => row.symbol))[0] ||
+    normalizeTicker(event.ticker) ||
+    tickers[0];
+  const score = readNumber(event.score, 0);
+  const impact = readString(event.impact);
+  const category = ALERT_CATEGORIES.has(readString(event.event_type)) ? readString(event.event_type) : "other";
+  const sourceGroup = readString(event.source_group);
+
+  return {
+    ok: true,
+    event: {
+      id,
+      title: readString(event.title) || "Untitled alert event",
+      tickers,
+      primaryTicker,
+      category,
+      sourceType: sourceGroup === "filings" ? "filing" : sourceGroup === "news" ? "news" : "other",
+      sourceLabel: readString(event.source_name) || readString(event.source_code) || null,
+      severity: score >= 90 ? "critical" : score >= 75 || impact === "high" ? "high" : score >= 50 ? "medium" : "low",
+      publishedAt: readString(event.published_at) || readString(event.detected_at) || null,
+    },
+  };
+}
+
+async function evaluate(event) {
+  if (!event.tickers.length) {
+    return {
+      candidates: [],
+      skipped: [{ reason: "EVENT_HAS_NO_TICKERS", detail: "Watchlist and Discovery delivery require ticker linkage." }],
+    };
+  }
+
+  const users = (await fetchRows("user_profiles", { select: "id", limit: "500" })).map((row) => readString(row.id)).filter(Boolean);
+  const candidates = [];
+  const skipped = [];
+  const now = new Date();
+
+  for (const userId of users) {
+    const context = await fetchUserContext(userId);
+    const matchedTickers = event.tickers.filter((ticker) => context.watchlistTickers.has(ticker));
+    const eligibleChannels = resolveEligibleChannels(context.plan, context.channels);
+
+    if (!eligibleChannels.length) {
+      skipped.push({ userId, reason: "NO_ENABLED_CHANNELS" });
+      continue;
+    }
+
+    if (matchedTickers.length) {
+      const reason = getWatchlistSkipReason(event, context.preferences);
+      if (reason) {
+        skipped.push({ userId, reason });
+        continue;
+      }
+      candidates.push(buildCandidate({ userId, plan: context.plan, alertLane: "watchlist", matchedTickers, eligibleChannels, now }));
+      continue;
+    }
+
+    if (!context.preferences.discoveryEnabled) {
+      skipped.push({ userId, reason: "DISCOVERY_DISABLED" });
+      continue;
+    }
+
+    if (!context.discoveryCategories.has(event.category)) {
+      skipped.push({ userId, reason: "DISCOVERY_CATEGORY_NOT_ACTIVE", detail: event.category });
+      continue;
+    }
+
+    candidates.push(buildCandidate({ userId, plan: context.plan, alertLane: "market_discovery", matchedTickers: event.tickers, eligibleChannels, now }));
+  }
+
+  return { candidates, skipped };
+}
+
+async function fetchUserContext(userId) {
+  const [planRow, preferencesRow, watchlistRows, categoryRows, channelRows] = await Promise.all([
+    fetchOne("user_plan_subscriptions", { user_id: `eq.${userId}` }),
+    fetchOne("alert_preferences", { user_id: `eq.${userId}` }),
+    fetchRows("watchlist_tickers", { select: "ticker", user_id: `eq.${userId}`, limit: "1000" }),
+    fetchRows("user_discovery_categories", { select: "category", user_id: `eq.${userId}`, enabled: "eq.true", limit: "100" }),
+    fetchRows("user_delivery_channels", { select: "channel,enabled,destination,verified_at", user_id: `eq.${userId}`, limit: "20" }),
+  ]);
+
+  return {
+    plan: readPlan(planRow),
+    preferences: {
+      watchlistNewsEnabled: readBoolean(preferencesRow?.watchlist_news_enabled, true),
+      watchlistFilingsEnabled: readBoolean(preferencesRow?.watchlist_filings_enabled, true),
+      watchlistCalendarEnabled: readBoolean(preferencesRow?.watchlist_calendar_enabled, true),
+      watchlistRiskEnabled: readBoolean(preferencesRow?.watchlist_risk_enabled, true),
+      discoveryEnabled: readBoolean(preferencesRow?.discovery_enabled, true),
+    },
+    watchlistTickers: new Set(watchlistRows.map((row) => normalizeTicker(row.ticker)).filter(Boolean)),
+    discoveryCategories: new Set(categoryRows.map((row) => readString(row.category)).filter(Boolean)),
+    channels: channelRows,
+  };
+}
+
+function buildCandidate({ userId, plan, alertLane, matchedTickers, eligibleChannels, now }) {
+  const delayMinutes = getPlanLimits(plan).alertDelayMinutes;
+  return {
+    userId,
+    plan,
+    alertLane,
+    matchedTickers,
+    eligibleChannels,
+    delayMinutes,
+    scheduledFor: new Date(now.getTime() + delayMinutes * 60_000).toISOString(),
+    deliveryStatus: delayMinutes > 0 ? "queued" : "sent",
+  };
+}
+
+function getWatchlistSkipReason(event, preferences) {
+  if (event.sourceType === "news" && !preferences.watchlistNewsEnabled) return "WATCHLIST_NEWS_DISABLED";
+  if (event.sourceType === "filing" && !preferences.watchlistFilingsEnabled) return "WATCHLIST_FILINGS_DISABLED";
+  if (event.sourceType === "calendar" && !preferences.watchlistCalendarEnabled) return "WATCHLIST_CALENDAR_DISABLED";
+  if (["listing_risk", "dilution_risk", "financial_risk", "legal_risk", "fda_clinical"].includes(event.category) && !preferences.watchlistRiskEnabled) {
+    return "WATCHLIST_RISK_DISABLED";
+  }
+  return "";
+}
+
+function resolveEligibleChannels(plan, rows) {
+  const available = new Set(getPlanLimits(plan).channels);
+  return rows
+    .filter((row) => row.enabled === true)
+    .map((row) => ({
+      channel: readString(row.channel),
+      destination: readString(row.destination) || undefined,
+      connected: readString(row.channel) === "web" || Boolean(readString(row.destination) && readString(row.verified_at)),
+    }))
+    .filter((row) => available.has(row.channel) && row.connected);
+}
+
+function getPlanLimits(plan) {
+  return PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+}
+
+async function insertDelivery({ userId, event, candidate, deliveredChannels }) {
+  const now = new Date().toISOString();
+  const payload = {
+    user_id: userId,
+    alert_event_id: event.id,
+    ticker: event.primaryTicker || event.tickers[0] || null,
+    title: event.title,
+    category: event.category,
+    source_type: event.sourceType,
+    source_label: event.sourceLabel,
+    alert_lane: candidate.alertLane,
+    severity: event.severity,
+    delivered_channels: deliveredChannels,
+    delivery_status: candidate.deliveryStatus,
+    delivered_at: now,
+    scheduled_for: candidate.scheduledFor,
+    sent_at: candidate.deliveryStatus === "sent" ? now : null,
+    attempted_at: candidate.deliveryStatus === "sent" ? now : null,
+    dedupe_key: `event:${event.id}`,
+  };
+
+  const result = await supabasePost("user_alert_deliveries", payload);
+  if (result.ok) return { ok: true, row: Array.isArray(result.data) ? result.data[0] : null };
+  if (result.status === 409 || /duplicate|unique/i.test(result.error || "")) {
+    return { ok: true, skipped: true, reason: "DUPLICATE_DELIVERY" };
+  }
+  return { ok: false, status: result.status, error: result.error || "insert failed" };
+}
+
+async function fetchOne(table, query) {
+  const rows = await fetchRows(table, { select: "*", ...query, limit: "1" });
+  return rows[0] || null;
+}
+
+async function fetchRows(table, query) {
+  const result = await supabaseGet(table, query);
+  if (!result.ok) throw new Error(`${table} read failed: ${result.error || result.status}`);
+  return Array.isArray(result.data) ? result.data : [];
+}
+
+async function supabaseGet(table, query) {
+  const url = new URL(`${supabaseUrl}/rest/v1/${table}`);
+  for (const [name, value] of Object.entries(query)) {
+    if (value !== undefined && value !== null && value !== "") url.searchParams.set(name, String(value));
+  }
+  const response = await fetch(url, {
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      Accept: "application/json",
+    },
+  });
+  const data = await response.json().catch(() => null);
+  return { ok: response.ok, status: response.status, data, error: response.ok ? undefined : readError(data, response.statusText) };
+}
+
+async function supabasePost(table, payload) {
+  const response = await fetch(`${supabaseUrl}/rest/v1/${table}`, {
+    method: "POST",
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => null);
+  return { ok: response.ok, status: response.status, data, error: response.ok ? undefined : readError(data, response.statusText) };
+}
+
+function readPlan(row) {
+  const plan = readString(row?.plan);
+  const status = readString(row?.status);
+  if (status && status !== "active") return "free";
+  if (plan === "free" || plan === "ad_free" || plan === "pro" || plan === "advanced" || plan === "ultimate") return plan;
+  return "free";
+}
+
+function parseArgs(argv) {
+  const parsed = new Map();
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (!arg.startsWith("--")) continue;
+    const body = arg.replace(/^--/, "");
+    if (body.includes("=")) {
+      const [key, value = ""] = body.split("=");
+      parsed.set(key, value || "true");
+      continue;
+    }
+    const next = argv[index + 1];
+    if (next && !next.startsWith("--")) {
+      parsed.set(body, next);
+      index += 1;
+      continue;
+    }
+    parsed.set(body, "true");
+  }
+  return parsed;
+}
+
+function toPrintableResult(result) {
+  return {
+    ok: result.ok,
+    dryRun,
+    write,
+    event: result.event
+      ? {
+          id: result.event.id,
+          title: result.event.title,
+          tickers: result.event.tickers,
+          category: result.event.category,
+          sourceType: result.event.sourceType,
+          severity: result.event.severity,
+        }
+      : null,
+    candidates: result.candidates.map((candidate) => ({
+      userId: candidate.userId,
+      plan: candidate.plan,
+      alertLane: candidate.alertLane,
+      matchedTickers: candidate.matchedTickers,
+      scheduledFor: candidate.scheduledFor,
+      deliveryStatus: candidate.deliveryStatus,
+      eligibleChannels: candidate.eligibleChannels.map((channel) => channel.channel),
+    })),
+    skipped: result.skipped,
+    writes: result.writes,
+    stats: result.stats,
+    error: result.error,
+  };
+}
+
+function uniqueTickers(values) {
+  const seen = new Set();
+  const tickers = [];
+  for (const value of values) {
+    const ticker = normalizeTicker(value);
+    if (!ticker || seen.has(ticker)) continue;
+    seen.add(ticker);
+    tickers.push(ticker);
+  }
+  return tickers;
+}
+
+function normalizeTicker(value) {
+  const ticker = readString(value).toUpperCase();
+  if (!ticker || ticker === "N/A" || ticker === "NA" || ticker === "UNKNOWN" || ticker === "-") return "";
+  return /^[A-Z0-9][A-Z0-9.-]{0,11}$/.test(ticker) ? ticker : "";
+}
+
+function readBoolean(value, fallback) {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function readNumber(value, fallback) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) return Number(value);
+  return fallback;
+}
+
+function readString(value) {
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return "";
+}
+
+function readError(data, fallback) {
+  if (data && typeof data === "object" && "message" in data) return String(data.message || fallback);
+  if (typeof data === "string") return data;
+  return fallback;
+}
+
+function cleanSupabaseUrl(value) {
+  return value.replace(/\/rest\/v1\/?$/i, "").replace(/\/$/, "");
+}
+
+function readLocalEnv() {
+  const candidates = [resolve(process.cwd(), ".env.local"), resolve(process.cwd(), ".env")];
+  const parsed = {};
+  for (const filepath of candidates) {
+    if (!existsSync(filepath)) continue;
+    for (const line of readFileSync(filepath, "utf8").split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const index = trimmed.indexOf("=");
+      if (index === -1) continue;
+      const keyName = trimmed.slice(0, index).trim();
+      let value = trimmed.slice(index + 1).trim();
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      parsed[keyName] = value;
+    }
+  }
+  return { ...parsed, ...process.env };
+}

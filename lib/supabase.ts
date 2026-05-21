@@ -457,6 +457,54 @@ export async function supabaseDelete(table: string, search: Record<string, strin
   }
 }
 
+export async function supabaseRpc(functionName: string, payload: Record<string, unknown>) {
+  const { baseUrl, key } = getSupabaseAuth();
+
+  if (!baseUrl) {
+    return { ok: false, status: 0, data: null, error: "SUPABASE_URL is missing" };
+  }
+
+  if (!key) {
+    return {
+      ok: false,
+      status: 0,
+      data: null,
+      error: "A Supabase API key is missing",
+    };
+  }
+
+  try {
+    const response = await fetch(`${baseUrl}/rest/v1/rpc/${functionName}`, {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const body = await response.text();
+    const data = parseBody(body);
+
+    return {
+      ok: response.ok,
+      status: response.status,
+      data,
+      error: response.ok ? undefined : readError(data, response.statusText),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      data: null,
+      error: error instanceof Error ? error.message : "Unknown Supabase error",
+    };
+  }
+}
+
 function parseBody(body: string) {
   if (!body) return null;
 

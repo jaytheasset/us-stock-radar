@@ -1,0 +1,153 @@
+import "server-only";
+
+import { resolveCanonicalEventFields } from "@/lib/eventFieldMapping";
+import { fetchEventById, fetchEventTickers } from "@/lib/supabase";
+import { type AlertCategory, isValidAlertCategory } from "@/lib/subscriptionPolicy";
+import type { NormalizedAlertEvent, NormalizedAlertSeverity, NormalizedAlertSourceType } from "@/lib/alerts/delivery/types";
+
+type DbRow = Record<string, unknown>;
+type EventTickerRow = {
+  symbol?: unknown;
+  role?: unknown;
+  sort_order?: unknown;
+};
+
+export async function normalizeAlertEvent(eventId: string): Promise<
+  | {
+      ok: true;
+      event: NormalizedAlertEvent;
+    }
+  | {
+      ok: false;
+      error: string;
+    }
+> {
+  const normalizedEventId = eventId.trim();
+  if (!normalizedEventId) {
+    return { ok: false, error: "event_id is required" };
+  }
+
+  const [eventResult, tickersResult] = await Promise.all([
+    fetchEventById(normalizedEventId),
+    fetchEventTickers(normalizedEventId),
+  ]);
+
+  if (!eventResult.ok || !eventResult.data || typeof eventResult.data !== "object") {
+    return { ok: false, error: eventResult.error || `Event not found: ${normalizedEventId}` };
+  }
+
+  const row = eventResult.data as DbRow;
+  const canonical = resolveCanonicalEventFields(row);
+  const tickerRows = Array.isArray(tickersResult.data) ? (tickersResult.data as EventTickerRow[]) : [];
+  const eventTicker = readTicker(row.ticker);
+  const tickers = normalizeTickers([
+    ...tickerRows.map((tickerRow) => readTicker(tickerRow.symbol)),
+    eventTicker,
+  ]);
+  const primaryTicker =
+    readPrimaryTicker(tickerRows) ||
+    (eventTicker && tickers.includes(eventTicker) ? eventTicker : undefined) ||
+    tickers[0];
+  const category = normalizeCategory(readString(row.event_type));
+  const sourceType = normalizeSourceType(canonical.sourceGroup);
+  const title = readString(row.title) || "Untitled alert event";
+  const publishedAt = readString(row.published_at) || readString(row.detected_at) || readString(row.event_date);
+  const sourceLabel = readString(row.source_name) || formatSource(readString(row.source_code));
+  const severity = normalizeSeverity(canonical.score, canonical.impact);
+
+  return {
+    ok: true,
+    event: {
+      id: normalizedEventId,
+      title,
+      tickers,
+      primaryTicker,
+      category,
+      sourceType,
+      sourceLabel,
+      severity,
+      publishedAt,
+      metadata: {
+        source_group: canonical.sourceGroup,
+        delivery_level: canonical.deliveryLevel,
+        score: canonical.score,
+        impact: canonical.impact,
+        signal: canonical.signal,
+        market_scope: canonical.marketScope,
+      },
+    },
+  };
+}
+
+function normalizeCategory(value: string): AlertCategory {
+  return isValidAlertCategory(value) ? value : "other";
+}
+
+function normalizeSourceType(sourceGroup: string): NormalizedAlertSourceType {
+  if (sourceGroup === "news") return "news";
+  if (sourceGroup === "filings") return "filing";
+  if (sourceGroup === "market") return "other";
+  return "other";
+}
+
+function normalizeSeverity(score: number, impact: string): NormalizedAlertSeverity {
+  if (score >= 90) return "critical";
+  if (score >= 75 || impact === "high") return "high";
+  if (score >= 50 || impact === "medium") return "medium";
+  return "low";
+}
+
+function readPrimaryTicker(rows: EventTickerRow[]) {
+  const candidates = rows
+    .filter((row) => readString(row.role) === "primary")
+    .sort((left, right) => readNumber(left.sort_order) - readNumber(right.sort_order))
+    .map((row) => readTicker(row.symbol))
+    .filter(Boolean);
+  return candidates[0];
+}
+
+function normalizeTickers(values: string[]) {
+  const seen = new Set<string>();
+  const tickers: string[] = [];
+  for (const value of values) {
+    const ticker = readTicker(value);
+    if (!ticker || seen.has(ticker)) continue;
+    seen.add(ticker);
+    tickers.push(ticker);
+  }
+  return tickers;
+}
+
+function readTicker(value: unknown) {
+  const ticker = readString(value).toUpperCase();
+  if (!ticker || ticker === "N/A" || ticker === "NA" || ticker === "UNKNOWN" || ticker === "-") return "";
+  return /^[A-Z0-9][A-Z0-9.-]{0,11}$/.test(ticker) ? ticker : "";
+}
+
+function readString(value: unknown) {
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return "";
+}
+
+function readNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) return Number(value);
+  return 100;
+}
+
+function formatSource(value: string) {
+  const known: Record<string, string> = {
+    globe: "GlobeNewswire",
+    globenewswire: "GlobeNewswire",
+    businesswire: "Business Wire",
+    prnewswire: "PR Newswire",
+    newsfile: "Newsfile",
+    sec_edgar: "SEC EDGAR",
+    ofac: "OFAC",
+    doj: "DOJ",
+    dea: "DEA",
+    whitehouse: "White House",
+  };
+  return known[value.toLowerCase()] || value || undefined;
+}
