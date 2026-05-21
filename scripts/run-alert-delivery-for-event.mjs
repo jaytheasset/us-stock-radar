@@ -86,13 +86,14 @@ async function runDelivery(id, options) {
 
   if (options.write && !options.dryRun) {
     for (const candidate of evaluation.candidates) {
-      const deliveredChannels =
+      const deliveryResult =
         candidate.deliveryStatus === "sent"
-          ? candidate.eligibleChannels.filter((channel) => channel.channel === "web").map((channel) => channel.channel)
-          : [];
+          ? await processImmediateChannels(normalized.event, candidate)
+          : { channels: [], errors: [] };
+      const deliveredChannels = deliveryResult.channels;
 
       if (candidate.deliveryStatus === "sent" && !deliveredChannels.length) {
-        writes.push({ ok: true, skipped: true, reason: "NO_CHANNELS_DELIVERED" });
+        writes.push({ ok: true, skipped: true, reason: deliveryResult.errors[0] || "NO_CHANNELS_DELIVERED" });
         continue;
       }
 
@@ -102,6 +103,7 @@ async function runDelivery(id, options) {
           event: normalized.event,
           candidate,
           deliveredChannels,
+          lastError: deliveryResult.errors.join("; ") || undefined,
         }),
       );
     }
@@ -266,11 +268,69 @@ function resolveEligibleChannels(plan, rows) {
     .filter((row) => available.has(row.channel) && row.connected);
 }
 
+async function processImmediateChannels(event, candidate) {
+  const channels = [];
+  const errors = [];
+
+  for (const channel of candidate.eligibleChannels) {
+    if (channel.channel === "web") {
+      channels.push("web");
+      continue;
+    }
+
+    if (channel.channel === "telegram") {
+      if (env.ALERT_DELIVERY_SEND_TELEGRAM !== "true") continue;
+      const sent = await sendTelegramMessage(channel.destination || "", formatTelegramMessage(event));
+      if (sent.ok) channels.push("telegram");
+      else errors.push(`telegram: ${sanitizeError(sent.error || "Telegram send failed")}`);
+      continue;
+    }
+
+    errors.push(`${channel.channel}: delivery adapter is not implemented yet.`);
+  }
+
+  return { channels, errors };
+}
+
+async function sendTelegramMessage(chatId, text) {
+  if (env.ALERT_DELIVERY_SEND_TELEGRAM !== "true") {
+    return { ok: false, error: "Telegram sending is disabled." };
+  }
+
+  const token = env.TELEGRAM_BOT_TOKEN || "";
+  if (!token || !chatId) {
+    return { ok: false, error: "Telegram is not configured." };
+  }
+
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+      }),
+    });
+    const data = await response.json().catch(() => null);
+    if (response.ok && data?.ok) return { ok: true };
+    return { ok: false, error: readError(data, response.statusText) };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Telegram send failed." };
+  }
+}
+
+function formatTelegramMessage(event) {
+  const ticker = event.primaryTicker || event.tickers[0] || "Market";
+  return [`STOCK RADAR Alert`, `${ticker}: ${event.title}`, `Category: ${event.category || "other"}`].join("\n");
+}
+
 function getPlanLimits(plan) {
   return PLAN_LIMITS[plan] || PLAN_LIMITS.free;
 }
 
-async function insertDelivery({ userId, event, candidate, deliveredChannels }) {
+async function insertDelivery({ userId, event, candidate, deliveredChannels, lastError }) {
   const now = new Date().toISOString();
   const payload = {
     user_id: userId,
@@ -288,6 +348,7 @@ async function insertDelivery({ userId, event, candidate, deliveredChannels }) {
     scheduled_for: candidate.scheduledFor,
     sent_at: candidate.deliveryStatus === "sent" ? now : null,
     attempted_at: candidate.deliveryStatus === "sent" ? now : null,
+    last_error: lastError || null,
     dedupe_key: `event:${event.id}`,
   };
 
