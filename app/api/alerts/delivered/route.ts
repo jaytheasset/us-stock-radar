@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDeliveredAlertsForUser } from "@/lib/alerts/getAlertSettingsViewModel";
+import { type DeliveryStatusFilter, getDeliveredAlertsForUser } from "@/lib/alerts/getAlertSettingsViewModel";
 import { getCurrentUserId } from "@/lib/currentUser";
 import { isValidAlertCategory, type AlertCategory } from "@/lib/subscriptionPolicy";
 
@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
   const limit = clampLimit(Number(searchParams.get("limit") || 20));
   const lane = normalizeLane(searchParams.get("lane"));
   const category = normalizeCategory(searchParams.get("category"));
+  const status = normalizeStatus(searchParams.get("status"));
 
   if (searchParams.get("lane") && !lane) {
     return NextResponse.json(
@@ -38,11 +39,23 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  if (searchParams.get("status") && !status) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "INVALID_STATUS",
+        message: "status must be queued, sent, failed, suppressed, or all.",
+      },
+      { status: 400, headers: NO_STORE_HEADERS },
+    );
+  }
+
   const result = await getDeliveredAlertsForUser({
     userId,
     limit,
     lane,
     category,
+    status: status || "sent",
   });
 
   if (!result.ok) {
@@ -67,6 +80,14 @@ function normalizeLane(value: string | null) {
 function normalizeCategory(value: string | null): AlertCategory | undefined {
   const category = value?.trim() || "";
   return isValidAlertCategory(category) ? category : undefined;
+}
+
+function normalizeStatus(value: string | null): DeliveryStatusFilter | undefined {
+  const status = value?.trim() || "";
+  if (status === "queued" || status === "sent" || status === "failed" || status === "suppressed" || status === "all") {
+    return status;
+  }
+  return undefined;
 }
 
 function clampLimit(value: number) {

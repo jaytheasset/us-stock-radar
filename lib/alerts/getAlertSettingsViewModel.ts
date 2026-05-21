@@ -87,6 +87,7 @@ export async function getAlertSettingsViewModel(userId: string): Promise<AlertSe
     supabaseSelect("user_alert_deliveries", {
       select: "*",
       user_id: `eq.${userId}`,
+      delivery_status: "eq.sent",
       order: "delivered_at.desc",
       limit: "5",
     }),
@@ -127,11 +128,13 @@ export async function getDeliveredAlertsForUser({
   limit = 20,
   lane,
   category,
+  status = "sent",
 }: {
   userId: string;
   limit?: number;
   lane?: "watchlist" | "market_discovery";
   category?: AlertCategory;
+  status?: DeliveryStatusFilter;
 }) {
   const query: Record<string, string> = {
     select: "*",
@@ -142,6 +145,7 @@ export async function getDeliveredAlertsForUser({
 
   if (lane) query.alert_lane = `eq.${lane}`;
   if (category) query.category = `eq.${category}`;
+  if (status !== "all") query.delivery_status = `eq.${status}`;
 
   const result = await supabaseSelect("user_alert_deliveries", query);
 
@@ -152,6 +156,8 @@ export async function getDeliveredAlertsForUser({
     error: result.error,
   };
 }
+
+export type DeliveryStatusFilter = "queued" | "sent" | "failed" | "suppressed" | "all";
 
 function mapPreferences(row?: AlertPreferencesRow): AlertPreferences {
   return {
