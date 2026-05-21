@@ -21,9 +21,8 @@ const FIELD_MAP: Record<string, string> = {
 };
 
 export async function PATCH(request: NextRequest) {
-  const userId = getCurrentUserId();
-
   try {
+    const userId = await getCurrentUserId();
     const body = await request.json().catch(() => null);
     const patch = normalizePreferencePatch(body);
     const payload: Record<string, unknown> = {

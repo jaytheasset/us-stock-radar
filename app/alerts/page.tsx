@@ -5,7 +5,7 @@ import { getCurrentUserId } from "@/lib/currentUser";
 export const dynamic = "force-dynamic";
 
 export default async function AlertsPage() {
-  const initialSettings = await getAlertSettingsViewModel(getCurrentUserId());
+  const initialSettings = await getAlertSettingsViewModel(await getCurrentUserId());
 
   return <AlertsClient initialSettings={initialSettings} />;
 }

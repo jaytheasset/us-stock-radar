@@ -10,7 +10,7 @@ const NO_STORE_HEADERS = {
 };
 
 export async function GET(request: NextRequest) {
-  const userId = getCurrentUserId();
+  const userId = await getCurrentUserId();
   const searchParams = request.nextUrl.searchParams;
   const limit = clampLimit(Number(searchParams.get("limit") || 20));
   const lane = normalizeLane(searchParams.get("lane"));

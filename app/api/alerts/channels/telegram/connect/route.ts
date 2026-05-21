@@ -10,9 +10,8 @@ const NO_STORE_HEADERS = {
 };
 
 export async function POST() {
-  const userId = getCurrentUserId();
-
   try {
+    const userId = await getCurrentUserId();
     const plan = await getUserPlan(userId);
     if (getChannelLockState(plan, "telegram")) {
       return NextResponse.json(

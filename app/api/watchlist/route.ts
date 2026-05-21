@@ -15,9 +15,8 @@ const NO_STORE_HEADERS = {
 };
 
 export async function GET() {
-  const userId = getCurrentUserId();
-
   try {
+    const userId = await getCurrentUserId();
     const data = await getWatchlistViewModel(userId);
     return NextResponse.json({ ok: true, data }, { headers: NO_STORE_HEADERS });
   } catch (error) {
@@ -33,9 +32,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const userId = getCurrentUserId();
-
   try {
+    const userId = await getCurrentUserId();
     const body = await request.json().catch(() => null);
     const ticker = normalizeTicker((body as { ticker?: unknown } | null)?.ticker);
     const existing = await getWatchlistViewModel(userId);

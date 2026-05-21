@@ -11,9 +11,8 @@ const NO_STORE_HEADERS = {
 };
 
 export async function DELETE(_request: Request, context: { params: Promise<{ ticker: string }> }) {
-  const userId = getCurrentUserId();
-
   try {
+    const userId = await getCurrentUserId();
     const { ticker: tickerParam } = await context.params;
     const ticker = normalizeTicker(decodeURIComponent(tickerParam));
     const deleteResult = await supabaseDelete("watchlist_tickers", {

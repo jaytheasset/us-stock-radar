@@ -9,9 +9,8 @@ const NO_STORE_HEADERS = {
 };
 
 export async function GET() {
-  const userId = getCurrentUserId();
-
   try {
+    const userId = await getCurrentUserId();
     const data = await getAlertSettingsViewModel(userId);
     return NextResponse.json(
       {

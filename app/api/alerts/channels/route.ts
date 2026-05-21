@@ -23,9 +23,8 @@ type ChannelRow = {
 };
 
 export async function PATCH(request: NextRequest) {
-  const userId = getCurrentUserId();
-
   try {
+    const userId = await getCurrentUserId();
     const body = await request.json().catch(() => null);
     const patch = normalizeChannelPatch(body);
     const plan = await getUserPlan(userId);

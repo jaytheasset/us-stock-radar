@@ -17,9 +17,8 @@ const NO_STORE_HEADERS = {
 };
 
 export async function PATCH(request: NextRequest) {
-  const userId = getCurrentUserId();
-
   try {
+    const userId = await getCurrentUserId();
     const body = await request.json().catch(() => null);
     const categories = assertValidCategories((body as { categories?: unknown } | null)?.categories);
     const plan = await getUserPlan(userId);
