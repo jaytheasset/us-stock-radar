@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildChannelNotAvailableMessage, getChannelLockState, getUserPlan } from "@/lib/alerts/alertValidation";
-import { getCurrentUserId } from "@/lib/currentUser";
+import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import { buildTelegramDeepLink, createTelegramConnectToken } from "@/lib/telegram/telegramConnect";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +11,19 @@ const NO_STORE_HEADERS = {
 
 export async function POST() {
   try {
-    const userId = await getCurrentUserId();
+    const userId = await getOptionalCurrentUserId();
+    if (!userId) {
+      return NextResponse.json(
+        {
+          ok: false,
+          guestMode: true,
+          error: "ACCOUNT_REQUIRED",
+          message: "Create an account or log in to connect Telegram alerts.",
+        },
+        { headers: NO_STORE_HEADERS },
+      );
+    }
+
     const plan = await getUserPlan(userId);
     if (getChannelLockState(plan, "telegram")) {
       return NextResponse.json(

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAlertSettingsViewModel } from "@/lib/alerts/getAlertSettingsViewModel";
+import { getAlertSettingsViewModel, getGuestAlertSettingsViewModel } from "@/lib/alerts/getAlertSettingsViewModel";
 import {
   AlertValidationError,
   buildChannelNotAvailableMessage,
@@ -7,7 +7,7 @@ import {
   getUserPlan,
   normalizeChannelPatch,
 } from "@/lib/alerts/alertValidation";
-import { getCurrentUserId } from "@/lib/currentUser";
+import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import { supabaseSelect, supabaseUpsert } from "@/lib/supabase";
 import type { AlertChannel } from "@/lib/subscriptionPolicy";
 
@@ -24,9 +24,23 @@ type ChannelRow = {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const userId = await getCurrentUserId();
+    const userId = await getOptionalCurrentUserId();
     const body = await request.json().catch(() => null);
     const patch = normalizeChannelPatch(body);
+
+    if (!userId) {
+      return NextResponse.json(
+        {
+          ok: true,
+          guestMode: true,
+          persisted: false,
+          message: "Create an account to save your delivery channels.",
+          data: getGuestAlertSettingsViewModel(),
+        },
+        { headers: NO_STORE_HEADERS },
+      );
+    }
+
     const plan = await getUserPlan(userId);
     const locked = getChannelLockState(plan, patch.channel);
 

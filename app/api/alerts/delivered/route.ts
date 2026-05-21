@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type DeliveryStatusFilter, getDeliveredAlertsForUser } from "@/lib/alerts/getAlertSettingsViewModel";
-import { getCurrentUserId } from "@/lib/currentUser";
+import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import { isValidAlertCategory, type AlertCategory } from "@/lib/subscriptionPolicy";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,11 @@ const NO_STORE_HEADERS = {
 };
 
 export async function GET(request: NextRequest) {
-  const userId = await getCurrentUserId();
+  const userId = await getOptionalCurrentUserId();
+  if (!userId) {
+    return NextResponse.json([], { headers: NO_STORE_HEADERS });
+  }
+
   const searchParams = request.nextUrl.searchParams;
   const limit = clampLimit(Number(searchParams.get("limit") || 20));
   const lane = normalizeLane(searchParams.get("lane"));

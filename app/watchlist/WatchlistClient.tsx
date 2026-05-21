@@ -56,6 +56,10 @@ export default function WatchlistClient({ initialWatchlist }: WatchlistClientPro
       setWatchlist(payload.data);
       setTickerInput("");
       setRequestState("idle");
+      if (payload.guestMode || payload.persisted === false) {
+        setMessage(payload.message || "Create an account to save your watchlist.");
+        return;
+      }
       setMessage(`${payload.data.items.find((item: { ticker: string }) => item.ticker === ticker.toUpperCase())?.ticker || ticker.toUpperCase()} added.`);
     } catch (error) {
       setRequestState("failed");
@@ -80,6 +84,10 @@ export default function WatchlistClient({ initialWatchlist }: WatchlistClientPro
 
       setWatchlist(payload.data);
       setRequestState("idle");
+      if (payload.guestMode || payload.persisted === false) {
+        setMessage(payload.message || "Create an account to save your watchlist.");
+        return;
+      }
       setMessage(`${ticker} removed.`);
     } catch (error) {
       setRequestState("failed");
@@ -151,9 +159,14 @@ export default function WatchlistClient({ initialWatchlist }: WatchlistClientPro
 
         <div className="watchlist-status-line" aria-live="polite">
           <span className={requestState === "failed" ? "bearish" : "neutral"}>
-            {requestState === "saving" ? "Saving..." : message || "Changes apply to Watchlist Alerts and Alerts usage immediately."}
+            {requestState === "saving"
+              ? "Saving..."
+              : message ||
+                (watchlist.guestMode
+                  ? "Guest preview only. Create an account to save your watchlist."
+                  : "Changes apply to Watchlist Alerts and Alerts usage immediately.")}
           </span>
-          <Link href="/premium">Manage Plan</Link>
+          {watchlist.guestMode ? <Link href="/signup">Create Account</Link> : <Link href="/premium">Manage Plan</Link>}
         </div>
 
         <div className="watchlist-grid watchlist-grid-compact">

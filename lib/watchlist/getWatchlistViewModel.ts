@@ -40,6 +40,20 @@ export async function getWatchlistViewModel(userId: string): Promise<WatchlistVi
   };
 }
 
+export function getGuestWatchlistViewModel(): WatchlistViewModel {
+  const plan = "free";
+  const limits = getPlanLimits(plan);
+
+  return {
+    guestMode: true,
+    plan,
+    planLabel: getPlanDisplayName(plan),
+    limit: limits.watchlistLimit,
+    usage: 0,
+    items: [],
+  };
+}
+
 export function formatWatchlistUsage(viewModel: Pick<WatchlistViewModel, "usage" | "limit">) {
   return `${viewModel.usage} / ${formatLimit(viewModel.limit)}`;
 }

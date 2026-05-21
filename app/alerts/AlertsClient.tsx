@@ -153,6 +153,11 @@ export default function AlertsClient({ initialSettings }: AlertsClientProps) {
     setSaveState("saving");
     setErrorMessage(null);
 
+    if (previousSettings.guestMode) {
+      setSaveState("idle");
+      return;
+    }
+
     try {
       const response = await fetch("/api/alerts/preferences", {
         method: "PATCH",
@@ -212,6 +217,11 @@ export default function AlertsClient({ initialSettings }: AlertsClientProps) {
 
   async function saveDiscoveryCategories(categories: AlertCategory[], previousSettings: AlertSettingsViewModel) {
     setSaveState("saving");
+
+    if (previousSettings.guestMode) {
+      setSaveState("idle");
+      return;
+    }
 
     try {
       const response = await fetch("/api/alerts/discovery-categories", {
@@ -378,13 +388,25 @@ export default function AlertsClient({ initialSettings }: AlertsClientProps) {
           <p>Plan limits control personalized delivery, not what you can browse in the Feed.</p>
         </section>
 
+        {settings.guestMode ? (
+          <section className="alerts-delivery-banner">
+            <strong>Create an account to save your alert settings.</strong>
+            <p>
+              This guest view is a local preview only. <Link href="/signup">Sign up</Link> or <Link href="/login">log in</Link> to
+              save settings, connect Telegram, and keep delivery history.
+            </p>
+          </section>
+        ) : null}
+
         <nav className="alerts-tabs" aria-label="Alert settings tabs">
           {tabs.map((tab) => (
             <button className={activeTab === tab ? "active" : ""} key={tab} onClick={() => activateTab(tab)} type="button">
               {tab}
             </button>
           ))}
-          <span className={`alerts-save-state state-${saveState}`}>{getSaveStateText(saveState)}</span>
+          <span className={`alerts-save-state state-${saveState}`}>
+            {settings.guestMode ? "Guest preview - not saved" : getSaveStateText(saveState)}
+          </span>
         </nav>
 
         {errorMessage ? <div className="alerts-error-message">{errorMessage}</div> : null}

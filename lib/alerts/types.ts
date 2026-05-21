@@ -43,6 +43,7 @@ export type DeliveredAlertItem = {
 };
 
 export type AlertSettingsViewModel = {
+  guestMode?: boolean;
   plan: Plan;
   planLabel: string;
   limits: PlanLimits;

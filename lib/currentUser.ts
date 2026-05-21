@@ -9,7 +9,7 @@ function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
-export async function getCurrentUserId() {
+export async function getOptionalCurrentUserId() {
   const accessToken = await getAuthAccessTokenFromCookies();
   const authUser = accessToken ? await getSupabaseAuthUser(accessToken) : null;
 
@@ -18,12 +18,29 @@ export async function getCurrentUserId() {
     return authUser.id;
   }
 
+  return null;
+}
+
+export function getDevFallbackUserId() {
+  if (process.env.NODE_ENV === "production") return null;
+  if ((process.env.ALLOW_DEV_FALLBACK_USER || "false").toLowerCase() !== "true") return null;
+
   const configuredUserId = process.env.DEV_USER_ID?.trim();
 
   if (configuredUserId && isUuid(configuredUserId)) {
     return configuredUserId;
   }
 
-  // Development fallback only. Replace this helper with Supabase Auth session lookup later.
+  // Development fallback only. Never use this path in production.
   return DEVELOPMENT_USER_ID;
+}
+
+export async function getCurrentUserId() {
+  const userId = await getOptionalCurrentUserId();
+  if (userId) return userId;
+
+  const fallbackUserId = getDevFallbackUserId();
+  if (fallbackUserId) return fallbackUserId;
+
+  throw new Error("Authentication required.");
 }

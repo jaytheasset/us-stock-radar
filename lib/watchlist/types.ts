@@ -9,6 +9,7 @@ export type WatchlistTickerItem = {
 };
 
 export type WatchlistViewModel = {
+  guestMode?: boolean;
   plan: Plan;
   planLabel: string;
   limit: number | null;

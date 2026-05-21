@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAlertSettingsViewModel } from "@/lib/alerts/getAlertSettingsViewModel";
+import { getAlertSettingsViewModel, getGuestAlertSettingsViewModel } from "@/lib/alerts/getAlertSettingsViewModel";
 import {
   AlertValidationError,
   assertDiscoveryCategoryLimit,
@@ -7,7 +7,7 @@ import {
   getAllCategoryRowsForUser,
   getUserPlan,
 } from "@/lib/alerts/alertValidation";
-import { getCurrentUserId } from "@/lib/currentUser";
+import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import { supabaseUpsert } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -18,9 +18,23 @@ const NO_STORE_HEADERS = {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const userId = await getCurrentUserId();
+    const userId = await getOptionalCurrentUserId();
     const body = await request.json().catch(() => null);
     const categories = assertValidCategories((body as { categories?: unknown } | null)?.categories);
+
+    if (!userId) {
+      return NextResponse.json(
+        {
+          ok: true,
+          guestMode: true,
+          persisted: false,
+          message: "Create an account to save your alert settings.",
+          data: getGuestAlertSettingsViewModel(),
+        },
+        { headers: NO_STORE_HEADERS },
+      );
+    }
+
     const plan = await getUserPlan(userId);
     assertDiscoveryCategoryLimit(plan, categories);
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/currentUser";
+import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import { supabaseUpsert } from "@/lib/supabase";
-import { getWatchlistViewModel } from "@/lib/watchlist/getWatchlistViewModel";
+import { getGuestWatchlistViewModel, getWatchlistViewModel } from "@/lib/watchlist/getWatchlistViewModel";
 import {
   WatchlistValidationError,
   assertWatchlistLimit,
@@ -16,9 +16,9 @@ const NO_STORE_HEADERS = {
 
 export async function GET() {
   try {
-    const userId = await getCurrentUserId();
-    const data = await getWatchlistViewModel(userId);
-    return NextResponse.json({ ok: true, data }, { headers: NO_STORE_HEADERS });
+    const userId = await getOptionalCurrentUserId();
+    const data = userId ? await getWatchlistViewModel(userId) : getGuestWatchlistViewModel();
+    return NextResponse.json({ ok: true, guestMode: data.guestMode === true, data }, { headers: NO_STORE_HEADERS });
   } catch (error) {
     return NextResponse.json(
       {
@@ -33,9 +33,24 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = await getCurrentUserId();
+    const userId = await getOptionalCurrentUserId();
     const body = await request.json().catch(() => null);
     const ticker = normalizeTicker((body as { ticker?: unknown } | null)?.ticker);
+
+    if (!userId) {
+      return NextResponse.json(
+        {
+          ok: true,
+          guestMode: true,
+          persisted: false,
+          message: "Create an account to save your watchlist.",
+          ticker,
+          data: getGuestWatchlistViewModel(),
+        },
+        { headers: NO_STORE_HEADERS },
+      );
+    }
+
     const existing = await getWatchlistViewModel(userId);
 
     if (existing.items.some((item) => item.ticker === ticker)) {

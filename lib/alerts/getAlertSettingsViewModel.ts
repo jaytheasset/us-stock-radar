@@ -123,6 +123,34 @@ export async function getAlertSettingsViewModel(userId: string): Promise<AlertSe
   };
 }
 
+export function getGuestAlertSettingsViewModel(): AlertSettingsViewModel {
+  const plan = "free";
+  const limits = getPlanLimits(plan);
+
+  return {
+    guestMode: true,
+    plan,
+    planLabel: getPlanDisplayName(plan),
+    limits,
+    usage: {
+      watchlistTickers: 0,
+      discoveryCategories: 0,
+    },
+    preferences: {
+      ...DEFAULT_ALERT_PREFERENCES,
+    },
+    selectedCategories: [],
+    selectedCategoryDetails: [],
+    channels: buildDeliveryChannels(plan, [
+      {
+        channel: "web",
+        enabled: true,
+      },
+    ]),
+    recentDeliveredAlerts: [],
+  };
+}
+
 export async function getDeliveredAlertsForUser({
   userId,
   limit = 20,

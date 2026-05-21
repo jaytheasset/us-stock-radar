@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getAlertSettingsViewModel } from "@/lib/alerts/getAlertSettingsViewModel";
-import { getCurrentUserId } from "@/lib/currentUser";
+import { getAlertSettingsViewModel, getGuestAlertSettingsViewModel } from "@/lib/alerts/getAlertSettingsViewModel";
+import { getOptionalCurrentUserId } from "@/lib/currentUser";
 
 export const dynamic = "force-dynamic";
 
@@ -10,11 +10,13 @@ const NO_STORE_HEADERS = {
 
 export async function GET() {
   try {
-    const userId = await getCurrentUserId();
-    const data = await getAlertSettingsViewModel(userId);
+    const userId = await getOptionalCurrentUserId();
+    const data = userId ? await getAlertSettingsViewModel(userId) : getGuestAlertSettingsViewModel();
     return NextResponse.json(
       {
         ok: true,
+        guestMode: data.guestMode === true,
+        user: userId ? { id: userId } : null,
         data,
       },
       { headers: NO_STORE_HEADERS },
