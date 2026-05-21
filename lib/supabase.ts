@@ -276,7 +276,7 @@ async function supabaseRest(table: string, search: Record<string, string>) {
       status: 0,
       data: null,
       count: null,
-      error: error instanceof Error ? error.message : "Unknown Supabase error",
+      error: readSupabaseFetchError(error),
     };
   }
 }
@@ -338,7 +338,7 @@ export async function supabaseUpsert(
       ok: false,
       status: 0,
       data: null,
-      error: error instanceof Error ? error.message : "Unknown Supabase error",
+      error: readSupabaseFetchError(error),
     };
   }
 }
@@ -397,7 +397,7 @@ export async function supabaseUpdate(
       ok: false,
       status: 0,
       data: null,
-      error: error instanceof Error ? error.message : "Unknown Supabase error",
+      error: readSupabaseFetchError(error),
     };
   }
 }
@@ -449,7 +449,7 @@ export async function supabaseDelete(table: string, search: Record<string, strin
       ok: false,
       status: 0,
       data: null,
-      error: error instanceof Error ? error.message : "Unknown Supabase error",
+      error: readSupabaseFetchError(error),
     };
   }
 }
@@ -497,7 +497,7 @@ export async function supabaseRpc(functionName: string, payload: Record<string, 
       ok: false,
       status: 0,
       data: null,
-      error: error instanceof Error ? error.message : "Unknown Supabase error",
+      error: readSupabaseFetchError(error),
     };
   }
 }
@@ -519,6 +519,14 @@ function readError(data: unknown, fallback: string) {
     return String((data as { message?: unknown }).message || fallback);
   }
   return fallback;
+}
+
+function readSupabaseFetchError(error: unknown) {
+  if (!(error instanceof Error)) return "Supabase request failed";
+  if (/invalid header value/i.test(error.message)) {
+    return "Supabase request failed because an environment variable contains an invalid header value.";
+  }
+  return "Supabase request failed";
 }
 
 function readCount(contentRange: string) {
