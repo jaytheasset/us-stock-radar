@@ -41,10 +41,7 @@ function cleanSupabaseUrl(value: string) {
 
 function getSupabaseAuth() {
   const env = getServerEnv();
-  const serviceKey =
-    env.supabaseServiceRoleKey && !env.supabaseServiceRoleKey.startsWith("sb_secret_")
-      ? env.supabaseServiceRoleKey
-      : "";
+  const serviceKey = env.supabaseServiceRoleKey;
   const key = serviceKey || env.supabaseAnonKey;
 
   return {
