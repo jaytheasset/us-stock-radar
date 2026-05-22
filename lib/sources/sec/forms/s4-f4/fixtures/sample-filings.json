@@ -1,0 +1,65 @@
+[
+  {
+    "name": "stock_and_cash_merger_registration",
+    "input": {
+      "rawItemId": "fixture-s4-merger",
+      "accessionNumber": "0000000000-26-000001",
+      "cik": "0000000001",
+      "ticker": "ACQR",
+      "companyName": "Acquirer Corp",
+      "formType": "S-4",
+      "filedAt": "2026-05-20T12:00:00.000Z",
+      "title": "Acquirer Corp S-4 registration statement",
+      "sourceUrl": "https://www.sec.gov/Archives/example/s4.htm",
+      "primaryDocumentText": "FORM S-4 REGISTRATION STATEMENT\nAcquirer Corp\nJoint Proxy Statement/Prospectus\n\nAgreement and Plan of Merger, dated as of May 1, 2026, by and among Acquirer Corp, Sunrise Merger Sub Inc. and Target Inc. Target Inc. will merge with and into Sunrise Merger Sub Inc., a wholly owned subsidiary of Acquirer Corp, with Target Inc. surviving as a wholly owned subsidiary.\n\nMerger consideration. Each outstanding share of Target Inc. common stock will be converted into the right to receive 0.500 shares of Acquirer Corp common stock and $2.00 in cash. Acquirer Corp is registering 25,000,000 shares of common stock to be issued in the merger.\n\nOwnership after the transaction. Following completion of the merger, Acquirer Corp stockholders are expected to own approximately 60% of the combined company and Target Inc. stockholders are expected to own approximately 40% of the combined company.\n\nSpecial Meeting. The special meeting of Target Inc. stockholders will be held on June 15, 2026. The record date for the special meeting is May 1, 2026. Approval of the merger agreement requires the affirmative vote of holders of a majority of outstanding Target Inc. shares. The proposals include adoption of the merger agreement, approval of the issuance of shares of Acquirer Corp common stock, and an adjournment proposal.\n\nConditions to the merger include approval of Target Inc. stockholders, the registration statement being declared effective, Nasdaq listing approval for the Acquirer Corp common stock, expiration of the waiting period under the HSR Act, and no injunction prohibiting the merger. Target Inc. must pay Acquirer Corp a termination fee of $75.0 million if the merger agreement is terminated under specified circumstances. The parties currently expect closing in the third quarter of 2026.\n\nRisk Factors\nThe merger involves risks, including integration risk and the risk that the combined company may not realize expected synergies.\n\nUnaudited Pro Forma Condensed Combined Financial Information\nThe unaudited pro forma condensed combined financial information gives effect to the merger.\n\nFinancial Statements\nHistorical audited financial statements of Target Inc. are included elsewhere in this proxy statement/prospectus."
+    },
+    "expect": {
+      "form_type": "S-4",
+      "deal_type": "merger",
+      "shares_to_be_issued": 25000000,
+      "meeting_date": "2026-06-15",
+      "record_date": "2026-05-01",
+      "calendar_event_count_at_least": 2
+    }
+  },
+  {
+    "name": "exchange_offer_registration",
+    "input": {
+      "rawItemId": "fixture-f4-exchange",
+      "accessionNumber": "0000000000-26-000002",
+      "cik": "0000000002",
+      "ticker": "GLBX",
+      "companyName": "Global Buyer plc",
+      "formType": "F-4",
+      "filedAt": "2026-05-21T12:00:00.000Z",
+      "title": "Global Buyer plc F-4 exchange offer registration statement",
+      "sourceUrl": "https://www.sec.gov/Archives/example/f4.htm",
+      "primaryDocumentText": "FORM F-4 REGISTRATION STATEMENT\nGlobal Buyer plc\nProspectus/Offer to Exchange\n\nGlobal Buyer plc is making an exchange offer to acquire all outstanding ordinary shares of Target Holdings Ltd. In the exchange offer, each Target Holdings Ltd. ordinary share may be exchanged for 1.25 Global Buyer plc ordinary shares. Global Buyer plc is registering 18,400,000 ordinary shares to be issued in the exchange offer.\n\nThe exchange offer is conditioned on at least 80% of Target Holdings Ltd. shares being validly tendered, the registration statement being declared effective, required regulatory approvals, and no order prohibiting completion of the exchange offer. The offer is expected to expire on July 10, 2026 unless extended.\n\nRisk Factors\nRisks include exchange-rate volatility, failure to satisfy the minimum tender condition, and integration risks.\n\nUnaudited Pro Forma Financial Information\nThe pro forma financial information illustrates the effect of the acquisition."
+    },
+    "expect": {
+      "form_type": "F-4",
+      "deal_type": "exchange_offer",
+      "shares_to_be_issued": 18400000
+    }
+  },
+  {
+    "name": "limited_scope_amendment",
+    "input": {
+      "rawItemId": "fixture-s4a-amendment",
+      "accessionNumber": "0000000000-26-000003",
+      "cik": "0000000003",
+      "ticker": "ACQR",
+      "companyName": "Acquirer Corp",
+      "formType": "S-4/A",
+      "filedAt": "2026-05-22T12:00:00.000Z",
+      "title": "Acquirer Corp S-4/A amendment",
+      "sourceUrl": "https://www.sec.gov/Archives/example/s4a.htm",
+      "primaryDocumentText": "FORM S-4/A REGISTRATION STATEMENT\nAcquirer Corp\nAmendment No. 2 to Registration Statement on Form S-4 Registration No. 333-123456\n\nExplanatory Note\nThis Amendment No. 2 is being filed solely to file Exhibit 5.1 and updated signature pages. No material changes have been made to the joint proxy statement/prospectus. The remainder of the registration statement remains unchanged and has not been included in this amendment."
+    },
+    "expect": {
+      "form_type": "S-4/A",
+      "limited_scope_amendment": true,
+      "amendment_number": 2
+    }
+  }
+]
