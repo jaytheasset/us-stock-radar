@@ -238,7 +238,7 @@ function buildOfferingTerms({
     warrant_terms: warrantSection || findSentenceField(combinedText, /\b(?:warrant|pre-funded warrant|exercise price)\b/i, "warrant_terms"),
     convertible_terms: convertibleSection || findSentenceField(combinedText, /\b(?:convertible notes?|convertible preferred|conversion price)\b/i, "convertible_terms"),
     selling_stockholders_section: sellingStockholdersSection,
-    selling_stockholders: parseSellingStockholders(sellingStockholdersSection?.text || combinedText),
+    selling_stockholders: sellingStockholdersSection ? parseSellingStockholders(sellingStockholdersSection.text) : [],
     risk_factor_excerpts: extractRiskFactorExcerpts(combinedText, sections),
     expected_pricing_date: findDateField(combinedText, [
       /\b(?:expect|expected|anticipate(?:d)?|intend(?:ed)?)\s+to\s+price[^.\n]{0,120}?\b(on|about|around)?\s*([A-Z][a-z]+ \d{1,2}, \d{4})\b/i,
@@ -249,8 +249,8 @@ function buildOfferingTerms({
       /\b(?:listing|first trading)\s+date[^.\n]{0,120}?\b([A-Z][a-z]+ \d{1,2}, \d{4})\b/i,
     ], "expected_listing_date"),
     expected_effective_date: findDateField(combinedText, [
-      /\b(?:declared|become|became|expected to become)\s+effective[^.\n]{0,120}?\b(on|about|around)?\s*([A-Z][a-z]+ \d{1,2}, \d{4})\b/i,
-      /\beffective\s+date[^.\n]{0,120}?\b([A-Z][a-z]+ \d{1,2}, \d{4})\b/i,
+      /\bregistration\s+statement[^.\n]{0,160}?(?:declared|become|became|expected to become)\s+effective[^.\n]{0,120}?\b(on|about|around)?\s*([A-Z][a-z]+ \d{1,2}, \d{4})\b/i,
+      /\b(?:declared|become|became|expected to become)\s+effective[^.\n]{0,160}?registration\s+statement[^.\n]{0,120}?\b(on|about|around)?\s*([A-Z][a-z]+ \d{1,2}, \d{4})\b/i,
     ], "expected_effective_date"),
     expected_closing_date: findDateField(combinedText, [
       /\bclosing[^.\n]{0,140}?\b(?:expected|anticipated|occur|take place)[^.\n]{0,120}?\b(on|about|around)?\s*([A-Z][a-z]+ \d{1,2}, \d{4})\b/i,
@@ -304,15 +304,25 @@ function classifyOfferingKind({
   resaleShareCount: SecS1F1CountField | null;
   sellingStockholdersSection: SecS1F1Section | null;
 }): SecS1F1Field<SecS1F1OfferingKind> {
-  const ipoSignal = findSentenceField(
-    combinedText,
-    /\b(?:initial public offering|this is our initial public offering|no public market currently exists|applied to list|approval for listing)\b/i,
-    "ipo_listing",
-  );
+  const ipoSignal =
+    findSentenceField(
+      combinedText,
+      /\b(?:no public market currently exists|applied to list|approval for listing|(?<!not\s)intends? to list|begin trading|new listing)\b/i,
+      "ipo_listing",
+    ) ||
+    findSentenceField(
+      combinedText,
+      /\b(?:initial public offering|this is our initial public offering)\b/i,
+      "ipo_listing",
+    );
   const resaleSignal =
     resaleShareCount ||
     sellingStockholdersSection ||
-    findSentenceField(combinedText, /\b(?:resale prospectus|selling stockholders?|selling shareholders?|no proceeds from the sale of shares by)\b/i, "resale_registration");
+    findSentenceField(
+      combinedText,
+      /\b(?:resale prospectus|selling\s+(?:stockholders?|shareholders?)[^.\n]{0,180}?(?:offer|sell|resell)|no proceeds from the sale of shares by)\b/i,
+      "resale_registration",
+    );
   const primarySignal =
     primarySharesOffered ||
     findSentenceField(combinedText, /\b(?:we are offering|we offer|we are selling|we may offer|offered by us)\b/i, "primary_registration");
@@ -385,7 +395,11 @@ function classifyPrimaryOrResale({
     findSentenceField(combinedText, /\b(?:we are offering|we offer|we are selling|offered by us|net proceeds to us)\b/i, "primary");
   const resaleSignal =
     resaleShareCount ||
-    findSentenceField(combinedText, /\b(?:selling stockholders?|selling shareholders?|no proceeds from the sale of shares by)\b/i, "resale");
+    findSentenceField(
+      combinedText,
+      /\b(?:selling\s+(?:stockholders?|shareholders?)[^.\n]{0,180}?(?:offer|sell|resell)|no proceeds from the sale of shares by)\b/i,
+      "resale",
+    );
   if (primarySignal && resaleSignal) {
     return {
       value: "mixed",
@@ -439,8 +453,10 @@ function findSecurityTypeCandidates(text: string): SecS1F1Field[] {
 
 function findPrimarySharesOffered(text: string) {
   return findCountField(text, [
+    /\bwe\s+(?:are\s+)?(?:offering|offer|are selling)[^.\n]{0,180}?\b(?:up\s+to\s+)?(\d[\d,.]*(?:\s*(?:thousand|million|billion|m|bn))?\s+(?:shares?|ordinary shares?|class\s+[a-z]\s+ordinary shares?|ADSs?|American Depositary Shares?))\b/i,
     /\bwe\s+(?:are\s+)?(?:offering|offer|are selling)\s+(\d[\d,.]*(?:\s*(?:thousand|million|billion|m|bn))?\s+(?:shares?|ordinary shares?|ADSs?|American Depositary Shares?))\b/i,
     /\binitial public offering of\s+(\d[\d,.]*(?:\s*(?:thousand|million|billion|m|bn))?\s+(?:shares?|ordinary shares?|ADSs?|American Depositary Shares?))\b/i,
+    /\b(?:shares?|ordinary shares?|class\s+[a-z]\s+ordinary shares?|ADSs?|American Depositary Shares?)\s+offered\s+by\s+(?:us|the\s+company)\s*\|+\s*(\d[\d,.]*(?:\s*(?:thousand|million|billion|m|bn))?\s+(?:shares?|ordinary shares?|class\s+[a-z]\s+ordinary shares?|ADSs?|American Depositary Shares?))\b/i,
     /\b(\d[\d,.]*(?:\s*(?:thousand|million|billion|m|bn))?\s+(?:shares?|ordinary shares?|ADSs?|American Depositary Shares?))\s+(?:are|is)?\s*(?:being\s+)?offered\s+by\s+us\b/i,
   ]);
 }
@@ -469,9 +485,9 @@ function findCurrentSharesOutstanding(text: string) {
 
 function findPriceRange(text: string): SecS1F1PriceRangeField | null {
   const patterns = [
-    /\bbetween\s+(\$?\s*\d[\d,.]*)\s+and\s+(\$?\s*\d[\d,.]*)\s+per\s+(?:share|ADS|ordinary share)\b/i,
-    /\bprice\s+range\s+of\s+(\$?\s*\d[\d,.]*)\s+(?:to|-|and)\s+(\$?\s*\d[\d,.]*)\b/i,
-    /\bestimated\s+(?:initial\s+public\s+)?offering\s+price\s+will\s+be\s+between\s+(\$?\s*\d[\d,.]*)\s+and\s+(\$?\s*\d[\d,.]*)\b/i,
+    /\bbetween\s+((?:US)?\$?\s*\d[\d,.]*)\s+and\s+((?:US)?\$?\s*\d[\d,.]*)\s+per\s+(?:[A-Za-z ]{0,40}\s*)?(?:share|ADS)\b/i,
+    /\bprice\s+range\s+of\s+((?:US)?\$?\s*\d[\d,.]*)\s+(?:to|-|and)\s+((?:US)?\$?\s*\d[\d,.]*)\b/i,
+    /\bestimated\s+(?:initial\s+public\s+)?offering\s+price\s+will\s+be\s+between\s+((?:US)?\$?\s*\d[\d,.]*)\s+and\s+((?:US)?\$?\s*\d[\d,.]*)\b/i,
   ];
   for (const pattern of patterns) {
     const match = text.match(pattern);
@@ -495,8 +511,8 @@ function findPriceRange(text: string): SecS1F1PriceRangeField | null {
 
 function findOfferingPrice(text: string): SecS1F1PriceField | null {
   return findPriceField(text, [
-    /\b(?:public offering price|initial public offering price|assumed initial public offering price|offering price)\s+(?:is|of|will be)?\s*(\$?\s*\d[\d,.]*)\s+per\s+(?:share|ADS|ordinary share)\b/i,
-    /\b(?:at a price of)\s+(\$?\s*\d[\d,.]*)\s+per\s+(?:share|ADS|ordinary share)\b/i,
+    /\b(?:public offering price|initial public offering price|assumed initial public offering price|offering price)\s+(?:is|of|will be)?\s*((?:US)?\$?\s*\d[\d,.]*)\s+per\s+(?:[A-Za-z ]{0,40}\s*)?(?:share|ADS)\b/i,
+    /\b(?:at a price of)\s+((?:US)?\$?\s*\d[\d,.]*)\s+per\s+(?:[A-Za-z ]{0,40}\s*)?(?:share|ADS)\b/i,
   ]);
 }
 
@@ -525,13 +541,6 @@ function findUnderwriters(text: string, underwriterSection: SecS1F1Section | nul
         confidence: "medium",
       });
     }
-  }
-  if (!candidates.length && underwriterSection) {
-    candidates.push({
-      value: "underwriting_section_present",
-      evidence: underwriterSection.evidence,
-      confidence: "low",
-    });
   }
   return dedupeFields(candidates).slice(0, 6);
 }
@@ -845,8 +854,13 @@ function buildReviewReasons({
   if (!combinedText) reasons.push("no_text_available");
   if (terms.offering_kind.value === "unknown") reasons.push("offering_kind_not_classified");
   if (extractedFieldCount < 5) reasons.push("few_s1_f1_fields_extracted");
-  if (terms.offering_kind.value === "ipo_listing" && !terms.price_range && !terms.offering_price) reasons.push("ipo_price_terms_not_found");
-  if (terms.offering_kind.value === "ipo_listing" && !terms.shares_offered) reasons.push("ipo_share_count_not_found");
+  const indeterminateContinuousOffering = isIndeterminateContinuousOffering(combinedText);
+  if (terms.offering_kind.value === "ipo_listing" && !terms.price_range && !terms.offering_price && !indeterminateContinuousOffering) {
+    reasons.push("ipo_price_terms_not_found");
+  }
+  if (terms.offering_kind.value === "ipo_listing" && !terms.shares_offered && !indeterminateContinuousOffering) {
+    reasons.push("ipo_share_count_not_found");
+  }
   if (terms.offering_kind.value === "resale_registration" && !terms.resale_share_count) reasons.push("resale_share_count_not_found");
   if (terms.selling_stockholders_section && !terms.selling_stockholders.length) reasons.push("selling_stockholders_section_not_table_parsed");
   if (feeTable.present && !feeTable.total_offering_amount && !feeTable.maximum_aggregate_offering_price) reasons.push("fee_table_amount_not_parsed");
@@ -1152,12 +1166,22 @@ function parseDateFromText(value: string) {
 }
 
 function resolveS1F1FormType(input: SecFormParserInput) {
+  const rawPayload = readRecord(input.rawPayload);
+  const metadata = readRecord(input.metadata);
   return (
+    readS1F1FormTypeFromDocuments(recordArray(rawPayload?.documents)) ||
     canonicalS1F1FormType(input.formType) ||
-    canonicalS1F1FormType(nullableString(readRecord(input.rawPayload)?.form_type)) ||
-    canonicalS1F1FormType(nullableString(readRecord(input.metadata)?.form_type)) ||
+    canonicalS1F1FormType(nullableString(rawPayload?.form_type)) ||
+    canonicalS1F1FormType(nullableString(metadata?.form_type)) ||
     canonicalS1F1FormType(readFormTypeFromTitle(input.title))
   );
+}
+
+function readS1F1FormTypeFromDocuments(documents: Record<string, unknown>[]) {
+  const primary = documents.find((document) => Boolean(document.isPrimary) && canonicalS1F1FormType(nullableString(document.type)));
+  if (primary) return canonicalS1F1FormType(nullableString(primary.type));
+  const firstSupported = documents.find((document) => canonicalS1F1FormType(nullableString(document.type)));
+  return firstSupported ? canonicalS1F1FormType(nullableString(firstSupported.type)) : null;
 }
 
 function readFormTypeFromTitle(value: unknown) {
@@ -1192,11 +1216,20 @@ function isLikelyTocBlock(value: string) {
   const text = compactText(value);
   if (/\btable of contents\b/i.test(text.slice(0, 220))) return true;
   const dottedLines = text.split("\n").filter((line) => /\.{4,}\s*\d+\s*$/.test(line)).length;
-  return dottedLines >= 3;
+  if (dottedLines >= 3) return true;
+  const firstBlock = text.slice(0, 900);
+  const headingHits = HARD_STOP_HEADINGS.filter((heading) => new RegExp(`\\b${escapeRegExp(heading)}\\b`, "i").test(firstBlock)).length;
+  const pipeCount = (firstBlock.match(/\|/g) || []).length;
+  const pageNumberCells = (firstBlock.match(/\|\s*(?:F-\s*)?\d+\s*\|/g) || []).length;
+  return headingHits >= 1 && pipeCount >= 4 && pageNumberCells >= 1;
 }
 
 function isBoilerplateName(value: string) {
-  return /\b(?:we|our|the company|underwriters|representative|book-running|lead manager|joint)\b/i.test(value);
+  return /\b(?:we|our|the company|underwriters|representative|book-running|lead manager|joint|this offering|in this offering|prospectus)\b/i.test(value);
+}
+
+function isIndeterminateContinuousOffering(text: string) {
+  return /\bindeterminate\s+number\s+of\s+shares\b/i.test(text) || /\bissue\s+shares\s+on\s+a\s+continuous\s+basis\b/i.test(text);
 }
 
 function pushField<T>(target: T[], value: T | null | undefined) {
@@ -1280,4 +1313,10 @@ function stringValue(value: unknown) {
 
 function readRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+}
+
+function recordArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item))
+    : [];
 }
