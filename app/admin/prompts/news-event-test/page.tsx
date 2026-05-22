@@ -6,12 +6,14 @@ export const dynamic = "force-dynamic";
 type PageProps = {
   searchParams?: Promise<{
     dryRun?: string;
+    run?: string;
   }>;
 };
 
 export default async function NewsEventPromptTestPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const dryRun = params?.dryRun === "true";
+  const runLlm = params?.run === "true" || params?.dryRun === "false";
+  const dryRun = !runLlm;
   const result = await runNewsEventAnalysisPreview({ dryRun });
   const analysis = readRecord(result.analysis);
   const sourceItem = readRecord(result.sourceItem);
@@ -24,10 +26,10 @@ export default async function NewsEventPromptTestPage({ searchParams }: PageProp
           <p className="muted">GlobeNewswire raw item to structured LLM analysis. This page does not write to DB.</p>
         </div>
         <div className="prompt-test-actions">
-          <Link className="text-link" href="/admin/prompts/news-event-test">
+          <Link className="text-link" href="/admin/prompts/news-event-test?run=true">
             Run LLM
           </Link>
-          <Link className="text-link" href="/admin/prompts/news-event-test?dryRun=true">
+          <Link className="text-link" href="/admin/prompts/news-event-test">
             Dry Run
           </Link>
           <Link className="text-link" href="/admin/prompts">
