@@ -1,0 +1,12 @@
+{
+  "rawItemId": "fixture-sec-other-listing-1",
+  "accessionNumber": "0007654321-26-000077",
+  "cik": "0007654321",
+  "ticker": "XBIO",
+  "companyName": "Example Biotech Corp.",
+  "formType": "Other SEC Filing",
+  "filedAt": "2026-05-20T20:30:00Z",
+  "title": "Other SEC Filing - Nasdaq Continued Listing Notice",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/7654321/000765432126000077/",
+  "primaryDocumentText": "On May 20, 2026, Example Biotech Corp. received a Nasdaq deficiency notice because the closing bid price of its common stock was below the minimum bid requirement for continued listing. The company has until November 16, 2026 to regain compliance with Nasdaq Listing Rule 5550(a)(2)."
+}
