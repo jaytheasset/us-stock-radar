@@ -57,7 +57,7 @@ const MONTHS: Record<string, string> = {
 };
 
 const DATE_TEXT_PATTERN =
-  "(?:[A-Z][a-z]+\\s+\\d{1,2},\\s+\\d{4}|(?:first|second|third|fourth)\\s+quarter\\s+of\\s+\\d{4}|Q[1-4]\\s+\\d{4}|\\d{4})";
+  "(?:[A-Z][a-z]+\\s+\\d{1,2},\\s+\\d{4}|(?:first|second|third|fourth)\\s+quarter\\s+of\\s+\\d{4}|(?:first|second)\\s+half\\s+of\\s+\\d{4}|Q[1-4]\\s+\\d{4}|\\d{4})";
 
 export function parseSecS4F4Filing(input: SecFormParserInput): SecFormParserOutput<SecS4F4Facts> {
   const rawPayload = toRecord(input.rawPayload) || {};
@@ -134,35 +134,49 @@ export function parseSecS4F4Filing(input: SecFormParserInput): SecFormParserOutp
 export const parseSecS4F4 = parseSecS4F4Filing;
 
 function buildTransactionTerms(text: string, issuer: string | null): SecS4F4TransactionTerms {
-  const dealType = findDealType(text);
-  const transactionStructure = findTransactionStructure(text);
-  const consideration = findSentenceField(text, [
+  const coverText = extractCoverText(text);
+  const transactionText = compactText([coverText, extractTransactionSignalText(text)].filter(Boolean).join("\n\n")) || text;
+  const dealType = findDealType(transactionText) || findDealType(text);
+  const transactionStructure = findTransactionStructure(transactionText) || findTransactionStructure(text);
+  const consideration = findSentenceField(transactionText, [
+    /\b(?:merger consideration|transaction consideration|consideration to be received|offer consideration)\b[\s\S]{0,520}?[.]/i,
+    /\b(?:each share|each outstanding share|each ordinary share|each common share|each unit|each [A-Z][A-Za-z0-9&.,' -]{2,90}? share)[\s\S]{0,520}?\b(?:converted into|exchanged for|may be exchanged for|right to receive)\b[\s\S]{0,520}?[.]/i,
+  ]) || findSentenceField(text, [
     /\b(?:merger consideration|transaction consideration|consideration to be received|offer consideration)\b[\s\S]{0,520}?[.]/i,
     /\b(?:each share|each outstanding share|each ordinary share|each common share|each unit|each [A-Z][A-Za-z0-9&.,' -]{2,90}? share)[\s\S]{0,520}?\b(?:converted into|exchanged for|may be exchanged for|right to receive)\b[\s\S]{0,520}?[.]/i,
   ]);
-  const cashConsideration = findMoneyField(text, [
+  const cashConsideration = findMoneyField(transactionText, [
+    /\b(?:cash consideration|in cash|cash portion|cash election)[^.\n]{0,180}?(\$[\d,.]+(?:\s*(?:thousand|million|billion|m|bn))?)/i,
+    /\b(\$[\d,.]+(?:\s*(?:thousand|million|billion|m|bn))?)\s+(?:in\s+cash|cash)\s+(?:per\s+share|for\s+each|consideration)\b/i,
+  ]) || findMoneyField(text, [
     /\b(?:cash consideration|in cash|cash portion|cash election)[^.\n]{0,180}?(\$[\d,.]+(?:\s*(?:thousand|million|billion|m|bn))?)/i,
     /\b(\$[\d,.]+(?:\s*(?:thousand|million|billion|m|bn))?)\s+(?:in\s+cash|cash)\s+(?:per\s+share|for\s+each|consideration)\b/i,
   ]);
-  const stockConsideration = findSentenceField(text, [
+  const stockConsideration = findSentenceField(transactionText, [
+    /\b(?:stock consideration|share consideration|equity consideration)\b[\s\S]{0,420}?[.]/i,
+    /\b(?:right to receive|exchanged for|converted into)\b[\s\S]{0,360}?\b(?:shares?|ordinary shares|common stock|ADSs?|American Depositary Shares)\b[\s\S]{0,240}?[.]/i,
+  ]) || findSentenceField(text, [
     /\b(?:stock consideration|share consideration|equity consideration)\b[\s\S]{0,420}?[.]/i,
     /\b(?:right to receive|exchanged for|converted into)\b[\s\S]{0,360}?\b(?:shares?|ordinary shares|common stock|ADSs?|American Depositary Shares)\b[\s\S]{0,240}?[.]/i,
   ]);
-  const exchangeRatio = findSentenceField(text, [
+  const exchangeRatio = findSentenceField(transactionText, [
+    /\bexchange ratio\b[\s\S]{0,320}?[.]/i,
+    /\b\d+(?:\.\d+)?\s+(?:shares?|ordinary shares|common shares|ADSs?)\b[\s\S]{0,220}?\b(?:for each|per)\s+(?:share|unit|ordinary share|common share)\b[\s\S]{0,220}?[.]/i,
+    /\b(?:converted into|exchanged for|may be exchanged for)\s+\d+(?:\.\d+)?\s+(?:shares?|ordinary shares|common shares|ADSs?)\b[\s\S]{0,240}?[.]/i,
+  ]) || findSentenceField(text, [
     /\bexchange ratio\b[\s\S]{0,320}?[.]/i,
     /\b\d+(?:\.\d+)?\s+(?:shares?|ordinary shares|common shares|ADSs?)\b[\s\S]{0,220}?\b(?:for each|per)\s+(?:share|unit|ordinary share|common share)\b[\s\S]{0,220}?[.]/i,
     /\b(?:converted into|exchanged for|may be exchanged for)\s+\d+(?:\.\d+)?\s+(?:shares?|ordinary shares|common shares|ADSs?)\b[\s\S]{0,240}?[.]/i,
   ]);
-  const cashStockMix = findSentenceField(text, [
+  const cashStockMix = findSentenceField(transactionText, [
+    /\b(?:cash and stock|stock and cash|cash\/stock|cash-stock)\b[\s\S]{0,420}?[.]/i,
+    /\b(?:cash portion|stock portion)\b[\s\S]{0,420}?[.]/i,
+  ]) || findSentenceField(text, [
     /\b(?:cash and stock|stock and cash|cash\/stock|cash-stock)\b[\s\S]{0,420}?[.]/i,
     /\b(?:cash portion|stock portion)\b[\s\S]{0,420}?[.]/i,
   ]);
-  const securitiesRegistered = findSecuritiesRegistered(text);
-  const sharesToBeIssued = findShareCountField(text, [
-    /\b(?:registering|registers|registered|to be registered)[^.\n]{0,220}?(\d[\d,.]*(?:\s*(?:thousand|million|billion|m|bn))?\s+(?:shares?|ordinary shares|common shares|ADSs?|American Depositary Shares))\b/i,
-    /\b(?:issue|issuance|issued|issuable|deliver|delivered)[^.\n]{0,220}?(\d[\d,.]*(?:\s*(?:thousand|million|billion|m|bn))?\s+(?:shares?|ordinary shares|common shares|ADSs?|American Depositary Shares))\b/i,
-    /\b(\d[\d,.]*(?:\s*(?:thousand|million|billion|m|bn))?\s+(?:shares?|ordinary shares|common shares|ADSs?|American Depositary Shares))\s+(?:will\s+be|are\s+being)?\s*(?:issued|issuable|registered|delivered)\b/i,
-  ]);
+  const securitiesRegistered = findSecuritiesRegistered(transactionText || coverText || text);
+  const sharesToBeIssued = findSharesToBeIssued(transactionText) || findSharesToBeIssued(text);
   const ownershipAfterTransaction = findOwnershipFields(text);
   const conditions = findConditionFields(text);
   const terminationFee = findMoneyField(text, [
@@ -185,16 +199,12 @@ function buildTransactionTerms(text: string, issuer: string | null): SecS4F4Tran
       confidence: "medium",
     },
   ]);
-  const exchangeOfferExpiration = findDateField(text, [
+  const exchangeOfferExpiration = dealType?.value === "exchange_offer" ? findDateField(transactionText, [
     {
-      pattern: new RegExp(`\\b(?:exchange offer|offer)\\b[\\s\\S]{0,220}?\\b(?:expire|expires|expiration)\\b[\\s\\S]{0,160}?(${DATE_TEXT_PATTERN})`, "i"),
+      pattern: new RegExp(`\\b(?:exchange offer|offer to exchange|offer)\\b[^.\\n]{0,260}\\b(?:expire|expires|expiration)\\b[^.\\n]{0,160}?(${DATE_TEXT_PATTERN})`, "i"),
       confidence: "medium",
     },
-    {
-      pattern: new RegExp(`\\b(?:expire|expires|expiration)\\b[\\s\\S]{0,160}?(${DATE_TEXT_PATTERN})`, "i"),
-      confidence: "low",
-    },
-  ]);
+  ]) : null;
   const riskFactorExcerpt = findSectionField(text, "risk factors", 900);
   const financialStatementsReference = findSentenceField(text, [
     /\b(?:financial statements|historical financial statements|audited financial statements)\b[\s\S]{0,420}?[.]/i,
@@ -206,7 +216,7 @@ function buildTransactionTerms(text: string, issuer: string | null): SecS4F4Tran
   return {
     deal_type: dealType,
     transaction_structure: transactionStructure,
-    parties: findParties(text, issuer),
+    parties: findParties(transactionText || text, issuer),
     consideration,
     cash_consideration: cashConsideration,
     stock_consideration: stockConsideration,
@@ -289,6 +299,7 @@ function addCalendarDate(
   calendarTitle: string,
 ) {
   if (!field) return;
+  if (field.date_precision === "unknown") return;
   items.push({
     calendarEventType,
     calendarTitle,
@@ -343,9 +354,9 @@ function buildAmendmentInfo(text: string, formType: string): SecS4F4AmendmentInf
 
 function findDealType(text: string): SecS4F4Field<SecS4F4DealType> | null {
   const candidates: Array<PatternCandidate<SecS4F4DealType>> = [
-    { value: "exchange_offer", pattern: /\b(?:exchange offer|offer to exchange|exchange your shares|exchange their shares)\b/i, confidence: "high" },
     { value: "business_combination", pattern: /\b(?:business combination agreement|de-?SPAC|special purpose acquisition company|SPAC)\b/i, confidence: "high" },
     { value: "merger", pattern: /\b(?:agreement and plan of merger|merger agreement|the merger|merge with|merged with)\b/i, confidence: "high" },
+    { value: "exchange_offer", pattern: /\b(?:offer to exchange|exchange offer(?:s)?\b[^.\n]{0,220}\b(?:expire|expiration|tender|validly tendered|exchange agent))\b/i, confidence: "high" },
     { value: "reorganization", pattern: /\b(?:reorganization|scheme of arrangement|amalgamation|arrangement agreement)\b/i, confidence: "medium" },
     { value: "asset_acquisition", pattern: /\b(?:asset acquisition|acquisition of substantially all|asset sale|purchase of assets)\b/i, confidence: "medium" },
     { value: "redomiciliation", pattern: /\b(?:redomiciliation|domestication|redomestication|reincorporation)\b/i, confidence: "medium" },
@@ -373,7 +384,20 @@ function findParties(text: string, issuer: string | null): SecS4F4Party[] {
     });
   }
 
-  const byAmongMatch = text.match(/\b(?:by and among|by and between)\s+([^.\n]{20,420})/i);
+  for (const match of text.matchAll(/\b([A-Z][^.\n]{2,360}?)\s+(?:entered into|have entered into)\s+(?:the|an|a)?\s*(?:Agreement and Plan of Merger|Merger Agreement|Business Combination Agreement|Transaction Agreement|Arrangement Agreement)\b/gi)) {
+    const names = splitPartyNames(stripLeadingDatePhrase(match[1]));
+    names.forEach((name, index) => {
+      addParty(parties, {
+        name,
+        role: inferPartyRole(name, issuer, index, names.length),
+        ticker: null,
+        evidence: pickEvidenceSentence(text, match.index || 0),
+        confidence: "medium",
+      });
+    });
+  }
+
+  const byAmongMatch = text.match(/\b(?:Agreement and Plan of Merger|Merger Agreement|Business Combination Agreement|Transaction Agreement|Arrangement Agreement)\b[\s\S]{0,420}?\b(?:by and among|by and between)\s+([^.\n]{20,420})/i);
   if (byAmongMatch?.[1]) {
     const names = splitPartyNames(byAmongMatch[1]);
     names.forEach((name, index) => {
@@ -425,6 +449,32 @@ function findSecuritiesRegistered(text: string): SecS4F4Field[] {
       { value: "units", pattern: /\bunits?\b/i, confidence: "low" },
     ]),
   );
+}
+
+function findSharesToBeIssued(text: string): SecS4F4CountField | null {
+  const patterns = [
+    /\b(?:prospectus\s+for|proxy statement\/prospectus\s+for)[^\d]{0,80}(?:up to\s+)?(\d[\d,.]*(?:\s*(?:thousand|million|billion|m|bn))?\s+(?:Class A ordinary shares|Class B ordinary shares|ordinary shares|common shares|American Depositary Shares|ADSs?|shares?))\b/gi,
+    /\b(?:registering|registers|to be registered)[^\d]{0,80}(?:up to\s+)?(\d[\d,.]*(?:\s*(?:thousand|million|billion|m|bn))?\s+(?:Class A ordinary shares|Class B ordinary shares|ordinary shares|common shares|American Depositary Shares|ADSs?|shares?))\b/gi,
+    /\b(?:issuable in connection with|to be issued in connection with|to be issued in|issuable upon consummation of)\s+(?:the\s+)?(?:merger|business combination|exchange offer|transaction)[^\d]{0,180}(\d[\d,.]*(?:\s*(?:thousand|million|billion|m|bn))?\s+(?:Class A ordinary shares|Class B ordinary shares|ordinary shares|common shares|American Depositary Shares|ADSs?|shares?))\b/gi,
+    /\b(\d[\d,.]*(?:\s*(?:thousand|million|billion|m|bn))?\s+(?:Class A ordinary shares|Class B ordinary shares|ordinary shares|common shares|American Depositary Shares|ADSs?|shares?))\s+(?:will\s+be|are\s+being|to\s+be)?\s*(?:issued|issuable|registered|delivered)\s+(?:in|upon|as part of)\s+(?:the\s+)?(?:merger|business combination|exchange offer|transaction)\b/gi,
+  ];
+
+  for (const pattern of patterns) {
+    for (const match of text.matchAll(pattern)) {
+      if (!match[1]) continue;
+      const evidence = pickEvidenceSentence(text, match.index || 0);
+      if (isNonTransactionShareEvidence(evidence)) continue;
+      const valueText = compactText(match[1]);
+      return {
+        value: normalizeCount(valueText),
+        text: valueText,
+        evidence,
+        confidence: "medium",
+      };
+    }
+  }
+
+  return null;
 }
 
 function findOwnershipFields(text: string): SecS4F4Field[] {
@@ -837,6 +887,31 @@ function extractAmendmentExcerpt(text: string) {
   return truncate(excerpt, 1_500);
 }
 
+function extractCoverText(text: string) {
+  if (!text) return "";
+  const early = text.slice(0, Math.min(text.length, 90_000));
+  const stop = early.search(/\bTABLE OF CONTENTS\b|\bQUESTIONS AND ANSWERS\b|\bSUMMARY\b|\bRISK FACTORS\b/i);
+  return compactText(stop > 2_000 ? early.slice(0, stop) : early);
+}
+
+function extractTransactionSignalText(text: string) {
+  if (!text) return "";
+  const anchors = [
+    /\bQ:\s*What\s+is\s+the\s+Merger\b/i,
+    /\bQuestions?\s+and\s+Answers?.{0,120}\b(?:Merger|Business Combination|Transaction)\b/i,
+    /\b(?:The\s+Merger|The\s+Business\s+Combination|The\s+Transaction)\b/i,
+    /\b(?:Pursuant\s+to\s+the\s+Merger\s+Agreement|Pursuant\s+to\s+the\s+Business\s+Combination\s+Agreement)\b/i,
+    /\b(?:Agreement\s+and\s+Plan\s+of\s+Merger|Business\s+Combination\s+Agreement|Merger\s+Agreement)\b/i,
+    /\b(?:Special\s+Meeting|Extraordinary\s+General\s+Meeting|Shareholder\s+Meeting|Stockholder\s+Meeting)\b/i,
+  ];
+  const starts = anchors
+    .map((pattern) => text.search(pattern))
+    .filter((index) => index >= 0)
+    .sort((left, right) => left - right);
+  const start = starts[0] || 0;
+  return compactText(text.slice(start, Math.min(text.length, start + 180_000)));
+}
+
 function readIssuerFromText(text: string, formType: string) {
   const form = escapeRegExp(normalizeForm(formType).replace("/A", ""));
   return (
@@ -846,7 +921,10 @@ function readIssuerFromText(text: string, formType: string) {
 }
 
 function splitPartyNames(value: string) {
-  const withoutDates = value.replace(/\bdated\s+as\s+of\b[\s\S]*$/i, "").replace(/\bdated\b[\s\S]*$/i, "");
+  const withoutDates = stripLeadingDatePhrase(value)
+    .replace(/\bdated\s+as\s+of\b[\s\S]*$/i, "")
+    .replace(/\bdated\b[\s\S]*$/i, "")
+    .replace(/,\s+(Inc\.?|Corp\.?|Corporation|Ltd\.?|Limited|LLC|PLC|S\.A\.|N\.A\.|AG|SE)\b/gi, " $1");
   return withoutDates
     .split(/\s*,\s+|\s+and\s+|\s*;\s*/)
     .map(cleanPartyName)
@@ -856,13 +934,27 @@ function splitPartyNames(value: string) {
 
 function cleanPartyName(value: string | undefined) {
   const cleaned = compactText(value || "")
+    .replace(/^\(?[“"']([^”"']{2,80})[”"']\)?$/, "$1")
+    .replace(/^by\s+and\s+(?:among|between)\s+/i, "")
+    .replace(/^(?:among|between)\s+/i, "")
+    .replace(/^the\s+parties\s+to\s+/i, "")
     .replace(/\b(?:a|an)\s+(?:Delaware|Nevada|Cayman Islands|British Virgin Islands|BVI|Canadian|English)\s+(?:corporation|company|limited company|exempted company|subsidiary)\b/gi, "")
     .replace(/\b(?:corporation|company|inc\.?|ltd\.?|limited|plc|corp\.?)$/i, (suffix) => suffix)
     .replace(/\s+/g, " ")
     .replace(/^[,.\s]+|[,.\s]+$/g, "");
   if (cleaned.length < 3 || cleaned.length > 100) return "";
-  if (/^(the|and|with|pursuant|agreement|plan|merger|dated|stockholders?|shareholders?)$/i.test(cleaned)) return "";
+  if (/^(?:A:|Q:|In\s+[A-Z][a-z]+|On\s+[A-Z][a-z]+|\d{4}$)/.test(cleaned)) return "";
+  if (/^(the|and|with|pursuant|agreement|plan|merger|dated|stockholders?|shareholders?|inc|corp|corporation|ltd|limited|llc|plc|n\.a|s\.a|ag|se|property|assets?)$/i.test(cleaned)) return "";
+  if (/^(?:a|an)\s+(?:BVI|British Virgin Islands|Delaware|Cayman Islands|Nevada|Canadian|English)\b/i.test(cleaned)) return "";
+  if (/\b(?:served as|you are receiving|would enhance|is appropriate|the directors|financial advisor|intangible assets|combined company now operates|subsequently|more difficult)\b/i.test(cleaned)) return "";
   return cleaned;
+}
+
+function stripLeadingDatePhrase(value: string | undefined) {
+  return compactText(value || "")
+    .replace(/^On\s+[A-Z][a-z]+\s+\d{1,2},\s+\d{4},\s*/i, "")
+    .replace(/^As\s+of\s+[A-Z][a-z]+\s+\d{1,2},\s+\d{4},\s*/i, "")
+    .replace(/^Effective\s+[A-Z][a-z]+\s+\d{1,2},\s+\d{4},\s*/i, "");
 }
 
 function lastPartyNameSegment(value: string | undefined) {
@@ -875,6 +967,12 @@ function lastPartyNameSegment(value: string | undefined) {
       .pop()
       ?.split(/\s*,\s*/)
       .pop() || text
+  );
+}
+
+function isNonTransactionShareEvidence(value: string) {
+  return /\b(?:authorized\s+to\s+issue|authorizes?\s+the\s+issuance|authorized\s+shares?|issued\s+and\s+outstanding|shares?\s+outstanding|redeemed|redemption|private\s+placement|registered\s+direct\s+offering|stock\s+incentive|equity\s+incentive|historical|balance\s+as\s+of|for\s+the\s+year\s+ended|from\s+january|from\s+february|from\s+march|from\s+april|from\s+may|from\s+june|from\s+july|from\s+august|from\s+september|from\s+october|from\s+november|from\s+december|contributed\s+\$?[\d,.]+[^.\n]{0,120}\bfor\s+the\s+issuance|approved\s+to\s+issue|in\s+lieu\s+of\s+payment|salary\s+payable|founder[^.\n]{0,180}\bsold|shares\s+issued\s+for\s+acquiring|intangible\s+assets|proceeds\s+from\s+loan|acquisition\s+of\s+property)\b/i.test(
+    value,
   );
 }
 
@@ -938,7 +1036,10 @@ function normalizeDate(value: string): Pick<SecS4F4DateField, "value" | "date_pr
   if (/\b(?:first|second|third|fourth)\s+quarter\b|\bQ[1-4]\b/i.test(text)) {
     return { value: null, date_precision: "estimated" };
   }
-  if (/\b\d{4}\b/.test(text)) return { value: null, date_precision: "estimated" };
+  if (/\b(?:first|second)\s+half\b/i.test(text)) {
+    return { value: null, date_precision: "estimated" };
+  }
+  if (/\b\d{4}\b/.test(text)) return { value: null, date_precision: "unknown" };
   return { value: null, date_precision: "unknown" };
 }
 
