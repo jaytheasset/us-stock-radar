@@ -1,0 +1,32 @@
+{
+  "rawItemId": "fixture-f3asr-shelf",
+  "sourceUniqueId": "0000000000-26-000303",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/0000000000/fixture-f3asr-shelf.htm",
+  "title": "Global Sample PLC files Form F-3ASR automatic shelf registration statement",
+  "publishedAt": "2026-05-12T13:30:00.000Z",
+  "bodyText": "FORM F-3ASR\nREGISTRATION STATEMENT\nGlobal Sample PLC | (Exact name of registrant as specified in its charter)\n\nAutomatic shelf registration statement of securities of well-known seasoned issuers.\n\nThis registration statement is filed by a well-known seasoned issuer and is effective immediately upon filing with the Securities and Exchange Commission.\n\nBASE PROSPECTUS\n\nWe may offer from time to time ordinary shares, preference shares, debt securities, warrants, rights, and units in one or more offerings.\n\nThe securities may be offered separately or together and in amounts, at prices, and on terms to be determined at the time of sale.\n\nPLAN OF DISTRIBUTION\n\nWe may sell securities through underwriters, dealers, agents, directly to purchasers, or through a combination of these methods.\n\nUSE OF PROCEEDS\n\nUnless otherwise stated in a prospectus supplement, we expect to use net proceeds for general corporate purposes.",
+  "rawPayload": {
+    "accession_number": "0000000000-26-000303",
+    "form_type": "F-3ASR",
+    "company_name": "Global Sample PLC",
+    "ticker": "GSP",
+    "detail_url": "https://www.sec.gov/Archives/edgar/data/0000000000/fixture-f3asr-shelf.htm",
+    "documents": [
+      {
+        "type": "F-3ASR",
+        "description": "FORM F-3ASR",
+        "url": "fixture-f3asr-shelf.htm",
+        "isPrimary": true,
+        "textCharCount": 1100,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ]
+  },
+  "metadata": {
+    "form_type": "F-3ASR",
+    "company_name": "Global Sample PLC",
+    "ticker": "GSP"
+  }
+}

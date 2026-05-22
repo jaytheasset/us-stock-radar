@@ -1,0 +1,42 @@
+{
+  "rawItemId": "fixture-f3a-routine",
+  "sourceUniqueId": "0000000000-26-000302",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/0000000000/fixture-f3a-routine.htm",
+  "title": "Foreign Example PLC files Form F-3/A amendment",
+  "publishedAt": "2026-05-06T13:30:00.000Z",
+  "bodyText": "FORM F-3/A\nREGISTRATION STATEMENT\nForeign Example PLC | (Exact name of registrant as specified in its charter)\n\nRegistration No. 333-123456\nAmendment No. 1\n\nEXPLANATORY NOTE\n\nThis Pre-effective Amendment No. 1 to the Registration Statement on Form F-3 is being filed solely for the purpose of filing Exhibit 23.1. No other changes have been made to the Registration Statement. The remainder of the Registration Statement is unchanged and has not been included in this filing.\n\nPART II\n\nSIGNATURES\n\nPursuant to the requirements of the Securities Act, the registrant has duly caused this amendment to be signed.",
+  "rawPayload": {
+    "accession_number": "0000000000-26-000302",
+    "form_type": "F-3/A",
+    "company_name": "Foreign Example PLC",
+    "ticker": "FEX",
+    "detail_url": "https://www.sec.gov/Archives/edgar/data/0000000000/fixture-f3a-routine.htm",
+    "documents": [
+      {
+        "type": "F-3/A",
+        "description": "FORM F-3/A",
+        "url": "fixture-f3a-routine.htm",
+        "isPrimary": true,
+        "textCharCount": 900,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      },
+      {
+        "type": "EX-23.1",
+        "description": "Consent of Independent Registered Public Accounting Firm",
+        "url": "fixture-ex231.htm",
+        "isPrimary": false,
+        "textCharCount": 120,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ]
+  },
+  "metadata": {
+    "form_type": "F-3/A",
+    "company_name": "Foreign Example PLC",
+    "ticker": "FEX"
+  }
+}

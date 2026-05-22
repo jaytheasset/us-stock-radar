@@ -1,0 +1,32 @@
+{
+  "rawItemId": "fixture-f3-resale",
+  "sourceUniqueId": "0000000000-26-000301",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/0000000000/fixture-f3-resale.htm",
+  "title": "Foreign Example PLC files Form F-3 resale registration statement",
+  "publishedAt": "2026-05-01T13:30:00.000Z",
+  "bodyText": "FORM F-3\nREGISTRATION STATEMENT\nForeign Example PLC | (Exact name of registrant as specified in its charter)\n\nThe information in this preliminary prospectus is not complete and may be changed. These securities may not be sold until the registration statement filed with the Securities and Exchange Commission is declared effective.\n\nPROSPECTUS\n\nThis prospectus relates to the resale by the selling shareholders named in this prospectus of up to 12,345,678 ordinary shares.\n\nSelling shareholders may offer and sell the ordinary shares from time to time at prevailing market prices or negotiated prices.\n\nUSE OF PROCEEDS\n\nWe will not receive any proceeds from the sale of ordinary shares by the selling shareholders.\n\nPLAN OF DISTRIBUTION\n\nThe selling shareholders may sell the ordinary shares through brokers, dealers, agents, or directly to purchasers.\n\nAs of May 1, 2026, 50,000,000 ordinary shares were issued and outstanding.",
+  "rawPayload": {
+    "accession_number": "0000000000-26-000301",
+    "form_type": "F-3",
+    "company_name": "Foreign Example PLC",
+    "ticker": "FEX",
+    "detail_url": "https://www.sec.gov/Archives/edgar/data/0000000000/fixture-f3-resale.htm",
+    "documents": [
+      {
+        "type": "F-3",
+        "description": "FORM F-3",
+        "url": "fixture-f3-resale.htm",
+        "isPrimary": true,
+        "textCharCount": 1200,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ]
+  },
+  "metadata": {
+    "form_type": "F-3",
+    "company_name": "Foreign Example PLC",
+    "ticker": "FEX"
+  }
+}

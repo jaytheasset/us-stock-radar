@@ -252,7 +252,7 @@ export function parseSecS3Filing(input: SecS3ParseInput): SecS3FilingFacts {
     securitiesRegistered = [
       {
         value: "common_stock",
-        evidence: sharesRegistered?.evidence || "Resale S-3 registers shares of common stock.",
+        evidence: sharesRegistered?.evidence || "Resale registration statement registers shares of common stock.",
         confidence: "high",
       },
     ];
@@ -366,8 +366,8 @@ export function parseSecS3Filing(input: SecS3ParseInput): SecS3FilingFacts {
 }
 
 function findRegistrationStatementKind(text: string): SecS3Field | null {
-  if (/\bS-3ASR\b|\bautomatic shelf registration statement\b|\bwell-known seasoned issuer\b/i.test(text)) {
-    return field("automatic_shelf_registration", text, /\bS-3ASR\b|\bautomatic shelf registration statement\b|\bwell-known seasoned issuer\b/i, "high");
+  if (/\b[SF]-3ASR\b|\bautomatic shelf registration statement\b|\bwell-known seasoned issuer\b/i.test(text)) {
+    return field("automatic_shelf_registration", text, /\b[SF]-3ASR\b|\bautomatic shelf registration statement\b|\bwell-known seasoned issuer\b/i, "high");
   }
   if (/\b(?:resale by the selling stockholders|resale by selling stockholders|resale prospectus|selling stockholders? named in this prospectus)\b/i.test(text)) {
     return field("resale_registration", text, /\b(?:resale by the selling stockholders|resale by selling stockholders|resale prospectus|selling stockholders? named in this prospectus)\b/i, "high");
@@ -380,13 +380,13 @@ function findRegistrationStatementKind(text: string): SecS3Field | null {
 
 function findRegistrationStatus(text: string, formType: string | null): SecS3Field | null {
   if (
-    normalizeForm(formType) === "S-3ASR" ||
+    isAutomaticShelfForm(formType) ||
     /\b(?:automatic shelf registration statement|well-known seasoned issuer|immediately effective upon filing)\b/i.test(text)
   ) {
     return field(
       "automatically_effective",
       text,
-      /\bS-3ASR\b|\bautomatic shelf registration statement\b|\bwell-known seasoned issuer\b|\bimmediately effective upon filing\b/i,
+      /\b[SF]-3ASR\b|\bautomatic shelf registration statement\b|\bwell-known seasoned issuer\b|\bimmediately effective upon filing\b/i,
       "high",
     );
   }
@@ -398,10 +398,10 @@ function findRegistrationStatus(text: string, formType: string | null): SecS3Fie
   if (/\bdeclared effective\b|\bbecame effective\b|\bis effective\b/i.test(text)) {
     return field("effective", text, /\bdeclared effective\b|\bbecame effective\b|\bis effective\b/i, "high");
   }
-  if (isS3Family(formType) && /\bFORM S-3\b[\s\S]{0,800}\bREGISTRATION STATEMENT\b/i.test(text)) {
+  if (isS3Family(formType) && /\bFORM [SF]-3\b[\s\S]{0,800}\bREGISTRATION STATEMENT\b/i.test(text)) {
     return {
       value: "filed_not_effective",
-      evidence: "Form S-3 registration statement filed; no automatic shelf or declared-effective language found.",
+      evidence: `Form ${formatS3FamilyFormLabel(formType)} registration statement filed; no automatic shelf or declared-effective language found.`,
       confidence: "low",
     };
   }
@@ -461,7 +461,7 @@ function buildS3AmendmentInfo({
   formType: string | null;
   s3Text: string;
 }): SecS3AmendmentInfo {
-  const isAmendment = normalizeForm(formType) === "S-3/A";
+  const isAmendment = isS3FamilyAmendment(formType);
   const amendmentNumber = isAmendment ? findAmendmentNumber(s3Text) : null;
   const registrationNumber = isS3Family(formType) ? findRegistrationNumber(s3Text) : null;
   const amendmentExcerpt = isAmendment ? extractAmendmentExcerpt(s3Text) : null;
@@ -1823,11 +1823,11 @@ function isFeeTableLabel(value: string) {
 }
 
 function readIssuerFromText(text: string) {
-  return text.match(/\bFORM S-3\b[\s\S]{0,260}?\n([A-Z][A-Za-z0-9&.,' -]+?)\s+\|?\s*\(Exact name of registrant/i)?.[1]?.trim() || null;
+  return text.match(/\bFORM [SF]-3(?:ASR|\/A)?\b[\s\S]{0,260}?\n([A-Z][A-Za-z0-9&.,' -]+?)\s+\|?\s*\(Exact name of registrant/i)?.[1]?.trim() || null;
 }
 
 function readFormTypeFromTitle(value: unknown) {
-  return stringValue(value).match(/\b(S-3ASR|S-3\/A|S-3)\b/i)?.[1]?.toUpperCase() || "";
+  return stringValue(value).match(/\b([SF]-3ASR|[SF]-3\/A|[SF]-3)\b/i)?.[1]?.toUpperCase() || "";
 }
 
 function resolveS3FormType({
@@ -1860,13 +1860,28 @@ function readS3FormTypeFromDocuments(documents: SecDocumentPayload[]) {
 function canonicalS3FormType(value: string | null) {
   const form = normalizeForm(value);
   if (form === "S-3/A") return "S-3/A";
+  if (form === "F-3/A") return "F-3/A";
   if (form === "S-3ASR") return "S-3ASR";
+  if (form === "F-3ASR") return "F-3ASR";
   if (form === "S-3") return "S-3";
+  if (form === "F-3") return "F-3";
   return null;
 }
 
 function isS3Family(formType: string | null) {
-  return /^S-3(?:ASR|\/A)?$/i.test(normalizeForm(formType));
+  return /^[SF]-3(?:ASR|\/A)?$/i.test(normalizeForm(formType));
+}
+
+function isAutomaticShelfForm(formType: string | null) {
+  return /^[SF]-3ASR$/i.test(normalizeForm(formType));
+}
+
+function isS3FamilyAmendment(formType: string | null) {
+  return /^[SF]-3\/A$/i.test(normalizeForm(formType));
+}
+
+function formatS3FamilyFormLabel(formType: string | null) {
+  return canonicalS3FormType(formType) || "S-3/F-3";
 }
 
 function normalizeForm(value: string | null) {
