@@ -6,6 +6,7 @@ import {
 import Link from "next/link";
 import { getEventTypeBadge } from "@/lib/eventTypeRegistry";
 import type { MarketBar } from "@/lib/integrations";
+import { AuthStatus } from "@/components/AuthStatus";
 import { FeedCandleChart } from "@/components/FeedCandleChart";
 
 type FeedTone = "bullish" | "bearish" | "volatile" | "neutral";
@@ -372,15 +373,7 @@ export function FeedShell({
           <span aria-hidden="true">/</span>
           <input aria-label="Search" placeholder="Search tickers, companies, or keywords" />
         </div>
-        <div className="feed-actions">
-          <button className="icon-button" type="button" aria-label="Notifications">
-            <span aria-hidden="true">!</span>
-            <span className="notification-dot">3</span>
-          </button>
-          <button className="avatar-button" type="button" aria-label="User menu">
-            N
-          </button>
-        </div>
+        <AuthStatus />
       </header>
 
       <div className="feed-layout">

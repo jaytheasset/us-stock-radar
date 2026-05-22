@@ -1,5 +1,197 @@
+.signupPage,
 .page {
   min-height: 100vh;
+  color: #061633;
+  background:
+    linear-gradient(180deg, #ffffff 0%, #f7faff 42%, #f4f7fb 100%);
+}
+
+.signupPage {
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.signupHeader {
+  display: grid;
+  grid-template-columns: minmax(170px, 1fr) auto minmax(110px, 1fr);
+  align-items: center;
+  gap: 22px;
+  min-height: 66px;
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+  border-bottom: 1px solid #dce5f2;
+}
+
+.headerBrand {
+  font-size: 17px;
+}
+
+.headerNav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+}
+
+.headerNav a,
+.headerLogin {
+  color: #20304f;
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.headerNav a:hover,
+.headerLogin:hover,
+.switch a:hover,
+.inlineAction:hover {
+  color: #0f55ff;
+}
+
+.headerLogin {
+  justify-self: end;
+}
+
+.headerAccount {
+  justify-self: end;
+}
+
+.signupShell {
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 42px 0 64px;
+}
+
+.signupPanel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.78fr);
+  overflow: hidden;
+  border: 1px solid #d8e3f3;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 24px 80px rgba(15, 35, 80, 0.11);
+}
+
+.valueColumn,
+.formColumn {
+  min-width: 0;
+  padding: 46px;
+}
+
+.valueColumn {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 12% 10%, rgba(15, 85, 255, 0.09), transparent 32%),
+    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.formColumn {
+  border-left: 1px solid #dbe5f3;
+  background: #ffffff;
+}
+
+.eyebrow {
+  display: block;
+  margin-bottom: 13px;
+  color: #0f55ff;
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.valueColumn h1,
+.panel h1,
+.formHeader h2 {
+  margin: 0;
+  color: #061633;
+  letter-spacing: 0;
+}
+
+.valueColumn h1 {
+  max-width: 520px;
+  font-size: clamp(36px, 5vw, 58px);
+  line-height: 1.02;
+  font-weight: 760;
+}
+
+.lede {
+  max-width: 540px;
+  margin: 18px 0 0;
+  color: #405372;
+  font-size: 18px;
+  line-height: 1.58;
+}
+
+.benefitList {
+  display: grid;
+  gap: 18px;
+  margin-top: 34px;
+}
+
+.benefitItem {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 15px;
+  align-items: start;
+}
+
+.benefitIcon {
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #cfe0ff;
+  border-radius: 10px;
+  color: #0f55ff;
+  background: #eef5ff;
+}
+
+.benefitItem strong {
+  display: block;
+  color: #0a1937;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.benefitItem p {
+  margin: 5px 0 0;
+  color: #526581;
+  font-size: 14px;
+  line-height: 1.48;
+}
+
+.freeNote {
+  width: fit-content;
+  margin-top: 32px;
+  border: 1px solid #bcd4ff;
+  border-radius: 999px;
+  padding: 9px 13px;
+  color: #0b3d9e;
+  background: #eef5ff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.formHeader {
+  margin-bottom: 24px;
+}
+
+.formHeader h2 {
+  font-size: 28px;
+  line-height: 1.15;
+}
+
+.formHeader p {
+  margin: 9px 0 0;
+  color: #536784;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.page {
   display: grid;
   place-items: center;
   padding: 48px 20px;
@@ -23,19 +215,7 @@
   box-shadow: var(--shadow-soft);
 }
 
-.eyebrow {
-  display: block;
-  margin-bottom: 10px;
-  color: var(--primary);
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
 .panel h1 {
-  margin: 0;
-  color: var(--text);
   font-size: 30px;
   line-height: 1.1;
 }
@@ -47,79 +227,244 @@
 .form {
   display: grid;
   gap: 16px;
+}
+
+.panel .form {
   margin-top: 26px;
 }
 
 .form label {
   display: grid;
   gap: 8px;
-  color: var(--text);
+  color: #0b1b37;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 780;
 }
 
 .form input {
-  height: 44px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
+  width: 100%;
+  height: 46px;
+  border: 1px solid #cfd9ea;
+  border-radius: 8px;
   padding: 0 13px;
-  background: var(--surface);
-  color: var(--text);
+  background: #ffffff;
+  color: #071631;
   font: inherit;
 }
 
-.form input:focus {
-  outline: 2px solid rgba(15, 85, 255, 0.18);
-  border-color: var(--primary);
+.form input::placeholder {
+  color: #8a9ab4;
 }
 
-.form button {
-  height: 46px;
-  border: 1px solid var(--primary);
+.form input:focus {
+  outline: 3px solid rgba(15, 85, 255, 0.16);
+  border-color: #0f55ff;
+}
+
+.passwordField {
+  position: relative;
+  display: block;
+}
+
+.passwordField input {
+  padding-right: 46px;
+}
+
+.passwordToggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
   border-radius: 7px;
-  background: var(--primary);
-  color: #ffffff;
-  font-weight: 800;
+  color: #61718c;
+  background: transparent;
   cursor: pointer;
 }
 
-.form button:disabled {
+.passwordToggle:hover {
+  color: #0f55ff;
+  background: #eef5ff;
+}
+
+.primaryButton {
+  height: 48px;
+  border: 1px solid #0f55ff;
+  border-radius: 8px;
+  background: #0f55ff;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 850;
+  cursor: pointer;
+  box-shadow: 0 12px 26px rgba(15, 85, 255, 0.2);
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: #0a49e5;
+}
+
+.primaryButton:disabled {
   cursor: wait;
   opacity: 0.72;
 }
 
-.inlineAction {
-  color: var(--primary);
-  font-size: 13px;
+.signupAfterSubmit {
+  display: grid;
+  gap: 11px;
+  margin-top: 4px;
+  text-align: center;
+}
+
+.noPaymentNote,
+.legalNote,
+.browseNote {
+  margin: 0;
+  color: #62728e;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.noPaymentNote {
+  color: #0b3d9e;
   font-weight: 800;
+}
+
+.browseNote {
+  color: #536784;
+  font-size: 13px;
+}
+
+.browseNote a {
+  color: #0f55ff;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.legalNote a {
+  color: #405372;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.inlineAction {
+  width: fit-content;
+  color: #0f55ff;
+  font-size: 13px;
+  font-weight: 850;
   text-decoration: none;
 }
 
 .message {
   margin: 0;
-  padding: 10px 12px;
-  border-radius: 7px;
+  padding: 11px 12px;
+  border-radius: 8px;
   font-size: 13px;
   line-height: 1.45;
 }
 
 .error {
+  border: 1px solid #fecdd3;
   color: #9f1239;
   background: #fff1f2;
 }
 
 .success {
+  border: 1px solid #bbf7d0;
   color: #166534;
   background: #ecfdf3;
 }
 
 .switch {
   margin: 18px 0 0;
+  color: #536784;
   font-size: 14px;
+  text-align: center;
+}
+
+.panel .switch {
+  color: var(--muted);
+}
+
+.formColumn > .switch {
+  margin-top: 26px;
+  border-top: 1px solid #e5ecf6;
+  padding-top: 18px;
 }
 
 .switch a {
-  color: var(--primary);
-  font-weight: 800;
+  color: #0f55ff;
+  font-weight: 850;
   text-decoration: none;
+}
+
+@media (max-width: 900px) {
+  .signupHeader {
+    grid-template-columns: 1fr auto;
+    min-height: auto;
+    padding: 17px 0;
+  }
+
+  .headerNav {
+    display: none;
+  }
+
+  .signupPanel {
+    grid-template-columns: 1fr;
+  }
+
+  .formColumn {
+    border-top: 1px solid #dbe5f3;
+    border-left: 0;
+  }
+
+  .valueColumn,
+  .formColumn {
+    padding: 34px;
+  }
+}
+
+@media (max-width: 560px) {
+  .signupHeader,
+  .signupShell {
+    width: min(100% - 28px, 1180px);
+  }
+
+  .headerBrand {
+    font-size: 15px;
+  }
+
+  .signupShell {
+    padding: 24px 0 42px;
+  }
+
+  .signupPanel {
+    border-radius: 12px;
+  }
+
+  .valueColumn,
+  .formColumn {
+    padding: 25px 20px;
+  }
+
+  .valueColumn h1 {
+    font-size: 34px;
+  }
+
+  .lede {
+    font-size: 16px;
+  }
+
+  .benefitItem {
+    grid-template-columns: 38px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .benefitIcon {
+    width: 38px;
+    height: 38px;
+  }
 }

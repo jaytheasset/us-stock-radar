@@ -1,4 +1,5 @@
 import type { RankedEvent } from "@/lib/radarRankings";
+import { AuthStatus } from "@/components/AuthStatus";
 
 type RankingLandingProps = {
   title: string;
@@ -28,6 +29,7 @@ export function RankingLanding({ title, eyebrow, description, items }: RankingLa
           <a href="/alerts">Alerts</a>
           <a href="/premium">Premium</a>
         </nav>
+        <AuthStatus />
       </header>
 
       <section className="ranking-shell">

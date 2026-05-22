@@ -44,6 +44,90 @@ This is preferred over calling the HTTP cron endpoint from Render because:
 - the app-level job lock still protects against overlap;
 - no HTTP cron secret is required for the primary Render cron path.
 
+## Render Deployment Checklists
+
+### Web Service Checklist
+
+Render Web Service should run the Next.js app and API routes.
+
+Recommended build command:
+
+```bash
+npm install && npm run build
+```
+
+Recommended start command:
+
+```bash
+npm run start
+```
+
+Before enabling cron delivery, confirm:
+
+- build succeeds on Render;
+- `/alerts` returns 200;
+- `/watchlist` returns 200;
+- `/premium` returns 200;
+- `/api/alerts/settings` returns 200 for the current user context;
+- `/api/alerts/delivered?limit=5` returns 200;
+- `/api/telegram/webhook` is reachable by Telegram after webhook registration;
+- protected cron endpoint rejects unauthorized calls;
+- service logs do not print DB URLs, service role keys, Telegram tokens, webhook secrets, or cron secrets.
+
+### Cron Job Dry-Run Checklist
+
+Use this command first:
+
+```bash
+npm run deliver:scheduler -- --limit 50 --queued-limit 50 --lookback-hours 6
+```
+
+Confirm:
+
+- command exits successfully;
+- output is dry-run;
+- no `user_alert_deliveries` rows are created;
+- no external messages are sent;
+- no secret, token, or DB URL is printed;
+- scheduler summary shows scanned/would-process counts.
+
+### Cron Job Write Checklist, Telegram Off
+
+Use this command only after dry-run looks correct:
+
+```bash
+npm run deliver:scheduler -- --write --limit 50 --queued-limit 50 --lookback-hours 6
+```
+
+Keep:
+
+```bash
+ALERT_DELIVERY_SEND_TELEGRAM=false
+```
+
+Confirm:
+
+- `user_alert_deliveries` rows are created or deduped as expected;
+- `alert_delivery_scheduler_runs` records `success`;
+- `alert_delivery_event_runs` records processed events;
+- `/alerts` Delivered Alerts shows `sent` rows only;
+- `failed` and `suppressed` rows can be queried;
+- Telegram messages are not sent.
+
+### Telegram Staging Checklist
+
+Do this separately after write mode is stable.
+
+- Use a staging bot or a clearly limited test bot.
+- Connect one test Telegram account from `/alerts`.
+- Register the Telegram webhook.
+- Keep batch limits low.
+- Run a single event dry-run first.
+- Run a single event `--write` second.
+- Enable `ALERT_DELIVERY_SEND_TELEGRAM=true` only for staging or a restricted production test.
+- Confirm message receipt.
+- Turn production-wide Telegram delivery on only after limited QA passes.
+
 ## Product Rules
 
 ```text
@@ -131,6 +215,8 @@ SUPABASE_URL=<value>
 SUPABASE_SERVICE_ROLE_KEY=<value>
 SUPABASE_DB_URL=<value>
 ```
+
+`SUPABASE_SERVICE_ROLE_KEY` is server-side only. Do not expose it with a `NEXT_PUBLIC_` prefix and do not use it in client components.
 
 Required for Telegram connect flow and webhook verification:
 
@@ -729,11 +815,11 @@ Also verify:
 
 ## Immediate TODO
 
-1. Render Cron Job dry-run 설정.
-2. Render Cron Job write mode 설정, Telegram send off.
-3. Scheduler run log 모니터링.
-4. Telegram staging E2E QA.
-5. Production Telegram send 제한 활성화.
+1. Configure Render Cron Job dry-run.
+2. Configure Render Cron Job write mode with Telegram send off.
+3. Monitor scheduler run logs.
+4. Run Telegram staging E2E QA.
+5. Enable production Telegram send with limited rollout.
 
 ## Not Now
 

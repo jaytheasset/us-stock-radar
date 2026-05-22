@@ -11,6 +11,14 @@ const PLAN_LIMITS = {
   ultimate: { alertDelayMinutes: 0, channels: ["web", "telegram", "email", "webhook", "api"] },
 };
 
+const PLAN_RANK = {
+  free: 0,
+  ad_free: 1,
+  pro: 2,
+  advanced: 3,
+  ultimate: 4,
+};
+
 const ALERT_CATEGORIES = new Set([
   "listing_risk",
   "dilution_risk",
@@ -406,9 +414,31 @@ async function supabasePost(table, payload) {
 function readPlan(row) {
   const plan = readString(row?.plan);
   const status = readString(row?.status);
-  if (status && status !== "active") return "free";
-  if (plan === "free" || plan === "ad_free" || plan === "pro" || plan === "advanced" || plan === "ultimate") return plan;
-  return "free";
+  const basePlan = isPlan(plan) ? plan : "free";
+  const effectiveBasePlan = status && status !== "active" ? "free" : basePlan;
+  if (PLAN_RANK[effectiveBasePlan] >= PLAN_RANK.pro) return effectiveBasePlan;
+
+  const trialPlan = readString(row?.trial_plan);
+  const trialStartedAt = readString(row?.trial_started_at);
+  const trialEndsAt = readString(row?.trial_ends_at);
+  const trialCancelledAt = readString(row?.trial_cancelled_at);
+  const trialEndsTime = Date.parse(trialEndsAt);
+  if (
+    trialPlan === "pro" &&
+    trialStartedAt &&
+    Number.isFinite(trialEndsTime) &&
+    trialEndsTime > Date.now() &&
+    !trialCancelledAt
+  ) {
+    return "pro";
+  }
+
+  return effectiveBasePlan;
+}
+
+function isPlan(plan) {
+  if (plan === "free" || plan === "ad_free" || plan === "pro" || plan === "advanced" || plan === "ultimate") return true;
+  return false;
 }
 
 function parseArgs(argv) {

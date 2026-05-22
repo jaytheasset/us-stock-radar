@@ -1,4 +1,5 @@
 import type { AlertCategory, AlertChannel, Plan, PlanLimits } from "@/lib/subscriptionPolicy";
+import type { PlanSource, TrialState } from "@/lib/subscription/effectivePlan";
 
 export type AlertPreferences = {
   watchlistNewsEnabled: boolean;
@@ -46,6 +47,10 @@ export type AlertSettingsViewModel = {
   guestMode?: boolean;
   plan: Plan;
   planLabel: string;
+  basePlan?: Plan;
+  effectivePlan?: Plan;
+  planSource?: PlanSource;
+  trial?: TrialState;
   limits: PlanLimits;
   usage: {
     watchlistTickers: number;

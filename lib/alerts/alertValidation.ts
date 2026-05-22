@@ -12,7 +12,7 @@ import {
   getPlanUpgradeTarget,
   isValidAlertCategory,
 } from "@/lib/subscriptionPolicy";
-import { supabaseSelect } from "@/lib/supabase";
+import { getEffectiveUserPlan } from "@/lib/subscription/effectivePlan";
 
 export const ALL_ALERT_CHANNELS: AlertChannel[] = ["web", "telegram", "email", "webhook", "api"];
 
@@ -37,18 +37,8 @@ export const ALERT_PREFERENCE_FIELDS = [
 ] as const;
 
 export async function getUserPlan(userId: string): Promise<Plan> {
-  const result = await supabaseSelect("user_plan_subscriptions", {
-    select: "plan,status",
-    user_id: `eq.${userId}`,
-    limit: "1",
-  });
-  const row = Array.isArray(result.data) ? (result.data[0] as { plan?: unknown; status?: unknown } | undefined) : undefined;
-  const plan = typeof row?.plan === "string" ? row.plan : "";
-  const status = typeof row?.status === "string" ? row.status : "";
-
-  if (status && status !== "active") return "free";
-  if (isValidPlan(plan)) return plan;
-  return "free";
+  const state = await getEffectiveUserPlan(userId);
+  return state.effectivePlan;
 }
 
 export function assertValidCategories(categories: unknown): AlertCategory[] {
@@ -197,10 +187,6 @@ export class AlertValidationError extends Error {
     this.code = code;
     this.details = details;
   }
-}
-
-function isValidPlan(value: string): value is Plan {
-  return value === "free" || value === "ad_free" || value === "pro" || value === "advanced" || value === "ultimate";
 }
 
 export function getCategoryDisplayRows() {

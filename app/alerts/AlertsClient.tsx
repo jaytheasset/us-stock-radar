@@ -1,8 +1,10 @@
 "use client";
 
-import { Bell, Check, Search, UserRound } from "lucide-react";
+import { Check, Search } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { AuthStatus } from "@/components/AuthStatus";
+import { ProTrialCta } from "@/components/ProTrialCta";
 import type { AlertPreferences, AlertSettingsViewModel, DeliveredAlertItem } from "@/lib/alerts/types";
 import {
   ALERT_CATEGORIES,
@@ -143,7 +145,7 @@ export default function AlertsClient({ initialSettings }: AlertsClientProps) {
       detail: `${availableChannels.length} channels available`,
     },
   ];
-  const upgradeCard = getUpgradeCard(settings.plan);
+  const upgradeCard = getUpgradeCard(settings);
   const filteredDeliveredAlerts = useMemo(
     () => filterDeliveredAlerts(deliveredAlerts, deliveredFilter),
     [deliveredAlerts, deliveredFilter],
@@ -344,15 +346,7 @@ export default function AlertsClient({ initialSettings }: AlertsClientProps) {
           <Search aria-hidden="true" size={15} />
           <input aria-label="Search alerts" placeholder="Search stocks, companies, events..." />
         </div>
-        <div className="alerts-nav-actions" aria-label="Account actions">
-          <button aria-label="Notifications" type="button">
-            <Bell size={17} />
-            <span>3</span>
-          </button>
-          <button aria-label="User profile" type="button">
-            <UserRound size={17} />
-          </button>
-        </div>
+        <AuthStatus />
       </header>
 
       <section className="alerts-shell">
@@ -369,6 +363,9 @@ export default function AlertsClient({ initialSettings }: AlertsClientProps) {
             <strong>
               {settings.planLabel || getPlanDisplayName(settings.plan)} - {formatAlertSpeed(settings.plan)}
             </strong>
+            {settings.trial?.active ? (
+              <small className="alerts-trial-note">Pro Trial Active - {settings.trial.daysRemaining ?? 14} days remaining</small>
+            ) : null}
             <Link href="/premium">Manage Plan</Link>
           </div>
         </section>
@@ -565,7 +562,7 @@ export default function AlertsClient({ initialSettings }: AlertsClientProps) {
                   <li key={item}>{item}</li>
                 ))}
               </ul>
-              <Link href="/premium">{upgradeCard.cta}</Link>
+              {renderUpgradeAction(settings, upgradeCard.cta)}
             </section>
           </aside>
         </section>
@@ -788,13 +785,41 @@ function getSaveStateText(state: SaveState) {
   return "All changes saved";
 }
 
-function getUpgradeCard(plan: Plan) {
+function getUpgradeCard(settings: AlertSettingsViewModel) {
+  const plan = settings.plan;
+  if (settings.guestMode) {
+    return {
+      title: "Try Pro free for 14 days",
+      body: "Create an account to start a no-card Pro trial with real-time delivery and Telegram alerts.",
+      cta: "Create account to start Pro trial",
+      items: ["30 watchlist tickers", "6 Discovery categories", "No delivery delay"],
+    };
+  }
+
+  if (settings.trial?.active) {
+    return {
+      title: "Pro Trial Active",
+      body: `Real-time alerts are enabled until ${formatDate(settings.trial.endsAt)}.`,
+      cta: "Manage alerts",
+      items: ["30 watchlist tickers", "6 Discovery categories", "Telegram included in Pro"],
+    };
+  }
+
+  if ((plan === "free" || plan === "ad_free") && settings.trial?.used) {
+    return {
+      title: "Your Pro trial has ended",
+      body: "Upgrade to Pro to keep real-time delivery, Telegram alerts, and higher watchlist limits.",
+      cta: "Upgrade to Pro",
+      items: ["No delivery delay", "Telegram alerts", "30 watchlist tickers"],
+    };
+  }
+
   if (plan === "free" || plan === "ad_free") {
     return {
-      title: "Unlock real-time alerts with Pro",
-      body: "Get 6 Discovery categories, Telegram alerts, and no delivery delay.",
-      cta: "Upgrade to Pro",
-      items: ["6 Discovery categories", "No delivery delay", "Telegram alerts"],
+      title: "Try Pro free for 14 days",
+      body: "Unlock real-time delivery, Telegram alerts, 30 watchlist tickers, and 6 Discovery categories.",
+      cta: "Start Pro Trial",
+      items: ["30 watchlist tickers", "6 Discovery categories", "No delivery delay"],
     };
   }
 
@@ -822,6 +847,22 @@ function getUpgradeCard(plan: Plan) {
     cta: "Manage API",
     items: ["Custom rules", "Webhook/API", "Advanced delivery automation"],
   };
+}
+
+function renderUpgradeAction(settings: AlertSettingsViewModel, label: string) {
+  if (settings.guestMode) {
+    return <ProTrialCta guestMode>{label}</ProTrialCta>;
+  }
+
+  if ((settings.plan === "free" || settings.plan === "ad_free") && !settings.trial?.used) {
+    return <ProTrialCta>{label}</ProTrialCta>;
+  }
+
+  if (settings.trial?.active) {
+    return <Link href="/alerts">{label}</Link>;
+  }
+
+  return <Link href="/premium">{label}</Link>;
 }
 
 function filterDeliveredAlerts(alerts: DeliveredAlertItem[], filter: DeliveredFilter) {
@@ -910,4 +951,15 @@ function formatRelativeTime(value: string) {
   if (diffHours < 24) return `${diffHours}h ago`;
   const diffDays = Math.floor(diffHours / 24);
   return `${diffDays}d ago`;
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return "the trial end date";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "the trial end date";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
 }

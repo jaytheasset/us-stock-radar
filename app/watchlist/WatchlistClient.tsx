@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
+import { AuthStatus } from "@/components/AuthStatus";
+import { ProTrialCta } from "@/components/ProTrialCta";
 import { formatLimit } from "@/lib/subscriptionPolicy";
 import type { WatchlistViewModel } from "@/lib/watchlist/types";
 
@@ -115,15 +117,7 @@ export default function WatchlistClient({ initialWatchlist }: WatchlistClientPro
           <span aria-hidden="true">/</span>
           <input aria-label="Search watchlist" placeholder="Search watchlist or ticker" />
         </div>
-        <div className="feed-actions">
-          <button className="icon-button" type="button" aria-label="Notifications">
-            <span aria-hidden="true">!</span>
-            <span className="notification-dot">3</span>
-          </button>
-          <button className="avatar-button" type="button" aria-label="User menu">
-            N
-          </button>
-        </div>
+        <AuthStatus />
       </header>
 
       <section className="watchlist-shell">
@@ -245,12 +239,11 @@ export default function WatchlistClient({ initialWatchlist }: WatchlistClientPro
             </section>
 
             <section className="watchlist-upgrade">
+              {watchlist.trial?.active ? <b className="watchlist-trial-badge">Pro Trial Active - {formatLimit(watchlist.limit)} ticker limit</b> : null}
               <span>{watchlist.planLabel}</span>
-              <h2>Watchlist limit</h2>
-              <p>
-                You are using {usageLabel} saved ticker slots. Upgrade only when you need more ticker coverage or faster alert routing.
-              </p>
-              <Link href="/premium">Manage Plan</Link>
+              <h2>{getWatchlistUpgradeTitle(watchlist)}</h2>
+              <p>{getWatchlistUpgradeBody(watchlist, usageLabel)}</p>
+              {renderWatchlistAction(watchlist)}
             </section>
           </aside>
         </div>
@@ -279,7 +272,49 @@ function WatchStat({
   );
 }
 
-function formatDate(value: string | null) {
+function getWatchlistUpgradeTitle(watchlist: WatchlistViewModel) {
+  if (watchlist.guestMode) return "Save your watchlist";
+  if (watchlist.trial?.active) return "Pro Trial Active";
+  if ((watchlist.plan === "free" || watchlist.plan === "ad_free") && !watchlist.trial?.used) {
+    return "Try Pro free for 14 days";
+  }
+  if ((watchlist.plan === "free" || watchlist.plan === "ad_free") && watchlist.trial?.used) {
+    return "Your Pro trial has ended";
+  }
+  return "Watchlist limit";
+}
+
+function getWatchlistUpgradeBody(watchlist: WatchlistViewModel, usageLabel: string) {
+  if (watchlist.guestMode) {
+    return "Create a free account to save tickers and keep Watchlist Alerts in sync across sessions.";
+  }
+  if (watchlist.trial?.active) {
+    return `You are using ${usageLabel} saved ticker slots. Real-time Pro alert limits stay active until ${formatDate(
+      watchlist.trial.endsAt,
+    )}.`;
+  }
+  if ((watchlist.plan === "free" || watchlist.plan === "ad_free") && !watchlist.trial?.used) {
+    return "Increase your watchlist from 3 to 30 tickers and unlock real-time alerts. No credit card required.";
+  }
+  if ((watchlist.plan === "free" || watchlist.plan === "ad_free") && watchlist.trial?.used) {
+    return "Upgrade to Pro to reactivate the 30 ticker limit and real-time watchlist alerts.";
+  }
+  return `You are using ${usageLabel} saved ticker slots. Upgrade only when you need more ticker coverage or faster alert routing.`;
+}
+
+function renderWatchlistAction(watchlist: WatchlistViewModel) {
+  if (watchlist.guestMode) {
+    return <ProTrialCta guestMode>Create account to start Pro trial</ProTrialCta>;
+  }
+
+  if ((watchlist.plan === "free" || watchlist.plan === "ad_free") && !watchlist.trial?.used) {
+    return <ProTrialCta>Start 14-day Pro Trial</ProTrialCta>;
+  }
+
+  return <Link href="/premium">Manage Plan</Link>;
+}
+
+function formatDate(value: string | null | undefined) {
   if (!value) return "Unknown";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Unknown";

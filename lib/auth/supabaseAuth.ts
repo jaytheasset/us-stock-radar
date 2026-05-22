@@ -97,7 +97,7 @@ export async function ensureUserBootstrap(user: SupabaseAuthUser) {
     },
     {
       onConflict: "user_id",
-      prefer: "resolution=merge-duplicates,return=representation",
+      prefer: "resolution=ignore-duplicates,return=representation",
     },
   );
 

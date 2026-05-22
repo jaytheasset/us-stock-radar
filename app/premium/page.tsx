@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { AuthStatus } from "@/components/AuthStatus";
+import { ProTrialCta } from "@/components/ProTrialCta";
+import { getOptionalCurrentUserId } from "@/lib/currentUser";
+import { getEffectiveUserPlan, type EffectiveUserPlan } from "@/lib/subscription/effectivePlan";
 import {
   ALERT_CATEGORIES,
   PLAN_LIMITS,
@@ -10,6 +14,8 @@ import {
   getPlanDisplayName,
   getPlanLimits,
 } from "@/lib/subscriptionPolicy";
+
+export const dynamic = "force-dynamic";
 
 const navItems = [
   { label: "Live Feed", href: "/feed" },
@@ -77,6 +83,7 @@ const plans = planOrder.map((plan) => {
   const presentation = planPresentation[plan];
   const watchlistText = limits.watchlistLimit === null ? "Unlimited watchlist" : `${limits.watchlistLimit} watchlist tickers`;
   return {
+    code: plan,
     name: getPlanDisplayName(plan),
     price: presentation.price,
     note: presentation.note,
@@ -263,7 +270,74 @@ const liveAlerts = [
   },
 ];
 
-export default function PremiumPage() {
+function renderPlanAction(plan: PlanKey, fallbackCta: string, planState: EffectiveUserPlan | null) {
+  const actionClass = "premium-plan-action";
+
+  if (planState?.effectivePlan === plan) {
+    if (planState.planSource === "trial" && plan === "pro") {
+      return (
+        <span className="pro-trial-cta-wrap">
+          <Link className={actionClass} href="/alerts">
+            Manage alerts
+          </Link>
+          <small>Ends in {planState.trial.daysRemaining ?? 14} days</small>
+        </span>
+      );
+    }
+
+    return (
+      <Link className={actionClass} href="/alerts">
+        Current plan
+      </Link>
+    );
+  }
+
+  if (plan !== "pro") {
+    return (
+      <Link className={actionClass} href="/alerts">
+        {fallbackCta}
+      </Link>
+    );
+  }
+
+  if (!planState) {
+    return (
+      <ProTrialCta className={actionClass} guestMode>
+        Start 14-day Pro Trial
+      </ProTrialCta>
+    );
+  }
+
+  if (planState.basePlan === "pro" || planState.basePlan === "advanced" || planState.basePlan === "ultimate") {
+    return (
+      <Link className={actionClass} href="/alerts">
+        Current plan
+      </Link>
+    );
+  }
+
+  if (planState.trial.used) {
+    return (
+      <span className="pro-trial-cta-wrap">
+        <Link className={actionClass} href="/alerts">
+          Upgrade to Pro
+        </Link>
+        <small>Your Pro trial has ended.</small>
+      </span>
+    );
+  }
+
+  return (
+    <ProTrialCta className={actionClass}>
+      Start 14-day Pro Trial
+    </ProTrialCta>
+  );
+}
+
+export default async function PremiumPage() {
+  const userId = await getOptionalCurrentUserId();
+  const planState = userId ? await getEffectiveUserPlan(userId) : null;
+
   return (
     <main className="premium-page">
       <header className="feed-nav">
@@ -282,6 +356,7 @@ export default function PremiumPage() {
           <span aria-hidden="true">/</span>
           <input aria-label="Search premium" placeholder="Search stocks, companies, events..." />
         </div>
+        <AuthStatus />
       </header>
 
       <section className="premium-shell">
@@ -325,6 +400,7 @@ export default function PremiumPage() {
           {plans.map((plan) => (
             <article className={`premium-plan-card${plan.popular ? " is-popular" : ""}`} key={plan.name}>
               {plan.popular ? <span className="premium-popular">Most popular</span> : null}
+              {plan.code === "pro" && planState?.trial.active ? <span className="premium-trial-badge">Pro Trial Active</span> : null}
               <div>
                 <span>{plan.name}</span>
                 <strong>{plan.price}</strong>
@@ -336,7 +412,7 @@ export default function PremiumPage() {
                   <li key={limit}>{limit}</li>
                 ))}
               </ul>
-              <Link href="/alerts">{plan.cta}</Link>
+              {renderPlanAction(plan.code, plan.cta, planState)}
             </article>
           ))}
         </section>

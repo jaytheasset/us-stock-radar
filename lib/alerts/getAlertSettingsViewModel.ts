@@ -11,13 +11,13 @@ import {
   getPlanLimits,
   isValidAlertCategory,
 } from "@/lib/subscriptionPolicy";
+import { getEffectiveUserPlan } from "@/lib/subscription/effectivePlan";
 import { supabaseSelect } from "@/lib/supabase";
 import {
   ALL_ALERT_CHANNELS,
   DEFAULT_ALERT_PREFERENCES,
   getChannelAvailabilityLabel,
   getChannelLockState,
-  getUserPlan,
 } from "@/lib/alerts/alertValidation";
 import type { AlertPreferences, AlertSettingsViewModel, DeliveredAlertItem, DeliveryChannelState } from "@/lib/alerts/types";
 
@@ -58,7 +58,8 @@ type DeliveredAlertRow = {
 };
 
 export async function getAlertSettingsViewModel(userId: string): Promise<AlertSettingsViewModel> {
-  const plan = await getUserPlan(userId);
+  const planState = await getEffectiveUserPlan(userId);
+  const plan = planState.effectivePlan;
   const limits = getPlanLimits(plan);
 
   const [watchlistResult, preferencesResult, categoriesResult, channelsResult, deliveriesResult] = await Promise.all([
@@ -106,6 +107,10 @@ export async function getAlertSettingsViewModel(userId: string): Promise<AlertSe
   return {
     plan,
     planLabel: getPlanDisplayName(plan),
+    basePlan: planState.basePlan,
+    effectivePlan: planState.effectivePlan,
+    planSource: planState.planSource,
+    trial: planState.trial,
     limits,
     usage: {
       watchlistTickers,
@@ -131,6 +136,13 @@ export function getGuestAlertSettingsViewModel(): AlertSettingsViewModel {
     guestMode: true,
     plan,
     planLabel: getPlanDisplayName(plan),
+    basePlan: plan,
+    effectivePlan: plan,
+    planSource: "base",
+    trial: {
+      active: false,
+      used: false,
+    },
     limits,
     usage: {
       watchlistTickers: 0,

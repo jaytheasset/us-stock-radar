@@ -1,7 +1,7 @@
 import "server-only";
 
-import { getUserPlan } from "@/lib/alerts/alertValidation";
 import { formatLimit, getPlanDisplayName, getPlanLimits } from "@/lib/subscriptionPolicy";
+import { getEffectiveUserPlan } from "@/lib/subscription/effectivePlan";
 import { supabaseSelect } from "@/lib/supabase";
 import type { WatchlistTickerItem, WatchlistViewModel } from "@/lib/watchlist/types";
 
@@ -14,7 +14,8 @@ type WatchlistTickerRow = {
 };
 
 export async function getWatchlistViewModel(userId: string): Promise<WatchlistViewModel> {
-  const plan = await getUserPlan(userId);
+  const planState = await getEffectiveUserPlan(userId);
+  const plan = planState.effectivePlan;
   const limits = getPlanLimits(plan);
   const result = await supabaseSelect("watchlist_tickers", {
     select: "id,ticker,company_name,created_at,updated_at",
@@ -34,6 +35,10 @@ export async function getWatchlistViewModel(userId: string): Promise<WatchlistVi
   return {
     plan,
     planLabel: getPlanDisplayName(plan),
+    basePlan: planState.basePlan,
+    effectivePlan: planState.effectivePlan,
+    planSource: planState.planSource,
+    trial: planState.trial,
     limit: limits.watchlistLimit,
     usage: items.length,
     items,
@@ -48,6 +53,13 @@ export function getGuestWatchlistViewModel(): WatchlistViewModel {
     guestMode: true,
     plan,
     planLabel: getPlanDisplayName(plan),
+    basePlan: plan,
+    effectivePlan: plan,
+    planSource: "base",
+    trial: {
+      active: false,
+      used: false,
+    },
     limit: limits.watchlistLimit,
     usage: 0,
     items: [],

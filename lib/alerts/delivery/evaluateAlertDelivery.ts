@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getPlanLimits, type AlertCategory, type AlertChannel, type Plan } from "@/lib/subscriptionPolicy";
+import { getEffectivePlanFromSubscription, type UserPlanSubscriptionRow } from "@/lib/subscription/effectivePlan";
 import { supabaseSelect } from "@/lib/supabase";
 import type {
   AlertDeliveryCandidate,
@@ -12,11 +13,6 @@ import type {
 
 type UserRow = {
   id?: unknown;
-};
-
-type UserPlanRow = {
-  plan?: unknown;
-  status?: unknown;
 };
 
 type PreferenceRow = {
@@ -141,7 +137,7 @@ async function fetchUsers() {
 async function fetchUserContext(userId: string) {
   const [planResult, preferencesResult, watchlistResult, categoriesResult, channelsResult] = await Promise.all([
     supabaseSelect("user_plan_subscriptions", {
-      select: "plan,status",
+      select: "*",
       user_id: `eq.${userId}`,
       limit: "1",
     }),
@@ -170,7 +166,7 @@ async function fetchUserContext(userId: string) {
   ]);
 
   return {
-    plan: readPlan(Array.isArray(planResult.data) ? (planResult.data[0] as UserPlanRow | undefined) : undefined),
+    plan: readPlan(Array.isArray(planResult.data) ? (planResult.data[0] as UserPlanSubscriptionRow | undefined) : undefined),
     preferences: readPreferences(Array.isArray(preferencesResult.data) ? (preferencesResult.data[0] as PreferenceRow | undefined) : undefined),
     watchlistTickers: new Set(
       (Array.isArray(watchlistResult.data) ? (watchlistResult.data as WatchlistRow[]) : [])
@@ -253,12 +249,8 @@ function isChannelConnected(channel: AlertChannel, row?: DeliveryChannelRow) {
   return Boolean(readString(row?.destination) && readString(row?.verified_at));
 }
 
-function readPlan(row?: UserPlanRow): Plan {
-  const plan = readString(row?.plan);
-  const status = readString(row?.status);
-  if (status && status !== "active") return "free";
-  if (plan === "free" || plan === "ad_free" || plan === "pro" || plan === "advanced" || plan === "ultimate") return plan;
-  return "free";
+function readPlan(row?: UserPlanSubscriptionRow): Plan {
+  return getEffectivePlanFromSubscription(row).effectivePlan;
 }
 
 function readPreferences(row?: PreferenceRow): UserAlertPreferences {
