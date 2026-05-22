@@ -8,7 +8,7 @@ Rules for Codex rooms:
 - Add parser code, fixtures, and parser tests in the assigned folder.
 - Do not edit ingest wiring, prompt registry, database migrations, or shared UI from a form-specific room.
 - If a shared change is needed, leave a TODO in the folder README or parser notes and stop.
-- Keep S-3 behavior intact. The existing S-3 parser is being moved into `s3-f3/` as a separate compatibility commit.
+- Keep S-3 behavior intact. The existing S-3 parser lives in `s3-f3/parser.ts`.
 - End each room with a focused commit and a clean `git status`.
 
 Recommended folders:

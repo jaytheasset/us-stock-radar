@@ -1,4 +1,4 @@
-import { parseSecS3Filing, type SecS3FilingFacts } from "@/lib/sources/sec/s3Parser";
+import { parseSecS3Filing, type SecS3FilingFacts } from "@/lib/sources/sec/forms/s3-f3/parser";
 
 export const SEC_FILING_PACKAGE_VERSION = "sec_filing_package_v1";
 

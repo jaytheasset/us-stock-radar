@@ -2,7 +2,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { parseSecS3Filing } from "../lib/sources/sec/s3Parser.ts";
+import { parseSecS3Filing } from "../lib/sources/sec/forms/s3-f3/parser.ts";
 
 const args = new Map(
   process.argv

@@ -20,7 +20,7 @@ import {
   buildSecOfferingDilutionMetrics,
   resolveSecOfferingMarketContext,
 } from "@/lib/secOfferingMarketContext";
-import { parseSecS3Filing, type SecS3FilingFacts } from "@/lib/sources/sec/s3Parser";
+import { parseSecS3Filing, type SecS3FilingFacts } from "@/lib/sources/sec/forms/s3-f3/parser";
 import { supabaseSelect } from "@/lib/supabase";
 
 type PreviewOptions = {
