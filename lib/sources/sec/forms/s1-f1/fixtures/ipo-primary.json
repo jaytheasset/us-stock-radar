@@ -1,0 +1,20 @@
+{
+  "rawItemId": "fixture-s1-ipo",
+  "accessionNumber": "0000000000-26-000001",
+  "cik": "0000000001",
+  "ticker": "EXRB",
+  "companyName": "Example Robotics Inc.",
+  "formType": "S-1",
+  "filedAt": "2026-06-01T12:00:00.000Z",
+  "title": "Example Robotics Inc. S-1 initial public offering",
+  "sourceUrl": "https://www.sec.gov/Archives/example-s1",
+  "primaryDocumentText": "FORM S-1\nREGISTRATION STATEMENT\nSubject to Completion Preliminary Prospectus\nExample Robotics Inc.\n(Exact name of registrant as specified in its charter)\n\nPROSPECTUS SUMMARY\nThis is our initial public offering. No public market currently exists for our common stock. We have applied to list our common stock on The Nasdaq Capital Market under the symbol EXRB.\n\nTHE OFFERING\nWe are offering 3,000,000 shares of common stock. The estimated initial public offering price will be between $4.00 and $6.00 per share. We expect to price this offering on June 12, 2026 and expect our common stock to begin trading on June 13, 2026.\n\nUSE OF PROCEEDS\nWe intend to use the net proceeds from this offering for working capital, product development, and general corporate purposes.\n\nDILUTION\nPurchasers in this offering will experience immediate and substantial dilution in net tangible book value per share. We had 12,000,000 shares of common stock outstanding before this offering.\n\nCAPITALIZATION\nThe following table sets forth our cash and capitalization on an actual and as adjusted basis after giving effect to this offering.\n\nRISK FACTORS\nInvestors purchasing shares in this offering will incur immediate dilution. We have a limited operating history and expect losses to continue.\n\nUNDERWRITING\nWe are offering the shares through ThinkEquity LLC, as representative of the underwriters. The closing is expected to occur on June 16, 2026.\n\nSHARES ELIGIBLE FOR FUTURE SALE\nOur officers, directors and holders have agreed to a lock-up period of 180 days after the date of this prospectus.",
+  "attachments": [
+    {
+      "type": "EX-FILING FEES",
+      "description": "Filing Fee Table",
+      "filename": "ex-filingfees.htm",
+      "text": "Calculation of Filing Fee Tables\nMaximum Aggregate Offering Price $18,000,000\nRegistration Fee $2,657.20"
+    }
+  ]
+}
