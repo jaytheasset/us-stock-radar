@@ -56,7 +56,7 @@ mix together and one room can accidentally see or commit another room's work.
 | `Proxy` | `docs/SEC_PROXY_ROOM.md` | `lib/sources/sec/forms/proxy/` | `sec/proxy` |
 | `425` | `docs/SEC_425_ROOM.md` | `lib/sources/sec/forms/425/` | `sec/425` |
 | `S-4 / F-4 / S-4/A / F-4/A` | `docs/SEC_S4_F4_ROOM.md` | `lib/sources/sec/forms/s4-f4/` | `sec/s4-f4` |
-| `Tender / CB / 13E3` | `docs/SEC_TENDER_CB_13E3_ROOM.md` | `lib/sources/sec/forms/tender-cb-13e3/` | `sec/tender-cb-13e3` |
+| `Tender / CB / 13E3` | `docs/SEC_TENDER_CB_13E3_ROOM.md` | `lib/sources/sec/forms/tender/` | `sec/tender-cb-13e3` |
 | `Form 25 / 25-NSE` | `docs/SEC_FORM25_ROOM.md` | `lib/sources/sec/forms/form25/` | `sec/form25` |
 | `Other SEC Filing` | `docs/SEC_OTHER_ROOM.md` | `lib/sources/sec/forms/other/` | `sec/other` |
 | SEC common contracts/helpers | `docs/SEC_COMMON_ROOM.md` | `lib/sources/sec/forms/common/` | `sec/common` |
