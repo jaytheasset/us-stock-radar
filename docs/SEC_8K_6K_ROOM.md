@@ -1,7 +1,7 @@
 # SEC 8-K / 6-K Room
 
-Read `docs/SEC_FORM_ROOM_RULES.md` first. That file is the common rulebook for
-all SEC form rooms.
+Read `docs/SEC_FORM_ROOM_RULES.md` first. Treat that file and this file as
+fixed instructions. Do not edit either file from this room.
 
 ## Scope
 
@@ -14,236 +14,88 @@ Allowed working folder:
 
 - `lib/sources/sec/forms/8k-6k/`
 
-Do not edit common code, live ingest, DB migrations, app pages, alert delivery,
-or UI files from this room.
+## Work Flow
 
-## Goal
+Build this form family in this order:
 
-Build the 8-K / 6-K form-family parser, router prompt, analysis prompt,
-fixtures, and local tests.
+1. Parser
+2. Router LLM prompt
+3. Analysis LLM prompt
+4. Fixture JSON tests
 
-The work should answer:
+Some cases may finish deterministically in the parser or router when LLM is not
+needed. If that happens, show it with a fixture.
 
-- What did the filing disclose?
-- Which one of the 15 approved event types does it belong to?
-- Is it archive, feed, or alert level?
-- Does it need market context?
-- Does it need special detail UI later?
+Every final result must use one of the approved 15 event types from
+`docs/SEC_FORM_ROOM_RULES.md`.
 
-Do not connect the result to live site display. Integration is handled by the
-SEC ingest/integration room later.
+## Testing
 
-## Expected Flow
+Use fixture JSON only.
 
-Default flow:
+Fixture tests may include sample market context values, but they must not call
+live FMP or any other live market-data API.
 
-1. Parser extracts source-backed filing facts.
-2. Router prompt chooses event type and action.
-3. Analysis prompt writes final investor-facing analysis.
+Do not use the live database for this room. Do not create a local DB for this
+room. Use files only.
 
-Allowed exceptions:
+## Do Not Do
 
-- A clearly routine 8-K/A or 6-K/A can be archive without full analysis.
-- A deterministic filing can finish early when the meaning is obvious and low
-  risk.
+Do not edit anything outside:
 
-If a case skips LLM or skips full analysis, the fixture must show why.
+- `lib/sources/sec/forms/8k-6k/`
 
-## Approved Event Types
+Do not edit:
 
-Use only the 15 approved event types:
+- `lib/sources/sec/forms/common/`
+- SEC ingest files
+- DB schema or migration files
+- app pages
+- detail UI files
+- alert delivery files
+- live market-context fetch code
+- global prompt files outside this form room
 
-- `listing_risk`
-- `dilution_risk`
-- `earnings`
-- `sales_performance`
-- `product_update`
-- `leadership_governance`
-- `insider_ownership`
-- `shareholder_vote`
-- `strategic_transaction`
-- `financial_risk`
-- `legal_risk`
-- `dividends`
-- `capital_return`
-- `fda_clinical`
-- `other`
+Do not:
 
-8-K and 6-K are broad current-report forms. Classify by disclosure content, not
-by form type alone.
+- wire this parser into runtime ingest
+- write to the live DB
+- call FMP live
+- send alerts
+- build site UI
+- change the 15 event type list
+- add new DB tables or columns
+- modify this handoff document
 
-## Score And Delivery
+If any of those changes seem necessary, stop and report the need in the room's
+final handoff instead of making the change.
 
-Use the common score bands:
+## Required Reminders While Working
 
-- Below 50: `archive`
-- 50 to 74: `feed`
-- 75 or above: `alert`
+Before editing files, state the exact files that will be changed.
 
-75 or above means immediate alert delivery once the integration room connects
-the result. This room does not send alerts.
+Before every commit, confirm:
 
-## Parser Targets
+- all changed files are inside `lib/sources/sec/forms/8k-6k/`
+- no live DB, FMP, ingest, alert, app, or UI files were changed
+- tests use fixture JSON only
 
-The parser should extract the important facts that help routing and analysis:
+If the work discovers a new common rule, market-context need, integration need,
+or special UI need, record it in the final handoff. Do not implement it outside
+this form folder.
 
-- form type: `8-K`, `8-K/A`, `6-K`, or `6-K/A`
-- accession number, CIK, company name, ticker, filed date, source URL
-- SEC item numbers when present, such as Item 1.01, 2.02, 3.01, 5.02, 7.01,
-  8.01, 9.01
-- exhibit list and important exhibit text, especially Exhibit 99.1
-- filing headline or normalized title
-- dates, deadlines, meeting dates, effective dates, payment dates, closing dates
-- dollar amounts, share counts, prices, percentages, ratios, and contract terms
-- named counterparties, exchanges, lenders, buyers, sellers, customers,
-  suppliers, directors, officers, auditors, regulators, or clinical programs
-- whether this is an amendment and what appears changed
-- whether the filing is routine, administrative, exhibit-only, or material
+## Final Handoff
 
-Keep evidence snippets short and source-backed.
+When done, report:
 
-## Routing Guidance
+- changed files
+- fixture cases tested
+- parser/router/analysis outputs
+- deterministic cases, if any
+- market context assumptions, if any
+- integration needs, if any
+- special UI needs, if any
 
-Common 8-K / 6-K routing examples:
-
-- Nasdaq/NYSE non-compliance, delisting notice, trading suspension, reverse
-  split for minimum bid: `listing_risk`
-- registered direct, ATM, PIPE, convertible notes, warrants, resale,
-  exchange-cap approval, financing terms: `dilution_risk`
-- earnings release, results, guidance, conference call tied to results:
-  `earnings`
-- revenue, sales, orders, bookings, backlog, margins, deliveries, production
-  metrics outside full earnings: `sales_performance`
-- product launch, production update, trial update, commercialization update:
-  `product_update`
-- CEO/CFO/director/auditor changes, board changes, internal controls,
-  compensation governance: `leadership_governance`
-- shareholder meeting, vote result, proposal approval/rejection:
-  `shareholder_vote`
-- merger, acquisition, asset sale, joint venture, license, material agreement,
-  tender/deal update: `strategic_transaction`
-- liquidity warning, default, covenant breach, going concern, bankruptcy,
-  restructuring, debt amendment: `financial_risk`
-- lawsuit, investigation, settlement, enforcement, subpoena, compliance matter:
-  `legal_risk`
-- dividend declaration, dividend change, distribution, record date, payment date:
-  `dividends`
-- buyback authorization, repurchase program, capital return program:
-  `capital_return`
-- FDA approval, CRL, clinical data, trial halt, PDUFA, advisory committee:
-  `fda_clinical`
-- unclear, routine, administrative, or non-investor-relevant filing: `other`
-
-Use `other` for ambiguous cases rather than inventing a new type.
-
-## Market Context
-
-Use fixture-only market context when it changes investor interpretation.
-
-Likely market-context cases:
-
-- `dilution_risk`: price, market cap, shares outstanding, public float, volume
-- `dividends`: price and dividend amount for yield context
-- `capital_return`: market cap and buyback amount
-- `listing_risk`: price, exchange, market cap, trading liquidity
-- `strategic_transaction`: market cap, deal value, premium/discount when known
-- `financial_risk`: market cap, price, debt/liquidity scale when useful
-
-Usually not needed:
-
-- simple leadership changes
-- routine legal updates
-- administrative exhibit updates
-- vague product updates without numbers
-
-If market context is used in a fixture, also test one case without it.
-
-The output should indicate whether market context is needed:
-
-```json
-{
-  "market_context_needed": true,
-  "market_context_reason": "Dividend yield needs price context.",
-  "market_context_fields": ["price"]
-}
-```
-
-Do not call FMP or write DB market snapshots from this room.
-
-## Amendment Handling
-
-For `8-K/A` and `6-K/A`, do not automatically create a new event.
-
-Decide whether the amendment:
-
-- corrects a material term
-- adds a missing exhibit
-- changes dates, amounts, share counts, counterparties, or risk language
-- updates an earlier market-moving event
-- is routine or administrative
-
-Use fixture parent context when needed. Do not query live DB for the parent
-filing.
-
-## Calendar Items
-
-Extract calendar items only when the filing states an investor-relevant date or
-deadline.
-
-Examples:
-
-- earnings call date
-- shareholder meeting or vote date
-- dividend ex-date, record date, payment date
-- reverse split effective date
-- delisting appeal or compliance deadline
-- merger vote or closing date
-- tender, rights, warrant, lock-up, or financing approval deadline
-- PDUFA, FDA advisory committee, clinical readout, or trial date
-
-Do not add calendar items for the filing date itself unless the filing says the
-event occurs on that date.
-
-## Fixture Tests
-
-Use fixture JSON, not live DB.
-
-Recommended first fixtures:
-
-- listing-risk 8-K
-- dilution or financing 8-K
-- earnings 8-K with Exhibit 99.1
-- dividend or capital-return 8-K
-- leadership/governance 8-K
-- strategic transaction 8-K
-- routine 8-K/A archive case
-- foreign issuer 6-K with Exhibit 99.1
-
-Each fixture should include:
-
-- filing input
-- optional parent filing context for amendments
-- optional market context
-- expected event type
-- expected score band
-- expected delivery level
-- important parser facts
-- expected calendar items, if any
-
-## Output Needed For Handoff
-
-When this room is done, provide:
-
-- files changed under `lib/sources/sec/forms/8k-6k/`
-- fixture list and what each fixture proves
-- parser output examples
-- router output examples
-- analysis output examples
-- market context assumptions
-- deterministic archive/skip cases
-- special UI needs discovered
-- open questions for integration
-
-Do not wire this room into runtime ingest. The integration room will do that
-after review.
+Do not wire this room into the live site. The SEC ingest/integration room will
+handle that later.
 
