@@ -38,6 +38,79 @@ live FMP or any other live market-data API.
 Do not use the live database for this room. Do not create a local DB for this
 room. Use files only.
 
+## Required Output JSON
+
+Fixtures and expected outputs must use this shape so the SEC ingest/integration
+room can map the result later without guessing.
+
+```json
+{
+  "parser_output": {
+    "parserVersion": "string",
+    "parserGroup": "425",
+    "formType": "425",
+    "accessionNumber": "string | null",
+    "isSupported": true,
+    "summary": "string | null",
+    "facts": {},
+    "signals": [],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company | sector | theme | macro",
+    "event_type": "one of the approved 15 event types",
+    "event_title": "string",
+    "primary_ticker": { "ticker": "string | null", "exchange": "string | null" },
+    "tickers": [],
+    "sector": "string | null",
+    "industry_group": "string | null",
+    "theme_group": "string | null",
+    "sub_theme": "string | null",
+    "score": 0,
+    "score_reason": "string",
+    "signal": "bullish | bearish | volatile | neutral",
+    "quick_take": "string",
+    "summary": "string",
+    "why_it_matters": "string",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [],
+    "what_to_watch_next": [],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high | medium | low",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic | offering_terms | candidate_special",
+    "data": {},
+    "evidence": [],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive | feed | alert",
+    "expected_impact": "low | medium | high",
+    "market_context_needed": false,
+    "market_context_reason": "string | null",
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": "string | null",
+    "integration_notes": []
+  }
+}
+```
+
+`delivery_level` is not a free-form model output. It is derived from `score`:
+below 50 is `archive`, 50 to 74 is `feed`, and 75 or above is `alert`.
+
+Use `display_payload.display_type = "candidate_special"` when deal-related
+communication details need a dedicated UI that is not yet approved. Put proposed
+fields in `display_payload.data` and explain the need in `fixture_expected` and
+the final handoff. Do not build UI in this room.
+
 ## Do Not Do
 
 Do not edit anything outside:
@@ -74,4 +147,3 @@ special UI needs.
 
 Do not wire this room into the live site. The SEC ingest/integration room will
 handle that later.
-
