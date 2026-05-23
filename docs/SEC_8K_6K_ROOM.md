@@ -82,7 +82,9 @@ Before every commit, confirm:
 
 If the work discovers a new common rule, market-context need, integration need,
 or special UI need, record it in the final handoff. Do not implement it outside
-this form folder.
+this form folder. This rule exists because other SEC form rooms may be working
+in parallel; changing common, ingest, DB, app, UI, or alert files from this room
+can create merge conflicts and can overwrite another room's work.
 
 ## Final Handoff
 
@@ -98,4 +100,3 @@ When done, report:
 
 Do not wire this room into the live site. The SEC ingest/integration room will
 handle that later.
-
