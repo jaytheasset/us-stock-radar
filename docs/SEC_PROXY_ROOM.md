@@ -48,7 +48,7 @@ room can map the result later without guessing.
   "parser_output": {
     "parserVersion": "string",
     "parserGroup": "proxy",
-    "formType": "proxy form type",
+    "formType": "Proxy",
     "accessionNumber": "string | null",
     "isSupported": true,
     "summary": "string | null",

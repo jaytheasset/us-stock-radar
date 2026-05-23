@@ -7,8 +7,7 @@ fixed instructions. Do not edit either file from this room.
 
 This room covers only:
 
-- `Form 4 / 4/A`
-- `Form 144 / 144/A`
+- `Form 4 / 4/A, Form 144 / 144/A`
 
 Allowed working folder:
 
@@ -49,7 +48,7 @@ room can map the result later without guessing.
   "parser_output": {
     "parserVersion": "string",
     "parserGroup": "ownership",
-    "formType": "4 | 4/A | 144 | 144/A",
+    "formType": "Form 4 / 4/A, Form 144 / 144/A",
     "accessionNumber": "string | null",
     "isSupported": true,
     "summary": "string | null",

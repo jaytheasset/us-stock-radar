@@ -7,8 +7,7 @@ fixed instructions. Do not edit either file from this room.
 
 This room covers only:
 
-- `SC 13D / SC 13D/A`
-- `SC 13G / SC 13G/A`
+- `SC 13D / SC 13D/A, SC 13G / SC 13G/A`
 
 Allowed working folder:
 
@@ -49,7 +48,7 @@ room can map the result later without guessing.
   "parser_output": {
     "parserVersion": "string",
     "parserGroup": "sc13",
-    "formType": "SC 13D | SC 13D/A | SC 13G | SC 13G/A",
+    "formType": "SC 13D / SC 13D/A, SC 13G / SC 13G/A",
     "accessionNumber": "string | null",
     "isSupported": true,
     "summary": "string | null",

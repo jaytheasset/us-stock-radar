@@ -48,7 +48,7 @@ room can map the result later without guessing.
   "parser_output": {
     "parserVersion": "string",
     "parserGroup": "tender",
-    "formType": "Tender | CB | 13E3",
+    "formType": "Tender / CB / 13E3",
     "accessionNumber": "string | null",
     "isSupported": true,
     "summary": "string | null",

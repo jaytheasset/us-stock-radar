@@ -7,8 +7,7 @@ fixed instructions. Do not edit either file from this room.
 
 This room covers only:
 
-- `S-4 / F-4`
-- `S-4/A / F-4/A`
+- `S-4 / F-4 / S-4/A / F-4/A`
 
 Allowed working folder:
 
@@ -49,7 +48,7 @@ room can map the result later without guessing.
   "parser_output": {
     "parserVersion": "string",
     "parserGroup": "s4-f4",
-    "formType": "S-4 | F-4 | S-4/A | F-4/A",
+    "formType": "S-4 / F-4 / S-4/A / F-4/A",
     "accessionNumber": "string | null",
     "isSupported": true,
     "summary": "string | null",

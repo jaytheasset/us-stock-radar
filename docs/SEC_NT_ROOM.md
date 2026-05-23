@@ -48,7 +48,7 @@ room can map the result later without guessing.
   "parser_output": {
     "parserVersion": "string",
     "parserGroup": "nt",
-    "formType": "NT 10-K | NT 10-Q | NT 20-F",
+    "formType": "NT 10-K / NT 10-Q / NT 20-F",
     "accessionNumber": "string | null",
     "isSupported": true,
     "summary": "string | null",

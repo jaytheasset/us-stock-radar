@@ -51,7 +51,7 @@ room can map the result later without guessing.
   "parser_output": {
     "parserVersion": "string",
     "parserGroup": "form25",
-    "formType": "Form 25 | 25-NSE",
+    "formType": "Form 25 / 25-NSE",
     "accessionNumber": "string | null",
     "isSupported": true,
     "summary": "string | null",

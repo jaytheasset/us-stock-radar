@@ -7,8 +7,7 @@ fixed instructions. Do not edit either file from this room.
 
 This room covers only:
 
-- `8-K / 6-K`
-- `8-K/A / 6-K/A`
+- `8-K / 6-K, 8-K/A / 6-K/A`
 
 Allowed working folder:
 
@@ -49,7 +48,7 @@ room can map the result later without guessing.
   "parser_output": {
     "parserVersion": "string",
     "parserGroup": "8k-6k",
-    "formType": "8-K | 6-K | 8-K/A | 6-K/A",
+    "formType": "8-K / 6-K, 8-K/A / 6-K/A",
     "accessionNumber": "string | null",
     "isSupported": true,
     "summary": "string | null",

@@ -7,8 +7,7 @@ fixed instructions. Do not edit either file from this room.
 
 This room covers only:
 
-- `S-3 / F-3 / S-3ASR / F-3ASR`
-- `S-3/A / F-3/A`
+- `S-3 / F-3 / S-3ASR / F-3ASR, S-3/A / F-3/A`
 
 Allowed working folder:
 
@@ -53,7 +52,7 @@ room can map the result later without guessing.
   "parser_output": {
     "parserVersion": "string",
     "parserGroup": "s3-f3",
-    "formType": "S-3 | F-3 | S-3ASR | F-3ASR | S-3/A | F-3/A",
+    "formType": "S-3 / F-3 / S-3ASR / F-3ASR, S-3/A / F-3/A",
     "accessionNumber": "string | null",
     "isSupported": true,
     "summary": "string | null",

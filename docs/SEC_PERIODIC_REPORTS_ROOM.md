@@ -7,8 +7,7 @@ fixed instructions. Do not edit either file from this room.
 
 This room covers only:
 
-- `10-K / 10-Q / 20-F`
-- `10-K/A / 10-Q/A / 20-F/A`
+- `10-K / 10-Q / 20-F, 10-K/A / 10-Q/A / 20-F/A`
 
 Allowed working folder:
 
@@ -49,7 +48,7 @@ room can map the result later without guessing.
   "parser_output": {
     "parserVersion": "string",
     "parserGroup": "periodic-reports",
-    "formType": "10-K | 10-Q | 20-F | 10-K/A | 10-Q/A | 20-F/A",
+    "formType": "10-K / 10-Q / 20-F, 10-K/A / 10-Q/A / 20-F/A",
     "accessionNumber": "string | null",
     "isSupported": true,
     "summary": "string | null",

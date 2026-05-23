@@ -48,7 +48,7 @@ room can map the result later without guessing.
   "parser_output": {
     "parserVersion": "string",
     "parserGroup": "s8",
-    "formType": "S-8 | S-8/A",
+    "formType": "S-8 / S-8/A",
     "accessionNumber": "string | null",
     "isSupported": true,
     "summary": "string | null",
