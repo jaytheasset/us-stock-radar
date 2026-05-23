@@ -31,6 +31,24 @@ possible.
 Every final result must use one of the approved 15 event types from
 `docs/SEC_FORM_ROOM_RULES.md`.
 
+Approved event types:
+
+- `listing_risk`
+- `dilution_risk`
+- `earnings`
+- `sales_performance`
+- `product_update`
+- `leadership_governance`
+- `insider_ownership`
+- `shareholder_vote`
+- `strategic_transaction`
+- `financial_risk`
+- `legal_risk`
+- `dividends`
+- `capital_return`
+- `fda_clinical`
+- `other`
+
 ## Testing
 
 Use fixture JSON only.
