@@ -20,6 +20,30 @@ export async function runAlertDeliveryForEvent(options: RunAlertDeliveryOptions)
     });
   }
 
+  const deliveryLevel = readDeliveryLevel(normalized.event.metadata?.delivery_level);
+  if (deliveryLevel !== "alert") {
+    return {
+      ok: true,
+      dryRun,
+      write,
+      event: normalized.event,
+      candidates: [],
+      skipped: [
+        {
+          reason: "EVENT_NOT_ALERT_DELIVERY_LEVEL",
+          detail: `delivery_level=${deliveryLevel || "unknown"}`,
+        },
+      ],
+      writes: [],
+      stats: {
+        candidateCount: 0,
+        skippedCount: 1,
+        writtenCount: 0,
+        duplicateCount: 0,
+      },
+    };
+  }
+
   const evaluation = await evaluateAlertDeliveryForEvent(normalized.event);
   const writes: CreateAlertDeliveryResult[] = [];
 
@@ -111,4 +135,10 @@ function emptyResult({
     },
     error,
   };
+}
+
+function readDeliveryLevel(value: unknown) {
+  if (typeof value !== "string") return "";
+  const normalized = value.trim().toLowerCase();
+  return normalized === "archive" || normalized === "feed" || normalized === "alert" ? normalized : "";
 }

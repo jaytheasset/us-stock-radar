@@ -90,7 +90,7 @@ async function fetchRecentDeliveryEvents({
   const detectedAfter = new Date(Date.now() - lookbackHours * 60 * 60 * 1000).toISOString();
   const result = await supabaseSelect("events", {
     select: "id,title,detected_at,delivery_level",
-    delivery_level: "neq.archive",
+    delivery_level: "eq.alert",
     detected_at: `gte.${detectedAfter}`,
     order: "detected_at.asc",
     limit: String(limit),
