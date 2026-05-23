@@ -14,6 +14,24 @@ Allowed work folder:
 
 - `lib/sources/sec/forms/8k-6k/`
 
+Approved event types:
+
+- `listing_risk`
+- `dilution_risk`
+- `earnings`
+- `sales_performance`
+- `product_update`
+- `leadership_governance`
+- `insider_ownership`
+- `shareholder_vote`
+- `strategic_transaction`
+- `financial_risk`
+- `legal_risk`
+- `dividends`
+- `capital_return`
+- `fda_clinical`
+- `other`
+
 Branch:
 
 - `sec/8k-6k`
@@ -77,6 +95,24 @@ If a case can finish deterministically without LLM, prove it with a fixture.
 Use market context only as fixture JSON. Do not call a live API.
 Result JSON must follow the Required Output JSON shape in
 docs/SEC_FORM_ROOM_RULES.md.
+
+Use only these 15 event types:
+
+- listing_risk
+- dilution_risk
+- earnings
+- sales_performance
+- product_update
+- leadership_governance
+- insider_ownership
+- shareholder_vote
+- strategic_transaction
+- financial_risk
+- legal_risk
+- dividends
+- capital_return
+- fda_clinical
+- other
 
 First read the documents and folder, then give only the work plan.
 Do not edit files yet.

@@ -62,7 +62,29 @@ mix together and one room can accidentally see or commit another room's work.
 | SEC ingest / site connection | `docs/SEC_INGEST_INTEGRATION_ROOM.md` | integration files only after form output exists | `sec/ingest-integration` |
 | SEC detail UI | `docs/SEC_EVENT_DETAIL_UI_ROOM.md` | app/UI files only after UI payload exists | `sec/event-detail-ui` |
 
-## 3. First Message For A New Form Room
+## 3. Approved Event Types
+
+Every form room must use only these 15 event types:
+
+- `listing_risk`
+- `dilution_risk`
+- `earnings`
+- `sales_performance`
+- `product_update`
+- `leadership_governance`
+- `insider_ownership`
+- `shareholder_vote`
+- `strategic_transaction`
+- `financial_risk`
+- `legal_risk`
+- `dividends`
+- `capital_return`
+- `fda_clinical`
+- `other`
+
+Do not invent new event types in an individual form room.
+
+## 4. First Message For A New Form Room
 
 Paste this as the first message in the new Codex room. Replace the bracketed
 parts.
@@ -90,11 +112,29 @@ Use market context only as fixture JSON. Do not call a live API.
 Result JSON must follow the Required Output JSON shape in
 docs/SEC_FORM_ROOM_RULES.md.
 
+Use only these 15 event types:
+
+- listing_risk
+- dilution_risk
+- earnings
+- sales_performance
+- product_update
+- leadership_governance
+- insider_ownership
+- shareholder_vote
+- strategic_transaction
+- financial_risk
+- legal_risk
+- dividends
+- capital_return
+- fda_clinical
+- other
+
 First read the documents and folder, then give only the work plan.
 Do not edit files yet.
 ```
 
-## 4. Start-Work Approval Message
+## 5. Start-Work Approval Message
 
 After reviewing the plan, paste this if the plan is acceptable.
 
@@ -112,7 +152,7 @@ Other SEC form rooms are working in parallel. Touching common, DB, UI, ingest,
 alerts, live FMP, or live DB from this room can create conflicts.
 ```
 
-## 5. Reminder Message
+## 6. Reminder Message
 
 Paste this during long work if the room starts drifting.
 
@@ -123,7 +163,7 @@ If something outside the folder is needed, do not implement it. Record it in
 the final handoff.
 ```
 
-## 6. Before Commit Check
+## 7. Before Commit Check
 
 Ask this before a form room commits.
 
@@ -140,7 +180,7 @@ If clean, the individual room commits only its own work on its own branch.
 The handoff MD files are managed by the main coordination room. Individual form
 rooms should not recommit or rewrite them.
 
-## 7. Final Handoff Format
+## 8. Final Handoff Format
 
 Each form room should finish with this report.
 
@@ -159,7 +199,7 @@ Final handoff:
 - Remaining risks:
 ```
 
-## 8. First Message For The Ingest Room
+## 9. First Message For The Ingest Room
 
 Use this only after at least one form room has completed its output.
 
@@ -179,7 +219,7 @@ First state which form room will be integrated and which files may change.
 Do not edit files yet.
 ```
 
-## 9. First Message For The Detail UI Room
+## 10. First Message For The Detail UI Room
 
 Use this only after a real special `display_payload` exists.
 
