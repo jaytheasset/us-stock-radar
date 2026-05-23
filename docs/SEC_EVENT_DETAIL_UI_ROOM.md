@@ -31,6 +31,28 @@ The UI room consumes data produced by form rooms and persisted by integration:
 
 Do not change parser output shape from this room.
 
+## Approved Event Types
+
+The UI room must render events using only these 15 event types:
+
+- `listing_risk`
+- `dilution_risk`
+- `earnings`
+- `sales_performance`
+- `product_update`
+- `leadership_governance`
+- `insider_ownership`
+- `shareholder_vote`
+- `strategic_transaction`
+- `financial_risk`
+- `legal_risk`
+- `dividends`
+- `capital_return`
+- `fda_clinical`
+- `other`
+
+Do not rename, merge, split, or add event types from this room.
+
 ## Display Types
 
 Initial display types:
@@ -126,4 +148,3 @@ When done, report:
 - desktop/mobile verification
 - unresolved payload fields
 - any new proposed stable display type
-

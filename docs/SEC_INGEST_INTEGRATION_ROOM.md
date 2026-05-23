@@ -30,6 +30,28 @@ Only integrate a form room after it provides the required output JSON shape:
 Do not accept one-off JSON shapes. If a form room output does not match
 `docs/SEC_FORM_ROOM_RULES.md`, stop and report the mismatch before wiring it.
 
+## Approved Event Types
+
+The integration room must accept only these 15 event types:
+
+- `listing_risk`
+- `dilution_risk`
+- `earnings`
+- `sales_performance`
+- `product_update`
+- `leadership_governance`
+- `insider_ownership`
+- `shareholder_vote`
+- `strategic_transaction`
+- `financial_risk`
+- `legal_risk`
+- `dividends`
+- `capital_return`
+- `fda_clinical`
+- `other`
+
+Do not rename, merge, split, or add event types from this room.
+
 ## Mapping Rules
 
 Map common fields this way:
@@ -139,4 +161,3 @@ When done, report:
 - archive/feed/alert behavior verified
 - candidate special UI needs forwarded
 - open risks or follow-up work
-
