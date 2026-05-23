@@ -1,7 +1,10 @@
 # Ownership Parser Room
 
-Scope: `Form 4`, `4/A`, `Form 144`, `144/A`.
+Scope:
 
-Allowed here: parser code, fixtures, parser tests, and local notes for this form family.
+- Form 4 / 4/A
+- Form 144 / 144/A
 
-Do not wire this folder into runtime ingestion from this room. Leave integration to the SEC parser integration room.
+Allowed here: parser code, fixtures, parser tests, router prompt draft, analysis prompt draft, and local notes for this form family.
+
+Do not wire this folder into runtime ingestion from this room.

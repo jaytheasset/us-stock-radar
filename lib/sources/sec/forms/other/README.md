@@ -1,7 +1,9 @@
 # Other SEC Filing Parser Room
 
-Scope: fallback handling for SEC filings that do not fit a dedicated parser room.
+Scope:
 
-Allowed here: parser code, fixtures, parser tests, and local notes for this fallback family.
+- Other SEC Filing
 
-Do not wire this folder into runtime ingestion from this room. Leave integration to the SEC parser integration room.
+Allowed here: parser code, fixtures, parser tests, router prompt draft, analysis prompt draft, and local notes for this fallback form family.
+
+Do not wire this folder into runtime ingestion from this room.

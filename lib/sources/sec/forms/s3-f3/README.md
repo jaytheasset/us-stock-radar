@@ -1,9 +1,12 @@
 # S-3 / F-3 Parser Room
 
-Scope: `S-3`, `S-3/A`, `S-3ASR`, `F-3`, `F-3/A`, `F-3ASR`.
+Scope:
 
-Existing S-3 behavior must be preserved. `parser.ts` is the current baseline for this folder and now includes parser-level F-3 family recognition covered by local fixtures.
+- S-3 / F-3 / S-3ASR / F-3ASR
+- S-3/A / F-3/A
 
-Allowed here: parser code, fixtures, parser tests, and local notes for this form family.
+Existing S-3/F-3 family work in this folder is preserved. Do not delete or rewrite it unless the user explicitly asks for S-3/F-3 work.
 
-Do not wire new F-3 behavior into runtime ingestion from this room. Leave integration to the SEC parser integration room.
+Allowed here: parser code, fixtures, parser tests, router prompt draft, analysis prompt draft, and local notes for this form family.
+
+Do not wire this folder into runtime ingestion from this room.

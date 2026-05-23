@@ -41,7 +41,7 @@ export const SEC_FORM_PARSER_GROUPS = [
   },
   {
     slug: "proxy",
-    forms: ["DEF 14A", "DEFA14A", "PRE 14A", "PRER14A", "PREC14A"],
+    forms: ["Proxy", "DEF 14A", "DEFA14A", "PRE 14A", "PRER14A", "PREC14A"],
   },
   {
     slug: "425",
@@ -53,7 +53,7 @@ export const SEC_FORM_PARSER_GROUPS = [
   },
   {
     slug: "tender",
-    forms: ["SC TO-I", "SC TO-T", "SC TO-C", "CB", "SC 13E3", "SC 13E3/A"],
+    forms: ["Tender", "SC TO-I", "SC TO-T", "SC TO-C", "CB", "13E3", "13E3/A", "SC 13E3", "SC 13E3/A"],
   },
   {
     slug: "form25",
