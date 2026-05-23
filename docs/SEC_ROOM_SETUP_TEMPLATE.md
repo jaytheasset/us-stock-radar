@@ -59,6 +59,7 @@ mix together and one room can accidentally see or commit another room's work.
 | `Tender / CB / 13E3` | `docs/SEC_TENDER_CB_13E3_ROOM.md` | `lib/sources/sec/forms/tender-cb-13e3/` | `sec/tender-cb-13e3` |
 | `Form 25 / 25-NSE` | `docs/SEC_FORM25_ROOM.md` | `lib/sources/sec/forms/form25/` | `sec/form25` |
 | `Other SEC Filing` | `docs/SEC_OTHER_ROOM.md` | `lib/sources/sec/forms/other/` | `sec/other` |
+| SEC common contracts/helpers | `docs/SEC_COMMON_ROOM.md` | `lib/sources/sec/forms/common/` | `sec/common` |
 | SEC ingest / site connection | `docs/SEC_INGEST_INTEGRATION_ROOM.md` | integration files only after form output exists | `sec/ingest-integration` |
 | SEC detail UI | `docs/SEC_EVENT_DETAIL_UI_ROOM.md` | app/UI files only after UI payload exists | `sec/event-detail-ui` |
 
@@ -199,7 +200,29 @@ Final handoff:
 - Remaining risks:
 ```
 
-## 9. First Message For The Ingest Room
+## 9. First Message For The Common Room
+
+Use this only when shared SEC contracts or helpers need to be updated.
+
+```text
+This room is for SEC common contracts and helpers.
+
+First read docs/SEC_FORM_ROOM_RULES.md and docs/SEC_COMMON_ROOM.md.
+
+Only work inside lib/sources/sec/forms/common/.
+Do not touch individual form folders, ingest, DB, app/UI, alerts, live FMP, or
+live DB.
+
+This room may define shared types, validators, constants, score-to-delivery
+helpers, and fixture-only market-context interfaces.
+
+Use only the approved 15 event types from docs/SEC_COMMON_ROOM.md.
+
+First state which common contract or helper will be changed and which files may
+change. Do not edit files yet.
+```
+
+## 10. First Message For The Ingest Room
 
 Use this only after at least one form room has completed its output.
 
@@ -219,7 +242,7 @@ First state which form room will be integrated and which files may change.
 Do not edit files yet.
 ```
 
-## 10. First Message For The Detail UI Room
+## 11. First Message For The Detail UI Room
 
 Use this only after a real special `display_payload` exists.
 
