@@ -35,6 +35,28 @@ Do not edit these from a form room:
 Common code, ingest connection, DB persistence, site display, and alert sending
 are handled later in the integration or UI room.
 
+## Exact Form Room Scopes
+
+Do not shorten, rename, or reinterpret these scopes in room handoffs. Other
+parallel rooms rely on these exact labels.
+
+- `8-K / 6-K, 8-K/A / 6-K/A`
+- `10-K / 10-Q / 20-F, 10-K/A / 10-Q/A / 20-F/A`
+- `NT 10-K / NT 10-Q / NT 20-F`
+- `S-1 / F-1, S-1/A / F-1/A`
+- `S-3 / F-3 / S-3ASR / F-3ASR, S-3/A / F-3/A`
+- `424B3 / 424B5`
+- `S-8 / S-8/A`
+- `EFFECT`
+- `Form 4 / 4/A, Form 144 / 144/A`
+- `SC 13D / SC 13D/A, SC 13G / SC 13G/A`
+- `Proxy`
+- `425`
+- `S-4 / F-4 / S-4/A / F-4/A`
+- `Tender / CB / 13E3`
+- `Form 25 / 25-NSE`
+- `Other SEC Filing`
+
 ## Required Flow
 
 Default flow:
@@ -130,6 +152,92 @@ example:
   "market_context_fields": ["price", "market_cap", "shares_outstanding", "public_float"]
 }
 ```
+
+## Required Output JSON
+
+Each form room must produce fixture and expected-output JSON in this shape. This
+keeps the later SEC ingest/integration work from guessing how each room named
+its fields.
+
+```json
+{
+  "parser_output": {
+    "parserVersion": "string",
+    "parserGroup": "form-room-folder-name",
+    "formType": "exact room scope label or exact SEC form type",
+    "accessionNumber": "string | null",
+    "isSupported": true,
+    "summary": "string | null",
+    "facts": {},
+    "signals": [],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company | sector | theme | macro",
+    "event_type": "one of the approved 15 event types",
+    "event_title": "string",
+    "primary_ticker": {
+      "ticker": "string | null",
+      "exchange": "string | null"
+    },
+    "tickers": [],
+    "sector": "string | null",
+    "industry_group": "string | null",
+    "theme_group": "string | null",
+    "sub_theme": "string | null",
+    "score": 0,
+    "score_reason": "string",
+    "signal": "bullish | bearish | volatile | neutral",
+    "quick_take": "string",
+    "summary": "string",
+    "why_it_matters": "string",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [],
+    "what_to_watch_next": [],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high | medium | low",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic | offering_terms | candidate_special",
+    "data": {},
+    "evidence": [],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive | feed | alert",
+    "expected_impact": "low | medium | high",
+    "market_context_needed": false,
+    "market_context_reason": "string | null",
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": "string | null",
+    "integration_notes": []
+  }
+}
+```
+
+`delivery_level` is derived from `analysis_output.score`; it is not a separate
+free-form LLM decision. Below 50 is `archive`, 50 to 74 is `feed`, and 75 or
+above is `alert`.
+
+`display_payload.display_type` starts with only three values:
+
+- `generic`: common detail page is enough.
+- `offering_terms`: dilution/offering details that can map to offering display
+  or `event_offering_terms`.
+- `candidate_special`: the form room found fields that likely need a new
+  special detail UI, but the UI type is not approved yet.
+
+When using `candidate_special`, put the proposed display fields in
+`display_payload.data`, keep evidence in `display_payload.evidence`, and explain
+the UI need in `fixture_expected.special_ui_reason` and the final handoff. Do
+not create a new display type from a form room.
 
 ## Amendment Forms
 
@@ -229,4 +337,3 @@ detail pages, and alerts.
 
 The detail UI room decides whether an event type needs a special page. Form
 rooms should not build UI directly.
-
