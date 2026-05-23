@@ -1,28 +1,31 @@
 # SEC Room Setup Template
 
-이 문서는 새 Codex 방을 만들 때 그대로 따라가는 세팅 절차다.
+Use this file when opening a new Codex room for parallel SEC filing work.
 
-핵심은 단순하다:
+The goal is simple:
 
-- 인수인계 MD는 기준 문서다. 개별 방에서 커밋하지 않는다.
-- 개별 공시폼 방은 자기 폴더만 수정한다.
-- 공통, ingest, DB, UI, 알림, 라이브 FMP 연결은 해당 전용 방에서만 한다.
-- 병렬 작업이면 같은 로컬 폴더 하나를 여러 방이 동시에 쓰지 않는다.
+- Handoff MD files are shared rule documents. Do not commit them from an
+  individual form room.
+- Each form room edits only its own form folder.
+- Common code, ingest wiring, DB changes, UI, alerts, live FMP, and live DB
+  work are handled only in their dedicated rooms.
+- For real parallel work, do not let multiple Codex rooms edit the same local
+  folder at the same time.
 
-## 1. 병렬 작업 폴더 만들기
+## 1. Create A Separate Worktree
 
-진짜 병렬로 돌릴 방은 git worktree로 폴더를 분리한다.
+Use a separate git worktree for each parallel Codex room.
 
-기준 폴더:
+Start from the main project folder:
 
 ```powershell
 cd "C:\Users\PC\Documents\Codex\US-Stock Radar"
 git status --short
 ```
 
-`git status --short`가 깨끗한 상태에서 새 작업 폴더를 만든다.
+Only create new worktrees when `git status --short` is clean.
 
-예시:
+Examples:
 
 ```powershell
 git worktree add "..\US-Stock-Radar-sec-8k-6k" -b sec/8k-6k
@@ -30,12 +33,13 @@ git worktree add "..\US-Stock-Radar-sec-s1-f1" -b sec/s1-f1
 git worktree add "..\US-Stock-Radar-sec-424b" -b sec/424b
 ```
 
-새 Codex 방은 원본 폴더가 아니라 각 worktree 폴더로 연다.
+Open the new Codex room in the worktree folder, not in the original project
+folder.
 
-같은 폴더 하나를 여러 Codex 방이 동시에 수정하면 dirty 상태가 섞이고,
-한 방의 산출물이 다른 방에 보이면서 꼬일 수 있다.
+If multiple Codex rooms edit the same folder at the same time, dirty files can
+mix together and one room can accidentally see or commit another room's work.
 
-## 2. 방별 기준표
+## 2. Room Map
 
 | Scope | Handoff MD | Work Folder | Branch Example |
 | --- | --- | --- | --- |
@@ -58,124 +62,139 @@ git worktree add "..\US-Stock-Radar-sec-424b" -b sec/424b
 | SEC ingest / site connection | `docs/SEC_INGEST_INTEGRATION_ROOM.md` | integration files only after form output exists | `sec/ingest-integration` |
 | SEC detail UI | `docs/SEC_EVENT_DETAIL_UI_ROOM.md` | app/UI files only after UI payload exists | `sec/event-detail-ui` |
 
-## 3. 새 공시폼 방 첫 메시지
+## 3. First Message For A New Form Room
 
-아래를 새 방 첫 메시지로 붙여 넣는다. 대괄호 부분만 바꾼다.
+Paste this as the first message in the new Codex room. Replace the bracketed
+parts.
 
 ```text
-이 방은 SEC [정확한 Scope] 작업방이다.
+This room is for SEC [exact Scope].
 
-먼저 아래 두 문서와 작업 폴더만 읽어라.
+First, read only these documents and this work folder:
 
 - docs/SEC_FORM_ROOM_RULES.md
-- docs/[해당 ROOM MD 파일명]
-- [해당 Work Folder]
+- docs/[matching ROOM MD filename]
+- [matching Work Folder]
 
-이 MD들은 기준 문서다. 수정하지 마라.
+These MD files are rule documents. Do not edit them.
 
-작업은 [해당 Work Folder] 안에서만 한다.
-common, ingest, DB, app/UI, alerts, live FMP, live DB는 건드리지 마라.
+Only work inside [matching Work Folder].
+Do not touch common, ingest, DB, app/UI, alerts, live FMP, or live DB.
 
-목표 흐름은 parser > router LLM prompt > analysis LLM prompt > fixture JSON tests다.
-LLM 없이 deterministic으로 끝나는 케이스가 있으면 fixture로 증명만 해라.
+The target flow is parser > router LLM prompt > analysis LLM prompt >
+fixture JSON tests.
 
-시장정보는 fixture JSON으로만 넣고 실제 API 호출은 하지 마라.
-결과 JSON은 docs/SEC_FORM_ROOM_RULES.md의 Required Output JSON 형식을 따른다.
+If a case can finish deterministically without LLM, prove it with a fixture.
 
-먼저 문서와 폴더를 읽고 작업 계획만 말해라.
-아직 수정하지 마라.
+Use market context only as fixture JSON. Do not call a live API.
+Result JSON must follow the Required Output JSON shape in
+docs/SEC_FORM_ROOM_RULES.md.
+
+First read the documents and folder, then give only the work plan.
+Do not edit files yet.
 ```
 
-## 4. 작업 시작 허가 메시지
+## 4. Start-Work Approval Message
 
-계획을 보고 괜찮으면 아래처럼 말한다.
+After reviewing the plan, paste this if the plan is acceptable.
 
 ```text
-진행해.
+Proceed.
 
-수정 전 변경할 파일 목록을 먼저 말해라.
-수정은 [해당 Work Folder] 안에서만 해라.
-테스트는 fixture JSON으로만 해라.
+Before editing, state the exact files you will change.
+Only edit files inside [matching Work Folder].
+Use fixture JSON only for tests.
 
-작업 중 공통 규칙, market context, ingest 연결, 특수 상세 UI가 필요해지면
-구현하지 말고 final handoff에 적어라.
-다른 공시폼 방들이 병렬로 작업 중이라 공통/DB/UI/ingest를 건드리면 충돌난다.
+If you find a need for common rules, market context, ingest wiring, or special
+detail UI, do not implement it. Record it in the final handoff.
+
+Other SEC form rooms are working in parallel. Touching common, DB, UI, ingest,
+alerts, live FMP, or live DB from this room can create conflicts.
 ```
 
-## 5. 중간 리마인드
+## 5. Reminder Message
 
-작업이 길어지면 이 문장을 다시 붙인다.
+Paste this during long work if the room starts drifting.
 
 ```text
-리마인드: 이 방은 [해당 Work Folder] 안에서만 작업한다.
-공통, ingest, DB, app/UI, alerts, live FMP, live DB는 건드리지 마라.
-필요하면 구현하지 말고 final handoff에 적어라.
+Reminder: this room only works inside [matching Work Folder].
+Do not touch common, ingest, DB, app/UI, alerts, live FMP, or live DB.
+If something outside the folder is needed, do not implement it. Record it in
+the final handoff.
 ```
 
-## 6. 커밋 전 확인 메시지
+## 6. Before Commit Check
 
-개별 방에서 커밋하기 전에 아래를 요구한다.
+Ask this before a form room commits.
 
 ```text
-커밋 전에 git status를 보여주고,
-변경 파일이 전부 [해당 Work Folder] 안에만 있는지 확인해라.
+Before committing, show git status and confirm that every changed file is
+inside [matching Work Folder].
 
-인수인계 MD, common, ingest, DB, app/UI, alerts 파일이 있으면 커밋하지 말고 멈춰라.
+If handoff MD files, common, ingest, DB, app/UI, or alerts are changed, stop and
+do not commit.
 ```
 
-정상이라면 개별 방은 자기 branch에서 자기 작업물만 커밋한다.
+If clean, the individual room commits only its own work on its own branch.
 
-인수인계 MD는 이 메인 방에서 관리하는 기준 문서라서 개별 공시폼 방에서 다시
-커밋하지 않는다.
+The handoff MD files are managed by the main coordination room. Individual form
+rooms should not recommit or rewrite them.
 
-## 7. 완료 보고 형식
+## 7. Final Handoff Format
 
-각 공시폼 방은 완료할 때 이것만 보고한다.
+Each form room should finish with this report.
 
 ```text
-완료 보고:
+Final handoff:
 
-- 작업한 scope:
-- 변경 파일:
-- 만든 parser/router/analysis:
-- fixture 테스트:
-- score별 archive/feed/alert 예시:
-- market context 필요 여부:
-- ingest 방에 전달할 내용:
-- 상세 UI 방에 전달할 내용:
-- common 규칙으로 승격할 후보:
-- 남은 위험:
+- Scope:
+- Changed files:
+- Parser/router/analysis created:
+- Fixture tests:
+- Score examples for archive/feed/alert:
+- Market context needs:
+- Notes for the ingest room:
+- Notes for the detail UI room:
+- Candidate common rules:
+- Remaining risks:
 ```
 
-## 8. ingest 방 시작 메시지
+## 8. First Message For The Ingest Room
 
-폼 방 산출물이 하나 이상 끝난 뒤에만 시작한다.
+Use this only after at least one form room has completed its output.
 
 ```text
-이 방은 SEC ingest / integration 방이다.
+This room is for SEC ingest / integration.
 
-먼저 docs/SEC_FORM_ROOM_RULES.md 와 docs/SEC_INGEST_INTEGRATION_ROOM.md를 읽어라.
-완료된 공시폼 방의 final handoff와 Required Output JSON만 기준으로 연결한다.
+First read docs/SEC_FORM_ROOM_RULES.md and
+docs/SEC_INGEST_INTEGRATION_ROOM.md.
 
-개별 parser 로직을 고치지 마라.
-DB, ingest, market context, feed, filings page, archive, alert 연결만 담당한다.
+Use only completed form-room final handoffs and Required Output JSON as input.
+Do not change individual parser logic.
 
-먼저 어떤 form room을 연결할지와 변경 예정 파일을 말해라.
-아직 수정하지 마라.
+This room handles DB, ingest, market context, feed, filings page, archive, and
+alert wiring.
+
+First state which form room will be integrated and which files may change.
+Do not edit files yet.
 ```
 
-## 9. 상세 UI 방 시작 메시지
+## 9. First Message For The Detail UI Room
 
-특수 `display_payload`가 실제로 나온 뒤에만 시작한다.
+Use this only after a real special `display_payload` exists.
 
 ```text
-이 방은 SEC event detail UI 방이다.
+This room is for SEC event detail UI.
 
-먼저 docs/SEC_FORM_ROOM_RULES.md 와 docs/SEC_EVENT_DETAIL_UI_ROOM.md를 읽어라.
-완료된 공시폼 방의 display_payload와 ingest 방의 저장 방식을 기준으로 UI를 만든다.
+First read docs/SEC_FORM_ROOM_RULES.md and
+docs/SEC_EVENT_DETAIL_UI_ROOM.md.
 
-parser, router, analysis prompt, ingest, DB, alerts는 건드리지 마라.
+Use completed form-room display_payload output and the ingest room's storage
+format as input.
 
-먼저 어떤 display_type 또는 candidate_special을 화면화할지와 변경 예정 파일을 말해라.
-아직 수정하지 마라.
+Do not touch parser, router, analysis prompt, ingest, DB, or alerts.
+
+First state which display_type or candidate_special will be rendered and which
+files may change.
+Do not edit files yet.
 ```
