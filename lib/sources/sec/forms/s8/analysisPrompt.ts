@@ -1,5 +1,5 @@
 import type { S8MarketContext, S8ParserOutput, S8RequiredFixtureOutput, S8RouterDecision } from "./types";
-import { S8_APPROVED_EVENT_TYPES, S8_UI_MODES, scoreToS8DeliveryLevel } from "./types";
+import { S8_APPROVED_EVENT_TYPES, S8_CONTEXT_DETAIL_LABELS, S8_SNAPSHOT_METRIC_LABELS, S8_UI_MODES, scoreToS8DeliveryLevel } from "./types";
 import { buildS8SourceBlockPromptInput, type S8SourceBlockPromptInput } from "./routerPrompt";
 
 export function buildS8CompactAnalysisInput(params: {
@@ -89,8 +89,25 @@ export function buildS8AnalysisPrompt(params: {
     "- Use post_effective_amendment for S-8 POS, deregistration, no-additional-securities, carryover, plan replacement, or amendment-update cases.",
     "- Do not use resale wording for plan_registration, inducement_awards, or post_effective_amendment unless resale source facts are also present.",
     "- Build display_payload from source-backed values only. Do not invent UI fields.",
+    "- For display_payload.data.snapshot_metrics, choose up to 4 cards from the approved S-8 labels only: " +
+      S8_SNAPSHOT_METRIC_LABELS.join(", ") +
+      ".",
+    "- For S-8 POS reoffer/resale with parent context, populate display_payload.data.s8_context_details with up to 6 rows from these approved labels only: " +
+      S8_CONTEXT_DETAIL_LABELS.join(", ") +
+      ".",
+    "- For S-8 POS reoffer/resale context details, prefer Parent filing, Parent plan shares, Reoffer subset, Relationship, Company proceeds, and Selling holders when source-backed.",
+    "- s8_context_details should explain the relationship between the parent S-8 and current POS filing in short values, not repeat the chart calculation.",
+    "- Do not output Company proceeds as an S-8 snapshot metric. Ordinary S-8 plan registration is not a cash offering.",
+    "- Use Vesting Period only when cleaned_source_blocks directly state a vesting schedule or vesting condition. Otherwise omit it.",
+    "- For ordinary S-8 plan registration, prefer Shares Outstanding, Registered plan shares, Plan Shares / Outstanding, and either Plan Name, Plan Type, Immediate Dilution, or Vesting Period when source-backed.",
+    "- For inducement awards, prefer Shares Outstanding, Registered inducement shares, Inducement Shares / Outstanding, Award Type, Grant Date, Recipient Count, or Vesting Period when source-backed.",
+    "- For reoffer/resale without parent S-8 context, prefer Shares Outstanding, Reoffer resale shares, Resale Shares / Outstanding, Selling Holders, Plan Name, or Vesting Period when source-backed.",
+    "- For S-8 POS reoffer/resale with parent_filing_context, show the parent plan registration and the reoffer subset separately. Prefer Shares Outstanding, Parent plan shares, Reoffer subset, and Parent Plan / Outstanding when source-backed.",
+    "- When S-8 POS reoffer/resale has parent plan context, snapshot_metrics must use Reoffer subset instead of Reoffer resale shares, and Parent Plan / Outstanding instead of Resale Shares / Outstanding.",
+    "- In S-8 POS reoffer/resale, do not add the reoffer subset on top of the parent plan shares. The reoffer shares are a subset of the parent S-8 plan registration unless the current filing clearly registers additional shares.",
+    "- For post-effective amendments, prefer Amendment Status, Additional Shares, Prior Shares Carried Forward, Remaining Plan Shares Removed, and Plan Name when source-backed.",
     "- The UI will not recalculate S-8 share counts from parser facts or raw text. Populate display_payload.data.total_registered_shares from cleaned_source_blocks when the current filing discloses a current total.",
-    "- When source-backed, also populate display_payload.data.plan_registered_shares, inducement_award_shares, reoffer_resale_shares, current_shares_outstanding, and estimated_dilution_percent.",
+    "- When source-backed, also populate display_payload.data.plan_registered_shares, parent_plan_registered_shares, inducement_award_shares, reoffer_resale_shares, current_shares_outstanding, and estimated_dilution_percent.",
     "- If the current S-8 registers both plan shares and inducement awards, use s8_ui_mode inducement_awards; total_registered_shares must equal the current source-backed components and key_evidence must show the component counts.",
     "- If total_registered_shares and current_shares_outstanding are both source-backed or supplied by market_context, calculate estimated_dilution_percent as total_registered_shares divided by current_shares_outstanding times 100.",
     "- Do not use fee-table dollar amounts, aggregate offering amount, registration fee, or plan interests as share counts.",
@@ -226,8 +243,25 @@ export function buildS8DilutionAnalysisPrompt(params: {
     "- Use post_effective_amendment for S-8 POS, deregistration, no-additional-securities, carryover, plan replacement, or amendment-update cases.",
     "- Do not use resale wording for plan_registration, inducement_awards, or post_effective_amendment unless resale source facts are also present.",
     "- Build display_payload from source-backed values only. Do not invent UI fields.",
+    "- For display_payload.data.snapshot_metrics, choose up to 4 cards from the approved S-8 labels only: " +
+      S8_SNAPSHOT_METRIC_LABELS.join(", ") +
+      ".",
+    "- For S-8 POS reoffer/resale with parent context, populate display_payload.data.s8_context_details with up to 6 rows from these approved labels only: " +
+      S8_CONTEXT_DETAIL_LABELS.join(", ") +
+      ".",
+    "- For S-8 POS reoffer/resale context details, prefer Parent filing, Parent plan shares, Reoffer subset, Relationship, Company proceeds, and Selling holders when source-backed.",
+    "- s8_context_details should explain the relationship between the parent S-8 and current POS filing in short values, not repeat the chart calculation.",
+    "- Do not output Company proceeds as an S-8 snapshot metric. Ordinary S-8 plan registration is not a cash offering.",
+    "- Use Vesting Period only when cleaned_source_blocks directly state a vesting schedule or vesting condition. Otherwise omit it.",
+    "- For ordinary S-8 plan registration, prefer Shares Outstanding, Registered plan shares, Plan Shares / Outstanding, and either Plan Name, Plan Type, Immediate Dilution, or Vesting Period when source-backed.",
+    "- For inducement awards, prefer Shares Outstanding, Registered inducement shares, Inducement Shares / Outstanding, Award Type, Grant Date, Recipient Count, or Vesting Period when source-backed.",
+    "- For reoffer/resale without parent S-8 context, prefer Shares Outstanding, Reoffer resale shares, Resale Shares / Outstanding, Selling Holders, Plan Name, or Vesting Period when source-backed.",
+    "- For S-8 POS reoffer/resale with parent_filing_context, show the parent plan registration and the reoffer subset separately. Prefer Shares Outstanding, Parent plan shares, Reoffer subset, and Parent Plan / Outstanding when source-backed.",
+    "- When S-8 POS reoffer/resale has parent plan context, snapshot_metrics must use Reoffer subset instead of Reoffer resale shares, and Parent Plan / Outstanding instead of Resale Shares / Outstanding.",
+    "- In S-8 POS reoffer/resale, do not add the reoffer subset on top of the parent plan shares. The reoffer shares are a subset of the parent S-8 plan registration unless the current filing clearly registers additional shares.",
+    "- For post-effective amendments, prefer Amendment Status, Additional Shares, Prior Shares Carried Forward, Remaining Plan Shares Removed, and Plan Name when source-backed.",
     "- The UI will not recalculate S-8 share counts from parser facts or raw text. Populate display_payload.data.total_registered_shares from cleaned_source_blocks when the current filing discloses a current total.",
-    "- When source-backed, also populate display_payload.data.plan_registered_shares, inducement_award_shares, reoffer_resale_shares, current_shares_outstanding, and estimated_dilution_percent.",
+    "- When source-backed, also populate display_payload.data.plan_registered_shares, parent_plan_registered_shares, inducement_award_shares, reoffer_resale_shares, current_shares_outstanding, and estimated_dilution_percent.",
     "- If the current S-8 registers both plan shares and inducement awards, use s8_ui_mode inducement_awards; total_registered_shares must equal the current source-backed components and key_evidence must show the component counts.",
     "- If total_registered_shares and current_shares_outstanding are both source-backed or supplied by market_context, calculate estimated_dilution_percent as total_registered_shares divided by current_shares_outstanding times 100.",
     "- Do not use fee-table dollar amounts, aggregate offering amount, registration fee, or plan interests as share counts.",
@@ -523,11 +557,30 @@ function requiredRuntimeOutputTemplate() {
         s8_ui_mode: "plan_registration | inducement_awards | reoffer_resale | post_effective_amendment",
         total_registered_shares: null,
         plan_registered_shares: null,
+        parent_plan_registered_shares: null,
+        parent_plan_dilution_percent: null,
+        reoffer_subset_of_parent_plan_percent: null,
+        reoffer_subset_of_parent_plan: null,
         inducement_award_shares: null,
         reoffer_resale_shares: null,
         current_shares_outstanding: null,
         estimated_dilution_percent: null,
         share_count_basis: "short source-backed explanation or null",
+        snapshot_metrics: [
+          {
+            label: "one approved S-8 snapshot label",
+            value: "short source-backed value",
+            note: "short plain-English note or null",
+            emphasis: false,
+            tone: "neutral",
+          },
+        ],
+        s8_context_details: [
+          {
+            label: "one approved S-8 context label",
+            value: "short source-backed value",
+          },
+        ],
       },
       evidence: [],
       notes: [],

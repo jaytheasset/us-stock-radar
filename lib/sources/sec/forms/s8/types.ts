@@ -35,6 +35,43 @@ export const S8_UI_MODES = [
   "post_effective_amendment",
 ] as const;
 export type S8UiMode = (typeof S8_UI_MODES)[number];
+export const S8_SNAPSHOT_METRIC_LABELS = [
+  "Shares Outstanding",
+  "Registered plan shares",
+  "Plan Shares / Outstanding",
+  "Plan Type",
+  "Plan Name",
+  "Immediate Dilution",
+  "Vesting Period",
+  "Registered inducement shares",
+  "Inducement Shares / Outstanding",
+  "Award Type",
+  "Grant Date",
+  "Recipient Count",
+  "Reoffer resale shares",
+  "Resale Shares / Outstanding",
+  "Parent plan shares",
+  "Parent Plan / Outstanding",
+  "Reoffer subset",
+  "Subset of Parent Plan",
+  "Selling Holders",
+  "Amendment Status",
+  "Additional Shares",
+  "Prior Shares Carried Forward",
+  "Remaining Plan Shares Removed",
+] as const;
+export type S8SnapshotMetricLabel = (typeof S8_SNAPSHOT_METRIC_LABELS)[number];
+export const S8_CONTEXT_DETAIL_LABELS = [
+  "Parent filing",
+  "Parent plan shares",
+  "Reoffer subset",
+  "Relationship",
+  "Company proceeds",
+  "Selling holders",
+  "What changed",
+  "What did not change",
+] as const;
+export type S8ContextDetailLabel = (typeof S8_CONTEXT_DETAIL_LABELS)[number];
 export type S8Bucket =
   | "admin_archive"
   | "dilution_registration"

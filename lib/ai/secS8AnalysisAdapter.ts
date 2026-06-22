@@ -1,11 +1,26 @@
 import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
+import { buildSecRequiredOutputSchema } from "@/lib/ai/secRequiredOutputSchema";
 import { adaptSecFormRoomOutputForIngest, type SecFormRoomAdapterOutput } from "@/lib/sources/sec/forms/common/formRoomAdapter";
 import { buildS8AnalysisPrompt } from "@/lib/sources/sec/forms/s8/analysisPrompt";
 import { routeS8Filing } from "@/lib/sources/sec/forms/s8/routerPrompt";
-import type { S8MarketContext, S8ParserOutput } from "@/lib/sources/sec/forms/s8/types";
+import {
+  S8_CONTEXT_DETAIL_LABELS,
+  S8_SNAPSHOT_METRIC_LABELS,
+  type S8MarketContext,
+  type S8ParserOutput,
+} from "@/lib/sources/sec/forms/s8/types";
 
 export const SEC_S8_ANALYSIS_PROMPT_KEY = "sec_s8_analysis";
 export const SEC_S8_ANALYSIS_PROMPT_VERSION = "v1";
+
+const S8_DISPLAY_UI_MODES = [
+  "plan_registration",
+  "inducement_awards",
+  "reoffer_resale",
+  "post_effective_amendment",
+] as const;
+const S8_SNAPSHOT_LABEL_SET = new Set<string>(S8_SNAPSHOT_METRIC_LABELS);
+const S8_CONTEXT_DETAIL_LABEL_SET = new Set<string>(S8_CONTEXT_DETAIL_LABELS);
 
 export type SecS8AnalysisAdapterResult =
   | { ok: true; analysis: Record<string, unknown> }
@@ -67,10 +82,19 @@ export function adaptSecS8AnalysisPromptResultForAnalysis(
     };
   }
 
+  const sanitizedDisplayPayload = sanitizeS8DisplayPayload(displayPayload);
+  const displayPayloadError = validateS8RuntimeDisplayPayload(sanitizedDisplayPayload);
+  if (displayPayloadError) {
+    return {
+      ok: false,
+      error: displayPayloadError,
+    };
+  }
+
   return adaptS8RoomResultForAnalysis({
     parser_output: parserOutput,
     analysis_output: normalizeS8AnalysisOutput(analysisOutput, input),
-    display_payload: sanitizeS8DisplayPayload(displayPayload),
+    display_payload: sanitizedDisplayPayload,
   });
 }
 
@@ -275,11 +299,68 @@ function sanitizeS8DisplayPayload(value: Record<string, unknown>) {
   const record = readRecord(sanitized);
   if (!record) return value;
 
+  const data = readRecord(record.data);
+  if (data) {
+    const snapshotMetrics = recordArray(data.snapshot_metrics)
+      .map((item: Record<string, unknown>) => {
+        const label = stringValue(item.label);
+        if (!S8_SNAPSHOT_LABEL_SET.has(label) || !hasS8DisclosureValue(item.value)) return null;
+        return {
+          label,
+          value: item.value,
+          note: hasS8DisclosureValue(item.note) ? item.note : null,
+          emphasis: item.emphasis === true,
+          tone: ["danger", "positive", "neutral"].includes(stringValue(item.tone)) ? stringValue(item.tone) : "neutral",
+        };
+      })
+      .filter(Boolean)
+      .slice(0, 4);
+    if (snapshotMetrics.length) {
+      data.snapshot_metrics = snapshotMetrics;
+    } else {
+      delete data.snapshot_metrics;
+    }
+    const contextDetails = recordArray(data.s8_context_details)
+      .map((item: Record<string, unknown>) => {
+        const label = stringValue(item.label);
+        if (!S8_CONTEXT_DETAIL_LABEL_SET.has(label) || !hasS8DisclosureValue(item.value)) return null;
+        return {
+          label,
+          value: item.value,
+        };
+      })
+      .filter(Boolean)
+      .slice(0, 6);
+    if (contextDetails.length) {
+      data.s8_context_details = contextDetails;
+    } else {
+      delete data.s8_context_details;
+    }
+    record.data = data;
+  }
+
   if (Array.isArray(record.notes)) {
     record.notes = record.notes.map(sanitizeS8InvestorText).filter((text) => text && !isS8InternalLimitationOnly(text));
   }
 
   return record;
+}
+
+function validateS8RuntimeDisplayPayload(value: Record<string, unknown>) {
+  const data = readRecord(value.data);
+  if (!data || Object.keys(data).length === 0) {
+    return "SEC S-8 display_payload.data must be filled by the analysis LLM";
+  }
+
+  const mode = stringValue(data.s8_ui_mode);
+  if (!S8_DISPLAY_UI_MODES.includes(mode as (typeof S8_DISPLAY_UI_MODES)[number])) {
+    return "SEC S-8 display_payload.data.s8_ui_mode is required and must be a supported S-8 UI mode";
+  }
+  if (!stringValue(data.narrative_summary)) {
+    return "SEC S-8 display_payload.data.narrative_summary is required for the S-8 detail summary UI";
+  }
+
+  return "";
 }
 
 function buildS8AnalysisSearchText(value: Record<string, unknown>, input: SecFilingAnalysisInput) {
@@ -493,13 +574,61 @@ function readRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 }
 
+function recordArray(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value) ? value.map(readRecord).filter((item): item is Record<string, unknown> => Boolean(item)) : [];
+}
+
+function hasS8DisclosureValue(value: unknown) {
+  if (typeof value === "number") return Number.isFinite(value);
+  return stringValue(value).length > 0;
+}
+
 const secS8RequiredOutputSchema = {
-  type: "object",
-  additionalProperties: true,
-  required: ["analysis_output", "display_payload"],
-  properties: {
-    parser_output: { type: "object", additionalProperties: true },
-    analysis_output: { type: "object", additionalProperties: true },
-    display_payload: { type: "object", additionalProperties: true },
-  },
+  ...buildSecRequiredOutputSchema({
+    displayDataRequired: ["s8_ui_mode", "narrative_summary"],
+    displayDataProperties: {
+      s8_ui_mode: { type: "string", enum: S8_DISPLAY_UI_MODES },
+      narrative_summary: { type: "string" },
+      total_registered_shares: { type: ["string", "number", "null"] },
+      plan_registered_shares: { type: ["string", "number", "null"] },
+      parent_plan_registered_shares: { type: ["string", "number", "null"] },
+      parent_plan_dilution_percent: { type: ["string", "number", "null"] },
+      reoffer_subset_of_parent_plan_percent: { type: ["string", "number", "null"] },
+      reoffer_subset_of_parent_plan: { type: ["boolean", "string", "null"] },
+      inducement_award_shares: { type: ["string", "number", "null"] },
+      reoffer_resale_shares: { type: ["string", "number", "null"] },
+      current_shares_outstanding: { type: ["string", "number", "null"] },
+      estimated_dilution_percent: { type: ["string", "number", "null"] },
+      share_count_basis: { type: ["string", "null"] },
+      snapshot_metrics: {
+        type: "array",
+        maxItems: 4,
+        items: {
+          type: "object",
+          additionalProperties: true,
+          required: ["label", "value"],
+          properties: {
+            label: { type: "string", enum: S8_SNAPSHOT_METRIC_LABELS },
+            value: { type: ["string", "number"] },
+            note: { type: ["string", "null"] },
+            emphasis: { type: "boolean" },
+            tone: { type: "string", enum: ["danger", "positive", "neutral"] },
+          },
+        },
+      },
+      s8_context_details: {
+        type: "array",
+        maxItems: 6,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["label", "value"],
+          properties: {
+            label: { type: "string" },
+            value: { type: ["string", "number"] },
+          },
+        },
+      },
+    },
+  }),
 };
