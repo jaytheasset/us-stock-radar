@@ -5274,7 +5274,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
       readRowString(displayPayloadData, "offering_ui_mode"),
   );
   const is424bOfferingTermsPayload =
-    /^424B/i.test(filing.formType.trim()) &&
+    /^(?:424B|S-3|F-3)/i.test(filing.formType.trim()) &&
     readRowString(displayPayloadRecord, "display_type") === "offering_terms";
   const isAuthoritative424bMode = is424bOfferingTermsPayload && Boolean(displayMode);
   const allowDisplayFallbacks = !is424bOfferingTermsPayload;

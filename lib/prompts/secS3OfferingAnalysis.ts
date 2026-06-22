@@ -2,9 +2,11 @@ import {
   secFilingAnalysisResponseSchema,
   type SecFilingAnalysisInput,
 } from "@/lib/prompts/secFilingAnalysis";
+import { sec424bRequiredOutputSchema } from "@/lib/ai/sec424bAnalysisAdapter";
+import { buildSecSourceBlockPromptInput } from "@/lib/sources/sec/forms/common/sourceBlockPromptInput";
 
 export const SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY = "sec_s3_offering_analysis";
-export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v11";
+export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v13";
 
 export const SEC_S3_ANALYSIS_ACTION_VALUES = ["skip_analysis", "routine_archive", "analyze_offering"] as const;
 export const SEC_S3_CASE_VALUES = [
@@ -302,6 +304,40 @@ export const secS3OfferingAnalysisSystemPrompt = [
   "For resale registrations with pre-funded warrants and ordinary warrants in the same registered pool, total_potential_supply is the Registered Resale Pool. Do not label the whole pool Immediate Share Exposure. Only pre-funded warrant shares are near-immediate exposure; ordinary warrants are conditional future overhang.",
 ].join("\n");
 
+const secS3RequiredOutputSystemPrompt = [
+  "Analyze one SEC S-3/F-3 family filing from source-backed SEC text.",
+  "Return JSON only in the Required Output JSON shape: parser_output, analysis_output, display_payload, and optional transaction_fingerprint or filing_context.",
+  "There is no S-3 router LLM and no S-3 offering audit in this flow. Choose event_type, score, display_payload.display_type, and display_payload.data.display_mode directly from the source blocks.",
+  "Use parser candidates only as optional orientation. Source text, important sections, tables, market_context, and parent context are the authority.",
+  "Do not invent offering terms, dates, prices, share counts, ticker symbols, holders, dilution math, or proceeds.",
+  "Use display_payload.display_type = offering_terms when the filing contains offering, resale, ATM, shelf, warrant, convertible, rights, or other dilution mechanics suitable for the offering UI.",
+  "Use display_payload.display_type = generic only when the filing lacks concrete offering/dilution mechanics or is a routine low-impact filing.",
+  "For offering_terms, choose display_payload.data.display_mode from exactly: atm, resale_registration, primary_offering, registered_direct, warrant_convertible, rights_offering, shelf_capacity, mixed_offering, generic.",
+  "Map S-3/F-3 cases as follows: ATM sales agreement = atm; selling stockholder resale = resale_registration; universal/base shelf with no active sale terms = shelf_capacity; priced takedown or fixed-price sale = primary_offering or registered_direct; warrants, convertibles, preferred conversion, or equity line resale = warrant_convertible unless resale clearly dominates; two or more independently material components = mixed_offering.",
+  "S-3/F-3 filings are often registration capacity, not completed sales. Do not score up merely because a shelf is large or the form is S-3.",
+  "Shelf registration without active sale terms usually scores 20-49 unless market context or source text shows a near-term actionable sale.",
+  "ATM capacity is future sale capacity, not completed issuance. Score by size versus market cap or filing-date company value when available, but usually cap below alert unless size is extreme or capital need is explicit.",
+  "Resale registration is potential selling-holder overhang. The company usually receives no resale proceeds unless the filing states ELOC, purchase agreement, warrant exercise cash, or other company cash.",
+  "Primary, registered direct, priced takedown, warrant, convertible, and mixed offerings should use the same investor-facing display structure as 424B offering filings.",
+  "For amendments, score what changed in this filing, not the full parent registration. Routine exhibit, fee, signature, or housekeeping amendments usually archive.",
+  "Delivery rule: score below 50 = archive; 50-74 = feed; 75+ = alert.",
+  "Alert requires source-backed new information likely to affect near-term price, volatility, liquidity, holder economics, or trading decisions. Do not alert from base shelf capacity alone.",
+  "Base shelf, universal shelf, and automatic shelf filings with no active sale terms, no pricing, no sales agent, no takedown, and no named resale pool are registration capacity only. Default score 25-45; hard cap 49 unless the filing itself adds an active sale mechanism.",
+  "Do not score 75+ merely because shelf capacity is very large versus market cap. A shelf is future capacity until a later prospectus supplement, ATM sale, takedown, resale mechanics, or priced sale appears.",
+  "Writing style: plain investor language. Explain what is being registered, whether shares may enter the market, whether the company receives cash, and what remains uncertain.",
+  "Summary must be 2-4 sentences, under 100 words total. why_it_matters one sentence under 35 words. Positive and Negative points may be empty if there are no direct points.",
+  "For parser_output, preserve the integration contract fields: parserVersion, parserGroup, formType, accessionNumber, isSupported, facts, signals, calendarItems, warnings, raw.",
+  "Set parser_output.parserGroup to s3, parser_output.isSupported to true, and parser_output.facts to a compact source-backed object.",
+  "For offering_terms display_payload.data, fill the structured UI fields yourself: display_mode, risk_label, current_shares, total_potential_supply, snapshot_metrics, key_cash_terms, registered_security_totals, supply_segments, investor_takeaway, offering_details, warrant_details, narrative_summary, watch_items, source_notes, review_reasons, needs_human_review.",
+  "offering_details must use only approved labels. For shelf_capacity use only: Offering Type, Shelf Status, Securities Covered, Active Sale Terms, Next Required Filing, Use of Proceeds.",
+  "For atm, primary_offering, registered_direct, rights_offering, and mixed_offering use only: Offering Type, Purchaser / Investor, Placement Agent / Underwriter, Warrant Terms, Closing Date, Agreement Date, Use of Proceeds.",
+  "For warrant_convertible use only: Offering Type, Purchaser / Investor, Placement Agent / Underwriter, Warrant Terms, Exercise Price, Conversion Price, Reset / Repricing, Floor Price, Closing Date, Agreement Date, Use of Proceeds.",
+  "For resale_registration use only: Offering Type, Selling Holders, Agreement Date, Approx. Placement Price, Resale Method, Sale Price, Floor Price, Warrant Terms, Lock-up / Restrictions, Registration Obligation.",
+  "Never create new offering_details labels such as Offering Amount, Securities Offered, Company Proceeds, or Market Cap. Put those values in snapshot_metrics, key_cash_terms, registered_security_totals, total_potential_supply, or narrative_summary when appropriate.",
+  "Do not leave source-backed offering amounts, share counts, sale methods, selling holders, agents, agreement dates, use of proceeds, conversion terms, or warrant terms only in prose.",
+  "Do not rely on UI fallback. If a value is unavailable, use null in structured fact fields and explain briefly in source_notes or review_reasons.",
+].join("\n");
+
 export const secS3OfferingAnalysisResponseSchema = {
   type: "object",
   additionalProperties: false,
@@ -324,14 +360,13 @@ export function buildSecS3OfferingAnalysisPrompt(input: SecFilingAnalysisInput) 
   return {
     key: SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY,
     version: SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION,
-    system: secS3OfferingAnalysisSystemPrompt,
+    system: secS3RequiredOutputSystemPrompt,
     user: JSON.stringify(buildSecS3OfferingPromptInput(input)),
     responseFormat: {
-      type: "json_schema",
       json_schema: {
-        name: "sec_s3_offering_analysis",
-        strict: true,
-        schema: secS3OfferingAnalysisResponseSchema,
+        name: "sec_s3_required_output",
+        strict: false,
+        schema: sec424bRequiredOutputSchema,
       },
     },
   };
@@ -343,8 +378,19 @@ function buildSecS3OfferingPromptInput(input: SecFilingAnalysisInput) {
   const routerEvidence = readRecord(filingPackage.router_evidence) || {};
   const s3Evidence = readRecord(routerEvidence.s3) || {};
   const routerExcerpt = stringValue(s3Evidence.router_excerpt) || trimForPrompt(stringValue(filingPackage.llm_text), 18_000);
+  const marketContext = readRecord(filingPackage.market_context);
+  const sourceBlocks = buildSecSourceBlockPromptInput({
+    filingPackage,
+    parserOutput: buildS3ParserPromptOutput(filingPackage, s3Evidence, hardParsers),
+    fallbackText: routerExcerpt,
+    marketContext,
+    parentFilingContext: readRecord(filingPackage.parent_registration_context),
+    maxBlocks: 60,
+    maxBlockChars: 5_000,
+  });
 
   return {
+    ...sourceBlocks,
     filing_package: {
       package_version: filingPackage.package_version || null,
       source_group: filingPackage.source_group || null,
@@ -387,11 +433,42 @@ function buildSecS3OfferingPromptInput(input: SecFilingAnalysisInput) {
       },
       parent_registration_context: filingPackage.parent_registration_context || null,
       s3_amendment_triage: readRecord(filingPackage.s3_amendment_triage) || null,
-      offering_security_audit: readRecord(filingPackage.offering_security_audit) || null,
-      market_context: filingPackage.market_context || null,
+      market_context: marketContext,
       dilution_metrics: filingPackage.dilution_metrics || null,
       llm_text: routerExcerpt,
       package_stats: filingPackage.package_stats || null,
+    },
+  };
+}
+
+function buildS3ParserPromptOutput(
+  filingPackage: Record<string, unknown>,
+  s3Evidence: Record<string, unknown>,
+  hardParsers: Record<string, unknown>,
+) {
+  const hardS3 = readRecord(hardParsers.s3) || {};
+  return {
+    parserVersion: stringValue(hardS3.parser_version) || "sec_s3_parser_v1",
+    parserGroup: "s3",
+    formType: stringValue(filingPackage.form_type || hardS3.form_type) || "S-3",
+    accessionNumber: stringValue(filingPackage.accession_number || hardS3.accession_number) || null,
+    isSupported: true,
+    facts: {
+      form_type: filingPackage.form_type || hardS3.form_type || null,
+      accession_number: filingPackage.accession_number || hardS3.accession_number || null,
+      company_name: filingPackage.company_name || null,
+      primary_ticker: filingPackage.primary_ticker || null,
+    },
+    signals: [],
+    calendarItems: [],
+    warnings: [],
+    raw: {
+      cleaned_source_blocks: [],
+      important_sections: Array.isArray(s3Evidence.important_sections) ? s3Evidence.important_sections : [],
+      important_tables: readRecord(s3Evidence.important_tables) || null,
+      component_candidates: readRecord(s3Evidence.component_candidates) || null,
+      source_documents: Array.isArray(s3Evidence.source_documents) ? s3Evidence.source_documents : [],
+      source_excerpt: stringValue(s3Evidence.router_excerpt),
     },
   };
 }

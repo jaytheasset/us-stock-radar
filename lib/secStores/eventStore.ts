@@ -216,7 +216,10 @@ async function persistEventOfferingTerms({
   const marketContext = toRecord(filingPackage.market_context);
   const dilutionMetrics = toRecord(filingPackage.dilution_metrics);
   const displayModel = toRecord(analysis.offering_display_model);
-  const is424bAnalysis = promptKey === "sec_424b_analysis" || stringValue(analysis.sec_424b_analysis_mode) === "analysis_only";
+  const isLlmOfferingAnalysis =
+    promptKey === "sec_424b_analysis" ||
+    stringValue(analysis.sec_424b_analysis_mode) === "analysis_only" ||
+    stringValue(analysis.sec_offering_analysis_mode) === "analysis_only";
   const registeredSecurityTotals = toRecord(displayModel?.registered_security_totals);
   const adsEquivalence = toRecord(displayModel?.ads_equivalence);
   const audit = toRecord(analysis.offering_security_audit) || toRecord(filingPackage.offering_security_audit);
@@ -225,14 +228,14 @@ async function persistEventOfferingTerms({
   const cashTerms = toRecord(displayModel?.key_cash_terms);
 
   const currentSharesFact = firstShareFact([
-    is424bAnalysis ? toRecord(registeredSecurityTotals?.current_shares_outstanding) : null,
+    isLlmOfferingAnalysis ? toRecord(registeredSecurityTotals?.current_shares_outstanding) : null,
     toRecord(displayModel?.current_shares),
     toRecord(securityStack?.current_shares_outstanding),
   ]);
   const totalSupplyFact = firstShareFact([
-    is424bAnalysis ? toRecord(registeredSecurityTotals?.ordinary_shares_represented) : null,
-    is424bAnalysis ? toRecord(adsEquivalence?.ordinary_shares_represented) : null,
-    is424bAnalysis ? toRecord(registeredSecurityTotals?.total_distinct_share_exposure) : null,
+    isLlmOfferingAnalysis ? toRecord(registeredSecurityTotals?.ordinary_shares_represented) : null,
+    isLlmOfferingAnalysis ? toRecord(adsEquivalence?.ordinary_shares_represented) : null,
+    isLlmOfferingAnalysis ? toRecord(registeredSecurityTotals?.total_distinct_share_exposure) : null,
     toRecord(displayModel?.total_potential_supply),
     toRecord(securityStack?.max_registered_stack_share_equivalent),
     toRecord(securityStack?.registered_resale_supply),
@@ -241,9 +244,9 @@ async function persistEventOfferingTerms({
     toRecord(securityStack?.primary_common_shares_registered),
   ]);
   const resaleSupplyFact = firstShareFact([
-    is424bAnalysis ? toRecord(registeredSecurityTotals?.ordinary_shares_represented) : null,
-    is424bAnalysis ? toRecord(adsEquivalence?.ordinary_shares_represented) : null,
-    is424bAnalysis ? toRecord(registeredSecurityTotals?.resale_common_shares) : null,
+    isLlmOfferingAnalysis ? toRecord(registeredSecurityTotals?.ordinary_shares_represented) : null,
+    isLlmOfferingAnalysis ? toRecord(adsEquivalence?.ordinary_shares_represented) : null,
+    isLlmOfferingAnalysis ? toRecord(registeredSecurityTotals?.resale_common_shares) : null,
     toRecord(securityStack?.registered_resale_supply),
     toRecord(securityStack?.resale_selling_stockholder_shares),
     toRecord(displayModel?.total_potential_supply),
@@ -262,7 +265,7 @@ async function persistEventOfferingTerms({
   const offeringPriceFact = firstFact([toRecord(proceedsStack?.offering_price)]);
   const conversionPriceFact = firstFact([toRecord(proceedsStack?.conversion_price)]);
   const warrantExercisePriceFact = firstFact([
-    is424bAnalysis ? toRecord(registeredSecurityTotals?.warrant_exercise_price) : null,
+    isLlmOfferingAnalysis ? toRecord(registeredSecurityTotals?.warrant_exercise_price) : null,
     toRecord(proceedsStack?.warrant_exercise_price),
   ]);
   const notePrincipalFact = firstFact([toRecord(proceedsStack?.note_principal)]);
@@ -277,19 +280,19 @@ async function persistEventOfferingTerms({
   const futureSegments = recordArray(displayModel?.future_or_excluded_overhang);
   const explicit424bPrimaryCommonShares = factShareNumber(toRecord(registeredSecurityTotals?.primary_common_shares));
   const explicit424bWarrantUnderlyingShares = factShareNumber(toRecord(registeredSecurityTotals?.warrant_underlying_shares));
-  const commonShareExposure = is424bAnalysis
+  const commonShareExposure = isLlmOfferingAnalysis
     ? explicit424bPrimaryCommonShares
     : sumDisplaySegmentShares(displaySegments, /common|ordinary|ads/i);
-  const prefundedWarrantShares = is424bAnalysis ? 0 : sumDisplaySegmentShares(displaySegments, /pre[-_\s]?funded/i);
+  const prefundedWarrantShares = isLlmOfferingAnalysis ? 0 : sumDisplaySegmentShares(displaySegments, /pre[-_\s]?funded/i);
   const prefundedWarrantExercisePriceFact = firstFact([
     findDisplaySegmentFact(displaySegments, /pre[-_\s]?funded/i, "price"),
   ]);
   const commonWarrantExercisePriceFact = firstFact([
-    is424bAnalysis ? toRecord(registeredSecurityTotals?.warrant_exercise_price) : null,
-    is424bAnalysis ? null : findDisplaySegmentFact(displaySegments, /\bwarrant/i, "price", { exclude: /pre[-_\s]?funded/i }),
+    isLlmOfferingAnalysis ? toRecord(registeredSecurityTotals?.warrant_exercise_price) : null,
+    isLlmOfferingAnalysis ? null : findDisplaySegmentFact(displaySegments, /\bwarrant/i, "price", { exclude: /pre[-_\s]?funded/i }),
     prefundedWarrantShares ? null : warrantExercisePriceFact,
   ]);
-  const displayCommonWarrantShares = is424bAnalysis
+  const displayCommonWarrantShares = isLlmOfferingAnalysis
     ? explicit424bWarrantUnderlyingShares
     : sumDisplaySegmentShares(displaySegments, /\bwarrant/i, {
         exclude: /pre[-_\s]?funded/i,
@@ -298,8 +301,8 @@ async function persistEventOfferingTerms({
   const auditGenericWarrantShares = factShareNumber(toRecord(securityStack?.warrant_underlying_shares));
   const commonWarrantShares =
     displayCommonWarrantShares ||
-    (is424bAnalysis ? 0 : auditCommonWarrantShares) ||
-    (is424bAnalysis || prefundedWarrantShares ? 0 : auditGenericWarrantShares);
+    (isLlmOfferingAnalysis ? 0 : auditCommonWarrantShares) ||
+    (isLlmOfferingAnalysis || prefundedWarrantShares ? 0 : auditGenericWarrantShares);
   const convertibleShareExposure =
     sumDisplaySegmentShares(displaySegments, /convertible|conversion|note/i) ||
     factShareNumber(toRecord(securityStack?.convertible_note_underlying_shares));

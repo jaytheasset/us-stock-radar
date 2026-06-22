@@ -58,13 +58,11 @@ import {
   isS8FilingInput,
 } from "@/lib/ai/secS8AnalysisAdapter";
 import {
-  SEC_OFFERING_AUDIT_PROMPT_KEY,
-  SEC_OFFERING_AUDIT_PROMPT_VERSION,
   SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
   SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
   SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY,
+  adaptSecS3AnalysisPromptResultForAnalysis,
   buildSecS3AnalysisPrompt,
-  buildSecS3AuditPrompt,
   buildSecS3TriagePrompt,
   isS3AmendmentInput,
   isS3FilingInput,
@@ -77,8 +75,6 @@ export {
   SEC_8K_6K_ANALYSIS_PROMPT_VERSION,
   SEC_8K_6K_ROUTER_PROMPT_KEY,
   SEC_8K_6K_ROUTER_PROMPT_VERSION,
-  SEC_OFFERING_AUDIT_PROMPT_KEY,
-  SEC_OFFERING_AUDIT_PROMPT_VERSION,
   SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY,
   SEC_OWNERSHIP_ANALYSIS_PROMPT_VERSION,
   SEC_TENDER_ANALYSIS_PROMPT_KEY,
@@ -99,6 +95,7 @@ export {
   adaptSecSc13AnalysisPromptResultForAnalysis,
   adaptSecS4F4AnalysisPromptResultForAnalysis,
   adaptSecS8AnalysisPromptResultForAnalysis,
+  adaptSecS3AnalysisPromptResultForAnalysis,
   buildDeterministicSc13Analysis,
   buildDeterministicOwnershipAnalysis,
   buildDeterministicS8ArchiveAnalysis,
@@ -108,7 +105,6 @@ export {
   buildSec8k6kRouterPromptForInput,
   buildSecOwnershipAnalysisPrompt,
   buildSecS3AnalysisPrompt,
-  buildSecS3AuditPrompt,
   buildSecS3TriagePrompt,
   buildSecTenderAnalysisPromptForInput,
   buildSecSc13AnalysisPromptForInput,
@@ -135,6 +131,6 @@ export function getSecAnalysisAdapterMode(input: SecFilingAnalysisInput) {
   if (isSc13FilingInput(input)) return "analysis_only";
   if (isS4F4FilingInput(input)) return "s4_f4_analysis_only";
   if (isS8FilingInput(input)) return "analysis_only";
-  if (isS3FilingInput(input)) return "s3_offering_flow";
+  if (isS3FilingInput(input)) return "analysis_only";
   return "generic_sec_analysis";
 }

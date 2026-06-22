@@ -5,8 +5,6 @@ import {
   SEC_8K_6K_ANALYSIS_PROMPT_KEY,
   SEC_8K_6K_ROUTER_PROMPT_KEY,
   SEC_8K_6K_ROUTER_PROMPT_VERSION,
-  SEC_OFFERING_AUDIT_PROMPT_KEY,
-  SEC_OFFERING_AUDIT_PROMPT_VERSION,
   SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY,
   SEC_OWNERSHIP_ANALYSIS_PROMPT_VERSION,
   SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
@@ -24,6 +22,7 @@ import {
   adaptSecSc13AnalysisPromptResultForAnalysis,
   adaptSecS4F4AnalysisPromptResultForAnalysis,
   adaptSecS8AnalysisPromptResultForAnalysis,
+  adaptSecS3AnalysisPromptResultForAnalysis,
   buildDeterministicSc13Analysis,
   buildDeterministicOwnershipAnalysis,
   buildDeterministicS8ArchiveAnalysis,
@@ -36,7 +35,6 @@ import {
   buildSecS4F4AnalysisPromptForInput,
   buildSecS8AnalysisPromptForInput,
   buildSecS3AnalysisPrompt,
-  buildSecS3AuditPrompt,
   buildSecS3TriagePrompt,
   buildSecTenderAnalysisPromptForInput,
   is424bFilingInput,
@@ -238,7 +236,6 @@ export async function runSecFilingAnalysisPreview(options: PreviewOptions = {}) 
 
   const input = await buildInputFromSecRawRowWithContext(rawResult.rawItem);
   const prompt = buildSecFilingPromptForInput(input);
-  const auditPrompt = isS3FilingInput(input) ? buildSecS3AuditPrompt(input) : null;
   const triagePrompt = isS3AmendmentInput(input) ? buildSecS3TriagePrompt(input) : null;
 
   const investableUniverseGate = evaluateSecInvestableUniverse(input);
@@ -270,14 +267,6 @@ export async function runSecFilingAnalysisPreview(options: PreviewOptions = {}) 
               responseFormat: triagePrompt.responseFormat,
             }
           : undefined,
-        audit: auditPrompt
-          ? {
-              key: auditPrompt.key,
-              version: auditPrompt.version,
-              system: auditPrompt.system,
-              responseFormat: auditPrompt.responseFormat,
-            }
-          : undefined,
       },
       audit: null,
       analysis: null,
@@ -298,7 +287,6 @@ export async function runSecFilingAnalysisPreviewForRawItem(
 ) {
   const input = await buildInputFromSecRawRowWithContext(rawItem);
   const prompt = buildSecFilingPromptForInput(input);
-  const auditPrompt = isS3FilingInput(input) ? buildSecS3AuditPrompt(input) : null;
   const triagePrompt = isS3AmendmentInput(input) ? buildSecS3TriagePrompt(input) : null;
 
   const investableUniverseGate = evaluateSecInvestableUniverse(input);
@@ -328,14 +316,6 @@ export async function runSecFilingAnalysisPreviewForRawItem(
               version: triagePrompt.version,
               system: triagePrompt.system,
               responseFormat: triagePrompt.responseFormat,
-            }
-          : undefined,
-        audit: auditPrompt
-          ? {
-              key: auditPrompt.key,
-              version: auditPrompt.version,
-              system: auditPrompt.system,
-              responseFormat: auditPrompt.responseFormat,
             }
           : undefined,
       },
@@ -1256,36 +1236,67 @@ export async function runSecFilingAnalysisForRawRow(
     };
   }
 
-  await attachSecMarketContext(input);
-
-  let audit: Record<string, unknown> | null = null;
-  let auditRun: OpenAiPromptRun | null = null;
   if (isS3FilingInput(input)) {
-    const auditPrompt = buildSecS3AuditPrompt(input);
-    auditRun = await runOpenAiJsonPrompt(env, auditPrompt, llmConfig);
-    if (!auditRun.ok || !auditRun.parsed) {
+    await attachSecMarketContext(input);
+    const prompt = buildSecS3AnalysisPrompt(input);
+    const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
+    if (!analysisRun.ok || !analysisRun.parsed) {
       return {
         ok: false,
         stage: "openai",
-        status: auditRun.status,
-        error: `SEC offering audit failed after ${auditRun.attempts} attempt(s): ${auditRun.error || "no parseable JSON"}`,
+        status: analysisRun.status,
+        error: `SEC S3 analysis failed after ${analysisRun.attempts} attempt(s): ${analysisRun.error || "no parseable JSON"}`,
         sourceItem: summarizeRawRow(rawItem),
         input,
-        triage,
-        triageOutputText: triageRun?.outputText,
-        triageUsage: triageRun?.usage || null,
-        auditOutputText: auditRun.outputText,
-        auditUsage: auditRun.usage,
-        rawOpenAIResponse: auditRun.rawOpenAIResponse,
+        outputText: analysisRun.outputText,
+        usage: analysisRun.usage,
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
         prompt: {
-          key: auditPrompt.key,
-          version: auditPrompt.version,
+          key: prompt.key,
+          version: prompt.version,
         },
       };
     }
-    audit = auditRun.parsed;
-    attachOfferingSecurityAudit(input, audit);
+
+    const secS3Analysis = adaptSecS3AnalysisPromptResultForAnalysis(analysisRun.parsed, input);
+    if (!secS3Analysis.ok) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: analysisRun.status,
+        error: secS3Analysis.error,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        outputText: analysisRun.outputText,
+        usage: analysisRun.usage,
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        prompt: {
+          key: prompt.key,
+          version: prompt.version,
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      stage: "complete",
+      status: analysisRun.status,
+      model: llmConfig.model,
+      openAiResponseId: analysisRun.openAiResponseId,
+      sourceItem: summarizeRawRow(rawItem),
+      input,
+      analysis: secS3Analysis.analysis,
+      outputText: analysisRun.outputText,
+      usage: analysisRun.usage,
+      costEstimate: estimateCost(llmConfig.model, analysisRun.usage),
+      prompt: {
+        key: prompt.key,
+        version: prompt.version,
+      },
+    };
   }
+
+  await attachSecMarketContext(input);
 
   const prompt = buildSecFilingPromptForInput(input);
   const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
@@ -1298,41 +1309,36 @@ export async function runSecFilingAnalysisForRawRow(
       sourceItem: summarizeRawRow(rawItem),
       input,
       triage,
-      audit,
-      auditOpenAiResponseId: auditRun?.openAiResponseId || null,
+      audit: null,
+      auditOpenAiResponseId: null,
       triageOutputText: triageRun?.outputText,
       triageUsage: triageRun?.usage || null,
-      auditOutputText: auditRun?.outputText,
-      auditUsage: auditRun?.usage || null,
+      auditOutputText: undefined,
+      auditUsage: null,
       rawOpenAIResponse: analysisRun.rawOpenAIResponse,
     };
   }
 
   const parsedAnalysis = analysisRun.parsed;
-  const analysisWithAudit = parsedAnalysis
-    ? audit
-      ? { ...parsedAnalysis, offering_security_audit: audit }
-      : parsedAnalysis
-    : null;
-  const analysis = analysisWithAudit ? applySecOfferingScorePolicy(readRecord(input.filing_package) || {}, analysisWithAudit) : null;
-  const usage = combineUsage(triageRun?.usage || null, auditRun?.usage || null, analysisRun.usage);
+  const analysis = parsedAnalysis ? applySecOfferingScorePolicy(readRecord(input.filing_package) || {}, parsedAnalysis) : null;
+  const usage = combineUsage(triageRun?.usage || null, null, analysisRun.usage);
   return {
     ok: Boolean(analysis),
     stage: "complete",
     status: analysisRun.status,
     model: llmConfig.model,
     openAiResponseId: analysisRun.openAiResponseId,
-    auditOpenAiResponseId: auditRun?.openAiResponseId || null,
+    auditOpenAiResponseId: null,
     sourceItem: summarizeRawRow(rawItem),
     input,
     triage,
-    audit,
+    audit: null,
     analysis,
     triageOutputText: triageRun?.outputText,
-    auditOutputText: auditRun?.outputText,
+    auditOutputText: undefined,
     outputText: analysisRun.outputText,
     triageUsage: triageRun?.usage || null,
-    auditUsage: auditRun?.usage || null,
+    auditUsage: null,
     usage,
     costEstimate: estimateCost(llmConfig.model, usage),
     prompt: {
@@ -1342,12 +1348,6 @@ export async function runSecFilingAnalysisForRawRow(
         ? {
             key: SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
             version: SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
-          }
-        : undefined,
-      audit: auditRun
-        ? {
-            key: SEC_OFFERING_AUDIT_PROMPT_KEY,
-            version: SEC_OFFERING_AUDIT_PROMPT_VERSION,
           }
         : undefined,
     },
@@ -1922,7 +1922,6 @@ function readMaxOutputTokens(promptKey: string) {
   if (promptKey === SEC_TENDER_ANALYSIS_PROMPT_KEY) return 8000;
   if (promptKey === SEC_424B_ANALYSIS_PROMPT_KEY) return 10000;
   if (promptKey === SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY) return 2500;
-  if (promptKey === SEC_OFFERING_AUDIT_PROMPT_KEY) return 12000;
   if (promptKey === SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY) return 7000;
   return promptKey === SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY ? 8000 : 5000;
 }

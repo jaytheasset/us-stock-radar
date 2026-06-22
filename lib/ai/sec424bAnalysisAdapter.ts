@@ -113,7 +113,7 @@ export function adaptSec424bAnalysisPromptResultForAnalysis(
   });
 }
 
-function validate424bDisplayPayload(displayPayload: Record<string, unknown>) {
+export function validate424bDisplayPayload(displayPayload: Record<string, unknown>) {
   if (stringValue(displayPayload.display_type) !== "offering_terms") return "";
   const data = readRecord(displayPayload.data);
   if (!data || !Object.keys(data).length) {
@@ -279,7 +279,7 @@ function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput) {
   };
 }
 
-function normalize424bOfferingDisplayModel(data: Record<string, unknown> | null) {
+export function normalize424bOfferingDisplayModel(data: Record<string, unknown> | null) {
   if (!data) return null;
   return {
     ...data,
@@ -654,7 +654,7 @@ function readRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 }
 
-const sec424bRequiredOutputSchema = {
+export const sec424bRequiredOutputSchema = {
   type: "object",
   additionalProperties: true,
   required: ["analysis_output", "display_payload"],
