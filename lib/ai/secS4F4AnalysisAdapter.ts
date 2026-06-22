@@ -1,4 +1,5 @@
 import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
+import { buildSecRequiredOutputSchema } from "@/lib/ai/secRequiredOutputSchema";
 import { adaptSecFormRoomOutputForIngest, type SecFormRoomAdapterOutput } from "@/lib/sources/sec/forms/common/formRoomAdapter";
 import { buildS4F4AnalysisPrompt } from "@/lib/sources/sec/forms/s4-f4/analysisPrompt";
 import type { ParserOutput } from "@/lib/sources/sec/forms/s4-f4/types";
@@ -58,6 +59,14 @@ export function adaptSecS4F4AnalysisPromptResultForAnalysis(
     };
   }
 
+  const displayPayloadError = validateS4F4RuntimeDisplayPayload(displayPayload);
+  if (displayPayloadError) {
+    return {
+      ok: false,
+      error: displayPayloadError,
+    };
+  }
+
   const requiredOutput = {
     parser_output: parserOutput,
     analysis_output: normalizeS4F4AnalysisOutput(analysisOutput, input),
@@ -75,6 +84,20 @@ export function adaptSecS4F4AnalysisPromptResultForAnalysis(
     ok: true,
     analysis: s4F4AdapterOutputToAnalysis(adapted.value),
   };
+}
+
+function validateS4F4RuntimeDisplayPayload(value: Record<string, unknown>) {
+  const data = readRecord(value.data);
+  if (!data || Object.keys(data).length === 0) {
+    return "SEC S-4/F-4 display_payload.data must be filled by the analysis LLM";
+  }
+  if (!stringValue(data.filing_summary)) {
+    return "SEC S-4/F-4 display_payload.data.filing_summary is required";
+  }
+  if (!Array.isArray(data.key_terms)) {
+    return "SEC S-4/F-4 display_payload.data.key_terms is required";
+  }
+  return "";
 }
 
 function s4F4AdapterOutputToAnalysis(value: SecFormRoomAdapterOutput) {
@@ -212,12 +235,16 @@ function readRecord(value: unknown): Record<string, unknown> | null {
 }
 
 const s4F4RequiredOutputSchema = {
-  type: "object",
-  additionalProperties: true,
-  required: ["analysis_output", "display_payload"],
-  properties: {
-    parser_output: { type: "object", additionalProperties: true },
-    analysis_output: { type: "object", additionalProperties: true },
-    display_payload: { type: "object", additionalProperties: true },
-  },
+  ...buildSecRequiredOutputSchema({
+    displayTypes: ["generic"],
+    displayDataRequired: ["filing_summary", "key_terms"],
+    displayDataProperties: {
+      display_version: { type: ["string", "null"] },
+      form_type: { type: ["string", "null"] },
+      filing_summary: { type: "string" },
+      key_terms: { type: "array", items: { type: ["string", "object"], additionalProperties: true } },
+      amendment_context: { type: ["string", "null"] },
+      source_inventory: { type: "array", items: { type: ["string", "object"], additionalProperties: true } },
+    },
+  }),
 };
