@@ -49,13 +49,16 @@ export function SectorThemeContextPanel({
   const metrics = [
     { label: "Sector", name: context.sector, value: period.sectorChange },
     { label: "Industry", name: context.industry, value: period.industryChange },
+    context.marketCap ? { label: "Market Cap", name: context.marketCap } : null,
+    context.sharesOutstanding ? { label: "Shares Outstanding", name: context.sharesOutstanding } : null,
+    context.publicFloat ? { label: "Public Float", name: context.publicFloat } : null,
+    context.floatPercent ? { label: "Public Float %", name: context.floatPercent } : null,
     hasThemeContext && context.themeGroup
       ? { label: "Theme", name: context.themeGroup, value: period.themeChange }
       : null,
     hasThemeContext && context.subTheme
       ? { label: "Sub Theme", name: context.subTheme, value: period.subThemeChange }
       : null,
-    !hasThemeContext && context.marketCap ? { label: "Market Cap", name: context.marketCap } : null,
   ].filter((metric): metric is ContextMetricItem => Boolean(metric && metric.name));
 
   useEffect(() => {

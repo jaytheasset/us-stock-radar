@@ -2159,6 +2159,9 @@ async function buildDbMarketContext(
     sector: sector || "Market",
     industry: industry || sector || "Market",
     marketCap: formatMarketContextNumber(marketContext.market_cap) || readRowString(marketContext, "market_cap") || undefined,
+    sharesOutstanding: formatMarketContextShares(marketContext.shares_outstanding),
+    publicFloat: formatMarketContextShares(marketContext.public_float),
+    floatPercent: formatMarketContextFloatPercent(marketContext),
     themeGroup:
       readRowString(marketContext, "theme_group") ||
       readRowString(marketContext, "themeGroup") ||
@@ -2565,6 +2568,23 @@ function hasUsableMarketContext(marketContext: Record<string, unknown>) {
 function formatMarketContextNumber(value: unknown) {
   const numberValue = typeof value === "number" ? value : typeof value === "string" ? Number(value) : 0;
   return Number.isFinite(numberValue) && numberValue > 0 ? formatMoneyValue(numberValue) : "";
+}
+
+function formatMarketContextShares(value: unknown) {
+  const numberValue = typeof value === "number" ? value : typeof value === "string" ? Number(value) : 0;
+  return Number.isFinite(numberValue) && numberValue > 0 ? formatCompactShareCount(numberValue) : undefined;
+}
+
+function formatMarketContextFloatPercent(marketContext: Record<string, unknown>) {
+  const directValue = readRowNumber(marketContext, "public_float_percent");
+  if (directValue > 0) {
+    return formatPercentCompact(directValue <= 1 ? directValue * 100 : directValue) || undefined;
+  }
+
+  const publicFloat = readRowNumber(marketContext, "public_float");
+  const sharesOutstanding = readRowNumber(marketContext, "shares_outstanding");
+  if (!publicFloat || !sharesOutstanding) return undefined;
+  return formatPercentCompact((publicFloat / sharesOutstanding) * 100) || undefined;
 }
 
 function cleanContextValue(value: unknown) {

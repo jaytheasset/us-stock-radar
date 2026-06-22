@@ -40,6 +40,9 @@ export type SectorThemeContext = {
   sector: string;
   industry: string;
   marketCap?: string;
+  sharesOutstanding?: string;
+  publicFloat?: string;
+  floatPercent?: string;
   themeGroup?: string;
   subTheme?: string;
   contextTitle?: string;
