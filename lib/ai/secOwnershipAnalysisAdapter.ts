@@ -36,7 +36,7 @@ export function buildDeterministicOwnershipAnalysis(input: SecFilingAnalysisInpu
   const deterministicResult = buildDeterministicOwnershipResult(parserOutput);
   if (!deterministicResult) return null;
 
-  return adaptOwnershipRoomResultForAnalysis(deterministicResult, parserOutput);
+  return adaptOwnershipRoomResultForAnalysis(deterministicResult, parserOutput, true);
 }
 
 export function buildSecOwnershipAnalysisPrompt(input: SecFilingAnalysisInput): SecOwnershipAnalysisPrompt {
@@ -101,13 +101,24 @@ function readFilingContext(input: SecFilingAnalysisInput) {
 function adaptOwnershipRoomResultForAnalysis(
   value: unknown,
   parserOutput: OwnershipParserOutput | null,
+  isDeterministic = false,
 ): SecOwnershipAnalysisAdapterResult {
-  const requiredOutput = normalizeOwnershipRequiredOutput(value, parserOutput);
+  const requiredOutput = normalizeOwnershipRequiredOutput(value, parserOutput, isDeterministic);
   if (!requiredOutput) {
     return {
       ok: false,
       error: "SEC ownership result did not contain Required Output JSON fields",
     };
+  }
+
+  if (!isDeterministic) {
+    const displayPayloadError = validateOwnershipRuntimeDisplayPayload(requiredOutput.display_payload);
+    if (displayPayloadError) {
+      return {
+        ok: false,
+        error: displayPayloadError,
+      };
+    }
   }
 
   const adapted = adaptSecFormRoomOutputForIngest(requiredOutput);
@@ -124,16 +135,23 @@ function adaptOwnershipRoomResultForAnalysis(
   };
 }
 
-function normalizeOwnershipRequiredOutput(value: unknown, parserOutput: OwnershipParserOutput | null) {
+function normalizeOwnershipRequiredOutput(
+  value: unknown,
+  parserOutput: OwnershipParserOutput | null,
+  isDeterministic: boolean,
+) {
   const root = readRecord(value);
   if (!root) return null;
 
   const analysisOutput = readRecord(root.analysis_output);
-  const parserDisplayPayload = parserOutput
+  const parserDisplayPayload = isDeterministic && parserOutput
     ? (buildOwnershipDisplayPayload(parserOutput) as unknown as Record<string, unknown>)
     : null;
+  const llmDisplayPayload = readRecord(root.display_payload);
   const displayPayload =
-    normalizeOwnershipRuntimeDisplayPayload(readRecord(root.display_payload), parserDisplayPayload);
+    isDeterministic
+      ? normalizeOwnershipRuntimeDisplayPayload(llmDisplayPayload, parserDisplayPayload)
+      : llmDisplayPayload;
   const outputParser = (parserOutput as unknown as Record<string, unknown> | null) || readRecord(root.parser_output);
 
   if (!analysisOutput || !displayPayload || !outputParser) return null;
@@ -183,6 +201,17 @@ function normalizeOwnershipRuntimeDisplayPayload(
 
 function hasOwnershipTransactionDisplayData(data: Record<string, unknown>) {
   return Boolean(readRecord(data.form4) || readRecord(data.form144));
+}
+
+function validateOwnershipRuntimeDisplayPayload(displayPayload: Record<string, unknown>) {
+  const data = readRecord(displayPayload.data);
+  if (!data || Object.keys(data).length === 0) {
+    return "SEC ownership display_payload.data must be filled by the analysis LLM";
+  }
+  if (!hasOwnershipTransactionDisplayData(data) && !stringValue(data.filing_summary)) {
+    return "SEC ownership display_payload.data must include LLM-authored ownership details or filing_summary";
+  }
+  return "";
 }
 
 function pickOwnershipDisplayCopyFields(data: Record<string, unknown>) {
@@ -319,7 +348,7 @@ const ownershipRequiredOutputJsonSchema = {
           type: ["object", "null"],
           additionalProperties: true,
         },
-        tickers: { type: "array" },
+        tickers: { type: "array", items: { type: "object", additionalProperties: true } },
         sector: { type: ["string", "null"] },
         industry_group: { type: ["string", "null"] },
         theme_group: { type: ["string", "null"] },
@@ -330,12 +359,12 @@ const ownershipRequiredOutputJsonSchema = {
         quick_take: { type: "string" },
         summary: { type: "string" },
         why_it_matters: { type: "string" },
-        bullish_points: { type: "array" },
-        bearish_points: { type: "array" },
-        key_evidence: { type: "array" },
-        what_to_watch_next: { type: "array" },
-        related_tickers: { type: "array" },
-        calendar_items: { type: "array" },
+        bullish_points: { type: "array", items: { type: "string" } },
+        bearish_points: { type: "array", items: { type: "string" } },
+        key_evidence: { type: "array", items: { type: "string" } },
+        what_to_watch_next: { type: "array", items: { type: "string" } },
+        related_tickers: { type: "array", items: { type: "object", additionalProperties: true } },
+        calendar_items: { type: "array", items: { type: "object", additionalProperties: true } },
         confidence: { type: "string", enum: ["high", "medium", "low"] },
         needs_human_review: { type: "boolean" },
         archive_summary: { type: ["string", "null"] },
@@ -347,9 +376,18 @@ const ownershipRequiredOutputJsonSchema = {
       required: ["display_type", "data", "evidence", "notes"],
       properties: {
         display_type: { type: "string", enum: ["generic", "offering_terms", "candidate_special"] },
-        data: { type: "object", additionalProperties: true },
-        evidence: { type: "array" },
-        notes: { type: "array" },
+        data: {
+          type: "object",
+          additionalProperties: true,
+          required: ["filing_summary"],
+          properties: {
+            filing_summary: { type: "string" },
+            form4: { type: ["object", "null"], additionalProperties: true },
+            form144: { type: ["object", "null"], additionalProperties: true },
+          },
+        },
+        evidence: { type: "array", items: { type: ["string", "object"], additionalProperties: true } },
+        notes: { type: "array", items: { type: ["string", "object"], additionalProperties: true } },
       },
     },
   },

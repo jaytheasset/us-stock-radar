@@ -35,11 +35,18 @@ Do not call or request live DB, FMP, SEC, or market-data lookups.
 
 Event and display rules:
 - Use selected_routing.event_type exactly.
-- Use the provided display_payload/display_type. Do not choose the UI template.
+- Use the provided display_payload/display_type as the UI template.
+- Fill display_payload.data with compact, source-backed UI data. Do not leave
+  display_payload.data empty.
+- For Form 4 or Form 4/A, include compact form4 display data when the source
+  supports it.
+- For Form 144 or Form 144/A, include compact form144 display data when the
+  source supports it.
 - If parser facts provide issuer.ticker, preserve it in
   analysis_output.primary_ticker.ticker and analysis_output.tickers.
-- Do not create new display types or new display_payload fields, except that
-  archive results may fill display_payload.data.filing_summary.
+- Do not create new display types.
+- Every result should include display_payload.data.filing_summary as one concise
+  source-backed sentence.
 - Do not output delivery_level as a model decision. Integration derives it from
   score: score < 50 archive, 50-74 feed, 75+ alert.
 
@@ -49,8 +56,9 @@ Output rules:
 - parser_output is pass-through. Keep it minimal; do not echo transaction
   arrays, footnotes, source inventory, raw XML/source text, filing_context, or
   compact parser facts inside parser_output.
-- display_payload should stay compact. Do not echo transaction tables,
-  footnotes, or source inventory into display_payload.
+- display_payload should stay compact. Do not echo full transaction tables,
+  footnotes, or source inventory into display_payload. Include only the compact
+  fields needed by the UI.
 
 Ownership writing rules:
 - Write for investors, not SEC parser logs.
