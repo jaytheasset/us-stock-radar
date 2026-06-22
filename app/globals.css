@@ -12181,6 +12181,32 @@ td {
   line-height: 1;
 }
 
+.ownership-related-filings .dilution-related-item {
+  grid-template-columns: minmax(92px, 0.24fr) auto minmax(0, 1fr) 54px;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.ownership-related-relation {
+  min-width: 0;
+  color: #07122f;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.ownership-related-relation.candidate {
+  color: #263755;
+}
+
+.ownership-related-form-type {
+  flex-shrink: 0;
+}
+
+.ownership-related-filings .dilution-related-copy strong,
+.ownership-related-filings .dilution-related-copy small {
+  max-width: 100%;
+}
+
 .analysis-card {
   display: grid;
   align-content: start;
@@ -15301,6 +15327,15 @@ td {
 
   .dilution-detail-row em {
     grid-column: auto;
+  }
+
+  .ownership-related-filings .dilution-related-item {
+    grid-template-columns: minmax(0, 1fr) auto 48px;
+    align-items: start;
+  }
+
+  .ownership-related-filings .dilution-related-copy {
+    grid-column: 1 / -1;
   }
 
   .dilution-investor-header {
