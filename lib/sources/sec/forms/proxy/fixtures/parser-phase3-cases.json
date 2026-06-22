@@ -1,0 +1,138 @@
+{
+  "section-basic-annual-proxy": {
+    "input": {
+      "formType": "DEF 14A",
+      "accessionNumber": "0000000031-26-000031",
+      "companyName": "Section Proxy Co.",
+      "filingText": "<h1>NOTICE OF ANNUAL MEETING</h1><p>Proposal 1: Election of Directors</p><p>Proposal 2: Ratification of Appointment of Independent Registered Public Accounting Firm</p><p>Proposal 3: Advisory Vote to Approve Executive Compensation</p><h2>Voting Information</h2><p>Quorum and broker non-votes are described here.</p><h2>PROPOSAL 1: Election of Directors</h2><p>The Board recommends a vote FOR each nominee.</p><h2>PROPOSAL 2: Ratification of Appointment of Independent Registered Public Accounting Firm</h2><p>The Board recommends a vote FOR Proposal 2.</p><h2>PROPOSAL 3: Advisory Vote to Approve Executive Compensation</h2><p>The Board recommends a vote FOR Proposal 3.</p><h2>Corporate Governance</h2><p>Governance information.</p><h2>Executive Compensation</h2><p>Compensation information.</p><h2>Audit Fees</h2><table><caption>Audit Fees</caption><tr><th>Fee Category</th><th>2026</th><th>2025</th></tr><tr><td>Audit Fees</td><td>$500,000</td><td>$450,000</td></tr></table><h2>Security Ownership of Certain Beneficial Owners</h2><p>Ownership information.</p><h2>Other Matters</h2><p>Other matters.</p><h2>Proxy Card</h2><table><tr><td>Proposal 1</td><td>FOR</td><td>WITHHOLD</td></tr></table>"
+    }
+  },
+  "toc-body-dedupe": {
+    "input": {
+      "formType": "DEF 14A",
+      "accessionNumber": "0000000032-26-000032",
+      "companyName": "TOC Section Co.",
+      "filingText": "TABLE OF CONTENTS\nProposal 1 Election of Directors 8\nProposal 2 Ratification of Appointment of Independent Registered Public Accounting Firm 14\n\nPROXY STATEMENT\nPROPOSAL 1: Election of Directors\nThe Board recommends a vote FOR each nominee.\n\nPROPOSAL 2: Ratification of Appointment of Independent Registered Public Accounting Firm\nThe Board recommends a vote FOR Proposal 2."
+    }
+  },
+  "director-nominee-table": {
+    "input": {
+      "formType": "DEF 14A",
+      "accessionNumber": "0000000033-26-000033",
+      "companyName": "Nominee Table Co.",
+      "filingText": "<h2>PROPOSAL 1: Election of Directors</h2><h3>Director Nominees</h3><table><caption>Director Nominees</caption><tr><th>Name</th><th>Age</th><th>Class</th><th>Director Since</th></tr><tr><td>Jane Smith</td><td>58</td><td>I</td><td>2020</td></tr></table>"
+    }
+  },
+  "board-skills-matrix": {
+    "input": {
+      "formType": "DEF 14A",
+      "accessionNumber": "0000000034-26-000034",
+      "companyName": "Skills Matrix Co.",
+      "filingText": "<h2>Board Skills Matrix</h2><table><caption>Director Skills Matrix</caption><tr><th>Director</th><th>Finance</th><th>Cybersecurity</th><th>Leadership</th></tr><tr><td>Jane Smith</td><td>X</td><td>X</td><td>X</td></tr></table>"
+    }
+  },
+  "committee-membership-table": {
+    "input": {
+      "formType": "DEF 14A",
+      "accessionNumber": "0000000035-26-000035",
+      "companyName": "Committee Co.",
+      "filingText": "<h2>Board Committees</h2><table><caption>Committee Membership</caption><tr><th>Director</th><th>Audit Committee</th><th>Compensation Committee</th><th>Nominating and Governance Committee</th></tr><tr><td>Jane Smith</td><td>Chair</td><td>Member</td><td></td></tr></table>"
+    }
+  },
+  "audit-fee-table": {
+    "input": {
+      "formType": "DEF 14A",
+      "accessionNumber": "0000000036-26-000036",
+      "companyName": "Audit Fee Co.",
+      "filingText": "<h2>PROPOSAL 2: Ratification of Appointment of Independent Registered Public Accounting Firm</h2><h3>Audit Fees</h3><table><caption>Audit Fees</caption><tr><th>Fee Category</th><th>2026</th><th>2025</th></tr><tr><td>Audit Fees</td><td>$1,000</td><td>$900</td></tr><tr><td>Tax Fees</td><td>$50</td><td>$45</td></tr></table>"
+    }
+  },
+  "summary-compensation-table": {
+    "input": {
+      "formType": "DEF 14A",
+      "accessionNumber": "0000000037-26-000037",
+      "companyName": "Comp Table Co.",
+      "filingText": "<h2>Executive Compensation</h2><h3>Summary Compensation Table</h3><table><caption>Summary Compensation Table</caption><tr><th rowspan=\"2\">Name</th><th rowspan=\"2\">Year</th><th colspan=\"2\">Compensation</th></tr><tr><th>Salary</th><th>Total</th></tr><tr><td>CEO</td><td>2026</td><td>$500</td><td>$900</td></tr></table>"
+    }
+  },
+  "pay-versus-performance-table": {
+    "input": {
+      "formType": "DEF 14A",
+      "accessionNumber": "0000000038-26-000038",
+      "companyName": "PVP Co.",
+      "filingText": "<h2>Pay Versus Performance</h2><table><caption>Pay Versus Performance</caption><tr><th>Year</th><th>Summary Compensation Table Total</th><th>Compensation Actually Paid</th><th>Total Shareholder Return</th></tr><tr><td>2026</td><td>$900</td><td>$850</td><td>110</td></tr></table>"
+    }
+  },
+  "beneficial-ownership-table": {
+    "input": {
+      "formType": "DEF 14A",
+      "accessionNumber": "0000000039-26-000039",
+      "companyName": "Ownership Co.",
+      "filingText": "<h2>Security Ownership of Certain Beneficial Owners and Management</h2><table><caption>Beneficial Ownership Table</caption><tr><th>Name of Beneficial Owner</th><th>Shares Beneficially Owned(1)</th><th>Percent of Class</th></tr><tr><td>Jane Smith*</td><td>1,000,000</td><td>12%</td></tr></table>"
+    }
+  },
+  "equity-compensation-plan-table": {
+    "input": {
+      "formType": "DEF 14A",
+      "accessionNumber": "0000000040-26-000040",
+      "companyName": "Equity Comp Co.",
+      "filingText": "<h2>Equity Compensation Plan Information</h2><table><caption>Equity Compensation Plan Information</caption><tr><th>Plan Category</th><th>Number of securities to be issued</th><th>Weighted-average exercise price</th><th>Number of securities remaining available</th></tr><tr><td>Approved plans</td><td>1,000,000</td><td>$4.00</td><td>2,000,000</td></tr></table>"
+    }
+  },
+  "new-plan-benefits-table": {
+    "input": {
+      "formType": "DEF 14A",
+      "accessionNumber": "0000000041-26-000041",
+      "companyName": "New Plan Co.",
+      "filingText": "<h2>PROPOSAL 4: Approval of Equity Incentive Plan</h2><h3>New Plan Benefits</h3><table><caption>New Plan Benefits</caption><tr><th>Name and Position</th><th>Dollar Value</th><th>Number of Units</th></tr><tr><td>Executive Officers</td><td>--</td><td>--</td></tr></table>"
+    }
+  },
+  "layout-table-exclusion": {
+    "input": {
+      "formType": "DEF 14A",
+      "accessionNumber": "0000000042-26-000042",
+      "companyName": "Layout Co.",
+      "filingText": "<table><tr><td><img src=\"logo.jpg\"></td></tr></table><table><tr><td>Home</td><td>Previous</td><td>Next</td></tr></table><p>Annual meeting proxy statement text.</p>"
+    }
+  },
+  "proxy-card-voting-table": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000043-26-000043",
+      "companyName": "Proxy Card Table Co.",
+      "filingText": "<h2>Proxy Card</h2><table><tr><td>Proposal 1 Election of Directors</td><td>FOR ALL</td><td>WITHHOLD ALL</td><td>FOR ALL EXCEPT</td></tr><tr><td>Proposal 2 Auditor Ratification</td><td>FOR</td><td>AGAINST</td><td>ABSTAIN</td></tr></table>"
+    }
+  },
+  "rowspan-colspan-table": {
+    "input": {
+      "formType": "DEF 14A",
+      "accessionNumber": "0000000044-26-000044",
+      "companyName": "Span Table Co.",
+      "filingText": "<h2>Summary Compensation Table</h2><table><caption>Summary Compensation Table</caption><tr><th rowspan=\"2\">Name</th><th colspan=\"2\">Compensation</th></tr><tr><th>Salary</th><th>Total</th></tr><tr><td>CEO</td><td>$1</td><td>$2</td></tr></table>"
+    }
+  },
+  "footnote-heavy-table": {
+    "input": {
+      "formType": "DEF 14A",
+      "accessionNumber": "0000000045-26-000045",
+      "companyName": "Footnote Table Co.",
+      "filingText": "<h2>Beneficial Ownership</h2><table><caption>Security Ownership Table</caption><tr><th>Name(1)</th><th>Shares(2)</th><th>Percent(3)</th></tr><tr><td>Holder†</td><td>2,000,000*</td><td>14%</td></tr></table>"
+    }
+  },
+  "image-heavy-document": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000046-26-000046",
+      "companyName": "Image Heavy Co.",
+      "filingText": "<html><body><img src=\"page1.jpg\" alt=\"Proxy materials\"><img src=\"page2.jpg\"><img src=\"page3.jpg\"><img src=\"page4.jpg\"><p>Proxy statement</p></body></html>"
+    }
+  },
+  "damaged-critical-table": {
+    "input": {
+      "formType": "DEF 14A",
+      "accessionNumber": "0000000047-26-000047",
+      "companyName": "Damaged Table Co.",
+      "filingText": "<h2>Summary Compensation Table</h2><table><caption>Summary Compensation Table</caption><tr><th>Name</th></tr><tr><td>CEO</td></tr></table>"
+    }
+  }
+}

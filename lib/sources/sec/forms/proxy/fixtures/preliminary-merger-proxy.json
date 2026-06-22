@@ -1,0 +1,13 @@
+{
+  "fixture_name": "preliminary-merger-proxy",
+  "input": {
+    "formType": "PREM14A",
+    "accessionNumber": "0001000010-26-001111",
+    "companyName": "Innovid Corp.",
+    "primaryTicker": {
+      "ticker": "CTV",
+      "exchange": "NYSE"
+    },
+    "filingText": "UNITED STATES\nSECURITIES AND EXCHANGE COMMISSION\nSCHEDULE 14A\nFiled by the Registrant ☒\nFiled by a Party other than the Registrant ☐\nCheck the appropriate box:\n☒ Preliminary Proxy Statement\nINNOVID CORP.\nPRELIMINARY PROXY STATEMENT-SUBJECT TO COMPLETION\nTo the Stockholders of Innovid Corp.:\nYou are cordially invited to attend a special meeting of stockholders. The Special Meeting will be held on [•], 2026 at [•], Eastern time at www.virtualshareholdermeeting.com/CTV2026SM.\nAt the Special Meeting, you will be asked to consider and vote on a proposal to adopt the Agreement and Plan of Merger, dated as of November 21, 2026, among Mediaocean LLC, Ignite Merger Sub, Inc. and Innovid.\nPursuant to the Merger Agreement, Merger Sub will merge with and into Innovid, with Innovid surviving as a wholly owned subsidiary of Parent.\nIf the Merger is completed, each share of Innovid common stock will be canceled and converted into the right to receive cash in an amount equal to $3.15 per share, without interest, unless you have properly exercised your appraisal rights.\nThis amount represents an approximately 94% premium to the closing price of Innovid common stock of $1.62 per share on November 20, 2026.\nProposal 1: Adoption of the Merger Agreement. Board recommendation: FOR.\nProposal 2: Adjournment of the Special Meeting if necessary to solicit additional proxies. Board recommendation: FOR.\nEach record holder is entitled to one vote for each share owned as of the close of business on [•] (the Record Date)."
+  }
+}

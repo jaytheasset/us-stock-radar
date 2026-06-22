@@ -1,0 +1,116 @@
+{
+  "nt10kCleanPeriod": {
+    "source": {
+      "formType": "NT 10-K",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-K [ ] Form 10-Q [ ] Form 20-F For Period Ended: December 31, 2025 PART I - REGISTRANT INFORMATION Example Annual Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in reasonable detail in Part III could not be eliminated without unreasonable effort or expense. (b) The subject annual report will be filed on or before the fifteenth calendar day following the prescribed due date. PART III - NARRATIVE The registrant requires additional time to complete its year-end close procedures. PART IV - OTHER INFORMATION Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No SIGNATURE Date: March 31, 2026"
+    }
+  },
+  "nt10qNumericPeriod": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [ ] Form 10-K [X] Form 10-Q [ ] Form 20-F For Period Ended: 03/31/2026 PART I - REGISTRANT INFORMATION Example Quarter Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in reasonable detail in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time to complete quarterly close procedures. PART IV - OTHER INFORMATION Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No"
+    }
+  },
+  "nt20fForeignPeriod": {
+    "source": {
+      "formType": "NT 20-F",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [ ] Form 10-K [ ] Form 10-Q [X] Form 20-F For Period Ended: 31 December 2025 PART I - REGISTRANT INFORMATION Example Foreign Ltd. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in reasonable detail in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant requires additional time to complete foreign statutory audit procedures. PART IV - OTHER INFORMATION Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No"
+    }
+  },
+  "transition10k": {
+    "source": {
+      "formType": "NT 10-K",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [ ] Form 10-K [ ] Form 10-Q [ ] Form 20-F [X] Transition Report on Form 10-K [ ] Transition Report on Form 10-Q [ ] Transition Report on Form 20-F For the Transition Period Ended: 2025-12-31 PART I - REGISTRANT INFORMATION Example Transition Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in reasonable detail in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time to prepare the transition report. PART IV - OTHER INFORMATION Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No"
+    }
+  },
+  "multipleTargetBoxes": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-K [X] Form 10-Q [ ] Form 20-F For Period Ended: March 31, 2026 PART I - REGISTRANT INFORMATION Example Ambiguous Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in reasonable detail in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No"
+    }
+  },
+  "bodySubmissionConflict": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-K [ ] Form 10-Q [ ] Form 20-F For Period Ended: December 31, 2025 PART I - REGISTRANT INFORMATION Example Conflict Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in reasonable detail in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No"
+    }
+  },
+  "unicodeTargetBoxes": {
+    "source": {
+      "formType": "NT 20-F",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): ☐ Form 10-K □ Form 10-Q ☒ Form 20-F For Period Ended: December 31, 2025 PART I - REGISTRANT INFORMATION Unicode Issuer Ltd. PART II - RULE 12b-25(b) AND (c) ☒ (a) The reason described in reasonable detail in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION Is it anticipated that any significant change in results of operations will be reflected? ☐ Yes ☒ No"
+    }
+  },
+  "asciiTargetBoxes": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [ ] Form 10-K [X] Form 10-Q [ ] Form 20-F For Period Ended: 06/30/2026 PART I - REGISTRANT INFORMATION ASCII Issuer Inc. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in reasonable detail in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No"
+    }
+  },
+  "rawXSafeTarget": {
+    "source": {
+      "formType": "NT 10-K",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): x Form 10-K o Form 10-Q o Form 20-F For Period Ended: December 31, 2025 PART I - REGISTRANT INFORMATION Raw X Corp. PART II - RULES 12b-25(b) AND (c) x (a) The reason described in reasonable detail in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION Is it anticipated that any significant change in results of operations will be reflected? o Yes x No"
+    }
+  },
+  "xInsideWords": {
+    "source": {
+      "formType": "NT 10-K",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): Exchange expense tax text approximately Form 10-K [ ] Form 10-Q [ ] Form 20-F For Period Ended: December 31, 2025 PART I - REGISTRANT INFORMATION Word Noise Corp. PART II - RULE 12b-25(b) AND (c) The reason described in reasonable detail in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No"
+    }
+  },
+  "ombDateNoise": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING OMB APPROVAL Expires December 31, 2025 (Check One): [ ] Form 10-K [X] Form 10-Q [ ] Form 20-F For Period Ended: March 31, 2026 PART I - REGISTRANT INFORMATION OMB Noise Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in reasonable detail in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No"
+    }
+  },
+  "signatureDateOnly": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [ ] Form 10-K [X] Form 10-Q [ ] Form 20-F PART I - REGISTRANT INFORMATION Signature Date Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in reasonable detail in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No SIGNATURE Date: April 15, 2026"
+    }
+  },
+  "partIiReliefChecked": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [ ] Form 10-K [X] Form 10-Q [ ] Form 20-F For Period Ended: March 31, 2026 PART I - REGISTRANT INFORMATION Relief Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in reasonable detail in Part III could not be eliminated without unreasonable effort or expense. (b) The subject quarterly report will be filed on or before the fifth calendar day following the prescribed due date. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION Have all other periodic reports required been filed? [X] Yes [ ] No Is it anticipated that any significant change in results of operations will be reflected? [X] Yes [ ] No"
+    }
+  },
+  "partIiUnknown": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [ ] Form 10-K [X] Form 10-Q [ ] Form 20-F For Period Ended: March 31, 2026 PART I - REGISTRANT INFORMATION Unknown Relief Corp. PART II - RULE 12b-25(b) AND (c) The issuer discusses Rule 12b-25 but no local checkbox mark appears next to the relief paragraph. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION Have all other periodic reports required been filed? [X] Yes [ ] No Is it anticipated that any significant change in results of operations will be reflected? [X] Yes [ ] No"
+    }
+  },
+  "partIiiNoContamination": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [ ] Form 10-K [X] Form 10-Q [ ] Form 20-F For Period Ended: March 31, 2026 PART I - REGISTRANT INFORMATION Narrative Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in reasonable detail in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant is completing quarterly review procedures. Additional schedules are being reconciled before filing. PART IV - OTHER INFORMATION Name and telephone number of person to contact: Jane Doe 555-0100. Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No"
+    }
+  },
+  "partIiiFallbackInstruction": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [ ] Form 10-K [X] Form 10-Q [ ] Form 20-F For Period Ended: March 31, 2026 PART I - REGISTRANT INFORMATION Fallback Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in reasonable detail in Part III could not be eliminated without unreasonable effort or expense. State below in reasonable detail why the Form 10-Q could not be filed within the prescribed time period. The registrant is waiting for final consolidation schedules. Name and telephone number of person to contact: John Doe 555-0101. Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No"
+    }
+  },
+  "attachedExhibitNarrative": {
+    "source": {
+      "formType": "NT 10-K",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-K [ ] Form 10-Q [ ] Form 20-F For Period Ended: December 31, 2025 PART I - REGISTRANT INFORMATION Exhibit Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in reasonable detail in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE See attached exhibit for additional explanation of the delayed annual report. PART IV - OTHER INFORMATION Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No"
+    }
+  },
+  "electronicFilingDifficulty": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [ ] Form 10-K [X] Form 10-Q [ ] Form 20-F For Period Ended: March 31, 2026 PART I - REGISTRANT INFORMATION EDGAR Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in reasonable detail in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant experienced EDGAR electronic filing technical difficulties before the filing deadline. PART IV - OTHER INFORMATION Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No"
+    }
+  },
+  "ntAmendmentPartial": {
+    "source": {
+      "formType": "NT 10-K/A",
+      "filingText": "FORM 12b-25/A (Amendment No. 1) NOTIFICATION OF LATE FILING (Check One): [X] Form 10-K This Amendment No. 1 updates the late filing notification previously filed by the registrant. The amended notification is being filed as soon as practicable."
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "multi-leg-warrant-offering",
+  "formType": "424B5",
+  "accessionNumber": "0000000000-26-000108",
+  "issuer": {
+    "name": "Momentus Inc.",
+    "ticker": "MNTS",
+    "exchange": "NASDAQ"
+  },
+  "filingText": "Filed Pursuant to Rule 424(b)(5) Registration No. 333-267230 PROSPECTUS SUPPLEMENT Momentus Inc. We are offering 300,000 shares of our Class A common stock, pre-funded warrants to purchase up to 973,886 shares of Class A common stock and common warrants to purchase up to 1,273,886 shares of Class A common stock. The public offering price is $3.925 per share and accompanying common warrant. The purchase price for each pre-funded warrant and accompanying common warrant is $3.92499. Each pre-funded warrant has an exercise price of $0.00001 per share. Each common warrant has an exercise price of $3.80 per share. We have agreed to issue placement agent warrants to purchase up to 63,694 shares of Class A common stock at an exercise price of $4.3175 per share. The pre-funded warrants contain a beneficial ownership limitation of 4.99%. Net proceeds will be approximately $4.5 million. Our Class A common stock is listed on Nasdaq under the symbol MNTS.",
+  "expected_event_type": "other",
+  "expected_score_band": "archive",
+  "fixture_assertions": {
+    "deterministic": false,
+    "expected_router_preliminary_action": "analysis_llm"
+  }
+}

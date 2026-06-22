@@ -1,0 +1,136 @@
+{
+  "parser_output": {
+    "parserVersion": "sc13-v1",
+    "parserGroup": "sc13",
+    "formType": "SC 13G/A",
+    "accessionNumber": "0000000000-26-000404",
+    "isSupported": true,
+    "summary": "Northstar Index Fund LP reports beneficial ownership of 1,200,000 shares (6.0%) of Quiet Robotics Inc. Common Stock.",
+    "facts": {
+      "issuerName": "Quiet Robotics Inc.",
+      "reportingPersons": [
+        "Northstar Index Fund LP"
+      ],
+      "securityClass": "Common Stock",
+      "cusip": "123456789",
+      "primaryTicker": {
+        "ticker": "QTRB",
+        "exchange": "NASDAQ"
+      },
+      "scheduleType": "13G",
+      "isAmendment": true,
+      "amendmentNumber": 1,
+      "eventDate": "December 31, 2025",
+      "filingDate": "2026-02-10",
+      "sharesBeneficiallyOwned": 1200000,
+      "percentOwned": 6,
+      "previousPercentOwned": 6.2,
+      "ownershipPercentChange": -0.2,
+      "votingPower": {
+        "sole": 0,
+        "shared": 1200000
+      },
+      "dispositivePower": {
+        "sole": 0,
+        "shared": 1200000
+      },
+      "ownershipIntent": "passive",
+      "passiveCertification": true,
+      "item4Purpose": "This annual amendment reports a passive ownership update. Ownership changed from 6.2% to 6.0%.",
+      "item4HasActivistLanguage": false,
+      "strategicTransactionLanguage": false,
+      "legalRiskLanguage": false,
+      "financingLanguage": false,
+      "financingAmountUsd": null,
+      "groupMembers": []
+    },
+    "signals": [],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "insider_ownership",
+    "event_title": "Routine passive ownership amendment for Quiet Robotics Inc.",
+    "primary_ticker": {
+      "ticker": "QTRB",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      {
+        "ticker": "QTRB",
+        "exchange": "NASDAQ"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 28,
+    "score_reason": "Passive Schedule 13G/A amendment shows a small ownership change and no control intent.",
+    "signal": "neutral",
+    "quick_take": "Northstar Index Fund LP filed a routine passive ownership amendment for Quiet Robotics Inc.",
+    "summary": "Northstar Index Fund LP reports beneficial ownership of 1,200,000 shares (6.0%) of Quiet Robotics Inc. Common Stock.",
+    "why_it_matters": "The amendment updates ownership records but does not point to activism, control intent, or a new strategic event.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [
+      "Reported beneficial ownership: 1,200,000 shares (6.0%).",
+      "Passive certification says the securities were not held to change or influence control.",
+      "Reported ownership changed by -0.2 percentage points."
+    ],
+    "what_to_watch_next": [
+      "Future amendments showing a larger ownership change or removal of passive certification."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "date": "December 31, 2025",
+        "label": "SC 13 reportable event date",
+        "source": "Date of Event"
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "display_version": "sc13-ownership-v1",
+    "data": {
+      "version": "sc13-ownership-v1",
+      "issuerName": "Quiet Robotics Inc.",
+      "reportingPersons": [
+        "Northstar Index Fund LP"
+      ],
+      "percentOwned": 6,
+      "sharesBeneficiallyOwned": 1200000,
+      "ownershipIntent": "passive",
+      "isAmendment": true,
+      "isExitFiling": false,
+      "ownershipPercentChange": -0.2
+    },
+    "evidence": [
+      "Reported beneficial ownership: 1,200,000 shares (6.0%).",
+      "Passive certification says the securities were not held to change or influence control.",
+      "Reported ownership changed by -0.2 percentage points."
+    ],
+    "notes": [
+      "No special detail UI is required for this passive ownership fixture."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Archive delivery is expected from the analysis score; analysis LLM should use cleaned_source_blocks.",
+      "Optional future enrichment: filing_context.ownership could be added later only for high-score candidates or batch-level enrichment."
+    ]
+  }
+}

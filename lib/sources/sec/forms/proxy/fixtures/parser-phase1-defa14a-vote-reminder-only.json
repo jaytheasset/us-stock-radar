@@ -1,0 +1,9 @@
+{
+  "fixture_name": "parser-phase1-defa14a-vote-reminder-only",
+  "input": {
+    "formType": "DEFA14A",
+    "accessionNumber": "0000000002-26-000002",
+    "companyName": "Vote Reminder Co.",
+    "filingText": "Your vote is important. This is a reminder to vote today for the 2026 annual meeting. Vote now by internet or phone using the control number previously provided."
+  }
+}

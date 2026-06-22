@@ -1,0 +1,31 @@
+{
+  "name": "legal-risk-20f",
+  "description": "20-F with material legal and regulatory proceedings.",
+  "filing": {
+    "rawItemId": "sec-fixture-periodic-004",
+    "sourceUniqueId": "0004444444-26-000009",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/4444444/000444444426000009/helio-20251231.htm",
+    "title": "HelioGrid PLC 20-F annual report",
+    "publishedAt": "2026-04-22T16:20:00Z",
+    "rawPayload": {
+      "form_type": "20-F",
+      "accession_number": "0004444444-26-000009",
+      "company_name": "HelioGrid PLC",
+      "ticker": "HLGD",
+      "exchange": "Nasdaq Global Select Market",
+      "documents": [
+        {
+          "type": "20-F",
+          "description": "Annual report of foreign private issuer",
+          "isPrimary": true,
+          "textCharCount": 1420,
+          "textTruncated": false
+        }
+      ]
+    },
+    "bodyText": "FORM 20-F\nHelioGrid PLC (Exact name of registrant as specified in its charter)\nFor the fiscal year ended December 31, 2025\nTrading Symbol(s) HLGD Nasdaq Global Select Market\nLegal Proceedings\nThe company is responding to an SEC subpoena and a parallel Department of Justice investigation related to revenue recognition for certain distributor contracts. A putative securities class action lawsuit was also filed in the United States District Court. Revenue was $640.0 million for 2025 compared to $612.0 million in 2024. Net income was $21.0 million for the year."
+  },
+  "market_context": null,
+  "expected_event_type": "legal_risk",
+  "expected_score_band": "alert"
+}

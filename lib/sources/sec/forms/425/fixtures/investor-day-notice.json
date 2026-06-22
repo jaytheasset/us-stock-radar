@@ -1,0 +1,19 @@
+{
+  "name": "investor-day-notice",
+  "formType": "425",
+  "accessionNumber": "0000000000-26-000430",
+  "sourceUniqueId": "0000000000-26-000430",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/0000000000/000000000026000430/form425.htm",
+  "title": "425 - Falcon Aero Group Investor Day Notice",
+  "publishedAt": "2026-02-09T13:00:00Z",
+  "companyName": "Falcon Aero Group, Inc.",
+  "primaryTicker": "FACT",
+  "exchange": "NASDAQ",
+  "filingText": "Filed by: FACT II Acquisition Corp.\nPursuant to Rule 425 under the Securities Act of 1933 and deemed filed pursuant to Rule 14a-12 under the Securities Exchange Act of 1934\nSubject Company: FACT II Acquisition Corp.\nDate: February 9, 2026\n\nFalcon Aero Group to Host Investor Day on February 25, 2026\n\nFalcon Aero Group, Inc. announced that it will host an Investor Day on Wednesday, February 25, 2026, beginning at 2:00 p.m. ET in New York, NY. The Investor Day is being held in connection with the Company's previously announced proposed business combination with FACT II Acquisition Corp. Presentations from Falcon's leadership team will cover market dynamics, the Company's business model, strategic priorities, and financial profile. A live webcast of the Investor Day will be available on the Company's website. This communication does not announce any change to the transaction consideration or closing conditions.",
+  "market_context": null,
+  "expected": {
+    "event_type": "other",
+    "expected_delivery_level": "archive",
+    "deterministic": false
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "fixtureName": "s8-consultant-service-provider-risk",
+  "formType": "S-8",
+  "accessionNumber": "0009999999-26-000090",
+  "filedAt": "2026-04-03",
+  "issuer": {
+    "name": "PromoTech Holdings Inc.",
+    "ticker": "PMTH",
+    "exchange": "NASDAQ"
+  },
+  "filingText": "FORM S-8 REGISTRATION STATEMENT. PromoTech Holdings Inc. registers 2,500,000 shares of common stock under its 2026 Consultant Stock Plan. EXPLANATORY NOTE. The shares may be issued to consultants, advisors and service providers, including investor relations and promotional service providers. The registrant was formerly a shell company following a reverse merger. PART I INFORMATION REQUIRED IN THE SECTION 10(a) PROSPECTUS. PART II INFORMATION REQUIRED IN THE REGISTRATION STATEMENT. SIGNATURES.",
+  "attachments": [],
+  "parentFilingContext": null,
+  "marketContext": null,
+  "flowExpectation": {
+    "parserCanFinishWithoutLlm": false,
+    "routerCanFinishWithoutLlm": false,
+    "reason": "Consultant, promotional-service, and former-shell language blocks deterministic parser-only close."
+  }
+}

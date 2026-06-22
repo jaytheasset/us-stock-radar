@@ -1,5 +1,6 @@
 import { fetchFmpProfile, fetchFmpQuote, fetchFmpSharesFloat } from "@/lib/integrations";
 import { supabaseSelect } from "@/lib/supabase";
+import { resolveCanonicalMarketGroup } from "@/lib/taxonomyRegistry";
 
 type PersistedRow = Record<string, unknown>;
 
@@ -11,6 +12,17 @@ type NumberCandidate = {
 
 export type SecOfferingMarketContext = {
   symbol: string | null;
+  name: string | null;
+  exchange: string | null;
+  sector: string | null;
+  industry: string | null;
+  industry_group: string | null;
+  sub_category: string | null;
+  sub_category_slug: string | null;
+  fmp_sector: string | null;
+  fmp_industry: string | null;
+  theme_group: string | null;
+  sub_theme: string | null;
   available: boolean;
   data_quality: "complete" | "partial" | "missing";
   as_of: string | null;
@@ -81,6 +93,15 @@ export async function resolveSecOfferingMarketContext(symbolInput: string): Prom
   const fmpQuote = firstRecord(fmpQuoteResult.data);
   const fmpProfile = firstRecord(fmpProfileResult.data);
   const fmpFloat = firstRecord(fmpFloatResult.data);
+  const rawSector = firstString(fmpProfile?.sector, ticker?.fmp_sector);
+  const rawIndustry = firstString(fmpProfile?.industry, ticker?.fmp_industry);
+  const industryMatch = rawIndustry ? resolveCanonicalMarketGroup(rawIndustry) : null;
+  const sectorMatch = rawSector ? resolveCanonicalMarketGroup(rawSector) : null;
+  const canonicalSector = firstString(industryMatch?.sector, sectorMatch?.sector, rawSector);
+  const canonicalIndustry = firstString(industryMatch?.subCategory, rawIndustry);
+  const canonicalIndustrySlug = firstString(industryMatch?.slug, sectorMatch?.slug);
+  const exchange = firstString(fmpProfile?.exchangeShortName, fmpProfile?.exchange, ticker?.exchange);
+  const name = firstString(fmpProfile?.companyName, fmpProfile?.company_name, ticker?.name);
 
   for (const result of [snapshotResult, quoteCacheResult, tickerResult]) {
     if (result.error) errors.push(result.error);
@@ -142,6 +163,13 @@ export async function resolveSecOfferingMarketContext(symbolInput: string): Prom
 
   const asOf = mostRecent([price.asOf, marketCap.asOf, sharesOutstanding.asOf, publicFloat.asOf, volume.asOf]);
   const fieldSources = {
+    name: name ? firstString(fmpProfile?.companyName, fmpProfile?.company_name) ? "fmp_profile" : "tickers" : null,
+    exchange: exchange ? firstString(fmpProfile?.exchangeShortName, fmpProfile?.exchange) ? "fmp_profile" : "tickers" : null,
+    sector: canonicalSector ? rawSector ? "fmp_profile_or_tickers" : "taxonomy" : null,
+    industry: canonicalIndustry ? rawIndustry ? "fmp_profile_or_tickers" : "taxonomy" : null,
+    industry_group: canonicalIndustry ? rawIndustry ? "fmp_profile_or_tickers" : "taxonomy" : null,
+    sub_category: canonicalIndustry ? "taxonomy" : null,
+    sub_category_slug: canonicalIndustrySlug ? "taxonomy" : null,
     price: price.source,
     previous_close: previousClose.source,
     market_cap: marketCap.source,
@@ -162,6 +190,17 @@ export async function resolveSecOfferingMarketContext(symbolInput: string): Prom
 
   return {
     symbol,
+    name,
+    exchange,
+    sector: canonicalSector || null,
+    industry: canonicalIndustry || null,
+    industry_group: canonicalIndustry || null,
+    sub_category: canonicalIndustry || null,
+    sub_category_slug: canonicalIndustrySlug || null,
+    fmp_sector: rawSector || null,
+    fmp_industry: rawIndustry || null,
+    theme_group: null,
+    sub_theme: null,
     available,
     data_quality: complete ? "complete" : available ? "partial" : "missing",
     as_of: asOf,
@@ -293,6 +332,17 @@ export function buildSecOfferingDilutionMetrics(
 function buildMissingMarketContext(symbol: string | null, errors: string[]): SecOfferingMarketContext {
   return {
     symbol,
+    name: null,
+    exchange: null,
+    sector: null,
+    industry: null,
+    industry_group: null,
+    sub_category: null,
+    sub_category_slug: null,
+    fmp_sector: null,
+    fmp_industry: null,
+    theme_group: null,
+    sub_theme: null,
     available: false,
     data_quality: "missing",
     as_of: null,
@@ -331,7 +381,7 @@ async function readMarketQuote(symbol: string) {
 
 async function readTickerRow(symbol: string) {
   const result = await supabaseSelect("tickers", {
-    select: "symbol,exchange,market_cap,last_profiled_at",
+    select: "symbol,name,exchange,market_cap,fmp_sector,fmp_industry,last_profiled_at",
     symbol: `eq.${symbol}`,
     limit: "1",
   });
@@ -849,6 +899,14 @@ function readRecord(value: unknown): PersistedRow | null {
 function stringValue(value: unknown) {
   if (typeof value === "string") return value.trim();
   if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return "";
+}
+
+function firstString(...values: unknown[]) {
+  for (const value of values) {
+    const normalized = stringValue(value);
+    if (normalized) return normalized;
+  }
   return "";
 }
 

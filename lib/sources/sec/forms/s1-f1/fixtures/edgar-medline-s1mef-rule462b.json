@@ -1,0 +1,40 @@
+{
+  "name": "edgar-medline-s1mef-rule462b",
+  "source": {
+    "company": "Medline Inc.",
+    "form_type": "S-1MEF",
+    "cik": "0002046386",
+    "accession": "0001193125-26-235213",
+    "filed_at": "2026-05-21",
+    "sec_url": "https://www.sec.gov/Archives/edgar/data/2046386/000119312526235213/d136460ds1mef.htm",
+    "text_basis": "edgar_original_excerpt"
+  },
+  "input": {
+    "formType": "S-1MEF",
+    "accessionNumber": "0001193125-26-235213",
+    "metadata": {
+      "companyName": "Medline Inc.",
+      "filedAt": "2026-05-21"
+    },
+    "filingText": "As filed with the Securities and Exchange Commission on May 21, 2026. Registration No. 333- UNITED STATES SECURITIES AND EXCHANGE COMMISSION Washington, D.C. 20549 FORM S-1 REGISTRATION STATEMENT UNDER THE SECURITIES ACT OF 1933 Medline Inc.\nIf this Form is filed to register additional securities for an offering pursuant to Rule 462(b) under the Securities Act, please check the following box and list the Securities Act registration statement number of the earlier effective registration statement for the same offering. ☒ File No. 333-296044 This Registration Statement shall become effective upon filing with the Securities and Exchange Commission in accordance with Rule 462(b) promulgated under the Securities Act.\nEXPLANATORY NOTE AND INCORPORATION OF CERTAIN INFORMATION BY REFERENCE This Registration Statement on Form S-1 is being filed with the Securities and Exchange Commission (the “Commission”) pursuant to Rule 462(b) under the Securities Act of 1933, as amended, by Medline Inc. (the “Registrant”). This Registration Statement incorporates by reference the contents of, including all exhibits to, the Registrant’s Registration Statement on Form S-1 (File No. 333-296044), which was declared effective by the Commission on May 21, 2026 (the “Prior Registration Statement”). The Registrant is filing this Registration Statement for the sole purpose of registering the sale of an additional 14,437,783 shares of the Registrant’s Class A common stock. The additional shares that are being registered for sale are in an amount and at a price that together represent no more than 20% of the maximum aggregate offering price set forth in the filing fee table filed as Exhibit 107 to the Prior Registration Statement."
+  },
+  "expected": {
+    "event_type": "other",
+    "score_band": "archive",
+    "delivery_level": "archive",
+    "deterministic": false,
+    "facts": {
+      "company_name": "Medline Inc.",
+      "ticker": null,
+      "exchange": null,
+      "registration_kind": "unknown",
+      "shares_offered": 14437783,
+      "filing_variant": "rule_462b_mef",
+      "reported_form_type": "S-1MEF",
+      "parent_context_needed": true,
+      "prior_registration_number": "333-296044",
+      "automatic_effective": true,
+      "within_20_percent_limit": true
+    }
+  }
+}

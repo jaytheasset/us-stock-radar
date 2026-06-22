@@ -1,0 +1,6 @@
+{
+  "id": "form4-holding-only-safety",
+  "formType": "4",
+  "accessionNumber": "0000000000-26-004004",
+  "filingText": "<?xml version=\"1.0\"?><ownershipDocument><documentType>4</documentType><issuer><issuerCik>0001111004</issuerCik><issuerName>Safety Holdings Corp</issuerName><issuerTradingSymbol>SAFEH</issuerTradingSymbol></issuer><reportingOwner><reportingOwnerId><rptOwnerName>Harper Holder</rptOwnerName></reportingOwnerId><reportingOwnerRelationship><isDirector>1</isDirector></reportingOwnerRelationship></reportingOwner><nonDerivativeTable><nonDerivativeHolding><securityTitle><value>Common Stock</value></securityTitle><postTransactionAmounts><sharesOwnedFollowingTransaction><value>12345</value></sharesOwnedFollowingTransaction></postTransactionAmounts><ownershipNature><directOrIndirectOwnership><value>D</value></directOrIndirectOwnership></ownershipNature></nonDerivativeHolding></nonDerivativeTable></ownershipDocument>"
+}

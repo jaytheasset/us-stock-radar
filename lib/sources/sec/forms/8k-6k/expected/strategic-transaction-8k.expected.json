@@ -1,0 +1,114 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_8k_6k_parser_v1",
+    "parserGroup": "8k-6k",
+    "formType": "8-K / 6-K, 8-K/A / 6-K/A",
+    "accessionNumber": "0009999999-26-000009",
+    "isSupported": true,
+    "summary": "Pioneer Materials filed 8-K with 2 extracted item(s) and 1 source-backed filing cue(s).",
+    "facts": {
+      "companyName": "Pioneer Materials",
+      "ticker": "PMAT",
+      "secFormType": "8-K",
+      "isAmendment": false,
+      "items": [
+        {
+          "item": "1.01",
+          "label": "Entry into a Material Definitive Agreement."
+        },
+        {
+          "item": "2.01",
+          "label": "Completion of Acquisition or Disposition of Assets."
+        }
+      ],
+      "filingCues": [
+        {
+          "cueType": "strategic_transaction_terms",
+          "label": "Merger, acquisition, asset sale, joint venture, or business combination language",
+          "evidence": "Pioneer Materials entered into a definitive merger agreement to acquire Delta Ceramics for $420 million in cash and stock.",
+          "confidence": "medium",
+          "itemNumbers": [
+            "1.01",
+            "2.01"
+          ]
+        }
+      ]
+    },
+    "signals": [
+      {
+        "cueType": "strategic_transaction_terms",
+        "label": "Merger, acquisition, asset sale, joint venture, or business combination language",
+        "evidence": "Pioneer Materials entered into a definitive merger agreement to acquire Delta Ceramics for $420 million in cash and stock.",
+        "confidence": "medium",
+        "itemNumbers": [
+          "1.01",
+          "2.01"
+        ]
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "strategic_transaction",
+    "event_title": "Pioneer Materials signs $420 million acquisition agreement",
+    "primary_ticker": {
+      "ticker": "PMAT",
+      "exchange": null
+    },
+    "tickers": [
+      "PMAT"
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 82,
+    "score_reason": "A signed acquisition agreement for $420 million is a high-impact corporate transaction.",
+    "signal": "volatile",
+    "quick_take": "Pioneer is buying Delta Ceramics in a cash-and-stock deal.",
+    "summary": "The acquisition is expected to close in the third quarter of 2026, subject to approvals and customary conditions.",
+    "why_it_matters": "Strategic acquisitions can change scale, leverage, integration risk, and earnings outlook.",
+    "bullish_points": [
+      "The target adds strategic ceramics assets."
+    ],
+    "bearish_points": [
+      "The transaction still requires approvals and carries integration risk."
+    ],
+    "key_evidence": [
+      "Pioneer Materials entered into a definitive merger agreement to acquire Delta Ceramics for $420 million in cash and stock."
+    ],
+    "what_to_watch_next": [
+      "Regulatory approvals, closing timing, and financing mix."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "target": "Delta Ceramics",
+      "consideration": "$420 million in cash and stock",
+      "expected_close": "third quarter of 2026"
+    },
+    "evidence": [
+      "The acquisition is expected to close in the third quarter of 2026."
+    ],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": []
+  }
+}

@@ -1,0 +1,284 @@
+{
+  "parser_output": {
+    "parserVersion": "s8-parser-v1",
+    "parserGroup": "s8",
+    "formType": "S-8/A",
+    "accessionNumber": "0008888888-25-000080",
+    "isSupported": true,
+    "summary": "BitCompute Digital Inc. filed an S-8 with a reoffer prospectus covering 1,200,000 resale shares.",
+    "facts": {
+      "issuerName": "BitCompute Digital Inc.",
+      "ticker": "BCDI",
+      "exchange": "NASDAQ",
+      "filedAt": "2025-07-03",
+      "isAmendment": true,
+      "amendmentType": "correction_only",
+      "planNames": [
+        "BitCompute Digital Inc. 2025 Equity Incentive Plan"
+      ],
+      "planNameFacts": [],
+      "planExtractionConfidence": "low",
+      "planExtractionWarnings": [],
+      "securityType": "common stock",
+      "registeredShares": 1200000,
+      "additionalShares": null,
+      "parentRegisteredShares": 1200000,
+      "estimatedOfferingAmount": null,
+      "registrationFee": null,
+      "dilutionPercentOfSharesOutstanding": null,
+      "dilutionPercentOfPublicFloat": null,
+      "noAdditionalSecurities": false,
+      "exhibitOnly": false,
+      "signatureOnly": false,
+      "needsParentComparison": false,
+      "normalizedS8Type": "initial_s8",
+      "s8FamilyDetected": true,
+      "likelyFeeTableMaterial": false,
+      "exFilingFeesExhibit": false,
+      "feeTableSource": "not_found",
+      "feeTableExtractionConfidence": "low",
+      "feeTableWarnings": [],
+      "feeTablePurposeConflicts": [],
+      "rule416": false,
+      "planInterests": false,
+      "unusualFeeTableSecurities": false,
+      "postEffectiveAmendment": false,
+      "deregistrationOfUnsoldSecurities": false,
+      "resaleProspectus": false,
+      "sellingHolderSection": true,
+      "controlSecurities": false,
+      "restrictedSecurities": false,
+      "rule144": false,
+      "consultantAdvisorServiceProvider": false,
+      "investorRelationsPromotionalFinancingServices": false,
+      "shellReverseMergerDelinquentFiler": false,
+      "s8PosRegistersAdditionalSecurities": false,
+      "sectionExtractionConfidence": "medium",
+      "reofferProspectus": true,
+      "reofferShares": 1200000,
+      "reofferNoIssuerProceeds": true,
+      "sellingSecurityholders": [
+        {
+          "name": "Alice Lee",
+          "relationship": null,
+          "relationshipHint": "unknown",
+          "sharesOwnedBefore": 800000,
+          "percentOwnedBefore": "*",
+          "sharesOffered": 800000,
+          "sharesRegistered": 800000,
+          "source": "fixture_row",
+          "confidence": "high"
+        },
+        {
+          "name": "Brian Park",
+          "relationship": null,
+          "relationshipHint": "unknown",
+          "sharesOwnedBefore": 400000,
+          "percentOwnedBefore": "*",
+          "sharesOffered": 400000,
+          "sharesRegistered": 400000,
+          "source": "fixture_row",
+          "confidence": "high"
+        }
+      ],
+      "correctionOnly": true,
+      "filingProvidedPrice": {
+        "price": 2.1,
+        "pricedAt": "July 1, 2025",
+        "source": "filing_text"
+      },
+      "sellingHolderExtractionConfidence": "high",
+      "sellingHolderWarnings": []
+    },
+    "signals": [],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {
+      "sourceTextExcerpt": "This Amendment No. 1 to Form S-8 is filed solely to correct certain errors in the reoffer prospectus. The registration statement relates to the BitCompute Digital Inc. 2025 Equity Incentive Plan. The Reoffer Prospectus relates to up to 1,200,000 shares of common stock that may be offered for resale by the selling securityholders. The company will not receive proceeds from sales by the selling securityholders. Selling Securityholder: Alice Lee | Shares Owned Before: 800,000 | Percent Owned Before: * | Shares Registered: 800,000 Selling Securityholder: Brian Park | Shares Owned Before: 400,000 | Percent Owned Before: * | Shares Registered: 400,000 The last reported sale price of common stock w",
+      "sourceDocuments": [
+        {
+          "id": "primary",
+          "documentRole": "primary_filing",
+          "source": "primary",
+          "documentType": null,
+          "description": "Primary S-8 filing document",
+          "textKind": "normalized_text",
+          "text": "This Amendment No. 1 to Form S-8 is filed solely to correct certain errors in the reoffer prospectus. The registration statement relates to the BitCompute Digital Inc. 2025 Equity Incentive Plan. The Reoffer Prospectus relates to up to 1,200,000 shares of common stock that may be offered for resale by the selling securityholders. The company will not receive proceeds from sales by the selling securityholders. Selling Securityholder: Alice Lee | Shares Owned Before: 800,000 | Percent Owned Before: * | Shares Registered: 800,000 Selling Securityholder: Brian Park | Shares Owned Before: 400,000 | Percent Owned Before: * | Shares Registered: 400,000 The last reported sale price of common stock was $2.10 on July 1, 2025."
+        }
+      ],
+      "noiseCandidates": [],
+      "attachments": [],
+      "parentFilingContext": {
+        "accessionNumber": "0008888888-25-000040",
+        "formType": "S-8",
+        "filedAt": "2025-05-01",
+        "registeredShares": 1200000,
+        "planNames": [
+          "BitCompute Digital Inc. 2025 Equity Incentive Plan"
+        ],
+        "summary": "Original S-8 included a reoffer prospectus covering 1,200,000 resale shares."
+      },
+      "marketContext": null,
+      "extractedShareCounts": [
+        1200000
+      ],
+      "sections": [
+        {
+          "key": "reoffer_prospectus",
+          "heading": "reoffer prospectus",
+          "start": 82,
+          "end": 307,
+          "confidence": "high"
+        },
+        {
+          "key": "selling_holders",
+          "heading": "selling securityholders",
+          "start": 307,
+          "end": null,
+          "confidence": "high"
+        }
+      ]
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "dilution_risk",
+    "event_title": "BitCompute S-8/A includes reoffer resale terms",
+    "primary_ticker": {
+      "ticker": "BCDI",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      "BCDI"
+    ],
+    "sector": "Technology",
+    "industry_group": "Digital Infrastructure",
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 65,
+    "score_reason": "The amendment is correction-focused, but the S-8 includes a reoffer prospectus covering 1,200,000 selling-holder resale shares; the filing states the company will not receive proceeds from those sales.",
+    "signal": "neutral",
+    "quick_take": "BitCompute's amendment is correction-focused, but the reoffer prospectus and selling-holder table should stay visible for review.",
+    "summary": "BitCompute filed an S-8/A correcting reoffer prospectus text tied to 1,200,000 resale shares under its 2025 Equity Incentive Plan.",
+    "why_it_matters": "S-8 reoffer prospectuses can describe affiliate resale supply and proceeds mechanics separately from ordinary plan-share registration.",
+    "bullish_points": [],
+    "bearish_points": [
+      "The reoffer prospectus covers 1,200,000 resale shares.",
+      "The filing states the company will not receive proceeds from selling-securityholder sales."
+    ],
+    "key_evidence": [
+      "Filed solely to correct certain errors in the reoffer prospectus.",
+      "Reoffer prospectus relates to up to 1,200,000 shares.",
+      "Selling securityholders: Alice Lee and Brian Park.",
+      "Filing-provided last sale price was $2.10 on July 1, 2025.",
+      "No fixture market context is supplied to size the 1,200,000 resale shares against outstanding shares, float or market cap."
+    ],
+    "what_to_watch_next": [
+      "Whether later amendments change registered shares or selling-securityholder amounts."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "medium",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "offering_terms",
+    "data": {
+      "payload_version": "s8_offering_terms_v1",
+      "reofferProspectus": true,
+      "reofferShares": 1200000,
+      "sellingSecurityholders": [
+        {
+          "name": "Alice Lee",
+          "sharesRegistered": 800000
+        },
+        {
+          "name": "Brian Park",
+          "sharesRegistered": 400000
+        }
+      ],
+      "filingProvidedPrice": {
+        "price": 2.1,
+        "pricedAt": "July 1, 2025"
+      },
+      "source_backed_share_stack": {
+        "registered_plan_shares": 1200000,
+        "registered_resale_supply": 1200000,
+        "resale_selling_stockholder_shares": 1200000,
+        "primary_common_shares_registered": null,
+        "current_shares_outstanding": null,
+        "shares_outstanding_from_market_context": null,
+        "public_float": null,
+        "market_cap": null,
+        "price": null,
+        "previous_close": null,
+        "filing_provided_last_sale_price": {
+          "price": 2.1,
+          "priced_at": "July 1, 2025",
+          "source": "filing_text"
+        },
+        "pre_funded_warrant_underlying_shares": null,
+        "warrant_underlying_shares": null,
+        "convertible_note_underlying_shares": null,
+        "preferred_conversion_shares": null,
+        "equity_line_registered_shares": null,
+        "additional_future_share_overhang": null,
+        "max_registered_stack_share_equivalent": 1200000
+      },
+      "proceeds_stack": {
+        "company_proceeds": 0,
+        "company_proceeds_source": "Filing states the company will not receive proceeds from selling-securityholder sales.",
+        "selling_holder_proceeds": null,
+        "selling_holder_proceeds_reason": "Selling-holder proceeds are not quantified in the parsed source facts.",
+        "fee_table_only_amount": null,
+        "registration_fee": null,
+        "offering_amount": null,
+        "atm_program_capacity": null,
+        "shelf_capacity": null,
+        "offering_price": null,
+        "conversion_price": null,
+        "warrant_exercise_price": null
+      },
+      "market_context_needs": {
+        "used_fixture_market_context": false,
+        "required_fields": [
+          "price",
+          "previous_close",
+          "market_cap",
+          "shares_outstanding",
+          "public_float"
+        ],
+        "reason": "Market context would be needed to size resale supply against current shares, float and market cap, but no fixture market context is supplied."
+      },
+      "s8_ui_mode": "reoffer_resale"
+    },
+    "evidence": [
+      "The Reoffer Prospectus relates to up to 1,200,000 shares of common stock.",
+      "The company will not receive proceeds from sales by the selling securityholders.",
+      "Two selling securityholders are listed in the fixture."
+    ],
+    "notes": [
+      "Filing-provided sale price is a source fact, not live market context."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": true,
+    "market_context_reason": "Market context would be needed to size the reoffer resale supply against current shares, public float and market cap.",
+    "market_context_fields": [
+      "price",
+      "previous_close",
+      "market_cap",
+      "shares_outstanding",
+      "public_float"
+    ],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Use offering_terms to preserve the compact selling-securityholder and resale table data.",
+      "Parent context is fixture JSON only."
+    ]
+  }
+}

@@ -1,0 +1,135 @@
+{
+  "parser_output": {
+    "parserVersion": "effect-parser-v1",
+    "parserGroup": "effect",
+    "formType": "EFFECT",
+    "accessionNumber": "9999999999-26-000004",
+    "isSupported": true,
+    "summary": "Unknown Biotech Corp. filed an EFFECT notice, but the fixture does not identify the related registration filing or effective date.",
+    "facts": {
+      "companyName": "Unknown Biotech Corp.",
+      "ticker": null,
+      "exchange": null,
+      "cik": null,
+      "filingDate": "2026-05-21",
+      "effectiveDate": null,
+      "effectiveTime": null,
+      "accessionNumber": "9999999999-26-000004",
+      "registrationNumber": null,
+      "effectiveRegistrationReference": null,
+      "effectiveFilingForm": null,
+      "relatedSubmissionType": null,
+      "referenceAccessionNumber": null,
+      "originalFilingReference": null,
+      "originalAccessionNumber": null,
+      "originalAnalysisReference": null,
+      "filers": [],
+      "primaryFiler": null,
+      "hasMultipleFilers": false,
+      "hasSeriesClassContractData": false,
+      "effectiveFormSource": null,
+      "effectiveDateSource": null,
+      "parentContextProvided": false,
+      "parentEventType": null,
+      "parentEventTitle": null,
+      "parentIpoKind": null,
+      "parentFormType": null,
+      "parentAccessionNumber": null,
+      "parentRegistrationNumber": null,
+      "parentScore": null,
+      "originalAnalysisShouldBeShown": false,
+      "effectiveTargetClear": false,
+      "parentTargetMatch": null,
+      "parentTargetConflicts": [],
+      "targetAmbiguityWarnings": [
+        "Effective registration target is ambiguous: missing related form or registration/accession reference.",
+        "Parent filing context is absent; parser cannot confirm which prior registration analysis should be shown."
+      ],
+      "sourceExcerpts": []
+    },
+    "signals": [
+      "effectiveness_notice",
+      "effective_target_ambiguous"
+    ],
+    "calendarItems": [],
+    "warnings": [
+      "Effective date was not present in the EFFECT fixture.",
+      "Related registration form type was not identified.",
+      "No registration number or original filing reference was identified.",
+      "Effective registration target is not clear from source-backed EFFECT facts.",
+      "Effective registration target is ambiguous: missing related form or registration/accession reference.",
+      "Parent filing context is absent; parser cannot confirm which prior registration analysis should be shown."
+    ],
+    "raw": {
+      "sourceTextLength": 82,
+      "documentCount": 0,
+      "xmlDetected": false,
+      "headerDetected": false,
+      "parentFilingContextUsed": false,
+      "marketContextProvided": false
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "other",
+    "event_title": "Unknown Biotech Corp. EFFECT notice needs registration context",
+    "primary_ticker": {
+      "ticker": null,
+      "exchange": null
+    },
+    "tickers": [],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 30,
+    "score_reason": "The EFFECT fixture does not identify the related registration form, so the room archives it conservatively rather than guessing.",
+    "signal": "neutral",
+    "quick_take": "Unknown Biotech Corp. filed an EFFECT notice, but the fixture does not identify enough related registration context for a stronger deterministic call.",
+    "summary": "Unknown Biotech Corp. filed an EFFECT notice, but the fixture does not identify the related registration filing or effective date.",
+    "why_it_matters": "An EFFECT notice confirms SEC effectiveness, but the investor impact depends on the related registration statement.",
+    "bullish_points": [],
+    "bearish_points": [
+      "The fixture lacks the related registration filing, so investors cannot assess the specific securities or transaction terms from this EFFECT notice alone."
+    ],
+    "key_evidence": [],
+    "what_to_watch_next": [
+      "Original registration filing terms",
+      "Any prospectus supplement or related 424B filing",
+      "Parent registration filing context supplied by integration"
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "low",
+    "needs_human_review": true
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "effective_filing_form": null,
+      "ipo_kind": null,
+      "effective_registration_reference": null,
+      "effective_date": null,
+      "original_filing_reference": null
+    },
+    "evidence": [],
+    "notes": [
+      "EFFECT room did not query live DB; original filing context is fixture-only."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Link EFFECT filing to the related registration filing during integration; do not resolve that link from this form room.",
+      "Delivery level is derived from score using shared score bands.",
+      "Fixture proves deterministic handling; no router or analysis LLM is needed."
+    ]
+  }
+}

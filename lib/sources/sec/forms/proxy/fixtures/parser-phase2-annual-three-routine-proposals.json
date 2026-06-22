@@ -1,0 +1,9 @@
+{
+  "fixture_name": "parser-phase2-annual-three-routine-proposals",
+  "input": {
+    "formType": "DEF 14A",
+    "accessionNumber": "0000000011-26-000011",
+    "companyName": "Routine Proxy Co.",
+    "filingText": "NOTICE OF ANNUAL MEETING\nProposal 1: Election of Directors\nProposal 2: Ratification of Appointment of Independent Registered Public Accounting Firm\nProposal 3: Advisory Vote to Approve Executive Compensation\n\nPROXY STATEMENT\nPROPOSAL 1 Election of Directors\nThe Board unanimously recommends that you vote FOR each nominee.\nPlurality voting applies to the election of directors.\n\nPROPOSAL NO. 2 RATIFICATION OF APPOINTMENT OF INDEPENDENT REGISTERED PUBLIC ACCOUNTING FIRM\nThe Board recommends a vote FOR Proposal 2.\nThe affirmative vote of a majority of votes cast is required.\n\nItem 3 - Advisory Vote to Approve Executive Compensation\nThe Board recommends a vote FOR Proposal 3.\nAbstentions will have no effect on this advisory vote."
+  }
+}

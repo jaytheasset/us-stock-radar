@@ -1,0 +1,48 @@
+{
+  "rawItemId": "fixture-form25-matured-debt-removal",
+  "sourceUniqueId": "0000876661-25-000513",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/876661/000087666125000513/0000876661-25-000513-index.html",
+  "title": "Lloyds Bank plc 25-NSE",
+  "publishedAt": "2025-07-16",
+  "bodyText": "ACCESSION NUMBER: 0000876661-25-000513\nCONFORMED SUBMISSION TYPE: 25-NSE\nFILED AS OF DATE: 20250716\nEFFECTIVENESS DATE: 20250716\nSUBJECT COMPANY:\nCOMPANY DATA:\nCOMPANY CONFORMED NAME: Lloyds Bank plc\nCENTRAL INDEX KEY: 0001167831\nFILING VALUES:\nFORM TYPE: 25-NSE\nSEC FILE NUMBER: 001-35079\nFILED BY:\nCOMPANY DATA:\nCOMPANY CONFORMED NAME: NEW YORK STOCK EXCHANGE LLC\nCENTRAL INDEX KEY: 0000876661\n25-NSE 1 primary_doc.xml X0203 0000876661 NEW YORK STOCK EXCHANGE LLC 0001167831 Lloyds Bank plc 001-35079 25 Gresham Street London EC2V 7HN +44 20 7626 1500 3.500% Senior Notes due May 14, 2025 17 CFR 240.12d2-2(a)(2) Tyler Mastronardi Analyst, Market Watch 2025-07-16\nRAW_FORM25_FULL_TEXT_SENTINEL_SHOULD_NOT_REACH_PROMPTS",
+  "rawPayload": {
+    "form_type": "25-NSE",
+    "accession_number": "0000876661-25-000513",
+    "primary_ticker": "LYG",
+    "primary_ticker_exchange": "NYSE",
+    "documents": [
+      {
+        "type": "25-NSE",
+        "description": "primary_doc.xml",
+        "url": "https://www.sec.gov/Archives/edgar/data/876661/000087666125000513/primary_doc.xml",
+        "isPrimary": true,
+        "textCharCount": 1071,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      },
+      {
+        "type": "EX-99.25",
+        "description": "ruleprovisionnotice.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/876661/000087666125000513/ruleprovisionnotice.htm",
+        "isPrimary": false,
+        "textCharCount": 752,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ],
+    "attachment_texts": [
+      {
+        "type": "EX-99.25",
+        "description": "Rule provision notice",
+        "text": "NOTIFICATION OF THE REMOVAL FROM LISTING AND REGISTRATION OF THE STATED SECURITIES The New York Stock Exchange hereby notifies the SEC of its intention to remove the entire class of the stated securities from listing and registration on the Exchange at the opening of business on July 28, 2025, pursuant to the provisions of Rule 12d2-2(a). [X] 17 CFR 240.12d2-2(a)(2) That the entire class of this security was redeemed or paid at maturity or retirement on May 14, 2025. The Exchange also notifies the Securities and Exchange Commission that as a result of the above indicated conditions this security was suspended from trading on May 14, 2025.",
+        "textTruncated": false
+      }
+    ]
+  },
+  "metadata": {
+    "company_name": "Lloyds Bank plc",
+    "cik": "0001167831"
+  }
+}

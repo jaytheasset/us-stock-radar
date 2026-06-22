@@ -1,0 +1,33 @@
+{
+  "name": "atm-market-context",
+  "formType": "424B5",
+  "accessionNumber": "0000000000-26-000103",
+  "issuer": {
+    "name": "Cygnus Data Platforms, Inc.",
+    "ticker": "CYGN",
+    "exchange": "NASDAQ"
+  },
+  "filingText": "PROSPECTUS SUPPLEMENT Cygnus Data Platforms, Inc. (Nasdaq: CYGN) We have entered into an At Market Issuance Sales Agreement under which we may offer and sell shares of our common stock having an aggregate offering price of up to $100,000,000 from time to time. Sales may be made by any method deemed to be an at-the-market offering under Rule 415. Net proceeds will be used for working capital and acquisitions. The number of shares sold will depend on market prices. As of May 10, 2026, we had 50,000,000 shares of common stock outstanding.",
+  "market_context": {
+    "price": 6,
+    "previous_close": 6.25,
+    "market_cap": 300000000,
+    "shares_outstanding": 50000000,
+    "public_float": 35000000,
+    "volume": 1800000,
+    "avg_volume": 740000
+  },
+  "expected_event_type": "dilution_risk",
+  "expected_score_band": "alert",
+  "fixture_assertions": {
+    "deterministic": true,
+    "expected_router_preliminary_action": "deterministic_analysis",
+    "expected_analysis_action": "deterministic_offering_terms_analysis",
+    "important_facts": {
+      "maxOfferingAmount": 100000000,
+      "sharesOutstanding": 50000000,
+      "maxOfferingToMarketCapRatio": 0.3333,
+      "atTheMarket": true
+    }
+  }
+}

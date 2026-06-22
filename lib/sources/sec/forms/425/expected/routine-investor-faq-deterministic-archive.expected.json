@@ -1,0 +1,93 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_425_parser_v1",
+    "parserGroup": "425",
+    "formType": "425",
+    "accessionNumber": "0000000000-26-000429",
+    "isSupported": true,
+    "summary": "Routine Form 425 communication: The filing says it repeats previously announced transaction information, contains no new material information, and does not change deal consideration, exchange ratio, timeline, or conditions.",
+    "facts": {
+      "company_name": "Cedar Bancorp, Inc.",
+      "primary_ticker": "CDBK",
+      "exchange": "NASDAQ",
+      "communication_types": ["employee_faq", "proxy_solicitation"],
+      "no_new_material_info": true,
+      "material_change": false,
+      "deterministic_archive_reason": "The filing says it repeats previously announced transaction information, contains no new material information, and does not change deal consideration, exchange ratio, timeline, or conditions."
+    },
+    "signals": [
+      {
+        "type": "deterministic_archive_candidate",
+        "value": "parser_can_finish_without_llm",
+        "evidence": "The filing says it repeats previously announced transaction information, contains no new material information, and does not change deal consideration, exchange ratio, timeline, or conditions.",
+        "confidence": "high"
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "other",
+    "event_title": "Routine Form 425 communication with no new material terms",
+    "primary_ticker": {
+      "ticker": "CDBK",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      {
+        "ticker": "CDBK",
+        "exchange": "NASDAQ"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": "M&A communications",
+    "sub_theme": "Routine deal communication",
+    "score": 35,
+    "score_reason": "Archived because the parser found explicit no-new-material-information and no-change-to-terms language.",
+    "signal": "neutral",
+    "quick_take": "Routine transaction communication; no new deal terms were identified.",
+    "summary": "The filing says it repeats previously announced transaction information, contains no new material information, and does not change deal consideration, exchange ratio, timeline, or conditions.",
+    "why_it_matters": "Routine Form 425 communications can create noise around pending transactions; this case does not add a new investor-relevant event.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [
+      "The filing says it repeats previously announced transaction information, contains no new material information, and does not change deal consideration, exchange ratio, timeline, or conditions."
+    ],
+    "what_to_watch_next": [
+      "Watch for future Form 425, proxy, 8-K, or merger filings that change consideration, timing, vote dates, or closing conditions."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "deterministic_stage": "parser",
+      "route_case": "routine_repetition"
+    },
+    "evidence": [
+      "The filing says it repeats previously announced transaction information, contains no new material information, and does not change deal consideration, exchange ratio, timeline, or conditions."
+    ],
+    "notes": [
+      "LLM not needed: parser found explicit no-new-material-information and no-change language."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Deterministic parser archive can be saved to company filing history without router or analysis LLM."
+    ]
+  }
+}

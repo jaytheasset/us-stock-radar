@@ -1,0 +1,104 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_periodic_reports_parser_v1",
+    "parserGroup": "periodic-reports",
+    "formType": "10-K",
+    "accessionNumber": "0002222222-26-000021",
+    "isSupported": true,
+    "summary": "Vyra Therapeutics Corp. filed 10-K for December 31, 2025; going-concern and liquidity risk are the dominant event.",
+    "facts": {
+      "companyName": "Vyra Therapeutics Corp.",
+      "primaryTicker": "VYRA",
+      "exchange": "Nasdaq Capital Market",
+      "reportingPeriod": "December 31, 2025",
+      "fiscalYear": "2025",
+      "dominantParserEventType": "financial_risk",
+      "revenue": 7200000,
+      "netLoss": 88000000,
+      "cashAndEquivalents": 14000000,
+      "debt": 55000000,
+      "goingConcern": true
+    },
+    "signals": [
+      {
+        "event_type": "financial_risk",
+        "signal_type": "liquidity_or_going_concern",
+        "strength": "high",
+        "summary": "Annual report discloses substantial doubt and need for additional capital.",
+        "evidence": "Management concluded that these conditions raise substantial doubt about our ability to continue as a going concern. We will require additional capital to fund operations beyond the third quarter of 2026.",
+        "deterministic": false
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {
+      "processing_path": "parser_router_analysis",
+      "market_context_used": false
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "financial_risk",
+    "event_title": "Vyra Therapeutics flags going-concern and funding risk",
+    "primary_ticker": {
+      "ticker": "VYRA",
+      "exchange": "Nasdaq Capital Market"
+    },
+    "tickers": ["VYRA"],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 84,
+    "score_reason": "Alert-level score because the 10-K discloses substantial doubt about going concern, limited cash, debt, and the need for additional capital.",
+    "signal": "bearish",
+    "quick_take": "VYRA's annual report raises acute financing risk after a large net loss and explicit going-concern language.",
+    "summary": "Vyra reported $7.2 million of revenue, an $88.0 million net loss, $14.0 million of cash, and $55.0 million of debt. Management said conditions raise substantial doubt about its ability to continue as a going concern.",
+    "why_it_matters": "Going-concern language can pressure equity holders because the company may need dilutive financing or restructuring options to keep funding operations.",
+    "bullish_points": [],
+    "bearish_points": [
+      "The company disclosed substantial doubt about continuing as a going concern.",
+      "Cash of $14.0 million is small relative to the annual net loss and debt balance.",
+      "Management expects to require additional capital beyond the third quarter of 2026."
+    ],
+    "key_evidence": [
+      "The company incurred a net loss of $88.0 million for the year.",
+      "Cash and cash equivalents were $14.0 million at December 31, 2025.",
+      "Management concluded that these conditions raise substantial doubt about our ability to continue as a going concern."
+    ],
+    "what_to_watch_next": [
+      "Financing, strategic alternatives, or restructuring disclosures.",
+      "Whether the company can extend runway before the stated third-quarter 2026 funding point."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "cash_and_equivalents": 14000000,
+      "debt": 55000000,
+      "net_loss": 88000000,
+      "market_cap_fixture": 32000000
+    },
+    "evidence": [
+      "Cash and cash equivalents were $14.0 million at December 31, 2025.",
+      "Total debt was $55.0 million.",
+      "Management concluded that these conditions raise substantial doubt about our ability to continue as a going concern."
+    ],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": true,
+    "market_context_reason": "Liquidity stress and debt should be sized against market cap and share base when judging equity-holder impact.",
+    "market_context_fields": ["price", "market_cap", "shares_outstanding", "public_float"],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": []
+  }
+}

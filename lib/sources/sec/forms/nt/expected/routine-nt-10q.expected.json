@@ -1,0 +1,122 @@
+{
+  "parser_output": {
+    "parserVersion": "nt-parser-v1",
+    "parserGroup": "nt",
+    "formType": "NT 10-Q",
+    "accessionNumber": "0001000001-26-000010",
+    "isSupported": true,
+    "summary": "NT 10-Q late filing notice for Acme Robotics Inc. for period ended 2026-03-31; does not expect a significant change in results.",
+    "facts": {
+      "companyName": "Acme Robotics Inc.",
+      "ticker": "ACME",
+      "exchange": "NASDAQ",
+      "delayedReport": "10-Q",
+      "periodOfReport": "2026-03-31",
+      "filedAt": "2026-05-11",
+      "extensionDays": 5,
+      "unableWithoutUnreasonableEffort": true,
+      "anticipatedWithinExtension": true,
+      "accountantStatementAttached": null,
+      "significantChangeExpected": false,
+      "significantChangeDescription": "significant change in results of operations from the corresponding period for the last fiscal year will be reflected by the earnings statements to be included in the subject report?",
+      "lateFilingReason": "The registrant requires additional time to complete its quarterly review procedures and management review of the quarterly filing. The delay could not be eliminated without unreasonable effort or expense. The registrant expects to file the Form 10-Q within the five calendar day extension period.",
+      "disclosedReasons": ["routine_reporting_delay"],
+      "riskIndicators": [],
+      "sourceExcerpts": [
+        {
+          "label": "late_filing_reason",
+          "text": "The registrant requires additional time to complete its quarterly review procedures and management review of the quarterly filing. The delay could not be eliminated without unreasonable effort or expense. The registrant expects to file the Form 10-Q within the five calendar day extension period."
+        },
+        {
+          "label": "significant_change_question",
+          "text": "significant change in results of operations from the corresponding period for the last fiscal year will be reflected by the earnings statements to be included in the subject report?"
+        }
+      ]
+    },
+    "signals": [
+      {
+        "name": "routine_late_filing",
+        "sentiment": "neutral",
+        "materiality": "low",
+        "reason": "The filing cites routine completion work and does not disclose a significant results change."
+      },
+      {
+        "name": "deterministic_archive_candidate",
+        "sentiment": "neutral",
+        "materiality": "low",
+        "reason": "Routine NT filing with no significant results change can be archived without LLM analysis."
+      }
+    ],
+    "calendarItems": [
+      {
+        "label": "Rule 12b-25 extension window",
+        "date": null,
+        "description": "Issuer states it expects to file within the 5 calendar day extension period."
+      }
+    ],
+    "warnings": [],
+    "raw": {
+      "inputFormType": "NT 10-Q",
+      "textExcerpt": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-Q PART III NARRATIVE The registrant requires additional time to complete its quarterly review procedures and management review of the quarterly filing. The delay could not be eliminated without unreasonable effort or expense. The registrant expects to file the Form 10-Q within the five calendar day extension period. PART IV OTHER INFORMATION (3) Is it anticipated that any significant change in results of operations from the corresponding period for the last fiscal year will be reflected by the earnings statements to be included in the subject report? [ ] Yes [X] No."
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "other",
+    "event_title": "Routine NT 10-Q Late Filing Notice",
+    "primary_ticker": { "ticker": "ACME", "exchange": "NASDAQ" },
+    "tickers": ["ACME"],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 25,
+    "score_reason": "The issuer expects to file within the 5-day Rule 12b-25 extension and checked no significant change in results.",
+    "signal": "neutral",
+    "quick_take": "Acme Robotics filed a routine NT 10-Q and says no significant results change is expected.",
+    "summary": "The notice says the quarter report is late because the company needs more time to complete review procedures, but it expects to file within the extension window.",
+    "why_it_matters": "A routine NT notice can matter if the issuer misses the extension or later discloses accounting problems, but this filing does not show that by itself.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [
+      "The registrant expects to file the Form 10-Q within the five calendar day extension period.",
+      "The issuer checked No to a significant change in results of operations."
+    ],
+    "what_to_watch_next": ["Whether the Form 10-Q is filed within the 5-day extension window."],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "label": "Rule 12b-25 extension window",
+        "date": null,
+        "description": "Issuer states it expects to file within the 5 calendar day extension period."
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "display_version": "nt_late_filing_v1",
+    "data": {
+      "delayed_report": "10-Q",
+      "extension_days": 5,
+      "deterministic_without_llm": true
+    },
+    "evidence": [
+      "No significant change in results was checked.",
+      "Expected filing is within the five calendar day extension period."
+    ],
+    "notes": ["Deterministic archive case; no LLM analysis needed."]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": ["Can finish deterministically at router stage when parser facts match this routine profile."]
+  }
+}

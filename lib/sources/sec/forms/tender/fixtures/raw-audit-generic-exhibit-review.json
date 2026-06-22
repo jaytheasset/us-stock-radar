@@ -1,0 +1,56 @@
+{
+  "case_name": "raw data audit - generic exhibit review candidate",
+  "filing": {
+    "rawItemId": "fixture-raw-audit-generic-exhibit-review",
+    "sourceUniqueId": "0000000000-26-000103",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/0000000/000000000026000103/",
+    "title": "Generic Exhibit Review Inc. SC 13E3",
+    "publishedAt": "2026-05-01T12:00:00.000Z",
+    "bodyText": "SC 13E3\nGeneric Exhibit Review Inc.\nRule 13e-3 going private transaction. The primary form lists exhibits with generic labels.",
+    "rawPayload": {
+      "accession_number": "0000000000-26-000103",
+      "form_type": "SC 13E3",
+      "company_name": "Generic Exhibit Review Inc.",
+      "documents": [
+        {
+          "sequence": 1,
+          "type": "SC 13E3",
+          "description": "SC 13E3",
+          "document": "primary.htm",
+          "isPrimary": true,
+          "textCharCount": 180
+        },
+        {
+          "sequence": 2,
+          "type": "EX-99.1",
+          "description": "Exhibit 99.1",
+          "document": "ex991.htm",
+          "textCharCount": 1300
+        },
+        {
+          "sequence": 3,
+          "type": "GRAPHIC",
+          "description": "GRAPHIC",
+          "document": "image_001.jpg",
+          "textCharCount": 0
+        }
+      ],
+      "attachment_texts": [
+        {
+          "type": "EX-99.1",
+          "description": "Exhibit 99.1",
+          "text": "Fairness opinion of the financial advisor and related presentation materials for the going private transaction."
+        }
+      ]
+    }
+  },
+  "expected": {
+    "event_type": "strategic_transaction",
+    "delivery_level": "alert",
+    "important_facts": {
+      "sec_form_type": "SC 13E3",
+      "tender_case": "going_private_13e3",
+      "generic_exhibit_review_candidate": true
+    }
+  }
+}

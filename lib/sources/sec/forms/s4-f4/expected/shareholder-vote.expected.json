@@ -1,0 +1,147 @@
+{
+  "parser_output": {
+    "parserVersion": "s4-f4-v1",
+    "parserGroup": "s4-f4",
+    "formType": "S-4 / F-4 / S-4/A / F-4/A",
+    "accessionNumber": "0002222222-26-000202",
+    "isSupported": true,
+    "summary": "S-4/A filing includes shareholder vote details for a transaction.",
+    "facts": {
+      "secFormType": "S-4/A",
+      "isAmendment": true,
+      "companyName": "Northstar Energy Storage Inc.",
+      "primaryTicker": {
+        "ticker": "NSES",
+        "exchange": "NASDAQ"
+      },
+      "transaction": {
+        "type": "merger"
+      },
+      "vote": {
+        "required": true,
+        "meetingDate": "May 14, 2026",
+        "recordDate": "April 9, 2026"
+      },
+      "amendment": {
+        "isAmendment": true,
+        "materialChange": false,
+        "routineAdministrative": false,
+        "changedSections": []
+      }
+    },
+    "signals": [],
+    "calendarItems": [
+      {
+        "date": "May 14, 2026",
+        "label": "Shareholder meeting",
+        "type": "meeting"
+      },
+      {
+        "date": "April 9, 2026",
+        "label": "Shareholder vote record date",
+        "type": "record_date"
+      }
+    ],
+    "warnings": [
+      "Amendment status detected, but materiality could not be determined from fixture text."
+    ],
+    "raw": {
+      "fixtureId": "shareholder-vote"
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "shareholder_vote",
+    "event_title": "Northstar sets shareholder vote date for Harbor Grid merger",
+    "primary_ticker": {
+      "ticker": "NSES",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      {
+        "ticker": "NSES",
+        "exchange": "NASDAQ"
+      },
+      {
+        "ticker": "HGRD",
+        "exchange": "NYSE"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 64,
+    "score_reason": "The amendment provides a concrete shareholder vote date and record date but does not indicate a changed deal term.",
+    "signal": "volatile",
+    "quick_take": "Northstar holders now have a dated vote for the Harbor Grid merger.",
+    "summary": "The S-4/A sets the special meeting for May 14, 2026 and the record date for April 9, 2026.",
+    "why_it_matters": "A dated vote is a key transaction milestone because approval can determine whether the share issuance and merger can proceed.",
+    "bullish_points": [
+      "The filing advances the transaction to a scheduled holder vote."
+    ],
+    "bearish_points": [
+      "The merger still depends on shareholder approval.",
+      "The fixture does not provide updated economics beyond the vote materials."
+    ],
+    "key_evidence": [
+      "Special meeting date: May 14, 2026.",
+      "Record date: April 9, 2026.",
+      "Vote covers issuance of Northstar common stock in connection with the merger."
+    ],
+    "what_to_watch_next": [
+      "Vote outcome.",
+      "Any further amendment to terms before the meeting.",
+      "Closing timetable after approval."
+    ],
+    "related_tickers": [
+      {
+        "ticker": "HGRD",
+        "exchange": "NYSE"
+      }
+    ],
+    "calendar_items": [
+      {
+        "date": "May 14, 2026",
+        "label": "Shareholder meeting",
+        "type": "meeting"
+      },
+      {
+        "date": "April 9, 2026",
+        "label": "Shareholder vote record date",
+        "type": "record_date"
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "candidate_special",
+    "data": {
+      "vote_type": "share issuance and merger approval",
+      "meeting_date": "May 14, 2026",
+      "record_date": "April 9, 2026",
+      "proposal": "approve issuance of Northstar common stock in connection with the merger"
+    },
+    "evidence": [
+      "special meeting of Northstar stockholders will be held on May 14, 2026",
+      "record date ... is April 9, 2026"
+    ],
+    "notes": [
+      "Candidate special UI for transaction vote timeline."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": true,
+    "special_ui_reason": "Vote date, record date, proposal, and parent transaction context are transaction-specific fields.",
+    "integration_notes": [
+      "Use parent filing context from fixture only; do not query live DB from this room."
+    ]
+  }
+}

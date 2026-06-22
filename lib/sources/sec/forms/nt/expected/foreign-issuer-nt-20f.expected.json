@@ -1,0 +1,135 @@
+{
+  "parser_output": {
+    "parserVersion": "nt-parser-v1",
+    "parserGroup": "nt",
+    "formType": "NT 20-F",
+    "accessionNumber": "0001000004-26-000040",
+    "isSupported": true,
+    "summary": "NT 20-F late filing notice for Global Meridian PLC for period ended 2025-12-31; does not expect a significant change in results.",
+    "facts": {
+      "companyName": "Global Meridian PLC",
+      "ticker": "GMDN",
+      "exchange": "NYSE",
+      "delayedReport": "20-F",
+      "periodOfReport": "2025-12-31",
+      "filedAt": "2026-04-30",
+      "extensionDays": 15,
+      "unableWithoutUnreasonableEffort": true,
+      "anticipatedWithinExtension": true,
+      "accountantStatementAttached": null,
+      "significantChangeExpected": false,
+      "significantChangeDescription": "significant change in results of operations from the corresponding period for the last fiscal year will be reflected by the earnings statements to be included in the subject report?",
+      "lateFilingReason": "The company is unable to file its Form 20-F because a newly acquired subsidiary outside the United States requires additional time to complete local statutory audit procedures and consolidation schedules. The delay could not be eliminated without unreasonable effort or expense. The company expects to file the Form 20-F within the fifteen calendar day extension period.",
+      "disclosedReasons": [
+        "accounting_audit_or_internal_control_issue",
+        "strategic_transaction_or_consolidation_issue"
+      ],
+      "riskIndicators": ["accounting_or_audit_issue", "strategic_transaction_delay"],
+      "sourceExcerpts": [
+        {
+          "label": "late_filing_reason",
+          "text": "The company is unable to file its Form 20-F because a newly acquired subsidiary outside the United States requires additional time to complete local statutory audit procedures and consolidation schedules. The delay could not be eliminated without unreasonable effort or expense. The company expects to file the Form 20-F within the fifteen calendar day extension period."
+        },
+        {
+          "label": "significant_change_question",
+          "text": "significant change in results of operations from the corresponding period for the last fiscal year will be reflected by the earnings statements to be included in the subject report?"
+        }
+      ]
+    },
+    "signals": [
+      {
+        "name": "accounting_or_audit_issue",
+        "sentiment": "bearish",
+        "materiality": "high",
+        "reason": "The NT filing cites accounting, audit, valuation, restatement, or internal-control work."
+      },
+      {
+        "name": "strategic_transaction_delay",
+        "sentiment": "volatile",
+        "materiality": "medium",
+        "reason": "The NT filing cites merger, acquisition, divestiture, subsidiary consolidation, or transaction accounting."
+      }
+    ],
+    "calendarItems": [
+      {
+        "label": "Rule 12b-25 extension window",
+        "date": null,
+        "description": "Issuer states it expects to file within the 15 calendar day extension period."
+      }
+    ],
+    "warnings": [],
+    "raw": {
+      "inputFormType": "NT 20-F",
+      "textExcerpt": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 20-F PART III NARRATIVE The company is unable to file its Form 20-F because a newly acquired subsidiary outside the United States requires additional time to complete local statutory audit procedures and consolidation schedules. The delay could not be eliminated without unreasonable effort or expense. The company expects to file the Form 20-F within the fifteen calendar day extension period. PART IV OTHER INFORMATION (3) Is it anticipated that any significant change in results of operations from the corresponding period for the last fiscal year will be reflected by the earnings statements to be included in the subject report? [ ] Yes [X] No."
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "financial_risk",
+    "event_title": "NT 20-F Delay From Subsidiary Audit And Consolidation",
+    "primary_ticker": { "ticker": "GMDN", "exchange": "NYSE" },
+    "tickers": ["GMDN"],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 58,
+    "score_reason": "The annual 20-F delay is tied to subsidiary audit and consolidation work, but the issuer checked no significant results change and expects to file within the extension period.",
+    "signal": "volatile",
+    "quick_take": "Global Meridian's NT 20-F points to subsidiary audit and consolidation timing rather than a disclosed results change.",
+    "summary": "The foreign issuer says a newly acquired subsidiary needs more local statutory audit work and consolidation schedules before the 20-F can be filed.",
+    "why_it_matters": "A delayed annual report tied to consolidation can create financial-reporting uncertainty, even when the company does not expect a significant results change.",
+    "bullish_points": [
+      "The company checked no significant change in results.",
+      "It expects to file within the 15-day extension period."
+    ],
+    "bearish_points": [
+      "The delay involves local statutory audit procedures.",
+      "A newly acquired subsidiary still needs consolidation work."
+    ],
+    "key_evidence": [
+      "newly acquired subsidiary outside the United States requires additional time to complete local statutory audit procedures and consolidation schedules",
+      "No significant change in results was checked."
+    ],
+    "what_to_watch_next": [
+      "Whether the 20-F is filed inside the 15-day extension.",
+      "Any acquisition accounting, audit, or control disclosures in the filed 20-F."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "label": "Rule 12b-25 extension window",
+        "date": null,
+        "description": "Issuer states it expects to file within the 15 calendar day extension period."
+      }
+    ],
+    "confidence": "medium",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "display_version": "nt_late_filing_v1",
+    "data": {
+      "delayed_report": "20-F",
+      "extension_days": 15,
+      "risk_indicators": ["accounting_or_audit_issue", "strategic_transaction_delay"]
+    },
+    "evidence": [
+      "A newly acquired subsidiary needs local statutory audit procedures.",
+      "Consolidation schedules remain open.",
+      "No significant change in results was checked."
+    ],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": []
+  }
+}

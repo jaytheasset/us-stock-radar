@@ -1,0 +1,19 @@
+{
+  "name": "shareholder-meeting-adjournment",
+  "formType": "425",
+  "accessionNumber": "0000000000-26-000431",
+  "sourceUniqueId": "0000000000-26-000431",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/0000000000/000000000026000431/form425.htm",
+  "title": "425 - Mercury Capital IV Adjourns Special Meeting",
+  "publishedAt": "2026-03-20T21:00:00Z",
+  "companyName": "Mercury Capital Corp IV",
+  "primaryTicker": "MCIV",
+  "exchange": "NYSE",
+  "filingText": "Filed by Mercury Capital Corp IV\nPursuant to Rule 425 under the Securities Act of 1933 and deemed filed pursuant to Rule 14a-12 under the Securities Exchange Act of 1934\nSubject Company: Mercury Capital Corp IV\nCommission File No. 001-40000\n\nMercury Capital Corp IV to Adjourn and Reconvene Special Meeting of Stockholders to Friday, March 27, 2026 to Allow Stockholders More Time to Vote on One Remaining Required Proposal for the Business Combination with Lucent Motors.\n\nMercury announced today that at a special meeting of stockholders its stockholders approved all but one of the proposals related to the business combination. Mercury further announced that it has adjourned the meeting until 9:00 a.m., Eastern time, on Friday, March 27, 2026 to allow for more time for stockholders to vote on the last required proposal. The company still needs additional votes to obtain approval for that proposal by a majority of its outstanding shares. Stockholders as of the close of business on February 21, 2026, the record date for the Special Meeting, should vote their shares.",
+  "market_context": null,
+  "expected": {
+    "event_type": "shareholder_vote",
+    "expected_delivery_level": "feed",
+    "deterministic": false
+  }
+}

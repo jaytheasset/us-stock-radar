@@ -1,0 +1,9 @@
+{
+  "fixture_name": "parser-phase1-defa14a-proxy-card-only",
+  "input": {
+    "formType": "DEFA14A",
+    "accessionNumber": "0000000001-26-000001",
+    "companyName": "Proxy Card Co.",
+    "filingText": "<SEC-DOCUMENT>\n<DOCUMENT>\n<TYPE>DEFA14A\n<SEQUENCE>1\n<FILENAME>proxy-card.htm\n<DESCRIPTION>Proxy Card\n<TEXT>\n<html><body><style>.hidden{display:none}</style><h1>Annual Meeting Proxy Card</h1><table><tr><td>Election of Directors</td><td>FOR ALL</td><td>WITHHOLD ALL</td><td>FOR ALL EXCEPT</td></tr></table><p>Please sign, date and return this proxy card.</p></body></html>\n</TEXT>\n</DOCUMENT>\n<DOCUMENT>\n<TYPE>GRAPHIC\n<SEQUENCE>2\n<FILENAME>logo.jpg\n<DESCRIPTION>Company logo\n<TEXT>binary image placeholder</TEXT>\n</DOCUMENT>\n</SEC-DOCUMENT>"
+  }
+}

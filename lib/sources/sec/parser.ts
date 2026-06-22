@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { getServerEnv } from "@/lib/env";
+import { getSecFormFetchPlan, matchesSecFormFetchRule } from "@/lib/sources/sec/forms/fetchPlanRegistry";
 
 const SEC_BASE_URL = "https://www.sec.gov";
 const SEC_CURRENT_URL = `${SEC_BASE_URL}/cgi-bin/browse-edgar`;
@@ -9,6 +10,8 @@ const TEXT_VERSION = "sec_text_clean_v1";
 const DEFAULT_FORM_TYPES = ["8-K", "6-K"];
 const MAX_DOCUMENT_TEXT_CHARS = 160_000;
 const MAX_COMBINED_TEXT_CHARS = 500_000;
+const MAX_OWNERSHIP_SOURCE_TEXT_CHARS = 500_000;
+const MAX_PRIMARY_DOCUMENT_HTML_CHARS = 2_000_000;
 
 type FetchOptions = {
   formTypes?: string[];
@@ -16,6 +19,9 @@ type FetchOptions = {
   limit?: number;
   includeDocuments?: boolean;
   attachmentLimit?: number;
+  accessionNumber?: string;
+  dateFrom?: string;
+  dateTo?: string;
 };
 
 export type SecDocument = {
@@ -29,6 +35,13 @@ export type SecDocument = {
   text: string | null;
   textCharCount: number;
   textTruncated: boolean;
+  rawText?: string | null;
+  rawTextCharCount?: number;
+  rawTextTruncated?: boolean;
+  rawSourceFormat?: string | null;
+  rawHtml?: string | null;
+  rawHtmlCharCount?: number;
+  rawHtmlTruncated?: boolean;
   fetchStatus?: number;
   fetchError?: string;
 };
@@ -63,15 +76,20 @@ export type SecRawFetchResult = {
     documentsRequested: number;
     documentsFetched: number;
     documentsFailed: number;
+    dateFrom?: string | null;
+    dateTo?: string | null;
+    afterDateFilter?: number;
   };
   error?: string;
 };
 
-type FeedEntry = {
+export type SecCurrentFeedEntry = {
   title: string | null;
   updated: string | null;
   detailUrl: string | null;
+  summary: string | null;
   formType: string | null;
+  requestedFormType: string | null;
 };
 
 type FilingIdentity = {
@@ -88,13 +106,26 @@ type TickerRow = {
   name: string | null;
 };
 
+type TickerResolution = {
+  rows: TickerRow[];
+  primary: TickerRow | null;
+  source: "issuer_trading_symbol" | "issuer_cik_sec" | "accession_cik_sec" | "cusip_fmp_verified" | "unresolved";
+  confidence: "high" | "none";
+  reason: string;
+  cusip: string | null;
+};
+
 let tickerLookupPromise: Promise<Map<string, TickerRow[]>> | null = null;
+const fmpCusipLookupCache = new Map<string, Promise<TickerRow[]>>();
 
 export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise<SecRawFetchResult> {
   const fetchedAt = new Date().toISOString();
-  const formTypes = normalizeFormTypes(options.formTypes);
+  const requestedAccessionNumber = normalizeAccessionNumber(options.accessionNumber);
+  const dateFrom = normalizeDateOnly(options.dateFrom);
+  const dateTo = normalizeDateOnly(options.dateTo);
+  const formTypes = normalizeFormTypes(options.formTypes, requestedAccessionNumber ? [] : DEFAULT_FORM_TYPES);
   const countPerForm = clampInt(options.countPerForm ?? 10, 1, 100);
-  const limit = clampInt(options.limit ?? formTypes.length * countPerForm, 1, 100);
+  const limit = requestedAccessionNumber ? 1 : clampInt(options.limit ?? formTypes.length * countPerForm, 1, 100);
   const includeDocuments = options.includeDocuments ?? true;
   const attachmentLimit = clampInt(options.attachmentLimit ?? 6, 0, 20);
   const diagnostics = {
@@ -106,14 +137,17 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
     documentsRequested: 0,
     documentsFetched: 0,
     documentsFailed: 0,
+    dateFrom,
+    dateTo,
+    afterDateFilter: 0,
   };
 
   try {
-    const feedEntries: FeedEntry[] = [];
-    for (const formType of formTypes) {
+    const feedEntries: SecCurrentFeedEntry[] = [];
+    if (requestedAccessionNumber) {
       diagnostics.feedsRequested += 1;
-      const feed = await fetchCurrentFeed(formType, countPerForm);
-      if (!feed.ok) {
+      const feed = await fetchSecCurrentFeedByAccession(requestedAccessionNumber);
+      if (!feed.ok || !feed.entry) {
         return {
           ok: false,
           status: feed.status,
@@ -121,14 +155,46 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
           count: 0,
           items: [],
           diagnostics,
-          error: feed.error || `SEC current feed failed for ${formType}`,
+          error: feed.error || `SEC accession lookup failed for ${requestedAccessionNumber}`,
         };
       }
-      feedEntries.push(...feed.entries);
+
+      if (formTypes.length && feed.entry.formType && !formTypes.some((formType) => secFormTypesMatch(formType, feed.entry.formType))) {
+        return {
+          ok: false,
+          status: 404,
+          fetchedAt,
+          count: 0,
+          items: [],
+          diagnostics,
+          error: `SEC accession ${requestedAccessionNumber} is ${feed.entry.formType}, not one of requested forms ${formTypes.join(", ")}`,
+        };
+      }
+
+      feedEntries.push(feed.entry);
+    } else {
+      for (const formType of formTypes) {
+        diagnostics.feedsRequested += 1;
+        const feed = await fetchSecCurrentFeed(formType, feedCountForForm(formType, countPerForm));
+        if (!feed.ok) {
+          return {
+            ok: false,
+            status: feed.status,
+            fetchedAt,
+            count: 0,
+            items: [],
+            diagnostics,
+            error: feed.error || `SEC current feed failed for ${formType}`,
+          };
+        }
+        feedEntries.push(...feed.entries);
+      }
     }
 
-    const dedupedEntries = dedupeFeedEntries(feedEntries).slice(0, limit);
+    const dateFilteredEntries = filterFeedEntriesByDateRange(dedupeFeedEntries(feedEntries), dateFrom, dateTo);
+    const dedupedEntries = dateFilteredEntries.slice(0, limit);
     diagnostics.parsedFromFeeds = feedEntries.length;
+    diagnostics.afterDateFilter = dateFilteredEntries.length;
     const tickerLookup = await fetchTickerLookup();
     const items: SecParsedRawItem[] = [];
 
@@ -137,8 +203,6 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
       if (!detailUrl) continue;
 
       const identity = parseFilingIdentity(detailUrl);
-      const tickerRows = identity.cik ? tickerLookup.get(identity.cik) || [] : [];
-      const tickerRow = selectPrimaryTickerRow(tickerRows);
       const detail = includeDocuments
         ? await fetchFilingDetail({
             detailUrl,
@@ -151,6 +215,7 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
             documentsFetched: 0,
             documentsFailed: 0,
             companyName: null,
+            filingDate: null,
           };
 
       diagnostics.documentsRequested += detail.documentsRequested;
@@ -159,10 +224,28 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
 
       const primary = detail.documents.find((document) => document.isPrimary) || detail.documents[0] || null;
       const bodyText = buildCombinedText(detail.documents);
-      const companyName = detail.companyName || tickerRow?.name || readCompanyNameFromTitle(entry.title);
+      const formType = chooseRawItemFormType(entry.formType, primary?.type);
+      const ownershipSource =
+        detail.documents.find((document) => document.rawSourceFormat === "ownership_xml") ||
+        detail.documents.find((document) => document.rawText) ||
+        null;
+      const ownershipIssuer =
+        (ownershipSource?.rawText ? readOwnershipIssuerIdentity(ownershipSource.rawText) : null) ||
+        (isSchedule13FormType(formType) ? readSchedule13IssuerIdentity(primary, bodyText) : null);
+      const tickerIssuer = ownershipIssuer;
+      const issuerCusips = extractIssuerCusips([ownershipSource?.rawText, primary?.rawHtml, primary?.rawText, primary?.text, bodyText]);
+      const tickerResolution = await resolveTrustedTickerRows({
+        lookup: tickerLookup,
+        formType,
+        filerCik: identity.cik,
+        issuer: tickerIssuer,
+        cusips: issuerCusips,
+      });
+      const tickerRows = tickerResolution.rows;
+      const tickerRow = tickerResolution.primary;
+      const companyName = tickerIssuer?.name || detail.companyName || tickerRow?.name || readCompanyNameFromTitle(entry.title);
       const accessionNumber = identity.accessionNumber;
       const sourceUniqueId = accessionNumber || detailUrl;
-      const formType = normalizeFormType(entry.formType) || primary?.type || null;
 
       items.push({
         source_code: "sec_edgar",
@@ -175,7 +258,7 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
           accessionNumber,
           fallback: entry.title,
         }),
-        published_at: entry.updated,
+        published_at: entry.updated || detail.filingDate,
         fetched_at: fetchedAt,
         body_text: bodyText,
         analysis_text: bodyText,
@@ -184,19 +267,40 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
           parser_version: PARSER_VERSION,
           text_version: TEXT_VERSION,
           form_type: formType,
-          cik: identity.cik,
-          cik_padded: identity.cikPadded,
+          cik: tickerIssuer?.cik || identity.cik,
+          cik_padded: (tickerIssuer?.cik || identity.cik)?.padStart(10, "0") || null,
+          filer_cik: identity.cik,
+          filer_cik_padded: identity.cikPadded,
+          ownership_issuer_cik: ownershipIssuer?.cik || null,
+          ownership_issuer_name: ownershipIssuer?.name || null,
+          ownership_issuer_trading_symbol: ownershipIssuer?.ticker || null,
           accession_number: accessionNumber,
           accession_no_dashes: identity.accessionNoDashes,
+          filing_date: detail.filingDate,
           company_name: companyName,
           ticker: tickerRow?.ticker || null,
           exchange: tickerRow?.exchange || null,
+          ticker_resolution: {
+            source: tickerResolution.source,
+            confidence: tickerResolution.confidence,
+            reason: tickerResolution.reason,
+            cusip: tickerResolution.cusip,
+          },
+          issuer_cusips: issuerCusips,
           tickers: tickerRows.map((row) => ({
             ticker: row.ticker,
             exchange: row.exchange,
           })),
           detail_url: detailUrl,
           primary_document_url: primary?.url || null,
+          primary_document_html: primary?.rawHtml || null,
+          primary_document_html_char_count: primary?.rawHtmlCharCount || 0,
+          primary_document_html_truncated: Boolean(primary?.rawHtmlTruncated),
+          ownership_source_url: ownershipSource?.url || null,
+          ownership_source_format: ownershipSource?.rawSourceFormat || null,
+          ownership_source_text: ownershipSource?.rawText || null,
+          ownership_source_text_char_count: ownershipSource?.rawTextCharCount || 0,
+          ownership_source_text_truncated: Boolean(ownershipSource?.rawTextTruncated),
           documents: detail.documents.map((document) => ({
             sequence: document.sequence,
             description: document.description,
@@ -207,6 +311,13 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
             isPrimary: document.isPrimary,
             textCharCount: document.textCharCount,
             textTruncated: document.textTruncated,
+            rawTextCharCount: document.rawTextCharCount || 0,
+            rawTextTruncated: Boolean(document.rawTextTruncated),
+            rawTextPreserved: Boolean(document.rawText),
+            rawHtmlCharCount: document.rawHtmlCharCount || 0,
+            rawHtmlTruncated: Boolean(document.rawHtmlTruncated),
+            rawHtmlPreserved: Boolean(document.rawHtml),
+            rawSourceFormat: document.rawSourceFormat || null,
             fetchStatus: document.fetchStatus || null,
             fetchError: document.fetchError || null,
           })),
@@ -223,7 +334,9 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
         metadata: {
           parser: "sec_edgar",
           form_type: formType,
-          cik: identity.cik,
+          cik: ownershipIssuer?.cik || identity.cik,
+          filer_cik: identity.cik,
+          ownership_issuer_cik: ownershipIssuer?.cik || null,
           accession_number: accessionNumber,
           ticker: tickerRow?.ticker || null,
           exchange: tickerRow?.exchange || null,
@@ -255,12 +368,16 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
   }
 }
 
-async function fetchCurrentFeed(formType: string, count: number) {
+export async function fetchSecCurrentFeed(formType: string, count: number) {
+  return fetchSecCurrentFeedPage(formType, count, 0);
+}
+
+async function fetchSecCurrentFeedPage(formType: string, count: number, start: number) {
   const url = new URL(SEC_CURRENT_URL);
   url.searchParams.set("action", "getcurrent");
   url.searchParams.set("type", formType);
-  url.searchParams.set("owner", "include");
-  url.searchParams.set("start", "0");
+  url.searchParams.set("owner", secFeedOwnerModeForForm(formType));
+  url.searchParams.set("start", String(Math.max(0, start)));
   url.searchParams.set("count", String(count));
   url.searchParams.set("output", "atom");
 
@@ -270,7 +387,7 @@ async function fetchCurrentFeed(formType: string, count: number) {
     return {
       ok: false,
       status: response.status,
-      entries: [] as FeedEntry[],
+      entries: [] as SecCurrentFeedEntry[],
       error: response.statusText || `HTTP ${response.status}`,
     };
   }
@@ -278,11 +395,235 @@ async function fetchCurrentFeed(formType: string, count: number) {
   return {
     ok: true,
     status: response.status,
-    entries: parseCurrentFeed(xml, formType),
+    entries: parseCurrentFeed(xml, formType).filter((entry) => entry.formType === normalizeFormType(formType)),
   };
 }
 
-function parseCurrentFeed(xml: string, formType: string): FeedEntry[] {
+async function fetchSecCurrentFeedByAccession(accessionNumber: string) {
+  const normalized = normalizeAccessionNumber(accessionNumber);
+  if (!normalized) {
+    return {
+      ok: false,
+      status: 400,
+      entry: null,
+      error: "Invalid SEC accession number.",
+    };
+  }
+
+  return fetchSecAccessionFromFullIndex(normalized);
+}
+
+async function fetchSecAccessionFromFullIndex(accessionNumber: string) {
+  const year = yearFromAccessionNumber(accessionNumber);
+  if (!year) {
+    return {
+      ok: false,
+      status: 400,
+      entry: null,
+      error: `Cannot infer year from SEC accession ${accessionNumber}.`,
+    };
+  }
+
+  const accessionNoDashes = accessionNumber.replace(/-/g, "");
+  let lastStatus = 404;
+  let lastError = "";
+
+  for (const quarter of quartersToSearch(year)) {
+    const indexUrl = `${SEC_BASE_URL}/Archives/edgar/full-index/${year}/QTR${quarter}/master.idx`;
+    try {
+      const response = await secFetch(indexUrl);
+      lastStatus = response.status;
+      if (!response.ok) {
+        lastError = response.statusText || `HTTP ${response.status}`;
+        continue;
+      }
+
+      const indexText = await response.text();
+      const line = indexText
+        .split(/\r?\n/)
+        .find((candidate) => candidate.includes(accessionNumber) || candidate.includes(accessionNoDashes));
+      if (!line) continue;
+
+      const parts = line.split("|");
+      if (parts.length < 5) continue;
+      const cik = normalizeCik(parts[0]);
+      const company = stringValue(parts[1]) || null;
+      const formType = normalizeFormType(parts[2]) || null;
+      const filedDate = stringValue(parts[3]);
+      const filename = stringValue(parts[4]);
+      const detailUrl = accessionIndexUrlFromMasterFilename(filename);
+      if (!detailUrl) continue;
+
+      return {
+        ok: true,
+        status: 200,
+        entry: {
+          title: company && formType ? `${formType} - ${company} (${cik?.padStart(10, "0") || cik || ""})` : null,
+          updated: filedDate ? `${filedDate}T00:00:00.000Z` : null,
+          detailUrl,
+          summary: null,
+          formType,
+          requestedFormType: formType,
+        } satisfies SecCurrentFeedEntry,
+      };
+    } catch (error) {
+      lastStatus = 0;
+      lastError = error instanceof Error ? error.message : "SEC full-index fetch failed";
+    }
+  }
+
+  const currentFeedFallback = await fetchSecAccessionFromCurrentOwnershipFeeds(accessionNumber);
+  if (currentFeedFallback.ok && currentFeedFallback.entry) return currentFeedFallback;
+
+  const archiveFallback = await fetchSecAccessionFromArchivePath(accessionNumber);
+  if (archiveFallback.ok && archiveFallback.entry) return archiveFallback;
+
+  return {
+    ok: false,
+    status: lastStatus,
+    entry: null,
+    error:
+      currentFeedFallback.error ||
+      archiveFallback.error ||
+      lastError ||
+      `SEC accession ${accessionNumber} was not found in ${year} full-index files.`,
+  };
+}
+
+async function fetchSecAccessionFromCurrentOwnershipFeeds(accessionNumber: string) {
+  const normalized = normalizeAccessionNumber(accessionNumber);
+  if (!normalized) {
+    return {
+      ok: false,
+      status: 400,
+      entry: null,
+      error: "Invalid SEC accession number.",
+    };
+  }
+
+  let lastStatus = 404;
+  let lastError = "";
+
+  for (const formType of ["4", "4/A", "144", "144/A"]) {
+    for (const start of [0, 100, 200, 300, 400]) {
+      try {
+        const feed = await fetchSecCurrentFeedPage(formType, 100, start);
+        lastStatus = feed.status;
+        if (!feed.ok) {
+          lastError = feed.error || `SEC current feed failed for ${formType}`;
+          continue;
+        }
+
+        const entry = feed.entries.find((candidate) => {
+          if (!candidate.detailUrl) return false;
+          const identity = parseFilingIdentity(candidate.detailUrl);
+          return identity.accessionNumber === normalized;
+        });
+        if (entry) {
+          return {
+            ok: true,
+            status: 200,
+            entry,
+          };
+        }
+        if (feed.entries.length < 100) break;
+      } catch (error) {
+        lastStatus = 0;
+        lastError = error instanceof Error ? error.message : "SEC current ownership feed fallback failed";
+      }
+    }
+  }
+
+  return {
+    ok: false,
+    status: lastStatus,
+    entry: null,
+    error: lastError || `SEC accession ${normalized} was not found in current ownership feeds.`,
+  };
+}
+
+async function fetchSecAccessionFromArchivePath(accessionNumber: string) {
+  const normalized = normalizeAccessionNumber(accessionNumber);
+  if (!normalized) {
+    return {
+      ok: false,
+      status: 400,
+      entry: null,
+      error: "Invalid SEC accession number.",
+    };
+  }
+
+  const filerCik = normalizeCik(normalized.slice(0, 10));
+  const accessionNoDashes = normalized.replace(/-/g, "");
+  if (!filerCik || accessionNoDashes.length !== 18) {
+    return {
+      ok: false,
+      status: 400,
+      entry: null,
+      error: `Cannot build SEC archive path for ${normalized}.`,
+    };
+  }
+
+  const archiveDir = `${SEC_BASE_URL}/Archives/edgar/data/${filerCik}/${accessionNoDashes}`;
+  const indexJsonUrl = `${archiveDir}/index.json`;
+  const detailUrl = `${archiveDir}/${normalized}-index.html`;
+
+  try {
+    const response = await secFetch(indexJsonUrl);
+    if (!response.ok) {
+      return {
+        ok: false,
+        status: response.status,
+        entry: null,
+        error: response.statusText || `HTTP ${response.status}`,
+      };
+    }
+
+    return {
+      ok: true,
+      status: 200,
+      entry: {
+        title: `SEC filing ${normalized}`,
+        updated: null,
+        detailUrl,
+        summary: null,
+        formType: null,
+        requestedFormType: null,
+      } satisfies SecCurrentFeedEntry,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      entry: null,
+      error: error instanceof Error ? error.message : "SEC archive accession fallback failed",
+    };
+  }
+}
+
+function accessionIndexUrlFromMasterFilename(filename: string) {
+  const cleaned = filename.trim().replace(/^\/+/, "");
+  if (!/^edgar\/data\/\d+\/.+\.txt$/i.test(cleaned)) return null;
+  return `${SEC_BASE_URL}/Archives/${cleaned.replace(/\.txt$/i, "-index.html")}`;
+}
+
+function yearFromAccessionNumber(accessionNumber: string) {
+  const match = normalizeAccessionNumber(accessionNumber)?.match(/^\d{10}-(\d{2})-\d{6}$/);
+  if (!match) return null;
+  const year = 2000 + Number(match[1]);
+  return Number.isFinite(year) ? year : null;
+}
+
+function quartersToSearch(year: number) {
+  const now = new Date();
+  const currentYear = now.getUTCFullYear();
+  const currentQuarter = Math.floor(now.getUTCMonth() / 3) + 1;
+  const quarters = [1, 2, 3, 4];
+  if (year !== currentYear) return quarters;
+  return quarters.sort((a, b) => Math.abs(a - currentQuarter) - Math.abs(b - currentQuarter));
+}
+
+function parseCurrentFeed(xml: string, formType: string): SecCurrentFeedEntry[] {
   const parser = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: "",
@@ -293,13 +634,37 @@ function parseCurrentFeed(xml: string, formType: string): FeedEntry[] {
 
   return entries.map((entry) => {
     const link = Array.isArray(entry.link) ? entry.link[0] : entry.link;
+    const actualFormType = readCurrentFeedEntryFormType(entry) || normalizeFormType(formType) || null;
     return {
       title: stringValue(entry.title) || null,
       updated: normalizeDateTime(entry.updated),
       detailUrl: absoluteSecUrl(stringValue(link?.href)),
-      formType,
+      summary: stringValue(entry.summary) || null,
+      formType: actualFormType,
+      requestedFormType: normalizeFormType(formType) || null,
     };
   });
+}
+
+function secFeedOwnerModeForForm(formType: string) {
+  return isOwnershipIntegrationForm(formType) ? "only" : "include";
+}
+
+function feedCountForForm(formType: string, countPerForm: number) {
+  return isOwnershipIntegrationForm(formType) ? Math.min(countPerForm * 10, 100) : countPerForm;
+}
+
+function readCurrentFeedEntryFormType(entry: Record<string, unknown>) {
+  const categories = arrayOf(entry.category);
+  for (const category of categories) {
+    if (!isRecord(category)) continue;
+    const label = stringValue(category.label).toLowerCase();
+    const term = normalizeFormType(category.term);
+    if (term && (!label || label === "form type")) return term;
+  }
+
+  const titlePrefix = stringValue(entry.title).match(/^\s*([A-Z0-9][A-Z0-9 /\-]*?(?:\/A)?)\s+-/i)?.[1];
+  return normalizeFormType(titlePrefix) || null;
 }
 
 async function fetchFilingDetail({
@@ -335,12 +700,15 @@ async function fetchFilingDetail({
       documentsFetched: 0,
       documentsFailed: 1,
       companyName: null,
+      filingDate: null,
     };
   }
 
   const companyName = readCompanyNameFromDetailHtml(html);
+  const filingDate = readFilingDateFromDetailHtml(html);
   const documents = parseFilingDocuments(html, detailUrl, formType);
-  const selectedDocuments = selectDocumentsForText(documents, attachmentLimit, formType);
+  const effectiveFormType = formType || inferPrimaryFormTypeFromDocuments(documents);
+  const selectedDocuments = selectDocumentsForText(documents, attachmentLimit, effectiveFormType);
   let documentsFetched = 0;
   let documentsFailed = 0;
   const documentsWithText: SecDocument[] = [];
@@ -372,12 +740,25 @@ async function fetchFilingDetail({
 
       const cleaned = cleanDocumentText(text);
       const truncated = cleaned.length > MAX_DOCUMENT_TEXT_CHARS;
+      const primaryRawHtml = buildPrimaryDocumentHtmlSource(document, text);
+      const rawOwnershipSource = buildOwnershipRawSource({
+        document,
+        formType: effectiveFormType,
+        text,
+      });
       documentsFetched += 1;
       documentsWithText.push({
         ...document,
         text: truncated ? cleaned.slice(0, MAX_DOCUMENT_TEXT_CHARS) : cleaned,
         textCharCount: cleaned.length,
         textTruncated: truncated,
+        rawText: rawOwnershipSource?.text || null,
+        rawTextCharCount: rawOwnershipSource?.charCount || 0,
+        rawTextTruncated: Boolean(rawOwnershipSource?.truncated),
+        rawSourceFormat: rawOwnershipSource?.format || null,
+        rawHtml: primaryRawHtml?.html || null,
+        rawHtmlCharCount: primaryRawHtml?.charCount || 0,
+        rawHtmlTruncated: Boolean(primaryRawHtml?.truncated),
         fetchStatus: documentResponse.status,
       });
     } catch (error) {
@@ -395,6 +776,7 @@ async function fetchFilingDetail({
     documentsFetched,
     documentsFailed,
     companyName,
+    filingDate,
   };
 }
 
@@ -429,7 +811,8 @@ function parseFilingDocuments(html: string, detailUrl: string, formType: string 
     documents.push(document);
   }
 
-  const primaryIndex = documents.findIndex((document) => isPrimaryDocument(document, formType));
+  const effectiveFormType = formType || inferPrimaryFormTypeFromDocuments(documents);
+  const primaryIndex = documents.findIndex((document) => isPrimaryDocument(document, effectiveFormType));
   if (primaryIndex >= 0) {
     documents[primaryIndex] = { ...documents[primaryIndex], isPrimary: true };
   } else if (documents[0]) {
@@ -439,15 +822,65 @@ function parseFilingDocuments(html: string, detailUrl: string, formType: string 
   return documents;
 }
 
+function inferPrimaryFormTypeFromDocuments(documents: SecDocument[]) {
+  const preferred = documents
+    .map((document) => normalizeFormType(document.type))
+    .find((type) => Boolean(type && !isCompleteSubmissionDocumentType(type)));
+  return preferred || null;
+}
+
+function isCompleteSubmissionDocumentType(value: string | null) {
+  const type = normalizeFormType(value);
+  return !type || type === "XML" || type === "HTML" || type === "TXT" || type === "GRAPHIC";
+}
+
 function selectDocumentsForText(documents: SecDocument[], attachmentLimit: number, formType: string | null) {
   const selected = new Set<string>();
   const primary = documents.find((document) => document.isPrimary);
   if (primary?.url) selected.add(primary.url);
+  const effectiveFormType = formType || inferPrimaryFormTypeFromDocuments(documents);
+  const fetchPlan = getSecFormFetchPlan(effectiveFormType);
 
-  if (isS3FamilyForm(formType)) {
+  if (isOwnershipIntegrationForm(effectiveFormType)) {
+    for (const document of documents) {
+      if (!document.url || selected.has(document.url)) continue;
+      if (isOwnershipXmlDocumentCandidate(document)) selected.add(document.url);
+    }
+  }
+
+  if (isOfferingFeeTableForm(effectiveFormType)) {
     for (const document of documents) {
       if (!document.url || document.isPrimary) continue;
       if (isFilingFeeTableDocument(document)) selected.add(document.url);
+    }
+  }
+
+  if (isPeriodicReportForm(effectiveFormType)) {
+    let xbrlDocumentCount = 0;
+    for (const document of documents) {
+      if (xbrlDocumentCount >= 3) break;
+      if (!document.url || document.isPrimary) continue;
+      if (selected.has(document.url)) continue;
+      if (isMachineReadableXbrlDocument(document)) {
+        selected.add(document.url);
+        xbrlDocumentCount += 1;
+      }
+    }
+  }
+
+  if (fetchPlan) {
+    for (const rule of fetchPlan.rules) {
+      let matchedDocumentCount = 0;
+      const maxDocuments = Math.max(1, rule.maxDocuments ?? fetchPlan.defaultAttachmentLimit);
+      for (const document of documents) {
+        if (matchedDocumentCount >= maxDocuments) break;
+        if (!document.url || document.isPrimary) continue;
+        if (selected.has(document.url)) continue;
+        if (matchesSecFormFetchRule(document, rule)) {
+          selected.add(document.url);
+          matchedDocumentCount += 1;
+        }
+      }
     }
   }
 
@@ -489,12 +922,97 @@ function isInterestingAttachment(document: SecDocument) {
 }
 
 function isS3FamilyForm(formType: string | null) {
-  return /^S-3(?:ASR|\/A)?$/i.test(normalizeFormType(formType));
+  return /^(?:S-3|F-3)(?:ASR|\/A)?$/i.test(normalizeFormType(formType));
+}
+
+function isOfferingFeeTableForm(formType: string | null) {
+  const form = normalizeFormType(formType);
+  return (
+    isS3FamilyForm(form) ||
+    /^(?:S-1|F-1|S-1\/A|F-1\/A|S-1MEF|F-1MEF|S-8|S-8\/A|424B3|424B5|S-4|S-4\/A|F-4|F-4\/A)$/i.test(form)
+  );
+}
+
+function isPeriodicReportForm(formType: string | null) {
+  return /^(?:10-K|10-K\/A|10-Q|10-Q\/A|20-F|20-F\/A)$/i.test(normalizeFormType(formType));
+}
+
+function isMachineReadableXbrlDocument(document: SecDocument) {
+  const label = `${stringValue(document.type)} ${stringValue(document.description)} ${stringValue(document.document)} ${stringValue(document.url)}`;
+  return /\bEX-101\b|INSTANCE\s+DOCUMENT|_htm\.xml\b|\.xml(?:$|[?#])/i.test(label);
+}
+
+function isOwnershipIntegrationForm(formType: string | null) {
+  const form = normalizeFormType(formType);
+  return form === "4" || form === "4/A" || form === "144" || form === "144/A";
+}
+
+function buildOwnershipRawSource({
+  document,
+  formType,
+  text,
+}: {
+  document: SecDocument;
+  formType: string | null;
+  text: string;
+}) {
+  if (!isOwnershipIntegrationForm(formType)) return null;
+
+  const format = detectOwnershipRawSourceFormat(document, text);
+  if (!format) return null;
+
+  const truncated = text.length > MAX_OWNERSHIP_SOURCE_TEXT_CHARS;
+  return {
+    text: truncated ? text.slice(0, MAX_OWNERSHIP_SOURCE_TEXT_CHARS) : text,
+    charCount: text.length,
+    truncated,
+    format,
+  };
+}
+
+function detectOwnershipRawSourceFormat(document: SecDocument, text: string) {
+  if (/<(?:ownershipDocument|edgarSubmission)\b/i.test(text)) return "ownership_xml";
+
+  if (isOwnershipXmlDocumentCandidate(document) && /^\s*(?:<\?xml|<XML>|<SEC-DOCUMENT\b)/i.test(text)) {
+    return "raw_xml";
+  }
+
+  return null;
+}
+
+function isOwnershipXmlDocumentCandidate(document: SecDocument) {
+  const documentName = stringValue(document.document);
+  const url = stringValue(document.url);
+  if (!/\.xml(?:$|[?#])/i.test(documentName || url)) return false;
+  return !/\/xsl(?:F345|144)/i.test(url);
 }
 
 function isFilingFeeTableDocument(document: SecDocument) {
   const label = `${stringValue(document.type)} ${stringValue(document.description)} ${stringValue(document.document)}`;
   return /\b(?:EX-FILING FEES|FILING FEE|FEE TABLE|EX-107|EX107|107)\b/i.test(label);
+}
+
+function buildPrimaryDocumentHtmlSource(document: SecDocument, text: string) {
+  if (!document.isPrimary || !text.trim()) return null;
+  if (!isHtmlLikeDocument(document, text)) return null;
+
+  const truncated = text.length > MAX_PRIMARY_DOCUMENT_HTML_CHARS;
+  return {
+    html: truncated ? text.slice(0, MAX_PRIMARY_DOCUMENT_HTML_CHARS) : text,
+    charCount: text.length,
+    truncated,
+  };
+}
+
+function isHtmlLikeDocument(document: SecDocument, text: string) {
+  const label = `${stringValue(document.document)} ${stringValue(document.type)} ${stringValue(document.url)}`;
+  return (
+    /\.(?:htm|html)(?:$|[?#])/i.test(label) ||
+    /^(?:HTML|HTM)$/i.test(normalizeFormType(document.type)) ||
+    /<html[\s>]/i.test(text) ||
+    /<body[\s>]/i.test(text) ||
+    /<table[\s>]/i.test(text)
+  );
 }
 
 function buildCombinedText(documents: SecDocument[]) {
@@ -508,6 +1026,350 @@ function buildCombinedText(documents: SecDocument[]) {
 
   const combined = sections.join("\n\n").trim();
   return combined.length > MAX_COMBINED_TEXT_CHARS ? combined.slice(0, MAX_COMBINED_TEXT_CHARS) : combined;
+}
+
+function readOwnershipIssuerIdentity(text: string) {
+  const issuerInfoBlock = extractXmlBlock(text, "issuer") || extractXmlBlock(text, "issuerInfo") || text;
+  const cik = normalizeCik(firstXmlValue(issuerInfoBlock, "issuerCik") || firstXmlValue(text, "issuerCik"));
+  const ticker = normalizeTicker(firstXmlValue(issuerInfoBlock, "issuerTradingSymbol") || firstXmlValue(text, "issuerTradingSymbol"));
+  const name =
+    firstXmlValue(issuerInfoBlock, "issuerName") ||
+    firstXmlValue(text, "issuerName") ||
+    firstXmlValue(issuerInfoBlock, "nameOfIssuer") ||
+    null;
+
+  return cik || ticker || name ? { cik, ticker, name } : null;
+}
+
+function readSchedule13IssuerIdentity(primary: SecDocument | null, bodyText: string) {
+  const rawSources = [
+    stringValue(primary?.rawHtml),
+    stringValue(primary?.rawText),
+    stringValue(primary?.text),
+    bodyText,
+  ].filter(Boolean);
+  const combined = rawSources.join("\n\n");
+  const name = readSchedule13IssuerName(combined);
+  const cik =
+    normalizeCik(firstXmlValue(combined, "issuerCik")) ||
+    normalizeCik(firstXmlValue(combined, "issuerCIK")) ||
+    normalizeCik(firstXmlValue(combined, "cik"));
+  const ticker =
+    normalizeTicker(firstXmlValue(combined, "issuerTradingSymbol")) ||
+    normalizeTicker(firstXmlValue(combined, "tradingSymbol"));
+
+  return cik || ticker || name ? { cik, ticker, name } : null;
+}
+
+function readSchedule13IssuerName(text: string) {
+  const htmlName =
+    extractFirst(
+      text,
+      /<div[^>]*>\s*([\s\S]{1,300}?)\s*<\/div>\s*<div[^>]*>\s*(?:<hr[^>]*>\s*)?\(Name\s+of\s+Issuer\)/i,
+    ) ||
+    extractFirst(
+      text,
+      /<span[^>]*>\s*([\s\S]{1,300}?)\s*<\/span>\s*<[^>]+>\s*(?:<hr[^>]*>\s*)?\(Name\s+of\s+Issuer\)/i,
+    );
+  const cleanedHtmlName = cleanSchedule13IssuerName(htmlName);
+  if (cleanedHtmlName) return cleanedHtmlName;
+
+  const cleanText = cleanDocumentText(text);
+  const lines = cleanText
+    .split(/\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  for (let index = 0; index < lines.length; index += 1) {
+    if (!/\(Name\s+of\s+Issuer\)/i.test(lines[index])) continue;
+
+    const sameLine = lines[index].replace(/\(Name\s+of\s+Issuer\)/i, "").replace(/\|/g, " ").trim();
+    const sameLineName = cleanSchedule13IssuerName(sameLine);
+    if (sameLineName) return sameLineName;
+
+    for (let lookback = index - 1; lookback >= Math.max(0, index - 4); lookback -= 1) {
+      const candidate = cleanSchedule13IssuerName(lines[lookback]);
+      if (candidate) return candidate;
+    }
+  }
+
+  return null;
+}
+
+function cleanSchedule13IssuerName(value: string | null | undefined) {
+  const cleaned = cleanInlineText(stringValue(value))
+    .replace(/^\(?\s*Amendment\s+No\.?\s*\d+\s*\)?\s*/i, "")
+    .replace(/\(Name\s+of\s+Issuer\)/gi, "")
+    .replace(/\s+CIK\s*:?.*$/i, "")
+    .replace(/\s+\((?:Subject|Issuer)\).*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned) return null;
+  if (/^(?:SCHEDULE\s+13[DG]|UNDER\s+THE\s+SECURITIES|SECURITIES\s+AND\s+EXCHANGE|WASHINGTON|CUSIP|TITLE\s+OF\s+CLASS)$/i.test(cleaned)) {
+    return null;
+  }
+  if (cleaned.length < 3 || cleaned.length > 160) return null;
+  return cleaned;
+}
+
+async function resolveTrustedTickerRows({
+  lookup,
+  formType,
+  filerCik,
+  issuer,
+  cusips,
+}: {
+  lookup: Map<string, TickerRow[]>;
+  formType: string | null;
+  filerCik: string | null;
+  issuer: { cik: string | null; ticker: string | null; name: string | null } | null;
+  cusips: string[];
+}): Promise<TickerResolution> {
+  const issuerTicker = normalizeTicker(issuer?.ticker);
+  const issuerRows = issuer?.cik ? lookup.get(issuer.cik) || [] : [];
+  const primaryCusip = cusips[0] || null;
+
+  if (issuerTicker) {
+    const exact = issuerRows.find((row) => row.ticker === issuerTicker) || null;
+    const row: TickerRow = exact || {
+      cik: issuer?.cik || "",
+      ticker: issuerTicker,
+      exchange: null,
+      name: issuer?.name || null,
+    };
+    return {
+      rows: [row],
+      primary: row,
+      source: "issuer_trading_symbol",
+      confidence: "high",
+      reason: "Issuer trading symbol was present in filing text.",
+      cusip: primaryCusip,
+    };
+  }
+
+  if (issuerRows.length) {
+    const primary = selectPrimaryTickerRow(issuerRows);
+    return {
+      rows: issuerRows,
+      primary,
+      source: "issuer_cik_sec",
+      confidence: "high",
+      reason: "Issuer CIK matched SEC company ticker table.",
+      cusip: primaryCusip,
+    };
+  }
+
+  const fmpCusipRows = await resolveFmpCusipTickerRows(cusips, {
+    issuerName: issuer?.name || null,
+    issuerCik: issuer?.cik || filerCik,
+  });
+  if (fmpCusipRows.rows.length === 1 && fmpCusipRows.cusip) {
+    const primary = fmpCusipRows.rows[0];
+    return {
+      rows: fmpCusipRows.rows,
+      primary,
+      source: "cusip_fmp_verified",
+      confidence: "high",
+      reason: "CUSIP exact match was verified by FMP search-cusip and profile data.",
+      cusip: fmpCusipRows.cusip,
+    };
+  }
+
+  if (isOwnershipIntegrationForm(formType)) {
+    return {
+      rows: [],
+      primary: null,
+      source: "unresolved",
+      confidence: "none",
+      reason: issuer?.cik
+        ? "Issuer CIK did not match SEC company ticker table; issuer-name similarity fallback is disabled."
+        : "No trusted issuer ticker or issuer CIK match was available; issuer-name similarity fallback is disabled.",
+      cusip: primaryCusip,
+    };
+  }
+
+  if (isSchedule13FormType(formType)) {
+    return {
+      rows: [],
+      primary: null,
+      source: "unresolved",
+      confidence: "none",
+      reason:
+        "No trusted issuer ticker, issuer CIK, or verified CUSIP match was available; Schedule 13 accession CIK is not trusted as issuer ticker evidence.",
+      cusip: primaryCusip,
+    };
+  }
+
+  const filerRows = filerCik ? lookup.get(filerCik) || [] : [];
+  if (filerRows.length) {
+    const primary = selectPrimaryTickerRow(filerRows);
+    return {
+      rows: filerRows,
+      primary,
+      source: "accession_cik_sec",
+      confidence: "high",
+      reason: "SEC accession CIK matched SEC company ticker table.",
+      cusip: primaryCusip,
+    };
+  }
+
+  return {
+    rows: [],
+    primary: null,
+    source: "unresolved",
+    confidence: "none",
+    reason: "No trusted ticker source was available.",
+    cusip: primaryCusip,
+  };
+}
+
+function extractIssuerCusips(values: Array<unknown>) {
+  const found: string[] = [];
+  const seen = new Set<string>();
+
+  for (const value of values) {
+    const text = stringValue(value);
+    if (!text) continue;
+    for (const match of text.matchAll(/\bCUSIP(?:\s+(?:No\.?|Number))?[\s:|#-]*([A-Z0-9]{3,4}[\s-]?[A-Z0-9]{2,3}[\s-]?[A-Z0-9]{2,3})\b/gi)) {
+      const cusip = normalizeCusip(match[1]);
+      if (!cusip || seen.has(cusip)) continue;
+      seen.add(cusip);
+      found.push(cusip);
+      if (found.length >= 4) return found;
+    }
+    for (const match of text.matchAll(/\(\s*CUSIP\s+Number(?:\s+of\s+Class\s+of\s+Securities)?\s*\)/gi)) {
+      const beforeLabel = text.slice(Math.max(0, match.index - 160), match.index);
+      const candidates = [...beforeLabel.matchAll(/\b[A-Z0-9]{9}\b/gi)].map((candidate) => candidate[0]);
+      const cusip = normalizeCusip(candidates.at(-1));
+      if (!cusip || seen.has(cusip)) continue;
+      seen.add(cusip);
+      found.push(cusip);
+      if (found.length >= 4) return found;
+    }
+  }
+
+  return found;
+}
+
+function normalizeCusip(value: unknown) {
+  const cusip = stringValue(value).toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return /^[A-Z0-9]{9}$/.test(cusip) ? cusip : null;
+}
+
+function recordValue(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+}
+
+async function resolveFmpCusipTickerRows(
+  cusips: string[],
+  context: { issuerName: string | null; issuerCik: string | null },
+): Promise<{ rows: TickerRow[]; cusip: string | null }> {
+  for (const cusip of cusips) {
+    const rows = await fetchFmpCusipTickerRows(cusip, context);
+    if (rows.length === 1) return { rows, cusip };
+    if (rows.length > 1) return { rows: [], cusip };
+  }
+  return { rows: [], cusip: null };
+}
+
+function fetchFmpCusipTickerRows(cusip: string, context: { issuerName: string | null; issuerCik: string | null }) {
+  const cacheKey = `${cusip}:${context.issuerCik || ""}:${context.issuerName || ""}`;
+  if (!fmpCusipLookupCache.has(cacheKey)) {
+    fmpCusipLookupCache.set(cacheKey, fetchFmpCusipTickerRowsInner(cusip, context));
+  }
+  return fmpCusipLookupCache.get(cacheKey)!;
+}
+
+async function fetchFmpCusipTickerRowsInner(cusip: string, context: { issuerName: string | null; issuerCik: string | null }) {
+  const env = getServerEnv();
+  if (!env.fmpApiKey) return [];
+
+  const searchUrl = new URL("https://financialmodelingprep.com/stable/search-cusip");
+  searchUrl.searchParams.set("cusip", cusip);
+  searchUrl.searchParams.set("apikey", env.fmpApiKey);
+
+  const searchResponse = await fetch(searchUrl, { cache: "no-store" }).catch(() => null);
+  if (!searchResponse?.ok) return [];
+  const searchData = await searchResponse.json().catch(() => null);
+  if (!Array.isArray(searchData) || searchData.length !== 1) return [];
+
+  const searchRecord = recordValue(searchData[0]);
+  const symbol = normalizeTicker(searchRecord?.symbol);
+  if (!symbol) return [];
+
+  const profileUrl = new URL("https://financialmodelingprep.com/stable/profile");
+  profileUrl.searchParams.set("symbol", symbol);
+  profileUrl.searchParams.set("apikey", env.fmpApiKey);
+
+  const profileResponse = await fetch(profileUrl, { cache: "no-store" }).catch(() => null);
+  if (!profileResponse?.ok) return [];
+  const profileData = await profileResponse.json().catch(() => null);
+  const profile = Array.isArray(profileData) ? recordValue(profileData[0]) : null;
+  if (!isFmpCusipTickerProfileTrusted(profile, cusip, context)) return [];
+
+  return [
+    {
+      cik: normalizeCik(profile?.cik) || "",
+      ticker: symbol,
+      exchange: stringValue(profile?.exchange) || stringValue(profile?.exchangeShortName) || null,
+      name: stringValue(profile?.companyName) || stringValue(searchRecord?.companyName) || null,
+    },
+  ];
+}
+
+function isFmpCusipTickerProfileTrusted(
+  profile: Record<string, unknown> | null,
+  cusip: string,
+  context: { issuerName: string | null; issuerCik: string | null },
+) {
+  if (!profile) return false;
+  const symbol = normalizeTicker(profile.symbol);
+  if (!symbol) return false;
+
+  const profileCusip = normalizeCusip(profile.cusip);
+  const profileIsin = stringValue(profile.isin).toUpperCase();
+  if (profileCusip !== cusip && !profileIsin.includes(cusip)) return false;
+
+  const profileCik = normalizeCik(profile.cik);
+  const issuerCik = normalizeCik(context.issuerCik);
+  if (issuerCik && profileCik && issuerCik === profileCik) return true;
+
+  const profileName = stringValue(profile.companyName);
+  if (context.issuerName && profileName && companyNamesClearlyMatch(context.issuerName, profileName)) return true;
+
+  return false;
+}
+
+function companyNamesClearlyMatch(left: string, right: string) {
+  const leftTokens = companyNameMatchTokens(left);
+  const rightTokens = companyNameMatchTokens(right);
+  if (!leftTokens.length || !rightTokens.length) return false;
+  const rightSet = new Set(rightTokens);
+  const overlap = leftTokens.filter((token) => rightSet.has(token));
+  return overlap.length >= Math.min(2, leftTokens.length, rightTokens.length);
+}
+
+function companyNameMatchTokens(value: string) {
+  return cleanInlineText(value)
+    .toUpperCase()
+    .replace(/\b(?:UNDER|SECURITIES|EXCHANGE|ACT|OF|1934|SCHEDULE|FORM|ISSUER|NAME)\b/g, " ")
+    .replace(/\b(?:INCORPORATED|INC|CORPORATION|CORP|COMPANY|CO|LTD|LIMITED|PLC|LLC|LP|HOLDINGS?|GROUP)\b/g, " ")
+    .replace(/[^A-Z0-9]+/g, " ")
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 4);
+}
+
+function extractXmlBlock(text: string, tagName: string) {
+  const escaped = tagName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = text.match(new RegExp(`<${escaped}\\b[^>]*>[\\s\\S]*?<\\/${escaped}>`, "i"));
+  return match?.[0] || null;
+}
+
+function firstXmlValue(text: string, tagName: string) {
+  const escaped = tagName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = text.match(new RegExp(`<${escaped}\\b[^>]*>([\\s\\S]*?)<\\/${escaped}>`, "i"));
+  return match?.[1] ? cleanInlineText(match[1]) : null;
 }
 
 async function fetchTickerLookup(): Promise<Map<string, TickerRow[]>> {
@@ -612,6 +1474,14 @@ function readCompanyNameFromDetailHtml(html: string) {
     .trim() || null;
 }
 
+function readFilingDateFromDetailHtml(html: string) {
+  const match = html.match(
+    /<div[^>]+class=["']infoHead["'][^>]*>\s*Filing Date\s*<\/div>\s*<div[^>]+class=["']info["'][^>]*>\s*([0-9]{4}-[0-9]{2}-[0-9]{2})\s*<\/div>/i,
+  );
+  const date = normalizeDateOnly(match?.[1]);
+  return date ? `${date}T00:00:00.000Z` : null;
+}
+
 function readCompanyNameFromTitle(title: string | null) {
   const text = stringValue(title);
   const match = text.match(/-\s+(.+?)\s+\(\d{10}\)/);
@@ -636,10 +1506,12 @@ function buildFilingTitle({
 }
 
 function parseFilingIdentity(detailUrl: string): FilingIdentity {
-  const pathMatch = detailUrl.match(/\/Archives\/edgar\/data\/(\d+)\/(\d+)\//i);
+  const pathMatch =
+    detailUrl.match(/\/Archives\/edgar\/data\/(\d+)\/(\d+)\//i) ||
+    detailUrl.match(/\/Archives\/edgar\/data\/(\d+)\/([0-9]{10}-[0-9]{2}-[0-9]{6})-index\.html?/i);
   const cik = normalizeCik(pathMatch?.[1]);
-  const accessionNoDashes = pathMatch?.[2] || null;
-  const accessionFromFile = detailUrl.match(/\/([0-9]{10}-[0-9]{2}-[0-9]{6})-index\.htm/i)?.[1] || null;
+  const accessionNoDashes = pathMatch?.[2]?.replace(/-/g, "") || null;
+  const accessionFromFile = detailUrl.match(/\/([0-9]{10}-[0-9]{2}-[0-9]{6})-index\.html?/i)?.[1] || null;
   const accessionNumber =
     accessionFromFile ||
     (accessionNoDashes && accessionNoDashes.length >= 18
@@ -654,23 +1526,73 @@ function parseFilingIdentity(detailUrl: string): FilingIdentity {
   };
 }
 
-function normalizeFormTypes(values: unknown) {
+function normalizeFormTypes(values: unknown, fallback: string[] = DEFAULT_FORM_TYPES) {
   const raw = Array.isArray(values) ? values : [];
   const formTypes = raw
     .flatMap((value) => stringValue(value).split(","))
     .map((value) => normalizeFormType(value))
     .filter(Boolean);
-  return Array.from(new Set(formTypes.length ? formTypes : DEFAULT_FORM_TYPES));
+  return Array.from(new Set(formTypes.length ? formTypes : fallback));
 }
 
 function normalizeFormType(value: unknown) {
   return stringValue(value).toUpperCase().replace(/\s+/g, " ");
 }
 
+function chooseRawItemFormType(entryFormType: unknown, primaryDocumentType: unknown) {
+  const entryForm = normalizeFormType(entryFormType) || null;
+  const primaryForm = normalizeFormType(primaryDocumentType) || null;
+  if (!entryForm) return primaryForm;
+  if (!primaryForm) return entryForm;
+  if (entryForm === primaryForm) return entryForm;
+
+  const entryBase = entryForm.replace(/\/A$/, "");
+  const primaryBase = primaryForm.replace(/\/A$/, "");
+  if (primaryForm.endsWith("/A") && entryBase === primaryBase) {
+    return primaryForm;
+  }
+
+  return entryForm;
+}
+
+function secFormTypesMatch(requested: unknown, actual: unknown) {
+  const requestedForm = canonicalSecFormTypeForCompare(requested);
+  const actualForm = canonicalSecFormTypeForCompare(actual);
+  return Boolean(requestedForm && actualForm && requestedForm === actualForm);
+}
+
+function isSchedule13FormType(value: unknown) {
+  const form = canonicalSecFormTypeForCompare(value);
+  return form === "SCHEDULE 13D" || form === "SCHEDULE 13D/A" || form === "SCHEDULE 13G" || form === "SCHEDULE 13G/A";
+}
+
+function canonicalSecFormTypeForCompare(value: unknown) {
+  const form = normalizeFormType(value);
+  if (/^SC 13D\/A$/.test(form)) return "SCHEDULE 13D/A";
+  if (/^SC 13D$/.test(form)) return "SCHEDULE 13D";
+  if (/^SC 13G\/A$/.test(form)) return "SCHEDULE 13G/A";
+  if (/^SC 13G$/.test(form)) return "SCHEDULE 13G";
+  return form;
+}
+
+function normalizeAccessionNumber(value: unknown) {
+  const text = stringValue(value);
+  const dashed = text.match(/\b(\d{10})-(\d{2})-(\d{6})\b/);
+  if (dashed) return `${dashed[1]}-${dashed[2]}-${dashed[3]}`;
+  const compact = text.replace(/\D/g, "");
+  if (compact.length !== 18) return null;
+  return `${compact.slice(0, 10)}-${compact.slice(10, 12)}-${compact.slice(12, 18)}`;
+}
+
 function normalizeCik(value: unknown) {
   const text = stringValue(value).replace(/\D/g, "");
   if (!text) return null;
   return String(Number(text));
+}
+
+function normalizeTicker(value: unknown) {
+  const ticker = stringValue(value).toUpperCase();
+  return /^[A-Z][A-Z0-9.\-]{0,9}$/.test(ticker) ? ticker : null;
 }
 
 function normalizeDateTime(value: unknown) {
@@ -680,11 +1602,34 @@ function normalizeDateTime(value: unknown) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
-function dedupeFeedEntries(entries: FeedEntry[]) {
+function normalizeDateOnly(value: unknown) {
+  const text = stringValue(value);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return null;
+  const date = new Date(`${text}T00:00:00.000Z`);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10);
+}
+
+function filterFeedEntriesByDateRange(
+  entries: SecCurrentFeedEntry[],
+  dateFrom: string | null,
+  dateTo: string | null,
+) {
+  if (!dateFrom && !dateTo) return entries;
+  return entries.filter((entry) => {
+    const date = normalizeDateTime(entry.updated)?.slice(0, 10);
+    if (!date) return false;
+    if (dateFrom && date < dateFrom) return false;
+    if (dateTo && date > dateTo) return false;
+    return true;
+  });
+}
+
+function dedupeFeedEntries(entries: SecCurrentFeedEntry[]) {
   const seen = new Set<string>();
-  const deduped: FeedEntry[] = [];
+  const deduped: SecCurrentFeedEntry[] = [];
   for (const entry of entries) {
-    const key = entry.detailUrl || `${entry.title}:${entry.updated}`;
+    const accessionNumber = parseFilingIdentity(entry.detailUrl || "").accessionNumber;
+    const key = accessionNumber || entry.detailUrl || `${entry.title}:${entry.updated}`;
     if (!key || seen.has(key)) continue;
     seen.add(key);
     deduped.push(entry);
@@ -735,6 +1680,10 @@ function extractFirst(value: string, pattern: RegExp) {
 function arrayOf<T>(value: T | T[] | undefined | null): T[] {
   if (!value) return [];
   return Array.isArray(value) ? value : [value];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
 function stringValue(value: unknown) {

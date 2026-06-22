@@ -1,0 +1,354 @@
+{
+  "cases": [
+    {
+      "name": "simple-financial-table",
+      "filing": {
+        "rawItemId": "table-simple-financial",
+        "sourceUniqueId": "0000000000-26-300001",
+        "title": "Simple Table Inc. Form 10-Q",
+        "metadata": {
+          "formType": "10-Q"
+        },
+        "rawPayload": {
+          "form_type": "10-Q",
+          "accession_number": "0000000000-26-300001",
+          "company_name": "Simple Table Inc.",
+          "documents": [
+            {
+              "type": "10-Q",
+              "description": "Quarterly report",
+              "filename": "simpletable-20260331x10q.htm",
+              "text": "<html><body><div>FORM 10-Q</div><p>Simple Table Inc. (Exact name of registrant as specified in its charter)</p><p>Condensed Consolidated Statements of Operations</p><table><tr><th></th><th>2026</th><th>2025</th></tr><tr><td>Revenue</td><td>$100.0</td><td>$90.0</td></tr><tr><td>Net income</td><td>$10.0</td><td>$8.0</td></tr></table><p>ITEM 2. Management's Discussion and Analysis</p></body></html>",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "rowspan-colspan-table",
+      "filing": {
+        "rawItemId": "table-spans",
+        "sourceUniqueId": "0000000000-26-300002",
+        "title": "Span Table Inc. Form 10-K",
+        "metadata": {
+          "formType": "10-K"
+        },
+        "rawPayload": {
+          "form_type": "10-K",
+          "accession_number": "0000000000-26-300002",
+          "company_name": "Span Table Inc.",
+          "documents": [
+            {
+              "type": "10-K",
+              "description": "Annual report",
+              "filename": "spantable-20251231x10k.htm",
+              "text": "<html><body><div>FORM 10-K</div><p>Span Table Inc. (Exact name of registrant as specified in its charter)</p><p>ITEM 1. Business</p><p>Segment revenue table</p><table><tr><th rowspan=\"2\">Segment</th><th colspan=\"2\">Year Ended December 31</th></tr><tr><th>2025</th><th>2024</th></tr><tr><td>Cloud</td><td>60</td><td>50</td></tr><tr><td>Services</td><td>40</td><td>35</td></tr></table></body></html>",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "empty-and-dash-cells",
+      "filing": {
+        "rawItemId": "table-empty-dash",
+        "sourceUniqueId": "0000000000-26-300003",
+        "title": "Empty Dash Inc. Form 10-Q",
+        "metadata": {
+          "formType": "10-Q"
+        },
+        "rawPayload": {
+          "form_type": "10-Q",
+          "accession_number": "0000000000-26-300003",
+          "company_name": "Empty Dash Inc.",
+          "documents": [
+            {
+              "type": "10-Q",
+              "description": "Quarterly report",
+              "filename": "emptydash-20260331x10q.htm",
+              "text": "<html><body><div>FORM 10-Q</div><p>Empty Dash Inc. (Exact name of registrant as specified in its charter)</p><p>ITEM 1. Financial Statements</p><table><tr><th>Metric</th><th>2026</th><th>2025</th></tr><tr><td>Cash</td><td></td><td>-</td></tr><tr><td>Debt</td><td>25</td><td>&mdash;</td></tr></table></body></html>",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "negative-parentheses-table",
+      "filing": {
+        "rawItemId": "table-negative-parentheses",
+        "sourceUniqueId": "0000000000-26-300004",
+        "title": "Negative Table Inc. Form 10-Q",
+        "metadata": {
+          "formType": "10-Q"
+        },
+        "rawPayload": {
+          "form_type": "10-Q",
+          "accession_number": "0000000000-26-300004",
+          "company_name": "Negative Table Inc.",
+          "documents": [
+            {
+              "type": "10-Q",
+              "description": "Quarterly report",
+              "filename": "negativetable-20260331x10q.htm",
+              "text": "<html><body><div>FORM 10-Q</div><p>Negative Table Inc. (Exact name of registrant as specified in its charter)</p><p>ITEM 1. Financial Statements</p><p>Statements of Operations</p><table><tr><td>Operating loss</td><td>($12.5)</td><td>-3.4%</td></tr><tr><td>Net loss</td><td>(8.0)</td><td>5.0-</td></tr></table></body></html>",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "unit-caption-dollars-in-millions",
+      "filing": {
+        "rawItemId": "table-unit-caption",
+        "sourceUniqueId": "0000000000-26-300005",
+        "title": "Unit Caption Inc. Form 10-K",
+        "metadata": {
+          "formType": "10-K"
+        },
+        "rawPayload": {
+          "form_type": "10-K",
+          "accession_number": "0000000000-26-300005",
+          "company_name": "Unit Caption Inc.",
+          "documents": [
+            {
+              "type": "10-K",
+              "description": "Annual report",
+              "filename": "unitcaption-20251231x10k.htm",
+              "text": "<html><body><div>FORM 10-K</div><p>Unit Caption Inc. (Exact name of registrant as specified in its charter)</p><p>ITEM 8. Financial Statements and Supplementary Data</p><p>CONSOLIDATED BALANCE SHEETS</p><table><caption>Dollars in millions</caption><tr><th></th><th>2025</th><th>2024</th></tr><tr><td>Total assets</td><td>$500</td><td>$450</td></tr><tr><td>Total liabilities</td><td>$240</td><td>$220</td></tr></table><p>(1) Amounts may not foot due to rounding.</p></body></html>",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "inline-xbrl-inside-table-cells",
+      "filing": {
+        "rawItemId": "table-inline-xbrl",
+        "sourceUniqueId": "0000000000-26-300006",
+        "title": "Inline Table Inc. Form 10-Q",
+        "metadata": {
+          "formType": "10-Q"
+        },
+        "rawPayload": {
+          "form_type": "10-Q",
+          "accession_number": "0000000000-26-300006",
+          "company_name": "Inline Table Inc.",
+          "documents": [
+            {
+              "type": "10-Q",
+              "description": "Quarterly report with Inline XBRL",
+              "filename": "inlinetable-20260331x10q.htm",
+              "text": "<html><body><div>FORM 10-Q</div><p>Inline Table Inc. (Exact name of registrant as specified in its charter)</p><p>ITEM 1. Financial Statements</p><table><tr><th>Metric</th><th>2026</th></tr><tr><td>Revenue</td><td><ix:nonFraction name=\"us-gaap:Revenues\" contextRef=\"c1\" unitRef=\"usd\" decimals=\"-6\">123</ix:nonFraction></td></tr><tr><td>Net income</td><td><ix:nonFraction name=\"us-gaap:NetIncomeLoss\" contextRef=\"c1\" unitRef=\"usd\" decimals=\"-6\">10</ix:nonFraction></td></tr></table></body></html>",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "one-cell-layout-narrative",
+      "filing": {
+        "rawItemId": "table-layout-narrative",
+        "sourceUniqueId": "0000000000-26-300007",
+        "title": "Layout Narrative Inc. Form 10-K",
+        "metadata": {
+          "formType": "10-K"
+        },
+        "rawPayload": {
+          "form_type": "10-K",
+          "accession_number": "0000000000-26-300007",
+          "company_name": "Layout Narrative Inc.",
+          "documents": [
+            {
+              "type": "10-K",
+              "description": "Annual report",
+              "filename": "layoutnarrative-20251231x10k.htm",
+              "text": "<html><body><div>FORM 10-K</div><p>Layout Narrative Inc. (Exact name of registrant as specified in its charter)</p><p>ITEM 1. Business</p><table><tr><td>This layout table contains a long narrative paragraph about the company's products and customers, but it is not an aligned data table and should remain preserved as layout-like text.</td></tr></table></body></html>",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "one-cell-layout-heading-like",
+      "filing": {
+        "rawItemId": "table-layout-heading",
+        "sourceUniqueId": "0000000000-26-300008",
+        "title": "Layout Heading Inc. Form 10-K",
+        "metadata": {
+          "formType": "10-K"
+        },
+        "rawPayload": {
+          "form_type": "10-K",
+          "accession_number": "0000000000-26-300008",
+          "company_name": "Layout Heading Inc.",
+          "documents": [
+            {
+              "type": "10-K",
+              "description": "Annual report",
+              "filename": "layoutheading-20251231x10k.htm",
+              "text": "<html><body><div>FORM 10-K</div><p>Layout Heading Inc. (Exact name of registrant as specified in its charter)</p><table><tr><td>ITEM 1. Business</td></tr></table><p>Business narrative follows outside the layout table.</p></body></html>",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "toc-like-table",
+      "filing": {
+        "rawItemId": "table-toc",
+        "sourceUniqueId": "0000000000-26-300009",
+        "title": "TOC Table Inc. Form 10-K",
+        "metadata": {
+          "formType": "10-K"
+        },
+        "rawPayload": {
+          "form_type": "10-K",
+          "accession_number": "0000000000-26-300009",
+          "company_name": "TOC Table Inc.",
+          "documents": [
+            {
+              "type": "10-K",
+              "description": "Annual report",
+              "filename": "toctable-20251231x10k.htm",
+              "text": "<html><body><div>FORM 10-K</div><p>TOC Table Inc. (Exact name of registrant as specified in its charter)</p><p>TABLE OF CONTENTS</p><table><tr><td>Item 1. Business ................................</td><td>4</td></tr><tr><td>Item 1A. Risk Factors ...........................</td><td>10</td></tr><tr><td>Item 7. Management's Discussion and Analysis ....</td><td>30</td></tr><tr><td>Item 8. Financial Statements ....................</td><td>50</td></tr></table></body></html>",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "exhibit-index-table",
+      "filing": {
+        "rawItemId": "table-exhibit-index",
+        "sourceUniqueId": "0000000000-26-300010",
+        "title": "Exhibit Table Inc. Form 10-K",
+        "metadata": {
+          "formType": "10-K"
+        },
+        "rawPayload": {
+          "form_type": "10-K",
+          "accession_number": "0000000000-26-300010",
+          "company_name": "Exhibit Table Inc.",
+          "documents": [
+            {
+              "type": "10-K",
+              "description": "Annual report",
+              "filename": "exhibittable-20251231x10k.htm",
+              "text": "<html><body><div>FORM 10-K</div><p>Exhibit Table Inc. (Exact name of registrant as specified in its charter)</p><p>ITEM 1. Business</p><p>The company provides annual report body text before the exhibit index.</p><p>ITEM 15. Exhibits and Financial Statement Schedules</p><p>EXHIBIT INDEX</p><table><tr><th>Exhibit No.</th><th>Description</th><th>Filed</th></tr><tr><td>31.1</td><td>Certification of Principal Executive Officer</td><td>Filed herewith</td></tr><tr><td>32.1</td><td>Section 906 Certification</td><td>Furnished herewith</td></tr><tr><td>101.INS</td><td>Inline XBRL Instance Document</td><td>Filed herewith</td></tr></table></body></html>",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "share-repurchase-table",
+      "filing": {
+        "rawItemId": "table-share-repurchase",
+        "sourceUniqueId": "0000000000-26-300011",
+        "title": "Repurchase Table Inc. Form 10-Q",
+        "metadata": {
+          "formType": "10-Q"
+        },
+        "rawPayload": {
+          "form_type": "10-Q",
+          "accession_number": "0000000000-26-300011",
+          "company_name": "Repurchase Table Inc.",
+          "documents": [
+            {
+              "type": "10-Q",
+              "description": "Quarterly report",
+              "filename": "repurchasetable-20260331x10q.htm",
+              "text": "<html><body><div>FORM 10-Q</div><p>Repurchase Table Inc. (Exact name of registrant as specified in its charter)</p><p>ITEM 2. Unregistered Sales of Equity Securities and Use of Proceeds</p><p>Issuer Purchases of Equity Securities</p><table><tr><th>Period</th><th>Total Number of Shares Purchased</th><th>Average Price Paid per Share</th></tr><tr><td>January</td><td>100,000</td><td>$12.50</td></tr><tr><td>February</td><td>50,000</td><td>$13.00</td></tr></table></body></html>",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "debt-maturity-table",
+      "filing": {
+        "rawItemId": "table-debt-maturity",
+        "sourceUniqueId": "0000000000-26-300012",
+        "title": "Debt Table Inc. Form 10-K",
+        "metadata": {
+          "formType": "10-K"
+        },
+        "rawPayload": {
+          "form_type": "10-K",
+          "accession_number": "0000000000-26-300012",
+          "company_name": "Debt Table Inc.",
+          "documents": [
+            {
+              "type": "10-K",
+              "description": "Annual report",
+              "filename": "debttable-20251231x10k.htm",
+              "text": "<html><body><div>FORM 10-K</div><p>Debt Table Inc. (Exact name of registrant as specified in its charter)</p><p>ITEM 7. Management's Discussion and Analysis</p><p>Contractual Obligations and Debt Maturities</p><table><tr><th>Payment Due By Period</th><th>2026</th><th>2027</th><th>Thereafter</th></tr><tr><td>Long-term debt principal payments</td><td>$20</td><td>$25</td><td>$100</td></tr><tr><td>Operating lease obligations</td><td>$5</td><td>$4</td><td>$10</td></tr></table></body></html>",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "market-risk-sensitivity-table",
+      "filing": {
+        "rawItemId": "table-market-risk",
+        "sourceUniqueId": "0000000000-26-300013",
+        "title": "Market Risk Table Inc. Form 10-K",
+        "metadata": {
+          "formType": "10-K"
+        },
+        "rawPayload": {
+          "form_type": "10-K",
+          "accession_number": "0000000000-26-300013",
+          "company_name": "Market Risk Table Inc.",
+          "documents": [
+            {
+              "type": "10-K",
+              "description": "Annual report",
+              "filename": "marketrisk-20251231x10k.htm",
+              "text": "<html><body><div>FORM 10-K</div><p>Market Risk Table Inc. (Exact name of registrant as specified in its charter)</p><p>ITEM 7. Management's Discussion and Analysis</p><p>ITEM 7A. Quantitative and Qualitative Disclosures About Market Risk</p><p>Market Risk Sensitivity Analysis</p><table><tr><th>Scenario</th><th>Interest rate change</th><th>Estimated impact</th></tr><tr><td>Rates increase</td><td>100 basis points</td><td>($2.0)</td></tr><tr><td>Rates decrease</td><td>-50 basis points</td><td>$1.0</td></tr></table></body></html>",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "malformed-table-recovers-cells",
+      "filing": {
+        "rawItemId": "table-malformed",
+        "sourceUniqueId": "0000000000-26-300014",
+        "title": "Malformed Table Inc. Form 10-Q",
+        "metadata": {
+          "formType": "10-Q"
+        },
+        "rawPayload": {
+          "form_type": "10-Q",
+          "accession_number": "0000000000-26-300014",
+          "company_name": "Malformed Table Inc.",
+          "documents": [
+            {
+              "type": "10-Q",
+              "description": "Quarterly report",
+              "filename": "malformedtable-20260331x10q.htm",
+              "text": "<html><body><div>FORM 10-Q</div><p>Malformed Table Inc. (Exact name of registrant as specified in its charter)</p><p>ITEM 1. Financial Statements</p><table><tr><td>Revenue<td>100<td>90<tr><td>Net income<td>(5)<td>4</body></html>",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

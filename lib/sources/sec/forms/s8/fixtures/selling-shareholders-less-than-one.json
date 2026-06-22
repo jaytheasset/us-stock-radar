@@ -1,0 +1,13 @@
+{
+  "fixtureName": "selling-shareholders-less-than-one",
+  "formType": "S-8",
+  "accessionNumber": "0005555555-26-000504",
+  "filedAt": "2026-05-20",
+  "issuer": {
+    "name": "Less Than One Corp.",
+    "ticker": "LTOC",
+    "exchange": "NASDAQ"
+  },
+  "filingText": "Less Than One Corp. files this registration statement on Form S-8. REOFFER PROSPECTUS. SELLING SHAREHOLDERS. <table><tr><th>Name</th><th>Nature of Relationship</th><th>Common Stock Offered</th><th>Percentage Owned After Offering</th></tr><tr><td>Maria Chen</td><td>Consultant</td><td>45,000</td><td>less than 1%</td></tr></table> SIGNATURES.",
+  "attachments": []
+}

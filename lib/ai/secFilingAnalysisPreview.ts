@@ -1,26 +1,71 @@
 import { getServerEnv } from "@/lib/env";
 import {
-  buildSecOfferingAuditPrompt,
+  SEC_424B_ANALYSIS_PROMPT_KEY,
+  SEC_424B_ANALYSIS_PROMPT_VERSION,
+  SEC_8K_6K_ANALYSIS_PROMPT_KEY,
+  SEC_8K_6K_ROUTER_PROMPT_KEY,
+  SEC_8K_6K_ROUTER_PROMPT_VERSION,
   SEC_OFFERING_AUDIT_PROMPT_KEY,
   SEC_OFFERING_AUDIT_PROMPT_VERSION,
-} from "@/lib/prompts/secOfferingAudit";
-import { buildSecFilingAnalysisPackage } from "@/lib/prompts/secFilingAnalysisPackage";
-import { buildSecFilingAnalysisPrompt, type SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
-import {
-  buildSecS3AmendmentTriagePrompt,
+  SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY,
+  SEC_OWNERSHIP_ANALYSIS_PROMPT_VERSION,
   SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
   SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
-} from "@/lib/prompts/secS3AmendmentTriage";
-import {
-  buildSecS3OfferingAnalysisPrompt,
   SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY,
-} from "@/lib/prompts/secS3OfferingAnalysis";
+  SEC_TENDER_ANALYSIS_PROMPT_KEY,
+  SEC_SC13_ANALYSIS_PROMPT_KEY,
+  SEC_SC13_ANALYSIS_PROMPT_VERSION,
+  SEC_S8_ANALYSIS_PROMPT_KEY,
+  SEC_S8_ANALYSIS_PROMPT_VERSION,
+  adaptSec424bAnalysisPromptResultForAnalysis,
+  adaptSec8k6kAnalysisPromptResultForAnalysis,
+  adaptOwnershipPromptResultForAnalysis,
+  adaptSecTenderAnalysisPromptResultForAnalysis,
+  adaptSecSc13AnalysisPromptResultForAnalysis,
+  adaptSecS4F4AnalysisPromptResultForAnalysis,
+  adaptSecS8AnalysisPromptResultForAnalysis,
+  buildDeterministicSc13Analysis,
+  buildDeterministicOwnershipAnalysis,
+  buildDeterministicS8ArchiveAnalysis,
+  buildSec424bAnalysisPromptForInput,
+  buildSec8k6kAnalysisPromptForInput,
+  buildSec8k6kArchiveAnalysis,
+  buildSec8k6kRouterPromptForInput,
+  buildSecOwnershipAnalysisPrompt,
+  buildSecSc13AnalysisPromptForInput,
+  buildSecS4F4AnalysisPromptForInput,
+  buildSecS8AnalysisPromptForInput,
+  buildSecS3AnalysisPrompt,
+  buildSecS3AuditPrompt,
+  buildSecS3TriagePrompt,
+  buildSecTenderAnalysisPromptForInput,
+  is424bFilingInput,
+  isSec8k6kFilingInput,
+  isOwnershipFilingInput,
+  isSc13FilingInput,
+  isS4F4FilingInput,
+  isS8FilingInput,
+  isS3AmendmentInput,
+  isS3FilingInput,
+  isTenderFilingInput,
+  normalizeSec8k6kRouterResult,
+  shouldRunSec8k6kAnalysis,
+} from "@/lib/ai/secFormAnalysisAdapterRegistry";
+import { buildSecFilingAnalysisPackage } from "@/lib/prompts/secFilingAnalysisPackage";
+import { buildSecFilingAnalysisPrompt, type SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
 import {
   applySecOfferingScorePolicy,
   buildSecOfferingDilutionMetrics,
   resolveSecOfferingMarketContext,
 } from "@/lib/secOfferingMarketContext";
+import {
+  buildSecInvestableUniverseSkipAnalysis,
+  evaluateSecInvestableUniverse,
+  type SecInvestableUniverseGateResult,
+} from "@/lib/ai/secInvestableUniverseGate";
 import { parseSecS3Filing, type SecS3FilingFacts } from "@/lib/sources/sec/forms/s3-f3/parser";
+import { parseSc13Filing } from "@/lib/sources/sec/forms/sc13/parser";
+import type { Sc13ParserOutput } from "@/lib/sources/sec/forms/sc13/types";
 import { supabaseSelect } from "@/lib/supabase";
 
 type PreviewOptions = {
@@ -29,7 +74,7 @@ type PreviewOptions = {
   accessionNumber?: string;
   ticker?: string;
   calendarCandidate?: boolean;
-};
+} & SecLlmOptions;
 
 type RawItemRow = Record<string, unknown>;
 
@@ -50,6 +95,28 @@ type OpenAIResponseBody = {
   };
 };
 
+type GeminiResponseBody = {
+  responseId?: string;
+  modelVersion?: string;
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string;
+      }>;
+    };
+    finishReason?: string;
+  }>;
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    totalTokenCount?: number;
+    [key: string]: unknown;
+  };
+  error?: {
+    message?: string;
+  };
+};
+
 type OpenAIUsage = {
   input_tokens?: number;
   output_tokens?: number;
@@ -61,6 +128,20 @@ type OpenAIUsage = {
     reasoning_tokens?: number;
   };
   [key: string]: unknown;
+};
+
+type SecLlmProvider = "openai" | "gemini";
+
+type SecLlmOptions = {
+  llmProvider?: string;
+  llmModel?: string;
+};
+
+type SecLlmConfig = {
+  provider: SecLlmProvider;
+  model: string;
+  apiKey: string;
+  apiKeyEnvName: "OPENAI_API_KEY" | "GEMINI_API_KEY";
 };
 
 type CostEstimate = {
@@ -77,7 +158,7 @@ type CostEstimate = {
   pricing: string;
 };
 
-type OpenAiPrompt = {
+export type OpenAiPrompt = {
   key: string;
   version: string;
   system: string;
@@ -90,13 +171,15 @@ type OpenAiPrompt = {
 type OpenAiPromptRun = {
   ok: boolean;
   status: number;
+  provider: SecLlmProvider;
+  model: string;
   openAiResponseId: string | null;
   outputText: string;
   parsed: Record<string, unknown> | null;
   usage: OpenAIUsage | null;
   attempts: number;
   error?: string;
-  rawOpenAIResponse?: OpenAIResponseBody | null;
+  rawOpenAIResponse?: OpenAIResponseBody | GeminiResponseBody | null;
 };
 
 export type SecFilingAnalysisRunResult = {
@@ -121,6 +204,8 @@ export type SecFilingAnalysisRunResult = {
   prompt?: {
     key: string;
     version: string;
+    provider?: SecLlmProvider;
+    model?: string;
     system?: string;
     responseFormat?: unknown;
     triage?: {
@@ -137,7 +222,7 @@ export type SecFilingAnalysisRunResult = {
     };
   };
   error?: string;
-  rawOpenAIResponse?: OpenAIResponseBody | null;
+  rawOpenAIResponse?: OpenAIResponseBody | GeminiResponseBody | null;
 };
 
 export async function runSecFilingAnalysisPreview(options: PreviewOptions = {}) {
@@ -153,8 +238,18 @@ export async function runSecFilingAnalysisPreview(options: PreviewOptions = {}) 
 
   const input = await buildInputFromSecRawRowWithContext(rawResult.rawItem);
   const prompt = buildSecFilingPromptForInput(input);
-  const auditPrompt = isS3FilingInput(input) ? buildSecOfferingAuditPrompt(input) : null;
-  const triagePrompt = isS3AmendmentInput(input) ? buildSecS3AmendmentTriagePrompt(input) : null;
+  const auditPrompt = isS3FilingInput(input) ? buildSecS3AuditPrompt(input) : null;
+  const triagePrompt = isS3AmendmentInput(input) ? buildSecS3TriagePrompt(input) : null;
+
+  const investableUniverseGate = evaluateSecInvestableUniverse(input);
+  if (investableUniverseGate) {
+    return buildSecInvestableUniverseSkipRun(
+      rawResult.rawItem,
+      input,
+      buildSecInvestableUniverseSkipAnalysis(input, investableUniverseGate),
+      investableUniverseGate,
+    );
+  }
 
   if (options.dryRun) {
     return {
@@ -189,7 +284,7 @@ export async function runSecFilingAnalysisPreview(options: PreviewOptions = {}) 
     };
   }
 
-  const analysisResult = await runSecFilingAnalysisForRawRow(rawResult.rawItem);
+  const analysisResult = await runSecFilingAnalysisForRawRow(rawResult.rawItem, options);
 
   return {
     ...analysisResult,
@@ -197,11 +292,24 @@ export async function runSecFilingAnalysisPreview(options: PreviewOptions = {}) 
   };
 }
 
-export async function runSecFilingAnalysisPreviewForRawItem(rawItem: RawItemRow, options: { dryRun?: boolean } = {}) {
+export async function runSecFilingAnalysisPreviewForRawItem(
+  rawItem: RawItemRow,
+  options: ({ dryRun?: boolean; allowLlm?: boolean } & SecLlmOptions) = {},
+) {
   const input = await buildInputFromSecRawRowWithContext(rawItem);
   const prompt = buildSecFilingPromptForInput(input);
-  const auditPrompt = isS3FilingInput(input) ? buildSecOfferingAuditPrompt(input) : null;
-  const triagePrompt = isS3AmendmentInput(input) ? buildSecS3AmendmentTriagePrompt(input) : null;
+  const auditPrompt = isS3FilingInput(input) ? buildSecS3AuditPrompt(input) : null;
+  const triagePrompt = isS3AmendmentInput(input) ? buildSecS3TriagePrompt(input) : null;
+
+  const investableUniverseGate = evaluateSecInvestableUniverse(input);
+  if (investableUniverseGate) {
+    return buildSecInvestableUniverseSkipRun(
+      rawItem,
+      input,
+      buildSecInvestableUniverseSkipAnalysis(input, investableUniverseGate),
+      investableUniverseGate,
+    );
+  }
 
   if (options.dryRun !== false) {
     return {
@@ -236,6 +344,10 @@ export async function runSecFilingAnalysisPreviewForRawItem(rawItem: RawItemRow,
     };
   }
 
+  if (options.allowLlm === false) {
+    return runSecFilingAnalysisWithoutLlmForRawRow(rawItem, input);
+  }
+
   const deterministicTriage = isS3AmendmentInput(input) ? buildDeterministicS3AmendmentTriage(input) : null;
   if (deterministicTriage) {
     attachS3AmendmentTriage(input, deterministicTriage);
@@ -264,23 +376,296 @@ export async function runSecFilingAnalysisPreviewForRawItem(rawItem: RawItemRow,
     };
   }
 
-  const analysisResult = await runSecFilingAnalysisForRawRow(rawItem);
+  const analysisResult = await runSecFilingAnalysisForRawRow(rawItem, options);
   return {
     ...analysisResult,
     stage: analysisResult.ok ? "complete" : analysisResult.stage,
   };
 }
 
-export async function runSecFilingAnalysisForRawRow(rawItem: RawItemRow): Promise<SecFilingAnalysisRunResult> {
-  const input = await buildInputFromSecRawRowWithParentContext(rawItem);
-  const env = getServerEnv();
+async function runSecFilingAnalysisWithoutLlmForRawRow(
+  rawItem: RawItemRow,
+  input: SecFilingAnalysisInput,
+): Promise<SecFilingAnalysisRunResult> {
+  const deterministicTriage = isS3AmendmentInput(input) ? buildDeterministicS3AmendmentTriage(input) : null;
+  if (deterministicTriage) {
+    attachS3AmendmentTriage(input, deterministicTriage);
+    return {
+      ok: true,
+      stage: "complete",
+      status: 200,
+      model: getServerEnv().openAiModel,
+      openAiResponseId: null,
+      sourceItem: summarizeRawRow(rawItem),
+      input,
+      triage: deterministicTriage,
+      audit: null,
+      analysis: buildS3AmendmentSkipAnalysis(input, deterministicTriage),
+      triageUsage: null,
+      usage: null,
+      costEstimate: null,
+      prompt: {
+        key: SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
+        version: SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
+        triage: {
+          key: SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
+          version: SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
+        },
+      },
+    };
+  }
 
-  if (!env.openAiApiKey) {
+  const deterministicOwnership = buildDeterministicOwnershipAnalysis(input);
+  if (deterministicOwnership) {
+    if (!deterministicOwnership.ok) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: 0,
+        error: deterministicOwnership.error,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        prompt: {
+          key: SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY,
+          version: SEC_OWNERSHIP_ANALYSIS_PROMPT_VERSION,
+        },
+      };
+    }
+
+    const archiveGuard = evaluateOwnershipArchiveContextGuard(input);
+    attachOwnershipArchiveContextGuard(input, archiveGuard);
+    if (!archiveGuard.analysis_needed) {
+      return {
+        ok: true,
+        stage: "complete",
+        status: 200,
+        model: getServerEnv().openAiModel,
+        openAiResponseId: null,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        analysis: deterministicOwnership.analysis,
+        usage: null,
+        costEstimate: null,
+        prompt: {
+          key: SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY,
+          version: SEC_OWNERSHIP_ANALYSIS_PROMPT_VERSION,
+        },
+      };
+    }
+  }
+
+  const deterministicSc13 = buildDeterministicSc13Analysis(input);
+  if (deterministicSc13) {
+    if (!deterministicSc13.ok) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: 0,
+        error: deterministicSc13.error,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        prompt: {
+          key: SEC_SC13_ANALYSIS_PROMPT_KEY,
+          version: SEC_SC13_ANALYSIS_PROMPT_VERSION,
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      stage: "complete",
+      status: 200,
+      model: getServerEnv().openAiModel,
+      openAiResponseId: null,
+      sourceItem: summarizeRawRow(rawItem),
+      input,
+      analysis: deterministicSc13.analysis,
+      usage: null,
+      costEstimate: null,
+      prompt: {
+        key: SEC_SC13_ANALYSIS_PROMPT_KEY,
+        version: SEC_SC13_ANALYSIS_PROMPT_VERSION,
+      },
+    };
+  }
+
+  const deterministicS8 = buildDeterministicS8ArchiveAnalysis(input);
+  if (deterministicS8) {
+    if (!deterministicS8.ok) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: 0,
+        error: deterministicS8.error,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        prompt: {
+          key: SEC_S8_ANALYSIS_PROMPT_KEY,
+          version: SEC_S8_ANALYSIS_PROMPT_VERSION,
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      stage: "complete",
+      status: 200,
+      model: getServerEnv().openAiModel,
+      openAiResponseId: null,
+      sourceItem: summarizeRawRow(rawItem),
+      input,
+      analysis: deterministicS8.analysis,
+      usage: null,
+      costEstimate: null,
+      prompt: {
+        key: SEC_S8_ANALYSIS_PROMPT_KEY,
+        version: SEC_S8_ANALYSIS_PROMPT_VERSION,
+      },
+    };
+  }
+
+  const prompt = buildSecFilingPromptForInput(input);
+  return {
+    ok: false,
+    stage: "openai",
+    status: 0,
+    error: "LLM required but disabled for SEC analysis dry-run",
+    sourceItem: summarizeRawRow(rawItem),
+    input,
+    prompt: {
+      key: prompt.key,
+      version: prompt.version,
+    },
+  };
+}
+
+export async function runSecFilingAnalysisForRawRow(
+  rawItem: RawItemRow,
+  options: SecLlmOptions = {},
+): Promise<SecFilingAnalysisRunResult> {
+  const input = await buildInputFromSecRawRowWithParentContext(rawItem);
+  await attachSecMarketContext(input);
+  await attachOwnershipFilingContext(input, rawItem);
+
+  const investableUniverseGate = evaluateSecInvestableUniverse(input);
+  if (investableUniverseGate) {
+    return buildSecInvestableUniverseSkipRun(
+      rawItem,
+      input,
+      buildSecInvestableUniverseSkipAnalysis(input, investableUniverseGate),
+      investableUniverseGate,
+    );
+  }
+
+  const deterministicOwnership = buildDeterministicOwnershipAnalysis(input);
+  if (deterministicOwnership) {
+    if (!deterministicOwnership.ok) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: 0,
+        error: deterministicOwnership.error,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+      };
+    }
+
+    const archiveGuard = evaluateOwnershipArchiveContextGuard(input);
+    attachOwnershipArchiveContextGuard(input, archiveGuard);
+    if (archiveGuard.analysis_needed) {
+      // Keep going into the normal ownership LLM path below. The parser archive
+      // result is still available through deterministic_parser_archive.
+    } else {
+      return {
+        ok: true,
+        stage: "complete",
+        status: 200,
+        model: getServerEnv().openAiModel,
+        openAiResponseId: null,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        analysis: deterministicOwnership.analysis,
+        usage: null,
+        costEstimate: null,
+        prompt: {
+          key: SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY,
+          version: SEC_OWNERSHIP_ANALYSIS_PROMPT_VERSION,
+        },
+      };
+    }
+  }
+
+  const deterministicSc13 = buildDeterministicSc13Analysis(input);
+  if (deterministicSc13) {
+    if (!deterministicSc13.ok) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: 0,
+        error: deterministicSc13.error,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+      };
+    }
+
+    return {
+      ok: true,
+      stage: "complete",
+      status: 200,
+      model: getServerEnv().openAiModel,
+      openAiResponseId: null,
+      sourceItem: summarizeRawRow(rawItem),
+      input,
+      analysis: deterministicSc13.analysis,
+      usage: null,
+      costEstimate: null,
+      prompt: {
+        key: SEC_SC13_ANALYSIS_PROMPT_KEY,
+        version: SEC_SC13_ANALYSIS_PROMPT_VERSION,
+      },
+    };
+  }
+
+  const deterministicS8 = buildDeterministicS8ArchiveAnalysis(input);
+  if (deterministicS8) {
+    if (!deterministicS8.ok) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: 0,
+        error: deterministicS8.error,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+      };
+    }
+
+    return {
+      ok: true,
+      stage: "complete",
+      status: 200,
+      model: getServerEnv().openAiModel,
+      openAiResponseId: null,
+      sourceItem: summarizeRawRow(rawItem),
+      input,
+      analysis: deterministicS8.analysis,
+      usage: null,
+      costEstimate: null,
+      prompt: {
+        key: SEC_S8_ANALYSIS_PROMPT_KEY,
+        version: SEC_S8_ANALYSIS_PROMPT_VERSION,
+      },
+    };
+  }
+
+  const env = getServerEnv();
+  const llmConfig = resolveSecLlmConfig(env, options);
+
+  if (!llmConfig.apiKey) {
     return {
       ok: false,
       stage: "openai",
       status: 0,
-      error: "OPENAI_API_KEY is missing",
+      error: `${llmConfig.apiKeyEnvName} is missing`,
       sourceItem: summarizeRawRow(rawItem),
       input,
     };
@@ -290,9 +675,9 @@ export async function runSecFilingAnalysisForRawRow(rawItem: RawItemRow): Promis
   let triageRun: OpenAiPromptRun | null = null;
   if (isS3AmendmentInput(input)) {
     triage = buildDeterministicS3AmendmentTriage(input);
-    const triagePrompt = triage ? null : buildSecS3AmendmentTriagePrompt(input);
+    const triagePrompt = triage ? null : buildSecS3TriagePrompt(input);
     if (!triage && triagePrompt) {
-      triageRun = await runOpenAiJsonPrompt(env, triagePrompt);
+      triageRun = await runOpenAiJsonPrompt(env, triagePrompt, llmConfig);
       if (!triageRun.ok || !triageRun.parsed) {
         return {
           ok: false,
@@ -345,7 +730,7 @@ export async function runSecFilingAnalysisForRawRow(rawItem: RawItemRow): Promis
         ok: true,
         stage: "complete",
         status: triageRun?.status || 200,
-        model: env.openAiModel,
+        model: llmConfig.model,
         openAiResponseId: triageRun?.openAiResponseId || null,
         sourceItem: summarizeRawRow(rawItem),
         input,
@@ -355,7 +740,7 @@ export async function runSecFilingAnalysisForRawRow(rawItem: RawItemRow): Promis
         triageOutputText: triageRun?.outputText,
         triageUsage: triageRun?.usage || null,
         usage,
-        costEstimate: estimateCost(env.openAiModel, usage),
+        costEstimate: estimateCost(llmConfig.model, usage),
         prompt: {
           key: SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
           version: SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
@@ -368,13 +753,516 @@ export async function runSecFilingAnalysisForRawRow(rawItem: RawItemRow): Promis
     }
   }
 
-  await attachSecOfferingMarketContext(input);
+  if (isOwnershipFilingInput(input)) {
+    const prompt = buildSecOwnershipAnalysisPrompt(input);
+    const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
+    if (!analysisRun.ok || !analysisRun.parsed) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: analysisRun.status,
+        error: `SEC ownership analysis failed after ${analysisRun.attempts} attempt(s): ${analysisRun.error || "no parseable JSON"}`,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        outputText: analysisRun.outputText,
+        usage: analysisRun.usage,
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        prompt: {
+          key: prompt.key,
+          version: prompt.version,
+        },
+      };
+    }
+
+    const ownershipAnalysis = adaptOwnershipPromptResultForAnalysis(analysisRun.parsed, input);
+    if (!ownershipAnalysis.ok) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: analysisRun.status,
+        error: ownershipAnalysis.error,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        outputText: analysisRun.outputText,
+        usage: analysisRun.usage,
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        prompt: {
+          key: prompt.key,
+          version: prompt.version,
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      stage: "complete",
+      status: analysisRun.status,
+      model: llmConfig.model,
+      openAiResponseId: analysisRun.openAiResponseId,
+      sourceItem: summarizeRawRow(rawItem),
+      input,
+      analysis: ownershipAnalysis.analysis,
+      outputText: analysisRun.outputText,
+      usage: analysisRun.usage,
+      costEstimate: estimateCost(llmConfig.model, analysisRun.usage),
+      prompt: {
+        key: prompt.key,
+        version: prompt.version,
+      },
+    };
+  }
+
+  if (isSec8k6kFilingInput(input)) {
+    const routerPrompt = buildSec8k6kRouterPromptForInput(input);
+    const routerRun = await runOpenAiJsonPrompt(env, routerPrompt, llmConfig);
+    if (!routerRun.ok || !routerRun.parsed) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: routerRun.status,
+        error: `SEC 8-K/6-K router failed after ${routerRun.attempts} attempt(s): ${routerRun.error || "no parseable JSON"}`,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        triageOutputText: routerRun.outputText,
+        triageUsage: routerRun.usage,
+        rawOpenAIResponse: routerRun.rawOpenAIResponse,
+        prompt: {
+          key: routerPrompt.key,
+          version: routerPrompt.version,
+        },
+      };
+    }
+    const routerResult = normalizeSec8k6kRouterResult(routerRun.parsed);
+
+    if (!shouldRunSec8k6kAnalysis(routerResult)) {
+      const archiveAnalysis = buildSec8k6kArchiveAnalysis(input, routerResult);
+      if (!archiveAnalysis.ok) {
+        return {
+          ok: false,
+          stage: "openai",
+          status: routerRun.status,
+          error: archiveAnalysis.error,
+          sourceItem: summarizeRawRow(rawItem),
+          input,
+          triage: routerResult,
+          triageOutputText: routerRun.outputText,
+          triageUsage: routerRun.usage,
+          rawOpenAIResponse: routerRun.rawOpenAIResponse,
+          prompt: {
+            key: SEC_8K_6K_ROUTER_PROMPT_KEY,
+            version: SEC_8K_6K_ROUTER_PROMPT_VERSION,
+          },
+        };
+      }
+
+      const usage = combineUsage(routerRun.usage);
+      return {
+        ok: true,
+        stage: "complete",
+        status: routerRun.status,
+        model: llmConfig.model,
+        openAiResponseId: routerRun.openAiResponseId,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        triage: routerResult,
+        analysis: archiveAnalysis.analysis,
+        triageOutputText: routerRun.outputText,
+        triageUsage: routerRun.usage,
+        usage,
+        costEstimate: estimateCost(llmConfig.model, usage),
+        prompt: {
+          key: SEC_8K_6K_ROUTER_PROMPT_KEY,
+          version: SEC_8K_6K_ROUTER_PROMPT_VERSION,
+          triage: {
+            key: SEC_8K_6K_ROUTER_PROMPT_KEY,
+            version: SEC_8K_6K_ROUTER_PROMPT_VERSION,
+          },
+        },
+      };
+    }
+
+    const prompt = buildSec8k6kAnalysisPromptForInput(input, routerResult);
+    const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
+    if (!analysisRun.ok || !analysisRun.parsed) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: analysisRun.status,
+        error: `SEC 8-K/6-K analysis failed after ${analysisRun.attempts} attempt(s): ${analysisRun.error || "no parseable JSON"}`,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        triage: routerResult,
+        triageOutputText: routerRun.outputText,
+        triageUsage: routerRun.usage,
+        outputText: analysisRun.outputText,
+        usage: combineUsage(routerRun.usage, analysisRun.usage),
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        prompt: {
+          key: prompt.key,
+          version: prompt.version,
+          triage: {
+            key: SEC_8K_6K_ROUTER_PROMPT_KEY,
+            version: SEC_8K_6K_ROUTER_PROMPT_VERSION,
+          },
+        },
+      };
+    }
+
+    const sec8k6kAnalysis = adaptSec8k6kAnalysisPromptResultForAnalysis(analysisRun.parsed, input, routerResult);
+    if (!sec8k6kAnalysis.ok) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: analysisRun.status,
+        error: sec8k6kAnalysis.error,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        triage: routerResult,
+        triageOutputText: routerRun.outputText,
+        triageUsage: routerRun.usage,
+        outputText: analysisRun.outputText,
+        usage: combineUsage(routerRun.usage, analysisRun.usage),
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        prompt: {
+          key: prompt.key,
+          version: prompt.version,
+          triage: {
+            key: SEC_8K_6K_ROUTER_PROMPT_KEY,
+            version: SEC_8K_6K_ROUTER_PROMPT_VERSION,
+          },
+        },
+      };
+    }
+
+    const usage = combineUsage(routerRun.usage, analysisRun.usage);
+    return {
+      ok: true,
+      stage: "complete",
+      status: analysisRun.status,
+      model: llmConfig.model,
+      openAiResponseId: analysisRun.openAiResponseId,
+      sourceItem: summarizeRawRow(rawItem),
+      input,
+      triage: routerResult,
+      analysis: sec8k6kAnalysis.analysis,
+      triageOutputText: routerRun.outputText,
+      outputText: analysisRun.outputText,
+      triageUsage: routerRun.usage,
+      usage,
+      costEstimate: estimateCost(llmConfig.model, usage),
+      prompt: {
+        key: prompt.key,
+        version: prompt.version,
+        triage: {
+          key: SEC_8K_6K_ROUTER_PROMPT_KEY,
+          version: SEC_8K_6K_ROUTER_PROMPT_VERSION,
+        },
+      },
+    };
+  }
+
+  if (isTenderFilingInput(input)) {
+    const prompt = buildSecTenderAnalysisPromptForInput(input);
+    const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
+    if (!analysisRun.ok || !analysisRun.parsed) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: analysisRun.status,
+        error: `SEC tender analysis failed after ${analysisRun.attempts} attempt(s): ${analysisRun.error || "no parseable JSON"}`,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        outputText: analysisRun.outputText,
+        usage: analysisRun.usage,
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        prompt: {
+          key: prompt.key,
+          version: prompt.version,
+        },
+      };
+    }
+
+    const tenderAnalysis = adaptSecTenderAnalysisPromptResultForAnalysis(analysisRun.parsed, input);
+    if (!tenderAnalysis.ok) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: analysisRun.status,
+        error: tenderAnalysis.error,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        outputText: analysisRun.outputText,
+        usage: analysisRun.usage,
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        prompt: {
+          key: prompt.key,
+          version: prompt.version,
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      stage: "complete",
+      status: analysisRun.status,
+      model: llmConfig.model,
+      openAiResponseId: analysisRun.openAiResponseId,
+      sourceItem: summarizeRawRow(rawItem),
+      input,
+      analysis: tenderAnalysis.analysis,
+      outputText: analysisRun.outputText,
+      usage: analysisRun.usage,
+      costEstimate: estimateCost(llmConfig.model, analysisRun.usage),
+      prompt: {
+        key: prompt.key,
+        version: prompt.version,
+      },
+    };
+  }
+
+  if (isSc13FilingInput(input)) {
+    const prompt = buildSecSc13AnalysisPromptForInput(input);
+    const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
+    if (!analysisRun.ok || !analysisRun.parsed) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: analysisRun.status,
+        error: `SEC SC13 analysis failed after ${analysisRun.attempts} attempt(s): ${analysisRun.error || "no parseable JSON"}`,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        outputText: analysisRun.outputText,
+        usage: analysisRun.usage,
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        prompt: {
+          key: prompt.key,
+          version: prompt.version,
+        },
+      };
+    }
+
+    const sc13Analysis = adaptSecSc13AnalysisPromptResultForAnalysis(analysisRun.parsed, input);
+    if (!sc13Analysis.ok) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: analysisRun.status,
+        error: sc13Analysis.error,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        outputText: analysisRun.outputText,
+        usage: analysisRun.usage,
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        prompt: {
+          key: prompt.key,
+          version: prompt.version,
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      stage: "complete",
+      status: analysisRun.status,
+      model: llmConfig.model,
+      openAiResponseId: analysisRun.openAiResponseId,
+      sourceItem: summarizeRawRow(rawItem),
+      input,
+      analysis: sc13Analysis.analysis,
+      outputText: analysisRun.outputText,
+      usage: analysisRun.usage,
+      costEstimate: estimateCost(llmConfig.model, analysisRun.usage),
+      prompt: {
+        key: prompt.key,
+        version: prompt.version,
+      },
+    };
+  }
+
+  if (isS4F4FilingInput(input)) {
+    const prompt = buildSecS4F4AnalysisPromptForInput(input);
+    const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
+    if (!analysisRun.ok || !analysisRun.parsed) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: analysisRun.status,
+        error: `SEC S-4/F-4 analysis failed after ${analysisRun.attempts} attempt(s): ${analysisRun.error || "no parseable JSON"}`,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        outputText: analysisRun.outputText,
+        usage: analysisRun.usage,
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        prompt: {
+          key: prompt.key,
+          version: prompt.version,
+        },
+      };
+    }
+
+    const s4F4Analysis = adaptSecS4F4AnalysisPromptResultForAnalysis(analysisRun.parsed, input);
+    if (!s4F4Analysis.ok) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: analysisRun.status,
+        error: s4F4Analysis.error,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        outputText: analysisRun.outputText,
+        usage: analysisRun.usage,
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        prompt: {
+          key: prompt.key,
+          version: prompt.version,
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      stage: "complete",
+      status: analysisRun.status,
+      model: llmConfig.model,
+      openAiResponseId: analysisRun.openAiResponseId,
+      sourceItem: summarizeRawRow(rawItem),
+      input,
+      analysis: s4F4Analysis.analysis,
+      outputText: analysisRun.outputText,
+      usage: analysisRun.usage,
+      costEstimate: estimateCost(llmConfig.model, analysisRun.usage),
+      prompt: {
+        key: prompt.key,
+        version: prompt.version,
+      },
+    };
+  }
+
+  if (isS8FilingInput(input)) {
+    const prompt = buildSecS8AnalysisPromptForInput(input);
+    const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
+    if (!analysisRun.ok || !analysisRun.parsed) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: analysisRun.status,
+        error: `SEC S-8 analysis failed after ${analysisRun.attempts} attempt(s): ${analysisRun.error || "no parseable JSON"}`,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        outputText: analysisRun.outputText,
+        usage: analysisRun.usage,
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        prompt: {
+          key: prompt.key,
+          version: prompt.version,
+        },
+      };
+    }
+
+    const s8Analysis = adaptSecS8AnalysisPromptResultForAnalysis(analysisRun.parsed, input);
+    if (!s8Analysis.ok) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: analysisRun.status,
+        error: s8Analysis.error,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        outputText: analysisRun.outputText,
+        usage: analysisRun.usage,
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        prompt: {
+          key: prompt.key,
+          version: prompt.version,
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      stage: "complete",
+      status: analysisRun.status,
+      model: llmConfig.model,
+      openAiResponseId: analysisRun.openAiResponseId,
+      sourceItem: summarizeRawRow(rawItem),
+      input,
+      analysis: s8Analysis.analysis,
+      outputText: analysisRun.outputText,
+      usage: analysisRun.usage,
+      costEstimate: estimateCost(llmConfig.model, analysisRun.usage),
+      prompt: {
+        key: prompt.key,
+        version: prompt.version,
+      },
+    };
+  }
+
+  if (is424bFilingInput(input)) {
+    const prompt = buildSec424bAnalysisPromptForInput(input);
+    const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
+    if (!analysisRun.ok || !analysisRun.parsed) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: analysisRun.status,
+        error: `SEC 424B analysis failed after ${analysisRun.attempts} attempt(s): ${analysisRun.error || "no parseable JSON"}`,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        outputText: analysisRun.outputText,
+        usage: analysisRun.usage,
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        prompt: {
+          key: prompt.key,
+          version: prompt.version,
+        },
+      };
+    }
+
+    const sec424bAnalysis = adaptSec424bAnalysisPromptResultForAnalysis(analysisRun.parsed, input);
+    if (!sec424bAnalysis.ok) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: analysisRun.status,
+        error: sec424bAnalysis.error,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        outputText: analysisRun.outputText,
+        usage: analysisRun.usage,
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        prompt: {
+          key: prompt.key,
+          version: prompt.version,
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      stage: "complete",
+      status: analysisRun.status,
+      model: llmConfig.model,
+      openAiResponseId: analysisRun.openAiResponseId,
+      sourceItem: summarizeRawRow(rawItem),
+      input,
+      analysis: sec424bAnalysis.analysis,
+      outputText: analysisRun.outputText,
+      usage: analysisRun.usage,
+      costEstimate: estimateCost(llmConfig.model, analysisRun.usage),
+      prompt: {
+        key: prompt.key,
+        version: prompt.version,
+      },
+    };
+  }
+
+  await attachSecMarketContext(input);
 
   let audit: Record<string, unknown> | null = null;
   let auditRun: OpenAiPromptRun | null = null;
   if (isS3FilingInput(input)) {
-    const auditPrompt = buildSecOfferingAuditPrompt(input);
-    auditRun = await runOpenAiJsonPrompt(env, auditPrompt);
+    const auditPrompt = buildSecS3AuditPrompt(input);
+    auditRun = await runOpenAiJsonPrompt(env, auditPrompt, llmConfig);
     if (!auditRun.ok || !auditRun.parsed) {
       return {
         ok: false,
@@ -400,13 +1288,13 @@ export async function runSecFilingAnalysisForRawRow(rawItem: RawItemRow): Promis
   }
 
   const prompt = buildSecFilingPromptForInput(input);
-  const analysisRun = await runOpenAiJsonPrompt(env, prompt);
+  const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
   if (!analysisRun.ok) {
     return {
       ok: false,
       stage: "openai",
       status: analysisRun.status,
-      error: `SEC filing analysis failed after ${analysisRun.attempts} attempt(s): ${analysisRun.error || "unknown OpenAI error"}`,
+      error: `SEC filing analysis failed after ${analysisRun.attempts} attempt(s): ${analysisRun.error || "unknown LLM error"}`,
       sourceItem: summarizeRawRow(rawItem),
       input,
       triage,
@@ -432,7 +1320,7 @@ export async function runSecFilingAnalysisForRawRow(rawItem: RawItemRow): Promis
     ok: Boolean(analysis),
     stage: "complete",
     status: analysisRun.status,
-    model: env.openAiModel,
+    model: llmConfig.model,
     openAiResponseId: analysisRun.openAiResponseId,
     auditOpenAiResponseId: auditRun?.openAiResponseId || null,
     sourceItem: summarizeRawRow(rawItem),
@@ -446,7 +1334,7 @@ export async function runSecFilingAnalysisForRawRow(rawItem: RawItemRow): Promis
     triageUsage: triageRun?.usage || null,
     auditUsage: auditRun?.usage || null,
     usage,
-    costEstimate: estimateCost(env.openAiModel, usage),
+    costEstimate: estimateCost(llmConfig.model, usage),
     prompt: {
       key: prompt.key,
       version: prompt.version,
@@ -463,11 +1351,48 @@ export async function runSecFilingAnalysisForRawRow(rawItem: RawItemRow): Promis
           }
         : undefined,
     },
-    error: analysis ? undefined : "OpenAI response did not contain parseable JSON",
+    error: analysis ? undefined : "LLM response did not contain parseable JSON",
   };
 }
 
-async function runOpenAiJsonPrompt(env: ReturnType<typeof getServerEnv>, prompt: OpenAiPrompt): Promise<OpenAiPromptRun> {
+function resolveSecLlmConfig(env: ReturnType<typeof getServerEnv>, options: SecLlmOptions = {}): SecLlmConfig {
+  const provider = normalizeSecLlmProvider(
+    options.llmProvider || env.secAnalysisLlmProvider,
+    env.secAnalysisAllowOpenAi,
+  );
+  if (provider === "gemini") {
+    return {
+      provider,
+      model: (options.llmModel || env.geminiModel || "gemini-2.5-flash").trim(),
+      apiKey: env.geminiApiKey,
+      apiKeyEnvName: "GEMINI_API_KEY",
+    };
+  }
+
+  return {
+    provider: "openai",
+    model: (options.llmModel || env.openAiModel || "gpt-5-mini").trim(),
+    apiKey: env.openAiApiKey,
+    apiKeyEnvName: "OPENAI_API_KEY",
+  };
+}
+
+function normalizeSecLlmProvider(value: string | undefined, allowOpenAi = false): SecLlmProvider {
+  if (value?.trim().toLowerCase() === "openai" && allowOpenAi) {
+    return "openai";
+  }
+  return "gemini";
+}
+
+async function runOpenAiJsonPrompt(
+  env: ReturnType<typeof getServerEnv>,
+  prompt: OpenAiPrompt,
+  llmConfig: SecLlmConfig = resolveSecLlmConfig(env),
+): Promise<OpenAiPromptRun> {
+  if (llmConfig.provider === "gemini") {
+    return runGeminiJsonPrompt(prompt, llmConfig);
+  }
+
   const maxAttempts = 3;
   let lastRun: OpenAiPromptRun | null = null;
 
@@ -477,11 +1402,11 @@ async function runOpenAiJsonPrompt(env: ReturnType<typeof getServerEnv>, prompt:
         method: "POST",
         cache: "no-store",
         headers: {
-          Authorization: `Bearer ${env.openAiApiKey}`,
+          Authorization: `Bearer ${llmConfig.apiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: env.openAiModel,
+          model: llmConfig.model,
           instructions: prompt.system,
           input: prompt.user,
           max_output_tokens: readMaxOutputTokens(prompt.key),
@@ -500,6 +1425,8 @@ async function runOpenAiJsonPrompt(env: ReturnType<typeof getServerEnv>, prompt:
       lastRun = {
         ok: response.ok && Boolean(parsed),
         status: response.status,
+        provider: llmConfig.provider,
+        model: llmConfig.model,
         openAiResponseId: responseBody?.id || null,
         outputText,
         parsed,
@@ -518,6 +1445,8 @@ async function runOpenAiJsonPrompt(env: ReturnType<typeof getServerEnv>, prompt:
       lastRun = {
         ok: false,
         status: 0,
+        provider: llmConfig.provider,
+        model: llmConfig.model,
         openAiResponseId: null,
         outputText: "",
         parsed: null,
@@ -536,6 +1465,8 @@ async function runOpenAiJsonPrompt(env: ReturnType<typeof getServerEnv>, prompt:
   return lastRun || {
     ok: false,
     status: 0,
+    provider: llmConfig.provider,
+    model: llmConfig.model,
     openAiResponseId: null,
     outputText: "",
     parsed: null,
@@ -550,6 +1481,7 @@ function shouldRetryOpenAiRun(status: number, error: string | undefined) {
   if (status === 0) return true;
   if (status === 408 || status === 409 || status === 425 || status === 429) return true;
   if (status >= 500 && status <= 599) return true;
+  if (/\bparseable JSON\b/i.test(error || "")) return true;
   return /\b(?:timeout|temporarily|rate limit|overloaded|upstream|gateway|socket|network)\b/i.test(error || "");
 }
 
@@ -969,8 +1901,13 @@ function attachS3AmendmentTriage(input: SecFilingAnalysisInput, triage: Record<s
 }
 
 function readMaxOutputTokens(promptKey: string) {
+  if (promptKey === SEC_8K_6K_ROUTER_PROMPT_KEY) return 3000;
+  if (promptKey === SEC_8K_6K_ANALYSIS_PROMPT_KEY) return 8000;
+  if (promptKey === SEC_TENDER_ANALYSIS_PROMPT_KEY) return 8000;
+  if (promptKey === SEC_424B_ANALYSIS_PROMPT_KEY) return 10000;
   if (promptKey === SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY) return 2500;
   if (promptKey === SEC_OFFERING_AUDIT_PROMPT_KEY) return 12000;
+  if (promptKey === SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY) return 7000;
   return promptKey === SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY ? 8000 : 5000;
 }
 
@@ -1028,28 +1965,14 @@ export function buildInputFromSecRawRow(rawItem: RawItemRow): SecFilingAnalysisI
 }
 
 function buildSecFilingPromptForInput(input: SecFilingAnalysisInput) {
-  return isS3FilingInput(input) ? buildSecS3OfferingAnalysisPrompt(input) : buildSecFilingAnalysisPrompt(input);
-}
-
-function isS3FilingInput(input: SecFilingAnalysisInput) {
-  const filingPackage = readRecord(input.filing_package);
-  const formType = stringValue(filingPackage?.form_type).toUpperCase().replace(/\s+/g, "");
-  if (/^S-3(?:ASR|\/A)?$/.test(formType)) return true;
-
-  const hardParsers = readRecord(filingPackage?.hard_parsers);
-  const s3 = readRecord(hardParsers?.s3);
-  return s3?.is_s3_family === true;
-}
-
-function isS3AmendmentInput(input: SecFilingAnalysisInput) {
-  const filingPackage = readRecord(input.filing_package);
-  const formType = stringValue(filingPackage?.form_type).toUpperCase().replace(/\s+/g, "");
-  if (formType === "S-3/A") return true;
-
-  const hardParsers = readRecord(filingPackage?.hard_parsers);
-  const s3 = readRecord(hardParsers?.s3);
-  const amendment = readRecord(s3?.amendment);
-  return s3?.is_s3_family === true && amendment?.is_amendment === true;
+  if (is424bFilingInput(input)) return buildSec424bAnalysisPromptForInput(input);
+  if (isOwnershipFilingInput(input)) return buildSecOwnershipAnalysisPrompt(input);
+  if (isSec8k6kFilingInput(input)) return buildSec8k6kRouterPromptForInput(input);
+  if (isTenderFilingInput(input)) return buildSecTenderAnalysisPromptForInput(input);
+  if (isSc13FilingInput(input)) return buildSecSc13AnalysisPromptForInput(input);
+  if (isS4F4FilingInput(input)) return buildSecS4F4AnalysisPromptForInput(input);
+  if (isS8FilingInput(input)) return buildSecS8AnalysisPromptForInput(input);
+  return isS3FilingInput(input) ? buildSecS3AnalysisPrompt(input) : buildSecFilingAnalysisPrompt(input);
 }
 
 function buildDeterministicS3AmendmentTriage(input: SecFilingAnalysisInput): Record<string, unknown> | null {
@@ -1188,6 +2111,196 @@ function buildS3AmendmentSkipAnalysis(input: SecFilingAnalysisInput, triage: Rec
   };
 }
 
+function buildSecInvestableUniverseSkipRun(
+  rawItem: RawItemRow,
+  input: SecFilingAnalysisInput,
+  analysis: Record<string, unknown>,
+  gate: SecInvestableUniverseGateResult,
+): SecFilingAnalysisRunResult {
+  const filingPackage = readRecord(input.filing_package);
+  if (filingPackage) {
+    filingPackage.investable_universe_gate = {
+      action: gate.action,
+      gate: gate.gate,
+      reason: gate.reason,
+      evidence: gate.evidence,
+      confidence: gate.confidence,
+    };
+  }
+
+  return {
+    ok: true,
+    stage: "complete",
+    status: 200,
+    model: getServerEnv().openAiModel,
+    openAiResponseId: null,
+    sourceItem: summarizeRawRow(rawItem),
+    input,
+    analysis,
+    usage: null,
+    costEstimate: null,
+    prompt: {
+      key: "sec_investable_universe_gate",
+      version: "v1",
+    },
+  };
+}
+
+async function runGeminiJsonPrompt(prompt: OpenAiPrompt, llmConfig: SecLlmConfig): Promise<OpenAiPromptRun> {
+  const maxAttempts = 3;
+  let lastRun: OpenAiPromptRun | null = null;
+  const url = buildGeminiGenerateContentUrl(llmConfig);
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          systemInstruction: {
+            parts: [{ text: prompt.system }],
+          },
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: prompt.user }],
+            },
+          ],
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: readGeminiResponseSchema(prompt),
+            maxOutputTokens: readMaxOutputTokens(prompt.key),
+            ...readGeminiThinkingConfig(llmConfig.model),
+          },
+        }),
+      });
+
+      const responseBody = (await response.json().catch(() => null)) as GeminiResponseBody | null;
+      const outputText = readGeminiResponseOutputText(responseBody);
+      const parsed = response.ok ? parseAnalysisJson(outputText) : null;
+      lastRun = {
+        ok: response.ok && Boolean(parsed),
+        status: response.status,
+        provider: llmConfig.provider,
+        model: llmConfig.model,
+        openAiResponseId: responseBody?.responseId || null,
+        outputText,
+        parsed,
+        usage: normalizeGeminiUsage(responseBody),
+        attempts: attempt,
+        error: response.ok
+          ? parsed
+            ? undefined
+            : "Gemini response did not contain parseable JSON"
+          : responseBody?.error?.message || response.statusText || `<HTTP ${response.status}>`,
+        rawOpenAIResponse: responseBody,
+      };
+
+      if (lastRun.ok || !shouldRetryOpenAiRun(lastRun.status, lastRun.error)) return lastRun;
+    } catch (error) {
+      lastRun = {
+        ok: false,
+        status: 0,
+        provider: llmConfig.provider,
+        model: llmConfig.model,
+        openAiResponseId: null,
+        outputText: "",
+        parsed: null,
+        usage: null,
+        attempts: attempt,
+        error: error instanceof Error ? error.message : String(error),
+        rawOpenAIResponse: null,
+      };
+    }
+
+    if (attempt < maxAttempts) {
+      await waitForRetry(attempt);
+    }
+  }
+
+  return lastRun || {
+    ok: false,
+    status: 0,
+    provider: llmConfig.provider,
+    model: llmConfig.model,
+    openAiResponseId: null,
+    outputText: "",
+    parsed: null,
+    usage: null,
+    attempts: maxAttempts,
+    error: "Gemini request failed before response",
+    rawOpenAIResponse: null,
+  };
+}
+
+function readGeminiResponseSchema(prompt: OpenAiPrompt) {
+  const schema = readRecord(prompt.responseFormat?.json_schema?.schema);
+  return schema ? toGeminiResponseSchema(schema) : undefined;
+}
+
+function readGeminiThinkingConfig(model: string) {
+  const normalized = model.trim().toLowerCase();
+  if (!/^gemini-2\.5-flash/.test(normalized)) return {};
+  return {
+    thinkingConfig: {
+      thinkingBudget: 0,
+    },
+  };
+}
+
+function toGeminiResponseSchema(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map((item) => toGeminiResponseSchema(item));
+  const record = readRecord(value);
+  if (!record) return value;
+
+  const output: Record<string, unknown> = {};
+  for (const [key, childValue] of Object.entries(record)) {
+    if (key === "additionalProperties") continue;
+    if (key === "type" && Array.isArray(childValue)) {
+      const nonNullType = childValue.find((item) => item !== "null");
+      if (typeof nonNullType === "string") {
+        output.type = nonNullType;
+        if (childValue.includes("null")) output.nullable = true;
+      }
+      continue;
+    }
+    output[key] = toGeminiResponseSchema(childValue);
+  }
+
+  return output;
+}
+
+function buildGeminiGenerateContentUrl(llmConfig: SecLlmConfig) {
+  const modelPath = llmConfig.model.startsWith("models/") ? llmConfig.model : `models/${llmConfig.model}`;
+  const url = new URL(`https://generativelanguage.googleapis.com/v1beta/${modelPath}:generateContent`);
+  url.searchParams.set("key", llmConfig.apiKey);
+  return url.toString();
+}
+
+function readGeminiResponseOutputText(body: GeminiResponseBody | null) {
+  if (!body?.candidates?.length) return "";
+  return body.candidates
+    .flatMap((candidate) => candidate.content?.parts || [])
+    .map((part) => part.text || "")
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+}
+
+function normalizeGeminiUsage(body: GeminiResponseBody | null): OpenAIUsage | null {
+  const usage = body?.usageMetadata;
+  if (!usage) return null;
+  return {
+    input_tokens: usage.promptTokenCount,
+    output_tokens: usage.candidatesTokenCount,
+    total_tokens: usage.totalTokenCount,
+    ...usage,
+  };
+}
+
 function normalizeAnalysisTickers(value: unknown) {
   const items = Array.isArray(value) ? value : [];
   return items
@@ -1211,27 +2324,1936 @@ function normalizeTriageConfidence(value: string) {
 
 async function buildInputFromSecRawRowWithContext(rawItem: RawItemRow): Promise<SecFilingAnalysisInput> {
   const input = await buildInputFromSecRawRowWithParentContext(rawItem);
-  await attachSecOfferingMarketContext(input);
+  await attachSecMarketContext(input);
+  await attachOwnershipFilingContext(input, rawItem);
+  attachOwnershipArchiveContextGuardPreview(input);
   return input;
 }
 
 async function buildInputFromSecRawRowWithParentContext(rawItem: RawItemRow): Promise<SecFilingAnalysisInput> {
-  const input = buildInputFromSecRawRow(rawItem);
+  const ownershipParent = await findOwnershipAmendmentParentBeforeParser(rawItem);
+  const inputRawItem = ownershipParent ? addParentContextToRawItemForParser(rawItem, ownershipParent) : rawItem;
+  const input = buildInputFromSecRawRow(inputRawItem);
   await attachParentRegistrationContext(input, rawItem);
+  await attachCurrentReportParentFilingContext(input, rawItem);
+  await attachTenderParentFilingContext(input, rawItem);
+  await attachGenericAmendmentParentFilingContext(input, rawItem);
+  await attachTenderFilingContext(input, rawItem);
   return input;
 }
 
-async function attachSecOfferingMarketContext(input: SecFilingAnalysisInput) {
-  if (!isS3FilingInput(input)) return;
+async function attachSecMarketContext(input: SecFilingAnalysisInput) {
+  const filingPackage = readRecord(input.filing_package);
+  if (!filingPackage) return;
+
+  const existingMarketContext = (readRecord(filingPackage.market_context) || readRecord(filingPackage.marketContext)) as
+    | Awaited<ReturnType<typeof resolveSecOfferingMarketContext>>
+    | null;
+  const symbol = resolveSecMarketContextSymbol(filingPackage);
+  const marketContext = existingMarketContext || (symbol ? await resolveSecOfferingMarketContext(symbol) : null);
+  if (marketContext) {
+    filingPackage.market_context = marketContext;
+  }
+  if (symbol) {
+    const primaryTicker = readRecord(filingPackage.primary_ticker) || {};
+    filingPackage.primary_ticker = {
+      ...primaryTicker,
+      ticker: stringValue(primaryTicker.ticker) || symbol,
+    };
+  }
+  if (isS3FilingInput(input)) {
+    filingPackage.dilution_metrics = buildSecOfferingDilutionMetrics(filingPackage, marketContext);
+  }
+}
+
+function resolveSecMarketContextSymbol(filingPackage: Record<string, unknown>) {
+  const tenderSubjectTicker = resolveTenderSubjectMarketContextSymbol(filingPackage);
+  if (tenderSubjectTicker) return tenderSubjectTicker;
+
+  const primaryTicker = readRecord(filingPackage.primary_ticker);
+  const direct = normalizeMarketContextTicker(
+    stringValue(primaryTicker?.ticker) ||
+      stringValue(filingPackage.ticker) ||
+      firstTickerFromArray(filingPackage.tickers),
+  );
+  if (direct) return direct;
+
+  const hardParsers = readRecord(filingPackage.hard_parsers);
+  for (const parserOutput of Object.values(hardParsers || {})) {
+    const parserRecord = readRecord(parserOutput);
+    const facts = readRecord(parserRecord?.facts);
+    const candidates = [
+      stringValue(facts?.ticker),
+      stringValue(facts?.symbol),
+      stringValue(readRecord(facts?.issuer)?.ticker),
+      stringValue(readRecord(facts?.issuer)?.symbol),
+      stringValue(readRecord(facts?.company)?.ticker),
+      stringValue(readRecord(facts?.company)?.symbol),
+      stringValue(readRecord(facts?.filing)?.ticker),
+      stringValue(readRecord(facts?.filing)?.symbol),
+      stringValue(readRecord(facts?.filing)?.issuer_ticker),
+      stringValue(readRecord(facts?.primaryTicker)?.ticker),
+      stringValue(readRecord(facts?.primaryTicker)?.symbol),
+      stringValue(readRecord(facts?.primary_ticker)?.ticker),
+      stringValue(readRecord(facts?.primary_ticker)?.symbol),
+      stringValue(readRecord(parserRecord?.primaryTicker)?.ticker),
+      stringValue(readRecord(parserRecord?.primaryTicker)?.symbol),
+      stringValue(readRecord(parserRecord?.primary_ticker)?.ticker),
+      stringValue(readRecord(parserRecord?.primary_ticker)?.symbol),
+      firstTickerFromArray(parserRecord?.tickers),
+      firstTickerFromArray(facts?.tickers),
+      firstTickerFromArray(facts?.related_tickers),
+      firstTickerFromArray(parserRecord?.related_tickers),
+    ];
+    for (const candidate of candidates) {
+      const normalized = normalizeMarketContextTicker(candidate);
+      if (normalized) return normalized;
+    }
+  }
+
+  return null;
+}
+
+function resolveTenderSubjectMarketContextSymbol(filingPackage: Record<string, unknown>) {
+  const adapter = readRecord(filingPackage.form_adapter);
+  if (stringValue(adapter?.parserGroup) !== "tender") return null;
+
+  const hardParsers = readRecord(filingPackage.hard_parsers);
+  const tenderParser = readRecord(hardParsers?.tender);
+  const facts = readRecord(tenderParser?.facts);
+  if (!facts) return null;
+
+  const tenderCase = stringValue(facts.tender_case);
+  const secFormType = stringValue(facts.sec_form_type);
+  if (Boolean(facts.issuer_tender) || /issuer[_\s-]?tender|issuer[_\s-]?repurchase/i.test(tenderCase)) {
+    return null;
+  }
+  if (
+    !/third[_\s-]?party|going[_\s-]?private|13e-?3|cash[_\s-]?out|merger/i.test(tenderCase) &&
+    !/^SC\s+TO-T/i.test(secFormType) &&
+    !/^SC\s+13E3/i.test(secFormType)
+  ) {
+    return null;
+  }
+
+  const subjectCompany = resolveTenderSubjectCompanyName(filingPackage);
+  const sourceText = [
+    filingPackage.llm_text,
+    readRecord(readRecord(tenderParser?.raw)?.source_package)?.text,
+    facts.source_text,
+  ]
+    .map((item) => (typeof item === "object" && item !== null ? JSON.stringify(item) : stringValue(item)))
+    .filter(Boolean)
+    .join("\n");
+
+  return extractExchangeTickerNearCompany(sourceText, subjectCompany);
+}
+
+function resolveTenderSubjectCompanyName(filingPackage: Record<string, unknown>) {
+  const adapter = readRecord(filingPackage.form_adapter);
+  if (stringValue(adapter?.parserGroup) !== "tender") return "";
+
+  const hardParsers = readRecord(filingPackage.hard_parsers);
+  const tenderParser = readRecord(hardParsers?.tender);
+  const facts = readRecord(tenderParser?.facts);
+  if (!facts) return "";
+
+  const coverPage = readRecord(facts.cover_page);
+  return (
+    stringValue(readRecord(coverPage?.subject_company)?.value) ||
+    stringValue(readRecord(facts.subject_company)?.value) ||
+    stringValue(facts.subject_company) ||
+    stringValue(facts.target_company)
+  );
+}
+
+function resolveTenderSecurityCusip(filingPackage: Record<string, unknown>) {
+  const adapter = readRecord(filingPackage.form_adapter);
+  if (stringValue(adapter?.parserGroup) !== "tender") return "";
+
+  const hardParsers = readRecord(filingPackage.hard_parsers);
+  const tenderParser = readRecord(hardParsers?.tender);
+  const facts = readRecord(tenderParser?.facts);
+  if (!facts) return "";
+
+  const securityIdentifiers = readRecord(facts.security_identifiers);
+  const coverPage = readRecord(facts.cover_page);
+  const candidates = [
+    readRecord(securityIdentifiers?.cusip)?.value,
+    securityIdentifiers?.cusip,
+    readRecord(coverPage?.cusip)?.value,
+    coverPage?.cusip,
+  ];
+  for (const candidate of candidates) {
+    const normalized = stringValue(candidate).toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (/^[A-Z0-9]{9}$/.test(normalized)) return normalized;
+  }
+  return "";
+}
+
+type TenderTargetTickerCandidate = {
+  ticker: string;
+  exchange: string | null;
+  company_name: string | null;
+  cusip: string;
+  source: string;
+};
+
+async function resolveTenderTargetTickerCandidateByCusip(
+  filingPackage: Record<string, unknown>,
+): Promise<TenderTargetTickerCandidate | null> {
+  const cusip = resolveTenderSecurityCusip(filingPackage);
+  if (!cusip) return null;
+
+  const apiKey = getServerEnv().fmpApiKey;
+  if (!apiKey) return null;
+
+  const searchUrl = new URL("https://financialmodelingprep.com/stable/search-cusip");
+  searchUrl.searchParams.set("cusip", cusip);
+  searchUrl.searchParams.set("apikey", apiKey);
+
+  try {
+    const searchResponse = await fetch(searchUrl);
+    if (!searchResponse.ok) return null;
+    const searchJson: unknown = await searchResponse.json();
+    const searchRows = Array.isArray(searchJson) ? searchJson.filter((row) => readRecord(row)) : [];
+
+    for (const rowValue of searchRows.slice(0, 5)) {
+      const row = readRecord(rowValue) || {};
+      const ticker = normalizeMarketContextTicker(stringValue(row.symbol) || stringValue(row.ticker));
+      if (!ticker) continue;
+
+      const rowCusip = normalizeCusipValue(stringValue(row.cusip));
+      const profile = await fetchFmpTickerProfileForCusipCheck(ticker, apiKey);
+      const profileCusip = normalizeCusipValue(stringValue(profile?.cusip));
+      const verifiedBySearch = rowCusip === cusip;
+      const verifiedByProfile = profileCusip === cusip;
+      if (!verifiedBySearch && !verifiedByProfile) continue;
+
+      return {
+        ticker,
+        exchange: stringValue(row.exchangeShortName) || stringValue(profile?.exchangeShortName) || stringValue(profile?.exchange) || null,
+        company_name: stringValue(row.companyName) || stringValue(row.name) || stringValue(profile?.companyName) || null,
+        cusip,
+        source: verifiedByProfile ? "fmp_search_cusip_profile_verified" : "fmp_search_cusip_verified",
+      };
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+async function fetchFmpTickerProfileForCusipCheck(ticker: string, apiKey: string) {
+  const profileUrl = new URL("https://financialmodelingprep.com/stable/profile");
+  profileUrl.searchParams.set("symbol", ticker);
+  profileUrl.searchParams.set("apikey", apiKey);
+
+  try {
+    const response = await fetch(profileUrl);
+    if (!response.ok) return null;
+    const json: unknown = await response.json();
+    const rows = Array.isArray(json) ? json : [];
+    return readRecord(rows[0]);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeCusipValue(value: string) {
+  const normalized = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return /^[A-Z0-9]{9}$/.test(normalized) ? normalized : "";
+}
+
+function extractExchangeTickerNearCompany(sourceText: string, companyName: string) {
+  const text = sourceText.replace(/\s+/g, " ").trim();
+  if (!text || !companyName) return null;
+  const companyPattern = escapeRegExp(companyName).replace(/\\\s+/g, "\\s+");
+  const exchangeTickerPattern = String.raw`(?:NYSE(?:\s+American|\s+Arca)?|Nasdaq|NASDAQ|OTC(?:QB|QX)?|Cboe)\s*:\s*([A-Z][A-Z0-9.\-]{0,9})`;
+  const afterCompany = new RegExp(`${companyPattern}.{0,180}${exchangeTickerPattern}`, "i").exec(text);
+  const afterTicker = afterCompany?.[1] ? normalizeMarketContextTicker(afterCompany[1]) : null;
+  if (afterTicker) return afterTicker;
+
+  const beforeCompany = new RegExp(`${exchangeTickerPattern}.{0,180}${companyPattern}`, "i").exec(text);
+  const beforeTicker = beforeCompany?.[1] ? normalizeMarketContextTicker(beforeCompany[1]) : null;
+  return beforeTicker;
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function firstTickerFromArray(value: unknown) {
+  if (!Array.isArray(value)) return "";
+  for (const item of value) {
+    const record = readRecord(item);
+    const ticker = record ? stringValue(record.ticker) || stringValue(record.symbol) : stringValue(item);
+    if (ticker) return ticker;
+  }
+  return "";
+}
+
+function normalizeMarketContextTicker(value: string) {
+  const ticker = value.trim().toUpperCase();
+  if (!ticker || ticker === "N/A" || ticker === "NONE" || ticker === "NULL") return null;
+  if (!/^[A-Z][A-Z0-9.\-]{0,9}$/.test(ticker)) return null;
+  return ticker;
+}
+
+type OwnershipPreParserParent = {
+  parent_filing_context: Record<string, unknown>;
+  original_filing?: Record<string, unknown> | null;
+};
+
+type OwnershipParentSearchHints = {
+  companyCiks: string[];
+  ownerCiks: string[];
+  ownerNames: string[];
+  reportDates: string[];
+  referencedDates: string[];
+  filedDate: string;
+  formType: string;
+};
+
+function readOwnershipParentSearchHints(row: RawItemRow): OwnershipParentSearchHints {
+  const rawPayload = readRecord(row.raw_payload) || {};
+  const metadata = readRecord(row.metadata) || {};
+  const sourceText = readOwnershipParentSearchText(row);
+  const ownerCiks = uniqueStrings(readOwnershipXmlValues(sourceText, "rptOwnerCik").map(normalizeCik).filter(Boolean));
+  const ownerNames = uniqueStrings(readOwnershipXmlValues(sourceText, "rptOwnerName").map(normalizePersonName).filter(Boolean));
+  const companyCiks = uniqueStrings(
+    [
+      readRawCik(row),
+      stringValue(rawPayload.ownership_issuer_cik),
+      stringValue(rawPayload.issuer_cik),
+      stringValue(metadata.ownership_issuer_cik),
+      ...readOwnershipXmlValues(sourceText, "issuerCik"),
+    ]
+      .map(normalizeCik)
+      .filter(Boolean),
+  );
+  const reportDates = uniqueStrings(
+    [
+      ...readOwnershipXmlValues(sourceText, "periodOfReport"),
+      ...readOwnershipNestedXmlValues(sourceText, "transactionDate", "value"),
+      ...readOwnershipNestedXmlValues(sourceText, "deemedExecutionDate", "value"),
+    ]
+      .map(normalizeDateOnly)
+      .filter(Boolean),
+  );
+
+  return {
+    companyCiks,
+    ownerCiks,
+    ownerNames,
+    reportDates,
+    referencedDates: extractOwnershipReferencedDates(sourceText),
+    filedDate: normalizeDateOnly(stringValue(row.published_at) || stringValue(rawPayload.filing_date)),
+    formType: readRawFormType(row),
+  };
+}
+
+function readOwnershipParentSearchText(row: RawItemRow) {
+  const rawPayload = readRecord(row.raw_payload) || {};
+  const metadata = readRecord(row.metadata) || {};
+  const attachmentText = readRecordArray(rawPayload.attachment_texts)
+    .map((attachment) => stringValue(attachment.text))
+    .filter(Boolean)
+    .join("\n");
+  return [
+    row.title,
+    rawPayload.ownership_source_text,
+    metadata.ownership_source_text,
+    row.body_text,
+    row.analysis_text,
+    attachmentText,
+  ]
+    .map(stringValue)
+    .filter(Boolean)
+    .join("\n")
+    .slice(0, 500_000);
+}
+
+function readOwnershipXmlValues(text: string, tag: string) {
+  return Array.from(text.matchAll(new RegExp(`<(?:[A-Za-z0-9_]+:)?${tag}\\b[^>]*>([\\s\\S]*?)<\\/(?:[A-Za-z0-9_]+:)?${tag}>`, "gi")))
+    .map((match) => stripSearchTags(match[1]))
+    .filter(Boolean);
+}
+
+function readOwnershipNestedXmlValues(text: string, parentTag: string, childTag: string) {
+  return Array.from(text.matchAll(new RegExp(`<(?:[A-Za-z0-9_]+:)?${parentTag}\\b[^>]*>([\\s\\S]*?)<\\/(?:[A-Za-z0-9_]+:)?${parentTag}>`, "gi")))
+    .flatMap((match) => readOwnershipXmlValues(match[1], childTag))
+    .filter(Boolean);
+}
+
+function extractOwnershipReferencedDates(text: string) {
+  const dates = [
+    ...Array.from(text.matchAll(/\b(20\d{2})[-/](\d{1,2})[-/](\d{1,2})\b/g)).map(
+      (match) => `${match[1]}-${match[2].padStart(2, "0")}-${match[3].padStart(2, "0")}`,
+    ),
+    ...Array.from(
+      text.matchAll(
+        /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),\s+(20\d{2})\b/gi,
+      ),
+    ).map((match) => normalizeDateOnly(`${match[1]} ${match[2]}, ${match[3]}`)),
+  ];
+  return uniqueStrings(dates.map(normalizeDateOnly).filter(Boolean));
+}
+
+function stripSearchTags(value: string) {
+  return stringValue(value)
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function intersects(left: string[], right: string[]) {
+  const rightSet = new Set(right.filter(Boolean));
+  return left.some((value) => rightSet.has(value));
+}
+
+async function findOwnershipAmendmentParentBeforeParser(rawItem: RawItemRow): Promise<OwnershipPreParserParent | null> {
+  const formType = readRawFormType(rawItem);
+  if (!isOwnershipAmendmentFormForParentParser(formType)) return null;
+
+  const currentAccession = readRawAccession(rawItem);
+  const currentHints = readOwnershipParentSearchHints(rawItem);
+  const explicitParentAccession = extractExplicitParentAccessionFromRawItem(rawItem);
+  if (explicitParentAccession) {
+    const row = await fetchSecRawItemByAccession(explicitParentAccession);
+    if (row && readRawAccession(row) !== currentAccession && isOwnershipParentFamilyMatch(formType, readRawFormType(row))) {
+      const context = await buildGenericAmendmentParentContext({
+        status: "found",
+        confidence: "high",
+        matchMethod: "explicit_parent_accession",
+        matchScore: 1000,
+        matchReasons: ["explicit_parent_accession"],
+        rawItem,
+        parentRow: row,
+        candidateRows: [row],
+      });
+      return {
+        parent_filing_context: context,
+        original_filing: buildOwnershipOriginalFilingInput(row),
+      };
+    }
+  }
+
+  const candidateRows = await fetchGenericAmendmentParentCandidateRows(rawItem, currentHints);
+  const currentFiledAt = Date.parse(stringValue(rawItem.published_at));
+  const currentTicker = readRawTicker(rawItem);
+  const currentCik = normalizeCik(readRawCik(rawItem));
+  const scored = candidateRows
+    .filter((row) => readRawAccession(row) !== currentAccession)
+    .filter((row) => isOwnershipParentFamilyMatch(formType, readRawFormType(row)))
+    .map((row) => {
+      const rowFiledAt = Date.parse(stringValue(row.published_at));
+      if (Number.isFinite(currentFiledAt) && Number.isFinite(rowFiledAt) && rowFiledAt >= currentFiledAt) return null;
+
+      const rowAgeDays =
+        Number.isFinite(currentFiledAt) && Number.isFinite(rowFiledAt)
+          ? Math.max(0, Math.round((currentFiledAt - rowFiledAt) / (24 * 60 * 60 * 1000)))
+          : null;
+      if (rowAgeDays !== null && rowAgeDays > 365) return null;
+
+      const rowTicker = readRawTicker(row);
+      const rowCik = normalizeCik(readRawCik(row));
+      const rowHints = readOwnershipParentSearchHints(row);
+      const sameOwnerCik = intersects(currentHints.ownerCiks, rowHints.ownerCiks);
+      const sameOwnerName = intersects(currentHints.ownerNames, rowHints.ownerNames);
+      const targetDates = uniqueStrings([...currentHints.reportDates, ...currentHints.referencedDates]);
+      const candidateDates = uniqueStrings([...rowHints.reportDates, rowHints.filedDate]);
+      const matchReasons: string[] = ["ownership_amendment_parent_candidate"];
+      let score = 90;
+
+      if (currentCik && rowCik && currentCik === rowCik) {
+        score += 90;
+        matchReasons.push("same_cik");
+      }
+      if (currentTicker && rowTicker && currentTicker === rowTicker) {
+        score += 45;
+        matchReasons.push("same_ticker");
+      }
+      if (sameOwnerCik) {
+        score += 180;
+        matchReasons.push("same_reporting_owner_cik");
+      } else if (sameOwnerName) {
+        score += 90;
+        matchReasons.push("same_reporting_owner_name");
+      } else if (currentHints.ownerCiks.length || currentHints.ownerNames.length) {
+        score -= 60;
+        matchReasons.push("reporting_owner_not_matched");
+      }
+      if (intersects(targetDates, candidateDates)) {
+        score += 160;
+        matchReasons.push("report_or_referenced_date_match");
+      }
+      if (!isOwnershipAmendmentFormForParentParser(readRawFormType(row))) {
+        score += 80;
+        matchReasons.push("non_amendment_parent_preferred");
+      }
+      if (rowAgeDays !== null) {
+        if (rowAgeDays <= 30) score += 40;
+        else if (rowAgeDays <= 180) score += 20;
+        else score += 5;
+        matchReasons.push(`filed_${rowAgeDays}_days_before`);
+      }
+
+      return {
+        row,
+        score,
+        matchReasons,
+        matchMethod:
+          sameOwnerCik && intersects(targetDates, candidateDates)
+            ? "ownership_owner_cik_report_date_parent"
+            : sameOwnerCik || sameOwnerName
+            ? "ownership_reporting_owner_recent_parent"
+            : "ownership_same_issuer_recent_parent",
+      };
+    })
+    .filter((item): item is { row: RawItemRow; score: number; matchReasons: string[]; matchMethod: string } => Boolean(item))
+    .filter((item) => item.score >= 150)
+    .sort((left, right) => {
+      if (right.score !== left.score) return right.score - left.score;
+      return Date.parse(stringValue(right.row.published_at)) - Date.parse(stringValue(left.row.published_at));
+    });
+
+  const best = scored[0];
+  const second = scored[1];
+  if (!best) {
+    const context = await buildGenericAmendmentParentContext({
+      status: "not_found",
+      confidence: "low",
+      matchMethod: "none",
+      matchScore: 0,
+      matchReasons: ["no_ownership_parent_candidate_found_before_parser"],
+      rawItem,
+      parentRow: null,
+      candidateRows: [],
+    });
+    return {
+      parent_filing_context: context,
+      original_filing: null,
+    };
+  }
+
+  const ambiguous = second && best.score - second.score < 20;
+  const context = await buildGenericAmendmentParentContext({
+    status: ambiguous ? "multiple_candidates" : "found",
+    confidence: ambiguous ? "medium" : best.score >= 220 ? "high" : "medium",
+    matchMethod: best.matchMethod,
+    matchScore: best.score,
+    matchReasons: best.matchReasons,
+    rawItem,
+    parentRow: ambiguous ? null : best.row,
+    candidateRows: scored.slice(0, 5).map((item) => item.row),
+  });
+
+  return {
+    parent_filing_context: context,
+    original_filing: ambiguous ? null : buildOwnershipOriginalFilingInput(best.row),
+  };
+}
+
+function addParentContextToRawItemForParser(rawItem: RawItemRow, parent: OwnershipPreParserParent): RawItemRow {
+  const rawPayload = readRecord(rawItem.raw_payload) || {};
+  const metadata = readRecord(rawItem.metadata) || {};
+  return {
+    ...rawItem,
+    raw_payload: {
+      ...rawPayload,
+      parent_filing_context: parent.parent_filing_context,
+      ...(parent.original_filing ? { ownership_original_filing: parent.original_filing } : {}),
+    },
+    metadata: {
+      ...metadata,
+      parent_filing_context: parent.parent_filing_context,
+    },
+  };
+}
+
+function buildOwnershipOriginalFilingInput(row: RawItemRow) {
+  const rawPayload = readRecord(row.raw_payload) || {};
+  const metadata = readRecord(row.metadata) || {};
+  const attachmentTexts = readRecordArray(rawPayload.attachment_texts);
+  return {
+    id: stringValue(row.id) || stringValue(row.source_unique_id) || "ownership-parent",
+    formType: readRawFormType(row) || "4",
+    accessionNumber: readRawAccession(row) || null,
+    filingText: [
+      stringValue(row.body_text),
+      stringValue(row.analysis_text),
+      ...attachmentTexts.map((attachment) => stringValue(attachment.text)),
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
+    attachments: attachmentTexts.map((attachment) => ({
+      type: stringValue(attachment.type) || stringValue(attachment.documentType) || null,
+      description: stringValue(attachment.description) || null,
+      filename: stringValue(attachment.filename) || stringValue(attachment.name) || null,
+      url: stringValue(attachment.url) || null,
+      text: stringValue(attachment.text) || null,
+    })),
+    rawPayload,
+    metadata,
+    issuer: {
+      name: readRawCompanyName(row) || null,
+      ticker: readRawTicker(row) || null,
+      exchange: stringValue(rawPayload.exchange) || stringValue(metadata.exchange) || null,
+      cik: readRawCik(row) || null,
+    },
+    source: {
+      url: stringValue(row.source_url) || stringValue(rawPayload.source_url) || stringValue(rawPayload.detail_url) || null,
+    },
+  };
+}
+
+function isOwnershipAmendmentFormForParentParser(formType: string) {
+  const normalized = normalizeSecFormForParentContext(formType);
+  return normalized === "4/A" || normalized === "144/A";
+}
+
+function isOwnershipParentFamilyMatch(currentFormType: string, parentFormType: string) {
+  const current = normalizeGenericParentFormFamily(currentFormType);
+  const parent = normalizeGenericParentFormFamily(parentFormType);
+  return (current === "4" && parent === "4") || (current === "144" && parent === "144");
+}
+
+async function attachOwnershipFilingContext(input: SecFilingAnalysisInput, rawItem: RawItemRow) {
+  if (!isOwnershipFilingInput(input)) return;
 
   const filingPackage = readRecord(input.filing_package);
   if (!filingPackage) return;
 
-  const primaryTicker = readRecord(filingPackage.primary_ticker);
-  const symbol = stringValue(primaryTicker?.ticker);
-  const marketContext = await resolveSecOfferingMarketContext(symbol);
-  filingPackage.market_context = marketContext;
-  filingPackage.dilution_metrics = buildSecOfferingDilutionMetrics(filingPackage, marketContext);
+  const existingContext = readRecord(filingPackage.filing_context);
+  if (readRecord(existingContext?.ownership)) return;
+
+  const parserOutput = readOwnershipParserOutputForContext(input);
+  if (!parserOutput) return;
+
+  const context = await buildOwnershipFilingContext({
+    input,
+    parserOutput,
+    rawItem,
+  });
+
+  filingPackage.filing_context = {
+    ...(existingContext || {}),
+    ownership: context.ownership,
+    context_as_of: context.context_as_of,
+    source_notes: context.source_notes,
+  };
+}
+
+async function attachTenderFilingContext(input: SecFilingAnalysisInput, rawItem: RawItemRow) {
+  if (!isTenderFilingInput(input)) return;
+
+  const filingPackage = readRecord(input.filing_package);
+  if (!filingPackage) return;
+
+  const existingContext = readRecord(filingPackage.filing_context);
+  if (readRecord(existingContext?.transaction_history)) return;
+
+  const transactionHistory = await buildTenderTransactionHistoryContext(input, rawItem);
+  if (!transactionHistory) return;
+
+  filingPackage.filing_context = {
+    ...(existingContext || {}),
+    transaction_history: transactionHistory,
+    context_as_of: stringValue(existingContext?.context_as_of) || new Date().toISOString(),
+    source_notes: uniqueStrings([
+      ...readStringArray(existingContext?.source_notes),
+      "Tender transaction_history is built by integration from persisted SEC raw_items, events, event_analysis, and transaction_fingerprint metadata.",
+      "Historical full raw filing text is excluded; use compact prior analysis, key evidence, display payload, transaction_fingerprint, snippets, and inventory only.",
+      "Prior tender history helps distinguish first definitive disclosures from repeated amendments or follow-up filings.",
+    ]),
+  };
+}
+
+async function buildTenderTransactionHistoryContext(input: SecFilingAnalysisInput, rawItem: RawItemRow) {
+  const filingPackage = readRecord(input.filing_package);
+  if (!filingPackage) return null;
+
+  const currentAccession = readRawAccession(rawItem);
+  const currentFiledAt = Date.parse(stringValue(rawItem.published_at));
+  const currentFormType = stringValue(filingPackage.form_type) || readRawFormType(rawItem);
+  const currentFamily = normalizeGenericParentFormFamily(currentFormType);
+  const targetTickerCandidate = await resolveTenderTargetTickerCandidateByCusip(filingPackage);
+  const subjectTicker =
+    targetTickerCandidate?.ticker ||
+    resolveTenderSubjectMarketContextSymbol(filingPackage) ||
+    normalizeMarketContextTicker(stringValue(readRecord(filingPackage.primary_ticker)?.ticker)) ||
+    readRawTicker(rawItem) ||
+    "";
+  const subjectCompany = resolveTenderSubjectCompanyName(filingPackage);
+  const companySearchTerm = tenderCompanyHistorySearchTerm(subjectCompany || readRawCompanyName(rawItem));
+  const securityCusip = resolveTenderSecurityCusip(filingPackage);
+  const currentMatchFacts = buildCurrentTenderTransactionMatchFacts(filingPackage, rawItem, targetTickerCandidate?.ticker || "");
+  const currentCik = normalizeCik(readRawCik(rawItem));
+  const candidateEvents = await fetchTenderTransactionHistoryEventRows(rawItem, subjectTicker, subjectCompany);
+  const candidateRawRows = await fetchTenderTransactionHistoryRawRows(rawItem, companySearchTerm, securityCusip);
+  const analysisByEventId = await fetchOwnershipContextAnalysisRows(candidateEvents.map((event) => stringValue(event.id)));
+
+  const priorEvents = dedupeEventRows(candidateEvents)
+    .filter((event) => {
+      const metadata = readRecord(event.metadata) || {};
+      const accession = stringValue(metadata.accession_number) || stringValue(metadata.accessionNumber);
+      return !currentAccession || accession !== currentAccession;
+    })
+    .filter((event) => {
+      const formFamily = readTenderEventFormFamily(event);
+      return isTenderParentContextFamily(formFamily) || Boolean(readRecord(readRecord(event.metadata)?.transaction_fingerprint));
+    })
+    .filter((event) => {
+      const eventFiledAt = Date.parse(stringValue(event.published_at) || stringValue(event.detected_at));
+      if (!Number.isFinite(currentFiledAt) || !Number.isFinite(eventFiledAt)) return true;
+      if (eventFiledAt > currentFiledAt && !isSameUtcCalendarDay(eventFiledAt, currentFiledAt)) return false;
+      const ageDays = Math.max(0, Math.round((currentFiledAt - eventFiledAt) / (24 * 60 * 60 * 1000)));
+      return ageDays <= 1095;
+    })
+    .map((event) => ({
+      event,
+      match: scoreTenderTransactionHistoryEventMatch(currentMatchFacts, event),
+    }))
+    .filter((item) => item.match.match_score >= 60)
+    .sort(
+      (left, right) =>
+        right.match.match_score - left.match.match_score ||
+        Date.parse(stringValue(right.event.published_at) || stringValue(right.event.detected_at)) -
+          Date.parse(stringValue(left.event.published_at) || stringValue(left.event.detected_at)),
+    )
+    .slice(0, 20);
+  const priorRawRows = dedupeRawRows(candidateRawRows)
+    .filter((row) => readRawAccession(row) !== currentAccession)
+    .filter((row) => isTenderParentContextFamily(normalizeGenericParentFormFamily(readRawFormType(row))))
+    .filter((row) => {
+      const rowFiledAt = Date.parse(stringValue(row.published_at));
+      if (!Number.isFinite(currentFiledAt) || !Number.isFinite(rowFiledAt)) return true;
+      if (rowFiledAt > currentFiledAt && !isSameUtcCalendarDay(rowFiledAt, currentFiledAt)) return false;
+      const ageDays = Math.max(0, Math.round((currentFiledAt - rowFiledAt) / (24 * 60 * 60 * 1000)));
+      return ageDays <= 1095;
+    })
+    .sort((left, right) => Date.parse(stringValue(right.published_at)) - Date.parse(stringValue(left.published_at)))
+    .slice(0, 12);
+
+  const eventPriorFilings = priorEvents
+    .map(({ event, match }) => compactTenderTransactionHistoryEvent(event, analysisByEventId.get(stringValue(event.id)), match))
+    .slice(0, 12);
+  const rawPriorFilings = (await Promise.all(priorRawRows.map(compactTenderTransactionHistoryRawRow)))
+    .filter(Boolean)
+    .slice(0, 12);
+  const parentHistory = compactTenderParentContextAsHistoryEvent(readRecord(filingPackage.parent_filing_context));
+  const priorFilings = dedupeTenderHistoryRecords([parentHistory, ...eventPriorFilings, ...rawPriorFilings]).slice(0, 12);
+
+  if (!priorFilings.length) {
+    return {
+      source: "raw_items_events_transaction_fingerprint_compact",
+      context_kind: "tender_transaction_history",
+      current_filing: {
+        accession_number: currentAccession || null,
+        form_type: currentFormType || null,
+        form_family: currentFamily || null,
+        filed_at: stringValue(rawItem.published_at) || readRawFiledDate(rawItem) || null,
+        ticker: subjectTicker || null,
+        target_ticker: targetTickerCandidate?.ticker || null,
+        target_exchange: targetTickerCandidate?.exchange || null,
+        target_ticker_source: targetTickerCandidate?.source || null,
+        target_ticker_cusip: targetTickerCandidate?.cusip || null,
+        company_name: subjectCompany || readRawCompanyName(rawItem) || null,
+        company_search_term: companySearchTerm || null,
+        cusip: securityCusip || null,
+        cik: currentCik || null,
+      },
+      prior_count: 0,
+      prior_filings: [],
+      source_notes: [
+        "No prior compact tender transaction history was found for the current ticker/CIK search window.",
+        "Do not infer first-disclosure status solely from missing context; use current source blocks and parent_filing_context when available.",
+      ],
+    };
+  }
+
+  return {
+    source: "raw_items_events_transaction_fingerprint_compact",
+    context_kind: "tender_transaction_history",
+    current_filing: {
+      accession_number: currentAccession || null,
+      form_type: currentFormType || null,
+      form_family: currentFamily || null,
+      filed_at: stringValue(rawItem.published_at) || readRawFiledDate(rawItem) || null,
+      ticker: subjectTicker || null,
+      target_ticker: targetTickerCandidate?.ticker || null,
+      target_exchange: targetTickerCandidate?.exchange || null,
+      target_ticker_source: targetTickerCandidate?.source || null,
+      target_ticker_cusip: targetTickerCandidate?.cusip || null,
+      company_name: subjectCompany || readRawCompanyName(rawItem) || null,
+      company_search_term: companySearchTerm || null,
+      cusip: securityCusip || null,
+      cik: currentCik || null,
+    },
+    prior_count: priorFilings.length,
+    prior_filings: priorFilings,
+    prior_fingerprint_count: priorFilings.filter((item) => readRecord(item.transaction_fingerprint)).length,
+    source_notes: [
+      "Prior filings are compact context only and may include parent filings, prior amendments, or related tender/13E-3/CB filings.",
+      "Use transaction_fingerprint and parent_filing_context to compare economics, deadlines, financing, conditions, results, and closing status.",
+      "Do not treat a prior filing as the same transaction unless the compact context supports the link.",
+    ],
+  };
+}
+
+async function buildOwnershipFilingContext({
+  input,
+  parserOutput,
+  rawItem,
+}: {
+  input: SecFilingAnalysisInput;
+  parserOutput: Record<string, unknown>;
+  rawItem: RawItemRow;
+}) {
+  const identity = extractOwnershipCurrentIdentity(input, parserOutput, rawItem);
+  const candidates = await fetchOwnershipContextEventCandidates(identity, rawItem);
+  const currentAccession = identity.accessionNumber;
+  const currentRawItemId = stringValue(rawItem.id);
+  const currentDate = parseContextDate(identity.filedAt) || new Date();
+  const analysisByEventId = await fetchOwnershipContextAnalysisRows(candidates.map((event) => stringValue(event.id)));
+  const currentEvent = compactCurrentOwnershipContextEvent(identity, parserOutput, rawItem);
+  const packageParentCandidate = buildOwnershipPackageParentCandidate(input);
+
+  const compactEvents = candidates
+    .filter((event) => {
+      if (currentRawItemId && stringValue(event.raw_item_id) === currentRawItemId) return false;
+      const metadata = readRecord(event.metadata) || {};
+      const eventAccession = stringValue(metadata.accession_number) || stringValue(metadata.accessionNumber);
+      return !currentAccession || eventAccession !== currentAccession;
+    })
+    .map((event) => compactOwnershipContextEvent(event, analysisByEventId.get(stringValue(event.id))))
+    .filter((event) => sameOwnershipCompany(identity, event));
+
+  const sameInsider12m = compactEvents
+    .filter((event) => isWithinDays(event.filed_at, currentDate, 365))
+    .filter((event) => sameOwnershipInsider(identity, event))
+    .slice(0, 30);
+
+  const company90dEvents = compactEvents
+    .filter((event) => isWithinDays(event.filed_at, currentDate, 90))
+    .slice(0, 80);
+  const company30dEvents = compactEvents
+    .filter((event) => isWithinDays(event.filed_at, currentDate, 30))
+    .slice(0, 60);
+
+  return {
+    ownership: {
+      same_insider_12m_trades: sameInsider12m,
+      company_90d_insider_flow: buildOwnershipCompanyFlow(company90dEvents),
+      recent_30d_cluster: buildOwnershipRecentCluster(company30dEvents),
+      related_form144_candidates: buildRelatedForm144Candidates(identity, currentEvent, compactEvents, currentDate),
+      related_form4_execution_candidates: buildRelatedForm4ExecutionCandidates(identity, currentEvent, compactEvents, currentDate),
+      amendment_parent_candidate:
+        buildOwnershipAmendmentParentCandidate(identity, currentEvent, compactEvents, currentDate) || packageParentCandidate,
+    },
+    context_as_of: new Date().toISOString(),
+    source_notes: [
+      "Ownership filing_context is built by integration from persisted SEC filing events and event_analysis, not by the parser.",
+      "Historical full raw filing text is excluded; only compact prior analysis, display payload facts, and key evidence are included.",
+      "Form 144/Form 4 execution links and 4/A parent comparison are candidate matches, not definitive conclusions.",
+    ],
+  };
+}
+
+type OwnershipArchiveContextGuard = {
+  analysis_needed: boolean;
+  context_signal_level: "none" | "low" | "material";
+  reasons: string[];
+  metrics: Record<string, unknown>;
+};
+
+function evaluateOwnershipArchiveContextGuard(input: SecFilingAnalysisInput): OwnershipArchiveContextGuard {
+  const filingPackage = readRecord(input.filing_package);
+  const filingContext = readRecord(filingPackage?.filing_context);
+  const ownership = readRecord(filingContext?.ownership);
+  const parserOutput = readOwnershipParserOutputForContext(input);
+  const currentMetrics = readCurrentOwnershipContextMetrics(parserOutput);
+
+  if (!ownership) {
+    return {
+      analysis_needed: false,
+      context_signal_level: "none",
+      reasons: ["no_ownership_context"],
+      metrics: currentMetrics,
+    };
+  }
+
+  const sameInsider = readRecordArray(ownership.same_insider_12m_trades);
+  const companyFlow = readRecord(ownership.company_90d_insider_flow);
+  const cluster = readRecord(ownership.recent_30d_cluster);
+  const related144 = readRecordArray(ownership.related_form144_candidates);
+  const relatedForm4 = readRecordArray(ownership.related_form4_execution_candidates);
+  const amendmentParent = readRecord(ownership.amendment_parent_candidate);
+
+  const sameInsiderSellCount =
+    sameInsider.reduce((sum, event) => sum + Math.max(0, numberValue(event.sell_transaction_count) ?? 0), 0) +
+    currentMetrics.sell_transaction_count;
+  const sameInsiderBuyCount =
+    sameInsider.reduce((sum, event) => sum + Math.max(0, numberValue(event.buy_transaction_count) ?? 0), 0) +
+    currentMetrics.buy_transaction_count;
+  const sameInsiderSellValue =
+    sameInsider.reduce((sum, event) => sum + Math.max(0, numberValue(event.sell_value) ?? 0), 0) +
+    currentMetrics.sell_value;
+  const sameInsiderBuyValue =
+    sameInsider.reduce((sum, event) => sum + Math.max(0, numberValue(event.buy_value) ?? 0), 0) +
+    currentMetrics.buy_value;
+  const companySellInsiderCount = Math.max(0, numberValue(companyFlow?.sell_insider_count) ?? 0);
+  const companyBuyInsiderCount = Math.max(0, numberValue(companyFlow?.buy_insider_count) ?? 0);
+  const companySellValue = Math.max(0, numberValue(companyFlow?.total_sell_value) ?? 0);
+  const companyBuyValue = Math.max(0, numberValue(companyFlow?.total_buy_value) ?? 0);
+  const clusterInsiderCount = Math.max(0, numberValue(cluster?.insider_count) ?? 0);
+  const clusterValue = Math.max(0, numberValue(cluster?.total_value) ?? 0);
+  const ceoOrCfoIncluded = companyFlow?.ceo_included === true || companyFlow?.cfo_included === true || currentMetrics.ceo_or_cfo;
+
+  const reasons: string[] = [];
+
+  if (sameInsiderSellCount >= 3 && sameInsiderSellValue >= 500_000) {
+    reasons.push("same_insider_repeated_sales_material_value");
+  }
+  if (sameInsiderSellValue >= 1_000_000) {
+    reasons.push("same_insider_cumulative_sales_over_1m");
+  }
+  if (sameInsiderBuyCount >= 2 && sameInsiderBuyValue >= 250_000 && ceoOrCfoIncluded) {
+    reasons.push("ceo_cfo_repeated_open_market_buy_context");
+  }
+  if (companySellInsiderCount >= 3 && companySellValue >= 1_000_000) {
+    reasons.push("company_90d_multi_insider_material_selling");
+  }
+  if (companyBuyInsiderCount >= 3 && companyBuyValue >= 500_000 && ceoOrCfoIncluded) {
+    reasons.push("company_90d_officer_buying_context");
+  }
+  if (clusterInsiderCount >= 2 && clusterValue >= 500_000) {
+    reasons.push("recent_30d_material_cluster");
+  }
+  if ((related144.length > 0 || relatedForm4.length > 0) && currentMetrics.sell_value >= 250_000) {
+    reasons.push("form144_form4_execution_candidate_material_value");
+  }
+  if (amendmentParent && !isClearlyAdministrativeOwnershipParent(amendmentParent)) {
+    reasons.push("amendment_parent_candidate_requires_comparison");
+  }
+
+  const anyContext =
+    sameInsider.length > 0 ||
+    Boolean(companyFlow) ||
+    Boolean(cluster) ||
+    related144.length > 0 ||
+    relatedForm4.length > 0 ||
+    Boolean(amendmentParent);
+
+  const contextSignalLevel = reasons.length > 0 ? "material" : anyContext ? "low" : "none";
+
+  return {
+    analysis_needed: reasons.length > 0,
+    context_signal_level: contextSignalLevel,
+    reasons: reasons.length ? reasons : [anyContext ? "context_present_below_material_threshold" : "no_prior_context"],
+    metrics: {
+      current: currentMetrics,
+      same_insider_12m_trade_count: sameInsider.length,
+      same_insider_sell_transaction_count: sameInsiderSellCount,
+      same_insider_buy_transaction_count: sameInsiderBuyCount,
+      same_insider_sell_value: sameInsiderSellValue || null,
+      same_insider_buy_value: sameInsiderBuyValue || null,
+      company_90d_sell_insider_count: companySellInsiderCount,
+      company_90d_buy_insider_count: companyBuyInsiderCount,
+      company_90d_sell_value: companySellValue || null,
+      company_90d_buy_value: companyBuyValue || null,
+      recent_30d_cluster_insider_count: clusterInsiderCount,
+      recent_30d_cluster_value: clusterValue || null,
+      related_form144_candidate_count: related144.length,
+      related_form4_execution_candidate_count: relatedForm4.length,
+      amendment_parent_candidate_present: Boolean(amendmentParent),
+    },
+  };
+}
+
+function attachOwnershipArchiveContextGuard(input: SecFilingAnalysisInput, guard: OwnershipArchiveContextGuard) {
+  const filingPackage = readRecord(input.filing_package);
+  const filingContext = readRecord(filingPackage?.filing_context);
+  const ownership = readRecord(filingContext?.ownership);
+  if (!ownership) return;
+
+  ownership.archive_context_guard = guard;
+}
+
+function attachOwnershipArchiveContextGuardPreview(input: SecFilingAnalysisInput) {
+  if (!isOwnershipFilingInput(input)) return null;
+
+  const deterministicOwnership = buildDeterministicOwnershipAnalysis(input);
+  if (!deterministicOwnership?.ok) return null;
+
+  const guard = evaluateOwnershipArchiveContextGuard(input);
+  attachOwnershipArchiveContextGuard(input, guard);
+  return guard;
+}
+
+function readCurrentOwnershipContextMetrics(parserOutput: Record<string, unknown> | null) {
+  const facts = readRecord(parserOutput?.facts) || {};
+  const reportingOwner = readRecord(facts.reporting_owner) || {};
+  const reportingOwners = readRecordArray(facts.reporting_owners);
+  const ownerRoles = [
+    ...readOwnershipOwnerRoles(reportingOwner),
+    ...reportingOwners.flatMap(readOwnershipOwnerRoles),
+  ].join(" ").toLowerCase();
+  const form4 = readRecord(facts.form4);
+  const form144 = readRecord(facts.form144);
+  const transactions = [
+    ...readRecordArray(form4?.transactions),
+    ...readRecordArray(form4?.non_derivative_transactions),
+    ...readRecordArray(form4?.derivative_transactions),
+    ...readRecordArray(form144?.proposed_sale_rows),
+  ];
+  const rollup = rollupOwnershipTransactions(transactions);
+  const form144Value = numberValue(form144?.aggregate_market_value) ?? 0;
+  const form144Shares = numberValue(form144?.securities_to_be_sold) ?? 0;
+
+  return {
+    buy_transaction_count: rollup.buyCount,
+    sell_transaction_count: rollup.sellCount,
+    buy_value: rollup.buyValue || 0,
+    sell_value: Math.max(rollup.sellValue || 0, form144Value),
+    form144_value: form144Value || null,
+    form144_shares: form144Shares || null,
+    ceo_or_cfo: /\bchief executive officer\b|\bceo\b|\bchief financial officer\b|\bcfo\b/.test(ownerRoles),
+  };
+}
+
+function isClearlyAdministrativeOwnershipParent(value: Record<string, unknown>) {
+  const status = stringValue(value.status || value.match_status || value.comparison_status).toLowerCase();
+  const kind = stringValue(value.kind || value.change_kind || value.amendment_kind).toLowerCase();
+  const text = `${status} ${kind}`.trim();
+  return /clearly_admin|administrative|metadata_only|footnote_only|no_material_change/.test(text);
+}
+
+type OwnershipCurrentIdentity = {
+  companyCik: string;
+  ticker: string;
+  ownerCik: string;
+  ownerName: string;
+  accessionNumber: string;
+  formType: string;
+  filedAt: string;
+};
+
+type OwnershipContextEvent = {
+  event_id: string | null;
+  raw_item_id: string | null;
+  accession_number: string | null;
+  form_type: string | null;
+  filed_at: string | null;
+  source_url: string | null;
+  ticker: string | null;
+  company_cik: string | null;
+  owner_ciks: string[];
+  owner_names: string[];
+  owner_roles: string[];
+  event_type: string | null;
+  score: number | null;
+  delivery_level: string | null;
+  signal: string | null;
+  quick_take: string | null;
+  summary: string | null;
+  key_evidence: string[];
+  direction: "buy" | "sell" | "mixed" | "other";
+  buy_transaction_count: number;
+  sell_transaction_count: number;
+  buy_value: number | null;
+  sell_value: number | null;
+  actual_buy_shares: number | null;
+  actual_sell_shares: number | null;
+  proposed_sale_shares: number | null;
+  proposed_sale_value: number | null;
+  has_10b5_1: boolean;
+  transaction_dates: string[];
+  transaction_codes: string[];
+  security_titles: string[];
+  display_payload: Record<string, unknown> | null;
+};
+
+function readOwnershipParserOutputForContext(input: SecFilingAnalysisInput) {
+  const filingPackage = readRecord(input.filing_package);
+  const hardParsers = readRecord(filingPackage?.hard_parsers);
+  return readRecord(hardParsers?.ownership);
+}
+
+function extractOwnershipCurrentIdentity(
+  input: SecFilingAnalysisInput,
+  parserOutput: Record<string, unknown>,
+  rawItem: RawItemRow,
+): OwnershipCurrentIdentity {
+  const filingPackage = readRecord(input.filing_package);
+  const facts = readRecord(parserOutput.facts) || {};
+  const issuer = readRecord(facts.issuer) || {};
+  const reportingOwner = readRecord(facts.reporting_owner) || {};
+  const reportingOwners = readRecordArray(facts.reporting_owners);
+  const primaryOwner = reportingOwners[0] || reportingOwner;
+  const filing = readRecord(facts.filing) || {};
+  const rawPayload = readRecord(rawItem.raw_payload) || {};
+  const metadata = readRecord(rawItem.metadata) || {};
+  const primaryTicker = readRecord(filingPackage?.primary_ticker) || {};
+
+  return {
+    companyCik:
+      normalizeCik(stringValue(issuer.cik) || stringValue(rawPayload.cik) || stringValue(metadata.cik) || readRawCik(rawItem)),
+    ticker: (
+      stringValue(issuer.ticker) ||
+      stringValue(primaryTicker.ticker) ||
+      stringValue(rawPayload.ticker) ||
+      readRawTicker(rawItem)
+    ).toUpperCase(),
+    ownerCik: normalizeCik(stringValue(primaryOwner.cik) || stringValue(reportingOwner.cik)),
+    ownerName: normalizePersonName(stringValue(primaryOwner.name) || stringValue(reportingOwner.name)),
+    accessionNumber:
+      stringValue(parserOutput.accessionNumber) ||
+      stringValue(filing.accession_number) ||
+      readRawAccession(rawItem),
+    formType: stringValue(filing.form_type) || readRawFormType(rawItem),
+    filedAt: stringValue(rawItem.published_at) || stringValue(rawPayload.filing_date),
+  };
+}
+
+async function fetchOwnershipContextEventCandidates(identity: OwnershipCurrentIdentity, rawItem: RawItemRow) {
+  const select =
+    "id,raw_item_id,source_url,published_at,ticker,event_type,score,delivery_level,signal,title,quick_take,summary,reason,metadata";
+  const rows: RawItemRow[] = [];
+
+  if (identity.companyCik) {
+    const result = await supabaseSelect("events", {
+      select,
+      source_group: "eq.filings",
+      source_code: "eq.sec_edgar",
+      event_type: "eq.insider_ownership",
+      "metadata->>cik": `eq.${identity.companyCik}`,
+      order: "published_at.desc",
+      limit: "200",
+    });
+    if (result.ok && Array.isArray(result.data)) rows.push(...(result.data as RawItemRow[]));
+  }
+
+  if (identity.ticker) {
+    const result = await supabaseSelect("events", {
+      select,
+      source_group: "eq.filings",
+      source_code: "eq.sec_edgar",
+      event_type: "eq.insider_ownership",
+      ticker: `eq.${identity.ticker}`,
+      order: "published_at.desc",
+      limit: "200",
+    });
+    if (result.ok && Array.isArray(result.data)) rows.push(...(result.data as RawItemRow[]));
+  }
+
+  if (!rows.length) {
+    const rawTicker = readRawTicker(rawItem);
+    if (rawTicker) {
+      const result = await supabaseSelect("events", {
+        select,
+        source_group: "eq.filings",
+        source_code: "eq.sec_edgar",
+        event_type: "eq.insider_ownership",
+        ticker: `eq.${rawTicker}`,
+        order: "published_at.desc",
+        limit: "200",
+      });
+      if (result.ok && Array.isArray(result.data)) rows.push(...(result.data as RawItemRow[]));
+    }
+  }
+
+  return dedupeEventRows(rows);
+}
+
+async function fetchOwnershipContextAnalysisRows(eventIds: string[]) {
+  const result = new Map<string, Record<string, unknown>>();
+  const ids = uniqueStrings(eventIds).filter(Boolean).slice(0, 200);
+  if (!ids.length) return result;
+
+  const response = await supabaseSelect("event_analysis", {
+    select: "event_id,key_evidence,what_to_watch_next,why_it_matters",
+    event_id: `in.(${ids.join(",")})`,
+    limit: String(ids.length),
+  });
+  if (!response.ok || !Array.isArray(response.data)) return result;
+
+  for (const row of response.data) {
+    const record = readRecord(row);
+    const eventId = stringValue(record?.event_id);
+    if (eventId && record) result.set(eventId, record);
+  }
+  return result;
+}
+
+function compactOwnershipContextEvent(
+  event: RawItemRow,
+  analysis: Record<string, unknown> | undefined,
+): OwnershipContextEvent {
+  const metadata = readRecord(event.metadata) || {};
+  const displayPayload = readRecord(metadata.display_payload);
+  const displayData = readRecord(displayPayload?.data) || {};
+  const issuer = readRecord(displayData.issuer) || {};
+  const filing = readRecord(displayData.filing) || {};
+  const form4 = readRecord(displayData.form4);
+  const form144 = readRecord(displayData.form144);
+  const owners = [
+    ...readRecordArray(displayData.reporting_owners),
+    readRecord(displayData.reporting_owner),
+  ].filter((owner): owner is Record<string, unknown> => Boolean(owner));
+  const transactions = readOwnershipDisplayTransactions(form4, form144);
+  const rollup = rollupOwnershipTransactions(transactions);
+  const transactionDetails = summarizeOwnershipTransactionDetails(transactions);
+
+  return {
+    event_id: stringValue(event.id) || null,
+    raw_item_id: stringValue(event.raw_item_id) || null,
+    accession_number:
+      stringValue(metadata.accession_number) ||
+      stringValue(filing.accession_number) ||
+      null,
+    form_type: stringValue(metadata.form_type) || stringValue(filing.form_type) || null,
+    filed_at: stringValue(event.published_at) || null,
+    source_url: stringValue(event.source_url) || null,
+    ticker: (stringValue(event.ticker) || stringValue(issuer.ticker)).toUpperCase() || null,
+    company_cik: normalizeCik(stringValue(metadata.cik) || stringValue(issuer.cik)) || null,
+    owner_ciks: uniqueStrings(owners.map((owner) => normalizeCik(stringValue(owner.cik))).filter(Boolean)),
+    owner_names: uniqueStrings(owners.map((owner) => normalizePersonName(stringValue(owner.name))).filter(Boolean)),
+    owner_roles: uniqueStrings(owners.flatMap(readOwnershipOwnerRoles).filter(Boolean)),
+    event_type: stringValue(event.event_type) || null,
+    score: numberValue(event.score),
+    delivery_level: stringValue(event.delivery_level) || null,
+    signal: stringValue(event.signal) || null,
+    quick_take: stringValue(event.quick_take) || null,
+    summary: stringValue(event.summary) || null,
+    key_evidence: readStringArray(analysis?.key_evidence).slice(0, 4),
+    direction: rollup.direction,
+    buy_transaction_count: rollup.buyCount,
+    sell_transaction_count: rollup.sellCount,
+    buy_value: rollup.buyValue,
+    sell_value: rollup.sellValue,
+    actual_buy_shares: transactionDetails.actualBuyShares,
+    actual_sell_shares: transactionDetails.actualSellShares,
+    proposed_sale_shares: transactionDetails.proposedSaleShares,
+    proposed_sale_value: transactionDetails.proposedSaleValue,
+    has_10b5_1: ownershipDisplayHas10b51(displayData),
+    transaction_dates: readOwnershipTransactionDates(transactions).slice(0, 6),
+    transaction_codes: uniqueStrings(transactions.map((item) => stringValue(item.transaction_code)).filter(Boolean)).slice(0, 8),
+    security_titles: uniqueStrings(transactions.map((item) => stringValue(item.security_title)).filter(Boolean)).slice(0, 6),
+    display_payload: compactOwnershipDisplayPayload(displayPayload),
+  };
+}
+
+function compactCurrentOwnershipContextEvent(
+  identity: OwnershipCurrentIdentity,
+  parserOutput: Record<string, unknown>,
+  rawItem: RawItemRow,
+): OwnershipContextEvent {
+  const facts = readRecord(parserOutput.facts) || {};
+  const issuer = readRecord(facts.issuer) || {};
+  const reportingOwner = readRecord(facts.reporting_owner) || {};
+  const reportingOwners = readRecordArray(facts.reporting_owners);
+  const owners = [
+    ...reportingOwners,
+    reportingOwner,
+  ].filter((owner): owner is Record<string, unknown> => Boolean(owner));
+  const filing = readRecord(facts.filing) || {};
+  const form4 = readRecord(facts.form4);
+  const form144 = readRecord(facts.form144);
+  const transactions = readOwnershipDisplayTransactions(form4, form144);
+  const rollup = rollupOwnershipTransactions(transactions);
+  const transactionDetails = summarizeOwnershipTransactionDetails(transactions);
+
+  return {
+    event_id: null,
+    raw_item_id: stringValue(rawItem.id) || null,
+    accession_number: identity.accessionNumber || null,
+    form_type: identity.formType || stringValue(filing.form_type) || readRawFormType(rawItem) || null,
+    filed_at: identity.filedAt || stringValue(rawItem.published_at) || null,
+    source_url: stringValue(rawItem.source_url) || null,
+    ticker: identity.ticker || stringValue(issuer.ticker).toUpperCase() || null,
+    company_cik: identity.companyCik || normalizeCik(stringValue(issuer.cik)) || null,
+    owner_ciks: uniqueStrings(owners.map((owner) => normalizeCik(stringValue(owner.cik))).filter(Boolean)),
+    owner_names: uniqueStrings(owners.map((owner) => normalizePersonName(stringValue(owner.name))).filter(Boolean)),
+    owner_roles: uniqueStrings(owners.flatMap(readOwnershipOwnerRoles).filter(Boolean)),
+    event_type: "insider_ownership",
+    score: null,
+    delivery_level: null,
+    signal: null,
+    quick_take: null,
+    summary: null,
+    key_evidence: readRecordArray(readRecord(parserOutput.raw)?.selected_evidence)
+      .map((item) => stringValue(item.value) || stringValue(item.label))
+      .filter(Boolean)
+      .slice(0, 4),
+    direction: rollup.direction,
+    buy_transaction_count: rollup.buyCount,
+    sell_transaction_count: rollup.sellCount,
+    buy_value: rollup.buyValue,
+    sell_value: rollup.sellValue,
+    actual_buy_shares: transactionDetails.actualBuyShares,
+    actual_sell_shares: transactionDetails.actualSellShares,
+    proposed_sale_shares: transactionDetails.proposedSaleShares,
+    proposed_sale_value: transactionDetails.proposedSaleValue,
+    has_10b5_1: ownershipDisplayHas10b51({
+      filing,
+      form4,
+      form144,
+      footnotes: readRecordArray(facts.footnotes),
+      remarks: facts.remarks,
+    }),
+    transaction_dates: readOwnershipTransactionDates(transactions).slice(0, 6),
+    transaction_codes: uniqueStrings(transactions.map((item) => stringValue(item.transaction_code)).filter(Boolean)).slice(0, 8),
+    security_titles: uniqueStrings(transactions.map((item) => stringValue(item.security_title)).filter(Boolean)).slice(0, 6),
+    display_payload: null,
+  };
+}
+
+function readOwnershipDisplayTransactions(
+  form4: Record<string, unknown> | null,
+  form144: Record<string, unknown> | null,
+) {
+  return [
+    ...readRecordArray(form4?.non_derivative_transactions),
+    ...readRecordArray(form4?.derivative_transactions),
+    ...readRecordArray(form144?.proposed_sale_rows),
+  ];
+}
+
+function summarizeOwnershipTransactionDetails(transactions: Record<string, unknown>[]) {
+  let actualBuyShares = 0;
+  let actualSellShares = 0;
+  let proposedSaleShares = 0;
+  let proposedSaleValue = 0;
+
+  for (const transaction of transactions) {
+    const direction = classifyOwnershipTransactionDirection(transaction);
+    const shares = ownershipTransactionShares(transaction);
+    if (direction === "buy") actualBuyShares += shares;
+    if (direction === "sell") actualSellShares += shares;
+
+    const proposedShares = numberValue(transaction.securities_to_be_sold) ?? 0;
+    const proposedValue = numberValue(transaction.aggregate_market_value) ?? 0;
+    proposedSaleShares += proposedShares;
+    proposedSaleValue += proposedValue;
+  }
+
+  return {
+    actualBuyShares: actualBuyShares > 0 ? Number(actualBuyShares.toFixed(4)) : null,
+    actualSellShares: actualSellShares > 0 ? Number(actualSellShares.toFixed(4)) : null,
+    proposedSaleShares: proposedSaleShares > 0 ? Number(proposedSaleShares.toFixed(4)) : null,
+    proposedSaleValue: proposedSaleValue > 0 ? Number(proposedSaleValue.toFixed(2)) : null,
+  };
+}
+
+function ownershipTransactionShares(transaction: Record<string, unknown>) {
+  return (
+    numberValue(transaction.shares) ??
+    numberValue(transaction.transaction_shares) ??
+    numberValue(transaction.securities_to_be_sold) ??
+    numberValue(transaction.amount_of_securities_sold) ??
+    0
+  );
+}
+
+function readOwnershipTransactionDates(transactions: Record<string, unknown>[]) {
+  return uniqueStrings(
+    transactions
+      .flatMap((item) => [
+        stringValue(item.transaction_date),
+        stringValue(item.approximate_sale_date),
+        stringValue(item.sale_date),
+      ])
+      .map(normalizeOwnershipContextDate)
+      .filter(Boolean),
+  );
+}
+
+function normalizeOwnershipContextDate(value: string) {
+  const text = stringValue(value);
+  if (!text) return "";
+  const normalized = normalizeDateOnly(text);
+  if (normalized) return normalized;
+  const parsed = Date.parse(text);
+  if (!Number.isFinite(parsed)) return text;
+  return new Date(parsed).toISOString().slice(0, 10);
+}
+
+function rollupOwnershipTransactions(transactions: Record<string, unknown>[]) {
+  let buyCount = 0;
+  let sellCount = 0;
+  let buyValue = 0;
+  let sellValue = 0;
+
+  for (const transaction of transactions) {
+    const direction = classifyOwnershipTransactionDirection(transaction);
+    const value = numberValue(transaction.transaction_value) ?? numberValue(transaction.aggregate_market_value) ?? 0;
+    if (direction === "buy") {
+      buyCount += 1;
+      buyValue += value;
+    }
+    if (direction === "sell") {
+      sellCount += 1;
+      sellValue += value;
+    }
+  }
+
+  const direction: OwnershipContextEvent["direction"] =
+    buyCount > 0 && sellCount > 0 ? "mixed" : sellCount > 0 ? "sell" : buyCount > 0 ? "buy" : "other";
+
+  return {
+    direction,
+    buyCount,
+    sellCount,
+    buyValue: buyValue > 0 ? Number(buyValue.toFixed(2)) : null,
+    sellValue: sellValue > 0 ? Number(sellValue.toFixed(2)) : null,
+  };
+}
+
+function classifyOwnershipTransactionDirection(transaction: Record<string, unknown>) {
+  const code = stringValue(transaction.transaction_code).toUpperCase();
+  if (code === "P") return "buy";
+  if (code === "S") return "sell";
+  return "other";
+}
+
+function buildOwnershipCompanyFlow(events: OwnershipContextEvent[]) {
+  if (!events.length) return null;
+
+  const buyInsiders = new Set<string>();
+  const sellInsiders = new Set<string>();
+  let buyEvents = 0;
+  let sellEvents = 0;
+  let buyValue = 0;
+  let sellValue = 0;
+  let ceoIncluded = false;
+  let cfoIncluded = false;
+  let directorIncluded = false;
+
+  for (const event of events) {
+    const primaryName = event.owner_names[0] || event.owner_ciks[0] || event.event_id || "";
+    if (event.direction === "buy" || event.direction === "mixed") {
+      buyEvents += event.buy_transaction_count || 1;
+      if (primaryName) buyInsiders.add(primaryName);
+      buyValue += event.buy_value || 0;
+    }
+    if (event.direction === "sell" || event.direction === "mixed") {
+      sellEvents += event.sell_transaction_count || 1;
+      if (primaryName) sellInsiders.add(primaryName);
+      sellValue += event.sell_value || 0;
+    }
+    const roles = event.owner_roles.join(" ").toLowerCase();
+    ceoIncluded = ceoIncluded || /\bchief executive officer\b|\bceo\b/.test(roles);
+    cfoIncluded = cfoIncluded || /\bchief financial officer\b|\bcfo\b/.test(roles);
+    directorIncluded = directorIncluded || /\bdirector\b/.test(roles);
+  }
+
+  return {
+    lookback_days: 90,
+    event_count: events.length,
+    buy_transaction_count: buyEvents,
+    sell_transaction_count: sellEvents,
+    total_buy_value: buyValue > 0 ? Number(buyValue.toFixed(2)) : null,
+    total_sell_value: sellValue > 0 ? Number(sellValue.toFixed(2)) : null,
+    buy_insider_count: buyInsiders.size,
+    sell_insider_count: sellInsiders.size,
+    ceo_included: ceoIncluded,
+    cfo_included: cfoIncluded,
+    director_included: directorIncluded,
+    recent_events: events.slice(0, 12),
+  };
+}
+
+function buildOwnershipRecentCluster(events: OwnershipContextEvent[]) {
+  if (!events.length) return null;
+
+  const buyEvents = events.filter((event) => event.direction === "buy" || event.direction === "mixed");
+  const sellEvents = events.filter((event) => event.direction === "sell" || event.direction === "mixed");
+  const buyInsiders = uniqueOwnershipInsiders(buyEvents);
+  const sellInsiders = uniqueOwnershipInsiders(sellEvents);
+
+  const direction =
+    sellInsiders.length >= 2 && sellInsiders.length >= buyInsiders.length
+      ? "sell"
+      : buyInsiders.length >= 2
+        ? "buy"
+        : null;
+  if (!direction) return null;
+
+  const selected = direction === "sell" ? sellEvents : buyEvents;
+  const selectedInsiders = direction === "sell" ? sellInsiders : buyInsiders;
+  const totalValue = selected.reduce((sum, event) => sum + (direction === "sell" ? event.sell_value || 0 : event.buy_value || 0), 0);
+
+  return {
+    lookback_days: 30,
+    direction,
+    insider_count: selectedInsiders.length,
+    event_count: selected.length,
+    total_value: totalValue > 0 ? Number(totalValue.toFixed(2)) : null,
+    insiders: selectedInsiders.slice(0, 12),
+    events: selected.slice(0, 12),
+  };
+}
+
+function buildRelatedForm144Candidates(
+  identity: OwnershipCurrentIdentity,
+  current: OwnershipContextEvent,
+  events: OwnershipContextEvent[],
+  currentDate: Date,
+) {
+  if (ownershipFormFamily(identity.formType) !== "4") return [];
+  if (!(current.sell_transaction_count > 0 || current.direction === "sell" || current.direction === "mixed")) return [];
+
+  return events
+    .filter((event) => ownershipFormFamily(event.form_type) === "144")
+    .filter((event) => sameOwnershipInsider(identity, event))
+    .filter((event) => isWithinDays(event.filed_at, currentDate, 180))
+    .map((event) => scoreOwnershipRelationCandidate("related_form144_candidate", current, event))
+    .filter((candidate) => candidate.match_score >= 95)
+    .sort((left, right) => right.match_score - left.match_score)
+    .slice(0, 5);
+}
+
+function buildRelatedForm4ExecutionCandidates(
+  identity: OwnershipCurrentIdentity,
+  current: OwnershipContextEvent,
+  events: OwnershipContextEvent[],
+  currentDate: Date,
+) {
+  if (ownershipFormFamily(identity.formType) !== "144") return [];
+
+  return events
+    .filter((event) => ownershipFormFamily(event.form_type) === "4")
+    .filter((event) => sameOwnershipInsider(identity, event))
+    .filter((event) => event.sell_transaction_count > 0 || event.direction === "sell" || event.direction === "mixed")
+    .filter((event) => isNearOwnershipContextWindow(event, currentDate, 30, 120))
+    .map((event) => scoreOwnershipRelationCandidate("related_form4_execution_candidate", current, event))
+    .filter((candidate) => candidate.match_score >= 95)
+    .sort((left, right) => right.match_score - left.match_score)
+    .slice(0, 5);
+}
+
+function buildOwnershipAmendmentParentCandidate(
+  identity: OwnershipCurrentIdentity,
+  current: OwnershipContextEvent,
+  events: OwnershipContextEvent[],
+  currentDate: Date,
+) {
+  if (!isOwnershipAmendmentFormForContext(identity.formType)) return null;
+  const currentFamily = ownershipFormFamily(identity.formType);
+  if (!currentFamily) return null;
+
+  const scored = events
+    .filter((event) => ownershipFormFamily(event.form_type) === currentFamily)
+    .filter((event) => sameOwnershipInsider(identity, event))
+    .filter((event) => isBeforeOrSameOwnershipContextDate(event.filed_at, currentDate))
+    .map((event) => scoreOwnershipParentCandidate(current, event))
+    .filter((candidate) => candidate.match_score >= 110)
+    .sort((left, right) => {
+      if (right.match_score !== left.match_score) return right.match_score - left.match_score;
+      return Date.parse(stringValue(right.filed_at)) - Date.parse(stringValue(left.filed_at));
+    });
+
+  const best = scored[0];
+  if (!best) return null;
+
+  return {
+    ...best,
+    status: scored.length > 1 && scored[1].match_score >= best.match_score - 10 ? "multiple_candidates" : "found",
+    candidate_count: scored.length,
+    candidates: scored.slice(0, 5),
+  };
+}
+
+function buildOwnershipPackageParentCandidate(input: SecFilingAnalysisInput) {
+  const filingPackage = readRecord(input.filing_package);
+  const parentContext = readRecord(filingPackage?.parent_filing_context);
+  const parent = readRecord(parentContext?.parent);
+  if (!parent) return null;
+  const matchMethod = stringValue(parentContext?.match_method) || "parent_filing_context";
+  const parentFormType = stringValue(parent.form_type) || null;
+  if (parentFormType && isOwnershipAmendmentFormForContext(parentFormType) && matchMethod !== "explicit_parent_accession") {
+    return null;
+  }
+
+  return {
+    status: stringValue(parentContext?.status) || "found",
+    match_kind: "amendment_parent_candidate",
+    match_method: matchMethod,
+    match_score: numberValue(parentContext?.match_score) ?? null,
+    match_reasons: readStringArray(parentContext?.match_reasons),
+    confidence: stringValue(parentContext?.confidence) || null,
+    source: stringValue(parentContext?.source) || "raw_items_events_compact",
+    context_kind: stringValue(parentContext?.context_kind) || "amendment_parent_filing",
+    event_id: stringValue(parent.event_id) || null,
+    raw_item_id: stringValue(parent.raw_item_id) || null,
+    accession_number: stringValue(parent.accession_number) || null,
+    form_type: parentFormType,
+    filed_at: stringValue(parent.filed_at) || null,
+    source_url: stringValue(parent.source_url) || null,
+    ticker: stringValue(parent.ticker).toUpperCase() || null,
+    company_name: stringValue(parent.company_name) || null,
+    cik: normalizeCik(stringValue(parent.cik)) || null,
+    event_type: stringValue(parent.event_type) || null,
+    score: numberValue(parent.score),
+    delivery_level: stringValue(parent.delivery_level) || null,
+    signal: stringValue(parent.signal) || null,
+    event_title: stringValue(parent.event_title) || null,
+    quick_take: stringValue(parent.quick_take) || null,
+    summary: stringValue(parent.summary) || null,
+    key_evidence: readStringArray(parent.key_evidence).slice(0, 4),
+    what_to_watch_next: readStringArray(parent.what_to_watch_next).slice(0, 4),
+    display_payload: compactOwnershipDisplayPayload(readRecord(parent.display_payload)),
+    source_availability_note:
+      stringValue(parent.source_availability_note) || "Parent context excludes full raw filing text.",
+  };
+}
+
+function scoreOwnershipRelationCandidate(kind: string, current: OwnershipContextEvent, candidate: OwnershipContextEvent) {
+  const matchReasons: string[] = [kind, "same_company", "same_reporting_owner"];
+  let score = 90;
+
+  const dateDistance = minOwnershipDateDistanceDays(current.transaction_dates, candidate.transaction_dates);
+  if (dateDistance !== null && dateDistance <= 7) {
+    score += 35;
+    matchReasons.push("transaction_or_proposed_sale_date_within_7d");
+  } else if (dateDistance !== null && dateDistance <= 30) {
+    score += 20;
+    matchReasons.push("transaction_or_proposed_sale_date_within_30d");
+  }
+
+  if (ownershipSecurityTitleOverlap(current, candidate)) {
+    score += 20;
+    matchReasons.push("same_security_title");
+  }
+
+  if (ownershipSharesClose(current.proposed_sale_shares, candidate.actual_sell_shares)) {
+    score += 45;
+    matchReasons.push("proposed_and_actual_shares_close");
+  } else if (ownershipSharesClose(current.actual_sell_shares, candidate.proposed_sale_shares)) {
+    score += 45;
+    matchReasons.push("actual_and_proposed_shares_close");
+  }
+
+  const currentValue = current.proposed_sale_value || current.sell_value;
+  const candidateValue = candidate.proposed_sale_value || candidate.sell_value;
+  if (ownershipValuesClose(currentValue, candidateValue)) {
+    score += 20;
+    matchReasons.push("value_close");
+  }
+
+  return {
+    ...compactOwnershipContextCandidate(candidate),
+    match_kind: kind,
+    match_score: score,
+    match_reasons: matchReasons,
+  };
+}
+
+function scoreOwnershipParentCandidate(current: OwnershipContextEvent, candidate: OwnershipContextEvent) {
+  const matchReasons: string[] = ["ownership_amendment_parent_candidate", "same_company", "same_reporting_owner"];
+  let score = 90;
+
+  if (!isOwnershipAmendmentFormForContext(candidate.form_type || "")) {
+    score += 35;
+    matchReasons.push("non_amendment_parent_preferred");
+  }
+
+  if (ownershipDateOverlap(current.transaction_dates, candidate.transaction_dates)) {
+    score += 35;
+    matchReasons.push("same_transaction_or_sale_date");
+  }
+
+  if (ownershipSecurityTitleOverlap(current, candidate)) {
+    score += 25;
+    matchReasons.push("same_security_title");
+  }
+
+  if (ownershipCodeOverlap(current, candidate)) {
+    score += 25;
+    matchReasons.push("same_transaction_code");
+  }
+
+  if (
+    ownershipSharesClose(current.actual_sell_shares, candidate.actual_sell_shares) ||
+    ownershipSharesClose(current.actual_buy_shares, candidate.actual_buy_shares) ||
+    ownershipSharesClose(current.proposed_sale_shares, candidate.proposed_sale_shares)
+  ) {
+    score += 35;
+    matchReasons.push("share_amount_close");
+  }
+
+  if (
+    ownershipValuesClose(current.sell_value, candidate.sell_value) ||
+    ownershipValuesClose(current.buy_value, candidate.buy_value) ||
+    ownershipValuesClose(current.proposed_sale_value, candidate.proposed_sale_value)
+  ) {
+    score += 20;
+    matchReasons.push("value_close");
+  }
+
+  return {
+    ...compactOwnershipContextCandidate(candidate),
+    match_kind: "amendment_parent_candidate",
+    match_score: score,
+    match_reasons: matchReasons,
+  };
+}
+
+function compactOwnershipContextCandidate(event: OwnershipContextEvent) {
+  return {
+    event_id: event.event_id,
+    raw_item_id: event.raw_item_id,
+    accession_number: event.accession_number,
+    form_type: event.form_type,
+    filed_at: event.filed_at,
+    source_url: event.source_url,
+    ticker: event.ticker,
+    owner_names: event.owner_names,
+    owner_ciks: event.owner_ciks,
+    direction: event.direction,
+    buy_transaction_count: event.buy_transaction_count,
+    sell_transaction_count: event.sell_transaction_count,
+    buy_value: event.buy_value,
+    sell_value: event.sell_value,
+    actual_buy_shares: event.actual_buy_shares,
+    actual_sell_shares: event.actual_sell_shares,
+    proposed_sale_shares: event.proposed_sale_shares,
+    proposed_sale_value: event.proposed_sale_value,
+    transaction_dates: event.transaction_dates,
+    transaction_codes: event.transaction_codes,
+    security_titles: event.security_titles,
+    score: event.score,
+    delivery_level: event.delivery_level,
+    summary: event.summary,
+    key_evidence: event.key_evidence,
+    display_payload: event.display_payload,
+  };
+}
+
+function ownershipFormFamily(formType: string | null) {
+  const form = normalizeSecFormForParentContext(formType || "");
+  if (form === "4" || form === "4/A") return "4";
+  if (form === "144" || form === "144/A") return "144";
+  return "";
+}
+
+function isOwnershipAmendmentFormForContext(formType: string) {
+  const form = normalizeSecFormForParentContext(formType);
+  return form === "4/A" || form === "144/A";
+}
+
+function isNearOwnershipContextWindow(event: OwnershipContextEvent, currentDate: Date, daysBefore: number, daysAfter: number) {
+  const date = parseContextDate(event.filed_at || "");
+  if (!date) return false;
+  const diffDays = (date.getTime() - currentDate.getTime()) / (24 * 60 * 60 * 1000);
+  return diffDays >= -daysBefore && diffDays <= daysAfter;
+}
+
+function isBeforeOrSameOwnershipContextDate(value: string | null, currentDate: Date) {
+  const date = parseContextDate(value || "");
+  return Boolean(date && date.getTime() <= currentDate.getTime());
+}
+
+function ownershipDateOverlap(left: string[], right: string[]) {
+  const rightSet = new Set(right.filter(Boolean));
+  return left.some((date) => rightSet.has(date));
+}
+
+function minOwnershipDateDistanceDays(left: string[], right: string[]) {
+  let best: number | null = null;
+  for (const leftDate of left) {
+    const leftParsed = Date.parse(leftDate);
+    if (!Number.isFinite(leftParsed)) continue;
+    for (const rightDate of right) {
+      const rightParsed = Date.parse(rightDate);
+      if (!Number.isFinite(rightParsed)) continue;
+      const diff = Math.abs(leftParsed - rightParsed) / (24 * 60 * 60 * 1000);
+      best = best === null ? diff : Math.min(best, diff);
+    }
+  }
+  return best;
+}
+
+function ownershipSecurityTitleOverlap(left: OwnershipContextEvent, right: OwnershipContextEvent) {
+  const rightTitles = new Set(right.security_titles.map(normalizeOwnershipComparableText).filter(Boolean));
+  return left.security_titles.map(normalizeOwnershipComparableText).some((title) => title && rightTitles.has(title));
+}
+
+function ownershipCodeOverlap(left: OwnershipContextEvent, right: OwnershipContextEvent) {
+  const rightCodes = new Set(right.transaction_codes.map((code) => code.toUpperCase()).filter(Boolean));
+  return left.transaction_codes.map((code) => code.toUpperCase()).some((code) => code && rightCodes.has(code));
+}
+
+function ownershipSharesClose(left: number | null, right: number | null) {
+  if (!left || !right) return false;
+  const min = Math.min(Math.abs(left), Math.abs(right));
+  const max = Math.max(Math.abs(left), Math.abs(right));
+  return max > 0 && min / max >= 0.75;
+}
+
+function ownershipValuesClose(left: number | null, right: number | null) {
+  if (!left || !right) return false;
+  const min = Math.min(Math.abs(left), Math.abs(right));
+  const max = Math.max(Math.abs(left), Math.abs(right));
+  return max > 0 && min / max >= 0.7;
+}
+
+function normalizeOwnershipComparableText(value: string) {
+  return stringValue(value).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function uniqueOwnershipInsiders(events: OwnershipContextEvent[]) {
+  return uniqueStrings(events.map((event) => event.owner_names[0] || event.owner_ciks[0]).filter(Boolean));
+}
+
+function sameOwnershipCompany(identity: OwnershipCurrentIdentity, event: OwnershipContextEvent) {
+  if (identity.companyCik && event.company_cik) return identity.companyCik === event.company_cik;
+  if (identity.ticker && event.ticker) return identity.ticker === event.ticker;
+  return false;
+}
+
+function sameOwnershipInsider(identity: OwnershipCurrentIdentity, event: OwnershipContextEvent) {
+  if (identity.ownerCik && event.owner_ciks.includes(identity.ownerCik)) return true;
+  return Boolean(identity.ownerName && event.owner_names.some((name) => ownershipOwnerNamesLikelyMatch(identity.ownerName, name)));
+}
+
+function isWithinDays(value: string | null, currentDate: Date, days: number) {
+  const date = parseContextDate(value || "");
+  if (!date) return false;
+  const diff = currentDate.getTime() - date.getTime();
+  return diff >= 0 && diff <= days * 24 * 60 * 60 * 1000;
+}
+
+function parseContextDate(value: string) {
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? new Date(parsed) : null;
+}
+
+function compactOwnershipDisplayPayload(value: Record<string, unknown> | null) {
+  if (!value) return null;
+  const data = readRecord(value.data) || {};
+  return {
+    display_type: stringValue(value.display_type) || null,
+    data: {
+      issuer: data.issuer || null,
+      reporting_owner: data.reporting_owner || null,
+      filing: data.filing || null,
+      form4: data.form4 || null,
+      form144: data.form144 || null,
+      amendment: data.amendment || null,
+    },
+    evidence: readStringArray(value.evidence).slice(0, 4),
+  };
+}
+
+function ownershipDisplayHas10b51(displayData: Record<string, unknown>) {
+  const text = JSON.stringify({
+    filing: displayData.filing,
+    form4: displayData.form4,
+    form144: displayData.form144,
+    footnotes: displayData.footnotes,
+    remarks: displayData.remarks,
+  }).toLowerCase();
+  return text.includes("10b5-1") || text.includes("10b5 one");
+}
+
+function readOwnershipOwnerRoles(owner: Record<string, unknown> | null) {
+  if (!owner) return [];
+  const roles = [
+    owner.title,
+    owner.officer_title,
+    owner.relationship,
+    owner.owner_relationship,
+    owner.is_director === true ? "director" : "",
+    owner.is_officer === true ? "officer" : "",
+    owner.is_ten_percent_owner === true ? "10% owner" : "",
+  ];
+  return roles.map(stringValue).filter(Boolean);
+}
+
+function normalizeCik(value: string) {
+  const digits = stringValue(value).replace(/\D/g, "");
+  return digits ? digits.replace(/^0+/, "") || "0" : "";
+}
+
+function normalizePersonName(value: string) {
+  return stringValue(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function ownershipOwnerNamesLikelyMatch(left: string, right: string) {
+  const leftName = normalizePersonName(left);
+  const rightName = normalizePersonName(right);
+  if (!leftName || !rightName) return false;
+  if (leftName === rightName || leftName.includes(rightName) || rightName.includes(leftName)) return true;
+
+  const leftTokens = ownershipOwnerNameTokens(leftName);
+  const rightTokens = ownershipOwnerNameTokens(rightName);
+  if (leftTokens.length < 2 || rightTokens.length < 2) return false;
+
+  const leftSet = new Set(leftTokens);
+  const overlap = rightTokens.filter((token) => leftSet.has(token));
+  if (overlap.length >= Math.min(2, leftTokens.length, rightTokens.length)) return true;
+
+  const leftLast = leftTokens[leftTokens.length - 1];
+  const rightLast = rightTokens[rightTokens.length - 1];
+  const leftFirst = leftTokens[0];
+  const rightFirst = rightTokens[0];
+  return Boolean(leftFirst && leftLast && leftFirst === rightLast && leftLast === rightFirst);
+}
+
+function ownershipOwnerNameTokens(value: string) {
+  return normalizePersonName(value)
+    .split(" ")
+    .filter((token) => token.length > 1)
+    .filter((token) => !OWNERSHIP_NAME_STOP_WORDS.has(token));
+}
+
+const OWNERSHIP_NAME_STOP_WORDS = new Set([
+  "the",
+  "inc",
+  "corp",
+  "corporation",
+  "company",
+  "co",
+  "llc",
+  "ltd",
+  "limited",
+  "lp",
+  "trust",
+  "trustee",
+  "as",
+  "cik",
+]);
+
+function dedupeEventRows(rows: RawItemRow[]) {
+  const seen = new Set<string>();
+  const result: RawItemRow[] = [];
+  for (const row of rows) {
+    const key = stringValue(row.id) || `${stringValue(row.raw_item_id)}:${stringValue(row.published_at)}`;
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    result.push(row);
+  }
+  return result;
+}
+
+function uniqueStrings(values: string[]) {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const value of values) {
+    const text = stringValue(value);
+    if (!text || seen.has(text)) continue;
+    seen.add(text);
+    result.push(text);
+  }
+  return result;
 }
 
 async function attachParentRegistrationContext(input: SecFilingAnalysisInput, rawItem: RawItemRow) {
@@ -1252,6 +4274,719 @@ async function attachParentRegistrationContext(input: SecFilingAnalysisInput, ra
   if (!parentContext) return;
 
   filingPackage.parent_registration_context = parentContext;
+}
+
+async function attachCurrentReportParentFilingContext(input: SecFilingAnalysisInput, rawItem: RawItemRow) {
+  if (!isSec8k6kFilingInput(input)) return;
+
+  const filingPackage = readRecord(input.filing_package);
+  if (!filingPackage || readRecord(filingPackage.parent_filing_context)) return;
+
+  const parserOutput = readCurrentReportParserOutput(input);
+  const facts = readRecord(parserOutput?.facts);
+  const amendment = readRecord(facts?.amendment);
+  if (!parserOutput || amendment?.isAmendment !== true) return;
+
+  const parentContext = await findCurrentReportParentFilingContext({
+    amendment,
+    parserOutput,
+    rawItem,
+  });
+  if (!parentContext) return;
+
+  filingPackage.parent_filing_context = parentContext;
+}
+
+async function attachTenderParentFilingContext(input: SecFilingAnalysisInput, rawItem: RawItemRow) {
+  if (!isTenderFilingInput(input)) return;
+
+  const filingPackage = readRecord(input.filing_package);
+  if (!filingPackage || readRecord(filingPackage.parent_filing_context)) return;
+
+  const formType = stringValue(filingPackage.form_type) || readRawFormType(rawItem);
+  if (!isSecAmendmentFormForParentContext(formType)) return;
+
+  const parentContext = await findTenderAmendmentParentFilingContext({
+    input,
+    rawItem,
+    formType,
+  });
+  if (!parentContext) return;
+
+  filingPackage.parent_filing_context = parentContext;
+}
+
+async function attachGenericAmendmentParentFilingContext(input: SecFilingAnalysisInput, rawItem: RawItemRow) {
+  const filingPackage = readRecord(input.filing_package);
+  if (!filingPackage || readRecord(filingPackage.parent_filing_context)) return;
+
+  const formType = stringValue(filingPackage.form_type) || readRawFormType(rawItem);
+  if (!isSecAmendmentFormForParentContext(formType)) return;
+
+  filingPackage.parent_filing_context = await findGenericAmendmentParentFilingContext({
+    input,
+    rawItem,
+    formType,
+  });
+}
+
+async function findTenderAmendmentParentFilingContext({
+  input,
+  rawItem,
+  formType,
+}: {
+  input: SecFilingAnalysisInput;
+  rawItem: RawItemRow;
+  formType: string;
+}) {
+  const currentFamily = normalizeGenericParentFormFamily(formType);
+  if (!isTenderParentContextFamily(currentFamily)) return null;
+
+  const currentAccession = readRawAccession(rawItem);
+  const explicitParentAccession = extractExplicitParentAccessionForAmendment(input, rawItem);
+  if (explicitParentAccession) {
+    const row = await fetchSecRawItemByAccession(explicitParentAccession);
+    if (row && readRawAccession(row) !== currentAccession) {
+      return buildGenericAmendmentParentContext({
+        status: "found",
+        confidence: "high",
+        matchMethod: "explicit_parent_accession",
+        matchScore: 1000,
+        matchReasons: ["explicit_parent_accession"],
+        rawItem,
+        parentRow: row,
+        candidateRows: [row],
+      });
+    }
+  }
+
+  const candidateRows = await fetchTenderParentCandidateRows(input, rawItem);
+  const currentFiledAt = Date.parse(stringValue(rawItem.published_at));
+  const currentTicker = readRawTicker(rawItem);
+  const currentCik = normalizeCik(readRawCik(rawItem));
+
+  const scored = candidateRows
+    .filter((row) => readRawAccession(row) !== currentAccession)
+    .map((row) => {
+      const rowFamily = normalizeGenericParentFormFamily(readRawFormType(row));
+      if (!isTenderParentContextFamily(rowFamily)) return null;
+
+      const rowFiledAt = Date.parse(stringValue(row.published_at));
+      if (Number.isFinite(currentFiledAt) && Number.isFinite(rowFiledAt) && rowFiledAt >= currentFiledAt) return null;
+
+      const rowAgeDays =
+        Number.isFinite(currentFiledAt) && Number.isFinite(rowFiledAt)
+          ? Math.max(0, Math.round((currentFiledAt - rowFiledAt) / (24 * 60 * 60 * 1000)))
+          : null;
+      if (rowAgeDays !== null && rowAgeDays > 1095) return null;
+
+      const rowTicker = readRawTicker(row);
+      const rowCik = normalizeCik(readRawCik(row));
+      const matchReasons: string[] = [];
+      let score = 0;
+
+      if (rowFamily === currentFamily) {
+        score += 100;
+        matchReasons.push("same_tender_form_family");
+      } else if (isTenderParentContextFamily(rowFamily)) {
+        score += 45;
+        matchReasons.push("same_tender_context_family");
+      }
+      if (currentCik && rowCik && currentCik === rowCik) {
+        score += 90;
+        matchReasons.push("same_cik");
+      }
+      if (currentTicker && rowTicker && currentTicker === rowTicker) {
+        score += 45;
+        matchReasons.push("same_ticker");
+      }
+      if (!isSecAmendmentFormForParentContext(readRawFormType(row))) {
+        score += 40;
+        matchReasons.push("non_amendment_parent_preferred");
+      } else {
+        score += 10;
+        matchReasons.push("prior_amendment_candidate");
+      }
+      if (rowAgeDays !== null) {
+        if (rowAgeDays <= 30) score += 35;
+        else if (rowAgeDays <= 180) score += 20;
+        else if (rowAgeDays <= 365) score += 10;
+        matchReasons.push(`filed_${rowAgeDays}_days_before`);
+      }
+
+      return {
+        row,
+        score,
+        matchReasons,
+        matchMethod: "tender_same_issuer_form_family_recent",
+      };
+    })
+    .filter((item): item is { row: RawItemRow; score: number; matchReasons: string[]; matchMethod: string } => Boolean(item))
+    .filter((item) => item.score >= 120)
+    .sort((left, right) => {
+      if (right.score !== left.score) return right.score - left.score;
+      return Date.parse(stringValue(right.row.published_at)) - Date.parse(stringValue(left.row.published_at));
+    });
+
+  const best = scored[0];
+  if (!best) {
+    return buildGenericAmendmentParentContext({
+      status: "not_found",
+      confidence: "low",
+      matchMethod: "tender_same_issuer_form_family_recent",
+      matchScore: 0,
+      matchReasons: ["no_prior_tender_parent_candidate_found"],
+      rawItem,
+      parentRow: null,
+      candidateRows: [],
+    });
+  }
+
+  const second = scored[1];
+  const ambiguous = second && best.score - second.score < 20;
+  return buildGenericAmendmentParentContext({
+    status: ambiguous ? "multiple_candidates" : "found",
+    confidence: ambiguous ? "medium" : best.score >= 200 ? "high" : "medium",
+    matchMethod: best.matchMethod,
+    matchScore: best.score,
+    matchReasons: best.matchReasons,
+    rawItem,
+    parentRow: ambiguous ? null : best.row,
+    candidateRows: scored.slice(0, 5).map((item) => item.row),
+  });
+}
+
+async function findGenericAmendmentParentFilingContext({
+  input,
+  rawItem,
+  formType,
+}: {
+  input: SecFilingAnalysisInput;
+  rawItem: RawItemRow;
+  formType: string;
+}) {
+  const currentAccession = readRawAccession(rawItem);
+  const currentFiledAt = Date.parse(stringValue(rawItem.published_at));
+  const explicitParentAccession = extractExplicitParentAccessionForAmendment(input, rawItem);
+  const currentFamily = normalizeGenericParentFormFamily(formType);
+  const currentTicker = readRawTicker(rawItem);
+  const currentCik = normalizeCik(readRawCik(rawItem));
+  const currentSc13Facts = isSc13ParentContextFamily(currentFamily) ? readSc13ParentMatchFactsFromInput(input) : null;
+
+  if (currentFamily === "S-8") {
+    const s8RegistrationParent = await findS8RegistrationParentFilingContext({
+      input,
+      rawItem,
+      formType,
+    });
+    if (s8RegistrationParent) return s8RegistrationParent;
+  }
+
+  if (explicitParentAccession) {
+    const row = await fetchSecRawItemByAccession(explicitParentAccession);
+    if (row && readRawAccession(row) !== currentAccession) {
+      return buildGenericAmendmentParentContext({
+        status: "found",
+        confidence: "high",
+        matchMethod: "explicit_parent_accession",
+        matchScore: 1000,
+        matchReasons: ["explicit_parent_accession"],
+        rawItem,
+        parentRow: row,
+        candidateRows: [row],
+      });
+    }
+  }
+
+  const candidateRows = dedupeRawRows([
+    ...(await fetchGenericAmendmentParentCandidateRows(rawItem)),
+    ...(currentSc13Facts ? await fetchSc13ParentCandidateRows(currentSc13Facts) : []),
+  ]);
+  const scored = candidateRows
+    .filter((row) => readRawAccession(row) !== currentAccession)
+    .map((row) => {
+      const rowFiledAt = Date.parse(stringValue(row.published_at));
+      if (Number.isFinite(currentFiledAt) && Number.isFinite(rowFiledAt) && rowFiledAt >= currentFiledAt) return null;
+
+      const rowAgeDays =
+        Number.isFinite(currentFiledAt) && Number.isFinite(rowFiledAt)
+          ? Math.max(0, Math.round((currentFiledAt - rowFiledAt) / (24 * 60 * 60 * 1000)))
+          : null;
+      if (rowAgeDays !== null && rowAgeDays > 1095) return null;
+
+      const rowFamily = normalizeGenericParentFormFamily(readRawFormType(row));
+      const rowTicker = readRawTicker(row);
+      const rowCik = normalizeCik(readRawCik(row));
+      const matchReasons: string[] = [];
+      let score = 0;
+
+      if (currentSc13Facts) {
+        if (!isSc13ParentContextFamily(rowFamily)) return null;
+        if (rowFamily !== currentFamily) return null;
+      }
+
+      if (currentFamily && rowFamily && currentFamily === rowFamily) {
+        score += 80;
+        matchReasons.push("same_form_family");
+      }
+      if (currentCik && rowCik && currentCik === rowCik) {
+        score += 80;
+        matchReasons.push("same_cik");
+      }
+      if (currentTicker && rowTicker && currentTicker === rowTicker) {
+        score += 40;
+        matchReasons.push("same_ticker");
+      }
+      if (currentSc13Facts) {
+        const rowSc13Facts = readSc13ParentMatchFactsFromRawRow(row);
+        if (!rowSc13Facts) return null;
+
+        if (currentSc13Facts.cusip && rowSc13Facts.cusip) {
+          if (currentSc13Facts.cusip !== rowSc13Facts.cusip) return null;
+          score += 50;
+          matchReasons.push("same_cusip");
+        }
+
+        const sharedReporters = intersectStrings(currentSc13Facts.reportingPersons, rowSc13Facts.reportingPersons);
+        if (currentSc13Facts.reportingPersons.length && rowSc13Facts.reportingPersons.length) {
+          if (!sharedReporters.length) return null;
+          score += 90 + Math.min(30, sharedReporters.length * 10);
+          matchReasons.push("same_reporting_person");
+        }
+
+        if (
+          currentSc13Facts.securityClass &&
+          rowSc13Facts.securityClass &&
+          normalizeComparableName(currentSc13Facts.securityClass) === normalizeComparableName(rowSc13Facts.securityClass)
+        ) {
+          score += 20;
+          matchReasons.push("same_security_class");
+        }
+
+        if (currentSc13Facts.scheduleType && rowSc13Facts.scheduleType && currentSc13Facts.scheduleType === rowSc13Facts.scheduleType) {
+          score += 30;
+          matchReasons.push("same_schedule_type");
+        }
+      }
+      if (!isSecAmendmentFormForParentContext(readRawFormType(row))) {
+        score += 25;
+        matchReasons.push("non_amendment_parent_preferred");
+      } else {
+        matchReasons.push("prior_amendment_candidate");
+      }
+      if (rowAgeDays !== null) {
+        if (rowAgeDays <= 30) score += 35;
+        else if (rowAgeDays <= 180) score += 20;
+        else if (rowAgeDays <= 365) score += 10;
+        matchReasons.push(`filed_${rowAgeDays}_days_before`);
+      }
+      if (stringValue(row.raw_item_id) || stringValue(row.id)) {
+        score += 5;
+      }
+
+      return {
+        row,
+        score,
+        matchReasons,
+        matchMethod: currentSc13Facts ? "sc13_same_issuer_reporter_security_recent" : "same_issuer_form_family_recent",
+      };
+    })
+    .filter((item): item is { row: RawItemRow; score: number; matchReasons: string[]; matchMethod: string } => Boolean(item))
+    .filter((item) => item.score >= 100)
+    .sort((left, right) => {
+      if (right.score !== left.score) return right.score - left.score;
+      return Date.parse(stringValue(right.row.published_at)) - Date.parse(stringValue(left.row.published_at));
+    });
+
+  const best = scored[0];
+  if (!best) {
+    return buildGenericAmendmentParentContext({
+      status: "not_found",
+      confidence: "low",
+      matchMethod: "none",
+      matchScore: 0,
+      matchReasons: ["no_prior_parent_candidate_found"],
+      rawItem,
+      parentRow: null,
+      candidateRows: [],
+    });
+  }
+
+  const second = scored[1];
+  const ambiguous = second && best.score - second.score < 20;
+
+  return buildGenericAmendmentParentContext({
+    status: ambiguous ? "multiple_candidates" : "found",
+    confidence: ambiguous ? "medium" : best.score >= 180 ? "high" : "medium",
+    matchMethod: best.matchMethod,
+    matchScore: best.score,
+    matchReasons: best.matchReasons,
+    rawItem,
+    parentRow: ambiguous ? null : best.row,
+    candidateRows: scored.slice(0, 5).map((item) => item.row),
+  });
+}
+
+type Sc13ParentMatchFacts = {
+  scheduleType: string;
+  reportingPersons: string[];
+  cusip: string;
+  securityClass: string;
+};
+
+function isSc13ParentContextFamily(value: string) {
+  return value === "SC 13D" || value === "SC 13G";
+}
+
+function isTenderParentContextFamily(value: string) {
+  return (
+    value === "SC TO-C" ||
+    value === "SC TO-I" ||
+    value === "SC TO-T" ||
+    value === "SC 13E3" ||
+    value === "CB" ||
+    value === "SC 14D9"
+  );
+}
+
+function readSc13ParentMatchFactsFromInput(input: SecFilingAnalysisInput): Sc13ParentMatchFacts | null {
+  const filingPackage = readRecord(input.filing_package);
+  const hardParsers = readRecord(filingPackage?.hard_parsers);
+  const parserOutput = readRecord(hardParsers?.sc13) as unknown as Sc13ParserOutput | null;
+  return sc13ParentMatchFactsFromParserOutput(parserOutput);
+}
+
+function readSc13ParentMatchFactsFromRawRow(row: RawItemRow): Sc13ParentMatchFacts | null {
+  try {
+    return sc13ParentMatchFactsFromParserOutput(parseSc13Filing(rawRowToSc13ParseInput(row)));
+  } catch {
+    return null;
+  }
+}
+
+function sc13ParentMatchFactsFromParserOutput(parserOutput: Sc13ParserOutput | null): Sc13ParentMatchFacts | null {
+  const facts = readRecord(parserOutput?.facts);
+  if (!facts) return null;
+  const scheduleType = stringValue(facts.scheduleType);
+  const reportingPersons = uniqueStrings(
+    readStringArray(facts.reportingPersons).map(normalizeComparableName).filter(Boolean),
+  );
+  return {
+    scheduleType,
+    reportingPersons,
+    cusip: stringValue(facts.cusip).toUpperCase(),
+    securityClass: normalizeComparableName(stringValue(facts.securityClass)),
+  };
+}
+
+function rawRowToSc13ParseInput(row: RawItemRow) {
+  const rawPayload = readRecord(row.raw_payload) || {};
+  const metadata = readRecord(row.metadata) || {};
+  const attachmentTexts = readRecordArray(rawPayload.attachment_texts)
+    .map((attachment) => ({
+      type: stringValue(attachment.type) || null,
+      description: stringValue(attachment.description) || null,
+      url: stringValue(attachment.url) || null,
+      text: stringValue(attachment.text),
+    }))
+    .filter((attachment) => attachment.text);
+
+  return {
+    formType: readRawFormType(row),
+    accessionNumber: readRawAccession(row) || null,
+    issuerName: readRawCompanyName(row) || null,
+    companyName: readRawCompanyName(row) || null,
+    primaryTicker: {
+      ticker: readRawTicker(row) || null,
+      exchange: stringValue(rawPayload.exchange) || stringValue(metadata.exchange) || null,
+    },
+    filedAt: stringValue(row.published_at) || readRawFiledDate(row) || null,
+    text: stringValue(row.analysis_text) || stringValue(row.body_text),
+    attachments: attachmentTexts,
+  };
+}
+
+async function fetchSc13ParentCandidateRows(facts: Sc13ParentMatchFacts) {
+  const cusip = normalizeSc13CusipForSearch(facts.cusip);
+  if (!cusip) return [];
+
+  const select = "id,source_unique_id,source_url,title,published_at,body_text,analysis_text,raw_payload,metadata";
+  const rows: RawItemRow[] = [];
+  const bodyResult = await supabaseSelect("raw_items", {
+    select,
+    source_code: "eq.sec_edgar",
+    body_text: `ilike.*${cusip}*`,
+    order: "published_at.desc",
+    limit: "300",
+  });
+  if (bodyResult.ok && Array.isArray(bodyResult.data)) rows.push(...(bodyResult.data as RawItemRow[]));
+
+  const analysisResult = await supabaseSelect("raw_items", {
+    select,
+    source_code: "eq.sec_edgar",
+    analysis_text: `ilike.*${cusip}*`,
+    order: "published_at.desc",
+    limit: "300",
+  });
+  if (analysisResult.ok && Array.isArray(analysisResult.data)) rows.push(...(analysisResult.data as RawItemRow[]));
+
+  return dedupeRawRows(rows);
+}
+
+function normalizeSc13CusipForSearch(value: string) {
+  const normalized = stringValue(value).toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return /^[A-Z0-9]{9}$/.test(normalized) ? normalized : "";
+}
+
+async function findS8RegistrationParentFilingContext({
+  input,
+  rawItem,
+  formType,
+}: {
+  input: SecFilingAnalysisInput;
+  rawItem: RawItemRow;
+  formType: string;
+}) {
+  const normalizedFormType = normalizeSecFormForParentContext(formType);
+  if (normalizedFormType !== "S-8 POS") return null;
+
+  const targetFileNumbers = readS8PriorRegistrationFileNumbers(input);
+  const currentAccession = readRawAccession(rawItem);
+  const directFileNumberRows = targetFileNumbers.length
+    ? await fetchS8RegistrationFileNumberCandidateRows(targetFileNumbers)
+    : [];
+  const candidateRows = dedupeRawRows([
+    ...directFileNumberRows,
+    ...(await fetchGenericAmendmentParentCandidateRows(rawItem)),
+  ]);
+  const scored = candidateRows
+    .filter((row) => readRawAccession(row) !== currentAccession)
+    .filter((row) => normalizeGenericParentFormFamily(readRawFormType(row)) === "S-8")
+    .map((row) => {
+      if (!targetFileNumbers.length) return null;
+      const matchedFileNumbers = intersectStrings(targetFileNumbers, extractS8RegistrationFileNumbersFromRow(row));
+      if (!matchedFileNumbers.length) return null;
+
+      const matchReasons = [
+        "s8_pos_prior_registration_file_number",
+        ...matchedFileNumbers.slice(0, 4).map((fileNumber) => `matches_${fileNumber}`),
+      ];
+      let score = 220 + matchedFileNumbers.length * 30;
+      if (!isSecAmendmentFormForParentContext(readRawFormType(row))) {
+        score += 35;
+        matchReasons.push("non_amendment_parent_preferred");
+      }
+
+      return {
+        row,
+        score,
+        matchReasons,
+        matchedFileNumbers,
+      };
+    })
+    .filter(
+      (
+        item,
+      ): item is {
+        row: RawItemRow;
+        score: number;
+        matchReasons: string[];
+        matchedFileNumbers: string[];
+      } => Boolean(item),
+    )
+    .sort((left, right) => {
+      if (right.score !== left.score) return right.score - left.score;
+      return Date.parse(stringValue(right.row.published_at)) - Date.parse(stringValue(left.row.published_at));
+    });
+
+  const best = scored[0];
+  if (!best) {
+    const currentFiledAt = Date.parse(stringValue(rawItem.published_at));
+    const currentTicker = readRawTicker(rawItem);
+    const currentCik = normalizeCik(readRawCik(rawItem));
+    const sameIssuerPriorS8Rows = candidateRows
+      .filter((row) => readRawAccession(row) !== currentAccession)
+      .filter((row) => normalizeGenericParentFormFamily(readRawFormType(row)) === "S-8")
+      .filter((row) => !isSecAmendmentFormForParentContext(readRawFormType(row)))
+      .filter((row) => {
+        const rowFiledAt = Date.parse(stringValue(row.published_at));
+        return !Number.isFinite(currentFiledAt) || !Number.isFinite(rowFiledAt) || rowFiledAt < currentFiledAt;
+      })
+      .filter((row) => {
+        const rowTicker = readRawTicker(row);
+        const rowCik = normalizeCik(readRawCik(row));
+        return Boolean((currentCik && rowCik && currentCik === rowCik) || (currentTicker && rowTicker && currentTicker === rowTicker));
+      })
+      .sort((left, right) => Date.parse(stringValue(right.published_at)) - Date.parse(stringValue(left.published_at)));
+
+    if (sameIssuerPriorS8Rows.length === 1) {
+      return buildGenericAmendmentParentContext({
+        status: "found",
+        confidence: "medium",
+        matchMethod: "same_issuer_prior_s8_single_candidate",
+        matchScore: 180,
+        matchReasons: [
+          targetFileNumbers.length
+            ? "s8_pos_prior_registration_file_number_present"
+            : "s8_pos_prior_registration_file_number_missing",
+          targetFileNumbers.length ? "parent_row_file_number_unavailable" : "same_issuer_fallback_parent",
+          "single_same_issuer_prior_non_amendment_s8",
+        ],
+        rawItem,
+        parentRow: sameIssuerPriorS8Rows[0],
+        candidateRows: sameIssuerPriorS8Rows,
+      });
+    }
+
+    if (sameIssuerPriorS8Rows.length > 1) {
+      return buildGenericAmendmentParentContext({
+        status: "multiple_candidates",
+        confidence: "medium",
+        matchMethod: "same_issuer_prior_s8_multiple_candidates",
+        matchScore: 160,
+        matchReasons: [
+          targetFileNumbers.length
+            ? "s8_pos_prior_registration_file_number_present"
+            : "s8_pos_prior_registration_file_number_missing",
+          targetFileNumbers.length ? "parent_row_file_number_unavailable" : "same_issuer_fallback_parent",
+          "multiple_same_issuer_prior_non_amendment_s8_candidates",
+        ],
+        rawItem,
+        parentRow: null,
+        candidateRows: sameIssuerPriorS8Rows.slice(0, 5),
+      });
+    }
+
+    return null;
+  }
+
+  const second = scored[1];
+  const ambiguous = second && best.score - second.score < 20;
+
+  return buildGenericAmendmentParentContext({
+    status: ambiguous ? "multiple_candidates" : "found",
+    confidence: ambiguous ? "medium" : "high",
+    matchMethod: ambiguous ? "s8_registration_file_number_multiple_candidates" : "s8_registration_file_number",
+    matchScore: best.score,
+    matchReasons: ambiguous
+      ? [...best.matchReasons, "multiple_prior_s8_candidates_for_registration_file_number"]
+      : best.matchReasons,
+    rawItem,
+    parentRow: ambiguous ? null : best.row,
+    candidateRows: scored.slice(0, 5).map((item) => item.row),
+  });
+}
+
+async function findCurrentReportParentFilingContext({
+  amendment,
+  parserOutput,
+  rawItem,
+}: {
+  amendment: Record<string, unknown>;
+  parserOutput: Record<string, unknown>;
+  rawItem: RawItemRow;
+}) {
+  const currentAccession = readRawAccession(rawItem);
+  const explicitParentAccession = stringValue(amendment.parentAccessionNumber || amendment.parent_accession_number);
+  if (explicitParentAccession) {
+    const row = await fetchSecRawItemByAccession(explicitParentAccession);
+    if (row && readRawAccession(row) !== currentAccession && isCurrentReportParentCandidate(row)) {
+      return buildCurrentReportParentContext({
+        row,
+        matchMethod: "explicit_parent_accession",
+        matchScore: 1000,
+        matchReasons: ["amendment_parent_accession"],
+        parserOutput,
+      });
+    }
+  }
+
+  const candidates = await fetchCurrentReportParentCandidateRows(rawItem);
+  if (!candidates.length) return null;
+
+  const currentFiledAt = Date.parse(stringValue(rawItem.published_at));
+  const parentFiledDate = normalizeDateOnly(stringValue(amendment.parentFiledDate || amendment.parent_filed_date));
+  const currentItems = readCurrentReportItemNumbers(parserOutput);
+  const currentExhibits = readCurrentReportExhibitNumbers(parserOutput);
+  const currentTicker = readRawTicker(rawItem);
+  const currentCik = readRawCik(rawItem);
+  const currentFamily = normalizeCurrentReportFamily(readRawFormType(rawItem));
+
+  const scored = candidates
+    .filter((row) => readRawAccession(row) !== currentAccession && isCurrentReportParentCandidate(row))
+    .map((row) => {
+      const rowFiledAt = Date.parse(stringValue(row.published_at));
+      if (Number.isFinite(currentFiledAt) && Number.isFinite(rowFiledAt) && rowFiledAt >= currentFiledAt) return null;
+      if (
+        Number.isFinite(currentFiledAt) &&
+        Number.isFinite(rowFiledAt) &&
+        currentFiledAt - rowFiledAt > 365 * 24 * 60 * 60 * 1000
+      ) {
+        return null;
+      }
+
+      const rowFamily = normalizeCurrentReportFamily(readRawFormType(row));
+      const rowTicker = readRawTicker(row);
+      const rowCik = readRawCik(row);
+      const rowDate = normalizeDateOnly(readRawFiledDate(row));
+      const itemOverlap = countCurrentReportTextOverlap(row, currentItems.map((item) => `Item ${item}`));
+      const exhibitOverlap = countCurrentReportTextOverlap(row, currentExhibits.map((item) => `Exhibit ${item}`));
+      const matchReasons: string[] = [];
+      let score = 0;
+
+      if (currentFamily && rowFamily && currentFamily === rowFamily) {
+        score += 40;
+        matchReasons.push("same_current_report_family");
+      }
+      if (currentCik && rowCik && currentCik === rowCik) {
+        score += 60;
+        matchReasons.push("same_cik");
+      }
+      if (currentTicker && rowTicker && currentTicker === rowTicker) {
+        score += 35;
+        matchReasons.push("same_ticker");
+      }
+      if (parentFiledDate && rowDate && parentFiledDate === rowDate) {
+        score += 120;
+        matchReasons.push("parent_filed_date_match");
+      }
+      if (itemOverlap > 0) {
+        score += Math.min(40, itemOverlap * 20);
+        matchReasons.push("same_item_number");
+      }
+      if (exhibitOverlap > 0) {
+        score += Math.min(40, exhibitOverlap * 20);
+        matchReasons.push("same_exhibit_number");
+      }
+      if (!isCurrentReportAmendmentForm(readRawFormType(row))) {
+        score += 25;
+        matchReasons.push("non_amendment_parent_preferred");
+      }
+
+      return {
+        row,
+        score,
+        matchReasons,
+        matchMethod: parentFiledDate && rowDate === parentFiledDate ? "parent_filed_date" : "same_issuer_recent_context",
+      };
+    })
+    .filter((item): item is { row: RawItemRow; score: number; matchReasons: string[]; matchMethod: string } => Boolean(item))
+    .filter((item) => item.score >= 95)
+    .sort((left, right) => {
+      if (right.score !== left.score) return right.score - left.score;
+      return Date.parse(stringValue(right.row.published_at)) - Date.parse(stringValue(left.row.published_at));
+    });
+
+  const best = scored[0];
+  if (!best) return null;
+
+  return buildCurrentReportParentContext({
+    row: best.row,
+    matchMethod: best.matchMethod,
+    matchScore: best.score,
+    matchReasons: best.matchReasons,
+    parserOutput,
+  });
 }
 
 async function findParentS3RegistrationContext({
@@ -1440,6 +5175,1247 @@ async function fetchExistingParentAnalysis(rawItemId: string) {
   };
 }
 
+async function fetchSecRawItemByAccession(accession: string) {
+  const normalized = stringValue(accession);
+  if (!normalized) return null;
+
+  const result = await supabaseSelect("raw_items", {
+    select: "id,source_unique_id,source_url,title,published_at,body_text,analysis_text,raw_payload,metadata",
+    source_code: "eq.sec_edgar",
+    source_unique_id: `eq.${normalized}`,
+    limit: "1",
+  });
+  const row = result.ok && Array.isArray(result.data) ? (result.data[0] as RawItemRow | undefined) : null;
+  if (row) return row;
+
+  const payloadResult = await supabaseSelect("raw_items", {
+    select: "id,source_unique_id,source_url,title,published_at,body_text,analysis_text,raw_payload,metadata",
+    source_code: "eq.sec_edgar",
+    "raw_payload->>accession_number": `eq.${normalized}`,
+    limit: "1",
+  });
+  const payloadRow = payloadResult.ok && Array.isArray(payloadResult.data) ? (payloadResult.data[0] as RawItemRow | undefined) : null;
+  return payloadRow || null;
+}
+
+async function fetchCurrentReportParentCandidateRows(rawItem: RawItemRow) {
+  const select = "id,source_unique_id,source_url,title,published_at,analysis_text,raw_payload,metadata";
+  const cik = readRawCik(rawItem);
+  const ticker = readRawTicker(rawItem);
+  const rows: RawItemRow[] = [];
+
+  if (cik) {
+    const result = await supabaseSelect("raw_items", {
+      select,
+      source_code: "eq.sec_edgar",
+      "raw_payload->>cik": `eq.${cik}`,
+      order: "published_at.desc",
+      limit: "200",
+    });
+    if (result.ok && Array.isArray(result.data)) rows.push(...(result.data as RawItemRow[]));
+  }
+
+  if (ticker) {
+    const result = await supabaseSelect("raw_items", {
+      select,
+      source_code: "eq.sec_edgar",
+      "raw_payload->>ticker": `eq.${ticker}`,
+      order: "published_at.desc",
+      limit: "200",
+    });
+    if (result.ok && Array.isArray(result.data)) rows.push(...(result.data as RawItemRow[]));
+  }
+
+  if (!rows.length) {
+    const result = await supabaseSelect("raw_items", {
+      select,
+      source_code: "eq.sec_edgar",
+      order: "published_at.desc",
+      limit: "200",
+    });
+    if (result.ok && Array.isArray(result.data)) rows.push(...(result.data as RawItemRow[]));
+  }
+
+  return dedupeRawRows(rows).filter(isCurrentReportParentCandidate);
+}
+
+async function fetchGenericAmendmentParentCandidateRows(rawItem: RawItemRow, ownershipHints?: OwnershipParentSearchHints) {
+  const select = "id,source_unique_id,source_url,title,published_at,body_text,analysis_text,raw_payload,metadata";
+  const rawCik = readRawCik(rawItem);
+  const cikValues = uniqueStrings([rawCik, normalizeCik(rawCik), ...(ownershipHints?.companyCiks || [])].filter(Boolean));
+  const ticker = readRawTicker(rawItem);
+  const rows: RawItemRow[] = [];
+
+  for (const cik of cikValues) {
+    const result = await supabaseSelect("raw_items", {
+      select,
+      source_code: "eq.sec_edgar",
+      "raw_payload->>cik": `eq.${cik}`,
+      order: "published_at.desc",
+      limit: "300",
+    });
+    if (result.ok && Array.isArray(result.data)) rows.push(...(result.data as RawItemRow[]));
+  }
+
+  if (ticker) {
+    const result = await supabaseSelect("raw_items", {
+      select,
+      source_code: "eq.sec_edgar",
+      "raw_payload->>ticker": `eq.${ticker}`,
+      order: "published_at.desc",
+      limit: "300",
+    });
+    if (result.ok && Array.isArray(result.data)) rows.push(...(result.data as RawItemRow[]));
+  }
+
+  for (const ownerCik of (ownershipHints?.ownerCiks || []).slice(0, 2)) {
+    const result = await supabaseSelect("raw_items", {
+      select,
+      source_code: "eq.sec_edgar",
+      body_text: `ilike.*${ownerCik}*`,
+      order: "published_at.desc",
+      limit: "300",
+    });
+    if (result.ok && Array.isArray(result.data)) rows.push(...(result.data as RawItemRow[]));
+  }
+
+  if (!rows.length) {
+    const result = await supabaseSelect("raw_items", {
+      select,
+      source_code: "eq.sec_edgar",
+      order: "published_at.desc",
+      limit: "300",
+    });
+    if (result.ok && Array.isArray(result.data)) rows.push(...(result.data as RawItemRow[]));
+  }
+
+  return dedupeRawRows(rows);
+}
+
+async function fetchTenderParentCandidateRows(input: SecFilingAnalysisInput, rawItem: RawItemRow) {
+  const select = "id,source_unique_id,source_url,title,published_at,raw_payload,metadata";
+  const filingPackage = readRecord(input.filing_package) || {};
+  const subjectTicker = resolveTenderSubjectMarketContextSymbol(filingPackage);
+  const rawCik = readRawCik(rawItem);
+  const cikValues = uniqueStrings([rawCik, normalizeCik(rawCik)].filter(Boolean));
+  const tickerValues = uniqueStrings([readRawTicker(rawItem), subjectTicker || ""].filter(Boolean));
+  const rows: RawItemRow[] = [];
+
+  for (const cik of cikValues.slice(0, 3)) {
+    const result = await supabaseSelect("raw_items", {
+      select,
+      source_code: "eq.sec_edgar",
+      "raw_payload->>cik": `eq.${cik}`,
+      order: "published_at.desc",
+      limit: "150",
+    });
+    if (result.ok && Array.isArray(result.data)) rows.push(...(result.data as RawItemRow[]));
+  }
+
+  for (const ticker of tickerValues.slice(0, 3)) {
+    const normalizedTicker = normalizeMarketContextTicker(ticker);
+    if (!normalizedTicker) continue;
+    const result = await supabaseSelect("raw_items", {
+      select,
+      source_code: "eq.sec_edgar",
+      "raw_payload->>ticker": `eq.${normalizedTicker}`,
+      order: "published_at.desc",
+      limit: "150",
+    });
+    if (result.ok && Array.isArray(result.data)) rows.push(...(result.data as RawItemRow[]));
+  }
+
+  return dedupeRawRows(rows);
+}
+
+type TenderTransactionMatchFacts = {
+  targetCompany: string;
+  targetTicker: string;
+  cusip: string;
+  cashPrice: number | null;
+  buyerNames: string[];
+  transactionFamily: string;
+  formFamily: string;
+};
+
+type TenderTransactionHistoryMatch = {
+  match_score: number;
+  match_confidence: "high" | "medium" | "low";
+  match_reasons: string[];
+};
+
+function buildCurrentTenderTransactionMatchFacts(
+  filingPackage: Record<string, unknown>,
+  rawItem: RawItemRow,
+  targetTickerCandidate = "",
+): TenderTransactionMatchFacts {
+  const hardParsers = readRecord(filingPackage.hard_parsers);
+  const tenderParser = readRecord(hardParsers?.tender);
+  const facts = readRecord(tenderParser?.facts) || {};
+  const coverPage = readRecord(facts.cover_page);
+  const cashPrice = firstFiniteNumber([
+    readRecord(readRecord(facts.cash_price_per_share)?.value)?.price,
+    readRecord(facts.cash_price_per_share)?.price,
+    facts.cash_price_per_share,
+    facts.offer_price,
+    facts.purchase_price,
+    facts.consideration_summary,
+  ]);
+  const offerors = [
+    facts.offeror,
+    readRecord(facts.offeror)?.value,
+    facts.buyer_parent,
+    facts.parent,
+    ...readRecordArray(facts.offerors).flatMap((item) => [item.value, item.name]),
+    ...readRecordArray(coverPage?.offerors).flatMap((item) => [item.value, item.name]),
+  ];
+
+  return {
+    targetCompany: resolveTenderSubjectCompanyName(filingPackage) || readRawCompanyName(rawItem),
+    targetTicker:
+      normalizeMarketContextTicker(targetTickerCandidate) ||
+      resolveTenderSubjectMarketContextSymbol(filingPackage) ||
+      normalizeMarketContextTicker(stringValue(readRecord(filingPackage.primary_ticker)?.ticker)) ||
+      readRawTicker(rawItem) ||
+      "",
+    cusip: resolveTenderSecurityCusip(filingPackage),
+    cashPrice,
+    buyerNames: uniqueStrings(offerors.map(stringValue).filter(Boolean)).slice(0, 8),
+    transactionFamily: stringValue(facts.tender_case) || normalizeGenericParentFormFamily(stringValue(filingPackage.form_type) || readRawFormType(rawItem)),
+    formFamily: normalizeGenericParentFormFamily(stringValue(filingPackage.form_type) || readRawFormType(rawItem)),
+  };
+}
+
+function scoreTenderTransactionHistoryEventMatch(
+  current: TenderTransactionMatchFacts,
+  event: RawItemRow,
+): TenderTransactionHistoryMatch {
+  const metadata = readRecord(event.metadata) || {};
+  const fingerprint = readRecord(metadata.transaction_fingerprint) || {};
+  const reasons: string[] = [];
+  let score = 0;
+
+  const fingerprintTarget = stringValue(fingerprint.target_company);
+  const targetOverlap = tenderNameOverlapScore(current.targetCompany, fingerprintTarget || stringValue(event.title) || stringValue(event.summary));
+  if (targetOverlap >= 2) {
+    score += 80;
+    reasons.push("same_target_company");
+  } else if (targetOverlap === 1) {
+    score += 55;
+    reasons.push("target_company_token_overlap");
+  }
+
+  const currentTicker = normalizeMarketContextTicker(current.targetTicker);
+  const candidateTargetTicker = normalizeMarketContextTicker(stringValue(fingerprint.target_ticker));
+  const eventTicker = normalizeMarketContextTicker(stringValue(event.ticker));
+  if (currentTicker && candidateTargetTicker && currentTicker === candidateTargetTicker) {
+    score += 35;
+    reasons.push("same_target_ticker");
+  } else if (currentTicker && eventTicker && currentTicker === eventTicker) {
+    score += 15;
+    reasons.push("same_event_ticker");
+  }
+
+  const currentPrice = current.cashPrice;
+  const candidatePrice = firstFiniteNumber([fingerprint.cash_price, fingerprint.consideration_summary, event.summary, event.quick_take, event.title]);
+  if (currentPrice !== null && candidatePrice !== null && Math.abs(currentPrice - candidatePrice) <= 0.02) {
+    score += 40;
+    reasons.push("same_cash_price");
+  }
+
+  const buyerOverlap = tenderPartyOverlapScore(current.buyerNames, [
+    fingerprint.buyer_parent,
+    fingerprint.offeror,
+    ...readStringArray(fingerprint.buyer_group),
+    ...readStringArray(fingerprint.filing_persons),
+    event.title,
+  ]);
+  if (buyerOverlap >= 2) {
+    score += 30;
+    reasons.push("same_buyer_or_offeror");
+  } else if (buyerOverlap === 1) {
+    score += 15;
+    reasons.push("buyer_or_offeror_overlap");
+  }
+
+  const candidateFamily = stringValue(fingerprint.transaction_family) || readTenderEventFormFamily(event);
+  if (current.transactionFamily && candidateFamily && tenderComparableFamily(current.transactionFamily) === tenderComparableFamily(candidateFamily)) {
+    score += 15;
+    reasons.push("same_transaction_family");
+  }
+  if (current.formFamily && readTenderEventFormFamily(event) && current.formFamily === readTenderEventFormFamily(event)) {
+    score += 10;
+    reasons.push("same_form_family");
+  }
+
+  return {
+    match_score: score,
+    match_confidence: score >= 100 ? "high" : score >= 75 ? "medium" : "low",
+    match_reasons: reasons,
+  };
+}
+
+function tenderComparableFamily(value: string) {
+  return normalizeComparableName(value).replace(/\b(?:GENERIC|STATUS|TRANSACTION|OFFER)\b/g, "").trim();
+}
+
+function tenderNameOverlapScore(left: string, right: string) {
+  const leftTokens = tenderNameTokens(left);
+  const rightTokens = tenderNameTokens(right);
+  if (!leftTokens.length || !rightTokens.length) return 0;
+  return leftTokens.filter((token) => rightTokens.includes(token)).length;
+}
+
+function tenderPartyOverlapScore(leftValues: string[], rightValues: unknown[]) {
+  const leftTokens = uniqueStrings(leftValues.flatMap(tenderNameTokens));
+  const rightTokens = uniqueStrings(rightValues.map(stringValue).flatMap(tenderNameTokens));
+  if (!leftTokens.length || !rightTokens.length) return 0;
+  return leftTokens.filter((token) => rightTokens.includes(token)).length;
+}
+
+function tenderNameTokens(value: string) {
+  return normalizeComparableName(value)
+    .split(" ")
+    .filter((token) => token.length >= 4 && !TENDER_COMPANY_HISTORY_STOP_WORDS.has(token));
+}
+
+function firstFiniteNumber(values: unknown[]) {
+  for (const value of values) {
+    const direct = numberValue(value);
+    if (direct !== null) return direct;
+    const text = stringValue(value);
+    if (!text) continue;
+    const match = text.replace(/,/g, "").match(/(?:USD|\$)?\s*(\d+(?:\.\d+)?)/i);
+    if (match) {
+      const parsed = Number(match[1]);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+  return null;
+}
+
+async function fetchTenderTransactionHistoryEventRows(rawItem: RawItemRow, subjectTicker: string, subjectCompany: string) {
+  const select = "*";
+  const rows: RawItemRow[] = [];
+  const tickers = uniqueStrings([subjectTicker, readRawTicker(rawItem)].map((value) => normalizeMarketContextTicker(value) || ""));
+  const currentPublishedAt = stringValue(rawItem.published_at);
+
+  for (const ticker of tickers.slice(0, 3)) {
+    const result = await supabaseSelect("events", {
+      select,
+      source_group: "eq.filings",
+      source_code: "eq.sec_edgar",
+      ticker: `eq.${ticker}`,
+      order: "published_at.desc",
+      limit: "80",
+    });
+    if (result.ok && Array.isArray(result.data)) rows.push(...(result.data as RawItemRow[]));
+  }
+
+  const cik = normalizeCik(readRawCik(rawItem));
+  if (cik) {
+    const result = await supabaseSelect("events", {
+      select,
+      source_group: "eq.filings",
+      source_code: "eq.sec_edgar",
+      "metadata->>cik": `eq.${cik}`,
+      order: "published_at.desc",
+      limit: "80",
+    });
+    if (result.ok && Array.isArray(result.data)) rows.push(...(result.data as RawItemRow[]));
+  }
+
+  const companySearchTerm = tenderCompanyHistorySearchTerm(subjectCompany || readRawCompanyName(rawItem));
+  if (companySearchTerm) {
+    const titleResult = await supabaseSelect("events", {
+      select,
+      source_group: "eq.filings",
+      title: `ilike.*${companySearchTerm}*`,
+      order: "published_at.desc",
+      limit: "80",
+    });
+    if (titleResult.ok && Array.isArray(titleResult.data)) rows.push(...(titleResult.data as RawItemRow[]));
+
+    const summaryResult = await supabaseSelect("events", {
+      select,
+      source_group: "eq.filings",
+      summary: `ilike.*${companySearchTerm}*`,
+      order: "published_at.desc",
+      limit: "80",
+    });
+    if (summaryResult.ok && Array.isArray(summaryResult.data)) rows.push(...(summaryResult.data as RawItemRow[]));
+
+    const fingerprintTargetResult = await supabaseSelect("events", {
+      select,
+      source_group: "eq.filings",
+      "metadata->transaction_fingerprint->>target_company": `ilike.*${companySearchTerm}*`,
+      order: "published_at.desc",
+      limit: "80",
+    });
+    if (fingerprintTargetResult.ok && Array.isArray(fingerprintTargetResult.data)) {
+      rows.push(...(fingerprintTargetResult.data as RawItemRow[]));
+    }
+
+    for (const eventType of ["strategic_transaction", "capital_return"]) {
+      const recentResult = await supabaseSelect("events", {
+        select,
+        source_group: "eq.filings",
+        event_type: `eq.${eventType}`,
+        ...(currentPublishedAt ? { published_at: `lt.${currentPublishedAt}` } : {}),
+        order: "published_at.desc",
+        limit: "1000",
+      });
+      if (recentResult.ok && Array.isArray(recentResult.data)) {
+        rows.push(...(recentResult.data as RawItemRow[]).filter((event) => tenderHistoryEventMentionsCompany(event, companySearchTerm)));
+      }
+    }
+  }
+
+  return dedupeEventRows(rows);
+}
+
+async function fetchTenderTransactionHistoryRawRows(rawItem: RawItemRow, companySearchTerm: string, securityCusip: string) {
+  const term = stringValue(companySearchTerm);
+  const cusip = stringValue(securityCusip);
+  if (!term && !cusip) return [];
+
+  const select = "id,source_unique_id,source_url,title,published_at,raw_payload,metadata";
+  const rows: RawItemRow[] = [];
+  const currentCik = normalizeCik(readRawCik(rawItem));
+  const currentTicker = readRawTicker(rawItem);
+
+  for (const queryTerm of uniqueStrings([term, cusip].filter(Boolean))) {
+    for (const column of ["body_text", "analysis_text"]) {
+      const result = await supabaseSelect("raw_items", {
+        select,
+        source_code: "eq.sec_edgar",
+        [column]: `ilike.*${queryTerm}*`,
+        order: "published_at.desc",
+        limit: "120",
+      });
+      if (result.ok && Array.isArray(result.data)) rows.push(...(result.data as RawItemRow[]));
+    }
+  }
+
+  return dedupeRawRows(rows).filter((row) => {
+    const formFamily = normalizeGenericParentFormFamily(readRawFormType(row));
+    if (!isTenderParentContextFamily(formFamily)) return false;
+    const rowCik = normalizeCik(readRawCik(row));
+    const rowTicker = readRawTicker(row);
+    return Boolean(
+      (currentCik && rowCik && currentCik === rowCik) ||
+        (currentTicker && rowTicker && currentTicker === rowTicker) ||
+        tenderRawRowMentionsCompany(row, term),
+    );
+  });
+}
+
+function tenderRawRowMentionsCompany(row: RawItemRow, searchTerm: string) {
+  const term = searchTerm.toUpperCase();
+  if (!term) return false;
+  const rawPayload = readRecord(row.raw_payload) || {};
+  const metadata = readRecord(row.metadata) || {};
+  const text = [
+    row.title,
+    rawPayload.company_name,
+    rawPayload.companyName,
+    metadata.company_name,
+    metadata.companyName,
+  ]
+    .map(stringValue)
+    .join(" ")
+    .toUpperCase();
+  return text.includes(term);
+}
+
+function tenderHistoryEventMentionsCompany(event: RawItemRow, searchTerm: string) {
+  const term = searchTerm.toUpperCase();
+  if (!term) return false;
+  const metadata = readRecord(event.metadata) || {};
+  const fingerprint = readRecord(metadata.transaction_fingerprint);
+  const text = [
+    event.title,
+    event.event_title,
+    event.quick_take,
+    event.summary,
+    stringValue(fingerprint?.target_company),
+    stringValue(fingerprint?.buyer_parent),
+    readStringArray(fingerprint?.filing_persons).join(" "),
+  ]
+    .map(stringValue)
+    .join(" ")
+    .toUpperCase();
+  return text.includes(term);
+}
+
+async function compactTenderTransactionHistoryRawRow(row: RawItemRow) {
+  const existing = await fetchExistingGenericParentEventContext(stringValue(row.id));
+  if (!existing) return null;
+
+  return {
+    match_source: "raw_item_company_history",
+    event_id: existing.event_id || null,
+    raw_item_id: stringValue(row.id) || null,
+    accession_number: readRawAccession(row) || null,
+    form_type: readRawFormType(row) || null,
+    form_family: normalizeGenericParentFormFamily(readRawFormType(row)) || null,
+    filed_at: stringValue(row.published_at) || readRawFiledDate(row) || null,
+    source_url: stringValue(row.source_url) || null,
+    company_name: readRawCompanyName(row) || null,
+    ticker: readRawTicker(row) || null,
+    cik: normalizeCik(readRawCik(row)) || null,
+    event_type: existing.event_type || null,
+    score: existing.score ?? null,
+    delivery_level: existing.delivery_level || null,
+    signal: existing.signal || null,
+    event_title: existing.event_title || null,
+    quick_take: existing.quick_take || null,
+    summary: existing.summary || null,
+    key_evidence: existing.key_evidence || [],
+    what_to_watch_next: existing.what_to_watch_next || [],
+    display_payload: compactParentDisplayPayload(existing.display_payload),
+    transaction_fingerprint: readRecord(existing.transaction_fingerprint),
+    source_availability_note: "Prior tender history excludes full raw filing text.",
+  };
+}
+
+function tenderCompanyHistorySearchTerm(value: string) {
+  const words = normalizeComparableName(value)
+    .split(" ")
+    .filter((word) => word.length >= 4 && !TENDER_COMPANY_HISTORY_STOP_WORDS.has(word));
+  return words[0] || "";
+}
+
+const TENDER_COMPANY_HISTORY_STOP_WORDS = new Set([
+  "SHIPPING",
+  "TRADING",
+  "HOLDINGS",
+  "HOLDING",
+  "GROUP",
+  "CAPITAL",
+  "ACQUISITION",
+  "INTERNATIONAL",
+  "GLOBAL",
+  "SOLICITATION",
+  "RECOMMENDATION",
+  "STATEMENT",
+  "SECTION",
+  "UNDER",
+  "SECURITIES",
+  "EXCHANGE",
+  "AMENDMENT",
+  "1934",
+]);
+
+function compactTenderTransactionHistoryEvent(
+  event: RawItemRow,
+  analysis: Record<string, unknown> | undefined,
+  match: TenderTransactionHistoryMatch,
+) {
+  const metadata = readRecord(event.metadata) || {};
+  const fingerprint = readRecord(metadata.transaction_fingerprint);
+  const formType = readTenderEventFormType(event);
+  const formFamily = normalizeGenericParentFormFamily(formType);
+
+  return {
+    match_source: "event_transaction_fingerprint",
+    match_score: match.match_score,
+    match_confidence: match.match_confidence,
+    match_reasons: match.match_reasons,
+    event_id: stringValue(event.id) || null,
+    raw_item_id: stringValue(event.raw_item_id) || null,
+    accession_number:
+      stringValue(metadata.accession_number) ||
+      stringValue(metadata.accessionNumber) ||
+      stringValue(fingerprint?.source_accession) ||
+      null,
+    form_type: formType || null,
+    form_family: formFamily || null,
+    filed_at: stringValue(event.published_at) || stringValue(event.detected_at) || null,
+    source_url: stringValue(event.source_url) || null,
+    company_name: stringValue(metadata.company_name) || stringValue(metadata.companyName) || null,
+    ticker: stringValue(event.ticker).toUpperCase() || null,
+    cik: normalizeCik(stringValue(metadata.cik)) || null,
+    event_type: stringValue(event.event_type) || null,
+    score: numberValue(event.score),
+    delivery_level: stringValue(event.delivery_level) || null,
+    signal: stringValue(event.signal) || null,
+    event_title: stringValue(event.event_title) || stringValue(event.title) || null,
+    quick_take: stringValue(event.quick_take) || null,
+    summary: stringValue(event.summary) || null,
+    key_evidence: readStringArray(analysis?.key_evidence).slice(0, 4),
+    what_to_watch_next: readStringArray(analysis?.what_to_watch_next).slice(0, 4),
+    display_payload: compactParentDisplayPayload(metadata.display_payload),
+    transaction_fingerprint: fingerprint,
+    source_availability_note: "Prior tender history excludes full raw filing text.",
+  };
+}
+
+function compactTenderParentContextAsHistoryEvent(parentContext: Record<string, unknown> | null) {
+  const parent = readRecord(parentContext?.parent);
+  if (!parent) return null;
+
+  return {
+    match_source: "parent_filing_context",
+    match_method: stringValue(parentContext?.match_method) || null,
+    match_score: numberValue(parentContext?.match_score),
+    match_reasons: readStringArray(parentContext?.match_reasons).slice(0, 6),
+    event_id: stringValue(parent.event_id) || null,
+    raw_item_id: stringValue(parent.raw_item_id) || null,
+    accession_number: stringValue(parent.accession_number) || null,
+    form_type: stringValue(parent.form_type) || null,
+    form_family: normalizeGenericParentFormFamily(stringValue(parent.form_type)) || null,
+    filed_at: stringValue(parent.filed_at) || null,
+    source_url: stringValue(parent.source_url) || null,
+    company_name: stringValue(parent.company_name) || null,
+    ticker: stringValue(parent.ticker).toUpperCase() || null,
+    cik: normalizeCik(stringValue(parent.cik)) || null,
+    event_type: stringValue(parent.event_type) || null,
+    score: numberValue(parent.score),
+    delivery_level: stringValue(parent.delivery_level) || null,
+    signal: stringValue(parent.signal) || null,
+    event_title: stringValue(parent.event_title) || null,
+    quick_take: stringValue(parent.quick_take) || null,
+    summary: stringValue(parent.summary) || null,
+    key_evidence: readStringArray(parent.key_evidence).slice(0, 4),
+    what_to_watch_next: readStringArray(parent.what_to_watch_next).slice(0, 4),
+    display_payload: compactParentDisplayPayload(parent.display_payload),
+    transaction_fingerprint: readRecord(parent.transaction_fingerprint),
+    source_availability_note:
+      stringValue(parent.source_availability_note) || "Prior tender history excludes full raw filing text.",
+  };
+}
+
+function dedupeTenderHistoryRecords(items: Array<Record<string, unknown> | null>) {
+  const seen = new Set<string>();
+  const result: Record<string, unknown>[] = [];
+
+  for (const item of items) {
+    if (!item) continue;
+    const key =
+      stringValue(item.accession_number) ||
+      stringValue(item.event_id) ||
+      stringValue(item.raw_item_id) ||
+      `${stringValue(item.form_type)}:${stringValue(item.filed_at)}:${stringValue(item.ticker)}`;
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    result.push(item);
+  }
+
+  return result;
+}
+
+function readTenderEventFormType(event: RawItemRow) {
+  const metadata = readRecord(event.metadata) || {};
+  const fingerprint = readRecord(metadata.transaction_fingerprint);
+  return (
+    stringValue(metadata.form_type) ||
+    stringValue(metadata.formType) ||
+    readStringArray(fingerprint?.source_forms)[0] ||
+    stringValue(fingerprint?.source_form)
+  );
+}
+
+function readTenderEventFormFamily(event: RawItemRow) {
+  return normalizeGenericParentFormFamily(readTenderEventFormType(event));
+}
+
+async function fetchS8RegistrationFileNumberCandidateRows(fileNumbers: string[]) {
+  const select = "id,source_unique_id,source_url,title,published_at,body_text,analysis_text,raw_payload,metadata";
+  const rows: RawItemRow[] = [];
+
+  for (const fileNumber of uniqueStrings(fileNumbers).slice(0, 5)) {
+    const rawPayloadResult = await supabaseSelect("raw_items", {
+      select,
+      source_code: "eq.sec_edgar",
+      "raw_payload->>file_number": `eq.${fileNumber}`,
+      order: "published_at.desc",
+      limit: "100",
+    });
+    if (rawPayloadResult.ok && Array.isArray(rawPayloadResult.data)) {
+      rows.push(...(rawPayloadResult.data as RawItemRow[]));
+    }
+
+    const bodyResult = await supabaseSelect("raw_items", {
+      select,
+      source_code: "eq.sec_edgar",
+      body_text: `ilike.*${fileNumber}*`,
+      order: "published_at.desc",
+      limit: "100",
+    });
+    if (bodyResult.ok && Array.isArray(bodyResult.data)) {
+      rows.push(...(bodyResult.data as RawItemRow[]));
+    }
+
+    const analysisResult = await supabaseSelect("raw_items", {
+      select,
+      source_code: "eq.sec_edgar",
+      analysis_text: `ilike.*${fileNumber}*`,
+      order: "published_at.desc",
+      limit: "100",
+    });
+    if (analysisResult.ok && Array.isArray(analysisResult.data)) {
+      rows.push(...(analysisResult.data as RawItemRow[]));
+    }
+  }
+
+  return dedupeRawRows(rows);
+}
+
+async function buildCurrentReportParentContext({
+  matchMethod,
+  matchReasons,
+  matchScore,
+  parserOutput,
+  row,
+}: {
+  matchMethod: string;
+  matchReasons: string[];
+  matchScore: number;
+  parserOutput: Record<string, unknown>;
+  row: RawItemRow;
+}) {
+  const rawPayload = readRecord(row.raw_payload) || {};
+  const metadata = readRecord(row.metadata) || {};
+  const existing = await fetchExistingCurrentReportEventContext(stringValue(row.id));
+  const displayPayload = compactParentDisplayPayload(existing?.display_payload);
+  const displayData = readRecord(displayPayload?.data);
+  const selectedSourceSnippets = readStringArray(displayData?.selected_source_snippets).slice(0, 8);
+  const attachmentInventory = readRecordArray(displayData?.attachment_inventory).slice(0, 12);
+  const selectedTables = readRecordArray(displayData?.selected_tables).slice(0, 5);
+
+  return {
+    source: "raw_items_events_compact",
+    context_kind: "current_report_parent_filing",
+    match_method: matchMethod,
+    match_score: matchScore,
+    match_reasons: matchReasons.slice(0, 8),
+    current_amendment: {
+      accession_number: readRawAccessionFromParser(parserOutput),
+      form_type: stringValue(readRecord(parserOutput.facts)?.secFormType) || null,
+    },
+    raw_item_id: stringValue(row.id) || null,
+    accession_number: readRawAccession(row) || null,
+    form_type: readRawFormType(row) || null,
+    filed_at: stringValue(row.published_at) || stringValue(rawPayload.filing_date) || null,
+    source_url: stringValue(row.source_url) || stringValue(rawPayload.detail_url) || null,
+    company_name: stringValue(rawPayload.company_name) || stringValue(metadata.company_name) || null,
+    ticker: readRawTicker(row) || null,
+    event_id: existing?.event_id || null,
+    event_type: existing?.event_type || null,
+    score: existing?.score ?? null,
+    delivery_level: existing?.delivery_level || null,
+    signal: existing?.signal || null,
+    event_title: existing?.event_title || null,
+    quick_take: existing?.quick_take || null,
+    summary: existing?.summary || null,
+    key_evidence: existing?.key_evidence || [],
+    display_payload: displayPayload,
+    selected_source_snippets: selectedSourceSnippets,
+    selected_tables: selectedTables,
+    attachment_inventory: attachmentInventory.length ? attachmentInventory : compactRawDocumentInventory(rawPayload).slice(0, 12),
+    source_availability_note: displayData?.source_availability_note || "Parent context excludes full raw filing text.",
+  };
+}
+
+async function buildGenericAmendmentParentContext({
+  status,
+  confidence,
+  matchMethod,
+  matchScore,
+  matchReasons,
+  rawItem,
+  parentRow,
+  candidateRows,
+}: {
+  status: "found" | "not_found" | "multiple_candidates";
+  confidence: "high" | "medium" | "low";
+  matchMethod: string;
+  matchScore: number;
+  matchReasons: string[];
+  rawItem: RawItemRow;
+  parentRow: RawItemRow | null;
+  candidateRows: RawItemRow[];
+}) {
+  const parent = parentRow ? await compactGenericParentRow(parentRow) : null;
+  const candidates = await Promise.all(candidateRows.slice(0, 5).map(compactGenericParentCandidateRow));
+
+  return {
+    status,
+    context_kind: "amendment_parent_filing",
+    source: "raw_items_events_compact",
+    match_method: matchMethod,
+    match_score: matchScore,
+    match_reasons: matchReasons.slice(0, 8),
+    confidence,
+    candidate_count: candidateRows.length,
+    parent_selected: Boolean(parent),
+    current_amendment: {
+      accession_number: readRawAccession(rawItem) || null,
+      form_type: readRawFormType(rawItem) || null,
+      filed_at: stringValue(rawItem.published_at) || readRawFiledDate(rawItem) || null,
+      source_url: stringValue(rawItem.source_url) || null,
+      company_name: readRawCompanyName(rawItem) || null,
+      ticker: readRawTicker(rawItem) || null,
+      cik: normalizeCik(readRawCik(rawItem)) || null,
+    },
+    parent,
+    candidates,
+    source_notes: [
+      "parent_filing_context is built by integration from persisted raw_items, events, and event_analysis.",
+      "Historical full raw filing text is excluded; use compact prior analysis, key evidence, display_payload, transaction_fingerprint, snippets, and inventory only.",
+      "If multiple parent candidates exist, integration does not fully analyze every candidate or force-select one.",
+      "If status is not_found or multiple_candidates, analysis should treat parent comparison as limited and avoid inventing amendment deltas.",
+    ],
+  };
+}
+
+async function compactGenericParentRow(row: RawItemRow) {
+  const rawPayload = readRecord(row.raw_payload) || {};
+  const metadata = readRecord(row.metadata) || {};
+  const existing = await fetchExistingGenericParentEventContext(stringValue(row.id));
+  const displayPayload = compactParentDisplayPayload(existing?.display_payload);
+  const displayData = readRecord(displayPayload?.data);
+  const selectedSourceSnippets = readStringArray(displayData?.selected_source_snippets).slice(0, 8);
+  const attachmentInventory = readRecordArray(displayData?.attachment_inventory).slice(0, 12);
+  const selectedTables = readRecordArray(displayData?.selected_tables).slice(0, 5);
+
+  return {
+    raw_item_id: stringValue(row.id) || null,
+    event_id: existing?.event_id || null,
+    accession_number: readRawAccession(row) || null,
+    form_type: readRawFormType(row) || null,
+    filed_at: stringValue(row.published_at) || stringValue(rawPayload.filing_date) || null,
+    source_url: stringValue(row.source_url) || stringValue(rawPayload.detail_url) || null,
+    company_name: readRawCompanyName(row) || stringValue(metadata.company_name) || null,
+    ticker: readRawTicker(row) || null,
+    cik: normalizeCik(readRawCik(row)) || null,
+    event_type: existing?.event_type || null,
+    score: existing?.score ?? null,
+    delivery_level: existing?.delivery_level || null,
+    signal: existing?.signal || null,
+    event_title: existing?.event_title || null,
+    quick_take: existing?.quick_take || null,
+    summary: existing?.summary || null,
+    key_evidence: existing?.key_evidence || [],
+    what_to_watch_next: existing?.what_to_watch_next || [],
+    display_payload: displayPayload,
+    transaction_fingerprint: existing?.transaction_fingerprint || null,
+    sc13_facts: compactSc13ParentFactsFromRawRow(row),
+    selected_source_snippets: selectedSourceSnippets,
+    selected_tables: selectedTables,
+    attachment_inventory: attachmentInventory.length ? attachmentInventory : compactRawDocumentInventory(rawPayload).slice(0, 12),
+    source_availability_note: displayData?.source_availability_note || "Parent context excludes full raw filing text.",
+  };
+}
+
+async function compactGenericParentCandidateRow(row: RawItemRow) {
+  const existing = await fetchExistingGenericParentEventContext(stringValue(row.id));
+  return {
+    raw_item_id: stringValue(row.id) || null,
+    event_id: existing?.event_id || null,
+    accession_number: readRawAccession(row) || null,
+    form_type: readRawFormType(row) || null,
+    filed_at: stringValue(row.published_at) || readRawFiledDate(row) || null,
+    company_name: readRawCompanyName(row) || null,
+    ticker: readRawTicker(row) || null,
+    cik: normalizeCik(readRawCik(row)) || null,
+    event_type: existing?.event_type || null,
+    score: existing?.score ?? null,
+    delivery_level: existing?.delivery_level || null,
+    quick_take: existing?.quick_take || null,
+    transaction_fingerprint: existing?.transaction_fingerprint || null,
+    sc13_facts: compactSc13ParentFactsFromRawRow(row),
+  };
+}
+
+function compactSc13ParentFactsFromRawRow(row: RawItemRow) {
+  if (!isSc13ParentContextFamily(normalizeGenericParentFormFamily(readRawFormType(row)))) return null;
+  try {
+    const parserOutput = parseSc13Filing(rawRowToSc13ParseInput(row));
+    const facts = parserOutput.facts;
+    return {
+      schedule_type: facts.scheduleType,
+      is_amendment: facts.isAmendment,
+      amendment_number: facts.amendmentNumber,
+      event_date: facts.eventDate,
+      reporting_persons: facts.reportingPersons.slice(0, 12),
+      cusip: facts.cusip,
+      security_class: facts.securityClass,
+      shares_beneficially_owned: facts.sharesBeneficiallyOwned,
+      percent_owned: facts.percentOwned,
+      voting_power: facts.votingPower,
+      dispositive_power: facts.dispositivePower,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchExistingGenericParentEventContext(rawItemId: string) {
+  if (!rawItemId) return null;
+
+  const eventResult = await supabaseSelect("events", {
+    select: "*",
+    source_group: "eq.filings",
+    raw_item_id: `eq.${rawItemId}`,
+    order: "detected_at.desc",
+    limit: "1",
+  });
+  const event = eventResult.ok && Array.isArray(eventResult.data) ? readRecord(eventResult.data[0]) : null;
+  if (!event) return null;
+
+  const analysisResult = await supabaseSelect("event_analysis", {
+    select: "*",
+    event_id: `eq.${stringValue(event.id)}`,
+    limit: "1",
+  });
+  const analysis = analysisResult.ok && Array.isArray(analysisResult.data) ? readRecord(analysisResult.data[0]) : null;
+  const metadata = readRecord(event.metadata) || {};
+
+  return {
+    event_id: stringValue(event.id) || null,
+    event_type: stringValue(event.event_type) || null,
+    score: numberValue(event.score),
+    delivery_level: stringValue(event.delivery_level) || null,
+    signal: stringValue(event.signal) || null,
+    event_title: stringValue(event.event_title) || stringValue(event.title) || null,
+    quick_take: stringValue(event.quick_take) || stringValue(analysis?.quick_take) || null,
+    summary: stringValue(event.summary) || stringValue(analysis?.summary) || null,
+    key_evidence: readStringArray(analysis?.key_evidence).slice(0, 6),
+    what_to_watch_next: readStringArray(analysis?.what_to_watch_next).slice(0, 6),
+    display_payload: readRecord(metadata.display_payload),
+    transaction_fingerprint: readRecord(metadata.transaction_fingerprint),
+  };
+}
+
+async function fetchExistingCurrentReportEventContext(rawItemId: string) {
+  if (!rawItemId) return null;
+
+  const eventResult = await supabaseSelect("events", {
+    select: "*",
+    source_group: "eq.filings",
+    raw_item_id: `eq.${rawItemId}`,
+    order: "detected_at.desc",
+    limit: "1",
+  });
+  const event = eventResult.ok && Array.isArray(eventResult.data) ? readRecord(eventResult.data[0]) : null;
+  if (!event) return null;
+
+  const analysisResult = await supabaseSelect("event_analysis", {
+    select: "*",
+    event_id: `eq.${stringValue(event.id)}`,
+    limit: "1",
+  });
+  const analysis = analysisResult.ok && Array.isArray(analysisResult.data) ? readRecord(analysisResult.data[0]) : null;
+  const metadata = readRecord(event.metadata) || {};
+
+  return {
+    event_id: stringValue(event.id) || null,
+    event_type: stringValue(event.event_type) || null,
+    score: numberValue(event.score),
+    delivery_level: stringValue(event.delivery_level) || null,
+    signal: stringValue(event.signal) || null,
+    event_title: stringValue(event.event_title) || stringValue(event.title) || null,
+    quick_take: stringValue(event.quick_take) || stringValue(analysis?.quick_take) || null,
+    summary: stringValue(event.summary) || stringValue(analysis?.summary) || null,
+    key_evidence: readStringArray(analysis?.key_evidence).slice(0, 6),
+    display_payload: readRecord(metadata.display_payload),
+  };
+}
+
+function readCurrentReportParserOutput(input: SecFilingAnalysisInput) {
+  const filingPackage = readRecord(input.filing_package);
+  const hardParsers = readRecord(filingPackage?.hard_parsers);
+  return readRecord(hardParsers?.["8k-6k"]);
+}
+
+function isCurrentReportParentCandidate(row: RawItemRow) {
+  const formType = readRawFormType(row);
+  return normalizeCurrentReportFamily(formType) !== null;
+}
+
+function normalizeCurrentReportFamily(formType: string) {
+  const normalized = formType.toUpperCase().replace(/\s+/g, "");
+  if (normalized === "8-K" || normalized === "8-K/A") return "8-K";
+  if (normalized === "6-K" || normalized === "6-K/A") return "6-K";
+  return null;
+}
+
+function isCurrentReportAmendmentForm(formType: string) {
+  const normalized = formType.toUpperCase().replace(/\s+/g, "");
+  return normalized === "8-K/A" || normalized === "6-K/A";
+}
+
+function isSecAmendmentFormForParentContext(formType: string) {
+  const normalized = normalizeSecFormForParentContext(formType);
+  return normalized.endsWith("/A") || normalized === "S-8 POS";
+}
+
+function normalizeGenericParentFormFamily(formType: string) {
+  const normalized = normalizeSecFormForParentContext(formType);
+  if (!normalized) return "";
+  if (normalized === "S-8 POS") return "S-8";
+  return normalized.replace(/\/A$/, "");
+}
+
+function normalizeSecFormForParentContext(formType: string) {
+  return stringValue(formType)
+    .toUpperCase()
+    .replace(/^FORM\s+/, "")
+    .replace(/^SCHEDULE\s+/, "SC ")
+    .replace(/^SC\s+13E-3/, "SC 13E3")
+    .replace(/\s*\/\s*A$/, "/A")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractExplicitParentAccessionForAmendment(input: SecFilingAnalysisInput, rawItem: RawItemRow) {
+  const currentAccession = readRawAccession(rawItem);
+  const filingPackage = readRecord(input.filing_package) || {};
+  const hardParsers = readRecord(filingPackage.hard_parsers) || {};
+  const parserText = Object.values(hardParsers)
+    .map((item) => JSON.stringify(readRecord(item) || {}))
+    .join("\n")
+    .slice(0, 80_000);
+  const rawPayload = readRecord(rawItem.raw_payload) || {};
+  const metadata = readRecord(rawItem.metadata) || {};
+  const text = [
+    rawItem.title,
+    rawItem.analysis_text,
+    rawPayload.previous_accession_number,
+    rawPayload.parent_accession_number,
+    rawPayload.parentAccessionNumber,
+    metadata.previous_accession_number,
+    metadata.parent_accession_number,
+    metadata.parentAccessionNumber,
+    parserText,
+  ]
+    .map(stringValue)
+    .filter(Boolean)
+    .join("\n")
+    .slice(0, 180_000);
+
+  const accessions = uniqueStrings([...text.matchAll(/\b\d{10}-\d{2}-\d{6}\b/g)].map((match) => match[0]));
+  return accessions.find((accession) => accession !== currentAccession) || "";
+}
+
+function extractExplicitParentAccessionFromRawItem(rawItem: RawItemRow) {
+  const currentAccession = readRawAccession(rawItem);
+  const rawPayload = readRecord(rawItem.raw_payload) || {};
+  const metadata = readRecord(rawItem.metadata) || {};
+  const text = [
+    rawItem.title,
+    rawItem.analysis_text,
+    rawPayload.previous_accession_number,
+    rawPayload.previousAccessionNumber,
+    rawPayload.parent_accession_number,
+    rawPayload.parentAccessionNumber,
+    metadata.previous_accession_number,
+    metadata.previousAccessionNumber,
+    metadata.parent_accession_number,
+    metadata.parentAccessionNumber,
+  ]
+    .map(stringValue)
+    .filter(Boolean)
+    .join("\n")
+    .slice(0, 80_000);
+  const accessions = uniqueStrings([...text.matchAll(/\b\d{10}-\d{2}-\d{6}\b/g)].map((match) => match[0]));
+  return accessions.find((accession) => accession !== currentAccession) || "";
+}
+
+function readCurrentReportItemNumbers(parserOutput: Record<string, unknown>) {
+  const facts = readRecord(parserOutput.facts);
+  return readRecordArray(facts?.items)
+    .map((item) => stringValue(item.item))
+    .filter(Boolean)
+    .slice(0, 12);
+}
+
+function readCurrentReportExhibitNumbers(parserOutput: Record<string, unknown>) {
+  const facts = readRecord(parserOutput.facts);
+  const extracted = readRecord(facts?.extracted);
+  const exhibitFacts = readRecord(extracted?.exhibitFacts);
+  return [
+    ...readRecordArray(exhibitFacts?.referencedExhibits).map((item) => stringValue(item.exhibitNumber)),
+    ...readRecordArray(exhibitFacts?.documentExhibits).map((item) => stringValue(item.exhibitNumber)),
+  ]
+    .filter(Boolean)
+    .slice(0, 20);
+}
+
+function countCurrentReportTextOverlap(row: RawItemRow, needles: string[]) {
+  if (!needles.length) return 0;
+  const text = normalizeForCurrentReportMatch(
+    [
+      row.title,
+      row.analysis_text,
+      ...readRecordArray(readRecord(row.raw_payload)?.documents).flatMap((document) => [
+        document.type,
+        document.description,
+        document.filename,
+      ]),
+    ]
+      .map(stringValue)
+      .filter(Boolean)
+      .join(" "),
+  );
+  return needles.filter((needle) => text.includes(normalizeForCurrentReportMatch(needle))).length;
+}
+
+function compactParentDisplayPayload(value: unknown) {
+  const displayPayload = readRecord(value);
+  if (!displayPayload) return null;
+
+  return {
+    display_type: stringValue(displayPayload.display_type) || "generic",
+    data: compactParentDisplayPayloadData(readRecord(displayPayload.data) || {}),
+    evidence: readStringArray(displayPayload.evidence).slice(0, 6),
+    notes: readStringArray(displayPayload.notes).slice(0, 6),
+  };
+}
+
+function compactParentDisplayPayloadData(data: Record<string, unknown>) {
+  const compact: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (key === "selected_source_snippets") {
+      compact[key] = readStringArray(value).slice(0, 8);
+    } else if (key === "attachment_inventory") {
+      compact[key] = readRecordArray(value).map(compactSourceInventoryRecord).slice(0, 12);
+    } else if (key === "selected_tables") {
+      compact[key] = readRecordArray(value).slice(0, 5);
+    } else if (typeof value === "string") {
+      compact[key] = truncateCompactContextText(value, 800);
+    } else {
+      compact[key] = value;
+    }
+  }
+  return compact;
+}
+
+function compactRawDocumentInventory(rawPayload: Record<string, unknown>) {
+  return readRecordArray(rawPayload.documents).map(compactSourceInventoryRecord);
+}
+
+function compactSourceInventoryRecord(item: Record<string, unknown>) {
+  return {
+    exhibitNumber: stringValue(item.exhibitNumber) || null,
+    type: stringValue(item.type) || null,
+    description: truncateCompactContextText(stringValue(item.description), 240) || null,
+    filename: stringValue(item.filename) || null,
+    textAvailable:
+      typeof item.textAvailable === "boolean"
+        ? item.textAvailable
+        : typeof item.text_char_count === "number" || typeof item.textCharCount === "number",
+    textCharCount: numberValue(item.textCharCount) ?? numberValue(item.text_char_count),
+    textTruncated: item.textTruncated === true || item.text_truncated === true,
+  };
+}
+
+function dedupeRawRows(rows: RawItemRow[]) {
+  const seen = new Set<string>();
+  const deduped: RawItemRow[] = [];
+  for (const row of rows) {
+    const key = stringValue(row.id) || readRawAccession(row);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(row);
+  }
+  return deduped;
+}
+
+function readRawAccessionFromParser(parserOutput: Record<string, unknown>) {
+  return stringValue(parserOutput.accessionNumber) || stringValue(parserOutput.accession_number);
+}
+
+function readS8PriorRegistrationFileNumbers(input: SecFilingAnalysisInput) {
+  const filingPackage = readRecord(input.filing_package);
+  const hardParsers = readRecord(filingPackage?.hard_parsers);
+  const s8 = readRecord(hardParsers?.s8);
+  const facts = readRecord(s8?.facts);
+  const statements = readRecordArray(facts?.priorRegistrationStatements);
+  return uniqueStrings(
+    statements
+      .map((statement) => normalizeS8RegistrationFileNumber(stringValue(statement.fileNumber)))
+      .filter(Boolean),
+  );
+}
+
+function extractS8RegistrationFileNumbersFromRow(row: RawItemRow) {
+  const rawPayload = readRecord(row.raw_payload) || {};
+  const text = [
+    stringValue(rawPayload.file_number),
+    stringValue(rawPayload.fileNumber),
+    stringValue(rawPayload.primary_document_html),
+    stringValue(row.body_text),
+    stringValue(row.analysis_text),
+  ]
+    .filter(Boolean)
+    .join("\n")
+    .slice(0, 250_000);
+  const matches = text.match(/\b333-\d{3,}\b/g) || [];
+  return uniqueStrings(matches.map(normalizeS8RegistrationFileNumber).filter(Boolean));
+}
+
+function intersectStrings(left: string[], right: string[]) {
+  const rightSet = new Set(right);
+  return left.filter((value) => rightSet.has(value));
+}
+
+function normalizeComparableName(value: string) {
+  return stringValue(value)
+    .toUpperCase()
+    .replace(/&/g, " AND ")
+    .replace(/[^A-Z0-9]+/g, " ")
+    .replace(/\b(?:THE|INC|INCORPORATED|CORP|CORPORATION|CO|COMPANY|LLC|L L C|LTD|LIMITED|LP|L P|PLC|AG|SA|N V)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeS8RegistrationFileNumber(value: string) {
+  const match = stringValue(value).match(/333-\d+/i);
+  return match ? match[0].toUpperCase() : "";
+}
+
+function readRawCik(row: RawItemRow) {
+  const rawPayload = readRecord(row.raw_payload);
+  const metadata = readRecord(row.metadata);
+  return stringValue(rawPayload?.cik) || stringValue(metadata?.cik);
+}
+
+function readRawFiledDate(row: RawItemRow) {
+  const rawPayload = readRecord(row.raw_payload);
+  return stringValue(rawPayload?.filing_date) || stringValue(row.published_at);
+}
+
+function normalizeDateOnly(value: string) {
+  if (!value) return "";
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) return "";
+  return new Date(parsed).toISOString().slice(0, 10);
+}
+
+function isSameUtcCalendarDay(leftTime: number, rightTime: number) {
+  if (!Number.isFinite(leftTime) || !Number.isFinite(rightTime)) return false;
+  return new Date(leftTime).toISOString().slice(0, 10) === new Date(rightTime).toISOString().slice(0, 10);
+}
+
+function normalizeForCurrentReportMatch(value: string) {
+  return value.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function readRecordArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item))
+    : [];
+}
+
+function truncateCompactContextText(value: string, maxChars: number) {
+  const text = stringValue(value).replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  return text.length > maxChars ? `${text.slice(0, maxChars - 3).trim()}...` : text;
+}
+
 function rawRowToS3ParseInput(row: RawItemRow) {
   return {
     rawItemId: stringValue(row.id),
@@ -1516,6 +6492,18 @@ function readRawTicker(row: RawItemRow) {
   return (stringValue(rawPayload?.ticker) || stringValue(metadata?.ticker)).toUpperCase();
 }
 
+function readRawCompanyName(row: RawItemRow) {
+  const rawPayload = readRecord(row.raw_payload);
+  const metadata = readRecord(row.metadata);
+  return (
+    stringValue(rawPayload?.company_name) ||
+    stringValue(rawPayload?.companyName) ||
+    stringValue(metadata?.company_name) ||
+    stringValue(metadata?.companyName) ||
+    stringValue(metadata?.issuer)
+  );
+}
+
 function readRawAccession(row: RawItemRow) {
   const rawPayload = readRecord(row.raw_payload);
   return stringValue(rawPayload?.accession_number) || stringValue(row.source_unique_id);
@@ -1524,7 +6512,32 @@ function readRawAccession(row: RawItemRow) {
 function readRawFormType(row: RawItemRow) {
   const rawPayload = readRecord(row.raw_payload);
   const metadata = readRecord(row.metadata);
-  return stringValue(rawPayload?.form_type) || stringValue(metadata?.form_type);
+  const storedFormType = stringValue(rawPayload?.form_type) || stringValue(metadata?.form_type);
+  const documents = readRecordArray(rawPayload?.documents);
+  const primaryDocumentType =
+    stringValue(documents.find((document) => Boolean(document.isPrimary))?.type) ||
+    stringValue(documents[0]?.type);
+  return chooseRawRowFormType(storedFormType, primaryDocumentType);
+}
+
+function chooseRawRowFormType(storedFormType: string, primaryDocumentType: string) {
+  const stored = normalizeRawRowFormType(storedFormType);
+  const primary = normalizeRawRowFormType(primaryDocumentType);
+  if (!stored) return primary;
+  if (!primary) return stored;
+  if (stored === primary) return stored;
+
+  const storedBase = stored.replace(/\/A$/, "");
+  const primaryBase = primary.replace(/\/A$/, "");
+  if (primary.endsWith("/A") && storedBase === primaryBase) {
+    return primary;
+  }
+
+  return stored;
+}
+
+function normalizeRawRowFormType(value: unknown) {
+  return stringValue(value).toUpperCase().replace(/\s+/g, " ");
 }
 
 function readResponseOutputText(body: OpenAIResponseBody | null) {

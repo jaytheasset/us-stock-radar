@@ -1,0 +1,9 @@
+{
+  "name": "f3-foreign-effective",
+  "filing": {
+    "formType": "EFFECT",
+    "accessionNumber": "9999999995-23-001299",
+    "indexRegistrationForm": "F-3",
+    "text": "<SEC-DOCUMENT>9999999995-23-001299.txt : 20230505\n<SEC-HEADER>9999999995-23-001299.hdr.sgml : 20230505\n<ACCEPTANCE-DATETIME>20230505001606\nACCESSION NUMBER:\t\t9999999995-23-001299\nCONFORMED SUBMISSION TYPE:\tEFFECT\nPUBLIC DOCUMENT COUNT:\t\t1\nFILED AS OF DATE:\t\t20230504\nDATE AS OF CHANGE:\t\t20230505\nEFFECTIVENESS DATE:\t\t20230504\n\nFILER:\n\n\tCOMPANY DATA:\t\n\t\tCOMPANY CONFORMED NAME:\t\t\tCAMTEK LTD\n\t\tCENTRAL INDEX KEY:\t\t\t0001109138\n\t\tSTANDARD INDUSTRIAL CLASSIFICATION:\tOPTICAL INSTRUMENTS & LENSES [3827]\n\t\tIRS NUMBER:\t\t\t\t000000000\n\t\tSTATE OF INCORPORATION:\t\t\tL3\n\t\tFISCAL YEAR END:\t\t\t1231\n\n\tFILING VALUES:\n\t\tFORM TYPE:\t\tEFFECT\n\t\tSEC ACT:\t\t1933 Act\n\t\tSEC FILE NUMBER:\t333-271348\n\t\tFILM NUMBER:\t\t23891043\n</SEC-HEADER>\n<DOCUMENT>\n<TYPE>EFFECT\n<SEQUENCE>1\n<FILENAME>primary_doc.xml\n<TEXT>\n<XML>\n<?xml version=\"1.0\"?>\n<edgarSubmission>\n    <schemaVersion>X0101</schemaVersion>\n    <submissionType>EFFECT</submissionType>\n    <act>33</act>\n    <testOrLive>LIVE</testOrLive>\n    <effectiveData>\n        <finalEffectivenessDispDate>2023-05-04</finalEffectivenessDispDate>\n        <finalEffectivenessDispTime>10:00:00</finalEffectivenessDispTime>\n        <form>F-3</form>\n        <filer>\n            <cik>0001109138</cik>\n            <entityName>CAMTEK LTD</entityName>\n            <fileNumber>333-271348</fileNumber>\n        </filer>\n    </effectiveData>\n</edgarSubmission>\n</XML>\n</TEXT>\n</DOCUMENT>\n</SEC-DOCUMENT>"
+  }
+}

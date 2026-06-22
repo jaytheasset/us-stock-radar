@@ -1,0 +1,13 @@
+{
+  "fixture_name": "director-nominee-withdrawal-supplement",
+  "input": {
+    "formType": "DEFA14A",
+    "accessionNumber": "0001000007-26-000808",
+    "companyName": "Xponential Fitness",
+    "primaryTicker": {
+      "ticker": "XPOF",
+      "exchange": "NYSE"
+    },
+    "filingText": "UNITED STATES\nSECURITIES AND EXCHANGE COMMISSION\nSCHEDULE 14A\n(Amendment No. 1)\nFiled by the Registrant ☒\nFiled by a Party other than the Registrant ☐\nCheck the appropriate box:\n☐ Preliminary Proxy Statement\n☒ Definitive Additional Materials\nXPONENTIAL FITNESS, INC.\nMay 17, 2026\nDear Stockholders:\nThe Board of Directors has determined that Mr. Geisler will no longer be re-nominated to serve as a Class III director in connection with the Company's 2026 Annual Meeting of Stockholders.\nWe are providing additional information in this Supplement to the Company's Proxy Statement filed with the Securities and Exchange Commission on April 18, 2026, as well as an amended notice of Annual Meeting and amended proxy card, to remove Mr. Geisler as a director nominee while continuing to allow stockholders to vote for Mr. Mark Grabowski as the remaining Class III director nominee pursuant to Proposal 1, Election of Directors.\nIf you have already voted and do not submit new voting instructions, votes cast with respect to Mr. Geisler will be disregarded and will not be counted.\nThe Proxy Statement is hereby supplemented and amended as follows:\nAll references to Mr. Geisler standing for election as a director of the Company are deleted.\nAll references to two Class III directors standing for election are replaced with one Class III director."
+  }
+}

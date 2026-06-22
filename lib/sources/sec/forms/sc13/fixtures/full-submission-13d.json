@@ -1,0 +1,26 @@
+{
+  "case_id": "full-submission-13d",
+  "description": "Full SEC submission text with primary SC 13D document and separate EX-99 attachment block.",
+  "filing": {
+    "formType": "SC 13D",
+    "accessionNumber": "0000000000-26-013018",
+    "issuerName": "Submission Bridge Inc.",
+    "filedAt": "2026-05-04",
+    "text": "<SEC-DOCUMENT>0000000000-26-013018.txt\n<DOCUMENT>\n<TYPE>SC 13D\n<SEQUENCE>1\n<FILENAME>primary.htm\n<DESCRIPTION>SCHEDULE 13D\n<TEXT>\n<html><body>SCHEDULE 13D<br>Submission Bridge Inc.<br>(Name of Issuer)<br>Common Stock<br>(Title of Class of Securities)<br>780000118<br>(CUSIP Number)<br>Name of Reporting Person<br>Submission Fund LP<br>Aggregate Amount Beneficially Owned by Each Reporting Person<br>4,400,000<br>Percent of Class Represented by Amount in Row (9)<br>10.0%<br>Item 4. Purpose of Transaction<br>Primary Item 4 text only.<br>Item 6. Contracts, Arrangements, Understandings or Relationships with Respect to Securities of the Issuer<br>Primary Item 6 references a Support Agreement.<br>Item 7. Material to be Filed as Exhibits<br>Exhibit 99.1 - Support Agreement<br></body></html>\n</TEXT>\n</DOCUMENT>\n<DOCUMENT>\n<TYPE>EX-99.1\n<SEQUENCE>2\n<FILENAME>ex991.htm\n<DESCRIPTION>Support Agreement\n<TEXT>\n<html><body>Attachment Item 4 text should not become primary item text. EX-99 attachment legal text.</body></html>\n</TEXT>\n</DOCUMENT>\n</SEC-DOCUMENT>"
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "insider_ownership",
+    "deterministic": false,
+    "score_band": "feed",
+    "extracted_facts": {
+      "sourceFlavor": "full_submission",
+      "reportingPersons": [
+        "Submission Fund LP"
+      ],
+      "scheduleType": "13D",
+      "sharesBeneficiallyOwned": 4400000,
+      "percentOwned": 10
+    }
+  }
+}

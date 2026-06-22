@@ -1,0 +1,77 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_form25_parser_v1",
+    "parserGroup": "form25",
+    "formType": "Form 25 / 25-NSE",
+    "accessionNumber": "0001354457-24-000661",
+    "isSupported": true,
+    "summary": "VBI Vaccines Inc/BC filed 25-NSE to remove Ordinary shares from Nasdaq Stock Market LLC; raw reason category: listing_standards_failure.",
+    "facts": {
+      "source_form_type": "25-NSE",
+      "removed_security": "Ordinary shares",
+      "security_category": "ordinary_shares",
+      "removal_reason_category": "listing_standards_failure",
+      "common_equity_affected": true,
+      "deterministic_case": null,
+      "analysis_required": true,
+      "analysis_reasons": ["common_equity_delisting_possible", "listing_standards_failure"]
+    },
+    "signals": ["analysis_required", "common_equity_delisting_possible", "listing_standards_failure", "common_equity_affected"],
+    "calendarItems": [],
+    "warnings": ["common_equity_delisting_possible", "listing_standards_failure"],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "listing_risk",
+    "event_title": "VBI ordinary shares removed from Nasdaq listing",
+    "primary_ticker": {
+      "ticker": null,
+      "exchange": "Nasdaq"
+    },
+    "tickers": [],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 82,
+    "score_reason": "Common equity delisting is material.",
+    "signal": "bearish",
+    "quick_take": "Nasdaq removed VBI ordinary shares after listing-rule failures.",
+    "summary": "Nasdaq filed Form 25-NSE to remove VBI ordinary shares from listing. The reason cites failure to qualify under Nasdaq listing rules.",
+    "why_it_matters": "Common equity delisting can reduce liquidity and investor access.",
+    "bullish_points": [],
+    "bearish_points": ["Ordinary shares are affected", "Nasdaq listing rules were cited"],
+    "key_evidence": ["Nasdaq determined the securities no longer qualified for listing"],
+    "what_to_watch_next": ["OTC trading status", "Any appeal or relisting plan"],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "primary_ticker": null,
+      "primary_ticker_exchange": null,
+      "removed_security": "Ordinary shares",
+      "exchange": "Nasdaq Stock Market LLC",
+      "removal_reason": "listing_standards_failure",
+      "common_equity_affected": true,
+      "delisting_or_removal_date": "2024-09-16"
+    },
+    "evidence": ["Nasdaq determined the company no longer qualified for listing."],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": []
+  }
+}

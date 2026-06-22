@@ -1,0 +1,156 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_tender_parser_v1",
+    "parserGroup": "tender",
+    "formType": "Tender / CB / 13E3",
+    "accessionNumber": "0003333333-26-000030",
+    "isSupported": true,
+    "summary": "SC 13E3 going private 13e3 for Harbor Foods Group Inc. at $11.25 per share.",
+    "facts": {
+      "sec_form_type": "SC 13E3",
+      "tender_case": "going_private_13e3",
+      "going_private": true,
+      "issuer": {
+        "name": "Harbor Foods Group Inc.",
+        "ticker": "HBRF",
+        "exchange": "NASDAQ"
+      },
+      "cash_price_per_share": {
+        "price": 11.25,
+        "currency": "USD"
+      },
+      "board_recommendation": "special_committee_fairness",
+      "conditions": ["majority_of_unaffiliated", "customary_conditions"],
+      "legal_risk_signal": "appraisal rights",
+      "route_hint": {
+        "event_type_candidate": "strategic_transaction",
+        "score_candidate": 88,
+        "llm_needed": true
+      }
+    },
+    "signals": [
+      {
+        "type": "tender_family",
+        "value": "going_private_13e3"
+      },
+      {
+        "type": "going_private",
+        "value": true
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {
+      "input_form_type": "SC 13E3",
+      "raw_item_id": "fixture-tender-003"
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "strategic_transaction",
+    "event_title": "Harbor Foods files going-private Schedule 13E-3",
+    "primary_ticker": {
+      "ticker": "HBRF",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      {
+        "ticker": "HBRF",
+        "exchange": "NASDAQ"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 88,
+    "score_reason": "A Schedule 13E-3 going-private transaction for unaffiliated holders is an alert-level strategic transaction.",
+    "signal": "volatile",
+    "quick_take": "Harbor Foods' controller group proposes to cash out unaffiliated holders at $11.25 per share.",
+    "summary": "The filing describes a Rule 13e-3 going-private transaction with cash consideration, special committee fairness language, unaffiliated-holder approval, and appraisal rights.",
+    "why_it_matters": "Going-private filings can materially affect minority holders because price, fairness process, approval mechanics, and appraisal rights drive the investment outcome.",
+    "bullish_points": [
+      "Cash price is above the fixture previous close.",
+      "Special committee fairness language is present."
+    ],
+    "bearish_points": [
+      "Minority holders face a take-private process with limited post-closing upside.",
+      "Completion depends on unaffiliated-holder approval and conditions."
+    ],
+    "key_evidence": [
+      "Rule 13e-3 going private transaction.",
+      "$11.25 per share in cash.",
+      "Subject to approval by a majority of unaffiliated shares."
+    ],
+    "what_to_watch_next": [
+      "Unaffiliated-holder approval result.",
+      "Fairness materials and any appraisal-related litigation."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "offer_type": "going_private_13e3",
+      "cash_price_per_share": 11.25,
+      "minority_holder_approval": true,
+      "special_committee_fairness": true,
+      "appraisal_rights": true
+    },
+    "evidence": [
+      "Rule 13e-3 going private transaction",
+      "$11.25 per share in cash",
+      "approval by a majority of unaffiliated shares"
+    ],
+    "notes": [
+      "Going-private fairness, unaffiliated-holder approval, and appraisal rights likely need a dedicated detail view."
+    ]
+  },
+  "transaction_fingerprint": {
+    "transaction_family": "going_private",
+    "transaction_type": "going_private_cash_out",
+    "target_company": "Harbor Foods Group Inc.",
+    "target_ticker": "HBRF",
+    "buyer_parent": "",
+    "buyer_group": [],
+    "offeror": "",
+    "filing_persons": ["Harbor Foods Group Inc."],
+    "cash_price": "$11.25 per share",
+    "exchange_ratio": "",
+    "consideration_summary": "$11.25 per share in cash",
+    "offer_size": "",
+    "securities_sought": "unaffiliated holders",
+    "minimum_condition": "approval by a majority of unaffiliated shares",
+    "financing_condition": "",
+    "offer_expiration": "",
+    "final_result_date": "",
+    "merger_agreement_date": "",
+    "expected_closing": "",
+    "amendment_number": "",
+    "amendment_change_type": "unknown",
+    "material_terms_changed": [],
+    "source_forms": ["SC 13E3"],
+    "source_accession": "0003333333-26-000030",
+    "source_evidence": [
+      "Rule 13e-3 going private transaction.",
+      "$11.25 per share in cash.",
+      "Subject to approval by a majority of unaffiliated shares."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": true,
+    "market_context_reason": "Cash-out price should be compared with fixture price or previous_close and market cap.",
+    "market_context_fields": ["price", "previous_close", "market_cap", "shares_outstanding"],
+    "special_ui_needed": true,
+    "special_ui_reason": "Schedule 13E-3 cases need going-private consideration, fairness process, approval, and appraisal-rights fields.",
+    "integration_notes": [
+      "No special UI is implemented in this room; candidate fields are only recorded for handoff."
+    ]
+  }
+}

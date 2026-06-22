@@ -1,0 +1,19 @@
+{
+  "fixture_name": "special-meeting-merger-vote",
+  "input": {
+    "formType": "DEFM14A",
+    "accessionNumber": "0001000001-26-000202",
+    "companyName": "Northstar Robotics",
+    "primaryTicker": {
+      "ticker": "NSRB",
+      "exchange": "NASDAQ"
+    },
+    "market_context": {
+      "price": 14.2,
+      "previous_close": 13.8,
+      "market_cap": 420000000,
+      "shares_outstanding": 29500000
+    },
+    "filingText": "NORTHSTAR ROBOTICS Special Meeting Proxy Statement\nThe Special Meeting of Shareholders will be held on July 15, 2026.\nThe record date for the special meeting is May 29, 2026.\nProposal 1: Adoption of the merger agreement with Orion Automation Holdings for $18.50 in cash per share. Board recommendation: FOR.\nVote required: affirmative vote of a majority of the outstanding shares entitled to vote.\nIf the merger is completed, Northstar Robotics common stock will cease trading on Nasdaq."
+  }
+}

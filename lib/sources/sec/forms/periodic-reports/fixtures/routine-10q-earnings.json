@@ -1,0 +1,31 @@
+{
+  "name": "routine-10q-earnings",
+  "description": "Plain 10-Q where broad quarterly operating results are the dominant event.",
+  "filing": {
+    "rawItemId": "sec-fixture-periodic-001",
+    "sourceUniqueId": "0001111111-26-000010",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1111111/000111111126000010/arbt-20260331.htm",
+    "title": "ARBT 10-Q quarterly report",
+    "publishedAt": "2026-05-08T12:00:00Z",
+    "rawPayload": {
+      "form_type": "10-Q",
+      "accession_number": "0001111111-26-000010",
+      "company_name": "Acme Robotics Inc.",
+      "ticker": "ARBT",
+      "exchange": "Nasdaq Global Market",
+      "documents": [
+        {
+          "type": "10-Q",
+          "description": "Quarterly report",
+          "isPrimary": true,
+          "textCharCount": 1280,
+          "textTruncated": false
+        }
+      ]
+    },
+    "bodyText": "FORM 10-Q\nAcme Robotics Inc. (Exact name of registrant as specified in its charter)\nFor the quarterly period ended March 31, 2026\nTrading Symbol(s) ARBT Nasdaq Global Market\nManagement's Discussion and Analysis\nRevenue was $120.4 million for the three months ended March 31, 2026 compared to $112.0 million for the prior-year period. Net income was $12.3 million compared with net income of $6.8 million in the prior-year period. Cash and cash equivalents were $220.0 million at March 31, 2026. Management attributed the improvement to higher gross margin and disciplined operating expense growth."
+  },
+  "market_context": null,
+  "expected_event_type": "earnings",
+  "expected_score_band": "feed"
+}

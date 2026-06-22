@@ -1,0 +1,37 @@
+{
+  "id": "exchange-offer-dilution",
+  "description": "S-4 exchange offer that can materially increase common shares outstanding.",
+  "formType": "S-4",
+  "accessionNumber": "0003333333-26-000303",
+  "filingDate": "2026-04-16",
+  "companyName": "Cobalt Therapeutics Inc.",
+  "primaryTicker": {
+    "ticker": "CBLT",
+    "exchange": "NASDAQ"
+  },
+  "participants": [
+    {
+      "name": "Cobalt Therapeutics Inc.",
+      "ticker": "CBLT",
+      "exchange": "NASDAQ",
+      "role": "registrant"
+    }
+  ],
+  "filingText": "Cobalt Therapeutics Inc. is filing this registration statement on Form S-4 for an exchange offer. Cobalt is offering holders of its Series B preferred stock the opportunity to exchange each preferred share for common stock. The company registers up to 32,000,000 shares of common stock for issuance in the exchange offer. If the exchange offer is fully subscribed, common shares outstanding would increase from approximately 41,000,000 shares to approximately 73,000,000 shares. The exchange offer may reduce preferred dividends but will dilute existing common stockholders.",
+  "attachments": [
+    {
+      "type": "offer-to-exchange",
+      "description": "Offer to exchange preferred stock for common stock"
+    }
+  ],
+  "market_context": {
+    "price": 4.25,
+    "previous_close": 4.4,
+    "market_cap": 174250000,
+    "shares_outstanding": 41000000,
+    "public_float": 35500000,
+    "volume": 950000,
+    "avg_volume": 640000
+  },
+  "parentFilingContext": null
+}

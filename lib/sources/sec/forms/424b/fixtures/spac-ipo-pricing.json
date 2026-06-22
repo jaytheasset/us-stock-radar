@@ -1,0 +1,22 @@
+{
+  "name": "spac-ipo-pricing",
+  "formType": "424B4",
+  "accessionNumber": "0000000000-26-000121",
+  "issuer": {
+    "name": "Pioneer Acquisition Corp.",
+    "ticker": "PIONU",
+    "exchange": "NASDAQ"
+  },
+  "filingText": "Filed Pursuant to Rule 424(b)(4) Prospectus Pioneer Acquisition Corp. is a blank check company. Initial public offering of 25,000,000 units at an offering price of $10.00 per unit. Each unit consists of one share of Class A common stock and one-half of one redeemable warrant. The units have been approved for listing on the Nasdaq Global Market under the symbol PIONU and are expected to begin trading on June 4, 2026. The proceeds will be deposited into a trust account.",
+  "expected_event_type": "ipo_listing",
+  "expected_score_band": "feed",
+  "fixture_assertions": {
+    "deterministic": false,
+    "expected_router_preliminary_action": "analysis_llm",
+    "important_facts": {
+      "ipoListing": true,
+      "ipoKind": "spac",
+      "unitsOffered": 25000000
+    }
+  }
+}

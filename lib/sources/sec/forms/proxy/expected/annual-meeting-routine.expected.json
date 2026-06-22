@@ -1,0 +1,180 @@
+{
+  "parser_output": {
+    "parserVersion": "proxy-parser-v1",
+    "parserGroup": "proxy",
+    "formType": "Proxy",
+    "accessionNumber": "0001000000-26-000101",
+    "isSupported": true,
+    "summary": "Annual proxy for Acme Components covering 3 proposals for a meeting on June 12, 2026.",
+    "facts": {
+      "companyName": "Acme Components",
+      "primaryTicker": {
+        "ticker": "ACMX",
+        "exchange": "NASDAQ"
+      },
+      "secFormType": "DEF 14A",
+      "proxyType": "annual",
+      "meetingDate": "June 12, 2026",
+      "recordDate": "April 30, 2026",
+      "proposalCount": 3,
+      "proposals": [
+        {
+          "id": "1",
+          "title": "Election of three directors",
+          "category": "director_election",
+          "recommendation": "FOR",
+          "sourceText": "Proposal 1: Election of three directors. Board recommendation: FOR.",
+          "isShareholderProposal": false
+        },
+        {
+          "id": "2",
+          "title": "Ratification of independent registered public accounting firm",
+          "category": "auditor_ratification",
+          "recommendation": "FOR",
+          "sourceText": "Proposal 2: Ratification of independent registered public accounting firm. Board recommendation: FOR.",
+          "isShareholderProposal": false
+        },
+        {
+          "id": "3",
+          "title": "Advisory vote to approve executive compensation",
+          "category": "compensation",
+          "recommendation": "FOR",
+          "sourceText": "Proposal 3: Advisory vote to approve executive compensation. Board recommendation: FOR.",
+          "isShareholderProposal": false
+        }
+      ],
+      "ownership": {
+        "maxBeneficialOwnershipPercent": null,
+        "holder": null,
+        "sourceText": null
+      },
+      "dilution": {
+        "hasEquityPlanVote": false,
+        "sharesRequested": null,
+        "percentOfOutstanding": null,
+        "proposalIds": []
+      },
+      "transaction": {
+        "hasTransactionVote": false,
+        "consideration": null,
+        "voteRequired": null,
+        "proposalIds": []
+      },
+      "legal": {
+        "hasLegalRiskProposal": false,
+        "proposalIds": [],
+        "topics": []
+      },
+      "deterministic": {
+        "canFinishWithoutLlm": true,
+        "reason": "Definitive annual proxy contains only routine director, auditor, and compensation voting items.",
+        "eventType": "shareholder_vote",
+        "suggestedScore": 25
+      }
+    },
+    "signals": [
+      {
+        "name": "routine_annual_proxy",
+        "eventType": "shareholder_vote",
+        "severity": "low",
+        "evidence": "Annual proxy contains only routine director, auditor, and compensation proposals.",
+        "proposalId": null
+      }
+    ],
+    "calendarItems": [
+      {
+        "type": "shareholder_meeting",
+        "date": "June 12, 2026",
+        "description": "Acme Components annual meeting"
+      },
+      {
+        "type": "record_date",
+        "date": "April 30, 2026",
+        "description": "Record date for shareholder voting"
+      }
+    ],
+    "warnings": [],
+    "raw": {
+      "secFormType": "DEF 14A",
+      "attachmentNames": [],
+      "market_context": null
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "shareholder_vote",
+    "event_title": "Routine annual shareholder vote",
+    "primary_ticker": {
+      "ticker": "ACMX",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      {
+        "ticker": "ACMX",
+        "exchange": "NASDAQ"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 25,
+    "score_reason": "Routine annual governance vote with no extracted merger, dilution, ownership-control, legal, or financial-risk signal.",
+    "signal": "neutral",
+    "quick_take": "Routine annual proxy items; no new material market catalyst was extracted.",
+    "summary": "Acme Components filed a routine annual proxy covering director elections, auditor ratification, and advisory compensation approval.",
+    "why_it_matters": "The filing sets the voting agenda and meeting calendar, but the extracted proposals are ordinary annual-meeting matters.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [
+      "Proposal 1: Election of three directors. Board recommendation: FOR.",
+      "Proposal 2: Ratification of independent registered public accounting firm. Board recommendation: FOR.",
+      "Proposal 3: Advisory vote to approve executive compensation. Board recommendation: FOR."
+    ],
+    "what_to_watch_next": [
+      "Final voting results after the annual meeting."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "type": "shareholder_meeting",
+        "date": "June 12, 2026",
+        "description": "Acme Components annual meeting"
+      },
+      {
+        "type": "record_date",
+        "date": "April 30, 2026",
+        "description": "Record date for shareholder voting"
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "proposal_count": 3,
+      "meeting_date": "June 12, 2026",
+      "record_date": "April 30, 2026"
+    },
+    "evidence": [
+      "Annual proxy contains only routine director, auditor, and compensation proposals."
+    ],
+    "notes": [
+      "Deterministic parser-stage archive case; LLM is not needed."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Delivery level derives from score 25."
+    ]
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "parser_output": {
+    "parserVersion": "ownership-parser-v1",
+    "parserGroup": "ownership",
+    "formType": "Form 4 / 4/A, Form 144 / 144/A",
+    "accessionNumber": "0000000000-26-000406",
+    "isSupported": true,
+    "summary": "4 ownership filing for Empty Ownership Source Inc. (EOSI).",
+    "facts": {},
+    "signals": [
+      "unsupported_or_empty_document",
+      "deterministic_archive"
+    ],
+    "calendarItems": [],
+    "warnings": [
+      "No filing text was provided."
+    ],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "other",
+    "event_title": "Unsupported or empty ownership filing",
+    "primary_ticker": {
+      "ticker": "EOSI",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      "EOSI"
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 5,
+    "score_reason": "Parser could not extract supported ownership transaction facts from the provided source.",
+    "signal": "neutral",
+    "quick_take": "No supported ownership transaction facts were extracted.",
+    "summary": "The filing source did not provide extractable ownership transaction facts. Limited market impact detected. The original source is included below for reference.",
+    "why_it_matters": "The event is retained for filing history, but the current source does not support an investor-facing conclusion.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [
+      "No filing text was provided."
+    ],
+    "what_to_watch_next": [],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "warnings": [
+        "No filing text was provided."
+      ]
+    },
+    "evidence": [
+      "No filing text was provided."
+    ],
+    "notes": [
+      "Persist as a low-score archive event; do not suppress event storage."
+    ]
+  }
+}

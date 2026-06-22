@@ -1,0 +1,155 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_tender_parser_v1",
+    "parserGroup": "tender",
+    "formType": "Tender / CB / 13E3",
+    "accessionNumber": "0001111111-26-000011",
+    "isSupported": true,
+    "summary": "SC TO-I/A issuer tender offer for NovaTech Robotics Inc.",
+    "facts": {
+      "sec_form_type": "SC TO-I/A",
+      "tender_case": "issuer_tender_offer",
+      "issuer_tender": true,
+      "issuer": {
+        "name": "NovaTech Robotics Inc.",
+        "ticker": "NVT",
+        "exchange": "NASDAQ"
+      },
+      "amendment": {
+        "is_amendment": true,
+        "amendment_number": 1,
+        "limited_scope_signal_candidates": ["exhibit_only", "signature_only", "no_other_changes"],
+        "material_change_candidates": [],
+        "routine_no_change_candidate": {
+          "is_candidate": true,
+          "reason": "Amendment text limits the filing to administrative or exhibit-only changes and states the offer terms are unchanged.",
+          "source_evidence": [
+            "This Amendment No. 1 is filed solely to add Exhibit (a)(5)(ii) and update the signature page.",
+            "This Amendment No. 1 is filed solely to add Exhibit (a)(5)(ii) and update the signature page.",
+            "No other changes have been made."
+          ],
+          "changed_terms_detected": []
+        }
+      },
+      "route_hint": {
+        "route_case": "routine_amendment",
+        "analysis_bypass_candidate": false,
+        "router_must_decide_final_output": false
+      }
+    },
+    "signals": [
+      {
+        "type": "tender_family",
+        "value": "issuer_tender_offer"
+      },
+      {
+        "type": "routine_no_change_amendment_candidate",
+        "value": "routine_amendment_no_term_change"
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {
+      "input_form_type": "SC TO-I/A",
+      "raw_item_id": "fixture-tender-006"
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "other",
+    "event_title": "NovaTech files routine tender-offer amendment",
+    "primary_ticker": {
+      "ticker": "NVT",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      {
+        "ticker": "NVT",
+        "exchange": "NASDAQ"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 20,
+    "score_reason": "The amendment is exhibit/signature-only and states that all tender offer terms remain unchanged.",
+    "signal": "neutral",
+    "quick_take": "Routine tender amendment with no change to offer terms.",
+    "summary": "The filing only adds an exhibit and updates the signature page while stating that all tender offer terms remain unchanged.",
+    "why_it_matters": "No new tender economics, deadline, condition, or proration information is introduced.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [
+      "Filed solely to add Exhibit (a)(5)(ii).",
+      "Update the signature page.",
+      "All other terms of the offer remain unchanged."
+    ],
+    "what_to_watch_next": [
+      "Any later amendment that changes price, deadline, proration, or conditions."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "offer_type": "routine_amendment",
+      "changed_terms": []
+    },
+    "evidence": [
+      "solely to add Exhibit (a)(5)(ii)",
+      "All other terms of the offer remain unchanged"
+    ],
+    "notes": [
+      "Generic filing detail is enough for this low-score amendment case."
+    ]
+  },
+  "transaction_fingerprint": {
+    "transaction_family": "issuer_repurchase",
+    "transaction_type": "amendment_update",
+    "target_company": "NovaTech Robotics Inc.",
+    "target_ticker": "NVT",
+    "buyer_parent": "",
+    "buyer_group": [],
+    "offeror": "NovaTech Robotics Inc.",
+    "filing_persons": ["NovaTech Robotics Inc."],
+    "cash_price": "",
+    "exchange_ratio": "",
+    "consideration_summary": "",
+    "offer_size": "",
+    "securities_sought": "",
+    "minimum_condition": "",
+    "financing_condition": "",
+    "offer_expiration": "",
+    "final_result_date": "",
+    "merger_agreement_date": "",
+    "expected_closing": "",
+    "amendment_number": "1",
+    "amendment_change_type": "no_material_change",
+    "material_terms_changed": [],
+    "source_forms": ["SC TO-I/A"],
+    "source_accession": "0001111111-26-000011",
+    "source_evidence": [
+      "Filed solely to add Exhibit (a)(5)(ii).",
+      "Update the signature page.",
+      "All other terms of the offer remain unchanged."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Parser evidence only flags a routine no-change amendment candidate; analysis LLM still owns final score and display payload.",
+      "Parent filing context is fixture JSON only; this room does not query a live DB."
+    ]
+  }
+}

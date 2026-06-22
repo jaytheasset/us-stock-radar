@@ -1,0 +1,155 @@
+{
+  "parser_output": {
+    "parserVersion": "sc13-v1",
+    "parserGroup": "sc13",
+    "formType": "SC 13D",
+    "accessionNumber": "0000000000-26-000505",
+    "isSupported": true,
+    "summary": "StonePier Capital LP reports beneficial ownership of 15,000,000 shares (28.0%) of TinyLift Technologies Inc. Common Stock.",
+    "facts": {
+      "issuerName": "TinyLift Technologies Inc.",
+      "reportingPersons": [
+        "StonePier Capital LP",
+        "Delta Opportunity Fund LLC"
+      ],
+      "securityClass": "Common Stock",
+      "cusip": "88712T100",
+      "primaryTicker": {
+        "ticker": "TLFT",
+        "exchange": "NASDAQ"
+      },
+      "scheduleType": "13D",
+      "isAmendment": false,
+      "amendmentNumber": null,
+      "eventDate": "April 6, 2026",
+      "filingDate": "2026-04-08",
+      "sharesBeneficiallyOwned": 15000000,
+      "percentOwned": 28,
+      "previousPercentOwned": null,
+      "ownershipPercentChange": null,
+      "votingPower": {
+        "sole": 0,
+        "shared": 15000000
+      },
+      "dispositivePower": {
+        "sole": 0,
+        "shared": 15000000
+      },
+      "ownershipIntent": "active",
+      "passiveCertification": false,
+      "item4Purpose": "The Reporting Persons entered into a letter agreement to provide $20 million of bridge financing through convertible notes and warrants. The Reporting Persons may acquire additional securities, may influence control of the Issuer, and expect to participate in a strategic review and possible backstop financing.",
+      "item4HasActivistLanguage": true,
+      "strategicTransactionLanguage": false,
+      "legalRiskLanguage": false,
+      "financingLanguage": true,
+      "financingAmountUsd": 20000000,
+      "groupMembers": [
+        "StonePier Capital LP",
+        "Delta Opportunity Fund LLC"
+      ]
+    },
+    "signals": [],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "dilution_risk",
+    "event_title": "StonePier discloses 28% TinyLift stake tied to convertible bridge financing",
+    "primary_ticker": {
+      "ticker": "TLFT",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      {
+        "ticker": "TLFT",
+        "exchange": "NASDAQ"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 80,
+    "score_reason": "The filing combines a 28% holder position with $20 million of convertible bridge financing, large relative to the fixture market cap.",
+    "signal": "bearish",
+    "quick_take": "StonePier's 13D flags a large ownership position and convertible bridge financing that could dilute TinyLift holders.",
+    "summary": "StonePier Capital LP and Delta Opportunity Fund LLC report 28.0% beneficial ownership and an agreement to provide $20 million through convertible notes and warrants.",
+    "why_it_matters": "Using fixture market context, the financing equals about 44% of the stated $45 million market cap, making dilution and control influence central investor issues.",
+    "bullish_points": [
+      "Bridge financing could provide near-term liquidity if TinyLift needs capital."
+    ],
+    "bearish_points": [
+      "Convertible notes and warrants can dilute existing holders.",
+      "A 28% reporting group with possible control influence can alter governance and financing terms."
+    ],
+    "key_evidence": [
+      "Item 4 references $20 million of bridge financing through convertible notes and warrants.",
+      "The reporting group beneficially owns 15,000,000 shares, or 28.0%.",
+      "Fixture market context lists a $45,000,000 market cap."
+    ],
+    "what_to_watch_next": [
+      "Definitive note, warrant or backstop agreements.",
+      "Future amendments disclosing conversions, additional purchases or governance rights.",
+      "Company liquidity disclosures in subsequent SEC filings."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "date": "April 6, 2026",
+        "label": "SC 13 reportable event date",
+        "source": "Date of Event"
+      }
+    ],
+    "confidence": "medium",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "candidate_special",
+    "data": {
+      "issuerName": "TinyLift Technologies Inc.",
+      "reportingPersons": [
+        "StonePier Capital LP",
+        "Delta Opportunity Fund LLC"
+      ],
+      "percentOwned": 28,
+      "sharesBeneficiallyOwned": 15000000,
+      "financingAmountUsd": 20000000,
+      "instrumentLanguage": [
+        "convertible notes",
+        "warrants",
+        "bridge financing"
+      ],
+      "fixtureMarketCap": 45000000
+    },
+    "evidence": [
+      "Item 4 references $20 million of bridge financing through convertible notes and warrants.",
+      "The reporting group reports 28.0% beneficial ownership."
+    ],
+    "notes": [
+      "Candidate special UI could combine activist ownership, financing amount and fixture market context."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": true,
+    "market_context_reason": "Bridge financing size should be compared with market cap, shares outstanding and public float.",
+    "market_context_fields": [
+      "price",
+      "market_cap",
+      "shares_outstanding",
+      "public_float",
+      "volume",
+      "avg_volume"
+    ],
+    "special_ui_needed": true,
+    "special_ui_reason": "A combined ownership and convertible-financing case likely needs a future dedicated detail UI, but this room must not build it.",
+    "integration_notes": [
+      "Market context is fixture JSON only; do not call live FMP.",
+      "Requires router and analysis LLM because dilution impact depends on interpreting Item 4 and fixture market context."
+    ]
+  }
+}

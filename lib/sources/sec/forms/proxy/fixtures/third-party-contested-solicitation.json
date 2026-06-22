@@ -1,0 +1,13 @@
+{
+  "fixture_name": "third-party-contested-solicitation",
+  "input": {
+    "formType": "DEFC14A",
+    "accessionNumber": "0001000008-26-000909",
+    "companyName": "The Walt Disney Company",
+    "primaryTicker": {
+      "ticker": "DIS",
+      "exchange": "NYSE"
+    },
+    "filingText": "UNITED STATES\nSECURITIES AND EXCHANGE COMMISSION\nSCHEDULE 14A\nFiled by the Registrant ☐\nFiled by a Party other than the Registrant ☒\nCheck the appropriate box:\n☐ Preliminary Proxy Statement\n☒ Definitive Proxy Statement\nThe Walt Disney Company\nTrian Fund Management, L.P.\nNelson Peltz\nJames A. Rasulo\n(Name of Person(s) Filing Proxy Statement if other than the Registrant)\nPROXY STATEMENT OF THE TRIAN GROUP\nPLEASE VOTE THE ENCLOSED BLUE PROXY CARD FROM TRIAN TODAY.\nThis proxy statement and the enclosed BLUE proxy card are being furnished to shareholders in connection with the solicitation of proxies by Trian Partners, L.P. and affiliates to be used at the 2026 annual meeting of shareholders of Disney.\nTHIS SOLICITATION IS BEING MADE BY THE TRIAN GROUP AND NOT ON BEHALF OF THE BOARD OF DIRECTORS OF THE COMPANY.\nProposal 1: Election of Nelson Peltz and James A. Rasulo to serve as directors of the Company for a term of one year.\nThe Trian Group is seeking your proxy to vote FOR the election of each of the Trian Nominees and to WITHHOLD on each of the Opposed Company Nominees.\nThe Company and other parties may use a WHITE proxy card or a GREEN proxy card."
+  }
+}

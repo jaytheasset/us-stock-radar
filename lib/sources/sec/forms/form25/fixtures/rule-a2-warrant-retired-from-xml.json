@@ -1,0 +1,26 @@
+{
+  "rawItemId": "fixture-form25-rule-a2-warrant-retired-from-xml",
+  "sourceUniqueId": "0001354457-26-000493",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1354457/000135445726000493/",
+  "title": "NRX Pharmaceuticals 25-NSE",
+  "publishedAt": "2026-05-22",
+  "bodyText": "<?xml version=\"1.0\"?>\n<notificationOfRemoval>\n  <schemaVersion>X0203</schemaVersion>\n  <exchange>\n    <cik>0001354457</cik>\n    <entityName>Nasdaq Stock Market LLC</entityName>\n  </exchange>\n  <issuer>\n    <cik>0001719406</cik>\n    <entityName>NRX Pharmaceuticals, Inc.</entityName>\n    <fileNumber>001-38302</fileNumber>\n  </issuer>\n  <descriptionClassSecurity>Warrant</descriptionClassSecurity>\n  <ruleProvision>17 CFR 240.12d2-2(a)(2)</ruleProvision>\n  <signatureData>\n    <signatureDate>2026-05-22</signatureDate>\n  </signatureData>\n</notificationOfRemoval>",
+  "rawPayload": {
+    "form_type": "25-NSE",
+    "accession_number": "0001354457-26-000493",
+    "documents": [
+      {
+        "type": "25-NSE",
+        "description": "primary_doc.xml",
+        "url": "https://www.sec.gov/Archives/edgar/data/1354457/000135445726000493/primary_doc.xml",
+        "isPrimary": true,
+        "textCharCount": 1000,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ],
+    "attachment_texts": []
+  },
+  "metadata": {}
+}

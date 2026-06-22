@@ -5,6 +5,7 @@ import type { ContextRange, DetailTone, SectorThemeContext, TopMover } from "./d
 import type { PricePoint, PriceRange } from "@/lib/marketTypes";
 
 const contextRanges: ContextRange[] = ["1D", "5D", "30D"];
+const MARKET_CONTEXT_DATA_DISCLAIMER = "Market data is latest available, not necessarily as of the filing date.";
 
 type ChartApiResponse = {
   ok: boolean;
@@ -67,21 +68,19 @@ export function SectorThemeContextPanel({
       try {
         const responses = await Promise.all(
           symbols.map(async (symbol) => {
-            const response = await fetch(`/api/market/chart?symbol=${encodeURIComponent(symbol)}&range=${apiRange}`, {
-              cache: "no-store",
-              signal: controller.signal,
-            });
-            const data = (await response.json()) as ChartApiResponse;
-            if (!response.ok || !data.ok || !data.points?.length) {
-              throw new Error(`Market data failed for ${symbol}`);
+            const data = await fetchMoverChartData(symbol, apiRange, controller.signal);
+            if (!data) {
+              return null;
             }
 
             return [symbol, toLiveMover(data)] as const;
           }),
         );
+        if (controller.signal.aborted) return;
 
-        setLiveMovers(Object.fromEntries(responses));
-        setMarketDataStatus("ready");
+        const liveEntries = responses.filter((item): item is readonly [string, LiveMover] => Boolean(item));
+        setLiveMovers(Object.fromEntries(liveEntries));
+        setMarketDataStatus(liveEntries.length ? "ready" : "fallback");
       } catch {
         if (controller.signal.aborted) return;
         setLiveMovers({});
@@ -96,7 +95,10 @@ export function SectorThemeContextPanel({
   return (
     <section className="stock-detail-card sector-theme-main-card">
       <div className="card-heading-row context-heading-row">
-        <h2>{contextTitle} Market Context</h2>
+        <div>
+          <h2>{contextTitle} Market Context</h2>
+          <p className="market-context-data-disclaimer">{MARKET_CONTEXT_DATA_DISCLAIMER}</p>
+        </div>
         <div className="context-range-control" aria-label="Context range">
           {contextRanges.map((item) => (
             <button
@@ -156,8 +158,8 @@ function ContextMetric({
 }
 
 function TopMoverTile({ live, mover }: { live?: LiveMover; mover: TopMover }) {
-  const change = live?.change || mover.change;
-  const values = live?.values || mover.trend;
+  const change = mover.change;
+  const values = live?.values && live.values.length >= 3 ? live.values : mover.trend;
   const tone = getChangeTone(change);
 
   return (
@@ -169,6 +171,42 @@ function TopMoverTile({ live, mover }: { live?: LiveMover; mover: TopMover }) {
       <TopMoverSparkline values={values} tone={tone} />
     </div>
   );
+}
+
+async function fetchMoverChartData(
+  symbol: string,
+  range: PriceRange,
+  signal: AbortSignal,
+): Promise<ChartApiResponse | null> {
+  const primary = await fetchMoverChartRange(symbol, range, signal);
+  if (primary?.points && primary.points.length >= 3) {
+    return primary;
+  }
+
+  if (range === "1D") {
+    const fallback = await fetchMoverChartRange(symbol, "5D", signal);
+    if (fallback?.points && fallback.points.length >= 3) {
+      return fallback;
+    }
+  }
+
+  return null;
+}
+
+async function fetchMoverChartRange(
+  symbol: string,
+  range: PriceRange,
+  signal: AbortSignal,
+): Promise<ChartApiResponse | null> {
+  const response = await fetch(`/api/market/chart?symbol=${encodeURIComponent(symbol)}&range=${range}`, {
+    cache: "no-store",
+    signal,
+  });
+  const data = (await response.json()) as ChartApiResponse;
+  if (!response.ok || !data.ok || !data.points?.length) {
+    return null;
+  }
+  return data;
 }
 
 function TopMoverSparkline({ values, tone }: { values: number[]; tone: DetailTone }) {
@@ -214,10 +252,10 @@ function getMoverHeading(
   }
 
   if (mode === "market_top_movers") {
-    return `Top Movers Today / ${range}`;
+    return `Top Movers / Losers Today / ${range}`;
   }
 
-  return `Top Movers in ${groupName} / ${range}`;
+  return `Top Movers / Losers in ${groupName} / ${range}`;
 }
 
 function isRealTicker(value: string) {

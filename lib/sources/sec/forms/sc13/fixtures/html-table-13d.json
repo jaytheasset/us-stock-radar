@@ -1,0 +1,26 @@
+{
+  "case_id": "html-table-13d",
+  "description": "HTML Schedule 13D with labels and values split across table cells and div/br item headings.",
+  "filing": {
+    "formType": "SC 13D",
+    "accessionNumber": "0000000000-26-013017",
+    "issuerName": "HTML Grid Corp.",
+    "filedAt": "2026-05-03",
+    "text": "<html><body><table><tr><th>Name of Reporting Person</th><td>Browser Stone LLC</td></tr><tr><th>CUSIP No.</th><td>430000117</td></tr><tr><th>Sole Voting Power</th><td>0</td></tr><tr><th>Shared Voting Power</th><td>3,300,000</td></tr><tr><th>Sole Dispositive Power</th><td>0</td></tr><tr><th>Shared Dispositive Power</th><td>3,300,000</td></tr><tr><th>Aggregate Amount Beneficially Owned by Each Reporting Person</th><td>3,300,000</td></tr><tr><th>Percent of Class Represented by Amount in Row (9)</th><td>9.1%</td></tr></table><div>Item&nbsp;4 - Purpose of Transaction</div><p>HTML Item 4 text is preserved.</p><div>Item&nbsp;5. Interest in Securities of the Issuer</div><p>The Reporting Person beneficially owns 3,300,000 shares, representing 9.1%.</p><div>Item&nbsp;7. Material to be Filed as Exhibits</div><p>Exhibit A - Joint Filing Agreement</p></body></html>"
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "insider_ownership",
+    "deterministic": false,
+    "score_band": "feed",
+    "extracted_facts": {
+      "sourceFlavor": "html",
+      "reportingPersons": [
+        "Browser Stone LLC"
+      ],
+      "scheduleType": "13D",
+      "sharesBeneficiallyOwned": 3300000,
+      "percentOwned": 9.1
+    }
+  }
+}

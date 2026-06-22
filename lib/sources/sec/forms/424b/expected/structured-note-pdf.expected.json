@@ -1,0 +1,115 @@
+{
+  "parser_output": {
+    "parserVersion": "424b-parser-v1",
+    "parserGroup": "424b",
+    "formType": "424B3",
+    "accessionNumber": "0000000000-26-000109",
+    "isSupported": true,
+    "summary": "Nomura America Finance, LLC filed 424B3 covering $929,000 structured note principal.",
+    "facts": {
+      "issuer": {
+        "name": "Nomura America Finance, LLC",
+        "ticker": null,
+        "exchange": null
+      },
+      "filingMetadata": {
+        "registrationNumber": "333-261476",
+        "documentFormatHint": "pdf_text_layer"
+      },
+      "prospectusClass": "structured_note",
+      "structuredNoteTerms": {
+        "issuer": "Nomura America Finance, LLC",
+        "guarantor": "Nomura Holdings, Inc",
+        "principalAmount": 929000,
+        "referenceAsset": "Common Stock of Tesla, Inc",
+        "referenceTicker": "TSLA",
+        "tradeDate": "May 18, 2026",
+        "originalIssueDate": "May 21, 2026",
+        "finalValuationDate": "May 17, 2028",
+        "maturityDate": "May 22, 2028",
+        "contingentCouponRatePercent": 14.25,
+        "barrierPercent": 60,
+        "cusip": "65539XXY7",
+        "isin": "US65539XXY71",
+        "listed": false
+      },
+      "flags": {
+        "structuredNote": true,
+        "pdfTableFragility": true
+      }
+    },
+    "signals": [
+      {
+        "name": "structured_note",
+        "value": true
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [
+      "PDF text-layer page markers detected; table pairings may require review."
+    ],
+    "raw": {
+      "deterministicCandidate": null
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "other",
+    "event_title": "Structured-note PDF terms extracted with table warning",
+    "primary_ticker": {
+      "ticker": null,
+      "exchange": null
+    },
+    "tickers": [],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 25,
+    "score_reason": "Structured-note parser fixture is retained as generic coverage and warns on PDF table fragility.",
+    "signal": "neutral",
+    "quick_take": "The parser extracts note terms and flags PDF table fragility.",
+    "summary": "The fixture verifies issuer, guarantor, reference asset, principal amount, dates, coupon, barrier, CUSIP, and ISIN extraction from PDF-like text.",
+    "why_it_matters": "Structured notes separate issuer from reference asset and often rely on table pairings that can break in PDF text extraction.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [
+      "Principal Amount: US$929,000.00.",
+      "Reference Asset: Common Stock of Tesla, Inc. (TSLA).",
+      "PS-2 page marker present in table-like text."
+    ],
+    "what_to_watch_next": [],
+    "related_tickers": ["TSLA"],
+    "calendar_items": [],
+    "confidence": "medium",
+    "needs_human_review": true,
+    "analysis_action": "parser_fixture_only",
+    "archive_summary": "Structured-note PDF terms extracted for fixture coverage.",
+    "offering_display_model": {},
+    "offering_security_audit": {}
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "display_version": "424b-display-payload-v1",
+    "data": {
+      "security_variant": "structured_note_pdf"
+    },
+    "evidence": [],
+    "notes": [
+      "PDF table fragility is recorded as a parser warning."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Structured-note reference assets should not be treated as issuer tickers."
+    ]
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "name": "edgar-reddit-s1a-pricing",
+  "source": {
+    "company": "Reddit, Inc.",
+    "form_type": "S-1/A",
+    "cik": "0001713445",
+    "accession": "0001628280-24-011789",
+    "filed_at": "2024-03-19",
+    "sec_url": "https://www.sec.gov/Archives/edgar/data/1713445/000162828024011789/reddit-sx1a3.htm",
+    "text_basis": "edgar_original_excerpt"
+  },
+  "input": {
+    "formType": "S-1/A",
+    "accessionNumber": "0001628280-24-011789",
+    "metadata": {
+      "companyName": "Reddit, Inc.",
+      "ticker": "RDDT",
+      "exchange": "NYSE",
+      "filedAt": "2024-03-19"
+    },
+    "filingText": "As filed with the Securities and Exchange Commission on March 19, 2024. Registration No. 333-277256 UNITED STATES SECURITIES AND EXCHANGE COMMISSION Washington, D.C. 20549 AMENDMENT NO. 3 TO FORM S-1 REGISTRATION STATEMENT UNDER THE SECURITIES ACT OF 1933 Reddit, Inc.\nPreliminary Prospectus (Subject to Completion) Issued March 19, 2024 22,000,000 Shares Reddit, Inc. Class A Common Stock Reddit, Inc. is offering 15,276,527 shares of its Class A common stock and the selling stockholders identified in this prospectus are offering an aggregate of 6,723,473 shares of Class A common stock. This is our initial public offering and no public market currently exists for shares of our Class A common stock. We will not receive any proceeds from the sale of shares of common stock by any of the selling stockholders. We anticipate that the initial public offering price per share of our Class A common stock will be between $31.00 and $34.00. We have been approved to list our Class A common stock on the New York Stock Exchange under the symbol “RDDT.”"
+  },
+  "expected": {
+    "event_type": "ipo_listing",
+    "score_band": "feed",
+    "delivery_level": "feed",
+    "deterministic": false,
+    "facts": {
+      "company_name": "Reddit, Inc.",
+      "ticker": "RDDT",
+      "exchange": "NYSE",
+      "registration_kind": "ipo",
+      "shares_offered": 15276527,
+      "selling_shareholder_shares": 6723473,
+      "price_low": 31,
+      "price_high": 34,
+      "gross_proceeds": 519401918,
+      "amendment_number": 3,
+      "filing_variant": "pre_effective_amendment",
+      "reported_form_type": "S-1/A",
+      "parent_context_needed": true
+    }
+  }
+}

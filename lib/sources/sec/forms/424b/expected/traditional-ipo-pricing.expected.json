@@ -1,0 +1,130 @@
+{
+  "parser_output": {
+    "parserVersion": "424b-parser-v1",
+    "parserGroup": "424b",
+    "formType": "424B4",
+    "accessionNumber": "0000000000-26-000120",
+    "isSupported": true,
+    "summary": "NovaCloud Software, Inc. filed 424B4 covering 12,000,000 issuer-offered shares.",
+    "facts": {
+      "issuer": {
+        "name": "NovaCloud Software, Inc.",
+        "ticker": "NCLD",
+        "exchange": "NASDAQ"
+      },
+      "offeringTerms": {
+        "sharesOffered": 12000000,
+        "pricePerShare": 18,
+        "sellingStockholderShares": null,
+        "atTheMarket": false
+      },
+      "flags": {
+        "ipoListing": true,
+        "ipoKind": "traditional",
+        "resale": false
+      }
+    },
+    "signals": [
+      {
+        "name": "ipo_listing",
+        "value": "traditional"
+      },
+      {
+        "name": "market_context_needed",
+        "value": ["price", "market_cap", "shares_outstanding", "public_float"]
+      }
+    ],
+    "calendarItems": [
+      {
+        "date": "June 2, 2026",
+        "label": "Prospectus or registration date",
+        "source": "ing on June 3, 2026. The registration statement relating to these securities was declared effective by the Securities and Exchange Commission on June 2, 2026."
+      }
+    ],
+    "warnings": [],
+    "raw": {
+      "deterministicCandidate": null
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "ipo_listing",
+    "event_title": "NovaCloud Software prices IPO and prepares to list",
+    "primary_ticker": {
+      "ticker": "NCLD",
+      "exchange": "NASDAQ"
+    },
+    "tickers": ["NCLD"],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 65,
+    "score_reason": "The filing describes a new public listing and IPO pricing; delivery level is derived from the score band.",
+    "signal": "neutral",
+    "quick_take": "NovaCloud priced a traditional IPO and expects its shares to begin trading on Nasdaq.",
+    "summary": "The 424B4 prospectus states that NovaCloud is offering 12,000,000 shares at $18.00 per share and that the shares are expected to begin trading under NCLD.",
+    "why_it_matters": "IPO pricing and first trading information establish the issuer's public listing and initial public float, but later trading impact depends on demand, float, lockups, and valuation.",
+    "bullish_points": [
+      "The registration statement was declared effective and the shares have been approved for Nasdaq listing."
+    ],
+    "bearish_points": [
+      "IPO aftermarket performance can be volatile until trading liquidity and valuation support are clearer."
+    ],
+    "key_evidence": [
+      "Initial public offering of 12,000,000 shares.",
+      "Initial public offering price is $18.00 per share.",
+      "Expected to begin trading on Nasdaq under NCLD."
+    ],
+    "what_to_watch_next": [
+      "First trading session, stabilization activity, float, lockup terms, and early volume."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "date": "June 2, 2026",
+        "label": "Prospectus or registration date",
+        "source": "ing on June 3, 2026. The registration statement relating to these securities was declared effective by the Securities and Exchange Commission on June 2, 2026."
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false,
+    "analysis_action": "route_to_analysis_prompt",
+    "archive_summary": null,
+    "offering_display_model": {},
+    "offering_security_audit": {}
+  },
+  "display_payload": {
+    "display_type": "offering_terms",
+    "display_version": "424b-display-payload-v1",
+    "data": {
+      "offering_terms": {
+        "sharesOffered": 12000000,
+        "pricePerShare": 18
+      }
+    },
+    "evidence": [
+      {
+        "label": "ipo listing excerpt",
+        "value": "traditional",
+        "excerpt": "Initial public offering of 12,000,000 shares of common stock."
+      }
+    ],
+    "notes": [
+      "IPO detail data is parser/router-built; analysis LLM must not invent UI fields."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": true,
+    "market_context_reason": "IPO size, float, and valuation can require site market/taxonomy context when available.",
+    "market_context_fields": ["price", "market_cap", "shares_outstanding", "public_float"],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "424B does not use IPO-specific display payload fields; use generic or offering_terms only when source-backed fields fit."
+    ]
+  }
+}

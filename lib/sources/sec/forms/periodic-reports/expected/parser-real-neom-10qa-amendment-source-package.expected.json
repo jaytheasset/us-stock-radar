@@ -1,0 +1,87 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_periodic_reports_raw_parser_v3",
+    "parserGroup": "periodic-reports",
+    "formType": "10-Q/A",
+    "accessionNumber": "0001144204-13-044345",
+    "isSupported": true,
+    "facts": {
+      "companyName": "NeoMedia Technologies, Inc.",
+      "primaryTicker": "NEOM",
+      "exchange": "OTC",
+      "reportingPeriod": "June 30, 2013",
+      "isAmendment": true
+    }
+  },
+  "expected_raw_extraction": {
+    "missing_critical_raw_data": true,
+    "has_noise_candidates": true,
+    "min_section_count": 1,
+    "min_financial_statement_lines": 0,
+    "min_document_count": 6,
+    "min_attachment_text_count": 1,
+    "min_xbrl_fact_count": 5,
+    "section_keys_present": [
+      "periodic_item_15_exhibits_and_financial_statement_schedules"
+    ],
+    "coverage_ids_present": [
+      "filing_text",
+      "source_package_inventory",
+      "primary_document_inventory",
+      "form_type",
+      "accession_number",
+      "company_name",
+      "reporting_period",
+      "section_boundaries",
+      "financial_or_mda_raw",
+      "attachment_text_inventory",
+      "xbrl_document_inventory",
+      "xbrl_fact_inventory",
+      "source_truncation_check",
+      "noise_scan"
+    ],
+    "evidence_categories_present": [
+      "amendment_scope_raw",
+      "xbrl_fact_raw"
+    ],
+    "evidence_labels_present": [
+      "no_other_changes_indicator",
+      "us-gaap:SalesRevenueNet",
+      "us-gaap:NetIncomeLoss",
+      "us-gaap:CashAndCashEquivalentsAtCarryingValue"
+    ],
+    "noise_categories_present": [
+      "cover_checkboxes",
+      "signatures",
+      "certifications",
+      "xbrl_exhibits",
+      "document_exhibit"
+    ],
+    "warnings_include": [
+      "ambiguous_critical_raw_data:source_truncation_check",
+      "ambiguous_source:source_truncation_check"
+    ],
+    "warnings_exclude": [
+      "missing_filing_text",
+      "missing_accession_number",
+      "amendment_scope_not_clearly_extracted"
+    ],
+    "missing_source_ids_present": [
+      "source_truncation_check"
+    ],
+    "xbrl_fact_names_present": [
+      "us-gaap:SalesRevenueNet",
+      "us-gaap:NetIncomeLoss",
+      "us-gaap:CashAndCashEquivalentsAtCarryingValue",
+      "dei:EntityCommonStockSharesOutstanding",
+      "us-gaap:Assets"
+    ],
+    "document_filenames_present": [
+      "v351884_10qa.htm",
+      "neom-20130630.xml"
+    ],
+    "attachment_filenames_present": [
+      "neom-20130630.xml"
+    ]
+  }
+}

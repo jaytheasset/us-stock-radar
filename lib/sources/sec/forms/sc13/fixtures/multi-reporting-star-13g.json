@@ -1,0 +1,27 @@
+{
+  "case_id": "multi-reporting-star-13g",
+  "description": "Schedule 13G with multiple reporting persons, checked group box, star-only percent, and Item 8/9 text.",
+  "filing": {
+    "formType": "SC 13G",
+    "accessionNumber": "0000000000-26-013008",
+    "issuerName": "Quartz Memory plc",
+    "filedAt": "2026-02-22",
+    "text": "SC 13G\nSCHEDULE 13G\nQuartz Memory plc\n(Name of Issuer)\nOrdinary Shares\n(Title of Class of Securities)\nG73000108\n(CUSIP Number)\nx Rule 13d-1(b)\n1 Names of Reporting Persons\nIndex Manager LP\n2 Check the Appropriate Box if a Member of a Group\n(a) [X] (b) [ ]\n4 Citizenship or Place of Organization\nDelaware\n5 Sole Voting Power\n0\n6 Shared Voting Power\n1,750,000\n7 Sole Dispositive Power\n0\n8 Shared Dispositive Power\n1,750,000\n9 Aggregate Amount Beneficially Owned by Each Reporting Person\n1,750,000*\n11 Percent of Class Represented by Amount in Row (9)\n*\n12 Type of Reporting Person\nIA\nCUSIP No. G73000108\n1 Names of Reporting Persons\nIndex Holdings LLC\n2 Check the Appropriate Box if a Member of a Group\n(a) [X] (b) [ ]\n4 Citizenship or Place of Organization\nDelaware\n5 Sole Voting Power\n0\n6 Shared Voting Power\n1,750,000\n7 Sole Dispositive Power\n0\n8 Shared Dispositive Power\n1,750,000\n9 Aggregate Amount Beneficially Owned by Each Reporting Person\n1,750,000*\n11 Percent of Class Represented by Amount in Row (9)\n*\n12 Type of Reporting Person\nHC\nItem 3. If this statement is filed pursuant to Rules 13d-1(b) or 13d-2(b) or (c)\n(e) Investment adviser; (g) Parent holding company.\nItem 4. Ownership\nThe cover pages are incorporated by reference. * See footnote regarding outstanding shares.\nItem 5. Ownership of Five Percent or Less of a Class\nNot applicable.\nItem 8. Identification and Classification of Members of the Group\nThe persons filing this statement may be deemed members of a group for reporting purposes.\nItem 9. Notice of Dissolution of Group\nA dissolution notice is described in Exhibit 99.3.\nItem 10. Certification\nBy signing below I certify that the securities referred to above were acquired and are held in the ordinary course of business and were not acquired and are not held for the purpose of or with the effect of changing or influencing the control of the issuer.\nSIGNATURE"
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "insider_ownership",
+    "deterministic": true,
+    "score_band": "archive",
+    "extracted_facts": {
+      "reportingPersons": [
+        "Index Manager LP",
+        "Index Holdings LLC"
+      ],
+      "hasMultipleReportingPersons": true,
+      "sharesBeneficiallyOwned": 1750000,
+      "percentOwned": null,
+      "ruleBasis": "13d-1(b)"
+    }
+  }
+}

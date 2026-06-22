@@ -1,0 +1,36 @@
+{
+  "filing": {
+    "rawItemId": "parser-20f-fpi",
+    "sourceUniqueId": "0000000000-25-000303",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1000002/000000000025000303/example-20f.htm",
+    "title": "Global Fiber Limited Form 20-F for fiscal year ended March 31, 2025",
+    "publishedAt": "2025-06-30T12:00:00Z",
+    "metadata": {
+      "formType": "20-F",
+      "ticker": "GFL",
+      "exchange": "Nasdaq Global Select Market"
+    },
+    "rawPayload": {
+      "form_type": "20-F",
+      "accession_number": "0000000000-25-000303",
+      "company_name": "Global Fiber Limited",
+      "documents": [
+        {
+          "type": "20-F",
+          "description": "Annual and transition report of foreign private issuers",
+          "isPrimary": true,
+          "textCharCount": 15000,
+          "textTruncated": false
+        },
+        {
+          "type": "GRAPHIC",
+          "description": "Logo image",
+          "isPrimary": false,
+          "textCharCount": 0,
+          "textTruncated": false
+        }
+      ]
+    },
+    "bodyText": "UNITED STATES SECURITIES AND EXCHANGE COMMISSION\nFORM 20-F\nFor the fiscal year ended March 31, 2025\nGlobal Fiber Limited (Exact name of registrant as specified in its charter)\nRepublic of Singapore (jurisdiction of incorporation or organization)\nSecurities registered pursuant to Section 12(b) of the Act:\nTitle of each class Trading Symbol(s) Name of each exchange on which registered\nAmerican Depositary Shares, each representing two ordinary shares GFL Nasdaq Global Select Market\nOrdinary shares, no par value GFL Nasdaq Global Select Market\nIndicate by check mark whether the registrant is a shell company.\nForward-looking statements are based on current expectations and actual results may differ materially.\nITEM 3.D Risk Factors\nOur business is subject to currency, supply chain, cybersecurity, and regulatory risks. These risk factors are broad descriptions and should be read with the operating data and financial statements below.\nITEM 4. Information on the Company\nGlobal Fiber Limited designs network equipment and optical fiber systems for enterprise and telecommunications customers. During fiscal 2025 we launched a new product platform for edge routing customers in Asia and Europe.\nITEM 5. Operating and Financial Review and Prospects\nRevenue increased by 8.2% to $1,420.0 million from $1,312.0 million due to higher enterprise demand. Net income was $110.0 million compared with $94.0 million in the prior fiscal year. Cash and cash equivalents 310.0 275.0. Total assets 2,900.0 2,700.0. Total liabilities 1,120.0 1,060.0.\nITEM 8. Financial Information\nConsolidated Statements of Income\nRevenues 1,420.0 1,312.0\nOperating income 155.0 132.0\nNet income 110.0 94.0\nThe registrant had no material legal proceedings requiring disclosure at fiscal year end.\nITEM 16I. Disclosure Regarding Foreign Jurisdictions that Prevent Inspections\nThe company is not owned or controlled by a governmental entity in a foreign jurisdiction. The auditor is registered with the PCAOB and was subject to PCAOB inspection during the period covered by this annual report.\nITEM 19. Exhibits\nThe exhibit index includes certifications, consent of independent registered public accounting firm, and Inline XBRL data files.\nSIGNATURES\n/s/ Authorized Representative"
+  }
+}

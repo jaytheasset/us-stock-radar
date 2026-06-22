@@ -1,0 +1,139 @@
+{
+  "cases": [
+    {
+      "name": "basic-10k-html-paragraph-order",
+      "visible_order": [
+        "First visible paragraph.",
+        "Second visible paragraph with revenue 10.0 9.0.",
+        "Third visible paragraph with net income 1.0 0.8."
+      ],
+      "block_kinds_present": [
+        "cover_page",
+        "heading",
+        "paragraph"
+      ],
+      "warnings_exclude": [
+        "html_normalization_suspiciously_little_visible_text"
+      ]
+    },
+    {
+      "name": "hidden-script-style-template-content-excluded",
+      "visible_contains": [
+        "Visible operating text 5.0 4.0.",
+        "Visible MD&A text."
+      ],
+      "visible_excludes": [
+        "SHOULD_NOT_APPEAR_SCRIPT",
+        "SHOULD_NOT_APPEAR_HIDDEN_ATTR",
+        "SHOULD_NOT_APPEAR_STYLE",
+        "SHOULD_NOT_APPEAR_NOSCRIPT",
+        "SHOULD_NOT_APPEAR_TEMPLATE"
+      ],
+      "block_kinds_present": [
+        "cover_page",
+        "heading",
+        "paragraph"
+      ]
+    },
+    {
+      "name": "whitespace-and-punctuation-normalized",
+      "visible_contains": [
+        "FORM 10-K",
+        "Whitespace Normalizer Inc.",
+        "Smart \"quote\" and dash - with spaces.",
+        "Loss was (1.2) and cash was -3.4."
+      ]
+    },
+    {
+      "name": "inline-xbrl-visible-numeric-preserved",
+      "visible_contains": [
+        "Revenue was 123 million for the quarter."
+      ],
+      "inline_xbrl_mentions": [
+        {
+          "name": "us-gaap:Revenues",
+          "visibleText": "123"
+        }
+      ],
+      "block_kinds_present": [
+        "paragraph"
+      ]
+    },
+    {
+      "name": "inline-xbrl-visible-nonnumeric-cover-preserved",
+      "visible_contains": [
+        "Inline Name Inc. (Exact name of registrant as specified in its charter)"
+      ],
+      "inline_xbrl_mentions": [
+        {
+          "name": "dei:EntityRegistrantName",
+          "visibleText": "Inline Name Inc."
+        }
+      ],
+      "block_kinds_present": [
+        "cover_page"
+      ]
+    },
+    {
+      "name": "hidden-inline-xbrl-metadata-excluded",
+      "visible_contains": [
+        "Visible Issuer Inc. (Exact name of registrant as specified in its charter)",
+        "Visible text remains."
+      ],
+      "visible_excludes": [
+        "Hidden Metadata Issuer"
+      ],
+      "inline_xbrl_names_exclude": [
+        "dei:EntityRegistrantName"
+      ]
+    },
+    {
+      "name": "malformed-sec-html-recovers-visible-text",
+      "visible_contains": [
+        "Recovered visible business text.",
+        "Recovered revenue 7.0 6.0"
+      ],
+      "warnings_include": [
+        "html_normalization_recovered_malformed_markup"
+      ]
+    },
+    {
+      "name": "simple-table-preserved-as-table-block",
+      "visible_contains": [
+        "Metric | 2026 | 2025",
+        "Revenue | 100 | 90",
+        "Net income | (5) | 4"
+      ],
+      "block_kinds_present": [
+        "table"
+      ],
+      "min_table_blocks": 1
+    },
+    {
+      "name": "layout-one-cell-table-preserved",
+      "visible_contains": [
+        "ITEM 1. Business Layout Table Inc. uses one-cell layout tables for normal narrative text."
+      ],
+      "min_layout_table_blocks": 1
+    },
+    {
+      "name": "signature-and-exhibit-index-classified",
+      "visible_contains": [
+        "EXHIBIT INDEX",
+        "SIGNATURES",
+        "/s/ Principal Executive Officer"
+      ],
+      "block_kinds_present": [
+        "exhibit_index",
+        "signature"
+      ]
+    },
+    {
+      "name": "suspiciously-little-visible-text-warns",
+      "warnings_include": [
+        "html_normalization_suspiciously_little_visible_text"
+      ],
+      "max_visible_chars": 20
+    }
+  ]
+}

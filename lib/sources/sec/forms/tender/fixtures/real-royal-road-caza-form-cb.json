@@ -1,0 +1,53 @@
+{
+  "case_name": "real-royal-road-caza-form-cb",
+  "source": {
+    "sec_url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/formcb.htm",
+    "offer_document": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm"
+  },
+  "filing": {
+    "rawItemId": "real-royal-road-caza-form-cb",
+    "sourceUniqueId": "0001062993-17-000336",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/",
+    "title": "Royal Road Minerals / Caza Gold Form CB exchange offer",
+    "publishedAt": "2017-01-20T12:00:00.000Z",
+    "bodyText": "CB\nForm CB\nTENDER OFFER/RIGHTS OFFERING NOTIFICATION FORM\nSecurities Act Rule 801 (Rights Offering) [ ]\nSecurities Act Rule 802 (Exchange Offer) [X]\nExchange Act Rule 13e-4(h)(8) (Issuer Tender Offer) [ ]\nExchange Act Rule 14d-1(c) (Third Party Tender Offer) [ ]\nName of Subject Company: Caza Gold Corp.\nJurisdiction of Subject Company: British Columbia, Canada\nName of Person Furnishing Form: Royal Road Minerals Limited\nDate Tender Offer/Rights Offering Commenced: January 20, 2017",
+    "rawPayload": {
+      "accession_number": "0001062993-17-000336",
+      "form_type": "CB",
+      "company_name": "Caza Gold Corp.",
+      "documents": [
+        {
+          "sequence": "1",
+          "description": "FORM CB",
+          "document": "formcb.htm",
+          "type": "CB",
+          "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/formcb.htm",
+          "isPrimary": true,
+          "textCharCount": 22000,
+          "textTruncated": false,
+          "fetchStatus": 200,
+          "fetchError": null
+        },
+        {
+          "sequence": "2",
+          "description": "Offer to Purchase and Circular",
+          "document": "exhibit1-1.htm",
+          "type": "EX-99.1",
+          "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+          "textCharCount": 600000
+        }
+      ],
+      "attachment_texts": [
+        {
+          "type": "EX-99.1",
+          "description": "Offer to Purchase and Circular",
+          "text": "Royal Road Minerals Limited made an offer to acquire all outstanding common shares of Caza Gold Corp. Holders will receive 0.16 of a Royal Road ordinary share for each Caza share. The offer is made under cross-border rules and Canadian disclosure documents."
+        }
+      ]
+    },
+    "metadata": {
+      "form_type": "CB",
+      "company_name": "Caza Gold Corp."
+    }
+  }
+}

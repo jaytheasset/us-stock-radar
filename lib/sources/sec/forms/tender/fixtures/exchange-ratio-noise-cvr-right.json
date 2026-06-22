@@ -1,0 +1,35 @@
+{
+  "case_name": "exchange ratio noise - CVR right sentence",
+  "filing": {
+    "rawItemId": "fixture-exchange-ratio-noise-cvr-right",
+    "sourceUniqueId": "0000000000-26-000102",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/0000000/000000000026000102/",
+    "title": "CVR Noise Target Inc. SC TO-T",
+    "publishedAt": "2026-05-01T12:00:00.000Z",
+    "bodyText": "SC TO-T\nSubject Company: CVR Noise Target Inc.\nOfferor: CVR Buyer Inc.\nCVR Buyer Inc. commenced a third-party tender offer. Stockholders will receive $125.00 per share in cash. Each holder of Shares will be entitled to one CVR for each Share. The CVR is not stock exchange consideration.",
+    "rawPayload": {
+      "accession_number": "0000000000-26-000102",
+      "form_type": "SC TO-T",
+      "company_name": "CVR Noise Target Inc.",
+      "documents": [
+        {
+          "sequence": 1,
+          "type": "SC TO-T",
+          "description": "SC TO-T",
+          "document": "primary.htm",
+          "isPrimary": true,
+          "textCharCount": 300
+        }
+      ]
+    }
+  },
+  "expected": {
+    "event_type": "strategic_transaction",
+    "delivery_level": "alert",
+    "important_facts": {
+      "sec_form_type": "SC TO-T",
+      "tender_case": "third_party_tender_offer",
+      "exchange_ratio": null
+    }
+  }
+}

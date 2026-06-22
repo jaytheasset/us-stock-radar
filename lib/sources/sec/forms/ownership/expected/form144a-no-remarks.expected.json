@@ -1,0 +1,68 @@
+{
+  "parser_output": {
+    "parserVersion": "ownership-parser-v1",
+    "parserGroup": "ownership",
+    "formType": "Form 4 / 4/A, Form 144 / 144/A",
+    "accessionNumber": "0001654954-26-005173",
+    "isSupported": true,
+    "summary": "144/A proposed sale by Thomas Kalmbach of 35,000 shares of GLOBE LIFE INC.",
+    "facts": {},
+    "signals": [
+      "form_144_proposed_sale"
+    ],
+    "calendarItems": [],
+    "warnings": [
+      "Form 144/A has previous accession but no amendment remarks; parent filing comparison is needed."
+    ],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "insider_ownership",
+    "event_title": "Form 144/A proposed sale needs parent comparison",
+    "primary_ticker": {
+      "ticker": null,
+      "exchange": null
+    },
+    "tickers": [],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 45,
+    "score_reason": "The current Form 144/A reports proposed sale facts, but amendment remarks are absent and parent comparison is needed before raising impact.",
+    "signal": "neutral",
+    "quick_take": "The Form 144/A provides current proposed-sale facts but no amendment explanation.",
+    "summary": "The current filing shows a proposed sale notice, but the amendment meaning is ambiguous without the prior filing. Limited market impact detected. The original source is included below for reference.",
+    "why_it_matters": "The parser can extract the proposed sale amount, but should not infer whether the amendment increased or reduced the sale.",
+    "bullish_points": [],
+    "bearish_points": [
+      "The current filing still represents a proposed sale notice."
+    ],
+    "key_evidence": [
+      "Previous accession number is present.",
+      "No amendment remarks were extracted.",
+      "Proposed sale amount is 35,000 shares."
+    ],
+    "what_to_watch_next": [
+      "Compare against the referenced parent filing during later integration if this candidate is enriched."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "medium",
+    "needs_human_review": true
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "needs_parent_comparison": true
+    },
+    "evidence": [
+      "Parser warned that Form 144/A has a previous accession but no amendment remarks."
+    ],
+    "notes": [
+      "Do not guess amendment materiality from the current filing alone."
+    ]
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "fixtureName": "s8a-administrative-amendment",
+  "formType": "S-8/A",
+  "accessionNumber": "0003333333-26-000030",
+  "filedAt": "2026-04-12",
+  "issuer": {
+    "name": "Northstar Analytics Corp.",
+    "ticker": "NSTA",
+    "exchange": "NYSE",
+    "sector": "Technology",
+    "industry_group": "Data Analytics"
+  },
+  "filingText": "This Post-Effective Amendment No. 1 to Form S-8 is filed solely to file Exhibit 5.1. No additional securities are being registered by this amendment. The registration statement covered shares under the Northstar Analytics Corp. 2024 Equity Incentive Plan.",
+  "attachments": [
+    {
+      "documentType": "EX-5.1",
+      "description": "Opinion of counsel filed as Exhibit 5.1",
+      "text": "Legal opinion exhibit."
+    }
+  ],
+  "parentFilingContext": {
+    "accessionNumber": "0003333333-24-000111",
+    "formType": "S-8",
+    "filedAt": "2024-06-20",
+    "registeredShares": 1500000,
+    "planNames": ["Northstar Analytics Corp. 2024 Equity Incentive Plan"],
+    "summary": "Original S-8 registered 1,500,000 shares under the 2024 Equity Incentive Plan."
+  },
+  "marketContext": null,
+  "flowExpectation": {
+    "parserCanFinishWithoutLlm": true,
+    "routerCanFinishWithoutLlm": true,
+    "reason": "The amendment states no additional securities are being registered and is filed solely for an exhibit."
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "rawItemId": "fixture-form25-ambiguous-units-requires-llm",
+  "sourceUniqueId": "0000876661-25-000521",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/876661/000087666125000521/0000876661-25-000521-index.html",
+  "title": "BP Prudhoe Bay Royalty Trust 25-NSE",
+  "publishedAt": "2025-07-17",
+  "bodyText": "ACCESSION NUMBER: 0000876661-25-000521\nCONFORMED SUBMISSION TYPE: 25-NSE\nFILED AS OF DATE: 20250717\nEFFECTIVENESS DATE: 20250717\nSUBJECT COMPANY:\nCOMPANY DATA:\nCOMPANY CONFORMED NAME: BP PRUDHOE BAY ROYALTY TRUST\nCENTRAL INDEX KEY: 0000850033\nFILING VALUES:\nFORM TYPE: 25-NSE\nSEC FILE NUMBER: 001-10243\nFILED BY:\nCOMPANY DATA:\nCOMPANY CONFORMED NAME: NEW YORK STOCK EXCHANGE LLC\nCENTRAL INDEX KEY: 0000876661\n25-NSE 1 primary_doc.xml X0203 0000876661 NEW YORK STOCK EXCHANGE LLC 0000850033 BP PRUDHOE BAY ROYALTY TRUST 001-10243 601 Travis Street, Floor 16 Houston TX TEXAS 77002 212-815-5084 Units of Beneficial Interest 17 CFR 240.12d2-2(b) Anthony Sozzi Analyst, Market Watch 2025-07-17\nRAW_FORM25_FULL_TEXT_SENTINEL_SHOULD_NOT_REACH_PROMPTS",
+  "rawPayload": {
+    "form_type": "25-NSE",
+    "accession_number": "0000876661-25-000521",
+    "documents": [
+      {
+        "type": "25-NSE",
+        "description": "primary_doc.xml",
+        "url": "https://www.sec.gov/Archives/edgar/data/850033/000087666125000521/primary_doc.xml",
+        "isPrimary": true,
+        "textCharCount": 1080,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      },
+      {
+        "type": "EX-99.25",
+        "description": "ruleprovisionnotice.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/850033/000087666125000521/ruleprovisionnotice.htm",
+        "isPrimary": false,
+        "textCharCount": 2053,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ],
+    "attachment_texts": [
+      {
+        "type": "EX-99.25",
+        "description": "Rule provision notice",
+        "text": "NOTIFICATION OF THE REMOVAL FROM LISTING AND REGISTRATION OF THE STATED SECURITIES The New York Stock Exchange hereby notifies the Securities and Exchange Commission of its intention to remove the entire class of Units of Beneficial Interest of BP Prudhoe Bay Royalty Trust from listing and registration on the Exchange on July 28, 2025, pursuant to Rule 12d2-2(b) because the Units are no longer suitable for continued listing and trading on the NYSE. The Exchange has determined that the Units are no longer suitable for listing pursuant to Listed Company Manual Section 802.01C, as the Company had fallen below the NYSE's continued listing standard for average closing price of less than $1.00 over a consecutive 30 trading-day period and failed to cure this non-compliance within the required timeframe. Trading in the Units was immediately suspended on June 30, 2025. The Company did not file an appeal within the specified period.",
+        "textTruncated": false
+      }
+    ]
+  },
+  "metadata": {
+    "company_name": "BP PRUDHOE BAY ROYALTY TRUST",
+    "cik": "0000850033"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "title": "Canyon Analytics Form 8-K voting agreement",
+  "publishedAt": "2026-05-07T14:20:00Z",
+  "sourceUniqueId": "0007777777-26-000007",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/7777777/000777777726000007/",
+  "bodyText": "UNITED STATES\nFORM 8-K\nItem 1.01 Entry into a Material Definitive Agreement.\nOn May 7, 2026, Canyon Analytics entered into a voting agreement with its founder and Chief Executive Officer. The founder beneficially owns approximately 38% of the outstanding common stock and agreed to vote those shares in favor of the proposed board slate and governance amendments at the annual meeting.",
+  "rawPayload": {
+    "form_type": "8-K",
+    "accession_number": "0007777777-26-000007",
+    "company_name": "Canyon Analytics",
+    "ticker": "CANY",
+    "documents": [
+      {
+        "type": "8-K",
+        "description": "Current report",
+        "url": "primary.htm",
+        "isPrimary": true,
+        "textCharCount": 480,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ]
+  },
+  "metadata": {
+    "company_name": "Canyon Analytics",
+    "ticker": "CANY"
+  },
+  "expected": {
+    "eventType": "insider_ownership",
+    "deliveryLevel": "feed"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "id": "foreign-issuer-nt-20f",
+  "description": "NT 20-F for a foreign issuer where subsidiary consolidation and local statutory audit work delay the annual report.",
+  "source": {
+    "formType": "NT 20-F",
+    "accessionNumber": "0001000004-26-000040",
+    "companyName": "Global Meridian PLC",
+    "ticker": "GMDN",
+    "exchange": "NYSE",
+    "periodOfReport": "2025-12-31",
+    "filedAt": "2026-04-30",
+    "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 20-F PART III NARRATIVE The company is unable to file its Form 20-F because a newly acquired subsidiary outside the United States requires additional time to complete local statutory audit procedures and consolidation schedules. The delay could not be eliminated without unreasonable effort or expense. The company expects to file the Form 20-F within the fifteen calendar day extension period. PART IV OTHER INFORMATION (3) Is it anticipated that any significant change in results of operations from the corresponding period for the last fiscal year will be reflected by the earnings statements to be included in the subject report? [ ] Yes [X] No."
+  }
+}

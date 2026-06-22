@@ -1,0 +1,144 @@
+{
+  "parser_output": {
+    "parserVersion": "s1-f1-parser-v1",
+    "parserGroup": "s1-f1",
+    "formType": "S-1 / F-1, S-1/A / F-1/A",
+    "accessionNumber": "0000950103-26-003340",
+    "isSupported": true,
+    "summary": "EDGAR POS AM deregistration excerpt for Spirit Aviation Holdings, Inc.",
+    "facts": {
+      "filing": {
+        "filing_family": "s1_f1_registration",
+        "reported_form_type": "POS AM",
+        "filing_variant": "post_effective_amendment",
+        "boundary_case": true,
+        "parent_context_needed": true,
+        "parent_registration_number": "333-288706",
+        "post_effective_purpose": "deregistration",
+        "deregister_unsold_securities": true,
+        "no_additional_securities_registered": false,
+        "rule_462b": {
+          "base_form": null,
+          "prior_registration_number": null,
+          "added_securities_amount": null,
+          "automatic_effective": false,
+          "within_20_percent_limit": false
+        },
+        "evidence": []
+      },
+      "company_name": "Spirit Aviation Holdings, Inc.",
+      "ticker": null,
+      "exchange": null,
+      "registration_kind": "unknown",
+      "offering": {
+        "kind": "unknown",
+        "securities": ["common stock"],
+        "shares_offered": null,
+        "price_low": null,
+        "price_high": null,
+        "gross_proceeds": null,
+        "selling_shareholder_shares": null,
+        "use_of_proceeds": null,
+        "underwriters": []
+      },
+      "amendment": {
+        "is_amendment": true,
+        "amendment_number": 1,
+        "stated_material_change": null,
+        "routine_or_administrative": false,
+        "parent_context_provided": false
+      },
+      "foreign_issuer": {
+        "is_foreign_private_issuer": false,
+        "ads_offering": false,
+        "vie_structure": false,
+        "hfcaa_or_pcaob_risk": false,
+        "cayman_holding_company": false
+      },
+      "risks": {
+        "going_concern": false,
+        "listing_risk": false,
+        "legal_risk": false,
+        "fda_or_clinical": false,
+        "insider_control": false,
+        "strategic_transaction": false
+      },
+      "market_context_summary": {
+        "provided": false,
+        "offering_to_market_cap_pct": null,
+        "shares_to_float_pct": null
+      }
+    },
+    "signals": [
+      {
+        "event_type": "other",
+        "label": "Post-effective amendment deregisters unsold securities",
+        "severity": "low",
+        "signal": "neutral",
+        "deterministic": true,
+        "evidence": []
+      }
+    ],
+    "calendarItems": [],
+    "warnings": ["Boundary filing variant; parent context may be needed."],
+    "raw": {
+      "sourceTextLength": 0,
+      "attachmentNames": [],
+      "deterministic": {
+        "canFinishWithoutLlm": true,
+        "reason": "The POS AM source text mechanically deregisters unsold securities and terminates the registration.",
+        "event_type": "other",
+        "score": 15
+      }
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "other",
+    "event_title": "Spirit POS AM deregisters unsold securities",
+    "primary_ticker": {
+      "ticker": null,
+      "exchange": null
+    },
+    "tickers": [],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 15,
+    "score_reason": "Archive-level score because the EDGAR POS AM excerpt mechanically deregisters securities that remain unsold.",
+    "signal": "neutral",
+    "quick_take": "The POS AM can finish deterministically from source structure.",
+    "summary": "The excerpt says the company is deregistering all securities registered under the S-1 that remain unsold.",
+    "why_it_matters": "This is a cleanup boundary filing, not a fresh offering event.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": ["deregister all securities", "remain unsold", "removes from registration"],
+    "what_to_watch_next": ["Parent registration context if linkage is needed later."],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "filing_variant": "post_effective_amendment",
+      "post_effective_purpose": "deregistration",
+      "parent_registration_number": "333-288706"
+    },
+    "evidence": ["deregister all securities", "remain unsold"],
+    "notes": ["No parent lookup implemented; fixture remains local JSON only."]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": ["Deterministic parser completion from EDGAR original excerpt; no router or analysis LLM needed."]
+  }
+}

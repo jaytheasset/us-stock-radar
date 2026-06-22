@@ -1,0 +1,124 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_425_parser_v1",
+    "parserGroup": "425",
+    "formType": "425",
+    "accessionNumber": "0000000000-26-000425",
+    "isSupported": true,
+    "summary": "Form 425 communication about a merger involving Alpha Therapeutics, Inc. and Beta Bio, Inc.",
+    "facts": {
+      "company_name": "Alpha Therapeutics, Inc.",
+      "primary_ticker": "ALPH",
+      "exchange": "NASDAQ",
+      "communication_types": ["press_release"],
+      "transaction_parties": ["Alpha Therapeutics, Inc.", "Beta Bio, Inc."],
+      "deal": {
+        "transaction_type": "merger",
+        "transaction_status": "announced",
+        "consideration_text": "Under the terms of the merger agreement, each Beta Bio share will be converted into the right to receive $12.50 in cash and 0.60 shares of Alpha common stock.",
+        "cash_component": "$12.50 in cash",
+        "stock_component": "0.60 share exchange ratio",
+        "exchange_ratio": "0.60",
+        "transaction_value": "$4.2 billion",
+        "premium": "37% premium",
+        "expected_close": "the fourth quarter of 2026, subject to customary closing conditions and regulatory approvals"
+      },
+      "market_context": {
+        "price": 42.15,
+        "market_cap": 3500000000,
+        "shares_outstanding": 83000000,
+        "public_float": 76000000
+      }
+    },
+    "signals": [
+      {
+        "type": "deal_terms_present",
+        "value": "consideration_or_exchange_ratio",
+        "evidence": "cash-and-stock merger consideration",
+        "confidence": "high"
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "strategic_transaction",
+    "event_title": "Alpha Therapeutics announces cash-and-stock merger with Beta Bio",
+    "primary_ticker": {
+      "ticker": "ALPH",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      {
+        "ticker": "ALPH",
+        "exchange": "NASDAQ"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": "M&A",
+    "sub_theme": "Cash-and-stock merger",
+    "score": 78,
+    "score_reason": "Alert-level because the Form 425 includes transaction value, cash-and-stock consideration, exchange ratio, premium, and expected close timing for a major strategic transaction.",
+    "signal": "volatile",
+    "quick_take": "Alpha disclosed concrete cash-and-stock merger terms for Beta Bio.",
+    "summary": "Alpha Therapeutics filed a Form 425 communication describing a definitive merger agreement with Beta Bio. The consideration includes $12.50 in cash plus 0.60 Alpha shares per Beta Bio share, with an approximately $4.2 billion transaction value.",
+    "why_it_matters": "Cash-and-stock consideration can affect Alpha shareholders through deal execution risk, share issuance, valuation, and market reaction to the implied premium.",
+    "bullish_points": [
+      "The filing gives concrete consideration, transaction value, premium, and expected closing timing.",
+      "A defined exchange ratio gives investors a basis to evaluate the stock component."
+    ],
+    "bearish_points": [
+      "The stock component exposes holders to market moves before close.",
+      "Closing remains subject to customary conditions and regulatory approvals."
+    ],
+    "key_evidence": [
+      "Each Beta Bio share will be converted into the right to receive $12.50 in cash and 0.60 shares of Alpha common stock.",
+      "The transaction value is approximately $4.2 billion and represents a 37% premium.",
+      "The transaction is expected to close in the fourth quarter of 2026."
+    ],
+    "what_to_watch_next": [
+      "Regulatory approval status and any HSR or antitrust updates.",
+      "Shareholder materials that clarify voting requirements or closing conditions.",
+      "Alpha share price moves that change the value of the stock consideration."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "candidate_special",
+    "data": {
+      "proposed_ui": "deal_communication_summary",
+      "parties": ["Alpha Therapeutics, Inc.", "Beta Bio, Inc."],
+      "consideration": "$12.50 in cash and 0.60 Alpha shares per Beta Bio share",
+      "transaction_value": "$4.2 billion",
+      "premium": "37%",
+      "expected_close": "fourth quarter of 2026"
+    },
+    "evidence": [
+      "Each Beta Bio share will be converted into the right to receive $12.50 in cash and 0.60 shares of Alpha common stock.",
+      "The transaction value is approximately $4.2 billion."
+    ],
+    "notes": [
+      "Candidate special display only; UI implementation belongs to the detail UI room."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": true,
+    "market_context_reason": "Cash-and-stock deal materiality should be compared with acquirer price, market cap, and share count.",
+    "market_context_fields": ["price", "market_cap", "shares_outstanding", "public_float"],
+    "special_ui_needed": true,
+    "special_ui_reason": "Deal communications are easier to evaluate with a structured view of parties, consideration, premium, transaction value, close timing, and evidence.",
+    "integration_notes": [
+      "Do not fetch market context live from this room; use only fixture-provided market_context.",
+      "Integration room can later decide whether Form 425 deal communications link to a dedicated transaction detail model."
+    ]
+  }
+}

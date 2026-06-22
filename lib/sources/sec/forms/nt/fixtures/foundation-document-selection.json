@@ -1,0 +1,100 @@
+{
+  "normalNt10k": {
+    "source": {
+      "formType": "NT 10-K",
+      "companyName": "Example Annual Corp.",
+      "ticker": "EAC",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING\nPART I - REGISTRANT INFORMATION\nExample Annual Corp.\nPART II - RULE 12b-25(b) AND (c)\n[X] (a) The reason described in reasonable detail in Part III could not be eliminated without unreasonable effort or expense.\n[X] (b) The subject annual report will be filed on or before the fifteenth calendar day following the prescribed due date.\n[ ] (c) The accountant's statement is attached.\nPART III - NARRATIVE\nThe registrant requires additional time to complete its year-end close and audit procedures.\nPART IV - OTHER INFORMATION\nName and telephone number of person to contact: Jane Doe 555-0100.\nHave all other periodic reports required been filed? [X] Yes [ ] No\nIs it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No\nSIGNATURES\n/s/ Jane Doe"
+    }
+  },
+  "tableHeavyNt10q": {
+    "source": {
+      "formType": "NT 10-Q",
+      "companyName": "Example Table Corp.",
+      "ticker": "ETC",
+      "filingText": "<html><body><table><tr><td>FORM 12b-25</td><td>NOTIFICATION OF LATE FILING</td></tr><tr><td>PART I</td><td>REGISTRANT INFORMATION</td></tr><tr><td>Example Table Corp.</td></tr><tr><td>PART II</td><td>RULE 12b-25(b) AND (c)</td></tr><tr><td>[X] (a)</td><td>[X] (b)</td><td>[ ] (c)</td></tr><tr><td>PART III</td><td>NARRATIVE</td></tr><tr><td>The registrant needs additional time to complete quarterly close procedures.</td></tr><tr><td>PART IV</td><td>OTHER INFORMATION</td></tr><tr><td>Have all other periodic reports required been filed?</td><td>[X] Yes [ ] No</td></tr><tr><td>Is it anticipated that any significant change in results of operations will be reflected?</td><td>[ ] Yes [X] No</td></tr></table></body></html>"
+    }
+  },
+  "normalNt20f": {
+    "source": {
+      "formType": "NT 20-F",
+      "companyName": "Example Foreign Issuer Ltd.",
+      "ticker": "EFI",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING\nPART I: REGISTRANT INFORMATION\nExample Foreign Issuer Ltd.\nPART II: RULE 12b-25(b) AND (c)\n[X] (a) [X] (b) [ ] (c)\nPART III: NARRATIVE\nThe registrant requires additional time to finalize its annual report on Form 20-F.\nPART IV: OTHER INFORMATION\nHave all other periodic reports required been filed? [X] Yes [ ] No\nIs it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No\nSIGNATURE\n/s/ CFO"
+    }
+  },
+  "completeSubmissionMultipleDocuments": {
+    "source": {
+      "formType": "NT 10-Q",
+      "companyName": "Example SGML Corp.",
+      "ticker": "ESG",
+      "filingText": "<SEC-DOCUMENT>0000000000-26-000001.txt\n<DOCUMENT>\n<TYPE>GRAPHIC\n<SEQUENCE>1\n<FILENAME>image.jpg\n<DESCRIPTION>Logo\n<TEXT>binary image placeholder</TEXT>\n</DOCUMENT>\n<DOCUMENT>\n<TYPE>NT 10-Q\n<SEQUENCE>2\n<FILENAME>nt10q.htm\n<DESCRIPTION>Form 12b-25\n<TEXT><html><body><p>FORM 12b-25 NOTIFICATION OF LATE FILING</p><p>PART I - REGISTRANT INFORMATION</p><p>Example SGML Corp.</p><p>PART II - RULE 12b-25(b) AND (c)</p><p>[X] (a) [X] (b) [ ] (c)</p><p>PART III - NARRATIVE</p><p>The registrant requires more time to complete review of quarterly financial statements.</p><p>PART IV - OTHER INFORMATION</p><p>Have all other periodic reports required been filed? [X] Yes [ ] No</p><p>Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No</p></body></html></TEXT>\n</DOCUMENT>\n<DOCUMENT>\n<TYPE>EX-99.1\n<SEQUENCE>3\n<FILENAME>ex99.htm\n<DESCRIPTION>Exhibit\n<TEXT>Exhibit text should not be selected as the primary Form 12b-25 body.</TEXT>\n</DOCUMENT>\n</SEC-DOCUMENT>"
+    }
+  },
+  "primaryDocumentNotFirst": {
+    "source": {
+      "formType": "NT 10-K",
+      "companyName": "Example Primary Corp.",
+      "ticker": "EPC",
+      "filingText": "Fallback text without the real notice.",
+      "documents": [
+        {
+          "type": "EX-99.1",
+          "sequence": "1",
+          "filename": "ex99.htm",
+          "description": "Exhibit",
+          "text": "Exhibit text mentioning a delay but not the Form 12b-25 body.",
+          "isPrimary": false
+        },
+        {
+          "type": "NT 10-K",
+          "sequence": "2",
+          "filename": "form12b25.htm",
+          "description": "Primary Form 12b-25",
+          "text": "FORM 12b-25 NOTIFICATION OF LATE FILING\nPART I - REGISTRANT INFORMATION\nExample Primary Corp.\nPART II - RULE 12b-25(b) AND (c)\n[X] (a) [X] (b) [ ] (c)\nPART III - NARRATIVE\nThe registrant requires additional time to complete annual closing procedures.\nPART IV - OTHER INFORMATION\nHave all other periodic reports required been filed? [X] Yes [ ] No\nIs it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No",
+          "isPrimary": true
+        }
+      ]
+    }
+  },
+  "unicodeCheckboxTokens": {
+    "source": {
+      "formType": "NT 10-Q",
+      "companyName": "Example Unicode Corp.",
+      "ticker": "EUC",
+      "filingText": "<p>FORM 12b-25 NOTIFICATION OF LATE FILING</p><p>☒ Form 10-Q ☑ Other checked ☐ unchecked □ empty ✓ check ✔ heavy ■ filled</p><p>PART III - NARRATIVE</p><p>The registrant needs additional time.</p><p>PART IV - OTHER INFORMATION</p><p>Is it anticipated that any significant change in results of operations will be reflected? ☐ Yes ☒ No</p>"
+    }
+  },
+  "asciiCheckboxTokens": {
+    "source": {
+      "formType": "NT 10-Q",
+      "companyName": "Example ASCII Corp.",
+      "ticker": "EACB",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING\n[X] Form 10-Q [x] selected [ ] blank x raw lower X raw upper\nPART III - NARRATIVE\nThe registrant needs additional time.\nPART IV - OTHER INFORMATION\nIs it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No"
+    }
+  },
+  "brokenHeadingsFallback": {
+    "source": {
+      "formType": "NT 10-Q",
+      "companyName": "Example Broken Corp.",
+      "ticker": "EBC",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING\nRegistrant information: Example Broken Corp.\nRULE 12b-25(b) AND (c)\n[X] (a) [X] (b) [ ] (c)\nState below in reasonable detail why the Form 10-Q could not be filed within the prescribed time period.\nThe registrant requires additional time to compile quarterly financial information.\nName and telephone number of person to contact: Alex Smith 555-0199.\nHave all other periodic reports required been filed? [X] Yes [ ] No\nIs it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No"
+    }
+  },
+  "closePartIIIAndIVTable": {
+    "source": {
+      "formType": "NT 10-Q",
+      "companyName": "Example Close Corp.",
+      "ticker": "ECC",
+      "filingText": "<table><tr><td>FORM 12b-25 NOTIFICATION OF LATE FILING</td></tr><tr><td>PART III</td><td>NARRATIVE</td><td>The registrant needs additional time to complete quarterly review procedures.</td><td>PART IV</td><td>OTHER INFORMATION</td><td>Is it anticipated that any significant change in results of operations will be reflected?</td><td>[ ] Yes [X] No</td></tr></table><p>SIGNATURES</p><p>/s/ Officer</p>"
+    }
+  },
+  "noCredibleBody": {
+    "source": {
+      "formType": "NT 10-Q",
+      "companyName": "Example Missing Corp.",
+      "ticker": "EMC",
+      "filingText": "<html><body><p>This document is a placeholder and does not contain the late filing notice.</p><p>No statutory late-filing sections appear here.</p></body></html>"
+    }
+  }
+}

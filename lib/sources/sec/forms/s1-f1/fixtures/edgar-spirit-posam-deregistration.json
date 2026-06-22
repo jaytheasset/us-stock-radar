@@ -1,0 +1,39 @@
+{
+  "name": "edgar-spirit-posam-deregistration",
+  "source": {
+    "company": "Spirit Aviation Holdings, Inc.",
+    "form_type": "POS AM",
+    "cik": "0001498710",
+    "accession": "0000950103-26-003340",
+    "filed_at": "2026-03-05",
+    "sec_url": "https://www.sec.gov/Archives/edgar/data/1498710/000095010326003340/dp242676_posam.htm",
+    "text_basis": "edgar_original_excerpt"
+  },
+  "input": {
+    "formType": "POS AM",
+    "accessionNumber": "0000950103-26-003340",
+    "metadata": {
+      "companyName": "Spirit Aviation Holdings, Inc.",
+      "filedAt": "2026-03-05"
+    },
+    "filingText": "As filed with the Securities and Exchange Commission on March 5, 2026 Registration No. 333-288706 UNITED STATES SECURITIES AND EXCHANGE COMMISSION Washington, D.C. 20549 POST-EFFECTIVE AMENDMENT No. 1 TO FORM S-1 REGISTRATION STATEMENT Under The Securities Act of 1933 Spirit Aviation Holdings, Inc.\nEXPLANATORY NOTE On July 16, 2025, Spirit Aviation Holdings, Inc. (the “Company”) filed a Registration Statement on Form S-1 (the “Registration Statement”). This Post-Effective Amendment No. 1 to the Registration Statement (“Post-Effective Amendment”) is being filed in order to deregister all securities that were registered under the Registration Statement and remain unsold. On March 5, 2026, the Company and certain holders of its shares of common stock constituting a majority of the Registrable Securities entered into a consent and waiver to the Registration Rights Agreement pursuant to which the Consenting Holders, among other things, consented to the terminate the registration of all unsold shares of Common Stock registered pursuant to the Registration Statement. The Company hereby removes from registration by means of this Post-Effective Amendment all the securities of the Company registered but unsold under the Registration Statement as of the date hereof."
+  },
+  "expected": {
+    "event_type": "other",
+    "score_band": "archive",
+    "delivery_level": "archive",
+    "deterministic": true,
+    "facts": {
+      "company_name": "Spirit Aviation Holdings, Inc.",
+      "ticker": null,
+      "exchange": null,
+      "registration_kind": "unknown",
+      "amendment_number": 1,
+      "filing_variant": "post_effective_amendment",
+      "reported_form_type": "POS AM",
+      "parent_context_needed": true,
+      "post_effective_purpose": "deregistration",
+      "deregister_unsold_securities": true
+    }
+  }
+}

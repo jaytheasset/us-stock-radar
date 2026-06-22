@@ -1,0 +1,38 @@
+{
+  "title": "Summit Motors Form 8-K monthly deliveries",
+  "publishedAt": "2026-05-04T11:30:00Z",
+  "sourceUniqueId": "0004444444-26-000004",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/4444444/000444444426000004/",
+  "bodyText": "UNITED STATES\nFORM 8-K\nItem 7.01 Regulation FD Disclosure.\nOn May 4, 2026, Summit Motors reported April operating performance. The Company delivered 18,420 vehicles in April 2026, up 27% from April 2025, and production volumes were 19,100 vehicles. Management also said preliminary revenue for the month exceeded internal plans. The information is furnished and not filed.\nItem 9.01 Financial Statements and Exhibits.",
+  "rawPayload": {
+    "form_type": "8-K",
+    "accession_number": "0004444444-26-000004",
+    "company_name": "Summit Motors",
+    "ticker": "SMOT",
+    "documents": [
+      {
+        "type": "8-K",
+        "description": "Current report",
+        "url": "primary.htm",
+        "isPrimary": true,
+        "textCharCount": 540,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ]
+  },
+  "metadata": {
+    "company_name": "Summit Motors",
+    "ticker": "SMOT"
+  },
+  "marketContext": {
+    "market_cap": 3200000000,
+    "volume": 4500000,
+    "avg_volume": 3000000
+  },
+  "expected": {
+    "eventType": "sales_performance",
+    "deliveryLevel": "feed"
+  }
+}

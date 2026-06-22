@@ -1,0 +1,118 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_425_parser_v1",
+    "parserGroup": "425",
+    "formType": "425",
+    "accessionNumber": "0000000000-26-000427",
+    "isSupported": true,
+    "summary": "Form 425 communication with litigation and regulatory risk signals for a pending acquisition.",
+    "facts": {
+      "company_name": "Meridian Software Group, Inc.",
+      "primary_ticker": "MRSW",
+      "exchange": "NASDAQ",
+      "communication_types": ["supplemental_disclosure"],
+      "legal": {
+        "litigation_or_claims": [
+          "Three purported stockholder class action complaints have been filed alleging disclosure claims and seeking to enjoin the closing of the merger."
+        ],
+        "regulatory_risk": [
+          "The merger remains subject to regulatory approval under the HSR Act."
+        ],
+        "injunction_or_delay_risk": [
+          "A hearing on plaintiffs' motion for a preliminary injunction is scheduled for July 8, 2026."
+        ]
+      }
+    },
+    "signals": [
+      {
+        "type": "legal_or_regulatory_risk",
+        "value": "deal_risk",
+        "evidence": "Three purported stockholder class action complaints have been filed.",
+        "confidence": "medium"
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "legal_risk",
+    "event_title": "Meridian discloses merger litigation and injunction hearing",
+    "primary_ticker": {
+      "ticker": "MRSW",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      {
+        "ticker": "MRSW",
+        "exchange": "NASDAQ"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": "M&A",
+    "sub_theme": "Deal litigation",
+    "score": 70,
+    "score_reason": "Feed-level because the filing identifies stockholder class actions, an injunction hearing, and remaining HSR approval, but does not state the deal has been blocked or terminated.",
+    "signal": "volatile",
+    "quick_take": "Meridian disclosed litigation and an injunction hearing tied to its pending acquisition.",
+    "summary": "Meridian filed supplemental Form 425 disclosures after stockholder complaints sought to enjoin the merger closing. The company says it believes the claims lack merit, but a preliminary injunction hearing is scheduled for July 8, 2026.",
+    "why_it_matters": "Litigation and regulatory approvals can change deal timing, closing certainty, and investor expectations around merger completion.",
+    "bullish_points": [
+      "Meridian says it believes the claims are without merit.",
+      "The company provided supplemental disclosures to moot certain allegations."
+    ],
+    "bearish_points": [
+      "The complaints seek to enjoin the merger closing.",
+      "The merger still requires regulatory approval under the HSR Act."
+    ],
+    "key_evidence": [
+      "Three purported stockholder class action complaints have been filed alleging disclosure claims and seeking to enjoin the closing.",
+      "A hearing on plaintiffs' motion for a preliminary injunction is scheduled for July 8, 2026.",
+      "The merger remains subject to regulatory approval under the HSR Act."
+    ],
+    "what_to_watch_next": [
+      "Outcome of the July 8, 2026 preliminary injunction hearing.",
+      "Any HSR or antitrust clearance update.",
+      "Whether supplemental disclosures resolve the disclosure claims."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "type": "legal_hearing",
+        "date": "2026-07-08",
+        "label": "Preliminary injunction hearing",
+        "evidence": "A hearing on plaintiffs' motion for a preliminary injunction is scheduled for July 8, 2026."
+      }
+    ],
+    "confidence": "medium",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "risk_type": "merger_litigation",
+      "hearing_date": "2026-07-08",
+      "regulatory_approval": "HSR Act"
+    },
+    "evidence": [
+      "Three purported stockholder class action complaints have been filed.",
+      "A hearing on plaintiffs' motion for a preliminary injunction is scheduled for July 8, 2026."
+    ],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Legal-risk detail can remain generic unless the UI room later creates a transaction-risk component."
+    ]
+  }
+}

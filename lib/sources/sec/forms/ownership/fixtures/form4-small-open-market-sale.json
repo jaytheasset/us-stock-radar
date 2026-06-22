@@ -1,0 +1,19 @@
+{
+  "id": "form4-small-open-market-sale",
+  "formType": "4",
+  "accessionNumber": "0000000000-26-000499",
+  "issuer": {
+    "name": "Small Sale Test Corp.",
+    "ticker": "SMST",
+    "exchange": "NASDAQ",
+    "cik": "0001999499"
+  },
+  "reportingOwner": {
+    "name": "Jordan Small",
+    "title": "Director",
+    "roles": ["director"]
+  },
+  "filingText": "<ownershipDocument><issuer><issuerCik>0001999499</issuerCik><issuerName>Small Sale Test Corp.</issuerName><issuerTradingSymbol>SMST</issuerTradingSymbol></issuer><reportingOwner><rptOwnerName>Jordan Small</rptOwnerName><reportingOwnerRelationship><isDirector>1</isDirector></reportingOwnerRelationship></reportingOwner><nonDerivativeTable><nonDerivativeTransaction><securityTitle><value>Common Stock</value></securityTitle><transactionDate><value>2026-05-21</value></transactionDate><transactionCoding><transactionCode>S</transactionCode></transactionCoding><transactionAmounts><transactionShares><value>3000</value></transactionShares><transactionPricePerShare><value>20.00</value></transactionPricePerShare><transactionAcquiredDisposedCode><value>D</value></transactionAcquiredDisposedCode></transactionAmounts><postTransactionAmounts><sharesOwnedFollowingTransaction><value>97000</value></sharesOwnedFollowingTransaction></postTransactionAmounts></nonDerivativeTransaction></nonDerivativeTable></ownershipDocument>",
+  "expected_event_type": "insider_ownership",
+  "expected_score_band": "archive"
+}

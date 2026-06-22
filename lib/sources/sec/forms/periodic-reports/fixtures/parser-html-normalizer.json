@@ -1,0 +1,279 @@
+{
+  "cases": [
+    {
+      "name": "basic-10k-html-paragraph-order",
+      "filing": {
+        "rawItemId": "normalizer-basic-10k",
+        "sourceUniqueId": "0000000000-26-200001",
+        "title": "Normalizer Basic Inc. Form 10-K",
+        "metadata": {
+          "formType": "10-K"
+        },
+        "rawPayload": {
+          "form_type": "10-K",
+          "accession_number": "0000000000-26-200001",
+          "company_name": "Normalizer Basic Inc.",
+          "documents": [
+            {
+              "type": "10-K",
+              "description": "Annual report",
+              "filename": "normalizer-basic-20251231x10k.htm",
+              "text": "<html><body><div>UNITED STATES SECURITIES AND EXCHANGE COMMISSION</div><div>FORM 10-K</div><p>For the fiscal year ended December 31, 2025</p><p>Normalizer Basic Inc. (Exact name of registrant as specified in its charter)</p><p>ITEM 1. Business</p><p>First visible paragraph.</p><p>ITEM 7. Management's Discussion and Analysis of Financial Condition and Results of Operations</p><p>Second visible paragraph with revenue 10.0 9.0.</p><p>ITEM 8. Financial Statements and Supplementary Data</p><p>Third visible paragraph with net income 1.0 0.8.</p></body></html>",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "hidden-script-style-template-content-excluded",
+      "filing": {
+        "rawItemId": "normalizer-hidden-content",
+        "sourceUniqueId": "0000000000-26-200002",
+        "title": "Hidden Content Inc. Form 10-Q",
+        "metadata": {
+          "formType": "10-Q"
+        },
+        "rawPayload": {
+          "form_type": "10-Q",
+          "accession_number": "0000000000-26-200002",
+          "company_name": "Hidden Content Inc.",
+          "documents": [
+            {
+              "type": "10-Q",
+              "description": "Quarterly report",
+              "filename": "hidden-content-20260331x10q.htm",
+              "text": "<html><head><style>.hidden{display:none}</style><script>SHOULD_NOT_APPEAR_SCRIPT</script></head><body><div>UNITED STATES SECURITIES AND EXCHANGE COMMISSION</div><div>FORM 10-Q</div><div hidden>SHOULD_NOT_APPEAR_HIDDEN_ATTR</div><div style=\"display:none\">SHOULD_NOT_APPEAR_STYLE</div><noscript>SHOULD_NOT_APPEAR_NOSCRIPT</noscript><template>SHOULD_NOT_APPEAR_TEMPLATE</template><p>For the quarterly period ended March 31, 2026</p><p>Hidden Content Inc. (Exact name of registrant as specified in its charter)</p><p>ITEM 1. Financial Statements</p><p>Visible operating text 5.0 4.0.</p><p>ITEM 2. Management's Discussion and Analysis</p><p>Visible MD&A text.</p></body></html>",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "whitespace-and-punctuation-normalized",
+      "filing": {
+        "rawItemId": "normalizer-whitespace",
+        "sourceUniqueId": "0000000000-26-200003",
+        "title": "Whitespace Normalizer Inc. Form 10-K",
+        "metadata": {
+          "formType": "10-K"
+        },
+        "rawPayload": {
+          "form_type": "10-K",
+          "accession_number": "0000000000-26-200003",
+          "company_name": "Whitespace Normalizer Inc.",
+          "documents": [
+            {
+              "type": "10-K",
+              "description": "Annual report",
+              "filename": "whitespace-20251231x10k.htm",
+              "text": "<html><body><div>FORM&nbsp;&nbsp;10-K</div><p>Whitespace\u200b Normalizer Inc. (Exact name of registrant as specified in its charter)</p><p>ITEM 1. Business</p><p>Smart \u201cquote\u201d and dash \u2014 with&nbsp;&nbsp;&nbsp;spaces.</p><p>ITEM 7. Management's Discussion and Analysis</p><p>Loss was (1.2) and cash was -3.4.</p></body></html>",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "inline-xbrl-visible-numeric-preserved",
+      "filing": {
+        "rawItemId": "normalizer-ix-numeric",
+        "sourceUniqueId": "0000000000-26-200004",
+        "title": "Inline Numeric Inc. Form 10-Q",
+        "metadata": {
+          "formType": "10-Q"
+        },
+        "rawPayload": {
+          "form_type": "10-Q",
+          "accession_number": "0000000000-26-200004",
+          "company_name": "Inline Numeric Inc.",
+          "documents": [
+            {
+              "type": "10-Q",
+              "description": "Quarterly report with Inline XBRL",
+              "filename": "ixnumeric-20260331x10q.htm",
+              "text": "<html><body><div>FORM 10-Q</div><p>Inline Numeric Inc. (Exact name of registrant as specified in its charter)</p><p>ITEM 1. Financial Statements</p><p>Revenue was <ix:nonFraction name=\"us-gaap:Revenues\" contextRef=\"c1\" unitRef=\"usd\" decimals=\"-6\">123</ix:nonFraction> million for the quarter.</p><p>ITEM 2. Management's Discussion and Analysis</p><p>Revenue increased.</p></body></html>",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "inline-xbrl-visible-nonnumeric-cover-preserved",
+      "filing": {
+        "rawItemId": "normalizer-ix-nonnumeric",
+        "sourceUniqueId": "0000000000-26-200005",
+        "title": "Inline Name Inc. Form 10-K",
+        "metadata": {
+          "formType": "10-K"
+        },
+        "rawPayload": {
+          "form_type": "10-K",
+          "accession_number": "0000000000-26-200005",
+          "company_name": "Inline Name Inc.",
+          "documents": [
+            {
+              "type": "10-K",
+              "description": "Annual report with Inline XBRL",
+              "filename": "ixname-20251231x10k.htm",
+              "text": "<html><body><div>FORM 10-K</div><p><ix:nonNumeric name=\"dei:EntityRegistrantName\" contextRef=\"c1\">Inline Name Inc.</ix:nonNumeric> (Exact name of registrant as specified in its charter)</p><p>ITEM 1. Business</p><p>Inline Name Inc. sells software.</p><p>ITEM 7. Management's Discussion and Analysis</p><p>Revenue was 11.0 10.0.</p></body></html>",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "hidden-inline-xbrl-metadata-excluded",
+      "filing": {
+        "rawItemId": "normalizer-hidden-ix",
+        "sourceUniqueId": "0000000000-26-200006",
+        "title": "Visible Issuer Inc. Form 10-Q",
+        "metadata": {
+          "formType": "10-Q"
+        },
+        "rawPayload": {
+          "form_type": "10-Q",
+          "accession_number": "0000000000-26-200006",
+          "company_name": "Visible Issuer Inc.",
+          "documents": [
+            {
+              "type": "10-Q",
+              "description": "Quarterly report with hidden Inline XBRL",
+              "filename": "hiddenix-20260331x10q.htm",
+              "text": "<html><body><ix:header><ix:hidden><ix:nonNumeric name=\"dei:EntityRegistrantName\" contextRef=\"hidden\">Hidden Metadata Issuer</ix:nonNumeric></ix:hidden></ix:header><div>FORM 10-Q</div><p>Visible Issuer Inc. (Exact name of registrant as specified in its charter)</p><p>ITEM 1. Financial Statements</p><p>Revenue 9.0 8.0.</p><p>ITEM 2. Management's Discussion and Analysis</p><p>Visible text remains.</p></body></html>",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "malformed-sec-html-recovers-visible-text",
+      "filing": {
+        "rawItemId": "normalizer-malformed",
+        "sourceUniqueId": "0000000000-26-200007",
+        "title": "Malformed Recovery Inc. Form 10-K",
+        "metadata": {
+          "formType": "10-K"
+        },
+        "rawPayload": {
+          "form_type": "10-K",
+          "accession_number": "0000000000-26-200007",
+          "company_name": "Malformed Recovery Inc.",
+          "documents": [
+            {
+              "type": "10-K",
+              "description": "Malformed annual report",
+              "filename": "malformed-20251231x10k.htm",
+              "text": "<html><body><div>FORM 10-K<p>Malformed Recovery Inc. (Exact name of registrant as specified in its charter)<p>ITEM 1. Business<p>Recovered visible business text.<div><p>ITEM 7. Management's Discussion and Analysis<p>Recovered revenue 7.0 6.0",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "simple-table-preserved-as-table-block",
+      "filing": {
+        "rawItemId": "normalizer-simple-table",
+        "sourceUniqueId": "0000000000-26-200008",
+        "title": "Table Preserve Inc. Form 10-Q",
+        "metadata": {
+          "formType": "10-Q"
+        },
+        "rawPayload": {
+          "form_type": "10-Q",
+          "accession_number": "0000000000-26-200008",
+          "company_name": "Table Preserve Inc.",
+          "documents": [
+            {
+              "type": "10-Q",
+              "description": "Quarterly report",
+              "filename": "tablepreserve-20260331x10q.htm",
+              "text": "<html><body><div>FORM 10-Q</div><p>Table Preserve Inc. (Exact name of registrant as specified in its charter)</p><p>ITEM 1. Financial Statements</p><table><tr><th>Metric</th><th>2026</th><th>2025</th></tr><tr><td>Revenue</td><td>100</td><td>90</td></tr><tr><td>Net income</td><td>(5)</td><td>4</td></tr></table><p>ITEM 2. Management's Discussion and Analysis</p><p>Revenue increased.</p></body></html>",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "layout-one-cell-table-preserved",
+      "filing": {
+        "rawItemId": "normalizer-layout-table",
+        "sourceUniqueId": "0000000000-26-200009",
+        "title": "Layout Table Inc. Form 10-K",
+        "metadata": {
+          "formType": "10-K"
+        },
+        "rawPayload": {
+          "form_type": "10-K",
+          "accession_number": "0000000000-26-200009",
+          "company_name": "Layout Table Inc.",
+          "documents": [
+            {
+              "type": "10-K",
+              "description": "Annual report",
+              "filename": "layouttable-20251231x10k.htm",
+              "text": "<html><body><div>FORM 10-K</div><p>Layout Table Inc. (Exact name of registrant as specified in its charter)</p><table><tr><td>ITEM 1. Business Layout Table Inc. uses one-cell layout tables for normal narrative text.</td></tr></table><p>ITEM 7. Management's Discussion and Analysis</p><p>Revenue was 15.0 14.0.</p></body></html>",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "signature-and-exhibit-index-classified",
+      "filing": {
+        "rawItemId": "normalizer-signature-exhibits",
+        "sourceUniqueId": "0000000000-26-200010",
+        "title": "Signature Exhibit Inc. Form 10-K",
+        "metadata": {
+          "formType": "10-K"
+        },
+        "rawPayload": {
+          "form_type": "10-K",
+          "accession_number": "0000000000-26-200010",
+          "company_name": "Signature Exhibit Inc.",
+          "documents": [
+            {
+              "type": "10-K",
+              "description": "Annual report",
+              "filename": "sigex-20251231x10k.htm",
+              "text": "<html><body><div>FORM 10-K</div><p>Signature Exhibit Inc. (Exact name of registrant as specified in its charter)</p><p>ITEM 1. Business</p><p>Business text.</p><p>ITEM 15. Exhibits and Financial Statement Schedules</p><p>EXHIBIT INDEX</p><table><tr><td>Exhibit 31.1</td><td>Certification</td></tr><tr><td>Exhibit 32.1</td><td>Certification</td></tr></table><p>SIGNATURES</p><p>/s/ Principal Executive Officer</p></body></html>",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "suspiciously-little-visible-text-warns",
+      "filing": {
+        "rawItemId": "normalizer-suspicious-short",
+        "sourceUniqueId": "0000000000-26-200011",
+        "title": "Suspicious Short Inc. Form 10-K",
+        "metadata": {
+          "formType": "10-K"
+        },
+        "rawPayload": {
+          "form_type": "10-K",
+          "accession_number": "0000000000-26-200011",
+          "company_name": "Suspicious Short Inc.",
+          "documents": [
+            {
+              "type": "10-K",
+              "description": "Annual report with hidden source",
+              "filename": "suspicious-20251231x10k.htm",
+              "text": "<html><body><script>var huge='hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden hidden';</script><style>.x{display:none}</style><div style=\"display:none\">FORM 10-K ITEM 1 Business Revenue 100 90</div></body></html>",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

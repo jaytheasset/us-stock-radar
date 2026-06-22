@@ -1,0 +1,77 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_form25_parser_v1",
+    "parserGroup": "form25",
+    "formType": "Form 25 / 25-NSE",
+    "accessionNumber": "0000000000-26-000001",
+    "isSupported": true,
+    "summary": "EXAMPLE ISSUER INC filed 25-NSE to remove Example Issuer Inc Common Stock from Example Exchange LLC; raw reason category: unknown.",
+    "facts": {
+      "source_form_type": "25-NSE",
+      "removed_security": "Example Issuer Inc Common Stock",
+      "security_category": "common_stock",
+      "removal_reason_category": "unknown",
+      "common_equity_affected": true,
+      "deterministic_case": null,
+      "analysis_required": true,
+      "analysis_reasons": ["missing_or_unclear_reason", "common_equity_delisting_possible"]
+    },
+    "signals": ["analysis_required", "missing_or_unclear_reason", "common_equity_delisting_possible", "common_equity_affected"],
+    "calendarItems": [],
+    "warnings": ["missing_or_unclear_reason", "common_equity_delisting_possible"],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "listing_risk",
+    "event_title": "Example common-stock removal lacks reason",
+    "primary_ticker": {
+      "ticker": null,
+      "exchange": "Example Exchange LLC"
+    },
+    "tickers": [],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 55,
+    "score_reason": "Reason is missing.",
+    "signal": "volatile",
+    "quick_take": "The common-stock removal lacks a clear source reason.",
+    "summary": "The parser found a Form 25-NSE for common stock but no usable reason exhibit or removal explanation. Human review is needed before assigning severity.",
+    "why_it_matters": "Missing reason text can hide materially different delisting scenarios.",
+    "bullish_points": [],
+    "bearish_points": ["Common stock appears affected"],
+    "key_evidence": ["No removal reason exhibit was available"],
+    "what_to_watch_next": ["Exchange notice or company 8-K"],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "low",
+    "needs_human_review": true
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "primary_ticker": null,
+      "primary_ticker_exchange": null,
+      "removed_security": "Example Issuer Inc Common Stock",
+      "exchange": "Example Exchange LLC",
+      "removal_reason": "unknown",
+      "common_equity_affected": true,
+      "delisting_or_removal_date": null
+    },
+    "evidence": ["The primary form names common stock but no reason exhibit was provided."],
+    "notes": ["LLM/review needed because removal reason is missing."]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": ["Integration should preserve missing-reason warnings for human review."]
+  }
+}

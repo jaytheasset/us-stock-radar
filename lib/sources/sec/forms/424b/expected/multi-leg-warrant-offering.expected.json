@@ -1,0 +1,112 @@
+{
+  "parser_output": {
+    "parserVersion": "424b-parser-v1",
+    "parserGroup": "424b",
+    "formType": "424B5",
+    "accessionNumber": "0000000000-26-000108",
+    "isSupported": true,
+    "summary": "Momentus Inc. filed 424B5 covering 300,000 issuer-offered shares; 973,886 pre-funded warrants.",
+    "facts": {
+      "issuer": {
+        "name": "Momentus Inc.",
+        "ticker": "MNTS",
+        "exchange": "NASDAQ"
+      },
+      "prospectusClass": "multi_leg_warrant",
+      "offeringTerms": {
+        "sharesOffered": 300000,
+        "pricePerShare": 3.925,
+        "netProceeds": 4500000
+      },
+      "multiLegWarrantTerms": {
+        "commonSharesOffered": 300000,
+        "preFundedWarrants": 973886,
+        "commonWarrants": 1273886,
+        "placementAgentWarrants": 63694,
+        "preFundedWarrantPurchasePrice": 3.92499,
+        "preFundedWarrantExercisePrice": 0.00001,
+        "commonWarrantExercisePrice": 3.8,
+        "placementAgentWarrantExercisePrice": 4.3175,
+        "ownershipCapPercent": 4.99
+      },
+      "flags": {
+        "multiLegWarrant": true
+      }
+    },
+    "signals": [
+      {
+        "name": "multi_leg_warrant_offering",
+        "value": true
+      },
+      {
+        "name": "market_context_needed",
+        "value": ["price", "market_cap", "shares_outstanding", "public_float"]
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {
+      "deterministicCandidate": null
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "other",
+    "event_title": "Multi-leg warrant offering terms extracted",
+    "primary_ticker": {
+      "ticker": "MNTS",
+      "exchange": "NASDAQ"
+    },
+    "tickers": ["MNTS"],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 35,
+    "score_reason": "Parser fixture records complex multi-leg terms without assigning final investor interpretation.",
+    "signal": "neutral",
+    "quick_take": "The parser separates common shares, pre-funded warrants, common warrants, and placement-agent warrants.",
+    "summary": "The fixture verifies extraction of offered shares, multiple warrant legs, exercise prices, ownership cap, and net proceeds.",
+    "why_it_matters": "Multi-leg offerings should preserve offered securities and underlying securities separately to avoid double counting.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [
+      "300,000 common shares.",
+      "973,886 pre-funded warrants.",
+      "1,273,886 common warrants."
+    ],
+    "what_to_watch_next": [],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "medium",
+    "needs_human_review": false,
+    "analysis_action": "parser_fixture_only",
+    "archive_summary": "Multi-leg warrant terms extracted for fixture coverage.",
+    "offering_display_model": {},
+    "offering_security_audit": {}
+  },
+  "display_payload": {
+    "display_type": "offering_terms",
+    "display_version": "424b-display-payload-v1",
+    "data": {
+      "security_variant": "multi_leg_warrant"
+    },
+    "evidence": [],
+    "notes": [
+      "Later integration can decide how to map complex warrant legs to offering display."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": true,
+    "market_context_reason": "Common and warrant-linked offering size may need comparison with market cap, shares outstanding, and float.",
+    "market_context_fields": ["price", "market_cap", "shares_outstanding", "public_float"],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Avoid double counting offered securities and underlying warrant shares."
+    ]
+  }
+}

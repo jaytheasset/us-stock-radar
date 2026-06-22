@@ -1,0 +1,33 @@
+{
+  "case_id": "activist-13d",
+  "description": "New Schedule 13D with activist governance language that should route to analysis.",
+  "filing": {
+    "formType": "SC 13D",
+    "accessionNumber": "0000000000-26-000202",
+    "issuerName": "MetroGrid Energy Corp.",
+    "primaryTicker": {
+      "ticker": "MGE",
+      "exchange": "NYSE"
+    },
+    "filedAt": "2026-02-14",
+    "text": "SCHEDULE 13D\nCUSIP Number: 59162A100\nName of Issuer: MetroGrid Energy Corp.\nTitle of Class of Securities: Common Stock\nTicker: MGE\nExchange: NYSE\nDate of Event Which Requires Filing: February 10, 2026\nName of Reporting Person: Harbor Ridge Capital Master Fund Ltd.\nSole Voting Power: 8,500,000\nShared Voting Power: 0\nSole Dispositive Power: 8,500,000\nShared Dispositive Power: 0\nAggregate Amount Beneficially Owned by Each Reporting Person: 8,500,000\nPercent of Class Represented by Amount in Row (11): 12.4%\nItem 4. Purpose of Transaction\nThe Reporting Person acquired the shares for investment purposes. The Reporting Person intends to engage with the Board and management regarding operational performance, capital allocation, governance changes and potential board representation. The Reporting Person may seek to nominate directors and may encourage the Issuer to review strategic alternatives, including a sale or merger.\nItem 5. Interest in Securities of the Issuer\nThe Reporting Person beneficially owns 8,500,000 shares, representing 12.4% of the outstanding common stock.\nSIGNATURE"
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "leadership_governance",
+    "deterministic": false,
+    "score_band": "alert",
+    "extracted_facts": {
+      "issuerName": "MetroGrid Energy Corp.",
+      "reportingPersons": [
+        "Harbor Ridge Capital Master Fund Ltd."
+      ],
+      "scheduleType": "13D",
+      "isAmendment": false,
+      "sharesBeneficiallyOwned": 8500000,
+      "percentOwned": 12.4,
+      "ownershipIntent": "active",
+      "item4HasActivistLanguage": true
+    }
+  }
+}

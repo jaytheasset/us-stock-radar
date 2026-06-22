@@ -1,0 +1,13 @@
+{
+  "fixtureName": "selling-beneficial-before-after",
+  "formType": "S-8",
+  "accessionNumber": "0005555555-26-000503",
+  "filedAt": "2026-05-19",
+  "issuer": {
+    "name": "Beneficial Table Corp.",
+    "ticker": "BTBL",
+    "exchange": "NASDAQ"
+  },
+  "filingText": "Beneficial Table Corp. files this registration statement on Form S-8. RESALE PROSPECTUS. SELLING SECURITYHOLDERS. <table><tr><th>Selling Securityholder</th><th>Position, Office or Other Material Relationship</th><th>Shares Beneficially Owned Prior to Offering</th><th>Percentage Owned Before Offering</th><th>Shares Being Offered</th><th>Shares Beneficially Owned After Offering</th><th>Percentage Owned After Offering</th></tr><tr><td>Alice Jones (1)</td><td>Former Officer</td><td>300,000</td><td>2.4%</td><td>200,000</td><td>100,000</td><td>*</td></tr></table><p>(1) Includes vested options and assumes all shares offered are sold.</p> PLAN OF DISTRIBUTION. SIGNATURES.",
+  "attachments": []
+}

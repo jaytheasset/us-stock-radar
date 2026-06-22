@@ -1,0 +1,83 @@
+{
+  "case_name": "real-united-rentals-he-sc-to-t",
+  "source": {
+    "sec_url": "https://www.sec.gov/Archives/edgar/data/1067701/000110465925006713/tm253288-1_sctot.htm"
+  },
+  "filing": {
+    "rawItemId": "real-united-rentals-he-sc-to-t",
+    "sourceUniqueId": "0001104659-25-006713",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1067701/000110465925006713/",
+    "title": "United Rentals / H&E Equipment Services SC TO-T",
+    "publishedAt": "2025-01-28T12:00:00.000Z",
+    "bodyText": "SC TO-T\nH&E EQUIPMENT SERVICES, INC.\n(Name of Subject Company (Issuer))\nUR MERGER SUB VII CORPORATION\na wholly owned subsidiary of UNITED RENTALS (NORTH AMERICA), INC.\na wholly owned subsidiary of UNITED RENTALS, INC.\n(Names of Filing Persons (Offerors))\nCommon Stock, par value $0.01\nCUSIP 404030108\nCheck the appropriate boxes below to designate any transactions to which the statement relates:\nthird-party tender offer subject to Rule 14d-1.\nCheck the following box if the filing is a final amendment reporting the results of the tender offer. [ ]\nThis Schedule TO relates to the offer by UR Merger Sub VII Corporation to purchase all outstanding shares of H&E Equipment Services, Inc. at a price per Share of $92.00 net to the holder in cash, without interest, upon the terms and conditions in the Offer to Purchase and Letter of Transmittal.",
+    "rawPayload": {
+      "accession_number": "0001104659-25-006713",
+      "form_type": "SC TO-T",
+      "company_name": "H&E Equipment Services, Inc.",
+      "ticker": "HEES",
+      "exchange": "NASDAQ",
+      "documents": [
+        {
+          "sequence": "1",
+          "description": "SC TO-T",
+          "document": "tm253288-1_sctot.htm",
+          "type": "SC TO-T",
+          "url": "https://www.sec.gov/Archives/edgar/data/1067701/000110465925006713/tm253288-1_sctot.htm",
+          "isPrimary": true,
+          "textCharCount": 52000,
+          "textTruncated": false,
+          "fetchStatus": 200,
+          "fetchError": null
+        },
+        {
+          "sequence": "2",
+          "description": "Offer to Purchase dated January 28, 2025.",
+          "document": "tm253288d1_exa1a.htm",
+          "type": "EX-99.(A)(1)(A)",
+          "textCharCount": 900000
+        },
+        {
+          "sequence": "3",
+          "description": "Form of Letter of Transmittal.",
+          "document": "tm253288d1_exa1b.htm",
+          "type": "EX-99.(A)(1)(B)",
+          "textCharCount": 260000
+        },
+        {
+          "sequence": "11",
+          "description": "Commitment Letter, dated January 13, 2025.",
+          "document": "tm253288d1_exb.htm",
+          "type": "EX-99.(B)",
+          "textCharCount": 120000
+        },
+        {
+          "sequence": "12",
+          "description": "Agreement and Plan of Merger, dated January 13, 2025.",
+          "document": "tm253288d1_exd1.htm",
+          "type": "EX-99.(D)(1)",
+          "textCharCount": 450000
+        },
+        {
+          "sequence": "16",
+          "description": "Filing Fee Table.",
+          "document": "tm253288d1_ex107.htm",
+          "type": "EX-FILING FEES",
+          "textCharCount": 10000
+        }
+      ],
+      "attachment_texts": [
+        {
+          "type": "EX-99.(A)(1)(A)",
+          "description": "Offer to Purchase",
+          "text": "The offer is to purchase all outstanding shares of H&E Equipment Services, Inc. for $92.00 per share in cash. The offer is subject to a minimum tender condition and other conditions, including regulatory clearances."
+        }
+      ]
+    },
+    "metadata": {
+      "form_type": "SC TO-T",
+      "company_name": "H&E Equipment Services, Inc.",
+      "ticker": "HEES",
+      "exchange": "NASDAQ"
+    }
+  }
+}

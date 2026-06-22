@@ -1,0 +1,14 @@
+{
+  "id": "accounting-delay-nt-10k",
+  "description": "NT 10-K delay caused by audit, revenue-recognition, valuation, and internal-control work, with a disclosed material change in results.",
+  "source": {
+    "formType": "NT 10-K",
+    "accessionNumber": "0001000002-26-000020",
+    "companyName": "Northstar Components Corp.",
+    "ticker": "NSTC",
+    "exchange": "NYSE",
+    "periodOfReport": "2025-12-31",
+    "filedAt": "2026-03-17",
+    "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-K PART III NARRATIVE The company is unable to file its Form 10-K because it needs additional time to complete audit procedures related to revenue recognition, inventory valuation, and remediation testing of internal control over financial reporting. Management is evaluating whether adjustments are material. The delay could not be eliminated without unreasonable effort or expense. The company expects to file within the fifteen calendar day extension period. The accountant's statement required by Rule 12b-25(c) is attached as Exhibit 99.1. PART IV OTHER INFORMATION (3) Is it anticipated that any significant change in results of operations from the corresponding period for the last fiscal year will be reflected by the earnings statements to be included in the subject report? [X] Yes [ ] No. The company expects a material decrease in net income due to audit adjustments and inventory reserves."
+  }
+}

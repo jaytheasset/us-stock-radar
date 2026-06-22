@@ -1,0 +1,241 @@
+{
+  "parser_output": {
+    "parserVersion": "effect-parser-v1",
+    "parserGroup": "effect",
+    "formType": "EFFECT",
+    "accessionNumber": "9999999995-22-003509",
+    "isSupported": true,
+    "summary": "Hero Technologies Inc.'s POS AM registration statement became effective on 2022-12-12.",
+    "facts": {
+      "companyName": "Hero Technologies Inc.",
+      "ticker": null,
+      "exchange": null,
+      "cik": "0001324736",
+      "filingDate": "2022-12-12",
+      "effectiveDate": "2022-12-12",
+      "effectiveTime": null,
+      "accessionNumber": "9999999995-22-003509",
+      "registrationNumber": "333-261062",
+      "effectiveRegistrationReference": "Registration No. 333-261062",
+      "effectiveFilingForm": "POS AM",
+      "relatedSubmissionType": "POS AM",
+      "referenceAccessionNumber": "0001477932-22-009165",
+      "originalFilingReference": "0001477932-22-009165",
+      "originalAccessionNumber": "0001477932-22-009165",
+      "originalAnalysisReference": null,
+      "filers": [
+        {
+          "cik": "0001324736",
+          "entityName": "Hero Technologies Inc.",
+          "fileNumber": "333-261062",
+          "seriesClassContract": null
+        }
+      ],
+      "primaryFiler": {
+        "cik": "0001324736",
+        "entityName": "Hero Technologies Inc.",
+        "fileNumber": "333-261062",
+        "seriesClassContract": null
+      },
+      "hasMultipleFilers": false,
+      "hasSeriesClassContractData": false,
+      "effectiveFormSource": "effectiveData.submissionType",
+      "effectiveDateSource": "effectiveData.finalEffectivenessDispDate",
+      "parentContextProvided": false,
+      "parentEventType": null,
+      "parentEventTitle": null,
+      "parentIpoKind": null,
+      "parentFormType": null,
+      "parentAccessionNumber": null,
+      "parentRegistrationNumber": null,
+      "parentScore": null,
+      "originalAnalysisShouldBeShown": true,
+      "effectiveTargetClear": true,
+      "parentTargetMatch": null,
+      "parentTargetConflicts": [],
+      "targetAmbiguityWarnings": [
+        "Parent filing context is absent; parser cannot confirm which prior registration analysis should be shown."
+      ],
+      "sourceExcerpts": [
+        {
+          "label": "effective_filing_form",
+          "value": "POS AM",
+          "source": "effectiveData.submissionType"
+        },
+        {
+          "label": "effective_date",
+          "value": "2022-12-12",
+          "source": "effectiveData.finalEffectivenessDispDate"
+        },
+        {
+          "label": "registration_number",
+          "value": "333-261062",
+          "source": "effectiveData.filer.fileNumber or SEC-HEADER.SEC FILE NUMBER"
+        },
+        {
+          "label": "reference_accession_number",
+          "value": "0001477932-22-009165",
+          "source": "effectiveData.accessionNumber"
+        },
+        {
+          "label": "effective_filer",
+          "value": "Hero Technologies Inc. (0001324736)",
+          "source": "effectiveData.filer"
+        }
+      ]
+    },
+    "signals": [
+      "effectiveness_notice",
+      "deterministic_effectiveness_notice",
+      "effectiveness_date_identified",
+      "registration_reference_identified",
+      "reference_accession_identified",
+      "post_effective_amendment_reference",
+      "effective_target_clear",
+      "effective_target_ambiguous"
+    ],
+    "calendarItems": [
+      {
+        "label": "Registration statement effective date",
+        "date": "2022-12-12",
+        "source": "EFFECT filing"
+      }
+    ],
+    "warnings": [
+      "Related registration form came from effectiveData.submissionType because effectiveData.form was absent.",
+      "Parent filing context is absent; parser cannot confirm which prior registration analysis should be shown."
+    ],
+    "raw": {
+      "sourceTextLength": 758,
+      "documentCount": 0,
+      "xmlDetected": true,
+      "headerDetected": true,
+      "parentFilingContextUsed": false,
+      "marketContextProvided": false
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "other",
+    "event_title": "Hero Technologies Inc. EFFECT notice needs registration context",
+    "primary_ticker": {
+      "ticker": null,
+      "exchange": null
+    },
+    "tickers": [],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 35,
+    "score_reason": "POS AM effectiveness was mechanically identified, but this EFFECT room cannot infer operating-company investor impact from the notice alone.",
+    "signal": "neutral",
+    "quick_take": "Hero Technologies Inc. filed an EFFECT notice, but the fixture does not identify enough related registration context for a stronger deterministic call.",
+    "summary": "Hero Technologies Inc.'s POS AM registration statement became effective on 2022-12-12.",
+    "why_it_matters": "An EFFECT notice confirms SEC effectiveness, but the investor impact depends on the related registration statement.",
+    "bullish_points": [],
+    "bearish_points": [
+      "The fixture lacks the related registration filing, so investors cannot assess the specific securities or transaction terms from this EFFECT notice alone."
+    ],
+    "key_evidence": [
+      {
+        "label": "effective_filing_form",
+        "value": "POS AM",
+        "source": "effectiveData.submissionType"
+      },
+      {
+        "label": "effective_date",
+        "value": "2022-12-12",
+        "source": "effectiveData.finalEffectivenessDispDate"
+      },
+      {
+        "label": "registration_number",
+        "value": "333-261062",
+        "source": "effectiveData.filer.fileNumber or SEC-HEADER.SEC FILE NUMBER"
+      },
+      {
+        "label": "reference_accession_number",
+        "value": "0001477932-22-009165",
+        "source": "effectiveData.accessionNumber"
+      },
+      {
+        "label": "effective_filer",
+        "value": "Hero Technologies Inc. (0001324736)",
+        "source": "effectiveData.filer"
+      }
+    ],
+    "what_to_watch_next": [
+      "Linked analysis for the original registration filing",
+      "Original registration filing terms",
+      "Any prospectus supplement or related 424B filing",
+      "Parent registration filing context supplied by integration"
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "label": "Registration statement effective date",
+        "date": "2022-12-12",
+        "source": "EFFECT filing"
+      }
+    ],
+    "confidence": "low",
+    "needs_human_review": true
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "effective_filing_form": "POS AM",
+      "ipo_kind": null,
+      "effective_registration_reference": "Registration No. 333-261062",
+      "effective_date": "2022-12-12",
+      "original_filing_reference": "0001477932-22-009165"
+    },
+    "evidence": [
+      {
+        "label": "effective_filing_form",
+        "value": "POS AM",
+        "source": "effectiveData.submissionType"
+      },
+      {
+        "label": "effective_date",
+        "value": "2022-12-12",
+        "source": "effectiveData.finalEffectivenessDispDate"
+      },
+      {
+        "label": "registration_number",
+        "value": "333-261062",
+        "source": "effectiveData.filer.fileNumber or SEC-HEADER.SEC FILE NUMBER"
+      },
+      {
+        "label": "reference_accession_number",
+        "value": "0001477932-22-009165",
+        "source": "effectiveData.accessionNumber"
+      },
+      {
+        "label": "effective_filer",
+        "value": "Hero Technologies Inc. (0001324736)",
+        "source": "effectiveData.filer"
+      }
+    ],
+    "notes": [
+      "EFFECT room did not query live DB; original filing context is fixture-only.",
+      "Integration should link this EFFECT notice to the original analyzed registration filing."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Link EFFECT filing to the related registration filing during integration; do not resolve that link from this form room.",
+      "Delivery level is derived from score using shared score bands.",
+      "Fixture proves deterministic handling; no router or analysis LLM is needed.",
+      "Show the original registration filing analysis when available."
+    ]
+  }
+}

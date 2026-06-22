@@ -1,0 +1,35 @@
+{
+  "id": "f4-cross-border",
+  "description": "F-4 cross-border business combination with ADS consideration.",
+  "formType": "F-4",
+  "accessionNumber": "0004444444-26-000404",
+  "filingDate": "2026-04-22",
+  "companyName": "Global MedTech plc",
+  "primaryTicker": {
+    "ticker": "GMTX",
+    "exchange": "NASDAQ"
+  },
+  "participants": [
+    {
+      "name": "Global MedTech plc",
+      "ticker": "GMTX",
+      "exchange": "NASDAQ",
+      "role": "acquirer"
+    },
+    {
+      "name": "Euro Diagnostics S.A.",
+      "ticker": "EUDI",
+      "exchange": "Euronext"
+      ,"role": "target"
+    }
+  ],
+  "filingText": "This registration statement on Form F-4 relates to a cross-border business combination in which Global MedTech plc will acquire Euro Diagnostics S.A. Holders of Euro Diagnostics ordinary shares will receive 0.72 ADSs of Global MedTech for each Euro Diagnostics ordinary share. Completion of the business combination is subject to foreign investment approval, regulatory approval in the European Union, and other customary closing conditions. Global MedTech expects the transaction to expand its diagnostics platform in the United States and Europe.",
+  "attachments": [
+    {
+      "type": "scheme-document",
+      "description": "Cross-border transaction document"
+    }
+  ],
+  "market_context": null,
+  "parentFilingContext": null
+}

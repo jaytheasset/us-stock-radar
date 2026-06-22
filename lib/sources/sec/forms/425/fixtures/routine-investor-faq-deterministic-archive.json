@@ -1,0 +1,19 @@
+{
+  "name": "routine-investor-faq-deterministic-archive",
+  "formType": "425",
+  "accessionNumber": "0000000000-26-000429",
+  "sourceUniqueId": "0000000000-26-000429",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/0000000000/000000000026000429/form425.htm",
+  "title": "425 - Cedar Bancorp, Inc.",
+  "publishedAt": "2026-07-10T14:45:00Z",
+  "companyName": "Cedar Bancorp, Inc.",
+  "primaryTicker": "CDBK",
+  "exchange": "NASDAQ",
+  "filingText": "Filed by Cedar Bancorp, Inc.\nSubject Company: Cedar Bancorp, Inc.\n\nEmployee FAQ regarding the previously announced merger with Prairie Financial Corp. This FAQ repeats the previously announced transaction summary for informational purposes only. It contains no new material information. It does not modify or amend the merger agreement, and there is no change to the consideration, exchange ratio, timeline, closing conditions, special meeting date, or board recommendation. Employees are directed to the proxy statement for the full description of the transaction.",
+  "market_context": null,
+  "expected": {
+    "event_type": "other",
+    "expected_delivery_level": "archive",
+    "deterministic": true
+  }
+}

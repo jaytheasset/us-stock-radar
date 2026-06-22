@@ -1,0 +1,121 @@
+{
+  "parser_output": {
+    "parserVersion": "s4-f4-v1",
+    "parserGroup": "s4-f4",
+    "formType": "S-4 / F-4 / S-4/A / F-4/A",
+    "accessionNumber": "0004444444-26-000404",
+    "isSupported": true,
+    "summary": "F-4 registration statement for a cross border business combination.",
+    "facts": {
+      "secFormType": "F-4",
+      "isAmendment": false,
+      "companyName": "Global MedTech plc",
+      "primaryTicker": {
+        "ticker": "GMTX",
+        "exchange": "NASDAQ"
+      },
+      "transaction": {
+        "type": "cross_border_business_combination",
+        "consideration": {
+          "stockRatio": 0.72
+        }
+      },
+      "risk": {
+        "regulatoryApprovalRisk": true
+      }
+    },
+    "signals": [],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {
+      "fixtureId": "f4-cross-border"
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "strategic_transaction",
+    "event_title": "Global MedTech files F-4 for Euro Diagnostics combination",
+    "primary_ticker": {
+      "ticker": "GMTX",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      {
+        "ticker": "GMTX",
+        "exchange": "NASDAQ"
+      },
+      {
+        "ticker": "EUDI",
+        "exchange": "Euronext"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 76,
+    "score_reason": "The F-4 covers a cross-border business combination with ADS consideration and multiple regulatory approvals.",
+    "signal": "volatile",
+    "quick_take": "Global MedTech filed an F-4 for its cross-border acquisition of Euro Diagnostics.",
+    "summary": "Euro Diagnostics holders would receive 0.72 Global MedTech ADSs for each ordinary share, subject to foreign investment and EU regulatory approvals.",
+    "why_it_matters": "Cross-border F-4 transactions can reshape business mix and carry closing risk from multi-jurisdiction approvals.",
+    "bullish_points": [
+      "The deal could expand Global MedTech's diagnostics platform across the United States and Europe."
+    ],
+    "bearish_points": [
+      "Completion depends on foreign investment and European regulatory approvals.",
+      "ADS exchange terms expose holders to cross-border transaction execution risk."
+    ],
+    "key_evidence": [
+      "Exchange ratio: 0.72 Global MedTech ADSs for each Euro Diagnostics ordinary share.",
+      "Subject to foreign investment approval and EU regulatory approval."
+    ],
+    "what_to_watch_next": [
+      "Foreign investment approval.",
+      "European regulatory approval.",
+      "Any F-4/A changing consideration or closing conditions."
+    ],
+    "related_tickers": [
+      {
+        "ticker": "EUDI",
+        "exchange": "Euronext"
+      }
+    ],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "candidate_special",
+    "data": {
+      "transaction_type": "cross_border_business_combination",
+      "acquirer": "Global MedTech plc",
+      "target": "Euro Diagnostics S.A.",
+      "ads_ratio": 0.72,
+      "approval_conditions": [
+        "foreign investment approval",
+        "European Union regulatory approval"
+      ]
+    },
+    "evidence": [
+      "0.72 ADSs of Global MedTech for each Euro Diagnostics ordinary share",
+      "subject to foreign investment approval, regulatory approval in the European Union"
+    ],
+    "notes": [
+      "Candidate special UI for cross-border consideration and approval conditions."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": true,
+    "special_ui_reason": "Cross-border F-4 deal terms, ADS exchange ratio, and regulatory approval conditions need transaction-specific display fields.",
+    "integration_notes": [
+      "No live jurisdiction or market lookup from this room."
+    ]
+  }
+}

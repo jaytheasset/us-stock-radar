@@ -1,0 +1,7 @@
+{
+  "id": "form4-malformed-xml-fallback-safety",
+  "formType": "4",
+  "accessionNumber": "0000000000-26-004006",
+  "primaryDocumentText": "<?xml version=\"1.0\"?><ownershipDocument><issuer><issuerName>Broken XML Corp</issuerName></issuer><nonDerivativeTable><nonDerivativeTransaction>",
+  "filingText": "Issuer: Fallback Source Corp\nTicker: FBCK\nReporting Owner: Casey Fallback\nOfficer: true\nTransaction Date: 2026-05-20\nTransaction Code: P\nTransaction shares: 100\nPrice per share: 5.00\nAcquired/Disposed: A"
+}

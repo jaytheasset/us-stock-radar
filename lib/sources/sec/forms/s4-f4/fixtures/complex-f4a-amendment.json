@@ -1,0 +1,59 @@
+{
+  "id": "complex-f4a-amendment",
+  "description": "F-4/A amendment with a separately filed amendment to the business combination agreement.",
+  "formType": "F-4/A",
+  "accessionNumber": "0001213900-25-062760",
+  "filingDate": "2025-07-10",
+  "companyName": "Kyivstar Group Ltd.",
+  "primaryTicker": {
+    "ticker": null,
+    "exchange": null
+  },
+  "participants": [
+    {
+      "name": "Kyivstar Group Ltd.",
+      "ticker": null,
+      "exchange": null,
+      "role": "registrant"
+    },
+    {
+      "name": "VEON Holdings B.V.",
+      "ticker": null,
+      "exchange": null,
+      "role": "registrant"
+    },
+    {
+      "name": "Cohen Circle Acquisition Corp. I",
+      "ticker": null,
+      "exchange": "NASDAQ",
+      "role": "counterparty"
+    }
+  ],
+  "filingText": "Amendment No. 2 to Form F-4 Registration Statement. Kyivstar Group Ltd. or PubCo entered into a business combination agreement by and among Kyivstar Group Ltd., Cohen Circle Acquisition Corp. I or SPAC, VEON Amsterdam B.V., VEON Holdings B.V., and Varna Merger Sub Corp. This proxy statement/prospectus includes Questions and Answers about the Business Combination and the Cohen Circle extraordinary general meeting, Risk Factors, The Extraordinary General Meeting of Cohen Circle, Certain Tax Considerations, The Business Combination Agreement and Transaction Documents, and Summary Unaudited Pro Forma Condensed Combined Financial Information. Exhibit 2.5 is Amendment No. 2 to the Business Combination Agreement, dated as of July 10, 2025. The Business Combination Agreement shall be amended so that the definition of Seller Share Consideration Number means the number of Kyivstar Group Ltd. Common Shares equal to Closing Equity Value less the Seller Loan Note Consideration Amount divided by $10.35, rounded down to the nearest whole number, minus 303,098. Section 3.2(b) is amended so that 2,609,647 SPAC Class B Ordinary Shares held by the Sponsor shall be surrendered by the Sponsor and automatically cancelled as Forfeited Sponsor Shares. The filing also includes a Form of Non-Redemption Agreement and Amendment No. 1 to Sponsor Agreement.",
+  "attachments": [
+    {
+      "type": "EX-2.5",
+      "description": "Amendment No. 2 to the Business Combination Agreement",
+      "filedHerewith": true
+    },
+    {
+      "type": "EX-10.10",
+      "description": "Form of Non-Redemption Agreement",
+      "filedHerewith": true
+    },
+    {
+      "type": "EX-10.11",
+      "description": "Amendment No. 1 to Sponsor Agreement",
+      "filedHerewith": true
+    }
+  ],
+  "market_context": null,
+  "parentFilingContext": {
+    "accessionNumber": "0001213900-25-045000",
+    "formType": "F-4",
+    "summary": "Initial F-4 for Kyivstar Group Ltd. and Cohen Circle Acquisition Corp. I business combination.",
+    "terms": {
+      "sellerShareConsiderationFormula": "Closing Equity Value less Seller Loan Note Consideration Amount divided by $10.35"
+    }
+  }
+}

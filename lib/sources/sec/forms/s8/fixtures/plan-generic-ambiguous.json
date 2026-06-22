@@ -1,0 +1,13 @@
+{
+  "fixtureName": "plan-generic-ambiguous",
+  "formType": "S-8",
+  "accessionNumber": "0003333333-26-000307",
+  "filedAt": "2026-05-07",
+  "issuer": {
+    "name": "Generic Plan Corp.",
+    "ticker": "GENP",
+    "exchange": "NASDAQ"
+  },
+  "filingText": "Generic Plan Corp. files this registration statement on Form S-8. Full title of the plan: The Plan. Shares are registered under the Plan. PART I INFORMATION REQUIRED IN THE SECTION 10(a) PROSPECTUS. PART II INFORMATION REQUIRED IN THE REGISTRATION STATEMENT. SIGNATURES.",
+  "attachments": []
+}

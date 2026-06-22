@@ -1,0 +1,127 @@
+{
+  "parser_output": {
+    "parserVersion": "424b-parser-v1",
+    "parserGroup": "424b",
+    "formType": "424B3",
+    "accessionNumber": "0000000000-26-000105",
+    "isSupported": true,
+    "summary": "Meridian Acquisition Corp. filed 424B3 covering a strategic transaction.",
+    "facts": {
+      "issuer": {
+        "name": "Meridian Acquisition Corp.",
+        "ticker": "MRDN",
+        "exchange": "NASDAQ"
+      },
+      "prospectusClass": "strategic_transaction",
+      "flags": {
+        "strategicTransaction": true,
+        "shareholderVote": true
+      }
+    },
+    "signals": [
+      {
+        "name": "strategic_transaction",
+        "value": true
+      },
+      {
+        "name": "shareholder_vote",
+        "value": true
+      }
+    ],
+    "calendarItems": [
+      {
+        "date": "June 20, 2026",
+        "label": "Stockholder meeting",
+        "source": "A special meeting of stockholders will be held on June 20, 2026."
+      }
+    ],
+    "warnings": [],
+    "raw": {
+      "deterministicCandidate": null
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "strategic_transaction",
+    "event_title": "424B3 prospectus details proposed business combination",
+    "primary_ticker": {
+      "ticker": "MRDN",
+      "exchange": "NASDAQ"
+    },
+    "tickers": ["MRDN"],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 70,
+    "score_reason": "The prospectus describes a merger and share issuance that requires stockholder approval, but final impact depends on transaction context.",
+    "signal": "volatile",
+    "quick_take": "Meridian filed a 424B3 prospectus for a business combination that would shift majority ownership to Ocean Robotics holders.",
+    "summary": "The filing covers up to 42,000,000 shares to be issued in connection with a proposed merger and business combination with Ocean Robotics Holdings.",
+    "why_it_matters": "Business-combination prospectuses can reshape ownership, strategy, float, and governance once stockholder approval and closing conditions are satisfied.",
+    "bullish_points": [
+      "Completion could give public investors exposure to the combined company."
+    ],
+    "bearish_points": [
+      "Existing public stockholders are expected to own about 38% after completion.",
+      "The deal remains subject to stockholder approval."
+    ],
+    "key_evidence": [
+      "Up to 42,000,000 shares may be issued.",
+      "Special meeting is scheduled for June 20, 2026.",
+      "Ocean Robotics holders are expected to own about 62% of the combined company."
+    ],
+    "what_to_watch_next": [
+      "Stockholder vote outcome.",
+      "Closing conditions, redemption levels, and final ownership percentages."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "date": "June 20, 2026",
+        "label": "Stockholder meeting",
+        "source": "A special meeting of stockholders will be held on June 20, 2026."
+      }
+    ],
+    "confidence": "medium",
+    "needs_human_review": false,
+    "analysis_action": "route_to_analysis_prompt",
+    "archive_summary": null,
+    "offering_display_model": {},
+    "offering_security_audit": {}
+  },
+  "display_payload": {
+    "display_type": "spac_transaction_status",
+    "display_version": "424b-display-payload-v1",
+    "data": {
+      "transaction_type": "business_combination",
+      "target_name": "Ocean Robotics Holdings",
+      "shares_to_issue": 42000000,
+      "vote_date": "June 20, 2026",
+      "closing_date": null,
+      "minimum_cash_condition": null,
+      "redemption_amount": null,
+      "ticker_change_to": null,
+      "current_public_holder_ownership": "38%",
+      "target_holder_ownership": "62%"
+    },
+    "evidence": [],
+    "notes": [
+      "SPAC transaction status display is built from parser/router facts only.",
+      "Do not use this display for a plain blank-check IPO registration with no target or deal status."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "LLM analysis expected because transaction context and parent filing details may matter."
+    ]
+  }
+}

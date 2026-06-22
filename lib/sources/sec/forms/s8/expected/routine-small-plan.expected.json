@@ -1,0 +1,204 @@
+{
+  "parser_output": {
+    "parserVersion": "s8-parser-v1",
+    "parserGroup": "s8",
+    "formType": "S-8",
+    "accessionNumber": "0001111111-26-000010",
+    "isSupported": true,
+    "summary": "BrightDesk Inc. filed an S-8 registering 500,000 common stock under BrightDesk Inc. 2026 Equity Incentive Plan.",
+    "facts": {
+      "issuerName": "BrightDesk Inc.",
+      "ticker": "BDES",
+      "exchange": "NASDAQ",
+      "filedAt": "2026-02-10",
+      "isAmendment": false,
+      "amendmentType": null,
+      "planNames": [
+        "BrightDesk Inc. 2026 Equity Incentive Plan"
+      ],
+      "planNameFacts": [
+        {
+          "name": "BrightDesk Inc. 2026 Equity Incentive Plan",
+          "planType": "equity_incentive",
+          "sources": [
+            "explanatory_note"
+          ],
+          "confidence": "medium"
+        }
+      ],
+      "planExtractionConfidence": "medium",
+      "planExtractionWarnings": [],
+      "securityType": "common stock",
+      "registeredShares": 500000,
+      "additionalShares": null,
+      "parentRegisteredShares": null,
+      "estimatedOfferingAmount": 4200000,
+      "registrationFee": 620,
+      "dilutionPercentOfSharesOutstanding": null,
+      "dilutionPercentOfPublicFloat": null,
+      "noAdditionalSecurities": false,
+      "exhibitOnly": false,
+      "signatureOnly": false,
+      "needsParentComparison": false,
+      "normalizedS8Type": "initial_s8",
+      "s8FamilyDetected": true,
+      "likelyFeeTableMaterial": false,
+      "exFilingFeesExhibit": false,
+      "feeTableSource": "not_found",
+      "feeTableExtractionConfidence": "low",
+      "feeTableWarnings": [],
+      "feeTablePurposeConflicts": [],
+      "rule416": false,
+      "planInterests": false,
+      "unusualFeeTableSecurities": false,
+      "postEffectiveAmendment": false,
+      "deregistrationOfUnsoldSecurities": false,
+      "resaleProspectus": false,
+      "sellingHolderSection": false,
+      "controlSecurities": false,
+      "restrictedSecurities": false,
+      "rule144": false,
+      "consultantAdvisorServiceProvider": false,
+      "investorRelationsPromotionalFinancingServices": false,
+      "shellReverseMergerDelinquentFiler": false,
+      "s8PosRegistersAdditionalSecurities": false,
+      "sectionExtractionConfidence": "high"
+    },
+    "signals": [],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {
+      "sourceTextExcerpt": "BrightDesk Inc. files this registration statement on Form S-8. This registration statement registers 500,000 shares of common stock, par value $0.001, under the BrightDesk Inc. 2026 Equity Incentive Plan. PART I INFORMATION REQUIRED IN THE SECTION 10(a) PROSPECTUS. PART II INFORMATION REQUIRED IN THE REGISTRATION STATEMENT. Proposed Maximum Aggregate Offering Price: $4,200,000. Amount of Registration Fee: $620. The plan provides equity awards to employees and directors. SIGNATURES.",
+      "sourceDocuments": [
+        {
+          "id": "primary",
+          "documentRole": "primary_filing",
+          "source": "primary",
+          "documentType": null,
+          "description": "Primary S-8 filing document",
+          "textKind": "normalized_text",
+          "text": "BrightDesk Inc. files this registration statement on Form S-8. This registration statement registers 500,000 shares of common stock, par value $0.001, under the BrightDesk Inc. 2026 Equity Incentive Plan. PART I INFORMATION REQUIRED IN THE SECTION 10(a) PROSPECTUS. PART II INFORMATION REQUIRED IN THE REGISTRATION STATEMENT. Proposed Maximum Aggregate Offering Price: $4,200,000. Amount of Registration Fee: $620. The plan provides equity awards to employees and directors. SIGNATURES."
+        }
+      ],
+      "noiseCandidates": [
+        {
+          "label": "signature_block",
+          "source": "primary",
+          "documentType": null,
+          "description": "Primary S-8 filing document",
+          "reason": "Signature and power-of-attorney blocks usually do not change S-8 registration economics."
+        }
+      ],
+      "attachments": [],
+      "parentFilingContext": null,
+      "marketContext": null,
+      "extractedShareCounts": [
+        500000
+      ],
+      "sections": [
+        {
+          "key": "cover_page",
+          "heading": "cover page",
+          "start": 0,
+          "end": 205,
+          "confidence": "medium"
+        },
+        {
+          "key": "part_i",
+          "heading": "PART I",
+          "start": 205,
+          "end": 266,
+          "confidence": "high"
+        },
+        {
+          "key": "part_ii",
+          "heading": "PART II",
+          "start": 266,
+          "end": 475,
+          "confidence": "high"
+        },
+        {
+          "key": "signatures",
+          "heading": "SIGNATURES",
+          "start": 475,
+          "end": null,
+          "confidence": "high"
+        }
+      ]
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "dilution_risk",
+    "event_title": "BrightDesk files routine S-8 equity plan registration",
+    "primary_ticker": {
+      "ticker": "BDES",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      "BDES"
+    ],
+    "sector": "Technology",
+    "industry_group": "Application Software",
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 35,
+    "score_reason": "Routine S-8 registering 500,000 compensation-plan shares with no high-dilution signal in the fixture.",
+    "signal": "neutral",
+    "quick_take": "BrightDesk registered a small employee equity plan share pool, which is ordinary dilution housekeeping rather than a major market event.",
+    "summary": "BrightDesk filed an S-8 covering 500,000 shares of common stock under its 2026 Equity Incentive Plan.",
+    "why_it_matters": "S-8 filings can add dilution over time, but this fixture does not show enough size or context to warrant feed placement.",
+    "bullish_points": [
+      "Equity plan registration can support employee, director and consultant incentives."
+    ],
+    "bearish_points": [
+      "Registered shares may become future dilution as awards are granted or exercised."
+    ],
+    "key_evidence": [
+      "Registers 500,000 shares of common stock.",
+      "Plan: BrightDesk Inc. 2026 Equity Incentive Plan.",
+      "Proposed maximum aggregate offering price: $4,200,000."
+    ],
+    "what_to_watch_next": [
+      "Future proxy filings for total plan usage and burn rate."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "offering_terms",
+    "data": {
+      "payload_version": "s8_offering_terms_v1",
+      "registeredShares": 500000,
+      "securityType": "common stock",
+      "planNames": [
+        "BrightDesk Inc. 2026 Equity Incentive Plan"
+      ],
+      "estimatedOfferingAmount": 4200000,
+      "registrationFee": 620,
+      "s8_ui_mode": "plan_registration"
+    },
+    "evidence": [
+      "Registers 500,000 shares of common stock.",
+      "Plan: BrightDesk Inc. 2026 Equity Incentive Plan."
+    ],
+    "notes": [
+      "Deterministic router archive is allowed because the fixture shows a routine low-impact S-8."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Routine S-8 registration remains modest and archive-level, but structured share and fee terms should use offering_terms display data."
+    ]
+  }
+}

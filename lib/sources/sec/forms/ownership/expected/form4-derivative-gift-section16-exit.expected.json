@@ -1,0 +1,72 @@
+{
+  "parser_output": {
+    "parserVersion": "ownership-parser-v1",
+    "parserGroup": "ownership",
+    "formType": "Form 4 / 4/A, Form 144 / 144/A",
+    "accessionNumber": "0002076354-26-000001",
+    "isSupported": true,
+    "summary": "4 insider transaction filing for O'Neil Kevin Wayne at Venu Holding Corp (VENU).",
+    "facts": {},
+    "signals": [
+      "section_16_exit",
+      "form_4_transaction",
+      "insider_gift",
+      "derivative_transaction"
+    ],
+    "calendarItems": [],
+    "warnings": [
+      "notSubjectToSection16 is checked; downstream should not assume ongoing Section 16 status."
+    ],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "insider_ownership",
+    "event_title": "Derivative gift with Section 16 exit flag",
+    "primary_ticker": {
+      "ticker": "VENU",
+      "exchange": null
+    },
+    "tickers": [
+      "VENU"
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 44,
+    "score_reason": "The filing is unusual because it includes a derivative gift and Section 16 exit flag, but it does not report an open-market sale or purchase.",
+    "signal": "neutral",
+    "quick_take": "A 10% holder reported a gift of derivative securities and checked notSubjectToSection16.",
+    "summary": "The Form 4 reports a gift of warrants and a Section 16 status flag, without a cash sale or purchase. Limited market impact detected. The original source is included below for reference.",
+    "why_it_matters": "The ownership status flag is worth preserving, but the filing does not mechanically show selling pressure.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [
+      "Transaction code G for 150,000 warrants.",
+      "notSubjectToSection16 is checked.",
+      "Footnote describes a gift to an irrevocable trust."
+    ],
+    "what_to_watch_next": [
+      "Whether later filings clarify ongoing reporting status or related trust ownership."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "medium",
+    "needs_human_review": true
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "has_derivative_transaction": true,
+      "has_section_16_exit_flag": true
+    },
+    "evidence": [
+      "Parser detected transaction code G and notSubjectToSection16=1."
+    ],
+    "notes": [
+      "Archive UI should preserve source text and warnings without requiring bullish/bearish sections."
+    ]
+  }
+}

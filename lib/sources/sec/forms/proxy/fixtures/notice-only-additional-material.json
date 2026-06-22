@@ -1,0 +1,13 @@
+{
+  "fixture_name": "notice-only-additional-material",
+  "input": {
+    "formType": "DEFA14A",
+    "accessionNumber": "0001000009-26-001010",
+    "companyName": "OPAL Fuels",
+    "primaryTicker": {
+      "ticker": "OPAL",
+      "exchange": "NASDAQ"
+    },
+    "filingText": "UNITED STATES\nSECURITIES AND EXCHANGE COMMISSION\nSCHEDULE 14A\nFiled by the Registrant ☒\nFiled by a Party other than the Registrant ☐\nCheck the appropriate box:\n☒ Definitive Additional Materials\nOPAL FUELS INC.\nImportant Notice Regarding the Availability of Proxy Materials For the 2026 Annual Meeting of Shareholders to be Held on June 18, 2026.\nThe Annual Meeting will be held virtually at https://www.cstproxy.com/opalfuels/2026 on June 18, 2026 beginning at 10:00 a.m. Eastern Time.\nProposals to be considered at the Annual Meeting: elect six persons nominated by the Board of Directors; ratify the appointment of BDO USA, P.C. as independent registered public accounting firm; and address other matters.\nThe Board of Directors recommends a vote FOR all nominees under Proposal 1 and FOR Proposal 2.\nThe Proxy Materials are available for review at: https://www.cstproxy.com/opalfuels/2026.\nVote Your Proxy on the Internet: https://www.cstproxyvote.com.\nThis is not a ballot. You cannot use this notice to vote your shares. Have this notice available and reference your Control Number."
+  }
+}

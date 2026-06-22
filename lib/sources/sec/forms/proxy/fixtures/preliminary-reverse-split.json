@@ -1,0 +1,13 @@
+{
+  "fixture_name": "preliminary-reverse-split",
+  "input": {
+    "formType": "PRE 14A",
+    "accessionNumber": "0001000006-26-000707",
+    "companyName": "Quince Therapeutics",
+    "primaryTicker": {
+      "ticker": "QNCX",
+      "exchange": "NASDAQ"
+    },
+    "filingText": "UNITED STATES\nSECURITIES AND EXCHANGE COMMISSION\nSCHEDULE 14A\nFiled by the Registrant ☒\nFiled by a Party other than the Registrant ☐\nCheck the appropriate box:\n☒ Preliminary Proxy Statement\n☐ Definitive Proxy Statement\nQUINCE THERAPEUTICS, INC.\nPreliminary Proxy-Subject To Completion\nNOTICE OF ANNUAL MEETING OF STOCKHOLDERS\nThe Annual Meeting will be held on June 5, 2026 at 10:00 a.m. Pacific Time.\nOnly stockholders of record at the close of business on April 18, 2026 are entitled to vote.\nProposal 1: Election of three Class II directors. Board recommendation: FOR.\nProposal 2: Approval of amendment to our certificate of incorporation to effect a reverse stock split of the issued and outstanding common stock at a ratio of one-for-ten. Board recommendation: FOR.\nThe Reverse Stock Split will not change the number of authorized shares of common stock and will not increase the par value of the common stock.\nNasdaq notified us that the bid price of our common stock closed below the required $1.00 per share for 30 consecutive trading days and that we did not comply with the Minimum Bid Price Requirement."
+  }
+}

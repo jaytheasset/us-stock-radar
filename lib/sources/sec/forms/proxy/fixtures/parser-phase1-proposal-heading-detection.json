@@ -1,0 +1,9 @@
+{
+  "fixture_name": "parser-phase1-proposal-heading-detection",
+  "input": {
+    "formType": "DEF 14A",
+    "accessionNumber": "0000000008-26-000008",
+    "companyName": "Proposal Heading Co.",
+    "filingText": "Proposal 1: Election of Directors\nProposal No. 2 - Ratification of Appointment of Independent Registered Public Accounting Firm\nProposal Number 3: Advisory Vote to Approve Executive Compensation\nProposal One: Say-on-Pay\nItem No. 4: Approval of Equity Incentive Plan\nMatter 5 - Approval of Amendment to Certificate of Incorporation\nMatter No. 6: Approval of Reverse Stock Split\nApproval of Increase in Authorized Shares\nApproval of Merger Agreement\nStockholder Proposal: Independent board chair report"
+  }
+}

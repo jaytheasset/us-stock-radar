@@ -18,6 +18,7 @@ export type AlertCategory =
   | "legal_risk"
   | "dividends"
   | "capital_return"
+  | "ipo_listing"
   | "fda_clinical"
   | "policy_regulation"
   | "macro_market"
@@ -67,7 +68,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   },
   advanced: {
     watchlistLimit: 150,
-    discoveryCategoryLimit: 17,
+    discoveryCategoryLimit: 18,
     alertDelayMinutes: 0,
     channels: ["web", "telegram", "email"],
     realTime: true,
@@ -77,7 +78,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   },
   ultimate: {
     watchlistLimit: null,
-    discoveryCategoryLimit: 17,
+    discoveryCategoryLimit: 18,
     alertDelayMinutes: 0,
     channels: ["web", "telegram", "email", "webhook", "api"],
     realTime: true,
@@ -164,6 +165,11 @@ export const ALERT_CATEGORIES: readonly {
     code: "capital_return",
     label: "Capital Return",
     description: "Buybacks, repurchase authorizations, and broader capital return programs.",
+  },
+  {
+    code: "ipo_listing",
+    label: "IPO / Listing",
+    description: "Traditional IPOs, SPAC IPOs, direct listings, IPO pricing, and first-trading updates.",
   },
   {
     code: "fda_clinical",

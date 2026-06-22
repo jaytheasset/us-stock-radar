@@ -1,0 +1,54 @@
+{
+  "case_name": "schedule-13e3-going-private",
+  "filing": {
+    "rawItemId": "fixture-tender-003",
+    "sourceUniqueId": "0003333333-26-000030",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/3333333/000333333326000030/",
+    "title": "Harbor Foods Group SC 13E3 going-private transaction statement",
+    "publishedAt": "2026-05-20T14:00:00.000Z",
+    "bodyText": "SC 13E-3\nIssuer: Harbor Foods Group Inc.\nThis Schedule 13E-3 transaction statement relates to a Rule 13e-3 going private transaction. Harbor Parent Holdings LLC will acquire all shares of Harbor Foods Group Inc. held by unaffiliated stockholders for $11.25 per share in cash. The special committee determined that the transaction is fair to unaffiliated stockholders. Completion is subject to approval by a majority of unaffiliated shares and other customary conditions. Stockholders who do not tender may have appraisal rights under Delaware law.",
+    "rawPayload": {
+      "accession_number": "0003333333-26-000030",
+      "form_type": "SC 13E3",
+      "company_name": "Harbor Foods Group Inc.",
+      "ticker": "HBRF",
+      "exchange": "NASDAQ",
+      "documents": [
+        {
+          "type": "SC 13E3",
+          "description": "Going-private transaction statement",
+          "url": "https://www.sec.gov/fixture/harbor-sc-13e3.htm",
+          "isPrimary": true,
+          "textCharCount": 720,
+          "textTruncated": false,
+          "fetchStatus": 200,
+          "fetchError": null
+        }
+      ]
+    },
+    "metadata": {
+      "form_type": "SC 13E3",
+      "company_name": "Harbor Foods Group Inc.",
+      "ticker": "HBRF",
+      "exchange": "NASDAQ"
+    }
+  },
+  "market_context": {
+    "price": 9.9,
+    "previous_close": 9.85,
+    "market_cap": 265000000,
+    "shares_outstanding": 26800000
+  },
+  "expected": {
+    "event_type": "strategic_transaction",
+    "score_band": "alert",
+    "delivery_level": "alert",
+    "important_facts": {
+      "sec_form_type": "SC 13E3",
+      "tender_case": "going_private_13e3",
+      "cash_price_per_share": 11.25,
+      "going_private": true,
+      "special_ui_needed": true
+    }
+  }
+}

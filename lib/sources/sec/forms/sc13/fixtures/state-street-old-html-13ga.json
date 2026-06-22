@@ -1,0 +1,23 @@
+{
+  "case_id": "state-street-old-html-13ga",
+  "description": "SEC source excerpt from State Street SC 13G/A with old HTML checkbox entities and separated CUSIP cover rows. Source: https://www.sec.gov/Archives/edgar/data/93751/000009375124000900/Zions_Bancorp_NA.htm",
+  "filing": {
+    "formType": "SC 13G/A",
+    "accessionNumber": "0000093751-24-000900",
+    "filedAt": "2024-10-18",
+    "text": "SC 13G/A\n(Amendment No. 15)\nZIONS BANCORP NA\n|\n(Name of Issuer)\n|\nCOMMON STOCK\n|\n(Title of Class of Securities)\n|\n989701107\n|\n(CUSIP Number)\n|\nSeptember 30, 2024\n(Date of Event Which Requires Filing of This Statement)\nCheck the appropriate box to designate the rule pursuant to which this Schedule is filed:\n&yacute;\nRule 13d-1(b)\n&uml;\nRule 13d-1(c)\n&uml;\nRule 13d-1(d)\n1\nNAME OF REPORTING PERSON\nSTATE STREET CORPORATION\n2\nCHECK THE APPROPRIATE BOX IF A MEMBER OF A GROUP\n(a)&uml;\n(b)&uml;\n4\nCITIZENSHIP OR PLACE OF ORGANIZATION\nMassachusetts\n5\nSOLE VOTING POWER\n0\n6\nSHARED VOTING POWER\n904,307.00\n7\nSOLE DISPOSITIVE POWER\n0\n8\nSHARED DISPOSITIVE POWER\n7,041,818.00\n9\nAGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON\n7,041,818.00\n10\nCHECK BOX IF THE AGGREGATE AMOUNT IN ROW (9) EXCLUDES CERTAIN SHARES\n&uml;\n11\nPERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (9)\n4.8%\n12\nTYPE OF REPORTING PERSON\nHC\nItem 5. Ownership of Five Percent or Less of a Class\nThe reporting person has ceased to be the beneficial owner of more than 5 percent of the class of securities.\nSIGNATURE"
+  },
+  "expected": {
+    "event_type": "insider_ownership",
+    "extracted_facts": {
+      "issuerName": "ZIONS BANCORP NA",
+      "securityClass": "COMMON STOCK",
+      "cusip": "989701107",
+      "reportingPersons": ["STATE STREET CORPORATION"],
+      "ruleBasis": "13d-1(b)",
+      "sharesBeneficiallyOwned": 7041818,
+      "percentOwned": 4.8,
+      "isExitFiling": true
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "fixtureName": "large-dilution-market-context",
+  "formType": "S-8",
+  "accessionNumber": "0002222222-26-000020",
+  "filedAt": "2026-03-04",
+  "issuer": {
+    "name": "AlphaGen Therapeutics, Inc.",
+    "ticker": "AGTX",
+    "exchange": "NASDAQ",
+    "sector": "Healthcare",
+    "industry_group": "Biotechnology"
+  },
+  "filingText": "AlphaGen Therapeutics, Inc. files this registration statement on Form S-8. The registrant is registering 12,000,000 shares of common stock under the AlphaGen Therapeutics, Inc. 2026 Inducement Plan. Proposed Maximum Aggregate Offering Price: $18,000,000. Amount of Registration Fee: $2,214. The plan may be used for equity awards to newly hired employees and consultants.",
+  "attachments": [],
+  "parentFilingContext": null,
+  "marketContext": {
+    "price": 1.5,
+    "previous_close": 1.58,
+    "market_cap": 75000000,
+    "shares_outstanding": 50000000,
+    "public_float": 35000000,
+    "volume": 2200000,
+    "avg_volume": 900000
+  },
+  "flowExpectation": {
+    "parserCanFinishWithoutLlm": false,
+    "routerCanFinishWithoutLlm": false,
+    "reason": "Fixture market context shows a potentially high-dilution S-8 that should proceed to analysis."
+  }
+}

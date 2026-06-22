@@ -1,0 +1,44 @@
+{
+  "name": "edgar-arm-f1a-ads-ipo",
+  "source": {
+    "company": "Arm Holdings plc",
+    "form_type": "F-1/A",
+    "cik": "0001973239",
+    "accession": "0001193125-23-228059",
+    "filed_at": "2023-09-05",
+    "sec_url": "https://www.sec.gov/Archives/edgar/data/1973239/000119312523228059/d393891df1a.htm",
+    "text_basis": "edgar_original_excerpt"
+  },
+  "input": {
+    "formType": "F-1/A",
+    "accessionNumber": "0001193125-23-228059",
+    "metadata": {
+      "companyName": "Arm Holdings plc",
+      "ticker": "ARM",
+      "exchange": "Nasdaq Global Select Market",
+      "filedAt": "2023-09-05"
+    },
+    "filingText": "As filed with the Securities and Exchange Commission on September 5, 2023. Registration Statement No. 333-274120 UNITED STATES SECURITIES AND EXCHANGE COMMISSION Washington, D.C. 20549 Amendment No. 2 to Form F-1 REGISTRATION STATEMENT UNDER THE SECURITIES ACT OF 1933 Arm Holdings plc.\nSubject to Completion Preliminary Prospectus dated September 5, 2023. 95,500,000 American Depositary Shares (Representing 95,500,000 Ordinary Shares) This is an initial offering of American depositary shares (“ADSs”) representing ordinary shares of Arm Holdings plc. All of the ADSs to be sold in this offering are currently held by the selling shareholder identified in this prospectus. We are not selling any of the ADSs in this offering and will not receive any proceeds from the sale of the ADSs by the selling shareholder in this offering. Each ADS represents the right to receive one ordinary share, nominal value £0.001 per share, and may be evidenced by American depositary receipts (“ADRs”). Prior to this offering, there has been no public market for the ADSs or our ordinary shares. The initial public offering price per ADS is estimated to be between $47.00 and $51.00. We have applied to list our ADSs on the Nasdaq Global Select Market (“Nasdaq”) under the symbol “ARM.” We are a “foreign private issuer” as defined under the U.S. federal securities laws."
+  },
+  "expected": {
+    "event_type": "ipo_listing",
+    "score_band": "feed",
+    "delivery_level": "feed",
+    "deterministic": false,
+    "facts": {
+      "company_name": "Arm Holdings plc",
+      "ticker": "ARM",
+      "exchange": "Nasdaq Global Select Market",
+      "registration_kind": "ipo",
+      "shares_offered": 95500000,
+      "price_low": 47,
+      "price_high": 51,
+      "gross_proceeds": 4870500000,
+      "amendment_number": 2,
+      "filing_variant": "pre_effective_amendment",
+      "reported_form_type": "F-1/A",
+      "parent_context_needed": true,
+      "ads_offering": true
+    }
+  }
+}

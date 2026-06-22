@@ -1,0 +1,26 @@
+{
+  "case_id": "litigation-13d",
+  "description": "Schedule 13D with litigation source terms requiring router fallback.",
+  "filing": {
+    "formType": "SC 13D",
+    "accessionNumber": "0000000000-26-013022",
+    "issuerName": "Litigation Holdings Inc.",
+    "filedAt": "2026-05-12",
+    "text": "SC 13D\nSCHEDULE 13D\nLitigation Holdings Inc.\n(Name of Issuer)\nCommon Stock\n(Title of Class of Securities)\n540000122\n(CUSIP Number)\nName of Reporting Person: Court Road LP\nAggregate Amount Beneficially Owned by Each Reporting Person: 2,100,000\nPercent of Class Represented by Amount in Row (9): 11.2%\nItem 4. Purpose of Transaction\nThe Reporting Person may communicate with the Issuer regarding pending litigation and related regulatory matters.\nItem 5. Interest in Securities of the Issuer\nThe Reporting Person beneficially owns 2,100,000 shares, representing 11.2% of the class.\nSIGNATURE"
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "legal_risk",
+    "deterministic": false,
+    "score_band": "feed",
+    "extracted_facts": {
+      "reportingPersons": [
+        "Court Road LP"
+      ],
+      "scheduleType": "13D",
+      "sharesBeneficiallyOwned": 2100000,
+      "percentOwned": 11.2,
+      "legalRiskLanguage": true
+    }
+  }
+}

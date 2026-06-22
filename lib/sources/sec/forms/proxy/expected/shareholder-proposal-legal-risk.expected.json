@@ -1,0 +1,180 @@
+{
+  "parser_output": {
+    "parserVersion": "proxy-parser-v1",
+    "parserGroup": "proxy",
+    "formType": "Proxy",
+    "accessionNumber": "0001000004-26-000505",
+    "isSupported": true,
+    "summary": "Annual proxy for Civic Data Systems covering 2 proposals for a meeting on September 10, 2026.",
+    "facts": {
+      "companyName": "Civic Data Systems",
+      "primaryTicker": {
+        "ticker": "CDSY",
+        "exchange": "NYSE"
+      },
+      "secFormType": "DEF 14A",
+      "proxyType": "annual",
+      "meetingDate": "September 10, 2026",
+      "recordDate": "July 22, 2026",
+      "proposalCount": 2,
+      "proposals": [
+        {
+          "id": "1",
+          "title": "Election of directors",
+          "category": "director_election",
+          "recommendation": "FOR",
+          "sourceText": "Proposal 1: Election of directors. Board recommendation: FOR.",
+          "isShareholderProposal": false
+        },
+        {
+          "id": "5",
+          "title": "Report on litigation and regulatory compliance risks related to federal investigations",
+          "category": "legal_shareholder_proposal",
+          "recommendation": "AGAINST",
+          "sourceText": "Shareholder Proposal 5: Report on litigation and regulatory compliance risks related to federal investigations. Board recommendation: AGAINST.",
+          "isShareholderProposal": true
+        }
+      ],
+      "ownership": {
+        "maxBeneficialOwnershipPercent": null,
+        "holder": null,
+        "sourceText": null
+      },
+      "dilution": {
+        "hasEquityPlanVote": false,
+        "sharesRequested": null,
+        "percentOfOutstanding": null,
+        "proposalIds": []
+      },
+      "transaction": {
+        "hasTransactionVote": false,
+        "consideration": null,
+        "voteRequired": null,
+        "proposalIds": []
+      },
+      "legal": {
+        "hasLegalRiskProposal": true,
+        "proposalIds": [
+          "5"
+        ],
+        "topics": [
+          "Report on litigation and regulatory compliance risks related to federal investigations"
+        ]
+      },
+      "deterministic": {
+        "canFinishWithoutLlm": false,
+        "reason": null,
+        "eventType": null,
+        "suggestedScore": null
+      }
+    },
+    "signals": [
+      {
+        "name": "legal_risk_shareholder_vote",
+        "eventType": "legal_risk",
+        "severity": "medium",
+        "evidence": "Shareholder Proposal 5: Report on litigation and regulatory compliance risks related to federal investigations. Board recommendation: AGAINST.",
+        "proposalId": "5"
+      }
+    ],
+    "calendarItems": [
+      {
+        "type": "shareholder_meeting",
+        "date": "September 10, 2026",
+        "description": "Civic Data Systems annual meeting"
+      },
+      {
+        "type": "record_date",
+        "date": "July 22, 2026",
+        "description": "Record date for shareholder voting"
+      }
+    ],
+    "warnings": [],
+    "raw": {
+      "secFormType": "DEF 14A",
+      "attachmentNames": [],
+      "market_context": null
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "legal_risk",
+    "event_title": "Shareholder proposal on legal risk reporting",
+    "primary_ticker": {
+      "ticker": "CDSY",
+      "exchange": "NYSE"
+    },
+    "tickers": [
+      {
+        "ticker": "CDSY",
+        "exchange": "NYSE"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 55,
+    "score_reason": "The proxy includes a shareholder proposal focused on litigation, regulatory compliance, and federal investigations.",
+    "signal": "bearish",
+    "quick_take": "A shareholder proposal asks for reporting on litigation and regulatory compliance risks tied to federal investigations.",
+    "summary": "Civic Data Systems filed an annual proxy that includes a shareholder proposal requesting a report on legal and regulatory risk oversight.",
+    "why_it_matters": "Even when the board recommends against the proposal, the topic can point investors toward ongoing legal or regulatory risk concerns.",
+    "bullish_points": [],
+    "bearish_points": [
+      "The proposal specifically references litigation, regulatory compliance, and federal investigations.",
+      "The supporting statement asks the board to assess potential costs from pending inquiries."
+    ],
+    "key_evidence": [
+      "Shareholder Proposal 5: Report on litigation and regulatory compliance risks related to federal investigations. Board recommendation: AGAINST.",
+      "The supporting statement asks the board to assess potential costs from pending inquiries."
+    ],
+    "what_to_watch_next": [
+      "Vote support level for the shareholder proposal.",
+      "Any later legal or regulatory disclosures that provide more detail."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "type": "shareholder_meeting",
+        "date": "September 10, 2026",
+        "description": "Civic Data Systems annual meeting"
+      },
+      {
+        "type": "record_date",
+        "date": "July 22, 2026",
+        "description": "Record date for shareholder voting"
+      }
+    ],
+    "confidence": "medium",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "candidate_special",
+    "data": {
+      "proposal_id": "5",
+      "proposal_title": "Report on litigation and regulatory compliance risks related to federal investigations",
+      "board_recommendation": "AGAINST",
+      "meeting_date": "September 10, 2026"
+    },
+    "evidence": [
+      "Shareholder Proposal 5: Report on litigation and regulatory compliance risks related to federal investigations. Board recommendation: AGAINST."
+    ],
+    "notes": [
+      "Shareholder proposal details may need a future proxy-proposal detail UI; this room does not implement UI."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": true,
+    "special_ui_reason": "Shareholder proposal analysis would benefit from structured fields for proposal title, sponsor type, board recommendation, vote result, and topic.",
+    "integration_notes": [
+      "Delivery level derives from score 55."
+    ]
+  }
+}

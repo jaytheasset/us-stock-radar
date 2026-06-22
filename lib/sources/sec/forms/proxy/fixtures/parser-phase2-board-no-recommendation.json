@@ -1,0 +1,9 @@
+{
+  "fixture_name": "parser-phase2-board-no-recommendation",
+  "input": {
+    "formType": "DEF 14A",
+    "accessionNumber": "0000000021-26-000021",
+    "companyName": "No Recommendation Co.",
+    "filingText": "Proposal 2: Approval of Related Party Transaction\nThe Board makes no recommendation regarding Proposal 2. Vote required: approval by a majority of votes cast."
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "fixture_name": "parser-phase2-equity-incentive-plan",
+  "input": {
+    "formType": "DEF 14A",
+    "accessionNumber": "0000000019-26-000019",
+    "companyName": "Equity Plan Co.",
+    "filingText": "Proposal 4: Approval of Equity Incentive Plan\nThe Board recommends a vote FOR Proposal 4. The plan reserves 5,000,000 additional shares for issuance. Abstentions will have the same effect as votes against this proposal."
+  }
+}

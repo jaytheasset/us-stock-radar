@@ -1,0 +1,32 @@
+{
+  "case_id": "split-heading-13g",
+  "description": "Schedule 13G with a malformed/split Item 4 heading.",
+  "filing": {
+    "formType": "SCHEDULE 13G",
+    "accessionNumber": "0000000000-26-013004",
+    "issuerName": "Cedar Metrics Ltd.",
+    "primaryTicker": {
+      "ticker": "CDRM",
+      "exchange": "NYSE"
+    },
+    "filedAt": "2026-02-18",
+    "text": "SCHEDULE 13G\nCedar Metrics Ltd.\n(Name of Issuer)\nOrdinary Shares\n(Title of Class of Securities)\nG20000104\n(CUSIP Number)\nName of Reporting Person: Ridge Index Fund\nAggregate Amount Beneficially Owned by Each Reporting Person: 3,400,000\nPercent of Class Represented by Amount in Row (11): 6.3%\nItem 1.\nName of Issuer\nCedar Metrics Ltd.\n|\nItem\n4\n|\nOwnership\nThe Reporting Person beneficially owns 3,400,000 Ordinary Shares, representing 6.3% of the class.\nItem 10. Certification\nBy signing below I certify that the securities referred to above were not acquired and are not held for the purpose of or with the effect of changing or influencing the control of the issuer.\nSIGNATURE"
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "insider_ownership",
+    "deterministic": true,
+    "score_band": "archive",
+    "extracted_facts": {
+      "issuerName": "Cedar Metrics Ltd.",
+      "reportingPersons": [
+        "Ridge Index Fund"
+      ],
+      "scheduleType": "13G",
+      "isAmendment": false,
+      "sharesBeneficiallyOwned": 3400000,
+      "percentOwned": 6.3,
+      "passiveCertification": true
+    }
+  }
+}

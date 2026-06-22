@@ -1,0 +1,19 @@
+{
+  "name": "deal-litigation-risk",
+  "formType": "425",
+  "accessionNumber": "0000000000-26-000427",
+  "sourceUniqueId": "0000000000-26-000427",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/0000000000/000000000026000427/form425.htm",
+  "title": "425 - Meridian Software Group",
+  "publishedAt": "2026-06-18T20:15:00Z",
+  "companyName": "Meridian Software Group, Inc.",
+  "primaryTicker": "MRSW",
+  "exchange": "NASDAQ",
+  "filingText": "Filed by Meridian Software Group, Inc.\nSubject Company: Meridian Software Group, Inc.\n\nMeridian Software Group, Inc. is filing supplemental disclosures relating to the pending acquisition by Orion Cloud Holdings, Inc. Since announcement of the transaction, three purported stockholder class action complaints have been filed alleging disclosure claims and seeking to enjoin the closing of the merger. A hearing on plaintiffs' motion for a preliminary injunction is scheduled for July 8, 2026. Meridian believes the claims are without merit but agreed to provide supplemental disclosures to moot certain allegations. The merger remains subject to regulatory approval under the HSR Act.",
+  "market_context": null,
+  "expected": {
+    "event_type": "legal_risk",
+    "expected_delivery_level": "feed",
+    "deterministic": false
+  }
+}

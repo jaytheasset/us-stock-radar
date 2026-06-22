@@ -1,0 +1,100 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_periodic_reports_parser_v1",
+    "parserGroup": "periodic-reports",
+    "formType": "10-Q",
+    "accessionNumber": "0003333333-26-000014",
+    "isSupported": true,
+    "summary": "Nova Retail Group filed 10-Q for March 31, 2026; sales performance is the dominant event.",
+    "facts": {
+      "companyName": "Nova Retail Group",
+      "primaryTicker": "NOVA",
+      "exchange": "NYSE",
+      "reportingPeriod": "March 31, 2026",
+      "fiscalQuarter": "first quarter",
+      "dominantParserEventType": "sales_performance",
+      "revenue": 84000000,
+      "revenuePriorPeriod": 102400000,
+      "revenueChangePercent": -18,
+      "netIncome": 2100000
+    },
+    "signals": [
+      {
+        "event_type": "sales_performance",
+        "signal_type": "sales_decline",
+        "strength": "medium",
+        "summary": "Revenue declined materially year over year.",
+        "evidence": "Revenue decreased 18% to $84.0 million from $102.4 million in the prior-year quarter.",
+        "deterministic": false
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {
+      "processing_path": "parser_router_analysis",
+      "market_context_used": false
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "sales_performance",
+    "event_title": "Nova Retail reports 18% quarterly revenue decline",
+    "primary_ticker": {
+      "ticker": "NOVA",
+      "exchange": "NYSE"
+    },
+    "tickers": ["NOVA"],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 61,
+    "score_reason": "Feed-level score because the revenue decline is material, but the company remained profitable and no acute liquidity risk was disclosed.",
+    "signal": "bearish",
+    "quick_take": "NOVA's 10-Q shows demand pressure, with revenue down 18% on weaker store traffic and order value.",
+    "summary": "Nova Retail reported revenue of $84.0 million, down from $102.4 million in the prior-year quarter, while still reporting $2.1 million of net income.",
+    "why_it_matters": "A double-digit sales decline can signal weakening demand and may pressure margins or guidance if it persists.",
+    "bullish_points": [
+      "The company remained profitable in the quarter."
+    ],
+    "bearish_points": [
+      "Revenue declined 18% year over year.",
+      "Management attributed the decline to lower store traffic and reduced average order value."
+    ],
+    "key_evidence": [
+      "Revenue decreased 18% to $84.0 million from $102.4 million in the prior-year quarter.",
+      "The decline was driven by lower store traffic and reduced average order value in the home category."
+    ],
+    "what_to_watch_next": [
+      "Whether the sales decline continues into the next quarter.",
+      "Margin and inventory commentary in future filings or earnings materials."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "revenue": 84000000,
+      "revenue_prior_period": 102400000,
+      "revenue_change_percent": -18
+    },
+    "evidence": [
+      "Revenue decreased 18% to $84.0 million from $102.4 million in the prior-year quarter."
+    ],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": []
+  }
+}

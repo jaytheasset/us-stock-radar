@@ -1,0 +1,119 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_8k_6k_parser_v1",
+    "parserGroup": "8k-6k",
+    "formType": "8-K / 6-K, 8-K/A / 6-K/A",
+    "accessionNumber": "0012121212-26-000012",
+    "isSupported": true,
+    "summary": "BlueRiver Bancorp filed 6-K with 0 extracted item(s) and 1 source-backed filing cue(s).",
+    "facts": {
+      "companyName": "BlueRiver Bancorp",
+      "ticker": "BRIV",
+      "secFormType": "6-K",
+      "isAmendment": false,
+      "items": [],
+      "filingCues": [
+        {
+          "cueType": "dividend_declaration",
+          "label": "Dividend declaration, record date, or payment date language",
+          "evidence": "BlueRiver Bancorp declared a quarterly cash dividend of $0.22 per ordinary share.",
+          "confidence": "medium",
+          "itemNumbers": []
+        }
+      ]
+    },
+    "signals": [
+      {
+        "cueType": "dividend_declaration",
+        "label": "Dividend declaration, record date, or payment date language",
+        "evidence": "BlueRiver Bancorp declared a quarterly cash dividend of $0.22 per ordinary share.",
+        "confidence": "medium",
+        "itemNumbers": []
+      }
+    ],
+    "calendarItems": [
+      {
+        "label": "record_date",
+        "dateText": "June 5, 2026",
+        "evidence": "The record date is June 5, 2026, and the payment date is June 20, 2026."
+      },
+      {
+        "label": "payment_date",
+        "dateText": "June 20, 2026",
+        "evidence": "The record date is June 5, 2026, and the payment date is June 20, 2026."
+      }
+    ],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "dividends",
+    "event_title": "BlueRiver declares quarterly cash dividend",
+    "primary_ticker": {
+      "ticker": "BRIV",
+      "exchange": null
+    },
+    "tickers": [
+      "BRIV"
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 58,
+    "score_reason": "A regular dividend declaration matters for income investors but is not an alert-level surprise in this fixture.",
+    "signal": "bullish",
+    "quick_take": "BlueRiver declared a $0.22 quarterly cash dividend.",
+    "summary": "The dividend has a June 5, 2026 record date and June 20, 2026 payment date.",
+    "why_it_matters": "Dividend actions signal capital policy and cash-return capacity.",
+    "bullish_points": [
+      "The dividend is consistent with the company's capital policy."
+    ],
+    "bearish_points": [],
+    "key_evidence": [
+      "BlueRiver Bancorp declared a quarterly cash dividend of $0.22 per ordinary share."
+    ],
+    "what_to_watch_next": [
+      "Future payout consistency and earnings coverage."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "label": "record_date",
+        "dateText": "June 5, 2026",
+        "evidence": "The record date is June 5, 2026, and the payment date is June 20, 2026."
+      },
+      {
+        "label": "payment_date",
+        "dateText": "June 20, 2026",
+        "evidence": "The record date is June 5, 2026, and the payment date is June 20, 2026."
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "dividend": "$0.22 per ordinary share",
+      "record_date": "June 5, 2026",
+      "payment_date": "June 20, 2026"
+    },
+    "evidence": [
+      "The record date is June 5, 2026, and the payment date is June 20, 2026."
+    ],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": []
+  }
+}

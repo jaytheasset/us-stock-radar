@@ -1,0 +1,9 @@
+{
+  "fixture_name": "parser-phase2-shareholder-proposal-board-against",
+  "input": {
+    "formType": "DEF 14A",
+    "accessionNumber": "0000000013-26-000013",
+    "companyName": "Shareholder Vote Co.",
+    "filingText": "Stockholder Proposal: Independent Board Chair Policy\nThe following shareholder proposal was submitted by a stockholder proponent. The proponent recommends that stockholders vote FOR this proposal.\nOur Board recommends that shareholders vote AGAINST this shareholder proposal."
+  }
+}

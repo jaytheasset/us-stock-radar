@@ -1,0 +1,167 @@
+{
+  "parser_output": {
+    "parserVersion": "proxy-parser-v1",
+    "parserGroup": "proxy",
+    "formType": "Proxy",
+    "accessionNumber": "0001000003-26-000404",
+    "isSupported": true,
+    "summary": "Annual proxy for FounderCloud Software covering 1 proposal for a meeting on August 8, 2026.",
+    "facts": {
+      "companyName": "FounderCloud Software",
+      "primaryTicker": {
+        "ticker": "FCLD",
+        "exchange": "NYSE"
+      },
+      "secFormType": "DEF 14A",
+      "proxyType": "annual",
+      "meetingDate": "August 8, 2026",
+      "recordDate": "June 26, 2026",
+      "proposalCount": 1,
+      "proposals": [
+        {
+          "id": "1",
+          "title": "Election of six directors",
+          "category": "director_election",
+          "recommendation": "FOR",
+          "sourceText": "Proposal 1: Election of six directors. Board recommendation: FOR.",
+          "isShareholderProposal": false
+        }
+      ],
+      "ownership": {
+        "maxBeneficialOwnershipPercent": 62.4,
+        "holder": "Alex Founder",
+        "sourceText": "The beneficial ownership table shows Alex Founder beneficially owns 62.4%"
+      },
+      "dilution": {
+        "hasEquityPlanVote": false,
+        "sharesRequested": null,
+        "percentOfOutstanding": null,
+        "proposalIds": []
+      },
+      "transaction": {
+        "hasTransactionVote": false,
+        "consideration": null,
+        "voteRequired": null,
+        "proposalIds": []
+      },
+      "legal": {
+        "hasLegalRiskProposal": false,
+        "proposalIds": [],
+        "topics": []
+      },
+      "deterministic": {
+        "canFinishWithoutLlm": false,
+        "reason": null,
+        "eventType": null,
+        "suggestedScore": null
+      }
+    },
+    "signals": [
+      {
+        "name": "insider_control_ownership",
+        "eventType": "insider_ownership",
+        "severity": "high",
+        "evidence": "The beneficial ownership table shows Alex Founder beneficially owns 62.4%",
+        "proposalId": null
+      }
+    ],
+    "calendarItems": [
+      {
+        "type": "shareholder_meeting",
+        "date": "August 8, 2026",
+        "description": "FounderCloud Software annual meeting"
+      },
+      {
+        "type": "record_date",
+        "date": "June 26, 2026",
+        "description": "Record date for shareholder voting"
+      }
+    ],
+    "warnings": [],
+    "raw": {
+      "secFormType": "DEF 14A",
+      "attachmentNames": [],
+      "market_context": null
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "insider_ownership",
+    "event_title": "Founder voting control disclosed in proxy",
+    "primary_ticker": {
+      "ticker": "FCLD",
+      "exchange": "NYSE"
+    },
+    "tickers": [
+      {
+        "ticker": "FCLD",
+        "exchange": "NYSE"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 64,
+    "score_reason": "The proxy discloses a founder control block above 50%, which can materially affect shareholder voting outcomes.",
+    "signal": "neutral",
+    "quick_take": "Alex Founder beneficially owns 62.4%, giving a controlling voting position.",
+    "summary": "FounderCloud Software's proxy includes an ownership disclosure showing Alex Founder beneficially owns 62.4% of the outstanding Class A common stock.",
+    "why_it_matters": "A control holder can heavily influence director elections, compensation votes, and future governance decisions.",
+    "bullish_points": [
+      "Founder control can support stable long-term strategic direction."
+    ],
+    "bearish_points": [
+      "Minority shareholders may have limited influence over voting outcomes.",
+      "Control ownership can reduce governance optionality."
+    ],
+    "key_evidence": [
+      "The beneficial ownership table shows Alex Founder beneficially owns 62.4%",
+      "Proposal 1: Election of six directors. Board recommendation: FOR."
+    ],
+    "what_to_watch_next": [
+      "Any changes to voting power or controlled-company governance disclosures.",
+      "Director election results at the August 8, 2026 annual meeting."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "type": "shareholder_meeting",
+        "date": "August 8, 2026",
+        "description": "FounderCloud Software annual meeting"
+      },
+      {
+        "type": "record_date",
+        "date": "June 26, 2026",
+        "description": "Record date for shareholder voting"
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "holder": "Alex Founder",
+      "beneficial_ownership_percent": 62.4,
+      "meeting_date": "August 8, 2026"
+    },
+    "evidence": [
+      "The beneficial ownership table shows Alex Founder beneficially owns 62.4%"
+    ],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Delivery level derives from score 64."
+    ]
+  }
+}

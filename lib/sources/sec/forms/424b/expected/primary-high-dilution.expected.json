@@ -1,0 +1,156 @@
+{
+  "parser_output": {
+    "parserVersion": "424b-parser-v1",
+    "parserGroup": "424b",
+    "formType": "424B5",
+    "accessionNumber": "0000000000-26-000101",
+    "isSupported": true,
+    "summary": "Atlas Therapeutics, Inc. filed 424B5 covering 30,000,000 issuer-offered shares.",
+    "facts": {
+      "issuer": {
+        "name": "Atlas Therapeutics, Inc.",
+        "ticker": "ATLS",
+        "exchange": "NASDAQ"
+      },
+      "prospectusClass": "supplement",
+      "offeringTerms": {
+        "sharesOffered": 30000000,
+        "pricePerShare": 1,
+        "grossProceeds": 30000000,
+        "netProceeds": 27600000
+      },
+      "capitalization": {
+        "sharesOutstanding": 60000000,
+        "publicFloat": 42000000,
+        "marketCap": 81000000
+      },
+      "ratios": {
+        "offeringToOutstandingRatio": 0.5
+      },
+      "flags": {
+        "highDilutionRisk": true
+      }
+    },
+    "signals": [
+      {
+        "name": "high_dilution_risk",
+        "value": true
+      },
+      {
+        "name": "market_context_needed",
+        "value": ["price", "market_cap", "shares_outstanding", "public_float"]
+      }
+    ],
+    "calendarItems": [
+      {
+        "date": "May 29, 2026",
+        "label": "Expected offering closing",
+        "source": "We expect this offering to close on May 29, 2026."
+      }
+    ],
+    "warnings": [],
+    "raw": {
+      "deterministicCandidate": "quantified_high_dilution"
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "dilution_risk",
+    "event_title": "Large 424B equity offering creates dilution risk",
+    "primary_ticker": {
+      "ticker": "ATLS",
+      "exchange": "NASDAQ"
+    },
+    "tickers": ["ATLS"],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 86,
+    "score_reason": "Parser extracted quantified offering terms and a high dilution signal; delivery level is derived from the score band.",
+    "signal": "bearish",
+    "quick_take": "The offering equals about 50% of shares outstanding.",
+    "summary": "Atlas Therapeutics registered a 30,000,000 share common-stock offering at $1.00 per share, with gross proceeds of about $30.0 million and net proceeds of about $27.6 million.",
+    "why_it_matters": "The share count is large relative to the current base and can materially dilute existing holders even if proceeds fund clinical development and working capital.",
+    "bullish_points": [
+      "Net proceeds are intended for clinical development and working capital."
+    ],
+    "bearish_points": [
+      "30,000,000 issuer-offered shares were detected.",
+      "Offering-to-outstanding ratio is about 50%.",
+      "The filing states the offering will result in immediate and substantial dilution."
+    ],
+    "key_evidence": [
+      "30,000,000 shares at $1.00 per share.",
+      "Gross proceeds approximately $30,000,000.",
+      "60,000,000 shares outstanding before the offering."
+    ],
+    "what_to_watch_next": [
+      "Final closing, actual share count, and any warrant coverage.",
+      "Whether proceeds meaningfully extend cash runway."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "date": "May 29, 2026",
+        "label": "Expected offering closing",
+        "source": "We expect this offering to close on May 29, 2026."
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false,
+    "analysis_action": "deterministic_offering_terms_analysis",
+    "archive_summary": null,
+    "offering_display_model": {
+      "offering_terms": {
+        "sharesOffered": 30000000,
+        "pricePerShare": 1,
+        "grossProceeds": 30000000,
+        "netProceeds": 27600000
+      },
+      "ratios": {
+        "offeringToOutstandingRatio": 0.5
+      }
+    },
+    "offering_security_audit": {
+      "primary_issuance": true,
+      "resale": false,
+      "at_the_market": false,
+      "warrants_or_convertibles": false
+    }
+  },
+  "display_payload": {
+    "display_type": "offering_terms",
+    "display_version": "424b-display-payload-v1",
+    "data": {
+      "sharesOffered": 30000000,
+      "pricePerShare": 1,
+      "grossProceeds": 30000000,
+      "netProceeds": 27600000,
+      "offeringToOutstandingRatio": 0.5
+    },
+    "evidence": [
+      {
+        "label": "dilution excerpt",
+        "value": 0.5,
+        "excerpt": "We are offering 30,000,000 shares of our common stock at a public offering price of $1.00 per share."
+      }
+    ],
+    "notes": [
+      "Offering terms can map to offering display or event_offering_terms later."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": true,
+    "market_context_reason": "Offering size should be compared with market cap, shares outstanding, and public float.",
+    "market_context_fields": ["price", "market_cap", "shares_outstanding", "public_float"],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Deterministic offering analysis; fixture market context only, no live FMP call."
+    ]
+  }
+}

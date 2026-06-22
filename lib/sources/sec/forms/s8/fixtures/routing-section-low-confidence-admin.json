@@ -1,0 +1,13 @@
+{
+  "fixtureName": "routing-section-low-confidence-admin",
+  "formType": "S-8 POS",
+  "accessionNumber": "0006666666-26-000606",
+  "filedAt": "2026-05-24",
+  "issuer": {
+    "name": "Low Section Admin Inc.",
+    "ticker": "LSAI",
+    "exchange": "NYSE"
+  },
+  "filingText": "Post-Effective Amendment No. 1 to Form S-8. This amendment deregisters all unsold securities and does not register any additional securities.",
+  "attachments": []
+}

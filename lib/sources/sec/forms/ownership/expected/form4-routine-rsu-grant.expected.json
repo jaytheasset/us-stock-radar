@@ -1,0 +1,82 @@
+{
+  "parser_output": {
+    "parserVersion": "ownership-parser-v1",
+    "parserGroup": "ownership",
+    "formType": "Form 4 / 4/A, Form 144 / 144/A",
+    "accessionNumber": "0001193125-26-237487",
+    "isSupported": true,
+    "summary": "4 insider transaction filing for BRUNO JOHN G at Xerox Holdings Corporation (XRX).",
+    "facts": {},
+    "signals": [
+      "form_4_transaction",
+      "routine_grant_or_award",
+      "deterministic_archive"
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "insider_ownership",
+    "event_title": "BRUNO JOHN G RSU award",
+    "primary_ticker": {
+      "ticker": "XRX",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      "XRX"
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 28,
+    "score_reason": "Form 4 contains only non-derivative transaction code A equity-award rows with no open-market purchase or sale signal.",
+    "signal": "neutral",
+    "quick_take": "Form 4 reported an insider equity award/grant to BRUNO JOHN G involving 87,209 Restricted Stock Units (RSUs) on 2026-05-20.",
+    "summary": "Form 4 reported an insider equity award/grant to BRUNO JOHN G involving 87,209 Restricted Stock Units (RSUs) on 2026-05-20. Limited market impact detected. The original source is included below for reference.",
+    "why_it_matters": "",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [
+      "Transaction code: A",
+      "Awarded shares/units: 87,209",
+      "Security title: Restricted Stock Units (RSUs)"
+    ],
+    "what_to_watch_next": [],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "date": "2026-05-20",
+        "label": "Insider transaction date",
+        "source": "Form 4"
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "filing_summary": "Form 4 reported an insider equity award/grant to BRUNO JOHN G involving 87,209 Restricted Stock Units (RSUs) on 2026-05-20.",
+      "owner_name": "BRUNO JOHN G",
+      "security_titles": [
+        "Restricted Stock Units (RSUs)"
+      ],
+      "transaction_dates": [
+        "2026-05-20"
+      ],
+      "transaction_count": 1,
+      "awarded_shares_or_units": 87209,
+      "shares_owned_following": 707089
+    },
+    "evidence": [
+      "Routine Form 4 equity-award signal was detected from transaction code A with no sale or open-market purchase row."
+    ],
+    "notes": [
+      "No special UI is needed for a routine low-impact equity award."
+    ]
+  }
+}

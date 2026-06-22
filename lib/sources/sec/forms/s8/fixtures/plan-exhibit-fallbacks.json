@@ -1,0 +1,19 @@
+{
+  "fixtureName": "plan-exhibit-fallbacks",
+  "formType": "S-8",
+  "accessionNumber": "0003333333-26-000306",
+  "filedAt": "2026-05-06",
+  "issuer": {
+    "name": "Exhibit Plan Corp.",
+    "ticker": "EXPL",
+    "exchange": "NASDAQ"
+  },
+  "filingText": "Exhibit Plan Corp. files this registration statement on Form S-8. EXHIBIT INDEX. Exhibit 4.1 Form of Exhibit Plan Corp. 2025 Equity Incentive Plan. Exhibit 5.1 Opinion regarding shares issuable under the Exhibit Plan Corp. 2025 Equity Incentive Plan. PART I INFORMATION REQUIRED IN THE SECTION 10(a) PROSPECTUS. PART II INFORMATION REQUIRED IN THE REGISTRATION STATEMENT. SIGNATURES.",
+  "attachments": [
+    {
+      "documentType": "EX-5.1",
+      "description": "Legal opinion regarding shares issuable under the Exhibit Plan Corp. 2025 Equity Incentive Plan",
+      "text": "We have acted as counsel with respect to shares issuable under the Exhibit Plan Corp. 2025 Equity Incentive Plan."
+    }
+  ]
+}

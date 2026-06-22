@@ -1,0 +1,13 @@
+{
+  "fixtureName": "selling-rule144-inside",
+  "formType": "S-8",
+  "accessionNumber": "0005555555-26-000507",
+  "filedAt": "2026-05-23",
+  "issuer": {
+    "name": "Rule 144 Resale Inc.",
+    "ticker": "RRSI",
+    "exchange": "NASDAQ"
+  },
+  "filingText": "Rule 144 Resale Inc. files this registration statement on Form S-8. REOFFER PROSPECTUS. SELLING STOCKHOLDERS. The shares offered may be control securities or restricted securities and may also be sold under Rule 144. <table><tr><th>Selling Stockholder</th><th>Relationship</th><th>Shares Registered for Resale</th></tr><tr><td>Thomas Green</td><td>Affiliate</td><td>500,000</td></tr></table> SIGNATURES.",
+  "attachments": []
+}

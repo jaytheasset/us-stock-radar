@@ -1,0 +1,189 @@
+{
+  "parser_output": {
+    "parserVersion": "proxy-parser-v1",
+    "parserGroup": "proxy",
+    "formType": "Proxy",
+    "accessionNumber": "0001000001-26-000202",
+    "isSupported": true,
+    "summary": "Special proxy for Northstar Robotics covering 1 proposal for a meeting on July 15, 2026.",
+    "facts": {
+      "companyName": "Northstar Robotics",
+      "primaryTicker": {
+        "ticker": "NSRB",
+        "exchange": "NASDAQ"
+      },
+      "secFormType": "DEFM14A",
+      "proxyType": "special",
+      "meetingDate": "July 15, 2026",
+      "recordDate": "May 29, 2026",
+      "proposalCount": 1,
+      "proposals": [
+        {
+          "id": "1",
+          "title": "Adoption of the merger agreement with Orion Automation Holdings for $18.50 in cash per share",
+          "category": "merger_or_transaction",
+          "recommendation": "FOR",
+          "sourceText": "Proposal 1: Adoption of the merger agreement with Orion Automation Holdings for $18.50 in cash per share. Board recommendation: FOR.",
+          "isShareholderProposal": false
+        }
+      ],
+      "ownership": {
+        "maxBeneficialOwnershipPercent": null,
+        "holder": null,
+        "sourceText": null
+      },
+      "dilution": {
+        "hasEquityPlanVote": false,
+        "sharesRequested": null,
+        "percentOfOutstanding": null,
+        "proposalIds": []
+      },
+      "transaction": {
+        "hasTransactionVote": true,
+        "consideration": "$18.50 per share",
+        "voteRequired": "affirmative vote of a majority of the outstanding shares entitled to vote.",
+        "proposalIds": [
+          "1"
+        ]
+      },
+      "legal": {
+        "hasLegalRiskProposal": false,
+        "proposalIds": [],
+        "topics": []
+      },
+      "deterministic": {
+        "canFinishWithoutLlm": false,
+        "reason": null,
+        "eventType": null,
+        "suggestedScore": null
+      }
+    },
+    "signals": [
+      {
+        "name": "strategic_transaction_vote",
+        "eventType": "strategic_transaction",
+        "severity": "high",
+        "evidence": "Proposal 1: Adoption of the merger agreement with Orion Automation Holdings for $18.50 in cash per share. Board recommendation: FOR.",
+        "proposalId": "1"
+      }
+    ],
+    "calendarItems": [
+      {
+        "type": "shareholder_meeting",
+        "date": "July 15, 2026",
+        "description": "Northstar Robotics special meeting"
+      },
+      {
+        "type": "record_date",
+        "date": "May 29, 2026",
+        "description": "Record date for shareholder voting"
+      }
+    ],
+    "warnings": [],
+    "raw": {
+      "secFormType": "DEFM14A",
+      "attachmentNames": [],
+      "market_context": {
+        "price": 14.2,
+        "previous_close": 13.8,
+        "market_cap": 420000000,
+        "shares_outstanding": 29500000
+      }
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "strategic_transaction",
+    "event_title": "Shareholder vote on cash merger",
+    "primary_ticker": {
+      "ticker": "NSRB",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      {
+        "ticker": "NSRB",
+        "exchange": "NASDAQ"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 84,
+    "score_reason": "Special meeting vote on a cash merger is a material transaction catalyst; fixture market context shows the offer above the recent trading price.",
+    "signal": "bullish",
+    "quick_take": "Shareholders will vote on an $18.50-per-share cash merger, compared with a fixture price of $14.20.",
+    "summary": "Northstar Robotics filed a special-meeting proxy asking holders to approve a merger agreement with Orion Automation Holdings for $18.50 in cash per share.",
+    "why_it_matters": "The vote can determine whether public shareholders receive the cash consideration and whether the common stock stops trading after closing.",
+    "bullish_points": [
+      "Cash consideration is above the fixture price and previous close.",
+      "The board recommends voting for the merger."
+    ],
+    "bearish_points": [
+      "Completion still depends on shareholder approval.",
+      "If completed, the public listing will end."
+    ],
+    "key_evidence": [
+      "Proposal 1: Adoption of the merger agreement with Orion Automation Holdings for $18.50 in cash per share. Board recommendation: FOR.",
+      "Vote required: affirmative vote of a majority of the outstanding shares entitled to vote.",
+      "Fixture market_context price is 14.2 and previous_close is 13.8."
+    ],
+    "what_to_watch_next": [
+      "Shareholder vote outcome at the July 15, 2026 special meeting.",
+      "Any amended proxy or supplemental disclosure before the vote."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "type": "shareholder_meeting",
+        "date": "July 15, 2026",
+        "description": "Northstar Robotics special meeting"
+      },
+      {
+        "type": "record_date",
+        "date": "May 29, 2026",
+        "description": "Record date for shareholder voting"
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "candidate_special",
+    "data": {
+      "meeting_date": "July 15, 2026",
+      "record_date": "May 29, 2026",
+      "consideration": "$18.50 per share",
+      "vote_required": "affirmative vote of a majority of the outstanding shares entitled to vote.",
+      "proposal_ids": [
+        "1"
+      ]
+    },
+    "evidence": [
+      "Proposal 1: Adoption of the merger agreement with Orion Automation Holdings for $18.50 in cash per share. Board recommendation: FOR.",
+      "Vote required: affirmative vote of a majority of the outstanding shares entitled to vote."
+    ],
+    "notes": [
+      "Proxy merger vote details may need a future dedicated detail UI; this room does not implement UI."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": true,
+    "market_context_reason": "Cash merger consideration should be compared with recent share price and market capitalization.",
+    "market_context_fields": [
+      "price",
+      "previous_close",
+      "market_cap",
+      "shares_outstanding"
+    ],
+    "special_ui_needed": true,
+    "special_ui_reason": "Merger proxy votes combine consideration, vote threshold, meeting date, and delisting outcome fields that would benefit from a dedicated vote-detail display.",
+    "integration_notes": [
+      "Delivery level derives from score 84.",
+      "Use fixture market_context only; do not call live FMP."
+    ]
+  }
+}

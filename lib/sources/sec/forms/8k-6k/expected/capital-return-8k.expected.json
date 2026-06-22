@@ -1,0 +1,111 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_8k_6k_parser_v1",
+    "parserGroup": "8k-6k",
+    "formType": "8-K / 6-K, 8-K/A / 6-K/A",
+    "accessionNumber": "0013131313-26-000013",
+    "isSupported": true,
+    "summary": "Stonebridge Software filed 8-K with 1 extracted item(s) and 1 source-backed filing cue(s).",
+    "facts": {
+      "companyName": "Stonebridge Software",
+      "ticker": "SBSW",
+      "secFormType": "8-K",
+      "isAmendment": false,
+      "items": [
+        {
+          "item": "8.01",
+          "label": "Other Events."
+        }
+      ],
+      "filingCues": [
+        {
+          "cueType": "capital_return_authorization",
+          "label": "Share repurchase, buyback, or repurchase authorization language",
+          "evidence": "The board authorized a new stock repurchase program to buy back up to $150 million of common stock.",
+          "confidence": "medium",
+          "itemNumbers": [
+            "8.01"
+          ]
+        }
+      ]
+    },
+    "signals": [
+      {
+        "cueType": "capital_return_authorization",
+        "label": "Share repurchase, buyback, or repurchase authorization language",
+        "evidence": "The board authorized a new stock repurchase program to buy back up to $150 million of common stock.",
+        "confidence": "medium",
+        "itemNumbers": [
+          "8.01"
+        ]
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "capital_return",
+    "event_title": "Stonebridge authorizes $150 million repurchase program",
+    "primary_ticker": {
+      "ticker": "SBSW",
+      "exchange": null
+    },
+    "tickers": [
+      "SBSW"
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 66,
+    "score_reason": "The buyback authorization is meaningful and should be sized against market capitalization.",
+    "signal": "bullish",
+    "quick_take": "Stonebridge approved a new $150 million buyback.",
+    "summary": "The board authorized repurchases over the next 18 months through open-market or privately negotiated transactions.",
+    "why_it_matters": "Repurchase authorizations can support per-share value if executed, but they are discretionary.",
+    "bullish_points": [
+      "The authorization equals a notable capital-return commitment."
+    ],
+    "bearish_points": [
+      "Actual repurchases are discretionary."
+    ],
+    "key_evidence": [
+      "The board authorized a new stock repurchase program to buy back up to $150 million of common stock."
+    ],
+    "what_to_watch_next": [
+      "Actual repurchase activity and cash-balance impact."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "authorization": "$150 million",
+      "duration": "18 months"
+    },
+    "evidence": [
+      "Repurchases may be made through open market transactions or privately negotiated transactions."
+    ],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": true,
+    "market_context_reason": "Repurchase authorization size should be compared with market cap and shares outstanding.",
+    "market_context_fields": [
+      "price",
+      "market_cap",
+      "shares_outstanding"
+    ],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": []
+  }
+}

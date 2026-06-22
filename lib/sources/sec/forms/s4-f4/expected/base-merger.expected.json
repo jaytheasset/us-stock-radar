@@ -1,0 +1,142 @@
+{
+  "parser_output": {
+    "parserVersion": "s4-f4-v1",
+    "parserGroup": "s4-f4",
+    "formType": "S-4 / F-4 / S-4/A / F-4/A",
+    "accessionNumber": "0001111111-26-000101",
+    "isSupported": true,
+    "summary": "S-4 registration statement for a merger.",
+    "facts": {
+      "secFormType": "S-4",
+      "isAmendment": false,
+      "companyName": "Alpha Robotics Corp.",
+      "primaryTicker": {
+        "ticker": "ALFA",
+        "exchange": "NASDAQ"
+      },
+      "transaction": {
+        "type": "merger",
+        "consideration": {
+          "cashPerShare": null,
+          "stockRatio": 0.45,
+          "notes": []
+        },
+        "registeredShares": 18000000
+      },
+      "vote": {
+        "required": false,
+        "meetingDate": null,
+        "recordDate": null,
+        "proposal": null
+      },
+      "amendment": {
+        "isAmendment": false,
+        "materialChange": false,
+        "routineAdministrative": false,
+        "changedSections": []
+      },
+      "dilution": {
+        "shareIssuanceMentioned": true,
+        "registeredShares": 18000000,
+        "marketContextProvided": false
+      }
+    },
+    "signals": [],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {
+      "fixtureId": "base-merger"
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "strategic_transaction",
+    "event_title": "Alpha Robotics files S-4 for Beta Vision stock merger",
+    "primary_ticker": {
+      "ticker": "ALFA",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      {
+        "ticker": "ALFA",
+        "exchange": "NASDAQ"
+      },
+      {
+        "ticker": "BETA",
+        "exchange": "NYSE"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 72,
+    "score_reason": "A stock-for-stock merger registration is material but the fixture does not show a dated vote, changed terms, or severe closing risk.",
+    "signal": "volatile",
+    "quick_take": "Alpha Robotics filed an S-4 for its proposed stock merger with Beta Vision.",
+    "summary": "The filing registers Alpha Robotics shares to be issued to Beta Vision holders at an exchange ratio of 0.45 Alpha shares for each Beta share.",
+    "why_it_matters": "S-4 filings can define the deal economics, approval path, and dilution from merger consideration before holders vote or the deal closes.",
+    "bullish_points": [
+      "Both boards recommend the merger.",
+      "The transaction could expand Alpha Robotics through a stock-funded acquisition."
+    ],
+    "bearish_points": [
+      "Alpha Robotics is registering 18,000,000 shares for issuance.",
+      "Closing remains subject to regulatory approval and customary conditions."
+    ],
+    "key_evidence": [
+      "Exchange ratio: 0.45 Alpha Robotics shares for each Beta Vision share.",
+      "Registered shares: up to 18,000,000 Alpha Robotics shares.",
+      "Transaction subject to regulatory approval."
+    ],
+    "what_to_watch_next": [
+      "Shareholder meeting date and vote materials.",
+      "Regulatory approval status.",
+      "Any amendments changing the exchange ratio or closing conditions."
+    ],
+    "related_tickers": [
+      {
+        "ticker": "BETA",
+        "exchange": "NYSE"
+      }
+    ],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "candidate_special",
+    "data": {
+      "transaction_type": "merger",
+      "acquirer": "Alpha Robotics Corp.",
+      "target": "Beta Vision Inc.",
+      "stock_ratio": 0.45,
+      "registered_shares": 18000000,
+      "conditions": [
+        "regulatory approval",
+        "customary closing conditions"
+      ]
+    },
+    "evidence": [
+      "0.45 shares of Alpha Robotics common stock for each Beta Vision share",
+      "registers up to 18,000,000 shares"
+    ],
+    "notes": [
+      "Candidate special UI for merger terms and closing conditions."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": true,
+    "special_ui_reason": "Merger consideration, parties, registered shares, and closing conditions would benefit from a dedicated transaction detail UI.",
+    "integration_notes": [
+      "Do not wire to live ingest from this room.",
+      "Future integration can link later S-4/A amendments to this accession number."
+    ]
+  }
+}

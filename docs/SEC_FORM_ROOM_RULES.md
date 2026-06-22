@@ -5,8 +5,8 @@ This document is the working rulebook for parallel SEC form rooms.
 ## Goal
 
 Each SEC form room builds only its own parser, routing prompt, analysis prompt,
-fixtures, and local tests. It must not connect itself to live ingest, live DB
-writes, alert delivery, or detail UI.
+fixtures, and local tests. For live site verification, use the approved bridge
+script from the form room instead of manually editing integration files.
 
 ## Allowed Scope
 
@@ -33,7 +33,10 @@ Do not edit these from a form room:
 - alert delivery files
 
 Common code, ingest connection, DB persistence, site display, and alert sending
-are handled later in the integration or UI room.
+are handled by the integration runtime. A form room may exercise that runtime
+only through `npm run sec:live-test`.
+
+Before live testing, read `docs/SEC_LIVE_TEST_DIRECTION.md`.
 
 ## Exact Form Room Scopes
 
@@ -75,6 +78,53 @@ Allowed exceptions:
 
 When a room uses an exception, the fixture must show why LLM was not needed.
 
+## Runtime Split After Ingest Connection
+
+Read `docs/SEC_FORM_RUNTIME_SPLIT.md` before live dry-run work.
+
+After a form room is connected to ingest, the form module owns:
+
+- form-specific fetch priorities in `fetchPlan.ts`
+- the decision that a fetched document should be saved as raw source
+- DB row payload values for raw source, events, analysis, tickers, calendar
+  candidates, display payload, and alert candidates
+- parser logic
+- deterministic result logic when safe
+- router prompt if the room uses one
+- analysis prompt or compact analysis input
+- fixture/live dry-run evidence
+- warnings when important raw materials are missing
+
+Common ingest still owns:
+
+- SEC HTTP execution
+- rate limiting and retry
+- common store adapters: `rawStore`, `eventStore`, and `alertQueue`
+- raw/event/calendar/ticker/alert dedupe
+- DB writes
+- score-to-delivery derivation
+- transaction handling
+- alert enqueue and delivery logs
+- UI routing handoff
+
+The exact rule:
+
+```text
+Values are owned by the form module.
+Write mechanics are owned by common stores.
+```
+
+The form worker may request:
+
+- `rawStore.save(rawPayload)`
+- `eventStore.saveAll(eventPayload)`
+- `alertQueue.enqueue(alertCandidate)`
+
+Do not import Supabase directly from a form parser, prompt, or form worker. Do
+not implement DB schema, dedupe, transaction handling, or direct alert delivery
+inside a form room. If the form discovers a DB, alert, queue, or UI need, report
+it in the final handoff.
+
 ## Approved Event Types
 
 Every SEC form result must use one of these 15 event types:
@@ -112,11 +162,14 @@ Use the same score bands everywhere:
   - Eligible for immediate alert delivery.
 
 The form room may decide the score and delivery level in fixtures and expected
-JSON. The actual alert sending is connected later by the integration room.
+JSON. In live testing through `npm run sec:live-test`, score 75 or above uses
+the real alert delivery path.
 
 ## Market Context
 
-Market context can be used inside a form room, but only as fixture data.
+Market context can be used inside a form room as fixture data for unit tests.
+Live site tests may use the integration runtime's existing market context
+behavior through `npm run sec:live-test`.
 
 The form room may:
 
@@ -152,6 +205,41 @@ example:
   "market_context_fields": ["price", "market_cap", "shares_outstanding", "public_float"]
 }
 ```
+
+## Live Site Test Bridge
+
+Fixture tests are for parser and prompt correctness. Site rendering, DB writes,
+and alert delivery are verified through:
+
+```powershell
+npm run sec:live-test
+```
+
+Run that command from the individual form-room project. It will:
+
+1. copy only that room's `lib/sources/sec/forms/<form-room>/` folder into the
+   integration worktree
+2. start the integration dev server on `http://127.0.0.1:3002` if needed
+3. run real SEC raw ingest with `dryRun=false`
+4. run real SEC analysis persistence with `dryRun=false`
+5. send alerts when the persisted event is score 75 or above and user delivery
+   settings match
+
+Useful options:
+
+```powershell
+npm run sec:live-test -- --formTypes=4,144 --limit=1 --countPerForm=1
+npm run sec:live-test -- --accessionNumber=0001193125-26-237487
+npm run sec:live-test -- --syncOnly=true
+```
+
+Do not manually patch shared ingest, DB, UI, or alert files from a form room.
+If live testing shows a shared runtime problem, record it and fix it in the
+integration worktree.
+
+Do not reimplement SEC fetch in a temporary script. If the bridge/runtime does
+not fetch the needed document, attachment, XML, fee table, or enrichment data,
+report that as an integration issue.
 
 ## Required Output JSON
 
@@ -288,9 +376,9 @@ Deterministic handling is allowed for clear matured/redeemed/retired securities
 or clear merger-completion removals. Use LLM when the investor impact is unclear
 or common equity delisting risk is possible.
 
-## Fixture Testing
+## Fixture And Live Testing
 
-Each form room tests with files, not live DB.
+Each form room tests parser and prompt internals with files, not live DB.
 
 Recommended structure:
 
@@ -318,7 +406,9 @@ Fixture JSON should include:
 - important extracted facts
 
 Do not run live site, live DB writes, live FMP calls, or real alert sending from
-a form room.
+unit tests.
+
+For site, DB, ingest, and alert verification, use `npm run sec:live-test`.
 
 ## Handoff To Integration And UI
 

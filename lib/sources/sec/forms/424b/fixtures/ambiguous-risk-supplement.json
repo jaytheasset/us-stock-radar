@@ -1,0 +1,21 @@
+{
+  "name": "ambiguous-risk-supplement",
+  "formType": "424B5",
+  "accessionNumber": "0000000000-26-000106",
+  "issuer": {
+    "name": "Epsilon BioPharma, Inc.",
+    "ticker": "EPSN",
+    "exchange": "NASDAQ"
+  },
+  "filingText": "PROSPECTUS SUPPLEMENT Epsilon BioPharma, Inc. (Nasdaq: EPSN) This prospectus supplement updates recent developments. The FDA has placed a clinical hold on our Phase 2 oncology trial pending additional toxicology data. We also received a Nasdaq notice regarding a stockholders' equity deficiency and may be subject to delisting if the deficiency is not cured. We may seek additional financing, but no offering terms are provided in this supplement.",
+  "expected_event_type": "fda_clinical",
+  "expected_score_band": "alert",
+  "fixture_assertions": {
+    "deterministic": false,
+    "expected_router_preliminary_action": "analysis_llm",
+    "important_facts": {
+      "fdaClinical": true,
+      "listingRisk": true
+    }
+  }
+}

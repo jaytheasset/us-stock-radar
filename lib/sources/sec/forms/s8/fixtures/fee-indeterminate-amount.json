@@ -1,0 +1,26 @@
+{
+  "fixtureName": "fee-indeterminate-amount",
+  "formType": "S-8",
+  "accessionNumber": "0002222222-26-000203",
+  "filedAt": "2026-04-17",
+  "issuer": {
+    "name": "Indeterminate Benefits Corp.",
+    "ticker": "IBEN",
+    "exchange": "NASDAQ"
+  },
+  "filingText": "Indeterminate Benefits Corp. files this registration statement on Form S-8. PART I INFORMATION REQUIRED IN THE SECTION 10(a) PROSPECTUS. PART II INFORMATION REQUIRED IN THE REGISTRATION STATEMENT. SIGNATURES.",
+  "attachments": [
+    {
+      "documentType": "EX-FILING FEES",
+      "description": "Exhibit 107 filing fee table",
+      "text": "Table 1: Newly Registered Securities | Security Type | Security Class Title | Amount Registered | Proposed Maximum Offering Price Per Unit | Maximum Aggregate Offering Price | Fee Calculation Rule | Fee Rate | Registration Fee | | Other | Plan Interests in the Indeterminate Benefits Corp. 401(k) Plan | such indeterminate number | N/A | N/A | 457(h) | -- | -- |"
+    }
+  ],
+  "parentFilingContext": null,
+  "marketContext": null,
+  "flowExpectation": {
+    "parserCanFinishWithoutLlm": false,
+    "routerCanFinishWithoutLlm": false,
+    "reason": "Indeterminate plan interests must remain null and must not become zero or common-stock shares."
+  }
+}

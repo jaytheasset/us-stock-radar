@@ -1,0 +1,9 @@
+{
+  "fixture_name": "parser-phase2-merger-proposal",
+  "input": {
+    "formType": "PREM14A",
+    "accessionNumber": "0000000018-26-000018",
+    "companyName": "Merger Proposal Co.",
+    "filingText": "SPECIAL MEETING PROXY STATEMENT\nProposal 1: Approval of Merger Agreement\nThe special committee received a fairness opinion in connection with the proposed acquisition transaction. The Board recommends a vote FOR the approval of the merger agreement. Vote required: approval by holders of a majority of shares outstanding."
+  }
+}

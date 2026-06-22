@@ -1,0 +1,33 @@
+{
+  "case_id": "passive-13g",
+  "description": "Initial passive Schedule 13G below 10% expected to be scored as archive by analysis.",
+  "filing": {
+    "formType": "SC 13G",
+    "accessionNumber": "0000000000-26-000101",
+    "issuerName": "Quiet Robotics Inc.",
+    "primaryTicker": {
+      "ticker": "QTRB",
+      "exchange": "NASDAQ"
+    },
+    "filedAt": "2026-01-31",
+    "text": "SCHEDULE 13G\nCUSIP Number: 123456789\nName of Issuer: Quiet Robotics Inc.\nTitle of Class of Securities: Common Stock\nTicker: QTRB\nExchange: NASDAQ\nDate of Event Which Requires Filing: January 15, 2026\nName of Reporting Person: Northstar Index Fund LP\nSole Voting Power: 0\nShared Voting Power: 1,240,000\nSole Dispositive Power: 0\nShared Dispositive Power: 1,240,000\nAggregate Amount Beneficially Owned by Each Reporting Person: 1,240,000\nPercent of Class Represented by Amount in Row (11): 6.2%\nItem 10. Certification\nBy signing below I certify that, to the best of my knowledge and belief, the securities referred to above were not acquired and are not held for the purpose of or with the effect of changing or influencing the control of the issuer.\nSIGNATURE"
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "insider_ownership",
+    "deterministic": true,
+    "score_band": "archive",
+    "extracted_facts": {
+      "issuerName": "Quiet Robotics Inc.",
+      "reportingPersons": [
+        "Northstar Index Fund LP"
+      ],
+      "scheduleType": "13G",
+      "isAmendment": false,
+      "sharesBeneficiallyOwned": 1240000,
+      "percentOwned": 6.2,
+      "ownershipIntent": "passive",
+      "passiveCertification": true
+    }
+  }
+}

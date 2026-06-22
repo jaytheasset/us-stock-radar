@@ -1,0 +1,281 @@
+{
+  "parser_output": {
+    "parserVersion": "effect-parser-v1",
+    "parserGroup": "effect",
+    "formType": "EFFECT",
+    "accessionNumber": "9999999995-24-000848",
+    "isSupported": true,
+    "summary": "Compania Minera Mantos de Oro's S-4 registration statement became effective on 2024-04-03 for 3 filers.",
+    "facts": {
+      "companyName": "Compania Minera Mantos de Oro",
+      "ticker": null,
+      "exchange": null,
+      "cik": "0001547456",
+      "filingDate": "2024-04-03",
+      "effectiveDate": "2024-04-03",
+      "effectiveTime": "16:00:00",
+      "accessionNumber": "9999999995-24-000848",
+      "registrationNumber": "333-277848",
+      "effectiveRegistrationReference": "Registration No. 333-277848",
+      "effectiveFilingForm": "S-4",
+      "relatedSubmissionType": null,
+      "referenceAccessionNumber": null,
+      "originalFilingReference": null,
+      "originalAccessionNumber": null,
+      "originalAnalysisReference": null,
+      "filers": [
+        {
+          "cik": "0001547456",
+          "entityName": "Compania Minera Mantos de Oro",
+          "fileNumber": "333-277848",
+          "seriesClassContract": null
+        },
+        {
+          "cik": "0001547307",
+          "entityName": "Fairbanks Gold Mining, Inc.",
+          "fileNumber": "333-277848-07",
+          "seriesClassContract": null
+        },
+        {
+          "cik": "0001547093",
+          "entityName": "Kinross Brasil Mineracao S.A.",
+          "fileNumber": "333-277848-06",
+          "seriesClassContract": null
+        }
+      ],
+      "primaryFiler": {
+        "cik": "0001547456",
+        "entityName": "Compania Minera Mantos de Oro",
+        "fileNumber": "333-277848",
+        "seriesClassContract": null
+      },
+      "hasMultipleFilers": true,
+      "hasSeriesClassContractData": false,
+      "effectiveFormSource": "effectiveData.form",
+      "effectiveDateSource": "effectiveData.finalEffectivenessDispDate",
+      "parentContextProvided": false,
+      "parentEventType": null,
+      "parentEventTitle": null,
+      "parentIpoKind": null,
+      "parentFormType": null,
+      "parentAccessionNumber": null,
+      "parentRegistrationNumber": null,
+      "parentScore": null,
+      "originalAnalysisShouldBeShown": false,
+      "effectiveTargetClear": true,
+      "parentTargetMatch": null,
+      "parentTargetConflicts": [],
+      "targetAmbiguityWarnings": [
+        "Parent filing context is absent; parser cannot confirm which prior registration analysis should be shown."
+      ],
+      "sourceExcerpts": [
+        {
+          "label": "effective_filing_form",
+          "value": "S-4",
+          "source": "effectiveData.form"
+        },
+        {
+          "label": "effective_date",
+          "value": "2024-04-03",
+          "source": "effectiveData.finalEffectivenessDispDate"
+        },
+        {
+          "label": "effective_time",
+          "value": "16:00:00",
+          "source": "effectiveData.finalEffectivenessDispTime"
+        },
+        {
+          "label": "registration_number",
+          "value": "333-277848",
+          "source": "effectiveData.filer.fileNumber or SEC-HEADER.SEC FILE NUMBER"
+        },
+        {
+          "label": "effective_filer",
+          "value": "Compania Minera Mantos de Oro (0001547456)",
+          "source": "effectiveData.filer"
+        },
+        {
+          "label": "effective_filer",
+          "value": "Fairbanks Gold Mining, Inc. (0001547307)",
+          "source": "effectiveData.filer"
+        },
+        {
+          "label": "effective_filer",
+          "value": "Kinross Brasil Mineracao S.A. (0001547093)",
+          "source": "effectiveData.filer"
+        }
+      ]
+    },
+    "signals": [
+      "effectiveness_notice",
+      "deterministic_effectiveness_notice",
+      "effectiveness_date_identified",
+      "registration_reference_identified",
+      "effective_target_clear",
+      "effective_target_ambiguous",
+      "multiple_effective_filers"
+    ],
+    "calendarItems": [
+      {
+        "label": "Registration statement effective date",
+        "date": "2024-04-03",
+        "source": "EFFECT filing"
+      }
+    ],
+    "warnings": [
+      "Parent filing context is absent; parser cannot confirm which prior registration analysis should be shown.",
+      "EFFECT notice contains multiple filers; downstream integration should preserve all filer/file-number pairs."
+    ],
+    "raw": {
+      "sourceTextLength": 842,
+      "documentCount": 0,
+      "xmlDetected": true,
+      "headerDetected": true,
+      "parentFilingContextUsed": false,
+      "marketContextProvided": false
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "strategic_transaction",
+    "event_title": "Compania Minera Mantos de Oro S-4 registration statement declared effective",
+    "primary_ticker": {
+      "ticker": null,
+      "exchange": null
+    },
+    "tickers": [],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 70,
+    "score_reason": "S-4 effectiveness usually means a merger, exchange, or acquisition registration statement cleared the SEC effectiveness step.",
+    "signal": "neutral",
+    "quick_take": "Compania Minera Mantos de Oro's S-4 registration statement became effective; investors should review the original registration filing for securities, holders, and transaction terms.",
+    "summary": "Compania Minera Mantos de Oro's S-4 registration statement became effective on 2024-04-03 for 3 filers.",
+    "why_it_matters": "Effectiveness of a S-4 registration statement can remove an SEC registration gating item for a merger, exchange, or acquisition-related issuance.",
+    "bullish_points": [
+      "The S-4 effectiveness step can help the related transaction move toward completion."
+    ],
+    "bearish_points": [],
+    "key_evidence": [
+      {
+        "label": "effective_filing_form",
+        "value": "S-4",
+        "source": "effectiveData.form"
+      },
+      {
+        "label": "effective_date",
+        "value": "2024-04-03",
+        "source": "effectiveData.finalEffectivenessDispDate"
+      },
+      {
+        "label": "effective_time",
+        "value": "16:00:00",
+        "source": "effectiveData.finalEffectivenessDispTime"
+      },
+      {
+        "label": "registration_number",
+        "value": "333-277848",
+        "source": "effectiveData.filer.fileNumber or SEC-HEADER.SEC FILE NUMBER"
+      },
+      {
+        "label": "effective_filer",
+        "value": "Compania Minera Mantos de Oro (0001547456)",
+        "source": "effectiveData.filer"
+      },
+      {
+        "label": "effective_filer",
+        "value": "Fairbanks Gold Mining, Inc. (0001547307)",
+        "source": "effectiveData.filer"
+      },
+      {
+        "label": "effective_filer",
+        "value": "Kinross Brasil Mineracao S.A. (0001547093)",
+        "source": "effectiveData.filer"
+      }
+    ],
+    "what_to_watch_next": [
+      "Original registration filing terms",
+      "Any prospectus supplement or related 424B filing",
+      "Each filer and Securities Act file number in the EFFECT notice",
+      "Transaction closing conditions and shareholder timing"
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "label": "Registration statement effective date",
+        "date": "2024-04-03",
+        "source": "EFFECT filing"
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "effective_filing_form": "S-4",
+      "ipo_kind": null,
+      "effective_registration_reference": "Registration No. 333-277848",
+      "effective_date": "2024-04-03",
+      "original_filing_reference": null
+    },
+    "evidence": [
+      {
+        "label": "effective_filing_form",
+        "value": "S-4",
+        "source": "effectiveData.form"
+      },
+      {
+        "label": "effective_date",
+        "value": "2024-04-03",
+        "source": "effectiveData.finalEffectivenessDispDate"
+      },
+      {
+        "label": "effective_time",
+        "value": "16:00:00",
+        "source": "effectiveData.finalEffectivenessDispTime"
+      },
+      {
+        "label": "registration_number",
+        "value": "333-277848",
+        "source": "effectiveData.filer.fileNumber or SEC-HEADER.SEC FILE NUMBER"
+      },
+      {
+        "label": "effective_filer",
+        "value": "Compania Minera Mantos de Oro (0001547456)",
+        "source": "effectiveData.filer"
+      },
+      {
+        "label": "effective_filer",
+        "value": "Fairbanks Gold Mining, Inc. (0001547307)",
+        "source": "effectiveData.filer"
+      },
+      {
+        "label": "effective_filer",
+        "value": "Kinross Brasil Mineracao S.A. (0001547093)",
+        "source": "effectiveData.filer"
+      }
+    ],
+    "notes": [
+      "EFFECT room did not query live DB; original filing context is fixture-only.",
+      "Multiple filer/file-number pairs were preserved for integration matching."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Link EFFECT filing to the related registration filing during integration; do not resolve that link from this form room.",
+      "Delivery level is derived from score using shared score bands.",
+      "Fixture proves deterministic handling; no router or analysis LLM is needed."
+    ]
+  }
+}

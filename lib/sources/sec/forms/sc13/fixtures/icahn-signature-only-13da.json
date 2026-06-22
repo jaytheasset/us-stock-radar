@@ -1,0 +1,28 @@
+{
+  "case_id": "icahn-signature-only-13da",
+  "description": "SEC source excerpt from Icahn SC 13D/A amendment with no cover-page ownership rows; reporting persons are named in the signature block. Source: https://www.sec.gov/Archives/edgar/data/921669/000110465924115938/tm2427894d1_sc13da.htm",
+  "filing": {
+    "formType": "SC 13D/A",
+    "accessionNumber": "0001104659-24-115938",
+    "filedAt": "2024-11-08",
+    "text": "SCHEDULE 13D/A\n(Amendment No. 31)\nCVR Energy, Inc.\n(Name of Issuer)\nCommon Stock, par value $0.01\n(Title of Class of Securities)\n12662P108\n(CUSIP Number)\nSCHEDULE 13D\nItem 4. Purpose of Transaction.\nItem 4 of the Initial 13D is hereby amended and supplemented as follows:\nOn November 8, 2024, Icahn Enterprises L.P. delivered a proposal to the Board of Directors of the Issuer for a tender offer to acquire up to 15 million additional Shares.\nItem 7. Material to be Filed as Exhibits\nSIGNATURE\nAfter reasonable inquiry and to the best of each of the undersigned's knowledge and belief, each of the undersigned certifies that the information set forth in this statement is true, complete and correct.\nDated: November 8, 2024\nIEP ENERGY HOLDING\nLLC\n\nBy:\n/s/ Ted Papapostolou\nName: Ted Papapostolou\nTitle: Chief Financial Officer and Secretary\n\nAMERICAN ENTERTAINMENT\nPROPERTIES CORP.\n\nBy:\n/s/ Ted Papapostolou\nName: Ted Papapostolou\nTitle: Chief Financial Officer, Treasurer and Secretary\n\nICAHN ENTERPRISES\nHOLDINGS L.P.\n\nBy: Icahn Enterprises G.P. Inc., its general partner\n\nICAHN ENTERPRISES\nG.P. INC.\n\nBy:\n/s/ Ted Papapostolou\nName: Ted Papapostolou\nTitle: Chief Financial Officer and Secretary\n\nBECKTON CORP.\n\nBy:\n/s/ Ted Papapostolou\nName: Ted Papapostolou\nTitle: Vice President\n\n/s/ Carl C. Icahn\n\nCARL C. ICAHN\n[Signature Page of Amendment No. 31 to Schedule 13D - CVR Energy, Inc.]"
+  },
+  "expected": {
+    "event_type": "insider_ownership",
+    "extracted_facts": {
+      "issuerName": "CVR Energy, Inc.",
+      "securityClass": "Common Stock, par value $0.01",
+      "cusip": "12662P108",
+      "reportingPersons": [
+        "IEP ENERGY HOLDING LLC",
+        "AMERICAN ENTERTAINMENT PROPERTIES CORP.",
+        "ICAHN ENTERPRISES HOLDINGS L.P.",
+        "ICAHN ENTERPRISES G.P. INC.",
+        "BECKTON CORP.",
+        "CARL C. ICAHN"
+      ],
+      "sharesBeneficiallyOwned": null,
+      "percentOwned": null
+    }
+  }
+}

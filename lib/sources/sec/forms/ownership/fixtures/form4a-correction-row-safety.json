@@ -1,0 +1,6 @@
+{
+  "id": "form4a-correction-row-safety",
+  "formType": "4/A",
+  "accessionNumber": "0000000000-26-004105",
+  "filingText": "<?xml version=\"1.0\"?><ownershipDocument><documentType>4/A</documentType><issuer><issuerCik>0003333005</issuerCik><issuerName>Correction Amendment Corp</issuerName><issuerTradingSymbol>CORR</issuerTradingSymbol></issuer><reportingOwner><reportingOwnerId><rptOwnerName>Riley Correct</rptOwnerName></reportingOwnerId><reportingOwnerRelationship><isDirector>1</isDirector></reportingOwnerRelationship></reportingOwner><nonDerivativeTable><nonDerivativeTransaction><securityTitle><value>Common Stock</value></securityTitle><transactionDate><value>2026-05-17</value></transactionDate><transactionCoding><transactionCode>S</transactionCode></transactionCoding><transactionAmounts><transactionShares><value>400</value></transactionShares><transactionPricePerShare><value>18.00</value></transactionPricePerShare><transactionAcquiredDisposedCode><value>D</value></transactionAcquiredDisposedCode></transactionAmounts><postTransactionAmounts><sharesOwnedFollowingTransaction><value>3600</value></sharesOwnedFollowingTransaction></postTransactionAmounts></nonDerivativeTransaction></nonDerivativeTable><remarks>The transaction was previously reported in error and should not have been reported.</remarks></ownershipDocument>"
+}

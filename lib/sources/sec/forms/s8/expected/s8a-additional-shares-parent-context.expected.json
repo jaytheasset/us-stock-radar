@@ -1,0 +1,273 @@
+{
+  "parser_output": {
+    "parserVersion": "s8-parser-v1",
+    "parserGroup": "s8",
+    "formType": "S-8/A",
+    "accessionNumber": "0004444444-26-000040",
+    "isSupported": true,
+    "summary": "Delta Robotics, Inc. filed an S-8/A registering 2,000,000 common stock under Delta Robotics, Inc. 2025 Stock Plan.",
+    "facts": {
+      "issuerName": "Delta Robotics, Inc.",
+      "ticker": "DLRB",
+      "exchange": "NASDAQ",
+      "filedAt": "2026-05-05",
+      "isAmendment": true,
+      "amendmentType": "additional_share_registration",
+      "planNames": [
+        "Delta Robotics, Inc. 2025 Stock Plan"
+      ],
+      "planNameFacts": [
+        {
+          "name": "Delta Robotics, Inc. 2025 Stock Plan",
+          "planType": "unknown",
+          "sources": [
+            "explanatory_note"
+          ],
+          "confidence": "high"
+        }
+      ],
+      "planExtractionConfidence": "high",
+      "planExtractionWarnings": [],
+      "securityType": "common stock",
+      "registeredShares": 2000000,
+      "additionalShares": 2000000,
+      "parentRegisteredShares": 5000000,
+      "estimatedOfferingAmount": null,
+      "registrationFee": null,
+      "dilutionPercentOfSharesOutstanding": 2.22,
+      "dilutionPercentOfPublicFloat": 3.33,
+      "noAdditionalSecurities": false,
+      "exhibitOnly": false,
+      "signatureOnly": false,
+      "needsParentComparison": false,
+      "normalizedS8Type": "general_instruction_e_additional_securities",
+      "s8FamilyDetected": true,
+      "likelyFeeTableMaterial": false,
+      "exFilingFeesExhibit": false,
+      "feeTableSource": "not_found",
+      "feeTableExtractionConfidence": "low",
+      "feeTableWarnings": [],
+      "feeTablePurposeConflicts": [],
+      "rule416": false,
+      "planInterests": false,
+      "unusualFeeTableSecurities": false,
+      "postEffectiveAmendment": false,
+      "deregistrationOfUnsoldSecurities": false,
+      "resaleProspectus": false,
+      "sellingHolderSection": false,
+      "controlSecurities": false,
+      "restrictedSecurities": false,
+      "rule144": false,
+      "consultantAdvisorServiceProvider": true,
+      "investorRelationsPromotionalFinancingServices": false,
+      "shellReverseMergerDelinquentFiler": false,
+      "s8PosRegistersAdditionalSecurities": false,
+      "sectionExtractionConfidence": "medium",
+      "consultantAdvisorContexts": [
+        {
+          "term": "consultants",
+          "bucket": "plan_eligibility",
+          "section": "cover_page",
+          "confidence": "high",
+          "evidence": "This Amendment No. 1 to Form S-8 registers an additional 2,000,000 shares of common stock under the Delta Robotics, Inc. 2025 Stock Plan. The additional shares are authorized for future awards to employees, directors and consultants."
+        }
+      ],
+      "planShareAllocations": [
+        {
+          "planName": "Delta Robotics, Inc. 2025 Stock Plan",
+          "shares": 2000000,
+          "source": "explanatory_note",
+          "confidence": "high",
+          "evidenceLevel": "direct"
+        }
+      ],
+      "consultantAdvisorContextConfidence": "high",
+      "consultantAdvisorContextWarnings": [
+        "Consultant/advisor/service-provider language appears in substantive plan eligibility context."
+      ]
+    },
+    "signals": [],
+    "calendarItems": [],
+    "warnings": [
+      "Consultant/advisor/service-provider language appears in substantive plan eligibility context."
+    ],
+    "raw": {
+      "sourceTextExcerpt": "This Amendment No. 1 to Form S-8 registers an additional 2,000,000 shares of common stock under the Delta Robotics, Inc. 2025 Stock Plan. The additional shares are authorized for future awards to employees, directors and consultants.",
+      "sourceDocuments": [
+        {
+          "id": "primary",
+          "documentRole": "primary_filing",
+          "source": "primary",
+          "documentType": null,
+          "description": "Primary S-8 filing document",
+          "textKind": "normalized_text",
+          "text": "This Amendment No. 1 to Form S-8 registers an additional 2,000,000 shares of common stock under the Delta Robotics, Inc. 2025 Stock Plan. The additional shares are authorized for future awards to employees, directors and consultants."
+        }
+      ],
+      "noiseCandidates": [],
+      "attachments": [],
+      "parentFilingContext": {
+        "accessionNumber": "0004444444-25-000200",
+        "formType": "S-8",
+        "filedAt": "2025-08-14",
+        "registeredShares": 5000000,
+        "planNames": [
+          "Delta Robotics, Inc. 2025 Stock Plan"
+        ],
+        "summary": "Original S-8 registered 5,000,000 shares under the 2025 Stock Plan."
+      },
+      "marketContext": {
+        "price": 8.25,
+        "previous_close": 8.1,
+        "market_cap": 742500000,
+        "shares_outstanding": 90000000,
+        "public_float": 60000000,
+        "volume": 650000,
+        "avg_volume": 510000
+      },
+      "extractedShareCounts": [
+        2000000
+      ],
+      "sections": [
+        {
+          "key": "cover_page",
+          "heading": "cover page",
+          "start": 0,
+          "end": 233,
+          "confidence": "medium"
+        }
+      ]
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "dilution_risk",
+    "event_title": "Delta Robotics adds shares to 2025 stock plan",
+    "primary_ticker": {
+      "ticker": "DLRB",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      "DLRB"
+    ],
+    "sector": "Industrials",
+    "industry_group": "Automation Equipment",
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 62,
+    "score_reason": "S-8/A registers 2,000,000 additional plan shares on top of a fixture parent S-8 that registered 5,000,000 shares; fixture market context sizes the addition at 2.22% of shares outstanding.",
+    "signal": "volatile",
+    "quick_take": "Delta Robotics added capacity for 2,000,000 more plan shares, a material but not alert-level dilution update in the fixture.",
+    "summary": "Delta Robotics filed an S-8/A registering an additional 2,000,000 shares of common stock under its 2025 Stock Plan.",
+    "why_it_matters": "S-8/A amendments can be routine, but this fixture includes additional shares and parent filing context, making the update relevant for dilution tracking.",
+    "bullish_points": [
+      "Additional plan shares may support employee retention and incentives."
+    ],
+    "bearish_points": [
+      "The amendment adds 2,000,000 shares to an existing 5,000,000-share plan registration.",
+      "The additional shares equal 2.22% of fixture shares outstanding."
+    ],
+    "key_evidence": [
+      "Registers an additional 2,000,000 shares of common stock.",
+      "Parent fixture context: original S-8 registered 5,000,000 shares.",
+      "Fixture market context: 90,000,000 shares outstanding and 60,000,000 public float.",
+      "Parent S-8 context is supplied by fixture JSON, not queried from a live database."
+    ],
+    "what_to_watch_next": [
+      "Future proxy disclosures for burn rate and plan utilization.",
+      "Any later S-8/A that adds more securities."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "offering_terms",
+    "data": {
+      "payload_version": "s8_offering_terms_v1",
+      "registeredShares": 2000000,
+      "additionalShares": 2000000,
+      "parentRegisteredShares": 5000000,
+      "securityType": "common stock",
+      "planNames": [
+        "Delta Robotics, Inc. 2025 Stock Plan"
+      ],
+      "dilutionPercentOfSharesOutstanding": 2.22,
+      "dilutionPercentOfPublicFloat": 3.33,
+      "marketCap": 742500000,
+      "price": 8.25,
+      "source_backed_share_stack": {
+        "additional_plan_shares_registered": 2000000,
+        "parent_plan_shares_registered": 5000000,
+        "cumulative_plan_shares_registered": 7000000,
+        "current_shares_outstanding": 90000000,
+        "shares_outstanding_from_market_context": 90000000,
+        "public_float": 60000000,
+        "market_cap": 742500000,
+        "price": 8.25,
+        "previous_close": 8.1,
+        "registered_resale_supply": null,
+        "resale_selling_stockholder_shares": null,
+        "primary_common_shares_registered": null,
+        "pre_funded_warrant_underlying_shares": null,
+        "warrant_underlying_shares": null,
+        "convertible_note_underlying_shares": null,
+        "preferred_conversion_shares": null,
+        "equity_line_registered_shares": null,
+        "additional_future_share_overhang": null,
+        "max_registered_stack_share_equivalent": 7000000
+      },
+      "proceeds_stack": {
+        "company_proceeds": null,
+        "company_proceeds_reason": "No company sale proceeds or fee-table amount are stated in this fixture amendment.",
+        "selling_holder_proceeds": null,
+        "fee_table_only_amount": null,
+        "registration_fee": null,
+        "offering_amount": null,
+        "atm_program_capacity": null,
+        "shelf_capacity": null,
+        "offering_price": null,
+        "conversion_price": null,
+        "warrant_exercise_price": null
+      },
+      "market_context_needs": {
+        "used_fixture_market_context": true,
+        "required_fields": [
+          "price",
+          "market_cap",
+          "shares_outstanding",
+          "public_float"
+        ],
+        "reason": "Additional plan shares and parent S-8 context need fixture market context to size incremental and cumulative dilution."
+      },
+      "s8_ui_mode": "post_effective_amendment"
+    },
+    "evidence": [
+      "Registers an additional 2,000,000 shares of common stock.",
+      "Parent S-8 registered 5,000,000 shares.",
+      "2.22% of fixture shares outstanding."
+    ],
+    "notes": [
+      "Parent filing context and market context are supplied by fixture JSON only."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": true,
+    "market_context_reason": "Additional plan shares should be sized against shares outstanding, public float and market cap.",
+    "market_context_fields": [
+      "price",
+      "market_cap",
+      "shares_outstanding",
+      "public_float"
+    ],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Parent filing comparison is represented by fixture JSON only; do not query live DB from this room."
+    ]
+  }
+}

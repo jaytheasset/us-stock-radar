@@ -1,0 +1,25 @@
+{
+  "case_id": "exhibits-simple-13d",
+  "description": "Initial Schedule 13D with simple Exhibit 1 and Exhibit 2 references.",
+  "filing": {
+    "formType": "SC 13D",
+    "accessionNumber": "0000000000-26-013011",
+    "issuerName": "Pine Table Inc.",
+    "filedAt": "2026-04-12",
+    "text": "SC 13D\nSCHEDULE 13D\nPine Table Inc.\n(Name of Issuer)\nCommon Stock\n(Title of Class of Securities)\n720000111\n(CUSIP Number)\nName of Reporting Person: Cedar Fund LP\nAggregate Amount Beneficially Owned by Each Reporting Person: 900,000\nPercent of Class Represented by Amount in Row (11): 6.1%\nItem 4. Purpose of Transaction\nThe securities were acquired for investment purposes.\nItem 6. Contracts, Arrangements, Understandings or Relationships with Respect to Securities of the Issuer\nThe Reporting Person entered into the Joint Filing Agreement listed in Item 7.\nItem 7. Material to be Filed as Exhibits\nExhibit 1 - Joint Filing Agreement\nExhibit 2 - Power of Attorney\nSIGNATURE"
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "insider_ownership",
+    "deterministic": false,
+    "score_band": "feed",
+    "extracted_facts": {
+      "reportingPersons": [
+        "Cedar Fund LP"
+      ],
+      "scheduleType": "13D",
+      "sharesBeneficiallyOwned": 900000,
+      "percentOwned": 6.1
+    }
+  }
+}

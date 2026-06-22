@@ -1,0 +1,31 @@
+{
+  "rawItemId": "fixture-form25-voluntary-withdrawal-continued-listing",
+  "sourceUniqueId": "0000078150-07-000006",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/78150/000007815007000006/form25.htm",
+  "title": "Philippine Long Distance Telephone Company Form 25",
+  "publishedAt": "2007-01-31",
+  "bodyText": "FORM 25\nNOTIFICATION OF REMOVAL FROM LISTING AND/OR REGISTRATION UNDER SECTION 12(b) OF THE SECURITIES EXCHANGE ACT OF 1934.\nCommission File Number 001-03006\nPHILIPPINE LONG DISTANCE TELEPHONE COMPANY / NYSE Arca, Inc.\nPHILIPPINE LONG DISTANCE TELEPHONE COMPANY, ADS\n(Description of class of securities)\nPursuant to 17 CFR 240.12d2-2(c), the issuer has complied with the rules of the Exchange and the requirements governing the voluntary withdrawal of the class of securities from listing and registration on the Exchange.\nI am writing to give notice of the Company's intent to voluntarily delist from NYSE Arca Equities, Inc. PLDT American Depositary Shares, each representing one PLDT Common Stock. The Company has determined that it is in the best interest of PLDT and its stockholders that PLDT withdraw the listing of its American Depositary Shares from NYSE Arca in order to eliminate duplicative administrative burdens and costs inherent with dual listing. PLDT American Depositary Shares continue to be listed on the New York Stock Exchange, its principal listing exchange.\nThe companies have decided to voluntarily withdraw their listing from NYSE Arca, Inc. to eliminate duplicative administrative requirements inherent with dual listings.\nRAW_FORM25_FULL_TEXT_SENTINEL_SHOULD_NOT_REACH_PROMPTS",
+  "rawPayload": {
+    "form_type": "25",
+    "accession_number": "0000078150-07-000006",
+    "primary_ticker": "PHI",
+    "primary_ticker_exchange": "NYSE",
+    "documents": [
+      {
+        "type": "25",
+        "description": "form25.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/78150/000007815007000006/form25.htm",
+        "isPrimary": true,
+        "textCharCount": 12000,
+        "textTruncated": true,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ],
+    "attachment_texts": []
+  },
+  "metadata": {
+    "company_name": "PHILIPPINE LONG DISTANCE TELEPHONE COMPANY",
+    "cik": "0000078150"
+  }
+}

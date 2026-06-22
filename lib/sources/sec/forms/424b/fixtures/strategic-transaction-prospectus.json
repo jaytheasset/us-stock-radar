@@ -1,0 +1,21 @@
+{
+  "name": "strategic-transaction-prospectus",
+  "formType": "424B3",
+  "accessionNumber": "0000000000-26-000105",
+  "issuer": {
+    "name": "Meridian Acquisition Corp.",
+    "ticker": "MRDN",
+    "exchange": "NASDAQ"
+  },
+  "filingText": "PROSPECTUS Meridian Acquisition Corp. (NASDAQ: MRDN) This prospectus relates to the issuance of up to 42,000,000 shares of common stock to holders of Ocean Robotics Holdings in connection with the proposed merger and business combination. A special meeting of stockholders will be held on June 20, 2026 to vote on the merger proposal and related share issuance proposal. Upon completion of the business combination, current public stockholders are expected to own approximately 38% of the combined company and Ocean Robotics holders are expected to own approximately 62%. Stockholder approval is required to complete the transaction.",
+  "expected_event_type": "strategic_transaction",
+  "expected_score_band": "feed",
+  "fixture_assertions": {
+    "deterministic": false,
+    "expected_router_preliminary_action": "analysis_llm",
+    "important_facts": {
+      "strategicTransaction": true,
+      "shareholderVote": true
+    }
+  }
+}

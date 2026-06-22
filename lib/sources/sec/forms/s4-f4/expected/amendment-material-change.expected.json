@@ -1,0 +1,144 @@
+{
+  "parser_output": {
+    "parserVersion": "s4-f4-v1",
+    "parserGroup": "s4-f4",
+    "formType": "S-4 / F-4 / S-4/A / F-4/A",
+    "accessionNumber": "0005555555-26-000505",
+    "isSupported": true,
+    "summary": "S-4/A amendment includes a material update to the S-4/F-4 transaction terms or conditions.",
+    "facts": {
+      "secFormType": "S-4/A",
+      "isAmendment": true,
+      "companyName": "Pioneer Mobility Holdings Inc.",
+      "primaryTicker": {
+        "ticker": "PMOB",
+        "exchange": "NYSE"
+      },
+      "transaction": {
+        "type": "merger",
+        "consideration": {
+          "stockRatio": 0.38
+        }
+      },
+      "amendment": {
+        "isAmendment": true,
+        "materialChange": true,
+        "routineAdministrative": false,
+        "changedSections": [
+          "transaction consideration",
+          "closing conditions",
+          "risk factors"
+        ]
+      },
+      "risk": {
+        "financialRisk": true
+      }
+    },
+    "signals": [],
+    "calendarItems": [
+      {
+        "date": "June 11, 2026",
+        "label": "Shareholder meeting",
+        "type": "meeting"
+      }
+    ],
+    "warnings": [],
+    "raw": {
+      "fixtureId": "amendment-material-change"
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "strategic_transaction",
+    "event_title": "Pioneer cuts Atlas merger ratio and adds financing condition",
+    "primary_ticker": {
+      "ticker": "PMOB",
+      "exchange": "NYSE"
+    },
+    "tickers": [
+      {
+        "ticker": "PMOB",
+        "exchange": "NYSE"
+      },
+      {
+        "ticker": "ACNI",
+        "exchange": "NASDAQ"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 84,
+    "score_reason": "The amendment lowers the exchange ratio versus fixture parent context and adds a financing condition that can delay or prevent closing.",
+    "signal": "bearish",
+    "quick_take": "Pioneer materially revised the Atlas merger terms in an S-4/A.",
+    "summary": "The new exchange ratio is 0.38 Pioneer shares per Atlas share, down from 0.52 in fixture parent context, and the amendment adds a $150 million debt financing condition.",
+    "why_it_matters": "Material S-4/A changes can reset deal economics and closing risk, making this more than an administrative amendment.",
+    "bullish_points": [
+      "The revised terms may preserve more value for Pioneer holders if the transaction closes."
+    ],
+    "bearish_points": [
+      "Atlas holders receive a lower stock ratio than the parent filing context.",
+      "The new financing condition may delay or prevent closing."
+    ],
+    "key_evidence": [
+      "Revised exchange ratio: 0.38 Pioneer shares for each Atlas share.",
+      "Parent filing context ratio: 0.52.",
+      "New financing condition requires at least $150 million of committed debt financing."
+    ],
+    "what_to_watch_next": [
+      "Whether Pioneer obtains the financing commitment.",
+      "Any shareholder reaction to lower consideration.",
+      "Updated vote timing after postponement."
+    ],
+    "related_tickers": [
+      {
+        "ticker": "ACNI",
+        "exchange": "NASDAQ"
+      }
+    ],
+    "calendar_items": [
+      {
+        "date": "June 11, 2026",
+        "label": "Shareholder meeting",
+        "type": "meeting"
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "candidate_special",
+    "data": {
+      "transaction_type": "merger_amendment",
+      "acquirer": "Pioneer Mobility Holdings Inc.",
+      "target": "Atlas Charging Networks Inc.",
+      "new_stock_ratio": 0.38,
+      "prior_stock_ratio": 0.52,
+      "new_condition": "$150 million committed debt financing"
+    },
+    "evidence": [
+      "material change to the proposed merger",
+      "revised exchange ratio is 0.38 shares",
+      "adds a new financing condition"
+    ],
+    "notes": [
+      "Candidate special UI should compare amendment terms against parent filing context."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": true,
+    "special_ui_reason": "A material amendment needs side-by-side parent versus amended transaction fields.",
+    "integration_notes": [
+      "Use fixture parentFilingContext only; live DB parent lookup belongs to integration.",
+      "Do not implement special detail UI from this room."
+    ]
+  }
+}

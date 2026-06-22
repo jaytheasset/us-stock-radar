@@ -1,0 +1,28 @@
+{
+  "fixtureName": "inducement-awards",
+  "formType": "S-8",
+  "accessionNumber": "0006666666-26-000060",
+  "filedAt": "2026-03-25",
+  "issuer": {
+    "name": "Tela Medical Devices, Inc.",
+    "ticker": "TMDV",
+    "exchange": "NASDAQ",
+    "sector": "Healthcare",
+    "industry_group": "Medical Devices"
+  },
+  "filingText": "Tela Medical Devices, Inc. files this registration statement on Form S-8 relating to inducement awards made outside its stockholder-approved equity incentive plan. Stock options to purchase 75,000 shares were granted to 1 newly-hired employee on March 3, 2026. Restricted stock units covering 6,600 shares were granted to 12 newly-hired employees on March 3, 2026. The awards were approved as employment inducement awards under Nasdaq Listing Rule 5635(c)(4).",
+  "attachments": [
+    {
+      "documentType": "EX-FILING FEES",
+      "description": "Exhibit 107 filing fee table",
+      "text": "Table 1: Newly Registered Securities 1 Equity Common Stock, Stock Options 457(h) 75,000 $2.34 $175,500 0.0001531 $26.87 2 Equity Common Stock, Restricted Stock Units 457(h) 6,600 $2.34 $15,444 0.0001531 $2.36 Total Offering Amounts $190,944 $29.23"
+    }
+  ],
+  "parentFilingContext": null,
+  "marketContext": null,
+  "flowExpectation": {
+    "parserCanFinishWithoutLlm": false,
+    "routerCanFinishWithoutLlm": false,
+    "reason": "Inducement award terms and fee-table rows are mechanically extractable, but parser-only close is limited to safe administrative amendments."
+  }
+}

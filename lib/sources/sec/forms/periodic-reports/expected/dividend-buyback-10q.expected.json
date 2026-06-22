@@ -1,0 +1,134 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_periodic_reports_parser_v1",
+    "parserGroup": "periodic-reports",
+    "formType": "10-Q",
+    "accessionNumber": "0005555555-26-000018",
+    "isSupported": true,
+    "summary": "Luma Industrial Holdings filed 10-Q for March 31, 2026; capital return is the dominant event.",
+    "facts": {
+      "companyName": "Luma Industrial Holdings",
+      "primaryTicker": "LUMA",
+      "exchange": "NYSE",
+      "reportingPeriod": "March 31, 2026",
+      "fiscalQuarter": "first quarter",
+      "dominantParserEventType": "capital_return",
+      "dividend": "$0.12 per share",
+      "shareRepurchase": "$250.0 million"
+    },
+    "signals": [
+      {
+        "event_type": "capital_return",
+        "signal_type": "share_repurchase",
+        "strength": "medium",
+        "summary": "10-Q discloses a new share repurchase authorization.",
+        "evidence": "The board also authorized a share repurchase program of up to $250.0 million.",
+        "deterministic": false
+      },
+      {
+        "event_type": "dividends",
+        "signal_type": "dividend",
+        "strength": "medium",
+        "summary": "10-Q discloses a quarterly cash dividend.",
+        "evidence": "The board declared a quarterly cash dividend of $0.12 per share, payable on June 30, 2026 to shareholders of record at the close of business on June 15, 2026.",
+        "deterministic": false
+      }
+    ],
+    "calendarItems": [
+      {
+        "item_type": "dividend_payable_date",
+        "date": "June 30, 2026",
+        "description": "Dividend payable date disclosed in periodic report.",
+        "evidence": "The board declared a quarterly cash dividend of $0.12 per share, payable on June 30, 2026 to shareholders of record at the close of business on June 15, 2026."
+      },
+      {
+        "item_type": "dividend_record_date",
+        "date": "June 15, 2026",
+        "description": "Dividend record date disclosed in periodic report.",
+        "evidence": "The board declared a quarterly cash dividend of $0.12 per share, payable on June 30, 2026 to shareholders of record at the close of business on June 15, 2026."
+      }
+    ],
+    "warnings": [],
+    "raw": {
+      "processing_path": "parser_router_analysis",
+      "market_context_used": false
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "capital_return",
+    "event_title": "Luma authorizes $250 million buyback and declares dividend",
+    "primary_ticker": {
+      "ticker": "LUMA",
+      "exchange": "NYSE"
+    },
+    "tickers": ["LUMA"],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 64,
+    "score_reason": "Feed-level score because the filing includes a material capital-return authorization and dividend, but no urgent risk event.",
+    "signal": "bullish",
+    "quick_take": "LUMA's 10-Q confirms shareholder returns through a $250 million buyback authorization and $0.12 quarterly dividend.",
+    "summary": "The board declared a quarterly cash dividend of $0.12 per share and authorized a share repurchase program of up to $250.0 million.",
+    "why_it_matters": "Capital returns can support per-share value and signal balance-sheet confidence, but buyback execution still depends on management timing and cash priorities.",
+    "bullish_points": [
+      "The buyback authorization is about 4% of the fixture market cap.",
+      "The dividend has disclosed record and payable dates."
+    ],
+    "bearish_points": [
+      "The filing authorizes repurchases but does not guarantee timing or completion."
+    ],
+    "key_evidence": [
+      "The board declared a quarterly cash dividend of $0.12 per share, payable on June 30, 2026 to shareholders of record at the close of business on June 15, 2026.",
+      "The board also authorized a share repurchase program of up to $250.0 million."
+    ],
+    "what_to_watch_next": [
+      "Actual buyback execution in future 10-Q disclosures.",
+      "Whether dividend policy remains stable."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "item_type": "dividend_payable_date",
+        "date": "June 30, 2026",
+        "description": "Dividend payable date disclosed in periodic report.",
+        "evidence": "The board declared a quarterly cash dividend of $0.12 per share, payable on June 30, 2026 to shareholders of record at the close of business on June 15, 2026."
+      },
+      {
+        "item_type": "dividend_record_date",
+        "date": "June 15, 2026",
+        "description": "Dividend record date disclosed in periodic report.",
+        "evidence": "The board declared a quarterly cash dividend of $0.12 per share, payable on June 30, 2026 to shareholders of record at the close of business on June 15, 2026."
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "dividend_per_share": "$0.12",
+      "dividend_payable_date": "June 30, 2026",
+      "dividend_record_date": "June 15, 2026",
+      "repurchase_authorization": 250000000
+    },
+    "evidence": [
+      "The board declared a quarterly cash dividend of $0.12 per share, payable on June 30, 2026 to shareholders of record at the close of business on June 15, 2026.",
+      "The board also authorized a share repurchase program of up to $250.0 million."
+    ],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": true,
+    "market_context_reason": "Repurchase authorization should be compared with market cap to judge materiality.",
+    "market_context_fields": ["price", "market_cap", "shares_outstanding"],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": []
+  }
+}

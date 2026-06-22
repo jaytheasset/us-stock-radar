@@ -1,0 +1,22 @@
+{
+  "case_id": "citadel-see-row-13g",
+  "description": "SEC source excerpt from Citadel SC 13G where ownership rows say See Row 6 above and must not be parsed as row numbers. Source: https://www.sec.gov/Archives/edgar/data/1423053/000110465924128499/tm2431054d2_sc13g.htm",
+  "filing": {
+    "formType": "SC 13G",
+    "accessionNumber": "0001104659-24-128499",
+    "filedAt": "2024-12-13",
+    "text": "SCHEDULE 13G\nNkarta, Inc.\n(Name of Issuer)\nCommon Stock, par value $0.0001 per share (the \"Shares\")\n(Title of Class of Securities)\n65487U108\n(CUSIP Number)\no\nRule 13d-1(b)\nx\nRule 13d-1(c)\no\nRule 13d-1(d)\n1.\nNAME OF REPORTING PERSONS\nCitadel Advisors LLC\n2.\nCHECK THE APPROPRIATE BOX IF A MEMBER OF A GROUP\n(a) o (b) o\n4.\nCITIZENSHIP OR PLACE OF ORGANIZATION\nDelaware\n5.\nSOLE VOTING POWER\n0\n6.\nSHARED VOTING POWER\n3,160,781\n7.\nSOLE DISPOSITIVE POWER\n0\n8.\nSHARED DISPOSITIVE POWER\nSee Row 6 above\n9.\nAGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON\nSee Row 6 above\n10.\nCHECK IF THE AGGREGATE AMOUNT IN ROW\n(9) EXCLUDES CERTAIN SHARES\no\n11.\nPERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (9)\n4.5% 1\n12.\nTYPE OF REPORTING PERSON\nIA; OO; HC\nSIGNATURE"
+  },
+  "expected": {
+    "event_type": "insider_ownership",
+    "extracted_facts": {
+      "issuerName": "Nkarta, Inc.",
+      "securityClass": "Common Stock, par value $0.0001 per share (the \"Shares\")",
+      "cusip": "65487U108",
+      "reportingPersons": ["Citadel Advisors LLC"],
+      "ruleBasis": "13d-1(c)",
+      "sharesBeneficiallyOwned": null,
+      "percentOwned": 4.5
+    }
+  }
+}

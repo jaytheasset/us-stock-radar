@@ -1,0 +1,19 @@
+{
+  "fixtureName": "plan-fee-footnote-links",
+  "formType": "S-8",
+  "accessionNumber": "0003333333-26-000303",
+  "filedAt": "2026-05-03",
+  "issuer": {
+    "name": "Footnote Match Corp.",
+    "ticker": "FTMC",
+    "exchange": "NASDAQ"
+  },
+  "filingText": "Footnote Match Corp. files this registration statement on Form S-8. The shares are issuable under equity compensation plans. PART I INFORMATION REQUIRED IN THE SECTION 10(a) PROSPECTUS. PART II INFORMATION REQUIRED IN THE REGISTRATION STATEMENT. SIGNATURES.",
+  "attachments": [
+    {
+      "documentType": "EX-FILING FEES",
+      "description": "Exhibit 107 filing fee table",
+      "text": "<table><tr><th>Security Type</th><th>Security Class Title</th><th>Amount Registered</th><th>Proposed Maximum Offering Price Per Share</th><th>Maximum Aggregate Offering Price</th><th>Fee Calculation Rule</th><th>Fee Rate</th><th>Registration Fee</th></tr><tr><td>Equity</td><td>Common Stock (1)</td><td>1,250,000 shares</td><td>$4.00</td><td>$5,000,000</td><td>457(h)</td><td>0.00015310</td><td>$765.50</td></tr></table><p>(1) Represents shares issuable under the Footnote Match Corp. 2025 Equity Incentive Plan.</p>"
+    }
+  ]
+}

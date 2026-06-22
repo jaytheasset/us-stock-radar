@@ -1,0 +1,19 @@
+{
+  "fixtureName": "plan-combined-row-two-plans",
+  "formType": "S-8",
+  "accessionNumber": "0003333333-26-000305",
+  "filedAt": "2026-05-05",
+  "issuer": {
+    "name": "Combined Plan Co.",
+    "ticker": "CPLC",
+    "exchange": "NYSE"
+  },
+  "filingText": "Combined Plan Co. files this registration statement on Form S-8. PART I INFORMATION REQUIRED IN THE SECTION 10(a) PROSPECTUS. PART II INFORMATION REQUIRED IN THE REGISTRATION STATEMENT. SIGNATURES.",
+  "attachments": [
+    {
+      "documentType": "EX-FILING FEES",
+      "description": "Exhibit 107 filing fee table",
+      "text": "<table><tr><th>Security Type</th><th>Security Class Title</th><th>Amount Registered</th><th>Proposed Maximum Offering Price Per Share</th><th>Maximum Aggregate Offering Price</th><th>Fee Calculation Rule</th><th>Fee Rate</th><th>Registration Fee</th></tr><tr><td>Equity</td><td>Common Stock (1)</td><td>4,000,000 shares</td><td>$1.25</td><td>$5,000,000</td><td>457(h)</td><td>0.00015310</td><td>$765.50</td></tr></table><p>(1) Includes shares under the Combined Plan Co. 2025 Equity Incentive Plan and Combined Plan Co. 2024 Employee Stock Purchase Plan.</p>"
+    }
+  ]
+}

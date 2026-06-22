@@ -16,8 +16,31 @@ export type DilutionShareOverhangBreakdownRow = {
   ratio: string;
 };
 
+type DilutionShareOverhangFactRow = {
+  label: string;
+  value: string;
+  tone?: "danger" | "neutral";
+};
+
+type DilutionInstrumentDetailRow = {
+  type: string;
+  sharesSecurities?: string;
+  exerciseConversionPrice?: string;
+  resetFloor?: string;
+  termLimits?: string;
+};
+
+type DilutionShareOverhangDetailPanel = {
+  title: string;
+  rows?: DilutionShareOverhangFactRow[];
+  instrumentRows?: DilutionInstrumentDetailRow[];
+};
+
 type DilutionShareOverhangModel = {
+  breakdownCaption?: string;
   canRenderOverhangChart: boolean;
+  chartTitle?: string;
+  currentDetailLabel?: string;
   currentSharesCompact: string;
   dilutionRatioPercentValue: string;
   dilutionRatioValue: string;
@@ -25,20 +48,83 @@ type DilutionShareOverhangModel = {
   overhangBarSegments: DilutionShareOverhangBarSegment[];
   overhangBreakdownRows?: DilutionShareOverhangBreakdownRow[];
   overhangLevel: string;
+  overhangLevelLabel?: string;
   overhangNote?: string;
   overhangScoreCaption?: string;
   overhangScoreNote?: string;
   overhangSubtitle: string;
   overhangUnavailableMessage?: string;
   potentialSupplyCompact: string;
+  compactScore?: boolean;
+  hideScoreValue?: boolean;
+  hideUnavailableRows?: boolean;
+  unavailableRows?: DilutionShareOverhangFactRow[];
+  unavailableSupplyValue?: string;
+  showSegmentLegend?: boolean;
+  showBreakdownPanel?: boolean;
+  showTotalNote?: boolean;
+  supplyDetailRows?: DilutionShareOverhangFactRow[];
+  extraDetailPanels?: DilutionShareOverhangDetailPanel[];
+  supplyDetailTitle?: string;
+  requireProvidedSupplyDetails?: boolean;
   supplyDetailLabel: string;
+  totalNoteSuffix?: string;
+  totalNoteTitle?: string;
+  totalOverhangLabel?: string;
 };
 
 const OVERHANG_SEGMENT_CODES = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+export const DILUTION_MARKET_DATA_DISCLAIMER =
+  "Calculated using the latest available share-count data; actual outstanding shares and market impact may differ.";
+export const CURRENT_SHARES_MARKET_CONTEXT_NOTE =
+  "Latest available market-data share count. Filing-date share count may differ.";
+
+function displayInstrumentCell(value: string | undefined, fallback: string) {
+  const normalized = (value || "").trim();
+  if (
+    !normalized ||
+    /^null$/i.test(normalized) ||
+    /^undefined$/i.test(normalized) ||
+    /^not\s+(?:stated|disclosed|provided)$/i.test(normalized)
+  ) {
+    return fallback;
+  }
+  return normalized;
+}
+
+function currentSharesTitle(label: string) {
+  return /current shares/i.test(label) ? CURRENT_SHARES_MARKET_CONTEXT_NOTE : undefined;
+}
 
 export function DilutionShareOverhang({ model }: { model: DilutionShareOverhangModel }) {
   const caption = model.overhangScoreCaption || model.overhangScoreNote || "Total potential dilution vs. current shares";
   const breakdownRows = model.overhangBreakdownRows || [];
+  const breakdownCaption = model.breakdownCaption || "% of current";
+  const chartTitle = model.chartTitle || "Share Overhang";
+  const currentDetailLabel = model.currentDetailLabel || "Current Shares Outstanding";
+  const overhangLevelLabel = model.overhangLevelLabel || "Overhang Level";
+  const totalNoteSuffix = model.totalNoteSuffix || "potential supply vs. current shares";
+  const totalNoteTitle = model.totalNoteTitle || "Total Potential Overhang";
+  const totalOverhangLabel = model.totalOverhangLabel || "Total Overhang";
+  const supplyDetailTitle = model.supplyDetailTitle || "Supply Details";
+  const showTotalNote = model.showTotalNote !== false;
+  const showSegmentLegend = model.showSegmentLegend !== false;
+  const showBreakdownPanel = model.showBreakdownPanel !== false;
+  const supplyDetailRows = model.supplyDetailRows && model.supplyDetailRows.length
+    ? model.supplyDetailRows
+    : model.requireProvidedSupplyDetails
+      ? []
+      : [
+          { label: currentDetailLabel, value: model.currentSharesCompact },
+          { label: model.supplyDetailLabel, value: model.potentialSupplyCompact },
+          { label: totalOverhangLabel, value: model.dilutionRatioValue, tone: "danger" as const },
+          { label: overhangLevelLabel, value: model.overhangLevel },
+        ];
+  const extraDetailPanels = (model.extraDetailPanels || []).filter(
+    (panel) => (panel.rows || []).length || (panel.instrumentRows || []).length,
+  );
+  const wideDetailPanels = extraDetailPanels.filter((panel) => (panel.instrumentRows || []).length);
+  const sideDetailPanels = extraDetailPanels.filter((panel) => !(panel.instrumentRows || []).length);
 
   return (
     <section className="stock-detail-card dilution-overhang-card dilution-overhang-wide-card">
@@ -49,12 +135,12 @@ export function DilutionShareOverhang({ model }: { model: DilutionShareOverhangM
         >
           <div className="dilution-overhang-heading">
             <div>
-              <h2>Share Overhang</h2>
+              <h2>{chartTitle}</h2>
               <p>{model.overhangSubtitle}</p>
             </div>
-            <div className="dilution-overhang-score">
+            <div className={`dilution-overhang-score${model.compactScore ? " compact" : ""}`}>
               <span>{model.overhangLevel}</span>
-              <strong>{model.dilutionRatioPercentValue}</strong>
+              {model.hideScoreValue ? null : <strong>{model.dilutionRatioPercentValue}</strong>}
               <small>{caption}</small>
             </div>
           </div>
@@ -72,105 +158,176 @@ export function DilutionShareOverhang({ model }: { model: DilutionShareOverhangM
                     {segment.compact ? (
                       <b>{OVERHANG_SEGMENT_CODES[index] || index + 1}</b>
                     ) : (
-                      <>
+                      <span className="dilution-overhang-bar-content">
                         <b>{OVERHANG_SEGMENT_CODES[index] || index + 1}</b>
                         <span>
                           <em>{segment.label}</em>
                           <strong>{segment.value}</strong>
                         </span>
-                      </>
+                      </span>
                     )}
                   </span>
                 ))}
               </div>
-              <div className="dilution-overhang-segment-legend">
-                {model.overhangBarSegments.map((segment, index) => (
-                  <span key={segment.key}>
-                    <b>
-                      {OVERHANG_SEGMENT_CODES[index] || index + 1}. {segment.label}
-                    </b>
-                    <strong>
-                      <span>{segment.value}</span>
-                      {segment.note ? <em>({segment.note})</em> : null}
-                    </strong>
+              {showSegmentLegend ? (
+                <div className="dilution-overhang-segment-legend">
+                  {model.overhangBarSegments.map((segment, index) => (
+                    <span key={segment.key}>
+                      <b>
+                        {OVERHANG_SEGMENT_CODES[index] || index + 1}. {segment.label}
+                      </b>
+                      <strong>
+                        <span>{segment.value}</span>
+                        {segment.note ? <em>({segment.note})</em> : null}
+                      </strong>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              {showTotalNote ? (
+                <div className="dilution-overhang-total-note">
+                  <strong>{totalNoteTitle}</strong>
+                  <span>
+                    <b>{model.potentialSupplyCompact}</b>
+                    <i>/</i>
+                    <b>{model.currentSharesCompact}</b>
+                    <i>=</i>
+                    <strong>{model.dilutionRatioValue}</strong>
+                    <em>{totalNoteSuffix}</em>
                   </span>
-                ))}
-              </div>
-              <div className="dilution-overhang-total-note">
-                <strong>Total Potential Overhang</strong>
-                <span>
-                  <b>{model.potentialSupplyCompact}</b>
-                  <i>/</i>
-                  <b>{model.currentSharesCompact}</b>
-                  <i>=</i>
-                  <strong>{model.dilutionRatioValue}</strong>
-                  <em>potential supply vs. current shares</em>
-                </span>
-              </div>
+                </div>
+              ) : null}
+              <p className="dilution-data-disclaimer">{DILUTION_MARKET_DATA_DISCLAIMER}</p>
             </div>
           ) : (
             <div className="dilution-overhang-unavailable">
-              <div>
-                <span>Current shares</span>
-                <strong>{model.currentSharesCompact}</strong>
-              </div>
-              <div>
-                <span>{model.supplyDetailLabel}</span>
-                <strong>Not disclosed</strong>
-              </div>
+              {model.hideUnavailableRows
+                ? null
+                : (model.unavailableRows && model.unavailableRows.length
+                    ? model.unavailableRows
+                    : [
+                        { label: currentDetailLabel, value: model.currentSharesCompact },
+                        { label: model.supplyDetailLabel, value: model.unavailableSupplyValue || model.potentialSupplyCompact || "Not stated" },
+                      ]
+                  ).map((row) => (
+                    <div key={row.label}>
+                      <span title={currentSharesTitle(row.label)}>{row.label}</span>
+                      <strong className={row.tone === "danger" ? "danger" : undefined}>{row.value}</strong>
+                    </div>
+                  ))}
               <p>{model.overhangUnavailableMessage || "Potential supply could not be calculated from disclosed share counts."}</p>
+              <p className="dilution-data-disclaimer">{DILUTION_MARKET_DATA_DISCLAIMER}</p>
             </div>
           )}
         </div>
 
         <div className="dilution-overhang-detail-grid">
-          <section className="dilution-overhang-panel">
-            <h3>Supply Details</h3>
-            <div className="dilution-overhang-facts">
-              <div>
-                <span>Current Shares Outstanding</span>
-                <strong>{model.currentSharesCompact}</strong>
+          {supplyDetailRows.length ? (
+            <section className="dilution-overhang-panel dilution-offering-details-panel">
+              <h3>{supplyDetailTitle}</h3>
+              <div className="dilution-overhang-facts">
+                {supplyDetailRows.map((row) => (
+                  <div key={row.label}>
+                    <span title={currentSharesTitle(row.label)}>{row.label}</span>
+                    <strong className={row.tone === "danger" ? "danger" : undefined}>{row.value}</strong>
+                  </div>
+                ))}
               </div>
-              <div>
-                <span>{model.supplyDetailLabel}</span>
-                <strong>{model.potentialSupplyCompact}</strong>
-              </div>
-              <div>
-                <span>Total Overhang</span>
-                <strong className="danger">{model.dilutionRatioValue}</strong>
-              </div>
-              <div>
-                <span>Overhang Level</span>
-                <strong>
-                  <mark>{model.overhangLevel}</mark>
-                </strong>
-              </div>
-            </div>
-          </section>
+            </section>
+          ) : null}
 
-          <section className="dilution-overhang-panel">
-            <div className="dilution-breakdown-heading">
-              <h3>Breakdown</h3>
-              <span>% of current</span>
-            </div>
-            <div className="dilution-breakdown-list">
-              {breakdownRows.map((row) => (
-                <div key={row.key}>
-                  <span className="dilution-breakdown-label">
-                    <i className={row.className} />
-                    {row.label}
-                  </span>
-                  <strong>{row.value}</strong>
-                  <b>{row.ratio}</b>
-                </div>
-              ))}
-            </div>
-            <p className="dilution-overhang-note">
-              {model.overhangNote || "High share overhang may create selling pressure. Monitor warrant exercise and note conversion activity."}
-            </p>
-          </section>
+          {sideDetailPanels.map((panel) => (
+            <DilutionExtraDetailPanel key={panel.title} panel={panel} />
+          ))}
+
+          {showBreakdownPanel ? (
+            <section className="dilution-overhang-panel">
+              <div className="dilution-breakdown-heading">
+                <h3>Breakdown</h3>
+                <span>{breakdownCaption}</span>
+              </div>
+              <div className="dilution-breakdown-list">
+                {breakdownRows.map((row) => (
+                  <div key={row.key}>
+                    <span className="dilution-breakdown-label">
+                      <i className={row.className} />
+                      {row.label}
+                    </span>
+                    <strong>{row.value}</strong>
+                    <b>{row.ratio}</b>
+                  </div>
+                ))}
+              </div>
+              <p className="dilution-overhang-note">
+                {model.overhangNote || "High share overhang may create selling pressure. Monitor warrant exercise and note conversion activity."}
+              </p>
+            </section>
+          ) : null}
         </div>
       </div>
+
+      {wideDetailPanels.length ? (
+        <div className="dilution-overhang-wide-panels">
+          {wideDetailPanels.map((panel) => (
+            <DilutionExtraDetailPanel key={panel.title} panel={panel} wide />
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function DilutionExtraDetailPanel({
+  panel,
+  wide = false,
+}: {
+  panel: DilutionShareOverhangDetailPanel;
+  wide?: boolean;
+}) {
+  return (
+    <section
+      className={`dilution-overhang-panel dilution-offering-details-panel${wide ? " dilution-overhang-wide-panel" : ""}`}
+    >
+      <h3>{panel.title}</h3>
+      {(panel.instrumentRows || []).length ? (
+        <div className="dilution-instrument-table">
+          <div className="dilution-instrument-row header">
+            <span>Type</span>
+            <span>Shares / Securities</span>
+            <span>Exercise / Conversion Price</span>
+            <span>Reset / Floor</span>
+            <span>Term / Limits</span>
+          </div>
+          {(panel.instrumentRows || []).map((row, index) => (
+            <div key={`${row.type}-${index}`} className="dilution-instrument-row">
+              <strong className="dilution-instrument-cell" data-label="Type">
+                {row.type}
+              </strong>
+              <span className="dilution-instrument-cell" data-label="Shares / Securities">
+                {displayInstrumentCell(row.sharesSecurities, "None")}
+              </span>
+              <span className="dilution-instrument-cell" data-label="Exercise / Conversion Price">
+                {displayInstrumentCell(row.exerciseConversionPrice, "None")}
+              </span>
+              <span className="dilution-instrument-cell" data-label="Reset / Floor">
+                {displayInstrumentCell(row.resetFloor, "None")}
+              </span>
+              <span className="dilution-instrument-cell" data-label="Term / Limits">
+                {displayInstrumentCell(row.termLimits, "None")}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="dilution-overhang-facts">
+          {(panel.rows || []).map((row, index) => (
+            <div key={`${row.label}-${index}`}>
+              <span title={currentSharesTitle(row.label)}>{row.label}</span>
+              <strong className={row.tone === "danger" ? "danger" : undefined}>{row.value}</strong>
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

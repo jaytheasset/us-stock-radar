@@ -1,0 +1,37 @@
+{
+  "name": "routine-amendment-10qa",
+  "description": "10-Q/A that can finish deterministically because it only files XBRL data and makes no other changes.",
+  "filing": {
+    "rawItemId": "sec-fixture-periodic-007",
+    "sourceUniqueId": "0007777777-26-000019",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/7777777/000777777726000019/pico-20260331a.htm",
+    "title": "Pico Semiconductors Inc. 10-Q/A amendment",
+    "publishedAt": "2026-05-14T14:05:00Z",
+    "rawPayload": {
+      "form_type": "10-Q/A",
+      "accession_number": "0007777777-26-000019",
+      "company_name": "Pico Semiconductors Inc.",
+      "ticker": "PICO",
+      "exchange": "Nasdaq Global Market",
+      "documents": [
+        {
+          "type": "10-Q/A",
+          "description": "Quarterly report amendment",
+          "isPrimary": true,
+          "textCharCount": 960,
+          "textTruncated": false
+        }
+      ]
+    },
+    "parentFilingContext": {
+      "accession_number": "0007777777-26-000017",
+      "form_type": "10-Q",
+      "filed_at": "2026-05-09T14:00:00Z"
+    },
+    "bodyText": "FORM 10-Q/A\nAmendment No. 1\nPico Semiconductors Inc. (Exact name of registrant as specified in its charter)\nFor the quarterly period ended March 31, 2026\nTrading Symbol(s) PICO Nasdaq Global Market\nExplanatory Note\nThis Amendment No. 1 on Form 10-Q/A is being filed solely to include Exhibit 101 interactive data files that were omitted from the original Form 10-Q. This amendment does not amend, update or change any financial statements, notes, risk factors, management discussion and analysis, or other disclosure in the original filing. No other changes have been made."
+  },
+  "market_context": null,
+  "expected_event_type": "other",
+  "expected_score_band": "archive",
+  "deterministic_without_llm": true
+}

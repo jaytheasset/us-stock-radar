@@ -56,6 +56,20 @@ async function runBatch() {
   let skippedAlreadyProcessed = 0;
 
   for (const event of events) {
+    if (event.deliveryLevel !== "alert") {
+      results.push({
+        eventId: event.id,
+        title: event.title,
+        status: "skipped",
+        candidatesFound: 0,
+        deliveriesCreated: 0,
+        duplicatesSkipped: 0,
+        suppressedCount: 0,
+        failedCount: 0,
+      });
+      continue;
+    }
+
     if (!force && processedIds.has(event.id)) {
       skippedAlreadyProcessed += 1;
       results.push({
@@ -76,7 +90,7 @@ async function runBatch() {
     results.push(eventResult);
 
     if (write) {
-      await recordEventRun(event.id, eventResult, runResult);
+      await recordEventRun(event, eventResult, runResult);
     }
   }
 
@@ -100,17 +114,18 @@ async function fetchRecentEvents() {
   const detectedAfter = new Date(Date.now() - lookbackHours * 60 * 60 * 1000).toISOString();
   const rows = await fetchRows("events", {
     select: "id,title,detected_at,delivery_level",
-    delivery_level: "neq.archive",
+    delivery_level: "eq.alert",
     detected_at: `gte.${detectedAfter}`,
     order: "detected_at.asc",
     limit: String(limit),
   });
   return rows
     .map((row) => ({
+      deliveryLevel: readDeliveryLevel(row.delivery_level),
       id: readString(row.id),
       title: readString(row.title) || null,
     }))
-    .filter((event) => event.id);
+    .filter((event) => event.id && event.deliveryLevel === "alert");
 }
 
 async function fetchProcessedEventIds(eventIds) {
@@ -192,9 +207,11 @@ function summarizeEventRun(event, result) {
   };
 }
 
-async function recordEventRun(eventId, eventResult, runResult) {
+async function recordEventRun(event, eventResult, runResult) {
+  if (event.deliveryLevel !== "alert") return;
+
   const payload = {
-    event_id: eventId,
+    event_id: event.id,
     status: eventResult.status === "already_processed" ? "processed" : eventResult.status,
     dry_run: false,
     processed_at: new Date().toISOString(),
@@ -227,11 +244,11 @@ async function recordEventRun(eventId, eventResult, runResult) {
   if (inserted.ok) return;
 
   if (/duplicate|unique/i.test(inserted.error || "")) {
-    await supabaseRequest("PATCH", "alert_delivery_event_runs", { event_id: `eq.${eventId}`, dry_run: "eq.false" }, payload);
+    await supabaseRequest("PATCH", "alert_delivery_event_runs", { event_id: `eq.${event.id}`, dry_run: "eq.false" }, payload);
     return;
   }
 
-  throw new Error(inserted.error || `Failed to record alert_delivery_event_runs for ${eventId}`);
+  throw new Error(inserted.error || `Failed to record alert_delivery_event_runs for ${event.id}`);
 }
 
 async function fetchRows(table, query) {
@@ -342,6 +359,11 @@ function readString(value) {
   if (typeof value === "string") return value.trim();
   if (typeof value === "number" && Number.isFinite(value)) return String(value);
   return "";
+}
+
+function readDeliveryLevel(value) {
+  const normalized = readString(value).toLowerCase();
+  return normalized === "archive" || normalized === "feed" || normalized === "alert" ? normalized : "";
 }
 
 function cleanSupabaseUrl(value) {

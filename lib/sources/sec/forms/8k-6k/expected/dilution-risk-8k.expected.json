@@ -1,0 +1,121 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_8k_6k_parser_v1",
+    "parserGroup": "8k-6k",
+    "formType": "8-K / 6-K, 8-K/A / 6-K/A",
+    "accessionNumber": "0002222222-26-000002",
+    "isSupported": true,
+    "summary": "Arbor Battery Corp. filed 8-K with 2 extracted item(s) and 1 source-backed filing cue(s).",
+    "facts": {
+      "companyName": "Arbor Battery Corp.",
+      "ticker": "ABAT",
+      "secFormType": "8-K",
+      "isAmendment": false,
+      "items": [
+        {
+          "item": "1.01",
+          "label": "Entry into a Material Definitive Agreement."
+        },
+        {
+          "item": "3.02",
+          "label": "Unregistered Sales of Equity Securities."
+        }
+      ],
+      "filingCues": [
+        {
+          "cueType": "securities_offering_or_issuance",
+          "label": "Securities offering, share issuance, warrant, convertible, or ATM language",
+          "evidence": "Gross proceeds are expected to be approximately $25.0 million before fees.",
+          "confidence": "medium",
+          "itemNumbers": [
+            "1.01",
+            "3.02"
+          ]
+        }
+      ]
+    },
+    "signals": [
+      {
+        "cueType": "securities_offering_or_issuance",
+        "label": "Securities offering, share issuance, warrant, convertible, or ATM language",
+        "evidence": "Gross proceeds are expected to be approximately $25.0 million before fees.",
+        "confidence": "medium",
+        "itemNumbers": [
+          "1.01",
+          "3.02"
+        ]
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "dilution_risk",
+    "event_title": "Arbor Battery announces $25 million registered direct offering",
+    "primary_ticker": {
+      "ticker": "ABAT",
+      "exchange": null
+    },
+    "tickers": [
+      "ABAT"
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 80,
+    "score_reason": "The financing includes common stock and warrant coverage that should be measured against float and market cap.",
+    "signal": "bearish",
+    "quick_take": "Arbor Battery is raising capital through a share-and-warrant offering.",
+    "summary": "The company agreed to sell 12.5 million shares and matching warrants for expected gross proceeds of about $25 million.",
+    "why_it_matters": "The share issuance and warrants can increase supply and dilute existing holders.",
+    "bullish_points": [
+      "The offering adds working-capital funding."
+    ],
+    "bearish_points": [
+      "The transaction adds 12.5 million shares plus warrant overhang."
+    ],
+    "key_evidence": [
+      "Gross proceeds are expected to be approximately $25.0 million before fees."
+    ],
+    "what_to_watch_next": [
+      "Closing, warrant exercise terms, and use of proceeds."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "offering_terms",
+    "data": {
+      "offering_amount": "$25.0 million",
+      "shares": "12,500,000",
+      "purchase_price": "$2.00",
+      "warrants": "12,500,000 warrants at $2.25 exercise price"
+    },
+    "evidence": [
+      "The purchase price is $2.00 per share and accompanying warrant.",
+      "The warrants will have an exercise price of $2.25 per share."
+    ],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": true,
+    "market_context_reason": "Offering size should be compared with market cap, shares outstanding, and public float.",
+    "market_context_fields": [
+      "price",
+      "market_cap",
+      "shares_outstanding",
+      "public_float"
+    ],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": []
+  }
+}

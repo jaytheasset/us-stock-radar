@@ -1,0 +1,28 @@
+{
+  "fixtureName": "post-effective-no-additional-securities",
+  "formType": "S-8/A",
+  "accessionNumber": "0007777777-26-000070",
+  "filedAt": "2026-01-16",
+  "issuer": {
+    "name": "Global Pharma AG",
+    "ticker": "GPH",
+    "exchange": "NYSE",
+    "sector": "Healthcare",
+    "industry_group": "Pharmaceuticals"
+  },
+  "filingText": "This Post-Effective Amendment No. 1 to the registration statements on Form S-8 is filed solely to amend exhibits relating to the Global Pharma AG 2011 Stock Incentive Plan and the Global Pharma AG 2021 Equity Plan. The prior registration statements include File No. 333-210001 filed on March 18, 2016 and File No. 333-250002 filed on November 20, 2020. No additional securities are being registered by this post-effective amendment.",
+  "attachments": [
+    {
+      "documentType": "EX-5.1",
+      "description": "Opinion of counsel filed as amended exhibit",
+      "text": "Legal opinion exhibit."
+    }
+  ],
+  "parentFilingContext": null,
+  "marketContext": null,
+  "flowExpectation": {
+    "parserCanFinishWithoutLlm": true,
+    "routerCanFinishWithoutLlm": true,
+    "reason": "Post-effective amendment explicitly states no additional securities are being registered and is limited to amended exhibits."
+  }
+}

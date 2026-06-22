@@ -1,0 +1,106 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_8k_6k_parser_v1",
+    "parserGroup": "8k-6k",
+    "formType": "8-K / 6-K, 8-K/A / 6-K/A",
+    "accessionNumber": "0011111111-26-000011",
+    "isSupported": true,
+    "summary": "Luma Diagnostics filed 8-K with 1 extracted item(s) and 1 source-backed filing cue(s).",
+    "facts": {
+      "companyName": "Luma Diagnostics",
+      "ticker": "LUMD",
+      "secFormType": "8-K",
+      "isAmendment": false,
+      "items": [
+        {
+          "item": "8.01",
+          "label": "Other Events."
+        }
+      ],
+      "filingCues": [
+        {
+          "cueType": "legal_or_regulatory_proceeding",
+          "label": "Litigation, investigation, subpoena, settlement, or enforcement language",
+          "evidence": "The Company will pay $18.5 million and will record a charge in the second quarter.",
+          "confidence": "medium",
+          "itemNumbers": [
+            "8.01"
+          ]
+        }
+      ]
+    },
+    "signals": [
+      {
+        "cueType": "legal_or_regulatory_proceeding",
+        "label": "Litigation, investigation, subpoena, settlement, or enforcement language",
+        "evidence": "The Company will pay $18.5 million and will record a charge in the second quarter.",
+        "confidence": "medium",
+        "itemNumbers": [
+          "8.01"
+        ]
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "legal_risk",
+    "event_title": "Luma Diagnostics settles product-warranty litigation",
+    "primary_ticker": {
+      "ticker": "LUMD",
+      "exchange": null
+    },
+    "tickers": [
+      "LUMD"
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 72,
+    "score_reason": "The settlement is material and includes an $18.5 million payment, but it resolves rather than escalates the dispute.",
+    "signal": "bearish",
+    "quick_take": "Luma will pay $18.5 million to resolve warranty litigation.",
+    "summary": "The settlement will result in a second-quarter charge and includes no admission of liability.",
+    "why_it_matters": "Legal settlements affect cash, earnings, and remaining product-risk perception.",
+    "bullish_points": [
+      "The settlement resolves pending litigation."
+    ],
+    "bearish_points": [
+      "The company will record an $18.5 million charge."
+    ],
+    "key_evidence": [
+      "The Company will pay $18.5 million and will record a charge in the second quarter."
+    ],
+    "what_to_watch_next": [
+      "Whether related warranty exposure remains."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "medium",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "settlement_amount": "$18.5 million"
+    },
+    "evidence": [
+      "The settlement does not include any admission of liability."
+    ],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": []
+  }
+}

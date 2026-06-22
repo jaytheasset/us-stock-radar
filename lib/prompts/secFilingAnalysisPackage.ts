@@ -1,4 +1,10 @@
-import { parseSecS3Filing, type SecS3FilingFacts } from "@/lib/sources/sec/forms/s3-f3/parser";
+import {
+  canonicalSecFormType,
+  isTenderFormTypeForIntegration,
+  runSecFormAdapterParser,
+} from "@/lib/sources/sec/forms/formWorkerRegistry";
+import type { OwnershipParserOutput } from "@/lib/sources/sec/forms/ownership/adapter";
+import type { SecS3FilingFacts } from "@/lib/sources/sec/forms/s3-f3/adapter";
 
 export const SEC_FILING_PACKAGE_VERSION = "sec_filing_package_v1";
 
@@ -28,6 +34,10 @@ type DocumentPayload = {
   isPrimary?: unknown;
   textCharCount?: unknown;
   textTruncated?: unknown;
+  rawTextCharCount?: unknown;
+  rawTextTruncated?: unknown;
+  rawTextPreserved?: unknown;
+  rawSourceFormat?: unknown;
   fetchStatus?: unknown;
   fetchError?: unknown;
 };
@@ -53,7 +63,11 @@ export function buildSecFilingAnalysisPackage(rawItem: RawItemRow, options: SecF
     nullableString(metadata.primary_document_url) ||
     documents.find((document) => Boolean(document.isPrimary))?.url ||
     null;
-  const formType = nullableString(rawPayload.form_type) || nullableString(metadata.form_type);
+  const storedFormType = nullableString(rawPayload.form_type) || nullableString(metadata.form_type);
+  const primaryDocumentType =
+    nullableString(documents.find((document) => Boolean(document.isPrimary))?.type) ||
+    nullableString(documents[0]?.type);
+  const formType = chooseSecPackageFormType(storedFormType, primaryDocumentType);
   const hardParserBundle = buildHardParserFacts(rawItem, formType);
   const hardParsers = hardParserBundle.hardParsers;
   const packageDocuments = documents.map((document) => ({
@@ -63,22 +77,29 @@ export function buildSecFilingAnalysisPackage(rawItem: RawItemRow, options: SecF
     is_primary: Boolean(document.isPrimary),
     text_char_count: numberValue(document.textCharCount),
     text_truncated: Boolean(document.textTruncated),
+    raw_text_char_count: numberValue(document.rawTextCharCount),
+    raw_text_truncated: Boolean(document.rawTextTruncated),
+    raw_text_preserved: Boolean(document.rawTextPreserved),
+    raw_source_format: nullableString(document.rawSourceFormat),
     fetch_status: numberValue(document.fetchStatus) || null,
     fetch_error: nullableString(document.fetchError),
   }));
 
-  const sections = buildTextSections({
-    bodyText,
-    attachmentTexts,
-    maxChars,
-    maxDocumentChars,
-  });
+  const sections = hardParserBundle.ownershipParsed
+    ? buildOwnershipTextSections(hardParserBundle.ownershipParsed)
+    : buildTextSections({
+        bodyText,
+        attachmentTexts,
+        maxChars,
+        maxDocumentChars,
+      });
   const llmText = sections.map((section) => `### ${section.label}\n${section.text}`).join("\n\n").trim();
   const routerEvidence = buildRouterEvidence({
     documents: packageDocuments,
     llmText,
     sourceText: bodyText,
     s3Parsed: hardParserBundle.s3Parsed,
+    ownershipParsed: hardParserBundle.ownershipParsed,
   });
 
   return {
@@ -95,8 +116,21 @@ export function buildSecFilingAnalysisPackage(rawItem: RawItemRow, options: SecF
       exchange: nullableString(rawPayload.exchange) || nullableString(metadata.exchange),
     },
     tickers: Array.isArray(rawPayload.tickers) ? rawPayload.tickers : [],
+    market_context:
+      toRecord(rawPayload.market_context) ||
+      toRecord(rawPayload.marketContext) ||
+      toRecord(metadata.market_context) ||
+      toRecord(metadata.marketContext) ||
+      null,
+    parent_filing_context:
+      toRecord(rawPayload.parent_filing_context) ||
+      toRecord(rawPayload.parentFilingContext) ||
+      toRecord(metadata.parent_filing_context) ||
+      toRecord(metadata.parentFilingContext) ||
+      null,
     form_type: formType,
-    form_family: classifySecFormFamily(formType),
+    form_family: classifySecFormFamilyForWorker(formType, hardParserBundle.worker),
+    form_adapter: hardParserBundle.worker,
     hard_parsers: hardParsers,
     filed_at: nullableString(rawItem.published_at),
     title: nullableString(rawItem.title),
@@ -110,7 +144,9 @@ export function buildSecFilingAnalysisPackage(rawItem: RawItemRow, options: SecF
       max_document_chars: maxDocumentChars,
       source_body_chars: bodyText.length,
       included_chars: llmText.length,
-      truncated: bodyText.length > maxDocumentChars || sections.some((section) => section.truncated),
+      truncated: hardParserBundle.ownershipParsed
+        ? false
+        : bodyText.length > maxDocumentChars || sections.some((section) => section.truncated),
       document_count: documents.length,
       attachment_text_count: attachmentTexts.length,
       included_sections: sections.map((section) => ({
@@ -123,90 +159,60 @@ export function buildSecFilingAnalysisPackage(rawItem: RawItemRow, options: SecF
 }
 
 export function classifySecFormFamily(formType: string | null) {
-  const form = stringValue(formType).toUpperCase();
+  const form = canonicalSecFormType(formType);
   if (!form) return "unknown";
   if (form === "8-K" || form === "8-K/A") return "current_report";
   if (form === "6-K" || form === "6-K/A") return "foreign_current_report";
+  if (form === "NT 10-K" || form === "NT 10-Q" || form === "NT 20-F") return "late_filing_notice";
   if (form.startsWith("10-Q") || form.startsWith("10-K") || form.startsWith("20-F")) return "periodic_report";
+  if (isTenderFormTypeForIntegration(form)) return "tender_offer";
+  if (form === "425") return "transaction_communication";
+  if (form === "EFFECT") return "registration_effectiveness";
+  if (form === "25" || form === "25/A" || form === "25-NSE" || form === "25-NSE/A") return "listing_status";
   if (form.startsWith("S-") || form.startsWith("F-") || form.startsWith("424B")) return "registration_offering";
   if (form.includes("14A") || form.startsWith("SC 14")) return "proxy_shareholder";
-  if (form === "4" || form === "4/A" || form === "3" || form === "5") return "ownership";
-  if (form.startsWith("SC 13")) return "ownership";
-  if (form.startsWith("SC TO") || form === "CB" || form === "CB/A") return "tender_offer";
+  if (form === "4" || form === "4/A" || form === "144" || form === "144/A" || form === "3" || form === "5") return "ownership";
+  if (form === "SC 13D" || form === "SC 13D/A" || form === "SC 13G" || form === "SC 13G/A") return "ownership";
   return "other";
 }
 
-function buildHardParserFacts(
-  rawItem: RawItemRow,
-  formType: string | null,
-): { hardParsers: Record<string, unknown>; s3Parsed: SecS3FilingFacts | null } {
-  if (/^S-3(?:ASR|\/A)?$/i.test(stringValue(formType))) {
-    const parsed = parseSecS3Filing({
-      rawItemId: nullableString(rawItem.id),
-      sourceUniqueId: nullableString(rawItem.source_unique_id),
-      sourceUrl: nullableString(rawItem.source_url),
-      title: nullableString(rawItem.title),
-      publishedAt: nullableString(rawItem.published_at),
-      bodyText: nullableString(rawItem.body_text),
-      analysisText: nullableString(rawItem.analysis_text),
-      rawPayload: rawItem.raw_payload,
-      metadata: rawItem.metadata,
-    });
+function chooseSecPackageFormType(storedFormType: string | null, primaryDocumentType: string | null) {
+  const stored = normalizeFormTypeForPackage(storedFormType);
+  const primary = normalizeFormTypeForPackage(primaryDocumentType);
+  if (!stored) return primary;
+  if (!primary) return stored;
+  if (stored === primary) return stored;
 
-    return {
-      hardParsers: {
-        s3: {
-          parser_version: parsed.parser_version,
-          form_type: parsed.form_type,
-          is_s3_family: parsed.is_s3_family,
-          registration_statement_kind: parsed.registration_statement_kind?.value || null,
-          registration_status: parsed.registration_status?.value || null,
-          prospectus_status: parsed.prospectus_status?.value || null,
-          primary_or_resale: parsed.primary_or_resale?.value || null,
-          securities_registered: parsed.securities_registered.map((item) => item.value),
-          shares_registered: parsed.shares_registered?.text || null,
-          resale_share_count: parsed.resale_share_count?.text || null,
-          current_shares_outstanding: parsed.current_shares_outstanding?.text || null,
-          selling_stockholders: {
-            count: parsed.selling_stockholders.length,
-            rows: parsed.selling_stockholders.map((holder) => ({
-              holder_name: holder.holder_name,
-              shares_offered_for_resale: holder.shares_offered_for_resale?.text || null,
-              beneficially_owned_before: holder.beneficially_owned_before?.text || null,
-              beneficially_owned_after: holder.beneficially_owned_after?.text || null,
-              percent_after: holder.percent_after?.text || null,
-            })),
-          },
-          fee_table: {
-            present: parsed.fee_table.present,
-            text_available: parsed.fee_table.text_available,
-            row_count: parsed.fee_table.rows.length,
-            total_offering_amount: parsed.fee_table.totals.total_offering_amount?.text || null,
-            net_fee_due: parsed.fee_table.totals.net_fee_due?.text || null,
-          },
-          offering_terms: {
-            registration_statement_kind: parsed.offering_terms.registration_statement_kind?.value || null,
-            offering_type: parsed.offering_terms.offering_type?.value || null,
-            security_type: parsed.offering_terms.security_type?.value || null,
-            primary_or_resale: parsed.offering_terms.primary_or_resale?.value || null,
-            offering_amount: parsed.offering_terms.offering_amount?.text || null,
-            shelf_capacity: parsed.offering_terms.shelf_capacity?.text || null,
-            atm_program_size: parsed.offering_terms.atm_program_size?.text || null,
-            resale_share_count: parsed.offering_terms.resale_share_count?.text || null,
-            current_shares_outstanding: parsed.offering_terms.current_shares_outstanding?.text || null,
-            warrant_coverage: parsed.offering_terms.warrant_coverage?.value || null,
-            conversion_price: parsed.offering_terms.conversion_price?.text || null,
-          },
-          amendment: parsed.amendment.router_payload,
-          needs_human_review: parsed.needs_human_review,
-          review_reasons: parsed.review_reasons,
-        },
-      },
-      s3Parsed: parsed,
-    };
+  const storedBase = stored.replace(/\/A$/, "");
+  const primaryBase = primary.replace(/\/A$/, "");
+  if (primary.endsWith("/A") && storedBase === primaryBase) {
+    return primary;
   }
 
-  return { hardParsers: {}, s3Parsed: null };
+  return stored;
+}
+
+function normalizeFormTypeForPackage(value: unknown) {
+  return stringValue(value).toUpperCase().replace(/\s+/g, " ");
+}
+
+function classifySecFormFamilyForWorker(formType: string | null, worker: unknown) {
+  const adapter = toRecord(worker);
+  const key = stringValue(adapter?.key);
+  const parserGroup = stringValue(adapter?.parserGroup);
+  if (key === "tender" || parserGroup === "tender") return "tender_offer";
+  if (key === "sc13" || parserGroup === "sc13") return "ownership";
+  return classifySecFormFamily(formType);
+}
+
+function buildHardParserFacts(rawItem: RawItemRow, formType: string | null) {
+  const result = runSecFormAdapterParser(rawItem, formType);
+  return {
+    worker: result.worker,
+    hardParsers: result.hardParsers,
+    s3Parsed: result.s3Parsed,
+    ownershipParsed: result.ownershipParsed,
+  };
 }
 
 function buildRouterEvidence({
@@ -214,12 +220,20 @@ function buildRouterEvidence({
   llmText,
   sourceText,
   s3Parsed,
+  ownershipParsed,
 }: {
   documents: Array<Record<string, unknown>>;
   llmText: string;
   sourceText: string;
   s3Parsed: SecS3FilingFacts | null;
+  ownershipParsed: OwnershipParserOutput | null;
 }) {
+  if (ownershipParsed) {
+    return {
+      ownership: buildOwnershipRouterEvidence(ownershipParsed),
+    };
+  }
+
   if (!s3Parsed) return {};
   return {
     s3: buildS3RouterEvidence({
@@ -229,6 +243,69 @@ function buildRouterEvidence({
       parsed: s3Parsed,
     }),
   };
+}
+
+function buildOwnershipTextSections(parsed: OwnershipParserOutput) {
+  return [
+    {
+      label: "Ownership Parser Facts",
+      text: JSON.stringify(buildOwnershipCompactPayload(parsed), null, 2),
+      truncated: false,
+    },
+  ];
+}
+
+function buildOwnershipRouterEvidence(parsed: OwnershipParserOutput) {
+  return {
+    evidence_version: "ownership_evidence_v1",
+    ...buildOwnershipCompactPayload(parsed),
+  };
+}
+
+function buildOwnershipCompactPayload(parsed: OwnershipParserOutput) {
+  const facts = toRecord(parsed.facts) || {};
+  const raw = toRecord(parsed.raw) || {};
+
+  return {
+    parserVersion: parsed.parserVersion,
+    parserGroup: parsed.parserGroup,
+    formType: parsed.formType,
+    accessionNumber: parsed.accessionNumber ?? null,
+    isSupported: parsed.isSupported,
+    summary: parsed.summary ?? null,
+    issuer: facts.issuer ?? null,
+    reporting_owner: facts.reporting_owner ?? null,
+    reporting_owners: facts.reporting_owners ?? [],
+    filing: facts.filing ?? null,
+    form4: sanitizeOwnershipForm4Facts(facts.form4),
+    form144: facts.form144 ?? null,
+    amendment: facts.amendment ?? null,
+    footnotes: facts.footnotes ?? {},
+    remarks: facts.remarks ?? null,
+    signatures: facts.signatures ?? [],
+    source_inventory: facts.source_inventory ?? raw.source_inventory ?? null,
+    selected_evidence: raw.selected_evidence ?? [],
+    signals: parsed.signals ?? [],
+    calendarItems: parsed.calendarItems ?? [],
+    warnings: parsed.warnings ?? [],
+    deterministic_result_available: raw.deterministic_result_available === true,
+  };
+}
+
+function sanitizeOwnershipForm4Facts(value: unknown) {
+  const record = toRecord(value);
+  if (!record) return null;
+
+  return {
+    ...record,
+    transactions: recordArray(record.transactions).map(sanitizeOwnershipTransactionFact),
+  };
+}
+
+function sanitizeOwnershipTransactionFact(value: unknown) {
+  const record = toRecord(value) || {};
+  const { evidence: _evidence, ...transaction } = record;
+  return transaction;
 }
 
 function buildS3RouterEvidence({

@@ -1,0 +1,21 @@
+{
+  "case_id": "blackrock-nos-cover-13da",
+  "description": "SEC source excerpt from BlackRock SC 13D/A where IRS identification text is split into NOS. OF ABOVE PERSONS before the reporting person name. Source: https://www.sec.gov/Archives/edgar/data/1364742/000119312524227081/d867969dsc13da.htm",
+  "filing": {
+    "formType": "SC 13D/A",
+    "accessionNumber": "0001193125-24-227081",
+    "filedAt": "2024-09-26",
+    "text": "SCHEDULE 13D/A\n(Amendment No. 2)\nVertex\nEnergy, Inc.\n(Name of Issuer)\nCommon Stock\n(Title of Class of Securities)\n92534K107\n(CUSIP Number)\n1.\nNAMES OF REPORTING PERSONS\nI.R.S. IDENTIFICATION\nNOS. OF ABOVE PERSONS (ENTITIES ONLY)\nBlackRock, Inc.\n2.\nCHECK THE APPROPRIATE BOX IF A MEMBER OF A GROUP (see instructions)\n(a) &#9744; (b) &#9746;\n4.\nSOURCE OF FUNDS\nOO\n5.\nSOLE VOTING POWER\n5,034,170\n6.\nSHARED VOTING POWER\n0\n7.\nSOLE DISPOSITIVE POWER\n5,034,170\n8.\nSHARED DISPOSITIVE POWER\n0\n11.\nAGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON\n5,034,170\n13.\nPERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (11)\n5.2%\n14.\nTYPE OF REPORTING PERSON\nHC\nItem 5. Interest in Securities of the Issuer\nThe percentage is based on common stock outstanding and includes derivative securities described herein.\nSIGNATURE"
+  },
+  "expected": {
+    "event_type": "insider_ownership",
+    "extracted_facts": {
+      "issuerName": "Vertex Energy, Inc.",
+      "securityClass": "Common Stock",
+      "cusip": "92534K107",
+      "reportingPersons": ["BlackRock, Inc."],
+      "sharesBeneficiallyOwned": 5034170,
+      "percentOwned": 5.2
+    }
+  }
+}

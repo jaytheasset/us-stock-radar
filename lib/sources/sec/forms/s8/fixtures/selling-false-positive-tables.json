@@ -1,0 +1,13 @@
+{
+  "fixtureName": "selling-false-positive-tables",
+  "formType": "S-8",
+  "accessionNumber": "0005555555-26-000508",
+  "filedAt": "2026-05-24",
+  "issuer": {
+    "name": "False Positive Tables Inc.",
+    "ticker": "FPTI",
+    "exchange": "NASDAQ"
+  },
+  "filingText": "False Positive Tables Inc. files this registration statement on Form S-8. EXHIBIT INDEX. <table><tr><th>Exhibit</th><th>Description</th></tr><tr><td>5.1</td><td>Legal opinion</td></tr></table> CALCULATION OF FILING FEE TABLE. <table><tr><th>Security Type</th><th>Security Class Title</th><th>Amount Registered</th></tr><tr><td>Equity</td><td>Common Stock</td><td>100,000</td></tr></table> SIGNATURES.",
+  "attachments": []
+}

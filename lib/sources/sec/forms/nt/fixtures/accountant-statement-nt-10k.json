@@ -1,0 +1,14 @@
+{
+  "id": "accountant-statement-nt-10k",
+  "description": "Legacy NT 10-K with an inline accountant statement under Rule 12b-25(c).",
+  "source": {
+    "formType": "NT 10-K",
+    "accessionNumber": "0001003297-06-000111",
+    "companyName": "First Financial Corporation",
+    "ticker": null,
+    "exchange": null,
+    "periodOfReport": "2005-12-31",
+    "filedAt": "2006-03-29",
+    "filingText": "FORM NT 10-K For year ended December 31, 2005 Commission file number 0-5559 First Financial Corporation PART II RULES 12b-25(b) AND (c) (a) The reasons described in reasonable detail in Part III of this form could not be eliminated without unreasonable effort or expense; (b) The subject annual report will be filed on or before the fifteenth calendar day following the prescribed due date. (c) The accountant's statement required by Rule 12b-25(c) has been included. PART III NARRATIVE The Registrant is unable to timely file its Form 10-KSB for the period ended December 31, 2005, because the auditors have not completed the audited financial statements of the Registrant and are unable to complete such financial statements without unreasonable effort and expense. The Registrant was unable to obtain certain information related to contingencies in a timely manner and additional time is required to determine their impact on the Registrant's financial statements and required disclosures. The Company will reflect a net loss of approximately $5,880,000 compared to a net loss of $3,064,481 for 2004. PATTILLO, BROWN, & HILL, L.L.P. Pursuant to Rule 12B-25 of the General Rules and Regulations under Securities and Exchange Act of 1934, we inform you that we have been furnished a copy of Form NT 10-K to be filed by First Financial Corporation and Subsidiaries on or about March 29, 2006. We have read FFC's statements contained in Part III therein and we agree with the stated reason as to why we have been unable to complete our audit and report on the financial statements for the year ended December 31, 2005 to be included in the Form 10-KSB. We anticipate our opinion to include an explanatory paragraph describing doubts about the ability of the Company to continue as a going concern based on its inability to obtain financing for further activities and its mounting losses from operations. signed: Pattillo Brown & Hill LLP March 29, 2006 Waco, Texas PART IV OTHER INFORMATION (1) Cindy Edmiston (254)757-2424 (2) Have all other periodic reports been filed? Yes. (3) Is it anticipated that any significant change in results of operations from the corresponding period for the last fiscal year will be reflected by the earnings statements to be included in the subject report or portion thereof? Yes. See Narrative Section. Date: March 29, 2006 By: Cindy Edmiston Chief Accountant"
+  }
+}

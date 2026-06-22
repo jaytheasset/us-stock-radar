@@ -1,0 +1,111 @@
+{
+  "parser_output": {
+    "parserVersion": "424b-parser-v1",
+    "parserGroup": "424b",
+    "formType": "424B5",
+    "accessionNumber": "0000000000-26-000110",
+    "isSupported": true,
+    "summary": "Saba Capital Income & Opportunities Fund filed 424B5 covering 10,000,000 subscription rights.",
+    "facts": {
+      "issuer": {
+        "name": "Saba Capital Income & Opportunities Fund",
+        "ticker": "BRW",
+        "exchange": "NYSE"
+      },
+      "filingMetadata": {
+        "registrationNumber": "333-280500",
+        "isPreliminary": false
+      },
+      "prospectusClass": "rights_offering",
+      "rightsOfferingTerms": {
+        "rightsCount": 10000000,
+        "sharesIssuable": 3333333,
+        "rightsNeededPerShare": 3,
+        "recordDate": "June 2, 2026",
+        "expirationDate": "June 30, 2026",
+        "transferable": true,
+        "overSubscriptionPrivilege": true,
+        "rightsSymbol": "BRW RT",
+        "estimatedProceeds": 48000000
+      },
+      "flags": {
+        "rightsOffering": true
+      }
+    },
+    "signals": [
+      {
+        "name": "rights_offering",
+        "value": true
+      },
+      {
+        "name": "market_context_needed",
+        "value": ["price", "market_cap", "shares_outstanding", "public_float"]
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {
+      "deterministicCandidate": null
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "other",
+    "event_title": "Rights offering mechanics extracted",
+    "primary_ticker": {
+      "ticker": "BRW",
+      "exchange": "NYSE"
+    },
+    "tickers": ["BRW"],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 35,
+    "score_reason": "Parser fixture records rights-offering mechanics without assigning final investor interpretation.",
+    "signal": "neutral",
+    "quick_take": "The parser extracts transferable rights, ratio, record date, expiration date, subscription formula, and estimated proceeds.",
+    "summary": "The fixture verifies extraction of common rights-offering mechanics for a closed-end fund style 424B5.",
+    "why_it_matters": "Rights offerings have formula pricing, record dates, and over-subscription mechanics that should not be treated like a simple common-stock sale.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [
+      "10,000,000 transferable rights.",
+      "Every three rights entitle the holder to purchase one new common share.",
+      "Rights expire on June 30, 2026 unless extended."
+    ],
+    "what_to_watch_next": [],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "medium",
+    "needs_human_review": false,
+    "analysis_action": "parser_fixture_only",
+    "archive_summary": "Rights-offering mechanics extracted for fixture coverage.",
+    "offering_display_model": {},
+    "offering_security_audit": {}
+  },
+  "display_payload": {
+    "display_type": "offering_terms",
+    "display_version": "424b-display-payload-v1",
+    "data": {
+      "security_variant": "rights_offering"
+    },
+    "evidence": [],
+    "notes": [
+      "Later integration can decide how to map rights-offering mechanics to offering display."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": true,
+    "market_context_reason": "Rights-offering formula and share issuance may need comparison with market price, NAV, shares outstanding, and float.",
+    "market_context_fields": ["price", "market_cap", "shares_outstanding", "public_float"],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Formula-based subscription prices should not be converted into a fixed final price without source evidence."
+    ]
+  }
+}

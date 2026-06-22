@@ -1,0 +1,85 @@
+{
+  "parser_output": {
+    "parserVersion": "ownership-parser-v1",
+    "parserGroup": "ownership",
+    "formType": "Form 4 / 4/A, Form 144 / 144/A",
+    "accessionNumber": "0000000000-26-000402",
+    "isSupported": true,
+    "summary": "4 insider sale filing for Daniel Ortiz at Northstar Chips Corp. (NSCP).",
+    "facts": {},
+    "signals": [
+      "form_4_transaction",
+      "insider_sale",
+      "rule_10b5_1_plan"
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "insider_ownership",
+    "event_title": "CFO 10b5-1 sale",
+    "primary_ticker": {
+      "ticker": "NSCP",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      "NSCP"
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 61,
+    "score_reason": "The reported sale value is large enough for feed visibility, but the 10b5-1 footnote reduces the need for alert treatment.",
+    "signal": "bearish",
+    "quick_take": "NSCP's CFO reported a 450,000-share sale under a 10b5-1 plan.",
+    "summary": "Daniel Ortiz reported selling 450,000 common shares at $24.75 per share, with the filing footnote stating the sale was under a Rule 10b5-1 plan.",
+    "why_it_matters": "Large executive sales can matter for investors, but 10b5-1 plans often indicate pre-arranged selling rather than a discretionary new decision.",
+    "bullish_points": [],
+    "bearish_points": [
+      "The transaction code is S, indicating a sale.",
+      "The source-backed transaction value is about $11.1 million."
+    ],
+    "key_evidence": [
+      "Transaction code: S",
+      "Shares disposed: 450,000",
+      "Price per share: $24.75",
+      "Footnote references a Rule 10b5-1 trading plan."
+    ],
+    "what_to_watch_next": [
+      "Whether additional sales follow under the same plan.",
+      "Whether holdings after transaction continue to decline."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "candidate_special",
+    "data": {
+      "owner_name": "Daniel Ortiz",
+      "owner_title": "Chief Financial Officer",
+      "has_10b5_1_reference": true,
+      "transactions": [
+        {
+          "security_title": "Common Stock",
+          "transaction_code": "S",
+          "shares": 450000,
+          "price_per_share": 24.75,
+          "transaction_value": 11137500,
+          "shares_owned_following": 1200000
+        }
+      ]
+    },
+    "evidence": [
+      "Footnote states the sale was effected pursuant to a Rule 10b5-1 trading plan."
+    ],
+    "notes": [
+      "Keep sale signal bearish when score rises; 10b5-1 affects interpretation, not transaction direction."
+    ]
+  }
+}

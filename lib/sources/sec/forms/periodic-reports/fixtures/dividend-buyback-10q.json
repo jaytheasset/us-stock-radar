@@ -1,0 +1,39 @@
+{
+  "name": "dividend-buyback-10q",
+  "description": "10-Q with dividend and share repurchase disclosures.",
+  "filing": {
+    "rawItemId": "sec-fixture-periodic-005",
+    "sourceUniqueId": "0005555555-26-000018",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/5555555/000555555526000018/luma-20260331.htm",
+    "title": "Luma Industrial Holdings 10-Q quarterly report",
+    "publishedAt": "2026-05-06T11:45:00Z",
+    "rawPayload": {
+      "form_type": "10-Q",
+      "accession_number": "0005555555-26-000018",
+      "company_name": "Luma Industrial Holdings",
+      "ticker": "LUMA",
+      "exchange": "NYSE",
+      "documents": [
+        {
+          "type": "10-Q",
+          "description": "Quarterly report",
+          "isPrimary": true,
+          "textCharCount": 1180,
+          "textTruncated": false
+        }
+      ]
+    },
+    "bodyText": "FORM 10-Q\nLuma Industrial Holdings (Exact name of registrant as specified in its charter)\nFor the quarterly period ended March 31, 2026\nTrading Symbol(s) LUMA New York Stock Exchange\nCapital Allocation\nThe board declared a quarterly cash dividend of $0.12 per share, payable on June 30, 2026 to shareholders of record at the close of business on June 15, 2026. The board also authorized a share repurchase program of up to $250.0 million. Revenue was $410.0 million for the quarter compared to $398.0 million in the prior-year quarter."
+  },
+  "market_context": {
+    "price": 44.2,
+    "previous_close": 43.8,
+    "market_cap": 6200000000,
+    "shares_outstanding": 140300000,
+    "public_float": 130000000,
+    "volume": 2100000,
+    "avg_volume": 1750000
+  },
+  "expected_event_type": "capital_return",
+  "expected_score_band": "feed"
+}

@@ -1,0 +1,35 @@
+{
+  "name": "primary-high-dilution",
+  "formType": "424B5",
+  "accessionNumber": "0000000000-26-000101",
+  "issuer": {
+    "name": "Atlas Therapeutics, Inc.",
+    "ticker": "ATLS",
+    "exchange": "NASDAQ"
+  },
+  "filingText": "PROSPECTUS SUPPLEMENT Atlas Therapeutics, Inc. Common Stock NASDAQ Capital Market: ATLS We are offering 30,000,000 shares of our common stock at a public offering price of $1.00 per share. Gross proceeds from this offering will be approximately $30,000,000, before underwriting discounts and expenses. Net proceeds from this offering will be approximately $27,600,000. As of May 1, 2026, we had 60,000,000 shares of common stock outstanding. We intend to use the net proceeds for clinical development and working capital. This offering will result in immediate and substantial dilution to new investors. We expect this offering to close on May 29, 2026.",
+  "market_context": {
+    "price": 1.35,
+    "previous_close": 1.42,
+    "market_cap": 81000000,
+    "shares_outstanding": 60000000,
+    "public_float": 42000000,
+    "volume": 2450000,
+    "avg_volume": 910000
+  },
+  "expected_event_type": "dilution_risk",
+  "expected_score_band": "alert",
+  "fixture_assertions": {
+    "deterministic": true,
+    "expected_router_preliminary_action": "deterministic_analysis",
+    "expected_analysis_action": "deterministic_offering_terms_analysis",
+    "important_facts": {
+      "sharesOffered": 30000000,
+      "pricePerShare": 1,
+      "grossProceeds": 30000000,
+      "netProceeds": 27600000,
+      "sharesOutstanding": 60000000,
+      "offeringToOutstandingRatio": 0.5
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "id": "notes-exchange-s4",
+  "description": "S-4 registration statement for a plain registered notes exchange offer rather than a merger proxy.",
+  "formType": "S-4",
+  "accessionNumber": "0001964738-24-000051",
+  "filingDate": "2024-11-15",
+  "companyName": "Solventum Corporation",
+  "primaryTicker": {
+    "ticker": "SOLV",
+    "exchange": "NYSE"
+  },
+  "participants": [
+    {
+      "name": "Solventum Corporation",
+      "ticker": "SOLV",
+      "exchange": "NYSE",
+      "role": "issuer"
+    }
+  ],
+  "filingText": "FORM S-4 REGISTRATION STATEMENT. PROSPECTUS. Solventum Corporation Offer to Exchange $1,000,000,000 Outstanding 5.450% Senior Notes due 2027 for $1,000,000,000 Registered 5.450% Senior Notes due 2027, $1,500,000,000 Outstanding 5.400% Senior Notes due 2029 for $1,500,000,000 Registered 5.400% Senior Notes due 2029, and $1,000,000,000 Outstanding 5.450% Senior Notes due 2031 for $1,000,000,000 Registered 5.450% Senior Notes due 2031. We may not complete this exchange offer or issue these securities until the registration statement filed with the Securities and Exchange Commission is effective. The terms of the New Notes are identical in all material respects to the terms of the Old Notes except that the New Notes will be registered under the Securities Act and will not contain transfer restrictions. See Risk Factors and The Exchange Offer for further information on how to exchange your Old Notes for New Notes. Each broker-dealer that receives New Notes for its own account pursuant to the Exchange Offer must acknowledge that it will deliver a prospectus in connection with any resale of such New Notes.",
+  "attachments": [
+    {
+      "type": "EX-5.1",
+      "description": "Legal opinion for registered notes",
+      "filedHerewith": true
+    },
+    {
+      "type": "EX-25.1",
+      "description": "Statement of eligibility of trustee",
+      "filedHerewith": true
+    }
+  ],
+  "market_context": null,
+  "parentFilingContext": null
+}

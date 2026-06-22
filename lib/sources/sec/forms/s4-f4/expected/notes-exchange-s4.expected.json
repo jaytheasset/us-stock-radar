@@ -1,0 +1,115 @@
+{
+  "parser_output": {
+    "parserVersion": "s4-f4-v1",
+    "parserGroup": "s4-f4",
+    "formType": "S-4 / F-4 / S-4/A / F-4/A",
+    "accessionNumber": "0001964738-24-000051",
+    "isSupported": true,
+    "summary": "S-4 registration statement for a notes exchange offer.",
+    "facts": {
+      "secFormType": "S-4",
+      "isAmendment": false,
+      "companyName": "Solventum Corporation",
+      "primaryTicker": {
+        "ticker": "SOLV",
+        "exchange": "NYSE"
+      },
+      "structure": {
+        "documentKind": "notes_exchange_offer",
+        "isExhibitsOnly": false,
+        "bodyOmitted": false,
+        "hasRiskFactors": true
+      },
+      "transaction": {
+        "type": "unknown"
+      },
+      "exchangeOffer": {
+        "present": true,
+        "kind": "debt_exchange",
+        "hasConsentSolicitation": false,
+        "hasRightsOffering": false,
+        "hasMakewholeAgreement": false,
+        "hasMinimumTenderCondition": false,
+        "hasWarrants": false,
+        "hasExternalProceedingMechanic": false
+      },
+      "exhibits": {
+        "count": 2,
+        "filedHerewithCount": 2
+      }
+    },
+    "signals": [],
+    "calendarItems": [],
+    "warnings": [
+      "Notes exchange S-4 detected; do not assume merger acquirer/target roles."
+    ],
+    "raw": {
+      "fixtureId": "notes-exchange-s4"
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "other",
+    "event_title": "Solventum files S-4 for registered notes exchange",
+    "primary_ticker": {
+      "ticker": "SOLV",
+      "exchange": "NYSE"
+    },
+    "tickers": [
+      {
+        "ticker": "SOLV",
+        "exchange": "NYSE"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 35,
+    "score_reason": "The fixture is a structural parser case for a registered notes exchange, not a merger or equity issuance interpretation.",
+    "signal": "neutral",
+    "quick_take": "The S-4 is a debt exchange-offer registration statement.",
+    "summary": "Solventum offers to exchange multiple outstanding senior note series for registered notes with matching principal amounts.",
+    "why_it_matters": "The parser must avoid assuming every S-4 is a merger proxy.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [
+      "Offer to Exchange outstanding senior notes for registered senior notes.",
+      "New Notes are identical in all material respects except registration and transfer restrictions."
+    ],
+    "what_to_watch_next": [
+      "Effectiveness of the registration statement.",
+      "Tender participation and any amendment changing exchange terms."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "medium",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "document_kind": "notes_exchange_offer",
+      "exchange_offer_kind": "debt_exchange"
+    },
+    "evidence": [
+      "Offer to Exchange outstanding senior notes for registered senior notes"
+    ],
+    "notes": [
+      "Parser should preserve debt exchange structure without merger role assumptions."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "This is a form-specific structural variant, not live market-context work."
+    ]
+  }
+}

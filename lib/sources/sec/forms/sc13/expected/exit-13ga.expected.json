@@ -1,0 +1,99 @@
+{
+  "parser_output": {
+    "parserVersion": "sc13-v1",
+    "parserGroup": "sc13",
+    "formType": "SC 13G/A",
+    "accessionNumber": "0000000000-26-000707",
+    "isSupported": true,
+    "summary": "Keystone Capital XXX, LLC filed an exit Schedule 13G amendment for P10, Inc.",
+    "facts": {},
+    "signals": [],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "insider_ownership",
+    "event_title": "Keystone Capital XXX, LLC files SC 13G exit amendment for P10, Inc.",
+    "primary_ticker": {
+      "ticker": "PX",
+      "exchange": "NYSE"
+    },
+    "tickers": [
+      {
+        "ticker": "PX",
+        "exchange": "NYSE"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 24,
+    "score_reason": "Schedule 13G/A exit filing mechanically reports ownership no longer above the 5% threshold.",
+    "signal": "neutral",
+    "quick_take": "Keystone Capital XXX, LLC filed an exit Schedule 13G amendment for P10, Inc.",
+    "summary": "Keystone Capital XXX, LLC filed an exit Schedule 13G amendment for P10, Inc.",
+    "why_it_matters": "The filing updates the beneficial ownership record to show the holder is no longer above the SC 13 reporting threshold.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [
+      "Reported beneficial ownership: 0 shares (0.0%).",
+      "Passive certification says the securities were not held to change or influence control.",
+      "The filing states the holder ceased to beneficially own more than 5% or identifies itself as an exit filing."
+    ],
+    "what_to_watch_next": [
+      "Future filings if the holder rebuilds a position above the reporting threshold."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "date": "June 27, 2022",
+        "label": "SC 13 reportable event date",
+        "source": "Date of Event"
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "display_version": "sc13-ownership-v1",
+    "data": {
+      "version": "sc13-ownership-v1",
+      "issuerName": "P10, Inc.",
+      "reportingPersons": [
+        "Keystone Capital XXX, LLC"
+      ],
+      "percentOwned": 0,
+      "sharesBeneficiallyOwned": 0,
+      "ownershipIntent": "passive",
+      "isAmendment": true,
+      "isExitFiling": true,
+      "ownershipPercentChange": null
+    },
+    "evidence": [
+      "Reported beneficial ownership: 0 shares (0.0%).",
+      "Passive certification says the securities were not held to change or influence control.",
+      "The filing states the holder ceased to beneficially own more than 5% or identifies itself as an exit filing."
+    ],
+    "notes": [
+      "No special detail UI is required for this passive ownership fixture."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Archive delivery is expected from the analysis score; analysis LLM should use cleaned_source_blocks.",
+      "Optional future enrichment: filing_context.ownership could be added later only for high-score candidates or batch-level enrichment."
+    ]
+  }
+}

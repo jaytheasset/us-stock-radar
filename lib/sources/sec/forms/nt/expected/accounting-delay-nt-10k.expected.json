@@ -1,0 +1,146 @@
+{
+  "parser_output": {
+    "parserVersion": "nt-parser-v1",
+    "parserGroup": "nt",
+    "formType": "NT 10-K",
+    "accessionNumber": "0001000002-26-000020",
+    "isSupported": true,
+    "summary": "NT 10-K late filing notice for Northstar Components Corp. for period ended 2025-12-31; expects a significant change in results.",
+    "facts": {
+      "companyName": "Northstar Components Corp.",
+      "ticker": "NSTC",
+      "exchange": "NYSE",
+      "delayedReport": "10-K",
+      "periodOfReport": "2025-12-31",
+      "filedAt": "2026-03-17",
+      "extensionDays": 15,
+      "unableWithoutUnreasonableEffort": true,
+      "anticipatedWithinExtension": true,
+      "accountantStatementAttached": true,
+      "significantChangeExpected": true,
+      "significantChangeDescription": "significant change in results of operations from the corresponding period for the last fiscal year will be reflected by the earnings statements to be included in the subject report? [X] Yes [ ] No. The company expects a material decrease in net income due to audit adjustments and inventory reserves.",
+      "lateFilingReason": "The company is unable to file its Form 10-K because it needs additional time to complete audit procedures related to revenue recognition, inventory valuation, and remediation testing of internal control over financial reporting. Management is evaluating whether adjustments are material. The delay could not be eliminated without unreasonable effort or expense. The company expects to file within the fifteen calendar day extension period. The accountant's statement required by Rule 12b-25(c) is attached as Exhibit 99.1.",
+      "disclosedReasons": [
+        "accounting_audit_or_internal_control_issue",
+        "sales_or_revenue_change_disclosed",
+        "material_results_change_disclosed"
+      ],
+      "riskIndicators": [
+        "accounting_or_audit_issue",
+        "sales_or_revenue_change",
+        "material_results_change"
+      ],
+      "sourceExcerpts": [
+        {
+          "label": "late_filing_reason",
+          "text": "The company is unable to file its Form 10-K because it needs additional time to complete audit procedures related to revenue recognition, inventory valuation, and remediation testing of internal control over financial reporting. Management is evaluating whether adjustments are material. The delay could not be eliminated without unreasonable effort or expense. The company expects to file within the fifteen calendar day extension period. The accountant's statement required by Rule 12b-25(c) is attached as Exhibit 99.1."
+        },
+        {
+          "label": "significant_change_question",
+          "text": "significant change in results of operations from the corresponding period for the last fiscal year will be reflected by the earnings statements to be included in the subject report? [X] Yes [ ] No. The company expects a material decrease in net income due to audit adjustments and inventory reserves."
+        }
+      ]
+    },
+    "signals": [
+      {
+        "name": "accounting_or_audit_issue",
+        "sentiment": "bearish",
+        "materiality": "high",
+        "reason": "The NT filing cites accounting, audit, valuation, restatement, or internal-control work."
+      },
+      {
+        "name": "sales_or_revenue_change",
+        "sentiment": "bearish",
+        "materiality": "high",
+        "reason": "The NT filing cites sales, revenue, customer demand, or order timing changes."
+      },
+      {
+        "name": "material_results_change",
+        "sentiment": "bearish",
+        "materiality": "high",
+        "reason": "The NT filing checks or states that a significant change in results of operations is expected."
+      }
+    ],
+    "calendarItems": [
+      {
+        "label": "Rule 12b-25 extension window",
+        "date": null,
+        "description": "Issuer states it expects to file within the 15 calendar day extension period."
+      }
+    ],
+    "warnings": [
+      "Part IV Q3 is answered Yes, but the extracted explanation has no quantitative-looking disclosure."
+    ],
+    "raw": {
+      "inputFormType": "NT 10-K",
+      "textExcerpt": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-K PART III NARRATIVE The company is unable to file its Form 10-K because it needs additional time to complete audit procedures related to revenue recognition, inventory valuation, and remediation testing of internal control over financial reporting. Management is evaluating whether adjustments are material. The delay could not be eliminated without unreasonable effort or expense. The company expects to file within the fifteen calendar day extension period. The accountant's statement required by Rule 12b-25(c) is attached as Exhibit 99.1. PART IV OTHER INFORMATION (3) Is it anticipated that any significant change in results of operations from the corresponding period for the last fiscal year will be reflected by the earnings statements to be included in the subject report? [X] Yes [ ] No. The company expects a material decrease in net income due to audit adjustments and inventory reserves."
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "financial_risk",
+    "event_title": "NT 10-K Delay Tied To Audit And Internal-Control Work",
+    "primary_ticker": { "ticker": "NSTC", "exchange": "NYSE" },
+    "tickers": ["NSTC"],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 82,
+    "score_reason": "The annual report delay is tied to audit procedures, revenue recognition, inventory valuation, internal-control remediation testing, and a material decrease in net income.",
+    "signal": "bearish",
+    "quick_take": "Northstar's late 10-K notice flags audit and internal-control work plus an expected material earnings decline.",
+    "summary": "The company says the 10-K is late because audit procedures remain open around revenue recognition, inventory valuation, and internal-control remediation testing.",
+    "why_it_matters": "Annual-report delays tied to audit and control issues can signal financial-statement uncertainty, possible adjustments, and higher restatement or control-risk scrutiny.",
+    "bullish_points": ["The company says it expects to file within the 15-day extension window."],
+    "bearish_points": [
+      "Audit work remains open on revenue recognition and inventory valuation.",
+      "The filing says a material decrease in net income is expected.",
+      "Internal-control remediation testing is part of the delay."
+    ],
+    "key_evidence": [
+      "additional time to complete audit procedures related to revenue recognition, inventory valuation, and remediation testing of internal control",
+      "The company expects a material decrease in net income due to audit adjustments and inventory reserves."
+    ],
+    "what_to_watch_next": [
+      "Whether the 10-K is filed inside the 15-day extension.",
+      "Any auditor language, material weakness disclosure, restatement, or revised revenue/inventory figures in the 10-K."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "label": "Rule 12b-25 extension window",
+        "date": null,
+        "description": "Issuer states it expects to file within the 15 calendar day extension period."
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "display_version": "nt_late_filing_v1",
+    "data": {
+      "delayed_report": "10-K",
+      "extension_days": 15,
+      "risk_indicators": ["accounting_or_audit_issue", "material_results_change"]
+    },
+    "evidence": [
+      "Audit procedures remain open around revenue recognition and inventory valuation.",
+      "Internal-control remediation testing is cited.",
+      "A material decrease in net income is expected."
+    ],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": []
+  }
+}

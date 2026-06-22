@@ -1,0 +1,165 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_tender_parser_v1",
+    "parserGroup": "tender",
+    "formType": "Tender / CB / 13E3",
+    "accessionNumber": "0002222222-26-000025",
+    "isSupported": true,
+    "summary": "SC TO-T/A third party tender offer for Alpine Data Systems Inc at $20.00 per share expiring July 29, 2026.",
+    "facts": {
+      "sec_form_type": "SC TO-T/A",
+      "tender_case": "third_party_tender_offer",
+      "third_party_tender": true,
+      "target_company": "Alpine Data Systems Inc",
+      "offeror": "Summit Merger Sub Inc",
+      "cash_price_per_share": {
+        "price": 20,
+        "currency": "USD"
+      },
+      "expiration_date": "2026-07-29",
+      "amendment": {
+        "is_amendment": true,
+        "amendment_number": 2,
+        "material_change_candidates": ["offer_price_change", "expiration_extension"],
+        "deterministic_without_llm": false
+      },
+      "route_hint": {
+        "event_type_candidate": "strategic_transaction",
+        "score_candidate": 76,
+        "route_case": "material_amendment",
+        "llm_needed": true
+      }
+    },
+    "signals": [
+      {
+        "type": "tender_family",
+        "value": "third_party_tender_offer"
+      }
+    ],
+    "calendarItems": [
+      {
+        "type": "tender_expiration",
+        "date": "2026-07-29"
+      }
+    ],
+    "warnings": [],
+    "raw": {
+      "input_form_type": "SC TO-T/A",
+      "raw_item_id": "fixture-tender-005"
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "strategic_transaction",
+    "event_title": "Summit raises Alpine tender offer to $20.00",
+    "primary_ticker": {
+      "ticker": "ALPN",
+      "exchange": "NYSE"
+    },
+    "tickers": [
+      {
+        "ticker": "ALPN",
+        "exchange": "NYSE"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 76,
+    "score_reason": "A tender-offer amendment that raises consideration and extends the deadline is alert-level because it materially changes deal economics and timing.",
+    "signal": "bullish",
+    "quick_take": "Summit increased the Alpine tender price to $20.00 and extended the offer to July 29, 2026.",
+    "summary": "The amendment improves the cash consideration from the parent fixture and pushes out the expiration deadline while leaving other terms unchanged.",
+    "why_it_matters": "Price increases and deadline extensions can reprice the target and change holder tender decisions.",
+    "bullish_points": [
+      "Offer price increased from $18.50 to $20.00 per share.",
+      "The board continues to recommend tendering."
+    ],
+    "bearish_points": [
+      "The extension means completion is not yet final.",
+      "Other offer conditions still apply."
+    ],
+    "key_evidence": [
+      "Increases the offer price from $18.50 to $20.00 per share in cash.",
+      "Extends the expiration date to July 29, 2026.",
+      "All other terms and conditions remain unchanged."
+    ],
+    "what_to_watch_next": [
+      "Tender results at the extended deadline.",
+      "Any additional price or condition amendments."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "type": "tender_expiration",
+        "date": "2026-07-29"
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "offer_type": "material_amendment",
+      "prior_offer_price": 18.5,
+      "new_offer_price": 20,
+      "prior_expiration_date": "2026-07-15",
+      "new_expiration_date": "2026-07-29",
+      "terms_otherwise_unchanged": true
+    },
+    "evidence": [
+      "increases the offer price from $18.50 to $20.00",
+      "extends the expiration date to July 29, 2026",
+      "all other terms and conditions remain unchanged"
+    ],
+    "notes": [
+      "Material tender amendments need before/after terms for price and deadline."
+    ]
+  },
+  "transaction_fingerprint": {
+    "transaction_family": "tender_offer",
+    "transaction_type": "amendment_update",
+    "target_company": "Alpine Data Systems Inc.",
+    "target_ticker": "ALPN",
+    "buyer_parent": "",
+    "buyer_group": [],
+    "offeror": "Summit Merger Sub Inc.",
+    "filing_persons": ["Summit Merger Sub Inc."],
+    "cash_price": "$20.00 per share",
+    "exchange_ratio": "",
+    "consideration_summary": "cash tender price increased from $18.50 to $20.00 per share",
+    "offer_size": "",
+    "securities_sought": "",
+    "minimum_condition": "",
+    "financing_condition": "",
+    "offer_expiration": "2026-07-29",
+    "final_result_date": "",
+    "merger_agreement_date": "",
+    "expected_closing": "",
+    "amendment_number": "2",
+    "amendment_change_type": "price_change",
+    "material_terms_changed": ["price", "deadline"],
+    "source_forms": ["SC TO-T/A"],
+    "source_accession": "0002222222-26-000025",
+    "source_evidence": [
+      "Increases the offer price from $18.50 to $20.00 per share in cash.",
+      "Extends the expiration date to July 29, 2026.",
+      "All other terms and conditions remain unchanged."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": true,
+    "market_context_reason": "New tender price should be compared with fixture price or previous_close.",
+    "market_context_fields": ["price", "previous_close", "market_cap", "shares_outstanding"],
+    "special_ui_needed": true,
+    "special_ui_reason": "Material amendments need before/after tender terms in the detail view.",
+    "integration_notes": [
+      "Parent filing context is fixture JSON only; this room does not query a live DB for the prior filing."
+    ]
+  }
+}

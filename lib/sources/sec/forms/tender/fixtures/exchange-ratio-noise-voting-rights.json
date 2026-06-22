@@ -1,0 +1,35 @@
+{
+  "case_name": "exchange ratio noise - voting rights sentence",
+  "filing": {
+    "rawItemId": "fixture-exchange-ratio-noise-voting-rights",
+    "sourceUniqueId": "0000000000-26-000101",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/0000000/000000000026000101/",
+    "title": "Voting Rights Noise Corp. SC 13E3/A",
+    "publishedAt": "2026-05-01T12:00:00.000Z",
+    "bodyText": "SC 13E3/A\nVoting Rights Noise Corp.\nRule 13e-3 going private transaction. Holders will receive $0.90 per share in cash. Each registered holder of Shares has one vote for each Share. This statement is a voting rights disclosure and not exchange consideration.",
+    "rawPayload": {
+      "accession_number": "0000000000-26-000101",
+      "form_type": "SC 13E3/A",
+      "company_name": "Voting Rights Noise Corp.",
+      "documents": [
+        {
+          "sequence": 1,
+          "type": "SC 13E3/A",
+          "description": "SC 13E3/A",
+          "document": "primary.htm",
+          "isPrimary": true,
+          "textCharCount": 260
+        }
+      ]
+    }
+  },
+  "expected": {
+    "event_type": "strategic_transaction",
+    "delivery_level": "alert",
+    "important_facts": {
+      "sec_form_type": "SC 13E3/A",
+      "tender_case": "going_private_13e3",
+      "exchange_ratio": null
+    }
+  }
+}

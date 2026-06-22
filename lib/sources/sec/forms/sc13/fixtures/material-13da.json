@@ -1,0 +1,35 @@
+{
+  "case_id": "material-13da",
+  "description": "Material Schedule 13D/A with support agreement language and a large ownership reduction.",
+  "filing": {
+    "formType": "SC 13D/A",
+    "accessionNumber": "0000000000-26-000303",
+    "issuerName": "HelioThera BioPharma Inc.",
+    "primaryTicker": {
+      "ticker": "HTHR",
+      "exchange": "NASDAQ"
+    },
+    "filedAt": "2026-03-03",
+    "text": "SCHEDULE 13D/A\nAmendment No. 2\nCUSIP Number: 42329B101\nName of Issuer: HelioThera BioPharma Inc.\nTitle of Class of Securities: Common Stock\nTicker: HTHR\nExchange: NASDAQ\nDate of Event Which Requires Filing: March 2, 2026\nName of Reporting Person: ArcLight Partners LP\nSole Voting Power: 2,100,000\nShared Voting Power: 0\nSole Dispositive Power: 2,100,000\nShared Dispositive Power: 0\nAggregate Amount Beneficially Owned by Each Reporting Person: 2,100,000\nPercent of Class Represented by Amount in Row (11): 4.1%\nItem 4. Purpose of Transaction\nOn March 2, 2026, the Reporting Person entered into a support agreement with the Issuer and Zenith Pharma Inc. in connection with the proposed merger of the Issuer. The Reporting Person agreed to vote its shares in favor of the merger and related strategic transaction.\nItem 5. Interest in Securities of the Issuer\nThe Reporting Person's beneficial ownership decreased from 9.8% to 4.1% after the sale of 3,000,000 shares in private transactions.\nSIGNATURE"
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "strategic_transaction",
+    "deterministic": false,
+    "score_band": "alert",
+    "extracted_facts": {
+      "issuerName": "HelioThera BioPharma Inc.",
+      "reportingPersons": [
+        "ArcLight Partners LP"
+      ],
+      "scheduleType": "13D",
+      "isAmendment": true,
+      "amendmentNumber": 2,
+      "sharesBeneficiallyOwned": 2100000,
+      "percentOwned": 4.1,
+      "previousPercentOwned": 9.8,
+      "ownershipPercentChange": -5.7,
+      "strategicTransactionLanguage": true
+    }
+  }
+}

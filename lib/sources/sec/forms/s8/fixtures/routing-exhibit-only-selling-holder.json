@@ -1,0 +1,13 @@
+{
+  "fixtureName": "routing-exhibit-only-selling-holder",
+  "formType": "S-8/A",
+  "accessionNumber": "0006666666-26-000602",
+  "filedAt": "2026-05-24",
+  "issuer": {
+    "name": "Exhibit Selling Holder Inc.",
+    "ticker": "ESHI",
+    "exchange": "NYSE"
+  },
+  "filingText": "Amendment No. 1 to Form S-8. This amendment is filed solely to file Exhibit 5.1. SELLING STOCKHOLDERS. <table><tr><th>Selling Stockholder</th><th>Relationship</th><th>Shares Offered</th></tr><tr><td>Elaine Roy</td><td>Director</td><td>50,000</td></tr></table> SIGNATURES.",
+  "attachments": []
+}

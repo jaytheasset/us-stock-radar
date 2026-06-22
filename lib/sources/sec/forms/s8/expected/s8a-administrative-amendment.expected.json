@@ -1,0 +1,190 @@
+{
+  "parser_output": {
+    "parserVersion": "s8-parser-v1",
+    "parserGroup": "s8",
+    "formType": "S-8/A",
+    "accessionNumber": "0003333333-26-000030",
+    "isSupported": true,
+    "summary": "Northstar Analytics Corp. filed an S-8/A amendment that appears administrative and does not register additional securities.",
+    "facts": {
+      "issuerName": "Northstar Analytics Corp.",
+      "ticker": "NSTA",
+      "exchange": "NYSE",
+      "filedAt": "2026-04-12",
+      "isAmendment": true,
+      "amendmentType": "post_effective_amendment",
+      "planNames": [
+        "Northstar Analytics Corp. 2024 Equity Incentive Plan"
+      ],
+      "planNameFacts": [
+        {
+          "name": "Northstar Analytics Corp. 2024 Equity Incentive Plan",
+          "planType": "equity_incentive",
+          "sources": [
+            "explanatory_note"
+          ],
+          "confidence": "medium"
+        }
+      ],
+      "planExtractionConfidence": "medium",
+      "planExtractionWarnings": [],
+      "securityType": null,
+      "registeredShares": null,
+      "additionalShares": null,
+      "parentRegisteredShares": 1500000,
+      "estimatedOfferingAmount": null,
+      "registrationFee": null,
+      "dilutionPercentOfSharesOutstanding": null,
+      "dilutionPercentOfPublicFloat": null,
+      "noAdditionalSecurities": true,
+      "exhibitOnly": true,
+      "signatureOnly": false,
+      "needsParentComparison": false,
+      "normalizedS8Type": "post_effective_amendment",
+      "s8FamilyDetected": true,
+      "likelyFeeTableMaterial": false,
+      "exFilingFeesExhibit": false,
+      "feeTableSource": "not_found",
+      "feeTableExtractionConfidence": "low",
+      "feeTableWarnings": [],
+      "feeTablePurposeConflicts": [],
+      "rule416": false,
+      "planInterests": false,
+      "unusualFeeTableSecurities": false,
+      "postEffectiveAmendment": true,
+      "deregistrationOfUnsoldSecurities": false,
+      "resaleProspectus": false,
+      "sellingHolderSection": false,
+      "controlSecurities": false,
+      "restrictedSecurities": false,
+      "rule144": false,
+      "consultantAdvisorServiceProvider": false,
+      "investorRelationsPromotionalFinancingServices": false,
+      "shellReverseMergerDelinquentFiler": false,
+      "s8PosRegistersAdditionalSecurities": false,
+      "sectionExtractionConfidence": "medium"
+    },
+    "signals": [],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {
+      "sourceTextExcerpt": "This Post-Effective Amendment No. 1 to Form S-8 is filed solely to file Exhibit 5.1. No additional securities are being registered by this amendment. The registration statement covered shares under the Northstar Analytics Corp. 2024 Equity Incentive Plan.",
+      "sourceDocuments": [
+        {
+          "id": "primary",
+          "documentRole": "primary_filing",
+          "source": "primary",
+          "documentType": null,
+          "description": "Primary S-8 filing document",
+          "textKind": "normalized_text",
+          "text": "This Post-Effective Amendment No. 1 to Form S-8 is filed solely to file Exhibit 5.1. No additional securities are being registered by this amendment. The registration statement covered shares under the Northstar Analytics Corp. 2024 Equity Incentive Plan."
+        }
+      ],
+      "noiseCandidates": [
+        {
+          "label": "legal_opinion",
+          "source": "attachment",
+          "documentType": "EX-5.1",
+          "description": "Opinion of counsel filed as Exhibit 5.1",
+          "reason": "Legal opinion exhibits are usually not the source of share count, proceeds, or resale-holder terms."
+        }
+      ],
+      "attachments": [
+        {
+          "documentType": "EX-5.1",
+          "description": "Opinion of counsel filed as Exhibit 5.1",
+          "text": "Legal opinion exhibit."
+        }
+      ],
+      "parentFilingContext": {
+        "accessionNumber": "0003333333-24-000111",
+        "formType": "S-8",
+        "filedAt": "2024-06-20",
+        "registeredShares": 1500000,
+        "planNames": [
+          "Northstar Analytics Corp. 2024 Equity Incentive Plan"
+        ],
+        "summary": "Original S-8 registered 1,500,000 shares under the 2024 Equity Incentive Plan."
+      },
+      "marketContext": null,
+      "extractedShareCounts": [],
+      "sections": [
+        {
+          "key": "cover_page",
+          "heading": "cover page",
+          "start": 0,
+          "end": 255,
+          "confidence": "medium"
+        }
+      ]
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "other",
+    "event_title": "Northstar files administrative S-8/A amendment",
+    "primary_ticker": {
+      "ticker": "NSTA",
+      "exchange": "NYSE"
+    },
+    "tickers": [
+      "NSTA"
+    ],
+    "sector": "Technology",
+    "industry_group": "Data Analytics",
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 20,
+    "score_reason": "The amendment states no additional securities are being registered and appears limited to an exhibit filing.",
+    "signal": "neutral",
+    "quick_take": "Northstar's S-8/A looks administrative, with no new share registration in the fixture.",
+    "summary": "Northstar filed a post-effective S-8/A amendment solely to file Exhibit 5.1 and stated that no additional securities are being registered.",
+    "why_it_matters": "Amendments that do not add securities usually do not change investor dilution risk.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [
+      "Filing states no additional securities are being registered.",
+      "Filing is solely to file Exhibit 5.1.",
+      "Parent fixture context shows the original S-8 registered 1,500,000 shares."
+    ],
+    "what_to_watch_next": [
+      "No follow-up needed unless a later filing registers additional shares."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "amendmentType": "exhibit_only_no_new_securities",
+      "noAdditionalSecurities": true,
+      "planNames": [
+        "Northstar Analytics Corp. 2024 Equity Incentive Plan"
+      ],
+      "parentRegisteredShares": 1500000,
+      "s8_ui_mode": "post_effective_amendment"
+    },
+    "evidence": [
+      "No additional securities are being registered by this amendment.",
+      "Filed solely to file Exhibit 5.1."
+    ],
+    "notes": [
+      "Explicit source language supports downstream archive scoring if analysis confirms no material change."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "No live parent lookup is needed in this fixture because parent context is supplied as fixture JSON."
+    ]
+  }
+}

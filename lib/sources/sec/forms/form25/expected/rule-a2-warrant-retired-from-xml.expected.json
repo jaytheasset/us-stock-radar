@@ -1,0 +1,28 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_form25_parser_v1",
+    "parserGroup": "form25",
+    "formType": "Form 25 / 25-NSE",
+    "accessionNumber": "0001354457-26-000493",
+    "isSupported": true,
+    "summary": "NRX Pharmaceuticals, Inc. filed 25-NSE to remove Warrant from Nasdaq Stock Market LLC; raw reason category: matured_redeemed_retired.",
+    "facts": {
+      "source_form_type": "25-NSE",
+      "removed_security": "Warrant",
+      "security_category": "warrants",
+      "removal_reason_category": "matured_redeemed_retired",
+      "common_equity_affected": false,
+      "deterministic_case": "matured_redeemed_retired_non_common",
+      "analysis_required": true,
+      "analysis_reasons": ["archive_required_ticker_missing"]
+    },
+    "signals": [
+      "deterministic:matured_redeemed_retired_non_common",
+      "analysis_required",
+      "archive_required_ticker_missing"
+    ],
+    "calendarItems": [],
+    "warnings": ["archive_required_ticker_missing"],
+    "raw": {}
+  }
+}

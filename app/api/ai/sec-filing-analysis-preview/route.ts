@@ -14,6 +14,8 @@ export async function GET(request: NextRequest) {
     accessionNumber: params.get("accessionNumber") || undefined,
     ticker: params.get("ticker") || undefined,
     calendarCandidate: params.get("calendarCandidate") === "true",
+    llmProvider: params.get("llmProvider") || undefined,
+    llmModel: params.get("llmModel") || undefined,
   });
 
   return NextResponse.json(result, {
@@ -38,6 +40,8 @@ export async function POST(request: NextRequest) {
 
   const result = await runSecFilingAnalysisPreviewForRawItem(rawItem, {
     dryRun: body?.dryRun !== false,
+    llmProvider: stringValue(body?.llmProvider) || undefined,
+    llmModel: stringValue(body?.llmModel) || undefined,
   });
 
   return NextResponse.json(result, {
@@ -54,4 +58,10 @@ function readRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
+}
+
+function stringValue(value: unknown) {
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return "";
 }

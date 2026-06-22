@@ -1,0 +1,73 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_periodic_reports_raw_parser_v3",
+    "parserGroup": "periodic-reports",
+    "formType": "10-Q",
+    "accessionNumber": "0000000000-26-000505",
+    "isSupported": true,
+    "facts": {
+      "companyName": "HTML Inline XBRL Widgets Inc.",
+      "primaryTicker": "HIX",
+      "exchange": "Nasdaq Global Market",
+      "reportingPeriod": "March 31, 2026",
+      "isAmendment": false
+    }
+  },
+  "expected_raw_extraction": {
+    "missing_critical_raw_data": false,
+    "has_noise_candidates": true,
+    "min_section_count": 5,
+    "min_financial_statement_lines": 4,
+    "min_document_count": 2,
+    "min_attachment_text_count": 1,
+    "min_xbrl_fact_count": 3,
+    "section_keys_present": [
+      "part_i_item_1_financial_statements",
+      "part_i_item_2_management_s_discussion_and_analysis_of_financial_condition",
+      "part_ii_item_1_legal_proceedings"
+    ],
+    "coverage_ids_present": [
+      "source_package_inventory",
+      "primary_document_inventory",
+      "filing_text",
+      "form_type",
+      "accession_number",
+      "company_name",
+      "reporting_period",
+      "section_boundaries",
+      "financial_or_mda_raw",
+      "attachment_text_inventory",
+      "xbrl_document_inventory",
+      "xbrl_fact_inventory",
+      "source_truncation_check",
+      "noise_scan"
+    ],
+    "evidence_categories_present": [
+      "financial_statement_line",
+      "xbrl_fact_raw",
+      "capital_return_raw",
+      "sales_performance_raw"
+    ],
+    "evidence_labels_present": [
+      "revenue_or_net_sales",
+      "us-gaap:Revenues",
+      "us-gaap:NetIncomeLoss",
+      "dividend_declaration_or_payment",
+      "revenue_change_language"
+    ],
+    "noise_categories_present": [
+      "forward_looking",
+      "cover_checkboxes",
+      "signatures",
+      "certifications",
+      "xbrl_exhibits",
+      "document_exhibit"
+    ],
+    "warnings_exclude": [
+      "missing_filing_text",
+      "missing_accession_number",
+      "missing_critical_raw_data:section_boundaries",
+      "missing_critical_raw_data:financial_or_mda_raw"
+    ]
+  }
+}

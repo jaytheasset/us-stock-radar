@@ -1,0 +1,36 @@
+{
+  "case_id": "routine-13ga",
+  "description": "Routine passive annual Schedule 13G/A with a small ownership update.",
+  "filing": {
+    "formType": "SC 13G/A",
+    "accessionNumber": "0000000000-26-000404",
+    "issuerName": "Quiet Robotics Inc.",
+    "primaryTicker": {
+      "ticker": "QTRB",
+      "exchange": "NASDAQ"
+    },
+    "filedAt": "2026-02-10",
+    "text": "SCHEDULE 13G/A\nAmendment No. 1\nCUSIP Number: 123456789\nName of Issuer: Quiet Robotics Inc.\nTitle of Class of Securities: Common Stock\nTicker: QTRB\nExchange: NASDAQ\nDate of Event Which Requires Filing: December 31, 2025\nName of Reporting Person: Northstar Index Fund LP\nSole Voting Power: 0\nShared Voting Power: 1,200,000\nSole Dispositive Power: 0\nShared Dispositive Power: 1,200,000\nAggregate Amount Beneficially Owned by Each Reporting Person: 1,200,000\nPercent of Class Represented by Amount in Row (11): 6.0%\nItem 4. Ownership\nThis annual amendment reports a passive ownership update. Ownership changed from 6.2% to 6.0%.\nItem 10. Certification\nBy signing below I certify that, to the best of my knowledge and belief, the securities referred to above were not acquired and are not held for the purpose of or with the effect of changing or influencing the control of the issuer.\nSIGNATURE"
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "insider_ownership",
+    "deterministic": true,
+    "score_band": "archive",
+    "extracted_facts": {
+      "issuerName": "Quiet Robotics Inc.",
+      "reportingPersons": [
+        "Northstar Index Fund LP"
+      ],
+      "scheduleType": "13G",
+      "isAmendment": true,
+      "amendmentNumber": 1,
+      "sharesBeneficiallyOwned": 1200000,
+      "percentOwned": 6,
+      "previousPercentOwned": 6.2,
+      "ownershipPercentChange": -0.2,
+      "ownershipIntent": "passive",
+      "passiveCertification": true
+    }
+  }
+}

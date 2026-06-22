@@ -1,0 +1,9 @@
+{
+  "fixture_name": "parser-phase2-proxy-card-options-neutral",
+  "input": {
+    "formType": "DEFA14A",
+    "accessionNumber": "0000000014-26-000014",
+    "companyName": "Options Card Co.",
+    "filingText": "PROXY CARD\nProposal 1 Election of Directors FOR ALL | WITHHOLD ALL | FOR ALL EXCEPT\nProposal 2 Ratification of Appointment of Independent Registered Public Accounting Firm FOR | AGAINST | ABSTAIN\nPlease mark, sign, date and return this proxy card."
+  }
+}

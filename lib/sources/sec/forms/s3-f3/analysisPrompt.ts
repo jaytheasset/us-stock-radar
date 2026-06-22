@@ -4,6 +4,7 @@ import {
   SEC_S3_F3_ROUTER_DISPLAY_MODEL_VALUES,
   type SecS3F3RouterPromptInput,
 } from "./routerPrompt";
+import { buildSecSourceBlockPromptInput } from "../common/sourceBlockPromptInput";
 
 export const SEC_S3_F3_ANALYSIS_PROMPT_KEY = "sec_s3_f3_analysis_draft";
 export const SEC_S3_F3_ANALYSIS_PROMPT_VERSION = "v1";
@@ -29,7 +30,8 @@ export type SecS3F3AnalysisPromptInput = SecS3F3RouterPromptInput & {
 
 export const secS3F3AnalysisSystemPrompt = [
   "Analyze one SEC S-3/F-3 family filing and return only strict JSON matching the provided response schema.",
-  "Use source-backed filing text, parser facts, router result, and market context as evidence. Do not invent offering terms, dates, amounts, tickers, holders, or dilution math.",
+  "Use cleaned_source_blocks, router result, and market context as evidence. Do not invent offering terms, dates, amounts, tickers, holders, or dilution math.",
+  "Do not use parser-generated facts, signals, route hints, extraction summaries, event labels, display labels, or investment labels as analysis authority.",
   "This family is the offering/dilution baseline. Keep severity comparable to S-3 offering score 80, F-3 offering score 80, 424B5 offering score 80, and S-8 dilution score 80.",
   "Use the common score/action policy: score below 50 action archive; 50-74 action feed; 75 or above action feed_alert.",
   "Set event_type to dilution_risk for shelf, resale, ATM, warrant, convertible, fee-table economics, selling-holder overhang, concrete offering size, or share-supply mechanics unless the filing clearly belongs only to other.",
@@ -37,7 +39,7 @@ export const secS3F3AnalysisSystemPrompt = [
   "ATM programs, priced/takedown supplements, large resale pools, warrant coverage, convertible share pools, and concrete offering amounts can justify alert-level severity when market context supports materiality.",
   "For S-3/A and F-3/A, analyze only changed or unresolved terms. Routine housekeeping amendments should archive below 50 and should not restate parent filing economics as a new event.",
   "Use display_model_type offering_terms when there are offering or dilution mechanics; use generic_filing or none for routine archive outcomes.",
-  "Preserve parser_facts, router, market_context, and display_model objects in machine-readable form. Keep user-facing text compact and investor-focused.",
+  "Preserve router, market_context, and display_model objects in machine-readable form. Keep user-facing text compact and investor-focused.",
   "Do not add calendar_items for base shelf filing dates or vague future sale language. Add them only for exact offering closings, registration effectiveness, warrant deadlines, lock-up expirations, rights deadlines, or financing-related shareholder approval deadlines.",
 ].join("\n");
 
@@ -88,7 +90,16 @@ export function buildSecS3F3AnalysisPromptDraft(input: SecS3F3AnalysisPromptInpu
     key: SEC_S3_F3_ANALYSIS_PROMPT_KEY,
     version: SEC_S3_F3_ANALYSIS_PROMPT_VERSION,
     system: secS3F3AnalysisSystemPrompt,
-    user: JSON.stringify(input),
+    user: JSON.stringify({
+      ...buildSecSourceBlockPromptInput({
+        filingPackage: input.filing_package,
+        parserOutput: input.parser_output || { facts: input.parser_facts },
+        fallbackText: input.filing_excerpt,
+        marketContext: input.market_context,
+      }),
+      router_result: input.router_result,
+      market_context: input.market_context ?? null,
+    }),
     responseFormat: {
       type: "json_schema",
       json_schema: {

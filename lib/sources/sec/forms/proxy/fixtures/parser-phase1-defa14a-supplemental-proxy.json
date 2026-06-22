@@ -1,0 +1,9 @@
+{
+  "fixture_name": "parser-phase1-defa14a-supplemental-proxy",
+  "input": {
+    "formType": "DEFA14A",
+    "accessionNumber": "0000000003-26-000003",
+    "companyName": "Supplement Co.",
+    "filingText": "Supplement to the definitive proxy statement dated May 1, 2026. The proxy statement is hereby supplemented and amended to update Proposal 2. The board has revised the disclosure for the compensation proposal."
+  }
+}

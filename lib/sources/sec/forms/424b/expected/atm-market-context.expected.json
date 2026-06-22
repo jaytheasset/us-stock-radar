@@ -1,0 +1,138 @@
+{
+  "parser_output": {
+    "parserVersion": "424b-parser-v1",
+    "parserGroup": "424b",
+    "formType": "424B5",
+    "accessionNumber": "0000000000-26-000103",
+    "isSupported": true,
+    "summary": "Cygnus Data Platforms, Inc. filed 424B5 covering up to $100,000,000 aggregate offering amount.",
+    "facts": {
+      "issuer": {
+        "name": "Cygnus Data Platforms, Inc.",
+        "ticker": "CYGN",
+        "exchange": "NASDAQ"
+      },
+      "prospectusClass": "at_the_market",
+      "offeringTerms": {
+        "maxOfferingAmount": 100000000,
+        "atTheMarket": true
+      },
+      "capitalization": {
+        "sharesOutstanding": 50000000,
+        "publicFloat": 35000000,
+        "marketCap": 300000000
+      },
+      "ratios": {
+        "maxOfferingToMarketCapRatio": 0.3333
+      },
+      "flags": {
+        "highDilutionRisk": true
+      }
+    },
+    "signals": [
+      {
+        "name": "high_dilution_risk",
+        "value": true
+      },
+      {
+        "name": "at_the_market_offering",
+        "value": true
+      },
+      {
+        "name": "market_context_needed",
+        "value": ["price", "market_cap", "shares_outstanding", "public_float"]
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {
+      "deterministicCandidate": "quantified_high_dilution"
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "dilution_risk",
+    "event_title": "At-the-market equity program creates dilution overhang",
+    "primary_ticker": {
+      "ticker": "CYGN",
+      "exchange": "NASDAQ"
+    },
+    "tickers": ["CYGN"],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 80,
+    "score_reason": "The ATM program is large relative to fixture market capitalization; delivery level is derived from the score band.",
+    "signal": "bearish",
+    "quick_take": "The ATM program is up to about 33% of market cap.",
+    "summary": "Cygnus Data Platforms filed a 424B5 prospectus supplement for an at-the-market sales agreement covering up to $100.0 million of common stock.",
+    "why_it_matters": "ATM programs can be drawn over time and may cap rallies when the authorized amount is large relative to market capitalization and float.",
+    "bullish_points": [
+      "Proceeds are intended for working capital and acquisitions."
+    ],
+    "bearish_points": [
+      "Maximum aggregate offering amount is $100,000,000.",
+      "Offering-to-market-cap ratio is about 33%.",
+      "Actual shares sold will depend on market prices, so dilution is variable."
+    ],
+    "key_evidence": [
+      "Aggregate offering price of up to $100,000,000.",
+      "Sales may be made as an at-the-market offering.",
+      "Fixture market cap is $300,000,000."
+    ],
+    "what_to_watch_next": [
+      "Quarterly updates on ATM usage and shares issued.",
+      "Whether proceeds are deployed into acquisitions or runway support."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false,
+    "analysis_action": "deterministic_offering_terms_analysis",
+    "archive_summary": null,
+    "offering_display_model": {
+      "maxOfferingAmount": 100000000,
+      "maxOfferingToMarketCapRatio": 0.3333,
+      "atTheMarket": true
+    },
+    "offering_security_audit": {
+      "primary_issuance": true,
+      "resale": false,
+      "at_the_market": true,
+      "warrants_or_convertibles": false
+    }
+  },
+  "display_payload": {
+    "display_type": "offering_terms",
+    "display_version": "424b-display-payload-v1",
+    "data": {
+      "maxOfferingAmount": 100000000,
+      "maxOfferingToMarketCapRatio": 0.3333,
+      "atTheMarket": true
+    },
+    "evidence": [
+      {
+        "label": "dilution excerpt",
+        "value": 0.3333,
+        "excerpt": "aggregate offering price of up to $100,000,000"
+      }
+    ],
+    "notes": [
+      "Market context is fixture JSON only; no live FMP call is needed."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": true,
+    "market_context_reason": "ATM authorization should be compared with market cap, shares outstanding, and public float.",
+    "market_context_fields": ["price", "market_cap", "shares_outstanding", "public_float"],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Deterministic offering analysis uses fixture market context only."
+    ]
+  }
+}

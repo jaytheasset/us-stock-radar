@@ -49,13 +49,14 @@ Approved event types:
 
 ## Testing
 
-Use fixture JSON only.
+Use fixture JSON for parser and prompt unit tests.
+
+For live site verification, run `npm run sec:live-test` from this form-room project. That bridge syncs only this form folder into the integration worktree, then runs real SEC ingest, DB persistence, site routing, and alert delivery through the integration runtime.
 
 Fixture tests may include sample parent filing context, but they must not query
 the live DB.
 
-Do not use the live database for this room. Do not create a local DB for this
-room. Use files only.
+Do not use the live database directly from parser, prompt, or unit-test code. Live DB writes are allowed only through `npm run sec:live-test`, which delegates to the integration runtime.
 
 ## Required Output JSON
 
@@ -143,9 +144,7 @@ Do not edit anything outside:
 Do not edit common, ingest, DB, app, UI, alert, live market-context, or global
 prompt files outside this form room.
 
-Do not wire this parser into runtime ingest, write to live DB, call FMP live,
-send alerts, build site UI, change the 15 event type list, add DB tables or
-columns, or modify this handoff document.
+Do not manually wire this parser into runtime ingest, write direct DB code, call FMP live from parser tests, send alerts directly, build site UI, change the 15 event type list, add DB tables or columns, or modify this handoff document. The only approved live DB/site/alert path from this room is `npm run sec:live-test`.
 
 If any of those changes seem necessary, stop and report the need in the final
 handoff. This rule exists because other SEC form rooms may be working in
@@ -159,8 +158,8 @@ Before editing files, state the exact files that will be changed.
 Before every commit, confirm:
 
 - all changed files are inside `lib/sources/sec/forms/effect/`
-- no live DB, FMP, ingest, alert, app, or UI files were changed
-- tests use fixture JSON only
+- no shared ingest, DB, FMP, alert, app, or UI files were manually changed
+- unit tests use fixture JSON; live site tests use `npm run sec:live-test`
 
 ## Final Handoff
 
@@ -168,5 +167,6 @@ When done, report changed files, fixture cases tested, parser/router/analysis
 outputs, deterministic cases, parent filing assumptions, integration needs, and
 special UI needs.
 
-Do not wire this room into the live site. The SEC ingest/integration room will
-link EFFECT to the original analyzed filing later.
+Do not manually wire this room into the live site. Use `npm run sec:live-test`
+for live site verification through the integration runtime. EFFECT parent-link
+issues should still be reported in the final handoff.

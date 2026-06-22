@@ -1,0 +1,6 @@
+{
+  "id": "form144-no-prior-sales-blank",
+  "formType": "144",
+  "accessionNumber": "0000000000-26-014504",
+  "filingText": "<?xml version=\"1.0\"?><edgarSubmission><headerData><submissionType>144</submissionType></headerData><formData><issuerInfo><issuerCik>0005555004</issuerCik><issuerName>No Prior 144 Corp</issuerName><issuerTradingSymbol>NPRR</issuerTradingSymbol><nameOfPersonForWhoseAccountTheSecuritiesAreToBeSold>No Prior Seller</nameOfPersonForWhoseAccountTheSecuritiesAreToBeSold></issuerInfo><securitiesInformation><securitiesClassTitle>Common Stock</securitiesClassTitle><brokerOrMarketmakerDetails><name>Quiet Broker LLC</name></brokerOrMarketmakerDetails><noOfUnitsSold>100</noOfUnitsSold><aggregateMarketValue>5000</aggregateMarketValue><noOfUnitsOutstanding>1000000</noOfUnitsOutstanding><approxSaleDate>06/03/2026</approxSaleDate><securitiesExchangeName>NYSE</securitiesExchangeName></securitiesInformation><nothingToReportFlagOnSecuritiesSoldInPast3Months>Y</nothingToReportFlagOnSecuritiesSoldInPast3Months><noticeSignature><noticeDate>05/22/2026</noticeDate><signature>/s/ No Prior Seller</signature></noticeSignature></formData></edgarSubmission>"
+}

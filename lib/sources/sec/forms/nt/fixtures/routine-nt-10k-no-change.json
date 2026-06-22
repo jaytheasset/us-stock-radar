@@ -1,0 +1,14 @@
+{
+  "id": "routine-nt-10k-no-change",
+  "description": "Plain NT 10-K where issuer expects to file within the 15-day extension and checks no significant change in results.",
+  "source": {
+    "formType": "NT 10-K",
+    "accessionNumber": "0001641172-25-001768",
+    "companyName": "Digital Brands Group, Inc.",
+    "ticker": "DBGI",
+    "exchange": "NASDAQ",
+    "periodOfReport": "2024-12-31",
+    "filedAt": "2025-03-31",
+    "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING SEC FILE NUMBER 001-40400 (Check one): [X] Form 10-K [ ] Form 20-F [ ] Form 11-K [ ] Form 10-Q [ ] Form 10-D [ ] Form N-SAR [ ] Form N-CSR For Period Ended: December 31, 2024 [ ] Transition Report on Form 10-K [ ] Transition Report on Form 20-F [ ] Transition Report on Form 11-K [ ] Transition Report on Form 10-Q PART I - REGISTRANT INFORMATION DIGITAL BRANDS GROUP, INC. N/A 1400 Lavaca Street Austin, TX 78701 PART II - RULES 12b-25(b) AND (c) (a) The reason described in reasonable detail in Part III of this form could not be eliminated without unreasonable effort or expense [X] (b) The subject annual report on Form 10-K will be filed on or before the fifteenth calendar day following the prescribed due date; and (c) The accountant's statement or other exhibit required by Rule 12b-25(c) has been attached if applicable. PART III - NARRATIVE The filing by Digital Brands Group, Inc. of the Company's Annual Report on Form 10-K for the year ended December 31, 2024 will be delayed due to the additional time that was required to obtain and compile certain information required to be included in the Annual Report, which delay could not be eliminated by the Company without unreasonable effort and expense. The Company expects to file the Annual Report within the fifteen calendar day extension period. PART IV - OTHER INFORMATION (1) John Hilburn Davis IV (209) 651-0172 (2) Have all other periodic reports required under Section 13 or 15(d) been filed? Yes [X] No [ ] (3) Is it anticipated that any significant change in results of operations from the corresponding period for the last fiscal year will be reflected by the earnings statements to be included in the subject report or portion thereof? Yes [ ] No [X] Date: March 31, 2025 By: /s/ John Hilburn Davis IV"
+  }
+}

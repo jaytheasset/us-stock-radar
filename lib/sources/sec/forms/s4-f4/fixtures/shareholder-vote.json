@@ -1,0 +1,42 @@
+{
+  "id": "shareholder-vote",
+  "description": "S-4/A update that provides shareholder meeting and record dates for a merger vote.",
+  "formType": "S-4/A",
+  "accessionNumber": "0002222222-26-000202",
+  "filingDate": "2026-04-10",
+  "companyName": "Northstar Energy Storage Inc.",
+  "primaryTicker": {
+    "ticker": "NSES",
+    "exchange": "NASDAQ"
+  },
+  "participants": [
+    {
+      "name": "Northstar Energy Storage Inc.",
+      "ticker": "NSES",
+      "exchange": "NASDAQ",
+      "role": "acquirer"
+    },
+    {
+      "name": "Harbor Grid Systems Corp.",
+      "ticker": "HGRD",
+      "exchange": "NYSE",
+      "role": "target"
+    }
+  ],
+  "filingText": "This Amendment No. 1 to Form S-4 provides the special meeting date and voting materials for the proposed merger of Harbor Grid Systems Corp. and Northstar Energy Storage Inc. The special meeting of Northstar stockholders will be held on May 14, 2026. The record date for stockholders entitled to vote at the special meeting is April 9, 2026. Stockholders will vote to approve the issuance of Northstar common stock in connection with the merger and related proposals. The merger agreement terms remain consistent with the prior registration statement.",
+  "attachments": [
+    {
+      "type": "proxy-card",
+      "description": "Shareholder proxy card"
+    }
+  ],
+  "market_context": null,
+  "parentFilingContext": {
+    "accessionNumber": "0002222222-26-000155",
+    "formType": "S-4",
+    "summary": "Initial stock-for-stock merger registration statement for Northstar and Harbor Grid.",
+    "terms": {
+      "consideration": "Northstar common stock"
+    }
+  }
+}

@@ -1,0 +1,106 @@
+{
+  "parser_output": {
+    "parserVersion": "424b-parser-v1",
+    "parserGroup": "424b",
+    "formType": "424B5",
+    "accessionNumber": "0000000000-26-000107",
+    "isSupported": true,
+    "summary": "Aspen Insurance Holdings Limited filed 424B5 covering 12,000,000 depositary shares.",
+    "facts": {
+      "issuer": {
+        "name": "Aspen Insurance Holdings Limited",
+        "ticker": "AHLPRD",
+        "exchange": "NYSE"
+      },
+      "filingMetadata": {
+        "registrationNumber": "333-276001",
+        "parentProspectusDate": "April 30, 2026",
+        "isPreliminary": false
+      },
+      "prospectusClass": "preferred_depositary",
+      "preferredTerms": {
+        "depositaryShareCount": 12000000,
+        "depositaryFraction": "1/1000",
+        "liquidationPreferencePerPreferredShare": 25000,
+        "liquidationPreferencePerDepositaryShare": 25,
+        "dividendRatePercent": 7,
+        "redemptionDate": "June 15, 2031",
+        "proposedListingSymbol": "AHLPRD"
+      },
+      "flags": {
+        "preferredDepositary": true
+      }
+    },
+    "signals": [
+      {
+        "name": "preferred_depositary_security",
+        "value": true
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {
+      "deterministicCandidate": null
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "other",
+    "event_title": "Preferred depositary share 424B5 terms extracted",
+    "primary_ticker": {
+      "ticker": "AHLPRD",
+      "exchange": "NYSE"
+    },
+    "tickers": ["AHLPRD"],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 35,
+    "score_reason": "Parser fixture records non-common security terms; final investor treatment is left to later routing and analysis.",
+    "signal": "neutral",
+    "quick_take": "The filing provides final preferred/depositary share mechanics.",
+    "summary": "The parser extracts depositary-share count, fraction, liquidation preference, dividend rate, redemption date, and proposed listing symbol.",
+    "why_it_matters": "Preferred/depositary share terms use different mechanics from common-equity offerings and should be preserved separately.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [
+      "12,000,000 Depositary Shares.",
+      "Each Depositary Share represents a 1/1,000th interest.",
+      "Liquidation preference equivalent to $25 per Depositary Share."
+    ],
+    "what_to_watch_next": [],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "medium",
+    "needs_human_review": false,
+    "analysis_action": "parser_fixture_only",
+    "archive_summary": "Preferred/depositary terms extracted for fixture coverage.",
+    "offering_display_model": {},
+    "offering_security_audit": {}
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "display_version": "424b-display-payload-v1",
+    "data": {
+      "security_variant": "preferred_depositary"
+    },
+    "evidence": [],
+    "notes": [
+      "No special UI is implemented from this room."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Non-common security terms are parser facts only in this room."
+    ]
+  }
+}

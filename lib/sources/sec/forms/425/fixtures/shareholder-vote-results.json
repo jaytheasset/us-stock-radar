@@ -1,0 +1,19 @@
+{
+  "name": "shareholder-vote-results",
+  "formType": "425",
+  "accessionNumber": "0000000000-26-000432",
+  "sourceUniqueId": "0000000000-26-000432",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/0000000000/000000000026000432/form425.htm",
+  "title": "425 - Valley Bank Holding Vote Results",
+  "publishedAt": "2026-04-05T20:30:00Z",
+  "companyName": "Valley Bank Holding Corp.",
+  "primaryTicker": "VBHC",
+  "exchange": "NYSE",
+  "filingText": "UNITED STATES SECURITIES AND EXCHANGE COMMISSION\nFORM 8-K\nDate of Report: April 5, 2026\nValley Bank Holding Corp.\nWritten communications pursuant to Rule 425 under the Securities Act\n\nIntroductory Note\nOn April 5, 2026, Valley Bank Holding Corp. held a special meeting of stockholders in connection with the Agreement and Plan of Merger with Coast Financial Corp.\n\nItem 5.07. Submission of Matters to a Vote of Security Holders.\nAt the close of business on February 28, 2026, the record date for the Special Meeting, there were 56,959,141 shares of Valley voting common stock outstanding. At the Special Meeting, the holders of 46,694,968 shares were represented in person or by proxy, constituting a quorum. Proposal 1 - Valley share issuance proposal was approved with 46,211,799 votes for, 469,418 votes against and 13,751 abstentions. Proposal 2 - Valley incentive plan proposal was approved with 43,750,562 votes for, 2,842,515 votes against and 101,891 abstentions. No adjournment of the Special Meeting was determined to be necessary or appropriate.",
+  "market_context": null,
+  "expected": {
+    "event_type": "shareholder_vote",
+    "expected_delivery_level": "feed",
+    "deterministic": false
+  }
+}

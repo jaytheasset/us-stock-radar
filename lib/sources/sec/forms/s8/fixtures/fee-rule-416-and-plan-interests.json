@@ -1,0 +1,26 @@
+{
+  "fixtureName": "fee-rule-416-and-plan-interests",
+  "formType": "S-8",
+  "accessionNumber": "0002222222-26-000202",
+  "filedAt": "2026-04-16",
+  "issuer": {
+    "name": "Plan Interest Holdings Inc.",
+    "ticker": "PIHI",
+    "exchange": "NYSE"
+  },
+  "filingText": "Plan Interest Holdings Inc. files this registration statement on Form S-8. PART I INFORMATION REQUIRED IN THE SECTION 10(a) PROSPECTUS. PART II INFORMATION REQUIRED IN THE REGISTRATION STATEMENT. SIGNATURES.",
+  "attachments": [
+    {
+      "documentType": "EX-FILING FEES",
+      "description": "Exhibit 107 filing fee table",
+      "text": "<table><tr><th>Security Type</th><th>Security Class Title</th><th>Amount Registered</th><th>Proposed Maximum Offering Price Per Unit</th><th>Maximum Aggregate Offering Price</th><th>Fee Calculation Rule</th><th>Fee Rate</th><th>Registration Fee</th></tr><tr><td>Equity</td><td>Common Stock, par value $0.01 per share (1)</td><td>2,000,000 shares</td><td>$4.50</td><td>$9,000,000</td><td>457(h)</td><td>0.00015310</td><td>$1,377.90</td></tr><tr><td>Other</td><td>Plan Interests in the Plan</td><td>Indeterminate</td><td>N/A</td><td>N/A</td><td>457(h)</td><td>N/A</td><td>N/A</td></tr></table><p>(1) Pursuant to Rule 416, this registration statement also covers such additional shares as may become issuable under the plan.</p>"
+    }
+  ],
+  "parentFilingContext": null,
+  "marketContext": null,
+  "flowExpectation": {
+    "parserCanFinishWithoutLlm": false,
+    "routerCanFinishWithoutLlm": false,
+    "reason": "Rule 416 and plan interests are parser facts; Rule 416 shares are not added to the common-stock registered amount."
+  }
+}

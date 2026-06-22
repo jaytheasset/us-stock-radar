@@ -1,0 +1,13 @@
+{
+  "fixtureName": "consultant-deregistration-boilerplate",
+  "formType": "S-8 POS",
+  "accessionNumber": "0004444444-26-000409",
+  "filedAt": "2026-05-16",
+  "issuer": {
+    "name": "Deregistration Boilerplate Inc.",
+    "ticker": "DREG",
+    "exchange": "NYSE"
+  },
+  "filingText": "Post-Effective Amendment No. 1 to Form S-8. EXPLANATORY NOTE. This amendment deregisters all unsold securities under the plan and does not register any additional securities. For purposes of Form S-8, employee includes employees, directors, officers, consultants or advisors. SIGNATURES.",
+  "attachments": []
+}

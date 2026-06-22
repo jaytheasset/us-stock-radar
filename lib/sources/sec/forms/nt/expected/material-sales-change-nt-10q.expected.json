@@ -1,0 +1,142 @@
+{
+  "parser_output": {
+    "parserVersion": "nt-parser-v1",
+    "parserGroup": "nt",
+    "formType": "NT 10-Q",
+    "accessionNumber": "0001000003-26-000030",
+    "isSupported": true,
+    "summary": "NT 10-Q late filing notice for HelioGrid Storage Inc. for period ended 2026-03-31; expects a significant change in results.",
+    "facts": {
+      "companyName": "HelioGrid Storage Inc.",
+      "ticker": "HGS",
+      "exchange": "NASDAQ",
+      "delayedReport": "10-Q",
+      "periodOfReport": "2026-03-31",
+      "filedAt": "2026-05-12",
+      "extensionDays": 5,
+      "unableWithoutUnreasonableEffort": true,
+      "anticipatedWithinExtension": true,
+      "accountantStatementAttached": null,
+      "significantChangeExpected": true,
+      "significantChangeDescription": "significant change in results of operations from the corresponding period for the last fiscal year will be reflected by the earnings statements to be included in the subject report? [X] Yes [ ] No. The registrant expects revenue for the quarter to decline approximately 38% from the prior-year period due primarily to delayed customer orders and lower battery module shipments; gross margin is also expected to be lower.",
+      "lateFilingReason": "The registrant requires additional time to complete closing procedures for the quarter ended March 31, 2026, including analysis of customer order delays and gross margin impacts. The delay could not be eliminated without unreasonable effort or expense. The registrant expects to file the Form 10-Q within the five calendar day extension period.",
+      "disclosedReasons": [
+        "sales_or_revenue_change_disclosed",
+        "material_results_change_disclosed"
+      ],
+      "riskIndicators": ["sales_or_revenue_change", "material_results_change"],
+      "sourceExcerpts": [
+        {
+          "label": "late_filing_reason",
+          "text": "The registrant requires additional time to complete closing procedures for the quarter ended March 31, 2026, including analysis of customer order delays and gross margin impacts. The delay could not be eliminated without unreasonable effort or expense. The registrant expects to file the Form 10-Q within the five calendar day extension period."
+        },
+        {
+          "label": "significant_change_question",
+          "text": "significant change in results of operations from the corresponding period for the last fiscal year will be reflected by the earnings statements to be included in the subject report? [X] Yes [ ] No. The registrant expects revenue for the quarter to decline approximately 38% from the prior-year period due primarily to delayed customer orders and lower battery module shipments; gross margin is also expected to be lower."
+        }
+      ]
+    },
+    "signals": [
+      {
+        "name": "sales_or_revenue_change",
+        "sentiment": "bearish",
+        "materiality": "high",
+        "reason": "The NT filing cites sales, revenue, customer demand, or order timing changes."
+      },
+      {
+        "name": "material_results_change",
+        "sentiment": "bearish",
+        "materiality": "high",
+        "reason": "The NT filing checks or states that a significant change in results of operations is expected."
+      }
+    ],
+    "calendarItems": [
+      {
+        "label": "Rule 12b-25 extension window",
+        "date": null,
+        "description": "Issuer states it expects to file within the 5 calendar day extension period."
+      }
+    ],
+    "warnings": [],
+    "raw": {
+      "inputFormType": "NT 10-Q",
+      "textExcerpt": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-Q PART III NARRATIVE The registrant requires additional time to complete closing procedures for the quarter ended March 31, 2026, including analysis of customer order delays and gross margin impacts. The delay could not be eliminated without unreasonable effort or expense. The registrant expects to file the Form 10-Q within the five calendar day extension period. PART IV OTHER INFORMATION (3) Is it anticipated that any significant change in results of operations from the corresponding period for the last fiscal year will be reflected by the earnings statements to be included in the subject report? [X] Yes [ ] No. The registrant expects revenue for the quarter to decline approximately 38% from the prior-year period due primarily to delayed customer orders and lower battery module shipments; gross margin is also expected to be lower."
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "sales_performance",
+    "event_title": "NT 10-Q Flags Material Revenue Decline",
+    "primary_ticker": { "ticker": "HGS", "exchange": "NASDAQ" },
+    "tickers": ["HGS"],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 76,
+    "score_reason": "The NT 10-Q discloses an expected 38% revenue decline, lower gross margin, and elevated trading context from fixture market data.",
+    "signal": "bearish",
+    "quick_take": "HelioGrid's late 10-Q notice says quarterly revenue is expected to fall about 38%.",
+    "summary": "The company says customer order delays and lower battery module shipments are expected to drive a major year-over-year revenue decline and weaker gross margin.",
+    "why_it_matters": "A material revenue decline disclosed before the full 10-Q can reset near-term expectations, especially for a smaller issuer with heavy trading volume in the fixture market context.",
+    "bullish_points": ["The company expects to file within the 5-day extension window."],
+    "bearish_points": [
+      "Revenue is expected to decline approximately 38% year over year.",
+      "Customer order delays and lower shipments are cited.",
+      "Gross margin is expected to be lower."
+    ],
+    "key_evidence": [
+      "revenue for the quarter to decline approximately 38%",
+      "due primarily to delayed customer orders and lower battery module shipments",
+      "gross margin is also expected to be lower"
+    ],
+    "what_to_watch_next": [
+      "Whether the filed 10-Q confirms the magnitude of the revenue decline.",
+      "Order timing commentary, backlog, liquidity, and margin guidance."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "label": "Rule 12b-25 extension window",
+        "date": null,
+        "description": "Issuer states it expects to file within the 5 calendar day extension period."
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "display_version": "nt_late_filing_v1",
+    "data": {
+      "delayed_report": "10-Q",
+      "extension_days": 5,
+      "revenue_change_percent": -38,
+      "market_context": {
+        "price": 8.4,
+        "previous_close": 9.1,
+        "market_cap": 210000000,
+        "shares_outstanding": 25000000,
+        "volume": 1800000,
+        "avg_volume": 650000
+      }
+    },
+    "evidence": [
+      "Revenue is expected to decline approximately 38%.",
+      "Customer order delays and lower shipments are cited.",
+      "Static fixture market context shows elevated volume versus average volume."
+    ],
+    "notes": ["Market context is fixture JSON only; no live market-data call is needed or allowed."]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": true,
+    "market_context_reason": "The disclosed sales decline is easier to size when compared with fixture market cap, price, and trading-volume context.",
+    "market_context_fields": ["price", "previous_close", "market_cap", "shares_outstanding", "volume", "avg_volume"],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": ["Use only fixture market_context in this room; live market-context wiring belongs to integration."]
+  }
+}

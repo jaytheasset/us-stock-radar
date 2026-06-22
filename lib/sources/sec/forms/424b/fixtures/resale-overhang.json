@@ -1,0 +1,23 @@
+{
+  "name": "resale-overhang",
+  "formType": "424B3",
+  "accessionNumber": "0000000000-26-000102",
+  "issuer": {
+    "name": "Borealis Electric Systems, Inc.",
+    "ticker": "BELS",
+    "exchange": "NYSE"
+  },
+  "filingText": "PROSPECTUS Borealis Electric Systems, Inc. (NYSE: BELS) The selling stockholders named in this prospectus may offer and resell up to 12,500,000 shares of common stock from time to time. We will not receive any proceeds from the sale of shares by the selling stockholders. The shares consist of common stock issued upon conversion of notes and exercise of warrants. There are 75,000,000 shares of common stock outstanding as of April 30, 2026. No new securities are being issued by us under this prospectus.",
+  "expected_event_type": "dilution_risk",
+  "expected_score_band": "feed",
+  "fixture_assertions": {
+    "deterministic": false,
+    "expected_router_preliminary_action": "analysis_llm",
+    "important_facts": {
+      "sellingStockholderShares": 12500000,
+      "sharesOutstanding": 75000000,
+      "sellingStockholderToOutstandingRatio": 0.1667,
+      "noCompanyProceeds": true
+    }
+  }
+}

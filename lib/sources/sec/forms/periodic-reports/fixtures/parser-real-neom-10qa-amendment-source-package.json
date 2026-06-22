@@ -1,0 +1,205 @@
+{
+  "filing": {
+    "rawItemId": "parser-real-neom-10qa-amendment-source-package",
+    "sourceUniqueId": "0001144204-13-044345",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1022701/000114420413044345/v351884_10qa.htm",
+    "title": "NeoMedia Technologies, Inc. Form 10-Q/A Amendment No. 1",
+    "publishedAt": "2013-08-09T12:00:00Z",
+    "metadata": {
+      "formType": "10-Q/A",
+      "issuer": "NeoMedia Technologies, Inc.",
+      "ticker": "NEOM",
+      "exchange": "OTC",
+      "cik": "0001022701"
+    },
+    "parentFilingContext": {
+      "accessionNumber": "0001144204-13-040352"
+    },
+    "rawPayload": {
+      "form_type": "10-Q/A",
+      "accession_number": "0001144204-13-044345",
+      "company_name": "NeoMedia Technologies, Inc.",
+      "ticker": "NEOM",
+      "exchange": "OTC",
+      "cik": "0001022701",
+      "filed_date": "2013-08-09",
+      "reporting_period": "June 30, 2013",
+      "primary_document_url": "https://www.sec.gov/Archives/edgar/data/1022701/000114420413044345/v351884_10qa.htm",
+      "source_inventory_total_document_count": 101,
+      "documents": [
+        {
+          "sequence": null,
+          "type": "XBRL ZIP",
+          "description": "XBRL archive package",
+          "filename": "0001144204-13-044345-xbrl.zip",
+          "url": "https://www.sec.gov/Archives/edgar/data/1022701/000114420413044345/0001144204-13-044345-xbrl.zip",
+          "isPrimary": false,
+          "textCharCount": 147773,
+          "textTruncated": false
+        },
+        {
+          "sequence": null,
+          "type": "SEC-DOCUMENT",
+          "description": "Filing summary XML",
+          "filename": "FilingSummary.xml",
+          "url": "https://www.sec.gov/Archives/edgar/data/1022701/000114420413044345/FilingSummary.xml",
+          "isPrimary": false,
+          "textCharCount": 23031,
+          "textTruncated": false
+        },
+        {
+          "sequence": null,
+          "type": "SEC-DOCUMENT",
+          "description": "SEC financial report spreadsheet",
+          "filename": "Financial_Report.xls",
+          "url": "https://www.sec.gov/Archives/edgar/data/1022701/000114420413044345/Financial_Report.xls",
+          "isPrimary": false,
+          "textCharCount": 1934984,
+          "textTruncated": false
+        },
+        {
+          "sequence": null,
+          "type": "EX-101.INS",
+          "description": "Machine-readable XBRL attachment",
+          "filename": "neom-20130630.xml",
+          "url": "https://www.sec.gov/Archives/edgar/data/1022701/000114420413044345/neom-20130630.xml",
+          "isPrimary": false,
+          "textCharCount": 2203752,
+          "textTruncated": false
+        },
+        {
+          "sequence": null,
+          "type": "EX-101.SCH",
+          "description": "Machine-readable XBRL attachment",
+          "filename": "neom-20130630.xsd",
+          "url": "https://www.sec.gov/Archives/edgar/data/1022701/000114420413044345/neom-20130630.xsd",
+          "isPrimary": false,
+          "textCharCount": 60799,
+          "textTruncated": false
+        },
+        {
+          "sequence": null,
+          "type": "10-Q/A",
+          "description": "Primary periodic report document",
+          "filename": "v351884_10qa.htm",
+          "url": "https://www.sec.gov/Archives/edgar/data/1022701/000114420413044345/v351884_10qa.htm",
+          "isPrimary": true,
+          "textCharCount": 8983,
+          "textTruncated": false
+        }
+      ],
+      "attachments": [
+        {
+          "sequence": null,
+          "type": "XBRL ZIP",
+          "description": "XBRL archive package",
+          "filename": "0001144204-13-044345-xbrl.zip",
+          "url": "https://www.sec.gov/Archives/edgar/data/1022701/000114420413044345/0001144204-13-044345-xbrl.zip",
+          "textCharCount": 147773,
+          "textTruncated": false
+        },
+        {
+          "sequence": null,
+          "type": "SEC-DOCUMENT",
+          "description": "Filing summary XML",
+          "filename": "FilingSummary.xml",
+          "url": "https://www.sec.gov/Archives/edgar/data/1022701/000114420413044345/FilingSummary.xml",
+          "textCharCount": 23031,
+          "textTruncated": false
+        },
+        {
+          "sequence": null,
+          "type": "SEC-DOCUMENT",
+          "description": "SEC financial report spreadsheet",
+          "filename": "Financial_Report.xls",
+          "url": "https://www.sec.gov/Archives/edgar/data/1022701/000114420413044345/Financial_Report.xls",
+          "textCharCount": 1934984,
+          "textTruncated": false
+        },
+        {
+          "sequence": null,
+          "type": "EX-101.INS",
+          "description": "Machine-readable XBRL attachment",
+          "filename": "neom-20130630.xml",
+          "url": "https://www.sec.gov/Archives/edgar/data/1022701/000114420413044345/neom-20130630.xml",
+          "textCharCount": 2203752,
+          "textTruncated": false
+        },
+        {
+          "sequence": null,
+          "type": "EX-101.SCH",
+          "description": "Machine-readable XBRL attachment",
+          "filename": "neom-20130630.xsd",
+          "url": "https://www.sec.gov/Archives/edgar/data/1022701/000114420413044345/neom-20130630.xsd",
+          "textCharCount": 60799,
+          "textTruncated": false
+        }
+      ],
+      "xbrl_facts": [
+        {
+          "name": "us-gaap:SalesRevenueNet",
+          "value": 1667000,
+          "unitRef": "USD",
+          "decimals": "-3",
+          "contextRef": "P04_01_2013To06_30_2013",
+          "period": null,
+          "sourceDocument": "neom-20130630.xml"
+        },
+        {
+          "name": "us-gaap:NetIncomeLoss",
+          "value": -30372000,
+          "unitRef": "USD",
+          "decimals": "-3",
+          "contextRef": "P04_01_2013To06_30_2013",
+          "period": null,
+          "sourceDocument": "neom-20130630.xml"
+        },
+        {
+          "name": "us-gaap:CashAndCashEquivalentsAtCarryingValue",
+          "value": 70000,
+          "unitRef": "USD",
+          "decimals": "-3",
+          "contextRef": "PAsOn06_30_2013",
+          "period": null,
+          "sourceDocument": "neom-20130630.xml"
+        },
+        {
+          "name": "dei:EntityCommonStockSharesOutstanding",
+          "value": 4984827279,
+          "unitRef": "shares",
+          "decimals": "INF",
+          "contextRef": "PAsOn08_02_2013",
+          "period": null,
+          "sourceDocument": "neom-20130630.xml"
+        },
+        {
+          "name": "us-gaap:Assets",
+          "value": 5792000,
+          "unitRef": "USD",
+          "decimals": "-3",
+          "contextRef": "PAsOn06_30_2013",
+          "period": null,
+          "sourceDocument": "neom-20130630.xml"
+        }
+      ],
+      "truncation_notes": [
+        "Primary document text included in full after HTML-to-text normalization.",
+        "XML attachment text includes selected fact tags only; full XML attachment was fetched during fixture creation but omitted from fixture JSON for size.",
+        "SEC archive inventory contained 101 files at fixture creation time."
+      ]
+    },
+    "attachment_texts": [
+      {
+        "sequence": "EX-101",
+        "type": "EX-101.INS",
+        "description": "Selected XML/XBRL fact snippets fetched from SEC archive for parser fixture",
+        "filename": "neom-20130630.xml",
+        "url": "https://www.sec.gov/Archives/edgar/data/1022701/000114420413044345/neom-20130630.xml",
+        "text": "<xbrli:xbrl>\n<us-gaap:SalesRevenueNet contextRef=\"P04_01_2013To06_30_2013\" id=\"Factid_102\" unitRef=\"USD\" decimals=\"-3\">1667000</us-gaap:SalesRevenueNet>\n<us-gaap:NetIncomeLoss contextRef=\"P04_01_2013To06_30_2013\" id=\"Factid_150\" unitRef=\"USD\" decimals=\"-3\">-30372000</us-gaap:NetIncomeLoss>\n<us-gaap:CashAndCashEquivalentsAtCarryingValue contextRef=\"PAsOn06_30_2013\" id=\"Factid_42\" unitRef=\"USD\" decimals=\"-3\">70000</us-gaap:CashAndCashEquivalentsAtCarryingValue>\n<dei:EntityCommonStockSharesOutstanding contextRef=\"PAsOn08_02_2013\" id=\"Factid_7\" unitRef=\"shares\" decimals=\"INF\">4984827279</dei:EntityCommonStockSharesOutstanding>\n<us-gaap:Assets contextRef=\"PAsOn06_30_2013\" id=\"Factid_60\" unitRef=\"USD\" decimals=\"-3\">5792000</us-gaap:Assets>\n</xbrli:xbrl>",
+        "textCharCount": 2203752,
+        "textTruncated": true
+      }
+    ],
+    "bodyText": "10-Q/A\n1\nv351884_10qa.htm\nFORM 10-Q/A\n\n\nUNITED STATES\n\n\nSECURITIES AND EXCHANGE COMMISSION\n\n\nWashington, D.C. 20549\n\n\nForm 10-Q/A\n\n\n(Amendment #1)\n\n\nx QUARTERLY\nREPORT PURSUANT TO SECTION 13 OR 15(d) OF THE SECURITIES EXCHANGE ACT OF 1934:\n\n\nFor the quarterly period ended June 30, 2013\n\n\n\u00a8 TRANSITION REPORT PURSUANT TO SECTION 13 OR 15(d) OF THE SECURITIES EXCHANGE ACT OF 1934\n\n\nCommission File Number 0-21743\n\n\nNeoMedia Technologies, Inc.\n\n\n(Exact name of registrant as specified\nin its charter)\n\n\nDelaware 36-3680347 (State or other jurisdiction of (I.R.S. Employer incorporation or organization) Identification No.)\n\n\n100 West Arapahoe Avenue, Suite 9, Boulder,\nCO 80302\n\n\n(Address, including\nzip code, of principal executive offices)\n\n\n303 546 7946\n\n\n(Registrants&rsquo; telephone number, including\narea code)\n\n\nSecurities Registered Under Section 12(b) of the Exchange Act: None Name of exchange on which registered: None - Quoted on the OTCBB and OTCQB Securities registered pursuant to Section 12(g) of the Act: Common Stock, $0.001 par value per share\n\n\nIndicate by check mark if the registrant\nis a well-known seasoned issuer, as defined in Rule 405 of the Securities Act. Yes \u00a8 No x\n\n\nIndicate by check mark if the registrant\nis not required to file reports pursuant to Section 13 or Section 15(d) of the Exchange Act. Yes \u00a8 No\nx\n\n\nIndicate by check mark whether the registrant\n(1) has filed all reports required to be filed by Section 13 or 15(d) of the Securities Exchange Act of 1934 during the\npreceding 12 months and (2) has been subject to such filing requirements for the past 90 days.\n\n\nYes x No \u00a8\n\n\nIndicate by check mark whether the\nregistrant has submitted electronically and posted on its corporate Web site, if any, every Interactive Data File required to\nbe submitted and posted pursuant to Rule 405 of Regulation S-T during the preceding 12 months (or such shorter period that the\nregistrant was required to submit and post such files). Yes x\nNo &uml;\n\n\nIndicate\nby check mark whether the registrant is a large accelerated filer, an accelerated filer, a non-accelerated filer, or a smaller\nreporting company. See the definitions of &ldquo;large accelerated filer,&rdquo; &ldquo;accelerated filer&rdquo; and &ldquo;smaller\nreporting company&rdquo; in Rule 12b-2 of the Exchange Act.\n\n\nLarge accelerated filer \u00a8 Accelerated\nfiler \u00a8 Non-accelerated filer \u00a8 Smaller\nReporting Company x\n\n\nIndicate by check mark whether the registrant\nis a shell company (as defined in Rule 12b-2 of the Exchange Act). Yes \u00a8 No\nx\n\n\nThe aggregate market value of the common stock held by non-affiliates\nof the registrant as of June 30, 2013, the last business day of the registrant&rsquo;s most recently completed second fiscal quarter,\nwas approximately $2,945,896, based on the closing sale price for the registrant&rsquo;s common stock on that date. For purposes\nof determining this number, all officers and directors of the registrant are considered to be affiliates\nof the registrant. This number is provided only for the purpose of this report on Form 10-Q and does not represent an admission\nby either the registrant or any such person as to the status of such person.\n\n\nThe number of outstanding shares of the\nregistrant&rsquo;s Common Stock on August 2, 2013 was 4,984,827,279\n\n\nDocuments Incorporated By Reference - None\n\n\nExplanatory Note\n\n\nThe sole purpose of this Amendment No.\n1 on Form 10-Q/A to our Interim Report on Form 10-Q for the period ended June 30, 2013 originally filed with the Securities\nand Exchange Commission (the &ldquo;SEC&rdquo;) on August 5, 2013, (the &ldquo;Form 10-Q&rdquo;), is to furnish Exhibit\n101 to the Form 10-Q, which contains the XBRL (eXtensible Business Reporting Language) Interactive Data File for the financial\nstatements and notes included in Part I of the Form 10-Q, in accordance with Rule 201 of Regulation S-T.\n\n\nNo other changes have been made to the\nForm 10-Q. This Amendment No. 1 speaks as of the original filing date of the Form 10-Q, and does not reflect events\nthat may have occurred subsequent to the original filing date and does not modify or update in any way, disclosures made in the\noriginal Form 10-Q. Accordingly, this amendment should be read in conjunction with the original Form 10-Q filing, as\nwell as our other filings made with the SEC pursuant to Section 13(a) or 15(d) of the Securities Exchange Act of 1934, as\namended, subsequent to the original filing of the Form 10-K.\n\n\nPursuant to Rule 406T of Regulation S-T,\nthe interactive data files on Exhibit 101 hereto are deemed not filed or part of a registration statement or prospectus for purposes\nof Sections 11 or 12 of the Securities Act of 1933, as amended, are deemed not filed for purposes of Section 18 of the Securities\nAct of 1934, as amended, and otherwise are not subject to liability under those sections.\n\n\nITEM 15. Exhibits and Financial Statement Schedules\n\n\n(a) Financial Statements and Schedules\n\n\nThe financial statements are set forth\nunder Item 1 of this Interim Report on Form 10-Q. Financial statement schedules have been omitted because they are either\nnot required, not applicable, or the information is otherwise included.\n\n\n(a) Exhibits:\n\n\nExhibit\n\nNo. Description Filed\n\nHerewith Form Exhibit Filing\n\nDate 3.1 Articles of Incorporation of Dev-Tech Associates, Inc. and amendment thereto SB-2 3.1 11/25/1996 3.2 By-laws of the Company 8-K 3.2 12/21/2010 3.3 Restated Certificate of Incorporation of DevSys, Inc. SB-2 3.3 11/25/1996 3.4 Articles of Merger and Agreement and Plan of Merger of DevSys, Inc. and Dev-Tech Associates, Inc. SB-2 3.5 11/25/1996 3.5 Certificate of Merger of Dev-Tech Associates, Inc. into DevSys, Inc. SB-2 3.6 11/25/1996 3.6 Articles of Incorporation of Dev-Tech Migration, Inc. and amendment thereto SB-2 3.7 11/25/1996 3.7 Restated Certificate of Incorporation of DevSys Migration, Inc. SB-2 3.9 11/25/1996 3.8 Form of Agreement and Plan of Merger of Dev-Tech Migration, Inc. into DevSys Migration, Inc. SB-2 3.11 11/25/1996 3.9 Form of Certificate of Merger of Dev-Tech Migration, Inc. into DevSys Migration, Inc. SB-2 3.12 11/25/1996 3.10 Certificate of Amendment to Certificate of Incorporation of DevSys, Inc. changing our name to NeoMedia Technologies, Inc. SB-2 3.13 11/25/1996 3.11 Form of Certificate of Amendment to Certificate of Incorporation of the Company authorizing a reverse stock split SB-2 3.14 11/25/1996 3.12 Form of Certificate of Amendment to Restated Certificate of Incorporation of the Company increasing authorized capital and creating preferred stock SB-2 3.15 11/25/1996 3.13 Certificate of Designation of the Series C Convertible Preferred Stock dated February 17, 2006 8-K 10.9 2/21/2006 3.14 Certificate of Amendment to the Certificate of Designation of the Series C Convertible Preferred Stock dated January 5, 2010 8-K 3.1 1/11/2010 3.15 Certificate of Designation of the Series D Convertible Preferred Stock dated January 5, 2010 8-K 10.1 2/8/2010 3.16 Certificate of Amendment to the Certificate of Designation of the Series D Convertible Preferred Stock dated January 7, 2010 8-K 3.3 1/11/2010 3.17 Certificate of Amendment to the Certificate of Designation of the Series D Convertible Preferred Stock dated March 5, 2010 8-K 3.1 3/11/2010\n\n\n18.1 Preferability Letter dated August 1, 2013 from the Company&rsquo;s Auditors, Stark Schenkein LLP regarding a change in the Company&rsquo;s accounting policies related to revenue recognition X 31.1 Certification by Principal Executive Officer pursuant to Rule 13a-14(a)/ 15d-14(a), as adopted pursuant to Section 302 of the Sarbanes-Oxley Act of 2002 X 31.2 Certification by Principal Financial and Principal Accounting Officer pursuant to Rule 13a-14(a)/ 15d-14(a), as adopted pursuant to Section 302 of the Sarbanes-Oxley Act of 2002 X 32.1 Certification by Principal Executive Officer pursuant to 18 U.S.C. Section 1350, as adopted pursuant to Section 906 of the Sarbanes-Oxley Act of 2002 X 32.2 Certification by Principal Financial and Principal Accounting Officer pursuant to 18 U.S.C. Section 1350, as adopted pursuant to Section 906 of the Sarbanes-Oxley Act of 2002 X 101\n\nInteractive data. The\nfollowing materials from the Company&rsquo;s Quarterly Report on Form 10-Q for the quarter ended June 30, 2013 formatted in Extensible\nBusiness Reporting Language (XBRL): (i) the Consolidated Balance Sheets, (ii) the Consolidated Statements of Operations, (iii)\nthe Consolidated Statements of Cash Flows and (iv) related notes.\n\n\nX\n\n\nSIGNATURES\n\n\nIn accordance with\nSection 13 or 15(d) of the Securities Exchange Act of 1934, the Registrant has duly caused this report to be signed on its behalf\nby the undersigned, thereunto duly authorized.\n\n\nNEOMEDIA TECHNOLOGIES, INC.\n\nDate: August 9, 2013\n\n\nBy: /s/ Laura A. Marriott Laura A. Marriott Chief Executive Officer, Principal Executive Officer /s/ Barry S Baer Barry S Baer Chief Financial Officer, Principal Financial Officer and Principal Accounting Officer"
+  }
+}

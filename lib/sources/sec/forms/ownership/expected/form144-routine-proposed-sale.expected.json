@@ -1,0 +1,79 @@
+{
+  "parser_output": {
+    "parserVersion": "ownership-parser-v1",
+    "parserGroup": "ownership",
+    "formType": "Form 4 / 4/A, Form 144 / 144/A",
+    "accessionNumber": "0000000000-26-000404",
+    "isSupported": true,
+    "summary": "144 proposed sale by Priya Raman of 25,000 shares of Cobalt Cloud Software Inc. (CBLD).",
+    "facts": {},
+    "signals": [
+      "form_144_proposed_sale",
+      "routine_form_144",
+      "deterministic_archive"
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "insider_ownership",
+    "event_title": "Priya Raman plans $175K sale of 25,000 shares",
+    "primary_ticker": {
+      "ticker": "CBLD",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      "CBLD"
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 32,
+    "score_reason": "Proposed Form 144 sale is small by source-backed amount and percent; any disclosed prior-sale or plan-date context stays below the parser-complete threshold.",
+    "signal": "neutral",
+    "quick_take": "",
+    "summary": "Priya Raman filed a Form 144 notice to sell 25,000 securities worth about $175,000 on or around 2026-05-27. Form 144 is a planned-sale notice, not a report that the sale was completed. Limited market impact detected. The original source is included below for reference.",
+    "why_it_matters": "",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [
+      "Proposed shares to be sold: 25,000",
+      "Aggregate market value: $175,000",
+      "Proposed sale percent of shares outstanding: 0.0250%",
+      "Prior three-month sales rows: 0",
+      "Prior three-month gross proceeds: unknown",
+      "10b5-1/plan dates: none extracted"
+    ],
+    "what_to_watch_next": [],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "date": "2026-05-27",
+        "label": "Approximate Form 144 sale date",
+        "source": "Form 144"
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "filing_summary": "Priya Raman filed a Form 144 notice to sell 25,000 securities worth about $175,000 on or around 2026-05-27. Form 144 is a planned-sale notice, not a report that the sale was completed.",
+      "owner_name": "Priya Raman",
+      "securities_to_be_sold": 25000,
+      "aggregate_market_value": 175000,
+      "approximate_sale_date": "2026-05-27"
+    },
+    "evidence": [
+      "Routine Form 144 signal was detected from proposed sale size."
+    ],
+    "notes": [
+      "No special UI is needed for this low-impact fixture case."
+    ]
+  }
+}

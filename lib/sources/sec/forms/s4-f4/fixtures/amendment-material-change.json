@@ -1,0 +1,43 @@
+{
+  "id": "amendment-material-change",
+  "description": "S-4/A that materially revises merger terms and adds a financing condition.",
+  "formType": "S-4/A",
+  "accessionNumber": "0005555555-26-000505",
+  "filingDate": "2026-05-02",
+  "companyName": "Pioneer Mobility Holdings Inc.",
+  "primaryTicker": {
+    "ticker": "PMOB",
+    "exchange": "NYSE"
+  },
+  "participants": [
+    {
+      "name": "Pioneer Mobility Holdings Inc.",
+      "ticker": "PMOB",
+      "exchange": "NYSE",
+      "role": "acquirer"
+    },
+    {
+      "name": "Atlas Charging Networks Inc.",
+      "ticker": "ACNI",
+      "exchange": "NASDAQ",
+      "role": "target"
+    }
+  ],
+  "filingText": "This Amendment No. 2 to Form S-4 includes a material change to the proposed merger between Pioneer Mobility Holdings Inc. and Atlas Charging Networks Inc. The revised exchange ratio is 0.38 shares of Pioneer common stock for each Atlas share, compared with 0.52 shares in the prior registration statement. The amendment adds a new financing condition requiring Pioneer to obtain at least $150 million of committed debt financing before closing. Pioneer also adds a supplemental risk factor describing the risk that the financing condition may delay or prevent closing. The special meeting will be postponed to June 11, 2026.",
+  "attachments": [
+    {
+      "type": "amended-merger-agreement",
+      "description": "Second amendment to merger agreement"
+    }
+  ],
+  "market_context": null,
+  "parentFilingContext": {
+    "accessionNumber": "0005555555-26-000411",
+    "formType": "S-4",
+    "summary": "Initial S-4 for Pioneer Mobility acquisition of Atlas Charging.",
+    "terms": {
+      "stockRatio": 0.52,
+      "financingCondition": false
+    }
+  }
+}

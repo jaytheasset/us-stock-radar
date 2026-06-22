@@ -1,0 +1,181 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_tender_parser_v1",
+    "parserGroup": "tender",
+    "formType": "Tender / CB / 13E3",
+    "accessionNumber": "0001111111-26-000010",
+    "isSupported": true,
+    "summary": "SC TO-I issuer tender offer for NovaTech Robotics Inc. at $25.00 per share expiring June 20, 2026.",
+    "facts": {
+      "sec_form_type": "SC TO-I",
+      "tender_case": "issuer_tender_offer",
+      "issuer_tender": true,
+      "issuer": {
+        "name": "NovaTech Robotics Inc.",
+        "ticker": "NVT",
+        "exchange": "NASDAQ"
+      },
+      "cash_price_per_share": {
+        "price": 25,
+        "currency": "USD"
+      },
+      "aggregate_purchase_price": {
+        "amount": 50000000,
+        "currency": "USD"
+      },
+      "shares_sought": 2000000,
+      "expiration_date": "2026-06-20",
+      "withdrawal_deadline": "2026-06-20",
+      "proration": true,
+      "market_context_requirements": {
+        "needed": true,
+        "fields": ["price", "market_cap", "shares_outstanding", "public_float", "volume", "avg_volume"]
+      },
+      "route_hint": {
+        "event_type_candidate": "capital_return",
+        "score_candidate": 68,
+        "llm_needed": true
+      }
+    },
+    "signals": [
+      {
+        "type": "tender_family",
+        "value": "issuer_tender_offer"
+      },
+      {
+        "type": "market_context_needed",
+        "value": ["price", "market_cap", "shares_outstanding", "public_float", "volume", "avg_volume"]
+      }
+    ],
+    "calendarItems": [
+      {
+        "type": "tender_expiration",
+        "date": "2026-06-20"
+      },
+      {
+        "type": "withdrawal_deadline",
+        "date": "2026-06-20"
+      }
+    ],
+    "warnings": [],
+    "raw": {
+      "input_form_type": "SC TO-I",
+      "raw_item_id": "fixture-tender-001"
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "capital_return",
+    "event_title": "NovaTech launches $50 million issuer tender offer",
+    "primary_ticker": {
+      "ticker": "NVT",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      {
+        "ticker": "NVT",
+        "exchange": "NASDAQ"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 68,
+    "score_reason": "Issuer tender offers are feed-level capital-return events unless size, liquidity, or proration makes the impact unusually large.",
+    "signal": "bullish",
+    "quick_take": "NovaTech is offering to buy up to 2 million shares at $25.00 in cash.",
+    "summary": "The issuer tender creates a near-term capital return and potential share count reduction, with proration if tenders exceed the cap.",
+    "why_it_matters": "The offer price, aggregate size, and shares sought need to be compared with market cap, float, and trading liquidity to judge materiality.",
+    "bullish_points": [
+      "Cash tender offer may reduce shares outstanding.",
+      "Offer price is above the fixture previous close."
+    ],
+    "bearish_points": [
+      "Proration can limit how many shares each holder can sell.",
+      "The filing does not prove the full amount will be purchased."
+    ],
+    "key_evidence": [
+      "Issuer tender offer to purchase up to 2,000,000 shares.",
+      "Purchase price is $25.00 per share in cash.",
+      "Maximum aggregate purchase price is $50 million."
+    ],
+    "what_to_watch_next": [
+      "Final shares accepted and proration factor.",
+      "Whether the offer is extended or amended."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "type": "tender_expiration",
+        "date": "2026-06-20"
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "offer_type": "issuer_tender_offer",
+      "cash_price_per_share": 25,
+      "aggregate_purchase_price": 50000000,
+      "shares_sought": 2000000,
+      "expiration_date": "2026-06-20",
+      "withdrawal_deadline": "2026-06-20",
+      "proration": true
+    },
+    "evidence": [
+      "purchase up to 2,000,000 shares",
+      "$25.00 per share in cash",
+      "shares will be purchased on a prorated basis"
+    ],
+    "notes": [
+      "Tender offer deadlines and proration would benefit from a dedicated detail layout."
+    ]
+  },
+  "transaction_fingerprint": {
+    "transaction_family": "issuer_repurchase",
+    "transaction_type": "issuer_tender",
+    "target_company": "NovaTech Robotics Inc.",
+    "target_ticker": "NVT",
+    "buyer_parent": "",
+    "buyer_group": [],
+    "offeror": "NovaTech Robotics Inc.",
+    "filing_persons": ["NovaTech Robotics Inc."],
+    "cash_price": "$25.00 per share",
+    "exchange_ratio": "",
+    "consideration_summary": "$25.00 per share in cash",
+    "offer_size": "$50 million aggregate purchase price",
+    "securities_sought": "up to 2,000,000 shares",
+    "minimum_condition": "",
+    "financing_condition": "",
+    "offer_expiration": "2026-06-20",
+    "final_result_date": "",
+    "merger_agreement_date": "",
+    "expected_closing": "",
+    "amendment_number": "",
+    "amendment_change_type": "unknown",
+    "material_terms_changed": [],
+    "source_forms": ["SC TO-I"],
+    "source_accession": "0001111111-26-000010",
+    "source_evidence": [
+      "Issuer tender offer to purchase up to 2,000,000 shares.",
+      "Purchase price is $25.00 per share in cash.",
+      "Maximum aggregate purchase price is $50 million."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": true,
+    "market_context_reason": "Issuer tender size should be compared with market cap, shares outstanding, public float, and liquidity.",
+    "market_context_fields": ["price", "market_cap", "shares_outstanding", "public_float", "volume", "avg_volume"],
+    "special_ui_needed": true,
+    "special_ui_reason": "Tender offer terms include price, shares sought, deadline, withdrawal rights, and proration.",
+    "integration_notes": [
+      "Do not fetch live market context in this room; use fixture market_context only."
+    ]
+  }
+}

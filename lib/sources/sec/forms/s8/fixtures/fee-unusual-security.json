@@ -1,0 +1,20 @@
+{
+  "fixtureName": "fee-unusual-security",
+  "formType": "S-8",
+  "accessionNumber": "0002222222-26-000204",
+  "filedAt": "2026-04-18",
+  "issuer": {
+    "name": "Unusual Equity Units Ltd.",
+    "ticker": "UEUL",
+    "exchange": "NASDAQ"
+  },
+  "filingText": "Unusual Equity Units Ltd. files this registration statement on Form S-8. CALCULATION OF FILING FEE TABLE. Newly Registered Securities. | Security Type | Security Class Title | Amount Registered | Proposed Maximum Offering Price Per Unit | Maximum Aggregate Offering Price | Fee Calculation Rule | Fee Rate | Registration Fee | | Equity | Warrants to purchase common stock | 500,000 | $1.00 | $500,000 | 457(h) | 0.00015310 | $76.55 | PART I INFORMATION REQUIRED IN THE SECTION 10(a) PROSPECTUS. PART II INFORMATION REQUIRED IN THE REGISTRATION STATEMENT. SIGNATURES.",
+  "attachments": [],
+  "parentFilingContext": null,
+  "marketContext": null,
+  "flowExpectation": {
+    "parserCanFinishWithoutLlm": false,
+    "routerCanFinishWithoutLlm": false,
+    "reason": "Unusual S-8 securities are preserved as source facts and routed to analysis."
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "fixture_name": "additional-material-authorized-share-increase",
+  "input": {
+    "formType": "DEFA14A",
+    "accessionNumber": "0001213900-26-060678",
+    "companyName": "Ondas Inc.",
+    "primaryTicker": {
+      "ticker": "ONDS",
+      "exchange": "NASDAQ"
+    },
+    "filingText": "UNITED STATES\nSECURITIES AND EXCHANGE COMMISSION\nSCHEDULE 14A\nDefinitive Additional Materials\nONDAS INC.\nSUPPLEMENTAL PROXY MATERIAL\nThe Annual Meeting will be held on May 28, 2026.\nOn May 22, 2026, the Chief Executive Officer issued a letter urging stockholders to vote FOR the Authorized Share Increase Proposal, which would approve an amendment to the Company's Articles of Incorporation to increase the number of authorized shares of common stock from 300,000,000 to 600,000,000.\nThe letter says the additional share authority is important to support the company's strategic plan and future capital needs.\nThis communication contains forward-looking statements and should be read together with the definitive proxy statement."
+  }
+}

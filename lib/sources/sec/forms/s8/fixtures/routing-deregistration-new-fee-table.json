@@ -1,0 +1,19 @@
+{
+  "fixtureName": "routing-deregistration-new-fee-table",
+  "formType": "S-8 POS",
+  "accessionNumber": "0006666666-26-000603",
+  "filedAt": "2026-05-24",
+  "issuer": {
+    "name": "Deregister New Fee Inc.",
+    "ticker": "DNFI",
+    "exchange": "NASDAQ"
+  },
+  "filingText": "Post-Effective Amendment No. 1 to Form S-8. EXPLANATORY NOTE. This amendment deregisters unsold securities and does not register any additional securities. SIGNATURES.",
+  "attachments": [
+    {
+      "documentType": "EX-FILING FEES",
+      "description": "Exhibit 107 filing fee table",
+      "text": "Table 1: Newly Registered Securities | Security Type | Security Class Title | Amount Registered | Proposed Maximum Offering Price Per Unit | Maximum Aggregate Offering Price | Fee Calculation Rule | Fee Rate | Registration Fee | | Equity | Common Stock | 100,000 shares | $1.00 | $100,000 | 457(h) | 0.00015310 | $15.31 |"
+    }
+  ]
+}

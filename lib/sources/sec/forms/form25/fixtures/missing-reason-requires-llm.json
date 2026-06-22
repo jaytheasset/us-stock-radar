@@ -1,0 +1,29 @@
+{
+  "rawItemId": "fixture-form25-missing-reason-requires-llm",
+  "sourceUniqueId": "0000000000-26-000001",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/0000000000/000000000026000001/primary_doc.xml",
+  "title": "Example Issuer 25-NSE missing reason fixture",
+  "publishedAt": "2026-01-05",
+  "bodyText": "ACCESSION NUMBER: 0000000000-26-000001\nCONFORMED SUBMISSION TYPE: 25-NSE\nFILED AS OF DATE: 20260105\nSUBJECT COMPANY:\nCOMPANY DATA:\nCOMPANY CONFORMED NAME: EXAMPLE ISSUER INC\nCENTRAL INDEX KEY: 0000000000\nFILING VALUES:\nFORM TYPE: 25-NSE\nSEC FILE NUMBER: 001-99999\nFILED BY:\nCOMPANY DATA:\nCOMPANY CONFORMED NAME: Example Exchange LLC\nCENTRAL INDEX KEY: 0000000001\nUNITED STATES\nSECURITIES AND EXCHANGE COMMISSION\nFORM 25\nCommission File Number 001-99999\nIssuer: EXAMPLE ISSUER INC\nExchange: Example Exchange LLC\nExample Issuer Inc Common Stock\n(Description of class of securities)\nPursuant to the requirements of the Securities Exchange Act of 1934, Example Exchange LLC certifies that it has reasonable grounds to believe that it meets all requirements for filing Form 25.\nRAW_FORM25_FULL_TEXT_SENTINEL_SHOULD_NOT_REACH_PROMPTS",
+  "rawPayload": {
+    "form_type": "25-NSE",
+    "accession_number": "0000000000-26-000001",
+    "documents": [
+      {
+        "type": "25-NSE",
+        "description": "primary_doc.xml",
+        "url": "https://www.sec.gov/Archives/edgar/data/0000000000/000000000026000001/primary_doc.xml",
+        "isPrimary": true,
+        "textCharCount": 950,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ],
+    "attachment_texts": []
+  },
+  "metadata": {
+    "company_name": "EXAMPLE ISSUER INC",
+    "cik": "0000000000"
+  }
+}

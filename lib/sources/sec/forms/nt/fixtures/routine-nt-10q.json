@@ -1,0 +1,14 @@
+{
+  "id": "routine-nt-10q",
+  "description": "Routine NT 10-Q where issuer expects to file within the Rule 12b-25 extension and discloses no significant results change.",
+  "source": {
+    "formType": "NT 10-Q",
+    "accessionNumber": "0001000001-26-000010",
+    "companyName": "Acme Robotics Inc.",
+    "ticker": "ACME",
+    "exchange": "NASDAQ",
+    "periodOfReport": "2026-03-31",
+    "filedAt": "2026-05-11",
+    "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-Q PART III NARRATIVE The registrant requires additional time to complete its quarterly review procedures and management review of the quarterly filing. The delay could not be eliminated without unreasonable effort or expense. The registrant expects to file the Form 10-Q within the five calendar day extension period. PART IV OTHER INFORMATION (3) Is it anticipated that any significant change in results of operations from the corresponding period for the last fiscal year will be reflected by the earnings statements to be included in the subject report? [ ] Yes [X] No."
+  }
+}

@@ -118,6 +118,17 @@ export const eventTypeDefinitions: EventTypeDefinition[] = [
     examples: ["insider purchase", "13D activist stake", "Rule 144 planned sale"],
   },
   {
+    code: "ipo_listing",
+    label: "IPO / Listing",
+    category: "Filing Events",
+    tone: "deal",
+    sourceGroups: ["filings"],
+    status: "active",
+    coveredForms: ["S-1", "S-1/A", "F-1", "F-1/A", "424B4", "424B5", "EFFECT"],
+    description: "Traditional IPO, SPAC IPO, direct listing, IPO pricing, first trading/listing date, or registration effectiveness tied to a new public listing.",
+    examples: ["IPO pricing", "SPAC IPO unit listing", "direct listing effectiveness"],
+  },
+  {
     code: "shareholder_vote",
     label: "Shareholder Vote",
     category: "Filing Events",

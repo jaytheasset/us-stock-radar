@@ -1,0 +1,77 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_periodic_reports_raw_parser_v3",
+    "parserGroup": "periodic-reports",
+    "formType": "10-Q",
+    "accessionNumber": "0000320193-26-000013",
+    "isSupported": true,
+    "facts": {
+      "companyName": "Apple Inc.",
+      "primaryTicker": "AAPL",
+      "exchange": "Nasdaq Global Select Market",
+      "reportingPeriod": "March 28, 2026",
+      "isAmendment": false
+    }
+  },
+  "expected_raw_extraction": {
+    "missing_critical_raw_data": true,
+    "has_noise_candidates": true,
+    "min_section_count": 10,
+    "min_financial_statement_lines": 10,
+    "min_document_count": 8,
+    "max_xbrl_fact_count": 0,
+    "section_keys_present": [
+      "part_i_item_1_financial_statements",
+      "part_i_item_2_management_s_discussion_and_analysis_of_financial_condition",
+      "part_ii_item_6_exhibits"
+    ],
+    "coverage_ids_present": [
+      "filing_text",
+      "source_package_inventory",
+      "primary_document_inventory",
+      "form_type",
+      "accession_number",
+      "company_name",
+      "reporting_period",
+      "section_boundaries",
+      "financial_or_mda_raw",
+      "attachment_text_inventory",
+      "xbrl_document_inventory",
+      "xbrl_fact_inventory",
+      "source_truncation_check",
+      "noise_scan"
+    ],
+    "evidence_categories_present": [
+      "financial_statement_line"
+    ],
+    "evidence_labels_present": [
+      "revenue_or_net_sales"
+    ],
+    "noise_categories_present": [
+      "cover_checkboxes",
+      "table_of_contents",
+      "xbrl_exhibits",
+      "document_exhibit"
+    ],
+    "warnings_include": [
+      "source_document_text_truncated",
+      "missing_source:attachment_text_inventory",
+      "missing_source:xbrl_fact_inventory",
+      "ambiguous_source:source_truncation_check"
+    ],
+    "warnings_exclude": [
+      "missing_filing_text",
+      "missing_accession_number"
+    ],
+    "missing_source_ids_present": [
+      "attachment_text_inventory",
+      "xbrl_fact_inventory",
+      "source_truncation_check"
+    ],
+    "document_filenames_present": [
+      "aapl-20260328.htm",
+      "aapl-20260328_htm.xml"
+    ],
+    "attachment_filenames_present": []
+  }
+}

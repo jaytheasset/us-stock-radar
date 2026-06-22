@@ -1,0 +1,24 @@
+{
+  "id": "form4-routine-rsu-grant",
+  "formType": "4",
+  "accessionNumber": "0001193125-26-237487",
+  "issuer": {
+    "name": "Xerox Holdings Corporation",
+    "ticker": "XRX",
+    "exchange": "NASDAQ",
+    "cik": "0001770450"
+  },
+  "reportingOwner": {
+    "name": "BRUNO JOHN G",
+    "title": null,
+    "roles": ["director"]
+  },
+  "source": {
+    "url": "https://www.sec.gov/Archives/edgar/data/1283118/000119312526237487/ownership.xml",
+    "retrieved_at": "2026-05-22",
+    "sha256": null
+  },
+  "filingText": "<?xml version=\"1.0\"?>\n<ownershipDocument>\n  <schemaVersion>X0609</schemaVersion>\n  <documentType>4</documentType>\n  <periodOfReport>2026-05-20</periodOfReport>\n  <notSubjectToSection16>0</notSubjectToSection16>\n  <issuer>\n    <issuerCik>0001770450</issuerCik>\n    <issuerName>Xerox Holdings Corporation</issuerName>\n    <issuerTradingSymbol>XRX</issuerTradingSymbol>\n  </issuer>\n  <reportingOwner>\n    <reportingOwnerId>\n      <rptOwnerCik>0001283118</rptOwnerCik>\n      <rptOwnerName>BRUNO JOHN G</rptOwnerName>\n    </reportingOwnerId>\n    <reportingOwnerRelationship>\n      <isDirector>1</isDirector>\n      <isOfficer>0</isOfficer>\n      <isTenPercentOwner>0</isTenPercentOwner>\n      <isOther>0</isOther>\n    </reportingOwnerRelationship>\n  </reportingOwner>\n  <nonDerivativeTable>\n    <nonDerivativeTransaction>\n      <securityTitle>\n        <value>Restricted Stock Units (RSUs)</value>\n      </securityTitle>\n      <transactionDate>\n        <value>2026-05-20</value>\n      </transactionDate>\n      <transactionCoding>\n        <transactionFormType>4</transactionFormType>\n        <transactionCode>A</transactionCode>\n        <equitySwapInvolved>0</equitySwapInvolved>\n        <footnoteId id=\"F1\"/>\n      </transactionCoding>\n      <transactionAmounts>\n        <transactionShares>\n          <value>87209</value>\n        </transactionShares>\n        <transactionPricePerShare>\n          <value>0</value>\n        </transactionPricePerShare>\n        <transactionAcquiredDisposedCode>\n          <value>A</value>\n        </transactionAcquiredDisposedCode>\n      </transactionAmounts>\n      <postTransactionAmounts>\n        <sharesOwnedFollowingTransaction>\n          <value>707089</value>\n        </sharesOwnedFollowingTransaction>\n      </postTransactionAmounts>\n      <ownershipNature>\n        <directOrIndirectOwnership>\n          <value>D</value>\n        </directOrIndirectOwnership>\n      </ownershipNature>\n    </nonDerivativeTransaction>\n  </nonDerivativeTable>\n  <footnotes>\n    <footnote id=\"F1\">Each restricted stock unit represents a contingent right to receive one share of Xerox Holdings Corporation common stock and vests on May 20, 2027.</footnote>\n  </footnotes>\n  <ownerSignature>\n    <signatureName>/s/ John G. Bruno</signatureName>\n    <signatureDate>2026-05-22</signatureDate>\n  </ownerSignature>\n</ownershipDocument>",
+  "expected_event_type": "insider_ownership",
+  "expected_score_band": "archive"
+}

@@ -1,0 +1,159 @@
+{
+  "parser_output": {
+    "parserVersion": "proxy-parser-v1",
+    "parserGroup": "proxy",
+    "formType": "Proxy",
+    "accessionNumber": "0001213900-26-060678",
+    "isSupported": true,
+    "summary": "Annual proxy for Ondas Inc. covering 1 proposal for a meeting on May 28, 2026.",
+    "facts": {
+      "companyName": "Ondas Inc.",
+      "primaryTicker": {
+        "ticker": "ONDS",
+        "exchange": "NASDAQ"
+      },
+      "secFormType": "DEFA14A",
+      "proxyType": "annual",
+      "meetingDate": "May 28, 2026",
+      "recordDate": null,
+      "proposalCount": 1,
+      "proposals": [
+        {
+          "id": "AUTHORIZED_SHARE_INCREASE",
+          "title": "Authorized Share Increase Proposal",
+          "category": "listing_or_capital_structure",
+          "recommendation": null,
+          "sourceText": "On May 22, 2026, the Chief Executive Officer issued a letter urging stockholders to vote FOR the Authorized Share Increase Proposal, which would approve an amendment to the Company's Articles of Incorporation to increase the number of authorized shares of common stock from 300,000,000 to 600,000,000.",
+          "isShareholderProposal": false
+        }
+      ],
+      "ownership": {
+        "maxBeneficialOwnershipPercent": null,
+        "holder": null,
+        "sourceText": null
+      },
+      "dilution": {
+        "hasEquityPlanVote": false,
+        "sharesRequested": null,
+        "percentOfOutstanding": null,
+        "proposalIds": []
+      },
+      "transaction": {
+        "hasTransactionVote": false,
+        "consideration": null,
+        "voteRequired": null,
+        "proposalIds": []
+      },
+      "legal": {
+        "hasLegalRiskProposal": false,
+        "proposalIds": [],
+        "topics": []
+      },
+      "deterministic": {
+        "canFinishWithoutLlm": false,
+        "reason": null,
+        "eventType": null,
+        "suggestedScore": null
+      }
+    },
+    "signals": [
+      {
+        "name": "listing_or_capital_structure_vote",
+        "eventType": "dilution_risk",
+        "severity": "high",
+        "evidence": "On May 22, 2026, the Chief Executive Officer issued a letter urging stockholders to vote FOR the Authorized Share Increase Proposal, which would approve an amendment to the Company's Articles of Incorporation to increase the number of authorized shares of common stock from 300,000,000 to 600,000,000.",
+        "proposalId": "AUTHORIZED_SHARE_INCREASE"
+      }
+    ],
+    "calendarItems": [
+      {
+        "type": "shareholder_meeting",
+        "date": "May 28, 2026",
+        "description": "Ondas Inc. annual meeting"
+      }
+    ],
+    "warnings": [],
+    "raw": {
+      "secFormType": "DEFA14A",
+      "attachmentNames": [],
+      "market_context": null
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "dilution_risk",
+    "event_title": "Authorized share increase vote highlighted before annual meeting",
+    "primary_ticker": {
+      "ticker": "ONDS",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      {
+        "ticker": "ONDS",
+        "exchange": "NASDAQ"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 75,
+    "score_reason": "Additional proxy material urges approval to double authorized shares.",
+    "signal": "volatile",
+    "quick_take": "Ondas urged holders to approve doubling authorized common shares before its annual meeting.",
+    "summary": "The additional proxy material highlights the Authorized Share Increase Proposal, which would amend the articles to increase authorized common shares from 300 million to 600 million.",
+    "why_it_matters": "Authorized-share increases can enable future issuance capacity, but the filing does not itself price or announce an offering.",
+    "bullish_points": [
+      "Additional share authority may support strategic and capital plans."
+    ],
+    "bearish_points": [
+      "Doubling authorized shares increases future dilution capacity."
+    ],
+    "key_evidence": [
+      "On May 22, 2026, the Chief Executive Officer issued a letter urging stockholders to vote FOR the Authorized Share Increase Proposal, which would approve an amendment to the Company's Articles of Incorporation to increase the number of authorized shares of common stock from 300,000,000 to 600,000,000."
+    ],
+    "what_to_watch_next": [
+      "Annual meeting vote result.",
+      "Any follow-on issuance or financing using the added capacity."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "type": "shareholder_meeting",
+        "date": "May 28, 2026",
+        "description": "Ondas Inc. annual meeting"
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "candidate_special",
+    "data": {
+      "proposal_id": "AUTHORIZED_SHARE_INCREASE",
+      "authorized_shares_before": "300,000,000",
+      "authorized_shares_after": "600,000,000",
+      "meeting_date": "May 28, 2026"
+    },
+    "evidence": [
+      "On May 22, 2026, the Chief Executive Officer issued a letter urging stockholders to vote FOR the Authorized Share Increase Proposal, which would approve an amendment to the Company's Articles of Incorporation to increase the number of authorized shares of common stock from 300,000,000 to 600,000,000."
+    ],
+    "notes": [
+      "Authorized-share vote details may need future structured proxy display; this room does not implement UI."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": true,
+    "special_ui_reason": "Authorized-share increase votes need before/after share capacity, meeting date, and vote-result fields.",
+    "integration_notes": [
+      "Delivery level derives from score 75.",
+      "Additional soliciting material should preserve the source-backed authorized-share increase block instead of routing as generic shareholder_vote."
+    ]
+  }
+}

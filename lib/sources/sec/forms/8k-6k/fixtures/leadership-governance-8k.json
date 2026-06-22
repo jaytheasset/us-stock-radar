@@ -1,0 +1,33 @@
+{
+  "title": "Beacon Retail Group Form 8-K CFO appointment",
+  "publishedAt": "2026-05-06T20:30:00Z",
+  "sourceUniqueId": "0006666666-26-000006",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/6666666/000666666626000006/",
+  "bodyText": "UNITED STATES\nFORM 8-K\nItem 5.02 Departure of Directors or Certain Officers; Election of Directors; Appointment of Certain Officers.\nOn May 6, 2026, Beacon Retail Group announced that its Chief Financial Officer resigned effective immediately. The board of directors appointed Maria Chen as interim Chief Financial Officer while it conducts a search for a permanent successor.\nItem 9.01 Financial Statements and Exhibits.",
+  "rawPayload": {
+    "form_type": "8-K",
+    "accession_number": "0006666666-26-000006",
+    "company_name": "Beacon Retail Group",
+    "ticker": "BRCG",
+    "documents": [
+      {
+        "type": "8-K",
+        "description": "Current report",
+        "url": "primary.htm",
+        "isPrimary": true,
+        "textCharCount": 520,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ]
+  },
+  "metadata": {
+    "company_name": "Beacon Retail Group",
+    "ticker": "BRCG"
+  },
+  "expected": {
+    "eventType": "leadership_governance",
+    "deliveryLevel": "feed"
+  }
+}

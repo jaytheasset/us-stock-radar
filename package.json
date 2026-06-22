@@ -30,6 +30,7 @@
     "deliver:queued": "node scripts/process-queued-alert-deliveries.mjs",
     "deliver:batch": "node scripts/run-alert-delivery-batch.mjs",
     "deliver:scheduler": "node scripts/run-alert-delivery-scheduler.mjs",
+    "sec:live-test": "node scripts/sec-room-live-test.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

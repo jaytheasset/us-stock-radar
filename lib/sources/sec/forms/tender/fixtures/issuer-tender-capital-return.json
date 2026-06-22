@@ -1,0 +1,58 @@
+{
+  "case_name": "issuer-tender-capital-return",
+  "filing": {
+    "rawItemId": "fixture-tender-001",
+    "sourceUniqueId": "0001111111-26-000010",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1111111/000111111126000010/",
+    "title": "NovaTech Robotics Inc. SC TO-I issuer tender offer",
+    "publishedAt": "2026-05-18T12:00:00.000Z",
+    "bodyText": "SC TO-I\nIssuer: NovaTech Robotics Inc.\nNovaTech Robotics Inc. commenced an issuer tender offer to purchase up to 2,000,000 shares of its common stock at a purchase price of $25.00 per share in cash. The maximum aggregate purchase price is $50 million. The offer will expire at 5:00 p.m. Eastern Time on June 20, 2026, unless extended. Withdrawal rights expire on June 20, 2026. If more than 2,000,000 shares are properly tendered, shares will be purchased on a prorated basis.",
+    "rawPayload": {
+      "accession_number": "0001111111-26-000010",
+      "form_type": "SC TO-I",
+      "company_name": "NovaTech Robotics Inc.",
+      "ticker": "NVT",
+      "exchange": "NASDAQ",
+      "documents": [
+        {
+          "type": "SC TO-I",
+          "description": "Tender offer statement",
+          "url": "https://www.sec.gov/fixture/novatech-sc-to-i.htm",
+          "isPrimary": true,
+          "textCharCount": 620,
+          "textTruncated": false,
+          "fetchStatus": 200,
+          "fetchError": null
+        }
+      ]
+    },
+    "metadata": {
+      "form_type": "SC TO-I",
+      "company_name": "NovaTech Robotics Inc.",
+      "ticker": "NVT",
+      "exchange": "NASDAQ"
+    }
+  },
+  "market_context": {
+    "price": 23.4,
+    "previous_close": 23.1,
+    "market_cap": 575000000,
+    "shares_outstanding": 24500000,
+    "public_float": 18300000,
+    "volume": 920000,
+    "avg_volume": 410000
+  },
+  "expected": {
+    "event_type": "capital_return",
+    "score_band": "feed",
+    "delivery_level": "feed",
+    "important_facts": {
+      "sec_form_type": "SC TO-I",
+      "tender_case": "issuer_tender_offer",
+      "cash_price_per_share": 25,
+      "aggregate_purchase_price": 50000000,
+      "expiration_date": "2026-06-20",
+      "market_context_needed": true
+    }
+  }
+}

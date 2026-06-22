@@ -1,0 +1,19 @@
+{
+  "id": "form144a-material-increase",
+  "formType": "144/A",
+  "accessionNumber": "0000000000-26-000405",
+  "issuer": {
+    "name": "Vector Therapeutics Inc.",
+    "ticker": "VCTX",
+    "exchange": "NASDAQ",
+    "cik": "0001555005"
+  },
+  "reportingOwner": {
+    "name": "Samuel Price",
+    "title": "Executive Chair",
+    "roles": ["director", "officer"]
+  },
+  "filingText": "Issuer: Vector Therapeutics Inc.\nTicker: VCTX\nSeller: Samuel Price\nTitle: Executive Chair\nBroker: Example Capital Markets\nAmendment Reason: Increases the number of shares proposed to be sold from 50,000 to 2,500,000 and updates aggregate market value.\nShares to be sold: 2,500,000\nAggregate market value: $24,000,000\nApprox Sale Date: 2026-05-28\nShares outstanding: 125,000,000\nShares sold in past 3 months: 50,000\nThe notice relates to a proposed sale under Rule 144.",
+  "expected_event_type": "insider_ownership",
+  "expected_score_band": "alert"
+}

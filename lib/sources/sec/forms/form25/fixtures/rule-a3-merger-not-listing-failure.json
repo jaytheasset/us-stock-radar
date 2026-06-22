@@ -1,0 +1,45 @@
+{
+  "rawItemId": "fixture-form25-rule-a3-merger-not-listing-failure",
+  "sourceUniqueId": "0000876661-26-000437",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/876661/000087666126000437/",
+  "title": "Marine Products 25-NSE",
+  "publishedAt": "2026-05-15",
+  "bodyText": "<?xml version=\"1.0\"?>\n<notificationOfRemoval>\n  <schemaVersion>X0203</schemaVersion>\n  <exchange>\n    <cik>0000876661</cik>\n    <entityName>NEW YORK STOCK EXCHANGE LLC</entityName>\n  </exchange>\n  <issuer>\n    <cik>0001129155</cik>\n    <entityName>MARINE PRODUCTS CORP</entityName>\n    <fileNumber>001-16263</fileNumber>\n  </issuer>\n  <descriptionClassSecurity>Common Stock</descriptionClassSecurity>\n  <ruleProvision>17 CFR 240.12d2-2(a)(3)</ruleProvision>\n  <signatureData>\n    <signatureDate>2026-05-15</signatureDate>\n  </signatureData>\n</notificationOfRemoval>",
+  "rawPayload": {
+    "form_type": "25-NSE",
+    "accession_number": "0000876661-26-000437",
+    "primary_ticker": "MPX",
+    "primary_ticker_exchange": "NYSE",
+    "documents": [
+      {
+        "type": "25-NSE",
+        "description": "primary_doc.xml",
+        "url": "https://www.sec.gov/Archives/edgar/data/876661/000087666126000437/primary_doc.xml",
+        "isPrimary": true,
+        "textCharCount": 1100,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      },
+      {
+        "type": "EX-99.25",
+        "description": "ruleprovisionnotice.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/876661/000087666126000437/ruleprovisionnotice.htm",
+        "isPrimary": false,
+        "textCharCount": 1400,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ],
+    "attachment_texts": [
+      {
+        "type": "EX-99.25",
+        "description": "Rule provision notice",
+        "text": "NOTIFICATION OF THE REMOVAL FROM LISTING AND REGISTRATION OF THE STATED SECURITIES The New York Stock Exchange hereby notifies the SEC of its intention to remove the entire class of the stated securities from listing and registration on the Exchange at the opening of business on May 26, 2026, pursuant to the provisions of Rule 12d2-2 (a). [ X ] 17 CFR 240.12d2-2(a)(3) That on May 15, 2026 the instruments representing the securities comprising the entire class of this security came to evidence, by operation of law or otherwise, other securities in substitution therefore and represent no other right except, if such be the fact, the right to receive an immediate cash payment. The merger of Marine Products Corp. and Titan Merger Sub 1, Inc., a direct wholly owned subsidiary of MasterCraft Boat Holdings, Inc. became effective on May 15, 2026. Each share of Marine Products Corp. Common Stock was converted into 0.232 of a share of MasterCraft Boat Holdings, Inc. and USD 2.43, without interest, less any applicable fee, and tax. The Exchange also notifies the Securities and Exchange Commission that as a result of the above indicated conditions this security was suspended from trading on May 15, 2026.",
+        "textTruncated": false
+      }
+    ]
+  },
+  "metadata": {}
+}

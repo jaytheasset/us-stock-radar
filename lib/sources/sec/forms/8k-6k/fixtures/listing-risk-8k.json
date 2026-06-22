@@ -1,0 +1,37 @@
+{
+  "title": "Metro Widget Inc. Form 8-K listing deficiency",
+  "publishedAt": "2026-05-01T20:10:00Z",
+  "sourceUniqueId": "0001111111-26-000001",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1111111/000111111126000001/",
+  "bodyText": "UNITED STATES\nFORM 8-K\nItem 3.01 Notice of Delisting or Failure to Satisfy a Continued Listing Rule or Standard; Transfer of Listing.\nOn May 1, 2026, Metro Widget Inc. received a notification letter from Nasdaq stating that the Company was not in compliance with the minimum bid price requirement for continued listing because the closing bid price of its common stock had been below $1.00 for 30 consecutive business days. The Company has 180 calendar days to regain compliance.\nItem 9.01 Financial Statements and Exhibits.",
+  "rawPayload": {
+    "form_type": "8-K",
+    "accession_number": "0001111111-26-000001",
+    "company_name": "Metro Widget Inc.",
+    "ticker": "MWID",
+    "documents": [
+      {
+        "type": "8-K",
+        "description": "Current report",
+        "url": "primary.htm",
+        "isPrimary": true,
+        "textCharCount": 540,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ]
+  },
+  "metadata": {
+    "company_name": "Metro Widget Inc.",
+    "ticker": "MWID"
+  },
+  "marketContext": {
+    "price": 0.72,
+    "previous_close": 0.74
+  },
+  "expected": {
+    "eventType": "listing_risk",
+    "deliveryLevel": "alert"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "case_id": "multi-reporting-13d-cover",
+  "description": "Initial Schedule 13D with two separate reporting-person cover pages.",
+  "filing": {
+    "formType": "SC 13D",
+    "accessionNumber": "0000000000-26-013006",
+    "issuerName": "Mesa Circuit Corp.",
+    "filedAt": "2026-02-20",
+    "text": "SC 13D\nSCHEDULE 13D\nMesa Circuit Corp.\n(Name of Issuer)\nCommon Stock\n(Title of Class of Securities)\n590000106\n(CUSIP Number)\n1. Name of Reporting Person\nMesa Partners LP\n2. Check the Appropriate Box if a Member of a Group (a) [ ] (b) [ ]\n4. Citizenship or Place of Organization\nDelaware\n5. Sole Voting Power\n0\n6. Shared Voting Power\n2,000,000\n7. Sole Dispositive Power\n0\n8. Shared Dispositive Power\n2,000,000\n9. Aggregate Amount Beneficially Owned by Each Reporting Person\n2,000,000\n11. Percent of Class Represented by Amount in Row (9)\n8.0%\n12. Type of Reporting Person\nPN\nCUSIP No. 590000106\n1. Name of Reporting Person\nMesa GP LLC\n2. Check the Appropriate Box if a Member of a Group (a) [ ] (b) [ ]\n4. Citizenship or Place of Organization\nDelaware\n5. Sole Voting Power\n0\n6. Shared Voting Power\n2,000,000\n7. Sole Dispositive Power\n0\n8. Shared Dispositive Power\n2,000,000\n9. Aggregate Amount Beneficially Owned by Each Reporting Person\n2,000,000\n11. Percent of Class Represented by Amount in Row (9)\n8.0%\n12. Type of Reporting Person\nOO\nItem 4. Purpose of Transaction\nThe securities were acquired for investment purposes.\nItem 5. Interest in Securities of the Issuer\nThe Reporting Persons beneficially own 2,000,000 shares, representing 8.0% of the class.\nSIGNATURE"
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "insider_ownership",
+    "deterministic": false,
+    "score_band": "feed",
+    "extracted_facts": {
+      "reportingPersons": [
+        "Mesa Partners LP",
+        "Mesa GP LLC"
+      ],
+      "hasMultipleReportingPersons": true,
+      "sharesBeneficiallyOwned": 2000000,
+      "percentOwned": 8
+    }
+  }
+}

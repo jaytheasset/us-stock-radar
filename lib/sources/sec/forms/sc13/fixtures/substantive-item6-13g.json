@@ -1,0 +1,26 @@
+{
+  "case_id": "substantive-item6-13g",
+  "description": "Schedule 13G with substantive Item 6 text requiring router fallback.",
+  "filing": {
+    "formType": "SC 13G",
+    "accessionNumber": "0000000000-26-013021",
+    "issuerName": "Item Six Index Co.",
+    "filedAt": "2026-05-11",
+    "text": "SC 13G\nSCHEDULE 13G\nItem Six Index Co.\n(Name of Issuer)\nCommon Stock\n(Title of Class of Securities)\n460000121\n(CUSIP Number)\nx Rule 13d-1(c)\nName of Reporting Person: Six Index Fund LP\nAggregate Amount Beneficially Owned by Each Reporting Person: 1,800,000\nPercent of Class Represented by Amount in Row (9): 6.4%\nItem 4. Ownership\nThe Reporting Person beneficially owns 1,800,000 shares, representing 6.4% of the class.\nItem 6. Ownership of More than Five Percent on Behalf of Another Person\nA managed account has the right to receive dividends from the reported securities.\nItem 10. Certification\nBy signing below I certify that the securities referred to above were not acquired and are not held for the purpose of or with the effect of changing or influencing the control of the issuer.\nSIGNATURE"
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "insider_ownership",
+    "deterministic": false,
+    "score_band": "feed",
+    "extracted_facts": {
+      "reportingPersons": [
+        "Six Index Fund LP"
+      ],
+      "scheduleType": "13G",
+      "sharesBeneficiallyOwned": 1800000,
+      "percentOwned": 6.4,
+      "ruleBasis": "13d-1(c)"
+    }
+  }
+}

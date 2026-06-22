@@ -1,0 +1,28 @@
+{
+  "case_id": "malformed-cover-13ga",
+  "description": "Schedule 13G/A with a malformed cover page and below-five-percent language.",
+  "filing": {
+    "formType": "SC 13G/A",
+    "accessionNumber": "0000000000-26-013009",
+    "issuerName": "Ribbon Orchard Co.",
+    "filedAt": "2026-01-25",
+    "text": "SC 13G/A\nSCHEDULE 13G/A\n(Amendment No. 1)\nRibbon Orchard Co.\n(Name of Issuer)\nCommon Stock\n(Title of Class of Securities)\n760000109\n(CUSIP Number)\n☒ Rule 13d-1(c)\n1 Names of Reporting Persons\nRiver Plain Fund LP\n4 Citizenship or Place of Organization\nDelaware\n5 Sole Voting Power\n--\n6 Shared Voting Power\nN/A\n9 Aggregate Amount Beneficially Owned by Each Reporting Person\nLess than 5%\n11 Percent of Class Represented by Amount in Row (9)\nLess than 5%\nItem 5. Ownership of Five Percent or Less of a Class\nIf this statement is being filed to report the fact that as of the date hereof the reporting person has ceased to be the beneficial owner of more than 5 percent of the class of securities, check the following ☒.\nSIGNATURE"
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "insider_ownership",
+    "deterministic": true,
+    "score_band": "archive",
+    "extracted_facts": {
+      "reportingPersons": [
+        "River Plain Fund LP"
+      ],
+      "scheduleType": "13G",
+      "isAmendment": true,
+      "ruleBasis": "13d-1(c)",
+      "sharesBeneficiallyOwned": null,
+      "percentOwned": null,
+      "isExitFiling": true
+    }
+  }
+}

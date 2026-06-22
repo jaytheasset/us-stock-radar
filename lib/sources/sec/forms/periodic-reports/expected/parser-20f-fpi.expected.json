@@ -1,0 +1,65 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_periodic_reports_raw_parser_v3",
+    "parserGroup": "periodic-reports",
+    "formType": "20-F",
+    "accessionNumber": "0000000000-25-000303",
+    "isSupported": true,
+    "facts": {
+      "companyName": "Global Fiber Limited",
+      "primaryTicker": "GFL",
+      "exchange": "Nasdaq Global Select Market",
+      "reportingPeriod": "March 31, 2025",
+      "isAmendment": false
+    }
+  },
+  "expected_raw_extraction": {
+    "missing_critical_raw_data": false,
+    "has_noise_candidates": true,
+    "min_section_count": 5,
+    "min_financial_statement_lines": 3,
+    "section_keys_present": [
+      "20f_item_3_d_risk_factors",
+      "20f_item_5_operating_and_financial_review_and_prospects"
+    ],
+    "coverage_ids_present": [
+      "filing_text",
+      "form_type",
+      "accession_number",
+      "company_name",
+      "reporting_period",
+      "cover_security_identifiers",
+      "section_boundaries",
+      "financial_or_mda_raw",
+      "noise_scan"
+    ],
+    "evidence_categories_present": [
+      "financial_statement_line",
+      "business_update_raw",
+      "sales_performance_raw",
+      "fpi_raw"
+    ],
+    "evidence_labels_present": [
+      "revenue_or_net_sales",
+      "product_launch_or_customer_rollout_language",
+      "revenue_change_language",
+      "20f_item_16i_hfcaa_language"
+    ],
+    "noise_categories_present": [
+      "forward_looking",
+      "cover_checkboxes",
+      "signatures",
+      "xbrl_exhibits",
+      "document_exhibit"
+    ],
+    "warnings_include": [
+      "multiple_securities_detected_primary_ticker_may_be_ambiguous"
+    ],
+    "warnings_exclude": [
+      "missing_filing_text",
+      "missing_accession_number",
+      "missing_critical_raw_data:section_boundaries",
+      "missing_critical_raw_data:financial_or_mda_raw"
+    ]
+  }
+}

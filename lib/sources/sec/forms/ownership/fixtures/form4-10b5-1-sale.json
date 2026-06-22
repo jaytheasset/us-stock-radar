@@ -1,0 +1,19 @@
+{
+  "id": "form4-10b5-1-sale",
+  "formType": "4",
+  "accessionNumber": "0000000000-26-000402",
+  "issuer": {
+    "name": "Northstar Chips Corp.",
+    "ticker": "NSCP",
+    "exchange": "NASDAQ",
+    "cik": "0001888002"
+  },
+  "reportingOwner": {
+    "name": "Daniel Ortiz",
+    "title": "Chief Financial Officer",
+    "roles": ["officer"]
+  },
+  "filingText": "<ownershipDocument><issuer><issuerCik>0001888002</issuerCik><issuerName>Northstar Chips Corp.</issuerName><issuerTradingSymbol>NSCP</issuerTradingSymbol></issuer><reportingOwner><rptOwnerName>Daniel Ortiz</rptOwnerName><reportingOwnerRelationship><isOfficer>1</isOfficer><officerTitle>Chief Financial Officer</officerTitle></reportingOwnerRelationship></reportingOwner><footnotes><footnote id=\"F1\">Sale was effected pursuant to a Rule 10b5-1 trading plan adopted on 2025-12-15.</footnote></footnotes><nonDerivativeTable><nonDerivativeTransaction><securityTitle><value>Common Stock</value></securityTitle><transactionDate><value>2026-05-19</value></transactionDate><transactionCoding><transactionCode>S</transactionCode></transactionCoding><transactionAmounts><transactionShares><value>450000</value></transactionShares><transactionPricePerShare><value>24.75</value></transactionPricePerShare><transactionAcquiredDisposedCode><value>D</value></transactionAcquiredDisposedCode></transactionAmounts><postTransactionAmounts><sharesOwnedFollowingTransaction><value>1200000</value></sharesOwnedFollowingTransaction></postTransactionAmounts></nonDerivativeTransaction></nonDerivativeTable></ownershipDocument>",
+  "expected_event_type": "insider_ownership",
+  "expected_score_band": "feed"
+}

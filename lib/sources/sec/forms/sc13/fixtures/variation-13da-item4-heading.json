@@ -1,0 +1,32 @@
+{
+  "case_id": "variation-13da-item4-heading",
+  "description": "Schedule 13D/A with a newer schedule form name and Item 4 dash heading variation.",
+  "filing": {
+    "formType": "SCHEDULE 13D/A",
+    "accessionNumber": "0000000000-26-013002",
+    "issuerName": "North Loop Bio Inc.",
+    "primaryTicker": {
+      "ticker": "NLB",
+      "exchange": "NYSE"
+    },
+    "filedAt": "2026-03-04",
+    "text": "SCHEDULE 13D/A\n(Amendment No. 2)\nNorth Loop Bio Inc.\n(Name of Issuer)\nCommon Stock\n(Title of Class of Securities)\n660000102\n(CUSIP Number)\nName of Reporting Person: Camden Partners LLC\nAggregate Amount Beneficially Owned by Each Reporting Person: 1,100,000\nPercent of Class Represented by Amount in Row (11): 5.7%\nItem 4 - Purpose of Transaction\nThis amendment supplements Item 4 of the prior Schedule 13D to report that the Reporting Person entered into a letter agreement with the Issuer.\nItem 5. Interest in Securities of the Issuer\nThe Reporting Person beneficially owns 1,100,000 shares, representing 5.7% of the class.\nItem 7. Material to be Filed as Exhibits\nExhibit 99.1 Letter Agreement.\nSIGNATURE"
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "insider_ownership",
+    "deterministic": false,
+    "score_band": "feed",
+    "extracted_facts": {
+      "issuerName": "North Loop Bio Inc.",
+      "reportingPersons": [
+        "Camden Partners LLC"
+      ],
+      "scheduleType": "13D",
+      "isAmendment": true,
+      "amendmentNumber": 2,
+      "sharesBeneficiallyOwned": 1100000,
+      "percentOwned": 5.7
+    }
+  }
+}

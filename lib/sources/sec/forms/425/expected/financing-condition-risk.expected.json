@@ -1,0 +1,113 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_425_parser_v1",
+    "parserGroup": "425",
+    "formType": "425",
+    "accessionNumber": "0000000000-26-000428",
+    "isSupported": true,
+    "summary": "Form 425 communication with financing and liquidity risk signals for a proposed acquisition.",
+    "facts": {
+      "company_name": "Solara Foods, Inc.",
+      "primary_ticker": "SLRA",
+      "exchange": "NYSE",
+      "financing": {
+        "financing_risk": [
+          "Committed debt financing may not be available if market disruption events continue through the closing date."
+        ],
+        "going_concern_or_liquidity_risk": [
+          "Failure to complete the acquisition would require it to evaluate additional capital raising alternatives to address near-term liquidity needs."
+        ]
+      },
+      "market_context": {
+        "price": 8.2,
+        "market_cap": 410000000,
+        "shares_outstanding": 50000000,
+        "public_float": 42000000
+      }
+    },
+    "signals": [
+      {
+        "type": "financial_risk",
+        "value": "financing_or_liquidity_risk",
+        "evidence": "Committed debt financing may not be available if market disruption events continue.",
+        "confidence": "medium"
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "financial_risk",
+    "event_title": "Solara flags financing and liquidity risk around Harbor acquisition",
+    "primary_ticker": {
+      "ticker": "SLRA",
+      "exchange": "NYSE"
+    },
+    "tickers": [
+      {
+        "ticker": "SLRA",
+        "exchange": "NYSE"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": "M&A",
+    "sub_theme": "Deal financing risk",
+    "score": 68,
+    "score_reason": "Feed-level because the filing identifies debt-financing availability and liquidity consequences, but says the transaction is not subject to a financing condition and does not announce a failed financing.",
+    "signal": "bearish",
+    "quick_take": "Solara says market disruption could affect debt financing and failure to close may require more capital raising.",
+    "summary": "Solara filed a Form 425 update for its proposed Harbor Brands acquisition. Although the transaction is not subject to a financing condition, Solara disclosed that committed debt financing may not be available if market disruption continues and that failure to close would require evaluation of capital raising alternatives.",
+    "why_it_matters": "Financing availability and liquidity needs can affect closing certainty, balance sheet risk, and potential dilution if new capital is needed.",
+    "bullish_points": [
+      "The transaction is not subject to a financing condition.",
+      "The filing says there is no change to the purchase price."
+    ],
+    "bearish_points": [
+      "Committed debt financing may not be available if market disruption continues.",
+      "Failure to complete the acquisition could force Solara to evaluate additional capital raising."
+    ],
+    "key_evidence": [
+      "Committed debt financing may not be available if market disruption events continue through the closing date.",
+      "Failure to complete the acquisition would require it to evaluate additional capital raising alternatives to address near-term liquidity needs.",
+      "There is no change to the purchase price."
+    ],
+    "what_to_watch_next": [
+      "Updates on debt financing availability before closing.",
+      "Any amended financing commitment or acquisition timing update.",
+      "Whether Solara announces capital raising alternatives."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "medium",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "risk_type": "deal_financing",
+      "financing_condition": "not subject to a financing condition",
+      "liquidity_consequence": "may need additional capital raising if acquisition does not close"
+    },
+    "evidence": [
+      "The transaction is not subject to a financing condition.",
+      "Committed debt financing may not be available if market disruption events continue."
+    ],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": true,
+    "market_context_reason": "Financing and potential capital-raising risk should be evaluated against company market cap, price, share count, and float.",
+    "market_context_fields": ["price", "market_cap", "shares_outstanding", "public_float"],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Market context remains fixture-only in this room; do not call live FMP."
+    ]
+  }
+}

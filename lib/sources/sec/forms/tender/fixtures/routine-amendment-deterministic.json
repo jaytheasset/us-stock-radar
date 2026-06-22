@@ -1,0 +1,54 @@
+{
+  "case_name": "routine-amendment-deterministic",
+  "filing": {
+    "rawItemId": "fixture-tender-006",
+    "sourceUniqueId": "0001111111-26-000011",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1111111/000111111126000011/",
+    "title": "NovaTech Robotics Inc. SC TO-I/A routine amendment",
+    "publishedAt": "2026-05-25T12:00:00.000Z",
+    "bodyText": "SC TO-I/A\nAmendment No. 1\nIssuer: NovaTech Robotics Inc.\nThis Amendment No. 1 is filed solely to add Exhibit (a)(5)(ii) and update the signature page. No other changes have been made. All other terms of the offer remain unchanged.",
+    "rawPayload": {
+      "accession_number": "0001111111-26-000011",
+      "form_type": "SC TO-I/A",
+      "company_name": "NovaTech Robotics Inc.",
+      "ticker": "NVT",
+      "exchange": "NASDAQ",
+      "documents": [
+        {
+          "type": "SC TO-I/A",
+          "description": "Amendment to issuer tender offer statement",
+          "url": "https://www.sec.gov/fixture/novatech-sc-to-ia.htm",
+          "isPrimary": true,
+          "textCharCount": 360,
+          "textTruncated": false,
+          "fetchStatus": 200,
+          "fetchError": null
+        }
+      ]
+    },
+    "metadata": {
+      "form_type": "SC TO-I/A",
+      "company_name": "NovaTech Robotics Inc.",
+      "ticker": "NVT",
+      "exchange": "NASDAQ"
+    },
+    "parentFilingContext": {
+      "accessionNumber": "0001111111-26-000010",
+      "offer_price": 25,
+      "expiration_date": "2026-06-20"
+    }
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "other",
+    "score_band": "archive",
+    "delivery_level": "archive",
+    "important_facts": {
+      "sec_form_type": "SC TO-I/A",
+      "tender_case": "issuer_tender_offer",
+      "amendment_number": 1,
+      "deterministic_without_llm": true,
+      "limited_scope_signal_candidates": ["exhibit_only", "signature_only", "no_other_changes"]
+    }
+  }
+}

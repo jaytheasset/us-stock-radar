@@ -9,6 +9,8 @@ export async function POST(request: NextRequest) {
     body && typeof body === "object" && !Array.isArray(body) ? (body as Record<string, unknown>) : {};
   const result = await runSecRawIngest({
     limit: readNumber(request.nextUrl.searchParams.get("limit"), bodyRecord.limit, 1, 50, 3),
+    accessionNumber:
+      request.nextUrl.searchParams.get("accessionNumber") || stringValue(bodyRecord.accessionNumber) || undefined,
     countPerForm: readNumber(request.nextUrl.searchParams.get("countPerForm"), bodyRecord.countPerForm, 1, 100, 10),
     attachmentLimit: readNumber(
       request.nextUrl.searchParams.get("attachmentLimit"),
@@ -36,6 +38,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const result = await runSecRawIngest({
     limit: readNumber(request.nextUrl.searchParams.get("limit"), null, 1, 50, 3),
+    accessionNumber: request.nextUrl.searchParams.get("accessionNumber") || undefined,
     countPerForm: readNumber(request.nextUrl.searchParams.get("countPerForm"), null, 1, 100, 10),
     attachmentLimit: readNumber(request.nextUrl.searchParams.get("attachmentLimit"), null, 0, 20, 6),
     formTypes: readCsv(request.nextUrl.searchParams.get("formTypes")),
@@ -83,4 +86,10 @@ function readNumber(
   const parsed = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(parsed)) return fallback;
   return Math.max(min, Math.min(max, Math.floor(parsed)));
+}
+
+function stringValue(value: unknown) {
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return "";
 }

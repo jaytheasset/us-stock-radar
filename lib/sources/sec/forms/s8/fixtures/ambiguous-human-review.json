@@ -1,0 +1,22 @@
+{
+  "fixtureName": "ambiguous-human-review",
+  "formType": "S-8",
+  "accessionNumber": "0005555555-26-000050",
+  "filedAt": "2026-01-22",
+  "issuer": {
+    "name": "Omega Cloud Ltd.",
+    "ticker": "OMCL",
+    "exchange": "NASDAQ",
+    "sector": "Technology",
+    "industry_group": "Cloud Infrastructure"
+  },
+  "filingText": "Omega Cloud Ltd. files this Form S-8 related to equity awards for service providers under a compensatory arrangement. The filing references a registration fee table that is not included in this excerpt, and the number of shares to be registered is omitted.",
+  "attachments": [],
+  "parentFilingContext": null,
+  "marketContext": null,
+  "flowExpectation": {
+    "parserCanFinishWithoutLlm": false,
+    "routerCanFinishWithoutLlm": false,
+    "reason": "The fixture intentionally omits the share count and fee table, so analysis should flag human review."
+  }
+}

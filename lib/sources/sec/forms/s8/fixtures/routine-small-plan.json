@@ -1,0 +1,22 @@
+{
+  "fixtureName": "routine-small-plan",
+  "formType": "S-8",
+  "accessionNumber": "0001111111-26-000010",
+  "filedAt": "2026-02-10",
+  "issuer": {
+    "name": "BrightDesk Inc.",
+    "ticker": "BDES",
+    "exchange": "NASDAQ",
+    "sector": "Technology",
+    "industry_group": "Application Software"
+  },
+  "filingText": "BrightDesk Inc. files this registration statement on Form S-8. This registration statement registers 500,000 shares of common stock, par value $0.001, under the BrightDesk Inc. 2026 Equity Incentive Plan. PART I INFORMATION REQUIRED IN THE SECTION 10(a) PROSPECTUS. PART II INFORMATION REQUIRED IN THE REGISTRATION STATEMENT. Proposed Maximum Aggregate Offering Price: $4,200,000. Amount of Registration Fee: $620. The plan provides equity awards to employees and directors. SIGNATURES.",
+  "attachments": [],
+  "parentFilingContext": null,
+  "marketContext": null,
+  "flowExpectation": {
+    "parserCanFinishWithoutLlm": false,
+    "routerCanFinishWithoutLlm": false,
+    "reason": "Routine S-8 parser facts are source-backed, but parser-only close is limited to safe administrative amendments."
+  }
+}

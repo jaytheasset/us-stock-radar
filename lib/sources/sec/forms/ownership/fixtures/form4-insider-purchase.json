@@ -1,0 +1,19 @@
+{
+  "id": "form4-insider-purchase",
+  "formType": "4",
+  "accessionNumber": "0000000000-26-000401",
+  "issuer": {
+    "name": "Atlas Robotics Inc.",
+    "ticker": "ATRB",
+    "exchange": "NASDAQ",
+    "cik": "0001999001"
+  },
+  "reportingOwner": {
+    "name": "Maya Chen",
+    "title": "Chief Executive Officer",
+    "roles": ["director", "officer"]
+  },
+  "filingText": "<ownershipDocument><issuer><issuerCik>0001999001</issuerCik><issuerName>Atlas Robotics Inc.</issuerName><issuerTradingSymbol>ATRB</issuerTradingSymbol></issuer><reportingOwner><rptOwnerName>Maya Chen</rptOwnerName><reportingOwnerRelationship><isDirector>1</isDirector><isOfficer>1</isOfficer><officerTitle>Chief Executive Officer</officerTitle></reportingOwnerRelationship></reportingOwner><nonDerivativeTable><nonDerivativeTransaction><securityTitle><value>Common Stock</value></securityTitle><transactionDate><value>2026-05-20</value></transactionDate><transactionCoding><transactionCode>P</transactionCode></transactionCoding><transactionAmounts><transactionShares><value>25000</value></transactionShares><transactionPricePerShare><value>12.40</value></transactionPricePerShare><transactionAcquiredDisposedCode><value>A</value></transactionAcquiredDisposedCode></transactionAmounts><postTransactionAmounts><sharesOwnedFollowingTransaction><value>425000</value></sharesOwnedFollowingTransaction></postTransactionAmounts></nonDerivativeTransaction></nonDerivativeTable></ownershipDocument>",
+  "expected_event_type": "insider_ownership",
+  "expected_score_band": "feed"
+}

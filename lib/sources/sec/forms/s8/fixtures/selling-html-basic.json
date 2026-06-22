@@ -1,0 +1,13 @@
+{
+  "fixtureName": "selling-html-basic",
+  "formType": "S-8",
+  "accessionNumber": "0005555555-26-000502",
+  "filedAt": "2026-05-18",
+  "issuer": {
+    "name": "HTML Selling Holders Inc.",
+    "ticker": "HSHI",
+    "exchange": "NYSE"
+  },
+  "filingText": "HTML Selling Holders Inc. files this registration statement on Form S-8. REOFFER PROSPECTUS. SELLING STOCKHOLDERS. <table><tr><th>Name of Selling Stockholder</th><th>Relationship with the Company</th><th>Shares Offered</th></tr><tr><td>Jane Smith</td><td>Chief Financial Officer</td><td>125,000</td></tr><tr><td>Robert Lee</td><td>Director</td><td>80,000</td></tr></table> PLAN OF DISTRIBUTION. SIGNATURES.",
+  "attachments": []
+}

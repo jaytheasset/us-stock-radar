@@ -1,0 +1,15 @@
+{
+  "name": "document-filter-complete-submission",
+  "input": {
+    "formType": "S-1",
+    "filingText": "<SEC-DOCUMENT>sample.txt : 20260501\n<DOCUMENT>\n<TYPE>S-1\n<SEQUENCE>1\n<FILENAME>issuer-s1.htm\n<DESCRIPTION>FORM S-1\n<TEXT><html><body>FORM S-1 REGISTRATION STATEMENT This is our initial public offering of common stock. We intend to list our common stock on the New York Stock Exchange under the symbol TEST.<table><tr><th>Security</th><th>Amount</th></tr><tr><td>Common Stock</td><td>10,000,000 shares</td></tr></table></body></html></TEXT>\n</DOCUMENT>\n<DOCUMENT>\n<TYPE>EX-FILING FEES\n<SEQUENCE>2\n<FILENAME>exfilingfees.htm\n<DESCRIPTION>FILING FEE TABLE\n<TEXT><html><body>Filing Fee Table.<table><tr><th>Security Type</th><th>Proposed Maximum Aggregate Offering Price</th></tr><tr><td>Common stock</td><td>$100,000,000</td></tr></table></body></html></TEXT>\n</DOCUMENT>\n<DOCUMENT>\n<TYPE>EX-1.1\n<SEQUENCE>3\n<FILENAME>underwriting.htm\n<DESCRIPTION>FORM OF UNDERWRITING AGREEMENT\n<TEXT><html><body>Underwriting Agreement for the sale of common stock.</body></html></TEXT>\n</DOCUMENT>\n<DOCUMENT>\n<TYPE>EX-3.1\n<SEQUENCE>4\n<FILENAME>charter.htm\n<DESCRIPTION>AMENDED AND RESTATED CERTIFICATE OF INCORPORATION\n<TEXT><html><body>The corporation is authorized to issue 900,000,000 shares of Class A common stock and 100,000,000 shares of preferred stock. Each share has voting rights as set forth herein.</body></html></TEXT>\n</DOCUMENT>\n<DOCUMENT>\n<TYPE>EX-10.1\n<SEQUENCE>5\n<FILENAME>employment.htm\n<DESCRIPTION>EMPLOYMENT AGREEMENT\n<TEXT><html><body>Employment Agreement. The executive receives base salary, annual bonus eligibility, and equity awards under the incentive plan.</body></html></TEXT>\n</DOCUMENT>\n<DOCUMENT>\n<TYPE>EX-10.2\n<SEQUENCE>6\n<FILENAME>lockup.htm\n<DESCRIPTION>LOCK-UP AGREEMENT\n<TEXT><html><body>Lock-Up Agreement. The holder agrees not to sell shares of common stock for 180 days after the offering.</body></html></TEXT>\n</DOCUMENT>\n<DOCUMENT>\n<TYPE>EX-23.1\n<SEQUENCE>7\n<FILENAME>consent.htm\n<DESCRIPTION>CONSENT OF INDEPENDENT REGISTERED PUBLIC ACCOUNTING FIRM\n<TEXT><html><body>We consent to the use of our report.</body></html></TEXT>\n</DOCUMENT>\n<DOCUMENT>\n<TYPE>GRAPHIC\n<SEQUENCE>8\n<FILENAME>cover.jpg\n<DESCRIPTION>GRAPHIC\n<TEXT>binary image placeholder</TEXT>\n</DOCUMENT>\n<DOCUMENT>\n<TYPE>XML\n<SEQUENCE>9\n<FILENAME>fee.xml\n<DESCRIPTION>FEE XML\n<TEXT><root><value>machine file</value></root></TEXT>\n</DOCUMENT>\n</SEC-DOCUMENT>"
+  },
+  "expected": {
+    "bodyCount": 1,
+    "importantExhibitCount": 4,
+    "noiseCount": 4,
+    "documentCount": 9,
+    "includedTypes": ["S-1", "EX-FILING FEES", "EX-1.1", "EX-3.1", "EX-10.2"],
+    "noiseTypes": ["EX-10.1", "EX-23.1", "GRAPHIC", "XML"]
+  }
+}

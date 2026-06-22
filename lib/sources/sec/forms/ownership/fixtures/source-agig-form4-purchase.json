@@ -1,0 +1,67 @@
+{
+  "id": "source-agig-form4-purchase",
+  "formType": "4",
+  "accessionNumber": "0001493152-26-023264",
+  "source": {
+    "url": "https://www.sec.gov/Archives/edgar/data/1685251/000149315226023264/ownership.xml",
+    "retrieved_at": "2026-05-23",
+    "sha256": "7715ece7b5c1945d8065dff3508a86f30893e40a9c1adaaa005c25978cac4a18"
+  },
+  "filingText": "<?xml version=\"1.0\"?>\n<ownershipDocument>\n\n    <schemaVersion>X0609</schemaVersion>\n\n    <documentType>4</documentType>\n\n    <periodOfReport>2026-05-12</periodOfReport>\n\n    <notSubjectToSection16>0</notSubjectToSection16>\n\n    <issuer>\n        <issuerCik>0001156041</issuerCik>\n        <issuerName>ABUNDIA GLOBAL IMPACT GROUP, INC.</issuerName>\n        <issuerTradingSymbol>AGIG</issuerTradingSymbol>\n        <issuerForeignTradingSymbol></issuerForeignTradingSymbol>\n    </issuer>\n\n    <reportingOwner>\n        <reportingOwnerId>\n            <rptOwnerCik>0001685251</rptOwnerCik>\n            <rptOwnerName>Bailey Robert J.</rptOwnerName>\n        </reportingOwnerId>\n        <reportingOwnerAddress>\n            <rptOwnerNonUSAddressFlag>false</rptOwnerNonUSAddressFlag>\n            <rptOwnerStreet1>16 RYAN DRIVE</rptOwnerStreet1>\n            <rptOwnerStreet2></rptOwnerStreet2>\n            <rptOwnerCity>ELLINGTON</rptOwnerCity>\n            <rptOwnerState>CT</rptOwnerState>\n            <rptOwnerZipCode>06029</rptOwnerZipCode>\n            <rptOwnerStateDescription></rptOwnerStateDescription>\n        </reportingOwnerAddress>\n        <reportingOwnerRelationship>\n            <isDirector>1</isDirector>\n            <isOfficer>0</isOfficer>\n            <isTenPercentOwner>0</isTenPercentOwner>\n            <isOther>0</isOther>\n            <officerTitle></officerTitle>\n            <otherText></otherText>\n        </reportingOwnerRelationship>\n    </reportingOwner>\n\n    <aff10b5One>0</aff10b5One>\n\n    <nonDerivativeTable>\n        <nonDerivativeTransaction>\n            <securityTitle>\n                <value>Common Stock</value>\n            </securityTitle>\n            <transactionDate>\n                <value>2026-05-12</value>\n            </transactionDate>\n            <deemedExecutionDate></deemedExecutionDate>\n            <transactionCoding>\n                <transactionFormType>4</transactionFormType>\n                <transactionCode>P</transactionCode>\n                <equitySwapInvolved>0</equitySwapInvolved>\n            </transactionCoding>\n            <transactionTimeliness></transactionTimeliness>\n            <transactionAmounts>\n                <transactionShares>\n                    <value>1050</value>\n                    <footnoteId id=\"F1\"/>\n                </transactionShares>\n                <transactionPricePerShare>\n                    <value>1.195</value>\n                </transactionPricePerShare>\n                <transactionAcquiredDisposedCode>\n                    <value>A</value>\n                </transactionAcquiredDisposedCode>\n            </transactionAmounts>\n            <postTransactionAmounts>\n                <sharesOwnedFollowingTransaction>\n                    <value>96925</value>\n                </sharesOwnedFollowingTransaction>\n            </postTransactionAmounts>\n            <ownershipNature>\n                <directOrIndirectOwnership>\n                    <value>D</value>\n                </directOrIndirectOwnership>\n            </ownershipNature>\n        </nonDerivativeTransaction>\n        <nonDerivativeTransaction>\n            <securityTitle>\n                <value>Common Stock</value>\n            </securityTitle>\n            <transactionDate>\n                <value>2026-05-12</value>\n            </transactionDate>\n            <deemedExecutionDate></deemedExecutionDate>\n            <transactionCoding>\n                <transactionFormType>4</transactionFormType>\n                <transactionCode>P</transactionCode>\n                <equitySwapInvolved>0</equitySwapInvolved>\n            </transactionCoding>\n            <transactionTimeliness></transactionTimeliness>\n            <transactionAmounts>\n                <transactionShares>\n                    <value>8950</value>\n                    <footnoteId id=\"F2\"/>\n                </transactionShares>\n                <transactionPricePerShare>\n                    <value>1.1999</value>\n                </transactionPricePerShare>\n                <transactionAcquiredDisposedCode>\n                    <value>A</value>\n                </transactionAcquiredDisposedCode>\n            </transactionAmounts>\n            <postTransactionAmounts>\n                <sharesOwnedFollowingTransaction>\n                    <value>105875</value>\n                </sharesOwnedFollowingTransaction>\n            </postTransactionAmounts>\n            <ownershipNature>\n                <directOrIndirectOwnership>\n                    <value>D</value>\n                </directOrIndirectOwnership>\n            </ownershipNature>\n        </nonDerivativeTransaction>\n    </nonDerivativeTable>\n\n    <footnotes>\n        <footnote id=\"F1\">Open market purchase by the reporting person of 1,050 shares of common stock, par value $0.001 per share (the &quot;Common Stock&quot;).</footnote>\n        <footnote id=\"F2\">Open market purchase by the reporting person of 8,950 shares of Common Stock.</footnote>\n    </footnotes>\n\n    <ownerSignature>\n        <signatureName>/s/ Robert J. Bailey</signatureName>\n        <signatureDate>2026-05-14</signatureDate>\n    </ownerSignature>\n</ownershipDocument>\n",
+  "expected": [
+    {
+      "label": "issuer.name",
+      "path": "facts.issuer.name",
+      "value": "ABUNDIA GLOBAL IMPACT GROUP, INC.",
+      "evidence": "<issuerName>ABUNDIA GLOBAL IMPACT GROUP, INC.</issuerName>"
+    },
+    {
+      "label": "issuer.ticker",
+      "path": "facts.issuer.ticker",
+      "value": "AGIG",
+      "evidence": "<issuerTradingSymbol>AGIG</issuerTradingSymbol>"
+    },
+    {
+      "label": "owner.name",
+      "path": "facts.reporting_owner.name",
+      "value": "Bailey Robert J.",
+      "evidence": "<rptOwnerName>Bailey Robert J.</rptOwnerName>"
+    },
+    {
+      "label": "transaction count",
+      "path": "facts.form4.transactions.length",
+      "value": 2,
+      "evidenceTag": "nonDerivativeTransaction"
+    },
+    {
+      "label": "tx0 code",
+      "path": "facts.form4.transactions.0.transaction_code",
+      "value": "P",
+      "evidence": "<transactionCode>P</transactionCode>"
+    },
+    {
+      "label": "tx0 shares",
+      "path": "facts.form4.transactions.0.shares",
+      "value": 1050,
+      "evidence": "<value>1050</value>"
+    },
+    {
+      "label": "tx0 price",
+      "path": "facts.form4.transactions.0.price_per_share",
+      "value": 1.195,
+      "evidence": "<value>1.195</value>"
+    },
+    {
+      "label": "tx1 shares",
+      "path": "facts.form4.transactions.1.shares",
+      "value": 8950,
+      "evidence": "<value>8950</value>"
+    },
+    {
+      "label": "tx1 price",
+      "path": "facts.form4.transactions.1.price_per_share",
+      "value": 1.1999,
+      "evidence": "<value>1.1999</value>"
+    }
+  ]
+}

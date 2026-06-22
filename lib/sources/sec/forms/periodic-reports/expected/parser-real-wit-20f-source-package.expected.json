@@ -1,0 +1,93 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_periodic_reports_raw_parser_v3",
+    "parserGroup": "periodic-reports",
+    "formType": "20-F",
+    "accessionNumber": "0000950170-25-076303",
+    "isSupported": true,
+    "facts": {
+      "companyName": "Wipro Limited",
+      "primaryTicker": "WIT",
+      "exchange": "NYSE",
+      "reportingPeriod": "March 31, 2025",
+      "isAmendment": false
+    }
+  },
+  "expected_raw_extraction": {
+    "missing_critical_raw_data": true,
+    "has_noise_candidates": true,
+    "min_section_count": 6,
+    "min_financial_statement_lines": 1,
+    "min_document_count": 9,
+    "min_attachment_text_count": 2,
+    "min_xbrl_fact_count": 6,
+    "section_keys_present": [
+      "20f_item_3_key_information",
+      "20f_item_5_operating_and_financial_review_and_prospects",
+      "20f_item_16i_disclosure_regarding_foreign_jurisdictions_that_prevent_insp"
+    ],
+    "coverage_ids_present": [
+      "filing_text",
+      "source_package_inventory",
+      "primary_document_inventory",
+      "form_type",
+      "accession_number",
+      "company_name",
+      "reporting_period",
+      "section_boundaries",
+      "financial_or_mda_raw",
+      "attachment_text_inventory",
+      "xbrl_document_inventory",
+      "xbrl_fact_inventory",
+      "source_truncation_check",
+      "noise_scan"
+    ],
+    "evidence_categories_present": [
+      "financial_statement_line",
+      "xbrl_fact_raw",
+      "fpi_raw"
+    ],
+    "evidence_labels_present": [
+      "cash_flow",
+      "ifrs-full:Revenue",
+      "ifrs-full:ProfitLoss",
+      "ifrs-full:CashAndCashEquivalents",
+      "20f_item_16i_hfcaa_language"
+    ],
+    "noise_categories_present": [
+      "forward_looking",
+      "cover_checkboxes",
+      "table_of_contents",
+      "xbrl_exhibits",
+      "document_exhibit"
+    ],
+    "warnings_include": [
+      "source_document_text_truncated",
+      "ambiguous_critical_raw_data:source_truncation_check",
+      "ambiguous_source:source_truncation_check"
+    ],
+    "warnings_exclude": [
+      "missing_filing_text",
+      "missing_accession_number"
+    ],
+    "missing_source_ids_present": [
+      "source_truncation_check"
+    ],
+    "xbrl_fact_names_present": [
+      "ifrs-full:Revenue",
+      "ifrs-full:ProfitLoss",
+      "ifrs-full:CashAndCashEquivalents",
+      "ifrs-full:LongtermBorrowings",
+      "ifrs-full:CurrentBorrowingsAndCurrentPortionOfNoncurrentBorrowings",
+      "dei:EntityCommonStockSharesOutstanding"
+    ],
+    "document_filenames_present": [
+      "wit-20250331.htm",
+      "wit-20250331_htm.xml"
+    ],
+    "attachment_filenames_present": [
+      "wit-20250331_htm.xml",
+      "wit-ex12_1.htm"
+    ]
+  }
+}

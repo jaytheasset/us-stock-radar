@@ -1,0 +1,94 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_425_parser_v1",
+    "parserGroup": "425",
+    "formType": "425",
+    "accessionNumber": "0000000000-26-000430",
+    "isSupported": true,
+    "summary": "Form 425 investor-day notice connected to a proposed business combination.",
+    "facts": {
+      "company_name": "Falcon Aero Group, Inc.",
+      "primary_ticker": "FACT",
+      "communication_types": ["investor_day_notice"],
+      "vote": {
+        "meeting_date": null,
+        "record_date": null,
+        "reconvened_date": null,
+        "vote_results": []
+      },
+      "spac": {
+        "is_spac_business_combination": true
+      }
+    },
+    "signals": [
+      {
+        "type": "communication_type",
+        "value": "investor_day_notice",
+        "evidence": "investor_day_notice",
+        "confidence": "medium"
+      }
+    ],
+    "calendarItems": [
+      {
+        "type": "investor_day",
+        "date": "2026-02-25",
+        "label": "Investor day",
+        "evidence": "Falcon Aero Group, Inc. announced that it will host an Investor Day on Wednesday, February 25, 2026, beginning at 2:00 p.m. ET in New York, NY."
+      }
+    ],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "other",
+    "event_title": "Falcon Aero schedules investor day tied to proposed business combination",
+    "primary_ticker": { "ticker": "FACT", "exchange": "NASDAQ" },
+    "tickers": [{ "ticker": "FACT", "exchange": "NASDAQ" }],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": "M&A communications",
+    "sub_theme": "Investor day notice",
+    "score": 42,
+    "score_reason": "Archived because the communication gives event logistics but no changed transaction consideration, conditions, or vote outcome.",
+    "signal": "neutral",
+    "quick_take": "Investor day notice connected to an already announced transaction.",
+    "summary": "The Form 425 gives the investor-day date, time, location, and webcast availability for a proposed business combination.",
+    "why_it_matters": "The notice can be useful as a calendar item, but it does not itself change the source-backed transaction terms.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": ["Investor Day on Wednesday, February 25, 2026, beginning at 2:00 p.m. ET."],
+    "what_to_watch_next": ["Review any later investor presentation or transaction amendment for changed terms."],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "type": "investor_day",
+        "date": "2026-02-25",
+        "label": "Investor day",
+        "evidence": "Investor Day on Wednesday, February 25, 2026."
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "communication_type": "investor_day_notice",
+      "event_date": "2026-02-25"
+    },
+    "evidence": ["Investor Day on Wednesday, February 25, 2026."],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": ["Calendar-like Form 425 notices should remain fixture-only in this room."]
+  }
+}

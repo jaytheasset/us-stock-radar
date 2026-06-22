@@ -1,0 +1,25 @@
+{
+  "case_id": "exhibits-empty-missing-13d",
+  "description": "Schedule 13D with Item 6 text and Item 7 saying no exhibits.",
+  "filing": {
+    "formType": "SC 13D",
+    "accessionNumber": "0000000000-26-013013",
+    "issuerName": "Willow Data Inc.",
+    "filedAt": "2026-04-14",
+    "text": "SC 13D\nSCHEDULE 13D\nWillow Data Inc.\n(Name of Issuer)\nCommon Stock\n(Title of Class of Securities)\n970000113\n(CUSIP Number)\nName of Reporting Person: Willow Holder LLC\nAggregate Amount Beneficially Owned by Each Reporting Person: 700,000\nPercent of Class Represented by Amount in Row (11): 5.5%\nItem 4. Purpose of Transaction\nThe securities were acquired for investment purposes.\nItem 6. Contracts, Arrangements, Understandings or Relationships with Respect to Securities of the Issuer\nThe Reporting Person is party to a lock-up agreement.\nItem 7. Material to be Filed as Exhibits\nNo exhibits are filed with this statement.\nSIGNATURE"
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "insider_ownership",
+    "deterministic": false,
+    "score_band": "feed",
+    "extracted_facts": {
+      "reportingPersons": [
+        "Willow Holder LLC"
+      ],
+      "scheduleType": "13D",
+      "sharesBeneficiallyOwned": 700000,
+      "percentOwned": 5.5
+    }
+  }
+}

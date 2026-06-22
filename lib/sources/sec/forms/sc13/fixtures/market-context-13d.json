@@ -1,0 +1,44 @@
+{
+  "case_id": "market-context-13d",
+  "description": "Schedule 13D with convertible bridge financing where fixture market context affects impact.",
+  "filing": {
+    "formType": "SC 13D",
+    "accessionNumber": "0000000000-26-000505",
+    "issuerName": "TinyLift Technologies Inc.",
+    "primaryTicker": {
+      "ticker": "TLFT",
+      "exchange": "NASDAQ"
+    },
+    "filedAt": "2026-04-08",
+    "text": "SCHEDULE 13D\nCUSIP Number: 88712T100\nName of Issuer: TinyLift Technologies Inc.\nTitle of Class of Securities: Common Stock\nTicker: TLFT\nExchange: NASDAQ\nDate of Event Which Requires Filing: April 6, 2026\nName of Reporting Person: StonePier Capital LP\nGroup Members: StonePier Capital LP; Delta Opportunity Fund LLC\nSole Voting Power: 0\nShared Voting Power: 15,000,000\nSole Dispositive Power: 0\nShared Dispositive Power: 15,000,000\nAggregate Amount Beneficially Owned by Each Reporting Person: 15,000,000\nPercent of Class Represented by Amount in Row (11): 28.0%\nItem 4. Purpose of Transaction\nThe Reporting Persons entered into a letter agreement to provide $20 million of bridge financing through convertible notes and warrants. The Reporting Persons may acquire additional securities, may influence control of the Issuer, and expect to participate in a strategic review and possible backstop financing.\nItem 5. Interest in Securities of the Issuer\nThe Reporting Persons beneficially own 15,000,000 shares, representing 28.0% of the outstanding common stock.\nSIGNATURE"
+  },
+  "market_context": {
+    "price": 0.85,
+    "previous_close": 0.92,
+    "market_cap": 45000000,
+    "shares_outstanding": 53500000,
+    "public_float": 31000000,
+    "volume": 2600000,
+    "avg_volume": 900000
+  },
+  "expected": {
+    "event_type": "dilution_risk",
+    "deterministic": false,
+    "score_band": "alert",
+    "extracted_facts": {
+      "issuerName": "TinyLift Technologies Inc.",
+      "reportingPersons": [
+        "StonePier Capital LP",
+        "Delta Opportunity Fund LLC"
+      ],
+      "scheduleType": "13D",
+      "isAmendment": false,
+      "sharesBeneficiallyOwned": 15000000,
+      "percentOwned": 28,
+      "ownershipIntent": "active",
+      "item4HasActivistLanguage": true,
+      "financingLanguage": true,
+      "financingAmountUsd": 20000000
+    }
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "case_name": "real-rumble-sc-to-i",
+  "source": {
+    "sec_url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/0001213900-25-000757-index.htm",
+    "primary_document": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi0125_rumble.htm",
+    "offer_document": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm"
+  },
+  "filing": {
+    "rawItemId": "real-rumble-sc-to-i",
+    "sourceUniqueId": "0001213900-25-000757",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/",
+    "title": "Rumble Inc. SC TO-I tender offer",
+    "publishedAt": "2025-01-03T21:09:55.000Z",
+    "bodyText": "SC TO-I\nRumble Inc.\n(Name of Subject Company (Issuer))\nRumble Inc.\n(Name of Filing Person (Offeror and Issuer))\nCheck the appropriate boxes below to designate any transactions to which the statement relates:\nissuer tender offer subject to Rule 13e-4.\nCheck the following box if the filing is a final amendment reporting the results of the tender offer. [ ]\nItems 1 through 9 and 11 are incorporated by reference to the Offer to Purchase.",
+    "rawPayload": {
+      "accession_number": "0001213900-25-000757",
+      "form_type": "SC TO-I",
+      "company_name": "Rumble Inc.",
+      "ticker": "RUM",
+      "exchange": "NASDAQ",
+      "documents": [
+        {
+          "sequence": "1",
+          "description": "TENDER OFFER",
+          "document": "sctoi0125_rumble.htm",
+          "type": "SC TO-I",
+          "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi0125_rumble.htm",
+          "isPrimary": true,
+          "textCharCount": 169962,
+          "textTruncated": false,
+          "fetchStatus": 200,
+          "fetchError": null
+        },
+        {
+          "sequence": "2",
+          "description": "OFFER TO PURCHASE, DATED JANUARY 3, 2025.",
+          "document": "sctoi_ex99a1arumble.htm",
+          "type": "EX-99.(A)(1)(A)",
+          "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+          "textCharCount": 1050535,
+          "textTruncated": false,
+          "fetchStatus": 200,
+          "fetchError": null
+        },
+        {
+          "sequence": "3",
+          "description": "LETTER OF TRANSMITTAL, DATED JANUARY 3, 2025.",
+          "document": "sctoi_ex99a1brumble.htm",
+          "type": "EX-99.(A)(1)(B)",
+          "textCharCount": 277658
+        },
+        {
+          "sequence": "4",
+          "description": "NOTICE OF GUARANTEED DELIVERY.",
+          "document": "sctoi_ex99a1crumble.htm",
+          "type": "EX-99.(A)(1)(C)",
+          "textCharCount": 69209
+        },
+        {
+          "sequence": "8",
+          "description": "FILING FEE TABLE",
+          "document": "sctoi_ex107rumble.htm",
+          "type": "EX-FILING FEES",
+          "textCharCount": 43985
+        },
+        {
+          "sequence": "9",
+          "description": "GRAPHIC",
+          "document": "tcomputershare_logo.jpg",
+          "type": "GRAPHIC",
+          "textCharCount": 0
+        }
+      ],
+      "attachment_texts": [
+        {
+          "type": "EX-99.(A)(1)(A)",
+          "description": "Offer to Purchase",
+          "text": "Offer to Purchase for Cash by Rumble Inc. of up to 70,000,000 Shares of its Class A Common Stock at a Purchase Price of $7.50 per Share, representing an aggregate purchase price of up to $525,000,000. The offer, proration period and withdrawal rights will expire at 5:00 P.M., New York City Time, on February 4, 2025, unless extended or terminated. We are offering to purchase up to 70,000,000 Shares. If oversubscribed, shares will be subject to proration."
+        }
+      ]
+    },
+    "metadata": {
+      "form_type": "SC TO-I",
+      "company_name": "Rumble Inc.",
+      "ticker": "RUM",
+      "exchange": "NASDAQ"
+    }
+  }
+}

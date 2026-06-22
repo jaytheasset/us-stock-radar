@@ -1,0 +1,27 @@
+{
+  "name": "hostile-exchange-offer",
+  "formType": "425",
+  "accessionNumber": "0000000000-26-000433",
+  "sourceUniqueId": "0000000000-26-000433",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/0000000000/000000000026000433/form425.htm",
+  "title": "425 - Orion Labs Hostile Exchange Offer",
+  "publishedAt": "2026-04-15T12:45:00Z",
+  "companyName": "Orion Labs, Inc.",
+  "primaryTicker": "ORLB",
+  "exchange": "NASDAQ",
+  "filingText": "Filed by Orion Labs, Inc.\nPursuant to Rule 425 under the Securities Act of 1933 and deemed filed pursuant to Rule 14d-2 under the Securities Exchange Act of 1934\nSubject Company: Photon Wireless, Inc.\nCommission File No. 000-32929\n\nOrion Labs Announces Intention to Commence Hostile Exchange Offer for Photon Wireless\n\nOrion Labs, Inc. (NASDAQ: ORLB) announced that it has filed a Form 425 formally announcing its intention to commence a hostile exchange offer to acquire all outstanding shares of Photon Wireless, Inc. (NASDAQ: PHWN). The proposed offer is expected to consist of a mix of cash and Orion Labs common stock. Orion Labs believes Photon shareholders should have a direct path to consider the proposal. This communication relates to a proposal that Orion Labs has made for a business combination transaction with Photon. In furtherance of this proposal, Orion may file one or more registration statements, proxy statements, tender or exchange offer documents with the SEC.",
+  "market_context": {
+    "price": 5.4,
+    "previous_close": 5.1,
+    "market_cap": 220000000,
+    "shares_outstanding": 40700000,
+    "public_float": 31000000,
+    "volume": 1400000,
+    "avg_volume": 550000
+  },
+  "expected": {
+    "event_type": "strategic_transaction",
+    "expected_delivery_level": "alert",
+    "deterministic": false
+  }
+}

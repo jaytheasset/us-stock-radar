@@ -1,0 +1,20 @@
+{
+  "id": "form4a-admin-amendment",
+  "formType": "4/A",
+  "accessionNumber": "0000000000-26-000403",
+  "issuer": {
+    "name": "Horizon Battery Systems Inc.",
+    "ticker": "HZBS",
+    "exchange": "NYSE",
+    "cik": "0001777003"
+  },
+  "reportingOwner": {
+    "name": "Evelyn Brooks",
+    "title": "Director",
+    "roles": ["director"]
+  },
+  "filingText": "Issuer: Horizon Battery Systems Inc.\nTicker: HZBS\nReporting Owner: Evelyn Brooks\nDirector: true\nAmendment Reason: Administrative correction to footnote text; no change to transaction date, transaction code, shares, price, or post-transaction ownership.\nOriginal filing reported a Form 4 open-market purchase and this amendment only corrects a typographical footnote.",
+  "expected_event_type": "insider_ownership",
+  "expected_score_band": "archive",
+  "deterministic_expected": true
+}

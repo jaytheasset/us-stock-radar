@@ -1,0 +1,32 @@
+{
+  "case_id": "initial-13g-items-1-10",
+  "description": "Initial Schedule 13G with Item 1 through Item 10 headings.",
+  "filing": {
+    "formType": "SC 13G",
+    "accessionNumber": "0000000000-26-013003",
+    "issuerName": "Harbor Tools Corp.",
+    "primaryTicker": {
+      "ticker": "HTLS",
+      "exchange": "NASDAQ"
+    },
+    "filedAt": "2026-02-14",
+    "text": "SC 13G\nSCHEDULE 13G\nHarbor Tools Corp.\n(Name of Issuer)\nCommon Stock\n(Title of Class of Securities)\n410000103\n(CUSIP Number)\nx Rule 13d-1(c)\nName of Reporting Person: Lowland Advisors LP\nAggregate Amount Beneficially Owned by Each Reporting Person: 3,200,000\nPercent of Class Represented by Amount in Row (11): 7.1%\nItem 1. Name of Issuer\nThe name of the issuer is Harbor Tools Corp.\nItem 2. Name of Person Filing\nThis statement is filed by Lowland Advisors LP.\nItem 3. If this statement is filed pursuant to Rules 13d-1(b) or 13d-2(b) or (c)\nNot applicable.\nItem 4. Ownership\nThe Reporting Person beneficially owns 3,200,000 shares, representing 7.1% of the class.\nItem 5. Ownership of Five Percent or Less of a Class\nNot applicable.\nItem 6. Ownership of More than Five Percent on Behalf of Another Person\nNot applicable.\nItem 7. Identification and Classification of the Subsidiary Which Acquired the Security Being Reported on by the Parent Holding Company\nNot applicable.\nItem 8. Identification and Classification of Members of the Group\nNot applicable.\nItem 9. Notice of Dissolution of Group\nNot applicable.\nItem 10. Certification\nBy signing below I certify that the securities referred to above were not acquired and are not held for the purpose of or with the effect of changing or influencing the control of the issuer.\nSIGNATURE"
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "insider_ownership",
+    "deterministic": true,
+    "score_band": "archive",
+    "extracted_facts": {
+      "issuerName": "Harbor Tools Corp.",
+      "reportingPersons": [
+        "Lowland Advisors LP"
+      ],
+      "scheduleType": "13G",
+      "isAmendment": false,
+      "sharesBeneficiallyOwned": 3200000,
+      "percentOwned": 7.1,
+      "passiveCertification": true
+    }
+  }
+}

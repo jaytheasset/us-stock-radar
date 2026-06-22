@@ -1,0 +1,38 @@
+{
+  "title": "Stonebridge Software Form 8-K repurchase authorization",
+  "publishedAt": "2026-05-13T13:45:00Z",
+  "sourceUniqueId": "0013131313-26-000013",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/13131313/001313131326000013/",
+  "bodyText": "UNITED STATES\nFORM 8-K\nItem 8.01 Other Events.\nOn May 13, 2026, Stonebridge Software announced that its board authorized a new stock repurchase program to buy back up to $150 million of common stock over the next 18 months. Repurchases may be made through open market transactions or privately negotiated transactions.",
+  "rawPayload": {
+    "form_type": "8-K",
+    "accession_number": "0013131313-26-000013",
+    "company_name": "Stonebridge Software",
+    "ticker": "SBSW",
+    "documents": [
+      {
+        "type": "8-K",
+        "description": "Current report",
+        "url": "primary.htm",
+        "isPrimary": true,
+        "textCharCount": 420,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ]
+  },
+  "metadata": {
+    "company_name": "Stonebridge Software",
+    "ticker": "SBSW"
+  },
+  "marketContext": {
+    "price": 24.4,
+    "market_cap": 1800000000,
+    "shares_outstanding": 73800000
+  },
+  "expected": {
+    "eventType": "capital_return",
+    "deliveryLevel": "feed"
+  }
+}

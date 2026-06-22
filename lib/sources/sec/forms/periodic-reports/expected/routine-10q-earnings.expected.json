@@ -1,0 +1,99 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_periodic_reports_parser_v1",
+    "parserGroup": "periodic-reports",
+    "formType": "10-Q",
+    "accessionNumber": "0001111111-26-000010",
+    "isSupported": true,
+    "summary": "Acme Robotics Inc. filed 10-Q for March 31, 2026; broad quarterly operating results are the dominant event.",
+    "facts": {
+      "companyName": "Acme Robotics Inc.",
+      "primaryTicker": "ARBT",
+      "exchange": "Nasdaq Global Market",
+      "reportingPeriod": "March 31, 2026",
+      "fiscalQuarter": "first quarter",
+      "dominantParserEventType": "earnings",
+      "revenue": 120400000,
+      "revenuePriorPeriod": 112000000,
+      "netIncome": 12300000,
+      "cashAndEquivalents": 220000000
+    },
+    "signals": [
+      {
+        "event_type": "earnings",
+        "signal_type": "periodic_financial_results",
+        "strength": "medium",
+        "summary": "Quarterly revenue and net income improved year over year.",
+        "evidence": "Revenue was $120.4 million for the three months ended March 31, 2026 compared to $112.0 million for the prior-year period. Net income was $12.3 million compared with net income of $6.8 million in the prior-year period.",
+        "deterministic": false
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {
+      "processing_path": "parser_router_analysis",
+      "market_context_used": false
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "earnings",
+    "event_title": "Acme Robotics reports higher quarterly revenue and net income",
+    "primary_ticker": {
+      "ticker": "ARBT",
+      "exchange": "Nasdaq Global Market"
+    },
+    "tickers": ["ARBT"],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 63,
+    "score_reason": "Feed-level score because the 10-Q shows improved revenue and profitability, but no acute balance-sheet, legal, or listing risk.",
+    "signal": "bullish",
+    "quick_take": "ARBT's 10-Q points to healthier quarterly execution, with revenue and net income both up from the prior-year period.",
+    "summary": "Acme Robotics reported revenue of $120.4 million versus $112.0 million a year earlier and net income of $12.3 million versus $6.8 million. Cash and equivalents were $220.0 million.",
+    "why_it_matters": "The filing supports a positive earnings read-through, but the disclosure is a routine periodic report rather than a standalone surprise event.",
+    "bullish_points": [
+      "Revenue rose year over year.",
+      "Net income nearly doubled from the prior-year period."
+    ],
+    "bearish_points": [],
+    "key_evidence": [
+      "Revenue was $120.4 million for the three months ended March 31, 2026 compared to $112.0 million for the prior-year period.",
+      "Net income was $12.3 million compared with net income of $6.8 million in the prior-year period."
+    ],
+    "what_to_watch_next": [
+      "Whether margin improvement continues in the next 10-Q.",
+      "Any follow-up earnings call or guidance update outside this filing."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "reporting_period": "March 31, 2026",
+      "revenue": 120400000,
+      "net_income": 12300000
+    },
+    "evidence": [
+      "Revenue was $120.4 million for the three months ended March 31, 2026 compared to $112.0 million for the prior-year period.",
+      "Net income was $12.3 million compared with net income of $6.8 million in the prior-year period."
+    ],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": []
+  }
+}

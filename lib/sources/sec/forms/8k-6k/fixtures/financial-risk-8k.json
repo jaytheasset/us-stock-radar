@@ -1,0 +1,33 @@
+{
+  "title": "Harbor Energy Services Form 8-K covenant default",
+  "publishedAt": "2026-05-10T22:15:00Z",
+  "sourceUniqueId": "0010101010-26-000010",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/10101010/001010101026000010/",
+  "bodyText": "UNITED STATES\nFORM 8-K\nItem 2.04 Triggering Events That Accelerate or Increase a Direct Financial Obligation.\nOn May 10, 2026, Harbor Energy Services received notice from its lenders that an event of default occurred under its credit agreement because the Company failed to satisfy a minimum liquidity covenant. The lenders reserved their rights and remedies. The Company is seeking a waiver and evaluating restructuring alternatives.\nItem 9.01 Financial Statements and Exhibits.",
+  "rawPayload": {
+    "form_type": "8-K",
+    "accession_number": "0010101010-26-000010",
+    "company_name": "Harbor Energy Services",
+    "ticker": "HESV",
+    "documents": [
+      {
+        "type": "8-K",
+        "description": "Current report",
+        "url": "primary.htm",
+        "isPrimary": true,
+        "textCharCount": 560,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ]
+  },
+  "metadata": {
+    "company_name": "Harbor Energy Services",
+    "ticker": "HESV"
+  },
+  "expected": {
+    "eventType": "financial_risk",
+    "deliveryLevel": "alert"
+  }
+}

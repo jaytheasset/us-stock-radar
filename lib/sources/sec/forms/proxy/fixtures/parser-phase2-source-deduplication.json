@@ -1,0 +1,9 @@
+{
+  "fixture_name": "parser-phase2-source-deduplication",
+  "input": {
+    "formType": "DEF 14A",
+    "accessionNumber": "0000000012-26-000012",
+    "companyName": "Dedup Proxy Co.",
+    "filingText": "NOTICE OF ANNUAL MEETING\nProposal 1: Election of Directors\nProposal 2: Ratification of Appointment of Independent Registered Public Accounting Firm\nProposal 3: Say-on-Pay\n\nPROXY STATEMENT\nPROPOSAL 1: Election of Directors\nThe Board recommends a vote FOR each nominee.\n\nPROPOSAL NO. 2: Ratification of Appointment of Independent Registered Public Accounting Firm\nThe Board recommends a vote FOR Proposal 2.\n\nPROPOSAL NUMBER 3: Say-on-Pay\nThe Board recommends a vote FOR Proposal 3.\n\nPROXY CARD\nProposal 1 Election of Directors FOR ALL | WITHHOLD ALL | FOR ALL EXCEPT\nProposal 2 Ratification of Appointment of Independent Registered Public Accounting Firm FOR | AGAINST | ABSTAIN\nProposal 3 Say-on-Pay FOR | AGAINST | ABSTAIN"
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "id": "source-amcor-form144-no-prior-sales",
+  "formType": "144",
+  "accessionNumber": "0001959173-26-000698",
+  "source": {
+    "url": "https://www.sec.gov/Archives/edgar/data/1748790/000195917326000698/primary_doc.xml",
+    "retrieved_at": "2026-05-23",
+    "sha256": "a83d8706796bb864027f5cbfad20533f5214a34badfe4e67bb665827820baba8"
+  },
+  "filingText": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><edgarSubmission xmlns=\"http://www.sec.gov/edgar/ownership\" xmlns:com=\"http://www.sec.gov/edgar/common\">\n  <headerData>\n    <submissionType>144</submissionType>\n    <filerInfo>\n      <filer>\n        <filerCredentials>\n          <cik>0001776077</cik>\n          <ccc>XXXXXXXX</ccc>\n        </filerCredentials>\n      </filer>\n      <liveTestFlag>LIVE</liveTestFlag>\n\n\n\n    </filerInfo>\n  </headerData>\n  <formData>\n    <issuerInfo>\n      <issuerCik>0001748790</issuerCik>\n      <issuerName>Amcor plc</issuerName>\n      <secFileNumber>001-38932</secFileNumber>\n      <issuerAddress>\n        <com:street1>83 TOWER ROAD NORTH</com:street1>\n        <com:city>WARMLEY, BRISTOL</com:city>\n        <com:stateOrCountry>X0</com:stateOrCountry>\n        <com:zipCode>BS30 8XP</com:zipCode>\n      </issuerAddress>\n      <issuerContactPhone>44 117 9753200</issuerContactPhone>\n      <nameOfPersonForWhoseAccountTheSecuritiesAreToBeSold>Casamento Michael</nameOfPersonForWhoseAccountTheSecuritiesAreToBeSold>\n      <relationshipsToIssuer>\n        <relationshipToIssuer>Officer</relationshipToIssuer>\n      </relationshipsToIssuer>\n    </issuerInfo>\n    <securitiesInformation>\n      <securitiesClassTitle>Common</securitiesClassTitle>\n      <brokerOrMarketmakerDetails>\n        <name>Fidelity Brokerage Services LLC</name>\n        <address>\n          <com:street1>900 Salem Street</com:street1>\n          <com:city>Smithfield</com:city>\n          <com:stateOrCountry>RI</com:stateOrCountry>\n          <com:zipCode>02917</com:zipCode>\n        </address>\n      </brokerOrMarketmakerDetails>\n      <noOfUnitsSold>30000</noOfUnitsSold>\n      <aggregateMarketValue>1437000.00</aggregateMarketValue>\n      <noOfUnitsOutstanding>462045690</noOfUnitsOutstanding>\n      <approxSaleDate>02/06/2026</approxSaleDate>\n      <securitiesExchangeName>NYSE</securitiesExchangeName>\n    </securitiesInformation>\n    <securitiesToBeSold>\n      <securitiesClassTitle>Common</securitiesClassTitle>\n      <acquiredDate>09/03/2019</acquiredDate>\n      <natureOfAcquisitionTransaction>Restricted Stock Vesting</natureOfAcquisitionTransaction>\n      <nameOfPersonfromWhomAcquired>Issuer</nameOfPersonfromWhomAcquired>\n      <isGiftTransaction>N</isGiftTransaction>\n      <amountOfSecuritiesAcquired>4939</amountOfSecuritiesAcquired>\n      <paymentDate>09/03/2019</paymentDate>\n      <natureOfPayment>Compensation</natureOfPayment>\n    </securitiesToBeSold>\n    <securitiesToBeSold>\n      <securitiesClassTitle>Common</securitiesClassTitle>\n      <acquiredDate>08/23/2020</acquiredDate>\n      <natureOfAcquisitionTransaction>Restricted Stock Vesting</natureOfAcquisitionTransaction>\n      <nameOfPersonfromWhomAcquired>Issuer</nameOfPersonfromWhomAcquired>\n      <isGiftTransaction>N</isGiftTransaction>\n      <amountOfSecuritiesAcquired>4930</amountOfSecuritiesAcquired>\n      <paymentDate>08/23/2020</paymentDate>\n      <natureOfPayment>Compensation</natureOfPayment>\n    </securitiesToBeSold>\n    <securitiesToBeSold>\n      <securitiesClassTitle>Common</securitiesClassTitle>\n      <acquiredDate>09/02/2020</acquiredDate>\n      <natureOfAcquisitionTransaction>Restricted Stock Vesting</natureOfAcquisitionTransaction>\n      <nameOfPersonfromWhomAcquired>Issuer</nameOfPersonfromWhomAcquired>\n      <isGiftTransaction>N</isGiftTransaction>\n      <amountOfSecuritiesAcquired>1562</amountOfSecuritiesAcquired>\n      <paymentDate>09/02/2020</paymentDate>\n      <natureOfPayment>Compensation</natureOfPayment>\n    </securitiesToBeSold>\n    <securitiesToBeSold>\n      <securitiesClassTitle>Common</securitiesClassTitle>\n      <acquiredDate>02/08/2021</acquiredDate>\n      <natureOfAcquisitionTransaction>Restricted Stock Vesting</natureOfAcquisitionTransaction>\n      <nameOfPersonfromWhomAcquired>Issuer</nameOfPersonfromWhomAcquired>\n      <isGiftTransaction>N</isGiftTransaction>\n      <amountOfSecuritiesAcquired>9036</amountOfSecuritiesAcquired>\n      <paymentDate>02/08/2021</paymentDate>\n      <natureOfPayment>Compensation</natureOfPayment>\n    </securitiesToBeSold>\n    <securitiesToBeSold>\n      <securitiesClassTitle>Common</securitiesClassTitle>\n      <acquiredDate>08/26/2021</acquiredDate>\n      <natureOfAcquisitionTransaction>Restricted Stock Vesting</natureOfAcquisitionTransaction>\n      <nameOfPersonfromWhomAcquired>Issuer</nameOfPersonfromWhomAcquired>\n      <isGiftTransaction>N</isGiftTransaction>\n      <amountOfSecuritiesAcquired>9533</amountOfSecuritiesAcquired>\n      <paymentDate>08/26/2021</paymentDate>\n      <natureOfPayment>Compensation</natureOfPayment>\n    </securitiesToBeSold>\n    <nothingToReportFlagOnSecuritiesSoldInPast3Months>Y</nothingToReportFlagOnSecuritiesSoldInPast3Months>\n    <noticeSignature>\n      <noticeDate>02/06/2026</noticeDate>\n      <signature>/s/ Eric Janiak, as a duly authorized representative of Fidelity Brokerage Services LLC, as attorney-in-fact for Michael Casamento</signature>\n    </noticeSignature>\n  </formData>\n</edgarSubmission>\n",
+  "expected": [
+    {
+      "label": "issuer.name",
+      "path": "facts.issuer.name",
+      "value": "Amcor plc",
+      "evidence": "<issuerName>Amcor plc</issuerName>"
+    },
+    {
+      "label": "seller name",
+      "path": "facts.form144.seller_name",
+      "value": "Casamento Michael",
+      "evidence": "<nameOfPersonForWhoseAccountTheSecuritiesAreToBeSold>Casamento Michael</nameOfPersonForWhoseAccountTheSecuritiesAreToBeSold>"
+    },
+    {
+      "label": "proposed units",
+      "path": "facts.form144.securities_to_be_sold",
+      "value": 30000,
+      "evidence": "<noOfUnitsSold>30000</noOfUnitsSold>"
+    },
+    {
+      "label": "aggregate market value",
+      "path": "facts.form144.aggregate_market_value",
+      "value": 1437000,
+      "evidence": "<aggregateMarketValue>1437000.00</aggregateMarketValue>"
+    },
+    {
+      "label": "units outstanding",
+      "path": "facts.form144.shares_outstanding",
+      "value": 462045690,
+      "evidence": "<noOfUnitsOutstanding>462045690</noOfUnitsOutstanding>"
+    },
+    {
+      "label": "approx sale date",
+      "path": "facts.form144.approximate_sale_date",
+      "value": "02/06/2026",
+      "evidence": "<approxSaleDate>02/06/2026</approxSaleDate>"
+    },
+    {
+      "label": "no prior sales flag",
+      "path": "facts.form144.no_prior_sales_in_past_three_months",
+      "value": true,
+      "evidence": "<nothingToReportFlagOnSecuritiesSoldInPast3Months>Y</nothingToReportFlagOnSecuritiesSoldInPast3Months>"
+    },
+    {
+      "label": "past three months total",
+      "path": "facts.form144.past_three_months_sales",
+      "value": 0,
+      "evidence": "<nothingToReportFlagOnSecuritiesSoldInPast3Months>Y</nothingToReportFlagOnSecuritiesSoldInPast3Months>"
+    },
+    {
+      "label": "acquisition lot count",
+      "path": "facts.form144.acquisition_lots.length",
+      "value": 5,
+      "evidenceTag": "securitiesToBeSold"
+    }
+  ]
+}

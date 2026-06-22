@@ -1,0 +1,26 @@
+{
+  "fixtureName": "s8-pos-conflicting-additional-securities",
+  "formType": "S-8 POS",
+  "accessionNumber": "0009999999-26-000091",
+  "filedAt": "2026-04-04",
+  "issuer": {
+    "name": "Conflict Robotics Corp.",
+    "ticker": "CFRC",
+    "exchange": "NYSE"
+  },
+  "filingText": "Post-Effective Amendment No. 2 to Form S-8. EXPLANATORY NOTE. This S-8 POS amendment registers an additional 1,200,000 shares of common stock under the Conflict Robotics Corp. 2024 Equity Incentive Plan. The additional securities are available for future awards. PART I INFORMATION REQUIRED IN THE SECTION 10(a) PROSPECTUS. PART II INFORMATION REQUIRED IN THE REGISTRATION STATEMENT. SIGNATURES.",
+  "attachments": [
+    {
+      "documentType": "EX-FILING FEES",
+      "description": "Exhibit 107 filing fee table",
+      "text": "Table 1: Newly Registered Securities | Security Type | Security Class Title | Amount Registered | Proposed Maximum Offering Price Per Unit | Maximum Aggregate Offering Price | Fee Calculation Rule | Fee Rate | Registration Fee | | Equity | Common Stock, par value $0.001 per share, Conflict Robotics Corp. 2024 Equity Incentive Plan | 1,200,000 shares | $3.00 | $3,600,000 | 457(h) | 0.00015310 | $551.16 |"
+    }
+  ],
+  "parentFilingContext": null,
+  "marketContext": null,
+  "flowExpectation": {
+    "parserCanFinishWithoutLlm": false,
+    "routerCanFinishWithoutLlm": false,
+    "reason": "EDGAR S-8 POS conflicts with source text that appears to register additional securities."
+  }
+}

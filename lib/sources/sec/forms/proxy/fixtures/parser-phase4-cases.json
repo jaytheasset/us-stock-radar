@@ -1,0 +1,138 @@
+{
+  "defa14a-simple-proxy-card-only": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000051-26-000051",
+      "companyName": "Proxy Card Only Co.",
+      "filingText": "<h2>Proxy Card</h2><p>Annual Meeting Proxy Card</p><table><tr><td>Proposal 1 Election of Directors</td><td>FOR ALL</td><td>WITHHOLD ALL</td><td>FOR ALL EXCEPT</td></tr><tr><td>Proposal 2 Ratification of Appointment of Independent Registered Public Accounting Firm</td><td>FOR</td><td>AGAINST</td><td>ABSTAIN</td></tr></table>"
+    }
+  },
+  "defa14a-vote-reminder-only": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000052-26-000052",
+      "companyName": "Vote Reminder Co.",
+      "filingText": "<h1>Your Vote Is Important</h1><p>Please vote today by internet, phone, or mail. No proposal descriptions are included in this reminder.</p>"
+    }
+  },
+  "defa14a-supplemental-proxy-statement": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000053-26-000053",
+      "companyName": "Supplement Co.",
+      "filingText": "<h1>Supplement to the Proxy Statement</h1><p>This supplement to the proxy statement dated April 1, 2026 amends and supplements the definitive proxy statement filed with the SEC on April 1, 2026.</p><p>Except as described in this supplement, no other changes have been made to the proxy statement.</p>"
+    }
+  },
+  "supplement-parent-reference-unavailable": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000054-26-000054",
+      "companyName": "Parent Missing Co.",
+      "filingText": "<h1>Supplement to the Proxy Statement for the Annual Meeting</h1><p>This supplement references the definitive proxy statement filed with the SEC on March 10, 2026.</p><p>The proxy statement is hereby supplemented with additional disclosure about Proposal 2.</p>"
+    }
+  },
+  "supplement-meeting-date-location-change": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000055-26-000055",
+      "companyName": "Meeting Change Co.",
+      "filingText": "<h1>Supplement to Proxy Statement</h1><p>The annual meeting date has changed and the annual meeting will now be held on June 15, 2026.</p><p>The virtual meeting location has been updated to https://meeting.example.com.</p>"
+    }
+  },
+  "supplement-adding-proposal": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000056-26-000056",
+      "companyName": "Added Proposal Co.",
+      "filingText": "<h1>Notice of Annual Meeting</h1><p>Proposal 1 Election of Directors</p><p>Proposal 2 Ratification of Appointment of Independent Registered Public Accounting Firm</p><p>Proposal 3 Advisory Vote to Approve Executive Compensation</p><h1>Supplement to Proxy Statement</h1><p>A new proposal has been added for the annual meeting.</p><p>Proposal 4: Approval of Amendment to Certificate of Incorporation.</p>"
+    }
+  },
+  "supplement-board-recommendation-change": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000057-26-000057",
+      "companyName": "Recommendation Change Co.",
+      "filingText": "<h1>Supplement to Proxy Statement</h1><p>Proposal 2: Ratification of Appointment of Independent Registered Public Accounting Firm.</p><p>The Board previously recommended a vote FOR Proposal 2.</p><p>The Board now recommends that stockholders vote AGAINST Proposal 2.</p>"
+    }
+  },
+  "supplement-shareholder-proposal-withdrawn": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000058-26-000058",
+      "companyName": "Shareholder Proposal Co.",
+      "filingText": "<h1>Supplement to Proxy Statement</h1><p>Stockholder Proposal: Special Meeting Rights.</p><p>The stockholder proposal regarding special meeting rights has been withdrawn and will not be presented at the annual meeting.</p><p>The proponent recommends a vote FOR the shareholder proposal.</p><p>The Board recommends a vote AGAINST this shareholder proposal.</p>"
+    }
+  },
+  "merger-supplement-litigation-settlement": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000059-26-000059",
+      "companyName": "Merger Litigation Co.",
+      "filingText": "<h1>Proxy Statement/Prospectus Supplement</h1><p>This supplement to the proxy statement/prospectus updates disclosure about the merger agreement.</p><p>The merger litigation has been settled and the parties entered into a settlement agreement.</p>"
+    }
+  },
+  "merger-supplement-fairness-special-committee": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000060-26-000060",
+      "companyName": "Merger Fairness Co.",
+      "filingText": "<h1>Proxy Statement/Prospectus Supplement</h1><p>This supplement to the proxy statement/prospectus updates the merger disclosure.</p><p>The fairness opinion was updated and supplemented after the special committee approved updated disclosure.</p>"
+    }
+  },
+  "equity-plan-supplement-share-reserve": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000061-26-000061",
+      "companyName": "Equity Plan Supplement Co.",
+      "filingText": "<h1>Supplement to Proxy Statement</h1><p>Proposal 3: Approval of Equity Incentive Plan.</p><p>The share reserve under the equity incentive plan was increased and the plan term was amended.</p><table><caption>New Plan Benefits</caption><tr><th>Name and Position</th><th>Dollar Value</th><th>Number of Shares</th></tr><tr><td>Executive Officers</td><td>--</td><td>--</td></tr></table>"
+    }
+  },
+  "reverse-split-supplement-ratio": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000062-26-000062",
+      "companyName": "Reverse Split Supplement Co.",
+      "filingText": "<h1>Supplement to Proxy Statement</h1><p>Proposal 2: Approval of Reverse Stock Split.</p><p>The reverse stock split ratio range was revised from one-for-five to one-for-twenty and fixed at one-for-ten.</p>"
+    }
+  },
+  "authorized-shares-supplement": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000063-26-000063",
+      "companyName": "Authorized Shares Supplement Co.",
+      "filingText": "<h1>Supplement to Proxy Statement</h1><p>Proposal 4: Approval of Increase in Authorized Shares.</p><p>The authorized shares proposal was amended to increase authorized shares from 100,000,000 to 200,000,000.</p>"
+    }
+  },
+  "revised-proxy-form": {
+    "input": {
+      "formType": "PRER14A",
+      "accessionNumber": "0000000064-26-000064",
+      "companyName": "Revised Proxy Co.",
+      "filingText": "<h1>Revised Proxy Statement</h1><p>This revised proxy statement updates the annual meeting materials.</p><p>Proposal 1: Election of Directors.</p><p>Proposal 2: Ratification of Appointment of Independent Registered Public Accounting Firm.</p>"
+    }
+  },
+  "amendment-no-specific-change": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000065-26-000065",
+      "companyName": "Unclear Amendment Co.",
+      "filingText": "<h1>Amendment to Proxy Statement</h1><p>This amendment to the proxy statement amends the proxy statement for the annual meeting.</p>"
+    }
+  },
+  "parent-and-supplement-local-change": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000066-26-000066",
+      "companyName": "Local Reconciliation Co.",
+      "filingText": "<DOCUMENT><TYPE>DEF 14A\n<SEQUENCE>1\n<FILENAME>proxy.htm\n<DESCRIPTION>Proxy Statement\n<TEXT><h1>Proxy Statement</h1><p>The annual meeting will be held on May 1, 2026.</p><p>Proposal 1: Election of Directors.</p><p>Proposal 2: Ratification of Appointment of Independent Registered Public Accounting Firm.</p><p>The Board recommends a vote FOR Proposal 2.</p></TEXT></DOCUMENT><DOCUMENT><TYPE>DEFA14A\n<SEQUENCE>2\n<FILENAME>supplement.htm\n<DESCRIPTION>Supplement to Proxy Statement\n<TEXT><h1>Supplement to the Proxy Statement</h1><p>This supplement to the proxy statement dated April 1, 2026 updates the proxy statement.</p><p>The annual meeting date has changed and the annual meeting will now be held on May 15, 2026.</p><p>Proposal 2: Ratification of Appointment of Independent Registered Public Accounting Firm.</p><p>The Board now recommends that stockholders vote AGAINST Proposal 2.</p><p>Proposal 3: Approval of Equity Incentive Plan.</p></TEXT></DOCUMENT>"
+    }
+  },
+  "parent-and-supplement-no-meaningful-change": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000067-26-000067",
+      "companyName": "No Meaningful Change Co.",
+      "filingText": "<DOCUMENT><TYPE>DEF 14A\n<SEQUENCE>1\n<FILENAME>proxy.htm\n<DESCRIPTION>Proxy Statement\n<TEXT><h1>Proxy Statement</h1><p>The annual meeting will be held on May 1, 2026.</p><p>Proposal 1: Election of Directors.</p><p>The Board recommends a vote FOR each nominee.</p></TEXT></DOCUMENT><DOCUMENT><TYPE>DEFA14A\n<SEQUENCE>2\n<FILENAME>supplement.htm\n<DESCRIPTION>Supplement to Proxy Statement\n<TEXT><h1>Supplement to the Proxy Statement</h1><p>Except as described in this supplement, no other changes have been made to the proxy statement.</p><h1>Proxy Statement</h1><p>The annual meeting will be held on May 1, 2026.</p><p>Proposal 1: Election of Directors.</p><p>The Board recommends a vote FOR each nominee.</p></TEXT></DOCUMENT>"
+    }
+  }
+}

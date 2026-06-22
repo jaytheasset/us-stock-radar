@@ -1,0 +1,25 @@
+{
+  "case_id": "item7-13g-not-exhibits",
+  "description": "Schedule 13G where Item 7 has substantive subsidiary text but must not be treated as exhibit inventory.",
+  "filing": {
+    "formType": "SC 13G",
+    "accessionNumber": "0000000000-26-013014",
+    "issuerName": "Maple Sensor Co.",
+    "filedAt": "2026-02-15",
+    "text": "SC 13G\nSCHEDULE 13G\nMaple Sensor Co.\n(Name of Issuer)\nCommon Stock\n(Title of Class of Securities)\n560000114\n(CUSIP Number)\nx Rule 13d-1(b)\nName of Reporting Person: Maple Index Advisers LP\nAggregate Amount Beneficially Owned by Each Reporting Person: 2,000,000\nPercent of Class Represented by Amount in Row (11): 6.0%\nItem 4. Ownership\nThe Reporting Person beneficially owns 2,000,000 shares, representing 6.0% of the class.\nItem 7. Identification and Classification of the Subsidiary Which Acquired the Security Being Reported on by the Parent Holding Company\nMaple Index Sub-Adviser LLC acquired the securities on behalf of the parent holding company.\nItem 10. Certification\nBy signing below I certify that the securities referred to above were acquired and are held in the ordinary course of business and were not acquired and are not held for the purpose of or with the effect of changing or influencing the control of the issuer.\nSIGNATURE"
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "insider_ownership",
+    "deterministic": true,
+    "score_band": "archive",
+    "extracted_facts": {
+      "reportingPersons": [
+        "Maple Index Advisers LP"
+      ],
+      "scheduleType": "13G",
+      "sharesBeneficiallyOwned": 2000000,
+      "percentOwned": 6
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "case_name": "real-carlyle-final-sc-to-ia",
+  "source": {
+    "sec_url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/cars_2026130xsctoa.htm"
+  },
+  "filing": {
+    "rawItemId": "real-carlyle-final-sc-to-ia",
+    "sourceUniqueId": "0001702510-26-000009",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/",
+    "title": "Carlyle Credit Solutions SC TO-I/A final amendment",
+    "publishedAt": "2026-01-30T12:00:00.000Z",
+    "bodyText": "SC TO-I/A\nSCHEDULE TO (Amendment No. 2)\nCarlyle Credit Solutions, Inc.\n(Name of Subject Company (Issuer))\nCarlyle Credit Solutions, Inc.\n(Name of Filing Person (Offeror and Issuer))\nCheck the appropriate boxes below to designate any transactions to which the statement relates:\nissuer tender offer subject to Rule 13e-4.\nCheck the following box if the filing is a final amendment reporting the results of the tender offer: [X]\nFINAL AMENDMENT TO TENDER OFFER STATEMENT\nThis Amendment No. 2 is being filed by the Company to report the final results of the Offer. The Offer expired at 11:59 p.m., New York City Time, on January 21, 2026. The Company accepted for purchase approximately 4,180,330 Shares at a purchase price per Share equal to the net asset value per Share as of December 31, 2025. The net asset value per Share was $18.82 per Share, resulting in an aggregate purchase price of approximately $78,673,802.",
+    "rawPayload": {
+      "accession_number": "0001702510-26-000009",
+      "form_type": "SC TO-I/A",
+      "company_name": "Carlyle Credit Solutions, Inc.",
+      "documents": [
+        {
+          "sequence": "1",
+          "description": "SC TO-I/A",
+          "document": "cars_2026130xsctoa.htm",
+          "type": "SC TO-I/A",
+          "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/cars_2026130xsctoa.htm",
+          "isPrimary": true,
+          "textCharCount": 16000,
+          "textTruncated": false,
+          "fetchStatus": 200,
+          "fetchError": null
+        },
+        {
+          "sequence": "2",
+          "description": "Filing Fee Table",
+          "document": "cars-2026130xexfilingfees.htm",
+          "type": "EX-FILING FEES",
+          "textCharCount": 4000
+        }
+      ],
+      "attachment_texts": []
+    },
+    "metadata": {
+      "form_type": "SC TO-I/A",
+      "company_name": "Carlyle Credit Solutions, Inc."
+    }
+  }
+}

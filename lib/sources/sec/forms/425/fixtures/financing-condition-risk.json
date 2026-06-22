@@ -1,0 +1,27 @@
+{
+  "name": "financing-condition-risk",
+  "formType": "425",
+  "accessionNumber": "0000000000-26-000428",
+  "sourceUniqueId": "0000000000-26-000428",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/0000000000/000000000026000428/form425.htm",
+  "title": "425 - Solara Foods, Inc.",
+  "publishedAt": "2026-07-02T11:00:00Z",
+  "companyName": "Solara Foods, Inc.",
+  "primaryTicker": "SLRA",
+  "exchange": "NYSE",
+  "filingText": "Filed by Solara Foods, Inc.\nSubject Company: Harbor Brands, Inc.\n\nSolara Foods, Inc. provided an update regarding its proposed acquisition of Harbor Brands, Inc. The transaction is not subject to a financing condition, but Solara disclosed that its committed debt financing may not be available if market disruption events continue through the closing date. Solara also stated that failure to complete the acquisition would require it to evaluate additional capital raising alternatives to address near-term liquidity needs. Management said there is no change to the purchase price.",
+  "market_context": {
+    "price": 8.2,
+    "previous_close": 8.55,
+    "market_cap": 410000000,
+    "shares_outstanding": 50000000,
+    "public_float": 42000000,
+    "volume": 3100000,
+    "avg_volume": 900000
+  },
+  "expected": {
+    "event_type": "financial_risk",
+    "expected_delivery_level": "feed",
+    "deterministic": false
+  }
+}

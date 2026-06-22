@@ -1,0 +1,66 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_periodic_reports_raw_parser_v3",
+    "parserGroup": "periodic-reports",
+    "formType": "10-Q/A",
+    "accessionNumber": "0000000000-25-000202",
+    "isSupported": true,
+    "facts": {
+      "companyName": "Acme Sensors Corp.",
+      "primaryTicker": "ACMS",
+      "exchange": "NYSE American",
+      "reportingPeriod": "March 31, 2025",
+      "isAmendment": true
+    }
+  },
+  "expected_raw_extraction": {
+    "missing_critical_raw_data": false,
+    "has_noise_candidates": true,
+    "min_section_count": 1,
+    "min_financial_statement_lines": 0,
+    "min_document_count": 2,
+    "min_attachment_text_count": 1,
+    "min_xbrl_fact_count": 2,
+    "section_keys_present": [
+      "part_ii_item_6_exhibits"
+    ],
+    "coverage_ids_present": [
+      "filing_text",
+      "source_package_inventory",
+      "primary_document_inventory",
+      "form_type",
+      "accession_number",
+      "company_name",
+      "reporting_period",
+      "section_boundaries",
+      "financial_or_mda_raw",
+      "amendment_scope",
+      "attachment_text_inventory",
+      "xbrl_document_inventory",
+      "xbrl_fact_inventory",
+      "source_truncation_check",
+      "noise_scan"
+    ],
+    "evidence_categories_present": [
+      "amendment_scope_raw",
+      "xbrl_fact_raw"
+    ],
+    "evidence_labels_present": [
+      "routine_xbrl_exhibit_or_certification_indicator",
+      "no_other_changes_indicator",
+      "us-gaap:Revenues"
+    ],
+    "noise_categories_present": [
+      "signatures",
+      "certifications",
+      "xbrl_exhibits",
+      "document_exhibit"
+    ],
+    "warnings_exclude": [
+      "missing_filing_text",
+      "missing_accession_number",
+      "amendment_scope_not_clearly_extracted",
+      "missing_critical_raw_data:financial_or_mda_raw"
+    ]
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "fixtureName": "reoffer-prospectus-sellingholders",
+  "formType": "S-8/A",
+  "accessionNumber": "0008888888-25-000080",
+  "filedAt": "2025-07-03",
+  "issuer": {
+    "name": "BitCompute Digital Inc.",
+    "ticker": "BCDI",
+    "exchange": "NASDAQ",
+    "sector": "Technology",
+    "industry_group": "Digital Infrastructure"
+  },
+  "filingText": "This Amendment No. 1 to Form S-8 is filed solely to correct certain errors in the reoffer prospectus. The registration statement relates to the BitCompute Digital Inc. 2025 Equity Incentive Plan. The Reoffer Prospectus relates to up to 1,200,000 shares of common stock that may be offered for resale by the selling securityholders. The company will not receive proceeds from sales by the selling securityholders. Selling Securityholder: Alice Lee | Shares Owned Before: 800,000 | Percent Owned Before: * | Shares Registered: 800,000 Selling Securityholder: Brian Park | Shares Owned Before: 400,000 | Percent Owned Before: * | Shares Registered: 400,000 The last reported sale price of common stock was $2.10 on July 1, 2025.",
+  "attachments": [],
+  "parentFilingContext": {
+    "accessionNumber": "0008888888-25-000040",
+    "formType": "S-8",
+    "filedAt": "2025-05-01",
+    "registeredShares": 1200000,
+    "planNames": ["BitCompute Digital Inc. 2025 Equity Incentive Plan"],
+    "summary": "Original S-8 included a reoffer prospectus covering 1,200,000 resale shares."
+  },
+  "marketContext": null,
+  "flowExpectation": {
+    "parserCanFinishWithoutLlm": false,
+    "routerCanFinishWithoutLlm": false,
+    "reason": "Correction-only amendment is mechanically identifiable, but the reoffer prospectus and selling-securityholder facts should continue to router/analysis."
+  }
+}

@@ -1,0 +1,237 @@
+{
+  "parser_output": {
+    "parserVersion": "effect-parser-v1",
+    "parserGroup": "effect",
+    "formType": "EFFECT",
+    "accessionNumber": "9999999995-25-002039",
+    "isSupported": true,
+    "summary": "AMERICAN BATTERY TECHNOLOGY Co's S-3 registration statement became effective on 2025-06-26.",
+    "facts": {
+      "companyName": "AMERICAN BATTERY TECHNOLOGY Co",
+      "ticker": null,
+      "exchange": null,
+      "cik": "0001576873",
+      "filingDate": "2025-06-26",
+      "effectiveDate": "2025-06-26",
+      "effectiveTime": "16:00:00",
+      "accessionNumber": "9999999995-25-002039",
+      "registrationNumber": "333-287704",
+      "effectiveRegistrationReference": "Registration No. 333-287704",
+      "effectiveFilingForm": "S-3",
+      "relatedSubmissionType": null,
+      "referenceAccessionNumber": null,
+      "originalFilingReference": null,
+      "originalAccessionNumber": null,
+      "originalAnalysisReference": null,
+      "filers": [
+        {
+          "cik": "0001576873",
+          "entityName": "AMERICAN BATTERY TECHNOLOGY Co",
+          "fileNumber": "333-287704",
+          "seriesClassContract": null
+        }
+      ],
+      "primaryFiler": {
+        "cik": "0001576873",
+        "entityName": "AMERICAN BATTERY TECHNOLOGY Co",
+        "fileNumber": "333-287704",
+        "seriesClassContract": null
+      },
+      "hasMultipleFilers": false,
+      "hasSeriesClassContractData": false,
+      "effectiveFormSource": "effectiveData.form",
+      "effectiveDateSource": "effectiveData.finalEffectivenessDispDate",
+      "parentContextProvided": false,
+      "parentEventType": null,
+      "parentEventTitle": null,
+      "parentIpoKind": null,
+      "parentFormType": null,
+      "parentAccessionNumber": null,
+      "parentRegistrationNumber": null,
+      "parentScore": null,
+      "originalAnalysisShouldBeShown": false,
+      "effectiveTargetClear": true,
+      "parentTargetMatch": null,
+      "parentTargetConflicts": [],
+      "targetAmbiguityWarnings": [
+        "Parent filing context is absent; parser cannot confirm which prior registration analysis should be shown."
+      ],
+      "sourceExcerpts": [
+        {
+          "label": "effective_filing_form",
+          "value": "S-3",
+          "source": "effectiveData.form"
+        },
+        {
+          "label": "effective_date",
+          "value": "2025-06-26",
+          "source": "effectiveData.finalEffectivenessDispDate"
+        },
+        {
+          "label": "effective_time",
+          "value": "16:00:00",
+          "source": "effectiveData.finalEffectivenessDispTime"
+        },
+        {
+          "label": "registration_number",
+          "value": "333-287704",
+          "source": "effectiveData.filer.fileNumber or SEC-HEADER.SEC FILE NUMBER"
+        },
+        {
+          "label": "effective_filer",
+          "value": "AMERICAN BATTERY TECHNOLOGY Co (0001576873)",
+          "source": "effectiveData.filer"
+        }
+      ]
+    },
+    "signals": [
+      "effectiveness_notice",
+      "deterministic_effectiveness_notice",
+      "effectiveness_date_identified",
+      "registration_reference_identified",
+      "effective_target_clear",
+      "effective_target_ambiguous"
+    ],
+    "calendarItems": [
+      {
+        "label": "Registration statement effective date",
+        "date": "2025-06-26",
+        "source": "EFFECT filing"
+      }
+    ],
+    "warnings": [
+      "Index/header registration form was absent in fixture metadata; XML effectiveData.form was used.",
+      "Parent filing context is absent; parser cannot confirm which prior registration analysis should be shown."
+    ],
+    "raw": {
+      "sourceTextLength": 810,
+      "documentCount": 0,
+      "xmlDetected": true,
+      "headerDetected": true,
+      "parentFilingContextUsed": false,
+      "marketContextProvided": false
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "dilution_risk",
+    "event_title": "AMERICAN BATTERY TECHNOLOGY Co S-3 registration statement effective",
+    "primary_ticker": {
+      "ticker": null,
+      "exchange": null
+    },
+    "tickers": [],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 55,
+    "score_reason": "S-3 effectiveness can permit registered issuance or resale activity, so the deterministic room classifies it as dilution risk.",
+    "signal": "volatile",
+    "quick_take": "AMERICAN BATTERY TECHNOLOGY Co's S-3 registration statement became effective; investors should review the original registration filing for securities, holders, and transaction terms.",
+    "summary": "AMERICAN BATTERY TECHNOLOGY Co's S-3 registration statement became effective on 2025-06-26.",
+    "why_it_matters": "Effectiveness of a S-3 registration statement can allow registered issuance or resale activity under the related registration filing.",
+    "bullish_points": [
+      "The effective registration statement may improve financing flexibility or resale liquidity."
+    ],
+    "bearish_points": [
+      "The S-3 effectiveness may permit registered share issuance or resale pressure if the original filing includes equity securities."
+    ],
+    "key_evidence": [
+      {
+        "label": "effective_filing_form",
+        "value": "S-3",
+        "source": "effectiveData.form"
+      },
+      {
+        "label": "effective_date",
+        "value": "2025-06-26",
+        "source": "effectiveData.finalEffectivenessDispDate"
+      },
+      {
+        "label": "effective_time",
+        "value": "16:00:00",
+        "source": "effectiveData.finalEffectivenessDispTime"
+      },
+      {
+        "label": "registration_number",
+        "value": "333-287704",
+        "source": "effectiveData.filer.fileNumber or SEC-HEADER.SEC FILE NUMBER"
+      },
+      {
+        "label": "effective_filer",
+        "value": "AMERICAN BATTERY TECHNOLOGY Co (0001576873)",
+        "source": "effectiveData.filer"
+      }
+    ],
+    "what_to_watch_next": [
+      "Original registration filing terms",
+      "Any prospectus supplement or related 424B filing"
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "label": "Registration statement effective date",
+        "date": "2025-06-26",
+        "source": "EFFECT filing"
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "effective_filing_form": "S-3",
+      "ipo_kind": null,
+      "effective_registration_reference": "Registration No. 333-287704",
+      "effective_date": "2025-06-26",
+      "original_filing_reference": null
+    },
+    "evidence": [
+      {
+        "label": "effective_filing_form",
+        "value": "S-3",
+        "source": "effectiveData.form"
+      },
+      {
+        "label": "effective_date",
+        "value": "2025-06-26",
+        "source": "effectiveData.finalEffectivenessDispDate"
+      },
+      {
+        "label": "effective_time",
+        "value": "16:00:00",
+        "source": "effectiveData.finalEffectivenessDispTime"
+      },
+      {
+        "label": "registration_number",
+        "value": "333-287704",
+        "source": "effectiveData.filer.fileNumber or SEC-HEADER.SEC FILE NUMBER"
+      },
+      {
+        "label": "effective_filer",
+        "value": "AMERICAN BATTERY TECHNOLOGY Co (0001576873)",
+        "source": "effectiveData.filer"
+      }
+    ],
+    "notes": [
+      "EFFECT room did not query live DB; original filing context is fixture-only."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Link EFFECT filing to the related registration filing during integration; do not resolve that link from this form room.",
+      "Delivery level is derived from score using shared score bands.",
+      "Fixture proves deterministic handling; no router or analysis LLM is needed."
+    ]
+  }
+}

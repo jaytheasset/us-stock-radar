@@ -1,18 +1,27 @@
 import { randomUUID } from "node:crypto";
+import {
+  evaluateSecInvestableUniverse,
+  type SecInvestableUniverseGateResult,
+} from "@/lib/ai/secInvestableUniverseGate";
 import { fetchSecEdgarRawItems, type SecParsedRawItem } from "@/lib/sources/sec/parser";
-import { supabaseSelect, supabaseUpsert } from "@/lib/supabase";
+import {
+  createSecSourceRun,
+  ensureSecSource,
+  findExistingSecRawItem,
+  finishSecSourceRun,
+  saveSecRawItem,
+} from "@/lib/secStores/rawStore";
 
 type SecRawIngestOptions = {
   formTypes?: string[];
   countPerForm?: number;
   limit?: number;
+  accessionNumber?: string;
   dryRun?: boolean;
   force?: boolean;
   includeDocuments?: boolean;
   attachmentLimit?: number;
 };
-
-type PersistedRow = Record<string, unknown>;
 
 export async function runSecRawIngest(options: SecRawIngestOptions = {}) {
   const dryRun = Boolean(options.dryRun);
@@ -24,6 +33,7 @@ export async function runSecRawIngest(options: SecRawIngestOptions = {}) {
     checked_count: 0,
     raw_upserted_count: 0,
     skipped_count: 0,
+    excluded_count: 0,
     failed_count: 0,
     documents_requested: 0,
     documents_fetched: 0,
@@ -32,35 +42,21 @@ export async function runSecRawIngest(options: SecRawIngestOptions = {}) {
 
   if (!dryRun) {
     await ensureSecSource();
-    await assertMutation(
-      supabaseUpsert(
-        "source_runs",
-        {
-          id: runId,
-          source_code: "sec_edgar",
-          source_group: "filings",
-          run_type: "raw_ingest",
-          status: "running",
-          started_at: startedAt,
-          stats: {
-            requested_limit: options.limit || null,
-            requested_form_types: options.formTypes || null,
-          },
-          metadata: {
-            dry_run: false,
-            force,
-            include_documents: options.includeDocuments ?? true,
-          },
-        },
-        { onConflict: "id" },
-      ),
-      "create SEC source run",
-    );
+    await createSecSourceRun({
+      force,
+      includeDocuments: options.includeDocuments ?? true,
+      requestedFormTypes: options.formTypes,
+      requestedLimit: options.limit,
+      requestedAccessionNumber: options.accessionNumber,
+      runId,
+      startedAt,
+    });
   }
 
   try {
     const rawResult = await fetchSecEdgarRawItems({
       formTypes: options.formTypes,
+      accessionNumber: options.accessionNumber,
       countPerForm: options.countPerForm,
       limit: options.limit,
       includeDocuments: options.includeDocuments,
@@ -69,7 +65,7 @@ export async function runSecRawIngest(options: SecRawIngestOptions = {}) {
 
     if (!rawResult.ok) {
       if (!dryRun) {
-        await finishSourceRun(runId, "failed", startedAt, stats, rawResult.error || "SEC raw fetch failed", {
+        await finishSecSourceRun(runId, "failed", startedAt, stats, rawResult.error || "SEC raw fetch failed", {
           raw_diagnostics: rawResult.diagnostics,
         });
       }
@@ -90,16 +86,29 @@ export async function runSecRawIngest(options: SecRawIngestOptions = {}) {
 
     for (const rawItem of rawResult.items) {
       try {
+        const exclusion = evaluateRawItemExclusion(rawItem);
         if (dryRun) {
+          if (exclusion) {
+            stats.skipped_count += 1;
+            stats.excluded_count += 1;
+          }
           items.push({
             ok: true,
             dryRun: true,
-            raw_item: summarizeRaw(rawItem),
+            ...(exclusion ? buildExcludedRawItem(rawItem, exclusion) : {}),
+            raw_item: summarizeRaw(rawItem, exclusion),
           });
           continue;
         }
 
-        const existing = await findExistingRawItem(rawItem);
+        if (exclusion) {
+          stats.skipped_count += 1;
+          stats.excluded_count += 1;
+          items.push(buildExcludedRawItem(rawItem, exclusion));
+          continue;
+        }
+
+        const existing = await findExistingSecRawItem(rawItem);
         if (existing && !force) {
           stats.skipped_count += 1;
           items.push({
@@ -113,7 +122,7 @@ export async function runSecRawIngest(options: SecRawIngestOptions = {}) {
           continue;
         }
 
-        const persisted = await persistRawItem(rawItem, runId, existing);
+        const persisted = await saveSecRawItem(rawItem, runId, existing);
         stats.raw_upserted_count += 1;
         items.push({
           ok: true,
@@ -138,7 +147,7 @@ export async function runSecRawIngest(options: SecRawIngestOptions = {}) {
     const ok = stats.failed_count === 0;
     const partial = stats.failed_count > 0 && stats.raw_upserted_count > 0;
     if (!dryRun) {
-      await finishSourceRun(
+      await finishSecSourceRun(
         runId,
         ok || partial ? "completed" : "failed",
         startedAt,
@@ -162,7 +171,7 @@ export async function runSecRawIngest(options: SecRawIngestOptions = {}) {
     };
   } catch (error) {
     if (!dryRun) {
-      await finishSourceRun(
+      await finishSecSourceRun(
         runId,
         "failed",
         startedAt,
@@ -182,117 +191,8 @@ export async function runSecRawIngest(options: SecRawIngestOptions = {}) {
   }
 }
 
-async function ensureSecSource() {
-  await assertMutation(
-    supabaseUpsert(
-      "sources",
-      {
-        code: "sec_edgar",
-        name: "SEC EDGAR",
-        source_group: "filings",
-        runtime_owner: "external",
-        enabled: true,
-        metadata: {
-          source_url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&output=atom",
-          parser: "sec_edgar_raw_parser_v1",
-        },
-      },
-      { onConflict: "code" },
-    ),
-    "upsert SEC source",
-  );
-}
-
-async function persistRawItem(rawItem: SecParsedRawItem, runId: string, existing?: PersistedRow | null) {
-  const id = stringValue(existing?.id) || randomUUID();
-  const metadata = {
-    ...(toRecord(existing?.metadata) || {}),
-    ...rawItem.metadata,
-    parser: "sec_edgar",
-    event_created: false,
-  };
-  const payload = {
-    id,
-    run_id: runId,
-    source_code: rawItem.source_code,
-    source_group: rawItem.source_group,
-    source_unique_id: rawItem.source_unique_id,
-    source_url: rawItem.source_url,
-    title: rawItem.title,
-    published_at: rawItem.published_at,
-    fetched_at: rawItem.fetched_at,
-    body_text: rawItem.body_text,
-    analysis_text: rawItem.analysis_text,
-    raw_payload: rawItem.raw_payload,
-    metadata,
-    dedupe_key: rawItem.dedupe_key,
-  };
-
-  const result = await supabaseUpsert("raw_items", payload, { onConflict: "id" });
-  await assertMutation(result, "upsert SEC raw item");
-  return firstRow(result.data) || payload;
-}
-
-async function findExistingRawItem(rawItem: SecParsedRawItem) {
-  const search: Record<string, string> = rawItem.source_unique_id
-    ? {
-        select: "*",
-        source_code: `eq.${rawItem.source_code}`,
-        source_unique_id: `eq.${rawItem.source_unique_id}`,
-        limit: "1",
-      }
-    : {
-        select: "*",
-        source_code: `eq.${rawItem.source_code}`,
-        dedupe_key: `eq.${rawItem.dedupe_key}`,
-        limit: "1",
-      };
-
-  const result = await supabaseSelect("raw_items", search);
-  return firstRow(result.data);
-}
-
-async function finishSourceRun(
-  runId: string,
-  status: "completed" | "failed" | "skipped",
-  startedAt: string,
-  stats: Record<string, unknown>,
-  errorMessage?: string,
-  metadata: Record<string, unknown> = {},
-) {
-  const result = await supabaseUpsert(
-    "source_runs",
-    {
-      id: runId,
-      source_code: "sec_edgar",
-      source_group: "filings",
-      run_type: "raw_ingest",
-      status,
-      started_at: startedAt,
-      finished_at: new Date().toISOString(),
-      stats,
-      error_message: errorMessage || null,
-      metadata,
-    },
-    { onConflict: "id" },
-  );
-  await assertMutation(result, "finish SEC source run");
-}
-
-async function assertMutation(
-  promise:
-    | Promise<{ ok: boolean; status: number; error?: string; data?: unknown }>
-    | { ok: boolean; status: number; error?: string; data?: unknown },
-  label: string,
-) {
-  const result = await promise;
-  if (!result.ok) {
-    throw new Error(`${label} failed: ${result.error || `HTTP ${result.status}`}`);
-  }
-  return result;
-}
-
-function summarizeRaw(rawItem: SecParsedRawItem) {
+function summarizeRaw(rawItem: SecParsedRawItem, exclusion: SecInvestableUniverseGateResult | null = null) {
+  const rawPayload = toRecord(rawItem.raw_payload);
   return {
     source_unique_id: rawItem.source_unique_id,
     source_url: rawItem.source_url,
@@ -302,15 +202,50 @@ function summarizeRaw(rawItem: SecParsedRawItem) {
     cik: readNested(rawItem.raw_payload, "cik"),
     ticker: readNested(rawItem.raw_payload, "ticker"),
     exchange: readNested(rawItem.raw_payload, "exchange"),
+    ticker_resolution: toRecord(rawPayload?.ticker_resolution),
+    is_excluded: Boolean(exclusion),
+    skip_gate: exclusion?.gate || null,
+    skip_reason: exclusion?.reason || null,
+    skip_evidence: exclusion?.evidence || [],
     document_count: Array.isArray(rawItem.raw_payload.documents) ? rawItem.raw_payload.documents.length : 0,
     body_chars: stringValue(rawItem.body_text).length,
   };
 }
 
-function firstRow(value: unknown): PersistedRow | null {
-  return Array.isArray(value) && value[0] && typeof value[0] === "object"
-    ? (value[0] as PersistedRow)
-    : null;
+function buildExcludedRawItem(rawItem: SecParsedRawItem, exclusion: SecInvestableUniverseGateResult) {
+  return {
+    ok: true,
+    skipped: true,
+    is_excluded: true,
+    reason: "excluded_before_raw_persist",
+    skip_gate: exclusion.gate,
+    skip_reason: exclusion.reason,
+    skip_evidence: exclusion.evidence,
+    source_unique_id: rawItem.source_unique_id,
+    title: rawItem.title,
+    form_type: readNested(rawItem.raw_payload, "form_type"),
+    ticker: readNested(rawItem.raw_payload, "ticker"),
+  };
+}
+
+function evaluateRawItemExclusion(rawItem: SecParsedRawItem) {
+  const rawPayload = toRecord(rawItem.raw_payload);
+  const metadata = toRecord(rawItem.metadata);
+  return evaluateSecInvestableUniverse({
+    filing_package: {
+      form_type: stringValue(rawPayload?.form_type || metadata?.form_type),
+      title: stringValue(rawItem.title),
+      company_name: stringValue(rawPayload?.company_name || metadata?.company_name),
+      llm_text: stringValue(rawItem.analysis_text || rawItem.body_text),
+      ticker: stringValue(rawPayload?.ticker || metadata?.ticker),
+      primary_ticker: {
+        ticker: stringValue(rawPayload?.ticker || metadata?.ticker) || null,
+        exchange: stringValue(rawPayload?.exchange || metadata?.exchange) || null,
+      },
+      tickers: Array.isArray(rawPayload?.tickers) ? rawPayload?.tickers : [],
+      ticker_resolution: toRecord(rawPayload?.ticker_resolution),
+    },
+  });
 }
 
 function toRecord(value: unknown): Record<string, unknown> | null {

@@ -1,0 +1,67 @@
+{
+  "id": "source-globe-form144a-no-remarks",
+  "formType": "144/A",
+  "accessionNumber": "0001654954-26-005173",
+  "source": {
+    "url": "https://www.sec.gov/Archives/edgar/data/320335/000165495426005173/primary_doc.xml",
+    "retrieved_at": "2026-05-23",
+    "sha256": "36da8bace7bdaf33703983afaaac058eb186e61f751c378e1168483d8cb84c0d"
+  },
+  "filingText": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><edgarSubmission xmlns=\"http://www.sec.gov/edgar/ownership\" xmlns:ns0=\"http://www.sec.gov/edgar/common\">\n<headerData>\n<submissionType>144/A</submissionType>\n<previousAccessionNumber>0001654954-26-005107</previousAccessionNumber>\n<filerInfo>\n<filer>\n<filerCredentials>\n<cik>0001765569</cik>\n<ccc>XXXXXXXX</ccc>\n</filerCredentials>\n</filer>\n<liveTestFlag>LIVE</liveTestFlag>\n</filerInfo>\n</headerData>\n<formData>\n<issuerInfo>\n<issuerCik>000320335</issuerCik>\n<issuerName>GLOBE LIFE INC</issuerName>\n<secFileNumber>001-08052</secFileNumber>\n<issuerAddress>\n<ns0:street1>7677 Henneman Way</ns0:street1>\n<ns0:city>McKinney</ns0:city>\n<ns0:stateOrCountry>TX</ns0:stateOrCountry>\n<ns0:zipCode>75070</ns0:zipCode>\n</issuerAddress>\n<issuerContactPhone>9725694000</issuerContactPhone>\n<nameOfPersonForWhoseAccountTheSecuritiesAreToBeSold>Thomas Kalmbach</nameOfPersonForWhoseAccountTheSecuritiesAreToBeSold>\n<relationshipsToIssuer>\n<relationshipToIssuer>Executive VP / CFO</relationshipToIssuer>\n</relationshipsToIssuer>\n</issuerInfo>\n<securitiesInformation>\n<securitiesClassTitle>Common </securitiesClassTitle>\n<brokerOrMarketmakerDetails>\n<name>Apex Clearing</name>\n<address>\n<ns0:street1>350 N St. Paul St</ns0:street1>\n<ns0:street2>Suite 300</ns0:street2>\n<ns0:city>Dallas</ns0:city>\n<ns0:stateOrCountry>TX</ns0:stateOrCountry>\n<ns0:zipCode>75201</ns0:zipCode>\n</address>\n</brokerOrMarketmakerDetails>\n<noOfUnitsSold>35000</noOfUnitsSold>\n<aggregateMarketValue>5507250</aggregateMarketValue>\n<noOfUnitsOutstanding>77957478</noOfUnitsOutstanding>\n<approxSaleDate>05/19/2026</approxSaleDate>\n<securitiesExchangeName>NYSE</securitiesExchangeName>\n</securitiesInformation>\n<securitiesToBeSold>\n<securitiesClassTitle>Common</securitiesClassTitle>\n<acquiredDate>05/19/2026</acquiredDate>\n<natureOfAcquisitionTransaction>Stock Option Exercise</natureOfAcquisitionTransaction>\n<nameOfPersonfromWhomAcquired>Globe Life Inc.</nameOfPersonfromWhomAcquired>\n<isGiftTransaction>N</isGiftTransaction>\n<amountOfSecuritiesAcquired>35000</amountOfSecuritiesAcquired>\n<paymentDate>05/19/2026</paymentDate>\n<natureOfPayment>NA</natureOfPayment>\n</securitiesToBeSold>\n<nothingToReportFlagOnSecuritiesSoldInPast3Months>N</nothingToReportFlagOnSecuritiesSoldInPast3Months>\n<securitiesSoldInPast3Months>\n<sellerDetails>\n<name>Thomas Kalmbach</name>\n<address>\n<ns0:street1>7677</ns0:street1>\n<ns0:street2> Henneman Way</ns0:street2>\n<ns0:city>McKinney</ns0:city>\n<ns0:stateOrCountry>TX</ns0:stateOrCountry>\n<ns0:zipCode>75070</ns0:zipCode>\n</address>\n</sellerDetails>\n<securitiesClassTitle>NA</securitiesClassTitle>\n<saleDate>05/08/2026</saleDate>\n<amountOfSecuritiesSold>11790</amountOfSecuritiesSold>\n<grossProceeds>1792362.96</grossProceeds>\n</securitiesSoldInPast3Months>\n<securitiesSoldInPast3Months>\n<sellerDetails>\n<name>Thomas Kalmbach</name>\n<address>\n<ns0:street1>7677</ns0:street1>\n<ns0:street2> Henneman Way</ns0:street2>\n<ns0:city>McKinney</ns0:city>\n<ns0:stateOrCountry>TX</ns0:stateOrCountry>\n<ns0:zipCode>75070</ns0:zipCode>\n</address>\n</sellerDetails>\n<securitiesClassTitle>NA</securitiesClassTitle>\n<saleDate>05/11/2026</saleDate>\n<amountOfSecuritiesSold>15637</amountOfSecuritiesSold>\n<grossProceeds>2402640.68</grossProceeds>\n</securitiesSoldInPast3Months>\n<noticeSignature>\n<noticeDate>05/19/2026</noticeDate>\n<planAdoptionDates/>\n<signature>/s/ Thomas Kalmbach</signature>\n</noticeSignature>\n</formData>\n</edgarSubmission>\n",
+  "expected": [
+    {
+      "label": "issuer.name",
+      "path": "facts.issuer.name",
+      "value": "GLOBE LIFE INC",
+      "evidence": "<issuerName>GLOBE LIFE INC</issuerName>"
+    },
+    {
+      "label": "previous accession",
+      "path": "facts.filing.previous_accession_number",
+      "value": "0001654954-26-005107",
+      "evidence": "<previousAccessionNumber>0001654954-26-005107</previousAccessionNumber>"
+    },
+    {
+      "label": "seller name",
+      "path": "facts.form144.seller_name",
+      "value": "Thomas Kalmbach",
+      "evidence": "<nameOfPersonForWhoseAccountTheSecuritiesAreToBeSold>Thomas Kalmbach</nameOfPersonForWhoseAccountTheSecuritiesAreToBeSold>"
+    },
+    {
+      "label": "proposed units",
+      "path": "facts.form144.securities_to_be_sold",
+      "value": 35000,
+      "evidence": "<noOfUnitsSold>35000</noOfUnitsSold>"
+    },
+    {
+      "label": "aggregate market value",
+      "path": "facts.form144.aggregate_market_value",
+      "value": 5507250,
+      "evidence": "<aggregateMarketValue>5507250</aggregateMarketValue>"
+    },
+    {
+      "label": "prior sale row count",
+      "path": "facts.form144.prior_sales.length",
+      "value": 2,
+      "evidenceTag": "securitiesSoldInPast3Months"
+    },
+    {
+      "label": "first prior sale shares",
+      "path": "facts.form144.prior_sales.0.amount_of_securities_sold",
+      "value": 11790,
+      "evidence": "<amountOfSecuritiesSold>11790</amountOfSecuritiesSold>"
+    },
+    {
+      "label": "plan adoption date count",
+      "path": "facts.form144.plan_adoption_dates.length",
+      "value": 0,
+      "evidence": "<planAdoptionDates/>"
+    },
+    {
+      "label": "needs parent context",
+      "path": "facts.amendment.needs_parent_context",
+      "value": true,
+      "evidence": "<previousAccessionNumber>0001654954-26-005107</previousAccessionNumber>"
+    }
+  ]
+}

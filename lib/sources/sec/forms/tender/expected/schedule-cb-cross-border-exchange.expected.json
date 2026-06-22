@@ -1,0 +1,158 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_tender_parser_v1",
+    "parserGroup": "tender",
+    "formType": "Tender / CB / 13E3",
+    "accessionNumber": "0004444444-26-000040",
+    "isSupported": true,
+    "summary": "CB schedule cb cross border for BioThera Inc expiring August 3, 2026.",
+    "facts": {
+      "sec_form_type": "CB",
+      "tender_case": "schedule_cb_cross_border",
+      "cross_border": true,
+      "target_company": "BioThera Inc",
+      "offeror": "EuroMed plc",
+      "consideration_type": "stock_or_security_exchange",
+      "exchange_ratio": "0.75 EuroMed plc ordinary shares for each BioThera ADS",
+      "expiration_date": "2026-08-03",
+      "proration": true,
+      "route_hint": {
+        "event_type_candidate": "strategic_transaction",
+        "score_candidate": 70,
+        "llm_needed": true
+      }
+    },
+    "signals": [
+      {
+        "type": "tender_family",
+        "value": "schedule_cb_cross_border"
+      }
+    ],
+    "calendarItems": [
+      {
+        "type": "tender_expiration",
+        "date": "2026-08-03"
+      }
+    ],
+    "warnings": [],
+    "raw": {
+      "input_form_type": "CB",
+      "raw_item_id": "fixture-tender-004"
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "strategic_transaction",
+    "event_title": "EuroMed files Schedule CB exchange offer for BioThera",
+    "primary_ticker": {
+      "ticker": "BTHR",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      {
+        "ticker": "BTHR",
+        "exchange": "NASDAQ"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 70,
+    "score_reason": "Schedule CB exchange offers are feed-level strategic transactions unless consideration or completion risk is clearly large enough for alert severity.",
+    "signal": "volatile",
+    "quick_take": "EuroMed is offering 0.75 ordinary shares for each BioThera ADS.",
+    "summary": "The filing describes a cross-border exchange offer with stock consideration, an August 3, 2026 expiration, proration risk, and Tier II exemption language.",
+    "why_it_matters": "Exchange-offer value depends on EuroMed's share price, proration mechanics, election caps, and cross-border conditions.",
+    "bullish_points": [
+      "BioThera holders receive a stated exchange ratio.",
+      "Schedule CB confirms a cross-border offer process is underway."
+    ],
+    "bearish_points": [
+      "Stock consideration exposes holders to EuroMed price movement.",
+      "Proration can limit accepted tenders if elections exceed the cap."
+    ],
+    "key_evidence": [
+      "0.75 EuroMed plc ordinary shares for each BioThera ADS.",
+      "Offer will expire on August 3, 2026.",
+      "Acceptances will be subject to proration."
+    ],
+    "what_to_watch_next": [
+      "EuroMed share price movement before expiration.",
+      "Final proration and exchange offer acceptance results."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "type": "tender_expiration",
+        "date": "2026-08-03"
+      }
+    ],
+    "confidence": "medium",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "offer_type": "schedule_cb_cross_border",
+      "offeror": "EuroMed plc",
+      "target_company": "BioThera Inc.",
+      "exchange_ratio": "0.75 EuroMed plc ordinary shares for each BioThera ADS",
+      "expiration_date": "2026-08-03",
+      "proration": true,
+      "cross_border_exemption": "Tier II"
+    },
+    "evidence": [
+      "cross-border exchange offer",
+      "0.75 EuroMed plc ordinary shares for each BioThera ADS",
+      "subject to proration"
+    ],
+    "notes": [
+      "Cross-border exchange ratio and proration fields likely need a dedicated tender detail view."
+    ]
+  },
+  "transaction_fingerprint": {
+    "transaction_family": "cross_border",
+    "transaction_type": "exchange_offer",
+    "target_company": "BioThera Inc.",
+    "target_ticker": "BTHR",
+    "buyer_parent": "",
+    "buyer_group": [],
+    "offeror": "EuroMed plc",
+    "filing_persons": ["EuroMed plc"],
+    "cash_price": "",
+    "exchange_ratio": "0.75 EuroMed plc ordinary shares for each BioThera ADS",
+    "consideration_summary": "0.75 EuroMed plc ordinary shares for each BioThera ADS",
+    "offer_size": "",
+    "securities_sought": "BioThera ADS",
+    "minimum_condition": "",
+    "financing_condition": "",
+    "offer_expiration": "2026-08-03",
+    "final_result_date": "",
+    "merger_agreement_date": "",
+    "expected_closing": "",
+    "amendment_number": "",
+    "amendment_change_type": "unknown",
+    "material_terms_changed": [],
+    "source_forms": ["CB"],
+    "source_accession": "0004444444-26-000040",
+    "source_evidence": [
+      "0.75 EuroMed plc ordinary shares for each BioThera ADS.",
+      "Offer will expire on August 3, 2026.",
+      "Acceptances will be subject to proration."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": true,
+    "market_context_reason": "Exchange-offer value needs fixture price context for both target and offeror securities if available.",
+    "market_context_fields": ["price", "previous_close", "market_cap", "shares_outstanding"],
+    "special_ui_needed": true,
+    "special_ui_reason": "Schedule CB exchange offers need exchange ratio, election, proration, expiration, and cross-border exemption fields.",
+    "integration_notes": [
+      "Potential future integration may need related offeror ticker mapping, but this room does not implement it."
+    ]
+  }
+}

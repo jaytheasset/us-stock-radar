@@ -886,15 +886,12 @@ function buildNewsDilutionOfferingModel(event: FeedItem, profile: DetailProfile)
     originalTerms,
     ["prefunded_warrants", "shares", "count"],
   );
-  const warrantCoverageText =
-    readRowString(row, "warrant_coverage_text") ||
-    readDeepString(originalTerms, ["warrants", "coverage_text"]);
   const commonWarrantShares = readOfferingNumber(
     row,
     "common_warrant_shares",
     originalTerms,
     ["common_warrants", "shares", "count"],
-  ) || parseLooseShareCount(warrantCoverageText);
+  );
   const convertibleShareExposure = readOfferingNumber(
     row,
     "convertible_share_exposure",
@@ -914,18 +911,9 @@ function buildNewsDilutionOfferingModel(event: FeedItem, profile: DetailProfile)
     ["convertible_securities", "conversion_price", "price"],
   );
   const immediateShareExposure =
-    readOfferingNumber(row, "immediate_share_exposure", metrics, ["immediate_share_exposure"]) ||
-    sumNumbers([commonShares, prefundedWarrantShares]);
-  const calculatedPotentialShareExposure = sumNumbers([
-    commonShares,
-    prefundedWarrantShares,
-    commonWarrantShares,
-    convertibleShareExposure,
-  ]);
+    readOfferingNumber(row, "immediate_share_exposure", metrics, ["immediate_share_exposure"]);
   const totalPotentialShareExposure =
-    readOfferingNumber(row, "total_potential_share_exposure", metrics, ["total_potential_share_exposure"]) ||
-    calculatedPotentialShareExposure ||
-    readOfferingNumber(row, "shares_offered", metrics, ["shares_offered"]);
+    readOfferingNumber(row, "total_potential_share_exposure", metrics, ["total_potential_share_exposure"]);
   const immediateDilutionPercent =
     readOfferingNumber(row, "estimated_dilution_percent", metrics, ["estimated_dilution_percent"]) ||
     ratioPercent(immediateShareExposure, currentShares);
@@ -968,11 +956,12 @@ function buildNewsDilutionOfferingModel(event: FeedItem, profile: DetailProfile)
   ].filter((segment) => segment.value > 0);
   const componentRatios = components.map((segment) => ratioPercent(segment.value, currentShares));
   const supplyComponentTotal = components.reduce((total, segment) => total + segment.value, 0);
-  const displayedPotentialSupply = Math.max(totalPotentialShareExposure, supplyComponentTotal);
+  const displayedPotentialSupply = totalPotentialShareExposure;
+  const supplyScaleBase = displayedPotentialSupply || supplyComponentTotal;
   const additiveScaleBaseShares =
-    currentShares && displayedPotentialSupply
-      ? currentShares + displayedPotentialSupply
-      : Math.max(currentShares || 0, displayedPotentialSupply || 0);
+    currentShares && supplyScaleBase
+      ? currentShares + supplyScaleBase
+      : Math.max(currentShares || 0, supplyScaleBase || 0);
   const currentSharesBarWidth = scaleShareAmount(currentShares, additiveScaleBaseShares);
   const supplyBarWidth = scaleShareAmount(displayedPotentialSupply, additiveScaleBaseShares);
   const supplyComponentSegments = components.map((segment, index) => {
@@ -988,7 +977,6 @@ function buildNewsDilutionOfferingModel(event: FeedItem, profile: DetailProfile)
       compact: width < 24,
     };
   });
-  const remainingPotentialSupply = Math.max(0, displayedPotentialSupply - supplyComponentTotal);
   const fallbackSupplyClassName =
     offeringDisplayMode === "convertible" ? "conversion" : isResale ? "registered-supply" : "common";
   const overhangBarSegmentCandidates: Array<DilutionShareOverhangBarSegment | null> = [
@@ -1012,19 +1000,6 @@ function buildNewsDilutionOfferingModel(event: FeedItem, profile: DetailProfile)
           note: currentShares ? `${dilutionRatioValue} of current shares` : "Potential",
           width: supplyBarWidth,
           compact: supplyBarWidth < 24,
-        }
-      : null,
-    remainingPotentialSupply && supplyComponentSegments.length
-      ? {
-          key: "news-other-supply",
-          className: "extra-supply",
-          label: "Other potential supply",
-          value: formatCompactShareCount(remainingPotentialSupply) || "N/A",
-          note: currentShares
-            ? `${formatPercentCompact(ratioPercent(remainingPotentialSupply, currentShares)) || "N/A"} of current shares`
-            : "Potential",
-          width: scaleShareAmount(remainingPotentialSupply, additiveScaleBaseShares),
-          compact: scaleShareAmount(remainingPotentialSupply, additiveScaleBaseShares) < 24,
         }
       : null,
   ];
@@ -1589,6 +1564,7 @@ async function buildDbBackedProfile(item: LiveFeedItem, event: FeedItem): Promis
     price: item.price,
     changeAmount: item.changeAmount,
     change: item.change,
+    priceSeries: buildDbBackedPriceSeries(item),
     detectedAt: publishedLabel,
     confidence: item.impact === "high" ? "High" : item.impact === "medium" ? "Medium" : "Low",
     identityChips: buildDetailIdentityChips(item, ticker, sourceEvidence, fallback),
@@ -1612,6 +1588,61 @@ async function buildDbBackedProfile(item: LiveFeedItem, event: FeedItem): Promis
     fullTextHtml: fullTextHtml || fallback.fullTextHtml,
     fullTextSourceUrl: sourceUrl,
     offeringTerms: offeringTerms || fallback.offeringTerms || null,
+  };
+}
+
+function buildDbBackedPriceSeries(item: LiveFeedItem): PriceChartSeries {
+  const chartBars = item.displayChartBars.length ? item.displayChartBars : item.chartBars;
+  const barSeries = buildPriceSeriesFromBars(chartBars);
+  if (barSeries) return barSeries;
+
+  return emptyPriceSeries();
+}
+
+function buildPriceSeriesFromBars(bars: LiveFeedItem["chartBars"]): PriceChartSeries | null {
+  const points = bars
+    .map((bar) => ({
+      close: Number(bar.close),
+      high: Number(bar.high),
+      low: Number(bar.low),
+      open: Number(bar.open),
+      time: bar.date,
+      volume: Number(bar.volume) || 0,
+      vwap: Number(bar.close),
+    }))
+    .filter((point) =>
+      point.time &&
+      Number.isFinite(point.close) &&
+      Number.isFinite(point.high) &&
+      Number.isFinite(point.low) &&
+      Number.isFinite(point.open),
+    );
+
+  if (!points.length) return null;
+  const previousClose = points[0]?.open || points[0]?.close || 0;
+
+  return {
+    previousClose,
+    periods: {
+      "1D": points,
+      "5D": points,
+      "1M": points,
+      "3M": points,
+      "1Y": points,
+    },
+  };
+}
+
+function emptyPriceSeries(): PriceChartSeries {
+  return {
+    previousClose: 0,
+    periods: {
+      "1D": [],
+      "5D": [],
+      "1M": [],
+      "3M": [],
+      "1Y": [],
+    },
   };
 }
 
@@ -2371,7 +2402,7 @@ function buildOfferingTermsRowFromAiAnalysis(analysis: Record<string, unknown> |
     dilution_scale: readRowString(metrics, "dilution_scale"),
     metadata: {
       source_group: "news",
-      source_precedence: "ai_output_fallback",
+      source_precedence: "ai_output",
       source_confidence: "medium",
       original_offering_terms: offeringTerms,
       dilution_metrics: metrics || {},
@@ -2550,24 +2581,6 @@ function readDeepString(record: Record<string, unknown> | null, path: string[]) 
   }
 
   return typeof value === "string" ? value.trim() : "";
-}
-
-function parseLooseShareCount(value: string) {
-  if (!value) return 0;
-  const match = value.match(/(\d[\d,.]*)\s*(billion|million|thousand|bn|m|k)?/i);
-  if (!match) return 0;
-  const base = Number(match[1].replace(/,/g, ""));
-  if (!Number.isFinite(base)) return 0;
-  const unit = (match[2] || "").toLowerCase();
-  if (unit === "billion" || unit === "bn") return base * 1_000_000_000;
-  if (unit === "million" || unit === "m") return base * 1_000_000;
-  if (unit === "thousand" || unit === "k") return base * 1_000;
-  return base;
-}
-
-function sumNumbers(values: number[]) {
-  const total = values.filter((value) => Number.isFinite(value) && value > 0).reduce((sum, value) => sum + value, 0);
-  return total > 0 ? total : 0;
 }
 
 function ratioPercent(numerator: number, denominator: number) {

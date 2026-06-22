@@ -1,0 +1,93 @@
+{
+  "parser_output": {
+    "parserVersion": "sc13-v1",
+    "parserGroup": "sc13",
+    "formType": "SC 13D/A",
+    "accessionNumber": "0000000000-26-000808",
+    "isSupported": true,
+    "summary": "David B. Blundin reports beneficial ownership of 7,868,964 shares (22.4%) of EverQuote, Inc. Class A Common Stock, $0.001 Par Value Per Share.",
+    "facts": {},
+    "signals": [],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "insider_ownership",
+    "event_title": "EverQuote holder files 13D/A with 10b5-1 sales plan",
+    "primary_ticker": {
+      "ticker": "EVER",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      {
+        "ticker": "EVER",
+        "exchange": "NASDAQ"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 58,
+    "score_reason": "The amendment includes a Rule 10b5-1 sales plan and an open-market sales table, but does not disclose a new control transaction.",
+    "signal": "neutral",
+    "quick_take": "David B. Blundin amended a Schedule 13D to disclose a 10b5-1 sales plan and recent share sales.",
+    "summary": "The filing reports 7,868,964 beneficially owned shares, or 22.4%, and includes sales under a trading plan.",
+    "why_it_matters": "The source table is mechanically important for ownership tracking, while interpretation of market impact should be handled by router and analysis.",
+    "bullish_points": [],
+    "bearish_points": [
+      "The holder adopted a trading plan for potential share sales."
+    ],
+    "key_evidence": [
+      "Item 4 references a Rule 10b5-1 trading arrangement.",
+      "The filing includes rows for shares sold, price range and weighted average sale price.",
+      "Item 5 uses as-converted Class A/Class B ownership assumptions."
+    ],
+    "what_to_watch_next": [
+      "Further 13D/A amendments reporting additional sales or changes to the trading plan."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "date": "September 5, 2024",
+        "label": "SC 13 reportable event date",
+        "source": "Date of Event"
+      }
+    ],
+    "confidence": "medium",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "issuerName": "EverQuote, Inc.",
+      "reportingPersons": [
+        "David B. Blundin"
+      ],
+      "percentOwned": 22.4,
+      "sharesBeneficiallyOwned": 7868964,
+      "salesPlanLanguage": true,
+      "salesRowsCaptured": 2
+    },
+    "evidence": [
+      "Item 4 references a Rule 10b5-1 trading arrangement.",
+      "The filing contains an open-market sales table."
+    ],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Sales table parsing is room-local fixture logic only; do not wire to live insider or DB flows."
+    ]
+  }
+}

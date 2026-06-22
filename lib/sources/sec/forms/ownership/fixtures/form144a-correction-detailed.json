@@ -1,0 +1,6 @@
+{
+  "id": "form144a-correction-detailed",
+  "formType": "144/A",
+  "accessionNumber": "0000000000-26-014506",
+  "filingText": "<?xml version=\"1.0\"?><edgarSubmission><headerData><submissionType>144/A</submissionType><previousAccessionNumber>0000000000-26-014501</previousAccessionNumber></headerData><formData><issuerInfo><issuerCik>0005555006</issuerCik><issuerName>Amended 144 Corp</issuerName><issuerTradingSymbol>A144</issuerTradingSymbol><nameOfPersonForWhoseAccountTheSecuritiesAreToBeSold>Amended Seller</nameOfPersonForWhoseAccountTheSecuritiesAreToBeSold><relationshipsToIssuer><relationshipToIssuer>Director</relationshipToIssuer></relationshipsToIssuer></issuerInfo><securitiesInformation><securitiesClassTitle>Common Stock</securitiesClassTitle><brokerOrMarketmakerDetails><name>Amended Broker LLC</name></brokerOrMarketmakerDetails><noOfUnitsSold>1500</noOfUnitsSold><aggregateMarketValue>45000</aggregateMarketValue><noOfUnitsOutstanding>3000000</noOfUnitsOutstanding><approxSaleDate>06/07/2026</approxSaleDate><securitiesExchangeName>NYSE</securitiesExchangeName></securitiesInformation><remarks>This amendment corrects the proposed amount previously reported in error.</remarks><noticeSignature><noticeDate>05/23/2026</noticeDate><signature>/s/ Amended Seller</signature></noticeSignature></formData></edgarSubmission>"
+}

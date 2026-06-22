@@ -1,0 +1,6 @@
+{
+  "id": "form144a-amendment-proposed-sale-safety",
+  "formType": "144/A",
+  "accessionNumber": "0000000000-26-014402",
+  "filingText": "<?xml version=\"1.0\"?><edgarSubmission><headerData><submissionType>144/A</submissionType><previousAccessionNumber>0000000000-26-014401</previousAccessionNumber></headerData><formData><issuerInfo><issuerCik>0002222002</issuerCik><issuerName>Safety Notice Amendment Corp</issuerName><nameOfPersonForWhoseAccountTheSecuritiesAreToBeSold>Riley Seller</nameOfPersonForWhoseAccountTheSecuritiesAreToBeSold><relationshipsToIssuer><relationshipToIssuer>Director</relationshipToIssuer></relationshipsToIssuer></issuerInfo><securitiesInformation><securitiesClassTitle>Common Stock</securitiesClassTitle><brokerOrMarketmakerDetails><name>Example Broker LLC</name></brokerOrMarketmakerDetails><noOfUnitsSold>3000</noOfUnitsSold><aggregateMarketValue>75000</aggregateMarketValue><noOfUnitsOutstanding>10000000</noOfUnitsOutstanding><approxSaleDate>05/25/2026</approxSaleDate><securitiesExchangeName>NASDAQ</securitiesExchangeName></securitiesInformation><remarks>Amends the proposed sale amount from the prior notice.</remarks><noticeSignature><noticeDate>05/21/2026</noticeDate><signature>/s/ Riley Seller</signature></noticeSignature></formData></edgarSubmission>"
+}

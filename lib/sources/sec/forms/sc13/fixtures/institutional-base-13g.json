@@ -1,0 +1,43 @@
+{
+  "case_id": "institutional-base-13g",
+  "description": "Initial institutional Schedule 13G with Rule 13d-1(b), multiple related reporting persons, and cover-row incorporation.",
+  "filing": {
+    "formType": "SC 13G",
+    "accessionNumber": "0000000000-26-000606",
+    "issuerName": "QuidelOrtho Corporation",
+    "primaryTicker": {
+      "ticker": "QDEL",
+      "exchange": "NASDAQ"
+    },
+    "filedAt": "2026-02-14",
+    "text": "SC 13G\nSCHEDULE 13G\nUnder the Securities Exchange Act of 1934\n(Amendment No. )*\nQuidelOrtho Corporation\n(Name of Issuer)\nCommon Stock, $0.001 par value\n(Title of Class of Securities)\n219798105\n(CUSIP Number)\nSeptember 30, 2024\n(Date of Event Which Requires Filing of this Statement)\nx Rule 13d-1(b)\nRule 13d-1(c)\nRule 13d-1(d)\nCUSIP No. 219798105\n1 NAMES OF REPORTING PERSONS\nRubric Capital Management LP\n2 CHECK THE APPROPRIATE BOX IF A MEMBER OF A GROUP (a) [ ] (b) [ ]\n4 CITIZENSHIP OR PLACE OF ORGANIZATION\nState of Delaware\n5 SOLE VOTING POWER\n0\n6 SHARED VOTING POWER\n4,200,000 shares of Common Stock\n7 SOLE DISPOSITIVE POWER\n0\n8 SHARED DISPOSITIVE POWER\n4,200,000 shares of Common Stock\n9 AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON\n4,200,000 shares of Common Stock\n10 CHECK BOX IF THE AGGREGATE AMOUNT IN ROW (9) EXCLUDES CERTAIN SHARES\n[ ]\n11 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (9)\n6.25%\n12 TYPE OF REPORTING PERSON\nPN, IA\nCUSIP No. 219798105\n1 NAMES OF REPORTING PERSONS\nDavid Rosen\n2 CHECK THE APPROPRIATE BOX IF A MEMBER OF A GROUP (a) [ ] (b) [ ]\n4 CITIZENSHIP OR PLACE OF ORGANIZATION\nUnited States of America\n5 SOLE VOTING POWER\n0\n6 SHARED VOTING POWER\n4,200,000 shares of Common Stock\n7 SOLE DISPOSITIVE POWER\n0\n8 SHARED DISPOSITIVE POWER\n4,200,000 shares of Common Stock\n9 AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON\n4,200,000 shares of Common Stock\n11 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (9)\n6.25%\n12 TYPE OF REPORTING PERSON\nIN\nItem 1(a). NAME OF ISSUER:\nThe name of the issuer is QuidelOrtho Corporation.\nItem 2(a). NAME OF PERSON FILING:\nThis statement is filed by Rubric Capital Management LP and David Rosen, collectively the Reporting Persons.\nItem 3. IF THIS STATEMENT IS FILED PURSUANT TO RULES 13d-1(b) OR 13d-2(b) OR (c), CHECK WHETHER THE PERSON FILING IS A:\n(e) x An investment adviser in accordance with Rule 13d-1(b)(1)(ii)(E);\n(g) x Parent Holding Company or control person in accordance with Rule 13d-1(b)(1)(ii)(G).\nItem 4. OWNERSHIP.\nThe information required by Items 4(a) - (c) is set forth in Rows 5 - 11 of the cover page for each of the Reporting Persons and is incorporated herein by reference. The percentage is based on 67,235,394 shares outstanding.\nItem 10. CERTIFICATION.\nBy signing below the Reporting Person certifies that the securities referred to above were acquired and are held in the ordinary course of business and were not acquired and are not held for the purpose of or with the effect of changing or influencing the control of the issuer.\nSIGNATURE"
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "insider_ownership",
+    "deterministic": true,
+    "score_band": "archive",
+    "extracted_facts": {
+      "issuerName": "QuidelOrtho Corporation",
+      "reportingPersons": [
+        "Rubric Capital Management LP",
+        "David Rosen"
+      ],
+      "hasMultipleReportingPersons": true,
+      "scheduleType": "13G",
+      "ruleBasis": "13d-1(b)",
+      "isAmendment": false,
+      "sharesBeneficiallyOwned": 4200000,
+      "percentOwned": 6.25,
+      "ownershipIntent": "passive",
+      "passiveCertification": true,
+      "ordinaryCourseCertification": true,
+      "ownershipTableIncorporatedByReference": true,
+      "reportingPersonTypes": [
+        "PN",
+        "IA",
+        "IN"
+      ]
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "foreign-issuer-20f",
+  "description": "20-F where a product/platform update dominates routine annual results.",
+  "filing": {
+    "rawItemId": "sec-fixture-periodic-006",
+    "sourceUniqueId": "0006666666-26-000012",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/6666666/000666666626000012/orion-20251231.htm",
+    "title": "Orion Payments Ltd. 20-F annual report",
+    "publishedAt": "2026-04-29T09:30:00Z",
+    "rawPayload": {
+      "form_type": "20-F",
+      "accession_number": "0006666666-26-000012",
+      "company_name": "Orion Payments Ltd.",
+      "ticker": "OPAY",
+      "exchange": "Nasdaq Global Market",
+      "documents": [
+        {
+          "type": "20-F",
+          "description": "Annual report of foreign private issuer",
+          "isPrimary": true,
+          "textCharCount": 1320,
+          "textTruncated": false
+        }
+      ]
+    },
+    "bodyText": "FORM 20-F\nOrion Payments Ltd. (Exact name of registrant as specified in its charter)\nFor the fiscal year ended December 31, 2025\nTrading Symbol(s) OPAY Nasdaq Global Market\nBusiness Update\nThe company launched a new cross-border payments platform in Brazil and Mexico during the fourth quarter and completed major customer rollout with three enterprise merchants. Revenue was $310.0 million for 2025 compared to $296.0 million in 2024. Net income was $18.0 million for the year."
+  },
+  "market_context": null,
+  "expected_event_type": "product_update",
+  "expected_score_band": "feed"
+}

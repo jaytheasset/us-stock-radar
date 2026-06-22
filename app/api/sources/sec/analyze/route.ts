@@ -15,6 +15,13 @@ export async function POST(request: NextRequest) {
     calendarCandidate: params.get("calendarCandidate") === "true" || bodyRecord.calendarCandidate === true,
     dryRun: params.get("dryRun") === "true" || bodyRecord.dryRun === true,
     force: params.get("force") === "true" || bodyRecord.force === true,
+    llmProvider: params.get("llmProvider") || stringValue(bodyRecord.llmProvider) || undefined,
+    llmModel: params.get("llmModel") || stringValue(bodyRecord.llmModel) || undefined,
+    suppressAlerts:
+      params.get("suppressAlerts") === "true" ||
+      params.get("alerts") === "false" ||
+      bodyRecord.suppressAlerts === true ||
+      bodyRecord.alerts === false,
   });
 
   return NextResponse.json(result, {
@@ -31,6 +38,9 @@ export async function GET(request: NextRequest) {
     calendarCandidate: params.get("calendarCandidate") === "true",
     dryRun: params.get("dryRun") !== "false",
     force: params.get("force") === "true",
+    llmProvider: params.get("llmProvider") || undefined,
+    llmModel: params.get("llmModel") || undefined,
+    suppressAlerts: params.get("suppressAlerts") === "true" || params.get("alerts") === "false",
   });
 
   return NextResponse.json(result, {

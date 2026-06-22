@@ -1,0 +1,34 @@
+{
+  "case_id": "exhibits-amendment-13da",
+  "description": "Schedule 13D/A with EX-99.1 style references, body exhibit reference, duplicate label, incomplete title, and attachment inventory.",
+  "filing": {
+    "formType": "SC 13D/A",
+    "accessionNumber": "0000000000-26-013012",
+    "issuerName": "Brook Market Corp.",
+    "filedAt": "2026-04-13",
+    "text": "SC 13D/A\nSCHEDULE 13D/A\n(Amendment No. 4)\nBrook Market Corp.\n(Name of Issuer)\nCommon Stock\n(Title of Class of Securities)\n110000112\n(CUSIP Number)\nName of Reporting Person: Elm River LLC\nAggregate Amount Beneficially Owned by Each Reporting Person: 1,600,000\nPercent of Class Represented by Amount in Row (11): 7.2%\nItem 4. Purpose of Transaction\nThe Reporting Person refers to Exhibit 99.3 filed with this amendment.\nItem 6. Contracts, Arrangements, Understandings or Relationships with Respect to Securities of the Issuer\nThe Reporting Person entered into a Voting Agreement and a Support Agreement.\nItem 7. Material to be Filed as Exhibits\nEX-99.1 Voting Agreement\nEX-99.1 Voting Agreement\nEx. 99.2 - Support Agreement\nExhibit 99.3\nSIGNATURE",
+    "attachments": [
+      {
+        "type": "EX-99.4",
+        "description": "Letter Agreement",
+        "filename": "ex994.htm"
+      }
+    ]
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "insider_ownership",
+    "deterministic": false,
+    "score_band": "feed",
+    "extracted_facts": {
+      "reportingPersons": [
+        "Elm River LLC"
+      ],
+      "scheduleType": "13D",
+      "isAmendment": true,
+      "amendmentNumber": 4,
+      "sharesBeneficiallyOwned": 1600000,
+      "percentOwned": 7.2
+    }
+  }
+}

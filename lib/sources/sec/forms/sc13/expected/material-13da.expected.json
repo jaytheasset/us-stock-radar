@@ -1,0 +1,135 @@
+{
+  "parser_output": {
+    "parserVersion": "sc13-v1",
+    "parserGroup": "sc13",
+    "formType": "SC 13D/A",
+    "accessionNumber": "0000000000-26-000303",
+    "isSupported": true,
+    "summary": "ArcLight Partners LP reports beneficial ownership of 2,100,000 shares (4.1%) of HelioThera BioPharma Inc. Common Stock.",
+    "facts": {
+      "issuerName": "HelioThera BioPharma Inc.",
+      "reportingPersons": [
+        "ArcLight Partners LP"
+      ],
+      "securityClass": "Common Stock",
+      "cusip": "42329B101",
+      "primaryTicker": {
+        "ticker": "HTHR",
+        "exchange": "NASDAQ"
+      },
+      "scheduleType": "13D",
+      "isAmendment": true,
+      "amendmentNumber": 2,
+      "eventDate": "March 2, 2026",
+      "filingDate": "2026-03-03",
+      "sharesBeneficiallyOwned": 2100000,
+      "percentOwned": 4.1,
+      "previousPercentOwned": 9.8,
+      "ownershipPercentChange": -5.7,
+      "votingPower": {
+        "sole": 2100000,
+        "shared": 0
+      },
+      "dispositivePower": {
+        "sole": 2100000,
+        "shared": 0
+      },
+      "ownershipIntent": "active",
+      "passiveCertification": false,
+      "item4Purpose": "On March 2, 2026, the Reporting Person entered into a support agreement with the Issuer and Zenith Pharma Inc. in connection with the proposed merger of the Issuer. The Reporting Person agreed to vote its shares in favor of the merger and related strategic transaction.",
+      "item4HasActivistLanguage": true,
+      "strategicTransactionLanguage": true,
+      "legalRiskLanguage": false,
+      "financingLanguage": false,
+      "financingAmountUsd": null,
+      "groupMembers": []
+    },
+    "signals": [],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "strategic_transaction",
+    "event_title": "ArcLight backs HelioThera merger after reducing stake",
+    "primary_ticker": {
+      "ticker": "HTHR",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      {
+        "ticker": "HTHR",
+        "exchange": "NASDAQ"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 78,
+    "score_reason": "The 13D/A adds a merger support agreement and a material ownership reduction from 9.8% to 4.1%.",
+    "signal": "volatile",
+    "quick_take": "ArcLight amended its HelioThera 13D to disclose merger support and a sharp stake reduction.",
+    "summary": "ArcLight Partners LP entered a support agreement for HelioThera's proposed merger with Zenith Pharma and now reports 4.1% ownership.",
+    "why_it_matters": "A major holder's voting support can affect transaction certainty, while the reduced stake changes its ongoing influence.",
+    "bullish_points": [
+      "Support from a previously large holder can improve visibility into merger vote alignment."
+    ],
+    "bearish_points": [
+      "The stake reduction from 9.8% to 4.1% lowers ArcLight's continuing economic exposure.",
+      "The filing does not provide final merger approval or closing conditions."
+    ],
+    "key_evidence": [
+      "Item 4 says ArcLight entered a support agreement tied to the proposed merger with Zenith Pharma.",
+      "Item 5 says ownership decreased from 9.8% to 4.1%.",
+      "ArcLight reports 2,100,000 shares after selling 3,000,000 shares."
+    ],
+    "what_to_watch_next": [
+      "Proxy or transaction filings detailing merger terms and vote timing.",
+      "Further 13D/A filings if ArcLight sells additional shares or changes its support obligations."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "date": "March 2, 2026",
+        "label": "SC 13 reportable event date",
+        "source": "Date of Event"
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "issuerName": "HelioThera BioPharma Inc.",
+      "reportingPersons": [
+        "ArcLight Partners LP"
+      ],
+      "percentOwned": 4.1,
+      "previousPercentOwned": 9.8,
+      "ownershipPercentChange": -5.7,
+      "transactionLanguage": "support agreement; proposed merger"
+    },
+    "evidence": [
+      "Item 4 discloses a support agreement for the proposed merger.",
+      "Item 5 discloses ownership decreased from 9.8% to 4.1%."
+    ],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Use fixture parent filing context only; do not query live DB for the prior 13D.",
+      "Requires router and analysis LLM because the amendment changes transaction context and ownership."
+    ]
+  }
+}

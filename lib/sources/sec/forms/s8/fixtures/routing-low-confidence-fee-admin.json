@@ -1,0 +1,13 @@
+{
+  "fixtureName": "routing-low-confidence-fee-admin",
+  "formType": "S-8 POS",
+  "accessionNumber": "0006666666-26-000605",
+  "filedAt": "2026-05-24",
+  "issuer": {
+    "name": "Low Confidence Fee Admin Inc.",
+    "ticker": "LCFA",
+    "exchange": "NASDAQ"
+  },
+  "filingText": "Post-Effective Amendment No. 1 to Form S-8. EXPLANATORY NOTE. This amendment deregisters all unsold securities and does not register any additional securities. CALCULATION OF FILING FEE TABLE. Newly Registered Securities. Amount Registered. SIGNATURES.",
+  "attachments": []
+}

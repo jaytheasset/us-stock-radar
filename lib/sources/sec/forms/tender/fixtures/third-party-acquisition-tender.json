@@ -1,0 +1,55 @@
+{
+  "case_name": "third-party-acquisition-tender",
+  "filing": {
+    "rawItemId": "fixture-tender-002",
+    "sourceUniqueId": "0002222222-26-000020",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/2222222/000222222226000020/",
+    "title": "Summit Merger Sub SC TO-T tender offer for Alpine Data Systems Inc.",
+    "publishedAt": "2026-05-19T13:30:00.000Z",
+    "bodyText": "SC TO-T\nSubject Company: Alpine Data Systems Inc.\nOfferor: Summit Merger Sub Inc.\nSummit Merger Sub Inc. has commenced a third-party tender offer for all outstanding shares of Alpine Data Systems Inc. at an offer price of $18.50 per share net to the seller in cash, representing a 42% premium to Alpine's previous closing price. The board of directors recommends that stockholders tender their shares. The offer will expire at 11:59 p.m. New York City time on July 15, 2026, unless extended. The offer is subject to a minimum tender condition and regulatory approval and is not subject to a financing condition.",
+    "rawPayload": {
+      "accession_number": "0002222222-26-000020",
+      "form_type": "SC TO-T",
+      "company_name": "Alpine Data Systems Inc.",
+      "ticker": "ALPN",
+      "exchange": "NYSE",
+      "documents": [
+        {
+          "type": "SC TO-T",
+          "description": "Third-party tender offer statement",
+          "url": "https://www.sec.gov/fixture/alpine-sc-to-t.htm",
+          "isPrimary": true,
+          "textCharCount": 760,
+          "textTruncated": false,
+          "fetchStatus": 200,
+          "fetchError": null
+        }
+      ]
+    },
+    "metadata": {
+      "form_type": "SC TO-T",
+      "company_name": "Alpine Data Systems Inc.",
+      "ticker": "ALPN",
+      "exchange": "NYSE"
+    }
+  },
+  "market_context": {
+    "price": 13.1,
+    "previous_close": 13.05,
+    "market_cap": 810000000,
+    "shares_outstanding": 62000000
+  },
+  "expected": {
+    "event_type": "strategic_transaction",
+    "score_band": "alert",
+    "delivery_level": "alert",
+    "important_facts": {
+      "sec_form_type": "SC TO-T",
+      "tender_case": "third_party_tender_offer",
+      "cash_price_per_share": 18.5,
+      "premium_to_reference_price": 42,
+      "expiration_date": "2026-07-15",
+      "board_recommendation": "recommend_tender"
+    }
+  }
+}

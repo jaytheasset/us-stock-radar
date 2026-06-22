@@ -1,0 +1,105 @@
+{
+  "parser_output": {
+    "parserVersion": "424b-parser-v1",
+    "parserGroup": "424b",
+    "formType": "424B5",
+    "accessionNumber": "0000000000-26-000106",
+    "isSupported": true,
+    "summary": "Epsilon BioPharma, Inc. filed 424B5.",
+    "facts": {
+      "issuer": {
+        "name": "Epsilon BioPharma, Inc.",
+        "ticker": "EPSN",
+        "exchange": "NASDAQ"
+      },
+      "prospectusClass": "supplement",
+      "flags": {
+        "fdaClinical": true,
+        "listingRisk": true
+      }
+    },
+    "signals": [
+      {
+        "name": "fda_clinical",
+        "value": true
+      },
+      {
+        "name": "listing_risk",
+        "value": true
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {
+      "deterministicCandidate": null
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "fda_clinical",
+    "event_title": "FDA clinical hold disclosed in 424B supplement",
+    "primary_ticker": {
+      "ticker": "EPSN",
+      "exchange": "NASDAQ"
+    },
+    "tickers": ["EPSN"],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": "biotech",
+    "sub_theme": "clinical_hold",
+    "score": 82,
+    "score_reason": "A clinical hold is a material program risk and the same supplement also discloses Nasdaq deficiency risk.",
+    "signal": "bearish",
+    "quick_take": "Epsilon disclosed an FDA clinical hold on a Phase 2 trial and a Nasdaq equity deficiency notice.",
+    "summary": "The 424B supplement updates recent developments, including an FDA clinical hold pending toxicology data and a Nasdaq stockholders' equity deficiency notice.",
+    "why_it_matters": "A clinical hold can delay a key development program, increase financing needs, and compound listing-risk pressure for a small biotech issuer.",
+    "bullish_points": [],
+    "bearish_points": [
+      "FDA placed the Phase 2 oncology trial on clinical hold.",
+      "Nasdaq deficiency language creates a separate listing risk.",
+      "The supplement says additional financing may be needed but gives no offering terms."
+    ],
+    "key_evidence": [
+      "FDA has placed a clinical hold on the Phase 2 oncology trial.",
+      "Nasdaq notice regarding stockholders' equity deficiency.",
+      "No offering terms are provided in the supplement."
+    ],
+    "what_to_watch_next": [
+      "FDA response requirements and timing to lift the clinical hold.",
+      "Nasdaq compliance plan and any follow-on financing."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "medium",
+    "needs_human_review": false,
+    "analysis_action": "route_to_analysis_prompt",
+    "archive_summary": null,
+    "offering_display_model": {},
+    "offering_security_audit": {}
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "display_version": "424b-display-payload-v1",
+    "data": {
+      "primary_risk": "clinical_hold",
+      "secondary_risk": "listing_risk"
+    },
+    "evidence": [],
+    "notes": [
+      "No special detail UI is requested from this room."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "LLM analysis expected because multiple approved event types are plausible; fixture chooses fda_clinical as the dominant event."
+    ]
+  }
+}

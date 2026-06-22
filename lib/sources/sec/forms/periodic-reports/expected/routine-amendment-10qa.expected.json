@@ -1,0 +1,107 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_periodic_reports_parser_v1",
+    "parserGroup": "periodic-reports",
+    "formType": "10-Q/A",
+    "accessionNumber": "0007777777-26-000019",
+    "isSupported": true,
+    "summary": "Pico Semiconductors Inc. filed a routine 10-Q/A for March 31, 2026; parser rules indicate archive-level handling without LLM analysis.",
+    "facts": {
+      "companyName": "Pico Semiconductors Inc.",
+      "primaryTicker": "PICO",
+      "exchange": "Nasdaq Global Market",
+      "reportingPeriod": "March 31, 2026",
+      "fiscalQuarter": "first quarter",
+      "dominantParserEventType": "other",
+      "amendment": {
+        "isAmendment": true,
+        "amendmentNumber": 1,
+        "isRoutine": true,
+        "routineReason": "solely to include Exhibit 101 interactive data files"
+      },
+      "deterministicConclusion": {
+        "canFinishWithoutLlm": true,
+        "eventType": "other",
+        "score": 20
+      }
+    },
+    "signals": [
+      {
+        "event_type": "other",
+        "signal_type": "routine_amendment",
+        "strength": "low",
+        "summary": "Routine amendment with no material changed periodic-report facts.",
+        "evidence": "This Amendment No. 1 on Form 10-Q/A is being filed solely to include Exhibit 101 interactive data files that were omitted from the original Form 10-Q.",
+        "deterministic": true
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {
+      "processing_path": "deterministic_parser_archive",
+      "market_context_used": false,
+      "parent_filing_context_present": true
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "other",
+    "event_title": "Pico files routine 10-Q/A for omitted XBRL exhibit",
+    "primary_ticker": {
+      "ticker": "PICO",
+      "exchange": "Nasdaq Global Market"
+    },
+    "tickers": ["PICO"],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 20,
+    "score_reason": "Archive-level score because the amendment is limited to Exhibit 101 interactive data and states that no other disclosures changed.",
+    "signal": "neutral",
+    "quick_take": "PICO's 10-Q/A is administrative and can be archived without LLM analysis.",
+    "summary": "The amendment was filed solely to include omitted Exhibit 101 interactive data files. It states that no financial statements, risk factors, MD&A, or other disclosures were changed.",
+    "why_it_matters": "The filing does not create a new market event; it updates the filing package for administrative completeness.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [
+      "This Amendment No. 1 on Form 10-Q/A is being filed solely to include Exhibit 101 interactive data files that were omitted from the original Form 10-Q.",
+      "This amendment does not amend, update or change any financial statements, notes, risk factors, management discussion and analysis, or other disclosure in the original filing."
+    ],
+    "what_to_watch_next": [
+      "No follow-up needed unless a later amendment changes substantive disclosure."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "amendment_number": 1,
+      "routine_reason": "Exhibit 101 interactive data files only",
+      "parent_accession_number": "0007777777-26-000017"
+    },
+    "evidence": [
+      "This Amendment No. 1 on Form 10-Q/A is being filed solely to include Exhibit 101 interactive data files that were omitted from the original Form 10-Q.",
+      "No other changes have been made."
+    ],
+    "notes": [
+      "Deterministic parser archive case; router and analysis LLM are not needed."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Integration room should avoid creating a new investor event for routine exhibit-only periodic amendments."
+    ]
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "id": "form144-proposed-sale-safety",
+  "formType": "144",
+  "accessionNumber": "0000000000-26-014401",
+  "filingText": "<?xml version=\"1.0\"?><edgarSubmission><headerData><submissionType>144</submissionType></headerData><formData><issuerInfo><issuerCik>0002222001</issuerCik><issuerName>Safety Notice Corp</issuerName><nameOfPersonForWhoseAccountTheSecuritiesAreToBeSold>Sam Seller</nameOfPersonForWhoseAccountTheSecuritiesAreToBeSold><relationshipsToIssuer><relationshipToIssuer>Officer</relationshipToIssuer></relationshipsToIssuer></issuerInfo><securitiesInformation><securitiesClassTitle>Common Stock</securitiesClassTitle><brokerOrMarketmakerDetails><name>Example Broker LLC</name></brokerOrMarketmakerDetails><noOfUnitsSold>2500</noOfUnitsSold><aggregateMarketValue>50000</aggregateMarketValue><noOfUnitsOutstanding>10000000</noOfUnitsOutstanding><approxSaleDate>05/25/2026</approxSaleDate><securitiesExchangeName>NYSE</securitiesExchangeName></securitiesInformation><nothingToReportFlagOnSecuritiesSoldInPast3Months>Y</nothingToReportFlagOnSecuritiesSoldInPast3Months><noticeSignature><noticeDate>05/20/2026</noticeDate><signature>/s/ Sam Seller</signature></noticeSignature></formData></edgarSubmission>"
+}

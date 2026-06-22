@@ -1,0 +1,9 @@
+{
+  "fixture_name": "parser-phase2-toc-body-dedup",
+  "input": {
+    "formType": "DEF 14A",
+    "accessionNumber": "0000000022-26-000022",
+    "companyName": "TOC Proxy Co.",
+    "filingText": "TABLE OF CONTENTS\nProposal 1 Election of Directors 8\nProposal 2 Ratification of Appointment of Independent Registered Public Accounting Firm 18\nProposal 3 Advisory Vote to Approve Executive Compensation 24\n\nPROXY STATEMENT\nPROPOSAL 1: Election of Directors\nThe Board recommends a vote FOR each nominee.\n\nPROPOSAL 2: Ratification of Appointment of Independent Registered Public Accounting Firm\nThe Board recommends a vote FOR Proposal 2.\n\nPROPOSAL 3: Advisory Vote to Approve Executive Compensation\nThe Board recommends a vote FOR Proposal 3."
+  }
+}

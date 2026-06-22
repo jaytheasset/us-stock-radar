@@ -1,0 +1,264 @@
+{
+  "parser_output": {
+    "parserVersion": "effect-parser-v1",
+    "parserGroup": "effect",
+    "formType": "EFFECT",
+    "accessionNumber": "9999999995-26-001683",
+    "isSupported": true,
+    "summary": "AuguStar Variable Account A's N-4 registration statement became effective on 2026-05-18.",
+    "facts": {
+      "companyName": "AuguStar Variable Account A",
+      "ticker": null,
+      "exchange": null,
+      "cik": "0000073981",
+      "filingDate": "2026-05-18",
+      "effectiveDate": "2026-05-18",
+      "effectiveTime": "12:25:00",
+      "accessionNumber": "9999999995-26-001683",
+      "registrationNumber": "333-290558",
+      "effectiveRegistrationReference": "Registration No. 333-290558",
+      "effectiveFilingForm": "N-4",
+      "relatedSubmissionType": null,
+      "referenceAccessionNumber": null,
+      "originalFilingReference": null,
+      "originalAccessionNumber": null,
+      "originalAnalysisReference": null,
+      "filers": [
+        {
+          "cik": "0000073981",
+          "entityName": "AuguStar Variable Account A",
+          "fileNumber": "333-290558",
+          "seriesClassContract": {
+            "seriesId": "S000007957",
+            "seriesName": "AUGUSTAR VARIABLE ACCOUNT A",
+            "classContractId": "C000267449",
+            "classContractName": "StarStream Variable Annuity"
+          }
+        }
+      ],
+      "primaryFiler": {
+        "cik": "0000073981",
+        "entityName": "AuguStar Variable Account A",
+        "fileNumber": "333-290558",
+        "seriesClassContract": {
+          "seriesId": "S000007957",
+          "seriesName": "AUGUSTAR VARIABLE ACCOUNT A",
+          "classContractId": "C000267449",
+          "classContractName": "StarStream Variable Annuity"
+        }
+      },
+      "hasMultipleFilers": false,
+      "hasSeriesClassContractData": true,
+      "effectiveFormSource": "effectiveData.form",
+      "effectiveDateSource": "effectiveData.finalEffectivenessDispDate",
+      "parentContextProvided": false,
+      "parentEventType": null,
+      "parentEventTitle": null,
+      "parentIpoKind": null,
+      "parentFormType": null,
+      "parentAccessionNumber": null,
+      "parentRegistrationNumber": null,
+      "parentScore": null,
+      "originalAnalysisShouldBeShown": false,
+      "effectiveTargetClear": true,
+      "parentTargetMatch": null,
+      "parentTargetConflicts": [],
+      "targetAmbiguityWarnings": [
+        "Parent filing context is absent; parser cannot confirm which prior registration analysis should be shown."
+      ],
+      "sourceExcerpts": [
+        {
+          "label": "effective_filing_form",
+          "value": "N-4",
+          "source": "effectiveData.form"
+        },
+        {
+          "label": "effective_date",
+          "value": "2026-05-18",
+          "source": "effectiveData.finalEffectivenessDispDate"
+        },
+        {
+          "label": "effective_time",
+          "value": "12:25:00",
+          "source": "effectiveData.finalEffectivenessDispTime"
+        },
+        {
+          "label": "registration_number",
+          "value": "333-290558",
+          "source": "effectiveData.filer.fileNumber or SEC-HEADER.SEC FILE NUMBER"
+        },
+        {
+          "label": "effective_filer",
+          "value": "AuguStar Variable Account A (0000073981)",
+          "source": "effectiveData.filer"
+        },
+        {
+          "label": "series_class_contract",
+          "value": "StarStream Variable Annuity",
+          "source": "effectiveData.filer.seriesClassContractData"
+        }
+      ]
+    },
+    "signals": [
+      "effectiveness_notice",
+      "deterministic_effectiveness_notice",
+      "effectiveness_date_identified",
+      "registration_reference_identified",
+      "effective_target_clear",
+      "effective_target_ambiguous",
+      "series_class_contract_data"
+    ],
+    "calendarItems": [
+      {
+        "label": "Registration statement effective date",
+        "date": "2026-05-18",
+        "source": "EFFECT filing"
+      }
+    ],
+    "warnings": [
+      "Parent filing context is absent; parser cannot confirm which prior registration analysis should be shown.",
+      "EFFECT notice contains fund series/class/contract data; operating-company ticker assumptions may not apply."
+    ],
+    "raw": {
+      "sourceTextLength": 847,
+      "documentCount": 0,
+      "xmlDetected": true,
+      "headerDetected": true,
+      "parentFilingContextUsed": false,
+      "marketContextProvided": false
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "other",
+    "event_title": "AuguStar Variable Account A EFFECT notice needs registration context",
+    "primary_ticker": {
+      "ticker": null,
+      "exchange": null
+    },
+    "tickers": [],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 25,
+    "score_reason": "N-4 effectiveness was mechanically identified, but this EFFECT room cannot infer operating-company investor impact from the notice alone.",
+    "signal": "neutral",
+    "quick_take": "AuguStar Variable Account A filed an EFFECT notice, but the fixture does not identify enough related registration context for a stronger deterministic call.",
+    "summary": "AuguStar Variable Account A's N-4 registration statement became effective on 2026-05-18.",
+    "why_it_matters": "An EFFECT notice confirms SEC effectiveness, but the investor impact depends on the related registration statement.",
+    "bullish_points": [],
+    "bearish_points": [
+      "The fixture lacks the related registration filing, so investors cannot assess the specific securities or transaction terms from this EFFECT notice alone."
+    ],
+    "key_evidence": [
+      {
+        "label": "effective_filing_form",
+        "value": "N-4",
+        "source": "effectiveData.form"
+      },
+      {
+        "label": "effective_date",
+        "value": "2026-05-18",
+        "source": "effectiveData.finalEffectivenessDispDate"
+      },
+      {
+        "label": "effective_time",
+        "value": "12:25:00",
+        "source": "effectiveData.finalEffectivenessDispTime"
+      },
+      {
+        "label": "registration_number",
+        "value": "333-290558",
+        "source": "effectiveData.filer.fileNumber or SEC-HEADER.SEC FILE NUMBER"
+      },
+      {
+        "label": "effective_filer",
+        "value": "AuguStar Variable Account A (0000073981)",
+        "source": "effectiveData.filer"
+      },
+      {
+        "label": "series_class_contract",
+        "value": "StarStream Variable Annuity",
+        "source": "effectiveData.filer.seriesClassContractData"
+      }
+    ],
+    "what_to_watch_next": [
+      "Series and class/contract covered by the EFFECT notice",
+      "Original registration filing terms",
+      "Any prospectus supplement or related 424B filing",
+      "Parent registration filing context supplied by integration"
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "label": "Registration statement effective date",
+        "date": "2026-05-18",
+        "source": "EFFECT filing"
+      }
+    ],
+    "confidence": "medium",
+    "needs_human_review": true
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "effective_filing_form": "N-4",
+      "ipo_kind": null,
+      "effective_registration_reference": "Registration No. 333-290558",
+      "effective_date": "2026-05-18",
+      "original_filing_reference": null
+    },
+    "evidence": [
+      {
+        "label": "effective_filing_form",
+        "value": "N-4",
+        "source": "effectiveData.form"
+      },
+      {
+        "label": "effective_date",
+        "value": "2026-05-18",
+        "source": "effectiveData.finalEffectivenessDispDate"
+      },
+      {
+        "label": "effective_time",
+        "value": "12:25:00",
+        "source": "effectiveData.finalEffectivenessDispTime"
+      },
+      {
+        "label": "registration_number",
+        "value": "333-290558",
+        "source": "effectiveData.filer.fileNumber or SEC-HEADER.SEC FILE NUMBER"
+      },
+      {
+        "label": "effective_filer",
+        "value": "AuguStar Variable Account A (0000073981)",
+        "source": "effectiveData.filer"
+      },
+      {
+        "label": "series_class_contract",
+        "value": "StarStream Variable Annuity",
+        "source": "effectiveData.filer.seriesClassContractData"
+      }
+    ],
+    "notes": [
+      "EFFECT room did not query live DB; original filing context is fixture-only.",
+      "Series/class/contract data was preserved in parser facts; no special UI was built in this room."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Link EFFECT filing to the related registration filing during integration; do not resolve that link from this form room.",
+      "Delivery level is derived from score using shared score bands.",
+      "Fixture proves deterministic handling; no router or analysis LLM is needed."
+    ]
+  }
+}

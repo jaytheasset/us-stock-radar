@@ -1,0 +1,13 @@
+{
+  "fixture_name": "governance-board-declassification",
+  "input": {
+    "formType": "DEF 14A",
+    "accessionNumber": "0001000005-26-000606",
+    "companyName": "MetroGrid Energy",
+    "primaryTicker": {
+      "ticker": "MGRD",
+      "exchange": "NYSE"
+    },
+    "filingText": "METROGRID ENERGY 2026 Proxy Statement\nThe Annual Meeting of Shareholders will be held on October 6, 2026.\nThe record date for voting is August 14, 2026.\nProposal 1: Election of directors. Board recommendation: FOR.\nProposal 4: Declassify the board of directors and provide for annual election of all directors. Board recommendation: FOR.\nThe proposal would phase out staggered director terms over three annual meetings."
+  }
+}

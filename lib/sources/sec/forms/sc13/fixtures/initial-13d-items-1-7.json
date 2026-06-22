@@ -1,0 +1,31 @@
+{
+  "case_id": "initial-13d-items-1-7",
+  "description": "Initial Schedule 13D with normal Item 1 through Item 7 headings.",
+  "filing": {
+    "formType": "SC 13D",
+    "accessionNumber": "0000000000-26-013001",
+    "issuerName": "Plainview Systems Inc.",
+    "primaryTicker": {
+      "ticker": "PVSI",
+      "exchange": "NASDAQ"
+    },
+    "filedAt": "2026-02-03",
+    "text": "SC 13D\nSCHEDULE 13D\nPlainview Systems Inc.\n(Name of Issuer)\nCommon Stock\n(Title of Class of Securities)\n700000101\n(CUSIP Number)\nFebruary 1, 2026\n(Date of Event Which Requires Filing of this Statement)\nName of Reporting Person: Orchard Capital LP\nAggregate Amount Beneficially Owned by Each Reporting Person: 2,500,000\nPercent of Class Represented by Amount in Row (11): 8.4%\nItem 1. Security and Issuer\nThis statement relates to the Common Stock of Plainview Systems Inc.\nItem 2. Identity and Background\nThis statement is filed by Orchard Capital LP.\nItem 3. Source and Amount of Funds or Other Consideration\nThe source of funds was working capital.\nItem 4. Purpose of Transaction\nThe securities were acquired for investment purposes.\nItem 5. Interest in Securities of the Issuer\nThe Reporting Person beneficially owns 2,500,000 shares, representing 8.4% of the class.\nItem 6. Contracts, Arrangements, Understandings or Relationships with Respect to Securities of the Issuer\nThere are no contracts required to be described in this item.\nItem 7. Material to be Filed as Exhibits\nExhibit 99.1 Joint Filing Agreement.\nSIGNATURE"
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "insider_ownership",
+    "deterministic": false,
+    "score_band": "feed",
+    "extracted_facts": {
+      "issuerName": "Plainview Systems Inc.",
+      "reportingPersons": [
+        "Orchard Capital LP"
+      ],
+      "scheduleType": "13D",
+      "isAmendment": false,
+      "sharesBeneficiallyOwned": 2500000,
+      "percentOwned": 8.4
+    }
+  }
+}

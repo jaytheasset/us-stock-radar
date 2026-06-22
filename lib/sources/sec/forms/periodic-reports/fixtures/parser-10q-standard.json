@@ -1,0 +1,90 @@
+{
+  "filing": {
+    "rawItemId": "parser-10q-standard",
+    "sourceUniqueId": "0000000000-25-000101",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1000000/000000000025000101/example-10q.htm",
+    "title": "Example Widgets Inc. Form 10-Q for the quarterly period ended June 30, 2025",
+    "publishedAt": "2025-08-05T12:00:00Z",
+    "metadata": {
+      "formType": "10-Q",
+      "ticker": "WIDG",
+      "exchange": "Nasdaq Global Market"
+    },
+    "rawPayload": {
+      "form_type": "10-Q",
+      "accession_number": "0000000000-25-000101",
+      "company_name": "Example Widgets Inc.",
+      "documents": [
+        {
+          "type": "10-Q",
+          "description": "Quarterly report",
+          "filename": "widg-20250630x10q.htm",
+          "isPrimary": true,
+          "textCharCount": 9500,
+          "textTruncated": false
+        },
+        {
+          "type": "EX-31.1",
+          "description": "Section 302 certification",
+          "filename": "widg-ex311.htm",
+          "isPrimary": false,
+          "textCharCount": 800,
+          "textTruncated": false
+        },
+        {
+          "type": "EX-101.INS",
+          "description": "Inline XBRL instance document",
+          "filename": "widg-20250630.xml",
+          "isPrimary": false,
+          "textCharCount": 0,
+          "textTruncated": false
+        }
+      ],
+      "xbrl_facts": [
+        {
+          "name": "us-gaap:Revenues",
+          "label": "Revenues",
+          "value": 245600000,
+          "unitRef": "usd",
+          "decimals": "-6",
+          "contextRef": "CurrentQuarter",
+          "period": "2025-04-01/2025-06-30",
+          "statement": "Condensed Consolidated Statements of Operations",
+          "sourceDocument": "widg-20250630.xml"
+        },
+        {
+          "name": "us-gaap:NetIncomeLoss",
+          "label": "Net income",
+          "value": 18400000,
+          "unitRef": "usd",
+          "decimals": "-6",
+          "contextRef": "CurrentQuarter",
+          "period": "2025-04-01/2025-06-30",
+          "statement": "Condensed Consolidated Statements of Operations",
+          "sourceDocument": "widg-20250630.xml"
+        },
+        {
+          "name": "us-gaap:CashAndCashEquivalentsAtCarryingValue",
+          "label": "Cash and cash equivalents",
+          "value": 95000000,
+          "unitRef": "usd",
+          "decimals": "-6",
+          "contextRef": "CurrentInstant",
+          "period": "2025-06-30",
+          "statement": "Condensed Consolidated Balance Sheets",
+          "sourceDocument": "widg-20250630.xml"
+        }
+      ]
+    },
+    "attachment_texts": [
+      {
+        "type": "EX-31.1",
+        "description": "Section 302 certification",
+        "filename": "widg-ex311.htm",
+        "text": "CERTIFICATION I have reviewed this quarterly report on Form 10-Q of Example Widgets Inc.",
+        "textTruncated": false
+      }
+    ],
+    "bodyText": "UNITED STATES SECURITIES AND EXCHANGE COMMISSION\nFORM 10-Q\nFor the quarterly period ended June 30, 2025\nExample Widgets Inc. (Exact name of registrant as specified in its charter)\nDelaware (State or other jurisdiction of incorporation or organization)\nSecurities registered pursuant to Section 12(b) of the Act:\nTitle of each class Trading Symbol(s) Name of each exchange on which registered\nCommon stock, $0.01 par value WIDG Nasdaq Global Market\nIndicate by check mark whether the registrant is a large accelerated filer, an accelerated filer, a non-accelerated filer, a smaller reporting company, or an emerging growth company.\nForward-looking statements in this report involve risks and uncertainties and actual results may differ materially.\nPART I\nITEM 1. Financial Statements\nCondensed Consolidated Statements of Operations (unaudited)\nRevenues 245.6 220.1\nGross profit 91.3 80.4\nOperating income 24.2 20.5\nNet income 18.4 15.2\nCondensed Consolidated Balance Sheets\nCash and cash equivalents 95.0 84.0\nTotal assets 730.0 690.0\nTotal liabilities 280.0 270.0\nThe financial statements include notes describing accounting policies, segment information, and working capital movements for the three and six months ended June 30, 2025.\nITEM 2. Management's Discussion and Analysis of Financial Condition and Results of Operations\nRevenues increased by 11.6% to $245.6 million from $220.1 million due to higher commercial shipments of industrial widgets. Net income was $18.4 million compared with $15.2 million in the prior-year quarter. We declared a quarterly cash dividend of $0.12 per share payable on August 31, 2025 to stockholders of record on August 15, 2025. Liquidity remained adequate and there were no covenant defaults.\nITEM 3. Quantitative and Qualitative Disclosures About Market Risk\nMarket risk disclosures were not materially changed from the annual report.\nITEM 4. Controls and Procedures\nDisclosure controls and procedures were effective as of June 30, 2025.\nPART II\nITEM 1. Legal Proceedings\nThe company is not party to any material legal proceedings.\nITEM 1A. Risk Factors\nThere have been no material changes to risk factors from the annual report.\nITEM 2. Unregistered Sales of Equity Securities and Use of Proceeds\nThe company did not repurchase shares during the quarter.\nITEM 6. Exhibits\nExhibit 31.1 Certification pursuant to Section 302. Exhibit 32.1 Certification pursuant to Section 906.\nSIGNATURES\n/s/ Chief Financial Officer"
+  }
+}

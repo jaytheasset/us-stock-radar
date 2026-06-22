@@ -1,0 +1,9 @@
+{
+  "fixture_name": "parser-phase1-proxy-card-voting-options-high-risk",
+  "input": {
+    "formType": "DEFA14A",
+    "accessionNumber": "0000000007-26-000007",
+    "companyName": "Reverse Split Card Co.",
+    "filingText": "Proxy Card. Proposal 2: Approval of Reverse Stock Split. FOR | AGAINST | ABSTAIN. Please mark, sign and return this proxy card."
+  }
+}

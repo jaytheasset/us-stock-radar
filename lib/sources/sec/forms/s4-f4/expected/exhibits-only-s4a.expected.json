@@ -1,0 +1,117 @@
+{
+  "parser_output": {
+    "parserVersion": "s4-f4-v1",
+    "parserGroup": "s4-f4",
+    "formType": "S-4 / F-4 / S-4/A / F-4/A",
+    "accessionNumber": "0001213900-26-014543",
+    "isSupported": true,
+    "summary": "S-4/A amendment is an exhibits-only filing with the main registration statement body omitted as unchanged.",
+    "facts": {
+      "secFormType": "S-4/A",
+      "isAmendment": true,
+      "companyName": "Inflection Point Acquisition Corp. IV",
+      "primaryTicker": {
+        "ticker": "BACQ",
+        "exchange": "NASDAQ"
+      },
+      "structure": {
+        "documentKind": "exhibits_only_amendment",
+        "isExhibitsOnly": true,
+        "bodyOmitted": true,
+        "hasCoRegistrantTable": false
+      },
+      "transaction": {
+        "type": "amendment_update"
+      },
+      "amendment": {
+        "isAmendment": true,
+        "materialChange": false,
+        "routineAdministrative": true,
+        "changedSections": [
+          "exhibits",
+          "signatures"
+        ]
+      },
+      "exhibits": {
+        "count": 2,
+        "filedHerewithCount": 2
+      }
+    },
+    "signals": [],
+    "calendarItems": [],
+    "warnings": [
+      "Exhibits-only amendment detected; full proxy/prospectus body is omitted or unchanged.",
+      "Routine administrative amendment candidate; no LLM analysis required for fixture."
+    ],
+    "raw": {
+      "fixtureId": "exhibits-only-s4a"
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "other",
+    "event_title": "Inflection Point files exhibits-only S-4/A",
+    "primary_ticker": {
+      "ticker": "BACQ",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      {
+        "ticker": "BACQ",
+        "exchange": "NASDAQ"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 18,
+    "score_reason": "The source text says the amendment is exhibits-only and the registration statement body is unchanged and omitted.",
+    "signal": "neutral",
+    "quick_take": "The amendment is structurally an exhibits-only S-4/A.",
+    "summary": "The filing updates exhibits and omits the unchanged registration statement body.",
+    "why_it_matters": "This fixture proves a mechanical parser-only structure flag for exhibits-only amendments.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [
+      "Exhibits-only filing solely for updated Exhibits 5.1 and 23.1.",
+      "The remainder of the Registration Statement is unchanged and omitted."
+    ],
+    "what_to_watch_next": [
+      "A later amendment that changes transaction terms or meeting materials."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "document_kind": "exhibits_only_amendment",
+      "filed_herewith_count": 2,
+      "body_omitted": true
+    },
+    "evidence": [
+      "exhibits-only filing",
+      "remainder of the Registration Statement is unchanged"
+    ],
+    "notes": [
+      "Parser-only deterministic structure candidate."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Do not query live DB for parent context from this room.",
+      "Exhibits-only handling should remain source-evidence driven."
+    ]
+  }
+}

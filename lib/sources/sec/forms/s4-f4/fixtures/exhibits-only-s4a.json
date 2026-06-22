@@ -1,0 +1,48 @@
+{
+  "id": "exhibits-only-s4a",
+  "description": "S-4/A amendment that explicitly says it is exhibits-only and omits the unchanged registration statement body.",
+  "formType": "S-4/A",
+  "accessionNumber": "0001213900-26-014543",
+  "filingDate": "2026-02-11",
+  "companyName": "Inflection Point Acquisition Corp. IV",
+  "primaryTicker": {
+    "ticker": "BACQ",
+    "exchange": "NASDAQ"
+  },
+  "participants": [
+    {
+      "name": "Inflection Point Acquisition Corp. IV",
+      "ticker": "BACQ",
+      "exchange": "NASDAQ",
+      "role": "registrant"
+    },
+    {
+      "name": "Merlin Labs, Inc.",
+      "ticker": null,
+      "exchange": null,
+      "role": "registrant"
+    }
+  ],
+  "filingText": "AMENDMENT NO. 2 TO FORM S-4 REGISTRATION STATEMENT. Inflection Point Acquisition Corp. IV and Merlin Labs, Inc. are filing this Amendment No. 2 to the Registration Statement on Form S-4 as an exhibits-only filing solely for the purpose of filing an updated copy of Exhibits 5.1 and 23.1. Accordingly, this amendment consists only of the facing page, this explanatory note, Item 21 of Part II of the Registration Statement, the signature page to the Registration Statement and the filed exhibit. The remainder of the Registration Statement is unchanged and has therefore been omitted. Item 21. Exhibits and Financial Statement Schedules. Exhibit 5.1 Opinion of White & Case LLP. Exhibit 23.1 Consent of White & Case LLP included as part of Exhibit 5.1.",
+  "attachments": [
+    {
+      "type": "EX-5.1",
+      "description": "Opinion of White & Case LLP",
+      "filedHerewith": true
+    },
+    {
+      "type": "EX-23.1",
+      "description": "Consent of White & Case LLP included as part of Exhibit 5.1",
+      "filedHerewith": true
+    }
+  ],
+  "market_context": null,
+  "parentFilingContext": {
+    "accessionNumber": "0001213900-26-004193",
+    "formType": "S-4",
+    "summary": "Prior full S-4 registration statement for the Inflection Point and Merlin business combination.",
+    "terms": {
+      "bodyOmittedInAmendment": true
+    }
+  }
+}

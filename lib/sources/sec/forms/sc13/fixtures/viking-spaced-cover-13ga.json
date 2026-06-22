@@ -1,0 +1,22 @@
+{
+  "case_id": "viking-spaced-cover-13ga",
+  "description": "SEC source excerpt from Viking SC 13G/A with heavily spaced cover table rows and checkbox markers on later lines. Source: https://www.sec.gov/Archives/edgar/data/1103804/000090514824003171/sayw24111425_13ga.htm",
+  "filing": {
+    "formType": "SC 13G/A",
+    "accessionNumber": "0000905148-24-003171",
+    "filedAt": "2024-11-14",
+    "text": "SCHEDULE 13G/A\n(Amendment No. 2)\nTourmaline Bio, Inc.\n(Name of Issuer)\nCommon Stock, $0.0001 par value per share\n(Title of Class of Securities)\n89157D105\n(CUSIP Number)\nSeptember 30, 2024\n(Date of Event Which Requires Filing of this Statement)\n☐ Rule 13d-1(b)\n☒ Rule 13d-1(c)\n☐ Rule 13d-1(d)\n1\n|\nNAMES OF REPORTING PERSONS\n|\n|\nViking Global Investors LP\n|\n2\n|\nCHECK THE APPROPRIATE BOX IF A MEMBER OF A GROUP*\n|\n(a)☐\n|\n(b)☒\n|\n3\nSEC USE ONLY\n4\nCITIZENSHIP OR PLACE OF ORGANIZATION\nDelaware\nNUMBER OF SHARES BENEFICIALLY OWNED BY EACH REPORTING PERSON WITH\n5\nSOLE VOTING POWER\n0\n6\nSHARED VOTING POWER\n0\n7\nSOLE DISPOSITIVE POWER\n0\n8\nSHARED DISPOSITIVE POWER\n0\n9\nAGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON\n0\n11\nPERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (9)\n0%\n12\nTYPE OF REPORTING PERSON\nIA\nItem 4. Ownership\nThe reporting person beneficially owns zero shares as of the event date.\nSIGNATURE"
+  },
+  "expected": {
+    "event_type": "insider_ownership",
+    "extracted_facts": {
+      "issuerName": "Tourmaline Bio, Inc.",
+      "securityClass": "Common Stock, $0.0001 par value per share",
+      "cusip": "89157D105",
+      "reportingPersons": ["Viking Global Investors LP"],
+      "ruleBasis": "13d-1(c)",
+      "sharesBeneficiallyOwned": 0,
+      "percentOwned": 0
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "id": "form4a-amendment-reconciliation-safety",
+  "formType": "4/A",
+  "accessionNumber": "0000000000-26-004005",
+  "filingText": "<?xml version=\"1.0\"?><ownershipDocument><documentType>4/A</documentType><issuer><issuerCik>0001111005</issuerCik><issuerName>Safety Amendment Corp</issuerName><issuerTradingSymbol>SAFEA2</issuerTradingSymbol></issuer><reportingOwner><reportingOwnerId><rptOwnerName>Pat Amendment</rptOwnerName></reportingOwnerId><reportingOwnerRelationship><isOfficer>1</isOfficer><officerTitle>Chief Operating Officer</officerTitle></reportingOwnerRelationship></reportingOwner><nonDerivativeTable><nonDerivativeTransaction><securityTitle><value>Common Stock</value></securityTitle><transactionDate><value>2026-05-18</value></transactionDate><transactionCoding><transactionCode>P</transactionCode></transactionCoding><transactionAmounts><transactionShares><value>1000</value></transactionShares><transactionPricePerShare><value>12.00</value></transactionPricePerShare><transactionAcquiredDisposedCode><value>A</value></transactionAcquiredDisposedCode></transactionAmounts><postTransactionAmounts><sharesOwnedFollowingTransaction><value>11000</value></sharesOwnedFollowingTransaction></postTransactionAmounts></nonDerivativeTransaction></nonDerivativeTable></ownershipDocument>"
+}

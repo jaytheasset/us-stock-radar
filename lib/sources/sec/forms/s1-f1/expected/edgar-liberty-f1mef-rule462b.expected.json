@@ -1,0 +1,138 @@
+{
+  "parser_output": {
+    "parserVersion": "s1-f1-parser-v1",
+    "parserGroup": "s1-f1",
+    "formType": "S-1 / F-1, S-1/A / F-1/A",
+    "accessionNumber": "0001104659-26-046030",
+    "isSupported": true,
+    "summary": "EDGAR F-1MEF Rule 462(b) excerpt for Liberty Defense Holdings, Ltd.",
+    "facts": {
+      "filing": {
+        "filing_family": "s1_f1_registration",
+        "reported_form_type": "F-1MEF",
+        "filing_variant": "rule_462b_mef",
+        "boundary_case": true,
+        "parent_context_needed": true,
+        "parent_registration_number": "333-293217",
+        "post_effective_purpose": null,
+        "deregister_unsold_securities": false,
+        "no_additional_securities_registered": false,
+        "rule_462b": {
+          "base_form": "F-1",
+          "prior_registration_number": "333-293217",
+          "added_securities_amount": null,
+          "automatic_effective": true,
+          "within_20_percent_limit": true
+        },
+        "evidence": []
+      },
+      "company_name": "Liberty Defense Holdings, Ltd.",
+      "ticker": null,
+      "exchange": null,
+      "registration_kind": "unknown",
+      "offering": {
+        "kind": "unknown",
+        "securities": ["warrants"],
+        "shares_offered": null,
+        "price_low": null,
+        "price_high": null,
+        "gross_proceeds": null,
+        "selling_shareholder_shares": null,
+        "use_of_proceeds": null,
+        "underwriters": []
+      },
+      "amendment": {
+        "is_amendment": false,
+        "amendment_number": null,
+        "stated_material_change": null,
+        "routine_or_administrative": false,
+        "parent_context_provided": false
+      },
+      "foreign_issuer": {
+        "is_foreign_private_issuer": true,
+        "ads_offering": false,
+        "vie_structure": false,
+        "hfcaa_or_pcaob_risk": false,
+        "cayman_holding_company": false
+      },
+      "risks": {
+        "going_concern": false,
+        "listing_risk": false,
+        "legal_risk": false,
+        "fda_or_clinical": false,
+        "insider_control": false,
+        "strategic_transaction": false
+      },
+      "market_context_summary": {
+        "provided": false,
+        "offering_to_market_cap_pct": null,
+        "shares_to_float_pct": null
+      }
+    },
+    "signals": [
+      {
+        "event_type": "other",
+        "label": "Rule 462(b) MEF registration requires parent filing context",
+        "severity": "low",
+        "signal": "neutral",
+        "evidence": []
+      }
+    ],
+    "calendarItems": [],
+    "warnings": ["Boundary filing variant; parent context may be needed."],
+    "raw": {
+      "sourceTextLength": 0,
+      "attachmentNames": []
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "other",
+    "event_title": "Liberty Defense F-1MEF Rule 462(b) filing",
+    "primary_ticker": {
+      "ticker": null,
+      "exchange": null
+    },
+    "tickers": [],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 42,
+    "score_reason": "Archive-level score because the EDGAR F-1MEF excerpt is mechanically a Rule 462(b) add-on registration that needs parent F-1 context.",
+    "signal": "neutral",
+    "quick_take": "The F-1MEF references earlier effective File No. 333-293217 and automatic effectiveness under Rule 462(b).",
+    "summary": "The filing adds securities under Rule 462(b) and states the added aggregate price is within the 20% limit.",
+    "why_it_matters": "The source structure is clear, but parent registration terms are needed before economic interpretation.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": ["Rule 462(b)", "333-293217", "effective upon filing", "no more than 20%"],
+    "what_to_watch_next": ["Parent F-1 and final prospectus terms."],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "medium",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "filing_variant": "rule_462b_mef",
+      "base_form": "F-1",
+      "prior_registration_number": "333-293217",
+      "within_20_percent_limit": true
+    },
+    "evidence": ["Rule 462(b)", "333-293217", "no more than 20%"],
+    "notes": ["No parent lookup implemented; fixture remains local JSON only."]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": ["Parent filing linkage would require ingest/DB wiring and is recorded for handoff, not implemented here."]
+  }
+}

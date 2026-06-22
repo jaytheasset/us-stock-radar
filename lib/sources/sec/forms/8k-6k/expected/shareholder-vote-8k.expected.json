@@ -1,0 +1,124 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_8k_6k_parser_v1",
+    "parserGroup": "8k-6k",
+    "formType": "8-K / 6-K, 8-K/A / 6-K/A",
+    "accessionNumber": "0008888888-26-000008",
+    "isSupported": true,
+    "summary": "Atlas Robotics filed 8-K with 1 extracted item(s) and 1 source-backed filing cue(s).",
+    "facts": {
+      "companyName": "Atlas Robotics",
+      "ticker": "AROB",
+      "secFormType": "8-K",
+      "isAmendment": false,
+      "items": [
+        {
+          "item": "5.07",
+          "label": "Submission of Matters to a Vote of Security Holders."
+        }
+      ],
+      "filingCues": [
+        {
+          "cueType": "shareholder_vote_or_approval",
+          "label": "Shareholder vote, meeting, proposal, approval, or vote tally language",
+          "evidence": "Stockholders approved the election of all directors.",
+          "confidence": "medium",
+          "itemNumbers": [
+            "5.07"
+          ]
+        }
+      ]
+    },
+    "signals": [
+      {
+        "cueType": "shareholder_vote_or_approval",
+        "label": "Shareholder vote, meeting, proposal, approval, or vote tally language",
+        "evidence": "Stockholders approved the election of all directors.",
+        "confidence": "medium",
+        "itemNumbers": [
+          "5.07"
+        ]
+      }
+    ],
+    "calendarItems": [
+      {
+        "label": "meeting_date",
+        "dateText": "May 8, 2026",
+        "evidence": "Atlas Robotics held its annual meeting on May 8, 2026."
+      }
+    ],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "shareholder_vote",
+    "event_title": "Atlas Robotics reports annual meeting vote results",
+    "primary_ticker": {
+      "ticker": "AROB",
+      "exchange": null
+    },
+    "tickers": [
+      "AROB"
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 55,
+    "score_reason": "Vote outcomes affect governance but the fixture does not show a failed critical proposal.",
+    "signal": "neutral",
+    "quick_take": "Atlas reported annual meeting results, including a rejected shareholder proposal.",
+    "summary": "Stockholders approved directors and say-on-pay while rejecting a classified-board shareholder proposal.",
+    "why_it_matters": "Vote results show investor support for board and compensation matters.",
+    "bullish_points": [
+      "Director elections and compensation proposal were approved."
+    ],
+    "bearish_points": [
+      "A governance proposal was rejected."
+    ],
+    "key_evidence": [
+      "Stockholders approved the election of all directors."
+    ],
+    "what_to_watch_next": [
+      "Governance follow-up after the rejected shareholder proposal."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "label": "meeting_date",
+        "dateText": "May 8, 2026",
+        "evidence": "Atlas Robotics held its annual meeting on May 8, 2026."
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "approved": [
+        "directors",
+        "say-on-pay"
+      ],
+      "rejected": [
+        "classified board shareholder proposal"
+      ]
+    },
+    "evidence": [
+      "The final vote included 42,100,000 votes for and 3,500,000 votes against the compensation proposal."
+    ],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": []
+  }
+}

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { PointerEvent } from "react";
-import type { DetailTone, PriceChartSeries, PricePoint, PriceRange } from "./detailTypes";
+import type { DetailTone, PriceChartMarker, PriceChartSeries, PricePoint, PriceRange } from "./detailTypes";
 
 const priceRanges: PriceRange[] = ["1D", "5D", "1M", "3M", "1Y"];
 
@@ -22,6 +22,7 @@ const chartBox = {
 type PriceChartCardProps = {
   change: string;
   changeAmount: string;
+  markers?: PriceChartMarker[];
   price: string;
   series: PriceChartSeries;
   ticker: string;
@@ -53,7 +54,7 @@ type ActiveChartData = {
   remote: boolean;
 };
 
-export function PriceChartCard({ change, changeAmount, price, series, ticker, tone }: PriceChartCardProps) {
+export function PriceChartCard({ change, changeAmount, markers = [], price, series, ticker, tone }: PriceChartCardProps) {
   const [range, setRange] = useState<PriceRange>("1D");
   const [remoteDataByRange, setRemoteDataByRange] = useState<Partial<Record<PriceRange, ChartApiResponse>>>({});
   const [loadingRange, setLoadingRange] = useState<PriceRange | null>(null);
@@ -108,13 +109,14 @@ export function PriceChartCard({ change, changeAmount, price, series, ticker, to
 
     if (isLoadingActiveRange) return null;
 
+    const fallbackPoints = series.periods[range] || [];
     return {
-      points: series.periods[range],
+      points: fallbackPoints,
       previousClose: series.previousClose,
-      providerLabel: "Local fallback",
+      providerLabel: fallbackPoints.length ? series.providerLabel || "Local fallback" : "Chart unavailable",
       remote: false,
     };
-  }, [activeRemoteData, isLoadingActiveRange, range, series.periods, series.previousClose]);
+  }, [activeRemoteData, isLoadingActiveRange, range, series.periods, series.previousClose, series.providerLabel]);
 
   const displayTone = chartData?.changePercent === undefined ? tone : toneFromPercent(chartData.changePercent);
   const displayPrice = chartData?.latestPrice === undefined ? price : formatCurrency(chartData.latestPrice);
@@ -123,12 +125,13 @@ export function PriceChartCard({ change, changeAmount, price, series, ticker, to
       ? `${changeAmount} (${change})`
       : `${formatSignedCurrency(chartData.changeAmount)} (${formatSignedPercent(chartData.changePercent)})`;
   const lastPoint = chartData?.points[chartData.points.length - 1];
+  const activeMarkers = useMemo(() => normalizePriceMarkers(markers, ticker), [markers, ticker]);
   const statusLabel =
     isLoadingActiveRange && !chartData
       ? "Updating market data"
       : chartData?.remote
         ? `${chartData.providerLabel}${activeRemoteData?.cache ? ` - ${cacheLabel(activeRemoteData.cache)}` : ""}`
-        : "Using local fallback";
+        : chartData?.providerLabel || "Chart unavailable";
 
   return (
     <div className="stock-detail-card price-card">
@@ -157,6 +160,7 @@ export function PriceChartCard({ change, changeAmount, price, series, ticker, to
       </div>
       {chartData ? (
         <PriceVolumeChart
+          markers={activeMarkers}
           points={chartData.points}
           previousClose={chartData.previousClose}
           range={range}
@@ -166,7 +170,7 @@ export function PriceChartCard({ change, changeAmount, price, series, ticker, to
         <div className="price-chart-empty">Updating market data</div>
       )}
       <div className="price-chart-meta">
-        <span>Previous close {chartData ? formatCurrency(chartData.previousClose) : "-"}</span>
+        <span>{chartData?.points.length && chartData.previousClose > 0 ? `Previous close ${formatCurrency(chartData.previousClose)}` : "Previous close unavailable"}</span>
         <span>Latest volume {formatVolume(lastPoint?.volume || 0)}</span>
       </div>
     </div>
@@ -179,12 +183,50 @@ function cacheLabel(cache: "hit" | "miss" | "bypass") {
   return "fresh";
 }
 
+function normalizePriceMarkers(markers: PriceChartMarker[], ticker: string) {
+  const chartTicker = normalizeTicker(ticker);
+  const seen = new Set<string>();
+  return markers
+    .map((marker) => ({
+      ...marker,
+      appliesToTicker: normalizeTicker(marker.appliesToTicker || "") || null,
+      label: marker.label.trim(),
+      tone: marker.tone || "volatile",
+      value: Number(marker.value),
+    }))
+    .filter((marker) => marker.label && Number.isFinite(marker.value) && marker.value > 0)
+    .filter((marker) => !marker.appliesToTicker || !chartTicker || marker.appliesToTicker === chartTicker)
+    .filter((marker) => {
+      const key = `${marker.label.toLowerCase()}-${marker.value.toFixed(4)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 4);
+}
+
+function normalizeTicker(value: string) {
+  const ticker = value.trim().toUpperCase();
+  return /^[A-Z][A-Z0-9.\-]{0,9}$/.test(ticker) ? ticker : "";
+}
+
+function formatMarkerValue(marker: PriceChartMarker) {
+  const currency = (marker.currency || "USD").trim().toUpperCase();
+  if (currency === "USD") return formatCurrency(marker.value);
+  return `${currency} ${marker.value.toLocaleString("en-US", {
+    maximumFractionDigits: 4,
+    minimumFractionDigits: marker.value < 1 ? 4 : 2,
+  })}`;
+}
+
 function PriceVolumeChart({
+  markers,
   points,
   previousClose,
   range,
   tone,
 }: {
+  markers: PriceChartMarker[];
   points: PricePoint[];
   previousClose: number;
   range: PriceRange;
@@ -198,12 +240,14 @@ function PriceVolumeChart({
   }
 
   const values = chartPoints.flatMap((point) => [point.high, point.low, point.close, point.open]);
-  const rawMin = Math.min(previousClose, ...values);
-  const rawMax = Math.max(previousClose, ...values);
+  const markerValues = markers.map((marker) => marker.value).filter((value) => Number.isFinite(value) && value > 0);
+  const rawMin = Math.min(previousClose, ...values, ...markerValues);
+  const rawMax = Math.max(previousClose, ...values, ...markerValues);
   const paddingFloor = rawMax < 1 ? Math.max(rawMax * 0.08, 0.001) : 0.05;
   const padding = Math.max((rawMax - rawMin) * 0.14, rawMax * 0.002, paddingFloor);
+  const markerTopPadding = markerValues.length ? Math.max((rawMax - rawMin) * 0.28, rawMax * 0.08, padding) : padding;
   const priceMin = rawMin <= 0 ? rawMin - padding : Math.max(0, rawMin - padding);
-  const priceMax = rawMax + padding;
+  const priceMax = rawMax + markerTopPadding;
   const volumeMax = Math.max(...chartPoints.map((point) => point.volume), 1);
   const ticks = [priceMax, priceMin + (priceMax - priceMin) / 2, priceMin];
   const xTickIndexes = xAxisIndexes(chartPoints.length);
@@ -214,6 +258,13 @@ function PriceVolumeChart({
   const lastPoint = chartPoints[chartPoints.length - 1];
   const lastX = priceX(chartPoints.length - 1, chartPoints.length);
   const lastY = priceY(lastPoint.close, priceMin, priceMax);
+  const markerYs = markers.map((marker) => priceY(marker.value, priceMin, priceMax));
+  const markerLabels = buildMarkerLabels(markers, markerYs, lastY, previousCloseY);
+  const markerAxisLabels = buildMarkerAxisLabels(markers, markerYs);
+  const occupiedAxisYs = [lastY, previousCloseY];
+  const hidePreviousCloseLabel =
+    Math.abs(previousCloseY - lastY) < 22 ||
+    markerYs.some((markerY) => Math.abs(markerY - previousCloseY) < 22 || Math.abs(markerY - lastY) < 22);
   const hoveredPoint = hoveredIndex === null ? null : chartPoints[hoveredIndex];
   const hoveredX = hoveredIndex === null ? 0 : priceX(hoveredIndex, chartPoints.length);
   const hoveredY = hoveredPoint ? priceY(hoveredPoint.close, priceMin, priceMax) : 0;
@@ -234,12 +285,15 @@ function PriceVolumeChart({
       >
         {ticks.map((tick) => {
           const y = priceY(tick, priceMin, priceMax);
+          const hideTickLabel = [...markerYs, ...occupiedAxisYs].some((occupiedY) => Math.abs(occupiedY - y) < 30);
           return (
             <g key={tick.toFixed(4)}>
               <line className="price-grid-line" x1={chartBox.plotLeft} x2={chartBox.plotRight} y1={y} y2={y} />
-              <text className="price-axis-label" x={chartBox.axisLabelX} y={y + 3}>
-                {formatAxisPrice(tick)}
-              </text>
+              {hideTickLabel ? null : (
+                <text className="price-axis-label" x={chartBox.axisLabelX} y={y + 3}>
+                  {formatAxisPrice(tick)}
+                </text>
+              )}
             </g>
           );
         })}
@@ -250,11 +304,11 @@ function PriceVolumeChart({
           y1={previousCloseY}
           y2={previousCloseY}
         />
-        <text className="prev-close-label" x={chartBox.plotLeft} y={Math.max(previousCloseY - 6, 12)}>
-          Previous close
-        </text>
-        <polyline className="price-line" points={linePoints} />
-        <circle className="last-price-dot" cx={lastX.toFixed(1)} cy={lastY.toFixed(1)} r="3.2" />
+        {hidePreviousCloseLabel ? null : (
+          <text className="prev-close-label" x={chartBox.plotLeft} y={Math.max(previousCloseY - 6, 12)}>
+            Previous close
+          </text>
+        )}
         {chartPoints.map((point, index) => {
           const barHeight = Math.max((point.volume / volumeMax) * (chartBox.volumeBottom - chartBox.volumeTop), 2);
           const x = priceX(index, chartPoints.length) - volumeBarWidth(chartPoints.length) / 2;
@@ -273,6 +327,32 @@ function PriceVolumeChart({
             />
           );
         })}
+        <polyline className="price-line" points={linePoints} />
+        {markers.map((marker, index) => {
+          const markerY = markerYs[index] ?? priceY(marker.value, priceMin, priceMax);
+          return (
+            <g className={`price-marker price-marker-${marker.tone || "neutral"}`} key={`${marker.label}-${marker.value}-${index}`}>
+              <line
+                className="price-marker-line"
+                x1={chartBox.plotLeft}
+                x2={chartBox.plotRight}
+                y1={markerY}
+                y2={markerY}
+              />
+            </g>
+          );
+        })}
+        <circle className="last-price-dot" cx={lastX.toFixed(1)} cy={lastY.toFixed(1)} r="3.2" />
+        {markerLabels.map((label) => (
+          <text className={`price-marker-label price-marker-label-${label.tone}`} key={label.key} x={chartBox.plotLeft + 12} y={label.y}>
+            {label.text}
+          </text>
+        ))}
+        {markerAxisLabels.map((label) => (
+          <text className="price-marker-axis-label" dominantBaseline="middle" key={label.key} x={chartBox.axisLabelX} y={label.y}>
+            {label.text}
+          </text>
+        ))}
         {xTickIndexes.map((index) => (
           <text className="time-axis-label" key={`${chartPoints[index].time}-${index}`} textAnchor={textAnchorForIndex(index, chartPoints.length)} x={priceX(index, chartPoints.length)} y={chartBox.xAxisY}>
             {formatTimeAxisLabel(chartPoints[index].time, range)}
@@ -327,6 +407,83 @@ function priceX(index: number, count: number) {
 function priceY(value: number, min: number, max: number) {
   const minimumRange = max < 1 ? Math.max(max * 0.025, 0.0005) : 0.01;
   return chartBox.plotBottom - ((value - min) / Math.max(max - min, minimumRange)) * (chartBox.plotBottom - chartBox.plotTop);
+}
+
+function buildMarkerLabels(markers: PriceChartMarker[], markerYs: number[], lastY: number, previousCloseY: number) {
+  const groups: Array<{ indexes: number[]; y: number; labels: string[]; tone: DetailTone }> = [];
+  const sorted = markerYs
+    .map((y, index) => ({ index, y }))
+    .sort((left, right) => left.y - right.y);
+
+  for (const marker of sorted) {
+    const current = markers[marker.index];
+    const group = groups.find((item) => Math.abs(item.y - marker.y) < 16);
+    if (group) {
+      group.indexes.push(marker.index);
+      if (!group.labels.includes(current.label)) group.labels.push(current.label);
+      group.y = (group.y * (group.indexes.length - 1) + marker.y) / group.indexes.length;
+      continue;
+    }
+
+    groups.push({
+      indexes: [marker.index],
+      y: marker.y,
+      labels: [current.label],
+      tone: current.tone || "volatile",
+    });
+  }
+
+  const usedPositions: number[] = [];
+  return groups.map((group) => {
+    const nearCurrentPrice = Math.abs(group.y - lastY) < 18;
+    const nearPreviousClose = Math.abs(group.y - previousCloseY) < 16;
+    const desired = nearCurrentPrice || nearPreviousClose ? group.y - 36 : group.y - 24;
+    let y = clamp(desired, chartBox.plotTop + 8, chartBox.plotBottom - 8);
+
+    for (const used of usedPositions) {
+      if (Math.abs(y - used) < 15) {
+        y = clamp(used + 15, chartBox.plotTop + 8, chartBox.plotBottom - 8);
+      }
+    }
+    usedPositions.push(y);
+
+    return {
+      key: group.indexes.join("-"),
+      text: group.labels.join(" / "),
+      tone: group.tone,
+      y,
+    };
+  });
+}
+
+function buildMarkerAxisLabels(markers: PriceChartMarker[], markerYs: number[]) {
+  const groups: Array<{ indexes: number[]; y: number; values: string[] }> = [];
+  const sorted = markerYs
+    .map((y, index) => ({ index, y }))
+    .sort((left, right) => left.y - right.y);
+
+  for (const marker of sorted) {
+    const value = formatMarkerValue(markers[marker.index]);
+    const group = groups.find((item) => Math.abs(item.y - marker.y) < 16);
+    if (group) {
+      group.indexes.push(marker.index);
+      if (!group.values.includes(value)) group.values.push(value);
+      group.y = (group.y * (group.indexes.length - 1) + marker.y) / group.indexes.length;
+      continue;
+    }
+
+    groups.push({
+      indexes: [marker.index],
+      y: marker.y,
+      values: [value],
+    });
+  }
+
+  return groups.map((group) => ({
+    key: group.indexes.join("-"),
+    text: group.values.join(" / "),
+    y: clamp(group.y, chartBox.plotTop + 8, chartBox.plotBottom - 7),
+  }));
 }
 
 function volumeBarWidth(count: number) {

@@ -1,0 +1,9 @@
+{
+  "fixture_name": "parser-phase1-merger-proxy-language",
+  "input": {
+    "formType": "PREM14A",
+    "accessionNumber": "0000000004-26-000004",
+    "companyName": "Merger Target Co.",
+    "filingText": "Preliminary Proxy Statement. Proposal No. 1: Approval of Merger Agreement. The special committee received a fairness opinion in connection with the Agreement and Plan of Merger and the proposed acquisition transaction."
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "rawItemId": "fixture-form25-common-share-delisting",
+  "sourceUniqueId": "0001354457-24-000661",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1354457/000135445724000661/0001354457-24-000661-index.html",
+  "title": "VBI Vaccines Inc/BC 25-NSE",
+  "publishedAt": "2024-09-06",
+  "bodyText": "ACCESSION NUMBER: 0001354457-24-000661\nCONFORMED SUBMISSION TYPE: 25-NSE\nFILED AS OF DATE: 20240906\nSUBJECT COMPANY:\nCOMPANY DATA:\nCOMPANY CONFORMED NAME: VBI Vaccines Inc/BC\nCENTRAL INDEX KEY: 0000764195\nFILING VALUES:\nFORM TYPE: 25-NSE\nSEC FILE NUMBER: 001-37769\nFILED BY:\nCOMPANY DATA:\nCOMPANY CONFORMED NAME: Nasdaq Stock Market LLC\nCENTRAL INDEX KEY: 0001354457\n25-NSE 1 primary_doc.xml X0203 0001354457 Nasdaq Stock Market LLC 0000764195 VBI Vaccines Inc/BC 001-37769 222 Third Street, Suite 2241 Cambridge MA MASSACHUSETTS 02142 617-830-3031 Ordinary shares 17 CFR 240.12d2-2(b) Aravind Menon Hearings Advisor 2024-09-06\nRAW_FORM25_FULL_TEXT_SENTINEL_SHOULD_NOT_REACH_PROMPTS",
+  "rawPayload": {
+    "form_type": "25-NSE",
+    "accession_number": "0001354457-24-000661",
+    "documents": [
+      {
+        "type": "25-NSE",
+        "description": "primary_doc.xml",
+        "url": "https://www.sec.gov/Archives/edgar/data/1354457/000135445724000661/primary_doc.xml",
+        "isPrimary": true,
+        "textCharCount": 1092,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      },
+      {
+        "type": "EX-99.25",
+        "description": "vbivdelistreason.txt",
+        "url": "https://www.sec.gov/Archives/edgar/data/1354457/000135445724000661/vbivdelistreason.txt",
+        "isPrimary": false,
+        "textCharCount": 870,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ],
+    "attachment_texts": [
+      {
+        "type": "EX-99.25",
+        "description": "Delisting reason",
+        "text": "Delisting Determination, The Nasdaq Stock Market, LLC, September 6, 2024.\nVBI Vaccines, Inc. The Nasdaq Stock Market LLC (the Exchange) has determined to remove from listing the securities of VBI Vaccines, Inc., effective at the opening of the trading session on September 16, 2024.\nBased on review of information provided by the Company, Nasdaq Staff determined that the Company no longer qualified for listing on the Exchange pursuant to Listing Rules 5101, 5110(b), and IM-5101-1. The Company was notified of the Staff determination on July 30, 2024. The Company did not appeal the Staff determination to the Hearings Panel. The Company securities were suspended on August 8, 2024. The Staff determination to delist the Company securities became final on August 8, 2024.\n<table><tr><th>Security</th><th>Rule</th></tr><tr><td>Ordinary shares</td><td>Listing Rules 5101, 5110(b), and IM-5101-1</td></tr></table>",
+        "textTruncated": false
+      }
+    ]
+  },
+  "metadata": {
+    "company_name": "VBI Vaccines Inc/BC",
+    "cik": "0000764195"
+  }
+}

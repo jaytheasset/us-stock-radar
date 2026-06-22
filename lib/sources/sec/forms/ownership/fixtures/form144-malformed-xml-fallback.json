@@ -1,0 +1,7 @@
+{
+  "id": "form144-malformed-xml-fallback",
+  "formType": "144",
+  "accessionNumber": "0000000000-26-014507",
+  "primaryDocumentText": "<?xml version=\"1.0\"?><edgarSubmission><headerData><submissionType>144</submissionType></headerData><formData><issuerInfo><issuerName>Broken 144 XML Corp</issuerName>",
+  "filingText": "Issuer: Fallback 144 Corp\nSeller: Fallback Seller\nBroker: Fallback Broker LLC\nSecurities to be sold: 300\nAggregate market value: 9000\nShares outstanding: 1000000\nApproximate Sale Date: 2026-06-08"
+}

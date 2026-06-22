@@ -1,0 +1,144 @@
+{
+  "parser_output": {
+    "parserVersion": "sc13-v1",
+    "parserGroup": "sc13",
+    "formType": "SC 13D",
+    "accessionNumber": "0000000000-26-000202",
+    "isSupported": true,
+    "summary": "Harbor Ridge Capital Master Fund Ltd. reports beneficial ownership of 8,500,000 shares (12.4%) of MetroGrid Energy Corp. Common Stock.",
+    "facts": {
+      "issuerName": "MetroGrid Energy Corp.",
+      "reportingPersons": [
+        "Harbor Ridge Capital Master Fund Ltd."
+      ],
+      "securityClass": "Common Stock",
+      "cusip": "59162A100",
+      "primaryTicker": {
+        "ticker": "MGE",
+        "exchange": "NYSE"
+      },
+      "scheduleType": "13D",
+      "isAmendment": false,
+      "amendmentNumber": null,
+      "eventDate": "February 10, 2026",
+      "filingDate": "2026-02-14",
+      "sharesBeneficiallyOwned": 8500000,
+      "percentOwned": 12.4,
+      "previousPercentOwned": null,
+      "ownershipPercentChange": null,
+      "votingPower": {
+        "sole": 8500000,
+        "shared": 0
+      },
+      "dispositivePower": {
+        "sole": 8500000,
+        "shared": 0
+      },
+      "ownershipIntent": "active",
+      "passiveCertification": false,
+      "item4Purpose": "The Reporting Person acquired the shares for investment purposes. The Reporting Person intends to engage with the Board and management regarding operational performance, capital allocation, governance changes and potential board representation. The Reporting Person may seek to nominate directors and may encourage the Issuer to review strategic alternatives, including a sale or merger.",
+      "item4HasActivistLanguage": true,
+      "strategicTransactionLanguage": true,
+      "legalRiskLanguage": false,
+      "financingLanguage": false,
+      "financingAmountUsd": null,
+      "groupMembers": []
+    },
+    "signals": [],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "leadership_governance",
+    "event_title": "Harbor Ridge discloses 12.4% activist stake in MetroGrid Energy",
+    "primary_ticker": {
+      "ticker": "MGE",
+      "exchange": "NYSE"
+    },
+    "tickers": [
+      {
+        "ticker": "MGE",
+        "exchange": "NYSE"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 82,
+    "score_reason": "A new 12.4% Schedule 13D stake includes board, governance, capital allocation and strategic alternatives language.",
+    "signal": "volatile",
+    "quick_take": "Harbor Ridge disclosed an activist-sized MetroGrid stake and may seek board representation or strategic alternatives.",
+    "summary": "The filing shows Harbor Ridge Capital Master Fund Ltd. owns 8.5 million MetroGrid shares, or 12.4%, and Item 4 says it intends to engage with the board and management.",
+    "why_it_matters": "A double-digit activist stake can change investor expectations for governance, capital allocation, director composition and possible strategic actions.",
+    "bullish_points": [
+      "Governance and capital allocation pressure can unlock value if management responds constructively.",
+      "Strategic alternatives language can raise the probability of portfolio review or transaction speculation."
+    ],
+    "bearish_points": [
+      "Activist campaigns can create execution distraction and near-term volatility.",
+      "The filing does not include a binding transaction or board change yet."
+    ],
+    "key_evidence": [
+      "Harbor Ridge reports 8,500,000 shares, or 12.4% of MetroGrid common stock.",
+      "Item 4 says the holder intends to engage with the board and management.",
+      "Item 4 references potential board representation, governance changes, capital allocation and strategic alternatives."
+    ],
+    "what_to_watch_next": [
+      "Any public letter, board nomination notice or settlement agreement.",
+      "Future 13D amendments changing ownership, intent or proposed actions.",
+      "Company response to the holder's governance and strategic alternatives language."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "date": "February 10, 2026",
+        "label": "SC 13 reportable event date",
+        "source": "Date of Event"
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "candidate_special",
+    "data": {
+      "issuerName": "MetroGrid Energy Corp.",
+      "reportingPersons": [
+        "Harbor Ridge Capital Master Fund Ltd."
+      ],
+      "percentOwned": 12.4,
+      "sharesBeneficiallyOwned": 8500000,
+      "ownershipIntent": "active",
+      "activistThemes": [
+        "board representation",
+        "governance",
+        "capital allocation",
+        "strategic alternatives"
+      ]
+    },
+    "evidence": [
+      "Item 4 references board and management engagement.",
+      "Item 4 references potential board representation and strategic alternatives."
+    ],
+    "notes": [
+      "Candidate special UI could summarize holder stake, ownership powers and activist intent."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": true,
+    "special_ui_reason": "Activist SC 13D filings would benefit from a dedicated ownership/activism panel, but this room must not build UI.",
+    "integration_notes": [
+      "Requires router and analysis LLM; do not resolve deterministically.",
+      "No live ingest, DB, alerts, FMP, or UI wiring should be added from this room."
+    ]
+  }
+}

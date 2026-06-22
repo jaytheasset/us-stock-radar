@@ -1,0 +1,17 @@
+{
+  "name": "structured-note-pdf",
+  "formType": "424B3",
+  "accessionNumber": "0000000000-26-000109",
+  "issuer": {
+    "name": "Nomura America Finance, LLC",
+    "ticker": null,
+    "exchange": null
+  },
+  "filingText": "Filed Pursuant to Rule 424(b)(3) Registration No. 333-261476 Pricing Supplement No. 482 dated May 18, 2026 to the prospectus dated December 23, 2025 PS-1 Nomura America Finance, LLC Issuer: Nomura America Finance, LLC Guarantor: Nomura Holdings, Inc. Principal Amount: US$929,000.00 Reference Asset: Common Stock of Tesla, Inc. (TSLA). Trade Date: May 18, 2026 Original Issue Date: May 21, 2026 Final Valuation Date: May 17, 2028 Maturity Date: May 22, 2028 Contingent Coupon Rate: 14.25% per annum. The notes are not listed on any securities exchange. CUSIP: 65539XXY7 ISIN: US65539XXY71 PS-2 Observation Date Coupon Payment Date May 18, 2027 May 21, 2027 May 17, 2028 May 22, 2028 Barrier: 60.00% of the initial value.",
+  "expected_event_type": "other",
+  "expected_score_band": "archive",
+  "fixture_assertions": {
+    "deterministic": false,
+    "expected_router_preliminary_action": "human_review"
+  }
+}

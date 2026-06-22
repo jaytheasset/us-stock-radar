@@ -1,0 +1,118 @@
+{
+  "parser_output": {
+    "parserVersion": "s4-f4-v1",
+    "parserGroup": "s4-f4",
+    "formType": "S-4 / F-4 / S-4/A / F-4/A",
+    "accessionNumber": "0001213900-25-062760",
+    "isSupported": true,
+    "summary": "F-4/A amendment includes a material update to the S-4/F-4 transaction terms or conditions.",
+    "facts": {
+      "secFormType": "F-4/A",
+      "isAmendment": true,
+      "companyName": "Kyivstar Group Ltd.",
+      "primaryTicker": {
+        "ticker": null,
+        "exchange": null
+      },
+      "structure": {
+        "documentKind": "spac_business_combination",
+        "isExhibitsOnly": false,
+        "bodyOmitted": false,
+        "hasProxyStatementProspectus": true,
+        "hasQuestionsAndAnswers": true,
+        "hasRiskFactors": true,
+        "hasProFormaFinancials": true
+      },
+      "transaction": {
+        "type": "cross_border_business_combination"
+      },
+      "amendment": {
+        "isAmendment": true,
+        "materialChange": true,
+        "routineAdministrative": false,
+        "changedSections": [
+          "transaction consideration"
+        ]
+      },
+      "exhibits": {
+        "count": 3,
+        "filedHerewithCount": 3
+      }
+    },
+    "signals": [],
+    "calendarItems": [],
+    "warnings": [
+      "Multiple registrants or co-registrants detected; primary company role may need review."
+    ],
+    "raw": {
+      "fixtureId": "complex-f4a-amendment"
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "strategic_transaction",
+    "event_title": "Kyivstar F-4/A files amended business-combination terms",
+    "primary_ticker": {
+      "ticker": null,
+      "exchange": null
+    },
+    "tickers": [],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 78,
+    "score_reason": "The fixture contains an F-4/A with an amended business-combination agreement changing consideration formula and sponsor-share forfeiture facts.",
+    "signal": "volatile",
+    "quick_take": "The F-4/A includes a transaction-document amendment.",
+    "summary": "The amendment changes the seller share consideration formula and sponsor-share cancellation amount in the business combination agreement.",
+    "why_it_matters": "F-4/A amendments may include transaction changes in exhibits that should be captured before later interpretation.",
+    "bullish_points": [],
+    "bearish_points": [
+      "The amendment changes consideration mechanics and sponsor-share treatment."
+    ],
+    "key_evidence": [
+      "Seller Share Consideration Number is amended to subtract 303,098.",
+      "2,609,647 SPAC Class B Ordinary Shares held by the Sponsor shall be surrendered and cancelled."
+    ],
+    "what_to_watch_next": [
+      "Whether later amendments change transaction economics again.",
+      "Shareholder meeting and redemption outcome."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "medium",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "spac_transaction_status",
+    "data": {
+      "document_kind": "spac_business_combination",
+      "filed_amendment_exhibit": "EX-2.5",
+      "seller_share_consideration_adjustment": "minus 303,098",
+      "forfeited_sponsor_shares": 2609647
+    },
+    "evidence": [
+      "Amendment No. 2 to the Business Combination Agreement",
+      "Seller Share Consideration Number ... minus 303,098",
+      "2,609,647 SPAC Class B Ordinary Shares held by the Sponsor shall be surrendered"
+    ],
+    "notes": [
+      "Candidate special UI could compare amended business-combination agreement fields against parent filing context."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": true,
+    "special_ui_reason": "A material F-4/A transaction amendment needs side-by-side parent versus amended terms.",
+    "integration_notes": [
+      "Use fixture parentFilingContext only; live DB linkage belongs to integration.",
+      "Do not implement special detail UI from this room."
+    ]
+  }
+}

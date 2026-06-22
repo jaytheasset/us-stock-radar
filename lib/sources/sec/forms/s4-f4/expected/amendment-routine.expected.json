@@ -1,0 +1,118 @@
+{
+  "parser_output": {
+    "parserVersion": "s4-f4-v1",
+    "parserGroup": "s4-f4",
+    "formType": "S-4 / F-4 / S-4/A / F-4/A",
+    "accessionNumber": "0006666666-26-000606",
+    "isSupported": true,
+    "summary": "S-4/A amendment appears routine or administrative, with no parsed change to transaction terms.",
+    "facts": {
+      "secFormType": "S-4/A",
+      "isAmendment": true,
+      "companyName": "Summit Cloud Software Inc.",
+      "primaryTicker": {
+        "ticker": "SMIT",
+        "exchange": "NASDAQ"
+      },
+      "transaction": {
+        "type": "merger"
+      },
+      "amendment": {
+        "isAmendment": true,
+        "materialChange": false,
+        "routineAdministrative": true,
+        "changedSections": [
+          "exhibits",
+          "signatures"
+        ]
+      }
+    },
+    "signals": [],
+    "calendarItems": [],
+    "warnings": [
+      "Routine administrative amendment candidate; no LLM analysis required for fixture."
+    ],
+    "raw": {
+      "fixtureId": "amendment-routine"
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "other",
+    "event_title": "Summit Cloud files routine S-4/A exhibit update",
+    "primary_ticker": {
+      "ticker": "SMIT",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      {
+        "ticker": "SMIT",
+        "exchange": "NASDAQ"
+      },
+      {
+        "ticker": "RDGE",
+        "exchange": "NYSE"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 20,
+    "score_reason": "The fixture states the amendment only files an exhibit and updated signatures with no change to consideration, meeting date, or risk factors.",
+    "signal": "neutral",
+    "quick_take": "This S-4/A looks administrative rather than a new market event.",
+    "summary": "Summit Cloud filed an amendment solely for Exhibit 8.1 and updated signatures, with no parsed transaction change.",
+    "why_it_matters": "Routine amendments should be archived so investors are not alerted for non-substantive filing maintenance.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [
+      "Filed solely to file Exhibit 8.1 tax opinion and updated signatures.",
+      "No change to merger consideration, meeting date, or risk factors."
+    ],
+    "what_to_watch_next": [
+      "Only reassess if a later amendment changes terms, vote timing, risk factors, or closing conditions."
+    ],
+    "related_tickers": [
+      {
+        "ticker": "RDGE",
+        "exchange": "NYSE"
+      }
+    ],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "amendment_type": "routine_administrative",
+      "changed_sections": [
+        "exhibits",
+        "signatures"
+      ],
+      "deterministic_no_llm": true
+    },
+    "evidence": [
+      "filed solely to file Exhibit 8.1 tax opinion and updated signatures",
+      "no change to the merger consideration, no change to the meeting date, and no change to risk factors"
+    ],
+    "notes": [
+      "Deterministic archive fixture proves no LLM is needed for this clear routine amendment."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Deterministic parser/router archive: no LLM analysis needed for this fixture.",
+      "Later integration can still store the filing in company detail history."
+    ]
+  }
+}

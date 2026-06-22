@@ -1,0 +1,27 @@
+{
+  "name": "raw-extraction-candidates",
+  "formType": "425",
+  "accessionNumber": "0000000000-26-000440",
+  "sourceUniqueId": "0000000000-26-000440",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/0000000000/000000000026000440/form425.htm",
+  "title": "425 - Raw Extraction Candidate Fixture",
+  "publishedAt": "2026-05-01T12:00:00Z",
+  "companyName": "Raw Labs, Inc.",
+  "primaryTicker": "RAWL",
+  "exchange": "NASDAQ",
+  "filingText": "<html><body><table><tr><th>Title of each class</th><th>Trading Symbol</th></tr><tr><td>Common stock, par value $0.01 per share</td><td>RAWL</td></tr></table><p>Filed by Raw Labs, Inc. pursuant to Rule 425 under the Securities Act of 1933.</p><p>Subject Company: Target Wireless, Inc. Commission File No. 000-12345</p><p>Raw Labs Announces Intention to Commence Hostile Exchange Offer for Target Wireless. The proposed offer is expected to consist of a mix of cash and Raw Labs common stock.</p><p>The parties announced an agreement to combine in an all-stock merger of equals, and the transaction is expected to be completed in the second half of 2026.</p><p>Raw Labs has access to an equity line of credit with a headline capacity of up to $100 million. The combined company will have a broad development pipeline of products.</p><p>Additional documents filed by Raw Labs with the SEC may be obtained free of charge at the SEC website.</p><p>Any legal suit, action or proceeding arising out of or relating to this Note shall be instituted exclusively in the state or federal courts, and no failure or delay by a party in exercising any right shall operate as a waiver.</p><p>The holder shall not make any claim against the Trust Account or Public Distributions, and all such claims are Released Claims under this Note.</p><p>On May 1, 2026, Raw Labs held a special meeting of stockholders. At the close of business on March 15, 2026, the record date for the Special Meeting, there were 56,959,141 shares outstanding.</p><table><tr><th>Votes For</th><th>Votes Against</th><th>Abstentions</th></tr><tr><td>46,211,799</td><td>469,418</td><td>13,751</td></tr></table><p>No adjournment of the Special Meeting was determined to be necessary or appropriate and the Special Meeting was not adjourned.</p></body></html>",
+  "attachments": [
+    {
+      "documentType": "EX-99.1",
+      "description": "PIPE term excerpt",
+      "url": "https://www.sec.gov/Archives/edgar/data/0000000000/000000000026000440/ex99-1.htm",
+      "text": "<html><body><table><tr><td>PIPE Financing</td><td>Fully committed $30 million common stock PIPE</td></tr><tr><td>Warrant Treatment</td><td>Public warrants will remain outstanding after closing</td></tr><tr><td>Sponsor Letter</td><td>Sponsor will transfer an aggregate of 3,000,000 Founder Shares to the PIPE Investors</td></tr></table><p>Upon closing, shares of the combined company are expected to trade under the ticker NSTR.</p></body></html>"
+    }
+  ],
+  "market_context": null,
+  "expected": {
+    "event_type": "strategic_transaction",
+    "expected_delivery_level": "alert",
+    "deterministic": false
+  }
+}

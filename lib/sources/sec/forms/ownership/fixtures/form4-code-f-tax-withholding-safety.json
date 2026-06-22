@@ -1,0 +1,6 @@
+{
+  "id": "form4-code-f-tax-withholding-safety",
+  "formType": "4",
+  "accessionNumber": "0000000000-26-004002",
+  "filingText": "<?xml version=\"1.0\"?><ownershipDocument><documentType>4</documentType><issuer><issuerCik>0001111002</issuerCik><issuerName>Safety Tax Corp</issuerName><issuerTradingSymbol>SAFEF</issuerTradingSymbol></issuer><reportingOwner><reportingOwnerId><rptOwnerName>Fran Withhold</rptOwnerName></reportingOwnerId><reportingOwnerRelationship><isOfficer>1</isOfficer><officerTitle>Chief Financial Officer</officerTitle></reportingOwnerRelationship></reportingOwner><nonDerivativeTable><nonDerivativeTransaction><securityTitle><value>Common Stock</value></securityTitle><transactionDate><value>2026-05-20</value></transactionDate><transactionCoding><transactionCode>F</transactionCode></transactionCoding><transactionAmounts><transactionShares><value>1200</value></transactionShares><transactionPricePerShare><value>25.50</value></transactionPricePerShare><transactionAcquiredDisposedCode><value>D</value></transactionAcquiredDisposedCode></transactionAmounts><postTransactionAmounts><sharesOwnedFollowingTransaction><value>8800</value></sharesOwnedFollowingTransaction></postTransactionAmounts></nonDerivativeTransaction></nonDerivativeTable></ownershipDocument>"
+}

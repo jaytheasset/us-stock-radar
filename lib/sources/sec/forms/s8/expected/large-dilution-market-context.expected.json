@@ -1,0 +1,269 @@
+{
+  "parser_output": {
+    "parserVersion": "s8-parser-v1",
+    "parserGroup": "s8",
+    "formType": "S-8",
+    "accessionNumber": "0002222222-26-000020",
+    "isSupported": true,
+    "summary": "AlphaGen Therapeutics, Inc. filed an S-8 registering 12,000,000 common stock under AlphaGen Therapeutics, Inc. 2026 Inducement Plan.",
+    "facts": {
+      "issuerName": "AlphaGen Therapeutics, Inc.",
+      "ticker": "AGTX",
+      "exchange": "NASDAQ",
+      "filedAt": "2026-03-04",
+      "isAmendment": false,
+      "amendmentType": null,
+      "planNames": [
+        "AlphaGen Therapeutics, Inc. 2026 Inducement Plan"
+      ],
+      "planNameFacts": [
+        {
+          "name": "AlphaGen Therapeutics, Inc. 2026 Inducement Plan",
+          "planType": "inducement",
+          "sources": [
+            "explanatory_note"
+          ],
+          "confidence": "high"
+        }
+      ],
+      "planExtractionConfidence": "high",
+      "planExtractionWarnings": [],
+      "securityType": "common stock",
+      "registeredShares": 12000000,
+      "additionalShares": null,
+      "parentRegisteredShares": null,
+      "estimatedOfferingAmount": 18000000,
+      "registrationFee": 2214,
+      "dilutionPercentOfSharesOutstanding": 24,
+      "dilutionPercentOfPublicFloat": 34.29,
+      "noAdditionalSecurities": false,
+      "exhibitOnly": false,
+      "signatureOnly": false,
+      "needsParentComparison": false,
+      "normalizedS8Type": "initial_s8",
+      "s8FamilyDetected": true,
+      "likelyFeeTableMaterial": false,
+      "exFilingFeesExhibit": false,
+      "feeTableSource": "not_found",
+      "feeTableExtractionConfidence": "low",
+      "feeTableWarnings": [],
+      "feeTablePurposeConflicts": [],
+      "rule416": false,
+      "planInterests": false,
+      "unusualFeeTableSecurities": false,
+      "postEffectiveAmendment": false,
+      "deregistrationOfUnsoldSecurities": false,
+      "resaleProspectus": false,
+      "sellingHolderSection": false,
+      "controlSecurities": false,
+      "restrictedSecurities": false,
+      "rule144": false,
+      "consultantAdvisorServiceProvider": true,
+      "investorRelationsPromotionalFinancingServices": false,
+      "shellReverseMergerDelinquentFiler": false,
+      "s8PosRegistersAdditionalSecurities": false,
+      "sectionExtractionConfidence": "medium",
+      "consultantAdvisorContexts": [
+        {
+          "term": "consultants",
+          "bucket": "plan_eligibility",
+          "section": "cover_page",
+          "confidence": "high",
+          "evidence": "ering 12,000,000 shares of common stock under the AlphaGen Therapeutics, Inc. 2026 Inducement Plan. Proposed Maximum Aggregate Offering Price: $18,000,000. Amount of Registration Fee: $2,214. The plan may be used for equity awards to newly hired employees and consultants."
+        }
+      ],
+      "planShareAllocations": [
+        {
+          "planName": "AlphaGen Therapeutics, Inc. 2026 Inducement Plan",
+          "shares": 12000000,
+          "source": "explanatory_note",
+          "confidence": "high",
+          "evidenceLevel": "direct"
+        }
+      ],
+      "consultantAdvisorContextConfidence": "high",
+      "consultantAdvisorContextWarnings": [
+        "Consultant/advisor/service-provider language appears in substantive plan eligibility context."
+      ]
+    },
+    "signals": [],
+    "calendarItems": [],
+    "warnings": [
+      "Consultant/advisor/service-provider language appears in substantive plan eligibility context."
+    ],
+    "raw": {
+      "sourceTextExcerpt": "AlphaGen Therapeutics, Inc. files this registration statement on Form S-8. The registrant is registering 12,000,000 shares of common stock under the AlphaGen Therapeutics, Inc. 2026 Inducement Plan. Proposed Maximum Aggregate Offering Price: $18,000,000. Amount of Registration Fee: $2,214. The plan may be used for equity awards to newly hired employees and consultants.",
+      "sourceDocuments": [
+        {
+          "id": "primary",
+          "documentRole": "primary_filing",
+          "source": "primary",
+          "documentType": null,
+          "description": "Primary S-8 filing document",
+          "textKind": "normalized_text",
+          "text": "AlphaGen Therapeutics, Inc. files this registration statement on Form S-8. The registrant is registering 12,000,000 shares of common stock under the AlphaGen Therapeutics, Inc. 2026 Inducement Plan. Proposed Maximum Aggregate Offering Price: $18,000,000. Amount of Registration Fee: $2,214. The plan may be used for equity awards to newly hired employees and consultants."
+        }
+      ],
+      "noiseCandidates": [],
+      "attachments": [],
+      "parentFilingContext": null,
+      "marketContext": {
+        "price": 1.5,
+        "previous_close": 1.58,
+        "market_cap": 75000000,
+        "shares_outstanding": 50000000,
+        "public_float": 35000000,
+        "volume": 2200000,
+        "avg_volume": 900000
+      },
+      "extractedShareCounts": [
+        12000000
+      ],
+      "sections": [
+        {
+          "key": "cover_page",
+          "heading": "cover page",
+          "start": 0,
+          "end": 371,
+          "confidence": "medium"
+        }
+      ]
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "dilution_risk",
+    "event_title": "AlphaGen registers large inducement-plan share pool",
+    "primary_ticker": {
+      "ticker": "AGTX",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      "AGTX"
+    ],
+    "sector": "Healthcare",
+    "industry_group": "Biotechnology",
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 78,
+    "score_reason": "Fixture market context sizes the 12,000,000 registered plan shares at 24% of shares outstanding and 34.29% of public float; the $18,000,000 amount is treated as a fee-table amount, not company proceeds.",
+    "signal": "bearish",
+    "quick_take": "AlphaGen's S-8 is large relative to the fixture share base, making potential dilution the main investor issue.",
+    "summary": "AlphaGen filed an S-8 registering 12,000,000 shares of common stock under its 2026 Inducement Plan.",
+    "why_it_matters": "A large compensation-plan registration can expand future share issuance capacity and pressure existing holders if awards are granted or exercised.",
+    "bullish_points": [
+      "The inducement plan may help recruit employees and consultants."
+    ],
+    "bearish_points": [
+      "Registered shares equal 24% of fixture shares outstanding.",
+      "Registered shares equal 34.29% of fixture public float.",
+      "The fixture small-issuer context magnifies the 24% shares-outstanding and 34.29% public-float comparison.",
+      "The $18,000,000 fee-table amount should not be read as company cash proceeds."
+    ],
+    "key_evidence": [
+      "Registers 12,000,000 shares of common stock.",
+      "Plan: AlphaGen Therapeutics, Inc. 2026 Inducement Plan.",
+      "Fixture market context: 50,000,000 shares outstanding and 35,000,000 public float.",
+      "Estimated offering amount of $18,000,000 and registration fee of $2,214 are fee-table facts, not company proceeds."
+    ],
+    "what_to_watch_next": [
+      "Equity award grants under the inducement plan.",
+      "Future dilution disclosures in proxy or quarterly filings."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "offering_terms",
+    "data": {
+      "payload_version": "s8_offering_terms_v1",
+      "registeredShares": 12000000,
+      "securityType": "common stock",
+      "planNames": [
+        "AlphaGen Therapeutics, Inc. 2026 Inducement Plan"
+      ],
+      "estimatedOfferingAmount": 18000000,
+      "registrationFee": 2214,
+      "dilutionPercentOfSharesOutstanding": 24,
+      "dilutionPercentOfPublicFloat": 34.29,
+      "marketCap": 75000000,
+      "price": 1.5,
+      "source_backed_share_stack": {
+        "registered_plan_shares": 12000000,
+        "current_shares_outstanding": 50000000,
+        "shares_outstanding_from_market_context": 50000000,
+        "public_float": 35000000,
+        "market_cap": 75000000,
+        "price": 1.5,
+        "previous_close": 1.58,
+        "registered_resale_supply": null,
+        "resale_selling_stockholder_shares": null,
+        "primary_common_shares_registered": null,
+        "pre_funded_warrant_underlying_shares": null,
+        "warrant_underlying_shares": null,
+        "convertible_note_underlying_shares": null,
+        "preferred_conversion_shares": null,
+        "equity_line_registered_shares": null,
+        "additional_future_share_overhang": null,
+        "max_registered_stack_share_equivalent": 12000000
+      },
+      "proceeds_stack": {
+        "company_proceeds": null,
+        "company_proceeds_reason": "No company sale proceeds are stated; do not use the fee-table amount as proceeds.",
+        "selling_holder_proceeds": null,
+        "fee_table_only_amount": 18000000,
+        "registration_fee": 2214,
+        "offering_amount": {
+          "value": 18000000,
+          "source": "fee_table_only",
+          "company_proceeds": false
+        },
+        "atm_program_capacity": null,
+        "shelf_capacity": null,
+        "offering_price": null,
+        "conversion_price": null,
+        "warrant_exercise_price": null
+      },
+      "market_context_needs": {
+        "used_fixture_market_context": true,
+        "required_fields": [
+          "price",
+          "market_cap",
+          "shares_outstanding",
+          "public_float"
+        ],
+        "reason": "Registered plan shares are large enough that analysis needs fixture market context to size share and float impact."
+      },
+      "s8_ui_mode": "inducement_awards"
+    },
+    "evidence": [
+      "Registers 12,000,000 shares of common stock.",
+      "24% of shares outstanding.",
+      "34.29% of public float."
+    ],
+    "notes": [
+      "Market context is fixture JSON only; no live market API is used."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": true,
+    "market_context_reason": "Registered S-8 share amount should be compared with market cap, shares outstanding and public float.",
+    "market_context_fields": [
+      "price",
+      "market_cap",
+      "shares_outstanding",
+      "public_float"
+    ],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Use fixture market context only when testing the high-dilution route.",
+      "Do not call live FMP from this room."
+    ]
+  }
+}

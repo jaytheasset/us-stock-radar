@@ -1,0 +1,31 @@
+{
+  "name": "revenue-decline-10q",
+  "description": "10-Q where the dominant event is a material sales decline.",
+  "filing": {
+    "rawItemId": "sec-fixture-periodic-003",
+    "sourceUniqueId": "0003333333-26-000014",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/3333333/000333333326000014/nova-20260331.htm",
+    "title": "Nova Retail Group 10-Q quarterly report",
+    "publishedAt": "2026-05-10T10:15:00Z",
+    "rawPayload": {
+      "form_type": "10-Q",
+      "accession_number": "0003333333-26-000014",
+      "company_name": "Nova Retail Group",
+      "ticker": "NOVA",
+      "exchange": "NYSE",
+      "documents": [
+        {
+          "type": "10-Q",
+          "description": "Quarterly report",
+          "isPrimary": true,
+          "textCharCount": 1340,
+          "textTruncated": false
+        }
+      ]
+    },
+    "bodyText": "FORM 10-Q\nNova Retail Group (Exact name of registrant as specified in its charter)\nFor the quarterly period ended March 31, 2026\nTrading Symbol(s) NOVA New York Stock Exchange\nResults of Operations\nRevenue decreased 18% to $84.0 million from $102.4 million in the prior-year quarter. The decline was driven by lower store traffic and reduced average order value in the home category. Net income was $2.1 million for the quarter. Cash and cash equivalents were $76.0 million at March 31, 2026."
+  },
+  "market_context": null,
+  "expected_event_type": "sales_performance",
+  "expected_score_band": "feed"
+}

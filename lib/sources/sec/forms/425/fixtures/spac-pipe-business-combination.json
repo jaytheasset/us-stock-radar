@@ -1,0 +1,27 @@
+{
+  "name": "spac-pipe-business-combination",
+  "formType": "425",
+  "accessionNumber": "0000000000-26-000434",
+  "sourceUniqueId": "0000000000-26-000434",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/0000000000/000000000026000434/form425.htm",
+  "title": "425 - Viking Acquisition Corp. I Business Combination",
+  "publishedAt": "2026-04-17T11:38:00Z",
+  "companyName": "Viking Acquisition Corp. I",
+  "primaryTicker": "VACI",
+  "exchange": "NYSE",
+  "filingText": "UNITED STATES SECURITIES AND EXCHANGE COMMISSION\nFORM 8-K\nViking Acquisition Corp. I\nWritten communications pursuant to Rule 425 under the Securities Act\n\nItem 1.01 Entry into a Material Definitive Agreement.\nBusiness Combination Agreement\nOn April 16, 2026, Viking Acquisition Corp. I, a special purpose acquisition company, entered into a Business Combination Agreement with NorthStar Earth and Space Inc. and Viking NS Amalgamation Corp. Subject to its terms and conditions, the Business Combination Agreement provides that Viking will continue from the Cayman Islands to Canada and NewCo will amalgamate with and into NorthStar. The aggregate equity consideration to be issued to the Company's equityholders will be approximately 30,000,000 New Viking common shares based on a Company valuation of $300 million. Up to 10,000,000 New Viking common shares are issuable as Earnout Shares upon satisfaction of revenue run rate targets in 2027 and 2028.\n\nPIPE Financing\nConcurrently with the execution of the Business Combination Agreement, Viking and NorthStar entered into Securities Purchase Agreements with PIPE Investors for a fully committed $30 million common stock PIPE. In addition, the Sponsor agreed to transfer to the PIPE Investors an aggregate of 3,000,000 Founder Shares at Closing. Upon closing, shares of the combined company are expected to trade on the New York Stock Exchange under the ticker NSTR. The investor presentation assumes $100 million remaining cash in trust after accounting for redemptions. Public warrants remain exercisable at an exercise price of $11.50 per share.",
+  "market_context": {
+    "price": 10.12,
+    "previous_close": 10.09,
+    "market_cap": 310000000,
+    "shares_outstanding": 30600000,
+    "public_float": 24000000,
+    "volume": 750000,
+    "avg_volume": 300000
+  },
+  "expected": {
+    "event_type": "strategic_transaction",
+    "expected_delivery_level": "alert",
+    "deterministic": false
+  }
+}

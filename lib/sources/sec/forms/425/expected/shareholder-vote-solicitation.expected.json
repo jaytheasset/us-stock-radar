@@ -1,0 +1,117 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_425_parser_v1",
+    "parserGroup": "425",
+    "formType": "425",
+    "accessionNumber": "0000000000-26-000426",
+    "isSupported": true,
+    "summary": "Form 425 proxy solicitation for a shareholder vote on 2026-07-15.",
+    "facts": {
+      "company_name": "Northstar Devices, Inc.",
+      "primary_ticker": "NDEV",
+      "exchange": "NYSE",
+      "communication_types": ["proxy_solicitation"],
+      "vote": {
+        "meeting_date": "2026-07-15",
+        "record_date": "2026-06-12",
+        "vote_recommendation": "for",
+        "solicitation_present": true
+      }
+    },
+    "signals": [
+      {
+        "type": "shareholder_vote",
+        "value": "2026-07-15",
+        "evidence": "The special meeting of Northstar stockholders will be held on July 15, 2026.",
+        "confidence": "high"
+      }
+    ],
+    "calendarItems": [
+      {
+        "type": "shareholder_vote",
+        "date": "2026-07-15",
+        "label": "Shareholder vote meeting",
+        "evidence": "The special meeting of Northstar stockholders will be held on July 15, 2026."
+      }
+    ],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "shareholder_vote",
+    "event_title": "Northstar sets shareholder vote for proposed merger",
+    "primary_ticker": {
+      "ticker": "NDEV",
+      "exchange": "NYSE"
+    },
+    "tickers": [
+      {
+        "ticker": "NDEV",
+        "exchange": "NYSE"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": "M&A",
+    "sub_theme": "Merger vote",
+    "score": 64,
+    "score_reason": "Feed-level because the filing gives a concrete shareholder vote date and board recommendation, but does not change merger economics.",
+    "signal": "neutral",
+    "quick_take": "Northstar scheduled the merger vote and reiterated the board's FOR recommendation.",
+    "summary": "Northstar filed a Form 425 proxy solicitation communication for its proposed merger with Delta Robotics. The special meeting is scheduled for July 15, 2026, with a June 12, 2026 record date.",
+    "why_it_matters": "Shareholder approval is a key closing condition for many strategic transactions, and the meeting date gives investors a clear catalyst.",
+    "bullish_points": [
+      "The board unanimously recommends voting FOR the merger agreement."
+    ],
+    "bearish_points": [
+      "The filing does not add new consideration terms or remove vote uncertainty."
+    ],
+    "key_evidence": [
+      "The special meeting of Northstar stockholders will be held on July 15, 2026.",
+      "Stockholders of record as of June 12, 2026 are entitled to vote.",
+      "The board unanimously recommends that stockholders vote FOR the adoption of the merger agreement."
+    ],
+    "what_to_watch_next": [
+      "Vote outcome at the July 15, 2026 special meeting.",
+      "Any supplemental proxy disclosures before the vote."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "type": "shareholder_vote",
+        "date": "2026-07-15",
+        "label": "Shareholder vote meeting",
+        "evidence": "The special meeting of Northstar stockholders will be held on July 15, 2026."
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "meeting_date": "2026-07-15",
+      "record_date": "2026-06-12",
+      "vote_recommendation": "for"
+    },
+    "evidence": [
+      "The special meeting of Northstar stockholders will be held on July 15, 2026.",
+      "The board unanimously recommends that stockholders vote FOR the adoption of the merger agreement."
+    ],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Calendar item is fixture-derived and should not query live DB from this room."
+    ]
+  }
+}

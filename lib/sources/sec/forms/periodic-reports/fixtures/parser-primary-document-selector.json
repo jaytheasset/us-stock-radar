@@ -1,0 +1,347 @@
+{
+  "cases": [
+    {
+      "name": "normal-10k-html-plus-exhibits",
+      "filing": {
+        "rawItemId": "selector-normal-10k",
+        "sourceUniqueId": "0000000000-26-100001",
+        "title": "Selector Manufacturing Inc. Form 10-K",
+        "metadata": {
+          "formType": "10-K"
+        },
+        "rawPayload": {
+          "form_type": "10-K",
+          "accession_number": "0000000000-26-100001",
+          "company_name": "Selector Manufacturing Inc.",
+          "documents": [
+            {
+              "type": "10-K",
+              "description": "Annual report",
+              "filename": "selector-20251231x10k.htm",
+              "text": "UNITED STATES SECURITIES AND EXCHANGE COMMISSION\nFORM 10-K\nFor the fiscal year ended December 31, 2025\nSelector Manufacturing Inc. (Exact name of registrant as specified in its charter)\nPART I\nITEM 1. Business\nSelector Manufacturing Inc. manufactures industrial components.\nITEM 7. Management's Discussion and Analysis of Financial Condition and Results of Operations\nRevenue was 120.0 110.0 and net income was 12.0 10.0.\nITEM 8. Financial Statements and Supplementary Data\nCash and cash equivalents 40.0 35.0.\nPART IV\nITEM 15. Exhibits and Financial Statement Schedules\nSIGNATURES",
+              "textTruncated": false
+            },
+            {
+              "type": "EX-31.1",
+              "description": "Section 302 certification",
+              "filename": "selector-ex311.htm",
+              "text": "CERTIFICATION pursuant to Section 302.",
+              "textTruncated": false
+            },
+            {
+              "type": "EX-10.1",
+              "description": "Material contract exhibit",
+              "filename": "selector-ex101.htm",
+              "textCharCount": 9000,
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "normal-10q-html-plus-certifications",
+      "filing": {
+        "rawItemId": "selector-normal-10q",
+        "sourceUniqueId": "0000000000-26-100002",
+        "title": "Quarterly Selector Corp. Form 10-Q",
+        "metadata": {
+          "formType": "10-Q"
+        },
+        "rawPayload": {
+          "form_type": "10-Q",
+          "accession_number": "0000000000-26-100002",
+          "company_name": "Quarterly Selector Corp.",
+          "documents": [
+            {
+              "type": "EX-31.1",
+              "description": "Certification of CEO",
+              "filename": "qsel-ex311.htm",
+              "textCharCount": 4000,
+              "textTruncated": false
+            },
+            {
+              "type": "10-Q",
+              "description": "Quarterly report",
+              "filename": "qsel-20260331x10q.html",
+              "text": "UNITED STATES SECURITIES AND EXCHANGE COMMISSION\nFORM 10-Q\nFor the quarterly period ended March 31, 2026\nQuarterly Selector Corp. (Exact name of registrant as specified in its charter)\nPART I\nITEM 1. Financial Statements\nCondensed Consolidated Statements of Operations\nRevenue 32.0 28.0\nNet income 3.0 2.0\nITEM 2. Management's Discussion and Analysis of Financial Condition and Results of Operations\nRevenue increased due to demand.\nPART II\nITEM 6. Exhibits\nSIGNATURES",
+              "textTruncated": false
+            },
+            {
+              "type": "EX-32.1",
+              "description": "Section 906 certification",
+              "filename": "qsel-ex321.htm",
+              "textCharCount": 2500,
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "normal-20f-html-plus-xbrl",
+      "filing": {
+        "rawItemId": "selector-normal-20f",
+        "sourceUniqueId": "0000000000-26-100003",
+        "title": "Foreign Selector Ltd. Form 20-F",
+        "metadata": {
+          "formType": "20-F"
+        },
+        "rawPayload": {
+          "form_type": "20-F",
+          "accession_number": "0000000000-26-100003",
+          "company_name": "Foreign Selector Ltd.",
+          "documents": [
+            {
+              "type": "20-F",
+              "description": "Annual report of foreign private issuer",
+              "filename": "fsel-20251231x20f.htm",
+              "text": "UNITED STATES SECURITIES AND EXCHANGE COMMISSION\nFORM 20-F\nFor the fiscal year ended December 31, 2025\nForeign Selector Ltd. (Exact name of registrant as specified in its charter)\nITEM 3.D Risk Factors\nThe company faces currency and regulatory risks.\nITEM 4. Information on the Company\nForeign Selector Ltd. provides software services.\nITEM 5. Operating and Financial Review and Prospects\nRevenue was 220.0 200.0 and net income was 25.0 20.0.\nITEM 8. Financial Information\nCash and cash equivalents 70.0 65.0.\nITEM 19. Exhibits\nSIGNATURES",
+              "textTruncated": false
+            },
+            {
+              "type": "EX-101.INS",
+              "description": "XBRL instance document",
+              "filename": "fsel-20251231_htm.xml",
+              "text": "<?xml version=\"1.0\"?><xbrli:xbrl><ifrs-full:Revenue>220000000</ifrs-full:Revenue></xbrli:xbrl>",
+              "textTruncated": false
+            },
+            {
+              "type": "EX-101.PRE",
+              "description": "XBRL presentation linkbase",
+              "filename": "fsel-20251231_pre.xml",
+              "textCharCount": 50000,
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "large-exhibit-html-does-not-win",
+      "filing": {
+        "rawItemId": "selector-large-exhibit",
+        "sourceUniqueId": "0000000000-26-100004",
+        "title": "Exhibit Heavy Inc. Form 10-K",
+        "metadata": {
+          "formType": "10-K"
+        },
+        "rawPayload": {
+          "form_type": "10-K",
+          "accession_number": "0000000000-26-100004",
+          "company_name": "Exhibit Heavy Inc.",
+          "documents": [
+            {
+              "type": "EX-10.1",
+              "description": "Very large agreement exhibit",
+              "filename": "heavy-ex101.htm",
+              "textCharCount": 250000,
+              "textTruncated": false
+            },
+            {
+              "type": "10-K",
+              "description": "Annual report",
+              "filename": "heavy-20251231x10k.htm",
+              "text": "UNITED STATES SECURITIES AND EXCHANGE COMMISSION\nFORM 10-K\nFor the fiscal year ended December 31, 2025\nExhibit Heavy Inc. (Exact name of registrant as specified in its charter)\nITEM 1. Business\nThe company operates testing labs.\nITEM 7. Management's Discussion and Analysis of Financial Condition and Results of Operations\nRevenue was 80.0 70.0 and net income was 8.0 7.0.\nITEM 8. Financial Statements and Supplementary Data\nCash and cash equivalents 18.0 16.0.",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "machine-readable-files-excluded",
+      "filing": {
+        "rawItemId": "selector-xbrl-excluded",
+        "sourceUniqueId": "0000000000-26-100005",
+        "title": "Machine File Selector Form 10-Q",
+        "metadata": {
+          "formType": "10-Q"
+        },
+        "rawPayload": {
+          "form_type": "10-Q",
+          "accession_number": "0000000000-26-100005",
+          "company_name": "Machine File Selector Inc.",
+          "documents": [
+            {
+              "type": "EX-101.INS",
+              "description": "XBRL instance document",
+              "filename": "mfs-20260331_htm.xml",
+              "textCharCount": 900000,
+              "textTruncated": false
+            },
+            {
+              "type": "EX-101.SCH",
+              "description": "XBRL schema",
+              "filename": "mfs-20260331.xsd",
+              "textCharCount": 300000,
+              "textTruncated": false
+            },
+            {
+              "type": "10-Q",
+              "description": "Quarterly report",
+              "filename": "mfs-20260331x10q.htm",
+              "text": "UNITED STATES SECURITIES AND EXCHANGE COMMISSION\nFORM 10-Q\nFor the quarterly period ended March 31, 2026\nMachine File Selector Inc. (Exact name of registrant as specified in its charter)\nPART I\nITEM 1. Financial Statements\nRevenue 44.0 40.0\nNet income 4.0 3.0\nITEM 2. Management's Discussion and Analysis of Financial Condition and Results of Operations\nRevenue increased.\nPART II\nITEM 6. Exhibits",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "image-graphic-files-excluded",
+      "filing": {
+        "rawItemId": "selector-image-excluded",
+        "sourceUniqueId": "0000000000-26-100006",
+        "title": "Graphic Selector Inc. Form 10-K",
+        "metadata": {
+          "formType": "10-K"
+        },
+        "rawPayload": {
+          "form_type": "10-K",
+          "accession_number": "0000000000-26-100006",
+          "company_name": "Graphic Selector Inc.",
+          "documents": [
+            {
+              "type": "GRAPHIC",
+              "description": "Company logo image",
+              "filename": "graphic-logo.jpg",
+              "isPrimary": true,
+              "textCharCount": 800000,
+              "textTruncated": false
+            },
+            {
+              "type": "10-K",
+              "description": "Annual report",
+              "filename": "graphic-20251231x10k.htm",
+              "text": "UNITED STATES SECURITIES AND EXCHANGE COMMISSION\nFORM 10-K\nFor the fiscal year ended December 31, 2025\nGraphic Selector Inc. (Exact name of registrant as specified in its charter)\nITEM 1. Business\nThe company sells design tools.\nITEM 7. Management's Discussion and Analysis of Financial Condition and Results of Operations\nRevenue was 60.0 55.0 and net income was 6.0 5.0.\nITEM 8. Financial Statements and Supplementary Data\nCash and cash equivalents 20.0 18.0.",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "10ka-limited-explanatory-note",
+      "filing": {
+        "rawItemId": "selector-10ka-note",
+        "sourceUniqueId": "0000000000-26-100007",
+        "title": "Amendment Selector Inc. Form 10-K/A Amendment No. 1",
+        "metadata": {
+          "formType": "10-K/A"
+        },
+        "rawPayload": {
+          "form_type": "10-K/A",
+          "accession_number": "0000000000-26-100007",
+          "company_name": "Amendment Selector Inc.",
+          "documents": [
+            {
+              "type": "10-K/A",
+              "description": "Annual report amendment",
+              "filename": "amsel-20251231x10ka.htm",
+              "text": "UNITED STATES SECURITIES AND EXCHANGE COMMISSION\nFORM 10-K/A\nAmendment No. 1\nFor the fiscal year ended December 31, 2025\nAmendment Selector Inc. (Exact name of registrant as specified in its charter)\nEXPLANATORY NOTE\nThis Amendment No. 1 is being filed solely to include an omitted certification exhibit. No other changes have been made to the Annual Report on Form 10-K.",
+              "textTruncated": false
+            },
+            {
+              "type": "EX-31.1",
+              "description": "Certification",
+              "filename": "amsel-ex311.htm",
+              "textCharCount": 3000,
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "10qa-limited-amended-content",
+      "filing": {
+        "rawItemId": "selector-10qa-note",
+        "sourceUniqueId": "0000000000-26-100008",
+        "title": "Quarter Amendment Selector Form 10-Q/A",
+        "metadata": {
+          "formType": "10-Q/A"
+        },
+        "rawPayload": {
+          "form_type": "10-Q/A",
+          "accession_number": "0000000000-26-100008",
+          "company_name": "Quarter Amendment Selector Inc.",
+          "documents": [
+            {
+              "type": "EX-101.INS",
+              "description": "XBRL instance",
+              "filename": "qasel-20260331.xml",
+              "textCharCount": 200000,
+              "textTruncated": false
+            },
+            {
+              "type": "10-Q/A",
+              "description": "Quarterly report amendment",
+              "filename": "qasel-20260331x10qa.htm",
+              "text": "UNITED STATES SECURITIES AND EXCHANGE COMMISSION\nFORM 10-Q/A\nAmendment No. 1\nFor the quarterly period ended March 31, 2026\nQuarter Amendment Selector Inc. (Exact name of registrant as specified in its charter)\nEXPLANATORY NOTE\nThis amendment updates Item 6 to include corrected Exhibit 101 Interactive Data Files and does not amend, update or change the financial statements or other disclosures.",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "multiple-plausible-html-lower-confidence",
+      "filing": {
+        "rawItemId": "selector-ambiguous-html",
+        "sourceUniqueId": "0000000000-26-100009",
+        "title": "Ambiguous Selector Inc. Form 10-Q",
+        "metadata": {
+          "formType": "10-Q"
+        },
+        "rawPayload": {
+          "form_type": "10-Q",
+          "accession_number": "0000000000-26-100009",
+          "company_name": "Ambiguous Selector Inc.",
+          "documents": [
+            {
+              "type": "10-Q",
+              "description": "Quarterly report first copy",
+              "filename": "ambiguous-a.htm",
+              "isPrimary": true,
+              "text": "UNITED STATES SECURITIES AND EXCHANGE COMMISSION\nFORM 10-Q\nFor the quarterly period ended March 31, 2026\nAmbiguous Selector Inc. (Exact name of registrant as specified in its charter)\nPART I\nITEM 1. Financial Statements\nRevenue 20.0 18.0\nNet income 2.0 1.0\nITEM 2. Management's Discussion and Analysis of Financial Condition and Results of Operations\nRevenue increased.",
+              "textTruncated": false
+            },
+            {
+              "type": "10-Q",
+              "description": "Quarterly report alternate copy",
+              "filename": "ambiguous-b.htm",
+              "text": "UNITED STATES SECURITIES AND EXCHANGE COMMISSION\nFORM 10-Q\nFor the quarterly period ended March 31, 2026\nAmbiguous Selector Inc. (Exact name of registrant as specified in its charter)\nPART I\nITEM 1. Financial Statements\nRevenue 20.0 18.0\nNet income 2.0 1.0\nITEM 2. Management's Discussion and Analysis of Financial Condition and Results of Operations\nRevenue increased.",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "txt-only-fallback",
+      "filing": {
+        "rawItemId": "selector-txt-only",
+        "sourceUniqueId": "0000000000-26-100010",
+        "title": "Text Fallback Selector Inc. Form 10-K",
+        "metadata": {
+          "formType": "10-K"
+        },
+        "rawPayload": {
+          "form_type": "10-K",
+          "accession_number": "0000000000-26-100010",
+          "company_name": "Text Fallback Selector Inc.",
+          "documents": [
+            {
+              "type": "10-K",
+              "description": "Complete submission text filing",
+              "filename": "txtfallback-20251231.txt",
+              "text": "UNITED STATES SECURITIES AND EXCHANGE COMMISSION\nFORM 10-K\nFor the fiscal year ended December 31, 2025\nText Fallback Selector Inc. (Exact name of registrant as specified in its charter)\nITEM 1. Business\nThe company sells fallback testing software.\nITEM 7. Management's Discussion and Analysis of Financial Condition and Results of Operations\nRevenue was 10.0 9.0 and net income was 1.0 0.8.\nITEM 8. Financial Statements and Supplementary Data\nCash and cash equivalents 4.0 3.0.",
+              "textTruncated": false
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "title": "Orchid Foods Form 8-K/A routine amendment",
+  "publishedAt": "2026-05-15T18:05:00Z",
+  "sourceUniqueId": "0015151515-26-000015",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/15151515/001515151526000015/",
+  "bodyText": "UNITED STATES\nFORM 8-K/A\nAmendment No. 1\nExplanatory Note\nThis Amendment No. 1 to the Current Report on Form 8-K filed on May 1, 2026, accession no. 0015151515-26-000001, is being filed solely to furnish a corrected Exhibit 99.1. This amendment corrects a typographical error in the exhibit caption and does not amend or update any other disclosure in the original Form 8-K. No other changes have been made.\nItem 9.01 Financial Statements and Exhibits.",
+  "rawPayload": {
+    "form_type": "8-K/A",
+    "accession_number": "0015151515-26-000015",
+    "company_name": "Orchid Foods",
+    "ticker": "ORFD",
+    "documents": [
+      {
+        "type": "8-K/A",
+        "description": "Current report amendment",
+        "url": "primary.htm",
+        "isPrimary": true,
+        "textCharCount": 560,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ]
+  },
+  "metadata": {
+    "company_name": "Orchid Foods",
+    "ticker": "ORFD"
+  },
+  "expected": {
+    "eventType": "other",
+    "deliveryLevel": "archive"
+  }
+}

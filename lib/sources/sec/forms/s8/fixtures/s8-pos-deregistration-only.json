@@ -1,0 +1,20 @@
+{
+  "fixtureName": "s8-pos-deregistration-only",
+  "formType": "S-8 POS",
+  "accessionNumber": "0008888888-26-000080",
+  "filedAt": "2026-03-12",
+  "issuer": {
+    "name": "ClearBridge Software Inc.",
+    "ticker": "CBSW",
+    "exchange": "NASDAQ"
+  },
+  "filingText": "Post-Effective Amendment No. 1 to Form S-8. ClearBridge Software Inc. files this post-effective amendment to deregister all unsold securities remaining under the Registration Statement on Form S-8. No additional securities are being registered. PART II INFORMATION REQUIRED IN THE REGISTRATION STATEMENT. SIGNATURES.",
+  "attachments": [],
+  "parentFilingContext": null,
+  "marketContext": null,
+  "flowExpectation": {
+    "parserCanFinishWithoutLlm": true,
+    "routerCanFinishWithoutLlm": true,
+    "reason": "Pure S-8 POS deregistration of unsold securities is safe for parser-only archive handling."
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "pos-am-effective",
+  "filing": {
+    "formType": "EFFECT",
+    "accessionNumber": "9999999995-22-003509",
+    "indexRegistrationForm": "POS AM",
+    "text": "<SEC-DOCUMENT>9999999995-22-003509.txt : 20221213\n<SEC-HEADER>9999999995-22-003509.hdr.sgml : 20221213\n<ACCEPTANCE-DATETIME>20221213001530\nACCESSION NUMBER:\t\t9999999995-22-003509\nCONFORMED SUBMISSION TYPE:\tEFFECT\nPUBLIC DOCUMENT COUNT:\t\t1\nFILED AS OF DATE:\t\t20221212\nDATE AS OF CHANGE:\t\t20221213\nEFFECTIVENESS DATE:\t\t20221212\n\nFILER:\n\n\tCOMPANY DATA:\t\n\t\tCOMPANY CONFORMED NAME:\t\t\tHero Technologies Inc.\n\t\tCENTRAL INDEX KEY:\t\t\t0001324736\n\t\tSTANDARD INDUSTRIAL CLASSIFICATION:\tMEDICINAL CHEMICALS & BOTANICAL PRODUCTS [2833]\n\t\tIRS NUMBER:\t\t\t\t770643398\n\t\tSTATE OF INCORPORATION:\t\t\tNV\n\t\tFISCAL YEAR END:\t\t\t1231\n\n\tFILING VALUES:\n\t\tFORM TYPE:\t\tEFFECT\n\t\tSEC ACT:\t\t1933 Act\n\t\tSEC FILE NUMBER:\t333-261062\n\t\tFILM NUMBER:\t\t221458451\n</SEC-HEADER>\n<DOCUMENT>\n<TYPE>EFFECT\n<SEQUENCE>1\n<FILENAME>primary_doc.xml\n<TEXT>\n<XML>\n<?xml version=\"1.0\"?>\n<edgarSubmission>\n    <schemaVersion>X0101</schemaVersion>\n    <submissionType>EFFECT</submissionType>\n    <act>33</act>\n    <testOrLive>LIVE</testOrLive>\n    <effectiveData>\n        <finalEffectivenessDispDate>2022-12-12</finalEffectivenessDispDate>\n        <accessionNumber>0001477932-22-009165</accessionNumber>\n        <submissionType>POS AM</submissionType>\n        <filer>\n            <cik>0001324736</cik>\n            <entityName>Hero Technologies Inc.</entityName>\n            <fileNumber>333-261062</fileNumber>\n        </filer>\n    </effectiveData>\n</edgarSubmission>\n</XML>\n</TEXT>\n</DOCUMENT>\n</SEC-DOCUMENT>"
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "parser_output": {
+    "parserVersion": "ownership-parser-v1",
+    "parserGroup": "ownership",
+    "formType": "Form 4 / 4/A, Form 144 / 144/A",
+    "accessionNumber": "0000000000-26-000403",
+    "isSupported": true,
+    "summary": "4/A administrative amendment for Horizon Battery Systems Inc. (HZBS).",
+    "facts": {},
+    "signals": [
+      "administrative_amendment",
+      "deterministic_archive"
+    ],
+    "calendarItems": [],
+    "warnings": [
+      "No Form 4 transaction or Form 144 proposed sale facts were extracted."
+    ],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "insider_ownership",
+    "event_title": "Horizon Battery Systems amended footnote disclosure",
+    "primary_ticker": {
+      "ticker": "HZBS",
+      "exchange": "NYSE"
+    },
+    "tickers": [
+      "HZBS"
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 20,
+    "score_reason": "Amendment appears administrative and does not change reported ownership or transaction terms.",
+    "signal": "neutral",
+    "quick_take": "Horizon Battery Systems amended footnote disclosure with no new trading signal.",
+    "summary": "Horizon Battery Systems Inc. filed a Form 4/A amending an insider ownership filing. The amendment updates footnote text. No changed transaction date, code, shares, price, or post-transaction holdings was detected. Limited market impact detected. The original source is included below for reference.",
+    "why_it_matters": "The filing appears to update records rather than report a new ownership transaction.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [
+      "Amendment reason: Administrative correction to footnote text; no change to transaction date, transaction code, shares, price, or post-transaction ownership.",
+      "Parser detected no material ownership or transaction change."
+    ],
+    "what_to_watch_next": [
+      "Watch for a later amendment that changes transaction amounts or ownership."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "owner_name": "Evelyn Brooks",
+      "amendment_reason": "Administrative correction to footnote text; no change to transaction date, transaction code, shares, price, or post-transaction ownership.",
+      "filing_summary": "Horizon Battery Systems Inc. filed a Form 4/A amending an insider ownership filing. The amendment updates footnote text. No changed transaction date, code, shares, price, or post-transaction holdings was detected."
+    },
+    "evidence": [
+      "Administrative amendment signal was detected from the filing text."
+    ],
+    "notes": [
+      "No special UI is needed for an administrative ownership amendment."
+    ]
+  }
+}

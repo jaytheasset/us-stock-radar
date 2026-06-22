@@ -1,0 +1,39 @@
+{
+  "name": "going-concern-10k",
+  "description": "10-K with going-concern and liquidity risk that should route to financial_risk.",
+  "filing": {
+    "rawItemId": "sec-fixture-periodic-002",
+    "sourceUniqueId": "0002222222-26-000021",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/2222222/000222222226000021/vyra-20251231.htm",
+    "title": "Vyra Therapeutics Corp. 10-K annual report",
+    "publishedAt": "2026-03-18T13:30:00Z",
+    "rawPayload": {
+      "form_type": "10-K",
+      "accession_number": "0002222222-26-000021",
+      "company_name": "Vyra Therapeutics Corp.",
+      "ticker": "VYRA",
+      "exchange": "Nasdaq Capital Market",
+      "documents": [
+        {
+          "type": "10-K",
+          "description": "Annual report",
+          "isPrimary": true,
+          "textCharCount": 1520,
+          "textTruncated": false
+        }
+      ]
+    },
+    "bodyText": "FORM 10-K\nVyra Therapeutics Corp. (Exact name of registrant as specified in its charter)\nFor the fiscal year ended December 31, 2025\nTrading Symbol(s) VYRA Nasdaq Capital Market\nLiquidity and Capital Resources\nRevenue was $7.2 million for the year ended December 31, 2025 compared to $9.4 million in the prior year. The company incurred a net loss of $88.0 million for the year. Cash and cash equivalents were $14.0 million at December 31, 2025. Total debt was $55.0 million. Management concluded that these conditions raise substantial doubt about our ability to continue as a going concern. We will require additional capital to fund operations beyond the third quarter of 2026."
+  },
+  "market_context": {
+    "price": 1.12,
+    "previous_close": 1.25,
+    "market_cap": 32000000,
+    "shares_outstanding": 28500000,
+    "public_float": 21000000,
+    "volume": 980000,
+    "avg_volume": 430000
+  },
+  "expected_event_type": "financial_risk",
+  "expected_score_band": "alert"
+}

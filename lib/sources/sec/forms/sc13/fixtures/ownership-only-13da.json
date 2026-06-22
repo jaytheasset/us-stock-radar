@@ -1,0 +1,26 @@
+{
+  "case_id": "ownership-only-13da",
+  "description": "Schedule 13D/A ownership-only amendment with no substantive Item 4, Item 6, or Item 7 content.",
+  "filing": {
+    "formType": "SC 13D/A",
+    "accessionNumber": "0000000000-26-013020",
+    "issuerName": "Quiet Ownership Inc.",
+    "filedAt": "2026-05-10",
+    "text": "SC 13D/A\nSCHEDULE 13D/A\n(Amendment No. 1)\nQuiet Ownership Inc.\n(Name of Issuer)\nCommon Stock\n(Title of Class of Securities)\n740000120\n(CUSIP Number)\nName of Reporting Person: Quiet Holder LLC\nAggregate Amount Beneficially Owned by Each Reporting Person: 1,050,000\nPercent of Class Represented by Amount in Row (9): 7.4%\nItem 4. Purpose of Transaction\nNot applicable.\nItem 5. Interest in Securities of the Issuer\nThe Reporting Person beneficially owns 1,050,000 shares, representing 7.4% of the class.\nItem 6. Contracts, Arrangements, Understandings or Relationships with Respect to Securities of the Issuer\nNot applicable.\nItem 7. Material to be Filed as Exhibits\nNot applicable.\nSIGNATURE"
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "insider_ownership",
+    "deterministic": true,
+    "score_band": "archive",
+    "extracted_facts": {
+      "reportingPersons": [
+        "Quiet Holder LLC"
+      ],
+      "scheduleType": "13D",
+      "isAmendment": true,
+      "sharesBeneficiallyOwned": 1050000,
+      "percentOwned": 7.4
+    }
+  }
+}

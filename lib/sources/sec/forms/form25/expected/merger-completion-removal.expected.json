@@ -1,0 +1,77 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_form25_parser_v1",
+    "parserGroup": "form25",
+    "formType": "Form 25 / 25-NSE",
+    "accessionNumber": "0000876661-25-000523",
+    "isSupported": true,
+    "summary": "HESS CORP filed 25-NSE to remove Common Stock from NEW YORK STOCK EXCHANGE LLC; raw reason category: merger_completion.",
+    "facts": {
+      "source_form_type": "25-NSE",
+      "removed_security": "Common Stock",
+      "security_category": "common_stock",
+      "removal_reason_category": "merger_completion",
+      "common_equity_affected": true,
+      "deterministic_case": "merger_completion_removal",
+      "analysis_required": false,
+      "analysis_reasons": []
+    },
+    "signals": ["deterministic:merger_completion_removal", "common_equity_affected"],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "strategic_transaction",
+    "event_title": "Hess NYSE removal follows Chevron merger",
+    "primary_ticker": {
+      "ticker": "HES",
+      "exchange": "NYSE"
+    },
+    "tickers": [],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 45,
+    "score_reason": "Administrative merger cleanup.",
+    "signal": "neutral",
+    "quick_take": "The removal reflects the completed Chevron-Hess merger.",
+    "summary": "NYSE filed Form 25-NSE after the Chevron-Hess merger became effective. Hess shares were exchanged for Chevron shares.",
+    "why_it_matters": "The filing confirms deal completion rather than a standalone listing failure.",
+    "bullish_points": ["Share exchange terms are stated"],
+    "bearish_points": [],
+    "key_evidence": ["Hess shares were exchanged for Chevron common stock"],
+    "what_to_watch_next": ["Chevron integration updates"],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "primary_ticker": "HES",
+      "primary_ticker_exchange": "NYSE",
+      "removed_security": "Common Stock",
+      "exchange": "NEW YORK STOCK EXCHANGE LLC",
+      "removal_reason": "merger_completion",
+      "common_equity_affected": true,
+      "delisting_or_removal_date": "2025-07-29"
+    },
+    "evidence": ["The merger between Hess Corporation and Chevron Corporation became effective."],
+    "notes": ["Deterministic filing-meaning case; LLM not needed to identify the removal reason."]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": []
+  }
+}

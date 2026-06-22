@@ -1,0 +1,39 @@
+{
+  "name": "edgar-liberty-f1mef-rule462b",
+  "source": {
+    "company": "Liberty Defense Holdings, Ltd.",
+    "form_type": "F-1MEF",
+    "cik": "0001919776",
+    "accession": "0001104659-26-046030",
+    "filed_at": "2026-04-21",
+    "sec_url": "https://www.sec.gov/Archives/edgar/data/1919776/000110465926046030/tm261972d24_f1mef.htm",
+    "text_basis": "edgar_original_excerpt"
+  },
+  "input": {
+    "formType": "F-1MEF",
+    "accessionNumber": "0001104659-26-046030",
+    "metadata": {
+      "companyName": "Liberty Defense Holdings, Ltd.",
+      "filedAt": "2026-04-21"
+    },
+    "filingText": "As filed with the U.S. Securities and Exchange Commission on April 21, 2026. Registration Statement No. 333- UNITED STATES SECURITIES AND EXCHANGE COMMISSION Washington, D.C. 20549 FORM F-1 REGISTRATION STATEMENT UNDER THE SECURITIES ACT OF 1933 LIBERTY DEFENSE HOLDINGS, LTD.\nIf this Form is filed to register additional securities for an offering pursuant to Rule 462(b) under the Securities Act, please check the following box and list the Securities Act registration statement number of the earlier effective registration statement for the same offering. x 333-293217 This Registration Statement shall become effective upon filing with the Securities and Exchange Commission in accordance with Rule 462(b) under the Securities Act.\nEXPLANATORY NOTE AND INCORPORATION BY REFERENCE This Registration Statement is being filed by Liberty Defense Holdings, Ltd. (the “Registrant”) pursuant to Rule 462(b) under the Securities Act of 1933, as amended, for the sole purpose of increasing the number of Common Shares registered by the Registrant. This Registration Statement also registers Common Shares issuable from time to time upon exercise of any Pre-Funded Warrants sold. The additional aggregate offering price of the securities that are being registered under this Registration Statement represents no more than 20% of the maximum aggregate offering price set forth in the filing fee table filed as Exhibit 107 to the Prior Registration Statement."
+  },
+  "expected": {
+    "event_type": "other",
+    "score_band": "archive",
+    "delivery_level": "archive",
+    "deterministic": false,
+    "facts": {
+      "company_name": "Liberty Defense Holdings, Ltd.",
+      "ticker": null,
+      "exchange": null,
+      "registration_kind": "unknown",
+      "filing_variant": "rule_462b_mef",
+      "reported_form_type": "F-1MEF",
+      "parent_context_needed": true,
+      "prior_registration_number": "333-293217",
+      "automatic_effective": true,
+      "within_20_percent_limit": true
+    }
+  }
+}

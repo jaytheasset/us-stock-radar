@@ -1,0 +1,173 @@
+{
+  "parser_output": {
+    "parserVersion": "s8-parser-v1",
+    "parserGroup": "s8",
+    "formType": "S-8",
+    "accessionNumber": "0005555555-26-000050",
+    "isSupported": true,
+    "summary": "Omega Cloud Ltd. filed an S-8, but key registration terms need review.",
+    "facts": {
+      "issuerName": "Omega Cloud Ltd.",
+      "ticker": "OMCL",
+      "exchange": "NASDAQ",
+      "filedAt": "2026-01-22",
+      "isAmendment": false,
+      "amendmentType": null,
+      "planNames": [],
+      "planNameFacts": [],
+      "planExtractionConfidence": "low",
+      "planExtractionWarnings": [],
+      "securityType": null,
+      "registeredShares": null,
+      "additionalShares": null,
+      "parentRegisteredShares": null,
+      "estimatedOfferingAmount": null,
+      "registrationFee": null,
+      "dilutionPercentOfSharesOutstanding": null,
+      "dilutionPercentOfPublicFloat": null,
+      "noAdditionalSecurities": false,
+      "exhibitOnly": false,
+      "signatureOnly": false,
+      "needsParentComparison": false,
+      "normalizedS8Type": "initial_s8",
+      "s8FamilyDetected": true,
+      "likelyFeeTableMaterial": false,
+      "exFilingFeesExhibit": false,
+      "feeTableSource": "not_found",
+      "feeTableExtractionConfidence": "low",
+      "feeTableWarnings": [],
+      "feeTablePurposeConflicts": [],
+      "rule416": false,
+      "planInterests": false,
+      "unusualFeeTableSecurities": false,
+      "postEffectiveAmendment": false,
+      "deregistrationOfUnsoldSecurities": false,
+      "resaleProspectus": false,
+      "sellingHolderSection": false,
+      "controlSecurities": false,
+      "restrictedSecurities": false,
+      "rule144": false,
+      "consultantAdvisorServiceProvider": false,
+      "investorRelationsPromotionalFinancingServices": false,
+      "shellReverseMergerDelinquentFiler": false,
+      "s8PosRegistersAdditionalSecurities": false,
+      "sectionExtractionConfidence": "medium",
+      "consultantAdvisorContexts": [
+        {
+          "term": "service providers",
+          "bucket": "unknown_context",
+          "section": "cover_page",
+          "confidence": "low",
+          "evidence": "Omega Cloud Ltd. files this Form S-8 related to equity awards for service providers under a compensatory arrangement. The filing references a registration fee table that is not included in this excerpt, and the number of shares to be registered is omitted."
+        }
+      ],
+      "consultantAdvisorContextConfidence": "low",
+      "consultantAdvisorContextWarnings": [
+        "Consultant/advisor/service-provider language was detected in an uncertain context."
+      ]
+    },
+    "signals": [],
+    "calendarItems": [],
+    "warnings": [
+      "Registered share count was not extracted.",
+      "Consultant/advisor/service-provider language was detected in an uncertain context."
+    ],
+    "raw": {
+      "sourceTextExcerpt": "Omega Cloud Ltd. files this Form S-8 related to equity awards for service providers under a compensatory arrangement. The filing references a registration fee table that is not included in this excerpt, and the number of shares to be registered is omitted.",
+      "sourceDocuments": [
+        {
+          "id": "primary",
+          "documentRole": "primary_filing",
+          "source": "primary",
+          "documentType": null,
+          "description": "Primary S-8 filing document",
+          "textKind": "normalized_text",
+          "text": "Omega Cloud Ltd. files this Form S-8 related to equity awards for service providers under a compensatory arrangement. The filing references a registration fee table that is not included in this excerpt, and the number of shares to be registered is omitted."
+        }
+      ],
+      "noiseCandidates": [],
+      "attachments": [],
+      "parentFilingContext": null,
+      "marketContext": null,
+      "extractedShareCounts": [],
+      "sections": [
+        {
+          "key": "cover_page",
+          "heading": "cover page",
+          "start": 0,
+          "end": 256,
+          "confidence": "medium"
+        }
+      ]
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "other",
+    "event_title": "Omega Cloud S-8 needs review",
+    "primary_ticker": {
+      "ticker": "OMCL",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      "OMCL"
+    ],
+    "sector": "Technology",
+    "industry_group": "Cloud Infrastructure",
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 45,
+    "score_reason": "The fixture omits registered share count and fee-table data, so the parser cannot determine dilution impact.",
+    "signal": "neutral",
+    "quick_take": "Omega Cloud's S-8 fixture lacks the key share-count terms needed for confident dilution analysis.",
+    "summary": "Omega Cloud filed an S-8 related to equity awards, but the fixture excerpt omits the number of shares to be registered.",
+    "why_it_matters": "Without the registered share count or complete fee table, the room should not infer dilution severity.",
+    "bullish_points": [],
+    "bearish_points": [
+      "Missing registration terms prevent confident sizing of dilution risk."
+    ],
+    "key_evidence": [
+      "The number of shares to be registered is omitted.",
+      "Parser warning: Registered share count was not extracted."
+    ],
+    "what_to_watch_next": [
+      "Review the complete filing or fee table before assigning a higher-impact dilution route."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "low",
+    "needs_human_review": true
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "registeredShares": null,
+      "securityType": null,
+      "warnings": [
+        "Registered share count was not extracted."
+      ],
+      "s8_ui_mode": "plan_registration"
+    },
+    "evidence": [
+      "The filing references a registration fee table that is not included in this excerpt.",
+      "The number of shares to be registered is omitted."
+    ],
+    "notes": [
+      "This fixture intentionally proves the human-review path without live DB or market-data calls."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "A complete filing text fixture would be needed to resolve the missing share count.",
+      "Do not query live SEC, live DB or live market context from this room."
+    ]
+  }
+}

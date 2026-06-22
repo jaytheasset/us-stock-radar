@@ -82,6 +82,7 @@ const categoryTone: Record<AlertCategory, string> = {
   legal_risk: "risk",
   dividends: "performance",
   capital_return: "performance",
+  ipo_listing: "transaction",
   fda_clinical: "policy",
   policy_regulation: "policy",
   macro_market: "policy",

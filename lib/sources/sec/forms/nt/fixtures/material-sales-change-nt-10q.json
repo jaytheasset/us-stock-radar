@@ -1,0 +1,22 @@
+{
+  "id": "material-sales-change-nt-10q",
+  "description": "NT 10-Q with static market context and a disclosed material revenue decline tied to customer order delays.",
+  "source": {
+    "formType": "NT 10-Q",
+    "accessionNumber": "0001000003-26-000030",
+    "companyName": "HelioGrid Storage Inc.",
+    "ticker": "HGS",
+    "exchange": "NASDAQ",
+    "periodOfReport": "2026-03-31",
+    "filedAt": "2026-05-12",
+    "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-Q PART III NARRATIVE The registrant requires additional time to complete closing procedures for the quarter ended March 31, 2026, including analysis of customer order delays and gross margin impacts. The delay could not be eliminated without unreasonable effort or expense. The registrant expects to file the Form 10-Q within the five calendar day extension period. PART IV OTHER INFORMATION (3) Is it anticipated that any significant change in results of operations from the corresponding period for the last fiscal year will be reflected by the earnings statements to be included in the subject report? [X] Yes [ ] No. The registrant expects revenue for the quarter to decline approximately 38% from the prior-year period due primarily to delayed customer orders and lower battery module shipments; gross margin is also expected to be lower."
+  },
+  "market_context": {
+    "price": 8.4,
+    "previous_close": 9.1,
+    "market_cap": 210000000,
+    "shares_outstanding": 25000000,
+    "volume": 1800000,
+    "avg_volume": 650000
+  }
+}

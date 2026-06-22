@@ -1,0 +1,95 @@
+{
+  "parser_output": {
+    "parserVersion": "sc13-v1",
+    "parserGroup": "sc13",
+    "formType": "SC 13G",
+    "accessionNumber": "0000000000-26-000606",
+    "isSupported": true,
+    "summary": "Rubric Capital Management LP reports beneficial ownership of 4,200,000 shares (6.3%) of QuidelOrtho Corporation Common Stock, $0.001 par value.",
+    "facts": {},
+    "signals": [],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "insider_ownership",
+    "event_title": "Rubric Capital Management LP reports passive stake in QuidelOrtho Corporation",
+    "primary_ticker": {
+      "ticker": "QDEL",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      {
+        "ticker": "QDEL",
+        "exchange": "NASDAQ"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 35,
+    "score_reason": "Passive Schedule 13G certification and sub-10% ownership make this a low-urgency ownership disclosure.",
+    "signal": "neutral",
+    "quick_take": "Rubric Capital Management LP disclosed a passive 6.3% ownership stake in QuidelOrtho Corporation.",
+    "summary": "Rubric Capital Management LP reports beneficial ownership of 4,200,000 shares (6.3%) of QuidelOrtho Corporation Common Stock, $0.001 par value.",
+    "why_it_matters": "The filing identifies a holder above the SC 13 reporting threshold, but the passive certification limits immediate market significance.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [
+      "Reported beneficial ownership: 4,200,000 shares (6.3%).",
+      "Passive certification says the securities were not held to change or influence control."
+    ],
+    "what_to_watch_next": [
+      "Future amendments showing a larger ownership change or removal of passive certification."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "date": "September 30, 2024",
+        "label": "SC 13 reportable event date",
+        "source": "Date of Event"
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "issuerName": "QuidelOrtho Corporation",
+      "reportingPersons": [
+        "Rubric Capital Management LP",
+        "David Rosen"
+      ],
+      "percentOwned": 6.25,
+      "sharesBeneficiallyOwned": 4200000,
+      "ownershipIntent": "passive",
+      "isAmendment": false,
+      "isExitFiling": false,
+      "ownershipPercentChange": null
+    },
+    "evidence": [
+      "Reported beneficial ownership: 4,200,000 shares (6.3%).",
+      "Passive certification says the securities were not held to change or influence control."
+    ],
+    "notes": [
+      "No special detail UI is required for this passive ownership fixture."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Archive delivery is expected from the analysis score; analysis LLM should use cleaned_source_blocks."
+    ]
+  }
+}

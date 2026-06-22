@@ -1,0 +1,88 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_425_parser_v1",
+    "parserGroup": "425",
+    "formType": "425",
+    "accessionNumber": "0000000000-26-000432",
+    "isSupported": true,
+    "summary": "Form 425 reports shareholder vote results for 2 proposals.",
+    "facts": {
+      "company_name": "Valley Bank Holding Corp.",
+      "primary_ticker": "VBHC",
+      "communication_types": ["vote_results"],
+      "vote": {
+        "record_date": "2026-02-28",
+        "quorum": "At the Special Meeting, the holders of 46,694,968 shares were represented in person or by proxy, constituting a quorum.",
+        "vote_results": [
+          {
+            "proposal": "Proposal 1 - Valley share issuance proposal",
+            "status": "approved",
+            "votes_for": 46211799,
+            "votes_against": 469418,
+            "abstentions": 13751
+          }
+        ]
+      }
+    },
+    "signals": [
+      {
+        "type": "vote_results",
+        "value": "shareholder_meeting_update",
+        "evidence": "Proposal 1 - Valley share issuance proposal was approved with 46,211,799 votes for, 469,418 votes against and 13,751 abstentions.",
+        "confidence": "high"
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "shareholder_vote",
+    "event_title": "Valley reports approval of merger-related proposals",
+    "primary_ticker": { "ticker": "VBHC", "exchange": "NYSE" },
+    "tickers": [{ "ticker": "VBHC", "exchange": "NYSE" }],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": "M&A",
+    "sub_theme": "Vote results",
+    "score": 66,
+    "score_reason": "Feed-level because the filing reports proposal-level shareholder approvals and quorum.",
+    "signal": "neutral",
+    "quick_take": "Valley disclosed vote results approving merger-related proposals.",
+    "summary": "The Form 425 reports that Valley stockholders approved share issuance and incentive-plan proposals tied to the merger.",
+    "why_it_matters": "Shareholder approval removes or clarifies a closing condition for the transaction.",
+    "bullish_points": ["Proposal 1 was approved with a large majority of represented shares."],
+    "bearish_points": [],
+    "key_evidence": ["Proposal 1 was approved with 46,211,799 votes for."],
+    "what_to_watch_next": ["Any closing announcement or remaining regulatory approvals."],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "vote_results": [
+        {
+          "proposal": "Valley share issuance proposal",
+          "status": "approved"
+        }
+      ]
+    },
+    "evidence": ["Proposal 1 - Valley share issuance proposal was approved."],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": []
+  }
+}

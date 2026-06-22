@@ -1,0 +1,166 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_tender_parser_v1",
+    "parserGroup": "tender",
+    "formType": "Tender / CB / 13E3",
+    "accessionNumber": "0002222222-26-000020",
+    "isSupported": true,
+    "summary": "SC TO-T third party tender offer for Alpine Data Systems Inc at $18.50 per share expiring July 15, 2026.",
+    "facts": {
+      "sec_form_type": "SC TO-T",
+      "tender_case": "third_party_tender_offer",
+      "third_party_tender": true,
+      "target_company": "Alpine Data Systems Inc",
+      "offeror": "Summit Merger Sub Inc",
+      "cash_price_per_share": {
+        "price": 18.5,
+        "currency": "USD"
+      },
+      "premium_to_reference_price": 42,
+      "expiration_date": "2026-07-15",
+      "board_recommendation": "recommend_tender",
+      "conditions": ["minimum_tender_condition", "regulatory_approval", "no_financing_condition"],
+      "route_hint": {
+        "event_type_candidate": "strategic_transaction",
+        "score_candidate": 82,
+        "llm_needed": true
+      }
+    },
+    "signals": [
+      {
+        "type": "tender_family",
+        "value": "third_party_tender_offer"
+      },
+      {
+        "type": "premium",
+        "value": 42
+      }
+    ],
+    "calendarItems": [
+      {
+        "type": "tender_expiration",
+        "date": "2026-07-15"
+      }
+    ],
+    "warnings": [],
+    "raw": {
+      "input_form_type": "SC TO-T",
+      "raw_item_id": "fixture-tender-002"
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "strategic_transaction",
+    "event_title": "Summit starts cash tender offer for Alpine Data",
+    "primary_ticker": {
+      "ticker": "ALPN",
+      "exchange": "NYSE"
+    },
+    "tickers": [
+      {
+        "ticker": "ALPN",
+        "exchange": "NYSE"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 82,
+    "score_reason": "A third-party cash tender for all outstanding shares with a stated premium and board recommendation is an alert-level strategic transaction.",
+    "signal": "bullish",
+    "quick_take": "Summit is offering $18.50 per share in cash for Alpine Data.",
+    "summary": "The filing describes a control-change tender offer with a 42% premium, a July 15, 2026 expiration, and customary minimum tender and regulatory conditions.",
+    "why_it_matters": "Cash acquisition tenders can reprice the target immediately, but completion depends on tender levels, approvals, and offer conditions.",
+    "bullish_points": [
+      "Offer price represents a 42% premium to the previous close.",
+      "The board recommends that holders tender."
+    ],
+    "bearish_points": [
+      "The deal remains subject to minimum tender and regulatory conditions.",
+      "Tender deadlines can be extended or amended."
+    ],
+    "key_evidence": [
+      "$18.50 per share net to the seller in cash.",
+      "42% premium to Alpine's previous closing price.",
+      "Board recommends that stockholders tender their shares."
+    ],
+    "what_to_watch_next": [
+      "Minimum tender condition satisfaction.",
+      "Regulatory approval and any offer extension."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "type": "tender_expiration",
+        "date": "2026-07-15"
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "offer_type": "third_party_tender_offer",
+      "offeror": "Summit Merger Sub Inc.",
+      "target_company": "Alpine Data Systems Inc.",
+      "cash_price_per_share": 18.5,
+      "premium_percent": 42,
+      "expiration_date": "2026-07-15",
+      "conditions": ["minimum_tender_condition", "regulatory_approval", "no_financing_condition"]
+    },
+    "evidence": [
+      "$18.50 per share net to the seller in cash",
+      "42% premium",
+      "minimum tender condition and regulatory approval"
+    ],
+    "notes": [
+      "Acquisition tender terms, premium, deadline, and conditions likely need a dedicated tender detail view."
+    ]
+  },
+  "transaction_fingerprint": {
+    "transaction_family": "tender_offer",
+    "transaction_type": "third_party_tender",
+    "target_company": "Alpine Data Systems Inc.",
+    "target_ticker": "ALPN",
+    "buyer_parent": "",
+    "buyer_group": [],
+    "offeror": "Summit Merger Sub Inc.",
+    "filing_persons": ["Summit Merger Sub Inc."],
+    "cash_price": "$18.50 per share",
+    "exchange_ratio": "",
+    "consideration_summary": "$18.50 per share net to the seller in cash",
+    "offer_size": "",
+    "securities_sought": "",
+    "minimum_condition": "minimum tender condition",
+    "financing_condition": "no financing condition",
+    "offer_expiration": "2026-07-15",
+    "final_result_date": "",
+    "merger_agreement_date": "",
+    "expected_closing": "",
+    "amendment_number": "",
+    "amendment_change_type": "unknown",
+    "material_terms_changed": [],
+    "source_forms": ["SC TO-T"],
+    "source_accession": "0002222222-26-000020",
+    "source_evidence": [
+      "$18.50 per share net to the seller in cash.",
+      "Board recommends that stockholders tender their shares.",
+      "Minimum tender condition and regulatory approval."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": true,
+    "market_context_reason": "Offer premium should be compared with fixture price or previous_close.",
+    "market_context_fields": ["price", "previous_close", "market_cap", "shares_outstanding"],
+    "special_ui_needed": true,
+    "special_ui_reason": "Third-party tender offers need deadline, consideration, premium, and condition fields.",
+    "integration_notes": [
+      "No live market data call; fixture market_context supplies comparison values."
+    ]
+  }
+}

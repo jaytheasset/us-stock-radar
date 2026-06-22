@@ -1,0 +1,9 @@
+{
+  "name": "omitted-index-form",
+  "filing": {
+    "formType": "EFFECT",
+    "accessionNumber": "9999999995-25-002039",
+    "indexRegistrationForm": null,
+    "text": "<SEC-DOCUMENT>9999999995-25-002039.txt : 20250627\n<SEC-HEADER>9999999995-25-002039.hdr.sgml : 20250627\n<ACCEPTANCE-DATETIME>20250627001516\nACCESSION NUMBER:\t\t9999999995-25-002039\nCONFORMED SUBMISSION TYPE:\tEFFECT\nPUBLIC DOCUMENT COUNT:\t\t1\nFILED AS OF DATE:\t\t20250626\nDATE AS OF CHANGE:\t\t20250627\nEFFECTIVENESS DATE:\t\t20250626\n\nFILER:\n\n\tCOMPANY DATA:\t\n\t\tCOMPANY CONFORMED NAME:\t\t\tAMERICAN BATTERY TECHNOLOGY Co\n\t\tCENTRAL INDEX KEY:\t\t\t0001576873\n\t\tSTANDARD INDUSTRIAL CLASSIFICATION:\tMINING, QUARRYING OF NONMETALLIC MINERALS (NO FUELS) [1400]\n\t\tORGANIZATION NAME:           \t01 Energy & Transportation\n\t\tEIN:\t\t\t\t331227980\n\t\tSTATE OF INCORPORATION:\t\t\tNV\n\t\tFISCAL YEAR END:\t\t\t0630\n\n\tFILING VALUES:\n\t\tFORM TYPE:\t\tEFFECT\n\t\tSEC ACT:\t\t1933 Act\n\t\tSEC FILE NUMBER:\t333-287704\n\t\tFILM NUMBER:\t\t251082036\n</SEC-HEADER>\n<DOCUMENT>\n<TYPE>EFFECT\n<SEQUENCE>1\n<FILENAME>primary_doc.xml\n<TEXT>\n<XML>\n<?xml version=\"1.0\"?>\n<edgarSubmission>\n    <schemaVersion>X0101</schemaVersion>\n    <submissionType>EFFECT</submissionType>\n    <act>33</act>\n    <testOrLive>LIVE</testOrLive>\n    <effectiveData>\n        <finalEffectivenessDispDate>2025-06-26</finalEffectivenessDispDate>\n        <finalEffectivenessDispTime>16:00:00</finalEffectivenessDispTime>\n        <form>S-3</form>\n        <filer>\n            <cik>0001576873</cik>\n            <entityName>AMERICAN BATTERY TECHNOLOGY Co</entityName>\n            <fileNumber>333-287704</fileNumber>\n        </filer>\n    </effectiveData>\n</edgarSubmission>\n</XML>\n</TEXT>\n</DOCUMENT>\n</SEC-DOCUMENT>"
+  }
+}

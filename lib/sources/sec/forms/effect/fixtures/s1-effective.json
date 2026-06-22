@@ -1,0 +1,23 @@
+{
+  "name": "s1-effective",
+  "filing": {
+    "formType": "EFFECT",
+    "accessionNumber": "9999999995-24-001005",
+    "indexRegistrationForm": "S-1",
+    "text": "<SEC-DOCUMENT>9999999995-24-001005.txt : 20240418\n<SEC-HEADER>9999999995-24-001005.hdr.sgml : 20240418\n<ACCEPTANCE-DATETIME>20240418001532\nACCESSION NUMBER:\t\t9999999995-24-001005\nCONFORMED SUBMISSION TYPE:\tEFFECT\nPUBLIC DOCUMENT COUNT:\t\t1\nFILED AS OF DATE:\t\t20240417\nDATE AS OF CHANGE:\t\t20240418\nEFFECTIVENESS DATE:\t\t20240417\n\nFILER:\n\n\tCOMPANY DATA:\t\n\t\tCOMPANY CONFORMED NAME:\t\t\tIbotta, Inc.\n\t\tCENTRAL INDEX KEY:\t\t\t0001538379\n\t\tSTANDARD INDUSTRIAL CLASSIFICATION:\tSERVICES-ADVERTISING [7310]\n\t\tORGANIZATION NAME:           \t07 Trade & Services\n\t\tIRS NUMBER:\t\t\t\t352426358\n\t\tSTATE OF INCORPORATION:\t\t\tDE\n\t\tFISCAL YEAR END:\t\t\t1231\n\n\tFILING VALUES:\n\t\tFORM TYPE:\t\tEFFECT\n\t\tSEC ACT:\t\t1933 Act\n\t\tSEC FILE NUMBER:\t333-278172\n\t\tFILM NUMBER:\t\t24852696\n</SEC-HEADER>\n<DOCUMENT>\n<TYPE>EFFECT\n<SEQUENCE>1\n<FILENAME>primary_doc.xml\n<TEXT>\n<XML>\n<?xml version=\"1.0\"?>\n<edgarSubmission>\n    <schemaVersion>X0101</schemaVersion>\n    <submissionType>EFFECT</submissionType>\n    <act>33</act>\n    <testOrLive>LIVE</testOrLive>\n    <effectiveData>\n        <finalEffectivenessDispDate>2024-04-17</finalEffectivenessDispDate>\n        <finalEffectivenessDispTime>16:00:00</finalEffectivenessDispTime>\n        <form>S-1</form>\n        <filer>\n            <cik>0001538379</cik>\n            <entityName>Ibotta, Inc.</entityName>\n            <fileNumber>333-278172</fileNumber>\n        </filer>\n    </effectiveData>\n</edgarSubmission>\n</XML>\n</TEXT>\n</DOCUMENT>\n</SEC-DOCUMENT>"
+  },
+  "parentFilingContext": {
+    "formType": "S-1",
+    "accessionNumber": "0001538379-24-000025",
+    "registrationNumber": "333-278172",
+    "companyName": "Ibotta, Inc.",
+    "ticker": "IBTA",
+    "exchange": "NYSE",
+    "eventType": "ipo_listing",
+    "eventTitle": "Ibotta traditional IPO registration analysis",
+    "ipoKind": "traditional",
+    "score": 68,
+    "analysisReference": "event:ibotta-s1-ipo-registration",
+    "shouldShowOriginalAnalysis": true
+  }
+}

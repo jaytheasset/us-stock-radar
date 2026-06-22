@@ -1,0 +1,35 @@
+{
+  "case_id": "sales-plan-13da",
+  "description": "Schedule 13D/A amendment with Rule 10b5-1 plan and open-market sales table.",
+  "filing": {
+    "formType": "SC 13D/A",
+    "accessionNumber": "0000000000-26-000808",
+    "issuerName": "EverQuote, Inc.",
+    "primaryTicker": {
+      "ticker": "EVER",
+      "exchange": "NASDAQ"
+    },
+    "filedAt": "2026-04-15",
+    "text": "SC 13D/A\nSCHEDULE 13D\n(Amendment No. 7)*\nEverQuote, Inc.\n(Name of Issuer)\nClass A Common Stock, $0.001 Par Value Per Share\n(Title of Class of Securities)\n30041R108\n(CUSIP Number)\nSeptember 5, 2024\n(Date of Event Which Requires Filing of this Statement)\n1 Name of Reporting Person\nDavid B. Blundin\n2 Check the Appropriate Box if a Member of a Group (a) X (b) [ ]\n4 Source of Funds\nOO\n6 Citizenship or Place of Organization\nUnited States\n7 Sole Voting Power\n0\n8 Shared Voting Power\n7,868,964 shares\n9 Sole Dispositive Power\n0\n10 Shared Dispositive Power\n7,868,964 shares\n11 Aggregate Amount Beneficially Owned by Each Reporting Person\n7,868,964 shares\n13 Percent of Class Represented by Amount in Row (11)\n22.4%\n14 Type of Reporting Person\nIN\nAmendment No. 7 to Schedule 13D\nThis Amendment No. 7 amends the Schedule 13D filed with the SEC on February 9, 2022, as previously amended.\nItem 4. Purpose of Transaction.\nOn June 14, 2024, the Reporting Persons adopted a Rule 10b5-1 trading arrangement for the sale of up to 2,031,264 shares of Class A Common Stock. The sales are being done primarily for diversification purposes.\nDate Reporting Person Shares Sold Price Range Weighted Average Price Per Share\nJuly 29, 2024 David Blundin 3,255 $26.80 to $26.85 inclusive $26.81\nAugust 6, 2024 David Blundin 65,540 $26.80 to $27.79 inclusive $27.08\nItem 5. Interest in Securities of the Issuer.\nOwnership is stated as of September 4, 2024 and ownership percentages are based upon 31,479,962 shares of Class A common stock and 3,604,278 shares of Class B common stock outstanding. The Class B Common Stock is convertible into Class A Common Stock on a one-for-one basis at the option of the holder. Other than as previously disclosed in this Amendment No. 7, there have been no reportable transactions with respect to the shares of the Issuer in the last 60 days.\nItem 6. Contracts, Arrangements, Understandings or Relationships with respect to Securities of the Issuer.\nThe information set forth in Item 4 is incorporated by reference into this Item 6.\nItem 7. Material to Be Filed as Exhibits.\n99.1 Rule 10b5-1 Sales Plan. 99.2 Joint Filing Agreement.\nSIGNATURE"
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "insider_ownership",
+    "deterministic": false,
+    "score_band": "feed",
+    "extracted_facts": {
+      "issuerName": "EverQuote, Inc.",
+      "reportingPersons": [
+        "David B. Blundin"
+      ],
+      "scheduleType": "13D",
+      "isAmendment": true,
+      "amendmentNumber": 7,
+      "sharesBeneficiallyOwned": 7868964,
+      "percentOwned": 22.4,
+      "sourceOfFunds": "OO",
+      "salesPlanLanguage": true,
+      "jointFilingAgreement": true
+    }
+  }
+}

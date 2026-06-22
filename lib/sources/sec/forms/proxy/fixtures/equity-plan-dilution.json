@@ -1,0 +1,19 @@
+{
+  "fixture_name": "equity-plan-dilution",
+  "input": {
+    "formType": "DEF 14A",
+    "accessionNumber": "0001000002-26-000303",
+    "companyName": "HelioBio Therapeutics",
+    "primaryTicker": {
+      "ticker": "HBIO",
+      "exchange": "NASDAQ"
+    },
+    "market_context": {
+      "price": 3.25,
+      "market_cap": 260000000,
+      "shares_outstanding": 81000000,
+      "public_float": 58000000
+    },
+    "filingText": "HELIOBIO THERAPEUTICS 2026 Proxy Statement\nThe Annual Meeting of Shareholders will be held on May 20, 2026.\nThe record date for voting is March 31, 2026.\nProposal 1: Election of two directors. Board recommendation: FOR.\nProposal 4: Approval of the 2026 Equity Incentive Plan to reserve 12,000,000 new shares, representing approximately 14.8% of outstanding shares. Board recommendation: FOR.\nThe requested share reserve is intended to support employee and director equity awards."
+  }
+}

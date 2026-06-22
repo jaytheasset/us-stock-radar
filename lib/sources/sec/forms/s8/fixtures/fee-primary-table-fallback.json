@@ -1,0 +1,20 @@
+{
+  "fixtureName": "fee-primary-table-fallback",
+  "formType": "S-8",
+  "accessionNumber": "0002222222-26-000201",
+  "filedAt": "2026-04-15",
+  "issuer": {
+    "name": "Primary Table Software Inc.",
+    "ticker": "PTSI",
+    "exchange": "NASDAQ"
+  },
+  "filingText": "Primary Table Software Inc. files this registration statement on Form S-8. CALCULATION OF FILING FEE TABLE. Newly Registered Securities. | Security Type | Title of Securities to be Registered | Amount to be Registered | Proposed Maximum Offering Price Per Share | Maximum Aggregate Offering Price | Fee Calculation Rule | Fee Rate | Amount of Registration Fee | | Equity | Common Stock, par value $0.001 per share, Primary Table Software Inc. 2026 Equity Incentive Plan | 5,000,000 shares | $12.34 | $61,700,000 | 457(h) | 0.00015310 | $9,445.27 | PART I INFORMATION REQUIRED IN THE SECTION 10(a) PROSPECTUS. PART II INFORMATION REQUIRED IN THE REGISTRATION STATEMENT. SIGNATURES.",
+  "attachments": [],
+  "parentFilingContext": null,
+  "marketContext": null,
+  "flowExpectation": {
+    "parserCanFinishWithoutLlm": false,
+    "routerCanFinishWithoutLlm": false,
+    "reason": "Primary-document fee table fallback should extract source-backed securities facts but still go to analysis."
+  }
+}

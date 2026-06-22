@@ -1,0 +1,116 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_8k_6k_parser_v1",
+    "parserGroup": "8k-6k",
+    "formType": "8-K / 6-K, 8-K/A / 6-K/A",
+    "accessionNumber": "0001111111-26-000001",
+    "isSupported": true,
+    "summary": "Metro Widget Inc. filed 8-K with 2 extracted item(s) and 1 source-backed filing cue(s).",
+    "facts": {
+      "companyName": "Metro Widget Inc.",
+      "ticker": "MWID",
+      "secFormType": "8-K",
+      "isAmendment": false,
+      "items": [
+        {
+          "item": "3.01",
+          "label": "Notice of Delisting or Failure to Satisfy a Continued Listing Rule or Standard; Transfer of Listing."
+        },
+        {
+          "item": "9.01",
+          "label": "Financial Statements and Exhibits."
+        }
+      ],
+      "filingCues": [
+        {
+          "cueType": "exchange_listing_notice",
+          "label": "Exchange listing notice or deficiency language",
+          "evidence": "Nasdaq stated the Company was not in compliance with the minimum bid price requirement.",
+          "confidence": "medium",
+          "itemNumbers": [
+            "3.01",
+            "9.01"
+          ]
+        }
+      ]
+    },
+    "signals": [
+      {
+        "cueType": "exchange_listing_notice",
+        "label": "Exchange listing notice or deficiency language",
+        "evidence": "Nasdaq stated the Company was not in compliance with the minimum bid price requirement.",
+        "confidence": "medium",
+        "itemNumbers": [
+          "3.01",
+          "9.01"
+        ]
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "listing_risk",
+    "event_title": "Metro Widget receives Nasdaq minimum-bid deficiency notice",
+    "primary_ticker": {
+      "ticker": "MWID",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      "MWID"
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 82,
+    "score_reason": "Minimum-bid deficiency creates common-equity listing risk and a defined cure period.",
+    "signal": "bearish",
+    "quick_take": "Nasdaq minimum-bid noncompliance puts the listing status on watch.",
+    "summary": "Metro Widget disclosed a Nasdaq notice tied to its common stock trading below $1.00 for 30 consecutive business days.",
+    "why_it_matters": "Failure to regain compliance can lead to delisting proceedings or reverse-split pressure.",
+    "bullish_points": [
+      "The company has a 180-day cure period."
+    ],
+    "bearish_points": [
+      "The notice confirms continued-listing noncompliance."
+    ],
+    "key_evidence": [
+      "Nasdaq stated the Company was not in compliance with the minimum bid price requirement."
+    ],
+    "what_to_watch_next": [
+      "Bid-price cure progress and any reverse split proposal."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "rule": "minimum bid price",
+      "cure_period": "180 calendar days"
+    },
+    "evidence": [
+      "The Company has 180 calendar days to regain compliance."
+    ],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": true,
+    "market_context_reason": "Minimum-bid listing risk should be compared with current share price.",
+    "market_context_fields": [
+      "price",
+      "previous_close"
+    ],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": []
+  }
+}

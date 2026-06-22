@@ -1,0 +1,33 @@
+{
+  "title": "NovaCure plc Form 6-K Phase 3 data",
+  "publishedAt": "2026-05-14T11:55:00Z",
+  "sourceUniqueId": "0014141414-26-000014",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/14141414/001414141426000014/",
+  "bodyText": "UNITED STATES\nFORM 6-K\nReport of Foreign Private Issuer\nNovaCure plc announced topline data from its Phase 3 clinical trial of NC-201 in relapsed oncology patients. The trial met its primary endpoint with statistically significant improvement in progression-free survival. The Company plans to submit a BLA to the FDA and noted a potential PDUFA target action date of December 18, 2026 if accepted for priority review.",
+  "rawPayload": {
+    "form_type": "6-K",
+    "accession_number": "0014141414-26-000014",
+    "company_name": "NovaCure plc",
+    "ticker": "NVCR",
+    "documents": [
+      {
+        "type": "6-K",
+        "description": "Report of foreign issuer",
+        "url": "primary.htm",
+        "isPrimary": true,
+        "textCharCount": 540,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ]
+  },
+  "metadata": {
+    "company_name": "NovaCure plc",
+    "ticker": "NVCR"
+  },
+  "expected": {
+    "eventType": "fda_clinical",
+    "deliveryLevel": "alert"
+  }
+}

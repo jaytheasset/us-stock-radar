@@ -1,0 +1,33 @@
+{
+  "title": "Luma Diagnostics Form 8-K settlement disclosure",
+  "publishedAt": "2026-05-11T16:40:00Z",
+  "sourceUniqueId": "0011111111-26-000011",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/11111111/001111111126000011/",
+  "bodyText": "UNITED STATES\nFORM 8-K\nItem 8.01 Other Events.\nOn May 11, 2026, Luma Diagnostics disclosed that it entered into a settlement agreement to resolve pending litigation related to prior product warranties. The Company will pay $18.5 million and will record a charge in the second quarter. The settlement does not include any admission of liability.",
+  "rawPayload": {
+    "form_type": "8-K",
+    "accession_number": "0011111111-26-000011",
+    "company_name": "Luma Diagnostics",
+    "ticker": "LUMD",
+    "documents": [
+      {
+        "type": "8-K",
+        "description": "Current report",
+        "url": "primary.htm",
+        "isPrimary": true,
+        "textCharCount": 470,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ]
+  },
+  "metadata": {
+    "company_name": "Luma Diagnostics",
+    "ticker": "LUMD"
+  },
+  "expected": {
+    "eventType": "legal_risk",
+    "deliveryLevel": "feed"
+  }
+}

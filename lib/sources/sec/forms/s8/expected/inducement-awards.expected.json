@@ -1,0 +1,253 @@
+{
+  "parser_output": {
+    "parserVersion": "s8-parser-v1",
+    "parserGroup": "s8",
+    "formType": "S-8",
+    "accessionNumber": "0006666666-26-000060",
+    "isSupported": true,
+    "summary": "Tela Medical Devices, Inc. filed an S-8 registering 81,600 inducement-award shares.",
+    "facts": {
+      "issuerName": "Tela Medical Devices, Inc.",
+      "ticker": "TMDV",
+      "exchange": "NASDAQ",
+      "filedAt": "2026-03-25",
+      "isAmendment": false,
+      "amendmentType": null,
+      "planNames": [
+        "inducement awards made outside its stockholder-approved equity incentive plan"
+      ],
+      "planNameFacts": [
+        {
+          "name": "inducement awards made outside its stockholder-approved equity incentive plan",
+          "planType": "inducement",
+          "sources": [
+            "explanatory_note"
+          ],
+          "confidence": "medium"
+        }
+      ],
+      "planExtractionConfidence": "medium",
+      "planExtractionWarnings": [],
+      "securityType": "Common Stock",
+      "registeredShares": 81600,
+      "additionalShares": null,
+      "parentRegisteredShares": null,
+      "estimatedOfferingAmount": 190944,
+      "registrationFee": 29.23,
+      "dilutionPercentOfSharesOutstanding": null,
+      "dilutionPercentOfPublicFloat": null,
+      "noAdditionalSecurities": false,
+      "exhibitOnly": false,
+      "signatureOnly": false,
+      "needsParentComparison": false,
+      "normalizedS8Type": "initial_s8",
+      "s8FamilyDetected": true,
+      "likelyFeeTableMaterial": true,
+      "exFilingFeesExhibit": true,
+      "feeTableSource": "ex_filing_fees",
+      "feeTableExtractionConfidence": "high",
+      "feeTableWarnings": [],
+      "feeTablePurposeConflicts": [],
+      "rule416": false,
+      "planInterests": false,
+      "unusualFeeTableSecurities": false,
+      "postEffectiveAmendment": false,
+      "deregistrationOfUnsoldSecurities": false,
+      "resaleProspectus": false,
+      "sellingHolderSection": false,
+      "controlSecurities": false,
+      "restrictedSecurities": false,
+      "rule144": false,
+      "consultantAdvisorServiceProvider": false,
+      "investorRelationsPromotionalFinancingServices": false,
+      "shellReverseMergerDelinquentFiler": false,
+      "s8PosRegistersAdditionalSecurities": false,
+      "sectionExtractionConfidence": "medium",
+      "feeTableRows": [
+        {
+          "securityType": "Equity",
+          "securityClassTitle": "Common Stock, Stock Options",
+          "feeCalculationRule": "457(h)",
+          "amountRegisteredText": "75,000",
+          "amountRegistered": 75000,
+          "proposedMaximumOfferingPricePerUnitText": "2.34",
+          "proposedMaximumOfferingPricePerUnit": 2.34,
+          "maximumAggregateOfferingPriceText": "175,500",
+          "maximumAggregateOfferingPrice": 175500,
+          "feeRateText": "0.0001531",
+          "feeRate": 0.0001531,
+          "registrationFeeText": "26.87",
+          "registrationFee": 26.87,
+          "footnotes": [],
+          "source": "plain_text",
+          "confidence": "medium",
+          "isPlanInterest": false,
+          "hasRule416": false
+        },
+        {
+          "securityType": "Equity",
+          "securityClassTitle": "Common Stock, Restricted Stock Units",
+          "feeCalculationRule": "457(h)",
+          "amountRegisteredText": "6,600",
+          "amountRegistered": 6600,
+          "proposedMaximumOfferingPricePerUnitText": "2.34",
+          "proposedMaximumOfferingPricePerUnit": 2.34,
+          "maximumAggregateOfferingPriceText": "15,444",
+          "maximumAggregateOfferingPrice": 15444,
+          "feeRateText": "0.0001531",
+          "feeRate": 0.0001531,
+          "registrationFeeText": "2.36",
+          "registrationFee": 2.36,
+          "footnotes": [],
+          "source": "plain_text",
+          "confidence": "medium",
+          "isPlanInterest": false,
+          "hasRule416": false
+        }
+      ],
+      "inducementAwards": [
+        {
+          "awardType": "Stock options",
+          "shares": 75000,
+          "recipientCount": 1,
+          "grantedAt": "March 3, 2026"
+        },
+        {
+          "awardType": "Restricted stock units",
+          "shares": 6600,
+          "recipientCount": 12,
+          "grantedAt": "March 3, 2026"
+        }
+      ],
+      "inducementAwardTotalShares": 81600
+    },
+    "signals": [],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {
+      "sourceTextExcerpt": "Tela Medical Devices, Inc. files this registration statement on Form S-8 relating to inducement awards made outside its stockholder-approved equity incentive plan. Stock options to purchase 75,000 shares were granted to 1 newly-hired employee on March 3, 2026. Restricted stock units covering 6,600 shares were granted to 12 newly-hired employees on March 3, 2026. The awards were approved as employment inducement awards under Nasdaq Listing Rule 5635(c)(4).",
+      "sourceDocuments": [
+        {
+          "id": "primary",
+          "documentRole": "primary_filing",
+          "source": "primary",
+          "documentType": null,
+          "description": "Primary S-8 filing document",
+          "textKind": "normalized_text",
+          "text": "Tela Medical Devices, Inc. files this registration statement on Form S-8 relating to inducement awards made outside its stockholder-approved equity incentive plan. Stock options to purchase 75,000 shares were granted to 1 newly-hired employee on March 3, 2026. Restricted stock units covering 6,600 shares were granted to 12 newly-hired employees on March 3, 2026. The awards were approved as employment inducement awards under Nasdaq Listing Rule 5635(c)(4)."
+        },
+        {
+          "id": "attachment_1",
+          "documentRole": "fee_exhibit",
+          "source": "attachment",
+          "documentType": "EX-FILING FEES",
+          "description": "Exhibit 107 filing fee table",
+          "textKind": "normalized_text",
+          "text": "Table 1: Newly Registered Securities 1 Equity Common Stock, Stock Options 457(h) 75,000 $2.34 $175,500 0.0001531 $26.87 2 Equity Common Stock, Restricted Stock Units 457(h) 6,600 $2.34 $15,444 0.0001531 $2.36 Total Offering Amounts $190,944 $29.23"
+        }
+      ],
+      "noiseCandidates": [],
+      "attachments": [
+        {
+          "documentType": "EX-FILING FEES",
+          "description": "Exhibit 107 filing fee table",
+          "text": "Table 1: Newly Registered Securities 1 Equity Common Stock, Stock Options 457(h) 75,000 $2.34 $175,500 0.0001531 $26.87 2 Equity Common Stock, Restricted Stock Units 457(h) 6,600 $2.34 $15,444 0.0001531 $2.36 Total Offering Amounts $190,944 $29.23"
+        }
+      ],
+      "parentFilingContext": null,
+      "marketContext": null,
+      "extractedShareCounts": [],
+      "sections": [
+        {
+          "key": "cover_page",
+          "heading": "cover page",
+          "start": 0,
+          "end": 459,
+          "confidence": "medium"
+        }
+      ]
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "dilution_risk",
+    "event_title": "Tela registers inducement-award shares",
+    "primary_ticker": {
+      "ticker": "TMDV",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      "TMDV"
+    ],
+    "sector": "Healthcare",
+    "industry_group": "Medical Devices",
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 35,
+    "score_reason": "The fixture registers 81,600 inducement-award shares with clear fee-table rows and no high-dilution market context.",
+    "signal": "neutral",
+    "quick_take": "Tela registered a small set of inducement award shares, with award type and fee-table rows mechanically extractable.",
+    "summary": "Tela filed an S-8 covering stock options for 75,000 shares and restricted stock units for 6,600 shares.",
+    "why_it_matters": "Inducement awards can create future dilution, but this fixture is small and source terms are clear.",
+    "bullish_points": [
+      "Inducement awards can support hiring."
+    ],
+    "bearish_points": [
+      "The awards may become future share dilution."
+    ],
+    "key_evidence": [
+      "Stock options to purchase 75,000 shares.",
+      "Restricted stock units covering 6,600 shares.",
+      "Exhibit 107 fee table totals 81,600 shares."
+    ],
+    "what_to_watch_next": [
+      "Future equity award grants or additional S-8 registrations."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "offering_terms",
+    "data": {
+      "payload_version": "s8_offering_terms_v1",
+      "registeredShares": 81600,
+      "inducementAwardTotalShares": 81600,
+      "feeTableRows": [
+        {
+          "securityClassTitle": "Common Stock, Stock Options",
+          "amountRegistered": 75000,
+          "registrationFee": 26.87
+        },
+        {
+          "securityClassTitle": "Common Stock, Restricted Stock Units",
+          "amountRegistered": 6600,
+          "registrationFee": 2.36
+        }
+      ],
+      "s8_ui_mode": "inducement_awards"
+    },
+    "evidence": [
+      "Stock options to purchase 75,000 shares.",
+      "Restricted stock units covering 6,600 shares.",
+      "Exhibit 107 filing fee table lists two rows."
+    ],
+    "notes": [
+      "Fee-table prices are filing fee calculation facts, not live market context."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Inducement award rows are parsed from fixture text and Exhibit 107 only."
+    ]
+  }
+}

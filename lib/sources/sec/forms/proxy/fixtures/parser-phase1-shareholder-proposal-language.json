@@ -1,0 +1,9 @@
+{
+  "fixture_name": "parser-phase1-shareholder-proposal-language",
+  "input": {
+    "formType": "DEF 14A",
+    "accessionNumber": "0000000006-26-000006",
+    "companyName": "Shareholder Proposal Co.",
+    "filingText": "Stockholder Proposal: Independent board chair policy. A shareholder proposal submitted under Rule 14a-8 asks the company to adopt a policy requiring an independent chair."
+  }
+}

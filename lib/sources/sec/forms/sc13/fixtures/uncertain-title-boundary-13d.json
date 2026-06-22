@@ -1,0 +1,31 @@
+{
+  "case_id": "uncertain-title-boundary-13d",
+  "description": "Schedule 13D where Item 4 is identified only by its title heading.",
+  "filing": {
+    "formType": "SC 13D",
+    "accessionNumber": "0000000000-26-013005",
+    "issuerName": "Larch Networks Inc.",
+    "primaryTicker": {
+      "ticker": "LRCH",
+      "exchange": "NASDAQ"
+    },
+    "filedAt": "2026-04-10",
+    "text": "SC 13D\nSCHEDULE 13D\nLarch Networks Inc.\n(Name of Issuer)\nCommon Stock\n(Title of Class of Securities)\n510000105\n(CUSIP Number)\nName of Reporting Person: Meridian Holdings LLC\nAggregate Amount Beneficially Owned by Each Reporting Person: 4,000,000\nPercent of Class Represented by Amount in Row (11): 9.8%\nItem 1. Security and Issuer\nThis statement relates to the Common Stock of Larch Networks Inc.\nItem 2. Identity and Background\nThis statement is filed by Meridian Holdings LLC.\nItem 3. Source and Amount of Funds or Other Consideration\nThe source of funds was working capital.\nPurpose of Transaction\nThe Reporting Person acquired the shares for investment purposes and may review its investment from time to time.\nItem 5. Interest in Securities of the Issuer\nThe Reporting Person beneficially owns 4,000,000 shares, representing 9.8% of the class.\nSIGNATURE"
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "insider_ownership",
+    "deterministic": false,
+    "score_band": "feed",
+    "extracted_facts": {
+      "issuerName": "Larch Networks Inc.",
+      "reportingPersons": [
+        "Meridian Holdings LLC"
+      ],
+      "scheduleType": "13D",
+      "isAmendment": false,
+      "sharesBeneficiallyOwned": 4000000,
+      "percentOwned": 9.8
+    }
+  }
+}

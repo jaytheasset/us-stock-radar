@@ -1,0 +1,81 @@
+{
+  "filing": {
+    "rawItemId": "parser-10qa-xbrl-only-amendment",
+    "sourceUniqueId": "0000000000-25-000202",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1000001/000000000025000202/example-10qa.htm",
+    "title": "Acme Sensors Corp. Form 10-Q/A Amendment No. 1",
+    "publishedAt": "2025-05-12T12:00:00Z",
+    "metadata": {
+      "formType": "10-Q/A",
+      "ticker": "ACMS",
+      "exchange": "NYSE American"
+    },
+    "parentFilingContext": {
+      "accessionNumber": "0000000000-25-000155"
+    },
+    "rawPayload": {
+      "form_type": "10-Q/A",
+      "accession_number": "0000000000-25-000202",
+      "company_name": "Acme Sensors Corp.",
+      "documents": [
+        {
+          "type": "10-Q/A",
+          "description": "Quarterly report amendment",
+          "filename": "acms-20250331x10qa.htm",
+          "isPrimary": true,
+          "textCharCount": 4300,
+          "textTruncated": false
+        },
+        {
+          "type": "EX-101.INS",
+          "description": "Inline XBRL instance document",
+          "filename": "acms-20250331.xml",
+          "isPrimary": false,
+          "textCharCount": 1200,
+          "textTruncated": false
+        }
+      ],
+      "attachments": [
+        {
+          "type": "EX-101.INS",
+          "description": "Inline XBRL instance document",
+          "filename": "acms-20250331.xml",
+          "textCharCount": 1200,
+          "textTruncated": false
+        }
+      ],
+      "xbrl_facts": {
+        "us-gaap:Revenues": {
+          "label": "Revenues",
+          "value": 18500000,
+          "unitRef": "usd",
+          "decimals": "-6",
+          "contextRef": "CurrentQuarter",
+          "period": "2025-01-01/2025-03-31",
+          "statement": "Condensed Consolidated Statements of Operations",
+          "sourceDocument": "acms-20250331.xml"
+        },
+        "us-gaap:NetLoss": {
+          "label": "Net loss",
+          "value": -4200000,
+          "unitRef": "usd",
+          "decimals": "-6",
+          "contextRef": "CurrentQuarter",
+          "period": "2025-01-01/2025-03-31",
+          "statement": "Condensed Consolidated Statements of Operations",
+          "sourceDocument": "acms-20250331.xml"
+        }
+      }
+    },
+    "attachment_texts": [
+      {
+        "type": "EX-101.INS",
+        "description": "Inline XBRL instance document text extraction placeholder",
+        "filename": "acms-20250331.xml",
+        "text": "XBRL instance document contains us-gaap:Revenues and us-gaap:NetLoss facts for the current quarter.",
+        "textTruncated": false
+      }
+    ],
+    "bodyText": "UNITED STATES SECURITIES AND EXCHANGE COMMISSION\nFORM 10-Q/A\nAmendment No. 1\nFor the quarterly period ended March 31, 2025\nAcme Sensors Corp. (Exact name of registrant as specified in its charter)\nNevada (State or other jurisdiction of incorporation or organization)\nSecurities registered pursuant to Section 12(b) of the Act:\nTitle of each class Trading Symbol(s) Name of each exchange on which registered\nCommon stock, $0.001 par value ACMS NYSE American\nEXPLANATORY NOTE\nThis Amendment No. 1 to the Quarterly Report on Form 10-Q for the quarterly period ended March 31, 2025, originally filed with the SEC on May 7, 2025, is being filed solely to furnish Exhibit 101 Interactive Data File (XBRL). No other changes have been made to the Form 10-Q. This Amendment No. 1 does not amend, update or change any financial statements, notes, or other disclosures contained in the original filing.\nPART II\nITEM 6. Exhibits\nExhibit 31.1 Certification pursuant to Section 302. Exhibit 32.1 Certification pursuant to Section 906. Exhibit 101 Interactive Data Files formatted in Inline XBRL.\nSIGNATURES\nPursuant to the requirements of the Securities Exchange Act of 1934, the registrant has duly caused this amendment to be signed on its behalf.\n/s/ Principal Financial Officer"
+  }
+}

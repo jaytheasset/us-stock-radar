@@ -1,0 +1,115 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_8k_6k_parser_v1",
+    "parserGroup": "8k-6k",
+    "formType": "8-K / 6-K, 8-K/A / 6-K/A",
+    "accessionNumber": "0004444444-26-000004",
+    "isSupported": true,
+    "summary": "Summit Motors filed 8-K with 2 extracted item(s) and 1 source-backed filing cue(s).",
+    "facts": {
+      "companyName": "Summit Motors",
+      "ticker": "SMOT",
+      "secFormType": "8-K",
+      "isAmendment": false,
+      "items": [
+        {
+          "item": "7.01",
+          "label": "Regulation FD Disclosure."
+        },
+        {
+          "item": "9.01",
+          "label": "Financial Statements and Exhibits."
+        }
+      ],
+      "filingCues": [
+        {
+          "cueType": "sales_or_operating_update",
+          "label": "Sales, bookings, deliveries, production, or operating update language",
+          "evidence": "The Company delivered 18,420 vehicles in April 2026, up 27% from April 2025.",
+          "confidence": "medium",
+          "itemNumbers": [
+            "7.01",
+            "9.01"
+          ]
+        }
+      ]
+    },
+    "signals": [
+      {
+        "cueType": "sales_or_operating_update",
+        "label": "Sales, bookings, deliveries, production, or operating update language",
+        "evidence": "The Company delivered 18,420 vehicles in April 2026, up 27% from April 2025.",
+        "confidence": "medium",
+        "itemNumbers": [
+          "7.01",
+          "9.01"
+        ]
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "sales_performance",
+    "event_title": "Summit Motors reports April delivery growth",
+    "primary_ticker": {
+      "ticker": "SMOT",
+      "exchange": null
+    },
+    "tickers": [
+      "SMOT"
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 60,
+    "score_reason": "Monthly deliveries and preliminary revenue are useful operating indicators but not full earnings.",
+    "signal": "neutral",
+    "quick_take": "Summit reported April delivery and production growth.",
+    "summary": "The company delivered 18,420 vehicles in April 2026, up 27% from the prior year.",
+    "why_it_matters": "Delivery momentum can move expectations before formal earnings.",
+    "bullish_points": [
+      "Deliveries rose 27% year over year."
+    ],
+    "bearish_points": [],
+    "key_evidence": [
+      "The Company delivered 18,420 vehicles in April 2026, up 27% from April 2025."
+    ],
+    "what_to_watch_next": [
+      "Whether delivery growth converts into revenue and margin growth."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "medium",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "deliveries": "18,420 vehicles",
+      "production": "19,100 vehicles"
+    },
+    "evidence": [
+      "Production volumes were 19,100 vehicles."
+    ],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": true,
+    "market_context_reason": "Sales-performance updates should be compared with company scale and market reaction when available.",
+    "market_context_fields": [
+      "market_cap",
+      "volume",
+      "avg_volume"
+    ],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": []
+  }
+}

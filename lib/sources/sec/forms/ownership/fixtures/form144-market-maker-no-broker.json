@@ -1,0 +1,6 @@
+{
+  "id": "form144-market-maker-no-broker",
+  "formType": "144",
+  "accessionNumber": "0000000000-26-014502",
+  "filingText": "<?xml version=\"1.0\"?><edgarSubmission><headerData><submissionType>144</submissionType></headerData><formData><issuerInfo><issuerCik>0005555002</issuerCik><issuerName>Market Maker 144 Corp</issuerName><issuerTradingSymbol>MMKR</issuerTradingSymbol><nameOfPersonForWhoseAccountTheSecuritiesAreToBeSold>Market Seller</nameOfPersonForWhoseAccountTheSecuritiesAreToBeSold></issuerInfo><securitiesInformation><securitiesClassTitle>Class B Common</securitiesClassTitle><marketMakerDetails><name>Example Market Maker Inc.</name><marketMakerFileNumber>8-99999</marketMakerFileNumber></marketMakerDetails><noOfUnitsSold>5000</noOfUnitsSold><aggregateMarketValue>250000</aggregateMarketValue><noOfUnitsOutstanding>10000000</noOfUnitsOutstanding><approxSaleDate>06/01/2026</approxSaleDate><securitiesExchangeName>OTC</securitiesExchangeName></securitiesInformation><nothingToReportFlagOnSecuritiesSoldInPast3Months>Y</nothingToReportFlagOnSecuritiesSoldInPast3Months><noticeSignature><noticeDate>05/22/2026</noticeDate><signature>/s/ Market Seller</signature></noticeSignature></formData></edgarSubmission>"
+}

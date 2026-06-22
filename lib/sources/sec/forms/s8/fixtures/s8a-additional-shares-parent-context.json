@@ -1,0 +1,37 @@
+{
+  "fixtureName": "s8a-additional-shares-parent-context",
+  "formType": "S-8/A",
+  "accessionNumber": "0004444444-26-000040",
+  "filedAt": "2026-05-05",
+  "issuer": {
+    "name": "Delta Robotics, Inc.",
+    "ticker": "DLRB",
+    "exchange": "NASDAQ",
+    "sector": "Industrials",
+    "industry_group": "Automation Equipment"
+  },
+  "filingText": "This Amendment No. 1 to Form S-8 registers an additional 2,000,000 shares of common stock under the Delta Robotics, Inc. 2025 Stock Plan. The additional shares are authorized for future awards to employees, directors and consultants.",
+  "attachments": [],
+  "parentFilingContext": {
+    "accessionNumber": "0004444444-25-000200",
+    "formType": "S-8",
+    "filedAt": "2025-08-14",
+    "registeredShares": 5000000,
+    "planNames": ["Delta Robotics, Inc. 2025 Stock Plan"],
+    "summary": "Original S-8 registered 5,000,000 shares under the 2025 Stock Plan."
+  },
+  "marketContext": {
+    "price": 8.25,
+    "previous_close": 8.1,
+    "market_cap": 742500000,
+    "shares_outstanding": 90000000,
+    "public_float": 60000000,
+    "volume": 650000,
+    "avg_volume": 510000
+  },
+  "flowExpectation": {
+    "parserCanFinishWithoutLlm": false,
+    "routerCanFinishWithoutLlm": false,
+    "reason": "Parent context shows a material amendment that registers additional plan shares."
+  }
+}

@@ -1,0 +1,154 @@
+{
+  "pure-proxy-card-routine-items": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000071-26-000071",
+      "companyName": "Routine Card Co.",
+      "filingText": "<h2>Proxy Card</h2><table><tr><td>Proposal 1 Election of Directors</td><td>FOR ALL</td><td>WITHHOLD ALL</td><td>FOR ALL EXCEPT</td></tr><tr><td>Proposal 2 Ratification of Appointment of Independent Registered Public Accounting Firm</td><td>FOR</td><td>AGAINST</td><td>ABSTAIN</td></tr><tr><td>Proposal 3 Advisory Vote to Approve Executive Compensation</td><td>FOR</td><td>AGAINST</td><td>ABSTAIN</td></tr></table>"
+    }
+  },
+  "proxy-card-reverse-split": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000072-26-000072",
+      "companyName": "Reverse Card Co.",
+      "filingText": "<h2>Proxy Card</h2><table><tr><td>Proposal 1 Approval of Reverse Stock Split</td><td>FOR</td><td>AGAINST</td><td>ABSTAIN</td></tr></table>"
+    }
+  },
+  "proxy-card-equity-plan": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000073-26-000073",
+      "companyName": "Equity Card Co.",
+      "filingText": "<h2>Proxy Card</h2><table><tr><td>Proposal 2 Approval of Equity Incentive Plan</td><td>FOR</td><td>AGAINST</td><td>ABSTAIN</td></tr></table>"
+    }
+  },
+  "pure-vote-reminder": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000074-26-000074",
+      "companyName": "Reminder Co.",
+      "filingText": "<h1>Your Vote Is Important</h1><p>Please vote today by internet, phone, or mail using the control number on your proxy card.</p>"
+    }
+  },
+  "vote-reminder-with-supplement-update": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000075-26-000075",
+      "companyName": "Reminder Update Co.",
+      "filingText": "<h1>Your Vote Is Important</h1><p>This supplement updates the proxy statement to include a new proposal.</p><p>Proposal 4: Approval of Reverse Stock Split.</p>"
+    }
+  },
+  "pure-notice-internet-availability": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000076-26-000076",
+      "companyName": "Notice Co.",
+      "filingText": "<h1>Important Notice Regarding the Availability of Proxy Materials</h1><p>This is not a ballot. Proxy materials are available at https://example.com/proxy. Vote by internet, phone, or mail.</p>"
+    }
+  },
+  "notice-with-added-proposal": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000077-26-000077",
+      "companyName": "Notice Update Co.",
+      "filingText": "<h1>Important Notice Regarding the Availability of Proxy Materials</h1><p>This notice has been updated because a new proposal has been added.</p><p>Proposal 3: Advisory Vote to Approve Executive Compensation.</p>"
+    }
+  },
+  "toc-does-not-duplicate-body": {
+    "input": {
+      "formType": "DEF 14A",
+      "accessionNumber": "0000000078-26-000078",
+      "companyName": "TOC Hardening Co.",
+      "filingText": "TABLE OF CONTENTS\nProposal 1 Election of Directors 8\nProposal 2 Ratification of Appointment of Independent Registered Public Accounting Firm 14\n\nPROXY STATEMENT\nPROPOSAL 1: Election of Directors\nThe Board recommends a vote FOR each nominee.\n\nPROPOSAL 2: Ratification of Appointment of Independent Registered Public Accounting Firm\nThe Board recommends a vote FOR Proposal 2."
+    }
+  },
+  "multiline-proposal-title": {
+    "input": {
+      "formType": "DEF 14A",
+      "accessionNumber": "0000000079-26-000079",
+      "companyName": "Multiline Co.",
+      "filingText": "PROPOSAL NO. 2\nApproval of the 2026\nEquity Incentive Plan\nThe Board recommends a vote FOR Proposal 2."
+    }
+  },
+  "board-for-all-proposals": {
+    "input": {
+      "formType": "DEF 14A",
+      "accessionNumber": "0000000080-26-000080",
+      "companyName": "For All Co.",
+      "filingText": "PROPOSAL 1: Election of Directors\n\nPROPOSAL 2: Ratification of Appointment of Independent Registered Public Accounting Firm\n\nThe Board recommends a vote FOR all proposals."
+    }
+  },
+  "shareholder-recommendation-not-board": {
+    "input": {
+      "formType": "DEF 14A",
+      "accessionNumber": "0000000081-26-000081",
+      "companyName": "Proponent Co.",
+      "filingText": "Shareholder Proposal: Report on Lobbying\nThe following shareholder proposal was submitted by a proponent. The proponent recommends a vote FOR this shareholder proposal."
+    }
+  },
+  "board-against-shareholder-proposal": {
+    "input": {
+      "formType": "DEF 14A",
+      "accessionNumber": "0000000082-26-000082",
+      "companyName": "Against Proposal Co.",
+      "filingText": "Shareholder Proposal: Independent Chair\nThe following shareholder proposal was submitted by a proponent. The proponent recommends a vote FOR this shareholder proposal. Our Board recommends a vote AGAINST this shareholder proposal."
+    }
+  },
+  "supplement-parent-unavailable": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000083-26-000083",
+      "companyName": "Parent Warning Co.",
+      "filingText": "<h1>Supplement to the Proxy Statement</h1><p>This supplement to the proxy statement dated April 5, 2026 supplements the definitive proxy statement filed with the SEC on April 5, 2026.</p><p>Proposal 2: Ratification of Appointment of Independent Registered Public Accounting Firm.</p>"
+    }
+  },
+  "unclear-amendment-purpose": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000084-26-000084",
+      "companyName": "Unclear Purpose Co.",
+      "filingText": "<h1>Amendment to Proxy Statement</h1><p>This amendment to the proxy statement amends the proxy statement for the annual meeting.</p>"
+    }
+  },
+  "damaged-critical-table": {
+    "input": {
+      "formType": "DEF 14A",
+      "accessionNumber": "0000000085-26-000085",
+      "companyName": "Damaged Table Co.",
+      "filingText": "<h2>Executive Compensation</h2><table><caption>Summary Compensation Table</caption><tr><td>Malformed only one cell</td></tr></table>"
+    }
+  },
+  "image-heavy-substantive": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000086-26-000086",
+      "companyName": "Image Heavy Co.",
+      "filingText": "<html><body><img src=\"p1.jpg\"><img src=\"p2.jpg\"><img src=\"p3.jpg\"><img src=\"p4.jpg\"><p>Proposal 1: Approval of Merger Agreement.</p></body></html>"
+    }
+  },
+  "empty-or-malformed-document": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000087-26-000087",
+      "companyName": "Empty Co.",
+      "filingText": ""
+    }
+  },
+  "spac-ipo-listing": {
+    "input": {
+      "formType": "DEFA14A",
+      "accessionNumber": "0000000088-26-000088",
+      "companyName": "SPAC IPO Co.",
+      "filingText": "PROPOSAL 1: Approval of SPAC IPO and Nasdaq listing. The registration statement was declared effective for the special purpose acquisition company IPO and the units are expected to begin trading on Nasdaq on June 3, 2026."
+    }
+  },
+  "spac-business-combination-not-ipo": {
+    "input": {
+      "formType": "DEFM14A",
+      "accessionNumber": "0000000089-26-000089",
+      "companyName": "De-SPAC Co.",
+      "filingText": "PROPOSAL 1: Approval of the Business Combination Agreement with Target Robotics. Shareholders may elect redemption of public shares from the trust account. The Board recommends a vote FOR the business combination."
+    }
+  }
+}

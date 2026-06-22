@@ -1,0 +1,39 @@
+{
+  "title": "Arbor Battery Corp. Form 8-K registered direct offering",
+  "publishedAt": "2026-05-02T12:45:00Z",
+  "sourceUniqueId": "0002222222-26-000002",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/2222222/000222222226000002/",
+  "bodyText": "UNITED STATES\nFORM 8-K\nItem 1.01 Entry into a Material Definitive Agreement.\nOn May 2, 2026, Arbor Battery Corp. entered into a securities purchase agreement with institutional investors for a registered direct offering of 12,500,000 shares of common stock and warrants to purchase 12,500,000 shares. The purchase price is $2.00 per share and accompanying warrant. Gross proceeds are expected to be approximately $25.0 million before fees. The Company intends to use the net proceeds for working capital and general corporate purposes.\nItem 3.02 Unregistered Sales of Equity Securities.\nThe warrants will have an exercise price of $2.25 per share.",
+  "rawPayload": {
+    "form_type": "8-K",
+    "accession_number": "0002222222-26-000002",
+    "company_name": "Arbor Battery Corp.",
+    "ticker": "ABAT",
+    "documents": [
+      {
+        "type": "8-K",
+        "description": "Current report",
+        "url": "primary.htm",
+        "isPrimary": true,
+        "textCharCount": 780,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ]
+  },
+  "metadata": {
+    "company_name": "Arbor Battery Corp.",
+    "ticker": "ABAT"
+  },
+  "marketContext": {
+    "price": 2.42,
+    "market_cap": 84000000,
+    "shares_outstanding": 35200000,
+    "public_float": 24500000
+  },
+  "expected": {
+    "eventType": "dilution_risk",
+    "deliveryLevel": "alert"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "case_id": "malformed-markup-13d",
+  "description": "Malformed HTML/XML-like source that should use normalization fallback without crashing.",
+  "filing": {
+    "formType": "SCHEDULE 13D",
+    "accessionNumber": "0000000000-26-013019",
+    "issuerName": "Broken Markup Inc.",
+    "filedAt": "2026-05-05",
+    "text": "<html><body><div>SCHEDULE 13D<div>Name of Reporting Person<span>Fallback Partners LLC<div>Aggregate Amount Beneficially Owned by Each Reporting Person<span>500,000<div>Percent of Class Represented by Amount in Row (9)<span>5.2%<div>Item 4. Purpose of Transaction<p>Fallback Item 4 text<div>Item 7. Material to be Filed as Exhibits<p>Exhibit B - Power of Attorney"
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "insider_ownership",
+    "deterministic": false,
+    "score_band": "feed",
+    "extracted_facts": {
+      "sourceFlavor": "html",
+      "reportingPersons": [
+        "Fallback Partners LLC"
+      ],
+      "scheduleType": "13D",
+      "sharesBeneficiallyOwned": 500000,
+      "percentOwned": 5.2
+    }
+  }
+}

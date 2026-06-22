@@ -1,0 +1,38 @@
+{
+  "name": "edgar-cava-s1-ipo",
+  "source": {
+    "company": "CAVA Group, Inc.",
+    "form_type": "S-1",
+    "cik": "0001639438",
+    "accession": "0001628280-23-018945",
+    "filed_at": "2023-05-19",
+    "sec_url": "https://www.sec.gov/Archives/edgar/data/1639438/000162828023018945/cava-sx1.htm",
+    "text_basis": "edgar_original_excerpt"
+  },
+  "input": {
+    "formType": "S-1",
+    "accessionNumber": "0001628280-23-018945",
+    "metadata": {
+      "companyName": "CAVA Group, Inc.",
+      "ticker": "CAVA",
+      "exchange": "NYSE",
+      "filedAt": "2023-05-19"
+    },
+    "filingText": "As filed with the Securities and Exchange Commission on May 19, 2023. Registration No. 333-\nUNITED STATES SECURITIES AND EXCHANGE COMMISSION Washington, D.C. 20549 FORM S-1 REGISTRATION STATEMENT UNDER THE SECURITIES ACT OF 1933 CAVA GROUP, INC.\nSUBJECT TO COMPLETION, DATED , 2023 PRELIMINARY PROSPECTUS Shares CAVA GROUP, INC. Common Stock This is CAVA Group, Inc.’s initial public offering of our common stock (“common stock”). We are offering shares of common stock. Prior to this offering, there has been no public market for our common stock. We expect that the initial public offering price of our common stock will be between $ and $ per share. We intend to apply to list our common stock on the New York Stock Exchange (the “NYSE”) under the symbol “CAVA.”"
+  },
+  "expected": {
+    "event_type": "ipo_listing",
+    "score_band": "feed",
+    "delivery_level": "feed",
+    "deterministic": false,
+    "facts": {
+      "company_name": "CAVA Group, Inc.",
+      "ticker": "CAVA",
+      "exchange": "NYSE",
+      "registration_kind": "ipo",
+      "filing_variant": "base_registration",
+      "reported_form_type": "S-1",
+      "parent_context_needed": false
+    }
+  }
+}

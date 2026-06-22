@@ -1,0 +1,129 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_8k_6k_parser_v1",
+    "parserGroup": "8k-6k",
+    "formType": "8-K / 6-K, 8-K/A / 6-K/A",
+    "accessionNumber": "0015151515-26-000015",
+    "isSupported": true,
+    "summary": "Orchid Foods filed amended 8-K/A with 1 extracted item(s) and 1 source-backed filing cue(s).",
+    "facts": {
+      "companyName": "Orchid Foods",
+      "ticker": "ORFD",
+      "secFormType": "8-K/A",
+      "isAmendment": true,
+      "items": [
+        {
+          "item": "9.01",
+          "label": "Financial Statements and Exhibits."
+        }
+      ],
+      "filingCues": [
+        {
+          "cueType": "routine_administrative_amendment",
+          "label": "Routine or administrative amendment language",
+          "evidence": "This amendment corrects a typographical error in the exhibit caption and does not amend or update any other disclosure.",
+          "confidence": "high",
+          "itemNumbers": [
+            "9.01"
+          ]
+        }
+      ],
+      "amendment": {
+        "isAmendment": true,
+        "amendmentNumber": 1,
+        "parentAccessionNumber": "0015151515-26-000001",
+        "isRoutineAdministrativeOnly": true,
+        "hasMaterialChangeLanguage": false,
+        "needsParentContext": false
+      }
+    },
+    "signals": [
+      {
+        "cueType": "routine_administrative_amendment",
+        "label": "Routine or administrative amendment language",
+        "evidence": "This amendment corrects a typographical error in the exhibit caption and does not amend or update any other disclosure.",
+        "confidence": "high",
+        "itemNumbers": [
+          "9.01"
+        ]
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "other",
+    "event_title": "Orchid Foods files routine Form 8-K/A amendment",
+    "primary_ticker": {
+      "ticker": "ORFD",
+      "exchange": null
+    },
+    "tickers": [
+      "ORFD"
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 20,
+    "score_reason": "The amendment is exhibit/typographical cleanup and states no other disclosure was changed.",
+    "signal": "neutral",
+    "quick_take": "This is a routine amendment with no new material event in the fixture.",
+    "summary": "The company filed Form 8-K/A solely to furnish a corrected Exhibit 99.1 caption.",
+    "why_it_matters": "Routine corrections should not be treated as fresh market-moving events.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [
+      "This amendment corrects a typographical error in the exhibit caption and does not amend or update any other disclosure."
+    ],
+    "what_to_watch_next": [],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "amendment_type": "routine exhibit correction",
+      "parent_accession": "0015151515-26-000001",
+      "archive_summary": "Orchid Foods filed a Form 8-K/A solely to correct an Exhibit 99.1 caption and stated that no other disclosure was amended or updated. Limited market impact detected. The original source is included below for reference.",
+      "archive_reason": "The filing is a routine administrative amendment with no new material disclosure in the source text.",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/15151515/001515151526000015/",
+      "source_availability_note": "Fixture includes the primary Form 8-K/A text and SEC source URL. No separate exhibit text was included in the fixture.",
+      "selected_source_snippets": [
+        "This amendment corrects a typographical error in the exhibit caption and does not amend or update any other disclosure in the original Form 8-K.",
+        "No other changes have been made."
+      ],
+      "attachment_inventory": [
+        {
+          "type": "8-K/A",
+          "description": "Current report amendment",
+          "text_available": true,
+          "text_truncated": false
+        }
+      ]
+    },
+    "evidence": [
+      "No other changes have been made."
+    ],
+    "notes": [
+      "Deterministic parser/router archive case; LLM analysis is not needed for this fixture."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "When wired later, compare non-routine amendments with the parent filing if parser warnings request parent context."
+    ]
+  }
+}

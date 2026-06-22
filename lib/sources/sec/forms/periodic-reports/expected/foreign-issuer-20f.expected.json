@@ -1,0 +1,95 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_periodic_reports_parser_v1",
+    "parserGroup": "periodic-reports",
+    "formType": "20-F",
+    "accessionNumber": "0006666666-26-000012",
+    "isSupported": true,
+    "summary": "Orion Payments Ltd. filed 20-F for December 31, 2025; product update is the dominant event.",
+    "facts": {
+      "companyName": "Orion Payments Ltd.",
+      "primaryTicker": "OPAY",
+      "exchange": "Nasdaq Global Market",
+      "reportingPeriod": "December 31, 2025",
+      "fiscalYear": "2025",
+      "dominantParserEventType": "product_update",
+      "productUpdate": "new cross-border payments platform in Brazil and Mexico"
+    },
+    "signals": [
+      {
+        "event_type": "product_update",
+        "signal_type": "product_update",
+        "strength": "medium",
+        "summary": "20-F includes a product and customer rollout update.",
+        "evidence": "The company launched a new cross-border payments platform in Brazil and Mexico during the fourth quarter and completed major customer rollout with three enterprise merchants.",
+        "deterministic": false
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {
+      "processing_path": "parser_router_analysis",
+      "market_context_used": false
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "product_update",
+    "event_title": "Orion Payments expands cross-border platform in Latin America",
+    "primary_ticker": {
+      "ticker": "OPAY",
+      "exchange": "Nasdaq Global Market"
+    },
+    "tickers": ["OPAY"],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 56,
+    "score_reason": "Feed-level score because the 20-F discloses a meaningful product rollout, but the filing does not provide enough economics to justify alert-level impact.",
+    "signal": "bullish",
+    "quick_take": "OPAY's 20-F highlights expansion of its cross-border payments platform in Brazil and Mexico.",
+    "summary": "Orion launched a new cross-border payments platform in Brazil and Mexico and completed rollout with three enterprise merchants.",
+    "why_it_matters": "The rollout may expand Orion's addressable market and enterprise customer base, but the filing does not quantify revenue contribution.",
+    "bullish_points": [
+      "The platform launched in two large Latin American markets.",
+      "The company disclosed rollout with three enterprise merchants."
+    ],
+    "bearish_points": [
+      "The filing does not quantify adoption, margins, or revenue from the rollout."
+    ],
+    "key_evidence": [
+      "The company launched a new cross-border payments platform in Brazil and Mexico during the fourth quarter and completed major customer rollout with three enterprise merchants."
+    ],
+    "what_to_watch_next": [
+      "Revenue contribution or transaction-volume metrics from the new platform.",
+      "Additional country launches or enterprise merchant wins."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "medium",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "markets": ["Brazil", "Mexico"],
+      "customer_rollout_count": 3
+    },
+    "evidence": [
+      "The company launched a new cross-border payments platform in Brazil and Mexico during the fourth quarter and completed major customer rollout with three enterprise merchants."
+    ],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": []
+  }
+}

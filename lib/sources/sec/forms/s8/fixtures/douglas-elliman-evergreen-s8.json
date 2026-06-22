@@ -1,0 +1,28 @@
+{
+  "fixtureName": "douglas-elliman-evergreen-s8",
+  "formType": "S-8",
+  "accessionNumber": "0001878897-26-000034",
+  "filedAt": "2026-05-22",
+  "issuer": {
+    "name": "Douglas Elliman Inc.",
+    "ticker": "DOUG",
+    "exchange": "NYSE",
+    "sector": "Real Estate",
+    "industry_group": "Real Estate Services"
+  },
+  "filingText": "EXPLANATORY NOTE This registration statement on Form S-8 (this \"Registration Statement\") is being filed by Douglas Elliman Inc., a Delaware corporation (the \"Registrant\" or the \"Company\") for the purpose of registering (i) 3,529,918 additional shares of its common stock, par value $0.01 per share (\"Common Stock\"), issuable under the Douglas Elliman Inc. 2021 Management Incentive Plan (the \"Management Incentive Plan\") and (ii) 882,479 additional shares of Common Stock issuable under the Douglas Elliman Inc. 2021 Employee Stock Purchase Plan (the \"ESPP\"), pursuant to the Evergreen Provisions contained in each of the Management Incentive Plan and the ESPP. On January 1, 2026, the number of shares of Common Stock reserved for issuance and available for grant and issuance under the Management Incentive Plan and the ESPP increased by 3,529,918 shares and 882,479 shares, respectively, pursuant to the Evergreen Provisions. In accordance with General Instruction E of Form S-8, the contents of the registration statements of the Company on Form S-8 filed with the Securities and Exchange Commission on December 30, 2021 (File No. 333-261959), August 14, 2023 (File No. 333-273978), January 8, 2024 (File No. 333-276423) and May 1, 2025 (File No. 333-286888), including any amendments thereto or filings incorporated therein, are incorporated herein by reference and made part of this Registration Statement, except as amended hereby.",
+  "attachments": [
+    {
+      "documentType": "EX-FILING FEES",
+      "description": "Exhibit 107 inline XBRL filing fee table from exfilingfees.htm",
+      "text": "<ix:nonNumeric contextRef=\"c-1\" name=\"ffd:FormTp\">S-8</ix:nonNumeric><ix:nonNumeric contextRef=\"c-2\" name=\"ffd:OfferingSctyTp\">Equity</ix:nonNumeric><ix:nonNumeric contextRef=\"c-2\" name=\"ffd:OfferingSctyTitl\">Douglas Elliman Inc. Common Stock, par value $0.01 per share, that may be issued under the Douglas Elliman Inc. 2021 Management Incentive Plan</ix:nonNumeric><ix:nonNumeric contextRef=\"c-2\" name=\"ffd:Rule457aFlg\" format=\"ixt:fixed-true\">Other(2)</ix:nonNumeric><ix:nonFraction unitRef=\"shares\" contextRef=\"c-2\" decimals=\"INF\" name=\"ffd:AmtSctiesRegd\" format=\"ixt:num-dot-decimal\" scale=\"0\">3,529,918</ix:nonFraction><ix:nonFraction unitRef=\"usd\" contextRef=\"c-2\" decimals=\"2\" name=\"ffd:MaxOfferingPricPerScty\" scale=\"0\">1.61</ix:nonFraction><ix:nonFraction unitRef=\"usd\" contextRef=\"c-2\" decimals=\"2\" name=\"ffd:MaxAggtOfferingPric\" format=\"ixt:num-dot-decimal\" scale=\"0\">5,683,167.98</ix:nonFraction><ix:nonFraction unitRef=\"number\" contextRef=\"c-2\" decimals=\"7\" name=\"ffd:FeeRate\" scale=\"0\">0.0001381</ix:nonFraction><ix:nonFraction unitRef=\"usd\" contextRef=\"c-2\" decimals=\"2\" name=\"ffd:FeeAmt\" scale=\"0\">784.85</ix:nonFraction><ix:nonNumeric contextRef=\"c-3\" name=\"ffd:OfferingSctyTp\">Equity</ix:nonNumeric><ix:nonNumeric contextRef=\"c-3\" name=\"ffd:OfferingSctyTitl\">Douglas Elliman Inc. Common Stock, par value $0.01 per share, that may be issued under the Douglas Elliman Inc. 2021 Employee Stock Purchase Plan</ix:nonNumeric><ix:nonNumeric contextRef=\"c-3\" name=\"ffd:Rule457aFlg\" format=\"ixt:fixed-true\">Other(2)</ix:nonNumeric><ix:nonFraction unitRef=\"shares\" contextRef=\"c-3\" decimals=\"INF\" name=\"ffd:AmtSctiesRegd\" format=\"ixt:num-dot-decimal\" scale=\"0\">882,479</ix:nonFraction><ix:nonFraction unitRef=\"usd\" contextRef=\"c-3\" decimals=\"2\" name=\"ffd:MaxOfferingPricPerScty\" scale=\"0\">1.61</ix:nonFraction><ix:nonFraction unitRef=\"usd\" contextRef=\"c-3\" decimals=\"2\" name=\"ffd:MaxAggtOfferingPric\" format=\"ixt:num-dot-decimal\" scale=\"0\">1,420,791.19</ix:nonFraction><ix:nonFraction unitRef=\"number\" contextRef=\"c-3\" decimals=\"7\" name=\"ffd:FeeRate\" scale=\"0\">0.0001381</ix:nonFraction><ix:nonFraction unitRef=\"usd\" contextRef=\"c-3\" decimals=\"2\" name=\"ffd:FeeAmt\" scale=\"0\">196.21</ix:nonFraction><ix:nonFraction unitRef=\"usd\" contextRef=\"c-1\" decimals=\"2\" name=\"ffd:TtlOfferingAmt\" scale=\"0\">7,103,959.17</ix:nonFraction><ix:nonFraction unitRef=\"usd\" contextRef=\"c-1\" decimals=\"2\" name=\"ffd:TtlFeeAmt\" scale=\"0\">981.06</ix:nonFraction>"
+    }
+  ],
+  "parentFilingContext": null,
+  "marketContext": null,
+  "flowExpectation": {
+    "parserCanFinishWithoutLlm": false,
+    "routerCanFinishWithoutLlm": false,
+    "reason": "The additional-share registration and Exhibit 107/iXBRL fee rows are mechanically extractable, but parser-only close is limited to safe administrative amendments."
+  }
+}

@@ -27,6 +27,7 @@ const ALERT_CATEGORIES = new Set([
   "product_update",
   "leadership_governance",
   "insider_ownership",
+  "ipo_listing",
   "shareholder_vote",
   "strategic_transaction",
   "financial_risk",
@@ -89,6 +90,22 @@ async function runDelivery(id, options) {
     };
   }
 
+  if (normalized.event.deliveryLevel !== "alert") {
+    return {
+      ok: true,
+      event: normalized.event,
+      candidates: [],
+      skipped: [
+        {
+          reason: "EVENT_NOT_ALERT_DELIVERY_LEVEL",
+          detail: `delivery_level=${normalized.event.deliveryLevel || "unknown"}`,
+        },
+      ],
+      writes: [],
+      stats: { candidateCount: 0, skippedCount: 1, writtenCount: 0, duplicateCount: 0 },
+    };
+  }
+
   const evaluation = await evaluate(normalized.event);
   const writes = [];
 
@@ -148,6 +165,7 @@ async function normalizeEvent(id) {
     tickers[0];
   const score = readNumber(event.score, 0);
   const impact = readString(event.impact);
+  const deliveryLevel = readDeliveryLevel(event.delivery_level);
   const category = ALERT_CATEGORIES.has(readString(event.event_type)) ? readString(event.event_type) : "other";
   const sourceGroup = readString(event.source_group);
 
@@ -162,6 +180,7 @@ async function normalizeEvent(id) {
       sourceType: sourceGroup === "filings" ? "filing" : sourceGroup === "news" ? "news" : "other",
       sourceLabel: readString(event.source_name) || readString(event.source_code) || null,
       severity: score >= 90 ? "critical" : score >= 75 || impact === "high" ? "high" : score >= 50 ? "medium" : "low",
+      deliveryLevel,
       publishedAt: readString(event.published_at) || readString(event.detected_at) || null,
     },
   };
@@ -287,7 +306,7 @@ async function processImmediateChannels(event, candidate) {
     }
 
     if (channel.channel === "telegram") {
-      if (env.ALERT_DELIVERY_SEND_TELEGRAM !== "true") continue;
+      if (env.ALERT_DELIVERY_SEND_TELEGRAM === "false") continue;
       const sent = await sendTelegramMessage(channel.destination || "", formatTelegramMessage(event));
       if (sent.ok) channels.push("telegram");
       else errors.push(`telegram: ${sanitizeError(sent.error || "Telegram send failed")}`);
@@ -301,7 +320,7 @@ async function processImmediateChannels(event, candidate) {
 }
 
 async function sendTelegramMessage(chatId, text) {
-  if (env.ALERT_DELIVERY_SEND_TELEGRAM !== "true") {
+  if (env.ALERT_DELIVERY_SEND_TELEGRAM === "false") {
     return { ok: false, error: "Telegram sending is disabled." };
   }
 
@@ -476,6 +495,7 @@ function toPrintableResult(result) {
           category: result.event.category,
           sourceType: result.event.sourceType,
           severity: result.event.severity,
+          deliveryLevel: result.event.deliveryLevel,
         }
       : null,
     candidates: result.candidates.map((candidate) => ({
@@ -520,6 +540,12 @@ function readNumber(value, fallback) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) return Number(value);
   return fallback;
+}
+
+function readDeliveryLevel(value) {
+  const level = readString(value);
+  if (level === "archive" || level === "feed" || level === "alert") return level;
+  return "";
 }
 
 function readString(value) {

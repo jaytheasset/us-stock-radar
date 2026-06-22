@@ -1,0 +1,89 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_425_parser_v1",
+    "parserGroup": "425",
+    "formType": "425",
+    "accessionNumber": "0000000000-26-000431",
+    "isSupported": true,
+    "summary": "Form 425 announces an adjourned shareholder meeting reconvening on 2026-03-27.",
+    "facts": {
+      "company_name": "Mercury Capital Corp IV",
+      "primary_ticker": "MCIV",
+      "communication_types": ["proxy_solicitation", "meeting_adjournment"],
+      "vote": {
+        "meeting_date": "2026-03-27",
+        "record_date": "2026-02-21",
+        "reconvened_date": "2026-03-27",
+        "adjourned": true,
+        "no_vote_conducted": false
+      }
+    },
+    "signals": [
+      {
+        "type": "meeting_adjournment",
+        "value": "2026-03-27",
+        "evidence": "Mercury further announced that it has adjourned the meeting until 9:00 a.m., Eastern time, on Friday, March 27, 2026.",
+        "confidence": "medium"
+      }
+    ],
+    "calendarItems": [
+      {
+        "type": "shareholder_vote",
+        "date": "2026-03-27",
+        "label": "Shareholder vote meeting",
+        "evidence": "Mercury further announced that it has adjourned the meeting until 9:00 a.m., Eastern time, on Friday, March 27, 2026."
+      }
+    ],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "shareholder_vote",
+    "event_title": "Mercury adjourns merger vote to seek remaining approval",
+    "primary_ticker": { "ticker": "MCIV", "exchange": "NYSE" },
+    "tickers": [{ "ticker": "MCIV", "exchange": "NYSE" }],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": "M&A",
+    "sub_theme": "Vote adjournment",
+    "score": 62,
+    "score_reason": "Feed-level because the filing gives a reconvened meeting date and says one required proposal still needs votes.",
+    "signal": "volatile",
+    "quick_take": "The merger vote was adjourned to obtain more votes for a required proposal.",
+    "summary": "Mercury adjourned and reconvened its special meeting to March 27, 2026 after all but one proposal had been approved.",
+    "why_it_matters": "Adjournment indicates a live approval condition and gives investors a new vote catalyst.",
+    "bullish_points": ["Most related proposals were already approved."],
+    "bearish_points": ["One required proposal still needed additional votes."],
+    "key_evidence": ["The company still needs additional votes to obtain approval for that proposal by a majority of its outstanding shares."],
+    "what_to_watch_next": ["Vote result at the reconvened March 27, 2026 meeting."],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "type": "reconvened_shareholder_meeting",
+        "date": "2026-03-27",
+        "label": "Reconvened shareholder meeting",
+        "evidence": "The meeting was adjourned until March 27, 2026."
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": { "reconvened_date": "2026-03-27", "reason": "additional votes needed" },
+    "evidence": ["The meeting was adjourned until March 27, 2026."],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": []
+  }
+}

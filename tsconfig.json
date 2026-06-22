@@ -13,6 +13,7 @@
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
@@ -36,6 +37,9 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "lib/sources/sec/forms/**/*.test.ts",
+    "lib/sources/sec/forms/**/*.real-sec.test.ts",
+    "lib/sources/sec/forms/**/parser.validation.test.ts"
   ]
 }

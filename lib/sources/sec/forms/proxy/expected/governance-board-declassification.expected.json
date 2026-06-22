@@ -1,0 +1,176 @@
+{
+  "parser_output": {
+    "parserVersion": "proxy-parser-v1",
+    "parserGroup": "proxy",
+    "formType": "Proxy",
+    "accessionNumber": "0001000005-26-000606",
+    "isSupported": true,
+    "summary": "Annual proxy for MetroGrid Energy covering 2 proposals for a meeting on October 6, 2026.",
+    "facts": {
+      "companyName": "MetroGrid Energy",
+      "primaryTicker": {
+        "ticker": "MGRD",
+        "exchange": "NYSE"
+      },
+      "secFormType": "DEF 14A",
+      "proxyType": "annual",
+      "meetingDate": "October 6, 2026",
+      "recordDate": "August 14, 2026",
+      "proposalCount": 2,
+      "proposals": [
+        {
+          "id": "1",
+          "title": "Election of directors",
+          "category": "director_election",
+          "recommendation": "FOR",
+          "sourceText": "Proposal 1: Election of directors. Board recommendation: FOR.",
+          "isShareholderProposal": false
+        },
+        {
+          "id": "4",
+          "title": "Declassify the board of directors and provide for annual election of all directors",
+          "category": "governance",
+          "recommendation": "FOR",
+          "sourceText": "Proposal 4: Declassify the board of directors and provide for annual election of all directors. Board recommendation: FOR.",
+          "isShareholderProposal": false
+        }
+      ],
+      "ownership": {
+        "maxBeneficialOwnershipPercent": null,
+        "holder": null,
+        "sourceText": null
+      },
+      "dilution": {
+        "hasEquityPlanVote": false,
+        "sharesRequested": null,
+        "percentOfOutstanding": null,
+        "proposalIds": []
+      },
+      "transaction": {
+        "hasTransactionVote": false,
+        "consideration": null,
+        "voteRequired": null,
+        "proposalIds": []
+      },
+      "legal": {
+        "hasLegalRiskProposal": false,
+        "proposalIds": [],
+        "topics": []
+      },
+      "deterministic": {
+        "canFinishWithoutLlm": false,
+        "reason": null,
+        "eventType": null,
+        "suggestedScore": null
+      }
+    },
+    "signals": [
+      {
+        "name": "governance_vote",
+        "eventType": "leadership_governance",
+        "severity": "medium",
+        "evidence": "Proposal 4: Declassify the board of directors and provide for annual election of all directors. Board recommendation: FOR.",
+        "proposalId": "4"
+      }
+    ],
+    "calendarItems": [
+      {
+        "type": "shareholder_meeting",
+        "date": "October 6, 2026",
+        "description": "MetroGrid Energy annual meeting"
+      },
+      {
+        "type": "record_date",
+        "date": "August 14, 2026",
+        "description": "Record date for shareholder voting"
+      }
+    ],
+    "warnings": [],
+    "raw": {
+      "secFormType": "DEF 14A",
+      "attachmentNames": [],
+      "market_context": null
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "leadership_governance",
+    "event_title": "Board declassification vote",
+    "primary_ticker": {
+      "ticker": "MGRD",
+      "exchange": "NYSE"
+    },
+    "tickers": [
+      {
+        "ticker": "MGRD",
+        "exchange": "NYSE"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 58,
+    "score_reason": "The proxy includes a governance proposal to declassify the board and move toward annual director elections.",
+    "signal": "neutral",
+    "quick_take": "MetroGrid is asking shareholders to approve board declassification over three annual meetings.",
+    "summary": "MetroGrid Energy filed an annual proxy with a proposal to declassify the board and provide for annual election of all directors.",
+    "why_it_matters": "Board declassification can increase director accountability and change the governance profile watched by long-term shareholders.",
+    "bullish_points": [
+      "Annual director elections can improve shareholder accountability.",
+      "The board recommends voting for the governance change."
+    ],
+    "bearish_points": [],
+    "key_evidence": [
+      "Proposal 4: Declassify the board of directors and provide for annual election of all directors. Board recommendation: FOR.",
+      "The proposal would phase out staggered director terms over three annual meetings."
+    ],
+    "what_to_watch_next": [
+      "Shareholder vote result on Proposal 4.",
+      "Implementation timing if the proposal is approved."
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "type": "shareholder_meeting",
+        "date": "October 6, 2026",
+        "description": "MetroGrid Energy annual meeting"
+      },
+      {
+        "type": "record_date",
+        "date": "August 14, 2026",
+        "description": "Record date for shareholder voting"
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "candidate_special",
+    "data": {
+      "proposal_id": "4",
+      "proposal_title": "Declassify the board of directors and provide for annual election of all directors",
+      "board_recommendation": "FOR",
+      "meeting_date": "October 6, 2026"
+    },
+    "evidence": [
+      "Proposal 4: Declassify the board of directors and provide for annual election of all directors. Board recommendation: FOR."
+    ],
+    "notes": [
+      "Governance proposal vote details may need a future structured proxy-proposal display; this room does not implement UI."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": true,
+    "special_ui_reason": "Governance proposal details would benefit from structured vote fields and implementation status after the meeting.",
+    "integration_notes": [
+      "Delivery level derives from score 58."
+    ]
+  }
+}

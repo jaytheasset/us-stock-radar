@@ -1,0 +1,13 @@
+{
+  "fixture_name": "annual-meeting-routine",
+  "input": {
+    "formType": "DEF 14A",
+    "accessionNumber": "0001000000-26-000101",
+    "companyName": "Acme Components",
+    "primaryTicker": {
+      "ticker": "ACMX",
+      "exchange": "NASDAQ"
+    },
+    "filingText": "ACME COMPONENTS, INC. 2026 Proxy Statement\nThe Annual Meeting of Shareholders will be held on June 12, 2026.\nThe record date for voting is April 30, 2026.\nProposal 1: Election of three directors. Board recommendation: FOR.\nProposal 2: Ratification of independent registered public accounting firm. Board recommendation: FOR.\nProposal 3: Advisory vote to approve executive compensation. Board recommendation: FOR.\nNo other matters are expected to be presented at the annual meeting."
+  }
+}

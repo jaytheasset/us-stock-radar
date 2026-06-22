@@ -1,0 +1,98 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_periodic_reports_parser_v1",
+    "parserGroup": "periodic-reports",
+    "formType": "20-F",
+    "accessionNumber": "0004444444-26-000009",
+    "isSupported": true,
+    "summary": "HelioGrid PLC filed 20-F for December 31, 2025; legal and regulatory risk are the dominant event.",
+    "facts": {
+      "companyName": "HelioGrid PLC",
+      "primaryTicker": "HLGD",
+      "exchange": "Nasdaq Global Select Market",
+      "reportingPeriod": "December 31, 2025",
+      "fiscalYear": "2025",
+      "dominantParserEventType": "legal_risk",
+      "legalProceedings": "SEC subpoena and parallel Department of Justice investigation"
+    },
+    "signals": [
+      {
+        "event_type": "legal_risk",
+        "signal_type": "legal_proceedings",
+        "strength": "medium",
+        "summary": "20-F discloses SEC and DOJ matters plus securities litigation.",
+        "evidence": "The company is responding to an SEC subpoena and a parallel Department of Justice investigation related to revenue recognition for certain distributor contracts.",
+        "deterministic": false
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {
+      "processing_path": "parser_router_analysis",
+      "market_context_used": false
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "legal_risk",
+    "event_title": "HelioGrid discloses SEC, DOJ and securities litigation risk",
+    "primary_ticker": {
+      "ticker": "HLGD",
+      "exchange": "Nasdaq Global Select Market"
+    },
+    "tickers": ["HLGD"],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 78,
+    "score_reason": "Alert-level score because the 20-F identifies regulatory investigations tied to revenue recognition plus a securities class action.",
+    "signal": "bearish",
+    "quick_take": "HLGD's annual report elevates legal risk around revenue recognition through SEC, DOJ, and securities litigation disclosures.",
+    "summary": "HelioGrid disclosed an SEC subpoena, a parallel DOJ investigation related to distributor-contract revenue recognition, and a putative securities class action.",
+    "why_it_matters": "Revenue-recognition investigations can create restatement, penalty, control, and management credibility risk even before any liability is established.",
+    "bullish_points": [
+      "The filing does not state that liability has been determined."
+    ],
+    "bearish_points": [
+      "The disclosure involves both SEC and DOJ processes.",
+      "The matters relate to revenue recognition, a core reported financial metric.",
+      "A securities class action has also been filed."
+    ],
+    "key_evidence": [
+      "The company is responding to an SEC subpoena and a parallel Department of Justice investigation related to revenue recognition for certain distributor contracts.",
+      "A putative securities class action lawsuit was also filed in the United States District Court."
+    ],
+    "what_to_watch_next": [
+      "Any restatement, material weakness, settlement, or enforcement update.",
+      "Follow-up risk-factor or legal-proceedings disclosure in the next periodic report."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "legal_matter_type": "SEC subpoena, DOJ investigation, securities class action",
+      "topic": "revenue recognition"
+    },
+    "evidence": [
+      "The company is responding to an SEC subpoena and a parallel Department of Justice investigation related to revenue recognition for certain distributor contracts.",
+      "A putative securities class action lawsuit was also filed in the United States District Court."
+    ],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": []
+  }
+}

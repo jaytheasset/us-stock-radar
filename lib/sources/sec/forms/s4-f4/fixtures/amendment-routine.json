@@ -1,0 +1,42 @@
+{
+  "id": "amendment-routine",
+  "description": "Routine S-4/A filed only for exhibits and signatures with no transaction changes.",
+  "formType": "S-4/A",
+  "accessionNumber": "0006666666-26-000606",
+  "filingDate": "2026-05-07",
+  "companyName": "Summit Cloud Software Inc.",
+  "primaryTicker": {
+    "ticker": "SMIT",
+    "exchange": "NASDAQ"
+  },
+  "participants": [
+    {
+      "name": "Summit Cloud Software Inc.",
+      "ticker": "SMIT",
+      "exchange": "NASDAQ",
+      "role": "acquirer"
+    },
+    {
+      "name": "Ridge Analytics Ltd.",
+      "ticker": "RDGE",
+      "exchange": "NYSE",
+      "role": "target"
+    }
+  ],
+  "filingText": "This Amendment No. 1 to Form S-4 is filed solely to file Exhibit 8.1 tax opinion and updated signatures. This amendment does not modify the merger agreement. There is no change to the merger consideration, no change to the meeting date, and no change to risk factors from the prior registration statement.",
+  "attachments": [
+    {
+      "type": "exhibit",
+      "description": "Exhibit 8.1 tax opinion"
+    }
+  ],
+  "market_context": null,
+  "parentFilingContext": {
+    "accessionNumber": "0006666666-26-000577",
+    "formType": "S-4",
+    "summary": "Initial S-4 for Summit Cloud acquisition of Ridge Analytics.",
+    "terms": {
+      "consideration": "stock-for-stock merger"
+    }
+  }
+}

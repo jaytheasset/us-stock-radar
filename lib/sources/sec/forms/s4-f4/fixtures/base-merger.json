@@ -1,0 +1,35 @@
+{
+  "id": "base-merger",
+  "description": "Initial S-4 registration statement for a stock-for-stock merger.",
+  "formType": "S-4",
+  "accessionNumber": "0001111111-26-000101",
+  "filingDate": "2026-04-01",
+  "companyName": "Alpha Robotics Corp.",
+  "primaryTicker": {
+    "ticker": "ALFA",
+    "exchange": "NASDAQ"
+  },
+  "participants": [
+    {
+      "name": "Alpha Robotics Corp.",
+      "ticker": "ALFA",
+      "exchange": "NASDAQ",
+      "role": "acquirer"
+    },
+    {
+      "name": "Beta Vision Inc.",
+      "ticker": "BETA",
+      "exchange": "NYSE",
+      "role": "target"
+    }
+  ],
+  "filingText": "This registration statement on Form S-4 relates to the proposed merger of Beta Vision Inc. with and into a wholly owned subsidiary of Alpha Robotics Corp. At the effective time, each share of Beta Vision common stock will be converted into the right to receive 0.45 shares of Alpha Robotics common stock for each Beta Vision share. Alpha Robotics registers up to 18,000,000 shares of common stock for issuance in the merger. The transaction is subject to regulatory approval and customary closing conditions. The boards of directors of Alpha Robotics and Beta Vision unanimously recommend the merger.",
+  "attachments": [
+    {
+      "type": "agreement",
+      "description": "Agreement and Plan of Merger"
+    }
+  ],
+  "market_context": null,
+  "parentFilingContext": null
+}

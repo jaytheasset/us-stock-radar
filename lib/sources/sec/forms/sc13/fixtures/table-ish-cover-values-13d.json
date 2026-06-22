@@ -1,0 +1,25 @@
+{
+  "case_id": "table-ish-cover-values-13d",
+  "description": "Schedule 13D cover rows where labels and values are split across table-ish lines.",
+  "filing": {
+    "formType": "SCHEDULE 13D",
+    "accessionNumber": "0000000000-26-013010",
+    "issuerName": "Slate Foundry Inc.",
+    "filedAt": "2026-04-02",
+    "text": "SCHEDULE 13D\nSlate Foundry Inc.\n(Name of Issuer)\nCommon Stock\n(Title of Class of Securities)\n830000110\n(CUSIP Number)\n1\n|\nName of Reporting Person\n|\nSlate Capital LLC\n|\n2\n|\nCheck the Appropriate Box if a Member of a Group\n|\n(a) [ ]\n|\n(b) [X]\n|\n4\n|\nCitizenship or Place of Organization\n|\nNevada\n|\n5\n|\nSole Voting Power\n|\n1 250 000\n|\n6\n|\nShared Voting Power\n|\n0\n|\n7\n|\nSole Dispositive Power\n|\n1 250 000\n|\n8\n|\nShared Dispositive Power\n|\n0\n|\n9\n|\nAggregate Amount Beneficially Owned by Each Reporting Person\n|\n1,250,000 (1)\n|\n11\n|\nPercent of Class Represented by Amount in Row (9)\n|\n7.5% (1)\n|\n12\n|\nType of Reporting Person\n|\nOO\nItem 4. Purpose of Transaction\nThe securities were acquired for investment purposes.\nItem 5. Interest in Securities of the Issuer\nThe Reporting Person beneficially owns 1,250,000 shares, representing 7.5% of the class.\nSIGNATURE"
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "insider_ownership",
+    "deterministic": false,
+    "score_band": "feed",
+    "extracted_facts": {
+      "reportingPersons": [
+        "Slate Capital LLC"
+      ],
+      "scheduleType": "13D",
+      "sharesBeneficiallyOwned": 1250000,
+      "percentOwned": 7.5
+    }
+  }
+}

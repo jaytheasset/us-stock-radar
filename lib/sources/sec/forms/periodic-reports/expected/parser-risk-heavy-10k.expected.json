@@ -1,0 +1,77 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_periodic_reports_raw_parser_v3",
+    "parserGroup": "periodic-reports",
+    "formType": "10-K",
+    "accessionNumber": "0000000000-25-000404",
+    "isSupported": true,
+    "facts": {
+      "companyName": "Nova Therapeutics Inc.",
+      "primaryTicker": "NOVA",
+      "exchange": "Nasdaq Capital Market",
+      "reportingPeriod": "December 31, 2024",
+      "isAmendment": false
+    }
+  },
+  "expected_raw_extraction": {
+    "missing_critical_raw_data": false,
+    "has_noise_candidates": true,
+    "min_section_count": 7,
+    "min_financial_statement_lines": 6,
+    "section_keys_present": [
+      "part_i_item_1_business",
+      "part_i_item_1a_risk_factors",
+      "part_i_item_1c_cybersecurity",
+      "part_ii_item_7_management_s_discussion_and_analysis_of_financial_condition",
+      "part_ii_item_9a_controls_and_procedures"
+    ],
+    "coverage_ids_present": [
+      "filing_text",
+      "form_type",
+      "accession_number",
+      "company_name",
+      "reporting_period",
+      "cover_security_identifiers",
+      "section_boundaries",
+      "financial_or_mda_raw",
+      "noise_scan"
+    ],
+    "evidence_categories_present": [
+      "financial_statement_line",
+      "listing_notice_raw",
+      "financial_risk_raw",
+      "controls_raw",
+      "legal_raw",
+      "fda_clinical_raw",
+      "cybersecurity_raw",
+      "transaction_raw",
+      "business_update_raw",
+      "sales_performance_raw"
+    ],
+    "evidence_labels_present": [
+      "exchange_deficiency_or_delisting_notice",
+      "going_concern_language",
+      "liquidity_or_cash_runway_language",
+      "debt_default_or_covenant_language",
+      "material_weakness_language",
+      "legal_or_regulatory_proceedings",
+      "fda_or_clinical_trial_language",
+      "cybersecurity_item_or_material_incident_language",
+      "strategic_transaction_or_asset_sale_language",
+      "product_launch_or_customer_rollout_language",
+      "revenue_change_language"
+    ],
+    "noise_categories_present": [
+      "forward_looking",
+      "signatures",
+      "certifications",
+      "document_exhibit"
+    ],
+    "warnings_exclude": [
+      "missing_filing_text",
+      "missing_accession_number",
+      "missing_critical_raw_data:section_boundaries",
+      "missing_critical_raw_data:financial_or_mda_raw"
+    ]
+  }
+}

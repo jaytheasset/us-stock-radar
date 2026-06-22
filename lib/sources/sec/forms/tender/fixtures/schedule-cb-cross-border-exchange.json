@@ -1,0 +1,54 @@
+{
+  "case_name": "schedule-cb-cross-border-exchange",
+  "filing": {
+    "rawItemId": "fixture-tender-004",
+    "sourceUniqueId": "0004444444-26-000040",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/4444444/000444444426000040/",
+    "title": "EuroMed plc Schedule CB cross-border exchange offer",
+    "publishedAt": "2026-05-21T10:15:00.000Z",
+    "bodyText": "Schedule CB\nOfferor: EuroMed plc\nTarget company is BioThera Inc.\nThis Schedule CB is filed for a cross-border exchange offer. Holders of BioThera Inc. ADSs will receive 0.75 EuroMed plc ordinary shares for each BioThera ADS tendered in the exchange offer. The offer will expire on August 3, 2026, unless extended. If elections exceed the available share cap, acceptances will be subject to proration. The offer is made in reliance on the Tier II cross-border exemption.",
+    "rawPayload": {
+      "accession_number": "0004444444-26-000040",
+      "form_type": "CB",
+      "company_name": "BioThera Inc.",
+      "ticker": "BTHR",
+      "exchange": "NASDAQ",
+      "documents": [
+        {
+          "type": "CB",
+          "description": "Cross-border tender offer",
+          "url": "https://www.sec.gov/fixture/biothera-cb.htm",
+          "isPrimary": true,
+          "textCharCount": 640,
+          "textTruncated": false,
+          "fetchStatus": 200,
+          "fetchError": null
+        }
+      ]
+    },
+    "metadata": {
+      "form_type": "CB",
+      "company_name": "BioThera Inc.",
+      "ticker": "BTHR",
+      "exchange": "NASDAQ"
+    }
+  },
+  "market_context": {
+    "price": 7.25,
+    "previous_close": 7.1,
+    "market_cap": 190000000,
+    "shares_outstanding": 26200000
+  },
+  "expected": {
+    "event_type": "strategic_transaction",
+    "score_band": "feed",
+    "delivery_level": "feed",
+    "important_facts": {
+      "sec_form_type": "CB",
+      "tender_case": "schedule_cb_cross_border",
+      "exchange_ratio": "0.75 EuroMed plc ordinary shares for each BioThera ADS",
+      "expiration_date": "2026-08-03",
+      "cross_border": true
+    }
+  }
+}

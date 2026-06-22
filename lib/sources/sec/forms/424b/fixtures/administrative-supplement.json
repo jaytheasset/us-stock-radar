@@ -1,0 +1,21 @@
+{
+  "name": "administrative-supplement",
+  "formType": "424B3",
+  "accessionNumber": "0000000000-26-000104",
+  "issuer": {
+    "name": "Delta Renewables, Inc.",
+    "ticker": "DREN",
+    "exchange": "NASDAQ"
+  },
+  "filingText": "Filed Pursuant to Rule 424(b)(3) Delta Renewables, Inc. (Nasdaq: DREN) This prospectus supplement updates and supplements the prospectus dated April 15, 2026 solely to add Exhibit 107 fee table and correct a typographical error. No securities are being offered or sold pursuant to this supplement and no terms of the prospectus are changed. This supplement does not update risk factors or use of proceeds.",
+  "expected_event_type": "other",
+  "expected_score_band": "archive",
+  "fixture_assertions": {
+    "deterministic": true,
+    "expected_router_preliminary_action": "deterministic_analysis",
+    "expected_analysis_action": "archive_no_material_change",
+    "important_facts": {
+      "noNewTerms": true
+    }
+  }
+}

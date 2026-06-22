@@ -1,0 +1,84 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_425_parser_v1",
+    "parserGroup": "425",
+    "formType": "425",
+    "accessionNumber": "0000000000-26-000434",
+    "isSupported": true,
+    "summary": "Form 425 SPAC business-combination communication includes PIPE or financing terms.",
+    "facts": {
+      "company_name": "Viking Acquisition Corp. I",
+      "primary_ticker": "VACI",
+      "communication_types": ["agreement_filing"],
+      "spac": {
+        "is_spac_business_combination": true,
+        "target_name": "NorthStar Earth and Space Inc.",
+        "expected_ticker": "NSTR",
+        "pre_money_valuation": "$300 million",
+        "pipe_amount": "$30 million",
+        "trust_cash": "$100 million",
+        "earnout_shares": "Up to 10,000,000 New Viking common shares are issuable as Earnout Shares"
+      }
+    },
+    "signals": [
+      {
+        "type": "spac_financing_or_security_terms",
+        "value": "$30 million",
+        "evidence": "Viking and NorthStar entered into Securities Purchase Agreements with PIPE Investors for a fully committed $30 million common stock PIPE.",
+        "confidence": "medium"
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "strategic_transaction",
+    "event_title": "Viking announces SPAC combination with NorthStar and $30 million PIPE",
+    "primary_ticker": { "ticker": "VACI", "exchange": "NYSE" },
+    "tickers": [{ "ticker": "VACI", "exchange": "NYSE" }],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": "SPAC",
+    "sub_theme": "Business combination financing",
+    "score": 76,
+    "score_reason": "Alert-level because the filing includes concrete SPAC combination, valuation, PIPE, earnout, trust cash, and warrant terms.",
+    "signal": "volatile",
+    "quick_take": "Viking disclosed a SPAC business combination with NorthStar and financing terms.",
+    "summary": "Viking entered into a business-combination agreement with NorthStar. The filing cites a $300 million company valuation, $30 million PIPE, possible earnout shares, sponsor share transfers, and expected ticker NSTR.",
+    "why_it_matters": "SPAC financing, earnout, warrant, and redemption assumptions directly shape post-close ownership and capital available to the target.",
+    "bullish_points": ["The PIPE is described as fully committed."],
+    "bearish_points": ["Trust cash depends on redemptions."],
+    "key_evidence": ["The PIPE Investors agreed to a fully committed $30 million common stock PIPE."],
+    "what_to_watch_next": ["Registration statement effectiveness, redemption levels, shareholder vote, and PIPE closing conditions."],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "candidate_special",
+    "data": {
+      "target": "NorthStar Earth and Space Inc.",
+      "expected_ticker": "NSTR",
+      "pre_money_valuation": "$300 million",
+      "pipe_amount": "$30 million",
+      "trust_cash": "$100 million",
+      "earnout_shares": "10,000,000"
+    },
+    "evidence": ["The aggregate equity consideration is based on a Company valuation of $300 million."],
+    "notes": ["Candidate special display only; UI implementation belongs to the detail UI room."]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": true,
+    "market_context_reason": "SPAC PIPE, trust cash, warrants, and valuation should be compared with market cap, price, share count, and float.",
+    "market_context_fields": ["price", "market_cap", "shares_outstanding", "public_float"],
+    "special_ui_needed": true,
+    "special_ui_reason": "SPAC deal communications likely need structured display fields for valuation, PIPE, trust cash, earnout, warrants, sponsor transfers, and redemptions.",
+    "integration_notes": ["Do not implement SPAC detail UI in this room."]
+  }
+}

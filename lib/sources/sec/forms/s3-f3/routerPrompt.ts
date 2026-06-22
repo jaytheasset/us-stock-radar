@@ -1,4 +1,5 @@
 import { SEC_EVENT_TYPE_VALUES } from "@/lib/prompts/secFilingAnalysis";
+import { buildSecSourceBlockPromptInput } from "../common/sourceBlockPromptInput";
 
 export const SEC_S3_F3_ROUTER_PROMPT_KEY = "sec_s3_f3_router_draft";
 export const SEC_S3_F3_ROUTER_PROMPT_VERSION = "v1";
@@ -22,15 +23,16 @@ export const SEC_S3_F3_ROUTER_CASE_VALUES = [
 export type SecS3F3RouterPromptInput = {
   filing_package: Record<string, unknown>;
   parser_facts: Record<string, unknown>;
+  parser_output?: Record<string, unknown>;
   filing_excerpt?: string | null;
 };
 
 export const secS3F3RouterSystemPrompt = [
-  "Route one SEC S-3/F-3 family filing after the local parser has extracted candidate offering facts.",
+  "Route one SEC S-3/F-3 family filing from cleaned source blocks.",
   "Return only strict JSON matching the provided schema.",
   "This draft covers S-3, S-3/A, S-3ASR, F-3, F-3/A, and F-3ASR. Do not route broad SEC events here unless the filing content truly belongs to this family.",
   "Classify by economic structure, not only by form label: base shelf registration, automatic shelf registration, resale registration, ATM program, priced or takedown supplement, warrant or convertible overhang, routine amendment, material amendment, needs_human_review, or other.",
-  "Parser facts are source-backed candidates, not final truth. Use the filing excerpt, parser evidence, fee table rows, selling-holder facts, and amendment signals together.",
+  "Use only cleaned_source_blocks. Do not use parser-generated facts, signals, route hints, extraction summaries, event labels, display labels, or investment labels as classification authority.",
   "Route to dilution_risk when the filing contains shelf, resale, ATM, warrant, convertible, concrete offering amount, fee table economics, selling-holder overhang, or other share-supply mechanics.",
   "Use other and archive only for routine administrative content, unclear records, or amendments with no investor-relevant changed offering terms.",
   "For S-3/A and F-3/A, preserve routine amendment handling: exhibit-only, consent-only, signature-only, unchanged-remainder, refiled fee-table exhibit, or no-other-changes amendments should normally be archive below 50 unless changed economics are evident.",
@@ -55,7 +57,7 @@ export const secS3F3RouterResponseSchema = {
     "route_case",
     "routing_reason",
     "evidence",
-    "parser_facts_used",
+    "source_blocks_used",
     "needs_human_review",
     "debug",
   ],
@@ -71,7 +73,7 @@ export const secS3F3RouterResponseSchema = {
     route_case: { type: "string", enum: SEC_S3_F3_ROUTER_CASE_VALUES },
     routing_reason: { type: "string" },
     evidence: { type: "array", items: { type: "string" } },
-    parser_facts_used: { type: "array", items: { type: "string" } },
+    source_blocks_used: { type: "array", items: { type: "string" } },
     needs_human_review: { type: "boolean" },
     debug: {
       type: "object",
@@ -91,7 +93,13 @@ export function buildSecS3F3RouterPromptDraft(input: SecS3F3RouterPromptInput) {
     key: SEC_S3_F3_ROUTER_PROMPT_KEY,
     version: SEC_S3_F3_ROUTER_PROMPT_VERSION,
     system: secS3F3RouterSystemPrompt,
-    user: JSON.stringify(input),
+    user: JSON.stringify(
+      buildSecSourceBlockPromptInput({
+        filingPackage: input.filing_package,
+        parserOutput: input.parser_output || { facts: input.parser_facts },
+        fallbackText: input.filing_excerpt,
+      }),
+    ),
     responseFormat: {
       type: "json_schema",
       json_schema: {

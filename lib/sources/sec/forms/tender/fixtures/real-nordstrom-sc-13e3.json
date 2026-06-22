@@ -1,0 +1,90 @@
+{
+  "case_name": "real-nordstrom-sc-13e3",
+  "source": {
+    "sec_url": "https://www.sec.gov/Archives/edgar/data/72333/000121390025019787/ea0231395-sc13e3_nordstrom.htm"
+  },
+  "filing": {
+    "rawItemId": "real-nordstrom-sc-13e3",
+    "sourceUniqueId": "0001213900-25-019787",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/72333/000121390025019787/",
+    "title": "Nordstrom, Inc. SC 13E3 transaction statement",
+    "publishedAt": "2025-03-04T12:00:00.000Z",
+    "bodyText": "SC 13E3\nSCHEDULE 13E-3\nRULE 13E-3 TRANSACTION STATEMENT\nNORDSTROM, INC.\n(Name of the Issuer)\nNordstrom, Inc.; Norse Holdings, Inc.; Navy Acquisition Co. Inc.; El Puerto de Liverpool, S.A.B. de C.V.; and other filing persons.\nThis statement is filed in connection with the filing of solicitation materials or an information statement subject to Regulation 14A, Regulation 14C or Rule 13e-3(c).\nCheck the following box if the filing is a final amendment reporting the results of the transaction: [ ]\nThis Transaction Statement relates to the Agreement and Plan of Merger, dated December 22, 2024. Each share of Nordstrom Common Stock will be cancelled and automatically converted into the right to receive merger consideration of $24.25 per share in cash, without interest. Following the Merger, Nordstrom Common Stock will no longer be publicly traded. The Nordstrom Board formed a special committee to evaluate the transaction.",
+    "rawPayload": {
+      "accession_number": "0001213900-25-019787",
+      "form_type": "SC 13E3",
+      "company_name": "Nordstrom, Inc.",
+      "ticker": "JWN",
+      "exchange": "NYSE",
+      "documents": [
+        {
+          "sequence": "1",
+          "description": "SCHEDULE 13E-3",
+          "document": "ea0231395-sc13e3_nordstrom.htm",
+          "type": "SC 13E3",
+          "url": "https://www.sec.gov/Archives/edgar/data/72333/000121390025019787/ea0231395-sc13e3_nordstrom.htm",
+          "isPrimary": true,
+          "textCharCount": 350000,
+          "textTruncated": false,
+          "fetchStatus": 200,
+          "fetchError": null
+        },
+        {
+          "sequence": "2",
+          "description": "Preliminary Proxy Statement",
+          "document": "ea023139501-pre14a_nordstrom.htm",
+          "type": "EX-99.(A)(1)",
+          "textCharCount": 1800000
+        },
+        {
+          "sequence": "3",
+          "description": "Agreement and Plan of Merger",
+          "document": "ea023139501ex2-1_nordstrom.htm",
+          "type": "EX-99.(D)(1)",
+          "textCharCount": 430000
+        },
+        {
+          "sequence": "4",
+          "description": "Debt Commitment Letter",
+          "document": "ea023139501ex99-d2_nordstrom.htm",
+          "type": "EX-99.(D)(2)",
+          "textCharCount": 120000
+        },
+        {
+          "sequence": "5",
+          "description": "Rollover and Support Agreement",
+          "document": "ea023139501ex99-d3_nordstrom.htm",
+          "type": "EX-99.(D)(3)",
+          "textCharCount": 90000
+        },
+        {
+          "sequence": "6",
+          "description": "Opinion of Centerview Partners LLC",
+          "document": "ea023139501ex99-c1_nordstrom.htm",
+          "type": "EX-99.(C)(1)",
+          "textCharCount": 80000
+        },
+        {
+          "sequence": "10",
+          "description": "Filing Fee Table",
+          "document": "ea023139501ex-filingfees_nordstrom.htm",
+          "type": "EX-FILING FEES",
+          "textCharCount": 12000
+        }
+      ],
+      "attachment_texts": [
+        {
+          "type": "EX-99.(A)(1)",
+          "description": "Preliminary Proxy Statement",
+          "text": "The preliminary proxy statement describes the merger, the special meeting, the special committee recommendation and the merger consideration of $24.25 per share in cash."
+        }
+      ]
+    },
+    "metadata": {
+      "form_type": "SC 13E3",
+      "company_name": "Nordstrom, Inc.",
+      "ticker": "JWN",
+      "exchange": "NYSE"
+    }
+  }
+}

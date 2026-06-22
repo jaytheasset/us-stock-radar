@@ -11,6 +11,8 @@ This room connects completed SEC form-room work to the live pipeline.
 Allowed responsibilities:
 
 - load parser/router/analysis outputs from completed form rooms
+- execute form-room `fetchPlan.ts` rules through the shared SEC HTTP executor
+- provide common store adapters: `rawStore`, `eventStore`, and `alertQueue`
 - wire form routing into SEC package/analysis flow
 - attach market context when needed
 - map common output JSON into DB writes
@@ -30,12 +32,61 @@ Only integrate a form room after it provides the required output JSON shape:
 Do not accept one-off JSON shapes. If a form room output does not match
 `docs/SEC_FORM_ROOM_RULES.md`, stop and report the mismatch before wiring it.
 
+## Fetch Plan Runtime
+
+Form rooms decide what should be fetched and which fetched documents should be
+saved as raw source. This room owns the shared HTTP client and common store
+adapters.
+
+The runtime contract is:
+
+- form room provides `lib/sources/sec/forms/<room>/fetchPlan.ts`
+- common registry maps form type to fetch plan
+- common SEC executor performs HTTP calls, rate limiting, retry, and text
+  truncation
+- form worker builds raw/event/calendar/alert payload values
+- common stores validate and write those payloads with shared dedupe and
+  transaction handling
+- parser receives the fetched filing package
+
+Do not move form-specific attachment priorities back into one generic ingest
+if a form has already defined a fetch plan. If the fetch plan is wrong, patch
+that form's `fetchPlan.ts` in a scoped change.
+
+## Store Boundary
+
+Use this rule everywhere:
+
+```text
+Form modules own values.
+Common stores own DB and alert mechanics.
+```
+
+Form workers may call:
+
+- `rawStore.save(...)`
+- `eventStore.saveAll(...)`
+- `alertQueue.enqueue(...)`
+
+Form workers must not import Supabase directly or send alerts directly. The
+common store layer owns:
+
+- insert/upsert
+- unique keys
+- accession/content-hash dedupe
+- event/calendar/ticker dedupe
+- transaction safety
+- score-to-delivery conversion
+- alert queue dedupe
+- failure/retry logs
+
 ## Approved Event Types
 
-The integration room must accept only these 15 event types:
+The integration room must accept only these 16 event types:
 
 - `listing_risk`
 - `dilution_risk`
+- `ipo_listing`
 - `earnings`
 - `sales_performance`
 - `product_update`
@@ -102,6 +153,39 @@ Use form-room hints:
 Fetch only fields needed for the event type. Avoid broad market calls for
 routine, administrative, or archive-only filings unless the analysis requires
 them.
+
+## Ownership Amendment Parent Context
+
+For Ownership `4/A` and `144/A`, site/runtime behavior must be DB-first:
+
+- First look for the original filing in existing `raw_items`, `events`, and
+  `event_analysis`.
+- If the original raw item exists, pass compact `parent_filing_context` plus
+  parser-only `ownership_original_filing` into the Ownership parser before
+  deterministic archive is allowed.
+- If the parent event/analysis exists, include compact prior analysis fields in
+  `parent_filing_context`; do not pass historical full raw text to the LLM.
+- If raw exists but analysis does not, use the raw original filing for parser
+  comparison and mark context as raw-only.
+- If DB parent is missing, runtime may use SEC accession/submission lookup only
+  as a fallback to discover/fetch the original raw filing.
+- For development validation before backfill, persist the current and parent SEC
+  raw items to the development DB first, then run analysis. Do not send alerts
+  from these tests.
+
+For `4/A`, parent matching should prioritize:
+
+- explicit parent accession in the filing text or metadata
+- same reporting owner CIK
+- same issuer/company CIK
+- same transaction/report date or referenced original filing date
+- non-amendment `Form 4` before prior `4/A`
+- nearest prior filing only when stronger owner/date signals are present
+
+For `144/A`, explicit previous accession remains the strongest parent key.
+
+The parser must not query DB or SEC directly. Integration supplies parent
+context before parser comparison.
 
 ## EFFECT Linking
 

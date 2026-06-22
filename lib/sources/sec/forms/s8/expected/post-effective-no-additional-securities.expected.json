@@ -1,0 +1,191 @@
+{
+  "parser_output": {
+    "parserVersion": "s8-parser-v1",
+    "parserGroup": "s8",
+    "formType": "S-8/A",
+    "accessionNumber": "0007777777-26-000070",
+    "isSupported": true,
+    "summary": "Global Pharma AG filed an S-8/A amendment that appears administrative and does not register additional securities.",
+    "facts": {
+      "issuerName": "Global Pharma AG",
+      "ticker": "GPH",
+      "exchange": "NYSE",
+      "filedAt": "2026-01-16",
+      "isAmendment": true,
+      "amendmentType": "exhibit_only_no_new_securities",
+      "planNames": [
+        "Global Pharma AG 2011 Stock Incentive Plan"
+      ],
+      "planNameFacts": [
+        {
+          "name": "Global Pharma AG 2011 Stock Incentive Plan",
+          "planType": "equity_incentive",
+          "sources": [
+            "explanatory_note"
+          ],
+          "confidence": "medium"
+        }
+      ],
+      "planExtractionConfidence": "medium",
+      "planExtractionWarnings": [],
+      "securityType": null,
+      "registeredShares": null,
+      "additionalShares": null,
+      "parentRegisteredShares": null,
+      "estimatedOfferingAmount": null,
+      "registrationFee": null,
+      "dilutionPercentOfSharesOutstanding": null,
+      "dilutionPercentOfPublicFloat": null,
+      "noAdditionalSecurities": true,
+      "exhibitOnly": true,
+      "signatureOnly": false,
+      "needsParentComparison": false,
+      "normalizedS8Type": "general_instruction_e_additional_securities",
+      "s8FamilyDetected": true,
+      "likelyFeeTableMaterial": false,
+      "exFilingFeesExhibit": false,
+      "feeTableSource": "not_found",
+      "feeTableExtractionConfidence": "low",
+      "feeTableWarnings": [],
+      "feeTablePurposeConflicts": [],
+      "rule416": false,
+      "planInterests": false,
+      "unusualFeeTableSecurities": false,
+      "postEffectiveAmendment": false,
+      "deregistrationOfUnsoldSecurities": false,
+      "resaleProspectus": false,
+      "sellingHolderSection": false,
+      "controlSecurities": false,
+      "restrictedSecurities": false,
+      "rule144": false,
+      "consultantAdvisorServiceProvider": false,
+      "investorRelationsPromotionalFinancingServices": false,
+      "shellReverseMergerDelinquentFiler": false,
+      "s8PosRegistersAdditionalSecurities": false,
+      "sectionExtractionConfidence": "medium",
+      "priorRegistrationStatements": [
+        {
+          "fileNumber": "333-210001",
+          "filedAt": "March 18, 2016"
+        },
+        {
+          "fileNumber": "333-250002",
+          "filedAt": "November 20, 2020"
+        }
+      ]
+    },
+    "signals": [],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {
+      "sourceTextExcerpt": "This Post-Effective Amendment No. 1 to the registration statements on Form S-8 is filed solely to amend exhibits relating to the Global Pharma AG 2011 Stock Incentive Plan and the Global Pharma AG 2021 Equity Plan. The prior registration statements include File No. 333-210001 filed on March 18, 2016 and File No. 333-250002 filed on November 20, 2020. No additional securities are being registered by this post-effective amendment.",
+      "sourceDocuments": [
+        {
+          "id": "primary",
+          "documentRole": "primary_filing",
+          "source": "primary",
+          "documentType": null,
+          "description": "Primary S-8 filing document",
+          "textKind": "normalized_text",
+          "text": "This Post-Effective Amendment No. 1 to the registration statements on Form S-8 is filed solely to amend exhibits relating to the Global Pharma AG 2011 Stock Incentive Plan and the Global Pharma AG 2021 Equity Plan. The prior registration statements include File No. 333-210001 filed on March 18, 2016 and File No. 333-250002 filed on November 20, 2020. No additional securities are being registered by this post-effective amendment."
+        }
+      ],
+      "noiseCandidates": [
+        {
+          "label": "legal_opinion",
+          "source": "attachment",
+          "documentType": "EX-5.1",
+          "description": "Opinion of counsel filed as amended exhibit",
+          "reason": "Legal opinion exhibits are usually not the source of share count, proceeds, or resale-holder terms."
+        }
+      ],
+      "attachments": [
+        {
+          "documentType": "EX-5.1",
+          "description": "Opinion of counsel filed as amended exhibit",
+          "text": "Legal opinion exhibit."
+        }
+      ],
+      "parentFilingContext": null,
+      "marketContext": null,
+      "extractedShareCounts": [],
+      "sections": [
+        {
+          "key": "cover_page",
+          "heading": "cover page",
+          "start": 0,
+          "end": 432,
+          "confidence": "medium"
+        }
+      ]
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "other",
+    "event_title": "Global Pharma files no-additional-securities S-8/A",
+    "primary_ticker": {
+      "ticker": "GPH",
+      "exchange": "NYSE"
+    },
+    "tickers": [
+      "GPH"
+    ],
+    "sector": "Healthcare",
+    "industry_group": "Pharmaceuticals",
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 20,
+    "score_reason": "Post-effective amendment is limited to amended exhibits and explicitly says no additional securities are being registered.",
+    "signal": "neutral",
+    "quick_take": "Global Pharma's amendment is mechanically administrative in the fixture.",
+    "summary": "Global Pharma filed a post-effective S-8 amendment to amend exhibits for prior plan registration statements.",
+    "why_it_matters": "A no-additional-securities amendment usually does not change current registration capacity.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [
+      "No additional securities are being registered.",
+      "Filed solely to amend exhibits.",
+      "Prior registration file numbers 333-210001 and 333-250002 are listed."
+    ],
+    "what_to_watch_next": [
+      "No follow-up unless a later filing registers additional shares."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "amendmentType": "exhibit_only_no_new_securities",
+      "noAdditionalSecurities": true,
+      "priorRegistrationStatements": [
+        "333-210001",
+        "333-250002"
+      ],
+      "s8_ui_mode": "post_effective_amendment"
+    },
+    "evidence": [
+      "No additional securities are being registered by this post-effective amendment.",
+      "Filed solely to amend exhibits."
+    ],
+    "notes": [
+      "Explicit source language supports downstream archive scoring if analysis confirms no material change."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "No live parent lookup is required for this no-additional-securities fixture."
+    ]
+  }
+}

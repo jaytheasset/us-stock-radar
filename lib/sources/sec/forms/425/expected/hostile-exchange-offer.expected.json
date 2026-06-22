@@ -1,0 +1,80 @@
+{
+  "parser_output": {
+    "parserVersion": "sec_425_parser_v1",
+    "parserGroup": "425",
+    "formType": "425",
+    "accessionNumber": "0000000000-26-000433",
+    "isSupported": true,
+    "summary": "Form 425 communication about a exchange offer involving Photon Wireless, Inc.",
+    "facts": {
+      "company_name": "Orion Labs, Inc.",
+      "primary_ticker": "ORLB",
+      "subject_company": "Photon Wireless, Inc.",
+      "communication_types": ["tender_or_exchange_offer"],
+      "offer": {
+        "offer_type": "exchange_offer",
+        "is_hostile_or_unsolicited": true,
+        "subject_company": "Photon Wireless, Inc.",
+        "consideration": "The proposed offer is expected to consist of a mix of cash and Orion Labs common stock."
+      }
+    },
+    "signals": [
+      {
+        "type": "tender_or_exchange_offer",
+        "value": "exchange_offer",
+        "evidence": "Orion Labs announced its intention to commence a hostile exchange offer.",
+        "confidence": "high"
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "strategic_transaction",
+    "event_title": "Orion announces hostile exchange-offer plan for Photon Wireless",
+    "primary_ticker": { "ticker": "ORLB", "exchange": "NASDAQ" },
+    "tickers": [{ "ticker": "ORLB", "exchange": "NASDAQ" }],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": "M&A",
+    "sub_theme": "Hostile exchange offer",
+    "score": 78,
+    "score_reason": "Alert-level because the communication announces a hostile exchange-offer plan with cash-and-stock consideration.",
+    "signal": "volatile",
+    "quick_take": "Orion plans a hostile exchange offer for Photon Wireless.",
+    "summary": "The Form 425 says Orion intends to commence a hostile exchange offer for all outstanding Photon Wireless shares.",
+    "why_it_matters": "Hostile offer communications can change control dynamics and create volatility for both bidder and target holders.",
+    "bullish_points": ["The proposed consideration includes cash and Orion common stock."],
+    "bearish_points": ["The offer is hostile and may face resistance from Photon."],
+    "key_evidence": ["The proposed offer is expected to consist of a mix of cash and Orion Labs common stock."],
+    "what_to_watch_next": ["Whether Orion files formal tender or exchange-offer documents with the SEC."],
+    "related_tickers": [{ "ticker": "PHWN", "exchange": "NASDAQ" }],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "candidate_special",
+    "data": {
+      "offer_type": "exchange_offer",
+      "hostile": true,
+      "subject_company": "Photon Wireless, Inc.",
+      "consideration": "mix of cash and Orion common stock"
+    },
+    "evidence": ["Orion announced its intention to commence a hostile exchange offer."],
+    "notes": ["Candidate special display only; UI implementation belongs to the detail UI room."]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": true,
+    "market_context_reason": "Hostile cash-and-stock offer materiality should be compared with bidder price, market cap, and float.",
+    "market_context_fields": ["price", "market_cap", "shares_outstanding", "public_float"],
+    "special_ui_needed": true,
+    "special_ui_reason": "Tender/exchange offer communications likely need structured fields for bidder, target, offer type, consideration, hostility, and formal offer status.",
+    "integration_notes": ["Do not implement a new UI type in this room."]
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "title": "Northstar Cloud Inc. Form 8-K earnings release",
+  "publishedAt": "2026-05-03T21:05:00Z",
+  "sourceUniqueId": "0003333333-26-000003",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/3333333/000333333326000003/",
+  "bodyText": "UNITED STATES\nFORM 8-K\nItem 2.02 Results of Operations and Financial Condition.\nOn May 3, 2026, Northstar Cloud Inc. issued an earnings release announcing financial results for the quarter ended March 31, 2026. Revenue was $184.2 million, compared with $151.0 million in the prior-year period. Net income was $12.4 million and diluted EPS was $0.18. A copy of the earnings release is furnished as Exhibit 99.1.\nItem 9.01 Financial Statements and Exhibits.",
+  "rawPayload": {
+    "form_type": "8-K",
+    "accession_number": "0003333333-26-000003",
+    "company_name": "Northstar Cloud Inc.",
+    "ticker": "NCLD",
+    "documents": [
+      {
+        "type": "8-K",
+        "description": "Current report",
+        "url": "primary.htm",
+        "isPrimary": true,
+        "textCharCount": 620,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ]
+  },
+  "metadata": {
+    "company_name": "Northstar Cloud Inc.",
+    "ticker": "NCLD"
+  },
+  "expected": {
+    "eventType": "earnings",
+    "deliveryLevel": "feed"
+  }
+}

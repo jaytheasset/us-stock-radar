@@ -1,0 +1,13 @@
+{
+  "fixture_name": "shareholder-proposal-legal-risk",
+  "input": {
+    "formType": "DEF 14A",
+    "accessionNumber": "0001000004-26-000505",
+    "companyName": "Civic Data Systems",
+    "primaryTicker": {
+      "ticker": "CDSY",
+      "exchange": "NYSE"
+    },
+    "filingText": "CIVIC DATA SYSTEMS 2026 Proxy Statement\nThe Annual Meeting of Shareholders will be held on September 10, 2026.\nThe record date for voting is July 22, 2026.\nProposal 1: Election of directors. Board recommendation: FOR.\nShareholder Proposal 5: Report on litigation and regulatory compliance risks related to federal investigations. Board recommendation: AGAINST.\nThe supporting statement asks the board to assess potential costs from pending inquiries."
+  }
+}

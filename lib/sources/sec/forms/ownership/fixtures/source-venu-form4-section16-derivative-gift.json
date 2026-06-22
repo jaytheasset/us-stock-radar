@@ -1,0 +1,55 @@
+{
+  "id": "source-venu-form4-section16-derivative-gift",
+  "formType": "4",
+  "accessionNumber": "0002076354-26-000001",
+  "source": {
+    "url": "https://www.sec.gov/Archives/edgar/data/1770501/000207635426000001/primary_doc.xml",
+    "retrieved_at": "2026-05-23",
+    "sha256": "fe162407345a20729c5455d9a75d5515f719ea4f668a4d24855c838e2950f23b"
+  },
+  "filingText": "<?xml version=\"1.0\"?>\n<ownershipDocument>\n\n    <schemaVersion>X0609</schemaVersion>\n\n    <documentType>4</documentType>\n\n    <periodOfReport>2026-05-07</periodOfReport>\n\n    <notSubjectToSection16>1</notSubjectToSection16>\n\n    <issuer>\n        <issuerCik>0001770501</issuerCik>\n        <issuerName>Venu Holding Corp</issuerName>\n        <issuerTradingSymbol>VENU</issuerTradingSymbol>\n    </issuer>\n\n    <reportingOwner>\n        <reportingOwnerId>\n            <rptOwnerCik>0002076354</rptOwnerCik>\n            <rptOwnerName>O'Neil Kevin Wayne</rptOwnerName>\n        </reportingOwnerId>\n        <reportingOwnerAddress>\n            <rptOwnerNonUSAddressFlag>false</rptOwnerNonUSAddressFlag>\n            <rptOwnerStreet1>690 MISSION HILL WAY</rptOwnerStreet1>\n            <rptOwnerStreet2></rptOwnerStreet2>\n            <rptOwnerCity>COLORADO SPRINGS</rptOwnerCity>\n            <rptOwnerState>CO</rptOwnerState>\n            <rptOwnerZipCode>80921</rptOwnerZipCode>\n            <rptOwnerStateDescription></rptOwnerStateDescription>\n        </reportingOwnerAddress>\n        <reportingOwnerRelationship>\n            <isDirector>0</isDirector>\n            <isOfficer>0</isOfficer>\n            <isTenPercentOwner>1</isTenPercentOwner>\n            <isOther>0</isOther>\n        </reportingOwnerRelationship>\n    </reportingOwner>\n\n    <aff10b5One>0</aff10b5One>\n\n    <derivativeTable>\n        <derivativeTransaction>\n            <securityTitle>\n                <value>Warrants (Option to Buy)</value>\n            </securityTitle>\n            <conversionOrExercisePrice>\n                <value>10</value>\n            </conversionOrExercisePrice>\n            <transactionDate>\n                <value>2026-05-07</value>\n            </transactionDate>\n            <transactionCoding>\n                <transactionFormType>4</transactionFormType>\n                <transactionCode>G</transactionCode>\n                <equitySwapInvolved>0</equitySwapInvolved>\n                <footnoteId id=\"F1\"/>\n            </transactionCoding>\n            <transactionTimeliness>\n                <value></value>\n            </transactionTimeliness>\n            <transactionAmounts>\n                <transactionShares>\n                    <value>150000</value>\n                </transactionShares>\n                <transactionPricePerShare>\n                    <value>0</value>\n                </transactionPricePerShare>\n                <transactionAcquiredDisposedCode>\n                    <value>D</value>\n                </transactionAcquiredDisposedCode>\n            </transactionAmounts>\n            <exerciseDate>\n                <value>2025-01-14</value>\n            </exerciseDate>\n            <expirationDate>\n                <value>2028-01-14</value>\n            </expirationDate>\n            <underlyingSecurity>\n                <underlyingSecurityTitle>\n                    <value>Warrants</value>\n                </underlyingSecurityTitle>\n                <underlyingSecurityShares>\n                    <value>150000</value>\n                </underlyingSecurityShares>\n            </underlyingSecurity>\n            <postTransactionAmounts>\n                <sharesOwnedFollowingTransaction>\n                    <value>1095000</value>\n                </sharesOwnedFollowingTransaction>\n            </postTransactionAmounts>\n            <ownershipNature>\n                <directOrIndirectOwnership>\n                    <value>D</value>\n                </directOrIndirectOwnership>\n            </ownershipNature>\n        </derivativeTransaction>\n    </derivativeTable>\n\n    <footnotes>\n        <footnote id=\"F1\">Represents a bona fide gift of 150,000 warrants by the Reporting Person to an irrevocable trust. The Reporting Person does not serve as trustee of the trust, does not have or shar voting or investment control over the warrants held by the trust, and does not have any pecuniary interest in the warrants held by the trust.</footnote>\n    </footnotes>\n\n    <ownerSignature>\n        <signatureName>Kevin W. O'Neil</signatureName>\n        <signatureDate>2026-05-07</signatureDate>\n    </ownerSignature>\n</ownershipDocument>\n",
+  "expected": [
+    {
+      "label": "issuer.ticker",
+      "path": "facts.issuer.ticker",
+      "value": "VENU",
+      "evidence": "<issuerTradingSymbol>VENU</issuerTradingSymbol>"
+    },
+    {
+      "label": "notSubjectToSection16",
+      "path": "facts.filing.not_subject_to_section_16",
+      "value": true,
+      "evidence": "<notSubjectToSection16>1</notSubjectToSection16>"
+    },
+    {
+      "label": "transaction kind",
+      "path": "facts.form4.transactions.0.transaction_kind",
+      "value": "derivative",
+      "evidenceTag": "derivativeTransaction"
+    },
+    {
+      "label": "transaction code",
+      "path": "facts.form4.transactions.0.transaction_code",
+      "value": "G",
+      "evidence": "<transactionCode>G</transactionCode>"
+    },
+    {
+      "label": "security title",
+      "path": "facts.form4.transactions.0.security_title",
+      "value": "Warrants (Option to Buy)",
+      "evidence": "<value>Warrants (Option to Buy)</value>"
+    },
+    {
+      "label": "conversion/exercise price",
+      "path": "facts.form4.transactions.0.conversion_or_exercise_price",
+      "value": 10,
+      "evidence": "<conversionOrExercisePrice>\n                <value>10</value>\n            </conversionOrExercisePrice>"
+    },
+    {
+      "label": "expiration date",
+      "path": "facts.form4.transactions.0.expiration_date",
+      "value": "2028-01-14",
+      "evidence": "<expirationDate>\n                <value>2028-01-14</value>\n            </expirationDate>"
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "case_name": "material-amendment-deadline-price",
+  "filing": {
+    "rawItemId": "fixture-tender-005",
+    "sourceUniqueId": "0002222222-26-000025",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/2222222/000222222226000025/",
+    "title": "Summit Merger Sub SC TO-T/A material amendment",
+    "publishedAt": "2026-06-10T13:30:00.000Z",
+    "bodyText": "SC TO-T/A\nAmendment No. 2\nSubject Company: Alpine Data Systems Inc.\nOfferor: Summit Merger Sub Inc.\nThis Amendment No. 2 amends the tender offer statement. The offeror increases the offer price from $18.50 to $20.00 per share in cash and extends the expiration date to July 29, 2026. The board of directors continues to recommend that stockholders tender their shares. All other terms and conditions of the offer remain unchanged.",
+    "rawPayload": {
+      "accession_number": "0002222222-26-000025",
+      "form_type": "SC TO-T/A",
+      "company_name": "Alpine Data Systems Inc.",
+      "ticker": "ALPN",
+      "exchange": "NYSE",
+      "documents": [
+        {
+          "type": "SC TO-T/A",
+          "description": "Amendment to third-party tender offer statement",
+          "url": "https://www.sec.gov/fixture/alpine-sc-to-ta.htm",
+          "isPrimary": true,
+          "textCharCount": 560,
+          "textTruncated": false,
+          "fetchStatus": 200,
+          "fetchError": null
+        }
+      ]
+    },
+    "metadata": {
+      "form_type": "SC TO-T/A",
+      "company_name": "Alpine Data Systems Inc.",
+      "ticker": "ALPN",
+      "exchange": "NYSE"
+    },
+    "parentFilingContext": {
+      "accessionNumber": "0002222222-26-000020",
+      "offer_price": 18.5,
+      "expiration_date": "2026-07-15"
+    }
+  },
+  "market_context": {
+    "price": 18.7,
+    "previous_close": 18.6,
+    "market_cap": 1160000000,
+    "shares_outstanding": 62000000
+  },
+  "expected": {
+    "event_type": "strategic_transaction",
+    "score_band": "alert",
+    "delivery_level": "alert",
+    "important_facts": {
+      "sec_form_type": "SC TO-T/A",
+      "tender_case": "third_party_tender_offer",
+      "amendment_number": 2,
+      "cash_price_per_share": 20,
+      "expiration_date": "2026-07-29",
+      "material_change_candidates": ["offer_price_change", "expiration_extension"]
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "rawItemId": "fixture-form25-merger-completion-removal",
+  "sourceUniqueId": "0000876661-25-000523",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/876661/000087666125000523/0000876661-25-000523-index.html",
+  "title": "Hess Corp 25-NSE",
+  "publishedAt": "2025-07-18",
+  "bodyText": "ACCESSION NUMBER: 0000876661-25-000523\nCONFORMED SUBMISSION TYPE: 25-NSE\nFILED AS OF DATE: 20250718\nEFFECTIVENESS DATE: 20250718\nSUBJECT COMPANY:\nCOMPANY DATA:\nCOMPANY CONFORMED NAME: HESS CORP\nCENTRAL INDEX KEY: 0000004447\nFILING VALUES:\nFORM TYPE: 25-NSE\nSEC FILE NUMBER: 001-01204\nFILED BY:\nCOMPANY DATA:\nCOMPANY CONFORMED NAME: NEW YORK STOCK EXCHANGE LLC\nCENTRAL INDEX KEY: 0000876661\n25-NSE 1 primary_doc.xml X0203 0000876661 NEW YORK STOCK EXCHANGE LLC 0000004447 HESS CORP 001-01204 1185 Avenue of the Americas New York NY NEW YORK 10036 212-997-8500 Common Stock 17 CFR 240.12d2-2(a)(3) Anthony Sozzi Analyst, Market Watch 2025-07-18\nRAW_FORM25_FULL_TEXT_SENTINEL_SHOULD_NOT_REACH_PROMPTS",
+  "rawPayload": {
+    "form_type": "25-NSE",
+    "accession_number": "0000876661-25-000523",
+    "primary_ticker": "HES",
+    "primary_ticker_exchange": "NYSE",
+    "documents": [
+      {
+        "type": "25-NSE",
+        "description": "primary_doc.xml",
+        "url": "https://www.sec.gov/Archives/edgar/data/4447/000087666125000523/primary_doc.xml",
+        "isPrimary": true,
+        "textCharCount": 1052,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      },
+      {
+        "type": "EX-99.25",
+        "description": "ruleprovisionnotice.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/4447/000087666125000523/ruleprovisionnotice.htm",
+        "isPrimary": false,
+        "textCharCount": 1264,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ],
+    "attachment_texts": [
+      {
+        "type": "EX-99.25",
+        "description": "Rule provision notice",
+        "text": "NOTIFICATION OF THE REMOVAL FROM LISTING AND REGISTRATION OF THE STATED SECURITIES The New York Stock Exchange hereby notifies the SEC of its intention to remove the entire class of the stated securities from listing and registration on the Exchange at the opening of business on July 29, 2025, pursuant to the provisions of Rule 12d2-2(a).\n[X] 17 CFR 240.12d2-2(a)(3) That on July 18, 2025, the instruments representing the securities comprising the entire class of this security came to evidence, by operation of law or otherwise, other securities in substitution therefore and represent no other right except, if such be the fact, the right to receive an immediate cash payment. The merger between Hess Corporation and Chevron Corporation became effective before market open on July 18, 2025.\nEach share of Hess Corporation Common Stock was exchanged for 1.025 shares of Chevron Corporation Common Stock, without interest, less any applicable fee, and tax. The Exchange also notifies the Securities and Exchange Commission that as a result of the above indicated conditions this security was suspended from trading before market open on July 18, 2025.",
+        "textTruncated": false
+      }
+    ]
+  },
+  "metadata": {
+    "company_name": "HESS CORP",
+    "cik": "0000004447"
+  }
+}

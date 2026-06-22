@@ -1,0 +1,122 @@
+{
+  "q1ContactNamePhone": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-Q For Period Ended: March 31, 2026 PART I - REGISTRANT INFORMATION Example Contact Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time to complete review procedures. PART IV - OTHER INFORMATION (1) Name and telephone number of person to contact: Jane Doe +1 212 555 1234 (2) Have all other periodic reports required been filed? [X] Yes [ ] No (3) Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No"
+    }
+  },
+  "q1PhoneOnly": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-Q For Period Ended: March 31, 2026 PART I - REGISTRANT INFORMATION Example Phone Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION (1) Name and telephone number of person to contact: 212.555.1234 (2) Have all other periodic reports required been filed? [X] Yes [ ] No (3) Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No"
+    }
+  },
+  "q1NoPhoneFromNoise": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-Q For Period Ended: March 31, 2026 PART I - REGISTRANT INFORMATION Example Noise Corp. CIK 0000320193 CUSIP 123456789 SEC file number 001-40400 ZIP 10001 PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION (1) Name and telephone number of person to contact: CIK 0000320193 CUSIP 123456789 SEC file number 001-40400 ZIP 10001 (2) Have all other periodic reports required been filed? [X] Yes [ ] No (3) Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No"
+    }
+  },
+  "q2YesUnicode": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-Q For Period Ended: March 31, 2026 PART I - REGISTRANT INFORMATION Example Unicode Q2 Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION (1) Name and telephone number of person to contact: Jane Doe (212) 555-1234 (2) Have all other periodic reports required under Section 13 or 15(d) been filed? ☒ Yes ☐ No (3) Is it anticipated that any significant change in results of operations will be reflected? ☐ Yes ☒ No"
+    }
+  },
+  "q2NoExplanation": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-Q For Period Ended: March 31, 2026 PART I - REGISTRANT INFORMATION Example Missing Reports Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION (1) Name and telephone number of person to contact: Jane Doe 212-555-1234 (2) Have all other periodic reports required been filed? [ ] Yes [X] No If answer is no, identify report(s). The Form 10-Q quarterly report for the period ended September 30, 2025 remains outstanding. (3) Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No"
+    }
+  },
+  "q2BothChecked": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-Q For Period Ended: March 31, 2026 PART I - REGISTRANT INFORMATION Example Both Q2 Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION (1) Name and telephone number of person to contact: Jane Doe 212 555 1234 (2) Have all other periodic reports required been filed? [X] Yes [X] No If answer is no, identify report(s). No explanation provided. (3) Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No"
+    }
+  },
+  "q2UnknownUnreliable": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-Q For Period Ended: March 31, 2026 PART I - REGISTRANT INFORMATION Example Unknown Q2 Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION (1) Name and telephone number of person to contact: Jane Doe 212-555-1234 (2) Have all other periodic reports required been filed? Yes No (3) Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No"
+    }
+  },
+  "q2DoesNotConsumeQ3": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-Q For Period Ended: March 31, 2026 PART I - REGISTRANT INFORMATION Example Local Q2 Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION (1) Name and telephone number of person to contact: Jane Doe 212-555-1234 (2) Have all other periodic reports required been filed? [ ] Yes [ ] No (3) Is it anticipated that any significant change in results of operations will be reflected? [X] Yes [ ] No Revenue increased by 25% from $10.0 million to $12.5 million."
+    }
+  },
+  "q3NoClean": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-Q For Period Ended: March 31, 2026 PART I - REGISTRANT INFORMATION Example Q3 No Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION (1) Name and telephone number of person to contact: Jane Doe 212-555-1234 (2) Have all other periodic reports required been filed? [X] Yes [ ] No (3) Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No"
+    }
+  },
+  "q3YesQuant": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-Q For Period Ended: March 31, 2026 PART I - REGISTRANT INFORMATION Example Q3 Quant Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION (1) Name and telephone number of person to contact: Jane Doe 212-555-1234 (2) Have all other periodic reports required been filed? [X] Yes [ ] No (3) Is it anticipated that any significant change in results of operations will be reflected? [X] Yes [ ] No Revenue increased by 25% from $10.0 million to $12.5 million compared with the prior-year period."
+    }
+  },
+  "q3YesNoQuant": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-Q For Period Ended: March 31, 2026 PART I - REGISTRANT INFORMATION Example Q3 Narrative Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION (1) Name and telephone number of person to contact: Jane Doe 212-555-1234 (2) Have all other periodic reports required been filed? [X] Yes [ ] No (3) Is it anticipated that any significant change in results of operations will be reflected? [X] Yes [ ] No The registrant expects a change in operating results due to market conditions."
+    }
+  },
+  "q3BothChecked": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-Q For Period Ended: March 31, 2026 PART I - REGISTRANT INFORMATION Example Both Q3 Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION (1) Name and telephone number of person to contact: Jane Doe 212-555-1234 (2) Have all other periodic reports required been filed? [X] Yes [ ] No (3) Is it anticipated that any significant change in results of operations will be reflected? [X] Yes [X] No"
+    }
+  },
+  "q3DoesNotConsumeQ2": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-Q For Period Ended: March 31, 2026 PART I - REGISTRANT INFORMATION Example Local Q3 Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION (1) Name and telephone number of person to contact: Jane Doe 212-555-1234 (2) Have all other periodic reports required been filed? [X] Yes [ ] No (3) Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [ ] No"
+    }
+  },
+  "q3NoWithFinancialExplanation": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-Q For Period Ended: March 31, 2026 PART I - REGISTRANT INFORMATION Example Inconsistent Q3 Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION (1) Name and telephone number of person to contact: Jane Doe 212-555-1234 (2) Have all other periodic reports required been filed? [X] Yes [ ] No (3) Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No Revenue is expected to increase by 20% from the prior-year period."
+    }
+  },
+  "q3StopsBeforeSignature": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-Q For Period Ended: March 31, 2026 PART I - REGISTRANT INFORMATION Example Signature Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION (1) Name and telephone number of person to contact: Jane Doe 212-555-1234 (2) Have all other periodic reports required been filed? [X] Yes [ ] No (3) Is it anticipated that any significant change in results of operations will be reflected? [X] Yes [ ] No Net loss decreased by 15% compared with the prior-year period. SIGNATURE Date: April 15, 2026 By: /s/ Jane Doe"
+    }
+  },
+  "q3PhoneNotQuant": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-Q For Period Ended: March 31, 2026 PART I - REGISTRANT INFORMATION Example Phone Quant Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION (1) Name and telephone number of person to contact: Jane Doe 212-555-1234 (2) Have all other periodic reports required been filed? [X] Yes [ ] No (3) Is it anticipated that any significant change in results of operations will be reflected? [X] Yes [ ] No Contact 212-555-1234 for additional information."
+    }
+  },
+  "q3DatesRulesNotQuant": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-Q For Period Ended: March 31, 2026 PART I - REGISTRANT INFORMATION Example Rule Quant Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION (1) Name and telephone number of person to contact: Jane Doe 212-555-1234 (2) Have all other periodic reports required been filed? [X] Yes [ ] No (3) Is it anticipated that any significant change in results of operations will be reflected? [X] Yes [ ] No The report was due under Rule 12b-25 on April 15, 2026 and Item 2 is not applicable."
+    }
+  },
+  "portionOnlyWithItem": {
+    "source": {
+      "formType": "NT 10-K",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-K For Period Ended: December 31, 2025 The notification relates to a portion of the filing; identify the Item(s): Part II, Item 8 financial statements. PART I - REGISTRANT INFORMATION Example Portion Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time to complete the financial statements. PART IV - OTHER INFORMATION (1) Name and telephone number of person to contact: Jane Doe 212-555-1234 (2) Have all other periodic reports required been filed? [X] Yes [ ] No (3) Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No"
+    }
+  },
+  "portionOnlyUnclear": {
+    "source": {
+      "formType": "NT 10-K",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-K For Period Ended: December 31, 2025 This notification relates to a portion of the filing. PART I - REGISTRANT INFORMATION Example Unclear Portion Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant needs additional time. PART IV - OTHER INFORMATION (1) Name and telephone number of person to contact: Jane Doe 212-555-1234 (2) Have all other periodic reports required been filed? [X] Yes [ ] No (3) Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No"
+    }
+  },
+  "electronicFilingPrimary": {
+    "source": {
+      "formType": "NT 10-Q",
+      "filingText": "FORM 12b-25 NOTIFICATION OF LATE FILING (Check One): [X] Form 10-Q For Period Ended: March 31, 2026 PART I - REGISTRANT INFORMATION Example EDGAR Corp. PART II - RULE 12b-25(b) AND (c) [X] (a) The reason described in Part III could not be eliminated without unreasonable effort or expense. PART III - NARRATIVE The registrant was unable to file electronically because of EDGAR filing difficulties, a filing system outage, and a transmission error under Regulation S-T Rule 201. PART IV - OTHER INFORMATION (1) Name and telephone number of person to contact: Jane Doe 212-555-1234 (2) Have all other periodic reports required been filed? [X] Yes [ ] No (3) Is it anticipated that any significant change in results of operations will be reflected? [ ] Yes [X] No"
+    }
+  }
+}

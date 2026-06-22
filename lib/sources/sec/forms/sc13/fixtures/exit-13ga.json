@@ -1,0 +1,37 @@
+{
+  "case_id": "exit-13ga",
+  "description": "Schedule 13G/A exit filing where the holder has ceased to beneficially own more than 5%.",
+  "filing": {
+    "formType": "SC 13G/A",
+    "accessionNumber": "0000000000-26-000707",
+    "issuerName": "P10, Inc.",
+    "primaryTicker": {
+      "ticker": "PX",
+      "exchange": "NYSE"
+    },
+    "filedAt": "2026-03-01",
+    "text": "SC 13G/A\nSCHEDULE 13G\n(Amendment No. 1 - Exit Filing)*\nP10, Inc.\n(Name of Issuer)\nClass A Common Stock, $0.001 par value per share\n(Title of Class of Securities)\n69376K106\n(CUSIP Number)\nJune 27, 2022\n(Date of Event Which Requires Filing of this Statement)\nx Rule 13d-1(d)\n1 NAMES OF REPORTING PERSONS\nKeystone Capital XXX, LLC\n2 CHECK THE APPROPRIATE BOX IF A MEMBER OF A GROUP (a) [ ] (b) [ ]\n4 CITIZENSHIP OR PLACE OF ORGANIZATION\nDelaware\n5 SOLE VOTING POWER\n0 Shares\n6 SHARED VOTING POWER\n0 Shares\n7 SOLE DISPOSITIVE POWER\n0 Shares\n8 SHARED DISPOSITIVE POWER\n0 Shares\n9 AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON\n0 Shares\n11 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (9)\n0%\n12 TYPE OF REPORTING PERSON\nOO\nItem 1.\n(a) Name of issuer:\nP10, Inc.\nItem 4. Ownership\nThe information in Items 5 through 9 and Item 11 on the cover pages to this Schedule 13G is hereby incorporated by reference. The Reporting Person ceased to be the beneficial owner of more than five percent of the Class A Common Stock of the Issuer on June 27, 2022. Accordingly, this Amendment No. 1 constitutes an exit filing for the Reporting Person.\nItem 5. Ownership of 5 Percent or Less of a Class.\nIf this statement is being filed to report the fact that as of the date hereof the reporting person has ceased to be the beneficial owner of more than 5 percent of the class of securities, check the following x.\nItem 10. Certifications\nBy signing below I certify that the securities referred to above were not acquired and are not held for the purpose of or with the effect of changing or influencing the control of the issuer.\nSIGNATURE"
+  },
+  "market_context": null,
+  "expected": {
+    "event_type": "insider_ownership",
+    "deterministic": true,
+    "score_band": "archive",
+    "extracted_facts": {
+      "issuerName": "P10, Inc.",
+      "reportingPersons": [
+        "Keystone Capital XXX, LLC"
+      ],
+      "scheduleType": "13G",
+      "ruleBasis": "13d-1(d)",
+      "isAmendment": true,
+      "amendmentNumber": 1,
+      "isExitFiling": true,
+      "sharesBeneficiallyOwned": 0,
+      "percentOwned": 0,
+      "ownershipIntent": "passive",
+      "passiveCertification": true,
+      "ownershipTableIncorporatedByReference": true
+    }
+  }
+}

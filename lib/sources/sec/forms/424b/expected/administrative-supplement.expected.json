@@ -1,0 +1,102 @@
+{
+  "parser_output": {
+    "parserVersion": "424b-parser-v1",
+    "parserGroup": "424b",
+    "formType": "424B3",
+    "accessionNumber": "0000000000-26-000104",
+    "isSupported": true,
+    "summary": "Delta Renewables, Inc. filed 424B3 covering an administrative prospectus update.",
+    "facts": {
+      "issuer": {
+        "name": "Delta Renewables, Inc.",
+        "ticker": "DREN",
+        "exchange": "NASDAQ"
+      },
+      "prospectusClass": "supplement",
+      "offeringTerms": {
+        "sharesOffered": null,
+        "maxOfferingAmount": null
+      },
+      "flags": {
+        "noNewTerms": true
+      }
+    },
+    "signals": [
+      {
+        "name": "administrative_no_new_terms",
+        "value": true
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {
+      "deterministicCandidate": "administrative_no_new_terms"
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "other",
+    "event_title": "Administrative 424B prospectus supplement",
+    "primary_ticker": {
+      "ticker": "DREN",
+      "exchange": "NASDAQ"
+    },
+    "tickers": ["DREN"],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 20,
+    "score_reason": "The supplement states that it does not offer securities or change prospectus terms.",
+    "signal": "neutral",
+    "quick_take": "This 424B supplement appears administrative and does not introduce new offering terms.",
+    "summary": "The filing updates an existing prospectus for administrative purposes and says no securities are being offered under the supplement.",
+    "why_it_matters": "Routine 424B updates can be archived when they do not change investor economics, offering size, risk factors, or transaction terms.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [
+      "Parser signal: administrative_no_new_terms",
+      "No securities offered and no term changes were detected."
+    ],
+    "what_to_watch_next": [
+      "Monitor later 424B filings for actual offering terms or amended risk disclosure."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false,
+    "analysis_action": "archive_no_material_change",
+    "archive_summary": "Administrative prospectus supplement with no new offering terms.",
+    "offering_display_model": {},
+    "offering_security_audit": {
+      "primary_issuance": false,
+      "resale": false,
+      "at_the_market": false,
+      "warrants_or_convertibles": false
+    }
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "display_version": "424b-display-payload-v1",
+    "data": {
+      "parser_summary": "Delta Renewables, Inc. filed 424B3 covering an administrative prospectus update."
+    },
+    "evidence": [],
+    "notes": [
+      "Generic display is enough because no offering display fields are needed."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Deterministic parser/router archive; no LLM or live context needed."
+    ]
+  }
+}

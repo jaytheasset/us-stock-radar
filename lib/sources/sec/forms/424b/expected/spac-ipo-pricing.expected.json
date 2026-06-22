@@ -1,0 +1,117 @@
+{
+  "parser_output": {
+    "parserVersion": "424b-parser-v1",
+    "parserGroup": "424b",
+    "formType": "424B4",
+    "accessionNumber": "0000000000-26-000121",
+    "isSupported": true,
+    "summary": "Pioneer Acquisition Corp. filed 424B4 covering 25,000,000 units.",
+    "facts": {
+      "issuer": {
+        "name": "Pioneer Acquisition Corp.",
+        "ticker": "PIONU",
+        "exchange": "NASDAQ"
+      },
+      "offeringTerms": {
+        "sharesOffered": null,
+        "unitsOffered": 25000000,
+        "sellingStockholderShares": null,
+        "atTheMarket": false
+      },
+      "flags": {
+        "ipoListing": true,
+        "ipoKind": "spac",
+        "resale": false
+      }
+    },
+    "signals": [
+      {
+        "name": "ipo_listing",
+        "value": "spac"
+      },
+      {
+        "name": "market_context_needed",
+        "value": ["price", "market_cap", "shares_outstanding", "public_float"]
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {
+      "deterministicCandidate": null
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "ipo_listing",
+    "event_title": "Pioneer Acquisition prices SPAC IPO",
+    "primary_ticker": {
+      "ticker": "PIONU",
+      "exchange": "NASDAQ"
+    },
+    "tickers": ["PIONU"],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 62,
+    "score_reason": "The filing describes a new SPAC IPO/listing; delivery level is derived from the score band.",
+    "signal": "neutral",
+    "quick_take": "Pioneer Acquisition priced a SPAC IPO and expects its units to begin trading on Nasdaq.",
+    "summary": "The 424B4 prospectus describes an IPO of 25,000,000 SPAC units at $10.00 per unit with proceeds deposited into a trust account.",
+    "why_it_matters": "A SPAC IPO creates a new listed acquisition vehicle; later investor impact depends on sponsor quality, trust terms, redemption dynamics, and eventual target selection.",
+    "bullish_points": [
+      "IPO proceeds are intended to be deposited into a trust account."
+    ],
+    "bearish_points": [
+      "SPAC value depends on a future business combination and redemption outcomes."
+    ],
+    "key_evidence": [
+      "Blank check company.",
+      "Initial public offering of 25,000,000 units.",
+      "Units expected to begin trading on Nasdaq under PIONU."
+    ],
+    "what_to_watch_next": [
+      "Trust amount, warrant structure, sponsor promote, target search, and redemption terms."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false,
+    "analysis_action": "route_to_analysis_prompt",
+    "archive_summary": null,
+    "offering_display_model": {},
+    "offering_security_audit": {}
+  },
+  "display_payload": {
+    "display_type": "offering_terms",
+    "display_version": "424b-display-payload-v1",
+    "data": {
+      "offering_terms": {
+        "unitsOffered": 25000000
+      }
+    },
+    "evidence": [
+      {
+        "label": "ipo listing excerpt",
+        "value": "spac",
+        "excerpt": "Initial public offering of 25,000,000 units at an offering price of $10.00 per unit."
+      }
+    ],
+    "notes": [
+      "424B does not use IPO-specific display payload fields."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": true,
+    "market_context_reason": "SPAC IPO terms may need site market/taxonomy context when available.",
+    "market_context_fields": ["price", "market_cap", "shares_outstanding", "public_float"],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "424B does not use IPO-specific display payload fields; use generic or offering_terms only when source-backed fields fit."
+    ]
+  }
+}

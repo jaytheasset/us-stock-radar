@@ -1,0 +1,13 @@
+{
+  "fixture_name": "insider-control-ownership",
+  "input": {
+    "formType": "DEF 14A",
+    "accessionNumber": "0001000003-26-000404",
+    "companyName": "FounderCloud Software",
+    "primaryTicker": {
+      "ticker": "FCLD",
+      "exchange": "NYSE"
+    },
+    "filingText": "FOUNDERCLOUD SOFTWARE 2026 Proxy Statement\nThe Annual Meeting of Shareholders will be held on August 8, 2026.\nThe record date for voting is June 26, 2026.\nProposal 1: Election of six directors. Board recommendation: FOR.\nThe beneficial ownership table shows Alex Founder beneficially owns 62.4% of outstanding Class A common stock and has voting power over the company."
+  }
+}

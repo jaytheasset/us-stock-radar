@@ -1,0 +1,33 @@
+{
+  "title": "Atlas Robotics Form 8-K annual meeting results",
+  "publishedAt": "2026-05-08T19:00:00Z",
+  "sourceUniqueId": "0008888888-26-000008",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/8888888/000888888826000008/",
+  "bodyText": "UNITED STATES\nFORM 8-K\nItem 5.07 Submission of Matters to a Vote of Security Holders.\nAtlas Robotics held its annual meeting on May 8, 2026. Stockholders approved the election of all directors, approved the advisory vote on executive compensation, and rejected a shareholder proposal regarding a classified board. The final vote included 42,100,000 votes for and 3,500,000 votes against the compensation proposal.",
+  "rawPayload": {
+    "form_type": "8-K",
+    "accession_number": "0008888888-26-000008",
+    "company_name": "Atlas Robotics",
+    "ticker": "AROB",
+    "documents": [
+      {
+        "type": "8-K",
+        "description": "Current report",
+        "url": "primary.htm",
+        "isPrimary": true,
+        "textCharCount": 510,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ]
+  },
+  "metadata": {
+    "company_name": "Atlas Robotics",
+    "ticker": "AROB"
+  },
+  "expected": {
+    "eventType": "shareholder_vote",
+    "deliveryLevel": "feed"
+  }
+}

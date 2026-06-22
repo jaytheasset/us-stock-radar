@@ -21,6 +21,11 @@ export type SecFormParserInput = {
   title?: string | null;
   sourceUrl?: string | null;
   primaryDocumentText?: string | null;
+  primaryDocumentType?: string | null;
+  bodyText?: string | null;
+  analysisText?: string | null;
+  filingText?: string | null;
+  text?: string | null;
   attachments?: SecFormParserAttachment[];
   metadata?: Record<string, unknown> | null;
   rawPayload?: Record<string, unknown> | null;
@@ -43,6 +48,19 @@ export type SecFormParserCalendarItem = {
   confidence?: SecFormParserConfidence;
 };
 
+export type SecFormCleanedSourceBlock = {
+  block_type: string;
+  label?: string | null;
+  source?: string | null;
+  text: string;
+};
+
+export type SecFormParserRawSource = {
+  cleaned_source_blocks?: SecFormCleanedSourceBlock[];
+  cleanedSourceBlocks?: SecFormCleanedSourceBlock[];
+  [key: string]: unknown;
+};
+
 export type SecFormParserOutput<TFacts extends Record<string, unknown> = Record<string, unknown>> = {
   parserVersion: string;
   parserGroup: SecFormParserGroupSlug;
@@ -54,7 +72,7 @@ export type SecFormParserOutput<TFacts extends Record<string, unknown> = Record<
   signals?: string[];
   calendarItems?: SecFormParserCalendarItem[];
   warnings?: string[];
-  raw?: Record<string, unknown>;
+  raw?: SecFormParserRawSource;
 };
 
 export type SecFormParser<TFacts extends Record<string, unknown> = Record<string, unknown>> = (

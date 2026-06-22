@@ -1,0 +1,23 @@
+{
+  "name": "traditional-ipo-pricing",
+  "formType": "424B4",
+  "accessionNumber": "0000000000-26-000120",
+  "issuer": {
+    "name": "NovaCloud Software, Inc.",
+    "ticker": "NCLD",
+    "exchange": "NASDAQ"
+  },
+  "filingText": "Filed Pursuant to Rule 424(b)(4) Prospectus NovaCloud Software, Inc. Initial public offering of 12,000,000 shares of common stock. The initial public offering price is $18.00 per share. Our common stock has been approved for listing on the Nasdaq Global Market under the symbol NCLD and is expected to begin trading on June 3, 2026. The registration statement relating to these securities was declared effective by the Securities and Exchange Commission on June 2, 2026.",
+  "expected_event_type": "ipo_listing",
+  "expected_score_band": "feed",
+  "fixture_assertions": {
+    "deterministic": false,
+    "expected_router_preliminary_action": "analysis_llm",
+    "important_facts": {
+      "ipoListing": true,
+      "ipoKind": "traditional",
+      "sharesOffered": 12000000,
+      "pricePerShare": 18
+    }
+  }
+}

@@ -1,0 +1,116 @@
+{
+  "parser_output": {
+    "parserVersion": "s4-f4-v1",
+    "parserGroup": "s4-f4",
+    "formType": "S-4 / F-4 / S-4/A / F-4/A",
+    "accessionNumber": "0003333333-26-000303",
+    "isSupported": true,
+    "summary": "S-4 registration statement for an exchange offer with potential share issuance or dilution.",
+    "facts": {
+      "secFormType": "S-4",
+      "isAmendment": false,
+      "companyName": "Cobalt Therapeutics Inc.",
+      "primaryTicker": {
+        "ticker": "CBLT",
+        "exchange": "NASDAQ"
+      },
+      "transaction": {
+        "type": "exchange_offer",
+        "registeredShares": 32000000
+      },
+      "dilution": {
+        "shareIssuanceMentioned": true,
+        "registeredShares": 32000000,
+        "marketContextProvided": true
+      }
+    },
+    "signals": [],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {
+      "fixtureId": "exchange-offer-dilution"
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "dilution_risk",
+    "event_title": "Cobalt registers exchange offer that could sharply expand share count",
+    "primary_ticker": {
+      "ticker": "CBLT",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      {
+        "ticker": "CBLT",
+        "exchange": "NASDAQ"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 82,
+    "score_reason": "The fixture registers 32,000,000 shares against 41,000,000 shares outstanding, a large potential increase in common shares.",
+    "signal": "bearish",
+    "quick_take": "Cobalt's S-4 exchange offer could materially dilute common holders if fully subscribed.",
+    "summary": "The company is offering preferred holders common stock and registering up to 32,000,000 common shares for the exchange.",
+    "why_it_matters": "The static market context shows the registered share amount is large relative to the current share base, so dilution risk is central to the filing.",
+    "bullish_points": [
+      "The exchange could reduce preferred dividend burden."
+    ],
+    "bearish_points": [
+      "Common shares outstanding could rise from about 41,000,000 to about 73,000,000.",
+      "Existing common holders face meaningful ownership dilution."
+    ],
+    "key_evidence": [
+      "Registers up to 32,000,000 common shares.",
+      "Shares outstanding fixture value: 41,000,000.",
+      "Fully subscribed exchange would increase shares to about 73,000,000."
+    ],
+    "what_to_watch_next": [
+      "Final participation level in the exchange offer.",
+      "Whether preferred dividend savings offset dilution.",
+      "Any amended exchange ratio or offer extension."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "offering_terms",
+    "data": {
+      "offering_type": "exchange_offer",
+      "registered_shares": 32000000,
+      "current_shares_outstanding": 41000000,
+      "pro_forma_shares_outstanding": 73000000,
+      "market_cap": 174250000,
+      "price": 4.25
+    },
+    "evidence": [
+      "registers up to 32,000,000 shares",
+      "shares outstanding would increase from approximately 41,000,000 shares to approximately 73,000,000 shares"
+    ],
+    "notes": [
+      "Offering terms display can carry dilution fields without new UI from this room."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "alert",
+    "expected_impact": "high",
+    "market_context_needed": true,
+    "market_context_reason": "Registered shares should be compared with current shares outstanding and market cap to size dilution.",
+    "market_context_fields": [
+      "price",
+      "market_cap",
+      "shares_outstanding",
+      "public_float"
+    ],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Market context is static fixture JSON only; do not call live FMP."
+    ]
+  }
+}

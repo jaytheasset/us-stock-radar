@@ -1,0 +1,13 @@
+{
+  "fixtureName": "consultant-agreement-shares",
+  "formType": "S-8",
+  "accessionNumber": "0004444444-26-000406",
+  "filedAt": "2026-05-13",
+  "issuer": {
+    "name": "Agreement Shares Inc.",
+    "ticker": "AGRS",
+    "exchange": "NYSE"
+  },
+  "filingText": "Agreement Shares Inc. files this registration statement on Form S-8. The shares are registered as compensation for services under a consulting agreement and advisory agreement. PART I INFORMATION REQUIRED IN THE SECTION 10(a) PROSPECTUS. PART II INFORMATION REQUIRED IN THE REGISTRATION STATEMENT. SIGNATURES.",
+  "attachments": []
+}

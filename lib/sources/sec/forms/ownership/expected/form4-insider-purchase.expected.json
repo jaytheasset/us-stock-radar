@@ -1,0 +1,83 @@
+{
+  "parser_output": {
+    "parserVersion": "ownership-parser-v1",
+    "parserGroup": "ownership",
+    "formType": "Form 4 / 4/A, Form 144 / 144/A",
+    "accessionNumber": "0000000000-26-000401",
+    "isSupported": true,
+    "summary": "4 insider purchase filing for Maya Chen at Atlas Robotics Inc. (ATRB).",
+    "facts": {},
+    "signals": [
+      "form_4_transaction",
+      "insider_purchase"
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "insider_ownership",
+    "event_title": "CEO open-market purchase",
+    "primary_ticker": {
+      "ticker": "ATRB",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      "ATRB"
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 58,
+    "score_reason": "A CEO open-market purchase is constructive, but ownership filings are high volume and this single transaction should clear feed only when the source-backed dollar value is meaningful.",
+    "signal": "bullish",
+    "quick_take": "ATRB's CEO bought 25,000 common shares at $12.40.",
+    "summary": "Maya Chen, Atlas Robotics' CEO and director, reported acquiring 25,000 common shares at $12.40 per share.",
+    "why_it_matters": "Open-market purchases by senior executives can be a positive ownership signal when the filing gives clear price, share, and post-transaction holding facts.",
+    "bullish_points": [
+      "Transaction code P indicates an acquisition.",
+      "The filing reports $310,000 of transaction value."
+    ],
+    "bearish_points": [],
+    "key_evidence": [
+      "Transaction code: P",
+      "Shares acquired: 25,000",
+      "Price per share: $12.40",
+      "Shares owned following transaction: 425,000"
+    ],
+    "what_to_watch_next": [
+      "Whether other officers or directors also buy shares.",
+      "Whether later Form 4 filings offset this purchase with sales."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "candidate_special",
+    "data": {
+      "owner_name": "Maya Chen",
+      "owner_title": "Chief Executive Officer",
+      "transactions": [
+        {
+          "security_title": "Common Stock",
+          "transaction_code": "P",
+          "shares": 25000,
+          "price_per_share": 12.4,
+          "transaction_value": 310000,
+          "shares_owned_following": 425000
+        }
+      ]
+    },
+    "evidence": [
+      "Form 4 reports transaction code P for 25,000 common shares at $12.40."
+    ],
+    "notes": [
+      "A later UI room may want an insider transaction table for Form 4 details."
+    ]
+  }
+}

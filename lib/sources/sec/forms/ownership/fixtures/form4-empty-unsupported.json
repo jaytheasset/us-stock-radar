@@ -1,0 +1,15 @@
+{
+  "id": "form4-empty-unsupported",
+  "formType": "4",
+  "accessionNumber": "0000000000-26-000406",
+  "issuer": {
+    "name": "Empty Ownership Source Inc.",
+    "ticker": "EOSI",
+    "exchange": "NASDAQ",
+    "cik": "0001999006"
+  },
+  "filingText": "",
+  "expected_event_type": "other",
+  "expected_score_band": "archive",
+  "deterministic_expected": true
+}

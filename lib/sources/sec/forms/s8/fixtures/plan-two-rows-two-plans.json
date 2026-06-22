@@ -1,0 +1,19 @@
+{
+  "fixtureName": "plan-two-rows-two-plans",
+  "formType": "S-8",
+  "accessionNumber": "0003333333-26-000304",
+  "filedAt": "2026-05-04",
+  "issuer": {
+    "name": "Two Row Plans Inc.",
+    "ticker": "TRPI",
+    "exchange": "NASDAQ"
+  },
+  "filingText": "Two Row Plans Inc. files this Form S-8 in accordance with General Instruction E to register additional shares. PART I INFORMATION REQUIRED IN THE SECTION 10(a) PROSPECTUS. PART II INFORMATION REQUIRED IN THE REGISTRATION STATEMENT. SIGNATURES.",
+  "attachments": [
+    {
+      "documentType": "EX-FILING FEES",
+      "description": "Exhibit 107 filing fee table",
+      "text": "<table><tr><th>Security Type</th><th>Security Class Title</th><th>Amount Registered</th><th>Proposed Maximum Offering Price Per Share</th><th>Maximum Aggregate Offering Price</th><th>Fee Calculation Rule</th><th>Fee Rate</th><th>Registration Fee</th></tr><tr><td>Equity</td><td>Common Stock, Two Row Plans Inc. 2025 Equity Incentive Plan</td><td>2,000,000 shares</td><td>$3.00</td><td>$6,000,000</td><td>457(h)</td><td>0.00015310</td><td>$918.60</td></tr><tr><td>Equity</td><td>Common Stock, Two Row Plans Inc. 2024 Employee Stock Purchase Plan</td><td>500,000 shares</td><td>$3.00</td><td>$1,500,000</td><td>457(h)</td><td>0.00015310</td><td>$229.65</td></tr></table>"
+    }
+  ]
+}

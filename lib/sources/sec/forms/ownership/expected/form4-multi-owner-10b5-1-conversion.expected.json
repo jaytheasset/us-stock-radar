@@ -1,0 +1,79 @@
+{
+  "parser_output": {
+    "parserVersion": "ownership-parser-v1",
+    "parserGroup": "ownership",
+    "formType": "Form 4 / 4/A, Form 144 / 144/A",
+    "accessionNumber": "0001841794-26-000018",
+    "isSupported": true,
+    "summary": "4 insider sale filing for Mat Ishbia at UWM Holdings Corp (UWMC).",
+    "facts": {},
+    "signals": [
+      "multi_reporting_owner",
+      "form_4_transaction",
+      "insider_sale",
+      "conversion_transaction",
+      "derivative_transaction",
+      "rule_10b5_1_plan"
+    ],
+    "calendarItems": [],
+    "warnings": [
+      "Conversion rows may link derivative and non-derivative entries; parser did not net or merge them."
+    ],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "insider_ownership",
+    "event_title": "Multi-owner 10b5-1 sale and conversion filing",
+    "primary_ticker": {
+      "ticker": "UWMC",
+      "exchange": null
+    },
+    "tickers": [
+      "UWMC"
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 58,
+    "score_reason": "The filing includes a material reported sale plus linked conversion rows, but the conversion mechanics should not be netted by the parser.",
+    "signal": "bearish",
+    "quick_take": "UWMC reported a 10b5-1 sale alongside conversion activity by related reporting owners.",
+    "summary": "The Form 4 combines a reported sale with derivative conversion rows, so final interpretation should preserve the table-level facts without netting them.",
+    "why_it_matters": "Large insider sales can matter, but conversion rows and indirect ownership make the economic change ambiguous without analysis.",
+    "bullish_points": [],
+    "bearish_points": [
+      "The filing reports a sale under transaction code S.",
+      "The sale was made by related reporting owners under a 10b5-1 plan."
+    ],
+    "key_evidence": [
+      "Transaction code S sale of 632,874 shares.",
+      "Transaction code C conversion rows of 6,600,000 shares.",
+      "Footnote states the sale was under a 10b5-1 plan."
+    ],
+    "what_to_watch_next": [
+      "Whether later filings show additional 10b5-1 sales.",
+      "Whether the conversion activity changes beneficial ownership after related rows are reconciled."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "medium",
+    "needs_human_review": true
+  },
+  "display_payload": {
+    "display_type": "candidate_special",
+    "data": {
+      "needs_transaction_table": true,
+      "has_conversion_rows": true,
+      "has_multiple_reporting_owners": true
+    },
+    "evidence": [
+      "Parser extracted both non-derivative sale rows and derivative conversion rows."
+    ],
+    "notes": [
+      "Do not split one accession into multiple events."
+    ]
+  }
+}

@@ -6,8 +6,18 @@ export type ContextRange = "1D" | "5D" | "30D";
 export type { PricePoint, PriceRange };
 
 export type PriceChartSeries = {
+  providerLabel?: string;
   previousClose: number;
   periods: Record<PriceRange, PricePoint[]>;
+};
+
+export type PriceChartMarker = {
+  label: string;
+  value: number;
+  currency?: string | null;
+  appliesToTicker?: string | null;
+  tone?: DetailTone;
+  note?: string | null;
 };
 
 export type TopMover = {

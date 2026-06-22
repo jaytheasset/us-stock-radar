@@ -1,0 +1,9 @@
+{
+  "fixture_name": "parser-phase2-defa14a-ballot-items-only",
+  "input": {
+    "formType": "DEFA14A",
+    "accessionNumber": "0000000015-26-000015",
+    "companyName": "Ballot Only Co.",
+    "filingText": "Proxy Card Only\nProposal 1 Election of Directors FOR ALL | WITHHOLD ALL | FOR ALL EXCEPT\nProposal 2 Ratification of Appointment of Independent Registered Public Accounting Firm FOR | AGAINST | ABSTAIN\nThis proxy card should be returned in the envelope provided."
+  }
+}

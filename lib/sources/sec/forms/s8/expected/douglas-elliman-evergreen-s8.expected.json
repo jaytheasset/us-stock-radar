@@ -1,0 +1,311 @@
+{
+  "parser_output": {
+    "parserVersion": "s8-parser-v1",
+    "parserGroup": "s8",
+    "formType": "S-8",
+    "accessionNumber": "0001878897-26-000034",
+    "isSupported": true,
+    "summary": "Douglas Elliman Inc. filed an S-8 registering 4,412,397 common stock under Douglas Elliman Inc. 2021 Employee Stock Purchase Plan; Douglas Elliman Inc. 2021 Management Incentive Plan.",
+    "facts": {
+      "issuerName": "Douglas Elliman Inc.",
+      "ticker": "DOUG",
+      "exchange": "NYSE",
+      "filedAt": "2026-05-22",
+      "isAmendment": false,
+      "amendmentType": null,
+      "planNames": [
+        "Douglas Elliman Inc. 2021 Employee Stock Purchase Plan",
+        "Douglas Elliman Inc. 2021 Management Incentive Plan"
+      ],
+      "planNameFacts": [
+        {
+          "name": "Douglas Elliman Inc. 2021 Employee Stock Purchase Plan",
+          "planType": "employee_stock_purchase",
+          "sources": [
+            "explanatory_note",
+            "fee_footnote",
+            "plan_exhibit"
+          ],
+          "confidence": "high"
+        },
+        {
+          "name": "Douglas Elliman Inc. 2021 Management Incentive Plan",
+          "planType": "equity_incentive",
+          "sources": [
+            "explanatory_note",
+            "fee_footnote",
+            "plan_exhibit"
+          ],
+          "confidence": "high"
+        }
+      ],
+      "planExtractionConfidence": "high",
+      "planExtractionWarnings": [],
+      "securityType": "common stock",
+      "registeredShares": 4412397,
+      "additionalShares": null,
+      "parentRegisteredShares": null,
+      "estimatedOfferingAmount": 7103959.17,
+      "registrationFee": 981.06,
+      "dilutionPercentOfSharesOutstanding": null,
+      "dilutionPercentOfPublicFloat": null,
+      "noAdditionalSecurities": false,
+      "exhibitOnly": false,
+      "signatureOnly": false,
+      "needsParentComparison": false,
+      "normalizedS8Type": "general_instruction_e_additional_securities",
+      "s8FamilyDetected": true,
+      "likelyFeeTableMaterial": true,
+      "exFilingFeesExhibit": true,
+      "feeTableSource": "ex_filing_fees",
+      "feeTableExtractionConfidence": "high",
+      "feeTableWarnings": [],
+      "feeTablePurposeConflicts": [],
+      "rule416": false,
+      "planInterests": false,
+      "unusualFeeTableSecurities": false,
+      "postEffectiveAmendment": false,
+      "deregistrationOfUnsoldSecurities": false,
+      "resaleProspectus": false,
+      "sellingHolderSection": false,
+      "controlSecurities": false,
+      "restrictedSecurities": false,
+      "rule144": false,
+      "consultantAdvisorServiceProvider": false,
+      "investorRelationsPromotionalFinancingServices": false,
+      "shellReverseMergerDelinquentFiler": false,
+      "s8PosRegistersAdditionalSecurities": false,
+      "sectionExtractionConfidence": "medium",
+      "feeTableRows": [
+        {
+          "securityType": "Equity",
+          "securityClassTitle": "Douglas Elliman Inc. Common Stock, par value $0.01 per share, that may be issued under the Douglas Elliman Inc. 2021 Management Incentive Plan",
+          "feeCalculationRule": "Other",
+          "amountRegisteredText": "3,529,918",
+          "amountRegistered": 3529918,
+          "proposedMaximumOfferingPricePerUnitText": "1.61",
+          "proposedMaximumOfferingPricePerUnit": 1.61,
+          "maximumAggregateOfferingPriceText": "5,683,167.98",
+          "maximumAggregateOfferingPrice": 5683167.98,
+          "feeRateText": "0.0001381",
+          "feeRate": 0.0001381,
+          "registrationFeeText": "784.85",
+          "registrationFee": 784.85,
+          "footnotes": [
+            "(2)"
+          ],
+          "source": "inline_xbrl",
+          "confidence": "high",
+          "isPlanInterest": false,
+          "hasRule416": false,
+          "planNames": [
+            "Douglas Elliman Inc. 2021 Management Incentive Plan"
+          ],
+          "planMatchConfidence": "direct"
+        },
+        {
+          "securityType": "Equity",
+          "securityClassTitle": "Douglas Elliman Inc. Common Stock, par value $0.01 per share, that may be issued under the Douglas Elliman Inc. 2021 Employee Stock Purchase Plan",
+          "feeCalculationRule": "Other",
+          "amountRegisteredText": "882,479",
+          "amountRegistered": 882479,
+          "proposedMaximumOfferingPricePerUnitText": "1.61",
+          "proposedMaximumOfferingPricePerUnit": 1.61,
+          "maximumAggregateOfferingPriceText": "1,420,791.19",
+          "maximumAggregateOfferingPrice": 1420791.19,
+          "feeRateText": "0.0001381",
+          "feeRate": 0.0001381,
+          "registrationFeeText": "196.21",
+          "registrationFee": 196.21,
+          "footnotes": [
+            "(2)"
+          ],
+          "source": "inline_xbrl",
+          "confidence": "high",
+          "isPlanInterest": false,
+          "hasRule416": false,
+          "planNames": [
+            "Douglas Elliman Inc. 2021 Employee Stock Purchase Plan"
+          ],
+          "planMatchConfidence": "direct"
+        }
+      ],
+      "planShareAllocations": [
+        {
+          "planName": "Douglas Elliman Inc. 2021 Management Incentive Plan",
+          "shares": 3529918,
+          "source": "fee_footnote",
+          "confidence": "high",
+          "evidenceLevel": "direct",
+          "feeRowIndex": 0
+        },
+        {
+          "planName": "Douglas Elliman Inc. 2021 Employee Stock Purchase Plan",
+          "shares": 882479,
+          "source": "fee_footnote",
+          "confidence": "high",
+          "evidenceLevel": "direct",
+          "feeRowIndex": 1
+        }
+      ],
+      "priorRegistrationStatements": [
+        {
+          "fileNumber": "333-261959",
+          "filedAt": "December 30, 2021"
+        },
+        {
+          "fileNumber": "333-273978",
+          "filedAt": "August 14, 2023"
+        },
+        {
+          "fileNumber": "333-276423",
+          "filedAt": "January 8, 2024"
+        },
+        {
+          "fileNumber": "333-286888",
+          "filedAt": "May 1, 2025"
+        }
+      ],
+      "generalInstructionE": true
+    },
+    "signals": [],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {
+      "sourceTextExcerpt": "EXPLANATORY NOTE This registration statement on Form S-8 (this \"Registration Statement\") is being filed by Douglas Elliman Inc., a Delaware corporation (the \"Registrant\" or the \"Company\") for the purpose of registering (i) 3,529,918 additional shares of its common stock, par value $0.01 per share (\"Common Stock\"), issuable under the Douglas Elliman Inc. 2021 Management Incentive Plan (the \"Management Incentive Plan\") and (ii) 882,479 additional shares of Common Stock issuable under the Douglas Elliman Inc. 2021 Employee Stock Purchase Plan (the \"ESPP\"), pursuant to the Evergreen Provisions contained in each of the Management Incentive Plan and the ESPP. On January 1, 2026, the number of shar",
+      "sourceDocuments": [
+        {
+          "id": "primary",
+          "documentRole": "primary_filing",
+          "source": "primary",
+          "documentType": null,
+          "description": "Primary S-8 filing document",
+          "textKind": "normalized_text",
+          "text": "EXPLANATORY NOTE This registration statement on Form S-8 (this \"Registration Statement\") is being filed by Douglas Elliman Inc., a Delaware corporation (the \"Registrant\" or the \"Company\") for the purpose of registering (i) 3,529,918 additional shares of its common stock, par value $0.01 per share (\"Common Stock\"), issuable under the Douglas Elliman Inc. 2021 Management Incentive Plan (the \"Management Incentive Plan\") and (ii) 882,479 additional shares of Common Stock issuable under the Douglas Elliman Inc. 2021 Employee Stock Purchase Plan (the \"ESPP\"), pursuant to the Evergreen Provisions contained in each of the Management Incentive Plan and the ESPP. On January 1, 2026, the number of shares of Common Stock reserved for issuance and available for grant and issuance under the Management Incentive Plan and the ESPP increased by 3,529,918 shares and 882,479 shares, respectively, pursuant to the Evergreen Provisions. In accordance with General Instruction E of Form S-8, the contents of the registration statements of the Company on Form S-8 filed with the Securities and Exchange Commission on December 30, 2021 (File No. 333-261959), August 14, 2023 (File No. 333-273978), January 8, 2024 (File No. 333-276423) and May 1, 2025 (File No. 333-286888), including any amendments thereto or filings incorporated therein, are incorporated herein by reference and made part of this Registration Statement, except as amended hereby."
+        },
+        {
+          "id": "attachment_1",
+          "documentRole": "fee_exhibit",
+          "source": "attachment",
+          "documentType": "EX-FILING FEES",
+          "description": "Exhibit 107 inline XBRL filing fee table from exfilingfees.htm",
+          "textKind": "raw_text",
+          "text": "<ix:nonNumeric contextRef=\"c-1\" name=\"ffd:FormTp\">S-8</ix:nonNumeric><ix:nonNumeric contextRef=\"c-2\" name=\"ffd:OfferingSctyTp\">Equity</ix:nonNumeric><ix:nonNumeric contextRef=\"c-2\" name=\"ffd:OfferingSctyTitl\">Douglas Elliman Inc. Common Stock, par value $0.01 per share, that may be issued under the Douglas Elliman Inc. 2021 Management Incentive Plan</ix:nonNumeric><ix:nonNumeric contextRef=\"c-2\" name=\"ffd:Rule457aFlg\" format=\"ixt:fixed-true\">Other(2)</ix:nonNumeric><ix:nonFraction unitRef=\"shares\" contextRef=\"c-2\" decimals=\"INF\" name=\"ffd:AmtSctiesRegd\" format=\"ixt:num-dot-decimal\" scale=\"0\">3,529,918</ix:nonFraction><ix:nonFraction unitRef=\"usd\" contextRef=\"c-2\" decimals=\"2\" name=\"ffd:MaxOfferingPricPerScty\" scale=\"0\">1.61</ix:nonFraction><ix:nonFraction unitRef=\"usd\" contextRef=\"c-2\" decimals=\"2\" name=\"ffd:MaxAggtOfferingPric\" format=\"ixt:num-dot-decimal\" scale=\"0\">5,683,167.98</ix:nonFraction><ix:nonFraction unitRef=\"number\" contextRef=\"c-2\" decimals=\"7\" name=\"ffd:FeeRate\" scale=\"0\">0.0001381</ix:nonFraction><ix:nonFraction unitRef=\"usd\" contextRef=\"c-2\" decimals=\"2\" name=\"ffd:FeeAmt\" scale=\"0\">784.85</ix:nonFraction><ix:nonNumeric contextRef=\"c-3\" name=\"ffd:OfferingSctyTp\">Equity</ix:nonNumeric><ix:nonNumeric contextRef=\"c-3\" name=\"ffd:OfferingSctyTitl\">Douglas Elliman Inc. Common Stock, par value $0.01 per share, that may be issued under the Douglas Elliman Inc. 2021 Employee Stock Purchase Plan</ix:nonNumeric><ix:nonNumeric contextRef=\"c-3\" name=\"ffd:Rule457aFlg\" format=\"ixt:fixed-true\">Other(2)</ix:nonNumeric><ix:nonFraction unitRef=\"shares\" contextRef=\"c-3\" decimals=\"INF\" name=\"ffd:AmtSctiesRegd\" format=\"ixt:num-dot-decimal\" scale=\"0\">882,479</ix:nonFraction><ix:nonFraction unitRef=\"usd\" contextRef=\"c-3\" decimals=\"2\" name=\"ffd:MaxOfferingPricPerScty\" scale=\"0\">1.61</ix:nonFraction><ix:nonFraction unitRef=\"usd\" contextRef=\"c-3\" decimals=\"2\" name=\"ffd:MaxAggtOfferingPric\" format=\"ixt:num-dot-decimal\" scale=\"0\">1,420,791.19</ix:nonFraction><ix:nonFraction unitRef=\"number\" contextRef=\"c-3\" decimals=\"7\" name=\"ffd:FeeRate\" scale=\"0\">0.0001381</ix:nonFraction><ix:nonFraction unitRef=\"usd\" contextRef=\"c-3\" decimals=\"2\" name=\"ffd:FeeAmt\" scale=\"0\">196.21</ix:nonFraction><ix:nonFraction unitRef=\"usd\" contextRef=\"c-1\" decimals=\"2\" name=\"ffd:TtlOfferingAmt\" scale=\"0\">7,103,959.17</ix:nonFraction><ix:nonFraction unitRef=\"usd\" contextRef=\"c-1\" decimals=\"2\" name=\"ffd:TtlFeeAmt\" scale=\"0\">981.06</ix:nonFraction>"
+        }
+      ],
+      "noiseCandidates": [
+        {
+          "label": "incorporation_by_reference",
+          "source": "primary",
+          "documentType": null,
+          "description": "Primary S-8 filing document",
+          "reason": "Generic S-8 incorporation-by-reference blocks can distract from registration terms."
+        }
+      ],
+      "attachments": [
+        {
+          "documentType": "EX-FILING FEES",
+          "description": "Exhibit 107 inline XBRL filing fee table from exfilingfees.htm",
+          "text": "<ix:nonNumeric contextRef=\"c-1\" name=\"ffd:FormTp\">S-8</ix:nonNumeric><ix:nonNumeric contextRef=\"c-2\" name=\"ffd:OfferingSctyTp\">Equity</ix:nonNumeric><ix:nonNumeric contextRef=\"c-2\" name=\"ffd:OfferingSctyTitl\">Douglas Elliman Inc. Common Stock, par value $0.01 per share, that may be issued under the Douglas Elliman Inc. 2021 Management Incentive Plan</ix:nonNumeric><ix:nonNumeric contextRef=\"c-2\" name=\"ffd:Rule457aFlg\" format=\"ixt:fixed-true\">Other(2)</ix:nonNumeric><ix:nonFraction unitRef=\"shares\" contextRef=\"c-2\" decimals=\"INF\" name=\"ffd:AmtSctiesRegd\" format=\"ixt:num-dot-decimal\" scale=\"0\">3,529,918</ix:nonFraction><ix:nonFraction unitRef=\"usd\" contextRef=\"c-2\" decimals=\"2\" name=\"ffd:MaxOfferingPricPerScty\" scale=\"0\">1.61</ix:nonFraction><ix:nonFraction unitRef=\"usd\" contextRef=\"c-2\" decimals=\"2\" name=\"ffd:MaxAggtOfferingPric\" format=\"ixt:num-dot-decimal\" scale=\"0\">5,683,167.98</ix:nonFraction><ix:nonFraction unitRef=\"number\" contextRef=\"c-2\" decimals=\"7\" name=\"ffd:FeeRate\" scale=\"0\">0.0001381</ix:nonFraction><ix:nonFraction unitRef=\"usd\" contextRef=\"c-2\" decimals=\"2\" name=\"ffd:FeeAmt\" scale=\"0\">784.85</ix:nonFraction><ix:nonNumeric contextRef=\"c-3\" name=\"ffd:OfferingSctyTp\">Equity</ix:nonNumeric><ix:nonNumeric contextRef=\"c-3\" name=\"ffd:OfferingSctyTitl\">Douglas Elliman Inc. Common Stock, par value $0.01 per share, that may be issued under the Douglas Elliman Inc. 2021 Employee Stock Purchase Plan</ix:nonNumeric><ix:nonNumeric contextRef=\"c-3\" name=\"ffd:Rule457aFlg\" format=\"ixt:fixed-true\">Other(2)</ix:nonNumeric><ix:nonFraction unitRef=\"shares\" contextRef=\"c-3\" decimals=\"INF\" name=\"ffd:AmtSctiesRegd\" format=\"ixt:num-dot-decimal\" scale=\"0\">882,479</ix:nonFraction><ix:nonFraction unitRef=\"usd\" contextRef=\"c-3\" decimals=\"2\" name=\"ffd:MaxOfferingPricPerScty\" scale=\"0\">1.61</ix:nonFraction><ix:nonFraction unitRef=\"usd\" contextRef=\"c-3\" decimals=\"2\" name=\"ffd:MaxAggtOfferingPric\" format=\"ixt:num-dot-decimal\" scale=\"0\">1,420,791.19</ix:nonFraction><ix:nonFraction unitRef=\"number\" contextRef=\"c-3\" decimals=\"7\" name=\"ffd:FeeRate\" scale=\"0\">0.0001381</ix:nonFraction><ix:nonFraction unitRef=\"usd\" contextRef=\"c-3\" decimals=\"2\" name=\"ffd:FeeAmt\" scale=\"0\">196.21</ix:nonFraction><ix:nonFraction unitRef=\"usd\" contextRef=\"c-1\" decimals=\"2\" name=\"ffd:TtlOfferingAmt\" scale=\"0\">7,103,959.17</ix:nonFraction><ix:nonFraction unitRef=\"usd\" contextRef=\"c-1\" decimals=\"2\" name=\"ffd:TtlFeeAmt\" scale=\"0\">981.06</ix:nonFraction>"
+        }
+      ],
+      "parentFilingContext": null,
+      "marketContext": null,
+      "extractedShareCounts": [],
+      "sections": [
+        {
+          "key": "explanatory_note",
+          "heading": "EXPLANATORY NOTE",
+          "start": 0,
+          "end": null,
+          "confidence": "high"
+        }
+      ]
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "dilution_risk",
+    "event_title": "Douglas Elliman registers evergreen plan shares",
+    "primary_ticker": {
+      "ticker": "DOUG",
+      "exchange": "NYSE"
+    },
+    "tickers": [
+      "DOUG"
+    ],
+    "sector": "Real Estate",
+    "industry_group": "Real Estate Services",
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 52,
+    "score_reason": "The fixture registers 4,412,397 additional employee-plan shares with clean source-backed fee-table rows; market context is not supplied to size dilution.",
+    "signal": "neutral",
+    "quick_take": "Douglas Elliman registered 4,412,397 additional shares under two 2021 equity compensation plans.",
+    "summary": "The S-8 uses General Instruction E and Exhibit 107/iXBRL fee rows to register 3,529,918 Management Incentive Plan shares and 882,479 ESPP shares.",
+    "why_it_matters": "Additional plan shares can create future dilution, but the parser facts are mechanical registration terms rather than an investor-impact conclusion.",
+    "bullish_points": [
+      "The filing supports continued employee equity compensation capacity."
+    ],
+    "bearish_points": [
+      "The registered shares may become future dilution."
+    ],
+    "key_evidence": [
+      "Exhibit 107/iXBRL lists 3,529,918 shares for the Management Incentive Plan.",
+      "Exhibit 107/iXBRL lists 882,479 shares for the ESPP.",
+      "The filing references General Instruction E and prior S-8 registration statements."
+    ],
+    "what_to_watch_next": [
+      "Future plan usage and actual equity award grants."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "offering_terms",
+    "data": {
+      "payload_version": "s8_offering_terms_v1",
+      "registeredShares": 4412397,
+      "feeTableRows": [
+        {
+          "securityClassTitle": "Douglas Elliman Inc. Common Stock, par value $0.01 per share, that may be issued under the Douglas Elliman Inc. 2021 Management Incentive Plan",
+          "amountRegistered": 3529918,
+          "registrationFee": 784.85
+        },
+        {
+          "securityClassTitle": "Douglas Elliman Inc. Common Stock, par value $0.01 per share, that may be issued under the Douglas Elliman Inc. 2021 Employee Stock Purchase Plan",
+          "amountRegistered": 882479,
+          "registrationFee": 196.21
+        }
+      ],
+      "s8_ui_mode": "plan_registration"
+    },
+    "evidence": [
+      "Exhibit 107/iXBRL fee rows provide the registered share counts.",
+      "The explanatory note states the same two additional-share amounts."
+    ],
+    "notes": [
+      "Fee-table prices are filing fee calculation facts, not live market context."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": true,
+    "market_context_reason": "Market context would be needed to size the additional plan-share registration against current shares, public float and market cap.",
+    "market_context_fields": [
+      "price",
+      "market_cap",
+      "shares_outstanding",
+      "public_float"
+    ],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "This fixture proves parser extraction from Exhibit 107 inline XBRL/FFD fee facts without live APIs."
+    ]
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "title": "BlueRiver Bancorp Form 6-K dividend declaration",
+  "publishedAt": "2026-05-12T10:10:00Z",
+  "sourceUniqueId": "0012121212-26-000012",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/12121212/001212121226000012/",
+  "bodyText": "UNITED STATES\nFORM 6-K\nReport of Foreign Private Issuer\nBlueRiver Bancorp declared a quarterly cash dividend of $0.22 per ordinary share. The record date is June 5, 2026, and the payment date is June 20, 2026. The dividend is consistent with the Company's capital policy.",
+  "rawPayload": {
+    "form_type": "6-K",
+    "accession_number": "0012121212-26-000012",
+    "company_name": "BlueRiver Bancorp",
+    "ticker": "BRIV",
+    "documents": [
+      {
+        "type": "6-K",
+        "description": "Report of foreign issuer",
+        "url": "primary.htm",
+        "isPrimary": true,
+        "textCharCount": 390,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ]
+  },
+  "metadata": {
+    "company_name": "BlueRiver Bancorp",
+    "ticker": "BRIV"
+  },
+  "expected": {
+    "eventType": "dividends",
+    "deliveryLevel": "feed"
+  }
+}

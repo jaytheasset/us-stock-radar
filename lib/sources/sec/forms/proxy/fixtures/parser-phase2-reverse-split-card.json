@@ -1,0 +1,9 @@
+{
+  "fixture_name": "parser-phase2-reverse-split-card",
+  "input": {
+    "formType": "DEFA14A",
+    "accessionNumber": "0000000016-26-000016",
+    "companyName": "Reverse Split Vote Co.",
+    "filingText": "PROXY CARD\nProposal 1 Election of Directors FOR ALL | WITHHOLD ALL | FOR ALL EXCEPT\nProposal 2 Approval of Reverse Stock Split FOR | AGAINST | ABSTAIN"
+  }
+}

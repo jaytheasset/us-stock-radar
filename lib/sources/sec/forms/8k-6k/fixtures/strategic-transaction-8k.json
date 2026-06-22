@@ -1,0 +1,33 @@
+{
+  "title": "Pioneer Materials Form 8-K acquisition agreement",
+  "publishedAt": "2026-05-09T12:00:00Z",
+  "sourceUniqueId": "0009999999-26-000009",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/9999999/000999999926000009/",
+  "bodyText": "UNITED STATES\nFORM 8-K\nItem 1.01 Entry into a Material Definitive Agreement.\nOn May 9, 2026, Pioneer Materials entered into a definitive merger agreement to acquire Delta Ceramics for $420 million in cash and stock. The acquisition is expected to close in the third quarter of 2026, subject to regulatory approvals and customary closing conditions.\nItem 2.01 Completion of Acquisition or Disposition of Assets.",
+  "rawPayload": {
+    "form_type": "8-K",
+    "accession_number": "0009999999-26-000009",
+    "company_name": "Pioneer Materials",
+    "ticker": "PMAT",
+    "documents": [
+      {
+        "type": "8-K",
+        "description": "Current report",
+        "url": "primary.htm",
+        "isPrimary": true,
+        "textCharCount": 540,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ]
+  },
+  "metadata": {
+    "company_name": "Pioneer Materials",
+    "ticker": "PMAT"
+  },
+  "expected": {
+    "eventType": "strategic_transaction",
+    "deliveryLevel": "alert"
+  }
+}

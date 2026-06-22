@@ -1,0 +1,1605 @@
+import { exec, execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { promisify } from "node:util";
+import { runSecFilingAnalysisIngest } from "@/lib/secFilingAnalysisIngest";
+import { runSecFilingAnalysisPreviewForRawItem, findSecRawItem } from "@/lib/ai/secFilingAnalysisPreview";
+import {
+  createSecSourceRun,
+  ensureSecSource,
+  findExistingSecRawItem,
+  finishSecSourceRun,
+  saveSecRawItem,
+} from "@/lib/secStores/rawStore";
+import { fetchSecEdgarRawItems, type SecParsedRawItem } from "@/lib/sources/sec/parser";
+
+const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
+
+export type SecDevTestStatus = "pass" | "fail" | "not_run";
+
+export type SecDevRoom = {
+  key: string;
+  label: string;
+  forms: string[];
+  folder: string;
+  adapterKey?: string;
+};
+
+export type SecDevTestResult = {
+  file: string;
+  status: SecDevTestStatus;
+  command: string | null;
+  durationMs: number | null;
+  ranAt: string | null;
+  output: string | null;
+  error: string | null;
+};
+
+export type SecDevRoomSnapshot = SecDevRoom & {
+  testFiles: string[];
+  status: SecDevTestStatus;
+  passCount: number;
+  failCount: number;
+  notRunCount: number;
+  lastRunAt: string | null;
+};
+
+export type SecDevLiveRunResult = {
+  mode: "live_dry_run" | "latest_analysis_dry_run" | "accession_dry_run" | "controlled_persist" | "accession_samples";
+  status: "pass" | "fail";
+  ranAt: string;
+  durationMs: number;
+  room: string;
+  formTypes: string[];
+  accessionNumber: string | null;
+  rawItemId: string | null;
+  summary: string;
+  items: Array<Record<string, unknown>>;
+  diagnostics: Record<string, unknown> | null;
+  error: string | null;
+};
+
+export type SecDevOutputPreview = {
+  file: string;
+  formType: string;
+  eventTitle: string;
+  eventType: string;
+  displayType: string;
+  parserRoute: string;
+  isParserCompletedArchive: boolean;
+  score: number | null;
+  deliveryLevel: string;
+  signal: string;
+  ticker: string;
+  filingSummary: string;
+  quickTake: string;
+  summary: string;
+  scoreReason: string;
+  keyEvidence: string[];
+  whatToWatchNext: string[];
+  parserSignals: string[];
+  integrationNotes: string[];
+  displayData: Array<{ label: string; value: string }>;
+};
+
+export type SecDevPromptPreview = {
+  file: string;
+  prompts: Array<{
+    name: string;
+    text: string;
+  }>;
+};
+
+export type SecDevRoomDetail = SecDevRoomSnapshot & {
+  files: Array<{
+    kind: "parser" | "adapter" | "prompt" | "display" | "test" | "fixture" | "expected" | "other";
+    name: string;
+    path: string;
+    exists: boolean;
+    content: string;
+    truncated: boolean;
+  }>;
+  fixtures: string[];
+  expected: string[];
+  testResults: SecDevTestResult[];
+  liveRuns: SecDevLiveRunResult[];
+  outputPreviews: SecDevOutputPreview[];
+  promptPreviews: SecDevPromptPreview[];
+};
+
+const ROOT = process.cwd();
+const FORMS_ROOT = path.join(ROOT, "lib", "sources", "sec", "forms");
+const OUTPUT_ROOT = path.join(ROOT, "outputs", "sec-dev-dashboard");
+const TEST_CACHE_PATH = path.join(OUTPUT_ROOT, "test-results.json");
+const LIVE_CACHE_PATH = path.join(OUTPUT_ROOT, "live-results.json");
+const FILE_CHAR_LIMIT = 80_000;
+const LLM_DISABLED_DRY_RUN_MESSAGE = "LLM required but disabled for SEC analysis dry-run";
+
+type RawItemRow = Record<string, unknown>;
+
+export const SEC_DEV_ROOMS: SecDevRoom[] = [
+  { key: "ownership", label: "Ownership", forms: ["4", "4/A", "144", "144/A"], folder: "ownership", adapterKey: "ownership" },
+  { key: "8k-6k", label: "8-K / 6-K", forms: ["8-K", "8-K/A", "6-K", "6-K/A"], folder: "8k-6k", adapterKey: "current_report" },
+  { key: "s1-f1", label: "S-1 / F-1", forms: ["S-1", "S-1/A", "F-1", "F-1/A"], folder: "s1-f1" },
+  { key: "s3-f3", label: "S-3 / F-3", forms: ["S-3", "S-3/A", "F-3", "F-3/A", "S-3ASR"], folder: "s3-f3" },
+  { key: "s4-f4", label: "S-4 / F-4", forms: ["S-4", "S-4/A", "F-4", "F-4/A"], folder: "s4-f4" },
+  { key: "425", label: "425", forms: ["425"], folder: "425" },
+  { key: "424b", label: "424B", forms: ["424B3", "424B4", "424B5"], folder: "424b" },
+  { key: "tender", label: "Tender / CB / 13E3", forms: ["SC TO-I", "SC TO-T", "SC 13E3", "CB", "SC 14D9"], folder: "tender" },
+  { key: "proxy", label: "Proxy", forms: ["DEF 14A", "PRE 14A", "DEFA14A"], folder: "proxy" },
+  { key: "periodic-reports", label: "Periodic Reports", forms: ["10-K", "10-Q", "20-F"], folder: "periodic-reports" },
+  { key: "s8", label: "S-8", forms: ["S-8", "S-8/A", "S-8 POS"], folder: "s8" },
+  { key: "sc13", label: "13D / SC 13D", forms: ["SC 13D", "SC 13D/A", "SC 13G", "SC 13G/A"], folder: "sc13" },
+  { key: "nt", label: "NT Reports", forms: ["NT 10-K", "NT 10-Q", "NT 20-F"], folder: "nt" },
+  { key: "form25", label: "Form 25", forms: ["25", "25-NSE"], folder: "form25" },
+  { key: "effect", label: "EFFECT", forms: ["EFFECT"], folder: "effect" },
+];
+
+export async function getSecDevRoomSnapshots(): Promise<SecDevRoomSnapshot[]> {
+  const cache = await readTestCache();
+  return Promise.all(
+    SEC_DEV_ROOMS.map(async (room) => {
+      const testFiles = await listRoomTestFiles(room);
+      const results = testFiles.map((file) => cache[file]).filter(Boolean) as SecDevTestResult[];
+      return buildRoomSnapshot(room, testFiles, results);
+    }),
+  );
+}
+
+export async function getSecDevRoomDetail(roomKey: string): Promise<SecDevRoomDetail | null> {
+  const room = SEC_DEV_ROOMS.find((item) => item.key === roomKey);
+  if (!room) return null;
+
+  const [testFiles, fixtures, expected, cache] = await Promise.all([
+    listRoomTestFiles(room),
+    listJsonFiles(path.join(FORMS_ROOT, room.folder, "fixtures")),
+    listJsonFiles(path.join(FORMS_ROOT, room.folder, "expected")),
+    readTestCache(),
+  ]);
+  const liveCache = await readLiveCache();
+  const testResults = testFiles.map((file) => cache[file] || buildNotRunResult(file));
+  const snapshot = buildRoomSnapshot(room, testFiles, testResults);
+  const [files, outputPreviews, promptPreviews] = await Promise.all([
+    readRoomFiles(room, testFiles, fixtures, expected),
+    readOutputPreviews(room, expected),
+    readPromptPreviews(room),
+  ]);
+
+  return {
+    ...snapshot,
+    files,
+    fixtures,
+    expected,
+    testResults,
+    liveRuns: liveCache[room.key] || [],
+    outputPreviews,
+    promptPreviews,
+  };
+}
+
+export async function runSecDevRoomTests(roomKey: string): Promise<SecDevRoomDetail | null> {
+  const room = SEC_DEV_ROOMS.find((item) => item.key === roomKey);
+  if (!room) return null;
+
+  const testFiles = await listRoomTestFiles(room);
+  const cache = await readTestCache();
+  for (const file of testFiles) {
+    cache[file] = await runTestFile(file);
+  }
+  await writeTestCache(cache);
+  return getSecDevRoomDetail(roomKey);
+}
+
+export async function runSecDevLiveDryRun(
+  roomKey: string,
+  options: { limit?: number; countPerForm?: number; attachmentLimit?: number; formTypes?: string[]; dateFrom?: string; dateTo?: string } = {},
+): Promise<SecDevRoomDetail | null> {
+  const room = SEC_DEV_ROOMS.find((item) => item.key === roomKey);
+  if (!room) return null;
+
+  const started = Date.now();
+  const ranAt = new Date().toISOString();
+  const formTypes = resolveRunFormTypes(room, options.formTypes);
+  const dateFrom = normalizeDateOnly(options.dateFrom);
+  const dateTo = normalizeDateOnly(options.dateTo);
+  let liveRun: SecDevLiveRunResult;
+
+  try {
+    const rawResult = await fetchSecDevBalancedRawItems({
+      formTypes,
+      countPerForm: clampNumber(options.countPerForm, 1, 100, 1),
+      attachmentLimit: clampNumber(options.attachmentLimit, 0, 12, 6),
+      includeDocuments: true,
+      dateFrom,
+      dateTo,
+    });
+    if (!rawResult.ok) {
+      throw new Error(rawResult.error || "SEC live raw fetch failed");
+    }
+
+    const items = [];
+    for (const rawItem of rawResult.items) {
+      const preview = await runSecFilingAnalysisPreviewForRawItem(rawItem, { dryRun: true });
+      items.push(buildPreviewItem(rawItem, preview));
+    }
+    const excludedCount = countExcludedItems(items);
+
+    liveRun = {
+      mode: "live_dry_run",
+      status: items.every((item) => item.ok) ? "pass" : "fail",
+      ranAt,
+      durationMs: Date.now() - started,
+      room: room.key,
+      formTypes,
+      accessionNumber: null,
+      rawItemId: null,
+      summary: `Fetched ${rawResult.items.length} live SEC item(s) for ${formTypes.join(", ")}${formatDateRangeSummary(dateFrom, dateTo)}, no DB writes, no OpenAI calls, no alerts.${excludedCount ? ` Excluded before analysis: ${excludedCount}.` : ""}`,
+      items,
+      diagnostics: rawResult.diagnostics,
+      error: null,
+    };
+  } catch (error) {
+    liveRun = {
+      mode: "live_dry_run",
+      status: "fail",
+      ranAt,
+      durationMs: Date.now() - started,
+      room: room.key,
+      formTypes,
+      accessionNumber: null,
+      rawItemId: null,
+      summary: "Live SEC dry-run failed.",
+      items: [],
+      diagnostics: null,
+      error: error instanceof Error ? error.message : "Live SEC dry-run failed",
+    };
+  }
+
+  await appendLiveRun(room.key, liveRun);
+  return getSecDevRoomDetail(room.key);
+}
+
+export async function runSecDevLatestAnalysisDryRun(
+  roomKey: string,
+  options: {
+    limit?: number;
+    countPerForm?: number;
+    attachmentLimit?: number;
+    allowLlm?: boolean;
+    formTypes?: string[];
+    dateFrom?: string;
+    dateTo?: string;
+  } = {},
+): Promise<SecDevRoomDetail | null> {
+  const room = SEC_DEV_ROOMS.find((item) => item.key === roomKey);
+  if (!room) return null;
+
+  const started = Date.now();
+  const ranAt = new Date().toISOString();
+  const formTypes = resolveRunFormTypes(room, options.formTypes);
+  const dateFrom = normalizeDateOnly(options.dateFrom);
+  const dateTo = normalizeDateOnly(options.dateTo);
+  const allowLlm = options.allowLlm === true;
+  let liveRun: SecDevLiveRunResult;
+
+  try {
+    const rawResult = await fetchSecDevBalancedRawItems({
+      formTypes,
+      countPerForm: clampNumber(options.countPerForm, 1, 100, 1),
+      attachmentLimit: clampNumber(options.attachmentLimit, 0, 12, 6),
+      includeDocuments: true,
+      dateFrom,
+      dateTo,
+    });
+    if (!rawResult.ok) {
+      throw new Error(rawResult.error || "SEC live raw fetch failed");
+    }
+
+    const items = [];
+    for (const rawItem of rawResult.items) {
+      const analysis = await runSecFilingAnalysisPreviewForRawItem(rawItem, {
+        dryRun: false,
+        allowLlm,
+      });
+      items.push(buildRuntimeAnalysisItem(rawItem, analysis));
+    }
+    const hasHardError = items.some((item) => item.ok !== true && stringValue(item.error) !== LLM_DISABLED_DRY_RUN_MESSAGE);
+    const llmDisabledCount = items.filter((item) => stringValue(item.error) === LLM_DISABLED_DRY_RUN_MESSAGE).length;
+    const excludedCount = countExcludedItems(items);
+
+    liveRun = {
+      mode: "latest_analysis_dry_run",
+      status: hasHardError ? "fail" : "pass",
+      ranAt,
+      durationMs: Date.now() - started,
+      room: room.key,
+      formTypes,
+      accessionNumber: null,
+      rawItemId: null,
+      summary: `Analyzed ${rawResult.items.length} latest SEC item(s) for ${formTypes.join(", ")}${formatDateRangeSummary(dateFrom, dateTo)}, no DB writes, no alerts. LLM allowed: ${allowLlm ? "yes" : "no"}.${excludedCount ? ` Excluded before analysis: ${excludedCount}.` : ""}${
+        llmDisabledCount ? ` ${llmDisabledCount} item(s) need LLM and were left uncompleted because LLM is off.` : ""
+      }`,
+      items,
+      diagnostics: {
+        ...((rawResult.diagnostics && typeof rawResult.diagnostics === "object") ? rawResult.diagnostics : {}),
+        llm_allowed: allowLlm,
+        date_from: dateFrom,
+        date_to: dateTo,
+      },
+      error: null,
+    };
+  } catch (error) {
+    liveRun = {
+      mode: "latest_analysis_dry_run",
+      status: "fail",
+      ranAt,
+      durationMs: Date.now() - started,
+      room: room.key,
+      formTypes,
+      accessionNumber: null,
+      rawItemId: null,
+      summary: `Latest SEC analysis dry-run failed. LLM allowed: ${allowLlm ? "yes" : "no"}.`,
+      items: [],
+      diagnostics: {
+        llm_allowed: allowLlm,
+        date_from: dateFrom,
+        date_to: dateTo,
+      },
+      error: error instanceof Error ? error.message : "Latest SEC analysis dry-run failed",
+    };
+  }
+
+  await appendLiveRun(room.key, liveRun);
+  return getSecDevRoomDetail(room.key);
+}
+
+export async function runSecDevAccessionSamples(
+  roomKey: string,
+  options: { limit?: number; maxPages?: number; delayMs?: number; formTypes?: string[]; dateFrom?: string; dateTo?: string } = {},
+): Promise<SecDevRoomDetail | null> {
+  const room = SEC_DEV_ROOMS.find((item) => item.key === roomKey);
+  if (!room) return null;
+
+  const started = Date.now();
+  const ranAt = new Date().toISOString();
+  const formTypes = resolveRunFormTypes(room, options.formTypes);
+  const dateFrom = normalizeDateOnly(options.dateFrom);
+  const dateTo = normalizeDateOnly(options.dateTo);
+  const target = clampNumber(options.limit, 1, 1000, 100);
+  const collectPerForm = formTypes.length > 1;
+  const expectedTarget = collectPerForm ? target * formTypes.length : target;
+  const maxPages = clampNumber(options.maxPages, 1, 50, 20);
+  const delayMs = clampNumber(options.delayMs, 0, 10_000, 700);
+  const outputPath = path.join(
+    OUTPUT_ROOT,
+    "accession-samples",
+    `${room.key}-${Date.now()}.json`,
+  );
+  let liveRun: SecDevLiveRunResult;
+
+  try {
+    const scriptPath = path.join(ROOT, "scripts", "dev-sec-sample-accessions.mjs");
+    await execFileAsync(
+      process.execPath,
+      [
+        scriptPath,
+        "--formTypes",
+        formTypes.join(","),
+        "--target",
+        String(target),
+        ...(collectPerForm ? ["--mode", "per-form"] : []),
+        "--maxPages",
+        String(maxPages),
+        "--delayMs",
+        String(delayMs),
+        ...(dateFrom ? ["--dateFrom", dateFrom] : []),
+        ...(dateTo ? ["--dateTo", dateTo] : []),
+        "--out",
+        outputPath,
+      ],
+      {
+        cwd: ROOT,
+        maxBuffer: 10 * 1024 * 1024,
+      },
+    );
+    const raw = await fs.readFile(outputPath, "utf8");
+    const sample = JSON.parse(raw) as Record<string, unknown>;
+    const sampleItems = Array.isArray(sample.items) ? sample.items.map(readRecord).filter(Boolean) as Record<string, unknown>[] : [];
+    const items = sampleItems.map((item) => ({
+      ok: true,
+      accession_number: stringValue(item.accessionNumber),
+      form_type: stringValue(item.formType),
+      ticker: null,
+      title: stringValue(item.title),
+      source_url: stringValue(item.detailUrl),
+      updated: stringValue(item.updated),
+      requested_form_type: stringValue(item.requestedFormType),
+    }));
+
+    const metTarget = items.length >= expectedTarget;
+    liveRun = {
+      mode: "accession_samples",
+      status: metTarget ? "pass" : "fail",
+      ranAt,
+      durationMs: Date.now() - started,
+      room: room.key,
+      formTypes,
+      accessionNumber: null,
+      rawItemId: null,
+      summary: collectPerForm
+        ? `Collected ${items.length}/${expectedTarget} SEC accession sample(s), ${target} per form, for ${formTypes.join(", ")}${formatDateRangeSummary(dateFrom, dateTo)}. No filing text fetch, DB writes, OpenAI calls, or alerts.`
+        : `Collected ${items.length}/${target} SEC accession sample(s) for ${formTypes.join(", ")}${formatDateRangeSummary(dateFrom, dateTo)}. No filing text fetch, DB writes, OpenAI calls, or alerts.`,
+      items,
+      diagnostics: {
+        output_path: path.relative(ROOT, outputPath).replace(/\\/g, "/"),
+        target,
+        expected_target: expectedTarget,
+        collection_mode: collectPerForm ? "per_form" : "total",
+        maxPages,
+        delayMs,
+        date_from: dateFrom,
+        date_to: dateTo,
+        ...(readRecord(sample.diagnostics) || {}),
+      },
+      error: null,
+    };
+  } catch (error) {
+    liveRun = {
+      mode: "accession_samples",
+      status: "fail",
+      ranAt,
+      durationMs: Date.now() - started,
+      room: room.key,
+      formTypes,
+      accessionNumber: null,
+      rawItemId: null,
+      summary: "SEC accession sample collection failed.",
+      items: [],
+      diagnostics: {
+        target,
+        maxPages,
+        delayMs,
+        date_from: dateFrom,
+        date_to: dateTo,
+      },
+      error: error instanceof Error ? error.message : "SEC accession sample collection failed",
+    };
+  }
+
+  await appendLiveRun(room.key, liveRun);
+  return getSecDevRoomDetail(room.key);
+}
+
+async function fetchSecDevBalancedRawItems({
+  attachmentLimit,
+  countPerForm,
+  dateFrom,
+  dateTo,
+  formTypes,
+  includeDocuments,
+}: {
+  attachmentLimit: number;
+  countPerForm: number;
+  dateFrom: string | null;
+  dateTo: string | null;
+  formTypes: string[];
+  includeDocuments: boolean;
+}) {
+  const normalizedForms = uniqueStrings(formTypes);
+  if (normalizedForms.length <= 1) {
+    return fetchSecEdgarRawItems({
+      formTypes: normalizedForms,
+      limit: countPerForm,
+      countPerForm,
+      attachmentLimit,
+      includeDocuments,
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+    });
+  }
+
+  const items: SecParsedRawItem[] = [];
+  const perForm: Array<Record<string, unknown>> = [];
+  const aggregateDiagnostics = {
+    fetch_mode: "per_form_balanced",
+    requestedFormTypes: normalizedForms,
+    countPerForm,
+    feedsRequested: 0,
+    parsedFromFeeds: 0,
+    documentsRequested: 0,
+    documentsFetched: 0,
+    documentsFailed: 0,
+    dateFrom,
+    dateTo,
+    per_form: perForm,
+  };
+
+  for (const formType of normalizedForms) {
+    const result = await fetchSecEdgarRawItems({
+      formTypes: [formType],
+      limit: countPerForm,
+      countPerForm,
+      attachmentLimit,
+      includeDocuments,
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+    });
+    const diagnostics = readRecord(result.diagnostics) || {};
+    aggregateDiagnostics.feedsRequested += numberValue(diagnostics.feedsRequested) ?? 0;
+    aggregateDiagnostics.parsedFromFeeds += numberValue(diagnostics.parsedFromFeeds) ?? 0;
+    aggregateDiagnostics.documentsRequested += numberValue(diagnostics.documentsRequested) ?? 0;
+    aggregateDiagnostics.documentsFetched += numberValue(diagnostics.documentsFetched) ?? 0;
+    aggregateDiagnostics.documentsFailed += numberValue(diagnostics.documentsFailed) ?? 0;
+    perForm.push({
+      formType,
+      ok: result.ok,
+      count: result.items.length,
+      error: stringValue(result.error) || null,
+      diagnostics,
+    });
+    if (!result.ok) {
+      return {
+        ok: false as const,
+        status: result.status,
+        fetchedAt: result.fetchedAt,
+        count: items.length,
+        items,
+        diagnostics: aggregateDiagnostics,
+        error: result.error || `SEC current feed failed for ${formType}`,
+      };
+    }
+    items.push(...result.items);
+  }
+
+  return {
+    ok: true as const,
+    status: 200,
+    fetchedAt: new Date().toISOString(),
+    count: items.length,
+    items,
+    diagnostics: aggregateDiagnostics,
+  };
+}
+
+function buildPreviewItem(rawItem: RawItemRow, preview: unknown) {
+  const previewRecord = readRecord(preview) || {};
+  const input = readRecord(previewRecord.input);
+  const filingPackage = readRecord(input?.filing_package);
+  const hardParsers = readRecord(filingPackage?.hard_parsers);
+  const investableUniverseGate = readRecord(filingPackage?.investable_universe_gate);
+  const filingContext = readRecord(filingPackage?.filing_context);
+  const ownershipContext = readRecord(filingContext?.ownership);
+  const archiveContextGuard = readRecord(ownershipContext?.archive_context_guard);
+  const prompt = readRecord(previewRecord.prompt);
+  const rawPayload = readRecord(rawItem.raw_payload);
+  const analysis = readRecord(previewRecord.analysis);
+  const isExcluded = isSkipAnalysisResult(analysis, investableUniverseGate);
+  const ok = previewRecord.ok === true;
+
+  return {
+    ok,
+    is_excluded: isExcluded,
+    analysis_action: stringValue(analysis?.analysis_action) || (isExcluded ? "skip_analysis" : null),
+    skip_gate: stringValue(analysis?.skip_gate) || stringValue(investableUniverseGate?.gate) || null,
+    skip_reason: stringValue(analysis?.skip_reason) || stringValue(investableUniverseGate?.reason) || null,
+    skip_evidence: stringArray(analysis?.key_evidence).length
+      ? stringArray(analysis?.key_evidence).slice(0, 8)
+      : stringArray(investableUniverseGate?.evidence).slice(0, 8),
+    accession_number: stringValue(rawItem.source_unique_id),
+    form_type: rawPayload?.form_type || null,
+    ticker: rawPayload?.ticker || null,
+    title: stringValue(rawItem.title),
+    source_url: stringValue(rawItem.source_url),
+    body_chars: stringValue(rawItem.body_text).length,
+    hard_parser_keys: hardParsers ? Object.keys(hardParsers) : [],
+    prompt_key: stringValue(prompt?.key) || null,
+    prompt_version: stringValue(prompt?.version) || null,
+    filing_context_present: Boolean(filingContext),
+    ownership_context_present: Boolean(ownershipContext),
+    archive_context_guard: archiveContextGuard
+      ? {
+          analysis_needed: archiveContextGuard.analysis_needed === true,
+          context_signal_level: stringValue(archiveContextGuard.context_signal_level) || null,
+          reasons: stringArray(archiveContextGuard.reasons),
+          metrics: readRecord(archiveContextGuard.metrics) || null,
+        }
+      : null,
+    stage: stringValue(previewRecord.stage) || null,
+    runtime_output: analysis
+      ? {
+          event_title: stringValue(analysis.event_title),
+          event_type: stringValue(analysis.event_type),
+          display_type: null,
+          parser_route: isExcluded ? "excluded before analysis" : "preview",
+          is_parser_completed_archive: false,
+          is_excluded: isExcluded,
+          skip_gate: stringValue(analysis.skip_gate) || stringValue(investableUniverseGate?.gate) || null,
+          skip_reason: stringValue(analysis.skip_reason) || stringValue(investableUniverseGate?.reason) || null,
+          score: numberValue(analysis.score),
+          delivery_level: deriveDeliveryLabel(numberValue(analysis.score)),
+          signal: stringValue(analysis.signal),
+          ticker: null,
+          filing_summary: "",
+          quick_take: stringValue(analysis.quick_take),
+          summary: stringValue(analysis.summary),
+          archive_summary: "",
+          score_reason: stringValue(analysis.score_reason),
+          why_it_matters: stringValue(analysis.why_it_matters),
+          key_evidence: stringArray(analysis.key_evidence).slice(0, 8),
+          what_to_watch_next: stringArray(analysis.what_to_watch_next).slice(0, 8),
+          parser_signals: [],
+          display_data: [],
+          usage: readRecord(previewRecord.usage) || null,
+          cost_estimate: readRecord(previewRecord.costEstimate) || null,
+        }
+      : null,
+    error: ok ? null : stringValue(previewRecord.error) || null,
+  };
+}
+
+function buildRuntimeAnalysisItem(rawItem: RawItemRow, result: unknown) {
+  const resultRecord = readRecord(result) || {};
+  const input = readRecord(resultRecord.input);
+  const filingPackage = readRecord(input?.filing_package);
+  const hardParsers = readRecord(filingPackage?.hard_parsers);
+  const parentFilingContext = readRecord(filingPackage?.parent_filing_context);
+  const filingContext = readRecord(filingPackage?.filing_context);
+  const ownershipContext = readRecord(filingContext?.ownership);
+  const archiveContextGuard = readRecord(ownershipContext?.archive_context_guard);
+  const prompt = readRecord(resultRecord.prompt) || readRecord(resultRecord.runtime);
+  const rawPayload = readRecord(rawItem.raw_payload);
+  const analysis = readRecord(resultRecord.analysis);
+  const ok = resultRecord.ok === true;
+  const investableUniverseGate = readRecord(filingPackage?.investable_universe_gate);
+  const isExcluded = isSkipAnalysisResult(analysis, investableUniverseGate);
+  const parserSignals = readParserSignalsFromHardParsers(hardParsers);
+  const score = numberValue(analysis?.score);
+  const displayPayload = readRecord(analysis?.display_payload);
+  const displayData = readRecord(displayPayload?.data);
+  const primaryTicker = readRecord(analysis?.primary_ticker);
+  const deliveryLevel = deriveDeliveryLabel(score);
+  const isParserCompletedArchive =
+    (parserSignals.includes("deterministic_archive") || analysis?.deterministic_parser_archive === true) &&
+    deliveryLevel === "archive";
+
+  return {
+    ok,
+    is_excluded: isExcluded,
+    analysis_action: stringValue(analysis?.analysis_action) || (isExcluded ? "skip_analysis" : null),
+    skip_gate: stringValue(analysis?.skip_gate) || stringValue(investableUniverseGate?.gate) || null,
+    skip_reason: stringValue(analysis?.skip_reason) || stringValue(investableUniverseGate?.reason) || null,
+    skip_evidence: stringArray(analysis?.key_evidence).length
+      ? stringArray(analysis?.key_evidence).slice(0, 8)
+      : stringArray(investableUniverseGate?.evidence).slice(0, 8),
+    accession_number: stringValue(rawItem.source_unique_id),
+    raw_item_id: stringValue(rawItem.id) || null,
+    form_type: rawPayload?.form_type || null,
+    ticker: stringValue(primaryTicker?.ticker) || stringValue(rawPayload?.ticker) || null,
+    title: stringValue(analysis?.event_title) || stringValue(rawItem.title),
+    source_url: stringValue(rawItem.source_url),
+    body_chars: stringValue(rawItem.body_text).length,
+    hard_parser_keys: hardParsers ? Object.keys(hardParsers) : [],
+    prompt_key: stringValue(prompt?.key) || null,
+    prompt_version: stringValue(prompt?.version) || null,
+    parent_context_present: Boolean(parentFilingContext),
+    parent_context_status: stringValue(parentFilingContext?.status) || null,
+    parent_context_match_method: stringValue(parentFilingContext?.match_method) || null,
+    parent_context_confidence: stringValue(parentFilingContext?.confidence) || null,
+    filing_context_present: Boolean(filingContext),
+    ownership_context_present: Boolean(ownershipContext),
+    archive_context_guard: archiveContextGuard
+      ? {
+          analysis_needed: archiveContextGuard.analysis_needed === true,
+          context_signal_level: stringValue(archiveContextGuard.context_signal_level) || null,
+          reasons: stringArray(archiveContextGuard.reasons),
+          metrics: readRecord(archiveContextGuard.metrics) || null,
+        }
+      : null,
+    event_type: stringValue(analysis?.event_type) || null,
+    score,
+    delivery_level: deliveryLevel,
+    stage: stringValue(resultRecord.stage) || null,
+    runtime_output: analysis
+      ? {
+          event_title: stringValue(analysis.event_title),
+          event_type: stringValue(analysis.event_type),
+          display_type: stringValue(displayPayload?.display_type) || null,
+          parser_route: isExcluded ? "excluded before analysis" : isParserCompletedArchive ? "parser deterministic archive" : "analysis / LLM path",
+          parent_filing_context: parentFilingContext
+            ? {
+                status: stringValue(parentFilingContext.status) || null,
+                match_method: stringValue(parentFilingContext.match_method) || null,
+                confidence: stringValue(parentFilingContext.confidence) || null,
+                parent_accession: stringValue(readRecord(parentFilingContext.parent)?.accession_number) || null,
+                candidate_count: Array.isArray(parentFilingContext.candidates) ? parentFilingContext.candidates.length : 0,
+              }
+            : null,
+          is_parser_completed_archive: isParserCompletedArchive,
+          is_excluded: isExcluded,
+          skip_gate: stringValue(analysis.skip_gate) || stringValue(investableUniverseGate?.gate) || null,
+          skip_reason: stringValue(analysis.skip_reason) || stringValue(investableUniverseGate?.reason) || null,
+          score,
+          delivery_level: deliveryLevel,
+          signal: stringValue(analysis.signal),
+          ticker: stringValue(primaryTicker?.ticker) || firstString(analysis.tickers) || null,
+          filing_summary: stringValue(displayData?.filing_summary) || stringValue(analysis.filing_summary),
+          quick_take: stringValue(analysis.quick_take),
+          summary: stringValue(analysis.summary),
+          archive_summary: stringValue(analysis.archive_summary),
+          score_reason: stringValue(analysis.score_reason),
+          why_it_matters: stringValue(analysis.why_it_matters),
+          key_evidence: stringArray(analysis.key_evidence).slice(0, 8),
+          what_to_watch_next: stringArray(analysis.what_to_watch_next).slice(0, 8),
+          parser_signals: parserSignals,
+          transaction_fingerprint: readRecord(analysis.transaction_fingerprint) || null,
+          display_data: previewDisplayData(displayData),
+          usage: readRecord(resultRecord.usage) || null,
+          cost_estimate: readRecord(resultRecord.costEstimate) || null,
+        }
+      : null,
+    error: ok ? null : stringValue(resultRecord.error) || null,
+  };
+}
+
+function readParserSignalsFromHardParsers(hardParsers: Record<string, unknown> | null) {
+  if (!hardParsers) return [];
+  const signals: string[] = [];
+  for (const value of Object.values(hardParsers)) {
+    const parserOutput = readRecord(value);
+    signals.push(...stringArray(parserOutput?.signals));
+  }
+  return uniqueStrings(signals);
+}
+
+function countExcludedItems(items: Array<Record<string, unknown>>) {
+  return items.filter((item) => item.is_excluded === true || stringValue(item.skip_gate)).length;
+}
+
+function isSkipAnalysisResult(
+  analysis: Record<string, unknown> | null,
+  investableUniverseGate: Record<string, unknown> | null,
+) {
+  return (
+    stringValue(analysis?.analysis_action) === "skip_analysis" ||
+    Boolean(stringValue(analysis?.skip_gate)) ||
+    stringValue(investableUniverseGate?.action) === "skip_analysis" ||
+    Boolean(stringValue(investableUniverseGate?.gate))
+  );
+}
+
+export async function runSecDevAccessionDryRun(
+  roomKey: string,
+  options: { accessionNumber?: string; rawItemId?: string } = {},
+): Promise<SecDevRoomDetail | null> {
+  const room = SEC_DEV_ROOMS.find((item) => item.key === roomKey);
+  if (!room) return null;
+
+  const accessionNumber = stringValue(options.accessionNumber);
+  const rawItemId = stringValue(options.rawItemId);
+  const started = Date.now();
+  const ranAt = new Date().toISOString();
+  let liveRun: SecDevLiveRunResult;
+
+  try {
+    if (!accessionNumber && !rawItemId) {
+      throw new Error("Accession dry-run requires accessionNumber or rawItemId.");
+    }
+
+    const rawResult = await findSecRawItem({
+      accessionNumber: accessionNumber || undefined,
+      rawItemId: rawItemId || undefined,
+    });
+    if (!rawResult.ok || !rawResult.rawItem) {
+      throw new Error(rawResult.error || "SEC raw item not found. Ingest raw first, then dry-run this accession.");
+    }
+
+    const analysis = await runSecFilingAnalysisIngest({
+      accessionNumber: accessionNumber || undefined,
+      rawItemId: rawItemId || undefined,
+      dryRun: true,
+    });
+    const item = buildRuntimeAnalysisItem(rawResult.rawItem, analysis);
+
+    liveRun = {
+      mode: "accession_dry_run",
+      status: item.ok === true ? "pass" : "fail",
+      ranAt,
+      durationMs: Date.now() - started,
+      room: room.key,
+      formTypes: room.forms,
+      accessionNumber: accessionNumber || stringValue(item.accession_number) || null,
+      rawItemId: rawItemId || stringValue(rawResult.rawItem.id) || null,
+      summary: "Analyzed one existing SEC raw item by accession; no DB writes and no alerts. LLM runs only when the runtime path needs analysis.",
+      items: [item],
+      diagnostics: null,
+      error: item.ok === true ? null : stringValue(item.error) || "Accession analysis dry-run failed",
+    };
+  } catch (error) {
+    liveRun = {
+      mode: "accession_dry_run",
+      status: "fail",
+      ranAt,
+      durationMs: Date.now() - started,
+      room: room.key,
+      formTypes: room.forms,
+      accessionNumber: accessionNumber || null,
+      rawItemId: rawItemId || null,
+      summary: "Accession dry-run failed.",
+      items: [],
+      diagnostics: null,
+      error: error instanceof Error ? error.message : "Accession dry-run failed",
+    };
+  }
+
+  await appendLiveRun(room.key, liveRun);
+  return getSecDevRoomDetail(room.key);
+}
+
+export async function runSecDevControlledPersist(
+  roomKey: string,
+  options: { accessionNumber?: string; rawItemId?: string; attachmentLimit?: number } = {},
+): Promise<SecDevRoomDetail | null> {
+  const room = SEC_DEV_ROOMS.find((item) => item.key === roomKey);
+  if (!room) return null;
+
+  const accessionNumber = stringValue(options.accessionNumber);
+  const rawItemId = stringValue(options.rawItemId);
+  const started = Date.now();
+  const ranAt = new Date().toISOString();
+  let liveRun: SecDevLiveRunResult;
+
+  try {
+    if (!accessionNumber && !rawItemId) {
+      throw new Error("Controlled persist requires accessionNumber or rawItemId.");
+    }
+
+    const rawResult = await ensureDevRawItemForPersist({
+      room,
+      accessionNumber,
+      rawItemId,
+      attachmentLimit: clampNumber(options.attachmentLimit, 0, 12, 6),
+    });
+
+    const analysis = await runSecFilingAnalysisIngest({
+      accessionNumber: accessionNumber || undefined,
+      rawItemId: rawResult.rawItemId || rawItemId || undefined,
+      dryRun: false,
+      force: true,
+      suppressAlerts: true,
+    });
+    if (!analysis.ok) {
+      throw new Error(analysis.error || "Controlled SEC analysis persist failed");
+    }
+
+    const event = readRecord(analysis.event);
+    const analysisRecord = readRecord(analysis.analysis);
+    liveRun = {
+      mode: "controlled_persist",
+      status: "pass",
+      ranAt,
+      durationMs: Date.now() - started,
+      room: room.key,
+      formTypes: room.forms,
+      accessionNumber: accessionNumber || stringValue(rawResult.accessionNumber) || null,
+      rawItemId: stringValue(event?.raw_item_id) || rawResult.rawItemId || null,
+      summary: "Persisted one controlled SEC filing event; alert delivery suppressed.",
+      items: [
+        {
+          event_id: stringValue(event?.id) || null,
+          raw_item_id: stringValue(event?.raw_item_id) || rawResult.rawItemId || null,
+          accession_number: accessionNumber || rawResult.accessionNumber || null,
+          title: stringValue(event?.title) || stringValue(analysisRecord?.event_title) || null,
+          ticker: stringValue(event?.ticker) || null,
+          event_type: stringValue(event?.event_type) || stringValue(analysisRecord?.event_type) || null,
+          score: numberValue(event?.score ?? analysisRecord?.score),
+          delivery_level: stringValue(event?.delivery_level) || null,
+          detail_url: buildLocalFilingUrl(stringValue(event?.id), stringValue(event?.delivery_level)),
+          alert_delivery: analysis.alertDelivery || null,
+        },
+      ],
+      diagnostics: {
+        raw_source: rawResult.source,
+        prompt: analysis.runtime ? readRecord(analysis.runtime)?.prompt || null : null,
+      },
+      error: null,
+    };
+  } catch (error) {
+    liveRun = {
+      mode: "controlled_persist",
+      status: "fail",
+      ranAt,
+      durationMs: Date.now() - started,
+      room: room.key,
+      formTypes: room.forms,
+      accessionNumber: accessionNumber || null,
+      rawItemId: rawItemId || null,
+      summary: "Controlled persist failed.",
+      items: [],
+      diagnostics: null,
+      error: error instanceof Error ? error.message : "Controlled persist failed",
+    };
+  }
+
+  await appendLiveRun(room.key, liveRun);
+  return getSecDevRoomDetail(room.key);
+}
+
+async function readRoomFiles(room: SecDevRoom, testFiles: string[], fixtures: string[], expected: string[]) {
+  const base = path.join(FORMS_ROOT, room.folder);
+  const primaryFiles = [
+    ["parser", "parser.ts"],
+    ["adapter", "adapter.ts"],
+    ["adapter", "index.ts"],
+    ["prompt", "routerPrompt.ts"],
+    ["prompt", "router.ts"],
+    ["prompt", "analysisPrompt.ts"],
+    ["prompt", "analysis.ts"],
+    ["display", "displayPayload.ts"],
+  ] as const;
+
+  const selectedFixtures = fixtures.slice(0, 5).map((file) => ["fixture", path.join("fixtures", file)] as const);
+  const selectedExpected = expected.slice(0, 5).map((file) => ["expected", path.join("expected", file)] as const);
+  const selectedTests = testFiles.map((file) => ["test", path.basename(file)] as const);
+
+  return Promise.all(
+    [...primaryFiles, ...selectedTests, ...selectedFixtures, ...selectedExpected].map(async ([kind, relative]) => {
+      const absolute = path.join(base, relative);
+      return readDevFile(kind, absolute);
+    }),
+  );
+}
+
+async function readOutputPreviews(room: SecDevRoom, expected: string[]): Promise<SecDevOutputPreview[]> {
+  const directory = path.join(FORMS_ROOT, room.folder, "expected");
+  const previews: SecDevOutputPreview[] = [];
+
+  for (const file of expected.slice(0, 40)) {
+    try {
+      const raw = await fs.readFile(path.join(directory, file), "utf8");
+      const parsed = JSON.parse(raw) as unknown;
+      const record = readRecord(parsed);
+      const analysis = readRecord(record?.analysis_output);
+      const display = readRecord(record?.display_payload);
+      const parserOutput = readRecord(record?.parser_output);
+      if (!analysis && !display) continue;
+
+      const primaryTicker = readRecord(analysis?.primary_ticker);
+      const score = numberValue(analysis?.score);
+      const parserSignals = stringArray(parserOutput?.signals);
+      const formType = resolveOutputPreviewFormType(room, parserOutput, file);
+      const displayData = readRecord(display?.data);
+      const deliveryLevel = deriveDeliveryLabel(score);
+      const isParserCompletedArchive = parserSignals.includes("deterministic_archive") && deliveryLevel === "archive";
+      previews.push({
+        file,
+        formType,
+        eventTitle: stringValue(analysis?.event_title) || file,
+        eventType: stringValue(analysis?.event_type) || "-",
+        displayType: stringValue(display?.display_type) || "-",
+        parserRoute: isParserCompletedArchive ? "parser deterministic archive" : "analysis / LLM path",
+        isParserCompletedArchive,
+        score,
+        deliveryLevel,
+        signal: stringValue(analysis?.signal) || "-",
+        ticker: stringValue(primaryTicker?.ticker) || firstString(analysis?.tickers) || "-",
+        filingSummary: stringValue(displayData?.filing_summary) || stringValue(analysis?.filing_summary),
+        quickTake: stringValue(analysis?.quick_take),
+        summary: stringValue(analysis?.summary),
+        scoreReason: stringValue(analysis?.score_reason),
+        keyEvidence: stringArray(analysis?.key_evidence).slice(0, 6),
+        whatToWatchNext: stringArray(analysis?.what_to_watch_next).slice(0, 6),
+        parserSignals,
+        integrationNotes: [],
+        displayData: previewDisplayData(displayData),
+      });
+    } catch {
+      previews.push({
+        file,
+        formType: resolveOutputPreviewFormType(room, null, file),
+        eventTitle: file,
+        eventType: "parse_error",
+        displayType: "-",
+        parserRoute: "-",
+        isParserCompletedArchive: false,
+        score: null,
+        deliveryLevel: "-",
+        signal: "-",
+        ticker: "-",
+        filingSummary: "",
+        quickTake: "",
+        summary: "Could not parse expected JSON for site output preview.",
+        scoreReason: "",
+        keyEvidence: [],
+        whatToWatchNext: [],
+        parserSignals: [],
+        integrationNotes: [],
+        displayData: [],
+      });
+    }
+  }
+
+  return previews;
+}
+
+function resolveOutputPreviewFormType(
+  room: SecDevRoom,
+  parserOutput: Record<string, unknown> | null,
+  file: string,
+) {
+  const forms = room.forms;
+  const normalizedForms = new Map(forms.map((form) => [normalizeFormForPreviewFilter(form), form]));
+  const sourceCandidates = [
+    parserOutput?.form_type,
+    parserOutput?.formType,
+    parserOutput?.form,
+    parserOutput?.source_form_scope,
+  ].map(stringValue);
+
+  for (const candidate of sourceCandidates) {
+    const exact = normalizedForms.get(normalizeFormForPreviewFilter(candidate));
+    if (exact) return exact;
+  }
+
+  const fileToken = normalizeFormFilenameToken(file);
+  const sortedForms = [...forms].sort((left, right) => normalizeFormFilenameToken(right).length - normalizeFormFilenameToken(left).length);
+  for (const form of sortedForms) {
+    const token = normalizeFormFilenameToken(form);
+    if (token && fileToken.includes(token)) return form;
+  }
+
+  return "";
+}
+
+async function readPromptPreviews(room: SecDevRoom): Promise<SecDevPromptPreview[]> {
+  const base = path.join(FORMS_ROOT, room.folder);
+  const promptFiles = ["routerPrompt.ts", "router.ts", "analysisPrompt.ts", "analysis.ts"];
+  const previews: SecDevPromptPreview[] = [];
+
+  for (const file of promptFiles) {
+    const absolute = path.join(base, file);
+    try {
+      const raw = await fs.readFile(absolute, "utf8");
+      const prompts = extractPromptTemplateLiterals(raw);
+      if (prompts.length) {
+        previews.push({ file, prompts });
+      }
+    } catch {
+      // Prompt files are optional per form room.
+    }
+  }
+
+  return previews;
+}
+
+function extractPromptTemplateLiterals(source: string) {
+  const prompts: Array<{ name: string; text: string }> = [];
+  const seen = new Set<string>();
+  const namedStringArrays = extractNamedStringArrays(source);
+  const exportConstPrompt = /export\s+const\s+([A-Z0-9_]*PROMPT[A-Z0-9_]*)[\s\S]*?=\s*`([\s\S]*?)`\s*(?:\.trim\(\))?\s*;/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = exportConstPrompt.exec(source))) {
+    const name = match[1] || "prompt";
+    if (seen.has(name)) continue;
+    seen.add(name);
+    prompts.push({
+      name,
+      text: normalizePromptPreviewText(match[2] || ""),
+    });
+  }
+
+  const exportArrayPrompt =
+    /export\s+const\s+([A-Za-z0-9_$]*Prompt[A-Za-z0-9_$]*)\s*=\s*\[([\s\S]*?)\]\.join\(\s*(["'`])\\n\3\s*\)\s*;/g;
+  while ((match = exportArrayPrompt.exec(source))) {
+    const name = match[1] || "prompt";
+    if (seen.has(name)) continue;
+    const text = normalizePromptPreviewText(extractPromptArrayLines(match[2] || "", namedStringArrays).join("\n"));
+    if (!text) continue;
+    seen.add(name);
+    prompts.push({ name, text });
+  }
+
+  const ruleArrayPrompt =
+    /(?:export\s+)?const\s+([A-Za-z0-9_$]*(?:Prompt|Rules)[A-Za-z0-9_$]*)\s*=\s*\[([\s\S]*?)\]\s*(?:as\s+const)?\s*;/g;
+  while ((match = ruleArrayPrompt.exec(source))) {
+    const name = match[1] || "prompt";
+    if (seen.has(name)) continue;
+    const text = normalizePromptPreviewText((namedStringArrays.get(name) || extractStringLiteralLines(match[2] || "")).join("\n"));
+    if (!text || !looksLikePromptPreview(text)) continue;
+    seen.add(name);
+    prompts.push({ name, text });
+  }
+
+  if (!prompts.length) {
+    const returnedTemplates = /return\s+`([\s\S]*?)`\s*;/g;
+    let index = 1;
+    while ((match = returnedTemplates.exec(source))) {
+      const text = normalizePromptPreviewText(match[1] || "");
+      if (!text) continue;
+      prompts.push({ name: `RETURNED_PROMPT_${index}`, text });
+      index += 1;
+    }
+  }
+
+  if (!prompts.length) {
+    const returnedArrayPrompt = /return\s+\[([\s\S]*?)\]\.join\(\s*(["'`])\\n\2\s*\)\s*;/g;
+    let index = 1;
+    while ((match = returnedArrayPrompt.exec(source))) {
+      const text = normalizePromptPreviewText(extractPromptArrayLines(match[1] || "", namedStringArrays).join("\n"));
+      if (!text) continue;
+      prompts.push({ name: `RETURNED_ARRAY_PROMPT_${index}`, text });
+      index += 1;
+    }
+  }
+
+  return prompts.slice(0, 6);
+}
+
+function extractNamedStringArrays(source: string) {
+  const arrays = new Map<string, string[]>();
+  const pattern =
+    /(?:export\s+)?const\s+([A-Za-z0-9_$]*(?:Prompt|Rules)[A-Za-z0-9_$]*)\s*=\s*\[([\s\S]*?)\]\s*(?:as\s+const)?\s*;/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(source))) {
+    const name = match[1] || "";
+    const lines = extractStringLiteralLines(match[2] || "");
+    if (name && lines.length) arrays.set(name, lines);
+  }
+  return arrays;
+}
+
+function extractPromptArrayLines(source: string, namedStringArrays: Map<string, string[]>) {
+  const lines: string[] = [];
+  const tokenPattern = /\.\.\.([A-Za-z0-9_$]+)|(["'`])((?:\\.|(?!\2)[\s\S])*?)\2/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = tokenPattern.exec(source))) {
+    const spreadName = match[1] || "";
+    if (spreadName) {
+      lines.push(...(namedStringArrays.get(spreadName) || []));
+      continue;
+    }
+    const quote = match[2] || '"';
+    const rawValue = match[3] || "";
+    const decoded = decodeSourceStringLiteral(quote, rawValue);
+    if (decoded.trim()) lines.push(decoded);
+  }
+
+  return lines;
+}
+
+function looksLikePromptPreview(text: string) {
+  return /\b(?:SECTION:|score|scoring|event_type|display_payload|analysis|filing|JSON|tender|source|market_context)\b/i.test(text);
+}
+
+function extractStringLiteralLines(source: string) {
+  const lines: string[] = [];
+  const literalPattern = /(["'`])((?:\\.|(?!\1)[\s\S])*?)\1/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = literalPattern.exec(source))) {
+    const quote = match[1] || '"';
+    const rawValue = match[2] || "";
+    const decoded = decodeSourceStringLiteral(quote, rawValue);
+    if (decoded.trim()) lines.push(decoded);
+  }
+
+  return lines;
+}
+
+function decodeSourceStringLiteral(quote: string, rawValue: string) {
+  if (quote === "`") return rawValue.replace(/\\`/g, "`").replace(/\\n/g, "\n");
+  try {
+    return JSON.parse(`"${rawValue.replace(/"/g, '\\"')}"`) as string;
+  } catch {
+    return rawValue.replace(/\\n/g, "\n").replace(/\\'/g, "'").replace(/\\"/g, '"');
+  }
+}
+
+async function readDevFile(kind: SecDevRoomDetail["files"][number]["kind"], absolute: string) {
+  const relative = path.relative(ROOT, absolute).replace(/\\/g, "/");
+  try {
+    const raw = await fs.readFile(absolute, "utf8");
+    const truncated = raw.length > FILE_CHAR_LIMIT;
+    return {
+      kind,
+      name: path.basename(absolute),
+      path: relative,
+      exists: true,
+      content: truncated ? `${raw.slice(0, FILE_CHAR_LIMIT)}\n\n/* truncated */` : raw,
+      truncated,
+    };
+  } catch {
+    return {
+      kind,
+      name: path.basename(absolute),
+      path: relative,
+      exists: false,
+      content: "",
+      truncated: false,
+    };
+  }
+}
+
+async function listRoomTestFiles(room: SecDevRoom) {
+  const base = path.join(FORMS_ROOT, room.folder);
+  let entries: string[] = [];
+  try {
+    entries = await fs.readdir(base);
+  } catch {
+    return [];
+  }
+  return entries
+    .filter((name) => /\.test\.ts$/.test(name))
+    .filter((name) => !/(?:live|real-sec)/i.test(name))
+    .sort()
+    .map((name) => path.join(base, name));
+}
+
+async function listJsonFiles(directory: string) {
+  try {
+    const entries = await fs.readdir(directory);
+    return entries.filter((name) => name.endsWith(".json")).sort();
+  } catch {
+    return [];
+  }
+}
+
+function buildRoomSnapshot(room: SecDevRoom, testFiles: string[], results: SecDevTestResult[]): SecDevRoomSnapshot {
+  const passCount = results.filter((result) => result.status === "pass").length;
+  const failCount = results.filter((result) => result.status === "fail").length;
+  const notRunCount = Math.max(0, testFiles.length - passCount - failCount);
+  const runTimes = results
+    .map((result) => result.ranAt)
+    .filter((value): value is string => Boolean(value))
+    .sort();
+  const lastRunAt = runTimes.length ? runTimes[runTimes.length - 1] : null;
+  const status: SecDevTestStatus = failCount > 0 ? "fail" : notRunCount > 0 ? "not_run" : passCount > 0 ? "pass" : "not_run";
+
+  return {
+    ...room,
+    testFiles: testFiles.map((file) => path.relative(ROOT, file).replace(/\\/g, "/")),
+    status,
+    passCount,
+    failCount,
+    notRunCount,
+    lastRunAt,
+  };
+}
+
+function resolveRunFormTypes(room: SecDevRoom, requested: string[] | undefined) {
+  const allowed = new Map(room.forms.map((form) => [normalizeFormForPreviewFilter(form), form]));
+  const selected = (requested || [])
+    .map((form) => allowed.get(normalizeFormForPreviewFilter(form)))
+    .filter((form): form is string => Boolean(form));
+  return selected.length ? uniqueStrings(selected) : room.forms;
+}
+
+async function runTestFile(file: string): Promise<SecDevTestResult> {
+  const start = Date.now();
+  const command = `npx --yes tsx ${path.relative(ROOT, file).replace(/\\/g, "/")}`;
+  try {
+    const { stdout, stderr } = await execAsync(command, {
+      cwd: ROOT,
+      timeout: 120_000,
+      maxBuffer: 8 * 1024 * 1024,
+      env: {
+        ...process.env,
+        NODE_ENV: "test",
+      },
+    });
+    return {
+      file: path.relative(ROOT, file).replace(/\\/g, "/"),
+      status: "pass",
+      command,
+      durationMs: Date.now() - start,
+      ranAt: new Date().toISOString(),
+      output: trimOutput(`${stdout}\n${stderr}`),
+      error: null,
+    };
+  } catch (error) {
+    const record = error as { stdout?: string; stderr?: string; message?: string };
+    return {
+      file: path.relative(ROOT, file).replace(/\\/g, "/"),
+      status: "fail",
+      command,
+      durationMs: Date.now() - start,
+      ranAt: new Date().toISOString(),
+      output: trimOutput(`${record.stdout || ""}\n${record.stderr || ""}`),
+      error: record.message || "Test failed",
+    };
+  }
+}
+
+async function ensureDevRawItemForPersist({
+  attachmentLimit,
+  accessionNumber,
+  rawItemId,
+  room,
+}: {
+  attachmentLimit: number;
+  accessionNumber: string;
+  rawItemId: string;
+  room: SecDevRoom;
+}) {
+  if (rawItemId) {
+    const existing = await findSecRawItem({ rawItemId });
+    if (existing.ok && existing.rawItem) {
+      return {
+        rawItemId: stringValue(existing.rawItem.id),
+        accessionNumber: stringValue(existing.rawItem.source_unique_id),
+        source: "existing_raw_item",
+      };
+    }
+  }
+
+  if (accessionNumber) {
+    const existing = await findSecRawItem({ accessionNumber });
+    if (existing.ok && existing.rawItem) {
+      return {
+        rawItemId: stringValue(existing.rawItem.id),
+        accessionNumber,
+        source: "existing_raw_item",
+      };
+    }
+  }
+
+  if (!accessionNumber) {
+    throw new Error("Raw item is not present and accessionNumber was not provided for SEC live fetch.");
+  }
+
+  const fetchResult = await fetchSecEdgarRawItems({
+    formTypes: room.forms,
+    countPerForm: 10,
+    limit: 40,
+    includeDocuments: true,
+    attachmentLimit,
+  });
+  if (!fetchResult.ok) {
+    throw new Error(fetchResult.error || "SEC raw fetch failed before controlled persist");
+  }
+
+  const rawItem = fetchResult.items.find((item) => stringValue(item.source_unique_id) === accessionNumber);
+  if (!rawItem) {
+    throw new Error(
+      `Accession ${accessionNumber} is not in the current SEC feed for ${room.forms.join(", ")}. Run live dry-run first or ingest raw separately.`,
+    );
+  }
+
+  const persisted = await persistSingleDevRawItem(rawItem);
+  return {
+    rawItemId: stringValue(persisted.id),
+    accessionNumber,
+    source: "live_fetch_persisted_raw_item",
+  };
+}
+
+async function persistSingleDevRawItem(rawItem: SecParsedRawItem) {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  await ensureSecSource();
+  await createSecSourceRun({
+    force: true,
+    includeDocuments: true,
+    requestedFormTypes: [stringValue(readRecord(rawItem.raw_payload)?.form_type)].filter(Boolean),
+    requestedLimit: 1,
+    runId,
+    startedAt,
+  });
+
+  try {
+    const existing = await findExistingSecRawItem(rawItem);
+    const persisted = await saveSecRawItem(rawItem, runId, existing);
+    await finishSecSourceRun(
+      runId,
+      "completed",
+      startedAt,
+      {
+        checked_count: 1,
+        raw_upserted_count: 1,
+        skipped_count: 0,
+        failed_count: 0,
+        documents_requested: countDocuments(rawItem),
+        documents_fetched: countFetchedDocuments(rawItem),
+        documents_failed: 0,
+      },
+      undefined,
+      { development_controlled_persist: true },
+    );
+    return persisted;
+  } catch (error) {
+    await finishSecSourceRun(
+      runId,
+      "failed",
+      startedAt,
+      {
+        checked_count: 1,
+        raw_upserted_count: 0,
+        skipped_count: 0,
+        failed_count: 1,
+      },
+      error instanceof Error ? error.message : "Controlled raw persist failed",
+      { development_controlled_persist: true },
+    );
+    throw error;
+  }
+}
+
+async function appendLiveRun(roomKey: string, result: SecDevLiveRunResult) {
+  const cache = await readLiveCache();
+  const existing = cache[roomKey] || [];
+  cache[roomKey] = [result, ...existing].slice(0, 20);
+  await writeLiveCache(cache);
+}
+
+async function readLiveCache(): Promise<Record<string, SecDevLiveRunResult[]>> {
+  try {
+    const raw = await fs.readFile(LIVE_CACHE_PATH, "utf8");
+    const parsed = JSON.parse(raw) as Record<string, SecDevLiveRunResult[]>;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+async function writeLiveCache(cache: Record<string, SecDevLiveRunResult[]>) {
+  await fs.mkdir(OUTPUT_ROOT, { recursive: true });
+  await fs.writeFile(LIVE_CACHE_PATH, JSON.stringify(cache, null, 2), "utf8");
+}
+
+async function readTestCache(): Promise<Record<string, SecDevTestResult>> {
+  try {
+    const raw = await fs.readFile(TEST_CACHE_PATH, "utf8");
+    const parsed = JSON.parse(raw) as Record<string, SecDevTestResult>;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+async function writeTestCache(cache: Record<string, SecDevTestResult>) {
+  await fs.mkdir(OUTPUT_ROOT, { recursive: true });
+  await fs.writeFile(TEST_CACHE_PATH, JSON.stringify(cache, null, 2), "utf8");
+}
+
+function buildNotRunResult(file: string): SecDevTestResult {
+  return {
+    file: path.relative(ROOT, file).replace(/\\/g, "/"),
+    status: "not_run",
+    command: null,
+    durationMs: null,
+    ranAt: null,
+    output: null,
+    error: null,
+  };
+}
+
+function buildLocalFilingUrl(eventId: string, deliveryLevel: string) {
+  if (!eventId) return null;
+  return deliveryLevel === "archive" ? `/filings/archive/${eventId}` : `/filings/${eventId}`;
+}
+
+function deriveDeliveryLabel(score: number | null) {
+  if (score === null) return "-";
+  if (score >= 75) return "alert";
+  if (score >= 50) return "feed";
+  return "archive";
+}
+
+function firstString(value: unknown) {
+  if (!Array.isArray(value)) return "";
+  for (const item of value) {
+    const text = stringValue(item);
+    if (text) return text;
+  }
+  return "";
+}
+
+function stringArray(value: unknown) {
+  return Array.isArray(value) ? value.map(stringValue).filter(Boolean) : [];
+}
+
+function uniqueStrings(values: string[]) {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const value of values) {
+    const text = stringValue(value);
+    if (!text || seen.has(text)) continue;
+    seen.add(text);
+    result.push(text);
+  }
+  return result;
+}
+
+function previewDisplayData(data: Record<string, unknown> | null) {
+  if (!data) return [];
+  return Object.entries(data)
+    .filter(([, value]) => value !== null && value !== undefined && value !== "")
+    .slice(0, 10)
+    .map(([label, value]) => ({
+      label,
+      value: previewValue(value),
+    }));
+}
+
+function previewValue(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) return `${value.length} item${value.length === 1 ? "" : "s"}`;
+  if (readRecord(value)) return "object";
+  return "";
+}
+
+function normalizePromptPreviewText(value: string) {
+  const text = value
+    .replace(/\r\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  if (text.length <= 60_000) return text;
+  return `${text.slice(0, 60_000)}\n\n/* prompt preview truncated */`;
+}
+
+function countDocuments(rawItem: SecParsedRawItem) {
+  return Array.isArray(rawItem.raw_payload.documents) ? rawItem.raw_payload.documents.length : 0;
+}
+
+function countFetchedDocuments(rawItem: SecParsedRawItem) {
+  return Array.isArray(rawItem.raw_payload.documents)
+    ? rawItem.raw_payload.documents.filter((document) => readRecord(document)?.fetchStatus !== 0).length
+    : 0;
+}
+
+function clampNumber(value: unknown, min: number, max: number, fallback: number) {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(parsed)));
+}
+
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+}
+
+function stringValue(value: unknown) {
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return "";
+}
+
+function numberValue(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value.replace(/,/g, ""));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function normalizeFormForPreviewFilter(value: string) {
+  return stringValue(value).toUpperCase().replace(/\s+/g, " ").trim();
+}
+
+function normalizeDateOnly(value: unknown) {
+  const text = stringValue(value);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return null;
+  const date = new Date(`${text}T00:00:00.000Z`);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10);
+}
+
+function formatDateRangeSummary(dateFrom: string | null, dateTo: string | null) {
+  if (dateFrom && dateTo) return ` from ${dateFrom} to ${dateTo}`;
+  if (dateFrom) return ` from ${dateFrom}`;
+  if (dateTo) return ` through ${dateTo}`;
+  return "";
+}
+
+function normalizeFormFilenameToken(value: string) {
+  return stringValue(value).toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function trimOutput(value: string) {
+  const text = value.trim();
+  if (text.length <= 30_000) return text;
+  return `${text.slice(0, 30_000)}\n\n/* output truncated */`;
+}

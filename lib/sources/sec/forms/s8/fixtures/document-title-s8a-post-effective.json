@@ -1,0 +1,20 @@
+{
+  "fixtureName": "document-title-s8a-post-effective",
+  "formType": "S-8",
+  "accessionNumber": "0009999999-26-000092",
+  "filedAt": "2026-04-05",
+  "issuer": {
+    "name": "Title Match Inc.",
+    "ticker": "TITL",
+    "exchange": "NASDAQ"
+  },
+  "filingText": "FORM S-8/A. Post-Effective Amendment to Form S-8. Title Match Inc. files this amendment to deregister the unsold securities under its prior Form S-8 registration statement. No additional securities are being registered. PART II INFORMATION REQUIRED IN THE REGISTRATION STATEMENT. SIGNATURES.",
+  "attachments": [],
+  "parentFilingContext": null,
+  "marketContext": null,
+  "flowExpectation": {
+    "parserCanFinishWithoutLlm": true,
+    "routerCanFinishWithoutLlm": true,
+    "reason": "Document title and cover text identify an S-8/A post-effective deregistration even when EDGAR form type is S-8."
+  }
+}

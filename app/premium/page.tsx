@@ -133,6 +133,7 @@ const categoryVisuals: Record<AlertCategoryKey, { tone: string; strength: string
   legal_risk: { tone: "risk", strength: "medium" },
   dividends: { tone: "performance", strength: "low" },
   capital_return: { tone: "performance", strength: "medium" },
+  ipo_listing: { tone: "transaction", strength: "high" },
   fda_clinical: { tone: "policy", strength: "high" },
   policy_regulation: { tone: "policy", strength: "medium" },
   macro_market: { tone: "policy", strength: "medium" },

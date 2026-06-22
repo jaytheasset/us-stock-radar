@@ -1,0 +1,144 @@
+{
+  "cases": [
+    {
+      "name": "simple-financial-table",
+      "min_tables": 1,
+      "table": {
+        "classification": "data",
+        "type_hints_include": ["income_statement"],
+        "min_row_count": 3,
+        "min_column_count": 3,
+        "cell_texts_include": ["Revenue", "$100.0", "$90.0", "Net income"],
+        "header_like_rows_min": 1
+      }
+    },
+    {
+      "name": "rowspan-colspan-table",
+      "min_tables": 1,
+      "table": {
+        "classification": "data",
+        "type_hints_include": ["segment_revenue"],
+        "min_column_count": 3,
+        "cell_spans_include": [
+          { "text": "Segment", "rowSpan": 2, "colSpan": 1 },
+          { "text": "Year Ended December 31", "rowSpan": 1, "colSpan": 2 }
+        ]
+      }
+    },
+    {
+      "name": "empty-and-dash-cells",
+      "min_tables": 1,
+      "table": {
+        "classification": "data",
+        "cell_texts_include": ["Cash", "", "-", "Debt"],
+        "empty_cell_min": 1
+      }
+    },
+    {
+      "name": "negative-parentheses-table",
+      "min_tables": 1,
+      "table": {
+        "classification": "data",
+        "type_hints_include": ["income_statement"],
+        "cell_texts_include": ["($12.5)", "-3.4%", "(8.0)", "5.0-"],
+        "numeric_cell_min": 4
+      }
+    },
+    {
+      "name": "unit-caption-dollars-in-millions",
+      "min_tables": 1,
+      "table": {
+        "classification": "data",
+        "caption_contains": "Dollars in millions",
+        "unit_hint_contains": "Dollars in millions",
+        "type_hints_include": ["balance_sheet"],
+        "footnotes_include": ["(1) Amounts may not foot due to rounding."]
+      }
+    },
+    {
+      "name": "inline-xbrl-inside-table-cells",
+      "min_tables": 1,
+      "table": {
+        "classification": "data",
+        "cell_texts_include": ["Revenue", "123", "Net income", "10"],
+        "inline_xbrl_mentions": [
+          { "name": "us-gaap:Revenues", "visibleText": "123" },
+          { "name": "us-gaap:NetIncomeLoss", "visibleText": "10" }
+        ]
+      }
+    },
+    {
+      "name": "one-cell-layout-narrative",
+      "min_tables": 1,
+      "table": {
+        "classification": "layout",
+        "cell_texts_include": ["This layout table contains a long narrative paragraph"],
+        "max_column_count": 1
+      }
+    },
+    {
+      "name": "one-cell-layout-heading-like",
+      "min_tables": 1,
+      "table": {
+        "classification": "layout",
+        "cell_texts_include": ["ITEM 1. Business"],
+        "max_column_count": 1
+      }
+    },
+    {
+      "name": "toc-like-table",
+      "min_tables": 1,
+      "table": {
+        "classification": "toc",
+        "type_hints_include": ["toc"],
+        "cell_texts_include": ["Item 1. Business ................................", "4", "Item 8. Financial Statements ....................", "50"]
+      }
+    },
+    {
+      "name": "exhibit-index-table",
+      "min_tables": 1,
+      "table": {
+        "classification": "exhibit_index",
+        "type_hints_include": ["exhibit_index"],
+        "cell_texts_include": ["Exhibit No.", "Certification of Principal Executive Officer", "101.INS", "Filed herewith"]
+      }
+    },
+    {
+      "name": "share-repurchase-table",
+      "min_tables": 1,
+      "table": {
+        "classification": "data",
+        "type_hints_include": ["share_repurchase"],
+        "cell_texts_include": ["Total Number of Shares Purchased", "Average Price Paid per Share", "100,000", "$12.50"]
+      }
+    },
+    {
+      "name": "debt-maturity-table",
+      "min_tables": 1,
+      "table": {
+        "classification": "data",
+        "type_hints_include": ["debt_maturity", "lease_maturity", "contractual_obligations"],
+        "cell_texts_include": ["Long-term debt principal payments", "$20", "$100", "Operating lease obligations"]
+      }
+    },
+    {
+      "name": "market-risk-sensitivity-table",
+      "min_tables": 1,
+      "table": {
+        "classification": "data",
+        "type_hints_include": ["market_risk_sensitivity"],
+        "unit_hint_contains": "basis points",
+        "cell_texts_include": ["100 basis points", "($2.0)", "-50 basis points", "$1.0"]
+      }
+    },
+    {
+      "name": "malformed-table-recovers-cells",
+      "min_tables": 1,
+      "table": {
+        "cell_texts_include": ["Revenue", "100", "90", "Net income", "(5)", "4"],
+        "warnings_include": ["table_extraction_recovered_malformed_table"]
+      },
+      "warnings_include": ["table_extraction_recovered_malformed_table"]
+    }
+  ]
+}

@@ -1,0 +1,126 @@
+{
+  "parser_output": {
+    "parserVersion": "424b-parser-v1",
+    "parserGroup": "424b",
+    "formType": "424B3",
+    "accessionNumber": "0000000000-26-000102",
+    "isSupported": true,
+    "summary": "Borealis Electric Systems, Inc. filed 424B3 covering 12,500,000 resale shares.",
+    "facts": {
+      "issuer": {
+        "name": "Borealis Electric Systems, Inc.",
+        "ticker": "BELS",
+        "exchange": "NYSE"
+      },
+      "prospectusClass": "resale",
+      "offeringTerms": {
+        "sellingStockholderShares": 12500000,
+        "noCompanyProceeds": true
+      },
+      "capitalization": {
+        "sharesOutstanding": 75000000
+      },
+      "ratios": {
+        "sellingStockholderToOutstandingRatio": 0.1667
+      },
+      "flags": {
+        "resale": true,
+        "noCompanyProceeds": true
+      }
+    },
+    "signals": [
+      {
+        "name": "selling_stockholder_resale",
+        "value": true
+      },
+      {
+        "name": "market_context_needed",
+        "value": ["price", "market_cap", "shares_outstanding", "public_float"]
+      }
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {
+      "deterministicCandidate": null
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "dilution_risk",
+    "event_title": "Selling-stockholder resale registration adds share overhang",
+    "primary_ticker": {
+      "ticker": "BELS",
+      "exchange": "NYSE"
+    },
+    "tickers": ["BELS"],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 58,
+    "score_reason": "The resale share count is material but the company states it will not receive proceeds and is not issuing new securities.",
+    "signal": "volatile",
+    "quick_take": "The prospectus registers up to 12.5 million resale shares, creating potential trading overhang without direct company proceeds.",
+    "summary": "Borealis Electric Systems filed a 424B3 resale prospectus for selling stockholders to resell up to 12,500,000 shares tied to note conversions and warrant exercises.",
+    "why_it_matters": "Resale registrations can increase float and selling pressure even when they do not raise new capital for the issuer.",
+    "bullish_points": [
+      "The filing states the issuer will not receive proceeds from selling-stockholder sales."
+    ],
+    "bearish_points": [
+      "Registered resale shares equal about 17% of shares outstanding.",
+      "The shares relate to conversions and warrant exercises, which can signal prior financing overhang."
+    ],
+    "key_evidence": [
+      "Selling stockholders may resell up to 12,500,000 shares.",
+      "Issuer will not receive proceeds.",
+      "75,000,000 shares outstanding."
+    ],
+    "what_to_watch_next": [
+      "Actual resale activity and changes in reported float.",
+      "Any additional conversions, warrant exercises, or resale supplements."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "medium",
+    "needs_human_review": false,
+    "analysis_action": "route_to_analysis_prompt",
+    "archive_summary": null,
+    "offering_display_model": {
+      "sellingStockholderShares": 12500000,
+      "sellingStockholderToOutstandingRatio": 0.1667,
+      "noCompanyProceeds": true
+    },
+    "offering_security_audit": {
+      "primary_issuance": false,
+      "resale": true,
+      "at_the_market": false,
+      "warrants_or_convertibles": true
+    }
+  },
+  "display_payload": {
+    "display_type": "offering_terms",
+    "display_version": "424b-display-payload-v1",
+    "data": {
+      "sellingStockholderShares": 12500000,
+      "sellingStockholderToOutstandingRatio": 0.1667,
+      "noCompanyProceeds": true
+    },
+    "evidence": [],
+    "notes": [
+      "Resale overhang should map to offering display, but no special UI is required by this room."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": true,
+    "market_context_reason": "Resale share count should be compared with price, market cap, shares outstanding, and public float.",
+    "market_context_fields": ["price", "market_cap", "shares_outstanding", "public_float"],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "LLM analysis expected because resale impact depends on holder context and market liquidity."
+    ]
+  }
+}

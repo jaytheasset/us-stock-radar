@@ -1,0 +1,143 @@
+{
+  "parser_output": {
+    "parserVersion": "s1-f1-parser-v1",
+    "parserGroup": "s1-f1",
+    "formType": "S-1 / F-1, S-1/A / F-1/A",
+    "accessionNumber": "0001628280-24-011789",
+    "isSupported": true,
+    "summary": "EDGAR S-1/A pricing amendment excerpt for Reddit, Inc.",
+    "facts": {
+      "filing": {
+        "filing_family": "s1_f1_registration",
+        "reported_form_type": "S-1/A",
+        "filing_variant": "pre_effective_amendment",
+        "boundary_case": false,
+        "parent_context_needed": true,
+        "parent_registration_number": "333-277256",
+        "post_effective_purpose": null,
+        "deregister_unsold_securities": false,
+        "no_additional_securities_registered": false,
+        "rule_462b": {
+          "base_form": "S-1",
+          "prior_registration_number": null,
+          "added_securities_amount": null,
+          "automatic_effective": false,
+          "within_20_percent_limit": false
+        },
+        "evidence": []
+      },
+      "company_name": "Reddit, Inc.",
+      "ticker": "RDDT",
+      "exchange": "NYSE",
+      "registration_kind": "ipo",
+      "offering": {
+        "kind": "ipo",
+        "ipo_kind": "traditional",
+        "securities": ["common stock"],
+        "shares_offered": 15276527,
+        "price_low": 31,
+        "price_high": 34,
+        "gross_proceeds": 519401918,
+        "selling_shareholder_shares": 6723473,
+        "use_of_proceeds": null,
+        "underwriters": []
+      },
+      "amendment": {
+        "is_amendment": true,
+        "amendment_number": 3,
+        "stated_material_change": null,
+        "routine_or_administrative": false,
+        "parent_context_provided": false
+      },
+      "foreign_issuer": {
+        "is_foreign_private_issuer": false,
+        "ads_offering": false,
+        "vie_structure": false,
+        "hfcaa_or_pcaob_risk": false,
+        "cayman_holding_company": false
+      },
+      "risks": {
+        "going_concern": false,
+        "listing_risk": false,
+        "legal_risk": false,
+        "fda_or_clinical": false,
+        "insider_control": false,
+        "strategic_transaction": false
+      },
+      "market_context_summary": {
+        "provided": false,
+        "offering_to_market_cap_pct": null,
+        "shares_to_float_pct": null
+      }
+    },
+    "signals": [
+      {
+        "event_type": "ipo_listing",
+        "label": "IPO or new listing registration filed",
+        "severity": "medium",
+        "signal": "neutral",
+        "evidence": []
+      }
+    ],
+    "calendarItems": [],
+    "warnings": ["Amendment materiality may need parent filing fixture context; no live DB lookup was used."],
+    "raw": {
+      "sourceTextLength": 0,
+      "attachmentNames": []
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "ipo_listing",
+    "event_title": "Reddit S-1/A adds IPO pricing range",
+    "primary_ticker": {
+      "ticker": "RDDT",
+      "exchange": "NYSE"
+    },
+    "tickers": ["RDDT"],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 62,
+    "score_reason": "Feed-level score because the EDGAR S-1/A excerpt includes concrete share counts, selling-stockholder shares, and an IPO price range.",
+    "signal": "neutral",
+    "quick_take": "Reddit's amendment provides IPO sizing and a $31 to $34 range.",
+    "summary": "The S-1/A excerpt says Reddit is offering 15,276,527 Class A shares, selling stockholders are offering 6,723,473 shares, and the NYSE symbol is RDDT.",
+    "why_it_matters": "Pricing amendments narrow the IPO economics and help distinguish issuer proceeds from selling-holder sales.",
+    "bullish_points": [],
+    "bearish_points": ["Selling stockholder shares do not provide proceeds to the issuer."],
+    "key_evidence": ["15,276,527 shares", "6,723,473 shares", "$31.00 and $34.00", "symbol RDDT"],
+    "what_to_watch_next": ["Final prospectus pricing and actual shares sold."],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "offering_terms",
+    "data": {
+      "filing_variant": "pre_effective_amendment",
+      "ipo_kind": "traditional",
+      "shares_offered": 15276527,
+      "selling_shareholder_shares": 6723473,
+      "price_range": {
+        "low": 31,
+        "high": 34
+      }
+    },
+    "evidence": ["22,000,000 Shares", "$31.00 and $34.00"],
+    "notes": []
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": ["Fixture text is an EDGAR original excerpt; no live SEC fetch occurs during tests."]
+  }
+}

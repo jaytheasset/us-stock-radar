@@ -1,0 +1,19 @@
+{
+  "name": "shareholder-vote-solicitation",
+  "formType": "425",
+  "accessionNumber": "0000000000-26-000426",
+  "sourceUniqueId": "0000000000-26-000426",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/0000000000/000000000026000426/form425.htm",
+  "title": "425 - Northstar Devices, Inc.",
+  "publishedAt": "2026-06-01T13:30:00Z",
+  "companyName": "Northstar Devices, Inc.",
+  "primaryTicker": "NDEV",
+  "exchange": "NYSE",
+  "filingText": "Filed by Northstar Devices, Inc.\nSubject Company: Northstar Devices, Inc.\n\nNorthstar Devices, Inc. is filing this communication in connection with the solicitation of proxies for its proposed merger with Delta Robotics, Inc. The special meeting of Northstar stockholders will be held on July 15, 2026. Stockholders of record as of June 12, 2026 are entitled to vote at the special meeting. Northstar's board of directors unanimously recommends that stockholders vote FOR the adoption of the merger agreement. The communication does not announce a change to the merger consideration.",
+  "market_context": null,
+  "expected": {
+    "event_type": "shareholder_vote",
+    "expected_delivery_level": "feed",
+    "deterministic": false
+  }
+}

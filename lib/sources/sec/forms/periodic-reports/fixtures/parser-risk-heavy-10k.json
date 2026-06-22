@@ -1,0 +1,36 @@
+{
+  "filing": {
+    "rawItemId": "parser-risk-heavy-10k",
+    "sourceUniqueId": "0000000000-25-000404",
+    "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1000003/000000000025000404/example-10k.htm",
+    "title": "Nova Therapeutics Inc. Form 10-K for fiscal year ended December 31, 2024",
+    "publishedAt": "2025-03-31T12:00:00Z",
+    "metadata": {
+      "formType": "10-K",
+      "ticker": "NOVA",
+      "exchange": "Nasdaq Capital Market"
+    },
+    "rawPayload": {
+      "form_type": "10-K",
+      "accession_number": "0000000000-25-000404",
+      "company_name": "Nova Therapeutics Inc.",
+      "documents": [
+        {
+          "type": "10-K",
+          "description": "Annual report",
+          "isPrimary": true,
+          "textCharCount": 22000,
+          "textTruncated": false
+        },
+        {
+          "type": "EX-32.1",
+          "description": "Section 906 certification",
+          "isPrimary": false,
+          "textCharCount": 700,
+          "textTruncated": false
+        }
+      ]
+    },
+    "bodyText": "UNITED STATES SECURITIES AND EXCHANGE COMMISSION\nFORM 10-K\nFor the fiscal year ended December 31, 2024\nNova Therapeutics Inc. (Exact name of registrant as specified in its charter)\nDelaware (State or other jurisdiction of incorporation or organization)\nSecurities registered pursuant to Section 12(b) of the Act:\nTitle of each class Trading Symbol(s) Name of each exchange on which registered\nCommon stock, $0.0001 par value NOVA Nasdaq Capital Market\nForward-looking statements in this annual report include statements about clinical development, regulatory timing, financing needs, strategic alternatives, and Nasdaq compliance. Actual results may differ materially.\nPART I\nITEM 1. Business\nNova Therapeutics Inc. develops implantable metabolic therapies. In 2024 the company launched a new product platform for its metabolic monitoring device and continued a Phase 2 clinical trial under an active IND. Management also began evaluating strategic alternatives, including a possible asset sale or partnership for the monitoring business.\nITEM 1A. Risk Factors\nOn August 30, 2024, the company received a letter from Nasdaq notifying it that the bid price of its common stock had closed below the $1.00 per share minimum bid price required for continued listing on the Nasdaq Capital Market. The company has until September 15, 2025 to regain compliance. Our recurring losses and negative operating cash flows raise substantial doubt about our ability to continue as a going concern. We will require additional capital to fund operations through the next twelve months.\nITEM 1B. Unresolved Staff Comments\nNone.\nITEM 1C. Cybersecurity\nThe board oversees cybersecurity risk management. The company did not identify a material cybersecurity incident during 2024, but cybersecurity risk management remains part of enterprise risk oversight.\nITEM 3. Legal Proceedings\nThe company received a subpoena from the SEC staff concerning prior revenue recognition practices and is cooperating with the investigation. A related securities class action lawsuit remains pending in federal court.\nPART II\nITEM 7. Management's Discussion and Analysis of Financial Condition and Results of Operations\nRevenue decreased by 42.0% to $18.0 million from $31.0 million due to lower device placements. Net loss was $86.0 million compared with $54.0 million in the prior year. Cash and cash equivalents 12.0 44.0. Total debt 58.0 32.0. Working capital deficit was $21.0 million at December 31, 2024. The company was not in compliance with a debt covenant as of year end and obtained a limited waiver of default after year end.\nITEM 8. Financial Statements and Supplementary Data\nConsolidated Statements of Operations\nRevenues 18.0 31.0\nOperating loss 74.0 49.0\nNet loss 86.0 54.0\nConsolidated Balance Sheets\nCash and cash equivalents 12.0 44.0\nTotal assets 105.0 155.0\nTotal liabilities 92.0 69.0\nITEM 9A. Controls and Procedures\nManagement identified material weaknesses in internal control over financial reporting related to revenue recognition, segregation of duties, and review of complex debt accounting. Disclosure controls and procedures were not effective as of December 31, 2024.\nPART IV\nITEM 15. Exhibits and Financial Statement Schedules\nExhibit 31.1 Certification pursuant to Section 302. Exhibit 32.1 Certification pursuant to Section 906.\nSIGNATURES\n/s/ Chief Executive Officer"
+  }
+}

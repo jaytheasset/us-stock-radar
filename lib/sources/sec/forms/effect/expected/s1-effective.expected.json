@@ -1,0 +1,237 @@
+{
+  "parser_output": {
+    "parserVersion": "effect-parser-v1",
+    "parserGroup": "effect",
+    "formType": "EFFECT",
+    "accessionNumber": "9999999995-24-001005",
+    "isSupported": true,
+    "summary": "Ibotta, Inc.'s S-1 registration statement became effective on 2024-04-17.",
+    "facts": {
+      "companyName": "Ibotta, Inc.",
+      "ticker": "IBTA",
+      "exchange": "NYSE",
+      "cik": "0001538379",
+      "filingDate": "2024-04-17",
+      "effectiveDate": "2024-04-17",
+      "effectiveTime": "16:00:00",
+      "accessionNumber": "9999999995-24-001005",
+      "registrationNumber": "333-278172",
+      "effectiveRegistrationReference": "Registration No. 333-278172",
+      "effectiveFilingForm": "S-1",
+      "relatedSubmissionType": null,
+      "referenceAccessionNumber": null,
+      "originalFilingReference": "event:ibotta-s1-ipo-registration",
+      "originalAccessionNumber": "0001538379-24-000025",
+      "originalAnalysisReference": "event:ibotta-s1-ipo-registration",
+      "filers": [
+        {
+          "cik": "0001538379",
+          "entityName": "Ibotta, Inc.",
+          "fileNumber": "333-278172",
+          "seriesClassContract": null
+        }
+      ],
+      "primaryFiler": {
+        "cik": "0001538379",
+        "entityName": "Ibotta, Inc.",
+        "fileNumber": "333-278172",
+        "seriesClassContract": null
+      },
+      "hasMultipleFilers": false,
+      "hasSeriesClassContractData": false,
+      "effectiveFormSource": "effectiveData.form",
+      "effectiveDateSource": "effectiveData.finalEffectivenessDispDate",
+      "parentContextProvided": true,
+      "parentEventType": "ipo_listing",
+      "parentEventTitle": "Ibotta traditional IPO registration analysis",
+      "parentIpoKind": "traditional",
+      "parentFormType": "S-1",
+      "parentAccessionNumber": "0001538379-24-000025",
+      "parentRegistrationNumber": "333-278172",
+      "parentScore": 68,
+      "originalAnalysisShouldBeShown": true,
+      "effectiveTargetClear": true,
+      "parentTargetMatch": true,
+      "parentTargetConflicts": [],
+      "targetAmbiguityWarnings": [],
+      "sourceExcerpts": [
+        {
+          "label": "effective_filing_form",
+          "value": "S-1",
+          "source": "effectiveData.form"
+        },
+        {
+          "label": "effective_date",
+          "value": "2024-04-17",
+          "source": "effectiveData.finalEffectivenessDispDate"
+        },
+        {
+          "label": "effective_time",
+          "value": "16:00:00",
+          "source": "effectiveData.finalEffectivenessDispTime"
+        },
+        {
+          "label": "registration_number",
+          "value": "333-278172",
+          "source": "effectiveData.filer.fileNumber or SEC-HEADER.SEC FILE NUMBER"
+        },
+        {
+          "label": "effective_filer",
+          "value": "Ibotta, Inc. (0001538379)",
+          "source": "effectiveData.filer"
+        }
+      ]
+    },
+    "signals": [
+      "effectiveness_notice",
+      "deterministic_effectiveness_notice",
+      "effectiveness_date_identified",
+      "registration_reference_identified",
+      "parent_context_from_fixture",
+      "effective_target_clear",
+      "parent_target_matched"
+    ],
+    "calendarItems": [
+      {
+        "label": "Registration statement effective date",
+        "date": "2024-04-17",
+        "source": "EFFECT filing"
+      }
+    ],
+    "warnings": [],
+    "raw": {
+      "sourceTextLength": 741,
+      "documentCount": 0,
+      "xmlDetected": true,
+      "headerDetected": true,
+      "parentFilingContextUsed": true,
+      "marketContextProvided": false
+    }
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "ipo_listing",
+    "event_title": "Ibotta, Inc. EFFECT notice needs registration context",
+    "primary_ticker": {
+      "ticker": "IBTA",
+      "exchange": "NYSE"
+    },
+    "tickers": [
+      {
+        "ticker": "IBTA",
+        "exchange": "NYSE"
+      }
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 68,
+    "score_reason": "The fixture parent filing context identifies this EFFECT as an update to a prior ipo_listing analysis.",
+    "signal": "neutral",
+    "quick_take": "Ibotta, Inc.'s S-1 registration statement became effective; investors should review the original registration filing for securities, holders, and transaction terms.",
+    "summary": "Ibotta, Inc.'s S-1 registration statement became effective on 2024-04-17.",
+    "why_it_matters": "An EFFECT notice confirms SEC effectiveness, but the investor impact depends on the related registration statement.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [
+      {
+        "label": "effective_filing_form",
+        "value": "S-1",
+        "source": "effectiveData.form"
+      },
+      {
+        "label": "effective_date",
+        "value": "2024-04-17",
+        "source": "effectiveData.finalEffectivenessDispDate"
+      },
+      {
+        "label": "effective_time",
+        "value": "16:00:00",
+        "source": "effectiveData.finalEffectivenessDispTime"
+      },
+      {
+        "label": "registration_number",
+        "value": "333-278172",
+        "source": "effectiveData.filer.fileNumber or SEC-HEADER.SEC FILE NUMBER"
+      },
+      {
+        "label": "effective_filer",
+        "value": "Ibotta, Inc. (0001538379)",
+        "source": "effectiveData.filer"
+      }
+    ],
+    "what_to_watch_next": [
+      "Linked analysis for the original registration filing",
+      "Original registration filing terms",
+      "Any prospectus supplement or related 424B filing"
+    ],
+    "related_tickers": [],
+    "calendar_items": [
+      {
+        "label": "Registration statement effective date",
+        "date": "2024-04-17",
+        "source": "EFFECT filing"
+      }
+    ],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "generic",
+    "data": {
+      "effective_filing_form": "S-1",
+      "ipo_kind": "traditional",
+      "effective_registration_reference": "Registration No. 333-278172",
+      "effective_date": "2024-04-17",
+      "original_filing_reference": "event:ibotta-s1-ipo-registration"
+    },
+    "evidence": [
+      {
+        "label": "effective_filing_form",
+        "value": "S-1",
+        "source": "effectiveData.form"
+      },
+      {
+        "label": "effective_date",
+        "value": "2024-04-17",
+        "source": "effectiveData.finalEffectivenessDispDate"
+      },
+      {
+        "label": "effective_time",
+        "value": "16:00:00",
+        "source": "effectiveData.finalEffectivenessDispTime"
+      },
+      {
+        "label": "registration_number",
+        "value": "333-278172",
+        "source": "effectiveData.filer.fileNumber or SEC-HEADER.SEC FILE NUMBER"
+      },
+      {
+        "label": "effective_filer",
+        "value": "Ibotta, Inc. (0001538379)",
+        "source": "effectiveData.filer"
+      }
+    ],
+    "notes": [
+      "EFFECT room did not query live DB; original filing context is fixture-only.",
+      "Integration should link this EFFECT notice to the original analyzed registration filing."
+    ]
+  },
+  "fixture_expected": {
+    "expected_delivery_level": "feed",
+    "expected_impact": "medium",
+    "market_context_needed": false,
+    "market_context_reason": null,
+    "market_context_fields": [],
+    "special_ui_needed": false,
+    "special_ui_reason": null,
+    "integration_notes": [
+      "Link EFFECT filing to the related registration filing during integration; do not resolve that link from this form room.",
+      "Delivery level is derived from score using shared score bands.",
+      "Fixture proves deterministic handling; no router or analysis LLM is needed.",
+      "Show the original registration filing analysis when available."
+    ]
+  }
+}

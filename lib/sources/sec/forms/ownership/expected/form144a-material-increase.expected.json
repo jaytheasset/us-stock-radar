@@ -1,0 +1,75 @@
+{
+  "parser_output": {
+    "parserVersion": "ownership-parser-v1",
+    "parserGroup": "ownership",
+    "formType": "Form 4 / 4/A, Form 144 / 144/A",
+    "accessionNumber": "0000000000-26-000405",
+    "isSupported": true,
+    "summary": "144/A proposed sale by Samuel Price of 2,500,000 shares of Vector Therapeutics Inc. (VCTX).",
+    "facts": {},
+    "signals": [
+      "form_144_proposed_sale",
+      "large_form_144_sale",
+      "material_amendment"
+    ],
+    "calendarItems": [],
+    "warnings": [],
+    "raw": {}
+  },
+  "analysis_output": {
+    "source_group": "filings",
+    "market_scope": "company",
+    "event_type": "insider_ownership",
+    "event_title": "Large Form 144/A proposed sale increase",
+    "primary_ticker": {
+      "ticker": "VCTX",
+      "exchange": "NASDAQ"
+    },
+    "tickers": [
+      "VCTX"
+    ],
+    "sector": null,
+    "industry_group": null,
+    "theme_group": null,
+    "sub_theme": null,
+    "score": 76,
+    "score_reason": "The amendment states the proposed sale increased from 50,000 to 2,500,000 shares, with a $24 million aggregate market value.",
+    "signal": "bearish",
+    "quick_take": "VCTX's executive chair filed a Form 144/A increasing a proposed sale to 2.5 million shares.",
+    "summary": "The Form 144/A states a material increase in proposed sale size and should be treated as a high-impact ownership notice.",
+    "why_it_matters": "A large proposed insider sale increase can create meaningful investor concern even though Form 144 is a notice rather than proof of execution.",
+    "bullish_points": [],
+    "bearish_points": [
+      "The amendment says proposed sale shares increased from 50,000 to 2,500,000.",
+      "The aggregate market value is $24 million."
+    ],
+    "key_evidence": [
+      "Shares to be sold: 2,500,000",
+      "Aggregate market value: $24,000,000",
+      "Amendment reason states an increase from 50,000 shares."
+    ],
+    "what_to_watch_next": [
+      "Whether later Form 4 filings show the proposed sale was executed.",
+      "Whether additional amendments change the proposed sale amount."
+    ],
+    "related_tickers": [],
+    "calendar_items": [],
+    "confidence": "high",
+    "needs_human_review": false
+  },
+  "display_payload": {
+    "display_type": "candidate_special",
+    "data": {
+      "securities_to_be_sold": 2500000,
+      "aggregate_market_value": 24000000,
+      "amendment_increase_multiple": 50,
+      "approximate_sale_date": "2026-05-28"
+    },
+    "evidence": [
+      "Amendment reason says the proposed sale increased from 50,000 to 2,500,000 shares."
+    ],
+    "notes": [
+      "Large Form 144/A cases may need a future ownership/sale-notice table, but no new display type is approved here."
+    ]
+  }
+}
