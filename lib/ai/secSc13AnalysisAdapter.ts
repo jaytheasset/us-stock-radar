@@ -1,4 +1,5 @@
 import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
+import { buildSecRequiredOutputSchema } from "@/lib/ai/secRequiredOutputSchema";
 import { adaptSecFormRoomOutputForIngest, type SecFormRoomAdapterOutput } from "@/lib/sources/sec/forms/common/formRoomAdapter";
 import {
   buildSc13AnalysisPrompt,
@@ -164,6 +165,14 @@ function adaptSc13RoomResultForAnalysis(
   const displayPayload = normalizeSc13DisplayPayloadForValidation(
     llmDisplayPayload,
   );
+  const displayPayloadError = validateSc13RuntimeDisplayPayload(displayPayload);
+  if (displayPayloadError) {
+    return {
+      ok: false,
+      error: displayPayloadError,
+    };
+  }
+
   const normalizedAnalysisOutput = normalizeSc13AnalysisOutput(
     {
       ...analysisOutput,
@@ -195,6 +204,23 @@ function normalizeSc13DisplayPayloadForValidation(value: Record<string, unknown>
     ...value,
     notes: normalizeDisplayPayloadNotes(value.notes),
   };
+}
+
+function validateSc13RuntimeDisplayPayload(value: Record<string, unknown>) {
+  const data = readRecord(value.data);
+  if (!data || Object.keys(data).length === 0) {
+    return "SEC SC13 display_payload.data must be filled by the analysis LLM";
+  }
+  if (!Object.prototype.hasOwnProperty.call(data, "issuerName")) {
+    return "SEC SC13 display_payload.data.issuerName is required";
+  }
+  if (!Array.isArray(data.reportingPersons)) {
+    return "SEC SC13 display_payload.data.reportingPersons is required";
+  }
+  if (!Object.prototype.hasOwnProperty.call(data, "ownershipIntent")) {
+    return "SEC SC13 display_payload.data.ownershipIntent is required";
+  }
+  return "";
 }
 
 function normalizeDisplayPayloadNotes(value: unknown) {
@@ -549,12 +575,18 @@ const sc13RouterResponseSchema = {
 } as const;
 
 const sc13RequiredOutputSchema = {
-  type: "object",
-  additionalProperties: true,
-  required: ["parser_output", "analysis_output", "display_payload"],
-  properties: {
-    parser_output: { type: "object", additionalProperties: true },
-    analysis_output: { type: "object", additionalProperties: true },
-    display_payload: { type: "object", additionalProperties: true },
-  },
+  ...buildSecRequiredOutputSchema({
+    displayDataRequired: ["issuerName", "reportingPersons", "ownershipIntent"],
+    displayDataProperties: {
+      version: { type: ["string", "null"] },
+      issuerName: { type: ["string", "null"] },
+      reportingPersons: { type: "array", items: { type: "string" } },
+      percentOwned: { type: ["number", "string", "null"] },
+      sharesBeneficiallyOwned: { type: ["number", "string", "null"] },
+      ownershipIntent: { type: ["string", "null"] },
+      isAmendment: { type: ["boolean", "null"] },
+      isExitFiling: { type: ["boolean", "null"] },
+      ownershipPercentChange: { type: ["number", "string", "null"] },
+    },
+  }),
 } as const;
