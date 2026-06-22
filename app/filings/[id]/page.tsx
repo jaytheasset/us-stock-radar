@@ -3885,13 +3885,14 @@ function MixedOfferingDetails({ model }: { model: ReturnType<typeof buildDilutio
 }
 
 function ResaleRegistrationDetails({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
+  const isS8ReofferResale = model.isS8ReofferResale;
   const resaleSegments = model.overhangBarSegments.map((segment) =>
     /\b(?:warrants?|preferred|convertible|rights)\b/i.test(segment.label)
       ? segment
       : segment.key === "registered-supply" || /\b(?:resale|common|ordinary|ads)\b/i.test(segment.label)
       ? {
           ...segment,
-          label: "Resale shares",
+          label: isS8ReofferResale ? model.primaryExposureLabel : "Resale shares",
         }
       : segment,
   );
@@ -3901,23 +3902,27 @@ function ResaleRegistrationDetails({ model }: { model: ReturnType<typeof buildDi
       model={{
         ...model,
         chartTitle: "Share Overhang",
-        overhangAriaLabel: `Registered resale shares equal ${model.dilutionRatioValue} of current shares`,
+        overhangAriaLabel: isS8ReofferResale
+          ? `Parent plan shares equal ${model.dilutionRatioValue} of current shares`
+          : `Registered resale shares equal ${model.dilutionRatioValue} of current shares`,
         overhangBarSegments: resaleSegments,
-        overhangSubtitle: "Current shares plus registered resale shares",
+        overhangSubtitle: isS8ReofferResale ? model.overhangSubtitle : "Current shares plus registered resale shares",
         overhangUnavailableMessage:
-          "Resale overhang could not be shown because current shares or resale shares were unavailable.",
+          isS8ReofferResale
+            ? model.overhangUnavailableMessage
+            : "Resale overhang could not be shown because current shares or resale shares were unavailable.",
         potentialSupplyCompact: model.potentialSupplyCompact,
         showBreakdownPanel: false,
         showSegmentLegend: true,
         showTotalNote: true,
         requireProvidedSupplyDetails: true,
-        supplyDetailRows: model.offeringDetailsRows,
+        supplyDetailRows: isS8ReofferResale ? model.s8ContextDetailRows : model.offeringDetailsRows,
         extraDetailPanels: buildWarrantExtraDetailPanels(model),
-        supplyDetailTitle: "Offering Details",
-        supplyDetailLabel: "Resale Shares",
-        totalNoteSuffix: "resale shares vs. current shares",
-        totalNoteTitle: "Total Potential Overhang",
-        totalOverhangLabel: "Overhang vs Current Shares",
+        supplyDetailTitle: isS8ReofferResale ? "What Changed" : "Offering Details",
+        supplyDetailLabel: isS8ReofferResale ? model.supplyDetailLabel : "Resale Shares",
+        totalNoteSuffix: isS8ReofferResale ? "parent plan shares vs. current shares" : "resale shares vs. current shares",
+        totalNoteTitle: isS8ReofferResale ? "Parent Plan / Outstanding" : "Total Potential Overhang",
+        totalOverhangLabel: isS8ReofferResale ? "Parent Plan / Outstanding" : "Overhang vs Current Shares",
       }}
     />
   );
@@ -5322,6 +5327,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
       displayPayloadData?.resaleProspectus === true ||
       recordArray(displayPayloadData?.sellingSecurityholders).length
   );
+  const isS8ReofferResale = isS8Form && s8UiMode === "reoffer_resale";
   const hasSellingHolderResale = isAtm
     ? false
     : isS8Form
@@ -5432,6 +5438,28 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     readDisplayShareExposureNumber(displayPayloadData) ||
     readDisplayShareExposureNumber(llmDisplayModel);
   const s8RegisteredPlanShares = isS8PlanRegistration ? readS8RegisteredShareValue(displayPayloadData) : "";
+  const s8ReofferResaleShares = isS8ReofferResale
+    ? readS8ShareValueFromModels(displayPayloadData, llmDisplayModel, [
+        "reoffer_resale_shares",
+        "reofferResaleShares",
+        "reoffer_shares",
+        "reofferShares",
+        "resale_shares",
+        "resaleShares",
+      ])
+    : "";
+  const s8ParentPlanShares = isS8ReofferResale
+    ? readS8ShareValueFromModels(displayPayloadData, llmDisplayModel, [
+        "parent_plan_registered_shares",
+        "parentPlanRegisteredShares",
+        "parent_s8_registered_shares",
+        "parentS8RegisteredShares",
+        "parent_registered_shares",
+        "parentRegisteredShares",
+        "prior_plan_registered_shares",
+        "priorPlanRegisteredShares",
+      ])
+    : "";
   const sourceSharesOffered = allowDisplayFallbacks ? findSharesOffered(sourceText) : "";
   const s8PlanSharesOffered = isS8PlanRegistration
     ? chooseS8PlanShareValue(s8RegisteredPlanShares, "")
@@ -5441,6 +5469,8 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
       llmTotalPotentialSupplyValue ||
       dbPotentialSupply ||
       ""
+    : isS8ReofferResale && s8ParentPlanShares
+      ? s8ParentPlanShares
     : llmTotalPotentialSupplyValue ||
       dbPotentialSupply ||
       sourceSharesOffered ||
@@ -5448,9 +5478,15 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
   const dbCurrentShares = allowDisplayFallbacks
     ? readDbShareValue(offeringTerms, "current_shares_outstanding", "current_shares_outstanding_text")
     : "";
-  const llmCurrentShares = readDisplayFactValue(llmDisplayModel, "current_shares");
+  const llmCurrentShares =
+    readDisplayFlexibleValue(displayPayloadData, "current_shares_outstanding") ||
+    readDisplayFlexibleValue(llmDisplayModel, "current_shares_outstanding") ||
+    readDisplayFlexibleValue(displayPayloadData, "current_shares") ||
+    readDisplayFlexibleValue(llmDisplayModel, "current_shares");
   const llmCurrentSharesCount =
-    readDisplayFactNumber(displayPayloadData, "current_shares") ||
+    readDisplayFlexibleNumber(displayPayloadData, "current_shares_outstanding") ||
+    readDisplayFlexibleNumber(llmDisplayModel, "current_shares_outstanding") ||
+    readDisplayFlexibleNumber(displayPayloadData, "current_shares") ||
     readDisplayFactNumber(llmDisplayModel, "current_shares");
   const marketContextCurrentShares = readMetricShareValue(filing.offeringMarketContext, "shares_outstanding");
   const metricCurrentShares = allowDisplayFallbacks
@@ -5510,13 +5546,19 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
             : isS8PlanRegistration && (isDisclosedValue(sharesOffered) || hasS8PlanContext)),
   );
   const calculatedDisplayDilutionPercent = estimateDilutionPercent(sharesOffered, currentSharesOutstanding);
-  let estimatedDilutionPercent = allowDisplayFallbacks
-    ? readDbPercentValue(offeringTerms, "total_potential_dilution_percent") ||
+  const llmEstimatedDilutionPercent =
+    readDisplayPercentValue(displayPayloadData, "estimated_dilution_percent") ||
+    readDisplayPercentValue(llmDisplayModel, "estimated_dilution_percent");
+  let estimatedDilutionPercent = isS8ReofferResale && s8ParentPlanShares && calculatedDisplayDilutionPercent
+    ? calculatedDisplayDilutionPercent
+    : allowDisplayFallbacks
+    ? llmEstimatedDilutionPercent ||
+      readDbPercentValue(offeringTerms, "total_potential_dilution_percent") ||
       readDbPercentValue(offeringTerms, "estimated_dilution_percent") ||
       calculatedDisplayDilutionPercent
     : isDisclosedValue(calculatedDisplayDilutionPercent)
       ? calculatedDisplayDilutionPercent
-      : readSnapshotRatioStatusValue(displayPayloadData, llmDisplayModel);
+      : llmEstimatedDilutionPercent || readSnapshotRatioStatusValue(displayPayloadData, llmDisplayModel);
   const discountToMarket = findDiscountToMarket(fallbackSourceText);
   const warrantCoverage = summarizeWarrantCoverage(fallbackSourceText, {
     hasConvertibles,
@@ -5714,6 +5756,9 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     displayMode,
     { hasWarrantDetails: warrantDetailsRows.length > 0 },
   );
+  const s8ContextDetailRows = isS8ReofferResale
+    ? readS8ContextDetailRows(displayPayloadData, llmDisplayModel)
+    : [];
   const resaleSellingHolderValue =
     offeringDetailsRows.find((row) => row.label === "Selling Holders")?.value || "Named holders / investors";
   const useCalculatedMixedOffering = isMixedOffering && !is424bOfferingTermsPayload;
@@ -5793,8 +5838,10 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     isRegisteredDirect,
     isResale,
     isS8PlanRegistration,
+    isS8ReofferResale,
     isShelfLike: isShelf || /shelf/i.test(offeringType),
     s8UiMode,
+    hasS8ParentPlanContext: Boolean(s8ParentPlanShares),
     supplyCountEstimated,
   });
   const overhangShareRead = isDisclosedValue(dilutionRatioValue) ? `${dilutionRatioValue} of current shares` : "";
@@ -6052,7 +6099,9 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     pipePrincipalValue,
     warrantSharesValue,
   });
-  const llmNarrativeSummary = readRowString(llmDisplayModel, "narrative_summary");
+  const llmNarrativeSummary =
+    readRowString(llmDisplayModel, "narrative_summary") ||
+    readRowString(displayPayloadData, "narrative_summary");
   const summaryNarrative = llmNarrativeSummary;
   const summaryParagraphs = [llmNarrativeSummary].filter(isDisclosedValue);
   const llmSnapshotMetrics = readSnapshotMetrics(displayPayloadData);
@@ -6065,8 +6114,24 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     formatShareCountNumber(mixedOfferingInstrumentCount) ||
     (hasDisplayWarrants ? warrantSharesValue : "") ||
     "Not stated";
+  const s8FallbackMetricItems = isS8Form
+    ? buildS8SnapshotMetricItems({
+        currentSharesNote: currentSharesSourceNote,
+        currentSharesValue,
+        dilutionRatioValue,
+        displayLabels,
+        displayPayloadData,
+        llmDisplayModel,
+        parentPlanSharesValue: s8ParentPlanShares,
+        potentialSupplyValue,
+        reofferResaleSharesValue: s8ReofferResaleShares,
+        s8UiMode,
+      })
+    : [];
   const impactMetricItems: Array<DilutionMetricItem | null> = [
-    ...(isShelfOnly
+    ...(isS8Form
+      ? s8FallbackMetricItems
+      : isShelfOnly
       ? [
           {
             label: "Shelf capacity",
@@ -6272,11 +6337,14 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
           } as DilutionMetricItem,
         ]),
   ];
-  const impactMetrics = is424bOfferingTermsPayload
+  const fallbackImpactMetrics = impactMetricItems.filter((metric): metric is DilutionMetricItem => Boolean(metric));
+  const impactMetrics = isS8Form && fallbackImpactMetrics.length
+    ? fallbackImpactMetrics
+    : is424bOfferingTermsPayload
     ? llmSnapshotMetrics
     : llmSnapshotMetrics.length
       ? llmSnapshotMetrics
-      : impactMetricItems.filter((metric): metric is DilutionMetricItem => Boolean(metric));
+      : fallbackImpactMetrics;
   const termsAndProceeds = [
     termRow("First notes principal", firstNotePrincipal),
     termRow("Second notes principal", secondNotePrincipal),
@@ -6498,6 +6566,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     atmProgramRows,
     atmMarketCapValue: marketCapValue,
     offeringDetailsRows,
+    s8ContextDetailRows,
     warrantDetailsRows,
     warrantInstrumentRows,
     is424bOfferingTermsPayload,
@@ -6507,6 +6576,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     isWarrantConvertible: isConvertibleFinancing,
     isPricedPrimaryOrRegisteredDirect,
     pricedOfferingRows,
+    isS8ReofferResale,
     isS8DetailCandidate: hasMinimumS8DetailFields,
     isShelfOnly,
     isCommonWarrantOnly,
@@ -7031,6 +7101,25 @@ function readDisplayFactNumber(model: Record<string, unknown> | null, key: strin
   return readRowNumber(fact, "numeric_value") || readRowNumber(fact, "numericValue");
 }
 
+function readDisplayFlexibleValue(model: Record<string, unknown> | null, key: string) {
+  const value = model?.[key];
+  return readDisplayFactRecordValue(readPlainRecord(value)) || cleanDisclosureValue(readDisclosureValue(value) || readRowString(model, key));
+}
+
+function readDisplayFlexibleNumber(model: Record<string, unknown> | null, key: string) {
+  const value = model?.[key];
+  const fact = readPlainRecord(value);
+  return readRowNumber(fact, "numeric_value") || readRowNumber(fact, "numericValue") || readRowNumber(model, key);
+}
+
+function readDisplayPercentValue(model: Record<string, unknown> | null, key: string) {
+  const value = readDisplayFlexibleValue(model, key);
+  if (!value) return "";
+  const numeric = Number(value.replace(/,/g, "").replace(/%$/, "").trim());
+  if (!Number.isFinite(numeric)) return value;
+  return `${numeric.toFixed(numeric >= 10 ? 1 : 2)}%`;
+}
+
 function readDisplayShareExposureValue(model: Record<string, unknown> | null) {
   return readDisplayFactRecordValue(readDisplayShareExposureFact(model));
 }
@@ -7202,6 +7291,19 @@ function readS8RegisteredShareValue(data: Record<string, unknown> | null) {
   return formatShareCountNumber(largestCandidate);
 }
 
+function readS8ShareValueFromModels(
+  primaryModel: Record<string, unknown> | null,
+  secondaryModel: Record<string, unknown> | null,
+  keys: string[],
+) {
+  for (const model of [primaryModel, secondaryModel]) {
+    if (!model) continue;
+    const candidate = readS8ShareCandidateFromKeys(model, keys);
+    if (candidate) return formatShareCountNumber(candidate);
+  }
+  return "";
+}
+
 function readS8ShareCandidateFromKeys(data: Record<string, unknown>, keys: string[]) {
   for (const key of keys) {
     const textValue = cleanDisclosureValue(readRowString(data, key));
@@ -7213,6 +7315,15 @@ function readS8ShareCandidateFromKeys(data: Record<string, unknown>, keys: strin
   }
 
   return 0;
+}
+
+function formatS8ShareRatio(numeratorValue: string, denominatorValue: string) {
+  const numerator = parseShareCount(numeratorValue);
+  const denominator = parseShareCount(denominatorValue);
+  if (!numerator || !denominator) return "";
+  const percent = (numerator / denominator) * 100;
+  if (!Number.isFinite(percent) || percent <= 0) return "";
+  return `${percent >= 100 ? percent.toFixed(0) : percent.toFixed(2)}%`;
 }
 
 function chooseS8PlanShareValue(displayPayloadValue: string, sourceTextValue: string) {
@@ -7369,8 +7480,10 @@ function buildOfferingDisplayLabels({
   isRegisteredDirect,
   isResale,
   isS8PlanRegistration,
+  isS8ReofferResale,
   isShelfLike,
   s8UiMode,
+  hasS8ParentPlanContext,
   supplyCountEstimated,
 }: {
   hasPrefundedWarrants: boolean;
@@ -7379,8 +7492,10 @@ function buildOfferingDisplayLabels({
   isRegisteredDirect: boolean;
   isResale: boolean;
   isS8PlanRegistration: boolean;
+  isS8ReofferResale: boolean;
   isShelfLike: boolean;
   s8UiMode: string;
+  hasS8ParentPlanContext: boolean;
   supplyCountEstimated: boolean;
 }) {
   if (isForwardSale) {
@@ -7418,6 +7533,44 @@ function buildOfferingDisplayLabels({
       totalExposureLabel: "Potential total",
       unavailableMessage:
         "Conversion share exposure was not disclosed or mechanically calculable, so conversion overhang is not calculated.",
+    };
+  }
+
+  if (isS8ReofferResale && hasS8ParentPlanContext) {
+    return {
+      overhangSubtitle: "Current shares plus parent S-8 plan shares",
+      overhangScoreCaption: "Parent plan shares vs. current shares",
+      supplyDetailLabel: "Parent Plan Shares",
+      supplyBreakdownLabel: "Parent plan shares",
+      supplyMetricLabel: "Parent plan shares",
+      supplyMetricNote: "Original S-8 plan registration.",
+      ratioMetricLabel: "Parent Plan / Outstanding",
+      ratioMetricNote: "Parent plan shares compared with current shares.",
+      primaryExposureLabel: "Parent Plan Shares",
+      quickImpactLabel: "Parent Plan / Outstanding",
+      snapshotSupplyLabel: "Parent Plan Shares",
+      totalExposureLabel: "Potential plan-share total",
+      unavailableMessage:
+        "Parent S-8 plan share count was not supplied, so plan-share overhang is not calculated.",
+    };
+  }
+
+  if (isS8ReofferResale) {
+    return {
+      overhangSubtitle: "Current shares plus reoffer resale subset",
+      overhangScoreCaption: "Reoffer resale shares vs. current shares",
+      supplyDetailLabel: "Reoffer Resale Shares",
+      supplyBreakdownLabel: "Reoffer resale shares",
+      supplyMetricLabel: "Reoffer resale shares",
+      supplyMetricNote: "Shares covered by the reoffer prospectus.",
+      ratioMetricLabel: "Resale Shares / Outstanding",
+      ratioMetricNote: "Reoffer resale shares compared with current shares.",
+      primaryExposureLabel: "Reoffer Resale Shares",
+      quickImpactLabel: "Resale Shares / Outstanding",
+      snapshotSupplyLabel: "Reoffer Shares",
+      totalExposureLabel: "Reoffer subset",
+      unavailableMessage:
+        "Reoffer resale share count was not disclosed or mechanically calculable, so reoffer overhang is not calculated.",
     };
   }
 
@@ -7556,6 +7709,211 @@ function readSnapshotMetrics(model: Record<string, unknown> | null): DilutionMet
     })
     .filter((item): item is DilutionMetricItem => Boolean(item))
     .slice(0, 4);
+}
+
+const S8_CONTEXT_DETAIL_LABELS = new Set([
+  "Parent filing",
+  "Parent plan shares",
+  "Reoffer subset",
+  "Relationship",
+  "Company proceeds",
+  "Selling holders",
+  "What changed",
+  "What did not change",
+]);
+
+function readS8ContextDetailRows(
+  displayPayloadData: Record<string, unknown> | null,
+  llmDisplayModel: Record<string, unknown> | null,
+): DilutionDisclosureRow[] {
+  const sourceRows = recordArray(displayPayloadData?.s8_context_details).length
+    ? recordArray(displayPayloadData?.s8_context_details)
+    : recordArray(llmDisplayModel?.s8_context_details);
+
+  return sourceRows
+    .map((item) => {
+      const label = cleanDisclosureValue(readRowString(item, "label"));
+      const value = cleanDisclosureValue(readDisclosureValue(item.value) || readRowString(item, "value"));
+      if (!S8_CONTEXT_DETAIL_LABELS.has(label) || !isDisclosedValue(value)) return null;
+      return { label, value };
+    })
+    .filter((item): item is DilutionDisclosureRow => Boolean(item))
+    .slice(0, 6);
+}
+
+function buildS8SnapshotMetricItems({
+  currentSharesNote,
+  currentSharesValue,
+  dilutionRatioValue,
+  displayLabels,
+  displayPayloadData,
+  llmDisplayModel,
+  parentPlanSharesValue,
+  potentialSupplyValue,
+  reofferResaleSharesValue,
+  s8UiMode,
+}: {
+  currentSharesNote: string;
+  currentSharesValue: string;
+  dilutionRatioValue: string;
+  displayLabels: {
+    ratioMetricNote: string;
+    supplyMetricNote: string;
+  };
+  displayPayloadData: Record<string, unknown> | null;
+  llmDisplayModel: Record<string, unknown> | null;
+  parentPlanSharesValue: string;
+  potentialSupplyValue: string;
+  reofferResaleSharesValue: string;
+  s8UiMode: string;
+}): DilutionMetricItem[] {
+  const metric = (label: string, value: string, note = "", emphasis = false): DilutionMetricItem | null =>
+    isDisclosedValue(value) ? { label, value, ...(note ? { note } : {}), emphasis, tone: "neutral" } : null;
+  const first = (...keys: string[]) => readS8MetricValue(displayPayloadData, llmDisplayModel, keys);
+  const firstOptionalMetric = (...items: Array<DilutionMetricItem | null>) => items.find(Boolean) || null;
+  const planName = first("plan_name", "planName", "plan_names", "planNames");
+  const planType = first("plan_type", "planType", "normalized_s8_type", "normalizedS8Type");
+  const vestingPeriod = first("vesting_period", "vestingPeriod", "vesting_schedule", "vestingSchedule");
+  const immediateDilution = first("immediate_dilution", "immediateDilution") || "Future grants/exercises";
+  const awardType = first("award_type", "awardType", "inducement_award_type", "inducementAwardType");
+  const grantDate = first("grant_date", "grantDate", "granted_at", "grantedAt");
+  const recipientCount = first("recipient_count", "recipientCount", "employee_count", "employeeCount");
+  const sellingHolders = first("selling_holders", "sellingHolders", "selling_securityholders", "sellingSecurityholders");
+  const amendmentStatus = first("amendment_status", "amendmentStatus") || (s8UiMode === "post_effective_amendment" ? "Post-effective amendment" : "");
+  const additionalShares = first("additional_shares", "additionalShares") || potentialSupplyValue;
+  const priorShares = first("prior_shares_carried_forward", "priorSharesCarriedForward", "parent_registered_shares", "parentRegisteredShares");
+  const removedShares = first("remaining_plan_shares_removed", "remainingPlanSharesRemoved", "deregistered_shares", "deregisteredShares");
+
+  const baseCurrent = metric("Shares Outstanding", currentSharesValue, currentSharesNote || "Share count used as the comparison base.");
+
+  if (s8UiMode === "reoffer_resale") {
+    const parentPlanShares =
+      parentPlanSharesValue ||
+      first(
+        "parent_plan_registered_shares",
+        "parentPlanRegisteredShares",
+        "parent_s8_registered_shares",
+        "parentS8RegisteredShares",
+        "parent_registered_shares",
+        "parentRegisteredShares",
+        "prior_plan_registered_shares",
+        "priorPlanRegisteredShares",
+      );
+    const reofferShares =
+      reofferResaleSharesValue ||
+      first("reoffer_resale_shares", "reofferResaleShares", "reoffer_shares", "reofferShares", "resale_shares", "resaleShares") ||
+      potentialSupplyValue;
+    const parentPlanRatio = formatS8ShareRatio(parentPlanShares, currentSharesValue);
+    const reofferVsCurrentRatio = formatS8ShareRatio(reofferShares, currentSharesValue);
+    const reofferVsParentRatio = formatS8ShareRatio(reofferShares, parentPlanShares);
+    const reofferNote = [reofferVsParentRatio ? `${reofferVsParentRatio} of parent plan` : "", reofferVsCurrentRatio ? `${reofferVsCurrentRatio} of current shares` : ""]
+      .filter(Boolean)
+      .join("; ");
+    const parentPlanRatioNote = [
+      "Original S-8 plan shares compared with shares outstanding.",
+      reofferVsParentRatio ? `Reoffer subset is ${reofferVsParentRatio} of parent plan.` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    if (isDisclosedValue(parentPlanShares)) {
+      return [
+        baseCurrent,
+        metric("Parent plan shares", parentPlanShares, "Shares registered by the original S-8 plan.", true),
+        metric("Reoffer subset", reofferShares, reofferNote ? `POS resale subset; ${reofferNote}.` : "POS resale subset from the parent plan."),
+        metric("Parent Plan / Outstanding", parentPlanRatio, parentPlanRatioNote),
+      ].filter((item): item is DilutionMetricItem => Boolean(item)).slice(0, 4);
+    }
+
+    return [
+      baseCurrent,
+      metric("Reoffer resale shares", reofferShares, "Shares covered by the reoffer prospectus.", true),
+      metric("Resale Shares / Outstanding", dilutionRatioValue, "Reoffer resale shares compared with current shares."),
+      firstOptionalMetric(
+        metric("Selling Holders", sellingHolders, "Named holders when disclosed."),
+        metric("Plan Name", planName, "Plan tied to the resale registration."),
+        metric("Vesting Period", vestingPeriod, "Source-backed vesting schedule."),
+      ),
+    ].filter((item): item is DilutionMetricItem => Boolean(item)).slice(0, 4);
+  }
+
+  if (s8UiMode === "post_effective_amendment") {
+    return [
+      metric("Amendment Status", amendmentStatus, "S-8 amendment context.", true),
+      metric("Additional Shares", additionalShares, displayLabels.supplyMetricNote),
+      metric("Prior Shares Carried Forward", priorShares, "Prior registration context when supplied."),
+      firstOptionalMetric(
+        metric("Remaining Plan Shares Removed", removedShares, "Unsold plan shares removed when disclosed."),
+        metric("Plan Name", planName, "Plan affected by the amendment."),
+      ),
+    ].filter((item): item is DilutionMetricItem => Boolean(item)).slice(0, 4);
+  }
+
+  if (s8UiMode === "inducement_awards") {
+    return [
+      baseCurrent,
+      metric("Registered inducement shares", potentialSupplyValue, displayLabels.supplyMetricNote, true),
+      metric("Inducement Shares / Outstanding", dilutionRatioValue, displayLabels.ratioMetricNote),
+      firstOptionalMetric(
+        metric("Award Type", awardType, "Source-backed award type."),
+        metric("Grant Date", grantDate, "Grant date stated in the filing."),
+        metric("Recipient Count", recipientCount, "Recipient count stated in the filing."),
+        metric("Vesting Period", vestingPeriod, "Source-backed vesting schedule."),
+      ),
+    ].filter((item): item is DilutionMetricItem => Boolean(item)).slice(0, 4);
+  }
+
+  return [
+    baseCurrent,
+    metric("Registered plan shares", potentialSupplyValue, displayLabels.supplyMetricNote, true),
+    metric("Plan Shares / Outstanding", dilutionRatioValue, displayLabels.ratioMetricNote),
+    firstOptionalMetric(
+      metric("Plan Name", planName, "Plan named in the filing."),
+      metric("Vesting Period", vestingPeriod, "Source-backed vesting schedule."),
+      metric("Plan Type", planType, "Plan category stated or clearly indicated."),
+      metric("Immediate Dilution", immediateDilution, "Registration alone does not issue all shares immediately."),
+    ),
+  ].filter((item): item is DilutionMetricItem => Boolean(item)).slice(0, 4);
+}
+
+function readS8MetricValue(
+  displayPayloadData: Record<string, unknown> | null,
+  llmDisplayModel: Record<string, unknown> | null,
+  keys: string[],
+) {
+  for (const model of [displayPayloadData, llmDisplayModel]) {
+    if (!model) continue;
+    for (const key of keys) {
+      const value = model[key];
+      const normalized = normalizeS8MetricValue(value);
+      if (normalized) return normalized;
+    }
+  }
+  return "";
+}
+
+function normalizeS8MetricValue(value: unknown): string {
+  if (Array.isArray(value)) {
+    const items = value
+      .map((item) => normalizeS8MetricValue(item))
+      .filter(Boolean);
+    if (items.length <= 2) return items.join(", ");
+    return `${items.slice(0, 2).join(", ")} + others`;
+  }
+  const record = readPlainRecord(value);
+  if (record) {
+    return (
+      cleanDisclosureValue(
+        readDisclosureValue(record.value) ||
+          readRowString(record, "name") ||
+          readRowString(record, "planName") ||
+          readRowString(record, "plan_name") ||
+          readRowString(record, "label") ||
+          readRowString(record, "text"),
+      ) || ""
+    );
+  }
+  return cleanDisclosureValue(readDisclosureValue(value) || String(value ?? ""));
 }
 
 function readOfferingDetailsRows(model: Record<string, unknown> | null): DilutionDisclosureRow[] {

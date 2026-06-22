@@ -11079,6 +11079,7 @@ td {
 .dilution-detail-row strong {
   color: #111a33;
   font-size: 13px;
+  font-weight: 400;
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
@@ -11282,9 +11283,7 @@ td {
 }
 
 .dilution-overhang-bar b {
-  position: absolute;
-  top: 50%;
-  left: 18px;
+  position: static;
   display: block;
   min-width: 0;
   height: auto;
@@ -11292,7 +11291,6 @@ td {
   border-radius: 0;
   font-size: 14px;
   font-weight: 700;
-  transform: translateY(-50%);
   flex: 0 0 auto;
 }
 
@@ -11308,7 +11306,15 @@ td {
   text-overflow: ellipsis;
 }
 
-.dilution-overhang-bar > span > span {
+.dilution-overhang-bar-content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.dilution-overhang-bar-content > span {
   display: grid;
   align-content: center;
   gap: 4px;
@@ -11318,7 +11324,7 @@ td {
   text-align: center;
 }
 
-.dilution-overhang-bar > span > span em {
+.dilution-overhang-bar-content > span em {
   overflow: hidden;
   color: rgba(255, 255, 255, 0.78);
   font-size: 12px;
@@ -11974,6 +11980,7 @@ td {
 .dilution-overhang-facts strong {
   color: #111a33;
   font-size: 13px;
+  font-weight: 400;
   line-height: 1.35;
   text-align: right;
 }
