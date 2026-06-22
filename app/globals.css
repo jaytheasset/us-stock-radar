@@ -11089,6 +11089,20 @@ td {
   max-width: 620px;
 }
 
+.dilution-shelf-watch-list {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding-left: 18px;
+  color: #263755;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.dilution-shelf-watch-list li::marker {
+  color: #64728a;
+}
+
 .dilution-terms-list,
 .dilution-snapshot-grid {
   display: grid;
@@ -16811,7 +16825,8 @@ html[data-theme="dark"] .stock-detail-page .dilution-related-impact b {
 html[data-theme="dark"] .stock-detail-page .dilution-investor-header p,
 html[data-theme="dark"] .stock-detail-page .dilution-long-summary p,
 html[data-theme="dark"] .stock-detail-page .dilution-investor-grid ul,
-html[data-theme="dark"] .stock-detail-page .dilution-investor-grid ol {
+html[data-theme="dark"] .stock-detail-page .dilution-investor-grid ol,
+html[data-theme="dark"] .stock-detail-page .dilution-shelf-watch-list {
   color: #d9e5f7;
 }
 

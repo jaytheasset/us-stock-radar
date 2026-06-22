@@ -3600,24 +3600,31 @@ function DilutionOfferingTemplate({
         <DilutionSnapshotCard model={model} />
       </section>
 
-      <DilutionLongSummary model={model} />
-
       {model.isShelfOnly ? (
-        <ShelfRegistrationDetails model={model} />
-      ) : model.hideShareOverhang ? (
-        <AtmProgramDetails model={model} />
-      ) : model.isMixedOffering ? (
-        <MixedOfferingDetails model={model} />
-      ) : model.isPricedPrimaryOrRegisteredDirect ? (
-        <PricedOfferingDetails model={model} />
-      ) : model.isResaleRegistration ? (
-        <ResaleRegistrationDetails model={model} />
-      ) : model.isWarrantConvertible ? (
-        <WarrantConvertibleDetails model={model} />
-      ) : model.is424bOfferingTermsPayload ? (
-        <OfferingTermsSourceDetails model={model} />
+        <>
+          <DilutionLongSummary model={model} />
+          <ShelfWatchNext model={model} />
+        </>
       ) : (
-        <ShareOverhangCard model={model} />
+        <>
+          <DilutionLongSummary model={model} />
+
+          {model.hideShareOverhang ? (
+            <AtmProgramDetails model={model} />
+          ) : model.isMixedOffering ? (
+            <MixedOfferingDetails model={model} />
+          ) : model.isPricedPrimaryOrRegisteredDirect ? (
+            <PricedOfferingDetails model={model} />
+          ) : model.isResaleRegistration ? (
+            <ResaleRegistrationDetails model={model} />
+          ) : model.isWarrantConvertible ? (
+            <WarrantConvertibleDetails model={model} />
+          ) : model.is424bOfferingTermsPayload ? (
+            <OfferingTermsSourceDetails model={model} />
+          ) : (
+            <ShareOverhangCard model={model} />
+          )}
+        </>
       )}
 
       <FilingMarketContextPanel filing={filing} />
@@ -3779,37 +3786,23 @@ function AtmProgramDetails({ model }: { model: ReturnType<typeof buildDilutionOf
   );
 }
 
-function ShelfRegistrationDetails({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
+function ShelfWatchNext({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
+  if (!model.shelfWatchRows.length) return null;
+
   return (
     <section className="stock-detail-card dilution-section-block">
       <div className="dilution-section-heading">
         <div>
-          <h2>Shelf Registration</h2>
-          <p>Future offering capacity only</p>
+          <h2>What To Watch Next</h2>
+          <p>What would turn this shelf into an active offering</p>
         </div>
-        <span>No active sale terms</span>
+        <span>Shelf registration</span>
       </div>
-
-      <div className="dilution-detail-table">
-        {model.shelfDetailRows.map((row) => (
-          <div className="dilution-detail-row" key={row.label}>
-            <span>{row.label}</span>
-            <strong>{row.value}</strong>
-            {row.note ? <em>{row.note}</em> : null}
-          </div>
+      <ul className="dilution-shelf-watch-list">
+        {model.shelfWatchRows.map((item) => (
+          <li key={item}>{item}</li>
         ))}
-      </div>
-
-      {model.shelfWatchRows.length ? (
-        <div className="dilution-shelf-watch">
-          <h3>What would make it active</h3>
-          <ul>
-            {model.shelfWatchRows.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+      </ul>
     </section>
   );
 }
