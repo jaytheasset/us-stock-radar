@@ -658,7 +658,7 @@ export async function runSecFilingAnalysisForRawRow(
   }
 
   const env = getServerEnv();
-  const llmConfig = resolveSecLlmConfig(env, options);
+  const llmConfig = resolveSecLlmConfig(env, options, input);
 
   if (!llmConfig.apiKey) {
     return {
@@ -1355,7 +1355,11 @@ export async function runSecFilingAnalysisForRawRow(
   };
 }
 
-function resolveSecLlmConfig(env: ReturnType<typeof getServerEnv>, options: SecLlmOptions = {}): SecLlmConfig {
+function resolveSecLlmConfig(
+  env: ReturnType<typeof getServerEnv>,
+  options: SecLlmOptions = {},
+  input?: SecFilingAnalysisInput,
+): SecLlmConfig {
   const provider = normalizeSecLlmProvider(
     options.llmProvider || env.secAnalysisLlmProvider,
     env.secAnalysisAllowOpenAi,
@@ -1363,7 +1367,12 @@ function resolveSecLlmConfig(env: ReturnType<typeof getServerEnv>, options: SecL
   if (provider === "gemini") {
     return {
       provider,
-      model: (options.llmModel || env.geminiModel || "gemini-2.5-flash").trim(),
+      model: (
+        options.llmModel ||
+        resolveGeminiModelForSecInput(env, input) ||
+        env.geminiModel ||
+        "gemini-2.5-flash"
+      ).trim(),
       apiKey: env.geminiApiKey,
       apiKeyEnvName: "GEMINI_API_KEY",
     };
@@ -1375,6 +1384,13 @@ function resolveSecLlmConfig(env: ReturnType<typeof getServerEnv>, options: SecL
     apiKey: env.openAiApiKey,
     apiKeyEnvName: "OPENAI_API_KEY",
   };
+}
+
+function resolveGeminiModelForSecInput(env: ReturnType<typeof getServerEnv>, input?: SecFilingAnalysisInput) {
+  if (input && isOwnershipFilingInput(input)) {
+    return env.secOwnershipGeminiModel || "gemini-2.5-flash-lite";
+  }
+  return "";
 }
 
 function normalizeSecLlmProvider(value: string | undefined, allowOpenAi = false): SecLlmProvider {
