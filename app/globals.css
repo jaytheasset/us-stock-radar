@@ -12056,6 +12056,14 @@ td {
   font-weight: 800;
 }
 
+.dilution-overhang-facts em {
+  grid-column: 2;
+  color: #64728a;
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1.35;
+}
+
 .dilution-overhang-facts mark {
   border-radius: 6px;
   padding: 5px 10px;
@@ -15561,6 +15569,10 @@ td {
     text-align: left;
   }
 
+  .dilution-overhang-facts em {
+    grid-column: auto;
+  }
+
   .dividend-summary-heading,
   .dividend-change-readout,
   .vote-summary-heading,
@@ -16866,6 +16878,7 @@ html[data-theme="dark"] .stock-detail-page .dilution-overhang-heading p,
 html[data-theme="dark"] .stock-detail-page .dilution-overhang-score small,
 html[data-theme="dark"] .stock-detail-page .dilution-overhang-copy,
 html[data-theme="dark"] .stock-detail-page .dilution-overhang-facts span,
+html[data-theme="dark"] .stock-detail-page .dilution-overhang-facts em,
 html[data-theme="dark"] .stock-detail-page .dilution-breakdown-heading span,
 html[data-theme="dark"] .stock-detail-page .dilution-empty-note,
 html[data-theme="dark"] .stock-detail-page .dilution-overhang-labels,

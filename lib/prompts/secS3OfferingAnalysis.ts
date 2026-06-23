@@ -6,7 +6,7 @@ import { sec424bRequiredOutputSchema } from "@/lib/ai/sec424bAnalysisAdapter";
 import { buildSecSourceBlockPromptInput } from "@/lib/sources/sec/forms/common/sourceBlockPromptInput";
 
 export const SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY = "sec_s3_offering_analysis";
-export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v21";
+export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v22";
 
 export const SEC_S3_ANALYSIS_ACTION_VALUES = ["skip_analysis", "routine_archive", "analyze_offering"] as const;
 export const SEC_S3_CASE_VALUES = [
@@ -329,6 +329,13 @@ const secS3RequiredOutputSystemPrompt = [
   "Resale registration is potential selling-holder overhang. The company usually receives no resale proceeds unless the filing states ELOC, purchase agreement, warrant exercise cash, or other company cash.",
   "Primary, registered direct, priced takedown, warrant, convertible, and mixed offerings should use the same investor-facing display structure as 424B offering filings.",
   "For amendments, score what changed in this filing, not the full parent registration. Routine exhibit, fee, signature, or housekeeping amendments usually archive.",
+  "For S-3/A or F-3/A with parent_registration_context, keep unchanged parent offering terms stable in offering_details and show changed terms separately in display_payload.data.amendment_changes.",
+  "For S-3/A or F-3/A, offering_details should describe the current offering structure after the amendment. Do not use offering_details for old-vs-new comparisons.",
+  "For S-3/A or F-3/A, if a parent offering_details row is still accurate, reuse the same label and compact wording when possible. If the amendment corrected that row, show the corrected current value and put the correction in amendment_changes.",
+  "For S-3/A or F-3/A, display_payload.data.amendment_changes must be an array of compact rows with label and value, plus optional note. Use it for prospectus-date updates, outstanding-share denominator updates, reference-price updates, corrected registration deadlines, changed selling holders, changed resale method, changed warrant terms, changed sale price, or changed proceeds treatment.",
+  "For S-3/A or F-3/A amendment_changes, use short labels such as Prospectus date, Share-count basis, Reference prices, Registration obligation, Selling holders, Resale method, Warrant terms, Sale price, Proceeds treatment, or No economic change.",
+  "For S-3/A or F-3/A amendment_changes values, use compact comparison text under 90 characters, such as Feb 4, 2026 -> Mar 12, 2026 or 53.63M -> 56.78M shares. Do not paste legal clauses.",
+  "If an S-3/A or F-3/A only updates reference prices, share-count basis, dates, exhibit text, or typo corrections while the resale/offering economics are unchanged, keep score feed-level or archive-level; do not alert from the parent deal importance alone.",
   "Delivery rule: score below 50 = archive; 50-74 = feed; 75+ = alert.",
   "Alert requires source-backed new information likely to affect near-term price, volatility, liquidity, holder economics, or trading decisions. Do not alert from base shelf capacity alone.",
   "Base shelf, universal shelf, and automatic shelf filings with no active sale terms, no pricing, no sales agent, no takedown, and no named resale pool are registration capacity only. Default score 25-45; hard cap 49 unless the filing itself adds an active sale mechanism.",
@@ -337,7 +344,7 @@ const secS3RequiredOutputSystemPrompt = [
   "Summary must be 2-4 sentences, under 100 words total. why_it_matters one sentence under 35 words. Positive and Negative points may be empty if there are no direct points.",
   "For parser_output, preserve the integration contract fields: parserVersion, parserGroup, formType, accessionNumber, isSupported, facts, signals, calendarItems, warnings, raw.",
   "Set parser_output.parserGroup to s3, parser_output.isSupported to true, and parser_output.facts to a compact source-backed object.",
-  "For offering_terms display_payload.data, fill the structured UI fields yourself: display_mode, risk_label, current_shares, total_potential_supply, snapshot_metrics, key_cash_terms, registered_security_totals, supply_segments, investor_takeaway, offering_details, warrant_details, narrative_summary, watch_items, source_notes, review_reasons, needs_human_review.",
+  "For offering_terms display_payload.data, fill the structured UI fields yourself: display_mode, risk_label, current_shares, total_potential_supply, snapshot_metrics, key_cash_terms, registered_security_totals, supply_segments, investor_takeaway, offering_details, amendment_changes, warrant_details, narrative_summary, watch_items, source_notes, review_reasons, needs_human_review.",
   "For offering_terms, the written analysis and display_payload.data must agree. Do not leave cash/proceeds terms only in prose, offering_details, source_notes, or key_evidence.",
   "Do not return empty objects for current_shares, total_potential_supply, key_cash_terms facts, registered_security_totals facts, or supply_segments fact fields. Use the full fact shape with null/0 only when genuinely unavailable.",
   "display_payload.data.key_cash_terms must never be {}. Return the standard key_cash_terms fields even when most values are null.",

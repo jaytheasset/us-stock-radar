@@ -386,6 +386,7 @@ export function normalize424bOfferingDisplayModel(data: Record<string, unknown> 
     supply_segments: normalizeSupplySegments(data.supply_segments),
     investor_takeaway: stringValue(data.investor_takeaway),
     offering_details: normalizeOfferingDetails(data.offering_details),
+    amendment_changes: normalizeOfferingDetails(data.amendment_changes),
     warrant_details: normalizeWarrantDetails(data.warrant_details),
     narrative_summary: stringValue(data.narrative_summary),
     watch_items: readStringArray(data.watch_items),
@@ -959,6 +960,19 @@ export const sec424bRequiredOutputSchema = {
                 properties: {
                   label: { type: "string" },
                   value: { type: "string" },
+                },
+              },
+            },
+            amendment_changes: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: true,
+                required: ["label", "value"],
+                properties: {
+                  label: { type: "string" },
+                  value: { type: "string" },
+                  note: { type: "string" },
                 },
               },
             },

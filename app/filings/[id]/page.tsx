@@ -3972,13 +3972,18 @@ function findMetricValue(metrics: DilutionMetricItem[], label: string) {
 }
 
 function buildWarrantExtraDetailPanels(model: ReturnType<typeof buildDilutionOfferingModel>) {
+  const panels: Array<{ title: string; rows?: DilutionDisclosureRow[]; instrumentRows?: typeof model.warrantInstrumentRows }> = [];
+  if (model.s3AmendmentChangeRows.length) {
+    panels.push({ title: "What Changed", rows: model.s3AmendmentChangeRows });
+  }
   if (model.warrantInstrumentRows.length) {
-    return [{ title: "Instrument Details", instrumentRows: model.warrantInstrumentRows }];
+    panels.push({ title: "Instrument Details", instrumentRows: model.warrantInstrumentRows });
+    return panels;
   }
   if (model.warrantDetailsRows.length) {
-    return [{ title: "Warrant Details", rows: model.warrantDetailsRows }];
+    panels.push({ title: "Warrant Details", rows: model.warrantDetailsRows });
   }
-  return [];
+  return panels;
 }
 
 function ShareOverhangCard({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
@@ -5796,6 +5801,9 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     displayMode,
     { hasWarrantDetails: warrantDetailsRows.length > 0 },
   );
+  const s3AmendmentChangeRows = /^(?:S-3|F-3)\/A$/i.test(filing.formType.trim())
+    ? readS3AmendmentChangeRows(displayPayloadData, llmDisplayModel)
+    : [];
   const s8ContextDetailRows = isS8ReofferResale
     ? readS8ContextDetailRows(displayPayloadData, llmDisplayModel)
     : [];
@@ -6606,6 +6614,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     atmProgramRows,
     atmMarketCapValue: marketCapValue,
     offeringDetailsRows,
+    s3AmendmentChangeRows,
     s8ContextDetailRows,
     warrantDetailsRows,
     warrantInstrumentRows,
@@ -7965,6 +7974,33 @@ function readOfferingDetailsRows(model: Record<string, unknown> | null): Dilutio
       return label && isDisclosedValue(value) ? { label, value } : null;
     })
     .filter((item): item is DilutionDisclosureRow => Boolean(item));
+}
+
+function readS3AmendmentChangeRows(
+  displayPayloadData: Record<string, unknown> | null,
+  llmDisplayModel: Record<string, unknown> | null,
+): DilutionDisclosureRow[] {
+  const sourceRows = recordArray(displayPayloadData?.amendment_changes).length
+    ? recordArray(displayPayloadData?.amendment_changes)
+    : recordArray(llmDisplayModel?.amendment_changes);
+
+  return sourceRows
+    .map((item) => {
+      const label = cleanDisclosureValue(readRowString(item, "label")).slice(0, 42);
+      const value = cleanDisclosureValue(readDisclosureValue(item.value) || readRowString(item, "value"));
+      const note = cleanDisclosureValue(readDisclosureValue(item.note) || readRowString(item, "note"));
+      if (!label || !isDisclosedValue(value)) return null;
+      return { label, value: compactS3AmendmentValue(value), ...(note ? { note: compactS3AmendmentValue(note) } : {}) };
+    })
+    .filter((item): item is DilutionDisclosureRow => Boolean(item))
+    .slice(0, 6);
+}
+
+function compactS3AmendmentValue(value: string) {
+  const normalized = cleanDisclosureValue(value)
+    .replace(/\s+changed\s+from\s+/i, " ")
+    .replace(/\s+to\s+/i, " -> ");
+  return normalized.length > 120 ? `${normalized.slice(0, 117).trim()}...` : normalized;
 }
 
 function readWarrantDetailsRows(model: Record<string, unknown> | null): DilutionDisclosureRow[] {

@@ -19,6 +19,7 @@ export type DilutionShareOverhangBreakdownRow = {
 type DilutionShareOverhangFactRow = {
   label: string;
   value: string;
+  note?: string;
   tone?: "danger" | "neutral";
 };
 
@@ -324,6 +325,7 @@ function DilutionExtraDetailPanel({
             <div key={`${row.label}-${index}`}>
               <span title={currentSharesTitle(row.label)}>{row.label}</span>
               <strong className={row.tone === "danger" ? "danger" : undefined}>{row.value}</strong>
+              {row.note ? <em>{row.note}</em> : null}
             </div>
           ))}
         </div>
