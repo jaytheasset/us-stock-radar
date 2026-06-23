@@ -755,7 +755,9 @@ function RuntimeOutputCard({ value }: { value: unknown }) {
   const isParserCompletedArchive = output.is_parser_completed_archive === true;
   const filingSummary = clientString(output.filing_summary) || (isParserCompletedArchive ? clientString(output.archive_summary) || clientString(output.summary) : "");
   const transactionFingerprint = readClientRecord(output.transaction_fingerprint);
+  const parentRegistrationContext = readClientRecord(output.parent_registration_context);
   const parentFilingContext = readClientRecord(output.parent_filing_context);
+  const parentContext = parentRegistrationContext || parentFilingContext;
 
   return (
     <div className={styles.runtimeOutputCard}>
@@ -771,6 +773,7 @@ function RuntimeOutputCard({ value }: { value: unknown }) {
         <PreviewField label="Score" value={clientString(output.score)} />
         <PreviewField label="Delivery" value={clientString(output.delivery_level)} />
         <PreviewField label="Signal" value={clientString(output.signal)} />
+        <PreviewField label="S-3/F-3 parent" value={formatParentContextSummary(parentRegistrationContext)} />
         <PreviewField
           label="Parent context"
           value={
@@ -786,6 +789,18 @@ function RuntimeOutputCard({ value }: { value: unknown }) {
           }
         />
       </div>
+      {parentRegistrationContext ? (
+        <div className={styles.outputTextBlock}>
+          <span>S-3/F-3 parent registration context</span>
+          <pre>{JSON.stringify(parentRegistrationContext, null, 2)}</pre>
+        </div>
+      ) : null}
+      {!parentRegistrationContext && parentFilingContext ? (
+        <div className={styles.outputTextBlock}>
+          <span>Generic parent filing context</span>
+          <pre>{JSON.stringify(parentFilingContext, null, 2)}</pre>
+        </div>
+      ) : null}
       {filingSummary ? (
         <div className={styles.outputTextBlock}>
           <span>Filing summary</span>
@@ -1154,6 +1169,19 @@ function clampLiveSampleCount(value: unknown) {
   const parsed = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(parsed)) return 1;
   return Math.max(1, Math.min(100, Math.floor(parsed)));
+}
+
+function formatParentContextSummary(value: unknown) {
+  const context = readClientRecord(value);
+  if (!context) return "";
+  const parts = [
+    clientString(context.status),
+    clientString(context.parent_accession),
+    clientString(context.match_method),
+    context.registration_number_match === true ? "registration match" : "",
+    context.comparison_allowed === false ? "comparison blocked" : "",
+  ].filter(Boolean);
+  return parts.join(" / ");
 }
 
 function readClientRecord(value: unknown): Record<string, unknown> | null {

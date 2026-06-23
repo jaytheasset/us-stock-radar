@@ -61,6 +61,10 @@ import {
   evaluateSecInvestableUniverse,
   type SecInvestableUniverseGateResult,
 } from "@/lib/ai/secInvestableUniverseGate";
+import {
+  attachSecParentContexts,
+  prepareSecRawItemWithParentContextForParser,
+} from "@/lib/secStores/parentContextResolver";
 import { parseSecS3Filing, type SecS3FilingFacts } from "@/lib/sources/sec/forms/s3-f3/parser";
 import { parseSc13Filing } from "@/lib/sources/sec/forms/sc13/parser";
 import type { Sc13ParserOutput } from "@/lib/sources/sec/forms/sc13/types";
@@ -2255,13 +2259,10 @@ async function buildInputFromSecRawRowWithContext(rawItem: RawItemRow): Promise<
 }
 
 async function buildInputFromSecRawRowWithParentContext(rawItem: RawItemRow): Promise<SecFilingAnalysisInput> {
-  const ownershipParent = await findOwnershipAmendmentParentBeforeParser(rawItem);
-  const inputRawItem = ownershipParent ? addParentContextToRawItemForParser(rawItem, ownershipParent) : rawItem;
+  const inputRawItem = await prepareSecRawItemWithParentContextForParser(rawItem);
   const input = buildInputFromSecRawRow(inputRawItem);
-  await attachParentRegistrationContext(input, rawItem);
+  await attachSecParentContexts(input, rawItem);
   await attachCurrentReportParentFilingContext(input, rawItem);
-  await attachTenderParentFilingContext(input, rawItem);
-  await attachGenericAmendmentParentFilingContext(input, rawItem);
   await attachTenderFilingContext(input, rawItem);
   return input;
 }

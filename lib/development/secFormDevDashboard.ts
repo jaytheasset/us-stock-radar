@@ -568,6 +568,8 @@ function buildPreviewItem(rawItem: RawItemRow, preview: unknown) {
   const input = readRecord(previewRecord.input);
   const filingPackage = readRecord(input?.filing_package);
   const hardParsers = readRecord(filingPackage?.hard_parsers);
+  const parentRegistrationContext = readRecord(filingPackage?.parent_registration_context);
+  const parentFilingContext = readRecord(filingPackage?.parent_filing_context);
   const investableUniverseGate = readRecord(filingPackage?.investable_universe_gate);
   const filingContext = readRecord(filingPackage?.filing_context);
   const ownershipContext = readRecord(filingContext?.ownership);
@@ -596,6 +598,14 @@ function buildPreviewItem(rawItem: RawItemRow, preview: unknown) {
     hard_parser_keys: hardParsers ? Object.keys(hardParsers) : [],
     prompt_key: stringValue(prompt?.key) || null,
     prompt_version: stringValue(prompt?.version) || null,
+    parent_registration_context_present: Boolean(parentRegistrationContext),
+    parent_registration_context_status: stringValue(parentRegistrationContext?.status) || null,
+    parent_registration_context_match_method: stringValue(parentRegistrationContext?.match_method) || null,
+    parent_registration_context_match_reasons: stringArray(parentRegistrationContext?.match_reasons).slice(0, 8),
+    parent_context_present: Boolean(parentFilingContext),
+    parent_context_status: stringValue(parentFilingContext?.status) || null,
+    parent_context_match_method: stringValue(parentFilingContext?.match_method) || null,
+    parent_context_confidence: stringValue(parentFilingContext?.confidence) || null,
     filing_context_present: Boolean(filingContext),
     ownership_context_present: Boolean(ownershipContext),
     archive_context_guard: archiveContextGuard
@@ -613,6 +623,8 @@ function buildPreviewItem(rawItem: RawItemRow, preview: unknown) {
           event_type: stringValue(analysis.event_type),
           display_type: null,
           parser_route: isExcluded ? "excluded before analysis" : "preview",
+          parent_registration_context: buildParentRegistrationContextDebug(parentRegistrationContext),
+          parent_filing_context: buildParentFilingContextDebug(parentFilingContext),
           is_parser_completed_archive: false,
           is_excluded: isExcluded,
           skip_gate: stringValue(analysis.skip_gate) || stringValue(investableUniverseGate?.gate) || null,
@@ -644,6 +656,7 @@ function buildRuntimeAnalysisItem(rawItem: RawItemRow, result: unknown) {
   const input = readRecord(resultRecord.input);
   const filingPackage = readRecord(input?.filing_package);
   const hardParsers = readRecord(filingPackage?.hard_parsers);
+  const parentRegistrationContext = readRecord(filingPackage?.parent_registration_context);
   const parentFilingContext = readRecord(filingPackage?.parent_filing_context);
   const filingContext = readRecord(filingPackage?.filing_context);
   const ownershipContext = readRecord(filingContext?.ownership);
@@ -687,6 +700,10 @@ function buildRuntimeAnalysisItem(rawItem: RawItemRow, result: unknown) {
     parent_context_status: stringValue(parentFilingContext?.status) || null,
     parent_context_match_method: stringValue(parentFilingContext?.match_method) || null,
     parent_context_confidence: stringValue(parentFilingContext?.confidence) || null,
+    parent_registration_context_present: Boolean(parentRegistrationContext),
+    parent_registration_context_status: stringValue(parentRegistrationContext?.status) || null,
+    parent_registration_context_match_method: stringValue(parentRegistrationContext?.match_method) || null,
+    parent_registration_context_match_reasons: stringArray(parentRegistrationContext?.match_reasons).slice(0, 8),
     filing_context_present: Boolean(filingContext),
     ownership_context_present: Boolean(ownershipContext),
     archive_context_guard: archiveContextGuard
@@ -707,15 +724,8 @@ function buildRuntimeAnalysisItem(rawItem: RawItemRow, result: unknown) {
           event_type: stringValue(analysis.event_type),
           display_type: stringValue(displayPayload?.display_type) || null,
           parser_route: isExcluded ? "excluded before analysis" : isParserCompletedArchive ? "parser deterministic archive" : "analysis / LLM path",
-          parent_filing_context: parentFilingContext
-            ? {
-                status: stringValue(parentFilingContext.status) || null,
-                match_method: stringValue(parentFilingContext.match_method) || null,
-                confidence: stringValue(parentFilingContext.confidence) || null,
-                parent_accession: stringValue(readRecord(parentFilingContext.parent)?.accession_number) || null,
-                candidate_count: Array.isArray(parentFilingContext.candidates) ? parentFilingContext.candidates.length : 0,
-              }
-            : null,
+          parent_registration_context: buildParentRegistrationContextDebug(parentRegistrationContext),
+          parent_filing_context: buildParentFilingContextDebug(parentFilingContext),
           is_parser_completed_archive: isParserCompletedArchive,
           is_excluded: isExcluded,
           skip_gate: stringValue(analysis.skip_gate) || stringValue(investableUniverseGate?.gate) || null,
@@ -1479,6 +1489,73 @@ function buildNotRunResult(file: string): SecDevTestResult {
 function buildLocalFilingUrl(eventId: string, deliveryLevel: string) {
   if (!eventId) return null;
   return deliveryLevel === "archive" ? `/filings/archive/${eventId}` : `/filings/${eventId}`;
+}
+
+function buildParentRegistrationContextDebug(context: Record<string, unknown> | null) {
+  if (!context) return null;
+  const parent = readRecord(context.parent);
+  const offeringTerms = readRecord(context.offering_terms);
+  const candidates = Array.isArray(context.candidates) ? context.candidates : [];
+
+  return {
+    source: stringValue(context.source) || null,
+    status: stringValue(context.status) || null,
+    confirmed_parent: context.confirmed_parent === true,
+    comparison_allowed: context.comparison_allowed === true,
+    registration_number: stringValue(context.registration_number) || null,
+    registration_number_match: context.registration_number_match === true,
+    match_method: stringValue(context.match_method) || null,
+    match_count: numberValue(context.match_count),
+    match_reasons: stringArray(context.match_reasons).slice(0, 8),
+    parent_accession: stringValue(context.accession_number) || stringValue(parent?.accession_number) || null,
+    parent_raw_item_id: stringValue(context.raw_item_id) || stringValue(parent?.raw_item_id) || null,
+    parent_form_type: stringValue(context.form_type) || stringValue(parent?.form_type) || null,
+    parent_filed_at: stringValue(context.filed_at) || stringValue(parent?.filed_at) || null,
+    parent_company_name: stringValue(context.company_name) || stringValue(parent?.company_name) || null,
+    parent_ticker: stringValue(context.ticker) || stringValue(parent?.ticker) || null,
+    candidate_count: candidates.length,
+    candidates: candidates
+      .map((candidate) => readRecord(candidate))
+      .filter(Boolean)
+      .slice(0, 5)
+      .map((candidate) => ({
+        accession_number: stringValue(candidate?.accession_number) || null,
+        form_type: stringValue(candidate?.form_type) || null,
+        filed_at: stringValue(candidate?.filed_at) || null,
+        match_method: stringValue(candidate?.match_method) || null,
+        match_reasons: stringArray(candidate?.match_reasons).slice(0, 5),
+      })),
+    offering_terms: offeringTerms
+      ? {
+          offering_type: stringValue(offeringTerms.offering_type) || null,
+          security_type: stringValue(offeringTerms.security_type) || null,
+          primary_or_resale: stringValue(offeringTerms.primary_or_resale) || null,
+          shelf_capacity: stringValue(offeringTerms.shelf_capacity) || null,
+          resale_share_count: stringValue(offeringTerms.resale_share_count) || null,
+          atm_program_size: stringValue(offeringTerms.atm_program_size) || null,
+          conversion_price: stringValue(offeringTerms.conversion_price) || null,
+        }
+      : null,
+  };
+}
+
+function buildParentFilingContextDebug(context: Record<string, unknown> | null) {
+  if (!context) return null;
+  const parent = readRecord(context.parent);
+  const candidates = Array.isArray(context.candidates) ? context.candidates : [];
+
+  return {
+    source: stringValue(context.source) || null,
+    status: stringValue(context.status) || null,
+    match_method: stringValue(context.match_method) || null,
+    confidence: stringValue(context.confidence) || null,
+    match_reasons: stringArray(context.match_reasons).slice(0, 8),
+    parent_accession: stringValue(context.accession_number) || stringValue(parent?.accession_number) || null,
+    parent_form_type: stringValue(context.form_type) || stringValue(parent?.form_type) || null,
+    parent_filed_at: stringValue(context.filed_at) || stringValue(parent?.filed_at) || null,
+    parent_company_name: stringValue(context.company_name) || stringValue(parent?.company_name) || null,
+    candidate_count: candidates.length,
+  };
 }
 
 function deriveDeliveryLabel(score: number | null) {
