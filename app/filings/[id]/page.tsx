@@ -3627,9 +3627,22 @@ function DilutionOfferingTemplate({
         </>
       )}
 
+      <S3AmendmentChangesSection model={model} />
       <FilingMarketContextPanel filing={filing} />
       <OriginalFilingText filing={filing} eventLabel="Dilution Risk" />
     </>
+  );
+}
+
+function S3AmendmentChangesSection({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
+  if (!model.s3AmendmentChangeRows.length) return null;
+
+  return (
+    <DilutionDisclosureSection
+      title="What Changed"
+      rows={model.s3AmendmentChangeRows}
+      emptyText="No source-backed amendment changes were provided."
+    />
   );
 }
 
@@ -3973,9 +3986,6 @@ function findMetricValue(metrics: DilutionMetricItem[], label: string) {
 
 function buildWarrantExtraDetailPanels(model: ReturnType<typeof buildDilutionOfferingModel>) {
   const panels: Array<{ title: string; rows?: DilutionDisclosureRow[]; instrumentRows?: typeof model.warrantInstrumentRows }> = [];
-  if (model.s3AmendmentChangeRows.length) {
-    panels.push({ title: "What Changed", rows: model.s3AmendmentChangeRows });
-  }
   if (model.warrantInstrumentRows.length) {
     panels.push({ title: "Instrument Details", instrumentRows: model.warrantInstrumentRows });
     return panels;
