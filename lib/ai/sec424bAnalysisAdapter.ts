@@ -113,7 +113,15 @@ export function adaptSec424bAnalysisPromptResultForAnalysis(
   });
 }
 
-export function validate424bDisplayPayload(displayPayload: Record<string, unknown>) {
+type Validate424bDisplayPayloadOptions = {
+  strictLabels?: boolean;
+};
+
+export function validate424bDisplayPayload(
+  displayPayload: Record<string, unknown>,
+  options: Validate424bDisplayPayloadOptions = {},
+) {
+  const strictLabels = options.strictLabels !== false;
   if (stringValue(displayPayload.display_type) !== "offering_terms") return "";
   const data = readRecord(displayPayload.data);
   if (!data || !Object.keys(data).length) {
@@ -226,17 +234,40 @@ export function validate424bDisplayPayload(displayPayload: Record<string, unknow
   }
   for (const detail of arrayValue(data.offering_details)) {
     const label = stringValue(readRecord(detail)?.label);
-    if (label && !ALLOWED_424B_OFFERING_DETAIL_LABELS.has(label)) {
+    if (strictLabels && label && !ALLOWED_424B_OFFERING_DETAIL_LABELS.has(label)) {
       return `SEC 424B offering_details label is not allowed: ${label}`;
     }
   }
   for (const detail of arrayValue(data.warrant_details)) {
     const label = stringValue(readRecord(detail)?.label);
-    if (label && !ALLOWED_424B_WARRANT_DETAIL_LABELS.has(label)) {
+    if (strictLabels && label && !ALLOWED_424B_WARRANT_DETAIL_LABELS.has(label)) {
       return `SEC 424B warrant_details label is not allowed: ${label}`;
     }
   }
   return "";
+}
+
+export function collect424bDisplayPayloadWarnings(displayPayload: Record<string, unknown>) {
+  const warnings: string[] = [];
+  if (stringValue(displayPayload.display_type) !== "offering_terms") return warnings;
+
+  const data = readRecord(displayPayload.data);
+  if (!data) return warnings;
+
+  for (const detail of arrayValue(data.offering_details)) {
+    const label = stringValue(readRecord(detail)?.label);
+    if (label && !ALLOWED_424B_OFFERING_DETAIL_LABELS.has(label)) {
+      warnings.push(`SEC 424B offering_details label is outside the approved UI set: ${label}`);
+    }
+  }
+  for (const detail of arrayValue(data.warrant_details)) {
+    const label = stringValue(readRecord(detail)?.label);
+    if (label && !ALLOWED_424B_WARRANT_DETAIL_LABELS.has(label)) {
+      warnings.push(`SEC 424B warrant_details label is outside the approved UI set: ${label}`);
+    }
+  }
+
+  return warnings;
 }
 
 function adapt424bRoomResultForAnalysis(value: unknown): Sec424bAnalysisAdapterResult {

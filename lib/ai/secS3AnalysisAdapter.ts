@@ -10,6 +10,7 @@ import {
   SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY,
 } from "@/lib/prompts/secS3OfferingAnalysis";
 import {
+  collect424bDisplayPayloadWarnings,
   normalize424bOfferingDisplayModel,
   validate424bDisplayPayload,
 } from "@/lib/ai/sec424bAnalysisAdapter";
@@ -69,13 +70,16 @@ export function adaptSecS3AnalysisPromptResultForAnalysis(
     };
   }
 
-  const displayPayloadError = validate424bDisplayPayload(displayPayload).replace(/^SEC 424B\b/, "SEC S3");
+  const displayPayloadError = validate424bDisplayPayload(displayPayload, { strictLabels: false }).replace(/^SEC 424B\b/, "SEC S3");
   if (displayPayloadError) {
     return {
       ok: false,
       error: displayPayloadError,
     };
   }
+  const displayPayloadWarnings = collect424bDisplayPayloadWarnings(displayPayload).map((warning) =>
+    warning.replace(/^SEC 424B\b/, "SEC S3"),
+  );
 
   const normalizedValue = {
     ...root,
@@ -91,11 +95,11 @@ export function adaptSecS3AnalysisPromptResultForAnalysis(
 
   return {
     ok: true,
-    analysis: adapterOutputToAnalysis(adapted.value),
+    analysis: adapterOutputToAnalysis(adapted.value, displayPayloadWarnings),
   };
 }
 
-function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput) {
+function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput, displayPayloadWarnings: string[] = []) {
   const score = clampScore(numberValue(value.analysis_output.score) ?? 0);
   const archiveSummary =
     nullableString(value.analysis_output.archive_summary) ||
@@ -116,6 +120,7 @@ function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput) {
     display_payload_storage_mode: value.metadata.display_payload_storage_mode,
     candidate_special_metadata_only: value.metadata.candidate_special_metadata_only,
     offering_display_model: offeringDisplayModel,
+    sec_s3_display_warnings: displayPayloadWarnings,
     sec_s3_analysis_mode: "analysis_only",
     sec_offering_analysis_mode: "analysis_only",
   };
