@@ -3670,15 +3670,6 @@ function DilutionLongSummary({ model }: { model: ReturnType<typeof buildDilution
 }
 
 function OfferingTermsSourceDetails({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
-  const instrumentRows = model.warrantInstrumentRows.flatMap((item) =>
-    compactRows([
-      row("Type", item.type),
-      row("Shares / Securities", item.sharesSecurities),
-      row("Exercise / Conversion Price", item.exerciseConversionPrice),
-      row("Reset / Floor", item.resetFloor),
-      row("Term / Limits", item.termLimits),
-    ])
-  );
   const detailRows = model.offeringDetailsRows.length ? model.offeringDetailsRows : model.termRows;
 
   return (
@@ -3688,10 +3679,9 @@ function OfferingTermsSourceDetails({ model }: { model: ReturnType<typeof buildD
         rows={detailRows}
         emptyText="No source-backed offering detail rows were provided."
       />
-      {instrumentRows.length ? (
-        <DilutionDisclosureSection
-          title="Instrument Details"
-          rows={instrumentRows}
+      {model.warrantInstrumentRows.length ? (
+        <DilutionInstrumentDetailsSection
+          rows={model.warrantInstrumentRows}
           emptyText="No source-backed instrument rows were provided."
         />
       ) : model.warrantDetailsRows.length ? (
@@ -4143,6 +4133,63 @@ function DilutionDisclosureSection({
       )}
     </section>
   );
+}
+
+function DilutionInstrumentDetailsSection({
+  rows,
+  emptyText,
+}: {
+  rows: ReturnType<typeof buildDilutionOfferingModel>["warrantInstrumentRows"];
+  emptyText: string;
+}) {
+  return (
+    <section className="dilution-section-block">
+      <div className="dilution-section-heading">
+        <h2>Instrument Details</h2>
+        <span>{rows.length ? "Key terms" : "No parsed fields"}</span>
+      </div>
+      {rows.length ? (
+        <div className="dilution-instrument-table dilution-source-instrument-table">
+          <div className="dilution-instrument-row header">
+            <span>Type</span>
+            <span>Shares / Securities</span>
+            <span>Exercise / Conversion Price</span>
+            <span>Reset / Floor</span>
+            <span>Term / Limits</span>
+          </div>
+          {rows.map((item, index) => (
+            <div key={`${item.type}-${index}`} className="dilution-instrument-row">
+              <strong className="dilution-instrument-cell" data-label="Type">
+                {item.type}
+              </strong>
+              <span className="dilution-instrument-cell" data-label="Shares / Securities">
+                {displayInstrumentValue(item.sharesSecurities)}
+              </span>
+              <span className="dilution-instrument-cell" data-label="Exercise / Conversion Price">
+                {displayInstrumentValue(item.exerciseConversionPrice)}
+              </span>
+              <span className="dilution-instrument-cell" data-label="Reset / Floor">
+                {displayInstrumentValue(item.resetFloor)}
+              </span>
+              <span className="dilution-instrument-cell" data-label="Term / Limits">
+                {displayInstrumentValue(item.termLimits)}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="dilution-empty-note">{emptyText}</p>
+      )}
+    </section>
+  );
+}
+
+function displayInstrumentValue(value: string | undefined) {
+  const normalized = (value || "").trim();
+  if (!normalized || /^null$/i.test(normalized) || /^undefined$/i.test(normalized)) {
+    return "None";
+  }
+  return normalized;
 }
 
 function RelatedFilingsTable({ filings }: { filings: RecentFiling[] }) {

@@ -70,16 +70,30 @@ export function adaptSecS3AnalysisPromptResultForAnalysis(
     };
   }
 
-  const displayPayloadError = validate424bDisplayPayload(displayPayload, { strictLabels: false }).replace(/^SEC 424B\b/, "SEC S3");
+  const rawDisplayPayloadError = validate424bDisplayPayload(displayPayload, {
+    requireKeyCashTermFacts: true,
+    requireMixedComponents: false,
+    strictLabels: false,
+  });
+  const downgradedDisplayPayloadWarnings: string[] = [];
+  const displayPayloadError = isS3WarningOnlyDisplayPayloadError(rawDisplayPayloadError)
+    ? ""
+    : rawDisplayPayloadError.replace(/^SEC 424B\b/, "SEC S3");
+  if (rawDisplayPayloadError && !displayPayloadError) {
+    downgradedDisplayPayloadWarnings.push(rawDisplayPayloadError.replace(/^SEC 424B\b/, "SEC S3"));
+  }
   if (displayPayloadError) {
     return {
       ok: false,
       error: displayPayloadError,
     };
   }
-  const displayPayloadWarnings = collect424bDisplayPayloadWarnings(displayPayload).map((warning) =>
-    warning.replace(/^SEC 424B\b/, "SEC S3"),
-  );
+  const displayPayloadWarnings = [
+    ...downgradedDisplayPayloadWarnings,
+    ...collect424bDisplayPayloadWarnings(displayPayload).map((warning) =>
+      warning.replace(/^SEC 424B\b/, "SEC S3"),
+    ),
+  ];
 
   const normalizedValue = {
     ...root,
@@ -97,6 +111,10 @@ export function adaptSecS3AnalysisPromptResultForAnalysis(
     ok: true,
     analysis: adapterOutputToAnalysis(adapted.value, displayPayloadWarnings),
   };
+}
+
+function isS3WarningOnlyDisplayPayloadError(error: string) {
+  return /SEC 424B supply_segments\.(?:shares|underlying_shares|instrument_count) cannot contain dollar amounts or proceeds/i.test(error);
 }
 
 function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput, displayPayloadWarnings: string[] = []) {

@@ -328,34 +328,6 @@ export async function runSecFilingAnalysisPreviewForRawItem(
     return runSecFilingAnalysisWithoutLlmForRawRow(rawItem, input);
   }
 
-  const deterministicTriage = isS3AmendmentInput(input) ? buildDeterministicS3AmendmentTriage(input) : null;
-  if (deterministicTriage) {
-    attachS3AmendmentTriage(input, deterministicTriage);
-    return {
-      ok: true,
-      stage: "complete",
-      status: 200,
-      model: getServerEnv().openAiModel,
-      openAiResponseId: null,
-      sourceItem: summarizeRawRow(rawItem),
-      input,
-      triage: deterministicTriage,
-      audit: null,
-      analysis: buildS3AmendmentSkipAnalysis(input, deterministicTriage),
-      triageUsage: null,
-      usage: null,
-      costEstimate: null,
-      prompt: {
-        key: SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
-        version: SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
-        triage: {
-          key: SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
-          version: SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
-        },
-      },
-    };
-  }
-
   const analysisResult = await runSecFilingAnalysisForRawRow(rawItem, options);
   return {
     ...analysisResult,
@@ -367,30 +339,18 @@ async function runSecFilingAnalysisWithoutLlmForRawRow(
   rawItem: RawItemRow,
   input: SecFilingAnalysisInput,
 ): Promise<SecFilingAnalysisRunResult> {
-  const deterministicTriage = isS3AmendmentInput(input) ? buildDeterministicS3AmendmentTriage(input) : null;
-  if (deterministicTriage) {
-    attachS3AmendmentTriage(input, deterministicTriage);
+  if (isS3AmendmentInput(input)) {
     return {
-      ok: true,
-      stage: "complete",
-      status: 200,
+      ok: false,
+      stage: "openai",
+      status: 0,
+      error: "SEC S-3/A amendment triage requires LLM review.",
       model: getServerEnv().openAiModel,
-      openAiResponseId: null,
       sourceItem: summarizeRawRow(rawItem),
       input,
-      triage: deterministicTriage,
-      audit: null,
-      analysis: buildS3AmendmentSkipAnalysis(input, deterministicTriage),
-      triageUsage: null,
-      usage: null,
-      costEstimate: null,
       prompt: {
         key: SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
         version: SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
-        triage: {
-          key: SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
-          version: SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
-        },
       },
     };
   }
@@ -654,30 +614,27 @@ export async function runSecFilingAnalysisForRawRow(
   let triage: Record<string, unknown> | null = null;
   let triageRun: OpenAiPromptRun | null = null;
   if (isS3AmendmentInput(input)) {
-    triage = buildDeterministicS3AmendmentTriage(input);
-    const triagePrompt = triage ? null : buildSecS3TriagePrompt(input);
-    if (!triage && triagePrompt) {
-      triageRun = await runOpenAiJsonPrompt(env, triagePrompt, llmConfig);
-      if (!triageRun.ok || !triageRun.parsed) {
-        return {
-          ok: false,
-          stage: "openai",
-          status: triageRun.status,
-          error: `SEC S-3/A triage failed after ${triageRun.attempts} attempt(s): ${triageRun.error || "no parseable JSON"}`,
-          sourceItem: summarizeRawRow(rawItem),
-          input,
-          triageOutputText: triageRun.outputText,
-          triageUsage: triageRun.usage,
-          rawOpenAIResponse: triageRun.rawOpenAIResponse,
-          prompt: {
-            key: triagePrompt.key,
-            version: triagePrompt.version,
-          },
-        };
-      }
-
-      triage = triageRun.parsed;
+    const triagePrompt = buildSecS3TriagePrompt(input);
+    triageRun = await runOpenAiJsonPrompt(env, triagePrompt, llmConfig);
+    if (!triageRun.ok || !triageRun.parsed) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: triageRun.status,
+        error: `SEC S-3/A triage failed after ${triageRun.attempts} attempt(s): ${triageRun.error || "no parseable JSON"}`,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        triageOutputText: triageRun.outputText,
+        triageUsage: triageRun.usage,
+        rawOpenAIResponse: triageRun.rawOpenAIResponse,
+        prompt: {
+          key: triagePrompt.key,
+          version: triagePrompt.version,
+        },
+      };
     }
+
+    triage = triageRun.parsed;
     if (!triage) {
       return {
         ok: false,
@@ -1990,56 +1947,8 @@ function buildSecFilingPromptForInput(input: SecFilingAnalysisInput) {
   return isS3FilingInput(input) ? buildSecS3AnalysisPrompt(input) : buildSecFilingAnalysisPrompt(input);
 }
 
-function buildDeterministicS3AmendmentTriage(input: SecFilingAnalysisInput): Record<string, unknown> | null {
-  const filingPackage = readRecord(input.filing_package);
-  const hardParsers = readRecord(filingPackage?.hard_parsers);
-  const s3 = readRecord(hardParsers?.s3);
-  const amendment = readRecord(s3?.amendment);
-  const formType = stringValue(filingPackage?.form_type || amendment?.form_type)
-    .toUpperCase()
-    .replace(/\s+/g, "");
-  if (!s3 || !amendment || (amendment.is_amendment !== true && formType !== "S-3/A")) return null;
-
-  const amendmentExcerpt = stringValue(amendment.amendment_excerpt);
-  const limitedSignals = readFieldValueArray(amendment.limited_scope_signal_candidates);
-  const changeSignals = readFieldValueArray(amendment.change_signal_candidates);
-  const addedExhibits = readS3DocumentLabels(amendment.added_exhibits);
-  const unchangedRemainder = amendment.unchanged_remainder_not_included === true;
-  const onlyRoutineExhibits = addedExhibits.length > 0 && addedExhibits.every(isRoutineS3AmendmentExhibit);
-  const allowedRoutineChangeSignals = new Set(["registration_fee_change", "post_effective_amendment"]);
-  const materialChangeSignals = changeSignals.filter((signal) => !allowedRoutineChangeSignals.has(signal));
-
-  if (materialChangeSignals.length > 0) return null;
-  if (!unchangedRemainder && !onlyRoutineExhibits && !limitedSignals.length && !hasRoutineS3AmendmentText(amendmentExcerpt)) {
-    return null;
-  }
-  if (hasMaterialS3AmendmentChangeText(amendmentExcerpt)) return null;
-
-  const routineReasons = [
-    unchangedRemainder ? "Remainder of the registration statement is unchanged and not included" : "",
-    onlyRoutineExhibits ? `Only routine exhibit/consent items added: ${addedExhibits.slice(0, 4).join(", ")}` : "",
-    ...limitedSignals.map((signal) => signal.replace(/_/g, " ")),
-    changeSignals.includes("registration_fee_change") ? "Fee table update without changed offering economics" : "",
-    changeSignals.includes("post_effective_amendment") ? "Post-effective amendment with limited routine scope" : "",
-  ]
-    .filter(Boolean)
-    .slice(0, 4);
-
-  return {
-    triage_action: "skip_analysis",
-    material_change: false,
-    material_change_reasons: [],
-    routine_reasons: routineReasons.length ? routineReasons : ["Routine S-3/A housekeeping amendment"],
-    archive_summary: "Routine S-3/A amendment limited to housekeeping exhibits, consents, or fee-table cleanup; no changed offering economics were detected.",
-    confidence: "high",
-    needs_human_review: false,
-    deterministic_prefilter: true,
-  };
-}
-
 function shouldForceS3AmendmentAudit(input: SecFilingAnalysisInput, triage: Record<string, unknown>) {
   if (stringValue(triage.triage_action) !== "skip_analysis") return false;
-  if (triage.deterministic_prefilter === true) return false;
 
   const filingPackage = readRecord(input.filing_package);
   if (!filingPackage || readRecord(filingPackage.parent_registration_context)) return false;
@@ -6691,53 +6600,4 @@ function readFieldValueArray(value: unknown) {
       return stringValue(record?.value) || stringValue(item);
     })
     .filter(Boolean);
-}
-
-function readS3DocumentLabels(value: unknown) {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => {
-      const record = readRecord(item);
-      if (!record) return stringValue(item);
-      return [stringValue(record.type), stringValue(record.description)].filter(Boolean).join(" ");
-    })
-    .filter(Boolean);
-}
-
-function isRoutineS3AmendmentExhibit(value: string) {
-  const normalized = value.toUpperCase();
-  if (/\bEX-?(?:5|23|24|107)(?:\.|\b)/.test(normalized)) return true;
-  if (/\b(?:CONSENT|LEGAL OPINION|FILING FEE EXHIBIT)\b/.test(normalized)) return true;
-  return /\bEX-?99(?:\.|\b)/.test(normalized) && /\b(?:MASTER SERVICES AGREEMENT|TRUST AGREEMENT|TAX OPINION)\b/.test(normalized);
-}
-
-function hasRoutineS3AmendmentText(value: string) {
-  if (!value) return false;
-  return (
-    /\bsole\s+purpose\b[\s\S]{0,220}?\b(?:filing|file|furnishing|furnish)\b[\s\S]{0,120}?\b(?:exhibit|consent|opinion|fee table|filing fee)\b/i.test(
-      value,
-    ) ||
-    /\bconsists\s+solely\s+of\b[\s\S]{0,220}?\b(?:cover page|explanatory note|part ii|exhibit|signature pages?)\b/i.test(
-      value,
-    ) ||
-    /\b(?:remainder|rest)\s+of\s+the\s+registration\s+statement[\s\S]{0,180}?\bunchanged\b[\s\S]{0,180}?\bnot\s+been\s+included\b/i.test(
-      value,
-    ) ||
-    /\bno\s+other\s+changes?\s+(?:have\s+)?been\s+made\b/i.test(value) ||
-    /\bdelaying\s+amendment\b/i.test(value) ||
-    /\b(?:submitted|filed)\s+to\s+refile\s+Exhibit\s+107\b/i.test(value) ||
-    /\brefil(?:e|ing)\s+Exhibit\s+107\b/i.test(value) ||
-    /\bfiling\s+(?:an?\s+)?updated\s+consent\s+of\b[\s\S]{0,160}?\b(?:independent\s+registered\s+public\s+accounting\s+firm|auditor|accountant)\b/i.test(
-      value,
-    ) ||
-    /\bupdated\s+auditor\s+consent\b/i.test(value)
-  );
-}
-
-function hasMaterialS3AmendmentChangeText(value: string) {
-  if (!value) return false;
-  const materialTerm =
-    "(?:shares?\\s+(?:registered|offered)|number\\s+of\\s+shares|selling\\s+(?:stockholder|shareholder)s?|plan\\s+of\\s+distribution|use\\s+of\\s+proceeds|warrants?|exercise\\s+price|conversion\\s+price|convertible|at-the-market|ATM|sales\\s+agreement|offering\\s+price|net\\s+proceeds|gross\\s+proceeds|maximum\\s+aggregate\\s+offering\\s+price|shelf\\s+amount|securities\\s+purchase\\s+agreement|registered\\s+direct|private\\s+placement)";
-  const changeVerb = "(?:increase|increased|decrease|decreased|amend|amended|modify|modified|revise|revised|update|updated|add|added|remove|removed|change|changed)";
-  return new RegExp(`\\b${changeVerb}\\b[\\s\\S]{0,220}\\b${materialTerm}\\b`, "i").test(value);
 }

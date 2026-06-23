@@ -114,7 +114,9 @@ export function adaptSec424bAnalysisPromptResultForAnalysis(
 }
 
 type Validate424bDisplayPayloadOptions = {
+  requireKeyCashTermFacts?: boolean;
   strictLabels?: boolean;
+  requireMixedComponents?: boolean;
 };
 
 export function validate424bDisplayPayload(
@@ -122,6 +124,8 @@ export function validate424bDisplayPayload(
   options: Validate424bDisplayPayloadOptions = {},
 ) {
   const strictLabels = options.strictLabels !== false;
+  const requireMixedComponents = options.requireMixedComponents !== false;
+  const requireKeyCashTermFacts = options.requireKeyCashTermFacts === true;
   if (stringValue(displayPayload.display_type) !== "offering_terms") return "";
   const data = readRecord(displayPayload.data);
   if (!data || !Object.keys(data).length) {
@@ -161,8 +165,12 @@ export function validate424bDisplayPayload(
   if (displayMode && !ALLOWED_424B_DISPLAY_MODES.has(displayMode)) {
     return `SEC 424B offering_terms display_payload.data.display_mode is not allowed: ${displayMode}`;
   }
-  if (displayMode === "mixed_offering" && !arrayValue(data.mixed_offering_components).length) {
+  if (requireMixedComponents && displayMode === "mixed_offering" && !arrayValue(data.mixed_offering_components).length) {
     return "SEC 424B mixed_offering display_payload.data.mixed_offering_components must be written by the analysis LLM";
+  }
+  if (requireKeyCashTermFacts) {
+    const keyCashError = validateKeyCashTermFacts(data);
+    if (keyCashError) return `SEC 424B ${keyCashError}`;
   }
   const currentShares = readRecord(data.current_shares);
   const totalPotentialSupply = readRecord(data.total_potential_supply);
@@ -217,6 +225,12 @@ export function validate424bDisplayPayload(
     const record = readRecord(segment);
     const shares = readRecord(record?.shares);
     const sharesText = `${stringValue(shares?.value_text)} ${stringValue(shares?.evidence)}`.toLowerCase();
+    const shareFieldError = validateShareExposureFact(shares, "supply_segments.shares");
+    if (shareFieldError) return `SEC 424B ${shareFieldError}`;
+    const underlyingShareError = validateShareExposureFact(readRecord(record?.underlying_shares), "supply_segments.underlying_shares");
+    if (underlyingShareError) return `SEC 424B ${underlyingShareError}`;
+    const instrumentCountError = validateInstrumentCountFact(readRecord(record?.instrument_count), "supply_segments.instrument_count");
+    if (instrumentCountError) return `SEC 424B ${instrumentCountError}`;
     if (stringValue(shares?.unit) === "shares" && /\bwarrants?\b/i.test(sharesText) && !/\bshares?\b/i.test(stringValue(shares?.value_text))) {
       return "SEC 424B supply_segments.shares cannot contain warrant counts; use instrument_count for warrants and underlying_shares for share exposure.";
     }
@@ -244,6 +258,67 @@ export function validate424bDisplayPayload(
       return `SEC 424B warrant_details label is not allowed: ${label}`;
     }
   }
+  return "";
+}
+
+function validateKeyCashTermFacts(data: Record<string, unknown>) {
+  const searchableText = [
+    data.investor_takeaway,
+    data.narrative_summary,
+    readRecord(data.key_cash_terms)?.explanation,
+    ...arrayValue(data.offering_details).flatMap((row) => {
+      const record = readRecord(row);
+      return [record?.label, record?.value];
+    }),
+    ...readStringArray(data.source_notes),
+  ]
+    .map((value) => stringValue(value))
+    .join(" ");
+  if (!/\b(cash|proceeds?|receive|received|resale|sepa|eloc|purchase agreement|warrant exercise|exercise cash)\b/i.test(searchableText)) {
+    return "";
+  }
+
+  const cashTerms = readRecord(data.key_cash_terms);
+  const cashFactKeys = [
+    "resale_proceeds_to_company",
+    "issuer_primary_or_closing_cash",
+    "conditional_warrant_cash",
+    "prefunded_warrant_exercise_cash",
+    "common_warrant_cash_exercise_proceeds",
+    "private_placement_proceeds",
+    "sec_registration_value",
+  ];
+  const hasAnyFact = cashFactKeys.some((key) => hasDisplayFactValue(readRecord(cashTerms?.[key])));
+  return hasAnyFact
+    ? ""
+    : "key_cash_terms facts must be filled when cash or proceeds are described elsewhere";
+}
+
+function validateShareExposureFact(value: Record<string, unknown> | null, fieldName: string) {
+  if (!hasDisplayFactValue(value)) return "";
+
+  const unit = stringValue(value?.unit).toLowerCase();
+  const valueText = stringValue(value?.value_text);
+  if (/\$|\busd\b|dollars?/i.test(valueText) || unit === "$" || /\busd\b/.test(unit)) {
+    return `${fieldName} cannot contain dollar amounts or proceeds; put cash amounts in key_cash_terms or offering_details.`;
+  }
+
+  if (unit && unit !== "unknown" && !/shares?|ads|ordinary|common/.test(unit)) {
+    return `${fieldName} must use a share unit, not ${stringValue(value?.unit)}.`;
+  }
+
+  return "";
+}
+
+function validateInstrumentCountFact(value: Record<string, unknown> | null, fieldName: string) {
+  if (!hasDisplayFactValue(value)) return "";
+
+  const unit = stringValue(value?.unit).toLowerCase();
+  const valueText = stringValue(value?.value_text);
+  if (/\$|\busd\b|dollars?/i.test(valueText) || unit === "$" || /\busd\b/.test(unit)) {
+    return `${fieldName} cannot contain dollar amounts or proceeds; put cash amounts in key_cash_terms or offering_details.`;
+  }
+
   return "";
 }
 
@@ -382,10 +457,23 @@ function normalizeKeyCashTerms(value: Record<string, unknown> | null) {
       readRecord(value?.prefunded_warrant_exercise_cash),
       "usd",
     ),
+    conditional_warrant_cash: normalizeDisplayFact(
+      readRecord(value?.conditional_warrant_cash),
+      "usd",
+    ),
     common_warrant_cash_exercise_proceeds: normalizeDisplayFact(
       readRecord(value?.common_warrant_cash_exercise_proceeds),
       "usd",
     ),
+    private_placement_proceeds: normalizeDisplayFact(
+      readRecord(value?.private_placement_proceeds),
+      "usd",
+    ),
+    sec_registration_value: normalizeDisplayFact(
+      readRecord(value?.sec_registration_value),
+      "usd",
+    ),
+    explanation: stringValue(value?.explanation),
   };
 }
 
@@ -839,6 +927,26 @@ export const sec424bRequiredOutputSchema = {
             key_cash_terms: {
               type: "object",
               additionalProperties: true,
+              required: [
+                "resale_proceeds_to_company",
+                "issuer_primary_or_closing_cash",
+                "conditional_warrant_cash",
+                "prefunded_warrant_exercise_cash",
+                "common_warrant_cash_exercise_proceeds",
+                "private_placement_proceeds",
+                "sec_registration_value",
+                "explanation",
+              ],
+              properties: {
+                resale_proceeds_to_company: keyCashTermFactSchema(),
+                issuer_primary_or_closing_cash: keyCashTermFactSchema(),
+                conditional_warrant_cash: keyCashTermFactSchema(),
+                prefunded_warrant_exercise_cash: keyCashTermFactSchema(),
+                common_warrant_cash_exercise_proceeds: keyCashTermFactSchema(),
+                private_placement_proceeds: keyCashTermFactSchema(),
+                sec_registration_value: keyCashTermFactSchema(),
+                explanation: { type: "string" },
+              },
             },
             registered_security_totals: looseObjectSchema(),
             supply_segments: {
@@ -912,6 +1020,17 @@ function displayFactSchema() {
       numeric_value: { type: "number" },
       unit: { type: "string" },
       evidence: { type: ["string", "null"] },
+    },
+  };
+}
+
+function keyCashTermFactSchema() {
+  return {
+    type: "object",
+    additionalProperties: true,
+    required: ["value_text"],
+    properties: {
+      value_text: { type: "string" },
     },
   };
 }
