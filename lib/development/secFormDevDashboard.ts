@@ -745,6 +745,7 @@ function buildRuntimeAnalysisItem(rawItem: RawItemRow, result: unknown) {
           parser_signals: parserSignals,
           transaction_fingerprint: readRecord(analysis.transaction_fingerprint) || null,
           display_data: previewDisplayData(displayData),
+          display_payload_debug: buildDisplayPayloadDebug(displayPayload, displayData, analysis),
           usage: readRecord(resultRecord.usage) || null,
           cost_estimate: readRecord(resultRecord.costEstimate) || null,
         }
@@ -1599,6 +1600,67 @@ function previewDisplayData(data: Record<string, unknown> | null) {
       label,
       value: previewValue(value),
     }));
+}
+
+const APPROVED_S3_AMENDMENT_CHANGE_LABELS = [
+  "Prospectus date",
+  "Share-count basis",
+  "Reference prices",
+  "Registered shares",
+  "Offering size",
+  "Selling holders",
+  "Securities covered",
+  "Warrant terms",
+  "Exercise price",
+  "Conversion terms",
+  "Sale price",
+  "Resale method",
+  "Agreement date",
+  "Effective date",
+  "Registration obligation",
+  "Use of proceeds",
+  "Company proceeds",
+  "Plan of distribution",
+  "Risk factors",
+  "Fee table",
+  "Incorporated documents",
+  "Expert consents",
+  "Legal opinion",
+  "Exhibit status",
+];
+
+function buildDisplayPayloadDebug(
+  displayPayload: Record<string, unknown> | null,
+  data: Record<string, unknown> | null,
+  analysis: Record<string, unknown> | null,
+) {
+  if (!displayPayload && !data) return null;
+
+  return {
+    display_type: stringValue(displayPayload?.display_type) || null,
+    display_version: stringValue(displayPayload?.display_version) || null,
+    display_mode: stringValue(data?.display_mode) || null,
+    risk_label: stringValue(data?.risk_label) || null,
+    snapshot_metrics: readDebugValue(data?.snapshot_metrics),
+    offering_details: readDebugValue(data?.offering_details),
+    amendment_changes: readDebugValue(data?.amendment_changes),
+    supply_segments: readDebugValue(data?.supply_segments),
+    warrant_details: readDebugValue(data?.warrant_details),
+    mixed_offering_components: readDebugValue(data?.mixed_offering_components),
+    key_cash_terms: readDebugValue(data?.key_cash_terms),
+    registered_security_totals: readDebugValue(data?.registered_security_totals),
+    s8_context_details: readDebugValue(data?.s8_context_details),
+    display_warnings: stringArray(analysis?.sec_s3_display_warnings),
+    s3_amendment_change_label_policy: {
+      source: "LLM chooses labels; prompt says use approved labels first, custom labels only if needed.",
+      approved_labels: APPROVED_S3_AMENDMENT_CHANGE_LABELS,
+    },
+  };
+}
+
+function readDebugValue(value: unknown) {
+  if (value === undefined) return null;
+  return value;
 }
 
 function previewValue(value: unknown): string {

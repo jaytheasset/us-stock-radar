@@ -36,6 +36,7 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
   const selectedRunFormCount = Math.max(1, selectedRunForms.length);
   const selectedRunLabel = liveFormFilter === "all" ? "all forms " : `${liveFormFilter} `;
   const selectedRunCountLabel = liveFormFilter === "all" ? `${liveSampleCountNumber}/form` : String(liveSampleCountNumber);
+  const selectedRoomHasTests = (selectedSnapshot?.testFiles.length || 0) > 0;
 
   useEffect(() => {
     if (!selectedRoom) return;
@@ -280,8 +281,14 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
           </div>
           <div className={styles.headerActions}>
             <StatusBadge status={selectedSnapshot?.status || "not_run"} />
-            <button className={styles.primaryButton} disabled={running || loading || !selectedRoom} onClick={runTests} type="button">
-              {running ? "Running..." : "Run room tests"}
+            <button
+              className={styles.primaryButton}
+              disabled={running || loading || !selectedRoom || !selectedRoomHasTests}
+              onClick={runTests}
+              title={selectedRoomHasTests ? "Run local room tests" : "No local test files are configured for this room"}
+              type="button"
+            >
+              {running ? "Running..." : selectedRoomHasTests ? "Run room tests" : "No room tests"}
             </button>
             <label className={styles.countControl}>
               <span>Live count</span>
@@ -757,6 +764,7 @@ function RuntimeOutputCard({ value }: { value: unknown }) {
   const transactionFingerprint = readClientRecord(output.transaction_fingerprint);
   const parentRegistrationContext = readClientRecord(output.parent_registration_context);
   const parentFilingContext = readClientRecord(output.parent_filing_context);
+  const displayPayloadDebug = readClientRecord(output.display_payload_debug);
   const parentContext = parentRegistrationContext || parentFilingContext;
 
   return (
@@ -837,6 +845,12 @@ function RuntimeOutputCard({ value }: { value: unknown }) {
         <PreviewList title="Parser signals" items={clientStringArray(output.parser_signals)} />
         <PreviewList title="Display payload fields" items={clientDisplayData(output.display_data)} />
       </div>
+      {displayPayloadDebug ? (
+        <div className={styles.outputTextBlock}>
+          <span>Display payload debug</span>
+          <pre>{JSON.stringify(displayPayloadDebug, null, 2)}</pre>
+        </div>
+      ) : null}
       {transactionFingerprint ? (
         <div className={styles.outputTextBlock}>
           <span>Transaction fingerprint</span>
