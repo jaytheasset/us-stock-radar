@@ -2005,7 +2005,7 @@ function buildS3AmendmentSkipAnalysis(input: SecFilingAnalysisInput, triage: Rec
   const tickers = normalizeAnalysisTickers(filingPackage.tickers);
 
   return {
-    analysis_action: "skip_analysis",
+    analysis_action: "routine_archive",
     s3_case: "amendment",
     archive_summary: archiveSummary,
     offering_display_model: null,
@@ -2023,7 +2023,7 @@ function buildS3AmendmentSkipAnalysis(input: SecFilingAnalysisInput, triage: Rec
     theme_group: null,
     sub_theme: null,
     score: 10,
-    score_reason: "routine s-3/a amendment",
+    score_reason: "routine s-3/a archive",
     signal: "neutral",
     quick_take: archiveSummary,
     summary: archiveSummary,
