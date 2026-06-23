@@ -123,9 +123,7 @@ export function validate424bDisplayPayload(
   displayPayload: Record<string, unknown>,
   options: Validate424bDisplayPayloadOptions = {},
 ) {
-  const strictLabels = options.strictLabels !== false;
   const requireMixedComponents = options.requireMixedComponents !== false;
-  const requireKeyCashTermFacts = options.requireKeyCashTermFacts === true;
   if (stringValue(displayPayload.display_type) !== "offering_terms") return "";
   const data = readRecord(displayPayload.data);
   if (!data || !Object.keys(data).length) {
@@ -168,12 +166,22 @@ export function validate424bDisplayPayload(
   if (requireMixedComponents && displayMode === "mixed_offering" && !arrayValue(data.mixed_offering_components).length) {
     return "SEC 424B mixed_offering display_payload.data.mixed_offering_components must be written by the analysis LLM";
   }
-  if (requireKeyCashTermFacts) {
-    const keyCashError = validateKeyCashTermFacts(data);
-    if (keyCashError) return `SEC 424B ${keyCashError}`;
-  }
+  return "";
+}
+
+export function collect424bDisplayPayloadWarnings(displayPayload: Record<string, unknown>) {
+  const warnings: string[] = [];
+  if (stringValue(displayPayload.display_type) !== "offering_terms") return warnings;
+
+  const data = readRecord(displayPayload.data);
+  if (!data) return warnings;
+
+  const keyCashWarning = validateKeyCashTermFacts(data);
+  if (keyCashWarning) warnings.push(`SEC 424B ${keyCashWarning}`);
+
   const currentShares = readRecord(data.current_shares);
   const totalPotentialSupply = readRecord(data.total_potential_supply);
+  const displayMode = stringValue(data.display_mode);
   const adsEquivalence = readRecord(data.ads_equivalence);
   const ordinarySharesRepresented = readRecord(adsEquivalence?.ordinary_shares_represented);
   const adsOffered = readRecord(adsEquivalence?.ads_offered);
@@ -184,7 +192,7 @@ export function validate424bDisplayPayload(
     /\bordinary shares?\b/i.test(currentSharesText) &&
     !hasDisplayFactValue(ordinarySharesRepresented)
   ) {
-    return "SEC 424B ADS offering must separate ADS count from ordinary-share exposure in ads_equivalence.ordinary_shares_represented before calculating overhang.";
+    warnings.push("SEC 424B ADS offering should separate ADS count from ordinary-share exposure in ads_equivalence.ordinary_shares_represented before calculating overhang.");
   }
   if (
     /\bADSs?\b|American Depositary Shares?/i.test(totalPotentialText) &&
@@ -192,7 +200,7 @@ export function validate424bDisplayPayload(
     hasDisplayFactValue(adsOffered) &&
     !hasDisplayFactValue(ordinarySharesRepresented)
   ) {
-    return "SEC 424B total_potential_supply cannot use ADS count when evidence gives ordinary shares represented; fill ordinary_shares_represented and use that basis.";
+    warnings.push("SEC 424B total_potential_supply may be using ADS count when evidence gives ordinary shares represented.");
   }
   const snapshotMetrics = arrayValue(data.snapshot_metrics);
   const snapshotText = snapshotMetrics
@@ -203,7 +211,7 @@ export function validate424bDisplayPayload(
     .join(" ");
   if (/\bDilution vs current shares\b/i.test(snapshotText)) {
     if (!hasDisplayFactValue(currentShares) || !hasDisplayFactValue(totalPotentialSupply)) {
-      return "SEC 424B Dilution vs current shares snapshot requires current_shares and total_potential_supply structured facts";
+      warnings.push("SEC 424B Dilution vs current shares snapshot should include current_shares and total_potential_supply structured facts.");
     }
   }
   if (
@@ -211,14 +219,14 @@ export function validate424bDisplayPayload(
     /\b(?:New shares|shares offered|common stock offered)\b/i.test(snapshotText)
   ) {
     if (!hasDisplayFactValue(totalPotentialSupply)) {
-      return "SEC 424B primary/registered-direct New shares snapshot requires total_potential_supply structured fact";
+      warnings.push("SEC 424B primary/registered-direct New shares snapshot should include total_potential_supply structured fact.");
     }
     const hasStructuredSupplySegment = arrayValue(data.supply_segments).some((segment) => {
       const record = readRecord(segment);
       return hasDisplayFactValue(readRecord(record?.shares));
     });
     if (!hasStructuredSupplySegment) {
-      return "SEC 424B primary/registered-direct New shares snapshot requires supply_segments[].shares structured fact";
+      warnings.push("SEC 424B primary/registered-direct New shares snapshot should include supply_segments[].shares structured fact.");
     }
   }
   for (const segment of arrayValue(data.supply_segments)) {
@@ -226,13 +234,13 @@ export function validate424bDisplayPayload(
     const shares = readRecord(record?.shares);
     const sharesText = stringValue(shares?.value_text).toLowerCase();
     const shareFieldError = validateShareExposureFact(shares, "supply_segments.shares");
-    if (shareFieldError) return `SEC 424B ${shareFieldError}`;
+    if (shareFieldError) warnings.push(`SEC 424B ${shareFieldError}`);
     const underlyingShareError = validateShareExposureFact(readRecord(record?.underlying_shares), "supply_segments.underlying_shares");
-    if (underlyingShareError) return `SEC 424B ${underlyingShareError}`;
+    if (underlyingShareError) warnings.push(`SEC 424B ${underlyingShareError}`);
     const instrumentCountError = validateInstrumentCountFact(readRecord(record?.instrument_count), "supply_segments.instrument_count");
-    if (instrumentCountError) return `SEC 424B ${instrumentCountError}`;
+    if (instrumentCountError) warnings.push(`SEC 424B ${instrumentCountError}`);
     if (stringValue(shares?.unit) === "shares" && /\bwarrants?\b/i.test(sharesText) && !/\bshares?\b/i.test(stringValue(shares?.value_text))) {
-      return "SEC 424B supply_segments.shares cannot contain warrant counts; use instrument_count for warrants and underlying_shares for share exposure.";
+      warnings.push("SEC 424B supply_segments.shares may contain warrant counts; prefer instrument_count for warrants and underlying_shares for share exposure.");
     }
     const price = readRecord(record?.price);
     const exercisePrice = readRecord(record?.exercise_price);
@@ -240,25 +248,25 @@ export function validate424bDisplayPayload(
     const priceText = `${stringValue(price?.value_text)} ${stringValue(price?.evidence)}`.toLowerCase();
     const exerciseText = `${stringValue(exercisePrice?.value_text)} ${stringValue(exercisePrice?.evidence)}`.toLowerCase();
     if (/\blast reported sales price|market price\b/i.test(priceText) && !stringValue(marketPrice?.value_text)) {
-      return "SEC 424B warrant market price must use supply_segments.market_price, not price/exercise_price.";
+      warnings.push("SEC 424B warrant market price should use supply_segments.market_price, not price/exercise_price.");
     }
     if (/\blast reported sales price|market price\b/i.test(exerciseText)) {
-      return "SEC 424B market price cannot be used as Exercise / Conversion Price.";
+      warnings.push("SEC 424B market price may be incorrectly used as Exercise / Conversion Price.");
     }
   }
   for (const detail of arrayValue(data.offering_details)) {
     const label = stringValue(readRecord(detail)?.label);
-    if (strictLabels && label && !ALLOWED_424B_OFFERING_DETAIL_LABELS.has(label)) {
-      return `SEC 424B offering_details label is not allowed: ${label}`;
+    if (label && !ALLOWED_424B_OFFERING_DETAIL_LABELS.has(label)) {
+      warnings.push(`SEC 424B offering_details label is outside the approved UI set: ${label}`);
     }
   }
   for (const detail of arrayValue(data.warrant_details)) {
     const label = stringValue(readRecord(detail)?.label);
-    if (strictLabels && label && !ALLOWED_424B_WARRANT_DETAIL_LABELS.has(label)) {
-      return `SEC 424B warrant_details label is not allowed: ${label}`;
+    if (label && !ALLOWED_424B_WARRANT_DETAIL_LABELS.has(label)) {
+      warnings.push(`SEC 424B warrant_details label is outside the approved UI set: ${label}`);
     }
   }
-  return "";
+  return warnings;
 }
 
 function validateKeyCashTermFacts(data: Record<string, unknown>) {
@@ -320,29 +328,6 @@ function validateInstrumentCountFact(value: Record<string, unknown> | null, fiel
   }
 
   return "";
-}
-
-export function collect424bDisplayPayloadWarnings(displayPayload: Record<string, unknown>) {
-  const warnings: string[] = [];
-  if (stringValue(displayPayload.display_type) !== "offering_terms") return warnings;
-
-  const data = readRecord(displayPayload.data);
-  if (!data) return warnings;
-
-  for (const detail of arrayValue(data.offering_details)) {
-    const label = stringValue(readRecord(detail)?.label);
-    if (label && !ALLOWED_424B_OFFERING_DETAIL_LABELS.has(label)) {
-      warnings.push(`SEC 424B offering_details label is outside the approved UI set: ${label}`);
-    }
-  }
-  for (const detail of arrayValue(data.warrant_details)) {
-    const label = stringValue(readRecord(detail)?.label);
-    if (label && !ALLOWED_424B_WARRANT_DETAIL_LABELS.has(label)) {
-      warnings.push(`SEC 424B warrant_details label is outside the approved UI set: ${label}`);
-    }
-  }
-
-  return warnings;
 }
 
 function adapt424bRoomResultForAnalysis(value: unknown): Sec424bAnalysisAdapterResult {
