@@ -5059,10 +5059,63 @@ async function buildParentS3Context({
         percent_after: holder.percent_after?.text || null,
       })),
     },
+    source_excerpts: buildParentS3SourceExcerpts(row),
     existing_analysis: await fetchExistingParentAnalysis(stringValue(row.id)),
     needs_human_review: parsed.needs_human_review,
     review_reasons: parsed.review_reasons,
   };
+}
+
+function buildParentS3SourceExcerpts(row: RawItemRow) {
+  const text = truncateCompactContextText(`${stringValue(row.body_text)} ${stringValue(row.analysis_text)}`, 240_000);
+  if (!text) return [];
+
+  const specs = [
+    {
+      label: "Parent registration obligation",
+      pattern:
+        /\b(?:not already so registered by|register(?:ed)?\s+(?:by|on or before))\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4}[\s\S]{0,260}?(?:effective|declared effective)[\s\S]{0,180}?(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4}/i,
+      bodyPattern: /\b(?:underlying the Investor Warrants|declared effective|cause such filing|effective by|effective no later than)\b/i,
+    },
+    {
+      label: "Parent incorporated documents",
+      pattern: /\bDOCUMENTS INCORPORATED BY REFERENCE\b/i,
+      bodyPattern: /\b(?:annual report|quarterly report|current report|filed with the SEC|Exchange Act|incorporate by reference)\b/i,
+    },
+    {
+      label: "Parent experts",
+      pattern: /\bEXPERTS\b/i,
+      bodyPattern: /\b(?:audited by|independent registered public accounting firm|Weaver|Tidwell|MKM Engineering|reserves|Appraisal Report)\b/i,
+    },
+    {
+      label: "Parent selling holder terms",
+      pattern: /\bselling stockholder\b/i,
+      bodyPattern: /\b(?:shares of common stock|Second Tranche Warrant|Registration Rights Agreement|Waiver|will not receive any proceeds)\b/i,
+    },
+  ];
+
+  const excerpts: Array<{ label: string; text: string }> = [];
+  for (const spec of specs) {
+    const excerpt = extractS3ContextExcerpt(text, spec.pattern, spec.bodyPattern);
+    if (excerpt) excerpts.push({ label: spec.label, text: excerpt });
+  }
+  return excerpts;
+}
+
+function extractS3ContextExcerpt(text: string, pattern: RegExp, bodyPattern: RegExp) {
+  const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
+  const globalPattern = new RegExp(pattern.source, flags);
+  for (const match of text.matchAll(globalPattern)) {
+    const index = match.index ?? -1;
+    if (index < 0) continue;
+    const start = Math.max(0, index - 180);
+    const end = Math.min(text.length, index + 1_500);
+    const window = text.slice(start, end);
+    if (!bodyPattern.test(window)) continue;
+    if (/\bTABLE OF CONTENTS\b/i.test(window.slice(0, 500))) continue;
+    return truncateCompactContextText(window, 1_500);
+  }
+  return "";
 }
 
 async function fetchExistingParentAnalysis(rawItemId: string) {

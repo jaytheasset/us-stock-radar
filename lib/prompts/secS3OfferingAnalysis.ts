@@ -6,7 +6,7 @@ import { sec424bRequiredOutputSchema } from "@/lib/ai/sec424bAnalysisAdapter";
 import { buildSecSourceBlockPromptInput } from "@/lib/sources/sec/forms/common/sourceBlockPromptInput";
 
 export const SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY = "sec_s3_offering_analysis";
-export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v28";
+export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v31";
 
 export const SEC_S3_ANALYSIS_ACTION_VALUES = ["skip_analysis", "routine_archive", "analyze_offering"] as const;
 export const SEC_S3_CASE_VALUES = [
@@ -335,21 +335,27 @@ const secS3RequiredOutputSystemPrompt = [
   "For S-3/A or F-3/A, amendment_changes is not a current terms table. It is only for terms that changed, were corrected, were newly added, or were newly clarified by this amendment.",
   "Do not put current-only facts in amendment_changes. Current-only facts belong in offering_details, snapshot_metrics, supply_segments, warrant_details, or key evidence.",
   "For S-3/A or F-3/A, display_payload.data.amendment_changes must be an array of compact rows with label and value, plus optional note. Use it for prospectus-date updates, outstanding-share denominator updates, reference-price updates, corrected registration deadlines, changed selling holders, changed resale method, changed warrant terms, changed sale price, or changed proceeds treatment.",
-  "For S-3/A or F-3/A amendment_changes, choose labels from this approved set first: Prospectus date, Share-count basis, Reference prices, Registered shares, Offering size, Selling holders, Securities covered, Warrant terms, Exercise price, Conversion terms, Sale price, Resale method, Agreement date, Effective date, Registration obligation, Use of proceeds, Company proceeds, Plan of distribution, Risk factors, Fee table, Incorporated documents, Expert consents, Core terms unchanged, No economic change.",
+  "For S-3/A or F-3/A amendment_changes, choose labels from this approved set first: Prospectus date, Share-count basis, Reference prices, Registered shares, Offering size, Selling holders, Securities covered, Warrant terms, Exercise price, Conversion terms, Sale price, Resale method, Agreement date, Effective date, Registration obligation, Use of proceeds, Company proceeds, Plan of distribution, Risk factors, Fee table, Incorporated documents, Expert consents.",
   "Only create a custom amendment_changes label when none of the approved labels fits. Custom labels must be 2-4 words and under 32 characters.",
   "Never use Other update as an amendment_changes label.",
   "Do not use vague amendment_changes labels or values such as Updated section, Key terms, General update, Miscellaneous, Other, updated registration statement, or updated prospectus text. If the change cannot be named specifically, omit it.",
-  "For Incorporated documents, Expert consents, Risk factors, Plan of distribution, or Fee table rows, the value must name the concrete item changed. Do not use a value like Updated section.",
+  "For Incorporated documents, Expert consents, Risk factors, Plan of distribution, or Fee table rows, the value must name the concrete item changed. Do not use values like Updated section, Updated list, Revised in this amendment, Filed in this amendment, or Updated in this amendment.",
+  "Every amendment_changes row must be self-explanatory: the value must answer what changed, not merely say that something was updated.",
+  "Never use single-word amendment_changes values such as Updated, Revised, Filed, Added, Amended, or Corrected.",
+  "Use amendment_changes.note only when it adds concrete source-backed detail. Do not use notes such as Updated in this amendment, Revised in this amendment, Filed in this amendment, or Current filing.",
+  "For Incorporated documents rows, name the actual report, period, filing type, fiscal year, or incorporated item when source-backed. A section name is not enough. If the only fact is that the Documents Incorporated by Reference section was updated, omit the row.",
+  "For Incorporated documents rows, do not write Updated section, Documents Incorporated by Reference section, updates to the section, or similar wording. That does not explain what changed.",
+  "For Expert consents rows, put the expert names in the value when possible. The value should be concrete, such as Weaver and Tidwell; MKM Engineering. Use the note for their role or updated fiscal year when source-backed.",
+  "For Expert consents rows, do not use a value like Filed updated consents or Updated consents unless the note names the experts and why those consents matter.",
   "For S-3/A or F-3/A amendment_changes values, use compact comparison text under 90 characters, such as Feb 4, 2026 -> Mar 12, 2026 or 53.63M -> 56.78M shares. Do not paste legal clauses.",
   "For S-3/A or F-3/A, include separate amendment_changes rows for changed share-count basis, reference market prices, corrected dates, and changed registration deadlines. Do not hide those inside No economic change.",
-  "For S-3/A or F-3/A amendment_changes, every approved label except Core terms unchanged and No economic change is change-only. Use Registered shares, Selling holders, Warrant terms, Sale price, Resale method, Company proceeds, and similar labels only when that term changed in this amendment.",
-  "Do not create amendment_changes rows whose value or note says unchanged, remains, no change, still, same, or previously disclosed unless the row label is Core terms unchanged.",
-  "Put all unchanged economic facts together in one Core terms unchanged row. Do not split unchanged registered shares, selling holders, warrant terms, resale method, or proceeds treatment into separate rows.",
-  "In amendment_changes, every row except Core terms unchanged and No economic change must describe something updated, corrected, newly added, or newly clarified by this amendment. If you cannot name the change, omit the row.",
+  "For S-3/A or F-3/A amendment_changes, every approved label is change-only. Use Registered shares, Selling holders, Warrant terms, Sale price, Resale method, Company proceeds, and similar labels only when that term changed in this amendment.",
+  "Do not create amendment_changes rows whose value or note says unchanged, remains, no change, still, same, previously disclosed, or core terms unchanged.",
+  "Do not include a Core terms unchanged row. If unchanged core terms matter, mention them briefly in narrative_summary, not in amendment_changes.",
+  "In amendment_changes, every row must describe something updated, corrected, newly added, or newly clarified by this amendment. If you cannot name the change, omit the row.",
   "When the parent value is available, use previous -> current comparison format. If the parent value is not available, only include the row when the amendment text itself clearly says updated, corrected, amended, added, waived, replaced, restated, or changed. Do not write Current-only rows in amendment_changes.",
   "Never mention internal input names such as parent_registration_context, parent filing context, parser, source blocks, or LLM in amendment_changes. If a prior value is unavailable, write a plain note such as Updated in this amendment or omit the note.",
-  "Use No economic change only when no economic terms, share-count basis, holder treatment, resale mechanics, proceeds treatment, pricing reference, warrant/conversion terms, or deadline changed.",
-  "Use Core terms unchanged to name the terms that stayed the same. The value must be concrete, such as 8.56M resale shares; ATW holder; $2.00 warrant exercise price. Do not say share counts unchanged if the outstanding-share denominator changed.",
+  "Do not include No economic change as an amendment_changes row. If there is no economic change, say that in narrative_summary, not in What Changed.",
   "If an S-3/A or F-3/A only updates reference prices, share-count basis, dates, exhibit text, or typo corrections while the resale/offering economics are unchanged, keep score feed-level or archive-level; do not alert from the parent deal importance alone.",
   "Delivery rule: score below 50 = archive; 50-74 = feed; 75+ = alert.",
   "Alert requires source-backed new information likely to affect near-term price, volatility, liquidity, holder economics, or trading decisions. Do not alert from base shelf capacity alone.",

@@ -967,6 +967,22 @@ function buildS3CleanedSourceBlocks(text: string): SecS3CleanedSourceBlock[] {
     limit: 2,
   });
 
+  addS3HeadingSectionBlock(blocks, sourceText, {
+    headingPattern: /\bDOCUMENTS INCORPORATED BY REFERENCE\b/i,
+    label: "Documents incorporated by reference section",
+    bodyPattern:
+      /\b(?:we incorporate by reference|documents listed below|annual report|quarterly report|current report|proxy statement|filed with the SEC|Exchange Act)\b/i,
+    limit: 2,
+  });
+
+  addS3HeadingSectionBlock(blocks, sourceText, {
+    headingPattern: /\bEXPERTS\b/i,
+    label: "Experts and consents section",
+    bodyPattern:
+      /\b(?:independent registered public accounting firm|audited by|consent|Weaver|Tidwell|MKM Engineering|engineering consulting|reserves|Appraisal Report|experts in accounting|experts in petroleum)\b/i,
+    limit: 2,
+  });
+
   addS3SourceWindows(blocks, sourceText, {
     blockType: "active_atm_context",
     label: "ATM sales agreement context",

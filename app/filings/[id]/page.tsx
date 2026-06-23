@@ -8003,10 +8003,26 @@ function readS3AmendmentChangeRows(
       const value = cleanDisclosureValue(readDisclosureValue(item.value) || readRowString(item, "value"));
       const note = cleanDisclosureValue(readDisclosureValue(item.note) || readRowString(item, "note"));
       if (!label || !isDisclosedValue(value)) return null;
-      return { label, value: compactS3AmendmentValue(value), ...(note ? { note: compactS3AmendmentValue(note) } : {}) };
+      const compactValue = compactS3AmendmentValue(value);
+      const compactNote = compactS3AmendmentNote(note);
+      if (!isUsefulS3AmendmentChange(label, compactValue, compactNote)) return null;
+      return { label, value: compactValue, ...(compactNote ? { note: compactNote } : {}) };
     })
     .filter((item): item is DilutionDisclosureRow => Boolean(item))
     .slice(0, 6);
+}
+
+function isUsefulS3AmendmentChange(label: string, value: string, note: string) {
+  const combined = `${label} ${value} ${note}`;
+  if (/\b(?:core terms unchanged|no economic change)\b/i.test(label)) return false;
+  if (/^(?:updated|revised|filed|added|amended|corrected)$/i.test(value)) return false;
+  if (/\b(?:updated section|updated list|general updates?|miscellaneous|key terms)\b/i.test(combined)) return false;
+  if (/documents? incorporated/i.test(label)) {
+    return /\b(?:Form\s+(?:10-K|10-Q|8-K|20-F|6-K|S-3|S-1|F-3|F-1)|annual report|quarterly report|current report|proxy statement|fiscal year|year ended|quarter ended)\b/i.test(
+      combined,
+    );
+  }
+  return true;
 }
 
 function compactS3AmendmentValue(value: string) {
@@ -8014,6 +8030,13 @@ function compactS3AmendmentValue(value: string) {
     .replace(/\s+changed\s+from\s+/i, " ")
     .replace(/\s+to\s+/i, " -> ");
   return normalized.length > 120 ? `${normalized.slice(0, 117).trim()}...` : normalized;
+}
+
+function compactS3AmendmentNote(value: string) {
+  const normalized = compactS3AmendmentValue(value);
+  if (/^(?:updated|revised|filed|added|amended|corrected)(?:\s+in\s+this\s+amendment)?$/i.test(normalized)) return "";
+  if (/^(?:current filing|this amendment)$/i.test(normalized)) return "";
+  return normalized;
 }
 
 function readWarrantDetailsRows(model: Record<string, unknown> | null): DilutionDisclosureRow[] {
