@@ -400,6 +400,7 @@ function buildS3RouterEvidence({
     },
     amendment: parsed.amendment.router_payload,
     important_sections: importantSections,
+    cleaned_source_blocks: parsed.cleaned_source_blocks,
     important_tables: {
       fee_table_rows: feeTableRows,
       selling_stockholders: sellingStockholderRows,

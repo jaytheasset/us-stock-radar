@@ -494,7 +494,7 @@ function buildS3ParserPromptOutput(
     calendarItems: [],
     warnings: [],
     raw: {
-      cleaned_source_blocks: [],
+      cleaned_source_blocks: Array.isArray(hardS3.cleaned_source_blocks) ? hardS3.cleaned_source_blocks : [],
       important_sections: Array.isArray(s3Evidence.important_sections) ? s3Evidence.important_sections : [],
       important_tables: readRecord(s3Evidence.important_tables) || null,
       component_candidates: readRecord(s3Evidence.component_candidates) || null,

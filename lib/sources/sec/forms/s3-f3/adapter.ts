@@ -103,6 +103,7 @@ function buildS3HardParserPayload(parsed: SecS3FilingFacts) {
     amendment: parsed.amendment.router_payload,
     needs_human_review: parsed.needs_human_review,
     review_reasons: parsed.review_reasons,
+    cleaned_source_blocks: parsed.cleaned_source_blocks,
   };
 }
 

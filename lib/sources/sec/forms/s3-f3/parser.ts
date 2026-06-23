@@ -98,6 +98,13 @@ export type SecS3SellingStockholderRow = {
   confidence: "high" | "medium" | "low";
 };
 
+export type SecS3CleanedSourceBlock = {
+  block_type: string;
+  label: string;
+  source: string;
+  text: string;
+};
+
 export type SecS3AmendmentInfo = {
   is_amendment: boolean;
   amendment_number: SecS3CountField | null;
@@ -186,6 +193,7 @@ export type SecS3FilingFacts = {
   extracted_field_count: number;
   needs_human_review: boolean;
   review_reasons: string[];
+  cleaned_source_blocks: SecS3CleanedSourceBlock[];
   text_stats: {
     body_chars: number;
     analysis_chars: number;
@@ -226,6 +234,7 @@ export function parseSecS3Filing(input: SecS3ParseInput): SecS3FilingFacts {
   const attachmentText = compactText(attachmentTexts.map((item) => stringValue(item.text)).join("\n\n"));
   const s3Sources = [stringValue(input.title), primaryText, attachmentText].map(compactText).filter(Boolean);
   const s3Text = s3Sources.join("\n\n");
+  const cleanedSourceBlocks = buildS3CleanedSourceBlocks(s3Text);
   const documentSummaries = documents.map(mapDocumentSummary);
   const feeTableDocuments = documentSummaries.filter(isFeeTableDocument);
   const feeTableText = compactText(
@@ -357,6 +366,7 @@ export function parseSecS3Filing(input: SecS3ParseInput): SecS3FilingFacts {
     extracted_field_count: extractedFieldCount,
     needs_human_review: reviewReasons.length > 0,
     review_reasons: reviewReasons,
+    cleaned_source_blocks: cleanedSourceBlocks,
     text_stats: {
       body_chars: stringValue(input.bodyText).length,
       analysis_chars: stringValue(input.analysisText).length,
@@ -884,6 +894,373 @@ function findS3OfferingType({
   }
 
   return null;
+}
+
+function buildS3CleanedSourceBlocks(text: string): SecS3CleanedSourceBlock[] {
+  const sourceText = compactText(text);
+  const blocks: SecS3CleanedSourceBlock[] = [];
+  if (!sourceText) return blocks;
+
+  addS3CleanedSourceBlock(blocks, {
+    block_type: "selected_source_sentences",
+    label: "Selected S-3/F-3 source sentences",
+    source: "primary_document",
+    text: extractS3SourceSentences(
+      sourceText,
+      [
+        /\bat[- ]?the[- ]market offering\b/i,
+        /\bRule\s*415\s*\(\s*a\s*\)\s*\(\s*4\s*\)\b/i,
+        /\bsales agreement\b/i,
+        /\bsales agent\b/i,
+        /\b(?:Jefferies|Needham|Canaccord|B\.?\s*Riley|Cantor|H\.?\s*C\.?\s*Wainwright|TD Cowen)\b/i,
+        /\bup to\s+\$[\d,.]+/i,
+        /\bselling\s+(?:stockholders|shareholders|securityholders)\b/i,
+        /\bwe will not receive any proceeds\b/i,
+        /\bwe are offering\b/i,
+        /\bpublic offering price\b/i,
+        /\bgross proceeds\b/i,
+        /\bnet proceeds\b/i,
+        /\bunderwriters?\b/i,
+        /\bGeneral Instruction I\.B\.6\b/i,
+        /\bone-third of (?:our )?public float\b/i,
+      ],
+      18,
+    ).join("\n"),
+  });
+
+  addS3SourceWindows(blocks, sourceText, {
+    blockType: "prospectus_supplement_context",
+    label: "Prospectus supplement context",
+    patterns: [
+      /\bprospectus supplement\b/i,
+      /\bpreliminary prospectus supplement\b/i,
+      /\bsubject to completion\b/i,
+    ],
+    limit: 3,
+    before: 1_200,
+    after: 5_500,
+    preferActive: true,
+    minScore: 18,
+  });
+
+  addS3HeadingSectionBlock(blocks, sourceText, {
+    headingPattern: /\bTHE OFFERING\b/i,
+    label: "The Offering section",
+    bodyPattern:
+      /\b(?:we are offering|we may offer|offer and sell|selling stockholders?|at[- ]?the[- ]market|sales agreement|underwriter|public offering price|gross proceeds|net proceeds|purchase price|up to\s+\$)\b/i,
+    limit: 2,
+  });
+
+  addS3HeadingSectionBlock(blocks, sourceText, {
+    headingPattern: /\bPLAN OF DISTRIBUTION\b/i,
+    label: "Plan of Distribution section",
+    bodyPattern:
+      /\b(?:sales agreement|sales agent|at[- ]?the[- ]market|Rule\s*415|underwriter|underwriting|selling stockholders?|broker|dealer|agent|Jefferies|Needham|Canaccord|B\.?\s*Riley|Cantor|H\.?\s*C\.?\s*Wainwright|TD Cowen)\b/i,
+    limit: 2,
+  });
+
+  addS3HeadingSectionBlock(blocks, sourceText, {
+    headingPattern: /\bUSE OF PROCEEDS\b/i,
+    label: "Use of Proceeds section",
+    bodyPattern:
+      /\b(?:net proceeds|gross proceeds|working capital|general corporate purposes|research and development|debt repayment|repay(?:ment)?|we will not receive|no proceeds)\b/i,
+    limit: 2,
+  });
+
+  addS3SourceWindows(blocks, sourceText, {
+    blockType: "active_atm_context",
+    label: "ATM sales agreement context",
+    patterns: [
+      /\bat[- ]?the[- ]market offering\b/i,
+      /\bRule\s*415\s*\(\s*a\s*\)\s*\(\s*4\s*\)\b/i,
+      /\bsales agreement\b/i,
+      /\bsales agent\b/i,
+      /\bequity distribution agreement\b/i,
+      /\b(?:Jefferies|Needham|Canaccord|B\.?\s*Riley|Cantor|H\.?\s*C\.?\s*Wainwright|TD Cowen)\b/i,
+    ],
+    limit: 4,
+    before: 1_000,
+    after: 4_800,
+    preferActive: true,
+    minScore: 34,
+  });
+
+  addS3HeadingSectionBlock(blocks, sourceText, {
+    headingPattern: /\bSELLING\s+(?:STOCKHOLDERS|SHAREHOLDERS|SECURITYHOLDERS)\b/i,
+    label: "Selling holder section",
+    bodyPattern:
+      /\b(?:shares offered|offered for resale|beneficially owned|selling stockholders?|selling shareholders?|selling securityholders?|resale|we will not receive any proceeds)\b/i,
+    limit: 2,
+  });
+
+  addS3SourceWindows(blocks, sourceText, {
+    blockType: "active_resale_context",
+    label: "Resale registration context",
+    patterns: [
+      /\bselling\s+(?:stockholders|shareholders|securityholders)\b/i,
+      /\bresale\b/i,
+      /\breoffer\b/i,
+      /\bwe will not receive any proceeds\b/i,
+      /\bshares issuable upon exercise\b/i,
+      /\bpre-funded warrants?\b/i,
+      /\bcommon warrants?\b/i,
+      /\bconvertible notes?\b/i,
+      /\bconversion shares?\b/i,
+    ],
+    limit: 4,
+    before: 900,
+    after: 4_500,
+    preferActive: true,
+  });
+
+  addS3HeadingSectionBlock(blocks, sourceText, {
+    headingPattern: /\bUNDERWRITING\b/i,
+    label: "Underwriting section",
+    bodyPattern:
+      /\b(?:underwriter|underwriting discounts?|public offering price|firm commitment|closing date|gross proceeds|net proceeds|purchase price)\b/i,
+    limit: 2,
+  });
+
+  addS3SourceWindows(blocks, sourceText, {
+    blockType: "active_takedown_context",
+    label: "Priced or active takedown context",
+    patterns: [
+      /\bwe are offering\b/i,
+      /\bpublic offering price\b/i,
+      /\bunderwriting discounts?\b/i,
+      /\bunderwriters?\b/i,
+      /\bpurchase price\b/i,
+      /\bgross proceeds\b/i,
+      /\bnet proceeds\b/i,
+      /\bclosing date\b/i,
+      /\bfirm commitment\b/i,
+    ],
+    limit: 4,
+    before: 900,
+    after: 4_500,
+    preferActive: true,
+  });
+
+  addS3SourceWindows(blocks, sourceText, {
+    blockType: "base_shelf_context",
+    label: "Base shelf context",
+    patterns: [
+      /\bfrom time to time\b/i,
+      /\bdelayed or continuous basis\b/i,
+      /\bRule\s*415\b/i,
+      /\bcommon stock,\s*preferred stock,\s*debt securities,\s*warrants,\s*rights,\s*units\b/i,
+      /\bGeneral Instruction I\.B\.6\b/i,
+      /\bpublic float\b/i,
+      /\bone-third of (?:our )?public float\b/i,
+      /\bremaining capacity\b/i,
+    ],
+    limit: 4,
+    before: 900,
+    after: 4_000,
+    preferActive: false,
+  });
+
+  addS3CleanedSourceBlock(blocks, {
+    block_type: "primary_document_excerpt",
+    label: "S-3/F-3 cover and filing context",
+    source: "primary_document",
+    text: sourceText.slice(0, 6_000),
+  });
+
+  return dedupeS3CleanedSourceBlocks(blocks).slice(0, 18);
+}
+
+function addS3SourceWindows(
+  blocks: SecS3CleanedSourceBlock[],
+  text: string,
+  options: {
+    blockType: string;
+    label: string;
+    patterns: RegExp[];
+    limit: number;
+    before: number;
+    after: number;
+    preferActive: boolean;
+    minScore?: number;
+  },
+) {
+  const candidates: Array<{ index: number; score: number; text: string }> = [];
+
+  for (const pattern of options.patterns) {
+    const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
+    const globalPattern = new RegExp(pattern.source, flags);
+    for (const match of text.matchAll(globalPattern)) {
+      const index = match.index ?? -1;
+      if (index < 0) continue;
+      const start = Math.max(0, index - options.before);
+      const end = Math.min(text.length, index + options.after);
+      const window = text.slice(start, end);
+      if (isS3TocLikeWindow(window)) continue;
+      const score = scoreS3SourceWindow(window, options.preferActive);
+      if (typeof options.minScore === "number" && score < options.minScore) continue;
+      candidates.push({
+        index,
+        score,
+        text: window,
+      });
+    }
+  }
+
+  const seenRanges: Array<{ start: number; end: number }> = [];
+  for (const candidate of candidates.sort((a, b) => b.score - a.score || a.index - b.index)) {
+    const start = Math.max(0, candidate.index - options.before);
+    const end = Math.min(text.length, candidate.index + options.after);
+    const overlaps = seenRanges.some((range) => start <= range.end && end >= range.start);
+    if (overlaps) continue;
+    seenRanges.push({ start, end });
+    addS3CleanedSourceBlock(blocks, {
+      block_type: options.blockType,
+      label: options.label,
+      source: "primary_document",
+      text: candidate.text,
+    });
+    if (seenRanges.length >= options.limit) return;
+  }
+}
+
+function addS3HeadingSectionBlock(
+  blocks: SecS3CleanedSourceBlock[],
+  text: string,
+  options: {
+    headingPattern: RegExp;
+    label: string;
+    bodyPattern: RegExp;
+    limit: number;
+  },
+) {
+  const candidates: Array<{ index: number; score: number; text: string }> = [];
+  const nextHeadingPattern =
+    /\b(?:RISK FACTORS|DIVIDEND POLICY|CAPITALIZATION|DILUTION|SELLING (?:STOCKHOLDERS|SHAREHOLDERS|SECURITYHOLDERS)|DESCRIPTION OF (?:SECURITIES|CAPITAL STOCK|DEBT SECURITIES|WARRANTS|RIGHTS|UNITS)|PLAN OF DISTRIBUTION|UNDERWRITING|USE OF PROCEEDS|LEGAL MATTERS|EXPERTS|WHERE YOU CAN FIND|INCORPORATION OF CERTAIN DOCUMENTS|MATERIAL U\.S\. FEDERAL INCOME TAX)\b/i;
+  const flags = options.headingPattern.flags.includes("g") ? options.headingPattern.flags : `${options.headingPattern.flags}g`;
+  const globalPattern = new RegExp(options.headingPattern.source, flags);
+
+  for (const match of text.matchAll(globalPattern)) {
+    const index = match.index ?? -1;
+    if (index < 0) continue;
+    const afterHeading = text.slice(index + match[0].length, index + match[0].length + 2_400);
+    if (!options.bodyPattern.test(afterHeading)) continue;
+    const initialWindow = text.slice(index, Math.min(text.length, index + 7_000));
+    if (isS3TocLikeWindow(initialWindow)) continue;
+    const remaining = text.slice(index + match[0].length + 400);
+    const nextHeading = remaining.search(nextHeadingPattern);
+    const end = nextHeading >= 0 ? index + match[0].length + 400 + nextHeading : Math.min(text.length, index + 7_000);
+    const sectionText = text.slice(index, end);
+    candidates.push({
+      index,
+      score: scoreS3SourceWindow(sectionText, true),
+      text: sectionText,
+    });
+  }
+
+  const seenStarts = new Set<number>();
+  for (const candidate of candidates.sort((a, b) => b.score - a.score || a.index - b.index)) {
+    const roundedStart = Math.floor(candidate.index / 1_000);
+    if (seenStarts.has(roundedStart)) continue;
+    seenStarts.add(roundedStart);
+    addS3CleanedSourceBlock(blocks, {
+      block_type: "source_section_excerpt",
+      label: options.label,
+      source: "primary_document",
+      text: candidate.text,
+    });
+    if (seenStarts.size >= options.limit) return;
+  }
+}
+
+function addS3CleanedSourceBlock(blocks: SecS3CleanedSourceBlock[], block: SecS3CleanedSourceBlock) {
+  const text = compactText(block.text);
+  if (!text || text.length < 80) return;
+  blocks.push({
+    ...block,
+    text: text.length > 12_000 ? `${text.slice(0, 11_997).trim()}...` : text,
+  });
+}
+
+function extractS3SourceSentences(text: string, patterns: RegExp[], limit: number) {
+  const sentences = text
+    .split(/(?<=[.!?])\s+|\n{2,}/)
+    .map(compactText)
+    .filter((sentence) => sentence.length >= 40 && !isTocLine(sentence));
+  const candidates: Array<{ sentence: string; score: number; index: number }> = [];
+
+  for (const [index, sentence] of sentences.entries()) {
+    if (!patterns.some((pattern) => pattern.test(sentence))) continue;
+    candidates.push({
+      sentence,
+      score: scoreS3SourceSentence(sentence),
+      index,
+    });
+  }
+
+  const seen = new Set<string>();
+  return candidates
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .map((candidate) => candidate.sentence)
+    .filter((sentence) => {
+      const key = sentence.slice(0, 180).toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, limit)
+    .map((sentence) => truncate(sentence, 900));
+}
+
+function scoreS3SourceSentence(value: string) {
+  let score = scoreS3SourceWindow(value, true);
+  if (/\b(?:Jefferies|Needham|Canaccord|B\.?\s*Riley|Cantor|H\.?\s*C\.?\s*Wainwright|TD Cowen)\b/i.test(value)) score += 20;
+  if (/\bup to\s+\$[\d,.]+/i.test(value)) score += 14;
+  if (/\bRule\s*415\s*\(\s*a\s*\)\s*\(\s*4\s*\)\b/i.test(value)) score += 14;
+  if (/\bSale Agreement\b/i.test(value)) score += 12;
+  if (/\bcommon stock,\s*preferred stock,\s*debt securities,\s*warrants,\s*rights,\s*units\b/i.test(value)) score -= 10;
+  if (/\bapplicable prospectus supplement\b/i.test(value) && !/\b(?:at[- ]?the[- ]market|sales agreement|selling stockholders?|we are offering)\b/i.test(value)) score -= 8;
+  return score;
+}
+
+function dedupeS3CleanedSourceBlocks(blocks: SecS3CleanedSourceBlock[]) {
+  const seen = new Set<string>();
+  const result: SecS3CleanedSourceBlock[] = [];
+  for (const block of blocks) {
+    const key = compactText(block.text).slice(0, 800).toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(block);
+  }
+  return result;
+}
+
+function scoreS3SourceWindow(value: string, preferActive: boolean) {
+  const text = compactText(value);
+  let score = 0;
+  if (/\bprospectus supplement\b/i.test(text)) score += 8;
+  if (/\bat[- ]?the[- ]market offering\b|\bRule\s*415\s*\(\s*a\s*\)\s*\(\s*4\s*\)\b/i.test(text)) score += 16;
+  if (/\bsales agreement\b|\bsales agent\b|\bequity distribution agreement\b/i.test(text)) score += 14;
+  if (/\b(?:Jefferies|Needham|Canaccord|B\.?\s*Riley|Cantor|H\.?\s*C\.?\s*Wainwright|TD Cowen)\b/i.test(text)) score += 8;
+  if (/\bselling\s+(?:stockholders|shareholders|securityholders)\b|\bresale\b|\breoffer\b/i.test(text)) score += 12;
+  if (/\bwe will not receive any proceeds\b|\bshares issuable upon exercise\b|\bpre-funded warrants?\b|\bconversion shares?\b/i.test(text)) score += 8;
+  if (/\bwe are offering\b|\bpublic offering price\b|\bunderwriting discounts?\b|\bunderwriters?\b|\bgross proceeds\b|\bnet proceeds\b|\bclosing date\b/i.test(text)) score += 12;
+  if (/\bup to\s+\$[\d,.]+/i.test(text)) score += 6;
+  if (/\bGeneral Instruction I\.B\.6\b|\bone-third of (?:our )?public float\b|\bpublic float\b/i.test(text)) score += 5;
+  if (/\bcommon stock,\s*preferred stock,\s*debt securities,\s*warrants,\s*rights,\s*units\b/i.test(text)) score += preferActive ? -3 : 6;
+  if (isS3TocLikeWindow(text)) score -= 20;
+  return score;
+}
+
+function isS3TocLikeWindow(value: string) {
+  const text = compactText(value).slice(0, 1_500);
+  if (!text) return false;
+  const tocSignals = (text.match(/\b(?:TABLE OF CONTENTS|S-\d+|PROSPECTUS SUMMARY|RISK FACTORS|LEGAL MATTERS|EXPERTS)\b/gi) || []).length;
+  if (/\b(?:PLAN OF DISTRIBUTION|THE OFFERING|USE OF PROCEEDS)\s*\|\s*\|/i.test(text)) return true;
+  if ((text.match(/\|/g) || []).length >= 8 && /\b(?:LEGAL MATTERS|EXPERTS|RISK FACTORS|TABLE OF CONTENTS)\b/i.test(text)) return true;
+  const bodySignals = /\b(?:we have entered|we are offering|we may offer and sell|we will not receive|sales agreement|at[- ]?the[- ]market|gross proceeds|net proceeds|selling stockholders? may offer)\b/i.test(
+    text,
+  );
+  return tocSignals >= 5 && !bodySignals;
 }
 
 type SellingStockholderBaseRow = {
