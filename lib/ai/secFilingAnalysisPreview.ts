@@ -4185,17 +4185,27 @@ async function attachParentRegistrationContext(input: SecFilingAnalysisInput, ra
   const hardParsers = readRecord(filingPackage?.hard_parsers);
   const s3 = readRecord(hardParsers?.s3);
   const amendment = readRecord(s3?.amendment);
-  if (!filingPackage || !s3 || !amendment || amendment.is_amendment !== true) return;
+  const amendmentFormType = stringValue(amendment?.form_type) || stringValue(filingPackage?.form_type);
+  const amendmentNumber = numberValue(amendment?.amendment_number) || 0;
+  const isAmendment =
+    isS3F3RegistrationAmendmentForm(amendmentFormType) ||
+    amendmentNumber > 0 ||
+    amendment?.is_amendment === true ||
+    amendment?.isAmendment === true;
+  if (!filingPackage || !s3 || !amendment || !isAmendment) return;
 
-  const registrationNumber = stringValue(amendment.registration_number);
-  if (!registrationNumber) return;
+  const registrationNumber =
+    stringValue(readRecord(amendment.registration_number)?.value) || stringValue(amendment.registration_number);
+  if (!registrationNumber) {
+    filingPackage.parent_registration_context = buildMissingParentS3Context("missing_registration_number");
+    return;
+  }
 
   const parentContext = await findParentS3RegistrationContext({
     currentAccession: stringValue(filingPackage.accession_number) || stringValue(rawItem.source_unique_id),
     rawItem,
     registrationNumber,
   });
-  if (!parentContext) return;
 
   filingPackage.parent_registration_context = parentContext;
 }
@@ -4246,6 +4256,7 @@ async function attachGenericAmendmentParentFilingContext(input: SecFilingAnalysi
 
   const formType = stringValue(filingPackage.form_type) || readRawFormType(rawItem);
   if (!isSecAmendmentFormForParentContext(formType)) return;
+  if (isS3F3RegistrationAmendmentForm(formType)) return;
 
   filingPackage.parent_filing_context = await findGenericAmendmentParentFilingContext({
     input,
@@ -4925,14 +4936,22 @@ async function findParentS3RegistrationContext({
   const rawPayload = readRecord(rawItem.raw_payload) || {};
   const metadata = readRecord(rawItem.metadata) || {};
   const ticker = (stringValue(rawPayload.ticker) || stringValue(metadata.ticker)).toUpperCase();
-  const rows = await fetchS3ParentCandidateRows(ticker);
-  if (!rows.length) return null;
+  const rawCik = readRawCik(rawItem);
+  const currentCik = normalizeCik(rawCik);
+  const currentIssuer = normalizeCompanyNameForParentMatch(readRawCompanyName(rawItem));
+  const currentParsed = parseSecS3Filing(rawRowToS3ParseInput(rawItem));
+  const rows = await fetchS3ParentCandidateRows({ ticker, cik: currentCik, rawCik });
+  if (!rows.length) return buildMissingParentS3Context("no_scoped_candidates");
 
   const currentFiledAt = Date.parse(stringValue(rawItem.published_at));
   const matches: Array<{
     row: RawItemRow;
     parsed: SecS3FilingFacts;
     score: number;
+    filedAt: number;
+    matchMethod: string;
+    matchReasons: string[];
+    registrationNumberMatch: boolean;
   }> = [];
 
   for (const row of rows) {
@@ -4940,43 +4959,106 @@ async function findParentS3RegistrationContext({
     if (currentAccession && accession === currentAccession) continue;
 
     const formType = readRawFormType(row);
-    if (!/^S-3(?:ASR|\/A)?$/i.test(formType)) continue;
+    if (!isS3F3RegistrationFamilyForm(formType)) continue;
 
     const rowTicker = readRawTicker(row);
-    if (ticker && rowTicker && rowTicker !== ticker) continue;
+    const rowCik = normalizeCik(readRawCik(row));
+    const cikMatches = Boolean(currentCik && rowCik && currentCik === rowCik);
+    if (!cikMatches && ticker && rowTicker && rowTicker !== ticker) continue;
 
     const parsed = parseSecS3Filing(rawRowToS3ParseInput(row));
-    if (!sameRegistrationNumber(parsed.amendment.registration_number?.value, registrationNumber)) continue;
+    const registrationNumberMatches = sameRegistrationNumber(parsed.amendment.registration_number?.value, registrationNumber);
 
     const filedAt = Date.parse(stringValue(row.published_at));
+    if (Number.isFinite(currentFiledAt) && (!Number.isFinite(filedAt) || filedAt >= currentFiledAt)) continue;
+
+    const rowIssuer = normalizeCompanyNameForParentMatch(readRawCompanyName(row) || stringValue(parsed.issuer));
+    const sameIssuer =
+      cikMatches ||
+      Boolean(currentIssuer && rowIssuer && currentIssuer === rowIssuer);
+    if (!sameIssuer) continue;
+
+    const termMatch = compareS3RegistrationTerms(currentParsed, parsed);
+    if (!registrationNumberMatches && !termMatch.confirmed) continue;
+
+    const matchMethod = registrationNumberMatches ? "registration_number" : "same_cik_same_registration_terms";
+    const matchReasons = registrationNumberMatches
+      ? ["registration_number_match"]
+      : termMatch.matchReasons;
     let score = 0;
-    if (!parsed.amendment.is_amendment) score += 100;
+    if (!parsed.amendment.is_amendment) score += 20;
     if (Number.isFinite(currentFiledAt) && Number.isFinite(filedAt) && filedAt <= currentFiledAt) score += 50;
+    if (currentCik && rowCik && currentCik === rowCik) score += 50;
+    if (ticker && rowTicker && rowTicker === ticker) score += 15;
     if (parsed.fee_table.present) score += 10;
     if (parsed.selling_stockholders.length) score += 10;
     if (parsed.extracted_field_count) score += Math.min(10, parsed.extracted_field_count);
+    if (!registrationNumberMatches) score += termMatch.score;
 
-    matches.push({ row, parsed, score });
+    matches.push({
+      row,
+      parsed,
+      score,
+      filedAt,
+      matchMethod,
+      matchReasons,
+      registrationNumberMatch: registrationNumberMatches,
+    });
   }
 
   matches.sort((left, right) => {
-    if (right.score !== left.score) return right.score - left.score;
-    return Date.parse(stringValue(right.row.published_at)) - Date.parse(stringValue(left.row.published_at));
+    if (right.filedAt !== left.filedAt) return right.filedAt - left.filedAt;
+    return right.score - left.score;
   });
 
   const best = matches[0];
-  if (!best) return null;
+  if (!best) return buildMissingParentS3Context("no_registration_number_parent_match");
+
+  const ambiguous = matches.length > 1 && best.filedAt === matches[1].filedAt;
+  if (ambiguous) {
+    return buildAmbiguousParentS3Context({
+      candidateCount: matches.length,
+      candidates: matches.slice(0, 5).map(({ row, parsed, score }) => buildParentS3CandidateSummary({ parsed, row, score })),
+      registrationNumber,
+    });
+  }
 
   return buildParentS3Context({
+    matchMethod: best.matchMethod,
+    matchReasons: best.matchReasons,
     matchCount: matches.length,
     parsed: best.parsed,
+    registrationNumberMatch: best.registrationNumberMatch,
     registrationNumber,
     row: best.row,
   });
 }
 
-async function fetchS3ParentCandidateRows(ticker: string) {
+async function fetchS3ParentCandidateRows({ ticker, cik, rawCik }: { ticker: string; cik: string; rawCik: string }) {
   const select = "id,source_unique_id,source_url,title,published_at,body_text,analysis_text,raw_payload,metadata";
+  const scoped: RawItemRow[] = [];
+
+  const cikCandidates = uniqueStrings([rawCik, cik].filter(Boolean));
+  for (const cikCandidate of cikCandidates) {
+    const byPayloadCik = await supabaseSelect("raw_items", {
+      select,
+      source_code: "eq.sec_edgar",
+      "raw_payload->>cik": `eq.${cikCandidate}`,
+      order: "published_at.desc",
+      limit: "200",
+    });
+    if (byPayloadCik.ok && Array.isArray(byPayloadCik.data)) scoped.push(...(byPayloadCik.data as RawItemRow[]));
+
+    const byMetadataCik = await supabaseSelect("raw_items", {
+      select,
+      source_code: "eq.sec_edgar",
+      "metadata->>cik": `eq.${cikCandidate}`,
+      order: "published_at.desc",
+      limit: "200",
+    });
+    if (byMetadataCik.ok && Array.isArray(byMetadataCik.data)) scoped.push(...(byMetadataCik.data as RawItemRow[]));
+  }
+
   const withTicker = ticker
     ? await supabaseSelect("raw_items", {
         select,
@@ -4987,31 +5069,36 @@ async function fetchS3ParentCandidateRows(ticker: string) {
       })
     : null;
 
-  if (withTicker?.ok && Array.isArray(withTicker.data) && withTicker.data.length > 0) return withTicker.data as RawItemRow[];
+  if (withTicker?.ok && Array.isArray(withTicker.data)) scoped.push(...(withTicker.data as RawItemRow[]));
 
-  const result = await supabaseSelect("raw_items", {
-    select,
-    source_code: "eq.sec_edgar",
-    order: "published_at.desc",
-    limit: "200",
-  });
-  return result.ok && Array.isArray(result.data) ? (result.data as RawItemRow[]) : [];
+  return uniqueRawRows(scoped);
 }
 
 async function buildParentS3Context({
+  matchMethod,
+  matchReasons,
   matchCount,
   parsed,
+  registrationNumberMatch,
   registrationNumber,
   row,
 }: {
+  matchMethod: string;
+  matchReasons: string[];
   matchCount: number;
   parsed: SecS3FilingFacts;
+  registrationNumberMatch: boolean;
   registrationNumber: string;
   row: RawItemRow;
 }) {
   return {
     source: "raw_items",
-    match_method: "registration_number",
+    status: "found",
+    confirmed_parent: true,
+    comparison_allowed: true,
+    registration_number_match: registrationNumberMatch,
+    match_method: matchMethod,
+    match_reasons: matchReasons,
     match_count: matchCount,
     registration_number: registrationNumber,
     raw_item_id: stringValue(row.id) || null,
@@ -5064,6 +5151,171 @@ async function buildParentS3Context({
     needs_human_review: parsed.needs_human_review,
     review_reasons: parsed.review_reasons,
   };
+}
+
+function buildMissingParentS3Context(reason: string) {
+  return {
+    source: "raw_items",
+    status: "not_found",
+    confirmed_parent: false,
+    comparison_allowed: false,
+    registration_number_match: false,
+    match_method: "registration_number",
+    match_count: 0,
+    match_reasons: [reason],
+    parent: null,
+  };
+}
+
+function buildAmbiguousParentS3Context({
+  candidateCount,
+  candidates,
+  registrationNumber,
+}: {
+  candidateCount: number;
+  candidates: Array<Record<string, unknown>>;
+  registrationNumber: string;
+}) {
+  return {
+    source: "raw_items",
+    status: "multiple_candidates",
+    confirmed_parent: false,
+    comparison_allowed: false,
+    registration_number_match: true,
+    match_method: "registration_number",
+    match_count: candidateCount,
+    registration_number: registrationNumber,
+    candidates,
+    parent: null,
+  };
+}
+
+function buildParentS3CandidateSummary({
+  parsed,
+  row,
+  score,
+}: {
+  parsed: SecS3FilingFacts;
+  row: RawItemRow;
+  score: number;
+}) {
+  return {
+    raw_item_id: stringValue(row.id) || null,
+    accession_number: parsed.accession_number,
+    form_type: parsed.form_type,
+    filed_at: parsed.filed_at,
+    ticker: parsed.ticker,
+    company_name: parsed.issuer,
+    score,
+    resale_share_count: parsed.resale_share_count?.text || null,
+    current_shares_outstanding: parsed.current_shares_outstanding?.text || null,
+    offering_type: parsed.offering_terms.offering_type?.value || null,
+    security_type: parsed.offering_terms.security_type?.value || null,
+  };
+}
+
+function compareS3RegistrationTerms(current: SecS3FilingFacts, candidate: SecS3FilingFacts) {
+  const matchReasons: string[] = [];
+  let score = 0;
+
+  if (sameS3CountField(current.resale_share_count, candidate.resale_share_count)) {
+    score += 90;
+    matchReasons.push("same_resale_share_count");
+  }
+  if (sameS3CountField(current.shares_registered, candidate.shares_registered)) {
+    score += 60;
+    matchReasons.push("same_registered_share_count");
+  }
+  if (sameS3MoneyField(current.offering_terms.shelf_capacity, candidate.offering_terms.shelf_capacity)) {
+    score += 70;
+    matchReasons.push("same_shelf_capacity");
+  }
+  if (sameS3MoneyField(current.offering_terms.offering_amount, candidate.offering_terms.offering_amount)) {
+    score += 55;
+    matchReasons.push("same_offering_amount");
+  }
+  if (sameS3TextField(current.primary_or_resale, candidate.primary_or_resale)) {
+    score += 15;
+    matchReasons.push("same_primary_or_resale");
+  }
+  if (sameS3TextField(current.offering_terms.offering_type, candidate.offering_terms.offering_type)) {
+    score += 15;
+    matchReasons.push("same_offering_type");
+  }
+  if (sameS3TextField(current.offering_terms.security_type, candidate.offering_terms.security_type)) {
+    score += 10;
+    matchReasons.push("same_security_type");
+  }
+
+  const currentHolderCount = current.selling_stockholders.length;
+  if (currentHolderCount > 0 && currentHolderCount === candidate.selling_stockholders.length) {
+    score += 15;
+    matchReasons.push("same_selling_holder_count");
+  }
+
+  return {
+    confirmed: score >= 100,
+    score,
+    matchReasons,
+  };
+}
+
+function sameS3TextField(left: { value?: string | null } | null, right: { value?: string | null } | null) {
+  const leftValue = stringValue(left?.value).toLowerCase();
+  const rightValue = stringValue(right?.value).toLowerCase();
+  return Boolean(leftValue && rightValue && leftValue === rightValue);
+}
+
+function sameS3CountField(left: { value?: number | null; text?: string | null } | null, right: { value?: number | null; text?: string | null } | null) {
+  const leftValue = numberValue(left?.value) || parseFirstPositiveNumber(left?.text);
+  const rightValue = numberValue(right?.value) || parseFirstPositiveNumber(right?.text);
+  return Boolean(leftValue && rightValue && Math.abs(leftValue - rightValue) <= 1);
+}
+
+function sameS3MoneyField(
+  left: { value?: { amount?: number | null; scale?: string | null } | null; text?: string | null } | null,
+  right: { value?: { amount?: number | null; scale?: string | null } | null; text?: string | null } | null,
+) {
+  const leftValue = normalizeS3MoneyAmount(left);
+  const rightValue = normalizeS3MoneyAmount(right);
+  if (leftValue && rightValue) return Math.abs(leftValue - rightValue) <= Math.max(1, leftValue * 0.001);
+
+  const leftText = normalizeNumericText(left?.text);
+  const rightText = normalizeNumericText(right?.text);
+  return Boolean(leftText && rightText && leftText === rightText);
+}
+
+function normalizeS3MoneyAmount(field: { value?: { amount?: number | null; scale?: string | null } | null } | null) {
+  const amount = numberValue(field?.value?.amount);
+  if (!amount) return 0;
+  const scale = stringValue(field?.value?.scale).toLowerCase();
+  if (scale === "billion") return amount * 1_000_000_000;
+  if (scale === "million") return amount * 1_000_000;
+  if (scale === "thousand") return amount * 1_000;
+  return amount;
+}
+
+function normalizeNumericText(value: unknown) {
+  return stringValue(value).replace(/[^0-9.]+/g, "");
+}
+
+function parseFirstPositiveNumber(value: unknown) {
+  const match = stringValue(value).replace(/,/g, "").match(/\d+(?:\.\d+)?/);
+  if (!match) return 0;
+  const parsed = Number(match[0]);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function uniqueRawRows(rows: RawItemRow[]) {
+  const seen = new Set<string>();
+  const result: RawItemRow[] = [];
+  for (const row of rows) {
+    const key = stringValue(row.id) || readRawAccession(row);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    result.push(row);
+  }
+  return result;
 }
 
 function buildParentS3SourceExcerpts(row: RawItemRow) {
@@ -6129,6 +6381,16 @@ function isSecAmendmentFormForParentContext(formType: string) {
   return normalized.endsWith("/A") || normalized === "S-8 POS";
 }
 
+function isS3F3RegistrationFamilyForm(formType: string) {
+  const normalized = normalizeSecFormForParentContext(formType).replace(/\s+/g, "");
+  return /^(?:S-3|S-3ASR|S-3\/A|F-3|F-3ASR|F-3\/A)$/.test(normalized);
+}
+
+function isS3F3RegistrationAmendmentForm(formType: string) {
+  const normalized = normalizeSecFormForParentContext(formType).replace(/\s+/g, "");
+  return normalized === "S-3/A" || normalized === "F-3/A";
+}
+
 function normalizeGenericParentFormFamily(formType: string) {
   const normalized = normalizeSecFormForParentContext(formType);
   if (!normalized) return "";
@@ -6143,6 +6405,16 @@ function normalizeSecFormForParentContext(formType: string) {
     .replace(/^SCHEDULE\s+/, "SC ")
     .replace(/^SC\s+13E-3/, "SC 13E3")
     .replace(/\s*\/\s*A$/, "/A")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeCompanyNameForParentMatch(value: string) {
+  return stringValue(value)
+    .toUpperCase()
+    .replace(/&AMP;/g, "&")
+    .replace(/\b(?:INCORPORATED|INC|CORPORATION|CORP|COMPANY|CO|LTD|LIMITED|PLC|S\.?A\.?|N\.?V\.?)\b\.?/g, "")
+    .replace(/[^A-Z0-9]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }

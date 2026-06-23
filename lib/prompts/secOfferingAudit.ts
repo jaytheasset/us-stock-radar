@@ -1,7 +1,7 @@
 import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
 
 export const SEC_OFFERING_AUDIT_PROMPT_KEY = "sec_offering_security_audit";
-export const SEC_OFFERING_AUDIT_PROMPT_VERSION = "v5";
+export const SEC_OFFERING_AUDIT_PROMPT_VERSION = "v6";
 
 const AUDIT_CONFIDENCE_VALUES = ["high", "medium", "low", "unknown"] as const;
 const AUDIT_ACTION_VALUES = ["complete", "needs_human_review", "insufficient_evidence"] as const;
@@ -239,6 +239,8 @@ export const secOfferingAuditSystemPrompt = [
   "Return only strict JSON matching the provided schema.",
   "Your job is numeric classification and sanity checking, not copywriting, scoring, bullish/bearish analysis, or alert policy.",
   "Use filing_package.router_evidence, component_candidates, important tables, important sections, parser_candidates, and market_context.",
+  "For S-3/A or F-3/A, parent comparison is confirmed only when parent_registration_context.status is found, confirmed_parent is true, and comparison_allowed is true. Confirmed S-3/F-3 parents may use registration_number or same_cik_same_registration_terms match_method.",
+  "If parent_registration_context is missing, not_found, multiple_candidates, or comparison_allowed is false, audit the current filing numbers only; do not infer parent-vs-amendment deltas.",
   "Parser candidates and component_candidates are candidate evidence, not final truth. Use them when supported by nearby source text or table labels.",
   "Market context is denominator/context only. It is not SEC filing evidence and must not be treated as a disclosed filing number.",
   "Do not calculate dilution percentages, multiples, discounts, market-cap ratios, or alert scores.",

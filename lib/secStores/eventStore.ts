@@ -120,6 +120,7 @@ export async function saveAnalyzedSecFilingEvent({
       sec_tender_router_result: toRecord(analysis.sec_tender_router_result),
       archive_summary: archiveSummary,
       filing_context: toRecord(filingPackage.filing_context),
+      parent_registration_context: toRecord(filingPackage.parent_registration_context),
       parent_filing_context: toRecord(filingPackage.parent_filing_context),
       display_payload: displayPayload,
       transaction_fingerprint: transactionFingerprint,

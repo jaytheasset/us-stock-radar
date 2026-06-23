@@ -1,7 +1,7 @@
 import { type SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
 
 export const SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY = "sec_s3_amendment_triage";
-export const SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION = "v1";
+export const SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION = "v2";
 
 export const SEC_S3_AMENDMENT_TRIAGE_ACTION_VALUES = ["skip_analysis", "needs_offering_audit"] as const;
 export const SEC_S3_AMENDMENT_TRIAGE_CONFIDENCE_VALUES = ["high", "medium", "low"] as const;
@@ -11,6 +11,8 @@ export const secS3AmendmentTriageSystemPrompt = [
   "Your only job is to decide whether this S-3/A amendment needs the expensive offering/security audit.",
   "Do not perform numeric security-stack audit. Do not write investor analysis. Do not score the event.",
   "Focus on what changed in the amendment itself. Parent registration context is background only.",
+  "Parent comparison is confirmed only when parent_registration_context.status is found, confirmed_parent is true, and comparison_allowed is true. Confirmed S-3/F-3 parents may use registration_number or same_cik_same_registration_terms match_method.",
+  "If parent_registration_context is missing, not_found, multiple_candidates, or comparison_allowed is false, do not infer original-vs-amendment changes. Use only changes explicitly marked by the current amendment text.",
   "Do not treat repeated parent S-3 share counts, shelf amounts, fee table amounts, resale pools, warrants, or conversion terms as new unless the amendment text shows they changed.",
   "If parent_registration_context is missing and the S-3/A includes concrete resale share counts, fee-table economics, selling-holder overhang, ATM terms, warrant terms, conversion terms, or offering economics, prefer needs_offering_audit unless the amendment is clearly limited to consent/exhibit housekeeping.",
   "Choose skip_analysis when the amendment is routine: auditor consent, exhibit-only update, signature, legal housekeeping, delaying amendment, incorporated-document update, unchanged remainder, or no changed economics.",

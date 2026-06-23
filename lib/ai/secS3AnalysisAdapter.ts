@@ -40,12 +40,21 @@ export function isS3FilingInput(input: SecFilingAnalysisInput) {
 export function isS3AmendmentInput(input: SecFilingAnalysisInput) {
   const filingPackage = readRecord(input.filing_package);
   const formType = stringValue(filingPackage?.form_type).toUpperCase().replace(/\s+/g, "");
-  if (formType === "S-3/A") return true;
+  if (formType === "S-3/A" || formType === "F-3/A") return true;
 
   const hardParsers = readRecord(filingPackage?.hard_parsers);
   const s3 = readRecord(hardParsers?.s3);
   const amendment = readRecord(s3?.amendment);
-  return s3?.is_s3_family === true && amendment?.is_amendment === true;
+  const amendmentFormType = stringValue(amendment?.form_type).toUpperCase().replace(/\s+/g, "");
+  const amendmentNumber = numberValue(amendment?.amendment_number) || 0;
+  return (
+    s3?.is_s3_family === true &&
+    (amendment?.is_amendment === true ||
+      amendment?.isAmendment === true ||
+      amendmentNumber > 0 ||
+      amendmentFormType === "S-3/A" ||
+      amendmentFormType === "F-3/A")
+  );
 }
 
 export function buildSecS3AnalysisPrompt(input: SecFilingAnalysisInput) {
@@ -62,7 +71,7 @@ export function adaptSecS3AnalysisPromptResultForAnalysis(
 ): SecS3AnalysisAdapterResult {
   const root = readRecord(value);
   const analysisOutput = readRecord(root?.analysis_output);
-  const displayPayload = readRecord(root?.display_payload);
+  const displayPayload = normalizeS3DisplayPayloadForParentContext(readRecord(root?.display_payload), input);
   if (!analysisOutput || !displayPayload) {
     return {
       ok: false,
@@ -97,6 +106,7 @@ export function adaptSecS3AnalysisPromptResultForAnalysis(
 
   const normalizedValue = {
     ...root,
+    display_payload: displayPayload,
     parser_output: normalizeS3ParserOutput(root?.parser_output, input),
   };
   const adapted = adaptSecFormRoomOutputForIngest(normalizedValue);
@@ -111,6 +121,36 @@ export function adaptSecS3AnalysisPromptResultForAnalysis(
     ok: true,
     analysis: adapterOutputToAnalysis(adapted.value, displayPayloadWarnings),
   };
+}
+
+function normalizeS3DisplayPayloadForParentContext(
+  displayPayload: Record<string, unknown> | null,
+  input: SecFilingAnalysisInput,
+) {
+  if (!displayPayload || !isS3AmendmentInput(input) || hasConfirmedS3ParentRegistrationContext(input)) {
+    return displayPayload;
+  }
+
+  const data = readRecord(displayPayload.data);
+  if (!data) return displayPayload;
+
+  return {
+    ...displayPayload,
+    data: {
+      ...data,
+      amendment_changes: [],
+    },
+  };
+}
+
+function hasConfirmedS3ParentRegistrationContext(input: SecFilingAnalysisInput) {
+  const filingPackage = readRecord(input.filing_package);
+  const context = readRecord(filingPackage?.parent_registration_context);
+  return (
+    stringValue(context?.status) === "found" &&
+    context?.confirmed_parent === true &&
+    context?.comparison_allowed === true
+  );
 }
 
 function isS3WarningOnlyDisplayPayloadError(error: string) {

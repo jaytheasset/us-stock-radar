@@ -5,12 +5,14 @@ import { APPROVED_424B_EVENT_TYPES } from "@/lib/sources/sec/forms/424b/types";
 import type { Sec424bParserOutput } from "@/lib/sources/sec/forms/424b/types";
 
 export const SEC_424B_ANALYSIS_PROMPT_KEY = "sec_424b_analysis";
-export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v1";
+export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v5";
 const ALLOWED_424B_OFFERING_DETAIL_LABELS = new Set([
   "Offering Type",
   "Purchaser / Investor",
   "Placement Agent / Underwriter",
   "Warrant Terms",
+  "Source Instrument",
+  "Instrument Terms",
   "Exercise Price",
   "Conversion Price",
   "Reset / Repricing",
@@ -491,13 +493,18 @@ const CANONICAL_SUPPLY_SEGMENT_LABELS: Record<string, string> = {
 };
 
 function canonicalSupplySegmentLabel(record: Record<string, unknown>) {
+  const rawLabel = stringValue(record.label);
+  const explicitResaleLabel = rawLabel.trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+  if (/^(?:resale shares|registered resale shares|resale common shares|selling holder shares)$/.test(explicitResaleLabel)) {
+    return "Resale shares";
+  }
+
   const explicitCode = stringValue(record.label_code || record.segment_type || record.security_type);
   const canonicalFromCode = CANONICAL_SUPPLY_SEGMENT_LABELS[explicitCode];
   if (canonicalFromCode) {
     return canonicalFromCode;
   }
 
-  const rawLabel = stringValue(record.label);
   const instrumentType = stringValue(record.instrument_type);
   const securityRole = stringValue(record.security_role);
   const text = `${rawLabel} ${instrumentType} ${securityRole}`.toLowerCase();
