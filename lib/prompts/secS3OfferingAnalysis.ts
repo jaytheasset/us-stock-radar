@@ -6,7 +6,7 @@ import { sec424bRequiredOutputSchema } from "@/lib/ai/sec424bAnalysisAdapter";
 import { buildSecSourceBlockPromptInput } from "@/lib/sources/sec/forms/common/sourceBlockPromptInput";
 
 export const SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY = "sec_s3_offering_analysis";
-export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v20";
+export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v21";
 
 export const SEC_S3_ANALYSIS_ACTION_VALUES = ["skip_analysis", "routine_archive", "analyze_offering"] as const;
 export const SEC_S3_CASE_VALUES = [
@@ -382,6 +382,8 @@ const secS3RequiredOutputSystemPrompt = [
   "For atm, primary_offering, registered_direct, rights_offering, and mixed_offering use only: Offering Type, Purchaser / Investor, Placement Agent / Underwriter, Warrant Terms, Closing Date, Agreement Date, Use of Proceeds.",
   "For warrant_convertible use only: Offering Type, Purchaser / Investor, Placement Agent / Underwriter, Warrant Terms, Exercise Price, Conversion Price, Reset / Repricing, Floor Price, Closing Date, Agreement Date, Use of Proceeds.",
   "For resale_registration use only: Offering Type, Selling Holders, Agreement Date, Approx. Placement Price, Resale Method, Sale Price, Floor Price, Warrant Terms, Lock-up / Restrictions, Registration Obligation.",
+  "For S-3/F-3 resale registrations, use Approx. Placement Price only when source blocks disclose an actual completed placement or purchase transaction with both gross proceeds and share-equivalent securities sold. Never use a filing-fee table Proposed Maximum Offering Price Per Unit, Rule 457 value, or fee-calculation price as Approx. Placement Price, Sale Price, Offering Price, or a chart marker.",
+  "Fee-table maximum aggregate values may be shown as Registered Value or SEC registration value, but make clear they are fee-table registration values, not actual sale proceeds or an investor purchase price.",
   "The first offering_details row must be Offering Type for every offering_terms display mode. Use a short source-backed value such as Shelf registration, ATM program, Registered direct offering, Resale registration, Mixed offering, Convertible notes, or Warrant-linked offering.",
   "Build offering_details by checking the filing for each allowed item and including every item that is directly disclosed.",
   "Keep offering_details values short: use a company/person name, date, price formula, or short phrase. Avoid full sentences, legal clauses, page references, or explanatory paragraphs.",

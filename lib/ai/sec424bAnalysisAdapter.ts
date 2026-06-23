@@ -224,7 +224,7 @@ export function validate424bDisplayPayload(
   for (const segment of arrayValue(data.supply_segments)) {
     const record = readRecord(segment);
     const shares = readRecord(record?.shares);
-    const sharesText = `${stringValue(shares?.value_text)} ${stringValue(shares?.evidence)}`.toLowerCase();
+    const sharesText = stringValue(shares?.value_text).toLowerCase();
     const shareFieldError = validateShareExposureFact(shares, "supply_segments.shares");
     if (shareFieldError) return `SEC 424B ${shareFieldError}`;
     const underlyingShareError = validateShareExposureFact(readRecord(record?.underlying_shares), "supply_segments.underlying_shares");

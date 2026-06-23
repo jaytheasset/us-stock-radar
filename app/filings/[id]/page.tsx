@@ -9708,6 +9708,8 @@ function pushPriceMarker(
     note?: string;
   },
 ) {
+  if (isFeeTablePriceMarker(input.label, input.rawValue)) return;
+
   const currency = normalizePriceMarkerCurrency(input.currency || extractPriceMarkerCurrency(input.rawValue) || "USD");
   if (currency && currency !== "USD") return;
 
@@ -9722,6 +9724,11 @@ function pushPriceMarker(
     tone: input.tone || "volatile",
     note: input.note || null,
   });
+}
+
+function isFeeTablePriceMarker(label: string, rawValue: unknown) {
+  const text = `${label} ${typeof rawValue === "string" ? rawValue : ""}`;
+  return /\b(?:fee table|filing fee|fee calculation|calculation of fees|for calculation of fees|rule\s*457|proposed maximum offering price)\b/i.test(text);
 }
 
 function readDisplayOfferingDetailValue(data: Record<string, unknown>, label: string) {
