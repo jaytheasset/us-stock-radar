@@ -216,6 +216,10 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
             documentsFailed: 0,
             companyName: null,
             filingDate: null,
+            fileNumber: null,
+            registrationNumber: null,
+            secAct: null,
+            filmNumber: null,
           };
 
       diagnostics.documentsRequested += detail.documentsRequested;
@@ -277,6 +281,10 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
           accession_number: accessionNumber,
           accession_no_dashes: identity.accessionNoDashes,
           filing_date: detail.filingDate,
+          file_number: detail.fileNumber,
+          registration_number: detail.registrationNumber,
+          sec_act: detail.secAct,
+          film_number: detail.filmNumber,
           company_name: companyName,
           ticker: tickerRow?.ticker || null,
           exchange: tickerRow?.exchange || null,
@@ -338,6 +346,10 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
           filer_cik: identity.cik,
           ownership_issuer_cik: ownershipIssuer?.cik || null,
           accession_number: accessionNumber,
+          file_number: detail.fileNumber,
+          registration_number: detail.registrationNumber,
+          sec_act: detail.secAct,
+          film_number: detail.filmNumber,
           ticker: tickerRow?.ticker || null,
           exchange: tickerRow?.exchange || null,
           company_name: companyName,
@@ -701,11 +713,16 @@ async function fetchFilingDetail({
       documentsFailed: 1,
       companyName: null,
       filingDate: null,
+      fileNumber: null,
+      registrationNumber: null,
+      secAct: null,
+      filmNumber: null,
     };
   }
 
   const companyName = readCompanyNameFromDetailHtml(html);
   const filingDate = readFilingDateFromDetailHtml(html);
+  const filingIndexMetadata = readFilingIndexMetadataFromDetailHtml(html);
   const documents = parseFilingDocuments(html, detailUrl, formType);
   const effectiveFormType = formType || inferPrimaryFormTypeFromDocuments(documents);
   const selectedDocuments = selectDocumentsForText(documents, attachmentLimit, effectiveFormType);
@@ -777,6 +794,10 @@ async function fetchFilingDetail({
     documentsFailed,
     companyName,
     filingDate,
+    fileNumber: filingIndexMetadata.fileNumber,
+    registrationNumber: filingIndexMetadata.registrationNumber,
+    secAct: filingIndexMetadata.secAct,
+    filmNumber: filingIndexMetadata.filmNumber,
   };
 }
 
@@ -1480,6 +1501,26 @@ function readFilingDateFromDetailHtml(html: string) {
   );
   const date = normalizeDateOnly(match?.[1]);
   return date ? `${date}T00:00:00.000Z` : null;
+}
+
+function readFilingIndexMetadataFromDetailHtml(html: string) {
+  const companyInfo = extractFirst(html, /<div[^>]+class=["']companyInfo["'][^>]*>([\s\S]*?)<\/div>/i) || "";
+  const text = cleanInlineText(companyInfo || html);
+  const fileNumber = normalizeSecFileNumber(extractFirst(text, /\bFile\s+No\.?\s*:\s*([0-9]{1,3}-[A-Z0-9-]+)/i));
+  const secAct = extractFirst(text, /\bAct\s*:\s*([0-9A-Z-]+)/i)?.toUpperCase() || null;
+  const filmNumber = extractFirst(text, /\bFilm\s+No\.?\s*:\s*([0-9A-Z-]+)/i)?.toUpperCase() || null;
+
+  return {
+    fileNumber,
+    registrationNumber: fileNumber && /^333-\d+/i.test(fileNumber) ? fileNumber : null,
+    secAct,
+    filmNumber,
+  };
+}
+
+function normalizeSecFileNumber(value: unknown) {
+  const text = stringValue(value).toUpperCase().replace(/\s+/g, "");
+  return /^[0-9]{1,3}-[A-Z0-9-]+$/.test(text) ? text : null;
 }
 
 function readCompanyNameFromTitle(title: string | null) {
