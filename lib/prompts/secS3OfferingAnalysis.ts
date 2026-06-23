@@ -6,7 +6,7 @@ import { sec424bRequiredOutputSchema } from "@/lib/ai/sec424bAnalysisAdapter";
 import { buildSecSourceBlockPromptInput } from "@/lib/sources/sec/forms/common/sourceBlockPromptInput";
 
 export const SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY = "sec_s3_offering_analysis";
-export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v22";
+export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v28";
 
 export const SEC_S3_ANALYSIS_ACTION_VALUES = ["skip_analysis", "routine_archive", "analyze_offering"] as const;
 export const SEC_S3_CASE_VALUES = [
@@ -332,9 +332,24 @@ const secS3RequiredOutputSystemPrompt = [
   "For S-3/A or F-3/A with parent_registration_context, keep unchanged parent offering terms stable in offering_details and show changed terms separately in display_payload.data.amendment_changes.",
   "For S-3/A or F-3/A, offering_details should describe the current offering structure after the amendment. Do not use offering_details for old-vs-new comparisons.",
   "For S-3/A or F-3/A, if a parent offering_details row is still accurate, reuse the same label and compact wording when possible. If the amendment corrected that row, show the corrected current value and put the correction in amendment_changes.",
+  "For S-3/A or F-3/A, amendment_changes is not a current terms table. It is only for terms that changed, were corrected, were newly added, or were newly clarified by this amendment.",
+  "Do not put current-only facts in amendment_changes. Current-only facts belong in offering_details, snapshot_metrics, supply_segments, warrant_details, or key evidence.",
   "For S-3/A or F-3/A, display_payload.data.amendment_changes must be an array of compact rows with label and value, plus optional note. Use it for prospectus-date updates, outstanding-share denominator updates, reference-price updates, corrected registration deadlines, changed selling holders, changed resale method, changed warrant terms, changed sale price, or changed proceeds treatment.",
-  "For S-3/A or F-3/A amendment_changes, use short labels such as Prospectus date, Share-count basis, Reference prices, Registration obligation, Selling holders, Resale method, Warrant terms, Sale price, Proceeds treatment, or No economic change.",
+  "For S-3/A or F-3/A amendment_changes, choose labels from this approved set first: Prospectus date, Share-count basis, Reference prices, Registered shares, Offering size, Selling holders, Securities covered, Warrant terms, Exercise price, Conversion terms, Sale price, Resale method, Agreement date, Effective date, Registration obligation, Use of proceeds, Company proceeds, Plan of distribution, Risk factors, Fee table, Incorporated documents, Expert consents, Core terms unchanged, No economic change.",
+  "Only create a custom amendment_changes label when none of the approved labels fits. Custom labels must be 2-4 words and under 32 characters.",
+  "Never use Other update as an amendment_changes label.",
+  "Do not use vague amendment_changes labels or values such as Updated section, Key terms, General update, Miscellaneous, Other, updated registration statement, or updated prospectus text. If the change cannot be named specifically, omit it.",
+  "For Incorporated documents, Expert consents, Risk factors, Plan of distribution, or Fee table rows, the value must name the concrete item changed. Do not use a value like Updated section.",
   "For S-3/A or F-3/A amendment_changes values, use compact comparison text under 90 characters, such as Feb 4, 2026 -> Mar 12, 2026 or 53.63M -> 56.78M shares. Do not paste legal clauses.",
+  "For S-3/A or F-3/A, include separate amendment_changes rows for changed share-count basis, reference market prices, corrected dates, and changed registration deadlines. Do not hide those inside No economic change.",
+  "For S-3/A or F-3/A amendment_changes, every approved label except Core terms unchanged and No economic change is change-only. Use Registered shares, Selling holders, Warrant terms, Sale price, Resale method, Company proceeds, and similar labels only when that term changed in this amendment.",
+  "Do not create amendment_changes rows whose value or note says unchanged, remains, no change, still, same, or previously disclosed unless the row label is Core terms unchanged.",
+  "Put all unchanged economic facts together in one Core terms unchanged row. Do not split unchanged registered shares, selling holders, warrant terms, resale method, or proceeds treatment into separate rows.",
+  "In amendment_changes, every row except Core terms unchanged and No economic change must describe something updated, corrected, newly added, or newly clarified by this amendment. If you cannot name the change, omit the row.",
+  "When the parent value is available, use previous -> current comparison format. If the parent value is not available, only include the row when the amendment text itself clearly says updated, corrected, amended, added, waived, replaced, restated, or changed. Do not write Current-only rows in amendment_changes.",
+  "Never mention internal input names such as parent_registration_context, parent filing context, parser, source blocks, or LLM in amendment_changes. If a prior value is unavailable, write a plain note such as Updated in this amendment or omit the note.",
+  "Use No economic change only when no economic terms, share-count basis, holder treatment, resale mechanics, proceeds treatment, pricing reference, warrant/conversion terms, or deadline changed.",
+  "Use Core terms unchanged to name the terms that stayed the same. The value must be concrete, such as 8.56M resale shares; ATW holder; $2.00 warrant exercise price. Do not say share counts unchanged if the outstanding-share denominator changed.",
   "If an S-3/A or F-3/A only updates reference prices, share-count basis, dates, exhibit text, or typo corrections while the resale/offering economics are unchanged, keep score feed-level or archive-level; do not alert from the parent deal importance alone.",
   "Delivery rule: score below 50 = archive; 50-74 = feed; 75+ = alert.",
   "Alert requires source-backed new information likely to affect near-term price, volatility, liquidity, holder economics, or trading decisions. Do not alert from base shelf capacity alone.",

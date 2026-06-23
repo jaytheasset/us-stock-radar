@@ -3642,6 +3642,7 @@ function S3AmendmentChangesSection({ model }: { model: ReturnType<typeof buildDi
       title="What Changed"
       rows={model.s3AmendmentChangeRows}
       emptyText="No source-backed amendment changes were provided."
+      headingLabel="S-3/A updates"
     />
   );
 }
@@ -4122,16 +4123,18 @@ function DilutionDisclosureSection({
   title,
   rows,
   emptyText,
+  headingLabel = "Key terms",
 }: {
   title: string;
   rows: DilutionDisclosureRow[];
   emptyText: string;
+  headingLabel?: string;
 }) {
   return (
     <section className="dilution-section-block">
       <div className="dilution-section-heading">
         <h2>{title}</h2>
-        <span>{rows.length ? "Key terms" : "No parsed fields"}</span>
+        <span>{rows.length ? headingLabel : "No parsed fields"}</span>
       </div>
       {rows.length ? (
         <div className="dilution-detail-table">
