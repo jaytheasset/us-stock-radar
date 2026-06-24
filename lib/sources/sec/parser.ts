@@ -20,6 +20,7 @@ type FetchOptions = {
   includeDocuments?: boolean;
   attachmentLimit?: number;
   accessionNumber?: string;
+  cik?: string;
   dateFrom?: string;
   dateTo?: string;
 };
@@ -121,6 +122,7 @@ const fmpCusipLookupCache = new Map<string, Promise<TickerRow[]>>();
 export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise<SecRawFetchResult> {
   const fetchedAt = new Date().toISOString();
   const requestedAccessionNumber = normalizeAccessionNumber(options.accessionNumber);
+  const requestedCik = normalizeCik(options.cik);
   const dateFrom = normalizeDateOnly(options.dateFrom);
   const dateTo = normalizeDateOnly(options.dateTo);
   const formTypes = normalizeFormTypes(options.formTypes, requestedAccessionNumber ? [] : DEFAULT_FORM_TYPES);
@@ -146,7 +148,9 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
     const feedEntries: SecCurrentFeedEntry[] = [];
     if (requestedAccessionNumber) {
       diagnostics.feedsRequested += 1;
-      const feed = await fetchSecCurrentFeedByAccession(requestedAccessionNumber);
+      const feed = await fetchSecCurrentFeedByAccession(requestedAccessionNumber, {
+        cik: requestedCik,
+      });
       if (!feed.ok || !feed.entry) {
         return {
           ok: false,
@@ -411,7 +415,7 @@ async function fetchSecCurrentFeedPage(formType: string, count: number, start: n
   };
 }
 
-async function fetchSecCurrentFeedByAccession(accessionNumber: string) {
+async function fetchSecCurrentFeedByAccession(accessionNumber: string, options: { cik?: string | null } = {}) {
   const normalized = normalizeAccessionNumber(accessionNumber);
   if (!normalized) {
     return {
@@ -422,10 +426,10 @@ async function fetchSecCurrentFeedByAccession(accessionNumber: string) {
     };
   }
 
-  return fetchSecAccessionFromFullIndex(normalized);
+  return fetchSecAccessionFromFullIndex(normalized, options);
 }
 
-async function fetchSecAccessionFromFullIndex(accessionNumber: string) {
+async function fetchSecAccessionFromFullIndex(accessionNumber: string, options: { cik?: string | null } = {}) {
   const year = yearFromAccessionNumber(accessionNumber);
   if (!year) {
     return {
@@ -484,11 +488,11 @@ async function fetchSecAccessionFromFullIndex(accessionNumber: string) {
     }
   }
 
+  const archiveFallback = await fetchSecAccessionFromArchivePath(accessionNumber, options.cik);
+  if (archiveFallback.ok && archiveFallback.entry) return archiveFallback;
+
   const currentFeedFallback = await fetchSecAccessionFromCurrentOwnershipFeeds(accessionNumber);
   if (currentFeedFallback.ok && currentFeedFallback.entry) return currentFeedFallback;
-
-  const archiveFallback = await fetchSecAccessionFromArchivePath(accessionNumber);
-  if (archiveFallback.ok && archiveFallback.entry) return archiveFallback;
 
   return {
     ok: false,
@@ -554,7 +558,7 @@ async function fetchSecAccessionFromCurrentOwnershipFeeds(accessionNumber: strin
   };
 }
 
-async function fetchSecAccessionFromArchivePath(accessionNumber: string) {
+async function fetchSecAccessionFromArchivePath(accessionNumber: string, cik?: string | null) {
   const normalized = normalizeAccessionNumber(accessionNumber);
   if (!normalized) {
     return {
@@ -565,7 +569,7 @@ async function fetchSecAccessionFromArchivePath(accessionNumber: string) {
     };
   }
 
-  const filerCik = normalizeCik(normalized.slice(0, 10));
+  const filerCik = normalizeCik(cik) || normalizeCik(normalized.slice(0, 10));
   const accessionNoDashes = normalized.replace(/-/g, "");
   if (!filerCik || accessionNoDashes.length !== 18) {
     return {

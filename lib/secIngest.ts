@@ -17,6 +17,7 @@ type SecRawIngestOptions = {
   countPerForm?: number;
   limit?: number;
   accessionNumber?: string;
+  cik?: string;
   dryRun?: boolean;
   force?: boolean;
   includeDocuments?: boolean;
@@ -57,6 +58,7 @@ export async function runSecRawIngest(options: SecRawIngestOptions = {}) {
     const rawResult = await fetchSecEdgarRawItems({
       formTypes: options.formTypes,
       accessionNumber: options.accessionNumber,
+      cik: options.cik,
       countPerForm: options.countPerForm,
       limit: options.limit,
       includeDocuments: options.includeDocuments,

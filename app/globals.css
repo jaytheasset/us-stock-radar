@@ -9910,6 +9910,94 @@ td {
   line-height: 1.35;
 }
 
+.initial-ipo-compact-grid {
+  align-items: start;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 0.95fr);
+}
+
+.initial-ipo-summary-card,
+.initial-ipo-side-card {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.initial-ipo-side-stack {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+
+.initial-ipo-side-stack > div + div {
+  border-top: 1px solid #dbe5f1;
+  padding-top: 16px;
+}
+
+.initial-ipo-summary-card h2,
+.initial-ipo-side-card h2,
+.initial-ipo-side-stack h2 {
+  margin: 0;
+  color: #07122f;
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+.initial-ipo-summary-card p {
+  margin: 0;
+  color: #17213d;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.ipo-summary-panel .dilution-impact-metrics .dilution-metric strong {
+  color: #17213d;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.28;
+}
+
+.initial-ipo-details-block {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.initial-ipo-detail-list {
+  display: grid;
+  min-width: 0;
+}
+
+.initial-ipo-detail-row {
+  display: grid;
+  grid-template-columns: minmax(138px, 0.46fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  min-width: 0;
+  border-top: 1px solid #dbe5f1;
+  padding: 11px 0;
+}
+
+.initial-ipo-detail-row:last-child {
+  border-bottom: 1px solid #dbe5f1;
+}
+
+.initial-ipo-detail-row span {
+  color: #40506b;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+.initial-ipo-detail-row strong {
+  color: #17213d;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
 .ipo-readout-grid {
   display: grid;
 }

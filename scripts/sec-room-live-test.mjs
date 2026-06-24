@@ -120,6 +120,7 @@ const sync = booleanArg("sync", true);
 const alerts = booleanArg("alerts", true);
 const syncOnly = booleanArg("syncOnly", false) || booleanArg("sync-only", false);
 const accessionNumber = stringArg("accessionNumber") || stringArg("accession");
+const cik = stringArg("cik") || stringArg("filerCik") || stringArg("filer-cik");
 const rawItemId = stringArg("rawItemId");
 const llmProvider = stringArg("llmProvider") || stringArg("llm-provider") || "gemini";
 const llmModel = stringArg("llmModel") || stringArg("llm-model") || "";
@@ -277,6 +278,7 @@ async function analyzeOne({ rawItemId, accessionNumber }) {
     const ingest = await postJson(
       `/api/sources/sec/ingest?${new URLSearchParams({
         accessionNumber,
+        ...(cik ? { cik } : {}),
         formTypes: formTypes.join(","),
         limit: "1",
         countPerForm: "1",

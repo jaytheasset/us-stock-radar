@@ -314,7 +314,7 @@ export function validateSecRequiredOutputJson(value: unknown): SecIntegrationVal
   if (parserOutput) validateParserOutput(parserOutput, errors);
   if (analysisOutput) validateAnalysisOutput(analysisOutput, errors);
   if (displayPayload) validateDisplayPayload(displayPayload, errors);
-  if (analysisOutput && displayPayload) validateIpoListingPayload(analysisOutput, displayPayload, errors);
+  if (analysisOutput && displayPayload) validateIpoListingPayload(analysisOutput, displayPayload, warnings);
   if (filingContext) validateFilingContext(filingContext, errors);
 
   if (errors.length > 0 || !parserOutput || !analysisOutput || !displayPayload) {
@@ -443,22 +443,22 @@ function validateDisplayPayload(value: Record<string, unknown>, errors: string[]
 function validateIpoListingPayload(
   analysisOutput: Record<string, unknown>,
   displayPayload: Record<string, unknown>,
-  errors: string[],
+  warnings: string[],
 ) {
   const data = isPlainObject(displayPayload.data) ? displayPayload.data : null;
   const ipoKind = data?.ipo_kind;
   const normalizedIpoKind = normalizeIpoKind(ipoKind);
 
-  if (ipoKind !== undefined && normalizedIpoKind === null) {
-    errors.push('display_payload.data.ipo_kind must be "traditional", "Traditional IPO", "spac", or "SPAC IPO" when provided.');
+  if (ipoKind !== undefined && ipoKind !== null && normalizedIpoKind === null) {
+    warnings.push('display_payload.data.ipo_kind is outside the usual IPO label set.');
   }
 
   if (analysisOutput.event_type === "ipo_listing" && ipoKind === undefined) {
-    errors.push('display_payload.data.ipo_kind is required when analysis_output.event_type is "ipo_listing".');
+    warnings.push('display_payload.data.ipo_kind is usually useful when analysis_output.event_type is "ipo_listing".');
   }
 
   if (displayPayload.display_type === "ipo_listing" && analysisOutput.event_type !== "ipo_listing") {
-    errors.push('display_payload.display_type "ipo_listing" requires analysis_output.event_type "ipo_listing".');
+    warnings.push('display_payload.display_type "ipo_listing" is usually paired with analysis_output.event_type "ipo_listing".');
   }
 }
 

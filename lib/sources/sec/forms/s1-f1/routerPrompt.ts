@@ -31,6 +31,7 @@ export function buildS1F1LlmSourceInput(parserOutput: S1F1ParserOutput): Record<
       sourceTextAvailable: item.sourceTextAvailable,
       textLength: item.textLength,
     })) ?? [],
+    market_context: parserOutput.raw.marketContext ?? null,
     parent_filing_context: parserOutput.raw.parentFilingContext ?? null,
     cleaned_source_blocks: parserOutput.raw.cleanedSourceBlocks ?? [],
     parser_warnings: parserOutput.warnings,

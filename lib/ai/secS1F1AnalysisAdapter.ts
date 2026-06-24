@@ -18,6 +18,33 @@ const ALLOWED_S1_F1_DISPLAY_MODES = new Set([
   "generic",
 ]);
 
+const ALLOWED_S1_F1_SNAPSHOT_LABELS = [
+  "Filing stage",
+  "Terms status",
+  "Proposed exchange / ticker",
+  "Underwriters",
+  "Shares / ADS offered",
+  "Price range",
+  "Gross proceeds",
+  "Proposed exchange",
+  "Updated shares / ADS",
+  "Updated price range",
+  "Updated offering size",
+  "Key change",
+  "Resale shares",
+  "Overhang vs outstanding",
+  "Company proceeds",
+  "Selling holders",
+  "Primary component",
+  "Resale component",
+  "Warrant/convertible component",
+  "Main risk",
+  "Units offered",
+  "Unit price",
+  "Trust amount",
+  "Warrant / right terms",
+] as const;
+
 export type SecS1F1AnalysisAdapterResult =
   | { ok: true; analysis: Record<string, unknown> }
   | { ok: false; error: string };
@@ -27,7 +54,7 @@ export function isS1F1FilingInput(input: SecFilingAnalysisInput) {
 }
 
 export function buildSecS1F1AnalysisPromptForInput(input: SecFilingAnalysisInput) {
-  const parserOutput = readS1F1ParserOutput(input);
+  const parserOutput = withRuntimeMarketContext(readS1F1ParserOutput(input), input);
   if (!parserOutput) {
     throw new Error("SEC S-1/F-1 parser output is missing from filing package");
   }
@@ -49,6 +76,20 @@ export function buildSecS1F1AnalysisPromptForInput(input: SecFilingAnalysisInput
         strict: false,
         schema: secS1F1RequiredOutputSchema,
       },
+    },
+  };
+}
+
+function withRuntimeMarketContext(parserOutput: S1F1ParserOutput | null, input: SecFilingAnalysisInput) {
+  if (!parserOutput) return null;
+  const filingPackage = readFilingPackage(input);
+  const marketContext = readRecord(filingPackage.market_context);
+  if (!marketContext || !Object.keys(marketContext).length) return parserOutput;
+  return {
+    ...parserOutput,
+    raw: {
+      ...parserOutput.raw,
+      marketContext,
     },
   };
 }
@@ -113,7 +154,95 @@ function validateS1F1DisplayPayload(displayPayload: Record<string, unknown>) {
   if (!displayMode) {
     return "SEC S-1/F-1 offering_terms display_payload.data.display_mode must be written by the analysis LLM";
   }
+  if (!Array.isArray(data.snapshot_metrics) || !data.snapshot_metrics.length) {
+    return "SEC S-1/F-1 offering_terms display_payload.data.snapshot_metrics must be written by the analysis LLM";
+  }
+  if (!Array.isArray(data.offering_details) || (displayMode !== "ipo_registration" && !data.offering_details.length)) {
+    return "SEC S-1/F-1 offering_terms display_payload.data.offering_details must be written by the analysis LLM";
+  }
+  if (!stringValue(data.investor_takeaway)) {
+    return "SEC S-1/F-1 offering_terms display_payload.data.investor_takeaway must be written by the analysis LLM";
+  }
+  if (!stringValue(data.narrative_summary)) {
+    return "SEC S-1/F-1 offering_terms display_payload.data.narrative_summary must be written by the analysis LLM";
+  }
+  const rowError =
+    validateLabelValueRows(data.snapshot_metrics, "snapshot_metrics") ||
+    validateLabelValueRows(data.offering_details, "offering_details", {
+      allowEmpty: displayMode === "ipo_registration",
+      maxValueLength: 90,
+      maxNoteLength: 80,
+    }) ||
+    validateLabelValueRows(data.amendment_changes, "amendment_changes", { allowEmpty: true });
+  if (rowError) return rowError;
+  const structuredOverhangError = validateS1F1OverhangFacts(data);
+  if (structuredOverhangError) return structuredOverhangError;
   return "";
+}
+
+function validateLabelValueRows(
+  value: unknown,
+  fieldName: string,
+  options?: { allowEmpty?: boolean; maxValueLength?: number; maxNoteLength?: number },
+) {
+  if (value === undefined || value === null) return "";
+  if (!Array.isArray(value)) return `SEC S-1/F-1 display_payload.data.${fieldName} must be an array`;
+  if (!options?.allowEmpty && !value.length) {
+    return `SEC S-1/F-1 display_payload.data.${fieldName} must be written by the analysis LLM`;
+  }
+  for (const [index, row] of value.entries()) {
+    const record = readRecord(row);
+    if (!record || !Object.keys(record).length) {
+      return `SEC S-1/F-1 display_payload.data.${fieldName}[${index}] cannot be an empty object`;
+    }
+    const label = stringValue(record.label);
+    const rowValue = stringValue(record.value);
+    const note = stringValue(record.note);
+    if (!label || !rowValue) {
+      return `SEC S-1/F-1 display_payload.data.${fieldName}[${index}] must include label and value`;
+    }
+    if (options?.maxValueLength && rowValue.length > options.maxValueLength) {
+      return `SEC S-1/F-1 display_payload.data.${fieldName}[${index}].value must be ${options.maxValueLength} characters or fewer`;
+    }
+    if (options?.maxNoteLength && note.length > options.maxNoteLength) {
+      return `SEC S-1/F-1 display_payload.data.${fieldName}[${index}].note must be ${options.maxNoteLength} characters or fewer`;
+    }
+  }
+  return "";
+}
+
+function validateS1F1OverhangFacts(data: Record<string, unknown>) {
+  const displayMode = stringValue(data.display_mode);
+  if (!["resale_registration", "mixed_registration"].includes(displayMode)) return "";
+  const hasSupplyNumerator = hasNumericDisplayFactValue(readRecord(data.total_potential_supply));
+  const snapshotText = Array.isArray(data.snapshot_metrics)
+    ? data.snapshot_metrics
+        .map((row) => {
+          const record = readRecord(row);
+          return `${stringValue(record?.label)} ${stringValue(record?.value)} ${stringValue(record?.note)}`;
+        })
+        .join(" ")
+    : "";
+  const mentionsOverhang = /\b(?:overhang|dilution|outstanding)\b/i.test(snapshotText);
+  if (!hasSupplyNumerator && !mentionsOverhang) return "";
+  if (hasSupplyNumerator && !/\boverhang\s+vs\.?\s+outstanding\b/i.test(snapshotText)) {
+    return "SEC S-1/F-1 resale/mixed display must include snapshot_metrics row labeled Overhang vs outstanding when total_potential_supply is available";
+  }
+  if (!hasNumericDisplayFactValue(readRecord(data.current_shares))) {
+    return "SEC S-1/F-1 overhang snapshot must include numeric display_payload.data.current_shares from filing data when available, otherwise latest market_context shares_outstanding";
+  }
+  if (!hasSupplyNumerator) {
+    return "SEC S-1/F-1 overhang snapshot must include numeric display_payload.data.total_potential_supply from the same registered/offered share numerator";
+  }
+  if (!hasNumericDisplayFactValue(readRecord(data.estimated_dilution_percent))) {
+    return "SEC S-1/F-1 overhang snapshot must include numeric display_payload.data.estimated_dilution_percent when current_shares and total_potential_supply are available";
+  }
+  return "";
+}
+
+function hasNumericDisplayFactValue(fact: Record<string, unknown> | null) {
+  const value = numberValue(fact?.numeric_value) ?? numberValue(fact?.numericValue);
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
 }
 
 function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput) {
@@ -145,6 +274,9 @@ function normalizeS1F1ParserOutput(value: unknown, input: SecFilingAnalysisInput
   const parser = readRecord(value) || {};
   const fallback = readS1F1ParserOutput(input);
   const filingPackage = readFilingPackage(input);
+  const fallbackRaw = readRecord(fallback?.raw) || {};
+  const raw = readRecord(parser.raw) || fallbackRaw;
+  const runtimeMarketContext = readRecord(filingPackage.market_context);
   return {
     ...fallback,
     ...parser,
@@ -165,7 +297,10 @@ function normalizeS1F1ParserOutput(value: unknown, input: SecFilingAnalysisInput
         ? fallback?.calendarItems
         : [],
     warnings: Array.isArray(parser.warnings) ? parser.warnings : Array.isArray(fallback?.warnings) ? fallback?.warnings : [],
-    raw: readRecord(parser.raw) || readRecord(fallback?.raw) || {},
+    raw: {
+      ...raw,
+      ...(runtimeMarketContext && Object.keys(runtimeMarketContext).length ? { marketContext: runtimeMarketContext } : {}),
+    },
   };
 }
 
@@ -201,8 +336,9 @@ function readFilingPackage(input: SecFilingAnalysisInput) {
 
 function normalizePrimaryTicker(record: Record<string, unknown> | null, filingPackage: Record<string, unknown>) {
   const packagePrimary = readRecord(filingPackage.primary_ticker);
-  const ticker = nullableString(record?.ticker) || nullableString(packagePrimary?.ticker) || nullableString(filingPackage.ticker);
-  const exchange = nullableString(record?.exchange) || nullableString(packagePrimary?.exchange);
+  const packageTicker = nullableString(packagePrimary?.ticker) || nullableString(filingPackage.ticker);
+  const ticker = packageTicker || nullableString(record?.ticker);
+  const exchange = nullableString(packagePrimary?.exchange) || nullableString(record?.exchange);
   return {
     ticker: ticker ? ticker.toUpperCase() : null,
     exchange,
@@ -210,6 +346,16 @@ function normalizePrimaryTicker(record: Record<string, unknown> | null, filingPa
 }
 
 function normalizeTickerRows(value: unknown, primaryTicker: { ticker: string | null; exchange: string | null }, role: string) {
+  if (role === "primary" && primaryTicker.ticker) {
+    return [
+      {
+        ticker: primaryTicker.ticker,
+        exchange: primaryTicker.exchange,
+        role: "primary",
+        reason: "Primary SEC filing ticker",
+      },
+    ];
+  }
   const rows = Array.isArray(value) ? value : [];
   const normalized: Array<Record<string, unknown>> = [];
   for (const item of rows) {
@@ -274,6 +420,20 @@ function readRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 }
 
+function displayFactSchema() {
+  return {
+    type: ["object", "null"],
+    additionalProperties: true,
+    required: ["value_text", "numeric_value", "unit", "evidence"],
+    properties: {
+      value_text: { type: ["string", "null"] },
+      numeric_value: { type: ["number", "null"] },
+      unit: { type: ["string", "null"] },
+      evidence: { type: ["string", "null"] },
+    },
+  } as const;
+}
+
 export const secS1F1RequiredOutputSchema = {
   type: "object",
   additionalProperties: true,
@@ -318,8 +478,8 @@ export const secS1F1RequiredOutputSchema = {
           type: ["object", "null"],
           additionalProperties: true,
           properties: {
-            ticker: { type: ["string", "null"] },
-            exchange: { type: ["string", "null"] },
+            ticker: { type: ["string", "null"], maxLength: 12 },
+            exchange: { type: ["string", "null"], maxLength: 40 },
           },
         },
         tickers: { type: "array", items: { type: ["object", "string"], additionalProperties: true } },
@@ -357,14 +517,80 @@ export const secS1F1RequiredOutputSchema = {
         data: {
           type: "object",
           additionalProperties: true,
+          required: [
+            "display_mode",
+            "risk_label",
+            "snapshot_metrics",
+            "investor_takeaway",
+            "narrative_summary",
+            "offering_details",
+          ],
           properties: {
             display_mode: { type: ["string", "null"], enum: [...ALLOWED_S1_F1_DISPLAY_MODES, null] },
             ipo_kind: { type: ["string", "null"] },
-            snapshot_metrics: { type: "array", items: { type: "object", additionalProperties: true } },
+            risk_label: { type: ["string", "null"] },
+            current_shares: displayFactSchema(),
+            total_potential_supply: displayFactSchema(),
+            estimated_dilution_percent: displayFactSchema(),
+            supply_segments: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: true,
+                properties: {
+                  role: {
+                    type: ["string", "null"],
+                    enum: ["new_shares", "potential_warrants", "potential_instruments", "total_potential_supply", null],
+                  },
+                  label: { type: ["string", "null"] },
+                  shares: displayFactSchema(),
+                  price: displayFactSchema(),
+                },
+              },
+            },
+            snapshot_metrics: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: true,
+                required: ["label", "value"],
+                properties: {
+                  label: { type: "string", enum: ALLOWED_S1_F1_SNAPSHOT_LABELS },
+                  value: { type: "string" },
+                  note: { type: ["string", "null"] },
+                  tone: { type: ["string", "null"] },
+                  emphasis: { type: ["boolean", "null"] },
+                },
+              },
+            },
             investor_takeaway: { type: ["string", "null"] },
             narrative_summary: { type: ["string", "null"] },
-            offering_details: { type: "array", items: { type: "object", additionalProperties: true } },
-            amendment_changes: { type: "array", items: { type: "object", additionalProperties: true } },
+            offering_details: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: true,
+                required: ["label", "value"],
+                properties: {
+                  label: { type: "string", maxLength: 40 },
+                  value: { type: "string", maxLength: 90 },
+                  note: { type: ["string", "null"], maxLength: 80 },
+                },
+              },
+            },
+            amendment_changes: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: true,
+                required: ["label", "value"],
+                properties: {
+                  label: { type: "string" },
+                  value: { type: "string" },
+                  note: { type: ["string", "null"] },
+                },
+              },
+            },
             source_notes: { type: "array", items: { type: "string" } },
             needs_human_review: { type: "boolean" },
             review_reasons: { type: "array", items: { type: "string" } },

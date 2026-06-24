@@ -212,6 +212,8 @@ type SpacTransactionStatusModel = {
 type IpoStageCode = "s1_filed" | "terms_set" | "effect" | "pricing" | "listing" | "lockup";
 
 type IpoListingModel = {
+  displayMode: string;
+  isInitialTermsPending: boolean;
   ipoKind: string;
   currentStage: IpoStageCode;
   currentStageLabel: string;
@@ -240,6 +242,8 @@ type IpoListingModel = {
   expectedPricingDate: string;
   expectedListingDate: string;
   useOfProceeds: string[];
+  snapshotMetrics: DilutionMetricItem[];
+  offeringDetailsRows: DilutionDisclosureRow[];
   stages: SpacStageItem[];
   riskFlags: string[];
   watchNext: string[];
@@ -3085,6 +3089,10 @@ function IpoListingTemplate({
   filing: FilingEvent;
   model: IpoListingModel;
 }) {
+  if (model.isInitialTermsPending) {
+    return <InitialIpoFilingTemplate eventLabel={eventLabel} filing={filing} model={model} />;
+  }
+
   const listingNote = model.proposedTicker !== "Not disclosed" ? `${model.exchange}:${model.proposedTicker}` : model.exchange;
 
   return (
@@ -3242,6 +3250,67 @@ function IpoListingTemplate({
 
       <FilingMarketContextPanel filing={filing} />
       <SpacSourceEvidence filing={filing} model={model} />
+      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
+    </>
+  );
+}
+
+function InitialIpoFilingTemplate({
+  eventLabel,
+  filing,
+  model,
+}: {
+  eventLabel: string;
+  filing: FilingEvent;
+  model: IpoListingModel;
+}) {
+  const quickTake = model.stageSummary || model.companyStory;
+  const watchNext =
+    model.watchNext.length > 0
+      ? model.watchNext
+      : [
+          "S-1/A or F-1/A with share count and price range.",
+          "SEC effectiveness and final 424B4 prospectus.",
+          "Pricing date and first trading date.",
+        ];
+
+  return (
+    <>
+      <section className="stock-detail-card-grid two-up initial-ipo-compact-grid">
+        <section className="stock-detail-card dilution-snapshot-panel ipo-summary-panel initial-ipo-top-panel">
+          <div className="ipo-summary-heading">
+            <h2>Initial IPO Filing</h2>
+          </div>
+
+          <div className="dilution-impact-metrics">
+            {model.snapshotMetrics.map((metric) => (
+              <DilutionMetric key={metric.label} metric={metric} />
+            ))}
+          </div>
+        </section>
+
+        <section className="stock-detail-card initial-ipo-side-stack">
+          <div className="initial-ipo-summary-card initial-ipo-quick-card">
+            <h2>Quick Take</h2>
+            <p>{quickTake}</p>
+          </div>
+
+          <div className="initial-ipo-summary-card initial-ipo-background-card">
+            <h2>Company Overview</h2>
+            <p>{model.companyStory}</p>
+          </div>
+        </section>
+      </section>
+
+      <section className="stock-detail-card spac-watch-card ipo-watch-card">
+        <h2>What To Watch Next</h2>
+        <ol>
+          {watchNext.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ol>
+      </section>
+
       <OriginalFilingText filing={filing} eventLabel={eventLabel} />
     </>
   );
@@ -4561,10 +4630,17 @@ const IPO_STAGE_LABELS = IPO_STAGE_ORDER.reduce<Record<IpoStageCode, string>>((l
 
 function buildIpoListingModel(filing: FilingEvent): IpoListingModel | null {
   const displayPayload = readPlainRecord(filing.displayPayload);
-  if (readRowString(displayPayload, "display_type") !== "ipo_listing") return null;
-
+  const displayType = readRowString(displayPayload, "display_type");
   const data = readDisplayPayloadData(displayPayload);
+  const displayMode = readRowString(data, "display_mode") || readRowString(data, "offering_ui_mode");
+  const isOfferingTermsIpo =
+    displayType === "offering_terms" &&
+    ["ipo_registration", "ipo_amendment", "spac_ipo"].includes(displayMode);
+
+  if (displayType !== "ipo_listing" && !isOfferingTermsIpo) return null;
+
   if (
+    displayType === "ipo_listing" &&
     !hasEnoughSpecialDisplayFields(
       data,
       [
@@ -4585,48 +4661,195 @@ function buildIpoListingModel(filing: FilingEvent): IpoListingModel | null {
     return null;
   }
 
+  const snapshotMetric = (...labels: string[]) => readLabeledDisplayValue(data.snapshot_metrics, labels);
+  const offeringDetail = (...labels: string[]) => readLabeledDisplayValue(data.offering_details, labels);
   const currentStage = resolveIpoStage(data, filing.formType);
   const stages = normalizeIpoStages(data, currentStage);
   const currentStageIndex = Math.max(0, IPO_STAGE_ORDER.findIndex((stage) => stage.code === currentStage));
   const currentStageLabel = displayString(data, "current_stage_label", IPO_STAGE_LABELS[currentStage]);
   const issuer = displayString(data, "issuer", filing.company || "Not disclosed");
   const proposedTicker = displayString(data, "proposed_ticker", isRealTicker(filing.ticker) ? filing.ticker : "Not disclosed");
-  const exchange = displayString(data, "exchange", filing.exchange || "Not disclosed");
+  const exchange = displayString(data, "exchange", snapshotMetric("Proposed exchange") || filing.exchange || "Not disclosed");
+  const useOfProceeds = displayStringArray(data.use_of_proceeds, []);
+  const useOfProceedsDetail = offeringDetail("Use of Proceeds");
+  const priceRange = displayString(data, "price_range", snapshotMetric("Price range", "Updated price range", "Unit price") || "Not disclosed");
+  const sharesOffered = displayString(data, "shares_offered", snapshotMetric("Shares / ADS offered", "Updated shares / ADS", "Units offered") || "Not disclosed");
+  const offeringSize = displayString(data, "offering_size", snapshotMetric("Gross proceeds", "Updated offering size", "Trust amount") || "Not disclosed");
+  const underwriters = displayString(data, "underwriters", displayString(data, "lead_underwriters", offeringDetail("Underwriters") || "Pending"));
+  const termsStatus = snapshotMetric("Terms status") || deriveInitialIpoTermsStatus(priceRange, sharesOffered, offeringSize);
+  const initialSnapshotMetrics = buildInitialIpoSnapshotMetrics({
+    currentStageLabel,
+    exchange,
+    proposedTicker,
+    termsStatus,
+    underwriters,
+    sourceMetrics: readSnapshotMetrics(data),
+  });
+  const offeringDetailsRows = readOfferingDetailsRows(data);
+  const investorTakeaway = displayString(data, "investor_takeaway", filing.filingBrief || filing.summary);
+  const narrativeSummary = displayString(data, "narrative_summary", displayString(data, "company_story", filing.summary || "Not disclosed"));
+  const isInitialTermsPending =
+    isOfferingTermsIpo &&
+    displayMode === "ipo_registration" &&
+    currentStage === "s1_filed" &&
+    hasPendingInitialIpoTerms({ offeringSize, priceRange, sharesOffered, termsStatus });
 
   return {
-    ipoKind: displayString(data, "ipo_kind", "Traditional IPO"),
+    displayMode,
+    isInitialTermsPending,
+    ipoKind: displayString(data, "ipo_kind", isOfferingTermsIpo && displayMode === "spac_ipo" ? "SPAC IPO" : "Traditional IPO"),
     currentStage,
     currentStageLabel,
     stageBadge: `Stage ${currentStageIndex + 1}/${IPO_STAGE_ORDER.length} · ${currentStageLabel}`,
-    stageSummary: displayString(data, "stage_summary", filing.filingBrief || filing.summary),
+    stageSummary: displayString(data, "stage_summary", investorTakeaway),
     issuer,
     proposedTicker,
     exchange,
-    companyStory: displayString(data, "company_story", filing.summary || "Not disclosed"),
+    companyStory: narrativeSummary,
     companyStage: displayString(data, "company_stage", "Not disclosed"),
     revenue: displayString(data, "revenue", "Not disclosed"),
     netLoss: displayString(data, "net_loss", "Not disclosed"),
     cash: displayString(data, "cash", "Not disclosed"),
-    priceRange: displayString(data, "price_range", "Not disclosed"),
+    priceRange,
     midpointPrice: displayString(data, "midpoint_price", "Not disclosed"),
-    sharesOffered: displayString(data, "shares_offered", "Not disclosed"),
-    offeringSize: displayString(data, "offering_size", "Not disclosed"),
+    sharesOffered,
+    offeringSize,
     impliedValuation: displayString(data, "implied_valuation", "Not disclosed"),
     primarySecondaryMix: displayString(data, "primary_secondary_mix", "Not disclosed"),
-    underwriters: displayString(data, "underwriters", displayString(data, "lead_underwriters", "Not disclosed")),
+    underwriters,
     underwriterOption: displayString(data, "underwriter_option", "Not disclosed"),
     floatPercent: displayString(data, "float_percent", "Not disclosed"),
     floatSummary: displayString(data, "float_summary", "Not disclosed"),
-    lockupSummary: displayString(data, "lockup_summary", "Not disclosed"),
+    lockupSummary: displayString(data, "lockup_summary", offeringDetail("Lock-up") || "Not disclosed"),
     lockupExpiration: displayString(data, "lockup_expiration", "Not disclosed"),
     expectedPricingDate: displayString(data, "expected_pricing_date", "Not disclosed"),
     expectedListingDate: displayString(data, "expected_listing_date", "Not disclosed"),
-    useOfProceeds: displayStringArray(data.use_of_proceeds, ["Not disclosed"]).slice(0, 4),
+    useOfProceeds: (useOfProceeds.length ? useOfProceeds : useOfProceedsDetail ? [useOfProceedsDetail] : ["Not disclosed"]).slice(0, 4),
+    snapshotMetrics: initialSnapshotMetrics,
+    offeringDetailsRows,
     stages,
     riskFlags: displayStringArray(data.risk_flags, filing.bearishPoints),
     watchNext: displayStringArray(data.watch_next, filing.watchNext),
     sources: normalizeIpoSources(data.sources, filing.sourceUrl),
   };
+}
+
+function deriveInitialIpoTermsStatus(priceRange: string, sharesOffered: string, offeringSize: string) {
+  return [priceRange, sharesOffered, offeringSize].some(isPendingIpoTermValue) ? "Price and share count pending" : "Terms partially disclosed";
+}
+
+function hasPendingInitialIpoTerms({
+  offeringSize,
+  priceRange,
+  sharesOffered,
+  termsStatus,
+}: {
+  offeringSize: string;
+  priceRange: string;
+  sharesOffered: string;
+  termsStatus: string;
+}) {
+  return [termsStatus, priceRange, sharesOffered, offeringSize].some(isPendingIpoTermValue);
+}
+
+function isPendingIpoTermValue(value: string) {
+  const normalized = cleanDisclosureValue(value).toLowerCase();
+  return (
+    !isDisclosedValue(value) ||
+    /\b(?:pending|to be determined|not yet|blank|not specified|not set)\b/i.test(normalized) ||
+    /\$\s*(?:per share|and\s+\$|\s*$)/i.test(value)
+  );
+}
+
+function buildInitialIpoSnapshotMetrics({
+  currentStageLabel,
+  exchange,
+  proposedTicker,
+  sourceMetrics,
+  termsStatus,
+  underwriters,
+}: {
+  currentStageLabel: string;
+  exchange: string;
+  proposedTicker: string;
+  sourceMetrics: DilutionMetricItem[];
+  termsStatus: string;
+  underwriters: string;
+}) {
+  const allowed = new Set(["Filing stage", "Terms status", "Proposed exchange / ticker", "Underwriters"]);
+  const normalizedRows = sourceMetrics
+    .map((metric) => normalizeInitialIpoSnapshotMetric(metric))
+    .filter((metric): metric is DilutionMetricItem => {
+      if (!metric) return false;
+      return allowed.has(metric.label);
+    });
+  const underwriterValue = compactInitialIpoUnderwriters(underwriters);
+
+  const fallbackRows: DilutionMetricItem[] = [
+    { label: "Filing stage", value: currentStageLabel, note: "Initial registration filed" },
+    { label: "Terms status", value: termsStatus, note: "Awaiting amended prospectus" },
+    {
+      label: "Proposed exchange / ticker",
+      value: formatInitialIpoListingValue(exchange, proposedTicker),
+      note: "Planned listing venue",
+    },
+    {
+      label: "Underwriters",
+      value: underwriterValue,
+      note: underwriterValue === "Pending" ? "To be named later" : "Lead banks",
+    },
+  ];
+
+  const rowsByLabel = new Map<string, DilutionMetricItem>();
+  [...normalizedRows, ...fallbackRows].forEach((metric) => {
+    if (!rowsByLabel.has(metric.label) && isDisclosedValue(metric.value)) rowsByLabel.set(metric.label, metric);
+  });
+
+  return Array.from(allowed)
+    .map((label) => rowsByLabel.get(label))
+    .filter((metric): metric is DilutionMetricItem => Boolean(metric))
+    .slice(0, 4);
+}
+
+function normalizeInitialIpoSnapshotMetric(metric: DilutionMetricItem): DilutionMetricItem | null {
+  const normalized = normalizeDisplayLookupLabel(metric.label);
+  if (/filing|stage/.test(normalized)) return { ...metric, label: "Filing stage" };
+  if (/term|status|price|share/.test(normalized) && isPendingIpoTermValue(metric.value)) {
+    return { ...metric, label: "Terms status", value: "Price and share count pending" };
+  }
+  if (/exchange|ticker|nasdaq|nyse/.test(normalized)) return { ...metric, label: "Proposed exchange / ticker" };
+  if (/underwriter|bookrunner|lead bank|lead manager/.test(normalized)) return { ...metric, label: "Underwriters" };
+  return null;
+}
+
+function formatInitialIpoListingValue(exchange: string, proposedTicker: string) {
+  const exchangeValue = isDisclosedValue(exchange) ? exchange : "Pending";
+  return isDisclosedValue(proposedTicker) ? `${exchangeValue}: ${proposedTicker}` : exchangeValue;
+}
+
+function compactInitialIpoUnderwriters(value: string) {
+  const cleaned = cleanDisclosureValue(value);
+  if (!isDisclosedValue(cleaned)) return "Pending";
+  return cleaned
+    .replace(/\b(?:joint )?book-?running managers?\b/gi, "bookrunners")
+    .replace(/\b(?:lead )?underwriters?\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
+}
+
+function readLabeledDisplayValue(value: unknown, labels: string[]) {
+  const wanted = new Set(labels.map(normalizeDisplayLookupLabel));
+  for (const item of recordArray(value)) {
+    const label = normalizeDisplayLookupLabel(readRowString(item, "label"));
+    if (!wanted.has(label)) continue;
+    return cleanDisclosureValue(readDisclosureValue(item.value) || readRowString(item, "value"));
+  }
+  return "";
+}
+
+function normalizeDisplayLookupLabel(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 function readDisplayPayloadData(displayPayload: Record<string, unknown> | null): Record<string, unknown> {
@@ -5338,9 +5561,13 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
       readRowString(displayPayloadData, "display_mode") ||
       readRowString(displayPayloadData, "offering_ui_mode"),
   );
-  const is424bOfferingTermsPayload =
+  const is424bS3OfferingTermsPayload =
     /^(?:424B|S-3|F-3)/i.test(filing.formType.trim()) &&
     readRowString(displayPayloadRecord, "display_type") === "offering_terms";
+  const isS1F1OfferingTermsPayload =
+    /^(?:S-1|F-1|EFFECT|POS AM)/i.test(filing.formType.trim()) &&
+    readRowString(displayPayloadRecord, "display_type") === "offering_terms";
+  const is424bOfferingTermsPayload = is424bS3OfferingTermsPayload || isS1F1OfferingTermsPayload;
   const isAuthoritative424bMode = is424bOfferingTermsPayload;
   const allowDisplayFallbacks = !is424bOfferingTermsPayload;
   const displayPayloadSearchText = JSON.stringify({
@@ -5549,7 +5776,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
   const marketContextCurrentShares = readMetricShareValue(filing.offeringMarketContext, "shares_outstanding");
   const metricCurrentShares = allowDisplayFallbacks
     ? readMetricShareValue(filing.offeringDilutionMetrics, "current_shares_outstanding") || marketContextCurrentShares
-    : marketContextCurrentShares;
+    : "";
   const filingCurrentShares = allowDisplayFallbacks ? findCurrentSharesOutstanding(sourceText) : "";
   const currentSharesOutstanding =
     dbCurrentShares ||

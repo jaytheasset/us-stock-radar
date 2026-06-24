@@ -11,6 +11,7 @@ export async function POST(request: NextRequest) {
     limit: readNumber(request.nextUrl.searchParams.get("limit"), bodyRecord.limit, 1, 50, 3),
     accessionNumber:
       request.nextUrl.searchParams.get("accessionNumber") || stringValue(bodyRecord.accessionNumber) || undefined,
+    cik: request.nextUrl.searchParams.get("cik") || stringValue(bodyRecord.cik) || undefined,
     countPerForm: readNumber(request.nextUrl.searchParams.get("countPerForm"), bodyRecord.countPerForm, 1, 100, 10),
     attachmentLimit: readNumber(
       request.nextUrl.searchParams.get("attachmentLimit"),
@@ -39,6 +40,7 @@ export async function GET(request: NextRequest) {
   const result = await runSecRawIngest({
     limit: readNumber(request.nextUrl.searchParams.get("limit"), null, 1, 50, 3),
     accessionNumber: request.nextUrl.searchParams.get("accessionNumber") || undefined,
+    cik: request.nextUrl.searchParams.get("cik") || undefined,
     countPerForm: readNumber(request.nextUrl.searchParams.get("countPerForm"), null, 1, 100, 10),
     attachmentLimit: readNumber(request.nextUrl.searchParams.get("attachmentLimit"), null, 0, 20, 6),
     formTypes: readCsv(request.nextUrl.searchParams.get("formTypes")),
