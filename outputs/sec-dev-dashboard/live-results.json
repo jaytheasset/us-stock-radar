@@ -1,0 +1,255 @@
+{
+  "s3-f3": [
+    {
+      "mode": "controlled_persist",
+      "status": "pass",
+      "ranAt": "2026-06-24T06:26:37.500Z",
+      "durationMs": 14500,
+      "room": "s3-f3",
+      "formTypes": [
+        "S-3",
+        "S-3/A",
+        "F-3",
+        "F-3/A",
+        "S-3ASR",
+        "F-3ASR"
+      ],
+      "accessionNumber": "0001104659-26-059352",
+      "rawItemId": "dafac189-429b-469b-9447-0efa8773799f",
+      "summary": "Persisted one controlled SEC filing event; alert delivery suppressed.",
+      "items": [
+        {
+          "event_id": "4be1122d-6d03-4427-8ab0-d1b10627e286",
+          "raw_item_id": "dafac189-429b-469b-9447-0efa8773799f",
+          "accession_number": "0001104659-26-059352",
+          "title": "Red Cat Holdings files universal shelf registration for future equity offerings",
+          "ticker": "RCAT",
+          "event_type": "dilution_risk",
+          "score": 45,
+          "delivery_level": "archive",
+          "detail_url": "/filings/archive/4be1122d-6d03-4427-8ab0-d1b10627e286",
+          "runtime_output": {
+            "event_title": "Red Cat Holdings files universal shelf registration for future equity offerings",
+            "event_type": "dilution_risk",
+            "display_type": "offering_terms",
+            "parser_route": "controlled persist / analysis path",
+            "is_parser_completed_archive": false,
+            "is_excluded": false,
+            "score": 45,
+            "delivery_level": "archive",
+            "signal": "neutral",
+            "ticker": "RCAT",
+            "filing_summary": "",
+            "quick_take": "Red Cat Holdings filed an automatically effective universal shelf registration statement to allow for future offerings of common stock, preferred stock, warrants, or units.",
+            "summary": "Red Cat Holdings, Inc. filed a universal shelf registration statement on Form S-3ASR, which became automatically effective. This filing registers an unspecified amount of common stock, preferred stock, warrants, and units that the company or selling stockholders may offer and sell from time to time in future primary or secondary offerings. Specific terms, amounts, and prices will be determined at the time of each offering through a prospectus supplement. The company does not receive proceeds from sales by selling stockholders.",
+            "archive_summary": "Red Cat Holdings, Inc. filed a universal shelf registration statement on Form S-3ASR, which became automatically effective. This filing registers an unspecified amount of common stock, preferred stock, warrants, and units that the company or selling stockholders may offer and sell from time to time in future primary or secondary offerings. Specific terms, amounts, and prices will be determined at the time of each offering through a prospectus supplement. The company does not receive proceeds from sales by selling stockholders.",
+            "score_reason": "This is a universal automatic shelf registration, which provides capacity for future offerings but does not immediately launch a sale. The impact is currently limited as specific terms and amounts will be determined in subsequent prospectus supplements.",
+            "why_it_matters": "This shelf provides Red Cat Holdings with flexibility for future capital raises, but no immediate offering terms or dilution are set.",
+            "key_evidence": [
+              "Red Cat Holdings, Inc. filed an automatically effective universal shelf registration statement (Form S-3ASR) on May 12, 2026.",
+              "The company may offer common stock, preferred stock, warrants, or units from time to time.",
+              "Selling stockholders may also offer and sell shares of common stock.",
+              "Specific amounts, prices, and terms of any offering will be set forth in a future prospectus supplement.",
+              "The company stated it will not receive any proceeds from the sale of shares by selling stockholders, unless otherwise set forth in a prospectus supplement.",
+              "Proceeds from company sales, if any, are intended for general corporate purposes, including working capital, capital expenditures, refinancing, or acquisitions."
+            ],
+            "what_to_watch_next": [
+              "Monitor for future prospectus supplements that would detail specific offerings (e.g., share counts, prices, terms, selling stockholders).",
+              "Observe market conditions and Red Cat Holdings' capital needs for any indication of when future offerings might occur.",
+              "Review any subsequent filings that name selling stockholders or specify a concrete offering amount."
+            ],
+            "parser_signals": [],
+            "transaction_fingerprint": null,
+            "display_data": [
+              {
+                "label": "display_mode",
+                "value": "shelf_capacity"
+              },
+              {
+                "label": "risk_label",
+                "value": "Future Offering Capacity"
+              },
+              {
+                "label": "current_shares",
+                "value": "object"
+              },
+              {
+                "label": "total_potential_supply",
+                "value": "object"
+              },
+              {
+                "label": "snapshot_metrics",
+                "value": "4 items"
+              },
+              {
+                "label": "key_cash_terms",
+                "value": "object"
+              },
+              {
+                "label": "registered_security_totals",
+                "value": "object"
+              },
+              {
+                "label": "supply_segments",
+                "value": "0 items"
+              },
+              {
+                "label": "investor_takeaway",
+                "value": "This filing creates future offering capacity for Red Cat Holdings but does not launch a specific sale. Investors should monitor for prospectus supplements detailing any actual offerings."
+              },
+              {
+                "label": "offering_details",
+                "value": "4 items"
+              }
+            ],
+            "display_payload_debug": {
+              "display_type": "offering_terms",
+              "display_version": "1.0",
+              "display_mode": "shelf_capacity",
+              "risk_label": "Future Offering Capacity",
+              "snapshot_metrics": [
+                {
+                  "label": "Shelf capacity",
+                  "value": "Universal Shelf",
+                  "emphasis": false,
+                  "note": "Capacity for future offerings; no fixed amount disclosed.",
+                  "tone": "neutral"
+                },
+                {
+                  "label": "Market cap",
+                  "value": "$1.10B",
+                  "emphasis": false,
+                  "note": "Latest market context",
+                  "tone": "neutral"
+                },
+                {
+                  "label": "Capacity vs market cap",
+                  "value": "Undetermined",
+                  "emphasis": false,
+                  "note": "No fixed shelf amount disclosed to compare.",
+                  "tone": "neutral"
+                },
+                {
+                  "label": "Sale status",
+                  "value": "No active sale terms",
+                  "emphasis": true,
+                  "note": "Needs later prospectus supplement",
+                  "tone": "neutral"
+                }
+              ],
+              "offering_details": [
+                {
+                  "label": "Offering Type",
+                  "value": "Universal Shelf Registration"
+                },
+                {
+                  "label": "Active Sale Terms",
+                  "value": "None (requires prospectus supplement)"
+                },
+                {
+                  "label": "Securities Covered",
+                  "value": "Common stock, preferred stock, warrants, units"
+                },
+                {
+                  "label": "Use of Proceeds",
+                  "value": "General corporate purposes (for company sales, if any)"
+                }
+              ],
+              "amendment_changes": null,
+              "supply_segments": [],
+              "warrant_details": null,
+              "mixed_offering_components": null,
+              "key_cash_terms": {
+                "resale_proceeds_to_company": {
+                  "value_text": "$0 (unless stated otherwise in prospectus supplement)"
+                },
+                "issuer_primary_or_closing_cash": {
+                  "value_text": "Undetermined (depends on future offerings)"
+                },
+                "conditional_warrant_cash": {
+                  "value_text": ""
+                },
+                "prefunded_warrant_exercise_cash": {
+                  "value_text": ""
+                },
+                "common_warrant_cash_exercise_proceeds": {
+                  "value_text": ""
+                },
+                "private_placement_proceeds": {
+                  "value_text": ""
+                },
+                "sec_registration_value": {
+                  "value_text": ""
+                },
+                "explanation": "The company will receive proceeds from its own sales, but not from sales by selling stockholders unless specified otherwise in a prospectus supplement. No offering amount is fixed yet."
+              },
+              "registered_security_totals": {},
+              "s8_context_details": null,
+              "display_warnings": [],
+              "s3_amendment_change_label_policy": {
+                "source": "LLM chooses labels; prompt says use approved labels first, custom labels only if needed.",
+                "approved_labels": [
+                  "Prospectus date",
+                  "Share-count basis",
+                  "Reference prices",
+                  "Registered shares",
+                  "Offering size",
+                  "Selling holders",
+                  "Securities covered",
+                  "Warrant terms",
+                  "Exercise price",
+                  "Conversion terms",
+                  "Sale price",
+                  "Resale method",
+                  "Agreement date",
+                  "Effective date",
+                  "Registration obligation",
+                  "Use of proceeds",
+                  "Company proceeds",
+                  "Plan of distribution",
+                  "Risk factors",
+                  "Fee table",
+                  "Incorporated documents",
+                  "Expert consents",
+                  "Legal opinion",
+                  "Exhibit status"
+                ]
+              }
+            },
+            "usage": {
+              "input_tokens": 47945,
+              "output_tokens": 1372,
+              "total_tokens": 49317,
+              "promptTokenCount": 47945,
+              "candidatesTokenCount": 1372,
+              "totalTokenCount": 49317,
+              "promptTokensDetails": [
+                {
+                  "modality": "TEXT",
+                  "tokenCount": 47945
+                }
+              ],
+              "serviceTier": "standard"
+            },
+            "cost_estimate": null
+          },
+          "alert_delivery": {
+            "ok": true,
+            "suppressed": true,
+            "reason": "alert delivery suppressed by controlled SEC development persist"
+          }
+        }
+      ],
+      "diagnostics": {
+        "raw_source": "existing_raw_item",
+        "prompt": {
+          "key": "sec_s3_offering_analysis",
+          "version": "v37",
+          "triageKey": null,
+          "auditKey": null
+        }
+      },
+      "error": null
+    }
+  ]
+}

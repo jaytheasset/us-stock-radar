@@ -2,12 +2,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
-import { buildS1F1AnalysisPrompt, buildS1F1DisplayPayload, validateS1F1RequiredOutputShape } from "./analysisPrompt.ts";
+import { buildS1F1AnalysisPrompt, validateS1F1RequiredOutputShape } from "./analysisPrompt.ts";
 import { parseS1F1Filing } from "./parser.ts";
 import { selectPreliminaryS1F1Route } from "./routerPrompt.ts";
 import {
   APPROVED_SEC_EVENT_TYPES,
-  deliveryLevelFromScore,
   type S1F1ParserInput,
   type S1F1RequiredOutputJson,
 } from "./types.ts";
@@ -35,16 +34,11 @@ describe("S-1/F-1 analysis output fixtures", () => {
 
       assert.deepEqual(errors, []);
       assert.equal(expected.analysis_output.event_type, fixture.expected.event_type);
-      assert.equal(expected.fixture_expected.expected_delivery_level, fixture.expected.delivery_level);
       assert.ok(APPROVED_SEC_EVENT_TYPES.includes(expected.analysis_output.event_type));
-      assert.equal(
-        expected.fixture_expected.expected_delivery_level,
-        deliveryLevelFromScore(expected.analysis_output.score),
-      );
     });
   }
 
-  it("builds an analysis prompt that preserves the parser > router > analysis flow", () => {
+  it("builds an analysis prompt that preserves the parser > analysis LLM flow", () => {
     const fixture = loadJson<{ input: S1F1ParserInput }>("fixtures/edgar-reddit-s1a-pricing.json");
     const parserOutput = parseS1F1Filing(fixture.input);
     const route = selectPreliminaryS1F1Route(parserOutput);
@@ -52,32 +46,28 @@ describe("S-1/F-1 analysis output fixtures", () => {
 
     assert.ok(prompt.includes("Required Output JSON"));
     assert.ok(prompt.includes("S-1 / F-1, S-1/A / F-1/A"));
-    assert.ok(prompt.includes("Do not call live FMP"));
-    assert.ok(prompt.includes("Do not write UI instructions"));
+    assert.ok(prompt.includes("Do not call live APIs"));
+    assert.ok(prompt.includes("There is no S-1/F-1 router LLM"));
+    assert.ok(prompt.includes("Return display_payload yourself"));
     assert.ok(prompt.includes("Cleaned source input"));
     assert.ok(prompt.includes("cleaned_source_blocks"));
-    assert.ok(prompt.includes("Do not use parser-generated facts"));
+    assert.ok(prompt.includes("Do not treat parser-generated facts"));
     assert.ok(!prompt.includes("Parser output:"));
     assert.ok(prompt.includes('"parser_output"'));
     assert.ok(prompt.includes('"analysis_output"'));
     assert.ok(prompt.includes('"display_payload"'));
-    assert.ok(prompt.includes('"fixture_expected"'));
+    assert.ok(!prompt.includes('"fixture_expected"'));
   });
 
-  it("builds a versioned display payload before analysis LLM writing", () => {
+  it("requires the analysis LLM to choose the S-1/F-1 display mode", () => {
     const fixture = loadJson<{ input: S1F1ParserInput }>("fixtures/edgar-cava-s1-ipo.json");
     const parserOutput = parseS1F1Filing(fixture.input);
-    const route = {
-      ...selectPreliminaryS1F1Route(parserOutput),
-      event_type: "ipo_listing" as const,
-      display_type: "offering_terms" as const,
-    };
-    const displayPayload = buildS1F1DisplayPayload(parserOutput, route);
+    const prompt = buildS1F1AnalysisPrompt(parserOutput);
 
-    assert.equal(displayPayload.display_type, route.display_type);
-    assert.equal(displayPayload.display_version, "s1-f1-display-v1");
-    assert.ok("offering" in displayPayload.data);
-    assert.ok(Array.isArray(displayPayload.evidence));
+    assert.ok(prompt.includes("display_payload.data.display_mode"));
+    assert.ok(prompt.includes("ipo_registration"));
+    assert.ok(prompt.includes("resale_registration"));
+    assert.ok(prompt.includes("rule_462b_mef"));
   });
 
   it("does not use SPAC transaction UI for blank-check IPO registration alone", () => {
@@ -87,12 +77,10 @@ describe("S-1/F-1 analysis output fixtures", () => {
         "This is the initial public offering of units of a blank check company and special purpose acquisition company. No target company has been selected.",
     });
     const route = selectPreliminaryS1F1Route(parserOutput);
-    const displayPayload = buildS1F1DisplayPayload(parserOutput, route);
 
     assert.equal(route.event_type, "other");
     assert.equal(route.display_type, "generic");
     assert.equal(parserOutput.raw.spacTransactionStatus?.statusDetected, false);
-    assert.equal(displayPayload.display_type, "generic");
     assert.ok(parserOutput.raw.cleanedSourceBlocks?.some((block) => block.text.includes("initial public offering")));
   });
 
@@ -103,11 +91,9 @@ describe("S-1/F-1 analysis output fixtures", () => {
         "The registration statement relates to a de-SPAC business combination with TargetCo, Inc. The target company is TargetCo, Inc. The expected ticker will be TGTX. The redemption rate was 82%. The minimum cash condition was waived. PIPE financing and a backstop are in place. The expected closing date is June 30, 2026. The ticker change date is July 1, 2026. Trust cash before redemptions was $250 million and trust cash after redemptions was $45 million. Redemption price was $10.50 per share. Public shares remaining were 4,500,000.",
     });
     const route = selectPreliminaryS1F1Route(parserOutput);
-    const displayPayload = buildS1F1DisplayPayload(parserOutput, route);
 
     assert.equal(route.event_type, "other");
     assert.equal(route.display_type, "generic");
-    assert.equal(displayPayload.display_type, "generic");
     assert.ok(parserOutput.raw.cleanedSourceBlocks?.some((block) => block.text.includes("TargetCo, Inc")));
     assert.ok(parserOutput.raw.cleanedSourceBlocks?.some((block) => block.text.includes("minimum cash condition")));
   });

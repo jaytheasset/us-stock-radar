@@ -118,6 +118,7 @@
   "display_payload": {
     "display_type": "offering_terms",
     "data": {
+      "display_mode": "ipo_registration",
       "filing_variant": "base_registration",
       "offering_kind": "ipo",
       "ipo_kind": "traditional",

@@ -79,18 +79,17 @@ describe("S-1/F-1 router prompt", () => {
         },
       ],
     });
-    const route = s1F1Adapter.selectRoute(parserOutput);
-    const displayPayload = s1F1Adapter.buildDisplayPayload(parserOutput, route);
 
     assert.equal(s1F1Adapter.key, "sec-s1-f1");
     assert.equal(s1F1Adapter.parserGroup, "s1-f1");
-    assert.equal(s1F1Adapter.analysisMode, "parser_router_display_analysis");
+    assert.equal(s1F1Adapter.analysisMode, "analysis_only");
     assert.deepEqual([...s1F1Adapter.supportedForms], ["S-1", "S-1/A", "F-1", "F-1/A"]);
+    assert.equal("selectRoute" in s1F1Adapter, false);
+    assert.equal("buildDisplayPayload" in s1F1Adapter, false);
+    assert.equal(typeof s1F1Adapter.buildAnalysisPrompt, "function");
     assert.equal(parserOutput.accessionNumber, "0000000000-26-000001");
     assert.equal(parserOutput.facts.ticker, "TEST");
     assert.equal(parserOutput.raw.attachmentNames[0], "ex107.htm");
-    assert.equal(route.event_type, "other");
-    assert.equal(displayPayload.display_type, "generic");
     assert.ok(parserOutput.raw.cleanedSourceBlocks?.some((block) => block.text.includes("initial public offering")));
   });
 

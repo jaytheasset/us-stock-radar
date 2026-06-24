@@ -2,17 +2,11 @@ import {
   APPROVED_SEC_EVENT_TYPES,
   type S1F1ParserOutput,
   type S1F1RequiredOutputJson,
-  type S1F1RouterDecision,
-  deliveryLevelFromScore,
   isApprovedSecEventType,
 } from "./types.ts";
-import { buildS1F1DisplayPayload } from "./displayPayload.ts";
 import { buildS1F1LlmSourceInput } from "./routerPrompt.ts";
-import type { S1F1DisplayPayload } from "./types.ts";
 
-export { buildS1F1DisplayPayload } from "./displayPayload.ts";
-
-const REQUIRED_TOP_LEVEL_KEYS = ["parser_output", "analysis_output", "display_payload", "fixture_expected"] as const;
+const REQUIRED_TOP_LEVEL_KEYS = ["parser_output", "analysis_output", "display_payload"] as const;
 
 const REQUIRED_ANALYSIS_KEYS = [
   "source_group",
@@ -41,40 +35,122 @@ const REQUIRED_ANALYSIS_KEYS = [
   "needs_human_review",
 ] as const;
 
+const S1F1_DISPLAY_MODES = [
+  "ipo_registration",
+  "ipo_amendment",
+  "resale_registration",
+  "mixed_registration",
+  "spac_ipo",
+  "rule_462b_mef",
+  "post_effective_amendment",
+  "generic",
+] as const;
+
+const S1F1_PROMPT_VERSION = "s1-f1-analysis-v2";
+
 export function buildS1F1AnalysisPrompt(
   parserOutput: S1F1ParserOutput,
-  routerDecision: S1F1RouterDecision,
-  displayPayload: S1F1DisplayPayload = buildS1F1DisplayPayload(parserOutput, routerDecision),
+  _routerDecision?: unknown,
+  _displayPayload?: unknown,
 ): string {
   return [
-    "You are the SEC S-1/F-1 analysis prompt for the S-1 / F-1, S-1/A / F-1/A form room.",
-    "Use only the cleaned source input JSON and fixture market context if present.",
-    "Do not call live FMP, live DB, ingest, alerts, common code, or UI code.",
-    "Write investor-facing analysis, but keep every claim tied to cleaned source blocks or fixture market context.",
-    "Do not write UI instructions or invent UI fields.",
-    "Classify from the cleaned source blocks. Do not rely on parser-generated labels.",
-    "Do not use parser-generated facts, signals, extraction summaries, offering kinds, risk flags, top signals, event types, display types, or scores as analysis evidence.",
-    "Do not invent, correct, or substitute ticker symbols. If ticker or exchange is unclear from the cleaned source input, preserve null or state uncertainty.",
-    "If the filing text appears to contain a conflicting proposed ticker, preserve the parser ticker, put the conflict in key_evidence or needs_human_review, and do not overwrite primary_ticker.",
-    "Amendments are update filings. Explain whether a changed term is material; routine amendments should remain low-score archive items.",
-    "POS AM and Rule 462(b) MEF filings are boundary variants. Do not analyze them as ordinary S-1/A or F-1/A filings unless the cleaned source blocks show ordinary registration content.",
-    "For S-1/A and F-1/A, use only compact parent_filing_context when present. Do not assume access to full parent raw text.",
+    "You are writing the final investor-facing analysis for one SEC S-1/F-1 registration filing.",
+    "Use only cleaned_source_blocks, attachment inventory, parent_filing_context if present, and optional market context in the cleaned source input.",
+    "S-1/F-1 flow is Parser -> cleaned source blocks -> Analysis LLM -> Required Output JSON.",
+    "There is no S-1/F-1 router LLM and no parser-built display payload in runtime.",
+    "The parser only preserves relevant source text. Do not treat parser-generated facts, signal labels, offering kinds, risk flags, extraction summaries, or display labels as authority.",
+    "Choose event_type, score, signal, display_payload.display_type, and display_payload.data yourself from the source blocks.",
+    "Do not call live APIs, live market data, DBs, ingest code, alert delivery, or UI code.",
+    "Do not invent, correct, or substitute ticker symbols. If ticker or exchange is unclear, preserve null or state uncertainty.",
+    "If a source block conflicts with package ticker context, keep the package ticker in primary_ticker and explain the conflict in key_evidence or needs_human_review.",
     "",
     "Approved event_type values, and no others:",
     APPROVED_SEC_EVENT_TYPES.map((eventType) => `- ${eventType}`).join("\n"),
     "",
-    "Score bands are fixed:",
-    "- score below 50 => fixture_expected.expected_delivery_level must be archive",
-    "- score 50 to 74 => fixture_expected.expected_delivery_level must be feed",
-    "- score 75 or above => fixture_expected.expected_delivery_level must be alert",
+    "Delivery score bands:",
+    "- score below 50 = archive",
+    "- score 50 to 74 = feed",
+    "- score 75 or above = alert",
     "",
-    "display_payload is already built by the UI payload builder. Its display_type must be one of:",
-    "- generic",
-    "- offering_terms",
-    "- candidate_special",
-    "- spac_transaction_status",
+    "Writing limits:",
+    "- quick_take: one sentence, under 28 words.",
+    "- summary: 2-4 sentences, under 100 words total.",
+    "- why_it_matters: one sentence, under 35 words.",
+    "- score_reason: under 18 words.",
+    "- bullish_points: up to 3 short items. This legacy schema key is displayed as Positive; leave empty if there is no direct positive point.",
+    "- bearish_points: up to 3 short items. This legacy schema key is displayed as Negative; leave empty if there is no direct negative point.",
+    "- key_evidence: up to 4 source-backed facts.",
+    "- what_to_watch_next: up to 3 concrete next filings, dates, approvals, pricing terms, effectiveness, lock-up, or closing variables.",
+    "Use plain investor language. Avoid abstract phrases such as holder economics, structural impact, optionality, de-risked, or execution visibility.",
+    "Do not create risks from form type alone. Describe the disclosed registration, offering mechanics, terms, changes, conditions, and dates.",
     "",
-    "Return JSON only in the Required Output JSON shape:",
+    "S-1/F-1 scoring guide:",
+    "- Initial S-1/F-1 IPO registration with no final price or share count: usually 35-55.",
+    "- S-1/A or F-1/A with concrete price range, share count, underwriters, ADS ratio, or listing timing: usually 50-70.",
+    "- Final IPO pricing, first trading imminent, pricing outside filed range, postponement, withdrawal, or major repricing: 75+ possible.",
+    "- Resale registration: score by resale shares versus outstanding/float and sale likelihood. Small routine resale = archive/feed; large unrestricted overhang = feed/alert.",
+    "- Mixed primary/resale/warrant/convertible registration: score the highest source-backed investor impact without double-counting the same shares.",
+    "- SPAC IPO registration alone is usually feed or archive; de-SPAC transaction-status facts belong to S-4/proxy/424B style scoring if directly disclosed.",
+    "- Rule 462(b) MEF: score only the added shares/amount, not the full parent registration. Additional capacity only = usually archive/feed unless very large or final pricing is active.",
+    "- POS AM: routine deregistration, consent, exhibit, or housekeeping = archive. Material change to registered securities, resale pool, price, effectiveness, or company proceeds can be feed.",
+    "- Do not score 75+ merely because the form is important. Alert requires new source-backed information likely to affect near-term price, volatility, liquidity, holder economics, or trading decisions.",
+    "",
+    "Display payload contract:",
+    "- Return display_payload yourself. Do not copy parser-built UI drafts.",
+    "- display_payload.display_type must be one of: generic, offering_terms, candidate_special, spac_transaction_status.",
+    "- Use offering_terms for IPO registrations, IPO amendments, resale registrations, mixed registrations, Rule 462(b) MEF, POS AM with securities terms, or any source-backed offering/dilution terms.",
+    "- Use generic only when the source blocks are too weak for a structured offering UI.",
+    "- Use spac_transaction_status only for source-backed de-SPAC transaction-status facts, not plain SPAC IPO registration.",
+    "- display_payload.display_version must be s1-f1-display-v1.",
+    "- display_payload.data.display_mode must be one of:",
+    S1F1_DISPLAY_MODES.map((mode) => `  - ${mode}`).join("\n"),
+    "- display_payload.data must be intentionally filled when display_type is offering_terms. Do not leave it as an empty object.",
+    "- If event_type is ipo_listing, include display_payload.data.ipo_kind as traditional or spac.",
+    "- Snapshot metrics are the user-facing Dilution/Offering Snapshot cards. Fill up to 4 rows as { label, value, note, tone, emphasis }.",
+    "- Keep snapshot value text short. Use null for unavailable non-snapshot fields; do not write Not disclosed as filler.",
+    "",
+    "Display mode rules:",
+    "ipo_registration:",
+    "- Use for initial IPO/F-1/S-1 registration before final pricing.",
+    "- Snapshot labels: Shares / ADS offered, Price range, Gross proceeds, Proposed exchange.",
+    "- Offering details labels: Underwriters, Use of Proceeds, Lock-up, ADS Ratio, Voting Structure, Foreign Issuer / VIE Risk.",
+    "",
+    "ipo_amendment:",
+    "- Use for S-1/A or F-1/A updating IPO terms.",
+    "- Snapshot labels: Updated shares / ADS, Updated price range, Updated offering size, Key change.",
+    "- What changed labels: Price range, Shares offered, ADS ratio, Underwriters, Use of proceeds, Lock-up, Risk factors, Prospectus date, Financials updated.",
+    "- Only write What Changed from confirmed parent_filing_context or explicit current-filing amendment language.",
+    "",
+    "resale_registration:",
+    "- Use for selling stockholder resale registrations.",
+    "- Snapshot labels: Resale shares, Overhang vs outstanding, Company proceeds, Selling holders.",
+    "- Offering details labels: Selling Holders, Agreement Date, Resale Method, Sale Price, Source Instrument, Registration Obligation.",
+    "- Company proceeds should distinguish no resale proceeds from conditional warrant/conversion cash.",
+    "",
+    "mixed_registration:",
+    "- Use when primary issuance, resale, warrants, convertibles, rights, or units are all material and no single component dominates.",
+    "- Snapshot labels: Primary component, Resale component, Warrant/convertible component, Main risk.",
+    "- Do not double-count the same shares across components.",
+    "",
+    "spac_ipo:",
+    "- Use for blank-check/SPAC IPO registration, not de-SPAC status.",
+    "- Snapshot labels: Units offered, Unit price, Trust amount, Warrant / right terms.",
+    "- Offering details labels: Sponsor, Trust Account, Redemption Terms, Unit Components, Proposed Exchange.",
+    "",
+    "rule_462b_mef:",
+    "- Use for S-1MEF/F-1MEF or Rule 462(b) additional registration.",
+    "- Snapshot labels: Additional shares / ADS, Total registered pool, Additional offering value, Rule 462(b) limit.",
+    "- What changed labels: Additional registration, Prior registration statement, Added shares / amount, Fee table.",
+    "",
+    "post_effective_amendment:",
+    "- Use for POS AM or post-effective amendments tied to S-1/F-1 registration.",
+    "- Snapshot labels: Amendment type, Securities affected, Registration status, Company proceeds.",
+    "- What changed labels: Deregistered securities, Unsold securities removed, Prospectus date, Expert consents, Legal opinion, Filing status.",
+    "",
+    "generic:",
+    "- Use only when the source is too weak for a structured registration UI. Still provide concise analysis_output.",
+    "",
+    "Required Output JSON shape:",
     JSON.stringify(
       {
         parser_output: {
@@ -83,6 +159,11 @@ export function buildS1F1AnalysisPrompt(
           formType: parserOutput.formType,
           accessionNumber: parserOutput.accessionNumber,
           isSupported: parserOutput.isSupported,
+          facts: {},
+          signals: [],
+          calendarItems: [],
+          warnings: [],
+          raw: {},
         },
         analysis_output: {
           source_group: "filings",
@@ -113,19 +194,20 @@ export function buildS1F1AnalysisPrompt(
         display_payload: {
           display_type: "generic | offering_terms | candidate_special | spac_transaction_status",
           display_version: "s1-f1-display-v1",
-          data: {},
+          data: {
+            display_mode: "one supported S-1/F-1 display mode",
+            ipo_kind: "traditional | spac | null",
+            snapshot_metrics: [],
+            investor_takeaway: "one short sentence or null",
+            narrative_summary: "2-4 sentences, under 100 words, or null",
+            offering_details: [],
+            amendment_changes: [],
+            source_notes: [],
+            needs_human_review: false,
+            review_reasons: [],
+          },
           evidence: [],
           notes: [],
-        },
-        fixture_expected: {
-          expected_delivery_level: "archive | feed | alert",
-          expected_impact: "low | medium | high",
-          market_context_needed: false,
-          market_context_reason: null,
-          market_context_fields: [],
-          special_ui_needed: false,
-          special_ui_reason: null,
-          integration_notes: [],
         },
       },
       null,
@@ -134,6 +216,8 @@ export function buildS1F1AnalysisPrompt(
     "",
     "Cleaned source input:",
     JSON.stringify(buildS1F1LlmSourceInput(parserOutput), null, 2),
+    "",
+    `Prompt version: ${S1F1_PROMPT_VERSION}`,
   ].join("\n");
 }
 
@@ -209,17 +293,13 @@ export function validateS1F1RequiredOutputShape(value: unknown): string[] {
     if ("display_version" in display && typeof display.display_version !== "string") {
       errors.push("display_payload.display_version must be a string when present.");
     }
-  }
-
-  const fixtureExpected = root.fixture_expected as Record<string, unknown> | undefined;
-  if (!fixtureExpected || typeof fixtureExpected !== "object") {
-    errors.push("fixture_expected must be an object.");
-  } else if (analysis && typeof analysis.score === "number") {
-    const derivedDeliveryLevel = deliveryLevelFromScore(analysis.score);
-    if (fixtureExpected.expected_delivery_level !== derivedDeliveryLevel) {
-      errors.push(
-        `fixture_expected.expected_delivery_level must be ${derivedDeliveryLevel} for score ${analysis.score}.`,
-      );
+    const data = display.data as Record<string, unknown> | undefined;
+    if (display.display_type === "offering_terms") {
+      if (!data || typeof data !== "object" || !Object.keys(data).length) {
+        errors.push("display_payload.data must be filled for offering_terms.");
+      } else if (!S1F1_DISPLAY_MODES.includes(String(data.display_mode) as (typeof S1F1_DISPLAY_MODES)[number])) {
+        errors.push(`display_payload.data.display_mode must be one of: ${S1F1_DISPLAY_MODES.join(", ")}.`);
+      }
     }
   }
 

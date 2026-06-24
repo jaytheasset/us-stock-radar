@@ -61,7 +61,7 @@ test("analysis prompt uses parser, router, and fixture market context only", () 
   assert.match(prompt, /Do not choose UI templates/);
   assert.match(prompt, /Treat amendments and follow-up NT filings as updates/);
   assert.match(prompt, /For transition reports, preserve transition report type/);
-  assert.match(prompt, /Use accountant statements and Rule 12b-25\(c\) facts as evidence only/);
+  assert.match(prompt, /Use accountant statements and Rule 12b-25\(c\) source text as evidence only/);
   assert.match(prompt, /"market_cap": 210000000/);
   assert.match(prompt, /"event_type": "sales_performance"/);
   assert.match(prompt, /"display_version": "nt_late_filing_v1"/);

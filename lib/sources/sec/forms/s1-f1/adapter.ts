@@ -1,7 +1,5 @@
 import { buildS1F1AnalysisPrompt } from "./analysisPrompt.ts";
-import { buildS1F1DisplayPayload } from "./displayPayload.ts";
 import { parseS1F1Filing } from "./parser.ts";
-import { buildS1F1RouterPrompt, selectPreliminaryS1F1Route } from "./routerPrompt.ts";
 import {
   S1F1_PARSER_GROUP,
   S1F1_PARSER_VERSION,
@@ -12,7 +10,7 @@ import {
 export const S1F1_ADAPTER_KEY = "sec-s1-f1";
 export const S1F1_SUPPORTED_FORMS = ["S-1", "S-1/A", "F-1", "F-1/A"] as const;
 export const S1F1_ADJACENT_FORMS = ["POS AM", "S-1MEF", "F-1MEF"] as const;
-export const S1F1_ANALYSIS_MODE = "parser_router_display_analysis";
+export const S1F1_ANALYSIS_MODE = "analysis_only";
 
 type RuntimeAttachment = {
   name?: string | null;
@@ -79,9 +77,6 @@ export const s1F1Adapter = {
   parse: parseS1F1RuntimeFiling,
   parserEntrypoint: parseS1F1Filing,
   normalizeParserInput: normalizeS1F1ParserInput,
-  selectRoute: selectPreliminaryS1F1Route,
-  buildRouterPrompt: buildS1F1RouterPrompt,
-  buildDisplayPayload: buildS1F1DisplayPayload,
   buildAnalysisPrompt: buildS1F1AnalysisPrompt,
 } as const;
 

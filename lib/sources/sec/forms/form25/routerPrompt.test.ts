@@ -1,14 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { registerHooks } from "node:module";
 import { join } from "node:path";
-
-registerLocalTsResolutionHook();
-
-const { SEC_FORM25_APPROVED_EVENT_TYPES, parseSecForm25Filing } = await import(new URL("parser.ts", import.meta.url).href);
-const { buildSecForm25RouterInput, buildSecForm25RouterPromptDraft, secForm25RouterResponseSchema } = await import(
-  new URL("routerPrompt.ts", import.meta.url).href
-);
+import { SEC_FORM25_APPROVED_EVENT_TYPES, parseSecForm25Filing } from "./parser";
+import { buildSecForm25RouterInput, buildSecForm25RouterPromptDraft, secForm25RouterResponseSchema } from "./routerPrompt";
 
 const sentinel = "RAW_FORM25_FULL_TEXT_SENTINEL_SHOULD_NOT_REACH_PROMPTS";
 const fixturesDir = join(process.cwd(), "lib", "sources", "sec", "forms", "form25", "fixtures");
@@ -29,8 +23,9 @@ assert.equal(routerPrompt.user.includes(sentinel), false, "router prompt must no
 assert.equal(JSON.stringify(routerInput).includes(sentinel), false, "router input must not include raw fixture text");
 assert.equal(Object.hasOwn(routerInput, "bodyText"), false);
 assert.equal(Object.hasOwn(routerInput, "analysisText"), false);
-assert.ok(routerInput.selected_evidence_snippets.length > 0);
-assert.ok(routerInput.source_inventory_summary.document_count > 0);
+assert.ok(routerInput.cleaned_source_blocks.length > 0);
+assert.ok(routerInput.cleaned_source_blocks.some((block) => block.block_type === "source_evidence"));
+assert.ok(routerInput.cleaned_source_blocks.some((block) => block.block_type === "source_inventory"));
 assert.deepEqual(secForm25RouterResponseSchema.properties.event_type.enum, SEC_FORM25_APPROVED_EVENT_TYPES);
 assert.deepEqual(secForm25RouterResponseSchema.properties.display_type.enum, [
   "sec_form25_listing_removal",
@@ -46,19 +41,4 @@ console.log("sec form25 router prompt checks passed");
 
 function readFixture(name: string) {
   return JSON.parse(readFileSync(join(fixturesDir, name), "utf8"));
-}
-
-function registerLocalTsResolutionHook() {
-  registerHooks({
-    resolve(specifier: string, context: any, nextResolve: any) {
-      if (specifier.startsWith("./") && !/\.[cm]?[jt]s$/i.test(specifier)) {
-        try {
-          return nextResolve(`${specifier}.ts`, context);
-        } catch {
-          return nextResolve(specifier, context);
-        }
-      }
-      return nextResolve(specifier, context);
-    },
-  });
 }

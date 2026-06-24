@@ -12,6 +12,7 @@ const forbiddenParserJudgmentKeys = new Set([
   "analysis_output",
   "analysis_action",
   "delivery_level",
+  "display_mode",
   "event_title",
   "event_type",
   "expected_delivery_level",
@@ -20,6 +21,7 @@ const forbiddenParserJudgmentKeys = new Set([
   "score",
   "score_reason",
   "signal",
+  "supply_segments",
 ]);
 
 function loadJson<T>(path: string): T {
@@ -34,10 +36,7 @@ function fixtureNames(): string[] {
 }
 
 function findForbiddenKeys(value: unknown, path = "parser_output"): string[] {
-  if (value == null || typeof value !== "object") {
-    return [];
-  }
-
+  if (value == null || typeof value !== "object") return [];
   if (Array.isArray(value)) {
     return value.flatMap((entry, index) => findForbiddenKeys(entry, `${path}[${index}]`));
   }
@@ -49,230 +48,76 @@ function findForbiddenKeys(value: unknown, path = "parser_output"): string[] {
   });
 }
 
-function signalNames(output: Sec424bParserOutput): string[] {
-  return output.signals.map((signal) => signal.name);
+function parseFixture(name: string): Sec424bParserOutput {
+  const fixture = loadJson<Sec424bFixtureInput>(join(fixturesDir, `${name}.json`));
+  return parse424bFiling(fixture);
+}
+
+function blockText(output: Sec424bParserOutput): string {
+  const blocks = output.raw.cleaned_source_blocks;
+  assert.ok(Array.isArray(blocks), "cleaned_source_blocks must be an array");
+  return blocks
+    .map((block) => (block && typeof block === "object" && "text" in block ? String((block as { text?: unknown }).text ?? "") : ""))
+    .join("\n");
 }
 
 describe("424B parser validation guardrails", () => {
-  it("keeps parser output free of final event, score, delivery, and analysis fields", () => {
+  it("keeps parser output free of final event, score, delivery, display, and analysis fields", () => {
     for (const name of fixtureNames()) {
-      const fixture = loadJson<Sec424bFixtureInput>(join(fixturesDir, `${name}.json`));
-      const output = parse424bFiling(fixture);
+      const output = parseFixture(name);
 
       assert.deepEqual(findForbiddenKeys(output), [], `${name} parser output contains judgment keys`);
+      assert.deepEqual(output.facts, {}, `${name} parser should not pre-fill LLM facts`);
+      assert.deepEqual(output.signals, [], `${name} parser should not preselect analysis signals`);
+      assert.equal(output.raw.deterministicCandidate ?? null, null, `${name} parser should not make deterministic display choices`);
     }
   });
 
-  it("preserves multiple source signals without making a deterministic final choice", () => {
-    const fixture = loadJson<Sec424bFixtureInput>(join(fixturesDir, "ambiguous-risk-supplement.json"));
-    const output = parse424bFiling(fixture);
-    const names = signalNames(output);
+  it("preserves source blocks for representative 424B structures without calculating final UI values", () => {
+    const primary = blockText(parseFixture("primary-high-dilution"));
+    assert.match(primary, /30,000,000 shares/i);
+    assert.match(primary, /\$1\.00 per share/i);
+    assert.match(primary, /\$27,600,000/i);
 
-    assert.ok(names.includes("fda_clinical"));
-    assert.ok(names.includes("listing_risk"));
-    assert.equal(output.raw.deterministicCandidate, null);
+    const resale = blockText(parseFixture("resale-overhang"));
+    assert.match(resale, /12,500,000 shares/i);
+    assert.match(resale, /will not receive any proceeds/i);
+    assert.match(resale, /conversion of notes and exercise of warrants/i);
+
+    const atm = blockText(parseFixture("atm-market-context"));
+    assert.match(atm, /At Market Issuance Sales Agreement/i);
+    assert.match(atm, /\$100,000,000/i);
+    assert.match(atm, /at-the-market offering under Rule 415/i);
+
+    const warrants = blockText(parseFixture("multi-leg-warrant-offering"));
+    assert.match(warrants, /pre-funded warrants/i);
+    assert.match(warrants, /common warrants/i);
+    assert.match(warrants, /\$0\.00001 per share/i);
+    assert.match(warrants, /\$3\.80 per share/i);
   });
 
-  it("keeps structured-note reference assets separate from issuer identity", () => {
-    const fixture = loadJson<Sec424bFixtureInput>(join(fixturesDir, "structured-note-pdf.json"));
-    const output = parse424bFiling(fixture);
-    const facts = output.facts as {
-      issuer?: { ticker?: string | null };
-      structuredNoteTerms?: { referenceTicker?: string | null };
-      flags?: { structuredNote?: boolean; pdfTableFragility?: boolean };
-    };
+  it("keeps structured-note reference assets as source text instead of issuer facts", () => {
+    const output = parseFixture("structured-note-pdf");
+    const text = blockText(output);
 
-    assert.equal(facts.issuer?.ticker, null);
-    assert.equal(facts.structuredNoteTerms?.referenceTicker, "TSLA");
-    assert.equal(facts.flags?.structuredNote, true);
-    assert.equal(facts.flags?.pdfTableFragility, true);
+    assert.deepEqual(output.facts, {});
+    assert.match(text, /Issuer:\s*Nomura America Finance/i);
+    assert.match(text, /Reference Asset:\s*Common Stock of Tesla/i);
+    assert.match(text, /\(TSLA\)/i);
     assert.ok(output.warnings.includes("PDF text-layer page markers detected; table pairings may require review."));
   });
 
-  it("does not turn non-common security variants into deterministic analysis decisions", () => {
-    for (const name of [
-      "final-preferred-depositary",
-      "multi-leg-warrant-offering",
-      "rights-offering",
-      "structured-note-pdf",
-    ]) {
-      const fixture = loadJson<Sec424bFixtureInput>(join(fixturesDir, `${name}.json`));
-      const output = parse424bFiling(fixture);
+  it("keeps non-common security variants as source blocks for LLM classification", () => {
+    for (const name of ["final-preferred-depositary", "rights-offering", "structured-note-pdf"]) {
+      const output = parseFixture(name);
 
-      assert.equal(output.raw.deterministicCandidate, null, `${name} should remain parser facts only`);
+      assert.deepEqual(output.facts, {}, `${name} should remain parser source blocks only`);
+      assert.ok(blockText(output).length > 100, `${name} should preserve source text for analysis`);
+      assert.equal(output.raw.deterministicCandidate ?? null, null, `${name} should not choose final UI mode`);
     }
   });
 
-  it("keeps variant-specific raw buckets empty when that variant is not present", () => {
-    const primary = parse424bFiling(
-      loadJson<Sec424bFixtureInput>(join(fixturesDir, "primary-high-dilution.json")),
-    );
-    const primaryFacts = primary.facts as {
-      preferredTerms?: Record<string, unknown>;
-      rightsOfferingTerms?: Record<string, unknown>;
-      structuredNoteTerms?: Record<string, unknown>;
-      multiLegWarrantTerms?: Record<string, unknown>;
-    };
-
-    assertAllNullish(primaryFacts.preferredTerms, ["depositaryShareCount", "liquidationPreferencePerPreferredShare"]);
-    assertAllNullish(primaryFacts.rightsOfferingTerms, ["rightsCount", "sharesIssuable", "rightsNeededPerShare"]);
-    assertAllNullish(primaryFacts.structuredNoteTerms, ["principalAmount", "referenceAsset", "referenceTicker"]);
-    assertAllNullish(primaryFacts.multiLegWarrantTerms, [
-      "commonSharesOffered",
-      "preFundedWarrants",
-      "commonWarrants",
-      "placementAgentWarrants",
-    ]);
-
-    const preferred = parse424bFiling(
-      loadJson<Sec424bFixtureInput>(join(fixturesDir, "final-preferred-depositary.json")),
-    );
-    const preferredFacts = preferred.facts as {
-      offeringTerms?: Record<string, unknown>;
-      rightsOfferingTerms?: Record<string, unknown>;
-      structuredNoteTerms?: Record<string, unknown>;
-      multiLegWarrantTerms?: Record<string, unknown>;
-    };
-
-    assertAllNullish(preferredFacts.offeringTerms, ["sharesOffered", "pricePerShare", "maxOfferingAmount"]);
-    assertAllNullish(preferredFacts.rightsOfferingTerms, ["rightsCount", "sharesIssuable"]);
-    assertAllNullish(preferredFacts.structuredNoteTerms, ["principalAmount", "referenceTicker"]);
-    assertAllNullish(preferredFacts.multiLegWarrantTerms, ["preFundedWarrants", "commonWarrants"]);
-  });
-
-  it("captures minimum required raw fields for each representative structure", () => {
-    const primary = factsFor("primary-high-dilution");
-    assert.deepEqual(pick(primary.offeringTerms, ["sharesOffered", "pricePerShare", "grossProceeds", "netProceeds"]), {
-      sharesOffered: 30000000,
-      pricePerShare: 1,
-      grossProceeds: 30000000,
-      netProceeds: 27600000,
-    });
-
-    const resale = factsFor("resale-overhang");
-    assert.deepEqual(pick(resale.offeringTerms, ["sellingStockholderShares", "noCompanyProceeds"]), {
-      sellingStockholderShares: 12500000,
-      noCompanyProceeds: true,
-    });
-
-    const atm = factsFor("atm-market-context");
-    assert.deepEqual(pick(atm.offeringTerms, ["maxOfferingAmount", "atTheMarket"]), {
-      maxOfferingAmount: 100000000,
-      atTheMarket: true,
-    });
-
-    const preferred = factsFor("final-preferred-depositary");
-    assert.deepEqual(
-      pick(preferred.preferredTerms, [
-        "depositaryShareCount",
-        "depositaryFraction",
-        "liquidationPreferencePerPreferredShare",
-        "liquidationPreferencePerDepositaryShare",
-        "dividendRatePercent",
-        "redemptionDate",
-        "proposedListingSymbol",
-      ]),
-      {
-        depositaryShareCount: 12000000,
-        depositaryFraction: "1/1000",
-        liquidationPreferencePerPreferredShare: 25000,
-        liquidationPreferencePerDepositaryShare: 25,
-        dividendRatePercent: 7,
-        redemptionDate: "June 15, 2031",
-        proposedListingSymbol: "AHLPRD",
-      },
-    );
-
-    const rights = factsFor("rights-offering");
-    assert.deepEqual(
-      pick(rights.rightsOfferingTerms, [
-        "rightsCount",
-        "sharesIssuable",
-        "rightsNeededPerShare",
-        "recordDate",
-        "expirationDate",
-        "transferable",
-        "overSubscriptionPrivilege",
-        "rightsSymbol",
-        "estimatedProceeds",
-      ]),
-      {
-        rightsCount: 10000000,
-        sharesIssuable: 3333333,
-        rightsNeededPerShare: 3,
-        recordDate: "June 2, 2026",
-        expirationDate: "June 30, 2026",
-        transferable: true,
-        overSubscriptionPrivilege: true,
-        rightsSymbol: "BRW RT",
-        estimatedProceeds: 48000000,
-      },
-    );
-
-    const warrant = factsFor("multi-leg-warrant-offering");
-    assert.deepEqual(
-      pick(warrant.multiLegWarrantTerms, [
-        "commonSharesOffered",
-        "preFundedWarrants",
-        "commonWarrants",
-        "placementAgentWarrants",
-        "preFundedWarrantPurchasePrice",
-        "preFundedWarrantExercisePrice",
-        "commonWarrantExercisePrice",
-        "placementAgentWarrantExercisePrice",
-        "ownershipCapPercent",
-      ]),
-      {
-        commonSharesOffered: 300000,
-        preFundedWarrants: 973886,
-        commonWarrants: 1273886,
-        placementAgentWarrants: 63694,
-        preFundedWarrantPurchasePrice: 3.92499,
-        preFundedWarrantExercisePrice: 0.00001,
-        commonWarrantExercisePrice: 3.8,
-        placementAgentWarrantExercisePrice: 4.3175,
-        ownershipCapPercent: 4.99,
-      },
-    );
-
-    const note = factsFor("structured-note-pdf");
-    assert.deepEqual(
-      pick(note.structuredNoteTerms, [
-        "issuer",
-        "guarantor",
-        "principalAmount",
-        "referenceAsset",
-        "referenceTicker",
-        "tradeDate",
-        "originalIssueDate",
-        "finalValuationDate",
-        "maturityDate",
-        "contingentCouponRatePercent",
-        "barrierPercent",
-        "cusip",
-        "isin",
-        "listed",
-      ]),
-      {
-        issuer: "Nomura America Finance, LLC",
-        guarantor: "Nomura Holdings, Inc",
-        principalAmount: 929000,
-        referenceAsset: "Common Stock of Tesla, Inc",
-        referenceTicker: "TSLA",
-        tradeDate: "May 18, 2026",
-        originalIssueDate: "May 21, 2026",
-        finalValuationDate: "May 17, 2028",
-        maturityDate: "May 22, 2028",
-        contingentCouponRatePercent: 14.25,
-        barrierPercent: 60,
-        cusip: "65539XXY7",
-        isin: "US65539XXY71",
-        listed: false,
-      },
-    );
-  });
-
-  it("warns on preliminary blanks instead of inferring missing final terms", () => {
+  it("warns on preliminary blanks without inferring missing final terms", () => {
     const output = parse424bFiling({
       formType: "424B5",
       accessionNumber: "0000000000-26-009999",
@@ -282,21 +127,11 @@ describe("424B parser validation guardrails", () => {
         exchange: "NYSE",
       },
       filingText:
-        "Subject to Completion Preliminary Prospectus Supplement Placeholder Bancorp, Inc. [●] Depositary Shares. Each depositary share represents a 1/40th interest in Series A Preferred Stock. Dividends will accrue at a rate of [●]% per annum. The liquidation preference will be $1,000 per preferred share, equivalent to $25 per depositary share.",
+        "Subject to Completion Preliminary Prospectus Supplement Placeholder Bancorp, Inc. [?? Depositary Shares. Each depositary share represents a 1/40th interest in Series A Preferred Stock. Dividends will accrue at a rate of [??% per annum. The liquidation preference will be $1,000 per preferred share, equivalent to $25 per depositary share.",
     });
-    const facts = output.facts as {
-      preferredTerms?: {
-        depositaryShareCount?: number | null;
-        dividendRatePercent?: number | null;
-        liquidationPreferencePerPreferredShare?: number | null;
-      };
-      flags?: { variableOrMissingTerms?: boolean };
-    };
 
-    assert.equal(facts.flags?.variableOrMissingTerms, true);
-    assert.equal(facts.preferredTerms?.depositaryShareCount, null);
-    assert.equal(facts.preferredTerms?.dividendRatePercent, null);
-    assert.equal(facts.preferredTerms?.liquidationPreferencePerPreferredShare, 1000);
+    assert.deepEqual(output.facts, {});
+    assert.match(blockText(output), /\[\?\?/);
     assert.ok(
       output.warnings.includes(
         "Preliminary, blank, or formula-based terms detected; parser should not infer missing final values.",
@@ -304,18 +139,3 @@ describe("424B parser validation guardrails", () => {
     );
   });
 });
-
-function assertAllNullish(record: Record<string, unknown> | undefined, keys: string[]): void {
-  for (const key of keys) {
-    assert.equal(record?.[key] ?? null, null, `${key} should not be populated for this fixture`);
-  }
-}
-
-function factsFor(name: string): Record<string, Record<string, unknown>> {
-  const fixture = loadJson<Sec424bFixtureInput>(join(fixturesDir, `${name}.json`));
-  return parse424bFiling(fixture).facts as Record<string, Record<string, unknown>>;
-}
-
-function pick(record: Record<string, unknown> | undefined, keys: string[]): Record<string, unknown> {
-  return Object.fromEntries(keys.map((key) => [key, record?.[key] ?? null]));
-}

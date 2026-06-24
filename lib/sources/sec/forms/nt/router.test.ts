@@ -112,7 +112,7 @@ test("router prompt hard-limits event types and live calls", () => {
 
   assert.match(prompt, /Do not call live APIs/);
   assert.match(prompt, /Do not invent event types/);
-  assert.match(prompt, /compact parser facts/);
+  assert.match(prompt, /Use only cleaned_source_blocks supplied below/);
   assert.match(prompt, /Choose display_type and display_version/);
   assert.match(prompt, /below 50 archive, 50 to 74 feed, 75 or above alert/);
   assert.doesNotMatch(prompt, /textExcerpt/);

@@ -118,6 +118,7 @@
   "display_payload": {
     "display_type": "offering_terms",
     "data": {
+      "display_mode": "ipo_amendment",
       "filing_variant": "pre_effective_amendment",
       "ipo_kind": "traditional",
       "shares_offered": 15276527,

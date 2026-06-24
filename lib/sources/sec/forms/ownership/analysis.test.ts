@@ -67,7 +67,7 @@ test("ownership analysis builds the prompt from current filing parser output and
     assert.ok(prompt.includes("Use selected_routing.event_type exactly"));
     assert.ok(prompt.includes("There is no Ownership router LLM in this path"));
     assert.ok(prompt.includes("Use the provided display_payload/display_type"));
-    assert.ok(prompt.includes("Do not choose the UI template"));
+    assert.ok(prompt.includes("Do not create new display types"));
     assert.ok(prompt.includes("Do not fail when missing"));
     assert.ok(prompt.includes("Do not use additive point stacking"));
     assert.ok(prompt.includes("Keep score band reasoning"));

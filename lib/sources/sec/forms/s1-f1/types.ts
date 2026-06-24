@@ -835,7 +835,7 @@ export interface S1F1RequiredOutputJson {
   parser_output: S1F1ParserOutput;
   analysis_output: S1F1AnalysisOutput;
   display_payload: S1F1DisplayPayload;
-  fixture_expected: S1F1FixtureExpected;
+  fixture_expected?: S1F1FixtureExpected;
 }
 
 export interface S1F1RouterDecision {

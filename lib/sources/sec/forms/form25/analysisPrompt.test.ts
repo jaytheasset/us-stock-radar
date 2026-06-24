@@ -1,18 +1,14 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { registerHooks } from "node:module";
 import { join } from "node:path";
-
-registerLocalTsResolutionHook();
-
-const { parseSecForm25Filing } = await import(new URL("parser.ts", import.meta.url).href);
-const {
+import { parseSecForm25Filing } from "./parser";
+import {
   buildSecForm25AnalysisInput,
   buildSecForm25AnalysisPromptDraft,
   buildSecForm25DisplayPayload,
   secForm25RequiredOutputSchema,
   summarizeForm25ForDisplay,
-} = await import(new URL("analysisPrompt.ts", import.meta.url).href);
+} from "./analysisPrompt";
 
 const sentinel = "RAW_FORM25_FULL_TEXT_SENTINEL_SHOULD_NOT_REACH_PROMPTS";
 const fixturesDir = join(process.cwd(), "lib", "sources", "sec", "forms", "form25", "fixtures");
@@ -83,19 +79,4 @@ console.log("sec form25 analysis prompt checks passed");
 
 function readFixture(name: string) {
   return JSON.parse(readFileSync(join(fixturesDir, name), "utf8"));
-}
-
-function registerLocalTsResolutionHook() {
-  registerHooks({
-    resolve(specifier: string, context: any, nextResolve: any) {
-      if (specifier.startsWith("./") && !/\.[cm]?[jt]s$/i.test(specifier)) {
-        try {
-          return nextResolve(`${specifier}.ts`, context);
-        } catch {
-          return nextResolve(specifier, context);
-        }
-      }
-      return nextResolve(specifier, context);
-    },
-  });
 }

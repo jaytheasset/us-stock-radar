@@ -10,6 +10,8 @@ import {
   SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
   SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
   SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY,
+  SEC_S1_F1_ANALYSIS_PROMPT_KEY,
+  SEC_S1_F1_ANALYSIS_PROMPT_VERSION,
   SEC_TENDER_ANALYSIS_PROMPT_KEY,
   SEC_SC13_ANALYSIS_PROMPT_KEY,
   SEC_SC13_ANALYSIS_PROMPT_VERSION,
@@ -23,6 +25,7 @@ import {
   adaptSecS4F4AnalysisPromptResultForAnalysis,
   adaptSecS8AnalysisPromptResultForAnalysis,
   adaptSecS3AnalysisPromptResultForAnalysis,
+  adaptSecS1F1AnalysisPromptResultForAnalysis,
   buildDeterministicSc13Analysis,
   buildDeterministicOwnershipAnalysis,
   buildDeterministicS8ArchiveAnalysis,
@@ -36,6 +39,7 @@ import {
   buildSecS8AnalysisPromptForInput,
   buildSecS3AnalysisPrompt,
   buildSecS3TriagePrompt,
+  buildSecS1F1AnalysisPromptForInput,
   buildSecTenderAnalysisPromptForInput,
   is424bFilingInput,
   isSec8k6kFilingInput,
@@ -45,6 +49,7 @@ import {
   isS8FilingInput,
   isS3AmendmentInput,
   isS3FilingInput,
+  isS1F1FilingInput,
   isTenderFilingInput,
   normalizeSec8k6kRouterResult,
   shouldRunSec8k6kAnalysis,
@@ -1197,6 +1202,65 @@ export async function runSecFilingAnalysisForRawRow(
     };
   }
 
+  if (isS1F1FilingInput(input)) {
+    const prompt = buildSecS1F1AnalysisPromptForInput(input);
+    const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
+    if (!analysisRun.ok || !analysisRun.parsed) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: analysisRun.status,
+        error: `SEC S-1/F-1 analysis failed after ${analysisRun.attempts} attempt(s): ${analysisRun.error || "no parseable JSON"}`,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        outputText: analysisRun.outputText,
+        usage: analysisRun.usage,
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        prompt: {
+          key: prompt.key,
+          version: prompt.version,
+        },
+      };
+    }
+
+    const secS1F1Analysis = adaptSecS1F1AnalysisPromptResultForAnalysis(analysisRun.parsed, input);
+    if (!secS1F1Analysis.ok) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: analysisRun.status,
+        error: secS1F1Analysis.error,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        outputText: analysisRun.outputText,
+        usage: analysisRun.usage,
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        prompt: {
+          key: prompt.key,
+          version: prompt.version,
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      stage: "complete",
+      status: analysisRun.status,
+      model: llmConfig.model,
+      openAiResponseId: analysisRun.openAiResponseId,
+      sourceItem: summarizeRawRow(rawItem),
+      input,
+      analysis: secS1F1Analysis.analysis,
+      outputText: analysisRun.outputText,
+      usage: analysisRun.usage,
+      costEstimate: estimateCost(llmConfig.model, analysisRun.usage),
+      prompt: {
+        key: prompt.key,
+        version: prompt.version,
+      },
+    };
+  }
+
   if (isS3FilingInput(input)) {
     await attachSecMarketContext(input);
     const prompt = buildSecS3AnalysisPrompt(input);
@@ -1882,6 +1946,7 @@ function readMaxOutputTokens(promptKey: string) {
   if (promptKey === SEC_8K_6K_ANALYSIS_PROMPT_KEY) return 8000;
   if (promptKey === SEC_TENDER_ANALYSIS_PROMPT_KEY) return 8000;
   if (promptKey === SEC_424B_ANALYSIS_PROMPT_KEY) return 10000;
+  if (promptKey === SEC_S1_F1_ANALYSIS_PROMPT_KEY) return 8000;
   if (promptKey === SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY) return 2500;
   if (promptKey === SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY) return 7000;
   return promptKey === SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY ? 8000 : 5000;
@@ -1948,6 +2013,7 @@ function buildSecFilingPromptForInput(input: SecFilingAnalysisInput) {
   if (isSc13FilingInput(input)) return buildSecSc13AnalysisPromptForInput(input);
   if (isS4F4FilingInput(input)) return buildSecS4F4AnalysisPromptForInput(input);
   if (isS8FilingInput(input)) return buildSecS8AnalysisPromptForInput(input);
+  if (isS1F1FilingInput(input)) return buildSecS1F1AnalysisPromptForInput(input);
   return isS3FilingInput(input) ? buildSecS3AnalysisPrompt(input) : buildSecFilingAnalysisPrompt(input);
 }
 

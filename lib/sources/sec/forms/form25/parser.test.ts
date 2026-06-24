@@ -1,11 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { registerHooks } from "node:module";
 import { join } from "node:path";
-
-registerLocalTsResolutionHook();
-
-const { parseSecForm25Filing } = await import(new URL("parser.ts", import.meta.url).href);
+import { parseSecForm25Filing } from "./parser";
 
 const roomDir = join(process.cwd(), "lib", "sources", "sec", "forms", "form25");
 const fixturesDir = join(roomDir, "fixtures");
@@ -124,19 +120,4 @@ function readExpected(name: string) {
       };
     };
   };
-}
-
-function registerLocalTsResolutionHook() {
-  registerHooks({
-    resolve(specifier: string, context: any, nextResolve: any) {
-      if (specifier.startsWith("./") && !/\.[cm]?[jt]s$/i.test(specifier)) {
-        try {
-          return nextResolve(`${specifier}.ts`, context);
-        } catch {
-          return nextResolve(specifier, context);
-        }
-      }
-      return nextResolve(specifier, context);
-    },
-  });
 }
