@@ -26,7 +26,7 @@ const limit = readInt(args.get("limit"), 5, 1, 20);
 const countPerForm = readInt(args.get("countPerForm"), Math.max(limit, 5), 1, 40);
 const balancedLive = args.get("balancedLive") !== "false";
 const requireFormCoverage = args.get("requireFormCoverage") === "true";
-const formTypes = String(args.get("formTypes") || "S-3,S-3ASR,S-3/A");
+const formTypes = String(args.get("formTypes") || "S-3,S-3ASR,S-3MEF,S-3/A,F-3,F-3ASR,F-3MEF,F-3/A");
 const checks = [];
 
 try {

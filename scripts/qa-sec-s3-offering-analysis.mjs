@@ -10,7 +10,7 @@ const args = new Map(
 );
 
 const baseUrl = String(args.get("base") || process.env.APP_LOCAL_URL || "http://127.0.0.1:3001").replace(/\/$/, "");
-const formTypes = parseCsv(args.get("formTypes") || "S-3,S-3ASR,S-3/A");
+const formTypes = parseCsv(args.get("formTypes") || "S-3,S-3ASR,S-3MEF,S-3/A,F-3,F-3ASR,F-3MEF,F-3/A");
 const countPerForm = readInt(args.get("countPerForm"), 1, 1, 10);
 const attachmentLimit = readInt(args.get("attachmentLimit"), 2, 0, 10);
 const dryRun = args.get("dryRun") !== "false";

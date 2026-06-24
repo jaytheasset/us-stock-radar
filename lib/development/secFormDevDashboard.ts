@@ -123,7 +123,12 @@ export const SEC_DEV_ROOMS: SecDevRoom[] = [
   { key: "ownership", label: "Ownership", forms: ["4", "4/A", "144", "144/A"], folder: "ownership", adapterKey: "ownership" },
   { key: "8k-6k", label: "8-K / 6-K", forms: ["8-K", "8-K/A", "6-K", "6-K/A"], folder: "8k-6k", adapterKey: "current_report" },
   { key: "s1-f1", label: "S-1 / F-1", forms: ["S-1", "S-1/A", "F-1", "F-1/A"], folder: "s1-f1" },
-  { key: "s3-f3", label: "S-3 / F-3", forms: ["S-3", "S-3/A", "F-3", "F-3/A", "S-3ASR"], folder: "s3-f3" },
+  {
+    key: "s3-f3",
+    label: "S-3 / F-3",
+    forms: ["S-3", "S-3/A", "S-3ASR", "S-3MEF", "F-3", "F-3/A", "F-3ASR", "F-3MEF"],
+    folder: "s3-f3",
+  },
   { key: "s4-f4", label: "S-4 / F-4", forms: ["S-4", "S-4/A", "F-4", "F-4/A"], folder: "s4-f4" },
   { key: "425", label: "425", forms: ["425"], folder: "425" },
   { key: "424b", label: "424B", forms: ["424B3", "424B4", "424B5"], folder: "424b" },
@@ -135,6 +140,7 @@ export const SEC_DEV_ROOMS: SecDevRoom[] = [
   { key: "nt", label: "NT Reports", forms: ["NT 10-K", "NT 10-Q", "NT 20-F"], folder: "nt" },
   { key: "form25", label: "Form 25", forms: ["25", "25-NSE"], folder: "form25" },
   { key: "effect", label: "EFFECT", forms: ["EFFECT"], folder: "effect" },
+  { key: "other", label: "Other SEC", forms: ["OTHER"], folder: "other" },
 ];
 
 export async function getSecDevRoomSnapshots(): Promise<SecDevRoomSnapshot[]> {
@@ -886,6 +892,11 @@ export async function runSecDevControlledPersist(
 
     const event = readRecord(analysis.event);
     const analysisRecord = readRecord(analysis.analysis);
+    const displayPayload = readRecord(analysisRecord?.display_payload);
+    const displayData = readRecord(displayPayload?.data);
+    const primaryTicker = readRecord(analysisRecord?.primary_ticker);
+    const score = numberValue(event?.score ?? analysisRecord?.score);
+    const deliveryLevel = stringValue(event?.delivery_level) || deriveDeliveryLabel(score);
     liveRun = {
       mode: "controlled_persist",
       status: "pass",
@@ -904,9 +915,37 @@ export async function runSecDevControlledPersist(
           title: stringValue(event?.title) || stringValue(analysisRecord?.event_title) || null,
           ticker: stringValue(event?.ticker) || null,
           event_type: stringValue(event?.event_type) || stringValue(analysisRecord?.event_type) || null,
-          score: numberValue(event?.score ?? analysisRecord?.score),
-          delivery_level: stringValue(event?.delivery_level) || null,
-          detail_url: buildLocalFilingUrl(stringValue(event?.id), stringValue(event?.delivery_level)),
+          score,
+          delivery_level: deliveryLevel,
+          detail_url: buildLocalFilingUrl(stringValue(event?.id), deliveryLevel),
+          runtime_output: analysisRecord
+            ? {
+                event_title: stringValue(analysisRecord.event_title) || stringValue(event?.title),
+                event_type: stringValue(analysisRecord.event_type) || stringValue(event?.event_type),
+                display_type: stringValue(displayPayload?.display_type) || null,
+                parser_route: "controlled persist / analysis path",
+                is_parser_completed_archive: false,
+                is_excluded: false,
+                score,
+                delivery_level: deliveryLevel,
+                signal: stringValue(analysisRecord.signal),
+                ticker: stringValue(primaryTicker?.ticker) || stringValue(event?.ticker) || null,
+                filing_summary: stringValue(displayData?.filing_summary) || stringValue(analysisRecord.filing_summary),
+                quick_take: stringValue(analysisRecord.quick_take),
+                summary: stringValue(analysisRecord.summary),
+                archive_summary: stringValue(analysisRecord.archive_summary),
+                score_reason: stringValue(analysisRecord.score_reason),
+                why_it_matters: stringValue(analysisRecord.why_it_matters),
+                key_evidence: stringArray(analysisRecord.key_evidence).slice(0, 8),
+                what_to_watch_next: stringArray(analysisRecord.what_to_watch_next).slice(0, 8),
+                parser_signals: [],
+                transaction_fingerprint: readRecord(analysisRecord.transaction_fingerprint) || null,
+                display_data: previewDisplayData(displayData),
+                display_payload_debug: buildDisplayPayloadDebug(displayPayload, displayData, analysisRecord),
+                usage: readRecord(analysis.usage) || null,
+                cost_estimate: readRecord(analysis.costEstimate) || null,
+              }
+            : null,
           alert_delivery: analysis.alertDelivery || null,
         },
       ],

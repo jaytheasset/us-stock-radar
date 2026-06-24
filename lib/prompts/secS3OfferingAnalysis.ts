@@ -203,7 +203,7 @@ export const secOfferingDisplayModelSchema = {
 
 export const secS3OfferingAnalysisSystemPrompt = [
   "Analyze one SEC S-3 family filing package and return only strict JSON matching the provided response schema.",
-  "This prompt is only for S-3, S-3ASR, and S-3/A filings. Do not perform broad SEC event routing here.",
+  "This prompt is only for S-3/F-3 registration-family filings, including S-3, S-3/A, S-3ASR, S-3MEF, F-3, F-3/A, F-3ASR, and F-3MEF. Do not perform broad SEC event routing here.",
   "Use the filing excerpt, important sections, and important tables as the source of truth.",
   "Treat filing_package.parser_candidates as unverified hints only. Parser candidates may be wrong, stale, or mixed across sections; ignore any candidate not supported by the source text.",
   "Use router_evidence.s3.component_candidates as source-backed candidate evidence, not final truth. These candidates are extracted from S-3 text, selling-stockholder footnotes, and table fragments to make complex instrument components visible.",
@@ -211,6 +211,7 @@ export const secS3OfferingAnalysisSystemPrompt = [
   "If component_candidates.totals provides convertible_notes_shares and warrant_shares that reconcile to total_potential_supply, use those values for separate Convertible Notes and Warrants supply segments unless source evidence contradicts them.",
   "If component candidates conflict, do not reconcile, or mix included shares with future/excluded shares, keep only source-backed values, set needs_human_review true, and explain the uncertainty.",
   "If filing_package.offering_security_audit is present, treat it as the numeric contract for share stack, proceeds stack, toxic terms, and sanity checks. Do not override audit numbers unless direct filing evidence in the prompt contradicts them.",
+  "Treat S-3MEF and F-3MEF as registration-family filings for additional securities tied to an existing or related registration statement. Analyze the additional registered amount or changed capacity when disclosed; do not call it a standalone base shelf unless the source text only shows generic capacity.",
   "If filing_package.s3_amendment_triage is present, it means the S-3/A amendment passed lightweight triage and needs offering audit/analysis. Focus on the changed or unresolved amendment terms identified there.",
   "Build offering_display_model from offering_security_audit first, then use component_candidates and source excerpts only to fill gaps or explain uncertainty.",
   "If offering_security_audit has unresolved_conflicts, needs_human_review, or false sanity checks, carry that uncertainty into offering_display_model.needs_human_review and review_reasons.",
@@ -223,8 +224,8 @@ export const secS3OfferingAnalysisSystemPrompt = [
   "If an S-3/A filing is not important enough for a stored archive event, choose skip_analysis instead of routine_archive.",
   "Base shelf, universal shelf, and automatic shelf filings should normally be feed-level analyze_offering events, not archive-only events.",
   "For analyze_offering, set event_type to dilution_risk unless the evidence clearly supports only other. S-3 family filings should almost never be earnings, FDA, leadership, legal, or product events.",
-  "Choose s3_case by economic structure, not only by SEC form label. If an S-3ASR contains a concrete selling-stockholder resale pool, use s3_case resale_registration rather than automatic_shelf.",
-  "Use s3_case automatic_shelf for S-3ASR base shelf or universal shelf filings only when there is no concrete resale pool, ATM, takedown, warrant/convertible pool, or other current sale mechanics.",
+  "Choose s3_case by economic structure, not only by SEC form label. If an automatic shelf registration filing contains a concrete selling-stockholder resale pool, use s3_case resale_registration rather than automatic_shelf.",
+  "Use s3_case automatic_shelf for automatic shelf or universal shelf filings only when there is no concrete resale pool, ATM, takedown, warrant/convertible pool, or other current sale mechanics.",
   "Separate shelf context from the current actionable mechanism. A base shelf can be the registration framework while the current filing is still an ATM program, resale registration, takedown, or mixed financing event.",
   "If the package contains a stated ATM program amount, at-the-market sales agreement, sales-agent language, or sale-from-time-to-time language under an equity distribution agreement, use s3_case atm_program even if the same package also references a broader shelf registration or automatic shelf.",
   "If the package only creates shelf capacity and does not include a concrete ATM, resale pool, takedown supplement, priced terms, warrant/convertible pool, or sales agreement, use base_shelf or automatic_shelf according to the form/context.",

@@ -183,7 +183,7 @@ export const promptTemplates: PromptTemplateDraft[] = [
     inputTables: ["raw_items"],
     outputTarget: "skip_analysis or events + event_analysis + event_tickers + event_calendar_items + offering_display_model",
     notes:
-      "Dedicated S-3/S-3ASR/S-3/A contract. Source text is authoritative; parser candidates are only hints. The LLM decides skip, archive, or offering analysis and may emit the dilution/offering display model.",
+      "Dedicated S-3/F-3 registration-family contract. Source text is authoritative; parser candidates are only hints. The LLM decides skip, archive, or offering analysis and may emit the dilution/offering display model.",
     systemPrompt: secS3OfferingAnalysisSystemPrompt,
     userInputTemplate: secFilingAnalysisInputTemplate,
     responseSchema: secS3OfferingAnalysisResponseSchema,

@@ -79,6 +79,8 @@ const expectedForms = [
   "F-3",
   "S-3ASR",
   "F-3ASR",
+  "S-3MEF",
+  "F-3MEF",
   "S-3/A",
   "F-3/A",
   "424B3",

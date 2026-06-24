@@ -6384,7 +6384,7 @@ function isSecAmendmentFormForParentContext(formType: string) {
 
 function isS3F3RegistrationFamilyForm(formType: string) {
   const normalized = normalizeSecFormForParentContext(formType).replace(/\s+/g, "");
-  return /^(?:S-3|S-3ASR|S-3\/A|F-3|F-3ASR|F-3\/A)$/.test(normalized);
+  return /^(?:S-3|S-3ASR|S-3MEF|S-3\/A|F-3|F-3ASR|F-3MEF|F-3\/A)$/.test(normalized);
 }
 
 function isS3F3RegistrationAmendmentForm(formType: string) {

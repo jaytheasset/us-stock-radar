@@ -17,7 +17,7 @@ export const SEC_FORM_PARSER_GROUPS = [
   },
   {
     slug: "s3-f3",
-    forms: ["S-3", "S-3/A", "F-3", "F-3/A", "S-3ASR", "F-3ASR"],
+    forms: ["S-3", "S-3/A", "S-3ASR", "S-3MEF", "F-3", "F-3/A", "F-3ASR", "F-3MEF"],
   },
   {
     slug: "424b",

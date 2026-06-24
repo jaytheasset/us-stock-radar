@@ -2256,13 +2256,15 @@ function canonicalS3FormType(value: string | null) {
   if (form === "F-3/A") return "F-3/A";
   if (form === "S-3ASR") return "S-3ASR";
   if (form === "F-3ASR") return "F-3ASR";
+  if (form === "S-3MEF") return "S-3MEF";
+  if (form === "F-3MEF") return "F-3MEF";
   if (form === "S-3") return "S-3";
   if (form === "F-3") return "F-3";
   return null;
 }
 
 function isS3Family(formType: string | null) {
-  return /^[SF]-3(?:ASR|\/A)?$/i.test(normalizeForm(formType));
+  return /^[SF]-3(?:ASR|MEF|\/A)?$/i.test(normalizeForm(formType));
 }
 
 function isAutomaticShelfForm(formType: string | null) {

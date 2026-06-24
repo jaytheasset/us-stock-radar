@@ -943,7 +943,7 @@ function isInterestingAttachment(document: SecDocument) {
 }
 
 function isS3FamilyForm(formType: string | null) {
-  return /^(?:S-3|F-3)(?:ASR|\/A)?$/i.test(normalizeFormType(formType));
+  return /^(?:S-3|F-3)(?:ASR|MEF|\/A)?$/i.test(normalizeFormType(formType));
 }
 
 function isOfferingFeeTableForm(formType: string | null) {

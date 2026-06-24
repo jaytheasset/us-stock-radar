@@ -22,7 +22,7 @@ export const s3F3FormAdapter: SecFormAdapterDefinition<
 > = {
   key: "s3_f3",
   parserGroup: "s3",
-  forms: ["S-3", "F-3", "S-3ASR", "F-3ASR", "S-3/A", "F-3/A"],
+  forms: ["S-3", "F-3", "S-3ASR", "F-3ASR", "S-3MEF", "F-3MEF", "S-3/A", "F-3/A"],
   analysisMode: "s3_offering_flow",
   matches: isS3F3CanonicalFormType,
   parse: (rawItem): S3F3FormAdapterResult => {
@@ -54,7 +54,16 @@ export const s3F3FormAdapter: SecFormAdapterDefinition<
 };
 
 function isS3F3CanonicalFormType(form: string | null | undefined) {
-  return form === "S-3" || form === "S-3/A" || form === "F-3" || form === "F-3/A" || form === "S-3ASR" || form === "F-3ASR";
+  return (
+    form === "S-3" ||
+    form === "S-3/A" ||
+    form === "S-3ASR" ||
+    form === "S-3MEF" ||
+    form === "F-3" ||
+    form === "F-3/A" ||
+    form === "F-3ASR" ||
+    form === "F-3MEF"
+  );
 }
 
 function buildS3HardParserPayload(parsed: SecS3FilingFacts) {

@@ -30,7 +30,7 @@ export type SecS3F3RouterPromptInput = {
 export const secS3F3RouterSystemPrompt = [
   "Route one SEC S-3/F-3 family filing from cleaned source blocks.",
   "Return only strict JSON matching the provided schema.",
-  "This draft covers S-3, S-3/A, S-3ASR, F-3, F-3/A, and F-3ASR. Do not route broad SEC events here unless the filing content truly belongs to this family.",
+  "This draft covers S-3, S-3/A, S-3ASR, S-3MEF, F-3, F-3/A, F-3ASR, and F-3MEF. Do not route broad SEC events here unless the filing content truly belongs to this family.",
   "Classify by economic structure, not only by form label: base shelf registration, automatic shelf registration, resale registration, ATM program, priced or takedown supplement, warrant or convertible overhang, routine amendment, material amendment, needs_human_review, or other.",
   "Use only cleaned_source_blocks. Do not use parser-generated facts, signals, route hints, extraction summaries, event labels, display labels, or investment labels as classification authority.",
   "Route to dilution_risk when the filing contains shelf, resale, ATM, warrant, convertible, concrete offering amount, fee table economics, selling-holder overhang, or other share-supply mechanics.",
