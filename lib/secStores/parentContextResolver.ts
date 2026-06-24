@@ -36,6 +36,7 @@ export async function prepareSecRawItemWithParentContextForParser(rawItem: SecRa
 export async function attachSecParentContexts(input: SecFilingAnalysisInput, rawItem: SecRawItemRow) {
   await attachParentRegistrationContext(input, rawItem);
   await attachTenderParentFilingContext(input, rawItem);
+  await attachS1F1AmendmentParentFilingContext(input, rawItem);
   await attachGenericAmendmentParentFilingContext(input, rawItem);
 }
 
@@ -244,11 +245,34 @@ async function attachTenderParentFilingContext(input: SecFilingAnalysisInput, ra
   if (parentContext) filingPackage.parent_filing_context = parentContext;
 }
 
+async function attachS1F1AmendmentParentFilingContext(input: SecFilingAnalysisInput, rawItem: SecRawItemRow) {
+  if (!isS1F1ParentContextInput(input)) return;
+
+  const filingPackage = readRecord(input.filing_package);
+  if (!filingPackage || readRecord(filingPackage.parent_filing_context)) return;
+
+  const formType = stringValue(filingPackage.form_type) || readRawFormType(rawItem);
+  if (!isS1F1AmendmentParentContextForm(formType)) return;
+
+  const parentContext = await findS1F1AmendmentParentFilingContext({
+    input,
+    rawItem,
+    formType,
+  });
+  if (parentContext) filingPackage.parent_filing_context = parentContext;
+}
+
 function isTenderParentContextInput(input: SecFilingAnalysisInput) {
   const filingPackage = readRecord(input.filing_package);
   const hardParsers = readRecord(filingPackage?.hard_parsers);
   const adapter = readRecord(filingPackage?.form_adapter);
   return Boolean(readRecord(hardParsers?.tender)) && stringValue(adapter?.parserGroup) === "tender";
+}
+
+function isS1F1ParentContextInput(input: SecFilingAnalysisInput) {
+  const filingPackage = readRecord(input.filing_package);
+  const hardParsers = readRecord(filingPackage?.hard_parsers);
+  return Boolean(readRecord(hardParsers?.["s1-f1"]) || readRecord(hardParsers?.s1_f1));
 }
 
 async function attachGenericAmendmentParentFilingContext(input: SecFilingAnalysisInput, rawItem: SecRawItemRow) {
@@ -386,6 +410,130 @@ async function findTenderAmendmentParentFilingContext({
     matchMethod: best.matchMethod,
     matchScore: best.score,
     matchReasons: best.matchReasons,
+    rawItem,
+    parentRow: ambiguous ? null : best.row,
+    candidateRows: scored.slice(0, 5).map((item) => item.row),
+  });
+}
+
+async function findS1F1AmendmentParentFilingContext({
+  input,
+  rawItem,
+  formType,
+}: {
+  input: SecFilingAnalysisInput;
+  rawItem: SecRawItemRow;
+  formType: string;
+}) {
+  const currentAccession = readRawAccession(rawItem);
+  const currentFiledAt = Date.parse(stringValue(rawItem.published_at));
+  const currentFamily = normalizeGenericParentFormFamily(formType);
+  const currentTicker = readRawTicker(rawItem);
+  const currentCik = normalizeCik(readRawCik(rawItem));
+  const targetFileNumbers = readS1F1ParentRegistrationFileNumbers(input);
+  const directFileNumberRows = targetFileNumbers.length
+    ? await fetchRegistrationFileNumberCandidateRows(targetFileNumbers)
+    : [];
+  const candidateRows = dedupeRawRows([
+    ...directFileNumberRows,
+    ...(await fetchGenericAmendmentParentCandidateRows(rawItem)),
+  ]);
+
+  const scored = candidateRows
+    .filter((row) => readRawAccession(row) !== currentAccession)
+    .map((row) => {
+      const rowFamily = normalizeGenericParentFormFamily(readRawFormType(row));
+      if (!isS1F1ParentContextFamily(rowFamily) || rowFamily !== currentFamily) return null;
+
+      const rowFiledAt = Date.parse(stringValue(row.published_at));
+      if (Number.isFinite(currentFiledAt) && Number.isFinite(rowFiledAt) && rowFiledAt >= currentFiledAt) return null;
+
+      const rowAgeDays =
+        Number.isFinite(currentFiledAt) && Number.isFinite(rowFiledAt)
+          ? Math.max(0, Math.round((currentFiledAt - rowFiledAt) / (24 * 60 * 60 * 1000)))
+          : null;
+      if (rowAgeDays !== null && rowAgeDays > 1095) return null;
+
+      const rowTicker = readRawTicker(row);
+      const rowCik = normalizeCik(readRawCik(row));
+      const rowFileNumbers = extractRegistrationFileNumbersFromRow(row);
+      const matchedFileNumbers = intersectStrings(targetFileNumbers, rowFileNumbers);
+      const matchReasons: string[] = ["s1_f1_amendment_parent_candidate"];
+      let score = 0;
+
+      if (matchedFileNumbers.length) {
+        score += 220 + Math.min(60, matchedFileNumbers.length * 20);
+        matchReasons.push(...matchedFileNumbers.slice(0, 3).map((fileNumber) => `matches_${fileNumber}`));
+      } else if (targetFileNumbers.length) {
+        return null;
+      }
+
+      if (currentCik && rowCik && currentCik === rowCik) {
+        score += 90;
+        matchReasons.push("same_cik");
+      }
+      if (currentTicker && rowTicker && currentTicker === rowTicker) {
+        score += 30;
+        matchReasons.push("same_ticker");
+      }
+      if (rowFamily === currentFamily) {
+        score += 60;
+        matchReasons.push("same_s1_f1_form_family");
+      }
+      if (isSecAmendmentFormForParentContext(readRawFormType(row))) {
+        score += 20;
+        matchReasons.push("prior_amendment_candidate");
+      } else {
+        score += 30;
+        matchReasons.push("non_amendment_parent_candidate");
+      }
+      if (rowAgeDays !== null) {
+        if (rowAgeDays <= 30) score += 35;
+        else if (rowAgeDays <= 180) score += 20;
+        else if (rowAgeDays <= 365) score += 10;
+        matchReasons.push(`filed_${rowAgeDays}_days_before`);
+      }
+
+      return {
+        row,
+        score,
+        matchReasons,
+        matchedFileNumbers,
+        matchMethod: matchedFileNumbers.length ? "s1_f1_registration_file_number" : "s1_f1_same_issuer_recent_prior",
+      };
+    })
+    .filter(
+      (
+        item,
+      ): item is {
+        row: SecRawItemRow;
+        score: number;
+        matchReasons: string[];
+        matchedFileNumbers: string[];
+        matchMethod: string;
+      } => Boolean(item),
+    )
+    .filter((item) => item.score >= (targetFileNumbers.length ? 250 : 160))
+    .sort((left, right) => {
+      if (right.score !== left.score) return right.score - left.score;
+      return Date.parse(stringValue(right.row.published_at)) - Date.parse(stringValue(left.row.published_at));
+    });
+
+  const best = scored[0];
+  if (!best) return null;
+
+  const second = scored[1];
+  const exactFileNumberMatch = best.matchedFileNumbers.length > 0;
+  const ambiguous = !exactFileNumberMatch && second && best.score - second.score < 20;
+
+  return buildGenericAmendmentParentContext({
+    status: ambiguous ? "multiple_candidates" : "found",
+    confidence: exactFileNumberMatch ? "high" : ambiguous ? "medium" : best.score >= 190 ? "high" : "medium",
+    matchMethod: ambiguous ? "s1_f1_same_issuer_multiple_candidates" : best.matchMethod,
+    matchScore: best.score,
+    matchReasons: ambiguous
+      ? [...best.matchReasons, "multiple_s1_f1_parent_candidates"]
+      : best.matchReasons,
     rawItem,
     parentRow: ambiguous ? null : best.row,
     candidateRows: scored.slice(0, 5).map((item) => item.row),
@@ -578,7 +726,7 @@ async function findS8RegistrationParentFilingContext({
   const targetFileNumbers = readS8PriorRegistrationFileNumbers(input);
   const currentAccession = readRawAccession(rawItem);
   const directFileNumberRows = targetFileNumbers.length
-    ? await fetchS8RegistrationFileNumberCandidateRows(targetFileNumbers)
+    ? await fetchRegistrationFileNumberCandidateRows(targetFileNumbers)
     : [];
   const candidateRows = dedupeRawRows([
     ...directFileNumberRows,
@@ -589,7 +737,7 @@ async function findS8RegistrationParentFilingContext({
     .filter((row) => normalizeGenericParentFormFamily(readRawFormType(row)) === "S-8")
     .map((row) => {
       if (!targetFileNumbers.length) return null;
-      const matchedFileNumbers = intersectStrings(targetFileNumbers, extractS8RegistrationFileNumbersFromRow(row));
+      const matchedFileNumbers = intersectStrings(targetFileNumbers, extractRegistrationFileNumbersFromRow(row));
       if (!matchedFileNumbers.length) return null;
 
       const matchReasons = [
@@ -1227,7 +1375,7 @@ async function fetchSc13ParentCandidateRows(facts: Sc13ParentMatchFacts) {
   return dedupeRawRows(rows);
 }
 
-async function fetchS8RegistrationFileNumberCandidateRows(fileNumbers: string[]) {
+async function fetchRegistrationFileNumberCandidateRows(fileNumbers: string[]) {
   const select = "id,source_unique_id,source_url,title,published_at,body_text,analysis_text,raw_payload,metadata";
   const rows: SecRawItemRow[] = [];
 
@@ -1718,15 +1866,36 @@ function readS8PriorRegistrationFileNumbers(input: SecFilingAnalysisInput) {
   const facts = readRecord(s8?.facts);
   const statements = readRecordArray(facts?.priorRegistrationStatements);
   return uniqueStrings(
-    statements.map((statement) => normalizeS8RegistrationFileNumber(stringValue(statement.fileNumber))).filter(Boolean),
+    statements.map((statement) => normalizeRegistrationFileNumber(stringValue(statement.fileNumber))).filter(Boolean),
   );
 }
 
-function extractS8RegistrationFileNumbersFromRow(row: SecRawItemRow) {
+function readS1F1ParentRegistrationFileNumbers(input: SecFilingAnalysisInput) {
+  const filingPackage = readRecord(input.filing_package);
+  const hardParsers = readRecord(filingPackage?.hard_parsers);
+  const s1f1 = readRecord(hardParsers?.["s1-f1"]) || readRecord(hardParsers?.s1_f1);
+  const facts = readRecord(s1f1?.facts);
+  const filing = readRecord(facts?.filing);
+  const rule462b = readRecord(filing?.rule_462b);
+  return uniqueStrings(
+    [
+      stringValue(filing?.parent_registration_number),
+      stringValue(rule462b?.prior_registration_number),
+      stringValue(filingPackage?.file_number),
+    ]
+      .map(normalizeRegistrationFileNumber)
+      .filter(Boolean),
+  );
+}
+
+function extractRegistrationFileNumbersFromRow(row: SecRawItemRow) {
   const rawPayload = readRecord(row.raw_payload) || {};
+  const metadata = readRecord(row.metadata) || {};
   const text = [
     stringValue(rawPayload.file_number),
     stringValue(rawPayload.fileNumber),
+    stringValue(metadata.file_number),
+    stringValue(metadata.fileNumber),
     stringValue(rawPayload.primary_document_html),
     stringValue(row.body_text),
     stringValue(row.analysis_text),
@@ -1735,7 +1904,7 @@ function extractS8RegistrationFileNumbersFromRow(row: SecRawItemRow) {
     .join("\n")
     .slice(0, 250_000);
   const matches = text.match(/\b333-\d{3,}\b/g) || [];
-  return uniqueStrings(matches.map(normalizeS8RegistrationFileNumber).filter(Boolean));
+  return uniqueStrings(matches.map(normalizeRegistrationFileNumber).filter(Boolean));
 }
 
 function resolveTenderSubjectMarketContextSymbol(filingPackage: Record<string, unknown>) {
@@ -1898,6 +2067,15 @@ function isTenderParentContextFamily(value: string) {
   );
 }
 
+function isS1F1ParentContextFamily(value: string) {
+  return value === "S-1" || value === "F-1";
+}
+
+function isS1F1AmendmentParentContextForm(formType: string) {
+  const normalized = normalizeSecFormForParentContext(formType);
+  return normalized === "S-1/A" || normalized === "F-1/A" || normalized === "S-1MEF" || normalized === "F-1MEF";
+}
+
 function normalizeGenericParentFormFamily(formType: string) {
   const normalized = normalizeSecFormForParentContext(formType);
   if (!normalized) return "";
@@ -1956,7 +2134,7 @@ function normalizeDateOnly(value: string) {
   return new Date(parsed).toISOString().slice(0, 10);
 }
 
-function normalizeS8RegistrationFileNumber(value: string) {
+function normalizeRegistrationFileNumber(value: string) {
   const match = stringValue(value).match(/333-\d+/i);
   return match ? match[0].toUpperCase() : "";
 }
