@@ -3195,34 +3195,50 @@ function OutputPreviewSections({
           <div className={styles.previewHeader}>
             <div>
               <strong>Latest live / persist output</strong>
-              <p>Recent actual development runs for this room.</p>
+              <p>Recent actual development runs and persisted DB filing events for this room.</p>
             </div>
           </div>
-          <div className={styles.previewStack}>
-            {liveOutputItems.map(({ item, key, run }) => {
+          <div className={styles.outputRunList}>
+            {liveOutputItems.map(({ item, key, run }, index) => {
               const detailUrl = clientString(item.detail_url);
+              const runtimeOutput = readClientRecord(item.runtime_output);
+              const displayPayloadDebug = readClientRecord(runtimeOutput?.display_payload_debug);
+              const detailUi = clientString(displayPayloadDebug?.display_mode);
+              const displayType = clientString(runtimeOutput?.display_type);
+              const title = clientString(item.title) || clientString(item.event_id) || clientString(item.accession_number) || "SEC filing output";
               return (
-                <section className={styles.outputPreviewCard} key={key}>
-                  <div className={styles.previewHeader}>
-                    <div>
-                      <strong>{clientString(item.title) || clientString(item.event_id) || clientString(item.accession_number) || "SEC filing output"}</strong>
+                <details className={styles.outputRunItem} key={key} open={index === 0}>
+                  <summary className={styles.outputRunSummary}>
+                    <div className={styles.outputRunMain}>
+                      <strong>{title}</strong>
                       <p>{[formatLiveRunMode(run.mode), clientString(item.form_type), clientString(item.accession_number)].filter(Boolean).join(" - ")}</p>
                     </div>
-                    <div className={styles.testHeaderActions}>
-                      {detailUrl ? <a href={detailUrl}>Open detail</a> : null}
-                      <StatusBadge status={run.status === "pass" ? "pass" : "fail"} />
+                    <div className={styles.outputRunBadges}>
+                      <span>{clientString(item.form_type) || "-"}</span>
+                      <span>{clientString(item.ticker) || "-"}</span>
+                      <span>{clientString(item.score) || "-"}</span>
+                      <span>{clientString(item.delivery_level) || "-"}</span>
+                      {displayType ? <span>{displayType}</span> : null}
+                      {detailUi ? <span>{detailUi}</span> : null}
+                      {detailUrl ? (
+                        <a href={detailUrl} onClick={(event) => event.stopPropagation()}>
+                          Open detail
+                        </a>
+                      ) : null}
                     </div>
+                  </summary>
+                  <div className={styles.outputRunBody}>
+                    <div className={styles.outputMetaGrid}>
+                      <PreviewField label="Form" value={clientString(item.form_type) || "-"} />
+                      <PreviewField label="Ticker" value={clientString(item.ticker) || "-"} />
+                      <PreviewField label="Event type" value={clientString(item.event_type) || "-"} />
+                      <PreviewField label="Score" value={clientString(item.score) || "-"} />
+                      <PreviewField label="Delivery" value={clientString(item.delivery_level) || "-"} />
+                      <PreviewField label="Ran at" value={formatDate(run.ranAt)} />
+                    </div>
+                    <RuntimeOutputCard value={item.runtime_output} />
                   </div>
-                  <div className={styles.outputMetaGrid}>
-                    <PreviewField label="Form" value={clientString(item.form_type) || "-"} />
-                    <PreviewField label="Ticker" value={clientString(item.ticker) || "-"} />
-                    <PreviewField label="Event type" value={clientString(item.event_type) || "-"} />
-                    <PreviewField label="Score" value={clientString(item.score) || "-"} />
-                    <PreviewField label="Delivery" value={clientString(item.delivery_level) || "-"} />
-                    <PreviewField label="Ran at" value={formatDate(run.ranAt)} />
-                  </div>
-                  <RuntimeOutputCard value={item.runtime_output} />
-                </section>
+                </details>
               );
             })}
           </div>
@@ -3386,6 +3402,7 @@ function formatLiveRunMode(mode: string) {
   if (mode === "accession_samples") return "Accession samples";
   if (mode === "accession_dry_run") return "Accession dry-run";
   if (mode === "controlled_persist") return "Controlled persist";
+  if (mode === "recent_persisted") return "Recent persisted event";
   return mode;
 }
 

@@ -435,6 +435,106 @@
   background: #ffffff;
 }
 
+.outputRunList {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+}
+
+.outputRunItem {
+  overflow: hidden;
+  border: 1px solid #d6dde5;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.outputRunSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+  background: #f8fafc;
+}
+
+.outputRunSummary::-webkit-details-marker {
+  display: none;
+}
+
+.outputRunSummary::before {
+  content: ">";
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.outputRunItem[open] .outputRunSummary {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.outputRunItem[open] .outputRunSummary::before {
+  content: "v";
+}
+
+.outputRunMain {
+  min-width: 0;
+  flex: 1;
+}
+
+.outputRunMain strong {
+  display: block;
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.outputRunMain p {
+  margin: 3px 0 0;
+  overflow: hidden;
+  color: #64748b;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.outputRunBadges {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 48%;
+}
+
+.outputRunBadges span,
+.outputRunBadges a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  max-width: 180px;
+  padding: 4px 8px;
+  border: 1px solid #dbe4ee;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+.outputRunBadges a {
+  color: #0f5cff;
+}
+
+.outputRunBody {
+  background: #ffffff;
+}
+
 .fileHeader,
 .testHeader,
 .previewHeader {

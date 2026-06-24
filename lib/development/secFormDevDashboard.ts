@@ -13,6 +13,7 @@ import {
   saveSecRawItem,
 } from "@/lib/secStores/rawStore";
 import { fetchSecEdgarRawItems, type SecParsedRawItem } from "@/lib/sources/sec/parser";
+import { supabaseSelect } from "@/lib/supabase";
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
@@ -47,7 +48,13 @@ export type SecDevRoomSnapshot = SecDevRoom & {
 };
 
 export type SecDevLiveRunResult = {
-  mode: "live_dry_run" | "latest_analysis_dry_run" | "accession_dry_run" | "controlled_persist" | "accession_samples";
+  mode:
+    | "live_dry_run"
+    | "latest_analysis_dry_run"
+    | "accession_dry_run"
+    | "controlled_persist"
+    | "accession_samples"
+    | "recent_persisted";
   status: "pass" | "fail";
   ranAt: string;
   durationMs: number;
@@ -167,10 +174,11 @@ export async function getSecDevRoomDetail(roomKey: string): Promise<SecDevRoomDe
   const liveCache = await readLiveCache();
   const testResults = testFiles.map((file) => cache[file] || buildNotRunResult(file));
   const snapshot = buildRoomSnapshot(room, testFiles, testResults);
-  const [files, outputPreviews, promptPreviews] = await Promise.all([
+  const [files, outputPreviews, promptPreviews, recentPersistedRuns] = await Promise.all([
     readRoomFiles(room, testFiles, fixtures, expected),
     readOutputPreviews(room, expected),
     readPromptPreviews(room),
+    readRecentPersistedRuns(room),
   ]);
 
   return {
@@ -179,7 +187,7 @@ export async function getSecDevRoomDetail(roomKey: string): Promise<SecDevRoomDe
     fixtures,
     expected,
     testResults,
-    liveRuns: liveCache[room.key] || [],
+    liveRuns: mergeLiveRuns(liveCache[room.key] || [], recentPersistedRuns),
     outputPreviews,
     promptPreviews,
   };
@@ -772,6 +780,210 @@ function readParserSignalsFromHardParsers(hardParsers: Record<string, unknown> |
 
 function countExcludedItems(items: Array<Record<string, unknown>>) {
   return items.filter((item) => item.is_excluded === true || stringValue(item.skip_gate)).length;
+}
+
+async function readRecentPersistedRuns(room: SecDevRoom): Promise<SecDevLiveRunResult[]> {
+  try {
+    const result = await supabaseSelect("events", {
+      select: "*",
+      source_group: "eq.filings",
+      order: "detected_at.desc",
+      limit: "120",
+    });
+    if (!result.ok || !Array.isArray(result.data)) return [];
+
+    const allowedForms = new Set(room.forms.map(normalizeFormForPreviewFilter));
+    const rows = result.data
+      .map((row) => readRecord(row))
+      .filter((row): row is Record<string, unknown> => Boolean(row))
+      .filter((row) => persistedEventMatchesRoom(row, allowedForms))
+      .slice(0, 10);
+    if (!rows.length) return [];
+
+    const analysisByEventId = await readRecentEventAnalysisMap(rows.map((row) => stringValue(row.id)).filter(Boolean));
+    return rows.map((row) => buildRecentPersistedRun(room, row, analysisByEventId.get(stringValue(row.id)) || null));
+  } catch {
+    return [];
+  }
+}
+
+async function readRecentEventAnalysisMap(eventIds: string[]) {
+  const result = new Map<string, Record<string, unknown>>();
+  if (!eventIds.length) return result;
+
+  try {
+    const response = await supabaseSelect("event_analysis", {
+      select: "*",
+      event_id: `in.(${eventIds.join(",")})`,
+      limit: String(eventIds.length),
+    });
+    if (!response.ok || !Array.isArray(response.data)) return result;
+
+    for (const row of response.data) {
+      const record = readRecord(row);
+      const eventId = stringValue(record?.event_id);
+      if (record && eventId) result.set(eventId, record);
+    }
+  } catch {
+    return result;
+  }
+
+  return result;
+}
+
+function persistedEventMatchesRoom(row: Record<string, unknown>, allowedForms: Set<string>) {
+  const formType = readPersistedEventFormType(row);
+  return Boolean(formType && allowedForms.has(normalizeFormForPreviewFilter(formType)));
+}
+
+function buildRecentPersistedRun(
+  room: SecDevRoom,
+  row: Record<string, unknown>,
+  eventAnalysis: Record<string, unknown> | null,
+): SecDevLiveRunResult {
+  const metadata = readRecord(row.metadata) || {};
+  const displayPayload = readRecord(metadata.display_payload);
+  const displayData = readRecord(displayPayload?.data);
+  const analysisMetadata = readRecord(eventAnalysis?.metadata) || {};
+  const runtimeAnalysis = {
+    ...metadata,
+    ...analysisMetadata,
+    sec_s3_display_warnings: metadata.sec_s3_display_warnings || analysisMetadata.sec_s3_display_warnings,
+  };
+  const score = numberValue(row.score);
+  const deliveryLevel = stringValue(row.delivery_level) || deriveDeliveryLabel(score);
+  const formType = readPersistedEventFormType(row);
+  const accessionNumber = readPersistedEventAccession(row);
+  const ticker = readPersistedEventTicker(row);
+  const ranAt = readPersistedEventTime(row);
+
+  return {
+    mode: "recent_persisted",
+    status: "pass",
+    ranAt,
+    durationMs: 0,
+    room: room.key,
+    formTypes: room.forms,
+    accessionNumber: accessionNumber || null,
+    rawItemId: stringValue(row.raw_item_id) || null,
+    summary: "Recent persisted SEC filing event loaded from the database.",
+    items: [
+      {
+        event_id: stringValue(row.id) || null,
+        raw_item_id: stringValue(row.raw_item_id) || null,
+        accession_number: accessionNumber || null,
+        form_type: formType || null,
+        title: stringValue(row.title) || null,
+        ticker: ticker || null,
+        event_type: stringValue(row.event_type) || null,
+        score,
+        delivery_level: deliveryLevel,
+        detail_url: buildLocalFilingUrl(stringValue(row.id), deliveryLevel),
+        runtime_output: {
+          event_title: stringValue(row.title),
+          event_type: stringValue(row.event_type),
+          display_type: stringValue(displayPayload?.display_type) || null,
+          parser_route: "persisted DB event",
+          parent_registration_context: buildParentRegistrationContextDebug(readRecord(metadata.parent_registration_context)),
+          parent_filing_context: buildParentFilingContextDebug(readRecord(metadata.parent_filing_context)),
+          is_parser_completed_archive: false,
+          is_excluded: false,
+          score,
+          delivery_level: deliveryLevel,
+          signal: stringValue(row.signal),
+          ticker,
+          filing_summary: stringValue(displayData?.filing_summary),
+          quick_take: stringValue(row.quick_take),
+          summary: stringValue(row.summary),
+          archive_summary: stringValue(metadata.archive_summary),
+          score_reason: stringValue(row.reason) || stringValue(metadata.score_reason),
+          why_it_matters: stringValue(eventAnalysis?.why_it_matters),
+          key_evidence: stringArray(eventAnalysis?.key_evidence).slice(0, 8),
+          what_to_watch_next: stringArray(eventAnalysis?.watch_next).slice(0, 8),
+          parser_signals: stringArray(metadata.parser_signals),
+          transaction_fingerprint: readRecord(metadata.transaction_fingerprint) || null,
+          display_data: previewDisplayData(displayData),
+          display_payload_debug: buildDisplayPayloadDebug(displayPayload, displayData, runtimeAnalysis),
+          usage: null,
+          cost_estimate: null,
+        },
+        alert_delivery: null,
+      },
+    ],
+    diagnostics: {
+      source: "supabase.events",
+      event_id: stringValue(row.id) || null,
+    },
+    error: null,
+  };
+}
+
+function mergeLiveRuns(cachedRuns: SecDevLiveRunResult[], persistedRuns: SecDevLiveRunResult[]) {
+  const seenEventIds = new Set<string>();
+  const merged: SecDevLiveRunResult[] = [];
+
+  for (const run of [...cachedRuns, ...persistedRuns]) {
+    const eventIds = run.items.map((item) => stringValue(item.event_id)).filter(Boolean);
+    if (eventIds.length && eventIds.some((eventId) => seenEventIds.has(eventId))) continue;
+    for (const eventId of eventIds) seenEventIds.add(eventId);
+    merged.push(run);
+  }
+
+  return merged.slice(0, 30);
+}
+
+function readPersistedEventFormType(row: Record<string, unknown>) {
+  const metadata = readRecord(row.metadata) || {};
+  const rawPayload = readRecord(metadata.raw_payload);
+  const filing = readRecord(metadata.filing);
+  const displayPayload = readRecord(metadata.display_payload);
+  const displayData = readRecord(displayPayload?.data);
+
+  return (
+    stringValue(row.form_type) ||
+    stringValue(metadata.form_type) ||
+    stringValue(metadata.sec_form) ||
+    stringValue(metadata.formType) ||
+    stringValue(rawPayload?.form_type) ||
+    stringValue(filing?.form_type) ||
+    stringValue(displayData?.form_type)
+  );
+}
+
+function readPersistedEventAccession(row: Record<string, unknown>) {
+  const metadata = readRecord(row.metadata) || {};
+  const rawPayload = readRecord(metadata.raw_payload);
+  const filing = readRecord(metadata.filing);
+  return (
+    stringValue(row.accession_number) ||
+    stringValue(metadata.accession_number) ||
+    stringValue(metadata.accessionNumber) ||
+    stringValue(rawPayload?.accession_number) ||
+    stringValue(filing?.accession_number)
+  );
+}
+
+function readPersistedEventTicker(row: Record<string, unknown>) {
+  const metadata = readRecord(row.metadata) || {};
+  const marketContext = readRecord(metadata.market_context);
+  const primaryTicker = readRecord(metadata.primary_ticker);
+  return (
+    stringValue(row.ticker) ||
+    stringValue(primaryTicker?.ticker) ||
+    stringValue(metadata.ticker) ||
+    stringValue(marketContext?.ticker) ||
+    stringValue(marketContext?.symbol)
+  );
+}
+
+function readPersistedEventTime(row: Record<string, unknown>) {
+  return (
+    stringValue(row.detected_at) ||
+    stringValue(row.updated_at) ||
+    stringValue(row.created_at) ||
+    stringValue(row.published_at) ||
+    new Date().toISOString()
+  );
 }
 
 function isSkipAnalysisResult(
