@@ -4,7 +4,7 @@ import {
   type S1F1RequiredOutputJson,
   isApprovedSecEventType,
 } from "./types.ts";
-import { buildS1F1LlmSourceInput } from "./routerPrompt.ts";
+import { buildS1F1LlmSourceInput } from "./sourceInput.ts";
 
 const REQUIRED_TOP_LEVEL_KEYS = ["parser_output", "analysis_output", "display_payload"] as const;
 
@@ -38,6 +38,7 @@ const REQUIRED_ANALYSIS_KEYS = [
 const S1F1_DISPLAY_MODES = [
   "ipo_registration",
   "ipo_amendment",
+  "routine_amendment",
   "resale_registration",
   "atm",
   "primary_offering",
@@ -97,6 +98,7 @@ export function buildS1F1AnalysisPrompt(
     "S-1/F-1 scoring guide:",
     "- Initial S-1/F-1 IPO registration with no final price or share count: usually 35-55.",
     "- S-1/A or F-1/A with concrete price range, share count, underwriters, ADS ratio, or listing timing: usually 50-70.",
+    "- Routine S-1/A or F-1/A amendments that only add/update administrative material are archive-level, usually 10-35.",
     "- Final IPO pricing, first trading imminent, pricing outside filed range, postponement, withdrawal, or major repricing: 75+ possible.",
     "- Resale registration: score by resale shares versus outstanding/float and sale likelihood. Small routine resale = archive/feed; large unrestricted overhang = feed/alert.",
     "- Mixed primary/resale/warrant/convertible registration: score the highest source-backed investor impact without double-counting the same shares.",
@@ -112,7 +114,7 @@ export function buildS1F1AnalysisPrompt(
     "- For primary_ticker and tickers, use filing_package.primary_ticker/tickers exactly when provided. Do not copy filing body text, source excerpts, company descriptions, or CIK text into ticker fields.",
     "- Return display_payload yourself. Do not copy parser-built UI drafts.",
     "- display_payload.display_type must be one of: generic, offering_terms, candidate_special, spac_transaction_status.",
-    "- Use offering_terms for IPO registrations, IPO amendments, resale registrations, mixed registrations, Rule 462(b) MEF, POS AM with securities terms, or any source-backed offering/dilution terms.",
+    "- Use offering_terms for IPO registrations, IPO amendments, routine amendments, resale registrations, mixed registrations, Rule 462(b) MEF, POS AM with securities terms, or any source-backed offering/dilution terms.",
     "- Use generic only when the source blocks are too weak for a structured offering UI.",
     "- Use spac_transaction_status only for source-backed de-SPAC transaction-status facts, not plain SPAC IPO registration.",
     "- display_payload.display_version must be s1-f1-display-v1.",
@@ -147,6 +149,17 @@ export function buildS1F1AnalysisPrompt(
     "- Keep snapshot value text short. Use null for unavailable non-snapshot fields; do not write Not disclosed as filler.",
     "",
     "Display mode rules:",
+    "routine_amendment:",
+    "- Use for S-1/A or F-1/A amendments where the current amendment only adds, updates, or corrects administrative material.",
+    "- Routine amendment examples include legal opinions, auditor consents, exhibit updates, signature pages, fee-table corrections, incorporated document updates, financial-statement updates, and amendments stating the prospectus or offering terms are unchanged.",
+    "- Classify and score the current amendment by what changed in this filing, not by the full registration statement content repeated in the filing.",
+    "- Do not treat repeated IPO, resale, SEPA, warrant, convertible, or offering terms as a new investor event when the amendment only supports an exhibit, consent, opinion, fee update, or unchanged prospectus.",
+    "- Use event_type other, signal neutral, score 10-35, and archive-level treatment unless the current amendment changes concrete investor-facing terms.",
+    "- Concrete investor-facing changes include registered shares, price, proceeds, selling holders, underwriters, conversion or exercise terms, effectiveness, lock-up, listing timing, or use of proceeds.",
+    "- For routine_amendment, snapshot_metrics and offering_details must be empty arrays unless the current filing changes a concrete investor-facing term.",
+    "- investor_takeaway and narrative_summary should state the amendment purpose and, when source-backed, that the prospectus or offering terms are unchanged.",
+    "- What changed labels may include Legal opinion, Expert consents, Exhibits, Fee table, Financial statements, Signature pages, Prospectus unchanged.",
+    "",
     "ipo_registration:",
     "- Use for initial IPO/F-1/S-1 registration before final pricing.",
     "- Initial IPO filings usually do not yet disclose price, share count, valuation, lock-up expiry, final underwriters, or first trade date. Do not fill the UI with Not disclosed rows for those missing final terms.",

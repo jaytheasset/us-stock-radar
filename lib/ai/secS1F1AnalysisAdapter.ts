@@ -10,6 +10,7 @@ export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v1";
 const ALLOWED_S1_F1_DISPLAY_MODES = new Set([
   "ipo_registration",
   "ipo_amendment",
+  "routine_amendment",
   "resale_registration",
   "atm",
   "primary_offering",
@@ -193,11 +194,12 @@ function validateS1F1DisplayPayload(displayPayload: Record<string, unknown>) {
   if (!displayMode) {
     return "SEC S-1/F-1 offering_terms display_payload.data.display_mode must be written by the analysis LLM";
   }
-  const snapshotMetricsMayBeEmpty = displayMode === "post_effective_amendment";
+  const amendmentSummaryMode = displayMode === "post_effective_amendment" || displayMode === "routine_amendment";
+  const snapshotMetricsMayBeEmpty = amendmentSummaryMode;
   if (!Array.isArray(data.snapshot_metrics) || (!snapshotMetricsMayBeEmpty && !data.snapshot_metrics.length)) {
     return "SEC S-1/F-1 offering_terms display_payload.data.snapshot_metrics must be written by the analysis LLM";
   }
-  const offeringDetailsMayBeEmpty = displayMode === "ipo_registration" || displayMode === "post_effective_amendment";
+  const offeringDetailsMayBeEmpty = displayMode === "ipo_registration" || amendmentSummaryMode;
   if (!Array.isArray(data.offering_details) || (!offeringDetailsMayBeEmpty && !data.offering_details.length)) {
     return "SEC S-1/F-1 offering_terms display_payload.data.offering_details must be written by the analysis LLM";
   }

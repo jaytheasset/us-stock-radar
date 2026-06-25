@@ -4,6 +4,6 @@ export * from "./displayPayload.ts";
 export * from "./documentFilter.ts";
 export * from "./fetchPlan.ts";
 export * from "./parser.ts";
-export * from "./routerPrompt.ts";
+export * from "./sourceInput.ts";
 export * from "./types.ts";
 export { default } from "./adapter.ts";

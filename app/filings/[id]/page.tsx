@@ -5940,6 +5940,7 @@ function normalize424bOfferingDisplayMode(value: string) {
     "spac_transaction_status",
     "mixed_offering",
     "post_effective_amendment",
+    "routine_amendment",
     "generic",
   ]);
   return allowed.has(normalized) ? normalized : "";
@@ -6801,17 +6802,20 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
   const llmSnapshotMetrics = readSnapshotMetrics(displayPayloadData);
   const postEffectiveText = `${displayPayloadSearchText} ${filing.title} ${filing.summary} ${summaryNarrative}`;
   const isPostEffectiveAmendment = displayMode === "post_effective_amendment";
+  const isRoutineAmendment = displayMode === "routine_amendment";
+  const isAmendmentSummaryMode = isPostEffectiveAmendment || isRoutineAmendment;
   const isDeregistrationPostEffective =
     isPostEffectiveAmendment &&
     /\b(?:deregister|deregistration|unsold securities?|removed from registration|no securities will remain|no longer being offered)\b/i.test(
       postEffectiveText,
     );
   const isRoutinePostEffectiveUpdate =
-    isPostEffectiveAmendment &&
-    !isDeregistrationPostEffective &&
-    /\b(?:no additional securities|updated financial|financial statements?|financials|quarter|nine months|consent|exhibit|fee table|legal opinion)\b/i.test(
-      postEffectiveText,
-    );
+    isRoutineAmendment ||
+    (isPostEffectiveAmendment &&
+      !isDeregistrationPostEffective &&
+      /\b(?:no additional securities|updated financial|financial statements?|financials|quarter|nine months|consent|exhibit|fee table|legal opinion)\b/i.test(
+        postEffectiveText,
+      ));
   const mixedOfferingNewSharesValue =
     formatMixedOfferingComponentValue(mixedOfferingCurrentSaleComponent) ||
     formatShareCountNumber(mixedOfferingCurrentSaleCount) ||
@@ -7411,7 +7415,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     hideShareOverhang: isAtm,
     hideSnapshotPanel: isRoutinePostEffectiveUpdate,
     hideStructuredDetailSections: isRoutinePostEffectiveUpdate,
-    summaryTitle: isPostEffectiveAmendment ? "Amendment Summary" : "Dilution Summary",
+    summaryTitle: isAmendmentSummaryMode ? "Amendment Summary" : "Dilution Summary",
     hasConversionSegment,
     hasCurrentSharesMarker,
     hasPoolSegments,

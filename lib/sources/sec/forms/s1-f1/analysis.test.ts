@@ -3,8 +3,8 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import { buildS1F1AnalysisPrompt, validateS1F1RequiredOutputShape } from "./analysisPrompt.ts";
+import { s1F1Adapter } from "./adapter.ts";
 import { parseS1F1Filing } from "./parser.ts";
-import { selectPreliminaryS1F1Route } from "./routerPrompt.ts";
 import {
   APPROVED_SEC_EVENT_TYPES,
   type S1F1ParserInput,
@@ -41,8 +41,7 @@ describe("S-1/F-1 analysis output fixtures", () => {
   it("builds an analysis prompt that preserves the parser > analysis LLM flow", () => {
     const fixture = loadJson<{ input: S1F1ParserInput }>("fixtures/edgar-reddit-s1a-pricing.json");
     const parserOutput = parseS1F1Filing(fixture.input);
-    const route = selectPreliminaryS1F1Route(parserOutput);
-    const prompt = buildS1F1AnalysisPrompt(parserOutput, route);
+    const prompt = buildS1F1AnalysisPrompt(parserOutput);
 
     assert.ok(prompt.includes("Required Output JSON"));
     assert.ok(prompt.includes("S-1 / F-1, S-1/A / F-1/A"));
@@ -76,26 +75,49 @@ describe("S-1/F-1 analysis output fixtures", () => {
       filingText:
         "This is the initial public offering of units of a blank check company and special purpose acquisition company. No target company has been selected.",
     });
-    const route = selectPreliminaryS1F1Route(parserOutput);
 
-    assert.equal(route.event_type, "other");
-    assert.equal(route.display_type, "generic");
     assert.equal(parserOutput.raw.spacTransactionStatus?.statusDetected, false);
     assert.ok(parserOutput.raw.cleanedSourceBlocks?.some((block) => block.text.includes("initial public offering")));
   });
 
-  it("passes de-SPAC source text to the router instead of choosing the SPAC transaction UI in the parser", () => {
+  it("passes de-SPAC source text to the analysis LLM instead of choosing the SPAC transaction UI in the parser", () => {
     const parserOutput = parseS1F1Filing({
       formType: "S-1",
       filingText:
         "The registration statement relates to a de-SPAC business combination with TargetCo, Inc. The target company is TargetCo, Inc. The expected ticker will be TGTX. The redemption rate was 82%. The minimum cash condition was waived. PIPE financing and a backstop are in place. The expected closing date is June 30, 2026. The ticker change date is July 1, 2026. Trust cash before redemptions was $250 million and trust cash after redemptions was $45 million. Redemption price was $10.50 per share. Public shares remaining were 4,500,000.",
     });
-    const route = selectPreliminaryS1F1Route(parserOutput);
 
-    assert.equal(route.event_type, "other");
-    assert.equal(route.display_type, "generic");
     assert.ok(parserOutput.raw.cleanedSourceBlocks?.some((block) => block.text.includes("TargetCo, Inc")));
     assert.ok(parserOutput.raw.cleanedSourceBlocks?.some((block) => block.text.includes("minimum cash condition")));
+  });
+
+  it("exposes the live integration adapter entrypoints and normalizes runtime input", () => {
+    const parserOutput = s1F1Adapter.parse({
+      formType: "S-1",
+      accessionNumber: "0000000000-26-000001",
+      primaryDocumentText: "This is our initial public offering. No public market currently exists for our common stock.",
+      ticker: "TEST",
+      companyName: "Test IPO Inc.",
+      attachments: [
+        {
+          filename: "ex107.htm",
+          description: "Filing Fee Table",
+          text: "Calculation of Filing Fee Tables",
+        },
+      ],
+    });
+
+    assert.equal(s1F1Adapter.key, "sec-s1-f1");
+    assert.equal(s1F1Adapter.parserGroup, "s1-f1");
+    assert.equal(s1F1Adapter.analysisMode, "analysis_only");
+    assert.deepEqual([...s1F1Adapter.supportedForms], ["S-1", "S-1/A", "F-1", "F-1/A", "S-1MEF", "F-1MEF", "POS AM"]);
+    assert.equal("selectRoute" in s1F1Adapter, false);
+    assert.equal("buildDisplayPayload" in s1F1Adapter, false);
+    assert.equal(typeof s1F1Adapter.buildAnalysisPrompt, "function");
+    assert.equal(parserOutput.accessionNumber, "0000000000-26-000001");
+    assert.equal(parserOutput.facts.ticker, "TEST");
+    assert.equal(parserOutput.raw.attachmentNames[0], "ex107.htm");
+    assert.ok(parserOutput.raw.cleanedSourceBlocks?.some((block) => block.text.includes("initial public offering")));
   });
 
   it("rejects analysis output that substitutes a different primary ticker", () => {
