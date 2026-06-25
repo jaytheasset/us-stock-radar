@@ -2537,12 +2537,13 @@ function offsetFilingTrend(values: number[], offset: number) {
 function FilingMarketContextPanel({ filing }: { filing: FilingEvent }) {
   const context = filing.context;
   const relatedFilings = <FilingRelatedFilingsPanel filing={filing} />;
+  const marketDataPending = isRegistrationMarketDataPending(filing);
   if (!isRealTicker(filing.ticker)) return relatedFilings;
   if (!context || !hasRenderableFilingMarketContext(context)) {
     return (
       <>
         {relatedFilings}
-        <FilingMarketContextUnavailablePanel ticker={filing.ticker} />
+        <FilingMarketContextUnavailablePanel marketDataPending={marketDataPending} ticker={filing.ticker} />
       </>
     );
   }
@@ -2555,7 +2556,13 @@ function FilingMarketContextPanel({ filing }: { filing: FilingEvent }) {
   );
 }
 
-function FilingMarketContextUnavailablePanel({ ticker }: { ticker: string }) {
+function FilingMarketContextUnavailablePanel({
+  marketDataPending,
+  ticker,
+}: {
+  marketDataPending: boolean;
+  ticker: string;
+}) {
   return (
     <section className="stock-detail-card sector-theme-main-card">
       <div className="card-heading-row context-heading-row">
@@ -2564,9 +2571,29 @@ function FilingMarketContextUnavailablePanel({ ticker }: { ticker: string }) {
           <p className="market-context-data-disclaimer">Market data is latest available, not necessarily as of the filing date.</p>
         </div>
       </div>
-      <p className="context-empty-state">Market context data is not available for this ticker yet.</p>
+      <p className="context-empty-state">
+        {marketDataPending
+          ? "Market data is pending until regular trading data becomes available."
+          : "Market context data is not available for this ticker yet."}
+      </p>
     </section>
   );
+}
+
+function isRegistrationMarketDataPending(filing: FilingEvent) {
+  const formType = filing.formType.trim().toUpperCase();
+  if (!/^(?:S-1|S-1\/A|F-1|F-1\/A|S-1MEF|F-1MEF|POS AM)$/.test(formType)) return false;
+
+  const sourceText = [
+    filing.title,
+    filing.filingBrief,
+    filing.summary,
+    filing.whyItMatters,
+    readRowString(readDisplayPayloadData(readPlainRecord(filing.displayPayload)), "display_mode"),
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return /\b(?:ipo|initial public offering|listing|nasdaq|nyse|registration statement|post-effective amendment)\b/i.test(sourceText);
 }
 
 function hasRenderableFilingMarketContext(context: SectorThemeContext) {
@@ -2631,6 +2658,7 @@ function FilingPriceChart({ filing }: { filing: FilingEvent }) {
       series={filing.priceSeries}
       ticker={filing.ticker}
       tone={filing.signal}
+      tradingDataPending={isRegistrationMarketDataPending(filing)}
     />
   );
 }

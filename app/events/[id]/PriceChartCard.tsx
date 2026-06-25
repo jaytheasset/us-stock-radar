@@ -27,6 +27,7 @@ type PriceChartCardProps = {
   series: PriceChartSeries;
   ticker: string;
   tone: DetailTone;
+  tradingDataPending?: boolean;
 };
 
 type ChartApiResponse = {
@@ -54,7 +55,16 @@ type ActiveChartData = {
   remote: boolean;
 };
 
-export function PriceChartCard({ change, changeAmount, markers = [], price, series, ticker, tone }: PriceChartCardProps) {
+export function PriceChartCard({
+  change,
+  changeAmount,
+  markers = [],
+  price,
+  series,
+  ticker,
+  tone,
+  tradingDataPending = false,
+}: PriceChartCardProps) {
   const [range, setRange] = useState<PriceRange>("1D");
   const [remoteDataByRange, setRemoteDataByRange] = useState<Partial<Record<PriceRange, ChartApiResponse>>>({});
   const [loadingRange, setLoadingRange] = useState<PriceRange | null>(null);
@@ -119,15 +129,23 @@ export function PriceChartCard({ change, changeAmount, markers = [], price, seri
   }, [activeRemoteData, isLoadingActiveRange, range, series.periods, series.previousClose, series.providerLabel]);
 
   const displayTone = chartData?.changePercent === undefined ? tone : toneFromPercent(chartData.changePercent);
-  const displayPrice = chartData?.latestPrice === undefined ? price : formatCurrency(chartData.latestPrice);
-  const displayChange =
-    chartData?.changeAmount === undefined || chartData.changePercent === undefined
+  const showTradingDataPending = tradingDataPending && !isLoadingActiveRange && !chartData?.points.length;
+  const displayPrice = showTradingDataPending
+    ? "Trading data pending"
+    : chartData?.latestPrice === undefined
+      ? price
+      : formatCurrency(chartData.latestPrice);
+  const displayChange = showTradingDataPending
+    ? "Price data unavailable"
+    : chartData?.changeAmount === undefined || chartData.changePercent === undefined
       ? `${changeAmount} (${change})`
       : `${formatSignedCurrency(chartData.changeAmount)} (${formatSignedPercent(chartData.changePercent)})`;
   const lastPoint = chartData?.points[chartData.points.length - 1];
   const activeMarkers = useMemo(() => normalizePriceMarkers(markers, ticker), [markers, ticker]);
   const statusLabel =
-    isLoadingActiveRange && !chartData
+    showTradingDataPending
+      ? "Trading data pending"
+      : isLoadingActiveRange && !chartData
       ? "Updating market data"
       : chartData?.remote
         ? `${chartData.providerLabel}${activeRemoteData?.cache ? ` - ${cacheLabel(activeRemoteData.cache)}` : ""}`
@@ -160,6 +178,11 @@ export function PriceChartCard({ change, changeAmount, markers = [], price, seri
       </div>
       {chartData ? (
         <PriceVolumeChart
+          emptyMessage={
+            showTradingDataPending
+              ? "Price chart will appear once regular trading data is available."
+              : undefined
+          }
           markers={activeMarkers}
           points={chartData.points}
           previousClose={chartData.previousClose}
@@ -171,7 +194,7 @@ export function PriceChartCard({ change, changeAmount, markers = [], price, seri
       )}
       <div className="price-chart-meta">
         <span>{chartData?.points.length && chartData.previousClose > 0 ? `Previous close ${formatCurrency(chartData.previousClose)}` : "Previous close unavailable"}</span>
-        <span>Latest volume {formatVolume(lastPoint?.volume || 0)}</span>
+        <span>{showTradingDataPending ? "Volume unavailable" : `Latest volume ${formatVolume(lastPoint?.volume || 0)}`}</span>
       </div>
     </div>
   );
@@ -220,12 +243,14 @@ function formatMarkerValue(marker: PriceChartMarker) {
 }
 
 function PriceVolumeChart({
+  emptyMessage = "No chart data",
   markers,
   points,
   previousClose,
   range,
   tone,
 }: {
+  emptyMessage?: string;
   markers: PriceChartMarker[];
   points: PricePoint[];
   previousClose: number;
@@ -236,7 +261,7 @@ function PriceVolumeChart({
   const chartPoints = points.length ? points : [];
 
   if (!chartPoints.length) {
-    return <div className="price-chart-empty">No chart data</div>;
+    return <div className="price-chart-empty">{emptyMessage}</div>;
   }
 
   const values = chartPoints.flatMap((point) => [point.high, point.low, point.close, point.open]);
