@@ -50,6 +50,10 @@ const ALLOWED_S1_F1_SNAPSHOT_LABELS = [
   "Total registered pool",
   "Additional offering value",
   "Rule 462(b) limit",
+  "Amendment type",
+  "Securities affected",
+  "Registration status",
+  "New sale / proceeds",
 ] as const;
 
 export type SecS1F1AnalysisAdapterResult =
@@ -165,10 +169,12 @@ function validateS1F1DisplayPayload(displayPayload: Record<string, unknown>) {
   if (!displayMode) {
     return "SEC S-1/F-1 offering_terms display_payload.data.display_mode must be written by the analysis LLM";
   }
-  if (!Array.isArray(data.snapshot_metrics) || !data.snapshot_metrics.length) {
+  const snapshotMetricsMayBeEmpty = displayMode === "post_effective_amendment";
+  if (!Array.isArray(data.snapshot_metrics) || (!snapshotMetricsMayBeEmpty && !data.snapshot_metrics.length)) {
     return "SEC S-1/F-1 offering_terms display_payload.data.snapshot_metrics must be written by the analysis LLM";
   }
-  if (!Array.isArray(data.offering_details) || (displayMode !== "ipo_registration" && !data.offering_details.length)) {
+  const offeringDetailsMayBeEmpty = displayMode === "ipo_registration" || displayMode === "post_effective_amendment";
+  if (!Array.isArray(data.offering_details) || (!offeringDetailsMayBeEmpty && !data.offering_details.length)) {
     return "SEC S-1/F-1 offering_terms display_payload.data.offering_details must be written by the analysis LLM";
   }
   if (!stringValue(data.investor_takeaway)) {
@@ -185,9 +191,11 @@ function validateS1F1DisplayPayload(displayPayload: Record<string, unknown>) {
     }),
   );
   const rowError =
-    validateLabelValueRows(data.snapshot_metrics, "snapshot_metrics") ||
+    validateLabelValueRows(data.snapshot_metrics, "snapshot_metrics", {
+      allowEmpty: snapshotMetricsMayBeEmpty,
+    }) ||
     validateLabelValueRows(data.offering_details, "offering_details", {
-      allowEmpty: displayMode === "ipo_registration",
+      allowEmpty: offeringDetailsMayBeEmpty,
     }) ||
     validateLabelValueRows(data.amendment_changes, "amendment_changes", { allowEmpty: true });
   if (rowError) return rowError;

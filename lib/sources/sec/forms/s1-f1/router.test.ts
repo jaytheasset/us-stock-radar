@@ -83,7 +83,7 @@ describe("S-1/F-1 router prompt", () => {
     assert.equal(s1F1Adapter.key, "sec-s1-f1");
     assert.equal(s1F1Adapter.parserGroup, "s1-f1");
     assert.equal(s1F1Adapter.analysisMode, "analysis_only");
-    assert.deepEqual([...s1F1Adapter.supportedForms], ["S-1", "S-1/A", "F-1", "F-1/A"]);
+    assert.deepEqual([...s1F1Adapter.supportedForms], ["S-1", "S-1/A", "F-1", "F-1/A", "S-1MEF", "F-1MEF", "POS AM"]);
     assert.equal("selectRoute" in s1F1Adapter, false);
     assert.equal("buildDisplayPayload" in s1F1Adapter, false);
     assert.equal(typeof s1F1Adapter.buildAnalysisPrompt, "function");

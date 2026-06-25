@@ -954,7 +954,7 @@ function isOfferingFeeTableForm(formType: string | null) {
   const form = normalizeFormType(formType);
   return (
     isS3FamilyForm(form) ||
-    /^(?:S-1|F-1|S-1\/A|F-1\/A|S-1MEF|F-1MEF|S-8|S-8\/A|424B3|424B5|S-4|S-4\/A|F-4|F-4\/A)$/i.test(form)
+    /^(?:S-1|F-1|S-1\/A|F-1\/A|S-1MEF|F-1MEF|POS AM|S-8|S-8\/A|424B3|424B5|S-4|S-4\/A|F-4|F-4\/A)$/i.test(form)
   );
 }
 

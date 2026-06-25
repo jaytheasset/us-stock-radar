@@ -83,15 +83,22 @@ export async function GET(request: NextRequest) {
     : await fetchFmpChart(symbol, range, env.fmpApiKey);
 
   if (!chartResult.ok || !chartResult.points.length) {
-    return NextResponse.json(
-      {
-        ok: false,
-        symbol,
-        range,
-        error: chartResult.error || polygonResult.error || "No chart data returned",
-      },
-      { status: 502 },
-    );
+    return NextResponse.json({
+      ok: false,
+      cache: forceRefresh ? "bypass" : "miss",
+      quoteCache: quote.cacheStatus,
+      symbol,
+      range,
+      interval,
+      provider: chartResult.provider,
+      providerLabel: chartResult.providerLabel,
+      previousClose: quote.previousClose,
+      latestPrice: quote.price,
+      changeAmount: quote.changeAmount,
+      changePercent: quote.changePercent,
+      points: [],
+      error: chartResult.error || polygonResult.error || "No chart data returned",
+    });
   }
 
   const latestPoint = chartResult.points[chartResult.points.length - 1];

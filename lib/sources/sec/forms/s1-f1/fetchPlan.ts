@@ -2,7 +2,7 @@ import type { SecFormFetchPlan } from "../common/fetchPlan";
 
 export const secS1F1FetchPlan = {
   room: "s1-f1",
-  forms: ["S-1", "F-1", "S-1/A", "F-1/A", "S-1MEF", "F-1MEF"],
+  forms: ["S-1", "F-1", "S-1/A", "F-1/A", "S-1MEF", "F-1MEF", "POS AM"],
   defaultAttachmentLimit: 10,
   notes: [
     "Registration statements need fee tables, prospectus text, selling-holder context, and key legal/consent exhibits.",

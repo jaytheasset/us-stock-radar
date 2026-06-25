@@ -2073,7 +2073,13 @@ function isS1F1ParentContextFamily(value: string) {
 
 function isS1F1AmendmentParentContextForm(formType: string) {
   const normalized = normalizeSecFormForParentContext(formType);
-  return normalized === "S-1/A" || normalized === "F-1/A" || normalized === "S-1MEF" || normalized === "F-1MEF";
+  return (
+    normalized === "S-1/A" ||
+    normalized === "F-1/A" ||
+    normalized === "S-1MEF" ||
+    normalized === "F-1MEF" ||
+    normalized === "POS AM"
+  );
 }
 
 function normalizeGenericParentFormFamily(formType: string) {

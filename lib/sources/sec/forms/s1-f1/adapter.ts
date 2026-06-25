@@ -8,8 +8,8 @@ import {
 } from "./types.ts";
 
 export const S1F1_ADAPTER_KEY = "sec-s1-f1";
-export const S1F1_SUPPORTED_FORMS = ["S-1", "S-1/A", "F-1", "F-1/A", "S-1MEF", "F-1MEF"] as const;
-export const S1F1_ADJACENT_FORMS = ["POS AM"] as const;
+export const S1F1_SUPPORTED_FORMS = ["S-1", "S-1/A", "F-1", "F-1/A", "S-1MEF", "F-1MEF", "POS AM"] as const;
+export const S1F1_ADJACENT_FORMS = [] as const;
 export const S1F1_ANALYSIS_MODE = "analysis_only";
 
 type RuntimeAttachment = {

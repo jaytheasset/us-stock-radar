@@ -1486,14 +1486,14 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
   const useIpoDetail = Boolean(ipoModel);
   const spacModel = !useIpoDetail ? buildSpacTransactionStatusModel(filing) : null;
   const useSpacDetail = Boolean(spacModel);
-  const listingRiskModel = !useIpoDetail && !useSpacDetail ? buildListingRiskModel(filing) : null;
+  const canUseDilutionDetail = canRenderDilutionOfferingDetail(filing);
+  const listingRiskModel = !useIpoDetail && !useSpacDetail && !canUseDilutionDetail ? buildListingRiskModel(filing) : null;
   const useListingRiskDetail = Boolean(listingRiskModel);
   const earningsModel = !useIpoDetail && !useSpacDetail && !useListingRiskDetail ? buildEarningsModel(filing) : null;
   const useEarningsDetail = Boolean(earningsModel);
   const fdaClinicalModel =
     !useIpoDetail && !useSpacDetail && !useListingRiskDetail && !useEarningsDetail ? buildFdaClinicalModel(filing) : null;
   const useFdaClinicalDetail = Boolean(fdaClinicalModel);
-  const canUseDilutionDetail = canRenderDilutionOfferingDetail(filing);
   const dilutionModel =
     !useIpoDetail &&
     !useSpacDetail &&
@@ -1706,17 +1706,18 @@ async function hydrateFallbackFilingPriceSeries(filing: FilingEvent): Promise<Fi
 }
 
 function canRenderDilutionOfferingDetail(filing: FilingEvent) {
-  if (filing.eventType !== "dilution_risk") return false;
-
   const displayPayload = readPlainRecord(filing.displayPayload);
   const displayType = readRowString(displayPayload, "display_type");
   const displayData = readDisplayPayloadData(displayPayload);
   const formType = filing.formType.trim().toUpperCase();
   const isTenderCbForm = /^(?:CB|SC TO|SC TO-I|SC TO-T|SC 13E3|SC 14D9)(?:\/A)?$/.test(formType);
   const isS8Form = /^S-8(?:\/A|\s+POS)?$/.test(formType);
+  const isS1F1OfferingForm = /^(?:S-1(?:\/A|MEF)?|F-1(?:\/A|MEF)?|POS AM)$/.test(formType);
   const hasS8Mode = Boolean(readRowString(displayData, "s8_ui_mode") || readRowString(displayData, "s8UiMode"));
 
   if (isTenderCbForm && displayType !== "offering_terms") return false;
+  if (displayType === "offering_terms" && isS1F1OfferingForm) return true;
+  if (filing.eventType !== "dilution_risk") return false;
 
   return Boolean(
     displayType === "offering_terms" ||
@@ -2536,14 +2537,35 @@ function offsetFilingTrend(values: number[], offset: number) {
 function FilingMarketContextPanel({ filing }: { filing: FilingEvent }) {
   const context = filing.context;
   const relatedFilings = <FilingRelatedFilingsPanel filing={filing} />;
-  if (!context || !isRealTicker(filing.ticker)) return relatedFilings;
-  if (!hasRenderableFilingMarketContext(context)) return relatedFilings;
+  if (!isRealTicker(filing.ticker)) return relatedFilings;
+  if (!context || !hasRenderableFilingMarketContext(context)) {
+    return (
+      <>
+        {relatedFilings}
+        <FilingMarketContextUnavailablePanel ticker={filing.ticker} />
+      </>
+    );
+  }
 
   return (
     <>
       {relatedFilings}
       <SectorThemeContextPanel context={context} ticker={filing.ticker} />
     </>
+  );
+}
+
+function FilingMarketContextUnavailablePanel({ ticker }: { ticker: string }) {
+  return (
+    <section className="stock-detail-card sector-theme-main-card">
+      <div className="card-heading-row context-heading-row">
+        <div>
+          <h2>{ticker} Market Context</h2>
+          <p className="market-context-data-disclaimer">Market data is latest available, not necessarily as of the filing date.</p>
+        </div>
+      </div>
+      <p className="context-empty-state">Market context data is not available for this ticker yet.</p>
+    </section>
   );
 }
 
@@ -3440,7 +3462,7 @@ function Rule462bMefTemplate({
           </div>
 
           <div className="initial-ipo-summary-card initial-ipo-background-card">
-            <h2>MEF Summary</h2>
+            <h2>Additional Registration</h2>
             <p>{summary}</p>
           </div>
         </section>
@@ -3833,24 +3855,34 @@ function DilutionOfferingTemplate({
     return <CommonFilingTemplate eventLabel={eventLabel} filing={filing} />;
   }
 
+  const showSummaryBesideChart = model.hideSnapshotPanel;
+
   return (
     <>
-      <section className="stock-detail-top-grid">
-        <FilingPriceChart filing={filing} />
+      {showSummaryBesideChart ? (
+        <section className="stock-detail-top-grid">
+          <FilingPriceChart filing={filing} />
 
-        <DilutionSnapshotCard model={model} />
-      </section>
+          <DilutionLongSummary model={model} />
+        </section>
+      ) : (
+        <section className="stock-detail-top-grid">
+          <FilingPriceChart filing={filing} />
+
+          <DilutionSnapshotCard model={model} />
+        </section>
+      )}
 
       {model.isShelfOnly ? (
         <>
-          <DilutionLongSummary model={model} />
+          {showSummaryBesideChart ? null : <DilutionLongSummary model={model} />}
           <ShelfWatchNext model={model} />
         </>
       ) : (
         <>
-          <DilutionLongSummary model={model} />
+          {showSummaryBesideChart ? null : <DilutionLongSummary model={model} />}
 
-          {model.hideShareOverhang ? (
+          {model.hideStructuredDetailSections ? null : model.hideShareOverhang ? (
             <AtmProgramDetails model={model} />
           ) : model.isMixedOffering ? (
             <MixedOfferingDetails model={model} />
@@ -3916,7 +3948,7 @@ function DilutionSnapshotCard({ model }: { model: ReturnType<typeof buildDilutio
 function DilutionLongSummary({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
   return (
     <section className="stock-detail-card dilution-long-summary">
-      <h2>Dilution Summary</h2>
+      <h2>{model.summaryTitle}</h2>
       {model.summaryParagraphs.map((paragraph) => (
         <p key={paragraph}>{paragraph}</p>
       ))}
@@ -5879,6 +5911,7 @@ function normalize424bOfferingDisplayMode(value: string) {
     "shelf_capacity",
     "spac_transaction_status",
     "mixed_offering",
+    "post_effective_amendment",
     "generic",
   ]);
   return allowed.has(normalized) ? normalized : "";
@@ -6738,6 +6771,19 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
   const summaryNarrative = llmNarrativeSummary;
   const summaryParagraphs = [llmNarrativeSummary].filter(isDisclosedValue);
   const llmSnapshotMetrics = readSnapshotMetrics(displayPayloadData);
+  const postEffectiveText = `${displayPayloadSearchText} ${filing.title} ${filing.summary} ${summaryNarrative}`;
+  const isPostEffectiveAmendment = displayMode === "post_effective_amendment";
+  const isDeregistrationPostEffective =
+    isPostEffectiveAmendment &&
+    /\b(?:deregister|deregistration|unsold securities?|removed from registration|no securities will remain|no longer being offered)\b/i.test(
+      postEffectiveText,
+    );
+  const isRoutinePostEffectiveUpdate =
+    isPostEffectiveAmendment &&
+    !isDeregistrationPostEffective &&
+    /\b(?:no additional securities|updated financial|financial statements?|financials|quarter|nine months|consent|exhibit|fee table|legal opinion)\b/i.test(
+      postEffectiveText,
+    );
   const mixedOfferingNewSharesValue =
     formatMixedOfferingComponentValue(mixedOfferingCurrentSaleComponent) ||
     formatShareCountNumber(mixedOfferingCurrentSaleCount) ||
@@ -6971,7 +7017,9 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
         ]),
   ];
   const fallbackImpactMetrics = impactMetricItems.filter((metric): metric is DilutionMetricItem => Boolean(metric));
-  const impactMetrics = isS8Form && fallbackImpactMetrics.length
+  const impactMetrics = isRoutinePostEffectiveUpdate
+    ? []
+    : isS8Form && fallbackImpactMetrics.length
     ? fallbackImpactMetrics
     : is424bOfferingTermsPayload
     ? llmSnapshotMetrics
@@ -7333,6 +7381,9 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     termsAndProceeds,
     futureOverhangRows,
     hideShareOverhang: isAtm,
+    hideSnapshotPanel: isRoutinePostEffectiveUpdate,
+    hideStructuredDetailSections: isRoutinePostEffectiveUpdate,
+    summaryTitle: isPostEffectiveAmendment ? "Amendment Summary" : "Dilution Summary",
     hasConversionSegment,
     hasCurrentSharesMarker,
     hasPoolSegments,
