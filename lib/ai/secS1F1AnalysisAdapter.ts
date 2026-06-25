@@ -67,8 +67,9 @@ export function buildSecS1F1AnalysisPromptForInput(input: SecFilingAnalysisInput
     version: SEC_S1_F1_ANALYSIS_PROMPT_VERSION,
     system: [
       "Analyze one SEC S-1/F-1 registration filing from cleaned source blocks.",
-      "Return the full Required Output JSON shape.",
+      "Return the Required Output JSON shape with one primary display_payload.data.display_mode.",
       "There is no S-1/F-1 router LLM and no parser-completed display payload. Choose event_type, display_type, score, and display_payload from the source blocks.",
+      "For offering_terms, generic analysis fields are storage/list compatibility only and must match the selected display payload.",
       "Use generic for the common filing detail page, offering_terms for IPO/offering/resale/MEF/POS AM registration terms, and spac_transaction_status only for source-backed de-SPAC status.",
       "Score means investor attention and urgency. Delivery is derived later from score only.",
     ].join("\n"),
@@ -122,7 +123,10 @@ export function adaptSecS1F1AnalysisPromptResultForAnalysis(
   const normalizedValue = {
     ...root,
     parser_output: normalizeS1F1ParserOutput(root?.parser_output, input),
-    analysis_output: normalizeS1F1AnalysisOutput(analysisOutput, input),
+    analysis_output: alignS1F1AnalysisOutputToDisplayPayload(
+      normalizeS1F1AnalysisOutput(analysisOutput, input),
+      displayPayload,
+    ),
     display_payload: displayPayload,
   };
   const adapted = adaptSecFormRoomOutputForIngest(normalizedValue);
@@ -169,12 +173,17 @@ function validateS1F1DisplayPayload(displayPayload: Record<string, unknown>) {
   if (!stringValue(data.narrative_summary)) {
     return "SEC S-1/F-1 offering_terms display_payload.data.narrative_summary must be written by the analysis LLM";
   }
+  appendS1F1DisplayWarnings(
+    data,
+    collectLabelValueRowWarnings(data.offering_details, "offering_details", {
+      maxValueLength: 90,
+      maxNoteLength: 80,
+    }),
+  );
   const rowError =
     validateLabelValueRows(data.snapshot_metrics, "snapshot_metrics") ||
     validateLabelValueRows(data.offering_details, "offering_details", {
       allowEmpty: displayMode === "ipo_registration",
-      maxValueLength: 90,
-      maxNoteLength: 80,
     }) ||
     validateLabelValueRows(data.amendment_changes, "amendment_changes", { allowEmpty: true });
   if (rowError) return rowError;
@@ -186,7 +195,7 @@ function validateS1F1DisplayPayload(displayPayload: Record<string, unknown>) {
 function validateLabelValueRows(
   value: unknown,
   fieldName: string,
-  options?: { allowEmpty?: boolean; maxValueLength?: number; maxNoteLength?: number },
+  options?: { allowEmpty?: boolean },
 ) {
   if (value === undefined || value === null) return "";
   if (!Array.isArray(value)) return `SEC S-1/F-1 display_payload.data.${fieldName} must be an array`;
@@ -204,14 +213,42 @@ function validateLabelValueRows(
     if (!label || !rowValue) {
       return `SEC S-1/F-1 display_payload.data.${fieldName}[${index}] must include label and value`;
     }
-    if (options?.maxValueLength && rowValue.length > options.maxValueLength) {
-      return `SEC S-1/F-1 display_payload.data.${fieldName}[${index}].value must be ${options.maxValueLength} characters or fewer`;
-    }
-    if (options?.maxNoteLength && note.length > options.maxNoteLength) {
-      return `SEC S-1/F-1 display_payload.data.${fieldName}[${index}].note must be ${options.maxNoteLength} characters or fewer`;
-    }
   }
   return "";
+}
+
+function collectLabelValueRowWarnings(
+  value: unknown,
+  fieldName: string,
+  options: { maxValueLength?: number; maxNoteLength?: number },
+) {
+  if (!Array.isArray(value)) return [];
+  const warnings: string[] = [];
+  for (const [index, row] of value.entries()) {
+    const record = readRecord(row);
+    if (!record) continue;
+    const rowValue = stringValue(record.value);
+    const note = stringValue(record.note);
+    if (options.maxValueLength && rowValue.length > options.maxValueLength) {
+      warnings.push(
+        `S-1/F-1 display_payload.data.${fieldName}[${index}].value exceeded ${options.maxValueLength} characters`,
+      );
+    }
+    if (options.maxNoteLength && note.length > options.maxNoteLength) {
+      warnings.push(
+        `S-1/F-1 display_payload.data.${fieldName}[${index}].note exceeded ${options.maxNoteLength} characters`,
+      );
+    }
+  }
+  return warnings;
+}
+
+function appendS1F1DisplayWarnings(data: Record<string, unknown>, warnings: string[]) {
+  if (!warnings.length) return;
+  const existing = Array.isArray(data.display_warnings)
+    ? data.display_warnings.map((item) => stringValue(item)).filter(Boolean)
+    : [];
+  data.display_warnings = [...existing, ...warnings];
 }
 
 function validateS1F1OverhangFacts(data: Record<string, unknown>) {
@@ -325,6 +362,28 @@ function normalizeS1F1AnalysisOutput(value: Record<string, unknown>, input: SecF
     confidence: normalizeConfidence(stringValue(value.confidence)),
     needs_human_review: value.needs_human_review === true,
   };
+}
+
+function alignS1F1AnalysisOutputToDisplayPayload(
+  analysis: Record<string, unknown>,
+  displayPayload: Record<string, unknown>,
+) {
+  if (stringValue(displayPayload.display_type) !== "offering_terms") return analysis;
+  const data = readRecord(displayPayload.data);
+  if (!data) return analysis;
+  const displayMode = stringValue(data.display_mode);
+  const investorTakeaway = nullableString(data.investor_takeaway);
+  const narrativeSummary = nullableString(data.narrative_summary);
+  const aligned: Record<string, unknown> = {
+    ...analysis,
+    ...(investorTakeaway ? { quick_take: investorTakeaway } : {}),
+    ...(narrativeSummary ? { summary: narrativeSummary } : {}),
+  };
+  if (displayMode && displayMode !== "generic") {
+    aligned.bullish_points = [];
+    aligned.bearish_points = [];
+  }
+  return aligned;
 }
 
 function readS1F1ParserOutput(input: SecFilingAnalysisInput): S1F1ParserOutput | null {

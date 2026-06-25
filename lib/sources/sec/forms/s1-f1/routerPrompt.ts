@@ -3,11 +3,20 @@ import {
   type S1F1ParserOutput,
   type S1F1RouterDecision,
 } from "./types.ts";
+import {
+  buildCurrentFilingIdentity,
+  currentFilingIdentityText,
+} from "../common/currentFilingIdentity.ts";
 
 const DISPLAY_VERSION = "s1-f1-display-v1";
 
 export function buildS1F1LlmSourceInput(parserOutput: S1F1ParserOutput): Record<string, unknown> {
+  const currentFiling = buildCurrentFilingIdentity({
+    parserOutput: parserOutput as unknown as Record<string, unknown>,
+    formFamily: parserOutput.formType,
+  });
   return {
+    current_filing: currentFiling,
     parserVersion: parserOutput.parserVersion,
     parserGroup: parserOutput.parserGroup,
     accessionNumber: parserOutput.accessionNumber,
@@ -33,6 +42,12 @@ export function buildS1F1LlmSourceInput(parserOutput: S1F1ParserOutput): Record<
     })) ?? [],
     market_context: parserOutput.raw.marketContext ?? null,
     parent_filing_context: parserOutput.raw.parentFilingContext ?? null,
+    current_filing_source_block: {
+      block_type: "current_filing",
+      label: "Current SEC filing identity",
+      source: "parser_identity",
+      text: currentFilingIdentityText(currentFiling),
+    },
     cleaned_source_blocks: parserOutput.raw.cleanedSourceBlocks ?? [],
     parser_warnings: parserOutput.warnings,
   };

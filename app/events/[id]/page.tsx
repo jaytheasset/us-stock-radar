@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ExternalLink, TrendingDown, TrendingUp } from "lucide-react";
 import { PriceChartCard } from "./PriceChartCard";
 import { SectorThemeContextPanel } from "./SectorThemeContextPanel";
@@ -508,6 +509,9 @@ export default async function StockNewsDetailPage({ params }: StockDetailPagePro
   const { id } = await params;
   const liveDetail = isUuid(id) ? await getLiveEventDetail(id) : { item: null };
   const liveItem = liveDetail.item;
+  if (liveItem?.sourceGroup === "filings") {
+    redirect(`/filings/${liveItem.id}`);
+  }
   const event = liveItem ? toDetailEvent(liveItem) : getFeedItem(id) || defaultEvent;
   let profile = liveItem
     ? await buildDbBackedProfile(liveItem, event)

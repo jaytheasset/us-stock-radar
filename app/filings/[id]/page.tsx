@@ -4772,7 +4772,12 @@ function buildIpoListingModel(filing: FilingEvent): IpoListingModel | null {
     sharesOffered,
     sourceMetrics: sourceSnapshotMetrics,
   });
-  const offeringDetailsRows = readOfferingDetailsRows(data);
+  const snapshotMetrics = displayMode === "ipo_amendment" ? termsUpdateSnapshotMetrics : initialSnapshotMetrics;
+  const offeringDetailsRows = filterIpoOfferingDetailsRows(
+    readOfferingDetailsRows(data),
+    snapshotMetrics,
+    displayMode,
+  );
   const investorTakeaway = displayString(data, "investor_takeaway", filing.filingBrief || filing.summary);
   const narrativeSummary = displayString(data, "narrative_summary", displayString(data, "company_story", filing.summary || "Not disclosed"));
   const isInitialTermsPending =
@@ -4812,7 +4817,7 @@ function buildIpoListingModel(filing: FilingEvent): IpoListingModel | null {
     expectedPricingDate: displayString(data, "expected_pricing_date", "Not disclosed"),
     expectedListingDate: displayString(data, "expected_listing_date", "Not disclosed"),
     useOfProceeds: (useOfProceeds.length ? useOfProceeds : useOfProceedsDetail ? [useOfProceedsDetail] : ["Not disclosed"]).slice(0, 4),
-    snapshotMetrics: displayMode === "ipo_amendment" ? termsUpdateSnapshotMetrics : initialSnapshotMetrics,
+    snapshotMetrics,
     offeringDetailsRows,
     stages,
     riskFlags: displayStringArray(data.risk_flags, filing.bearishPoints),
@@ -4950,6 +4955,44 @@ function buildIpoTermsUpdateSnapshotMetrics({
     .map((label) => rowsByLabel.get(label))
     .filter((metric): metric is DilutionMetricItem => Boolean(metric))
     .slice(0, 4);
+}
+
+function filterIpoOfferingDetailsRows(
+  rows: DilutionDisclosureRow[],
+  snapshotMetrics: DilutionMetricItem[],
+  displayMode: string,
+) {
+  if (!rows.length) return rows;
+  const snapshotLabels = new Set(snapshotMetrics.map((metric) => normalizeDisplayLookupLabel(metric.label)));
+  const snapshotText = normalizeDisplayLookupLabel(
+    snapshotMetrics
+      .map((metric) => `${metric.label} ${metric.value} ${metric.note || ""}`)
+      .join(" "),
+  );
+  const seen = new Set<string>();
+
+  return rows.filter((row) => {
+    const normalizedLabel = normalizeDisplayLookupLabel(row.label);
+    if (!normalizedLabel || seen.has(normalizedLabel)) return false;
+    seen.add(normalizedLabel);
+
+    if (displayMode === "ipo_amendment") {
+      if (/\b(?:proposed\s+)?(?:exchange|ticker|symbol|listing venue)\b/.test(normalizedLabel)) {
+        return !snapshotLabels.has("exchange ticker");
+      }
+      if (/\b(?:shares?|ads|units?)\s+offered\b/.test(normalizedLabel)) return false;
+      if (/\bprice\s+range\b/.test(normalizedLabel)) return false;
+      if (/\b(?:offering size|gross proceeds|estimated deal size)\b/.test(normalizedLabel)) return false;
+      if (
+        /\b(?:underwriter option|greenshoe)\b/.test(normalizedLabel) &&
+        /\b(?:option|greenshoe|additional)\b/.test(snapshotText)
+      ) {
+        return false;
+      }
+    }
+
+    return true;
+  });
 }
 
 function normalizeIpoTermsUpdateSnapshotMetric(metric: DilutionMetricItem): DilutionMetricItem | null {
