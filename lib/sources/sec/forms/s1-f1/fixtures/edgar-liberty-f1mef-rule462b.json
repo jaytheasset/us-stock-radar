@@ -30,7 +30,7 @@
       "registration_kind": "unknown",
       "filing_variant": "rule_462b_mef",
       "reported_form_type": "F-1MEF",
-      "parent_context_needed": true,
+      "parent_context_needed": false,
       "prior_registration_number": "333-293217",
       "automatic_effective": true,
       "within_20_percent_limit": true

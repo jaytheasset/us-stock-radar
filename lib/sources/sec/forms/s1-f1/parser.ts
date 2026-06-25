@@ -245,7 +245,9 @@ function extractFilingFacts(text: string, input: S1F1ParserInput): S1F1FilingFac
     filing_variant: filingVariant,
     boundary_case: boundaryCase,
     parent_context_needed:
-      (filingVariant === "pre_effective_amendment" || boundaryCase) && !input.parentFilingContext,
+      (filingVariant === "pre_effective_amendment" ||
+        (boundaryCase && filingVariant !== "rule_462b_mef")) &&
+      !input.parentFilingContext,
     parent_registration_number: parentRegistrationNumber,
     post_effective_purpose: postEffectivePurpose,
     deregister_unsold_securities: deregisterUnsoldSecurities,
@@ -2983,7 +2985,7 @@ function buildSignals(text: string, facts: S1F1Facts): S1F1Signal[] {
 
   if (facts.filing.filing_variant === "rule_462b_mef") {
     signals.push(
-      makeSignal("other", "Rule 462(b) MEF registration requires parent filing context", "low", "neutral", [
+      makeSignal("other", "Rule 462(b) MEF add-on registration", "low", "neutral", [
         evidenceFor(text, /Rule 462\(b\)[^.\n]*/i, "Rule 462(b) registration"),
       ]),
     );

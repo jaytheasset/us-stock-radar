@@ -12,7 +12,7 @@
         "reported_form_type": "S-1MEF",
         "filing_variant": "rule_462b_mef",
         "boundary_case": true,
-        "parent_context_needed": true,
+        "parent_context_needed": false,
         "parent_registration_number": "333-296044",
         "post_effective_purpose": null,
         "deregister_unsold_securities": false,
@@ -72,14 +72,14 @@
     "signals": [
       {
         "event_type": "other",
-        "label": "Rule 462(b) MEF registration requires parent filing context",
+        "label": "Rule 462(b) MEF add-on registration",
         "severity": "low",
         "signal": "neutral",
         "evidence": []
       }
     ],
     "calendarItems": [],
-    "warnings": ["Boundary filing variant; parent context may be needed."],
+    "warnings": ["Boundary filing variant."],
     "raw": {
       "sourceTextLength": 0,
       "attachmentNames": []
@@ -100,7 +100,7 @@
     "theme_group": null,
     "sub_theme": null,
     "score": 42,
-    "score_reason": "Archive-level score because the EDGAR S-1MEF excerpt is a Rule 462(b) add-on registration that needs parent S-1 context.",
+    "score_reason": "Archive-level score because the EDGAR S-1MEF excerpt is a Rule 462(b) add-on registration.",
     "signal": "neutral",
     "quick_take": "The S-1MEF registers 14,437,783 additional shares and states automatic effectiveness under Rule 462(b).",
     "summary": "The filing references prior File No. 333-296044 and states the added shares are within the 20% aggregate offering price limit.",
@@ -108,7 +108,7 @@
     "bullish_points": [],
     "bearish_points": [],
     "key_evidence": ["14,437,783 shares", "File No. 333-296044", "no more than 20%"],
-    "what_to_watch_next": ["Parent S-1 and final prospectus terms."],
+    "what_to_watch_next": ["Final prospectus terms."],
     "related_tickers": [],
     "calendar_items": [],
     "confidence": "medium",

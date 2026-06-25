@@ -244,6 +244,7 @@ type IpoListingModel = {
   useOfProceeds: string[];
   snapshotMetrics: DilutionMetricItem[];
   offeringDetailsRows: DilutionDisclosureRow[];
+  amendmentRows: DilutionDisclosureRow[];
   stages: SpacStageItem[];
   riskFlags: string[];
   watchNext: string[];
@@ -3089,6 +3090,9 @@ function IpoListingTemplate({
   filing: FilingEvent;
   model: IpoListingModel;
 }) {
+  if (model.displayMode === "rule_462b_mef") {
+    return <Rule462bMefTemplate eventLabel={eventLabel} filing={filing} model={model} />;
+  }
   if (model.isInitialTermsPending) {
     return <InitialIpoFilingTemplate eventLabel={eventLabel} filing={filing} model={model} />;
   }
@@ -3371,6 +3375,96 @@ function IpoTermsUpdateTemplate({
           <h2>Offering Details</h2>
           <div className="initial-ipo-detail-list">
             {model.offeringDetailsRows.map((row) => (
+              <div className="initial-ipo-detail-row" key={`${row.label}-${row.value}`}>
+                <span>{row.label}</span>
+                <strong>{row.value}</strong>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="stock-detail-card spac-watch-card ipo-watch-card">
+        <h2>What To Watch Next</h2>
+        <ol>
+          {watchNext.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ol>
+      </section>
+
+      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
+    </>
+  );
+}
+
+function Rule462bMefTemplate({
+  eventLabel,
+  filing,
+  model,
+}: {
+  eventLabel: string;
+  filing: FilingEvent;
+  model: IpoListingModel;
+}) {
+  const quickTake = model.stageSummary || filing.filingBrief || filing.summary;
+  const summary = model.companyStory || filing.summary;
+  const watchNext =
+    model.watchNext.length > 0
+      ? model.watchNext
+      : [
+          "Base registration statement effectiveness and final prospectus timing.",
+          "Whether the added securities change final IPO size or selling-holder supply.",
+          "Final pricing, first trading date, or later prospectus updates.",
+        ];
+
+  return (
+    <>
+      <section className="stock-detail-card-grid two-up initial-ipo-compact-grid">
+        <section className="stock-detail-card dilution-snapshot-panel ipo-summary-panel initial-ipo-top-panel">
+          <div className="ipo-summary-heading">
+            <h2>Rule 462(b) MEF</h2>
+          </div>
+
+          <div className="dilution-impact-metrics">
+            {model.snapshotMetrics.map((metric) => (
+              <DilutionMetric key={metric.label} metric={metric} />
+            ))}
+          </div>
+        </section>
+
+        <section className="stock-detail-card initial-ipo-side-stack">
+          <div className="initial-ipo-summary-card initial-ipo-quick-card">
+            <h2>Quick Take</h2>
+            <p>{quickTake}</p>
+          </div>
+
+          <div className="initial-ipo-summary-card initial-ipo-background-card">
+            <h2>MEF Summary</h2>
+            <p>{summary}</p>
+          </div>
+        </section>
+      </section>
+
+      {model.offeringDetailsRows.length ? (
+        <section className="stock-detail-card initial-ipo-details-block">
+          <h2>Registration Details</h2>
+          <div className="initial-ipo-detail-list">
+            {model.offeringDetailsRows.map((row) => (
+              <div className="initial-ipo-detail-row" key={`${row.label}-${row.value}`}>
+                <span>{row.label}</span>
+                <strong>{row.value}</strong>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {model.amendmentRows.length ? (
+        <section className="stock-detail-card initial-ipo-details-block">
+          <h2>What Changed</h2>
+          <div className="initial-ipo-detail-list">
+            {model.amendmentRows.map((row) => (
               <div className="initial-ipo-detail-row" key={`${row.label}-${row.value}`}>
                 <span>{row.label}</span>
                 <strong>{row.value}</strong>
@@ -4713,7 +4807,7 @@ function buildIpoListingModel(filing: FilingEvent): IpoListingModel | null {
   const displayMode = readRowString(data, "display_mode") || readRowString(data, "offering_ui_mode");
   const isOfferingTermsIpo =
     displayType === "offering_terms" &&
-    ["ipo_registration", "ipo_amendment", "spac_ipo"].includes(displayMode);
+    ["ipo_registration", "ipo_amendment", "spac_ipo", "rule_462b_mef"].includes(displayMode);
 
   if (displayType !== "ipo_listing" && !isOfferingTermsIpo) return null;
 
@@ -4772,12 +4866,19 @@ function buildIpoListingModel(filing: FilingEvent): IpoListingModel | null {
     sharesOffered,
     sourceMetrics: sourceSnapshotMetrics,
   });
-  const snapshotMetrics = displayMode === "ipo_amendment" ? termsUpdateSnapshotMetrics : initialSnapshotMetrics;
+  const mefSnapshotMetrics = buildMefSnapshotMetrics(sourceSnapshotMetrics);
+  const snapshotMetrics =
+    displayMode === "rule_462b_mef"
+      ? mefSnapshotMetrics
+      : displayMode === "ipo_amendment"
+        ? termsUpdateSnapshotMetrics
+        : initialSnapshotMetrics;
   const offeringDetailsRows = filterIpoOfferingDetailsRows(
     readOfferingDetailsRows(data),
     snapshotMetrics,
     displayMode,
   );
+  const amendmentRows = readS1F1LabelValueRows(data.amendment_changes).slice(0, 6);
   const investorTakeaway = displayString(data, "investor_takeaway", filing.filingBrief || filing.summary);
   const narrativeSummary = displayString(data, "narrative_summary", displayString(data, "company_story", filing.summary || "Not disclosed"));
   const isInitialTermsPending =
@@ -4819,6 +4920,7 @@ function buildIpoListingModel(filing: FilingEvent): IpoListingModel | null {
     useOfProceeds: (useOfProceeds.length ? useOfProceeds : useOfProceedsDetail ? [useOfProceedsDetail] : ["Not disclosed"]).slice(0, 4),
     snapshotMetrics,
     offeringDetailsRows,
+    amendmentRows,
     stages,
     riskFlags: displayStringArray(data.risk_flags, filing.bearishPoints),
     watchNext: displayStringArray(data.watch_next, filing.watchNext),
@@ -4957,6 +5059,39 @@ function buildIpoTermsUpdateSnapshotMetrics({
     .slice(0, 4);
 }
 
+function buildMefSnapshotMetrics(sourceMetrics: DilutionMetricItem[]) {
+  const allowed = new Set(["Additional shares / ADS", "Total registered pool", "Additional offering value", "Rule 462(b) limit"]);
+  const normalizedRows = sourceMetrics
+    .map((metric) => normalizeMefSnapshotMetric(metric))
+    .filter((metric): metric is DilutionMetricItem => Boolean(metric))
+    .filter((metric) => allowed.has(metric.label));
+
+  const rowsByLabel = new Map<string, DilutionMetricItem>();
+  normalizedRows.forEach((metric) => {
+    if (!rowsByLabel.has(metric.label) && isDisclosedValue(metric.value)) rowsByLabel.set(metric.label, metric);
+  });
+
+  return Array.from(allowed)
+    .map((label) => rowsByLabel.get(label))
+    .filter((metric): metric is DilutionMetricItem => Boolean(metric))
+    .slice(0, 4);
+}
+
+function normalizeMefSnapshotMetric(metric: DilutionMetricItem): DilutionMetricItem | null {
+  const normalized = normalizeDisplayLookupLabel(metric.label);
+  if (/additional|added|new/.test(normalized) && /share|ads|security|securities/.test(normalized)) {
+    return { ...metric, label: "Additional shares / ADS" };
+  }
+  if (/total|pool|registered/.test(normalized) && /share|ads|pool|registered/.test(normalized)) {
+    return { ...metric, label: "Total registered pool" };
+  }
+  if (/value|amount|offering|aggregate|proceed/.test(normalized)) {
+    return { ...metric, label: "Additional offering value" };
+  }
+  if (/462|20|limit/.test(normalized)) return { ...metric, label: "Rule 462(b) limit" };
+  return null;
+}
+
 function filterIpoOfferingDetailsRows(
   rows: DilutionDisclosureRow[],
   snapshotMetrics: DilutionMetricItem[],
@@ -4991,8 +5126,28 @@ function filterIpoOfferingDetailsRows(
       }
     }
 
+    if (displayMode === "rule_462b_mef") {
+      if (/\b(?:additional shares|additional ads|additional offering value|rule 462|462 b limit)\b/.test(normalizedLabel)) {
+        return !snapshotText.includes(normalizedLabel);
+      }
+    }
+
     return true;
   });
+}
+
+function readS1F1LabelValueRows(value: unknown): DilutionDisclosureRow[] {
+  return recordArray(value)
+    .map((item) => {
+      const label = cleanDisclosureValue(readRowString(item, "label")).slice(0, 42);
+      const valueText = cleanDisclosureValue(readDisclosureValue(item.value) || readRowString(item, "value"));
+      const note = cleanDisclosureValue(readDisclosureValue(item.note) || readRowString(item, "note"));
+      if (!label || !isDisclosedValue(valueText)) return null;
+      const compactValue = valueText.length > 120 ? `${valueText.slice(0, 117).trim()}...` : valueText;
+      const compactNote = note.length > 80 ? `${note.slice(0, 77).trim()}...` : note;
+      return { label, value: compactValue, ...(compactNote ? { note: compactNote } : {}) };
+    })
+    .filter((item): item is DilutionDisclosureRow => Boolean(item));
 }
 
 function normalizeIpoTermsUpdateSnapshotMetric(metric: DilutionMetricItem): DilutionMetricItem | null {

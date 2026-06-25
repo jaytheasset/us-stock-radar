@@ -46,6 +46,10 @@ const ALLOWED_S1_F1_SNAPSHOT_LABELS = [
   "Unit price",
   "Trust amount",
   "Warrant / right terms",
+  "Additional shares / ADS",
+  "Total registered pool",
+  "Additional offering value",
+  "Rule 462(b) limit",
 ] as const;
 
 export type SecS1F1AnalysisAdapterResult =

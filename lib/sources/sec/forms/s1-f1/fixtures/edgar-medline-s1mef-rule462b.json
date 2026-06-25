@@ -31,7 +31,7 @@
       "shares_offered": 14437783,
       "filing_variant": "rule_462b_mef",
       "reported_form_type": "S-1MEF",
-      "parent_context_needed": true,
+      "parent_context_needed": false,
       "prior_registration_number": "333-296044",
       "automatic_effective": true,
       "within_20_percent_limit": true
