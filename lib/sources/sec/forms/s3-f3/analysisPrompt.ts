@@ -31,6 +31,7 @@ export type SecS3F3AnalysisPromptInput = SecS3F3RouterPromptInput & {
 export const secS3F3AnalysisSystemPrompt = [
   "Analyze one SEC S-3/F-3 family filing and return only strict JSON matching the provided response schema.",
   "Use cleaned_source_blocks, router result, and market context as evidence. Do not invent offering terms, dates, amounts, tickers, holders, or dilution math.",
+  "Use current_filing.form_type exactly when naming the SEC form. Do not substitute another form from the same S-3/F-3 family.",
   "Do not use parser-generated facts, signals, route hints, extraction summaries, event labels, display labels, or investment labels as analysis authority.",
   "This family is the offering/dilution baseline. Keep severity comparable to S-3 offering score 80, F-3 offering score 80, 424B5 offering score 80, and S-8 dilution score 80.",
   "Use the common score/action policy: score below 50 action archive; 50-74 action feed; 75 or above action feed_alert.",
@@ -40,6 +41,17 @@ export const secS3F3AnalysisSystemPrompt = [
   "For S-3/A and F-3/A, analyze only changed or unresolved terms. Routine housekeeping amendments should archive below 50 and should not restate parent filing economics as a new event.",
   "Use display_model_type offering_terms when there are offering or dilution mechanics; use generic_filing or none for routine archive outcomes.",
   "Preserve router, market_context, and display_model objects in machine-readable form. Keep user-facing text compact and investor-focused.",
+  "For offering_terms display_model, keep Offering Details labels consistent with 424B/S-1 UI rules. Use approved short labels and compact values; do not paste legal clauses.",
+  "Snapshot and Offering Details have different jobs. Snapshot metrics are the scan-first numbers or status. Offering Details are separate contract terms, mechanics, dates, parties, instruments, proceeds use, restrictions, or amendment details.",
+  "Do not use Offering Details as a second copy of Snapshot. If a fact is already clear in snapshot_metrics, omit it from Offering Details unless the row adds materially different source-backed context.",
+  "For resale registrations, use Resale Method for market-price, negotiated-price, broker, dealer, or plan-of-distribution sale mechanics. Use Sale Price only for a source-backed fixed price or equity-line/ELOC purchase price formula for shares sold by the company to a purchaser.",
+  "For resale shares issued in a completed private placement, PIPE, recapitalization, convertible note, warrant, preferred stock, or similar prior financing, put the source instrument identity and source-backed financing price/proceeds in Source Instrument, Instrument Terms, or Approx. Placement Price. Do not label ordinary resale market/negotiated pricing as Sale Price.",
+  "For resale registration Offering Details, prefer these labels when source-backed: Selling Holders, Agreement Date, Resale Method, Sale Price, Source Instrument, Instrument Terms, Approx. Placement Price, Registration Obligation.",
+  "For resale registration Company proceeds, never use None. Use No proceeds to company when resale proceeds go to selling holders. Use Nominal warrant cash only or Future facility sales only when source-backed.",
+  "For Selling Holders, do not write generic values like Identified Selling Stockholders when names are disclosed. Keep Selling Holders values under 55 characters when possible.",
+  "If there are 1-2 selling holders, list the names. If there are 3 or more selling holders, do not list more than 2 names and use '{count} named holders: {name1}, {name2} + others'. If the exact holder count is not clear, use 'Multiple named holders: {name1}, {name2} + others'.",
+  "When a holder row is needed outside the snapshot because it adds separate context, use the same compact naming style.",
+  "Never paste a selling-stockholder table, full legal-name list, or per-holder share-count list into Selling holders or Selling Holders UI rows.",
   "Do not add calendar_items for base shelf filing dates or vague future sale language. Add them only for exact offering closings, registration effectiveness, warrant deadlines, lock-up expirations, rights deadlines, or financing-related shareholder approval deadlines.",
 ].join("\n");
 
