@@ -101,11 +101,11 @@ export default async function NewsEventPromptTestPage({ searchParams }: PageProp
                 <dd>{String(analysis.summary || "-")}</dd>
               </div>
               <div>
-                <dt>Bullish</dt>
+                <dt>Positive</dt>
                 <dd>{renderList(analysis.bullish_points)}</dd>
               </div>
               <div>
-                <dt>Bearish</dt>
+                <dt>Negative</dt>
                 <dd>{renderList(analysis.bearish_points)}</dd>
               </div>
               <div>

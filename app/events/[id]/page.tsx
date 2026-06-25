@@ -625,8 +625,8 @@ export default async function StockNewsDetailPage({ params }: StockDetailPagePro
 
                   {showBullBearCases ? (
                     <div className="quick-case-grid">
-                      <CaseList title="Bullish" tone="bullish" items={profile.bullCase} />
-                      <CaseList title="Bearish" tone="bearish" items={profile.bearCase} />
+                      <CaseList title="Positive" tone="bullish" items={profile.bullCase} />
+                      <CaseList title="Negative" tone="bearish" items={profile.bearCase} />
                     </div>
                   ) : null}
                 </div>
