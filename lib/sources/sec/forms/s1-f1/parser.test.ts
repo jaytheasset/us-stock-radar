@@ -464,6 +464,26 @@ describe("S-1/F-1 section-specific extraction", () => {
     assert.ok(offering.warnings.some((warning) => warning.includes("Assumed")));
   });
 
+  it("preserves underwriting representative context for LLM analysis even without a clean section heading", () => {
+    const filler = Array.from({ length: 120 }, (_, index) => `<p>Background paragraph ${index + 1} with ordinary issuer text.</p>`).join("\n");
+    const parserOutput = parseS1F1Filing({
+      formType: "S-1/A",
+      filingText: `<html><body>
+        <div><b>Prospectus Summary</b></div>
+        <p>This is our initial public offering.</p>
+        ${filler}
+        <p>Morgan Stanley &amp; Co. LLC and J.P. Morgan Securities LLC are acting as representatives of the underwriters.</p>
+        <p>Barclays Capital Inc. and BofA Securities, Inc. are also listed as underwriters.</p>
+      </body></html>`,
+    });
+
+    const combinedBlocks = parserOutput.raw.cleanedSourceBlocks?.map((block) => block.text).join("\n") ?? "";
+
+    assert.match(combinedBlocks, /Morgan Stanley/i);
+    assert.match(combinedBlocks, /J\.P\. Morgan/i);
+    assert.match(combinedBlocks, /representatives of the underwriters/i);
+  });
+
   it("uses ipo_listing for traditional and SPAC IPOs but not ordinary resale registrations", () => {
     const traditional = parseS1F1Filing({
       formType: "S-1",

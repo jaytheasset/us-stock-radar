@@ -3158,6 +3158,86 @@ function clipSourceBlockText(value: string, maxLength = 10000): string {
   return `${text.slice(0, maxLength).trim()}...`;
 }
 
+const PRIORITY_SOURCE_CONTEXTS: Array<{
+  sectionKey: string;
+  sectionTitle: string;
+  patterns: RegExp[];
+}> = [
+  {
+    sectionKey: "underwriting_context",
+    sectionTitle: "Underwriting source context",
+    patterns: [
+      /\brepresentatives? of the underwriters?\b/i,
+      /\bacting as representatives\b/i,
+      /\bbook-?running managers?\b/i,
+      /\blead underwriters?\b/i,
+      /\bunderwriting discounts? and commissions?\b/i,
+      /\bfirm commitment\b/i,
+      /\bover-?allotment option\b/i,
+      /\bunderwriters?\b/i,
+      /\bunderwriting\b/i,
+    ],
+  },
+];
+
+function regexWithGlobal(pattern: RegExp): RegExp {
+  const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
+  return new RegExp(pattern.source, flags);
+}
+
+function sourceWindow(text: string, index: number, before = 1000, after = 5000): { start: number; end: number } {
+  const roughStart = Math.max(0, index - before);
+  const roughEnd = Math.min(text.length, index + after);
+  const lineStart = text.lastIndexOf("\n", roughStart);
+  const nextLineEnd = text.indexOf("\n", roughEnd);
+  return {
+    start: lineStart >= 0 ? lineStart + 1 : roughStart,
+    end: nextLineEnd >= 0 ? nextLineEnd : roughEnd,
+  };
+}
+
+function collectPrioritySourceBlocks(text: string): NonNullable<S1F1ParserOutput["raw"]["cleanedSourceBlocks"]> {
+  const blocks: NonNullable<S1F1ParserOutput["raw"]["cleanedSourceBlocks"]> = [];
+
+  for (const context of PRIORITY_SOURCE_CONTEXTS) {
+    const ranges: Array<{ start: number; end: number }> = [];
+    for (const pattern of context.patterns) {
+      const regex = regexWithGlobal(pattern);
+      let match: RegExpExecArray | null;
+      while ((match = regex.exec(text)) !== null) {
+        const range = sourceWindow(text, match.index);
+        const overlapping = ranges.find((item) => range.start <= item.end && range.end >= item.start);
+        if (overlapping) {
+          overlapping.start = Math.min(overlapping.start, range.start);
+          overlapping.end = Math.max(overlapping.end, range.end);
+        } else {
+          ranges.push(range);
+        }
+        if (ranges.length >= 4) break;
+      }
+      if (ranges.length >= 4) break;
+    }
+
+    ranges
+      .sort((a, b) => a.start - b.start)
+      .slice(0, 3)
+      .forEach((range, index) => {
+        const snippet = clipSourceBlockText(text.slice(range.start, range.end), 9000);
+        if (!snippet) return;
+        blocks.push({
+          source: "primary",
+          sectionKey: `${context.sectionKey}_${index + 1}`,
+          sectionTitle: context.sectionTitle,
+          documentName: null,
+          text: snippet,
+          tables: [],
+        });
+      });
+  }
+
+  return blocks;
+}
+
 function buildCleanedSourceBlocks(
   text: string,
   input: S1F1ParserInput,
@@ -3181,6 +3261,8 @@ function buildCleanedSourceBlocks(
       tables: [],
     });
   }
+
+  blocks.push(...collectPrioritySourceBlocks(text));
 
   for (const section of sections) {
     const body = sectionText(text, sectionDetection, section.key);
