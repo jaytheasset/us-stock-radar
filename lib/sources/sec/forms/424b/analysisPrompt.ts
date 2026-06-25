@@ -123,6 +123,7 @@ export function build424bAnalysisPrompt(parserOutput: Sec424bParserOutput): stri
   return [
     "You are writing the final investor-facing analysis for an SEC 424B3 / 424B5 filing.",
     "Use only cleaned_source_blocks and optional site-provided market_context / parent_filing_context source blocks.",
+    "Use current_filing.form_type exactly when naming the SEC form. Do not substitute another form from the same 424B family.",
     "424B flow is Parser -> cleaned source blocks -> Analysis LLM -> Required Output JSON.",
     "There is no 424B router LLM and no parser-completed 424B result.",
     "Do not use parser-generated facts, signals, route hints, extraction summaries, event labels, display labels, or investment labels as analysis authority.",
@@ -261,6 +262,8 @@ export function build424bAnalysisPrompt(parserOutput: Sec424bParserOutput): stri
     "If there are 1-2 selling holders, list the names.",
     "If there are 3 or more selling holders, do not list more than 2 names. Use '{count} named holders: {name1}, {name2} + others'.",
     "If the exact holder count is not clear, use 'Multiple named holders: {name1}, {name2} + others'.",
+    "When a holder row is needed outside the snapshot because it adds separate context, use the same compact naming style.",
+    "Never paste a selling-stockholder table, full legal-name list, or per-holder share-count list into Selling holders or Selling Holders UI rows.",
     "For Selling Holders, avoid fund descriptors, affiliated entity phrasing, LP/LLC suffixes, and long legal names when a shorter recognizable holder name is enough.",
     "For Selling Holders, never start with phrases like 'Entities affiliated with'. Use short holder or sponsor names only, such as 'Fairmount, RA Capital + others'.",
     "For ordinary resale registrations, use Resale Method for market-price, negotiated-price, broker, dealer, or plan-of-distribution sale mechanics. Use Sale Price only for a source-backed fixed price or equity-line/ELOC purchase price formula for shares sold by the company to a purchaser.",
