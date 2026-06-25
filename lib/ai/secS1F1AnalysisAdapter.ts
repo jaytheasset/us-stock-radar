@@ -11,6 +11,13 @@ const ALLOWED_S1_F1_DISPLAY_MODES = new Set([
   "ipo_registration",
   "ipo_amendment",
   "resale_registration",
+  "atm",
+  "primary_offering",
+  "registered_direct",
+  "warrant_convertible",
+  "rights_offering",
+  "shelf_capacity",
+  "mixed_offering",
   "mixed_registration",
   "spac_ipo",
   "rule_462b_mef",
@@ -38,6 +45,23 @@ const ALLOWED_S1_F1_SNAPSHOT_LABELS = [
   "Overhang vs outstanding",
   "Company proceeds",
   "Selling holders",
+  "Program size",
+  "Market cap",
+  "Size vs market cap",
+  "Sale method",
+  "New shares",
+  "Offer price",
+  "Dilution vs current shares",
+  "Underlying shares",
+  "Exercise / conversion price",
+  "Rights offered",
+  "Subscription price",
+  "Record date",
+  "Subscription period",
+  "Shelf capacity",
+  "Capacity vs market cap",
+  "Sale status",
+  "Source instrument",
   "Primary component",
   "Resale component",
   "Warrant/convertible component",
@@ -112,7 +136,7 @@ export function adaptSecS1F1AnalysisPromptResultForAnalysis(
 ): SecS1F1AnalysisAdapterResult {
   const root = readRecord(value);
   const analysisOutput = readRecord(root?.analysis_output);
-  const displayPayload = readRecord(root?.display_payload);
+  const displayPayload = normalizeS1F1DisplayPayload(readRecord(root?.display_payload));
   if (!analysisOutput || !displayPayload) {
     return {
       ok: false,
@@ -265,7 +289,7 @@ function appendS1F1DisplayWarnings(data: Record<string, unknown>, warnings: stri
 
 function validateS1F1OverhangFacts(data: Record<string, unknown>) {
   const displayMode = stringValue(data.display_mode);
-  if (!["resale_registration", "mixed_registration"].includes(displayMode)) return "";
+  if (!["resale_registration", "mixed_offering", "mixed_registration"].includes(displayMode)) return "";
   const hasSupplyNumerator = hasNumericDisplayFactValue(readRecord(data.total_potential_supply));
   const snapshotText = Array.isArray(data.snapshot_metrics)
     ? data.snapshot_metrics
@@ -319,6 +343,21 @@ function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput) {
     offering_display_model: offeringDisplayModel,
     sec_s1_f1_analysis_mode: "analysis_only",
     sec_offering_analysis_mode: "analysis_only",
+  };
+}
+
+function normalizeS1F1DisplayPayload(displayPayload: Record<string, unknown> | null) {
+  if (!displayPayload) return null;
+  const data = readRecord(displayPayload.data);
+  if (!data) return displayPayload;
+  const displayMode = stringValue(data.display_mode);
+  if (displayMode !== "mixed_registration") return displayPayload;
+  return {
+    ...displayPayload,
+    data: {
+      ...data,
+      display_mode: "mixed_offering",
+    },
   };
 }
 
