@@ -41,6 +41,7 @@ export function buildS8AnalysisPrompt(params: {
     "",
     "Constraints:",
     "- Choose analysis_output.event_type by reading cleaned_source_blocks. Do not copy parser-generated facts, signals, classification, event_type, display_type, routingHints, selected_classification, or score hints.",
+    "- Use current_filing.form_type exactly when naming the SEC form. Do not substitute another form from the same S-8 family.",
     "- Approved event types: listing_risk, ipo_listing, dilution_risk, earnings, sales_performance, product_update, leadership_governance, insider_ownership, shareholder_vote, strategic_transaction, financial_risk, legal_risk, dividends, capital_return, fda_clinical, other.",
     "- Use ipo_listing only for traditional IPO, SPAC IPO, direct listing, IPO pricing, first trading/listing date, or registration effectiveness tied to a new public listing.",
     "- Do not use ipo_listing for ordinary S-8 plan registration, ordinary resale registration, shelf offering, ATM/offering dilution, already-listed issuer resale, or post-closing business update.",
@@ -89,6 +90,7 @@ export function buildS8AnalysisPrompt(params: {
     "- Use post_effective_amendment for S-8 POS, deregistration, no-additional-securities, carryover, plan replacement, or amendment-update cases.",
     "- Do not use resale wording for plan_registration, inducement_awards, or post_effective_amendment unless resale source facts are also present.",
     "- Build display_payload from source-backed values only. Do not invent UI fields.",
+    "- Snapshot metrics and context details have different jobs. Snapshot metrics are the scan-first share amounts, ratios, and status. Context details explain separate plan, parent filing, holder, proceeds, or amendment relationships and must not repeat the chart calculation.",
     "- For display_payload.data.snapshot_metrics, choose up to 4 cards from the approved S-8 labels only: " +
       S8_SNAPSHOT_METRIC_LABELS.join(", ") +
       ".",
@@ -243,6 +245,7 @@ export function buildS8DilutionAnalysisPrompt(params: {
     "- Use post_effective_amendment for S-8 POS, deregistration, no-additional-securities, carryover, plan replacement, or amendment-update cases.",
     "- Do not use resale wording for plan_registration, inducement_awards, or post_effective_amendment unless resale source facts are also present.",
     "- Build display_payload from source-backed values only. Do not invent UI fields.",
+    "- Snapshot metrics and context details have different jobs. Snapshot metrics are the scan-first share amounts, ratios, and status. Context details explain separate plan, parent filing, holder, proceeds, or amendment relationships and must not repeat the chart calculation.",
     "- For display_payload.data.snapshot_metrics, choose up to 4 cards from the approved S-8 labels only: " +
       S8_SNAPSHOT_METRIC_LABELS.join(", ") +
       ".",
