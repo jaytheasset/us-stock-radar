@@ -81,6 +81,115 @@ const ALLOWED_S1_F1_SNAPSHOT_LABELS = [
   "New sale / proceeds",
 ] as const;
 
+const S1_F1_OFFERING_DETAIL_LABELS_BY_MODE: Record<string, readonly string[]> = {
+  ipo_registration: [],
+  ipo_amendment: [
+    "Lead underwriters",
+    "Underwriter option",
+    "Primary / secondary mix",
+    "Use of proceeds",
+    "Lock-up",
+    "Control / voting structure",
+    "Foreign issuer / VIE structure",
+    "Listing condition",
+    "Directed share program",
+    "ADS ratio",
+    "Selling shareholders",
+  ],
+  resale_registration: [
+    "Offering Type",
+    "Selling Holders",
+    "Agreement Date",
+    "Resale Method",
+    "Sale Price",
+    "Source Instrument",
+    "Purchase Limit",
+    "Sales to Date",
+    "Approx. Placement Price",
+    "Use of Proceeds",
+    "Registration Obligation",
+  ],
+  atm: ["Offering Type", "Sales Agent", "Fee / Commission", "Agreement Date", "End Date", "Use of Proceeds"],
+  primary_offering: [
+    "Offering Type",
+    "Underwriter",
+    "Placement Agent / Underwriter",
+    "Closing Date",
+    "Agreement Date",
+    "Use of Proceeds",
+    "Warrant Terms",
+  ],
+  registered_direct: [
+    "Offering Type",
+    "Purchaser / Investor",
+    "Placement Agent / Underwriter",
+    "Warrant Terms",
+    "Closing Date",
+    "Agreement Date",
+    "Use of Proceeds",
+  ],
+  warrant_convertible: [
+    "Offering Type",
+    "Purchaser / Investor",
+    "Placement Agent / Underwriter",
+    "Warrant Terms",
+    "Exercise Price",
+    "Conversion Price",
+    "Reset / Repricing",
+    "Floor Price",
+    "Closing Date",
+    "Agreement Date",
+    "Use of Proceeds",
+  ],
+  rights_offering: [
+    "Offering Type",
+    "Record Date",
+    "Subscription Period",
+    "Oversubscription",
+    "Backstop / Dealer Manager",
+    "Use of Proceeds",
+  ],
+  shelf_capacity: [
+    "Offering Type",
+    "Shelf Status",
+    "Securities Covered",
+    "Active Sale Terms",
+    "Next Required Filing",
+    "Use of Proceeds",
+  ],
+  mixed_offering: [
+    "Offering Type",
+    "Component Summary",
+    "Purchaser / Investor",
+    "Selling Holders",
+    "Placement Agent / Underwriter",
+    "Source Instrument",
+    "Warrant Terms",
+    "Use of Proceeds",
+  ],
+  mixed_registration: [
+    "Offering Type",
+    "Component Summary",
+    "Purchaser / Investor",
+    "Selling Holders",
+    "Placement Agent / Underwriter",
+    "Source Instrument",
+    "Warrant Terms",
+    "Use of Proceeds",
+  ],
+  spac_ipo: ["Sponsor", "Trust Account", "Redemption Terms", "Unit Components", "Proposed Exchange"],
+  rule_462b_mef: [
+    "Prior registration statement",
+    "Rule 462(b) status",
+    "Securities added",
+    "Base offering",
+    "Fee table",
+  ],
+  post_effective_amendment: [],
+  routine_amendment: [],
+  generic: [],
+};
+
 export type SecS1F1AnalysisAdapterResult =
   | { ok: true; analysis: Record<string, unknown> }
   | { ok: false; error: string };
@@ -211,10 +320,13 @@ function validateS1F1DisplayPayload(displayPayload: Record<string, unknown>) {
   }
   appendS1F1DisplayWarnings(
     data,
-    collectLabelValueRowWarnings(data.offering_details, "offering_details", {
-      maxValueLength: 90,
-      maxNoteLength: 80,
-    }),
+    [
+      ...collectLabelValueRowWarnings(data.offering_details, "offering_details", {
+        maxValueLength: 90,
+        maxNoteLength: 80,
+      }),
+      ...collectOfferingDetailLabelWarnings(data.offering_details, displayMode),
+    ],
   );
   const rowError =
     validateLabelValueRows(data.snapshot_metrics, "snapshot_metrics", {
@@ -277,6 +389,23 @@ function collectLabelValueRowWarnings(
         `S-1/F-1 display_payload.data.${fieldName}[${index}].note exceeded ${options.maxNoteLength} characters`,
       );
     }
+  }
+  return warnings;
+}
+
+function collectOfferingDetailLabelWarnings(value: unknown, displayMode: string) {
+  if (!Array.isArray(value)) return [];
+  const allowed = S1_F1_OFFERING_DETAIL_LABELS_BY_MODE[displayMode] || [];
+  if (!allowed.length) return [];
+  const allowedSet = new Set(allowed.map((label) => label.toLowerCase()));
+  const warnings: string[] = [];
+  for (const [index, row] of value.entries()) {
+    const record = readRecord(row);
+    const label = stringValue(record?.label);
+    if (!label || allowedSet.has(label.toLowerCase())) continue;
+    warnings.push(
+      `S-1/F-1 display_payload.data.offering_details[${index}].label is outside ${displayMode} candidates: ${label}`,
+    );
   }
   return warnings;
 }
