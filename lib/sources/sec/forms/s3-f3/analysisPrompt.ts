@@ -5,6 +5,7 @@ import {
   type SecS3F3RouterPromptInput,
 } from "./routerPrompt";
 import { buildSecSourceBlockPromptInput } from "../common/sourceBlockPromptInput";
+import { SEC_RESALE_OVERHANG_SCORING_GUIDE } from "../common/resaleOverhangScoring";
 
 export const SEC_S3_F3_ANALYSIS_PROMPT_KEY = "sec_s3_f3_analysis_draft";
 export const SEC_S3_F3_ANALYSIS_PROMPT_VERSION = "v1";
@@ -35,6 +36,7 @@ export const secS3F3AnalysisSystemPrompt = [
   "Do not use parser-generated facts, signals, route hints, extraction summaries, event labels, display labels, or investment labels as analysis authority.",
   "This family is the offering/dilution baseline. Keep severity comparable to S-3 offering score 80, F-3 offering score 80, 424B5 offering score 80, and S-8 dilution score 80.",
   "Use the common score/action policy: score below 50 action archive; 50-74 action feed; 75 or above action feed_alert.",
+  ...SEC_RESALE_OVERHANG_SCORING_GUIDE,
   "Set event_type to dilution_risk for shelf, resale, ATM, warrant, convertible, fee-table economics, selling-holder overhang, concrete offering size, or share-supply mechanics unless the filing clearly belongs only to other.",
   "Base shelf or automatic shelf filings without concrete current sale mechanics usually belong in feed-level severity, not alert-level severity.",
   "ATM programs, priced/takedown supplements, large resale pools, warrant coverage, convertible share pools, and concrete offering amounts can justify alert-level severity when market context supports materiality.",

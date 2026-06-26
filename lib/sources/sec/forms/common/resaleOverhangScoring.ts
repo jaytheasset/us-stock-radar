@@ -1,0 +1,15 @@
+export const SEC_RESALE_OVERHANG_SCORING_GUIDE = [
+  "Shared resale overhang scoring guide for 424B/S-3/S-1:",
+  "Use resale shares divided by public float first when public float is source-backed. If public float is unavailable, use resale shares divided by shares outstanding.",
+  "Keep the denominator consistent across score_reason, snapshot_metrics, current_shares, total_potential_supply, estimated_dilution_percent, and supply_segments.",
+  "<1% of outstanding/float: 10-35. Usually archive unless tied to insiders, control holders, or unusual terms.",
+  "1-5%: 35-49. Archive or low feed depending on holder quality and sale readiness.",
+  "5-10%: 50-59. Feed if resale shares are registered and holders can sell from time to time.",
+  "10-25%: 60-69. Meaningful feed. Elevated overhang, especially if holders are financial investors.",
+  "25-50%: 70-74. Strong feed. Alert only if there is clear near-term unrestricted sale pressure or distressed financing context.",
+  "50-100%: 75-82. Alert possible or likely if shares are freely resaleable, tied to PIPE/ELOC/convertible/warrant financing, or holder selling pressure is plausible.",
+  "100%+: 80-90. Alert-level unless locked up, subject to strict limits, not currently saleable, or the denominator is unreliable.",
+  "Sale-readiness can move the score within the band: freely resaleable shares, financial investors, PIPE/ELOC/convertible/warrant financing, registration rights, recent private placement, debt-for-equity, reverse split, listing pressure, liquidity stress, or repeated financing increase severity.",
+  "Restrictions can cap or lower the score: lock-up, staged release, holding period, volume limits, ownership caps, far out-of-the-money warrants, sale not currently effective, or unclear denominator.",
+  "Do not score 75+ from resale registration alone unless the size band and sale-readiness facts support alert-level impact.",
+];

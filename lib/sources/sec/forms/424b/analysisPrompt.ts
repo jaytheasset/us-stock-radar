@@ -6,6 +6,7 @@ import {
 } from "./types";
 import type { Sec424bParserOutput, Sec424bRoomResult } from "./types";
 import { buildSecSourceBlockPromptInput } from "../common/sourceBlockPromptInput";
+import { SEC_RESALE_OVERHANG_SCORING_GUIDE } from "../common/resaleOverhangScoring";
 
 const SCORING_GUIDE_424B = [
   "424B Scoring Guide:",
@@ -51,10 +52,7 @@ const SCORING_GUIDE_424B = [
   "Do not infer trading-liquidity harm merely because an ATM or resale shelf exists.",
   "",
   "Resale / selling stockholder registration:",
-  "Use resale shares divided by public float first. If float is unavailable, use resale shares divided by shares outstanding.",
-  "Below 5% of float = 35-49; 5-15% = 50-64; 15-30% = 65-74; 30%+ = 75-88.",
-  "Micro/small cap: 20%+ of float can be alert.",
-  "Large/mega cap: 15%+ of float can be feed upper range or alert candidate because investor visibility is high.",
+  ...SEC_RESALE_OVERHANG_SCORING_GUIDE,
   "Distinguish registered resale size from near-term sale likelihood.",
   "If shares are subject to lock-up, staged release, holding period, volume limits, or other contractual restrictions, usually cap at 74 unless unrestricted float overhang remains very large.",
   "Issuer receives no proceeds is negative evidence, but score is driven mainly by overhang size and sale likelihood.",

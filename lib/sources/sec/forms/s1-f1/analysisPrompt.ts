@@ -5,6 +5,7 @@ import {
   isApprovedSecEventType,
 } from "./types.ts";
 import { buildS1F1LlmSourceInput } from "./sourceInput.ts";
+import { SEC_RESALE_OVERHANG_SCORING_GUIDE } from "../common/resaleOverhangScoring";
 
 const REQUIRED_TOP_LEVEL_KEYS = ["parser_output", "analysis_output", "display_payload"] as const;
 
@@ -96,11 +97,11 @@ export function buildS1F1AnalysisPrompt(
     "Do not create risks from form type alone. Describe the disclosed registration, offering mechanics, terms, changes, conditions, and dates.",
     "",
     "S-1/F-1 scoring guide:",
+    ...SEC_RESALE_OVERHANG_SCORING_GUIDE,
     "- Initial S-1/F-1 IPO registration with no final price or share count: usually 35-55.",
     "- S-1/A or F-1/A with concrete price range, share count, underwriters, ADS ratio, or listing timing: usually 50-70.",
     "- Routine S-1/A or F-1/A amendments that only add/update administrative material are archive-level, usually 10-35.",
     "- Final IPO pricing, first trading imminent, pricing outside filed range, postponement, withdrawal, or major repricing: 75+ possible.",
-    "- Resale registration: score by resale shares versus outstanding/float and sale likelihood. Small routine resale = archive/feed; large unrestricted overhang = feed/alert.",
     "- Mixed primary/resale/warrant/convertible registration: score the highest source-backed investor impact without double-counting the same shares.",
     "- SPAC IPO registration alone is usually feed or archive; de-SPAC transaction-status facts belong to S-4/proxy/424B style scoring if directly disclosed.",
     "- Rule 462(b) MEF: score only the added shares/amount, not the full parent registration. Additional capacity only = usually archive/feed unless very large or final pricing is active.",
