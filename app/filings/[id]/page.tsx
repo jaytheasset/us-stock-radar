@@ -10675,7 +10675,7 @@ function formatSecFilingDateTime(
   if (acceptedAt) return formatDetailDateTime(acceptedAt, fallback);
 
   const filingDate = normalizeDateOnlyForDisplay(readRowString(rawPayload, "filing_date"));
-  if (filingDate && isMidnightUtcForDate(value, filingDate)) {
+  if (filingDate) {
     return formatDetailDateOnly(filingDate, fallback);
   }
 
@@ -10693,19 +10693,6 @@ function formatDetailDateOnly(value: string, fallback = "Recent") {
     year: "numeric",
     timeZone: "UTC",
   }).format(date);
-}
-
-function isMidnightUtcForDate(value: string, dateOnly: string) {
-  if (!value) return false;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return false;
-  return (
-    date.toISOString().slice(0, 10) === dateOnly &&
-    date.getUTCHours() === 0 &&
-    date.getUTCMinutes() === 0 &&
-    date.getUTCSeconds() === 0 &&
-    date.getUTCMilliseconds() === 0
-  );
 }
 
 function normalizeDateOnlyForDisplay(value: string) {

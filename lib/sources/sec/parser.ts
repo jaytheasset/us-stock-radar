@@ -1508,8 +1508,7 @@ function readFilingDateFromDetailHtml(html: string) {
   const match = html.match(
     /<div[^>]+class=["']infoHead["'][^>]*>\s*Filing Date\s*<\/div>\s*<div[^>]+class=["']info["'][^>]*>\s*([0-9]{4}-[0-9]{2}-[0-9]{2})\s*<\/div>/i,
   );
-  const date = normalizeDateOnly(match?.[1]);
-  return date ? `${date}T00:00:00.000Z` : null;
+  return normalizeDateOnly(match?.[1]);
 }
 
 function readAcceptedDateTimeFromDetailHtml(html: string) {
