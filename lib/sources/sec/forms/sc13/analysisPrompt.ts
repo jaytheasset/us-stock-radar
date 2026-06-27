@@ -6,6 +6,7 @@ import {
   type Sc13ParserOutput,
   type Sc13RouteDecision,
 } from "./types";
+import { buildCurrentFilingIdentity } from "../common/currentFilingIdentity.ts";
 
 export const SC13_ANALYSIS_PROMPT_VERSION = "sc13-analysis-v1";
 
@@ -20,6 +21,10 @@ export function buildSc13AnalysisPrompt(
     parentFilingContext?: Record<string, unknown> | null;
   } = {},
 ): string {
+  const currentFiling = buildCurrentFilingIdentity({
+    parserOutput: parserOutput as unknown as Record<string, unknown>,
+    formFamily: SC13_ROOM_FORM_TYPE,
+  });
   const marketContext =
     routeDecisionOrOptions && "event_type" in routeDecisionOrOptions
       ? options.marketContext ?? null
@@ -33,6 +38,7 @@ export function buildSc13AnalysisPrompt(
     `Prompt version: ${SC13_ANALYSIS_PROMPT_VERSION}`,
     "Produce final investor-facing analysis for an SEC SC 13D/13G filing.",
     "Use only cleaned_source_blocks, market_context, and parent_filing_context supplied here.",
+    "Use current_filing.form_type exactly when naming the SEC form. Do not substitute another Schedule 13 form from the same family.",
     "Do not use parser facts, parser signals, parser classification handoff, route hints, event_type hints, or display hints as authority.",
     "There is no router LLM for this room. The analysis LLM must choose event_type, display_type, score, signal, and investor-facing copy from the source blocks.",
     "Build display_payload directly from cleaned_source_blocks, market_context, and parent_filing_context. Do not copy parser-built display payload drafts.",
@@ -150,6 +156,9 @@ export function buildSc13AnalysisPrompt(
     "analysis_output must include source_group, market_scope, event_type, event_title, primary_ticker, tickers, sector, industry_group, theme_group, sub_theme, score, score_reason, signal, quick_take, summary, why_it_matters, bullish_points, bearish_points, key_evidence, what_to_watch_next, related_tickers, calendar_items, confidence, needs_human_review.",
     "display_payload must include display_type, display_version, data, evidence, notes.",
     "Do not include test-only expected blocks in runtime output.",
+    "",
+    "current_filing:",
+    JSON.stringify(currentFiling, null, 2),
     "",
     "cleaned_source_blocks:",
     JSON.stringify(parserOutput.cleaned_source_blocks, null, 2),

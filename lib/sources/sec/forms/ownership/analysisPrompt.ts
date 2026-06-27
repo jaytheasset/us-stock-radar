@@ -4,6 +4,7 @@ import {
   isApprovedEventType,
 } from "./parser.ts";
 import type { OwnershipParserOutput } from "./parser.ts";
+import { buildCurrentFilingIdentity } from "../common/currentFilingIdentity.ts";
 
 export const OWNERSHIP_ANALYSIS_PROMPT = `
 You are the final SEC Ownership filing analysis LLM for Stock Radar.
@@ -21,6 +22,7 @@ Current flow:
 - Your job is only to write investor-facing copy and assign the final score.
 
 Use only the provided inputs:
+- current_filing
 - compact parser facts and selected evidence
 - selected_routing
 - display_payload
@@ -32,6 +34,8 @@ Use only the provided inputs:
 Do not invent facts, dates, prices, values, roles, tickers, holdings, float data,
 prior trading patterns, parent amendment conclusions, or market context.
 Do not call or request live DB, FMP, SEC, or market-data lookups.
+Use current_filing.form_type exactly when naming the SEC form. Do not substitute
+another form from the same Ownership family.
 
 Event and display rules:
 - Use selected_routing.event_type exactly.
@@ -553,6 +557,10 @@ export function buildOwnershipAnalysisInput(parserOutput: OwnershipParserOutput)
   const sentenceSafeSummary = buildSentenceSafeFilingSummary(parserOutput);
 
   return {
+    current_filing: buildCurrentFilingIdentity({
+      parserOutput: parserOutput as unknown as Record<string, unknown>,
+      formFamily: parserOutput.formType,
+    }),
     selected_routing: buildOwnershipRoutingDecision(parserOutput),
     display_payload: buildOwnershipAnalysisDisplayPayload(parserOutput),
     parserVersion: parserOutput.parserVersion,

@@ -1,3 +1,9 @@
+import {
+  buildCurrentFilingIdentity,
+  currentFilingIdentityText,
+  type SecCurrentFilingIdentity,
+} from "../common/currentFilingIdentity.ts";
+
 export type SecTenderCleanedSourceBlock = {
   block_type: string;
   label: string | null;
@@ -6,6 +12,7 @@ export type SecTenderCleanedSourceBlock = {
 };
 
 export type SecTenderSourceBlockPromptInput = {
+  current_filing: SecCurrentFilingIdentity;
   cleaned_source_blocks: SecTenderCleanedSourceBlock[];
 };
 
@@ -41,6 +48,18 @@ export function buildSecTenderSourceBlockPromptInput({
   const raw = toRecord(parser.raw);
   const sourcePackage = toRecord(raw.source_package);
   const sourceText = toRecord(sourcePackage.text);
+  const currentFiling = buildCurrentFilingIdentity({
+    filingPackage: filing,
+    parserOutput: parser,
+    formFamily: firstString(parser.formType),
+  });
+
+  addBlock(blocks, {
+    block_type: "current_filing",
+    label: "Current SEC filing identity",
+    source: "filing_package",
+    text: currentFilingIdentityText(currentFiling),
+  });
 
   addBlock(blocks, {
     block_type: "filing_metadata",
@@ -48,7 +67,8 @@ export function buildSecTenderSourceBlockPromptInput({
     source: "filing_package",
     text: compactJson(
       removeJudgmentKeys({
-        form_type: firstString(parserFacts.sec_form_type, rawPayload.form_type, filing.form_type, filing.formType, parser.formType),
+        form_type: currentFiling.form_type,
+        form_family: currentFiling.form_family,
         accession_number: firstString(parser.accessionNumber, filing.accession_number, filing.accessionNumber, rawPayload.accession_number),
         company_name: firstString(filing.company_name, filing.companyName, rawPayload.company_name),
         ticker: firstString(filing.ticker, toRecord(filing.primary_ticker).ticker, rawPayload.ticker),
@@ -104,6 +124,7 @@ export function buildSecTenderSourceBlockPromptInput({
   }
 
   return {
+    current_filing: currentFiling,
     cleaned_source_blocks: dedupeBlocks(blocks).slice(0, maxBlocks),
   };
 }
@@ -296,6 +317,7 @@ function hasSourceContentBlock(blocks: SecTenderCleanedSourceBlock[]): boolean {
   return blocks.some((block) => {
     return ![
       "filing_metadata",
+      "current_filing",
       "source_inventory",
       "source_noise",
       "attachment_inventory",

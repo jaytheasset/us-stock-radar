@@ -1,4 +1,9 @@
 import type { SecFormCleanedSourceBlock } from "./parserContract";
+import {
+  buildCurrentFilingIdentity,
+  currentFilingIdentityText,
+  type SecCurrentFilingIdentity,
+} from "./currentFilingIdentity.ts";
 
 export type SecCleanedSourceBlock = SecFormCleanedSourceBlock & {
   label: string | null;
@@ -6,6 +11,7 @@ export type SecCleanedSourceBlock = SecFormCleanedSourceBlock & {
 };
 
 export type SecSourceBlockPromptInput = {
+  current_filing: SecCurrentFilingIdentity;
   cleaned_source_blocks: SecCleanedSourceBlock[];
 };
 
@@ -36,6 +42,18 @@ export function buildSecSourceBlockPromptInput({
   const filing = toRecord(filingPackage);
   const parser = toRecord(parserOutput);
   const raw = toRecord(parser.raw);
+  const currentFiling = buildCurrentFilingIdentity({
+    filingPackage: filing,
+    parserOutput: parser,
+    formFamily: firstString(parser.formType),
+  });
+
+  addBlock(blocks, {
+    block_type: "current_filing",
+    label: "Current SEC filing identity",
+    source: "filing_package",
+    text: currentFilingIdentityText(currentFiling),
+  });
 
   addBlock(blocks, {
     block_type: "filing_metadata",
@@ -43,7 +61,8 @@ export function buildSecSourceBlockPromptInput({
     source: "filing_package",
     text: compactJson(
       removeJudgmentKeys({
-        form_type: firstString(parser.formType, filing.form_type, filing.formType, toRecord(filing.rawPayload).form_type),
+        form_type: currentFiling.form_type,
+        form_family: currentFiling.form_family,
         accession_number: firstString(
           parser.accessionNumber,
           filing.accession_number,
@@ -85,6 +104,7 @@ export function buildSecSourceBlockPromptInput({
   }
 
   return {
+    current_filing: currentFiling,
     cleaned_source_blocks: dedupeBlocks(blocks).slice(0, maxBlocks),
   };
 }
@@ -134,6 +154,7 @@ function hasSourceContentBlock(blocks: SecCleanedSourceBlock[]): boolean {
   return blocks.some((block) => {
     return ![
       "filing_metadata",
+      "current_filing",
       "source_inventory",
       "attachment_inventory",
       "document_inventory",

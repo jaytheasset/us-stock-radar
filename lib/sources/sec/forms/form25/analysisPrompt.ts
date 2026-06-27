@@ -40,6 +40,7 @@ export type { SecForm25DisplayPayload, SecForm25SelectedClassification } from ".
 export const secForm25AnalysisSystemPrompt = [
   "Analyze one SEC Form 25 / 25-NSE filing and return only strict JSON matching the Required Output JSON schema.",
   "The required top-level shape is exactly parser_output, analysis_output, display_payload, and fixture_expected.",
+  "Use current_filing.form_type exactly when naming the SEC form. Do not substitute another Form 25 variant.",
   "Write investor-facing copy only. Do not choose the event type, display template, or display version.",
   "Use selected_classification.event_type for analysis_output.event_type exactly.",
   "Return prebuilt_display_payload as display_payload exactly; do not invent UI fields or a new display type.",

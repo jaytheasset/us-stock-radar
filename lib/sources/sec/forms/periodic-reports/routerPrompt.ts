@@ -1,4 +1,9 @@
 import type { PeriodicParserOutput } from "./types";
+import {
+  buildCurrentFilingIdentity,
+  currentFilingIdentityText,
+  type SecCurrentFilingIdentity,
+} from "../common/currentFilingIdentity.ts";
 
 export const SEC_PERIODIC_REPORTS_ROUTER_PROMPT_KEY = "sec_periodic_reports_router_draft";
 export const SEC_PERIODIC_REPORTS_ROUTER_PROMPT_VERSION = "v3";
@@ -63,6 +68,7 @@ export type SecPeriodicReportsSourceBlock = {
 };
 
 export type SecPeriodicReportsSourceBlockPromptInput = {
+  current_filing: SecCurrentFilingIdentity;
   cleaned_source_blocks: SecPeriodicReportsSourceBlock[];
 };
 
@@ -70,6 +76,7 @@ export const secPeriodicReportsRouterSystemPrompt = [
   `Route one SEC periodic report filing in scope: ${PERIODIC_REPORTS_FORM_SCOPE}.`,
   "Return only strict JSON matching the response schema. Do not call live APIs, live FMP, live databases, ingest, alerts, UI, or shared services.",
   "Use only cleaned_source_blocks, fixture market_context source blocks, and fixture parent_filing_context source blocks supplied in the user message.",
+  "Use current_filing.form_type exactly when naming the SEC form. Do not substitute another form from the same periodic-report family.",
   "Do not use parser-generated facts, signals, route hints, deterministic classification, extraction summaries, event labels, display labels, or investment labels as classification authority.",
   "Do not request or rely on full raw filing text.",
   "Choose exactly one event_type from the approved 16 values. Do not invent or rename event types.",
@@ -178,7 +185,19 @@ export function buildSecPeriodicReportsSourceBlockPromptInput(
   const facts = parserOutput.facts;
   const raw = parserOutput.raw || {};
   const normalized = toRecord(raw.normalized_primary_document) || {};
+  const currentFiling = buildCurrentFilingIdentity({
+    filingPackage: input.filing_package,
+    parserOutput: parserOutput as unknown as Record<string, unknown>,
+    formFamily: PERIODIC_REPORTS_FORM_SCOPE,
+  });
   const blocks: SecPeriodicReportsSourceBlock[] = [];
+
+  addBlock(blocks, {
+    block_type: "current_filing",
+    label: "Current SEC filing identity",
+    source: "filing_package",
+    text: currentFilingIdentityText(currentFiling),
+  });
 
   addBlock(blocks, {
     block_type: "filing_metadata",
@@ -187,7 +206,8 @@ export function buildSecPeriodicReportsSourceBlockPromptInput(
     text: compactJson({
       parserVersion: parserOutput.parserVersion,
       parserGroup: parserOutput.parserGroup,
-      formType: parserOutput.formType,
+      formType: currentFiling.form_type,
+      formFamily: currentFiling.form_family,
       accessionNumber: parserOutput.accessionNumber,
       isSupported: parserOutput.isSupported,
       companyName: facts.companyName,
@@ -236,6 +256,7 @@ export function buildSecPeriodicReportsSourceBlockPromptInput(
   }
 
   return {
+    current_filing: currentFiling,
     cleaned_source_blocks: dedupeBlocks(blocks).slice(0, 60),
   };
 }

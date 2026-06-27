@@ -29,6 +29,7 @@ export type SecForm25RouterPromptInput = {
 export const secForm25RouterSystemPrompt = [
   "Classify one SEC Form 25 / 25-NSE filing only when the parser marks routing as required.",
   "Return only strict JSON matching the provided schema.",
+  "Use current_filing.form_type exactly when naming the SEC form. Do not substitute another Form 25 variant.",
   "Do not ask for or rely on full raw filing text. The user payload intentionally contains only cleaned_source_blocks.",
   "Do not use parser-generated facts, signals, route hints, routing flags, extraction summaries, event labels, display labels, or investment labels as classification authority.",
   "Choose exactly one approved SEC event_type only when security type, removal reason, or investor impact is ambiguous.",

@@ -79,6 +79,7 @@ export function buildNtAnalysisPrompt(args: {
   return [
     "You are writing investor-facing analysis for an SEC NT 10-K, NT 10-Q, or NT 20-F late-filing notice.",
     "Use only parser_output, router_decision, display_payload, and optional fixture market_context supplied below.",
+    "Use current_filing.form_type exactly when naming the SEC form. Do not substitute another NT form from the same family.",
     "Do not call live APIs, FMP, SEC, databases, app/UI code, alert delivery, or external market data.",
     `Allowed event_type values are exactly: ${NT_APPROVED_EVENT_TYPES.join(", ")}.`,
     "Use router_decision.event_type exactly. Do not invent event types and do not change the selected event_type.",

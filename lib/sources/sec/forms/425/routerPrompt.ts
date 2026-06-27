@@ -68,6 +68,7 @@ export type Sec425RouterDecision = {
 export const sec425RouterSystemPrompt = [
   "Route one SEC Form 425 filing from cleaned source blocks.",
   "Return only strict JSON matching the schema. Do not invent fields, event types, dates, tickers, deal terms, or market data.",
+  "Use current_filing.form_type exactly when naming the SEC form. Do not substitute another form from the same 425 family.",
   `Use only these approved event types: ${SEC_425_APPROVED_EVENT_TYPES.join(", ")}.`,
   "This form family requires routing/classification because Form 425 can map to strategic_transaction, shareholder_vote, legal_risk, financial_risk, dilution_risk, ipo_listing, or other.",
   "Use only cleaned_source_blocks. Do not require full raw filing text.",

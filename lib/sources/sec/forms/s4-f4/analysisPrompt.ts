@@ -6,6 +6,7 @@ import {
   type RequiredOutputJson,
   type S4F4AnalysisPlan,
 } from "./types.ts";
+import { buildCurrentFilingIdentity } from "../common/currentFilingIdentity.ts";
 
 export function buildS4F4AnalysisPrompt(
   parserOutput: ParserOutput,
@@ -16,10 +17,15 @@ export function buildS4F4AnalysisPrompt(
 ): string {
   void analysisPlan;
   void displayPayload;
+  const currentFiling = buildCurrentFilingIdentity({
+    parserOutput: parserOutput as unknown as Record<string, unknown>,
+    formFamily: parserOutput.formType,
+  });
 
   return [
     "You are writing the final investor-facing analysis for an SEC S-4/F-4 filing.",
     "Use only the cleaned_source_blocks, parent filing context, and market_context included below.",
+    "Use current_filing.form_type exactly when naming the SEC form. Do not substitute another form from the same S-4/F-4 family.",
     "For S-4/A and F-4/A, use parent filing context only as compact historical context. Do not treat the parent filing as newly filed.",
     "If parent filing context is missing, do not invent amendment deltas; say comparison is limited when relevant.",
     "If parent filing context shows this amendment repeats an already-disclosed transaction with no source-backed material update, keep the score capped below alert unless the current filing adds a decisive new update.",
@@ -139,6 +145,9 @@ export function buildS4F4AnalysisPrompt(
     "",
     "Required Output JSON shape:",
     JSON.stringify(requiredOutputSkeleton(), null, 2),
+    "",
+    "Current filing identity:",
+    JSON.stringify(currentFiling, null, 2),
     "",
     "Cleaned source blocks:",
     JSON.stringify(parserOutput.cleaned_source_blocks, null, 2),

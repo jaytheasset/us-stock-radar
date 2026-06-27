@@ -1,7 +1,13 @@
 import type { S8ApprovedEventType, S8ParserOutput, S8RouterDecision } from "./types";
 import { S8_APPROVED_EVENT_TYPES } from "./types";
+import {
+  buildCurrentFilingIdentity,
+  currentFilingIdentityText,
+  type SecCurrentFilingIdentity,
+} from "../common/currentFilingIdentity.ts";
 
 export type S8SourceBlockPromptInput = {
+  current_filing: SecCurrentFilingIdentity;
   cleaned_source_blocks: Array<{
     block_type: string;
     label: string | null;
@@ -50,6 +56,17 @@ export function buildS8SourceBlockPromptInput({
   parentFilingContext?: Record<string, unknown> | null;
 }): S8SourceBlockPromptInput {
   const blocks: S8SourceBlockPromptInput["cleaned_source_blocks"] = [];
+  const currentFiling = buildCurrentFilingIdentity({
+    parserOutput: parserOutput as unknown as Record<string, unknown>,
+    formFamily: "S-8 / S-8/A / S-8 POS",
+  });
+
+  addSourceBlock(blocks, {
+    block_type: "current_filing",
+    label: "Current SEC filing identity",
+    source: "parser_identity",
+    text: currentFilingIdentityText(currentFiling),
+  });
 
   addSourceBlock(blocks, {
     block_type: "filing_metadata",
@@ -162,6 +179,7 @@ export function buildS8SourceBlockPromptInput({
   }
 
   return {
+    current_filing: currentFiling,
     cleaned_source_blocks: dedupeSourceBlocks(blocks).slice(0, 60),
   };
 }

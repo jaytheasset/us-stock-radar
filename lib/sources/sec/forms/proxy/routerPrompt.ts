@@ -4,6 +4,7 @@ import {
   type ProxyParserOutput,
 } from "./parser.ts";
 import { selectProxyDisplaySpec, type ProxyDisplayType } from "./displayPayload.ts";
+import { buildCurrentFilingIdentity, currentFilingIdentityText } from "../common/currentFilingIdentity.ts";
 
 export interface ProxyRouterDecision {
   stage: "parser" | "router";
@@ -21,6 +22,7 @@ export interface ProxyRouterDecision {
 export function buildProxyRouterPrompt(parserOutput: ProxyParserOutput): string {
   return [
     "You are routing/classifying an SEC Proxy filing for investor analysis and display payload selection.",
+    "Use current_filing.form_type exactly when naming the SEC form. Do not substitute another form from the same Proxy family.",
     "",
     "Use exactly one approved event_type. Approved event types:",
     ...APPROVED_PROXY_EVENT_TYPES.map((eventType) => `- ${eventType}`),
@@ -78,7 +80,12 @@ export function buildProxySourceBlockPromptInput(
   parserOutput: ProxyParserOutput,
   marketContext?: Record<string, unknown> | null,
 ): Record<string, unknown> {
+  const currentFiling = buildCurrentFilingIdentity({
+    parserOutput: parserOutput as unknown as Record<string, unknown>,
+    formFamily: "Proxy",
+  });
   const input: Record<string, unknown> = {
+    current_filing: currentFiling,
     parserVersion: parserOutput.parserVersion,
     parserGroup: parserOutput.parserGroup,
     accessionNumber: parserOutput.accessionNumber,
@@ -91,7 +98,14 @@ export function buildProxySourceBlockPromptInput(
     },
     attachment_inventory: parserOutput.raw.attachmentInventory,
     document_inventory: parserOutput.raw.documentInventory,
-    cleaned_source_blocks: buildProxyCleanedSourceBlocks(parserOutput),
+    cleaned_source_blocks: [
+      {
+        block_type: "current_filing",
+        label: "Current SEC filing identity",
+        text: currentFilingIdentityText(currentFiling),
+      },
+      ...buildProxyCleanedSourceBlocks(parserOutput),
+    ],
     parser_warnings: parserOutput.warnings,
   };
 

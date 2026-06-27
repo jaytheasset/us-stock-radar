@@ -52,6 +52,7 @@ export type Sec425AnalysisPromptInput = Sec425RouterPromptInput & {
 export const sec425AnalysisSystemPrompt = [
   "Write investor-facing analysis for one SEC Form 425 transaction communication and return only strict JSON matching the Required Output JSON shape.",
   "Use only cleaned_source_blocks, router result, and fixture-provided market_context source blocks. Do not call, request, or assume live market data.",
+  "Use current_filing.form_type exactly when naming the SEC form. Do not substitute another form from the same 425 family.",
   "Do not use parser-generated facts, signals, route hints, extraction summaries, event labels, display labels, or investment labels as analysis authority.",
   `Use only these approved event types: ${SEC_425_APPROVED_EVENT_TYPES.join(", ")}.`,
   "Do not choose the event_type. Copy analysis_output.event_type exactly from router_result.event_type.",

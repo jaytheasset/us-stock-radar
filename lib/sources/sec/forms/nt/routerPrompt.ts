@@ -23,6 +23,7 @@ export function buildNtRouterPrompt(parserOutput: NtParserOutput): string {
   return [
     "You are routing SEC NT 10-K, NT 10-Q, and NT 20-F late-filing notices.",
     "Use only cleaned_source_blocks supplied below.",
+    "Use current_filing.form_type exactly when naming the SEC form. Do not substitute another NT form from the same family.",
     "Do not use parser-generated facts, signals, route hints, extraction summaries, event labels, display labels, or investment labels as classification authority.",
     "Do not call live APIs, databases, market-data services, or external filings.",
     "Do not request or rely on full raw filing text.",
