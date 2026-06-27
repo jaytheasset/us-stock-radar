@@ -1,6 +1,8 @@
 export const SEC_RESALE_OVERHANG_SCORING_GUIDE = [
-  "Shared resale overhang scoring guide for 424B/S-3/S-1:",
-  "Use resale shares divided by public float first when public float is source-backed. If public float is unavailable, use resale shares divided by shares outstanding.",
+  "SEC offering and resale scoring guide. Use this guide before form-specific modifiers.",
+  "Use this denominator priority as a hard rule. If an earlier source-backed denominator is available, do not use a later denominator.",
+  "Denominator priority: 1) filing-date shares outstanding; 2) filing-date non-affiliate shares or public float; 3) latest market_context shares outstanding; 4) latest market_context public float.",
+  "Do not replace a filing-date denominator with market_context. Use market_context only when the filing does not provide a usable source-backed denominator.",
   "Keep the denominator consistent across score_reason, snapshot_metrics, current_shares, total_potential_supply, estimated_dilution_percent, and supply_segments.",
   "<1% of outstanding/float: 10-35. Usually archive unless tied to insiders, control holders, or unusual terms.",
   "1-5%: 35-49. Archive or low feed depending on holder quality and sale readiness.",
@@ -12,4 +14,8 @@ export const SEC_RESALE_OVERHANG_SCORING_GUIDE = [
   "Sale-readiness can move the score within the band: freely resaleable shares, financial investors, PIPE/ELOC/convertible/warrant financing, registration rights, recent private placement, debt-for-equity, reverse split, listing pressure, liquidity stress, or repeated financing increase severity.",
   "Restrictions can cap or lower the score: lock-up, staged release, holding period, volume limits, ownership caps, far out-of-the-money warrants, sale not currently effective, or unclear denominator.",
   "Do not score 75+ from resale registration alone unless the size band and sale-readiness facts support alert-level impact.",
+  "When share count is unavailable but offering amount is source-backed, compare offering amount to market cap: <5% = 35-49, 5-15% = 50-59, 15-30% = 60-69, 30-50% = 70-74, 50-100% = 75-82 only when active sale terms exist, and 100%+ = 80-90 only when active or near-term sale terms exist.",
+  "For pure shelf or automatic shelf with no active sale terms, pricing, takedown, ATM, resale pool, or named selling-holder mechanics, do not alert from size alone. Treat it as future capacity.",
+  "Use market cap only as a band modifier, not as a replacement for the size band: nano cap under $50M add 6-10 within the band for active dilution/resale; micro cap $50M-$300M add 3-6; small cap $300M-$2B add 0-3; mid cap $2B-$10B no change; large cap above $10B may subtract 0-3 for routine or shelf-only filings.",
+  "Market cap modifiers must not override hard caps for routine amendments, pure shelf capacity, missing sale readiness, or unreliable denominators.",
 ];
