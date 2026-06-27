@@ -1782,8 +1782,9 @@ async function buildDbFilingEvent(item: LiveFeedItem, fallback: FilingEvent): Pr
   const rawPayload = toRecord(rawItem?.raw_payload);
   const badge = getEventTypeBadge(item.eventType);
   const formType = readFilingFormType(eventRow, rawPayload, item.title);
-  const filedAt = formatDetailDateTime(
+  const filedAt = formatSecFilingDateTime(
     readRowString(eventRow, "published_at") || item.detectedAtRaw || readRowString(eventRow, "detected_at"),
+    rawPayload,
     `${item.time} ET`,
   );
   const sourceUrl =
@@ -10660,6 +10661,56 @@ function formatDetailDateTime(value: string, fallback = "Recent") {
     hour12: true,
     timeZone: "America/New_York",
   }).format(date)} ET`;
+}
+
+function formatSecFilingDateTime(
+  value: string,
+  rawPayload: Record<string, unknown> | null,
+  fallback = "Recent",
+) {
+  const acceptedAt =
+    readRowString(rawPayload, "accepted_at") ||
+    readRowString(rawPayload, "acceptance_datetime") ||
+    readRowString(rawPayload, "accepted");
+  if (acceptedAt) return formatDetailDateTime(acceptedAt, fallback);
+
+  const filingDate = normalizeDateOnlyForDisplay(readRowString(rawPayload, "filing_date"));
+  if (filingDate && isMidnightUtcForDate(value, filingDate)) {
+    return formatDetailDateOnly(filingDate, fallback);
+  }
+
+  return formatDetailDateTime(value, fallback);
+}
+
+function formatDetailDateOnly(value: string, fallback = "Recent") {
+  const dateOnly = normalizeDateOnlyForDisplay(value);
+  if (!dateOnly) return fallback;
+  const date = new Date(`${dateOnly}T12:00:00Z`);
+  if (Number.isNaN(date.getTime())) return fallback;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
+function isMidnightUtcForDate(value: string, dateOnly: string) {
+  if (!value) return false;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  return (
+    date.toISOString().slice(0, 10) === dateOnly &&
+    date.getUTCHours() === 0 &&
+    date.getUTCMinutes() === 0 &&
+    date.getUTCSeconds() === 0 &&
+    date.getUTCMilliseconds() === 0
+  );
+}
+
+function normalizeDateOnlyForDisplay(value: string) {
+  const match = value.match(/^(\d{4}-\d{2}-\d{2})/);
+  return match?.[1] || "";
 }
 
 function formatSourceLabel(value: string) {

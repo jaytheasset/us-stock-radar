@@ -441,7 +441,10 @@ async function mapArchiveFilingEvent(
     source: readString(eventRow, "source_name") || "SEC EDGAR",
     sourceUrl,
     primaryDocumentUrl,
-    publishedAt: formatDetailDateTime(readString(eventRow, "published_at") || readString(eventRow, "detected_at")),
+    publishedAt: formatSecFilingDateTime(
+      readString(eventRow, "published_at") || readString(eventRow, "detected_at"),
+      rawPayload,
+    ),
     formType,
     accessionNumber: readString(metadata, "accession_number") || readString(rawPayload, "accession_number"),
     cik: readString(metadata, "cik") || readString(rawPayload, "cik"),
@@ -1102,6 +1105,56 @@ function formatDetailDateTime(value: string, fallback = "Recent") {
     hour12: true,
     timeZone: "America/New_York",
   }).format(date)} ET`;
+}
+
+function formatSecFilingDateTime(
+  value: string,
+  rawPayload: Record<string, unknown> | null,
+  fallback = "Recent",
+) {
+  const acceptedAt =
+    readString(rawPayload, "accepted_at") ||
+    readString(rawPayload, "acceptance_datetime") ||
+    readString(rawPayload, "accepted");
+  if (acceptedAt) return formatDetailDateTime(acceptedAt, fallback);
+
+  const filingDate = normalizeDateOnlyForDisplay(readString(rawPayload, "filing_date"));
+  if (filingDate && isMidnightUtcForDate(value, filingDate)) {
+    return formatDetailDateOnly(filingDate, fallback);
+  }
+
+  return formatDetailDateTime(value, fallback);
+}
+
+function formatDetailDateOnly(value: string, fallback = "Recent") {
+  const dateOnly = normalizeDateOnlyForDisplay(value);
+  if (!dateOnly) return fallback;
+  const date = new Date(`${dateOnly}T12:00:00Z`);
+  if (Number.isNaN(date.getTime())) return fallback;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
+function isMidnightUtcForDate(value: string, dateOnly: string) {
+  if (!value) return false;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  return (
+    date.toISOString().slice(0, 10) === dateOnly &&
+    date.getUTCHours() === 0 &&
+    date.getUTCMinutes() === 0 &&
+    date.getUTCSeconds() === 0 &&
+    date.getUTCMilliseconds() === 0
+  );
+}
+
+function normalizeDateOnlyForDisplay(value: string) {
+  const match = value.match(/^(\d{4}-\d{2}-\d{2})/);
+  return match?.[1] || "";
 }
 
 function isRealTicker(value: string) {

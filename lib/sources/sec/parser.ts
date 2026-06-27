@@ -220,6 +220,7 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
             documentsFailed: 0,
             companyName: null,
             filingDate: null,
+            acceptedAt: null,
             fileNumber: null,
             registrationNumber: null,
             secAct: null,
@@ -266,7 +267,7 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
           accessionNumber,
           fallback: entry.title,
         }),
-        published_at: entry.updated || detail.filingDate,
+        published_at: detail.acceptedAt || entry.updated || detail.filingDate,
         fetched_at: fetchedAt,
         body_text: bodyText,
         analysis_text: bodyText,
@@ -285,6 +286,7 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
           accession_number: accessionNumber,
           accession_no_dashes: identity.accessionNoDashes,
           filing_date: detail.filingDate,
+          accepted_at: detail.acceptedAt,
           file_number: detail.fileNumber,
           registration_number: detail.registrationNumber,
           sec_act: detail.secAct,
@@ -717,6 +719,7 @@ async function fetchFilingDetail({
       documentsFailed: 1,
       companyName: null,
       filingDate: null,
+      acceptedAt: null,
       fileNumber: null,
       registrationNumber: null,
       secAct: null,
@@ -726,6 +729,7 @@ async function fetchFilingDetail({
 
   const companyName = readCompanyNameFromDetailHtml(html);
   const filingDate = readFilingDateFromDetailHtml(html);
+  const acceptedAt = readAcceptedDateTimeFromDetailHtml(html);
   const filingIndexMetadata = readFilingIndexMetadataFromDetailHtml(html);
   const documents = parseFilingDocuments(html, detailUrl, formType);
   const effectiveFormType = formType || inferPrimaryFormTypeFromDocuments(documents);
@@ -798,6 +802,7 @@ async function fetchFilingDetail({
     documentsFailed,
     companyName,
     filingDate,
+    acceptedAt,
     fileNumber: filingIndexMetadata.fileNumber,
     registrationNumber: filingIndexMetadata.registrationNumber,
     secAct: filingIndexMetadata.secAct,
@@ -1505,6 +1510,40 @@ function readFilingDateFromDetailHtml(html: string) {
   );
   const date = normalizeDateOnly(match?.[1]);
   return date ? `${date}T00:00:00.000Z` : null;
+}
+
+function readAcceptedDateTimeFromDetailHtml(html: string) {
+  const match = html.match(
+    /<div[^>]+class=["']infoHead["'][^>]*>\s*Accepted\s*<\/div>\s*<div[^>]+class=["']info["'][^>]*>\s*([0-9]{4}-[0-9]{2}-[0-9]{2})\s+([0-9]{2}:[0-9]{2}:[0-9]{2})\s*<\/div>/i,
+  );
+  return parseSecEasternDateTime(match?.[1], match?.[2]);
+}
+
+function parseSecEasternDateTime(datePart: unknown, timePart: unknown) {
+  const date = normalizeDateOnly(datePart);
+  const time = stringValue(timePart);
+  const match = date && time.match(/^([0-9]{2}):([0-9]{2}):([0-9]{2})$/);
+  if (!date || !match) return null;
+  const [year, month, day] = date.split("-").map(Number);
+  const hour = Number(match[1]);
+  const offset = isNewYorkDaylightTime(year, month, day, hour) ? "-04:00" : "-05:00";
+  const parsed = new Date(`${date}T${time}${offset}`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+function isNewYorkDaylightTime(year: number, month: number, day: number, hour: number) {
+  if (month < 3 || month > 11) return false;
+  if (month > 3 && month < 11) return true;
+  const dstStartDay = nthWeekdayOfMonth(year, 3, 0, 2);
+  const dstEndDay = nthWeekdayOfMonth(year, 11, 0, 1);
+  if (month === 3) return day > dstStartDay || (day === dstStartDay && hour >= 2);
+  return day < dstEndDay || (day === dstEndDay && hour < 2);
+}
+
+function nthWeekdayOfMonth(year: number, month: number, weekday: number, occurrence: number) {
+  const firstDay = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+  const firstWeekdayDate = 1 + ((weekday - firstDay + 7) % 7);
+  return firstWeekdayDate + (occurrence - 1) * 7;
 }
 
 function readFilingIndexMetadataFromDetailHtml(html: string) {
