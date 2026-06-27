@@ -11936,7 +11936,7 @@ td {
 
 .dilution-overhang-segment-legend > span {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(220px, auto);
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 44%);
   align-items: center;
   gap: 18px;
   min-width: 0;
@@ -11971,6 +11971,8 @@ td {
   font-size: 12px;
   line-height: 1.15;
   text-transform: uppercase;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .dilution-overhang-segment-legend strong {
@@ -11979,11 +11981,15 @@ td {
   gap: 3px;
   font-size: 15px;
   line-height: 1.08;
-  white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .dilution-overhang-segment-legend strong > span {
   display: block;
+  max-width: 100%;
 }
 
 .dilution-overhang-segment-legend em {
@@ -11991,6 +11997,9 @@ td {
   font-size: 13px;
   font-style: normal;
   font-weight: 700;
+  max-width: 100%;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .dilution-overhang-total-note {
@@ -12137,6 +12146,8 @@ td {
   font-weight: 400;
   line-height: 1.35;
   text-align: right;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .dilution-overhang-facts strong.danger {

@@ -1211,6 +1211,32 @@ function findCandidateMatches(
   return candidates;
 }
 
+function findOutstandingShareRowCandidates(text: string, limit = 6): S1F1ExtractionCandidate[] {
+  const patterns = [
+    /((?:Class\s+[A-Z]\s+)?(?:common stock|ordinary shares|ADSs?)[^.\n]{0,220}?(?:outstanding|issued and outstanding)[^.\n]{0,220}?(?:prior to|before|immediately prior to|as of|commencement|execution|purchase agreement)[^.\n]{0,260}?([0-9][0-9,]*)\s+(shares|ordinary shares|ADSs?))/i,
+    /((?:outstanding|issued and outstanding)[^.\n]{0,220}?(?:prior to|before|immediately prior to|as of|commencement|execution|purchase agreement)[^.\n]{0,260}?([0-9][0-9,]*)\s+(shares|ordinary shares|ADSs?))/i,
+    /((?:number of shares|shares outstanding|common stock outstanding)[^.\n]{0,260}?([0-9][0-9,]*)\s+(shares|ordinary shares|ADSs?))/i,
+  ];
+  const candidates: S1F1ExtractionCandidate[] = [];
+  const seen = new Set<string>();
+  for (const pattern of patterns) {
+    for (const match of text.matchAll(globalPattern(pattern))) {
+      const value = `${match[2]} ${match[3]}`;
+      const key = compact(value);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      candidates.push(
+        candidate("shares_outstanding", value, match[1] ?? match[0], "high", {
+          normalizedValue: parseReadableNumber(match[2] ?? ""),
+          unit: match[3] ?? null,
+        }),
+      );
+      if (candidates.length >= limit) return candidates;
+    }
+  }
+  return candidates;
+}
+
 function findPhraseCandidates(
   text: string,
   labels: Array<{ label: string; pattern: RegExp; confidence?: ConfidenceLevel }>,
@@ -1500,9 +1526,12 @@ function extractCapitalizationExtraction(
     rowCandidates: tableRows
       .filter((row) => rowPatterns.some((pattern) => pattern.test(row.text)))
       .map((row) => candidateFromTableRow("capitalization_row", row)),
-    shareCountCandidates: findCandidateMatches(combined, "shares_outstanding", [
-      /([0-9][0-9,]*\s+(?:shares|ordinary shares|common shares)[^.\n]{0,120}?(?:outstanding|after this offering|before this offering))/i,
-    ]),
+    shareCountCandidates: [
+      ...findOutstandingShareRowCandidates(combined),
+      ...findCandidateMatches(combined, "shares_outstanding", [
+        /([0-9][0-9,]*\s+(?:shares|ordinary shares|common shares)[^.\n]{0,120}?(?:outstanding|after this offering|before this offering))/i,
+      ]),
+    ],
     conversionLanguage: findPhraseCandidates(combined, [
       { label: "preferred_stock_conversion", pattern: /(conversion of[^.\n]{0,120}?preferred stock[^.\n]{0,120})/i },
       { label: "convertible_note_conversion", pattern: /(conversion of[^.\n]{0,120}?convertible notes?[^.\n]{0,120})/i },
@@ -1561,9 +1590,12 @@ function extractDilutionExtraction(
     ownershipPercentageCandidates: findCandidateMatches(combined, "ownership_percentage", [
       /((?:existing stockholders|new investors)[^.\n]{0,120}?[0-9.]+%)/i,
     ]),
-    shareCountCandidates: findCandidateMatches(combined, "shares_outstanding", [
-      /([0-9][0-9,]*\s+(?:shares|ordinary shares|ADSs?)[^.\n]{0,120}?(?:outstanding|after this offering|before this offering))/i,
-    ]),
+    shareCountCandidates: [
+      ...findOutstandingShareRowCandidates(combined),
+      ...findCandidateMatches(combined, "shares_outstanding", [
+        /([0-9][0-9,]*\s+(?:shares|ordinary shares|ADSs?)[^.\n]{0,120}?(?:outstanding|after this offering|before this offering))/i,
+      ]),
+    ],
     adsRatioCandidates: findCandidateMatches(combined, "ads_ratio", [
       /\b(each (?:ADS|American Depositary Share)[^.\n]{0,120}?represents?[^.\n]{0,120}?(?:ordinary shares?))/i,
     ]),
@@ -3178,6 +3210,38 @@ const PRIORITY_SOURCE_CONTEXTS: Array<{
       /\bover-?allotment option\b/i,
       /\bunderwriters?\b/i,
       /\bunderwriting\b/i,
+    ],
+  },
+  {
+    sectionKey: "resale_equity_line_context",
+    sectionTitle: "Resale and equity line source context",
+    patterns: [
+      /\bcommitted equity facility\b/i,
+      /\bequity line\b/i,
+      /\bSEPA\b/i,
+      /\bstandby equity purchase agreement\b/i,
+      /\bcommon stock purchase agreement\b/i,
+      /\bpurchase agreement\b/i,
+      /\bregistration rights agreement\b/i,
+      /\bup to\s+\$[0-9][0-9,.]*(?:\s*(?:million|billion))?\b/i,
+      /\bresale by\b/i,
+      /\bselling stockholders?\b/i,
+      /\bwill not receive any (?:of the )?proceeds\b/i,
+    ],
+  },
+  {
+    sectionKey: "issuance_limit_context",
+    sectionTitle: "Issuance limit and denominator source context",
+    patterns: [
+      /\bexchange cap\b/i,
+      /\b19\.99%\b/i,
+      /\bshareholder approval\b/i,
+      /\bminimum purchase price threshold\b/i,
+      /\bClass A Common Stock Outstanding\b/i,
+      /\bshares outstanding prior to\b/i,
+      /\bshares outstanding immediately prior\b/i,
+      /\boutstanding prior to the commencement\b/i,
+      /\boutstanding immediately prior to the execution\b/i,
     ],
   },
 ];

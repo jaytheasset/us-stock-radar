@@ -4202,9 +4202,9 @@ function ResaleRegistrationDetails({ model }: { model: ReturnType<typeof buildDi
         chartTitle: "Share Overhang",
         overhangAriaLabel: isS8ReofferResale
           ? `Parent plan shares equal ${model.dilutionRatioValue} of current shares`
-          : `Registered resale shares equal ${model.dilutionRatioValue} of current shares`,
+          : `Registered resale shares equal ${model.dilutionRatioValue} of ${model.currentDetailLabel || "current shares"}`,
         overhangBarSegments: resaleSegments,
-        overhangSubtitle: isS8ReofferResale ? model.overhangSubtitle : "Current shares plus registered resale shares",
+        overhangSubtitle: isS8ReofferResale ? model.overhangSubtitle : `${model.currentDetailLabel || "Current shares"} plus registered resale shares`,
         overhangUnavailableMessage:
           isS8ReofferResale
             ? model.overhangUnavailableMessage
@@ -4218,7 +4218,7 @@ function ResaleRegistrationDetails({ model }: { model: ReturnType<typeof buildDi
         extraDetailPanels: buildWarrantExtraDetailPanels(model),
         supplyDetailTitle: isS8ReofferResale ? "What Changed" : "Offering Details",
         supplyDetailLabel: isS8ReofferResale ? model.supplyDetailLabel : "Resale Shares",
-        totalNoteSuffix: isS8ReofferResale ? "parent plan shares vs. current shares" : "resale shares vs. current shares",
+        totalNoteSuffix: isS8ReofferResale ? "parent plan shares vs. current shares" : `resale shares vs. ${model.currentDetailLabel || "current shares"}`,
         totalNoteTitle: isS8ReofferResale ? "Parent Plan / Outstanding" : "Total Potential Overhang",
         totalOverhangLabel: isS8ReofferResale ? "Parent Plan / Outstanding" : "Overhang vs Current Shares",
       }}
@@ -6443,11 +6443,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
       : llmWarrantDetailsRows;
   const payloadOfferingDetailsRows = readOfferingDetailsRows(displayPayloadData);
   const llmOfferingDetailsRows = readOfferingDetailsRows(llmDisplayModel);
-  const offeringDetailsRows = filterOfferingDetailsRowsForMode(
-    payloadOfferingDetailsRows.length ? payloadOfferingDetailsRows : llmOfferingDetailsRows,
-    displayMode,
-    { hasWarrantDetails: warrantDetailsRows.length > 0 },
-  );
+  const offeringDetailsRows = payloadOfferingDetailsRows.length ? payloadOfferingDetailsRows : llmOfferingDetailsRows;
   const s3AmendmentChangeRows = /^(?:S-3|F-3)\/A$/i.test(filing.formType.trim())
     ? readS3AmendmentChangeRows(displayPayloadData, llmDisplayModel)
     : [];
@@ -6512,6 +6508,9 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
       formatDilutionPercentFromCounts(mixedOfferingReconciledPotentialCount, currentCount) || estimatedDilutionPercent;
   }
   const currentSharesValue = formatShareCountValue(currentSharesOutstanding) || "Not disclosed";
+  const currentShareBasisLabel = buildCurrentShareBasisLabel(displayPayloadData, llmDisplayModel);
+  const currentShareDetailLabel = buildCurrentShareDetailLabel(currentShareBasisLabel);
+  const currentShareComparisonLabel = currentShareBasisLabel === "Current shares" ? "current shares" : currentShareBasisLabel;
   const potentialSupplyValue =
     formatShareCountNumber(offeredCount) ||
     formatShareCountValue(sharesOffered) ||
@@ -6649,7 +6648,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     className: overhangSegmentClassName(item.label),
     label: formatOverhangComponentLabel(item.label, { isResale }),
     value: formatCompactShareCount(item.shareCount) || item.shares,
-    note: buildSupplyComponentSegmentNote(item, currentCount, instrumentPriceGroups),
+    note: buildSupplyComponentSegmentNote(item, currentCount, instrumentPriceGroups, currentShareComparisonLabel),
     width: scaleShareAmount(item.shareCount, additiveScaleBaseShares),
     compact: scaleShareAmount(item.shareCount, additiveScaleBaseShares) < 24,
   }));
@@ -6661,7 +6660,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
       ? {
           key: "current-base",
           className: "current-base",
-          label: "Current shares",
+          label: currentShareBasisLabel,
           value: currentSharesCompact,
           width: currentSharesBarWidth,
           compact: currentSharesBarWidth < 24,
@@ -6674,7 +6673,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
           className: "registered-supply",
           label: supplySegmentLabel,
           value: potentialSupplyCompact,
-          note: `${dilutionRatioValue} of current shares`,
+          note: `${dilutionRatioValue} of ${currentShareComparisonLabel}`,
           width: supplyBarWidth,
           compact: supplyBarWidth < 24,
       }
@@ -6695,7 +6694,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
       {
         key: "current-base",
         className: "current-base",
-        label: "Current shares",
+        label: currentShareBasisLabel,
         value: currentSharesCompact,
         width: scaleShareAmount(currentCount, mixedScaleBase),
         compact: scaleShareAmount(currentCount, mixedScaleBase) < 24,
@@ -7329,6 +7328,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     conversionSharesValue,
     canRenderOverhangChart,
     currentSharesCompact,
+    currentDetailLabel: currentShareDetailLabel,
     combinedPotentialSharesCompact,
     currentSharesLabelPosition: currentSharesScalePosition,
     currentSharesScalePosition,
@@ -7624,10 +7624,14 @@ function buildSupplyComponentSegmentNote(
   item: { label: string; detail: string; shareCount: number },
   currentCount: number,
   instrumentPriceGroups: Array<{ type: string; price: string; shares?: string }>,
+  currentShareComparisonLabel = "current shares",
 ) {
-  const ratioNote = currentCount ? `${formatPercentCompact((item.shareCount / currentCount) * 100) || "Not disclosed"} of current shares` : "Potential";
-  const basisNote = buildSupplyComponentBasisNote(item, instrumentPriceGroups);
-  return [ratioNote, basisNote].filter(Boolean).join("; ");
+  const ratioNote = currentCount
+    ? `${formatPercentCompact((item.shareCount / currentCount) * 100) || "Not disclosed"} of ${currentShareComparisonLabel}`
+    : "Potential";
+  void item;
+  void instrumentPriceGroups;
+  return ratioNote;
 }
 
 function buildSupplyComponentBasisNote(
@@ -7767,13 +7771,11 @@ function mergePoolBreakdown(
 function formatLlmPoolSegmentLabel(segment: Record<string, unknown>, options: { isResale: boolean }) {
   const instrumentType = readRowString(segment, "instrument_type");
   const label = readRowString(segment, "label");
-  const canonicalLabel = normalize424bSupplySegmentLabel(label) || normalize424bSupplySegmentLabel(instrumentType);
-  if (canonicalLabel) return canonicalLabel;
+  if (label) return label;
+  if (instrumentType) return instrumentType;
 
   const price = readPlainRecord(segment.price);
   const text = [
-    instrumentType,
-    label,
     readRowString(segment, "timing_or_condition"),
     readRowString(segment, "evidence"),
     readRowString(price, "value_text"),
@@ -7827,6 +7829,36 @@ function readDisplayFlexibleNumber(model: Record<string, unknown> | null, key: s
   const value = model?.[key];
   const fact = readPlainRecord(value);
   return readRowNumber(fact, "numeric_value") || readRowNumber(fact, "numericValue") || readRowNumber(model, key);
+}
+
+function buildCurrentShareBasisLabel(primaryModel: Record<string, unknown> | null, secondaryModel: Record<string, unknown> | null) {
+  const parts: string[] = [];
+  for (const model of [primaryModel, secondaryModel]) {
+    if (!model) continue;
+    for (const key of ["current_shares", "current_shares_outstanding"]) {
+      const fact = readPlainRecord(model[key]);
+      parts.push(readDisplayFactRecordValue(fact), readRowString(fact, "evidence"));
+    }
+    for (const metric of recordArray(model.snapshot_metrics)) {
+      parts.push(readRowString(metric, "label"), readDisclosureValue(metric.note), readDisclosureValue(metric.value));
+    }
+  }
+  const text = parts.filter(Boolean).join(" ");
+  if (/\bclass\s+a\b/i.test(text)) return "Class A shares";
+  if (/\bclass\s+b\b/i.test(text)) return "Class B shares";
+  if (/\bordinary shares?\b/i.test(text)) return "Ordinary shares";
+  if (/\b(?:ADSs?|American Depositary Shares?)\b/i.test(text)) return "ADSs";
+  if (/\bpublic float\b/i.test(text)) return "Public float";
+  if (/\bnon-affiliate\b/i.test(text)) return "Non-affiliate shares";
+  return "Current shares";
+}
+
+function buildCurrentShareDetailLabel(label: string) {
+  if (label === "Current shares") return "Current Shares Outstanding";
+  if (label === "Public float") return "Public Float";
+  if (label === "Non-affiliate shares") return "Non-Affiliate Shares";
+  if (/shares$/i.test(label)) return `${label} outstanding`;
+  return label;
 }
 
 function readDisplayPercentValue(model: Record<string, unknown> | null, key: string) {
@@ -8997,30 +9029,6 @@ function formatResaleCompanyProceedsValue(value: string) {
     .trim();
 }
 
-function filterOfferingDetailsRowsForMode(
-  rows: DilutionDisclosureRow[],
-  displayMode: string,
-  options: { hasWarrantDetails?: boolean } = {},
-) {
-  const deDuplicatedRows = options.hasWarrantDetails
-    ? rows.filter((row) => row.label !== "Warrant Terms")
-    : rows;
-  if (displayMode !== "resale_registration") return deDuplicatedRows;
-
-  const allowed = new Set([
-    "Selling Holders",
-    "Agreement Date",
-    "Approx. Placement Price",
-    "Resale Method",
-    "Sale Price",
-    "Floor Price",
-    "Warrant Terms",
-    "Lock-up / Restrictions",
-    "Registration Obligation",
-  ]);
-  return deDuplicatedRows.filter((row) => allowed.has(row.label));
-}
-
 function formatDisplayRiskLabel(value: string) {
   const normalized = value.trim().toLowerCase();
   if (!normalized || normalized === "unknown") return "";
@@ -9418,10 +9426,10 @@ function buildAdditiveOverhangAxisTicks({
 }
 
 function formatOverhangComponentLabel(label: string, options: { isResale?: boolean } = {}) {
-  const canonicalLabel = normalize424bSupplySegmentLabel(label);
-  if (canonicalLabel) return canonicalLabel;
+  const explicitLabel = cleanDisclosureValue(label);
+  if (explicitLabel) return explicitLabel;
 
-  const text = label.toLowerCase();
+  const text = explicitLabel.toLowerCase();
   if (/registered|shelf/.test(text)) return "Registered shelf shares";
   if (/resale/.test(text)) return "Registered resale shares";
   if (/pre[-_\s]?funded/.test(text)) return "Pre-funded warrants";

@@ -76,7 +76,7 @@ type DilutionShareOverhangModel = {
 
 const OVERHANG_SEGMENT_CODES = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 export const DILUTION_MARKET_DATA_DISCLAIMER =
-  "Calculated using the latest available share-count data; actual outstanding shares and market impact may differ.";
+  "Share counts may differ from current market data after filings, splits, or later offerings.";
 export const CURRENT_SHARES_MARKET_CONTEXT_NOTE =
   "Latest available market-data share count. Filing-date share count may differ.";
 

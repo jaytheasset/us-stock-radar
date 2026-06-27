@@ -104,6 +104,12 @@ const S1_F1_OFFERING_DETAIL_LABELS_BY_MODE: Record<string, readonly string[]> = 
     "Sale Price",
     "Source Instrument",
     "Purchase Limit",
+    "Exchange Cap",
+    "Ownership Limit",
+    "Six-month Cap",
+    "Conversion Price",
+    "Floor Price",
+    "Reset / Repricing",
     "Sales to Date",
     "Approx. Placement Price",
     "Use of Proceeds",
@@ -436,7 +442,7 @@ function validateS1F1OverhangFacts(data: Record<string, unknown>) {
     return "SEC S-1/F-1 resale/mixed display must include snapshot_metrics row labeled Overhang vs outstanding when total_potential_supply is available";
   }
   if (!hasNumericDisplayFactValue(readRecord(data.current_shares))) {
-    return "SEC S-1/F-1 overhang snapshot must include numeric display_payload.data.current_shares from filing data when available, otherwise latest market_context shares_outstanding";
+    return "SEC S-1/F-1 overhang snapshot must include numeric display_payload.data.current_shares from filing data when available; market_context shares are allowed only when the filing provides no denominator";
   }
   if (!hasSupplyNumerator) {
     return "SEC S-1/F-1 overhang snapshot must include numeric display_payload.data.total_potential_supply from the same registered/offered share numerator";
