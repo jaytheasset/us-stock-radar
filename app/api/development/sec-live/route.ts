@@ -26,6 +26,9 @@ export async function POST(request: NextRequest) {
           accessionNumber: readString(record.accessionNumber),
           rawItemId: readString(record.rawItemId),
           attachmentLimit: readNumber(record.attachmentLimit, 6),
+          resetExistingAnalysis: readBoolean(record.resetExistingAnalysis),
+          llmProvider: readString(record.llmProvider),
+          llmModel: readString(record.llmModel),
         })
       : mode === "accession_samples"
         ? await runSecDevAccessionSamples(room, {
@@ -78,4 +81,10 @@ function readNumber(value: unknown, fallback: number) {
 
 function readStringArray(value: unknown) {
   return Array.isArray(value) ? value.map(readString).filter(Boolean) : [];
+}
+
+function readBoolean(value: unknown) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") return /^(?:1|true|yes)$/i.test(value.trim());
+  return false;
 }

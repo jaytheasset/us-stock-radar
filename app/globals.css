@@ -12129,9 +12129,15 @@ td {
 .dilution-overhang-facts div {
   display: grid;
   grid-template-columns: minmax(140px, 0.7fr) minmax(0, 1fr);
-  gap: 14px;
+  column-gap: 14px;
+  row-gap: 5px;
   border-bottom: 1px solid var(--detail-divider);
   padding: 13px 0;
+}
+
+.dilution-overhang-facts div:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
 }
 
 .dilution-overhang-facts span {
@@ -12157,10 +12163,13 @@ td {
 
 .dilution-overhang-facts em {
   grid-column: 2;
+  justify-self: end;
+  max-width: 100%;
   color: #64728a;
   font-size: 11px;
   font-style: normal;
   line-height: 1.35;
+  text-align: right;
 }
 
 .dilution-overhang-facts mark {
@@ -15670,6 +15679,8 @@ td {
 
   .dilution-overhang-facts em {
     grid-column: auto;
+    justify-self: start;
+    text-align: left;
   }
 
   .dividend-summary-heading,

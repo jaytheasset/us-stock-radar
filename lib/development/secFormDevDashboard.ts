@@ -13,7 +13,7 @@ import {
   saveSecRawItem,
 } from "@/lib/secStores/rawStore";
 import { fetchSecEdgarRawItems, type SecParsedRawItem } from "@/lib/sources/sec/parser";
-import { supabaseSelect } from "@/lib/supabase";
+import { supabaseDelete, supabaseSelect } from "@/lib/supabase";
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
@@ -66,6 +66,19 @@ export type SecDevLiveRunResult = {
   items: Array<Record<string, unknown>>;
   diagnostics: Record<string, unknown> | null;
   error: string | null;
+};
+
+type SecDevDerivedResetResult = {
+  requested: boolean;
+  accessionNumber: string | null;
+  rawItemId: string | null;
+  matchedEventIds: string[];
+  remainingEventIds: string[];
+  deleted: Array<{
+    target: string;
+    count: number;
+  }>;
+  rawItemPreserved: boolean;
 };
 
 export type SecDevOutputPreview = {
@@ -1068,7 +1081,14 @@ export async function runSecDevAccessionDryRun(
 
 export async function runSecDevControlledPersist(
   roomKey: string,
-  options: { accessionNumber?: string; rawItemId?: string; attachmentLimit?: number } = {},
+  options: {
+    accessionNumber?: string;
+    rawItemId?: string;
+    attachmentLimit?: number;
+    resetExistingAnalysis?: boolean;
+    llmProvider?: string;
+    llmModel?: string;
+  } = {},
 ): Promise<SecDevRoomDetail | null> {
   const room = SEC_DEV_ROOMS.find((item) => item.key === roomKey);
   if (!room) return null;
@@ -1090,6 +1110,12 @@ export async function runSecDevControlledPersist(
       rawItemId,
       attachmentLimit: clampNumber(options.attachmentLimit, 0, 12, 6),
     });
+    const resetResult = options.resetExistingAnalysis
+      ? await resetSecDerivedAnalysisForAccession({
+          accessionNumber: accessionNumber || rawResult.accessionNumber,
+          rawItemId: rawResult.rawItemId || rawItemId,
+        })
+      : null;
 
     const analysis = await runSecFilingAnalysisIngest({
       accessionNumber: accessionNumber || undefined,
@@ -1097,6 +1123,8 @@ export async function runSecDevControlledPersist(
       dryRun: false,
       force: true,
       suppressAlerts: true,
+      llmProvider: stringValue(options.llmProvider) || undefined,
+      llmModel: stringValue(options.llmModel) || undefined,
     });
     if (!analysis.ok) {
       throw new Error(analysis.error || "Controlled SEC analysis persist failed");
@@ -1163,6 +1191,7 @@ export async function runSecDevControlledPersist(
       ],
       diagnostics: {
         raw_source: rawResult.source,
+        reset_existing_analysis: resetResult,
         prompt: analysis.runtime ? readRecord(analysis.runtime)?.prompt || null : null,
       },
       error: null,
@@ -1186,6 +1215,137 @@ export async function runSecDevControlledPersist(
 
   await appendLiveRun(room.key, liveRun);
   return getSecDevRoomDetail(room.key);
+}
+
+async function resetSecDerivedAnalysisForAccession({
+  accessionNumber,
+  rawItemId,
+}: {
+  accessionNumber: string;
+  rawItemId: string;
+}): Promise<SecDevDerivedResetResult> {
+  const normalizedAccession = stringValue(accessionNumber);
+  const normalizedRawItemId = stringValue(rawItemId);
+  if (!normalizedAccession && !normalizedRawItemId) {
+    throw new Error("Reset existing SEC analysis requires accessionNumber or rawItemId.");
+  }
+
+  const matchedEvents = await findSecDerivedEventsForReset({
+    accessionNumber: normalizedAccession,
+    rawItemId: normalizedRawItemId,
+  });
+  const matchedEventIds = matchedEvents.map((event) => stringValue(event.id)).filter(Boolean);
+  const deleted: SecDevDerivedResetResult["deleted"] = [];
+
+  if (matchedEventIds.length) {
+    await deleteSecDerivedRows(deleted, "user_alert_deliveries", { alert_event_id: `in.(${matchedEventIds.join(",")})` });
+    await deleteSecDerivedRows(deleted, "alert_delivery_event_runs", { event_id: `in.(${matchedEventIds.join(",")})` });
+    await deleteSecDerivedRows(deleted, "deliveries", { event_id: `in.(${matchedEventIds.join(",")})` });
+    await deleteSecDerivedRows(deleted, "event_links.left_event_id", "event_links", {
+      left_event_id: `in.(${matchedEventIds.join(",")})`,
+    });
+    await deleteSecDerivedRows(deleted, "event_links.right_event_id", "event_links", {
+      right_event_id: `in.(${matchedEventIds.join(",")})`,
+    });
+    await deleteSecDerivedRows(deleted, "event_calendar_items", { source_event_id: `in.(${matchedEventIds.join(",")})` });
+    await deleteSecDerivedRows(deleted, "event_tickers", { event_id: `in.(${matchedEventIds.join(",")})` });
+    await deleteSecDerivedRows(deleted, "event_offering_terms", { event_id: `in.(${matchedEventIds.join(",")})` });
+    await deleteSecDerivedRows(deleted, "event_analysis", { event_id: `in.(${matchedEventIds.join(",")})` });
+    await deleteSecDerivedRows(deleted, "ai_outputs", { event_id: `in.(${matchedEventIds.join(",")})` });
+    await deleteSecDerivedRows(deleted, "ai_runs", { event_id: `in.(${matchedEventIds.join(",")})` });
+    await deleteSecDerivedRows(deleted, "events", { id: `in.(${matchedEventIds.join(",")})` });
+  }
+
+  const remainingEvents = await findSecDerivedEventsForReset({
+    accessionNumber: normalizedAccession,
+    rawItemId: normalizedRawItemId,
+  });
+
+  return {
+    requested: true,
+    accessionNumber: normalizedAccession || null,
+    rawItemId: normalizedRawItemId || null,
+    matchedEventIds,
+    remainingEventIds: remainingEvents.map((event) => stringValue(event.id)).filter(Boolean),
+    deleted,
+    rawItemPreserved: true,
+  };
+}
+
+async function findSecDerivedEventsForReset({
+  accessionNumber,
+  rawItemId,
+}: {
+  accessionNumber: string;
+  rawItemId: string;
+}) {
+  const byId = new Map<string, Record<string, unknown>>();
+  const searches: Array<Record<string, string>> = [];
+
+  if (rawItemId) {
+    searches.push({
+      select: "id,raw_item_id,title,metadata,group_dedupe_key",
+      source_group: "eq.filings",
+      raw_item_id: `eq.${rawItemId}`,
+      limit: "50",
+    });
+  }
+
+  if (accessionNumber) {
+    searches.push(
+      {
+        select: "id,raw_item_id,title,metadata,group_dedupe_key",
+        source_group: "eq.filings",
+        "metadata->>accession_number": `eq.${accessionNumber}`,
+        limit: "50",
+      },
+      {
+        select: "id,raw_item_id,title,metadata,group_dedupe_key",
+        source_group: "eq.filings",
+        group_dedupe_key: `eq.sec_edgar:${accessionNumber}`,
+        limit: "50",
+      },
+      {
+        select: "id,raw_item_id,title,metadata,group_dedupe_key",
+        source_group: "eq.filings",
+        group_dedupe_key: `eq.sec_edgar:ownership:accession:${accessionNumber}`,
+        limit: "50",
+      },
+    );
+  }
+
+  for (const search of searches) {
+    const result = await supabaseSelect("events", search);
+    if (!result.ok) throw new Error(result.error || "Failed to find existing SEC filing events for reset.");
+    for (const row of Array.isArray(result.data) ? result.data : []) {
+      const record = readRecord(row);
+      const id = stringValue(record?.id);
+      if (record && id) byId.set(id, record);
+    }
+  }
+
+  return Array.from(byId.values());
+}
+
+async function deleteSecDerivedRows(
+  deleted: SecDevDerivedResetResult["deleted"],
+  target: string,
+  tableOrSearch: string | Record<string, string>,
+  maybeSearch?: Record<string, string>,
+) {
+  const table = typeof tableOrSearch === "string" ? tableOrSearch : target;
+  const search = typeof tableOrSearch === "string" ? maybeSearch : tableOrSearch;
+  if (!search) throw new Error(`Missing reset delete filter for ${target}.`);
+
+  const result = await supabaseDelete(table, search);
+  if (!result.ok) {
+    throw new Error(result.error || `Failed to reset SEC derived rows in ${target}.`);
+  }
+
+  deleted.push({
+    target,
+    count: Array.isArray(result.data) ? result.data.length : 0,
+  });
 }
 
 async function readRoomFiles(room: SecDevRoom, testFiles: string[], fixtures: string[], expected: string[]) {

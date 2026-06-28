@@ -124,6 +124,13 @@ const cik = stringArg("cik") || stringArg("filerCik") || stringArg("filer-cik");
 const rawItemId = stringArg("rawItemId");
 const llmProvider = stringArg("llmProvider") || stringArg("llm-provider") || "gemini";
 const llmModel = stringArg("llmModel") || stringArg("llm-model") || "";
+const resetExistingAnalysis =
+  booleanArg("resetExistingAnalysis", false) ||
+  booleanArg("reset-existing-analysis", false) ||
+  booleanArg("resetDerivedEvent", false) ||
+  booleanArg("reset-derived-event", false) ||
+  booleanArg("resetAccession", false) ||
+  booleanArg("reset-accession", false);
 
 const result = {
   ok: false,
@@ -134,6 +141,7 @@ const result = {
   baseUrl,
   llmProvider: llmProvider || null,
   llmModel: llmModel || null,
+  resetExistingAnalysis,
   sync: null,
   server: null,
   ingest: null,
@@ -262,6 +270,10 @@ function restoreIntegrationOwnedFormFiles(target, preserved) {
 }
 
 async function analyzeOne({ rawItemId, accessionNumber }) {
+  if (resetExistingAnalysis) {
+    return analyzeOneViaDevConsole({ rawItemId, accessionNumber });
+  }
+
   const params = new URLSearchParams({
     dryRun: "false",
     force: String(force),
@@ -305,6 +317,62 @@ async function analyzeOne({ rawItemId, accessionNumber }) {
   }
 
   return summarizeAnalysis(analysis, { rawItemId, accessionNumber });
+}
+
+async function analyzeOneViaDevConsole({ rawItemId, accessionNumber }) {
+  if (!rawItemId && !accessionNumber) {
+    throw new Error("Reset analysis requires rawItemId or accessionNumber.");
+  }
+  if (!room.folder) {
+    throw new Error("Reset analysis requires a SEC form room folder.");
+  }
+
+  const response = await postJson("/api/development/sec-live", {
+    room: room.folder,
+    mode: "controlled_persist",
+    accessionNumber: accessionNumber || "",
+    rawItemId: rawItemId || "",
+    attachmentLimit,
+    resetExistingAnalysis: true,
+    llmProvider,
+    llmModel,
+  });
+  if (!response?.ok) {
+    throw new Error(`SEC dev controlled persist failed: ${shortJson(response)}`);
+  }
+
+  const liveRuns = Array.isArray(response?.detail?.liveRuns) ? response.detail.liveRuns : [];
+  const liveRun =
+    liveRuns.find((run) => {
+      if (run?.mode !== "controlled_persist") return false;
+      if (accessionNumber && run.accessionNumber === accessionNumber) return true;
+      if (rawItemId && run.rawItemId === rawItemId) return true;
+      return false;
+    }) || liveRuns.find((run) => run?.mode === "controlled_persist") || null;
+  const item = Array.isArray(liveRun?.items) ? liveRun.items[0] || null : null;
+  const eventId = stringValue(item?.event_id);
+  const deliveryLevel = stringValue(item?.delivery_level);
+  const detailUrl = normalizeDetailUrl(stringValue(item?.detail_url), eventId, deliveryLevel);
+
+  return {
+    ok: liveRun?.status === "pass",
+    stage: "controlled_persist",
+    request: { rawItemId, accessionNumber },
+    runtime: item?.runtime_output || null,
+    eventId,
+    title: stringValue(item?.title),
+    ticker: stringValue(item?.ticker),
+    eventType: stringValue(item?.event_type),
+    score: numberValue(item?.score),
+    deliveryLevel,
+    model: "",
+    promptModel: llmModel || "",
+    promptProvider: llmProvider || "",
+    detailUrl,
+    alertDelivery: item?.alert_delivery || null,
+    resetExistingAnalysis: liveRun?.diagnostics?.reset_existing_analysis || null,
+    raw: liveRun?.status === "pass" ? undefined : response,
+  };
 }
 
 async function ensureServer() {
@@ -497,6 +565,12 @@ function buildDetailUrl(eventId, deliveryLevel) {
   if (!eventId) return null;
   const route = deliveryLevel === "archive" ? `/filings/archive/${eventId}` : `/filings/${eventId}`;
   return `${baseUrl}${route}`;
+}
+
+function normalizeDetailUrl(value, eventId, deliveryLevel) {
+  if (value && /^https?:\/\//i.test(value)) return value;
+  if (value && value.startsWith("/")) return `${baseUrl}${value}`;
+  return value || buildDetailUrl(eventId, deliveryLevel);
 }
 
 function ensureIntegrationEnv() {

@@ -8672,7 +8672,8 @@ function readOfferingDetailsRows(model: Record<string, unknown> | null): Dilutio
       const label = normalizeOfferingDetailLabel(readRowString(item, "label"));
       const rawValue = cleanDisclosureValue(readDisclosureValue(item.value) || readRowString(item, "value"));
       const value = normalizeOfferingDetailValue(label, rawValue);
-      return label && isDisclosedValue(value) ? { label, value } : null;
+      const note = cleanDisclosureValue(readDisclosureValue(item.note) || readRowString(item, "note"));
+      return label && isDisclosedValue(value) ? { label, value, ...(isDisclosedValue(note) ? { note } : {}) } : null;
     })
     .filter((item): item is DilutionDisclosureRow => Boolean(item));
 }

@@ -48,6 +48,9 @@ describe("S-1/F-1 analysis output fixtures", () => {
     assert.ok(prompt.includes("Do not call live APIs"));
     assert.ok(prompt.includes("There is no S-1/F-1 router LLM"));
     assert.ok(prompt.includes("Return display_payload yourself"));
+    assert.ok(prompt.includes("Visible UI contract"));
+    assert.ok(prompt.includes("Stored-only evidence contract"));
+    assert.ok(prompt.includes("Do not place investor-critical terms only"));
     assert.ok(prompt.includes("Cleaned source input"));
     assert.ok(prompt.includes("cleaned_source_blocks"));
     assert.ok(prompt.includes("Do not treat parser-generated facts"));

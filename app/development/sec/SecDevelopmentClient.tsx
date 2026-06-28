@@ -20,6 +20,7 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
   const [persisting, setPersisting] = useState(false);
   const [accessionNumber, setAccessionNumber] = useState("");
   const [dryRunAccession, setDryRunAccession] = useState("");
+  const [resetExistingAnalysis, setResetExistingAnalysis] = useState(false);
   const [liveSampleCount, setLiveSampleCount] = useState("1");
   const [allowLlm, setAllowLlm] = useState(false);
   const [liveFormFilter, setLiveFormFilter] = useState("all");
@@ -231,6 +232,8 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
           mode: "controlled_persist",
           accessionNumber: accessionNumber.trim(),
           attachmentLimit: 6,
+          resetExistingAnalysis,
+          llmProvider: "gemini",
         }),
       });
       const payload = await response.json();
@@ -371,13 +374,17 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
               value={accessionNumber}
             />
           </label>
+          <label className={styles.resetControl}>
+            <input checked={resetExistingAnalysis} onChange={(event) => setResetExistingAnalysis(event.target.checked)} type="checkbox" />
+            <span>Reset existing analysis</span>
+          </label>
           <button
             className={styles.dangerButton}
             disabled={persisting || loading || !accessionNumber.trim()}
             onClick={runControlledPersist}
             type="button"
           >
-            {persisting ? "Persisting..." : "Persist one, alerts off"}
+            {persisting ? "Persisting..." : resetExistingAnalysis ? "Reset + persist, alerts off" : "Persist one, alerts off"}
           </button>
         </section>
 

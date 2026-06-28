@@ -231,6 +231,7 @@ export function DilutionShareOverhang({ model }: { model: DilutionShareOverhangM
                   <div key={row.label}>
                     <span title={currentSharesTitle(row.label)}>{row.label}</span>
                     <strong className={row.tone === "danger" ? "danger" : undefined}>{row.value}</strong>
+                    {row.note ? <em>{row.note}</em> : null}
                   </div>
                 ))}
               </div>
