@@ -6329,21 +6329,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
   const closingDate = findDateSentence(fallbackSourceText, /\bclosing\b|\bclose\b/i);
   const offeringAgreementDate = findOfferingAgreementDate(fallbackSourceText);
   const purchaserInvestor = findPurchaserInvestor(fallbackSourceText);
-  const isShelfOnly = isAuthoritative424bMode
-    ? displayMode === "shelf_capacity"
-    : !isMixedOffering &&
-      !hasMinimumS8DetailFields &&
-      !hasActionableAtmMechanism &&
-      !isResale &&
-      !isForwardSale &&
-      !isRegisteredDirect &&
-      !isPrivatePlacement &&
-      !hasPrefundedWarrants &&
-      !isConvertibleFinancing &&
-      (displayMode === "shelf_capacity" ||
-        s3Case === "base_shelf" ||
-        s3Case === "automatic_shelf" ||
-        (isShelfLike && /\b(?:base shelf|universal shelf|automatic shelf|shelf registration|from time to time)\b/i.test(classificationText)));
+  const isShelfOnly = displayMode === "shelf_capacity";
   const hasActionableDilutionMechanism = Boolean(
     isMixedOffering ||
       hasActionableAtmMechanism ||
