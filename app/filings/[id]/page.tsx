@@ -3905,6 +3905,7 @@ function DilutionOfferingTemplate({
       {model.isShelfOnly ? (
         <>
           {showSummaryBesideChart ? null : <DilutionLongSummary model={model} />}
+          <ShelfDetailsSection model={model} />
           <ShelfWatchNext model={model} />
         </>
       ) : (
@@ -3933,6 +3934,20 @@ function DilutionOfferingTemplate({
       <FilingMarketContextPanel filing={filing} />
       <OriginalFilingText filing={filing} eventLabel="Dilution Risk" />
     </>
+  );
+}
+
+function ShelfDetailsSection({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
+  const rows = model.offeringDetailsRows.length ? model.offeringDetailsRows : model.shelfDetailRows;
+  if (!rows.length) return null;
+
+  return (
+    <DilutionDisclosureSection
+      title="Shelf Details"
+      rows={rows}
+      emptyText="No source-backed shelf details were provided."
+      headingLabel="Registration details"
+    />
   );
 }
 
