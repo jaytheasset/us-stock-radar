@@ -278,7 +278,7 @@ function validateKeyCashTermFacts(data: Record<string, unknown>) {
     readRecord(data.key_cash_terms)?.explanation,
     ...arrayValue(data.offering_details).flatMap((row) => {
       const record = readRecord(row);
-      return [record?.label, record?.value];
+      return [record?.label, record?.value, record?.note];
     }),
     ...readStringArray(data.source_notes),
   ]
@@ -624,7 +624,8 @@ function normalizeOfferingDetails(value: unknown) {
           if (!record) return null;
           const label = stringValue(record.label);
           const detailValue = stringValue(record.value);
-          return label && detailValue ? { label, value: detailValue } : null;
+          const note = stringValue(record.note);
+          return label && detailValue ? { label, value: detailValue, ...(note ? { note } : {}) } : null;
         })
         .filter(Boolean)
     : [];
@@ -967,6 +968,7 @@ export const sec424bRequiredOutputSchema = {
                 properties: {
                   label: { type: "string" },
                   value: { type: "string" },
+                  note: { type: "string" },
                 },
               },
             },

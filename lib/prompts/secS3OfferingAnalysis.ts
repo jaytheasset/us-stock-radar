@@ -6,7 +6,7 @@ import { sec424bRequiredOutputSchema } from "@/lib/ai/sec424bAnalysisAdapter";
 import { buildSecSourceBlockPromptInput } from "@/lib/sources/sec/forms/common/sourceBlockPromptInput";
 
 export const SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY = "sec_s3_offering_analysis";
-export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v37";
+export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v38";
 
 export const SEC_S3_ANALYSIS_ACTION_VALUES = ["skip_analysis", "routine_archive", "analyze_offering"] as const;
 export const SEC_S3_CASE_VALUES = [
@@ -441,6 +441,9 @@ const secS3RequiredOutputSystemPrompt = [
   "For mixed_offering display_mode, mixed_offering_components is mandatory. Fill it with the main source-backed share or security exposure components that drive the mixed offering UI, using roles new_shares, potential_warrants, potential_instruments, and total_potential_supply when applicable.",
   "mixed_offering_components must not contain cash proceeds, fee-table amounts, dollar shelf capacity, equity-line dollar capacity, or warrant exercise proceeds. Put those cash amounts in key_cash_terms, snapshot_metrics, offering_details, narrative_summary, source_notes, or key_evidence.",
   "offering_details must use only approved labels for the chosen display_mode. Do not use a label merely to fill space.",
+  "offering_details rows may include optional note: { label, value, note? }. label and value are visible; note is also visible under the value in the Offering Details panel.",
+  "Use offering_details.note only for short source-backed caveats, material exceptions, calculation basis, limits, or context that should be visible but would make value too long.",
+  "Do not leave material exceptions or investor-critical caveats only in source_notes, key_evidence, evidence, score_reason, or prose when an offering_details row is the visible UI row.",
   "For shelf_capacity use only: Offering Type, Active Sale Terms, Securities Covered, Use of Proceeds.",
   "For resale_registration use only: Selling Holders, Agreement Date, Sale Price, Resale Method, Source Instrument, Instrument Terms, Warrant Terms, Registration Obligation.",
   "For atm use only: Sales Agent, Fee / Commission, Agreement Date, End Date, Use of Proceeds.",
@@ -457,6 +460,7 @@ const secS3RequiredOutputSystemPrompt = [
   "Keep offering_details values short: use a company/person name, date, price formula, or short phrase. Avoid full sentences, legal clauses, page references, or explanatory paragraphs.",
   "For offering_details, each value should usually be under 80 characters and never exceed 120 characters. Summarize into a compact UI phrase; do not paste source clauses.",
   "Hard UI length rule: before final JSON, rewrite any offering_details.value longer than 120 characters into a shorter phrase. Long UI row values are invalid.",
+  "Keep offering_details.note compact, usually under 18 words. Do not paste legal clauses, page references, or evidence excerpts into the note.",
   "For Selling Holders, keep values under 55 characters when possible. If there are many holders, name one or two recognizable holders and add '+ others'.",
   "Do not create new offering_details labels. If a disclosed date is an agreement date, use Agreement Date. If it is a closing date, use Closing Date. If neither approved date label fits, put the date in summary, key_evidence, watch_items, source_notes, or Term / Limits as appropriate.",
   "If display_mode is resale_registration, mixed_offering, or warrant_convertible and supply_segments include warrants, pre-funded warrants, convertible notes, convertible preferred stock, preferred stock, rights, or units, fill warrant_details as the Instrument Details UI when source terms are disclosed.",
