@@ -5,7 +5,7 @@ import { APPROVED_424B_EVENT_TYPES } from "@/lib/sources/sec/forms/424b/types";
 import type { Sec424bParserOutput } from "@/lib/sources/sec/forms/424b/types";
 
 export const SEC_424B_ANALYSIS_PROMPT_KEY = "sec_424b_analysis";
-export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v8";
+export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v9";
 const ALLOWED_424B_OFFERING_DETAIL_LABELS = new Set([
   "Offering Type",
   "Purchaser / Investor",
@@ -29,7 +29,6 @@ const ALLOWED_424B_OFFERING_DETAIL_LABELS = new Set([
   "Shelf Status",
   "Securities Covered",
   "Active Sale Terms",
-  "Next Required Filing",
 ]);
 const ALLOWED_424B_WARRANT_DETAIL_LABELS = new Set([
   "Type",
@@ -131,20 +130,12 @@ export function validate424bDisplayPayload(
     return "SEC 424B offering_terms display_payload.data must be filled by the analysis LLM";
   }
 
+  const displayMode = stringValue(data.display_mode);
   const requiredKeys = [
     "display_mode",
-    "risk_label",
-    "current_shares",
-    "total_potential_supply",
     "snapshot_metrics",
-    "key_cash_terms",
-    "supply_segments",
     "investor_takeaway",
-    "offering_details",
     "narrative_summary",
-    "watch_items",
-    "source_notes",
-    "review_reasons",
     "needs_human_review",
   ];
   const missing = requiredKeys.filter((key) => !(key in data));
@@ -160,7 +151,6 @@ export function validate424bDisplayPayload(
   if (!arrayValue(data.snapshot_metrics).length) {
     return "SEC 424B offering_terms display_payload.data.snapshot_metrics must be written by the analysis LLM";
   }
-  const displayMode = stringValue(data.display_mode);
   if (displayMode && !ALLOWED_424B_DISPLAY_MODES.has(displayMode)) {
     return `SEC 424B offering_terms display_payload.data.display_mode is not allowed: ${displayMode}`;
   }
@@ -271,10 +261,19 @@ export function collect424bDisplayPayloadWarnings(displayPayload: Record<string,
 }
 
 function validateKeyCashTermFacts(data: Record<string, unknown>) {
+  const cashTerms = readRecord(data.key_cash_terms);
+  const hasCashTermContent =
+    cashTerms &&
+    Object.values(cashTerms).some((value) => {
+      const record = readRecord(value);
+      return hasDisplayFactValue(record) || Boolean(stringValue(value));
+    });
+  if (!hasCashTermContent) return "";
+
   const searchableText = [
     data.investor_takeaway,
     data.narrative_summary,
-    readRecord(data.key_cash_terms)?.explanation,
+    cashTerms?.explanation,
     ...arrayValue(data.offering_details).flatMap((row) => {
       const record = readRecord(row);
       return [record?.label, record?.value, record?.note];
@@ -287,7 +286,6 @@ function validateKeyCashTermFacts(data: Record<string, unknown>) {
     return "";
   }
 
-  const cashTerms = readRecord(data.key_cash_terms);
   const cashFactKeys = [
     "resale_proceeds_to_company",
     "issuer_primary_or_closing_cash",
@@ -300,7 +298,7 @@ function validateKeyCashTermFacts(data: Record<string, unknown>) {
   const hasAnyFact = cashFactKeys.some((key) => hasDisplayFactValue(readRecord(cashTerms?.[key])));
   return hasAnyFact
     ? ""
-    : "key_cash_terms facts must be filled when cash or proceeds are described elsewhere";
+    : "key_cash_terms contains cash/proceeds context but no populated fact field";
 }
 
 function validateShareExposureFact(value: Record<string, unknown> | null, fieldName: string) {
@@ -866,19 +864,9 @@ export const sec424bRequiredOutputSchema = {
           additionalProperties: true,
           required: [
             "display_mode",
-            "risk_label",
-            "current_shares",
-            "total_potential_supply",
             "snapshot_metrics",
-            "key_cash_terms",
-            "registered_security_totals",
-            "supply_segments",
             "investor_takeaway",
-            "offering_details",
             "narrative_summary",
-            "watch_items",
-            "source_notes",
-            "review_reasons",
             "needs_human_review",
           ],
           properties: {
@@ -933,16 +921,6 @@ export const sec424bRequiredOutputSchema = {
             key_cash_terms: {
               type: "object",
               additionalProperties: true,
-              required: [
-                "resale_proceeds_to_company",
-                "issuer_primary_or_closing_cash",
-                "conditional_warrant_cash",
-                "prefunded_warrant_exercise_cash",
-                "common_warrant_cash_exercise_proceeds",
-                "private_placement_proceeds",
-                "sec_registration_value",
-                "explanation",
-              ],
               properties: {
                 resale_proceeds_to_company: keyCashTermFactSchema(),
                 issuer_primary_or_closing_cash: keyCashTermFactSchema(),
