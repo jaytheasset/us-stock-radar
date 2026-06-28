@@ -267,6 +267,7 @@ export function build424bAnalysisPrompt(parserOutput: Sec424bParserOutput): stri
     "For offering_details, each value should usually be under 80 characters and never exceed 120 characters. Summarize into a compact UI phrase; do not paste source clauses.",
     "Hard UI length rule: before final JSON, rewrite any offering_details.value longer than 120 characters into a shorter phrase. Long UI row values are invalid.",
     "Keep offering_details.note compact, usually under 18 words. Do not paste legal clauses, page references, or evidence excerpts into the note.",
+    "For Use of Proceeds offering_details rows, list no more than 3 purposes in value. If more than 3 source-backed purposes are disclosed, use '{purpose1}, {purpose2}, {purpose3} + others'. Put only one material amount or caveat in note when needed; do not continue the purpose list in note.",
     "For Placement Agent / Underwriter, list no more than 2 agent or underwriter names before '+ others'. If there are more than 2, use exactly '{name1}, {name2} + others'; never list a third name before '+ others'.",
     "For Placement Agent / Underwriter, shorten common legal suffixes when clear. Do not paste a full syndicate list into the UI row.",
     "For date rows, use the date only. Do not append agreement names unless multiple dates would otherwise be ambiguous.",

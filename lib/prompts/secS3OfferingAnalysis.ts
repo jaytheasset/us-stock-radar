@@ -469,6 +469,7 @@ const secS3RequiredOutputSystemPrompt = [
   "For offering_details, each value should usually be under 80 characters and never exceed 120 characters. Summarize into a compact UI phrase; do not paste source clauses.",
   "Hard UI length rule: before final JSON, rewrite any offering_details.value longer than 120 characters into a shorter phrase. Long UI row values are invalid.",
   "Keep offering_details.note compact, usually under 18 words. Do not paste legal clauses, page references, or evidence excerpts into the note.",
+  "For Use of Proceeds offering_details rows, list no more than 3 purposes in value. If more than 3 source-backed purposes are disclosed, use '{purpose1}, {purpose2}, {purpose3} + others'. Put only one material amount or caveat in note when needed; do not continue the purpose list in note.",
   "For Selling Holders, keep values under 55 characters when possible. If there are many holders, name one or two recognizable holders and add '+ others'.",
   "Do not create new offering_details labels. If a disclosed date is an agreement date, use Agreement Date. If it is a closing date, use Closing Date. If neither approved date label fits, put the date in summary, key_evidence, watch_items, source_notes, or Term / Limits as appropriate.",
   "If display_mode is resale_registration, mixed_offering, or warrant_convertible and supply_segments include warrants, pre-funded warrants, convertible notes, convertible preferred stock, preferred stock, rights, or units, fill warrant_details as the Instrument Details UI when source terms are disclosed.",

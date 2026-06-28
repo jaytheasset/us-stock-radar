@@ -168,6 +168,7 @@ export function buildS1F1AnalysisPrompt(
     "- Snapshot note should be short and plain, under 12 words when possible. Do not put full legal names, page references, or long clauses in snapshot notes.",
     "- Offering Details must use compact row values: no legalese fragments, no paragraph-like values, and no filler. Keep each value under 90 characters when possible.",
     "- Offering Details notes must be 80 characters or fewer. Omit the note instead of writing a long explanation.",
+    "- For Use of Proceeds Offering Details rows, list no more than 3 purposes in value. If more than 3 source-backed purposes are disclosed, use '{purpose1}, {purpose2}, {purpose3} + others'. Put only one material amount or caveat in note when needed; do not continue the purpose list in note.",
     "- Offering Details should usually have 3-5 rows. For resale_registration, do not output more than 5 offering_details rows.",
     "- Snapshot and Offering Details have different jobs. Snapshot metrics are the scan-first numbers or status. Offering Details are separate contract terms, mechanics, dates, parties, instruments, proceeds use, restrictions, or amendment details.",
     "- Do not use Offering Details as a second copy of Snapshot. If a fact is already clear in snapshot_metrics, omit it from offering_details unless the row adds materially different source-backed context.",

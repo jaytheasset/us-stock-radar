@@ -11317,10 +11317,15 @@ td {
   align-items: flex-start;
   justify-content: space-between;
   gap: 24px;
+  min-width: 0;
   min-height: 82px;
   padding-top: 6px;
   border-bottom: 1px solid var(--detail-divider);
   padding-bottom: 18px;
+}
+
+.dilution-overhang-heading > div:first-child {
+  min-width: 0;
 }
 
 .dilution-overhang-heading h2 {
@@ -11339,18 +11344,20 @@ td {
 
 .dilution-overhang-score {
   display: grid;
-  grid-template-columns: max-content max-content;
+  grid-template-columns: minmax(112px, 1fr) max-content;
   align-items: center;
   justify-items: end;
   gap: 8px 18px;
-  min-width: 270px;
+  width: min(340px, 48%);
+  min-width: 230px;
+  max-width: 340px;
   margin-left: auto;
-  transform: translateX(44px);
   text-align: right;
 }
 
 .dilution-overhang-score span {
   align-self: center;
+  max-width: 100%;
   border: 1px solid rgba(200, 28, 36, 0.18);
   border-radius: 6px;
   padding: 5px 8px;
@@ -11358,8 +11365,10 @@ td {
   background: rgba(200, 28, 36, 0.08);
   font-size: 10px;
   font-weight: 800;
-  line-height: 1;
+  line-height: 1.15;
+  text-align: center;
   text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
 .dilution-overhang-score strong {
@@ -11380,10 +11389,12 @@ td {
 .dilution-overhang-score small {
   grid-column: 1 / -1;
   justify-self: end;
+  max-width: 100%;
   color: #52627f;
   font-size: 11px;
   margin-top: 0;
   font-weight: 500;
+  overflow-wrap: anywhere;
 }
 
 .dilution-overhang-chart {
@@ -15587,6 +15598,8 @@ td {
 
   .dilution-overhang-score {
     min-width: 0;
+    width: auto;
+    max-width: 100%;
     justify-items: start;
     text-align: left;
   }
