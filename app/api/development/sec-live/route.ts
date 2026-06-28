@@ -5,6 +5,7 @@ import {
   runSecDevControlledPersist,
   runSecDevLatestAnalysisDryRun,
   runSecDevLiveDryRun,
+  runSecDevResetAnalysis,
 } from "@/lib/development/secFormDevDashboard";
 
 export const dynamic = "force-dynamic";
@@ -38,6 +39,11 @@ export async function POST(request: NextRequest) {
             formTypes: readStringArray(record.formTypes),
             dateFrom: readString(record.dateFrom),
             dateTo: readString(record.dateTo),
+          })
+      : mode === "reset_analysis"
+        ? await runSecDevResetAnalysis(room, {
+            accessionNumber: readString(record.accessionNumber),
+            rawItemId: readString(record.rawItemId),
           })
       : mode === "accession_dry_run"
         ? await runSecDevAccessionDryRun(room, {

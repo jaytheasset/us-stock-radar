@@ -18,6 +18,7 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
   const [collectingSamples, setCollectingSamples] = useState(false);
   const [runningAccessionDryRun, setRunningAccessionDryRun] = useState(false);
   const [persisting, setPersisting] = useState(false);
+  const [resettingAnalysis, setResettingAnalysis] = useState(false);
   const [accessionNumber, setAccessionNumber] = useState("");
   const [dryRunAccession, setDryRunAccession] = useState("");
   const [resetExistingAnalysis, setResetExistingAnalysis] = useState(false);
@@ -247,6 +248,35 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
     }
   }
 
+  async function deleteExistingAnalysis() {
+    if (!selectedRoom || !accessionNumber.trim()) return;
+    const targetAccession = accessionNumber.trim();
+    const confirmed = window.confirm(`Delete existing SEC analysis rows for ${targetAccession}? Raw filing text will be kept.`);
+    if (!confirmed) return;
+
+    setResettingAnalysis(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/development/sec-live", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          room: selectedRoom,
+          mode: "reset_analysis",
+          accessionNumber: targetAccession,
+        }),
+      });
+      const payload = await response.json();
+      if (!payload.ok) throw new Error(payload.error || "Delete existing SEC analysis failed.");
+      setDetail(payload.detail);
+      setTab("live");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Delete existing SEC analysis failed.");
+    } finally {
+      setResettingAnalysis(false);
+    }
+  }
+
   return (
     <div className={styles.workspace}>
       <aside className={styles.sidebar}>
@@ -380,7 +410,15 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
           </label>
           <button
             className={styles.dangerButton}
-            disabled={persisting || loading || !accessionNumber.trim()}
+            disabled={resettingAnalysis || persisting || loading || !accessionNumber.trim()}
+            onClick={deleteExistingAnalysis}
+            type="button"
+          >
+            {resettingAnalysis ? "Deleting..." : "Delete existing analysis"}
+          </button>
+          <button
+            className={styles.dangerButton}
+            disabled={persisting || resettingAnalysis || loading || !accessionNumber.trim()}
             onClick={runControlledPersist}
             type="button"
           >
@@ -3409,6 +3447,7 @@ function formatLiveRunMode(mode: string) {
   if (mode === "accession_samples") return "Accession samples";
   if (mode === "accession_dry_run") return "Accession dry-run";
   if (mode === "controlled_persist") return "Controlled persist";
+  if (mode === "reset_analysis") return "Delete existing analysis";
   if (mode === "recent_persisted") return "Recent persisted event";
   return mode;
 }

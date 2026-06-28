@@ -53,6 +53,7 @@ export type SecDevLiveRunResult = {
     | "latest_analysis_dry_run"
     | "accession_dry_run"
     | "controlled_persist"
+    | "reset_analysis"
     | "accession_samples"
     | "recent_persisted";
   status: "pass" | "fail";
@@ -1215,6 +1216,155 @@ export async function runSecDevControlledPersist(
 
   await appendLiveRun(room.key, liveRun);
   return getSecDevRoomDetail(room.key);
+}
+
+export async function runSecDevResetAnalysis(
+  roomKey: string,
+  options: {
+    accessionNumber?: string;
+    rawItemId?: string;
+  } = {},
+): Promise<SecDevRoomDetail | null> {
+  const room = SEC_DEV_ROOMS.find((item) => item.key === roomKey);
+  if (!room) return null;
+
+  const accessionNumber = stringValue(options.accessionNumber);
+  const rawItemId = stringValue(options.rawItemId);
+  const started = Date.now();
+  const ranAt = new Date().toISOString();
+  let liveRun: SecDevLiveRunResult;
+
+  try {
+    if (!accessionNumber && !rawItemId) {
+      throw new Error("Delete existing SEC analysis requires accessionNumber or rawItemId.");
+    }
+
+    const resetResult = await resetSecDerivedAnalysisForAccession({
+      accessionNumber,
+      rawItemId,
+    });
+    const cachePruneResult = await removeResetTargetFromLiveCache(room.key, resetResult);
+    const deletedCount = resetResult.deleted.reduce((total, row) => total + row.count, 0);
+    const remainingCount = resetResult.remainingEventIds.length;
+    liveRun = {
+      mode: "reset_analysis",
+      status: remainingCount ? "fail" : "pass",
+      ranAt,
+      durationMs: Date.now() - started,
+      room: room.key,
+      formTypes: room.forms,
+      accessionNumber: resetResult.accessionNumber,
+      rawItemId: resetResult.rawItemId,
+      summary: resetResult.matchedEventIds.length
+        ? `Deleted existing SEC analysis rows for ${resetResult.matchedEventIds.length} event(s); raw item preserved.`
+        : cachePruneResult.removedRuns || cachePruneResult.removedItems
+          ? "Deleted cached SEC console output; raw item preserved."
+          : "No existing SEC analysis event matched; raw item preserved.",
+      items: [
+        {
+          accession_number: resetResult.accessionNumber,
+          raw_item_id: resetResult.rawItemId,
+          title: resetResult.matchedEventIds.length
+            ? `Deleted existing SEC analysis for ${resetResult.accessionNumber || resetResult.rawItemId}`
+            : `No existing SEC analysis found for ${resetResult.accessionNumber || resetResult.rawItemId}`,
+          deleted_event_ids: resetResult.matchedEventIds,
+          remaining_event_ids: resetResult.remainingEventIds,
+          deleted_row_count: deletedCount,
+          deleted_cached_run_count: cachePruneResult.removedRuns,
+          deleted_cached_item_count: cachePruneResult.removedItems,
+          raw_item_preserved: resetResult.rawItemPreserved,
+          reset_result: resetResult,
+        },
+      ],
+      diagnostics: { reset_existing_analysis: resetResult, cache_prune: cachePruneResult },
+      error: remainingCount ? "Some existing SEC analysis events remained after delete." : null,
+    };
+  } catch (error) {
+    liveRun = {
+      mode: "reset_analysis",
+      status: "fail",
+      ranAt,
+      durationMs: Date.now() - started,
+      room: room.key,
+      formTypes: room.forms,
+      accessionNumber: accessionNumber || null,
+      rawItemId: rawItemId || null,
+      summary: "Delete existing SEC analysis failed.",
+      items: [],
+      diagnostics: null,
+      error: error instanceof Error ? error.message : "Delete existing SEC analysis failed",
+    };
+  }
+
+  await appendLiveRun(room.key, liveRun);
+  return getSecDevRoomDetail(room.key);
+}
+
+async function removeResetTargetFromLiveCache(roomKey: string, resetResult: SecDevDerivedResetResult) {
+  const cache = await readLiveCache();
+  const existing = cache[roomKey] || [];
+  if (!existing.length) return { removedRuns: 0, removedItems: 0 };
+
+  const targetAccessions = new Set([resetResult.accessionNumber].map(normalizeResetMatchValue).filter(Boolean));
+  const targetRawItemIds = new Set([resetResult.rawItemId].map(normalizeResetMatchValue).filter(Boolean));
+  const targetEventIds = new Set(resetResult.matchedEventIds.map(normalizeResetMatchValue).filter(Boolean));
+  let removedRuns = 0;
+  let removedItems = 0;
+  const keptRuns: SecDevLiveRunResult[] = [];
+
+  for (const run of existing) {
+    if (run.mode === "reset_analysis") {
+      keptRuns.push(run);
+      continue;
+    }
+
+    const runMatches =
+      targetAccessions.has(normalizeResetMatchValue(run.accessionNumber)) ||
+      targetRawItemIds.has(normalizeResetMatchValue(run.rawItemId));
+    const keptItems = run.items.filter((item) => !resetTargetMatchesItem(item, targetAccessions, targetRawItemIds, targetEventIds));
+    const removedFromRun = run.items.length - keptItems.length;
+
+    if (runMatches || (run.items.length > 0 && keptItems.length === 0 && removedFromRun > 0)) {
+      removedRuns += 1;
+      removedItems += run.items.length;
+      continue;
+    }
+
+    if (removedFromRun > 0) {
+      removedItems += removedFromRun;
+      keptRuns.push({ ...run, items: keptItems });
+      continue;
+    }
+
+    keptRuns.push(run);
+  }
+
+  if (removedRuns || removedItems) {
+    cache[roomKey] = keptRuns;
+    await writeLiveCache(cache);
+  }
+
+  return { removedRuns, removedItems };
+}
+
+function resetTargetMatchesItem(
+  item: Record<string, unknown>,
+  targetAccessions: Set<string>,
+  targetRawItemIds: Set<string>,
+  targetEventIds: Set<string>,
+) {
+  const accession = normalizeResetMatchValue(item.accession_number) || normalizeResetMatchValue(item.accessionNumber);
+  const rawItemId = normalizeResetMatchValue(item.raw_item_id) || normalizeResetMatchValue(item.rawItemId);
+  const eventId = normalizeResetMatchValue(item.event_id) || normalizeResetMatchValue(item.eventId);
+  return (
+    (accession && targetAccessions.has(accession)) ||
+    (rawItemId && targetRawItemIds.has(rawItemId)) ||
+    (eventId && targetEventIds.has(eventId))
+  );
+}
+
+function normalizeResetMatchValue(value: unknown) {
+  return stringValue(value).toLowerCase();
 }
 
 async function resetSecDerivedAnalysisForAccession({
