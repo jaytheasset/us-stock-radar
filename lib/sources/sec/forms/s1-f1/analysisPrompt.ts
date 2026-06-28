@@ -255,8 +255,6 @@ export function buildS1F1AnalysisPrompt(
     "- Do not put the total registered resale pool or supply segment component counts in Offering Details. Use Offering Details for mechanics and contracts only.",
     "- For resale_registration Offering Details, use at most 5 rows. Prioritize restrictions and mechanics over repeated identity rows. Output is invalid if resale_registration offering_details has more than 5 rows.",
     "- For instrument-linked resale registrations, if row budget is tight, prioritize Source Instrument, Conversion Price, Exchange Cap, Ownership Limit, Six-month Cap, Floor Price, Reset / Repricing, and Purchase Limit over generic Agreement Date or Resale Method rows.",
-    "- If Selling holders is already one of the four snapshot rows, omit Selling Holders from Offering Details unless it adds separate context such as holder group type, lock-up, or affiliate status.",
-    "- If Company proceeds is already one of the four snapshot rows, omit Use of Proceeds from Offering Details unless the use is specific and materially important.",
     "- For the Selling holders snapshot row, put the compact holder group in value and keep note null or very short. Do not repeat full legal names in the note.",
     "- For Selling Holders, do not write generic values like Identified Selling Stockholders when names are disclosed.",
     "- Keep Selling Holders values under 55 characters when possible.",
