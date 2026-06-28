@@ -6,7 +6,7 @@ import { sec424bRequiredOutputSchema } from "@/lib/ai/sec424bAnalysisAdapter";
 import { buildSecSourceBlockPromptInput } from "@/lib/sources/sec/forms/common/sourceBlockPromptInput";
 
 export const SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY = "sec_s3_offering_analysis";
-export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v38";
+export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v39";
 
 export const SEC_S3_ANALYSIS_ACTION_VALUES = ["skip_analysis", "routine_archive", "analyze_offering"] as const;
 export const SEC_S3_CASE_VALUES = [
@@ -205,7 +205,6 @@ export const secS3OfferingAnalysisSystemPrompt = [
   "Analyze one SEC S-3 family filing package and return only strict JSON matching the provided response schema.",
   "This prompt is only for S-3/F-3 registration-family filings, including S-3, S-3/A, S-3ASR, S-3MEF, F-3, F-3/A, F-3ASR, and F-3MEF. Do not perform broad SEC event routing here.",
   "Use the filing excerpt, important sections, and important tables as the source of truth.",
-  "Treat filing_package.parser_candidates as unverified hints only. Parser candidates may be wrong, stale, or mixed across sections; ignore any candidate not supported by the source text.",
   "Use router_evidence.s3.component_candidates as source-backed candidate evidence, not final truth. These candidates are extracted from S-3 text, selling-stockholder footnotes, and table fragments to make complex instrument components visible.",
   "You may select and aggregate already-normalized component_candidates when building offering_display_model.supply_segments; this is allowed evidence selection, not raw financial calculation.",
   "If component_candidates.totals provides convertible_notes_shares and warrant_shares that reconcile to total_potential_supply, use those values for separate Convertible Notes and Warrants supply segments unless source evidence contradicts them.",
@@ -218,7 +217,7 @@ export const secS3OfferingAnalysisSystemPrompt = [
   "If offering_security_audit has unresolved_conflicts, needs_human_review, or false sanity checks, carry that uncertainty into offering_display_model.needs_human_review and review_reasons.",
   "Use filing_package.market_context and filing_package.dilution_metrics for score calibration when those code-supplied fields are available.",
   "Treat dilution_metrics as preliminary code context, not source evidence. Do not use preliminary percent or multiple values as display facts unless the source text supports the underlying inputs.",
-  "The parser extracts candidate facts only. You decide whether the S-3 family filing should be skipped, archived, or analyzed as an offering/dilution event.",
+  "Decide whether the S-3 family filing should be skipped, archived, or analyzed as an offering/dilution event from source text and source-backed blocks.",
   "Choose analysis_action skip_analysis for routine S-3/A maintenance where no event should be created: exhibit-only, consent-only, signature-only, unchanged-remainder amendments, or amendments with no changed economics, resale holders, fee table economics, distribution plan, ATM, warrant, convertible, or offering terms.",
   "Choose analysis_action routine_archive only for low-priority non-shelf maintenance that is still worth a stored event record.",
   "Choose analysis_action analyze_offering when the filing shows any shelf registration, automatic shelf, ATM program, resale registration, selling stockholder overhang, mixed shelf, concrete offering amount, offering terms, warrants, convertibles, fee table economics, or a material S-3/A change.",
@@ -321,7 +320,7 @@ const secS3RequiredOutputSystemPrompt = [
   "Analyze one SEC S-3/F-3 family filing from source-backed SEC text.",
   "Return JSON only in the Required Output JSON shape: parser_output, analysis_output, display_payload, and optional transaction_fingerprint or filing_context.",
   "There is no S-3 router LLM and no S-3 offering audit in this flow. Choose event_type, score, display_payload.display_type, and display_payload.data.display_mode directly from the source blocks.",
-  "Use parser candidates only as optional orientation. Source text, important sections, tables, market_context, and parent context are the authority.",
+  "Source text, important sections, tables, market_context, and parent context are the authority.",
   "Do not invent offering terms, dates, prices, share counts, ticker symbols, holders, dilution math, or proceeds.",
   "Use display_payload.display_type = offering_terms when the filing contains offering, resale, ATM, shelf, warrant, convertible, rights, or other dilution mechanics suitable for the offering UI.",
   "Use display_payload.display_type = generic only when the filing lacks concrete offering/dilution mechanics or is a routine low-impact filing.",
@@ -546,15 +545,6 @@ function buildSecS3OfferingPromptInput(input: SecFilingAnalysisInput) {
       filing_detail_url: filingPackage.filing_detail_url || null,
       primary_document_url: filingPackage.primary_document_url || null,
       documents: Array.isArray(filingPackage.documents) ? filingPackage.documents : [],
-      parser_candidates: {
-        warning:
-          "Unverified parser candidates only. Source text, important sections, and tables override these values.",
-        s3: readRecord(hardParsers.s3) || null,
-        s3_core_terms: readRecord(s3Evidence.core_terms) || null,
-        amendment: readRecord(s3Evidence.amendment) || null,
-        needs_human_review: typeof s3Evidence.needs_human_review === "boolean" ? s3Evidence.needs_human_review : null,
-        review_reasons: Array.isArray(s3Evidence.review_reasons) ? s3Evidence.review_reasons : [],
-      },
       router_evidence: {
         s3: {
           evidence_version: s3Evidence.evidence_version || null,
