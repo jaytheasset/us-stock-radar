@@ -20,6 +20,7 @@ export default async function SecDevelopmentPage() {
           <p>Parser files, LLM prompt files, fixture outputs, and local test results for the current worktree.</p>
         </div>
         <div className={styles.topLinks}>
+          <Link href="/development/sec/issues">All Issues</Link>
           <Link href="/admin">Admin</Link>
           <Link href="/filings">Filings</Link>
         </div>

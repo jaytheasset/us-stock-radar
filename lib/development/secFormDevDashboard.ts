@@ -130,6 +130,10 @@ export type SecDevRoomDetail = SecDevRoomSnapshot & {
   promptPreviews: SecDevPromptPreview[];
 };
 
+export type SecDevRoomIssueData = SecDevRoomSnapshot & {
+  liveRuns: SecDevLiveRunResult[];
+};
+
 const ROOT = process.cwd();
 const FORMS_ROOT = path.join(ROOT, "lib", "sources", "sec", "forms");
 const OUTPUT_ROOT = path.join(ROOT, "outputs", "sec-dev-dashboard");
@@ -205,6 +209,25 @@ export async function getSecDevRoomDetail(roomKey: string): Promise<SecDevRoomDe
     outputPreviews,
     promptPreviews,
   };
+}
+
+export async function getSecDevAllRoomIssueData(): Promise<SecDevRoomIssueData[]> {
+  const [cache, liveCache, recentPersistedRunsByRoom] = await Promise.all([
+    readTestCache(),
+    readLiveCache(),
+    readRecentPersistedRunsByRoom(),
+  ]);
+
+  return Promise.all(
+    SEC_DEV_ROOMS.map(async (room) => {
+      const testFiles = await listRoomTestFiles(room);
+      const testResults = testFiles.map((file) => cache[file] || buildNotRunResult(file));
+      return {
+        ...buildRoomSnapshot(room, testFiles, testResults),
+        liveRuns: mergeLiveRuns(liveCache[room.key] || [], recentPersistedRunsByRoom.get(room.key) || []),
+      };
+    }),
+  );
 }
 
 export async function runSecDevRoomTests(roomKey: string): Promise<SecDevRoomDetail | null> {
@@ -819,6 +842,40 @@ async function readRecentPersistedRuns(room: SecDevRoom): Promise<SecDevLiveRunR
   } catch {
     return [];
   }
+}
+
+async function readRecentPersistedRunsByRoom(): Promise<Map<string, SecDevLiveRunResult[]>> {
+  const runsByRoom = new Map<string, SecDevLiveRunResult[]>();
+  try {
+    const result = await supabaseSelect("events", {
+      select: "*",
+      source_group: "eq.filings",
+      order: "detected_at.desc",
+      limit: "160",
+    });
+    if (!result.ok || !Array.isArray(result.data)) return runsByRoom;
+
+    const rows = result.data
+      .map((row) => readRecord(row))
+      .filter((row): row is Record<string, unknown> => Boolean(row));
+    if (!rows.length) return runsByRoom;
+
+    const analysisByEventId = await readRecentEventAnalysisMap(rows.map((row) => stringValue(row.id)).filter(Boolean));
+
+    for (const room of SEC_DEV_ROOMS) {
+      const allowedForms = new Set(room.forms.map(normalizeFormForPreviewFilter));
+      const roomRows = rows.filter((row) => persistedEventMatchesRoom(row, allowedForms)).slice(0, 10);
+      if (!roomRows.length) continue;
+      runsByRoom.set(
+        room.key,
+        roomRows.map((row) => buildRecentPersistedRun(room, row, analysisByEventId.get(stringValue(row.id)) || null)),
+      );
+    }
+  } catch {
+    return runsByRoom;
+  }
+
+  return runsByRoom;
 }
 
 async function readRecentEventAnalysisMap(eventIds: string[]) {

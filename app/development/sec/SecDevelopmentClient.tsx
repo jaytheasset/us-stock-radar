@@ -1,16 +1,29 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import styles from "./sec-development.module.css";
 import type { SecDevRoomDetail, SecDevRoomSnapshot } from "@/lib/development/secFormDevDashboard";
+import {
+  buildIssueCopyText,
+  collectSecDevIssues,
+  countIssuesBySeverity,
+  formatIssueSeverityLabel,
+  type SecDevIssue,
+} from "./secDevelopmentIssues";
 
-type TabKey = "overview" | "parser" | "prompt" | "outputs" | "results" | "tests" | "live" | "excluded";
+type TabKey = "overview" | "parser" | "prompt" | "outputs" | "results" | "tests" | "live" | "issues" | "excluded";
 
 export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoomSnapshot[] }) {
+  const searchParams = useSearchParams();
+  const requestedRoom = searchParams.get("room") || "";
+  const requestedTab = searchParams.get("tab") || "";
+  const initialRoom = initialRooms.some((room) => room.key === requestedRoom) ? requestedRoom : initialRooms[0]?.key || "";
+  const initialTab = isTabKey(requestedTab) ? requestedTab : "overview";
   const [rooms, setRooms] = useState(initialRooms);
-  const [selectedRoom, setSelectedRoom] = useState(initialRooms[0]?.key || "");
+  const [selectedRoom, setSelectedRoom] = useState(initialRoom);
   const [detail, setDetail] = useState<SecDevRoomDetail | null>(null);
-  const [tab, setTab] = useState<TabKey>("overview");
+  const [tab, setTab] = useState<TabKey>(initialTab);
   const [loading, setLoading] = useState(false);
   const [running, setRunning] = useState(false);
   const [runningLive, setRunningLive] = useState(false);
@@ -437,6 +450,7 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
             ["results", "Fixtures / Results"],
             ["tests", "Tests"],
             ["live", "Live / Persist"],
+            ["issues", "Issues"],
             ["excluded", "Excluded"],
           ].map(([key, label]) => (
             <button className={tab === key ? styles.activeTab : ""} key={key} onClick={() => setTab(key as TabKey)} type="button">
@@ -562,6 +576,10 @@ function RoomDetail({
     );
   }
 
+  if (tab === "issues") {
+    return <IssueReviewSections detail={detail} liveFormFilter={liveFormFilter} onUseAccession={onUseAccession} />;
+  }
+
   return (
     <div className={styles.testStack}>
       {!detail.liveRuns.length ? (
@@ -574,6 +592,81 @@ function RoomDetail({
           onUseAccession={onUseAccession}
           run={run}
         />
+      ))}
+    </div>
+  );
+}
+
+function IssueReviewSections({
+  detail,
+  liveFormFilter,
+  onUseAccession,
+}: {
+  detail: SecDevRoomDetail;
+  liveFormFilter: string;
+  onUseAccession: (value: string) => void;
+}) {
+  const [copiedIssueId, setCopiedIssueId] = useState<string | null>(null);
+  const issues = useMemo(() => collectSecDevIssues(detail, liveFormFilter), [detail, liveFormFilter]);
+  const counts = countIssuesBySeverity(issues);
+
+  async function copyIssue(issue: SecDevIssue) {
+    const didCopy = await copyTextToClipboard(buildIssueCopyText(issue));
+    setCopiedIssueId(didCopy ? issue.id : null);
+    window.setTimeout(() => setCopiedIssueId(null), 1800);
+  }
+
+  if (!detail.liveRuns.length) {
+    return <div className={styles.emptyState}>No live SEC analysis runs found for this room yet.</div>;
+  }
+
+  if (!issues.length) {
+    return <div className={styles.emptyState}>No failures, warnings, review flags, or skipped filings found for this room.</div>;
+  }
+
+  return (
+    <div className={styles.testStack}>
+      <section className={styles.issueSummaryGrid}>
+        <MetricCard label="Failures" value={counts.fail} tone="fail" />
+        <MetricCard label="Warnings" value={counts.warning} tone="idle" />
+        <MetricCard label="Needs review" value={counts.review} tone="neutral" />
+        <MetricCard label="Skipped / info" value={counts.info} tone="neutral" />
+      </section>
+      {issues.map((issue) => (
+        <article className={`${styles.issueCard} ${styles[`issue_${issue.severity}`]}`} key={issue.id}>
+          <div className={styles.issueHeader}>
+            <div className={styles.issueTitle}>
+              <span className={styles.issueSource}>{`${formatLiveRunMode(issue.runMode)} - ${issue.stage}`}</span>
+              <strong>{issue.title || issue.accession || issue.source}</strong>
+              <p>{issue.message}</p>
+            </div>
+            <span className={`${styles.issueBadge} ${styles[`issueBadge_${issue.severity}`]}`}>{formatIssueSeverityLabel(issue.severity)}</span>
+          </div>
+          <div className={styles.issueMetaGrid}>
+            <PreviewField label="Form" value={issue.formType || "-"} />
+            <PreviewField label="Ticker" value={issue.ticker || "-"} />
+            <PreviewField label="Accession" value={issue.accession || "-"} />
+            <PreviewField label="Event" value={issue.eventId || "-"} />
+            <PreviewField label="Raw item" value={issue.rawItemId || "-"} />
+            <PreviewField label="Ran at" value={formatDate(issue.ranAt)} />
+            <PreviewField label="Source" value={issue.source} />
+          </div>
+          <div className={styles.issueActions}>
+            {issue.accession ? (
+              <button onClick={() => onUseAccession(issue.accession)} type="button">
+                Use accession
+              </button>
+            ) : null}
+            {issue.detailUrl ? <a href={issue.detailUrl}>Open detail</a> : null}
+            <button onClick={() => copyIssue(issue)} type="button">
+              {copiedIssueId === issue.id ? "Copied" : "Copy debug"}
+            </button>
+          </div>
+          <details className={styles.issueDetails}>
+            <summary>Debug context</summary>
+            <pre>{JSON.stringify(issue.debug, null, 2)}</pre>
+          </details>
+        </article>
       ))}
     </div>
   );
@@ -3439,6 +3532,10 @@ function roomFromDetail(detail: SecDevRoomDetail): SecDevRoomSnapshot {
     notRunCount: detail.notRunCount,
     lastRunAt: detail.lastRunAt,
   };
+}
+
+function isTabKey(value: string): value is TabKey {
+  return ["overview", "parser", "prompt", "outputs", "results", "tests", "live", "issues", "excluded"].includes(value);
 }
 
 function formatLiveRunMode(mode: string) {
