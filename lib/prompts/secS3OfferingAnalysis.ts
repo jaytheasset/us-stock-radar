@@ -6,7 +6,7 @@ import { sec424bRequiredOutputSchema } from "@/lib/ai/sec424bAnalysisAdapter";
 import { buildSecSourceBlockPromptInput } from "@/lib/sources/sec/forms/common/sourceBlockPromptInput";
 
 export const SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY = "sec_s3_offering_analysis";
-export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v39";
+export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v41";
 
 export const SEC_S3_ANALYSIS_ACTION_VALUES = ["skip_analysis", "routine_archive", "analyze_offering"] as const;
 export const SEC_S3_CASE_VALUES = [
@@ -222,7 +222,7 @@ export const secS3OfferingAnalysisSystemPrompt = [
   "Choose analysis_action routine_archive only for low-priority non-shelf maintenance that is still worth a stored event record.",
   "Choose analysis_action analyze_offering when the filing shows any shelf registration, automatic shelf, ATM program, resale registration, selling stockholder overhang, mixed shelf, concrete offering amount, offering terms, warrants, convertibles, fee table economics, or a material S-3/A change.",
   "If an S-3/A filing is not important enough for a stored archive event, choose skip_analysis instead of routine_archive.",
-  "Base shelf, universal shelf, and automatic shelf filings should normally be feed-level analyze_offering events, not archive-only events.",
+  "Base shelf, universal shelf, and automatic shelf filings should usually be analyze_offering events; delivery level comes from the pure shelf capacity scoring ladder below.",
   "For analyze_offering, set event_type to dilution_risk unless the evidence clearly supports only other. S-3 family filings should almost never be earnings, FDA, leadership, legal, or product events.",
   "Choose s3_case by economic structure, not only by SEC form label. If an automatic shelf registration filing contains a concrete selling-stockholder resale pool, use s3_case resale_registration rather than automatic_shelf.",
   "Use s3_case automatic_shelf for automatic shelf or universal shelf filings only when there is no concrete resale pool, ATM, takedown, warrant/convertible pool, or other current sale mechanics.",
@@ -234,9 +234,9 @@ export const secS3OfferingAnalysisSystemPrompt = [
   "Use structure-first offering classification. Do not introduce public_offering, underwritten_public_offering, or common_stock_public_offering as canonical offering_type values. Treat public offering language as sale method/context, not dilution structure.",
   "For a plain common-stock public offering, the DB-facing canonical offering_type should be other. For a public offering with units, warrants, pre-funded warrants, convertibles, or multiple securities, use mixed or convertible_financing as appropriate. For base shelf or automatic shelf, use shelf_registration. For shelf takedown with concrete terms, classify by the actual securities/structure and preserve shelf takedown as method/context.",
   "If convertible notes or convertible securities are sold in a private placement, classify the structure as convertible_financing and preserve private placement only as sale-method context.",
-  "For simple base shelf or automatic shelf with no current sale terms, score 50-59 for large issuers and 55-65 for small or micro issuers by default.",
-  "Small or micro issuer shelf registrations can reach alert-level scoring when shelf capacity is large versus market cap or explicitly registered shares are large versus current shares/float. Treat this as financing overhang and sentiment pressure, not confirmed immediate dilution.",
-  "Without concrete takedown, ATM, pricing, closing, or sales-agent terms, do not use urgent 90+ scoring for shelf capacity alone.",
+  "For pure base shelf, universal shelf, or automatic shelf with no current sale terms, score by shelf capacity divided by market cap when both are source-backed or market_context-backed.",
+  "Pure shelf capacity below 10% of market cap = 20-35 archive; 10-25% = 35-49 archive; 25-50% = 50-59 feed; 50-100% = 60-68 feed; 100%+ = 68-74 feed.",
+  "If pure shelf capacity cannot be compared to market cap, use 20-40 archive unless source text shows a near-term actionable sale, urgent capital need, or another current investor trigger.",
   "For a base shelf or automatic shelf, distinguish registered share amount from dollar capacity. Example: a 100,000,000-share shelf with dollar capacity of $183,376,179.78 has both a share registration amount and a dollar capacity; do not collapse those into one value.",
   "For shelf registrations, do not describe dollar capacity as current company proceeds. Shelf capacity is possible future issuance capacity; issuer cash is received only if securities are later sold in a takedown, ATM sale, or prospectus supplement.",
   "For resale shelf, start at 60 and move to 75+ when registered supply is at least 20% of current shares or public float; move to 90+ when it is at least 50%.",
@@ -333,8 +333,8 @@ const secS3RequiredOutputSystemPrompt = [
   "For base shelf plus a concrete resale share pool, use mixed_offering unless the resale pool clearly dominates the investor impact, in which case use resale_registration. For base shelf plus a concrete ATM, priced sale, registered direct, warrant/convertible, or rights component, use the matching specific mode or mixed_offering when both components matter.",
   "If analysis_output.summary, key_evidence, source_notes, or narrative_summary mentions source-backed resale shares, selling-holder shares, warrant-underlying shares, or convertible-underlying shares, the offering_display_model must also fill the matching structured fields: display_mode, total_potential_supply, supply_segments, and, for mixed_offering, mixed_offering_components.",
   "Do not leave a concrete resale share pool only in prose. If the share pool is important enough to mention in the summary, it is important enough to appear in the UI structure.",
-  "S-3/F-3 filings are often registration capacity, not completed sales. Do not score up merely because a shelf is large or the form is S-3.",
-  "Shelf registration without active sale terms usually scores 20-49 unless market context or source text shows a near-term actionable sale.",
+  "S-3/F-3 filings are often registration capacity, not completed sales. Do not score up merely because the form is S-3; for pure shelf, score up only by the capacity-versus-market-cap ladder or by source-backed current triggers.",
+  "Shelf registration without active sale terms can be feed-level when capacity is at least 25% of market cap, but remains below alert unless an active sale mechanism or other current investor trigger is disclosed.",
   "ATM capacity is future sale capacity, not completed issuance. Score by size versus market cap or filing-date company value when available, but usually cap below alert unless size is extreme or capital need is explicit.",
   "Resale registration is potential selling-holder overhang. The company usually receives no resale proceeds unless the filing states ELOC, purchase agreement, warrant exercise cash, or other company cash.",
   "Primary, registered direct, priced takedown, warrant, convertible, and mixed offerings should use the same investor-facing display structure as 424B offering filings.",
@@ -373,8 +373,8 @@ const secS3RequiredOutputSystemPrompt = [
   "If an S-3/A or F-3/A only updates reference prices, share-count basis, dates, exhibit text, or typo corrections while the resale/offering economics are unchanged, keep score feed-level or archive-level; do not alert from the parent deal importance alone.",
   "Delivery rule: score below 50 = archive; 50-74 = feed; 75+ = alert.",
   "Alert requires source-backed new information likely to affect near-term price, volatility, liquidity, holder economics, or trading decisions. Do not alert from base shelf capacity alone.",
-  "Base shelf, universal shelf, and automatic shelf filings with no active sale terms, no pricing, no sales agent, no takedown, and no named resale pool are registration capacity only. Default score 25-45; hard cap 49 unless the filing itself adds an active sale mechanism.",
-  "Do not score 75+ merely because shelf capacity is very large versus market cap. A shelf is future capacity until a later prospectus supplement, ATM sale, takedown, resale mechanics, or priced sale appears.",
+  "Base shelf, universal shelf, and automatic shelf filings with no active sale terms, no pricing, no sales agent, no takedown, and no named resale pool are registration capacity only. Use the pure shelf ladder: below 10% of market cap = 20-35; 10-25% = 35-49; 25-50% = 50-59; 50-100% = 60-68; 100%+ = 68-74.",
+  "Do not score 75+ merely because shelf capacity is very large versus market cap. A shelf is future capacity until a later prospectus supplement, ATM sale, takedown, resale mechanics, priced sale, urgent capital need, or other current investor trigger appears.",
   "Writing style: plain investor language. Explain what is being registered, whether shares may enter the market, whether the company receives cash, and what remains uncertain.",
   "Summary must be 2-4 sentences, under 100 words total. why_it_matters one sentence under 35 words. Positive and Negative points may be empty if there are no direct points.",
   "For parser_output, preserve the integration contract fields: parserVersion, parserGroup, formType, accessionNumber, isSupported, facts, signals, calendarItems, warnings, raw.",
@@ -395,6 +395,9 @@ const secS3RequiredOutputSystemPrompt = [
   "For Dilution vs current shares, the numerator and denominator must use the same security basis, such as ordinary shares to ordinary shares or ADSs to ADSs. Never divide ADSs by ordinary shares or ordinary shares by ADSs.",
   "The Dilution Snapshot UI uses display_payload.data.snapshot_metrics exactly. For offering_terms, provide 4 snapshot_metrics rows when source-backed facts allow it.",
   "For snapshot_metrics, keep labels short and stable. Keep each note under 10 words when possible. Do not put paragraph-length text in snapshot notes or investor_takeaway.",
+  "Snapshot and Offering Details have different jobs. Snapshot metrics are scan-first numbers or status. Offering Details are separate contract terms, mechanics, dates, parties, instruments, proceeds use, restrictions, or amendment details.",
+  "Do not use Offering Details as a second copy of Snapshot. If a fact is already clear in snapshot_metrics, omit it from offering_details unless the row adds materially different source-backed context.",
+  "When a fact belongs in both areas only because it is important, keep the snapshot short and put only the different mechanism, limitation, exception, date, party, or legal condition in offering_details.note or another appropriate row.",
   "For shelf_capacity display_mode, snapshot_metrics must use exactly these four labels when source-backed: Shelf capacity, Market cap, Capacity vs market cap, Sale status.",
   "For shelf_capacity Shelf capacity, use the shelf dollar amount as value and a short note such as Future offering capacity.",
   "For shelf_capacity Market cap, use market_context or filing-date company value when available and a short note such as Latest market context.",
@@ -418,6 +421,9 @@ const secS3RequiredOutputSystemPrompt = [
   "Do not move those shelf usage limits into snapshot_metrics unless they are the main displayed metric. Keep snapshot simple; use summary or key_evidence for limits and carry-forward details.",
   "When a shelf capacity is much larger than current market cap or public float, do not imply the full amount can be sold immediately if the filing discloses legal, public-float, effectiveness, supplement, or takedown limits.",
   "For pure shelf_capacity filings, do not create supply_segments from a generic menu of securities such as common stock, preferred stock, debt, warrants, rights, or units. Put that menu in offering_details or narrative_summary.",
+  "For shelf_capacity display_mode, do not repeat Shelf capacity, Market cap, Capacity vs market cap, or Sale status in offering_details under different labels.",
+  "For shelf_capacity display_mode, do not show both snapshot Sale status and offering_details Active Sale Terms when both only say there is no active sale or that a later prospectus supplement is needed. Show that status once, then use offering_details for separate mechanics, usage limits, securities covered, or use of proceeds.",
+  "For shelf_capacity display_mode, do not show the same securities menu in both snapshot_metrics and offering_details. If snapshot_metrics already has Securities Covered, omit Securities Covered from offering_details unless the row adds a materially different source-backed limitation or class detail.",
   "Populate supply_segments only when the filing gives a source-backed share count, underlying share count, instrument count, or component amount for an actual registered, offered, or resale component.",
   "For supply_segments, use standardized short labels only: Resale shares, Common shares, New common shares, Common warrant shares, Pre-funded warrant shares, Placement agent warrant shares, Common warrants, Pre-funded warrants, Placement agent warrants, Conversion shares, Convertible notes, Convertible preferred shares, Preferred shares, Rights shares, Subscription rights, Units, or Other securities.",
   "Use supply_segments.shares only for direct common/ordinary/ADS/share rows that are themselves registered, sold, or resold as shares.",

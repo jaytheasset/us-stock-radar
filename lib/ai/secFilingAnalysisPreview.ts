@@ -1945,7 +1945,7 @@ function readMaxOutputTokens(promptKey: string) {
   if (promptKey === SEC_8K_6K_ROUTER_PROMPT_KEY) return 3000;
   if (promptKey === SEC_8K_6K_ANALYSIS_PROMPT_KEY) return 8000;
   if (promptKey === SEC_TENDER_ANALYSIS_PROMPT_KEY) return 8000;
-  if (promptKey === SEC_424B_ANALYSIS_PROMPT_KEY) return 10000;
+  if (promptKey === SEC_424B_ANALYSIS_PROMPT_KEY) return 20000;
   if (promptKey === SEC_S1_F1_ANALYSIS_PROMPT_KEY) return 20000;
   if (promptKey === SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY) return 2500;
   if (promptKey === SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY) return 7000;

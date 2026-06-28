@@ -85,17 +85,8 @@ export function adaptSecS3AnalysisPromptResultForAnalysis(
     strictLabels: false,
   });
   const downgradedDisplayPayloadWarnings: string[] = [];
-  const displayPayloadError = isS3WarningOnlyDisplayPayloadError(rawDisplayPayloadError)
-    ? ""
-    : rawDisplayPayloadError.replace(/^SEC 424B\b/, "SEC S3");
-  if (rawDisplayPayloadError && !displayPayloadError) {
+  if (rawDisplayPayloadError) {
     downgradedDisplayPayloadWarnings.push(rawDisplayPayloadError.replace(/^SEC 424B\b/, "SEC S3"));
-  }
-  if (displayPayloadError) {
-    return {
-      ok: false,
-      error: displayPayloadError,
-    };
   }
   const displayPayloadWarnings = [
     ...downgradedDisplayPayloadWarnings,
@@ -103,6 +94,7 @@ export function adaptSecS3AnalysisPromptResultForAnalysis(
       warning.replace(/^SEC 424B\b/, "SEC S3"),
     ),
   ];
+  appendS3DisplayWarnings(displayPayload, displayPayloadWarnings);
 
   const normalizedValue = {
     ...root,
@@ -153,10 +145,6 @@ function hasConfirmedS3ParentRegistrationContext(input: SecFilingAnalysisInput) 
   );
 }
 
-function isS3WarningOnlyDisplayPayloadError(error: string) {
-  return /SEC 424B supply_segments\.(?:shares|underlying_shares|instrument_count) cannot contain dollar amounts or proceeds/i.test(error);
-}
-
 function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput, displayPayloadWarnings: string[] = []) {
   const score = clampScore(numberValue(value.analysis_output.score) ?? 0);
   const archiveSummary =
@@ -182,6 +170,16 @@ function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput, displayPayload
     sec_s3_analysis_mode: "analysis_only",
     sec_offering_analysis_mode: "analysis_only",
   };
+}
+
+function appendS3DisplayWarnings(displayPayload: Record<string, unknown>, warnings: string[]) {
+  if (!warnings.length) return;
+  const data = readRecord(displayPayload.data);
+  if (!data) return;
+  const existing = Array.isArray(data.display_warnings)
+    ? data.display_warnings.map((item) => stringValue(item)).filter(Boolean)
+    : [];
+  data.display_warnings = uniqueStrings([...existing, ...warnings]);
 }
 
 function normalizeS3ParserOutput(value: unknown, input: SecFilingAnalysisInput) {
@@ -228,6 +226,10 @@ function stringValue(value: unknown) {
   if (typeof value === "string") return value.trim();
   if (typeof value === "number" && Number.isFinite(value)) return String(value);
   return "";
+}
+
+function uniqueStrings(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
 function nullableString(value: unknown) {

@@ -5,7 +5,7 @@ import { APPROVED_SEC_EVENT_TYPES, type S1F1ParserOutput } from "@/lib/sources/s
 import { normalize424bOfferingDisplayModel } from "@/lib/ai/sec424bAnalysisAdapter";
 
 export const SEC_S1_F1_ANALYSIS_PROMPT_KEY = "sec_s1_f1_analysis";
-export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v1";
+export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v3";
 
 const ALLOWED_S1_F1_DISPLAY_MODES = new Set([
   "ipo_registration",
@@ -261,12 +261,9 @@ export function adaptSecS1F1AnalysisPromptResultForAnalysis(
   }
 
   const displayPayloadError = validateS1F1DisplayPayload(displayPayload);
-  if (displayPayloadError) {
-    return {
-      ok: false,
-      error: displayPayloadError,
-    };
-  }
+  const displayPayloadWarnings = displayPayloadError ? [displayPayloadError] : [];
+  const displayPayloadData = readRecord(displayPayload.data);
+  if (displayPayloadData) appendS1F1DisplayWarnings(displayPayloadData, displayPayloadWarnings);
 
   const normalizedValue = {
     ...root,
@@ -287,7 +284,7 @@ export function adaptSecS1F1AnalysisPromptResultForAnalysis(
 
   return {
     ok: true,
-    analysis: adapterOutputToAnalysis(adapted.value),
+    analysis: adapterOutputToAnalysis(adapted.value, displayPayloadWarnings),
   };
 }
 
@@ -421,7 +418,7 @@ function appendS1F1DisplayWarnings(data: Record<string, unknown>, warnings: stri
   const existing = Array.isArray(data.display_warnings)
     ? data.display_warnings.map((item) => stringValue(item)).filter(Boolean)
     : [];
-  data.display_warnings = [...existing, ...warnings];
+  data.display_warnings = uniqueStrings([...existing, ...warnings]);
 }
 
 function validateS1F1OverhangFacts(data: Record<string, unknown>) {
@@ -458,7 +455,7 @@ function hasNumericDisplayFactValue(fact: Record<string, unknown> | null) {
   return typeof value === "number" && Number.isFinite(value) && value > 0;
 }
 
-function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput) {
+function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput, displayPayloadWarnings: string[] = []) {
   const score = clampScore(numberValue(value.analysis_output.score) ?? 0);
   const displayPayload = readRecord(value.metadata.display_payload);
   const displayPayloadData = readRecord(displayPayload?.data);
@@ -478,6 +475,7 @@ function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput) {
     display_payload_storage_mode: value.metadata.display_payload_storage_mode,
     candidate_special_metadata_only: value.metadata.candidate_special_metadata_only,
     offering_display_model: offeringDisplayModel,
+    sec_s1_f1_display_warnings: uniqueStrings(displayPayloadWarnings),
     sec_s1_f1_analysis_mode: "analysis_only",
     sec_offering_analysis_mode: "analysis_only",
   };
@@ -640,6 +638,10 @@ function normalizeConfidence(value: string) {
 
 function readStringArray(value: unknown) {
   return Array.isArray(value) ? value.map((item) => stringValue(item)).filter(Boolean) : [];
+}
+
+function uniqueStrings(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
 function clampScore(value: number) {

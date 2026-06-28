@@ -5,7 +5,7 @@ import { APPROVED_424B_EVENT_TYPES } from "@/lib/sources/sec/forms/424b/types";
 import type { Sec424bParserOutput } from "@/lib/sources/sec/forms/424b/types";
 
 export const SEC_424B_ANALYSIS_PROMPT_KEY = "sec_424b_analysis";
-export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v6";
+export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v8";
 const ALLOWED_424B_OFFERING_DETAIL_LABELS = new Set([
   "Offering Type",
   "Purchaser / Investor",
@@ -101,18 +101,17 @@ export function adaptSec424bAnalysisPromptResultForAnalysis(
     };
   }
   const displayPayloadError = validate424bDisplayPayload(displayPayload);
-  if (displayPayloadError) {
-    return {
-      ok: false,
-      error: displayPayloadError,
-    };
-  }
+  const displayPayloadWarnings = [
+    ...(displayPayloadError ? [displayPayloadError] : []),
+    ...collect424bDisplayPayloadWarnings(displayPayload),
+  ];
+  append424bDisplayWarnings(displayPayload, displayPayloadWarnings);
 
   return adapt424bRoomResultForAnalysis({
     parser_output: parserOutput,
     analysis_output: normalize424bAnalysisOutput(analysisOutput, input),
     display_payload: displayPayload,
-  });
+  }, displayPayloadWarnings);
 }
 
 type Validate424bDisplayPayloadOptions = {
@@ -332,7 +331,15 @@ function validateInstrumentCountFact(value: Record<string, unknown> | null, fiel
   return "";
 }
 
-function adapt424bRoomResultForAnalysis(value: unknown): Sec424bAnalysisAdapterResult {
+function append424bDisplayWarnings(displayPayload: Record<string, unknown>, warnings: string[]) {
+  if (!warnings.length) return;
+  const data = readRecord(displayPayload.data);
+  if (!data) return;
+  const existing = readStringArray(data.display_warnings);
+  data.display_warnings = uniqueStrings([...existing, ...warnings]);
+}
+
+function adapt424bRoomResultForAnalysis(value: unknown, displayPayloadWarnings: string[] = []): Sec424bAnalysisAdapterResult {
   const adapted = adaptSecFormRoomOutputForIngest(value);
   if (!adapted.ok) {
     return {
@@ -343,11 +350,11 @@ function adapt424bRoomResultForAnalysis(value: unknown): Sec424bAnalysisAdapterR
 
   return {
     ok: true,
-    analysis: adapterOutputToAnalysis(adapted.value),
+    analysis: adapterOutputToAnalysis(adapted.value, displayPayloadWarnings),
   };
 }
 
-function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput) {
+function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput, displayPayloadWarnings: string[] = []) {
   const score = clampScore(numberValue(value.analysis_output.score) ?? 0);
   const archiveSummary =
     nullableString(value.analysis_output.archive_summary) ||
@@ -368,6 +375,7 @@ function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput) {
     display_payload_storage_mode: value.metadata.display_payload_storage_mode,
     candidate_special_metadata_only: value.metadata.candidate_special_metadata_only,
     offering_display_model: offeringDisplayModel,
+    sec_424b_display_warnings: uniqueStrings(displayPayloadWarnings),
     sec_424b_analysis_mode: "analysis_only",
   };
 }
@@ -729,6 +737,10 @@ function normalizeConfidence(value: string) {
 
 function readStringArray(value: unknown) {
   return Array.isArray(value) ? value.map((item) => stringValue(item)).filter(Boolean) : [];
+}
+
+function uniqueStrings(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
 function arrayValue(value: unknown) {
