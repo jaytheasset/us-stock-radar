@@ -2260,6 +2260,7 @@ function buildDisplayPayloadDebug(
     display_mode: stringValue(data?.display_mode) || null,
     risk_label: stringValue(data?.risk_label) || null,
     snapshot_metrics: readDebugValue(data?.snapshot_metrics),
+    share_overhang: readDebugValue(data?.share_overhang),
     offering_details: readDebugValue(data?.offering_details),
     amendment_changes: readDebugValue(data?.amendment_changes),
     supply_segments: readDebugValue(data?.supply_segments),
@@ -2268,7 +2269,12 @@ function buildDisplayPayloadDebug(
     key_cash_terms: readDebugValue(data?.key_cash_terms),
     registered_security_totals: readDebugValue(data?.registered_security_totals),
     s8_context_details: readDebugValue(data?.s8_context_details),
-    display_warnings: stringArray(analysis?.sec_s3_display_warnings),
+    display_warnings: uniqueStrings([
+      ...stringArray(analysis?.sec_s3_display_warnings),
+      ...stringArray(analysis?.sec_424b_display_warnings),
+      ...stringArray(analysis?.sec_s1_f1_display_warnings),
+      ...stringArray(data?.display_warnings),
+    ]),
     s3_amendment_change_label_policy: {
       source: "LLM chooses labels; prompt says use approved labels first, custom labels only if needed.",
       approved_labels: APPROVED_S3_AMENDMENT_CHANGE_LABELS,

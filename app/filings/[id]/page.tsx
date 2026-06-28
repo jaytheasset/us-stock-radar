@@ -4132,7 +4132,81 @@ function findDisclosureRowValue(rows: DilutionDisclosureRow[], label: string) {
   return rows.find((row) => row.label === label)?.value || "";
 }
 
+function OfferingTermsShareOverhangDetails({
+  fallbackSubtitle,
+  fallbackSupplyDetailLabel,
+  fallbackTitle,
+  model,
+}: {
+  fallbackSubtitle: string;
+  fallbackSupplyDetailLabel: string;
+  fallbackTitle: string;
+  model: ReturnType<typeof buildDilutionOfferingModel>;
+}) {
+  const overhang = model.llmShareOverhang;
+  if (!overhang) return <OfferingTermsSourceDetails model={model} />;
+
+  const canRenderChart = overhang.overhangBarSegments.length > 0;
+  const rawRatioValue = overhang.totalNoteRatio || overhang.ratioValue || overhang.statusValue || "Variable";
+  const ratioValue = /%/.test(rawRatioValue) ? rawRatioValue : /%/.test(overhang.statusValue) ? overhang.statusValue : rawRatioValue;
+  const statusValue = overhang.statusValue || ratioValue;
+  const supplyValue = overhang.totalNoteNumerator || overhang.supplyValue || "Variable";
+  const currentValue = overhang.totalNoteDenominator || overhang.currentValue || "Not fixed yet";
+
+  return (
+    <DilutionShareOverhang
+      model={{
+        canRenderOverhangChart: canRenderChart,
+        chartTitle: overhang.chartTitle || fallbackTitle,
+        currentDetailLabel: overhang.currentLabel || "Current Shares Outstanding",
+        currentSharesCompact: currentValue,
+        dilutionRatioPercentValue: statusValue,
+        dilutionRatioValue: ratioValue,
+        overhangAriaLabel: `${overhang.chartTitle || fallbackTitle}: ${ratioValue}`,
+        overhangBarSegments: overhang.overhangBarSegments,
+        overhangLevel: overhang.statusLabel || model.overhangLevel,
+        overhangLevelLabel: overhang.statusLabel ? "Status" : undefined,
+        overhangNote: overhang.note,
+        overhangScoreCaption: overhang.caption || overhang.ratioLabel || model.overhangScoreCaption,
+        overhangSubtitle: overhang.subtitle || fallbackSubtitle,
+        overhangUnavailableMessage: overhang.note || "Final share impact depends on source-backed terms shown below.",
+        potentialSupplyCompact: supplyValue,
+        showBreakdownPanel: false,
+        showSegmentLegend: canRenderChart,
+        showTotalNote: canRenderChart && Boolean(currentValue && supplyValue && ratioValue),
+        requireProvidedSupplyDetails: true,
+        supplyDetailRows: model.offeringDetailsRows,
+        extraDetailPanels: buildWarrantExtraDetailPanels(model),
+        supplyDetailTitle: "Offering Details",
+        supplyDetailLabel: overhang.supplyLabel || fallbackSupplyDetailLabel,
+        totalNoteSuffix: overhang.totalNoteSuffix || overhang.ratioLabel || "source-backed share scale",
+        totalNoteTitle: overhang.totalNoteTitle || overhang.ratioLabel || "Total Potential Overhang",
+        totalOverhangLabel: overhang.ratioLabel || "Total Potential Overhang",
+        unavailableRows: overhang.unavailableRows.length
+          ? overhang.unavailableRows
+          : [
+              { label: overhang.currentLabel || "Current shares", value: currentValue },
+              { label: overhang.supplyLabel || fallbackSupplyDetailLabel, value: supplyValue },
+              { label: overhang.ratioLabel || "Scale", value: ratioValue, tone: "danger" },
+            ],
+      }}
+    />
+  );
+}
+
 function PricedOfferingDetails({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
+  if (model.llmShareOverhang) {
+    return (
+      <OfferingTermsShareOverhangDetails
+        model={model}
+        fallbackSupplyDetailLabel="New Shares"
+        fallbackTitle="Share Dilution"
+        fallbackSubtitle="Current shares plus new shares"
+      />
+    );
+  }
+  if (model.is424bOfferingTermsPayload) return <OfferingTermsSourceDetails model={model} />;
+
   const pricedSegments = model.overhangBarSegments.map((segment) =>
     /\b(?:warrants?|preferred|convertible|rights)\b/i.test(segment.label)
       ? segment
@@ -4172,6 +4246,18 @@ function PricedOfferingDetails({ model }: { model: ReturnType<typeof buildDiluti
 }
 
 function MixedOfferingDetails({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
+  if (model.llmShareOverhang) {
+    return (
+      <OfferingTermsShareOverhangDetails
+        model={model}
+        fallbackSupplyDetailLabel="Potential Supply"
+        fallbackTitle="Mixed Offering"
+        fallbackSubtitle="Current shares plus source-backed offering supply"
+      />
+    );
+  }
+  if (model.is424bOfferingTermsPayload) return <OfferingTermsSourceDetails model={model} />;
+
   return (
     <DilutionShareOverhang
       model={{
@@ -4199,6 +4285,18 @@ function MixedOfferingDetails({ model }: { model: ReturnType<typeof buildDilutio
 }
 
 function ResaleRegistrationDetails({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
+  if (model.llmShareOverhang) {
+    return (
+      <OfferingTermsShareOverhangDetails
+        model={model}
+        fallbackSupplyDetailLabel={model.isS8ReofferResale ? model.supplyDetailLabel : "Resale Shares"}
+        fallbackTitle="Share Overhang"
+        fallbackSubtitle={`${model.currentDetailLabel || "Current shares"} plus registered resale shares`}
+      />
+    );
+  }
+  if (model.is424bOfferingTermsPayload) return <OfferingTermsSourceDetails model={model} />;
+
   const isS8ReofferResale = model.isS8ReofferResale;
   const resaleSegments = model.overhangBarSegments.map((segment) =>
     /\b(?:warrants?|preferred|convertible|rights)\b/i.test(segment.label)
@@ -4242,7 +4340,42 @@ function ResaleRegistrationDetails({ model }: { model: ReturnType<typeof buildDi
   );
 }
 
+function getWarrantConvertibleChartTitle(model: ReturnType<typeof buildDilutionOfferingModel>) {
+  const instrumentText = [
+    model.conversionBreakdownLabel,
+    model.instrumentPriceSummary,
+    model.warrantSegmentLabel,
+    ...model.warrantInstrumentRows.map((row) => row.type),
+  ].join(" ");
+  const hasPrefunded = /\bpre[-\s]?funded\b/i.test(instrumentText);
+  const nonPrefundedText = instrumentText.replace(/\bpre[-\s]?funded\s+warrants?\b/gi, "");
+  const hasWarrant = (model.hasWarrantSegment && !hasPrefunded) || /\bwarrants?\b/i.test(nonPrefundedText);
+  const hasPreferred = /\bpreferred\b/i.test(instrumentText);
+  const hasConvertible = model.hasConversionSegment || /\bconvert|debenture|notes?\b/i.test(instrumentText);
+  const hasConversionFamily = hasPreferred || hasConvertible;
+  const familyCount = [hasPrefunded, hasWarrant, hasConversionFamily].filter(Boolean).length;
+
+  if (familyCount >= 2) return "Mixed Instrument Supply";
+  if (hasPrefunded) return "Pre-Funded Warrant Supply";
+  if (hasPreferred) return "Preferred Conversion Supply";
+  if (hasConvertible) return "Convertible Share Supply";
+  return "Warrant Share Supply";
+}
+
 function WarrantConvertibleDetails({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
+  const chartTitle = getWarrantConvertibleChartTitle(model);
+  if (model.llmShareOverhang) {
+    return (
+      <OfferingTermsShareOverhangDetails
+        model={model}
+        fallbackSupplyDetailLabel="Potential Supply"
+        fallbackTitle={chartTitle}
+        fallbackSubtitle="Current shares plus warrant or conversion share supply"
+      />
+    );
+  }
+  if (model.is424bOfferingTermsPayload) return <OfferingTermsSourceDetails model={model} />;
+
   const useVariableConversionExposure = Boolean(model.isNoFloorVariableConvertibleExposure && !model.canRenderOverhangChart);
   const variableConvertibleInstrument = model.warrantInstrumentRows[0];
   const variableConvertiblePrincipal = variableConvertibleInstrument?.sharesSecurities || "";
@@ -4264,18 +4397,18 @@ function WarrantConvertibleDetails({ model }: { model: ReturnType<typeof buildDi
     <DilutionShareOverhang
       model={{
         ...model,
-        chartTitle: useVariableConversionExposure ? "Convertible Dilution" : "Warrant / Convertible Exposure",
+        chartTitle,
         overhangAriaLabel: useVariableConversionExposure
-          ? "Convertible dilution cannot be calculated until the conversion price is set"
-          : `Potential warrant or convertible shares equal ${model.dilutionRatioValue} of current shares`,
+          ? "Convertible share supply is variable until the conversion price is set"
+          : `Potential warrant or conversion shares equal ${model.dilutionRatioValue} of current shares`,
         overhangLevel: useVariableConversionExposure ? "Potential Dilution" : model.overhangLevel,
         overhangScoreCaption: useVariableConversionExposure ? "" : model.overhangScoreCaption,
         overhangSubtitle: useVariableConversionExposure
-          ? "Dilution cannot be fixed until the conversion price is set."
-          : "Current shares plus warrant and convertible share exposure",
+          ? "Share count is variable until the conversion price is set."
+          : "Current shares plus warrant or conversion share supply",
         overhangUnavailableMessage: useVariableConversionExposure
           ? "No floor price was stated, so lower stock prices could require more shares for the same note principal."
-          : "Warrant or convertible exposure could not be shown because current shares or underlying securities were unavailable.",
+          : "Warrant or conversion share supply could not be shown because current shares or underlying securities were unavailable.",
         dilutionRatioPercentValue: useVariableConversionExposure ? "Variable" : model.dilutionRatioPercentValue,
         compactScore: useVariableConversionExposure,
         potentialSupplyCompact: model.potentialSupplyCompact,
@@ -4422,6 +4555,28 @@ type DilutionDisclosureRow = {
   label: string;
   value: string;
   note?: string;
+};
+
+type LlmShareOverhangModel = {
+  chartTitle: string;
+  subtitle: string;
+  statusLabel: string;
+  statusValue: string;
+  caption: string;
+  ratioLabel: string;
+  ratioValue: string;
+  currentLabel: string;
+  currentValue: string;
+  supplyLabel: string;
+  supplyValue: string;
+  totalNoteTitle: string;
+  totalNoteNumerator: string;
+  totalNoteDenominator: string;
+  totalNoteRatio: string;
+  totalNoteSuffix: string;
+  note: string;
+  unavailableRows: Array<{ label: string; value: string; note?: string; tone?: "danger" | "neutral" }>;
+  overhangBarSegments: ShareOverhangBarSegment[];
 };
 
 function DilutionMetric({ metric }: { metric: DilutionMetricItem }) {
@@ -6446,6 +6601,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
   const payloadOfferingDetailsRows = readOfferingDetailsRows(displayPayloadData);
   const llmOfferingDetailsRows = readOfferingDetailsRows(llmDisplayModel);
   const offeringDetailsRows = payloadOfferingDetailsRows.length ? payloadOfferingDetailsRows : llmOfferingDetailsRows;
+  const llmShareOverhang = readLlmShareOverhang(displayPayloadData, llmDisplayModel);
   const s3AmendmentChangeRows = /^(?:S-3|F-3)\/A$/i.test(filing.formType.trim())
     ? readS3AmendmentChangeRows(displayPayloadData, llmDisplayModel)
     : [];
@@ -6524,9 +6680,9 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
   const dilutionRatioUnavailableNote =
     dilutionRatioSnapshotValue === "Variable"
       ? "Dilution varies with final share count or conversion price."
-      : "Cannot calculate without fixed share count.";
+      : "Not fixed until source-backed share count is available.";
   const canRenderOverhangChart = Boolean(currentCount && offeredCount);
-  const displayOverhangLevel = canRenderOverhangChart ? scoreBand : "Needs review";
+  const displayOverhangLevel = canRenderOverhangChart ? scoreBand : dilutionRatioSnapshotValue;
   const displayLabels = buildOfferingDisplayLabels({
     hasPrefundedWarrants,
     isConvertibleFinancing,
@@ -7010,7 +7166,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
             {
               label: "Overhang",
               value: isDisclosedValue(dilutionRatioValue) ? dilutionRatioValue : readSnapshotRatioStatusValue(displayPayloadData, llmDisplayModel),
-              note: currentSharesOutstanding ? "Resale shares vs. current shares." : "Cannot calculate without current shares.",
+              note: currentSharesOutstanding ? "Resale shares vs. current shares." : "Current-share denominator not stated.",
               tone: scoreBand === "Severe" || scoreBand === "High" ? "danger" : "neutral",
             } as DilutionMetricItem,
           ]
@@ -7280,6 +7436,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     atmProgramRows,
     atmMarketCapValue: marketCapValue,
     offeringDetailsRows,
+    llmShareOverhang,
     s3AmendmentChangeRows,
     s8ContextDetailRows,
     warrantDetailsRows,
@@ -7963,7 +8120,7 @@ function readSnapshotRatioStatusValue(primaryModel: Record<string, unknown> | nu
   if (/\b(?:not fixed|not yet fixed|future sales|not completed|not sold yet)\b/i.test(context)) {
     return "Not fixed yet";
   }
-  return "Cannot calculate";
+  return "Not stated";
 }
 
 function collectSnapshotStatusContext(
@@ -8384,33 +8541,33 @@ function buildOfferingDisplayLabels({
 
   if (hasPrefundedWarrants) {
     return {
-      overhangSubtitle: "Current shares plus near-immediate common share exposure",
-      overhangScoreCaption: "Near-immediate exposure vs. current shares",
-      supplyDetailLabel: "Immediate Share Exposure",
-      supplyBreakdownLabel: "Pre-funded warrant exposure",
-      supplyMetricLabel: "Immediate Share Exposure",
-      supplyMetricNote: "Pre-funded warrants are treated as near-immediate common share exposure.",
-      ratioMetricLabel: "Exposure / current",
-      ratioMetricNote: "Near-immediate exposure compared with current shares.",
-      primaryExposureLabel: "Immediate Share Exposure",
-      quickImpactLabel: "Exposure / Current",
-      snapshotSupplyLabel: "Immediate Exposure",
+      overhangSubtitle: "Current shares plus pre-funded warrant supply",
+      overhangScoreCaption: "Pre-funded warrant supply vs. current shares",
+      supplyDetailLabel: "Pre-Funded Warrant Supply",
+      supplyBreakdownLabel: "Pre-funded warrant supply",
+      supplyMetricLabel: "Pre-Funded Warrant Supply",
+      supplyMetricNote: "Pre-funded warrants are treated as near-immediate common-share supply.",
+      ratioMetricLabel: "Supply / current",
+      ratioMetricNote: "Pre-funded warrant supply compared with current shares.",
+      primaryExposureLabel: "Pre-Funded Warrant Supply",
+      quickImpactLabel: "Supply / Current",
+      snapshotSupplyLabel: "Pre-Funded Warrants",
       totalExposureLabel: "Potential total",
       unavailableMessage:
-        "Immediate share exposure was not disclosed or mechanically calculable, so dilution is not calculated.",
+        "Pre-funded warrant supply was not disclosed or mechanically calculable, so dilution is not calculated.",
     };
   }
 
   return {
     overhangSubtitle: "Current shares plus potential supply",
     overhangScoreCaption: "Total potential dilution vs. current shares",
-    supplyDetailLabel: isShelfLike ? "Registered Shares" : isRegisteredDirect ? "Immediate Share Exposure" : "Potential Supply",
+    supplyDetailLabel: isShelfLike ? "Registered Shares" : isRegisteredDirect ? "New Shares" : "Potential Supply",
     supplyBreakdownLabel: isShelfLike ? "Registered shares" : "Potential supply",
     supplyMetricLabel: isShelfLike && !isRegisteredDirect ? "Registered shares" : "Potential supply",
     supplyMetricNote: supplyCountEstimated ? "Estimated from amount and price." : "Potential supply.",
     ratioMetricLabel: "Supply / current",
     ratioMetricNote: "Potential supply compared with current shares.",
-    primaryExposureLabel: isShelfLike ? "Registered Shares" : "Immediate Share Exposure",
+    primaryExposureLabel: isShelfLike ? "Registered Shares" : "New Shares",
     quickImpactLabel: "Potential Dilution",
     snapshotSupplyLabel: isShelfLike ? "Registered Shares" : "Potential Supply",
     totalExposureLabel: "Potential total",
@@ -8440,6 +8597,166 @@ function readMarketCapAmount(record: Record<string, unknown> | null | undefined)
 function readDisplayStringArray(model: Record<string, unknown> | null, key: string) {
   const value = model?.[key];
   return Array.isArray(value) ? value.map((item) => cleanDisclosureValue(item)).filter(Boolean).slice(0, 3) : [];
+}
+
+function readLlmShareOverhang(
+  primaryModel: Record<string, unknown> | null,
+  secondaryModel: Record<string, unknown> | null,
+): LlmShareOverhangModel | null {
+  const primaryOverhang = readPlainRecord(primaryModel?.share_overhang);
+  const secondaryOverhang = readPlainRecord(secondaryModel?.share_overhang);
+  const overhang = hasRawShareOverhangContent(primaryOverhang)
+    ? primaryOverhang
+    : hasRawShareOverhangContent(secondaryOverhang)
+      ? secondaryOverhang
+      : null;
+  if (!overhang) return null;
+
+  const totalNote = readPlainRecord(overhang.total_note) || {};
+  const unavailableRows = readLlmShareOverhangRows(overhang.unavailable_rows || overhang.detail_rows || overhang.rows);
+  const overhangBarSegments = readLlmShareOverhangSegments(overhang.segments || overhang.bar_segments || overhang.barSegments);
+  const model: LlmShareOverhangModel = {
+    chartTitle: readOverhangStringLimited(overhang, 48, "chart_title", "chartTitle", "title"),
+    subtitle: readOverhangStringLimited(overhang, 90, "subtitle", "chart_subtitle", "chartSubtitle"),
+    statusLabel: readOverhangStringLimited(overhang, 48, "status_label", "statusLabel", "level_label", "levelLabel"),
+    statusValue: readOverhangStringLimited(overhang, 48, "status_value", "statusValue", "value"),
+    caption: readOverhangStringLimited(overhang, 72, "caption", "score_caption", "scoreCaption"),
+    ratioLabel: readOverhangStringLimited(overhang, 56, "ratio_label", "ratioLabel", "scale_label", "scaleLabel"),
+    ratioValue: readOverhangStringLimited(overhang, 48, "ratio_value", "ratioValue", "percent_value", "percentValue"),
+    currentLabel: readOverhangStringLimited(overhang, 56, "current_label", "currentLabel"),
+    currentValue: readOverhangStringLimited(overhang, 64, "current_value", "currentValue"),
+    supplyLabel: readOverhangStringLimited(overhang, 56, "supply_label", "supplyLabel", "potential_supply_label", "potentialSupplyLabel"),
+    supplyValue: readOverhangStringLimited(overhang, 64, "supply_value", "supplyValue", "potential_supply_value", "potentialSupplyValue"),
+    totalNoteTitle: readOverhangStringLimited(totalNote, 56, "title", "label"),
+    totalNoteNumerator: readOverhangStringLimited(totalNote, 64, "numerator", "supply_value", "supplyValue"),
+    totalNoteDenominator: readOverhangStringLimited(totalNote, 64, "denominator", "current_value", "currentValue"),
+    totalNoteRatio: readOverhangStringLimited(totalNote, 48, "ratio", "ratio_value", "ratioValue"),
+    totalNoteSuffix: readOverhangStringLimited(totalNote, 72, "suffix", "note"),
+    note: readOverhangStringLimited(overhang, 160, "note", "footnote"),
+    unavailableRows,
+    overhangBarSegments,
+  };
+
+  const hasVisibleContent = [
+    model.statusLabel,
+    model.statusValue,
+    model.ratioLabel,
+    model.ratioValue,
+    model.currentValue,
+    model.supplyValue,
+  ].some(Boolean) || unavailableRows.length > 0 || overhangBarSegments.length > 0;
+
+  return hasVisibleContent ? model : null;
+}
+
+function hasRawShareOverhangContent(overhang: Record<string, unknown> | null) {
+  if (!overhang) return false;
+  const totalNote = readPlainRecord(overhang.total_note);
+  if (recordArray(overhang.segments).length || (totalNote && Object.keys(totalNote).length > 0)) return true;
+  return [
+    overhang.status_value,
+    overhang.statusValue,
+    overhang.ratio_value,
+    overhang.ratioValue,
+    overhang.current_value,
+    overhang.currentValue,
+    overhang.supply_value,
+    overhang.supplyValue,
+  ].some((value) => Boolean(cleanDisclosureValue(readDisclosureValue(value))));
+}
+
+function readLlmShareOverhangRows(value: unknown): LlmShareOverhangModel["unavailableRows"] {
+  return recordArray(value)
+    .map((row) => {
+      const label = readOverhangString(row, "label");
+      const rowValue = readOverhangString(row, "value", "value_text", "valueText");
+      if (!label || !rowValue) return null;
+      const tone = readOverhangString(row, "tone");
+      return {
+        label,
+        value: rowValue,
+        ...(readOverhangString(row, "note") ? { note: readOverhangString(row, "note") } : {}),
+        ...(tone === "danger" || tone === "neutral" ? { tone } : {}),
+      };
+    })
+    .filter((row): row is LlmShareOverhangModel["unavailableRows"][number] => Boolean(row))
+    .slice(0, 8);
+}
+
+function readLlmShareOverhangSegments(value: unknown): ShareOverhangBarSegment[] {
+  const rawSegments = recordArray(value)
+    .map((segment, index): ShareOverhangBarSegment | null => {
+      const label = readOverhangString(segment, "label");
+      const segmentValue = readOverhangString(segment, "value", "value_text", "valueText");
+      if (!label || !segmentValue) return null;
+      const width = readOverhangNumber(segment, "width_percent", "widthPercent", "width");
+      return {
+        key: readOverhangString(segment, "key") || `llm-share-overhang-${index}`,
+        className: normalizeLlmShareOverhangSegmentClass(readOverhangString(segment, "class_name", "className", "role") || label),
+        label,
+        value: segmentValue,
+        ...(readOverhangString(segment, "note") ? { note: readOverhangString(segment, "note") } : {}),
+        width,
+        compact: width > 0 && (width < 24 || label.length > 28),
+      };
+    })
+    .filter((segment): segment is ShareOverhangBarSegment => segment !== null);
+
+  if (!rawSegments.length) return [];
+  const fallbackWidth = 100 / rawSegments.length;
+  const displaySegments = rawSegments.map((segment) => {
+    const width = segment.width > 0 ? Math.min(100, Math.max(4, segment.width)) : fallbackWidth;
+    return {
+      ...segment,
+      width,
+      compact: width < 24 || segment.label.length > 28,
+    };
+  });
+  const totalWidth = displaySegments.reduce((total, segment) => total + segment.width, 0);
+  if (totalWidth <= 0) return displaySegments;
+  return displaySegments.map((segment) => {
+    const width = (segment.width / totalWidth) * 100;
+    return {
+      ...segment,
+      width,
+      compact: width < 24 || segment.label.length > 28,
+    };
+  });
+}
+
+function readOverhangString(record: Record<string, unknown>, ...keys: string[]) {
+  for (const key of keys) {
+    const value = cleanDisclosureValue(readDisclosureValue(record[key]) || readRowString(record, key));
+    if (value) return value;
+  }
+  return "";
+}
+
+function readOverhangStringLimited(record: Record<string, unknown>, maxLength: number, ...keys: string[]) {
+  const value = readOverhangString(record, ...keys);
+  if (!value || value.length <= maxLength) return value;
+  return `${value.slice(0, Math.max(0, maxLength - 1)).trim()}...`;
+}
+
+function readOverhangNumber(record: Record<string, unknown>, ...keys: string[]) {
+  for (const key of keys) {
+    const value = readRowNumber(record, key);
+    if (value) return value;
+  }
+  return 0;
+}
+
+function normalizeLlmShareOverhangSegmentClass(value: string) {
+  const text = value.trim().toLowerCase().replace(/[_-]+/g, " ");
+  const explicit = text.replace(/\s+/g, "-");
+  if (["current-base", "registered-supply", "warrant", "conversion", "prefunded"].includes(explicit)) {
+    return explicit;
+  }
+  if (/\bcurrent|outstanding|base|denominator\b/.test(text)) return "current-base";
+  if (/\bpre funded|prefunded\b/.test(text)) return "prefunded";
+  if (/\bwarrants?\b/.test(text)) return "warrant";
+  if (/\bconvert|notes?|preferred\b/.test(text)) return "conversion";
+  return "registered-supply";
 }
 
 function readSnapshotMetrics(model: Record<string, unknown> | null): DilutionMetricItem[] {

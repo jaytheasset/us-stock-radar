@@ -6,37 +6,6 @@ import type { Sec424bParserOutput } from "@/lib/sources/sec/forms/424b/types";
 
 export const SEC_424B_ANALYSIS_PROMPT_KEY = "sec_424b_analysis";
 export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v9";
-const ALLOWED_424B_OFFERING_DETAIL_LABELS = new Set([
-  "Offering Type",
-  "Purchaser / Investor",
-  "Placement Agent / Underwriter",
-  "Warrant Terms",
-  "Source Instrument",
-  "Instrument Terms",
-  "Exercise Price",
-  "Conversion Price",
-  "Reset / Repricing",
-  "Closing Date",
-  "Agreement Date",
-  "Use of Proceeds",
-  "Selling Holders",
-  "Approx. Placement Price",
-  "Resale Method",
-  "Sale Price",
-  "Floor Price",
-  "Lock-up / Restrictions",
-  "Registration Obligation",
-  "Shelf Status",
-  "Securities Covered",
-  "Active Sale Terms",
-]);
-const ALLOWED_424B_WARRANT_DETAIL_LABELS = new Set([
-  "Type",
-  "Shares / Securities",
-  "Exercise / Conversion Price",
-  "Reset / Floor",
-  "Term / Limits",
-]);
 const ALLOWED_424B_DISPLAY_MODES = new Set([
   "atm",
   "resale_registration",
@@ -123,7 +92,7 @@ export function validate424bDisplayPayload(
   displayPayload: Record<string, unknown>,
   options: Validate424bDisplayPayloadOptions = {},
 ) {
-  const requireMixedComponents = options.requireMixedComponents !== false;
+  void options;
   if (stringValue(displayPayload.display_type) !== "offering_terms") return "";
   const data = readRecord(displayPayload.data);
   if (!data || !Object.keys(data).length) {
@@ -153,9 +122,6 @@ export function validate424bDisplayPayload(
   }
   if (displayMode && !ALLOWED_424B_DISPLAY_MODES.has(displayMode)) {
     return `SEC 424B offering_terms display_payload.data.display_mode is not allowed: ${displayMode}`;
-  }
-  if (requireMixedComponents && displayMode === "mixed_offering" && !arrayValue(data.mixed_offering_components).length) {
-    return "SEC 424B mixed_offering display_payload.data.mixed_offering_components must be written by the analysis LLM";
   }
   return "";
 }
@@ -200,25 +166,19 @@ export function collect424bDisplayPayloadWarnings(displayPayload: Record<string,
       return `${stringValue(record?.label)} ${stringValue(record?.value)} ${stringValue(record?.note)}`;
     })
     .join(" ");
-  if (/\bDilution vs current shares\b/i.test(snapshotText)) {
-    if (!hasDisplayFactValue(currentShares) || !hasDisplayFactValue(totalPotentialSupply)) {
-      warnings.push("SEC 424B Dilution vs current shares snapshot should include current_shares and total_potential_supply structured facts.");
-    }
-  }
+  const selectedModeUsesShareOverhang = [
+    "primary_offering",
+    "registered_direct",
+    "resale_registration",
+    "warrant_convertible",
+    "rights_offering",
+    "mixed_offering",
+  ].includes(displayMode);
   if (
-    (displayMode === "primary_offering" || displayMode === "registered_direct") &&
-    /\b(?:New shares|shares offered|common stock offered)\b/i.test(snapshotText)
+    (selectedModeUsesShareOverhang || /\b(?:Dilution|Overhang|Size vs|Scale|vs current shares|vs market cap)\b/i.test(snapshotText)) &&
+    !hasShareOverhangContent(readRecord(data.share_overhang))
   ) {
-    if (!hasDisplayFactValue(totalPotentialSupply)) {
-      warnings.push("SEC 424B primary/registered-direct New shares snapshot should include total_potential_supply structured fact.");
-    }
-    const hasStructuredSupplySegment = arrayValue(data.supply_segments).some((segment) => {
-      const record = readRecord(segment);
-      return hasDisplayFactValue(readRecord(record?.shares));
-    });
-    if (!hasStructuredSupplySegment) {
-      warnings.push("SEC 424B primary/registered-direct New shares snapshot should include supply_segments[].shares structured fact.");
-    }
+    warnings.push("SEC 424B selected display mode uses a visible share/scale chart but display_payload.data.share_overhang is missing.");
   }
   for (const segment of arrayValue(data.supply_segments)) {
     const record = readRecord(segment);
@@ -243,18 +203,6 @@ export function collect424bDisplayPayloadWarnings(displayPayload: Record<string,
     }
     if (/\blast reported sales price|market price\b/i.test(exerciseText)) {
       warnings.push("SEC 424B market price may be incorrectly used as Exercise / Conversion Price.");
-    }
-  }
-  for (const detail of arrayValue(data.offering_details)) {
-    const label = stringValue(readRecord(detail)?.label);
-    if (label && !ALLOWED_424B_OFFERING_DETAIL_LABELS.has(label)) {
-      warnings.push(`SEC 424B offering_details label is outside the approved UI set: ${label}`);
-    }
-  }
-  for (const detail of arrayValue(data.warrant_details)) {
-    const label = stringValue(readRecord(detail)?.label);
-    if (label && !ALLOWED_424B_WARRANT_DETAIL_LABELS.has(label)) {
-      warnings.push(`SEC 424B warrant_details label is outside the approved UI set: ${label}`);
     }
   }
   return warnings;
@@ -380,6 +328,7 @@ function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput, displayPayload
 
 export function normalize424bOfferingDisplayModel(data: Record<string, unknown> | null) {
   if (!data) return null;
+  const shareOverhang = normalizeShareOverhang(readRecord(data.share_overhang));
   return {
     ...data,
     display_mode: stringValue(data.display_mode) || "offering_terms",
@@ -392,6 +341,7 @@ export function normalize424bOfferingDisplayModel(data: Record<string, unknown> 
     key_cash_terms: normalizeKeyCashTerms(readRecord(data.key_cash_terms)),
     registered_security_totals: normalizeRegisteredSecurityTotals(readRecord(data.registered_security_totals)),
     supply_segments: normalizeSupplySegments(data.supply_segments),
+    ...(shareOverhang ? { share_overhang: shareOverhang } : {}),
     investor_takeaway: stringValue(data.investor_takeaway),
     offering_details: normalizeOfferingDetails(data.offering_details),
     amendment_changes: normalizeOfferingDetails(data.amendment_changes),
@@ -402,6 +352,98 @@ export function normalize424bOfferingDisplayModel(data: Record<string, unknown> 
     review_reasons: readStringArray(data.review_reasons),
     needs_human_review: data.needs_human_review === true,
   };
+}
+
+function normalizeShareOverhang(value: Record<string, unknown> | null) {
+  if (!value) return null;
+  const unavailableRows = arrayValue(value.unavailable_rows || value.detail_rows || value.rows)
+    .map((row) => {
+      const record = readRecord(row);
+      const label = stringValue(record?.label);
+      const rowValue = stringValue(record?.value) || stringValue(record?.value_text);
+      if (!label || !rowValue) return null;
+      return {
+        label,
+        value: rowValue,
+        note: nullableString(record?.note),
+        tone: nullableString(record?.tone),
+      };
+    })
+    .filter(Boolean);
+  const segments = arrayValue(value.segments || value.bar_segments || value.barSegments)
+    .map((segment) => {
+      const record = readRecord(segment);
+      const label = stringValue(record?.label);
+      const segmentValue = stringValue(record?.value) || stringValue(record?.value_text);
+      if (!label || !segmentValue) return null;
+      return {
+        key: nullableString(record?.key),
+        class_name: nullableString(record?.class_name || record?.className),
+        label,
+        value: segmentValue,
+        note: nullableString(record?.note),
+        width_percent: numberValue(record?.width_percent) ?? numberValue(record?.widthPercent) ?? numberValue(record?.width) ?? null,
+      };
+    })
+    .filter(Boolean);
+  const totalNote = readRecord(value.total_note || value.totalNote);
+  const normalizedTotalNote = totalNote
+    ? {
+        title: stringValue(totalNote.title || totalNote.label),
+        numerator: stringValue(totalNote.numerator || totalNote.supply_value || totalNote.supplyValue),
+        denominator: stringValue(totalNote.denominator || totalNote.current_value || totalNote.currentValue),
+        ratio: stringValue(totalNote.ratio || totalNote.ratio_value || totalNote.ratioValue),
+        suffix: stringValue(totalNote.suffix || totalNote.note),
+      }
+    : null;
+  const normalized = {
+    chart_title: stringValue(value.chart_title || value.chartTitle || value.title),
+    subtitle: stringValue(value.subtitle || value.chart_subtitle),
+    status_label: stringValue(value.status_label || value.statusLabel || value.level_label || value.levelLabel),
+    status_value: stringValue(value.status_value || value.statusValue || value.value),
+    caption: stringValue(value.caption || value.score_caption || value.scoreCaption),
+    ratio_label: stringValue(value.ratio_label || value.ratioLabel || value.scale_label || value.scaleLabel),
+    ratio_value: stringValue(value.ratio_value || value.ratioValue || value.percent_value || value.percentValue),
+    current_label: stringValue(value.current_label || value.currentLabel),
+    current_value: stringValue(value.current_value || value.currentValue),
+    supply_label: stringValue(value.supply_label || value.supplyLabel || value.potential_supply_label || value.potentialSupplyLabel),
+    supply_value: stringValue(value.supply_value || value.supplyValue || value.potential_supply_value || value.potentialSupplyValue),
+    total_note: normalizedTotalNote,
+    note: nullableString(value.note || value.footnote),
+    unavailable_rows: unavailableRows,
+    segments,
+  };
+
+  const hasContent =
+    [
+      normalized.status_label,
+      normalized.status_value,
+      normalized.ratio_label,
+      normalized.ratio_value,
+      normalized.current_value,
+      normalized.supply_value,
+    ].some(Boolean) ||
+    unavailableRows.length > 0 ||
+    Boolean(normalizedTotalNote && Object.values(normalizedTotalNote).some(Boolean)) ||
+    segments.length > 0;
+  return hasContent ? normalized : null;
+}
+
+function hasShareOverhangContent(value: Record<string, unknown> | null) {
+  if (!value) return false;
+  if (arrayValue(value.segments).length) return true;
+  const totalNote = readRecord(value.total_note || value.totalNote);
+  if (totalNote && Object.keys(totalNote).length > 0) return true;
+  return [
+    value.status_value,
+    value.statusValue,
+    value.ratio_value,
+    value.ratioValue,
+    value.current_value,
+    value.currentValue,
+    value.supply_value,
+    value.supplyValue,
+  ].some((item) => Boolean(stringValue(item)));
 }
 
 function normalizeSnapshotMetrics(value: unknown) {
@@ -865,6 +907,7 @@ export const sec424bRequiredOutputSchema = {
           required: [
             "display_mode",
             "snapshot_metrics",
+            "share_overhang",
             "investor_takeaway",
             "narrative_summary",
             "needs_human_review",
@@ -899,22 +942,49 @@ export const sec424bRequiredOutputSchema = {
                 },
               },
             },
-            mixed_offering_components: {
-              type: "array",
-              items: {
-                type: "object",
-                additionalProperties: true,
-                required: ["role", "label", "value_text", "numeric_value", "unit", "evidence"],
-                properties: {
-                  role: {
-                    type: "string",
-                    enum: ["new_shares", "potential_warrants", "potential_instruments", "total_potential_supply"],
+            share_overhang: {
+              type: "object",
+              additionalProperties: true,
+              required: [
+                "chart_title",
+                "subtitle",
+                "status_label",
+                "status_value",
+                "caption",
+                "ratio_label",
+                "ratio_value",
+                "current_label",
+                "current_value",
+                "supply_label",
+                "supply_value",
+                "segments",
+              ],
+              properties: {
+                chart_title: { type: "string" },
+                subtitle: { type: "string" },
+                status_label: { type: "string" },
+                status_value: { type: "string" },
+                caption: { type: "string" },
+                ratio_label: { type: "string" },
+                ratio_value: { type: "string" },
+                current_label: { type: "string" },
+                current_value: { type: "string" },
+                supply_label: { type: "string" },
+                supply_value: { type: "string" },
+                segments: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    additionalProperties: true,
+                    required: ["class_name", "label", "value", "width_percent"],
+                    properties: {
+                      class_name: { type: "string" },
+                      label: { type: "string" },
+                      value: { type: "string" },
+                      width_percent: { type: "number" },
+                      note: { type: ["string", "null"] },
+                    },
                   },
-                  label: { type: "string" },
-                  value_text: { type: ["string", "null"] },
-                  numeric_value: { type: "number" },
-                  unit: { type: "string" },
-                  evidence: { type: ["string", "null"] },
                 },
               },
             },
