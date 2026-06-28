@@ -59,6 +59,9 @@ describe("424B analysis fixtures", () => {
     assert.ok(prompt.includes("Use offering_terms when 424B source blocks disclose offering"));
     assert.ok(prompt.includes("Do not use post-offering share count assumptions as actual supply."));
     assert.ok(prompt.includes("Do not describe an ATM program as a resale pool"));
+    assert.ok(prompt.includes("offering_details must be an array of { label, value, note? }"));
+    assert.ok(prompt.includes("note is also visible under the value"));
+    assert.ok(prompt.includes("Do not leave material exceptions or investor-critical caveats only"));
     for (const eventType of APPROVED_424B_EVENT_TYPES) {
       assert.ok(prompt.includes(`- ${eventType}`));
     }

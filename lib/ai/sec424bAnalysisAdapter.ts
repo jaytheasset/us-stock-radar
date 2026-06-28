@@ -5,7 +5,7 @@ import { APPROVED_424B_EVENT_TYPES } from "@/lib/sources/sec/forms/424b/types";
 import type { Sec424bParserOutput } from "@/lib/sources/sec/forms/424b/types";
 
 export const SEC_424B_ANALYSIS_PROMPT_KEY = "sec_424b_analysis";
-export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v5";
+export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v6";
 const ALLOWED_424B_OFFERING_DETAIL_LABELS = new Set([
   "Offering Type",
   "Purchaser / Investor",
