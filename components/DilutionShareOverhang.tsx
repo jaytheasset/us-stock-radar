@@ -4,6 +4,7 @@ export type DilutionShareOverhangBarSegment = {
   label: string;
   value: string;
   note?: string;
+  numericValue?: number | null;
   width: number;
   compact?: boolean;
 };
@@ -61,6 +62,7 @@ type DilutionShareOverhangModel = {
   hideUnavailableRows?: boolean;
   unavailableRows?: DilutionShareOverhangFactRow[];
   unavailableSupplyValue?: string;
+  conditionalSupplyRows?: DilutionShareOverhangFactRow[];
   showSegmentLegend?: boolean;
   showBreakdownPanel?: boolean;
   showTotalNote?: boolean;
@@ -111,6 +113,17 @@ export function DilutionShareOverhang({ model }: { model: DilutionShareOverhangM
   const showTotalNote = model.showTotalNote !== false;
   const showSegmentLegend = model.showSegmentLegend !== false;
   const showBreakdownPanel = model.showBreakdownPanel !== false;
+  const conditionalSupplyRows = model.conditionalSupplyRows || [];
+  const baseUnavailableRows =
+    model.unavailableRows && model.unavailableRows.length
+      ? model.unavailableRows
+      : [
+          { label: currentDetailLabel, value: model.currentSharesCompact },
+          { label: model.supplyDetailLabel, value: model.unavailableSupplyValue || model.potentialSupplyCompact || "Not stated" },
+        ];
+  const unavailableDisplayRows = baseUnavailableRows.concat(
+    conditionalSupplyRows.map((row) => ({ ...row, label: formatConditionalSupplyLabel(row.label) })),
+  );
   const supplyDetailRows = model.supplyDetailRows && model.supplyDetailRows.length
     ? model.supplyDetailRows
     : model.requireProvidedSupplyDetails
@@ -183,6 +196,18 @@ export function DilutionShareOverhang({ model }: { model: DilutionShareOverhangM
                       </strong>
                     </span>
                   ))}
+                  {conditionalSupplyRows.map((row, index) => (
+                    <span key={`conditional-${row.label}-${index}`} className="conditional-supply">
+                      <b>
+                        {OVERHANG_SEGMENT_CODES[model.overhangBarSegments.length + index] || model.overhangBarSegments.length + index + 1}.{" "}
+                        {formatConditionalSupplyLabel(row.label)}
+                      </b>
+                      <strong className={row.tone === "danger" ? "danger" : undefined}>
+                        <span>{row.value}</span>
+                        {row.note ? <em>({row.note})</em> : null}
+                      </strong>
+                    </span>
+                  ))}
                 </div>
               ) : null}
               {showTotalNote ? (
@@ -204,16 +229,11 @@ export function DilutionShareOverhang({ model }: { model: DilutionShareOverhangM
             <div className="dilution-overhang-unavailable">
               {model.hideUnavailableRows
                 ? null
-                : (model.unavailableRows && model.unavailableRows.length
-                    ? model.unavailableRows
-                    : [
-                        { label: currentDetailLabel, value: model.currentSharesCompact },
-                        { label: model.supplyDetailLabel, value: model.unavailableSupplyValue || model.potentialSupplyCompact || "Not stated" },
-                      ]
-                  ).map((row) => (
+                : unavailableDisplayRows.map((row) => (
                     <div key={row.label}>
                       <span title={currentSharesTitle(row.label)}>{row.label}</span>
                       <strong className={row.tone === "danger" ? "danger" : undefined}>{row.value}</strong>
+                      {row.note ? <em>{row.note}</em> : null}
                     </div>
                   ))}
               <p>{model.overhangUnavailableMessage || "Potential supply could not be calculated from disclosed share counts."}</p>
@@ -277,6 +297,10 @@ export function DilutionShareOverhang({ model }: { model: DilutionShareOverhangM
       ) : null}
     </section>
   );
+}
+
+function formatConditionalSupplyLabel(label: string) {
+  return /\bconditional\b/i.test(label) ? label : `${label} (Conditional)`;
 }
 
 function DilutionExtraDetailPanel({

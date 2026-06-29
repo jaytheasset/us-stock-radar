@@ -2264,7 +2264,7 @@ function buildDisplayPayloadDebug(
     offering_details: readDebugValue(data?.offering_details),
     amendment_changes: readDebugValue(data?.amendment_changes),
     supply_segments: readDebugValue(data?.supply_segments),
-    warrant_details: readDebugValue(data?.warrant_details),
+    instrument_details: readDebugValue(data?.instrument_details),
     mixed_offering_components: readDebugValue(data?.mixed_offering_components),
     key_cash_terms: readDebugValue(data?.key_cash_terms),
     registered_security_totals: readDebugValue(data?.registered_security_totals),

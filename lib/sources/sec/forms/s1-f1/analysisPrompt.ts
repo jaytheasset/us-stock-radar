@@ -7,7 +7,7 @@ import {
 import { buildS1F1LlmSourceInput } from "./sourceInput.ts";
 import { SEC_RESALE_OVERHANG_SCORING_GUIDE } from "../common/resaleOverhangScoring";
 
-const REQUIRED_TOP_LEVEL_KEYS = ["parser_output", "analysis_output", "display_payload"] as const;
+const REQUIRED_TOP_LEVEL_KEYS = ["analysis_output", "display_payload"] as const;
 
 const REQUIRED_ANALYSIS_KEYS = [
   "source_group",
@@ -54,7 +54,7 @@ const S1F1_DISPLAY_MODES = [
   "generic",
 ] as const;
 
-const S1F1_PROMPT_VERSION = "s1-f1-analysis-v2";
+const S1F1_PROMPT_VERSION = "s1-f1-analysis-v3";
 
 export function buildS1F1AnalysisPrompt(
   parserOutput: S1F1ParserOutput,
@@ -65,6 +65,7 @@ export function buildS1F1AnalysisPrompt(
     "You are writing the final investor-facing analysis for one SEC S-1/F-1 registration filing.",
     "Use only cleaned_source_blocks, attachment inventory, parent_filing_context if present, and optional market context in the cleaned source input.",
     "S-1/F-1 flow is Parser -> cleaned source blocks -> Analysis LLM -> Required Output JSON.",
+    "Do not return parser_output. Runtime attaches parser output after analysis; your response should contain only analysis_output and display_payload.",
     "There is no S-1/F-1 router LLM and no parser-built display payload in runtime.",
     "The parser only preserves relevant source text. Do not treat parser-generated facts, signal labels, offering kinds, risk flags, extraction summaries, or display labels as authority.",
     "Choose event_type, score, signal, display_payload.display_type, and display_payload.data yourself from the source blocks.",
@@ -90,10 +91,8 @@ export function buildS1F1AnalysisPrompt(
     "- summary: 2-4 sentences, under 100 words total.",
     "- why_it_matters: one sentence, under 35 words.",
     "- score_reason: under 18 words.",
-    "- bullish_points: up to 3 short items. This legacy schema key is displayed as Positive; leave empty if there is no direct positive point.",
-    "- bearish_points: up to 3 short items. This legacy schema key is displayed as Negative; leave empty if there is no direct negative point.",
-    "- key_evidence: up to 4 source-backed facts.",
-    "- what_to_watch_next: up to 3 concrete next filings, dates, approvals, pricing terms, effectiveness, lock-up, or closing variables.",
+    "- bullish_points and bearish_points are legacy generic-display fields. For offering_terms, leave both empty arrays.",
+    "- key_evidence and what_to_watch_next are legacy generic-display fields. For offering_terms, leave both empty arrays and put visible terms only in the selected display_payload.data UI fields.",
     "Use plain investor language. Avoid abstract phrases such as holder economics, structural impact, optionality, de-risked, or execution visibility.",
     "Do analysis, not just recap. In narrative_summary, why_it_matters, and Negative points, connect source-backed facts to their practical investor consequence: dilution pressure, resale supply, cash need, control concentration, lock-up or sale-readiness, unfavorable conversion/reset terms, pricing uncertainty, or weak protection for existing holders.",
     "Do not infer hidden intent, undisclosed risk, fraud, or management motive. The analysis must explain the situation created by disclosed facts, not speculate about what the company is trying to hide.",
@@ -152,14 +151,14 @@ export function buildS1F1AnalysisPrompt(
     "- display_payload.data must be intentionally filled when display_type is offering_terms. Do not leave it as an empty object.",
     "- Choose exactly one primary display_payload.data.display_mode before writing investor-facing text.",
     "- The selected display_mode is the only detailed output path. Do not write a second generic analysis page for the same filing.",
-    "- Visible UI contract: for display_type=offering_terms, the primary filing detail UI reads display_payload.data fields such as snapshot_metrics, share_overhang, offering_details, warrant_details, investor_takeaway, narrative_summary, current_shares, total_potential_supply, estimated_dilution_percent, supply_segments, amendment_changes, and watch_next when the selected template supports them.",
-    "- Stored-only evidence contract: display_payload.evidence, display_payload.notes, and source_notes are evidence/debug/source-trace fields, not a substitute for primary visible UI rows.",
+    "- Visible UI contract: for display_type=offering_terms, write for the selected display_mode UI only. The primary filing detail UI reads display_payload.data fields such as snapshot_metrics, share_overhang, offering_details, instrument_details, investor_takeaway, narrative_summary, current_shares, total_potential_supply, estimated_dilution_percent, supply_segments, and amendment_changes when the selected template supports them.",
+    "- Stored-only evidence contract: display_payload.evidence, display_payload.notes, and source_notes are not visible replacement UI. For offering_terms, leave display_payload.evidence, display_payload.notes, and source_notes empty unless needs_human_review requires a short source/debug warning.",
     "- Do not place investor-critical terms only in display_payload.evidence, display_payload.notes, or source_notes. If a term materially changes how investors should read the filing, put it in a visible display_payload.data field supported by the selected display_mode.",
     "- For display_type=offering_terms, analysis_output.quick_take must match display_payload.data.investor_takeaway in meaning.",
     "- For display_type=offering_terms, analysis_output.summary must match display_payload.data.narrative_summary in meaning.",
     "- For display_type=offering_terms, bullish_points and bearish_points are compatibility fields only. Leave both empty unless the selected display_mode explicitly needs a visible Positive/Negative section.",
-    "- Do not create Key Evidence or What To Watch Next as an alternate generic page when the selected display_mode already has snapshot_metrics, offering_details, amendment_changes, or source_notes. Keep them short and consistent with the selected display_mode.",
-    "- Secondary modules such as offering_details, amendment_changes, source_notes, and what_to_watch_next may appear only as children of the selected display_mode. They must not imply a second top-level UI mode.",
+    "- Do not create Key Evidence, What To Watch Next, or a generic evidence page when the selected display_mode already has visible fields. For offering_terms, key_evidence and what_to_watch_next must normally be empty arrays.",
+    "- Secondary modules such as offering_details, amendment_changes, and source_notes may appear only as children of the selected display_mode. They must not imply a second top-level UI mode.",
     "- For IPO display modes, include display_payload.data.ipo_kind as traditional or spac. For non-IPO display modes, omit ipo_kind.",
     "- Ticker fields must contain only short ticker symbols from filing_package, never source text, old ticker strings, exchange descriptions, CIK text, or delisting notes. If filing_package.primary_ticker is present, primary_ticker.ticker must be exactly that ticker.",
     "- Snapshot metrics are the user-facing Dilution/Offering Snapshot cards. Fill up to 4 rows as { label, value, note, tone, emphasis }.",
@@ -170,7 +169,20 @@ export function buildS1F1AnalysisPrompt(
     "- Each share_overhang.segments item must include class_name, label, value, and numeric_value. Never return an empty segment object.",
     "- For share_overhang.segments, value is the visible compact string and numeric_value is the bare number the UI uses to calculate bar width. Use the same unit basis across all segment numeric_value fields. Use null only when the segment is truly variable or non-numeric.",
     "- When share_overhang compares offering supply against current or base shares, include a current-base segment for the denominator and separate supply segments for primary, resale, warrant, conversion, or prefunded components. The UI calculates segment widths mechanically from numeric_value.",
-    "- share_overhang is not a prose field. chart_title must be under 48 characters, subtitle under 90 characters, note under 160 characters, and segment/total_note values must be compact UI strings.",
+    "- share_overhang.segments are for the current filing's offered, registered, resale, or newly issuable pool only. Do not add legacy cap-table items, outstanding options, prior warrants, equity-plan awards, prior facilities, or other existing instruments unless the current filing is registering or offering those securities as part of the selected display_mode.",
+    "- share_overhang.segments are the source-backed supply rows that you choose to include in the headline bar and ratio. share_overhang.conditional_supply is for source-backed dependent supply that should remain visible but excluded from the headline bar and ratio.",
+    "- conditional_supply rows are visible continuation rows in the same Share Overhang section after the segment legend. They are not a separate detail panel. If an amount should drive the headline bar or ratio, put it in share_overhang.segments instead of conditional_supply.",
+    "- For shares/ADSs and pre-funded warrants offered in lieu of those shares/ADSs, use one current-supply segment only. Label it as shares/ADSs / Pre-Funded Warrants and set numeric_value to the maximum current offering pool. Do not create separate additive segments for direct shares/ADSs and in-lieu pre-funded warrants.",
+    "- Do not classify pre-funded warrants offered in lieu of shares/ADSs as conditional_supply merely because they are technically exercisable. For this UI, they are current/near-certain offering supply unless the filing states a separate future condition.",
+    "- conditional_supply is for dependent supply regardless of instrument family. This can include shares from warrants, convertibles, preferred stock, rights, units, dividend shares, exchange caps, shareholder approval, variable pricing, floor/reset formulas, or any other source-backed condition when you exclude that amount from the headline numerator.",
+    "- Use separate conditional_supply rows for material source-backed dependent supply families and write a short note naming the condition, such as issuable upon exercise, issuable upon conversion, subject to shareholder approval, depends on dividend payment, or depends on future pricing.",
+    "- For mixed_offering, do not put dependent future supply in share_overhang.segments. Put it in conditional_supply, so the headline bar and ratio are not inflated by conditional supply.",
+    "- Do not put legacy cap-table items, outstanding options, prior warrants, prior facilities, equity-plan awards, or prior preferred/convertible securities in conditional_supply unless the current filing is registering or offering those securities as part of the selected display_mode.",
+    "- Do not repeat a share/ADS amount in conditional_supply if that same amount is already included in share_overhang.segments. When a pre-funded warrant amount is included with offered shares/ADSs, exclude that same pre-funded amount from conditional_supply even if the source also lists it in an underlying-warrant total.",
+    "- Do not use an aggregate all-instrument or total-underlying amount as conditional_supply when that total includes amounts already counted in share_overhang.segments. Split out dependent-only components when source-backed, otherwise omit the conditional row.",
+    "- If all material share supply is conditional or variable, use status_value Variable or Not fixed yet and use conditional_supply or non-ratio segment rows rather than forcing a headline dilution percentage.",
+    "- share_overhang is not a prose field. chart_title must be under 48 characters, subtitle under 90 characters, note must be one short sentence under 160 characters, total_note.title under 48 characters, and all segment/total_note values must be compact UI strings.",
+    "- When share_overhang.status_value is a percentage, share_overhang.ratio_value must be the same percentage string. Do not use raw decimals, x-multiples, or 1-to-N wording as ratio_value.",
     "- Do not put evidence excerpts, page references, full analysis paragraphs, market commentary, or repeated summary text in share_overhang.",
     "- Do not write calculation-failure wording in share_overhang. If final shares, price, or dilution depends on future sales or a formula, use Variable or Not fixed yet.",
     "- Offering details are user-facing detail rows. Fill rows as { label, value, note } using the label candidates for the selected display mode.",
@@ -194,19 +206,21 @@ export function buildS1F1AnalysisPrompt(
     "- If the selected offering UI includes a chart or section title field, use only the title that fits the selected case: Share Dilution for primary_offering or registered_direct; Share Overhang for resale_registration; Warrant Share Supply for warrant-only supply; Convertible Share Supply for convertible note/debt supply; Preferred Conversion Supply for convertible preferred or preferred conversion supply; Pre-Funded Warrant Supply for pre-funded warrant supply; Mixed Instrument Supply only when multiple share-linked instrument families such as warrants, convertibles, preferred, or pre-funded warrants are independently material; Mixed Offering for broader primary/resale/shelf/ATM/rights mixes; Rights Offering for rights_offering; ATM Program for atm; Shelf Details for shelf_capacity; Initial IPO Filing for initial IPO registration; IPO Terms Update for ipo_amendment; Rule 462(b) MEF for rule_462b_mef; SPAC IPO Terms for spac_ipo; Amendment Summary for routine_amendment or post_effective_amendment.",
     "- Never use Exposure, Shares vs..., ... vs Post-Offering Shares, ... vs Current Shares, percentages, share counts, formulas, or numerator/denominator wording as a chart or section title. Put basis details such as Class A, Class B, post-offering, current shares, marketed block, numerator, denominator, and ratio in snapshot notes, current_shares.evidence, supply_segments labels, amendment_changes, or offering_details notes.",
     "- Keep separate legal or contractual limits in separate rows when source-backed. Do not merge Exchange Cap, ownership limit, six-month/tranche cap, floor price, reset formula, and conversion price into one row.",
-    "- If display_mode is resale_registration, mixed_offering, or warrant_convertible and supply_segments include warrants, pre-funded warrants, convertible notes, convertible preferred stock, preferred stock, rights, units, or other share-linked instruments, fill warrant_details as the Instrument Details UI when source terms are disclosed.",
-    "- warrant_details rows must use only these labels: Type, Shares / Securities, Exercise / Conversion Price, Reset / Floor, Term / Limits.",
-    "- For each material instrument, repeat the warrant_details label group in this order when source-backed: Type, Shares / Securities, Exercise / Conversion Price, Reset / Floor, Term / Limits.",
+    "- Use display_payload.data.instrument_details for the Instrument Details UI field.",
+    "- If display_mode is resale_registration, mixed_offering, or warrant_convertible and the current filing includes warrants, pre-funded warrants, convertible notes, convertible preferred stock, preferred stock, rights, units, or other share-linked instruments with source-backed terms, fill instrument_details.",
+    "- instrument_details rows must use only these labels: Type, Shares / Securities, Exercise / Conversion Price, Reset / Floor, Term / Limits.",
+    "- For each material instrument, repeat the instrument_details label group in this order when source-backed: Type, Shares / Securities, Exercise / Conversion Price, Reset / Floor, Term / Limits.",
     "- Use Type to name the actual instrument family, such as Common warrant, Pre-funded warrant, Convertible note, Convertible preferred stock, Preferred stock, Subscription right, Unit, or Other instrument. Add source-backed series or tranche names when terms differ.",
-    "- If separate warrant or instrument series have different exercise prices, expirations, exercisability, reset/floor terms, or names such as Series A and Series B, count each series separately in supply_segments and warrant_details.",
+    "- If separate warrant or instrument series have different exercise prices, expirations, exercisability, reset/floor terms, or names such as Series A and Series B, count each series separately in supply_segments and instrument_details.",
     "- When instrument categories or series share some economics but differ in material holder-specific conditions, either split them by Type or use a consolidated Type that names the grouped categories or series; do not place a condition from one category or series under a Type naming only another.",
-    "- Do not use Date, Issuance Date, Maturity Date, Expiration Date, Holder, Purchaser, or Proceeds as warrant_details labels. Put dates or limits inside Term / Limits, and put holders, investors, agents, or proceeds in offering_details, key_evidence, or summary as appropriate.",
+    "- Do not use Date, Issuance Date, Maturity Date, Expiration Date, Holder, Purchaser, or Proceeds as instrument_details labels. Put dates or limits inside Term / Limits, and put holders, investors, agents, or proceeds in offering_details, key_evidence, or summary as appropriate.",
     "- Use Shares / Securities for underlying shares, principal amount, preferred shares, rights, units, or as-converted common shares when disclosed.",
     "- Use Exercise / Conversion Price for exercise price, conversion price, subscription price, unit price, or fixed/VWAP-based conversion terms.",
+    "- Use Not fixed yet when a warrant, conversion, subscription, or unit price will be set later and the filing only shows a blank or placeholder price.",
     "- Use Reset / Floor only for reset, repricing, anti-dilution, floor price, or no-floor disclosure. Keep it blank by omitting the row when not disclosed.",
     "- Use Term / Limits for exercisability, expiration, maturity, redemption, ownership cap, subscription period, oversubscription, cashless exercise, transfer limits, or material limits when source-backed.",
-    "- Keep warrant_details values compact. Each cell should usually be under 90 characters and never exceed 130 characters. Omit unavailable rows rather than writing Not stated.",
-    "- For Warrant Terms in offering_details, include only short high-level warrant context when useful. If material exercise price, reset/floor, expiration, zero-exercise, cashless, ownership cap, or other instrument economics are source-backed, put them in warrant_details instead of a long Warrant Terms row.",
+    "- Keep instrument_details values compact. Each cell should usually be under 90 characters and never exceed 130 characters. Omit unavailable rows rather than writing Not stated.",
+    "- For Warrant Terms in offering_details, include only short high-level warrant context when useful. If material exercise price, reset/floor, expiration, zero-exercise, cashless, ownership cap, or other instrument economics are source-backed, put them in instrument_details instead of a long Warrant Terms row.",
     "- Do not write placeholder money strings such as $ million, $ per share, or $ and $ in any display_payload field. Use pending wording instead.",
     "- For resale_registration or mixed_offering, if total registered/offered resale shares can be identified, include a snapshot row labeled Overhang vs outstanding when a source-backed share-count basis is available.",
     "- If snapshot_metrics, narrative_summary, quick_take, or event_title mentions source-backed shares offered, resale shares, warrant-underlying shares, current shares, or a dilution/scale percentage that belongs in the visible Share Overhang chart, fill share_overhang too.",
@@ -343,7 +357,7 @@ export function buildS1F1AnalysisPrompt(
     "- Snapshot labels should describe Underlying shares, Exercise / conversion price, Company proceeds, and Dilution vs current shares when source-backed.",
     "- If conversion price is variable or no fixed floor is stated, use Variable rather than forcing a share count or percentage.",
     "- Offering Details labels: Offering Type, Purchaser / Investor, Placement Agent / Underwriter, Warrant Terms, Exercise Price, Conversion Price, Reset / Repricing, Floor Price, Closing Date, Agreement Date, Use of Proceeds.",
-    "- Put detailed instrument rows in warrant_details when source-backed. Do not squeeze several prices or reset terms into one snapshot card or one Offering Details row.",
+    "- Put detailed instrument rows in instrument_details when source-backed. Do not squeeze several prices or reset terms into one snapshot card or one Offering Details row.",
     "",
     "rights_offering:",
     "- Use for subscription rights offerings.",
@@ -364,11 +378,14 @@ export function buildS1F1AnalysisPrompt(
     "- Use when primary issuance, resale, warrants, convertibles, rights, units, ATM, ELOC, shelf, control/voting terms, or other components are independently material and no single component dominates.",
     "- For S-1/F-1 unit offerings, use mixed_offering when the source-backed primary cash sale and attached instrument or control/voting components both materially change the investor read.",
     "- Do not use mixed_offering just because one financing package has both notes and warrants; use warrant_convertible when equity-linked instruments are the main event.",
+    "- Mixed offering visible UI is Title, Dilution Snapshot, Dilution Summary, Mixed Offering share_overhang, Offering Details, and Instrument Details when instrument_details are source-backed. Write only those visible fields plus short list metadata.",
     "- Snapshot labels should summarize the main components, not every security line: Primary component, Resale component, Warrant/convertible component, Main risk.",
-    "- Offering Details labels: Offering Type, Component Summary, Purchaser / Investor, Selling Holders, Placement Agent / Underwriter, Source Instrument, Warrant Terms, Use of Proceeds.",
+    "- Use Resale component only for source-backed selling-holder resale. For warrant exercise, pre-funded warrant, convertible, preferred, or rights supply, use Warrant/convertible component or Main risk instead.",
+    "- Offering Details labels: Offering Type, Component Summary, Purchaser / Investor, Selling Holders, Placement Agent, Placement Agent / Underwriter, Assumed Offering Price, Assumed Combined Public Offering Price, Public Offering Price, Source Instrument, Warrant Terms, ADS Ratio, Underlying ADS Basis, Lock-up, Use of Proceeds.",
+    "- For mixed_offering, offering_details must contain at most 5 rows total, including Offering Type. Do not use snapshot component labels such as Primary component, Resale component, Warrant/convertible component, or Main risk as Offering Details rows.",
     "- Do not double-count the same shares across primary issuance, resale, warrants, convertibles, rights, units, or shelf tables.",
     "- For mixed_offering, fill share_overhang with source-backed chart labels, values, total_note, and segments. Do not rely on snapshot_metrics to drive the chart.",
-    "- For mixed_offering, identify main components in supply_segments and warrant_details. Do not compress material warrant, pre-funded warrant, convertible, right, unit, or preferred terms into Warrant Terms.",
+    "- For mixed_offering, identify current filing/offering components in supply_segments and instrument_details. Do not compress material warrant, pre-funded warrant, convertible, right, unit, or preferred terms into Warrant Terms. Do not include unrelated outstanding instruments from capitalization or dilution-history sections.",
     "",
     "spac_ipo:",
     "- Use for blank-check/SPAC IPO registration, not de-SPAC status.",
@@ -407,18 +424,6 @@ export function buildS1F1AnalysisPrompt(
     "Required Output JSON shape:",
     JSON.stringify(
       {
-        parser_output: {
-          parserVersion: parserOutput.parserVersion,
-          parserGroup: parserOutput.parserGroup,
-          formType: parserOutput.formType,
-          accessionNumber: parserOutput.accessionNumber,
-          isSupported: parserOutput.isSupported,
-          facts: {},
-          signals: [],
-          calendarItems: [],
-          warnings: [],
-          raw: {},
-        },
         analysis_output: {
           source_group: "filings",
           market_scope: "company",
@@ -525,6 +530,14 @@ export function buildS1F1AnalysisPrompt(
                   note: "string | null",
                 },
               ],
+              conditional_supply: [
+                {
+                  label: "visible conditional supply label",
+                  value: "visible conditional amount",
+                  numeric_value: "bare number, or null if variable",
+                  note: "short condition such as exercise-dependent",
+                },
+              ],
               note: "string | null",
             },
             investor_takeaway: "one short sentence or null",
@@ -536,7 +549,7 @@ export function buildS1F1AnalysisPrompt(
                 note: "short explanation or null",
               },
             ],
-            warrant_details: [
+            instrument_details: [
               {
                 label: "Type | Shares / Securities | Exercise / Conversion Price | Reset / Floor | Term / Limits",
                 value: "compact source-backed instrument value",
@@ -592,9 +605,9 @@ export function validateS1F1RequiredOutputShape(value: unknown): string[] {
 
   const parser = root.parser_output as Record<string, unknown> | undefined;
   const parserFacts = parser?.facts as Record<string, unknown> | undefined;
-  if (!parser || typeof parser !== "object") {
-    errors.push("parser_output must be an object.");
-  } else {
+  if (parser !== undefined && typeof parser !== "object") {
+    errors.push("parser_output must be an object when present.");
+  } else if (parser) {
     if (parser.parserGroup !== "s1-f1") errors.push("parser_output.parserGroup must be s1-f1.");
     if (parser.formType !== "S-1 / F-1, S-1/A / F-1/A") {
       errors.push("parser_output.formType must use the exact room scope label.");

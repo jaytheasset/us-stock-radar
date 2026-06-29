@@ -5,7 +5,7 @@ import { APPROVED_424B_EVENT_TYPES } from "@/lib/sources/sec/forms/424b/types";
 import type { Sec424bParserOutput } from "@/lib/sources/sec/forms/424b/types";
 
 export const SEC_424B_ANALYSIS_PROMPT_KEY = "sec_424b_analysis";
-export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v9";
+export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v11";
 const ALLOWED_424B_DISPLAY_MODES = new Set([
   "atm",
   "resale_registration",
@@ -343,6 +343,7 @@ function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput, displayPayload
 export function normalize424bOfferingDisplayModel(data: Record<string, unknown> | null) {
   if (!data) return null;
   const shareOverhang = normalizeShareOverhang(readRecord(data.share_overhang));
+  const instrumentDetails = normalizeInstrumentDetails(data.instrument_details);
   return {
     ...data,
     display_mode: stringValue(data.display_mode) || "offering_terms",
@@ -359,7 +360,7 @@ export function normalize424bOfferingDisplayModel(data: Record<string, unknown> 
     investor_takeaway: stringValue(data.investor_takeaway),
     offering_details: normalizeOfferingDetails(data.offering_details),
     amendment_changes: normalizeOfferingDetails(data.amendment_changes),
-    warrant_details: normalizeWarrantDetails(data.warrant_details),
+    instrument_details: instrumentDetails,
     narrative_summary: stringValue(data.narrative_summary),
     watch_items: readStringArray(data.watch_items),
     source_notes: readStringArray(data.source_notes),
@@ -400,6 +401,21 @@ function normalizeShareOverhang(value: Record<string, unknown> | null) {
       };
     })
     .filter(Boolean);
+  const conditionalSupply = arrayValue(value.conditional_supply || value.conditionalSupply)
+    .map((row) => {
+      const record = readRecord(row);
+      const label = stringValue(record?.label);
+      const rowValue = stringValue(record?.value) || stringValue(record?.value_text);
+      if (!label || !rowValue) return null;
+      return {
+        label,
+        value: rowValue,
+        numeric_value: numberValue(record?.numeric_value) ?? numberValue(record?.numericValue) ?? numberValue(record?.amount) ?? null,
+        note: nullableString(record?.note),
+        tone: nullableString(record?.tone),
+      };
+    })
+    .filter(Boolean);
   const totalNote = readRecord(value.total_note || value.totalNote);
   const normalizedTotalNote = totalNote
     ? {
@@ -426,6 +442,7 @@ function normalizeShareOverhang(value: Record<string, unknown> | null) {
     note: nullableString(value.note || value.footnote),
     unavailable_rows: unavailableRows,
     segments,
+    conditional_supply: conditionalSupply,
   };
 
   const hasContent =
@@ -438,6 +455,7 @@ function normalizeShareOverhang(value: Record<string, unknown> | null) {
       normalized.supply_value,
     ].some(Boolean) ||
     unavailableRows.length > 0 ||
+    conditionalSupply.length > 0 ||
     Boolean(normalizedTotalNote && Object.values(normalizedTotalNote).some(Boolean)) ||
     segments.length > 0;
   return hasContent ? normalized : null;
@@ -446,6 +464,7 @@ function normalizeShareOverhang(value: Record<string, unknown> | null) {
 function hasShareOverhangContent(value: Record<string, unknown> | null) {
   if (!value) return false;
   if (arrayValue(value.segments).length) return true;
+  if (arrayValue(value.conditional_supply || value.conditionalSupply).length) return true;
   const totalNote = readRecord(value.total_note || value.totalNote);
   if (totalNote && Object.keys(totalNote).length > 0) return true;
   return [
@@ -693,7 +712,7 @@ function normalizeOfferingDetails(value: unknown) {
     : [];
 }
 
-function normalizeWarrantDetails(value: unknown) {
+function normalizeInstrumentDetails(value: unknown) {
   return Array.isArray(value)
     ? value
         .map((item) => {
@@ -1000,6 +1019,21 @@ export const sec424bRequiredOutputSchema = {
                     },
                   },
                 },
+                conditional_supply: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    additionalProperties: true,
+                    required: ["label", "value", "numeric_value"],
+                    properties: {
+                      label: { type: "string" },
+                      value: { type: "string" },
+                      numeric_value: { type: ["number", "null"] },
+                      note: { type: ["string", "null"] },
+                      tone: { type: ["string", "null"] },
+                    },
+                  },
+                },
               },
             },
             key_cash_terms: {
@@ -1042,7 +1076,7 @@ export const sec424bRequiredOutputSchema = {
                 properties: {
                   label: { type: "string" },
                   value: { type: "string" },
-                  note: { type: "string" },
+                  note: { type: "string", maxLength: 80 },
                 },
               },
             },
@@ -1059,7 +1093,7 @@ export const sec424bRequiredOutputSchema = {
                 },
               },
             },
-            warrant_details: {
+            instrument_details: {
               type: "array",
               items: {
                 type: "object",

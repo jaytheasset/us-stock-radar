@@ -11953,6 +11953,19 @@ td {
   min-width: 0;
 }
 
+.dilution-overhang-segment-legend > span.conditional-supply b {
+  color: #64728a;
+}
+
+.dilution-overhang-segment-legend > span.conditional-supply strong {
+  color: #263755;
+}
+
+.dilution-overhang-segment-legend > span.conditional-supply em {
+  color: #7a6d82;
+  font-weight: 600;
+}
+
 .dilution-overhang-segment-legend i {
   width: 9px;
   height: 9px;

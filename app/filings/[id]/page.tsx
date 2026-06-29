@@ -4132,6 +4132,38 @@ function findDisclosureRowValue(rows: DilutionDisclosureRow[], label: string) {
   return rows.find((row) => row.label === label)?.value || "";
 }
 
+function computeVisibleShareOverhangScale(segments: ShareOverhangBarSegment[]) {
+  if (!segments.length) return null;
+  const numericSegments = segments.filter((segment) => typeof segment.numericValue === "number" && segment.numericValue > 0);
+  if (numericSegments.length !== segments.length) return null;
+
+  const currentValue = numericSegments
+    .filter((segment) => segment.className === "current-base")
+    .reduce((total, segment) => total + (segment.numericValue || 0), 0);
+  const supplyValue = numericSegments
+    .filter((segment) => segment.className !== "current-base")
+    .reduce((total, segment) => total + (segment.numericValue || 0), 0);
+  if (currentValue <= 0 || supplyValue <= 0) return null;
+
+  const unit = detectShareOverhangUnit(segments);
+  return {
+    currentValue: formatShareOverhangCount(currentValue, unit),
+    ratioValue: formatPercentCompact((supplyValue / currentValue) * 100) || "Variable",
+    supplyValue: formatShareOverhangCount(supplyValue, unit),
+  };
+}
+
+function detectShareOverhangUnit(segments: ShareOverhangBarSegment[]) {
+  const text = segments.map((segment) => segment.value).join(" ");
+  if (/\bADSs?\b/i.test(text)) return "ADSs";
+  if (/\bunits?\b/i.test(text)) return "units";
+  return "shares";
+}
+
+function formatShareOverhangCount(value: number, unit: string) {
+  return `${Math.round(value).toLocaleString("en-US")} ${unit}`;
+}
+
 function OfferingTermsShareOverhangDetails({
   fallbackSubtitle,
   fallbackSupplyDetailLabel,
@@ -4147,11 +4179,13 @@ function OfferingTermsShareOverhangDetails({
   if (!overhang) return <OfferingTermsSourceDetails model={model} />;
 
   const canRenderChart = overhang.overhangBarSegments.length > 0;
+  const computedScale = computeVisibleShareOverhangScale(overhang.overhangBarSegments);
   const rawRatioValue = overhang.totalNoteRatio || overhang.ratioValue || overhang.statusValue || "Variable";
-  const ratioValue = /%/.test(rawRatioValue) ? rawRatioValue : /%/.test(overhang.statusValue) ? overhang.statusValue : rawRatioValue;
-  const statusValue = overhang.statusValue || ratioValue;
-  const supplyValue = overhang.totalNoteNumerator || overhang.supplyValue || "Variable";
-  const currentValue = overhang.totalNoteDenominator || overhang.currentValue || "Not fixed yet";
+  const ratioValue =
+    computedScale?.ratioValue || (/%/.test(rawRatioValue) ? rawRatioValue : /%/.test(overhang.statusValue) ? overhang.statusValue : rawRatioValue);
+  const statusValue = computedScale?.ratioValue || overhang.statusValue || ratioValue;
+  const supplyValue = computedScale?.supplyValue || overhang.totalNoteNumerator || overhang.supplyValue || "Variable";
+  const currentValue = computedScale?.currentValue || overhang.totalNoteDenominator || overhang.currentValue || "Not fixed yet";
 
   return (
     <DilutionShareOverhang
@@ -4176,6 +4210,7 @@ function OfferingTermsShareOverhangDetails({
         showTotalNote: canRenderChart && Boolean(currentValue && supplyValue && ratioValue),
         requireProvidedSupplyDetails: true,
         supplyDetailRows: model.offeringDetailsRows,
+        conditionalSupplyRows: overhang.conditionalSupplyRows,
         extraDetailPanels: buildWarrantExtraDetailPanels(model),
         supplyDetailTitle: "Offering Details",
         supplyDetailLabel: overhang.supplyLabel || fallbackSupplyDetailLabel,
@@ -4576,6 +4611,7 @@ type LlmShareOverhangModel = {
   totalNoteSuffix: string;
   note: string;
   unavailableRows: Array<{ label: string; value: string; note?: string; tone?: "danger" | "neutral" }>;
+  conditionalSupplyRows: Array<{ label: string; value: string; note?: string; tone?: "danger" | "neutral" }>;
   overhangBarSegments: ShareOverhangBarSegment[];
 };
 
@@ -8614,6 +8650,7 @@ function readLlmShareOverhang(
 
   const totalNote = readPlainRecord(overhang.total_note) || {};
   const unavailableRows = readLlmShareOverhangRows(overhang.unavailable_rows || overhang.detail_rows || overhang.rows);
+  const conditionalSupplyRows = readLlmShareOverhangRows(overhang.conditional_supply || overhang.conditionalSupply);
   const overhangBarSegments = readLlmShareOverhangSegments(overhang.segments || overhang.bar_segments || overhang.barSegments);
   const model: LlmShareOverhangModel = {
     chartTitle: readOverhangStringLimited(overhang, 48, "chart_title", "chartTitle", "title"),
@@ -8634,6 +8671,7 @@ function readLlmShareOverhang(
     totalNoteSuffix: readOverhangStringLimited(totalNote, 72, "suffix", "note"),
     note: readOverhangStringLimited(overhang, 160, "note", "footnote"),
     unavailableRows,
+    conditionalSupplyRows,
     overhangBarSegments,
   };
 
@@ -8644,7 +8682,7 @@ function readLlmShareOverhang(
     model.ratioValue,
     model.currentValue,
     model.supplyValue,
-  ].some(Boolean) || unavailableRows.length > 0 || overhangBarSegments.length > 0;
+  ].some(Boolean) || unavailableRows.length > 0 || conditionalSupplyRows.length > 0 || overhangBarSegments.length > 0;
 
   return hasVisibleContent ? model : null;
 }
@@ -8653,6 +8691,7 @@ function hasRawShareOverhangContent(overhang: Record<string, unknown> | null) {
   if (!overhang) return false;
   const totalNote = readPlainRecord(overhang.total_note);
   if (recordArray(overhang.segments).length || (totalNote && Object.keys(totalNote).length > 0)) return true;
+  if (recordArray(overhang.conditional_supply || overhang.conditionalSupply).length) return true;
   return [
     overhang.status_value,
     overhang.statusValue,
@@ -9057,6 +9096,10 @@ function compactS3AmendmentNote(value: string) {
   return normalized;
 }
 
+function readInstrumentDetailsArray(model: Record<string, unknown> | null) {
+  return recordArray(model?.instrument_details);
+}
+
 function readWarrantDetailsRows(model: Record<string, unknown> | null): DilutionDisclosureRow[] {
   const allowed = new Set([
     "Type",
@@ -9068,7 +9111,7 @@ function readWarrantDetailsRows(model: Record<string, unknown> | null): Dilution
     "Exercise Price",
     "Exercise Status",
   ]);
-  const rows = recordArray(model?.warrant_details)
+  const rows = readInstrumentDetailsArray(model)
     .map((item) => {
       const label = cleanDisclosureValue(readRowString(item, "label"));
       const value = cleanDisclosureValue(readDisclosureValue(item.value) || readRowString(item, "value"));
@@ -9316,7 +9359,7 @@ function readRawWarrantDetailRows(model: Record<string, unknown> | null): Diluti
     "Floor Price",
     "Exercise Status",
   ]);
-  return recordArray(model?.warrant_details)
+  return readInstrumentDetailsArray(model)
     .map((item) => {
       const label = cleanDisclosureValue(readRowString(item, "label"));
       const value = cleanDisclosureValue(readDisclosureValue(item.value) || readRowString(item, "value"));

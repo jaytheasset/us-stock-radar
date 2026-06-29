@@ -1030,7 +1030,7 @@ function buildDisplayPayloadLabelGroups(debug: Record<string, unknown>) {
     { title: "Offering detail labels", items: collectDisplayPayloadLabels(debug.offering_details) },
     { title: "What changed labels", items: collectDisplayPayloadLabels(debug.amendment_changes) },
     { title: "Supply segment labels", items: collectDisplayPayloadLabels(debug.supply_segments) },
-    { title: "Instrument labels", items: collectDisplayPayloadLabels(debug.warrant_details) },
+    { title: "Instrument labels", items: collectDisplayPayloadLabels(debug.instrument_details) },
     { title: "Mixed component labels", items: collectDisplayPayloadLabels(debug.mixed_offering_components) },
     { title: "Cash term labels", items: collectDisplayPayloadLabels(debug.key_cash_terms) },
     { title: "S-8 context labels", items: collectDisplayPayloadLabels(debug.s8_context_details) },

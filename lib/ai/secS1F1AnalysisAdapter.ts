@@ -5,7 +5,7 @@ import { APPROVED_SEC_EVENT_TYPES, type S1F1ParserOutput } from "@/lib/sources/s
 import { normalize424bOfferingDisplayModel } from "@/lib/ai/sec424bAnalysisAdapter";
 
 export const SEC_S1_F1_ANALYSIS_PROMPT_KEY = "sec_s1_f1_analysis";
-export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v3";
+export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v6";
 
 const ALLOWED_S1_F1_DISPLAY_MODES = new Set([
   "ipo_registration",
@@ -132,9 +132,16 @@ const S1_F1_OFFERING_DETAIL_LABELS_BY_MODE: Record<string, readonly string[]> = 
     "Component Summary",
     "Purchaser / Investor",
     "Selling Holders",
+    "Placement Agent",
     "Placement Agent / Underwriter",
+    "Assumed Offering Price",
+    "Assumed Combined Public Offering Price",
+    "Public Offering Price",
     "Source Instrument",
     "Warrant Terms",
+    "ADS Ratio",
+    "Underlying ADS Basis",
+    "Lock-up",
     "Use of Proceeds",
   ],
   mixed_registration: [
@@ -142,9 +149,16 @@ const S1_F1_OFFERING_DETAIL_LABELS_BY_MODE: Record<string, readonly string[]> = 
     "Component Summary",
     "Purchaser / Investor",
     "Selling Holders",
+    "Placement Agent",
     "Placement Agent / Underwriter",
+    "Assumed Offering Price",
+    "Assumed Combined Public Offering Price",
+    "Public Offering Price",
     "Source Instrument",
     "Warrant Terms",
+    "ADS Ratio",
+    "Underlying ADS Basis",
+    "Lock-up",
     "Use of Proceeds",
   ],
   spac_ipo: ["Sponsor", "Trust Account", "Redemption Terms", "Unit Components", "Proposed Exchange"],
@@ -179,7 +193,7 @@ export function buildSecS1F1AnalysisPromptForInput(input: SecFilingAnalysisInput
     version: SEC_S1_F1_ANALYSIS_PROMPT_VERSION,
     system: [
       "Analyze one SEC S-1/F-1 registration filing from cleaned source blocks.",
-      "Return the Required Output JSON shape with one primary display_payload.data.display_mode.",
+      "Return only analysis_output and display_payload, with one primary display_payload.data.display_mode.",
       "There is no S-1/F-1 router LLM and no parser-completed display payload. Choose event_type, display_type, score, and display_payload from the source blocks.",
       "For offering_terms, generic analysis fields are storage/list compatibility only and must match the selected display payload.",
       "Use generic for the common filing detail page, offering_terms for IPO/offering/resale/MEF/POS AM registration terms, and spac_transaction_status only for source-backed de-SPAC status.",
@@ -400,6 +414,13 @@ function validateS1F1OverhangFacts(data: Record<string, unknown>) {
     : "";
   const mentionsOverhang = /\b(?:overhang|dilution|outstanding)\b/i.test(snapshotText);
   if (!hasSupplyNumerator && !mentionsOverhang) return "";
+  if (
+    hasNumericShareOverhangSegment(data, "current") &&
+    hasNumericShareOverhangSegment(data, "supply") &&
+    hasVisibleShareOverhangRatio(data)
+  ) {
+    return "";
+  }
   if (requiresOverhangSnapshotLabel && hasSupplyNumerator && !/\boverhang\s+vs\.?\s+outstanding\b/i.test(snapshotText)) {
     return "SEC S-1/F-1 resale display must include snapshot_metrics row labeled Overhang vs outstanding when total_potential_supply is available";
   }
@@ -418,6 +439,26 @@ function validateS1F1OverhangFacts(data: Record<string, unknown>) {
 function hasNumericDisplayFactValue(fact: Record<string, unknown> | null) {
   const value = numberValue(fact?.numeric_value) ?? numberValue(fact?.numericValue);
   return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+function hasNumericShareOverhangSegment(data: Record<string, unknown>, kind: "current" | "supply") {
+  const shareOverhang = readRecord(data.share_overhang);
+  const segments = Array.isArray(shareOverhang?.segments) ? shareOverhang.segments : [];
+  return segments.some((item) => {
+    const record = readRecord(item);
+    const numericValue = numberValue(record?.numeric_value) ?? numberValue(record?.numericValue);
+    if (typeof numericValue !== "number" || !Number.isFinite(numericValue) || numericValue <= 0) return false;
+    const className = stringValue(record?.class_name || record?.className);
+    return kind === "current" ? className === "current-base" : className !== "current-base";
+  });
+}
+
+function hasVisibleShareOverhangRatio(data: Record<string, unknown>) {
+  const shareOverhang = readRecord(data.share_overhang);
+  return Boolean(
+    stringValue(shareOverhang?.status_value || shareOverhang?.statusValue) ||
+      stringValue(shareOverhang?.ratio_value || shareOverhang?.ratioValue),
+  );
 }
 
 function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput, displayPayloadWarnings: string[] = []) {
@@ -451,12 +492,31 @@ function normalizeS1F1DisplayPayload(displayPayload: Record<string, unknown> | n
   const data = readRecord(displayPayload.data);
   if (!data) return displayPayload;
   const displayMode = stringValue(data.display_mode);
-  if (displayMode !== "mixed_registration") return displayPayload;
-  return {
+  const normalizedData =
+    displayMode === "mixed_registration"
+      ? {
+          ...data,
+          display_mode: "mixed_offering",
+        }
+      : data;
+  const normalizedPayload = {
     ...displayPayload,
+    data: normalizedData,
+  };
+  if (stringValue((normalizedPayload as Record<string, unknown>).display_type) !== "offering_terms") {
+    return normalizedPayload;
+  }
+  const normalizedPayloadData = readRecord(normalizedPayload.data) || {};
+  const hasReviewFlag =
+    normalizedPayloadData.needs_human_review === true ||
+    normalizedPayloadData.needsHumanReview === true;
+  return {
+    ...normalizedPayload,
+    evidence: hasReviewFlag ? displayPayload.evidence : [],
+    notes: hasReviewFlag ? displayPayload.notes : [],
     data: {
-      ...data,
-      display_mode: "mixed_offering",
+      ...normalizedPayloadData,
+      source_notes: hasReviewFlag ? normalizedPayloadData.source_notes : [],
     },
   };
 }
@@ -533,6 +593,8 @@ function alignS1F1AnalysisOutputToDisplayPayload(
   if (displayMode && displayMode !== "generic") {
     aligned.bullish_points = [];
     aligned.bearish_points = [];
+    aligned.key_evidence = [];
+    aligned.what_to_watch_next = [];
   }
   return aligned;
 }
@@ -690,7 +752,7 @@ export const secS1F1RequiredOutputSchema = {
         source_group: { type: "string", enum: ["filings"] },
         market_scope: { type: "string", enum: ["company", "sector", "theme", "macro"] },
         event_type: { type: "string", enum: APPROVED_SEC_EVENT_TYPES },
-        event_title: { type: "string" },
+        event_title: { type: "string", maxLength: 160 },
         primary_ticker: {
           type: ["object", "null"],
           additionalProperties: true,
@@ -705,15 +767,15 @@ export const secS1F1RequiredOutputSchema = {
         theme_group: { type: ["string", "null"] },
         sub_theme: { type: ["string", "null"] },
         score: { type: "integer", minimum: 0, maximum: 100 },
-        score_reason: { type: "string" },
+        score_reason: { type: "string", maxLength: 120 },
         signal: { type: "string", enum: ["bullish", "bearish", "volatile", "neutral"] },
-        quick_take: { type: "string" },
-        summary: { type: "string" },
-        why_it_matters: { type: "string" },
-        bullish_points: { type: "array", items: { type: "string" } },
-        bearish_points: { type: "array", items: { type: "string" } },
-        key_evidence: { type: "array", items: { type: "string" } },
-        what_to_watch_next: { type: "array", items: { type: "string" } },
+        quick_take: { type: "string", maxLength: 240 },
+        summary: { type: "string", maxLength: 700 },
+        why_it_matters: { type: "string", maxLength: 260 },
+        bullish_points: { type: "array", maxItems: 3, items: { type: "string", maxLength: 140 } },
+        bearish_points: { type: "array", maxItems: 3, items: { type: "string", maxLength: 140 } },
+        key_evidence: { type: "array", maxItems: 2, items: { type: "string", maxLength: 160 } },
+        what_to_watch_next: { type: "array", maxItems: 2, items: { type: "string", maxLength: 160 } },
         related_tickers: { type: "array", items: { type: ["object", "string"], additionalProperties: true } },
         calendar_items: { type: "array", items: { type: "object", additionalProperties: true } },
         confidence: { type: "string", enum: ["high", "medium", "low"] },
@@ -837,6 +899,21 @@ export const secS1F1RequiredOutputSchema = {
                     },
                   },
                 },
+                conditional_supply: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    additionalProperties: true,
+                    required: ["label", "value", "numeric_value"],
+                    properties: {
+                      label: { type: "string" },
+                      value: { type: "string" },
+                      numeric_value: { type: ["number", "null"] },
+                      note: { type: ["string", "null"] },
+                      tone: { type: ["string", "null"] },
+                    },
+                  },
+                },
                 note: { type: ["string", "null"] },
               },
             },
@@ -855,7 +932,7 @@ export const secS1F1RequiredOutputSchema = {
                 },
               },
             },
-            warrant_details: {
+            instrument_details: {
               type: "array",
               items: {
                 type: "object",
@@ -880,13 +957,13 @@ export const secS1F1RequiredOutputSchema = {
                 },
               },
             },
-            source_notes: { type: "array", items: { type: "string" } },
+            source_notes: { type: "array", maxItems: 2, items: { type: "string", maxLength: 160 } },
             needs_human_review: { type: "boolean" },
             review_reasons: { type: "array", items: { type: "string" } },
           },
         },
-        evidence: { type: "array", items: { type: "string" } },
-        notes: { type: "array", items: { type: "string" } },
+        evidence: { type: "array", maxItems: 2, items: { type: "string", maxLength: 160 } },
+        notes: { type: "array", maxItems: 2, items: { type: "string", maxLength: 160 } },
       },
     },
   },
