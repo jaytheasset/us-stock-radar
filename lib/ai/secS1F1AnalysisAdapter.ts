@@ -5,7 +5,7 @@ import { APPROVED_SEC_EVENT_TYPES, type S1F1ParserOutput } from "@/lib/sources/s
 import { normalize424bOfferingDisplayModel } from "@/lib/ai/sec424bAnalysisAdapter";
 
 export const SEC_S1_F1_ANALYSIS_PROMPT_KEY = "sec_s1_f1_analysis";
-export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v6";
+export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v7";
 
 const ALLOWED_S1_F1_DISPLAY_MODES = new Set([
   "ipo_registration",
