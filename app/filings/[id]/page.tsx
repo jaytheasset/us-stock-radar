@@ -8685,27 +8685,37 @@ function readLlmShareOverhangRows(value: unknown): LlmShareOverhangModel["unavai
 
 function readLlmShareOverhangSegments(value: unknown): ShareOverhangBarSegment[] {
   const rawSegments = recordArray(value)
-    .map((segment, index): ShareOverhangBarSegment | null => {
+    .map((segment, index) => {
       const label = readOverhangString(segment, "label");
       const segmentValue = readOverhangString(segment, "value", "value_text", "valueText");
       if (!label || !segmentValue) return null;
-      const width = readOverhangNumber(segment, "width_percent", "widthPercent", "width");
       return {
         key: readOverhangString(segment, "key") || `llm-share-overhang-${index}`,
         className: normalizeLlmShareOverhangSegmentClass(readOverhangString(segment, "class_name", "className", "role") || label),
         label,
         value: segmentValue,
         ...(readOverhangString(segment, "note") ? { note: readOverhangString(segment, "note") } : {}),
-        width,
-        compact: width > 0 && (width < 24 || label.length > 28),
+        numericValue: readOverhangSegmentStructuredAmount(segment),
       };
     })
-    .filter((segment): segment is ShareOverhangBarSegment => segment !== null);
+    .filter(
+      (
+        segment,
+      ): segment is {
+        key: string;
+        className: string;
+        label: string;
+        value: string;
+        note?: string;
+        numericValue: number | null;
+      } => segment !== null,
+    );
 
   if (!rawSegments.length) return [];
   const fallbackWidth = 100 / rawSegments.length;
+  const canUseNumericValues = rawSegments.every((segment) => typeof segment.numericValue === "number" && segment.numericValue > 0);
   const displaySegments = rawSegments.map((segment) => {
-    const width = segment.width > 0 ? Math.min(100, Math.max(4, segment.width)) : fallbackWidth;
+    const width = canUseNumericValues ? segment.numericValue || 0 : fallbackWidth;
     return {
       ...segment,
       width,
@@ -8724,6 +8734,15 @@ function readLlmShareOverhangSegments(value: unknown): ShareOverhangBarSegment[]
   });
 }
 
+function readOverhangSegmentStructuredAmount(record: Record<string, unknown>) {
+  for (const key of ["numeric_value", "numericValue", "amount", "share_count", "shareCount"]) {
+    if (!Object.prototype.hasOwnProperty.call(record, key)) continue;
+    const value = readRowNumber(record, key);
+    return value > 0 ? value : null;
+  }
+  return undefined;
+}
+
 function readOverhangString(record: Record<string, unknown>, ...keys: string[]) {
   for (const key of keys) {
     const value = cleanDisclosureValue(readDisclosureValue(record[key]) || readRowString(record, key));
@@ -8736,14 +8755,6 @@ function readOverhangStringLimited(record: Record<string, unknown>, maxLength: n
   const value = readOverhangString(record, ...keys);
   if (!value || value.length <= maxLength) return value;
   return `${value.slice(0, Math.max(0, maxLength - 1)).trim()}...`;
-}
-
-function readOverhangNumber(record: Record<string, unknown>, ...keys: string[]) {
-  for (const key of keys) {
-    const value = readRowNumber(record, key);
-    if (value) return value;
-  }
-  return 0;
 }
 
 function normalizeLlmShareOverhangSegmentClass(value: string) {

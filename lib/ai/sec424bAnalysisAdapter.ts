@@ -19,6 +19,20 @@ const ALLOWED_424B_DISPLAY_MODES = new Set([
   "generic",
 ]);
 
+export const APPROVED_424B_SHARE_OVERHANG_CHART_TITLES = [
+  "Share Dilution",
+  "Share Overhang",
+  "Warrant Share Supply",
+  "Convertible Share Supply",
+  "Preferred Conversion Supply",
+  "Pre-Funded Warrant Supply",
+  "Mixed Instrument Supply",
+  "Mixed Offering",
+  "Rights Offering",
+  "ATM Program",
+  "Shelf Details",
+] as const;
+
 export type Sec424bAnalysisAdapterResult =
   | { ok: true; analysis: Record<string, unknown> }
   | { ok: false; error: string };
@@ -381,8 +395,8 @@ function normalizeShareOverhang(value: Record<string, unknown> | null) {
         class_name: nullableString(record?.class_name || record?.className),
         label,
         value: segmentValue,
+        numeric_value: numberValue(record?.numeric_value) ?? numberValue(record?.numericValue) ?? numberValue(record?.amount) ?? null,
         note: nullableString(record?.note),
-        width_percent: numberValue(record?.width_percent) ?? numberValue(record?.widthPercent) ?? numberValue(record?.width) ?? null,
       };
     })
     .filter(Boolean);
@@ -960,7 +974,7 @@ export const sec424bRequiredOutputSchema = {
                 "segments",
               ],
               properties: {
-                chart_title: { type: "string" },
+                chart_title: { type: "string", enum: APPROVED_424B_SHARE_OVERHANG_CHART_TITLES },
                 subtitle: { type: "string" },
                 status_label: { type: "string" },
                 status_value: { type: "string" },
@@ -976,12 +990,12 @@ export const sec424bRequiredOutputSchema = {
                   items: {
                     type: "object",
                     additionalProperties: true,
-                    required: ["class_name", "label", "value", "width_percent"],
+                    required: ["class_name", "label", "value", "numeric_value"],
                     properties: {
                       class_name: { type: "string" },
                       label: { type: "string" },
                       value: { type: "string" },
-                      width_percent: { type: "number" },
+                      numeric_value: { type: ["number", "null"] },
                       note: { type: ["string", "null"] },
                     },
                   },

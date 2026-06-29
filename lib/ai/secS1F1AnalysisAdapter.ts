@@ -26,59 +26,23 @@ const ALLOWED_S1_F1_DISPLAY_MODES = new Set([
   "generic",
 ]);
 
-const ALLOWED_S1_F1_SNAPSHOT_LABELS = [
-  "Filing stage",
-  "Terms status",
-  "Proposed exchange / ticker",
-  "Underwriters",
-  "Shares / ADS offered",
-  "Shares offered",
-  "Price range",
-  "Gross proceeds",
-  "Offering size",
-  "Exchange / ticker",
-  "Proposed exchange",
-  "Updated shares / ADS",
-  "Updated price range",
-  "Updated offering size",
-  "Key change",
-  "Resale shares",
-  "Overhang vs outstanding",
-  "Company proceeds",
-  "Selling holders",
-  "Program size",
-  "Market cap",
-  "Size vs market cap",
-  "Sale method",
-  "New shares",
-  "Offer price",
-  "Dilution vs current shares",
-  "Underlying shares",
-  "Exercise / conversion price",
-  "Rights offered",
-  "Subscription price",
-  "Record date",
-  "Subscription period",
-  "Shelf capacity",
-  "Capacity vs market cap",
-  "Sale status",
-  "Source instrument",
-  "Primary component",
-  "Resale component",
-  "Warrant/convertible component",
-  "Main risk",
-  "Units offered",
-  "Unit price",
-  "Trust amount",
-  "Warrant / right terms",
-  "Additional shares / ADS",
-  "Total registered pool",
-  "Additional offering value",
-  "Rule 462(b) limit",
-  "Amendment type",
-  "Securities affected",
-  "Registration status",
-  "New sale / proceeds",
+const APPROVED_S1_F1_SHARE_OVERHANG_CHART_TITLES = [
+  "Share Dilution",
+  "Share Overhang",
+  "Warrant Share Supply",
+  "Convertible Share Supply",
+  "Preferred Conversion Supply",
+  "Pre-Funded Warrant Supply",
+  "Mixed Instrument Supply",
+  "Mixed Offering",
+  "Rights Offering",
+  "ATM Program",
+  "Shelf Details",
+  "Initial IPO Filing",
+  "IPO Terms Update",
+  "Rule 462(b) MEF",
+  "SPAC IPO Terms",
+  "Amendment Summary",
 ] as const;
 
 const S1_F1_OFFERING_DETAIL_LABELS_BY_MODE: Record<string, readonly string[]> = {
@@ -424,6 +388,7 @@ function appendS1F1DisplayWarnings(data: Record<string, unknown>, warnings: stri
 function validateS1F1OverhangFacts(data: Record<string, unknown>) {
   const displayMode = stringValue(data.display_mode);
   if (!["resale_registration", "mixed_offering", "mixed_registration"].includes(displayMode)) return "";
+  const requiresOverhangSnapshotLabel = displayMode !== "mixed_offering";
   const hasSupplyNumerator = hasNumericDisplayFactValue(readRecord(data.total_potential_supply));
   const snapshotText = Array.isArray(data.snapshot_metrics)
     ? data.snapshot_metrics
@@ -435,8 +400,8 @@ function validateS1F1OverhangFacts(data: Record<string, unknown>) {
     : "";
   const mentionsOverhang = /\b(?:overhang|dilution|outstanding)\b/i.test(snapshotText);
   if (!hasSupplyNumerator && !mentionsOverhang) return "";
-  if (hasSupplyNumerator && !/\boverhang\s+vs\.?\s+outstanding\b/i.test(snapshotText)) {
-    return "SEC S-1/F-1 resale/mixed display must include snapshot_metrics row labeled Overhang vs outstanding when total_potential_supply is available";
+  if (requiresOverhangSnapshotLabel && hasSupplyNumerator && !/\boverhang\s+vs\.?\s+outstanding\b/i.test(snapshotText)) {
+    return "SEC S-1/F-1 resale display must include snapshot_metrics row labeled Overhang vs outstanding when total_potential_supply is available";
   }
   if (!hasNumericDisplayFactValue(readRecord(data.current_shares))) {
     return "SEC S-1/F-1 overhang snapshot must include numeric display_payload.data.current_shares from filing data when available; market_context shares are allowed only when the filing provides no denominator";
@@ -808,7 +773,7 @@ export const secS1F1RequiredOutputSchema = {
                 additionalProperties: true,
                 required: ["label", "value"],
                 properties: {
-                  label: { type: "string", enum: ALLOWED_S1_F1_SNAPSHOT_LABELS },
+                  label: { type: "string" },
                   value: { type: "string" },
                   note: { type: ["string", "null"] },
                   tone: { type: ["string", "null"] },
@@ -834,7 +799,7 @@ export const secS1F1RequiredOutputSchema = {
                 "segments",
               ],
               properties: {
-                chart_title: { type: "string" },
+                chart_title: { type: "string", enum: APPROVED_S1_F1_SHARE_OVERHANG_CHART_TITLES },
                 subtitle: { type: "string" },
                 status_label: { type: "string" },
                 status_value: { type: "string" },
@@ -861,14 +826,14 @@ export const secS1F1RequiredOutputSchema = {
                   items: {
                     type: "object",
                     additionalProperties: true,
-                    required: ["class_name", "label", "value", "width_percent"],
+                    required: ["class_name", "label", "value", "numeric_value"],
                     properties: {
                       key: { type: ["string", "null"] },
                       class_name: { type: "string" },
                       label: { type: "string" },
                       value: { type: "string" },
+                      numeric_value: { type: ["number", "null"] },
                       note: { type: ["string", "null"] },
-                      width_percent: { type: "number" },
                     },
                   },
                 },
