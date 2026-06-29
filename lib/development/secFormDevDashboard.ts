@@ -716,6 +716,7 @@ function buildRuntimeAnalysisItem(rawItem: RawItemRow, result: unknown) {
   const rawPayload = readRecord(rawItem.raw_payload);
   const analysis = readRecord(resultRecord.analysis);
   const ok = resultRecord.ok === true;
+  const llmFailureDebug = ok ? null : buildLlmFailureDebug(resultRecord);
   const investableUniverseGate = readRecord(filingPackage?.investable_universe_gate);
   const isExcluded = isSkipAnalysisResult(analysis, investableUniverseGate);
   const parserSignals = readParserSignalsFromHardParsers(hardParsers);
@@ -769,6 +770,7 @@ function buildRuntimeAnalysisItem(rawItem: RawItemRow, result: unknown) {
     score,
     delivery_level: deliveryLevel,
     stage: stringValue(resultRecord.stage) || null,
+    llm_failure_debug: llmFailureDebug,
     runtime_output: analysis
       ? {
           event_title: stringValue(analysis.event_title),
@@ -802,6 +804,60 @@ function buildRuntimeAnalysisItem(rawItem: RawItemRow, result: unknown) {
         }
       : null,
     error: ok ? null : stringValue(resultRecord.error) || null,
+  };
+}
+
+function buildLlmFailureDebug(result: Record<string, unknown>) {
+  const outputText = stringValue(result.outputText);
+  const rawResponse = readRecord(result.rawOpenAIResponse);
+  const runtime = readRecord(result.runtime);
+  const input = readRecord(result.input);
+  const usage = readRecord(result.usage);
+  const candidateSummaries = Array.isArray(rawResponse?.candidates)
+    ? rawResponse.candidates.map((candidate, index) => {
+        const candidateRecord = readRecord(candidate) || {};
+        const content = readRecord(candidateRecord.content);
+        const parts = Array.isArray(content?.parts) ? content.parts : [];
+        const text = parts
+          .map((part) => stringValue(readRecord(part)?.text))
+          .filter(Boolean)
+          .join("\n");
+        return {
+          index,
+          finishReason: stringValue(candidateRecord.finishReason) || null,
+          textLength: text.length,
+          textPreview: text ? text.slice(0, 4000) : null,
+          safetyRatings: candidateRecord.safetyRatings || null,
+        };
+      })
+    : [];
+
+  return {
+    stage: stringValue(result.stage) || null,
+    status: result.status ?? null,
+    error: stringValue(result.error) || null,
+    prompt: runtime ? readRecord(runtime.prompt) || runtime : null,
+    outputTextLength: outputText.length,
+    outputTextPreview: outputText ? outputText.slice(0, 8000) : null,
+    outputTextTail: outputText && outputText.length > 8000 ? outputText.slice(-4000) : null,
+    usage,
+    rawResponseSummary: rawResponse
+      ? {
+          responseId: stringValue(rawResponse.responseId) || null,
+          error: readRecord(rawResponse.error) || null,
+          promptFeedback: rawResponse.promptFeedback || null,
+          usageMetadata: rawResponse.usageMetadata || null,
+          candidates: candidateSummaries,
+        }
+      : null,
+    sourceItem: result.sourceItem || null,
+    filingPackage: readRecord(input?.filing_package)
+      ? {
+          form_type: stringValue(readRecord(input?.filing_package)?.form_type) || null,
+          accession_number: stringValue(readRecord(input?.filing_package)?.accession_number) || null,
+          form_family: stringValue(readRecord(input?.filing_package)?.form_family) || null,
+        }
+      : null,
   };
 }
 
@@ -1185,7 +1241,37 @@ export async function runSecDevControlledPersist(
       llmModel: stringValue(options.llmModel) || undefined,
     });
     if (!analysis.ok) {
-      throw new Error(analysis.error || "Controlled SEC analysis persist failed");
+      const failureRawResult = await findSecRawItem({
+        rawItemId: rawResult.rawItemId || rawItemId || undefined,
+        accessionNumber: accessionNumber || rawResult.accessionNumber || undefined,
+      });
+      const failureItem = failureRawResult.rawItem ? buildRuntimeAnalysisItem(failureRawResult.rawItem, analysis) : null;
+      const analysisFailure = readRecord(analysis) || {};
+      const runtime = readRecord(analysisFailure.runtime);
+      liveRun = {
+        mode: "controlled_persist",
+        status: "fail",
+        ranAt,
+        durationMs: Date.now() - started,
+        room: room.key,
+        formTypes: room.forms,
+        accessionNumber: accessionNumber || stringValue(rawResult.accessionNumber) || null,
+        rawItemId: rawResult.rawItemId || rawItemId || null,
+        summary: "Controlled persist failed before event save; analysis did not produce a persisted event.",
+        items: failureItem ? [failureItem] : [],
+        diagnostics: {
+          raw_source: rawResult.source,
+          reset_existing_analysis: resetResult,
+          failure_raw_lookup: failureRawResult.ok
+            ? { ok: true, rawItemId: stringValue(failureRawResult.rawItem?.id) || null }
+            : { ok: false, error: failureRawResult.error || "raw item lookup failed" },
+          prompt: readRecord(runtime?.prompt) || null,
+          llm_failure: failureItem ? readRecord(failureItem.llm_failure_debug) || null : buildLlmFailureDebug(analysisFailure),
+        },
+        error: stringValue(analysis.error) || "Controlled SEC analysis persist failed",
+      };
+      await appendLiveRun(room.key, liveRun);
+      return getSecDevRoomDetail(room.key);
     }
 
     const event = readRecord(analysis.event);
