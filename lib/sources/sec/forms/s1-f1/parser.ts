@@ -3196,6 +3196,11 @@ const PRIORITY_SOURCE_CONTEXTS: Array<{
   sectionKey: string;
   sectionTitle: string;
   patterns: RegExp[];
+  window?: {
+    before?: number;
+    after?: number;
+    alignToLines?: boolean;
+  };
 }> = [
   {
     sectionKey: "share_count_basis_context",
@@ -3207,6 +3212,22 @@ const PRIORITY_SOURCE_CONTEXTS: Array<{
       /\bshares?\s+outstanding\s+(?:prior to|before|immediately prior to|as of|after|assuming)/i,
       /\boutstanding\s+(?:prior to|before|immediately prior to|as of|after|assuming)\s+(?:this|the)\s+(?:offering|resale|transaction|conversion)/i,
     ],
+  },
+  {
+    sectionKey: "instrument_supply_context",
+    sectionTitle: "Instrument supply source context",
+    patterns: [
+      /\bClass\s+[A-Z]\s+Ordinary Shares\s+Underlying\s+the\s+Series\s+[A-Z]\s+Warrants\b/i,
+      /\b(?:shares|ordinary shares|ADSs?|common stock|Class\s+[A-Z]\s+Ordinary Shares)\s+Underlying\s+the\s+(?:Series\s+[A-Z]\s+)?(?:Warrants?|Pre-Funded Warrants?|Options?|Convertible Notes?)/i,
+      /\bzero exercise price\b/i,
+      /\bFloor Price\b/i,
+      /\bReset Date\b/i,
+    ],
+    window: {
+      before: 900,
+      after: 3_000,
+      alignToLines: false,
+    },
   },
   {
     sectionKey: "underwriting_context",
@@ -3262,9 +3283,21 @@ function regexWithGlobal(pattern: RegExp): RegExp {
   return new RegExp(pattern.source, flags);
 }
 
-function sourceWindow(text: string, index: number, before = 1000, after = 5000): { start: number; end: number } {
+function sourceWindow(
+  text: string,
+  index: number,
+  before = 1000,
+  after = 5000,
+  alignToLines = true,
+): { start: number; end: number } {
   const roughStart = Math.max(0, index - before);
   const roughEnd = Math.min(text.length, index + after);
+  if (!alignToLines) {
+    return {
+      start: roughStart,
+      end: roughEnd,
+    };
+  }
   const lineStart = text.lastIndexOf("\n", roughStart);
   const nextLineEnd = text.indexOf("\n", roughEnd);
   return {
@@ -3282,7 +3315,13 @@ function collectPrioritySourceBlocks(text: string): NonNullable<S1F1ParserOutput
       const regex = regexWithGlobal(pattern);
       let match: RegExpExecArray | null;
       while ((match = regex.exec(text)) !== null) {
-        const range = sourceWindow(text, match.index);
+        const range = sourceWindow(
+          text,
+          match.index,
+          context.window?.before ?? 1000,
+          context.window?.after ?? 5000,
+          context.window?.alignToLines ?? true,
+        );
         const overlapping = ranges.find((item) => range.start <= item.end && range.end >= item.start);
         if (overlapping) {
           overlapping.start = Math.min(overlapping.start, range.start);

@@ -508,6 +508,32 @@ describe("S-1/F-1 section-specific extraction", () => {
     assert.match(String(basisBlock.text), /25,557,408 shares/i);
   });
 
+  it("preserves source instrument underlying supply rows in LLM source blocks", () => {
+    const filler = Array.from({ length: 140 }, (_, index) => `<p>Background paragraph ${index + 1} with ordinary issuer text.</p>`).join("\n");
+    const parserOutput = parseS1F1Filing({
+      formType: "F-1",
+      filingText: `<html><body>
+        <div><b>The Offering</b></div>
+        <p>We are offering ordinary units and pre-funded units.</p>
+        ${filler}
+        <table>
+          <tr><td>Up to 18,248,175 Class A Ordinary Shares Underlying the Pre-Funded Warrants</td></tr>
+          <tr><td>Up to 95,802,920 Class A Ordinary Shares Underlying the Series A Warrants</td></tr>
+          <tr><td>Up to 273,722,627 Class A Ordinary Shares Underlying the Series B Warrants, which contains a zero exercise price option</td></tr>
+        </table>
+      </body></html>`,
+    });
+    const llmInput = buildS1F1LlmSourceInput(parserOutput);
+    const blocks = llmInput.cleaned_source_blocks as Array<Record<string, unknown>>;
+    const supplyBlock = blocks.find(
+      (block) => String(block.sectionKey || "").startsWith("instrument_supply_context") && String(block.text).includes("273,722,627"),
+    );
+
+    assert.ok(supplyBlock);
+    assert.match(String(supplyBlock.text), /Class A Ordinary Shares Underlying the Series B Warrants/i);
+    assert.match(String(supplyBlock.text), /zero exercise price/i);
+  });
+
   it("uses ipo_listing for traditional and SPAC IPOs but not ordinary resale registrations", () => {
     const traditional = parseS1F1Filing({
       formType: "S-1",
