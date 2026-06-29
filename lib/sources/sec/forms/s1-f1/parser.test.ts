@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import { buildDeterministicS1F1Result, parseS1F1Filing } from "./parser.ts";
+import { buildS1F1LlmSourceInput } from "./sourceInput.ts";
 import { APPROVED_SEC_EVENT_TYPES, type S1F1ParserInput } from "./types.ts";
 
 const ROOM_URL = new URL("./", import.meta.url);
@@ -482,6 +483,29 @@ describe("S-1/F-1 section-specific extraction", () => {
     assert.match(combinedBlocks, /Morgan Stanley/i);
     assert.match(combinedBlocks, /J\.P\. Morgan/i);
     assert.match(combinedBlocks, /representatives of the underwriters/i);
+  });
+
+  it("preserves source share-count basis rows in LLM source blocks", () => {
+    const filler = Array.from({ length: 140 }, (_, index) => `<p>Background paragraph ${index + 1} with ordinary issuer text.</p>`).join("\n");
+    const parserOutput = parseS1F1Filing({
+      formType: "S-1",
+      filingText: `<html><body>
+        <div><b>Prospectus Summary</b></div>
+        <p>This prospectus relates to the resale by selling stockholders of common stock.</p>
+        ${filler}
+        <table>
+          <tr><td>Shares of Common Stock Outstanding Prior to this Offering</td><td>25,557,408 shares as of May 8, 2026</td></tr>
+          <tr><td>Shares of Common Stock Outstanding assuming conversion of the Convertible Notes and exercise of all Warrants</td><td>43,782,033 shares</td></tr>
+        </table>
+      </body></html>`,
+    });
+    const llmInput = buildS1F1LlmSourceInput(parserOutput);
+    const blocks = llmInput.cleaned_source_blocks as Array<Record<string, unknown>>;
+    const basisBlock = blocks.find((block) => String(block.sectionKey || "").startsWith("share_count_basis_context"));
+
+    assert.ok(basisBlock);
+    assert.match(String(basisBlock.text), /Shares of Common Stock Outstanding Prior to this Offering/i);
+    assert.match(String(basisBlock.text), /25,557,408 shares/i);
   });
 
   it("uses ipo_listing for traditional and SPAC IPOs but not ordinary resale registrations", () => {

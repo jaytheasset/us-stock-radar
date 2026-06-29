@@ -3198,6 +3198,17 @@ const PRIORITY_SOURCE_CONTEXTS: Array<{
   patterns: RegExp[];
 }> = [
   {
+    sectionKey: "share_count_basis_context",
+    sectionTitle: "Share count basis source context",
+    patterns: [
+      /\bshares?\s+of\s+(?:Class\s+[A-Z]\s+)?(?:common stock|ordinary shares|ADSs?)\s+outstanding\s+(?:prior to|before|immediately prior to|as of|after|assuming)/i,
+      /\b(?:Class\s+[A-Z]\s+)?(?:common stock|ordinary shares|ADSs?)\s+(?:outstanding|issued and outstanding)\s+(?:prior to|before|immediately prior to|as of|after|assuming)/i,
+      /\b(?:shares outstanding|common stock outstanding|ordinary shares outstanding|ADSs? outstanding)\s+(?:prior to|before|immediately prior to|as of|after|assuming)/i,
+      /\bshares?\s+outstanding\s+(?:prior to|before|immediately prior to|as of|after|assuming)/i,
+      /\boutstanding\s+(?:prior to|before|immediately prior to|as of|after|assuming)\s+(?:this|the)\s+(?:offering|resale|transaction|conversion)/i,
+    ],
+  },
+  {
     sectionKey: "underwriting_context",
     sectionTitle: "Underwriting source context",
     patterns: [
