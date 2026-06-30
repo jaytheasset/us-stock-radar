@@ -4254,6 +4254,13 @@ function OfferingTermsShareOverhangDetails({
   const statusValue = computedScale?.ratioValue || overhang.statusValue || ratioValue;
   const supplyValue = computedScale?.supplyValue || overhang.totalNoteNumerator || overhang.supplyValue || "Variable";
   const currentValue = computedScale?.currentValue || overhang.totalNoteDenominator || overhang.currentValue || "Not fixed yet";
+  const usesComputedSegmentScale = Boolean(computedScale && canRenderChart);
+  const statusLabel = normalizeComputedShareOverhangStatusLabel(overhang.statusLabel, usesComputedSegmentScale);
+  const scoreCaption = usesComputedSegmentScale
+    ? normalizeComputedShareOverhangCaption(overhang.caption || overhang.ratioLabel, overhang.overhangBarSegments) || "of current shares"
+    : overhang.caption || overhang.ratioLabel || model.overhangScoreCaption;
+  const totalNoteSuffix =
+    overhang.totalNoteSuffix || (usesComputedSegmentScale ? "of current shares" : overhang.ratioLabel || "source-backed share scale");
 
   return (
     <DilutionShareOverhang
@@ -4266,10 +4273,10 @@ function OfferingTermsShareOverhangDetails({
         dilutionRatioValue: ratioValue,
         overhangAriaLabel: `${overhang.chartTitle || fallbackTitle}: ${ratioValue}`,
         overhangBarSegments: overhang.overhangBarSegments,
-        overhangLevel: overhang.statusLabel || model.overhangLevel,
-        overhangLevelLabel: overhang.statusLabel ? "Status" : undefined,
+        overhangLevel: statusLabel || (usesComputedSegmentScale ? "Total potential supply" : model.overhangLevel),
+        overhangLevelLabel: statusLabel ? "Status" : undefined,
         overhangNote: overhang.note,
-        overhangScoreCaption: overhang.caption || overhang.ratioLabel || model.overhangScoreCaption,
+        overhangScoreCaption: scoreCaption,
         overhangSubtitle: overhang.subtitle || fallbackSubtitle,
         overhangUnavailableMessage: overhang.note || "Final share impact depends on source-backed terms shown below.",
         potentialSupplyCompact: supplyValue,
@@ -4282,7 +4289,7 @@ function OfferingTermsShareOverhangDetails({
         extraDetailPanels: buildWarrantExtraDetailPanels(model),
         supplyDetailTitle: "Offering Details",
         supplyDetailLabel: overhang.supplyLabel || fallbackSupplyDetailLabel,
-        totalNoteSuffix: overhang.totalNoteSuffix || overhang.ratioLabel || "source-backed share scale",
+        totalNoteSuffix,
         totalNoteTitle: overhang.totalNoteTitle || overhang.ratioLabel || "Total Potential Overhang",
         totalOverhangLabel: overhang.ratioLabel || "Total Potential Overhang",
         unavailableRows: overhang.unavailableRows.length
@@ -4295,6 +4302,27 @@ function OfferingTermsShareOverhangDetails({
       }}
     />
   );
+}
+
+function normalizeComputedShareOverhangStatusLabel(value: string, usesComputedSegmentScale: boolean) {
+  const label = value.trim();
+  if (!label) return "";
+  if (!usesComputedSegmentScale) return label;
+  if (/^(?:not stated|not disclosed|not fixed|variable)(?:\s+of\b.*)?$/i.test(label)) return "";
+  if (/%/.test(label)) return "";
+  return label;
+}
+
+function normalizeComputedShareOverhangCaption(value: string, segments: ShareOverhangBarSegment[]) {
+  const caption = value.trim();
+  if (!caption) return "";
+  if (/^(?:not stated|not disclosed|not fixed|variable)(?:\s+of\b.*)?$/i.test(caption)) return "";
+  const includedSegments = segments.filter(isIncludedSupplyNatureRow);
+  if (/\bpre[-\s]?funded\b/i.test(caption)) {
+    const hasNonPrefundedSupply = includedSegments.some((segment) => !/\bpre[-\s]?funded\b/i.test(`${segment.label} ${segment.value}`));
+    if (hasNonPrefundedSupply) return "";
+  }
+  return caption;
 }
 
 function PricedOfferingDetails({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
