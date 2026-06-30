@@ -17,6 +17,7 @@ import { supabaseDelete, supabaseSelect } from "@/lib/supabase";
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
+const SEC_DEV_REPEAT_LLM_BLOCK_MS = 30 * 60 * 1000;
 
 export type SecDevTestStatus = "pass" | "fail" | "not_run";
 
@@ -1200,6 +1201,7 @@ export async function runSecDevControlledPersist(
     rawItemId?: string;
     attachmentLimit?: number;
     resetExistingAnalysis?: boolean;
+    allowRepeatLlm?: boolean;
     llmProvider?: string;
     llmModel?: string;
   } = {},
@@ -1224,6 +1226,33 @@ export async function runSecDevControlledPersist(
       rawItemId,
       attachmentLimit: clampNumber(options.attachmentLimit, 0, 12, 6),
     });
+    const repeatGuard = options.allowRepeatLlm
+      ? null
+      : await findRecentControlledPersistLlmRun(room.key, {
+          accessionNumber: accessionNumber || rawResult.accessionNumber,
+          rawItemId: rawResult.rawItemId || rawItemId,
+        });
+    if (repeatGuard) {
+      liveRun = {
+        mode: "controlled_persist",
+        status: "fail",
+        ranAt,
+        durationMs: Date.now() - started,
+        room: room.key,
+        formTypes: room.forms,
+        accessionNumber: accessionNumber || stringValue(rawResult.accessionNumber) || null,
+        rawItemId: rawResult.rawItemId || rawItemId || null,
+        summary: "Controlled persist blocked before LLM call by repeat-run guard.",
+        items: [],
+        diagnostics: {
+          raw_source: rawResult.source,
+          repeat_run_guard: repeatGuard,
+        },
+        error: repeatGuard.reason,
+      };
+      await appendLiveRun(room.key, liveRun);
+      return getSecDevRoomDetail(room.key);
+    }
     const resetResult = options.resetExistingAnalysis
       ? await resetSecDerivedAnalysisForAccession({
           accessionNumber: accessionNumber || rawResult.accessionNumber,
@@ -1488,6 +1517,48 @@ async function removeResetTargetFromLiveCache(roomKey: string, resetResult: SecD
   }
 
   return { removedRuns, removedItems };
+}
+
+async function findRecentControlledPersistLlmRun(
+  roomKey: string,
+  {
+    accessionNumber,
+    rawItemId,
+  }: {
+    accessionNumber: string;
+    rawItemId: string;
+  },
+) {
+  const cache = await readLiveCache();
+  const runs = cache[roomKey] || [];
+  const targetAccession = normalizeResetMatchValue(accessionNumber);
+  const targetRawItemId = normalizeResetMatchValue(rawItemId);
+  const now = Date.now();
+  const match = runs.find((run) => {
+    if (run.mode !== "controlled_persist") return false;
+    const ranAtMs = Date.parse(run.ranAt);
+    if (!Number.isFinite(ranAtMs) || now - ranAtMs > SEC_DEV_REPEAT_LLM_BLOCK_MS) return false;
+    return (
+      (targetAccession && normalizeResetMatchValue(run.accessionNumber) === targetAccession) ||
+      (targetRawItemId && normalizeResetMatchValue(run.rawItemId) === targetRawItemId) ||
+      run.items.some((item) => resetTargetMatchesItem(item, new Set([targetAccession].filter(Boolean)), new Set([targetRawItemId].filter(Boolean)), new Set()))
+    );
+  });
+  if (!match) return null;
+
+  return {
+    blocked: true,
+    reason: `SEC dev LLM repeat blocked for this accession/raw item. Last controlled persist ran at ${match.ranAt}. Pass allowRepeatLlm=true to override.`,
+    previousRun: {
+      ranAt: match.ranAt,
+      status: match.status,
+      accessionNumber: match.accessionNumber,
+      rawItemId: match.rawItemId,
+      eventId: stringValue(match.items[0]?.event_id) || null,
+      error: match.error,
+    },
+    blockWindowMs: SEC_DEV_REPEAT_LLM_BLOCK_MS,
+  };
 }
 
 function resetTargetMatchesItem(

@@ -189,6 +189,9 @@ type OpenAiPromptRun = {
   rawOpenAIResponse?: OpenAIResponseBody | GeminiResponseBody | null;
 };
 
+const SEC_LLM_MAX_ATTEMPTS = 1;
+const SEC_LLM_RUNAWAY_OUTPUT_CHARS = 30_000;
+
 export type SecFilingAnalysisRunResult = {
   ok: boolean;
   stage: "raw_item" | "openai" | "complete";
@@ -1434,7 +1437,7 @@ async function runOpenAiJsonPrompt(
     return runGeminiJsonPrompt(prompt, llmConfig);
   }
 
-  const maxAttempts = 2;
+  const maxAttempts = SEC_LLM_MAX_ATTEMPTS;
   let lastRun: OpenAiPromptRun | null = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -1462,9 +1465,14 @@ async function runOpenAiJsonPrompt(
 
       const responseBody = (await response.json().catch(() => null)) as OpenAIResponseBody | null;
       const outputText = readResponseOutputText(responseBody);
-      const parsed = response.ok ? parseAnalysisJson(outputText) : null;
+      const safetyStopReason = readSecLlmSafetyStopReason({
+        outputText,
+        finishReason: null,
+        error: responseBody?.error?.message || response.statusText || "",
+      });
+      const parsed = response.ok && !safetyStopReason ? parseAnalysisJson(outputText) : null;
       lastRun = {
-        ok: response.ok && Boolean(parsed),
+        ok: response.ok && !safetyStopReason && Boolean(parsed),
         status: response.status,
         provider: llmConfig.provider,
         model: llmConfig.model,
@@ -1473,11 +1481,13 @@ async function runOpenAiJsonPrompt(
         parsed,
         usage: responseBody?.usage || null,
         attempts: attempt,
-        error: response.ok
-          ? parsed
-            ? undefined
-            : "OpenAI response did not contain parseable JSON"
-          : responseBody?.error?.message || response.statusText || `<HTTP ${response.status}>`,
+        error:
+          safetyStopReason ||
+          (response.ok
+            ? parsed
+              ? undefined
+              : "OpenAI response did not contain parseable JSON"
+            : responseBody?.error?.message || response.statusText || `<HTTP ${response.status}>`),
         rawOpenAIResponse: responseBody,
       };
 
@@ -1519,11 +1529,54 @@ async function runOpenAiJsonPrompt(
 }
 
 function shouldRetryOpenAiRun(status: number, error: string | undefined) {
+  if (isNonRetryableSecLlmError(error)) return false;
   if (status === 0) return true;
   if (status === 408 || status === 409 || status === 425 || status === 429) return true;
   if (status >= 500 && status <= 599) return true;
-  if (/\bparseable JSON\b/i.test(error || "")) return true;
   return /\b(?:timeout|temporarily|rate limit|overloaded|upstream|gateway|socket|network)\b/i.test(error || "");
+}
+
+function isNonRetryableSecLlmError(error: string | undefined) {
+  const text = error || "";
+  return /\b(?:MAX_TOKENS|parseable JSON|too many states|response schema|runaway output|repeated output|output too long)\b/i.test(text);
+}
+
+function readSecLlmSafetyStopReason({
+  outputText,
+  finishReason,
+  error,
+}: {
+  outputText: string;
+  finishReason: string | null;
+  error: string;
+}) {
+  if (/\bMAX_TOKENS\b/i.test(finishReason || "")) {
+    return "SEC LLM stopped at MAX_TOKENS; retry disabled to prevent runaway cost.";
+  }
+  if (/\btoo many states for serving\b/i.test(error)) {
+    return "SEC LLM response schema rejected before generation; retry disabled.";
+  }
+  if (outputText.length > SEC_LLM_RUNAWAY_OUTPUT_CHARS) {
+    return `SEC LLM output too long (${outputText.length} chars); retry disabled to prevent runaway cost.`;
+  }
+  if (hasRepeatedSecLlmOutput(outputText)) {
+    return "SEC LLM repeated output patterns; retry disabled to prevent runaway cost.";
+  }
+  return "";
+}
+
+function hasRepeatedSecLlmOutput(outputText: string) {
+  if (outputText.length < 12_000) return false;
+  const patterns = [
+    /Score reason:/gi,
+    /Quick take:/gi,
+    /Key evidence:/gi,
+    /What to watch next:/gi,
+    /Source:/gi,
+    /bullish_points/gi,
+    /bearish_points/gi,
+  ];
+  return patterns.some((pattern) => (outputText.match(pattern) || []).length >= 4);
 }
 
 function waitForRetry(attempt: number) {
@@ -1945,8 +1998,8 @@ function readMaxOutputTokens(promptKey: string) {
   if (promptKey === SEC_8K_6K_ROUTER_PROMPT_KEY) return 3000;
   if (promptKey === SEC_8K_6K_ANALYSIS_PROMPT_KEY) return 8000;
   if (promptKey === SEC_TENDER_ANALYSIS_PROMPT_KEY) return 8000;
-  if (promptKey === SEC_424B_ANALYSIS_PROMPT_KEY) return 15000;
-  if (promptKey === SEC_S1_F1_ANALYSIS_PROMPT_KEY) return 15000;
+  if (promptKey === SEC_424B_ANALYSIS_PROMPT_KEY) return 8000;
+  if (promptKey === SEC_S1_F1_ANALYSIS_PROMPT_KEY) return 8000;
   if (promptKey === SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY) return 2500;
   if (promptKey === SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY) return 7000;
   return promptKey === SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY ? 8000 : 5000;
@@ -2141,7 +2194,7 @@ function buildSecInvestableUniverseSkipRun(
 }
 
 async function runGeminiJsonPrompt(prompt: OpenAiPrompt, llmConfig: SecLlmConfig): Promise<OpenAiPromptRun> {
-  const maxAttempts = 2;
+  const maxAttempts = SEC_LLM_MAX_ATTEMPTS;
   let lastRun: OpenAiPromptRun | null = null;
   const url = buildGeminiGenerateContentUrl(llmConfig);
 
@@ -2175,9 +2228,15 @@ async function runGeminiJsonPrompt(prompt: OpenAiPrompt, llmConfig: SecLlmConfig
 
       const responseBody = (await response.json().catch(() => null)) as GeminiResponseBody | null;
       const outputText = readGeminiResponseOutputText(responseBody);
-      const parsed = response.ok ? parseAnalysisJson(outputText) : null;
+      const finishReason = readGeminiFinishReason(responseBody);
+      const safetyStopReason = readSecLlmSafetyStopReason({
+        outputText,
+        finishReason,
+        error: responseBody?.error?.message || response.statusText || "",
+      });
+      const parsed = response.ok && !safetyStopReason ? parseAnalysisJson(outputText) : null;
       lastRun = {
-        ok: response.ok && Boolean(parsed),
+        ok: response.ok && !safetyStopReason && Boolean(parsed),
         status: response.status,
         provider: llmConfig.provider,
         model: llmConfig.model,
@@ -2186,11 +2245,13 @@ async function runGeminiJsonPrompt(prompt: OpenAiPrompt, llmConfig: SecLlmConfig
         parsed,
         usage: normalizeGeminiUsage(responseBody),
         attempts: attempt,
-        error: response.ok
-          ? parsed
-            ? undefined
-            : "Gemini response did not contain parseable JSON"
-          : responseBody?.error?.message || response.statusText || `<HTTP ${response.status}>`,
+        error:
+          safetyStopReason ||
+          (response.ok
+            ? parsed
+              ? undefined
+              : "Gemini response did not contain parseable JSON"
+            : responseBody?.error?.message || response.statusText || `<HTTP ${response.status}>`),
         rawOpenAIResponse: responseBody,
       };
 
@@ -2283,6 +2344,10 @@ function readGeminiResponseOutputText(body: GeminiResponseBody | null) {
     .filter(Boolean)
     .join("\n")
     .trim();
+}
+
+function readGeminiFinishReason(body: GeminiResponseBody | null) {
+  return body?.candidates?.map((candidate) => candidate.finishReason).find(Boolean) || null;
 }
 
 function normalizeGeminiUsage(body: GeminiResponseBody | null): OpenAIUsage | null {

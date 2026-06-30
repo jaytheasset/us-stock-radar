@@ -82,17 +82,19 @@ export function adaptSec424bAnalysisPromptResultForAnalysis(
       error: "SEC 424B result did not contain analysis_output and display_payload",
     };
   }
+  const normalizedAnalysisOutput = normalize424bAnalysisOutput(analysisOutput, input);
   const displayPayloadError = validate424bDisplayPayload(displayPayload);
   const displayPayloadWarnings = [
     ...(displayPayloadError ? [displayPayloadError] : []),
     ...collect424bDisplayPayloadWarnings(displayPayload),
+    ...collect424bScoreConsistencyWarnings(normalizedAnalysisOutput, displayPayload),
   ];
   append424bDisplayWarnings(displayPayload, displayPayloadWarnings);
 
   return adapt424bRoomResultForAnalysis({
     parser_output: parserOutput,
     analysis_output: align424bAnalysisOutputToDisplayPayload(
-      normalize424bAnalysisOutput(analysisOutput, input),
+      normalizedAnalysisOutput,
       displayPayload,
     ),
     display_payload: displayPayload,
@@ -221,6 +223,46 @@ export function collect424bDisplayPayloadWarnings(displayPayload: Record<string,
     if (/\blast reported sales price|market price\b/i.test(exerciseText)) {
       warnings.push("SEC 424B market price may be incorrectly used as Exercise / Conversion Price.");
     }
+  }
+  return warnings;
+}
+
+function collect424bScoreConsistencyWarnings(
+  analysisOutput: Record<string, unknown>,
+  displayPayload: Record<string, unknown>,
+) {
+  const warnings: string[] = [];
+  if (stringValue(displayPayload.display_type) !== "offering_terms") return warnings;
+  const score = numberValue(analysisOutput.score);
+  if (score == null) return warnings;
+  const data = readRecord(displayPayload.data);
+  const shareOverhang = readRecord(data?.share_overhang);
+  const segments = arrayValue(shareOverhang?.segments)
+    .map((segment) => readRecord(segment))
+    .filter((segment): segment is Record<string, unknown> => Boolean(segment));
+  if (!segments.length) return warnings;
+
+  const baseValue = segments
+    .filter((segment) => stringValue(segment.supply_nature || segment.supplyNature) === "base_shares")
+    .reduce((total, segment) => total + (numberValue(segment.numeric_value) ?? numberValue(segment.numericValue) ?? 0), 0);
+  const includedValue = segments
+    .filter((segment) =>
+      ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(
+        stringValue(segment.supply_nature || segment.supplyNature),
+      ),
+    )
+    .reduce((total, segment) => total + (numberValue(segment.numeric_value) ?? numberValue(segment.numericValue) ?? 0), 0);
+  if (baseValue <= 0 || includedValue <= 0) return warnings;
+
+  const includedPercent = (includedValue / baseValue) * 100;
+  if (includedPercent >= 100 && score < 80) {
+    warnings.push(
+      `SEC 424B score ${score} appears below overhang guide: included share exposure is ${formatShareOverhangPercent(includedPercent)} of base shares.`,
+    );
+  } else if (includedPercent >= 20 && score < 75) {
+    warnings.push(
+      `SEC 424B score ${score} appears below alert threshold for ${formatShareOverhangPercent(includedPercent)} included share exposure vs base shares.`,
+    );
   }
   return warnings;
 }
@@ -1169,12 +1211,6 @@ export const sec424bRequiredOutputSchema = {
         "quick_take",
         "summary",
         "why_it_matters",
-        "bullish_points",
-        "bearish_points",
-        "key_evidence",
-        "what_to_watch_next",
-        "related_tickers",
-        "calendar_items",
         "confidence",
         "needs_human_review",
       ],
@@ -1182,7 +1218,7 @@ export const sec424bRequiredOutputSchema = {
         source_group: { type: "string", enum: ["filings"] },
         market_scope: { type: "string", enum: ["company", "sector", "theme", "macro"] },
         event_type: { type: "string", enum: APPROVED_424B_EVENT_TYPES },
-        event_title: { type: "string" },
+        event_title: { type: "string", maxLength: 160 },
         primary_ticker: {
           type: ["object", "null"],
           additionalProperties: true,
@@ -1198,17 +1234,11 @@ export const sec424bRequiredOutputSchema = {
         theme_group: { type: ["string", "null"] },
         sub_theme: { type: ["string", "null"] },
         score: { type: "integer", minimum: 0, maximum: 100 },
-        score_reason: { type: "string" },
+        score_reason: { type: "string", maxLength: 140 },
         signal: { type: "string", enum: ["bullish", "bearish", "volatile", "neutral"] },
-        quick_take: { type: "string" },
-        summary: { type: "string" },
-        why_it_matters: { type: "string" },
-        bullish_points: { type: "array", items: { type: "string" } },
-        bearish_points: { type: "array", items: { type: "string" } },
-        key_evidence: { type: "array", items: { type: "string" } },
-        what_to_watch_next: { type: "array", items: { type: "string" } },
-        related_tickers: { type: "array", maxItems: 0, items: { type: "object", additionalProperties: true } },
-        calendar_items: { type: "array", items: { type: "object", additionalProperties: true } },
+        quick_take: { type: "string", maxLength: 260 },
+        summary: { type: "string", maxLength: 800 },
+        why_it_matters: { type: "string", maxLength: 320 },
         confidence: { type: "string", enum: ["high", "medium", "low"] },
         needs_human_review: { type: "boolean" },
         analysis_action: { type: ["string", "null"] },
@@ -1224,7 +1254,7 @@ export const sec424bRequiredOutputSchema = {
           type: "string",
           enum: ["generic", "offering_terms", "candidate_special", "spac_transaction_status"],
         },
-        display_version: { type: "string" },
+        display_version: { type: "string", maxLength: 60 },
         data: {
           type: "object",
           additionalProperties: true,
@@ -1232,214 +1262,57 @@ export const sec424bRequiredOutputSchema = {
             "display_mode",
             "snapshot_metrics",
             "share_overhang",
+            "instrument_details",
             "investor_takeaway",
             "narrative_summary",
             "needs_human_review",
           ],
           properties: {
-            display_mode: { type: ["string", "null"] },
-            risk_label: { type: ["string", "null"] },
-            current_shares: displayFactSchema(),
-            total_potential_supply: displayFactSchema(),
-            ads_equivalence: {
-              type: "object",
-              additionalProperties: true,
-              properties: {
-                ads_offered: displayFactSchema(),
-                ordinary_shares_represented: displayFactSchema(),
-                ordinary_shares_per_ads: displayFactSchema(),
-                calculation_basis: { type: ["string", "null"] },
-              },
-            },
+            display_mode: { type: ["string", "null"], maxLength: 40 },
+            risk_label: { type: ["string", "null"], maxLength: 40 },
             snapshot_metrics: {
               type: "array",
-              items: {
-                type: "object",
-                additionalProperties: true,
-                required: ["label", "value"],
-                properties: {
-                  label: { type: "string" },
-                  value: { type: "string" },
-                  note: { type: ["string", "null"] },
-                  tone: { type: ["string", "null"], enum: ["danger", "neutral", "positive", null] },
-                  emphasis: { type: "boolean" },
-                },
-              },
+              maxItems: 4,
+              items: offeringDisplayRowSchema(40, 80, 0),
             },
             share_overhang: {
               type: "object",
               additionalProperties: true,
-              required: [
-                "chart_title",
-                "subtitle",
-                "status_label",
-                "status_value",
-                "caption",
-                "ratio_label",
-                "ratio_value",
-                "current_label",
-                "current_value",
-                "supply_label",
-                "supply_value",
-                "segments",
-              ],
+              required: ["chart_title", "segments"],
               properties: {
-                chart_title: { type: "string", enum: APPROVED_424B_SHARE_OVERHANG_CHART_TITLES },
-                subtitle: { type: "string" },
-                status_label: { type: "string" },
-                status_value: { type: "string" },
-                caption: { type: "string" },
-                ratio_label: { type: "string" },
-                ratio_value: { type: "string" },
-                current_label: { type: "string" },
-                current_value: { type: "string" },
-                supply_label: { type: "string" },
-                supply_value: { type: "string" },
-                total_note: {
-                  type: "object",
-                  additionalProperties: true,
-                  properties: {
-                    title: { type: "string", maxLength: 48 },
-                    numerator: { type: "string", maxLength: 40 },
-                    denominator: { type: "string", maxLength: 40 },
-                    ratio: { type: "string", maxLength: 24 },
-                    suffix: { type: "string", maxLength: 80 },
-                  },
-                },
+                chart_title: { type: "string" },
                 segments: {
                   type: "array",
-                  items: {
-                    type: "object",
-                    additionalProperties: true,
-                    required: ["class_name", "supply_nature", "label", "value", "numeric_value"],
-                    properties: {
-                      class_name: { type: "string" },
-                      supply_nature: {
-                        type: ["string", "null"],
-                        enum: [
-                          "base_shares",
-                          "current_offering_supply",
-                          "registered_resale_supply",
-                          "common_equivalent_supply",
-                          "conditional_future_supply",
-                          "replacement_supply",
-                          null,
-                        ],
-                      },
-                      label: { type: "string" },
-                      value: { type: "string" },
-                      numeric_value: { type: ["number", "null"] },
-                      note: { type: ["string", "null"] },
-                    },
-                  },
-                },
-                conditional_supply: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    additionalProperties: true,
-                    required: ["label", "value", "supply_nature", "numeric_value"],
-                    properties: {
-                      label: { type: "string" },
-                      value: { type: "string" },
-                      supply_nature: {
-                        type: ["string", "null"],
-                        enum: [
-                          "base_shares",
-                          "current_offering_supply",
-                          "registered_resale_supply",
-                          "common_equivalent_supply",
-                          "conditional_future_supply",
-                          "replacement_supply",
-                          null,
-                        ],
-                      },
-                      numeric_value: { type: ["number", "null"] },
-                      note: { type: ["string", "null"] },
-                      tone: { type: ["string", "null"] },
-                    },
-                  },
+                  items: shareOverhangSegmentSchema(),
                 },
               },
             },
-            key_cash_terms: {
-              type: "object",
-              additionalProperties: true,
-              properties: {
-                resale_proceeds_to_company: keyCashTermFactSchema(),
-                issuer_primary_or_closing_cash: keyCashTermFactSchema(),
-                conditional_warrant_cash: keyCashTermFactSchema(),
-                prefunded_warrant_exercise_cash: keyCashTermFactSchema(),
-                common_warrant_cash_exercise_proceeds: keyCashTermFactSchema(),
-                private_placement_proceeds: keyCashTermFactSchema(),
-                sec_registration_value: keyCashTermFactSchema(),
-                explanation: { type: "string" },
-              },
-            },
-            registered_security_totals: looseObjectSchema(),
-            supply_segments: {
-              type: "array",
-              items: {
-                type: "object",
-                additionalProperties: true,
-                properties: {
-                  label: { type: ["string", "null"] },
-                  label_code: { type: ["string", "null"] },
-                  instrument_type: { type: ["string", "null"] },
-                  shares: displayFactSchema(),
-                  instrument_count: displayFactSchema(),
-                  underlying_shares: displayFactSchema(),
-                },
-              },
-            },
-            investor_takeaway: { type: "string" },
+            investor_takeaway: { type: "string", maxLength: 180 },
+            narrative_summary: { type: "string", maxLength: 800 },
             offering_details: {
               type: "array",
-              items: {
-                type: "object",
-                additionalProperties: true,
-                required: ["label", "value"],
-                properties: {
-                  label: { type: "string", maxLength: 40 },
-                  value: { type: "string", maxLength: 90 },
-                  note: { type: "string", maxLength: 80 },
-                },
-              },
-            },
-            amendment_changes: {
-              type: "array",
-              items: {
-                type: "object",
-                additionalProperties: true,
-                required: ["label", "value"],
-                properties: {
-                  label: { type: "string" },
-                  value: { type: "string" },
-                  note: { type: "string" },
-                },
-              },
+              maxItems: 5,
+              items: offeringDisplayRowSchema(40, 90, 80),
             },
             instrument_details: {
               type: "array",
-              items: {
-                type: "object",
-                additionalProperties: true,
-                required: ["label", "value"],
-                properties: {
-                  label: { type: "string" },
-                  value: { type: "string" },
-                },
-              },
+              maxItems: 35,
+              items: offeringDisplayRowSchema(40, 130, 0),
             },
-            narrative_summary: { type: "string" },
-            watch_items: { type: "array", items: { type: "string" } },
-            source_notes: { type: "array", items: { type: "string" } },
-            review_reasons: { type: "array", items: { type: "string" } },
+            supply_segments: {
+              type: "array",
+              maxItems: 8,
+              items: looseObjectSchema(),
+            },
+            registered_security_totals: looseObjectSchema(),
+            key_cash_terms: looseObjectSchema(),
+            source_notes: { type: "array", maxItems: 2, items: { type: "string", maxLength: 160 } },
+            review_reasons: { type: "array", maxItems: 3, items: { type: "string", maxLength: 180 } },
             needs_human_review: { type: "boolean" },
           },
         },
-        evidence: { type: "array", items: { type: "object", additionalProperties: true } },
-        notes: { type: "array", items: { type: "string" } },
+        evidence: { type: "array", maxItems: 0, items: { type: "string", maxLength: 160 } },
+        notes: { type: "array", maxItems: 2, items: { type: "string", maxLength: 160 } },
       },
     },
   },
@@ -1452,16 +1325,41 @@ function looseObjectSchema() {
   };
 }
 
-function displayFactSchema() {
+function offeringDisplayRowSchema(labelMaxLength: number, valueMaxLength: number, noteMaxLength: number) {
   return {
     type: "object",
     additionalProperties: true,
-    required: ["value_text", "numeric_value", "unit", "evidence"],
+    required: ["label", "value"],
     properties: {
-      value_text: { type: ["string", "null"] },
+      label: { type: "string", maxLength: labelMaxLength },
+      value: { type: "string", maxLength: valueMaxLength },
+      ...(noteMaxLength > 0 ? { note: { type: ["string", "null"], maxLength: noteMaxLength } } : {}),
+    },
+  };
+}
+
+function shareOverhangSegmentSchema() {
+  return {
+    type: "object",
+    additionalProperties: true,
+    required: ["class_name", "supply_nature", "label", "value", "numeric_value"],
+    properties: {
+      class_name: { type: "string" },
+      supply_nature: {
+        type: "string",
+        enum: [
+          "base_shares",
+          "current_offering_supply",
+          "registered_resale_supply",
+          "common_equivalent_supply",
+          "conditional_future_supply",
+          "replacement_supply",
+        ],
+      },
+      label: { type: "string" },
+      value: { type: "string" },
       numeric_value: { type: "number" },
-      unit: { type: "string" },
-      evidence: { type: ["string", "null"] },
+      note: { type: ["string", "null"] },
     },
   };
 }
@@ -1472,7 +1370,7 @@ function keyCashTermFactSchema() {
     additionalProperties: true,
     required: ["value_text"],
     properties: {
-      value_text: { type: "string" },
+      value_text: { type: "string", maxLength: 120 },
     },
   };
 }

@@ -131,6 +131,9 @@ const resetExistingAnalysis =
   booleanArg("reset-derived-event", false) ||
   booleanArg("resetAccession", false) ||
   booleanArg("reset-accession", false);
+const allowRepeatLlm =
+  booleanArg("allowRepeatLlm", false) ||
+  booleanArg("allow-repeat-llm", false);
 
 const result = {
   ok: false,
@@ -142,6 +145,7 @@ const result = {
   llmProvider: llmProvider || null,
   llmModel: llmModel || null,
   resetExistingAnalysis,
+  allowRepeatLlm,
   sync: null,
   server: null,
   ingest: null,
@@ -334,6 +338,7 @@ async function analyzeOneViaDevConsole({ rawItemId, accessionNumber }) {
     rawItemId: rawItemId || "",
     attachmentLimit,
     resetExistingAnalysis: true,
+    allowRepeatLlm,
     llmProvider,
     llmModel,
   });

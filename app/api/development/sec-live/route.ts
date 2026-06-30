@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
           rawItemId: readString(record.rawItemId),
           attachmentLimit: readNumber(record.attachmentLimit, 6),
           resetExistingAnalysis: readBoolean(record.resetExistingAnalysis),
+          allowRepeatLlm: readBoolean(record.allowRepeatLlm),
           llmProvider: readString(record.llmProvider),
           llmModel: readString(record.llmModel),
         })
