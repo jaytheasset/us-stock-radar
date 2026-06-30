@@ -5,7 +5,7 @@ import { APPROVED_SEC_EVENT_TYPES, type S1F1ParserOutput } from "@/lib/sources/s
 import { normalize424bOfferingDisplayModel } from "@/lib/ai/sec424bAnalysisAdapter";
 
 export const SEC_S1_F1_ANALYSIS_PROMPT_KEY = "sec_s1_f1_analysis";
-export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v7";
+export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v15";
 
 const ALLOWED_S1_F1_DISPLAY_MODES = new Set([
   "ipo_registration",
@@ -130,34 +130,44 @@ const S1_F1_OFFERING_DETAIL_LABELS_BY_MODE: Record<string, readonly string[]> = 
   mixed_offering: [
     "Offering Type",
     "Component Summary",
+    "Units offered",
     "Purchaser / Investor",
     "Selling Holders",
     "Placement Agent",
     "Placement Agent / Underwriter",
     "Assumed Offering Price",
+    "Assumed Public Offering Price",
     "Assumed Combined Public Offering Price",
     "Public Offering Price",
     "Source Instrument",
     "Warrant Terms",
     "ADS Ratio",
     "Underlying ADS Basis",
+    "Control / voting structure",
+    "Control structure",
+    "Listing condition",
     "Lock-up",
     "Use of Proceeds",
   ],
   mixed_registration: [
     "Offering Type",
     "Component Summary",
+    "Units offered",
     "Purchaser / Investor",
     "Selling Holders",
     "Placement Agent",
     "Placement Agent / Underwriter",
     "Assumed Offering Price",
+    "Assumed Public Offering Price",
     "Assumed Combined Public Offering Price",
     "Public Offering Price",
     "Source Instrument",
     "Warrant Terms",
     "ADS Ratio",
     "Underlying ADS Basis",
+    "Control / voting structure",
+    "Control structure",
+    "Listing condition",
     "Lock-up",
     "Use of Proceeds",
   ],
@@ -449,7 +459,9 @@ function hasNumericShareOverhangSegment(data: Record<string, unknown>, kind: "cu
     const numericValue = numberValue(record?.numeric_value) ?? numberValue(record?.numericValue);
     if (typeof numericValue !== "number" || !Number.isFinite(numericValue) || numericValue <= 0) return false;
     const className = stringValue(record?.class_name || record?.className);
-    return kind === "current" ? className === "current-base" : className !== "current-base";
+    const supplyNature = stringValue(record?.supply_nature || record?.supplyNature);
+    const isBase = className === "current-base" || className === "base-shares" || supplyNature === "base_shares";
+    return kind === "current" ? isBase : !isBase;
   });
 }
 
@@ -506,7 +518,9 @@ function normalizeS1F1DisplayPayload(displayPayload: Record<string, unknown> | n
   if (stringValue((normalizedPayload as Record<string, unknown>).display_type) !== "offering_terms") {
     return normalizedPayload;
   }
-  const normalizedPayloadData = readRecord(normalizedPayload.data) || {};
+  const normalizedPayloadData = (normalize424bOfferingDisplayModel(readRecord(normalizedPayload.data)) ||
+    readRecord(normalizedPayload.data) ||
+    {}) as Record<string, unknown>;
   const hasReviewFlag =
     normalizedPayloadData.needs_human_review === true ||
     normalizedPayloadData.needsHumanReview === true;
@@ -564,7 +578,7 @@ function normalizeS1F1AnalysisOutput(value: Record<string, unknown>, input: SecF
     market_scope: stringValue(value.market_scope) || "company",
     primary_ticker: primaryTicker,
     tickers: normalizeTickerRows(value.tickers, primaryTicker, "primary"),
-    related_tickers: normalizeTickerRows(value.related_tickers, primaryTicker, "related"),
+    related_tickers: [],
     bullish_points: readStringArray(value.bullish_points),
     bearish_points: readStringArray(value.bearish_points),
     key_evidence: readStringArray(value.key_evidence),
@@ -761,7 +775,7 @@ export const secS1F1RequiredOutputSchema = {
             exchange: { type: ["string", "null"], maxLength: 40 },
           },
         },
-        tickers: { type: "array", items: { type: ["object", "string"], additionalProperties: true } },
+        tickers: { type: "array", maxItems: 0, items: { type: ["object", "string"], additionalProperties: true } },
         sector: { type: ["string", "null"] },
         industry_group: { type: ["string", "null"] },
         theme_group: { type: ["string", "null"] },
@@ -776,7 +790,7 @@ export const secS1F1RequiredOutputSchema = {
         bearish_points: { type: "array", maxItems: 3, items: { type: "string", maxLength: 140 } },
         key_evidence: { type: "array", maxItems: 2, items: { type: "string", maxLength: 160 } },
         what_to_watch_next: { type: "array", maxItems: 2, items: { type: "string", maxLength: 160 } },
-        related_tickers: { type: "array", items: { type: ["object", "string"], additionalProperties: true } },
+        related_tickers: { type: "array", maxItems: 0, items: { type: ["object", "string"], additionalProperties: true } },
         calendar_items: { type: "array", items: { type: "object", additionalProperties: true } },
         confidence: { type: "string", enum: ["high", "medium", "low"] },
         needs_human_review: { type: "boolean" },
@@ -888,10 +902,22 @@ export const secS1F1RequiredOutputSchema = {
                   items: {
                     type: "object",
                     additionalProperties: true,
-                    required: ["class_name", "label", "value", "numeric_value"],
+                    required: ["class_name", "supply_nature", "label", "value", "numeric_value"],
                     properties: {
                       key: { type: ["string", "null"] },
                       class_name: { type: "string" },
+                      supply_nature: {
+                        type: ["string", "null"],
+                        enum: [
+                          "base_shares",
+                          "current_offering_supply",
+                          "registered_resale_supply",
+                          "common_equivalent_supply",
+                          "conditional_future_supply",
+                          "replacement_supply",
+                          null,
+                        ],
+                      },
                       label: { type: "string" },
                       value: { type: "string" },
                       numeric_value: { type: ["number", "null"] },
@@ -904,10 +930,22 @@ export const secS1F1RequiredOutputSchema = {
                   items: {
                     type: "object",
                     additionalProperties: true,
-                    required: ["label", "value", "numeric_value"],
+                    required: ["label", "value", "supply_nature", "numeric_value"],
                     properties: {
                       label: { type: "string" },
                       value: { type: "string" },
+                      supply_nature: {
+                        type: ["string", "null"],
+                        enum: [
+                          "base_shares",
+                          "current_offering_supply",
+                          "registered_resale_supply",
+                          "common_equivalent_supply",
+                          "conditional_future_supply",
+                          "replacement_supply",
+                          null,
+                        ],
+                      },
                       numeric_value: { type: ["number", "null"] },
                       note: { type: ["string", "null"] },
                       tone: { type: ["string", "null"] },

@@ -1,6 +1,12 @@
 export type DilutionShareOverhangBarSegment = {
   key: string;
   className: string;
+  supplyNature?: string;
+  calculationRole?: string;
+  unit?: string;
+  classBasis?: string;
+  poolId?: string;
+  poolRelationship?: string;
   label: string;
   value: string;
   note?: string;

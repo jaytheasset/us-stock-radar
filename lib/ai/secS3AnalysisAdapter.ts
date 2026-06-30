@@ -98,6 +98,10 @@ export function adaptSecS3AnalysisPromptResultForAnalysis(
 
   const normalizedValue = {
     ...root,
+    analysis_output: alignS3AnalysisOutputToDisplayPayload(
+      normalizeS3AnalysisTickerMetadata(analysisOutput, input),
+      displayPayload,
+    ),
     display_payload: displayPayload,
     parser_output: normalizeS3ParserOutput(root?.parser_output, input),
   };
@@ -169,6 +173,52 @@ function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput, displayPayload
     sec_s3_display_warnings: displayPayloadWarnings,
     sec_s3_analysis_mode: "analysis_only",
     sec_offering_analysis_mode: "analysis_only",
+  };
+}
+
+function normalizeS3AnalysisTickerMetadata(
+  value: Record<string, unknown>,
+  input: SecFilingAnalysisInput,
+) {
+  const filingPackage = readRecord(input.filing_package) || {};
+  const packagePrimary = readRecord(filingPackage.primary_ticker);
+  const ticker = nullableString(packagePrimary?.ticker) || nullableString(filingPackage.ticker);
+  const exchange = nullableString(packagePrimary?.exchange);
+  const primaryTicker = ticker
+    ? {
+        ticker: ticker.toUpperCase(),
+        exchange,
+      }
+    : null;
+
+  return {
+    ...value,
+    primary_ticker: primaryTicker,
+    tickers: primaryTicker
+      ? [
+          {
+            ticker: primaryTicker.ticker,
+            exchange: primaryTicker.exchange,
+            role: "primary",
+            reason: "Primary SEC filing ticker",
+          },
+        ]
+      : [],
+    related_tickers: [],
+  };
+}
+
+function alignS3AnalysisOutputToDisplayPayload(
+  analysis: Record<string, unknown>,
+  displayPayload: Record<string, unknown>,
+) {
+  if (stringValue(displayPayload.display_type) !== "offering_terms") return analysis;
+  return {
+    ...analysis,
+    bullish_points: [],
+    bearish_points: [],
+    key_evidence: [],
+    what_to_watch_next: [],
   };
 }
 

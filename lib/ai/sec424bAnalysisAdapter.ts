@@ -5,7 +5,7 @@ import { APPROVED_424B_EVENT_TYPES } from "@/lib/sources/sec/forms/424b/types";
 import type { Sec424bParserOutput } from "@/lib/sources/sec/forms/424b/types";
 
 export const SEC_424B_ANALYSIS_PROMPT_KEY = "sec_424b_analysis";
-export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v12";
+export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v19";
 const ALLOWED_424B_DISPLAY_MODES = new Set([
   "atm",
   "resale_registration",
@@ -91,7 +91,10 @@ export function adaptSec424bAnalysisPromptResultForAnalysis(
 
   return adapt424bRoomResultForAnalysis({
     parser_output: parserOutput,
-    analysis_output: normalize424bAnalysisOutput(analysisOutput, input),
+    analysis_output: align424bAnalysisOutputToDisplayPayload(
+      normalize424bAnalysisOutput(analysisOutput, input),
+      displayPayload,
+    ),
     display_payload: displayPayload,
   }, displayPayloadWarnings);
 }
@@ -342,8 +345,9 @@ function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput, displayPayload
 
 export function normalize424bOfferingDisplayModel(data: Record<string, unknown> | null) {
   if (!data) return null;
-  const shareOverhang = normalizeShareOverhang(readRecord(data.share_overhang));
   const instrumentDetails = normalizeInstrumentDetails(data.instrument_details);
+  const shareOverhang = normalizeShareOverhang(readRecord(data.share_overhang), instrumentDetails);
+  const shareOverhangScale = deriveShareOverhangScale(readRecord(shareOverhang));
   return {
     ...data,
     display_mode: stringValue(data.display_mode) || "offering_terms",
@@ -351,7 +355,7 @@ export function normalize424bOfferingDisplayModel(data: Record<string, unknown> 
     current_shares: normalizeDisplayFact(readRecord(data.current_shares), "shares"),
     total_potential_supply: normalizeDisplayFact(readRecord(data.total_potential_supply), "shares"),
     ads_equivalence: normalizeAdsEquivalence(readRecord(data.ads_equivalence)),
-    snapshot_metrics: normalizeSnapshotMetrics(data.snapshot_metrics),
+    snapshot_metrics: normalizeSnapshotMetrics(data.snapshot_metrics, shareOverhangScale),
     mixed_offering_components: normalizeMixedOfferingComponents(data.mixed_offering_components),
     key_cash_terms: normalizeKeyCashTerms(readRecord(data.key_cash_terms)),
     registered_security_totals: normalizeRegisteredSecurityTotals(readRecord(data.registered_security_totals)),
@@ -369,9 +373,29 @@ export function normalize424bOfferingDisplayModel(data: Record<string, unknown> 
   };
 }
 
-function normalizeShareOverhang(value: Record<string, unknown> | null) {
+function normalizeShareOverhang(value: Record<string, unknown> | null, instrumentDetails: Array<{ label: string; value: string }> = []) {
   if (!value) return null;
-  const unavailableRows = arrayValue(value.unavailable_rows || value.detail_rows || value.rows)
+  const basisRecord = readRecord(value.basis);
+  const basis = basisRecord
+    ? {
+        key: nullableString(basisRecord.key),
+        label: stringValue(basisRecord.label),
+        value: stringValue(basisRecord.value) || stringValue(basisRecord.value_text),
+        numeric_value:
+          numberValue(basisRecord.numeric_value) ??
+          numberValue(basisRecord.numericValue) ??
+          numberValue(basisRecord.amount) ??
+          null,
+        unit: nullableString(basisRecord.unit),
+        class_basis: nullableString(basisRecord.class_basis || basisRecord.classBasis),
+        note: nullableString(basisRecord.note),
+      }
+    : null;
+  const rows = arrayValue(value.rows)
+    .map((row) => normalizeShareOverhangRow(readRecord(row), false))
+    .filter(Boolean);
+  const hasStructuredRows = Boolean(basis) || rows.length > 0;
+  const unavailableRows = arrayValue(hasStructuredRows ? value.unavailable_rows || value.detail_rows : value.unavailable_rows || value.detail_rows || value.rows)
     .map((row) => {
       const record = readRecord(row);
       const label = stringValue(record?.label);
@@ -385,36 +409,52 @@ function normalizeShareOverhang(value: Record<string, unknown> | null) {
       };
     })
     .filter(Boolean);
-  const segments = arrayValue(value.segments || value.bar_segments || value.barSegments)
+  const instrumentContexts = readInstrumentDetailContexts(instrumentDetails);
+  const segments = normalizeShareOverhangReplacementSegments(arrayValue(value.segments || value.bar_segments || value.barSegments)
     .map((segment) => {
       const record = readRecord(segment);
       const label = stringValue(record?.label);
       const segmentValue = stringValue(record?.value) || stringValue(record?.value_text);
       if (!label || !segmentValue) return null;
-      return {
+      const normalizedSegment = {
         key: nullableString(record?.key),
         class_name: nullableString(record?.class_name || record?.className),
+        supply_nature: nullableString(record?.supply_nature || record?.supplyNature),
+        calculation_role: nullableString(record?.calculation_role || record?.calculationRole),
+        unit: nullableString(record?.unit),
+        class_basis: nullableString(record?.class_basis || record?.classBasis),
+        pool_id: nullableString(record?.pool_id || record?.poolId),
+        pool_relationship: nullableString(record?.pool_relationship || record?.poolRelationship),
         label,
         value: segmentValue,
         numeric_value: numberValue(record?.numeric_value) ?? numberValue(record?.numericValue) ?? numberValue(record?.amount) ?? null,
         note: nullableString(record?.note),
       };
+      return normalizeShareOverhangSegmentSupplyNature(
+        reconcileShareOverhangSegmentWithInstrumentDetails(normalizedSegment, instrumentDetails),
+        instrumentContexts,
+      );
     })
-    .filter(Boolean);
+    .filter(
+      (
+        segment,
+      ): segment is {
+        key: string | null;
+        class_name: string | null;
+        supply_nature: string | null;
+        calculation_role: string | null;
+        unit: string | null;
+        class_basis: string | null;
+        pool_id: string | null;
+        pool_relationship: string | null;
+        label: string;
+        value: string;
+        numeric_value: number | null;
+        note: string | null;
+      } => Boolean(segment),
+    ));
   const conditionalSupply = arrayValue(value.conditional_supply || value.conditionalSupply)
-    .map((row) => {
-      const record = readRecord(row);
-      const label = stringValue(record?.label);
-      const rowValue = stringValue(record?.value) || stringValue(record?.value_text);
-      if (!label || !rowValue) return null;
-      return {
-        label,
-        value: rowValue,
-        numeric_value: numberValue(record?.numeric_value) ?? numberValue(record?.numericValue) ?? numberValue(record?.amount) ?? null,
-        note: nullableString(record?.note),
-        tone: nullableString(record?.tone),
-      };
-    })
+    .map((row) => normalizeShareOverhangRow(readRecord(row), true))
     .filter(Boolean);
   const totalNote = readRecord(value.total_note || value.totalNote);
   const normalizedTotalNote = totalNote
@@ -426,20 +466,34 @@ function normalizeShareOverhang(value: Record<string, unknown> | null) {
         suffix: stringValue(totalNote.suffix || totalNote.note),
       }
     : null;
+  const scale = deriveShareOverhangScale({ segments });
+  const scaledTotalNote =
+    normalizedTotalNote && scale
+      ? {
+          ...normalizedTotalNote,
+          numerator: scale.supply_value,
+          denominator: scale.current_value,
+          ratio: scale.ratio_value,
+        }
+      : normalizedTotalNote;
   const normalized = {
     chart_title: stringValue(value.chart_title || value.chartTitle || value.title),
     subtitle: stringValue(value.subtitle || value.chart_subtitle),
     status_label: stringValue(value.status_label || value.statusLabel || value.level_label || value.levelLabel),
-    status_value: stringValue(value.status_value || value.statusValue || value.value),
+    status_value: scale?.ratio_value || stringValue(value.status_value || value.statusValue || value.value),
     caption: stringValue(value.caption || value.score_caption || value.scoreCaption),
     ratio_label: stringValue(value.ratio_label || value.ratioLabel || value.scale_label || value.scaleLabel),
-    ratio_value: stringValue(value.ratio_value || value.ratioValue || value.percent_value || value.percentValue),
+    ratio_value: scale?.ratio_value || stringValue(value.ratio_value || value.ratioValue || value.percent_value || value.percentValue),
     current_label: stringValue(value.current_label || value.currentLabel),
-    current_value: stringValue(value.current_value || value.currentValue),
+    current_value: scale?.current_value || stringValue(value.current_value || value.currentValue),
     supply_label: stringValue(value.supply_label || value.supplyLabel || value.potential_supply_label || value.potentialSupplyLabel),
-    supply_value: stringValue(value.supply_value || value.supplyValue || value.potential_supply_value || value.potentialSupplyValue),
-    total_note: normalizedTotalNote,
-    note: nullableString(value.note || value.footnote),
+    supply_value: scale?.supply_value || stringValue(value.supply_value || value.supplyValue || value.potential_supply_value || value.potentialSupplyValue),
+    basis,
+    rows,
+    total_note: scaledTotalNote,
+    note: scale?.has_conditional_supply
+      ? "Headline ratio excludes conditional future supply shown separately."
+      : nullableString(value.note || value.footnote),
     unavailable_rows: unavailableRows,
     segments,
     conditional_supply: conditionalSupply,
@@ -453,16 +507,223 @@ function normalizeShareOverhang(value: Record<string, unknown> | null) {
       normalized.ratio_value,
       normalized.current_value,
       normalized.supply_value,
+      normalized.basis?.value,
     ].some(Boolean) ||
+    rows.length > 0 ||
     unavailableRows.length > 0 ||
     conditionalSupply.length > 0 ||
-    Boolean(normalizedTotalNote && Object.values(normalizedTotalNote).some(Boolean)) ||
+    Boolean(scaledTotalNote && Object.values(scaledTotalNote).some(Boolean)) ||
     segments.length > 0;
   return hasContent ? normalized : null;
 }
 
+function reconcileShareOverhangSegmentWithInstrumentDetails<
+  T extends { label: string; value: string; numeric_value: number | null },
+>(segment: T, instrumentDetails: Array<{ label: string; value: string }>): T {
+  const segmentKey = instrumentMatchKey(segment.label);
+  if (!segmentKey) return segment;
+  const instrumentShares = readInstrumentDetailShareCounts(instrumentDetails).get(segmentKey);
+  if (!instrumentShares || instrumentShares <= 0) return segment;
+  const currentValue = segment.numeric_value || parseShareCount(segment.value) || 0;
+  if (currentValue > 0 && Math.abs(currentValue - instrumentShares) / instrumentShares <= 0.01) return segment;
+  return {
+    ...segment,
+    value: formatWholeShareCount(instrumentShares),
+    numeric_value: instrumentShares,
+  };
+}
+
+function readInstrumentDetailShareCounts(instrumentDetails: Array<{ label: string; value: string }>) {
+  const counts = new Map<string, number>();
+  let currentKey = "";
+  for (const row of instrumentDetails) {
+    const label = stringValue(row.label).toLowerCase();
+    if (label === "type") {
+      currentKey = instrumentMatchKey(row.value);
+      continue;
+    }
+    if (label === "shares / securities" && currentKey) {
+      const count = parseShareCount(row.value);
+      if (count && count > 0) counts.set(currentKey, count);
+    }
+  }
+  return counts;
+}
+
+function readInstrumentDetailContexts(instrumentDetails: Array<{ label: string; value: string }>) {
+  const contexts = new Map<string, string>();
+  let currentKey = "";
+  for (const row of instrumentDetails) {
+    const label = stringValue(row.label).toLowerCase();
+    if (label === "type") {
+      currentKey = instrumentMatchKey(row.value);
+      if (currentKey) contexts.set(currentKey, `${row.value}`);
+      continue;
+    }
+    if (currentKey) {
+      contexts.set(currentKey, `${contexts.get(currentKey) || ""} ${row.label} ${row.value}`.trim());
+    }
+  }
+  return contexts;
+}
+
+function instrumentMatchKey(value: string) {
+  const text = value.toLowerCase();
+  if (/\bseries\s+a\b/.test(text) && /\bwarrants?\b/.test(text)) return "series_a_warrant";
+  if (/\bseries\s+b\b/.test(text) && /\bwarrants?\b/.test(text)) return "series_b_warrant";
+  if (/\bseries\s+c\b/.test(text) && /\bwarrants?\b/.test(text)) return "series_c_warrant";
+  if (/\bpre[-\s]?funded\b/.test(text) && /\bwarrants?\b/.test(text)) return "prefunded_warrant";
+  if (/\bplacement\s+agent\b/.test(text) && /\bwarrants?\b/.test(text)) return "placement_agent_warrant";
+  if (/\bcommon\b/.test(text) && /\bwarrants?\b/.test(text)) return "common_warrant";
+  return "";
+}
+
+function parseShareCount(value: string) {
+  const match = value.match(/(\d[\d,]*(?:\.\d+)?)\s*(million|m|thousand|k)?/i);
+  if (!match) return null;
+  const base = Number(match[1].replace(/,/g, ""));
+  if (!Number.isFinite(base)) return null;
+  const suffix = (match[2] || "").toLowerCase();
+  if (suffix === "million" || suffix === "m") return Math.round(base * 1_000_000);
+  if (suffix === "thousand" || suffix === "k") return Math.round(base * 1_000);
+  return Math.round(base);
+}
+
+function formatWholeShareCount(value: number) {
+  return `${Math.round(value).toLocaleString("en-US")} shares`;
+}
+
+function normalizeShareOverhangSegmentSupplyNature<T extends { label: string; value: string; note: string | null; supply_nature: string | null }>(
+  segment: T,
+  instrumentContexts: Map<string, string> = new Map(),
+): T {
+  const supplyNature = stringValue(segment.supply_nature);
+  const instrumentContext = instrumentContexts.get(instrumentMatchKey(segment.label)) || "";
+  const text = `${segment.label} ${segment.value} ${segment.note || ""} ${instrumentContext}`.toLowerCase();
+  const hasZeroOrNominal =
+    /\bzero[-\s]+exercise\b/.test(text) ||
+    /\bzero\s+exercise\s+price\b/.test(text) ||
+    /\bnominal\b/.test(text) ||
+    /\bde\s+minimis\b/.test(text) ||
+    /\$0\.0{2,}\d+/.test(text);
+  const hasPreFunded = /\bpre[-\s]?funded\b/.test(text);
+  const hasReplacementContext = /\b(?:alternative|replacement|in\s+lieu|instead\s+of|one[-\s]?for[-\s]?one)\b/.test(text);
+  const hasConditionalPricing = /\b(?:reset|floor|vwap|discount|exercise\s+price|conversion\s+price)\b/.test(text);
+
+  if (supplyNature === "common_equivalent_supply" && hasPreFunded && hasReplacementContext) {
+    return { ...segment, supply_nature: "replacement_supply" };
+  }
+  if (supplyNature === "conditional_future_supply" && (hasZeroOrNominal || (hasPreFunded && !hasReplacementContext))) {
+    return { ...segment, supply_nature: "common_equivalent_supply" };
+  }
+  if (supplyNature === "common_equivalent_supply" && hasConditionalPricing && !hasZeroOrNominal && !hasPreFunded) {
+    return { ...segment, supply_nature: "conditional_future_supply" };
+  }
+  return segment;
+}
+
+function normalizeShareOverhangReplacementSegments<
+  T extends { label: string; value: string; note: string | null; supply_nature: string | null; numeric_value: number | null },
+>(segments: T[]) {
+  const currentOfferingValues = segments
+    .filter((segment) => stringValue(segment.supply_nature) === "current_offering_supply")
+    .map((segment) => segment.numeric_value)
+    .filter((value): value is number => typeof value === "number" && Number.isFinite(value) && value > 0);
+
+  if (!currentOfferingValues.length) return segments;
+
+  return segments.map((segment) => {
+    const supplyNature = stringValue(segment.supply_nature);
+    const text = `${segment.label} ${segment.value} ${segment.note || ""}`.toLowerCase();
+    const isPreFunded = /\bpre[-\s]?funded\b/.test(text);
+    const value = segment.numeric_value;
+    const duplicatesCurrentOffering =
+      typeof value === "number" &&
+      Number.isFinite(value) &&
+      currentOfferingValues.some((currentValue) => Math.abs(currentValue - value) / Math.max(currentValue, value) <= 0.01);
+
+    if (supplyNature === "common_equivalent_supply" && isPreFunded && duplicatesCurrentOffering) {
+      return { ...segment, supply_nature: "replacement_supply" };
+    }
+    return segment;
+  });
+}
+
+function deriveShareOverhangScale(shareOverhang: Record<string, unknown> | null) {
+  const segments = arrayValue(shareOverhang?.segments);
+  const numericSegments = segments
+    .map((item) => readRecord(item))
+    .filter((record): record is Record<string, unknown> => Boolean(record))
+    .map((record) => ({
+      supplyNature: stringValue(record.supply_nature || record.supplyNature),
+      className: stringValue(record.class_name || record.className),
+      value: stringValue(record.value || record.value_text),
+      numericValue: numberValue(record.numeric_value) ?? numberValue(record.numericValue) ?? numberValue(record.amount) ?? 0,
+    }))
+    .filter((segment) => segment.numericValue > 0);
+  if (!numericSegments.length) return null;
+
+  const baseValue = numericSegments
+    .filter((segment) => segment.supplyNature === "base_shares" || segment.className === "base-shares" || segment.className === "current-base")
+    .reduce((total, segment) => total + segment.numericValue, 0);
+  const supplyValue = numericSegments
+    .filter((segment) =>
+      ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(segment.supplyNature),
+    )
+    .reduce((total, segment) => total + segment.numericValue, 0);
+  if (baseValue <= 0 || supplyValue <= 0) return null;
+
+  const unit = detectShareOverhangUnit(numericSegments.map((segment) => segment.value).join(" "));
+  return {
+    current_value: formatShareOverhangCount(baseValue, unit),
+    supply_value: formatShareOverhangCount(supplyValue, unit),
+    ratio_value: formatShareOverhangPercent((supplyValue / baseValue) * 100),
+    has_conditional_supply: numericSegments.some((segment) => segment.supplyNature === "conditional_future_supply"),
+  };
+}
+
+function detectShareOverhangUnit(text: string) {
+  if (/\bADSs?\b/i.test(text)) return "ADSs";
+  if (/\bunits?\b/i.test(text)) return "units";
+  return "shares";
+}
+
+function formatShareOverhangCount(value: number, unit: string) {
+  const abs = Math.abs(value);
+  const formatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
+  if (abs >= 1_000_000) return `${formatter.format(value / 1_000_000)}M ${unit}`;
+  if (abs >= 1_000) return `${formatter.format(value / 1_000)}K ${unit}`;
+  return `${Math.round(value).toLocaleString("en-US")} ${unit}`;
+}
+
+function formatShareOverhangPercent(value: number) {
+  return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(value)}%`;
+}
+
+function normalizeShareOverhangRow(record: Record<string, unknown> | null, includeTone: boolean) {
+  const label = stringValue(record?.label);
+  const rowValue = stringValue(record?.value) || stringValue(record?.value_text);
+  if (!label || !rowValue) return null;
+  return {
+    key: nullableString(record?.key),
+    class_name: nullableString(record?.class_name || record?.className),
+    supply_nature: nullableString(record?.supply_nature || record?.supplyNature),
+    calculation_role: nullableString(record?.calculation_role || record?.calculationRole),
+    unit: nullableString(record?.unit),
+    class_basis: nullableString(record?.class_basis || record?.classBasis),
+    pool_id: nullableString(record?.pool_id || record?.poolId),
+    pool_relationship: nullableString(record?.pool_relationship || record?.poolRelationship),
+    label,
+    value: rowValue,
+    numeric_value: numberValue(record?.numeric_value) ?? numberValue(record?.numericValue) ?? numberValue(record?.amount) ?? null,
+    note: nullableString(record?.note),
+    ...(includeTone ? { tone: nullableString(record?.tone) } : {}),
+  };
+}
+
 function hasShareOverhangContent(value: Record<string, unknown> | null) {
   if (!value) return false;
+  if (readRecord(value.basis) || arrayValue(value.rows).length) return true;
   if (arrayValue(value.segments).length) return true;
   if (arrayValue(value.conditional_supply || value.conditionalSupply).length) return true;
   const totalNote = readRecord(value.total_note || value.totalNote);
@@ -479,7 +740,7 @@ function hasShareOverhangContent(value: Record<string, unknown> | null) {
   ].some((item) => Boolean(stringValue(item)));
 }
 
-function normalizeSnapshotMetrics(value: unknown) {
+function normalizeSnapshotMetrics(value: unknown, shareOverhangScale: ReturnType<typeof deriveShareOverhangScale> = null) {
   return arrayValue(value)
     .map((row) => {
       const record = readRecord(row);
@@ -487,10 +748,15 @@ function normalizeSnapshotMetrics(value: unknown) {
       const metricValue = stringValue(record?.value);
       if (!label || !metricValue) return null;
       const tone = stringValue(record?.tone);
+      const shouldUseShareOverhangRatio =
+        shareOverhangScale && /\b(?:dilution|overhang|supply\s+ratio|supply\s+vs)/i.test(label) && /%/.test(metricValue);
       return {
         label,
-        value: metricValue,
-        note: nullableString(record?.note),
+        value: shouldUseShareOverhangRatio ? shareOverhangScale.ratio_value : metricValue,
+        note:
+          shouldUseShareOverhangRatio && shareOverhangScale.has_conditional_supply
+            ? "Excludes conditional future supply"
+            : nullableString(record?.note),
         tone: ["danger", "neutral", "positive"].includes(tone) ? tone : "neutral",
         emphasis: record?.emphasis === true,
       };
@@ -704,12 +970,23 @@ function normalizeOfferingDetails(value: unknown) {
           const record = readRecord(item);
           if (!record) return null;
           const label = stringValue(record.label);
-          const detailValue = stringValue(record.value);
+          const detailValue = normalizeOfferingDetailValue(label, stringValue(record.value));
           const note = stringValue(record.note);
           return label && detailValue ? { label, value: detailValue, ...(note ? { note } : {}) } : null;
         })
         .filter(Boolean)
     : [];
+}
+
+function normalizeOfferingDetailValue(label: string, value: string) {
+  if (!/^use\s+of\s+proceeds$/i.test(label) || !/\+\s*others\b/i.test(value)) return value;
+  const [beforeOthers] = value.split(/\+\s*others\b/i);
+  const purposes = beforeOthers
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (purposes.length <= 2) return value;
+  return `${purposes.slice(0, 2).join(", ")} + others`;
 }
 
 function normalizeInstrumentDetails(value: unknown) {
@@ -722,7 +999,7 @@ function normalizeInstrumentDetails(value: unknown) {
           const detailValue = stringValue(record.value);
           return label && detailValue ? { label, value: detailValue } : null;
         })
-        .filter(Boolean)
+        .filter((row): row is { label: string; value: string } => Boolean(row))
     : [];
 }
 
@@ -744,7 +1021,7 @@ function normalize424bAnalysisOutput(value: Record<string, unknown>, input: SecF
     market_scope: stringValue(value.market_scope) || "company",
     primary_ticker: primaryTicker,
     tickers: normalizeTickerRows(value.tickers, primaryTicker, "primary"),
-    related_tickers: normalizeTickerRows(value.related_tickers, primaryTicker, "related"),
+    related_tickers: [],
     bullish_points: readStringArray(value.bullish_points),
     bearish_points: readStringArray(value.bearish_points),
     key_evidence: readStringArray(value.key_evidence),
@@ -752,6 +1029,20 @@ function normalize424bAnalysisOutput(value: Record<string, unknown>, input: SecF
     calendar_items: Array.isArray(value.calendar_items) ? value.calendar_items : [],
     confidence: normalizeConfidence(stringValue(value.confidence)),
     needs_human_review: value.needs_human_review === true,
+  };
+}
+
+function align424bAnalysisOutputToDisplayPayload(
+  analysis: Record<string, unknown>,
+  displayPayload: Record<string, unknown>,
+) {
+  if (stringValue(displayPayload.display_type) !== "offering_terms") return analysis;
+  return {
+    ...analysis,
+    bullish_points: [],
+    bearish_points: [],
+    key_evidence: [],
+    what_to_watch_next: [],
   };
 }
 
@@ -784,8 +1075,8 @@ function normalizeTickerRows(value: unknown, primaryTicker: { ticker: string | n
 
 function normalizePrimaryTicker(record: Record<string, unknown> | null, filingPackage: Record<string, unknown>) {
   const packagePrimary = readRecord(filingPackage.primary_ticker);
-  const ticker = nullableString(record?.ticker) || nullableString(packagePrimary?.ticker) || nullableString(filingPackage.ticker);
-  const exchange = nullableString(record?.exchange) || nullableString(packagePrimary?.exchange);
+  const ticker = nullableString(packagePrimary?.ticker) || nullableString(filingPackage.ticker) || nullableString(record?.ticker);
+  const exchange = nullableString(packagePrimary?.exchange) || nullableString(record?.exchange);
   return {
     ticker: ticker ? ticker.toUpperCase() : null,
     exchange,
@@ -893,15 +1184,15 @@ export const sec424bRequiredOutputSchema = {
         event_type: { type: "string", enum: APPROVED_424B_EVENT_TYPES },
         event_title: { type: "string" },
         primary_ticker: {
-          type: "object",
+          type: ["object", "null"],
           additionalProperties: true,
           required: ["ticker", "exchange"],
           properties: {
-            ticker: { type: ["string", "null"] },
-            exchange: { type: ["string", "null"] },
+            ticker: { type: ["string", "null"], maxLength: 12 },
+            exchange: { type: ["string", "null"], maxLength: 40 },
           },
         },
-        tickers: { type: "array", items: { type: "object", additionalProperties: true } },
+        tickers: { type: "array", maxItems: 0, items: { type: "object", additionalProperties: true } },
         sector: { type: ["string", "null"] },
         industry_group: { type: ["string", "null"] },
         theme_group: { type: ["string", "null"] },
@@ -916,7 +1207,7 @@ export const sec424bRequiredOutputSchema = {
         bearish_points: { type: "array", items: { type: "string" } },
         key_evidence: { type: "array", items: { type: "string" } },
         what_to_watch_next: { type: "array", items: { type: "string" } },
-        related_tickers: { type: "array", items: { type: "object", additionalProperties: true } },
+        related_tickers: { type: "array", maxItems: 0, items: { type: "object", additionalProperties: true } },
         calendar_items: { type: "array", items: { type: "object", additionalProperties: true } },
         confidence: { type: "string", enum: ["high", "medium", "low"] },
         needs_human_review: { type: "boolean" },
@@ -1009,9 +1300,21 @@ export const sec424bRequiredOutputSchema = {
                   items: {
                     type: "object",
                     additionalProperties: true,
-                    required: ["class_name", "label", "value", "numeric_value"],
+                    required: ["class_name", "supply_nature", "label", "value", "numeric_value"],
                     properties: {
                       class_name: { type: "string" },
+                      supply_nature: {
+                        type: ["string", "null"],
+                        enum: [
+                          "base_shares",
+                          "current_offering_supply",
+                          "registered_resale_supply",
+                          "common_equivalent_supply",
+                          "conditional_future_supply",
+                          "replacement_supply",
+                          null,
+                        ],
+                      },
                       label: { type: "string" },
                       value: { type: "string" },
                       numeric_value: { type: ["number", "null"] },
@@ -1024,10 +1327,22 @@ export const sec424bRequiredOutputSchema = {
                   items: {
                     type: "object",
                     additionalProperties: true,
-                    required: ["label", "value", "numeric_value"],
+                    required: ["label", "value", "supply_nature", "numeric_value"],
                     properties: {
                       label: { type: "string" },
                       value: { type: "string" },
+                      supply_nature: {
+                        type: ["string", "null"],
+                        enum: [
+                          "base_shares",
+                          "current_offering_supply",
+                          "registered_resale_supply",
+                          "common_equivalent_supply",
+                          "conditional_future_supply",
+                          "replacement_supply",
+                          null,
+                        ],
+                      },
                       numeric_value: { type: ["number", "null"] },
                       note: { type: ["string", "null"] },
                       tone: { type: ["string", "null"] },
@@ -1074,8 +1389,8 @@ export const sec424bRequiredOutputSchema = {
                 additionalProperties: true,
                 required: ["label", "value"],
                 properties: {
-                  label: { type: "string" },
-                  value: { type: "string" },
+                  label: { type: "string", maxLength: 40 },
+                  value: { type: "string", maxLength: 90 },
                   note: { type: "string", maxLength: 80 },
                 },
               },

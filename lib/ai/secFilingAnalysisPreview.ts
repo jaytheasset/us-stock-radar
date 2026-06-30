@@ -1434,7 +1434,7 @@ async function runOpenAiJsonPrompt(
     return runGeminiJsonPrompt(prompt, llmConfig);
   }
 
-  const maxAttempts = 3;
+  const maxAttempts = 2;
   let lastRun: OpenAiPromptRun | null = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -1945,8 +1945,8 @@ function readMaxOutputTokens(promptKey: string) {
   if (promptKey === SEC_8K_6K_ROUTER_PROMPT_KEY) return 3000;
   if (promptKey === SEC_8K_6K_ANALYSIS_PROMPT_KEY) return 8000;
   if (promptKey === SEC_TENDER_ANALYSIS_PROMPT_KEY) return 8000;
-  if (promptKey === SEC_424B_ANALYSIS_PROMPT_KEY) return 20000;
-  if (promptKey === SEC_S1_F1_ANALYSIS_PROMPT_KEY) return 20000;
+  if (promptKey === SEC_424B_ANALYSIS_PROMPT_KEY) return 15000;
+  if (promptKey === SEC_S1_F1_ANALYSIS_PROMPT_KEY) return 15000;
   if (promptKey === SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY) return 2500;
   if (promptKey === SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY) return 7000;
   return promptKey === SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY ? 8000 : 5000;
@@ -2141,7 +2141,7 @@ function buildSecInvestableUniverseSkipRun(
 }
 
 async function runGeminiJsonPrompt(prompt: OpenAiPrompt, llmConfig: SecLlmConfig): Promise<OpenAiPromptRun> {
-  const maxAttempts = 3;
+  const maxAttempts = 2;
   let lastRun: OpenAiPromptRun | null = null;
   const url = buildGeminiGenerateContentUrl(llmConfig);
 
@@ -2167,6 +2167,7 @@ async function runGeminiJsonPrompt(prompt: OpenAiPrompt, llmConfig: SecLlmConfig
             responseMimeType: "application/json",
             responseSchema: readGeminiResponseSchema(prompt),
             maxOutputTokens: readMaxOutputTokens(prompt.key),
+            temperature: 0,
             ...readGeminiThinkingConfig(llmConfig.model),
           },
         }),
