@@ -534,6 +534,30 @@ describe("S-1/F-1 section-specific extraction", () => {
     assert.match(String(supplyBlock.text), /zero exercise price/i);
   });
 
+  it("preserves current offering side-placement source excerpts in LLM source blocks", () => {
+    const filler = Array.from({ length: 140 }, (_, index) => `<p>Background paragraph ${index + 1} with ordinary issuer text.</p>`).join("\n");
+    const parserOutput = parseS1F1Filing({
+      formType: "S-1/A",
+      filingText: `<html><body>
+        <div><b>The Offering</b></div>
+        <p>We are offering common stock, pre-funded warrants, Series A Warrants and Series B Warrants.</p>
+        ${filler}
+        <p>In connection with the Waiver and VRT Prohibition, we will issue Series C Warrants and Series D Warrants to certain holders in a concurrent private placement.</p>
+        <p>We will issue up to 46,118,464 shares of common stock upon exercise of the Series C Warrants and Series D Warrants.</p>
+      </body></html>`,
+    });
+    const llmInput = buildS1F1LlmSourceInput(parserOutput);
+    const blocks = llmInput.cleaned_source_blocks as Array<Record<string, unknown>>;
+    const sidePlacementBlock = blocks.find((block) =>
+      String(block.sectionKey || "").startsWith("current_offering_side_placement_source"),
+    );
+
+    assert.ok(sidePlacementBlock);
+    assert.match(String(sidePlacementBlock.text), /Series C Warrants/i);
+    assert.match(String(sidePlacementBlock.text), /Series D Warrants/i);
+    assert.match(String(sidePlacementBlock.text), /46,118,464 shares/i);
+  });
+
   it("uses ipo_listing for traditional and SPAC IPOs but not ordinary resale registrations", () => {
     const traditional = parseS1F1Filing({
       formType: "S-1",

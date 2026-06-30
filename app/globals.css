@@ -11953,6 +11953,28 @@ td {
   min-width: 0;
 }
 
+.dilution-overhang-segment-legend > span.supply-role-included {
+  padding: 8px 10px;
+  border: 1px solid #ffd2cf;
+  border-radius: 8px;
+  background: #fff8f7;
+}
+
+.dilution-overhang-segment-legend > span.supply-role-base {
+  padding: 8px 10px;
+  border: 1px solid #d8e4f7;
+  border-radius: 8px;
+  background: #f7faff;
+}
+
+.dilution-overhang-segment-legend > span.supply-role-conditional,
+.dilution-overhang-segment-legend > span.supply-role-alternative {
+  padding: 8px 10px;
+  border: 1px dashed #d8e0eb;
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
 .dilution-overhang-segment-legend > span.conditional-supply b {
   color: #64728a;
 }
@@ -11991,12 +12013,67 @@ td {
 }
 
 .dilution-overhang-segment-legend b {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
   color: #52627f;
   font-size: 12px;
   line-height: 1.15;
   text-transform: uppercase;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.dilution-overhang-segment-legend b > i {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  height: auto;
+  min-height: 18px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid #cfd9ea;
+  background: #ffffff;
+  color: #52627f;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.dilution-overhang-segment-legend .supply-role-included b {
+  color: #b42318;
+}
+
+.dilution-overhang-segment-legend .supply-role-included b > i {
+  border-color: #ffb4ad;
+  background: #fff1ef;
+  color: #b42318;
+}
+
+.dilution-overhang-segment-legend .supply-role-included strong {
+  color: #b42318;
+  font-weight: 800;
+}
+
+.dilution-overhang-segment-legend .supply-role-base b > i {
+  border-color: #bad1f4;
+  background: #eef5ff;
+  color: #1d4f91;
+}
+
+.dilution-overhang-segment-legend .supply-role-alternative b > i,
+.dilution-overhang-segment-legend .supply-role-conditional b > i {
+  border-color: #d8e0eb;
+  background: #f8fafc;
+  color: #64728a;
+}
+
+.dilution-overhang-segment-legend .supply-role-alternative strong,
+.dilution-overhang-segment-legend .supply-role-conditional strong {
+  color: #36465f;
+  font-weight: 700;
 }
 
 .dilution-overhang-segment-legend strong {

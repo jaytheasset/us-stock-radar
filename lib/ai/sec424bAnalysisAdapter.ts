@@ -1295,6 +1295,17 @@ export const sec424bRequiredOutputSchema = {
                 current_value: { type: "string" },
                 supply_label: { type: "string" },
                 supply_value: { type: "string" },
+                total_note: {
+                  type: "object",
+                  additionalProperties: true,
+                  properties: {
+                    title: { type: "string", maxLength: 48 },
+                    numerator: { type: "string", maxLength: 40 },
+                    denominator: { type: "string", maxLength: 40 },
+                    ratio: { type: "string", maxLength: 24 },
+                    suffix: { type: "string", maxLength: 80 },
+                  },
+                },
                 segments: {
                   type: "array",
                   items: {

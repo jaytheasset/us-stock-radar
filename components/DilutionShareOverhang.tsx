@@ -28,6 +28,7 @@ type DilutionShareOverhangFactRow = {
   value: string;
   note?: string;
   tone?: "danger" | "neutral";
+  supplyNature?: string;
 };
 
 type DilutionInstrumentDetailRow = {
@@ -128,7 +129,7 @@ export function DilutionShareOverhang({ model }: { model: DilutionShareOverhangM
           { label: model.supplyDetailLabel, value: model.unavailableSupplyValue || model.potentialSupplyCompact || "Not stated" },
         ];
   const unavailableDisplayRows = baseUnavailableRows.concat(
-    conditionalSupplyRows.map((row) => ({ ...row, label: formatConditionalSupplyLabel(row.label) })),
+    conditionalSupplyRows.map((row) => ({ ...row, label: formatConditionalSupplyLabel(row) })),
   );
   const supplyDetailRows = model.supplyDetailRows && model.supplyDetailRows.length
     ? model.supplyDetailRows
@@ -191,22 +192,34 @@ export function DilutionShareOverhang({ model }: { model: DilutionShareOverhangM
               </div>
               {showSegmentLegend ? (
                 <div className="dilution-overhang-segment-legend">
-                  {model.overhangBarSegments.map((segment, index) => (
-                    <span key={segment.key}>
-                      <b>
-                        {OVERHANG_SEGMENT_CODES[index] || index + 1}. {segment.label}
-                      </b>
-                      <strong>
-                        <span>{segment.value}</span>
-                        {segment.note ? <em>({segment.note})</em> : null}
-                      </strong>
-                    </span>
-                  ))}
+                  {model.overhangBarSegments.map((segment, index) => {
+                    const role = overhangSupplyRole(segment.supplyNature);
+                    return (
+                      <span key={segment.key} className={`supply-role-${role.kind}`}>
+                        <b>
+                          <span>
+                            {OVERHANG_SEGMENT_CODES[index] || index + 1}. {segment.label}
+                          </span>
+                          <i>{role.badge}</i>
+                        </b>
+                        <strong>
+                          <span>{segment.value}</span>
+                          {segment.note ? <em>({segment.note})</em> : null}
+                        </strong>
+                      </span>
+                    );
+                  })}
                   {conditionalSupplyRows.map((row, index) => (
-                    <span key={`conditional-${row.label}-${index}`} className="conditional-supply">
+                    <span
+                      key={`conditional-${row.label}-${index}`}
+                      className={`conditional-supply supply-role-${overhangSupplyRole(row.supplyNature).kind}`}
+                    >
                       <b>
-                        {OVERHANG_SEGMENT_CODES[model.overhangBarSegments.length + index] || model.overhangBarSegments.length + index + 1}.{" "}
-                        {formatConditionalSupplyLabel(row.label)}
+                        <span>
+                          {OVERHANG_SEGMENT_CODES[model.overhangBarSegments.length + index] || model.overhangBarSegments.length + index + 1}.{" "}
+                          {formatConditionalSupplyLabel(row)}
+                        </span>
+                        <i>{overhangSupplyRole(row.supplyNature).badge}</i>
                       </b>
                       <strong className={row.tone === "danger" ? "danger" : undefined}>
                         <span>{row.value}</span>
@@ -305,8 +318,25 @@ export function DilutionShareOverhang({ model }: { model: DilutionShareOverhangM
   );
 }
 
-function formatConditionalSupplyLabel(label: string) {
-  return /\bconditional\b/i.test(label) ? label : `${label} (Conditional)`;
+function formatConditionalSupplyLabel(row: DilutionShareOverhangFactRow) {
+  return row.label;
+}
+
+function overhangSupplyRole(supplyNature: string | undefined) {
+  switch (supplyNature) {
+    case "base_shares":
+      return { kind: "base", badge: "Baseline" };
+    case "current_offering_supply":
+    case "registered_resale_supply":
+    case "common_equivalent_supply":
+      return { kind: "included", badge: "Counted" };
+    case "replacement_supply":
+      return { kind: "alternative", badge: "Alternative" };
+    case "conditional_future_supply":
+      return { kind: "conditional", badge: "Conditional" };
+    default:
+      return { kind: "reference", badge: "Reference" };
+  }
 }
 
 function DilutionExtraDetailPanel({

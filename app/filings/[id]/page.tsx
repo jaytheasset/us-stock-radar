@@ -9430,7 +9430,7 @@ function readWarrantInstrumentRows(model: Record<string, unknown> | null) {
       termLimits: compactInstrumentTermLimitsValue(group.rows.get("Term / Limits") || group.rows.get("Exercise Status") || ""),
     }))
     .filter((row) => row.type && (row.sharesSecurities || row.exerciseConversionPrice || row.resetFloor || row.termLimits))
-    .slice(0, 6);
+    .slice(0, 7);
 }
 
 function readDisplayInstrumentPriceGroups(model: Record<string, unknown> | null): Array<{ type: string; price: string; shares?: string }> {
@@ -9644,6 +9644,8 @@ function readRawWarrantDetailRows(model: Record<string, unknown> | null): Diluti
 
 function shortWarrantTypeLabel(value: string) {
   const normalized = value.toLowerCase();
+  const groupedSeries = normalizeGroupedSeriesLabel(value);
+  if (groupedSeries && /\bwarrants?\b/i.test(value)) return `${groupedSeries} warrants`;
   const series = value.match(/\bseries\s+[a-z0-9]+\b/i)?.[0];
   if (/pre[-\s]?funded/.test(normalized)) return series ? `${series} pre-funded warrant` : "Pre-funded warrant";
   if (/placement agent|underwriter|agent/.test(normalized)) return series ? `${series} placement agent warrant` : "Placement agent warrant";
@@ -9651,6 +9653,20 @@ function shortWarrantTypeLabel(value: string) {
   if (series && /\bwarrants?\b/i.test(value)) return `${series} warrant`;
   if (series) return series;
   return value;
+}
+
+function normalizeGroupedSeriesLabel(value: string) {
+  const match = value.match(/\bseries\s+[a-z0-9]+(?:\s*(?:\/|&|\band\b)\s*(?:series\s+)?[a-z0-9]+)+/i)?.[0];
+  if (!match) return "";
+  return match
+    .replace(/\s+/g, " ")
+    .replace(/\bseries\b/gi, "Series")
+    .replace(/\s+and\s+/gi, " & ")
+    .replace(/\s*&\s*/g, " & ")
+    .replace(/\s*\/\s*/g, "/")
+    .replace(/\bSeries\s+([A-Za-z0-9]+)\s*([/&])\s*(?:Series\s+)?([A-Za-z0-9]+)\b/g, "Series $1$2$3")
+    .replace(/\bSeries\s+([A-Za-z0-9]+)\s*&\s*(?:Series\s+)?([A-Za-z0-9]+)\b/g, "Series $1 & $2")
+    .trim();
 }
 
 function normalizeOfferingDetailLabel(value: string | null | undefined) {

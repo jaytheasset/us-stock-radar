@@ -139,7 +139,9 @@ const S1_F1_OFFERING_DETAIL_LABELS_BY_MODE: Record<string, readonly string[]> = 
     "Assumed Public Offering Price",
     "Assumed Combined Public Offering Price",
     "Public Offering Price",
+    "Company Proceeds",
     "Source Instrument",
+    "Concurrent Private Placement",
     "Warrant Terms",
     "ADS Ratio",
     "Underlying ADS Basis",
@@ -161,7 +163,9 @@ const S1_F1_OFFERING_DETAIL_LABELS_BY_MODE: Record<string, readonly string[]> = 
     "Assumed Public Offering Price",
     "Assumed Combined Public Offering Price",
     "Public Offering Price",
+    "Company Proceeds",
     "Source Instrument",
+    "Concurrent Private Placement",
     "Warrant Terms",
     "ADS Ratio",
     "Underlying ADS Basis",
@@ -251,7 +255,11 @@ export function adaptSecS1F1AnalysisPromptResultForAnalysis(
   const displayPayloadError = validateS1F1DisplayPayload(displayPayload);
   const displayPayloadWarnings = displayPayloadError ? [displayPayloadError] : [];
   const displayPayloadData = readRecord(displayPayload.data);
-  if (displayPayloadData) appendS1F1DisplayWarnings(displayPayloadData, displayPayloadWarnings);
+  if (displayPayloadData) {
+    displayPayloadWarnings.push(...collectS1F1SourceCoverageWarnings(displayPayloadData, input));
+    displayPayloadWarnings.push(...collectS1F1ShareOverhangDisplayWarnings(displayPayloadData));
+    appendS1F1DisplayWarnings(displayPayloadData, displayPayloadWarnings);
+  }
 
   const normalizedValue = {
     ...root,
@@ -401,12 +409,99 @@ function collectOfferingDetailLabelWarnings(value: unknown, displayMode: string)
   return warnings;
 }
 
+function collectS1F1ShareOverhangDisplayWarnings(data: Record<string, unknown>) {
+  const warnings: string[] = [];
+  const shareOverhang = readRecord(data.share_overhang);
+  if (!shareOverhang) return warnings;
+
+  const caption = stringValue(shareOverhang.caption);
+  const segments = Array.isArray(shareOverhang.segments) ? shareOverhang.segments : [];
+  for (const item of segments) {
+    const segment = readRecord(item);
+    const label = stringValue(segment?.label);
+    const supplyNature = stringValue(segment?.supply_nature || segment?.supplyNature);
+    if (!hasGroupedInstrumentSeriesLabel(label) || !isIncludedSupplyNature(supplyNature)) continue;
+    warnings.push(
+      `S-1/F-1 display_payload.data.share_overhang has grouped instrument series in an included numerator segment (${label}); grouped series must share the same supply_nature and material economics.`,
+    );
+  }
+
+  if (!caption) return warnings;
+
+  const primaryPercent =
+    firstPercentValue(stringValue(shareOverhang.status_value || shareOverhang.statusValue)) ??
+    firstPercentValue(stringValue(shareOverhang.ratio_value || shareOverhang.ratioValue));
+  if (primaryPercent === null) return warnings;
+
+  const captionPercents = percentValues(caption);
+  if (!captionPercents.length) return warnings;
+
+  const hasMatchingCaptionPercent = captionPercents.some((percent) => Math.abs(percent - primaryPercent) <= 0.2);
+  if (hasMatchingCaptionPercent) return warnings;
+
+  warnings.push(
+    `S-1/F-1 display_payload.data.share_overhang.caption percent does not match status_value/ratio_value (${caption} vs ${primaryPercent}%).`,
+  );
+  return warnings;
+}
+
 function appendS1F1DisplayWarnings(data: Record<string, unknown>, warnings: string[]) {
   if (!warnings.length) return;
   const existing = Array.isArray(data.display_warnings)
     ? data.display_warnings.map((item) => stringValue(item)).filter(Boolean)
     : [];
   data.display_warnings = uniqueStrings([...existing, ...warnings]);
+}
+
+function collectS1F1SourceCoverageWarnings(data: Record<string, unknown>, input: SecFilingAnalysisInput) {
+  const displayMode = stringValue(data.display_mode);
+  if (!["mixed_offering", "mixed_registration"].includes(displayMode)) return [];
+
+  const parserOutput = readS1F1ParserOutput(input);
+  const sourceText = Array.isArray(parserOutput?.raw?.cleanedSourceBlocks)
+    ? parserOutput.raw.cleanedSourceBlocks.map((block) => stringValue(readRecord(block)?.text)).join("\n")
+    : "";
+  const hasConcurrentSeries =
+    /\bSeries\s+C\s+Warrants?\b/i.test(sourceText) &&
+    /\bSeries\s+D\s+Warrants?\b/i.test(sourceText) &&
+    /\b(?:concurrent\s+private\s+placement|private\s+placement|VRT Prohibition|Waiver)\b/i.test(sourceText);
+  if (!hasConcurrentSeries) return [];
+
+  const offeringDetailsText = JSON.stringify(Array.isArray(data.offering_details) ? data.offering_details : []);
+  const shareOverhangText = JSON.stringify(readRecord(data.share_overhang) || {});
+  const instrumentDetailsText = JSON.stringify(Array.isArray(data.instrument_details) ? data.instrument_details : []);
+  const missingSurfaces: string[] = [];
+  if (!/\bConcurrent Private Placement\b/i.test(offeringDetailsText)) {
+    missingSurfaces.push("Offering Details");
+  }
+  if (!hasSeriesCAndDText(shareOverhangText)) {
+    missingSurfaces.push("share_overhang");
+  }
+  if (!hasSeriesCAndDText(instrumentDetailsText)) {
+    missingSurfaces.push("instrument_details");
+  }
+  if (!missingSurfaces.length) {
+    return [];
+  }
+
+  return [
+    `S-1/F-1 source contains concurrent private placement Series C/D warrant exposure, but visible mixed_offering UI is missing it in: ${missingSurfaces.join(", ")}.`,
+  ];
+}
+
+function hasSeriesCAndDText(value: string) {
+  return (
+    (/\bSeries\s+C\b/i.test(value) && /\bSeries\s+D\b/i.test(value)) ||
+    /\bSeries\s+C\s*(?:\/|&|\band\b)\s*(?:Series\s+)?D\b/i.test(value)
+  );
+}
+
+function hasGroupedInstrumentSeriesLabel(value: string) {
+  return /\bSeries\s+[A-Za-z0-9-]+\s*(?:\/|&|\band\b)\s*(?:Series\s+)?[A-Za-z0-9-]+\b/i.test(value);
+}
+
+function isIncludedSupplyNature(value: string) {
+  return ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(value);
 }
 
 function validateS1F1OverhangFacts(data: Record<string, unknown>) {
@@ -700,6 +795,17 @@ function stringValue(value: unknown) {
   return "";
 }
 
+function percentValues(value: string) {
+  const matches = value.match(/[+-]?\d[\d,]*(?:\.\d+)?\s*%/g) || [];
+  return matches
+    .map((match) => Number(match.replace(/[,%\s]/g, "")))
+    .filter((item) => Number.isFinite(item));
+}
+
+function firstPercentValue(value: string) {
+  return percentValues(value)[0] ?? null;
+}
+
 function numberValue(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string") {
@@ -890,11 +996,11 @@ export const secS1F1RequiredOutputSchema = {
                   type: "object",
                   additionalProperties: true,
                   properties: {
-                    title: { type: "string" },
-                    numerator: { type: "string" },
-                    denominator: { type: "string" },
-                    ratio: { type: "string" },
-                    suffix: { type: "string" },
+                    title: { type: "string", maxLength: 48 },
+                    numerator: { type: "string", maxLength: 40 },
+                    denominator: { type: "string", maxLength: 40 },
+                    ratio: { type: "string", maxLength: 24 },
+                    suffix: { type: "string", maxLength: 80 },
                   },
                 },
                 segments: {

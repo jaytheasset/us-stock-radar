@@ -3196,12 +3196,27 @@ const PRIORITY_SOURCE_CONTEXTS: Array<{
   sectionKey: string;
   sectionTitle: string;
   patterns: RegExp[];
+  maxBlocks?: number;
   window?: {
     before?: number;
     after?: number;
     alignToLines?: boolean;
   };
 }> = [
+  {
+    sectionKey: "concurrent_private_placement_context",
+    sectionTitle: "Concurrent private placement source context",
+    patterns: [
+      /\bwe\s+will\s+issue\s+up\s+to\s+[0-9][0-9,]*\s+shares[^.\n]{0,260}\bSeries\s+C\s+Warrants?\b[^.\n]{0,260}\bSeries\s+D\s+Warrants?\b/i,
+      /\bSeries\s+C\s+Warrants?\b[^.\n]{0,600}\bSeries\s+D\s+Warrants?\b/i,
+    ],
+    maxBlocks: 1,
+    window: {
+      before: 300,
+      after: 1_600,
+      alignToLines: false,
+    },
+  },
   {
     sectionKey: "share_count_basis_context",
     sectionTitle: "Share count basis source context",
@@ -3212,6 +3227,11 @@ const PRIORITY_SOURCE_CONTEXTS: Array<{
       /\bshares?\s+outstanding\s+(?:prior to|before|immediately prior to|as of|after|assuming)/i,
       /\boutstanding\s+(?:prior to|before|immediately prior to|as of|after|assuming)\s+(?:this|the)\s+(?:offering|resale|transaction|conversion)/i,
     ],
+    window: {
+      before: 80,
+      after: 1_800,
+      alignToLines: false,
+    },
   },
   {
     sectionKey: "instrument_supply_context",
@@ -3336,7 +3356,7 @@ function collectPrioritySourceBlocks(text: string): NonNullable<S1F1ParserOutput
 
     ranges
       .sort((a, b) => a.start - b.start)
-      .slice(0, 3)
+      .slice(0, context.maxBlocks ?? 3)
       .forEach((range, index) => {
         const snippet = clipSourceBlockText(text.slice(range.start, range.end), 9000);
         if (!snippet) return;
@@ -3352,6 +3372,55 @@ function collectPrioritySourceBlocks(text: string): NonNullable<S1F1ParserOutput
   }
 
   return blocks;
+}
+
+function collectCurrentOfferingSidePlacementSourceBlocks(
+  text: string,
+): NonNullable<S1F1ParserOutput["raw"]["cleanedSourceBlocks"]> {
+  const patterns = [
+    /\bconcurrent\s+private\s+placement\b/i,
+    /\bSeries\s+C\s+Warrants?\b[^.\n]{0,700}\bSeries\s+D\s+Warrants?\b/i,
+    /\bwe\s+will\s+issue\s+up\s+to\s+[0-9][0-9,]*\s+shares[^.\n]{0,700}\bSeries\s+[A-Z](?:\s+and\s+Series\s+[A-Z])?\s+Warrants?\b/i,
+    /\bVRT Prohibition\b/i,
+    /\bwaiver\b[^.\n]{0,300}\bwarrants?\b/i,
+  ];
+  const ranges: Array<{ start: number; end: number }> = [];
+
+  for (const pattern of patterns) {
+    const regex = regexWithGlobal(pattern);
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(text)) !== null) {
+      const range = sourceWindow(text, match.index, 500, 1_900, false);
+      const overlapping = ranges.find((item) => range.start <= item.end && range.end >= item.start);
+      if (overlapping) {
+        overlapping.start = Math.min(overlapping.start, range.start);
+        overlapping.end = Math.max(overlapping.end, range.end);
+      } else {
+        ranges.push(range);
+      }
+      if (ranges.length >= 3) break;
+    }
+    if (ranges.length >= 3) break;
+  }
+
+  const excerpts = ranges
+    .sort((a, b) => a.start - b.start)
+    .slice(0, 2)
+    .map((range) => clipSourceBlockText(text.slice(range.start, range.end), 2_500))
+    .filter(Boolean);
+
+  if (!excerpts.length) return [];
+
+  return [
+    {
+      source: "primary",
+      sectionKey: "current_offering_side_placement_source_1",
+      sectionTitle: "Current offering side-placement source excerpts",
+      documentName: null,
+      text: excerpts.join("\n\n---\n\n"),
+      tables: [],
+    },
+  ];
 }
 
 function buildCleanedSourceBlocks(
@@ -3378,6 +3447,7 @@ function buildCleanedSourceBlocks(
     });
   }
 
+  blocks.push(...collectCurrentOfferingSidePlacementSourceBlocks(text));
   blocks.push(...collectPrioritySourceBlocks(text));
 
   for (const section of sections) {
