@@ -558,6 +558,22 @@ describe("S-1/F-1 section-specific extraction", () => {
     assert.match(String(resetFloorBlock.text), /lowest VWAP/i);
   });
 
+  it("does not label issuer price-reset issuance covenants as instrument reset terms", () => {
+    const parserOutput = parseS1F1Filing({
+      formType: "F-1",
+      filingText: `<html><body>
+        <div><b>Plan of Distribution</b></div>
+        <p>We have agreed to not issue any securities that are subject to a price reset based on the trading prices of our shares for a period of one year following the closing date of this offering.</p>
+        <p>The Placement Agent may waive this prohibition in its sole discretion.</p>
+      </body></html>`,
+    });
+    const llmInput = buildS1F1LlmSourceInput(parserOutput);
+    const blocks = llmInput.cleaned_source_blocks as Array<Record<string, unknown>>;
+    const resetFloorBlock = blocks.find((block) => String(block.sectionKey || "").startsWith("instrument_reset_floor_context"));
+
+    assert.equal(resetFloorBlock, undefined);
+  });
+
   it("preserves source warrant exercise and term details in LLM source blocks", () => {
     const filler = Array.from({ length: 140 }, (_, index) => `<p>Background paragraph ${index + 1} with ordinary issuer text.</p>`).join("\n");
     const parserOutput = parseS1F1Filing({

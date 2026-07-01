@@ -235,7 +235,7 @@ export function buildS1F1AnalysisPrompt(
     "- Do not show an instrument only in share_overhang when its source-backed terms are available. share_overhang shows supply exposure; instrument_details shows the term mechanics for that same visible instrument.",
     "- instrument_details rows must use only these labels: Type, Shares / Securities, Exercise / Conversion Price, Reset / Floor, Term / Limits.",
     "- instrument_details rows may include optional note when a short visible caveat, basis, or limit materially clarifies the cell.",
-    "- For each material instrument, repeat the instrument_details label group in this order when source-backed: Type, Shares / Securities, Exercise / Conversion Price, Reset / Floor, Term / Limits.",
+    "- For each material instrument, use this instrument_details label order for the rows you include: Type, Shares / Securities, Exercise / Conversion Price, Reset / Floor, Term / Limits.",
     "- Do not omit an entire instrument_details Type group just because one cell is unavailable. If the instrument and share/ADS exposure are source-backed, include at least Type and Shares / Securities; add Exercise / Conversion Price, Reset / Floor, and Term / Limits only when those cells are source-backed.",
     "- Return at most 7 material instruments in instrument_details, counted by Type groups; this is up to 35 label/value rows.",
     "- Use Type to name the actual instrument family, such as Common warrant, Pre-funded warrant, Convertible note, Convertible preferred stock, Preferred stock, Subscription right, Unit, or Other instrument. Add source-backed series or tranche names when terms differ.",
@@ -248,7 +248,8 @@ export function buildS1F1AnalysisPrompt(
     "- Use Shares / Securities for underlying shares, principal amount, preferred shares, rights, units, or as-converted common shares when disclosed.",
     "- Use Exercise / Conversion Price for exercise price, conversion price, subscription price, unit price, or fixed/VWAP-based conversion terms.",
     "- For Exercise / Conversion Price, if the filing does not provide a final executable price, start the value with Not fixed yet and add any source-backed floor or formula compactly after it; do not copy unfinished price fields, bracketed blanks, or template symbols.",
-    "- Use Reset / Floor only for reset, repricing, anti-dilution, floor price, or no-floor disclosure. Keep it blank by omitting the row when not disclosed.",
+    "- Reset / Floor means only the instrument's own exercise/conversion price reset, repricing, anti-dilution adjustment, floor price, minimum price, or no-floor disclosure. Keep it blank by omitting the row when not disclosed.",
+    "- Do not put issuer financing covenants, lock-ups, standstill terms, or prohibitions on issuing price-reset securities in instrument_details Reset / Floor. Put those in Offering Details as Financing Restriction or Lock-up when material.",
     "- Use Term / Limits for exercisability, expiration, maturity, redemption, ownership cap, subscription period, oversubscription, cashless exercise, transfer limits, or material limits when source-backed.",
     "- Do not write None in Term / Limits when the source states exercisability, expiry, ownership cap, cashless exercise, redemption, transfer limits, or other material restrictions. Keep the source-backed term compact instead.",
     "- Keep instrument_details values compact. Each cell should usually be under 90 characters and never exceed 130 characters. Omit unavailable rows rather than writing Not stated.",
@@ -480,6 +481,8 @@ export function buildS1F1AnalysisPrompt(
     "- Invalid output pattern: display_mode mixed_offering, warrant/pre-funded/convertible/preferred/right/unit language anywhere in snapshot_metrics, narrative_summary, investor_takeaway, offering_details, or share_overhang, but instrument_details is empty. Before final JSON, fill instrument_details for those visible instruments.",
     "- Invalid output pattern: source-backed Common Warrants, Ordinary Warrants, Placement Agent Warrants, Series Warrants, or similar future-exercise warrant supply is mentioned only in share_overhang.note. Before final JSON, move that supply into share_overhang.rows with counted_in_ratio false and supply_type future_exercise.",
     "- Invalid output pattern: instrument_details contains source-backed Common Warrants, Ordinary Warrants, Placement Agent Warrants, Series Warrants, or similar current-filing instruments with share/ADS amounts, but share_overhang.rows has no matching row. Before final JSON, add the matching share_overhang.rows item.",
+    "- Invalid output pattern: share_overhang.rows counts placement agent, underwriter, representative, compensation, common, ordinary, or similar warrant-underlying shares in the headline numerator when that same warrant does not have source-backed zero-exercise, nominal-exercise, pre-funded, or already-paid economics. Before final JSON, set counted_in_ratio false and supply_type future_exercise for that warrant row.",
+    "- Invalid output pattern: a current_offering_pool or share_equivalent row label combines shares/ADSs/units with accompanying or compensation warrants when the warrant-underlying shares have their own source-backed amount. Before final JSON, keep the share/ADS/unit or pre-funded alternative pool as the counted row and move the warrant-underlying amount to a separate future_exercise row.",
     "",
     "Required Output JSON shape:",
     JSON.stringify(
@@ -573,7 +576,7 @@ export function buildS1F1AnalysisPrompt(
               },
               {
                 label: "Reset / Floor",
-                value: "source-backed reset/floor term, None, or Not stated",
+                value: "instrument-specific reset/floor term only; omit row when unavailable",
               },
               {
                 label: "Term / Limits",

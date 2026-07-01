@@ -3196,6 +3196,7 @@ const PRIORITY_SOURCE_CONTEXTS: Array<{
   sectionKey: string;
   sectionTitle: string;
   patterns: RegExp[];
+  excludePatterns?: RegExp[];
   maxBlocks?: number;
   window?: {
     before?: number;
@@ -3286,6 +3287,9 @@ const PRIORITY_SOURCE_CONTEXTS: Array<{
       /\b(?:floor\s+price|price\s+floor|minimum\s+(?:exercise|conversion|purchase|offering|VWAP)?\s*price|minimum\s+VWAP)\b/i,
       /\b(?:VWAP|volume[-\s]?weighted\s+average\s+price|Event\s+Market\s+Price|Alternate\s+Conversion\s+Price|Nasdaq\s+Minimum\s+Price|Minimum\s+Price)\b/i,
       /\b(?:zero\s+exercise\s+price|nominal\s+exercise\s+price|cashless\s+exercise)\b/i,
+    ],
+    excludePatterns: [
+      /\b(?:we|company|issuer)\s+have\s+agreed\s+to\s+not\s+issue\s+any\s+securities\s+that\s+are\s+subject\s+to\s+a\s+price\s+reset\b/i,
     ],
     maxBlocks: 2,
     window: {
@@ -3405,6 +3409,7 @@ function collectPrioritySourceBlocks(text: string): NonNullable<S1F1ParserOutput
       .forEach((range, index) => {
         const snippet = clipSourceBlockText(text.slice(range.start, range.end), 9000);
         if (!snippet) return;
+        if (context.excludePatterns?.some((pattern) => pattern.test(snippet))) return;
         blocks.push({
           source: "primary",
           sectionKey: `${context.sectionKey}_${index + 1}`,
