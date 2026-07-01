@@ -415,9 +415,11 @@ function collectS1F1ShareOverhangDisplayWarnings(data: Record<string, unknown>) 
   if (!shareOverhang) return warnings;
 
   const caption = stringValue(shareOverhang.caption);
+  const basis = readRecord(shareOverhang.basis);
   const structuredRows = Array.isArray(shareOverhang.rows) ? shareOverhang.rows : [];
   const legacySegments = Array.isArray(shareOverhang.segments) ? shareOverhang.segments : [];
   const rowsToCheck = structuredRows.length ? structuredRows : legacySegments;
+  warnings.push(...collectS1F1ShareOverhangUnitWarnings(basis, rowsToCheck, structuredRows.length > 0));
   for (const item of rowsToCheck) {
     const row = readRecord(item);
     const label = stringValue(row?.label);
@@ -432,6 +434,7 @@ function collectS1F1ShareOverhangDisplayWarnings(data: Record<string, unknown>) 
       `S-1/F-1 display_payload.data.share_overhang has grouped instrument series in an included numerator row (${label}); grouped series must share the same supply_nature and material economics.`,
     );
   }
+  warnings.push(...collectS1F1WarrantShareOverhangWarnings(data, rowsToCheck));
 
   if (!caption) return warnings;
 
@@ -450,6 +453,173 @@ function collectS1F1ShareOverhangDisplayWarnings(data: Record<string, unknown>) 
     `S-1/F-1 display_payload.data.share_overhang.caption percent does not match status_value/ratio_value (${caption} vs ${primaryPercent}%).`,
   );
   return warnings;
+}
+
+function collectS1F1ShareOverhangUnitWarnings(
+  basis: Record<string, unknown> | null,
+  rawRows: unknown[],
+  structuredRows: boolean,
+) {
+  const warnings: string[] = [];
+  const basisNumericValue = numberValue(basis?.numeric_value) ?? numberValue(basis?.numericValue);
+  const basisUnit = stringValue(basis?.unit);
+  const basisClass = stringValue(basis?.class_basis || basis?.classBasis);
+  if (typeof basisNumericValue === "number" && Number.isFinite(basisNumericValue) && basisNumericValue > 0 && !basisUnit) {
+    warnings.push("S-1/F-1 display_payload.data.share_overhang.basis has numeric_value but missing unit.");
+  }
+
+  for (const item of rawRows) {
+    const row = readRecord(item);
+    if (!row) continue;
+    const numericValue = numberValue(row.numeric_value) ?? numberValue(row.numericValue);
+    if (typeof numericValue !== "number" || !Number.isFinite(numericValue) || numericValue <= 0) continue;
+
+    const rowUnit = stringValue(row.unit);
+    const rowClass = stringValue(row.class_basis || row.classBasis);
+    const calculationRole = stringValue(row.calculation_role || row.calculationRole);
+    const supplyNature = stringValue(row.supply_nature || row.supplyNature);
+    const included = structuredRows
+      ? calculationRole === "headline_numerator" && isIncludedSupplyNature(supplyNature)
+      : isIncludedSupplyNature(supplyNature);
+
+    if (!rowUnit) {
+      warnings.push(
+        `S-1/F-1 display_payload.data.share_overhang row has numeric_value but missing unit: ${stringValue(row.label) || "(unlabeled)"}`,
+      );
+    }
+    if (!included) continue;
+
+    if (basisUnit && rowUnit && normalizeShareOverhangUnitForWarning(basisUnit) !== normalizeShareOverhangUnitForWarning(rowUnit)) {
+      warnings.push(
+        `S-1/F-1 display_payload.data.share_overhang headline row unit does not match basis unit: ${stringValue(row.label) || "(unlabeled)"}`,
+      );
+    }
+    if (basisClass && rowClass && normalizeShareOverhangUnitForWarning(basisClass) !== normalizeShareOverhangUnitForWarning(rowClass)) {
+      warnings.push(
+        `S-1/F-1 display_payload.data.share_overhang headline row class_basis does not match basis class_basis: ${stringValue(row.label) || "(unlabeled)"}`,
+      );
+    }
+  }
+
+  return uniqueStrings(warnings);
+}
+
+function normalizeShareOverhangUnitForWarning(value: string) {
+  const normalized = value
+    .toLowerCase()
+    .replace(/\bamerican depositary shares?\b/g, "ads")
+    .replace(/\badses\b/g, "ads")
+    .replace(/\badss\b/g, "ads")
+    .replace(/\bshares?\b/g, "shares")
+    .replace(/\bunits?\b/g, "units")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (/\bads\b/.test(normalized)) return "ads";
+  return normalized;
+}
+
+function collectS1F1WarrantShareOverhangWarnings(data: Record<string, unknown>, rawRows: unknown[]) {
+  const rows = rawRows.map((item) => readRecord(item)).filter((item): item is Record<string, unknown> => Boolean(item));
+  if (!rows.length) return [];
+
+  const warnings: string[] = [];
+  for (const row of rows) {
+    const label = stringValue(row.label);
+    const rowText = `${label} ${stringValue(row.value)} ${stringValue(row.note)}`;
+    const supplyNature = stringValue(row.supply_nature || row.supplyNature);
+    const calculationRole = stringValue(row.calculation_role || row.calculationRole);
+    if (
+      calculationRole === "headline_numerator" &&
+      supplyNature === "current_offering_supply" &&
+      isNonShareEquivalentWarrantText(label)
+    ) {
+      warnings.push(
+        `S-1/F-1 display_payload.data.share_overhang headline row label appears to mix accompanying warrant package text with counted current offering supply: ${label}`,
+      );
+    }
+    if (
+      calculationRole === "headline_numerator" &&
+      supplyNature === "common_equivalent_supply" &&
+      isNonShareEquivalentWarrantText(rowText)
+    ) {
+      warnings.push(
+        `S-1/F-1 display_payload.data.share_overhang headline row appears to include non-share-equivalent warrant supply: ${label}`,
+      );
+    }
+  }
+
+  for (const group of readInstrumentDetailGroups(data.instrument_details)) {
+    if (!isNonShareEquivalentWarrantText(group.text)) continue;
+    const hasVisibleConditionalRow = rows.some((row) => {
+      if (!shareOverhangRowMatchesInstrument(row, group.type)) return false;
+      const supplyNature = stringValue(row.supply_nature || row.supplyNature);
+      const calculationRole = stringValue(row.calculation_role || row.calculationRole);
+      return calculationRole === "visible_excluded" || supplyNature === "conditional_future_supply";
+    });
+    if (hasVisibleConditionalRow) continue;
+    warnings.push(
+      `S-1/F-1 display_payload.data.instrument_details includes ${group.type}, but share_overhang.rows does not show a matching visible_excluded conditional warrant row.`,
+    );
+  }
+
+  return uniqueStrings(warnings);
+}
+
+function readInstrumentDetailGroups(value: unknown) {
+  const groups: Array<{ type: string; text: string }> = [];
+  let current: { type: string; parts: string[] } | null = null;
+
+  for (const item of Array.isArray(value) ? value : []) {
+    const row = readRecord(item);
+    const label = stringValue(row?.label);
+    const rowValue = stringValue(row?.value);
+    if (!label || !rowValue) continue;
+    if (label.toLowerCase() === "type") {
+      current = { type: rowValue, parts: [rowValue] };
+      groups.push({
+        type: current.type,
+        text: current.parts.join(" "),
+      });
+      continue;
+    }
+    if (!current) continue;
+    current.parts.push(rowValue);
+    groups[groups.length - 1] = {
+      type: current.type,
+      text: current.parts.join(" "),
+    };
+  }
+
+  return groups;
+}
+
+function isNonShareEquivalentWarrantText(value: string) {
+  if (!/\bwarrants?\b/i.test(value)) return false;
+  if (/\bpre[-\s]?funded\b/i.test(value)) return false;
+  if (/\b(?:zero[-\s]?exercise|zero\s+exercise\s+price|nominal[-\s]?exercise|share[-\s]?equivalent)\b/i.test(value)) return false;
+  if (/\$0\.0+1\b|\$0\.0+01\b/i.test(value)) return false;
+  return true;
+}
+
+function shareOverhangRowMatchesInstrument(row: Record<string, unknown>, instrumentType: string) {
+  const rowText = `${stringValue(row.label)} ${stringValue(row.value)} ${stringValue(row.note)}`;
+  const normalizedRowText = normalizeInstrumentMatchText(rowText);
+  const normalizedType = normalizeInstrumentMatchText(instrumentType);
+  if (normalizedType && normalizedRowText.includes(normalizedType)) return true;
+
+  const words = normalizedType.split(" ").filter((word) => word.length > 2 && word !== "warrant" && word !== "warrants");
+  if (!words.length) return /\bwarrant\b/i.test(normalizedRowText);
+  return words.every((word) => normalizedRowText.includes(word)) && /\bwarrant\b/i.test(normalizedRowText);
+}
+
+function normalizeInstrumentMatchText(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\bwarrants\b/g, "warrant")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function appendS1F1DisplayWarnings(data: Record<string, unknown>, warnings: string[]) {
@@ -1033,11 +1203,13 @@ export const secS1F1RequiredOutputSchema = {
                 basis: {
                   type: "object",
                   additionalProperties: true,
-                  required: ["label", "value", "numeric_value"],
+                  required: ["label", "value", "numeric_value", "unit"],
                   properties: {
                     label: { type: "string" },
                     value: { type: "string" },
                     numeric_value: { type: ["number", "null"] },
+                    unit: { type: "string", enum: ["shares", "ADSs", "units", "securities"] },
+                    class_basis: { type: ["string", "null"], maxLength: 80 },
                     note: { type: ["string", "null"], maxLength: 80 },
                   },
                 },
@@ -1046,13 +1218,15 @@ export const secS1F1RequiredOutputSchema = {
                   items: {
                     type: "object",
                     additionalProperties: true,
-                    required: ["calculation_role", "supply_nature", "label", "value", "numeric_value"],
+                    required: ["calculation_role", "supply_nature", "label", "value", "numeric_value", "unit"],
                     properties: {
                       calculation_role: { type: "string" },
                       supply_nature: { type: "string" },
                       label: { type: "string" },
                       value: { type: "string" },
                       numeric_value: { type: ["number", "null"] },
+                      unit: { type: "string", enum: ["shares", "ADSs", "units", "securities"] },
+                      class_basis: { type: ["string", "null"], maxLength: 80 },
                       note: { type: ["string", "null"], maxLength: 80 },
                     },
                   },
