@@ -10977,7 +10977,9 @@ td {
 
 .dilution-long-summary {
   display: grid;
-  gap: 11px;
+  align-content: start;
+  align-items: start;
+  gap: 14px;
 }
 
 .dilution-long-summary h2 {
