@@ -534,6 +534,51 @@ describe("S-1/F-1 section-specific extraction", () => {
     assert.match(String(supplyBlock.text), /zero exercise price/i);
   });
 
+  it("preserves source reset and floor terms in LLM source blocks", () => {
+    const filler = Array.from({ length: 140 }, (_, index) => `<p>Background paragraph ${index + 1} with ordinary issuer text.</p>`).join("\n");
+    const parserOutput = parseS1F1Filing({
+      formType: "S-1",
+      filingText: `<html><body>
+        <div><b>The Offering</b></div>
+        <p>We are offering common stock, pre-funded warrants, Series A Warrants and Series B Warrants.</p>
+        ${filler}
+        <p>The Series B Warrants will have an exercise price reset based on the Event Market Price, subject to a Floor Price of $0.31 per share.</p>
+        <p>The exercise price may also be adjusted under anti-dilution provisions using the lowest VWAP during the reset period.</p>
+      </body></html>`,
+    });
+    const llmInput = buildS1F1LlmSourceInput(parserOutput);
+    const blocks = llmInput.cleaned_source_blocks as Array<Record<string, unknown>>;
+    const resetFloorBlock = blocks.find((block) => String(block.sectionKey || "").startsWith("instrument_reset_floor_context"));
+
+    assert.ok(resetFloorBlock);
+    assert.match(String(resetFloorBlock.text), /exercise price reset/i);
+    assert.match(String(resetFloorBlock.text), /Event Market Price/i);
+    assert.match(String(resetFloorBlock.text), /Floor Price of \$0\.31/i);
+    assert.match(String(resetFloorBlock.text), /anti-dilution/i);
+    assert.match(String(resetFloorBlock.text), /lowest VWAP/i);
+  });
+
+  it("preserves source warrant exercise and term details in LLM source blocks", () => {
+    const filler = Array.from({ length: 140 }, (_, index) => `<p>Background paragraph ${index + 1} with ordinary issuer text.</p>`).join("\n");
+    const parserOutput = parseS1F1Filing({
+      formType: "F-1",
+      filingText: `<html><body>
+        <div><b>The Offering</b></div>
+        <p>We are offering ADSs and accompanying Common Warrants.</p>
+        ${filler}
+        <p>The placement agent warrants will have an exercise price equal to 125% of the public offering price per ADS and will expire five years from the commencement of sales.</p>
+      </body></html>`,
+    });
+    const llmInput = buildS1F1LlmSourceInput(parserOutput);
+    const blocks = llmInput.cleaned_source_blocks as Array<Record<string, unknown>>;
+    const termBlock = blocks.find((block) => String(block.sectionKey || "").startsWith("instrument_term_context"));
+
+    assert.ok(termBlock);
+    assert.match(String(termBlock.text), /placement agent warrants/i);
+    assert.match(String(termBlock.text), /exercise price equal to 125%/i);
+    assert.match(String(termBlock.text), /expire five years/i);
+  });
+
   it("preserves current offering side-placement source excerpts in LLM source blocks", () => {
     const filler = Array.from({ length: 140 }, (_, index) => `<p>Background paragraph ${index + 1} with ordinary issuer text.</p>`).join("\n");
     const parserOutput = parseS1F1Filing({

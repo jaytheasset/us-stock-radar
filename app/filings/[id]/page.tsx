@@ -4840,8 +4840,8 @@ function DilutionInstrumentDetailsSection({
 
 function displayInstrumentValue(value: string | undefined) {
   const normalized = (value || "").trim();
-  if (!normalized || /^null$/i.test(normalized) || /^undefined$/i.test(normalized)) {
-    return "None";
+  if (!normalized || /^(?:null|undefined|none|n\/a|not stated)$/i.test(normalized)) {
+    return "-";
   }
   return normalized;
 }
@@ -8895,13 +8895,22 @@ function readLlmShareOverhangStructuredRows(overhang: Record<string, unknown>) {
       candidateSegments.filter(
         (segment) =>
           segment.calculationRole === "denominator" ||
-          (segment.calculationRole === "headline_numerator" && isCompatibleWithShareOverhangBasis(segment, basis)),
+          (segment.calculationRole === "headline_numerator" &&
+            isIncludedSupplyNatureRow(segment) &&
+            isCompatibleWithShareOverhangBasis(segment, basis)),
       ),
     ),
   );
   const conditionalSupplyRows = rows
-    .filter((row) => row.calculationRole !== "headline_numerator" || !isCompatibleWithShareOverhangBasis(structuredRowToSegment(row), basis))
-    .filter((row) => row.calculationRole !== "denominator")
+    .filter((row) => {
+      if (row.calculationRole === "denominator") return false;
+      const segment = structuredRowToSegment(row);
+      return !(
+        row.calculationRole === "headline_numerator" &&
+        isIncludedSupplyNatureRow(row) &&
+        isCompatibleWithShareOverhangBasis(segment, basis)
+      );
+    })
     .slice(0, 8);
 
   return { conditionalSupplyRows, overhangBarSegments };

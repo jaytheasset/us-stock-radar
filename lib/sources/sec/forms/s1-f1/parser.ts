@@ -3250,6 +3250,37 @@ const PRIORITY_SOURCE_CONTEXTS: Array<{
     },
   },
   {
+    sectionKey: "instrument_term_context",
+    sectionTitle: "Instrument term source context",
+    patterns: [
+      /\b(?:placement\s+agent|underwriter|agent|representative)\s+warrants?\b/i,
+      /\b(?:common|ordinary|pre[-\s]?funded|placement\s+agent|underwriter|agent|representative|Series\s+[A-Z])\s+warrants?\b[^.\n]{0,260}\b(?:exercise\s+price|exercisable|expires?|expiration|term|cashless|beneficial\s+ownership|ownership\s+limitation)\b/i,
+      /\b(?:exercise\s+price|exercisable|expires?|expiration|cashless\s+exercise|beneficial\s+ownership\s+limitation)\b[^.\n]{0,260}\b(?:warrants?|pre[-\s]?funded)\b/i,
+    ],
+    maxBlocks: 2,
+    window: {
+      before: 700,
+      after: 2_800,
+      alignToLines: false,
+    },
+  },
+  {
+    sectionKey: "instrument_reset_floor_context",
+    sectionTitle: "Instrument reset/floor source context",
+    patterns: [
+      /\b(?:reset|repric(?:e|ed|es|ing)|anti[-\s]?dilution|adjust(?:ed|ment)?\s+(?:exercise|conversion)\s+price|(?:exercise|conversion)\s+price\s+adjust(?:ed|ment)?)\b/i,
+      /\b(?:floor\s+price|price\s+floor|minimum\s+(?:exercise|conversion|purchase|offering|VWAP)?\s*price|minimum\s+VWAP)\b/i,
+      /\b(?:VWAP|volume[-\s]?weighted\s+average\s+price|Event\s+Market\s+Price|Alternate\s+Conversion\s+Price|Nasdaq\s+Minimum\s+Price|Minimum\s+Price)\b/i,
+      /\b(?:zero\s+exercise\s+price|nominal\s+exercise\s+price|cashless\s+exercise)\b/i,
+    ],
+    maxBlocks: 2,
+    window: {
+      before: 800,
+      after: 2_600,
+      alignToLines: false,
+    },
+  },
+  {
     sectionKey: "underwriting_context",
     sectionTitle: "Underwriting source context",
     patterns: [
