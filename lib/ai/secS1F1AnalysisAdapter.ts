@@ -415,14 +415,21 @@ function collectS1F1ShareOverhangDisplayWarnings(data: Record<string, unknown>) 
   if (!shareOverhang) return warnings;
 
   const caption = stringValue(shareOverhang.caption);
-  const segments = Array.isArray(shareOverhang.segments) ? shareOverhang.segments : [];
-  for (const item of segments) {
-    const segment = readRecord(item);
-    const label = stringValue(segment?.label);
-    const supplyNature = stringValue(segment?.supply_nature || segment?.supplyNature);
-    if (!hasGroupedInstrumentSeriesLabel(label) || !isIncludedSupplyNature(supplyNature)) continue;
+  const structuredRows = Array.isArray(shareOverhang.rows) ? shareOverhang.rows : [];
+  const legacySegments = Array.isArray(shareOverhang.segments) ? shareOverhang.segments : [];
+  const rowsToCheck = structuredRows.length ? structuredRows : legacySegments;
+  for (const item of rowsToCheck) {
+    const row = readRecord(item);
+    const label = stringValue(row?.label);
+    const supplyNature = stringValue(row?.supply_nature || row?.supplyNature);
+    const calculationRole = stringValue(row?.calculation_role || row?.calculationRole);
+    const included =
+      structuredRows.length > 0
+        ? calculationRole === "headline_numerator" && isIncludedSupplyNature(supplyNature)
+        : isIncludedSupplyNature(supplyNature);
+    if (!hasGroupedInstrumentSeriesLabel(label) || !included) continue;
     warnings.push(
-      `S-1/F-1 display_payload.data.share_overhang has grouped instrument series in an included numerator segment (${label}); grouped series must share the same supply_nature and material economics.`,
+      `S-1/F-1 display_payload.data.share_overhang has grouped instrument series in an included numerator row (${label}); grouped series must share the same supply_nature and material economics.`,
     );
   }
 
@@ -548,6 +555,25 @@ function hasNumericDisplayFactValue(fact: Record<string, unknown> | null) {
 
 function hasNumericShareOverhangSegment(data: Record<string, unknown>, kind: "current" | "supply") {
   const shareOverhang = readRecord(data.share_overhang);
+  if (kind === "current") {
+    const basis = readRecord(shareOverhang?.basis);
+    const numericValue = numberValue(basis?.numeric_value) ?? numberValue(basis?.numericValue);
+    if (typeof numericValue === "number" && Number.isFinite(numericValue) && numericValue > 0) return true;
+  }
+
+  if (kind === "supply") {
+    const rows = Array.isArray(shareOverhang?.rows) ? shareOverhang.rows : [];
+    const hasHeadlineSupplyRow = rows.some((item) => {
+      const record = readRecord(item);
+      const numericValue = numberValue(record?.numeric_value) ?? numberValue(record?.numericValue);
+      if (typeof numericValue !== "number" || !Number.isFinite(numericValue) || numericValue <= 0) return false;
+      const calculationRole = stringValue(record?.calculation_role || record?.calculationRole);
+      const supplyNature = stringValue(record?.supply_nature || record?.supplyNature);
+      return calculationRole === "headline_numerator" && isIncludedSupplyNature(supplyNature);
+    });
+    if (hasHeadlineSupplyRow) return true;
+  }
+
   const segments = Array.isArray(shareOverhang?.segments) ? shareOverhang.segments : [];
   return segments.some((item) => {
     const record = readRecord(item);
@@ -978,7 +1004,8 @@ export const secS1F1RequiredOutputSchema = {
                 "current_value",
                 "supply_label",
                 "supply_value",
-                "segments",
+                "basis",
+                "rows",
               ],
               properties: {
                 chart_title: { type: "string", enum: APPROVED_S1_F1_SHARE_OVERHANG_CHART_TITLES },
@@ -1003,31 +1030,30 @@ export const secS1F1RequiredOutputSchema = {
                     suffix: { type: "string", maxLength: 80 },
                   },
                 },
-                segments: {
+                basis: {
+                  type: "object",
+                  additionalProperties: true,
+                  required: ["label", "value", "numeric_value"],
+                  properties: {
+                    label: { type: "string" },
+                    value: { type: "string" },
+                    numeric_value: { type: ["number", "null"] },
+                    note: { type: ["string", "null"], maxLength: 80 },
+                  },
+                },
+                rows: {
                   type: "array",
                   items: {
                     type: "object",
                     additionalProperties: true,
-                    required: ["class_name", "supply_nature", "label", "value", "numeric_value"],
+                    required: ["calculation_role", "supply_nature", "label", "value", "numeric_value"],
                     properties: {
-                      key: { type: ["string", "null"] },
-                      class_name: { type: "string" },
-                      supply_nature: {
-                        type: ["string", "null"],
-                        enum: [
-                          "base_shares",
-                          "current_offering_supply",
-                          "registered_resale_supply",
-                          "common_equivalent_supply",
-                          "conditional_future_supply",
-                          "replacement_supply",
-                          null,
-                        ],
-                      },
+                      calculation_role: { type: "string" },
+                      supply_nature: { type: "string" },
                       label: { type: "string" },
                       value: { type: "string" },
                       numeric_value: { type: ["number", "null"] },
-                      note: { type: ["string", "null"] },
+                      note: { type: ["string", "null"], maxLength: 80 },
                     },
                   },
                 },
@@ -1040,25 +1066,14 @@ export const secS1F1RequiredOutputSchema = {
                     properties: {
                       label: { type: "string" },
                       value: { type: "string" },
-                      supply_nature: {
-                        type: ["string", "null"],
-                        enum: [
-                          "base_shares",
-                          "current_offering_supply",
-                          "registered_resale_supply",
-                          "common_equivalent_supply",
-                          "conditional_future_supply",
-                          "replacement_supply",
-                          null,
-                        ],
-                      },
+                      supply_nature: { type: ["string", "null"] },
                       numeric_value: { type: ["number", "null"] },
-                      note: { type: ["string", "null"] },
+                      note: { type: ["string", "null"], maxLength: 80 },
                       tone: { type: ["string", "null"] },
                     },
                   },
                 },
-                note: { type: ["string", "null"] },
+                note: { type: ["string", "null"], maxLength: 160 },
               },
             },
             investor_takeaway: { type: ["string", "null"] },
@@ -1072,7 +1087,7 @@ export const secS1F1RequiredOutputSchema = {
                 properties: {
                   label: { type: "string", maxLength: 40 },
                   value: { type: "string", maxLength: 90 },
-                  note: { type: ["string", "null"], maxLength: 80 },
+                  note: { type: "string", maxLength: 80 },
                 },
               },
             },
@@ -1085,6 +1100,7 @@ export const secS1F1RequiredOutputSchema = {
                 properties: {
                   label: { type: "string" },
                   value: { type: "string" },
+                  note: { type: "string", maxLength: 80 },
                 },
               },
             },

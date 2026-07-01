@@ -9417,7 +9417,8 @@ function readWarrantDetailsRows(model: Record<string, unknown> | null): Dilution
     .map((item) => {
       const label = cleanDisclosureValue(readRowString(item, "label"));
       const value = cleanDisclosureValue(readDisclosureValue(item.value) || readRowString(item, "value"));
-      return label && allowed.has(label) && isDisclosedValue(value) ? { label, value } : null;
+      const note = cleanDisclosureValue(readDisclosureValue(item.note) || readRowString(item, "note"));
+      return label && allowed.has(label) && isDisclosedValue(value) ? { label, value, ...(isDisclosedValue(note) ? { note } : {}) } : null;
     })
     .filter((item): item is DilutionDisclosureRow => Boolean(item));
 
@@ -9665,7 +9666,8 @@ function readRawWarrantDetailRows(model: Record<string, unknown> | null): Diluti
     .map((item) => {
       const label = cleanDisclosureValue(readRowString(item, "label"));
       const value = cleanDisclosureValue(readDisclosureValue(item.value) || readRowString(item, "value"));
-      return label && allowed.has(label) && isDisclosedValue(value) ? { label, value } : null;
+      const note = cleanDisclosureValue(readDisclosureValue(item.note) || readRowString(item, "note"));
+      return label && allowed.has(label) && isDisclosedValue(value) ? { label, value, ...(isDisclosedValue(note) ? { note } : {}) } : null;
     })
     .filter((item): item is DilutionDisclosureRow => Boolean(item));
 }

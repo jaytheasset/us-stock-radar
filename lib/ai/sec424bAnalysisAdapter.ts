@@ -199,6 +199,39 @@ export function collect424bDisplayPayloadWarnings(displayPayload: Record<string,
   ) {
     warnings.push("SEC 424B selected display mode uses a visible share/scale chart but display_payload.data.share_overhang is missing.");
   }
+  const shareOverhang = readRecord(data.share_overhang);
+  const shareOverhangRows = arrayValue(shareOverhang?.rows)
+    .map((row) => readRecord(row))
+    .filter((row): row is Record<string, unknown> => Boolean(row));
+  const shareOverhangSegments = arrayValue(shareOverhang?.segments)
+    .map((segment) => readRecord(segment))
+    .filter((segment): segment is Record<string, unknown> => Boolean(segment));
+  const hasStructuredRows = Boolean(readRecord(shareOverhang?.basis)) || shareOverhangRows.length > 0;
+  const hasIncludedShareOverhangRow = shareOverhangRows.some((row) => {
+    const calculationRole = stringValue(row.calculation_role || row.calculationRole);
+    const supplyNature = stringValue(row.supply_nature || row.supplyNature);
+    return (
+      calculationRole === "headline_numerator" &&
+      ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(supplyNature)
+    );
+  });
+  const hasIncludedShareOverhangSegment = shareOverhangSegments.some((segment) =>
+    ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(
+      stringValue(segment.supply_nature || segment.supplyNature),
+    ),
+  );
+  const hasShareOverhangBasis = Boolean(readRecord(shareOverhang?.basis));
+  const hasBaseShareOverhangSegment = shareOverhangSegments.some(
+    (segment) => stringValue(segment.supply_nature || segment.supplyNature) === "base_shares",
+  );
+  if (
+    selectedModeUsesShareOverhang &&
+    (hasStructuredRows ? hasIncludedShareOverhangRow && !hasShareOverhangBasis : hasIncludedShareOverhangSegment && !hasBaseShareOverhangSegment)
+  ) {
+    warnings.push(
+      "SEC 424B share_overhang has included supply rows but no basis current-share denominator; use source-block shares outstanding first, then market_context when source blocks do not provide it.",
+    );
+  }
   for (const segment of arrayValue(data.supply_segments)) {
     const record = readRecord(segment);
     const shares = readRecord(record?.shares);
@@ -237,21 +270,9 @@ function collect424bScoreConsistencyWarnings(
   if (score == null) return warnings;
   const data = readRecord(displayPayload.data);
   const shareOverhang = readRecord(data?.share_overhang);
-  const segments = arrayValue(shareOverhang?.segments)
-    .map((segment) => readRecord(segment))
-    .filter((segment): segment is Record<string, unknown> => Boolean(segment));
-  if (!segments.length) return warnings;
-
-  const baseValue = segments
-    .filter((segment) => stringValue(segment.supply_nature || segment.supplyNature) === "base_shares")
-    .reduce((total, segment) => total + (numberValue(segment.numeric_value) ?? numberValue(segment.numericValue) ?? 0), 0);
-  const includedValue = segments
-    .filter((segment) =>
-      ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(
-        stringValue(segment.supply_nature || segment.supplyNature),
-      ),
-    )
-    .reduce((total, segment) => total + (numberValue(segment.numeric_value) ?? numberValue(segment.numericValue) ?? 0), 0);
+  const scale = deriveShareOverhangScale(shareOverhang);
+  const baseValue = scale?.base_numeric_value ?? 0;
+  const includedValue = scale?.supply_numeric_value ?? 0;
   if (baseValue <= 0 || includedValue <= 0) return warnings;
 
   const includedPercent = (includedValue / baseValue) * 100;
@@ -508,7 +529,7 @@ function normalizeShareOverhang(value: Record<string, unknown> | null, instrumen
         suffix: stringValue(totalNote.suffix || totalNote.note),
       }
     : null;
-  const scale = deriveShareOverhangScale({ segments });
+  const scale = deriveShareOverhangScale({ basis, rows, segments });
   const scaledTotalNote =
     normalizedTotalNote && scale
       ? {
@@ -692,8 +713,41 @@ function normalizeShareOverhangReplacementSegments<
 }
 
 function deriveShareOverhangScale(shareOverhang: Record<string, unknown> | null) {
-  const segments = arrayValue(shareOverhang?.segments);
-  const numericSegments = segments
+  const basis = readRecord(shareOverhang?.basis);
+  const rows = arrayValue(shareOverhang?.rows)
+    .map((item) => readRecord(item))
+    .filter((record): record is Record<string, unknown> => Boolean(record))
+    .map((record) => ({
+      calculationRole: stringValue(record.calculation_role || record.calculationRole),
+      supplyNature: stringValue(record.supply_nature || record.supplyNature),
+      className: stringValue(record.class_name || record.className),
+      value: stringValue(record.value || record.value_text),
+      numericValue: numberValue(record.numeric_value) ?? numberValue(record.numericValue) ?? numberValue(record.amount) ?? 0,
+    }))
+    .filter((row) => row.numericValue > 0);
+  const basisValue = numberValue(basis?.numeric_value) ?? numberValue(basis?.numericValue) ?? numberValue(basis?.amount) ?? 0;
+  if (basisValue > 0 && rows.length > 0) {
+    const supplyValue = rows
+      .filter(
+        (row) =>
+          row.calculationRole === "headline_numerator" &&
+          ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(row.supplyNature),
+      )
+      .reduce((total, row) => total + row.numericValue, 0);
+    if (supplyValue > 0) {
+      const unit = detectShareOverhangUnit([stringValue(basis?.value || basis?.value_text), ...rows.map((row) => row.value)].join(" "));
+      return {
+        current_value: formatShareOverhangCount(basisValue, unit),
+        supply_value: formatShareOverhangCount(supplyValue, unit),
+        ratio_value: formatShareOverhangPercent((supplyValue / basisValue) * 100),
+        has_conditional_supply: rows.some((row) => row.supplyNature === "conditional_future_supply"),
+        base_numeric_value: basisValue,
+        supply_numeric_value: supplyValue,
+      };
+    }
+  }
+
+  const segments = arrayValue(shareOverhang?.segments)
     .map((item) => readRecord(item))
     .filter((record): record is Record<string, unknown> => Boolean(record))
     .map((record) => ({
@@ -703,24 +757,26 @@ function deriveShareOverhangScale(shareOverhang: Record<string, unknown> | null)
       numericValue: numberValue(record.numeric_value) ?? numberValue(record.numericValue) ?? numberValue(record.amount) ?? 0,
     }))
     .filter((segment) => segment.numericValue > 0);
-  if (!numericSegments.length) return null;
+  if (!segments.length) return null;
 
-  const baseValue = numericSegments
+  const baseValue = segments
     .filter((segment) => segment.supplyNature === "base_shares" || segment.className === "base-shares" || segment.className === "current-base")
     .reduce((total, segment) => total + segment.numericValue, 0);
-  const supplyValue = numericSegments
+  const supplyValue = segments
     .filter((segment) =>
       ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(segment.supplyNature),
     )
     .reduce((total, segment) => total + segment.numericValue, 0);
   if (baseValue <= 0 || supplyValue <= 0) return null;
 
-  const unit = detectShareOverhangUnit(numericSegments.map((segment) => segment.value).join(" "));
+  const unit = detectShareOverhangUnit(segments.map((segment) => segment.value).join(" "));
   return {
     current_value: formatShareOverhangCount(baseValue, unit),
     supply_value: formatShareOverhangCount(supplyValue, unit),
     ratio_value: formatShareOverhangPercent((supplyValue / baseValue) * 100),
-    has_conditional_supply: numericSegments.some((segment) => segment.supplyNature === "conditional_future_supply"),
+    has_conditional_supply: segments.some((segment) => segment.supplyNature === "conditional_future_supply"),
+    base_numeric_value: baseValue,
+    supply_numeric_value: supplyValue,
   };
 }
 
@@ -1039,7 +1095,8 @@ function normalizeInstrumentDetails(value: unknown) {
           if (!record) return null;
           const label = stringValue(record.label);
           const detailValue = stringValue(record.value);
-          return label && detailValue ? { label, value: detailValue } : null;
+          const note = stringValue(record.note);
+          return label && detailValue ? { label, value: detailValue, ...(note ? { note } : {}) } : null;
         })
         .filter((row): row is { label: string; value: string } => Boolean(row))
     : [];
@@ -1273,18 +1330,47 @@ export const sec424bRequiredOutputSchema = {
             snapshot_metrics: {
               type: "array",
               maxItems: 4,
-              items: offeringDisplayRowSchema(40, 80, 0),
+              items: offeringDisplayRowSchema(40, 80, 80),
             },
             share_overhang: {
               type: "object",
               additionalProperties: true,
-              required: ["chart_title", "segments"],
+              required: ["chart_title", "rows"],
               properties: {
-                chart_title: { type: "string" },
-                segments: {
-                  type: "array",
-                  items: shareOverhangSegmentSchema(),
+                chart_title: { type: "string", maxLength: 48 },
+                subtitle: { type: ["string", "null"], maxLength: 90 },
+                status_label: { type: ["string", "null"], maxLength: 48 },
+                status_value: { type: ["string", "null"], maxLength: 48 },
+                caption: { type: ["string", "null"], maxLength: 72 },
+                ratio_label: { type: ["string", "null"], maxLength: 56 },
+                ratio_value: { type: ["string", "null"], maxLength: 48 },
+                current_label: { type: ["string", "null"], maxLength: 56 },
+                current_value: { type: ["string", "null"], maxLength: 64 },
+                supply_label: { type: ["string", "null"], maxLength: 56 },
+                supply_value: { type: ["string", "null"], maxLength: 64 },
+                total_note: {
+                  type: "object",
+                  additionalProperties: true,
+                  properties: {
+                    title: { type: "string", maxLength: 48 },
+                    numerator: { type: "string", maxLength: 40 },
+                    denominator: { type: "string", maxLength: 40 },
+                    ratio: { type: "string", maxLength: 24 },
+                    suffix: { type: "string", maxLength: 80 },
+                  },
                 },
+                basis: shareOverhangBasisSchema(),
+                rows: {
+                  type: "array",
+                  maxItems: 7,
+                  items: shareOverhangRowSchema(),
+                },
+                conditional_supply: {
+                  type: "array",
+                  maxItems: 7,
+                  items: looseObjectSchema(),
+                },
+                note: { type: ["string", "null"], maxLength: 160 },
               },
             },
             investor_takeaway: { type: "string", maxLength: 180 },
@@ -1297,7 +1383,7 @@ export const sec424bRequiredOutputSchema = {
             instrument_details: {
               type: "array",
               maxItems: 35,
-              items: offeringDisplayRowSchema(40, 130, 0),
+              items: offeringDisplayRowSchema(40, 130, 80),
             },
             supply_segments: {
               type: "array",
@@ -1333,22 +1419,40 @@ function offeringDisplayRowSchema(labelMaxLength: number, valueMaxLength: number
     properties: {
       label: { type: "string", maxLength: labelMaxLength },
       value: { type: "string", maxLength: valueMaxLength },
-      ...(noteMaxLength > 0 ? { note: { type: ["string", "null"], maxLength: noteMaxLength } } : {}),
+      ...(noteMaxLength > 0 ? { note: { type: "string", maxLength: noteMaxLength } } : {}),
     },
   };
 }
 
-function shareOverhangSegmentSchema() {
+function shareOverhangBasisSchema() {
   return {
     type: "object",
     additionalProperties: true,
-    required: ["class_name", "supply_nature", "label", "value", "numeric_value"],
+    required: ["label", "value", "numeric_value"],
     properties: {
-      class_name: { type: "string" },
+      label: { type: "string", maxLength: 80 },
+      value: { type: "string", maxLength: 90 },
+      numeric_value: { type: ["number", "null"] },
+      unit: { type: ["string", "null"], maxLength: 20 },
+      class_basis: { type: ["string", "null"], maxLength: 80 },
+      note: { type: ["string", "null"], maxLength: 80 },
+    },
+  };
+}
+
+function shareOverhangRowSchema() {
+  return {
+    type: "object",
+    additionalProperties: true,
+    required: ["calculation_role", "supply_nature", "label", "value", "numeric_value"],
+    properties: {
+      calculation_role: {
+        type: "string",
+        enum: ["headline_numerator", "visible_excluded", "note_only"],
+      },
       supply_nature: {
         type: "string",
         enum: [
-          "base_shares",
           "current_offering_supply",
           "registered_resale_supply",
           "common_equivalent_supply",
@@ -1356,10 +1460,14 @@ function shareOverhangSegmentSchema() {
           "replacement_supply",
         ],
       },
-      label: { type: "string" },
-      value: { type: "string" },
-      numeric_value: { type: "number" },
-      note: { type: ["string", "null"] },
+      label: { type: "string", maxLength: 80 },
+      value: { type: "string", maxLength: 90 },
+      numeric_value: { type: ["number", "null"] },
+      unit: { type: ["string", "null"], maxLength: 20 },
+      class_basis: { type: ["string", "null"], maxLength: 80 },
+      pool_id: { type: ["string", "null"], maxLength: 80 },
+      pool_relationship: { type: ["string", "null"], enum: ["alternative_max", "additive", null] },
+      note: { type: ["string", "null"], maxLength: 80 },
     },
   };
 }

@@ -2315,6 +2315,8 @@ function toGeminiResponseSchema(value: unknown): unknown {
   const output: Record<string, unknown> = {};
   for (const [key, childValue] of Object.entries(record)) {
     if (key === "additionalProperties") continue;
+    if (key === "maxLength") continue;
+    if (key === "maxItems") continue;
     if (key === "type" && Array.isArray(childValue)) {
       const nonNullType = childValue.find((item) => item !== "null");
       if (typeof nonNullType === "string") {
