@@ -238,7 +238,7 @@ export function adaptSecS1F1AnalysisPromptResultForAnalysis(
   const displayPayloadData = readRecord(displayPayload.data);
   if (displayPayloadData) {
     displayPayloadWarnings.push(...collectS1F1SourceCoverageWarnings(displayPayloadData, input));
-    displayPayloadWarnings.push(...collectS1F1ShareOverhangDisplayWarnings(displayPayloadData));
+    displayPayloadWarnings.push(...collectS1F1ShareOverhangDisplayWarnings(displayPayloadData, analysisOutput));
     appendS1F1DisplayWarnings(displayPayloadData, displayPayloadWarnings);
   }
 
@@ -294,9 +294,6 @@ function validateS1F1DisplayPayload(displayPayload: Record<string, unknown>) {
   }
   if (!stringValue(data.investor_takeaway)) {
     return "SEC S-1/F-1 offering_terms display_payload.data.investor_takeaway must be written by the analysis LLM";
-  }
-  if (!stringValue(data.narrative_summary)) {
-    return "SEC S-1/F-1 offering_terms display_payload.data.narrative_summary must be written by the analysis LLM";
   }
   appendS1F1DisplayWarnings(
     data,
@@ -390,7 +387,7 @@ function collectOfferingDetailLabelWarnings(value: unknown, displayMode: string)
   return warnings;
 }
 
-function collectS1F1ShareOverhangDisplayWarnings(data: Record<string, unknown>) {
+function collectS1F1ShareOverhangDisplayWarnings(data: Record<string, unknown>, analysisOutput?: Record<string, unknown>) {
   const warnings: string[] = [];
   const shareOverhang = readRecord(data.share_overhang);
   if (!shareOverhang) return warnings;
@@ -410,7 +407,7 @@ function collectS1F1ShareOverhangDisplayWarnings(data: Record<string, unknown>) 
       `S-1/F-1 display_payload.data.share_overhang has grouped instrument series in an included numerator row (${label}); grouped series must share the same supply_type and material economics.`,
     );
   }
-  warnings.push(...collectS1F1WarrantShareOverhangWarnings(data, rowsToCheck));
+  warnings.push(...collectS1F1WarrantShareOverhangWarnings(data, rowsToCheck, analysisOutput));
 
   if (!caption) return warnings;
 
@@ -491,7 +488,11 @@ function normalizeShareOverhangUnitForWarning(value: string) {
   return normalized;
 }
 
-function collectS1F1WarrantShareOverhangWarnings(data: Record<string, unknown>, rawRows: unknown[]) {
+function collectS1F1WarrantShareOverhangWarnings(
+  data: Record<string, unknown>,
+  rawRows: unknown[],
+  analysisOutput?: Record<string, unknown>,
+) {
   const rows = rawRows.map((item) => readRecord(item)).filter((item): item is Record<string, unknown> => Boolean(item));
   if (!rows.length) return [];
 
@@ -565,7 +566,7 @@ function collectS1F1WarrantShareOverhangWarnings(data: Record<string, unknown>, 
     );
   }
 
-  const shareOverhangContext = `${JSON.stringify(readRecord(data.share_overhang) || {})} ${JSON.stringify(data.snapshot_metrics || [])} ${stringValue(data.narrative_summary)} ${stringValue(data.investor_takeaway)}`;
+  const shareOverhangContext = `${JSON.stringify(readRecord(data.share_overhang) || {})} ${JSON.stringify(data.snapshot_metrics || [])} ${stringValue(analysisOutput?.summary)} ${stringValue(analysisOutput?.quick_take)} ${stringValue(data.narrative_summary)} ${stringValue(data.investor_takeaway)}`;
   const hasFutureExerciseWarrantMention = hasNonShareEquivalentWarrantMention(shareOverhangContext);
   const hasFutureExerciseWarrantRow = rows.some((row) => {
     const countedInRatio = booleanValue(row.counted_in_ratio ?? row.countedInRatio);
@@ -1108,7 +1109,6 @@ export const secS1F1RequiredOutputSchema = {
             "risk_label",
             "snapshot_metrics",
             "investor_takeaway",
-            "narrative_summary",
             "offering_details",
             "instrument_details",
           ],

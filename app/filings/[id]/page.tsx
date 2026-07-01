@@ -7193,7 +7193,8 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
   });
   const llmNarrativeSummary =
     readRowString(llmDisplayModel, "narrative_summary") ||
-    readRowString(displayPayloadData, "narrative_summary");
+    readRowString(displayPayloadData, "narrative_summary") ||
+    filing.summary;
   const summaryNarrative = llmNarrativeSummary;
   const summaryParagraphs = [llmNarrativeSummary].filter(isDisclosedValue);
   const llmSnapshotMetrics = readSnapshotMetrics(displayPayloadData);
