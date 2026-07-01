@@ -4144,7 +4144,9 @@ function computeVisibleShareOverhangScale(segments: ShareOverhangBarSegment[]) {
         ? segment.supplyNature === "base_shares"
         : segment.className === "current-base";
   const isIncludedSupplySegment = (segment: ShareOverhangBarSegment) =>
-    segment.calculationRole
+    typeof segment.countedInRatio === "boolean"
+      ? segment.countedInRatio
+      : segment.calculationRole
       ? segment.calculationRole === "headline_numerator"
       : segment.supplyNature
         ? ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(segment.supplyNature)
@@ -4166,6 +4168,65 @@ function computeVisibleShareOverhangScale(segments: ShareOverhangBarSegment[]) {
     ratioValue: formatPercentCompact((supplyValue / currentValue) * 100) || "Variable",
     supplyValue: formatShareOverhangCount(supplyValue, unit),
   };
+}
+
+function buildConditionalExerciseScaleRows(
+  segments: ShareOverhangBarSegment[],
+  conditionalRows: LlmShareOverhangFactRow[],
+): DilutionDisclosureRow[] {
+  const numericSegments = segments.filter((segment) => typeof segment.numericValue === "number" && segment.numericValue > 0);
+  const isBaseSegment = (segment: ShareOverhangBarSegment) =>
+    segment.calculationRole
+      ? segment.calculationRole === "denominator"
+      : segment.supplyNature
+        ? segment.supplyNature === "base_shares"
+        : segment.className === "current-base";
+  const isIncludedSupplySegment = (segment: ShareOverhangBarSegment) =>
+    typeof segment.countedInRatio === "boolean"
+      ? segment.countedInRatio
+      : segment.calculationRole
+      ? segment.calculationRole === "headline_numerator"
+      : segment.supplyNature
+        ? ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(segment.supplyNature)
+        : segment.className !== "current-base";
+  const isFutureExerciseRow = (row: LlmShareOverhangFactRow) =>
+    row.supplyType === "future_exercise" ||
+    (!row.supplyType && row.supplyNature === "conditional_future_supply") ||
+    (!row.supplyType && row.calculationRole === "visible_excluded");
+
+  const basisSegment = numericSegments.find(isBaseSegment) || null;
+  const denominator = basisSegment?.numericValue || 0;
+  if (denominator <= 0) return [];
+
+  const includedSupply = collapseAlternativeShareOverhangSegments(numericSegments)
+    .filter((segment) => isIncludedSupplySegment(segment))
+    .filter((segment) => isCompatibleWithShareOverhangBasis(segment, basisSegment))
+    .reduce((total, segment) => total + (segment.numericValue || 0), 0);
+  if (includedSupply <= 0) return [];
+
+  const futureExerciseSegments = conditionalRows
+    .filter(isFutureExerciseRow)
+    .map(structuredRowToSegment)
+    .filter((segment) => typeof segment.numericValue === "number" && segment.numericValue > 0)
+    .filter((segment) => isCompatibleWithShareOverhangBasis(segment, basisSegment));
+  const futureExerciseSupply = futureExerciseSegments.reduce((total, segment) => total + (segment.numericValue || 0), 0);
+  if (futureExerciseSupply <= 0) return [];
+
+  const unit = detectShareOverhangUnit([...segments, ...futureExerciseSegments]);
+  const totalIfExercised = includedSupply + futureExerciseSupply;
+  const ratio = formatPercentCompact((totalIfExercised / denominator) * 100) || "Variable";
+
+  return [
+    {
+      label: "Conditional exercise supply",
+      value: formatShareOverhangCount(futureExerciseSupply, unit),
+    },
+    {
+      label: "Total if exercised",
+      value: `${formatShareOverhangCount(totalIfExercised, unit)} (${ratio})`,
+      note: "Headline supply plus conditional exercise rows",
+    },
+  ];
 }
 
 function collapseAlternativeShareOverhangSegments(segments: ShareOverhangBarSegment[]) {
@@ -4286,7 +4347,12 @@ function OfferingTermsShareOverhangDetails({
         requireProvidedSupplyDetails: true,
         supplyDetailRows: model.offeringDetailsRows,
         conditionalSupplyRows: overhang.conditionalSupplyRows,
-        extraDetailPanels: buildWarrantExtraDetailPanels(model),
+        extraDetailPanels: [
+          ...(overhang.conditionalExerciseScaleRows.length
+            ? [{ title: "If Exercised", rows: overhang.conditionalExerciseScaleRows }]
+            : []),
+          ...buildWarrantExtraDetailPanels(model),
+        ],
         supplyDetailTitle: "Offering Details",
         supplyDetailLabel: overhang.supplyLabel || fallbackSupplyDetailLabel,
         totalNoteSuffix,
@@ -4317,7 +4383,7 @@ function normalizeComputedShareOverhangCaption(value: string, segments: ShareOve
   const caption = value.trim();
   if (!caption) return "";
   if (/^(?:not stated|not disclosed|not fixed|variable)(?:\s+of\b.*)?$/i.test(caption)) return "";
-  const includedSegments = segments.filter(isIncludedSupplyNatureRow);
+  const includedSegments = segments.filter(isCountedInShareOverhangRatio);
   if (/\bpre[-\s]?funded\b/i.test(caption)) {
     const hasNonPrefundedSupply = includedSegments.some((segment) => !/\bpre[-\s]?funded\b/i.test(`${segment.label} ${segment.value}`));
     if (hasNonPrefundedSupply) return "";
@@ -4696,6 +4762,13 @@ type ShareOverhangSupplyNature =
   | "conditional_future_supply"
   | "replacement_supply";
 
+type ShareOverhangSupplyType =
+  | "current_offering_pool"
+  | "registered_resale_pool"
+  | "share_equivalent"
+  | "future_exercise"
+  | "replacement_alternative";
+
 type ShareOverhangCalculationRole =
   | "denominator"
   | "headline_numerator"
@@ -4708,6 +4781,8 @@ type LlmShareOverhangFactRow = {
   key?: string;
   className?: string;
   supplyNature?: ShareOverhangSupplyNature;
+  supplyType?: ShareOverhangSupplyType;
+  countedInRatio?: boolean;
   calculationRole?: ShareOverhangCalculationRole;
   unit?: string;
   classBasis?: string;
@@ -4741,6 +4816,7 @@ type LlmShareOverhangModel = {
   unavailableRows: LlmShareOverhangFactRow[];
   conditionalSupplyRows: LlmShareOverhangFactRow[];
   overhangBarSegments: ShareOverhangBarSegment[];
+  conditionalExerciseScaleRows: DilutionDisclosureRow[];
 };
 
 function DilutionMetric({ metric }: { metric: DilutionMetricItem }) {
@@ -8803,6 +8879,7 @@ function readLlmShareOverhang(
     unavailableRows,
     conditionalSupplyRows: routedRows.conditionalSupplyRows,
     overhangBarSegments: routedRows.overhangBarSegments,
+    conditionalExerciseScaleRows: buildConditionalExerciseScaleRows(routedRows.overhangBarSegments, routedRows.conditionalSupplyRows),
   };
 
   const hasVisibleContent = [
@@ -8846,6 +8923,8 @@ function readLlmShareOverhangRows(value: unknown): LlmShareOverhangModel["unavai
         key: readOverhangString(row, "key"),
         className: normalizeLlmShareOverhangSegmentClass(readOverhangString(row, "class_name", "className", "role") || label),
         supplyNature: normalizeShareOverhangSupplyNature(readOverhangString(row, "supply_nature", "supplyNature")),
+        supplyType: normalizeShareOverhangSupplyType(readOverhangString(row, "supply_type", "supplyType")),
+        countedInRatio: readOverhangBoolean(row, "counted_in_ratio", "countedInRatio"),
         calculationRole: normalizeShareOverhangCalculationRole(readOverhangString(row, "calculation_role", "calculationRole")),
         unit: readOverhangString(row, "unit"),
         classBasis: readOverhangString(row, "class_basis", "classBasis"),
@@ -8871,12 +8950,12 @@ function readLlmShareOverhangRoutedRows(overhang: Record<string, unknown>) {
 
   const overhangBarSegments = normalizeLlmShareOverhangSegmentWidths(
     segmentRows
-      .filter(isIncludedSupplyNatureRow)
-      .concat(conditionalRows.filter(isIncludedSupplyNatureRow).map(conditionalRowToSegment)),
+      .filter(isCountedInShareOverhangRatio)
+      .concat(conditionalRows.filter(isCountedInShareOverhangRatio).map(conditionalRowToSegment)),
   );
   const conditionalSupplyRows = conditionalRows
-    .filter((row) => !isIncludedSupplyNatureRow(row))
-    .concat(segmentRows.filter((segment) => !isIncludedSupplyNatureRow(segment)).map(segmentToConditionalSupplyRow))
+    .filter((row) => !isCountedInShareOverhangRatio(row))
+    .concat(segmentRows.filter((segment) => !isCountedInShareOverhangRatio(segment)).map(segmentToConditionalSupplyRow))
     .slice(0, 8);
 
   return { conditionalSupplyRows, overhangBarSegments };
@@ -8895,9 +8974,7 @@ function readLlmShareOverhangStructuredRows(overhang: Record<string, unknown>) {
       candidateSegments.filter(
         (segment) =>
           segment.calculationRole === "denominator" ||
-          (segment.calculationRole === "headline_numerator" &&
-            isIncludedSupplyNatureRow(segment) &&
-            isCompatibleWithShareOverhangBasis(segment, basis)),
+          (isCountedInShareOverhangRatio(segment) && isCompatibleWithShareOverhangBasis(segment, basis)),
       ),
     ),
   );
@@ -8906,9 +8983,7 @@ function readLlmShareOverhangStructuredRows(overhang: Record<string, unknown>) {
       if (row.calculationRole === "denominator") return false;
       const segment = structuredRowToSegment(row);
       return !(
-        row.calculationRole === "headline_numerator" &&
-        isIncludedSupplyNatureRow(row) &&
-        isCompatibleWithShareOverhangBasis(segment, basis)
+        isCountedInShareOverhangRatio(row) && isCompatibleWithShareOverhangBasis(segment, basis)
       );
     })
     .slice(0, 8);
@@ -8942,6 +9017,8 @@ function structuredRowToSegment(row: LlmShareOverhangFactRow): ShareOverhangBarS
     key: row.key || `llm-share-overhang-row-${row.label}`,
     className: row.className || normalizeLlmShareOverhangSegmentClass(row.label),
     supplyNature: row.supplyNature,
+    supplyType: row.supplyType,
+    countedInRatio: row.countedInRatio,
     calculationRole: row.calculationRole,
     unit: row.unit,
     classBasis: row.classBasis,
@@ -8955,7 +9032,8 @@ function structuredRowToSegment(row: LlmShareOverhangFactRow): ShareOverhangBarS
   };
 }
 
-function isIncludedSupplyNatureRow(row: { supplyNature?: string }) {
+function isCountedInShareOverhangRatio(row: { countedInRatio?: boolean; supplyNature?: string }) {
+  if (typeof row.countedInRatio === "boolean") return row.countedInRatio;
   return (
     row.supplyNature === "base_shares" ||
     row.supplyNature === "current_offering_supply" ||
@@ -8969,6 +9047,8 @@ function conditionalRowToSegment(row: LlmShareOverhangFactRow, index: number): S
     key: row.key || `llm-share-overhang-promoted-${index}`,
     className: row.className || normalizeLlmShareOverhangSegmentClass(row.label),
     supplyNature: row.supplyNature,
+    supplyType: row.supplyType,
+    countedInRatio: row.countedInRatio,
     calculationRole: row.calculationRole,
     unit: row.unit,
     classBasis: row.classBasis,
@@ -8987,6 +9067,8 @@ function segmentToConditionalSupplyRow(segment: ShareOverhangBarSegment): LlmSha
     key: segment.key,
     className: segment.className,
     supplyNature: normalizeShareOverhangSupplyNature(segment.supplyNature || ""),
+    supplyType: normalizeShareOverhangSupplyType(segment.supplyType || ""),
+    countedInRatio: segment.countedInRatio,
     calculationRole: normalizeShareOverhangCalculationRole(segment.calculationRole || ""),
     unit: segment.unit,
     classBasis: segment.classBasis,
@@ -9009,6 +9091,8 @@ function readLlmShareOverhangSegments(value: unknown): ShareOverhangBarSegment[]
         key: readOverhangString(segment, "key") || `llm-share-overhang-${index}`,
         className: normalizeLlmShareOverhangSegmentClass(readOverhangString(segment, "class_name", "className", "role") || label),
         supplyNature: normalizeShareOverhangSupplyNature(readOverhangString(segment, "supply_nature", "supplyNature")),
+        supplyType: normalizeShareOverhangSupplyType(readOverhangString(segment, "supply_type", "supplyType")),
+        countedInRatio: readOverhangBoolean(segment, "counted_in_ratio", "countedInRatio"),
         calculationRole: normalizeShareOverhangCalculationRole(readOverhangString(segment, "calculation_role", "calculationRole")),
         unit: readOverhangString(segment, "unit"),
         classBasis: readOverhangString(segment, "class_basis", "classBasis"),
@@ -9065,6 +9149,20 @@ function normalizeShareOverhangSupplyNature(value: string): ShareOverhangSupplyN
   return undefined;
 }
 
+function normalizeShareOverhangSupplyType(value: string): ShareOverhangSupplyType | undefined {
+  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (
+    normalized === "current_offering_pool" ||
+    normalized === "registered_resale_pool" ||
+    normalized === "share_equivalent" ||
+    normalized === "future_exercise" ||
+    normalized === "replacement_alternative"
+  ) {
+    return normalized;
+  }
+  return undefined;
+}
+
 function normalizeShareOverhangCalculationRole(value: string): ShareOverhangCalculationRole | undefined {
   const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
   if (
@@ -9099,6 +9197,19 @@ function readOverhangString(record: Record<string, unknown>, ...keys: string[]) 
     if (value) return value;
   }
   return "";
+}
+
+function readOverhangBoolean(record: Record<string, unknown>, ...keys: string[]) {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === "true") return true;
+      if (normalized === "false") return false;
+    }
+  }
+  return undefined;
 }
 
 function readOverhangStringLimited(record: Record<string, unknown>, maxLength: number, ...keys: string[]) {

@@ -579,6 +579,31 @@ describe("S-1/F-1 section-specific extraction", () => {
     assert.match(String(termBlock.text), /expire five years/i);
   });
 
+  it("preserves placement agent warrant term context when fee text appears earlier", () => {
+    const filler = Array.from({ length: 160 }, (_, index) => `<p>Background paragraph ${index + 1} with ordinary issuer text.</p>`).join("\n");
+    const parserOutput = parseS1F1Filing({
+      formType: "F-1",
+      filingText: `<html><body>
+        <div><b>Cover Page</b></div>
+        <p>We have agreed to issue to the Placement Agent warrants to purchase ADSs at an exercise price equal to 125% of the combined public offering price.</p>
+        ${filler}
+        <div><b>Plan of Distribution</b></div>
+        <p>The Placement Agent Warrants will be immediately exercisable and will expire five years from the commencement of sales of this offering.</p>
+      </body></html>`,
+    });
+    const llmInput = buildS1F1LlmSourceInput(parserOutput);
+    const blocks = llmInput.cleaned_source_blocks as Array<Record<string, unknown>>;
+    const placementTermBlock = blocks.find(
+      (block) =>
+        String(block.sectionKey || "").startsWith("placement_agent_warrant_term_context") &&
+        /immediately exercisable/i.test(String(block.text)),
+    );
+
+    assert.ok(placementTermBlock);
+    assert.match(String(placementTermBlock.text), /Placement Agent Warrants will be immediately exercisable/i);
+    assert.match(String(placementTermBlock.text), /expire five years from the commencement of sales/i);
+  });
+
   it("preserves current offering side-placement source excerpts in LLM source blocks", () => {
     const filler = Array.from({ length: 140 }, (_, index) => `<p>Background paragraph ${index + 1} with ordinary issuer text.</p>`).join("\n");
     const parserOutput = parseS1F1Filing({

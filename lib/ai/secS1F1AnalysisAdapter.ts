@@ -26,25 +26,6 @@ const ALLOWED_S1_F1_DISPLAY_MODES = new Set([
   "generic",
 ]);
 
-const APPROVED_S1_F1_SHARE_OVERHANG_CHART_TITLES = [
-  "Share Dilution",
-  "Share Overhang",
-  "Warrant Share Supply",
-  "Convertible Share Supply",
-  "Preferred Conversion Supply",
-  "Pre-Funded Warrant Supply",
-  "Mixed Instrument Supply",
-  "Mixed Offering",
-  "Rights Offering",
-  "ATM Program",
-  "Shelf Details",
-  "Initial IPO Filing",
-  "IPO Terms Update",
-  "Rule 462(b) MEF",
-  "SPAC IPO Terms",
-  "Amendment Summary",
-] as const;
-
 const S1_F1_OFFERING_DETAIL_LABELS_BY_MODE: Record<string, readonly string[]> = {
   ipo_registration: [],
   ipo_amendment: [
@@ -423,15 +404,10 @@ function collectS1F1ShareOverhangDisplayWarnings(data: Record<string, unknown>) 
   for (const item of rowsToCheck) {
     const row = readRecord(item);
     const label = stringValue(row?.label);
-    const supplyNature = stringValue(row?.supply_nature || row?.supplyNature);
-    const calculationRole = stringValue(row?.calculation_role || row?.calculationRole);
-    const included =
-      structuredRows.length > 0
-        ? calculationRole === "headline_numerator" && isIncludedSupplyNature(supplyNature)
-        : isIncludedSupplyNature(supplyNature);
+    const included = isS1F1CountedShareOverhangRow(row, structuredRows.length > 0);
     if (!hasGroupedInstrumentSeriesLabel(label) || !included) continue;
     warnings.push(
-      `S-1/F-1 display_payload.data.share_overhang has grouped instrument series in an included numerator row (${label}); grouped series must share the same supply_nature and material economics.`,
+      `S-1/F-1 display_payload.data.share_overhang has grouped instrument series in an included numerator row (${label}); grouped series must share the same supply_type and material economics.`,
     );
   }
   warnings.push(...collectS1F1WarrantShareOverhangWarnings(data, rowsToCheck));
@@ -476,11 +452,7 @@ function collectS1F1ShareOverhangUnitWarnings(
 
     const rowUnit = stringValue(row.unit);
     const rowClass = stringValue(row.class_basis || row.classBasis);
-    const calculationRole = stringValue(row.calculation_role || row.calculationRole);
-    const supplyNature = stringValue(row.supply_nature || row.supplyNature);
-    const included = structuredRows
-      ? calculationRole === "headline_numerator" && isIncludedSupplyNature(supplyNature)
-      : isIncludedSupplyNature(supplyNature);
+    const included = isS1F1CountedShareOverhangRow(row, structuredRows);
 
     if (!rowUnit) {
       warnings.push(
@@ -527,11 +499,11 @@ function collectS1F1WarrantShareOverhangWarnings(data: Record<string, unknown>, 
   for (const row of rows) {
     const label = stringValue(row.label);
     const rowText = `${label} ${stringValue(row.value)} ${stringValue(row.note)}`;
-    const supplyNature = stringValue(row.supply_nature || row.supplyNature);
-    const calculationRole = stringValue(row.calculation_role || row.calculationRole);
+    const supplyType = stringValue(row.supply_type || row.supplyType);
+    const countedInRatio = booleanValue(row.counted_in_ratio ?? row.countedInRatio);
     if (
-      calculationRole === "headline_numerator" &&
-      supplyNature === "current_offering_supply" &&
+      countedInRatio === true &&
+      supplyType === "current_offering_pool" &&
       isNonShareEquivalentWarrantText(label)
     ) {
       warnings.push(
@@ -539,8 +511,8 @@ function collectS1F1WarrantShareOverhangWarnings(data: Record<string, unknown>, 
       );
     }
     if (
-      calculationRole === "headline_numerator" &&
-      supplyNature === "common_equivalent_supply" &&
+      countedInRatio === true &&
+      supplyType === "share_equivalent" &&
       isNonShareEquivalentWarrantText(rowText)
     ) {
       warnings.push(
@@ -549,17 +521,66 @@ function collectS1F1WarrantShareOverhangWarnings(data: Record<string, unknown>, 
     }
   }
 
+  const futureExerciseRows = rows.filter((row) => {
+    const countedInRatio = booleanValue(row.counted_in_ratio ?? row.countedInRatio);
+    const supplyType = stringValue(row.supply_type || row.supplyType);
+    return countedInRatio === false || supplyType === "future_exercise";
+  });
+  const aggregateFutureRows = futureExerciseRows.filter((row) =>
+    /\b(?:all|total)\b[\s\S]{0,80}\bwarrants?\b|\b(?:warrants?\s+total|total\s+potential\s+supply|issuable\s+upon\s+exercise\s+of\s+all\s+warrants?)\b/i.test(
+      `${stringValue(row.label)} ${stringValue(row.value)} ${stringValue(row.note)}`,
+    ),
+  );
+  if (aggregateFutureRows.length && futureExerciseRows.length > aggregateFutureRows.length) {
+    warnings.push(
+      "S-1/F-1 display_payload.data.share_overhang includes an aggregate all-warrants future_exercise row alongside component future_exercise rows; omit the overlapping aggregate row.",
+    );
+  }
+
   for (const group of readInstrumentDetailGroups(data.instrument_details)) {
     if (!isNonShareEquivalentWarrantText(group.text)) continue;
     const hasVisibleConditionalRow = rows.some((row) => {
       if (!shareOverhangRowMatchesInstrument(row, group.type)) return false;
-      const supplyNature = stringValue(row.supply_nature || row.supplyNature);
-      const calculationRole = stringValue(row.calculation_role || row.calculationRole);
-      return calculationRole === "visible_excluded" || supplyNature === "conditional_future_supply";
+      const countedInRatio = booleanValue(row.counted_in_ratio ?? row.countedInRatio);
+      const supplyType = stringValue(row.supply_type || row.supplyType);
+      return countedInRatio === false || supplyType === "future_exercise";
     });
     if (hasVisibleConditionalRow) continue;
     warnings.push(
-      `S-1/F-1 display_payload.data.instrument_details includes ${group.type}, but share_overhang.rows does not show a matching visible_excluded conditional warrant row.`,
+      `S-1/F-1 display_payload.data.instrument_details includes ${group.type}, but share_overhang.rows does not show a matching future_exercise row with counted_in_ratio false.`,
+    );
+  }
+
+  const instrumentGroups = readInstrumentDetailGroups(data.instrument_details);
+  for (const row of rows) {
+    const countedInRatio = booleanValue(row.counted_in_ratio ?? row.countedInRatio);
+    const supplyType = stringValue(row.supply_type || row.supplyType);
+    const rowText = `${stringValue(row.label)} ${stringValue(row.value)} ${stringValue(row.note)}`;
+    if (countedInRatio !== false && supplyType !== "future_exercise") continue;
+    if (!isNonShareEquivalentWarrantText(rowText)) continue;
+    const hasMatchingInstrument = instrumentGroups.some((group) => shareOverhangRowMatchesInstrument(row, group.type));
+    if (hasMatchingInstrument) continue;
+    warnings.push(
+      `S-1/F-1 display_payload.data.share_overhang includes ${stringValue(row.label)}, but instrument_details does not show a matching Type group.`,
+    );
+  }
+
+  const shareOverhangContext = `${JSON.stringify(readRecord(data.share_overhang) || {})} ${JSON.stringify(data.snapshot_metrics || [])} ${stringValue(data.narrative_summary)} ${stringValue(data.investor_takeaway)}`;
+  const hasFutureExerciseWarrantMention = hasNonShareEquivalentWarrantMention(shareOverhangContext);
+  const hasFutureExerciseWarrantRow = rows.some((row) => {
+    const countedInRatio = booleanValue(row.counted_in_ratio ?? row.countedInRatio);
+    const supplyType = stringValue(row.supply_type || row.supplyType);
+    const rowText = `${stringValue(row.label)} ${stringValue(row.value)} ${stringValue(row.note)}`;
+    return (countedInRatio === false || supplyType === "future_exercise") && hasNonShareEquivalentWarrantMention(rowText);
+  });
+  if (hasFutureExerciseWarrantMention && !hasFutureExerciseWarrantRow) {
+    warnings.push(
+      "S-1/F-1 display_payload mentions material warrant supply, but share_overhang.rows does not show a future_exercise row with counted_in_ratio false.",
+    );
+  }
+  if (hasFutureExerciseWarrantMention && !instrumentGroups.length) {
+    warnings.push(
+      "S-1/F-1 display_payload mentions material warrant supply, but instrument_details is empty.",
     );
   }
 
@@ -600,6 +621,10 @@ function isNonShareEquivalentWarrantText(value: string) {
   if (/\b(?:zero[-\s]?exercise|zero\s+exercise\s+price|nominal[-\s]?exercise|share[-\s]?equivalent)\b/i.test(value)) return false;
   if (/\$0\.0+1\b|\$0\.0+01\b/i.test(value)) return false;
   return true;
+}
+
+function hasNonShareEquivalentWarrantMention(value: string) {
+  return /\b(?:common|ordinary|placement\s+agent|agent|underwriter|representative|Series\s+[A-Z])\s+warrants?\b/i.test(value);
 }
 
 function shareOverhangRowMatchesInstrument(row: Record<string, unknown>, instrumentType: string) {
@@ -681,11 +706,22 @@ function isIncludedSupplyNature(value: string) {
   return ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(value);
 }
 
+function isS1F1CountedShareOverhangRow(row: Record<string, unknown> | null, structuredRows: boolean) {
+  if (!row) return false;
+  const countedInRatio = booleanValue(row.counted_in_ratio ?? row.countedInRatio);
+  if (structuredRows && countedInRatio !== null) return countedInRatio;
+
+  const supplyNature = stringValue(row.supply_nature || row.supplyNature);
+  const calculationRole = stringValue(row.calculation_role || row.calculationRole);
+  if (structuredRows) return calculationRole === "headline_numerator" && isIncludedSupplyNature(supplyNature);
+  return isIncludedSupplyNature(supplyNature);
+}
+
 function validateS1F1OverhangFacts(data: Record<string, unknown>) {
   const displayMode = stringValue(data.display_mode);
   if (!["resale_registration", "mixed_offering", "mixed_registration"].includes(displayMode)) return "";
   const requiresOverhangSnapshotLabel = displayMode !== "mixed_offering";
-  const hasSupplyNumerator = hasNumericDisplayFactValue(readRecord(data.total_potential_supply));
+  const hasSupplyNumerator = hasNumericShareOverhangSegment(data, "supply");
   const snapshotText = Array.isArray(data.snapshot_metrics)
     ? data.snapshot_metrics
         .map((row) => {
@@ -704,23 +740,15 @@ function validateS1F1OverhangFacts(data: Record<string, unknown>) {
     return "";
   }
   if (requiresOverhangSnapshotLabel && hasSupplyNumerator && !/\boverhang\s+vs\.?\s+outstanding\b/i.test(snapshotText)) {
-    return "SEC S-1/F-1 resale display must include snapshot_metrics row labeled Overhang vs outstanding when total_potential_supply is available";
+    return "SEC S-1/F-1 resale display must include snapshot_metrics row labeled Overhang vs outstanding when share_overhang has included supply";
   }
-  if (!hasNumericDisplayFactValue(readRecord(data.current_shares))) {
-    return "SEC S-1/F-1 overhang snapshot must include numeric display_payload.data.current_shares from filing data when available; market_context shares are allowed only when the filing provides no denominator";
+  if (!hasNumericShareOverhangSegment(data, "current")) {
+    return "SEC S-1/F-1 overhang snapshot must include numeric display_payload.data.share_overhang.basis from filing data when available; market_context shares are allowed only when the filing provides no denominator";
   }
   if (!hasSupplyNumerator) {
-    return "SEC S-1/F-1 overhang snapshot must include numeric display_payload.data.total_potential_supply from the same registered/offered share numerator";
-  }
-  if (!hasNumericDisplayFactValue(readRecord(data.estimated_dilution_percent))) {
-    return "SEC S-1/F-1 overhang snapshot must include numeric display_payload.data.estimated_dilution_percent when current_shares and total_potential_supply are available";
+    return "SEC S-1/F-1 overhang snapshot must include numeric counted_in_ratio true share_overhang.rows from the same registered/offered share numerator";
   }
   return "";
-}
-
-function hasNumericDisplayFactValue(fact: Record<string, unknown> | null) {
-  const value = numberValue(fact?.numeric_value) ?? numberValue(fact?.numericValue);
-  return typeof value === "number" && Number.isFinite(value) && value > 0;
 }
 
 function hasNumericShareOverhangSegment(data: Record<string, unknown>, kind: "current" | "supply") {
@@ -737,9 +765,7 @@ function hasNumericShareOverhangSegment(data: Record<string, unknown>, kind: "cu
       const record = readRecord(item);
       const numericValue = numberValue(record?.numeric_value) ?? numberValue(record?.numericValue);
       if (typeof numericValue !== "number" || !Number.isFinite(numericValue) || numericValue <= 0) return false;
-      const calculationRole = stringValue(record?.calculation_role || record?.calculationRole);
-      const supplyNature = stringValue(record?.supply_nature || record?.supplyNature);
-      return calculationRole === "headline_numerator" && isIncludedSupplyNature(supplyNature);
+      return isS1F1CountedShareOverhangRow(record, true);
     });
     if (hasHeadlineSupplyRow) return true;
   }
@@ -869,6 +895,15 @@ function normalizeS1F1AnalysisOutput(value: Record<string, unknown>, input: SecF
     market_scope: stringValue(value.market_scope) || "company",
     primary_ticker: primaryTicker,
     tickers: normalizeTickerRows(value.tickers, primaryTicker, "primary"),
+    sector: nullableString(value.sector),
+    industry_group: nullableString(value.industry_group),
+    theme_group: nullableString(value.theme_group),
+    sub_theme: nullableString(value.sub_theme),
+    why_it_matters:
+      nullableString(value.why_it_matters) ||
+      nullableString(value.quick_take) ||
+      nullableString(value.summary) ||
+      "",
     related_tickers: [],
     bullish_points: readStringArray(value.bullish_points),
     bearish_points: readStringArray(value.bearish_points),
@@ -1011,22 +1046,18 @@ function numberValue(value: unknown) {
   return null;
 }
 
-function readRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+function booleanValue(value: unknown) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true") return true;
+    if (normalized === "false") return false;
+  }
+  return null;
 }
 
-function displayFactSchema() {
-  return {
-    type: ["object", "null"],
-    additionalProperties: true,
-    required: ["value_text", "numeric_value", "unit", "evidence"],
-    properties: {
-      value_text: { type: ["string", "null"] },
-      numeric_value: { type: ["number", "null"] },
-      unit: { type: ["string", "null"] },
-      evidence: { type: ["string", "null"] },
-    },
-  } as const;
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 }
 
 export const secS1F1RequiredOutputSchema = {
@@ -1039,61 +1070,24 @@ export const secS1F1RequiredOutputSchema = {
       type: "object",
       additionalProperties: true,
       required: [
-        "source_group",
-        "market_scope",
         "event_type",
         "event_title",
-        "primary_ticker",
-        "tickers",
-        "sector",
-        "industry_group",
-        "theme_group",
-        "sub_theme",
         "score",
         "score_reason",
         "signal",
         "quick_take",
         "summary",
-        "why_it_matters",
-        "bullish_points",
-        "bearish_points",
-        "key_evidence",
-        "what_to_watch_next",
-        "related_tickers",
-        "calendar_items",
         "confidence",
         "needs_human_review",
       ],
       properties: {
-        source_group: { type: "string", enum: ["filings"] },
-        market_scope: { type: "string", enum: ["company", "sector", "theme", "macro"] },
         event_type: { type: "string", enum: APPROVED_SEC_EVENT_TYPES },
-        event_title: { type: "string", maxLength: 160 },
-        primary_ticker: {
-          type: ["object", "null"],
-          additionalProperties: true,
-          properties: {
-            ticker: { type: ["string", "null"], maxLength: 12 },
-            exchange: { type: ["string", "null"], maxLength: 40 },
-          },
-        },
-        tickers: { type: "array", maxItems: 0, items: { type: ["object", "string"], additionalProperties: true } },
-        sector: { type: ["string", "null"] },
-        industry_group: { type: ["string", "null"] },
-        theme_group: { type: ["string", "null"] },
-        sub_theme: { type: ["string", "null"] },
-        score: { type: "integer", minimum: 0, maximum: 100 },
-        score_reason: { type: "string", maxLength: 120 },
+        event_title: { type: "string" },
+        score: { type: "number" },
+        score_reason: { type: "string" },
         signal: { type: "string", enum: ["bullish", "bearish", "volatile", "neutral"] },
-        quick_take: { type: "string", maxLength: 240 },
-        summary: { type: "string", maxLength: 700 },
-        why_it_matters: { type: "string", maxLength: 260 },
-        bullish_points: { type: "array", maxItems: 3, items: { type: "string", maxLength: 140 } },
-        bearish_points: { type: "array", maxItems: 3, items: { type: "string", maxLength: 140 } },
-        key_evidence: { type: "array", maxItems: 2, items: { type: "string", maxLength: 160 } },
-        what_to_watch_next: { type: "array", maxItems: 2, items: { type: "string", maxLength: 160 } },
-        related_tickers: { type: "array", maxItems: 0, items: { type: ["object", "string"], additionalProperties: true } },
-        calendar_items: { type: "array", items: { type: "object", additionalProperties: true } },
+        quick_take: { type: "string" },
+        summary: { type: "string" },
         confidence: { type: "string", enum: ["high", "medium", "low"] },
         needs_human_review: { type: "boolean" },
         archive_summary: { type: ["string", "null"] },
@@ -1102,12 +1096,9 @@ export const secS1F1RequiredOutputSchema = {
     display_payload: {
       type: "object",
       additionalProperties: true,
-      required: ["display_type", "display_version", "data", "evidence", "notes"],
+      required: ["display_type", "display_version", "data"],
       properties: {
-        display_type: {
-          type: "string",
-          enum: ["generic", "offering_terms", "candidate_special", "spac_transaction_status"],
-        },
+        display_type: { type: "string" },
         display_version: { type: "string" },
         data: {
           type: "object",
@@ -1116,34 +1107,15 @@ export const secS1F1RequiredOutputSchema = {
             "display_mode",
             "risk_label",
             "snapshot_metrics",
-            "share_overhang",
             "investor_takeaway",
             "narrative_summary",
             "offering_details",
+            "instrument_details",
           ],
           properties: {
-            display_mode: { type: ["string", "null"], enum: [...ALLOWED_S1_F1_DISPLAY_MODES, null] },
+            display_mode: { type: ["string", "null"] },
             ipo_kind: { type: ["string", "null"] },
             risk_label: { type: ["string", "null"] },
-            current_shares: displayFactSchema(),
-            total_potential_supply: displayFactSchema(),
-            estimated_dilution_percent: displayFactSchema(),
-            supply_segments: {
-              type: "array",
-              items: {
-                type: "object",
-                additionalProperties: true,
-                properties: {
-                  role: {
-                    type: ["string", "null"],
-                    enum: ["new_shares", "potential_warrants", "potential_instruments", "total_potential_supply", null],
-                  },
-                  label: { type: ["string", "null"] },
-                  shares: displayFactSchema(),
-                  price: displayFactSchema(),
-                },
-              },
-            },
             snapshot_metrics: {
               type: "array",
               items: {
@@ -1164,40 +1136,28 @@ export const secS1F1RequiredOutputSchema = {
               additionalProperties: true,
               required: [
                 "chart_title",
-                "subtitle",
                 "status_label",
                 "status_value",
-                "caption",
-                "ratio_label",
-                "ratio_value",
-                "current_label",
-                "current_value",
-                "supply_label",
-                "supply_value",
                 "basis",
                 "rows",
               ],
               properties: {
-                chart_title: { type: "string", enum: APPROVED_S1_F1_SHARE_OVERHANG_CHART_TITLES },
+                chart_title: { type: "string" },
                 subtitle: { type: "string" },
                 status_label: { type: "string" },
                 status_value: { type: "string" },
                 caption: { type: "string" },
                 ratio_label: { type: "string" },
                 ratio_value: { type: "string" },
-                current_label: { type: "string" },
-                current_value: { type: "string" },
-                supply_label: { type: "string" },
-                supply_value: { type: "string" },
                 total_note: {
                   type: "object",
                   additionalProperties: true,
                   properties: {
-                    title: { type: "string", maxLength: 48 },
-                    numerator: { type: "string", maxLength: 40 },
-                    denominator: { type: "string", maxLength: 40 },
-                    ratio: { type: "string", maxLength: 24 },
-                    suffix: { type: "string", maxLength: 80 },
+                    title: { type: "string" },
+                    numerator: { type: "string" },
+                    denominator: { type: "string" },
+                    ratio: { type: "string" },
+                    suffix: { type: "string" },
                   },
                 },
                 basis: {
@@ -1208,9 +1168,9 @@ export const secS1F1RequiredOutputSchema = {
                     label: { type: "string" },
                     value: { type: "string" },
                     numeric_value: { type: ["number", "null"] },
-                    unit: { type: "string", enum: ["shares", "ADSs", "units", "securities"] },
-                    class_basis: { type: ["string", "null"], maxLength: 80 },
-                    note: { type: ["string", "null"], maxLength: 80 },
+                    unit: { type: "string" },
+                    class_basis: { type: ["string", "null"] },
+                    note: { type: ["string", "null"] },
                   },
                 },
                 rows: {
@@ -1218,36 +1178,20 @@ export const secS1F1RequiredOutputSchema = {
                   items: {
                     type: "object",
                     additionalProperties: true,
-                    required: ["calculation_role", "supply_nature", "label", "value", "numeric_value", "unit"],
+                    required: ["counted_in_ratio", "supply_type", "label", "value", "numeric_value", "unit"],
                     properties: {
-                      calculation_role: { type: "string" },
-                      supply_nature: { type: "string" },
+                      counted_in_ratio: { type: "boolean" },
+                      supply_type: { type: "string" },
                       label: { type: "string" },
                       value: { type: "string" },
                       numeric_value: { type: ["number", "null"] },
-                      unit: { type: "string", enum: ["shares", "ADSs", "units", "securities"] },
-                      class_basis: { type: ["string", "null"], maxLength: 80 },
-                      note: { type: ["string", "null"], maxLength: 80 },
+                      unit: { type: "string" },
+                      class_basis: { type: ["string", "null"] },
+                      note: { type: ["string", "null"] },
                     },
                   },
                 },
-                conditional_supply: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    additionalProperties: true,
-                    required: ["label", "value", "supply_nature", "numeric_value"],
-                    properties: {
-                      label: { type: "string" },
-                      value: { type: "string" },
-                      supply_nature: { type: ["string", "null"] },
-                      numeric_value: { type: ["number", "null"] },
-                      note: { type: ["string", "null"], maxLength: 80 },
-                      tone: { type: ["string", "null"] },
-                    },
-                  },
-                },
-                note: { type: ["string", "null"], maxLength: 160 },
+                note: { type: ["string", "null"] },
               },
             },
             investor_takeaway: { type: ["string", "null"] },
@@ -1259,9 +1203,9 @@ export const secS1F1RequiredOutputSchema = {
                 additionalProperties: true,
                 required: ["label", "value"],
                 properties: {
-                  label: { type: "string", maxLength: 40 },
-                  value: { type: "string", maxLength: 90 },
-                  note: { type: "string", maxLength: 80 },
+                  label: { type: "string" },
+                  value: { type: "string" },
+                  note: { type: ["string", "null"] },
                 },
               },
             },
@@ -1274,7 +1218,7 @@ export const secS1F1RequiredOutputSchema = {
                 properties: {
                   label: { type: "string" },
                   value: { type: "string" },
-                  note: { type: "string", maxLength: 80 },
+                  note: { type: ["string", "null"] },
                 },
               },
             },
@@ -1291,13 +1235,13 @@ export const secS1F1RequiredOutputSchema = {
                 },
               },
             },
-            source_notes: { type: "array", maxItems: 2, items: { type: "string", maxLength: 160 } },
+            source_notes: { type: "array", items: { type: "string" } },
             needs_human_review: { type: "boolean" },
             review_reasons: { type: "array", items: { type: "string" } },
           },
         },
-        evidence: { type: "array", maxItems: 2, items: { type: "string", maxLength: 160 } },
-        notes: { type: "array", maxItems: 2, items: { type: "string", maxLength: 160 } },
+        evidence: { type: "array", items: { type: "string" } },
+        notes: { type: "array", items: { type: "string" } },
       },
     },
   },

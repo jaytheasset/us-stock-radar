@@ -3265,6 +3265,20 @@ const PRIORITY_SOURCE_CONTEXTS: Array<{
     },
   },
   {
+    sectionKey: "placement_agent_warrant_term_context",
+    sectionTitle: "Placement agent warrant term source context",
+    patterns: [
+      /\bplacement\s+agent\s+warrants?\b[\s\S]{0,900}\b(?:immediately\s+exercisable|exercisable\s+immediately|commencement\s+of\s+sales|five[-\s]?year|5[-\s]?year|exercise\s+price)\b/i,
+      /\b(?:immediately\s+exercisable|exercisable\s+immediately|commencement\s+of\s+sales|five[-\s]?year|5[-\s]?year|exercise\s+price)\b[\s\S]{0,900}\bplacement\s+agent\s+warrants?\b/i,
+    ],
+    maxBlocks: 2,
+    window: {
+      before: 700,
+      after: 2_400,
+      alignToLines: false,
+    },
+  },
+  {
     sectionKey: "instrument_reset_floor_context",
     sectionTitle: "Instrument reset/floor source context",
     patterns: [

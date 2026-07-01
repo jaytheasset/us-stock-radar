@@ -2,6 +2,8 @@ export type DilutionShareOverhangBarSegment = {
   key: string;
   className: string;
   supplyNature?: string;
+  supplyType?: string;
+  countedInRatio?: boolean;
   calculationRole?: string;
   unit?: string;
   classBasis?: string;
@@ -29,6 +31,8 @@ type DilutionShareOverhangFactRow = {
   note?: string;
   tone?: "danger" | "neutral";
   supplyNature?: string;
+  supplyType?: string;
+  countedInRatio?: boolean;
 };
 
 type DilutionInstrumentDetailRow = {
@@ -193,7 +197,7 @@ export function DilutionShareOverhang({ model }: { model: DilutionShareOverhangM
               {showSegmentLegend ? (
                 <div className="dilution-overhang-segment-legend">
                   {model.overhangBarSegments.map((segment, index) => {
-                    const role = overhangSupplyRole(segment.supplyNature);
+                    const role = overhangSupplyRole(segment);
                     return (
                       <span key={segment.key} className={`supply-role-${role.kind}`}>
                         <b>
@@ -212,14 +216,14 @@ export function DilutionShareOverhang({ model }: { model: DilutionShareOverhangM
                   {conditionalSupplyRows.map((row, index) => (
                     <span
                       key={`conditional-${row.label}-${index}`}
-                      className={`conditional-supply supply-role-${overhangSupplyRole(row.supplyNature).kind}`}
+                      className={`conditional-supply supply-role-${overhangSupplyRole(row).kind}`}
                     >
                       <b>
                         <span>
                           {OVERHANG_SEGMENT_CODES[model.overhangBarSegments.length + index] || model.overhangBarSegments.length + index + 1}.{" "}
                           {formatConditionalSupplyLabel(row)}
                         </span>
-                        <i>{overhangSupplyRole(row.supplyNature).badge}</i>
+                        <i>{overhangSupplyRole(row).badge}</i>
                       </b>
                       <strong className={row.tone === "danger" ? "danger" : undefined}>
                         <span>{row.value}</span>
@@ -322,8 +326,15 @@ function formatConditionalSupplyLabel(row: DilutionShareOverhangFactRow) {
   return row.label;
 }
 
-function overhangSupplyRole(supplyNature: string | undefined) {
-  switch (supplyNature) {
+function overhangSupplyRole(row: { countedInRatio?: boolean; supplyType?: string; supplyNature?: string }) {
+  if (row.countedInRatio === true) return { kind: "included", badge: "Counted" };
+  if (row.countedInRatio === false) {
+    if (row.supplyType === "replacement_alternative") return { kind: "alternative", badge: "Alternative" };
+    if (row.supplyType === "future_exercise") return { kind: "conditional", badge: "Conditional" };
+    return { kind: "reference", badge: "Reference" };
+  }
+
+  switch (row.supplyNature) {
     case "base_shares":
       return { kind: "base", badge: "Baseline" };
     case "current_offering_supply":

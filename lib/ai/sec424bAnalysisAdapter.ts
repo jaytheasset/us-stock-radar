@@ -482,6 +482,8 @@ function normalizeShareOverhang(value: Record<string, unknown> | null, instrumen
       const normalizedSegment = {
         key: nullableString(record?.key),
         class_name: nullableString(record?.class_name || record?.className),
+        counted_in_ratio: booleanValue(record?.counted_in_ratio ?? record?.countedInRatio),
+        supply_type: nullableString(record?.supply_type || record?.supplyType),
         supply_nature: nullableString(record?.supply_nature || record?.supplyNature),
         calculation_role: nullableString(record?.calculation_role || record?.calculationRole),
         unit: nullableString(record?.unit),
@@ -504,6 +506,8 @@ function normalizeShareOverhang(value: Record<string, unknown> | null, instrumen
       ): segment is {
         key: string | null;
         class_name: string | null;
+        counted_in_ratio: boolean | null;
+        supply_type: string | null;
         supply_nature: string | null;
         calculation_role: string | null;
         unit: string | null;
@@ -718,6 +722,8 @@ function deriveShareOverhangScale(shareOverhang: Record<string, unknown> | null)
     .map((item) => readRecord(item))
     .filter((record): record is Record<string, unknown> => Boolean(record))
     .map((record) => ({
+      countedInRatio: booleanValue(record.counted_in_ratio ?? record.countedInRatio),
+      supplyType: stringValue(record.supply_type || record.supplyType),
       calculationRole: stringValue(record.calculation_role || record.calculationRole),
       supplyNature: stringValue(record.supply_nature || record.supplyNature),
       className: stringValue(record.class_name || record.className),
@@ -728,11 +734,13 @@ function deriveShareOverhangScale(shareOverhang: Record<string, unknown> | null)
   const basisValue = numberValue(basis?.numeric_value) ?? numberValue(basis?.numericValue) ?? numberValue(basis?.amount) ?? 0;
   if (basisValue > 0 && rows.length > 0) {
     const supplyValue = rows
-      .filter(
-        (row) =>
+      .filter((row) => {
+        if (typeof row.countedInRatio === "boolean") return row.countedInRatio;
+        return (
           row.calculationRole === "headline_numerator" &&
-          ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(row.supplyNature),
-      )
+          ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(row.supplyNature)
+        );
+      })
       .reduce((total, row) => total + row.numericValue, 0);
     if (supplyValue > 0) {
       const unit = detectShareOverhangUnit([stringValue(basis?.value || basis?.value_text), ...rows.map((row) => row.value)].join(" "));
@@ -740,7 +748,12 @@ function deriveShareOverhangScale(shareOverhang: Record<string, unknown> | null)
         current_value: formatShareOverhangCount(basisValue, unit),
         supply_value: formatShareOverhangCount(supplyValue, unit),
         ratio_value: formatShareOverhangPercent((supplyValue / basisValue) * 100),
-        has_conditional_supply: rows.some((row) => row.supplyNature === "conditional_future_supply"),
+        has_conditional_supply: rows.some(
+          (row) =>
+            row.countedInRatio === false ||
+            row.supplyType === "future_exercise" ||
+            ["conditional_future_supply", "replacement_supply"].includes(row.supplyNature),
+        ),
         base_numeric_value: basisValue,
         supply_numeric_value: supplyValue,
       };
@@ -751,6 +764,8 @@ function deriveShareOverhangScale(shareOverhang: Record<string, unknown> | null)
     .map((item) => readRecord(item))
     .filter((record): record is Record<string, unknown> => Boolean(record))
     .map((record) => ({
+      countedInRatio: booleanValue(record.counted_in_ratio ?? record.countedInRatio),
+      supplyType: stringValue(record.supply_type || record.supplyType),
       supplyNature: stringValue(record.supply_nature || record.supplyNature),
       className: stringValue(record.class_name || record.className),
       value: stringValue(record.value || record.value_text),
@@ -763,9 +778,10 @@ function deriveShareOverhangScale(shareOverhang: Record<string, unknown> | null)
     .filter((segment) => segment.supplyNature === "base_shares" || segment.className === "base-shares" || segment.className === "current-base")
     .reduce((total, segment) => total + segment.numericValue, 0);
   const supplyValue = segments
-    .filter((segment) =>
-      ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(segment.supplyNature),
-    )
+    .filter((segment) => {
+      if (typeof segment.countedInRatio === "boolean") return segment.countedInRatio;
+      return ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(segment.supplyNature);
+    })
     .reduce((total, segment) => total + segment.numericValue, 0);
   if (baseValue <= 0 || supplyValue <= 0) return null;
 
@@ -774,7 +790,12 @@ function deriveShareOverhangScale(shareOverhang: Record<string, unknown> | null)
     current_value: formatShareOverhangCount(baseValue, unit),
     supply_value: formatShareOverhangCount(supplyValue, unit),
     ratio_value: formatShareOverhangPercent((supplyValue / baseValue) * 100),
-    has_conditional_supply: segments.some((segment) => segment.supplyNature === "conditional_future_supply"),
+    has_conditional_supply: segments.some(
+      (segment) =>
+        segment.countedInRatio === false ||
+        segment.supplyType === "future_exercise" ||
+        ["conditional_future_supply", "replacement_supply"].includes(segment.supplyNature),
+    ),
     base_numeric_value: baseValue,
     supply_numeric_value: supplyValue,
   };
@@ -805,6 +826,8 @@ function normalizeShareOverhangRow(record: Record<string, unknown> | null, inclu
   return {
     key: nullableString(record?.key),
     class_name: nullableString(record?.class_name || record?.className),
+    counted_in_ratio: booleanValue(record?.counted_in_ratio ?? record?.countedInRatio),
+    supply_type: nullableString(record?.supply_type || record?.supplyType),
     supply_nature: nullableString(record?.supply_nature || record?.supplyNature),
     calculation_role: nullableString(record?.calculation_role || record?.calculationRole),
     unit: nullableString(record?.unit),
@@ -1230,6 +1253,16 @@ function numberValue(value: unknown) {
   if (typeof value === "string") {
     const parsed = Number(value.replace(/,/g, ""));
     return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function booleanValue(value: unknown) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true") return true;
+    if (normalized === "false") return false;
   }
   return null;
 }
