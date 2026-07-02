@@ -11970,7 +11970,8 @@ td {
 }
 
 .dilution-overhang-segment-legend > span.supply-role-conditional,
-.dilution-overhang-segment-legend > span.supply-role-alternative {
+.dilution-overhang-segment-legend > span.supply-role-alternative,
+.dilution-overhang-segment-legend > span.supply-role-future {
   padding: 8px 10px;
   border: 1px dashed #d8e0eb;
   border-radius: 8px;
@@ -12066,14 +12067,16 @@ td {
 }
 
 .dilution-overhang-segment-legend .supply-role-alternative b > i,
-.dilution-overhang-segment-legend .supply-role-conditional b > i {
+.dilution-overhang-segment-legend .supply-role-conditional b > i,
+.dilution-overhang-segment-legend .supply-role-future b > i {
   border-color: #d8e0eb;
   background: #f8fafc;
   color: #64728a;
 }
 
 .dilution-overhang-segment-legend .supply-role-alternative strong,
-.dilution-overhang-segment-legend .supply-role-conditional strong {
+.dilution-overhang-segment-legend .supply-role-conditional strong,
+.dilution-overhang-segment-legend .supply-role-future strong {
   color: #36465f;
   font-weight: 700;
 }

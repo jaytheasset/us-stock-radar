@@ -764,7 +764,7 @@ function deriveShareOverhangScale(shareOverhang: Record<string, unknown> | null)
         ratio_value: formatShareOverhangPercent((supplyValue / basisValue) * 100),
         has_conditional_supply: rows.some(
           (row) =>
-            row.countedInRatio === false ||
+            (row.countedInRatio === false && row.supplyType !== "shelf_capacity") ||
             row.supplyType === "future_exercise" ||
             ["conditional_future_supply", "replacement_supply"].includes(row.supplyNature),
         ),
@@ -806,7 +806,7 @@ function deriveShareOverhangScale(shareOverhang: Record<string, unknown> | null)
     ratio_value: formatShareOverhangPercent((supplyValue / baseValue) * 100),
     has_conditional_supply: segments.some(
       (segment) =>
-        segment.countedInRatio === false ||
+        (segment.countedInRatio === false && segment.supplyType !== "shelf_capacity") ||
         segment.supplyType === "future_exercise" ||
         ["conditional_future_supply", "replacement_supply"].includes(segment.supplyNature),
     ),

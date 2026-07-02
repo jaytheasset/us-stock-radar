@@ -4767,7 +4767,8 @@ type ShareOverhangSupplyType =
   | "registered_resale_pool"
   | "share_equivalent"
   | "future_exercise"
-  | "replacement_alternative";
+  | "replacement_alternative"
+  | "shelf_capacity";
 
 type ShareOverhangCalculationRole =
   | "denominator"
@@ -9157,7 +9158,8 @@ function normalizeShareOverhangSupplyType(value: string): ShareOverhangSupplyTyp
     normalized === "registered_resale_pool" ||
     normalized === "share_equivalent" ||
     normalized === "future_exercise" ||
-    normalized === "replacement_alternative"
+    normalized === "replacement_alternative" ||
+    normalized === "shelf_capacity"
   ) {
     return normalized;
   }

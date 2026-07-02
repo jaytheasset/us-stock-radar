@@ -329,6 +329,7 @@ function formatConditionalSupplyLabel(row: DilutionShareOverhangFactRow) {
 function overhangSupplyRole(row: { countedInRatio?: boolean; supplyType?: string; supplyNature?: string }) {
   if (row.countedInRatio === true) return { kind: "included", badge: "Counted" };
   if (row.countedInRatio === false) {
+    if (row.supplyType === "shelf_capacity") return { kind: "future", badge: "Future capacity" };
     if (row.supplyType === "replacement_alternative") return { kind: "alternative", badge: "Alternative" };
     if (row.supplyType === "future_exercise") return { kind: "conditional", badge: "Conditional" };
     return { kind: "reference", badge: "Reference" };
