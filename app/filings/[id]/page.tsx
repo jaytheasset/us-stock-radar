@@ -4375,6 +4375,7 @@ function normalizeComputedShareOverhangStatusLabel(value: string, usesComputedSe
   if (!label) return "";
   if (!usesComputedSegmentScale) return label;
   if (/^(?:not stated|not disclosed|not fixed|variable)(?:\s+of\b.*)?$/i.test(label)) return "";
+  if (/^(?:status|scale|ratio|value|result)$/i.test(label)) return "";
   if (/%/.test(label)) return "";
   return label;
 }
