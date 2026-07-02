@@ -1163,6 +1163,7 @@ function normalize424bAnalysisOutput(value: Record<string, unknown>, input: SecF
     key_evidence: readStringArray(value.key_evidence),
     what_to_watch_next: readStringArray(value.what_to_watch_next),
     calendar_items: Array.isArray(value.calendar_items) ? value.calendar_items : [],
+    why_it_matters: stringValue(value.why_it_matters),
     confidence: normalizeConfidence(stringValue(value.confidence)),
     needs_human_review: value.needs_human_review === true,
   };
@@ -1175,10 +1176,13 @@ function align424bAnalysisOutputToDisplayPayload(
   if (stringValue(displayPayload.display_type) !== "offering_terms") return analysis;
   return {
     ...analysis,
+    why_it_matters: "",
     bullish_points: [],
     bearish_points: [],
     key_evidence: [],
     what_to_watch_next: [],
+    related_tickers: [],
+    calendar_items: [],
   };
 }
 
@@ -1314,7 +1318,6 @@ export const sec424bRequiredOutputSchema = {
         "signal",
         "quick_take",
         "summary",
-        "why_it_matters",
         "confidence",
         "needs_human_review",
       ],
@@ -1342,7 +1345,7 @@ export const sec424bRequiredOutputSchema = {
         signal: { type: "string", enum: ["bullish", "bearish", "volatile", "neutral"] },
         quick_take: { type: "string", maxLength: 260 },
         summary: { type: "string", maxLength: 800 },
-        why_it_matters: { type: "string", maxLength: 320 },
+        why_it_matters: { type: ["string", "null"], maxLength: 320 },
         confidence: { type: "string", enum: ["high", "medium", "low"] },
         needs_human_review: { type: "boolean" },
         analysis_action: { type: ["string", "null"] },
