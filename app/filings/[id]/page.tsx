@@ -6797,22 +6797,22 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
   ];
   const shelfDetailRows: DilutionDisclosureRow[] = [
     {
-      label: "Shelf capacity",
+      label: "Shelf Capacity",
       value: shelfCapacityValue,
       note: "Maximum future offering capacity stated in this filing.",
     },
     {
-      label: "Active sale terms",
+      label: "Active Sale Terms",
       value: "None in this filing",
       note: "No price, share count, underwriter, or closing is set yet.",
     },
     {
-      label: "Company proceeds",
-      value: "No immediate cash raised",
-      note: "Cash comes only if a later sale is launched and completed.",
+      label: "Use of Proceeds",
+      value: useOfProceeds || "To be described in future supplements",
+      note: "No immediate proceeds from the shelf alone.",
     },
     {
-      label: "Securities covered",
+      label: "Securities Covered",
       value: shelfSecuritiesCovered,
       note: "Types of securities the shelf may cover.",
     },
@@ -7243,26 +7243,26 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
       : isShelfOnly
       ? [
           {
-            label: "Shelf capacity",
+            label: "Shelf Capacity",
             value: shelfCapacityValue,
             note: "Maximum future offering capacity stated in this filing.",
             emphasis: true,
             tone: "neutral",
           } as DilutionMetricItem,
           {
-            label: "Active sale terms",
+            label: "Active Sale Terms",
             value: "None in this filing",
             note: "No price, share count, or closing is set yet.",
             tone: "neutral",
           } as DilutionMetricItem,
           {
-            label: "Company proceeds",
-            value: "No immediate cash raised",
-            note: "Cash comes only if a later sale is completed.",
+            label: "Use of Proceeds",
+            value: useOfProceeds || "To be described in future supplements",
+            note: "No immediate proceeds from the shelf alone.",
             tone: "neutral",
           } as DilutionMetricItem,
           {
-            label: "Securities covered",
+            label: "Securities Covered",
             value: shelfSecuritiesCovered,
             note: "Future securities covered by the shelf.",
             tone: "neutral",
