@@ -1896,11 +1896,11 @@ function build424bPromptVariantPreviews() {
 
   return [
     {
-      name: "Default (sectioned)",
+      name: "Default sectioned (active)",
       text: normalizePromptPreviewText(build424bAnalysisPrompt(previewParserOutput, { variant: "sectioned" })),
     },
     {
-      name: "Legacy default",
+      name: "Backup legacy (pre-sectioned)",
       text: normalizePromptPreviewText(build424bAnalysisPrompt(previewParserOutput, { variant: "legacy" })),
     },
   ];

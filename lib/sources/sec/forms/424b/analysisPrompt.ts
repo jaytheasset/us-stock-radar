@@ -169,7 +169,7 @@ function build424bAnalysisPromptLines(parserOutput: Sec424bParserOutput): string
     "Build display_payload from source-backed values only. Do not copy parser-built UI drafts, because none are provided.",
     "When display_payload.display_type is offering_terms, display_payload.data is the actual offering UI data. Fill it from the source blocks. Do not leave it as an empty object.",
     "UI completion contract: for offering_terms, fill only the structured UI fields used by the selected display_mode. Do not fill a full offering schema for every filing.",
-    "Before returning offering_terms, check that display_mode, investor_takeaway, snapshot_metrics, share_overhang, instrument_details, and needs_human_review are filled. share_overhang is always an object in the JSON contract; if the selected display_mode should not render a Share Overhang section, use short neutral values, rows: [], and no basis. instrument_details is always an array in the JSON contract; use [] only when no material share-linked instrument needs the Instrument Details UI. Add offering_details, key_cash_terms, registered_security_totals, supply_segments, current_shares, total_potential_supply, source_notes, watch_items, and narrative_summary only when the selected display_mode has a visible UI surface or compatibility need for those fields and the source supports the facts.",
+    "Before returning offering_terms, check that display_mode, investor_takeaway, snapshot_metrics, share_overhang, instrument_details, and needs_human_review are filled. share_overhang is always an object in the JSON contract; if the selected display_mode should not render a Share Overhang section, use short neutral values, rows: [], and no basis. instrument_details is always an array in the JSON contract; use [] only when no material share-linked instrument needs the Instrument Details UI. Treat snapshot_metrics, share_overhang, offering_details, instrument_details, investor_takeaway, and needs_human_review as the primary visible UI fields. Add key_cash_terms, registered_security_totals, supply_segments, current_shares, total_potential_supply, source_notes, watch_items, and narrative_summary only when the selected display_mode has a visible UI surface or compatibility need for those fields and the source supports facts not already represented in visible UI.",
     "If a fact appears in summary, source_notes, watch_items, or narrative_summary and it belongs in a visible row for the selected display_mode, also put the same fact into the matching display_payload.data field.",
     "Do not leave a source-backed offering amount, share count, price, sale method, investor, agent, agreement date, closing date, use of proceeds, conversion term, warrant term, or resale holder only in prose when the selected UI mode has a visible place for it.",
     "When the selected UI mode uses the Share Overhang chart, fill display_payload.data.share_overhang as the visible Share Overhang model. Snapshot metrics are display cards, not hidden chart input.",
@@ -191,8 +191,11 @@ function build424bAnalysisPromptLines(parserOutput: Sec424bParserOutput): string
     "share_overhang.rows is the visible supply/detail row contract. Return at most 7 rows because basis is separate.",
     "Each share_overhang.rows item must include counted_in_ratio, supply_type, label, value, numeric_value, and unit. numeric_value is the share/ADS/security amount represented by the row, not a package count unless the label/value explicitly use units.",
     "Every share_overhang.rows item is visible on screen. counted_in_ratio answers only one question: should this row's numeric_value be included in the large percentage numerator?",
-    "supply_type classifies row economics only: current_offering_pool, registered_resale_pool, share_equivalent, future_exercise, or replacement_alternative.",
+    "supply_type classifies row economics only: current_offering_pool, registered_resale_pool, share_equivalent, future_exercise, replacement_alternative, or shelf_capacity.",
     "Use counted_in_ratio true only for rows that belong in the headline numerator. Use counted_in_ratio false for future exercise, replacement alternatives, or other visible rows that should not be added to the headline numerator.",
+    "Use supply_type shelf_capacity and counted_in_ratio false for source-backed base/universal shelf dollar capacity that is visible context inside a mixed ATM, takedown, resale, or offering UI. A shelf_capacity row is future dollar capacity, not share supply: use unit USD, put the shelf dollar amount in numeric_value, and never include it in the headline numerator, percentage, or bar math.",
+    "When a concrete ATM, takedown, resale, registered-direct, warrant/convertible, rights, or other offering component appears together with a base/universal shelf, show the concrete component in counted share rows and show the base/universal shelf as a shelf_capacity visible row when material. Do not omit the shelf just because it is not counted in the ratio.",
+    "For mixed_offering or atm display_mode, if snapshot_metrics, offering_details, summary, narrative_summary, or investor_takeaway mentions a source-backed base/universal shelf dollar capacity, share_overhang.rows must include a matching supply_type shelf_capacity row with counted_in_ratio false.",
     "The headline status_value, ratio_value, supply_value, and total_note numerator must add only rows with counted_in_ratio true. Do not use a full-if-exercised or all-visible-row total as the headline numerator when some visible rows are counted_in_ratio false.",
     "Do not use base_shares in share_overhang.rows. The denominator belongs only in share_overhang.basis.",
     "One share_overhang.rows item may have only one calculation nature. Do not group instrument series, classes, tranches, or side-placement securities into one row when their economics could require different counted_in_ratio values or different supply_type values.",
@@ -212,6 +215,11 @@ function build424bAnalysisPromptLines(parserOutput: Sec424bParserOutput): string
     "Never create both a current_offering_pool row for ordinary shares/ADSs/units and a share_equivalent row for pre-funded shares/ADSs with the same numeric_value. That is double-counting; use one combined current_offering_pool row.",
     "Rows with counted_in_ratio true must use the same share/ADS/security basis as share_overhang.basis. If a row uses a different basis, set counted_in_ratio false or omit it from share_overhang instead of forcing a percentage.",
     "If the numerator is Class A, ADSs, or another specific security basis, share_overhang.basis must use the same specific security basis. Do not add Class B, preferred, voting-power, total ordinary-share, or other-class counts to a Class A or ADS denominator.",
+    "For share_overhang.rows, choose the counted-row security basis first. share_overhang.basis must be the matching denominator for that same basis.",
+    "If counted rows are Class A, ADSs, ordinary shares, common shares, units, or another specific security basis, basis must use that same security basis.",
+    "Do not use total Class A + Class B shares, total voting power, total ordinary shares, public float, market_context total shares, or another broader basis as the denominator for a class-specific numerator unless the counted rows are converted to the same broader basis from source-backed facts.",
+    "If source blocks provide both class-specific outstanding shares and combined outstanding shares, prefer the class-specific outstanding shares that match the counted rows.",
+    "If no matching denominator exists, use Variable or Not stated and do not calculate a percentage.",
     "Preserve the exact share-class or security basis used for share counts. If the filing basis is Class A, Class B, Class C, ordinary shares, ADSs, public float, non-affiliate shares, or another class-specific table, use that basis consistently in event_title, snapshot_metrics notes, share_overhang labels, analysis_output.summary, supply_segments labels or evidence, and offering_details notes. Do not shorten a class-specific basis to generic current shares, outstanding shares, or common shares when multiple share classes, ADS/ordinary structures, or class-specific tables exist.",
     "For share_overhang bars and supply_segments, label each component by the share exposure being counted, not by the financing instrument principal. Use source-backed class or security labels such as Class A shares, Class B conversion shares, Series A preferred conversion shares, Warrant shares, ADSs, or Ordinary shares when that is the counted amount.",
     "share_overhang.chart_title is a short section title, not a calculation label. Choose only from the title that fits the selected case: Share Dilution for primary_offering or registered_direct; Share Overhang for resale_registration; Warrant Share Supply for warrant-only supply; Convertible Share Supply for convertible note/debt supply; Preferred Conversion Supply for convertible preferred or preferred conversion supply; Pre-Funded Warrant Supply for pre-funded warrant supply; Mixed Instrument Supply only when multiple share-linked instrument families such as warrants, convertibles, preferred, or pre-funded warrants are independently material; Mixed Offering when broader primary/resale/shelf/ATM/rights components are mixed; Rights Offering for rights_offering; ATM Program for atm; Shelf Details for shelf_capacity.",
@@ -225,6 +233,7 @@ function build424bAnalysisPromptLines(parserOutput: Sec424bParserOutput): string
     "When share_overhang has numeric included-supply rows, use the same included numerator divided by basis percentage to apply the SEC offering and resale scoring guide. Do not score from a lower or partial component percentage.",
     "Do not write a lower dilution or overhang percentage while a share_equivalent counted row is present. If the included numerator or denominator is uncertain, use Variable or Not fixed yet instead of a partial percentage.",
     "share_overhang is not a prose field. chart_title must be under 48 characters, subtitle under 90 characters, note must be one short sentence under 160 characters, basis.note and rows[].note must be under 80 characters, total_note.title under 48 characters, and all row/total_note values must be compact UI strings.",
+    "Do not use generic share_overhang.status_label values such as Status, Scale, Ratio, Value, or Result when status_value is a computed percentage. Use a semantic label such as Potential Dilution, ATM Dilution, Total Potential Supply, or omit status_label.",
     "share_overhang.basis.note is only a short source/date/class qualifier. Do not paste exclusion lists, risk factors, evidence excerpts, or long source paragraphs there.",
     "Do not put explanatory prose in total_note. total_note is only the UI calculation line: short title, numerator, denominator, ratio, and short suffix.",
     "Do not put evidence excerpts, page references, full analysis paragraphs, market commentary, or repeated summary text in share_overhang.",
@@ -254,6 +263,7 @@ function build424bAnalysisPromptLines(parserOutput: Sec424bParserOutput): string
     "For mixed_offering investor_takeaway, mention only the main share sale, main potential instrument supply, and company proceeds. Do not list every offering leg, every purchaser group, or every warrant series.",
     "For ATM display_mode, investor_takeaway must summarize program size, size versus market cap when available, and at-the-market sales over time.",
     "For ATM display_mode, do not describe the program as completed issuance or immediate dilution; actual dilution depends on future sales.",
+    "For ATM display_mode, do not calculate or mention implied share dilution from dividing ATM dollar capacity by a last sale price, VWAP, market price, or assumed sale price. ATM sales occur over time at variable market prices, so investor_takeaway, summary, snapshot_metrics, and share_overhang should use program size, market cap/public float scale, sale method, remaining capacity, already-sold usage, and stated limits only unless the filing itself states a fixed share count.",
     "For ATM display_mode, snapshot_metrics must use exactly these four labels when source-backed: Program size, Market cap, Size vs market cap, Sale method.",
     "For ATM Market cap, use a filing-date calculated value first when source blocks provide shares outstanding and a stated share price. Otherwise use market_context.market_cap. Do not mix the two sources without saying which source was used.",
     "For ATM Size vs market cap, use the same market cap denominator shown in the Market cap snapshot row.",
@@ -264,15 +274,22 @@ function build424bAnalysisPromptLines(parserOutput: Sec424bParserOutput): string
     "offering_details must be an array of { label, value, note? } rows using only approved labels.",
     "For offering_details rows, label and value are visible; note is also visible under the value in the detail panel.",
     "Use offering_details.note only for short source-backed caveats, material exceptions, calculation basis, limits, or context that should be visible but would make value too long.",
+    "offering_details.note is visible. Do not omit note when the row value alone would hide a material basis, limitation, exception, pricing basis, proceeds caveat, sale condition, or instrument mechanic.",
+    "For 424B primary_offering, registered_direct, and mixed_offering, use notes on rows where context changes interpretation: Offering Type, Offer Price, Purchase Price, Company Proceeds, Use of Proceeds, Placement Agent / Underwriter, Sale Limitation, and Warrant Terms.",
+    "For Offering Type notes, use best-efforts, no minimum, registered direct, private placement, or takedown context only when source-backed and material.",
+    "For Offer Price or Purchase Price notes, use share vs unit vs pre-funded basis, assumed vs final price, or warrant-attached pricing only when source-backed.",
+    "For Company Proceeds or Use of Proceeds notes, show gross vs net, excludes warrant exercise proceeds, or one material amount/caveat when source-backed.",
+    "For Placement Agent / Underwriter notes, show role or fee only when material. For Sale Limitation or Warrant Terms notes, show material cap, condition, exception, reset/floor, or exercise caveat.",
+    "Do not add generic offering_details notes. Omit note when it only repeats the value.",
     "Do not leave material exceptions or investor-critical caveats only in source_notes, evidence, score_reason, or prose when an offering_details row is the visible UI row.",
     "The first offering_details row must be Offering Type for every offering_terms display mode. Use a short source-backed value such as Best-efforts public offering, Registered direct offering, ATM program, Resale registration, Convertible promissory notes, Warrant-linked offering, Rights offering, or Shelf registration.",
     "Mixed Offering classification principle: do not call a filing mixed merely because one financing has both notes and warrants.",
     "Use display_mode mixed_offering only when two or more independently material offering families need equal investor attention and cannot be fairly represented by one specific mode.",
     "Use warrant_convertible when the main investor impact is convertible notes, convertible preferred stock, warrants, pre-funded warrants, units, rights, or other equity-linked instruments, even if several instrument classes appear in the same financing package.",
     "Use primary_offering or registered_direct when the main investor impact is a fixed company cash sale of common shares or share-equivalent securities, and put attached warrants or pre-funded warrants in instrument_details.",
-    "Use resale_registration when the main investor impact is existing holders registering shares for resale, and put underlying warrants, convertibles, preferred stock, or equity-line terms in supply_segments and instrument_details.",
+    "Use resale_registration when the main investor impact is existing holders registering shares for resale, and put underlying warrants, convertibles, preferred stock, or equity-line terms in visible share_overhang.rows, offering_details, and instrument_details.",
     "Use mixed_offering for source-backed combinations such as primary cash sale plus resale overhang, ATM plus resale or warrant capacity, fixed share sale plus material warrant/pre-funded warrant package, or preferred/notes plus a separate resale pool.",
-    "For mixed_offering, set Offering Type to Mixed offering, identify the main components in supply_segments and instrument_details, and do not force the filing into ATM, resale, registered_direct, or warrant_convertible merely because one component contains those words.",
+    "For mixed_offering, set Offering Type to Mixed offering, identify the main components in visible share_overhang.rows, offering_details, and instrument_details, and do not force the filing into ATM, resale, registered_direct, or warrant_convertible merely because one component contains those words.",
     "If a filing combines shelf registration capacity with a concrete resale pool, selling stockholder shares, ATM program, registered-direct terms, priced sale, warrant/convertible pool, or any other source-backed active component, do not route it to shelf_capacity. Use mixed_offering unless one active component clearly dominates and has its own more specific display_mode.",
     "Use shelf_capacity only when the filing is shelf registration capacity by itself: no concrete resale share pool, no active sale method, no priced offering, no current takedown, no named selling-holder resale pool, and no fixed warrant/convertible share pool that needs investor attention.",
     "display_payload.data.display_mode must be exactly one supported UI mode: atm, resale_registration, primary_offering, registered_direct, warrant_convertible, rights_offering, shelf_capacity, ipo_pricing, spac_ipo, spac_transaction_status, mixed_offering, or generic.",
@@ -287,29 +304,32 @@ function build424bAnalysisPromptLines(parserOutput: Sec424bParserOutput): string
     "For mixed_offering analysis_output.summary, use 2-4 short sentences. Explain the main components once, then leave detailed warrant/conversion terms to instrument_details and offering_details.",
     "For mixed_offering analysis_output.summary, do not repeat every Series A/Series B term if the same terms are already in instrument_details.",
     "For mixed offerings, Offering Type should be short, such as Mixed offering. Put D&O, underwritten, PIPE, registered direct, or private-placement context in Purchaser / Investor, Placement Agent / Underwriter, evidence, or timing_or_condition.",
-    "For mixed offerings, supply_segments must separate current sale share-equivalents, registered resale securities, warrant instruments, and underlying shares. Do not force warrants into the shares field when the filing is offering warrants themselves.",
+    "For mixed offerings, visible share_overhang.rows must separate current sale share-equivalents, registered resale securities, warrant instruments, and underlying shares when those rows are material. Use supply_segments only as compatibility/debug structure when it adds source-backed detail. Do not force warrants into the shares field when the filing is offering warrants themselves.",
     "Do not count the same warrant twice merely because it appears both as an offered warrant and as an underlying share source. If warrant terms are the same, aggregate the source-backed underlying shares once and show the offered warrant count separately.",
-    "If separate warrant series have different exercise prices, expirations, exercisability, reset/floor terms, or names such as Series A and Series B, count each series separately in supply_segments and instrument_details because each series can create additional shares.",
+    "If separate warrant series have different exercise prices, expirations, exercisability, reset/floor terms, or names such as Series A and Series B, separate them in share_overhang.rows and instrument_details when they are visible supply. Use supply_segments only as compatibility/debug structure.",
     "For share_overhang.rows, numeric_value must be the actual share/ADS exposure represented by that visible row, not the number of instruments, units, warrant packages, or source line items.",
     "If one share_overhang row groups multiple instrument series, classes, or tranches, numeric_value must equal the summed underlying share/ADS exposure for all grouped items, and value must make the summed exposure clear.",
     "If grouped instrument series have different supply_type values, counted_in_ratio values, economics, expirations, reset/floor terms, or materially different conditions, do not group them in share_overhang.rows. A shared source-backed maximum pool is not enough to group them into an included numerator row.",
-    "For total_potential_supply in mixed_offering, use the source-backed share exposure basis from registered_security_totals.total_distinct_share_exposure when available. Do not require total_potential_supply to equal the sum of supply_segments when supply_segments includes non-share instruments such as warrants offered for resale.",
+    "For optional total_potential_supply in mixed_offering, use the same source-backed share exposure basis as the visible counted share_overhang.rows. Do not require total_potential_supply to equal the sum of supply_segments when supply_segments includes non-share instruments such as warrants offered for resale.",
     "For mixed_offering, fill share_overhang with source-backed chart labels, values, total_note, basis, and rows. Do not rely on snapshot_metrics to drive the chart, and do not omit share_overhang merely because denominator or ratio is unavailable.",
     "mixed_offering_components is optional debug structure only. Do not add it unless it helps preserve a source-backed breakdown that is also reflected in visible UI fields.",
     "For mixed_offering new_shares, include current-sale share-equivalent replacement securities when source-backed. Do not include accompanying warrant exercise shares in new_shares.",
     "For mixed_offering potential_warrants or potential_instruments, include only additional shares from warrants, convertibles, preferred stock, rights, or similar instruments that are not already counted in new_shares.",
-    "For mixed_offering total_potential_supply, add new_shares plus potential_warrants or potential_instruments exactly once. Do not double-count pre-funded warrants or companion warrants.",
+    "For mixed_offering compatibility total_potential_supply, add only the visible counted share exposure exactly once. Do not double-count pre-funded warrants, companion warrants, conditional future exercise rows, or shelf_capacity rows.",
     "Instrument Details should group securities by actual terms, not by every offering leg. If exercise/conversion price, exercisability, expiration, reset/floor, and security type match, combine them into one row and mention applicable offering legs briefly only when useful.",
     "Use separate Instrument Details rows only when the terms differ, such as different exercise prices, different expiration periods, different reset/floor terms, or different security types.",
     "When instrument categories or series share some economics but differ in material holder-specific conditions, either split them by Type or use a consolidated Type that names the grouped categories or series; do not place a condition from one category or series under a Type naming only another.",
     "If one source-backed cap covers multiple named instruments with different terms, split Instrument Details rows when needed for the terms, but show the combined cap only once. Do not repeat the combined cap as if it were a per-series share amount.",
-    "For primary_offering, registered_direct, ATM, rights_offering, and mixed offerings, approved offering_details labels are: Offering Type, Purchaser / Investor, Placement Agent / Underwriter, Warrant Terms, Closing Date, Agreement Date, Use of Proceeds.",
-    "For primary_offering or registered_direct, if the filing states shares offered or share-equivalent securities sold, fill total_potential_supply with that share count and add a matching supply_segments row such as New common shares or Common shares.",
-    "For primary_offering or registered_direct, if the filing states shares outstanding before the offering, fill current_shares with that denominator and its evidence. If not, use market_context shares outstanding when available.",
-    "For primary_offering or registered_direct, if snapshot_metrics includes New shares or Dilution vs current shares, current_shares and total_potential_supply must also be filled with the same source-backed basis.",
-    "For primary_offering or registered_direct, current_shares means pre-offering shares outstanding. Do not use shares outstanding after the offering as current_shares or as the denominator for Dilution vs current shares.",
+    "For primary_offering, registered_direct, and rights_offering, approved offering_details labels are: Offering Type, Purchaser / Investor, Placement Agent / Underwriter, Warrant Terms, Closing Date, Agreement Date, Use of Proceeds.",
+    "For ATM display_mode, approved offering_details labels are: Offering Type, Sales Agent, Fee / Commission, Agreement Date, End Date, Sale Limitation, Use of Proceeds.",
+    "For mixed_offering display_mode, approved offering_details labels are: Offering Type, Main Components, Purchaser / Selling Holders, Placement Agent / Underwriter, Sale Limitation, Warrant Terms, Use of Proceeds.",
+    "For atm or mixed_offering display_mode, include Sale Limitation when the filing states a material ATM or shelf usage limit, public-float limit, baby-shelf limit, General Instruction I.B.6 limit, or one-third public-float limit. Do not leave that limitation only in source_notes, score_reason, or prose.",
+    "For primary_offering or registered_direct, if the filing states shares offered or share-equivalent securities sold, fill visible share_overhang.rows with the same source-backed share count when a Share Overhang chart is appropriate. Add total_potential_supply or supply_segments only as compatibility/debug fields when they add source-backed structure not already visible.",
+    "For primary_offering or registered_direct, if the filing states shares outstanding before the offering, put that denominator in share_overhang.basis with its evidence. If not, use market_context shares outstanding when available. Add current_shares only as compatibility when useful.",
+    "For primary_offering or registered_direct, if snapshot_metrics includes New shares or Dilution vs current shares, share_overhang.basis and counted share_overhang.rows must use the same source-backed basis.",
+    "For primary_offering or registered_direct, share_overhang.basis and optional current_shares mean pre-offering shares outstanding. Do not use shares outstanding after the offering as current_shares or as the denominator for Dilution vs current shares.",
     "For primary_offering or registered_direct, Dilution vs current shares means new shares divided by pre-offering current shares. Do not calculate it as new shares divided by post-offering shares.",
-    "For primary_offering or registered_direct, if you cannot fill current_shares and total_potential_supply, do not output a Dilution vs current shares snapshot row.",
+    "For primary_offering or registered_direct, if you cannot fill share_overhang.basis and visible counted share_overhang.rows, do not output a Dilution vs current shares snapshot row.",
     "For shelf_capacity, approved offering_details labels are: Offering Type, Shelf Capacity, Sale Limitation, Securities Covered, Active Sale Terms, Use of Proceeds.",
     "For shelf_capacity display_mode, use Offering Type value 'Shelf registration'. Do not write Base Shelf / No Active Sale as the type name.",
     "For shelf_capacity display_mode, include Sale Limitation when the filing states a material shelf sale limit, public-float limit, baby-shelf limit, General Instruction I.B.6 limit, or one-third public-float limit. Do not leave that limitation only in source_notes, score_reason, or prose.",
@@ -368,16 +388,16 @@ function build424bAnalysisPromptLines(parserOutput: Sec424bParserOutput): string
     "Do not write 'No money goes to the company' as the main company proceeds value when the filing discloses a separate equity-line or purchase facility that may provide cash to the company.",
     "Resale registration UI data rule: when display_mode is resale_registration, the JSON fields must support the resale UI, not just the written summary.",
     "If analysis_output.summary mentions registered resale shares, warrant shares, pre-funded warrant shares, convertible shares, or total resale supply, the same source-backed quantities must also be reflected in visible display_payload.data rows supported by the selected display_mode.",
-    "Use total_potential_supply for the total registered resale supply covered by the prospectus. Do not leave it empty when the filing states a registered resale share amount.",
+    "Use visible share_overhang.rows for the total registered resale supply covered by the prospectus. Add total_potential_supply only as a compatibility field when it matches the same visible resale share basis.",
     "ADS rule: when the filing states ADSs representing ordinary shares, separate the two quantities. Put the ADS count in ads_equivalence.ads_offered and/or supply_segments.instrument_count with unit ads. Put the ordinary-share equivalent in ads_equivalence.ordinary_shares_represented and use that ordinary-share equivalent for total_potential_supply, registered_security_totals.total_distinct_share_exposure, and share-overhang calculations.",
     "ADS rule: if current_shares is ordinary shares, total_potential_supply and supply_segments.shares must also be ordinary shares, not ADS count. If current_shares is ADSs, keep both numerator and denominator in ADSs and explain that basis. Never divide ADSs by ordinary shares or ordinary shares by ADSs.",
     "ADS rule: if the source says '55,890,900 ADSs representing 1,117,818,000 Ordinary Shares' and current_shares is ordinary shares, total_potential_supply.numeric_value must be 1117818000, not 55890900. Keep 55,890,900 in ads_equivalence.ads_offered.",
-    "Use supply_segments to break registered resale supply into source-backed components when the filing separates them by instrument type. Do not double-count components already included in total_potential_supply.",
-    "When total_potential_supply is source-backed, supply_segments should reconcile to that same total. Do not leave an unexplained remainder when the filing identifies the security type.",
+    "Use visible share_overhang.rows to break registered resale supply into source-backed components when the filing separates them by instrument type. Use supply_segments only as compatibility/debug structure and do not double-count components already included in the visible total.",
+    "When total_potential_supply or supply_segments are included for compatibility, they should reconcile to the visible share_overhang total. Do not leave an unexplained remainder when the filing identifies the security type.",
     "For each supply_segments row, use a standardized UI label instead of writing a custom sentence.",
     "For resale_registration display_mode, the overhang bar represents the registered resale share pool. If the filing gives one combined resale share amount without useful source-instrument quantities, label the row Resale shares. If the filing gives source-backed component quantities, split the bar into clear rows such as Convertible notes, Common warrants, Pre-funded warrants, Preferred shares, Rights shares, or Resale shares.",
     "For resale_registration display_mode, put source instrument identity in Source Instrument and compact source instrument terms in Instrument Terms when useful. Use Warrant Terms only when the registered shares are actually tied to warrants. For convertible notes, convertible preferred stock, rights, units, or other non-warrant instruments, do not use Warrant Terms.",
-    "For resale_registration display_mode, total_potential_supply should still be the total registered resale share pool. supply_segments may either be one Resale shares row or source-backed component rows, but the rows must reconcile to the same total without double-counting. Use instrument_details to show conversion price, exercise price, reset/floor, and term/limits.",
+    "For resale_registration display_mode, share_overhang.rows should show the total registered resale share pool. Use one Resale shares row or source-backed component rows that reconcile to the same visible total without double-counting. Add total_potential_supply and supply_segments only as compatibility fields. Use instrument_details to show conversion price, exercise price, reset/floor, and term/limits.",
     "supply_segments.label must be one of these short display labels when applicable: Resale shares, Common shares, New common shares, Public warrant shares, Private warrant shares, Common warrant shares, Pre-funded warrant shares, Placement agent warrant shares, Public warrants, Private warrants, Common warrants, Pre-funded warrants, Placement agent warrants, PIPE shares, Founder shares, Sponsor shares, Conversion shares, Convertible notes, Convertible preferred shares, Preferred shares, Rights shares, Subscription rights, Units, Other securities.",
     "Also set supply_segments.label_code when possible using one of these codes: resale_common_shares, common_shares, new_common_shares, public_warrant_shares, private_warrant_shares, common_warrant_shares, prefunded_warrant_shares, placement_agent_warrant_shares, public_warrants, private_warrants, common_warrants, prefunded_warrants, placement_agent_warrants, pipe_shares, founder_shares, sponsor_shares, conversion_shares, convertible_notes, convertible_preferred_shares, preferred_shares, rights_shares, subscription_rights, units, other_securities.",
     "Do not put rationale, proceeds treatment, overlap explanation, calculation basis, or source clauses inside supply_segments.label. Put that information in calculation_basis, overlap_notes, timing_or_condition, evidence, source_notes, or analysis_output.summary.",
@@ -391,11 +411,11 @@ function build424bAnalysisPromptLines(parserOutput: Sec424bParserOutput): string
     "For supply_segments, label each component by the actual source-backed security type. Do not call preferred stock or convertible preferred stock 'Convertible notes' unless the filing says notes, debt, or note principal.",
     "Use Placement agent warrants for placement agent, underwriter, or agent warrants. Do not label those shares Other registered shares.",
     "If analysis_output.summary says preferred stock, convertible preferred stock, Series A preferred, or pre-funded warrants, the matching visible rows must use the same instrument family.",
-    "Choose current_shares by this absolute priority: source-block shares outstanding as of the filing or before the offering; source-block non-affiliate shares or public float when that is the relevant denominator; latest market_context shares outstanding; latest market_context public float.",
+    "Choose share_overhang.basis and optional current_shares by this absolute priority: source-block shares outstanding as of the filing or before the offering; source-block non-affiliate shares or public float when that is the relevant denominator; latest market_context shares outstanding; latest market_context public float.",
     "If source blocks state shares outstanding, non-affiliate shares, or public float, do not replace that denominator with market_context. Use market_context only when source blocks do not provide a usable denominator.",
-    "If source blocks state shares outstanding as of a recent date before the offering, use that value for current_shares and include the date/limitation in evidence. Do not set current_shares to Not stated merely because the date is not the offering date.",
+    "If source blocks state shares outstanding as of a recent date before the offering, use that value for share_overhang.basis and optional current_shares, and include the date/limitation in evidence. Do not set current_shares to Not stated merely because the date is not the offering date.",
     "If the stated outstanding share count excludes options, awards, warrants, or other potential shares, it can still be used as the current-share denominator; explain the exclusion briefly in evidence or source_notes.",
-    "If no market_context or source-backed outstanding share count exists, set current_shares.value_text to null and explain the missing denominator in source_notes.",
+    "If no market_context or source-backed outstanding share count exists, leave share_overhang.basis absent, set optional current_shares.value_text to null if included, and explain the missing denominator in source_notes.",
     "Use key_cash_terms.resale_proceeds_to_company for whether resale sales send cash to the company. Separate resale proceeds from prior private placement, ELOC, warrant exercise, or conversion cash.",
     "For resale registrations tied to a completed private placement, include Approx. Placement Price only when source blocks provide both total gross proceeds and total common-share-equivalent securities sold in the same transaction.",
     "Calculate Approx. Placement Price as gross proceeds divided by common shares plus pre-funded warrant underlying shares or other share-equivalent securities sold in that transaction.",
@@ -568,7 +588,7 @@ function build424bAnalysisPromptLines(parserOutput: Sec424bParserOutput): string
     "- If using the common filing detail page, set display_payload.display_type to generic.",
     "- If using the offering terms UI, set display_payload.display_type to offering_terms and populate display_payload.data with source-backed offering fields. Empty data is invalid.",
     "- For offering_terms, always include display_mode, snapshot_metrics, share_overhang, instrument_details, investor_takeaway, and needs_human_review. narrative_summary is optional legacy fallback; use analysis_output.summary for the visible Dilution Summary.",
-    "- Add risk_label, offering_details, watch_items, source_notes, and review_reasons when useful. Add current_shares, total_potential_supply, key_cash_terms, registered_security_totals, supply_segments, and mixed_offering_components only when the selected display_mode has a visible UI surface for those fields and the source supports the facts.",
+    "- Add risk_label, offering_details, watch_items, source_notes, and review_reasons when useful. Add current_shares, total_potential_supply, key_cash_terms, registered_security_totals, supply_segments, and mixed_offering_components only as compatibility fields when they add source-backed structure not already represented in the visible UI.",
     "- investor_takeaway is required for all offering_terms display modes: atm, resale_registration, primary_offering, registered_direct, warrant_convertible, rights_offering, shelf_capacity, ipo_pricing, and spac_ipo.",
     "- investor_takeaway must be one concise source-backed sentence about the actual filing. Do not leave it to UI/code fallback.",
     "- For offering_terms, the written analysis and display_payload.data must agree. The UI should not need to recover missing offering terms from prose, source text, DB fields, or parser fallback.",
@@ -583,9 +603,10 @@ function build424bAnalysisPromptLines(parserOutput: Sec424bParserOutput): string
     "- For equity-line/ELOC resale registrations, do not stop at resale proceeds. Also fill key_cash_terms.issuer_primary_or_closing_cash with the source-backed company cash capacity or amount already received under the purchase agreement.",
     "- For ATM programs, set display_mode to atm. Treat the ATM cap as a dollar program size, not as shares.",
     "- For ATM programs, put the max dollar cap in key_cash_terms.issuer_primary_or_closing_cash. Keep total_potential_supply.value_text null and numeric_value 0 unless the filing directly states a fixed share count.",
+    "- For ATM programs, do not write assumed-price share dilution such as dollar cap divided by last sale price divided by shares outstanding in investor_takeaway, summary, snapshot_metrics, or share_overhang unless the filing itself states that fixed share count.",
     "- For ATM programs, source_notes must explain that final cash raised and share count depend on actual sales, market prices, fees, and expenses.",
     "- For primary or registered-direct offerings, fill issuer_primary_or_closing_cash when the source blocks state gross proceeds, net proceeds, or offering amount.",
-    "- For warrants, convertibles, rights, or mixed offerings, use supply_segments to separate each source-backed component and do not double-count.",
+    "- For warrants, convertibles, rights, or mixed offerings, use share_overhang.rows and instrument_details as the primary visible structure for each source-backed component. Use supply_segments only as compatibility/debug structure and do not double-count.",
     "- If using the de-SPAC status UI, set display_payload.display_type to spac_transaction_status and populate source-backed SPAC/de-SPAC fields only.",
     "- For at-the-market offerings, use source-backed max ATM amount as the primary offering size.",
     "- Do not treat pro forma post-offering share counts, assumption tables, or base-prospectus capacity as actual supply, registered resale shares, shares offered, or actual shares sold.",
@@ -613,8 +634,25 @@ function buildSectioned424bAnalysisPrompt(lines: string[]) {
     else beforeScoring.push(line);
   }
 
-  const sectionedBody = insert424bSectionHeaders(beforeScoring);
-  const sectionedOutput = insert424bSectionHeaders(afterScoring);
+  const sectionedBody = order424bPromptSections(insert424bSectionHeaders(beforeScoring), [
+    "SECTION: Role / Hard Rules",
+    "SECTION: Display Type Selection",
+    "SECTION: Visible UI Contract",
+    "SECTION: Detail UI Routing",
+    "SECTION: Dilution Snapshot",
+    "SECTION: Share Overhang",
+    "SECTION: Shelf Capacity",
+    "SECTION: Resale Registration",
+    "SECTION: Warrant / Convertible",
+    "SECTION: Offering Details / Shelf Details",
+    "SECTION: Instrument Details",
+    "SECTION: Legacy Generic Fields",
+  ]);
+  const sectionedOutput = order424bPromptSections(insert424bSectionHeaders(afterScoring), [
+    "SECTION: Required Output JSON",
+    "SECTION: Final Self-Check",
+    "SECTION: Source Blocks",
+  ]);
 
   return [
     ...sectionedBody,
@@ -633,8 +671,8 @@ function insert424bSectionHeaders(lines: string[]) {
     ["UI completion contract: for offering_terms, fill only the structured UI fields used by the selected display_mode. Do not fill a full offering schema for every filing.", "SECTION: Visible UI Contract"],
     ["The Dilution Snapshot UI is display_payload.data.snapshot_metrics. The site will render those rows exactly and must not infer or rewrite snapshot labels, values, or notes.", "SECTION: Dilution Snapshot"],
     ["The Share Overhang UI is display_payload.data.share_overhang. The site renders the LLM-written basis and rows through the existing DilutionShareOverhang component.", "SECTION: Share Overhang"],
-    ["For offering_terms, write display_payload.data.investor_takeaway yourself. It is the short sentence shown under the Dilution Snapshot for every offering detail mode.", "SECTION: Investor Takeaway / Offering Details"],
-    ["Use display_mode mixed_offering only when two or more independently material offering families need equal investor attention and cannot be fairly represented by one specific mode.", "SECTION: Display Mode Rules"],
+    ["For offering_terms, write display_payload.data.investor_takeaway yourself. It is the short sentence shown under the Dilution Snapshot for every offering detail mode.", "SECTION: Offering Details / Shelf Details"],
+    ["Use display_mode mixed_offering only when two or more independently material offering families need equal investor attention and cannot be fairly represented by one specific mode.", "SECTION: Detail UI Routing"],
     ["For shelf_capacity, approved offering_details labels are: Offering Type, Shelf Capacity, Sale Limitation, Securities Covered, Active Sale Terms, Use of Proceeds.", "SECTION: Shelf Capacity"],
     ["For warrant_convertible, snapshot fields should describe underlying shares, exercise/conversion price, company proceeds if any, and dilution vs current shares. Use offering_details for purchaser/agent/date/use of proceeds and reset, repricing, floor, or other price-protection terms when source-backed.", "SECTION: Warrant / Convertible"],
     ["For resale_registration, never include Use of Proceeds in offering_details. If the filing has an ELOC, equity line, or purchase agreement, show company cash capacity in key_cash_terms.issuer_primary_or_closing_cash and the snapshot, not as an Offering Details row.", "SECTION: Resale Registration"],
@@ -653,6 +691,43 @@ function insert424bSectionHeaders(lines: string[]) {
     }
     output.push(line);
   }
+  return output;
+}
+
+function order424bPromptSections(lines: string[], preferredOrder: string[]) {
+  const preamble: string[] = [];
+  const sections = new Map<string, string[]>();
+  const order: string[] = [];
+  let currentHeader = "";
+
+  for (const line of lines) {
+    if (line.startsWith("SECTION: ")) {
+      currentHeader = line;
+      if (!sections.has(currentHeader)) {
+        sections.set(currentHeader, []);
+        order.push(currentHeader);
+      }
+      continue;
+    }
+    if (!currentHeader) {
+      preamble.push(line);
+      continue;
+    }
+    sections.get(currentHeader)?.push(line);
+  }
+
+  const emitted = new Set<string>();
+  const output = [...preamble];
+  const emitSection = (header: string) => {
+    const body = sections.get(header);
+    if (!body || emitted.has(header)) return;
+    if (output.length && output[output.length - 1] !== "") output.push("");
+    output.push(header, ...body);
+    emitted.add(header);
+  };
+
+  preferredOrder.forEach(emitSection);
+  order.forEach(emitSection);
   return output;
 }
 

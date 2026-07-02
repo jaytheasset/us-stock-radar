@@ -9,6 +9,8 @@ export type DilutionShareOverhangBarSegment = {
   classBasis?: string;
   poolId?: string;
   poolRelationship?: string;
+  roleBadge?: string;
+  roleKind?: "base" | "included" | "future" | "alternative" | "conditional" | "reference";
   label: string;
   value: string;
   note?: string;
@@ -326,7 +328,14 @@ function formatConditionalSupplyLabel(row: DilutionShareOverhangFactRow) {
   return row.label;
 }
 
-function overhangSupplyRole(row: { countedInRatio?: boolean; supplyType?: string; supplyNature?: string }) {
+function overhangSupplyRole(row: {
+  countedInRatio?: boolean;
+  supplyType?: string;
+  supplyNature?: string;
+  roleBadge?: string;
+  roleKind?: "base" | "included" | "future" | "alternative" | "conditional" | "reference";
+}) {
+  if (row.roleBadge) return { kind: row.roleKind || "reference", badge: row.roleBadge };
   if (row.countedInRatio === true) return { kind: "included", badge: "Counted" };
   if (row.countedInRatio === false) {
     if (row.supplyType === "shelf_capacity") return { kind: "future", badge: "Future capacity" };

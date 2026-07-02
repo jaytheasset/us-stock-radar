@@ -4065,6 +4065,16 @@ function AtmProgramDetails({ model }: { model: ReturnType<typeof buildDilutionOf
         overhangBarSegments: canRenderScale
           ? [
               {
+                key: "market-cap",
+                className: "current-base",
+                label: denominatorLabel,
+                value: denominatorValue,
+                width: marketCapWidth,
+                compact: marketCapWidth < 24,
+                roleBadge: "Base",
+                roleKind: "base",
+              },
+              {
                 key: "atm-capacity",
                 className: "registered-supply",
                 label: "ATM capacity",
@@ -4072,18 +4082,12 @@ function AtmProgramDetails({ model }: { model: ReturnType<typeof buildDilutionOf
                 note: displayedScale || undefined,
                 width: programWidth,
                 compact: programWidth < 24,
-              },
-              {
-                key: "market-cap",
-                className: "current-base",
-                label: denominatorLabel,
-                value: denominatorValue,
-                width: marketCapWidth,
-                compact: marketCapWidth < 24,
+                roleBadge: "Capacity",
+                roleKind: "included",
               },
             ]
           : [],
-        overhangLevel: model.overhangLevel,
+        overhangLevel: "Capacity Scale",
         overhangLevelLabel: "Capacity Level",
         overhangNote: "Actual dilution depends on how much stock the company sells.",
         overhangScoreCaption: denominatorCaption,

@@ -246,6 +246,34 @@ export function collect424bDisplayPayloadWarnings(displayPayload: Record<string,
       "SEC 424B share_overhang has included supply rows but no basis current-share denominator; use source-block shares outstanding first, then market_context when source blocks do not provide it.",
     );
   }
+  const basisRecord = readRecord(shareOverhang?.basis);
+  const basisText = shareBasisText(basisRecord);
+  const includedRowsBasisText = shareOverhangRows
+    .filter((row) => {
+      const countedInRatio = booleanValue(row.counted_in_ratio ?? row.countedInRatio);
+      if (typeof countedInRatio === "boolean") return countedInRatio;
+      const calculationRole = stringValue(row.calculation_role || row.calculationRole);
+      const supplyNature = stringValue(row.supply_nature || row.supplyNature);
+      return (
+        calculationRole === "headline_numerator" &&
+        ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(supplyNature)
+      );
+    })
+    .map(shareBasisText)
+    .join(" ");
+  if (
+    includedRowsBasisText &&
+    basisText &&
+    /\bclass\s+a\b/i.test(includedRowsBasisText) &&
+    (/\bclass\s+b\b/i.test(basisText) || /\bclass\s+a\s+(?:and|&|\+)\s+class\s+b\b/i.test(basisText))
+  ) {
+    warnings.push(
+      "SEC 424B share_overhang counted rows appear Class A-specific, but basis appears to combine Class A with Class B or another broader share basis.",
+    );
+  }
+  if (includedRowsBasisText && basisText && /\bADSs?\b|American Depositary Shares?/i.test(includedRowsBasisText) && /\bordinary shares?\b/i.test(basisText)) {
+    warnings.push("SEC 424B share_overhang counted rows appear ADS-specific, but basis appears to use ordinary shares.");
+  }
   for (const segment of arrayValue(data.supply_segments)) {
     const record = readRecord(segment);
     const shares = readRecord(record?.shares);
@@ -1291,6 +1319,14 @@ function hasDisplayFactValue(value: Record<string, unknown> | null) {
 
 function readRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+}
+
+function shareBasisText(record: Record<string, unknown> | null) {
+  if (!record) return "";
+  return [record.class_basis, record.classBasis, record.label, record.value, record.value_text, record.note]
+    .map(stringValue)
+    .filter(Boolean)
+    .join(" ");
 }
 
 export const sec424bRequiredOutputSchema = {

@@ -35,7 +35,7 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
   const [accessionNumber, setAccessionNumber] = useState("");
   const [dryRunAccession, setDryRunAccession] = useState("");
   const [resetExistingAnalysis, setResetExistingAnalysis] = useState(false);
-  const [secPromptVariant, setSecPromptVariant] = useState("default");
+  const [secPromptVariant, setSecPromptVariant] = useState("sectioned");
   const [liveSampleCount, setLiveSampleCount] = useState("1");
   const [allowLlm, setAllowLlm] = useState(false);
   const [liveFormFilter, setLiveFormFilter] = useState("all");
@@ -48,7 +48,8 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
     [rooms, selectedRoom],
   );
   const selectedRunForms = liveFormFilter === "all" ? selectedSnapshot?.forms || [] : [liveFormFilter];
-  const selectedSecPromptVariant = selectedRoom === "424b" && secPromptVariant === "legacy" ? "legacy" : "";
+  const selectedSecPromptVariant =
+    selectedRoom === "424b" && (secPromptVariant === "legacy" || secPromptVariant === "sectioned") ? secPromptVariant : "";
   const liveSampleCountNumber = clampLiveSampleCount(liveSampleCount);
   const selectedRunFormCount = Math.max(1, selectedRunForms.length);
   const selectedRunLabel = liveFormFilter === "all" ? "all forms " : `${liveFormFilter} `;
@@ -80,7 +81,7 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
 
   useEffect(() => {
     setLiveFormFilter("all");
-    setSecPromptVariant("default");
+    setSecPromptVariant("sectioned");
   }, [selectedRoom]);
 
   async function runTests() {
@@ -387,8 +388,8 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
             <label className={styles.compactControl}>
               <span>Prompt variant</span>
               <select onChange={(event) => setSecPromptVariant(event.target.value)} value={secPromptVariant}>
-                <option value="default">Default (sectioned)</option>
-                <option value="legacy">Legacy default</option>
+                <option value="sectioned">Default sectioned (active)</option>
+                <option value="legacy">Backup legacy (pre-sectioned)</option>
               </select>
             </label>
           ) : null}
@@ -3139,61 +3140,110 @@ function getDisplayLabelGuide(roomKey: string): DisplayLabelGuide | null {
     return {
       overview: [
         {
-          title: "UI / Detail UI",
+          title: "1. UI",
+          items: ["offering_terms", "generic", "spac_transaction_status"],
+        },
+        {
+          title: "2. Detail UI choices",
           items: [
-            "UI: offering_terms",
-            "Detail UI: shelf_capacity, resale_registration, atm, primary_offering",
-            "Detail UI: registered_direct, warrant_convertible, mixed_offering, rights_offering, generic",
+            "shelf_capacity",
+            "resale_registration",
+            "atm",
+            "primary_offering",
+            "registered_direct",
+            "warrant_convertible",
+            "mixed_offering",
+            "rights_offering",
+            "ipo_pricing",
+            "spac_ipo",
+            "generic",
+          ],
+        },
+      ],
+      detailModes: [
+        {
+          mode: "shelf_capacity",
+          purpose: "Base shelf or universal shelf with no active takedown terms.",
+          groups: [
+            { title: "Snapshot", items: ["Shelf capacity", "Market cap or public float", "Capacity vs basis", "Sale status"] },
+            { title: "Shelf Details", items: ["Offering Type", "Shelf Capacity", "Sale Limitation", "Securities Covered", "Active Sale Terms", "Use of Proceeds"] },
+            { title: "What To Watch", items: ["Prospectus supplement", "Takedown terms", "Price / shares / agents"] },
           ],
         },
         {
-          title: "Snapshot labels",
-          items: [
-            "Program size",
-            "Resale shares",
-            "New shares",
-            "Offer price",
-            "Company proceeds",
-            "Overhang vs outstanding",
-            "Sale method",
-            "Source instrument",
+          mode: "resale_registration",
+          purpose: "Selling holder resale pool, including shares issued or issuable from prior financing.",
+          groups: [
+            { title: "Snapshot", items: ["Resale shares", "Overhang vs outstanding", "Company proceeds", "Selling holders", "Source instrument"] },
+            { title: "Share Overhang", items: ["Current shares", "Resale shares", "Common warrants", "Convertible notes", "Convertible preferred"] },
+            { title: "Offering Details", items: ["Selling Holders", "Agreement Date", "Sale Price", "Resale Method", "Source Instrument", "Instrument Terms", "Registration Obligation"] },
+            { title: "Instrument Details", items: ["Type", "Shares / Securities", "Exercise / Conversion Price", "Reset / Floor", "Term / Limits"] },
           ],
         },
         {
-          title: "Offering detail labels",
-          items: [
-            "Offering Type",
-            "Selling Holders",
-            "Sales Agent",
-            "Placement Agent / Underwriter",
-            "Purchaser / Investor",
-            "Agreement Date",
-            "End Date",
-            "Closing Date",
-            "Fee / Commission",
-            "Use of Proceeds",
-            "Resale Method",
-            "Sale Price",
-            "Source Instrument",
-            "Registration Obligation",
-            "Purchase Limit / Floor",
+          mode: "atm",
+          purpose: "At-the-market program or ATM prospectus supplement.",
+          groups: [
+            { title: "Snapshot", items: ["Program size", "Market cap or public float", "Size vs basis", "Sale method"] },
+            { title: "Share Overhang", items: ["Current shares", "ATM shares when source-backed", "Shelf capacity as future capacity"] },
+            { title: "Offering Details", items: ["Sales Agent", "Fee / Commission", "Agreement Date", "End Date", "Sale Limitation", "Use of Proceeds"] },
           ],
         },
         {
-          title: "Supply / instrument labels",
-          items: [
-            "Current shares",
-            "Resale shares",
-            "Common shares",
-            "Common warrants",
-            "Pre-funded warrants",
-            "Convertible notes",
-            "Convertible preferred",
-            "Type",
-            "Shares / Securities",
-            "Exercise / Conversion Price",
-            "Reset / Floor",
-            "Term / Limits",
+          mode: "primary_offering",
+          purpose: "Priced primary or underwritten offering where the company sells new securities.",
+          groups: [
+            { title: "Snapshot", items: ["New shares", "Offer price", "Company proceeds", "Dilution vs outstanding"] },
+            { title: "Share Overhang", items: ["Current shares", "New shares", "Pre-funded warrants", "Common warrants when counted"] },
+            { title: "Offering Details", items: ["Offering Type", "Underwriter", "Closing Date", "Agreement Date", "Use of Proceeds", "Warrant Terms"] },
+            { title: "Instrument Details", items: ["Type", "Shares / Securities", "Exercise / Conversion Price", "Reset / Floor", "Term / Limits"] },
+          ],
+        },
+        {
+          mode: "registered_direct",
+          purpose: "Registered direct, PIPE-style takedown, or named investor primary sale.",
+          groups: [
+            { title: "Snapshot", items: ["New shares", "Offer price", "Company proceeds", "Dilution vs outstanding"] },
+            { title: "Share Overhang", items: ["Current shares", "Common shares", "Pre-funded warrants", "Common warrants"] },
+            { title: "Offering Details", items: ["Purchaser / Investor", "Placement Agent", "Closing Date", "Agreement Date", "Use of Proceeds", "Warrant Terms"] },
+            { title: "Instrument Details", items: ["Type", "Shares / Securities", "Exercise / Conversion Price", "Reset / Floor", "Term / Limits"] },
+          ],
+        },
+        {
+          mode: "warrant_convertible",
+          purpose: "Warrant, convertible note, convertible preferred, right, or similar share-linked exposure.",
+          groups: [
+            { title: "Snapshot", items: ["Underlying shares", "Exercise / conversion price", "Company proceeds", "Dilution vs outstanding or Variable"] },
+            { title: "Share Overhang", items: ["Current shares", "Common warrants", "Pre-funded warrants", "Convertible notes", "Convertible preferred"] },
+            { title: "Offering Details", items: ["Offering Type", "Purchaser / Investor", "Placement Agent", "Closing Date", "Agreement Date", "Use of Proceeds"] },
+            { title: "Instrument Details", items: ["Type", "Shares / Securities", "Exercise / Conversion Price", "Reset / Floor", "Term / Limits"] },
+          ],
+        },
+        {
+          mode: "mixed_offering",
+          purpose: "Multiple material components such as primary, resale, ATM, shelf, warrants, or convertibles in one filing.",
+          groups: [
+            { title: "Snapshot", items: ["Primary component", "Resale component", "Warrant component", "Company proceeds", "Shelf capacity"] },
+            { title: "Share Overhang", items: ["Current shares", "Counted rows", "Conditional rows", "Shelf capacity as future capacity"] },
+            { title: "Offering Details", items: ["Offering Type", "Main Components", "Purchaser / Selling Holders", "Sale Limitation", "Warrant Terms", "Use of Proceeds"] },
+            { title: "Instrument Details", items: ["Type", "Shares / Securities", "Exercise / Conversion Price", "Reset / Floor", "Term / Limits"] },
+          ],
+        },
+        {
+          mode: "rights_offering",
+          purpose: "Subscription rights or rights offering terms.",
+          groups: [
+            { title: "Snapshot", items: ["Rights / shares offered", "Subscription price", "Expiration", "Company proceeds"] },
+            { title: "Offering Details", items: ["Record Date", "Subscription Period", "Oversubscription", "Backstop / Dealer Manager", "Use of Proceeds"] },
+          ],
+        },
+        {
+          mode: "ipo_pricing / spac_ipo",
+          purpose: "Final IPO or SPAC IPO pricing prospectus.",
+          groups: [
+            { title: "Snapshot", items: ["Offering size", "Price", "Shares / units", "Expected proceeds"] },
+            { title: "Offering Details", items: ["Offering Type", "Underwriter", "Closing Date", "Use of Proceeds"] },
+            { title: "What To Watch", items: ["First trading", "Exercise / redemption mechanics", "Lock-up or stabilization terms"] },
           ],
         },
       ],
