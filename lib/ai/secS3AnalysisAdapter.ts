@@ -193,6 +193,12 @@ function normalizeS3AnalysisTickerMetadata(
 
   return {
     ...value,
+    why_it_matters: stringValue(value.why_it_matters),
+    bullish_points: readStringArray(value.bullish_points),
+    bearish_points: readStringArray(value.bearish_points),
+    key_evidence: readStringArray(value.key_evidence),
+    what_to_watch_next: readStringArray(value.what_to_watch_next),
+    calendar_items: Array.isArray(value.calendar_items) ? value.calendar_items : [],
     primary_ticker: primaryTicker,
     tickers: primaryTicker
       ? [
@@ -215,10 +221,13 @@ function alignS3AnalysisOutputToDisplayPayload(
   if (stringValue(displayPayload.display_type) !== "offering_terms") return analysis;
   return {
     ...analysis,
+    why_it_matters: "",
     bullish_points: [],
     bearish_points: [],
     key_evidence: [],
     what_to_watch_next: [],
+    related_tickers: [],
+    calendar_items: [],
   };
 }
 
@@ -276,6 +285,10 @@ function stringValue(value: unknown) {
   if (typeof value === "string") return value.trim();
   if (typeof value === "number" && Number.isFinite(value)) return String(value);
   return "";
+}
+
+function readStringArray(value: unknown) {
+  return Array.isArray(value) ? value.map((item) => stringValue(item)).filter(Boolean) : [];
 }
 
 function uniqueStrings(values: string[]) {
