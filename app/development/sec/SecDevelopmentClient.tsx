@@ -35,6 +35,7 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
   const [accessionNumber, setAccessionNumber] = useState("");
   const [dryRunAccession, setDryRunAccession] = useState("");
   const [resetExistingAnalysis, setResetExistingAnalysis] = useState(false);
+  const [secPromptVariant, setSecPromptVariant] = useState("default");
   const [liveSampleCount, setLiveSampleCount] = useState("1");
   const [allowLlm, setAllowLlm] = useState(false);
   const [liveFormFilter, setLiveFormFilter] = useState("all");
@@ -47,6 +48,7 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
     [rooms, selectedRoom],
   );
   const selectedRunForms = liveFormFilter === "all" ? selectedSnapshot?.forms || [] : [liveFormFilter];
+  const selectedSecPromptVariant = selectedRoom === "424b" && secPromptVariant === "legacy" ? "legacy" : "";
   const liveSampleCountNumber = clampLiveSampleCount(liveSampleCount);
   const selectedRunFormCount = Math.max(1, selectedRunForms.length);
   const selectedRunLabel = liveFormFilter === "all" ? "all forms " : `${liveFormFilter} `;
@@ -78,6 +80,7 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
 
   useEffect(() => {
     setLiveFormFilter("all");
+    setSecPromptVariant("default");
   }, [selectedRoom]);
 
   async function runTests() {
@@ -154,6 +157,7 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
           countPerForm: sampleCount,
           attachmentLimit: 6,
           allowLlm,
+          secPromptVariant: selectedSecPromptVariant,
           formTypes: selectedRunForms,
           dateFrom: liveDateFrom,
           dateTo: liveDateTo,
@@ -220,6 +224,7 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
           room: selectedRoom,
           mode: "accession_dry_run",
           accessionNumber: dryRunAccession.trim(),
+          secPromptVariant: selectedSecPromptVariant,
         }),
       });
       const payload = await response.json();
@@ -248,6 +253,7 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
           attachmentLimit: 6,
           resetExistingAnalysis,
           llmProvider: "gemini",
+          secPromptVariant: selectedSecPromptVariant,
         }),
       });
       const payload = await response.json();
@@ -377,6 +383,15 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
               ))}
             </select>
           </label>
+          {selectedRoom === "424b" ? (
+            <label className={styles.compactControl}>
+              <span>Prompt variant</span>
+              <select onChange={(event) => setSecPromptVariant(event.target.value)} value={secPromptVariant}>
+                <option value="default">Default (sectioned)</option>
+                <option value="legacy">Legacy default</option>
+              </select>
+            </label>
+          ) : null}
           <label className={styles.dateControl}>
             <span>Date from</span>
             <input onChange={(event) => setLiveDateFrom(event.target.value)} type="date" value={liveDateFrom} />

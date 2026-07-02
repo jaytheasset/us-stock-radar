@@ -13,6 +13,12 @@ import {
   saveSecRawItem,
 } from "@/lib/secStores/rawStore";
 import { fetchSecEdgarRawItems, type SecParsedRawItem } from "@/lib/sources/sec/parser";
+import { build424bAnalysisPrompt } from "@/lib/sources/sec/forms/424b/analysisPrompt";
+import {
+  PARSER_GROUP_424B,
+  PARSER_VERSION_424B,
+  type Sec424bParserOutput,
+} from "@/lib/sources/sec/forms/424b/types";
 import { supabaseDelete, supabaseSelect } from "@/lib/supabase";
 
 const execAsync = promisify(exec);
@@ -323,6 +329,7 @@ export async function runSecDevLatestAnalysisDryRun(
     formTypes?: string[];
     dateFrom?: string;
     dateTo?: string;
+    secPromptVariant?: string;
   } = {},
 ): Promise<SecDevRoomDetail | null> {
   const room = SEC_DEV_ROOMS.find((item) => item.key === roomKey);
@@ -354,6 +361,7 @@ export async function runSecDevLatestAnalysisDryRun(
       const analysis = await runSecFilingAnalysisPreviewForRawItem(rawItem, {
         dryRun: false,
         allowLlm,
+        secPromptVariant: stringValue(options.secPromptVariant) || undefined,
       });
       items.push(buildRuntimeAnalysisItem(rawItem, analysis));
     }
@@ -1128,7 +1136,7 @@ function isSkipAnalysisResult(
 
 export async function runSecDevAccessionDryRun(
   roomKey: string,
-  options: { accessionNumber?: string; rawItemId?: string } = {},
+  options: { accessionNumber?: string; rawItemId?: string; secPromptVariant?: string } = {},
 ): Promise<SecDevRoomDetail | null> {
   const room = SEC_DEV_ROOMS.find((item) => item.key === roomKey);
   if (!room) return null;
@@ -1156,6 +1164,7 @@ export async function runSecDevAccessionDryRun(
       accessionNumber: accessionNumber || undefined,
       rawItemId: rawItemId || undefined,
       dryRun: true,
+      secPromptVariant: stringValue(options.secPromptVariant) || undefined,
     });
     const item = buildRuntimeAnalysisItem(rawResult.rawItem, analysis);
 
@@ -1204,6 +1213,7 @@ export async function runSecDevControlledPersist(
     allowRepeatLlm?: boolean;
     llmProvider?: string;
     llmModel?: string;
+    secPromptVariant?: string;
   } = {},
 ): Promise<SecDevRoomDetail | null> {
   const room = SEC_DEV_ROOMS.find((item) => item.key === roomKey);
@@ -1268,6 +1278,7 @@ export async function runSecDevControlledPersist(
       suppressAlerts: true,
       llmProvider: stringValue(options.llmProvider) || undefined,
       llmModel: stringValue(options.llmModel) || undefined,
+      secPromptVariant: stringValue(options.secPromptVariant) || undefined,
     });
     if (!analysis.ok) {
       const failureRawResult = await findSecRawItem({
@@ -1847,7 +1858,7 @@ async function readPromptPreviews(room: SecDevRoom): Promise<SecDevPromptPreview
     const absolute = path.join(base, file);
     try {
       const raw = await fs.readFile(absolute, "utf8");
-      const prompts = extractPromptTemplateLiterals(raw);
+      const prompts = room.key === "424b" && file === "analysisPrompt.ts" ? build424bPromptVariantPreviews() : extractPromptTemplateLiterals(raw);
       if (prompts.length) {
         previews.push({ file, prompts });
       }
@@ -1857,6 +1868,42 @@ async function readPromptPreviews(room: SecDevRoom): Promise<SecDevPromptPreview
   }
 
   return previews;
+}
+
+function build424bPromptVariantPreviews() {
+  const previewParserOutput: Sec424bParserOutput = {
+    parserVersion: PARSER_VERSION_424B,
+    parserGroup: PARSER_GROUP_424B,
+    formType: "424B3",
+    accessionNumber: "0000000000-00-000000",
+    isSupported: true,
+    summary: null,
+    facts: {},
+    signals: [],
+    calendarItems: [],
+    warnings: [],
+    raw: {
+      cleanedSourceBlocks: [
+        {
+          block_type: "source_block",
+          label: "Prompt preview placeholder",
+          source: "debug_console",
+          text: "Live runs replace this placeholder with the selected filing source blocks.",
+        },
+      ],
+    },
+  };
+
+  return [
+    {
+      name: "Default (sectioned)",
+      text: normalizePromptPreviewText(build424bAnalysisPrompt(previewParserOutput, { variant: "sectioned" })),
+    },
+    {
+      name: "Legacy default",
+      text: normalizePromptPreviewText(build424bAnalysisPrompt(previewParserOutput, { variant: "legacy" })),
+    },
+  ];
 }
 
 function extractPromptTemplateLiterals(source: string) {
@@ -1920,13 +1967,19 @@ function extractPromptTemplateLiterals(source: string) {
     }
   }
 
+  for (const prompt of extractReturnedStringArrayPromptFunctions(source, namedStringArrays)) {
+    if (seen.has(prompt.name)) continue;
+    seen.add(prompt.name);
+    prompts.push(prompt);
+  }
+
   return prompts.slice(0, 6);
 }
 
 function extractNamedStringArrays(source: string) {
   const arrays = new Map<string, string[]>();
   const pattern =
-    /(?:export\s+)?const\s+([A-Za-z0-9_$]*(?:Prompt|Rules)[A-Za-z0-9_$]*)\s*=\s*\[([\s\S]*?)\]\s*(?:as\s+const)?\s*;/g;
+    /(?:export\s+)?const\s+([A-Za-z0-9_$]*(?:Prompt|Rules|Guide|GUIDE)[A-Za-z0-9_$]*)\s*=\s*\[([\s\S]*?)\]\s*(?:as\s+const)?\s*;/g;
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(source))) {
     const name = match[1] || "";
@@ -1934,6 +1987,117 @@ function extractNamedStringArrays(source: string) {
     if (name && lines.length) arrays.set(name, lines);
   }
   return arrays;
+}
+
+function extractReturnedStringArrayPromptFunctions(source: string, namedStringArrays: Map<string, string[]>) {
+  const prompts: Array<{ name: string; text: string }> = [];
+  const functionPattern =
+    /function\s+([A-Za-z0-9_$]*PromptLines[A-Za-z0-9_$]*)\s*\([^)]*\)\s*(?::\s*[^{]+)?\{/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = functionPattern.exec(source))) {
+    const name = match[1] || "RETURNED_ARRAY_PROMPT";
+    const openBrace = source.indexOf("{", match.index);
+    if (openBrace < 0) continue;
+
+    const closeBrace = findMatchingSourceBracket(source, openBrace, "{", "}");
+    if (closeBrace < 0) continue;
+
+    const body = source.slice(openBrace + 1, closeBrace);
+    const returnMatch = /return\s+\[/.exec(body);
+    if (!returnMatch) {
+      functionPattern.lastIndex = closeBrace + 1;
+      continue;
+    }
+
+    const arrayStart = openBrace + 1 + returnMatch.index + returnMatch[0].lastIndexOf("[");
+    const arrayEnd = findMatchingSourceBracket(source, arrayStart, "[", "]");
+    if (arrayEnd < 0 || arrayEnd > closeBrace) {
+      functionPattern.lastIndex = closeBrace + 1;
+      continue;
+    }
+
+    if (!/^\s*;/.test(source.slice(arrayEnd + 1, closeBrace))) {
+      functionPattern.lastIndex = closeBrace + 1;
+      continue;
+    }
+
+    const text = normalizePromptPreviewText(extractPromptArrayLines(source.slice(arrayStart + 1, arrayEnd), namedStringArrays).join("\n"));
+    if (text && looksLikePromptPreview(text)) prompts.push({ name, text });
+    functionPattern.lastIndex = closeBrace + 1;
+  }
+
+  return prompts;
+}
+
+function findMatchingSourceBracket(source: string, start: number, open: string, close: string) {
+  if (source[start] !== open) return -1;
+
+  let depth = 0;
+  let quote = "";
+  let escaped = false;
+  let inLineComment = false;
+  let inBlockComment = false;
+
+  for (let index = start; index < source.length; index += 1) {
+    const current = source[index] || "";
+    const next = source[index + 1] || "";
+
+    if (inLineComment) {
+      if (current === "\n" || current === "\r") inLineComment = false;
+      continue;
+    }
+
+    if (inBlockComment) {
+      if (current === "*" && next === "/") {
+        inBlockComment = false;
+        index += 1;
+      }
+      continue;
+    }
+
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (current === "\\") {
+        escaped = true;
+        continue;
+      }
+      if (current === quote) quote = "";
+      continue;
+    }
+
+    if (current === "/" && next === "/") {
+      inLineComment = true;
+      index += 1;
+      continue;
+    }
+
+    if (current === "/" && next === "*") {
+      inBlockComment = true;
+      index += 1;
+      continue;
+    }
+
+    if (current === '"' || current === "'" || current === "`") {
+      quote = current;
+      continue;
+    }
+
+    if (current === open) {
+      depth += 1;
+      continue;
+    }
+
+    if (current === close) {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+
+  return -1;
 }
 
 function extractPromptArrayLines(source: string, namedStringArrays: Map<string, string[]>) {

@@ -124,6 +124,12 @@ const cik = stringArg("cik") || stringArg("filerCik") || stringArg("filer-cik");
 const rawItemId = stringArg("rawItemId");
 const llmProvider = stringArg("llmProvider") || stringArg("llm-provider") || "gemini";
 const llmModel = stringArg("llmModel") || stringArg("llm-model") || "";
+const secPromptVariant =
+  stringArg("secPromptVariant") ||
+  stringArg("sec-prompt-variant") ||
+  stringArg("promptVariant") ||
+  stringArg("prompt-variant") ||
+  "";
 const resetExistingAnalysis =
   booleanArg("resetExistingAnalysis", false) ||
   booleanArg("reset-existing-analysis", false) ||
@@ -144,6 +150,7 @@ const result = {
   baseUrl,
   llmProvider: llmProvider || null,
   llmModel: llmModel || null,
+  secPromptVariant: secPromptVariant || null,
   resetExistingAnalysis,
   allowRepeatLlm,
   sync: null,
@@ -285,6 +292,7 @@ async function analyzeOne({ rawItemId, accessionNumber }) {
   });
   if (llmProvider) params.set("llmProvider", llmProvider);
   if (llmModel) params.set("llmModel", llmModel);
+  if (secPromptVariant) params.set("secPromptVariant", secPromptVariant);
   if (rawItemId) params.set("rawItemId", rawItemId);
   else if (accessionNumber) params.set("accessionNumber", accessionNumber);
   else throw new Error("Cannot analyze without rawItemId or accessionNumber.");
@@ -341,6 +349,7 @@ async function analyzeOneViaDevConsole({ rawItemId, accessionNumber }) {
     allowRepeatLlm,
     llmProvider,
     llmModel,
+    secPromptVariant,
   });
   if (!response?.ok) {
     throw new Error(`SEC dev controlled persist failed: ${shortJson(response)}`);

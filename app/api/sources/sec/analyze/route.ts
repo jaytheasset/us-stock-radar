@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
     force: params.get("force") === "true" || bodyRecord.force === true,
     llmProvider: params.get("llmProvider") || stringValue(bodyRecord.llmProvider) || undefined,
     llmModel: params.get("llmModel") || stringValue(bodyRecord.llmModel) || undefined,
+    secPromptVariant: params.get("secPromptVariant") || stringValue(bodyRecord.secPromptVariant) || undefined,
     suppressAlerts:
       params.get("suppressAlerts") === "true" ||
       params.get("alerts") === "false" ||
@@ -40,6 +41,7 @@ export async function GET(request: NextRequest) {
     force: params.get("force") === "true",
     llmProvider: params.get("llmProvider") || undefined,
     llmModel: params.get("llmModel") || undefined,
+    secPromptVariant: params.get("secPromptVariant") || undefined,
     suppressAlerts: params.get("suppressAlerts") === "true" || params.get("alerts") === "false",
   });
 

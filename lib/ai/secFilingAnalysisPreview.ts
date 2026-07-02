@@ -142,6 +142,7 @@ type SecLlmProvider = "openai" | "gemini";
 type SecLlmOptions = {
   llmProvider?: string;
   llmModel?: string;
+  secPromptVariant?: string;
 };
 
 type SecLlmConfig = {
@@ -247,7 +248,7 @@ export async function runSecFilingAnalysisPreview(options: PreviewOptions = {}) 
   }
 
   const input = await buildInputFromSecRawRowWithContext(rawResult.rawItem);
-  const prompt = buildSecFilingPromptForInput(input);
+  const prompt = buildSecFilingPromptForInput(input, options);
   const triagePrompt = isS3AmendmentInput(input) ? buildSecS3TriagePrompt(input) : null;
 
   const investableUniverseGate = evaluateSecInvestableUniverse(input);
@@ -298,7 +299,7 @@ export async function runSecFilingAnalysisPreviewForRawItem(
   options: ({ dryRun?: boolean; allowLlm?: boolean } & SecLlmOptions) = {},
 ) {
   const input = await buildInputFromSecRawRowWithContext(rawItem);
-  const prompt = buildSecFilingPromptForInput(input);
+  const prompt = buildSecFilingPromptForInput(input, options);
   const triagePrompt = isS3AmendmentInput(input) ? buildSecS3TriagePrompt(input) : null;
 
   const investableUniverseGate = evaluateSecInvestableUniverse(input);
@@ -337,7 +338,7 @@ export async function runSecFilingAnalysisPreviewForRawItem(
   }
 
   if (options.allowLlm === false) {
-    return runSecFilingAnalysisWithoutLlmForRawRow(rawItem, input);
+    return runSecFilingAnalysisWithoutLlmForRawRow(rawItem, input, options);
   }
 
   const analysisResult = await runSecFilingAnalysisForRawRow(rawItem, options);
@@ -350,6 +351,7 @@ export async function runSecFilingAnalysisPreviewForRawItem(
 async function runSecFilingAnalysisWithoutLlmForRawRow(
   rawItem: RawItemRow,
   input: SecFilingAnalysisInput,
+  options: { secPromptVariant?: string } = {},
 ): Promise<SecFilingAnalysisRunResult> {
   if (isS3AmendmentInput(input)) {
     return {
@@ -476,7 +478,7 @@ async function runSecFilingAnalysisWithoutLlmForRawRow(
     };
   }
 
-  const prompt = buildSecFilingPromptForInput(input);
+  const prompt = buildSecFilingPromptForInput(input, options);
   return {
     ok: false,
     stage: "openai",
@@ -1147,7 +1149,7 @@ export async function runSecFilingAnalysisForRawRow(
   }
 
   if (is424bFilingInput(input)) {
-    const prompt = buildSec424bAnalysisPromptForInput(input);
+    const prompt = buildSec424bAnalysisPromptForInput(input, { promptVariant: options.secPromptVariant });
     const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
     if (!analysisRun.ok || !analysisRun.parsed) {
       return {
@@ -1326,7 +1328,7 @@ export async function runSecFilingAnalysisForRawRow(
 
   await attachSecMarketContext(input);
 
-  const prompt = buildSecFilingPromptForInput(input);
+  const prompt = buildSecFilingPromptForInput(input, options);
   const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
   if (!analysisRun.ok) {
     return {
@@ -2058,8 +2060,8 @@ export function buildInputFromSecRawRow(rawItem: RawItemRow): SecFilingAnalysisI
   };
 }
 
-function buildSecFilingPromptForInput(input: SecFilingAnalysisInput) {
-  if (is424bFilingInput(input)) return buildSec424bAnalysisPromptForInput(input);
+function buildSecFilingPromptForInput(input: SecFilingAnalysisInput, options: { secPromptVariant?: string } = {}) {
+  if (is424bFilingInput(input)) return buildSec424bAnalysisPromptForInput(input, { promptVariant: options.secPromptVariant });
   if (isOwnershipFilingInput(input)) return buildSecOwnershipAnalysisPrompt(input);
   if (isSec8k6kFilingInput(input)) return buildSec8k6kRouterPromptForInput(input);
   if (isTenderFilingInput(input)) return buildSecTenderAnalysisPromptForInput(input);

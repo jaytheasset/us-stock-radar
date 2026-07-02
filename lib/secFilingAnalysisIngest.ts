@@ -27,6 +27,7 @@ type AnalyzeOptions = {
   suppressAlerts?: boolean;
   llmProvider?: string;
   llmModel?: string;
+  secPromptVariant?: string;
 };
 
 export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
@@ -43,6 +44,7 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
   const analysisRun = await runSecFilingAnalysisForRawRow(rawResult.rawItem, {
     llmProvider: options.llmProvider,
     llmModel: options.llmModel,
+    secPromptVariant: options.secPromptVariant,
   });
   if (!analysisRun.ok || !analysisRun.analysis) {
     return {

@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
           allowRepeatLlm: readBoolean(record.allowRepeatLlm),
           llmProvider: readString(record.llmProvider),
           llmModel: readString(record.llmModel),
+          secPromptVariant: readString(record.secPromptVariant),
         })
       : mode === "accession_samples"
         ? await runSecDevAccessionSamples(room, {
@@ -50,6 +51,7 @@ export async function POST(request: NextRequest) {
         ? await runSecDevAccessionDryRun(room, {
             accessionNumber: readString(record.accessionNumber),
             rawItemId: readString(record.rawItemId),
+            secPromptVariant: readString(record.secPromptVariant),
           })
         : mode === "latest_analysis_dry_run"
           ? await runSecDevLatestAnalysisDryRun(room, {
@@ -60,6 +62,7 @@ export async function POST(request: NextRequest) {
               formTypes: readStringArray(record.formTypes),
               dateFrom: readString(record.dateFrom),
               dateTo: readString(record.dateTo),
+              secPromptVariant: readString(record.secPromptVariant),
             })
         : await runSecDevLiveDryRun(room, {
             limit: readNumber(record.limit, 1),

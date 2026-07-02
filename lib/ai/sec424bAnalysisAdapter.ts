@@ -1,11 +1,12 @@
 import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
 import { adaptSecFormRoomOutputForIngest, type SecFormRoomAdapterOutput } from "@/lib/sources/sec/forms/common/formRoomAdapter";
-import { build424bAnalysisPrompt } from "@/lib/sources/sec/forms/424b/analysisPrompt";
+import { build424bAnalysisPrompt, type Sec424bAnalysisPromptVariant } from "@/lib/sources/sec/forms/424b/analysisPrompt";
 import { APPROVED_424B_EVENT_TYPES } from "@/lib/sources/sec/forms/424b/types";
 import type { Sec424bParserOutput } from "@/lib/sources/sec/forms/424b/types";
 
 export const SEC_424B_ANALYSIS_PROMPT_KEY = "sec_424b_analysis";
-export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v19";
+export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v20";
+export const SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION = "v21-sectioned-default";
 const ALLOWED_424B_DISPLAY_MODES = new Set([
   "atm",
   "resale_registration",
@@ -41,15 +42,21 @@ export function is424bFilingInput(input: SecFilingAnalysisInput) {
   return Boolean(read424bParserOutput(input));
 }
 
-export function buildSec424bAnalysisPromptForInput(input: SecFilingAnalysisInput) {
+export function buildSec424bAnalysisPromptForInput(
+  input: SecFilingAnalysisInput,
+  options: { promptVariant?: Sec424bAnalysisPromptVariant | string } = {},
+) {
   const parserOutput = read424bParserOutput(input);
   if (!parserOutput) {
     throw new Error("SEC 424B parser output is missing from filing package");
   }
+  const promptVariant = normalize424bPromptVariant(options.promptVariant);
+  const promptVersion =
+    promptVariant === "legacy" ? SEC_424B_ANALYSIS_PROMPT_VERSION : SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION;
 
   return {
     key: SEC_424B_ANALYSIS_PROMPT_KEY,
-    version: SEC_424B_ANALYSIS_PROMPT_VERSION,
+    version: promptVersion,
     system: [
       "Analyze one SEC 424B filing from cleaned source blocks.",
       "Return the full Required Output JSON shape.",
@@ -57,7 +64,7 @@ export function buildSec424bAnalysisPromptForInput(input: SecFilingAnalysisInput
       "Use generic for the common filing detail page, offering_terms for offering/dilution/IPO terms, and spac_transaction_status only for source-backed SPAC/de-SPAC transaction status.",
       "Score means investor attention and urgency. Delivery is derived later from score only.",
     ].join("\n"),
-    user: build424bAnalysisPrompt(parserOutput),
+    user: build424bAnalysisPrompt(parserOutput, { variant: promptVariant }),
     responseFormat: {
       json_schema: {
         name: "sec_424b_required_output",
@@ -66,6 +73,13 @@ export function buildSec424bAnalysisPromptForInput(input: SecFilingAnalysisInput
       },
     },
   };
+}
+
+function normalize424bPromptVariant(value: unknown): Sec424bAnalysisPromptVariant {
+  if (typeof value !== "string") return "sectioned";
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "legacy" || normalized === "legacy-default" || normalized === "old-default") return "legacy";
+  return "sectioned";
 }
 
 export function adaptSec424bAnalysisPromptResultForAnalysis(
@@ -123,7 +137,6 @@ export function validate424bDisplayPayload(
     "display_mode",
     "snapshot_metrics",
     "investor_takeaway",
-    "narrative_summary",
     "needs_human_review",
   ];
   const missing = requiredKeys.filter((key) => !(key in data));
@@ -132,9 +145,6 @@ export function validate424bDisplayPayload(
   }
   if (!stringValue(data.investor_takeaway)) {
     return "SEC 424B offering_terms display_payload.data.investor_takeaway must be written by the analysis LLM";
-  }
-  if (!stringValue(data.narrative_summary)) {
-    return "SEC 424B offering_terms display_payload.data.narrative_summary must be written by the analysis LLM";
   }
   if (!arrayValue(data.snapshot_metrics).length) {
     return "SEC 424B offering_terms display_payload.data.snapshot_metrics must be written by the analysis LLM";
@@ -208,6 +218,8 @@ export function collect424bDisplayPayloadWarnings(displayPayload: Record<string,
     .filter((segment): segment is Record<string, unknown> => Boolean(segment));
   const hasStructuredRows = Boolean(readRecord(shareOverhang?.basis)) || shareOverhangRows.length > 0;
   const hasIncludedShareOverhangRow = shareOverhangRows.some((row) => {
+    const countedInRatio = booleanValue(row.counted_in_ratio ?? row.countedInRatio);
+    if (typeof countedInRatio === "boolean") return countedInRatio;
     const calculationRole = stringValue(row.calculation_role || row.calculationRole);
     const supplyNature = stringValue(row.supply_nature || row.supplyNature);
     return (
@@ -215,11 +227,13 @@ export function collect424bDisplayPayloadWarnings(displayPayload: Record<string,
       ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(supplyNature)
     );
   });
-  const hasIncludedShareOverhangSegment = shareOverhangSegments.some((segment) =>
-    ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(
+  const hasIncludedShareOverhangSegment = shareOverhangSegments.some((segment) => {
+    const countedInRatio = booleanValue(segment.counted_in_ratio ?? segment.countedInRatio);
+    if (typeof countedInRatio === "boolean") return countedInRatio;
+    return ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(
       stringValue(segment.supply_nature || segment.supplyNature),
-    ),
-  );
+    );
+  });
   const hasShareOverhangBasis = Boolean(readRecord(shareOverhang?.basis));
   const hasBaseShareOverhangSegment = shareOverhangSegments.some(
     (segment) => stringValue(segment.supply_nature || segment.supplyNature) === "base_shares",
@@ -1354,7 +1368,6 @@ export const sec424bRequiredOutputSchema = {
             "share_overhang",
             "instrument_details",
             "investor_takeaway",
-            "narrative_summary",
             "needs_human_review",
           ],
           properties: {
@@ -1407,7 +1420,7 @@ export const sec424bRequiredOutputSchema = {
               },
             },
             investor_takeaway: { type: "string", maxLength: 180 },
-            narrative_summary: { type: "string", maxLength: 800 },
+            narrative_summary: { type: ["string", "null"], maxLength: 800 },
             offering_details: {
               type: "array",
               maxItems: 5,
@@ -1461,7 +1474,7 @@ function shareOverhangBasisSchema() {
   return {
     type: "object",
     additionalProperties: true,
-    required: ["label", "value", "numeric_value"],
+    required: ["label", "value", "numeric_value", "unit"],
     properties: {
       label: { type: "string", maxLength: 80 },
       value: { type: "string", maxLength: 90 },
@@ -1477,22 +1490,10 @@ function shareOverhangRowSchema() {
   return {
     type: "object",
     additionalProperties: true,
-    required: ["calculation_role", "supply_nature", "label", "value", "numeric_value"],
+    required: ["counted_in_ratio", "supply_type", "label", "value", "numeric_value", "unit"],
     properties: {
-      calculation_role: {
-        type: "string",
-        enum: ["headline_numerator", "visible_excluded", "note_only"],
-      },
-      supply_nature: {
-        type: "string",
-        enum: [
-          "current_offering_supply",
-          "registered_resale_supply",
-          "common_equivalent_supply",
-          "conditional_future_supply",
-          "replacement_supply",
-        ],
-      },
+      counted_in_ratio: { type: "boolean" },
+      supply_type: { type: "string", maxLength: 40 },
       label: { type: "string", maxLength: 80 },
       value: { type: "string", maxLength: 90 },
       numeric_value: { type: ["number", "null"] },

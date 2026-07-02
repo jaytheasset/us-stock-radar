@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
     calendarCandidate: params.get("calendarCandidate") === "true",
     llmProvider: params.get("llmProvider") || undefined,
     llmModel: params.get("llmModel") || undefined,
+    secPromptVariant: params.get("secPromptVariant") || undefined,
   });
 
   return NextResponse.json(result, {
@@ -42,6 +43,7 @@ export async function POST(request: NextRequest) {
     dryRun: body?.dryRun !== false,
     llmProvider: stringValue(body?.llmProvider) || undefined,
     llmModel: stringValue(body?.llmModel) || undefined,
+    secPromptVariant: stringValue(body?.secPromptVariant) || undefined,
   });
 
   return NextResponse.json(result, {
