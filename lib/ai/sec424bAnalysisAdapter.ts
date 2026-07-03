@@ -761,14 +761,21 @@ function deriveShareOverhangScale(shareOverhang: Record<string, unknown> | null)
       calculationRole: stringValue(record.calculation_role || record.calculationRole),
       supplyNature: stringValue(record.supply_nature || record.supplyNature),
       className: stringValue(record.class_name || record.className),
+      unit: stringValue(record.unit),
+      classBasis: stringValue(record.class_basis || record.classBasis),
       value: stringValue(record.value || record.value_text),
       numericValue: numberValue(record.numeric_value) ?? numberValue(record.numericValue) ?? numberValue(record.amount) ?? 0,
     }))
     .filter((row) => row.numericValue > 0);
   const basisValue = numberValue(basis?.numeric_value) ?? numberValue(basis?.numericValue) ?? numberValue(basis?.amount) ?? 0;
   if (basisValue > 0 && rows.length > 0) {
+    const basisContext = {
+      unit: stringValue(basis?.unit),
+      classBasis: stringValue(basis?.class_basis || basis?.classBasis),
+    };
     const supplyValue = rows
       .filter((row) => {
+        if (!isShareOverhangAmountCompatible(row, basisContext)) return false;
         if (typeof row.countedInRatio === "boolean") return row.countedInRatio;
         return (
           row.calculationRole === "headline_numerator" &&
@@ -777,7 +784,8 @@ function deriveShareOverhangScale(shareOverhang: Record<string, unknown> | null)
       })
       .reduce((total, row) => total + row.numericValue, 0);
     if (supplyValue > 0) {
-      const unit = detectShareOverhangUnit([stringValue(basis?.value || basis?.value_text), ...rows.map((row) => row.value)].join(" "));
+      const compatibleRows = rows.filter((row) => isShareOverhangAmountCompatible(row, basisContext));
+      const unit = detectShareOverhangUnit([stringValue(basis?.value || basis?.value_text), ...compatibleRows.map((row) => row.value)].join(" "));
       return {
         current_value: formatShareOverhangCount(basisValue, unit),
         supply_value: formatShareOverhangCount(supplyValue, unit),
@@ -802,6 +810,8 @@ function deriveShareOverhangScale(shareOverhang: Record<string, unknown> | null)
       supplyType: stringValue(record.supply_type || record.supplyType),
       supplyNature: stringValue(record.supply_nature || record.supplyNature),
       className: stringValue(record.class_name || record.className),
+      unit: stringValue(record.unit),
+      classBasis: stringValue(record.class_basis || record.classBasis),
       value: stringValue(record.value || record.value_text),
       numericValue: numberValue(record.numeric_value) ?? numberValue(record.numericValue) ?? numberValue(record.amount) ?? 0,
     }))
@@ -811,8 +821,16 @@ function deriveShareOverhangScale(shareOverhang: Record<string, unknown> | null)
   const baseValue = segments
     .filter((segment) => segment.supplyNature === "base_shares" || segment.className === "base-shares" || segment.className === "current-base")
     .reduce((total, segment) => total + segment.numericValue, 0);
+  const basisSegment = segments.find(
+    (segment) => segment.supplyNature === "base_shares" || segment.className === "base-shares" || segment.className === "current-base",
+  );
+  const basisContext = {
+    unit: basisSegment?.unit || "",
+    classBasis: basisSegment?.classBasis || "",
+  };
   const supplyValue = segments
     .filter((segment) => {
+      if (!isShareOverhangAmountCompatible(segment, basisContext)) return false;
       if (typeof segment.countedInRatio === "boolean") return segment.countedInRatio;
       return ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(segment.supplyNature);
     })
@@ -833,6 +851,25 @@ function deriveShareOverhangScale(shareOverhang: Record<string, unknown> | null)
     base_numeric_value: baseValue,
     supply_numeric_value: supplyValue,
   };
+}
+
+function isShareOverhangAmountCompatible(
+  value: { unit?: string; classBasis?: string },
+  basis: { unit?: string; classBasis?: string },
+) {
+  const basisUnit = normalizeShareOverhangBasisText(basis.unit);
+  const valueUnit = normalizeShareOverhangBasisText(value.unit);
+  if (basisUnit && valueUnit && basisUnit !== valueUnit) return false;
+
+  const basisClass = normalizeShareOverhangBasisText(basis.classBasis);
+  const valueClass = normalizeShareOverhangBasisText(value.classBasis);
+  if (basisClass && valueClass && basisClass !== valueClass) return false;
+
+  return true;
+}
+
+function normalizeShareOverhangBasisText(value: string | undefined) {
+  return stringValue(value).toLowerCase().replace(/\s+/g, " ").trim();
 }
 
 function detectShareOverhangUnit(text: string) {

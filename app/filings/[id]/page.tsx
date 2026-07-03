@@ -10527,15 +10527,16 @@ function formatMoneyValue(value: number, prefix = "") {
 }
 
 function parseMoneyValue(value: string) {
-  const match = cleanDisclosureValue(value).match(/\$?([\d,.]+)\s*(million|billion|m|bn)?/i);
+  const match = cleanDisclosureValue(value).match(/\$?([\d,.]+)\s*(thousand|million|billion|k|m|b|bn)?/i);
   if (!match) return 0;
 
   const amount = Number(match[1].replace(/,/g, ""));
   if (!Number.isFinite(amount)) return 0;
 
   const unit = (match[2] || "").toLowerCase();
-  if (unit === "billion" || unit === "bn") return amount * 1_000_000_000;
+  if (unit === "billion" || unit === "bn" || unit === "b") return amount * 1_000_000_000;
   if (unit === "million" || unit === "m") return amount * 1_000_000;
+  if (unit === "thousand" || unit === "k") return amount * 1_000;
   return amount;
 }
 
