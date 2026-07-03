@@ -8,7 +8,6 @@ import type {
   Sec424bMarketContext,
   Sec424bParseInput,
   Sec424bParserOutput,
-  Sec424bSecurityFact,
   Sec424bSignal,
   Sec424bSourceInventoryItem,
 } from "./types";
@@ -172,47 +171,6 @@ function evidenceExcerpt(text: string, match: RegExpMatchArray | null, fallbackP
   return normalizeText(text.slice(start, end));
 }
 
-function isHistoricalOfferingContext(text: string, index: number): boolean {
-  const context = text.slice(Math.max(0, index - 280), index + 120);
-  return /previously completed|prior offering|historical offering|December\s+\d{1,2},\s+20\d{2}/i.test(context);
-}
-
-function extractMoneyAfter(text: string, labelPattern: string): number | null {
-  const pattern = new RegExp(`${labelPattern}[^.]{0,180}?${MONEY_PATTERN}`, "i");
-  for (const match of text.matchAll(new RegExp(pattern.source, "gi"))) {
-    if (isHistoricalOfferingContext(text, match.index ?? 0)) {
-      continue;
-    }
-
-    return parseMoney(match?.[1], match?.[2]);
-  }
-
-  return null;
-}
-
-function extractMaxOfferingAmount(text: string): number | null {
-  return (
-    extractMoneyAfter(
-      text,
-      "(?:aggregate offering price|maximum aggregate offering price|offer and sell[^.]{0,80}?aggregate offering price)",
-    ) ??
-    parseMoney(
-      text.match(
-        new RegExp(
-          `\\bUp to\\s+${MONEY_PATTERN}\\s+of\\s+(?:common stock|ordinary shares|class\\s+[a-z]\\s+common stock)`,
-          "i",
-        ),
-      )?.[1],
-      text.match(
-        new RegExp(
-          `\\bUp to\\s+${MONEY_PATTERN}\\s+of\\s+(?:common stock|ordinary shares|class\\s+[a-z]\\s+common stock)`,
-          "i",
-        ),
-      )?.[2],
-    )
-  );
-}
-
 function extractIssuerName(input: Sec424bParseInput, text: string): string | null {
   if (input.issuer?.name) {
     return input.issuer.name;
@@ -241,29 +199,6 @@ function extractTicker(input: Sec424bParseInput, text: string): string | null {
   return match?.[1]?.toUpperCase() ?? null;
 }
 
-function extractExchange(input: Sec424bParseInput, text: string): string | null {
-  if (input.issuer?.exchange) {
-    return input.issuer.exchange;
-  }
-
-  const match = firstMatch(text, [
-    /\((NASDAQ|NYSE|NYSE American|Nasdaq Capital Market|OTC(?:QB|QX)?):\s*[A-Z][A-Z0-9.]{0,9}\)/i,
-    /\b(NASDAQ|NYSE|NYSE American|Nasdaq Capital Market|OTC(?:QB|QX)?)\b/i,
-  ]);
-
-  return match?.[1]?.toUpperCase() ?? null;
-}
-
-function extractSharesOffered(text: string): number | null {
-  const match = firstMatch(text, [
-    /\bwe (?:are offering|offer|will offer|may offer and sell)\s+(?:up to\s+)?([0-9][0-9,]*)\s+shares\s+of\s+(?:our\s+)?(?:(?:class|series)\s+[a-z]\s+)?(?:common stock|ordinary shares)/i,
-    /\bissuer (?:is offering|offers)\s+(?:up to\s+)?([0-9][0-9,]*)\s+shares\s+of\s+(?:(?:class|series)\s+[a-z]\s+)?(?:common stock|ordinary shares)/i,
-    /\b(?:primary offering|public offering) of\s+(?:up to\s+)?([0-9][0-9,]*)\s+shares\s+of\s+(?:(?:class|series)\s+[a-z]\s+)?(?:common stock|ordinary shares)/i,
-  ]);
-
-  return parseNumber(match?.[1]);
-}
-
 function extractAtmShareAssumption(text: string): {
   postOfferingShares: number | null;
   assumedSharesSold: number | null;
@@ -278,30 +213,6 @@ function extractAtmShareAssumption(text: string): {
     assumedSharesSold: parseNumber(match?.[2]),
     assumedOfferingPrice: parseNumber(match?.[3]),
   };
-}
-
-function extractSellingStockholderShares(text: string): number | null {
-  const match = firstMatch(text, [
-    /selling stockholders?[^.]{0,180}?(?:offer and resell|offer|resell|sell)\s+(?:up to\s+)?([0-9][0-9,]*)\s+shares/i,
-    /(?:resale|resell)\s+(?:of\s+)?(?:up to\s+)?([0-9][0-9,]*)\s+shares[^.]{0,120}?selling stockholders?/i,
-  ]);
-
-  return parseNumber(match?.[1]);
-}
-
-function extractWarrantsOffered(text: string): number | null {
-  const match = firstMatch(text, [
-    /\b([0-9][0-9,]*)\s+(?:pre-funded\s+)?warrants?\b/i,
-    /warrants?\s+to\s+purchase\s+([0-9][0-9,]*)\s+shares/i,
-  ]);
-
-  return parseNumber(match?.[1]);
-}
-
-function extractCountNear(text: string, labelPattern: string): number | null {
-  const pattern = new RegExp(`(?:${labelPattern})[^.]{0,120}?([0-9][0-9,]*)`, "i");
-  const match = text.match(pattern);
-  return parseNumber(match?.[1]);
 }
 
 function extractMoneyNear(text: string, labelPattern: string): number | null {
@@ -325,106 +236,6 @@ function extractFirstDateNear(text: string, labelPattern: string): string | null
 function extractRegistrationNumber(text: string): string | null {
   const match = text.match(/Registration No\.?\s+([0-9-]+)/i);
   return match?.[1] ?? null;
-}
-
-function extractIpoKind(text: string): "traditional" | "spac" | null {
-  if (!hasIpoListingContext(text)) {
-    return null;
-  }
-
-  if (
-    /\b(?:SPAC|special purpose acquisition company|blank check company|blank-check company|trust account|units? consisting of one share of common stock and (?:one )?warrant)\b/i.test(
-      text,
-    )
-  ) {
-    return "spac";
-  }
-
-  return "traditional";
-}
-
-function hasIpoListingContext(text: string): boolean {
-  const hasIpoSignal =
-    /\binitial public offering\b|\bIPO\b|\bdirect listing\b|\bpublic listing\b|\bfirst trading day\b|\bexpected to begin trading\b|\bbegin trading on\b|\bpriced (?:its|our|the) initial public offering\b|\bregistration statement[^.]{0,120}?declared effective\b/i.test(
-      text,
-    );
-  if (!hasIpoSignal) {
-    return false;
-  }
-
-  if (
-    /\b(?:at[- ]the[- ]market|shelf registration|base prospectus|selling stockholders?|selling shareholders?|resale|from time to time|previously completed|post-closing|business combination has closed|de-SPAC|redemption|liquidation)\b/i.test(
-      text,
-    )
-  ) {
-    return false;
-  }
-
-  return /\b(?:listing|listed|trading|Nasdaq|NYSE|New York Stock Exchange|NYSE American|public offering price|price of \$|offering price)\b/i.test(
-    text,
-  );
-}
-
-function extractSpacTransactionStatus(text: string): Record<string, unknown> {
-  const spacOrDeSpacContext =
-    /\b(?:SPAC|special purpose acquisition company|blank check company|de-SPAC|business combination|merger proposal|combination agreement|minimum cash condition|redemption|trust account|ticker change|combined company)\b/i.test(
-      text,
-    ) || /\b[A-Z][A-Za-z0-9&.,' -]{2,80}\s+Acquisition Corp\.?\b/.test(text);
-  if (!spacOrDeSpacContext) {
-    return {
-      is_spac_transaction_status: false,
-      has_sufficient_facts: false,
-    };
-  }
-
-  const targetMatch = firstMatch(text, [
-    /business combination (?:with|between)[^.]{0,80}?([A-Z][A-Za-z0-9&.,' -]{2,100}?)(?:\.|,| and | holders| stockholders)/i,
-    /merger (?:with|between)[^.]{0,80}?([A-Z][A-Za-z0-9&.,' -]{2,100}?)(?:\.|,| and | holders| stockholders)/i,
-    /holders of ([A-Z][A-Za-z0-9&.,' -]{2,100}?)(?:\s+in connection|\s+will|\s+are|\.)/i,
-  ]);
-  const sharesToIssue = extractCountNear(text, "(?:issuance of up to|issue up to|to issue up to)");
-  const voteDate = extractFirstDateNear(text, "(?:special meeting|stockholder meeting|shareholder meeting|vote)");
-  const closingDate = extractFirstDateNear(text, "(?:closing|business combination is expected to close|transaction is expected to close)");
-  const minimumCash = extractMoneyNear(text, "minimum cash condition|minimum cash");
-  const redemptionAmount = extractMoneyNear(text, "redemption");
-  const tickerChange = firstMatch(text, [
-    /(?:ticker|symbol)[^.]{0,80}?(?:change|will be|expected to trade)[^.]{0,80}?"?([A-Z][A-Z0-9.-]{0,9})"?/i,
-    /combined company[^.]{0,100}?(?:Nasdaq|NYSE)[^.]{0,80}?"?([A-Z][A-Z0-9.-]{0,9})"?/i,
-  ]);
-  const publicHolderOwnership = firstMatch(text, [
-    /public stockholders[^.]{0,120}?(?:own|hold)[^.]{0,40}?approximately\s+([0-9][0-9,.]*\s*%)/i,
-    /approximately\s+([0-9][0-9,.]*\s*%)[^.]{0,80}?public stockholders/i,
-  ]);
-  const targetHolderOwnership = firstMatch(text, [
-    /(?:target (?:stockholders|shareholders|holders)|[A-Z][A-Za-z0-9&.,' -]{2,80} holders)[^.]{0,80}?(?:own|hold)[^.]{0,40}?approximately\s+([0-9][0-9,.]*\s*%)/i,
-    /approximately\s+([0-9][0-9,.]*\s*%)[^.]{0,100}?(?:target (?:stockholders|shareholders|holders)|[A-Z][A-Za-z0-9&.,' -]{2,80} holders)/i,
-  ]);
-  const statusSignals = [
-    targetMatch?.[1],
-    sharesToIssue,
-    voteDate,
-    closingDate,
-    minimumCash,
-    redemptionAmount,
-    tickerChange?.[1],
-    publicHolderOwnership?.[1],
-    targetHolderOwnership?.[1],
-  ].filter((value) => value != null && value !== "");
-
-  return {
-    is_spac_transaction_status: statusSignals.length >= 2,
-    has_sufficient_facts: statusSignals.length >= 2,
-    transaction_type: /business combination/i.test(text) ? "business_combination" : /merger/i.test(text) ? "merger" : null,
-    target_name: targetMatch?.[1]?.trim() ?? null,
-    shares_to_issue: sharesToIssue,
-    vote_date: voteDate,
-    closing_date: closingDate,
-    minimum_cash_condition: minimumCash,
-    redemption_amount: redemptionAmount,
-    ticker_change_to: tickerChange?.[1] ?? null,
-    current_public_holder_ownership: publicHolderOwnership?.[1] ?? null,
-    target_holder_ownership: targetHolderOwnership?.[1] ?? null,
-  };
 }
 
 function extractSupplementNumber(text: string): string | null {
@@ -452,107 +263,6 @@ function extractTextField(text: string, label: string, nextLabels: string[]): st
   const pattern = new RegExp(`${label}\\s*:?\\s*(.*?)(?=\\s+(?:${stopLabels})\\s*:|\\s+(?:${stopLabels})\\b|\\.)`, "i");
   const match = text.match(pattern);
   return match?.[1]?.trim() ?? null;
-}
-
-function extractPreferredDepositaryTerms(text: string): Record<string, unknown> {
-  if (!hasPreferredDepositaryContext(text)) {
-    return {
-      depositaryShareCount: null,
-      depositaryFraction: null,
-      preferredSeries: null,
-      liquidationPreferencePerPreferredShare: null,
-      liquidationPreferencePerDepositaryShare: null,
-      dividendRatePercent: null,
-      redemptionDate: null,
-      proposedListingSymbol: null,
-    };
-  }
-
-  const explicitDepositaryShareCount = firstMatch(text, [
-    /\b([0-9][0-9,]*)\s+Depositary Shares\b/i,
-    /\b([0-9][0-9,]*)\s+depositary shares\b/i,
-  ]);
-  const fraction = firstMatch(text, [
-    /each depositary share[^.]{0,120}?represent(?:s|ing)\s+(?:a\s+)?(1\/[0-9,]+)(?:st|nd|rd|th)?\s+(?:ownership\s+)?interest/i,
-    /(1\/[0-9,]+)(?:st|nd|rd|th)?\s+(?:ownership\s+)?interest[^.]{0,80}?(?:preferred|preference) share/i,
-  ]);
-  const preferredSeries = firstMatch(text, [
-    /(?:Series\s+[A-Z0-9-]+[^.]{0,160}?(?:Preferred|Preference) Shares?)/i,
-    /([0-9.]+%\s+[^.]{0,120}?(?:Preferred|Preference) Shares?)/i,
-  ]);
-
-  return {
-    depositaryShareCount: parseNumber(explicitDepositaryShareCount?.[1]),
-    depositaryFraction: fraction?.[1]?.replace(",", "") ?? null,
-    preferredSeries: preferredSeries?.[1] ?? preferredSeries?.[0] ?? null,
-    liquidationPreferencePerPreferredShare:
-      parseMoney(
-        text.match(
-          /liquidation preference(?:\s+(?:of|is|will be))?\s+\$\s*([0-9][0-9,]*(?:\.\d+)?)\s+per\s+(?:preferred |preference )?share/i,
-        )?.[1],
-        undefined,
-      ) ?? extractMoneyNear(text, "liquidation preference[^.]{0,40}?per\\s+(?:preferred|preference)?\\s*share"),
-    liquidationPreferencePerDepositaryShare:
-      parseMoney(
-        text.match(/(?:equivalent to|representing)\s+\$\s*([0-9][0-9,]*(?:\.\d+)?)\s+per depositary share/i)?.[1],
-        undefined,
-      ) ?? extractMoneyNear(text, "(?:equivalent to|representing)[^.]{0,80}?per depositary share"),
-    dividendRatePercent: extractPercentNear(text, "(?:dividend rate|dividends? (?:will )?accrue|rate of)"),
-    redemptionDate: extractFirstDateNear(text, "(?:redeem|redemption|redeemable)"),
-    proposedListingSymbol:
-      firstMatch(text, [
-        /(?:listing symbol|symbol)\s+"?([A-Z][A-Z0-9.-]{0,9})"?/i,
-        /(?:NYSE|Nasdaq|NASDAQ)[^.]{0,80}?"([A-Z][A-Z0-9.-]{0,9})"/i,
-      ])?.[1] ?? null,
-  };
-}
-
-function extractRightsOfferingTerms(text: string): Record<string, unknown> {
-  if (!hasRightsOfferingContext(text)) {
-    return {
-      rightsCount: null,
-      sharesIssuable: null,
-      rightsNeededPerShare: null,
-      recordDate: null,
-      expirationDate: null,
-      subscriptionPriceFormula: null,
-      transferable: false,
-      overSubscriptionPrivilege: false,
-      rightsSymbol: null,
-      estimatedProceeds: null,
-    };
-  }
-
-  const rightsCount = firstMatch(text, [
-    /\b([0-9][0-9,]*)\s+(?:transferable\s+)?rights\b/i,
-    /\bdistributing\s+([0-9][0-9,]*)\s+rights\b/i,
-  ]);
-  const sharesIssuable = firstMatch(text, [
-    /(?:up to|approximately)\s+([0-9][0-9,]*)\s+shares[^.]{0,120}?(?:issuable|common stock)/i,
-    /(?:issue|purchase)\s+(?:up to\s+)?([0-9][0-9,]*)\s+shares[^.]{0,120}?rights/i,
-  ]);
-  const ratio = firstMatch(text, [
-    /one\s+(?:new\s+)?(?:common\s+)?share[^.]{0,80}?for every\s+([0-9]+|one|two|three|four|five|six|seven|eight|nine|ten)\s+rights/i,
-    /([0-9]+|one|two|three|four|five|six|seven|eight|nine|ten)\s+rights[^.]{0,100}?one\s+(?:new\s+)?(?:common\s+)?share/i,
-  ]);
-  const rightsSymbol = firstMatch(text, [
-    /(?:rights (?:will )?(?:trade|be listed)[^.]{0,120}?symbol\s+"?([A-Z][A-Z0-9 .-]{0,12})"?)/i,
-    /(?:rights symbol|symbol for the rights)\s+"?([A-Z][A-Z0-9 .-]{0,12})"?/i,
-  ]);
-
-  return {
-    rightsCount: parseNumber(rightsCount?.[1]),
-    sharesIssuable: parseNumber(sharesIssuable?.[1]),
-    rightsNeededPerShare: parseNumber(ratio?.[1]),
-    recordDate: extractFirstDateNear(text, "record date"),
-    expirationDate: extractFirstDateNear(text, "expiration date|expire"),
-    subscriptionPriceFormula:
-      extractSentences(text, [/subscription price/i, /formula/i, /NAV/i, /net asset value/i], 2)[0] ?? null,
-    transferable: /transferable rights/i.test(text),
-    overSubscriptionPrivilege: /over-subscription privilege|oversubscription privilege/i.test(text),
-    rightsSymbol: rightsSymbol?.[1]?.trim() ?? null,
-    estimatedProceeds: extractMoneyNear(text, "estimated (?:gross |net )?proceeds"),
-  };
 }
 
 function extractStructuredNoteTerms(text: string): Record<string, unknown> {
@@ -617,111 +327,6 @@ function extractStructuredNoteTerms(text: string): Record<string, unknown> {
     isin: extractIsin(text),
     listed: /will not be listed|not listed|will not list/i.test(text) ? false : null,
   };
-}
-
-function extractMultiLegWarrantTerms(text: string): Record<string, unknown> {
-  if (!/pre-funded warrants?|common warrants?|placement agent warrants?/i.test(text)) {
-    return {
-      commonSharesOffered: null,
-      preFundedWarrants: null,
-      commonWarrants: null,
-      placementAgentWarrants: null,
-      underlyingShares: null,
-      commonSharePrice: null,
-      preFundedWarrantPurchasePrice: null,
-      preFundedWarrantExercisePrice: null,
-      commonWarrantExercisePrice: null,
-      placementAgentWarrantExercisePrice: null,
-      ownershipCapPercent: null,
-    };
-  }
-
-  const preFundedWarrants = firstMatch(text, [
-    /pre-funded warrants?\s+to\s+purchase\s+(?:up to\s+)?([0-9][0-9,]*)\s+shares/i,
-    /([0-9][0-9,]*)\s+pre-funded warrants?/i,
-  ]);
-  const commonWarrants = firstMatch(text, [
-    /common warrants?\s+to\s+purchase\s+(?:up to\s+)?([0-9][0-9,]*)\s+shares/i,
-    /([0-9][0-9,]*)\s+common warrants?/i,
-  ]);
-
-  return {
-    commonSharesOffered: extractSharesOffered(text),
-    preFundedWarrants: parseNumber(preFundedWarrants?.[1]),
-    commonWarrants: parseNumber(commonWarrants?.[1]),
-    placementAgentWarrants: extractCountNear(text, "placement agent warrants?"),
-    underlyingShares: parseNumber(
-      text.match(/([0-9][0-9,]*)\s+shares(?:\s+of\s+(?:class\s+a\s+)?common stock)?\s+issuable upon exercise/i)?.[1],
-    ),
-    commonSharePrice: extractPricePerShare(text),
-    preFundedWarrantPurchasePrice:
-      parseMoney(
-        text.match(/purchase price for each pre-funded warrant[^.]{0,80}?(?:is|of)\s+\$\s*([0-9][0-9,]*(?:\.\d+)?)/i)?.[1],
-        undefined,
-      ) ?? extractMoneyNear(text, "pre-funded warrant[^.]{0,120}?(?:purchase price|offering price)"),
-    preFundedWarrantExercisePrice: extractMoneyNear(text, "pre-funded warrant[^.]{0,120}?exercise price"),
-    commonWarrantExercisePrice: extractMoneyNear(text, "common warrant[^.]{0,120}?exercise price"),
-    placementAgentWarrantExercisePrice: extractMoneyNear(text, "placement agent warrant[^.]{0,120}?exercise price"),
-    ownershipCapPercent: extractPercentNear(text, "beneficial ownership"),
-  };
-}
-
-function extractUnitsOffered(text: string): number | null {
-  const match = firstMatch(text, [/\b([0-9][0-9,]*)\s+units\b/i]);
-  return parseNumber(match?.[1]);
-}
-
-function extractSharesOutstanding(text: string, marketContext: Sec424bMarketContext | undefined): number | null {
-  if (typeof marketContext?.shares_outstanding === "number") {
-    return marketContext.shares_outstanding;
-  }
-
-  const patterns = [
-    /(?:had|have|there (?:are|were))\s+([0-9][0-9,]*)\s+shares[^.]{0,120}?outstanding/gi,
-    /([0-9][0-9,]*)\s+shares[^.]{0,120}?(?:issued and )?outstanding/gi,
-  ];
-
-  for (const pattern of patterns) {
-    for (const match of text.matchAll(pattern)) {
-      const context = text.slice(match.index ?? 0, (match.index ?? 0) + 220);
-      if (/held by non-affiliates|non-affiliates/i.test(context)) {
-        continue;
-      }
-
-      return parseNumber(match?.[1]);
-    }
-  }
-
-  return null;
-}
-
-function extractPublicFloatShares(text: string, marketContext: Sec424bMarketContext | undefined): number | null {
-  if (typeof marketContext?.public_float === "number") {
-    return marketContext.public_float;
-  }
-
-  const match = text.match(/([0-9][0-9,]*)\s+shares[^.]{0,140}?held by non-affiliates/i);
-  return parseNumber(match?.[1]);
-}
-
-function extractPricePerShare(text: string): number | null {
-  const patterns = [
-    /(?<!assumed )public offering price of\s+\$\s*([0-9][0-9,]*(?:\.\d+)?)\s+per share/i,
-    /offering price (?:is|of)\s+\$\s*([0-9][0-9,]*(?:\.\d+)?)\s+per share/i,
-    /purchase price of\s+\$\s*([0-9][0-9,]*(?:\.\d+)?)\s+per share/i,
-  ];
-
-  for (const pattern of patterns) {
-    for (const match of text.matchAll(new RegExp(pattern.source, "gi"))) {
-      if (isHistoricalOfferingContext(text, match.index ?? 0)) {
-        continue;
-      }
-
-      return parseNumber(match?.[1]);
-    }
-  }
-
-  return null;
 }
 
 function hasPreferredDepositaryContext(text: string): boolean {
@@ -850,104 +455,6 @@ function prospectusClass(text: string): string {
   }
 
   return "unknown";
-}
-
-function buildSecurityFacts(
-  sharesOffered: number | null,
-  sellingStockholderShares: number | null,
-  warrantsOffered: number | null,
-  unitsOffered: number | null,
-  maxOfferingAmount: number | null,
-  pricePerShare: number | null,
-  preferredTerms: Record<string, unknown>,
-  rightsOfferingTerms: Record<string, unknown>,
-  structuredNoteTerms: Record<string, unknown>,
-  multiLegWarrantTerms: Record<string, unknown>,
-): Sec424bSecurityFact[] {
-  const securities: Sec424bSecurityFact[] = [];
-
-  if (sharesOffered) {
-    securities.push({
-      securityType: "common_stock_primary",
-      amount: sharesOffered,
-      pricePerSecurity: pricePerShare,
-      source: "issuer offering share count",
-    });
-  }
-
-  if (sellingStockholderShares) {
-    securities.push({
-      securityType: "common_stock_resale",
-      amount: sellingStockholderShares,
-      source: "selling stockholder resale share count",
-    });
-  }
-
-  if (warrantsOffered) {
-    securities.push({
-      securityType: "warrants",
-      amount: warrantsOffered,
-      source: "warrant count",
-    });
-  }
-
-  if (unitsOffered) {
-    securities.push({
-      securityType: "units",
-      amount: unitsOffered,
-      source: "unit count",
-    });
-  }
-
-  if (maxOfferingAmount) {
-    securities.push({
-      securityType: "common_stock_at_market",
-      maximumAggregateOfferingAmount: maxOfferingAmount,
-      source: "maximum aggregate offering amount",
-    });
-  }
-
-  if (typeof preferredTerms.depositaryShareCount === "number") {
-    securities.push({
-      securityType: "depositary_shares_preferred",
-      amount: preferredTerms.depositaryShareCount,
-      source: "depositary share count",
-    });
-  }
-
-  if (typeof rightsOfferingTerms.rightsCount === "number" || typeof rightsOfferingTerms.sharesIssuable === "number") {
-    securities.push({
-      securityType: "subscription_rights",
-      amount: (rightsOfferingTerms.rightsCount ?? rightsOfferingTerms.sharesIssuable) as number,
-      source: "rights offering terms",
-    });
-  }
-
-  if (typeof structuredNoteTerms.principalAmount === "number") {
-    securities.push({
-      securityType: "structured_notes",
-      amount: structuredNoteTerms.principalAmount,
-      source: "structured note principal amount",
-    });
-  }
-
-  if (typeof multiLegWarrantTerms.preFundedWarrants === "number") {
-    securities.push({
-      securityType: "pre_funded_warrants",
-      amount: multiLegWarrantTerms.preFundedWarrants,
-      source: "pre-funded warrant count",
-    });
-  }
-
-  if (typeof multiLegWarrantTerms.placementAgentWarrants === "number") {
-    securities.push({
-      securityType: "placement_agent_warrants",
-      amount: multiLegWarrantTerms.placementAgentWarrants,
-      source: "placement-agent warrant count",
-    });
-  }
-
-  return securities;
 }
 
 function buildSummary(issuerName: string | null, formType: string, description: string[]): string {
@@ -1195,6 +702,40 @@ function addSellingHolderTableBlock(
   });
 }
 
+function addShareCountExcerptBlock(
+  blocks: Array<{ block_type: string; label: string; source: string; text: string }>,
+  text: string,
+) {
+  const patterns = [
+    /\b(?:issued\s+and\s+outstanding|shares?\s+outstanding|outstanding\s+(?:prior to|before|after|immediately prior to|immediately after)|to\s+be\s+outstanding\s+after\s+this\s+offering)\b/gi,
+  ];
+  const windows: Array<{ start: number; end: number }> = [];
+
+  for (const pattern of patterns) {
+    for (const match of text.matchAll(pattern)) {
+      const index = match.index ?? -1;
+      if (index < 0) continue;
+      const start = Math.max(0, index - 700);
+      const end = Math.min(text.length, index + 1_700);
+      if (windows.some((window) => Math.abs(window.start - start) < 1_000 || (start >= window.start && start <= window.end))) {
+        continue;
+      }
+      windows.push({ start, end });
+      if (windows.length >= 8) break;
+    }
+    if (windows.length >= 8) break;
+  }
+
+  if (!windows.length) return;
+
+  addCleanedSourceBlock(blocks, {
+    block_type: "source_context_window",
+    label: "Share count excerpts",
+    source: "primary_document",
+    text: windows.map((window) => text.slice(window.start, window.end)).join("\n---\n"),
+  });
+}
+
 function buildCleanedSourceBlocks(input: Sec424bParseInput, text: string, fullText = text) {
   const blocks: Array<{ block_type: string; label: string; source: string; text: string }> = [];
 
@@ -1225,6 +766,9 @@ function buildCleanedSourceBlocks(input: Sec424bParseInput, text: string, fullTe
       /\bgross proceeds\b/i,
       /\bproceeds from this offering\b/i,
       /\bproceeds from the sale\b/i,
+      /\bissued and outstanding\b/i,
+      /\bshares?[^.]{0,120}?outstanding\b/i,
+      /\boutstanding[^.]{0,120}?(?:prior to|before|after|this offering)\b/i,
     ],
     18,
   );
@@ -1236,6 +780,7 @@ function buildCleanedSourceBlocks(input: Sec424bParseInput, text: string, fullTe
   });
 
   addOfferingTableBlock(blocks, fullText);
+  addShareCountExcerptBlock(blocks, fullText);
 
   addHeadingSectionBlock(
     blocks,
@@ -1322,20 +867,7 @@ export function parse424bFiling(input: Sec424bParseInput): Sec424bParserOutput {
   const isSupported = /^424B(?:[1-5]|7|8)?$/.test(normalizedFormType);
   const issuerName = extractIssuerName(input, text);
   const ticker = extractTicker(input, text);
-  const exchange = extractExchange(input, text);
-  const sharesOffered = extractSharesOffered(text);
   const atmShareAssumption = extractAtmShareAssumption(text);
-  const sellingStockholderShares = extractSellingStockholderShares(text);
-  const warrantsOffered = extractWarrantsOffered(text);
-  const unitsOffered = extractUnitsOffered(text);
-  const atTheMarket =
-    /at[- ]?the[- ]market offering|at market issuance sales agreement|equity distribution agreement|sales agreement prospectus/i.test(
-      text,
-    );
-  const pricePerShare = atTheMarket ? null : extractPricePerShare(text);
-  const grossProceeds = atTheMarket ? null : extractMoneyAfter(text, "gross proceeds");
-  const netProceeds = atTheMarket ? null : extractMoneyAfter(text, "net proceeds");
-  const maxOfferingAmount = extractMaxOfferingAmount(text);
   const filingMetadata = {
     registrationNumber: extractRegistrationNumber(text),
     supplementNumber: extractSupplementNumber(text),
@@ -1343,43 +875,7 @@ export function parse424bFiling(input: Sec424bParseInput): Sec424bParserOutput {
     isPreliminary: /subject to completion|preliminary prospectus|preliminary prospectus supplement/i.test(text),
     documentFormatHint: /\bPS-\d+\b|pdf|page \d+ of \d+/i.test(rawText) ? "pdf_text_layer" : "html_text",
   };
-  const preferredTerms = extractPreferredDepositaryTerms(text);
-  const rightsOfferingTerms = extractRightsOfferingTerms(text);
   const structuredNoteTerms = extractStructuredNoteTerms(text);
-  const multiLegWarrantTerms = extractMultiLegWarrantTerms(text);
-  const spacTransactionStatus = extractSpacTransactionStatus(text);
-  const sharesOutstanding = extractSharesOutstanding(text, marketContext);
-  const publicFloatShares = extractPublicFloatShares(text, marketContext);
-  const offeringToOutstandingRatio =
-    sharesOffered && sharesOutstanding ? Number((sharesOffered / sharesOutstanding).toFixed(4)) : null;
-  const sellingStockholderToOutstandingRatio =
-    sellingStockholderShares && sharesOutstanding
-      ? Number((sellingStockholderShares / sharesOutstanding).toFixed(4))
-      : null;
-  const maxOfferingToMarketCapRatio =
-    maxOfferingAmount && typeof marketContext?.market_cap === "number" && marketContext.market_cap > 0
-      ? Number((maxOfferingAmount / marketContext.market_cap).toFixed(4))
-      : null;
-  const resale = hasResaleContext(text);
-  const noCompanyProceeds = /will not receive any proceeds|no proceeds from the sale/i.test(text);
-  const noNewTerms =
-    /solely to|typographical error|administrative|exhibit 107|fee table/i.test(text) &&
-    /no securities (?:are|will be) being offered|no terms[^.]{0,80}?changed|no new securities/i.test(text);
-  const strategicTransaction = /merger|business combination|share exchange|combination agreement/i.test(text);
-  const shareholderVote = /special meeting|stockholder approval|shareholder approval/i.test(text);
-  const fdaClinical = /\bFDA\b|clinical hold|clinical trial|phase [123]/i.test(text);
-  const listingRisk = /Nasdaq notice|NYSE notice|delisting|minimum bid|stockholders'? equity deficiency/i.test(text);
-  const legalRisk = /litigation|lawsuit|settlement|subpoena|SEC investigation/i.test(text);
-  const financialRisk = /going concern|liquidity|working capital deficit|cash runway|bankruptcy/i.test(text);
-  const ipoKind = extractIpoKind(text);
-  const ipoListing = ipoKind !== null;
-  const preferredDepositary = hasPreferredDepositaryContext(text);
-  const rightsOffering = hasRightsOfferingContext(text);
-  const structuredNote =
-    /structured notes?|reference asset|contingent coupon|autocallable|(?:downside|coupon|payment|buffer|initial) barrier/i.test(
-      text,
-    );
-  const multiLegWarrant = /pre-funded warrants?|common warrants?|placement agent warrants?/i.test(text);
   const variableOrMissingTerms =
     filingMetadata.isPreliminary ||
     /\[\s*[●•]\s*\]|\$\s*\[\s*[●•]\s*\]|not yet been determined/i.test(text);

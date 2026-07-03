@@ -96,6 +96,32 @@ describe("424B parser validation guardrails", () => {
     assert.match(warrants, /\$3\.80 per share/i);
   });
 
+  it("preserves share-count excerpts without choosing a dilution denominator", () => {
+    const output = parse424bFiling({
+      formType: "424B5",
+      accessionNumber: "0000000000-26-000001",
+      issuer: { name: "Example Issuer", ticker: "EXM" },
+      filingText: `
+        PROSPECTUS SUPPLEMENT
+        95,250,000 Shares of Common Stock.
+        We are offering shares of common stock at a public offering price of $2.10 per share.
+        As of June 18, 2026, there were 797,354,638 shares of common stock issued and outstanding.
+        The Offering
+        Common Stock to be Outstanding after this Offering 892,604,638 shares of our common stock.
+        Use of Proceeds
+        We intend to use the net proceeds for debt repayment and general corporate purposes.
+      `,
+    });
+
+    const blocks = output.raw.cleaned_source_blocks as Array<{ label?: string; text?: string }>;
+    const shareCountBlock = blocks.find((block) => block.label === "Share count excerpts");
+    assert.ok(shareCountBlock, "share-count excerpts block is required");
+    assert.match(String(shareCountBlock.text), /797,354,638 shares of common stock issued and outstanding/i);
+    assert.match(String(shareCountBlock.text), /Common Stock to be Outstanding after this Offering 892,604,638/i);
+    assert.deepEqual(output.facts, {});
+    assert.deepEqual(output.signals, []);
+  });
+
   it("keeps structured-note reference assets as source text instead of issuer facts", () => {
     const output = parseFixture("structured-note-pdf");
     const text = blockText(output);
