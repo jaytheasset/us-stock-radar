@@ -5,7 +5,7 @@ import { APPROVED_SEC_EVENT_TYPES, type S1F1ParserOutput } from "@/lib/sources/s
 import { normalize424bOfferingDisplayModel } from "@/lib/ai/sec424bAnalysisAdapter";
 
 export const SEC_S1_F1_ANALYSIS_PROMPT_KEY = "sec_s1_f1_analysis";
-export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v15";
+export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v16";
 
 const ALLOWED_S1_F1_DISPLAY_MODES = new Set([
   "ipo_registration",
@@ -398,6 +398,22 @@ function collectS1F1ShareOverhangDisplayWarnings(data: Record<string, unknown>, 
   const legacySegments = Array.isArray(shareOverhang.segments) ? shareOverhang.segments : [];
   const rowsToCheck = structuredRows.length ? structuredRows : legacySegments;
   warnings.push(...collectS1F1ShareOverhangUnitWarnings(basis, rowsToCheck, structuredRows.length > 0));
+  const hasIncludedAmount = rowsToCheck.some((item) => {
+    const row = readRecord(item);
+    return Boolean(row && isS1F1CountedShareOverhangRow(row, structuredRows.length > 0) && hasUsableS1F1ShareOverhangAmount(row));
+  });
+  const hasUsableBasis =
+    hasUsableS1F1ShareOverhangAmount(basis) ||
+    (!structuredRows.length &&
+      legacySegments.some((item) => {
+        const row = readRecord(item);
+        return Boolean(row && isS1F1BaseShareOverhangSegment(row) && hasUsableS1F1ShareOverhangAmount(row));
+      }));
+  if (hasIncludedAmount && !hasUsableBasis) {
+    warnings.push(
+      "S-1/F-1 display_payload.data.share_overhang has numeric included supply rows but no usable numeric basis denominator; use source-block shares outstanding first, then market_context.shares_outstanding when source blocks do not provide it.",
+    );
+  }
   for (const item of rowsToCheck) {
     const row = readRecord(item);
     const label = stringValue(row?.label);
@@ -471,6 +487,44 @@ function collectS1F1ShareOverhangUnitWarnings(
   }
 
   return uniqueStrings(warnings);
+}
+
+function isS1F1BaseShareOverhangSegment(row: Record<string, unknown>) {
+  const className = stringValue(row.class_name || row.className);
+  const supplyNature = stringValue(row.supply_nature || row.supplyNature);
+  return className === "current-base" || className === "base-shares" || supplyNature === "base_shares";
+}
+
+function hasUsableS1F1ShareOverhangAmount(record: Record<string, unknown> | null) {
+  if (!record) return false;
+  const numericValue =
+    numberValue(record.numeric_value) ??
+    numberValue(record.numericValue) ??
+    numberValue(record.amount);
+  if (typeof numericValue === "number" && Number.isFinite(numericValue) && numericValue > 0) return true;
+
+  const valueText = [
+    stringValue(record.value),
+    stringValue(record.value_text),
+    stringValue(record.valueText),
+  ]
+    .filter(Boolean)
+    .join(" ");
+  if (!/\b(?:shares?|ADSs?|American Depositary Shares?|ordinary shares?|common stock)\b/i.test(valueText)) {
+    return false;
+  }
+  return (parseS1F1ShareCount(valueText) || 0) > 0;
+}
+
+function parseS1F1ShareCount(value: string) {
+  const match = value.match(/(\d[\d,]*(?:\.\d+)?)\s*(million|m|thousand|k)?/i);
+  if (!match) return null;
+  const base = Number(match[1].replace(/,/g, ""));
+  if (!Number.isFinite(base)) return null;
+  const suffix = (match[2] || "").toLowerCase();
+  if (suffix === "million" || suffix === "m") return Math.round(base * 1_000_000);
+  if (suffix === "thousand" || suffix === "k") return Math.round(base * 1_000);
+  return Math.round(base);
 }
 
 function normalizeShareOverhangUnitForWarning(value: string) {

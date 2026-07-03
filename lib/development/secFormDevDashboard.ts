@@ -1359,6 +1359,7 @@ export async function runSecDevControlledPersist(
                 summary: stringValue(analysisRecord.summary),
                 archive_summary: stringValue(analysisRecord.archive_summary),
                 score_reason: stringValue(analysisRecord.score_reason),
+                score_explanation: readRecord(analysisRecord.score_explanation) || null,
                 why_it_matters: stringValue(analysisRecord.why_it_matters),
                 key_evidence: stringArray(analysisRecord.key_evidence).slice(0, 8),
                 what_to_watch_next: stringArray(analysisRecord.what_to_watch_next).slice(0, 8),

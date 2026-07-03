@@ -181,6 +181,7 @@ async function persistEventAnalysis(
     metadata: {
       confidence: stringValue(analysis.confidence),
       needs_human_review: Boolean(analysis.needs_human_review),
+      score_explanation: toRecord(analysis.score_explanation),
       offering_display_model: toRecord(analysis.offering_display_model),
       offering_security_audit: toRecord(analysis.offering_security_audit),
     },

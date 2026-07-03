@@ -71,6 +71,13 @@ function primaryTextFromInput(input: SecFormParserInput): string {
 }
 
 function to424bParserInput(input: SecFormParserInput): Sec424bParseInput {
+  const looseInput = input as SecFormParserInput & Record<string, unknown>;
+  const metadataMarketContext =
+    readRecord(looseInput.marketContext) ||
+    readRecord(looseInput.market_context) ||
+    readRecord(input.metadata?.marketContext) ||
+    readRecord(input.metadata?.market_context) ||
+    undefined;
   const explicitAttachments = (input.attachments ?? [])
     .map((attachment): Sec424bAttachment | null => {
       if (!attachment.text) {
@@ -107,11 +114,12 @@ function to424bParserInput(input: SecFormParserInput): Sec424bParseInput {
       title: input.title ?? null,
       sourceUrl: input.sourceUrl ?? null,
     },
-    marketContext:
-      input.metadata?.marketContext && typeof input.metadata.marketContext === "object"
-        ? (input.metadata.marketContext as Record<string, unknown>)
-        : undefined,
+    marketContext: metadataMarketContext,
   };
+}
+
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 }
 
 export function parseSec424bForm(input: SecFormParserInput) {

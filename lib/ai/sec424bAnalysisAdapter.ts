@@ -6,7 +6,7 @@ import type { Sec424bParserOutput } from "@/lib/sources/sec/forms/424b/types";
 
 export const SEC_424B_ANALYSIS_PROMPT_KEY = "sec_424b_analysis";
 export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v20";
-export const SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION = "v21-sectioned-default";
+export const SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION = "v24-sectioned-default";
 const ALLOWED_424B_DISPLAY_MODES = new Set([
   "atm",
   "resale_registration",
@@ -50,6 +50,7 @@ export function buildSec424bAnalysisPromptForInput(
   if (!parserOutput) {
     throw new Error("SEC 424B parser output is missing from filing package");
   }
+  const parserOutputForPrompt = attach424bPromptMarketContext(parserOutput, input);
   const promptVariant = normalize424bPromptVariant(options.promptVariant);
   const promptVersion =
     promptVariant === "legacy" ? SEC_424B_ANALYSIS_PROMPT_VERSION : SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION;
@@ -64,13 +65,34 @@ export function buildSec424bAnalysisPromptForInput(
       "Use generic for the common filing detail page, offering_terms for offering/dilution/IPO terms, and spac_transaction_status only for source-backed SPAC/de-SPAC transaction status.",
       "Score means investor attention and urgency. Delivery is derived later from score only.",
     ].join("\n"),
-    user: build424bAnalysisPrompt(parserOutput, { variant: promptVariant }),
+    user: build424bAnalysisPrompt(parserOutputForPrompt, { variant: promptVariant }),
     responseFormat: {
       json_schema: {
         name: "sec_424b_required_output",
         strict: false,
         schema: sec424bRequiredOutputSchema,
       },
+    },
+  };
+}
+
+function attach424bPromptMarketContext(
+  parserOutput: Sec424bParserOutput,
+  input: SecFilingAnalysisInput,
+): Sec424bParserOutput {
+  const raw = readRecord(parserOutput.raw) || {};
+  const existingMarketContext = readRecord(raw.marketContext) || readRecord(raw.market_context);
+  const filingPackage = readFilingPackage(input);
+  const packageMarketContext = readRecord(filingPackage.market_context) || readRecord(filingPackage.marketContext);
+  const marketContext = existingMarketContext || packageMarketContext;
+
+  if (!marketContext) return parserOutput;
+
+  return {
+    ...parserOutput,
+    raw: {
+      ...raw,
+      marketContext,
     },
   };
 }
@@ -97,6 +119,15 @@ export function adaptSec424bAnalysisPromptResultForAnalysis(
     };
   }
   const normalizedAnalysisOutput = normalize424bAnalysisOutput(analysisOutput, input);
+  const scoreExplanation = normalizeScoreExplanation(
+    readRecord((normalizedAnalysisOutput as Record<string, unknown>).score_explanation),
+  );
+  if (!scoreExplanation?.summary && (!scoreExplanation?.base_band || !scoreExplanation.final_read)) {
+    return {
+      ok: false,
+      error: "SEC 424B analysis_output.score_explanation must include summary or base_band/final_read for the Score Basis UI",
+    };
+  }
   const displayPayloadError = validate424bDisplayPayload(displayPayload);
   const displayPayloadWarnings = [
     ...(displayPayloadError ? [displayPayloadError] : []),
@@ -217,16 +248,9 @@ export function collect424bDisplayPayloadWarnings(displayPayload: Record<string,
     .map((segment) => readRecord(segment))
     .filter((segment): segment is Record<string, unknown> => Boolean(segment));
   const hasStructuredRows = Boolean(readRecord(shareOverhang?.basis)) || shareOverhangRows.length > 0;
-  const hasIncludedShareOverhangRow = shareOverhangRows.some((row) => {
-    const countedInRatio = booleanValue(row.counted_in_ratio ?? row.countedInRatio);
-    if (typeof countedInRatio === "boolean") return countedInRatio;
-    const calculationRole = stringValue(row.calculation_role || row.calculationRole);
-    const supplyNature = stringValue(row.supply_nature || row.supplyNature);
-    return (
-      calculationRole === "headline_numerator" &&
-      ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(supplyNature)
-    );
-  });
+  const hasIncludedShareOverhangRowAmount = shareOverhangRows.some(
+    (row) => isIncludedShareOverhangRow(row) && hasUsableShareOverhangAmount(row),
+  );
   const hasIncludedShareOverhangSegment = shareOverhangSegments.some((segment) => {
     const countedInRatio = booleanValue(segment.counted_in_ratio ?? segment.countedInRatio);
     if (typeof countedInRatio === "boolean") return countedInRatio;
@@ -234,19 +258,23 @@ export function collect424bDisplayPayloadWarnings(displayPayload: Record<string,
       stringValue(segment.supply_nature || segment.supplyNature),
     );
   });
-  const hasShareOverhangBasis = Boolean(readRecord(shareOverhang?.basis));
+  const basisRecord = readRecord(shareOverhang?.basis);
+  const hasShareOverhangBasis = hasUsableShareOverhangBasis(basisRecord);
   const hasBaseShareOverhangSegment = shareOverhangSegments.some(
-    (segment) => stringValue(segment.supply_nature || segment.supplyNature) === "base_shares",
+    (segment) =>
+      stringValue(segment.supply_nature || segment.supplyNature) === "base_shares" &&
+      hasUsableShareOverhangAmount(segment),
   );
   if (
     selectedModeUsesShareOverhang &&
-    (hasStructuredRows ? hasIncludedShareOverhangRow && !hasShareOverhangBasis : hasIncludedShareOverhangSegment && !hasBaseShareOverhangSegment)
+    (hasStructuredRows
+      ? hasIncludedShareOverhangRowAmount && !hasShareOverhangBasis
+      : hasIncludedShareOverhangSegment && !hasBaseShareOverhangSegment)
   ) {
     warnings.push(
-      "SEC 424B share_overhang has included supply rows but no basis current-share denominator; use source-block shares outstanding first, then market_context when source blocks do not provide it.",
+      "SEC 424B share_overhang has numeric included supply rows but no usable numeric basis denominator; use source-block shares outstanding first, then market_context.shares_outstanding when source blocks do not provide it.",
     );
   }
-  const basisRecord = readRecord(shareOverhang?.basis);
   const basisText = shareBasisText(basisRecord);
   const includedRowsBasisText = shareOverhangRows
     .filter((row) => {
@@ -424,6 +452,7 @@ function adapt424bRoomResultForAnalysis(value: unknown, displayPayloadWarnings: 
 
 function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput, displayPayloadWarnings: string[] = []) {
   const score = clampScore(numberValue(value.analysis_output.score) ?? 0);
+  const scoreExplanation = normalizeScoreExplanation(readRecord(value.analysis_output.score_explanation));
   const archiveSummary =
     nullableString(value.analysis_output.archive_summary) ||
     (score < 50 ? nullableString(value.analysis_output.summary) : null);
@@ -437,6 +466,7 @@ function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput, displayPayload
   return {
     ...value.analysis_output,
     score,
+    score_explanation: scoreExplanation,
     archive_summary: archiveSummary,
     display_payload: value.metadata.display_payload,
     display_payload_storage_target: value.metadata.display_payload_storage_target,
@@ -445,6 +475,30 @@ function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput, displayPayload
     offering_display_model: offeringDisplayModel,
     sec_424b_display_warnings: uniqueStrings(displayPayloadWarnings),
     sec_424b_analysis_mode: "analysis_only",
+  };
+}
+
+function normalizeScoreExplanation(value: Record<string, unknown> | null) {
+  if (!value) return null;
+  const summary = nullableString(value.summary) || nullableString(value.rationale);
+  const baseBand = nullableString(value.base_band) || nullableString(value.baseBand);
+  const upwardFactors = uniqueStrings([
+    ...readStringArray(value.upward_factors),
+    ...readStringArray(value.upwardFactors),
+  ]).slice(0, 3);
+  const limitingFactors = uniqueStrings([
+    ...readStringArray(value.limiting_factors),
+    ...readStringArray(value.limitingFactors),
+  ]).slice(0, 3);
+  const finalRead = nullableString(value.final_read) || nullableString(value.finalRead);
+
+  if (!summary && !baseBand && !upwardFactors.length && !limitingFactors.length && !finalRead) return null;
+  return {
+    summary,
+    base_band: baseBand,
+    upward_factors: upwardFactors,
+    limiting_factors: limitingFactors,
+    final_read: finalRead,
   };
 }
 
@@ -677,6 +731,41 @@ function instrumentMatchKey(value: string) {
   if (/\bplacement\s+agent\b/.test(text) && /\bwarrants?\b/.test(text)) return "placement_agent_warrant";
   if (/\bcommon\b/.test(text) && /\bwarrants?\b/.test(text)) return "common_warrant";
   return "";
+}
+
+function isIncludedShareOverhangRow(row: Record<string, unknown>) {
+  const countedInRatio = booleanValue(row.counted_in_ratio ?? row.countedInRatio);
+  if (typeof countedInRatio === "boolean") return countedInRatio;
+  const calculationRole = stringValue(row.calculation_role || row.calculationRole);
+  const supplyNature = stringValue(row.supply_nature || row.supplyNature);
+  return (
+    calculationRole === "headline_numerator" &&
+    ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(supplyNature)
+  );
+}
+
+function hasUsableShareOverhangBasis(record: Record<string, unknown> | null) {
+  return Boolean(record && hasUsableShareOverhangAmount(record));
+}
+
+function hasUsableShareOverhangAmount(record: Record<string, unknown>) {
+  const numericValue =
+    numberValue(record.numeric_value) ??
+    numberValue(record.numericValue) ??
+    numberValue(record.amount);
+  if (typeof numericValue === "number" && Number.isFinite(numericValue) && numericValue > 0) return true;
+
+  const valueText = [
+    stringValue(record.value),
+    stringValue(record.value_text),
+    stringValue(record.valueText),
+  ]
+    .filter(Boolean)
+    .join(" ");
+  if (!/\b(?:shares?|ADSs?|American Depositary Shares?|ordinary shares?|common stock)\b/i.test(valueText)) {
+    return false;
+  }
+  return (parseShareCount(valueText) || 0) > 0;
 }
 
 function parseShareCount(value: string) {
@@ -1417,6 +1506,7 @@ export const sec424bRequiredOutputSchema = {
         "sub_theme",
         "score",
         "score_reason",
+        "score_explanation",
         "signal",
         "quick_take",
         "summary",
@@ -1444,6 +1534,26 @@ export const sec424bRequiredOutputSchema = {
         sub_theme: { type: ["string", "null"] },
         score: { type: "integer", minimum: 0, maximum: 100 },
         score_reason: { type: "string", maxLength: 140 },
+        score_explanation: {
+          type: ["object", "null"],
+          additionalProperties: false,
+          required: ["summary", "base_band", "upward_factors", "limiting_factors", "final_read"],
+          properties: {
+            summary: { type: ["string", "null"], maxLength: 180 },
+            base_band: { type: ["string", "null"], maxLength: 80 },
+            upward_factors: {
+              type: "array",
+              maxItems: 3,
+              items: { type: "string", maxLength: 70 },
+            },
+            limiting_factors: {
+              type: "array",
+              maxItems: 3,
+              items: { type: "string", maxLength: 70 },
+            },
+            final_read: { type: ["string", "null"], maxLength: 90 },
+          },
+        },
         signal: { type: "string", enum: ["bullish", "bearish", "volatile", "neutral"] },
         quick_take: { type: "string", maxLength: 260 },
         summary: { type: "string", maxLength: 800 },

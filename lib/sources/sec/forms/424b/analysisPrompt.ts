@@ -15,6 +15,10 @@ const SCORING_GUIDE_424B = [
   "Core rule: score only what this 424B newly discloses. Do not score up because the form is 424B.",
   "Do not score up from base shelf capacity, table of contents, generic securities lists, generic risk factors, or boilerplate.",
   "Delivery: score below 50 = archive; 50 to 74 = feed; 75 or above = alert.",
+  "Always include score_explanation for the collapsible investor-facing impact explanation UI. score_explanation.summary is the visible text: write one concise analyst-style conclusion for stock investors, 18-32 words, explaining why the impact score is reasonable.",
+  "Do not format score_explanation.summary as sections, bullets, labels, or an internal scoring review. Do not write phrases such as 'falls into the 50-100% band', 'high alert range', 'score band', or 'warrants a high alert score'.",
+  "Use base_band, upward_factors, limiting_factors, and final_read only as short compatibility fields. They may be terse and may be empty when not useful, but summary must carry the investor-facing rationale.",
+  "If the visible scale is large but the score is moderated by source-backed facts such as resale-only status, option exercise, approval, lock-up, sale timing, or out-of-the-money economics, include that caveat naturally in score_explanation.summary.",
   "Hard scoring consistency rule: if visible Share Overhang included numerator divided by share_overhang.basis is 100%+ and the included supply contains active primary, registered-direct, resale, or share_equivalent exposure, score must not be below 80 unless source-backed lock-up, sale restriction, unavailable denominator, or non-current sale status is explicitly shown in the visible UI.",
   "",
   "Market cap tiers:",
@@ -31,6 +35,7 @@ const SCORING_GUIDE_424B = [
   "Mid cap: below 7% = 40-49; 7-15% = 50-64; 15-25% = 65-74; 25%+ = 75-88.",
   "Large cap: below 5% = 45-59; 5-10% = 60-74; 10%+ = 75-88.",
   "Mega cap: below 3% = 45-59; 3-7% = 60-74; 7%+ = 75-88.",
+  "For any primary, registered-direct, or share-equivalent included supply above 50% of the selected share basis, use the detailed SEC offering and resale scoring guide extreme bands instead of capping near 88.",
   "",
   "Certainty adjustment:",
   "Confirmed priced offerings score higher than possible future offerings.",
@@ -63,6 +68,7 @@ const SCORING_GUIDE_424B = [
   "Warrants / convertibles / rights:",
   "Use shares issuable divided by shares outstanding.",
   "Below 3% = 35-49; 3-10% = 50-64; 10-20% = 65-74; 20%+ = 75-88.",
+  "For source-backed warrant, convertible, rights, or share-equivalent included supply above 50%, use the detailed SEC offering and resale scoring guide extreme bands instead of the simple 20%+ row.",
   "Pre-funded warrants with nominal exercise prices are share-equivalent current offering supply when the underlying share count is source-backed and they are sold in lieu of shares/ADSs.",
   "Common warrants, convertible notes, convertible preferred stock, rights, and similar instruments are conditional future supply, not immediate common-share supply.",
   "If warrants or convertibles are in-the-money or near-the-money and freely exercisable or convertible, treat overhang as more actionable.",
@@ -77,7 +83,7 @@ const SCORING_GUIDE_424B = [
   "Mixed components:",
   "If a 424B contains multiple components, score the highest source-backed investor impact.",
   "When share_overhang has numeric included rows, score from the same included numerator divided by the share_overhang.basis denominator used by the visible Share Overhang chart.",
-  "For active registered-direct, primary, resale, warrant, convertible, rights, or mixed offerings, 20%+ included supply vs share_overhang.basis is alert-range unless clear source-backed restrictions cap the impact; 100%+ is usually 80-90 for microcap or nano-cap issuers.",
+  "For active registered-direct, primary, resale, warrant, convertible, rights, or mixed offerings, use the detailed SEC offering and resale scoring guide bands: 20-50% alert-range, 50-100% high alert, 100-300% severe, 300-1000% extreme, and 1000%+ extreme alert unless clear source-backed restrictions cap the impact.",
   "Do not double-count the same shares or dollar amount across primary issuance, resale registration, warrants, convertibles, ATM programs, rights offerings, or shelf tables.",
   "Mention secondary components only as supporting context.",
   "Dominant impact: primary issuance = company raises cash / dilution; resale = selling holder overhang / issuer usually receives no proceeds; warrants/convertibles = potential future dilution and exercise/conversion economics; ATM = actionable sale capacity, not completed sale.",
@@ -142,6 +148,7 @@ export function build424bAnalysisPromptSectioned(parserOutput: Sec424bParserOutp
 }
 
 function build424bAnalysisPromptLines(parserOutput: Sec424bParserOutput): string[] {
+  const marketContext = read424bPromptMarketContext(parserOutput);
   return [
     "You are writing the final investor-facing analysis for an SEC 424B3 / 424B5 filing.",
     "Use only cleaned_source_blocks and optional site-provided market_context / parent_filing_context source blocks.",
@@ -227,6 +234,7 @@ function build424bAnalysisPromptLines(parserOutput: Sec424bParserOutput): string
     "Keep share_overhang row labels compact, such as Current shares, Primary shares, Resale shares, Warrant shares, or Conversion shares. Put basis notes like post-offering or as-of dates in subtitle, caption, current_label, note, basis.note, or total_note instead of long row labels.",
     "When share_overhang expresses a percentage, use the same visible percent format in status_value and ratio_value, such as 19.4%, not a raw decimal such as 0.194.",
     "When share_overhang has numeric rows, every visible percentage in status_value, ratio_value, snapshot_metrics, title, quick_take, summary, and total_note must reconcile to the same row math: numerator is the sum of rows where counted_in_ratio is true; denominator is share_overhang.basis. Rows where counted_in_ratio is false are excluded.",
+    "share_overhang.status_value is the large header value. It must be a percentage, Variable, Not fixed yet, or Not calculable. Never put a raw share count, security count, dollar amount, numerator, or total supply amount in status_value; put those amounts in rows, supply_value, or total_note.numerator.",
     "If counted_in_ratio false rows are visible, do not describe the headline percentage in quick_take, summary, investor_takeaway, snapshot_metrics, or total_note as including those excluded rows.",
     "Before final JSON, add every counted_in_ratio true row numeric_value. Use that full included numerator in supply_value, total_note.numerator, status_value, ratio_value, and any snapshot percentage; never use only the largest row or only the share_equivalent row.",
     "Percentage formula: included numerator divided by share_overhang.basis numeric_value, multiplied by 100. If numerator is many times larger than denominator, the percent must be thousands of percent, not hundreds.",
@@ -236,7 +244,8 @@ function build424bAnalysisPromptLines(parserOutput: Sec424bParserOutput): string
     "Do not use generic share_overhang.status_label values such as Status, Scale, Ratio, Value, or Result when status_value is a computed percentage. Use a semantic label such as Potential Dilution, ATM Dilution, Total Potential Supply, or omit status_label.",
     "share_overhang.basis.note is only a short source/date/class qualifier. Do not paste exclusion lists, risk factors, evidence excerpts, or long source paragraphs there.",
     "Do not put explanatory prose in total_note. total_note is only the UI calculation line: short title, numerator, denominator, ratio, and short suffix.",
-    "total_note.title must be a short label only. Never put '/', '=', share counts, percentages, formulas, numerator/denominator wording, or if-exercised conditions in total_note.title.",
+    "total_note.title must be a short label only. Never put '/', '=', share counts, percentages, formulas, numerator/denominator wording, parentheticals, or if-exercised conditions in total_note.title.",
+    "For total_note.title, prefer one of these calculation labels when it fits: Dilution vs Current Shares, Overhang vs Current Shares, Registered Resale Overhang, Total Potential Dilution, Total Potential Overhang, ATM Capacity Scale, Shelf Capacity Scale, Capacity vs Market Cap, Capacity vs Public Float, Warrant Share Supply, Convertible Share Supply, Preferred Conversion Supply, Pre-Funded Warrant Supply, Share-Equivalent Supply, Rights Offering Dilution, Marketed Block Scale. If none fits the source-backed calculation, create a short custom label. Do not use generic labels such as Total, Ratio, Scale, Value, Status, Result, Calculation, or Impact.",
     "Put calculation pieces only in total_note.numerator, total_note.denominator, total_note.ratio, and total_note.suffix. Put conditions such as if over-allotment exercised or if warrants exercised in suffix or a row note, not in title.",
     "Do not put evidence excerpts, page references, full analysis paragraphs, market commentary, or repeated summary text in share_overhang.",
     "Do not write calculation-failure wording in share_overhang. If final shares, price, or dilution depends on future sales or a formula, use Variable or Not fixed yet.",
@@ -416,6 +425,7 @@ function build424bAnalysisPromptLines(parserOutput: Sec424bParserOutput): string
     "Choose share_overhang.basis and optional current_shares by this absolute priority: source-block shares outstanding as of the filing or before the offering; source-block non-affiliate shares or public float when that is the relevant denominator; latest market_context shares outstanding; latest market_context public float.",
     "If source blocks state shares outstanding, non-affiliate shares, or public float, do not replace that denominator with market_context. Use market_context only when source blocks do not provide a usable denominator.",
     "If source blocks state shares outstanding as of a recent date before the offering, use that value for share_overhang.basis and optional current_shares, and include the date/limitation in evidence. Do not set current_shares to Not stated merely because the date is not the offering date.",
+    "When share_overhang has counted_in_ratio true share rows and source blocks do not provide a usable share-count denominator, do not return share_overhang.basis as Not stated with numeric_value null if market_context.shares_outstanding is available. Use market_context.shares_outstanding as the basis and label the note as latest market context.",
     "If the stated outstanding share count excludes options, awards, warrants, or other potential shares, it can still be used as the current-share denominator; explain the exclusion briefly in evidence or source_notes.",
     "If no market_context or source-backed outstanding share count exists, leave share_overhang.basis absent, set optional current_shares.value_text to null if included, and explain the missing denominator in source_notes.",
     "Use key_cash_terms.resale_proceeds_to_company for whether resale sales send cash to the company. Separate resale proceeds from prior private placement, ELOC, warrant exercise, or conversion cash.",
@@ -497,6 +507,13 @@ function build424bAnalysisPromptLines(parserOutput: Sec424bParserOutput): string
           sub_theme: "string | null",
           score: 0,
           score_reason: "string",
+          score_explanation: {
+            summary: "one concise investor-facing analyst conclusion explaining the score",
+            base_band: "plain-language scale context for investors",
+            upward_factors: ["source-backed pressure point"],
+            limiting_factors: ["source-backed caveat or offset"],
+            final_read: "investor-facing bottom line",
+          },
           signal: "bullish | bearish | volatile | neutral",
           quick_take: "string",
           summary: "string",
@@ -586,6 +603,8 @@ function build424bAnalysisPromptLines(parserOutput: Sec424bParserOutput): string
     "",
     "Analysis requirements:",
     "- Choose event_type and display_payload.display_type from cleaned_source_blocks only.",
+    "- analysis_output.score_explanation is required. Do not omit it and do not return null. score_explanation.summary must be non-empty and must be the visible investor-facing score rationale.",
+    "- score_explanation.summary must be one concise analyst-style conclusion, not a sectioned explanation. Avoid internal scoring jargon such as score band, alert range, or warrants a high alert score.",
     "- Return display_payload with display_type, data, evidence, and notes.",
     "- If using the common filing detail page, set display_payload.display_type to generic.",
     "- If using the offering terms UI, set display_payload.display_type to offering_terms and populate display_payload.data with source-backed offering fields. Empty data is invalid.",
@@ -618,8 +637,24 @@ function build424bAnalysisPromptLines(parserOutput: Sec424bParserOutput): string
     "- Set needs_human_review true when facts conflict, filing excerpts are too thin, or the investor impact depends on missing parent context.",
     "",
     "cleaned_source_blocks:",
-    JSON.stringify(buildSecSourceBlockPromptInput({ parserOutput: parserOutput as unknown as Record<string, unknown> }), null, 2),
+    JSON.stringify(
+      buildSecSourceBlockPromptInput({
+        parserOutput: parserOutput as unknown as Record<string, unknown>,
+        marketContext,
+      }),
+      null,
+      2,
+    ),
   ];
+}
+
+function read424bPromptMarketContext(parserOutput: Sec424bParserOutput): Record<string, unknown> | null {
+  const raw = parserOutput.raw;
+  return readRecord(raw.marketContext) || readRecord(raw.market_context);
+}
+
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 }
 
 function buildSectioned424bAnalysisPrompt(lines: string[]) {

@@ -59,6 +59,14 @@ let filingContextSnapshotCache:
     }
   | null = null;
 
+type FilingScoreExplanation = {
+  summary: string;
+  baseBand: string;
+  upwardFactors: string[];
+  limitingFactors: string[];
+  finalRead: string;
+};
+
 type FilingEvent = {
   id: string;
   ticker: string;
@@ -74,6 +82,7 @@ type FilingEvent = {
   impact: "low" | "medium" | "high";
   deliveryLevel: "archive" | "feed" | "alert";
   score: number;
+  scoreExplanation?: FilingScoreExplanation | null;
   signal: DetailTone;
   price: string;
   changeAmount: string;
@@ -1628,6 +1637,11 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             <MetricRow label="Event Type" value={eventBadge.label} />
             <MetricRow label="Form Type" value={filing.formType} />
             <MetricRow label="Signal" value={filing.signal} />
+            {useDilutionDetail && filing.scoreExplanation ? (
+              <a className="score-rationale-link" href="#score-rationale">
+                View score rationale
+              </a>
+            ) : null}
           </section>
 
           {filing.relatedNews.length ? (
@@ -1846,6 +1860,10 @@ async function buildDbFilingEvent(item: LiveFeedItem, fallback: FilingEvent): Pr
     impact: item.impact,
     deliveryLevel: item.deliveryLevel,
     score: item.score,
+    scoreExplanation:
+      readScoreExplanation(analysis) ||
+      readScoreExplanation(analysisMetadata) ||
+      readScoreReasonFallback(item.scoreReason),
     signal: item.signal,
     price: item.price,
     changeAmount: item.changeAmount,
@@ -3901,16 +3919,27 @@ function DilutionOfferingTemplate({
           <DilutionSnapshotCard model={model} />
         </section>
       )}
+      {showSummaryBesideChart ? <ScoreBasisPanel filing={filing} /> : null}
 
       {model.isShelfOnly ? (
         <>
-          {showSummaryBesideChart ? null : <DilutionLongSummary model={model} />}
+          {showSummaryBesideChart ? null : (
+            <>
+              <DilutionLongSummary model={model} />
+              <ScoreBasisPanel filing={filing} />
+            </>
+          )}
           <ShelfDetailsSection model={model} />
           <ShelfWatchNext model={model} />
         </>
       ) : (
         <>
-          {showSummaryBesideChart ? null : <DilutionLongSummary model={model} />}
+          {showSummaryBesideChart ? null : (
+            <>
+              <DilutionLongSummary model={model} />
+              <ScoreBasisPanel filing={filing} />
+            </>
+          )}
 
           {model.hideStructuredDetailSections ? null : model.hideShareOverhang ? (
             <AtmProgramDetails model={model} />
@@ -4316,7 +4345,8 @@ function OfferingTermsShareOverhangDetails({
   const rawRatioValue = overhang.totalNoteRatio || overhang.ratioValue || overhang.statusValue || "Variable";
   const ratioValue =
     computedScale?.ratioValue || (/%/.test(rawRatioValue) ? rawRatioValue : /%/.test(overhang.statusValue) ? overhang.statusValue : rawRatioValue);
-  const statusValue = computedScale?.ratioValue || overhang.statusValue || ratioValue;
+  const statusValue =
+    computedScale?.ratioValue || (/%/.test(ratioValue) && !/%/.test(overhang.statusValue) ? ratioValue : overhang.statusValue || ratioValue);
   const supplyValue = computedScale?.supplyValue || overhang.totalNoteNumerator || overhang.supplyValue || "Variable";
   const currentValue = computedScale?.currentValue || overhang.totalNoteDenominator || overhang.currentValue || "Not fixed yet";
   const usesComputedSegmentScale = Boolean(computedScale && canRenderChart);
@@ -8866,23 +8896,23 @@ function readLlmShareOverhang(
   );
   const routedRows = readLlmShareOverhangRoutedRows(overhang);
   const model: LlmShareOverhangModel = {
-    chartTitle: readOverhangStringLimited(overhang, 48, "chart_title", "chartTitle", "title"),
-    subtitle: readOverhangStringLimited(overhang, 90, "subtitle", "chart_subtitle", "chartSubtitle"),
-    statusLabel: readOverhangStringLimited(overhang, 48, "status_label", "statusLabel", "level_label", "levelLabel"),
-    statusValue: readOverhangStringLimited(overhang, 48, "status_value", "statusValue", "value"),
-    caption: readOverhangStringLimited(overhang, 72, "caption", "score_caption", "scoreCaption"),
-    ratioLabel: readOverhangStringLimited(overhang, 56, "ratio_label", "ratioLabel", "scale_label", "scaleLabel"),
-    ratioValue: readOverhangStringLimited(overhang, 48, "ratio_value", "ratioValue", "percent_value", "percentValue"),
-    currentLabel: readOverhangStringLimited(overhang, 56, "current_label", "currentLabel"),
-    currentValue: readOverhangStringLimited(overhang, 64, "current_value", "currentValue"),
-    supplyLabel: readOverhangStringLimited(overhang, 56, "supply_label", "supplyLabel", "potential_supply_label", "potentialSupplyLabel"),
-    supplyValue: readOverhangStringLimited(overhang, 64, "supply_value", "supplyValue", "potential_supply_value", "potentialSupplyValue"),
-    totalNoteTitle: readOverhangStringLimited(totalNote, 56, "title", "label"),
-    totalNoteNumerator: readOverhangStringLimited(totalNote, 64, "numerator", "supply_value", "supplyValue"),
-    totalNoteDenominator: readOverhangStringLimited(totalNote, 64, "denominator", "current_value", "currentValue"),
-    totalNoteRatio: readOverhangStringLimited(totalNote, 48, "ratio", "ratio_value", "ratioValue"),
-    totalNoteSuffix: readOverhangStringLimited(totalNote, 72, "suffix", "note"),
-    note: readOverhangStringLimited(overhang, 160, "note", "footnote"),
+    chartTitle: readOverhangString(overhang, "chart_title", "chartTitle", "title"),
+    subtitle: readOverhangString(overhang, "subtitle", "chart_subtitle", "chartSubtitle"),
+    statusLabel: readOverhangString(overhang, "status_label", "statusLabel", "level_label", "levelLabel"),
+    statusValue: readOverhangString(overhang, "status_value", "statusValue", "value"),
+    caption: readOverhangString(overhang, "caption", "score_caption", "scoreCaption"),
+    ratioLabel: readOverhangString(overhang, "ratio_label", "ratioLabel", "scale_label", "scaleLabel"),
+    ratioValue: readOverhangString(overhang, "ratio_value", "ratioValue", "percent_value", "percentValue"),
+    currentLabel: readOverhangString(overhang, "current_label", "currentLabel"),
+    currentValue: readOverhangString(overhang, "current_value", "currentValue"),
+    supplyLabel: readOverhangString(overhang, "supply_label", "supplyLabel", "potential_supply_label", "potentialSupplyLabel"),
+    supplyValue: readOverhangString(overhang, "supply_value", "supplyValue", "potential_supply_value", "potentialSupplyValue"),
+    totalNoteTitle: readOverhangString(totalNote, "title", "label"),
+    totalNoteNumerator: readOverhangString(totalNote, "numerator", "supply_value", "supplyValue"),
+    totalNoteDenominator: readOverhangString(totalNote, "denominator", "current_value", "currentValue"),
+    totalNoteRatio: readOverhangString(totalNote, "ratio", "ratio_value", "ratioValue"),
+    totalNoteSuffix: readOverhangString(totalNote, "suffix", "note"),
+    note: readOverhangString(overhang, "note", "footnote"),
     unavailableRows,
     conditionalSupplyRows: routedRows.conditionalSupplyRows,
     overhangBarSegments: routedRows.overhangBarSegments,
@@ -9218,12 +9248,6 @@ function readOverhangBoolean(record: Record<string, unknown>, ...keys: string[])
     }
   }
   return undefined;
-}
-
-function readOverhangStringLimited(record: Record<string, unknown>, maxLength: number, ...keys: string[]) {
-  const value = readOverhangString(record, ...keys);
-  if (!value || value.length <= maxLength) return value;
-  return value.slice(0, maxLength).trim();
 }
 
 function normalizeShareOverhangTotalNoteRecord(record: Record<string, unknown>) {
@@ -10699,6 +10723,78 @@ function CaseList({ title, items, tone }: { title: string; items: string[]; tone
   );
 }
 
+function ScoreBasisPanel({ filing }: { filing: FilingEvent }) {
+  const explanation = filing.scoreExplanation;
+  if (!explanation) return null;
+  const rationale = buildScoreBasisRationale(explanation);
+  if (!rationale) return null;
+  const scoreSummary = buildScoreBasisHeadline(filing, explanation);
+
+  return (
+    <section className="stock-detail-card score-basis-card score-basis-card-main" id="score-rationale">
+      <div className="score-basis-header">
+        <span className={`score-basis-score ${filing.signal}`}>
+          <strong>{filing.score}</strong>
+          <b>{filing.signal}</b>
+        </span>
+        <span className="score-basis-summary">{scoreSummary}</span>
+      </div>
+      <div className="score-basis-content">
+        <p className="score-basis-rationale">{rationale}</p>
+      </div>
+    </section>
+  );
+}
+
+function buildScoreBasisHeadline(filing: FilingEvent, explanation: FilingScoreExplanation) {
+  const candidates = [
+    explanation.summary,
+    explanation.baseBand,
+    explanation.finalRead,
+    filing.whyItMatters,
+    filing.filingBrief,
+    filing.summary,
+  ];
+  for (const candidate of candidates) {
+    const compact = firstCompactSentence(candidate);
+    if (compact) return compact;
+  }
+  return `${capitalizeLabel(filing.signal)} score driven by disclosed filing scale and terms.`;
+}
+
+function buildScoreBasisRationale(explanation: FilingScoreExplanation) {
+  const summary = firstCompactSentence(explanation.summary);
+  if (summary) return summary;
+  const fragments = Array.from(
+    new Set([
+      explanation.finalRead,
+      explanation.baseBand,
+      ...explanation.upwardFactors,
+      ...explanation.limitingFactors,
+    ]),
+  )
+    .map((item) => item.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  return fragments
+    .map((item) => (/[.!?]$/.test(item) ? item : `${item}.`))
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function firstCompactSentence(value: string | null | undefined) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  const firstSentence = text.match(/^.{1,170}?(?:[.!?](?:\s|$)|$)/)?.[0]?.trim() || "";
+  if (firstSentence && firstSentence.length <= 170) return firstSentence;
+  if (text.length <= 170) return text;
+  return "";
+}
+
+function capitalizeLabel(value: string) {
+  return value ? `${value.slice(0, 1).toUpperCase()}${value.slice(1)}` : "Impact";
+}
+
 function MetricRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="detail-metric-row">
@@ -11431,6 +11527,29 @@ function toStringArray(value: unknown, fallback: string[]) {
     .filter(Boolean);
 
   return items;
+}
+
+function readScoreExplanation(analysis: Record<string, unknown> | null | undefined): FilingScoreExplanation | null {
+  const value = readPlainRecord(analysis?.score_explanation);
+  if (!value) return null;
+  const summary = readRowString(value, "summary") || readRowString(value, "rationale");
+  const baseBand = readRowString(value, "base_band") || readRowString(value, "baseBand");
+  const upwardFactors = toStringArray(value?.upward_factors || value?.upwardFactors, []).slice(0, 3);
+  const limitingFactors = toStringArray(value?.limiting_factors || value?.limitingFactors, []).slice(0, 3);
+  const finalRead = readRowString(value, "final_read") || readRowString(value, "finalRead");
+  if (!summary && !baseBand && !upwardFactors.length && !limitingFactors.length && !finalRead) return null;
+  return {
+    summary,
+    baseBand,
+    upwardFactors,
+    limitingFactors,
+    finalRead,
+  };
+}
+
+function readScoreReasonFallback(scoreReason: string): FilingScoreExplanation | null {
+  const finalRead = scoreReason.trim();
+  return finalRead ? { summary: finalRead, baseBand: "", upwardFactors: [], limitingFactors: [], finalRead } : null;
 }
 
 function toRows(value: unknown): Record<string, unknown>[] {

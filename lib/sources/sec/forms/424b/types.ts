@@ -136,6 +136,13 @@ export interface Sec424bAnalysisOutput {
   sub_theme: string | null;
   score: number;
   score_reason: string;
+  score_explanation?: {
+    summary?: string | null;
+    base_band?: string | null;
+    upward_factors?: string[];
+    limiting_factors?: string[];
+    final_read?: string | null;
+  } | null;
   signal: SignalTone;
   quick_take: string;
   summary: string;

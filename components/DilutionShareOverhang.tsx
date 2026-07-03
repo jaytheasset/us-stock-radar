@@ -112,6 +112,58 @@ function currentSharesTitle(label: string) {
   return /current shares/i.test(label) ? CURRENT_SHARES_MARKET_CONTEXT_NOTE : undefined;
 }
 
+const OVERHANG_BAR_ASSUMED_WIDTH_PX = 620;
+const OVERHANG_SEGMENT_MIN_FULL_WIDTH_PERCENT = 18;
+
+function estimateOverhangSegmentTextWidth(segment: DilutionShareOverhangBarSegment) {
+  const label = segment.label.replace(/\s+/g, " ").trim();
+  const value = segment.value.replace(/\s+/g, " ").trim();
+  const codeWidth = 18;
+  const gapWidth = 10;
+  const horizontalPadding = 24;
+  const labelWidth = label.length * 6.4;
+  const valueWidth = value.length * 8.2;
+  return codeWidth + gapWidth + Math.max(labelWidth, valueWidth) + horizontalPadding;
+}
+
+function requiredOverhangSegmentWidthPercent(segment: DilutionShareOverhangBarSegment) {
+  const estimatedWidth = estimateOverhangSegmentTextWidth(segment);
+  return Math.min(100, (estimatedWidth / OVERHANG_BAR_ASSUMED_WIDTH_PX) * 100 + 4);
+}
+
+function shouldShowFullOverhangSegment(segment: DilutionShareOverhangBarSegment) {
+  if (!Number.isFinite(segment.width) || segment.width <= 0) return false;
+  if (segment.width < OVERHANG_SEGMENT_MIN_FULL_WIDTH_PERCENT) return false;
+  return segment.width >= requiredOverhangSegmentWidthPercent(segment);
+}
+
+function formatScaleMultiple(value: number) {
+  const precision = value >= 10 ? 1 : 2;
+  return `${value.toFixed(precision).replace(/\.0+$/, "")}x`;
+}
+
+function getExtremeScaleMode(segments: DilutionShareOverhangBarSegment[]) {
+  const numericSegments = segments.filter((segment) => typeof segment.numericValue === "number" && segment.numericValue > 0);
+  if (numericSegments.length !== segments.length) return null;
+
+  const baseValue = numericSegments
+    .filter((segment) => overhangSupplyRole(segment).kind === "base")
+    .reduce((total, segment) => total + (segment.numericValue || 0), 0);
+  const includedValue = numericSegments
+    .filter((segment) => overhangSupplyRole(segment).kind === "included")
+    .reduce((total, segment) => total + (segment.numericValue || 0), 0);
+
+  if (baseValue <= 0 || includedValue <= 0) return null;
+  const multiple = includedValue / baseValue;
+  if (multiple < 3) return null;
+
+  return {
+    includedValue,
+    multiple,
+    multipleText: formatScaleMultiple(multiple),
+  };
+}
+
 export function DilutionShareOverhang({ model }: { model: DilutionShareOverhangModel }) {
   const caption = model.overhangScoreCaption || model.overhangScoreNote || "Total potential dilution vs. current shares";
   const breakdownRows = model.overhangBreakdownRows || [];
@@ -152,6 +204,12 @@ export function DilutionShareOverhang({ model }: { model: DilutionShareOverhangM
   );
   const wideDetailPanels = extraDetailPanels.filter((panel) => (panel.instrumentRows || []).length);
   const sideDetailPanels = extraDetailPanels.filter((panel) => !(panel.instrumentRows || []).length);
+  const scaleMode = getExtremeScaleMode(model.overhangBarSegments);
+  const codeOnlyBar = !scaleMode && model.overhangBarSegments.every((segment) => !shouldShowFullOverhangSegment(segment));
+  const includedScaleCodes = model.overhangBarSegments
+    .map((segment, index) => (overhangSupplyRole(segment).kind === "included" ? OVERHANG_SEGMENT_CODES[index] || `${index + 1}` : ""))
+    .filter(Boolean);
+  const includedScaleLabel = includedScaleCodes.length ? `(${includedScaleCodes.join(" + ")})` : "Included";
 
   return (
     <section className="stock-detail-card dilution-overhang-card dilution-overhang-wide-card">
@@ -174,28 +232,54 @@ export function DilutionShareOverhang({ model }: { model: DilutionShareOverhangM
 
           {model.canRenderOverhangChart ? (
             <div className="dilution-overhang-plot">
-              <div className="dilution-overhang-bar">
-                {model.overhangBarSegments.map((segment, index) => (
-                  <span
-                    key={segment.key}
-                    className={`${segment.className}${segment.compact ? " compact" : ""}`}
-                    style={{ width: `${segment.width}%` }}
-                    title={`${segment.label}: ${segment.value}${segment.note ? ` ${segment.note}` : ""}`}
-                  >
-                    {segment.compact ? (
-                      <b>{OVERHANG_SEGMENT_CODES[index] || index + 1}</b>
-                    ) : (
-                      <span className="dilution-overhang-bar-content">
-                        <b>{OVERHANG_SEGMENT_CODES[index] || index + 1}</b>
-                        <span>
-                          <em>{segment.label}</em>
-                          <strong>{segment.value}</strong>
-                        </span>
+              {scaleMode ? (
+                <div className="dilution-overhang-scale-mode">
+                  <div className="dilution-overhang-scale-readouts">
+                    <div>
+                      <strong>{currentDetailLabel}</strong>
+                      <span>= 1.0x baseline</span>
+                    </div>
+                    <div>
+                      <strong>{model.supplyDetailLabel || "Included supply"}</strong>
+                      <span>= {scaleMode.multipleText} current shares</span>
+                    </div>
+                  </div>
+                  <div className="dilution-overhang-scale-rail">
+                    <b>1.0x</b>
+                    <i>{scaleMode.multipleText}</i>
+                    <span>{includedScaleLabel}</span>
+                  </div>
+                  <p>
+                    Included supply is {scaleMode.multipleText} ({model.dilutionRatioValue}) of current shares.
+                  </p>
+                </div>
+              ) : (
+                <div className={`dilution-overhang-bar${codeOnlyBar ? " code-only" : ""}`}>
+                  {model.overhangBarSegments.map((segment, index) => {
+                    const showFullSegment = shouldShowFullOverhangSegment(segment);
+                    return (
+                      <span
+                        key={segment.key}
+                        className={`${segment.className}${showFullSegment ? " full" : " compact"}`}
+                        style={{ width: `${segment.width}%` }}
+                        title={`${segment.label}: ${segment.value}${segment.note ? ` ${segment.note}` : ""}`}
+                      >
+                        {showFullSegment ? (
+                          <span className="dilution-overhang-bar-content">
+                            <b>{OVERHANG_SEGMENT_CODES[index] || index + 1}</b>
+                            <span>
+                              <em>{segment.label}</em>
+                              <strong>{segment.value}</strong>
+                            </span>
+                          </span>
+                        ) : (
+                          <b>{OVERHANG_SEGMENT_CODES[index] || index + 1}</b>
+                        )}
                       </span>
-                    )}
-                  </span>
-                ))}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
               {showSegmentLegend ? (
                 <div className="dilution-overhang-segment-legend">
                   {model.overhangBarSegments.map((segment, index) => {
