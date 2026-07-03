@@ -8859,7 +8859,7 @@ function readLlmShareOverhang(
       : null;
   if (!overhang) return null;
 
-  const totalNote = readPlainRecord(overhang.total_note) || {};
+  const totalNote = normalizeShareOverhangTotalNoteRecord(readPlainRecord(overhang.total_note) || {});
   const hasStructuredRows = Boolean(readPlainRecord(overhang.basis)) || recordArray(overhang.rows).length > 0;
   const unavailableRows = readLlmShareOverhangRows(
     hasStructuredRows ? overhang.unavailable_rows || overhang.detail_rows : overhang.unavailable_rows || overhang.detail_rows || overhang.rows,
@@ -9223,7 +9223,45 @@ function readOverhangBoolean(record: Record<string, unknown>, ...keys: string[])
 function readOverhangStringLimited(record: Record<string, unknown>, maxLength: number, ...keys: string[]) {
   const value = readOverhangString(record, ...keys);
   if (!value || value.length <= maxLength) return value;
-  return `${value.slice(0, Math.max(0, maxLength - 1)).trim()}...`;
+  return value.slice(0, maxLength).trim();
+}
+
+function normalizeShareOverhangTotalNoteRecord(record: Record<string, unknown>) {
+  const rawTitle = readOverhangString(record, "title", "label");
+  const splitTitle = splitShareOverhangTotalNoteTitle(rawTitle);
+  if (!splitTitle) return record;
+  return {
+    ...record,
+    title: splitTitle.title || rawTitle,
+    numerator: readOverhangString(record, "numerator", "supply_value", "supplyValue") || splitTitle.numerator,
+    denominator: readOverhangString(record, "denominator", "current_value", "currentValue") || splitTitle.denominator,
+    ratio: readOverhangString(record, "ratio", "ratio_value", "ratioValue") || splitTitle.ratio,
+    suffix: readOverhangString(record, "suffix", "note") || splitTitle.suffix,
+  };
+}
+
+function splitShareOverhangTotalNoteTitle(value: string) {
+  const text = cleanDisclosureValue(value).replace(/\s+/g, " ");
+  if (!text || !text.includes("/") || !text.includes("=")) return null;
+  const formulaPattern = "((?:Up to\\s+)?[~$]?\\d[\\d,.]*(?:\\s*[MBK])?(?:\\s+[^/=]+?)?)\\s*/\\s*([^=]+?)\\s*=\\s*([\\d,.]+\\s*%)(?:\\s+(.+))?$";
+  const titledMatch = text.match(new RegExp(`^(.+?):\\s*${formulaPattern}`, "i"));
+  const directMatch = titledMatch ? null : text.match(new RegExp(`^${formulaPattern}`, "i"));
+  const match = titledMatch || directMatch;
+  if (!match) return null;
+  const titlePart = titledMatch ? match[1] : "";
+  const numerator = titledMatch ? match[2] : match[1];
+  const denominator = titledMatch ? match[3] : match[2];
+  const ratio = titledMatch ? match[4] : match[3];
+  const suffixText = titledMatch ? match[5] : match[4];
+  const condition = titlePart.match(/\(([^)]+)\)/)?.[1]?.trim() || "";
+  const title = cleanDisclosureValue(titlePart.replace(/\s*\([^)]*\)/g, "")) || "Total Potential Supply";
+  return {
+    title,
+    numerator: cleanDisclosureValue(numerator),
+    denominator: cleanDisclosureValue(denominator),
+    ratio: cleanDisclosureValue(ratio),
+    suffix: cleanDisclosureValue(suffixText) || condition,
+  };
 }
 
 function normalizeLlmShareOverhangSegmentClass(value: string) {

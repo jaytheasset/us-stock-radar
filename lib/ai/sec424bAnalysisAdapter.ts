@@ -566,15 +566,7 @@ function normalizeShareOverhang(value: Record<string, unknown> | null, instrumen
     .map((row) => normalizeShareOverhangRow(readRecord(row), true))
     .filter(Boolean);
   const totalNote = readRecord(value.total_note || value.totalNote);
-  const normalizedTotalNote = totalNote
-    ? {
-        title: stringValue(totalNote.title || totalNote.label),
-        numerator: stringValue(totalNote.numerator || totalNote.supply_value || totalNote.supplyValue),
-        denominator: stringValue(totalNote.denominator || totalNote.current_value || totalNote.currentValue),
-        ratio: stringValue(totalNote.ratio || totalNote.ratio_value || totalNote.ratioValue),
-        suffix: stringValue(totalNote.suffix || totalNote.note),
-      }
-    : null;
+  const normalizedTotalNote = normalizeShareOverhangTotalNote(totalNote);
   const scale = deriveShareOverhangScale({ basis, rows, segments });
   const scaledTotalNote =
     normalizedTotalNote && scale
@@ -881,6 +873,43 @@ function normalizeShareOverhangRow(record: Record<string, unknown> | null, inclu
     numeric_value: numberValue(record?.numeric_value) ?? numberValue(record?.numericValue) ?? numberValue(record?.amount) ?? null,
     note: nullableString(record?.note),
     ...(includeTone ? { tone: nullableString(record?.tone) } : {}),
+  };
+}
+
+function normalizeShareOverhangTotalNote(record: Record<string, unknown> | null) {
+  if (!record) return null;
+  const rawTitle = stringValue(record.title || record.label);
+  const splitTitle = splitShareOverhangTotalNoteTitle(rawTitle);
+  return {
+    title: splitTitle?.title || rawTitle,
+    numerator: stringValue(record.numerator || record.supply_value || record.supplyValue) || splitTitle?.numerator || "",
+    denominator: stringValue(record.denominator || record.current_value || record.currentValue) || splitTitle?.denominator || "",
+    ratio: stringValue(record.ratio || record.ratio_value || record.ratioValue) || splitTitle?.ratio || "",
+    suffix: stringValue(record.suffix || record.note) || splitTitle?.suffix || "",
+  };
+}
+
+function splitShareOverhangTotalNoteTitle(value: string) {
+  const text = stringValue(value).replace(/\s+/g, " ");
+  if (!text || !text.includes("/") || !text.includes("=")) return null;
+  const formulaPattern = "((?:Up to\\s+)?[~$]?\\d[\\d,.]*(?:\\s*[MBK])?(?:\\s+[^/=]+?)?)\\s*/\\s*([^=]+?)\\s*=\\s*([\\d,.]+\\s*%)(?:\\s+(.+))?$";
+  const titledMatch = text.match(new RegExp(`^(.+?):\\s*${formulaPattern}`, "i"));
+  const directMatch = titledMatch ? null : text.match(new RegExp(`^${formulaPattern}`, "i"));
+  const match = titledMatch || directMatch;
+  if (!match) return null;
+  const titlePart = titledMatch ? match[1] : "";
+  const numerator = titledMatch ? match[2] : match[1];
+  const denominator = titledMatch ? match[3] : match[2];
+  const ratio = titledMatch ? match[4] : match[3];
+  const suffixText = titledMatch ? match[5] : match[4];
+  const condition = titlePart.match(/\(([^)]+)\)/)?.[1]?.trim() || "";
+  const title = stringValue(titlePart.replace(/\s*\([^)]*\)/g, "")) || "Total Potential Supply";
+  return {
+    title,
+    numerator: stringValue(numerator),
+    denominator: stringValue(denominator),
+    ratio: stringValue(ratio),
+    suffix: stringValue(suffixText) || condition,
   };
 }
 

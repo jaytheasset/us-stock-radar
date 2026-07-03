@@ -236,6 +236,8 @@ function build424bAnalysisPromptLines(parserOutput: Sec424bParserOutput): string
     "Do not use generic share_overhang.status_label values such as Status, Scale, Ratio, Value, or Result when status_value is a computed percentage. Use a semantic label such as Potential Dilution, ATM Dilution, Total Potential Supply, or omit status_label.",
     "share_overhang.basis.note is only a short source/date/class qualifier. Do not paste exclusion lists, risk factors, evidence excerpts, or long source paragraphs there.",
     "Do not put explanatory prose in total_note. total_note is only the UI calculation line: short title, numerator, denominator, ratio, and short suffix.",
+    "total_note.title must be a short label only. Never put '/', '=', share counts, percentages, formulas, numerator/denominator wording, or if-exercised conditions in total_note.title.",
+    "Put calculation pieces only in total_note.numerator, total_note.denominator, total_note.ratio, and total_note.suffix. Put conditions such as if over-allotment exercised or if warrants exercised in suffix or a row note, not in title.",
     "Do not put evidence excerpts, page references, full analysis paragraphs, market commentary, or repeated summary text in share_overhang.",
     "Do not write calculation-failure wording in share_overhang. If final shares, price, or dilution depends on future sales or a formula, use Variable or Not fixed yet.",
     "For resale_registration display_mode, snapshot_metrics must use these first three labels when source-backed: Resale shares, Overhang vs current shares, Company proceeds.",
