@@ -8,7 +8,7 @@ import { buildSecSourceBlockPromptInput } from "../common/sourceBlockPromptInput
 import { SEC_RESALE_OVERHANG_SCORING_GUIDE } from "../common/resaleOverhangScoring";
 
 export const SEC_S3_F3_ANALYSIS_PROMPT_KEY = "sec_s3_f3_analysis_draft";
-export const SEC_S3_F3_ANALYSIS_PROMPT_VERSION = "v16-atm-shelf-last-sale-value";
+export const SEC_S3_F3_ANALYSIS_PROMPT_VERSION = "v17-atm-public-float-priority";
 
 export const SEC_S3_F3_ANALYSIS_CASE_VALUES = [
   "base_shelf",
@@ -56,6 +56,7 @@ export const secS3F3AnalysisSystemPrompt = [
   "row_role is the single calculation-routing field. Use row_role counted only for segments that belong in the headline numerator. Use row_role conditional for visible future-exercise or dependent supply excluded from the headline numerator. Use row_role alternative for one-for-one replacement securities already represented in a counted maximum pool. Use row_role reference for shelf capacity, market cap, public float, or other visible context that is not share supply.",
   "supply_nature is compatibility taxonomy only when row_role is present. Never use supply_nature to override row_role.",
   "Build share_overhang before snapshot_metrics. Snapshot metrics are result summary cards, not the source of the share-overhang calculation.",
+  "For ATM display models, if the source filing states public float or an I.B.6 public-float limit, use public float as the dollar denominator before market_context market cap.",
   "If snapshot_metrics includes a dilution, overhang, or capacity percentage that corresponds to share_overhang, copy it from share_overhang.total_note.ratio after computing share_overhang; otherwise omit the percentage or use Variable/Not fixed yet.",
   "For mixed_offering with any row_role conditional segments, avoid numeric dilution/overhang percentages in event_title, quick_take, summary, score_reason, score_explanation, and investor_takeaway. Use qualitative language such as extreme, severe, substantial, or material, and let snapshot_metrics and share_overhang show the exact percentage.",
   "Do not put explanatory prose in total_note. total_note is only the UI calculation line: short title, numerator, denominator, ratio, and short suffix.",

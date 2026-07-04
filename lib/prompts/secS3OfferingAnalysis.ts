@@ -6,7 +6,7 @@ import { sec424bRequiredOutputSchema } from "@/lib/ai/sec424bAnalysisAdapter";
 import { buildSecSourceBlockPromptInput } from "@/lib/sources/sec/forms/common/sourceBlockPromptInput";
 
 export const SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY = "sec_s3_offering_analysis";
-export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v56-atm-shelf-last-sale-value";
+export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v57-atm-public-float-priority";
 
 export const SEC_S3_ANALYSIS_ACTION_VALUES = ["skip_analysis", "routine_archive", "analyze_offering"] as const;
 export const SEC_S3_CASE_VALUES = [
@@ -240,7 +240,7 @@ export const secS3OfferingAnalysisSystemPrompt = [
   "For a base shelf or automatic shelf, distinguish registered share amount from dollar capacity. Example: a 100,000,000-share shelf with dollar capacity of $183,376,179.78 has both a share registration amount and a dollar capacity; do not collapse those into one value.",
   "For shelf registrations, do not describe dollar capacity as current company proceeds. Shelf capacity is possible future issuance capacity; issuer cash is received only if securities are later sold in a takedown, ATM sale, or prospectus supplement.",
   "For resale shelf, active mixed shelf, registered direct, 424B/prospectus supplement, or concrete offering terms with source-backed share impact, apply the SEC offering and resale scoring guide: 20-50% = 75-79, 50-100% = 80-84, 100-300% = 84-88, 300-1000% = 88-92, and 1000%+ = 92-96 before form-specific modifiers.",
-  "For ATM or dollar-only offering size, score by amount versus market cap, public float, or Market Value at Last Sale Price unless the filing itself states a fixed share count. Do not use assumed-price share dilution for ATM programs.",
+  "For ATM or dollar-only offering size, score by amount versus market cap, public float, or Market Value at Last Sale Price unless the filing itself states a fixed share count. If the source filing states public float or an I.B.6 public-float limit, use public float before market_context market cap. Do not use assumed-price share dilution for ATM programs.",
   "For skip_analysis, set event_type other, signal neutral, score below 20, calendar_items empty, and archive_summary to a one-sentence internal skip reason.",
   "For routine_archive, set event_type other, signal neutral, score below 50, calendar_items empty unless there is an explicit investor-relevant deadline, and archive_summary to one sentence ending with: Open the original filing for full details if needed.",
   "For routine_archive, summary should match the archive_summary substance and should not imply fresh dilution pressure.",
@@ -341,7 +341,7 @@ const secS3RequiredOutputSystemPrompt = [
   "S-3/F-3 filings are often registration capacity, not completed sales. Do not score up merely because the form is S-3; for pure shelf, score up only by the capacity-versus-market-cap ladder or by source-backed current triggers.",
   "Shelf registration without active sale terms can be feed-level when capacity is at least 25% of market cap, but remains below alert unless an active sale mechanism or other current investor trigger is disclosed.",
   "ATM capacity is future sale capacity, not completed issuance. Score by size versus market cap, public float, or Market Value at Last Sale Price when available, but usually cap below alert unless size is extreme or capital need is explicit.",
-  "For ATM or dollar-only offering size, score and display by amount versus market cap, public float, or Market Value at Last Sale Price unless the filing itself states a fixed share count. Do not use assumed-price share dilution for ATM programs.",
+  "For ATM or dollar-only offering size, score and display by amount versus market cap, public float, or Market Value at Last Sale Price unless the filing itself states a fixed share count. If the source filing states public float or an I.B.6 public-float limit, use public float before market_context market cap. Do not use assumed-price share dilution for ATM programs.",
   "Resale registration is potential selling-holder overhang. The company usually receives no resale proceeds unless the filing states ELOC, purchase agreement, warrant exercise cash, or other company cash.",
   "Primary, registered direct, priced takedown, warrant, convertible, and mixed offerings should use the same investor-facing display structure as 424B offering filings.",
   "For amendments, score what changed in this filing, not the full parent registration. Routine exhibit, fee, signature, or housekeeping amendments usually archive.",
@@ -420,6 +420,7 @@ const secS3RequiredOutputSystemPrompt = [
   "supply_type is optional compatibility taxonomy only. Never use supply_type to override row_role. If you include it, use current_offering_pool, registered_resale_pool, share_equivalent, future_exercise, replacement_alternative, or shelf_capacity.",
   "Use row_role reference for source-backed base/universal shelf dollar capacity that is visible context inside a mixed ATM/takedown/resale/offering UI. A shelf_capacity row is future dollar capacity, not share supply: use unit USD, put the shelf dollar amount in numeric_value, and never include it in the headline numerator, percentage, or bar math.",
   "For ATM display_mode, do not create row_role counted share rows by dividing ATM dollar capacity by last sale price, VWAP, market price, or assumed sale price. Use row_role reference rows for ATM capacity, market cap or public float, and shelf capacity unless the filing itself states a fixed share count.",
+  "For ATM display_mode, choose share_overhang.basis before snapshot_metrics. If the source filing states public float or an I.B.6 public-float limit, basis must be Public float and total_note.title should be Capacity vs Public Float or ATM Capacity Scale. Use market_context market cap only when the source filing does not provide public float or another source-backed dollar company-value denominator.",
   "When a concrete ATM, takedown, resale, registered-direct, warrant/convertible, or rights component appears together with a base/universal shelf, show the concrete component in counted share rows and show the base/universal shelf as a row_role reference visible row when material. Do not omit the shelf just because it is not counted in the ratio.",
   "For mixed_offering or atm display_mode, if snapshot_metrics, offering_details, summary, narrative_summary, or investor_takeaway mentions a source-backed base/universal shelf dollar capacity, share_overhang.rows must include a matching row_role reference row. This row is visible context and is not a duplicate of the Snapshot.",
   "Do not use base_shares in share_overhang.rows. The denominator belongs only in share_overhang.basis.",
@@ -469,6 +470,7 @@ const secS3RequiredOutputSystemPrompt = [
   "For resale_registration display_mode, the fourth snapshot_metrics row must use exactly one of these labels when source-backed: Selling holders, Sale price, Source instrument, Resale method.",
   "For resale_registration display_mode, do not use Market cap in snapshot_metrics. Market cap belongs in Market Context unless the filing is shelf_capacity or ATM capacity.",
   "For atm display_mode, snapshot_metrics must use exactly four rows when source-backed: Program size; one denominator row labeled Market cap, Public float, or Market Value at Last Sale Price; one comparison row labeled Size vs market cap, Size vs public float, or Size vs Market Value; Sale method.",
+  "For ATM display_mode, if share_overhang.basis is Public float, snapshot_metrics must use Public float and Size vs public float. Do not switch snapshot_metrics to Market cap when share_overhang uses public float.",
   "For ATM display_mode, use Market cap only when the filing, source blocks, or market_context provides an actual market cap. If the denominator is shares outstanding multiplied by a filing-stated last reported sale price, label it Market Value at Last Sale Price and use Size vs Market Value.",
   "For ATM display_mode, share_overhang.total_note should be a capacity scale such as ATM Capacity Scale, Capacity vs Market Cap, Capacity vs Market Value, or Capacity vs Public Float, not Dilution vs Current Shares, unless the filing itself states a fixed share count.",
   "For primary_offering and registered_direct display_mode, snapshot_metrics must use exactly these four labels when source-backed: New shares, Offer price, Company proceeds, Dilution vs current shares.",
