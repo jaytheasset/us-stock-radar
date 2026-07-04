@@ -39,7 +39,7 @@ const S1F1_DISPLAY_MODES = [
   "generic",
 ] as const;
 
-const S1F1_PROMPT_VERSION = "s1-f1-analysis-v22-atm-shelf-last-sale-value";
+const S1F1_PROMPT_VERSION = "s1-f1-analysis-v23-supply-type-badges";
 
 export function buildS1F1AnalysisPrompt(
   parserOutput: S1F1ParserOutput,
@@ -155,7 +155,8 @@ export function buildS1F1AnalysisPrompt(
     "- Each share_overhang.rows item must include row_role, label, value, numeric_value, and unit. numeric_value is the share/ADS/security amount represented by the row, not a package count unless the label/value explicitly use units.",
     "- Every share_overhang.rows item is visible on screen. row_role is the single calculation-routing field: counted, conditional, alternative, or reference.",
     "- Use row_role counted only for rows that belong in the headline numerator. Use row_role conditional for visible future-exercise or dependent supply excluded from the headline numerator. Use row_role alternative for one-for-one replacement securities already represented in a counted maximum pool. Use row_role reference for shelf capacity, market cap, public float, or other visible context that is not share supply.",
-    "- supply_type is optional compatibility taxonomy only. Never use supply_type to override row_role.",
+    "- supply_type is optional compatibility taxonomy for consistent UI badges. It never overrides row_role calculation inclusion. Use only: current_offering_pool, registered_resale_pool, share_equivalent, future_exercise, replacement_alternative, atm_capacity, shelf_capacity, public_float, market_cap, market_value.",
+    "- Use supply_type atm_capacity for an active ATM program dollar-capacity row; shelf_capacity for base/universal shelf future capacity; public_float, market_cap, or market_value for company-value denominator/context rows when they appear as rows. For Market Value at Last Sale Price labels, use supply_type market_value.",
     "- The headline status_value, ratio_value, supply_value, and total_note numerator must add only rows with row_role counted. Do not use a full-if-exercised or all-visible-row total as the headline numerator when some visible rows are row_role conditional, alternative, or reference.",
     "- Do not use base_shares in share_overhang.rows. The denominator belongs only in share_overhang.basis.",
     "- One share_overhang.rows item may have only one row_role. Do not group instrument series, tranches, classes, or side-placement securities into one row when their economics would require different row_role values.",

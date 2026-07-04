@@ -432,6 +432,8 @@ function overhangSupplyRole(row: {
   roleKind?: "base" | "included" | "future" | "alternative" | "conditional" | "reference";
 }) {
   if (row.roleBadge) return { kind: row.roleKind || "reference", badge: row.roleBadge };
+  const supplyTypeRole = overhangSupplyTypeRole(row.supplyType);
+  if (row.rowRole === "reference" && supplyTypeRole) return supplyTypeRole;
   switch (row.rowRole) {
     case "counted":
       return { kind: "included", badge: "Counted" };
@@ -444,11 +446,10 @@ function overhangSupplyRole(row: {
   }
   if (row.countedInRatio === true) return { kind: "included", badge: "Counted" };
   if (row.countedInRatio === false) {
-    if (row.supplyType === "shelf_capacity") return { kind: "future", badge: "Future capacity" };
-    if (row.supplyType === "replacement_alternative") return { kind: "alternative", badge: "Alternative" };
-    if (row.supplyType === "future_exercise") return { kind: "conditional", badge: "Conditional" };
+    if (supplyTypeRole) return supplyTypeRole;
     return { kind: "reference", badge: "Reference" };
   }
+  if (supplyTypeRole) return supplyTypeRole;
 
   switch (row.supplyNature) {
     case "base_shares":
@@ -463,6 +464,29 @@ function overhangSupplyRole(row: {
       return { kind: "conditional", badge: "Conditional" };
     default:
       return { kind: "reference", badge: "Reference" };
+  }
+}
+
+function overhangSupplyTypeRole(supplyType?: string) {
+  switch (supplyType) {
+    case "atm_capacity":
+      return { kind: "included" as const, badge: "Capacity" };
+    case "shelf_capacity":
+      return { kind: "future" as const, badge: "Future capacity" };
+    case "public_float":
+    case "market_cap":
+    case "market_value":
+      return { kind: "base" as const, badge: "Base" };
+    case "replacement_alternative":
+      return { kind: "alternative" as const, badge: "Alternative" };
+    case "future_exercise":
+      return { kind: "conditional" as const, badge: "Conditional" };
+    case "current_offering_pool":
+    case "registered_resale_pool":
+    case "share_equivalent":
+      return { kind: "included" as const, badge: "Counted" };
+    default:
+      return null;
   }
 }
 

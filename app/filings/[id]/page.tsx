@@ -4193,7 +4193,7 @@ function buildAtmProgramLlmOverhangModel(model: ReturnType<typeof buildDilutionO
       key: capacityRow.key || "atm-capacity",
       className: "registered-supply",
       rowRole: capacityRow.rowRole,
-      supplyType: capacityRow.supplyType,
+      supplyType: capacityRow.supplyType || "atm_capacity",
       unit: capacityRow.unit,
       classBasis: capacityRow.classBasis,
       label: overhang.supplyLabel || capacityRow.label,
@@ -4211,8 +4211,7 @@ function buildAtmProgramLlmOverhangModel(model: ReturnType<typeof buildDilutionO
       row.rowRole === "reference"
         ? {
             ...row,
-            roleBadge: isShelfCapacityRow(row) ? "Context" : "Reference",
-            roleKind: "reference" as const,
+            supplyType: row.supplyType || (isShelfCapacityRow(row) ? "shelf_capacity" : undefined),
           }
         : row,
     );
@@ -4895,7 +4894,11 @@ type ShareOverhangSupplyType =
   | "share_equivalent"
   | "future_exercise"
   | "replacement_alternative"
-  | "shelf_capacity";
+  | "atm_capacity"
+  | "shelf_capacity"
+  | "public_float"
+  | "market_cap"
+  | "market_value";
 
 type ShareOverhangCalculationRole =
   | "denominator"
@@ -9303,9 +9306,20 @@ function normalizeShareOverhangSupplyType(value: string): ShareOverhangSupplyTyp
     normalized === "share_equivalent" ||
     normalized === "future_exercise" ||
     normalized === "replacement_alternative" ||
-    normalized === "shelf_capacity"
+    normalized === "atm_capacity" ||
+    normalized === "shelf_capacity" ||
+    normalized === "public_float" ||
+    normalized === "market_cap" ||
+    normalized === "market_value"
   ) {
     return normalized;
+  }
+  if (
+    normalized === "market_value_at_last_sale_price" ||
+    normalized === "market_value_last_sale" ||
+    normalized === "last_sale_market_value"
+  ) {
+    return "market_value";
   }
   return undefined;
 }

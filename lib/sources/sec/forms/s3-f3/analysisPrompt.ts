@@ -8,7 +8,7 @@ import { buildSecSourceBlockPromptInput } from "../common/sourceBlockPromptInput
 import { SEC_RESALE_OVERHANG_SCORING_GUIDE } from "../common/resaleOverhangScoring";
 
 export const SEC_S3_F3_ANALYSIS_PROMPT_KEY = "sec_s3_f3_analysis_draft";
-export const SEC_S3_F3_ANALYSIS_PROMPT_VERSION = "v18-atm-active-capacity-numerator";
+export const SEC_S3_F3_ANALYSIS_PROMPT_VERSION = "v19-supply-type-badges";
 
 export const SEC_S3_F3_ANALYSIS_CASE_VALUES = [
   "base_shelf",
@@ -55,9 +55,11 @@ export const secS3F3AnalysisSystemPrompt = [
   "Each share_overhang.segments item that represents visible supply or context should include row_role when possible: counted, conditional, alternative, or reference.",
   "row_role is the single calculation-routing field. Use row_role counted only for segments that belong in the headline numerator. Use row_role conditional for visible future-exercise or dependent supply excluded from the headline numerator. Use row_role alternative for one-for-one replacement securities already represented in a counted maximum pool. Use row_role reference for shelf capacity, market cap, public float, or other visible context that is not share supply.",
   "supply_nature is compatibility taxonomy only when row_role is present. Never use supply_nature to override row_role.",
+  "When emitting a row-compatible supply_type, use the shared taxonomy only: current_offering_pool, registered_resale_pool, share_equivalent, future_exercise, replacement_alternative, atm_capacity, shelf_capacity, public_float, market_cap, market_value.",
+  "Use supply_type atm_capacity for an active ATM program dollar-capacity row; shelf_capacity for base/universal shelf future capacity; public_float, market_cap, or market_value for company-value denominator/context rows when they appear as rows. For Market Value at Last Sale Price labels, use supply_type market_value.",
   "Build share_overhang before snapshot_metrics. Snapshot metrics are result summary cards, not the source of the share-overhang calculation.",
   "For ATM display models, if the source filing states public float or an I.B.6 public-float limit, use public float as the dollar denominator before market_context market cap.",
-  "For ATM display models, the headline numerator is the active ATM program amount. If a base or universal shelf amount is also disclosed, show it only as a reference/context segment; do not add it to the ATM amount, do not use it as total_note.numerator, and do not let it drive the headline Capacity Scale unless the filing explicitly says the ATM amount itself equals the full shelf amount.",
+  "For ATM display models, the headline numerator is the active ATM program amount. If a base or universal shelf amount is also disclosed, show it only as a reference segment with supply_type shelf_capacity; do not add it to the ATM amount, do not use it as total_note.numerator, and do not let it drive the headline Capacity Scale unless the filing explicitly says the ATM amount itself equals the full shelf amount.",
   "If snapshot_metrics includes a dilution, overhang, or capacity percentage that corresponds to share_overhang, copy it from share_overhang.total_note.ratio after computing share_overhang; otherwise omit the percentage or use Variable/Not fixed yet.",
   "For mixed_offering with any row_role conditional segments, avoid numeric dilution/overhang percentages in event_title, quick_take, summary, score_reason, score_explanation, and investor_takeaway. Use qualitative language such as extreme, severe, substantial, or material, and let snapshot_metrics and share_overhang show the exact percentage.",
   "Do not put explanatory prose in total_note. total_note is only the UI calculation line: short title, numerator, denominator, ratio, and short suffix.",
