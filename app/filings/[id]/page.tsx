@@ -4257,7 +4257,6 @@ function ShelfWatchNext({ model }: { model: ReturnType<typeof buildDilutionOffer
       <div className="dilution-section-heading">
         <div>
           <h2>What To Watch Next</h2>
-          <p>What would turn this shelf into an active offering</p>
         </div>
         <span>Shelf registration</span>
       </div>
