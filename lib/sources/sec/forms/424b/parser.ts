@@ -571,6 +571,8 @@ function addOfferingTableBlock(
   text: string,
 ) {
   const anchorPatterns = [
+    /\bNumber\s+of\s+(?:Class\s+[A-Z]\s+)?(?:Ordinary\s+Shares|Common\s+Stock|shares?|ADSs?)\s+outstanding\s+(?:immediately\s+)?(?:before|prior\s+to|after)\s+this\s+offering\b/i,
+    /\b(?:Class\s+[A-Z]\s+)?(?:Ordinary\s+Shares|Common\s+Stock|shares?|ADSs?)\s+outstanding\s+(?:immediately\s+)?(?:before|prior\s+to|after)\s+this\s+offering\b/i,
     /\bShares\s+of\s+Common\s+Stock\s+outstanding\s+prior\s+to\b/i,
     /\bShares\s+of\s+Common\s+Stock\s+outstanding\s+assuming\s+exercise\b/i,
     /\bExercise\s+price\s+of\s+Warrants\b/i,
@@ -597,6 +599,29 @@ function addOfferingTableBlock(
     label: "The Offering table and security totals",
     source: "primary_document",
     text: text.slice(headingIndex, Math.min(text.length, end)),
+  });
+}
+
+function addOutstandingShareCountTableBlock(
+  blocks: Array<{ block_type: string; label: string; source: string; text: string }>,
+  text: string,
+) {
+  const anchorPatterns = [
+    /\bNumber\s+of\s+(?:Class\s+[A-Z]\s+)?(?:Ordinary\s+Shares|Common\s+Stock|shares?|ADSs?)\s+outstanding\s+(?:immediately\s+)?(?:before|prior\s+to|after)\s+this\s+offering\b/i,
+    /\b(?:Class\s+[A-Z]\s+)?(?:Ordinary\s+Shares|Common\s+Stock|shares?|ADSs?)\s+outstanding\s+(?:immediately\s+)?(?:before|prior\s+to|after)\s+this\s+offering\b/i,
+    /\b(?:shares?|ADSs?)\s+outstanding\s+(?:immediately\s+)?(?:before|prior\s+to|after)\s+(?:this|the)\s+(?:offering|transaction)\b/i,
+  ];
+  const anchorMatch = anchorPatterns
+    .map((pattern) => text.match(pattern))
+    .find((match): match is RegExpMatchArray => Boolean(match?.index && match.index >= 0));
+  const anchorIndex = anchorMatch?.index ?? -1;
+  if (anchorIndex < 0) return;
+
+  addCleanedSourceBlock(blocks, {
+    block_type: "source_table_excerpt",
+    label: "Outstanding share count table",
+    source: "primary_document",
+    text: text.slice(Math.max(0, anchorIndex - 700), Math.min(text.length, anchorIndex + 2_200)),
   });
 }
 
@@ -736,6 +761,36 @@ function addShareCountExcerptBlock(
   });
 }
 
+function addOutstandingPercentageContextBlock(
+  blocks: Array<{ block_type: string; label: string; source: string; text: string }>,
+  text: string,
+) {
+  const patterns = [
+    /\b[^.]{0,520}?(?:beneficially\s+owns?|own(?:s|ed)?)[^.]{0,520}?\b[0-9][0-9,]*(?:\.\d+)?\s+(?:Class\s+[A-Z]\s+)?(?:ordinary\s+shares?|common\s+shares?|shares?)[^.]{0,520}?\brepresents?\s+approximately\s+[0-9]+(?:\.\d+)?%\s+of\s+(?:the\s+)?(?:total\s+)?(?:issued\s+and\s+outstanding|outstanding)[^.]{0,520}?\b(?:ordinary\s+shares?|common\s+shares?|shares?)\b[^.]{0,240}?/gi,
+    /\b[^.]{0,520}?\brepresents?\s+approximately\s+[0-9]+(?:\.\d+)?%\s+of\s+(?:the\s+)?(?:total\s+)?(?:issued\s+and\s+outstanding|outstanding)[^.]{0,520}?\b(?:ordinary\s+shares?|common\s+shares?|shares?)\b[^.]{0,520}?\b[0-9][0-9,]*(?:\.\d+)?\s+(?:Class\s+[A-Z]\s+)?(?:ordinary\s+shares?|common\s+shares?|shares?)\b[^.]{0,240}?/gi,
+  ];
+  const snippets: string[] = [];
+
+  for (const pattern of patterns) {
+    for (const match of text.matchAll(pattern)) {
+      const snippet = normalizeText(match[0]);
+      if (!snippet || snippets.some((item) => item === snippet)) continue;
+      snippets.push(snippet);
+      if (snippets.length >= 4) break;
+    }
+    if (snippets.length >= 4) break;
+  }
+
+  if (!snippets.length) return;
+
+  addCleanedSourceBlock(blocks, {
+    block_type: "source_context_window",
+    label: "Outstanding share percentage context",
+    source: "primary_document",
+    text: snippets.join("\n"),
+  });
+}
+
 function buildCleanedSourceBlocks(input: Sec424bParseInput, text: string, fullText = text) {
   const blocks: Array<{ block_type: string; label: string; source: string; text: string }> = [];
 
@@ -780,6 +835,8 @@ function buildCleanedSourceBlocks(input: Sec424bParseInput, text: string, fullTe
   });
 
   addOfferingTableBlock(blocks, fullText);
+  addOutstandingShareCountTableBlock(blocks, fullText);
+  addOutstandingPercentageContextBlock(blocks, fullText);
   addShareCountExcerptBlock(blocks, fullText);
 
   addHeadingSectionBlock(

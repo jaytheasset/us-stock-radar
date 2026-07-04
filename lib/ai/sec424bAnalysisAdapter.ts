@@ -293,6 +293,7 @@ export function collect424bDisplayPayloadWarnings(displayPayload: Record<string,
     includedRowsBasisText &&
     basisText &&
     /\bclass\s+a\b/i.test(includedRowsBasisText) &&
+    !/\bexclud(?:e|es|ing|ed)\s+class\s+b\b/i.test(basisText) &&
     (/\bclass\s+b\b/i.test(basisText) || /\bclass\s+a\s+(?:and|&|\+)\s+class\s+b\b/i.test(basisText))
   ) {
     warnings.push(
@@ -301,6 +302,34 @@ export function collect424bDisplayPayloadWarnings(displayPayload: Record<string,
   }
   if (includedRowsBasisText && basisText && /\bADSs?\b|American Depositary Shares?/i.test(includedRowsBasisText) && /\bordinary shares?\b/i.test(basisText)) {
     warnings.push("SEC 424B share_overhang counted rows appear ADS-specific, but basis appears to use ordinary shares.");
+  }
+  const includedRows = shareOverhangRows.filter(isIncludedShareOverhangRow);
+  const includedRowSum = includedRows.reduce((total, row) => total + (shareOverhangNumericValue(row) || 0), 0);
+  const totalNote = readRecord(shareOverhang?.total_note || shareOverhang?.totalNote);
+  const totalNoteNumerator = parseShareCount(stringValue(totalNote?.numerator || totalNote?.supply_value || totalNote?.supplyValue));
+  const totalNoteDenominator = parseShareCount(stringValue(totalNote?.denominator || totalNote?.current_value || totalNote?.currentValue));
+  const totalNoteRatio = parsePercentValue(stringValue(totalNote?.ratio || totalNote?.ratio_value || totalNote?.ratioValue || shareOverhang?.ratio_value || shareOverhang?.status_value));
+  if (
+    includedRowSum > 0 &&
+    totalNoteNumerator &&
+    Math.abs(includedRowSum - totalNoteNumerator) / Math.max(includedRowSum, totalNoteNumerator) > 0.02
+  ) {
+    warnings.push(
+      "SEC 424B share_overhang counted row numeric_value sum does not reconcile to total_note.numerator; merge alternative pools or fix counted_in_ratio before relying on the displayed ratio.",
+    );
+  }
+  if (totalNoteNumerator && totalNoteDenominator && totalNoteRatio != null) {
+    const expectedRatio = (totalNoteNumerator / totalNoteDenominator) * 100;
+    if (Number.isFinite(expectedRatio) && Math.abs(expectedRatio - totalNoteRatio) / Math.max(Math.abs(expectedRatio), Math.abs(totalNoteRatio), 1) > 0.02) {
+      warnings.push(
+        "SEC 424B share_overhang total_note ratio does not reconcile to numerator divided by denominator; verify unit conversion and full share counts.",
+      );
+    }
+  }
+  if (hasDuplicateOrdinaryPrefundedCountedRows(includedRows)) {
+    warnings.push(
+      "SEC 424B share_overhang appears to count ordinary/unit supply and pre-funded replacement supply with the same numeric_value; use one ordinary-or-pre-funded current_offering_pool row or mark the replacement row counted_in_ratio false.",
+    );
   }
   for (const segment of arrayValue(data.supply_segments)) {
     const record = readRecord(segment);
@@ -768,6 +797,33 @@ function hasUsableShareOverhangAmount(record: Record<string, unknown>) {
   return (parseShareCount(valueText) || 0) > 0;
 }
 
+function shareOverhangNumericValue(record: Record<string, unknown>) {
+  return (
+    numberValue(record.numeric_value) ??
+    numberValue(record.numericValue) ??
+    numberValue(record.amount) ??
+    numberValue(record.share_count) ??
+    numberValue(record.shareCount) ??
+    parseShareCount([stringValue(record.value), stringValue(record.value_text), stringValue(record.valueText)].filter(Boolean).join(" "))
+  );
+}
+
+function hasDuplicateOrdinaryPrefundedCountedRows(rows: Record<string, unknown>[]) {
+  const ordinaryRows = rows.filter((row) => {
+    const text = shareBasisText(row);
+    return /\b(?:ordinary|common|class\s+a|ADSs?|units?)\b/i.test(text) && !/\bpre[-\s]?funded\b/i.test(text);
+  });
+  const prefundedRows = rows.filter((row) => /\bpre[-\s]?funded\b/i.test(shareBasisText(row)));
+  return ordinaryRows.some((ordinaryRow) => {
+    const ordinaryValue = shareOverhangNumericValue(ordinaryRow);
+    if (!ordinaryValue) return false;
+    return prefundedRows.some((prefundedRow) => {
+      const prefundedValue = shareOverhangNumericValue(prefundedRow);
+      return Boolean(prefundedValue && Math.abs(ordinaryValue - prefundedValue) / Math.max(ordinaryValue, prefundedValue) <= 0.01);
+    });
+  });
+}
+
 function parseShareCount(value: string) {
   const match = value.match(/(\d[\d,]*(?:\.\d+)?)\s*(million|m|thousand|k)?/i);
   if (!match) return null;
@@ -777,6 +833,13 @@ function parseShareCount(value: string) {
   if (suffix === "million" || suffix === "m") return Math.round(base * 1_000_000);
   if (suffix === "thousand" || suffix === "k") return Math.round(base * 1_000);
   return Math.round(base);
+}
+
+function parsePercentValue(value: string) {
+  const match = value.match(/(-?\d[\d,]*(?:\.\d+)?)\s*%/);
+  if (!match) return null;
+  const parsed = Number(match[1].replace(/,/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function formatWholeShareCount(value: number) {

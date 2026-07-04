@@ -4191,7 +4191,6 @@ function computeVisibleShareOverhangScale(segments: ShareOverhangBarSegment[]) {
     .reduce((total, segment) => total + (segment.numericValue || 0), 0);
   const supplyValue = collapseAlternativeShareOverhangSegments(numericSegments)
     .filter((segment) => isIncludedSupplySegment(segment))
-    .filter((segment) => isCompatibleWithShareOverhangBasis(segment, basisSegment))
     .reduce((total, segment) => total + (segment.numericValue || 0), 0);
   if (currentValue <= 0 || supplyValue <= 0) return null;
 
@@ -4233,15 +4232,13 @@ function buildConditionalExerciseScaleRows(
 
   const includedSupply = collapseAlternativeShareOverhangSegments(numericSegments)
     .filter((segment) => isIncludedSupplySegment(segment))
-    .filter((segment) => isCompatibleWithShareOverhangBasis(segment, basisSegment))
     .reduce((total, segment) => total + (segment.numericValue || 0), 0);
   if (includedSupply <= 0) return [];
 
   const futureExerciseSegments = conditionalRows
     .filter(isFutureExerciseRow)
     .map(structuredRowToSegment)
-    .filter((segment) => typeof segment.numericValue === "number" && segment.numericValue > 0)
-    .filter((segment) => isCompatibleWithShareOverhangBasis(segment, basisSegment));
+    .filter((segment) => typeof segment.numericValue === "number" && segment.numericValue > 0);
   const futureExerciseSupply = futureExerciseSegments.reduce((total, segment) => total + (segment.numericValue || 0), 0);
   if (futureExerciseSupply <= 0) return [];
 
@@ -4293,26 +4290,6 @@ function collapseAlternativeShareOverhangSegments(segments: ShareOverhangBarSegm
   }
 
   return output;
-}
-
-function isCompatibleWithShareOverhangBasis(segment: ShareOverhangBarSegment, basisSegment: ShareOverhangBarSegment | null) {
-  if (!basisSegment) return true;
-  const basisUnit = normalizeShareOverhangBasisText(basisSegment.unit);
-  const segmentUnit = normalizeShareOverhangBasisText(segment.unit);
-  if (basisUnit && segmentUnit && basisUnit !== segmentUnit) return false;
-
-  const basisClass = normalizeShareOverhangBasisText(basisSegment.classBasis);
-  const segmentClass = normalizeShareOverhangBasisText(segment.classBasis);
-  if (basisClass && segmentClass && basisClass !== segmentClass) return false;
-
-  return true;
-}
-
-function normalizeShareOverhangBasisText(value: string | undefined) {
-  return cleanDisclosureValue(value || "")
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 function detectShareOverhangUnit(segments: ShareOverhangBarSegment[]) {
@@ -9011,17 +8988,14 @@ function readLlmShareOverhangStructuredRows(overhang: Record<string, unknown>) {
       candidateSegments.filter(
         (segment) =>
           segment.calculationRole === "denominator" ||
-          (isCountedInShareOverhangRatio(segment) && isCompatibleWithShareOverhangBasis(segment, basis)),
+          isCountedInShareOverhangRatio(segment),
       ),
     ),
   );
   const conditionalSupplyRows = rows
     .filter((row) => {
       if (row.calculationRole === "denominator") return false;
-      const segment = structuredRowToSegment(row);
-      return !(
-        isCountedInShareOverhangRatio(row) && isCompatibleWithShareOverhangBasis(segment, basis)
-      );
+      return !isCountedInShareOverhangRatio(row);
     })
     .slice(0, 8);
 
@@ -10726,9 +10700,8 @@ function CaseList({ title, items, tone }: { title: string; items: string[]; tone
 function ScoreBasisPanel({ filing }: { filing: FilingEvent }) {
   const explanation = filing.scoreExplanation;
   if (!explanation) return null;
-  const rationale = buildScoreBasisRationale(explanation);
-  if (!rationale) return null;
   const scoreSummary = buildScoreBasisHeadline(filing, explanation);
+  if (!scoreSummary) return null;
 
   return (
     <section className="stock-detail-card score-basis-card score-basis-card-main" id="score-rationale">
@@ -10738,9 +10711,6 @@ function ScoreBasisPanel({ filing }: { filing: FilingEvent }) {
           <b>{filing.signal}</b>
         </span>
         <span className="score-basis-summary">{scoreSummary}</span>
-      </div>
-      <div className="score-basis-content">
-        <p className="score-basis-rationale">{rationale}</p>
       </div>
     </section>
   );
@@ -10760,26 +10730,6 @@ function buildScoreBasisHeadline(filing: FilingEvent, explanation: FilingScoreEx
     if (compact) return compact;
   }
   return `${capitalizeLabel(filing.signal)} score driven by disclosed filing scale and terms.`;
-}
-
-function buildScoreBasisRationale(explanation: FilingScoreExplanation) {
-  const summary = firstCompactSentence(explanation.summary);
-  if (summary) return summary;
-  const fragments = Array.from(
-    new Set([
-      explanation.finalRead,
-      explanation.baseBand,
-      ...explanation.upwardFactors,
-      ...explanation.limitingFactors,
-    ]),
-  )
-    .map((item) => item.replace(/\s+/g, " ").trim())
-    .filter(Boolean);
-  return fragments
-    .map((item) => (/[.!?]$/.test(item) ? item : `${item}.`))
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 function firstCompactSentence(value: string | null | undefined) {

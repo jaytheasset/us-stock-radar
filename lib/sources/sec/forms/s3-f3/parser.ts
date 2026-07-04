@@ -929,6 +929,20 @@ function buildS3CleanedSourceBlocks(text: string): SecS3CleanedSourceBlock[] {
   });
 
   addS3SourceWindows(blocks, sourceText, {
+    blockType: "share_count_basis_context",
+    label: "Share count basis context",
+    patterns: [
+      /\bNumber\s+of\s+(?:Class\s+[A-Z]\s+)?(?:shares?|common\s+stock|ordinary\s+shares|ADSs?)\s+outstanding\s+(?:immediately\s+)?(?:before|prior\s+to|after)\s+(?:this|the)\s+(?:offering|transaction)\b/i,
+      /\b(?:Class\s+[A-Z]\s+)?(?:shares?|common\s+stock|ordinary\s+shares|ADSs?)\s+outstanding\s+(?:immediately\s+)?(?:before|prior\s+to|after|as\s+of)\s+(?:this|the)?\s*(?:offering|transaction|date)?\b/i,
+      /\b(?:issued\s+and\s+outstanding|shares?\s+outstanding|common\s+stock\s+outstanding|ordinary\s+shares\s+outstanding|ADSs?\s+outstanding)\b/i,
+    ],
+    limit: 3,
+    before: 700,
+    after: 2_200,
+    preferActive: false,
+  });
+
+  addS3SourceWindows(blocks, sourceText, {
     blockType: "prospectus_supplement_context",
     label: "Prospectus supplement context",
     patterns: [
