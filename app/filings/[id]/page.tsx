@@ -4177,7 +4177,9 @@ function computeVisibleShareOverhangScale(segments: ShareOverhangBarSegment[]) {
         ? segment.supplyNature === "base_shares"
         : segment.className === "current-base";
   const isIncludedSupplySegment = (segment: ShareOverhangBarSegment) =>
-    typeof segment.countedInRatio === "boolean"
+    segment.rowRole
+      ? segment.rowRole === "counted"
+      : typeof segment.countedInRatio === "boolean"
       ? segment.countedInRatio
       : segment.calculationRole
       ? segment.calculationRole === "headline_numerator"
@@ -4214,7 +4216,9 @@ function buildConditionalExerciseScaleRows(
         ? segment.supplyNature === "base_shares"
         : segment.className === "current-base";
   const isIncludedSupplySegment = (segment: ShareOverhangBarSegment) =>
-    typeof segment.countedInRatio === "boolean"
+    segment.rowRole
+      ? segment.rowRole === "counted"
+      : typeof segment.countedInRatio === "boolean"
       ? segment.countedInRatio
       : segment.calculationRole
       ? segment.calculationRole === "headline_numerator"
@@ -4222,6 +4226,7 @@ function buildConditionalExerciseScaleRows(
         ? ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(segment.supplyNature)
         : segment.className !== "current-base";
   const isFutureExerciseRow = (row: LlmShareOverhangFactRow) =>
+    row.rowRole === "conditional" ||
     row.supplyType === "future_exercise" ||
     (!row.supplyType && row.supplyNature === "conditional_future_supply") ||
     (!row.supplyType && row.calculationRole === "visible_excluded");
@@ -4788,11 +4793,14 @@ type ShareOverhangCalculationRole =
   | "visible_excluded"
   | "note_only";
 
+type ShareOverhangRowRole = "counted" | "conditional" | "alternative" | "reference";
+
 type ShareOverhangPoolRelationship = "alternative_max" | "additive";
 
 type LlmShareOverhangFactRow = {
   key?: string;
   className?: string;
+  rowRole?: ShareOverhangRowRole;
   supplyNature?: ShareOverhangSupplyNature;
   supplyType?: ShareOverhangSupplyType;
   countedInRatio?: boolean;
@@ -8936,6 +8944,7 @@ function readLlmShareOverhangRows(value: unknown): LlmShareOverhangModel["unavai
       return {
         key: readOverhangString(row, "key"),
         className: normalizeLlmShareOverhangSegmentClass(readOverhangString(row, "class_name", "className", "role") || label),
+        rowRole: normalizeShareOverhangRowRole(readOverhangString(row, "row_role", "rowRole")),
         supplyNature: normalizeShareOverhangSupplyNature(readOverhangString(row, "supply_nature", "supplyNature")),
         supplyType: normalizeShareOverhangSupplyType(readOverhangString(row, "supply_type", "supplyType")),
         countedInRatio: readOverhangBoolean(row, "counted_in_ratio", "countedInRatio"),
@@ -9027,6 +9036,7 @@ function structuredRowToSegment(row: LlmShareOverhangFactRow): ShareOverhangBarS
   return {
     key: row.key || `llm-share-overhang-row-${row.label}`,
     className: row.className || normalizeLlmShareOverhangSegmentClass(row.label),
+    rowRole: row.rowRole,
     supplyNature: row.supplyNature,
     supplyType: row.supplyType,
     countedInRatio: row.countedInRatio,
@@ -9043,10 +9053,10 @@ function structuredRowToSegment(row: LlmShareOverhangFactRow): ShareOverhangBarS
   };
 }
 
-function isCountedInShareOverhangRatio(row: { countedInRatio?: boolean; supplyNature?: string }) {
+function isCountedInShareOverhangRatio(row: { rowRole?: string; countedInRatio?: boolean; supplyNature?: string }) {
+  if (row.rowRole) return row.rowRole === "counted";
   if (typeof row.countedInRatio === "boolean") return row.countedInRatio;
   return (
-    row.supplyNature === "base_shares" ||
     row.supplyNature === "current_offering_supply" ||
     row.supplyNature === "registered_resale_supply" ||
     row.supplyNature === "common_equivalent_supply"
@@ -9077,6 +9087,7 @@ function segmentToConditionalSupplyRow(segment: ShareOverhangBarSegment): LlmSha
   return {
     key: segment.key,
     className: segment.className,
+    rowRole: normalizeShareOverhangRowRole(segment.rowRole || ""),
     supplyNature: normalizeShareOverhangSupplyNature(segment.supplyNature || ""),
     supplyType: normalizeShareOverhangSupplyType(segment.supplyType || ""),
     countedInRatio: segment.countedInRatio,
@@ -9101,6 +9112,7 @@ function readLlmShareOverhangSegments(value: unknown): ShareOverhangBarSegment[]
       return {
         key: readOverhangString(segment, "key") || `llm-share-overhang-${index}`,
         className: normalizeLlmShareOverhangSegmentClass(readOverhangString(segment, "class_name", "className", "role") || label),
+        rowRole: normalizeShareOverhangRowRole(readOverhangString(segment, "row_role", "rowRole")),
         supplyNature: normalizeShareOverhangSupplyNature(readOverhangString(segment, "supply_nature", "supplyNature")),
         supplyType: normalizeShareOverhangSupplyType(readOverhangString(segment, "supply_type", "supplyType")),
         countedInRatio: readOverhangBoolean(segment, "counted_in_ratio", "countedInRatio"),
@@ -9154,6 +9166,19 @@ function normalizeShareOverhangSupplyNature(value: string): ShareOverhangSupplyN
     normalized === "common_equivalent_supply" ||
     normalized === "conditional_future_supply" ||
     normalized === "replacement_supply"
+  ) {
+    return normalized;
+  }
+  return undefined;
+}
+
+function normalizeShareOverhangRowRole(value: string): ShareOverhangRowRole | undefined {
+  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (
+    normalized === "counted" ||
+    normalized === "conditional" ||
+    normalized === "alternative" ||
+    normalized === "reference"
   ) {
     return normalized;
   }

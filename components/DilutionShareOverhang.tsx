@@ -1,6 +1,7 @@
 export type DilutionShareOverhangBarSegment = {
   key: string;
   className: string;
+  rowRole?: string;
   supplyNature?: string;
   supplyType?: string;
   countedInRatio?: boolean;
@@ -32,6 +33,7 @@ type DilutionShareOverhangFactRow = {
   value: string;
   note?: string;
   tone?: "danger" | "neutral";
+  rowRole?: string;
   supplyNature?: string;
   supplyType?: string;
   countedInRatio?: boolean;
@@ -419,6 +421,49 @@ function formatConditionalSupplyLabel(row: DilutionShareOverhangFactRow) {
   return row.label;
 }
 
+function overhangSupplyRole(row: {
+  rowRole?: string;
+  countedInRatio?: boolean;
+  supplyType?: string;
+  supplyNature?: string;
+  roleBadge?: string;
+  roleKind?: "base" | "included" | "future" | "alternative" | "conditional" | "reference";
+}) {
+  if (row.roleBadge) return { kind: row.roleKind || "reference", badge: row.roleBadge };
+  switch (row.rowRole) {
+    case "counted":
+      return { kind: "included", badge: "Counted" };
+    case "conditional":
+      return { kind: "conditional", badge: "Conditional" };
+    case "alternative":
+      return { kind: "alternative", badge: "Alternative" };
+    case "reference":
+      return { kind: "reference", badge: "Reference" };
+  }
+  if (row.countedInRatio === true) return { kind: "included", badge: "Counted" };
+  if (row.countedInRatio === false) {
+    if (row.supplyType === "shelf_capacity") return { kind: "future", badge: "Future capacity" };
+    if (row.supplyType === "replacement_alternative") return { kind: "alternative", badge: "Alternative" };
+    if (row.supplyType === "future_exercise") return { kind: "conditional", badge: "Conditional" };
+    return { kind: "reference", badge: "Reference" };
+  }
+
+  switch (row.supplyNature) {
+    case "base_shares":
+      return { kind: "base", badge: "Baseline" };
+    case "current_offering_supply":
+    case "registered_resale_supply":
+    case "common_equivalent_supply":
+      return { kind: "included", badge: "Counted" };
+    case "replacement_supply":
+      return { kind: "alternative", badge: "Alternative" };
+    case "conditional_future_supply":
+      return { kind: "conditional", badge: "Conditional" };
+    default:
+      return { kind: "reference", badge: "Reference" };
+  }
+}
+
 function getDilutionDataDisclaimer(model: DilutionShareOverhangModel) {
   const isCapacityComparison = isCapacityScaleModel(model);
   const usesLatestMarketData = usesLatestMarketContext(model);
@@ -473,38 +518,6 @@ function usesLatestMarketContext(model: DilutionShareOverhangModel) {
   }
 
   return /\bmarket cap\b/i.test(displayText) && !/\b(?:public float|as of|filing[-\s]?date|stated in (?:this )?filing)\b/i.test(displayText);
-}
-
-function overhangSupplyRole(row: {
-  countedInRatio?: boolean;
-  supplyType?: string;
-  supplyNature?: string;
-  roleBadge?: string;
-  roleKind?: "base" | "included" | "future" | "alternative" | "conditional" | "reference";
-}) {
-  if (row.roleBadge) return { kind: row.roleKind || "reference", badge: row.roleBadge };
-  if (row.countedInRatio === true) return { kind: "included", badge: "Counted" };
-  if (row.countedInRatio === false) {
-    if (row.supplyType === "shelf_capacity") return { kind: "future", badge: "Future capacity" };
-    if (row.supplyType === "replacement_alternative") return { kind: "alternative", badge: "Alternative" };
-    if (row.supplyType === "future_exercise") return { kind: "conditional", badge: "Conditional" };
-    return { kind: "reference", badge: "Reference" };
-  }
-
-  switch (row.supplyNature) {
-    case "base_shares":
-      return { kind: "base", badge: "Baseline" };
-    case "current_offering_supply":
-    case "registered_resale_supply":
-    case "common_equivalent_supply":
-      return { kind: "included", badge: "Counted" };
-    case "replacement_supply":
-      return { kind: "alternative", badge: "Alternative" };
-    case "conditional_future_supply":
-      return { kind: "conditional", badge: "Conditional" };
-    default:
-      return { kind: "reference", badge: "Reference" };
-  }
 }
 
 function DilutionExtraDetailPanel({
