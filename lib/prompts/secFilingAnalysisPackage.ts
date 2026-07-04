@@ -935,21 +935,23 @@ function buildTextSections({
   let remaining = maxChars;
 
   const pushSection = (label: string, text: string, limit: number) => {
-    if (!remaining || !text.trim()) return;
+    if (!remaining || !text.trim()) return "";
     const budget = Math.max(0, Math.min(remaining, limit));
-    if (!budget) return;
+    if (!budget) return "";
     const cleaned = compactText(text);
     const truncated = cleaned.length > budget;
     const selected = truncated ? cleaned.slice(0, budget) : cleaned;
     sections.push({ label, text: selected.trim(), truncated });
     remaining -= selected.length;
+    return selected;
   };
 
-  pushSection("Primary Filing Text", bodyText, maxDocumentChars);
+  const includedPrimaryText = pushSection("Primary Filing Text", bodyText, maxDocumentChars);
+  pushSection("Instrument Term Excerpts", buildInstrumentTermExcerpts(attachmentTexts), Math.min(12_000, maxDocumentChars));
 
   for (const attachment of attachmentTexts) {
     if (remaining < 1_000) break;
-    if (isAttachmentAlreadyIncluded(bodyText, stringValue(attachment.text))) continue;
+    if (isAttachmentAlreadyIncluded(includedPrimaryText, stringValue(attachment.text))) continue;
     const type = nullableString(attachment.type) || "Exhibit";
     const description = nullableString(attachment.description);
     const label = description ? `${type} - ${description}` : type;
@@ -957,6 +959,92 @@ function buildTextSections({
   }
 
   return sections;
+}
+
+function buildInstrumentTermExcerpts(attachmentTexts: AttachmentTextPayload[]) {
+  const excerpts: string[] = [];
+  const seen = new Set<string>();
+  const priorityPattern =
+    /\b(?:aggregate exercise price|remaining unpaid exercise price|exercise price[^.\n]{0,220}?\$[0-9]|conversion price[^.\n]{0,220}?\$[0-9]|floor price[^.\n]{0,220}?\$[0-9])\b/gi;
+  const triggerPattern =
+    /\b(?:exercise price|remaining unpaid exercise price|conversion price|floor price|reset|cashless exercise|beneficial ownership|ownership limitation|termination date|expiration date|term of warrant)\b/gi;
+
+  for (const attachment of attachmentTexts) {
+    const text = compactText(stringValue(attachment.text));
+    if (!text) continue;
+    const labelParts = [nullableString(attachment.type), nullableString(attachment.description)].filter(Boolean);
+    const label = labelParts.length ? labelParts.join(" - ") : "Exhibit";
+    const lowerLabel = label.toLowerCase();
+    if (!/\b(?:ex-4|ex-10|warrant|convertible|preferred|right|unit|note)\b/i.test(`${lowerLabel} ${text.slice(0, 1500)}`)) {
+      continue;
+    }
+
+    const heading = extractInstrumentHeading(text);
+    addInstrumentTermSnippetMatches({
+      text,
+      pattern: priorityPattern,
+      heading,
+      label,
+      seen,
+      excerpts,
+      maxMatches: 3,
+    });
+
+    triggerPattern.lastIndex = 0;
+    addInstrumentTermSnippetMatches({
+      text,
+      pattern: triggerPattern,
+      heading,
+      label,
+      seen,
+      excerpts,
+      maxMatches: 5,
+    });
+    if (excerpts.join("\n\n").length > 12_000) return excerpts.join("\n\n").slice(0, 12_000);
+  }
+
+  return excerpts.join("\n\n");
+}
+
+function addInstrumentTermSnippetMatches({
+  text,
+  pattern,
+  heading,
+  label,
+  seen,
+  excerpts,
+  maxMatches,
+}: {
+  text: string;
+  pattern: RegExp;
+  heading: string;
+  label: string;
+  seen: Set<string>;
+  excerpts: string[];
+  maxMatches: number;
+}) {
+  pattern.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let matched = 0;
+  while ((match = pattern.exec(text)) && matched < maxMatches) {
+    const start = Math.max(0, match.index - 1800);
+    const end = Math.min(text.length, match.index + 900);
+    const snippet = compactText([heading, text.slice(start, end)].filter(Boolean).join("\n"));
+    const key = snippet.toLowerCase().slice(0, 500);
+    if (snippet.length < 120 || seen.has(key)) continue;
+    seen.add(key);
+    excerpts.push(`### ${label}\n${snippet}`);
+    matched += 1;
+  }
+}
+
+function extractInstrumentHeading(text: string) {
+  const source = compactText(text.slice(0, 4_000));
+  const headingMatch = source.match(
+    /\b(?:PRE[-\s]?FUNDED\s+)?(?:COMMON\s+|PLACEMENT\s+AGENT\s+|SERIES\s+[A-Z]\s+)?(?:WARRANT|NOTE|PREFERRED\s+STOCK|SUBSCRIPTION\s+RIGHT|UNIT)[\s\S]{0,450}?(?:AKARI|THERAPEUTICS|INC\.|PLC|LTD\.|CORP\.|COMPANY|Warrant No\.|Issuance Date:)/i,
+  );
+  if (headingMatch?.[0]) return compactText(headingMatch[0]).slice(0, 700);
+  return compactText(source.slice(0, 700));
 }
 
 function isAttachmentAlreadyIncluded(bodyText: string, attachmentText: string) {
