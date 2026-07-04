@@ -523,6 +523,49 @@ function parseS1F1ShareCount(value: string) {
   return Math.round(base);
 }
 
+function s1F1ShareOverhangNumericValue(record: Record<string, unknown>) {
+  return (
+    numberValue(record.numeric_value) ??
+    numberValue(record.numericValue) ??
+    numberValue(record.amount) ??
+    numberValue(record.share_count) ??
+    numberValue(record.shareCount) ??
+    parseS1F1ShareCount([stringValue(record.value), stringValue(record.value_text), stringValue(record.valueText)].filter(Boolean).join(" "))
+  );
+}
+
+function s1F1ShareOverhangRowText(record: Record<string, unknown>) {
+  return [
+    record.label,
+    record.value,
+    record.note,
+    record.unit,
+    record.class_basis,
+    record.classBasis,
+    record.supply_type,
+    record.supplyType,
+  ]
+    .map((value) => stringValue(value))
+    .filter(Boolean)
+    .join(" ");
+}
+
+function hasDuplicateS1F1OrdinaryPrefundedCountedRows(rows: Record<string, unknown>[]) {
+  const ordinaryRows = rows.filter((row) => {
+    const text = s1F1ShareOverhangRowText(row);
+    return /\b(?:ordinary|common|class\s+a|ADSs?|units?)\b/i.test(text) && !/\bpre[-\s]?funded\b/i.test(text);
+  });
+  const prefundedRows = rows.filter((row) => /\bpre[-\s]?funded\b/i.test(s1F1ShareOverhangRowText(row)));
+  return ordinaryRows.some((ordinaryRow) => {
+    const ordinaryValue = s1F1ShareOverhangNumericValue(ordinaryRow);
+    if (!ordinaryValue) return false;
+    return prefundedRows.some((prefundedRow) => {
+      const prefundedValue = s1F1ShareOverhangNumericValue(prefundedRow);
+      return Boolean(prefundedValue && Math.abs(ordinaryValue - prefundedValue) / Math.max(ordinaryValue, prefundedValue) <= 0.01);
+    });
+  });
+}
+
 function normalizeShareOverhangUnitForWarning(value: string) {
   const normalized = value
     .toLowerCase()
@@ -588,6 +631,18 @@ function collectS1F1WarrantShareOverhangWarnings(
   if (aggregateFutureRows.length && futureExerciseRows.length > aggregateFutureRows.length) {
     warnings.push(
       "S-1/F-1 display_payload.data.share_overhang includes an aggregate all-warrants future_exercise row alongside component future_exercise rows; omit the overlapping aggregate row.",
+    );
+  }
+
+  const includedRows = rows.filter((row) => {
+    const rowRole = s1F1ShareOverhangRowRole(row);
+    if (rowRole) return rowRole === "counted";
+    const countedInRatio = booleanValue(row.counted_in_ratio ?? row.countedInRatio);
+    return countedInRatio === true;
+  });
+  if (hasDuplicateS1F1OrdinaryPrefundedCountedRows(includedRows)) {
+    warnings.push(
+      "S-1/F-1 share_overhang appears to count ordinary/unit supply and pre-funded replacement supply with the same numeric_value; use one ordinary-or-pre-funded current offering pool row or mark the replacement row row_role alternative.",
     );
   }
 
