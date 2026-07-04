@@ -551,7 +551,9 @@ const secS3RequiredOutputSystemPrompt = [
   "When source blocks include warrant, pre-funded warrant, convertible, preferred, right, or unit forms or exhibits, use those instrument forms for exercise price, conversion price, reset/floor, term, and ownership limits when the prospectus summary omits or compresses the terms.",
   "For Exercise / Conversion Price, if the filing does not provide a final executable price, start the value with Not fixed yet and add any source-backed floor or formula compactly after it; do not copy unfinished price fields, bracketed blanks, or template symbols.",
   "For any warrant, do not use the private-placement purchase price, ADS/unit purchase price, combined security-and-warrant price, or registration value as Exercise / Conversion Price unless the same source sentence states it is the exercise price. If only a purchase price is disclosed, write Not stated or omit the price row.",
+  "For instrument_details, a warrant form or exhibit sentence that expressly labels a value as the warrant exercise price controls over prospectus-summary purchase-price language for ADSs, units, or accompanying warrants.",
   "For pre-funded warrants, Exercise / Conversion Price means the remaining nominal exercise price required to exercise the pre-funded warrant. Do not use a private-placement purchase price, combined ADS/unit price, or price per ADS and accompanying warrants as the pre-funded warrant exercise price.",
+  "Do not apply a common warrant, series warrant, ADS/unit purchase price, or bundled purchase price to a Pre-funded warrant row. Use only the pre-funded warrant form's remaining unpaid exercise price when source-backed.",
   "When a pre-funded warrant source states an exact remaining nominal exercise price, write that exact price, such as $0.001 per ADS, instead of a generic value like Nominal.",
   "Never write Nominal by itself as an Exercise / Conversion Price value. Use the exact source-backed nominal price when available; otherwise use Not fixed yet or omit the row if the source truly does not disclose a price.",
   "For common warrants or convertibles included as future overhang, Term / Limits or Reset / Floor should make the conditional nature visible, such as Out of the money, Near current price, In the money, Variable conversion, No floor stated, or Floor price $X.",
@@ -601,11 +603,13 @@ function buildSecS3OfferingPromptInput(input: SecFilingAnalysisInput) {
   const hardParsers = readRecord(filingPackage.hard_parsers) || {};
   const routerEvidence = readRecord(filingPackage.router_evidence) || {};
   const s3Evidence = readRecord(routerEvidence.s3) || {};
+  const llmText = stringValue(filingPackage.llm_text);
+  const instrumentTermExcerpts = extractPromptSection(llmText, "Instrument Term Excerpts", 12_000);
   const routerExcerpt = stringValue(s3Evidence.router_excerpt) || trimForPrompt(stringValue(filingPackage.llm_text), 18_000);
   const marketContext = readRecord(filingPackage.market_context);
   const sourceBlocks = buildSecSourceBlockPromptInput({
     filingPackage,
-    parserOutput: buildS3ParserPromptOutput(filingPackage, s3Evidence, hardParsers),
+    parserOutput: buildS3ParserPromptOutput(filingPackage, s3Evidence, hardParsers, instrumentTermExcerpts),
     fallbackText: routerExcerpt,
     marketContext,
     parentFilingContext: readRecord(filingPackage.parent_registration_context),
@@ -643,14 +647,18 @@ function buildSecS3OfferingPromptInput(input: SecFilingAnalysisInput) {
           important_tables: readRecord(s3Evidence.important_tables) || null,
           component_candidates: readRecord(s3Evidence.component_candidates) || null,
           source_documents: Array.isArray(s3Evidence.source_documents) ? s3Evidence.source_documents : [],
-          router_excerpt: routerExcerpt,
+          router_excerpt: instrumentTermExcerpts
+            ? `${routerExcerpt}\n\n### Instrument Term Excerpts\n${instrumentTermExcerpts}`
+            : routerExcerpt,
         },
       },
       parent_registration_context: filingPackage.parent_registration_context || null,
       s3_amendment_triage: readRecord(filingPackage.s3_amendment_triage) || null,
       market_context: marketContext,
       dilution_metrics: filingPackage.dilution_metrics || null,
-      llm_text: routerExcerpt,
+      llm_text: instrumentTermExcerpts
+        ? `${routerExcerpt}\n\n### Instrument Term Excerpts\n${instrumentTermExcerpts}`
+        : routerExcerpt,
       package_stats: filingPackage.package_stats || null,
     },
   };
@@ -660,8 +668,19 @@ function buildS3ParserPromptOutput(
   filingPackage: Record<string, unknown>,
   s3Evidence: Record<string, unknown>,
   hardParsers: Record<string, unknown>,
+  instrumentTermExcerpts = "",
 ) {
   const hardS3 = readRecord(hardParsers.s3) || {};
+  const cleanedSourceBlocks = Array.isArray(hardS3.cleaned_source_blocks) ? [...hardS3.cleaned_source_blocks] : [];
+  if (instrumentTermExcerpts) {
+    cleanedSourceBlocks.push({
+      block_type: "instrument_term_excerpts",
+      label: "Instrument Term Excerpts",
+      source: "filing_package.llm_text",
+      text: instrumentTermExcerpts,
+    });
+  }
+
   return {
     parserVersion: stringValue(hardS3.parser_version) || "sec_s3_parser_v1",
     parserGroup: "s3",
@@ -678,7 +697,7 @@ function buildS3ParserPromptOutput(
     calendarItems: [],
     warnings: [],
     raw: {
-      cleaned_source_blocks: Array.isArray(hardS3.cleaned_source_blocks) ? hardS3.cleaned_source_blocks : [],
+      cleaned_source_blocks: cleanedSourceBlocks,
       important_sections: Array.isArray(s3Evidence.important_sections) ? s3Evidence.important_sections : [],
       important_tables: readRecord(s3Evidence.important_tables) || null,
       component_candidates: readRecord(s3Evidence.component_candidates) || null,
@@ -686,6 +705,17 @@ function buildS3ParserPromptOutput(
       source_excerpt: stringValue(s3Evidence.router_excerpt),
     },
   };
+}
+
+function extractPromptSection(value: string, label: string, max: number) {
+  const normalized = value.replace(/\s+\n/g, "\n").replace(/\n{4,}/g, "\n\n\n").trim();
+  const marker = `### ${label}`;
+  const start = normalized.indexOf(marker);
+  if (start < 0) return "";
+  const bodyStart = start + marker.length;
+  const nextSection = normalized.indexOf("\n### ", bodyStart);
+  const body = (nextSection >= 0 ? normalized.slice(bodyStart, nextSection) : normalized.slice(bodyStart)).trim();
+  return trimForPrompt(body, max);
 }
 
 function trimForPrompt(value: string, max: number) {

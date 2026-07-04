@@ -965,7 +965,7 @@ function buildInstrumentTermExcerpts(attachmentTexts: AttachmentTextPayload[]) {
   const excerpts: string[] = [];
   const seen = new Set<string>();
   const priorityPattern =
-    /\b(?:aggregate exercise price|remaining unpaid exercise price|exercise price[^.\n]{0,220}?\$[0-9]|conversion price[^.\n]{0,220}?\$[0-9]|floor price[^.\n]{0,220}?\$[0-9])\b/gi;
+    /\b(?:aggregate exercise price|remaining unpaid exercise price|exercise price[\s\S]{0,360}?\$[0-9]|conversion price[\s\S]{0,360}?\$[0-9]|floor price[\s\S]{0,360}?\$[0-9])\b/gi;
   const triggerPattern =
     /\b(?:exercise price|remaining unpaid exercise price|conversion price|floor price|reset|cashless exercise|beneficial ownership|ownership limitation|termination date|expiration date|term of warrant)\b/gi;
 
@@ -987,7 +987,7 @@ function buildInstrumentTermExcerpts(attachmentTexts: AttachmentTextPayload[]) {
       label,
       seen,
       excerpts,
-      maxMatches: 3,
+      maxMatches: 1,
     });
 
     triggerPattern.lastIndex = 0;
@@ -998,7 +998,7 @@ function buildInstrumentTermExcerpts(attachmentTexts: AttachmentTextPayload[]) {
       label,
       seen,
       excerpts,
-      maxMatches: 5,
+      maxMatches: 1,
     });
     if (excerpts.join("\n\n").length > 12_000) return excerpts.join("\n\n").slice(0, 12_000);
   }
@@ -1027,13 +1027,13 @@ function addInstrumentTermSnippetMatches({
   let match: RegExpExecArray | null;
   let matched = 0;
   while ((match = pattern.exec(text)) && matched < maxMatches) {
-    const start = Math.max(0, match.index - 1800);
-    const end = Math.min(text.length, match.index + 900);
+    const start = Math.max(0, match.index - 700);
+    const end = Math.min(text.length, match.index + 700);
     const snippet = compactText([heading, text.slice(start, end)].filter(Boolean).join("\n"));
     const key = snippet.toLowerCase().slice(0, 500);
     if (snippet.length < 120 || seen.has(key)) continue;
     seen.add(key);
-    excerpts.push(`### ${label}\n${snippet}`);
+    excerpts.push(`#### ${label}\n${snippet}`);
     matched += 1;
   }
 }
