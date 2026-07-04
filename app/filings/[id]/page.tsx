@@ -6605,7 +6605,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     ? /\bpre[-\s]?funded warrants?\b/i.test(displayPayloadSearchText)
     : /\bpre[-\s]?funded warrants?\b/i.test(classificationText);
   const hasDisplayWarrants =
-    hasDisplayWarrantSupplySegment(llmDisplayModel) || hasDisplayWarrantSupplySegment(displayPayloadData);
+    hasVisibleWarrantDisplay(llmDisplayModel) || hasVisibleWarrantDisplay(displayPayloadData);
   const hasWarrants = isAuthoritative424bMode
     ? hasDisplayWarrants
     : /\bwarrant/i.test(classificationText);
@@ -6653,8 +6653,8 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
   const salesAgent = isResale ? "" : findSalesAgent(fallbackSourceText);
   const dbPoolBreakdown = allowDisplayFallbacks ? buildDbOfferingPoolBreakdown(offeringTerms, { isResale }) : [];
   const sourceBackedPoolBreakdown = allowDisplayFallbacks ? buildRegisteredPoolBreakdown(sourceText) : [];
-  const llmPoolBreakdown = buildLlmPoolBreakdown(llmDisplayModel, { isResale });
-  const payloadPoolBreakdown = buildLlmPoolBreakdown(displayPayloadData, { isResale });
+  const llmPoolBreakdown = allowDisplayFallbacks ? buildLlmPoolBreakdown(llmDisplayModel, { isResale }) : [];
+  const payloadPoolBreakdown = allowDisplayFallbacks ? buildLlmPoolBreakdown(displayPayloadData, { isResale }) : [];
   const poolBreakdown = payloadPoolBreakdown.length
     ? payloadPoolBreakdown
     : llmPoolBreakdown.length
@@ -8326,23 +8326,21 @@ function formatLlmPoolSegmentLabel(segment: Record<string, unknown>, options: { 
   return label || "Other registered shares";
 }
 
-function hasDisplayWarrantSupplySegment(model: Record<string, unknown> | null) {
-  return recordArray(model?.supply_segments).some((segment) => {
-    const price = readPlainRecord(segment.price);
-    const text = [
-      readRowString(segment, "instrument_type"),
-      readRowString(segment, "label"),
-      readRowString(segment, "type"),
-      readRowString(segment, "security_type"),
-      readRowString(segment, "timing_or_condition"),
-      readRowString(segment, "evidence"),
-      readRowString(price, "value_text"),
-    ]
-      .join(" ")
-      .toLowerCase();
+function hasVisibleWarrantDisplay(model: Record<string, unknown> | null) {
+  const shareOverhang = readPlainRecord(model?.share_overhang);
+  const shareOverhangText = [
+    readRowString(shareOverhang, "chart_title"),
+    readRowString(shareOverhang, "subtitle"),
+    ...recordArray(shareOverhang?.rows).flatMap((row) => [
+      readRowString(row, "label"),
+      readRowString(row, "value"),
+      readRowString(row, "note"),
+      readRowString(row, "supply_type"),
+    ]),
+  ].join(" ");
+  if (/\bwarrants?\b/i.test(shareOverhangText)) return true;
 
-    return /\bwarrants?\b/.test(text);
-  });
+  return readRawWarrantDetailRows(model).some((row) => /\bwarrants?\b/i.test(`${row.label} ${row.value}`));
 }
 
 function readDisplayFactValue(model: Record<string, unknown> | null, key: string) {
@@ -8512,20 +8510,6 @@ function collectSnapshotStatusContext(
       readRowString(fact, "evidence"),
       ...readDisplayStringArray(model, "source_notes"),
     );
-    for (const segment of recordArray(model.supply_segments)) {
-      const shares = readPlainRecord(segment.shares);
-      const price = readPlainRecord(segment.price);
-      pieces.push(
-        readRowString(segment, "label"),
-        readRowString(segment, "instrument_type"),
-        readRowString(segment, "timing_or_condition"),
-        readRowString(segment, "evidence"),
-        readRowString(shares, "value_text"),
-        readRowString(shares, "evidence"),
-        readRowString(price, "value_text"),
-        readRowString(price, "evidence"),
-      );
-    }
   }
   return pieces.filter(Boolean).join(" ");
 }
@@ -9785,15 +9769,7 @@ function readDisplayInstrumentPriceSummary(model: Record<string, unknown> | null
   if (selectedGroup?.price) return selectedGroup.price;
 
   const firstDetailPrice = detailPriceGroups.find((group) => group.price)?.price;
-  if (firstDetailPrice) {
-    return firstDetailPrice;
-  }
-
-  const segmentPrices = recordArray(model?.supply_segments)
-    .map((segment) => compactInstrumentPriceValue(readDisplayFactRecordValue(readPlainRecord(segment.price))))
-    .filter(Boolean);
-
-  return Array.from(new Set(segmentPrices)).slice(0, 2).join("; ");
+  return firstDetailPrice || "";
 }
 
 function buildSnapshotInstrumentPriceMetric({
@@ -9896,16 +9872,6 @@ function readDisplayInstrumentPriceByType(model: Record<string, unknown> | null,
     if (/^(?:Exercise \/ Conversion Price|Exercise Price|Conversion Price)$/i.test(row.label) && typePattern.test(currentType)) {
       return compactInstrumentPriceValue(row.value);
     }
-  }
-
-  for (const segment of recordArray(model?.supply_segments)) {
-    const text = [
-      readRowString(segment, "label"),
-      readRowString(segment, "instrument_type"),
-      readDisplayFactRecordValue(readPlainRecord(segment.shares)),
-    ].join(" ");
-    const price = readDisplayFactRecordValue(readPlainRecord(segment.price));
-    if (price && typePattern.test(text)) return compactInstrumentPriceValue(price);
   }
 
   return "";
@@ -11519,28 +11485,6 @@ function readDisplayOfferingPrice(data: Record<string, unknown> | null) {
     readDisclosureValue(data.offerPrice) ||
     readDisclosureValue(data.offeringPrice);
   if (directPrice) return directPrice;
-
-  for (const segment of recordArray(data.supply_segments)) {
-    const instrumentType = readRowString(segment, "instrument_type").toLowerCase();
-    const label = readRowString(segment, "label");
-    const isShareSale =
-      /^(?:common|ordinary|ads|unit|share|stock)$/.test(instrumentType) ||
-      /\b(?:common|ordinary|ads|shares?|stock|units?)\b/i.test(label);
-    const isDerivativeOnly = /\b(?:warrant|convertible|conversion|right)\b/i.test(`${instrumentType} ${label}`);
-    if (!isShareSale || isDerivativeOnly) continue;
-
-    const price = readPlainRecord(segment.price);
-    const valueText =
-      readRowString(price, "value_text") ||
-      readRowString(price, "valueText") ||
-      readRowString(price, "text") ||
-      readRowString(price, "value");
-    if (valueText) return valueText;
-
-    const numericValue = readRowNumber(price, "numeric_value") || readRowNumber(price, "numericValue");
-    if (numericValue > 0) return `$${numericValue}`;
-  }
-
   return "";
 }
 
