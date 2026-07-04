@@ -4,6 +4,12 @@ import { build424bAnalysisPrompt, type Sec424bAnalysisPromptVariant } from "@/li
 import { APPROVED_424B_EVENT_TYPES } from "@/lib/sources/sec/forms/424b/types";
 import type { Sec424bParserOutput } from "@/lib/sources/sec/forms/424b/types";
 import { collectSecOfferingMarketContextWarnings } from "@/lib/secOfferingMarketContext";
+import {
+  looseObjectSchema,
+  offeringDisplayRowSchema,
+  scoreExplanationSchema,
+  shareOverhangSchema,
+} from "@/lib/ai/secOfferingOutputSchemas";
 
 export const SEC_424B_ANALYSIS_PROMPT_KEY = "sec_424b_analysis";
 export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v20";
@@ -33,26 +39,6 @@ export const APPROVED_424B_SHARE_OVERHANG_CHART_TITLES = [
   "Rights Offering",
   "ATM Program",
   "Shelf Details",
-] as const;
-
-const SHARE_OVERHANG_TOTAL_NOTE_TITLE_VALUES = [
-  "Dilution vs Current Shares",
-  "Overhang vs Current Shares",
-  "Registered Resale Overhang",
-  "Total Potential Dilution",
-  "Total Potential Overhang",
-  "ATM Capacity Scale",
-  "Shelf Capacity Scale",
-  "Capacity vs Market Cap",
-  "Capacity vs Market Value",
-  "Capacity vs Public Float",
-  "Warrant Share Supply",
-  "Convertible Share Supply",
-  "Preferred Conversion Supply",
-  "Pre-Funded Warrant Supply",
-  "Share-Equivalent Supply",
-  "Rights Offering Dilution",
-  "Marketed Block Scale",
 ] as const;
 
 export type Sec424bAnalysisAdapterResult =
@@ -1449,10 +1435,9 @@ function shareBasisText(record: Record<string, unknown> | null) {
     .join(" ");
 }
 
-// Shared required-output schema for SEC offering_terms analyses.
-// Current callers: 424B and S3/F3 main offering flows. The name is historical;
-// if this stabilizes, move it to a neutral secOfferingRequiredOutputSchema file.
-// S1/F1 stays separate because it also covers IPO/listing-specific display modes.
+// Required-output schema for 424B and S3/F3 main offering flows.
+// Shared offering sub-schemas live in secOfferingOutputSchemas so S1/F1 can reuse
+// common UI blocks while keeping its IPO/listing-specific output schema separate.
 export const sec424bRequiredOutputSchema = {
   type: "object",
   additionalProperties: true,
@@ -1488,47 +1473,7 @@ export const sec424bRequiredOutputSchema = {
               maxItems: 4,
               items: offeringDisplayRowSchema(40, 80, 80),
             },
-            share_overhang: {
-              type: "object",
-              additionalProperties: true,
-              required: ["chart_title", "rows"],
-              properties: {
-                chart_title: { type: "string", maxLength: 48 },
-                subtitle: { type: ["string", "null"], maxLength: 90 },
-                status_label: { type: ["string", "null"], maxLength: 48 },
-                status_value: { type: ["string", "null"], maxLength: 48 },
-                caption: { type: ["string", "null"], maxLength: 72 },
-                ratio_label: { type: ["string", "null"], maxLength: 56 },
-                ratio_value: { type: ["string", "null"], maxLength: 48 },
-                current_label: { type: ["string", "null"], maxLength: 56 },
-                current_value: { type: ["string", "null"], maxLength: 64 },
-                supply_label: { type: ["string", "null"], maxLength: 56 },
-                supply_value: { type: ["string", "null"], maxLength: 64 },
-                total_note: {
-                  type: "object",
-                  additionalProperties: true,
-                  properties: {
-                    title: { type: "string", enum: SHARE_OVERHANG_TOTAL_NOTE_TITLE_VALUES },
-                    numerator: { type: "string", maxLength: 40 },
-                    denominator: { type: "string", maxLength: 40 },
-                    ratio: { type: "string", maxLength: 24 },
-                    suffix: { type: "string", maxLength: 80 },
-                  },
-                },
-                basis: shareOverhangBasisSchema(),
-                rows: {
-                  type: "array",
-                  maxItems: 7,
-                  items: shareOverhangRowSchema(),
-                },
-                conditional_supply: {
-                  type: "array",
-                  maxItems: 7,
-                  items: looseObjectSchema(),
-                },
-                note: { type: ["string", "null"], maxLength: 160 },
-              },
-            },
+            share_overhang: shareOverhangSchema({ includeLegacyConditionalSupply: true }),
             investor_takeaway: { type: "string", maxLength: 180 },
             narrative_summary: { type: ["string", "null"], maxLength: 800 },
             offering_details: {
@@ -1596,31 +1541,7 @@ export const sec424bRequiredOutputSchema = {
         sub_theme: { type: ["string", "null"] },
         score: { type: "integer", minimum: 0, maximum: 100 },
         score_reason: { type: "string", maxLength: 140 },
-        score_explanation: {
-          type: ["object", "null"],
-          additionalProperties: false,
-          required: ["summary", "base_band", "upward_factors", "limiting_factors", "final_read"],
-          properties: {
-            summary: {
-              type: ["string", "null"],
-              maxLength: 180,
-              description:
-                "Visible investor score rationale. One plain-language sentence. Start with the score driver, not issuer name, ticker, form type, or filing action. Do not restate the filing summary.",
-            },
-            base_band: { type: ["string", "null"], maxLength: 80 },
-            upward_factors: {
-              type: "array",
-              maxItems: 3,
-              items: { type: "string", maxLength: 70 },
-            },
-            limiting_factors: {
-              type: "array",
-              maxItems: 3,
-              items: { type: "string", maxLength: 70 },
-            },
-            final_read: { type: ["string", "null"], maxLength: 90 },
-          },
-        },
+        score_explanation: scoreExplanationSchema(),
         signal: { type: "string", enum: ["bullish", "bearish", "volatile", "neutral"] },
         quick_take: { type: "string", maxLength: 260 },
         summary: { type: "string", maxLength: 800 },
@@ -1633,63 +1554,6 @@ export const sec424bRequiredOutputSchema = {
     },
   },
 };
-
-function looseObjectSchema() {
-  return {
-    type: "object",
-    additionalProperties: true,
-  };
-}
-
-function offeringDisplayRowSchema(labelMaxLength: number, valueMaxLength: number, noteMaxLength: number) {
-  return {
-    type: "object",
-    additionalProperties: true,
-    required: ["label", "value"],
-    properties: {
-      label: { type: "string", maxLength: labelMaxLength },
-      value: { type: "string", maxLength: valueMaxLength },
-      ...(noteMaxLength > 0 ? { note: { type: "string", maxLength: noteMaxLength } } : {}),
-    },
-  };
-}
-
-function shareOverhangBasisSchema() {
-  return {
-    type: "object",
-    additionalProperties: true,
-    required: ["label", "value", "numeric_value", "unit"],
-    properties: {
-      label: { type: "string", maxLength: 80 },
-      value: { type: "string", maxLength: 90 },
-      numeric_value: { type: ["number", "null"] },
-      unit: { type: ["string", "null"], maxLength: 20 },
-      class_basis: { type: ["string", "null"], maxLength: 80 },
-      note: { type: ["string", "null"], maxLength: 80 },
-    },
-  };
-}
-
-function shareOverhangRowSchema() {
-  return {
-    type: "object",
-    additionalProperties: true,
-    required: ["row_role", "label", "value", "numeric_value", "unit"],
-    properties: {
-      row_role: { type: "string", enum: ["counted", "conditional", "alternative", "reference"] },
-      counted_in_ratio: { type: ["boolean", "null"] },
-      supply_type: { type: ["string", "null"], maxLength: 40 },
-      label: { type: "string", maxLength: 80 },
-      value: { type: "string", maxLength: 90 },
-      numeric_value: { type: ["number", "null"] },
-      unit: { type: ["string", "null"], maxLength: 20 },
-      class_basis: { type: ["string", "null"], maxLength: 80 },
-      pool_id: { type: ["string", "null"], maxLength: 80 },
-      pool_relationship: { type: ["string", "null"], enum: ["alternative_max", "additive", null] },
-      note: { type: ["string", "null"], maxLength: 80 },
-    },
-  };
-}
 
 function keyCashTermFactSchema() {
   return {

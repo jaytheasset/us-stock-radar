@@ -4,6 +4,11 @@ import { buildS1F1AnalysisPrompt } from "@/lib/sources/sec/forms/s1-f1/analysisP
 import { APPROVED_SEC_EVENT_TYPES, type S1F1ParserOutput } from "@/lib/sources/sec/forms/s1-f1/types";
 import { normalize424bOfferingDisplayModel } from "@/lib/ai/sec424bAnalysisAdapter";
 import { collectSecOfferingMarketContextWarnings } from "@/lib/secOfferingMarketContext";
+import {
+  offeringDisplayRowSchema,
+  scoreExplanationSchema,
+  shareOverhangSchema,
+} from "@/lib/ai/secOfferingOutputSchemas";
 
 export const SEC_S1_F1_ANALYSIS_PROMPT_KEY = "sec_s1_f1_analysis";
 export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v18-atm-shelf-last-sale-value";
@@ -1167,122 +1172,21 @@ export const secS1F1RequiredOutputSchema = {
             risk_label: { type: ["string", "null"] },
             snapshot_metrics: {
               type: "array",
-              items: {
-                type: "object",
-                additionalProperties: true,
-                required: ["label", "value"],
-                properties: {
-                  label: { type: "string" },
-                  value: { type: "string" },
-                  note: { type: ["string", "null"] },
-                  tone: { type: ["string", "null"] },
-                  emphasis: { type: ["boolean", "null"] },
-                },
-              },
+              items: offeringDisplayRowSchema(40, 80, 80),
             },
-            share_overhang: {
-              type: "object",
-              additionalProperties: true,
-              required: [
-                "chart_title",
-                "status_label",
-                "status_value",
-                "basis",
-                "rows",
-              ],
-              properties: {
-                chart_title: { type: "string" },
-                subtitle: { type: "string" },
-                status_label: { type: "string" },
-                status_value: { type: "string" },
-                caption: { type: "string" },
-                ratio_label: { type: "string" },
-                ratio_value: { type: "string" },
-                total_note: {
-                  type: "object",
-                  additionalProperties: true,
-                  properties: {
-                    title: { type: "string" },
-                    numerator: { type: "string" },
-                    denominator: { type: "string" },
-                    ratio: { type: "string" },
-                    suffix: { type: "string" },
-                  },
-                },
-                basis: {
-                  type: "object",
-                  additionalProperties: true,
-                  required: ["label", "value", "numeric_value", "unit"],
-                  properties: {
-                    label: { type: "string" },
-                    value: { type: "string" },
-                    numeric_value: { type: ["number", "null"] },
-                    unit: { type: "string" },
-                    class_basis: { type: ["string", "null"] },
-                    note: { type: ["string", "null"] },
-                  },
-                },
-                rows: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    additionalProperties: true,
-                    required: ["row_role", "label", "value", "numeric_value", "unit"],
-                    properties: {
-                      row_role: { type: "string", enum: ["counted", "conditional", "alternative", "reference"] },
-                      counted_in_ratio: { type: ["boolean", "null"] },
-                      supply_type: { type: ["string", "null"] },
-                      label: { type: "string" },
-                      value: { type: "string" },
-                      numeric_value: { type: ["number", "null"] },
-                      unit: { type: "string" },
-                      class_basis: { type: ["string", "null"] },
-                      note: { type: ["string", "null"] },
-                    },
-                  },
-                },
-                note: { type: ["string", "null"] },
-              },
-            },
+            share_overhang: shareOverhangSchema({ requireStatusFields: true }),
             investor_takeaway: { type: ["string", "null"] },
             offering_details: {
               type: "array",
-              items: {
-                type: "object",
-                additionalProperties: true,
-                required: ["label", "value"],
-                properties: {
-                  label: { type: "string" },
-                  value: { type: "string" },
-                  note: { type: ["string", "null"] },
-                },
-              },
+              items: offeringDisplayRowSchema(40, 90, 80),
             },
             instrument_details: {
               type: "array",
-              items: {
-                type: "object",
-                additionalProperties: true,
-                required: ["label", "value"],
-                properties: {
-                  label: { type: "string" },
-                  value: { type: "string" },
-                  note: { type: ["string", "null"] },
-                },
-              },
+              items: offeringDisplayRowSchema(40, 130, 80),
             },
             amendment_changes: {
               type: "array",
-              items: {
-                type: "object",
-                additionalProperties: true,
-                required: ["label", "value"],
-                properties: {
-                  label: { type: "string" },
-                  value: { type: "string" },
-                  note: { type: ["string", "null"] },
-                },
-              },
+              items: offeringDisplayRowSchema(40, 130, 80),
             },
             source_notes: { type: "array", items: { type: "string" } },
             needs_human_review: { type: "boolean" },
@@ -1313,31 +1217,7 @@ export const secS1F1RequiredOutputSchema = {
         event_title: { type: "string" },
         score: { type: "number" },
         score_reason: { type: "string" },
-        score_explanation: {
-          type: ["object", "null"],
-          additionalProperties: false,
-          required: ["summary", "base_band", "upward_factors", "limiting_factors", "final_read"],
-          properties: {
-            summary: {
-              type: ["string", "null"],
-              maxLength: 180,
-              description:
-                "Visible investor score rationale. One plain-language sentence. Start with the score driver, not issuer name, ticker, form type, or filing action. Do not restate the filing summary.",
-            },
-            base_band: { type: ["string", "null"], maxLength: 80 },
-            upward_factors: {
-              type: "array",
-              maxItems: 3,
-              items: { type: "string", maxLength: 70 },
-            },
-            limiting_factors: {
-              type: "array",
-              maxItems: 3,
-              items: { type: "string", maxLength: 70 },
-            },
-            final_read: { type: ["string", "null"], maxLength: 90 },
-          },
-        },
+        score_explanation: scoreExplanationSchema(),
         signal: { type: "string", enum: ["bullish", "bearish", "volatile", "neutral"] },
         quick_take: { type: "string" },
         summary: { type: "string" },
