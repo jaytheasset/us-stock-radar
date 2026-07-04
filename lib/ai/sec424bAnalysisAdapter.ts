@@ -6,7 +6,7 @@ import type { Sec424bParserOutput } from "@/lib/sources/sec/forms/424b/types";
 
 export const SEC_424B_ANALYSIS_PROMPT_KEY = "sec_424b_analysis";
 export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v20";
-export const SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION = "v37-atm-last-sale-value";
+export const SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION = "v38-shelf-last-sale-value";
 const ALLOWED_424B_DISPLAY_MODES = new Set([
   "atm",
   "resale_registration",
@@ -43,6 +43,7 @@ const SHARE_OVERHANG_TOTAL_NOTE_TITLE_VALUES = [
   "ATM Capacity Scale",
   "Shelf Capacity Scale",
   "Capacity vs Market Cap",
+  "Capacity vs Market Value",
   "Capacity vs Public Float",
   "Warrant Share Supply",
   "Convertible Share Supply",
