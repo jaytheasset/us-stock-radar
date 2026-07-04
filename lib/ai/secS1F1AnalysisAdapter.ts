@@ -1062,10 +1062,8 @@ function alignS1F1AnalysisOutputToDisplayPayload(
   const data = readRecord(displayPayload.data);
   if (!data) return analysis;
   const displayMode = stringValue(data.display_mode);
-  const investorTakeaway = nullableString(data.investor_takeaway);
   const aligned: Record<string, unknown> = {
     ...analysis,
-    ...(investorTakeaway ? { quick_take: investorTakeaway } : {}),
   };
   if (displayMode && displayMode !== "generic") {
     aligned.bullish_points = [];
