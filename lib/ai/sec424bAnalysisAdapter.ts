@@ -3,6 +3,7 @@ import { adaptSecFormRoomOutputForIngest, type SecFormRoomAdapterOutput } from "
 import { build424bAnalysisPrompt, type Sec424bAnalysisPromptVariant } from "@/lib/sources/sec/forms/424b/analysisPrompt";
 import { APPROVED_424B_EVENT_TYPES } from "@/lib/sources/sec/forms/424b/types";
 import type { Sec424bParserOutput } from "@/lib/sources/sec/forms/424b/types";
+import { collectSecOfferingMarketContextWarnings } from "@/lib/secOfferingMarketContext";
 
 export const SEC_424B_ANALYSIS_PROMPT_KEY = "sec_424b_analysis";
 export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v20";
@@ -129,6 +130,7 @@ export function adaptSec424bAnalysisPromptResultForAnalysis(
   input: SecFilingAnalysisInput,
 ): Sec424bAnalysisAdapterResult {
   const parserOutput = read424bParserOutput(input);
+  const filingPackage = readRecord(input.filing_package);
   const root = readRecord(value);
   const analysisOutput = readRecord(root?.analysis_output);
   const displayPayload = readRecord(root?.display_payload);
@@ -154,6 +156,7 @@ export function adaptSec424bAnalysisPromptResultForAnalysis(
     ...(displayPayloadError ? [displayPayloadError] : []),
     ...collect424bDisplayPayloadWarnings(normalizedDisplayPayload),
     ...collect424bScoreConsistencyWarnings(normalizedAnalysisOutput, normalizedDisplayPayload),
+    ...collectSecOfferingMarketContextWarnings(filingPackage?.market_context, "SEC 424B"),
   ];
   append424bDisplayWarnings(normalizedDisplayPayload, displayPayloadWarnings);
 
@@ -1788,7 +1791,12 @@ export const sec424bRequiredOutputSchema = {
           additionalProperties: false,
           required: ["summary", "base_band", "upward_factors", "limiting_factors", "final_read"],
           properties: {
-            summary: { type: ["string", "null"], maxLength: 180 },
+            summary: {
+              type: ["string", "null"],
+              maxLength: 180,
+              description:
+                "Visible investor score rationale. One plain-language sentence. Start with the score driver, not issuer name, ticker, form type, or filing action. Do not restate the filing summary.",
+            },
             base_band: { type: ["string", "null"], maxLength: 80 },
             upward_factors: {
               type: "array",

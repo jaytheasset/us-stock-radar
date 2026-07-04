@@ -14,6 +14,7 @@ import {
   normalize424bOfferingDisplayModel,
   validate424bDisplayPayload,
 } from "@/lib/ai/sec424bAnalysisAdapter";
+import { collectSecOfferingMarketContextWarnings } from "@/lib/secOfferingMarketContext";
 
 export {
   SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
@@ -72,6 +73,7 @@ export function adaptSecS3AnalysisPromptResultForAnalysis(
   const root = readRecord(value);
   const analysisOutput = readRecord(root?.analysis_output);
   const displayPayload = normalizeS3DisplayPayloadForParentContext(readRecord(root?.display_payload), input);
+  const filingPackage = readRecord(input.filing_package);
   if (!analysisOutput || !displayPayload) {
     return {
       ok: false,
@@ -93,6 +95,7 @@ export function adaptSecS3AnalysisPromptResultForAnalysis(
     ...collect424bDisplayPayloadWarnings(displayPayload).map((warning) =>
       warning.replace(/^SEC 424B\b/, "SEC S3"),
     ),
+    ...collectSecOfferingMarketContextWarnings(filingPackage?.market_context, "SEC S3"),
   ];
   appendS3DisplayWarnings(displayPayload, displayPayloadWarnings);
 

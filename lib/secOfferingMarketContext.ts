@@ -68,6 +68,28 @@ export type SecOfferingDilutionMetrics = {
   calculation_notes: string[];
 };
 
+export function collectSecOfferingMarketContextWarnings(
+  marketContextInput: unknown,
+  formLabel = "SEC offering",
+) {
+  const marketContext = readRecord(marketContextInput);
+  if (!marketContext) return [];
+
+  const fieldSources = readRecord(marketContext.field_sources);
+  const marketCapSource = stringValue(fieldSources?.market_cap);
+  if (!["tickers", "market_snapshots"].includes(marketCapSource)) return [];
+
+  const marketCap = finiteNumber(marketContext.market_cap);
+  if (marketCap === null) return [];
+
+  const asOf = stringValue(marketContext.as_of);
+  const sourceText = marketCapSource === "tickers" ? "tickers table" : "market snapshot cache";
+  const asOfText = asOf ? ` as of ${asOf}` : "";
+  return [
+    `${formLabel} market_context.market_cap used ${sourceText} fallback${asOfText}; verify capacity or market-cap ratios because live FMP market cap was unavailable for this run.`,
+  ];
+}
+
 export async function resolveSecOfferingMarketContext(symbolInput: string): Promise<SecOfferingMarketContext> {
   const symbol = normalizeSymbol(symbolInput);
   const liveAsOf = new Date().toISOString();

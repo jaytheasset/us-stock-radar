@@ -10849,7 +10849,7 @@ function CaseList({ title, items, tone }: { title: string; items: string[]; tone
 function ScoreBasisPanel({ filing }: { filing: FilingEvent }) {
   const explanation = filing.scoreExplanation;
   if (!explanation) return null;
-  const scoreSummary = buildScoreBasisHeadline(filing, explanation);
+  const scoreSummary = buildScoreBasisHeadline(explanation);
   if (!scoreSummary) return null;
 
   return (
@@ -10865,33 +10865,12 @@ function ScoreBasisPanel({ filing }: { filing: FilingEvent }) {
   );
 }
 
-function buildScoreBasisHeadline(filing: FilingEvent, explanation: FilingScoreExplanation) {
-  const candidates = [
-    explanation.summary,
-    explanation.baseBand,
-    explanation.finalRead,
-    filing.whyItMatters,
-    filing.filingBrief,
-    filing.summary,
-  ];
-  for (const candidate of candidates) {
-    const compact = firstCompactSentence(candidate);
-    if (compact) return compact;
-  }
-  return `${capitalizeLabel(filing.signal)} score driven by disclosed filing scale and terms.`;
+function buildScoreBasisHeadline(explanation: FilingScoreExplanation) {
+  return compactInlineText(explanation.summary);
 }
 
-function firstCompactSentence(value: string | null | undefined) {
-  const text = String(value || "").replace(/\s+/g, " ").trim();
-  if (!text) return "";
-  const firstSentence = text.match(/^.{1,170}?(?:[.!?](?:\s|$)|$)/)?.[0]?.trim() || "";
-  if (firstSentence && firstSentence.length <= 170) return firstSentence;
-  if (text.length <= 170) return text;
-  return "";
-}
-
-function capitalizeLabel(value: string) {
-  return value ? `${value.slice(0, 1).toUpperCase()}${value.slice(1)}` : "Impact";
+function compactInlineText(value: string | null | undefined) {
+  return String(value || "").replace(/\s+/g, " ").trim();
 }
 
 function MetricRow({ label, value }: { label: string; value: string }) {

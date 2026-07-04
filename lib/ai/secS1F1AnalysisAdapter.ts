@@ -3,6 +3,7 @@ import { adaptSecFormRoomOutputForIngest, type SecFormRoomAdapterOutput } from "
 import { buildS1F1AnalysisPrompt } from "@/lib/sources/sec/forms/s1-f1/analysisPrompt";
 import { APPROVED_SEC_EVENT_TYPES, type S1F1ParserOutput } from "@/lib/sources/sec/forms/s1-f1/types";
 import { normalize424bOfferingDisplayModel } from "@/lib/ai/sec424bAnalysisAdapter";
+import { collectSecOfferingMarketContextWarnings } from "@/lib/secOfferingMarketContext";
 
 export const SEC_S1_F1_ANALYSIS_PROMPT_KEY = "sec_s1_f1_analysis";
 export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v18-atm-shelf-last-sale-value";
@@ -226,6 +227,7 @@ export function adaptSecS1F1AnalysisPromptResultForAnalysis(
   const root = readRecord(value);
   const analysisOutput = readRecord(root?.analysis_output);
   const displayPayload = normalizeS1F1DisplayPayload(readRecord(root?.display_payload));
+  const filingPackage = readFilingPackage(input);
   if (!analysisOutput || !displayPayload) {
     return {
       ok: false,
@@ -234,7 +236,10 @@ export function adaptSecS1F1AnalysisPromptResultForAnalysis(
   }
 
   const displayPayloadError = validateS1F1DisplayPayload(displayPayload);
-  const displayPayloadWarnings = displayPayloadError ? [displayPayloadError] : [];
+  const displayPayloadWarnings = [
+    ...(displayPayloadError ? [displayPayloadError] : []),
+    ...collectSecOfferingMarketContextWarnings(filingPackage.market_context, "SEC S-1/F-1"),
+  ];
   const displayPayloadData = readRecord(displayPayload.data);
   if (displayPayloadData) {
     displayPayloadWarnings.push(...collectS1F1SourceCoverageWarnings(displayPayloadData, input));
