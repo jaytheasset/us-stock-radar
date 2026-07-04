@@ -91,7 +91,13 @@ type DilutionShareOverhangModel = {
 
 const OVERHANG_SEGMENT_CODES = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 export const DILUTION_MARKET_DATA_DISCLAIMER =
-  "Share counts may differ from current market data after filings, splits, or later offerings.";
+  "Share counts are filing-stated unless noted and may differ after splits, conversions, or later offerings.";
+export const DILUTION_LATEST_MARKET_DATA_DISCLAIMER =
+  "Share counts use latest market data when filing counts are unavailable and may differ from filing-date values.";
+export const CAPACITY_FILING_DATA_DISCLAIMER =
+  "Capacity comparisons use filing-stated values and may differ from current market data.";
+export const CAPACITY_MARKET_DATA_DISCLAIMER =
+  "Capacity comparisons use latest market data and may differ from filing-date values.";
 export const CURRENT_SHARES_MARKET_CONTEXT_NOTE =
   "Latest available market-data share count. Filing-date share count may differ.";
 
@@ -210,6 +216,7 @@ export function DilutionShareOverhang({ model }: { model: DilutionShareOverhangM
     .map((segment, index) => (overhangSupplyRole(segment).kind === "included" ? OVERHANG_SEGMENT_CODES[index] || `${index + 1}` : ""))
     .filter(Boolean);
   const includedScaleLabel = includedScaleCodes.length ? `(${includedScaleCodes.join(" + ")})` : "Included";
+  const dataDisclaimer = getDilutionDataDisclaimer(model);
 
   return (
     <section className="stock-detail-card dilution-overhang-card dilution-overhang-wide-card">
@@ -332,7 +339,7 @@ export function DilutionShareOverhang({ model }: { model: DilutionShareOverhangM
                   </span>
                 </div>
               ) : null}
-              <p className="dilution-data-disclaimer">{DILUTION_MARKET_DATA_DISCLAIMER}</p>
+              <p className="dilution-data-disclaimer">{dataDisclaimer}</p>
             </div>
           ) : (
             <div className="dilution-overhang-unavailable">
@@ -346,7 +353,7 @@ export function DilutionShareOverhang({ model }: { model: DilutionShareOverhangM
                     </div>
                   ))}
               <p>{model.overhangUnavailableMessage || "Potential supply could not be calculated from disclosed share counts."}</p>
-              <p className="dilution-data-disclaimer">{DILUTION_MARKET_DATA_DISCLAIMER}</p>
+              <p className="dilution-data-disclaimer">{dataDisclaimer}</p>
             </div>
           )}
         </div>
@@ -410,6 +417,62 @@ export function DilutionShareOverhang({ model }: { model: DilutionShareOverhangM
 
 function formatConditionalSupplyLabel(row: DilutionShareOverhangFactRow) {
   return row.label;
+}
+
+function getDilutionDataDisclaimer(model: DilutionShareOverhangModel) {
+  const isCapacityComparison = isCapacityScaleModel(model);
+  const usesLatestMarketData = usesLatestMarketContext(model);
+
+  if (isCapacityComparison) {
+    return usesLatestMarketData ? CAPACITY_MARKET_DATA_DISCLAIMER : CAPACITY_FILING_DATA_DISCLAIMER;
+  }
+
+  return usesLatestMarketData ? DILUTION_LATEST_MARKET_DATA_DISCLAIMER : DILUTION_MARKET_DATA_DISCLAIMER;
+}
+
+function isCapacityScaleModel(model: DilutionShareOverhangModel) {
+  const segmentUnits = model.overhangBarSegments.map((segment) => segment.unit || "").join(" ");
+  const displayText = [
+    model.chartTitle,
+    model.currentDetailLabel,
+    model.supplyDetailLabel,
+    model.totalNoteTitle,
+    model.totalNoteSuffix,
+    model.totalOverhangLabel,
+    model.overhangScoreCaption,
+    model.overhangSubtitle,
+    ...model.overhangBarSegments.flatMap((segment) => [segment.label, segment.value, segment.note, segment.unit, segment.supplyType]),
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    /\busd\b/i.test(segmentUnits) ||
+    /\b(?:ATM|shelf|capacity|market cap|public float)\b/i.test(displayText) &&
+      /\b(?:capacity scale|capacity vs|program size|ATM capacity|shelf capacity|market cap|public float)\b/i.test(displayText)
+  );
+}
+
+function usesLatestMarketContext(model: DilutionShareOverhangModel) {
+  const displayText = [
+    model.currentDetailLabel,
+    model.currentSharesCompact,
+    model.totalNoteSuffix,
+    model.overhangScoreCaption,
+    model.overhangSubtitle,
+    model.overhangUnavailableMessage,
+    ...model.overhangBarSegments.flatMap((segment) => [segment.label, segment.value, segment.note]),
+    ...(model.unavailableRows || []).flatMap((row) => [row.label, row.value, row.note]),
+    ...(model.supplyDetailRows || []).flatMap((row) => [row.label, row.value, row.note]),
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  if (/\b(?:latest|current)\s+(?:available\s+)?market(?:[-\s]?data)?\b|\bmarket_context\b/i.test(displayText)) {
+    return true;
+  }
+
+  return /\bmarket cap\b/i.test(displayText) && !/\b(?:public float|as of|filing[-\s]?date|stated in (?:this )?filing)\b/i.test(displayText);
 }
 
 function overhangSupplyRole(row: {
