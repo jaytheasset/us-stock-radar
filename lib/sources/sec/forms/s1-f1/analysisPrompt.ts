@@ -39,7 +39,7 @@ const S1F1_DISPLAY_MODES = [
   "generic",
 ] as const;
 
-const S1F1_PROMPT_VERSION = "s1-f1-analysis-v21-display-first";
+const S1F1_PROMPT_VERSION = "s1-f1-analysis-v22-atm-shelf-last-sale-value";
 
 export function buildS1F1AnalysisPrompt(
   parserOutput: S1F1ParserOutput,
@@ -109,8 +109,8 @@ export function buildS1F1AnalysisPrompt(
     "- Do not use the IPO amendment 50-70 band for non-IPO resale, ELOC, SEPA, PIPE, registered-direct, or primary-offering amendments. Score those by the active offering, resale, or financing facts in this filing.",
     "- For primary_offering or registered_direct, when the prospectus cover, body, offering table, purchase agreement, placement agreement, or transaction terms source-back new shares or share-equivalent securities, score by new shares divided by the selected share-count basis using the same percentage bands as resale overhang.",
     "- If fixed offering price, sale price, gross proceeds, or net proceeds are supported only by fee-table or assumed values, do not treat the filing as final priced terms and do not score 75+ from those values alone.",
-    "- For shelf_capacity with no active sale terms, score by shelf capacity divided by market cap when both are source-backed or market_context-backed: below 10% = 20-35 archive; 10-25% = 35-49 archive; 25-50% = 50-59 feed; 50-100% = 60-68 feed; 100%+ = 68-74 feed.",
-    "- If shelf_capacity cannot be compared to market cap, use 20-40 archive unless source text shows a near-term actionable sale, urgent capital need, or another current investor trigger. Do not score 75+ from shelf capacity alone.",
+    "- For shelf_capacity with no active sale terms, score by shelf capacity divided by the best source-backed dollar company-value denominator when available: market cap, public float, or Market Value at Last Sale Price. Below 10% = 20-35 archive; 10-25% = 35-49 archive; 25-50% = 50-59 feed; 50-100% = 60-68 feed; 100%+ = 68-74 feed.",
+    "- If shelf_capacity cannot be compared to a source-backed or market_context-backed company-value denominator, use 20-40 archive unless source text shows a near-term actionable sale, urgent capital need, or another current investor trigger. Do not score 75+ from shelf capacity alone.",
     "- Fee-table-only S-1/A or F-1/A amendments are archive-level, usually 10-35. Fee-calculation price, share count, or amount alone cannot support feed or alert scoring.",
     "- Routine S-1/A or F-1/A amendments that only add/update administrative material are archive-level, usually 10-35.",
     "- Final IPO pricing, first trading imminent, pricing outside filed range, postponement, withdrawal, or major repricing: 75+ possible.",
@@ -194,7 +194,7 @@ export function buildS1F1AnalysisPrompt(
     "- share_overhang is not a prose field. chart_title must be under 48 characters, subtitle under 90 characters, note must be one short sentence under 160 characters, basis.note and rows[].note must be under 80 characters, total_note.title under 48 characters, and all row/total_note values must be compact UI strings.",
     "- share_overhang.basis.note is only a short date/class/ratio qualifier. Do not write source block names, section names, page numbers, evidence excerpts, exclusion lists, risk factors, or long source paragraphs there.",
     "- Do not put explanatory prose in total_note. total_note is only the UI calculation line: short title, numerator, denominator, ratio, and short suffix.",
-    "- If total_note is used, total_note.title must be a short calculation label. Prefer one of these labels when it fits: Dilution vs Current Shares, Overhang vs Current Shares, Registered Resale Overhang, Total Potential Dilution, Total Potential Overhang, ATM Capacity Scale, Shelf Capacity Scale, Capacity vs Market Cap, Capacity vs Public Float, Warrant Share Supply, Convertible Share Supply, Preferred Conversion Supply, Pre-Funded Warrant Supply, Share-Equivalent Supply, Rights Offering Dilution, Marketed Block Scale. If none fits the source-backed calculation, create a short custom label. Do not use generic labels such as Total, Ratio, Scale, Value, Status, Result, Calculation, or Impact. Never put formulas, parentheticals, examples, instructions, evidence, or explanatory sentences in total_note.title.",
+    "- If total_note is used, total_note.title must be a short calculation label. Prefer one of these labels when it fits: Dilution vs Current Shares, Overhang vs Current Shares, Registered Resale Overhang, Total Potential Dilution, Total Potential Overhang, ATM Capacity Scale, Shelf Capacity Scale, Capacity vs Market Cap, Capacity vs Market Value, Capacity vs Public Float, Warrant Share Supply, Convertible Share Supply, Preferred Conversion Supply, Pre-Funded Warrant Supply, Share-Equivalent Supply, Rights Offering Dilution, Marketed Block Scale. If none fits the source-backed calculation, create a short custom label. Do not use generic labels such as Total, Ratio, Scale, Value, Status, Result, Calculation, or Impact. Never put formulas, parentheticals, examples, instructions, evidence, or explanatory sentences in total_note.title.",
     "- Put calculation pieces only in total_note.numerator, total_note.denominator, total_note.ratio, and total_note.suffix. Put conditions such as if over-allotment exercised or if warrants exercised in suffix or a row note, not in title.",
     "- When share_overhang.status_value is a percentage, share_overhang.ratio_value must be the same percentage string. Do not use raw decimals, x-multiples, or 1-to-N wording as ratio_value.",
     "- When share_overhang has numeric rows, every visible percentage in status_value, ratio_value, snapshot_metrics, title, quick_take, summary, investor_takeaway, score_reason, score_explanation, and total_note must reconcile to the same row math: numerator is the sum of rows where row_role is counted; denominator is share_overhang.basis. Rows where row_role is conditional, alternative, or reference are excluded.",
@@ -370,7 +370,9 @@ export function buildS1F1AnalysisPrompt(
     "",
     "atm:",
     "- Use for at-the-market programs or equity distribution agreements.",
-    "- Snapshot labels must be: Program size; Market cap; Size vs market cap; Sale method.",
+    "- Snapshot labels must be four rows: Program size; one denominator row labeled Market cap, Public float, or Market Value at Last Sale Price; one comparison row labeled Size vs market cap, Size vs public float, or Size vs Market Value; Sale method.",
+    "- Use Market cap only when the filing, source blocks, or market_context provides an actual market cap. If the denominator is shares outstanding multiplied by a filing-stated last reported sale price, label it Market Value at Last Sale Price and use Size vs Market Value.",
+    "- For ATM share_overhang.total_note, use ATM Capacity Scale, Capacity vs Market Cap, Capacity vs Market Value, or Capacity vs Public Float as appropriate. Do not use Dilution vs Current Shares unless the filing itself states a fixed share count.",
     "- ATM is sale capacity over time, not completed issuance. Do not describe the full capacity as already sold.",
     "- Offering Details labels: Offering Type, Sales Agent, Fee / Commission, Agreement Date, End Date, Use of Proceeds.",
     "",
@@ -412,10 +414,11 @@ export function buildS1F1AnalysisPrompt(
     "",
     "shelf_capacity:",
     "- Use only for shelf capacity by itself: no concrete resale pool, no active sale method, no priced offering, no current takedown, no named selling-holder resale pool, and no fixed warrant/convertible share pool needing investor attention.",
-    "- Snapshot labels should be: Shelf capacity; Market cap; Capacity vs market cap; Sale status.",
+    "- Snapshot labels should be four rows: Shelf capacity; one denominator row labeled Market cap, Public float, or Market Value at Last Sale Price; one comparison row labeled Capacity vs market cap, Capacity vs public float, or Capacity vs Market Value; Sale status.",
+    "- Use Market cap only when the filing, source blocks, or market_context provides an actual market cap. If the denominator is shares outstanding multiplied by a filing-stated last reported sale price, label it Market Value at Last Sale Price and use Capacity vs Market Value.",
     "- Shelf capacity is future capacity, not immediate dilution or immediate company cash.",
     "- Offering Details labels: Offering Type, Shelf Status, Securities Covered, Active Sale Terms, Next Required Filing, Use of Proceeds.",
-    "- Do not repeat Shelf capacity, Market cap, Capacity vs market cap, or Sale status in Offering Details under different labels.",
+    "- Do not repeat Shelf capacity, Market cap, Public float, Market Value at Last Sale Price, Capacity vs market cap, Capacity vs public float, Capacity vs Market Value, or Sale status in Offering Details under different labels.",
     "- Do not repeat Shelf capacity as Shelf Status when the only added fact is the same capacity amount or generic active registration status.",
     "- Do not show both snapshot Sale status and Offering Details Active Sale Terms when both only say there is no active sale or that a later prospectus supplement is needed. Show that status once, then use Offering Details for separate mechanics, usage limits, securities covered, or use of proceeds.",
     "- Do not show the same securities menu in both snapshot_metrics and offering_details. If snapshot_metrics already has Securities Covered, omit Securities Covered from offering_details unless the row adds a materially different source-backed limitation or class detail.",
