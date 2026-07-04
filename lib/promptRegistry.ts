@@ -40,7 +40,7 @@ import {
   SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY,
   SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION,
   secS3OfferingAnalysisResponseSchema,
-  secS3OfferingAnalysisSystemPrompt,
+  secS3RequiredOutputSystemPrompt,
 } from "@/lib/prompts/secS3OfferingAnalysis";
 
 export type PromptTemplateDraft = {
@@ -181,14 +181,14 @@ export const promptTemplates: PromptTemplateDraft[] = [
     status: "draft",
     owner: "ai",
     inputTables: ["raw_items"],
-    outputTarget: "skip_analysis or events + event_analysis + event_tickers + event_calendar_items + offering_display_model",
+    outputTarget: "Required Output JSON with display_payload offering_terms UI fields",
     notes:
-      "Dedicated S-3/F-3 registration-family contract. Source text is authoritative; parser candidates are only hints. The LLM decides skip, archive, or offering analysis and may emit the dilution/offering display model.",
-    systemPrompt: secS3OfferingAnalysisSystemPrompt,
+      "Dedicated S-3/F-3 registration-family contract using the shared 424B offering UI output schema. Source text and source blocks are authoritative.",
+    systemPrompt: secS3RequiredOutputSystemPrompt,
     userInputTemplate: secFilingAnalysisInputTemplate,
     responseSchema: secS3OfferingAnalysisResponseSchema,
     runtimeNotes:
-      "Runtime selects this prompt only for the S-3 family. skip_analysis preserves raw_items only; analyze_offering normally maps to dilution_risk. offering_display_model is for the user-facing dilution detail UI.",
+      "Runtime calls buildSecS3OfferingAnalysisPrompt(), which uses secS3RequiredOutputSystemPrompt and sec424bRequiredOutputSchema. Offering UI data is stored in display_payload.data and normalized through the common offering adapter.",
   },
   {
     key: "fda_announcement_enrichment",
