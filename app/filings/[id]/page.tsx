@@ -4152,18 +4152,32 @@ function buildAtmProgramLlmOverhangModel(model: ReturnType<typeof buildDilutionO
     overhang.overhangBarSegments.find((segment) => segment.supplyNature === "base_shares") ||
     overhang.overhangBarSegments[0] ||
     null;
+  const isAtmCapacityRow = (row: LlmShareOverhangFactRow) => {
+    const text = `${row.label} ${row.note || ""}`.toLowerCase();
+    return row.rowRole === "reference" && /\batm\b|at-the-market|sales agreement/.test(text) && parseMoneyValue(row.value) > 0;
+  };
+  const isShelfCapacityRow = (row: LlmShareOverhangFactRow) => {
+    const text = `${row.label} ${row.note || ""}`.toLowerCase();
+    return /\bshelf\b|universal shelf|base shelf/.test(text);
+  };
   const capacityRow =
+    overhang.conditionalSupplyRows.find(isAtmCapacityRow) ||
     overhang.conditionalSupplyRows.find(
-      (row) => row.rowRole === "reference" && /\b(?:ATM|program|capacity)\b/i.test(`${row.label} ${row.value}`) && parseMoneyValue(row.value) > 0,
+      (row) =>
+        row.rowRole === "reference" &&
+        /\b(?:program|capacity)\b/i.test(`${row.label} ${row.note || ""}`) &&
+        !isShelfCapacityRow(row) &&
+        parseMoneyValue(row.value) > 0,
     ) ||
-    overhang.conditionalSupplyRows.find((row) => row.rowRole === "reference" && parseMoneyValue(row.value) > 0) ||
     null;
 
   if (!basisSegment || !capacityRow) return null;
 
   const denominatorValue = overhang.totalNoteDenominator || overhang.currentValue || basisSegment.value;
-  const numeratorValue = overhang.totalNoteNumerator || overhang.supplyValue || capacityRow.value;
-  if (!parseMoneyValue(denominatorValue) || !parseMoneyValue(numeratorValue)) return null;
+  const numeratorValue = capacityRow.value;
+  const denominatorAmount = parseMoneyValue(denominatorValue);
+  const numeratorAmount = parseMoneyValue(numeratorValue);
+  if (!denominatorAmount || !numeratorAmount) return null;
 
   const chartSegments = normalizeLlmShareOverhangSegmentWidths([
     {
@@ -4185,14 +4199,25 @@ function buildAtmProgramLlmOverhangModel(model: ReturnType<typeof buildDilutionO
       label: overhang.supplyLabel || capacityRow.label,
       value: numeratorValue,
       note: capacityRow.note,
-      numericValue: capacityRow.numericValue ?? parseMoneyValue(numeratorValue),
+      numericValue: capacityRow.numericValue ?? numeratorAmount,
       width: 0,
       roleBadge: "Capacity",
       roleKind: "included",
     },
   ]);
-  const extraReferenceRows = overhang.conditionalSupplyRows.filter((row) => row !== capacityRow);
-  const ratioValue = overhang.totalNoteRatio || overhang.ratioValue || overhang.statusValue || "Not calculated";
+  const extraReferenceRows = overhang.conditionalSupplyRows
+    .filter((row) => row !== capacityRow)
+    .map((row) =>
+      row.rowRole === "reference"
+        ? {
+            ...row,
+            roleBadge: isShelfCapacityRow(row) ? "Context" : "Reference",
+            roleKind: "reference" as const,
+          }
+        : row,
+    );
+  const computedRatioValue = formatPercentCompact((numeratorAmount / denominatorAmount) * 100);
+  const ratioValue = computedRatioValue || overhang.totalNoteRatio || overhang.ratioValue || overhang.statusValue || "Not calculated";
 
   return {
     canRenderOverhangChart: true,

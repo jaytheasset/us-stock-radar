@@ -37,6 +37,8 @@ type DilutionShareOverhangFactRow = {
   supplyNature?: string;
   supplyType?: string;
   countedInRatio?: boolean;
+  roleBadge?: string;
+  roleKind?: "base" | "included" | "future" | "alternative" | "conditional" | "reference";
 };
 
 type DilutionInstrumentDetailRow = {
