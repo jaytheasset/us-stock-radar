@@ -3227,6 +3227,8 @@ const PRIORITY_SOURCE_CONTEXTS: Array<{
       /\b(?:shares outstanding|common stock outstanding|ordinary shares outstanding|ADSs? outstanding)\s+(?:prior to|before|immediately prior to|as of|after|assuming)/i,
       /\bshares?\s+outstanding\s+(?:prior to|before|immediately prior to|as of|after|assuming)/i,
       /\boutstanding\s+(?:prior to|before|immediately prior to|as of|after|assuming)\s+(?:this|the)\s+(?:offering|resale|transaction|conversion)/i,
+      /\b(?:Ordinary Shares|Shares)\b[^.\n]{0,220}\bClass\s+A\s+Ordinary Shares\b[^.\n]{0,220}\bClass\s+B\s+Ordinary Shares\b/i,
+      /\b[0-9][0-9,]*\s+Ordinary Shares\b[^.\n]{0,260}\bincluding\b[^.\n]{0,180}\b[0-9][0-9,]*\s+Class\s+A\s+Ordinary Shares\b[^.\n]{0,180}\b[0-9][0-9,]*\s+Class\s+B\s+Ordinary Shares\b/i,
     ],
     window: {
       before: 80,

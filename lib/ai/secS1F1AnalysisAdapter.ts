@@ -426,6 +426,7 @@ function collectS1F1ShareOverhangDisplayWarnings(data: Record<string, unknown>, 
     );
   }
   warnings.push(...collectS1F1WarrantShareOverhangWarnings(data, structuredRows, analysisOutput));
+  warnings.push(...collectS1F1ShareOverhangCalculationWarnings(shareOverhang, structuredRows, analysisOutput));
 
   if (!caption) return warnings;
 
@@ -444,6 +445,74 @@ function collectS1F1ShareOverhangDisplayWarnings(data: Record<string, unknown>, 
     `S-1/F-1 display_payload.data.share_overhang.caption percent does not match status_value/ratio_value (${caption} vs ${primaryPercent}%).`,
   );
   return warnings;
+}
+
+function collectS1F1ShareOverhangCalculationWarnings(
+  shareOverhang: Record<string, unknown>,
+  rawRows: unknown[],
+  analysisOutput?: Record<string, unknown>,
+) {
+  const warnings: string[] = [];
+  const rows = rawRows.map((item) => readRecord(item)).filter((item): item is Record<string, unknown> => Boolean(item));
+  const includedRows = rows.filter((row) => isS1F1CountedShareOverhangRow(row, rows.length > 0));
+  const includedRowSum = includedRows.reduce((total, row) => total + (s1F1ShareOverhangNumericValue(row) || 0), 0);
+  const totalNote = readRecord(shareOverhang.total_note || shareOverhang.totalNote);
+  const totalNoteNumerator = parseS1F1ShareCount(stringValue(totalNote?.numerator));
+  const totalNoteDenominator = parseS1F1ShareCount(stringValue(totalNote?.denominator));
+  const totalNoteRatio = firstPercentValue(
+    [
+      stringValue(totalNote?.ratio),
+      stringValue(shareOverhang.ratio_value || shareOverhang.ratioValue),
+      stringValue(shareOverhang.status_value || shareOverhang.statusValue),
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
+
+  if (
+    includedRowSum > 0 &&
+    totalNoteNumerator &&
+    Math.abs(includedRowSum - totalNoteNumerator) / Math.max(includedRowSum, totalNoteNumerator) > 0.02
+  ) {
+    warnings.push(
+      "S-1/F-1 share_overhang counted row numeric_value sum does not reconcile to total_note.numerator; merge alternative pools or fix row_role before relying on the displayed ratio.",
+    );
+  }
+
+  if (totalNoteNumerator && totalNoteDenominator && totalNoteRatio !== null) {
+    const expectedRatio = (totalNoteNumerator / totalNoteDenominator) * 100;
+    if (
+      Number.isFinite(expectedRatio) &&
+      Math.abs(expectedRatio - totalNoteRatio) / Math.max(Math.abs(expectedRatio), Math.abs(totalNoteRatio), 1) > 0.02
+    ) {
+      warnings.push(
+        "S-1/F-1 share_overhang total_note ratio does not reconcile to numerator divided by denominator; verify unit conversion and full share counts.",
+      );
+    }
+  }
+
+  const basis = readRecord(shareOverhang.basis);
+  const basisUnit = normalizeShareOverhangUnitForWarning(stringValue(basis?.unit));
+  const countedUnits = uniqueStrings(includedRows.map((row) => normalizeShareOverhangUnitForWarning(stringValue(row.unit))).filter(Boolean));
+  const totalNoteText = `${stringValue(totalNote?.numerator)} ${stringValue(totalNote?.denominator)}`;
+  const totalNoteUnit = detectS1F1TotalNoteUnit(totalNoteText);
+  const expectedUnit = countedUnits.length === 1 ? countedUnits[0] : basisUnit;
+  if (expectedUnit && totalNoteUnit && expectedUnit !== totalNoteUnit) {
+    warnings.push(
+      `S-1/F-1 share_overhang total_note unit appears inconsistent with counted rows/basis (${totalNoteUnit} vs ${expectedUnit}).`,
+    );
+  }
+
+  if (analysisOutput) {
+    const conflictingProseFields = collectS1F1ConflictingShareOverhangPercentFields(analysisOutput, shareOverhang);
+    if (conflictingProseFields.length) {
+      warnings.push(
+        `S-1/F-1 analysis prose contains dilution/overhang percentage(s) that conflict with share_overhang.total_note.ratio in: ${conflictingProseFields.join(", ")}.`,
+      );
+    }
+  }
+
+  return uniqueStrings(warnings);
 }
 
 function collectS1F1ShareOverhangUnitWarnings(
@@ -555,13 +624,27 @@ function hasDuplicateS1F1OrdinaryPrefundedCountedRows(rows: Record<string, unkno
     const text = s1F1ShareOverhangRowText(row);
     return /\b(?:ordinary|common|class\s+a|ADSs?|units?)\b/i.test(text) && !/\bpre[-\s]?funded\b/i.test(text);
   });
+  const combinedOrdinaryPrefundedRows = rows.filter((row) => {
+    const text = s1F1ShareOverhangRowText(row);
+    return /\b(?:ordinary|common|class\s+a|ADSs?|units?)\b/i.test(text) && /\bpre[-\s]?funded\b/i.test(text);
+  });
   const prefundedRows = rows.filter((row) => /\bpre[-\s]?funded\b/i.test(s1F1ShareOverhangRowText(row)));
-  return ordinaryRows.some((ordinaryRow) => {
+  const hasSeparateDuplicate = ordinaryRows.some((ordinaryRow) => {
     const ordinaryValue = s1F1ShareOverhangNumericValue(ordinaryRow);
     if (!ordinaryValue) return false;
     return prefundedRows.some((prefundedRow) => {
       const prefundedValue = s1F1ShareOverhangNumericValue(prefundedRow);
       return Boolean(prefundedValue && Math.abs(ordinaryValue - prefundedValue) / Math.max(ordinaryValue, prefundedValue) <= 0.01);
+    });
+  });
+  if (hasSeparateDuplicate) return true;
+  return combinedOrdinaryPrefundedRows.some((combinedRow) => {
+    const combinedValue = s1F1ShareOverhangNumericValue(combinedRow);
+    if (!combinedValue) return false;
+    return prefundedRows.some((prefundedRow) => {
+      if (prefundedRow === combinedRow) return false;
+      const prefundedValue = s1F1ShareOverhangNumericValue(prefundedRow);
+      return Boolean(prefundedValue && Math.abs(combinedValue - prefundedValue) / Math.max(combinedValue, prefundedValue) <= 0.01);
     });
   });
 }
@@ -581,6 +664,80 @@ function normalizeShareOverhangUnitForWarning(value: string) {
   return normalized;
 }
 
+function detectS1F1TotalNoteUnit(value: string) {
+  const normalized = normalizeShareOverhangUnitForWarning(value);
+  if (/\bads\b/.test(normalized)) return "ads";
+  if (/\bshares\b/.test(normalized)) return "shares";
+  if (/\bunits\b/.test(normalized)) return "units";
+  return "";
+}
+
+function collectS1F1ConflictingShareOverhangPercentFields(
+  analysisOutput: Record<string, unknown>,
+  shareOverhang: Record<string, unknown> | null,
+) {
+  const expectedRatio = parseS1F1PercentNumber(readS1F1ShareOverhangRatio(shareOverhang));
+  if (expectedRatio === null || !hasS1F1NonCountedShareOverhangRows(shareOverhang)) return [];
+  const fields: Array<[string, unknown]> = [
+    ["event_title", analysisOutput.event_title],
+    ["quick_take", analysisOutput.quick_take],
+    ["summary", analysisOutput.summary],
+    ["score_reason", analysisOutput.score_reason],
+  ];
+  const scoreExplanation = readRecord(analysisOutput.score_explanation);
+  if (scoreExplanation) {
+    fields.push(
+      ["score_explanation.summary", scoreExplanation.summary],
+      ["score_explanation.final_read", scoreExplanation.final_read],
+    );
+    for (const key of ["upward_factors", "limiting_factors"]) {
+      for (const [index, value] of readStringArray(scoreExplanation[key]).entries()) {
+        fields.push([`score_explanation.${key}[${index}]`, value]);
+      }
+    }
+  }
+  return fields
+    .filter(([, value]) => hasS1F1ConflictingPercent(value, expectedRatio))
+    .map(([field]) => field);
+}
+
+function readS1F1ShareOverhangRatio(shareOverhang: Record<string, unknown> | null) {
+  const totalNote = readRecord(shareOverhang?.total_note || shareOverhang?.totalNote);
+  return stringValue(totalNote?.ratio) || stringValue(shareOverhang?.ratio_value || shareOverhang?.ratioValue) || stringValue(shareOverhang?.status_value || shareOverhang?.statusValue);
+}
+
+function hasS1F1NonCountedShareOverhangRows(shareOverhang: Record<string, unknown> | null) {
+  const rows = Array.isArray(shareOverhang?.rows) ? shareOverhang?.rows : [];
+  return rows
+    .map((row) => readRecord(row))
+    .some((row) => {
+      if (!row) return false;
+      const rowRole = s1F1ShareOverhangRowRole(row);
+      return rowRole === "conditional" || rowRole === "alternative" || rowRole === "reference";
+    });
+}
+
+function parseS1F1PercentNumber(value: unknown) {
+  const match = stringValue(value).match(/(\d[\d,]*(?:\.\d+)?)\s*%/);
+  if (!match) return null;
+  const parsed = Number(match[1].replace(/,/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function hasS1F1ConflictingPercent(value: unknown, expectedRatio: number) {
+  const text = stringValue(value);
+  const matches = [...text.matchAll(/\d[\d,]*(?:\.\d+)?\s*%/g)];
+  return matches.some((match) => {
+    const index = match.index ?? 0;
+    const context = text.slice(Math.max(0, index - 90), Math.min(text.length, index + match[0].length + 90));
+    if (!/\b(?:dilut|overhang|supply|offering|current\s+shares?|outstanding\s+shares?|ratio)\b/i.test(context)) {
+      return false;
+    }
+    const parsed = parseS1F1PercentNumber(match[0]);
+    return parsed !== null && Math.abs(parsed - expectedRatio) > 0.2;
+  });
+}
+
 function collectS1F1WarrantShareOverhangWarnings(
   data: Record<string, unknown>,
   rawRows: unknown[],
@@ -596,6 +753,11 @@ function collectS1F1WarrantShareOverhangWarnings(
     const rowRole = s1F1ShareOverhangRowRole(row);
     const supplyType = stringValue(row.supply_type || row.supplyType);
     const countedInRatio = booleanValue(row.counted_in_ratio ?? row.countedInRatio);
+    if (rowRole === "conditional" && isS1F1ShareEquivalentCountedText(rowText)) {
+      warnings.push(
+        `S-1/F-1 display_payload.data.share_overhang row appears share-equivalent but is marked conditional: ${label}`,
+      );
+    }
     if (
       (rowRole ? rowRole === "counted" : countedInRatio === true) &&
       supplyType === "current_offering_pool" &&
@@ -735,6 +897,14 @@ function isNonShareEquivalentWarrantText(value: string) {
   if (/\b(?:zero[-\s]?exercise|zero\s+exercise\s+price|nominal[-\s]?exercise|share[-\s]?equivalent)\b/i.test(value)) return false;
   if (/\$0\.0+1\b|\$0\.0+01\b/i.test(value)) return false;
   return true;
+}
+
+function isS1F1ShareEquivalentCountedText(value: string) {
+  return (
+    /\bpre[-\s]?funded\b/i.test(value) ||
+    /\b(?:zero[-\s]?exercise|zero\s+exercise\s+price|zero[-\s]?price\s+exercise|nominal[-\s]?exercise|share[-\s]?equivalent)\b/i.test(value) ||
+    /\$0\.0+1\b|\$0\.0+01\b/i.test(value)
+  );
 }
 
 function hasNonShareEquivalentWarrantMention(value: string) {

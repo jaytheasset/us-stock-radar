@@ -508,6 +508,30 @@ describe("S-1/F-1 section-specific extraction", () => {
     assert.match(String(basisBlock.text), /25,557,408 shares/i);
   });
 
+  it("preserves multi-class ordinary share basis rows in LLM source blocks", () => {
+    const filler = Array.from({ length: 140 }, (_, index) => `<p>Background paragraph ${index + 1} with ordinary issuer text.</p>`).join("\n");
+    const parserOutput = parseS1F1Filing({
+      formType: "F-1",
+      filingText: `<html><body>
+        <div><b>Conventions That Apply To This Prospectus</b></div>
+        ${filler}
+        <p>"Ordinary Shares" or "Shares" are to our Class A Ordinary Shares and Class B Ordinary Shares.</p>
+        <p>The Controlling Shareholder beneficially owns an aggregate of 13,435,000 Ordinary Shares, including 10,935,000 Class A Ordinary Shares and 2,500,000 Class B Ordinary Shares as of March 13, 2026.</p>
+        <table>
+          <tr><td>Class A Ordinary Shares underlying the Series B Warrants</td><td>273,722,627 shares</td></tr>
+        </table>
+      </body></html>`,
+    });
+    const llmInput = buildS1F1LlmSourceInput(parserOutput);
+    const blocks = llmInput.cleaned_source_blocks as Array<Record<string, unknown>>;
+    const basisBlock = blocks.find((block) => String(block.sectionKey || "").startsWith("share_count_basis_context"));
+
+    assert.ok(basisBlock);
+    assert.match(String(basisBlock.text), /13,435,000 Ordinary Shares/i);
+    assert.match(String(basisBlock.text), /10,935,000 Class A Ordinary Shares/i);
+    assert.match(String(basisBlock.text), /2,500,000 Class B Ordinary Shares/i);
+  });
+
   it("preserves source instrument underlying supply rows in LLM source blocks", () => {
     const filler = Array.from({ length: 140 }, (_, index) => `<p>Background paragraph ${index + 1} with ordinary issuer text.</p>`).join("\n");
     const parserOutput = parseS1F1Filing({

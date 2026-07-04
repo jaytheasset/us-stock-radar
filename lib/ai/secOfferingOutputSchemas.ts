@@ -71,19 +71,16 @@ export function shareOverhangBasisSchema() {
 export function shareOverhangRowSchema() {
   return {
     type: "object",
-    additionalProperties: true,
+    additionalProperties: false,
     required: ["row_role", "label", "value", "numeric_value", "unit"],
     properties: {
       row_role: { type: "string", enum: ["counted", "conditional", "alternative", "reference"] },
-      counted_in_ratio: { type: ["boolean", "null"] },
       supply_type: { type: ["string", "null"], maxLength: 40 },
       label: { type: "string", maxLength: 80 },
       value: { type: "string", maxLength: 90 },
       numeric_value: { type: ["number", "null"] },
       unit: { type: ["string", "null"], maxLength: 20 },
       class_basis: { type: ["string", "null"], maxLength: 80 },
-      pool_id: { type: ["string", "null"], maxLength: 80 },
-      pool_relationship: { type: ["string", "null"], enum: ["alternative_max", "additive", null] },
       note: { type: ["string", "null"], maxLength: 80 },
     },
   };
