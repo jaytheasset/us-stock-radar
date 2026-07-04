@@ -6,7 +6,7 @@ import { sec424bRequiredOutputSchema } from "@/lib/ai/sec424bAnalysisAdapter";
 import { buildSecSourceBlockPromptInput } from "@/lib/sources/sec/forms/common/sourceBlockPromptInput";
 
 export const SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY = "sec_s3_offering_analysis";
-export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v59-supply-type-badges";
+export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v60-score-explanation-judgment";
 
 export const SEC_S3_ANALYSIS_ACTION_VALUES = ["skip_analysis", "routine_archive", "analyze_offering"] as const;
 export const SEC_S3_CASE_VALUES = [
@@ -342,6 +342,10 @@ const secS3RequiredOutputSystemPrompt = [
   "Shelf registration without active sale terms can be feed-level when capacity is at least 25% of market cap, but remains below alert unless an active sale mechanism or other current investor trigger is disclosed.",
   "ATM capacity is future sale capacity, not completed issuance. Score by size versus market cap, public float, or Market Value at Last Sale Price when available, but usually cap below alert unless size is extreme or capital need is explicit.",
   "For ATM or dollar-only offering size, score and display by amount versus market cap, public float, or Market Value at Last Sale Price unless the filing itself states a fixed share count. If the source filing states public float or an I.B.6 public-float limit, use public float before market_context market cap. Do not use assumed-price share dilution for ATM programs.",
+  "For score_explanation.summary, write an analyst's bottom-line judgment, not a filing summary.",
+  "Do not repeat the form type or restate the transaction mechanically in score_explanation.summary.",
+  "You do not need to include percentages in score_explanation.summary when the scale is already visible in the UI.",
+  "Use the strongest 1-2 score drivers and one material offset only when it explains the score.",
   "Resale registration is potential selling-holder overhang. The company usually receives no resale proceeds unless the filing states ELOC, purchase agreement, warrant exercise cash, or other company cash.",
   "Primary, registered direct, priced takedown, warrant, convertible, and mixed offerings should use the same investor-facing display structure as 424B offering filings.",
   "For amendments, score what changed in this filing, not the full parent registration. Routine exhibit, fee, signature, or housekeeping amendments usually archive.",
