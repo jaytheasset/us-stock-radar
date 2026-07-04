@@ -400,26 +400,18 @@ function collectS1F1ShareOverhangDisplayWarnings(data: Record<string, unknown>, 
   const caption = stringValue(shareOverhang.caption);
   const basis = readRecord(shareOverhang.basis);
   const structuredRows = Array.isArray(shareOverhang.rows) ? shareOverhang.rows : [];
-  const legacySegments = Array.isArray(shareOverhang.segments) ? shareOverhang.segments : [];
-  const rowsToCheck = structuredRows.length ? structuredRows : legacySegments;
-  warnings.push(...collectS1F1ShareOverhangUnitWarnings(basis, rowsToCheck, structuredRows.length > 0));
-  const hasIncludedAmount = rowsToCheck.some((item) => {
+  warnings.push(...collectS1F1ShareOverhangUnitWarnings(basis, structuredRows, structuredRows.length > 0));
+  const hasIncludedAmount = structuredRows.some((item) => {
     const row = readRecord(item);
     return Boolean(row && isS1F1CountedShareOverhangRow(row, structuredRows.length > 0) && hasUsableS1F1ShareOverhangAmount(row));
   });
-  const hasUsableBasis =
-    hasUsableS1F1ShareOverhangAmount(basis) ||
-    (!structuredRows.length &&
-      legacySegments.some((item) => {
-        const row = readRecord(item);
-        return Boolean(row && isS1F1BaseShareOverhangSegment(row) && hasUsableS1F1ShareOverhangAmount(row));
-      }));
+  const hasUsableBasis = hasUsableS1F1ShareOverhangAmount(basis);
   if (hasIncludedAmount && !hasUsableBasis) {
     warnings.push(
       "S-1/F-1 display_payload.data.share_overhang has numeric included supply rows but no usable numeric basis denominator; use source-block shares outstanding first, then market_context.shares_outstanding when source blocks do not provide it.",
     );
   }
-  for (const item of rowsToCheck) {
+  for (const item of structuredRows) {
     const row = readRecord(item);
     const label = stringValue(row?.label);
     const included = isS1F1CountedShareOverhangRow(row, structuredRows.length > 0);
@@ -428,7 +420,7 @@ function collectS1F1ShareOverhangDisplayWarnings(data: Record<string, unknown>, 
       `S-1/F-1 display_payload.data.share_overhang has grouped instrument series in an included numerator row (${label}); grouped series must share the same row_role and material economics.`,
     );
   }
-  warnings.push(...collectS1F1WarrantShareOverhangWarnings(data, rowsToCheck, analysisOutput));
+  warnings.push(...collectS1F1WarrantShareOverhangWarnings(data, structuredRows, analysisOutput));
 
   if (!caption) return warnings;
 
@@ -492,12 +484,6 @@ function collectS1F1ShareOverhangUnitWarnings(
   }
 
   return uniqueStrings(warnings);
-}
-
-function isS1F1BaseShareOverhangSegment(row: Record<string, unknown>) {
-  const className = stringValue(row.class_name || row.className);
-  const supplyNature = stringValue(row.supply_nature || row.supplyNature);
-  return className === "current-base" || className === "base-shares" || supplyNature === "base_shares";
 }
 
 function hasUsableS1F1ShareOverhangAmount(record: Record<string, unknown> | null) {
@@ -631,7 +617,7 @@ function collectS1F1WarrantShareOverhangWarnings(
     );
   }
 
-  const shareOverhangContext = `${JSON.stringify(readRecord(data.share_overhang) || {})} ${JSON.stringify(data.snapshot_metrics || [])} ${stringValue(analysisOutput?.summary)} ${stringValue(analysisOutput?.quick_take)} ${stringValue(data.narrative_summary)} ${stringValue(data.investor_takeaway)}`;
+  const shareOverhangContext = `${JSON.stringify(readRecord(data.share_overhang) || {})} ${JSON.stringify(data.snapshot_metrics || [])} ${stringValue(analysisOutput?.summary)} ${stringValue(analysisOutput?.quick_take)} ${stringValue(data.investor_takeaway)}`;
   const hasFutureExerciseWarrantMention = hasNonShareEquivalentWarrantMention(shareOverhangContext);
   const hasFutureExerciseWarrantRow = rows.some((row) => {
     const rowRole = s1F1ShareOverhangRowRole(row);
@@ -846,16 +832,7 @@ function hasNumericShareOverhangSegment(data: Record<string, unknown>, kind: "cu
     if (hasHeadlineSupplyRow) return true;
   }
 
-  const segments = Array.isArray(shareOverhang?.segments) ? shareOverhang.segments : [];
-  return segments.some((item) => {
-    const record = readRecord(item);
-    const numericValue = numberValue(record?.numeric_value) ?? numberValue(record?.numericValue);
-    if (typeof numericValue !== "number" || !Number.isFinite(numericValue) || numericValue <= 0) return false;
-    const className = stringValue(record?.class_name || record?.className);
-    const supplyNature = stringValue(record?.supply_nature || record?.supplyNature);
-    const isBase = className === "current-base" || className === "base-shares" || supplyNature === "base_shares";
-    return kind === "current" ? isBase : !isBase;
-  });
+  return false;
 }
 
 function hasVisibleShareOverhangRatio(data: Record<string, unknown>) {
@@ -868,6 +845,7 @@ function hasVisibleShareOverhangRatio(data: Record<string, unknown>) {
 
 function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput, displayPayloadWarnings: string[] = []) {
   const score = clampScore(numberValue(value.analysis_output.score) ?? 0);
+  const scoreExplanation = normalizeS1F1ScoreExplanation(readRecord(value.analysis_output.score_explanation));
   const displayPayload = readRecord(value.metadata.display_payload);
   const displayPayloadData = readRecord(displayPayload?.data);
   const offeringDisplayModel =
@@ -878,6 +856,7 @@ function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput, displayPayload
   return {
     ...value.analysis_output,
     score,
+    score_explanation: scoreExplanation,
     archive_summary:
       nullableString(value.analysis_output.archive_summary) ||
       (score < 50 ? nullableString(value.analysis_output.summary) : null),
@@ -889,6 +868,30 @@ function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput, displayPayload
     sec_s1_f1_display_warnings: uniqueStrings(displayPayloadWarnings),
     sec_s1_f1_analysis_mode: "analysis_only",
     sec_offering_analysis_mode: "analysis_only",
+  };
+}
+
+function normalizeS1F1ScoreExplanation(value: Record<string, unknown> | null) {
+  if (!value) return null;
+  const summary = nullableString(value.summary) || nullableString(value.rationale);
+  const baseBand = nullableString(value.base_band) || nullableString(value.baseBand);
+  const upwardFactors = uniqueStrings([
+    ...readStringArray(value.upward_factors),
+    ...readStringArray(value.upwardFactors),
+  ]).slice(0, 3);
+  const limitingFactors = uniqueStrings([
+    ...readStringArray(value.limiting_factors),
+    ...readStringArray(value.limitingFactors),
+  ]).slice(0, 3);
+  const finalRead = nullableString(value.final_read) || nullableString(value.finalRead);
+
+  if (!summary && !baseBand && !upwardFactors.length && !limitingFactors.length && !finalRead) return null;
+  return {
+    summary,
+    base_band: baseBand,
+    upward_factors: upwardFactors,
+    limiting_factors: limitingFactors,
+    final_read: finalRead,
   };
 }
 
@@ -1000,11 +1003,9 @@ function alignS1F1AnalysisOutputToDisplayPayload(
   if (!data) return analysis;
   const displayMode = stringValue(data.display_mode);
   const investorTakeaway = nullableString(data.investor_takeaway);
-  const narrativeSummary = nullableString(data.narrative_summary);
   const aligned: Record<string, unknown> = {
     ...analysis,
     ...(investorTakeaway ? { quick_take: investorTakeaway } : {}),
-    ...(narrativeSummary ? { summary: narrativeSummary } : {}),
   };
   if (displayMode && displayMode !== "generic") {
     aligned.bullish_points = [];
@@ -1244,7 +1245,6 @@ export const secS1F1RequiredOutputSchema = {
               },
             },
             investor_takeaway: { type: ["string", "null"] },
-            narrative_summary: { type: ["string", "null"] },
             offering_details: {
               type: "array",
               items: {
@@ -1301,6 +1301,7 @@ export const secS1F1RequiredOutputSchema = {
         "event_title",
         "score",
         "score_reason",
+        "score_explanation",
         "signal",
         "quick_take",
         "summary",
@@ -1312,6 +1313,31 @@ export const secS1F1RequiredOutputSchema = {
         event_title: { type: "string" },
         score: { type: "number" },
         score_reason: { type: "string" },
+        score_explanation: {
+          type: ["object", "null"],
+          additionalProperties: false,
+          required: ["summary", "base_band", "upward_factors", "limiting_factors", "final_read"],
+          properties: {
+            summary: {
+              type: ["string", "null"],
+              maxLength: 180,
+              description:
+                "Visible investor score rationale. One plain-language sentence. Start with the score driver, not issuer name, ticker, form type, or filing action. Do not restate the filing summary.",
+            },
+            base_band: { type: ["string", "null"], maxLength: 80 },
+            upward_factors: {
+              type: "array",
+              maxItems: 3,
+              items: { type: "string", maxLength: 70 },
+            },
+            limiting_factors: {
+              type: "array",
+              maxItems: 3,
+              items: { type: "string", maxLength: 70 },
+            },
+            final_read: { type: ["string", "null"], maxLength: 90 },
+          },
+        },
         signal: { type: "string", enum: ["bullish", "bearish", "volatile", "neutral"] },
         quick_take: { type: "string" },
         summary: { type: "string" },

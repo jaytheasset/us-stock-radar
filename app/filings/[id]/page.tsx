@@ -5484,7 +5484,7 @@ function buildIpoListingModel(filing: FilingEvent): IpoListingModel | null {
   );
   const amendmentRows = readS1F1LabelValueRows(data.amendment_changes).slice(0, 6);
   const investorTakeaway = displayString(data, "investor_takeaway", filing.filingBrief || filing.summary);
-  const narrativeSummary = displayString(data, "narrative_summary", displayString(data, "company_story", filing.summary || "Not disclosed"));
+  const narrativeSummary = displayString(data, "company_story", filing.summary || "Not disclosed");
   const isInitialTermsPending =
     isOfferingTermsIpo &&
     displayMode === "ipo_registration" &&
@@ -6918,7 +6918,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     shelfRegisteredSharesValue,
     shelfSecuritiesCovered,
     shelfStatus,
-    summaryNarrative: readRowString(llmDisplayModel, "narrative_summary"),
+    summaryNarrative: filing.summary,
   });
   const shelfCurrentStateRows = [
     `Capacity: ${shelfCapacityValue}.`,
@@ -7324,10 +7324,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     pipePrincipalValue,
     warrantSharesValue,
   });
-  const llmNarrativeSummary =
-    readRowString(llmDisplayModel, "narrative_summary") ||
-    readRowString(displayPayloadData, "narrative_summary") ||
-    filing.summary;
+  const llmNarrativeSummary = filing.summary;
   const summaryNarrative = llmNarrativeSummary;
   const summaryParagraphs = [llmNarrativeSummary].filter(isDisclosedValue);
   const llmSnapshotMetrics = readSnapshotMetrics(displayPayloadData);
@@ -8984,14 +8981,14 @@ function readLlmShareOverhang(
     caption: readOverhangString(overhang, "caption", "score_caption", "scoreCaption"),
     ratioLabel: readOverhangString(overhang, "ratio_label", "ratioLabel", "scale_label", "scaleLabel"),
     ratioValue: readOverhangString(overhang, "ratio_value", "ratioValue", "percent_value", "percentValue"),
-    currentLabel: readOverhangString(overhang, "current_label", "currentLabel"),
-    currentValue: readOverhangString(overhang, "current_value", "currentValue"),
-    supplyLabel: readOverhangString(overhang, "supply_label", "supplyLabel", "potential_supply_label", "potentialSupplyLabel"),
-    supplyValue: readOverhangString(overhang, "supply_value", "supplyValue", "potential_supply_value", "potentialSupplyValue"),
+    currentLabel: "",
+    currentValue: "",
+    supplyLabel: "",
+    supplyValue: "",
     totalNoteTitle: readOverhangString(totalNote, "title", "label"),
-    totalNoteNumerator: readOverhangString(totalNote, "numerator", "supply_value", "supplyValue"),
-    totalNoteDenominator: readOverhangString(totalNote, "denominator", "current_value", "currentValue"),
-    totalNoteRatio: readOverhangString(totalNote, "ratio", "ratio_value", "ratioValue"),
+    totalNoteNumerator: readOverhangString(totalNote, "numerator"),
+    totalNoteDenominator: readOverhangString(totalNote, "denominator"),
+    totalNoteRatio: readOverhangString(totalNote, "ratio"),
     totalNoteSuffix: readOverhangString(totalNote, "suffix", "note"),
     note: readOverhangString(overhang, "note", "footnote"),
     unavailableRows,
@@ -9016,17 +9013,12 @@ function hasRawShareOverhangContent(overhang: Record<string, unknown> | null) {
   if (!overhang) return false;
   const totalNote = readPlainRecord(overhang.total_note);
   if (readPlainRecord(overhang.basis) || recordArray(overhang.rows).length) return true;
-  if (recordArray(overhang.segments).length || (totalNote && Object.keys(totalNote).length > 0)) return true;
-  if (recordArray(overhang.conditional_supply || overhang.conditionalSupply).length) return true;
+  if (totalNote && Object.keys(totalNote).length > 0) return true;
   return [
     overhang.status_value,
     overhang.statusValue,
     overhang.ratio_value,
     overhang.ratioValue,
-    overhang.current_value,
-    overhang.currentValue,
-    overhang.supply_value,
-    overhang.supplyValue,
   ].some((value) => Boolean(cleanDisclosureValue(readDisclosureValue(value))));
 }
 
@@ -9064,20 +9056,7 @@ function readLlmShareOverhangRoutedRows(overhang: Record<string, unknown>) {
   const structuredRows = readLlmShareOverhangStructuredRows(overhang);
   if (structuredRows) return structuredRows;
 
-  const segmentRows = readLlmShareOverhangSegments(overhang.segments || overhang.bar_segments || overhang.barSegments);
-  const conditionalRows = readLlmShareOverhangRows(overhang.conditional_supply || overhang.conditionalSupply);
-
-  const overhangBarSegments = normalizeLlmShareOverhangSegmentWidths(
-    segmentRows
-      .filter(isCountedInShareOverhangRatio)
-      .concat(conditionalRows.filter(isCountedInShareOverhangRatio).map(conditionalRowToSegment)),
-  );
-  const conditionalSupplyRows = conditionalRows
-    .filter((row) => !isCountedInShareOverhangRatio(row))
-    .concat(segmentRows.filter((segment) => !isCountedInShareOverhangRatio(segment)).map(segmentToConditionalSupplyRow))
-    .slice(0, 8);
-
-  return { conditionalSupplyRows, overhangBarSegments };
+  return { conditionalSupplyRows: [], overhangBarSegments: [] };
 }
 
 function readLlmShareOverhangStructuredRows(overhang: Record<string, unknown>) {
@@ -9157,76 +9136,6 @@ function isCountedInShareOverhangRatio(row: { rowRole?: string; countedInRatio?:
     row.supplyNature === "registered_resale_supply" ||
     row.supplyNature === "common_equivalent_supply"
   );
-}
-
-function conditionalRowToSegment(row: LlmShareOverhangFactRow, index: number): ShareOverhangBarSegment {
-  return {
-    key: row.key || `llm-share-overhang-promoted-${index}`,
-    className: row.className || normalizeLlmShareOverhangSegmentClass(row.label),
-    supplyNature: row.supplyNature,
-    supplyType: row.supplyType,
-    countedInRatio: row.countedInRatio,
-    calculationRole: row.calculationRole,
-    unit: row.unit,
-    classBasis: row.classBasis,
-    poolId: row.poolId,
-    poolRelationship: row.poolRelationship,
-    label: row.label,
-    value: row.value,
-    ...(row.note ? { note: row.note } : {}),
-    numericValue: row.numericValue ?? null,
-    width: 0,
-  };
-}
-
-function segmentToConditionalSupplyRow(segment: ShareOverhangBarSegment): LlmShareOverhangFactRow {
-  return {
-    key: segment.key,
-    className: segment.className,
-    rowRole: normalizeShareOverhangRowRole(segment.rowRole || ""),
-    supplyNature: normalizeShareOverhangSupplyNature(segment.supplyNature || ""),
-    supplyType: normalizeShareOverhangSupplyType(segment.supplyType || ""),
-    countedInRatio: segment.countedInRatio,
-    calculationRole: normalizeShareOverhangCalculationRole(segment.calculationRole || ""),
-    unit: segment.unit,
-    classBasis: segment.classBasis,
-    poolId: segment.poolId,
-    poolRelationship: normalizeShareOverhangPoolRelationship(segment.poolRelationship || ""),
-    label: segment.label,
-    value: segment.value,
-    ...(segment.note ? { note: segment.note } : {}),
-    numericValue: segment.numericValue ?? null,
-  };
-}
-
-function readLlmShareOverhangSegments(value: unknown): ShareOverhangBarSegment[] {
-  const rawSegments = recordArray(value)
-    .map((segment, index): ShareOverhangBarSegment | null => {
-      const label = readOverhangString(segment, "label");
-      const segmentValue = readOverhangString(segment, "value", "value_text", "valueText");
-      if (!label || !segmentValue) return null;
-      return {
-        key: readOverhangString(segment, "key") || `llm-share-overhang-${index}`,
-        className: normalizeLlmShareOverhangSegmentClass(readOverhangString(segment, "class_name", "className", "role") || label),
-        rowRole: normalizeShareOverhangRowRole(readOverhangString(segment, "row_role", "rowRole")),
-        supplyNature: normalizeShareOverhangSupplyNature(readOverhangString(segment, "supply_nature", "supplyNature")),
-        supplyType: normalizeShareOverhangSupplyType(readOverhangString(segment, "supply_type", "supplyType")),
-        countedInRatio: readOverhangBoolean(segment, "counted_in_ratio", "countedInRatio"),
-        calculationRole: normalizeShareOverhangCalculationRole(readOverhangString(segment, "calculation_role", "calculationRole")),
-        unit: readOverhangString(segment, "unit"),
-        classBasis: readOverhangString(segment, "class_basis", "classBasis"),
-        poolId: readOverhangString(segment, "pool_id", "poolId"),
-        poolRelationship: normalizeShareOverhangPoolRelationship(readOverhangString(segment, "pool_relationship", "poolRelationship")),
-        label,
-        value: segmentValue,
-        ...(readOverhangString(segment, "note") ? { note: readOverhangString(segment, "note") } : {}),
-        numericValue: readOverhangSegmentStructuredAmount(segment),
-        width: 0,
-      };
-    })
-    .filter((segment): segment is ShareOverhangBarSegment => segment !== null);
-
-  return normalizeLlmShareOverhangSegmentWidths(rawSegments);
 }
 
 function normalizeLlmShareOverhangSegmentWidths(segments: ShareOverhangBarSegment[]) {
@@ -9363,9 +9272,9 @@ function normalizeShareOverhangTotalNoteRecord(record: Record<string, unknown>) 
   return {
     ...record,
     title: splitTitle.title || rawTitle,
-    numerator: readOverhangString(record, "numerator", "supply_value", "supplyValue") || splitTitle.numerator,
-    denominator: readOverhangString(record, "denominator", "current_value", "currentValue") || splitTitle.denominator,
-    ratio: readOverhangString(record, "ratio", "ratio_value", "ratioValue") || splitTitle.ratio,
+    numerator: readOverhangString(record, "numerator") || splitTitle.numerator,
+    denominator: readOverhangString(record, "denominator") || splitTitle.denominator,
+    ratio: readOverhangString(record, "ratio") || splitTitle.ratio,
     suffix: readOverhangString(record, "suffix", "note") || splitTitle.suffix,
   };
 }
