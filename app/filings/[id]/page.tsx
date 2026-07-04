@@ -4056,6 +4056,9 @@ function OfferingTermsSourceDetails({ model }: { model: ReturnType<typeof buildD
 }
 
 function AtmProgramDetails({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
+  const llmAtmModel = buildAtmProgramLlmOverhangModel(model);
+  if (llmAtmModel) return <DilutionShareOverhang model={llmAtmModel} />;
+
   const programSize = findMetricValue(model.impactMetrics, "Program size") || findDisclosureRowValue(model.atmProgramRows, "Program size");
   const publicFloat = findMetricValue(model.impactMetrics, "Public float");
   const publicFloatScale = findMetricValue(model.impactMetrics, "Size vs public float");
@@ -4138,6 +4141,88 @@ function AtmProgramDetails({ model }: { model: ReturnType<typeof buildDilutionOf
       }}
     />
   );
+}
+
+function buildAtmProgramLlmOverhangModel(model: ReturnType<typeof buildDilutionOfferingModel>) {
+  const overhang = model.llmShareOverhang;
+  if (!overhang) return null;
+
+  const basisSegment =
+    overhang.overhangBarSegments.find((segment) => segment.calculationRole === "denominator") ||
+    overhang.overhangBarSegments.find((segment) => segment.supplyNature === "base_shares") ||
+    overhang.overhangBarSegments[0] ||
+    null;
+  const capacityRow =
+    overhang.conditionalSupplyRows.find(
+      (row) => row.rowRole === "reference" && /\b(?:ATM|program|capacity)\b/i.test(`${row.label} ${row.value}`) && parseMoneyValue(row.value) > 0,
+    ) ||
+    overhang.conditionalSupplyRows.find((row) => row.rowRole === "reference" && parseMoneyValue(row.value) > 0) ||
+    null;
+
+  if (!basisSegment || !capacityRow) return null;
+
+  const denominatorValue = overhang.totalNoteDenominator || overhang.currentValue || basisSegment.value;
+  const numeratorValue = overhang.totalNoteNumerator || overhang.supplyValue || capacityRow.value;
+  if (!parseMoneyValue(denominatorValue) || !parseMoneyValue(numeratorValue)) return null;
+
+  const chartSegments = normalizeLlmShareOverhangSegmentWidths([
+    {
+      ...basisSegment,
+      key: basisSegment.key || "atm-value-basis",
+      className: "current-base",
+      label: overhang.currentLabel || basisSegment.label,
+      value: denominatorValue,
+      roleBadge: "Base",
+      roleKind: "base",
+    },
+    {
+      key: capacityRow.key || "atm-capacity",
+      className: "registered-supply",
+      rowRole: capacityRow.rowRole,
+      supplyType: capacityRow.supplyType,
+      unit: capacityRow.unit,
+      classBasis: capacityRow.classBasis,
+      label: overhang.supplyLabel || capacityRow.label,
+      value: numeratorValue,
+      note: capacityRow.note,
+      numericValue: capacityRow.numericValue ?? parseMoneyValue(numeratorValue),
+      width: 0,
+      roleBadge: "Capacity",
+      roleKind: "included",
+    },
+  ]);
+  const extraReferenceRows = overhang.conditionalSupplyRows.filter((row) => row !== capacityRow);
+  const ratioValue = overhang.totalNoteRatio || overhang.ratioValue || overhang.statusValue || "Not calculated";
+
+  return {
+    canRenderOverhangChart: true,
+    chartTitle: overhang.chartTitle || "ATM Program",
+    currentDetailLabel: overhang.currentLabel || basisSegment.label || "Market Value",
+    currentSharesCompact: denominatorValue,
+    dilutionRatioPercentValue: ratioValue,
+    dilutionRatioValue: ratioValue,
+    overhangAriaLabel: `${overhang.chartTitle || "ATM Program"}: ${ratioValue}`,
+    overhangBarSegments: chartSegments,
+    overhangLevel: overhang.statusLabel || "Capacity Scale",
+    overhangLevelLabel: "Capacity Level",
+    overhangNote: overhang.note || "Actual dilution depends on how much stock the company sells.",
+    overhangScoreCaption: overhang.totalNoteSuffix || overhang.caption || overhang.ratioLabel || "of company value",
+    overhangSubtitle: overhang.subtitle || "ATM capacity compared with source-backed company value",
+    overhangUnavailableMessage: overhang.note || "ATM capacity scale could not be shown from source-backed values.",
+    potentialSupplyCompact: numeratorValue,
+    showBreakdownPanel: false,
+    showSegmentLegend: true,
+    showTotalNote: true,
+    requireProvidedSupplyDetails: true,
+    supplyDetailRows: model.offeringDetailsRows,
+    conditionalSupplyRows: extraReferenceRows,
+    extraDetailPanels: buildWarrantExtraDetailPanels(model),
+    supplyDetailTitle: "Offering Details",
+    supplyDetailLabel: overhang.supplyLabel || capacityRow.label || "ATM Capacity",
+    totalNoteSuffix: overhang.totalNoteSuffix || "program size vs. company value",
+    totalNoteTitle: overhang.totalNoteTitle || "ATM Capacity Scale",
+    totalOverhangLabel: overhang.ratioLabel || "ATM Capacity Scale",
+  };
 }
 
 function ShelfWatchNext({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
