@@ -5,7 +5,7 @@ import { APPROVED_SEC_EVENT_TYPES, type S1F1ParserOutput } from "@/lib/sources/s
 import { normalize424bOfferingDisplayModel } from "@/lib/ai/sec424bAnalysisAdapter";
 
 export const SEC_S1_F1_ANALYSIS_PROMPT_KEY = "sec_s1_f1_analysis";
-export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v16";
+export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v17-display-first";
 
 const ALLOWED_S1_F1_DISPLAY_MODES = new Set([
   "ipo_registration",
@@ -420,7 +420,7 @@ function collectS1F1ShareOverhangDisplayWarnings(data: Record<string, unknown>, 
     const included = isS1F1CountedShareOverhangRow(row, structuredRows.length > 0);
     if (!hasGroupedInstrumentSeriesLabel(label) || !included) continue;
     warnings.push(
-      `S-1/F-1 display_payload.data.share_overhang has grouped instrument series in an included numerator row (${label}); grouped series must share the same supply_type and material economics.`,
+      `S-1/F-1 display_payload.data.share_overhang has grouped instrument series in an included numerator row (${label}); grouped series must share the same row_role and material economics.`,
     );
   }
   warnings.push(...collectS1F1WarrantShareOverhangWarnings(data, rowsToCheck, analysisOutput));
@@ -554,10 +554,11 @@ function collectS1F1WarrantShareOverhangWarnings(
   for (const row of rows) {
     const label = stringValue(row.label);
     const rowText = `${label} ${stringValue(row.value)} ${stringValue(row.note)}`;
+    const rowRole = s1F1ShareOverhangRowRole(row);
     const supplyType = stringValue(row.supply_type || row.supplyType);
     const countedInRatio = booleanValue(row.counted_in_ratio ?? row.countedInRatio);
     if (
-      countedInRatio === true &&
+      (rowRole ? rowRole === "counted" : countedInRatio === true) &&
       supplyType === "current_offering_pool" &&
       isNonShareEquivalentWarrantText(label)
     ) {
@@ -566,7 +567,7 @@ function collectS1F1WarrantShareOverhangWarnings(
       );
     }
     if (
-      countedInRatio === true &&
+      (rowRole ? rowRole === "counted" : countedInRatio === true) &&
       supplyType === "share_equivalent" &&
       isNonShareEquivalentWarrantText(rowText)
     ) {
@@ -577,6 +578,8 @@ function collectS1F1WarrantShareOverhangWarnings(
   }
 
   const futureExerciseRows = rows.filter((row) => {
+    const rowRole = s1F1ShareOverhangRowRole(row);
+    if (rowRole) return rowRole === "conditional";
     const countedInRatio = booleanValue(row.counted_in_ratio ?? row.countedInRatio);
     const supplyType = stringValue(row.supply_type || row.supplyType);
     return countedInRatio === false || supplyType === "future_exercise";
@@ -596,22 +599,25 @@ function collectS1F1WarrantShareOverhangWarnings(
     if (!isNonShareEquivalentWarrantText(group.text)) continue;
     const hasVisibleConditionalRow = rows.some((row) => {
       if (!shareOverhangRowMatchesInstrument(row, group.type)) return false;
+      const rowRole = s1F1ShareOverhangRowRole(row);
+      if (rowRole) return rowRole === "conditional";
       const countedInRatio = booleanValue(row.counted_in_ratio ?? row.countedInRatio);
       const supplyType = stringValue(row.supply_type || row.supplyType);
       return countedInRatio === false || supplyType === "future_exercise";
     });
     if (hasVisibleConditionalRow) continue;
     warnings.push(
-      `S-1/F-1 display_payload.data.instrument_details includes ${group.type}, but share_overhang.rows does not show a matching future_exercise row with counted_in_ratio false.`,
+      `S-1/F-1 display_payload.data.instrument_details includes ${group.type}, but share_overhang.rows does not show a matching row_role conditional row.`,
     );
   }
 
   const instrumentGroups = readInstrumentDetailGroups(data.instrument_details);
   for (const row of rows) {
+    const rowRole = s1F1ShareOverhangRowRole(row);
     const countedInRatio = booleanValue(row.counted_in_ratio ?? row.countedInRatio);
     const supplyType = stringValue(row.supply_type || row.supplyType);
     const rowText = `${stringValue(row.label)} ${stringValue(row.value)} ${stringValue(row.note)}`;
-    if (countedInRatio !== false && supplyType !== "future_exercise") continue;
+    if (rowRole ? rowRole !== "conditional" : countedInRatio !== false && supplyType !== "future_exercise") continue;
     if (!isNonShareEquivalentWarrantText(rowText)) continue;
     const hasMatchingInstrument = instrumentGroups.some((group) => shareOverhangRowMatchesInstrument(row, group.type));
     if (hasMatchingInstrument) continue;
@@ -623,14 +629,16 @@ function collectS1F1WarrantShareOverhangWarnings(
   const shareOverhangContext = `${JSON.stringify(readRecord(data.share_overhang) || {})} ${JSON.stringify(data.snapshot_metrics || [])} ${stringValue(analysisOutput?.summary)} ${stringValue(analysisOutput?.quick_take)} ${stringValue(data.narrative_summary)} ${stringValue(data.investor_takeaway)}`;
   const hasFutureExerciseWarrantMention = hasNonShareEquivalentWarrantMention(shareOverhangContext);
   const hasFutureExerciseWarrantRow = rows.some((row) => {
+    const rowRole = s1F1ShareOverhangRowRole(row);
     const countedInRatio = booleanValue(row.counted_in_ratio ?? row.countedInRatio);
     const supplyType = stringValue(row.supply_type || row.supplyType);
     const rowText = `${stringValue(row.label)} ${stringValue(row.value)} ${stringValue(row.note)}`;
-    return (countedInRatio === false || supplyType === "future_exercise") && hasNonShareEquivalentWarrantMention(rowText);
+    const isConditional = rowRole ? rowRole === "conditional" : countedInRatio === false || supplyType === "future_exercise";
+    return isConditional && hasNonShareEquivalentWarrantMention(rowText);
   });
   if (hasFutureExerciseWarrantMention && !hasFutureExerciseWarrantRow) {
     warnings.push(
-      "S-1/F-1 display_payload mentions material warrant supply, but share_overhang.rows does not show a future_exercise row with counted_in_ratio false.",
+      "S-1/F-1 display_payload mentions material warrant supply, but share_overhang.rows does not show a row_role conditional row.",
     );
   }
   if (hasFutureExerciseWarrantMention && !instrumentGroups.length) {
@@ -761,8 +769,16 @@ function isIncludedSupplyNature(value: string) {
   return ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(value);
 }
 
+function s1F1ShareOverhangRowRole(row: Record<string, unknown> | null) {
+  const normalized = stringValue(row?.row_role || row?.rowRole).toLowerCase().replace(/[\s-]+/g, "_");
+  if (["counted", "conditional", "alternative", "reference"].includes(normalized)) return normalized;
+  return "";
+}
+
 function isS1F1CountedShareOverhangRow(row: Record<string, unknown> | null, structuredRows: boolean) {
   if (!row) return false;
+  const rowRole = s1F1ShareOverhangRowRole(row);
+  if (rowRole) return rowRole === "counted";
   const countedInRatio = booleanValue(row.counted_in_ratio ?? row.countedInRatio);
   if (structuredRows && countedInRatio !== null) return countedInRatio;
 
@@ -801,7 +817,7 @@ function validateS1F1OverhangFacts(data: Record<string, unknown>) {
     return "SEC S-1/F-1 overhang snapshot must include numeric display_payload.data.share_overhang.basis from filing data when available; market_context shares are allowed only when the filing provides no denominator";
   }
   if (!hasSupplyNumerator) {
-    return "SEC S-1/F-1 overhang snapshot must include numeric counted_in_ratio true share_overhang.rows from the same registered/offered share numerator";
+    return "SEC S-1/F-1 overhang snapshot must include numeric row_role counted share_overhang.rows from the same registered/offered share numerator";
   }
   return "";
 }
@@ -1118,36 +1134,9 @@ function readRecord(value: unknown): Record<string, unknown> | null {
 export const secS1F1RequiredOutputSchema = {
   type: "object",
   additionalProperties: true,
-  required: ["analysis_output", "display_payload"],
+  required: ["display_payload", "analysis_output"],
   properties: {
     parser_output: { type: "object", additionalProperties: true },
-    analysis_output: {
-      type: "object",
-      additionalProperties: true,
-      required: [
-        "event_type",
-        "event_title",
-        "score",
-        "score_reason",
-        "signal",
-        "quick_take",
-        "summary",
-        "confidence",
-        "needs_human_review",
-      ],
-      properties: {
-        event_type: { type: "string", enum: APPROVED_SEC_EVENT_TYPES },
-        event_title: { type: "string" },
-        score: { type: "number" },
-        score_reason: { type: "string" },
-        signal: { type: "string", enum: ["bullish", "bearish", "volatile", "neutral"] },
-        quick_take: { type: "string" },
-        summary: { type: "string" },
-        confidence: { type: "string", enum: ["high", "medium", "low"] },
-        needs_human_review: { type: "boolean" },
-        archive_summary: { type: ["string", "null"] },
-      },
-    },
     display_payload: {
       type: "object",
       additionalProperties: true,
@@ -1232,10 +1221,11 @@ export const secS1F1RequiredOutputSchema = {
                   items: {
                     type: "object",
                     additionalProperties: true,
-                    required: ["counted_in_ratio", "supply_type", "label", "value", "numeric_value", "unit"],
+                    required: ["row_role", "label", "value", "numeric_value", "unit"],
                     properties: {
-                      counted_in_ratio: { type: "boolean" },
-                      supply_type: { type: "string" },
+                      row_role: { type: "string", enum: ["counted", "conditional", "alternative", "reference"] },
+                      counted_in_ratio: { type: ["boolean", "null"] },
+                      supply_type: { type: ["string", "null"] },
                       label: { type: "string" },
                       value: { type: "string" },
                       numeric_value: { type: ["number", "null"] },
@@ -1296,6 +1286,33 @@ export const secS1F1RequiredOutputSchema = {
         },
         evidence: { type: "array", items: { type: "string" } },
         notes: { type: "array", items: { type: "string" } },
+      },
+    },
+    analysis_output: {
+      type: "object",
+      additionalProperties: true,
+      required: [
+        "event_type",
+        "event_title",
+        "score",
+        "score_reason",
+        "signal",
+        "quick_take",
+        "summary",
+        "confidence",
+        "needs_human_review",
+      ],
+      properties: {
+        event_type: { type: "string", enum: APPROVED_SEC_EVENT_TYPES },
+        event_title: { type: "string" },
+        score: { type: "number" },
+        score_reason: { type: "string" },
+        signal: { type: "string", enum: ["bullish", "bearish", "volatile", "neutral"] },
+        quick_take: { type: "string" },
+        summary: { type: "string" },
+        confidence: { type: "string", enum: ["high", "medium", "low"] },
+        needs_human_review: { type: "boolean" },
+        archive_summary: { type: ["string", "null"] },
       },
     },
   },
