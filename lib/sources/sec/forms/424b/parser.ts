@@ -625,6 +625,36 @@ function addOutstandingShareCountTableBlock(
   });
 }
 
+function addClassSpecificOutstandingBlock(
+  blocks: Array<{ block_type: string; label: string; source: string; text: string }>,
+  text: string,
+) {
+  const patterns = [
+    /\bNumber\s+of\s+(?:Ordinary\s+Shares|Common\s+Stock|shares?)\s+outstanding\s+(?:immediately\s+)?(?:before|prior\s+to)\s+this\s+offering[\s\S]{0,900}?\b[0-9][0-9,]*(?:\.\d+)?\s+(?:Ordinary\s+Shares|Common\s+Stock|shares?),\s+consisting\s+of\s+[0-9][0-9,]*(?:\.\d+)?\s+Class\s+[A-Z]\s+(?:Ordinary\s+Shares|Common\s+Stock|shares?)[\s\S]{0,260}?\bClass\s+[A-Z]\s+(?:Ordinary\s+Shares|Common\s+Stock|shares?)\b/gi,
+    /\b[0-9][0-9,]*(?:\.\d+)?\s+(?:Ordinary\s+Shares|Common\s+Stock|shares?),\s+consisting\s+of\s+[0-9][0-9,]*(?:\.\d+)?\s+Class\s+[A-Z]\s+(?:Ordinary\s+Shares|Common\s+Stock|shares?)[\s\S]{0,260}?\bClass\s+[A-Z]\s+(?:Ordinary\s+Shares|Common\s+Stock|shares?)\b/gi,
+  ];
+  const snippets: string[] = [];
+
+  for (const pattern of patterns) {
+    for (const match of text.matchAll(pattern)) {
+      const snippet = normalizeText(match[0]);
+      if (!snippet || snippets.some((item) => item === snippet)) continue;
+      snippets.push(snippet);
+      if (snippets.length >= 3) break;
+    }
+    if (snippets.length >= 3) break;
+  }
+
+  if (!snippets.length) return;
+
+  addCleanedSourceBlock(blocks, {
+    block_type: "source_context_window",
+    label: "Class-specific outstanding share count",
+    source: "primary_document",
+    text: snippets.join("\n---\n"),
+  });
+}
+
 function addHeadingSectionBlock(
   blocks: Array<{ block_type: string; label: string; source: string; text: string }>,
   text: string,
@@ -836,6 +866,7 @@ function buildCleanedSourceBlocks(input: Sec424bParseInput, text: string, fullTe
 
   addOfferingTableBlock(blocks, fullText);
   addOutstandingShareCountTableBlock(blocks, fullText);
+  addClassSpecificOutstandingBlock(blocks, fullText);
   addOutstandingPercentageContextBlock(blocks, fullText);
   addShareCountExcerptBlock(blocks, fullText);
 

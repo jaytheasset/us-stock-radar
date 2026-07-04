@@ -6,7 +6,7 @@ import type { Sec424bParserOutput } from "@/lib/sources/sec/forms/424b/types";
 
 export const SEC_424B_ANALYSIS_PROMPT_KEY = "sec_424b_analysis";
 export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v20";
-export const SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION = "v24-sectioned-default";
+export const SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION = "v36-display-first";
 const ALLOWED_424B_DISPLAY_MODES = new Set([
   "atm",
   "resale_registration",
@@ -32,6 +32,25 @@ export const APPROVED_424B_SHARE_OVERHANG_CHART_TITLES = [
   "Rights Offering",
   "ATM Program",
   "Shelf Details",
+] as const;
+
+const SHARE_OVERHANG_TOTAL_NOTE_TITLE_VALUES = [
+  "Dilution vs Current Shares",
+  "Overhang vs Current Shares",
+  "Registered Resale Overhang",
+  "Total Potential Dilution",
+  "Total Potential Overhang",
+  "ATM Capacity Scale",
+  "Shelf Capacity Scale",
+  "Capacity vs Market Cap",
+  "Capacity vs Public Float",
+  "Warrant Share Supply",
+  "Convertible Share Supply",
+  "Preferred Conversion Supply",
+  "Pre-Funded Warrant Supply",
+  "Share-Equivalent Supply",
+  "Rights Offering Dilution",
+  "Marketed Block Scale",
 ] as const;
 
 export type Sec424bAnalysisAdapterResult =
@@ -128,21 +147,22 @@ export function adaptSec424bAnalysisPromptResultForAnalysis(
       error: "SEC 424B analysis_output.score_explanation must include summary or base_band/final_read for the Score Basis UI",
     };
   }
-  const displayPayloadError = validate424bDisplayPayload(displayPayload);
+  const normalizedDisplayPayload = normalize424bDisplayPayload(displayPayload);
+  const displayPayloadError = validate424bDisplayPayload(normalizedDisplayPayload);
   const displayPayloadWarnings = [
     ...(displayPayloadError ? [displayPayloadError] : []),
-    ...collect424bDisplayPayloadWarnings(displayPayload),
-    ...collect424bScoreConsistencyWarnings(normalizedAnalysisOutput, displayPayload),
+    ...collect424bDisplayPayloadWarnings(normalizedDisplayPayload),
+    ...collect424bScoreConsistencyWarnings(normalizedAnalysisOutput, normalizedDisplayPayload),
   ];
-  append424bDisplayWarnings(displayPayload, displayPayloadWarnings);
+  append424bDisplayWarnings(normalizedDisplayPayload, displayPayloadWarnings);
 
   return adapt424bRoomResultForAnalysis({
     parser_output: parserOutput,
     analysis_output: align424bAnalysisOutputToDisplayPayload(
       normalizedAnalysisOutput,
-      displayPayload,
+      normalizedDisplayPayload,
     ),
-    display_payload: displayPayload,
+    display_payload: normalizedDisplayPayload,
   }, displayPayloadWarnings);
 }
 
@@ -278,8 +298,8 @@ export function collect424bDisplayPayloadWarnings(displayPayload: Record<string,
   const basisText = shareBasisText(basisRecord);
   const includedRowsBasisText = shareOverhangRows
     .filter((row) => {
-      const countedInRatio = booleanValue(row.counted_in_ratio ?? row.countedInRatio);
-      if (typeof countedInRatio === "boolean") return countedInRatio;
+      const rowRole = shareOverhangRowRole(row);
+      if (rowRole) return rowRole === "counted";
       const calculationRole = stringValue(row.calculation_role || row.calculationRole);
       const supplyNature = stringValue(row.supply_nature || row.supplyNature);
       return (
@@ -294,7 +314,9 @@ export function collect424bDisplayPayloadWarnings(displayPayload: Record<string,
     basisText &&
     /\bclass\s+a\b/i.test(includedRowsBasisText) &&
     !/\bexclud(?:e|es|ing|ed)\s+class\s+b\b/i.test(basisText) &&
-    (/\bclass\s+b\b/i.test(basisText) || /\bclass\s+a\s+(?:and|&|\+)\s+class\s+b\b/i.test(basisText))
+    (/\bclass\s+b\b/i.test(basisText) ||
+      /\bclass\s+a\s+(?:and|&|\+)\s+class\s+b\b/i.test(basisText) ||
+      (!/\bclass\s+a\b/i.test(basisText) && /\b(?:ordinary|common)\s+shares?\b/i.test(basisText)))
   ) {
     warnings.push(
       "SEC 424B share_overhang counted rows appear Class A-specific, but basis appears to combine Class A with Class B or another broader share basis.",
@@ -315,7 +337,7 @@ export function collect424bDisplayPayloadWarnings(displayPayload: Record<string,
     Math.abs(includedRowSum - totalNoteNumerator) / Math.max(includedRowSum, totalNoteNumerator) > 0.02
   ) {
     warnings.push(
-      "SEC 424B share_overhang counted row numeric_value sum does not reconcile to total_note.numerator; merge alternative pools or fix counted_in_ratio before relying on the displayed ratio.",
+      "SEC 424B share_overhang counted row numeric_value sum does not reconcile to total_note.numerator; merge alternative pools or fix row_role before relying on the displayed ratio.",
     );
   }
   if (totalNoteNumerator && totalNoteDenominator && totalNoteRatio != null) {
@@ -328,7 +350,7 @@ export function collect424bDisplayPayloadWarnings(displayPayload: Record<string,
   }
   if (hasDuplicateOrdinaryPrefundedCountedRows(includedRows)) {
     warnings.push(
-      "SEC 424B share_overhang appears to count ordinary/unit supply and pre-funded replacement supply with the same numeric_value; use one ordinary-or-pre-funded current_offering_pool row or mark the replacement row counted_in_ratio false.",
+      "SEC 424B share_overhang appears to count ordinary/unit supply and pre-funded replacement supply with the same numeric_value; use one ordinary-or-pre-funded current_offering_pool row or mark the replacement row row_role alternative.",
     );
   }
   for (const segment of arrayValue(data.supply_segments)) {
@@ -384,7 +406,70 @@ function collect424bScoreConsistencyWarnings(
       `SEC 424B score ${score} appears below alert threshold for ${formatShareOverhangPercent(includedPercent)} included share exposure vs base shares.`,
     );
   }
+  const conflictingProseFields = collectConflictingShareOverhangPercentFields(analysisOutput, shareOverhang);
+  if (conflictingProseFields.length) {
+    warnings.push(
+      `SEC 424B analysis prose contains dilution/overhang percentage(s) that conflict with share_overhang.total_note.ratio in: ${conflictingProseFields.join(", ")}.`,
+    );
+  }
   return warnings;
+}
+
+function collectConflictingShareOverhangPercentFields(
+  analysisOutput: Record<string, unknown>,
+  shareOverhang: Record<string, unknown> | null,
+) {
+  const expectedRatio = normalizedPercentToken(readShareOverhangRatio(shareOverhang));
+  if (!expectedRatio || !hasNonCountedShareOverhangRows(shareOverhang)) return [];
+  const fields: Array<[string, unknown]> = [
+    ["event_title", analysisOutput.event_title],
+    ["quick_take", analysisOutput.quick_take],
+    ["summary", analysisOutput.summary],
+    ["score_reason", analysisOutput.score_reason],
+  ];
+  const scoreExplanation = readRecord(analysisOutput.score_explanation);
+  if (scoreExplanation) {
+    fields.push(
+      ["score_explanation.summary", scoreExplanation.summary],
+      ["score_explanation.final_read", scoreExplanation.final_read],
+    );
+    for (const key of ["upward_factors", "limiting_factors"]) {
+      for (const [index, value] of readStringArray(scoreExplanation[key]).entries()) {
+        fields.push([`score_explanation.${key}[${index}]`, value]);
+      }
+    }
+  }
+  return fields
+    .filter(([, value]) => hasConflictingPercent(value, expectedRatio))
+    .map(([field]) => field);
+}
+
+function readShareOverhangRatio(shareOverhang: Record<string, unknown> | null) {
+  const totalNote = readRecord(shareOverhang?.total_note);
+  return stringValue(totalNote?.ratio) || stringValue(shareOverhang?.ratio_value) || stringValue(shareOverhang?.status_value);
+}
+
+function hasNonCountedShareOverhangRows(shareOverhang: Record<string, unknown> | null) {
+  return arrayValue(shareOverhang?.rows)
+    .map((row) => readRecord(row))
+    .some((row) => {
+      if (!row) return false;
+      const rowRole = shareOverhangRowRole(row);
+      return rowRole === "conditional" || rowRole === "alternative" || rowRole === "reference";
+    });
+}
+
+function normalizedPercentToken(value: unknown) {
+  const match = stringValue(value).match(/(\d[\d,]*(?:\.\d+)?)\s*%/);
+  if (!match) return "";
+  return Number(match[1].replace(/,/g, "")).toFixed(1);
+}
+
+function hasConflictingPercent(value: unknown, expectedRatio: string) {
+  const text = stringValue(value);
+  if (!text) return false;
+  const matches = [...text.matchAll(/(?:over\s+|approximately\s+|approx\.?\s+|around\s+|about\s+)?\d[\d,]*(?:\.\d+)?\s*%/gi)];
+  return matches.some((match) => normalizedPercentToken(match[0]) !== expectedRatio);
 }
 
 function validateKeyCashTermFacts(data: Record<string, unknown>) {
@@ -464,6 +549,18 @@ function append424bDisplayWarnings(displayPayload: Record<string, unknown>, warn
   data.display_warnings = uniqueStrings([...existing, ...warnings]);
 }
 
+function normalize424bDisplayPayload(displayPayload: Record<string, unknown>) {
+  if (stringValue(displayPayload.display_type) !== "offering_terms") return displayPayload;
+  const data = readRecord(displayPayload.data);
+  if (!data) return displayPayload;
+  const normalizedData = normalize424bOfferingDisplayModel(data);
+  if (!normalizedData) return displayPayload;
+  return {
+    ...displayPayload,
+    data: normalizedData,
+  };
+}
+
 function adapt424bRoomResultForAnalysis(value: unknown, displayPayloadWarnings: string[] = []): Sec424bAnalysisAdapterResult {
   const adapted = adaptSecFormRoomOutputForIngest(value);
   if (!adapted.ok) {
@@ -486,10 +583,10 @@ function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput, displayPayload
     nullableString(value.analysis_output.archive_summary) ||
     (score < 50 ? nullableString(value.analysis_output.summary) : null);
   const displayPayload = readRecord(value.metadata.display_payload);
-  const displayPayloadData = readRecord(displayPayload?.data);
+  const normalizedDisplayPayload = displayPayload ? normalize424bDisplayPayload(displayPayload) : null;
   const offeringDisplayModel =
-    stringValue(displayPayload?.display_type) === "offering_terms"
-      ? normalize424bOfferingDisplayModel(displayPayloadData)
+    stringValue(normalizedDisplayPayload?.display_type) === "offering_terms"
+      ? readRecord(normalizedDisplayPayload?.data)
       : readRecord(value.analysis_output.offering_display_model);
 
   return {
@@ -497,7 +594,7 @@ function adapterOutputToAnalysis(value: SecFormRoomAdapterOutput, displayPayload
     score,
     score_explanation: scoreExplanation,
     archive_summary: archiveSummary,
-    display_payload: value.metadata.display_payload,
+    display_payload: normalizedDisplayPayload ?? value.metadata.display_payload,
     display_payload_storage_target: value.metadata.display_payload_storage_target,
     display_payload_storage_mode: value.metadata.display_payload_storage_mode,
     candidate_special_metadata_only: value.metadata.candidate_special_metadata_only,
@@ -607,6 +704,7 @@ function normalizeShareOverhang(value: Record<string, unknown> | null, instrumen
       const normalizedSegment = {
         key: nullableString(record?.key),
         class_name: nullableString(record?.class_name || record?.className),
+        row_role: nullableString(record?.row_role || record?.rowRole),
         counted_in_ratio: booleanValue(record?.counted_in_ratio ?? record?.countedInRatio),
         supply_type: nullableString(record?.supply_type || record?.supplyType),
         supply_nature: nullableString(record?.supply_nature || record?.supplyNature),
@@ -631,6 +729,7 @@ function normalizeShareOverhang(value: Record<string, unknown> | null, instrumen
       ): segment is {
         key: string | null;
         class_name: string | null;
+        row_role: string | null;
         counted_in_ratio: boolean | null;
         supply_type: string | null;
         supply_nature: string | null;
@@ -763,6 +862,8 @@ function instrumentMatchKey(value: string) {
 }
 
 function isIncludedShareOverhangRow(row: Record<string, unknown>) {
+  const rowRole = shareOverhangRowRole(row);
+  if (rowRole) return rowRole === "counted";
   const countedInRatio = booleanValue(row.counted_in_ratio ?? row.countedInRatio);
   if (typeof countedInRatio === "boolean") return countedInRatio;
   const calculationRole = stringValue(row.calculation_role || row.calculationRole);
@@ -771,6 +872,12 @@ function isIncludedShareOverhangRow(row: Record<string, unknown>) {
     calculationRole === "headline_numerator" &&
     ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(supplyNature)
   );
+}
+
+function shareOverhangRowRole(row: Record<string, unknown> | null) {
+  const normalized = stringValue(row?.row_role || row?.rowRole).toLowerCase().replace(/[\s-]+/g, "_");
+  if (["counted", "conditional", "alternative", "reference"].includes(normalized)) return normalized;
+  return "";
 }
 
 function hasUsableShareOverhangBasis(record: Record<string, unknown> | null) {
@@ -909,6 +1016,7 @@ function deriveShareOverhangScale(shareOverhang: Record<string, unknown> | null)
     .filter((record): record is Record<string, unknown> => Boolean(record))
     .map((record) => ({
       countedInRatio: booleanValue(record.counted_in_ratio ?? record.countedInRatio),
+      rowRole: stringValue(record.row_role || record.rowRole),
       supplyType: stringValue(record.supply_type || record.supplyType),
       calculationRole: stringValue(record.calculation_role || record.calculationRole),
       supplyNature: stringValue(record.supply_nature || record.supplyNature),
@@ -921,13 +1029,9 @@ function deriveShareOverhangScale(shareOverhang: Record<string, unknown> | null)
     .filter((row) => row.numericValue > 0);
   const basisValue = numberValue(basis?.numeric_value) ?? numberValue(basis?.numericValue) ?? numberValue(basis?.amount) ?? 0;
   if (basisValue > 0 && rows.length > 0) {
-    const basisContext = {
-      unit: stringValue(basis?.unit),
-      classBasis: stringValue(basis?.class_basis || basis?.classBasis),
-    };
     const supplyValue = rows
       .filter((row) => {
-        if (!isShareOverhangAmountCompatible(row, basisContext)) return false;
+        if (row.rowRole) return row.rowRole === "counted";
         if (typeof row.countedInRatio === "boolean") return row.countedInRatio;
         return (
           row.calculationRole === "headline_numerator" &&
@@ -936,14 +1040,15 @@ function deriveShareOverhangScale(shareOverhang: Record<string, unknown> | null)
       })
       .reduce((total, row) => total + row.numericValue, 0);
     if (supplyValue > 0) {
-      const compatibleRows = rows.filter((row) => isShareOverhangAmountCompatible(row, basisContext));
-      const unit = detectShareOverhangUnit([stringValue(basis?.value || basis?.value_text), ...compatibleRows.map((row) => row.value)].join(" "));
+      const unit = detectShareOverhangUnit([stringValue(basis?.value || basis?.value_text), ...rows.map((row) => row.value)].join(" "));
       return {
         current_value: formatShareOverhangCount(basisValue, unit),
         supply_value: formatShareOverhangCount(supplyValue, unit),
         ratio_value: formatShareOverhangPercent((supplyValue / basisValue) * 100),
         has_conditional_supply: rows.some(
           (row) =>
+            row.rowRole === "conditional" ||
+            row.rowRole === "alternative" ||
             (row.countedInRatio === false && row.supplyType !== "shelf_capacity") ||
             row.supplyType === "future_exercise" ||
             ["conditional_future_supply", "replacement_supply"].includes(row.supplyNature),
@@ -959,6 +1064,7 @@ function deriveShareOverhangScale(shareOverhang: Record<string, unknown> | null)
     .filter((record): record is Record<string, unknown> => Boolean(record))
     .map((record) => ({
       countedInRatio: booleanValue(record.counted_in_ratio ?? record.countedInRatio),
+      rowRole: stringValue(record.row_role || record.rowRole),
       supplyType: stringValue(record.supply_type || record.supplyType),
       supplyNature: stringValue(record.supply_nature || record.supplyNature),
       className: stringValue(record.class_name || record.className),
@@ -973,16 +1079,9 @@ function deriveShareOverhangScale(shareOverhang: Record<string, unknown> | null)
   const baseValue = segments
     .filter((segment) => segment.supplyNature === "base_shares" || segment.className === "base-shares" || segment.className === "current-base")
     .reduce((total, segment) => total + segment.numericValue, 0);
-  const basisSegment = segments.find(
-    (segment) => segment.supplyNature === "base_shares" || segment.className === "base-shares" || segment.className === "current-base",
-  );
-  const basisContext = {
-    unit: basisSegment?.unit || "",
-    classBasis: basisSegment?.classBasis || "",
-  };
   const supplyValue = segments
     .filter((segment) => {
-      if (!isShareOverhangAmountCompatible(segment, basisContext)) return false;
+      if (segment.rowRole) return segment.rowRole === "counted";
       if (typeof segment.countedInRatio === "boolean") return segment.countedInRatio;
       return ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(segment.supplyNature);
     })
@@ -996,6 +1095,8 @@ function deriveShareOverhangScale(shareOverhang: Record<string, unknown> | null)
     ratio_value: formatShareOverhangPercent((supplyValue / baseValue) * 100),
     has_conditional_supply: segments.some(
       (segment) =>
+        segment.rowRole === "conditional" ||
+        segment.rowRole === "alternative" ||
         (segment.countedInRatio === false && segment.supplyType !== "shelf_capacity") ||
         segment.supplyType === "future_exercise" ||
         ["conditional_future_supply", "replacement_supply"].includes(segment.supplyNature),
@@ -1003,25 +1104,6 @@ function deriveShareOverhangScale(shareOverhang: Record<string, unknown> | null)
     base_numeric_value: baseValue,
     supply_numeric_value: supplyValue,
   };
-}
-
-function isShareOverhangAmountCompatible(
-  value: { unit?: string; classBasis?: string },
-  basis: { unit?: string; classBasis?: string },
-) {
-  const basisUnit = normalizeShareOverhangBasisText(basis.unit);
-  const valueUnit = normalizeShareOverhangBasisText(value.unit);
-  if (basisUnit && valueUnit && basisUnit !== valueUnit) return false;
-
-  const basisClass = normalizeShareOverhangBasisText(basis.classBasis);
-  const valueClass = normalizeShareOverhangBasisText(value.classBasis);
-  if (basisClass && valueClass && basisClass !== valueClass) return false;
-
-  return true;
-}
-
-function normalizeShareOverhangBasisText(value: string | undefined) {
-  return stringValue(value).toLowerCase().replace(/\s+/g, " ").trim();
 }
 
 function detectShareOverhangUnit(text: string) {
@@ -1049,6 +1131,7 @@ function normalizeShareOverhangRow(record: Record<string, unknown> | null, inclu
   return {
     key: nullableString(record?.key),
     class_name: nullableString(record?.class_name || record?.className),
+    row_role: nullableString(record?.row_role || record?.rowRole),
     counted_in_ratio: booleanValue(record?.counted_in_ratio ?? record?.countedInRatio),
     supply_type: nullableString(record?.supply_type || record?.supplyType),
     supply_nature: nullableString(record?.supply_nature || record?.supplyNature),
@@ -1550,9 +1633,107 @@ function shareBasisText(record: Record<string, unknown> | null) {
 export const sec424bRequiredOutputSchema = {
   type: "object",
   additionalProperties: true,
-  required: ["analysis_output", "display_payload"],
+  required: ["display_payload", "analysis_output"],
   properties: {
     parser_output: { type: "object", additionalProperties: true },
+    display_payload: {
+      type: "object",
+      additionalProperties: true,
+      required: ["display_type", "display_version", "data", "evidence", "notes"],
+      properties: {
+        display_type: {
+          type: "string",
+          enum: ["generic", "offering_terms", "candidate_special", "spac_transaction_status"],
+        },
+        display_version: { type: "string", maxLength: 60 },
+        data: {
+          type: "object",
+          additionalProperties: true,
+          required: [
+            "display_mode",
+            "snapshot_metrics",
+            "share_overhang",
+            "instrument_details",
+            "investor_takeaway",
+            "needs_human_review",
+          ],
+          properties: {
+            display_mode: { type: ["string", "null"], maxLength: 40 },
+            risk_label: { type: ["string", "null"], maxLength: 40 },
+            snapshot_metrics: {
+              type: "array",
+              maxItems: 4,
+              items: offeringDisplayRowSchema(40, 80, 80),
+            },
+            share_overhang: {
+              type: "object",
+              additionalProperties: true,
+              required: ["chart_title", "rows"],
+              properties: {
+                chart_title: { type: "string", maxLength: 48 },
+                subtitle: { type: ["string", "null"], maxLength: 90 },
+                status_label: { type: ["string", "null"], maxLength: 48 },
+                status_value: { type: ["string", "null"], maxLength: 48 },
+                caption: { type: ["string", "null"], maxLength: 72 },
+                ratio_label: { type: ["string", "null"], maxLength: 56 },
+                ratio_value: { type: ["string", "null"], maxLength: 48 },
+                current_label: { type: ["string", "null"], maxLength: 56 },
+                current_value: { type: ["string", "null"], maxLength: 64 },
+                supply_label: { type: ["string", "null"], maxLength: 56 },
+                supply_value: { type: ["string", "null"], maxLength: 64 },
+                total_note: {
+                  type: "object",
+                  additionalProperties: true,
+                  properties: {
+                    title: { type: "string", enum: SHARE_OVERHANG_TOTAL_NOTE_TITLE_VALUES },
+                    numerator: { type: "string", maxLength: 40 },
+                    denominator: { type: "string", maxLength: 40 },
+                    ratio: { type: "string", maxLength: 24 },
+                    suffix: { type: "string", maxLength: 80 },
+                  },
+                },
+                basis: shareOverhangBasisSchema(),
+                rows: {
+                  type: "array",
+                  maxItems: 7,
+                  items: shareOverhangRowSchema(),
+                },
+                conditional_supply: {
+                  type: "array",
+                  maxItems: 7,
+                  items: looseObjectSchema(),
+                },
+                note: { type: ["string", "null"], maxLength: 160 },
+              },
+            },
+            investor_takeaway: { type: "string", maxLength: 180 },
+            narrative_summary: { type: ["string", "null"], maxLength: 800 },
+            offering_details: {
+              type: "array",
+              maxItems: 5,
+              items: offeringDisplayRowSchema(40, 90, 80),
+            },
+            instrument_details: {
+              type: "array",
+              maxItems: 35,
+              items: offeringDisplayRowSchema(40, 130, 80),
+            },
+            supply_segments: {
+              type: "array",
+              maxItems: 8,
+              items: looseObjectSchema(),
+            },
+            registered_security_totals: looseObjectSchema(),
+            key_cash_terms: looseObjectSchema(),
+            source_notes: { type: "array", maxItems: 2, items: { type: "string", maxLength: 160 } },
+            review_reasons: { type: "array", maxItems: 3, items: { type: "string", maxLength: 180 } },
+            needs_human_review: { type: "boolean" },
+          },
+        },
+        evidence: { type: "array", maxItems: 0, items: { type: "string", maxLength: 160 } },
+        notes: { type: "array", maxItems: 2, items: { type: "string", maxLength: 160 } },
+      },
+    },
     analysis_output: {
       type: "object",
       additionalProperties: true,
@@ -1627,104 +1808,6 @@ export const sec424bRequiredOutputSchema = {
         archive_summary: { type: ["string", "null"] },
       },
     },
-    display_payload: {
-      type: "object",
-      additionalProperties: true,
-      required: ["display_type", "display_version", "data", "evidence", "notes"],
-      properties: {
-        display_type: {
-          type: "string",
-          enum: ["generic", "offering_terms", "candidate_special", "spac_transaction_status"],
-        },
-        display_version: { type: "string", maxLength: 60 },
-        data: {
-          type: "object",
-          additionalProperties: true,
-          required: [
-            "display_mode",
-            "snapshot_metrics",
-            "share_overhang",
-            "instrument_details",
-            "investor_takeaway",
-            "needs_human_review",
-          ],
-          properties: {
-            display_mode: { type: ["string", "null"], maxLength: 40 },
-            risk_label: { type: ["string", "null"], maxLength: 40 },
-            snapshot_metrics: {
-              type: "array",
-              maxItems: 4,
-              items: offeringDisplayRowSchema(40, 80, 80),
-            },
-            share_overhang: {
-              type: "object",
-              additionalProperties: true,
-              required: ["chart_title", "rows"],
-              properties: {
-                chart_title: { type: "string", maxLength: 48 },
-                subtitle: { type: ["string", "null"], maxLength: 90 },
-                status_label: { type: ["string", "null"], maxLength: 48 },
-                status_value: { type: ["string", "null"], maxLength: 48 },
-                caption: { type: ["string", "null"], maxLength: 72 },
-                ratio_label: { type: ["string", "null"], maxLength: 56 },
-                ratio_value: { type: ["string", "null"], maxLength: 48 },
-                current_label: { type: ["string", "null"], maxLength: 56 },
-                current_value: { type: ["string", "null"], maxLength: 64 },
-                supply_label: { type: ["string", "null"], maxLength: 56 },
-                supply_value: { type: ["string", "null"], maxLength: 64 },
-                total_note: {
-                  type: "object",
-                  additionalProperties: true,
-                  properties: {
-                    title: { type: "string", maxLength: 48 },
-                    numerator: { type: "string", maxLength: 40 },
-                    denominator: { type: "string", maxLength: 40 },
-                    ratio: { type: "string", maxLength: 24 },
-                    suffix: { type: "string", maxLength: 80 },
-                  },
-                },
-                basis: shareOverhangBasisSchema(),
-                rows: {
-                  type: "array",
-                  maxItems: 7,
-                  items: shareOverhangRowSchema(),
-                },
-                conditional_supply: {
-                  type: "array",
-                  maxItems: 7,
-                  items: looseObjectSchema(),
-                },
-                note: { type: ["string", "null"], maxLength: 160 },
-              },
-            },
-            investor_takeaway: { type: "string", maxLength: 180 },
-            narrative_summary: { type: ["string", "null"], maxLength: 800 },
-            offering_details: {
-              type: "array",
-              maxItems: 5,
-              items: offeringDisplayRowSchema(40, 90, 80),
-            },
-            instrument_details: {
-              type: "array",
-              maxItems: 35,
-              items: offeringDisplayRowSchema(40, 130, 80),
-            },
-            supply_segments: {
-              type: "array",
-              maxItems: 8,
-              items: looseObjectSchema(),
-            },
-            registered_security_totals: looseObjectSchema(),
-            key_cash_terms: looseObjectSchema(),
-            source_notes: { type: "array", maxItems: 2, items: { type: "string", maxLength: 160 } },
-            review_reasons: { type: "array", maxItems: 3, items: { type: "string", maxLength: 180 } },
-            needs_human_review: { type: "boolean" },
-          },
-        },
-        evidence: { type: "array", maxItems: 0, items: { type: "string", maxLength: 160 } },
-        notes: { type: "array", maxItems: 2, items: { type: "string", maxLength: 160 } },
-      },
-    },
   },
 };
 
@@ -1768,10 +1851,11 @@ function shareOverhangRowSchema() {
   return {
     type: "object",
     additionalProperties: true,
-    required: ["counted_in_ratio", "supply_type", "label", "value", "numeric_value", "unit"],
+    required: ["row_role", "label", "value", "numeric_value", "unit"],
     properties: {
-      counted_in_ratio: { type: "boolean" },
-      supply_type: { type: "string", maxLength: 40 },
+      row_role: { type: "string", enum: ["counted", "conditional", "alternative", "reference"] },
+      counted_in_ratio: { type: ["boolean", "null"] },
+      supply_type: { type: ["string", "null"], maxLength: 40 },
       label: { type: "string", maxLength: 80 },
       value: { type: "string", maxLength: 90 },
       numeric_value: { type: ["number", "null"] },
