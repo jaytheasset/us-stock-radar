@@ -357,31 +357,6 @@ export function collect424bDisplayPayloadWarnings(displayPayload: Record<string,
       "SEC 424B share_overhang appears to count ordinary/unit supply and pre-funded replacement supply with the same numeric_value; use one ordinary-or-pre-funded current_offering_pool row or mark the replacement row row_role alternative.",
     );
   }
-  for (const segment of arrayValue(data.supply_segments)) {
-    const record = readRecord(segment);
-    const shares = readRecord(record?.shares);
-    const sharesText = stringValue(shares?.value_text).toLowerCase();
-    const shareFieldError = validateShareExposureFact(shares, "supply_segments.shares");
-    if (shareFieldError) warnings.push(`SEC 424B ${shareFieldError}`);
-    const underlyingShareError = validateShareExposureFact(readRecord(record?.underlying_shares), "supply_segments.underlying_shares");
-    if (underlyingShareError) warnings.push(`SEC 424B ${underlyingShareError}`);
-    const instrumentCountError = validateInstrumentCountFact(readRecord(record?.instrument_count), "supply_segments.instrument_count");
-    if (instrumentCountError) warnings.push(`SEC 424B ${instrumentCountError}`);
-    if (stringValue(shares?.unit) === "shares" && /\bwarrants?\b/i.test(sharesText) && !/\bshares?\b/i.test(stringValue(shares?.value_text))) {
-      warnings.push("SEC 424B supply_segments.shares may contain warrant counts; prefer instrument_count for warrants and underlying_shares for share exposure.");
-    }
-    const price = readRecord(record?.price);
-    const exercisePrice = readRecord(record?.exercise_price);
-    const marketPrice = readRecord(record?.market_price);
-    const priceText = `${stringValue(price?.value_text)} ${stringValue(price?.evidence)}`.toLowerCase();
-    const exerciseText = `${stringValue(exercisePrice?.value_text)} ${stringValue(exercisePrice?.evidence)}`.toLowerCase();
-    if (/\blast reported sales price|market price\b/i.test(priceText) && !stringValue(marketPrice?.value_text)) {
-      warnings.push("SEC 424B warrant market price should use supply_segments.market_price, not price/exercise_price.");
-    }
-    if (/\blast reported sales price|market price\b/i.test(exerciseText)) {
-      warnings.push("SEC 424B market price may be incorrectly used as Exercise / Conversion Price.");
-    }
-  }
   return warnings;
 }
 
@@ -517,34 +492,6 @@ function validateKeyCashTermFacts(data: Record<string, unknown>) {
     : "key_cash_terms contains cash/proceeds context but no populated fact field";
 }
 
-function validateShareExposureFact(value: Record<string, unknown> | null, fieldName: string) {
-  if (!hasDisplayFactValue(value)) return "";
-
-  const unit = stringValue(value?.unit).toLowerCase();
-  const valueText = stringValue(value?.value_text);
-  if (/\$|\busd\b|dollars?/i.test(valueText) || unit === "$" || /\busd\b/.test(unit)) {
-    return `${fieldName} cannot contain dollar amounts or proceeds; put cash amounts in key_cash_terms or offering_details.`;
-  }
-
-  if (unit && unit !== "unknown" && !/shares?|ads|ordinary|common/.test(unit)) {
-    return `${fieldName} must use a share unit, not ${stringValue(value?.unit)}.`;
-  }
-
-  return "";
-}
-
-function validateInstrumentCountFact(value: Record<string, unknown> | null, fieldName: string) {
-  if (!hasDisplayFactValue(value)) return "";
-
-  const unit = stringValue(value?.unit).toLowerCase();
-  const valueText = stringValue(value?.value_text);
-  if (/\$|\busd\b|dollars?/i.test(valueText) || unit === "$" || /\busd\b/.test(unit)) {
-    return `${fieldName} cannot contain dollar amounts or proceeds; put cash amounts in key_cash_terms or offering_details.`;
-  }
-
-  return "";
-}
-
 function append424bDisplayWarnings(displayPayload: Record<string, unknown>, warnings: string[]) {
   if (!warnings.length) return;
   const data = readRecord(displayPayload.data);
@@ -634,21 +581,22 @@ function normalizeScoreExplanation(value: Record<string, unknown> | null) {
 
 export function normalize424bOfferingDisplayModel(data: Record<string, unknown> | null) {
   if (!data) return null;
+  const cleanData = { ...data };
+  delete cleanData.supply_segments;
+  delete cleanData.mixed_offering_components;
   const instrumentDetails = normalizeInstrumentDetails(data.instrument_details);
   const shareOverhang = normalizeShareOverhang(readRecord(data.share_overhang), instrumentDetails);
   const shareOverhangScale = deriveShareOverhangScale(readRecord(shareOverhang));
   return {
-    ...data,
+    ...cleanData,
     display_mode: stringValue(data.display_mode) || "offering_terms",
     risk_label: stringValue(data.risk_label) || "needs_review",
     current_shares: normalizeDisplayFact(readRecord(data.current_shares), "shares"),
     total_potential_supply: normalizeDisplayFact(readRecord(data.total_potential_supply), "shares"),
     ads_equivalence: normalizeAdsEquivalence(readRecord(data.ads_equivalence)),
     snapshot_metrics: normalizeSnapshotMetrics(data.snapshot_metrics, shareOverhangScale),
-    mixed_offering_components: normalizeMixedOfferingComponents(data.mixed_offering_components),
     key_cash_terms: normalizeKeyCashTerms(readRecord(data.key_cash_terms)),
     registered_security_totals: normalizeRegisteredSecurityTotals(readRecord(data.registered_security_totals)),
-    supply_segments: normalizeSupplySegments(data.supply_segments),
     ...(shareOverhang ? { share_overhang: shareOverhang } : {}),
     investor_takeaway: stringValue(data.investor_takeaway),
     offering_details: normalizeOfferingDetails(data.offering_details),
@@ -1232,20 +1180,6 @@ function normalizeSnapshotMetrics(value: unknown, shareOverhangScale: ReturnType
     .filter(Boolean);
 }
 
-function normalizeMixedOfferingComponents(value: unknown) {
-  return arrayValue(value).map((row) => {
-    const record = readRecord(row);
-    return {
-      role: stringValue(record?.role),
-      label: stringValue(record?.label),
-      value_text: nullableString(record?.value_text),
-      numeric_value: numberValue(record?.numeric_value) ?? 0,
-      unit: stringValue(record?.unit) || "shares",
-      evidence: nullableString(record?.evidence),
-    };
-  });
-}
-
 function normalizeKeyCashTerms(value: Record<string, unknown> | null) {
   return {
     issuer_primary_or_closing_cash: normalizeDisplayFact(
@@ -1278,125 +1212,6 @@ function normalizeKeyCashTerms(value: Record<string, unknown> | null) {
     ),
     explanation: stringValue(value?.explanation),
   };
-}
-
-const CANONICAL_SUPPLY_SEGMENT_LABELS: Record<string, string> = {
-  resale_common_shares: "Resale shares",
-  common_shares: "Common shares",
-  new_common_shares: "New common shares",
-  public_warrant_shares: "Public warrant shares",
-  private_warrant_shares: "Private warrant shares",
-  common_warrant_shares: "Common warrant shares",
-  prefunded_warrant_shares: "Pre-funded warrant shares",
-  placement_agent_warrant_shares: "Placement agent warrant shares",
-  public_warrants: "Public warrants",
-  private_warrants: "Private warrants",
-  common_warrants: "Common warrants",
-  prefunded_warrants: "Pre-funded warrants",
-  placement_agent_warrants: "Placement agent warrants",
-  pipe_shares: "PIPE shares",
-  founder_shares: "Founder shares",
-  sponsor_shares: "Sponsor shares",
-  conversion_shares: "Conversion shares",
-  convertible_notes: "Convertible notes",
-  convertible_preferred_shares: "Convertible preferred shares",
-  preferred_shares: "Preferred shares",
-  rights_shares: "Rights shares",
-  subscription_rights: "Subscription rights",
-  units: "Units",
-  other_securities: "Other securities",
-};
-
-function canonicalSupplySegmentLabel(record: Record<string, unknown>) {
-  const rawLabel = stringValue(record.label);
-  const explicitResaleLabel = rawLabel.trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
-  if (/^(?:resale shares|registered resale shares|resale common shares|selling holder shares)$/.test(explicitResaleLabel)) {
-    return "Resale shares";
-  }
-
-  const explicitCode = stringValue(record.label_code || record.segment_type || record.security_type);
-  const canonicalFromCode = CANONICAL_SUPPLY_SEGMENT_LABELS[explicitCode];
-  if (canonicalFromCode) {
-    return canonicalFromCode;
-  }
-
-  const instrumentType = stringValue(record.instrument_type);
-  const securityRole = stringValue(record.security_role);
-  const text = `${rawLabel} ${instrumentType} ${securityRole}`.toLowerCase();
-  const hasInstrumentCount = Boolean(readRecord(record.instrument_count)?.value_text || readRecord(record.instrument_count)?.numeric_value);
-  const hasUnderlyingShares = Boolean(readRecord(record.underlying_shares)?.value_text || readRecord(record.underlying_shares)?.numeric_value);
-
-  if (/pre[-\s]?funded/.test(text) && /warrants?/.test(text) && hasUnderlyingShares) return "Pre-funded warrant shares";
-  if (/pre[-\s]?funded/.test(text) && /warrants?/.test(text)) return "Pre-funded warrants";
-  if (/placement agent|underwriter|agent warrant/.test(text) && hasUnderlyingShares) return "Placement agent warrant shares";
-  if (/placement agent|underwriter|agent warrant/.test(text)) return "Placement agent warrants";
-  if (/public warrants?/.test(text) && hasUnderlyingShares) return "Public warrant shares";
-  if (/private warrants?/.test(text) && hasUnderlyingShares && !hasInstrumentCount) return "Private warrant shares";
-  if (/private warrants?/.test(text) && hasInstrumentCount && !hasUnderlyingShares) return "Private warrants";
-  if (/private warrants?/.test(text) && hasInstrumentCount && hasUnderlyingShares) return "Private warrants";
-  if (/common warrants?/.test(text) && hasUnderlyingShares) return "Common warrant shares";
-  if (/common warrants?/.test(text)) return "Common warrants";
-  if (/\bwarrants?\b/.test(text) && hasUnderlyingShares) return "Warrant shares";
-  if (/\bwarrants?\b/.test(text)) return "Warrants";
-  if (/\bpipe\b/.test(text)) return "PIPE shares";
-  if (/founder/.test(text)) return "Founder shares";
-  if (/sponsor/.test(text)) return "Sponsor shares";
-  if (/conversion|convertible/.test(text) && /preferred/.test(text)) return "Convertible preferred shares";
-  if (/conversion|convertible/.test(text) && /notes?|debt|principal/.test(text)) return "Convertible notes";
-  if (/conversion|convertible/.test(text)) return "Conversion shares";
-  if (/preferred/.test(text)) return "Preferred shares";
-  if (/rights?|subscription/.test(text) && /shares?/.test(text)) return "Rights shares";
-  if (/rights?|subscription/.test(text)) return "Subscription rights";
-  if (/units?/.test(text)) return "Units";
-  if (/resale|selling stockholders?|selling securityholders?/.test(text)) return "Resale shares";
-  if (/new common|primary/.test(text)) return "New common shares";
-  if (/common stock|common shares?/.test(text)) return "Common shares";
-
-  const compactLabel = rawLabel
-    .replace(/\s*\([^)]*\)\s*/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (compactLabel && compactLabel.length <= 40) {
-    return compactLabel;
-  }
-
-  return instrumentType ? toTitleLabel(instrumentType) : "Other securities";
-}
-
-function toTitleLabel(value: string) {
-  return value
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function normalizeSupplySegments(value: unknown) {
-  return Array.isArray(value)
-    ? value
-        .map((item) => {
-          const record = readRecord(item);
-          if (!record) return null;
-          return {
-            label: canonicalSupplySegmentLabel(record),
-            source_label: nullableString(record.label),
-            label_code: nullableString(record.label_code || record.segment_type || record.security_type),
-            instrument_type: stringValue(record.instrument_type) || "other",
-            shares: normalizeDisplayFact(readRecord(record.shares), "shares"),
-            price: normalizeDisplayFact(readRecord(record.price), "usd_per_share"),
-            instrument_count: normalizeDisplayFact(readRecord(record.instrument_count), "securities"),
-            underlying_shares: normalizeDisplayFact(readRecord(record.underlying_shares), "shares"),
-            exercise_price: normalizeDisplayFact(readRecord(record.exercise_price), "usd_per_share"),
-            market_price: normalizeDisplayFact(readRecord(record.market_price), "usd_per_warrant"),
-            security_role: nullableString(record.security_role),
-            calculation_basis: nullableString(record.calculation_basis),
-            overlap_notes: readStringArray(record.overlap_notes),
-            timing_or_condition: nullableString(record.timing_or_condition),
-            evidence: nullableString(record.evidence),
-          };
-        })
-        .filter(Boolean)
-    : [];
 }
 
 function normalizeRegisteredSecurityTotals(value: Record<string, unknown> | null) {
@@ -1725,11 +1540,6 @@ export const sec424bRequiredOutputSchema = {
               type: "array",
               maxItems: 35,
               items: offeringDisplayRowSchema(40, 130, 80),
-            },
-            supply_segments: {
-              type: "array",
-              maxItems: 8,
-              items: looseObjectSchema(),
             },
             registered_security_totals: looseObjectSchema(),
             key_cash_terms: looseObjectSchema(),
