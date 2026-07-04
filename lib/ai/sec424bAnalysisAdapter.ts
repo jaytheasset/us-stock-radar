@@ -1631,6 +1631,10 @@ function shareBasisText(record: Record<string, unknown> | null) {
     .join(" ");
 }
 
+// Shared required-output schema for SEC offering_terms analyses.
+// Current callers: 424B and S3/F3 main offering flows. The name is historical;
+// if this stabilizes, move it to a neutral secOfferingRequiredOutputSchema file.
+// S1/F1 stays separate because it also covers IPO/listing-specific display modes.
 export const sec424bRequiredOutputSchema = {
   type: "object",
   additionalProperties: true,
