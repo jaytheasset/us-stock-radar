@@ -942,18 +942,19 @@ function appendS1F1DisplayWarnings(data: Record<string, unknown>, warnings: stri
 
 function collectS1F1IpoDisplayWarnings(data: Record<string, unknown>, analysisOutput: Record<string, unknown> | null) {
   const displayMode = stringValue(data.display_mode);
-  if (displayMode !== "ipo_registration") return [];
+  if (!["ipo_registration", "rule_462b_mef"].includes(displayMode)) return [];
 
   const warnings: string[] = [];
   if (!stringValue(data.stage_summary)) {
-    warnings.push("S-1/F-1 ipo_registration missing stage_summary; Quick Take should not fall back to summary.");
+    warnings.push(`S-1/F-1 ${displayMode} missing stage_summary; Quick Take should not fall back to summary.`);
   }
   if (!stringValue(data.company_story)) {
-    warnings.push("S-1/F-1 ipo_registration missing company_story; Company Overview should not fall back to summary.");
+    const panelName = displayMode === "rule_462b_mef" ? "Additional Registration" : "Company Overview";
+    warnings.push(`S-1/F-1 ${displayMode} missing company_story; ${panelName} should not fall back to summary.`);
   }
 
   const summary = stringValue(analysisOutput?.summary);
-  if (hasBlankMoneyPlaceholder(summary)) {
+  if (displayMode === "ipo_registration" && hasBlankMoneyPlaceholder(summary)) {
     warnings.push("S-1/F-1 ipo_registration analysis_output.summary contains blank price placeholders.");
   }
 

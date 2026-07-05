@@ -3476,8 +3476,8 @@ function Rule462bMefTemplate({
   filing: FilingEvent;
   model: IpoListingModel;
 }) {
-  const quickTake = model.stageSummary || filing.filingBrief || filing.summary;
-  const summary = model.companyStory || filing.summary;
+  const quickTake = model.stageSummary;
+  const summary = model.companyStory;
 
   return (
     <>
@@ -3494,17 +3494,23 @@ function Rule462bMefTemplate({
           </div>
         </section>
 
-        <section className="stock-detail-card initial-ipo-side-stack">
-          <div className="initial-ipo-summary-card initial-ipo-quick-card">
-            <h2>Quick Take</h2>
-            <p>{quickTake}</p>
-          </div>
+        {quickTake || summary ? (
+          <section className="stock-detail-card initial-ipo-side-stack">
+            {quickTake ? (
+              <div className="initial-ipo-summary-card initial-ipo-quick-card">
+                <h2>Quick Take</h2>
+                <p>{quickTake}</p>
+              </div>
+            ) : null}
 
-          <div className="initial-ipo-summary-card initial-ipo-background-card">
-            <h2>Additional Registration</h2>
-            <p>{summary}</p>
-          </div>
-        </section>
+            {summary ? (
+              <div className="initial-ipo-summary-card initial-ipo-background-card">
+                <h2>Additional Registration</h2>
+                <p>{summary}</p>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
       </section>
 
       {model.offeringDetailsRows.length ? (

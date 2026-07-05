@@ -510,6 +510,8 @@ export function buildS1F1AnalysisPrompt(
     "- Offering Details labels: Prior registration statement, Rule 462(b) status, Securities added, Base offering, Fee table.",
     "- What changed labels: Additional registration, Prior registration statement, Added shares / amount, Fee table.",
     "- Leave display_payload.data.watch_next empty for rule_462b_mef; Registration Details and What Changed carry the visible MEF context.",
+    "- For rule_462b_mef, display_payload.data.stage_summary is the visible Quick Take. Write one short investor-facing sentence about the added Rule 462(b) registration, not a recap of the parent IPO.",
+    "- For rule_462b_mef, display_payload.data.company_story is the visible Additional Registration summary. Explain the incremental registration, prior effective registration statement, and added shares/amount in plain language.",
     "- investor_takeaway should state this is an add-on registration under Rule 462(b), not a new standalone offering.",
     "",
     "post_effective_amendment:",
