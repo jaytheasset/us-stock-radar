@@ -14,7 +14,7 @@ import {
 
 export const SEC_424B_ANALYSIS_PROMPT_KEY = "sec_424b_analysis";
 export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v20";
-export const SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION = "v39-taxonomy-schema";
+export const SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION = "v40-news-style-taxonomy-schema";
 const ALLOWED_424B_DISPLAY_MODES = new Set([
   "atm",
   "resale_registration",
@@ -71,7 +71,7 @@ export function buildSec424bAnalysisPromptForInput(
       "Return the full Required Output JSON shape.",
       "There is no 424B router LLM and no parser-completed 424B result. Choose event_type, display_type, score, and display_payload from the provided source blocks.",
       "Use generic for the common filing detail page, offering_terms for offering/dilution/IPO terms, and spac_transaction_status only for source-backed SPAC/de-SPAC transaction status.",
-      "For analysis_output sector and industry_group, use exact taxonomy display names from the response schema. For theme_group and sub_theme, use exact taxonomy slugs from the response schema. Use null when unsupported.",
+      "For analysis_output sector and industry_group, use natural taxonomy-style names. For theme_group, use an exact slug from the response schema. For sub_theme, use a concise theme name or slug. Use null when unsupported.",
       "Score means investor attention and urgency. Delivery is derived later from score only.",
     ].join("\n"),
     user: build424bAnalysisPrompt(parserOutputForPrompt, { variant: promptVariant }),

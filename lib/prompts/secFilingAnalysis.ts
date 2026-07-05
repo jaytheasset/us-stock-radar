@@ -9,7 +9,7 @@ import {
 import { marketTaxonomyAnalysisOutputSchemaProperties } from "@/lib/marketTaxonomySchema";
 
 export const SEC_FILING_ANALYSIS_PROMPT_KEY = "sec_filing_analysis";
-export const SEC_FILING_ANALYSIS_PROMPT_VERSION = "v3-taxonomy-schema";
+export const SEC_FILING_ANALYSIS_PROMPT_VERSION = "v4-news-style-taxonomy-schema";
 
 export const SEC_EVENT_TYPE_VALUES = [
   "listing_risk",
@@ -47,7 +47,7 @@ export const secFilingAnalysisSystemPrompt = [
   "Classify by disclosure content, not by filing form alone. A Form 8-K can be earnings, dilution risk, listing risk, strategic transaction, legal risk, or other.",
   "Keep the router simple: event_type, score, signal, market_scope, analysis fields, tickers, and calendar_items are the output contract.",
   "For primary_ticker, prefer the U.S.-listed common stock or ADR from the filing package. Do not use warrants, units, rights, or non-common classes as primary unless no common/ADR ticker exists.",
-  "Classify sector, industry_group, theme_group, and sub_theme by judgment from the filing content using the taxonomy values in the response schema. Use null when unsupported.",
+  "Classify sector, industry_group, theme_group, and sub_theme by judgment from the filing content. For theme_group, use an exact slug from the response schema. Use null when unsupported.",
   "Do not infer market_scope from ticker count alone. A merger, financing, contract, or litigation filing with multiple tickers can still be company-scoped.",
   "Set related_tickers only when the filing clearly names affected peers, customers, suppliers, counterparties, acquirers, targets, or financing parties.",
   "Do not generate related news. Related news is resolved later from the database.",

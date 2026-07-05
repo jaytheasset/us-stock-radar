@@ -12,7 +12,7 @@ import {
 } from "@/lib/ai/secOfferingOutputSchemas";
 
 export const SEC_S1_F1_ANALYSIS_PROMPT_KEY = "sec_s1_f1_analysis";
-export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v19-taxonomy-schema";
+export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v24-mef-quick-take-meaning";
 
 const ALLOWED_S1_F1_DISPLAY_MODES = new Set([
   "ipo_registration",
@@ -199,7 +199,7 @@ export function buildSecS1F1AnalysisPromptForInput(input: SecFilingAnalysisInput
       "There is no S-1/F-1 router LLM and no parser-completed display payload. Choose event_type, display_type, score, and display_payload from the source blocks.",
       "For offering_terms, generic analysis fields are storage/list compatibility only and must match the selected display payload.",
       "Use generic for the common filing detail page, offering_terms for IPO/offering/resale/MEF/POS AM registration terms, and spac_transaction_status only for source-backed de-SPAC status.",
-      "For analysis_output sector and industry_group, use exact taxonomy display names from the response schema. For theme_group and sub_theme, use exact taxonomy slugs from the response schema. Use null when unsupported.",
+      "For analysis_output sector and industry_group, use natural taxonomy-style names. For theme_group, use an exact slug from the response schema. For sub_theme, use a concise theme name or slug. Use null when unsupported.",
       "Score means investor attention and urgency. Delivery is derived later from score only.",
     ].join("\n"),
     user: buildS1F1AnalysisPrompt(parserOutput),
@@ -944,11 +944,11 @@ function appendS1F1DisplayWarnings(data: Record<string, unknown>, warnings: stri
 
 function collectS1F1IpoDisplayWarnings(data: Record<string, unknown>, analysisOutput: Record<string, unknown> | null) {
   const displayMode = stringValue(data.display_mode);
-  if (!["ipo_registration", "rule_462b_mef"].includes(displayMode)) return [];
+  if (!["ipo_registration", "ipo_amendment", "spac_ipo", "rule_462b_mef"].includes(displayMode)) return [];
 
   const warnings: string[] = [];
-  if (!stringValue(data.stage_summary)) {
-    warnings.push(`S-1/F-1 ${displayMode} missing stage_summary; Quick Take should not fall back to summary.`);
+  if (!stringValue(data.display_quick_take)) {
+    warnings.push(`S-1/F-1 ${displayMode} missing display_quick_take; Quick Take should not fall back to summary.`);
   }
   if (!stringValue(data.company_story)) {
     const panelName = displayMode === "rule_462b_mef" ? "Additional Registration" : "Company Overview";
@@ -1414,7 +1414,7 @@ export const secS1F1RequiredOutputSchema = {
             "risk_label",
             "snapshot_metrics",
             "investor_takeaway",
-            "stage_summary",
+            "display_quick_take",
             "company_story",
             "offering_details",
             "instrument_details",
@@ -1429,7 +1429,7 @@ export const secS1F1RequiredOutputSchema = {
             },
             share_overhang: shareOverhangSchema({ requireStatusFields: true }),
             investor_takeaway: { type: ["string", "null"] },
-            stage_summary: { type: ["string", "null"] },
+            display_quick_take: { type: ["string", "null"] },
             company_story: { type: ["string", "null"] },
             offering_details: {
               type: "array",

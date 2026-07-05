@@ -227,7 +227,7 @@ type IpoListingModel = {
   currentStage: IpoStageCode;
   currentStageLabel: string;
   stageBadge: string;
-  stageSummary: string;
+  displayQuickTake: string;
   issuer: string;
   proposedTicker: string;
   exchange: string;
@@ -872,7 +872,7 @@ const commonFilingEvents: Record<string, FilingEvent> = {
         ipo_kind: "Traditional IPO",
         current_stage: "terms_set",
         current_stage_label: "Terms Set",
-        stage_summary:
+        display_quick_take:
           "The amended registration statement sets the IPO range, proposed ticker, offering size, proceeds plan, and underwriter lineup.",
         issuer: "Orion Data Systems, Inc.",
         proposed_ticker: "ORIN",
@@ -3181,7 +3181,7 @@ function IpoListingTemplate({
             <div>
               <h2>IPO Schedule</h2>
               <p>
-                <strong>{model.currentStageLabel}.</strong> {model.stageSummary}
+                <strong>{model.currentStageLabel}.</strong> {model.displayQuickTake}
               </p>
             </div>
           </div>
@@ -3340,7 +3340,7 @@ function InitialIpoFilingTemplate({
   filing: FilingEvent;
   model: IpoListingModel;
 }) {
-  const quickTake = model.stageSummary;
+  const quickTake = model.displayQuickTake;
   const watchNext =
     model.watchNext.length > 0
       ? model.watchNext
@@ -3401,7 +3401,7 @@ function IpoTermsUpdateTemplate({
   filing: FilingEvent;
   model: IpoListingModel;
 }) {
-  const quickTake = model.stageSummary || filing.filingBrief || filing.summary;
+  const quickTake = model.displayQuickTake;
   const watchNext =
     model.watchNext.length > 0
       ? model.watchNext
@@ -3476,7 +3476,7 @@ function Rule462bMefTemplate({
   filing: FilingEvent;
   model: IpoListingModel;
 }) {
-  const quickTake = model.stageSummary;
+  const quickTake = model.displayQuickTake;
   const summary = model.companyStory;
 
   return (
@@ -5487,7 +5487,7 @@ function buildIpoListingModel(filing: FilingEvent): IpoListingModel | null {
     currentStage,
     currentStageLabel,
     stageBadge: `Stage ${currentStageIndex + 1}/${IPO_STAGE_ORDER.length} · ${currentStageLabel}`,
-    stageSummary: displayString(data, "stage_summary", ""),
+    displayQuickTake: displayString(data, "display_quick_take", ""),
     issuer,
     proposedTicker,
     exchange,
@@ -5653,29 +5653,25 @@ function buildIpoTermsUpdateSnapshotMetrics({
 }
 
 function buildMefSnapshotMetrics(sourceMetrics: DilutionMetricItem[]) {
-  const allowed = new Set(["Additional shares / ADS", "Total registered pool", "Additional offering value", "Rule 462(b) limit"]);
   const normalizedRows = sourceMetrics
-    .map((metric) => normalizeMefSnapshotMetric(metric))
-    .filter((metric): metric is DilutionMetricItem => Boolean(metric))
-    .filter((metric) => allowed.has(metric.label));
+    .map((metric) => normalizeMefSnapshotMetric(metric) ?? metric)
+    .filter((metric) => isDisclosedValue(metric.value));
 
   const rowsByLabel = new Map<string, DilutionMetricItem>();
   normalizedRows.forEach((metric) => {
-    if (!rowsByLabel.has(metric.label) && isDisclosedValue(metric.value)) rowsByLabel.set(metric.label, metric);
+    if (!rowsByLabel.has(metric.label)) rowsByLabel.set(metric.label, metric);
   });
 
-  return Array.from(allowed)
-    .map((label) => rowsByLabel.get(label))
-    .filter((metric): metric is DilutionMetricItem => Boolean(metric))
-    .slice(0, 4);
+  return Array.from(rowsByLabel.values()).slice(0, 4);
 }
 
 function normalizeMefSnapshotMetric(metric: DilutionMetricItem): DilutionMetricItem | null {
   const normalized = normalizeDisplayLookupLabel(metric.label);
+  if (/prior/.test(normalized) && /registration/.test(normalized)) return metric;
   if (/additional|added|new/.test(normalized) && /share|ads|security|securities/.test(normalized)) {
     return { ...metric, label: "Additional shares / ADS" };
   }
-  if (/total|pool|registered/.test(normalized) && /share|ads|pool|registered/.test(normalized)) {
+  if ((/total|pool/.test(normalized) && /share|ads|pool|registered/.test(normalized)) || /registered\s+pool/.test(normalized)) {
     return { ...metric, label: "Total registered pool" };
   }
   if (/value|amount|offering|aggregate|proceed/.test(normalized)) {
