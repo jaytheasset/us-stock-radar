@@ -692,8 +692,8 @@ function normalizeShareOverhang(value: Record<string, unknown> | null, instrumen
     normalizedTotalNote && scale
       ? {
           ...normalizedTotalNote,
-          numerator: scale.supply_value,
-          denominator: scale.current_value,
+          numerator: scale.supply_full_value,
+          denominator: scale.current_full_value,
           ratio: scale.ratio_value,
         }
       : normalizedTotalNote;
@@ -982,6 +982,8 @@ function deriveShareOverhangScale(shareOverhang: Record<string, unknown> | null)
       return {
         current_value: formatShareOverhangCount(basisValue, unit),
         supply_value: formatShareOverhangCount(supplyValue, unit),
+        current_full_value: formatShareOverhangFullCount(basisValue, unit),
+        supply_full_value: formatShareOverhangFullCount(supplyValue, unit),
         ratio_value: formatShareOverhangPercent((supplyValue / basisValue) * 100),
         has_conditional_supply: rows.some(
           (row) =>
@@ -1030,6 +1032,8 @@ function deriveShareOverhangScale(shareOverhang: Record<string, unknown> | null)
   return {
     current_value: formatShareOverhangCount(baseValue, unit),
     supply_value: formatShareOverhangCount(supplyValue, unit),
+    current_full_value: formatShareOverhangFullCount(baseValue, unit),
+    supply_full_value: formatShareOverhangFullCount(supplyValue, unit),
     ratio_value: formatShareOverhangPercent((supplyValue / baseValue) * 100),
     has_conditional_supply: segments.some(
       (segment) =>
@@ -1055,6 +1059,10 @@ function formatShareOverhangCount(value: number, unit: string) {
   const formatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
   if (abs >= 1_000_000) return `${formatter.format(value / 1_000_000)}M ${unit}`;
   if (abs >= 1_000) return `${formatter.format(value / 1_000)}K ${unit}`;
+  return `${Math.round(value).toLocaleString("en-US")} ${unit}`;
+}
+
+function formatShareOverhangFullCount(value: number, unit: string) {
   return `${Math.round(value).toLocaleString("en-US")} ${unit}`;
 }
 

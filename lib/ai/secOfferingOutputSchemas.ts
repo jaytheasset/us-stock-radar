@@ -44,8 +44,16 @@ export function shareOverhangTotalNoteSchema() {
     additionalProperties: true,
     properties: {
       title: { type: "string", enum: SEC_OFFERING_SHARE_OVERHANG_TOTAL_NOTE_TITLE_VALUES },
-      numerator: { type: "string", maxLength: 40 },
-      denominator: { type: "string", maxLength: 40 },
+      numerator: {
+        type: "string",
+        maxLength: 40,
+        description: "Full calculation numerator, not compacted with K/M/B, when numeric rows exist.",
+      },
+      denominator: {
+        type: "string",
+        maxLength: 40,
+        description: "Full calculation denominator, not compacted with K/M/B, when basis numeric_value exists.",
+      },
       ratio: { type: "string", maxLength: 24 },
       suffix: { type: "string", maxLength: 80 },
     },
