@@ -5661,9 +5661,11 @@ function buildMefSnapshotMetrics(sourceMetrics: DilutionMetricItem[]) {
 
 function normalizeMefSnapshotMetric(metric: DilutionMetricItem): DilutionMetricItem | null {
   const normalized = normalizeDisplayLookupLabel(metric.label);
+  const normalizedMetricText = normalizeDisplayLookupLabel(`${metric.label} ${metric.value} ${metric.note || ""}`);
   if (/prior/.test(normalized) && /registration/.test(normalized)) return metric;
-  if (/additional|added|new/.test(normalized) && /share|ads|security|securities/.test(normalized)) {
-    return { ...metric, label: "Additional shares / ADS" };
+  if (/additional|added|new/.test(normalized) && /share|ads|unit|security|securities/.test(normalized)) {
+    const label = /\bunits?\b/.test(normalizedMetricText) ? "Additional units" : "Additional shares / ADS";
+    return { ...metric, label };
   }
   if ((/total|pool/.test(normalized) && /share|ads|pool|registered/.test(normalized)) || /registered\s+pool/.test(normalized)) {
     return { ...metric, label: "Total registered pool" };
