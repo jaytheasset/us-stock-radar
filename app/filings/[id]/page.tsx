@@ -3162,6 +3162,9 @@ function IpoListingTemplate({
   if (model.displayMode === "rule_462b_mef") {
     return <Rule462bMefTemplate eventLabel={eventLabel} filing={filing} model={model} />;
   }
+  if (model.displayMode === "spac_ipo") {
+    return <SpacIpoSummaryTemplate eventLabel={eventLabel} filing={filing} model={model} />;
+  }
   if (model.isInitialTermsPending) {
     return <InitialIpoFilingTemplate eventLabel={eventLabel} filing={filing} model={model} />;
   }
@@ -3326,6 +3329,83 @@ function IpoListingTemplate({
 
       <FilingMarketContextPanel filing={filing} />
       <SpacSourceEvidence filing={filing} model={model} />
+      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
+    </>
+  );
+}
+
+function SpacIpoSummaryTemplate({
+  eventLabel,
+  filing,
+  model,
+}: {
+  eventLabel: string;
+  filing: FilingEvent;
+  model: IpoListingModel;
+}) {
+  const watchNext =
+    model.watchNext.length > 0
+      ? model.watchNext
+      : [
+          "Final 424B4/pricing and unit trading date.",
+          "Separate trading date for shares and warrants.",
+          "Later target announcement or business-combination filing.",
+        ];
+
+  return (
+    <>
+      <section className="stock-detail-card-grid two-up initial-ipo-compact-grid">
+        <section className="stock-detail-card dilution-snapshot-panel ipo-summary-panel initial-ipo-top-panel">
+          <div className="ipo-summary-heading">
+            <h2>SPAC IPO Summary</h2>
+          </div>
+
+          <div className="dilution-impact-metrics">
+            {model.snapshotMetrics.map((metric) => (
+              <DilutionMetric key={metric.label} metric={metric} />
+            ))}
+          </div>
+        </section>
+
+        <section className="stock-detail-card initial-ipo-side-stack">
+          <div className="initial-ipo-summary-card initial-ipo-background-card">
+            <h2>Summary</h2>
+            <p>{model.companyStory}</p>
+          </div>
+
+          <div className="initial-ipo-summary-card initial-ipo-quick-card">
+            <h2>Quick Take</h2>
+            <p>{model.displayQuickTake}</p>
+          </div>
+        </section>
+      </section>
+
+      {model.offeringDetailsRows.length ? (
+        <section className="stock-detail-card initial-ipo-details-block">
+          <h2>SPAC Terms</h2>
+          <div className="initial-ipo-detail-list">
+            {model.offeringDetailsRows.map((row) => (
+              <div className="initial-ipo-detail-row" key={`${row.label}-${row.value}`}>
+                <span>{row.label}</span>
+                <div className="initial-ipo-detail-value">
+                  <strong>{row.value}</strong>
+                  {row.note ? <em>{row.note}</em> : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="stock-detail-card spac-watch-card ipo-watch-card">
+        <h2>What To Watch Next</h2>
+        <ol>
+          {watchNext.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ol>
+      </section>
+
       <OriginalFilingText filing={filing} eventLabel={eventLabel} />
     </>
   );
@@ -5453,13 +5533,23 @@ function buildIpoListingModel(filing: FilingEvent): IpoListingModel | null {
     sharesOffered,
     sourceMetrics: sourceSnapshotMetrics,
   });
+  const spacIpoSnapshotMetrics = buildSpacIpoSnapshotMetrics({
+    exchange,
+    offeringSize,
+    priceRange,
+    proposedTicker,
+    sharesOffered,
+    sourceMetrics: sourceSnapshotMetrics,
+  });
   const mefSnapshotMetrics = buildMefSnapshotMetrics(sourceSnapshotMetrics);
   const snapshotMetrics =
     displayMode === "rule_462b_mef"
       ? mefSnapshotMetrics
       : displayMode === "ipo_amendment"
         ? termsUpdateSnapshotMetrics
-        : initialSnapshotMetrics;
+        : displayMode === "spac_ipo"
+          ? spacIpoSnapshotMetrics
+          : initialSnapshotMetrics;
   const offeringDetailsRows = filterIpoOfferingDetailsRows(
     readOfferingDetailsRows(data),
     snapshotMetrics,
@@ -5644,6 +5734,61 @@ function buildIpoTermsUpdateSnapshotMetrics({
     .map((label) => rowsByLabel.get(label))
     .filter((metric): metric is DilutionMetricItem => Boolean(metric))
     .slice(0, 4);
+}
+
+function buildSpacIpoSnapshotMetrics({
+  exchange,
+  offeringSize,
+  priceRange,
+  proposedTicker,
+  sharesOffered,
+  sourceMetrics,
+}: {
+  exchange: string;
+  offeringSize: string;
+  priceRange: string;
+  proposedTicker: string;
+  sharesOffered: string;
+  sourceMetrics: DilutionMetricItem[];
+}) {
+  const allowed = new Set(["Units offered", "Unit price", "Trust amount", "Unit components", "Exchange / ticker"]);
+  const normalizedRows = sourceMetrics
+    .map((metric) => normalizeSpacIpoSnapshotMetric(metric))
+    .filter((metric): metric is DilutionMetricItem => Boolean(metric))
+    .filter((metric) => allowed.has(metric.label));
+
+  const fallbackRows: DilutionMetricItem[] = [
+    { label: "Units offered", value: sharesOffered, note: "SPAC IPO units" },
+    { label: "Unit price", value: priceRange, note: "Per unit" },
+    { label: "Trust amount", value: offeringSize, note: "Expected gross trust size" },
+    {
+      label: "Exchange / ticker",
+      value: formatInitialIpoListingValue(exchange, proposedTicker),
+      note: "Proposed listing",
+    },
+  ];
+
+  const rowsByLabel = new Map<string, DilutionMetricItem>();
+  [...normalizedRows, ...fallbackRows].forEach((metric) => {
+    if (!rowsByLabel.has(metric.label) && isDisclosedValue(metric.value)) rowsByLabel.set(metric.label, metric);
+  });
+
+  return Array.from(allowed)
+    .map((label) => rowsByLabel.get(label))
+    .filter((metric): metric is DilutionMetricItem => Boolean(metric))
+    .slice(0, 4);
+}
+
+function normalizeSpacIpoSnapshotMetric(metric: DilutionMetricItem): DilutionMetricItem | null {
+  const normalized = normalizeDisplayLookupLabel(metric.label);
+  if (/\b(?:units?|securities)\b/.test(normalized) && /\b(?:offered|registered|ipo)\b/.test(normalized)) {
+    return { ...metric, label: "Units offered" };
+  }
+  if (/\b(?:unit price|price per unit|price)\b/.test(normalized)) return { ...metric, label: "Unit price" };
+  if (/\b(?:trust|gross proceeds|offering size|proceeds)\b/.test(normalized)) return { ...metric, label: "Trust amount" };
+  if (/\b(?:component|warrant|right)\b/.test(normalized)) return { ...metric, label: "Unit components" };
+  if (/\b(?:exchange|ticker|symbol|nasdaq|nyse)\b/.test(normalized)) return { ...metric, label: "Exchange / ticker" };
+  return null;
 }
 
 function buildMefSnapshotMetrics(sourceMetrics: DilutionMetricItem[]) {
