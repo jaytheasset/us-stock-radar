@@ -3368,14 +3368,14 @@ function SpacIpoSummaryTemplate({
         </section>
 
         <section className="stock-detail-card initial-ipo-side-stack">
-          <div className="initial-ipo-summary-card initial-ipo-background-card">
-            <h2>Summary</h2>
-            <p>{model.companyStory}</p>
-          </div>
-
           <div className="initial-ipo-summary-card initial-ipo-quick-card">
             <h2>Quick Take</h2>
             <p>{model.displayQuickTake}</p>
+          </div>
+
+          <div className="initial-ipo-summary-card initial-ipo-background-card">
+            <h2>Summary</h2>
+            <p>{model.companyStory}</p>
           </div>
         </section>
       </section>
