@@ -932,6 +932,7 @@ function RuntimeOutputCard({ value }: { value: unknown }) {
       </div>
       <div className={styles.outputMetaGrid}>
         <PreviewField label="Ticker" value={clientString(output.ticker)} />
+        <PreviewField label="Model" value={clientString(output.model)} />
         <PreviewField label="Event type" value={clientString(output.event_type)} />
         <PreviewField label="Display type" value={clientString(output.display_type)} />
         <PreviewField label="Parser route" value={clientString(output.parser_route)} />

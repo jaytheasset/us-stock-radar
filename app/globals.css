@@ -12912,6 +12912,23 @@ td {
   gap: 5px;
 }
 
+.sec-filing-viewer-shell {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--detail-divider);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.sec-filing-viewer-frame {
+  display: block;
+  width: 100%;
+  min-height: min(72vh, 760px);
+  border: 0;
+  background: #fff;
+}
+
 .full-text-content {
   display: block;
   width: 100%;

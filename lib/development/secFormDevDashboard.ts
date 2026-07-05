@@ -640,6 +640,7 @@ function buildPreviewItem(rawItem: RawItemRow, preview: unknown) {
   const ownershipContext = readRecord(filingContext?.ownership);
   const archiveContextGuard = readRecord(ownershipContext?.archive_context_guard);
   const prompt = readRecord(previewRecord.prompt);
+  const model = stringValue(previewRecord.model);
   const rawPayload = readRecord(rawItem.raw_payload);
   const analysis = readRecord(previewRecord.analysis);
   const isExcluded = isSkipAnalysisResult(analysis, investableUniverseGate);
@@ -682,8 +683,10 @@ function buildPreviewItem(rawItem: RawItemRow, preview: unknown) {
         }
       : null,
     stage: stringValue(previewRecord.stage) || null,
+    model: model || null,
     runtime_output: analysis
       ? {
+          model: model || null,
           event_title: stringValue(analysis.event_title),
           event_type: stringValue(analysis.event_type),
           display_type: null,
@@ -727,6 +730,7 @@ function buildRuntimeAnalysisItem(rawItem: RawItemRow, result: unknown) {
   const ownershipContext = readRecord(filingContext?.ownership);
   const archiveContextGuard = readRecord(ownershipContext?.archive_context_guard);
   const prompt = readRecord(resultRecord.prompt) || readRecord(resultRecord.runtime);
+  const model = stringValue(resultRecord.model);
   const rawPayload = readRecord(rawItem.raw_payload);
   const analysis = readRecord(resultRecord.analysis);
   const ok = resultRecord.ok === true;
@@ -784,9 +788,11 @@ function buildRuntimeAnalysisItem(rawItem: RawItemRow, result: unknown) {
     score,
     delivery_level: deliveryLevel,
     stage: stringValue(resultRecord.stage) || null,
+    model: model || null,
     llm_failure_debug: llmFailureDebug,
     runtime_output: analysis
       ? {
+          model: model || null,
           event_title: stringValue(analysis.event_title),
           event_type: stringValue(analysis.event_type),
           display_type: stringValue(displayPayload?.display_type) || null,
@@ -1326,6 +1332,7 @@ export async function runSecDevControlledPersist(
     const primaryTicker = readRecord(analysisRecord?.primary_ticker);
     const score = numberValue(event?.score ?? analysisRecord?.score);
     const deliveryLevel = stringValue(event?.delivery_level) || deriveDeliveryLabel(score);
+    const model = stringValue(analysis.model);
     liveRun = {
       mode: "controlled_persist",
       status: "pass",
@@ -1346,9 +1353,11 @@ export async function runSecDevControlledPersist(
           event_type: stringValue(event?.event_type) || stringValue(analysisRecord?.event_type) || null,
           score,
           delivery_level: deliveryLevel,
+          model: model || null,
           detail_url: buildLocalFilingUrl(stringValue(event?.id), deliveryLevel),
           runtime_output: analysisRecord
             ? {
+                model: model || null,
                 event_title: stringValue(analysisRecord.event_title) || stringValue(event?.title),
                 event_type: stringValue(analysisRecord.event_type) || stringValue(event?.event_type),
                 display_type: stringValue(displayPayload?.display_type) || null,

@@ -14,6 +14,8 @@ import {
 export const SEC_S1_F1_ANALYSIS_PROMPT_KEY = "sec_s1_f1_analysis";
 export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v28-spac-ipo-minimal";
 
+const S1_F1_SHARE_OVERHANG_PERCENT_TOLERANCE = 0.049;
+
 const ALLOWED_S1_F1_DISPLAY_MODES = new Set([
   "ipo_registration",
   "ipo_amendment",
@@ -441,7 +443,7 @@ function collectS1F1ShareOverhangDisplayWarnings(data: Record<string, unknown>, 
   const captionPercents = percentValues(caption);
   if (!captionPercents.length) return warnings;
 
-  const hasMatchingCaptionPercent = captionPercents.some((percent) => Math.abs(percent - primaryPercent) <= 0.2);
+  const hasMatchingCaptionPercent = captionPercents.some((percent) => Math.abs(percent - primaryPercent) <= S1_F1_SHARE_OVERHANG_PERCENT_TOLERANCE);
   if (hasMatchingCaptionPercent) return warnings;
 
   warnings.push(
@@ -484,10 +486,7 @@ function collectS1F1ShareOverhangCalculationWarnings(
 
   if (totalNoteNumerator && totalNoteDenominator && totalNoteRatio !== null) {
     const expectedRatio = (totalNoteNumerator / totalNoteDenominator) * 100;
-    if (
-      Number.isFinite(expectedRatio) &&
-      Math.abs(expectedRatio - totalNoteRatio) / Math.max(Math.abs(expectedRatio), Math.abs(totalNoteRatio), 1) > 0.02
-    ) {
+    if (Number.isFinite(expectedRatio) && Math.abs(expectedRatio - totalNoteRatio) > S1_F1_SHARE_OVERHANG_PERCENT_TOLERANCE) {
       warnings.push(
         "S-1/F-1 share_overhang total_note ratio does not reconcile to numerator divided by denominator; verify unit conversion and full share counts.",
       );
@@ -680,7 +679,7 @@ function collectS1F1ConflictingShareOverhangPercentFields(
   shareOverhang: Record<string, unknown> | null,
 ) {
   const expectedRatio = parseS1F1PercentNumber(readS1F1ShareOverhangRatio(shareOverhang));
-  if (expectedRatio === null || !hasS1F1NonCountedShareOverhangRows(shareOverhang)) return [];
+  if (expectedRatio === null) return [];
   const fields: Array<[string, unknown]> = [
     ["event_title", analysisOutput.event_title],
     ["quick_take", analysisOutput.quick_take],
@@ -709,17 +708,6 @@ function readS1F1ShareOverhangRatio(shareOverhang: Record<string, unknown> | nul
   return stringValue(totalNote?.ratio) || stringValue(shareOverhang?.ratio_value || shareOverhang?.ratioValue) || stringValue(shareOverhang?.status_value || shareOverhang?.statusValue);
 }
 
-function hasS1F1NonCountedShareOverhangRows(shareOverhang: Record<string, unknown> | null) {
-  const rows = Array.isArray(shareOverhang?.rows) ? shareOverhang?.rows : [];
-  return rows
-    .map((row) => readRecord(row))
-    .some((row) => {
-      if (!row) return false;
-      const rowRole = s1F1ShareOverhangRowRole(row);
-      return rowRole === "conditional" || rowRole === "alternative" || rowRole === "reference";
-    });
-}
-
 function parseS1F1PercentNumber(value: unknown) {
   const match = stringValue(value).match(/(\d[\d,]*(?:\.\d+)?)\s*%/);
   if (!match) return null;
@@ -737,7 +725,7 @@ function hasS1F1ConflictingPercent(value: unknown, expectedRatio: number) {
       return false;
     }
     const parsed = parseS1F1PercentNumber(match[0]);
-    return parsed !== null && Math.abs(parsed - expectedRatio) > 0.2;
+    return parsed !== null && Math.abs(parsed - expectedRatio) > S1_F1_SHARE_OVERHANG_PERCENT_TOLERANCE;
   });
 }
 
@@ -759,6 +747,14 @@ function collectS1F1WarrantShareOverhangWarnings(
     if (rowRole === "conditional" && isS1F1ShareEquivalentCountedText(rowText)) {
       warnings.push(
         `S-1/F-1 display_payload.data.share_overhang row appears share-equivalent but is marked conditional: ${label}`,
+      );
+    }
+    if (
+      (rowRole ? rowRole === "counted" : countedInRatio === true) &&
+      isNonShareEquivalentWarrantText(rowText)
+    ) {
+      warnings.push(
+        `S-1/F-1 display_payload.data.share_overhang counted row appears to include non-share-equivalent warrant supply: ${label}`,
       );
     }
     if (

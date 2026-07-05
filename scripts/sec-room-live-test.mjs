@@ -364,6 +364,7 @@ async function analyzeOneViaDevConsole({ rawItemId, accessionNumber }) {
       return false;
     }) || liveRuns.find((run) => run?.mode === "controlled_persist") || null;
   const item = Array.isArray(liveRun?.items) ? liveRun.items[0] || null : null;
+  const runtime = item?.runtime_output || null;
   const eventId = stringValue(item?.event_id);
   const deliveryLevel = stringValue(item?.delivery_level);
   const detailUrl = normalizeDetailUrl(stringValue(item?.detail_url), eventId, deliveryLevel);
@@ -372,14 +373,14 @@ async function analyzeOneViaDevConsole({ rawItemId, accessionNumber }) {
     ok: liveRun?.status === "pass",
     stage: "controlled_persist",
     request: { rawItemId, accessionNumber },
-    runtime: item?.runtime_output || null,
+    runtime,
     eventId,
     title: stringValue(item?.title),
     ticker: stringValue(item?.ticker),
     eventType: stringValue(item?.event_type),
     score: numberValue(item?.score),
     deliveryLevel,
-    model: "",
+    model: stringValue(item?.model) || stringValue(runtime?.model),
     promptModel: llmModel || "",
     promptProvider: llmProvider || "",
     detailUrl,
