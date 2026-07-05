@@ -4,6 +4,7 @@ import { build424bAnalysisPrompt, type Sec424bAnalysisPromptVariant } from "@/li
 import { APPROVED_424B_EVENT_TYPES } from "@/lib/sources/sec/forms/424b/types";
 import type { Sec424bParserOutput } from "@/lib/sources/sec/forms/424b/types";
 import { collectSecOfferingMarketContextWarnings } from "@/lib/secOfferingMarketContext";
+import { marketTaxonomyAnalysisOutputSchemaProperties } from "@/lib/marketTaxonomySchema";
 import {
   looseObjectSchema,
   offeringDisplayRowSchema,
@@ -13,7 +14,7 @@ import {
 
 export const SEC_424B_ANALYSIS_PROMPT_KEY = "sec_424b_analysis";
 export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v20";
-export const SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION = "v38-shelf-last-sale-value";
+export const SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION = "v39-taxonomy-schema";
 const ALLOWED_424B_DISPLAY_MODES = new Set([
   "atm",
   "resale_registration",
@@ -70,6 +71,7 @@ export function buildSec424bAnalysisPromptForInput(
       "Return the full Required Output JSON shape.",
       "There is no 424B router LLM and no parser-completed 424B result. Choose event_type, display_type, score, and display_payload from the provided source blocks.",
       "Use generic for the common filing detail page, offering_terms for offering/dilution/IPO terms, and spac_transaction_status only for source-backed SPAC/de-SPAC transaction status.",
+      "For analysis_output sector and industry_group, use exact taxonomy display names from the response schema. For theme_group and sub_theme, use exact taxonomy slugs from the response schema. Use null when unsupported.",
       "Score means investor attention and urgency. Delivery is derived later from score only.",
     ].join("\n"),
     user: build424bAnalysisPrompt(parserOutputForPrompt, { variant: promptVariant }),
@@ -1543,10 +1545,7 @@ export const sec424bRequiredOutputSchema = {
           },
         },
         tickers: { type: "array", maxItems: 0, items: { type: "object", additionalProperties: true } },
-        sector: { type: ["string", "null"] },
-        industry_group: { type: ["string", "null"] },
-        theme_group: { type: ["string", "null"] },
-        sub_theme: { type: ["string", "null"] },
+        ...marketTaxonomyAnalysisOutputSchemaProperties(),
         score: { type: "integer", minimum: 0, maximum: 100 },
         score_reason: { type: "string", maxLength: 140 },
         score_explanation: scoreExplanationSchema(),

@@ -4,6 +4,7 @@ import { buildS1F1AnalysisPrompt } from "@/lib/sources/sec/forms/s1-f1/analysisP
 import { APPROVED_SEC_EVENT_TYPES, type S1F1ParserOutput } from "@/lib/sources/sec/forms/s1-f1/types";
 import { normalize424bOfferingDisplayModel } from "@/lib/ai/sec424bAnalysisAdapter";
 import { collectSecOfferingMarketContextWarnings } from "@/lib/secOfferingMarketContext";
+import { marketTaxonomyAnalysisOutputSchemaProperties } from "@/lib/marketTaxonomySchema";
 import {
   offeringDisplayRowSchema,
   scoreExplanationSchema,
@@ -11,7 +12,7 @@ import {
 } from "@/lib/ai/secOfferingOutputSchemas";
 
 export const SEC_S1_F1_ANALYSIS_PROMPT_KEY = "sec_s1_f1_analysis";
-export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v18-atm-shelf-last-sale-value";
+export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v19-taxonomy-schema";
 
 const ALLOWED_S1_F1_DISPLAY_MODES = new Set([
   "ipo_registration",
@@ -198,6 +199,7 @@ export function buildSecS1F1AnalysisPromptForInput(input: SecFilingAnalysisInput
       "There is no S-1/F-1 router LLM and no parser-completed display payload. Choose event_type, display_type, score, and display_payload from the source blocks.",
       "For offering_terms, generic analysis fields are storage/list compatibility only and must match the selected display payload.",
       "Use generic for the common filing detail page, offering_terms for IPO/offering/resale/MEF/POS AM registration terms, and spac_transaction_status only for source-backed de-SPAC status.",
+      "For analysis_output sector and industry_group, use exact taxonomy display names from the response schema. For theme_group and sub_theme, use exact taxonomy slugs from the response schema. Use null when unsupported.",
       "Score means investor attention and urgency. Delivery is derived later from score only.",
     ].join("\n"),
     user: buildS1F1AnalysisPrompt(parserOutput),
@@ -1456,6 +1458,10 @@ export const secS1F1RequiredOutputSchema = {
       required: [
         "event_type",
         "event_title",
+        "sector",
+        "industry_group",
+        "theme_group",
+        "sub_theme",
         "score",
         "score_reason",
         "score_explanation",
@@ -1468,6 +1474,7 @@ export const secS1F1RequiredOutputSchema = {
       properties: {
         event_type: { type: "string", enum: APPROVED_SEC_EVENT_TYPES },
         event_title: { type: "string" },
+        ...marketTaxonomyAnalysisOutputSchemaProperties(),
         score: { type: "number" },
         score_reason: { type: "string" },
         score_explanation: scoreExplanationSchema(),

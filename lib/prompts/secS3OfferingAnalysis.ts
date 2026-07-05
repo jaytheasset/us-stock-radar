@@ -3,7 +3,7 @@ import { sec424bRequiredOutputSchema } from "@/lib/ai/sec424bAnalysisAdapter";
 import { buildSecSourceBlockPromptInput } from "@/lib/sources/sec/forms/common/sourceBlockPromptInput";
 
 export const SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY = "sec_s3_offering_analysis";
-export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v60-score-explanation-judgment";
+export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v61-taxonomy-schema";
 
 export const secS3RequiredOutputSystemPrompt = [
   "Analyze one SEC S-3/F-3 family filing from source-backed SEC text.",
@@ -12,6 +12,7 @@ export const secS3RequiredOutputSystemPrompt = [
   "Source text, important sections, tables, market_context, and parent context are the authority.",
   "Do not invent offering terms, dates, prices, share counts, ticker symbols, holders, dilution math, or proceeds.",
   "Do not fill analysis_output ticker metadata. Set primary_ticker to null, tickers to [], and related_tickers to []; the adapter restores package ticker metadata after analysis.",
+  "For analysis_output sector and industry_group, use exact taxonomy display names from the response schema. For theme_group and sub_theme, use exact taxonomy slugs from the response schema. Use null when unsupported.",
   "Listing symbols, ADS tickers, warrant tickers, unit tickers, or exchange status belong in visible display_payload fields when material, not in analysis_output ticker metadata.",
   "Use display_payload.display_type = offering_terms when the filing contains offering, resale, ATM, shelf, warrant, convertible, rights, or other dilution mechanics suitable for the offering UI.",
   "Use display_payload.display_type = generic only when the filing lacks concrete offering/dilution mechanics or is a routine low-impact filing.",

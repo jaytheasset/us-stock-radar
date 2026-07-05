@@ -5,6 +5,7 @@ import {
   SEC_MARKET_SCOPES,
   SEC_SIGNALS,
 } from "@/lib/sources/sec/forms/common/secIntegrationContract";
+import { marketTaxonomyAnalysisOutputSchemaProperties } from "@/lib/marketTaxonomySchema";
 
 type SecRequiredOutputSchemaOptions = {
   displayTypes?: readonly string[];
@@ -71,10 +72,7 @@ function buildSecAnalysisOutputSchema() {
         },
       },
       tickers: { type: "array", items: { type: "object", additionalProperties: true } },
-      sector: nullableStringSchema,
-      industry_group: nullableStringSchema,
-      theme_group: nullableStringSchema,
-      sub_theme: nullableStringSchema,
+      ...marketTaxonomyAnalysisOutputSchemaProperties(),
       score: { type: "number" },
       score_reason: { type: "string" },
       signal: { type: "string", enum: SEC_SIGNALS },

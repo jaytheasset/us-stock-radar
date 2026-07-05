@@ -658,6 +658,10 @@ export function buildS1F1AnalysisPrompt(
         analysis_output: {
           event_type: "approved event_type selected from cleaned source blocks",
           event_title: "string; do not include % or a dilution/overhang percentage for mixed_offering",
+          sector: "taxonomy sector display name | null",
+          industry_group: "taxonomy industry group display name | null",
+          theme_group: "taxonomy theme_group slug | null",
+          sub_theme: "taxonomy sub_theme slug | null",
           score: 0,
           score_reason: "string",
           score_explanation: {
