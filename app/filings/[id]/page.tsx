@@ -3340,7 +3340,7 @@ function InitialIpoFilingTemplate({
   filing: FilingEvent;
   model: IpoListingModel;
 }) {
-  const quickTake = model.stageSummary || model.companyStory;
+  const quickTake = model.stageSummary;
   const watchNext =
     model.watchNext.length > 0
       ? model.watchNext
@@ -5483,8 +5483,8 @@ function buildIpoListingModel(filing: FilingEvent): IpoListingModel | null {
     displayMode,
   );
   const amendmentRows = readS1F1LabelValueRows(data.amendment_changes).slice(0, 6);
-  const investorTakeaway = displayString(data, "investor_takeaway", filing.filingBrief || filing.summary);
-  const narrativeSummary = displayString(data, "company_story", filing.summary || "Not disclosed");
+  const investorTakeaway = displayString(data, "investor_takeaway", "");
+  const narrativeSummary = displayString(data, "company_story", "");
   const isInitialTermsPending =
     isOfferingTermsIpo &&
     displayMode === "ipo_registration" &&
@@ -5498,7 +5498,7 @@ function buildIpoListingModel(filing: FilingEvent): IpoListingModel | null {
     currentStage,
     currentStageLabel,
     stageBadge: `Stage ${currentStageIndex + 1}/${IPO_STAGE_ORDER.length} · ${currentStageLabel}`,
-    stageSummary: displayString(data, "stage_summary", investorTakeaway),
+    stageSummary: displayString(data, "stage_summary", ""),
     issuer,
     proposedTicker,
     exchange,

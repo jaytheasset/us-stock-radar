@@ -247,6 +247,7 @@ export function adaptSecS1F1AnalysisPromptResultForAnalysis(
   ];
   const displayPayloadData = readRecord(displayPayload.data);
   if (displayPayloadData) {
+    displayPayloadWarnings.push(...collectS1F1IpoDisplayWarnings(displayPayloadData, analysisOutput));
     displayPayloadWarnings.push(...collectS1F1SourceCoverageWarnings(displayPayloadData, input));
     displayPayloadWarnings.push(...collectS1F1ShareOverhangDisplayWarnings(displayPayloadData, analysisOutput));
     appendS1F1DisplayWarnings(displayPayloadData, displayPayloadWarnings);
@@ -939,6 +940,30 @@ function appendS1F1DisplayWarnings(data: Record<string, unknown>, warnings: stri
   data.display_warnings = uniqueStrings([...existing, ...warnings]);
 }
 
+function collectS1F1IpoDisplayWarnings(data: Record<string, unknown>, analysisOutput: Record<string, unknown> | null) {
+  const displayMode = stringValue(data.display_mode);
+  if (displayMode !== "ipo_registration") return [];
+
+  const warnings: string[] = [];
+  if (!stringValue(data.stage_summary)) {
+    warnings.push("S-1/F-1 ipo_registration missing stage_summary; Quick Take should not fall back to summary.");
+  }
+  if (!stringValue(data.company_story)) {
+    warnings.push("S-1/F-1 ipo_registration missing company_story; Company Overview should not fall back to summary.");
+  }
+
+  const summary = stringValue(analysisOutput?.summary);
+  if (hasBlankMoneyPlaceholder(summary)) {
+    warnings.push("S-1/F-1 ipo_registration analysis_output.summary contains blank price placeholders.");
+  }
+
+  return warnings;
+}
+
+function hasBlankMoneyPlaceholder(value: string) {
+  return /\$\s*(?:and|to|-)\s*\$/i.test(value) || /\bbetween\s+\$\s+(?:and|to|-)\s+\$/i.test(value);
+}
+
 function collectS1F1SourceCoverageWarnings(data: Record<string, unknown>, input: SecFilingAnalysisInput) {
   const displayMode = stringValue(data.display_mode);
   if (!["mixed_offering", "mixed_registration"].includes(displayMode)) return [];
@@ -1386,6 +1411,8 @@ export const secS1F1RequiredOutputSchema = {
             "risk_label",
             "snapshot_metrics",
             "investor_takeaway",
+            "stage_summary",
+            "company_story",
             "offering_details",
             "instrument_details",
           ],
@@ -1399,6 +1426,8 @@ export const secS1F1RequiredOutputSchema = {
             },
             share_overhang: shareOverhangSchema({ requireStatusFields: true }),
             investor_takeaway: { type: ["string", "null"] },
+            stage_summary: { type: ["string", "null"] },
+            company_story: { type: ["string", "null"] },
             offering_details: {
               type: "array",
               items: offeringDisplayRowSchema(40, 90, 80),
