@@ -5730,9 +5730,7 @@ function readS1F1LabelValueRows(value: unknown): DilutionDisclosureRow[] {
       const valueText = cleanDisclosureValue(readDisclosureValue(item.value) || readRowString(item, "value"));
       const note = cleanDisclosureValue(readDisclosureValue(item.note) || readRowString(item, "note"));
       if (!label || !isDisclosedValue(valueText)) return null;
-      const compactValue = valueText.length > 120 ? `${valueText.slice(0, 117).trim()}...` : valueText;
-      const compactNote = note.length > 80 ? `${note.slice(0, 77).trim()}...` : note;
-      return { label, value: compactValue, ...(compactNote ? { note: compactNote } : {}) };
+      return { label, value: valueText, ...(note ? { note } : {}) };
     })
     .filter((item): item is DilutionDisclosureRow => Boolean(item));
 }
