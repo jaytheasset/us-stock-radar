@@ -338,6 +338,7 @@ export function buildS1F1AnalysisPrompt(
     "- Do not use assumed public offering price, proposed maximum offering price, fee-table share count, or registration-fee amount as IPO price, IPO proceeds, valuation, offering size, or final terms.",
     "- Snapshot labels for initial IPO filings must be exactly these four rows in this order: Filing stage; Terms status; Proposed exchange / ticker; Underwriters.",
     "- For Terms status, use short values such as Price and share count pending or Range filed; do not copy blank price-table placeholders.",
+    "- For Terms status.note, do not write placeholder price-range strings such as $ to $, $ and $, or between $ and $. Use a pending phrase or omit the note.",
     "- For initial IPO filings, display_payload.data.investor_takeaway should match analysis_output.quick_take in meaning and may use the same wording.",
     "- For initial IPO filings, analysis_output.summary is the visible summary and should explain the IPO status in plain investor language.",
     "- For initial IPO filings, company_story should explain what the company does, its business model, and the IPO status in plain investor language. Do not make it a legal filing recap.",
