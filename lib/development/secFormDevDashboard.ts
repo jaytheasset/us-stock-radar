@@ -1218,6 +1218,7 @@ export async function runSecDevControlledPersist(
   roomKey: string,
   options: {
     accessionNumber?: string;
+    cik?: string;
     rawItemId?: string;
     attachmentLimit?: number;
     resetExistingAnalysis?: boolean;
@@ -1231,6 +1232,7 @@ export async function runSecDevControlledPersist(
   if (!room) return null;
 
   const accessionNumber = stringValue(options.accessionNumber);
+  const cik = stringValue(options.cik);
   const rawItemId = stringValue(options.rawItemId);
   const started = Date.now();
   const ranAt = new Date().toISOString();
@@ -1244,6 +1246,7 @@ export async function runSecDevControlledPersist(
     const rawResult = await ensureDevRawItemForPersist({
       room,
       accessionNumber,
+      cik,
       rawItemId,
       attachmentLimit: clampNumber(options.attachmentLimit, 0, 12, 6),
     });
@@ -1390,6 +1393,7 @@ export async function runSecDevControlledPersist(
       ],
       diagnostics: {
         raw_source: rawResult.source,
+        raw_fetch_diagnostics: rawResult.diagnostics || null,
         reset_existing_analysis: resetResult,
         prompt: analysis.runtime ? readRecord(analysis.runtime)?.prompt || null : null,
       },
@@ -2281,11 +2285,13 @@ async function runTestFile(file: string): Promise<SecDevTestResult> {
 async function ensureDevRawItemForPersist({
   attachmentLimit,
   accessionNumber,
+  cik,
   rawItemId,
   room,
 }: {
   attachmentLimit: number;
   accessionNumber: string;
+  cik: string;
   rawItemId: string;
   room: SecDevRoom;
 }) {
@@ -2315,6 +2321,29 @@ async function ensureDevRawItemForPersist({
     throw new Error("Raw item is not present and accessionNumber was not provided for SEC live fetch.");
   }
 
+  const accessionFetchResult = await fetchSecEdgarRawItems({
+    accessionNumber,
+    cik: cik || undefined,
+    formTypes: room.forms,
+    includeDocuments: true,
+    attachmentLimit,
+  });
+  if (accessionFetchResult.ok) {
+    const rawItem =
+      accessionFetchResult.items.find((item) => stringValue(item.source_unique_id) === accessionNumber) ||
+      accessionFetchResult.items[0] ||
+      null;
+    if (rawItem) {
+      const persisted = await persistSingleDevRawItem(rawItem);
+      return {
+        rawItemId: stringValue(persisted.id),
+        accessionNumber: stringValue(rawItem.source_unique_id) || accessionNumber,
+        source: "archive_accession_persisted_raw_item",
+        diagnostics: accessionFetchResult.diagnostics,
+      };
+    }
+  }
+
   const fetchResult = await fetchSecEdgarRawItems({
     formTypes: room.forms,
     countPerForm: 10,
@@ -2323,13 +2352,14 @@ async function ensureDevRawItemForPersist({
     attachmentLimit,
   });
   if (!fetchResult.ok) {
-    throw new Error(fetchResult.error || "SEC raw fetch failed before controlled persist");
+    const directError = accessionFetchResult.error ? ` Direct accession fetch failed: ${accessionFetchResult.error}` : "";
+    throw new Error(`${fetchResult.error || "SEC raw fetch failed before controlled persist"}${directError}`);
   }
 
   const rawItem = fetchResult.items.find((item) => stringValue(item.source_unique_id) === accessionNumber);
   if (!rawItem) {
     throw new Error(
-      `Accession ${accessionNumber} is not in the current SEC feed for ${room.forms.join(", ")}. Run live dry-run first or ingest raw separately.`,
+      `Accession ${accessionNumber} was not found in SEC archive lookup or the current SEC feed for ${room.forms.join(", ")}. Add the filing CIK if this is an older archive filing.`,
     );
   }
 
@@ -2338,6 +2368,7 @@ async function ensureDevRawItemForPersist({
     rawItemId: stringValue(persisted.id),
     accessionNumber,
     source: "live_fetch_persisted_raw_item",
+    diagnostics: fetchResult.diagnostics,
   };
 }
 

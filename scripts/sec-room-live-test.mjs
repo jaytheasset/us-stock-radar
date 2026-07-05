@@ -343,6 +343,7 @@ async function analyzeOneViaDevConsole({ rawItemId, accessionNumber }) {
     room: room.folder,
     mode: "controlled_persist",
     accessionNumber: accessionNumber || "",
+    cik: cik || "",
     rawItemId: rawItemId || "",
     attachmentLimit,
     resetExistingAnalysis: true,

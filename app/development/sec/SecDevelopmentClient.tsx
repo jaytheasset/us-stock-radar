@@ -33,6 +33,7 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
   const [persisting, setPersisting] = useState(false);
   const [resettingAnalysis, setResettingAnalysis] = useState(false);
   const [accessionNumber, setAccessionNumber] = useState("");
+  const [archiveCik, setArchiveCik] = useState("");
   const [dryRunAccession, setDryRunAccession] = useState("");
   const [resetExistingAnalysis, setResetExistingAnalysis] = useState(false);
   const [secPromptVariant, setSecPromptVariant] = useState("sectioned");
@@ -251,6 +252,7 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
           room: selectedRoom,
           mode: "controlled_persist",
           accessionNumber: accessionNumber.trim(),
+          cik: archiveCik.trim(),
           attachmentLimit: 6,
           resetExistingAnalysis,
           llmProvider: "gemini",
@@ -431,6 +433,14 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
               onChange={(event) => setAccessionNumber(event.target.value)}
               placeholder="0000000000-00-000000"
               value={accessionNumber}
+            />
+          </label>
+          <label className={styles.compactControl}>
+            <span>Archive CIK</span>
+            <input
+              onChange={(event) => setArchiveCik(event.target.value)}
+              placeholder="0000000"
+              value={archiveCik}
             />
           </label>
           <label className={styles.resetControl}>

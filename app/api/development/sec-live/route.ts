@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
     mode === "controlled_persist"
       ? await runSecDevControlledPersist(room, {
           accessionNumber: readString(record.accessionNumber),
+          cik: readString(record.cik),
           rawItemId: readString(record.rawItemId),
           attachmentLimit: readNumber(record.attachmentLimit, 6),
           resetExistingAnalysis: readBoolean(record.resetExistingAnalysis),
