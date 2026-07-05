@@ -2,14 +2,14 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { build424bAnalysisPrompt, validate424bRoomResult } from "./analysisPrompt";
-import { parse424bFiling } from "./parser";
+import { build424bAnalysisPrompt, validate424bRoomResult } from "./analysisPrompt.ts";
+import { parse424bFiling } from "./parser.ts";
 import {
   APPROVED_424B_EVENT_TYPES,
   type Sec424bFixtureInput,
   type Sec424bRoomResult,
   deriveDeliveryLevel,
-} from "./types";
+} from "./types.ts";
 
 const roomDir = join(process.cwd(), "lib", "sources", "sec", "forms", "424b");
 const fixturesDir = join(roomDir, "fixtures");

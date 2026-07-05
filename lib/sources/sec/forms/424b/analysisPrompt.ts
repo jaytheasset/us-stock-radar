@@ -3,10 +3,10 @@ import {
   DISPLAY_PAYLOAD_VERSION_424B,
   deriveDeliveryLevel,
   isApproved424bEventType,
-} from "./types";
-import type { Sec424bParserOutput, Sec424bRoomResult } from "./types";
-import { buildSecSourceBlockPromptInput } from "../common/sourceBlockPromptInput";
-import { SEC_RESALE_OVERHANG_SCORING_GUIDE } from "../common/resaleOverhangScoring";
+} from "./types.ts";
+import type { Sec424bParserOutput, Sec424bRoomResult } from "./types.ts";
+import { buildSecSourceBlockPromptInput } from "../common/sourceBlockPromptInput.ts";
+import { SEC_RESALE_OVERHANG_SCORING_GUIDE } from "../common/resaleOverhangScoring.ts";
 
 const SCORING_GUIDE_424B = [
   "424B Scoring Guide:",

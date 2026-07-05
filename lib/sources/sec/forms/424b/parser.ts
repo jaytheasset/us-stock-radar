@@ -2,7 +2,7 @@ import {
   FORM_SCOPE_424B,
   PARSER_GROUP_424B,
   PARSER_VERSION_424B,
-} from "./types";
+} from "./types.ts";
 import type {
   Sec424bCalendarItem,
   Sec424bMarketContext,
@@ -10,7 +10,7 @@ import type {
   Sec424bParserOutput,
   Sec424bSignal,
   Sec424bSourceInventoryItem,
-} from "./types";
+} from "./types.ts";
 
 const MONEY_PATTERN = "\\$\\s*([0-9][0-9,]*(?:\\.\\d+)?)\\s*(billion|million|thousand)?";
 const DATE_PATTERN =

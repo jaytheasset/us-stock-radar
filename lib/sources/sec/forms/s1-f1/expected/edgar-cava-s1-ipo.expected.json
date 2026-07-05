@@ -33,7 +33,9 @@
       "offering": {
         "kind": "ipo",
         "ipo_kind": "traditional",
-        "securities": ["common stock"],
+        "securities": [
+          "common stock"
+        ],
         "shares_offered": null,
         "price_low": null,
         "price_high": null,
@@ -91,11 +93,6 @@
     "market_scope": "company",
     "event_type": "ipo_listing",
     "event_title": "CAVA files S-1 IPO registration",
-    "primary_ticker": {
-      "ticker": "CAVA",
-      "exchange": "NYSE"
-    },
-    "tickers": ["CAVA"],
     "sector": null,
     "industry_group": null,
     "theme_group": null,
@@ -107,13 +104,28 @@
     "summary": "The filing excerpt states this is CAVA Group, Inc.'s initial public offering of common stock and proposed NYSE listing under CAVA.",
     "why_it_matters": "A base S-1 starts the IPO registration flow, while later amendments usually provide concrete terms.",
     "bullish_points": [],
-    "bearish_points": ["The original excerpt does not yet include final share count or price range."],
-    "key_evidence": ["initial public offering", "no public market", "New York Stock Exchange under the symbol CAVA"],
-    "what_to_watch_next": ["Later S-1/A amendments for share count, price range, and underwriting terms."],
+    "bearish_points": [
+      "The original excerpt does not yet include final share count or price range."
+    ],
+    "key_evidence": [
+      "initial public offering",
+      "no public market",
+      "New York Stock Exchange under the symbol CAVA"
+    ],
+    "what_to_watch_next": [
+      "Later S-1/A amendments for share count, price range, and underwriting terms."
+    ],
     "related_tickers": [],
     "calendar_items": [],
     "confidence": "high",
-    "needs_human_review": false
+    "needs_human_review": false,
+    "score_explanation": {
+      "summary": "Feed-level score because the EDGAR S-1 excerpt identifies a first IPO registration and proposed NYSE listing, but no final pricing terms are present in the excerpt.",
+      "base_band": null,
+      "upward_factors": [],
+      "limiting_factors": [],
+      "final_read": null
+    }
   },
   "display_payload": {
     "display_type": "offering_terms",
@@ -124,7 +136,10 @@
       "ipo_kind": "traditional",
       "exchange": "NYSE"
     },
-    "evidence": ["This is CAVA Group, Inc.’s initial public offering", "under the symbol CAVA"],
+    "evidence": [
+      "This is CAVA Group, Inc.’s initial public offering",
+      "under the symbol CAVA"
+    ],
     "notes": []
   },
   "fixture_expected": {
@@ -135,6 +150,8 @@
     "market_context_fields": [],
     "special_ui_needed": false,
     "special_ui_reason": null,
-    "integration_notes": ["Fixture text is an EDGAR original excerpt; no live SEC fetch occurs during tests."]
+    "integration_notes": [
+      "Fixture text is an EDGAR original excerpt; no live SEC fetch occurs during tests."
+    ]
   }
 }

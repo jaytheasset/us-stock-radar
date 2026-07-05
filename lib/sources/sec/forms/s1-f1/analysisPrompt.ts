@@ -5,7 +5,7 @@ import {
   isApprovedSecEventType,
 } from "./types.ts";
 import { buildS1F1LlmSourceInput } from "./sourceInput.ts";
-import { SEC_RESALE_OVERHANG_SCORING_GUIDE } from "../common/resaleOverhangScoring";
+import { SEC_RESALE_OVERHANG_SCORING_GUIDE } from "../common/resaleOverhangScoring.ts";
 
 const REQUIRED_TOP_LEVEL_KEYS = ["display_payload", "analysis_output"] as const;
 

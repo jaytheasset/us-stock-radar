@@ -32,7 +32,9 @@
       "registration_kind": "unknown",
       "offering": {
         "kind": "unknown",
-        "securities": ["common stock"],
+        "securities": [
+          "common stock"
+        ],
         "shares_offered": null,
         "price_low": null,
         "price_high": null,
@@ -80,7 +82,9 @@
       }
     ],
     "calendarItems": [],
-    "warnings": ["Boundary filing variant; parent context may be needed."],
+    "warnings": [
+      "Boundary filing variant; parent context may be needed."
+    ],
     "raw": {
       "sourceTextLength": 0,
       "attachmentNames": [],
@@ -97,11 +101,6 @@
     "market_scope": "company",
     "event_type": "other",
     "event_title": "Spirit POS AM deregisters unsold securities",
-    "primary_ticker": {
-      "ticker": null,
-      "exchange": null
-    },
-    "tickers": [],
     "sector": null,
     "industry_group": null,
     "theme_group": null,
@@ -114,12 +113,25 @@
     "why_it_matters": "This is a cleanup boundary filing, not a fresh offering event.",
     "bullish_points": [],
     "bearish_points": [],
-    "key_evidence": ["deregister all securities", "remain unsold", "removes from registration"],
-    "what_to_watch_next": ["Parent registration context if linkage is needed later."],
+    "key_evidence": [
+      "deregister all securities",
+      "remain unsold",
+      "removes from registration"
+    ],
+    "what_to_watch_next": [
+      "Parent registration context if linkage is needed later."
+    ],
     "related_tickers": [],
     "calendar_items": [],
     "confidence": "high",
-    "needs_human_review": false
+    "needs_human_review": false,
+    "score_explanation": {
+      "summary": "Archive-level score because the EDGAR POS AM excerpt mechanically deregisters securities that remain unsold.",
+      "base_band": null,
+      "upward_factors": [],
+      "limiting_factors": [],
+      "final_read": null
+    }
   },
   "display_payload": {
     "display_type": "generic",
@@ -128,8 +140,13 @@
       "post_effective_purpose": "deregistration",
       "parent_registration_number": "333-288706"
     },
-    "evidence": ["deregister all securities", "remain unsold"],
-    "notes": ["No parent lookup implemented; fixture remains local JSON only."]
+    "evidence": [
+      "deregister all securities",
+      "remain unsold"
+    ],
+    "notes": [
+      "No parent lookup implemented; fixture remains local JSON only."
+    ]
   },
   "fixture_expected": {
     "expected_delivery_level": "archive",
@@ -139,6 +156,8 @@
     "market_context_fields": [],
     "special_ui_needed": false,
     "special_ui_reason": null,
-    "integration_notes": ["Deterministic parser completion from EDGAR original excerpt; no router or analysis LLM needed."]
+    "integration_notes": [
+      "Deterministic parser completion from EDGAR original excerpt; no router or analysis LLM needed."
+    ]
   }
 }

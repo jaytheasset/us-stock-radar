@@ -54,8 +54,8 @@ describe("S-1/F-1 analysis output fixtures", () => {
     assert.ok(prompt.includes("Cleaned source input"));
     assert.ok(prompt.includes("cleaned_source_blocks"));
     assert.ok(prompt.includes("Do not treat parser-generated facts"));
+    assert.ok(prompt.includes("Do not return parser_output"));
     assert.ok(!prompt.includes("Parser output:"));
-    assert.ok(prompt.includes('"parser_output"'));
     assert.ok(prompt.includes('"analysis_output"'));
     assert.ok(prompt.includes('"display_payload"'));
     assert.ok(!prompt.includes('"fixture_expected"'));
@@ -130,7 +130,6 @@ describe("S-1/F-1 analysis output fixtures", () => {
       analysis_output: {
         ...expected.analysis_output,
         primary_ticker: {
-          ...expected.analysis_output.primary_ticker,
           ticker: "WRONG",
         },
         tickers: ["WRONG"],
@@ -138,7 +137,7 @@ describe("S-1/F-1 analysis output fixtures", () => {
     };
 
     const errors = validateS1F1RequiredOutputShape(changed);
-    assert.ok(errors.includes("analysis_output.primary_ticker.ticker must match parser_output.facts.ticker."));
-    assert.ok(errors.includes("analysis_output.tickers must include parser_output.facts.ticker."));
+    assert.ok(errors.includes("analysis_output.primary_ticker must be null; ticker metadata is restored from filing_package."));
+    assert.ok(errors.includes("analysis_output.tickers must be empty; ticker metadata is restored from filing_package."));
   });
 });

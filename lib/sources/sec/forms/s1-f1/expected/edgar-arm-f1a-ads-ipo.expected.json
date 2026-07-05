@@ -33,7 +33,10 @@
       "offering": {
         "kind": "ipo",
         "ipo_kind": "traditional",
-        "securities": ["ordinary shares", "ADS"],
+        "securities": [
+          "ordinary shares",
+          "ADS"
+        ],
         "shares_offered": 95500000,
         "price_low": 47,
         "price_high": 51,
@@ -80,7 +83,9 @@
       }
     ],
     "calendarItems": [],
-    "warnings": ["Amendment materiality may need parent filing fixture context; no live DB lookup was used."],
+    "warnings": [
+      "Amendment materiality may need parent filing fixture context; no live DB lookup was used."
+    ],
     "raw": {
       "sourceTextLength": 0,
       "attachmentNames": []
@@ -91,11 +96,6 @@
     "market_scope": "company",
     "event_type": "ipo_listing",
     "event_title": "Arm F-1/A discloses ADS IPO range",
-    "primary_ticker": {
-      "ticker": "ARM",
-      "exchange": "Nasdaq Global Select Market"
-    },
-    "tickers": ["ARM"],
     "sector": null,
     "industry_group": null,
     "theme_group": null,
@@ -107,13 +107,28 @@
     "summary": "The amendment excerpt states the ADSs are sold by a selling shareholder and that Arm will not receive proceeds.",
     "why_it_matters": "Foreign issuer ADS IPOs can list new public securities even when proceeds go to a selling holder.",
     "bullish_points": [],
-    "bearish_points": ["The issuer states it will not receive proceeds from the selling shareholder's ADS sale."],
-    "key_evidence": ["95,500,000 American Depositary Shares", "$47.00 and $51.00", "foreign private issuer"],
-    "what_to_watch_next": ["Final ADS pricing and underwriter option exercise."],
+    "bearish_points": [
+      "The issuer states it will not receive proceeds from the selling shareholder's ADS sale."
+    ],
+    "key_evidence": [
+      "95,500,000 American Depositary Shares",
+      "$47.00 and $51.00",
+      "foreign private issuer"
+    ],
+    "what_to_watch_next": [
+      "Final ADS pricing and underwriter option exercise."
+    ],
     "related_tickers": [],
     "calendar_items": [],
     "confidence": "high",
-    "needs_human_review": false
+    "needs_human_review": false,
+    "score_explanation": {
+      "summary": "Feed-level score because the EDGAR F-1/A excerpt includes ADS count, price range, foreign-private-issuer status, and Nasdaq listing.",
+      "base_band": null,
+      "upward_factors": [],
+      "limiting_factors": [],
+      "final_read": null
+    }
   },
   "display_payload": {
     "display_type": "offering_terms",
@@ -128,7 +143,10 @@
       },
       "ads_offering": true
     },
-    "evidence": ["95,500,000 American Depositary Shares", "$47.00 and $51.00"],
+    "evidence": [
+      "95,500,000 American Depositary Shares",
+      "$47.00 and $51.00"
+    ],
     "notes": []
   },
   "fixture_expected": {
@@ -139,6 +157,8 @@
     "market_context_fields": [],
     "special_ui_needed": false,
     "special_ui_reason": null,
-    "integration_notes": ["Fixture text is an EDGAR original excerpt; no live SEC fetch occurs during tests."]
+    "integration_notes": [
+      "Fixture text is an EDGAR original excerpt; no live SEC fetch occurs during tests."
+    ]
   }
 }

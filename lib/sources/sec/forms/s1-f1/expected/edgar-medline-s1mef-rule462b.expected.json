@@ -32,7 +32,9 @@
       "registration_kind": "unknown",
       "offering": {
         "kind": "unknown",
-        "securities": ["common stock"],
+        "securities": [
+          "common stock"
+        ],
         "shares_offered": 14437783,
         "price_low": null,
         "price_high": null,
@@ -79,7 +81,9 @@
       }
     ],
     "calendarItems": [],
-    "warnings": ["Boundary filing variant."],
+    "warnings": [
+      "Boundary filing variant."
+    ],
     "raw": {
       "sourceTextLength": 0,
       "attachmentNames": []
@@ -90,11 +94,6 @@
     "market_scope": "company",
     "event_type": "other",
     "event_title": "Medline S-1MEF Rule 462(b) filing",
-    "primary_ticker": {
-      "ticker": null,
-      "exchange": null
-    },
-    "tickers": [],
     "sector": null,
     "industry_group": null,
     "theme_group": null,
@@ -107,12 +106,25 @@
     "why_it_matters": "MEF filings are mechanically clear but should not be analyzed as standalone S-1/A amendments.",
     "bullish_points": [],
     "bearish_points": [],
-    "key_evidence": ["14,437,783 shares", "File No. 333-296044", "no more than 20%"],
-    "what_to_watch_next": ["Final prospectus terms."],
+    "key_evidence": [
+      "14,437,783 shares",
+      "File No. 333-296044",
+      "no more than 20%"
+    ],
+    "what_to_watch_next": [
+      "Final prospectus terms."
+    ],
     "related_tickers": [],
     "calendar_items": [],
     "confidence": "medium",
-    "needs_human_review": false
+    "needs_human_review": false,
+    "score_explanation": {
+      "summary": "Archive-level score because the EDGAR S-1MEF excerpt is a Rule 462(b) add-on registration.",
+      "base_band": null,
+      "upward_factors": [],
+      "limiting_factors": [],
+      "final_read": null
+    }
   },
   "display_payload": {
     "display_type": "generic",
@@ -123,8 +135,14 @@
       "shares_offered": 14437783,
       "within_20_percent_limit": true
     },
-    "evidence": ["14,437,783 shares", "333-296044", "no more than 20%"],
-    "notes": ["No parent lookup implemented; fixture remains local JSON only."]
+    "evidence": [
+      "14,437,783 shares",
+      "333-296044",
+      "no more than 20%"
+    ],
+    "notes": [
+      "No parent lookup implemented; fixture remains local JSON only."
+    ]
   },
   "fixture_expected": {
     "expected_delivery_level": "archive",
@@ -134,6 +152,8 @@
     "market_context_fields": [],
     "special_ui_needed": false,
     "special_ui_reason": null,
-    "integration_notes": ["Parent filing linkage would require ingest/DB wiring and is recorded for handoff, not implemented here."]
+    "integration_notes": [
+      "Parent filing linkage would require ingest/DB wiring and is recorded for handoff, not implemented here."
+    ]
   }
 }

@@ -33,7 +33,9 @@
       "offering": {
         "kind": "ipo",
         "ipo_kind": "traditional",
-        "securities": ["common stock"],
+        "securities": [
+          "common stock"
+        ],
         "shares_offered": 15276527,
         "price_low": 31,
         "price_high": 34,
@@ -80,7 +82,9 @@
       }
     ],
     "calendarItems": [],
-    "warnings": ["Amendment materiality may need parent filing fixture context; no live DB lookup was used."],
+    "warnings": [
+      "Amendment materiality may need parent filing fixture context; no live DB lookup was used."
+    ],
     "raw": {
       "sourceTextLength": 0,
       "attachmentNames": []
@@ -91,11 +95,6 @@
     "market_scope": "company",
     "event_type": "ipo_listing",
     "event_title": "Reddit S-1/A adds IPO pricing range",
-    "primary_ticker": {
-      "ticker": "RDDT",
-      "exchange": "NYSE"
-    },
-    "tickers": ["RDDT"],
     "sector": null,
     "industry_group": null,
     "theme_group": null,
@@ -107,13 +106,29 @@
     "summary": "The S-1/A excerpt says Reddit is offering 15,276,527 Class A shares, selling stockholders are offering 6,723,473 shares, and the NYSE symbol is RDDT.",
     "why_it_matters": "Pricing amendments narrow the IPO economics and help distinguish issuer proceeds from selling-holder sales.",
     "bullish_points": [],
-    "bearish_points": ["Selling stockholder shares do not provide proceeds to the issuer."],
-    "key_evidence": ["15,276,527 shares", "6,723,473 shares", "$31.00 and $34.00", "symbol RDDT"],
-    "what_to_watch_next": ["Final prospectus pricing and actual shares sold."],
+    "bearish_points": [
+      "Selling stockholder shares do not provide proceeds to the issuer."
+    ],
+    "key_evidence": [
+      "15,276,527 shares",
+      "6,723,473 shares",
+      "$31.00 and $34.00",
+      "symbol RDDT"
+    ],
+    "what_to_watch_next": [
+      "Final prospectus pricing and actual shares sold."
+    ],
     "related_tickers": [],
     "calendar_items": [],
     "confidence": "high",
-    "needs_human_review": false
+    "needs_human_review": false,
+    "score_explanation": {
+      "summary": "Feed-level score because the EDGAR S-1/A excerpt includes concrete share counts, selling-stockholder shares, and an IPO price range.",
+      "base_band": null,
+      "upward_factors": [],
+      "limiting_factors": [],
+      "final_read": null
+    }
   },
   "display_payload": {
     "display_type": "offering_terms",
@@ -128,7 +143,10 @@
         "high": 34
       }
     },
-    "evidence": ["22,000,000 Shares", "$31.00 and $34.00"],
+    "evidence": [
+      "22,000,000 Shares",
+      "$31.00 and $34.00"
+    ],
     "notes": []
   },
   "fixture_expected": {
@@ -139,6 +157,8 @@
     "market_context_fields": [],
     "special_ui_needed": false,
     "special_ui_reason": null,
-    "integration_notes": ["Fixture text is an EDGAR original excerpt; no live SEC fetch occurs during tests."]
+    "integration_notes": [
+      "Fixture text is an EDGAR original excerpt; no live SEC fetch occurs during tests."
+    ]
   }
 }

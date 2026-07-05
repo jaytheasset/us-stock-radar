@@ -32,7 +32,9 @@
       "registration_kind": "unknown",
       "offering": {
         "kind": "unknown",
-        "securities": ["warrants"],
+        "securities": [
+          "warrants"
+        ],
         "shares_offered": null,
         "price_low": null,
         "price_high": null,
@@ -79,7 +81,9 @@
       }
     ],
     "calendarItems": [],
-    "warnings": ["Boundary filing variant."],
+    "warnings": [
+      "Boundary filing variant."
+    ],
     "raw": {
       "sourceTextLength": 0,
       "attachmentNames": []
@@ -90,11 +94,6 @@
     "market_scope": "company",
     "event_type": "other",
     "event_title": "Liberty Defense F-1MEF Rule 462(b) filing",
-    "primary_ticker": {
-      "ticker": null,
-      "exchange": null
-    },
-    "tickers": [],
     "sector": null,
     "industry_group": null,
     "theme_group": null,
@@ -107,12 +106,26 @@
     "why_it_matters": "The source structure is clear, but parent registration terms are needed before economic interpretation.",
     "bullish_points": [],
     "bearish_points": [],
-    "key_evidence": ["Rule 462(b)", "333-293217", "effective upon filing", "no more than 20%"],
-    "what_to_watch_next": ["Final prospectus terms."],
+    "key_evidence": [
+      "Rule 462(b)",
+      "333-293217",
+      "effective upon filing",
+      "no more than 20%"
+    ],
+    "what_to_watch_next": [
+      "Final prospectus terms."
+    ],
     "related_tickers": [],
     "calendar_items": [],
     "confidence": "medium",
-    "needs_human_review": false
+    "needs_human_review": false,
+    "score_explanation": {
+      "summary": "Archive-level score because the EDGAR F-1MEF excerpt is mechanically a Rule 462(b) add-on registration.",
+      "base_band": null,
+      "upward_factors": [],
+      "limiting_factors": [],
+      "final_read": null
+    }
   },
   "display_payload": {
     "display_type": "generic",
@@ -122,8 +135,14 @@
       "prior_registration_number": "333-293217",
       "within_20_percent_limit": true
     },
-    "evidence": ["Rule 462(b)", "333-293217", "no more than 20%"],
-    "notes": ["No parent lookup implemented; fixture remains local JSON only."]
+    "evidence": [
+      "Rule 462(b)",
+      "333-293217",
+      "no more than 20%"
+    ],
+    "notes": [
+      "No parent lookup implemented; fixture remains local JSON only."
+    ]
   },
   "fixture_expected": {
     "expected_delivery_level": "archive",
@@ -133,6 +152,8 @@
     "market_context_fields": [],
     "special_ui_needed": false,
     "special_ui_reason": null,
-    "integration_notes": ["Parent filing linkage would require ingest/DB wiring and is recorded for handoff, not implemented here."]
+    "integration_notes": [
+      "Parent filing linkage would require ingest/DB wiring and is recorded for handoff, not implemented here."
+    ]
   }
 }
