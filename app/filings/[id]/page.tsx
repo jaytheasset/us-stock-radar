@@ -3478,14 +3478,6 @@ function Rule462bMefTemplate({
 }) {
   const quickTake = model.stageSummary || filing.filingBrief || filing.summary;
   const summary = model.companyStory || filing.summary;
-  const watchNext =
-    model.watchNext.length > 0
-      ? model.watchNext
-      : [
-          "Base registration statement effectiveness and final prospectus timing.",
-          "Whether the added securities change final IPO size or selling-holder supply.",
-          "Final pricing, first trading date, or later prospectus updates.",
-        ];
 
   return (
     <>
@@ -3542,15 +3534,6 @@ function Rule462bMefTemplate({
           </div>
         </section>
       ) : null}
-
-      <section className="stock-detail-card spac-watch-card ipo-watch-card">
-        <h2>What To Watch Next</h2>
-        <ol>
-          {watchNext.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ol>
-      </section>
 
       <OriginalFilingText filing={filing} eventLabel={eventLabel} />
     </>
