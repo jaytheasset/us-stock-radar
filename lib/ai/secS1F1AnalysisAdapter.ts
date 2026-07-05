@@ -12,7 +12,7 @@ import {
 } from "@/lib/ai/secOfferingOutputSchemas";
 
 export const SEC_S1_F1_ANALYSIS_PROMPT_KEY = "sec_s1_f1_analysis";
-export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v25-mef-registration-details";
+export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v26-mef-prior-registered-amount";
 
 const ALLOWED_S1_F1_DISPLAY_MODES = new Set([
   "ipo_registration",
@@ -166,6 +166,7 @@ const S1_F1_OFFERING_DETAIL_LABELS_BY_MODE: Record<string, readonly string[]> = 
   spac_ipo: ["Sponsor", "Trust Account", "Redemption Terms", "Unit Components", "Proposed Exchange"],
   rule_462b_mef: [
     "Prior registration statement",
+    "Prior registered amount",
     "Rule 462(b) status",
     "Securities added",
     "Fee table",
