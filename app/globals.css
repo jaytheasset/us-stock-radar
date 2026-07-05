@@ -9938,8 +9938,13 @@ td {
 .initial-ipo-side-stack h2 {
   margin: 0;
   color: #07122f;
-  font-size: 21px;
-  line-height: 1.18;
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+.initial-ipo-top-panel .ipo-summary-heading h2 {
+  font-size: 17px;
+  line-height: 1.2;
 }
 
 .initial-ipo-summary-card p {
