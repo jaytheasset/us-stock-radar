@@ -12,7 +12,7 @@ import {
 } from "@/lib/ai/secOfferingOutputSchemas";
 
 export const SEC_S1_F1_ANALYSIS_PROMPT_KEY = "sec_s1_f1_analysis";
-export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v24-mef-quick-take-meaning";
+export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v25-mef-registration-details";
 
 const ALLOWED_S1_F1_DISPLAY_MODES = new Set([
   "ipo_registration",
@@ -168,7 +168,6 @@ const S1_F1_OFFERING_DETAIL_LABELS_BY_MODE: Record<string, readonly string[]> = 
     "Prior registration statement",
     "Rule 462(b) status",
     "Securities added",
-    "Base offering",
     "Fee table",
   ],
   post_effective_amendment: [],
