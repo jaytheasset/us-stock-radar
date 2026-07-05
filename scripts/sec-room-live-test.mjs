@@ -36,7 +36,7 @@ const ROOM_CONFIGS = [
   {
     project: "US-Stock-Radar-sec-s1-f1",
     folder: "s1-f1",
-    formTypes: ["S-1", "F-1", "S-1/A", "F-1/A"],
+    formTypes: ["S-1", "F-1", "S-1/A", "F-1/A", "S-1MEF", "F-1MEF", "POS AM"],
   },
   {
     project: "US-Stock-Radar-sec-s3-f3",

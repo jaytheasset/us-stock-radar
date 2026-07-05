@@ -154,7 +154,12 @@ type RawItemRow = Record<string, unknown>;
 export const SEC_DEV_ROOMS: SecDevRoom[] = [
   { key: "ownership", label: "Ownership", forms: ["4", "4/A", "144", "144/A"], folder: "ownership", adapterKey: "ownership" },
   { key: "8k-6k", label: "8-K / 6-K", forms: ["8-K", "8-K/A", "6-K", "6-K/A"], folder: "8k-6k", adapterKey: "current_report" },
-  { key: "s1-f1", label: "S-1 / F-1", forms: ["S-1", "S-1/A", "F-1", "F-1/A"], folder: "s1-f1" },
+  {
+    key: "s1-f1",
+    label: "S-1 / F-1",
+    forms: ["S-1", "S-1/A", "F-1", "F-1/A", "S-1MEF", "F-1MEF", "POS AM"],
+    folder: "s1-f1",
+  },
   {
     key: "s3-f3",
     label: "S-3 / F-3",
