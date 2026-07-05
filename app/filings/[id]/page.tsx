@@ -3527,20 +3527,6 @@ function Rule462bMefTemplate({
         </section>
       ) : null}
 
-      {model.amendmentRows.length ? (
-        <section className="stock-detail-card initial-ipo-details-block">
-          <h2>What Changed</h2>
-          <div className="initial-ipo-detail-list">
-            {model.amendmentRows.map((row) => (
-              <div className="initial-ipo-detail-row" key={`${row.label}-${row.value}`}>
-                <span>{row.label}</span>
-                <strong>{row.value}</strong>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
       <OriginalFilingText filing={filing} eventLabel={eventLabel} />
     </>
   );
