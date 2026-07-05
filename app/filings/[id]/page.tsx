@@ -3446,7 +3446,10 @@ function IpoTermsUpdateTemplate({
             {model.offeringDetailsRows.map((row) => (
               <div className="initial-ipo-detail-row" key={`${row.label}-${row.value}`}>
                 <span>{row.label}</span>
-                <strong>{row.value}</strong>
+                <div className="initial-ipo-detail-value">
+                  <strong>{row.value}</strong>
+                  {row.note ? <em>{row.note}</em> : null}
+                </div>
               </div>
             ))}
           </div>
@@ -3462,6 +3465,7 @@ function IpoTermsUpdateTemplate({
         </ol>
       </section>
 
+      <FilingMarketContextPanel filing={filing} />
       <OriginalFilingText filing={filing} eventLabel={eventLabel} />
     </>
   );
@@ -3520,13 +3524,17 @@ function Rule462bMefTemplate({
             {model.offeringDetailsRows.map((row) => (
               <div className="initial-ipo-detail-row" key={`${row.label}-${row.value}`}>
                 <span>{row.label}</span>
-                <strong>{row.value}</strong>
+                <div className="initial-ipo-detail-value">
+                  <strong>{row.value}</strong>
+                  {row.note ? <em>{row.note}</em> : null}
+                </div>
               </div>
             ))}
           </div>
         </section>
       ) : null}
 
+      <FilingMarketContextPanel filing={filing} />
       <OriginalFilingText filing={filing} eventLabel={eventLabel} />
     </>
   );

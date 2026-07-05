@@ -9989,12 +9989,26 @@ td {
   text-transform: uppercase;
 }
 
+.initial-ipo-detail-value {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
 .initial-ipo-detail-row strong {
   color: #17213d;
   font-size: 12.5px;
   font-weight: 500;
   line-height: 1.35;
   text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.initial-ipo-detail-value em {
+  color: #52627a;
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
