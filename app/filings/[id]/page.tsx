@@ -2708,26 +2708,25 @@ function EffectGatewayTemplate({
 
   return (
     <>
-      <section className="stock-detail-card effect-gateway-hero">
-        <div className="effect-gateway-snapshot">
-          <div className="effect-gateway-copy">
-            <span>SEC EFFECTIVENESS</span>
-            <h2>{model.relatedForm} is now effective</h2>
+      <section className="stock-detail-card-grid two-up initial-ipo-compact-grid effect-gateway-hero">
+        <section className="stock-detail-card dilution-snapshot-panel ipo-summary-panel initial-ipo-top-panel">
+          <div className="ipo-summary-heading">
+            <h2>{model.relatedForm} effective</h2>
           </div>
-          <div className="effect-snapshot-grid" aria-label="Effectiveness snapshot">
+
+          <div className="dilution-impact-metrics">
             {model.snapshotMetrics.map((metric) => (
-              <div className="effect-snapshot-item" key={metric.label}>
-                <span>{metric.label}</span>
-                <strong>{metric.value}</strong>
-                {metric.note ? <small>{metric.note}</small> : null}
-              </div>
+              <DilutionMetric key={metric.label} metric={metric} />
             ))}
           </div>
-        </div>
-        <div className="effect-summary-card">
-          <h2>Summary</h2>
-          <p>{investorSummary}</p>
-        </div>
+        </section>
+
+        <section className="stock-detail-card initial-ipo-side-stack">
+          <div className="initial-ipo-summary-card initial-ipo-quick-card">
+            <h2>Summary</h2>
+            <p>{investorSummary}</p>
+          </div>
+        </section>
       </section>
 
       <FilingMarketContextPanel filing={filing} hideUnavailable tickerOverride={model.originalFiling?.ticker} />
