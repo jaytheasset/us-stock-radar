@@ -2590,13 +2590,22 @@ function offsetFilingTrend(values: number[], offset: number) {
   return values.map((value, index) => Number((value + offset * 0.35 + (index % 2) * 0.1).toFixed(2)));
 }
 
-function FilingMarketContextPanel({ filing, tickerOverride }: { filing: FilingEvent; tickerOverride?: string }) {
+function FilingMarketContextPanel({
+  filing,
+  hideUnavailable = false,
+  tickerOverride,
+}: {
+  filing: FilingEvent;
+  hideUnavailable?: boolean;
+  tickerOverride?: string;
+}) {
   const context = filing.context;
   const relatedFilings = <FilingRelatedFilingsPanel filing={filing} />;
   const contextTicker = isRealTicker(filing.ticker) ? filing.ticker : tickerOverride || filing.ticker;
   const marketDataPending = isRegistrationMarketDataPending(filing);
   if (!isRealTicker(contextTicker)) return relatedFilings;
   if (!context || !hasRenderableFilingMarketContext(context)) {
+    if (hideUnavailable) return relatedFilings;
     return (
       <>
         {relatedFilings}
@@ -2716,7 +2725,7 @@ function EffectGatewayTemplate({
         </div>
       </section>
 
-      <FilingMarketContextPanel filing={filing} tickerOverride={model.originalFiling?.ticker} />
+      <FilingMarketContextPanel filing={filing} hideUnavailable tickerOverride={model.originalFiling?.ticker} />
       <OriginalFilingText filing={filing} eventLabel={eventLabel} includeTemplateStatus />
     </>
   );
