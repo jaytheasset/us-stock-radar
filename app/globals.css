@@ -6655,12 +6655,14 @@ td {
 
 .effect-gateway-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.85fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
   gap: 26px;
   align-items: start;
 }
 
-.effect-gateway-copy {
+.effect-gateway-snapshot,
+.effect-gateway-copy,
+.effect-summary-card {
   display: grid;
   gap: 8px;
 }
@@ -6678,7 +6680,21 @@ td {
   line-height: 1.2;
 }
 
-.effect-gateway-copy p {
+.effect-summary-card {
+  align-self: stretch;
+  border: 1px solid #d8e2f0;
+  border-radius: 8px;
+  padding: 16px 18px;
+  background: #fff;
+}
+
+.effect-summary-card h2 {
+  color: #07142d;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.effect-summary-card p {
   max-width: 760px;
   color: #25395d;
   font-size: 14px;
@@ -17372,18 +17388,20 @@ html[data-theme="dark"] .event-type-badge.market {
 }
 
 html[data-theme="dark"] .effect-snapshot-item,
+html[data-theme="dark"] .effect-summary-card,
 html[data-theme="dark"] .effect-original-meta span,
 html[data-theme="dark"] .effect-original-link {
   border-color: var(--border);
 }
 
 html[data-theme="dark"] .effect-gateway-copy h2,
+html[data-theme="dark"] .effect-summary-card h2,
 html[data-theme="dark"] .effect-snapshot-item strong,
 html[data-theme="dark"] .effect-original-body h3 {
   color: var(--text);
 }
 
-html[data-theme="dark"] .effect-gateway-copy p,
+html[data-theme="dark"] .effect-summary-card p,
 html[data-theme="dark"] .effect-original-body p,
 html[data-theme="dark"] .effect-next-list,
 html[data-theme="dark"] .effect-fallback-note {

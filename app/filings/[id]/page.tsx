@@ -2709,18 +2709,23 @@ function EffectGatewayTemplate({
   return (
     <>
       <section className="stock-detail-card effect-gateway-hero">
-        <div className="effect-snapshot-grid" aria-label="Effectiveness snapshot">
-          {model.snapshotMetrics.map((metric) => (
-            <div className="effect-snapshot-item" key={metric.label}>
-              <span>{metric.label}</span>
-              <strong>{metric.value}</strong>
-              {metric.note ? <small>{metric.note}</small> : null}
-            </div>
-          ))}
+        <div className="effect-gateway-snapshot">
+          <div className="effect-gateway-copy">
+            <span>SEC EFFECTIVENESS</span>
+            <h2>{model.relatedForm} is now effective</h2>
+          </div>
+          <div className="effect-snapshot-grid" aria-label="Effectiveness snapshot">
+            {model.snapshotMetrics.map((metric) => (
+              <div className="effect-snapshot-item" key={metric.label}>
+                <span>{metric.label}</span>
+                <strong>{metric.value}</strong>
+                {metric.note ? <small>{metric.note}</small> : null}
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="effect-gateway-copy">
-          <span>SEC EFFECTIVENESS</span>
-          <h2>{model.relatedForm} is now effective</h2>
+        <div className="effect-summary-card">
+          <h2>Summary</h2>
           <p>{investorSummary}</p>
         </div>
       </section>
