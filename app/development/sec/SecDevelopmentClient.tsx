@@ -53,7 +53,7 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
   const selectedSecPromptVariant =
     selectedRoom === "424b" && (secPromptVariant === "legacy" || secPromptVariant === "sectioned")
       ? secPromptVariant
-      : selectedRoom === "s1-f1" && secPromptVariant === "pending_terms_test"
+      : selectedRoom === "s1-f1" && secPromptVariant === "legacy_default_backup"
         ? secPromptVariant
         : "";
   const liveSampleCountNumber = clampLiveSampleCount(liveSampleCount);
@@ -427,8 +427,9 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
                   </>
                 ) : (
                   <>
-                    <option value="default">Default active</option>
-                    <option value="pending_terms_test">Pending terms test</option>
+                    <option value="default">Default active (pending terms)</option>
+                    {/* Legacy backup: pre-pending-terms S-1/F-1 default prompt kept for comparison. */}
+                    <option value="legacy_default_backup">Legacy backup (pre-pending terms)</option>
                   </>
                 )}
               </select>

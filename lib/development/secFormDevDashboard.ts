@@ -2048,13 +2048,14 @@ function buildS1F1PromptVariantPreviews() {
 
   return [
     {
-      name: "Default active",
+      name: "Default active (pending terms)",
       text: normalizePromptPreviewText(buildS1F1AnalysisPrompt(previewParserOutput)),
     },
     {
-      name: "Pending terms test",
+      // Legacy backup: pre-pending-terms S-1/F-1 default prompt kept for debug-console comparisons.
+      name: "Legacy backup (pre-pending terms)",
       text: normalizePromptPreviewText(
-        buildS1F1AnalysisPrompt(previewParserOutput, undefined, undefined, { variant: "pending_terms_test" }),
+        buildS1F1AnalysisPrompt(previewParserOutput, undefined, undefined, { variant: "legacy_default_backup" }),
       ),
     },
   ];

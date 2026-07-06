@@ -22,7 +22,7 @@ const REQUIRED_ANALYSIS_KEYS = [
   "needs_human_review",
 ] as const;
 
-const S1F1_DISPLAY_MODES = [
+const S1F1_LEGACY_DISPLAY_MODES = [
   "ipo_registration",
   "ipo_amendment",
   "routine_amendment",
@@ -40,19 +40,20 @@ const S1F1_DISPLAY_MODES = [
   "generic",
 ] as const;
 
-const S1F1_PENDING_TERMS_TEST_DISPLAY_MODES = [
-  ...S1F1_DISPLAY_MODES.slice(0, 6),
+const S1F1_DISPLAY_MODES = [
+  ...S1F1_LEGACY_DISPLAY_MODES.slice(0, 6),
   "pending_primary_offering",
-  ...S1F1_DISPLAY_MODES.slice(6),
+  ...S1F1_LEGACY_DISPLAY_MODES.slice(6),
 ] as const;
 
-const S1F1_PROMPT_VERSION = "s1-f1-analysis-v23-supply-type-badges";
-const S1F1_PENDING_TERMS_TEST_PROMPT_VERSION = "s1-f1-analysis-v25-pending-terms-test-note-role";
+const S1F1_PROMPT_VERSION = "s1-f1-analysis-v26-pending-terms-default";
+// Legacy backup: preserves the pre-pending-terms default S-1/F-1 prompt for debug-console comparisons.
+const S1F1_LEGACY_BACKUP_PROMPT_VERSION = "s1-f1-analysis-v23-supply-type-badges-legacy-backup";
 
-export type S1F1AnalysisPromptVariant = "default" | "pending_terms_test";
+export type S1F1AnalysisPromptVariant = "default" | "legacy_default_backup";
 
 function normalizeS1F1AnalysisPromptVariant(value: unknown): S1F1AnalysisPromptVariant {
-  return value === "pending_terms_test" ? "pending_terms_test" : "default";
+  return value === "legacy_default_backup" ? "legacy_default_backup" : "default";
 }
 
 export function buildS1F1AnalysisPrompt(
@@ -62,8 +63,8 @@ export function buildS1F1AnalysisPrompt(
   options: { variant?: S1F1AnalysisPromptVariant | string } = {},
 ): string {
   const promptVariant = normalizeS1F1AnalysisPromptVariant(options.variant);
-  const s1F1DisplayModes =
-    promptVariant === "pending_terms_test" ? S1F1_PENDING_TERMS_TEST_DISPLAY_MODES : S1F1_DISPLAY_MODES;
+  const isLegacyBackup = promptVariant === "legacy_default_backup";
+  const s1F1DisplayModes = isLegacyBackup ? S1F1_LEGACY_DISPLAY_MODES : S1F1_DISPLAY_MODES;
 
   return [
     "You are writing the final investor-facing analysis for one SEC S-1/F-1 registration filing.",
@@ -126,10 +127,10 @@ export function buildS1F1AnalysisPrompt(
     "- A confirmed share count can be shown even when price and proceeds are still pending.",
     "- If only the fee table changes in an S-1/A or F-1/A, classify it as a fee-table or administrative update, not an offering terms update, and do not infer new dilution or new proceeds.",
     "- If a fee table changes together with prospectus-body changes, classify by the actual body changes: shares offered, price range or fixed price, security classes, selling-holder table, underwriters, use of proceeds, purchase agreement, ELOC, SEPA, warrant, convertible, preferred, lock-up, or listing terms.",
-    ...(promptVariant === "pending_terms_test"
+    ...(!isLegacyBackup
       ? [
           "",
-          "S-1/F-1 pending terms test rules:",
+          "S-1/F-1 pending terms rules:",
           "- Before choosing a calculable offering UI, decide whether the filing states source-backed final share/unit counts and an actual offering price or source-backed price range.",
           "- If the prospectus only states a dollar cap, proposed maximum aggregate offering amount, fee-table amount, assumed price, placeholder share count, blank price, or actual amount not presently determinable, do not calculate dilution, overhang, proceeds, or share count from those values.",
           "- Do not use market_context, latest price, last sale price, fee-table price, assumed public offering price, or Rule 457 value to convert an S-1/F-1 dollar cap into shares.",
@@ -457,7 +458,7 @@ export function buildS1F1AnalysisPrompt(
     "- For Dilution vs current shares, use filing-date shares outstanding from the filing whenever it is present. Do not use market_context shares when the filing provides a filing source share-count basis.",
     "- For Dilution vs current shares, calculate row_role counted rows divided by share_overhang.basis.numeric_value times 100. Do not use pro forma after-offering shares, as-adjusted shares, market_context shares, or book-value dilution as the share_overhang.basis for this UI row.",
     "- Offering Details labels: Offering Type, Underwriter, Placement Agent / Underwriter, Closing Date, Agreement Date, Use of Proceeds, Warrant Terms.",
-    ...(promptVariant === "pending_terms_test"
+    ...(!isLegacyBackup
       ? [
           "",
           "pending_primary_offering:",
@@ -610,7 +611,7 @@ export function buildS1F1AnalysisPrompt(
     "- Invalid output pattern: snapshot_metrics, event_title, quick_take, investor_takeaway, summary, score_reason, or score_explanation contains a dilution/overhang/supply percentage that differs from share_overhang.total_note.ratio. Before final JSON, replace that percentage with share_overhang.total_note.ratio or use qualitative wording without a number.",
     "- Invalid output pattern: snapshot_metrics, event_title, quick_take, investor_takeaway, summary, score_reason, or score_explanation states an all-warrants, full-if-exercised, or all-visible-row percentage as the headline dilution when share_overhang.rows contains row_role conditional rows. Before final JSON, use only share_overhang.total_note.ratio as the headline percentage and describe excluded warrant supply without a second percentage.",
     "- Invalid output pattern: event_title, quick_take, summary, score_reason, or score_explanation contains a percentage calculated from only one component row, such as only Series B Warrants, when share_overhang.total_note.ratio uses multiple counted rows. Before final JSON, remove that component-only percentage or replace it with share_overhang.total_note.ratio.",
-    ...(promptVariant === "pending_terms_test"
+    ...(!isLegacyBackup
       ? [
           "- Invalid output pattern: share_overhang.rows contains numeric_value derived from blank placeholders, fee-table amounts, assumed prices, proposed maximum offering price, or market_context conversion when the filing does not state final shares/units. Before final JSON, remove the invented numeric_value and use pending_primary_offering or Not fixed yet.",
           "- Invalid output pattern: display_mode mixed_offering has a dilution, overhang, or supply percentage when all current offering share/unit counts are blank, placeholder, or not presently determinable. Before final JSON, use pending_primary_offering or non-calculable wording.",
@@ -748,7 +749,7 @@ export function buildS1F1AnalysisPrompt(
     "Cleaned source input:",
     JSON.stringify(buildS1F1LlmSourceInput(parserOutput), null, 2),
     "",
-    `Prompt version: ${promptVariant === "pending_terms_test" ? S1F1_PENDING_TERMS_TEST_PROMPT_VERSION : S1F1_PROMPT_VERSION}`,
+    `Prompt version: ${isLegacyBackup ? S1F1_LEGACY_BACKUP_PROMPT_VERSION : S1F1_PROMPT_VERSION}`,
   ].join("\n");
 }
 

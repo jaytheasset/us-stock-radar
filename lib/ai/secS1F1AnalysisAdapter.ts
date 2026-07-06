@@ -15,8 +15,9 @@ import {
 } from "@/lib/ai/secOfferingOutputSchemas";
 
 export const SEC_S1_F1_ANALYSIS_PROMPT_KEY = "sec_s1_f1_analysis";
-export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v28-spac-ipo-minimal";
-export const SEC_S1_F1_PENDING_TERMS_TEST_PROMPT_VERSION = "v30-pending-terms-test-note-role";
+export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v31-pending-terms-default";
+// Legacy backup: pre-pending-terms default prompt kept selectable only in the debug console.
+export const SEC_S1_F1_LEGACY_BACKUP_PROMPT_VERSION = "v28-spac-ipo-minimal-legacy-backup";
 
 const S1_F1_SHARE_OVERHANG_PERCENT_TOLERANCE = 0.049;
 
@@ -192,7 +193,7 @@ export function isS1F1FilingInput(input: SecFilingAnalysisInput) {
 }
 
 function normalizeS1F1PromptVariant(value: unknown): S1F1AnalysisPromptVariant {
-  return value === "pending_terms_test" ? "pending_terms_test" : "default";
+  return value === "legacy_default_backup" ? "legacy_default_backup" : "default";
 }
 
 export function buildSecS1F1AnalysisPromptForInput(
@@ -205,7 +206,7 @@ export function buildSecS1F1AnalysisPromptForInput(
   }
   const promptVariant = normalizeS1F1PromptVariant(options.promptVariant);
   const promptVersion =
-    promptVariant === "pending_terms_test" ? SEC_S1_F1_PENDING_TERMS_TEST_PROMPT_VERSION : SEC_S1_F1_ANALYSIS_PROMPT_VERSION;
+    promptVariant === "legacy_default_backup" ? SEC_S1_F1_LEGACY_BACKUP_PROMPT_VERSION : SEC_S1_F1_ANALYSIS_PROMPT_VERSION;
 
   return {
     key: SEC_S1_F1_ANALYSIS_PROMPT_KEY,
