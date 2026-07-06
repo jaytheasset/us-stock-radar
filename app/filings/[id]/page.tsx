@@ -2685,11 +2685,7 @@ function EffectGatewayTemplate({
   model: EffectGatewayModel;
 }) {
   const original = model.originalFiling;
-  const originalSummary =
-    cleanDisclosureValue(original?.quickTake) ||
-    cleanDisclosureValue(original?.summary) ||
-    cleanDisclosureValue(original?.description) ||
-    "";
+  const investorSummary = buildEffectInvestorSummary(model);
 
   return (
     <>
@@ -2697,7 +2693,7 @@ function EffectGatewayTemplate({
         <div className="effect-gateway-copy">
           <span>SEC EFFECTIVENESS</span>
           <h2>{model.relatedForm} is now effective</h2>
-          <p>{filing.summary}</p>
+          <p>{investorSummary}</p>
         </div>
         <div className="effect-snapshot-grid" aria-label="Effectiveness snapshot">
           {model.snapshotMetrics.map((metric) => (
@@ -2710,60 +2706,57 @@ function EffectGatewayTemplate({
         </div>
       </section>
 
-      <section className="stock-detail-card-grid two-up effect-gateway-grid">
-        <div className="stock-detail-card effect-original-card">
-          <div className="card-heading-row">
-            <div>
-              <h2>Original Filing Summary</h2>
-              <p>Use the original analysis for the full offering or transaction details.</p>
+      <section className="stock-detail-card effect-original-card">
+        <div className="card-heading-row">
+          <div>
+            <h2>Original Filing</h2>
+            <p>Full terms are in the linked analysis.</p>
+          </div>
+          {original?.id ? (
+            <Link className="effect-original-link" href={`/filings/${original.id}`}>
+              Open analysis <ExternalLink size={13} />
+            </Link>
+          ) : null}
+        </div>
+
+        {original ? (
+          <div className="effect-original-body">
+            <div className="effect-original-meta">
+              <span>{original.form}</span>
+              {original.accession ? <span>{original.accession}</span> : null}
+              {original.filedAt ? <span>{original.filedAt}</span> : null}
+              <span>{original.relation}</span>
             </div>
-            {original?.id ? (
-              <Link className="effect-original-link" href={`/filings/${original.id}`}>
-                Open analysis <ExternalLink size={13} />
-              </Link>
+            <h3>{original.title}</h3>
+            {!original.id && model.originalReference ? (
+              <p className="effect-fallback-note">Original filing reference: {model.originalReference}</p>
             ) : null}
           </div>
-
-          {original ? (
-            <div className="effect-original-body">
-              <div className="effect-original-meta">
-                <span>{original.form}</span>
-                {original.accession ? <span>{original.accession}</span> : null}
-                {original.filedAt ? <span>{original.filedAt}</span> : null}
-                <span>{original.relation}</span>
-              </div>
-              <h3>{original.title}</h3>
-              {originalSummary ? <p>{originalSummary}</p> : <p>Original filing context is linked, but no compact summary was stored.</p>}
-              {!original.id && model.originalReference ? (
-                <p className="effect-fallback-note">Original filing reference: {model.originalReference}</p>
-              ) : null}
-            </div>
-          ) : (
-            <p className="effect-fallback-note">
-              Original filing analysis is not linked yet. Reference: {model.originalReference || model.registrationReference}
-            </p>
-          )}
-        </div>
-
-        <div className="stock-detail-card effect-next-card">
-          <div className="card-heading-row">
-            <div>
-              <h2>What This Changes</h2>
-              <p>Effectiveness means the registration can move into its next public step.</p>
-            </div>
-          </div>
-          <ol className="effect-next-list">
-            {model.nextSteps.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ol>
-        </div>
+        ) : (
+          <p className="effect-fallback-note">
+            Original filing analysis is not linked yet. Reference: {model.originalReference || model.registrationReference}
+          </p>
+        )}
       </section>
 
       <FilingMarketContextPanel filing={filing} />
       <OriginalFilingText filing={filing} eventLabel={eventLabel} includeTemplateStatus />
     </>
   );
+}
+
+function buildEffectInvestorSummary(model: EffectGatewayModel) {
+  const form = model.relatedForm || "Registration statement";
+  const isIpoRegistration = /(?:S-1|F-1|IPO)/i.test(form);
+  if (model.originalFiling?.id) {
+    return isIpoRegistration
+      ? `${form} is effective now. The linked original analysis has the IPO terms investors need to review.`
+      : `${form} is effective now. The linked original analysis has the terms investors need to review.`;
+  }
+
+  return isIpoRegistration
+    ? `${form} is effective now. Watch for final pricing, trading, or a related prospectus update.`
+    : `${form} is effective now. Watch for the next filing or final sale terms.`;
 }
 
 function formatMarketContextFloatPercent(marketContext: Record<string, unknown>) {
@@ -5285,6 +5278,8 @@ function OwnershipRelatedFilingsPanel({ filing }: { filing: FilingEvent }) {
 }
 
 function FilingRelatedFilingsPanel({ filing }: { filing: FilingEvent }) {
+  if (filing.formType.trim().toUpperCase() === "EFFECT") return null;
+
   const contextFilings = filing.contextRelatedFilings ?? [];
   if (contextFilings.length > 0) {
     return <RelatedFilingsContextList filings={contextFilings} heading="Related Filings" subheading="Transaction context" />;
@@ -5608,7 +5603,7 @@ function buildEffectGatewayModel(filing: FilingEvent): EffectGatewayModel | null
     {
       label: "Related registration",
       value: resolvedRelatedForm,
-      note: originalFiling?.title || "Original registration statement",
+      note: originalFiling?.accession || originalReference || "Original registration statement",
     },
     {
       label: "Effective date",

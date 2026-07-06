@@ -1217,7 +1217,8 @@ async function compactGenericParentRow(row: SecRawItemRow) {
     filed_at: stringValue(row.published_at) || stringValue(rawPayload.filing_date) || null,
     source_url: stringValue(row.source_url) || stringValue(rawPayload.detail_url) || null,
     company_name: readRawCompanyName(row) || stringValue(metadata.company_name) || null,
-    ticker: readRawTicker(row) || null,
+    ticker: (readRawTicker(row) || stringValue(existing?.ticker)).toUpperCase() || null,
+    exchange: stringValue(existing?.exchange) || stringValue(rawPayload.exchange) || stringValue(metadata.exchange) || null,
     cik: normalizeCik(readRawCik(row)) || null,
     event_type: existing?.event_type || null,
     score: existing?.score ?? null,
@@ -1247,7 +1248,8 @@ async function compactGenericParentCandidateRow(row: SecRawItemRow) {
     form_type: readRawFormType(row) || null,
     filed_at: stringValue(row.published_at) || readRawFiledDate(row) || null,
     company_name: readRawCompanyName(row) || null,
-    ticker: readRawTicker(row) || null,
+    ticker: (readRawTicker(row) || stringValue(existing?.ticker)).toUpperCase() || null,
+    exchange: stringValue(existing?.exchange) || null,
     cik: normalizeCik(readRawCik(row)) || null,
     event_type: existing?.event_type || null,
     score: existing?.score ?? null,
@@ -1312,9 +1314,28 @@ async function fetchExistingGenericParentEventContext(rawItemId: string) {
   });
   const analysis = analysisResult.ok && Array.isArray(analysisResult.data) ? readRecord(analysisResult.data[0]) : null;
   const metadata = readRecord(event.metadata) || {};
+  const analysisOutput = readRecord(analysis?.analysis_output) || {};
+  const primaryTicker = readRecord(analysisOutput.primary_ticker) || readRecord(metadata.primary_ticker) || {};
+  const displayPayload = readRecord(metadata.display_payload);
+  const displayData = readRecord(displayPayload?.data);
+  const marketContext = readRecord(metadata.market_context) || readRecord(analysisOutput.market_context) || {};
 
   return {
     event_id: stringValue(event.id) || null,
+    ticker:
+      (
+        stringValue(event.ticker) ||
+        stringValue(primaryTicker.ticker) ||
+        stringValue(primaryTicker.symbol) ||
+        stringValue(displayData?.ticker) ||
+        stringValue(marketContext.ticker)
+      ).toUpperCase() || null,
+    exchange:
+      stringValue(event.exchange) ||
+      stringValue(primaryTicker.exchange) ||
+      stringValue(displayData?.exchange) ||
+      stringValue(marketContext.exchange) ||
+      null,
     event_type: stringValue(event.event_type) || null,
     score: numberValue(event.score),
     delivery_level: stringValue(event.delivery_level) || null,
@@ -1324,7 +1345,7 @@ async function fetchExistingGenericParentEventContext(rawItemId: string) {
     summary: stringValue(event.summary) || stringValue(analysis?.summary) || null,
     key_evidence: readStringArray(analysis?.key_evidence).slice(0, 6),
     what_to_watch_next: readStringArray(analysis?.what_to_watch_next).slice(0, 6),
-    display_payload: readRecord(metadata.display_payload),
+    display_payload: displayPayload,
     transaction_fingerprint: readRecord(metadata.transaction_fingerprint),
   };
 }
