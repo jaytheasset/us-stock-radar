@@ -66,6 +66,11 @@ import {
   evaluateSecInvestableUniverse,
   type SecInvestableUniverseGateResult,
 } from "@/lib/ai/secInvestableUniverseGate";
+import { analyzeEffectFiling } from "@/lib/sources/sec/forms/effect/analysis";
+import type {
+  EffectFilingInput,
+  EffectParentFilingContext,
+} from "@/lib/sources/sec/forms/effect/types";
 import {
   attachSecParentContexts,
   prepareSecRawItemWithParentContextForParser,
@@ -372,6 +377,11 @@ async function runSecFilingAnalysisWithoutLlmForRawRow(
     };
   }
 
+  const deterministicEffect = buildDeterministicEffectAnalysis(input, rawItem);
+  if (deterministicEffect) {
+    return buildDeterministicEffectRun(rawItem, input, deterministicEffect);
+  }
+
   const deterministicOwnership = buildDeterministicOwnershipAnalysis(input);
   if (deterministicOwnership) {
     if (!deterministicOwnership.ok) {
@@ -503,6 +513,11 @@ export async function runSecFilingAnalysisForRawRow(
   const input = await buildInputFromSecRawRowWithParentContext(rawItem);
   await attachSecMarketContext(input);
   await attachOwnershipFilingContext(input, rawItem);
+
+  const deterministicEffect = buildDeterministicEffectAnalysis(input, rawItem);
+  if (deterministicEffect) {
+    return buildDeterministicEffectRun(rawItem, input, deterministicEffect);
+  }
 
   const investableUniverseGate = evaluateSecInvestableUniverse(input);
   if (investableUniverseGate) {
@@ -2336,6 +2351,190 @@ function buildSecInvestableUniverseSkipRun(
       key: "sec_investable_universe_gate",
       version: "v1",
     },
+  };
+}
+
+type DeterministicEffectAnalysis =
+  | { ok: true; analysis: Record<string, unknown> }
+  | { ok: false; error: string };
+
+function buildDeterministicEffectAnalysis(
+  input: SecFilingAnalysisInput,
+  rawItem: RawItemRow,
+): DeterministicEffectAnalysis | null {
+  const filingPackage = readRecord(input.filing_package);
+  if (!filingPackage) return null;
+
+  const formType = stringValue(filingPackage.form_type) || readRawFormType(rawItem);
+  if (normalizeRawRowFormType(formType) !== "EFFECT") return null;
+
+  try {
+    const hardParsers = readRecord(filingPackage.hard_parsers);
+    const effectParser = readRecord(hardParsers?.effect);
+    const facts = readRecord(effectParser?.facts);
+    const rawPayload = readRecord(rawItem.raw_payload) || {};
+    const metadata = readRecord(rawItem.metadata) || {};
+    const parentContext = buildEffectParentFilingContextFromPackage(filingPackage, facts);
+    const text = [
+      stringValue(filingPackage.llm_text),
+      stringValue(rawItem.body_text),
+      stringValue(rawItem.analysis_text),
+      stringValue(rawPayload.primary_document_html),
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    const documents = readRecordArray(rawPayload.documents).map((document) => ({
+      type: stringValue(document.type) || null,
+      filename: stringValue(document.filename) || stringValue(document.name) || null,
+      description: stringValue(document.description) || null,
+      url: stringValue(document.url) || null,
+      text: stringValue(document.text) || null,
+      html: stringValue(document.html) || null,
+    }));
+
+    const effectInput: EffectFilingInput = {
+      formType: "EFFECT",
+      accessionNumber:
+        stringValue(filingPackage.accession_number) ||
+        stringValue(rawPayload.accession_number) ||
+        readRawAccession(rawItem),
+      companyName:
+        stringValue(facts?.companyName) ||
+        stringValue(facts?.company_name) ||
+        parentContext?.companyName ||
+        readRawCompanyName(rawItem),
+      ticker:
+        stringValue(facts?.ticker) ||
+        parentContext?.ticker ||
+        stringValue(rawPayload.ticker) ||
+        stringValue(metadata.ticker) ||
+        null,
+      exchange:
+        stringValue(facts?.exchange) ||
+        parentContext?.exchange ||
+        stringValue(rawPayload.exchange) ||
+        stringValue(metadata.exchange) ||
+        null,
+      cik:
+        stringValue(facts?.cik) ||
+        stringValue(rawPayload.cik) ||
+        stringValue(metadata.cik) ||
+        readRawCik(rawItem) ||
+        null,
+      filingDate:
+        stringValue(filingPackage.filing_date) ||
+        stringValue(rawPayload.filing_date) ||
+        readRawFiledDate(rawItem) ||
+        null,
+      effectiveDate: stringValue(facts?.effectiveDate) || stringValue(facts?.effective_date) || null,
+      effectiveTime: stringValue(facts?.effectiveTime) || stringValue(facts?.effective_time) || null,
+      registrationNumber:
+        stringValue(facts?.registrationNumber) ||
+        stringValue(facts?.registration_number) ||
+        parentContext?.registrationNumber ||
+        null,
+      effectiveFilingForm:
+        stringValue(facts?.effectiveFilingForm) ||
+        stringValue(facts?.effective_filing_form) ||
+        parentContext?.formType ||
+        null,
+      relatedSubmissionType: stringValue(facts?.relatedSubmissionType) || stringValue(facts?.related_submission_type) || null,
+      referenceAccessionNumber:
+        stringValue(facts?.referenceAccessionNumber) || stringValue(facts?.reference_accession_number) || null,
+      originalFilingReference:
+        stringValue(facts?.originalFilingReference) ||
+        stringValue(facts?.original_filing_reference) ||
+        parentContext?.originalFilingReference ||
+        null,
+      text,
+      html: stringValue(rawPayload.primary_document_html) || null,
+      documents,
+      parentFilingContext: parentContext,
+      marketContext: readRecord(filingPackage.market_context) || readRecord(filingPackage.marketContext) || null,
+    };
+
+    const output = analyzeEffectFiling(effectInput);
+    return {
+      ok: true,
+      analysis: {
+        ...output.analysis_output,
+        display_payload: output.display_payload,
+        parser_output: output.parser_output,
+        fixture_expected: output.fixture_expected,
+      },
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "EFFECT deterministic analysis failed",
+    };
+  }
+}
+
+function buildDeterministicEffectRun(
+  rawItem: RawItemRow,
+  input: SecFilingAnalysisInput,
+  deterministicEffect: DeterministicEffectAnalysis,
+): SecFilingAnalysisRunResult {
+  if (!deterministicEffect.ok) {
+    return {
+      ok: false,
+      stage: "openai",
+      status: 0,
+      error: deterministicEffect.error,
+      sourceItem: summarizeRawRow(rawItem),
+      input,
+      prompt: {
+        key: "sec_effect_deterministic",
+        version: "v1",
+      },
+    };
+  }
+
+  return {
+    ok: true,
+    stage: "complete",
+    status: 200,
+    model: getServerEnv().openAiModel,
+    openAiResponseId: null,
+    sourceItem: summarizeRawRow(rawItem),
+    input,
+    analysis: deterministicEffect.analysis,
+    usage: null,
+    costEstimate: null,
+    prompt: {
+      key: "sec_effect_deterministic",
+      version: "v1",
+    },
+  };
+}
+
+function buildEffectParentFilingContextFromPackage(
+  filingPackage: Record<string, unknown>,
+  facts: Record<string, unknown> | null,
+): EffectParentFilingContext | null {
+  const parentContext = readRecord(filingPackage.parent_filing_context);
+  const parent = readRecord(parentContext?.parent);
+  if (!parent) return null;
+
+  const displayPayload = readRecord(parent.display_payload);
+  const displayData = readRecord(displayPayload?.data);
+  return {
+    formType: stringValue(parent.form_type) || null,
+    accessionNumber: stringValue(parent.accession_number) || null,
+    registrationNumber: stringValue(facts?.registrationNumber) || stringValue(facts?.registration_number) || null,
+    filingDate: stringValue(parent.filed_at) || null,
+    companyName: stringValue(parent.company_name) || null,
+    ticker: stringValue(parent.ticker) || null,
+    exchange: stringValue(displayData?.exchange) || null,
+    eventType: stringValue(parent.event_type) || null,
+    eventTitle: stringValue(parent.event_title) || null,
+    ipoKind: stringValue(displayData?.ipo_kind) || stringValue(displayData?.ipoKind) || null,
+    score: numberValue(parent.score),
+    analysisReference: stringValue(parent.event_id) || null,
+    originalFilingReference: stringValue(parent.accession_number) || null,
+    summary: stringValue(parent.quick_take) || stringValue(parent.summary) || null,
+    shouldShowOriginalAnalysis: Boolean(stringValue(parent.event_id)),
   };
 }
 

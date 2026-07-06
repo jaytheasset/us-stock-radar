@@ -67,7 +67,7 @@ function buildAnalysisOutput(parserOutput: EffectParserOutput, routeDecision: Ef
 }
 
 function buildEventTitle(company: string, form: string, eventType: string): string {
-  if (eventType === "strategic_transaction") {
+  if (eventType === "strategic_transaction" || eventType === "ipo_listing") {
     return `${company} ${form} registration statement declared effective`;
   }
 

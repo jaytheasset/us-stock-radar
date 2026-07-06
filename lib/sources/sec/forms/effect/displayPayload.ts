@@ -19,7 +19,7 @@ export function buildEffectDisplayPayload(
 }
 
 function buildDisplayNotes(parserOutput: EffectParserOutput): string[] {
-  const notes = ["EFFECT room did not query live DB; original filing context is fixture-only."];
+  const notes = ["Original filing context is resolved by integration when available."];
 
   if (parserOutput.facts.hasMultipleFilers) {
     notes.push("Multiple filer/file-number pairs were preserved for integration matching.");

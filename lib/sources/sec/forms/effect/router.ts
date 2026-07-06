@@ -53,7 +53,7 @@ export function routeEffectFiling(parserOutput: EffectParserOutput): EffectRoute
     return decisionForKnownForm({
       eventType: parserOutput.facts.parentEventType,
       formType,
-      routeReason: `The fixture parent filing context identifies this EFFECT as an update to a prior ${parserOutput.facts.parentEventType} analysis.`,
+      routeReason: `The matched parent filing context identifies this EFFECT as tied to a prior ${parserOutput.facts.parentEventType} analysis.`,
       score: scoreForParentContext(parserOutput.facts.parentScore),
       signal:
         parserOutput.facts.parentEventType === "strategic_transaction" ||

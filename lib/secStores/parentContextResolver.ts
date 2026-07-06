@@ -37,6 +37,7 @@ export async function attachSecParentContexts(input: SecFilingAnalysisInput, raw
   await attachParentRegistrationContext(input, rawItem);
   await attachTenderParentFilingContext(input, rawItem);
   await attachS1F1AmendmentParentFilingContext(input, rawItem);
+  await attachEffectParentFilingContext(input, rawItem);
   await attachGenericAmendmentParentFilingContext(input, rawItem);
 }
 
@@ -538,6 +539,115 @@ async function findS1F1AmendmentParentFilingContext({
     parentRow: ambiguous ? null : best.row,
     candidateRows: scored.slice(0, 5).map((item) => item.row),
   });
+}
+
+async function attachEffectParentFilingContext(input: SecFilingAnalysisInput, rawItem: SecRawItemRow) {
+  const filingPackage = readRecord(input.filing_package);
+  if (!filingPackage || readRecord(filingPackage.parent_filing_context)) return;
+
+  const formType = stringValue(filingPackage.form_type) || readRawFormType(rawItem);
+  if (normalizeSecFormForParentContext(formType) !== "EFFECT") return;
+
+  const context = await findEffectOriginalRegistrationContext({ input, rawItem });
+  if (context) filingPackage.parent_filing_context = context;
+}
+
+async function findEffectOriginalRegistrationContext({
+  input,
+  rawItem,
+}: {
+  input: SecFilingAnalysisInput;
+  rawItem: SecRawItemRow;
+}) {
+  const currentAccession = readRawAccession(rawItem);
+  const currentFiledAt = Date.parse(stringValue(rawItem.published_at));
+  const currentCik = normalizeCik(readRawCik(rawItem));
+  const targetFileNumbers = readEffectRegistrationFileNumbers(input, rawItem);
+  if (!targetFileNumbers.length) return null;
+
+  const targetFamily = normalizeGenericParentFormFamily(readEffectTargetRegistrationForm(input));
+  const candidateRows = await fetchRegistrationFileNumberCandidateRows(targetFileNumbers);
+  const scored = candidateRows
+    .filter((row) => readRawAccession(row) !== currentAccession)
+    .map((row) => {
+      const rowFormType = readRawFormType(row);
+      const rowFamily = normalizeGenericParentFormFamily(rowFormType);
+      if (!isEffectOriginalRegistrationCandidateFamily(rowFamily)) return null;
+      if (targetFamily && rowFamily !== targetFamily) return null;
+
+      const rowFiledAt = Date.parse(stringValue(row.published_at));
+      if (Number.isFinite(currentFiledAt) && Number.isFinite(rowFiledAt) && rowFiledAt >= currentFiledAt) return null;
+
+      const rowFileNumbers = extractRegistrationFileNumbersFromRow(row);
+      const matchedFileNumbers = intersectStrings(targetFileNumbers, rowFileNumbers);
+      if (!matchedFileNumbers.length) return null;
+
+      const rowCik = normalizeCik(readRawCik(row));
+      const matchReasons: string[] = [
+        "effect_registration_file_number_match",
+        ...matchedFileNumbers.slice(0, 3).map((fileNumber) => `matches_${fileNumber}`),
+      ];
+      let score = 260 + Math.min(60, matchedFileNumbers.length * 20);
+
+      if (currentCik && rowCik && currentCik === rowCik) {
+        score += 90;
+        matchReasons.push("same_cik");
+      }
+      if (targetFamily && rowFamily === targetFamily) {
+        score += 80;
+        matchReasons.push("matches_effect_registration_form_family");
+      }
+      if (isSecAmendmentFormForParentContext(rowFormType)) {
+        score += 30;
+        matchReasons.push("latest_amendment_candidate");
+      }
+      if (Number.isFinite(currentFiledAt) && Number.isFinite(rowFiledAt)) {
+        const rowAgeDays = Math.max(0, Math.round((currentFiledAt - rowFiledAt) / (24 * 60 * 60 * 1000)));
+        if (rowAgeDays <= 45) score += 40;
+        else if (rowAgeDays <= 180) score += 25;
+        else if (rowAgeDays <= 730) score += 10;
+        matchReasons.push(`filed_${rowAgeDays}_days_before_effect`);
+      }
+
+      return { row, score, matchReasons, matchedFileNumbers };
+    })
+    .filter(
+      (
+        item,
+      ): item is {
+        row: SecRawItemRow;
+        score: number;
+        matchReasons: string[];
+        matchedFileNumbers: string[];
+      } => Boolean(item),
+    )
+    .sort((left, right) => {
+      if (right.score !== left.score) return right.score - left.score;
+      return Date.parse(stringValue(right.row.published_at)) - Date.parse(stringValue(left.row.published_at));
+    });
+
+  const best = scored[0];
+  if (!best) return null;
+
+  const context = await buildGenericAmendmentParentContext({
+    status: "found",
+    confidence: "high",
+    matchMethod: "effect_registration_file_number",
+    matchScore: best.score,
+    matchReasons: best.matchReasons,
+    rawItem,
+    parentRow: best.row,
+    candidateRows: scored.slice(0, 5).map((item) => item.row),
+  });
+
+  return {
+    ...context,
+    context_kind: "effect_original_registration_filing",
+    source_notes: [
+      "parent_filing_context is built by integration from EFFECT registration File No. matches.",
+      "For EFFECT pages, the selected parent is the prior registration statement analysis users should open for full details.",
+    ],
+  };
 }
 
 async function findGenericAmendmentParentFilingContext({
@@ -1907,6 +2017,44 @@ function extractRegistrationFileNumbersFromRow(row: SecRawItemRow) {
   return uniqueStrings(matches.map(normalizeRegistrationFileNumber).filter(Boolean));
 }
 
+function readEffectRegistrationFileNumbers(input: SecFilingAnalysisInput, rawItem: SecRawItemRow) {
+  const filingPackage = readRecord(input.filing_package) || {};
+  const hardParsers = readRecord(filingPackage.hard_parsers);
+  const effect = readRecord(hardParsers?.effect);
+  const facts = readRecord(effect?.facts);
+  const primaryFiler = readRecord(facts?.primaryFiler) || readRecord(facts?.primary_filer);
+  const filers = readRecordArray(facts?.filers);
+  return uniqueStrings(
+    [
+      stringValue(facts?.registrationNumber),
+      stringValue(facts?.registration_number),
+      stringValue(primaryFiler?.fileNumber),
+      stringValue(primaryFiler?.file_number),
+      stringValue(filingPackage.file_number),
+      stringValue(filingPackage.fileNumber),
+      ...filers.flatMap((filer) => [stringValue(filer.fileNumber), stringValue(filer.file_number)]),
+      ...extractRegistrationFileNumbersFromRow(rawItem),
+    ]
+      .map(normalizeRegistrationFileNumber)
+      .filter(Boolean),
+  );
+}
+
+function readEffectTargetRegistrationForm(input: SecFilingAnalysisInput) {
+  const filingPackage = readRecord(input.filing_package) || {};
+  const hardParsers = readRecord(filingPackage.hard_parsers);
+  const effect = readRecord(hardParsers?.effect);
+  const facts = readRecord(effect?.facts);
+  return (
+    stringValue(facts?.effectiveFilingForm) ||
+    stringValue(facts?.effective_filing_form) ||
+    stringValue(facts?.registrationForm) ||
+    stringValue(facts?.registration_form) ||
+    stringValue(filingPackage.effective_filing_form) ||
+    stringValue(filingPackage.registration_form)
+  );
+}
+
 function resolveTenderSubjectMarketContextSymbol(filingPackage: Record<string, unknown>) {
   const adapter = readRecord(filingPackage.form_adapter);
   if (stringValue(adapter?.parserGroup) !== "tender") return null;
@@ -2069,6 +2217,20 @@ function isTenderParentContextFamily(value: string) {
 
 function isS1F1ParentContextFamily(value: string) {
   return value === "S-1" || value === "F-1";
+}
+
+function isEffectOriginalRegistrationCandidateFamily(value: string) {
+  return (
+    value === "S-1" ||
+    value === "F-1" ||
+    value === "S-3" ||
+    value === "F-3" ||
+    value === "S-4" ||
+    value === "F-4" ||
+    value === "S-8" ||
+    value === "N-2" ||
+    value === "N-14"
+  );
 }
 
 function isS1F1AmendmentParentContextForm(formType: string) {
