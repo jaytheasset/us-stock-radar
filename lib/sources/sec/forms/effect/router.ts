@@ -50,14 +50,15 @@ export function routeEffectFiling(parserOutput: EffectParserOutput): EffectRoute
   }
 
   if (parserOutput.facts.parentEventType !== null && shouldReuseParentEventType(formType, parserOutput.facts.parentEventType)) {
+    const parentEventType = parserOutput.facts.parentEventType;
     return decisionForKnownForm({
-      eventType: parserOutput.facts.parentEventType,
+      eventType: parentEventType,
       formType,
-      routeReason: `The matched parent filing context identifies this EFFECT as tied to a prior ${parserOutput.facts.parentEventType} analysis.`,
-      score: scoreForParentContext(parserOutput.facts.parentScore),
+      routeReason: routeReasonForParentEffect(parentEventType, formType),
+      score: scoreForParentContext(parserOutput.facts.parentScore, parentEventType),
       signal:
-        parserOutput.facts.parentEventType === "strategic_transaction" ||
-        parserOutput.facts.parentEventType === "ipo_listing"
+        parentEventType === "strategic_transaction" ||
+        parentEventType === "ipo_listing"
           ? "neutral"
           : "volatile",
       expectedImpact: "medium",
@@ -79,7 +80,7 @@ export function routeEffectFiling(parserOutput: EffectParserOutput): EffectRoute
     return decisionForKnownForm({
       eventType: "dilution_risk",
       formType,
-      routeReason: `${formType} effectiveness can permit registered issuance or resale activity, so the deterministic room classifies it as dilution risk.`,
+      routeReason: `${formType} is now effective, and related registered securities may become saleable under the filing terms.`,
       score: shelfLike(formType) ? 55 : 62,
       signal: "volatile",
       expectedImpact: "medium",
@@ -166,13 +167,41 @@ function shouldReuseParentEventType(formType: string, parentEventType: ApprovedE
   return false;
 }
 
-function scoreForParentContext(parentScore: number | null): number {
+function routeReasonForParentEffect(parentEventType: ApprovedEventType, formType: string): string {
+  if (parentEventType === "dilution_risk") {
+    return "The related dilution registration is now effective, opening the door to registered share sales or resales under the filing terms.";
+  }
+
+  return `This ${formType} EFFECT is linked to the prior ${parentEventType} filing context.`;
+}
+
+function scoreForParentContext(parentScore: number | null, parentEventType: ApprovedEventType): number {
   if (parentScore === null) {
     return 62;
   }
 
+  if (parentEventType === "dilution_risk") {
+    return scoreForDilutionParentContext(parentScore);
+  }
+
   const capped = Math.max(50, Math.min(parentScore, 74));
   return deliveryLevelForScore(capped) === "feed" ? capped : 62;
+}
+
+function scoreForDilutionParentContext(parentScore: number): number {
+  if (parentScore < 75) {
+    return Math.max(55, Math.min(parentScore, 70));
+  }
+
+  if (parentScore < 80) {
+    return 74;
+  }
+
+  if (parentScore < 90) {
+    return Math.min(82, Math.max(75, parentScore - 5));
+  }
+
+  return Math.min(88, parentScore - 8);
 }
 
 function shelfLike(formType: string): boolean {

@@ -2743,7 +2743,7 @@ function EffectGatewayTemplate({
         </section>
       ) : null}
 
-      <ScoreBasisPanel filing={filing} />
+      <ScoreBasisPanel filing={filing} summaryOverride={buildEffectScoreSummary(model)} />
 
       <FilingMarketContextPanel filing={filing} hideUnavailable tickerOverride={model.originalFiling?.ticker} />
       <OriginalFilingText filing={filing} eventLabel={eventLabel} includeTemplateStatus />
@@ -2754,14 +2754,31 @@ function EffectGatewayTemplate({
 function buildEffectInvestorSummary(model: EffectGatewayModel) {
   const form = model.relatedForm || "Registration statement";
   const originalContext = buildEffectOriginalFilingContextSentence(model.originalFiling);
+  const isDilutionRelated = isEffectDilutionRelated(model);
   const isIpoRegistration = /(?:S-1|F-1|IPO)/i.test(form);
+  const lead = isDilutionRelated
+    ? `${form} is now effective, and related securities can become saleable under the filing terms.`
+    : `${form} is effective now.`;
   if (originalContext) {
-    return `${form} is effective now. ${originalContext} Use the related filing below for full terms.`;
+    return `${lead} ${originalContext} Use the related filing below for full terms.`;
   }
 
+  if (isDilutionRelated) return lead;
+
   return isIpoRegistration
-    ? `${form} is effective now. Watch for final pricing, trading, or a related prospectus update.`
-    : `${form} is effective now. Watch for the next filing or final sale terms.`;
+    ? `${lead} Watch for final pricing, trading, or a related prospectus update.`
+    : `${lead} Watch for the next filing or final sale terms.`;
+}
+
+function buildEffectScoreSummary(model: EffectGatewayModel) {
+  return isEffectDilutionRelated(model)
+    ? "The related dilution registration is now effective, opening the door to registered share sales or resales under the filing terms."
+    : "";
+}
+
+function isEffectDilutionRelated(model: EffectGatewayModel) {
+  const eventType = model.originalFiling?.eventType || "";
+  return /dilution/i.test(eventType);
 }
 
 function buildEffectOriginalFilingContextSentence(original: FilingContextRelatedFiling | null) {
@@ -11158,10 +11175,10 @@ function CaseList({ title, items, tone }: { title: string; items: string[]; tone
   );
 }
 
-function ScoreBasisPanel({ filing }: { filing: FilingEvent }) {
+function ScoreBasisPanel({ filing, summaryOverride }: { filing: FilingEvent; summaryOverride?: string }) {
   const explanation = filing.scoreExplanation;
   if (!explanation) return null;
-  const scoreSummary = buildScoreBasisHeadline(explanation);
+  const scoreSummary = compactInlineText(summaryOverride) || buildScoreBasisHeadline(explanation);
   if (!scoreSummary) return null;
 
   return (
