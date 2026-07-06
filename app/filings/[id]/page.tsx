@@ -138,6 +138,8 @@ type OwnershipRelatedFiling = RecentFiling & {
 };
 
 type FilingContextRelatedFiling = OwnershipRelatedFiling & {
+  ticker?: string;
+  exchange?: string;
   matchScore?: number | null;
   matchConfidence?: string;
   quickTake?: string;
@@ -1526,6 +1528,14 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
       ? buildFdaClinicalModel(filing)
       : null;
   const useFdaClinicalDetail = Boolean(fdaClinicalModel);
+  const displayTicker =
+    useEffectDetail && effectModel?.originalFiling?.ticker && !isRealTicker(filing.ticker)
+      ? effectModel.originalFiling.ticker
+      : filing.ticker;
+  const displayExchange =
+    useEffectDetail && effectModel?.originalFiling?.exchange && !isRealTicker(filing.ticker)
+      ? effectModel.originalFiling.exchange
+      : filing.exchange;
   const dilutionModel =
     !useEffectDetail &&
     !useIpoDetail &&
@@ -1595,7 +1605,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             <div className="stock-detail-title-block">
               <h1>{filing.title}</h1>
               <div className="stock-detail-meta">
-                <span className="ticker-chip">{filing.exchange}:{filing.ticker}</span>
+                <span className="ticker-chip">{displayExchange}:{displayTicker}</span>
                 <span>{filing.company}</span>
                 <span className="filing-form-pill">{filing.formType}</span>
                 <span className={`signal-badge ${filing.signal}`}>{filing.signal}</span>
@@ -2580,16 +2590,17 @@ function offsetFilingTrend(values: number[], offset: number) {
   return values.map((value, index) => Number((value + offset * 0.35 + (index % 2) * 0.1).toFixed(2)));
 }
 
-function FilingMarketContextPanel({ filing }: { filing: FilingEvent }) {
+function FilingMarketContextPanel({ filing, tickerOverride }: { filing: FilingEvent; tickerOverride?: string }) {
   const context = filing.context;
   const relatedFilings = <FilingRelatedFilingsPanel filing={filing} />;
+  const contextTicker = isRealTicker(filing.ticker) ? filing.ticker : tickerOverride || filing.ticker;
   const marketDataPending = isRegistrationMarketDataPending(filing);
-  if (!isRealTicker(filing.ticker)) return relatedFilings;
+  if (!isRealTicker(contextTicker)) return relatedFilings;
   if (!context || !hasRenderableFilingMarketContext(context)) {
     return (
       <>
         {relatedFilings}
-        <FilingMarketContextUnavailablePanel marketDataPending={marketDataPending} ticker={filing.ticker} />
+        <FilingMarketContextUnavailablePanel marketDataPending={marketDataPending} ticker={contextTicker} />
       </>
     );
   }
@@ -2597,7 +2608,7 @@ function FilingMarketContextPanel({ filing }: { filing: FilingEvent }) {
   return (
     <>
       {relatedFilings}
-      <SectorThemeContextPanel context={context} ticker={filing.ticker} />
+      <SectorThemeContextPanel context={context} ticker={contextTicker} />
     </>
   );
 }
@@ -2684,17 +2695,11 @@ function EffectGatewayTemplate({
   filing: FilingEvent;
   model: EffectGatewayModel;
 }) {
-  const original = model.originalFiling;
   const investorSummary = buildEffectInvestorSummary(model);
 
   return (
     <>
       <section className="stock-detail-card effect-gateway-hero">
-        <div className="effect-gateway-copy">
-          <span>SEC EFFECTIVENESS</span>
-          <h2>{model.relatedForm} is now effective</h2>
-          <p>{investorSummary}</p>
-        </div>
         <div className="effect-snapshot-grid" aria-label="Effectiveness snapshot">
           {model.snapshotMetrics.map((metric) => (
             <div className="effect-snapshot-item" key={metric.label}>
@@ -2704,42 +2709,14 @@ function EffectGatewayTemplate({
             </div>
           ))}
         </div>
-      </section>
-
-      <section className="stock-detail-card effect-original-card">
-        <div className="card-heading-row">
-          <div>
-            <h2>Original Filing</h2>
-            <p>Full terms are in the linked analysis.</p>
-          </div>
-          {original?.id ? (
-            <Link className="effect-original-link" href={`/filings/${original.id}`}>
-              Open analysis <ExternalLink size={13} />
-            </Link>
-          ) : null}
+        <div className="effect-gateway-copy">
+          <span>SEC EFFECTIVENESS</span>
+          <h2>{model.relatedForm} is now effective</h2>
+          <p>{investorSummary}</p>
         </div>
-
-        {original ? (
-          <div className="effect-original-body">
-            <div className="effect-original-meta">
-              <span>{original.form}</span>
-              {original.accession ? <span>{original.accession}</span> : null}
-              {original.filedAt ? <span>{original.filedAt}</span> : null}
-              <span>{original.relation}</span>
-            </div>
-            <h3>{original.title}</h3>
-            {!original.id && model.originalReference ? (
-              <p className="effect-fallback-note">Original filing reference: {model.originalReference}</p>
-            ) : null}
-          </div>
-        ) : (
-          <p className="effect-fallback-note">
-            Original filing analysis is not linked yet. Reference: {model.originalReference || model.registrationReference}
-          </p>
-        )}
       </section>
 
-      <FilingMarketContextPanel filing={filing} />
+      <FilingMarketContextPanel filing={filing} tickerOverride={model.originalFiling?.ticker} />
       <OriginalFilingText filing={filing} eventLabel={eventLabel} includeTemplateStatus />
     </>
   );
@@ -5278,11 +5255,16 @@ function OwnershipRelatedFilingsPanel({ filing }: { filing: FilingEvent }) {
 }
 
 function FilingRelatedFilingsPanel({ filing }: { filing: FilingEvent }) {
-  if (filing.formType.trim().toUpperCase() === "EFFECT") return null;
-
   const contextFilings = filing.contextRelatedFilings ?? [];
   if (contextFilings.length > 0) {
-    return <RelatedFilingsContextList filings={contextFilings} heading="Related Filings" subheading="Transaction context" />;
+    const isEffect = filing.formType.trim().toUpperCase() === "EFFECT";
+    return (
+      <RelatedFilingsContextList
+        filings={contextFilings}
+        heading="Related Filings"
+        subheading={isEffect ? "" : "Transaction context"}
+      />
+    );
   }
 
   return <OwnershipRelatedFilingsPanel filing={filing} />;
@@ -5295,7 +5277,7 @@ function RelatedFilingsContextList({
 }: {
   filings: FilingContextRelatedFiling[];
   heading: string;
-  subheading: string;
+  subheading?: string;
 }) {
   if (filings.length === 0) return null;
 
@@ -5303,7 +5285,7 @@ function RelatedFilingsContextList({
     <section className="stock-detail-card dilution-related-filings ownership-related-filings">
       <div className="dilution-related-heading">
         <h2>{heading}</h2>
-        <span>{subheading}</span>
+        {subheading ? <span>{subheading}</span> : null}
       </div>
       <div className="dilution-related-list">
         {filings.slice(0, 6).map((related) => {
@@ -11516,6 +11498,8 @@ function mapFilingContextRelatedFiling(item: Record<string, unknown>): FilingCon
     relation: relation.label,
     description: relation.description,
     candidate: relation.candidate,
+    ticker: readRowString(item, "ticker"),
+    exchange: readRowString(item, "exchange"),
     matchScore: score || null,
     matchConfidence: confidence,
     quickTake,
