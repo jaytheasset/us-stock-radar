@@ -2705,13 +2705,16 @@ function EffectGatewayTemplate({
   model: EffectGatewayModel;
 }) {
   const investorSummary = buildEffectInvestorSummary(model);
+  const chartTicker = model.originalFiling?.ticker && isRealTicker(model.originalFiling.ticker) ? model.originalFiling.ticker : filing.ticker;
+  const showPriceChart = isRealTicker(chartTicker) && Boolean(filing.context);
 
   return (
     <>
       <section className="stock-detail-card-grid two-up initial-ipo-compact-grid effect-gateway-hero">
+        {showPriceChart ? <FilingPriceChart filing={filing} tickerOverride={chartTicker} /> : null}
         <section className="stock-detail-card dilution-snapshot-panel ipo-summary-panel initial-ipo-top-panel">
           <div className="ipo-summary-heading">
-            <h2>{model.relatedForm} effective</h2>
+            <h2>{model.relatedForm} registration effective</h2>
           </div>
 
           <div className="dilution-impact-metrics">
@@ -2721,13 +2724,26 @@ function EffectGatewayTemplate({
           </div>
         </section>
 
-        <section className="stock-detail-card initial-ipo-side-stack">
+        {!showPriceChart ? (
+          <section className="stock-detail-card initial-ipo-side-stack">
+            <div className="initial-ipo-summary-card initial-ipo-quick-card">
+              <h2>Summary</h2>
+              <p>{investorSummary}</p>
+            </div>
+          </section>
+        ) : null}
+      </section>
+
+      {showPriceChart ? (
+        <section className="stock-detail-card initial-ipo-side-stack effect-gateway-summary">
           <div className="initial-ipo-summary-card initial-ipo-quick-card">
             <h2>Summary</h2>
             <p>{investorSummary}</p>
           </div>
         </section>
-      </section>
+      ) : null}
+
+      <ScoreBasisPanel filing={filing} />
 
       <FilingMarketContextPanel filing={filing} hideUnavailable tickerOverride={model.originalFiling?.ticker} />
       <OriginalFilingText filing={filing} eventLabel={eventLabel} includeTemplateStatus />
@@ -2789,7 +2805,8 @@ function cleanContextValue(value: unknown) {
   return cleaned;
 }
 
-function FilingPriceChart({ filing }: { filing: FilingEvent }) {
+function FilingPriceChart({ filing, tickerOverride }: { filing: FilingEvent; tickerOverride?: string }) {
+  const ticker = tickerOverride && isRealTicker(tickerOverride) ? tickerOverride : filing.ticker;
   return (
     <PriceChartCard
       change={filing.change}
@@ -2797,7 +2814,7 @@ function FilingPriceChart({ filing }: { filing: FilingEvent }) {
       markers={filing.priceMarkers}
       price={filing.price}
       series={filing.priceSeries}
-      ticker={filing.ticker}
+      ticker={ticker}
       tone={filing.signal}
       tradingDataPending={isRegistrationMarketDataPending(filing)}
     />
@@ -5326,6 +5343,7 @@ function FilingRelatedFilingsPanel({ filing }: { filing: FilingEvent }) {
         filings={contextFilings}
         heading="Related Filings"
         subheading={isEffect ? "" : "Transaction context"}
+        relationLabelFormatter={isEffect ? formatEffectRelatedFilingRelation : undefined}
       />
     );
   }
@@ -5337,10 +5355,12 @@ function RelatedFilingsContextList({
   filings,
   heading,
   subheading,
+  relationLabelFormatter,
 }: {
   filings: FilingContextRelatedFiling[];
   heading: string;
   subheading?: string;
+  relationLabelFormatter?: (related: FilingContextRelatedFiling) => string;
 }) {
   if (filings.length === 0) return null;
 
@@ -5352,12 +5372,13 @@ function RelatedFilingsContextList({
       </div>
       <div className="dilution-related-list">
         {filings.slice(0, 6).map((related) => {
+          const relationLabel = relationLabelFormatter?.(related) || related.relation;
           const match = related.matchConfidence ? `Match ${related.matchConfidence}` : "";
           const details = [related.filedAt, related.eventType, related.accession, match].filter(Boolean).join(" · ");
           const content = (
             <>
               <span className={`ownership-related-relation${related.candidate ? " candidate" : ""}`}>
-                {related.relation}
+                {relationLabel}
               </span>
               <span className="dilution-related-form ownership-related-form-type">{related.form}</span>
               <span className="dilution-related-copy">
@@ -5376,12 +5397,12 @@ function RelatedFilingsContextList({
             <Link
               className="dilution-related-item"
               href={`/filings/${related.id}`}
-              key={`${related.relation}-${related.id}`}
+              key={`${relationLabel}-${related.id}`}
             >
               {content}
             </Link>
           ) : (
-            <div className="dilution-related-item" key={`${related.relation}-${related.accession}-${related.title}`}>
+            <div className="dilution-related-item" key={`${relationLabel}-${related.accession}-${related.title}`}>
               {content}
             </div>
           );
@@ -5389,6 +5410,12 @@ function RelatedFilingsContextList({
       </div>
     </section>
   );
+}
+
+function formatEffectRelatedFilingRelation(related: FilingContextRelatedFiling) {
+  if (/^parent$/i.test(related.relation)) return "Original registration";
+  if (/candidate/i.test(related.relation)) return "Possible match";
+  return related.relation;
 }
 
 const SPAC_DEFAULT_STAGES = [
@@ -5639,6 +5666,10 @@ function buildEffectGatewayModel(filing: FilingEvent): EffectGatewayModel | null
 
   const resolvedRelatedForm = relatedForm || "Registration statement";
   const originalFiling = findEffectOriginalFiling(filing, originalReference);
+  const sourceText = stripHtml(`${filing.title} ${filing.filingBrief} ${filing.summary} ${filing.originalHtml}`);
+  const resolvedEffectiveDate = effectiveDate || findEffectivenessDate(sourceText);
+  const resolvedRegistrationReference =
+    findEffectRegistrationReference(sourceText) || registrationReference || originalReference || "";
   const snapshotMetrics = [
     {
       label: "Status",
@@ -5652,23 +5683,53 @@ function buildEffectGatewayModel(filing: FilingEvent): EffectGatewayModel | null
     },
     {
       label: "Effective date",
-      value: effectiveDate || "Not disclosed",
+      value: resolvedEffectiveDate || "Not disclosed",
     },
     {
       label: "Registration reference",
-      value: registrationReference || originalReference || "Not disclosed",
+      value: resolvedRegistrationReference || "Not disclosed",
     },
   ];
 
   return {
     relatedForm: resolvedRelatedForm,
-    effectiveDate: effectiveDate || "Not disclosed",
-    registrationReference: registrationReference || "Not disclosed",
+    effectiveDate: resolvedEffectiveDate || "Not disclosed",
+    registrationReference: resolvedRegistrationReference || "Not disclosed",
     originalReference,
     originalFiling,
     snapshotMetrics,
     nextSteps: buildEffectNextSteps(filing, resolvedRelatedForm),
   };
+}
+
+function findEffectivenessDate(sourceText: string) {
+  const match =
+    sourceText.match(
+      /\bEffectiveness Date:\s*([A-Z][a-z]+\s+\d{1,2},\s+\d{4}(?:\s+\d{1,2}:\d{2}\s*(?:A\.?M\.?|P\.?M\.?))?)/i,
+    ) ||
+    sourceText.match(
+      /\bDate of Effectiveness:\s*([A-Z][a-z]+\s+\d{1,2},\s+\d{4}(?:\s+\d{1,2}:\d{2}\s*(?:A\.?M\.?|P\.?M\.?))?)/i,
+    ) ||
+    sourceText.match(
+      /\bdeclared effective\b[^.\n]{0,120}?([A-Z][a-z]+\s+\d{1,2},\s+\d{4}(?:\s+\d{1,2}:\d{2}\s*(?:A\.?M\.?|P\.?M\.?))?)/i,
+    );
+  if (match?.[1]) return match[1].replace(/\s+/g, " ").trim();
+
+  const compactDate = sourceText.match(/\bEFFECTIVENESS DATE:\s*(20\d{6})\b/i)?.[1];
+  return compactDate ? formatCompactEffectDate(compactDate) : "";
+}
+
+function findEffectRegistrationReference(sourceText: string) {
+  const match =
+    sourceText.match(/\b(?:Registration|SEC File|File)\s+No\.?\s*[:.]?\s*(333-\d+)/i) ||
+    sourceText.match(/\bSEC FILE NUMBER:\s*((?:333|001|811)-[0-9A-Z-]+)/i) ||
+    sourceText.match(/\bRegistration\s+Statement\s+No\.?\s*[:.]?\s*(333-\d+)/i) ||
+    sourceText.match(/\b(333-\d{6}(?:-\d+)?)\b/i);
+  return match?.[1] ? `Registration No. ${match[1]}` : "";
+}
+
+function formatCompactEffectDate(value: string) {
+  return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
 }
 
 function findEffectOriginalFiling(filing: FilingEvent, originalReference: string): FilingContextRelatedFiling | null {
