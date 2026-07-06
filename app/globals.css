@@ -6964,6 +6964,25 @@ td {
   gap: 18px;
 }
 
+.quick-case-panel.single {
+  margin-top: -1px;
+  border-top: 2px solid var(--detail-divider);
+  padding-top: 18px;
+}
+
+.quick-case-panel.single.bullish {
+  border-top-color: #148442;
+}
+
+.quick-case-panel.single.bearish {
+  border-top-color: #d94d61;
+}
+
+.quick-case-panel.single .case-list {
+  border-top: 0;
+  padding-top: 0;
+}
+
 .quick-take-block {
   display: grid;
   gap: 0;

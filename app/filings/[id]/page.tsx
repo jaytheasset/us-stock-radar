@@ -2687,6 +2687,7 @@ function CommonFilingTemplate({ eventLabel, filing }: { eventLabel: string; fili
   const hasNegativePoints = filing.bearishPoints.length > 0;
   const hasCasePoints = hasPositivePoints || hasNegativePoints;
   const caseGridMode = hasPositivePoints && hasNegativePoints ? "two-up" : "single";
+  const casePanelTone = hasPositivePoints && !hasNegativePoints ? "bullish" : hasNegativePoints && !hasPositivePoints ? "bearish" : "";
   const hasEvidenceOrWatch = filing.keyEvidence.length > 0 || filing.watchNext.length > 0;
 
   return (
@@ -2716,7 +2717,7 @@ function CommonFilingTemplate({ eventLabel, filing }: { eventLabel: string; fili
       </section>
 
       {hasCasePoints ? (
-        <section className="stock-detail-card quick-analysis-panel">
+        <section className={`stock-detail-card quick-analysis-panel quick-case-panel ${caseGridMode}${casePanelTone ? ` ${casePanelTone}` : ""}`}>
           <div className={`quick-case-grid ${caseGridMode}`}>
             <CaseList title="Positive" tone="bullish" items={filing.bullishPoints} />
             <CaseList title="Negative" tone="bearish" items={filing.bearishPoints} />
@@ -2727,7 +2728,7 @@ function CommonFilingTemplate({ eventLabel, filing }: { eventLabel: string; fili
       {hasEvidenceOrWatch ? (
         <section className="stock-detail-card-grid two-up insight-summary-grid">
           <AnalysisList title="Key Evidence" items={filing.keyEvidence} />
-          <AnalysisList title="What To Watch Next" numbered items={filing.watchNext} />
+          <AnalysisList title="What To Watch Next" items={filing.watchNext} />
         </section>
       ) : null}
 
