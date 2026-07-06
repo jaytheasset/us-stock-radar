@@ -51,7 +51,11 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
   );
   const selectedRunForms = liveFormFilter === "all" ? selectedSnapshot?.forms || [] : [liveFormFilter];
   const selectedSecPromptVariant =
-    selectedRoom === "424b" && (secPromptVariant === "legacy" || secPromptVariant === "sectioned") ? secPromptVariant : "";
+    selectedRoom === "424b" && (secPromptVariant === "legacy" || secPromptVariant === "sectioned")
+      ? secPromptVariant
+      : selectedRoom === "s1-f1" && secPromptVariant === "pending_terms_test"
+        ? secPromptVariant
+        : "";
   const liveSampleCountNumber = clampLiveSampleCount(liveSampleCount);
   const selectedRunFormCount = Math.max(1, selectedRunForms.length);
   const selectedRunLabel = liveFormFilter === "all" ? "all forms " : `${liveFormFilter} `;
@@ -83,7 +87,7 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
 
   useEffect(() => {
     setLiveFormFilter("all");
-    setSecPromptVariant("sectioned");
+    setSecPromptVariant(selectedRoom === "424b" ? "sectioned" : "default");
   }, [selectedRoom]);
 
   async function runTests() {
@@ -412,12 +416,21 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
               ))}
             </select>
           </label>
-          {selectedRoom === "424b" ? (
+          {selectedRoom === "424b" || selectedRoom === "s1-f1" ? (
             <label className={styles.compactControl}>
               <span>Prompt variant</span>
               <select onChange={(event) => setSecPromptVariant(event.target.value)} value={secPromptVariant}>
-                <option value="sectioned">Default sectioned (active)</option>
-                <option value="legacy">Backup legacy (pre-sectioned)</option>
+                {selectedRoom === "424b" ? (
+                  <>
+                    <option value="sectioned">Default sectioned (active)</option>
+                    <option value="legacy">Backup legacy (pre-sectioned)</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="default">Default active</option>
+                    <option value="pending_terms_test">Pending terms test</option>
+                  </>
+                )}
               </select>
             </label>
           ) : null}

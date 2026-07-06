@@ -202,7 +202,7 @@ const SEC_S1_F1_EVENT_TITLE_REPAIR_MAX_ATTEMPTS = 3;
 const SEC_S1_F1_SHARE_OVERHANG_PERCENT_TOLERANCE = 0.049;
 const SEC_S1_F1_EVENT_TITLE_REPAIR_PROMPT_KEY = "sec_s1_f1_event_title_repair";
 const SEC_S1_F1_ROUTE_ONLY_PROMPT_KEY = "sec_s1_f1_route_only";
-const SEC_S1_F1_ROUTE_ONLY_PROMPT_VERSION = "s1-f1-route-only-v1";
+const SEC_S1_F1_ROUTE_ONLY_PROMPT_VERSION = "s1-f1-route-only-v2-amendment-gate";
 const SEC_LLM_RUNAWAY_OUTPUT_CHARS = 30_000;
 
 export type SecFilingAnalysisRunResult = {
@@ -1273,7 +1273,7 @@ export async function runSecFilingAnalysisForRawRow(
   }
 
   if (isS1F1FilingInput(input)) {
-    const prompt = buildSecS1F1AnalysisPromptForInput(input);
+    const prompt = buildSecS1F1AnalysisPromptForInput(input, { promptVariant: options.secPromptVariant });
     const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
     if (!analysisRun.ok || !analysisRun.parsed) {
       return {
@@ -1622,6 +1622,13 @@ function buildS1F1RouteOnlyPrompt(parserOutput: S1F1ParserOutput): OpenAiPrompt 
       {
         task:
           "Choose the display_mode for the S-1/F-1 detail UI before the full analysis prompt is used. This is a route-only test.",
+        routing_order: [
+          "For S-1/A or F-1/A, first decide what the amendment itself changes before reading instrument names as the main event.",
+          "If the amendment is exhibit-only, consent-only, fee-table-only, signature/correction-only, or explicitly says it does not amend prospectus/offering terms, choose routine_amendment.",
+          "If the amendment updates IPO price range, shares offered, exchange/ticker, underwriters, or IPO timing, choose ipo_amendment.",
+          "Only route an amendment to mixed_offering, resale_registration, warrant_convertible, primary_offering, or pending_primary_offering when the amendment itself changes or actively presents those sale terms, securities covered, pricing, proceeds, share counts, or instrument terms.",
+          "Do not choose mixed_offering or warrant_convertible solely because the source mentions prior financings, prior ELOCs, prior warrants, prior notes, capitalization assumptions, or historical instruments.",
+        ],
         display_modes: [
           {
             mode: "pending_primary_offering",
@@ -2402,7 +2409,7 @@ export async function findSecRawItem(options: PreviewOptions = {}) {
       source_code: "eq.sec_edgar",
       limit: "1",
     });
-    return readRawItemResult(result);
+    return readRawItemResult(result, `raw item id ${options.rawItemId}`);
   }
 
   if (options.accessionNumber) {
@@ -2412,7 +2419,7 @@ export async function findSecRawItem(options: PreviewOptions = {}) {
       source_unique_id: `eq.${options.accessionNumber}`,
       limit: "1",
     });
-    return readRawItemResult(result);
+    return readRawItemResult(result, `accession ${options.accessionNumber}`);
   }
 
   const result = await supabaseSelect("raw_items", {
@@ -2455,7 +2462,7 @@ function buildSecFilingPromptForInput(input: SecFilingAnalysisInput, options: { 
   if (isSc13FilingInput(input)) return buildSecSc13AnalysisPromptForInput(input);
   if (isS4F4FilingInput(input)) return buildSecS4F4AnalysisPromptForInput(input);
   if (isS8FilingInput(input)) return buildSecS8AnalysisPromptForInput(input);
-  if (isS1F1FilingInput(input)) return buildSecS1F1AnalysisPromptForInput(input);
+  if (isS1F1FilingInput(input)) return buildSecS1F1AnalysisPromptForInput(input, { promptVariant: options.secPromptVariant });
   return isS3FilingInput(input) ? buildSecS3AnalysisPrompt(input) : buildSecFilingAnalysisPrompt(input);
 }
 
@@ -7414,13 +7421,20 @@ function sameRegistrationNumber(left: string | null | undefined, right: string |
   return Boolean(leftValue && rightValue && leftValue === rightValue);
 }
 
-function readRawItemResult(result: { ok: boolean; status: number; error?: string; data: unknown }) {
+function readRawItemResult(result: { ok: boolean; status: number; error?: string; data: unknown }, lookupLabel = "requested SEC raw item") {
   const row = Array.isArray(result.data) ? (result.data[0] as RawItemRow | undefined) : null;
+  const lookupError = stringValue(result.error);
+  const usefulLookupError = lookupError && lookupError !== "<none>" ? lookupError : "";
+  const error = result.ok
+    ? row
+      ? undefined
+      : `SEC raw item not found for ${lookupLabel}. Ingest raw first, then run this test.`
+    : usefulLookupError || `SEC raw item lookup failed for ${lookupLabel} (status ${result.status || "unknown"}).`;
   return {
     ok: result.ok && Boolean(row),
     status: result.status,
     rawItem: row || null,
-    error: result.error,
+    error,
   };
 }
 

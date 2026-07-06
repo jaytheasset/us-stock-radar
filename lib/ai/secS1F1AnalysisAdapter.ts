@@ -1,6 +1,9 @@
 import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
 import { adaptSecFormRoomOutputForIngest, type SecFormRoomAdapterOutput } from "@/lib/sources/sec/forms/common/formRoomAdapter";
-import { buildS1F1AnalysisPrompt } from "@/lib/sources/sec/forms/s1-f1/analysisPrompt";
+import {
+  buildS1F1AnalysisPrompt,
+  type S1F1AnalysisPromptVariant,
+} from "@/lib/sources/sec/forms/s1-f1/analysisPrompt";
 import { APPROVED_SEC_EVENT_TYPES, type S1F1ParserOutput } from "@/lib/sources/sec/forms/s1-f1/types";
 import { normalize424bOfferingDisplayModel } from "@/lib/ai/sec424bAnalysisAdapter";
 import { collectSecOfferingMarketContextWarnings } from "@/lib/secOfferingMarketContext";
@@ -13,6 +16,7 @@ import {
 
 export const SEC_S1_F1_ANALYSIS_PROMPT_KEY = "sec_s1_f1_analysis";
 export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v28-spac-ipo-minimal";
+export const SEC_S1_F1_PENDING_TERMS_TEST_PROMPT_VERSION = "v29-pending-terms-test";
 
 const S1_F1_SHARE_OVERHANG_PERCENT_TOLERANCE = 0.049;
 
@@ -187,15 +191,25 @@ export function isS1F1FilingInput(input: SecFilingAnalysisInput) {
   return Boolean(readS1F1ParserOutput(input));
 }
 
-export function buildSecS1F1AnalysisPromptForInput(input: SecFilingAnalysisInput) {
+function normalizeS1F1PromptVariant(value: unknown): S1F1AnalysisPromptVariant {
+  return value === "pending_terms_test" ? "pending_terms_test" : "default";
+}
+
+export function buildSecS1F1AnalysisPromptForInput(
+  input: SecFilingAnalysisInput,
+  options: { promptVariant?: S1F1AnalysisPromptVariant | string } = {},
+) {
   const parserOutput = withRuntimeMarketContext(readS1F1ParserOutput(input), input);
   if (!parserOutput) {
     throw new Error("SEC S-1/F-1 parser output is missing from filing package");
   }
+  const promptVariant = normalizeS1F1PromptVariant(options.promptVariant);
+  const promptVersion =
+    promptVariant === "pending_terms_test" ? SEC_S1_F1_PENDING_TERMS_TEST_PROMPT_VERSION : SEC_S1_F1_ANALYSIS_PROMPT_VERSION;
 
   return {
     key: SEC_S1_F1_ANALYSIS_PROMPT_KEY,
-    version: SEC_S1_F1_ANALYSIS_PROMPT_VERSION,
+    version: promptVersion,
     system: [
       "Analyze one SEC S-1/F-1 registration filing from cleaned source blocks.",
       "Return only analysis_output and display_payload, with one primary display_payload.data.display_mode.",
@@ -205,7 +219,7 @@ export function buildSecS1F1AnalysisPromptForInput(input: SecFilingAnalysisInput
       "For analysis_output sector and industry_group, use natural taxonomy-style names. For theme_group, use an exact slug from the response schema. For sub_theme, use a concise theme name or slug. Use null when unsupported.",
       "Score means investor attention and urgency. Delivery is derived later from score only.",
     ].join("\n"),
-    user: buildS1F1AnalysisPrompt(parserOutput),
+    user: buildS1F1AnalysisPrompt(parserOutput, undefined, undefined, { variant: promptVariant }),
     responseFormat: {
       json_schema: {
         name: "sec_s1_f1_required_output",

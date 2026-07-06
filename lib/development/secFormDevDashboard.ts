@@ -19,6 +19,8 @@ import {
   PARSER_VERSION_424B,
   type Sec424bParserOutput,
 } from "@/lib/sources/sec/forms/424b/types";
+import { buildS1F1AnalysisPrompt } from "@/lib/sources/sec/forms/s1-f1/analysisPrompt";
+import { parseS1F1Filing } from "@/lib/sources/sec/forms/s1-f1/parser";
 import { supabaseDelete, supabaseSelect } from "@/lib/supabase";
 
 const execAsync = promisify(exec);
@@ -1281,8 +1283,10 @@ export async function runSecDevS1F1RouteOnly(
   const started = Date.now();
   const ranAt = new Date().toISOString();
   let liveRun: SecDevLiveRunResult;
+  let routeOnlyStep = "start";
 
   try {
+    routeOnlyStep = "validate_room";
     if (room.key !== "s1-f1") {
       throw new Error("Route-only dry-run is currently limited to the S-1 / F-1 room.");
     }
@@ -1290,6 +1294,7 @@ export async function runSecDevS1F1RouteOnly(
       throw new Error("Route-only dry-run requires accessionNumber or rawItemId.");
     }
 
+    routeOnlyStep = "find_raw_item";
     const rawResult = await findSecRawItem({
       accessionNumber: accessionNumber || undefined,
       rawItemId: rawItemId || undefined,
@@ -1298,10 +1303,12 @@ export async function runSecDevS1F1RouteOnly(
       throw new Error(rawResult.error || "SEC raw item not found. Ingest raw first, then run route-only.");
     }
 
+    routeOnlyStep = "run_route_only_prompt";
     const routeResult = await runSecS1F1RouteOnlyPreviewForRawItem(rawResult.rawItem, {
       llmProvider: stringValue(options.llmProvider) || undefined,
       llmModel: stringValue(options.llmModel) || undefined,
     });
+    routeOnlyStep = "build_route_only_item";
     const item = buildRouteOnlyItem(rawResult.rawItem, routeResult);
 
     liveRun = {
@@ -1336,8 +1343,11 @@ export async function runSecDevS1F1RouteOnly(
       rawItemId: rawItemId || null,
       summary: "Route-only dry-run failed.",
       items: [],
-      diagnostics: null,
-      error: error instanceof Error ? error.message : "Route-only dry-run failed",
+      diagnostics: {
+        route_only_step: routeOnlyStep,
+        error_name: error instanceof Error ? error.name : null,
+      },
+      error: error instanceof Error ? error.message || "Route-only dry-run failed with an empty error message" : "Route-only dry-run failed",
     };
   }
 
@@ -2008,7 +2018,12 @@ async function readPromptPreviews(room: SecDevRoom): Promise<SecDevPromptPreview
     const absolute = path.join(base, file);
     try {
       const raw = await fs.readFile(absolute, "utf8");
-      const prompts = room.key === "424b" && file === "analysisPrompt.ts" ? build424bPromptVariantPreviews() : extractPromptTemplateLiterals(raw);
+      const prompts =
+        room.key === "424b" && file === "analysisPrompt.ts"
+          ? build424bPromptVariantPreviews()
+          : room.key === "s1-f1" && file === "analysisPrompt.ts"
+            ? buildS1F1PromptVariantPreviews()
+            : extractPromptTemplateLiterals(raw);
       if (prompts.length) {
         previews.push({ file, prompts });
       }
@@ -2018,6 +2033,31 @@ async function readPromptPreviews(room: SecDevRoom): Promise<SecDevPromptPreview
   }
 
   return previews;
+}
+
+function buildS1F1PromptVariantPreviews() {
+  const previewParserOutput = parseS1F1Filing({
+    formType: "S-1",
+    accessionNumber: "0000000000-00-000000",
+    metadata: {
+      companyName: "Prompt Preview Issuer Inc.",
+    },
+    filingText:
+      "We are offering up to [●] shares of common stock and up to [●] pre-funded warrants. The assumed public offering price is $[●] per share. The actual number of securities and offering price will be determined at pricing.",
+  });
+
+  return [
+    {
+      name: "Default active",
+      text: normalizePromptPreviewText(buildS1F1AnalysisPrompt(previewParserOutput)),
+    },
+    {
+      name: "Pending terms test",
+      text: normalizePromptPreviewText(
+        buildS1F1AnalysisPrompt(previewParserOutput, undefined, undefined, { variant: "pending_terms_test" }),
+      ),
+    },
+  ];
 }
 
 function build424bPromptVariantPreviews() {

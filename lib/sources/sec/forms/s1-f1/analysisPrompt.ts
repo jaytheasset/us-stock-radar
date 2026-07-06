@@ -40,13 +40,31 @@ const S1F1_DISPLAY_MODES = [
   "generic",
 ] as const;
 
+const S1F1_PENDING_TERMS_TEST_DISPLAY_MODES = [
+  ...S1F1_DISPLAY_MODES.slice(0, 6),
+  "pending_primary_offering",
+  ...S1F1_DISPLAY_MODES.slice(6),
+] as const;
+
 const S1F1_PROMPT_VERSION = "s1-f1-analysis-v23-supply-type-badges";
+const S1F1_PENDING_TERMS_TEST_PROMPT_VERSION = "s1-f1-analysis-v24-pending-terms-test";
+
+export type S1F1AnalysisPromptVariant = "default" | "pending_terms_test";
+
+function normalizeS1F1AnalysisPromptVariant(value: unknown): S1F1AnalysisPromptVariant {
+  return value === "pending_terms_test" ? "pending_terms_test" : "default";
+}
 
 export function buildS1F1AnalysisPrompt(
   parserOutput: S1F1ParserOutput,
   _routerDecision?: unknown,
   _displayPayload?: unknown,
+  options: { variant?: S1F1AnalysisPromptVariant | string } = {},
 ): string {
+  const promptVariant = normalizeS1F1AnalysisPromptVariant(options.variant);
+  const s1F1DisplayModes =
+    promptVariant === "pending_terms_test" ? S1F1_PENDING_TERMS_TEST_DISPLAY_MODES : S1F1_DISPLAY_MODES;
+
   return [
     "You are writing the final investor-facing analysis for one SEC S-1/F-1 registration filing.",
     "Use only cleaned_source_blocks, attachment inventory, parent_filing_context if present, and optional market context in the cleaned source input.",
@@ -108,6 +126,19 @@ export function buildS1F1AnalysisPrompt(
     "- A confirmed share count can be shown even when price and proceeds are still pending.",
     "- If only the fee table changes in an S-1/A or F-1/A, classify it as a fee-table or administrative update, not an offering terms update, and do not infer new dilution or new proceeds.",
     "- If a fee table changes together with prospectus-body changes, classify by the actual body changes: shares offered, price range or fixed price, security classes, selling-holder table, underwriters, use of proceeds, purchase agreement, ELOC, SEPA, warrant, convertible, preferred, lock-up, or listing terms.",
+    ...(promptVariant === "pending_terms_test"
+      ? [
+          "",
+          "S-1/F-1 pending terms test rules:",
+          "- Before choosing a calculable offering UI, decide whether the filing states source-backed final share/unit counts and an actual offering price or source-backed price range.",
+          "- If the prospectus only states a dollar cap, proposed maximum aggregate offering amount, fee-table amount, assumed price, placeholder share count, blank price, or actual amount not presently determinable, do not calculate dilution, overhang, proceeds, or share count from those values.",
+          "- Do not use market_context, latest price, last sale price, fee-table price, assumed public offering price, or Rule 457 value to convert an S-1/F-1 dollar cap into shares.",
+          "- Use pending_primary_offering for a primary cash offering whose current prospectus has blank or placeholder share/unit count or price terms.",
+          "- If warrants, pre-funded warrants, units, or placement-agent warrants are included but their share counts or prices are blank/placeholders, keep them in Offering Details and Instrument Details only. Do not build a share_overhang chart from placeholder amounts.",
+          "- Use mixed_offering only when at least one current-offering or resale share/security amount is source-backed enough to show as visible share_overhang rows.",
+          "- If the filing has a fixed resale pool or fixed registered shares plus a separate pending primary component, the fixed resale pool may still use resale_registration or mixed_offering share_overhang. Do not let pending primary terms suppress a source-backed resale overhang.",
+        ]
+      : []),
     "",
     "S-1/F-1 scoring guide:",
     "- Apply the SEC offering and resale scoring guide first for resale overhang, primary issuance dilution, dollar offering size, sale-readiness, restrictions, and market-cap modifiers.",
@@ -141,7 +172,7 @@ export function buildS1F1AnalysisPrompt(
     "- Use spac_transaction_status only for source-backed de-SPAC transaction-status facts, not plain SPAC IPO registration.",
     "- display_payload.display_version must be s1-f1-display-v1.",
     "- display_payload.data.display_mode must be one of:",
-    S1F1_DISPLAY_MODES.map((mode) => `  - ${mode}`).join("\n"),
+    s1F1DisplayModes.map((mode) => `  - ${mode}`).join("\n"),
     "- display_payload.data must be intentionally filled when display_type is offering_terms. Do not leave it as an empty object.",
     "- Choose exactly one primary display_payload.data.display_mode before writing investor-facing text.",
     "- The selected display_mode is the only detailed output path. Do not write a second generic analysis page for the same filing.",
@@ -563,6 +594,13 @@ export function buildS1F1AnalysisPrompt(
     "- Invalid output pattern: snapshot_metrics, event_title, quick_take, investor_takeaway, summary, score_reason, or score_explanation contains a dilution/overhang/supply percentage that differs from share_overhang.total_note.ratio. Before final JSON, replace that percentage with share_overhang.total_note.ratio or use qualitative wording without a number.",
     "- Invalid output pattern: snapshot_metrics, event_title, quick_take, investor_takeaway, summary, score_reason, or score_explanation states an all-warrants, full-if-exercised, or all-visible-row percentage as the headline dilution when share_overhang.rows contains row_role conditional rows. Before final JSON, use only share_overhang.total_note.ratio as the headline percentage and describe excluded warrant supply without a second percentage.",
     "- Invalid output pattern: event_title, quick_take, summary, score_reason, or score_explanation contains a percentage calculated from only one component row, such as only Series B Warrants, when share_overhang.total_note.ratio uses multiple counted rows. Before final JSON, remove that component-only percentage or replace it with share_overhang.total_note.ratio.",
+    ...(promptVariant === "pending_terms_test"
+      ? [
+          "- Invalid output pattern: share_overhang.rows contains numeric_value derived from blank placeholders, fee-table amounts, assumed prices, proposed maximum offering price, or market_context conversion when the filing does not state final shares/units. Before final JSON, remove the invented numeric_value and use pending_primary_offering or Not fixed yet.",
+          "- Invalid output pattern: display_mode mixed_offering has a dilution, overhang, or supply percentage when all current offering share/unit counts are blank, placeholder, or not presently determinable. Before final JSON, use pending_primary_offering or non-calculable wording.",
+          "- Invalid output pattern: a pre-funded warrant row is counted separately when the filing says common shares/ADSs/units and pre-funded warrants are alternatives but does not state a fixed maximum share-equivalent pool. Before final JSON, show the pending alternative structure without an additive dilution calculation.",
+        ]
+      : []),
     "- Invalid output pattern for initial IPO: quick_take, investor_takeaway, or display_quick_take starts with the issuer name or filing-action wording such as filed its initial S-1/F-1. Before final JSON, rewrite it as an investor takeaway about pending terms or the next signal.",
     "- Invalid output pattern for rule_462b_mef: display_quick_take mentions the issuer name or repeats filing-action wording such as filed, registered, S-1MEF, Rule 462(b), or prior S-1. Before final JSON, rewrite it as a sentence about added IPO supply, final offering size, pricing, or underwriter option context.",
     "- Invalid output pattern for initial IPO: any analysis_output or display_payload text contains literal blank placeholders such as $ and $, $ to $, between $ and $, $ per share, or $ million. Before final JSON, replace that wording with pending terms or No final range yet.",
@@ -693,7 +731,7 @@ export function buildS1F1AnalysisPrompt(
     "Cleaned source input:",
     JSON.stringify(buildS1F1LlmSourceInput(parserOutput), null, 2),
     "",
-    `Prompt version: ${S1F1_PROMPT_VERSION}`,
+    `Prompt version: ${promptVariant === "pending_terms_test" ? S1F1_PENDING_TERMS_TEST_PROMPT_VERSION : S1F1_PROMPT_VERSION}`,
   ].join("\n");
 }
 
