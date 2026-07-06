@@ -2762,9 +2762,12 @@ function buildEffectOriginalFilingContextSentence(original: FilingContextRelated
     .replace(/\s+/g, " ")
     .replace(/\s+([,.;:!?])/g, "$1")
     .trim();
-  const firstSentence = normalized.match(/^(.+?[.!?])(?:\s|$)/)?.[1]?.trim() || normalized;
-  const compact = firstSentence.length > 180 ? `${firstSentence.slice(0, 177).trimEnd()}...` : firstSentence;
-  return `Original filing: ${compact}`;
+  const compact =
+    normalized.length > 180
+      ? normalized.slice(0, 180).replace(/\s+\S*$/, "").trim()
+      : normalized;
+  const sentence = /[.!?]$/.test(compact) ? compact : `${compact}.`;
+  return `Original filing: ${sentence}`;
 }
 
 function formatMarketContextFloatPercent(marketContext: Record<string, unknown>) {
