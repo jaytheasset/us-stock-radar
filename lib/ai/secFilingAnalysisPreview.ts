@@ -71,6 +71,8 @@ import type {
   EffectFilingInput,
   EffectParentFilingContext,
 } from "@/lib/sources/sec/forms/effect/types";
+import { buildS1F1LlmSourceInput } from "@/lib/sources/sec/forms/s1-f1/sourceInput";
+import type { S1F1ParserOutput } from "@/lib/sources/sec/forms/s1-f1/types";
 import {
   attachSecParentContexts,
   prepareSecRawItemWithParentContextForParser,
@@ -199,6 +201,8 @@ const SEC_LLM_MAX_ATTEMPTS = 1;
 const SEC_S1_F1_EVENT_TITLE_REPAIR_MAX_ATTEMPTS = 3;
 const SEC_S1_F1_SHARE_OVERHANG_PERCENT_TOLERANCE = 0.049;
 const SEC_S1_F1_EVENT_TITLE_REPAIR_PROMPT_KEY = "sec_s1_f1_event_title_repair";
+const SEC_S1_F1_ROUTE_ONLY_PROMPT_KEY = "sec_s1_f1_route_only";
+const SEC_S1_F1_ROUTE_ONLY_PROMPT_VERSION = "s1-f1-route-only-v1";
 const SEC_LLM_RUNAWAY_OUTPUT_CHARS = 30_000;
 
 export type SecFilingAnalysisRunResult = {
@@ -353,6 +357,49 @@ export async function runSecFilingAnalysisPreviewForRawItem(
   return {
     ...analysisResult,
     stage: analysisResult.ok ? "complete" : analysisResult.stage,
+  };
+}
+
+export async function runSecS1F1RouteOnlyPreviewForRawItem(rawItem: RawItemRow, options: SecLlmOptions = {}) {
+  const input = await buildInputFromSecRawRowWithContext(rawItem);
+  const parserOutput = readS1F1ParserOutputForRoute(input);
+  if (!parserOutput) {
+    return {
+      ok: false,
+      stage: "route_only",
+      status: 400,
+      sourceItem: summarizeRawRow(rawItem),
+      error: "S-1/F-1 parser output is missing from filing package.",
+    };
+  }
+
+  const env = getServerEnv();
+  const llmConfig = resolveSecLlmConfig(env, options);
+  const prompt = buildS1F1RouteOnlyPrompt(parserOutput);
+  const run = await runOpenAiJsonPrompt(env, prompt, llmConfig);
+
+  return {
+    ok: run.ok,
+    stage: "route_only",
+    status: run.status,
+    model: run.model,
+    openAiResponseId: run.openAiResponseId,
+    sourceItem: summarizeRawRow(rawItem),
+    input: buildS1F1RouteOnlyInput(parserOutput),
+    route: run.parsed,
+    outputText: run.outputText,
+    usage: run.usage,
+    costEstimate: estimateCost(run.model, run.usage),
+    rawOpenAIResponse: run.rawOpenAIResponse,
+    prompt: {
+      key: prompt.key,
+      version: prompt.version,
+      provider: run.provider,
+      model: run.model,
+      system: prompt.system,
+      responseFormat: prompt.responseFormat,
+    },
+    error: run.ok ? undefined : run.error || "S-1/F-1 route-only prompt failed.",
   };
 }
 
@@ -1555,6 +1602,186 @@ function buildS1F1EventTitleRepairPrompt(
   };
 }
 
+function readS1F1ParserOutputForRoute(input: SecFilingAnalysisInput): S1F1ParserOutput | null {
+  const filingPackage = readRecord(input.filing_package);
+  const hardParsers = readRecord(filingPackage?.hard_parsers);
+  return (readRecord(hardParsers?.["s1-f1"]) || readRecord(hardParsers?.s1_f1)) as S1F1ParserOutput | null;
+}
+
+function buildS1F1RouteOnlyPrompt(parserOutput: S1F1ParserOutput): OpenAiPrompt {
+  return {
+    key: SEC_S1_F1_ROUTE_ONLY_PROMPT_KEY,
+    version: SEC_S1_F1_ROUTE_ONLY_PROMPT_VERSION,
+    system: [
+      "Route one SEC S-1/F-1 registration filing to the best detail UI mode.",
+      "Do not write a full filing analysis. Do not calculate final dilution. Return only route metadata.",
+      "Use source text and filing structure, not parser-generated labels, as authority.",
+      "Pick one display_mode. If uncertain, choose the closest mode and set confidence below 0.70.",
+    ].join("\n"),
+    user: JSON.stringify(
+      {
+        task:
+          "Choose the display_mode for the S-1/F-1 detail UI before the full analysis prompt is used. This is a route-only test.",
+        display_modes: [
+          {
+            mode: "pending_primary_offering",
+            use_when:
+              "Active primary common/share/ADS or pre-funded offering exists, but share count, price, or proceeds are blank/pending/assumed so a dilution ratio is not source-backed.",
+            avoid_when: "Source-backed share count and denominator allow a normal primary_offering dilution chart.",
+          },
+          {
+            mode: "primary_offering",
+            use_when:
+              "Active primary sale of common shares/ADSs has source-backed share count or calculable share-equivalent supply.",
+            avoid_when: "Material attached warrants, resale, ATM, shelf, or blank/pending size dominates.",
+          },
+          {
+            mode: "registered_direct",
+            use_when: "Registered direct or private-placement style sale to named investors with current sale terms.",
+          },
+          {
+            mode: "mixed_offering",
+            use_when:
+              "Current prospectus combines multiple material active components, such as shares plus warrants, resale plus primary, ATM plus shelf, or instruments requiring a shared supply view.",
+          },
+          {
+            mode: "resale_registration",
+            use_when: "Selling stockholder resale registration dominates, with no primary sale as the main event.",
+          },
+          {
+            mode: "warrant_convertible",
+            use_when:
+              "Warrants, convertibles, preferred conversion, rights, or other share-linked instruments dominate the investor read.",
+          },
+          {
+            mode: "shelf_capacity",
+            use_when: "Base/universal shelf capacity or future offering registration with no active sale terms.",
+          },
+          { mode: "atm", use_when: "At-the-market sales agreement or active ATM program capacity dominates." },
+          {
+            mode: "ipo_registration",
+            use_when: "Initial traditional IPO/F-1/S-1 listing registration with key price/share terms pending.",
+          },
+          {
+            mode: "ipo_amendment",
+            use_when: "IPO amendment updates price range, share count, exchange/ticker, underwriters, or terms.",
+          },
+          { mode: "spac_ipo", use_when: "Blank-check/SPAC IPO registration without a target or de-SPAC transaction." },
+          {
+            mode: "rule_462b_mef",
+            use_when: "Rule 462(b), S-1MEF/F-1MEF, or added registration amount for an effective prior registration.",
+          },
+          { mode: "post_effective_amendment", use_when: "POS AM or post-effective amendment, especially deregistration or limited update." },
+          { mode: "routine_amendment", use_when: "Administrative/exhibit-only/no economic change amendment." },
+          { mode: "rights_offering", use_when: "Rights offering or subscription rights are the main sale mechanism." },
+          { mode: "generic", use_when: "Source blocks are too weak or no specialized UI fits." },
+        ],
+        source_input: buildS1F1RouteOnlyInput(parserOutput),
+      },
+      null,
+      2,
+    ),
+    responseFormat: {
+      json_schema: {
+        name: "sec_s1_f1_route_only",
+        strict: true,
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["display_mode", "confidence", "route_reason", "required_surfaces", "rejected_modes"],
+          properties: {
+            display_mode: {
+              type: "string",
+              enum: [
+                "pending_primary_offering",
+                "ipo_registration",
+                "ipo_amendment",
+                "routine_amendment",
+                "resale_registration",
+                "atm",
+                "primary_offering",
+                "registered_direct",
+                "warrant_convertible",
+                "rights_offering",
+                "shelf_capacity",
+                "mixed_offering",
+                "spac_ipo",
+                "rule_462b_mef",
+                "post_effective_amendment",
+                "generic",
+              ],
+            },
+            confidence: { type: "number", minimum: 0, maximum: 1 },
+            route_reason: { type: "string", maxLength: 320 },
+            required_surfaces: {
+              type: "array",
+              maxItems: 6,
+              items: {
+                type: "string",
+                enum: [
+                  "snapshot_metrics",
+                  "share_overhang",
+                  "offering_details",
+                  "instrument_details",
+                  "watch_next",
+                  "amendment_changes",
+                  "company_overview",
+                  "registration_details",
+                ],
+              },
+            },
+            rejected_modes: {
+              type: "array",
+              maxItems: 5,
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["display_mode", "reason"],
+                properties: {
+                  display_mode: { type: "string" },
+                  reason: { type: "string", maxLength: 180 },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+}
+
+function buildS1F1RouteOnlyInput(parserOutput: S1F1ParserOutput) {
+  const sourceInput = buildS1F1LlmSourceInput(parserOutput);
+  const sourceBlocks = Array.isArray(sourceInput.cleaned_source_blocks) ? sourceInput.cleaned_source_blocks : [];
+  return {
+    current_filing: sourceInput.current_filing,
+    source_inventory: sourceInput.source_inventory,
+    market_context: sourceInput.market_context,
+    parent_filing_context: sourceInput.parent_filing_context,
+    current_filing_source_block: sourceInput.current_filing_source_block,
+    cleaned_source_blocks: sourceBlocks.slice(0, 18).map((block) => {
+      const record = readRecord(block) || {};
+      return {
+        source: stringValue(record.source),
+        sectionKey: stringValue(record.sectionKey),
+        sectionTitle: stringValue(record.sectionTitle),
+        documentName: stringValue(record.documentName),
+        text: clipRouteOnlyText(stringValue(record.text), 2200),
+        tables: Array.isArray(record.tables)
+          ? record.tables.map((table) => clipRouteOnlyText(stringValue(table), 1000)).filter(Boolean).slice(0, 2)
+          : [],
+      };
+    }),
+    parser_warnings: sourceInput.parser_warnings,
+  };
+}
+
+function clipRouteOnlyText(value: string, maxLength: number) {
+  const text = value.trim();
+  if (!text || text.length <= maxLength) return text;
+  return text.slice(0, maxLength).trim();
+}
+
 function readS1F1EventTitlePercentConflict(value: Record<string, unknown>) {
   const analysisOutput = readRecord(value.analysis_output);
   const eventTitle = stringValue(analysisOutput?.event_title);
@@ -2161,6 +2388,7 @@ function readMaxOutputTokens(promptKey: string) {
   if (promptKey === SEC_424B_ANALYSIS_PROMPT_KEY) return 8000;
   if (promptKey === SEC_S1_F1_ANALYSIS_PROMPT_KEY) return 8000;
   if (promptKey === SEC_S1_F1_EVENT_TITLE_REPAIR_PROMPT_KEY) return 600;
+  if (promptKey === SEC_S1_F1_ROUTE_ONLY_PROMPT_KEY) return 1200;
   if (promptKey === SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY) return 2500;
   if (promptKey === SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY) return 7000;
   return promptKey === SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY ? 8000 : 5000;

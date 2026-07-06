@@ -6,6 +6,7 @@ import {
   runSecDevLatestAnalysisDryRun,
   runSecDevLiveDryRun,
   runSecDevResetAnalysis,
+  runSecDevS1F1RouteOnly,
 } from "@/lib/development/secFormDevDashboard";
 
 export const dynamic = "force-dynamic";
@@ -54,8 +55,15 @@ export async function POST(request: NextRequest) {
             rawItemId: readString(record.rawItemId),
             secPromptVariant: readString(record.secPromptVariant),
           })
-        : mode === "latest_analysis_dry_run"
-          ? await runSecDevLatestAnalysisDryRun(room, {
+        : mode === "route_only"
+          ? await runSecDevS1F1RouteOnly(room, {
+              accessionNumber: readString(record.accessionNumber),
+              rawItemId: readString(record.rawItemId),
+              llmProvider: readString(record.llmProvider),
+              llmModel: readString(record.llmModel),
+            })
+          : mode === "latest_analysis_dry_run"
+            ? await runSecDevLatestAnalysisDryRun(room, {
               limit: readNumber(record.limit, 1),
               countPerForm: readNumber(record.countPerForm, 1),
               attachmentLimit: readNumber(record.attachmentLimit, 6),
@@ -65,14 +73,14 @@ export async function POST(request: NextRequest) {
               dateTo: readString(record.dateTo),
               secPromptVariant: readString(record.secPromptVariant),
             })
-        : await runSecDevLiveDryRun(room, {
-            limit: readNumber(record.limit, 1),
-            countPerForm: readNumber(record.countPerForm, 1),
-            attachmentLimit: readNumber(record.attachmentLimit, 6),
-            formTypes: readStringArray(record.formTypes),
-            dateFrom: readString(record.dateFrom),
-            dateTo: readString(record.dateTo),
-          });
+          : await runSecDevLiveDryRun(room, {
+              limit: readNumber(record.limit, 1),
+              countPerForm: readNumber(record.countPerForm, 1),
+              attachmentLimit: readNumber(record.attachmentLimit, 6),
+              formTypes: readStringArray(record.formTypes),
+              dateFrom: readString(record.dateFrom),
+              dateTo: readString(record.dateTo),
+            });
 
   if (!detail) {
     return NextResponse.json({ ok: false, error: "Unknown SEC form room." }, { status: 404 });

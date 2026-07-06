@@ -19,6 +19,7 @@ const ALLOWED_424B_DISPLAY_MODES = new Set([
   "atm",
   "resale_registration",
   "primary_offering",
+  "pending_primary_offering",
   "registered_direct",
   "warrant_convertible",
   "rights_offering",

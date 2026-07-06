@@ -30,6 +30,7 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
   const [runningLatestAnalysis, setRunningLatestAnalysis] = useState(false);
   const [collectingSamples, setCollectingSamples] = useState(false);
   const [runningAccessionDryRun, setRunningAccessionDryRun] = useState(false);
+  const [runningRouteOnly, setRunningRouteOnly] = useState(false);
   const [persisting, setPersisting] = useState(false);
   const [resettingAnalysis, setResettingAnalysis] = useState(false);
   const [accessionNumber, setAccessionNumber] = useState("");
@@ -240,6 +241,31 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
     }
   }
 
+  async function runRouteOnlyDryRun() {
+    if (!selectedRoom || !dryRunAccession.trim()) return;
+    setRunningRouteOnly(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/development/sec-live", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          room: selectedRoom,
+          mode: "route_only",
+          accessionNumber: dryRunAccession.trim(),
+        }),
+      });
+      const payload = await response.json();
+      if (!payload.ok) throw new Error(payload.error || "Route-only dry-run failed.");
+      setDetail(payload.detail);
+      setTab("live");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Route-only dry-run failed.");
+    } finally {
+      setRunningRouteOnly(false);
+    }
+  }
+
   async function runControlledPersist() {
     if (!selectedRoom || !accessionNumber.trim()) return;
     setPersisting(true);
@@ -426,6 +452,15 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
             type="button"
           >
             {runningAccessionDryRun ? "Analyzing..." : "Analyze accession, no persist"}
+          </button>
+          <button
+            className={styles.secondaryButton}
+            disabled={runningRouteOnly || loading || selectedRoom !== "s1-f1" || !dryRunAccession.trim()}
+            onClick={runRouteOnlyDryRun}
+            title={selectedRoom === "s1-f1" ? "Route S-1/F-1 display mode only" : "Route-only is currently available for S-1/F-1"}
+            type="button"
+          >
+            {runningRouteOnly ? "Routing..." : "Route only"}
           </button>
           <label>
             <span>Controlled persist accession</span>

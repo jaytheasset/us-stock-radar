@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { runSecFilingAnalysisIngest } from "@/lib/secFilingAnalysisIngest";
-import { runSecFilingAnalysisPreviewForRawItem, findSecRawItem } from "@/lib/ai/secFilingAnalysisPreview";
+import { runSecFilingAnalysisPreviewForRawItem, runSecS1F1RouteOnlyPreviewForRawItem, findSecRawItem } from "@/lib/ai/secFilingAnalysisPreview";
 import {
   createSecSourceRun,
   ensureSecSource,
@@ -59,6 +59,7 @@ export type SecDevLiveRunResult = {
     | "live_dry_run"
     | "latest_analysis_dry_run"
     | "accession_dry_run"
+    | "route_only"
     | "controlled_persist"
     | "reset_analysis"
     | "accession_samples"
@@ -719,6 +720,60 @@ function buildPreviewItem(rawItem: RawItemRow, preview: unknown) {
   };
 }
 
+function buildRouteOnlyItem(rawItem: RawItemRow, routeResult: unknown) {
+  const resultRecord = readRecord(routeResult) || {};
+  const input = readRecord(resultRecord.input);
+  const route = readRecord(resultRecord.route);
+  const prompt = readRecord(resultRecord.prompt);
+  const rawPayload = readRecord(rawItem.raw_payload);
+  const ok = resultRecord.ok === true;
+
+  return {
+    ok,
+    accession_number: stringValue(rawItem.source_unique_id),
+    raw_item_id: stringValue(rawItem.id) || null,
+    form_type: rawPayload?.form_type || null,
+    ticker: rawPayload?.ticker || null,
+    title: stringValue(rawItem.title),
+    source_url: stringValue(rawItem.source_url),
+    body_chars: stringValue(rawItem.body_text).length,
+    prompt_key: stringValue(prompt?.key) || null,
+    prompt_version: stringValue(prompt?.version) || null,
+    stage: stringValue(resultRecord.stage) || null,
+    model: stringValue(resultRecord.model) || stringValue(prompt?.model) || null,
+    route_only: route
+      ? {
+          display_mode: stringValue(route.display_mode),
+          confidence: numberValue(route.confidence),
+          route_reason: stringValue(route.route_reason),
+          required_surfaces: stringArray(route.required_surfaces),
+          rejected_modes: Array.isArray(route.rejected_modes) ? route.rejected_modes.slice(0, 5) : [],
+        }
+      : null,
+    runtime_output: route
+      ? {
+          model: stringValue(resultRecord.model) || stringValue(prompt?.model) || null,
+          event_title: stringValue(rawItem.title),
+          display_type: "route_only",
+          parser_route: "S-1/F-1 route-only test",
+          is_parser_completed_archive: false,
+          is_excluded: false,
+          display_data: [
+            `display_mode: ${stringValue(route.display_mode) || "-"}`,
+            `confidence: ${stringValue(route.confidence) || "-"}`,
+            `reason: ${stringValue(route.route_reason) || "-"}`,
+            `surfaces: ${stringArray(route.required_surfaces).join(", ") || "-"}`,
+          ],
+          usage: readRecord(resultRecord.usage) || null,
+          cost_estimate: readRecord(resultRecord.costEstimate) || null,
+        }
+      : null,
+    usage: readRecord(resultRecord.usage) || null,
+    cost_estimate: readRecord(resultRecord.costEstimate) || null,
+    error: ok ? null : stringValue(resultRecord.error) || null,
+  };
+}
+
 function buildRuntimeAnalysisItem(rawItem: RawItemRow, result: unknown) {
   const resultRecord = readRecord(result) || {};
   const input = readRecord(resultRecord.input);
@@ -1207,6 +1262,82 @@ export async function runSecDevAccessionDryRun(
       items: [],
       diagnostics: null,
       error: error instanceof Error ? error.message : "Accession dry-run failed",
+    };
+  }
+
+  await appendLiveRun(room.key, liveRun);
+  return getSecDevRoomDetail(room.key);
+}
+
+export async function runSecDevS1F1RouteOnly(
+  roomKey: string,
+  options: { accessionNumber?: string; rawItemId?: string; llmProvider?: string; llmModel?: string } = {},
+): Promise<SecDevRoomDetail | null> {
+  const room = SEC_DEV_ROOMS.find((item) => item.key === roomKey);
+  if (!room) return null;
+
+  const accessionNumber = stringValue(options.accessionNumber);
+  const rawItemId = stringValue(options.rawItemId);
+  const started = Date.now();
+  const ranAt = new Date().toISOString();
+  let liveRun: SecDevLiveRunResult;
+
+  try {
+    if (room.key !== "s1-f1") {
+      throw new Error("Route-only dry-run is currently limited to the S-1 / F-1 room.");
+    }
+    if (!accessionNumber && !rawItemId) {
+      throw new Error("Route-only dry-run requires accessionNumber or rawItemId.");
+    }
+
+    const rawResult = await findSecRawItem({
+      accessionNumber: accessionNumber || undefined,
+      rawItemId: rawItemId || undefined,
+    });
+    if (!rawResult.ok || !rawResult.rawItem) {
+      throw new Error(rawResult.error || "SEC raw item not found. Ingest raw first, then run route-only.");
+    }
+
+    const routeResult = await runSecS1F1RouteOnlyPreviewForRawItem(rawResult.rawItem, {
+      llmProvider: stringValue(options.llmProvider) || undefined,
+      llmModel: stringValue(options.llmModel) || undefined,
+    });
+    const item = buildRouteOnlyItem(rawResult.rawItem, routeResult);
+
+    liveRun = {
+      mode: "route_only",
+      status: item.ok === true ? "pass" : "fail",
+      ranAt,
+      durationMs: Date.now() - started,
+      room: room.key,
+      formTypes: room.forms,
+      accessionNumber: accessionNumber || stringValue(item.accession_number) || null,
+      rawItemId: rawItemId || stringValue(rawResult.rawItem.id) || null,
+      summary: "Routed one existing S-1/F-1 raw item to a display mode only; no full analysis, no DB writes, no alerts.",
+      items: [item],
+      diagnostics: {
+        route_only: true,
+        prompt: readRecord(routeResult.prompt) || null,
+        source_block_count: Array.isArray(readRecord(routeResult.input)?.cleaned_source_blocks)
+          ? (readRecord(routeResult.input)?.cleaned_source_blocks as unknown[]).length
+          : null,
+      },
+      error: item.ok === true ? null : stringValue(item.error) || "Route-only dry-run failed",
+    };
+  } catch (error) {
+    liveRun = {
+      mode: "route_only",
+      status: "fail",
+      ranAt,
+      durationMs: Date.now() - started,
+      room: room.key,
+      formTypes: room.forms,
+      accessionNumber: accessionNumber || null,
+      rawItemId: rawItemId || null,
+      summary: "Route-only dry-run failed.",
+      items: [],
+      diagnostics: null,
+      error: error instanceof Error ? error.message : "Route-only dry-run failed",
     };
   }
 

@@ -4129,6 +4129,8 @@ function DilutionOfferingTemplate({
 
           {model.hideStructuredDetailSections ? null : model.hideShareOverhang ? (
             <AtmProgramDetails model={model} />
+          ) : model.isPendingPrimaryOffering ? (
+            <PendingPrimaryOfferingDetails model={model} />
           ) : model.isMixedOffering ? (
             <MixedOfferingDetails model={model} />
           ) : model.isPricedPrimaryOrRegisteredDirect ? (
@@ -4163,6 +4165,33 @@ function ShelfDetailsSection({ model }: { model: ReturnType<typeof buildDilution
       emptyText="No source-backed shelf details were provided."
       headingLabel="Registration details"
     />
+  );
+}
+
+function PendingPrimaryOfferingDetails({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
+  const detailRows = model.offeringDetailsRows.length ? model.offeringDetailsRows : model.pricedOfferingRows;
+
+  return (
+    <>
+      <DilutionDisclosureSection
+        title="Pending Offering Terms"
+        rows={detailRows}
+        emptyText="No source-backed pending offering terms were provided."
+        headingLabel="Terms pending"
+      />
+      {model.warrantInstrumentRows.length ? (
+        <DilutionInstrumentDetailsSection
+          rows={model.warrantInstrumentRows}
+          emptyText="No source-backed instrument rows were provided."
+        />
+      ) : model.warrantDetailsRows.length ? (
+        <DilutionDisclosureSection
+          title="Instrument Details"
+          rows={model.warrantDetailsRows}
+          emptyText="No source-backed instrument rows were provided."
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -6815,10 +6844,14 @@ function readOptionalNumber(value: unknown) {
 
 function normalize424bOfferingDisplayMode(value: string) {
   const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (normalized === "unpriced_primary_offering" || normalized === "pending_offering_terms") {
+    return "pending_primary_offering";
+  }
   const allowed = new Set([
     "atm",
     "resale_registration",
     "primary_offering",
+    "pending_primary_offering",
     "registered_direct",
     "warrant_convertible",
     "rights_offering",
@@ -6892,6 +6925,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
   const isShelf = isAuthoritative424bMode
     ? displayMode === "shelf_capacity"
     : /\b(?:shelf|s-3|s-3asr|registration statement)\b/i.test(classificationText);
+  const isPendingPrimaryOffering = displayMode === "pending_primary_offering";
   const isForwardSale =
     /\bforward (?:sale|basis|purchase|transaction|contract|agreement)|physical settlement\b/i.test(structuredClassificationText) ||
     /\bforward (?:sale|purchase) agreement\b/i.test(fallbackSourceText);
@@ -8156,6 +8190,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     warrantInstrumentRows,
     is424bOfferingTermsPayload,
     isMixedOffering,
+    isPendingPrimaryOffering,
     isNoFloorVariableConvertibleExposure,
     isResaleRegistration: isResale,
     isWarrantConvertible: isConvertibleFinancing,

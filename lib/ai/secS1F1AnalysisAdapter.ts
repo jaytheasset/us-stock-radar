@@ -23,6 +23,7 @@ const ALLOWED_S1_F1_DISPLAY_MODES = new Set([
   "resale_registration",
   "atm",
   "primary_offering",
+  "pending_primary_offering",
   "registered_direct",
   "warrant_convertible",
   "rights_offering",
