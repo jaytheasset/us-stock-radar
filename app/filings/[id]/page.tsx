@@ -140,6 +140,23 @@ type OwnershipRelatedFiling = RecentFiling & {
 type FilingContextRelatedFiling = OwnershipRelatedFiling & {
   matchScore?: number | null;
   matchConfidence?: string;
+  quickTake?: string;
+  summary?: string;
+  sourceUrl?: string;
+};
+
+type EffectGatewayModel = {
+  relatedForm: string;
+  effectiveDate: string;
+  registrationReference: string;
+  originalReference: string;
+  originalFiling: FilingContextRelatedFiling | null;
+  snapshotMetrics: Array<{
+    label: string;
+    value: string;
+    note?: string;
+  }>;
+  nextSteps: string[];
 };
 
 type RelatedStory = {
@@ -1491,19 +1508,26 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
   const { id } = await params;
   const filing = await resolveFilingEvent(id);
   const eventBadge = getEventTypeBadge(filing.eventType);
-  const ipoModel = buildIpoListingModel(filing);
+  const effectModel = buildEffectGatewayModel(filing);
+  const useEffectDetail = Boolean(effectModel);
+  const ipoModel = !useEffectDetail ? buildIpoListingModel(filing) : null;
   const useIpoDetail = Boolean(ipoModel);
-  const spacModel = !useIpoDetail ? buildSpacTransactionStatusModel(filing) : null;
+  const spacModel = !useEffectDetail && !useIpoDetail ? buildSpacTransactionStatusModel(filing) : null;
   const useSpacDetail = Boolean(spacModel);
   const canUseDilutionDetail = canRenderDilutionOfferingDetail(filing);
-  const listingRiskModel = !useIpoDetail && !useSpacDetail && !canUseDilutionDetail ? buildListingRiskModel(filing) : null;
+  const listingRiskModel =
+    !useEffectDetail && !useIpoDetail && !useSpacDetail && !canUseDilutionDetail ? buildListingRiskModel(filing) : null;
   const useListingRiskDetail = Boolean(listingRiskModel);
-  const earningsModel = !useIpoDetail && !useSpacDetail && !useListingRiskDetail ? buildEarningsModel(filing) : null;
+  const earningsModel =
+    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useListingRiskDetail ? buildEarningsModel(filing) : null;
   const useEarningsDetail = Boolean(earningsModel);
   const fdaClinicalModel =
-    !useIpoDetail && !useSpacDetail && !useListingRiskDetail && !useEarningsDetail ? buildFdaClinicalModel(filing) : null;
+    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useListingRiskDetail && !useEarningsDetail
+      ? buildFdaClinicalModel(filing)
+      : null;
   const useFdaClinicalDetail = Boolean(fdaClinicalModel);
   const dilutionModel =
+    !useEffectDetail &&
     !useIpoDetail &&
     !useSpacDetail &&
     !useListingRiskDetail &&
@@ -1576,6 +1600,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
                 <span className="filing-form-pill">{filing.formType}</span>
                 <span className={`signal-badge ${filing.signal}`}>{filing.signal}</span>
                 <span className={`source-badge impact-badge ${filing.signal}`}>Impact {filing.score}</span>
+                {useEffectDetail ? <span className="filing-template-chip">SEC Effective</span> : null}
                 {useIpoDetail ? <span className="filing-template-chip">IPO Listing</span> : null}
                 {useSpacDetail ? <span className="filing-template-chip">SPAC Transaction Status</span> : null}
                 {useListingRiskDetail ? <span className="filing-template-chip">Listing Risk</span> : null}
@@ -1585,7 +1610,9 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             </div>
           </section>
 
-          {useIpoDetail && ipoModel ? (
+          {useEffectDetail && effectModel ? (
+            <EffectGatewayTemplate eventLabel={eventBadge.label} filing={filing} model={effectModel} />
+          ) : useIpoDetail && ipoModel ? (
             <IpoListingTemplate eventLabel={eventBadge.label} filing={filing} model={ipoModel} />
           ) : useSpacDetail && spacModel ? (
             <SpacTransactionStatusTemplate eventLabel={eventBadge.label} filing={filing} model={spacModel} />
@@ -2646,6 +2673,97 @@ function formatMarketContextNumber(value: unknown) {
 function formatMarketContextShares(value: unknown) {
   const numberValue = typeof value === "number" ? value : typeof value === "string" ? Number(value) : 0;
   return Number.isFinite(numberValue) && numberValue > 0 ? formatCompactShareCount(numberValue) : undefined;
+}
+
+function EffectGatewayTemplate({
+  eventLabel,
+  filing,
+  model,
+}: {
+  eventLabel: string;
+  filing: FilingEvent;
+  model: EffectGatewayModel;
+}) {
+  const original = model.originalFiling;
+  const originalSummary =
+    cleanDisclosureValue(original?.quickTake) ||
+    cleanDisclosureValue(original?.summary) ||
+    cleanDisclosureValue(original?.description) ||
+    "";
+
+  return (
+    <>
+      <section className="stock-detail-card effect-gateway-hero">
+        <div className="effect-gateway-copy">
+          <span>SEC EFFECTIVENESS</span>
+          <h2>{model.relatedForm} is now effective</h2>
+          <p>{filing.summary}</p>
+        </div>
+        <div className="effect-snapshot-grid" aria-label="Effectiveness snapshot">
+          {model.snapshotMetrics.map((metric) => (
+            <div className="effect-snapshot-item" key={metric.label}>
+              <span>{metric.label}</span>
+              <strong>{metric.value}</strong>
+              {metric.note ? <small>{metric.note}</small> : null}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="stock-detail-card-grid two-up effect-gateway-grid">
+        <div className="stock-detail-card effect-original-card">
+          <div className="card-heading-row">
+            <div>
+              <h2>Original Filing Summary</h2>
+              <p>Use the original analysis for the full offering or transaction details.</p>
+            </div>
+            {original?.id ? (
+              <Link className="effect-original-link" href={`/filings/${original.id}`}>
+                Open analysis <ExternalLink size={13} />
+              </Link>
+            ) : null}
+          </div>
+
+          {original ? (
+            <div className="effect-original-body">
+              <div className="effect-original-meta">
+                <span>{original.form}</span>
+                {original.accession ? <span>{original.accession}</span> : null}
+                {original.filedAt ? <span>{original.filedAt}</span> : null}
+                <span>{original.relation}</span>
+              </div>
+              <h3>{original.title}</h3>
+              {originalSummary ? <p>{originalSummary}</p> : <p>Original filing context is linked, but no compact summary was stored.</p>}
+              {!original.id && model.originalReference ? (
+                <p className="effect-fallback-note">Original filing reference: {model.originalReference}</p>
+              ) : null}
+            </div>
+          ) : (
+            <p className="effect-fallback-note">
+              Original filing analysis is not linked yet. Reference: {model.originalReference || model.registrationReference}
+            </p>
+          )}
+        </div>
+
+        <div className="stock-detail-card effect-next-card">
+          <div className="card-heading-row">
+            <div>
+              <h2>What This Changes</h2>
+              <p>Effectiveness means the registration can move into its next public step.</p>
+            </div>
+          </div>
+          <ol className="effect-next-list">
+            {model.nextSteps.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <FilingMarketContextPanel filing={filing} />
+      <OriginalFilingText filing={filing} eventLabel={eventLabel} includeTemplateStatus />
+    </>
+  );
 }
 
 function formatMarketContextFloatPercent(marketContext: Record<string, unknown>) {
@@ -5467,6 +5585,94 @@ const IPO_STAGE_LABELS = IPO_STAGE_ORDER.reduce<Record<IpoStageCode, string>>((l
   labels[stage.code] = stage.label;
   return labels;
 }, {} as Record<IpoStageCode, string>);
+
+function buildEffectGatewayModel(filing: FilingEvent): EffectGatewayModel | null {
+  const formType = filing.formType.trim().toUpperCase();
+  const displayPayload = readPlainRecord(filing.displayPayload);
+  const data = readDisplayPayloadData(displayPayload);
+  const relatedForm = displayString(data, "effective_filing_form", "");
+  const effectiveDate = displayString(data, "effective_date", "");
+  const registrationReference = displayString(data, "effective_registration_reference", "");
+  const originalReference = displayString(data, "original_filing_reference", "");
+
+  if (formType !== "EFFECT" && !relatedForm && !effectiveDate && !registrationReference) return null;
+
+  const resolvedRelatedForm = relatedForm || "Registration statement";
+  const originalFiling = findEffectOriginalFiling(filing, originalReference);
+  const snapshotMetrics = [
+    {
+      label: "Status",
+      value: "Effective",
+      note: "SEC notice of effectiveness",
+    },
+    {
+      label: "Related registration",
+      value: resolvedRelatedForm,
+      note: originalFiling?.title || "Original registration statement",
+    },
+    {
+      label: "Effective date",
+      value: effectiveDate || "Not disclosed",
+    },
+    {
+      label: "Registration reference",
+      value: registrationReference || originalReference || "Not disclosed",
+    },
+  ];
+
+  return {
+    relatedForm: resolvedRelatedForm,
+    effectiveDate: effectiveDate || "Not disclosed",
+    registrationReference: registrationReference || "Not disclosed",
+    originalReference,
+    originalFiling,
+    snapshotMetrics,
+    nextSteps: buildEffectNextSteps(filing, resolvedRelatedForm),
+  };
+}
+
+function findEffectOriginalFiling(filing: FilingEvent, originalReference: string): FilingContextRelatedFiling | null {
+  const relatedFilings = filing.contextRelatedFilings ?? [];
+  if (!relatedFilings.length) return null;
+
+  const reference = originalReference.trim();
+  const referenceWithoutPrefix = reference.replace(/^event:/i, "");
+  const normalizedReferenceAccession = normalizeAccession(reference);
+  const normalizedRegistrationReference = normalizeAccession(reference.replace(/^Registration No\.\s*/i, ""));
+
+  const directMatch =
+    relatedFilings.find((item) => referenceWithoutPrefix && item.id === referenceWithoutPrefix) ||
+    relatedFilings.find((item) => reference && item.id === reference) ||
+    relatedFilings.find((item) => normalizedReferenceAccession && normalizeAccession(item.accession || "") === normalizedReferenceAccession) ||
+    relatedFilings.find(
+      (item) => normalizedRegistrationReference && normalizeAccession(item.accession || "") === normalizedRegistrationReference,
+    );
+  if (directMatch) return directMatch;
+
+  return (
+    relatedFilings.find((item) => item.relation === "Parent" && item.id) ||
+    relatedFilings.find((item) => item.relation === "Parent") ||
+    relatedFilings.find((item) => item.id) ||
+    relatedFilings[0] ||
+    null
+  );
+}
+
+function buildEffectNextSteps(filing: FilingEvent, relatedForm: string) {
+  if (filing.watchNext.length) return filing.watchNext.slice(0, 3);
+
+  const form = relatedForm.toUpperCase();
+  if (/S-1|F-1|IPO/.test(form)) {
+    return ["Watch for final pricing or 424B4 prospectus.", "Track first trading date and ticker activation.", "Review the original IPO terms before trading."];
+  }
+  if (/S-3|F-3|424B|POS/.test(form)) {
+    return ["Watch for prospectus supplement or takedown terms.", "Check whether an ATM, resale, or registered direct sale follows.", "Use the original filing analysis for capacity and dilution context."];
+  }
+  if (/S-4|F-4/.test(form)) {
+    return ["Watch for shareholder vote timing and closing conditions.", "Track final redemption or consideration details.", "Use the original transaction analysis for deal terms."];
+  }
+  return ["Open the original filing analysis for the substantive terms.", "Watch for final prospectus, pricing, closing, or transaction updates.", "Treat this notice as effectiveness confirmation, not a full new analysis."];
+}
 
 function buildIpoListingModel(filing: FilingEvent): IpoListingModel | null {
   const displayPayload = readPlainRecord(filing.displayPayload);
@@ -11259,9 +11465,21 @@ function buildFilingContextRelatedFilings({
   const filingContext = readPlainRecord(metadata?.filing_context);
   const transactionHistory = readPlainRecord(filingContext?.transaction_history);
   const priorFilings = recordArray(transactionHistory?.prior_filings);
+  const parentContext = readPlainRecord(metadata?.parent_filing_context);
+  const parentFiling = readPlainRecord(parentContext?.parent);
+  const parentContextItem = parentFiling
+    ? {
+        ...parentFiling,
+        match_source: "parent_filing_context",
+        match_method: readRowString(parentContext, "match_method"),
+        match_confidence: readRowString(parentContext, "match_confidence") || readRowString(parentContext, "confidence"),
+        match_score: readRowNumber(parentContext, "match_score"),
+      }
+    : null;
+  const relatedSourceItems = parentContextItem ? [parentContextItem, ...priorFilings] : priorFilings;
   const seen = new Set<string>();
 
-  return priorFilings
+  return relatedSourceItems
     .map((item) => mapFilingContextRelatedFiling(item))
     .filter((item): item is FilingContextRelatedFiling => Boolean(item))
     .filter((item) => {
@@ -11284,6 +11502,12 @@ function mapFilingContextRelatedFiling(item: Record<string, unknown>): FilingCon
   const relation = classifyFilingContextRelation(item, form);
   const confidence = readRowString(item, "match_confidence");
   const score = readRowNumber(item, "match_score");
+  const quickTake =
+    readRowString(item, "quick_take") ||
+    readRowString(item, "quickTake") ||
+    readRowString(item, "filing_brief") ||
+    readRowString(item, "filingBrief");
+  const summary = readRowString(item, "summary") || readRowString(item, "event_summary") || readRowString(item, "analysis_summary");
 
   return {
     id,
@@ -11299,6 +11523,9 @@ function mapFilingContextRelatedFiling(item: Record<string, unknown>): FilingCon
     candidate: relation.candidate,
     matchScore: score || null,
     matchConfidence: confidence,
+    quickTake,
+    summary,
+    sourceUrl: readRowString(item, "source_url") || readRowString(item, "sourceUrl") || readRowString(item, "primary_document_url"),
   };
 }
 

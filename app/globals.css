@@ -6653,6 +6653,157 @@ td {
   color: #0f55ff;
 }
 
+.effect-gateway-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.85fr);
+  gap: 26px;
+  align-items: start;
+}
+
+.effect-gateway-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.effect-gateway-copy > span {
+  color: #0f55ff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.effect-gateway-copy h2 {
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.effect-gateway-copy p {
+  max-width: 760px;
+  color: #25395d;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.effect-snapshot-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid #d8e2f0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.effect-snapshot-item {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 13px 14px;
+  border-right: 1px solid #d8e2f0;
+  border-bottom: 1px solid #d8e2f0;
+}
+
+.effect-snapshot-item:nth-child(2n) {
+  border-right: 0;
+}
+
+.effect-snapshot-item:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.effect-snapshot-item span {
+  color: #5f6f89;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.effect-snapshot-item strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #07142d;
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.effect-snapshot-item small {
+  color: #60718d;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.effect-original-card .card-heading-row p,
+.effect-next-card .card-heading-row p {
+  margin-top: 4px;
+  color: #64728a;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.effect-original-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  border: 1px solid #bfd0ea;
+  border-radius: 8px;
+  padding: 7px 10px;
+  color: #0f55ff;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.effect-original-body {
+  display: grid;
+  gap: 10px;
+}
+
+.effect-original-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.effect-original-meta span {
+  border: 1px solid #d8e2f0;
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: #405675;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.effect-original-body h3 {
+  color: #07142d;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.effect-original-body p,
+.effect-fallback-note {
+  color: #25395d;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.effect-fallback-note {
+  border: 1px solid #d8e2f0;
+  border-radius: 8px;
+  padding: 12px;
+  background: #f8fbff;
+}
+
+.effect-next-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 22px;
+  color: #25395d;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
 .price-card-heading {
   align-items: center;
 }
@@ -15605,6 +15756,26 @@ td {
     grid-template-columns: 1fr;
   }
 
+  .effect-gateway-hero,
+  .effect-gateway-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .effect-snapshot-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .effect-snapshot-item,
+  .effect-snapshot-item:nth-child(2n),
+  .effect-snapshot-item:nth-last-child(-n + 2) {
+    border-right: 0;
+    border-bottom: 1px solid #d8e2f0;
+  }
+
+  .effect-snapshot-item:last-child {
+    border-bottom: 0;
+  }
+
   .admin-grid,
   .taxonomy-card-grid,
   .readout-grid {
@@ -16776,6 +16947,8 @@ html[data-theme="dark"] .detail-metric,
 html[data-theme="dark"] .detail-ad-slot,
 html[data-theme="dark"] .stock-detail-card,
 html[data-theme="dark"] .stock-detail-meta > span:not(.ticker-chip, .signal-badge, .source-badge),
+html[data-theme="dark"] .effect-snapshot-grid,
+html[data-theme="dark"] .effect-fallback-note,
 html[data-theme="dark"] .spac-status-chip,
 html[data-theme="dark"] .spac-metric-card,
 html[data-theme="dark"] .spac-context-columns > section,
@@ -17196,6 +17369,25 @@ html[data-theme="dark"] .event-type-badge.market {
   border-color: #256c46;
   color: #6ee7a1;
   background: #123322;
+}
+
+html[data-theme="dark"] .effect-snapshot-item,
+html[data-theme="dark"] .effect-original-meta span,
+html[data-theme="dark"] .effect-original-link {
+  border-color: var(--border);
+}
+
+html[data-theme="dark"] .effect-gateway-copy h2,
+html[data-theme="dark"] .effect-snapshot-item strong,
+html[data-theme="dark"] .effect-original-body h3 {
+  color: var(--text);
+}
+
+html[data-theme="dark"] .effect-gateway-copy p,
+html[data-theme="dark"] .effect-original-body p,
+html[data-theme="dark"] .effect-next-list,
+html[data-theme="dark"] .effect-fallback-note {
+  color: var(--muted);
 }
 
 html[data-theme="dark"] .event-type-badge.regulatory {
