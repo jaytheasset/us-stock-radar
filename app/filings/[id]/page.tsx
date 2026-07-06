@@ -2737,16 +2737,34 @@ function EffectGatewayTemplate({
 
 function buildEffectInvestorSummary(model: EffectGatewayModel) {
   const form = model.relatedForm || "Registration statement";
+  const originalContext = buildEffectOriginalFilingContextSentence(model.originalFiling);
   const isIpoRegistration = /(?:S-1|F-1|IPO)/i.test(form);
-  if (model.originalFiling?.id) {
-    return isIpoRegistration
-      ? `${form} is effective now. The linked original analysis has the IPO terms investors need to review.`
-      : `${form} is effective now. The linked original analysis has the terms investors need to review.`;
+  if (originalContext) {
+    return `${form} is effective now. ${originalContext} Use the related filing below for full terms.`;
   }
 
   return isIpoRegistration
     ? `${form} is effective now. Watch for final pricing, trading, or a related prospectus update.`
     : `${form} is effective now. Watch for the next filing or final sale terms.`;
+}
+
+function buildEffectOriginalFilingContextSentence(original: FilingContextRelatedFiling | null) {
+  if (!original) return "";
+
+  const source =
+    cleanDisclosureValue(original.quickTake) ||
+    cleanDisclosureValue(original.summary) ||
+    cleanDisclosureValue(original.title) ||
+    "";
+  if (!source) return "";
+
+  const normalized = source
+    .replace(/\s+/g, " ")
+    .replace(/\s+([,.;:!?])/g, "$1")
+    .trim();
+  const firstSentence = normalized.match(/^(.+?[.!?])(?:\s|$)/)?.[1]?.trim() || normalized;
+  const compact = firstSentence.length > 180 ? `${firstSentence.slice(0, 177).trimEnd()}...` : firstSentence;
+  return `Original filing: ${compact}`;
 }
 
 function formatMarketContextFloatPercent(marketContext: Record<string, unknown>) {
