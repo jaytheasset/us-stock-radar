@@ -16,7 +16,7 @@ import {
 
 export const SEC_S1_F1_ANALYSIS_PROMPT_KEY = "sec_s1_f1_analysis";
 export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v28-spac-ipo-minimal";
-export const SEC_S1_F1_PENDING_TERMS_TEST_PROMPT_VERSION = "v29-pending-terms-test";
+export const SEC_S1_F1_PENDING_TERMS_TEST_PROMPT_VERSION = "v30-pending-terms-test-note-role";
 
 const S1_F1_SHARE_OVERHANG_PERCENT_TOLERANCE = 0.049;
 
@@ -267,6 +267,7 @@ export function adaptSecS1F1AnalysisPromptResultForAnalysis(
   const displayPayloadData = readRecord(displayPayload.data);
   if (displayPayloadData) {
     displayPayloadWarnings.push(...collectS1F1IpoDisplayWarnings(displayPayloadData, analysisOutput));
+    displayPayloadWarnings.push(...collectS1F1VisiblePlaceholderWarnings(displayPayloadData, analysisOutput));
     displayPayloadWarnings.push(...collectS1F1SourceCoverageWarnings(displayPayloadData, input));
     displayPayloadWarnings.push(...collectS1F1ShareOverhangDisplayWarnings(displayPayloadData, analysisOutput));
     appendS1F1DisplayWarnings(displayPayloadData, displayPayloadWarnings);
@@ -975,7 +976,68 @@ function collectS1F1IpoDisplayWarnings(data: Record<string, unknown>, analysisOu
 }
 
 function hasBlankMoneyPlaceholder(value: string) {
-  return /\$\s*(?:and|to|-)\s*\$/i.test(value) || /\bbetween\s+\$\s+(?:and|to|-)\s+\$/i.test(value);
+  return hasS1F1UnresolvedPlaceholderText(value);
+}
+
+function collectS1F1VisiblePlaceholderWarnings(
+  data: Record<string, unknown>,
+  analysisOutput: Record<string, unknown> | null,
+) {
+  const warnings: string[] = [];
+  collectS1F1PlaceholderWarningsFromValue(data, "display_payload.data", warnings);
+  const analysisFields = [
+    "event_title",
+    "title",
+    "headline",
+    "summary",
+    "quick_take",
+    "score_reason",
+    "investor_takeaway",
+    "archive_summary",
+  ];
+  for (const field of analysisFields) {
+    collectS1F1PlaceholderWarningsFromValue(analysisOutput?.[field], `analysis_output.${field}`, warnings);
+  }
+  collectS1F1PlaceholderWarningsFromValue(analysisOutput?.score_explanation, "analysis_output.score_explanation", warnings);
+  return uniqueStrings(warnings);
+}
+
+function collectS1F1PlaceholderWarningsFromValue(value: unknown, path: string, warnings: string[]) {
+  if (typeof value === "string") {
+    if (hasS1F1UnresolvedPlaceholderText(value)) {
+      warnings.push(`S-1/F-1 visible output contains unresolved placeholder text at ${path}: ${compactWarningText(value)}`);
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => collectS1F1PlaceholderWarningsFromValue(item, `${path}[${index}]`, warnings));
+    return;
+  }
+  const record = readRecord(value);
+  if (!record) return;
+  for (const [key, child] of Object.entries(record)) {
+    if (key === "display_warnings") continue;
+    collectS1F1PlaceholderWarningsFromValue(child, `${path}.${key}`, warnings);
+  }
+}
+
+function hasS1F1UnresolvedPlaceholderText(value: string) {
+  const text = stringValue(value);
+  if (!text) return false;
+  return (
+    /\$\s*(?:and|to|-)\s*\$/i.test(text) ||
+    /\bbetween\s+\$\s+(?:and|to|-)\s+\$/i.test(text) ||
+    /\$\s*(?:per\s+(?:share|unit|ADS|ordinary\s+unit|pre-funded\s+warrant)|million|billion)\b/i.test(text) ||
+    /\b(?:estimated|approximately|approx\.?|about|up\s+to)\s+\$\s*(?:$|[.,;)]|\s+(?:in|of|for|from|before|after)\b)/i.test(text) ||
+    /\$\s*$/i.test(text) ||
+    /\$\s*(?:\[?\s*[●•]\s*\]?|\[\s*\]|\{\s*\}|_{2,})/i.test(text) ||
+    /(?:\[?\s*[●•]\s*\]?|\[\s*\]|\{\s*\}|_{2,})\s*(?:shares?|units?|ADSs?|warrants?|per\s+share|per\s+unit|price|proceeds|amount)/i.test(text)
+  );
+}
+
+function compactWarningText(value: string) {
+  const compact = value.replace(/\s+/g, " ").trim();
+  return compact.length > 120 ? `${compact.slice(0, 117)}...` : compact;
 }
 
 function collectS1F1SourceCoverageWarnings(data: Record<string, unknown>, input: SecFilingAnalysisInput) {

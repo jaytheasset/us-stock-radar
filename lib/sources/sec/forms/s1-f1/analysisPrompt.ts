@@ -47,7 +47,7 @@ const S1F1_PENDING_TERMS_TEST_DISPLAY_MODES = [
 ] as const;
 
 const S1F1_PROMPT_VERSION = "s1-f1-analysis-v23-supply-type-badges";
-const S1F1_PENDING_TERMS_TEST_PROMPT_VERSION = "s1-f1-analysis-v24-pending-terms-test";
+const S1F1_PENDING_TERMS_TEST_PROMPT_VERSION = "s1-f1-analysis-v25-pending-terms-test-note-role";
 
 export type S1F1AnalysisPromptVariant = "default" | "pending_terms_test";
 
@@ -134,9 +134,11 @@ export function buildS1F1AnalysisPrompt(
           "- If the prospectus only states a dollar cap, proposed maximum aggregate offering amount, fee-table amount, assumed price, placeholder share count, blank price, or actual amount not presently determinable, do not calculate dilution, overhang, proceeds, or share count from those values.",
           "- Do not use market_context, latest price, last sale price, fee-table price, assumed public offering price, or Rule 457 value to convert an S-1/F-1 dollar cap into shares.",
           "- Use pending_primary_offering for a primary cash offering whose current prospectus has blank or placeholder share/unit count or price terms.",
+          "- Prefer pending_primary_offering over mixed_offering when final share/unit counts or prices are missing, even if warrants, units, or pre-funded warrants are mentioned. Use mixed_offering only when a source-backed fixed share/security amount is available for visible share_overhang rows.",
           "- If warrants, pre-funded warrants, units, or placement-agent warrants are included but their share counts or prices are blank/placeholders, keep them in Offering Details and Instrument Details only. Do not build a share_overhang chart from placeholder amounts.",
           "- Use mixed_offering only when at least one current-offering or resale share/security amount is source-backed enough to show as visible share_overhang rows.",
           "- If the filing has a fixed resale pool or fixed registered shares plus a separate pending primary component, the fixed resale pool may still use resale_registration or mixed_offering share_overhang. Do not let pending primary terms suppress a source-backed resale overhang.",
+          "- For pending_primary_offering, omit share_overhang unless a separate fixed resale or registered share pool controls the investor read. Do not put capitalization-table basis explanations into snapshot notes.",
         ]
       : []),
     "",
@@ -455,6 +457,20 @@ export function buildS1F1AnalysisPrompt(
     "- For Dilution vs current shares, use filing-date shares outstanding from the filing whenever it is present. Do not use market_context shares when the filing provides a filing source share-count basis.",
     "- For Dilution vs current shares, calculate row_role counted rows divided by share_overhang.basis.numeric_value times 100. Do not use pro forma after-offering shares, as-adjusted shares, market_context shares, or book-value dilution as the share_overhang.basis for this UI row.",
     "- Offering Details labels: Offering Type, Underwriter, Placement Agent / Underwriter, Closing Date, Agreement Date, Use of Proceeds, Warrant Terms.",
+    ...(promptVariant === "pending_terms_test"
+      ? [
+          "",
+          "pending_primary_offering:",
+          "- Use for a primary S-1/F-1 offering when the current prospectus shows the securities offered but final share/unit count, price, or proceeds are blank, placeholder, or not presently determinable.",
+          "- Use this mode for common stock, ADSs, units, pre-funded warrants, accompanying warrants, underwriter options, or placement-agent warrants when the current offering package is pending final terms and no fixed resale pool controls the investor read.",
+          "- Snapshot labels should be: New shares; Offer price; Company proceeds; Pricing status.",
+          "- Snapshot values should use Not fixed yet, Pending, or Amount cap only when final terms are not stated.",
+          "- Snapshot notes are one-line qualifiers under the existing 80-character note limit. Explain only the displayed metric, such as Final share count and price pending.",
+          "- Put pending securities, underwriter/placement agent, amount cap, assumed price basis, and use of proceeds in Offering Details.",
+          "- Put source-backed instrument types and executable terms in Instrument Details. Use Not fixed yet for blank prices; omit unavailable term rows.",
+          "- Do not fill share_overhang for this mode unless a separate fixed resale or registered share pool is source-backed and controls the investor read.",
+        ]
+      : []),
     "",
     "registered_direct:",
     "- Use for registered direct, PIPE-style, or fixed purchaser takedown filings where named or described investors buy securities directly from the company.",
@@ -599,6 +615,7 @@ export function buildS1F1AnalysisPrompt(
           "- Invalid output pattern: share_overhang.rows contains numeric_value derived from blank placeholders, fee-table amounts, assumed prices, proposed maximum offering price, or market_context conversion when the filing does not state final shares/units. Before final JSON, remove the invented numeric_value and use pending_primary_offering or Not fixed yet.",
           "- Invalid output pattern: display_mode mixed_offering has a dilution, overhang, or supply percentage when all current offering share/unit counts are blank, placeholder, or not presently determinable. Before final JSON, use pending_primary_offering or non-calculable wording.",
           "- Invalid output pattern: a pre-funded warrant row is counted separately when the filing says common shares/ADSs/units and pre-funded warrants are alternatives but does not state a fixed maximum share-equivalent pool. Before final JSON, show the pending alternative structure without an additive dilution calculation.",
+          "- Invalid output pattern for pending_primary_offering: snapshot_metrics.note explains anything other than the displayed metric or exceeds one short UI qualifier. Before final JSON, replace it with a one-line source-backed qualifier under 80 characters.",
         ]
       : []),
     "- Invalid output pattern for initial IPO: quick_take, investor_takeaway, or display_quick_take starts with the issuer name or filing-action wording such as filed its initial S-1/F-1. Before final JSON, rewrite it as an investor takeaway about pending terms or the next signal.",
