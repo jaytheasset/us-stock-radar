@@ -210,6 +210,8 @@ const PROXY_LIGHTWEIGHT_IPO_LISTING_BLOCKER_PATTERN =
   /\b(?:spac|de-spac|de\s+spac|special\s+purpose\s+acquisition|blank\s+check|business\s+combination|merger(?:\s+agreement)?|acquisition|redemption|liquidation|dissolution|minimum\s+cash|closing\s+condition|ticker\s+change|consummation|reverse\s+stock\s+split|minimum\s+bid|delisting|nasdaq\s+compliance|nyse\s+compliance|authorized\s+shares?|share\s+issuance|issuance\s+of\s+shares|contested|dissident|proxy\s+contest|universal\s+proxy|poison\s+pill|bylaw|charter\s+amendment|certificate\s+of\s+incorporation|regulatory\s+investigation|litigation|antitrust|sanctions)\b/i;
 const PROXY_LIGHTWEIGHT_EQUITY_PLAN_BLOCKER_PATTERN =
   /\b(?:reverse\s+stock\s+split|minimum\s+bid|delisting|nasdaq\s+compliance|nyse\s+compliance|authorized\s+shares?|employee\s+stock\s+purchase\s+plan|espp|repricing|evergreen|business\s+combination|merger(?:\s+agreement)?|acquisition|asset\s+sale|liquidation|dissolution|contested|dissident|proxy\s+contest|universal\s+proxy|poison\s+pill|bylaw|charter\s+amendment|certificate\s+of\s+incorporation|regulatory\s+investigation|litigation|antitrust|sanctions)\b/i;
+const PROXY_LIGHTWEIGHT_CAPITAL_STRUCTURE_BLOCKER_PATTERN =
+  /\b(?:equity\s+incentive\s+plan|stock\s+incentive\s+plan|employee\s+stock\s+purchase\s+plan|espp|repricing|evergreen|share\s+issuance|issuance\s+of\s+shares|private\s+placement|financing|business\s+combination|merger(?:\s+agreement)?|acquisition|asset\s+sale|liquidation|dissolution|contested|dissident|proxy\s+contest|universal\s+proxy|poison\s+pill|classified\s+board|declassify|independent\s+chair|bylaw|regulatory\s+investigation|litigation|antitrust|sanctions)\b/i;
 
 export type SecFilingAnalysisRunResult = {
   ok: boolean;
@@ -1515,6 +1517,7 @@ function isLightweightProxyLlmCandidate(input: SecFilingAnalysisInput) {
   if (isRoutineAnnualProxyLiteCandidate(facts, proposals, explicitProxyText)) return true;
   if (isCleanIpoListingProxyLiteCandidate(facts, signals, explicitProxyText)) return true;
   if (isCleanEquityPlanProxyLiteCandidate(facts, signals, explicitProxyText)) return true;
+  if (isCleanCapitalStructureProxyLiteCandidate(facts, signals, explicitProxyText)) return true;
 
   return false;
 }
@@ -1577,6 +1580,31 @@ function isCleanEquityPlanProxyLiteCandidate(
     return false;
   }
   return !PROXY_LIGHTWEIGHT_EQUITY_PLAN_BLOCKER_PATTERN.test(explicitProxyText);
+}
+
+function isCleanCapitalStructureProxyLiteCandidate(
+  facts: Record<string, unknown>,
+  signals: Record<string, unknown>[],
+  explicitProxyText: string,
+) {
+  const eventTypes = proxyEventTypes(facts, signals);
+  const hasCapitalStructureVote =
+    /\b(?:reverse\s+stock\s+split|authorized\s+shares?|increase\s+(?:the\s+)?(?:number\s+of\s+)?authorized|minimum\s+bid|nasdaq\s+compliance|nyse\s+compliance|listing\s+compliance)\b/i.test(
+      explicitProxyText,
+    );
+
+  if (!hasCapitalStructureVote) return false;
+  if (
+    [...eventTypes].some(
+      (eventType) =>
+        eventType !== "listing_risk" &&
+        eventType !== "dilution_risk" &&
+        eventType !== "shareholder_vote",
+    )
+  ) {
+    return false;
+  }
+  return !PROXY_LIGHTWEIGHT_CAPITAL_STRUCTURE_BLOCKER_PATTERN.test(explicitProxyText);
 }
 
 function buildProxyRoutingText(
