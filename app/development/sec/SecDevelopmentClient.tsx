@@ -2949,16 +2949,16 @@ function getDisplayLabelGuide(roomKey: string): DisplayLabelGuide | null {
           purpose: "Routine annual proxy, ordinary shareholder vote, notice-only material, or weak proxy signal.",
           groups: [
             {
-              title: "Base data",
+              title: "Proxy Vote Summary",
               items: ["company_name", "sec_form_type", "proxy_type", "proposal_count", "meeting_date", "record_date", "proposals", "warnings"],
             },
             {
-              title: "Proposal labels",
+              title: "Summary labels",
               items: ["Proposal id", "Proposal title", "Category", "Board recommendation", "Shareholder proposal"],
             },
             {
-              title: "Routine archive labels",
-              items: ["Director election", "Auditor ratification", "Say-on-pay", "Routine annual meeting", "Vote reminder", "Notice-only material"],
+              title: "What To Watch Next",
+              items: ["Voting results after the meeting", "Any proxy supplement", "8-K vote results or meeting outcome"],
             },
           ],
         },
