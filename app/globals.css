@@ -7132,7 +7132,8 @@ td {
   gap: 0;
 }
 
-.proxy-listing-context {
+.proxy-listing-context,
+.proxy-summary-context {
   margin: 0 0 14px;
   color: #07122f;
   font-size: 14px;
@@ -7185,6 +7186,46 @@ td {
 
 .proxy-watch-grid {
   grid-template-columns: minmax(0, 1fr);
+}
+
+.proxy-plan-table-card {
+  display: grid;
+  gap: 14px;
+}
+
+.proxy-plan-table-list {
+  display: grid;
+  gap: 12px;
+}
+
+.proxy-plan-table-excerpt {
+  border-top: 1px solid var(--detail-divider);
+  padding-top: 12px;
+}
+
+.proxy-plan-table-excerpt strong {
+  display: block;
+  color: #07122f;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.proxy-plan-table-excerpt p,
+.proxy-plan-table-excerpt li {
+  color: #40506b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.proxy-plan-table-excerpt p {
+  margin: 4px 0 0;
+}
+
+.proxy-plan-table-excerpt ul {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding-left: 18px;
 }
 
 .dividend-overview-grid {

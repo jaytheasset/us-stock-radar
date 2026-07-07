@@ -618,15 +618,33 @@ const commonFilingEvents: Record<string, FilingEvent> = {
     signal: "volatile",
     filingFocus: "Equity plan vote sample",
     whyItMatters: "Shows how proxy share-reserve requests appear when the vote can affect future dilution.",
-    summary: "Equity plan proxy sample with requested plan shares and percent-of-outstanding fields.",
+    summary: "Shareholders are voting on a new equity incentive plan reserve. Approval would increase the pool of shares available for future stock-based compensation.",
     keyEvidence: ["Plan share request present.", "Percent of outstanding supplied as a proxy data field."],
-    watchNext: ["Check whether offering-style UI is appropriate.", "Review spacing for plan share metrics."],
+    watchNext: ["Final voting result", "Whether the plan reserve is approved", "Future equity grants using the new reserve"],
     displayType: "offering_terms",
     displayVersion: "proxy_equity_plan_vote_v1",
     displayData: {
+      plan_name: "2026 Equity Incentive Plan",
       shares_requested: "4,000,000 shares",
       percent_of_outstanding: "12.5%",
       proposal_ids: ["Proposal 3"],
+      vote_requirement: "Majority of votes cast",
+      proposals: [
+        {
+          id: "Proposal 3",
+          title: "Approve the 2026 Equity Incentive Plan",
+          category: "equity plan",
+          recommendation: "For",
+          is_shareholder_proposal: false,
+        },
+        {
+          id: "Proposal 4",
+          title: "Adjournment proposal if needed",
+          category: "adjournment",
+          recommendation: "For",
+          is_shareholder_proposal: false,
+        },
+      ],
       key_tables: [
         {
           id: "equity-plan-info",
@@ -1915,10 +1933,12 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
   const canUseDilutionDetail = canRenderDilutionOfferingDetail(filing);
   const useProxyListingDetail =
     !useEffectDetail && !useIpoDetail && !useSpacDetail && isProxyListingDetail(filing);
+  const useProxyEquityPlanDetail =
+    !useEffectDetail && !useIpoDetail && !useSpacDetail && isProxyEquityPlanDetail(filing);
   const useProxyGenericDetail =
-    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useProxyListingDetail && isProxyGenericDetail(filing);
+    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useProxyListingDetail && !useProxyEquityPlanDetail && isProxyGenericDetail(filing);
   const listingRiskModel =
-    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useProxyListingDetail && !useProxyGenericDetail && !canUseDilutionDetail ? buildListingRiskModel(filing) : null;
+    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useProxyListingDetail && !useProxyEquityPlanDetail && !useProxyGenericDetail && !canUseDilutionDetail ? buildListingRiskModel(filing) : null;
   const useListingRiskDetail = Boolean(listingRiskModel);
   const earningsModel =
     !useEffectDetail && !useIpoDetail && !useSpacDetail && !useListingRiskDetail ? buildEarningsModel(filing) : null;
@@ -1940,6 +1960,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
     !useEffectDetail &&
     !useIpoDetail &&
     !useSpacDetail &&
+    !useProxyEquityPlanDetail &&
     !useListingRiskDetail &&
     !useEarningsDetail &&
     !useFdaClinicalDetail &&
@@ -2028,6 +2049,8 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             <SpacTransactionStatusTemplate eventLabel={eventBadge.label} filing={filing} model={spacModel} />
           ) : useProxyListingDetail ? (
             <ProxyListingVoteTemplate filing={filing} />
+          ) : useProxyEquityPlanDetail ? (
+            <ProxyEquityPlanVoteTemplate filing={filing} />
           ) : useProxyGenericDetail ? (
             <ProxyGenericTemplate filing={filing} />
           ) : useListingRiskDetail && listingRiskModel ? (
@@ -3381,6 +3404,50 @@ function ProxyListingVoteTemplate({ filing }: { filing: FilingEvent }) {
   );
 }
 
+function ProxyEquityPlanVoteTemplate({ filing }: { filing: FilingEvent }) {
+  const displayPayload = readPlainRecord(filing.displayPayload);
+  const data = readDisplayPayloadData(displayPayload);
+  const summaryRows = buildProxyEquityPlanSummaryRows(data);
+  const proposals = buildProxyProposalSummary(data);
+  const tables = recordArray(data.key_tables);
+
+  return (
+    <>
+      <section className="stock-detail-top-grid proxy-equity-plan-grid">
+        <FilingPriceChart filing={filing} />
+
+        <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card">
+          <div className="quick-take-card quick-take-block">
+            <div className="card-heading-row">
+              <h2>Equity Plan Vote Summary</h2>
+            </div>
+            {filing.summary ? <p className="proxy-summary-context">{filing.summary}</p> : null}
+            <div className="proxy-vote-summary-rows">
+              {summaryRows.map((row) => (
+                <MetricRow key={row.label} label={row.label} value={row.value} />
+              ))}
+            </div>
+          </div>
+        </section>
+      </section>
+
+      {proposals.length ? <ProxyProposalAgenda proposals={proposals} /> : null}
+
+      {tables.length ? <ProxyPlanTableExcerpts tables={tables} /> : null}
+
+      {filing.watchNext.length ? (
+        <section className="stock-detail-card-grid two-up insight-summary-grid proxy-watch-grid">
+          <AnalysisList title="What To Watch Next" items={filing.watchNext} />
+        </section>
+      ) : null}
+
+      <FilingMarketContextPanel filing={filing} />
+
+      <OriginalFilingText filing={filing} eventLabel="Equity Plan Vote" includeTemplateStatus />
+    </>
+  );
+}
+
 type ProxyProposalItem = {
   id: string;
   title: string;
@@ -3439,6 +3506,16 @@ function isProxyListingDetail(filing: FilingEvent) {
   return displayVersion === "proxy_ipo_listing_v1";
 }
 
+function isProxyEquityPlanDetail(filing: FilingEvent) {
+  const displayPayload = readPlainRecord(filing.displayPayload);
+  const data = readDisplayPayloadData(displayPayload);
+  const displayVersion =
+    readRowString(displayPayload, "display_version") ||
+    readRowString(data, "display_version") ||
+    readRowString(data, "version");
+  return displayVersion === "proxy_equity_plan_vote_v1";
+}
+
 function buildProxyVoteSummaryRows(data: Record<string, unknown>) {
   const proposalCount =
     displayString(data, "proposal_count", "") ||
@@ -3465,6 +3542,20 @@ function buildProxyListingVoteSummaryRows(data: Record<string, unknown>, filing:
     },
     { label: "Exchange / Ticker", value: displayString(data, "exchange_ticker", "") || formatListingExchangeTicker(filing) },
     { label: "Board Recommendation", value: listingRecommendation || "Not disclosed" },
+    voteRequirement ? { label: "Vote Requirement", value: voteRequirement } : null,
+  ].filter((row): row is { label: string; value: string } => Boolean(row));
+}
+
+function buildProxyEquityPlanSummaryRows(data: Record<string, unknown>) {
+  const planProposal = findProxyEquityPlanProposal(data);
+  const planName = displayString(data, "plan_name", "") || (planProposal ? readRowString(planProposal, "title") : "");
+  const planRecommendation = planProposal ? readRowString(planProposal, "recommendation") : "";
+  const voteRequirement = displayString(data, "vote_requirement", "");
+  return [
+    { label: "Plan / Proposal", value: planName || "Not disclosed" },
+    { label: "Shares Requested", value: formatProxyShareReserve(data.shares_requested) },
+    { label: "% of Outstanding", value: formatProxyPercent(data.percent_of_outstanding) },
+    { label: "Board Recommendation", value: planRecommendation || "Not disclosed" },
     voteRequirement ? { label: "Vote Requirement", value: voteRequirement } : null,
   ].filter((row): row is { label: string; value: string } => Boolean(row));
 }
@@ -3500,6 +3591,64 @@ function formatListingExchangeTicker(filing: FilingEvent) {
   const ticker = isRealTicker(filing.ticker) ? filing.ticker : "";
   if (exchange && ticker) return `${exchange} / ${ticker}`;
   return exchange || ticker || "Not disclosed";
+}
+
+function findProxyEquityPlanProposal(data: Record<string, unknown>) {
+  const proposalIds = displayStringArray(data.proposal_ids, []);
+  const proposals = recordArray(data.proposals);
+  return proposals.find((proposal) => {
+    const id = readRowString(proposal, "id");
+    if (proposalIds.includes(id)) return true;
+    const text = [
+      readRowString(proposal, "title"),
+      readRowString(proposal, "category"),
+    ].join(" ");
+    return /\b(?:equity|incentive|stock plan|share reserve|espp|employee stock purchase)\b/i.test(text);
+  }) ?? null;
+}
+
+function formatProxyShareReserve(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return formatShareCountNumber(value) || "Not disclosed";
+  const text = cleanDisclosureValue(readDisclosureValue(value));
+  return text || "Not disclosed";
+}
+
+function formatProxyPercent(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return `${value.toLocaleString("en-US", { maximumFractionDigits: 1 })}%`;
+  const text = cleanDisclosureValue(readDisclosureValue(value));
+  if (!text) return "Not disclosed";
+  return /%/.test(text) ? text : `${text}%`;
+}
+
+function ProxyPlanTableExcerpts({ tables }: { tables: Record<string, unknown>[] }) {
+  return (
+    <section className="stock-detail-card proxy-plan-table-card">
+      <div className="card-heading-row">
+        <h2>Plan Details</h2>
+        <span>{tables.length} source tables</span>
+      </div>
+      <div className="proxy-plan-table-list">
+        {tables.slice(0, 3).map((table, index) => {
+          const heading = readRowString(table, "heading") || readRowString(table, "caption") || `Plan table ${index + 1}`;
+          const headers = displayStringArray(table.headers, []);
+          const rows = Array.isArray(table.sample_rows) ? table.sample_rows.slice(0, 3) : [];
+          return (
+            <div className="proxy-plan-table-excerpt" key={`${heading}-${index}`}>
+              <strong>{heading}</strong>
+              {headers.length ? <p>{headers.join(" / ")}</p> : null}
+              {rows.length ? (
+                <ul>
+                  {rows.map((row, rowIndex) => (
+                    <li key={`${heading}-${rowIndex}`}>{Array.isArray(row) ? row.map((cell) => String(cell)).join(" / ") : String(row)}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
 }
 
 function buildProxyProposalSummary(data: Record<string, unknown>) {
