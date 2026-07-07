@@ -589,7 +589,6 @@ const commonFilingEvents: Record<string, FilingEvent> = {
       record_date: "Not fixed",
       listing_action: "Approve a listing-related action",
       exchange_ticker: "NASDAQ / PRXY",
-      vote_status: "Pending shareholder vote",
       proposal_count: 2,
       proposals: [
         {
@@ -3356,7 +3355,6 @@ function ProxyListingVoteTemplate({ filing }: { filing: FilingEvent }) {
           <div className="quick-take-card quick-take-block">
             <div className="card-heading-row">
               <h2>Listing Vote Summary</h2>
-              <span>{displayString(data, "proxy_type", "Listing vote")}</span>
             </div>
             {filing.summary ? <p className="proxy-listing-context">{filing.summary}</p> : null}
             <div className="proxy-vote-summary-rows">
@@ -3455,22 +3453,20 @@ function buildProxyVoteSummaryRows(data: Record<string, unknown>) {
 }
 
 function buildProxyListingVoteSummaryRows(data: Record<string, unknown>, filing: FilingEvent) {
-  const proposalCount =
-    displayString(data, "proposal_count", "") ||
-    (recordArray(data.proposals).length ? String(recordArray(data.proposals).length) : "Not disclosed");
-  const boardSummary = buildProxyBoardRecommendationSummary(data);
+  const listingProposal = findProxyListingProposal(data);
+  const listingRecommendation = listingProposal ? readRowString(listingProposal, "recommendation") : "";
+  const voteRequirement = displayString(data, "vote_requirement", "");
   return [
     { label: "Meeting Date", value: displayString(data, "meeting_date", "Not disclosed") },
     { label: "Record Date", value: displayString(data, "record_date", "Not disclosed") },
     {
-      label: "Listing-related Proposal",
-      value: displayString(data, "listing_action", "") || findProxyListingProposalTitle(data) || "Not disclosed",
+      label: "Listing Proposal",
+      value: displayString(data, "listing_action", "") || (listingProposal ? readRowString(listingProposal, "title") : "") || "Not disclosed",
     },
     { label: "Exchange / Ticker", value: displayString(data, "exchange_ticker", "") || formatListingExchangeTicker(filing) },
-    { label: "Board Recommendation", value: boardSummary || "Not disclosed" },
-    { label: "Vote Status", value: displayString(data, "vote_status", "Pending vote") },
-    { label: "Proposal Count", value: proposalCount },
-  ];
+    { label: "Board Recommendation", value: listingRecommendation || "Not disclosed" },
+    voteRequirement ? { label: "Vote Requirement", value: voteRequirement } : null,
+  ].filter((row): row is { label: string; value: string } => Boolean(row));
 }
 
 function buildProxyBoardRecommendationSummary(data: Record<string, unknown>) {
@@ -3489,15 +3485,14 @@ function buildProxyBoardRecommendationSummary(data: Record<string, unknown>) {
     .join(" / ");
 }
 
-function findProxyListingProposalTitle(data: Record<string, unknown>) {
-  const listingProposal = recordArray(data.proposals).find((proposal) => {
+function findProxyListingProposal(data: Record<string, unknown>) {
+  return recordArray(data.proposals).find((proposal) => {
     const text = [
       readRowString(proposal, "title"),
       readRowString(proposal, "category"),
     ].join(" ");
     return /\b(?:listing|ipo|initial public|exchange|nasdaq|nyse|nyse american)\b/i.test(text);
-  });
-  return listingProposal ? readRowString(listingProposal, "title") : "";
+  }) ?? null;
 }
 
 function formatListingExchangeTicker(filing: FilingEvent) {

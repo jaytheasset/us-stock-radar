@@ -110,7 +110,7 @@ export function buildProxyDisplayPayload(
       ipo_kind: inferIpoKind(parserOutput),
       listing_action: inferListingAction(parserOutput),
       exchange_ticker: formatProxyTicker(parserOutput),
-      vote_status: "Pending shareholder vote",
+      vote_requirement: parserOutput.facts.transaction.voteRequired ?? null,
       listing_evidence: parserOutput.signals
         .filter((signal) => signal.eventType === "ipo_listing")
         .map((signal) => signal.evidence),
