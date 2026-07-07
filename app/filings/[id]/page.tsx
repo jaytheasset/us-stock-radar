@@ -894,12 +894,12 @@ const commonFilingEvents: Record<string, FilingEvent> = {
       spac_status: "Shareholders are voting on the business combination. Redemptions and minimum cash determine closing pressure.",
       stage_summary: "Vote, redemption, minimum cash, and ticker-change timing are the key checks.",
       stages: [
-        { code: "target", label: "Target / Deal Signed", date: "Apr 15, 2026" },
+        { code: "target", label: "Deal Signed", date: "Apr 15, 2026" },
         { code: "proxy", label: "Proxy Filed", date: "Jul 7, 2026" },
-        { code: "vote", label: "Vote & Redemption Window", date: "Pending" },
+        { code: "vote", label: "Vote / Redemption", date: "Pending" },
         { code: "redemption", label: "Redemption Result", date: "Pending" },
-        { code: "cash", label: "Cash / Listing Conditions", date: "Before closing" },
-        { code: "closing", label: "Closing / Ticker Change", date: "Pending" },
+        { code: "cash", label: "Cash Conditions", date: "Before closing" },
+        { code: "closing", label: "Close / Ticker", date: "Pending" },
       ],
       target_company: "Sample Target Inc.",
       target_summary: "Sample Target Inc. is the operating company expected to become public through the SPAC merger.",
@@ -1217,12 +1217,12 @@ const commonFilingEvents: Record<string, FilingEvent> = {
         stage_summary:
           "Vote approval moved the transaction forward, but redemptions keep minimum cash, float, and listing conditions in focus.",
         stages: [
-          { code: "target", label: "Target / Deal Signed", date: "Mar 18, 2026" },
-          { code: "proxy", label: "SEC Filing / Proxy", date: "May 10, 2026" },
-          { code: "vote", label: "Vote & Redemption Window", date: "Jun 16-18, 2026" },
+          { code: "target", label: "Deal Signed", date: "Mar 18, 2026" },
+          { code: "proxy", label: "Proxy Filed", date: "May 10, 2026" },
+          { code: "vote", label: "Vote / Redemption", date: "Jun 16-18, 2026" },
           { code: "redemption", label: "Redemption Result", date: "Jun 19, 2026" },
-          { code: "cash", label: "Cash / Listing Conditions", date: "Before closing" },
-          { code: "closing", label: "Closing / Ticker Change", date: "Jun 24-25, 2026" },
+          { code: "cash", label: "Cash Conditions", date: "Before closing" },
+          { code: "closing", label: "Close / Ticker", date: "Jun 24-25, 2026" },
         ],
         target_company: "Apex Battery Systems",
         target_summary: "A battery systems company expected to become public through the SPAC merger.",
@@ -5052,7 +5052,7 @@ function SpacTransactionStatusTemplate({
         <section className="stock-detail-card spac-summary-panel">
           <div className="spac-summary-heading">
             <div>
-              <h2>de-SPAC Vote Status</h2>
+              <h2>SPAC Merger Vote</h2>
               <p>
                 <strong>{model.currentStageLabel}.</strong> {model.stageSummary}
               </p>
@@ -5060,9 +5060,9 @@ function SpacTransactionStatusTemplate({
           </div>
 
           <div className="spac-metric-grid">
-            <SpacMetricCard icon="status" label="Deal Vote" note="Current transaction state" value={model.dealStatus} />
-            <SpacMetricCard icon="redemption" label="Redemption Status" note="Public shares redeemed" tone="risk" value={model.redemptionRate} />
-            <SpacMetricCard icon="cash" label="Cash Condition" note={model.minCashCondition} tone="risk" value={model.cashCondition} />
+            <SpacMetricCard icon="status" label="Vote Status" note="Current transaction state" value={model.dealStatus} />
+            <SpacMetricCard icon="redemption" label="Redemptions" note="Public shares redeemed" tone="risk" value={model.redemptionRate} />
+            <SpacMetricCard icon="cash" label="Minimum Cash" note={model.minCashCondition} tone="risk" value={model.cashCondition} />
             <SpacMetricCard
               icon="closing"
               label="Closing / Ticker"
@@ -5076,8 +5076,8 @@ function SpacTransactionStatusTemplate({
       <section className="stock-detail-card spac-stage-card">
         <div className="card-heading-row">
           <div>
-            <h2>de-SPAC Timeline</h2>
-            <p>Target announcement, proxy vote, redemption, cash-condition review, closing, and ticker change.</p>
+            <h2>Deal Timeline</h2>
+            <p>Deal signing, proxy vote, redemption, cash review, closing, and ticker change.</p>
           </div>
           <span>{model.currentStageNumber}/{model.stages.length} stages reached</span>
         </div>
@@ -5088,56 +5088,29 @@ function SpacTransactionStatusTemplate({
         </div>
       </section>
 
-      <section className="stock-detail-card spac-explainer-card spac-target-overview-card">
+      <section className="stock-detail-card spac-context-strip">
         <div className="card-heading-row">
           <div>
-            <h2>Target Overview</h2>
+            <h2>Target & Deal Terms</h2>
             <p>{model.targetCompanyStory}</p>
           </div>
           <span>{model.expectedTicker}</span>
         </div>
-        <div className="spac-explainer-grid">
-          <div>
-            <strong>Target company</strong>
-            <p>{model.targetCompany}</p>
-          </div>
-          <div>
-            <strong>What the target does</strong>
-            <p>{model.targetSummary}</p>
-          </div>
-          <div>
-            <strong>Expected ticker</strong>
-            <p>{model.expectedTicker}</p>
-          </div>
-        </div>
-      </section>
-
-      <section className="stock-detail-card spac-context-strip">
-        <div className="card-heading-row">
-          <div>
-            <h2>Deal Details</h2>
-            <p>Current vote gate, target deal terms, and SPAC vehicle context.</p>
-          </div>
-          <span>{model.stageBadge}</span>
-        </div>
 
         <div className="spac-context-columns">
-          <section className="spac-current-gate-column">
-            <h3>Current Gate</h3>
-            <strong className="spac-gate-headline">{model.currentStageLabel}</strong>
-            <div className="spac-readout-grid compact spac-card-readouts spac-gate-readouts">
-              <MetricRow label="Deal Status" value={model.dealStatus} />
-              <MetricRow label="Blocking Issue" value={model.blockingIssue} />
-              <MetricRow label="Next Check" value={model.nextCheck} />
-              <MetricRow label="Source Date" value={model.sourceDate} />
+          <section className="spac-context-light-column">
+            <h3>Target</h3>
+            <strong className="spac-context-headline">{model.targetCompany}</strong>
+            <p>{model.targetSummary}</p>
+            <div className="spac-readout-grid compact spac-card-readouts">
+              <MetricRow label="Expected Ticker" value={model.expectedTicker} />
             </div>
           </section>
 
           <section className="spac-context-light-column">
-            <h3>Target Deal</h3>
-            <strong className="spac-context-headline">{model.targetCompany}</strong>
+            <h3>Deal Terms</h3>
+            <strong className="spac-context-headline">{model.dealValue}</strong>
             <div className="spac-readout-grid compact spac-card-readouts">
-              <MetricRow label="Expected Ticker" value={model.expectedTicker} />
               <MetricRow label="Deal Value" value={model.dealValue} />
               <MetricRow label="Announced" value={model.announcedDate} />
               <MetricRow label="Merger Agreement Date" value={model.mergerAgreementDate} />
@@ -5160,64 +5133,78 @@ function SpacTransactionStatusTemplate({
         </div>
       </section>
 
-      <section className="stock-detail-card-grid two-up spac-detail-grid">
-        <section className="stock-detail-card spac-impact-card">
-          <div className="card-heading-row">
-            <h2>Redemption / Cash</h2>
-            <span>{model.redemptionRate}</span>
+      <section className="stock-detail-card spac-context-strip">
+        <div className="card-heading-row">
+          <div>
+            <h2>Redemption & Closing</h2>
+            <p>Redemption results, cash left in trust, minimum cash condition, and closing/ticker timing.</p>
           </div>
-          <div className="spac-readout-grid">
-            <MetricRow label="Trust Cash Before" value={model.trustCashBefore} />
-            <MetricRow label="Trust Cash After" value={model.trustCashAfter} />
-            <MetricRow label="Redemption Price" value={model.redemptionPrice} />
-            <MetricRow label="Public Shares Remaining" value={model.publicSharesRemaining} />
-            <MetricRow label="Minimum Cash Condition" value={model.minCashCondition} />
-            <MetricRow label="Float Impact" value={model.floatImpact} />
-          </div>
-        </section>
+          <span>{model.redemptionRate}</span>
+        </div>
 
-        <section className="stock-detail-card spac-conditions-card">
-          <div className="card-heading-row">
-            <h2>Closing Conditions</h2>
-            <span>{model.minCashStatus}</span>
-          </div>
-          <ul className="spac-check-list">
-            <SpacConditionItem tone={model.minCashStatus.toLowerCase().includes("risk") ? "risk" : "complete"}>
-              Minimum cash condition: {model.minCashCondition} ({model.minCashStatus})
-            </SpacConditionItem>
-            <SpacConditionItem>Business combination target: {model.targetCompany}</SpacConditionItem>
-            <SpacConditionItem>Expected closing: {model.closingDate}</SpacConditionItem>
-            <SpacConditionItem>Ticker change expected: {model.tickerChangeDate}</SpacConditionItem>
-          </ul>
-        </section>
+        <div className="spac-context-columns spac-two-column-context">
+          <section className="spac-context-light-column">
+            <h3>Redemption / Cash</h3>
+            <strong className="spac-context-headline">{model.redemptionRate}</strong>
+            <div className="spac-readout-grid compact spac-card-readouts">
+              <MetricRow label="Trust Cash Before" value={model.trustCashBefore} />
+              <MetricRow label="Trust Cash After" value={model.trustCashAfter} />
+              <MetricRow label="Redemption Price" value={model.redemptionPrice} />
+              <MetricRow label="Public Shares Remaining" value={model.publicSharesRemaining} />
+              <MetricRow label="Minimum Cash Condition" value={model.minCashCondition} />
+              <MetricRow label="Float Impact" value={model.floatImpact} />
+            </div>
+          </section>
+
+          <section className="spac-context-light-column">
+            <h3>Closing Conditions</h3>
+            <strong className="spac-context-headline">{model.minCashStatus}</strong>
+            <ul className="spac-check-list">
+              <SpacConditionItem tone={model.minCashStatus.toLowerCase().includes("risk") ? "risk" : "complete"}>
+                Minimum cash condition: {model.minCashCondition} ({model.minCashStatus})
+              </SpacConditionItem>
+              <SpacConditionItem>Business combination target: {model.targetCompany}</SpacConditionItem>
+              <SpacConditionItem>Expected closing: {model.closingDate}</SpacConditionItem>
+              <SpacConditionItem>Ticker change expected: {model.tickerChangeDate}</SpacConditionItem>
+            </ul>
+          </section>
+        </div>
       </section>
 
-      <section className="stock-detail-card-grid two-up spac-support-grid">
-        <section className="stock-detail-card spac-risk-card">
-          <h2>Main Risks</h2>
-          <ul>
-            {model.riskFlags.map((flag) => (
-              <li key={flag}>
-                <TriangleAlert size={14} aria-hidden="true" />
-                <span>{flag}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+      <section className="stock-detail-card spac-context-strip">
+        <div className="card-heading-row">
+          <div>
+            <h2>Investor Checklist</h2>
+            <p>Risk points and the next filings or events that should clarify the deal.</p>
+          </div>
+        </div>
 
-        <section className="stock-detail-card spac-watch-card">
-          <h2>What To Watch Next</h2>
-          <ol>
-            {model.watchNext.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ol>
-        </section>
+        <div className="spac-context-columns spac-two-column-context">
+          <section className="spac-risk-card">
+            <h3>Main Risks</h3>
+            <ul>
+              {model.riskFlags.map((flag) => (
+                <li key={flag}>
+                  <TriangleAlert size={14} aria-hidden="true" />
+                  <span>{flag}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="spac-watch-card">
+            <h3>What To Watch Next</h3>
+            <ol>
+              {model.watchNext.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ol>
+          </section>
+        </div>
       </section>
 
       {model.eventHistory.length ? <SpacEventHistory items={model.eventHistory} /> : null}
 
-      <SpacSourceEvidence filing={filing} model={model} />
       <OriginalFilingText filing={filing} eventLabel={eventLabel} />
     </>
   );
@@ -5288,7 +5275,7 @@ function SpacEventHistory({ items }: { items: SpacHistoryItem[] }) {
   return (
     <section className="stock-detail-card spac-history-card">
       <div className="card-heading-row">
-        <h2>SPAC Event History</h2>
+        <h2>Filing Timeline</h2>
         <span>{items.length} items</span>
       </div>
       <div className="spac-history-list">
@@ -6659,21 +6646,21 @@ function formatEffectRelatedFilingRelation(related: FilingContextRelatedFiling) 
 }
 
 const SPAC_DEFAULT_STAGES = [
-  "Target / Deal Signed",
-  "SEC Filing / Proxy",
-  "Vote & Redemption Window",
+  "Deal Signed",
+  "Proxy Filed",
+  "Vote / Redemption",
   "Redemption Result",
-  "Cash / Listing Conditions",
-  "Closing / Ticker Change",
+  "Cash Conditions",
+  "Close / Ticker",
 ] as const;
 
 const SPAC_STAGE_ORDER = [
-  { code: "target", label: "Target / Deal Signed" },
-  { code: "proxy", label: "SEC Filing / Proxy" },
-  { code: "vote", label: "Vote & Redemption Window" },
+  { code: "target", label: "Deal Signed" },
+  { code: "proxy", label: "Proxy Filed" },
+  { code: "vote", label: "Vote / Redemption" },
   { code: "redemption", label: "Redemption Result" },
-  { code: "cash", label: "Cash / Listing Conditions" },
-  { code: "closing", label: "Closing / Ticker Change" },
+  { code: "cash", label: "Cash Conditions" },
+  { code: "closing", label: "Close / Ticker" },
 ] as const;
 
 type SpacStageCode = (typeof SPAC_STAGE_ORDER)[number]["code"];
@@ -7731,12 +7718,12 @@ function spacStageNumber(value: SpacStageCode) {
 
 function buildDefaultSpacStageRows(data: Record<string, unknown>) {
   return [
-    { code: "target", label: "Target / Deal Signed", date: readRowString(data, "merger_agreement_date") || readRowString(data, "announced_date") },
-    { code: "proxy", label: "SEC Filing / Proxy", date: readRowString(data, "proxy_filing_date") },
-    { code: "vote", label: "Vote & Redemption Window", date: readRowString(data, "vote_date") || readRowString(data, "redemption_deadline") },
+    { code: "target", label: "Deal Signed", date: readRowString(data, "merger_agreement_date") || readRowString(data, "announced_date") },
+    { code: "proxy", label: "Proxy Filed", date: readRowString(data, "proxy_filing_date") },
+    { code: "vote", label: "Vote / Redemption", date: readRowString(data, "vote_date") || readRowString(data, "redemption_deadline") },
     { code: "redemption", label: "Redemption Result", date: readRowString(data, "redemption_result_date") },
-    { code: "cash", label: "Cash / Listing Conditions", date: readRowString(data, "min_cash_status") },
-    { code: "closing", label: "Closing / Ticker Change", date: readRowString(data, "closing_date") || readRowString(data, "ticker_change_date") },
+    { code: "cash", label: "Cash Conditions", date: readRowString(data, "min_cash_status") },
+    { code: "closing", label: "Close / Ticker", date: readRowString(data, "closing_date") || readRowString(data, "ticker_change_date") },
   ];
 }
 

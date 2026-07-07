@@ -10639,6 +10639,10 @@ td {
   gap: 12px;
 }
 
+.spac-two-column-context {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .spac-context-columns > section {
   display: grid;
   align-content: start;
@@ -16089,6 +16093,10 @@ td {
   .dilution-overhang-body,
   .dilution-overhang-detail-grid,
   .context-main-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .spac-two-column-context {
     grid-template-columns: 1fr;
   }
 
