@@ -8920,6 +8920,7 @@ td {
 .spac-stage-card,
 .spac-impact-card,
 .spac-conditions-card,
+.spac-condition-card,
 .spac-risk-card,
 .spac-watch-card,
 .spac-source-card {
@@ -10697,43 +10698,17 @@ td {
   overflow-wrap: anywhere;
 }
 
-.spac-investor-note,
-.spac-investor-watch {
+.spac-target-overview-copy {
+  margin: 0;
+  color: #17213d;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.spac-condition-list {
   display: grid;
-  gap: 7px;
   border-top: 1px solid var(--detail-divider);
-  padding-top: 12px;
-}
-
-.spac-investor-note span,
-.spac-investor-watch span {
-  color: #64728a;
-  font-size: 10px;
-  font-weight: 800;
-  line-height: 1.2;
-  text-transform: uppercase;
-}
-
-.spac-investor-note p {
-  margin: 0;
-  color: #17213d;
-  font-size: 12.5px;
-  line-height: 1.45;
-}
-
-.spac-investor-watch ol {
-  display: grid;
-  gap: 7px;
-  margin: 0;
-  padding-left: 18px;
-  color: #17213d;
-  font-size: 12px;
-  line-height: 1.42;
-}
-
-.spac-investor-watch li::marker {
-  color: #0f55ff;
-  font-weight: 900;
+  border-bottom: 1px solid var(--detail-divider);
 }
 
 .spac-compact-columns {
@@ -16891,8 +16866,8 @@ html[data-theme="dark"] .spac-status-chip strong,
 html[data-theme="dark"] .spac-metric-card strong,
 html[data-theme="dark"] .spac-status-primary strong,
 html[data-theme="dark"] .spac-readout-item strong,
-html[data-theme="dark"] .spac-investor-note p,
-html[data-theme="dark"] .spac-investor-watch ol,
+html[data-theme="dark"] .spac-target-overview-copy,
+html[data-theme="dark"] .spac-watch-card ol,
 html[data-theme="dark"] .spac-compact-columns h3,
 html[data-theme="dark"] .spac-context-columns h3,
 html[data-theme="dark"] .spac-stage-step strong,
@@ -16901,7 +16876,6 @@ html[data-theme="dark"] .spac-explainer-grid strong,
 html[data-theme="dark"] .spac-history-list strong,
 html[data-theme="dark"] .spac-check-list li,
 html[data-theme="dark"] .spac-risk-card li,
-html[data-theme="dark"] .spac-watch-card ol,
 html[data-theme="dark"] .spac-source-grid strong,
 html[data-theme="dark"] .listing-company-lead,
 html[data-theme="dark"] .listing-company-points span,
@@ -16984,8 +16958,6 @@ html[data-theme="dark"] .spac-status-primary span,
 html[data-theme="dark"] .spac-status-primary em,
 html[data-theme="dark"] .spac-readout-item span,
 html[data-theme="dark"] .spac-readout-item em,
-html[data-theme="dark"] .spac-investor-note span,
-html[data-theme="dark"] .spac-investor-watch span,
 html[data-theme="dark"] .spac-context-strip .card-heading-row p,
 html[data-theme="dark"] .spac-context-columns p,
 html[data-theme="dark"] .spac-stage-card .card-heading-row p,

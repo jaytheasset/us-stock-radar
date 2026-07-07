@@ -892,7 +892,7 @@ const commonFilingEvents: Record<string, FilingEvent> = {
       current_stage_label: "Proxy vote pending",
       deal_status: "Business combination vote pending",
       spac_status: "Shareholders are voting on the business combination. Redemptions and minimum cash determine closing pressure.",
-      stage_summary: "Vote, redemption, minimum cash, and ticker-change timing are the key checks.",
+      stage_summary: "Vote result, redemption levels, and closing conditions determine whether the target can complete the listing.",
       stages: [
         { code: "target", label: "Deal Signed", date: "Apr 15, 2026" },
         { code: "proxy", label: "Proxy Filed", date: "Jul 7, 2026" },
@@ -903,7 +903,8 @@ const commonFilingEvents: Record<string, FilingEvent> = {
       ],
       target_company: "Sample Target Inc.",
       target_summary: "Sample Target Inc. is the operating company expected to become public through the SPAC merger.",
-      target_company_story: "Sample Target Inc. is the operating company in the proposed de-SPAC transaction.",
+      target_company_story:
+        "Sample Target Inc. is the operating company expected to become public through this SPAC merger. Investors should focus on whether redemptions leave enough cash to close and whether the ticker change happens after approval.",
       expected_ticker: "SAMP",
       deal_value: "$750M enterprise value",
       announced_date: "Apr 15, 2026",
@@ -913,8 +914,8 @@ const commonFilingEvents: Record<string, FilingEvent> = {
       ipo_date: "2025",
       ipo_year: "2025",
       unit_right_warrant_terms: "One share plus one-half warrant",
-      vote_date: "Pending",
-      redemption_deadline: "Pending",
+      vote_date: "Aug 12, 2026",
+      redemption_deadline: "Aug 10, 2026",
       redemption_result_date: "Pending",
       redemption_rate: "Not known yet",
       trust_cash_before: "$200.0M",
@@ -924,8 +925,8 @@ const commonFilingEvents: Record<string, FilingEvent> = {
       min_cash_condition: "$75.0M",
       min_cash_status: "Pending",
       float_impact: "Depends on redemption results",
-      closing_date: "Pending",
-      ticker_change_date: "Pending",
+      closing_date: "After shareholder vote",
+      ticker_change_date: "After closing",
       risk_flags: ["High redemptions could reduce cash available at closing.", "Minimum cash may require a waiver or backstop financing."],
       watch_next: ["Shareholder vote result", "Final redemption numbers", "Closing 8-K and ticker-change confirmation"],
       sources: [
@@ -5044,9 +5045,13 @@ function SpacTransactionStatusTemplate({
   filing: FilingEvent;
   model: SpacTransactionStatusModel;
 }) {
-  const targetLine = `${model.targetCompany} -> ${model.expectedTicker}`;
-  const keyConditionLine = `Minimum cash: ${model.minCashCondition} (${model.minCashStatus}); redemptions: ${model.redemptionRate}.`;
-  const whyItMatters = model.riskFlags.slice(0, 2).join(" ") || model.stageSummary;
+  const targetLine = `${model.targetCompany} / ${model.expectedTicker}`;
+  const closingLine = model.closingDate === model.tickerChangeDate ? model.closingDate : `${model.closingDate} / ${model.tickerChangeDate}`;
+  const keyConditions = [
+    { label: "Minimum Cash", value: model.minCashCondition, note: model.minCashStatus },
+    { label: "Redemptions", value: model.redemptionRate, note: model.redemptionDeadline !== "Not disclosed" ? `Deadline: ${model.redemptionDeadline}` : "Final result pending" },
+    { label: "Closing Condition", value: model.cashCondition, note: model.blockingIssue },
+  ];
   const watchItems = model.watchNext.slice(0, 3);
 
   return (
@@ -5057,39 +5062,55 @@ function SpacTransactionStatusTemplate({
         <section className="stock-detail-card spac-summary-panel spac-status-panel">
           <div className="spac-summary-heading">
             <div>
-              <h2>SPAC Merger Status</h2>
-              <p>
-                <strong>{model.currentStageLabel}.</strong> {model.stageSummary}
-              </p>
+              <h2>de-SPAC Snapshot</h2>
+              <p>{model.stageSummary}</p>
             </div>
           </div>
 
           <div className="spac-status-board">
-            <div className="spac-status-primary">
-              <span>Current Status</span>
-              <strong>{model.dealStatus}</strong>
-              <em>{model.blockingIssue}</em>
-            </div>
             <div className="spac-status-readouts">
-              <SpacReadoutItem label="Target" value={targetLine} note={model.dealValue} />
-              <SpacReadoutItem label="Key Condition" value={keyConditionLine} note={`Closing / ticker: ${model.closingDate} / ${model.tickerChangeDate}`} />
+              <SpacReadoutItem label="Current Step" value={model.currentStageLabel} note={model.dealStatus} />
+              <SpacReadoutItem label="Target / Ticker" value={targetLine} note={model.dealValue} />
+              <SpacReadoutItem label="Vote Date" value={model.voteDate} note={model.redemptionDeadline !== "Not disclosed" ? `Redemption deadline: ${model.redemptionDeadline}` : "Redemption deadline not disclosed"} />
+              <SpacReadoutItem label="Closing / Listing" value={closingLine} note={model.minCashStatus !== "Not disclosed" ? `Minimum cash: ${model.minCashStatus}` : "Subject to closing conditions"} />
             </div>
-            <div className="spac-investor-note">
-              <span>Why it matters</span>
-              <p>{whyItMatters}</p>
-            </div>
-            {watchItems.length ? (
-              <div className="spac-investor-watch">
-                <span>What to watch next</span>
-                <ol>
-                  {watchItems.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ol>
-              </div>
-            ) : null}
           </div>
         </section>
+      </section>
+
+      <section className="stock-detail-card spac-context-strip">
+        <div className="card-heading-row">
+          <div>
+            <h2>Target Company Overview</h2>
+            <p>What public investors are actually getting if the merger closes.</p>
+          </div>
+          <span>{model.expectedTicker}</span>
+        </div>
+        <p className="spac-target-overview-copy">{model.targetCompanyStory}</p>
+      </section>
+
+      <section className="stock-detail-card spac-context-strip">
+        <div className="spac-compact-columns">
+          <section className="spac-condition-card">
+            <h3>Key Conditions</h3>
+            <div className="spac-condition-list">
+              {keyConditions.map((condition) => (
+                <SpacReadoutItem key={condition.label} label={condition.label} value={condition.value} note={condition.note} />
+              ))}
+            </div>
+          </section>
+
+          <section className="spac-watch-card">
+            <h3>What To Watch Next</h3>
+            {watchItems.length ? (
+              <ol>
+                {watchItems.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ol>
+            ) : null}
+          </section>
+        </div>
       </section>
 
       <OriginalFilingText filing={filing} eventLabel={eventLabel} />
