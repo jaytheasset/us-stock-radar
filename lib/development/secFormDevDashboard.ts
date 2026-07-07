@@ -2134,13 +2134,13 @@ function buildProxyPromptVariantPreviews() {
       ),
     },
     {
-      name: "Routine annual test",
+      name: "Sectioned proxy test",
       text: normalizePromptPreviewText(
         buildProxyAnalysisPrompt({
           parserOutput: previewParserOutput,
           routerDecision,
           displayPayload,
-          variant: "proxy_routine_annual_test",
+          variant: "proxy_sectioned_test",
         }),
       ),
     },

@@ -55,11 +55,11 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
       ? secPromptVariant
       : selectedRoom === "s1-f1" && secPromptVariant === "legacy_default_backup"
         ? secPromptVariant
-        : selectedRoom === "proxy" && secPromptVariant === "proxy_routine_annual_test"
+        : selectedRoom === "proxy" && secPromptVariant === "proxy_sectioned_test"
           ? secPromptVariant
           : "";
   const promptVariantSelectValue =
-    selectedRoom === "proxy" && secPromptVariant !== "proxy_routine_annual_test" ? "default" : secPromptVariant;
+    selectedRoom === "proxy" && secPromptVariant !== "proxy_sectioned_test" ? "default" : secPromptVariant;
   const liveSampleCountNumber = clampLiveSampleCount(liveSampleCount);
   const selectedRunFormCount = Math.max(1, selectedRunForms.length);
   const selectedRunLabel = liveFormFilter === "all" ? "all forms " : `${liveFormFilter} `;
@@ -438,7 +438,7 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
                 ) : (
                   <>
                     <option value="default">Default proxy</option>
-                    <option value="proxy_routine_annual_test">Routine annual test</option>
+                    <option value="proxy_sectioned_test">Sectioned proxy test</option>
                   </>
                 )}
               </select>

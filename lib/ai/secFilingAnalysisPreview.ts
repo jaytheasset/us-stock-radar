@@ -89,7 +89,7 @@ import {
   normalizeProxyAnalysisPromptVariant,
   SEC_PROXY_ANALYSIS_PROMPT_KEY,
   SEC_PROXY_ANALYSIS_PROMPT_VERSION,
-  SEC_PROXY_ROUTINE_ANNUAL_TEST_PROMPT_VERSION,
+  SEC_PROXY_SECTIONED_TEST_PROMPT_VERSION,
 } from "@/lib/sources/sec/forms/proxy/analysisPrompt";
 import { buildProxyDisplayPayload } from "@/lib/sources/sec/forms/proxy/displayPayload";
 import type { ProxyParserOutput } from "@/lib/sources/sec/forms/proxy/parser";
@@ -2654,8 +2654,8 @@ function buildSecProxyAnalysisPromptForInput(
   return {
     key: SEC_PROXY_ANALYSIS_PROMPT_KEY,
     version:
-      promptVariant === "proxy_routine_annual_test"
-        ? SEC_PROXY_ROUTINE_ANNUAL_TEST_PROMPT_VERSION
+      promptVariant === "proxy_sectioned_test"
+        ? SEC_PROXY_SECTIONED_TEST_PROMPT_VERSION
         : SEC_PROXY_ANALYSIS_PROMPT_VERSION,
     system: [
       "Analyze one SEC proxy filing from cleaned source blocks.",
