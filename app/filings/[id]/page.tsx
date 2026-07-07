@@ -620,7 +620,7 @@ const commonFilingEvents: Record<string, FilingEvent> = {
     whyItMatters: "Shows how proxy share-reserve requests appear when the vote can affect future dilution.",
     summary: "Shareholders are voting on a new equity incentive plan reserve. Approval would increase the pool of shares available for future stock-based compensation.",
     keyEvidence: ["Plan share request present.", "Percent of outstanding supplied as a proxy data field."],
-    watchNext: ["Final voting result", "Whether the plan reserve is approved", "Future equity grants using the new reserve"],
+    watchNext: ["Final vote result", "Approved reserve amount", "Future equity grants using the plan"],
     displayType: "offering_terms",
     displayVersion: "proxy_equity_plan_vote_v1",
     displayData: {
@@ -643,17 +643,6 @@ const commonFilingEvents: Record<string, FilingEvent> = {
           category: "adjournment",
           recommendation: "For",
           is_shareholder_proposal: false,
-        },
-      ],
-      key_tables: [
-        {
-          id: "equity-plan-info",
-          table_type: "equity_compensation_plan_information",
-          heading: "Equity Compensation Plan Information",
-          row_count: 2,
-          column_count: 3,
-          headers: ["Plan", "Shares available", "Weighted average exercise price"],
-          sample_rows: [["Existing plan", "1,200,000", "$3.25"]],
         },
       ],
       snapshot_metrics: [
@@ -3552,7 +3541,7 @@ function buildProxyEquityPlanSummaryRows(data: Record<string, unknown>) {
   const planRecommendation = planProposal ? readRowString(planProposal, "recommendation") : "";
   const voteRequirement = displayString(data, "vote_requirement", "");
   return [
-    { label: "Plan / Proposal", value: planName || "Not disclosed" },
+    { label: "Equity Plan", value: planName || "Not disclosed" },
     { label: "Shares Requested", value: formatProxyShareReserve(data.shares_requested) },
     { label: "% of Outstanding", value: formatProxyPercent(data.percent_of_outstanding) },
     { label: "Board Recommendation", value: planRecommendation || "Not disclosed" },
@@ -3625,7 +3614,7 @@ function ProxyPlanTableExcerpts({ tables }: { tables: Record<string, unknown>[] 
     <section className="stock-detail-card proxy-plan-table-card">
       <div className="card-heading-row">
         <h2>Plan Details</h2>
-        <span>{tables.length} source tables</span>
+        <span>{tables.length === 1 ? "1 source table" : `${tables.length} source tables`}</span>
       </div>
       <div className="proxy-plan-table-list">
         {tables.slice(0, 3).map((table, index) => {
