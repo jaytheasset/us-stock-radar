@@ -206,6 +206,10 @@ const SEC_S1_F1_ROUTE_ONLY_PROMPT_VERSION = "s1-f1-route-only-v2-amendment-gate"
 const SEC_LLM_RUNAWAY_OUTPUT_CHARS = 30_000;
 const SPECIAL_PROXY_LLM_PATTERN =
   /\b(?:reverse\s+stock\s+split|minimum\s+bid|delisting|nasdaq\s+compliance|nyse\s+compliance|authorized\s+shares?|increase\s+(?:the\s+)?(?:number\s+of\s+)?authorized|share\s+issuance|issuance\s+of\s+shares|equity\s+incentive\s+plan|stock\s+incentive\s+plan|employee\s+stock\s+purchase\s+plan|espp|repricing|evergreen|merger(?:\s+agreement)?|business\s+combination|acquisition|asset\s+sale|liquidation|dissolution|contested|dissident|proxy\s+contest|universal\s+proxy|poison\s+pill|classified\s+board|declassify|independent\s+chair|bylaw|charter\s+amendment|certificate\s+of\s+incorporation|regulatory\s+investigation|litigation|antitrust|sanctions)\b/i;
+const PROXY_LIGHTWEIGHT_IPO_LISTING_BLOCKER_PATTERN =
+  /\b(?:spac|de-spac|de\s+spac|special\s+purpose\s+acquisition|blank\s+check|business\s+combination|merger(?:\s+agreement)?|acquisition|redemption|liquidation|dissolution|minimum\s+cash|closing\s+condition|ticker\s+change|consummation|reverse\s+stock\s+split|minimum\s+bid|delisting|nasdaq\s+compliance|nyse\s+compliance|authorized\s+shares?|share\s+issuance|issuance\s+of\s+shares|contested|dissident|proxy\s+contest|universal\s+proxy|poison\s+pill|bylaw|charter\s+amendment|certificate\s+of\s+incorporation|regulatory\s+investigation|litigation|antitrust|sanctions)\b/i;
+const PROXY_LIGHTWEIGHT_EQUITY_PLAN_BLOCKER_PATTERN =
+  /\b(?:reverse\s+stock\s+split|minimum\s+bid|delisting|nasdaq\s+compliance|nyse\s+compliance|authorized\s+shares?|employee\s+stock\s+purchase\s+plan|espp|repricing|evergreen|business\s+combination|merger(?:\s+agreement)?|acquisition|asset\s+sale|liquidation|dissolution|contested|dissident|proxy\s+contest|universal\s+proxy|poison\s+pill|bylaw|charter\s+amendment|certificate\s+of\s+incorporation|regulatory\s+investigation|litigation|antitrust|sanctions)\b/i;
 
 export type SecFilingAnalysisRunResult = {
   ok: boolean;
@@ -1489,32 +1493,102 @@ function resolveGeminiModelForSecInput(env: ReturnType<typeof getServerEnv>, inp
   if (input && isOwnershipFilingInput(input)) {
     return env.secOwnershipGeminiModel || "gemini-2.5-flash-lite";
   }
-  if (input && isRoutineProxyLlmCandidate(input)) {
+  if (input && isLightweightProxyLlmCandidate(input)) {
     return env.secProxyRoutineGeminiModel || "gemini-2.5-flash-lite";
   }
   return "";
 }
 
-function isRoutineProxyLlmCandidate(input: SecFilingAnalysisInput) {
+function isLightweightProxyLlmCandidate(input: SecFilingAnalysisInput) {
   const filingPackage = readRecord(input.filing_package);
   const hardParsers = readRecord(filingPackage?.hard_parsers);
   const proxy = readRecord(hardParsers?.proxy);
   if (!proxy) return false;
 
   const facts = readRecord(proxy.facts);
-  if (stringValue(facts?.proxyType) !== "annual") return false;
+  if (!facts) return false;
+  const proposals = readRecordArray(facts.proposals);
+  const signals = readRecordArray(proxy.signals);
+  if (!proposals.length && !signals.length) return false;
 
-  const proposals = readRecordArray(facts?.proposals);
+  const explicitProxyText = buildProxyRoutingText(facts, proposals, signals);
+  if (isRoutineAnnualProxyLiteCandidate(facts, proposals, explicitProxyText)) return true;
+  if (isCleanIpoListingProxyLiteCandidate(facts, signals, explicitProxyText)) return true;
+  if (isCleanEquityPlanProxyLiteCandidate(facts, signals, explicitProxyText)) return true;
+
+  return false;
+}
+
+function isRoutineAnnualProxyLiteCandidate(
+  facts: Record<string, unknown>,
+  proposals: Record<string, unknown>[],
+  explicitProxyText: string,
+) {
+  if (stringValue(facts.proxyType) !== "annual") return false;
   if (!proposals.length) return false;
 
-  const ownership = readRecord(facts?.ownership);
-  const maxOwnership =
-    finiteNumber(ownership?.maxBeneficialOwnershipPercent) ??
-    finiteNumber(ownership?.max_beneficial_ownership_percent);
-  if (maxOwnership !== null && maxOwnership >= 20) return false;
+  const ownership = readRecord(facts.ownership);
+  const maxOwnership = Math.max(
+    finiteNumber(ownership?.maxBeneficialOwnershipPercent),
+    finiteNumber(ownership?.max_beneficial_ownership_percent),
+  );
+  if (maxOwnership >= 20) return false;
 
-  const signals = readRecordArray(proxy.signals);
-  const explicitProxyText = [...proposals, ...signals]
+  return !SPECIAL_PROXY_LLM_PATTERN.test(explicitProxyText);
+}
+
+function isCleanIpoListingProxyLiteCandidate(
+  facts: Record<string, unknown>,
+  signals: Record<string, unknown>[],
+  explicitProxyText: string,
+) {
+  const eventTypes = proxyEventTypes(facts, signals);
+  if (!eventTypes.has("ipo_listing")) return false;
+  if ([...eventTypes].some((eventType) => eventType !== "ipo_listing" && eventType !== "shareholder_vote")) {
+    return false;
+  }
+  return !PROXY_LIGHTWEIGHT_IPO_LISTING_BLOCKER_PATTERN.test(explicitProxyText);
+}
+
+function isCleanEquityPlanProxyLiteCandidate(
+  facts: Record<string, unknown>,
+  signals: Record<string, unknown>[],
+  explicitProxyText: string,
+) {
+  const eventTypes = proxyEventTypes(facts, signals);
+  const dilution = readRecord(facts.dilution);
+  const proposalIds = readStringArray(dilution?.proposalIds).concat(readStringArray(dilution?.proposal_ids));
+  const sharesRequested = Math.max(
+    finiteNumber(dilution?.sharesRequested),
+    finiteNumber(dilution?.shares_requested),
+  );
+  const percentOfOutstanding = Math.max(
+    finiteNumber(dilution?.percentOfOutstanding),
+    finiteNumber(dilution?.percent_of_outstanding),
+  );
+  const hasEquityPlanVote =
+    dilution?.hasEquityPlanVote === true ||
+    dilution?.has_equity_plan_vote === true ||
+    (eventTypes.has("dilution_risk") && /\b(?:equity|stock)\s+(?:incentive\s+)?plan\b/i.test(explicitProxyText));
+
+  if (!hasEquityPlanVote) return false;
+  if (!proposalIds.length || sharesRequested <= 0 || percentOfOutstanding <= 0) return false;
+  if ([...eventTypes].some((eventType) => eventType !== "dilution_risk" && eventType !== "shareholder_vote")) {
+    return false;
+  }
+  return !PROXY_LIGHTWEIGHT_EQUITY_PLAN_BLOCKER_PATTERN.test(explicitProxyText);
+}
+
+function buildProxyRoutingText(
+  facts: Record<string, unknown>,
+  proposals: Record<string, unknown>[],
+  signals: Record<string, unknown>[],
+) {
+  const dilution = readRecord(facts.dilution);
+  const records = [...proposals, ...signals, facts, dilution].filter(
+    (item): item is Record<string, unknown> => Boolean(item),
+  );
+  return records
     .map((item) =>
       [
         item.title,
@@ -1522,6 +1596,9 @@ function isRoutineProxyLlmCandidate(input: SecFilingAnalysisInput) {
         item.source_text,
         item.evidence,
         item.name,
+        item.category,
+        item.eventType,
+        item.event_type,
       ]
         .map(stringValue)
         .filter(Boolean)
@@ -1529,8 +1606,17 @@ function isRoutineProxyLlmCandidate(input: SecFilingAnalysisInput) {
     )
     .filter(Boolean)
     .join("\n");
+}
 
-  return !SPECIAL_PROXY_LLM_PATTERN.test(explicitProxyText);
+function proxyEventTypes(facts: Record<string, unknown>, signals: Record<string, unknown>[]) {
+  const deterministic = readRecord(facts.deterministic);
+  return new Set(
+    [
+      stringValue(deterministic?.eventType),
+      stringValue(deterministic?.event_type),
+      ...signals.flatMap((signal) => [stringValue(signal.eventType), stringValue(signal.event_type)]),
+    ].filter(Boolean),
+  );
 }
 
 function normalizeSecLlmProvider(value: string | undefined, allowOpenAi = false): SecLlmProvider {

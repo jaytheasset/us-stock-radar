@@ -3468,6 +3468,7 @@ function OutputPreviewSections({
               const displayPayloadDebug = readClientRecord(runtimeOutput?.display_payload_debug);
               const detailUi = clientString(displayPayloadDebug?.display_mode);
               const displayType = clientString(runtimeOutput?.display_type);
+              const llmModel = clientString(item.model) || clientString(runtimeOutput?.model);
               const title = clientString(item.title) || clientString(item.event_id) || clientString(item.accession_number) || "SEC filing output";
               return (
                 <details className={styles.outputRunItem} key={key} open={index === 0}>
@@ -3481,6 +3482,7 @@ function OutputPreviewSections({
                       <span>{clientString(item.ticker) || "-"}</span>
                       <span>{clientString(item.score) || "-"}</span>
                       <span>{clientString(item.delivery_level) || "-"}</span>
+                      {llmModel ? <span>{llmModel}</span> : null}
                       {displayType ? <span>{displayType}</span> : null}
                       {detailUi ? <span>{detailUi}</span> : null}
                       {detailUrl ? (
@@ -3495,6 +3497,7 @@ function OutputPreviewSections({
                       <PreviewField label="Form" value={clientString(item.form_type) || "-"} />
                       <PreviewField label="Ticker" value={clientString(item.ticker) || "-"} />
                       <PreviewField label="Event type" value={clientString(item.event_type) || "-"} />
+                      <PreviewField label="Model" value={llmModel || "-"} />
                       <PreviewField label="Score" value={clientString(item.score) || "-"} />
                       <PreviewField label="Delivery" value={clientString(item.delivery_level) || "-"} />
                       <PreviewField label="Ran at" value={formatDate(run.ranAt)} />
