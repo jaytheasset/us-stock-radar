@@ -3757,15 +3757,14 @@ function buildProxyCapitalStructureSummaryRows(data: Record<string, unknown>) {
     buildProxyCapitalStructureRecommendation(proposals) ||
     "Not disclosed";
   const listingContext = displayString(data, "listing_context", "");
-  const meetingDate = displayString(data, "meeting_date", "Not disclosed");
-  const recordDate = displayString(data, "record_date", "");
 
   return [
-    reverseRatio ? { label: "Reverse Split Range", value: reverseRatio } : null,
+    reverseRatio ? { label: "Reverse Split", value: reverseRatio } : null,
     hasAuthorizedIncrease ? { label: "Authorized Shares", value: "Increase proposed" } : null,
-    listingContext ? { label: "Listing Context", value: listingContext } : null,
-    { label: "Meeting / Record Date", value: recordDate ? `${meetingDate} / ${recordDate}` : meetingDate },
-    { label: "Board Recommendation", value: recommendation },
+    listingContext ? { label: "Listing Issue", value: listingContext } : null,
+    !reverseRatio && !hasAuthorizedIncrease && !listingContext
+      ? { label: "Board Recommendation", value: recommendation }
+      : null,
   ].filter((row): row is { label: string; value: string } => Boolean(row));
 }
 
