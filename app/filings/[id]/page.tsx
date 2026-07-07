@@ -664,19 +664,48 @@ const commonFilingEvents: Record<string, FilingEvent> = {
     signal: "volatile",
     filingFocus: "Transaction vote sample",
     whyItMatters: "Shows a merger or sale vote proxy where consideration, vote threshold, and closing conditions matter.",
-    summary: "Transaction proxy sample with merger parties, consideration, vote required, and appraisal-rights fields.",
-    keyEvidence: ["proxy_transaction_vote_v1 display version selected.", "Merger parties and vote terms are present."],
-    watchNext: ["Check whether common layout is enough.", "Review whether transaction proxy needs a dedicated page."],
+    summary: "Shareholders are voting on a proposed cash merger. The main investor checks are the deal price, vote requirement, closing conditions, and whether appraisal rights apply.",
+    keyEvidence: [],
+    watchNext: ["Final voting result", "Whether closing conditions are satisfied", "Expected closing date and delisting timing"],
     displayType: "candidate_special",
     displayVersion: "proxy_transaction_vote_v1",
     displayData: {
+      proxy_type: "Merger vote",
+      meeting_date: "Aug 12, 2026",
+      record_date: "Jul 10, 2026",
+      transaction_summary: "Proposed cash merger",
       consideration: "$12.50 per share cash consideration",
       vote_required: "Majority of outstanding shares",
       proposal_ids: ["Proposal 1"],
       agreement_date: "Jun 1, 2026",
       merger_parties: ["Proxy UI Sample Corp.", "Sample Merger Sub Inc."],
+      board_recommendation: "For",
+      closing_conditions: "Shareholder approval and customary closing conditions",
       appraisal_rights_mentioned: true,
       delisting_mentioned: true,
+      proposals: [
+        {
+          id: "Proposal 1",
+          title: "Approve the agreement and plan of merger",
+          category: "merger vote",
+          recommendation: "For",
+          is_shareholder_proposal: false,
+        },
+        {
+          id: "Proposal 2",
+          title: "Approve merger-related executive compensation on an advisory basis",
+          category: "compensation",
+          recommendation: "For",
+          is_shareholder_proposal: false,
+        },
+        {
+          id: "Proposal 3",
+          title: "Adjourn the special meeting if more votes are needed",
+          category: "adjournment",
+          recommendation: "For",
+          is_shareholder_proposal: false,
+        },
+      ],
     },
   }),
   "proxy-ui-capital-structure-vote": makeProxySampleFilingEvent({
@@ -1924,10 +1953,12 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
     !useEffectDetail && !useIpoDetail && !useSpacDetail && isProxyListingDetail(filing);
   const useProxyEquityPlanDetail =
     !useEffectDetail && !useIpoDetail && !useSpacDetail && isProxyEquityPlanDetail(filing);
+  const useProxyTransactionDetail =
+    !useEffectDetail && !useIpoDetail && !useSpacDetail && isProxyTransactionDetail(filing);
   const useProxyGenericDetail =
-    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useProxyListingDetail && !useProxyEquityPlanDetail && isProxyGenericDetail(filing);
+    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useProxyListingDetail && !useProxyEquityPlanDetail && !useProxyTransactionDetail && isProxyGenericDetail(filing);
   const listingRiskModel =
-    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useProxyListingDetail && !useProxyEquityPlanDetail && !useProxyGenericDetail && !canUseDilutionDetail ? buildListingRiskModel(filing) : null;
+    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useProxyListingDetail && !useProxyEquityPlanDetail && !useProxyTransactionDetail && !useProxyGenericDetail && !canUseDilutionDetail ? buildListingRiskModel(filing) : null;
   const useListingRiskDetail = Boolean(listingRiskModel);
   const earningsModel =
     !useEffectDetail && !useIpoDetail && !useSpacDetail && !useListingRiskDetail ? buildEarningsModel(filing) : null;
@@ -1950,6 +1981,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
     !useIpoDetail &&
     !useSpacDetail &&
     !useProxyEquityPlanDetail &&
+    !useProxyTransactionDetail &&
     !useListingRiskDetail &&
     !useEarningsDetail &&
     !useFdaClinicalDetail &&
@@ -2040,6 +2072,8 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             <ProxyListingVoteTemplate filing={filing} />
           ) : useProxyEquityPlanDetail ? (
             <ProxyEquityPlanVoteTemplate filing={filing} />
+          ) : useProxyTransactionDetail ? (
+            <ProxyTransactionVoteTemplate filing={filing} />
           ) : useProxyGenericDetail ? (
             <ProxyGenericTemplate filing={filing} />
           ) : useListingRiskDetail && listingRiskModel ? (
@@ -3437,6 +3471,47 @@ function ProxyEquityPlanVoteTemplate({ filing }: { filing: FilingEvent }) {
   );
 }
 
+function ProxyTransactionVoteTemplate({ filing }: { filing: FilingEvent }) {
+  const displayPayload = readPlainRecord(filing.displayPayload);
+  const data = readDisplayPayloadData(displayPayload);
+  const summaryRows = buildProxyTransactionVoteSummaryRows(data);
+  const proposals = buildProxyProposalSummary(data);
+
+  return (
+    <>
+      <section className="stock-detail-top-grid proxy-transaction-vote-grid">
+        <FilingPriceChart filing={filing} />
+
+        <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card">
+          <div className="quick-take-card quick-take-block">
+            <div className="card-heading-row">
+              <h2>Merger Vote Summary</h2>
+            </div>
+            {filing.summary ? <p className="proxy-summary-context">{filing.summary}</p> : null}
+            <div className="proxy-vote-summary-rows">
+              {summaryRows.map((row) => (
+                <MetricRow key={row.label} label={row.label} value={row.value} />
+              ))}
+            </div>
+          </div>
+        </section>
+      </section>
+
+      {proposals.length ? <ProxyProposalAgenda proposals={proposals} /> : null}
+
+      {filing.watchNext.length ? (
+        <section className="stock-detail-card-grid two-up insight-summary-grid proxy-watch-grid">
+          <AnalysisList title="What To Watch Next" items={filing.watchNext} />
+        </section>
+      ) : null}
+
+      <FilingMarketContextPanel filing={filing} />
+
+      <OriginalFilingText filing={filing} eventLabel="Merger Vote" includeTemplateStatus />
+    </>
+  );
+}
+
 type ProxyProposalItem = {
   id: string;
   title: string;
@@ -3505,6 +3580,16 @@ function isProxyEquityPlanDetail(filing: FilingEvent) {
   return displayVersion === "proxy_equity_plan_vote_v1";
 }
 
+function isProxyTransactionDetail(filing: FilingEvent) {
+  const displayPayload = readPlainRecord(filing.displayPayload);
+  const data = readDisplayPayloadData(displayPayload);
+  const displayVersion =
+    readRowString(displayPayload, "display_version") ||
+    readRowString(data, "display_version") ||
+    readRowString(data, "version");
+  return displayVersion === "proxy_transaction_vote_v1";
+}
+
 function buildProxyVoteSummaryRows(data: Record<string, unknown>) {
   const proposalCount =
     displayString(data, "proposal_count", "") ||
@@ -3546,6 +3631,27 @@ function buildProxyEquityPlanSummaryRows(data: Record<string, unknown>) {
     { label: "% of Outstanding", value: formatProxyPercent(data.percent_of_outstanding) },
     { label: "Board Recommendation", value: planRecommendation || "Not disclosed" },
     voteRequirement ? { label: "Vote Requirement", value: voteRequirement } : null,
+  ].filter((row): row is { label: string; value: string } => Boolean(row));
+}
+
+function buildProxyTransactionVoteSummaryRows(data: Record<string, unknown>) {
+  const transactionProposal = findProxyTransactionProposal(data);
+  const proposalRecommendation =
+    displayString(data, "board_recommendation", "") ||
+    (transactionProposal ? readRowString(transactionProposal, "recommendation") : "");
+  const mergerParties = formatProxyMergerParties(data.merger_parties);
+  const closingConditions = displayString(data, "closing_conditions", "");
+  return [
+    { label: "Transaction", value: displayString(data, "transaction_summary", "") || "Not disclosed" },
+    mergerParties ? { label: "Parties", value: mergerParties } : null,
+    { label: "Consideration", value: displayString(data, "consideration", "Not disclosed") },
+    { label: "Vote Requirement", value: displayString(data, "vote_required", "Not disclosed") },
+    { label: "Meeting Date", value: displayString(data, "meeting_date", "Not disclosed") },
+    { label: "Board Recommendation", value: proposalRecommendation || "Not disclosed" },
+    closingConditions ? { label: "Closing Conditions", value: closingConditions } : null,
+    typeof data.appraisal_rights_mentioned === "boolean"
+      ? { label: "Appraisal Rights", value: data.appraisal_rights_mentioned ? "Mentioned" : "Not mentioned" }
+      : null,
   ].filter((row): row is { label: string; value: string } => Boolean(row));
 }
 
@@ -3594,6 +3700,26 @@ function findProxyEquityPlanProposal(data: Record<string, unknown>) {
     ].join(" ");
     return /\b(?:equity|incentive|stock plan|share reserve|espp|employee stock purchase)\b/i.test(text);
   }) ?? null;
+}
+
+function findProxyTransactionProposal(data: Record<string, unknown>) {
+  const proposalIds = displayStringArray(data.proposal_ids, []);
+  const proposals = recordArray(data.proposals);
+  return proposals.find((proposal) => {
+    const id = readRowString(proposal, "id");
+    if (proposalIds.includes(id)) return true;
+    const text = [
+      readRowString(proposal, "title"),
+      readRowString(proposal, "category"),
+    ].join(" ");
+    return /\b(?:merger|business combination|sale|transaction|acquisition|agreement and plan)\b/i.test(text);
+  }) ?? null;
+}
+
+function formatProxyMergerParties(value: unknown) {
+  const parties = displayStringArray(value, []).filter(Boolean);
+  if (parties.length >= 2) return `${parties[0]} / ${parties[1]}`;
+  return parties[0] || "";
 }
 
 function formatProxyShareReserve(value: unknown) {
