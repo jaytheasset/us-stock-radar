@@ -678,9 +678,9 @@ const commonFilingEvents: Record<string, FilingEvent> = {
       vote_required: "Majority of outstanding shares",
       proposal_ids: ["Proposal 1"],
       agreement_date: "Jun 1, 2026",
-      merger_parties: ["Proxy UI Sample Corp.", "Sample Merger Sub Inc."],
+      merger_parties: ["Proxy UI Sample Corp.", "Sample Buyer Parent Inc."],
       board_recommendation: "For",
-      closing_conditions: "Shareholder approval and customary closing conditions",
+      closing_conditions: "Shareholder approval, regulatory clearance, no injunction",
       appraisal_rights_mentioned: true,
       delisting_mentioned: true,
       proposals: [
@@ -3476,6 +3476,7 @@ function ProxyTransactionVoteTemplate({ filing }: { filing: FilingEvent }) {
   const data = readDisplayPayloadData(displayPayload);
   const summaryRows = buildProxyTransactionVoteSummaryRows(data);
   const proposals = buildProxyProposalSummary(data);
+  const heading = buildProxyTransactionVoteHeading(data);
 
   return (
     <>
@@ -3485,7 +3486,7 @@ function ProxyTransactionVoteTemplate({ filing }: { filing: FilingEvent }) {
         <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card">
           <div className="quick-take-card quick-take-block">
             <div className="card-heading-row">
-              <h2>Merger Vote Summary</h2>
+              <h2>{heading}</h2>
             </div>
             {filing.summary ? <p className="proxy-summary-context">{filing.summary}</p> : null}
             <div className="proxy-vote-summary-rows">
@@ -3640,19 +3641,36 @@ function buildProxyTransactionVoteSummaryRows(data: Record<string, unknown>) {
     displayString(data, "board_recommendation", "") ||
     (transactionProposal ? readRowString(transactionProposal, "recommendation") : "");
   const mergerParties = formatProxyMergerParties(data.merger_parties);
+  const partyLabel = buildProxyTransactionPartyLabel(data);
   const closingConditions = displayString(data, "closing_conditions", "");
   return [
     { label: "Transaction", value: displayString(data, "transaction_summary", "") || "Not disclosed" },
-    mergerParties ? { label: "Parties", value: mergerParties } : null,
+    mergerParties ? { label: partyLabel, value: mergerParties } : null,
     { label: "Consideration", value: displayString(data, "consideration", "Not disclosed") },
     { label: "Vote Requirement", value: displayString(data, "vote_required", "Not disclosed") },
     { label: "Meeting Date", value: displayString(data, "meeting_date", "Not disclosed") },
+    { label: "Record Date", value: displayString(data, "record_date", "Not disclosed") },
     { label: "Board Recommendation", value: proposalRecommendation || "Not disclosed" },
     closingConditions ? { label: "Closing Conditions", value: closingConditions } : null,
     typeof data.appraisal_rights_mentioned === "boolean"
       ? { label: "Appraisal Rights", value: data.appraisal_rights_mentioned ? "Mentioned" : "Not mentioned" }
       : null,
   ].filter((row): row is { label: string; value: string } => Boolean(row));
+}
+
+function buildProxyTransactionVoteHeading(data: Record<string, unknown>) {
+  return isProxyMergerTransaction(data) ? "Merger Vote Summary" : "Transaction Vote Summary";
+}
+
+function buildProxyTransactionPartyLabel(data: Record<string, unknown>) {
+  const text = buildProxyTransactionText(data);
+  if (/\bmerger\b/i.test(text)) return "Company / Buyer";
+  if (/\b(?:asset|business)\s+sale|sale\s+of\b/i.test(text)) return "Seller / Buyer";
+  return "Parties";
+}
+
+function isProxyMergerTransaction(data: Record<string, unknown>) {
+  return /\bmerger\b/i.test(buildProxyTransactionText(data));
 }
 
 function buildProxyBoardRecommendationSummary(data: Record<string, unknown>) {
@@ -3720,6 +3738,21 @@ function formatProxyMergerParties(value: unknown) {
   const parties = displayStringArray(value, []).filter(Boolean);
   if (parties.length >= 2) return `${parties[0]} / ${parties[1]}`;
   return parties[0] || "";
+}
+
+function buildProxyTransactionText(data: Record<string, unknown>) {
+  const proposals = recordArray(data.proposals);
+  return [
+    displayString(data, "proxy_type", ""),
+    displayString(data, "transaction_summary", ""),
+    displayString(data, "consideration", ""),
+    ...proposals.flatMap((proposal) => [
+      readRowString(proposal, "title"),
+      readRowString(proposal, "category"),
+    ]),
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 function formatProxyShareReserve(value: unknown) {
