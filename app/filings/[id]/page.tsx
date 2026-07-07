@@ -875,35 +875,35 @@ const commonFilingEvents: Record<string, FilingEvent> = {
   }),
   "proxy-ui-spac-transaction-status": makeProxySampleFilingEvent({
     id: "proxy-ui-spac-transaction-status",
-    title: "Proxy UI Sample: SPAC Business Combination Vote",
+    title: "Proxy UI Sample: SPAC / de-SPAC Vote Status",
     formType: "DEFM14A",
     eventType: "strategic_transaction",
     score: 82,
     signal: "volatile",
-    filingFocus: "SPAC proxy status sample",
-    whyItMatters: "Shows proxy/de-SPAC status fields such as redemption, trust cash, minimum cash, and ticker change.",
-    summary: "SPAC proxy sample for business-combination status and redemption-sensitive transaction details.",
-    keyEvidence: ["proxy_spac_transaction_status_v1 display version selected.", "SPAC-specific status fields are populated."],
-    watchNext: ["Check SPAC timeline layout.", "Check whether proxy version renders like other SPAC transaction pages."],
+    filingFocus: "SPAC / de-SPAC vote status",
+    whyItMatters: "SPAC votes can turn on redemption levels, minimum cash, listing approval, and the closing timeline.",
+    summary: "Shareholders are voting on a business combination with Sample Target. Redemption results and the minimum cash condition are the key closing risks.",
+    keyEvidence: [],
+    watchNext: ["Shareholder vote result", "Final redemption numbers", "Closing 8-K and ticker-change date"],
     displayType: "spac_transaction_status",
     displayVersion: "proxy_spac_transaction_status_v1",
     displayData: {
       current_stage: "proxy",
-      current_stage_label: "SEC Filing / Proxy",
+      current_stage_label: "Proxy vote pending",
       deal_status: "Business combination vote pending",
-      spac_status: "Proxy materials describe the vote, redemption mechanics, and closing conditions.",
-      stage_summary: "The proxy puts redemption, minimum cash, and ticker-change timing in focus.",
+      spac_status: "Shareholders are voting on the business combination. Redemptions and minimum cash determine closing pressure.",
+      stage_summary: "Vote, redemption, minimum cash, and ticker-change timing are the key checks.",
       stages: [
         { code: "target", label: "Target / Deal Signed", date: "Apr 15, 2026" },
-        { code: "proxy", label: "SEC Filing / Proxy", date: "Jul 7, 2026" },
+        { code: "proxy", label: "Proxy Filed", date: "Jul 7, 2026" },
         { code: "vote", label: "Vote & Redemption Window", date: "Pending" },
         { code: "redemption", label: "Redemption Result", date: "Pending" },
         { code: "cash", label: "Cash / Listing Conditions", date: "Before closing" },
         { code: "closing", label: "Closing / Ticker Change", date: "Pending" },
       ],
       target_company: "Sample Target Inc.",
-      target_summary: "Target-company summary placeholder for SPAC proxy UI testing.",
-      target_company_story: "Sample Target Inc. is included only to verify de-SPAC proxy page layout.",
+      target_summary: "Sample Target Inc. is the operating company expected to become public through the SPAC merger.",
+      target_company_story: "Sample Target Inc. is the operating company in the proposed de-SPAC transaction.",
       expected_ticker: "SAMP",
       deal_value: "$750M enterprise value",
       announced_date: "Apr 15, 2026",
@@ -926,8 +926,8 @@ const commonFilingEvents: Record<string, FilingEvent> = {
       float_impact: "Depends on redemption results",
       closing_date: "Pending",
       ticker_change_date: "Pending",
-      risk_flags: ["High redemptions could reduce cash available at closing.", "Minimum cash may require waiver or backstop financing."],
-      watch_next: ["Shareholder vote result.", "Final redemption numbers.", "Closing 8-K and ticker-change confirmation."],
+      risk_flags: ["High redemptions could reduce cash available at closing.", "Minimum cash may require a waiver or backstop financing."],
+      watch_next: ["Shareholder vote result", "Final redemption numbers", "Closing 8-K and ticker-change confirmation"],
       sources: [
         { title: "Proxy statement", detail: "Business combination vote and redemption mechanics", form: "DEFM14A" },
       ],
@@ -5052,7 +5052,7 @@ function SpacTransactionStatusTemplate({
         <section className="stock-detail-card spac-summary-panel">
           <div className="spac-summary-heading">
             <div>
-              <h2>SPAC Transaction Snapshot</h2>
+              <h2>de-SPAC Vote Status</h2>
               <p>
                 <strong>{model.currentStageLabel}.</strong> {model.stageSummary}
               </p>
@@ -5060,12 +5060,12 @@ function SpacTransactionStatusTemplate({
           </div>
 
           <div className="spac-metric-grid">
-            <SpacMetricCard icon="status" label="Deal Status" note="Current transaction state" value={model.dealStatus} />
-            <SpacMetricCard icon="redemption" label="Redemption Rate" note="Public shares redeemed" tone="risk" value={model.redemptionRate} />
+            <SpacMetricCard icon="status" label="Deal Vote" note="Current transaction state" value={model.dealStatus} />
+            <SpacMetricCard icon="redemption" label="Redemption Status" note="Public shares redeemed" tone="risk" value={model.redemptionRate} />
             <SpacMetricCard icon="cash" label="Cash Condition" note={model.minCashCondition} tone="risk" value={model.cashCondition} />
             <SpacMetricCard
               icon="closing"
-              label="Expected Closing"
+              label="Closing / Ticker"
               note={model.tickerChangeDate ? `Ticker change: ${model.tickerChangeDate}` : "Ticker change not disclosed"}
               value={model.closingDate}
             />
@@ -5076,8 +5076,8 @@ function SpacTransactionStatusTemplate({
       <section className="stock-detail-card spac-stage-card">
         <div className="card-heading-row">
           <div>
-            <h2>SPAC Deal Flow</h2>
-            <p>Track the SPAC from target announcement through redemption, cash-condition review, closing, and ticker change.</p>
+            <h2>de-SPAC Timeline</h2>
+            <p>Target announcement, proxy vote, redemption, cash-condition review, closing, and ticker change.</p>
           </div>
           <span>{model.currentStageNumber}/{model.stages.length} stages reached</span>
         </div>
@@ -5091,7 +5091,7 @@ function SpacTransactionStatusTemplate({
       <section className="stock-detail-card spac-explainer-card spac-target-overview-card">
         <div className="card-heading-row">
           <div>
-            <h2>Target Company Overview</h2>
+            <h2>Target Overview</h2>
             <p>{model.targetCompanyStory}</p>
           </div>
           <span>{model.expectedTicker}</span>
@@ -5115,8 +5115,8 @@ function SpacTransactionStatusTemplate({
       <section className="stock-detail-card spac-context-strip">
         <div className="card-heading-row">
           <div>
-            <h2>Transaction Context</h2>
-            <p>Current gate, target deal, and SPAC vehicle details from the filing payload.</p>
+            <h2>Deal Details</h2>
+            <p>Current vote gate, target deal terms, and SPAC vehicle context.</p>
           </div>
           <span>{model.stageBadge}</span>
         </div>
@@ -5160,35 +5160,10 @@ function SpacTransactionStatusTemplate({
         </div>
       </section>
 
-      <section className="stock-detail-card spac-explainer-card">
-        <div className="card-heading-row">
-          <div>
-            <h2>SPAC Context</h2>
-            <p>{model.targetSummary}</p>
-          </div>
-        </div>
-        <div className="spac-explainer-grid">
-          <div>
-            <strong>What is happening</strong>
-            <p>{model.spacStatus}</p>
-          </div>
-          <div>
-            <strong>Sponsor / underwriter context</strong>
-            <p>
-              Sponsor: {model.sponsor}. IPO underwriter: {model.ipoUnderwriter}. Treat profile quality as context, not a standalone alert trigger.
-            </p>
-          </div>
-          <div>
-            <strong>Highest-priority follow-up</strong>
-            <p>{model.nextCheck}</p>
-          </div>
-        </div>
-      </section>
-
       <section className="stock-detail-card-grid two-up spac-detail-grid">
         <section className="stock-detail-card spac-impact-card">
           <div className="card-heading-row">
-            <h2>Redemption Impact</h2>
+            <h2>Redemption / Cash</h2>
             <span>{model.redemptionRate}</span>
           </div>
           <div className="spac-readout-grid">
@@ -5219,7 +5194,7 @@ function SpacTransactionStatusTemplate({
 
       <section className="stock-detail-card-grid two-up spac-support-grid">
         <section className="stock-detail-card spac-risk-card">
-          <h2>Key Risk Flags</h2>
+          <h2>Main Risks</h2>
           <ul>
             {model.riskFlags.map((flag) => (
               <li key={flag}>
