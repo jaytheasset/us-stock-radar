@@ -12,6 +12,17 @@ export interface ProxyAnalysisPromptInput {
   routerDecision: ProxyRouterDecision;
   displayPayload?: ProxyDisplayPayload;
   marketContext?: Record<string, unknown> | null;
+  variant?: ProxyAnalysisPromptVariant | string;
+}
+
+export type ProxyAnalysisPromptVariant = "default" | "proxy_routine_annual_test";
+
+export const SEC_PROXY_ANALYSIS_PROMPT_KEY = "sec_proxy_analysis";
+export const SEC_PROXY_ANALYSIS_PROMPT_VERSION = "proxy-analysis-v1";
+export const SEC_PROXY_ROUTINE_ANNUAL_TEST_PROMPT_VERSION = "proxy-analysis-v1-routine-annual-test";
+
+export function normalizeProxyAnalysisPromptVariant(value: unknown): ProxyAnalysisPromptVariant {
+  return value === "proxy_routine_annual_test" ? "proxy_routine_annual_test" : "default";
 }
 
 export interface ProxyAnalysisOutput {
@@ -68,6 +79,7 @@ export interface ProxyRequiredOutput {
 
 export function buildProxyAnalysisPrompt(input: ProxyAnalysisPromptInput): string {
   const displayPayload = input.displayPayload ?? buildProxyDisplayPayload(input.parserOutput, input.routerDecision.event_type);
+  const variant = normalizeProxyAnalysisPromptVariant(input.variant);
   return [
     "You are writing investor-facing analysis for an SEC Proxy filing.",
     "",
@@ -92,6 +104,7 @@ export function buildProxyAnalysisPrompt(input: ProxyAnalysisPromptInput): strin
     "- score below 50: archive",
     "- score 50 to 74: feed",
     "- score 75 or above: alert",
+    ...proxyVariantInstructions(variant),
     "",
     "Return JSON only in this exact top-level shape:",
     JSON.stringify(requiredOutputSkeleton(), null, 2),
@@ -110,6 +123,21 @@ export function buildProxyAnalysisPrompt(input: ProxyAnalysisPromptInput): strin
     "market_context_fixture:",
     JSON.stringify(input.marketContext ?? null, null, 2),
   ].join("\n");
+}
+
+function proxyVariantInstructions(variant: ProxyAnalysisPromptVariant): string[] {
+  if (variant !== "proxy_routine_annual_test") return [];
+  return [
+    "",
+    "TEST VARIANT: routine annual proxy wording.",
+    "Use this guidance only for routine annual meeting proxies with ordinary director election, say-on-pay, auditor ratification, or routine meeting proposals.",
+    "Do not make routine annual proxy items sound like a market catalyst unless the source text includes a distinct non-routine proposal or adverse fact.",
+    "For ordinary annual meeting proxies, score normally belongs below 50 unless a non-routine proposal, failed vote risk, activist contest, merger, dilution, listing, or legal-risk fact is source-backed.",
+    "quick_take must be an investor message, not a filing restatement. One short sentence.",
+    "summary must be one or two concise sentences. Include meeting date, record date, and proposal count only when source-backed.",
+    "key_evidence should have at most three compact items: meeting date, record date, and main proposal groups.",
+    "what_to_watch_next should have at most two compact items. Prefer final vote results and any non-routine proposal outcome.",
+  ];
 }
 
 export function buildDeterministicProxyAnalysis(

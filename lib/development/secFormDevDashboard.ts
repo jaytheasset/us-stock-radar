@@ -21,6 +21,10 @@ import {
 } from "@/lib/sources/sec/forms/424b/types";
 import { buildS1F1AnalysisPrompt } from "@/lib/sources/sec/forms/s1-f1/analysisPrompt";
 import { parseS1F1Filing } from "@/lib/sources/sec/forms/s1-f1/parser";
+import { buildProxyAnalysisPrompt } from "@/lib/sources/sec/forms/proxy/analysisPrompt";
+import { buildProxyDisplayPayload } from "@/lib/sources/sec/forms/proxy/displayPayload";
+import { parseProxyFiling } from "@/lib/sources/sec/forms/proxy/parser";
+import { routeProxyFiling } from "@/lib/sources/sec/forms/proxy/routerPrompt";
 import { supabaseDelete, supabaseSelect } from "@/lib/supabase";
 
 const execAsync = promisify(exec);
@@ -2023,6 +2027,8 @@ async function readPromptPreviews(room: SecDevRoom): Promise<SecDevPromptPreview
           ? build424bPromptVariantPreviews()
           : room.key === "s1-f1" && file === "analysisPrompt.ts"
             ? buildS1F1PromptVariantPreviews()
+            : room.key === "proxy" && file === "analysisPrompt.ts"
+              ? buildProxyPromptVariantPreviews()
             : extractPromptTemplateLiterals(raw);
       if (prompts.length) {
         previews.push({ file, prompts });
@@ -2093,6 +2099,50 @@ function build424bPromptVariantPreviews() {
     {
       name: "Backup legacy (pre-sectioned)",
       text: normalizePromptPreviewText(build424bAnalysisPrompt(previewParserOutput, { variant: "legacy" })),
+    },
+  ];
+}
+
+function buildProxyPromptVariantPreviews() {
+  const previewParserOutput = parseProxyFiling({
+    formType: "DEF 14A",
+    accessionNumber: "0000000000-00-000000",
+    companyName: "Prompt Preview Proxy Corp.",
+    primaryTicker: {
+      ticker: "PRXY",
+      exchange: "NASDAQ",
+    },
+    filingText: [
+      "Prompt Preview Proxy Corp. will hold its annual meeting on June 9, 2026.",
+      "Stockholders will vote on the election of directors, an advisory vote to approve named executive officer compensation, and ratification of the independent registered public accounting firm.",
+      "The board recommends a vote FOR each proposal.",
+      "The record date is April 16, 2026.",
+    ].join("\n"),
+  });
+  const routerDecision = routeProxyFiling(previewParserOutput);
+  const displayPayload = buildProxyDisplayPayload(previewParserOutput, routerDecision.event_type);
+
+  return [
+    {
+      name: "Default proxy",
+      text: normalizePromptPreviewText(
+        buildProxyAnalysisPrompt({
+          parserOutput: previewParserOutput,
+          routerDecision,
+          displayPayload,
+        }),
+      ),
+    },
+    {
+      name: "Routine annual test",
+      text: normalizePromptPreviewText(
+        buildProxyAnalysisPrompt({
+          parserOutput: previewParserOutput,
+          routerDecision,
+          displayPayload,
+          variant: "proxy_routine_annual_test",
+        }),
+      ),
     },
   ];
 }

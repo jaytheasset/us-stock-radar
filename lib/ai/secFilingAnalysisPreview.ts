@@ -55,7 +55,11 @@ import {
   shouldRunSec8k6kAnalysis,
 } from "@/lib/ai/secFormAnalysisAdapterRegistry";
 import { buildSecFilingAnalysisPackage } from "@/lib/prompts/secFilingAnalysisPackage";
-import { buildSecFilingAnalysisPrompt, type SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
+import {
+  buildSecFilingAnalysisPrompt,
+  secFilingAnalysisResponseSchema,
+  type SecFilingAnalysisInput,
+} from "@/lib/prompts/secFilingAnalysis";
 import {
   applySecOfferingScorePolicy,
   buildSecOfferingDilutionMetrics,
@@ -80,6 +84,16 @@ import {
 import { parseSecS3Filing, type SecS3FilingFacts } from "@/lib/sources/sec/forms/s3-f3/parser";
 import { parseSc13Filing } from "@/lib/sources/sec/forms/sc13/parser";
 import type { Sc13ParserOutput } from "@/lib/sources/sec/forms/sc13/types";
+import {
+  buildProxyAnalysisPrompt,
+  normalizeProxyAnalysisPromptVariant,
+  SEC_PROXY_ANALYSIS_PROMPT_KEY,
+  SEC_PROXY_ANALYSIS_PROMPT_VERSION,
+  SEC_PROXY_ROUTINE_ANNUAL_TEST_PROMPT_VERSION,
+} from "@/lib/sources/sec/forms/proxy/analysisPrompt";
+import { buildProxyDisplayPayload } from "@/lib/sources/sec/forms/proxy/displayPayload";
+import type { ProxyParserOutput } from "@/lib/sources/sec/forms/proxy/parser";
+import { routeProxyFiling } from "@/lib/sources/sec/forms/proxy/routerPrompt";
 import { supabaseSelect } from "@/lib/supabase";
 
 type PreviewOptions = {
@@ -1401,6 +1415,67 @@ export async function runSecFilingAnalysisForRawRow(
     };
   }
 
+  const proxyPromptVariant = normalizeProxyAnalysisPromptVariant(options.secPromptVariant);
+  if (isProxyFilingInput(input) && proxyPromptVariant !== "default") {
+    await attachSecMarketContext(input);
+    const prompt = buildSecProxyAnalysisPromptForInput(input, { promptVariant: proxyPromptVariant });
+    const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
+    if (!analysisRun.ok || !analysisRun.parsed) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: analysisRun.status,
+        error: `SEC proxy analysis failed after ${analysisRun.attempts} attempt(s): ${analysisRun.error || "no parseable JSON"}`,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        outputText: analysisRun.outputText,
+        usage: analysisRun.usage,
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        prompt: {
+          key: prompt.key,
+          version: prompt.version,
+        },
+      };
+    }
+
+    const proxyAnalysis = adaptSecProxyAnalysisPromptResultForAnalysis(analysisRun.parsed);
+    if (!proxyAnalysis.ok) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: analysisRun.status,
+        error: proxyAnalysis.error,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        outputText: analysisRun.outputText,
+        usage: analysisRun.usage,
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        prompt: {
+          key: prompt.key,
+          version: prompt.version,
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      stage: "complete",
+      status: analysisRun.status,
+      model: llmConfig.model,
+      openAiResponseId: analysisRun.openAiResponseId,
+      sourceItem: summarizeRawRow(rawItem),
+      input,
+      analysis: proxyAnalysis.analysis,
+      outputText: analysisRun.outputText,
+      usage: analysisRun.usage,
+      costEstimate: estimateCost(llmConfig.model, analysisRun.usage),
+      prompt: {
+        key: prompt.key,
+        version: prompt.version,
+      },
+    };
+  }
+
   await attachSecMarketContext(input);
 
   const prompt = buildSecFilingPromptForInput(input, options);
@@ -2551,12 +2626,126 @@ function readMaxOutputTokens(promptKey: string) {
   if (promptKey === SEC_TENDER_ANALYSIS_PROMPT_KEY) return 8000;
   if (promptKey === SEC_424B_ANALYSIS_PROMPT_KEY) return 8000;
   if (promptKey === SEC_S1_F1_ANALYSIS_PROMPT_KEY) return 8000;
+  if (promptKey === SEC_PROXY_ANALYSIS_PROMPT_KEY) return 3500;
   if (promptKey === SEC_S1_F1_EVENT_TITLE_REPAIR_PROMPT_KEY) return 600;
   if (promptKey === SEC_S1_F1_ROUTE_ONLY_PROMPT_KEY) return 1200;
   if (promptKey === SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY) return 2500;
   if (promptKey === SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY) return 7000;
   return promptKey === SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY ? 8000 : 5000;
 }
+
+function isProxyFilingInput(input: SecFilingAnalysisInput) {
+  return Boolean(readProxyParserOutput(input));
+}
+
+function buildSecProxyAnalysisPromptForInput(
+  input: SecFilingAnalysisInput,
+  options: { promptVariant?: string } = {},
+): OpenAiPrompt {
+  const parserOutput = readProxyParserOutput(input);
+  if (!parserOutput) {
+    throw new Error("SEC proxy parser output is missing from filing package");
+  }
+  const promptVariant = normalizeProxyAnalysisPromptVariant(options.promptVariant);
+  const routerDecision = routeProxyFiling(parserOutput);
+  const displayPayload = buildProxyDisplayPayload(parserOutput, routerDecision.event_type);
+  const marketContext = readRecord(readRecord(input.filing_package)?.market_context);
+
+  return {
+    key: SEC_PROXY_ANALYSIS_PROMPT_KEY,
+    version:
+      promptVariant === "proxy_routine_annual_test"
+        ? SEC_PROXY_ROUTINE_ANNUAL_TEST_PROMPT_VERSION
+        : SEC_PROXY_ANALYSIS_PROMPT_VERSION,
+    system: [
+      "Analyze one SEC proxy filing from cleaned source blocks.",
+      "Return the full proxy Required Output JSON shape.",
+      "Use the supplied proxy router decision and display payload contract.",
+      "Score means investor attention and urgency. Delivery is derived later from score only.",
+    ].join("\n"),
+    user: buildProxyAnalysisPrompt({
+      parserOutput,
+      routerDecision,
+      displayPayload,
+      marketContext,
+      variant: promptVariant,
+    }),
+    responseFormat: {
+      json_schema: {
+        name: "sec_proxy_required_output",
+        strict: false,
+        schema: secProxyRequiredOutputSchema,
+      },
+    },
+  };
+}
+
+function adaptSecProxyAnalysisPromptResultForAnalysis(root: Record<string, unknown>) {
+  const analysisOutput = readRecord(root.analysis_output);
+  const displayPayload = readRecord(root.display_payload);
+  if (!analysisOutput) {
+    return { ok: false as const, error: "SEC proxy result did not contain analysis_output" };
+  }
+  if (!displayPayload) {
+    return { ok: false as const, error: "SEC proxy result did not contain display_payload" };
+  }
+  return {
+    ok: true as const,
+    analysis: {
+      ...analysisOutput,
+      display_payload: displayPayload,
+    },
+  };
+}
+
+function readProxyParserOutput(input: SecFilingAnalysisInput): ProxyParserOutput | null {
+  const filingPackage = readRecord(input.filing_package);
+  const hardParsers = readRecord(filingPackage?.hard_parsers);
+  const proxy = readRecord(hardParsers?.proxy);
+  if (!proxy || stringValue(proxy.parserGroup) !== "proxy") return null;
+  return proxy as unknown as ProxyParserOutput;
+}
+
+const secProxyRequiredOutputSchema = {
+  type: "object",
+  additionalProperties: true,
+  required: ["parser_output", "analysis_output", "display_payload", "fixture_expected"],
+  properties: {
+    parser_output: {
+      type: "object",
+      additionalProperties: true,
+    },
+    analysis_output: secFilingAnalysisResponseSchema,
+    display_payload: {
+      type: "object",
+      additionalProperties: true,
+      required: ["display_type", "display_version", "data", "evidence", "notes"],
+      properties: {
+        display_type: {
+          type: "string",
+          enum: ["generic", "offering_terms", "candidate_special", "spac_transaction_status"],
+        },
+        display_version: { type: "string" },
+        data: {
+          type: "object",
+          additionalProperties: true,
+        },
+        evidence: {
+          type: "array",
+          items: { type: "string" },
+        },
+        notes: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+    },
+    fixture_expected: {
+      type: "object",
+      additionalProperties: true,
+    },
+  },
+} as const;
 
 export async function findSecRawItem(options: PreviewOptions = {}) {
   if (options.rawItemId) {

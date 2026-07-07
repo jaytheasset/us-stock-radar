@@ -55,7 +55,11 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
       ? secPromptVariant
       : selectedRoom === "s1-f1" && secPromptVariant === "legacy_default_backup"
         ? secPromptVariant
-        : "";
+        : selectedRoom === "proxy" && secPromptVariant === "proxy_routine_annual_test"
+          ? secPromptVariant
+          : "";
+  const promptVariantSelectValue =
+    selectedRoom === "proxy" && secPromptVariant !== "proxy_routine_annual_test" ? "default" : secPromptVariant;
   const liveSampleCountNumber = clampLiveSampleCount(liveSampleCount);
   const selectedRunFormCount = Math.max(1, selectedRunForms.length);
   const selectedRunLabel = liveFormFilter === "all" ? "all forms " : `${liveFormFilter} `;
@@ -416,20 +420,25 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
               ))}
             </select>
           </label>
-          {selectedRoom === "424b" || selectedRoom === "s1-f1" ? (
+          {selectedRoom === "424b" || selectedRoom === "s1-f1" || selectedRoom === "proxy" ? (
             <label className={styles.compactControl}>
               <span>Prompt variant</span>
-              <select onChange={(event) => setSecPromptVariant(event.target.value)} value={secPromptVariant}>
+              <select onChange={(event) => setSecPromptVariant(event.target.value)} value={promptVariantSelectValue}>
                 {selectedRoom === "424b" ? (
                   <>
                     <option value="sectioned">Default sectioned (active)</option>
                     <option value="legacy">Backup legacy (pre-sectioned)</option>
                   </>
-                ) : (
+                ) : selectedRoom === "s1-f1" ? (
                   <>
                     <option value="default">Default active (pending terms)</option>
                     {/* Legacy backup: pre-pending-terms S-1/F-1 default prompt kept for comparison. */}
                     <option value="legacy_default_backup">Legacy backup (pre-pending terms)</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="default">Default proxy</option>
+                    <option value="proxy_routine_annual_test">Routine annual test</option>
                   </>
                 )}
               </select>
