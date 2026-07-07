@@ -5074,30 +5074,16 @@ function SpacTransactionStatusTemplate({
                 note={model.tickerChangeDate ? `Ticker change: ${model.tickerChangeDate}` : "Ticker change not disclosed"}
               />
             </div>
+            <SpacMiniTimeline currentStageNumber={model.currentStageNumber} stages={model.stages} />
           </div>
         </section>
-      </section>
-
-      <section className="stock-detail-card spac-stage-card">
-        <div className="card-heading-row">
-          <div>
-            <h2>Deal Timeline</h2>
-            <p>Deal signing, proxy vote, redemption, cash review, closing, and ticker change.</p>
-          </div>
-          <span>{model.currentStageNumber}/{model.stages.length} stages reached</span>
-        </div>
-        <div className="spac-stage-map" aria-label="SPAC transaction stage timeline">
-          {model.stages.map((stage, index) => (
-            <SpacStageStep key={`${stage.label}-${index}`} stage={stage} />
-          ))}
-        </div>
       </section>
 
       <section className="stock-detail-card spac-context-strip">
         <div className="card-heading-row">
           <div>
-            <h2>Target & Deal Terms</h2>
-            <p>{model.targetCompanyStory}</p>
+            <h2>Deal Snapshot</h2>
+            <p>{model.targetCompanyStory} Redemption, cash, and closing conditions are shown in the same table.</p>
           </div>
           <span>{model.expectedTicker}</span>
         </div>
@@ -5106,48 +5092,15 @@ function SpacTransactionStatusTemplate({
           <SpacReadoutItem label="Target" value={model.targetCompany} note={model.targetSummary} />
           <SpacReadoutItem label="Expected Ticker" value={model.expectedTicker} />
           <SpacReadoutItem label="Deal Value" value={model.dealValue} />
-          <SpacReadoutItem label="Announced" value={model.announcedDate} />
-          <SpacReadoutItem label="Merger Agreement Date" value={model.mergerAgreementDate} />
+          <SpacReadoutItem label="Vote / Redemption" value={model.redemptionRate} note="Public shares redeemed" />
+          <SpacReadoutItem label="Minimum Cash" value={model.minCashCondition} note={model.minCashStatus} />
+          <SpacReadoutItem label="Closing / Ticker" value={model.closingDate} note={`Ticker change: ${model.tickerChangeDate}`} />
+          <SpacReadoutItem label="Trust Cash Before" value={model.trustCashBefore} />
+          <SpacReadoutItem label="Trust Cash After" value={model.trustCashAfter} />
+          <SpacReadoutItem label="Public Shares Remaining" value={model.publicSharesRemaining} />
           <SpacReadoutItem label="SPAC Vehicle" value={`${filing.ticker}${model.ipoYear ? ` / IPO ${model.ipoYear}` : ""}`} />
           <SpacReadoutItem label="Sponsor" value={model.sponsor} />
-          <SpacReadoutItem label="IPO Underwriter" value={model.ipoUnderwriter} />
           <SpacReadoutItem label="Unit / Right / Warrant" value={model.unitRightWarrantTerms} />
-        </div>
-      </section>
-
-      <section className="stock-detail-card spac-context-strip">
-        <div className="card-heading-row">
-          <div>
-            <h2>Redemption & Closing</h2>
-            <p>Redemption results, cash left in trust, minimum cash condition, and closing/ticker timing.</p>
-          </div>
-          <span>{model.redemptionRate}</span>
-        </div>
-
-        <div className="spac-compact-columns">
-          <section>
-            <h3>Redemption / Cash</h3>
-            <div className="spac-field-board two-column">
-              <SpacReadoutItem label="Trust Cash Before" value={model.trustCashBefore} />
-              <SpacReadoutItem label="Trust Cash After" value={model.trustCashAfter} />
-              <SpacReadoutItem label="Redemption Price" value={model.redemptionPrice} />
-              <SpacReadoutItem label="Public Shares Remaining" value={model.publicSharesRemaining} />
-              <SpacReadoutItem label="Minimum Cash Condition" value={model.minCashCondition} />
-              <SpacReadoutItem label="Float Impact" value={model.floatImpact} />
-            </div>
-          </section>
-
-          <section>
-            <h3>Closing Conditions</h3>
-            <ul className="spac-check-list">
-              <SpacConditionItem tone={model.minCashStatus.toLowerCase().includes("risk") ? "risk" : "complete"}>
-                Minimum cash condition: {model.minCashCondition} ({model.minCashStatus})
-              </SpacConditionItem>
-              <SpacConditionItem>Business combination target: {model.targetCompany}</SpacConditionItem>
-              <SpacConditionItem>Expected closing: {model.closingDate}</SpacConditionItem>
-              <SpacConditionItem>Ticker change expected: {model.tickerChangeDate}</SpacConditionItem>
-            </ul>
-          </section>
         </div>
       </section>
 
@@ -5187,6 +5140,26 @@ function SpacTransactionStatusTemplate({
 
       <OriginalFilingText filing={filing} eventLabel={eventLabel} />
     </>
+  );
+}
+
+function SpacMiniTimeline({ currentStageNumber, stages }: { currentStageNumber: number; stages: SpacStageItem[] }) {
+  return (
+    <div className="spac-mini-timeline" aria-label="SPAC transaction stage timeline">
+      <div className="spac-mini-timeline-head">
+        <span>Deal Timeline</span>
+        <strong>
+          {currentStageNumber}/{stages.length} reached
+        </strong>
+      </div>
+      <div className="spac-mini-stage-row">
+        {stages.map((stage, index) => (
+          <span key={`${stage.label}-${index}`} className={`spac-mini-stage ${stage.tone}`}>
+            {stage.label}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
