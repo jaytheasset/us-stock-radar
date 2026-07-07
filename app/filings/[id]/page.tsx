@@ -5047,10 +5047,10 @@ function SpacTransactionStatusTemplate({
 }) {
   const targetLine = `${model.targetCompany} / ${model.expectedTicker}`;
   const closingLine = model.closingDate === model.tickerChangeDate ? model.closingDate : `${model.closingDate} / ${model.tickerChangeDate}`;
-  const keyConditions = [
-    { label: "Minimum Cash", value: model.minCashCondition, note: model.minCashStatus },
-    { label: "Redemptions", value: model.redemptionRate, note: model.redemptionDeadline !== "Not disclosed" ? `Deadline: ${model.redemptionDeadline}` : "Final result pending" },
-    { label: "Closing Condition", value: model.cashCondition, note: model.blockingIssue },
+  const keyEvidence = [
+    `Minimum cash condition: ${model.minCashCondition} (${model.minCashStatus}).`,
+    `Redemptions: ${model.redemptionRate}${model.redemptionDeadline !== "Not disclosed" ? `; deadline ${model.redemptionDeadline}.` : "."}`,
+    `Closing / listing: ${closingLine}.`,
   ];
   const watchItems = model.watchNext.slice(0, 3);
 
@@ -5091,13 +5091,13 @@ function SpacTransactionStatusTemplate({
 
       <section className="stock-detail-card spac-context-strip">
         <div className="spac-compact-columns">
-          <section className="spac-condition-card">
-            <h3>Key Conditions</h3>
-            <div className="spac-condition-list">
-              {keyConditions.map((condition) => (
-                <SpacReadoutItem key={condition.label} label={condition.label} value={condition.value} note={condition.note} />
+          <section className="spac-watch-card">
+            <h3>Key Evidence</h3>
+            <ol>
+              {keyEvidence.map((item) => (
+                <li key={item}>{item}</li>
               ))}
-            </div>
+            </ol>
           </section>
 
           <section className="spac-watch-card">
