@@ -10678,70 +10678,6 @@ td {
   border-bottom: 1px solid var(--detail-divider);
 }
 
-.spac-mini-timeline {
-  display: grid;
-  gap: 8px;
-}
-
-.spac-mini-timeline-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.spac-mini-timeline-head span {
-  color: #64728a;
-  font-size: 10px;
-  font-weight: 800;
-  line-height: 1.2;
-  text-transform: uppercase;
-}
-
-.spac-mini-timeline-head strong {
-  color: #40506b;
-  font-size: 11px;
-  line-height: 1.25;
-}
-
-.spac-mini-stage-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.spac-mini-stage {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  border: 1px solid #dbe5f1;
-  border-radius: 999px;
-  padding: 4px 8px;
-  color: #52627f;
-  background: #f8fbff;
-  font-size: 10.5px;
-  font-weight: 700;
-  line-height: 1.1;
-}
-
-.spac-mini-stage.complete {
-  border-color: #bfdbfe;
-  color: #0f55ff;
-  background: #eef5ff;
-}
-
-.spac-mini-stage.current {
-  border-color: #0f55ff;
-  color: #ffffff;
-  background: #0f55ff;
-}
-
-.spac-mini-stage.risk {
-  border-color: #ffc9d1;
-  color: #b92838;
-  background: #fff4f6;
-}
-
 .spac-readout-item {
   display: grid;
   align-content: start;
@@ -10761,42 +10697,43 @@ td {
   overflow-wrap: anywhere;
 }
 
-.spac-field-board {
+.spac-investor-note,
+.spac-investor-watch {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  border: 1px solid #dbe5f1;
-  border-radius: 8px;
-  overflow: hidden;
+  gap: 7px;
+  border-top: 1px solid var(--detail-divider);
+  padding-top: 12px;
 }
 
-.spac-field-board.two-column {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.spac-investor-note span,
+.spac-investor-watch span {
+  color: #64728a;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: uppercase;
 }
 
-.spac-field-board .spac-readout-item {
-  min-height: 76px;
-  border-top: 0;
-  border-right: 1px solid #dbe5f1;
-  border-bottom: 1px solid #dbe5f1;
-  padding: 11px 12px;
-  background: #fbfdff;
+.spac-investor-note p {
+  margin: 0;
+  color: #17213d;
+  font-size: 12.5px;
+  line-height: 1.45;
 }
 
-.spac-field-board .spac-readout-item:nth-child(3n) {
-  border-right: 0;
+.spac-investor-watch ol {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 18px;
+  color: #17213d;
+  font-size: 12px;
+  line-height: 1.42;
 }
 
-.spac-field-board.two-column .spac-readout-item:nth-child(3n) {
-  border-right: 1px solid #dbe5f1;
-}
-
-.spac-field-board.two-column .spac-readout-item:nth-child(2n) {
-  border-right: 0;
-}
-
-.spac-field-board .spac-readout-item:nth-last-child(-n + 3),
-.spac-field-board.two-column .spac-readout-item:nth-last-child(-n + 2) {
-  border-bottom: 0;
+.spac-investor-watch li::marker {
+  color: #0f55ff;
+  font-weight: 900;
 }
 
 .spac-compact-columns {
@@ -16283,23 +16220,8 @@ td {
     grid-template-columns: 1fr;
   }
 
-  .spac-field-board,
-  .spac-field-board.two-column,
   .spac-compact-columns {
     grid-template-columns: 1fr;
-  }
-
-  .spac-field-board .spac-readout-item,
-  .spac-field-board.two-column .spac-readout-item,
-  .spac-field-board .spac-readout-item:nth-child(3n),
-  .spac-field-board.two-column .spac-readout-item:nth-child(3n) {
-    border-right: 0;
-    border-bottom: 1px solid #dbe5f1;
-  }
-
-  .spac-field-board .spac-readout-item:last-child,
-  .spac-field-board.two-column .spac-readout-item:last-child {
-    border-bottom: 0;
   }
 
   .dilution-summary-readout div + div,
@@ -16969,7 +16891,8 @@ html[data-theme="dark"] .spac-status-chip strong,
 html[data-theme="dark"] .spac-metric-card strong,
 html[data-theme="dark"] .spac-status-primary strong,
 html[data-theme="dark"] .spac-readout-item strong,
-html[data-theme="dark"] .spac-mini-timeline-head strong,
+html[data-theme="dark"] .spac-investor-note p,
+html[data-theme="dark"] .spac-investor-watch ol,
 html[data-theme="dark"] .spac-compact-columns h3,
 html[data-theme="dark"] .spac-context-columns h3,
 html[data-theme="dark"] .spac-stage-step strong,
@@ -17061,7 +16984,8 @@ html[data-theme="dark"] .spac-status-primary span,
 html[data-theme="dark"] .spac-status-primary em,
 html[data-theme="dark"] .spac-readout-item span,
 html[data-theme="dark"] .spac-readout-item em,
-html[data-theme="dark"] .spac-mini-timeline-head span,
+html[data-theme="dark"] .spac-investor-note span,
+html[data-theme="dark"] .spac-investor-watch span,
 html[data-theme="dark"] .spac-context-strip .card-heading-row p,
 html[data-theme="dark"] .spac-context-columns p,
 html[data-theme="dark"] .spac-stage-card .card-heading-row p,
@@ -17180,9 +17104,6 @@ html[data-theme="dark"] .effect-snapshot-grid,
 html[data-theme="dark"] .effect-fallback-note,
 html[data-theme="dark"] .spac-status-chip,
 html[data-theme="dark"] .spac-metric-card,
-html[data-theme="dark"] .spac-field-board,
-html[data-theme="dark"] .spac-field-board .spac-readout-item,
-html[data-theme="dark"] .spac-mini-stage,
 html[data-theme="dark"] .spac-context-columns > section,
 html[data-theme="dark"] .spac-card-readouts .detail-metric-row,
 html[data-theme="dark"] .spac-current-gate-column,
