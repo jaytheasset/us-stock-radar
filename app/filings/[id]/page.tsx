@@ -415,7 +415,381 @@ type FdaClinicalModel = {
   sources: SpacSourceItem[];
 };
 
+type ProxySampleConfig = {
+  id: string;
+  title: string;
+  formType: string;
+  eventType: string;
+  score: number;
+  signal: DetailTone;
+  filingFocus: string;
+  whyItMatters: string;
+  summary: string;
+  keyEvidence: string[];
+  watchNext: string[];
+  displayType: string;
+  displayVersion: string;
+  displayData: Record<string, unknown>;
+};
+
+function makeProxySampleFilingEvent(config: ProxySampleConfig): FilingEvent {
+  return {
+    id: config.id,
+    ticker: "PRXY",
+    exchange: "NASDAQ",
+    company: "Proxy UI Sample Corp.",
+    title: config.title,
+    formType: config.formType,
+    filedAt: "Jul 7, 2026 - 9:00 AM ET",
+    source: "SEC EDGAR",
+    sourceUrl: "https://www.sec.gov/edgar/search/",
+    eventType: config.eventType,
+    impact: config.score >= 75 ? "high" : config.score >= 50 ? "medium" : "low",
+    deliveryLevel: config.score >= 80 ? "alert" : config.score >= 50 ? "feed" : "archive",
+    score: config.score,
+    signal: config.signal,
+    price: "$10.00",
+    changeAmount: "$0.00",
+    change: "0.00%",
+    filingFocus: config.filingFocus,
+    filingBrief: "Development-only proxy UI sample. No LLM analysis, SEC ingest, or market data is used.",
+    whyItMatters: config.whyItMatters,
+    bullishPoints: [],
+    bearishPoints: [],
+    summary: config.summary,
+    keyEvidence: config.keyEvidence,
+    watchNext: config.watchNext,
+    recentFilings: [],
+    relatedNews: [],
+    context: null,
+    priceSeries: buildPriceSeries({
+      lastClose: 10,
+      previousClose: 10,
+      trend: [50, 50, 51, 50, 49, 50, 50, 51, 50, 50, 49, 50],
+      volumeBase: 25_000,
+    }),
+    originalTextNote: "Development-only proxy UI sample. This page is not a real SEC analysis.",
+    originalHtml: `
+      <h3>Proxy UI Sample</h3>
+      <p>This fallback page exists only to inspect proxy detail layouts without running LLM analysis or creating database events.</p>
+      <p>Display version: ${config.displayVersion}</p>
+    `,
+    displayPayload: {
+      display_type: config.displayType,
+      display_version: config.displayVersion,
+      data: {
+        display_version: config.displayVersion,
+        company_name: "Proxy UI Sample Corp.",
+        sec_form_type: config.formType,
+        proxy_type: "Development sample",
+        proposal_count: 2,
+        meeting_date: "Not fixed",
+        record_date: "Not fixed",
+        proposals: [
+          {
+            id: "Proposal 1",
+            title: "Elect directors named in the proxy statement",
+            category: "director election",
+            recommendation: "For",
+            is_shareholder_proposal: false,
+          },
+          {
+            id: "Proposal 2",
+            title: "Ratify the independent registered public accounting firm",
+            category: "auditor ratification",
+            recommendation: "For",
+            is_shareholder_proposal: false,
+          },
+          {
+            id: "Proposal 3",
+            title: "Approve executive compensation on an advisory basis",
+            category: "say-on-pay",
+            recommendation: "For",
+            is_shareholder_proposal: false,
+          },
+          {
+            id: "Proposal 4",
+            title: "Approve an amendment to the equity incentive plan",
+            category: "equity plan",
+            recommendation: "For",
+            is_shareholder_proposal: false,
+          },
+          {
+            id: "Proposal 5",
+            title: "Approve a reverse stock split if implemented by the board",
+            category: "capital structure",
+            recommendation: "For",
+            is_shareholder_proposal: false,
+          },
+          {
+            id: "Proposal 6",
+            title: "Approve an increase in authorized shares",
+            category: "capital structure",
+            recommendation: "For",
+            is_shareholder_proposal: false,
+          },
+          {
+            id: "Proposal 7",
+            title: "Shareholder proposal on governance reporting",
+            category: "shareholder proposal",
+            recommendation: "Against",
+            is_shareholder_proposal: true,
+          },
+          {
+            id: "Proposal 8",
+            title: "Adjourn the annual meeting if more votes are needed",
+            category: "adjournment",
+            recommendation: "For",
+            is_shareholder_proposal: false,
+          },
+        ],
+        ...config.displayData,
+      },
+      evidence: [],
+      notes: ["Development-only proxy UI sample."],
+    },
+  };
+}
+
 const commonFilingEvents: Record<string, FilingEvent> = {
+  "proxy-ui-generic": makeProxySampleFilingEvent({
+    id: "proxy-ui-generic",
+    title: "Proxy UI Sample: Routine Annual Meeting",
+    formType: "DEF 14A",
+    eventType: "shareholder_vote",
+    score: 42,
+    signal: "neutral",
+    filingFocus: "Routine proxy sample",
+    whyItMatters: "Shows the baseline proxy layout for routine annual meeting proposals.",
+    summary: "Routine proxy sample with director election, auditor ratification, and say-on-pay style proposal rows.",
+    keyEvidence: ["Generic proxy display version selected.", "Routine meeting proposal list is present."],
+    watchNext: ["Check proposal list spacing.", "Check source text and market context placement."],
+    displayType: "generic",
+    displayVersion: "proxy_generic_v1",
+    displayData: {},
+  }),
+  "proxy-ui-ipo-listing": makeProxySampleFilingEvent({
+    id: "proxy-ui-ipo-listing",
+    title: "Proxy UI Sample: IPO Listing Signal",
+    formType: "DEF 14A",
+    eventType: "ipo_listing",
+    score: 48,
+    signal: "neutral",
+    filingFocus: "IPO listing proxy sample",
+    whyItMatters: "Shows how a listing-related proxy signal falls back when no IPO-specific proxy page exists.",
+    summary: "Proxy sample for a listing-related signal that should remain distinguishable from S-1/F-1 IPO pages.",
+    keyEvidence: ["proxy_ipo_listing_v1 display version selected.", "Listing evidence is stored in display payload."],
+    watchNext: ["Check whether generic layout is sufficient.", "Decide later if a dedicated IPO-proxy page is needed."],
+    displayType: "generic",
+    displayVersion: "proxy_ipo_listing_v1",
+    displayData: {
+      ipo_kind: "traditional",
+      listing_evidence: ["Proxy material references a proposed listing action."],
+    },
+  }),
+  "proxy-ui-equity-plan-vote": makeProxySampleFilingEvent({
+    id: "proxy-ui-equity-plan-vote",
+    title: "Proxy UI Sample: Equity Plan Vote",
+    formType: "DEF 14A",
+    eventType: "dilution_risk",
+    score: 68,
+    signal: "volatile",
+    filingFocus: "Equity plan vote sample",
+    whyItMatters: "Shows how proxy share-reserve requests appear when the vote can affect future dilution.",
+    summary: "Equity plan proxy sample with requested plan shares and percent-of-outstanding fields.",
+    keyEvidence: ["Plan share request present.", "Percent of outstanding supplied as a proxy data field."],
+    watchNext: ["Check whether offering-style UI is appropriate.", "Review spacing for plan share metrics."],
+    displayType: "offering_terms",
+    displayVersion: "proxy_equity_plan_vote_v1",
+    displayData: {
+      shares_requested: "4,000,000 shares",
+      percent_of_outstanding: "12.5%",
+      proposal_ids: ["Proposal 3"],
+      key_tables: [
+        {
+          id: "equity-plan-info",
+          table_type: "equity_compensation_plan_information",
+          heading: "Equity Compensation Plan Information",
+          row_count: 2,
+          column_count: 3,
+          headers: ["Plan", "Shares available", "Weighted average exercise price"],
+          sample_rows: [["Existing plan", "1,200,000", "$3.25"]],
+        },
+      ],
+      snapshot_metrics: [
+        { label: "Plan shares requested", value: "4.0M shares", note: "Development sample" },
+        { label: "Plan shares / outstanding", value: "12.5%", note: "Development sample" },
+      ],
+      offering_details: [
+        { label: "Proposal", value: "Equity incentive plan approval", note: "Proxy vote item" },
+        { label: "Board recommendation", value: "For", note: "Development sample" },
+      ],
+    },
+  }),
+  "proxy-ui-transaction-vote": makeProxySampleFilingEvent({
+    id: "proxy-ui-transaction-vote",
+    title: "Proxy UI Sample: Merger Vote",
+    formType: "PREM14A",
+    eventType: "strategic_transaction",
+    score: 72,
+    signal: "volatile",
+    filingFocus: "Transaction vote sample",
+    whyItMatters: "Shows a merger or sale vote proxy where consideration, vote threshold, and closing conditions matter.",
+    summary: "Transaction proxy sample with merger parties, consideration, vote required, and appraisal-rights fields.",
+    keyEvidence: ["proxy_transaction_vote_v1 display version selected.", "Merger parties and vote terms are present."],
+    watchNext: ["Check whether common layout is enough.", "Review whether transaction proxy needs a dedicated page."],
+    displayType: "candidate_special",
+    displayVersion: "proxy_transaction_vote_v1",
+    displayData: {
+      consideration: "$12.50 per share cash consideration",
+      vote_required: "Majority of outstanding shares",
+      proposal_ids: ["Proposal 1"],
+      agreement_date: "Jun 1, 2026",
+      merger_parties: ["Proxy UI Sample Corp.", "Sample Merger Sub Inc."],
+      appraisal_rights_mentioned: true,
+      delisting_mentioned: true,
+    },
+  }),
+  "proxy-ui-capital-structure-vote": makeProxySampleFilingEvent({
+    id: "proxy-ui-capital-structure-vote",
+    title: "Proxy UI Sample: Reverse Split and Share Authorization",
+    formType: "PRE 14A",
+    eventType: "listing_risk",
+    score: 78,
+    signal: "bearish",
+    filingFocus: "Capital structure vote sample",
+    whyItMatters: "Shows proxy votes tied to reverse splits, authorized-share increases, or listing compliance.",
+    summary: "Capital-structure proxy sample with reverse split and authorized-share proposal fields.",
+    keyEvidence: ["Reverse split proposal present.", "Authorized-share increase proposal present."],
+    watchNext: ["Check label clarity for listing-risk votes.", "Decide if this needs a dedicated capital structure template."],
+    displayType: "candidate_special",
+    displayVersion: "proxy_capital_structure_vote_v1",
+    displayData: {
+      reverse_split: {
+        hasReverseSplitProposal: true,
+        ratio: "1-for-10 to 1-for-40",
+        sourceText: "Reverse split proposal sample.",
+      },
+      dilution: {
+        hasEquityPlanVote: false,
+        sharesRequested: null,
+        percentOfOutstanding: null,
+        proposalIds: ["Proposal 2"],
+      },
+      capital_structure_proposals: [
+        {
+          id: "Proposal 2",
+          title: "Approve a reverse stock split",
+          category: "reverse_stock_split",
+          board_recommendation: "For",
+        },
+      ],
+    },
+  }),
+  "proxy-ui-governance-vote": makeProxySampleFilingEvent({
+    id: "proxy-ui-governance-vote",
+    title: "Proxy UI Sample: Governance and Contested Solicitation",
+    formType: "DEFA14A",
+    eventType: "leadership_governance",
+    score: 70,
+    signal: "volatile",
+    filingFocus: "Governance proxy sample",
+    whyItMatters: "Shows governance, supplement, or contested-solicitation proxy material.",
+    summary: "Governance proxy sample with supplement facts, contested solicitation fields, and shareholder proposal rows.",
+    keyEvidence: ["proxy_governance_vote_v1 display version selected.", "Supplement and contested fields are populated."],
+    watchNext: ["Check negative/positive section spacing.", "Review whether governance proxy needs a dedicated page."],
+    displayType: "candidate_special",
+    displayVersion: "proxy_governance_vote_v1",
+    displayData: {
+      contested: {
+        isContested: true,
+        sourceText: "Contested solicitation sample.",
+      },
+      supplement: {
+        isSupplement: true,
+        parentForm: "DEF 14A",
+        sourceText: "Supplemental proxy material sample.",
+      },
+      supplemental_analysis: {
+        material_type: "supplemental_proxy_material",
+        parent_references: ["DEF 14A"],
+        change_signals: ["Updated board recommendation language"],
+        reconciliation: "Supplement updates prior proxy materials.",
+      },
+      shareholder_or_governance_proposals: [
+        {
+          id: "Proposal 4",
+          title: "Shareholder governance proposal",
+          sponsor: "shareholder",
+          board_recommendation: "Against",
+          shareholder_recommendation: "For",
+        },
+      ],
+    },
+  }),
+  "proxy-ui-spac-transaction-status": makeProxySampleFilingEvent({
+    id: "proxy-ui-spac-transaction-status",
+    title: "Proxy UI Sample: SPAC Business Combination Vote",
+    formType: "DEFM14A",
+    eventType: "strategic_transaction",
+    score: 82,
+    signal: "volatile",
+    filingFocus: "SPAC proxy status sample",
+    whyItMatters: "Shows proxy/de-SPAC status fields such as redemption, trust cash, minimum cash, and ticker change.",
+    summary: "SPAC proxy sample for business-combination status and redemption-sensitive transaction details.",
+    keyEvidence: ["proxy_spac_transaction_status_v1 display version selected.", "SPAC-specific status fields are populated."],
+    watchNext: ["Check SPAC timeline layout.", "Check whether proxy version renders like other SPAC transaction pages."],
+    displayType: "spac_transaction_status",
+    displayVersion: "proxy_spac_transaction_status_v1",
+    displayData: {
+      current_stage: "proxy",
+      current_stage_label: "SEC Filing / Proxy",
+      deal_status: "Business combination vote pending",
+      spac_status: "Proxy materials describe the vote, redemption mechanics, and closing conditions.",
+      stage_summary: "The proxy puts redemption, minimum cash, and ticker-change timing in focus.",
+      stages: [
+        { code: "target", label: "Target / Deal Signed", date: "Apr 15, 2026" },
+        { code: "proxy", label: "SEC Filing / Proxy", date: "Jul 7, 2026" },
+        { code: "vote", label: "Vote & Redemption Window", date: "Pending" },
+        { code: "redemption", label: "Redemption Result", date: "Pending" },
+        { code: "cash", label: "Cash / Listing Conditions", date: "Before closing" },
+        { code: "closing", label: "Closing / Ticker Change", date: "Pending" },
+      ],
+      target_company: "Sample Target Inc.",
+      target_summary: "Target-company summary placeholder for SPAC proxy UI testing.",
+      target_company_story: "Sample Target Inc. is included only to verify de-SPAC proxy page layout.",
+      expected_ticker: "SAMP",
+      deal_value: "$750M enterprise value",
+      announced_date: "Apr 15, 2026",
+      merger_agreement_date: "Apr 15, 2026",
+      sponsor: "Sample Sponsor LLC",
+      ipo_underwriter: "Sample Underwriter",
+      ipo_date: "2025",
+      ipo_year: "2025",
+      unit_right_warrant_terms: "One share plus one-half warrant",
+      vote_date: "Pending",
+      redemption_deadline: "Pending",
+      redemption_result_date: "Pending",
+      redemption_rate: "Not known yet",
+      trust_cash_before: "$200.0M",
+      trust_cash_after: "Not known yet",
+      redemption_price: "$10.50",
+      public_shares_remaining: "Not known yet",
+      min_cash_condition: "$75.0M",
+      min_cash_status: "Pending",
+      float_impact: "Depends on redemption results",
+      closing_date: "Pending",
+      ticker_change_date: "Pending",
+      risk_flags: ["High redemptions could reduce cash available at closing.", "Minimum cash may require waiver or backstop financing."],
+      watch_next: ["Shareholder vote result.", "Final redemption numbers.", "Closing 8-K and ticker-change confirmation."],
+      sources: [
+        { title: "Proxy statement", detail: "Business combination vote and redemption mechanics", form: "DEFM14A" },
+      ],
+      event_history: [
+        { date: "Jul 7, 2026", form: "DEFM14A", title: "Proxy UI sample filed", source: "Development sample", status: "Current" },
+      ],
+    },
+  }),
   "tsla-8k-operational-update": {
     id: "tsla-8k-operational-update",
     ticker: "TSLA",
@@ -1517,8 +1891,10 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
   const spacModel = !useEffectDetail && !useIpoDetail ? buildSpacTransactionStatusModel(filing) : null;
   const useSpacDetail = Boolean(spacModel);
   const canUseDilutionDetail = canRenderDilutionOfferingDetail(filing);
+  const useProxyGenericDetail =
+    !useEffectDetail && !useIpoDetail && !useSpacDetail && isProxyGenericDetail(filing);
   const listingRiskModel =
-    !useEffectDetail && !useIpoDetail && !useSpacDetail && !canUseDilutionDetail ? buildListingRiskModel(filing) : null;
+    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useProxyGenericDetail && !canUseDilutionDetail ? buildListingRiskModel(filing) : null;
   const useListingRiskDetail = Boolean(listingRiskModel);
   const earningsModel =
     !useEffectDetail && !useIpoDetail && !useSpacDetail && !useListingRiskDetail ? buildEarningsModel(filing) : null;
@@ -1626,6 +2002,8 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             <IpoListingTemplate eventLabel={eventBadge.label} filing={filing} model={ipoModel} />
           ) : useSpacDetail && spacModel ? (
             <SpacTransactionStatusTemplate eventLabel={eventBadge.label} filing={filing} model={spacModel} />
+          ) : useProxyGenericDetail ? (
+            <ProxyGenericTemplate filing={filing} />
           ) : useListingRiskDetail && listingRiskModel ? (
             <ListingRiskTemplate eventLabel={eventBadge.label} filing={filing} model={listingRiskModel} />
           ) : useEarningsDetail && earningsModel ? (
@@ -2893,6 +3271,144 @@ function CommonFilingTemplate({ eventLabel, filing }: { eventLabel: string; fili
       <OriginalFilingText filing={filing} eventLabel={eventLabel} includeTemplateStatus />
     </>
   );
+}
+
+function ProxyGenericTemplate({ filing }: { filing: FilingEvent }) {
+  const displayPayload = readPlainRecord(filing.displayPayload);
+  const data = readDisplayPayloadData(displayPayload);
+  const summaryRows = buildProxyVoteSummaryRows(data);
+  const proposals = buildProxyProposalSummary(data);
+
+  return (
+    <>
+      <section className="stock-detail-top-grid">
+        <FilingPriceChart filing={filing} />
+
+        <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card">
+          <div className="quick-take-card quick-take-block">
+            <div className="card-heading-row">
+              <h2>Proxy Vote Summary</h2>
+              <span>{displayString(data, "proxy_type", filing.formType)}</span>
+            </div>
+            <div className="proxy-vote-summary-rows">
+              {summaryRows.map((row) => (
+                <MetricRow key={row.label} label={row.label} value={row.value} />
+              ))}
+            </div>
+          </div>
+        </section>
+      </section>
+
+      {proposals.length ? <ProxyProposalAgenda proposals={proposals} /> : null}
+
+      {filing.watchNext.length ? (
+        <section className="stock-detail-card-grid two-up insight-summary-grid proxy-watch-grid">
+          <AnalysisList title="What To Watch Next" items={filing.watchNext} />
+        </section>
+      ) : null}
+
+      <FilingMarketContextPanel filing={filing} />
+
+      <OriginalFilingText filing={filing} eventLabel="Shareholder Vote" includeTemplateStatus />
+    </>
+  );
+}
+
+type ProxyProposalItem = {
+  id: string;
+  title: string;
+  category: string;
+  recommendation: string;
+  isShareholderProposal: boolean;
+};
+
+function ProxyProposalAgenda({ proposals }: { proposals: ProxyProposalItem[] }) {
+  return (
+    <section className="stock-detail-card proxy-agenda-card">
+      <div className="card-heading-row">
+        <h2>Proposal Agenda</h2>
+        <span>{proposals.length} proposals</span>
+      </div>
+      <div className="proxy-agenda-table">
+        <div className="proxy-agenda-row proxy-agenda-header">
+          <span>No.</span>
+          <span>Proposal</span>
+          <span>Type</span>
+          <span>Board</span>
+        </div>
+        {proposals.map((proposal) => (
+          <div className="proxy-agenda-row" key={`${proposal.id}-${proposal.title}`}>
+            <span>{proposal.id}</span>
+            <strong>{proposal.title}</strong>
+            <span>
+              {proposal.category}
+              {proposal.isShareholderProposal ? " · shareholder" : ""}
+            </span>
+            <span>{proposal.recommendation || "Not disclosed"}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function isProxyGenericDetail(filing: FilingEvent) {
+  const displayPayload = readPlainRecord(filing.displayPayload);
+  const data = readDisplayPayloadData(displayPayload);
+  const displayVersion =
+    readRowString(displayPayload, "display_version") ||
+    readRowString(data, "display_version") ||
+    readRowString(data, "version");
+  return displayVersion === "proxy_generic_v1";
+}
+
+function buildProxyVoteSummaryRows(data: Record<string, unknown>) {
+  const proposalCount =
+    displayString(data, "proposal_count", "") ||
+    (recordArray(data.proposals).length ? String(recordArray(data.proposals).length) : "Not disclosed");
+  const boardSummary = buildProxyBoardRecommendationSummary(data);
+  return [
+    { label: "Meeting Date", value: displayString(data, "meeting_date", "Not disclosed") },
+    { label: "Record Date", value: displayString(data, "record_date", "Not disclosed") },
+    { label: "Proposal Count", value: proposalCount },
+    { label: "Board Recommendation", value: boardSummary || "Not disclosed" },
+  ];
+}
+
+function buildProxyBoardRecommendationSummary(data: Record<string, unknown>) {
+  const proposals = recordArray(data.proposals);
+  const recommendations = proposals
+    .map((proposal) => readRowString(proposal, "recommendation"))
+    .filter(Boolean);
+  if (!recommendations.length) return "";
+  const counts = recommendations.reduce<Record<string, number>>((acc, item) => {
+    const label = item.replace(/\s+/g, " ").trim();
+    acc[label] = (acc[label] || 0) + 1;
+    return acc;
+  }, {});
+  return Object.entries(counts)
+    .map(([label, count]) => `${count} ${label}`)
+    .join(" / ");
+}
+
+function buildProxyProposalSummary(data: Record<string, unknown>) {
+  return recordArray(data.proposals)
+    .map((proposal, index) => {
+      const id = readRowString(proposal, "id") || `Proposal ${index + 1}`;
+      const title = readRowString(proposal, "title");
+      if (!title) return null;
+      const category = readRowString(proposal, "category");
+      const recommendation = readRowString(proposal, "recommendation");
+      const isShareholderProposal = Boolean(proposal.is_shareholder_proposal);
+      return {
+        id,
+        title,
+        category: category || "Not disclosed",
+        recommendation: recommendation || "Not disclosed",
+        isShareholderProposal,
+      };
+    })
+    .filter((item): item is ProxyProposalItem => Boolean(item));
 }
 
 function ListingRiskTemplate({
