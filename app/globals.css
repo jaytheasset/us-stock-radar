@@ -7132,6 +7132,13 @@ td {
   gap: 0;
 }
 
+.proxy-listing-context {
+  margin: 0 0 14px;
+  color: #07122f;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
 .proxy-agenda-card {
   display: grid;
   gap: 14px;

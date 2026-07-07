@@ -108,6 +108,9 @@ export function buildProxyDisplayPayload(
   if (spec.display_version === "proxy_ipo_listing_v1") {
     Object.assign(baseData, {
       ipo_kind: inferIpoKind(parserOutput),
+      listing_action: inferListingAction(parserOutput),
+      exchange_ticker: formatProxyTicker(parserOutput),
+      vote_status: "Pending shareholder vote",
       listing_evidence: parserOutput.signals
         .filter((signal) => signal.eventType === "ipo_listing")
         .map((signal) => signal.evidence),
@@ -251,6 +254,22 @@ function inferIpoKind(parserOutput: ProxyParserOutput): "traditional" | "spac" {
     ...parserOutput.facts.proposals.map((proposal) => `${proposal.title} ${proposal.sourceText}`),
   ].filter(Boolean).join(" ");
   return /\bSPAC\b|\bspecial\s+purpose\s+acquisition\s+company\b/i.test(text) ? "spac" : "traditional";
+}
+
+function inferListingAction(parserOutput: ProxyParserOutput): string | null {
+  const proposal = parserOutput.facts.proposals.find((item) =>
+    /\b(?:listing|ipo|initial public|exchange|nasdaq|nyse|nyse american)\b/i.test(
+      [item.title, item.category, item.sourceText].filter(Boolean).join(" "),
+    ),
+  );
+  return proposal?.title ?? null;
+}
+
+function formatProxyTicker(parserOutput: ProxyParserOutput): string | null {
+  const ticker = parserOutput.facts.primaryTicker.ticker;
+  const exchange = parserOutput.facts.primaryTicker.exchange;
+  if (exchange && ticker) return `${exchange} / ${ticker}`;
+  return exchange ?? ticker ?? null;
 }
 
 function hasProxyText(parserOutput: ProxyParserOutput, pattern: RegExp): boolean {

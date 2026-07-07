@@ -570,20 +570,43 @@ const commonFilingEvents: Record<string, FilingEvent> = {
   }),
   "proxy-ui-ipo-listing": makeProxySampleFilingEvent({
     id: "proxy-ui-ipo-listing",
-    title: "Proxy UI Sample: IPO Listing Signal",
+    title: "Proxy UI Sample: Listing Vote",
     formType: "DEF 14A",
     eventType: "ipo_listing",
     score: 48,
     signal: "neutral",
-    filingFocus: "IPO listing proxy sample",
-    whyItMatters: "Shows how a listing-related proxy signal falls back when no IPO-specific proxy page exists.",
-    summary: "Proxy sample for a listing-related signal that should remain distinguishable from S-1/F-1 IPO pages.",
-    keyEvidence: ["proxy_ipo_listing_v1 display version selected.", "Listing evidence is stored in display payload."],
-    watchNext: ["Check whether generic layout is sufficient.", "Decide later if a dedicated IPO-proxy page is needed."],
+    filingFocus: "Listing vote proxy sample",
+    whyItMatters: "Shows a proxy vote tied to a listing-related action.",
+    summary: "Shareholders are being asked to approve a listing-related action; final vote results and listing timing determine whether this becomes an active listing catalyst.",
+    keyEvidence: [],
+    watchNext: ["Final voting result", "Exchange approval or listing notice", "Effective date for the listing action"],
     displayType: "generic",
     displayVersion: "proxy_ipo_listing_v1",
     displayData: {
       ipo_kind: "traditional",
+      proxy_type: "Listing vote",
+      meeting_date: "Not fixed",
+      record_date: "Not fixed",
+      listing_action: "Approve a listing-related action",
+      exchange_ticker: "NASDAQ / PRXY",
+      vote_status: "Pending shareholder vote",
+      proposal_count: 2,
+      proposals: [
+        {
+          id: "Proposal 1",
+          title: "Approve the listing-related proposal",
+          category: "listing vote",
+          recommendation: "For",
+          is_shareholder_proposal: false,
+        },
+        {
+          id: "Proposal 2",
+          title: "Adjournment proposal if needed",
+          category: "adjournment",
+          recommendation: "For",
+          is_shareholder_proposal: false,
+        },
+      ],
       listing_evidence: ["Proxy material references a proposed listing action."],
     },
   }),
@@ -1891,10 +1914,12 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
   const spacModel = !useEffectDetail && !useIpoDetail ? buildSpacTransactionStatusModel(filing) : null;
   const useSpacDetail = Boolean(spacModel);
   const canUseDilutionDetail = canRenderDilutionOfferingDetail(filing);
+  const useProxyListingDetail =
+    !useEffectDetail && !useIpoDetail && !useSpacDetail && isProxyListingDetail(filing);
   const useProxyGenericDetail =
-    !useEffectDetail && !useIpoDetail && !useSpacDetail && isProxyGenericDetail(filing);
+    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useProxyListingDetail && isProxyGenericDetail(filing);
   const listingRiskModel =
-    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useProxyGenericDetail && !canUseDilutionDetail ? buildListingRiskModel(filing) : null;
+    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useProxyListingDetail && !useProxyGenericDetail && !canUseDilutionDetail ? buildListingRiskModel(filing) : null;
   const useListingRiskDetail = Boolean(listingRiskModel);
   const earningsModel =
     !useEffectDetail && !useIpoDetail && !useSpacDetail && !useListingRiskDetail ? buildEarningsModel(filing) : null;
@@ -2002,6 +2027,8 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             <IpoListingTemplate eventLabel={eventBadge.label} filing={filing} model={ipoModel} />
           ) : useSpacDetail && spacModel ? (
             <SpacTransactionStatusTemplate eventLabel={eventBadge.label} filing={filing} model={spacModel} />
+          ) : useProxyListingDetail ? (
+            <ProxyListingVoteTemplate filing={filing} />
           ) : useProxyGenericDetail ? (
             <ProxyGenericTemplate filing={filing} />
           ) : useListingRiskDetail && listingRiskModel ? (
@@ -3314,6 +3341,48 @@ function ProxyGenericTemplate({ filing }: { filing: FilingEvent }) {
   );
 }
 
+function ProxyListingVoteTemplate({ filing }: { filing: FilingEvent }) {
+  const displayPayload = readPlainRecord(filing.displayPayload);
+  const data = readDisplayPayloadData(displayPayload);
+  const summaryRows = buildProxyListingVoteSummaryRows(data, filing);
+  const proposals = buildProxyProposalSummary(data);
+
+  return (
+    <>
+      <section className="stock-detail-top-grid proxy-listing-vote-grid">
+        <FilingPriceChart filing={filing} />
+
+        <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card">
+          <div className="quick-take-card quick-take-block">
+            <div className="card-heading-row">
+              <h2>Listing Vote Summary</h2>
+              <span>{displayString(data, "proxy_type", "Listing vote")}</span>
+            </div>
+            {filing.summary ? <p className="proxy-listing-context">{filing.summary}</p> : null}
+            <div className="proxy-vote-summary-rows">
+              {summaryRows.map((row) => (
+                <MetricRow key={row.label} label={row.label} value={row.value} />
+              ))}
+            </div>
+          </div>
+        </section>
+      </section>
+
+      {proposals.length ? <ProxyProposalAgenda proposals={proposals} /> : null}
+
+      {filing.watchNext.length ? (
+        <section className="stock-detail-card-grid two-up insight-summary-grid proxy-watch-grid">
+          <AnalysisList title="What To Watch Next" items={filing.watchNext} />
+        </section>
+      ) : null}
+
+      <FilingMarketContextPanel filing={filing} />
+
+      <OriginalFilingText filing={filing} eventLabel="Listing Vote" includeTemplateStatus />
+    </>
+  );
+}
+
 type ProxyProposalItem = {
   id: string;
   title: string;
@@ -3362,6 +3431,16 @@ function isProxyGenericDetail(filing: FilingEvent) {
   return displayVersion === "proxy_generic_v1";
 }
 
+function isProxyListingDetail(filing: FilingEvent) {
+  const displayPayload = readPlainRecord(filing.displayPayload);
+  const data = readDisplayPayloadData(displayPayload);
+  const displayVersion =
+    readRowString(displayPayload, "display_version") ||
+    readRowString(data, "display_version") ||
+    readRowString(data, "version");
+  return displayVersion === "proxy_ipo_listing_v1";
+}
+
 function buildProxyVoteSummaryRows(data: Record<string, unknown>) {
   const proposalCount =
     displayString(data, "proposal_count", "") ||
@@ -3372,6 +3451,25 @@ function buildProxyVoteSummaryRows(data: Record<string, unknown>) {
     { label: "Record Date", value: displayString(data, "record_date", "Not disclosed") },
     { label: "Proposal Count", value: proposalCount },
     { label: "Board Recommendation", value: boardSummary || "Not disclosed" },
+  ];
+}
+
+function buildProxyListingVoteSummaryRows(data: Record<string, unknown>, filing: FilingEvent) {
+  const proposalCount =
+    displayString(data, "proposal_count", "") ||
+    (recordArray(data.proposals).length ? String(recordArray(data.proposals).length) : "Not disclosed");
+  const boardSummary = buildProxyBoardRecommendationSummary(data);
+  return [
+    { label: "Meeting Date", value: displayString(data, "meeting_date", "Not disclosed") },
+    { label: "Record Date", value: displayString(data, "record_date", "Not disclosed") },
+    {
+      label: "Listing-related Proposal",
+      value: displayString(data, "listing_action", "") || findProxyListingProposalTitle(data) || "Not disclosed",
+    },
+    { label: "Exchange / Ticker", value: displayString(data, "exchange_ticker", "") || formatListingExchangeTicker(filing) },
+    { label: "Board Recommendation", value: boardSummary || "Not disclosed" },
+    { label: "Vote Status", value: displayString(data, "vote_status", "Pending vote") },
+    { label: "Proposal Count", value: proposalCount },
   ];
 }
 
@@ -3389,6 +3487,24 @@ function buildProxyBoardRecommendationSummary(data: Record<string, unknown>) {
   return Object.entries(counts)
     .map(([label, count]) => `${count} ${label}`)
     .join(" / ");
+}
+
+function findProxyListingProposalTitle(data: Record<string, unknown>) {
+  const listingProposal = recordArray(data.proposals).find((proposal) => {
+    const text = [
+      readRowString(proposal, "title"),
+      readRowString(proposal, "category"),
+    ].join(" ");
+    return /\b(?:listing|ipo|initial public|exchange|nasdaq|nyse|nyse american)\b/i.test(text);
+  });
+  return listingProposal ? readRowString(listingProposal, "title") : "";
+}
+
+function formatListingExchangeTicker(filing: FilingEvent) {
+  const exchange = filing.exchange && filing.exchange !== "N/A" ? filing.exchange : "";
+  const ticker = isRealTicker(filing.ticker) ? filing.ticker : "";
+  if (exchange && ticker) return `${exchange} / ${ticker}`;
+  return exchange || ticker || "Not disclosed";
 }
 
 function buildProxyProposalSummary(data: Record<string, unknown>) {
