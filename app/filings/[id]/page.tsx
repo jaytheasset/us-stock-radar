@@ -3640,33 +3640,21 @@ function buildProxyTransactionVoteSummaryRows(data: Record<string, unknown>) {
   const proposalRecommendation =
     displayString(data, "board_recommendation", "") ||
     (transactionProposal ? readRowString(transactionProposal, "recommendation") : "");
-  const mergerParties = formatProxyMergerParties(data.merger_parties);
-  const partyLabel = buildProxyTransactionPartyLabel(data);
   const closingConditions = displayString(data, "closing_conditions", "");
+  const meetingDate = displayString(data, "meeting_date", "Not disclosed");
+  const recordDate = displayString(data, "record_date", "");
   return [
     { label: "Transaction", value: displayString(data, "transaction_summary", "") || "Not disclosed" },
-    mergerParties ? { label: partyLabel, value: mergerParties } : null,
     { label: "Consideration", value: displayString(data, "consideration", "Not disclosed") },
     { label: "Vote Requirement", value: displayString(data, "vote_required", "Not disclosed") },
-    { label: "Meeting Date", value: displayString(data, "meeting_date", "Not disclosed") },
-    { label: "Record Date", value: displayString(data, "record_date", "Not disclosed") },
+    { label: "Meeting / Record Date", value: recordDate ? `${meetingDate} / ${recordDate}` : meetingDate },
     { label: "Board Recommendation", value: proposalRecommendation || "Not disclosed" },
-    closingConditions ? { label: "Closing Conditions", value: closingConditions } : null,
-    typeof data.appraisal_rights_mentioned === "boolean"
-      ? { label: "Appraisal Rights", value: data.appraisal_rights_mentioned ? "Mentioned" : "Not mentioned" }
-      : null,
+    closingConditions ? { label: "Key Conditions", value: closingConditions } : null,
   ].filter((row): row is { label: string; value: string } => Boolean(row));
 }
 
 function buildProxyTransactionVoteHeading(data: Record<string, unknown>) {
   return isProxyMergerTransaction(data) ? "Merger Vote Summary" : "Transaction Vote Summary";
-}
-
-function buildProxyTransactionPartyLabel(data: Record<string, unknown>) {
-  const text = buildProxyTransactionText(data);
-  if (/\bmerger\b/i.test(text)) return "Company / Buyer";
-  if (/\b(?:asset|business)\s+sale|sale\s+of\b/i.test(text)) return "Seller / Buyer";
-  return "Parties";
 }
 
 function isProxyMergerTransaction(data: Record<string, unknown>) {
@@ -3732,12 +3720,6 @@ function findProxyTransactionProposal(data: Record<string, unknown>) {
     ].join(" ");
     return /\b(?:merger|business combination|sale|transaction|acquisition|agreement and plan)\b/i.test(text);
   }) ?? null;
-}
-
-function formatProxyMergerParties(value: unknown) {
-  const parties = displayStringArray(value, []).filter(Boolean);
-  if (parties.length >= 2) return `${parties[0]} / ${parties[1]}`;
-  return parties[0] || "";
 }
 
 function buildProxyTransactionText(data: Record<string, unknown>) {
