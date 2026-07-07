@@ -204,6 +204,8 @@ const SEC_S1_F1_EVENT_TITLE_REPAIR_PROMPT_KEY = "sec_s1_f1_event_title_repair";
 const SEC_S1_F1_ROUTE_ONLY_PROMPT_KEY = "sec_s1_f1_route_only";
 const SEC_S1_F1_ROUTE_ONLY_PROMPT_VERSION = "s1-f1-route-only-v2-amendment-gate";
 const SEC_LLM_RUNAWAY_OUTPUT_CHARS = 30_000;
+const SPECIAL_PROXY_LLM_PATTERN =
+  /\b(?:reverse\s+stock\s+split|minimum\s+bid|delisting|nasdaq\s+compliance|nyse\s+compliance|authorized\s+shares?|increase\s+(?:the\s+)?(?:number\s+of\s+)?authorized|share\s+issuance|issuance\s+of\s+shares|equity\s+incentive\s+plan|stock\s+incentive\s+plan|employee\s+stock\s+purchase\s+plan|espp|repricing|evergreen|merger(?:\s+agreement)?|business\s+combination|acquisition|asset\s+sale|liquidation|dissolution|contested|dissident|proxy\s+contest|universal\s+proxy|poison\s+pill|classified\s+board|declassify|independent\s+chair|bylaw|charter\s+amendment|certificate\s+of\s+incorporation|regulatory\s+investigation|litigation|antitrust|sanctions)\b/i;
 
 export type SecFilingAnalysisRunResult = {
   ok: boolean;
@@ -1487,7 +1489,48 @@ function resolveGeminiModelForSecInput(env: ReturnType<typeof getServerEnv>, inp
   if (input && isOwnershipFilingInput(input)) {
     return env.secOwnershipGeminiModel || "gemini-2.5-flash-lite";
   }
+  if (input && isRoutineProxyLlmCandidate(input)) {
+    return env.secProxyRoutineGeminiModel || "gemini-2.5-flash-lite";
+  }
   return "";
+}
+
+function isRoutineProxyLlmCandidate(input: SecFilingAnalysisInput) {
+  const filingPackage = readRecord(input.filing_package);
+  const hardParsers = readRecord(filingPackage?.hard_parsers);
+  const proxy = readRecord(hardParsers?.proxy);
+  if (!proxy) return false;
+
+  const facts = readRecord(proxy.facts);
+  if (stringValue(facts?.proxyType) !== "annual") return false;
+
+  const proposals = readRecordArray(facts?.proposals);
+  if (!proposals.length) return false;
+
+  const ownership = readRecord(facts?.ownership);
+  const maxOwnership =
+    finiteNumber(ownership?.maxBeneficialOwnershipPercent) ??
+    finiteNumber(ownership?.max_beneficial_ownership_percent);
+  if (maxOwnership !== null && maxOwnership >= 20) return false;
+
+  const signals = readRecordArray(proxy.signals);
+  const explicitProxyText = [...proposals, ...signals]
+    .map((item) =>
+      [
+        item.title,
+        item.sourceText,
+        item.source_text,
+        item.evidence,
+        item.name,
+      ]
+        .map(stringValue)
+        .filter(Boolean)
+        .join(" "),
+    )
+    .filter(Boolean)
+    .join("\n");
+
+  return !SPECIAL_PROXY_LLM_PATTERN.test(explicitProxyText);
 }
 
 function normalizeSecLlmProvider(value: string | undefined, allowOpenAi = false): SecLlmProvider {
