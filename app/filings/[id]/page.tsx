@@ -789,7 +789,7 @@ const commonFilingEvents: Record<string, FilingEvent> = {
     whyItMatters: "Governance and contested proxy votes can affect board control, shareholder rights, and management accountability.",
     summary: "Shareholders are voting on governance items while a contested solicitation could affect board composition.",
     keyEvidence: [],
-    watchNext: ["Final voting result", "Whether board composition changes", "Any proxy supplement or recommendation update"],
+    watchNext: ["Final voting result", "Which slate wins board seats", "Any supplement or recommendation change"],
     displayType: "candidate_special",
     displayVersion: "proxy_governance_vote_v1",
     displayData: {
@@ -797,7 +797,7 @@ const commonFilingEvents: Record<string, FilingEvent> = {
       meeting_date: "Oct 8, 2026",
       record_date: "Aug 20, 2026",
       governance_focus: "Board control and governance proposals",
-      board_recommendation: "Mixed",
+      board_recommendation: "For company nominees; against dissident slate",
       contested: {
         isContested: true,
         solicitationSource: "third_party",
@@ -815,7 +815,7 @@ const commonFilingEvents: Record<string, FilingEvent> = {
       supplemental_analysis: {
         material_type: "supplemental_proxy_material",
         parent_references: ["DEF 14A"],
-        change_signals: ["Updated board recommendation language"],
+        change_signals: ["Recommendation update"],
         reconciliation: "Supplement updates prior proxy materials.",
       },
       shareholder_or_governance_proposals: [
@@ -3880,24 +3880,21 @@ function buildProxyCapitalStructureSummaryRows(data: Record<string, unknown>) {
 }
 
 function buildProxyGovernanceSummaryRows(data: Record<string, unknown>) {
-  const governanceProposal = findProxyGovernanceProposal(data);
   const focus = displayString(data, "governance_focus", "") || buildProxyGovernanceFocus(data);
   const contestStatus = buildProxyContestStatus(data);
-  const keyProposal = governanceProposal ? readRowString(governanceProposal, "title") : "";
+  const keyIssue = buildProxyGovernanceKeyIssue(data);
   const recommendation =
     displayString(data, "board_recommendation", "") ||
     buildProxyGovernanceRecommendation(data) ||
-    (governanceProposal
-      ? readRowString(governanceProposal, "recommendation") || readRowString(governanceProposal, "board_recommendation")
-      : "");
+    buildProxyGovernanceProposalRecommendation(data);
   const proxyUpdate = buildProxyGovernanceUpdate(data);
 
   return [
     focus ? { label: "Focus", value: focus } : null,
     contestStatus ? { label: "Contest Status", value: contestStatus } : null,
-    keyProposal ? { label: "Key Proposal", value: keyProposal } : null,
-    recommendation ? { label: "Board Recommendation", value: recommendation } : null,
-    proxyUpdate ? { label: "Proxy Update", value: proxyUpdate } : null,
+    keyIssue ? { label: "Key Issue", value: keyIssue } : null,
+    recommendation ? { label: "Board Position", value: recommendation } : null,
+    proxyUpdate ? { label: "Recommendation Update", value: proxyUpdate } : null,
   ].filter((row): row is { label: string; value: string } => Boolean(row));
 }
 
@@ -3946,6 +3943,20 @@ function buildProxyGovernanceUpdate(data: Record<string, unknown>) {
   return parentForm ? `Supplement to ${parentForm}` : "Supplemental proxy material";
 }
 
+function buildProxyGovernanceKeyIssue(data: Record<string, unknown>) {
+  const contested = readPlainRecord(data.contested);
+  if (contested && Boolean(contested.isContested || contested.is_contested)) {
+    const proposals = recordArray(data.proposals);
+    const hasDirectorContest = proposals.some((proposal) => {
+      const text = `${readRowString(proposal, "title")} ${readRowString(proposal, "category")}`;
+      return /\b(?:director|nominee|slate|board)\b/i.test(text);
+    });
+    return hasDirectorContest ? "Director election / competing slate" : "Contested vote";
+  }
+  const governanceProposal = findProxyGovernanceProposal(data);
+  return governanceProposal ? readRowString(governanceProposal, "title") : "";
+}
+
 function buildProxyGovernanceRecommendation(data: Record<string, unknown>) {
   const proposals = [...recordArray(data.shareholder_or_governance_proposals), ...recordArray(data.proposals)];
   const recommendations = proposals
@@ -3954,6 +3965,12 @@ function buildProxyGovernanceRecommendation(data: Record<string, unknown>) {
   if (!recommendations.length) return "";
   const unique = Array.from(new Set(recommendations));
   return unique.length === 1 ? unique[0] : "Mixed";
+}
+
+function buildProxyGovernanceProposalRecommendation(data: Record<string, unknown>) {
+  const governanceProposal = findProxyGovernanceProposal(data);
+  if (!governanceProposal) return "";
+  return readRowString(governanceProposal, "recommendation") || readRowString(governanceProposal, "board_recommendation");
 }
 
 function findProxyGovernanceProposal(data: Record<string, unknown>) {
