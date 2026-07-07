@@ -211,7 +211,7 @@ type OpenAiPromptRun = {
   rawOpenAIResponse?: OpenAIResponseBody | GeminiResponseBody | null;
 };
 
-const SEC_LLM_MAX_ATTEMPTS = 1;
+const SEC_LLM_MAX_ATTEMPTS = 3;
 const SEC_S1_F1_EVENT_TITLE_REPAIR_MAX_ATTEMPTS = 3;
 const SEC_S1_F1_SHARE_OVERHANG_PERCENT_TOLERANCE = 0.049;
 const SEC_S1_F1_EVENT_TITLE_REPAIR_PROMPT_KEY = "sec_s1_f1_event_title_repair";
