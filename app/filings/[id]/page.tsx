@@ -5049,7 +5049,7 @@ function SpacTransactionStatusTemplate({
       <section className="stock-detail-top-grid spac-overview-grid">
         <FilingPriceChart filing={filing} />
 
-        <section className="stock-detail-card spac-summary-panel">
+        <section className="stock-detail-card spac-summary-panel spac-status-panel">
           <div className="spac-summary-heading">
             <div>
               <h2>SPAC Merger Vote</h2>
@@ -5059,16 +5059,21 @@ function SpacTransactionStatusTemplate({
             </div>
           </div>
 
-          <div className="spac-metric-grid">
-            <SpacMetricCard icon="status" label="Vote Status" note="Current transaction state" value={model.dealStatus} />
-            <SpacMetricCard icon="redemption" label="Redemptions" note="Public shares redeemed" tone="risk" value={model.redemptionRate} />
-            <SpacMetricCard icon="cash" label="Minimum Cash" note={model.minCashCondition} tone="risk" value={model.cashCondition} />
-            <SpacMetricCard
-              icon="closing"
-              label="Closing / Ticker"
-              note={model.tickerChangeDate ? `Ticker change: ${model.tickerChangeDate}` : "Ticker change not disclosed"}
-              value={model.closingDate}
-            />
+          <div className="spac-status-board">
+            <div className="spac-status-primary">
+              <span>Current Gate</span>
+              <strong>{model.dealStatus}</strong>
+              <em>{model.blockingIssue}</em>
+            </div>
+            <div className="spac-status-readouts">
+              <SpacReadoutItem label="Redemptions" value={model.redemptionRate} note="Public shares redeemed" />
+              <SpacReadoutItem label="Minimum Cash" value={model.cashCondition} note={model.minCashCondition} />
+              <SpacReadoutItem
+                label="Closing / Ticker"
+                value={model.closingDate}
+                note={model.tickerChangeDate ? `Ticker change: ${model.tickerChangeDate}` : "Ticker change not disclosed"}
+              />
+            </div>
           </div>
         </section>
       </section>
@@ -5097,39 +5102,16 @@ function SpacTransactionStatusTemplate({
           <span>{model.expectedTicker}</span>
         </div>
 
-        <div className="spac-context-columns">
-          <section className="spac-context-light-column">
-            <h3>Target</h3>
-            <strong className="spac-context-headline">{model.targetCompany}</strong>
-            <p>{model.targetSummary}</p>
-            <div className="spac-readout-grid compact spac-card-readouts">
-              <MetricRow label="Expected Ticker" value={model.expectedTicker} />
-            </div>
-          </section>
-
-          <section className="spac-context-light-column">
-            <h3>Deal Terms</h3>
-            <strong className="spac-context-headline">{model.dealValue}</strong>
-            <div className="spac-readout-grid compact spac-card-readouts">
-              <MetricRow label="Deal Value" value={model.dealValue} />
-              <MetricRow label="Announced" value={model.announcedDate} />
-              <MetricRow label="Merger Agreement Date" value={model.mergerAgreementDate} />
-            </div>
-          </section>
-
-          <section className="spac-context-light-column">
-            <h3>SPAC Vehicle</h3>
-            <strong className="spac-context-headline">
-              {filing.ticker}
-              {model.ipoYear ? ` / IPO ${model.ipoYear}` : ""}
-            </strong>
-            <div className="spac-readout-grid compact spac-card-readouts">
-              <MetricRow label="IPO Date" value={model.ipoDate} />
-              <MetricRow label="Sponsor" value={model.sponsor} />
-              <MetricRow label="IPO Underwriter" value={model.ipoUnderwriter} />
-              <MetricRow label="Unit / Right / Warrant" value={model.unitRightWarrantTerms} />
-            </div>
-          </section>
+        <div className="spac-field-board">
+          <SpacReadoutItem label="Target" value={model.targetCompany} note={model.targetSummary} />
+          <SpacReadoutItem label="Expected Ticker" value={model.expectedTicker} />
+          <SpacReadoutItem label="Deal Value" value={model.dealValue} />
+          <SpacReadoutItem label="Announced" value={model.announcedDate} />
+          <SpacReadoutItem label="Merger Agreement Date" value={model.mergerAgreementDate} />
+          <SpacReadoutItem label="SPAC Vehicle" value={`${filing.ticker}${model.ipoYear ? ` / IPO ${model.ipoYear}` : ""}`} />
+          <SpacReadoutItem label="Sponsor" value={model.sponsor} />
+          <SpacReadoutItem label="IPO Underwriter" value={model.ipoUnderwriter} />
+          <SpacReadoutItem label="Unit / Right / Warrant" value={model.unitRightWarrantTerms} />
         </div>
       </section>
 
@@ -5142,23 +5124,21 @@ function SpacTransactionStatusTemplate({
           <span>{model.redemptionRate}</span>
         </div>
 
-        <div className="spac-context-columns spac-two-column-context">
-          <section className="spac-context-light-column">
+        <div className="spac-compact-columns">
+          <section>
             <h3>Redemption / Cash</h3>
-            <strong className="spac-context-headline">{model.redemptionRate}</strong>
-            <div className="spac-readout-grid compact spac-card-readouts">
-              <MetricRow label="Trust Cash Before" value={model.trustCashBefore} />
-              <MetricRow label="Trust Cash After" value={model.trustCashAfter} />
-              <MetricRow label="Redemption Price" value={model.redemptionPrice} />
-              <MetricRow label="Public Shares Remaining" value={model.publicSharesRemaining} />
-              <MetricRow label="Minimum Cash Condition" value={model.minCashCondition} />
-              <MetricRow label="Float Impact" value={model.floatImpact} />
+            <div className="spac-field-board two-column">
+              <SpacReadoutItem label="Trust Cash Before" value={model.trustCashBefore} />
+              <SpacReadoutItem label="Trust Cash After" value={model.trustCashAfter} />
+              <SpacReadoutItem label="Redemption Price" value={model.redemptionPrice} />
+              <SpacReadoutItem label="Public Shares Remaining" value={model.publicSharesRemaining} />
+              <SpacReadoutItem label="Minimum Cash Condition" value={model.minCashCondition} />
+              <SpacReadoutItem label="Float Impact" value={model.floatImpact} />
             </div>
           </section>
 
-          <section className="spac-context-light-column">
+          <section>
             <h3>Closing Conditions</h3>
-            <strong className="spac-context-headline">{model.minCashStatus}</strong>
             <ul className="spac-check-list">
               <SpacConditionItem tone={model.minCashStatus.toLowerCase().includes("risk") ? "risk" : "complete"}>
                 Minimum cash condition: {model.minCashCondition} ({model.minCashStatus})
@@ -5179,7 +5159,7 @@ function SpacTransactionStatusTemplate({
           </div>
         </div>
 
-        <div className="spac-context-columns spac-two-column-context">
+        <div className="spac-compact-columns">
           <section className="spac-risk-card">
             <h3>Main Risks</h3>
             <ul>
@@ -5207,6 +5187,16 @@ function SpacTransactionStatusTemplate({
 
       <OriginalFilingText filing={filing} eventLabel={eventLabel} />
     </>
+  );
+}
+
+function SpacReadoutItem({ label, note, value }: { label: string; note?: string; value: string }) {
+  return (
+    <div className="spac-readout-item">
+      <span>{label}</span>
+      <strong>{value}</strong>
+      {note ? <em>{note}</em> : null}
+    </div>
   );
 }
 

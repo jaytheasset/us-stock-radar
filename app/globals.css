@@ -10633,6 +10633,125 @@ td {
   line-height: 1.4;
 }
 
+.spac-status-panel {
+  align-content: start;
+}
+
+.spac-status-board {
+  display: grid;
+  gap: 14px;
+}
+
+.spac-status-primary {
+  display: grid;
+  gap: 4px;
+  border-left: 3px solid #0f55ff;
+  padding: 2px 0 2px 12px;
+}
+
+.spac-status-primary span,
+.spac-readout-item span {
+  color: #64728a;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.spac-status-primary strong {
+  color: #07122f;
+  font-size: 22px;
+  line-height: 1.05;
+}
+
+.spac-status-primary em,
+.spac-readout-item em {
+  color: #52627f;
+  font-size: 11.5px;
+  font-style: normal;
+  line-height: 1.35;
+}
+
+.spac-status-readouts {
+  display: grid;
+  border-top: 1px solid var(--detail-divider);
+  border-bottom: 1px solid var(--detail-divider);
+}
+
+.spac-readout-item {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px 0;
+}
+
+.spac-readout-item + .spac-readout-item {
+  border-top: 1px solid var(--detail-divider);
+}
+
+.spac-readout-item strong {
+  color: #07122f;
+  font-size: 13px;
+  line-height: 1.28;
+  overflow-wrap: anywhere;
+}
+
+.spac-field-board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid #dbe5f1;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.spac-field-board.two-column {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.spac-field-board .spac-readout-item {
+  min-height: 76px;
+  border-top: 0;
+  border-right: 1px solid #dbe5f1;
+  border-bottom: 1px solid #dbe5f1;
+  padding: 11px 12px;
+  background: #fbfdff;
+}
+
+.spac-field-board .spac-readout-item:nth-child(3n) {
+  border-right: 0;
+}
+
+.spac-field-board.two-column .spac-readout-item:nth-child(3n) {
+  border-right: 1px solid #dbe5f1;
+}
+
+.spac-field-board.two-column .spac-readout-item:nth-child(2n) {
+  border-right: 0;
+}
+
+.spac-field-board .spac-readout-item:nth-last-child(-n + 3),
+.spac-field-board.two-column .spac-readout-item:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.spac-compact-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.spac-compact-columns > section {
+  min-width: 0;
+}
+
+.spac-compact-columns h3 {
+  margin: 0 0 10px;
+  color: #07122f;
+  font-size: 14px;
+  line-height: 1.25;
+}
+
 .spac-context-columns {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -16100,6 +16219,25 @@ td {
     grid-template-columns: 1fr;
   }
 
+  .spac-field-board,
+  .spac-field-board.two-column,
+  .spac-compact-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .spac-field-board .spac-readout-item,
+  .spac-field-board.two-column .spac-readout-item,
+  .spac-field-board .spac-readout-item:nth-child(3n),
+  .spac-field-board.two-column .spac-readout-item:nth-child(3n) {
+    border-right: 0;
+    border-bottom: 1px solid #dbe5f1;
+  }
+
+  .spac-field-board .spac-readout-item:last-child,
+  .spac-field-board.two-column .spac-readout-item:last-child {
+    border-bottom: 0;
+  }
+
   .dilution-summary-readout div + div,
   .dilution-metric + .dilution-metric {
     border-top: 1px solid var(--detail-divider);
@@ -16765,6 +16903,9 @@ html[data-theme="dark"] .vote-source-grid strong,
 html[data-theme="dark"] .spac-summary-heading h2,
 html[data-theme="dark"] .spac-status-chip strong,
 html[data-theme="dark"] .spac-metric-card strong,
+html[data-theme="dark"] .spac-status-primary strong,
+html[data-theme="dark"] .spac-readout-item strong,
+html[data-theme="dark"] .spac-compact-columns h3,
 html[data-theme="dark"] .spac-context-columns h3,
 html[data-theme="dark"] .spac-stage-step strong,
 html[data-theme="dark"] .spac-progress-readout strong,
@@ -16851,6 +16992,10 @@ html[data-theme="dark"] .analysis-card p,
 html[data-theme="dark"] .analysis-card li,
 html[data-theme="dark"] .summary-card p,
 html[data-theme="dark"] .spac-summary-heading p,
+html[data-theme="dark"] .spac-status-primary span,
+html[data-theme="dark"] .spac-status-primary em,
+html[data-theme="dark"] .spac-readout-item span,
+html[data-theme="dark"] .spac-readout-item em,
 html[data-theme="dark"] .spac-context-strip .card-heading-row p,
 html[data-theme="dark"] .spac-context-columns p,
 html[data-theme="dark"] .spac-stage-card .card-heading-row p,
@@ -16969,6 +17114,8 @@ html[data-theme="dark"] .effect-snapshot-grid,
 html[data-theme="dark"] .effect-fallback-note,
 html[data-theme="dark"] .spac-status-chip,
 html[data-theme="dark"] .spac-metric-card,
+html[data-theme="dark"] .spac-field-board,
+html[data-theme="dark"] .spac-field-board .spac-readout-item,
 html[data-theme="dark"] .spac-context-columns > section,
 html[data-theme="dark"] .spac-card-readouts .detail-metric-row,
 html[data-theme="dark"] .spac-current-gate-column,
