@@ -41,7 +41,7 @@ export const SEC_FORM_PARSER_GROUPS = [
   },
   {
     slug: "proxy",
-    forms: ["Proxy", "DEF 14A", "DEFA14A", "PRE 14A", "PRER14A", "PREC14A"],
+    forms: ["Proxy", "DEF 14A", "DEFA14A", "PRE 14A", "PRER14A", "DEFM14A", "PREM14A", "DEFC14A", "PREC14A"],
   },
   {
     slug: "425",

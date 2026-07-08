@@ -78,6 +78,20 @@ assertKept("operating company proxy with ticker", {
   llm_text: "Supplemental proxy material.",
 });
 
+assertKept("merger proxy with lowercase ticker hint", {
+  form_type: "DEFM14A",
+  title: "Berry Corp (bry) files DEFM14A",
+  company_name: "Berry Corp (bry)",
+  llm_text: "Definitive merger proxy statement for shareholder approval of a merger transaction.",
+});
+
+assertKept("contested proxy without resolved ticker", {
+  form_type: "DEFC14A",
+  title: "SILVERBOW RESOURCES, INC. files DEFC14A",
+  company_name: "SILVERBOW RESOURCES, INC.",
+  llm_text: "Contested proxy solicitation regarding director nominees and shareholder voting.",
+});
+
 assertKept("SPAC proxy without ticker", {
   form_type: "PRE 14A",
   title: "PRE 14A - Piermont Valley Acquisition Corp",

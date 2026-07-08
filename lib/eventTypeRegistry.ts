@@ -138,7 +138,7 @@ export const eventTypeDefinitions: EventTypeDefinition[] = [
     tone: "regulatory",
     sourceGroups: ["filings"],
     status: "active",
-    coveredForms: ["DEF 14A", "PRE 14A", "DEFA14A", "DEFM14A", "PREM14A", ...currentReportForms],
+    coveredForms: ["DEF 14A", "PRE 14A", "DEFA14A", "DEFM14A", "PREM14A", "DEFC14A", "PREC14A", ...currentReportForms],
     description: "Proxy, shareholder meeting, vote result, proposal, approval, rejection, or consent solicitation disclosure.",
     examples: ["shareholder approval", "proxy vote proposal", "special meeting result"],
   },

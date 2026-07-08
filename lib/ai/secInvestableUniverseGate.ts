@@ -104,11 +104,16 @@ function isAlwaysAllowedWithoutTicker(formType: string) {
 
 function isAllowedWithoutResolvedTicker(formType: string, text: string) {
   if (isAlwaysAllowedWithoutTicker(formType)) return true;
+  if (isMaterialProxyVoteForm(formType) && !hasFundOrNonTradableText(text)) return true;
   return hasPreListingOrSpacException(text, formType);
 }
 
+function isMaterialProxyVoteForm(formType: string) {
+  return /^(?:DEFM14A|PREM14A|DEFC14A|PREC14A)$/.test(formType);
+}
+
 function hasPreListingOrSpacException(text: string, formType: string) {
-  if (/^(?:S-4|S-4\/A|F-4|F-4\/A|425|8-K|8-K\/A|6-K|6-K\/A|PRE 14A|DEF 14A|DEFA14A|DEFM14A|PREM14A)$/.test(formType)) {
+  if (/^(?:S-4|S-4\/A|F-4|F-4\/A|425|8-K|8-K\/A|6-K|6-K\/A|PRE 14A|DEF 14A|DEFA14A|DEFM14A|PREM14A|DEFC14A|PREC14A)$/.test(formType)) {
     return /\b(?:spac|de-spac|blank check|blank-check|special purpose acquisition|business combination|expected ticker|ticker change|new listing|initial listing|nasdaq listing|nyse listing|direct listing|first trading)\b/i.test(
       text,
     );
@@ -140,25 +145,33 @@ function collectUnresolvedTickerEvidence(
 
 function collectNonInvestableEvidence(text: string, formType: string) {
   const evidence: string[] = [];
-  const checks: Array<[RegExp, string]> = [
-    [/\b(?:series trust|investment trust|advisers trust|fund trust|statutory trust)\b/i, "Issuer name or text indicates a trust/fund trust."],
-    [/\b(?:income fund|municipal income fund|tax[-\s]?free fund|strategic capital(?: fund)?|closed[-\s]?end fund|interval fund|mutual fund|business development company|BDC)\b/i, "Issuer name or text indicates a fund or investment vehicle."],
-    [/\b(?:non[-\s]?traded|not listed on (?:a|any) securities exchange|not traded on (?:a|any) exchange)\b/i, "Text indicates non-traded or non-listed securities."],
-    [/\b(?:shares of beneficial interest|net asset value|\bNAV\b|valuation date)\b/i, "Text uses fund/NAV or beneficial-interest mechanics."],
-    [/\b(?:repurchase offer|issuer tender offer|rule 13e-4)\b/i, "Text indicates issuer repurchase/tender mechanics."],
-  ];
+  const checks = nonInvestableChecks();
 
   for (const [pattern, reason] of checks) {
     if (pattern.test(text)) evidence.push(reason);
   }
 
-  if (/^(?:DEF 14A|PRE 14A|DEFA14A|SC TO-I|SC TO-I\/A|SC TO-C|SC TO-T|SC TO-T\/A|SC 13E3|SC 13E3\/A|CB|CB\/A)$/.test(formType)) {
+  if (/^(?:DEF 14A|PRE 14A|DEFA14A|DEFM14A|PREM14A|DEFC14A|PREC14A|SC TO-I|SC TO-I\/A|SC TO-C|SC TO-T|SC TO-T\/A|SC 13E3|SC 13E3\/A|CB|CB\/A)$/.test(formType)) {
     if (/\b(?:fund|trust|investment company|registered investment company)\b/i.test(text)) {
       evidence.push(`${formType} filing has no tradable ticker and fund/trust wording.`);
     }
   }
 
   return uniqueStrings(evidence);
+}
+
+function hasFundOrNonTradableText(text: string) {
+  return nonInvestableChecks().some(([pattern]) => pattern.test(text));
+}
+
+function nonInvestableChecks(): Array<[RegExp, string]> {
+  return [
+    [/\b(?:series trust|investment trust|advisers trust|fund trust|statutory trust)\b/i, "Issuer name or text indicates a trust/fund trust."],
+    [/\b(?:income fund|municipal income fund|tax[-\s]?free fund|strategic capital(?: fund)?|closed[-\s]?end fund|interval fund|mutual fund|business development company|BDC)\b/i, "Issuer name or text indicates a fund or investment vehicle."],
+    [/\b(?:non[-\s]?traded|not listed on (?:a|any) securities exchange|not traded on (?:a|any) exchange)\b/i, "Text indicates non-traded or non-listed securities."],
+    [/\b(?:shares of beneficial interest|net asset value|\bNAV\b|valuation date)\b/i, "Text uses fund/NAV or beneficial-interest mechanics."],
+    [/\b(?:repurchase offer|issuer tender offer|rule 13e-4)\b/i, "Text indicates issuer repurchase/tender mechanics."],
+  ];
 }
 
 function hasListingOrTransactionException(text: string, formType: string) {
@@ -187,7 +200,7 @@ function tickerArray(value: unknown) {
 
 function tickerHintsFromTitle(title: string) {
   const hints: string[] = [];
-  const matches = title.matchAll(/\(([A-Z][A-Z0-9.\-]{0,9}(?:,\s*[A-Z][A-Z0-9.\-]{0,9})*)\)/g);
+  const matches = title.matchAll(/\(([A-Z][A-Z0-9.\-]{0,9}(?:,\s*[A-Z][A-Z0-9.\-]{0,9})*)\)/gi);
   for (const match of matches) {
     const group = match[1] || "";
     for (const item of group.split(",")) {

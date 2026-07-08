@@ -179,7 +179,12 @@ export const SEC_DEV_ROOMS: SecDevRoom[] = [
   { key: "425", label: "425", forms: ["425"], folder: "425" },
   { key: "424b", label: "424B", forms: ["424B3", "424B4", "424B5"], folder: "424b" },
   { key: "tender", label: "Tender / CB / 13E3", forms: ["SC TO-I", "SC TO-T", "SC 13E3", "CB", "SC 14D9"], folder: "tender" },
-  { key: "proxy", label: "Proxy", forms: ["DEF 14A", "PRE 14A", "DEFA14A"], folder: "proxy" },
+  {
+    key: "proxy",
+    label: "Proxy",
+    forms: ["DEF 14A", "PRE 14A", "DEFA14A", "DEFM14A", "PREM14A", "DEFC14A", "PREC14A"],
+    folder: "proxy",
+  },
   { key: "periodic-reports", label: "Periodic Reports", forms: ["10-K", "10-Q", "20-F"], folder: "periodic-reports" },
   { key: "s8", label: "S-8", forms: ["S-8", "S-8/A", "S-8 POS"], folder: "s8" },
   { key: "sc13", label: "13D / SC 13D", forms: ["SC 13D", "SC 13D/A", "SC 13G", "SC 13G/A"], folder: "sc13" },

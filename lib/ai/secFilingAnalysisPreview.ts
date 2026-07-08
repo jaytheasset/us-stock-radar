@@ -2706,11 +2706,17 @@ function validateSecProxyDisplayPayload(displayPayload: Record<string, unknown>)
     }
   }
 
+  const proposalModules = readRecordArray(data.proposal_modules);
+  const moduleGuidance = PROXY_DISPLAY_PROPOSAL_MODULE_GUIDANCE[displayVersion];
+
   if ((PROXY_DISPLAY_DATA_REQUIRED_ARRAY_KEYS[displayVersion] || []).includes("proposals")) {
     const proposals = readRecordArray(data.proposals);
     if (!proposals.length) {
       warnings.push(`SEC proxy ${displayVersion} data.proposals must include visible proposal rows.`);
     } else {
+      const proposalIds = proposals
+        .map((proposal) => stringValue(proposal.id))
+        .filter(Boolean);
       const emptyProposalIndexes = proposals
         .map((proposal, index) => (stringValue(proposal.title) ? null : index + 1))
         .filter((value): value is number => value !== null);
@@ -2728,6 +2734,30 @@ function validateSecProxyDisplayPayload(displayPayload: Record<string, unknown>)
         .filter((value): value is number => value !== null);
       if (missingRecommendationIndexes.length) {
         warnings.push(`SEC proxy ${displayVersion} data.proposals missing board recommendation for row(s): ${missingRecommendationIndexes.join(", ")}.`);
+      }
+      if (moduleGuidance && !proposalModules.length) {
+        warnings.push(`SEC proxy ${displayVersion} should include proposal_modules for ${moduleGuidance}.`);
+      }
+      if (proposalModules.length) {
+        const proposalIdSet = new Set(proposalIds);
+        const missingModuleIds = proposalModules
+          .map((module, index) => (stringValue(module.proposal_id) || stringValue(module.proposalId) ? null : index + 1))
+          .filter((value): value is number => value !== null);
+        if (missingModuleIds.length) {
+          warnings.push(`SEC proxy ${displayVersion} proposal_modules missing proposal_id for module(s): ${missingModuleIds.join(", ")}.`);
+        }
+        const unmatchedModuleIds = proposalModules
+          .map((module, index) => {
+            const id = stringValue(module.proposal_id) || stringValue(module.proposalId);
+            if (!id || proposalIdSet.has(id)) return null;
+            return `${index + 1} (${id})`;
+          })
+          .filter((value): value is string => value !== null);
+        if (unmatchedModuleIds.length) {
+          warnings.push(
+            `SEC proxy ${displayVersion} proposal_modules proposal_id must match data.proposals id; unmatched module(s): ${unmatchedModuleIds.join(", ")}.`,
+          );
+        }
       }
     }
   }
@@ -2814,6 +2844,14 @@ const PROXY_DISPLAY_DATA_REQUIRED_ARRAY_KEYS: Record<string, string[]> = {
   proxy_spac_transaction_status_v1: ["risk_flags", "watch_next"],
 };
 
+const PROXY_DISPLAY_PROPOSAL_MODULE_GUIDANCE: Record<string, string> = {
+  proxy_ipo_listing_v1: "listing or share-issuance proposal terms",
+  proxy_equity_plan_vote_v1: "equity plan share reserve or dilution terms",
+  proxy_transaction_vote_v1: "merger consideration, vote threshold, or closing terms",
+  proxy_capital_structure_vote_v1: "reverse split, authorized-share, or listing-compliance terms",
+  proxy_governance_vote_v1: "contested, shareholder, or governance proposal details",
+};
+
 function readProxyParserOutput(input: SecFilingAnalysisInput): ProxyParserOutput | null {
   const filingPackage = readRecord(input.filing_package);
   const hardParsers = readRecord(filingPackage?.hard_parsers);
@@ -2852,10 +2890,10 @@ const secProxyRequiredOutputSchema = {
           minProperties: 1,
           description: "Must contain visible UI fields for the selected display_version; never return an empty object. Version-specific missing fields are recorded as display_warnings, not persistence errors.",
           properties: {
-            meeting_date: { type: ["string", "number", "null"] },
-            record_date: { type: ["string", "number", "null"] },
+            meeting_date: { type: ["string", "number", "null"], maxLength: 32 },
+            record_date: { type: ["string", "number", "null"], maxLength: 32 },
             proposal_count: { type: ["string", "number", "null"] },
-            board_recommendation: { type: ["string", "null"] },
+            board_recommendation: { type: ["string", "null"], maxLength: 64 },
             proposals: {
               type: "array",
               items: {
@@ -2863,26 +2901,26 @@ const secProxyRequiredOutputSchema = {
                 additionalProperties: true,
                 required: ["title", "category", "recommendation"],
                 properties: {
-                  id: { type: ["string", "number", "null"] },
-                  title: { type: "string", minLength: 1 },
-                  category: { type: "string", minLength: 1 },
-                  recommendation: { type: "string", minLength: 1 },
-                  board_recommendation: { type: ["string", "null"] },
+                  id: { type: ["string", "number", "null"], maxLength: 24 },
+                  title: { type: "string", minLength: 1, maxLength: 160 },
+                  category: { type: "string", minLength: 1, maxLength: 40 },
+                  recommendation: { type: "string", minLength: 1, maxLength: 32 },
+                  board_recommendation: { type: ["string", "null"], maxLength: 32 },
                   is_shareholder_proposal: { type: ["boolean", "string", "null"] },
                 },
               },
             },
-            ipo_kind: { type: ["string", "null"] },
-            listing_action: { type: ["string", "null"] },
-            exchange_ticker: { type: ["string", "null"] },
-            plan_name: { type: ["string", "null"] },
-            shares_requested: { type: ["string", "number", "null"] },
-            percent_of_outstanding: { type: ["string", "number", "null"] },
-            vote_requirement: { type: ["string", "null"] },
-            transaction_summary: { type: ["string", "null"] },
-            consideration: { type: ["string", "null"] },
-            vote_required: { type: ["string", "null"] },
-            closing_conditions: { type: ["string", "null"] },
+            ipo_kind: { type: ["string", "null"], maxLength: 40 },
+            listing_action: { type: ["string", "null"], maxLength: 64 },
+            exchange_ticker: { type: ["string", "null"], maxLength: 32 },
+            plan_name: { type: ["string", "null"], maxLength: 80 },
+            shares_requested: { type: ["string", "number", "null"], maxLength: 40 },
+            percent_of_outstanding: { type: ["string", "number", "null"], maxLength: 32 },
+            vote_requirement: { type: ["string", "null"], maxLength: 80 },
+            transaction_summary: { type: ["string", "null"], maxLength: 40 },
+            consideration: { type: ["string", "null"], maxLength: 40 },
+            vote_required: { type: ["string", "null"], maxLength: 40 },
+            closing_conditions: { type: ["string", "null"], maxLength: 80 },
             appraisal_rights_mentioned: { type: ["boolean", "string", "null"] },
             delisting_mentioned: { type: ["boolean", "string", "null"] },
             reverse_split: {
@@ -2890,12 +2928,12 @@ const secProxyRequiredOutputSchema = {
               additionalProperties: true,
               required: ["ratio", "ratio_range", "implementation_timing", "purpose", "status", "note"],
               properties: {
-                ratio: { type: ["string", "null"] },
-                ratio_range: { type: ["string", "null"] },
-                implementation_timing: { type: ["string", "null"] },
-                purpose: { type: ["string", "null"] },
-                status: { type: ["string", "null"] },
-                note: { type: ["string", "null"] },
+                ratio: { type: ["string", "null"], maxLength: 32 },
+                ratio_range: { type: ["string", "null"], maxLength: 40 },
+                implementation_timing: { type: ["string", "null"], maxLength: 40 },
+                purpose: { type: ["string", "null"], maxLength: 80 },
+                status: { type: ["string", "null"], maxLength: 40 },
+                note: { type: ["string", "null"], maxLength: 80 },
               },
             },
             capital_structure_proposals: {
@@ -2907,39 +2945,54 @@ const secProxyRequiredOutputSchema = {
                 additionalProperties: true,
                 required: ["title", "category", "recommendation"],
                 properties: {
-                  id: { type: ["string", "number", "null"] },
-                  title: { type: "string", minLength: 1 },
-                  category: { type: "string", minLength: 1 },
-                  recommendation: { type: "string", minLength: 1 },
-                  board_recommendation: { type: ["string", "null"] },
-                  source_area: { type: ["string", "null"] },
+                  id: { type: ["string", "number", "null"], maxLength: 24 },
+                  title: { type: "string", minLength: 1, maxLength: 160 },
+                  category: { type: "string", minLength: 1, maxLength: 40 },
+                  recommendation: { type: "string", minLength: 1, maxLength: 32 },
+                  board_recommendation: { type: ["string", "null"], maxLength: 32 },
+                  source_area: { type: ["string", "null"], maxLength: 80 },
                 },
               },
             },
             listing_context: {
               type: ["string", "null"],
+              maxLength: 64,
               description: "Nasdaq/NYSE compliance, minimum bid, financing capacity, or Not disclosed for capital-structure votes.",
             },
-            governance_focus: { type: ["string", "null"] },
+            proposal_modules: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: true,
+                properties: {
+                  proposal_id: { type: ["string", "number", "null"], maxLength: 24 },
+                  label: { type: "string", maxLength: 24 },
+                  title: { type: "string", maxLength: 48 },
+                  value: { type: ["string", "number", "null"], maxLength: 40 },
+                  note: { type: ["string", "null"], maxLength: 80 },
+                },
+              },
+            },
+            governance_focus: { type: ["string", "null"], maxLength: 80 },
             contested: { type: ["object", "string", "null"], additionalProperties: true },
             shareholder_or_governance_proposals: {
               type: "array",
               items: { type: "object", additionalProperties: true },
             },
-            current_stage_label: { type: ["string", "null"] },
-            deal_status: { type: ["string", "null"] },
-            target_company: { type: ["string", "null"] },
+            current_stage_label: { type: ["string", "null"], maxLength: 48 },
+            deal_status: { type: ["string", "null"], maxLength: 80 },
+            target_company: { type: ["string", "null"], maxLength: 80 },
             target_company_story: { type: ["string", "null"] },
-            expected_ticker: { type: ["string", "null"] },
-            vote_date: { type: ["string", "null"] },
-            redemption_deadline: { type: ["string", "null"] },
-            min_cash_condition: { type: ["string", "number", "null"] },
-            min_cash_status: { type: ["string", "null"] },
-            redemption_rate: { type: ["string", "number", "null"] },
-            closing_date: { type: ["string", "null"] },
-            ticker_change_date: { type: ["string", "null"] },
-            risk_flags: { type: "array", items: { type: "string" } },
-            watch_next: { type: "array", items: { type: "string" } },
+            expected_ticker: { type: ["string", "null"], maxLength: 24 },
+            vote_date: { type: ["string", "null"], maxLength: 32 },
+            redemption_deadline: { type: ["string", "null"], maxLength: 32 },
+            min_cash_condition: { type: ["string", "number", "null"], maxLength: 40 },
+            min_cash_status: { type: ["string", "null"], maxLength: 40 },
+            redemption_rate: { type: ["string", "number", "null"], maxLength: 32 },
+            closing_date: { type: ["string", "null"], maxLength: 32 },
+            ticker_change_date: { type: ["string", "null"], maxLength: 32 },
+            risk_flags: { type: "array", items: { type: "string", maxLength: 80 } },
+            watch_next: { type: "array", items: { type: "string", maxLength: 80 } },
           },
         },
         evidence: {

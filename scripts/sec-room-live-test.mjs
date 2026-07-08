@@ -71,7 +71,7 @@ const ROOM_CONFIGS = [
   {
     project: "US-Stock-Radar-sec-proxy",
     folder: "proxy",
-    formTypes: ["DEF 14A", "PRE 14A", "DEFA14A", "DEFM14A", "PREM14A"],
+    formTypes: ["DEF 14A", "PRE 14A", "DEFA14A", "DEFM14A", "PREM14A", "DEFC14A", "PREC14A"],
   },
   {
     project: "US-Stock-Radar-sec-425",
