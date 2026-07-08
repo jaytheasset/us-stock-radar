@@ -1,7 +1,5 @@
-export type ProxyDisplayType = "proxy_vote";
-
 export interface ProxyDisplayPayload {
-  display_type: ProxyDisplayType;
+  display_type: "proxy_vote";
   display_version: string;
   data: Record<string, unknown>;
   evidence: string[];

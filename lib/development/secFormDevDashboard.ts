@@ -23,7 +23,6 @@ import { buildS1F1AnalysisPrompt } from "@/lib/sources/sec/forms/s1-f1/analysisP
 import { parseS1F1Filing } from "@/lib/sources/sec/forms/s1-f1/parser";
 import {
   buildProxyAnalysisPrompt,
-  buildProxyLlmDisplayPayloadPlaceholder,
   buildProxyLlmRouterPlaceholder,
 } from "@/lib/sources/sec/forms/proxy/analysisPrompt";
 import { parseProxyFiling } from "@/lib/sources/sec/forms/proxy/parser";
@@ -2127,7 +2126,6 @@ function buildProxyPromptVariantPreviews() {
     ].join("\n"),
   });
   const routerDecision = buildProxyLlmRouterPlaceholder();
-  const displayPayload = buildProxyLlmDisplayPayloadPlaceholder();
 
   return [
     {
@@ -2136,7 +2134,6 @@ function buildProxyPromptVariantPreviews() {
         buildProxyAnalysisPrompt({
           parserOutput: previewParserOutput,
           routerDecision,
-          displayPayload,
         }),
       ),
     },

@@ -1,5 +1,4 @@
 import type { ProxyEventType, ProxyParserOutput } from "./parser.ts";
-import type { ProxyDisplayType } from "./displayPayload.ts";
 import { buildCurrentFilingIdentity, currentFilingIdentityText } from "../common/currentFilingIdentity.ts";
 
 export interface ProxyRouterDecision {
@@ -7,7 +6,7 @@ export interface ProxyRouterDecision {
   usesLlm: boolean;
   analysis_needed: boolean;
   event_type: ProxyEventType;
-  display_type: ProxyDisplayType;
+  display_type: "proxy_vote";
   display_version: string;
   preliminary_action: "archive" | "analyze";
   preliminary_score: number;

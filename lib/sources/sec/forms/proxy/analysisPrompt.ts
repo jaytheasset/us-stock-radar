@@ -1,6 +1,5 @@
 import {
   APPROVED_PROXY_EVENT_TYPES,
-  type ProxyEventType,
   type ProxyParserOutput,
 } from "./parser.ts";
 import type { ProxyDisplayPayload } from "./displayPayload.ts";
@@ -10,74 +9,11 @@ import { buildProxySourceBlockPromptInput } from "./routerPrompt.ts";
 export interface ProxyAnalysisPromptInput {
   parserOutput: ProxyParserOutput;
   routerDecision: ProxyRouterDecision;
-  displayPayload?: ProxyDisplayPayload;
   marketContext?: Record<string, unknown> | null;
-  variant?: ProxyAnalysisPromptVariant | string;
 }
-
-export type ProxyAnalysisPromptVariant = "default";
 
 export const SEC_PROXY_ANALYSIS_PROMPT_KEY = "sec_proxy_analysis";
 export const SEC_PROXY_ANALYSIS_PROMPT_VERSION = "proxy-analysis-v3-unified-proxy-vote";
-
-export function normalizeProxyAnalysisPromptVariant(value: unknown): ProxyAnalysisPromptVariant {
-  return "default";
-}
-
-export interface ProxyAnalysisOutput {
-  source_group: "filings";
-  market_scope: "company" | "sector" | "theme" | "macro";
-  event_type: ProxyEventType;
-  event_title: string;
-  primary_ticker: {
-    ticker: string | null;
-    exchange: string | null;
-  };
-  tickers: Array<{
-    ticker: string | null;
-    exchange: string | null;
-  }>;
-  sector: string | null;
-  industry_group: string | null;
-  theme_group: string | null;
-  sub_theme: string | null;
-  score: number;
-  score_reason: string;
-  score_explanation?: {
-    summary: string;
-  } | null;
-  signal: "bullish" | "bearish" | "volatile" | "neutral";
-  quick_take: string;
-  summary: string;
-  why_it_matters: string;
-  bullish_points: string[];
-  bearish_points: string[];
-  key_evidence: string[];
-  what_to_watch_next: string[];
-  related_tickers: Array<{
-    ticker: string | null;
-    exchange: string | null;
-  }>;
-  calendar_items: ProxyParserOutput["calendarItems"];
-  confidence: "high" | "medium" | "low";
-  needs_human_review: boolean;
-}
-
-export interface ProxyRequiredOutput {
-  parser_output: ProxyParserOutput;
-  analysis_output: ProxyAnalysisOutput;
-  display_payload: ProxyDisplayPayload;
-  fixture_expected: {
-    expected_delivery_level: "archive" | "feed" | "alert";
-    expected_impact: "low" | "medium" | "high";
-    market_context_needed: boolean;
-    market_context_reason: string | null;
-    market_context_fields: string[];
-    special_ui_needed: boolean;
-    special_ui_reason: string | null;
-    integration_notes: string[];
-  };
-}
 
 export function buildProxyAnalysisPrompt(input: ProxyAnalysisPromptInput): string {
   return [
@@ -255,31 +191,7 @@ export function deriveDeliveryLevel(score: number): "archive" | "feed" | "alert"
   return "alert";
 }
 
-export function assertRequiredProxyOutputShape(output: ProxyRequiredOutput): void {
-  if (output.parser_output.parserGroup !== "proxy") {
-    throw new Error("parser_output.parserGroup must be proxy.");
-  }
-  if (output.parser_output.formType !== "Proxy") {
-    throw new Error("parser_output.formType must be Proxy.");
-  }
-  if (!APPROVED_PROXY_EVENT_TYPES.includes(output.analysis_output.event_type)) {
-    throw new Error(`Unapproved event_type: ${output.analysis_output.event_type}`);
-  }
-  if (deriveDeliveryLevel(output.analysis_output.score) !== output.fixture_expected.expected_delivery_level) {
-    throw new Error("fixture_expected.expected_delivery_level does not match score band.");
-  }
-  if (output.display_payload.display_type !== "proxy_vote") {
-    throw new Error(`Unsupported display_type: ${output.display_payload.display_type}`);
-  }
-  if (output.display_payload.display_version !== "proxy_vote_v1") {
-    throw new Error(`Unsupported display_version: ${output.display_payload.display_version}`);
-  }
-  if ("display_version" in output.display_payload && typeof output.display_payload.display_version !== "string") {
-    throw new Error("display_payload.display_version must be a string when present.");
-  }
-}
-
-function requiredOutputSkeleton(): ProxyRequiredOutput {
+function requiredOutputSkeleton(): Record<string, unknown> {
   return {
     parser_output: {
       parserVersion: "string",
@@ -350,16 +262,6 @@ function requiredOutputSkeleton(): ProxyRequiredOutput {
       },
       evidence: [],
       notes: [],
-    },
-    fixture_expected: {
-      expected_delivery_level: "archive",
-      expected_impact: "low",
-      market_context_needed: false,
-      market_context_reason: "string | null",
-      market_context_fields: [],
-      special_ui_needed: false,
-      special_ui_reason: "string | null",
-      integration_notes: [],
     },
   };
 }

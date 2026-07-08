@@ -9,7 +9,6 @@ import {
   buildProxyLlmDisplayPayloadPlaceholder,
   buildProxyLlmRouterPlaceholder,
   deriveDeliveryLevel,
-  type ProxyAnalysisOutput,
   type ProxyAnalysisPromptInput,
 } from "./analysisPrompt.ts";
 import type { ProxyDisplayPayload } from "./displayPayload.ts";
@@ -47,7 +46,7 @@ export interface ProxyAdapterRuntimePackage {
   router_decision: ProxyRouterDecision;
   display_payload: ProxyDisplayPayload;
   analysis_prompt: string | null;
-  analysis_output: ProxyAnalysisOutput | null;
+  analysis_output: Record<string, unknown> | null;
   analysis_mode: typeof PROXY_ANALYSIS_MODE;
   adapter_key: typeof PROXY_ADAPTER_KEY;
   parser_group: typeof PROXY_PARSER_GROUP;
@@ -66,7 +65,6 @@ export function buildProxyRuntimePackage(input: ProxyAdapterRuntimeInput): Proxy
   const analysisPrompt = buildProxyAnalysisPrompt({
     parserOutput,
     routerDecision,
-    displayPayload,
     marketContext: input.marketContext ?? input.parserInput.market_context ?? null,
   });
 

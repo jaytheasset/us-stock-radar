@@ -5,7 +5,6 @@ import { fileURLToPath } from "node:url";
 import { APPROVED_PROXY_EVENT_TYPES, parseProxyFiling } from "./parser.ts";
 import {
   buildProxyAnalysisPrompt,
-  buildProxyLlmDisplayPayloadPlaceholder,
   buildProxyLlmRouterPlaceholder,
 } from "./analysisPrompt.ts";
 
@@ -30,11 +29,9 @@ for (const caseName of CASES) {
   const fixture = readJson(`fixtures/${caseName}.json`);
   const parserOutput = parseProxyFiling(fixture.input);
   const routerDecision = buildProxyLlmRouterPlaceholder();
-  const displayPayload = buildProxyLlmDisplayPayloadPlaceholder();
   const prompt = buildProxyAnalysisPrompt({
     parserOutput,
     routerDecision,
-    displayPayload,
     marketContext: fixture.input.market_context ?? null,
   });
 
@@ -42,18 +39,16 @@ for (const caseName of CASES) {
     assert.ok(prompt.includes(`- ${eventType}`), `${caseName}: analysis prompt omitted ${eventType}`);
   }
   assert.ok(prompt.includes("Do not call live market data"), `${caseName}: prompt should block live market data`);
-  assert.ok(prompt.includes("Choose event_type, display_payload.display_type, and display_payload.display_version yourself"), `${caseName}: prompt should require LLM display routing`);
+  assert.ok(prompt.includes("Choose event_type yourself from the source blocks."), `${caseName}: prompt should require LLM event routing`);
   assert.ok(prompt.includes("Always use display_payload.display_type = proxy_vote"), `${caseName}: prompt should force unified proxy vote UI`);
-  assert.ok(prompt.includes("Required display_payload.data keys by display_version"), `${caseName}: prompt should include display payload contract`);
-  assert.ok(prompt.includes("score_explanation is required"), `${caseName}: prompt should require score explanation for the visible score rationale UI`);
+  assert.ok(prompt.includes("display_payload.data.proposals: the visible agenda table"), `${caseName}: prompt should include display payload contract`);
+  assert.ok(prompt.includes("Always include score_explanation"), `${caseName}: prompt should require score explanation for the visible score rationale UI`);
   assert.ok(!prompt.includes("score_explanation is not in this schema"), `${caseName}: prompt must not suppress score explanation`);
   assert.ok(!prompt.includes("prebuilt_display_payload"), `${caseName}: prompt should not include full prebuilt display payload`);
   const sourceInput = prompt.slice(prompt.indexOf("cleaned_source_blocks:"));
   assert.ok(!sourceInput.includes('"facts":'), `${caseName}: source input should not include parser facts`);
   assert.ok(!sourceInput.includes('"signals":'), `${caseName}: source input should not include parser signals`);
   assert.ok(!sourceInput.includes('"eventType":'), `${caseName}: source input should not include parser event labels`);
-  assert.equal(displayPayload.display_type, "proxy_vote", `${caseName}: placeholder display_type should use unified proxy UI`);
-  assert.equal(displayPayload.display_version, "proxy_vote_v1", `${caseName}: placeholder display_version should use unified proxy UI`);
 }
 
 console.log(`analysis.test.ts: ${CASES.length} fixture cases passed`);

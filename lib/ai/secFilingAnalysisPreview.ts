@@ -86,7 +86,6 @@ import { parseSc13Filing } from "@/lib/sources/sec/forms/sc13/parser";
 import type { Sc13ParserOutput } from "@/lib/sources/sec/forms/sc13/types";
 import {
   buildProxyAnalysisPrompt,
-  buildProxyLlmDisplayPayloadPlaceholder,
   buildProxyLlmRouterPlaceholder,
   SEC_PROXY_ANALYSIS_PROMPT_KEY,
   SEC_PROXY_ANALYSIS_PROMPT_VERSION,
@@ -2498,7 +2497,6 @@ function buildSecProxyAnalysisPromptForInput(
     throw new Error("SEC proxy parser output is missing from filing package");
   }
   const routerDecision = buildProxyLlmRouterPlaceholder();
-  const displayPayload = buildProxyLlmDisplayPayloadPlaceholder();
   const marketContext = readRecord(readRecord(input.filing_package)?.market_context);
 
   return {
@@ -2513,7 +2511,6 @@ function buildSecProxyAnalysisPromptForInput(
     user: buildProxyAnalysisPrompt({
       parserOutput,
       routerDecision,
-      displayPayload,
       marketContext,
     }),
     responseFormat: {
@@ -2638,7 +2635,7 @@ function readProxyParserOutput(input: SecFilingAnalysisInput): ProxyParserOutput
 const secProxyRequiredOutputSchema = {
   type: "object",
   additionalProperties: true,
-  required: ["parser_output", "analysis_output", "display_payload", "fixture_expected"],
+  required: ["parser_output", "analysis_output", "display_payload"],
   properties: {
     parser_output: {
       type: "object",
@@ -2728,10 +2725,6 @@ const secProxyRequiredOutputSchema = {
           items: { type: "string" },
         },
       },
-    },
-    fixture_expected: {
-      type: "object",
-      additionalProperties: true,
     },
   },
 } as const;
