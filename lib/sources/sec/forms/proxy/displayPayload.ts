@@ -1,4 +1,4 @@
-export type ProxyDisplayType = "generic" | "offering_terms" | "candidate_special" | "spac_transaction_status";
+export type ProxyDisplayType = "proxy_vote";
 
 export interface ProxyDisplayPayload {
   display_type: ProxyDisplayType;

@@ -88,10 +88,8 @@ import {
   buildProxyAnalysisPrompt,
   buildProxyLlmDisplayPayloadPlaceholder,
   buildProxyLlmRouterPlaceholder,
-  normalizeProxyAnalysisPromptVariant,
   SEC_PROXY_ANALYSIS_PROMPT_KEY,
   SEC_PROXY_ANALYSIS_PROMPT_VERSION,
-  SEC_PROXY_SECTIONED_TEST_PROMPT_VERSION,
 } from "@/lib/sources/sec/forms/proxy/analysisPrompt";
 import type { ProxyParserOutput } from "@/lib/sources/sec/forms/proxy/parser";
 import { supabaseSelect } from "@/lib/supabase";
@@ -219,12 +217,6 @@ const SEC_S1_F1_EVENT_TITLE_REPAIR_PROMPT_KEY = "sec_s1_f1_event_title_repair";
 const SEC_S1_F1_ROUTE_ONLY_PROMPT_KEY = "sec_s1_f1_route_only";
 const SEC_S1_F1_ROUTE_ONLY_PROMPT_VERSION = "s1-f1-route-only-v2-amendment-gate";
 const SEC_LLM_RUNAWAY_OUTPUT_CHARS = 30_000;
-const SPECIAL_PROXY_LLM_PATTERN =
-  /\b(?:reverse\s+stock\s+split|minimum\s+bid|delisting|nasdaq\s+compliance|nyse\s+compliance|authorized\s+shares?|increase\s+(?:the\s+)?(?:number\s+of\s+)?authorized|share\s+issuance|issuance\s+of\s+shares|equity\s+incentive\s+plan|stock\s+incentive\s+plan|employee\s+stock\s+purchase\s+plan|espp|repricing|evergreen|merger(?:\s+agreement)?|business\s+combination|acquisition|asset\s+sale|liquidation|dissolution|contested|dissident|proxy\s+contest|universal\s+proxy|poison\s+pill|classified\s+board|declassify|independent\s+chair|bylaw|charter\s+amendment|certificate\s+of\s+incorporation|regulatory\s+investigation|litigation|antitrust|sanctions)\b/i;
-const PROXY_LIGHTWEIGHT_IPO_LISTING_BLOCKER_PATTERN =
-  /\b(?:spac|de-spac|de\s+spac|special\s+purpose\s+acquisition|blank\s+check|business\s+combination|merger(?:\s+agreement)?|acquisition|redemption|liquidation|dissolution|minimum\s+cash|closing\s+condition|ticker\s+change|consummation|reverse\s+stock\s+split|minimum\s+bid|delisting|nasdaq\s+compliance|nyse\s+compliance|authorized\s+shares?|share\s+issuance|issuance\s+of\s+shares|contested|dissident|proxy\s+contest|universal\s+proxy|poison\s+pill|bylaw|charter\s+amendment|certificate\s+of\s+incorporation|regulatory\s+investigation|litigation|antitrust|sanctions)\b/i;
-const PROXY_LIGHTWEIGHT_EQUITY_PLAN_BLOCKER_PATTERN =
-  /\b(?:reverse\s+stock\s+split|minimum\s+bid|delisting|nasdaq\s+compliance|nyse\s+compliance|authorized\s+shares?|employee\s+stock\s+purchase\s+plan|espp|repricing|evergreen|business\s+combination|merger(?:\s+agreement)?|acquisition|asset\s+sale|liquidation|dissolution|contested|dissident|proxy\s+contest|universal\s+proxy|poison\s+pill|bylaw|charter\s+amendment|certificate\s+of\s+incorporation|regulatory\s+investigation|litigation|antitrust|sanctions)\b/i;
 
 export type SecFilingAnalysisRunResult = {
   ok: boolean;
@@ -1414,10 +1406,9 @@ export async function runSecFilingAnalysisForRawRow(
     };
   }
 
-  const proxyPromptVariant = normalizeProxyAnalysisPromptVariant(options.secPromptVariant);
   if (isProxyFilingInput(input)) {
     await attachSecMarketContext(input);
-    const prompt = buildSecProxyAnalysisPromptForInput(input, { promptVariant: proxyPromptVariant });
+    const prompt = buildSecProxyAnalysisPromptForInput(input);
     const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
     if (!analysisRun.ok || !analysisRun.parsed) {
       return {
@@ -1553,7 +1544,7 @@ function resolveSecLlmConfig(
       "gemini-2.5-flash"
     ).trim();
     const fallbackModel =
-      input && isLightweightProxyLlmCandidate(input) && model !== "gemini-2.5-flash"
+      input && isProxyFilingInput(input) && model !== "gemini-2.5-flash"
         ? "gemini-2.5-flash"
         : undefined;
     return {
@@ -1577,130 +1568,10 @@ function resolveGeminiModelForSecInput(env: ReturnType<typeof getServerEnv>, inp
   if (input && isOwnershipFilingInput(input)) {
     return env.secOwnershipGeminiModel || "gemini-2.5-flash-lite";
   }
-  if (input && isLightweightProxyLlmCandidate(input)) {
+  if (input && isProxyFilingInput(input)) {
     return env.secProxyRoutineGeminiModel || "gemini-2.5-flash-lite";
   }
   return "";
-}
-
-function isLightweightProxyLlmCandidate(input: SecFilingAnalysisInput) {
-  const filingPackage = readRecord(input.filing_package);
-  const hardParsers = readRecord(filingPackage?.hard_parsers);
-  const proxy = readRecord(hardParsers?.proxy);
-  if (!proxy) return false;
-
-  const facts = readRecord(proxy.facts);
-  if (!facts) return false;
-  const proposals = readRecordArray(facts.proposals);
-  const signals = readRecordArray(proxy.signals);
-  if (!proposals.length && !signals.length) return false;
-
-  const explicitProxyText = buildProxyRoutingText(facts, proposals, signals);
-  if (isRoutineAnnualProxyLiteCandidate(facts, proposals, explicitProxyText)) return true;
-  if (isCleanIpoListingProxyLiteCandidate(facts, signals, explicitProxyText)) return true;
-  if (isCleanEquityPlanProxyLiteCandidate(facts, signals, explicitProxyText)) return true;
-
-  return false;
-}
-
-function isRoutineAnnualProxyLiteCandidate(
-  facts: Record<string, unknown>,
-  proposals: Record<string, unknown>[],
-  explicitProxyText: string,
-) {
-  if (stringValue(facts.proxyType) !== "annual") return false;
-  if (!proposals.length) return false;
-
-  const ownership = readRecord(facts.ownership);
-  const maxOwnership = Math.max(
-    finiteNumber(ownership?.maxBeneficialOwnershipPercent),
-    finiteNumber(ownership?.max_beneficial_ownership_percent),
-  );
-  if (maxOwnership >= 20) return false;
-
-  return !SPECIAL_PROXY_LLM_PATTERN.test(explicitProxyText);
-}
-
-function isCleanIpoListingProxyLiteCandidate(
-  facts: Record<string, unknown>,
-  signals: Record<string, unknown>[],
-  explicitProxyText: string,
-) {
-  const eventTypes = proxyEventTypes(facts, signals);
-  if (!eventTypes.has("ipo_listing")) return false;
-  if ([...eventTypes].some((eventType) => eventType !== "ipo_listing" && eventType !== "shareholder_vote")) {
-    return false;
-  }
-  return !PROXY_LIGHTWEIGHT_IPO_LISTING_BLOCKER_PATTERN.test(explicitProxyText);
-}
-
-function isCleanEquityPlanProxyLiteCandidate(
-  facts: Record<string, unknown>,
-  signals: Record<string, unknown>[],
-  explicitProxyText: string,
-) {
-  const eventTypes = proxyEventTypes(facts, signals);
-  const dilution = readRecord(facts.dilution);
-  const proposalIds = readStringArray(dilution?.proposalIds).concat(readStringArray(dilution?.proposal_ids));
-  const sharesRequested = Math.max(
-    finiteNumber(dilution?.sharesRequested),
-    finiteNumber(dilution?.shares_requested),
-  );
-  const percentOfOutstanding = Math.max(
-    finiteNumber(dilution?.percentOfOutstanding),
-    finiteNumber(dilution?.percent_of_outstanding),
-  );
-  const hasEquityPlanVote =
-    dilution?.hasEquityPlanVote === true ||
-    dilution?.has_equity_plan_vote === true ||
-    (eventTypes.has("dilution_risk") && /\b(?:equity|stock)\s+(?:incentive\s+)?plan\b/i.test(explicitProxyText));
-
-  if (!hasEquityPlanVote) return false;
-  if (!proposalIds.length || sharesRequested <= 0 || percentOfOutstanding <= 0) return false;
-  if ([...eventTypes].some((eventType) => eventType !== "dilution_risk" && eventType !== "shareholder_vote")) {
-    return false;
-  }
-  return !PROXY_LIGHTWEIGHT_EQUITY_PLAN_BLOCKER_PATTERN.test(explicitProxyText);
-}
-
-function buildProxyRoutingText(
-  facts: Record<string, unknown>,
-  proposals: Record<string, unknown>[],
-  signals: Record<string, unknown>[],
-) {
-  const dilution = readRecord(facts.dilution);
-  const records = [...proposals, ...signals, facts, dilution].filter(
-    (item): item is Record<string, unknown> => Boolean(item),
-  );
-  return records
-    .map((item) =>
-      [
-        item.title,
-        item.sourceText,
-        item.source_text,
-        item.evidence,
-        item.name,
-        item.category,
-        item.eventType,
-        item.event_type,
-      ]
-        .map(stringValue)
-        .filter(Boolean)
-        .join(" "),
-    )
-    .filter(Boolean)
-    .join("\n");
-}
-
-function proxyEventTypes(facts: Record<string, unknown>, signals: Record<string, unknown>[]) {
-  const deterministic = readRecord(facts.deterministic);
-  return new Set(
-    [
-      stringValue(deterministic?.eventType),
-      stringValue(deterministic?.event_type),
-      ...signals.flatMap((signal) => [stringValue(signal.eventType), stringValue(signal.event_type)]),
-    ].filter(Boolean),
-  );
 }
 
 function normalizeSecLlmProvider(value: string | undefined, allowOpenAi = false): SecLlmProvider {
@@ -2621,23 +2492,18 @@ function isProxyFilingInput(input: SecFilingAnalysisInput) {
 
 function buildSecProxyAnalysisPromptForInput(
   input: SecFilingAnalysisInput,
-  options: { promptVariant?: string } = {},
 ): OpenAiPrompt {
   const parserOutput = readProxyParserOutput(input);
   if (!parserOutput) {
     throw new Error("SEC proxy parser output is missing from filing package");
   }
-  const promptVariant = normalizeProxyAnalysisPromptVariant(options.promptVariant);
   const routerDecision = buildProxyLlmRouterPlaceholder();
   const displayPayload = buildProxyLlmDisplayPayloadPlaceholder();
   const marketContext = readRecord(readRecord(input.filing_package)?.market_context);
 
   return {
     key: SEC_PROXY_ANALYSIS_PROMPT_KEY,
-    version:
-      promptVariant === "proxy_sectioned_test"
-        ? SEC_PROXY_SECTIONED_TEST_PROMPT_VERSION
-        : SEC_PROXY_ANALYSIS_PROMPT_VERSION,
+    version: SEC_PROXY_ANALYSIS_PROMPT_VERSION,
     system: [
       "Analyze one SEC proxy filing from cleaned source blocks.",
       "Return the full proxy Required Output JSON shape.",
@@ -2649,7 +2515,6 @@ function buildSecProxyAnalysisPromptForInput(
       routerDecision,
       displayPayload,
       marketContext,
-      variant: promptVariant,
     }),
     responseFormat: {
       json_schema: {
@@ -2683,9 +2548,8 @@ function adaptSecProxyAnalysisPromptResultForAnalysis(root: Record<string, unkno
 function validateSecProxyDisplayPayload(displayPayload: Record<string, unknown>): string[] {
   const warnings: string[] = [];
   const displayVersion = stringValue(displayPayload.display_version);
-  if (!PROXY_DISPLAY_DATA_REQUIRED_KEYS[displayVersion]) {
-    warnings.push(`SEC proxy display_payload.display_version is not allowed: ${displayVersion || "(empty)"}`);
-    return warnings;
+  if (displayVersion !== "proxy_vote_v1") {
+    warnings.push(`SEC proxy display_payload.display_version should be proxy_vote_v1, got: ${displayVersion || "(empty)"}`);
   }
   const data = readRecord(displayPayload.data);
   if (!data || Object.keys(data).length === 0) {
@@ -2693,76 +2557,57 @@ function validateSecProxyDisplayPayload(displayPayload: Record<string, unknown>)
     return warnings;
   }
 
-  const missingKeys = PROXY_DISPLAY_DATA_REQUIRED_KEYS[displayVersion].filter((key) =>
+  const missingKeys = PROXY_DISPLAY_DATA_REQUIRED_KEYS.proxy_vote_v1.filter((key) =>
     !Object.prototype.hasOwnProperty.call(data, key)
   );
   if (missingKeys.length) {
-    warnings.push(`SEC proxy ${displayVersion} data missing required field(s): ${missingKeys.join(", ")}`);
+    warnings.push(`SEC proxy proxy_vote_v1 data missing required field(s): ${missingKeys.join(", ")}`);
   }
 
-  for (const arrayKey of PROXY_DISPLAY_DATA_REQUIRED_ARRAY_KEYS[displayVersion] || []) {
+  for (const arrayKey of PROXY_DISPLAY_DATA_REQUIRED_ARRAY_KEYS.proxy_vote_v1) {
     if (!Array.isArray(data[arrayKey])) {
-      warnings.push(`SEC proxy ${displayVersion} data requires ${arrayKey} to be an array.`);
+      warnings.push(`SEC proxy proxy_vote_v1 data requires ${arrayKey} to be an array.`);
     }
   }
 
-  const proposalModules = readRecordArray(data.proposal_modules);
-  const moduleGuidance = PROXY_DISPLAY_PROPOSAL_MODULE_GUIDANCE[displayVersion];
+  const snapshot = readRecordArray(data.snapshot);
+  if (snapshot.length > 4) {
+    warnings.push(`SEC proxy proxy_vote_v1 data.snapshot should contain at most 4 rows, got ${snapshot.length}.`);
+  }
+  snapshot.forEach((row, index) => {
+    if (!stringValue(row.label)) warnings.push(`SEC proxy proxy_vote_v1 data.snapshot row ${index + 1} missing label.`);
+    if (!stringValue(row.value)) warnings.push(`SEC proxy proxy_vote_v1 data.snapshot row ${index + 1} missing value.`);
+  });
 
-  if ((PROXY_DISPLAY_DATA_REQUIRED_ARRAY_KEYS[displayVersion] || []).includes("proposals")) {
-    const proposals = readRecordArray(data.proposals);
-    if (!proposals.length) {
-      warnings.push(`SEC proxy ${displayVersion} data.proposals must include visible proposal rows.`);
-    } else {
-      const proposalIds = proposals
-        .map((proposal) => stringValue(proposal.id))
-        .filter(Boolean);
-      const emptyProposalIndexes = proposals
-        .map((proposal, index) => (stringValue(proposal.title) ? null : index + 1))
-        .filter((value): value is number => value !== null);
-      if (emptyProposalIndexes.length) {
-        warnings.push(`SEC proxy ${displayVersion} data.proposals missing title for row(s): ${emptyProposalIndexes.join(", ")}.`);
+  const proposals = readRecordArray(data.proposals);
+  if (proposals.length && !snapshot.length) {
+    warnings.push("SEC proxy proxy_vote_v1 data.snapshot should include visible summary rows when proposals are present.");
+  }
+  if (proposals.length) {
+    proposals.forEach((proposal, index) => {
+      const row = index + 1;
+      if (!stringValue(proposal.id)) warnings.push(`SEC proxy proxy_vote_v1 data.proposals row ${row} missing id.`);
+      if (!stringValue(proposal.title)) warnings.push(`SEC proxy proxy_vote_v1 data.proposals row ${row} missing title.`);
+      const proposalType = stringValue(proposal.type) || stringValue(proposal.category);
+      if (!proposalType) warnings.push(`SEC proxy proxy_vote_v1 data.proposals row ${row} missing type.`);
+      const recommendation = stringValue(proposal.board_recommendation) || stringValue(proposal.recommendation);
+      if (!recommendation) warnings.push(`SEC proxy proxy_vote_v1 data.proposals row ${row} missing board_recommendation.`);
+      const details = readRecordArray(proposal.details);
+      if (isMaterialProxyProposalType(`${proposalType} ${stringValue(proposal.title)}`) && !details.length) {
+        warnings.push(`SEC proxy proxy_vote_v1 data.proposals row ${row} should include details for material proposal terms.`);
       }
-      const missingCategoryIndexes = proposals
-        .map((proposal, index) => (stringValue(proposal.category) ? null : index + 1))
-        .filter((value): value is number => value !== null);
-      if (missingCategoryIndexes.length) {
-        warnings.push(`SEC proxy ${displayVersion} data.proposals missing category/type for row(s): ${missingCategoryIndexes.join(", ")}.`);
-      }
-      const missingRecommendationIndexes = proposals
-        .map((proposal, index) => (stringValue(proposal.recommendation) ? null : index + 1))
-        .filter((value): value is number => value !== null);
-      if (missingRecommendationIndexes.length) {
-        warnings.push(`SEC proxy ${displayVersion} data.proposals missing board recommendation for row(s): ${missingRecommendationIndexes.join(", ")}.`);
-      }
-      if (moduleGuidance && !proposalModules.length) {
-        warnings.push(`SEC proxy ${displayVersion} should include proposal_modules for ${moduleGuidance}.`);
-      }
-      if (proposalModules.length) {
-        const proposalIdSet = new Set(proposalIds);
-        const missingModuleIds = proposalModules
-          .map((module, index) => (stringValue(module.proposal_id) || stringValue(module.proposalId) ? null : index + 1))
-          .filter((value): value is number => value !== null);
-        if (missingModuleIds.length) {
-          warnings.push(`SEC proxy ${displayVersion} proposal_modules missing proposal_id for module(s): ${missingModuleIds.join(", ")}.`);
-        }
-        const unmatchedModuleIds = proposalModules
-          .map((module, index) => {
-            const id = stringValue(module.proposal_id) || stringValue(module.proposalId);
-            if (!id || proposalIdSet.has(id)) return null;
-            return `${index + 1} (${id})`;
-          })
-          .filter((value): value is string => value !== null);
-        if (unmatchedModuleIds.length) {
-          warnings.push(
-            `SEC proxy ${displayVersion} proposal_modules proposal_id must match data.proposals id; unmatched module(s): ${unmatchedModuleIds.join(", ")}.`,
-          );
-        }
-      }
-    }
+      details.forEach((detail, detailIndex) => {
+        if (!stringValue(detail.label)) warnings.push(`SEC proxy proxy_vote_v1 proposal row ${row} detail ${detailIndex + 1} missing label.`);
+        if (!stringValue(detail.value)) warnings.push(`SEC proxy proxy_vote_v1 proposal row ${row} detail ${detailIndex + 1} missing value.`);
+      });
+    });
   }
 
   return warnings;
+}
+
+function isMaterialProxyProposalType(value: string) {
+  return /merger|transaction|reverse|authorized|equity|incentive|listing|spac|de-spac|business combination|shareholder|contest|dissident|governance/i.test(value);
 }
 
 function appendSecProxyDisplayWarnings(displayPayload: Record<string, unknown>, warnings: string[]) {
@@ -2775,81 +2620,11 @@ function appendSecProxyDisplayWarnings(displayPayload: Record<string, unknown>, 
 }
 
 const PROXY_DISPLAY_DATA_REQUIRED_KEYS: Record<string, string[]> = {
-  proxy_generic_v1: ["meeting_date", "record_date", "proposal_count", "board_recommendation", "proposals"],
-  proxy_ipo_listing_v1: [
-    "ipo_kind",
-    "listing_action",
-    "exchange_ticker",
-    "meeting_date",
-    "record_date",
-    "proposals",
-  ],
-  proxy_equity_plan_vote_v1: [
-    "plan_name",
-    "shares_requested",
-    "percent_of_outstanding",
-    "vote_requirement",
-    "proposals",
-  ],
-  proxy_transaction_vote_v1: [
-    "transaction_summary",
-    "consideration",
-    "vote_required",
-    "meeting_date",
-    "record_date",
-    "board_recommendation",
-    "closing_conditions",
-    "proposals",
-  ],
-  proxy_capital_structure_vote_v1: [
-    "reverse_split",
-    "capital_structure_proposals",
-    "listing_context",
-    "board_recommendation",
-    "meeting_date",
-    "record_date",
-    "proposals",
-  ],
-  proxy_governance_vote_v1: [
-    "governance_focus",
-    "contested",
-    "shareholder_or_governance_proposals",
-    "board_recommendation",
-    "meeting_date",
-    "record_date",
-    "proposals",
-  ],
-  proxy_spac_transaction_status_v1: [
-    "current_stage_label",
-    "deal_status",
-    "target_company",
-    "target_company_story",
-    "expected_ticker",
-    "vote_date",
-    "min_cash_condition",
-    "min_cash_status",
-    "redemption_rate",
-    "risk_flags",
-    "watch_next",
-  ],
+  proxy_vote_v1: ["summary_title", "summary_sentence", "snapshot", "proposals"],
 };
 
 const PROXY_DISPLAY_DATA_REQUIRED_ARRAY_KEYS: Record<string, string[]> = {
-  proxy_generic_v1: ["proposals"],
-  proxy_ipo_listing_v1: ["proposals"],
-  proxy_equity_plan_vote_v1: ["proposals"],
-  proxy_transaction_vote_v1: ["proposals"],
-  proxy_capital_structure_vote_v1: ["capital_structure_proposals", "proposals"],
-  proxy_governance_vote_v1: ["shareholder_or_governance_proposals", "proposals"],
-  proxy_spac_transaction_status_v1: ["risk_flags", "watch_next"],
-};
-
-const PROXY_DISPLAY_PROPOSAL_MODULE_GUIDANCE: Record<string, string> = {
-  proxy_ipo_listing_v1: "listing or share-issuance proposal terms",
-  proxy_equity_plan_vote_v1: "equity plan share reserve or dilution terms",
-  proxy_transaction_vote_v1: "merger consideration, vote threshold, or closing terms",
-  proxy_capital_structure_vote_v1: "reverse split, authorized-share, or listing-compliance terms",
-  proxy_governance_vote_v1: "contested, shareholder, or governance proposal details",
+  proxy_vote_v1: ["snapshot", "proposals"],
 };
 
 function readProxyParserOutput(input: SecFilingAnalysisInput): ProxyParserOutput | null {
@@ -2877,122 +2652,71 @@ const secProxyRequiredOutputSchema = {
       properties: {
         display_type: {
           type: "string",
-          enum: ["generic", "offering_terms", "candidate_special", "spac_transaction_status"],
+          enum: ["proxy_vote"],
         },
         display_version: {
           type: "string",
-          enum: Object.keys(PROXY_DISPLAY_DATA_REQUIRED_KEYS),
+          enum: ["proxy_vote_v1"],
         },
         data: {
           type: "object",
           additionalProperties: true,
-          required: ["proposals"],
+          required: ["summary_title", "summary_sentence", "snapshot", "proposals"],
           minProperties: 1,
-          description: "Must contain visible UI fields for the selected display_version; never return an empty object. Version-specific missing fields are recorded as display_warnings, not persistence errors.",
+          description: "Unified proxy vote UI payload. Missing or inconsistent fields are recorded as display_warnings, not persistence errors.",
           properties: {
-            meeting_date: { type: ["string", "number", "null"], maxLength: 32 },
-            record_date: { type: ["string", "number", "null"], maxLength: 32 },
-            proposal_count: { type: ["string", "number", "null"] },
-            board_recommendation: { type: ["string", "null"], maxLength: 64 },
+            summary_title: { type: "string", minLength: 1, maxLength: 48 },
+            summary_sentence: { type: "string", minLength: 1, maxLength: 160 },
+            snapshot: {
+              type: "array",
+              minItems: 0,
+              maxItems: 4,
+              items: {
+                type: "object",
+                additionalProperties: true,
+                required: ["label", "value"],
+                properties: {
+                  label: { type: "string", minLength: 1, maxLength: 24 },
+                  value: { type: "string", minLength: 1, maxLength: 40 },
+                  note: { type: ["string", "null"], maxLength: 80 },
+                },
+              },
+            },
+            expected_followup_forms: {
+              type: "array",
+              maxItems: 6,
+              items: { type: "string", minLength: 1, maxLength: 72 },
+              description:
+                "Internal reference only. Likely follow-up forms such as 8-K Item 5.07, 8-K/A, 6-K for FPI, S-8 if additional plan shares are registered. Do not use this as visible UI what_to_watch_next copy.",
+            },
             proposals: {
               type: "array",
               items: {
                 type: "object",
                 additionalProperties: true,
-                required: ["title", "category", "recommendation"],
+                required: ["id", "title", "type", "board_recommendation", "is_shareholder_proposal", "details"],
                 properties: {
-                  id: { type: ["string", "number", "null"], maxLength: 24 },
+                  id: { type: "string", minLength: 1, maxLength: 24 },
                   title: { type: "string", minLength: 1, maxLength: 160 },
-                  category: { type: "string", minLength: 1, maxLength: 40 },
-                  recommendation: { type: "string", minLength: 1, maxLength: 32 },
-                  board_recommendation: { type: ["string", "null"], maxLength: 32 },
-                  is_shareholder_proposal: { type: ["boolean", "string", "null"] },
+                  type: { type: "string", minLength: 1, maxLength: 40 },
+                  board_recommendation: { type: "string", minLength: 1, maxLength: 32 },
+                  is_shareholder_proposal: { type: "boolean" },
+                  details: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      additionalProperties: true,
+                      required: ["label", "value"],
+                      properties: {
+                        label: { type: "string", minLength: 1, maxLength: 24 },
+                        value: { type: "string", minLength: 1, maxLength: 40 },
+                        note: { type: ["string", "null"], maxLength: 80 },
+                      },
+                    },
+                  },
                 },
               },
             },
-            ipo_kind: { type: ["string", "null"], maxLength: 40 },
-            listing_action: { type: ["string", "null"], maxLength: 64 },
-            exchange_ticker: { type: ["string", "null"], maxLength: 32 },
-            plan_name: { type: ["string", "null"], maxLength: 80 },
-            shares_requested: { type: ["string", "number", "null"], maxLength: 40 },
-            percent_of_outstanding: { type: ["string", "number", "null"], maxLength: 32 },
-            vote_requirement: { type: ["string", "null"], maxLength: 80 },
-            transaction_summary: { type: ["string", "null"], maxLength: 40 },
-            consideration: { type: ["string", "null"], maxLength: 40 },
-            vote_required: { type: ["string", "null"], maxLength: 40 },
-            closing_conditions: { type: ["string", "null"], maxLength: 80 },
-            appraisal_rights_mentioned: { type: ["boolean", "string", "null"] },
-            delisting_mentioned: { type: ["boolean", "string", "null"] },
-            reverse_split: {
-              type: ["object", "null"],
-              additionalProperties: true,
-              required: ["ratio", "ratio_range", "implementation_timing", "purpose", "status", "note"],
-              properties: {
-                ratio: { type: ["string", "null"], maxLength: 32 },
-                ratio_range: { type: ["string", "null"], maxLength: 40 },
-                implementation_timing: { type: ["string", "null"], maxLength: 40 },
-                purpose: { type: ["string", "null"], maxLength: 80 },
-                status: { type: ["string", "null"], maxLength: 40 },
-                note: { type: ["string", "null"], maxLength: 80 },
-              },
-            },
-            capital_structure_proposals: {
-              type: "array",
-              minItems: 1,
-              description: "Capital-structure proposal rows such as reverse split, authorized shares, charter amendment, listing compliance, or related adjournment. Use this when display_version is proxy_capital_structure_vote_v1.",
-              items: {
-                type: "object",
-                additionalProperties: true,
-                required: ["title", "category", "recommendation"],
-                properties: {
-                  id: { type: ["string", "number", "null"], maxLength: 24 },
-                  title: { type: "string", minLength: 1, maxLength: 160 },
-                  category: { type: "string", minLength: 1, maxLength: 40 },
-                  recommendation: { type: "string", minLength: 1, maxLength: 32 },
-                  board_recommendation: { type: ["string", "null"], maxLength: 32 },
-                  source_area: { type: ["string", "null"], maxLength: 80 },
-                },
-              },
-            },
-            listing_context: {
-              type: ["string", "null"],
-              maxLength: 64,
-              description: "Nasdaq/NYSE compliance, minimum bid, financing capacity, or Not disclosed for capital-structure votes.",
-            },
-            proposal_modules: {
-              type: "array",
-              items: {
-                type: "object",
-                additionalProperties: true,
-                properties: {
-                  proposal_id: { type: ["string", "number", "null"], maxLength: 24 },
-                  label: { type: "string", maxLength: 24 },
-                  title: { type: "string", maxLength: 48 },
-                  value: { type: ["string", "number", "null"], maxLength: 40 },
-                  note: { type: ["string", "null"], maxLength: 80 },
-                },
-              },
-            },
-            governance_focus: { type: ["string", "null"], maxLength: 80 },
-            contested: { type: ["object", "string", "null"], additionalProperties: true },
-            shareholder_or_governance_proposals: {
-              type: "array",
-              items: { type: "object", additionalProperties: true },
-            },
-            current_stage_label: { type: ["string", "null"], maxLength: 48 },
-            deal_status: { type: ["string", "null"], maxLength: 80 },
-            target_company: { type: ["string", "null"], maxLength: 80 },
-            target_company_story: { type: ["string", "null"] },
-            expected_ticker: { type: ["string", "null"], maxLength: 24 },
-            vote_date: { type: ["string", "null"], maxLength: 32 },
-            redemption_deadline: { type: ["string", "null"], maxLength: 32 },
-            min_cash_condition: { type: ["string", "number", "null"], maxLength: 40 },
-            min_cash_status: { type: ["string", "null"], maxLength: 40 },
-            redemption_rate: { type: ["string", "number", "null"], maxLength: 32 },
-            closing_date: { type: ["string", "null"], maxLength: 32 },
-            ticker_change_date: { type: ["string", "null"], maxLength: 32 },
-            risk_flags: { type: "array", items: { type: "string", maxLength: 80 } },
-            watch_next: { type: "array", items: { type: "string", maxLength: 80 } },
           },
         },
         evidence: {
@@ -3385,29 +3109,67 @@ function buildEffectParentFilingContextFromPackage(
 }
 
 async function runGeminiJsonPrompt(prompt: OpenAiPrompt, llmConfig: SecLlmConfig): Promise<OpenAiPromptRun> {
-  const primaryRun = await runGeminiJsonPromptAttempts(prompt, llmConfig);
-  if (primaryRun.ok || !shouldUseGeminiFallback(primaryRun, llmConfig)) return primaryRun;
+  if (llmConfig.fallbackModel && llmConfig.fallbackModel !== llmConfig.model) {
+    return runGeminiJsonPromptModelSequence(prompt, llmConfig, [
+      llmConfig.model,
+      llmConfig.model,
+      llmConfig.fallbackModel,
+    ]);
+  }
 
-  return runGeminiJsonPromptAttempts(prompt, {
-    ...llmConfig,
-    model: llmConfig.fallbackModel || llmConfig.model,
-    fallbackModel: undefined,
-  });
+  return runGeminiJsonPromptAttempts(prompt, llmConfig);
 }
 
-function shouldUseGeminiFallback(run: OpenAiPromptRun, llmConfig: SecLlmConfig) {
-  if (!llmConfig.fallbackModel) return false;
-  if (llmConfig.fallbackModel === llmConfig.model) return false;
-  if (/\bMAX_TOKENS\b/i.test(run.error || "")) return true;
-  return shouldRetryOpenAiRun(run.status, run.error);
+async function runGeminiJsonPromptModelSequence(
+  prompt: OpenAiPrompt,
+  llmConfig: SecLlmConfig,
+  models: string[],
+): Promise<OpenAiPromptRun> {
+  let lastRun: OpenAiPromptRun | null = null;
+
+  for (let index = 0; index < models.length; index += 1) {
+    const run = await runGeminiJsonPromptAttempts(
+      prompt,
+      {
+        ...llmConfig,
+        model: models[index],
+        fallbackModel: undefined,
+      },
+      1,
+      index,
+    );
+    lastRun = run;
+
+    if (run.ok || !shouldRetryOpenAiRun(run.status, run.error)) return run;
+    if (index < models.length - 1) await waitForRetry(index + 1);
+  }
+
+  return lastRun || {
+    ok: false,
+    status: 0,
+    provider: llmConfig.provider,
+    model: models[models.length - 1] || llmConfig.model,
+    openAiResponseId: null,
+    outputText: "",
+    parsed: null,
+    usage: null,
+    attempts: models.length,
+    error: "Gemini request failed before response",
+    rawOpenAIResponse: null,
+  };
 }
 
-async function runGeminiJsonPromptAttempts(prompt: OpenAiPrompt, llmConfig: SecLlmConfig): Promise<OpenAiPromptRun> {
-  const maxAttempts = SEC_LLM_MAX_ATTEMPTS;
+async function runGeminiJsonPromptAttempts(
+  prompt: OpenAiPrompt,
+  llmConfig: SecLlmConfig,
+  maxAttempts = SEC_LLM_MAX_ATTEMPTS,
+  attemptOffset = 0,
+): Promise<OpenAiPromptRun> {
   let lastRun: OpenAiPromptRun | null = null;
   const url = buildGeminiGenerateContentUrl(llmConfig);
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const attemptNumber = attemptOffset + attempt;
     try {
       const response = await fetch(url, {
         method: "POST",
@@ -3453,7 +3215,7 @@ async function runGeminiJsonPromptAttempts(prompt: OpenAiPrompt, llmConfig: SecL
         outputText,
         parsed,
         usage: normalizeGeminiUsage(responseBody),
-        attempts: attempt,
+        attempts: attemptNumber,
         error:
           safetyStopReason ||
           (response.ok
@@ -3475,14 +3237,14 @@ async function runGeminiJsonPromptAttempts(prompt: OpenAiPrompt, llmConfig: SecL
         outputText: "",
         parsed: null,
         usage: null,
-        attempts: attempt,
+        attempts: attemptNumber,
         error: error instanceof Error ? error.message : String(error),
         rawOpenAIResponse: null,
       };
     }
 
     if (attempt < maxAttempts) {
-      await waitForRetry(attempt);
+      await waitForRetry(attemptNumber);
     }
   }
 
@@ -3495,7 +3257,7 @@ async function runGeminiJsonPromptAttempts(prompt: OpenAiPrompt, llmConfig: SecL
     outputText: "",
     parsed: null,
     usage: null,
-    attempts: maxAttempts,
+    attempts: attemptOffset + maxAttempts,
     error: "Gemini request failed before response",
     rawOpenAIResponse: null,
   };

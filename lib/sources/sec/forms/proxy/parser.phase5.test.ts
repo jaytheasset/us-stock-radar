@@ -3,7 +3,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseProxyFiling } from "./parser.ts";
-import { routeProxyFiling } from "./routerPrompt.ts";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const phase5Cases = JSON.parse(fs.readFileSync(path.join(currentDir, "fixtures", "parser-phase5-cases.json"), "utf8"));
@@ -132,20 +131,13 @@ const phase5Cases = JSON.parse(fs.readFileSync(path.join(currentDir, "fixtures",
 
 {
   const parsed = parseCase("spac-ipo-listing");
-  const decision = routeProxyFiling(parsed);
-  assert.equal(decision.event_type, "other");
-  assert.equal(decision.usesLlm, true);
-  assert.equal(decision.display_type, "generic");
-  assert.equal(decision.display_version, "proxy_generic_v1");
+  assert.equal(parsed.isSupported, true);
+  assert.ok(parsed.raw.proposalExtraction.candidates.length >= 1);
 }
 
 {
   const parsed = parseCase("spac-business-combination-not-ipo");
-  const decision = routeProxyFiling(parsed);
-  assert.equal(decision.event_type, "other");
-  assert.equal(decision.display_type, "generic");
-  assert.equal(decision.usesLlm, true);
-  assert.equal(decision.display_version, "proxy_generic_v1");
+  assert.equal(parsed.isSupported, true);
   assert.ok(parsed.signals.every((signal) => signal.eventType !== "ipo_listing"));
 }
 

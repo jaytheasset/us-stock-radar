@@ -24,9 +24,9 @@ import { parseS1F1Filing } from "@/lib/sources/sec/forms/s1-f1/parser";
 import {
   buildProxyAnalysisPrompt,
   buildProxyLlmDisplayPayloadPlaceholder,
+  buildProxyLlmRouterPlaceholder,
 } from "@/lib/sources/sec/forms/proxy/analysisPrompt";
 import { parseProxyFiling } from "@/lib/sources/sec/forms/proxy/parser";
-import { routeProxyFiling } from "@/lib/sources/sec/forms/proxy/routerPrompt";
 import { supabaseDelete, supabaseSelect } from "@/lib/supabase";
 
 const execAsync = promisify(exec);
@@ -2126,7 +2126,7 @@ function buildProxyPromptVariantPreviews() {
       "The record date is April 16, 2026.",
     ].join("\n"),
   });
-  const routerDecision = routeProxyFiling(previewParserOutput);
+  const routerDecision = buildProxyLlmRouterPlaceholder();
   const displayPayload = buildProxyLlmDisplayPayloadPlaceholder();
 
   return [
@@ -2137,17 +2137,6 @@ function buildProxyPromptVariantPreviews() {
           parserOutput: previewParserOutput,
           routerDecision,
           displayPayload,
-        }),
-      ),
-    },
-    {
-      name: "Sectioned proxy test",
-      text: normalizePromptPreviewText(
-        buildProxyAnalysisPrompt({
-          parserOutput: previewParserOutput,
-          routerDecision,
-          displayPayload,
-          variant: "proxy_sectioned_test",
         }),
       ),
     },

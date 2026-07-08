@@ -55,11 +55,8 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
       ? secPromptVariant
       : selectedRoom === "s1-f1" && secPromptVariant === "legacy_default_backup"
         ? secPromptVariant
-        : selectedRoom === "proxy" && secPromptVariant === "proxy_sectioned_test"
-          ? secPromptVariant
-          : "";
-  const promptVariantSelectValue =
-    selectedRoom === "proxy" && secPromptVariant !== "proxy_sectioned_test" ? "default" : secPromptVariant;
+        : "";
+  const promptVariantSelectValue = selectedRoom === "proxy" ? "default" : secPromptVariant;
   const liveSampleCountNumber = clampLiveSampleCount(liveSampleCount);
   const selectedRunFormCount = Math.max(1, selectedRunForms.length);
   const selectedRunLabel = liveFormFilter === "all" ? "all forms " : `${liveFormFilter} `;
@@ -438,7 +435,6 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
                 ) : (
                   <>
                     <option value="default">Default proxy</option>
-                    <option value="proxy_sectioned_test">Sectioned proxy test</option>
                   </>
                 )}
               </select>
@@ -2933,141 +2929,34 @@ function getDisplayLabelGuide(roomKey: string): DisplayLabelGuide | null {
       overview: [
         {
           title: "1. UI",
-          items: ["generic", "offering_terms", "candidate_special", "spac_transaction_status"],
+          items: ["proxy_vote"],
         },
         {
-          title: "2. Display versions",
-          items: [
-            "proxy_generic_v1",
-            "proxy_ipo_listing_v1",
-            "proxy_equity_plan_vote_v1",
-            "proxy_transaction_vote_v1",
-            "proxy_capital_structure_vote_v1",
-            "proxy_governance_vote_v1",
-            "proxy_spac_transaction_status_v1",
-          ],
+          title: "2. Display version",
+          items: ["proxy_vote_v1"],
         },
         {
-          title: "3. Router event choices",
+          title: "3. Event choices",
           items: ["shareholder_vote", "dilution_risk", "strategic_transaction", "listing_risk", "leadership_governance", "legal_risk", "insider_ownership", "ipo_listing", "other"],
         },
       ],
       detailModes: [
         {
-          mode: "proxy_generic_v1",
-          purpose: "Routine annual proxy, ordinary shareholder vote, notice-only material, or weak proxy signal.",
+          mode: "proxy_vote_v1",
+          purpose: "Unified proxy detail UI for routine votes, capital structure votes, mergers, contested solicitations, SPAC/de-SPAC votes, and supplemental proxy materials.",
           groups: [
             {
-              title: "Proxy Vote Summary",
-              items: ["company_name", "sec_form_type", "proxy_type", "proposal_count", "meeting_date", "record_date", "proposals", "warnings"],
+              title: "Summary",
+              items: ["summary_title", "summary_sentence", "snapshot[0..4]"],
             },
             {
-              title: "Summary labels",
-              items: ["Proposal id", "Proposal title", "Category", "Board recommendation", "Shareholder proposal"],
+              title: "Proposal agenda",
+              items: ["proposals[].id", "proposals[].title", "proposals[].type", "proposals[].board_recommendation", "proposals[].details"],
             },
             {
               title: "What To Watch Next",
-              items: ["Voting results after the meeting", "Any proxy supplement", "8-K vote results or meeting outcome"],
+              items: ["event-first next checks", "optional expected_followup_forms stored separately"],
             },
-          ],
-        },
-        {
-          mode: "proxy_equity_plan_vote_v1",
-          purpose: "Equity incentive plan vote, share reserve increase, new plan benefits, or equity compensation table.",
-          groups: [
-            {
-              title: "Display payload",
-              items: ["shares_requested", "percent_of_outstanding", "proposal_ids", "key_tables"],
-            },
-            {
-              title: "Investor-facing labels",
-              items: ["Plan shares requested", "Share reserve increase", "Plan shares / outstanding", "Proposal id", "Board recommendation"],
-            },
-            {
-              title: "Table labels",
-              items: ["Equity compensation plan information", "New plan benefits", "Proposal-linked table", "Sample rows", "Warnings"],
-            },
-          ],
-        },
-        {
-          mode: "proxy_transaction_vote_v1",
-          purpose: "Merger, acquisition, sale, exchange, business-combination, or other transaction vote.",
-          groups: [
-            {
-              title: "Display payload",
-              items: ["consideration", "vote_required", "proposal_ids", "agreement_date", "merger_parties", "appraisal_rights_mentioned", "delisting_mentioned"],
-            },
-            {
-              title: "Investor-facing labels",
-              items: ["Consideration", "Vote required", "Agreement date", "Merger parties", "Appraisal rights", "Delisting"],
-            },
-            {
-              title: "Router labels",
-              items: ["strategic_transaction", "Preliminary merger proxy", "Transaction vote", "Adjournment proposal", "Closing conditions"],
-            },
-          ],
-        },
-        {
-          mode: "proxy_capital_structure_vote_v1",
-          purpose: "Reverse split, authorized-share increase, charter amendment, bylaw amendment, or listing-compliance vote.",
-          groups: [
-            {
-              title: "Display payload",
-              items: ["reverse_split", "dilution", "capital_structure_proposals"],
-            },
-            {
-              title: "Investor-facing labels",
-              items: ["Reverse split ratio", "Authorized share increase", "Certificate amendment", "Listing compliance", "Minimum bid"],
-            },
-            {
-              title: "Router labels",
-              items: ["dilution_risk", "listing_risk", "Share authorization", "Capital structure proposal", "Board recommendation"],
-            },
-          ],
-        },
-        {
-          mode: "proxy_governance_vote_v1",
-          purpose: "Contested solicitation, governance proposal, shareholder proposal, supplement, or proxy amendment.",
-          groups: [
-            {
-              title: "Display payload",
-              items: ["contested", "supplement", "supplemental_analysis", "shareholder_or_governance_proposals"],
-            },
-            {
-              title: "Supplement labels",
-              items: ["material_type", "parent_references", "change_signals", "reconciliation", "parent proxy context"],
-            },
-            {
-              title: "Governance labels",
-              items: ["Contested solicitation", "Third-party proxy card", "Director nominee withdrawal", "Shareholder proposal", "Board against", "Legal/regulatory proposal"],
-            },
-          ],
-        },
-        {
-          mode: "proxy_spac_transaction_status_v1",
-          purpose: "SPAC/de-SPAC business-combination status, redemption, minimum cash, closing condition, or ticker-change proxy.",
-          groups: [
-            {
-              title: "Display payload",
-              items: ["spac_transaction_kind", "redemption_mentioned", "trust_account_mentioned", "minimum_cash_condition_mentioned", "closing_condition_mentioned", "ticker_change_mentioned", "vote_required", "proposal_ids"],
-            },
-            {
-              title: "SPAC status labels",
-              items: ["business_combination_status", "redemption_result", "minimum_cash_condition", "ticker_change", "closing_condition", "closing_update"],
-            },
-            {
-              title: "Investor-facing labels",
-              items: ["Redemption", "Trust account", "Minimum cash", "Closing condition", "Ticker change", "Vote required"],
-            },
-          ],
-        },
-        {
-          mode: "proxy_ipo_listing_v1",
-          purpose: "Proxy/router path for an IPO or listing-related proxy signal; IPO kind stays metadata, not a separate event type.",
-          groups: [
-            { title: "Display payload", items: ["ipo_kind", "listing_evidence"] },
-            { title: "Labels", items: ["traditional", "spac", "IPO listing", "Direct listing", "First trading / listing date"] },
-            { title: "Guardrails", items: ["Do not use for ordinary resale", "Do not use for shelf/ATM/offering dilution", "Do not use for post-closing SPAC updates"] },
           ],
         },
       ],

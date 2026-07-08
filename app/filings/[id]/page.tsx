@@ -320,6 +320,35 @@ type ListingRiskModel = {
   sources: SpacSourceItem[];
 };
 
+type Form25DetailRow = {
+  label: string;
+  value: string;
+  note?: string;
+};
+
+type Form25ListingStatusModel = {
+  title: string;
+  statusLabel: string;
+  statusSummary: string;
+  removedSecurity: string;
+  exchange: string;
+  reasonLabel: string;
+  reasonDetail: string;
+  commonEquityAffected: string;
+  effectiveDate: string;
+  tradingSuspensionDate: string;
+  filedByName: string;
+  ruleProvision: string;
+  continuedVenue: string;
+  successorOrAcquirer: string;
+  considerationSummary: string;
+  investorImpact: string;
+  detailRows: Form25DetailRow[];
+  watchNext: string[];
+  sources: SpacSourceItem[];
+  tone: "risk" | "neutral";
+};
+
 type EarningsMetric = {
   label: string;
   value: string;
@@ -551,7 +580,97 @@ function makeProxySampleFilingEvent(config: ProxySampleConfig): FilingEvent {
   };
 }
 
+function makeForm25SampleFilingEvent(): FilingEvent {
+  return {
+    id: "form25-ui-listing-status",
+    ticker: "DLST",
+    exchange: "NASDAQ",
+    company: "Form 25 Sample Corp.",
+    title: "Form 25 Sample Corp. Common Stock to be Delisted from Nasdaq",
+    formType: "25-NSE",
+    filedAt: "Jul 8, 2026 - 4:30 PM ET",
+    source: "SEC EDGAR",
+    sourceUrl: "https://www.sec.gov/edgar/search/",
+    eventType: "listing_risk",
+    impact: "high",
+    deliveryLevel: "alert",
+    score: 88,
+    signal: "bearish",
+    price: "$0.42",
+    changeAmount: "-$0.08",
+    change: "-16.00%",
+    filingFocus: "Exchange delisting",
+    filingBrief: "Nasdaq filed Form 25 to remove the company's common stock from listing after a listing standards failure.",
+    whyItMatters:
+      "Common equity delisting can reduce liquidity, limit broker access, and move trading to an over-the-counter venue if available.",
+    bullishPoints: [],
+    bearishPoints: ["Common stock listing removal affects trading liquidity and market access."],
+    summary:
+      "Nasdaq filed Form 25 to remove Form 25 Sample Corp.'s common stock from exchange listing after a listing standards failure. Investors should check whether the shares continue trading on an OTC venue and whether the company appeals or pursues a relisting plan.",
+    keyEvidence: [
+      "Form 25 covers the company's common stock.",
+      "Exchange listing removal is tied to a listing standards failure.",
+      "Trading venue after removal is not confirmed in the sample.",
+    ],
+    watchNext: ["Post-delisting trading venue.", "Company appeal or relisting update.", "Any follow-up deregistration filing."],
+    recentFilings: [],
+    relatedNews: [],
+    context: null,
+    priceSeries: buildPriceSeries({
+      lastClose: 0.42,
+      previousClose: 0.5,
+      trend: [70, 58, 62, 54, 48, 50, 44, 42, 46, 39, 35, 32],
+      volumeBase: 180_000,
+    }),
+    originalTextNote: "Development-only Form 25 UI sample. This page is not a real SEC analysis.",
+    originalHtml: `
+      <h3>Form 25 UI Sample</h3>
+      <p>This sample exists only to inspect Form 25 listing-status layouts without running LLM analysis.</p>
+      <p>Display version: sec_form25_listing_removal_v1</p>
+    `,
+    displayPayload: {
+      display_type: "sec_form25_listing_removal",
+      display_version: "sec_form25_listing_removal_v1",
+      data: {
+        accession_number: "0000000000-26-000025",
+        source_url: "https://www.sec.gov/edgar/search/",
+        source_form_type: "25-NSE",
+        filing_date: "2026-07-08",
+        effectiveness_date: "2026-07-18",
+        issuer_name: "Form 25 Sample Corp.",
+        subject_company_cik: "0000000000",
+        filed_by_name: "Nasdaq Stock Market LLC",
+        filed_by_cik: "0000000000",
+        primary_ticker: "DLST",
+        primary_ticker_exchange: "NASDAQ",
+        removed_security: "Common Stock",
+        security_category: "common_equity",
+        exchange: "Nasdaq Stock Market LLC",
+        rule_provision: "Exchange Act Rule 12d2-2",
+        removal_reason: "listing_standards_failure",
+        removal_reason_text: "The exchange determined the common stock no longer qualified for listing.",
+        common_equity_affected: true,
+        delisting_or_removal_date: "Jul 18, 2026",
+        trading_suspension_date: "Jul 9, 2026",
+        continued_listing_or_trading_venue: "Not disclosed",
+        successor_or_acquirer: "Not applicable",
+        consideration_summary: "Not applicable",
+        ipo_kind: null,
+        deterministic_case: null,
+        router_required: false,
+      },
+      evidence: [
+        "Form 25 filed by Nasdaq Stock Market LLC.",
+        "Covered security is common stock.",
+        "Listing standards failure is the stated sample reason.",
+      ],
+      notes: ["Development-only Form 25 UI sample."],
+    },
+  };
+}
+
 const commonFilingEvents: Record<string, FilingEvent> = {
+  "form25-ui-listing-status": makeForm25SampleFilingEvent(),
   "proxy-ui-all-proposals": makeProxySampleFilingEvent({
     id: "proxy-ui-all-proposals",
     title: "Proxy UI Sample: Mixed Proposal Meeting",
@@ -711,8 +830,8 @@ const commonFilingEvents: Record<string, FilingEvent> = {
     summary: "Routine proxy sample with director election, auditor ratification, and say-on-pay style proposal rows.",
     keyEvidence: ["Generic proxy display version selected.", "Routine meeting proposal list is present."],
     watchNext: ["Check proposal list spacing.", "Check source text and market context placement."],
-    displayType: "generic",
-    displayVersion: "proxy_generic_v1",
+    displayType: "proxy_vote",
+    displayVersion: "proxy_vote_v1",
     displayData: {},
   }),
   "proxy-ui-ipo-listing": makeProxySampleFilingEvent({
@@ -727,8 +846,8 @@ const commonFilingEvents: Record<string, FilingEvent> = {
     summary: "Shareholders are being asked to approve a listing-related action; final vote results and listing timing determine whether this becomes an active listing catalyst.",
     keyEvidence: [],
     watchNext: ["Final voting result", "Exchange approval or listing notice", "Effective date for the listing action"],
-    displayType: "generic",
-    displayVersion: "proxy_ipo_listing_v1",
+    displayType: "proxy_vote",
+    displayVersion: "proxy_vote_v1",
     displayData: {
       ipo_kind: "traditional",
       proxy_type: "Listing vote",
@@ -768,8 +887,8 @@ const commonFilingEvents: Record<string, FilingEvent> = {
     summary: "Shareholders are voting on a new equity incentive plan reserve. Approval would increase the pool of shares available for future stock-based compensation.",
     keyEvidence: ["Plan share request present.", "Percent of outstanding supplied as a proxy data field."],
     watchNext: ["Final vote result", "Approved reserve amount", "Future equity grants using the plan"],
-    displayType: "offering_terms",
-    displayVersion: "proxy_equity_plan_vote_v1",
+    displayType: "proxy_vote",
+    displayVersion: "proxy_vote_v1",
     displayData: {
       plan_name: "2026 Equity Incentive Plan",
       shares_requested: "4,000,000 shares",
@@ -814,8 +933,8 @@ const commonFilingEvents: Record<string, FilingEvent> = {
     summary: "Shareholders are voting on a proposed cash merger. The main investor checks are the deal price, vote requirement, closing conditions, and whether appraisal rights apply.",
     keyEvidence: [],
     watchNext: ["Final voting result", "Whether closing conditions are satisfied", "Expected closing date and delisting timing"],
-    displayType: "candidate_special",
-    displayVersion: "proxy_transaction_vote_v1",
+    displayType: "proxy_vote",
+    displayVersion: "proxy_vote_v1",
     displayData: {
       proxy_type: "Merger vote",
       meeting_date: "Aug 12, 2026",
@@ -867,8 +986,8 @@ const commonFilingEvents: Record<string, FilingEvent> = {
     summary: "Shareholders are voting on capital structure changes that could affect listing compliance and future share capacity.",
     keyEvidence: [],
     watchNext: ["Final voting result", "Whether the board implements the reverse split", "Any listing compliance update after the vote"],
-    displayType: "candidate_special",
-    displayVersion: "proxy_capital_structure_vote_v1",
+    displayType: "proxy_vote",
+    displayVersion: "proxy_vote_v1",
     displayData: {
       proxy_type: "Capital structure vote",
       meeting_date: "Sep 4, 2026",
@@ -937,8 +1056,8 @@ const commonFilingEvents: Record<string, FilingEvent> = {
     summary: "Shareholders are voting on governance items while a contested solicitation could affect board composition.",
     keyEvidence: [],
     watchNext: ["Final voting result", "Which slate wins board seats", "Any supplement or recommendation change"],
-    displayType: "candidate_special",
-    displayVersion: "proxy_governance_vote_v1",
+    displayType: "proxy_vote",
+    displayVersion: "proxy_vote_v1",
     displayData: {
       proxy_type: "Governance / contested proxy",
       meeting_date: "Oct 8, 2026",
@@ -1032,8 +1151,8 @@ const commonFilingEvents: Record<string, FilingEvent> = {
     summary: "Shareholders are voting on a business combination with Sample Target. Redemption results and the minimum cash condition are the key closing risks.",
     keyEvidence: [],
     watchNext: ["Shareholder vote result", "Final redemption numbers", "Closing 8-K and ticker-change date"],
-    displayType: "spac_transaction_status",
-    displayVersion: "proxy_spac_transaction_status_v1",
+    displayType: "proxy_vote",
+    displayVersion: "proxy_vote_v1",
     displayData: {
       current_stage: "proxy",
       current_stage_label: "Proxy vote pending",
@@ -2185,36 +2304,21 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
   const spacModel = !useEffectDetail && !useIpoDetail ? buildSpacTransactionStatusModel(filing) : null;
   const useSpacDetail = Boolean(spacModel);
   const canUseDilutionDetail = canRenderDilutionOfferingDetail(filing);
-  const useProxyListingDetail =
-    !useEffectDetail && !useIpoDetail && !useSpacDetail && isProxyListingDetail(filing);
-  const useProxyCombinedDetail =
-    !useEffectDetail && !useIpoDetail && !useSpacDetail && isProxyCombinedDetail(filing);
-  const useProxyEquityPlanDetail =
-    !useEffectDetail && !useIpoDetail && !useSpacDetail && isProxyEquityPlanDetail(filing);
-  const useProxyTransactionDetail =
-    !useEffectDetail && !useIpoDetail && !useSpacDetail && isProxyTransactionDetail(filing);
-  const useProxyCapitalStructureDetail =
-    !useEffectDetail && !useIpoDetail && !useSpacDetail && isProxyCapitalStructureDetail(filing);
-  const useProxyGovernanceDetail =
-    !useEffectDetail && !useIpoDetail && !useSpacDetail && isProxyGovernanceDetail(filing);
-  const useProxyGenericDetail =
-    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useProxyListingDetail && !useProxyCombinedDetail && !useProxyEquityPlanDetail && !useProxyTransactionDetail && !useProxyCapitalStructureDetail && !useProxyGovernanceDetail && isProxyGenericDetail(filing);
-  const useProxyDetail =
-    useProxyListingDetail ||
-    useProxyCombinedDetail ||
-    useProxyEquityPlanDetail ||
-    useProxyTransactionDetail ||
-    useProxyCapitalStructureDetail ||
-    useProxyGovernanceDetail ||
-    useProxyGenericDetail;
+  const form25Model = !useEffectDetail && !useIpoDetail && !useSpacDetail ? buildForm25ListingStatusModel(filing) : null;
+  const useForm25Detail = Boolean(form25Model);
+  const useProxyDetail = !useEffectDetail && !useIpoDetail && !useSpacDetail && !useForm25Detail && isProxyVoteDetail(filing);
   const listingRiskModel =
-    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useProxyListingDetail && !useProxyCombinedDetail && !useProxyEquityPlanDetail && !useProxyTransactionDetail && !useProxyCapitalStructureDetail && !useProxyGovernanceDetail && !useProxyGenericDetail && !canUseDilutionDetail ? buildListingRiskModel(filing) : null;
+    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useForm25Detail && !useProxyDetail && !canUseDilutionDetail
+      ? buildListingRiskModel(filing)
+      : null;
   const useListingRiskDetail = Boolean(listingRiskModel);
   const earningsModel =
-    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useListingRiskDetail ? buildEarningsModel(filing) : null;
+    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useForm25Detail && !useListingRiskDetail
+      ? buildEarningsModel(filing)
+      : null;
   const useEarningsDetail = Boolean(earningsModel);
   const fdaClinicalModel =
-    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useListingRiskDetail && !useEarningsDetail
+    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useForm25Detail && !useListingRiskDetail && !useEarningsDetail
       ? buildFdaClinicalModel(filing)
       : null;
   const useFdaClinicalDetail = Boolean(fdaClinicalModel);
@@ -2230,11 +2334,8 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
     !useEffectDetail &&
     !useIpoDetail &&
     !useSpacDetail &&
-    !useProxyCombinedDetail &&
-    !useProxyEquityPlanDetail &&
-    !useProxyTransactionDetail &&
-    !useProxyCapitalStructureDetail &&
-    !useProxyGovernanceDetail &&
+    !useForm25Detail &&
+    !useProxyDetail &&
     !useListingRiskDetail &&
     !useEarningsDetail &&
     !useFdaClinicalDetail &&
@@ -2308,6 +2409,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
                 {useEffectDetail ? <span className="filing-template-chip">SEC Effective</span> : null}
                 {useIpoDetail ? <span className="filing-template-chip">IPO Listing</span> : null}
                 {useSpacDetail ? <span className="filing-template-chip">SPAC Transaction Status</span> : null}
+                {useForm25Detail ? <span className="filing-template-chip">Listing Status Change</span> : null}
                 {useListingRiskDetail ? <span className="filing-template-chip">Listing Risk</span> : null}
                 {useEarningsDetail ? <span className="filing-template-chip">Earnings</span> : null}
                 {useFdaClinicalDetail ? <span className="filing-template-chip">FDA Clinical</span> : null}
@@ -2321,20 +2423,10 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             <IpoListingTemplate eventLabel={eventBadge.label} filing={filing} model={ipoModel} />
           ) : useSpacDetail && spacModel ? (
             <SpacTransactionStatusTemplate eventLabel={eventBadge.label} filing={filing} model={spacModel} />
-          ) : useProxyListingDetail ? (
-            <ProxyListingVoteTemplate filing={filing} />
-          ) : useProxyCombinedDetail ? (
-            <ProxyCombinedVoteTemplate filing={filing} />
-          ) : useProxyEquityPlanDetail ? (
-            <ProxyEquityPlanVoteTemplate filing={filing} />
-          ) : useProxyTransactionDetail ? (
-            <ProxyTransactionVoteTemplate filing={filing} />
-          ) : useProxyCapitalStructureDetail ? (
-            <ProxyCapitalStructureVoteTemplate filing={filing} />
-          ) : useProxyGovernanceDetail ? (
-            <ProxyGovernanceVoteTemplate filing={filing} />
-          ) : useProxyGenericDetail ? (
-            <ProxyGenericTemplate filing={filing} />
+          ) : useForm25Detail && form25Model ? (
+            <Form25ListingStatusTemplate eventLabel={eventBadge.label} filing={filing} model={form25Model} />
+          ) : useProxyDetail ? (
+            <ProxyVoteTemplate filing={filing} />
           ) : useListingRiskDetail && listingRiskModel ? (
             <ListingRiskTemplate eventLabel={eventBadge.label} filing={filing} model={listingRiskModel} />
           ) : useEarningsDetail && earningsModel ? (
@@ -3604,23 +3696,29 @@ function CommonFilingTemplate({ eventLabel, filing }: { eventLabel: string; fili
   );
 }
 
-function ProxyGenericTemplate({ filing }: { filing: FilingEvent }) {
+function ProxyVoteTemplate({ filing }: { filing: FilingEvent }) {
   const displayPayload = readPlainRecord(filing.displayPayload);
   const data = readDisplayPayloadData(displayPayload);
-  const summaryRows = buildProxyVoteSummaryRows(data);
+  const displayVersion =
+    readRowString(displayPayload, "display_version") ||
+    readRowString(data, "display_version") ||
+    readRowString(data, "version");
+  const summaryRows = buildProxyUnifiedSnapshotRows(data);
   const proposals = buildProxyProposalSummary(data);
-  const intro = buildProxyVoteIntro(data, proposals, "proxy_generic_v1");
+  const summaryTitle = buildProxySummaryTitle(data, filing, proposals, summaryRows);
+  const intro = displayString(data, "summary_sentence", "") || buildProxyVoteIntro(data, proposals, displayVersion || "proxy_vote_v1");
+  const isMinimalArchive = filing.deliveryLevel === "archive" && !proposals.length && !summaryRows.length;
 
   return (
     <>
-      <section className="stock-detail-top-grid">
+      <section className="stock-detail-top-grid proxy-vote-top-grid">
         <FilingPriceChart filing={filing} />
 
         <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card">
           <div className="quick-take-card quick-take-block">
             <div className="card-heading-row">
-              <h2>Proxy Vote Summary</h2>
-              <span>{displayString(data, "proxy_type", filing.formType)}</span>
+              <h2>{summaryTitle}</h2>
+              <span>{filing.formType}</span>
             </div>
             <p className="proxy-summary-context">{intro}</p>
             <ProxyVoteSummarySnapshot rows={summaryRows} />
@@ -3628,11 +3726,11 @@ function ProxyGenericTemplate({ filing }: { filing: FilingEvent }) {
         </section>
       </section>
 
-      <ScoreBasisPanel filing={filing} />
+      {isMinimalArchive ? null : <ScoreBasisPanel filing={filing} />}
 
       {proposals.length ? <ProxyProposalAgenda proposals={proposals} /> : null}
 
-      {filing.watchNext.length ? (
+      {!isMinimalArchive && filing.watchNext.length ? (
         <section className="proxy-watch-grid">
           <AnalysisList title="What To Watch Next" items={filing.watchNext} />
         </section>
@@ -3641,258 +3739,6 @@ function ProxyGenericTemplate({ filing }: { filing: FilingEvent }) {
       <FilingMarketContextPanel filing={filing} />
 
       <OriginalFilingText filing={filing} eventLabel="Shareholder Vote" includeTemplateStatus />
-    </>
-  );
-}
-
-function ProxyListingVoteTemplate({ filing }: { filing: FilingEvent }) {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  const data = readDisplayPayloadData(displayPayload);
-  const summaryRows = buildProxyListingVoteSummaryRows(data, filing);
-  const proposals = buildProxyProposalSummary(data);
-  const modules = buildProxyProposalModules(data);
-  const intro = buildProxyVoteIntro(data, proposals, "proxy_ipo_listing_v1");
-
-  return (
-    <>
-      <section className="stock-detail-top-grid proxy-listing-vote-grid">
-        <FilingPriceChart filing={filing} />
-
-        <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card">
-          <div className="quick-take-card quick-take-block">
-            <div className="card-heading-row">
-              <h2>Listing Vote Summary</h2>
-            </div>
-            <p className="proxy-summary-context">{intro}</p>
-            <ProxyVoteSummarySnapshot rows={summaryRows} />
-          </div>
-        </section>
-      </section>
-
-      <ScoreBasisPanel filing={filing} />
-
-      {proposals.length ? <ProxyProposalAgenda modules={modules} proposals={proposals} /> : null}
-
-      {filing.watchNext.length ? (
-        <section className="proxy-watch-grid">
-          <AnalysisList title="What To Watch Next" items={filing.watchNext} />
-        </section>
-      ) : null}
-
-      <FilingMarketContextPanel filing={filing} />
-
-      <OriginalFilingText filing={filing} eventLabel="Listing Vote" includeTemplateStatus />
-    </>
-  );
-}
-
-function ProxyCombinedVoteTemplate({ filing }: { filing: FilingEvent }) {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  const data = readDisplayPayloadData(displayPayload);
-  const summaryRows = buildProxyCombinedVoteSummaryRows(data);
-  const proposals = buildProxyProposalSummary(data);
-  const modules = buildProxyProposalModules(data);
-  const intro = buildProxyVoteIntro(data, proposals, "proxy_combined_vote_v1");
-
-  return (
-    <>
-      <section className="stock-detail-top-grid proxy-combined-vote-grid">
-        <FilingPriceChart filing={filing} />
-
-        <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card">
-          <div className="quick-take-card quick-take-block">
-            <div className="card-heading-row">
-              <h2>Proxy Vote Snapshot</h2>
-              <span>{displayString(data, "proxy_type", filing.formType)}</span>
-            </div>
-            <p className="proxy-summary-context">{intro}</p>
-            <ProxyVoteSummarySnapshot rows={summaryRows} />
-          </div>
-        </section>
-      </section>
-
-      <ScoreBasisPanel filing={filing} />
-
-      {proposals.length ? <ProxyProposalAgenda modules={modules} proposals={proposals} /> : null}
-
-      {filing.watchNext.length ? (
-        <section className="proxy-watch-grid">
-          <AnalysisList title="What To Watch Next" items={filing.watchNext} />
-        </section>
-      ) : null}
-
-      <FilingMarketContextPanel filing={filing} />
-
-      <OriginalFilingText filing={filing} eventLabel="Shareholder Vote" includeTemplateStatus />
-    </>
-  );
-}
-
-function ProxyEquityPlanVoteTemplate({ filing }: { filing: FilingEvent }) {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  const data = readDisplayPayloadData(displayPayload);
-  const summaryRows = buildProxyEquityPlanSummaryRows(data);
-  const proposals = buildProxyProposalSummary(data);
-  const modules = buildProxyProposalModules(data);
-  const tables = recordArray(data.key_tables);
-  const intro = buildProxyVoteIntro(data, proposals, "proxy_equity_plan_vote_v1");
-
-  return (
-    <>
-      <section className="stock-detail-top-grid proxy-equity-plan-grid">
-        <FilingPriceChart filing={filing} />
-
-        <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card">
-          <div className="quick-take-card quick-take-block">
-            <div className="card-heading-row">
-              <h2>Equity Plan Vote Summary</h2>
-            </div>
-            <p className="proxy-summary-context">{intro}</p>
-            <ProxyVoteSummarySnapshot rows={summaryRows} />
-          </div>
-        </section>
-      </section>
-
-      <ScoreBasisPanel filing={filing} />
-
-      {proposals.length ? <ProxyProposalAgenda modules={modules} proposals={proposals} /> : null}
-
-      {tables.length ? <ProxyPlanTableExcerpts tables={tables} /> : null}
-
-      {filing.watchNext.length ? (
-        <section className="proxy-watch-grid">
-          <AnalysisList title="What To Watch Next" items={filing.watchNext} />
-        </section>
-      ) : null}
-
-      <FilingMarketContextPanel filing={filing} />
-
-      <OriginalFilingText filing={filing} eventLabel="Equity Plan Vote" includeTemplateStatus />
-    </>
-  );
-}
-
-function ProxyTransactionVoteTemplate({ filing }: { filing: FilingEvent }) {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  const data = readDisplayPayloadData(displayPayload);
-  const summaryRows = buildProxyTransactionVoteSummaryRows(data);
-  const proposals = buildProxyProposalSummary(data);
-  const modules = buildProxyProposalModules(data);
-  const heading = buildProxyTransactionVoteHeading(data);
-  const intro = buildProxyVoteIntro(data, proposals, "proxy_transaction_vote_v1");
-
-  return (
-    <>
-      <section className="stock-detail-top-grid proxy-transaction-vote-grid">
-        <FilingPriceChart filing={filing} />
-
-        <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card">
-          <div className="quick-take-card quick-take-block">
-            <div className="card-heading-row">
-              <h2>{heading}</h2>
-            </div>
-            <p className="proxy-summary-context">{intro}</p>
-            <ProxyVoteSummarySnapshot rows={summaryRows} />
-          </div>
-        </section>
-      </section>
-
-      <ScoreBasisPanel filing={filing} />
-
-      {proposals.length ? <ProxyProposalAgenda modules={modules} proposals={proposals} /> : null}
-
-      {filing.watchNext.length ? (
-        <section className="proxy-watch-grid">
-          <AnalysisList title="What To Watch Next" items={filing.watchNext} />
-        </section>
-      ) : null}
-
-      <FilingMarketContextPanel filing={filing} />
-
-      <OriginalFilingText filing={filing} eventLabel="Merger Vote" includeTemplateStatus />
-    </>
-  );
-}
-
-function ProxyCapitalStructureVoteTemplate({ filing }: { filing: FilingEvent }) {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  const data = readDisplayPayloadData(displayPayload);
-  const intro = buildProxyCapitalStructureIntro(data);
-  const summaryRows = buildProxyCapitalStructureSummaryRows(data);
-  const proposals = buildProxyProposalSummary(data);
-  const modules = buildProxyProposalModules(data);
-
-  return (
-    <>
-      <section className="stock-detail-top-grid proxy-capital-structure-grid">
-        <FilingPriceChart filing={filing} />
-
-        <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card">
-          <div className="quick-take-card quick-take-block">
-            <div className="card-heading-row">
-              <h2>Capital Structure Vote Summary</h2>
-            </div>
-            <p className="proxy-summary-context">{intro}</p>
-            <ProxyVoteSummarySnapshot rows={summaryRows} />
-          </div>
-        </section>
-      </section>
-
-      <ScoreBasisPanel filing={filing} />
-
-      {proposals.length ? <ProxyProposalAgenda modules={modules} proposals={proposals} /> : null}
-
-      {filing.watchNext.length ? (
-        <section className="proxy-watch-grid">
-          <AnalysisList title="What To Watch Next" items={filing.watchNext} />
-        </section>
-      ) : null}
-
-      <FilingMarketContextPanel filing={filing} />
-
-      <OriginalFilingText filing={filing} eventLabel="Capital Structure Vote" includeTemplateStatus />
-    </>
-  );
-}
-
-function ProxyGovernanceVoteTemplate({ filing }: { filing: FilingEvent }) {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  const data = readDisplayPayloadData(displayPayload);
-  const summaryRows = buildProxyGovernanceSummaryRows(data);
-  const proposals = buildProxyProposalSummary(data);
-  const modules = buildProxyProposalModules(data);
-  const heading = buildProxyGovernanceHeading(data);
-  const intro = buildProxyVoteIntro(data, proposals, "proxy_governance_vote_v1");
-
-  return (
-    <>
-      <section className="stock-detail-top-grid proxy-governance-vote-grid">
-        <FilingPriceChart filing={filing} />
-
-        <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card">
-          <div className="quick-take-card quick-take-block">
-            <div className="card-heading-row">
-              <h2>{heading}</h2>
-            </div>
-            <p className="proxy-summary-context">{intro}</p>
-            <ProxyVoteSummarySnapshot rows={summaryRows} />
-          </div>
-        </section>
-      </section>
-
-      <ScoreBasisPanel filing={filing} />
-
-      {proposals.length ? <ProxyProposalAgenda modules={modules} proposals={proposals} /> : null}
-
-      {filing.watchNext.length ? (
-        <section className="proxy-watch-grid">
-          <AnalysisList title="What To Watch Next" items={filing.watchNext} />
-        </section>
-      ) : null}
-
-      <FilingMarketContextPanel filing={filing} />
-
-      <OriginalFilingText filing={filing} eventLabel="Governance Vote" includeTemplateStatus />
     </>
   );
 }
@@ -3904,6 +3750,7 @@ type ProxySummaryRow = {
 };
 
 function ProxyVoteSummarySnapshot({ rows }: { rows: ProxySummaryRow[] }) {
+  if (!rows.length) return null;
   return (
     <div className="proxy-vote-summary-snapshot">
       {rows.slice(0, 4).map((row) => (
@@ -3923,25 +3770,24 @@ type ProxyProposalItem = {
   category: string;
   recommendation: string;
   isShareholderProposal: boolean;
+  details: ProxyProposalDetail[];
 };
 
-type ProxyProposalModule = {
-  proposalId: string;
+type ProxyProposalDetail = {
   label: string;
-  title: string;
   value: string;
   note: string;
 };
 
-function ProxyProposalAgenda({ proposals, modules = [] }: { proposals: ProxyProposalItem[]; modules?: ProxyProposalModule[] }) {
-  const modulesByProposal = new Map<string, ProxyProposalModule[]>();
-  for (const module of modules) {
-    if (!module.proposalId) continue;
-    const existing = modulesByProposal.get(module.proposalId) || [];
-    existing.push(module);
-    modulesByProposal.set(module.proposalId, existing);
+function isMaterialProxyProposal(proposal: ProxyProposalItem) {
+  const text = `${proposal.category} ${proposal.title}`.toLowerCase();
+  if (/\b(?:adjourn|auditor|ratif|say-on-pay|executive compensation|director election|elect directors?)\b/i.test(text)) {
+    return false;
   }
+  return /\b(?:merger|transaction|business combination|de-spac|spac|reverse split|authorized|share issuance|listing|equity plan|incentive plan|stock plan|espp|contested|dissident|shareholder proposal|governance|poison pill|bylaw|charter)\b/i.test(text);
+}
 
+function ProxyProposalAgenda({ proposals }: { proposals: ProxyProposalItem[] }) {
   return (
     <section className="stock-detail-card proxy-agenda-card">
       <div className="card-heading-row">
@@ -3956,36 +3802,29 @@ function ProxyProposalAgenda({ proposals, modules = [] }: { proposals: ProxyProp
           <span>Board recommends</span>
         </div>
         {proposals.map((proposal) => {
-          const proposalModules = modulesByProposal.get(proposal.id) || [];
+          const isMaterial = isMaterialProxyProposal(proposal);
           return (
-            <div className="proxy-agenda-row-group" key={`${proposal.id}-${proposal.title}`}>
+            <div
+              className={`proxy-agenda-row-group${isMaterial ? " proxy-agenda-row-group-material" : ""}`}
+              key={`${proposal.id}-${proposal.title}`}
+            >
               <div className="proxy-agenda-row">
                 <span>{proposal.id}</span>
-                <strong>{proposal.title}</strong>
+                {isMaterial ? <strong>{proposal.title}</strong> : <span>{proposal.title}</span>}
                 <span>
                   {proposal.category}
                   {proposal.isShareholderProposal ? " · shareholder" : ""}
                 </span>
                 <span>{proposal.recommendation || "Not disclosed"}</span>
               </div>
-              {proposalModules.length ? (
+              {proposal.details.length ? (
                 <div className="proxy-agenda-detail-list">
-                  {proposalModules.map((module) => (
-                    <div className="proxy-agenda-detail" key={`${proposal.id}-${module.label}`}>
+                  {proposal.details.map((detail) => (
+                    <div className="proxy-agenda-detail" key={`${proposal.id}-${detail.label}`}>
                       <div className="proxy-agenda-detail-row">
-                        <span>{module.label}</span>
-                        <strong>{module.title}</strong>
+                        <span>{detail.label}</span>
+                        <span>{detail.value}</span>
                       </div>
-                      <div className="proxy-agenda-detail-row">
-                        <span>Key term</span>
-                        <b>{module.value}</b>
-                      </div>
-                      {module.note ? (
-                        <div className="proxy-agenda-detail-row">
-                          <span>Why it matters</span>
-                          <p>{module.note}</p>
-                        </div>
-                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -3998,104 +3837,17 @@ function ProxyProposalAgenda({ proposals, modules = [] }: { proposals: ProxyProp
   );
 }
 
-function isProxyCombinedDetail(filing: FilingEvent) {
+function isProxyVoteDetail(filing: FilingEvent) {
   const displayPayload = readPlainRecord(filing.displayPayload);
   const data = readDisplayPayloadData(displayPayload);
+  const displayType =
+    readRowString(displayPayload, "display_type") ||
+    readRowString(data, "display_type");
   const displayVersion =
     readRowString(displayPayload, "display_version") ||
     readRowString(data, "display_version") ||
     readRowString(data, "version");
-  return displayVersion === "proxy_combined_vote_v1";
-}
-
-function isProxyGenericDetail(filing: FilingEvent) {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  const data = readDisplayPayloadData(displayPayload);
-  const displayVersion =
-    readRowString(displayPayload, "display_version") ||
-    readRowString(data, "display_version") ||
-    readRowString(data, "version");
-  return displayVersion === "proxy_generic_v1";
-}
-
-function isProxyListingDetail(filing: FilingEvent) {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  const data = readDisplayPayloadData(displayPayload);
-  const displayVersion =
-    readRowString(displayPayload, "display_version") ||
-    readRowString(data, "display_version") ||
-    readRowString(data, "version");
-  return displayVersion === "proxy_ipo_listing_v1";
-}
-
-function isProxyEquityPlanDetail(filing: FilingEvent) {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  const data = readDisplayPayloadData(displayPayload);
-  const displayVersion =
-    readRowString(displayPayload, "display_version") ||
-    readRowString(data, "display_version") ||
-    readRowString(data, "version");
-  return displayVersion === "proxy_equity_plan_vote_v1";
-}
-
-function isProxyTransactionDetail(filing: FilingEvent) {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  const data = readDisplayPayloadData(displayPayload);
-  const displayVersion =
-    readRowString(displayPayload, "display_version") ||
-    readRowString(data, "display_version") ||
-    readRowString(data, "version");
-  return displayVersion === "proxy_transaction_vote_v1";
-}
-
-function isProxyCapitalStructureDetail(filing: FilingEvent) {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  const data = readDisplayPayloadData(displayPayload);
-  const displayVersion =
-    readRowString(displayPayload, "display_version") ||
-    readRowString(data, "display_version") ||
-    readRowString(data, "version");
-  return displayVersion === "proxy_capital_structure_vote_v1";
-}
-
-function isProxyGovernanceDetail(filing: FilingEvent) {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  const data = readDisplayPayloadData(displayPayload);
-  const displayVersion =
-    readRowString(displayPayload, "display_version") ||
-    readRowString(data, "display_version") ||
-    readRowString(data, "version");
-  return displayVersion === "proxy_governance_vote_v1";
-}
-
-function buildProxyVoteSummaryRows(data: Record<string, unknown>) {
-  const proposalCount =
-    displayString(data, "proposal_count", "") ||
-    (recordArray(data.proposals).length ? String(recordArray(data.proposals).length) : "Not disclosed");
-  const boardSummary = buildProxyBoardRecommendationSummary(data);
-  return [
-    { label: "Meeting Date", value: displayString(data, "meeting_date", "Not disclosed") },
-    { label: "Record Date", value: displayString(data, "record_date", "Not disclosed") },
-    { label: "Proposal Count", value: proposalCount },
-    { label: "Board Recommendation", value: boardSummary || "Not disclosed" },
-  ];
-}
-
-function buildProxyListingVoteSummaryRows(data: Record<string, unknown>, filing: FilingEvent) {
-  const listingProposal = findProxyListingProposal(data);
-  const listingRecommendation = listingProposal ? readRowString(listingProposal, "recommendation") : "";
-  const voteRequirement = displayString(data, "vote_requirement", "");
-  return [
-    { label: "Meeting Date", value: displayString(data, "meeting_date", "Not disclosed") },
-    { label: "Record Date", value: displayString(data, "record_date", "Not disclosed") },
-    {
-      label: "Listing Proposal",
-      value: displayString(data, "listing_action", "") || (listingProposal ? readRowString(listingProposal, "title") : "") || "Not disclosed",
-    },
-    { label: "Exchange / Ticker", value: displayString(data, "exchange_ticker", "") || formatListingExchangeTicker(filing) },
-    { label: "Board Recommendation", value: listingRecommendation || "Not disclosed" },
-    voteRequirement ? { label: "Vote Requirement", value: voteRequirement } : null,
-  ].filter((row): row is ProxySummaryRow => Boolean(row));
+  return displayType === "proxy_vote" || displayVersion === "proxy_vote_v1";
 }
 
 function buildProxyCombinedVoteSummaryRows(data: Record<string, unknown>) {
@@ -4110,114 +3862,34 @@ function buildProxyCombinedVoteSummaryRows(data: Record<string, unknown>) {
   ].filter((row): row is ProxySummaryRow => Boolean(row));
 }
 
-function buildProxyEquityPlanSummaryRows(data: Record<string, unknown>) {
-  const planProposal = findProxyEquityPlanProposal(data);
-  const planName = displayString(data, "plan_name", "") || (planProposal ? readRowString(planProposal, "title") : "");
-  const planRecommendation = planProposal ? readRowString(planProposal, "recommendation") : "";
-  const voteRequirement = displayString(data, "vote_requirement", "");
-  return [
-    { label: "Equity Plan", value: planName || "Not disclosed" },
-    { label: "Shares Requested", value: formatProxyShareReserve(data.shares_requested) },
-    { label: "% of Outstanding", value: formatProxyPercent(data.percent_of_outstanding) },
-    { label: "Board Recommendation", value: planRecommendation || "Not disclosed" },
-    voteRequirement ? { label: "Vote Requirement", value: voteRequirement } : null,
-  ].filter((row): row is ProxySummaryRow => Boolean(row));
-}
-
-function buildProxyProposalModules(data: Record<string, unknown>): ProxyProposalModule[] {
-  return recordArray(data.proposal_modules)
-    .map((module) => {
-      const proposalId = readRowString(module, "proposal_id") || readRowString(module, "proposalId");
-      const label = readRowString(module, "label");
-      const title = readRowString(module, "title");
-      const value = readRowString(module, "value");
-      const note = readRowString(module, "note");
-      if (!label || !title) return null;
-      return {
-        proposalId,
-        label,
-        title,
-        value: value || "Not disclosed",
-        note,
-      };
+function buildProxyUnifiedSnapshotRows(data: Record<string, unknown>) {
+  const hasExplicitSnapshot = Array.isArray(data.snapshot);
+  const snapshotRows = recordArray(data.snapshot)
+    .map((row): ProxySummaryRow | null => {
+      const label = readRowString(row, "label");
+      const value = readRowString(row, "value");
+      const note = readRowString(row, "note");
+      if (!label || !value) return null;
+      return { label, value, note: note || undefined };
     })
-    .filter((module): module is ProxyProposalModule => Boolean(module));
+    .filter((row): row is ProxySummaryRow => Boolean(row));
+  if (hasExplicitSnapshot) return snapshotRows;
+  if (snapshotRows.length) return snapshotRows;
+  return buildProxyCombinedVoteSummaryRows(data);
 }
 
-function buildProxyTransactionVoteSummaryRows(data: Record<string, unknown>) {
-  const transactionProposal = findProxyTransactionProposal(data);
-  const proposalRecommendation =
-    displayString(data, "board_recommendation", "") ||
-    (transactionProposal ? readRowString(transactionProposal, "recommendation") : "");
-  const closingConditions = displayString(data, "closing_conditions", "");
-  const meetingDate = displayString(data, "meeting_date", "Not disclosed");
-  const recordDate = displayString(data, "record_date", "");
-  const transactionSummary = formatProxyTransactionSnapshotValue(
-    displayString(data, "transaction_summary", "") || "Not disclosed",
-    "transaction",
-  );
-  const consideration = formatProxyTransactionSnapshotValue(
-    displayString(data, "consideration", "Not disclosed"),
-    "consideration",
-  );
-  const voteRequired = formatProxyTransactionSnapshotValue(
-    displayString(data, "vote_required", "Not disclosed"),
-    "vote",
-  );
-  return [
-    { label: "Transaction", value: transactionSummary.value, note: transactionSummary.note },
-    { label: "Consideration", value: consideration.value, note: consideration.note },
-    { label: "Vote Requirement", value: voteRequired.value, note: voteRequired.note },
-    { label: "Meeting / Record Date", value: recordDate ? `${meetingDate} / ${recordDate}` : meetingDate },
-    { label: "Board Recommendation", value: proposalRecommendation || "Not disclosed" },
-    closingConditions ? { label: "Key Conditions", value: closingConditions } : null,
-  ].filter((row): row is ProxySummaryRow => Boolean(row));
-}
-
-function formatProxyTransactionSnapshotValue(
-  value: string,
-  kind: "transaction" | "consideration" | "vote",
-): { value: string; note?: string } {
-  const clean = value.trim();
-  if (!clean || /^not disclosed$/i.test(clean)) return { value: "Not disclosed" };
-  if (clean.length <= 40) return { value: clean };
-
-  if (kind === "vote") {
-    if (/\bmajority\b/i.test(clean) && /\boutstanding\b/i.test(clean)) {
-      return { value: "Majority outstanding", note: "Based on outstanding shares entitled to vote." };
-    }
-    if (/\bmajority\b/i.test(clean) && /\bcast\b/i.test(clean)) {
-      return { value: "Majority cast", note: "Based on votes cast." };
-    }
-    if (/\btwo-thirds|2\/3\b/i.test(clean)) {
-      return { value: "Two-thirds approval", note: "Higher approval threshold disclosed." };
-    }
-    return { value: "Vote threshold disclosed" };
+function buildProxySummaryTitle(
+  data: Record<string, unknown>,
+  filing: FilingEvent,
+  proposals: ProxyProposalItem[],
+  summaryRows: ProxySummaryRow[],
+) {
+  const title = displayString(data, "summary_title", "");
+  if (title) return title;
+  if (filing.deliveryLevel === "archive" && !proposals.length && !summaryRows.length) {
+    return "Proxy Materials Update";
   }
-
-  if (kind === "consideration") {
-    const cashMatch = clean.match(/\$[\d,.]+(?:\s*(?:per share|\/share))?/i);
-    if (cashMatch) {
-      return { value: cashMatch[0].replace(/\s*\/share/i, " per share") };
-    }
-    if (/\bcommon stock\b/i.test(clean)) {
-      const issuer = clean.match(/\b[A-Z][A-Za-z0-9&.\- ]{1,16}\s+Common Stock\b/);
-      return { value: issuer ? issuer[0] : "Common stock consideration" };
-    }
-    if (/\bstock\b/i.test(clean)) return { value: "Stock consideration" };
-    return { value: "Consideration disclosed" };
-  }
-
-  const mergerPair = clean.match(/\b([A-Z][A-Za-z0-9&.\- ]{1,20})\b.*\b(?:merge|merger)\b.*\b(?:with|into)\b\s+\b([A-Z][A-Za-z0-9&.\- ]{1,20})\b/i);
-  if (mergerPair?.[1] && mergerPair?.[2]) {
-    const paired = `${mergerPair[1].trim()} / ${mergerPair[2].trim()} merger`;
-    if (paired.length <= 40) return { value: paired };
-    return { value: "Merger vote", note: "Parties are shown in proposal details." };
-  }
-  if (/\bcash merger\b/i.test(clean)) return { value: "Cash merger" };
-  if (/\bmerger\b/i.test(clean)) return { value: "Merger vote" };
-  if (/\bacquisition\b/i.test(clean)) return { value: "Acquisition vote" };
-  return { value: "Transaction vote" };
+  return "Proxy Vote Summary";
 }
 
 function buildProxyCapitalStructureIntro(data: Record<string, unknown>) {
@@ -4244,25 +3916,25 @@ function buildProxyVoteIntro(data: Record<string, unknown>, proposals: ProxyProp
     displayString(data, "proposal_count", "") ||
     (proposals.length ? String(proposals.length) : "");
 
-  if (displayVersion === "proxy_combined_vote_v1" || hasMultipleProxyThemes(proposals)) {
+  if (hasMultipleProxyThemes(proposals)) {
     return "Shareholders are voting on multiple proposal types.";
   }
-  if (displayVersion === "proxy_spac_transaction_status_v1" || /spac|de-spac|business combination/i.test(haystack)) {
+  if (/spac|de-spac|business combination/i.test(haystack)) {
     return "Shareholders are voting on a SPAC business combination or related transaction step.";
   }
-  if (displayVersion === "proxy_transaction_vote_v1" || /merger|transaction|acquisition|sale agreement/i.test(haystack)) {
+  if (/merger|transaction|acquisition|sale agreement/i.test(haystack)) {
     return "Shareholders are voting on a proposed merger or transaction.";
   }
-  if (displayVersion === "proxy_capital_structure_vote_v1") {
+  if (/reverse\s*(?:stock\s*)?split|authorized shares|capital structure|listing compliance/i.test(haystack)) {
     return buildProxyCapitalStructureIntro(data).replace(" Key terms are summarized below.", "");
   }
-  if (displayVersion === "proxy_equity_plan_vote_v1" || /equity plan|incentive plan|stock option plan|share reserve/i.test(haystack)) {
+  if (/equity plan|incentive plan|stock option plan|share reserve/i.test(haystack)) {
     return "Shareholders are voting on an equity plan or share reserve proposal.";
   }
-  if (displayVersion === "proxy_ipo_listing_v1" || /listing|nasdaq|nyse|share issuance/i.test(haystack)) {
+  if (/listing|nasdaq|nyse|share issuance/i.test(haystack)) {
     return "Shareholders are voting on a listing-related proposal.";
   }
-  if (displayVersion === "proxy_governance_vote_v1" || /contest|dissident|shareholder proposal|governance|board/i.test(haystack)) {
+  if (/contest|dissident|shareholder proposal|governance|board/i.test(haystack)) {
     return "Shareholders are voting on governance or board-related proposals.";
   }
   if (proposalCount && Number(proposalCount) > 1) {
@@ -4284,358 +3956,31 @@ function hasMultipleProxyThemes(proposals: ProxyProposalItem[]) {
   return themes.size > 1;
 }
 
-function buildProxyCapitalStructureSummaryRows(data: Record<string, unknown>) {
-  const reverseSplit = readPlainRecord(data.reverse_split);
-  const reverseRatio = reverseSplit
-    ? displayString(reverseSplit, "ratio", "") ||
-      displayString(reverseSplit, "ratio_range", "") ||
-      displayString(reverseSplit, "split_range", "")
-    : "";
-  const implementationTiming = reverseSplit
-    ? displayString(reverseSplit, "implementation_timing", "") ||
-      displayString(reverseSplit, "effective_time", "") ||
-      displayString(reverseSplit, "effective_date", "") ||
-      displayString(reverseSplit, "timing", "")
-    : "";
-  const voteDate = displayString(data, "vote_date", "") || displayString(data, "meeting_date", "");
-  const proposals = recordArray(data.capital_structure_proposals);
-  const hasAuthorizedIncrease = proposals.some((proposal) =>
-    /authorized_share_increase|authorized/i.test(
-      `${readRowString(proposal, "category")} ${readRowString(proposal, "title")}`,
-    ),
-  );
-  const recommendation =
-    displayString(data, "board_recommendation", "") ||
-    buildProxyCapitalStructureRecommendation(proposals) ||
-    "Not disclosed";
-  const listingContext = displayString(data, "listing_context", "");
-
-  const timing = formatProxyCapitalStructureTiming(
-    implementationTiming,
-    reverseSplit ? displayString(reverseSplit, "note", "") : "",
-  );
-
-  return [
-    voteDate ? { label: "Vote Date", value: voteDate } : null,
-    reverseRatio ? { label: "Split Ratio", value: reverseRatio } : null,
-    { label: "Timing", value: timing.value, note: timing.note },
-    hasAuthorizedIncrease ? { label: "Authorized Shares", value: "Increase proposed" } : null,
-    listingContext ? { label: "Listing Issue", value: listingContext } : null,
-    !reverseRatio && !hasAuthorizedIncrease && !listingContext
-      ? { label: "Board Recommendation", value: recommendation }
-      : null,
-  ].filter((row): row is ProxySummaryRow => Boolean(row));
-}
-
-function formatProxyCapitalStructureTiming(timing: string, note: string): { value: string; note?: string } {
-  const cleanTiming = timing.trim();
-  const cleanNote = note.trim();
-  if (!cleanTiming) {
-    return {
-      value: "No fixed date",
-      note: "After approval if the board implements the amendment.",
-    };
-  }
-
-  if (cleanTiming.length <= 40) {
-    return {
-      value: cleanTiming,
-      note: cleanNote && cleanNote.length <= 80 ? cleanNote : undefined,
-    };
-  }
-
-  const timeMatch = cleanTiming.match(/\b\d{1,2}:\d{2}\s*(?:a\.m\.|p\.m\.|am|pm)\.?\s*(?:Eastern|ET)?/i);
-  if (timeMatch && /\bcertificate\b|\bamendment\b|\bfiling\b/i.test(cleanTiming)) {
-    const value = /(?:Eastern|ET)$/i.test(timeMatch[0]) ? timeMatch[0] : `${timeMatch[0]} ET`;
-    return {
-      value,
-      note: "Effective on certificate amendment filing date.",
-    };
-  }
-
-  if (/\bcertificate\b|\bamendment\b|\bfiling\b/i.test(cleanTiming)) {
-    return {
-      value: "Upon certificate filing",
-      note: "After approval if the board files the amendment.",
-    };
-  }
-
-  if (/\bafter\b/i.test(cleanTiming) && /\bapproval\b/i.test(cleanTiming)) {
-    return {
-      value: "After approval",
-      note: cleanNote && cleanNote.length <= 80 ? cleanNote : undefined,
-    };
-  }
-
-  return {
-    value: "Timing disclosed",
-    note: cleanNote && cleanNote.length <= 80 ? cleanNote : undefined,
-  };
-}
-
-function buildProxyGovernanceSummaryRows(data: Record<string, unknown>) {
-  const focus = displayString(data, "governance_focus", "") || buildProxyGovernanceFocus(data);
-  const contestStatus = buildProxyContestStatus(data);
-  const keyIssue = buildProxyGovernanceKeyIssue(data);
-  const recommendation =
-    displayString(data, "board_recommendation", "") ||
-    buildProxyGovernanceRecommendation(data) ||
-    buildProxyGovernanceProposalRecommendation(data);
-  const proxyUpdate = buildProxyGovernanceUpdate(data);
-
-  return [
-    focus ? { label: "Focus", value: focus } : null,
-    contestStatus ? { label: "Contest Status", value: contestStatus } : null,
-    keyIssue ? { label: "Key Issue", value: keyIssue } : null,
-    recommendation ? { label: "Board Position", value: recommendation } : null,
-    proxyUpdate ? { label: "Recommendation Update", value: proxyUpdate } : null,
-  ].filter((row): row is ProxySummaryRow => Boolean(row));
-}
-
-function buildProxyGovernanceHeading(data: Record<string, unknown>) {
-  return buildProxyContestStatus(data) ? "Contested Proxy Summary" : "Governance Vote Summary";
-}
-
-function buildProxyGovernanceFocus(data: Record<string, unknown>) {
-  const contested = readPlainRecord(data.contested);
-  const supplement = readPlainRecord(data.supplement);
-  const proposals = [...recordArray(data.shareholder_or_governance_proposals), ...recordArray(data.proposals)];
-  if (contested) return "Board contest / solicitation";
-  if (proposals.some((proposal) => /shareholder/i.test(readRowString(proposal, "sponsor")) || Boolean(proposal.is_shareholder_proposal))) {
-    return "Shareholder governance proposal";
-  }
-  if (supplement) return "Proxy supplement";
-  return "Governance vote";
-}
-
-function buildProxyContestStatus(data: Record<string, unknown>) {
-  const contested = readPlainRecord(data.contested);
-  if (!contested) return "";
-  const isContested = Boolean(contested.isContested || contested.is_contested);
-  if (!isContested) return "";
-
-  const source = readRowString(contested, "solicitationSource") || readRowString(contested, "solicitation_source");
-  const groups = displayStringArray(contested.dissidentGroups, displayStringArray(contested.dissident_groups, []));
-  const seatsAtIssue = readRowString(contested, "board_seats_at_issue") || readRowString(contested, "seats_at_issue");
-  const sourceLabel =
-    source === "third_party"
-      ? "Third-party solicitation"
-      : source === "registrant"
-        ? "Company solicitation"
-        : "Contested solicitation";
-  const details = [groups[0], seatsAtIssue].filter(Boolean).join(" / ");
-  return details ? `${sourceLabel} (${details})` : sourceLabel;
-}
-
-function buildProxyGovernanceUpdate(data: Record<string, unknown>) {
-  const supplement = readPlainRecord(data.supplement);
-  const supplementalAnalysis = readPlainRecord(data.supplemental_analysis);
-  if (!supplement && !supplementalAnalysis) return "";
-  const changeSignals = supplementalAnalysis ? displayStringArray(supplementalAnalysis.change_signals, []) : [];
-  if (changeSignals.length) return changeSignals[0];
-  const parentForm = supplement ? readRowString(supplement, "parentForm") || readRowString(supplement, "parent_form") : "";
-  return parentForm ? `Supplement to ${parentForm}` : "Supplemental proxy material";
-}
-
-function buildProxyGovernanceKeyIssue(data: Record<string, unknown>) {
-  const contested = readPlainRecord(data.contested);
-  if (contested && Boolean(contested.isContested || contested.is_contested)) {
-    const proposals = recordArray(data.proposals);
-    const hasDirectorContest = proposals.some((proposal) => {
-      const text = `${readRowString(proposal, "title")} ${readRowString(proposal, "category")}`;
-      return /\b(?:director|nominee|slate|board)\b/i.test(text);
-    });
-    return hasDirectorContest ? "Director election / competing slate" : "Contested vote";
-  }
-  const governanceProposal = findProxyGovernanceProposal(data);
-  return governanceProposal ? readRowString(governanceProposal, "title") : "";
-}
-
-function buildProxyGovernanceRecommendation(data: Record<string, unknown>) {
-  const proposals = [...recordArray(data.shareholder_or_governance_proposals), ...recordArray(data.proposals)];
-  const recommendations = proposals
-    .map((proposal) => readRowString(proposal, "board_recommendation") || readRowString(proposal, "recommendation"))
-    .filter(Boolean);
-  if (!recommendations.length) return "";
-  const unique = Array.from(new Set(recommendations));
-  return unique.length === 1 ? unique[0] : "Mixed";
-}
-
-function buildProxyGovernanceProposalRecommendation(data: Record<string, unknown>) {
-  const governanceProposal = findProxyGovernanceProposal(data);
-  if (!governanceProposal) return "";
-  return readRowString(governanceProposal, "recommendation") || readRowString(governanceProposal, "board_recommendation");
-}
-
-function findProxyGovernanceProposal(data: Record<string, unknown>) {
-  const governanceProposals = recordArray(data.shareholder_or_governance_proposals);
-  const proposals = governanceProposals.length ? governanceProposals : recordArray(data.proposals);
-  return proposals.find((proposal) => {
-    const text = [
-      readRowString(proposal, "title"),
-      readRowString(proposal, "category"),
-      readRowString(proposal, "sponsor"),
-    ].join(" ");
-    return /\b(?:director|nominee|board|governance|shareholder|independent chair|declassify|proxy contest|dissident|contested)\b/i.test(text);
-  }) ?? proposals[0] ?? null;
-}
-
-function buildProxyTransactionVoteHeading(data: Record<string, unknown>) {
-  return isProxyMergerTransaction(data) ? "Merger Vote Summary" : "Transaction Vote Summary";
-}
-
-function isProxyMergerTransaction(data: Record<string, unknown>) {
-  return /\bmerger\b/i.test(buildProxyTransactionText(data));
-}
-
-function buildProxyBoardRecommendationSummary(data: Record<string, unknown>) {
-  const proposals = recordArray(data.proposals);
-  const recommendations = proposals
-    .map((proposal) => readRowString(proposal, "recommendation"))
-    .filter(Boolean);
-  if (!recommendations.length) return "";
-  const counts = recommendations.reduce<Record<string, number>>((acc, item) => {
-    const label = item.replace(/\s+/g, " ").trim();
-    acc[label] = (acc[label] || 0) + 1;
-    return acc;
-  }, {});
-  const entries = Object.entries(counts);
-  if (entries.length === 1) {
-    return `${formatProxyBoardRecommendation(entries[0][0])} all listed proposals`;
-  }
-  return entries
-    .map(([label, count]) => `${count} ${formatProxyBoardRecommendation(label)}`)
-    .join(" / ");
-}
-
-function findProxyListingProposal(data: Record<string, unknown>) {
-  return recordArray(data.proposals).find((proposal) => {
-    const text = [
-      readRowString(proposal, "title"),
-      readRowString(proposal, "category"),
-    ].join(" ");
-    return /\b(?:listing|ipo|initial public|exchange|nasdaq|nyse|nyse american)\b/i.test(text);
-  }) ?? null;
-}
-
-function formatListingExchangeTicker(filing: FilingEvent) {
-  const exchange = filing.exchange && filing.exchange !== "N/A" ? filing.exchange : "";
-  const ticker = isRealTicker(filing.ticker) ? filing.ticker : "";
-  if (exchange && ticker) return `${exchange} / ${ticker}`;
-  return exchange || ticker || "Not disclosed";
-}
-
-function findProxyEquityPlanProposal(data: Record<string, unknown>) {
-  const proposalIds = displayStringArray(data.proposal_ids, []);
-  const proposals = recordArray(data.proposals);
-  return proposals.find((proposal) => {
-    const id = readRowString(proposal, "id");
-    if (proposalIds.includes(id)) return true;
-    const text = [
-      readRowString(proposal, "title"),
-      readRowString(proposal, "category"),
-    ].join(" ");
-    return /\b(?:equity|incentive|stock plan|share reserve|espp|employee stock purchase)\b/i.test(text);
-  }) ?? null;
-}
-
-function findProxyTransactionProposal(data: Record<string, unknown>) {
-  const proposalIds = displayStringArray(data.proposal_ids, []);
-  const proposals = recordArray(data.proposals);
-  return proposals.find((proposal) => {
-    const id = readRowString(proposal, "id");
-    if (proposalIds.includes(id)) return true;
-    const text = [
-      readRowString(proposal, "title"),
-      readRowString(proposal, "category"),
-    ].join(" ");
-    return /\b(?:merger|business combination|sale|transaction|acquisition|agreement and plan)\b/i.test(text);
-  }) ?? null;
-}
-
-function buildProxyCapitalStructureRecommendation(proposals: Record<string, unknown>[]) {
-  const recommendations = proposals
-    .map((proposal) => readRowString(proposal, "board_recommendation") || readRowString(proposal, "recommendation"))
-    .filter(Boolean);
-  if (!recommendations.length) return "";
-  const unique = Array.from(new Set(recommendations));
-  return unique.length === 1 ? unique[0] : unique.join(" / ");
-}
-
-function buildProxyTransactionText(data: Record<string, unknown>) {
-  const proposals = recordArray(data.proposals);
-  return [
-    displayString(data, "proxy_type", ""),
-    displayString(data, "transaction_summary", ""),
-    displayString(data, "consideration", ""),
-    ...proposals.flatMap((proposal) => [
-      readRowString(proposal, "title"),
-      readRowString(proposal, "category"),
-    ]),
-  ]
-    .filter(Boolean)
-    .join(" ");
-}
-
-function formatProxyShareReserve(value: unknown) {
-  if (typeof value === "number" && Number.isFinite(value)) return formatShareCountNumber(value) || "Not disclosed";
-  const text = cleanDisclosureValue(readDisclosureValue(value));
-  return text || "Not disclosed";
-}
-
-function formatProxyPercent(value: unknown) {
-  if (typeof value === "number" && Number.isFinite(value)) return `${value.toLocaleString("en-US", { maximumFractionDigits: 1 })}%`;
-  const text = cleanDisclosureValue(readDisclosureValue(value));
-  if (!text) return "Not disclosed";
-  return /%/.test(text) ? text : `${text}%`;
-}
-
-function ProxyPlanTableExcerpts({ tables }: { tables: Record<string, unknown>[] }) {
-  return (
-    <section className="stock-detail-card proxy-plan-table-card">
-      <div className="card-heading-row">
-        <h2>Plan Details</h2>
-        <span>{tables.length === 1 ? "1 source table" : `${tables.length} source tables`}</span>
-      </div>
-      <div className="proxy-plan-table-list">
-        {tables.slice(0, 3).map((table, index) => {
-          const heading = readRowString(table, "heading") || readRowString(table, "caption") || `Plan table ${index + 1}`;
-          const headers = displayStringArray(table.headers, []);
-          const rows = Array.isArray(table.sample_rows) ? table.sample_rows.slice(0, 3) : [];
-          return (
-            <div className="proxy-plan-table-excerpt" key={`${heading}-${index}`}>
-              <strong>{heading}</strong>
-              {headers.length ? <p>{headers.join(" / ")}</p> : null}
-              {rows.length ? (
-                <ul>
-                  {rows.map((row, rowIndex) => (
-                    <li key={`${heading}-${rowIndex}`}>{Array.isArray(row) ? row.map((cell) => String(cell)).join(" / ") : String(row)}</li>
-                  ))}
-                </ul>
-              ) : null}
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
 function buildProxyProposalSummary(data: Record<string, unknown>) {
   return recordArray(data.proposals)
     .map((proposal, index) => {
       const id = readRowString(proposal, "id") || `Proposal ${index + 1}`;
       const title = formatProxyProposalTitle(readRowString(proposal, "title"));
       if (!title) return null;
-      const category = readRowString(proposal, "category");
-      const recommendation = readRowString(proposal, "recommendation");
+      const category = readRowString(proposal, "type") || readRowString(proposal, "category");
+      const recommendation = readRowString(proposal, "board_recommendation") || readRowString(proposal, "recommendation");
       const isShareholderProposal = Boolean(proposal.is_shareholder_proposal);
+      const details = recordArray(proposal.details)
+        .map((detail) => {
+          const label = readRowString(detail, "label");
+          const value = readRowString(detail, "value");
+          const note = readRowString(detail, "note");
+          if (!label || !value) return null;
+          return { label, value, note };
+        })
+        .filter((detail): detail is ProxyProposalDetail => Boolean(detail));
       return {
         id,
         title,
         category: formatProxyProposalCategory(category) || "Not disclosed",
         recommendation: formatProxyBoardRecommendation(recommendation) || "Not disclosed",
         isShareholderProposal,
+        details,
       };
     })
     .filter((item): item is ProxyProposalItem => Boolean(item));
@@ -4755,6 +4100,84 @@ function formatProxyBoardRecommendation(value: string) {
   if (/^withhold$/i.test(normalized)) return "Withhold";
   if (/^abstain$/i.test(normalized)) return "Abstain";
   return normalized;
+}
+
+function Form25ListingStatusTemplate({
+  eventLabel,
+  filing,
+  model,
+}: {
+  eventLabel: string;
+  filing: FilingEvent;
+  model: Form25ListingStatusModel;
+}) {
+  const hasEvidence = filing.keyEvidence.length > 0;
+  const hasWatchNext = model.watchNext.length > 0;
+
+  return (
+    <>
+      <section className="stock-detail-top-grid special-overview-grid">
+        <FilingPriceChart filing={filing} />
+
+        <section className="stock-detail-card spac-summary-panel">
+          <div className="spac-summary-heading">
+            <h2>{model.title}</h2>
+            <p>
+              <strong>{model.statusLabel}.</strong> {model.statusSummary}
+            </p>
+          </div>
+          <div className="spac-metric-grid">
+            <SpacMetricCard
+              icon="status"
+              label="Removed security"
+              note={model.commonEquityAffected}
+              tone={model.tone}
+              value={model.removedSecurity}
+            />
+            <SpacMetricCard icon="redemption" label="Exchange / venue" note={model.filedByName} value={model.exchange} />
+            <SpacMetricCard icon="cash" label="Reason" note={model.reasonDetail} tone={model.tone} value={model.reasonLabel} />
+            <SpacMetricCard
+              icon="closing"
+              label="Effective / removal date"
+              note={model.tradingSuspensionDate ? `Trading suspension: ${model.tradingSuspensionDate}` : ""}
+              value={model.effectiveDate}
+            />
+          </div>
+        </section>
+      </section>
+
+      <ScoreBasisPanel filing={filing} />
+
+      <section className="stock-detail-card spac-summary-panel">
+        <div className="spac-summary-heading">
+          <h2>Investor Impact</h2>
+          <p>{model.investorImpact}</p>
+        </div>
+        {model.detailRows.length ? (
+          <div className="spac-readout-grid">
+            {model.detailRows.map((row) => (
+              <div className="detail-metric-row" key={`${row.label}-${row.value}`}>
+                <span>{row.label}</span>
+                <strong>{row.value}</strong>
+                {row.note ? <small>{row.note}</small> : null}
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      {hasEvidence || hasWatchNext ? (
+        <section className="stock-detail-card-grid two-up insight-summary-grid">
+          <AnalysisList title="Key Evidence" items={filing.keyEvidence} />
+          <AnalysisList title="What To Watch Next" items={model.watchNext} numbered />
+        </section>
+      ) : null}
+
+      <FilingMarketContextPanel filing={filing} />
+      <SpacSourceEvidence filing={filing} model={{ sources: model.sources }} />
+      <OriginalFilingText eventLabel={eventLabel} filing={filing} />
+    </>
+  );
 }
 
 function ListingRiskTemplate({
@@ -7202,6 +6625,114 @@ const SPAC_STAGE_LABELS = SPAC_STAGE_ORDER.reduce<Record<SpacStageCode, string>>
   labels[stage.code] = stage.label;
   return labels;
 }, {} as Record<SpacStageCode, string>);
+
+function buildForm25ListingStatusModel(filing: FilingEvent): Form25ListingStatusModel | null {
+  const displayPayload = readPlainRecord(filing.displayPayload);
+  const displayType = readRowString(displayPayload, "display_type");
+  const formType = filing.formType.trim().toUpperCase();
+  const isForm25 =
+    formType === "25" ||
+    formType === "25/A" ||
+    formType === "25-NSE" ||
+    formType === "25-NSE/A" ||
+    formType === "FORM 25" ||
+    formType === "FORM 25-NSE";
+  if (displayType !== "sec_form25_listing_removal" && !isForm25) return null;
+
+  const data = readDisplayPayloadData(displayPayload);
+  const removedSecurity = displayString(data, "removed_security", "Security class not disclosed");
+  const exchange = displayString(data, "exchange", filing.exchange || "Exchange not disclosed");
+  const reasonCode = readRowString(data, "removal_reason");
+  const deterministicCase = readRowString(data, "deterministic_case");
+  const reasonLabel = formatForm25ReasonLabel(reasonCode, deterministicCase);
+  const reasonDetail = displayString(data, "removal_reason_text", "");
+  const statusLabel = formatForm25StatusLabel(reasonCode, deterministicCase);
+  const effectiveDate = displayString(
+    data,
+    "delisting_or_removal_date",
+    displayString(data, "effectiveness_date", displayString(data, "filing_date", filing.filedAt || "Not disclosed")),
+  );
+  const tradingSuspensionDate = displayString(data, "trading_suspension_date", "");
+  const filedByName = displayString(data, "filed_by_name", "");
+  const ruleProvision = displayString(data, "rule_provision", "");
+  const continuedVenue = displayString(data, "continued_listing_or_trading_venue", "");
+  const successorOrAcquirer = displayString(data, "successor_or_acquirer", "");
+  const considerationSummary = displayString(data, "consideration_summary", "");
+  const commonEquityAffected =
+    data.common_equity_affected === true
+      ? "Common equity affected"
+      : data.common_equity_affected === false
+        ? "Common equity not affected"
+        : displayString(data, "common_equity_affected", "Equity impact not stated");
+  const tone =
+    filing.score >= 75 ||
+    /listing_standards_failure|voluntary_withdrawal|common_equity/i.test(`${reasonCode} ${deterministicCase}`)
+      ? "risk"
+      : "neutral";
+  const statusSummary = compactInlineText(
+    filing.filingBrief || filing.summary || "Form 25 changes the exchange listing status for the covered security.",
+  );
+  const evidenceItems = displayStringArray(displayPayload?.evidence, filing.keyEvidence);
+  const sources = normalizeSpecialSources(
+    evidenceItems.map((item) => ({ title: item, detail: "", form: filing.formType })),
+    filing.sourceUrl,
+    filing.formType,
+  );
+  const detailRows: Form25DetailRow[] = [
+    { label: "Rule provision", value: ruleProvision },
+    { label: "Filed by", value: filedByName },
+    { label: "Continued venue", value: continuedVenue },
+    { label: "Successor / acquirer", value: successorOrAcquirer },
+    { label: "Consideration", value: considerationSummary },
+  ].filter((row) => isDisclosedValue(row.value));
+
+  return {
+    title: "Listing Status Change",
+    statusLabel,
+    statusSummary,
+    removedSecurity,
+    exchange,
+    reasonLabel,
+    reasonDetail,
+    commonEquityAffected,
+    effectiveDate,
+    tradingSuspensionDate,
+    filedByName,
+    ruleProvision,
+    continuedVenue,
+    successorOrAcquirer,
+    considerationSummary,
+    investorImpact: compactInlineText(filing.summary || statusSummary),
+    detailRows,
+    watchNext: filing.watchNext,
+    sources,
+    tone,
+  };
+}
+
+function formatForm25ReasonLabel(reasonCode: string, deterministicCase: string) {
+  const text = `${reasonCode} ${deterministicCase}`.toLowerCase();
+  if (/listing_standards_failure|continued_listing_standards|exchange_determination/.test(text)) {
+    return "Listing standards failure";
+  }
+  if (/merger|business_combination|acquisition/.test(text)) return "Merger / transaction completed";
+  if (/matured|redeemed|retired/.test(text)) return "Matured / redeemed security";
+  if (/continued_listing|transfer/.test(text)) return "Transfer / continued listing";
+  if (/voluntary|withdrawal|going_dark/.test(text)) return "Voluntary withdrawal";
+  return "Reason not disclosed";
+}
+
+function formatForm25StatusLabel(reasonCode: string, deterministicCase: string) {
+  const text = `${reasonCode} ${deterministicCase}`.toLowerCase();
+  if (/listing_standards_failure|continued_listing_standards|exchange_determination/.test(text)) {
+    return "Exchange delisting";
+  }
+  if (/merger|business_combination|acquisition/.test(text)) return "Transaction completed";
+  if (/matured|redeemed|retired/.test(text)) return "Security removed";
+  if (/continued_listing|transfer/.test(text)) return "Listing venue changed";
+  if (/voluntary|withdrawal|going_dark/.test(text)) return "Voluntary delisting";
+  return "Listing status changed";
+}
 
 function buildListingRiskModel(filing: FilingEvent): ListingRiskModel | null {
   const displayPayload = readPlainRecord(filing.displayPayload);

@@ -5,7 +5,6 @@ import {
   type ProxyParserOutput,
 } from "./parser.ts";
 import {
-  buildDeterministicProxyAnalysis,
   buildProxyAnalysisPrompt,
   buildProxyLlmDisplayPayloadPlaceholder,
   buildProxyLlmRouterPlaceholder,
@@ -14,11 +13,7 @@ import {
   type ProxyAnalysisPromptInput,
 } from "./analysisPrompt.ts";
 import type { ProxyDisplayPayload } from "./displayPayload.ts";
-import {
-  buildProxyRouterPrompt,
-  routeProxyFiling,
-  type ProxyRouterDecision,
-} from "./routerPrompt.ts";
+import type { ProxyRouterDecision } from "./routerPrompt.ts";
 
 export const PROXY_ADAPTER_KEY = "sec_proxy";
 export const PROXY_ANALYSIS_MODE = "router_required";
@@ -99,11 +94,8 @@ export const proxyAdapter = {
   isSupportedForm: isProxySupportedForm,
   parser: parseProxyFiling,
   parse: parseProxyFiling,
-  route: routeProxyFiling,
-  buildRouterPrompt: buildProxyRouterPrompt,
   buildAnalysisPrompt: buildProxyAnalysisPromptFromRuntime,
   buildRuntimePackage: buildProxyRuntimePackage,
-  buildDeterministicAnalysis: buildDeterministicProxyAnalysis,
   deriveDeliveryLevel,
 } as const;
 

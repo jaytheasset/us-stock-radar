@@ -445,6 +445,9 @@ export interface ProxyRawImportantBlock {
     | "reverse_split"
     | "notice_only"
     | "preliminary_placeholder"
+    | "spac_business_combination"
+    | "spac_extension"
+    | "spac_trust_amendment"
     | "transaction_consideration"
     | "transaction_vote_required";
   label: string;
@@ -1313,6 +1316,7 @@ function buildImportantBlocks(
 
   add("meeting_date", "shareholder meeting date", input.meetingDate);
   add("record_date", "voting record date", input.recordDate);
+  addSpacExtensionImportantBlocks(blocks, text);
 
   for (const proposal of input.proposals) {
     add("proposal", `${proposal.id}: ${proposal.title}`, proposal.sourceText);
@@ -1335,6 +1339,99 @@ function buildImportantBlocks(
   }
 
   return uniqueBlocks(blocks).slice(0, 40);
+}
+
+function addSpacExtensionImportantBlocks(blocks: ProxyRawImportantBlock[], text: string): void {
+  const normalizedText = normalizeSpaces(text);
+  if (!isLikelySpacExtensionText(normalizedText)) return;
+
+  addRegexImportantBlock(
+    blocks,
+    normalizedText,
+    "spac_extension",
+    "SPAC extension deadline terms",
+    new RegExp(`\\bfrom\\s+${DATE_PATTERN}[^.]{0,420}\\bto\\s+${DATE_PATTERN}`, "i"),
+    700,
+    1200,
+  );
+  addRegexImportantBlock(
+    blocks,
+    normalizedText,
+    "spac_extension",
+    "SPAC extension period terms",
+    /\b(?:up to\s+)?(?:twelve\s+\(12\)|\d+)\s+(?:one-month|one\s+month|monthly)\s+extensions?\b/i,
+    700,
+    1200,
+  );
+  addRegexImportantBlock(
+    blocks,
+    normalizedText,
+    "spac_trust_amendment",
+    "SPAC trust extension payment",
+    /\b(?:lesser|lessor)\s+of\s+\$[\d,]+[^.]{0,280}\$0\.\d+/i,
+    800,
+    1200,
+  );
+  addRegexImportantBlock(
+    blocks,
+    normalizedText,
+    "spac_business_combination",
+    "SPAC business combination target",
+    /\b(?:entered\s+into|signed|executed)\s+(?:the\s+)?Business Combination Agreement[^.]{0,420}/i,
+    600,
+    1400,
+  );
+  addRegexImportantBlock(
+    blocks,
+    normalizedText,
+    "spac_business_combination",
+    "SPAC expected post-closing ticker",
+    /\b(?:expected|expects|will)\s+[^.]{0,260}\b(?:Nasdaq|NYSE|ticker symbol|trading symbol)[^.]{0,280}/i,
+    700,
+    1200,
+  );
+  addRegexImportantBlock(
+    blocks,
+    normalizedText,
+    "spac_extension",
+    "SPAC extension failure consequence",
+    /\bif\s+(?:the\s+)?(?:Extension Amendment Proposal|extension proposal)[^.]{0,520}/i,
+    600,
+    1400,
+  );
+}
+
+function isLikelySpacExtensionText(text: string): boolean {
+  return /\b(?:SPAC|special purpose acquisition company|business combination|trust account)\b/i.test(text)
+    && /\b(?:extension amendment|extend(?:ing)?\s+(?:the\s+)?(?:deadline|date|time)|combination period|monthly extension)\b/i.test(text);
+}
+
+function addRegexImportantBlock(
+  blocks: ProxyRawImportantBlock[],
+  normalizedText: string,
+  kind: ProxyRawImportantBlock["kind"],
+  label: string,
+  pattern: RegExp,
+  beforeChars: number,
+  afterChars: number,
+): void {
+  const match = normalizedText.match(pattern);
+  if (!match?.[0] || match.index === undefined) return;
+  const sourceText = sourceWindowAt(normalizedText, match.index, match[0].length, beforeChars, afterChars);
+  blocks.push({ kind, label, text: trimBlockText(sourceText, 1600) });
+}
+
+function sourceWindowAt(
+  normalizedText: string,
+  index: number,
+  matchLength: number,
+  beforeChars: number,
+  afterChars: number,
+): string {
+  return normalizedText.slice(
+    Math.max(0, index - beforeChars),
+    Math.min(normalizedText.length, index + matchLength + afterChars),
+  );
 }
 
 function buildNoiseBlocks(rawInputText: string): ProxyRawNoiseBlock[] {
@@ -1409,8 +1506,8 @@ function sourceWindow(text: string, value: string): string | null {
   return normalizedText.slice(Math.max(0, index - 160), Math.min(normalizedText.length, index + needle.length + 220));
 }
 
-function trimBlockText(value: string): string {
-  return normalizeSpaces(value).slice(0, 900);
+function trimBlockText(value: string, maxChars = 900): string {
+  return normalizeSpaces(value).slice(0, maxChars);
 }
 
 function firstMatchingSentence(text: string, patterns: RegExp[]): string | null {
