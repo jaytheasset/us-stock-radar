@@ -1,18 +1,5 @@
-import type { ProxyEventType, ProxyParserOutput } from "./parser.ts";
+import type { ProxyParserOutput } from "./parser.ts";
 import { buildCurrentFilingIdentity, currentFilingIdentityText } from "../common/currentFilingIdentity.ts";
-
-export interface ProxyRouterDecision {
-  stage: "parser" | "router";
-  usesLlm: boolean;
-  analysis_needed: boolean;
-  event_type: ProxyEventType;
-  display_type: "proxy_vote";
-  display_version: string;
-  preliminary_action: "archive" | "analyze";
-  preliminary_score: number;
-  rationale: string;
-  analysis_focus: string[];
-}
 
 export function buildProxySourceBlockPromptInput(
   parserOutput: ProxyParserOutput,

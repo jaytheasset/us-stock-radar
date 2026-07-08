@@ -684,522 +684,125 @@ const commonFilingEvents: Record<string, FilingEvent> = {
       "Shareholders are voting on a mixed agenda that includes routine annual items, share-capacity changes, an equity plan, a transaction vote, governance items, and listing-related approvals.",
     keyEvidence: [],
     watchNext: ["Final voting results", "Whether share-capacity and equity-plan items pass", "Any follow-up 8-K or proxy supplement"],
-    displayType: "generic",
-    displayVersion: "proxy_combined_vote_v1",
+    displayType: "proxy_vote",
+    displayVersion: "proxy_vote_v1",
     displayData: {
-      proxy_type: "Mixed proposal meeting",
-      meeting_date: "Aug 5, 2026",
-      record_date: "Jun 12, 2026",
-      proposal_count: 11,
-      key_focus: "Share capacity, equity plan, transaction, governance",
-      board_recommendation: "Support management proposals; oppose shareholder proposal",
+      summary_title: "Proxy Vote Summary",
+      summary_sentence:
+        "Shareholders are voting on multiple proposal types, including share capacity, equity plan, transaction, listing, and governance items.",
+      snapshot: [
+        { label: "Meeting Date", value: "Aug 5, 2026" },
+        { label: "Record Date", value: "Jun 12, 2026" },
+        { label: "Proposal Count", value: "11" },
+        { label: "Board View", value: "Support management items", note: "Oppose shareholder proposal" },
+      ],
       proposals: [
         {
           id: "Proposal 1",
           title: "Elect directors named in the proxy statement",
-          category: "Director election",
-          recommendation: "Support",
+          type: "Director election",
+          board_recommendation: "Support",
           is_shareholder_proposal: false,
+          details: [],
         },
         {
           id: "Proposal 2",
           title: "Approve executive compensation on an advisory basis",
-          category: "Executive pay vote",
-          recommendation: "Support",
+          type: "Executive pay vote",
+          board_recommendation: "Support",
           is_shareholder_proposal: false,
+          details: [],
         },
         {
           id: "Proposal 3",
           title: "Ratify the independent registered public accounting firm",
-          category: "Auditor approval",
-          recommendation: "Support",
+          type: "Auditor approval",
+          board_recommendation: "Support",
           is_shareholder_proposal: false,
+          details: [],
         },
         {
           id: "Proposal 4",
           title: "Increase authorized common shares from 150,000,000 to 500,000,000",
-          category: "Authorized shares",
-          recommendation: "Support",
+          type: "Authorized shares",
+          board_recommendation: "Support",
           is_shareholder_proposal: false,
+          details: [
+            { label: "Authorized Shares", value: "150.0M to 500.0M", note: "Raises future share capacity" },
+          ],
         },
         {
           id: "Proposal 5",
           title: "Approve a reverse stock split in a range selected by the board",
-          category: "Reverse split",
-          recommendation: "Support",
+          type: "Reverse split",
+          board_recommendation: "Support",
           is_shareholder_proposal: false,
+          details: [
+            { label: "Split Ratio", value: "1-for-10 to 1-for-40" },
+            { label: "Timing", value: "Board discretion", note: "After approval if implemented" },
+          ],
         },
         {
           id: "Proposal 6",
           title: "Approve an amendment to the equity incentive plan",
-          category: "Equity plan",
-          recommendation: "Support",
+          type: "Equity plan",
+          board_recommendation: "Support",
           is_shareholder_proposal: false,
+          details: [
+            { label: "Plan Shares", value: "Additional shares requested" },
+          ],
         },
         {
           id: "Proposal 7",
           title: "Approve the proposed merger agreement",
-          category: "Merger vote",
-          recommendation: "Support",
+          type: "Merger vote",
+          board_recommendation: "Support",
           is_shareholder_proposal: false,
+          details: [
+            { label: "Consideration", value: "$12.50/share cash" },
+            { label: "Closing Conditions", value: "Vote and approvals pending" },
+          ],
         },
         {
           id: "Proposal 8",
           title: "Approve Nasdaq listing and share issuance rules for the transaction",
-          category: "Listing vote",
-          recommendation: "Support",
+          type: "Listing vote",
+          board_recommendation: "Support",
           is_shareholder_proposal: false,
+          details: [
+            { label: "Listing Approval", value: "Nasdaq issuance rules" },
+          ],
         },
         {
           id: "Proposal 9",
           title: "Approve the SPAC business combination and related redemptions",
-          category: "SPAC / de-SPAC",
-          recommendation: "Support",
+          type: "SPAC / de-SPAC",
+          board_recommendation: "Support",
           is_shareholder_proposal: false,
+          details: [
+            { label: "Target / Ticker", value: "Sample Target / SAMP" },
+            { label: "Redemptions", value: "Not known yet" },
+            { label: "Cash Condition", value: "$75.0M minimum" },
+          ],
         },
         {
           id: "Proposal 10",
           title: "Shareholder proposal requesting an independent board chair",
-          category: "Shareholder proposal",
-          recommendation: "Oppose",
+          type: "Shareholder proposal",
+          board_recommendation: "Oppose",
           is_shareholder_proposal: true,
+          details: [
+            { label: "Governance Issue", value: "Independent chair proposal" },
+          ],
         },
         {
           id: "Proposal 11",
           title: "Adjourn the meeting if more votes are needed",
-          category: "Adjournment",
-          recommendation: "Support",
+          type: "Adjournment",
+          board_recommendation: "Support",
           is_shareholder_proposal: false,
+          details: [],
         },
-      ],
-      proposal_modules: [
-        {
-          proposal_id: "Proposal 4",
-          label: "Share Capacity",
-          title: "Authorized shares increase",
-          value: "150.0M to 500.0M shares",
-          note: "Raises future issuance capacity; no shares are issued by the vote alone.",
-        },
-        {
-          proposal_id: "Proposal 5",
-          label: "Capital Structure",
-          title: "Reverse split authorization",
-          value: "1-for-10 to 1-for-40",
-          note: "Board may implement after approval if listing or financing needs require it.",
-        },
-        {
-          proposal_id: "Proposal 6",
-          label: "Equity Plan",
-          title: "Plan reserve amendment",
-          value: "Additional shares requested",
-          note: "Creates future compensation share capacity if approved.",
-        },
-        {
-          proposal_id: "Proposal 7",
-          label: "Transaction",
-          title: "Merger / listing approvals",
-          value: "$12.50 per share cash merger",
-          note: "Vote result, closing conditions, and listing approval decide whether the transaction proceeds.",
-        },
-        {
-          proposal_id: "Proposal 9",
-          label: "SPAC / de-SPAC",
-          title: "Business combination vote",
-          value: "Redemptions not known yet",
-          note: "Minimum cash and final redemption levels are the key follow-up checks.",
-        },
-        {
-          proposal_id: "Proposal 10",
-          label: "Governance",
-          title: "Shareholder proposal",
-          value: "Independent chair proposal",
-          note: "Board opposes; voting result signals shareholder governance pressure.",
-        },
-      ],
-    },
-  }),
-  "proxy-ui-generic": makeProxySampleFilingEvent({
-    id: "proxy-ui-generic",
-    title: "Proxy UI Sample: Routine Annual Meeting",
-    formType: "DEF 14A",
-    eventType: "shareholder_vote",
-    score: 42,
-    signal: "neutral",
-    filingFocus: "Routine proxy sample",
-    whyItMatters: "Shows the baseline proxy layout for routine annual meeting proposals.",
-    summary: "Routine proxy sample with director election, auditor ratification, and say-on-pay style proposal rows.",
-    keyEvidence: ["Generic proxy display version selected.", "Routine meeting proposal list is present."],
-    watchNext: ["Check proposal list spacing.", "Check source text and market context placement."],
-    displayType: "proxy_vote",
-    displayVersion: "proxy_vote_v1",
-    displayData: {},
-  }),
-  "proxy-ui-ipo-listing": makeProxySampleFilingEvent({
-    id: "proxy-ui-ipo-listing",
-    title: "Proxy UI Sample: Listing Vote",
-    formType: "DEF 14A",
-    eventType: "ipo_listing",
-    score: 48,
-    signal: "neutral",
-    filingFocus: "Listing vote proxy sample",
-    whyItMatters: "Shows a proxy vote tied to a listing-related action.",
-    summary: "Shareholders are being asked to approve a listing-related action; final vote results and listing timing determine whether this becomes an active listing catalyst.",
-    keyEvidence: [],
-    watchNext: ["Final voting result", "Exchange approval or listing notice", "Effective date for the listing action"],
-    displayType: "proxy_vote",
-    displayVersion: "proxy_vote_v1",
-    displayData: {
-      ipo_kind: "traditional",
-      proxy_type: "Listing vote",
-      meeting_date: "Not fixed",
-      record_date: "Not fixed",
-      listing_action: "Approve a listing-related action",
-      exchange_ticker: "NASDAQ / PRXY",
-      proposal_count: 2,
-      proposals: [
-        {
-          id: "Proposal 1",
-          title: "Approve the listing-related proposal",
-          category: "listing vote",
-          recommendation: "For",
-          is_shareholder_proposal: false,
-        },
-        {
-          id: "Proposal 2",
-          title: "Adjournment proposal if needed",
-          category: "adjournment",
-          recommendation: "For",
-          is_shareholder_proposal: false,
-        },
-      ],
-      listing_evidence: ["Proxy material references a proposed listing action."],
-    },
-  }),
-  "proxy-ui-equity-plan-vote": makeProxySampleFilingEvent({
-    id: "proxy-ui-equity-plan-vote",
-    title: "Proxy UI Sample: Equity Plan Vote",
-    formType: "DEF 14A",
-    eventType: "dilution_risk",
-    score: 68,
-    signal: "volatile",
-    filingFocus: "Equity plan vote sample",
-    whyItMatters: "Shows how proxy share-reserve requests appear when the vote can affect future dilution.",
-    summary: "Shareholders are voting on a new equity incentive plan reserve. Approval would increase the pool of shares available for future stock-based compensation.",
-    keyEvidence: ["Plan share request present.", "Percent of outstanding supplied as a proxy data field."],
-    watchNext: ["Final vote result", "Approved reserve amount", "Future equity grants using the plan"],
-    displayType: "proxy_vote",
-    displayVersion: "proxy_vote_v1",
-    displayData: {
-      plan_name: "2026 Equity Incentive Plan",
-      shares_requested: "4,000,000 shares",
-      percent_of_outstanding: "12.5%",
-      proposal_ids: ["Proposal 3"],
-      vote_requirement: "Majority of votes cast",
-      proposals: [
-        {
-          id: "Proposal 3",
-          title: "Approve the 2026 Equity Incentive Plan",
-          category: "equity plan",
-          recommendation: "For",
-          is_shareholder_proposal: false,
-        },
-        {
-          id: "Proposal 4",
-          title: "Adjournment proposal if needed",
-          category: "adjournment",
-          recommendation: "For",
-          is_shareholder_proposal: false,
-        },
-      ],
-      snapshot_metrics: [
-        { label: "Plan shares requested", value: "4.0M shares", note: "Development sample" },
-        { label: "Plan shares / outstanding", value: "12.5%", note: "Development sample" },
-      ],
-      offering_details: [
-        { label: "Proposal", value: "Equity incentive plan approval", note: "Proxy vote item" },
-        { label: "Board recommendation", value: "For", note: "Development sample" },
-      ],
-    },
-  }),
-  "proxy-ui-transaction-vote": makeProxySampleFilingEvent({
-    id: "proxy-ui-transaction-vote",
-    title: "Proxy UI Sample: Merger Vote",
-    formType: "PREM14A",
-    eventType: "strategic_transaction",
-    score: 72,
-    signal: "volatile",
-    filingFocus: "Transaction vote sample",
-    whyItMatters: "Shows a merger or sale vote proxy where consideration, vote threshold, and closing conditions matter.",
-    summary: "Shareholders are voting on a proposed cash merger. The main investor checks are the deal price, vote requirement, closing conditions, and whether appraisal rights apply.",
-    keyEvidence: [],
-    watchNext: ["Final voting result", "Whether closing conditions are satisfied", "Expected closing date and delisting timing"],
-    displayType: "proxy_vote",
-    displayVersion: "proxy_vote_v1",
-    displayData: {
-      proxy_type: "Merger vote",
-      meeting_date: "Aug 12, 2026",
-      record_date: "Jul 10, 2026",
-      transaction_summary: "Proposed cash merger",
-      consideration: "$12.50 per share cash consideration",
-      vote_required: "Majority of outstanding shares",
-      proposal_ids: ["Proposal 1"],
-      agreement_date: "Jun 1, 2026",
-      merger_parties: ["Proxy UI Sample Corp.", "Sample Buyer Parent Inc."],
-      board_recommendation: "For",
-      closing_conditions: "Shareholder approval, regulatory clearance, no injunction",
-      appraisal_rights_mentioned: true,
-      delisting_mentioned: true,
-      proposals: [
-        {
-          id: "Proposal 1",
-          title: "Approve the agreement and plan of merger",
-          category: "merger vote",
-          recommendation: "For",
-          is_shareholder_proposal: false,
-        },
-        {
-          id: "Proposal 2",
-          title: "Approve merger-related executive compensation on an advisory basis",
-          category: "compensation",
-          recommendation: "For",
-          is_shareholder_proposal: false,
-        },
-        {
-          id: "Proposal 3",
-          title: "Adjourn the special meeting if more votes are needed",
-          category: "adjournment",
-          recommendation: "For",
-          is_shareholder_proposal: false,
-        },
-      ],
-    },
-  }),
-  "proxy-ui-capital-structure-vote": makeProxySampleFilingEvent({
-    id: "proxy-ui-capital-structure-vote",
-    title: "Proxy UI Sample: Reverse Split and Share Authorization",
-    formType: "PRE 14A",
-    eventType: "listing_risk",
-    score: 78,
-    signal: "bearish",
-    filingFocus: "Capital structure vote sample",
-    whyItMatters: "Shows proxy votes tied to reverse splits, authorized-share increases, or listing compliance.",
-    summary: "Shareholders are voting on capital structure changes that could affect listing compliance and future share capacity.",
-    keyEvidence: [],
-    watchNext: ["Final voting result", "Whether the board implements the reverse split", "Any listing compliance update after the vote"],
-    displayType: "proxy_vote",
-    displayVersion: "proxy_vote_v1",
-    displayData: {
-      proxy_type: "Capital structure vote",
-      meeting_date: "Sep 4, 2026",
-      record_date: "Aug 1, 2026",
-      board_recommendation: "For",
-      listing_context: "Nasdaq minimum bid compliance",
-      reverse_split: {
-        hasReverseSplitProposal: true,
-        ratio: "1-for-10 to 1-for-40",
-        sourceText: "Reverse split proposal sample.",
-      },
-      dilution: {
-        hasEquityPlanVote: false,
-        sharesRequested: null,
-        percentOfOutstanding: null,
-        proposalIds: ["Proposal 2"],
-      },
-      capital_structure_proposals: [
-        {
-          id: "Proposal 1",
-          title: "Approve a reverse stock split",
-          category: "reverse_stock_split",
-          board_recommendation: "For",
-        },
-        {
-          id: "Proposal 2",
-          title: "Approve an increase in authorized shares",
-          category: "authorized_share_increase",
-          board_recommendation: "For",
-        },
-      ],
-      proposals: [
-        {
-          id: "Proposal 1",
-          title: "Approve a reverse stock split",
-          category: "reverse stock split",
-          recommendation: "For",
-          is_shareholder_proposal: false,
-        },
-        {
-          id: "Proposal 2",
-          title: "Approve an increase in authorized shares",
-          category: "authorized shares",
-          recommendation: "For",
-          is_shareholder_proposal: false,
-        },
-        {
-          id: "Proposal 3",
-          title: "Adjourn the special meeting if more votes are needed",
-          category: "adjournment",
-          recommendation: "For",
-          is_shareholder_proposal: false,
-        },
-      ],
-    },
-  }),
-  "proxy-ui-governance-vote": makeProxySampleFilingEvent({
-    id: "proxy-ui-governance-vote",
-    title: "Proxy UI Sample: Governance and Contested Solicitation",
-    formType: "DEFA14A",
-    eventType: "leadership_governance",
-    score: 70,
-    signal: "volatile",
-    filingFocus: "Governance proxy sample",
-    whyItMatters: "Governance and contested proxy votes can affect board control, shareholder rights, and management accountability.",
-    summary: "Shareholders are voting on governance items while a contested solicitation could affect board composition.",
-    keyEvidence: [],
-    watchNext: ["Final voting result", "Which slate wins board seats", "Any supplement or recommendation change"],
-    displayType: "proxy_vote",
-    displayVersion: "proxy_vote_v1",
-    displayData: {
-      proxy_type: "Governance / contested proxy",
-      meeting_date: "Oct 8, 2026",
-      record_date: "Aug 20, 2026",
-      governance_focus: "Board control and governance proposals",
-      board_recommendation: "For company nominees; against dissident slate",
-      contested: {
-        isContested: true,
-        solicitationSource: "third_party",
-        dissidentGroups: ["Sample Investor Group"],
-        dissidentNominees: ["Director Candidate A", "Director Candidate B"],
-        opposedNominees: ["Company Nominee A", "Company Nominee B"],
-        board_seats_at_issue: "2 seats",
-        sourceText: "Contested solicitation sample.",
-      },
-      supplement: {
-        isSupplement: true,
-        parentForm: "DEF 14A",
-        sourceText: "Supplemental proxy material sample.",
-      },
-      supplemental_analysis: {
-        material_type: "supplemental_proxy_material",
-        parent_references: ["DEF 14A"],
-        change_signals: ["Recommendation update"],
-        reconciliation: "Supplement updates prior proxy materials.",
-      },
-      shareholder_or_governance_proposals: [
-        {
-          id: "Proposal 1",
-          title: "Elect company director nominees",
-          sponsor: "management",
-          board_recommendation: "For",
-          shareholder_recommendation: "",
-        },
-        {
-          id: "Proposal 2",
-          title: "Elect dissident director nominees",
-          sponsor: "shareholder",
-          board_recommendation: "Against",
-          shareholder_recommendation: "For",
-        },
-        {
-          id: "Proposal 3",
-          title: "Approve independent board chair proposal",
-          sponsor: "shareholder",
-          board_recommendation: "Against",
-          shareholder_recommendation: "For",
-        },
-      ],
-      proposals: [
-        {
-          id: "Proposal 1",
-          title: "Elect company director nominees",
-          category: "director election",
-          recommendation: "For",
-          is_shareholder_proposal: false,
-        },
-        {
-          id: "Proposal 2",
-          title: "Elect dissident director nominees",
-          category: "contested slate",
-          recommendation: "Against",
-          is_shareholder_proposal: true,
-        },
-        {
-          id: "Proposal 3",
-          title: "Approve independent board chair proposal",
-          category: "governance",
-          recommendation: "Against",
-          is_shareholder_proposal: true,
-        },
-        {
-          id: "Proposal 4",
-          title: "Ratify independent auditor",
-          category: "auditor",
-          recommendation: "For",
-          is_shareholder_proposal: false,
-        },
-      ],
-    },
-  }),
-  "proxy-ui-spac-transaction-status": makeProxySampleFilingEvent({
-    id: "proxy-ui-spac-transaction-status",
-    title: "Proxy UI Sample: SPAC / de-SPAC Vote Status",
-    formType: "DEFM14A",
-    eventType: "strategic_transaction",
-    score: 82,
-    signal: "volatile",
-    filingFocus: "SPAC / de-SPAC vote status",
-    whyItMatters: "SPAC votes can turn on redemption levels, minimum cash, listing approval, and the closing timeline.",
-    summary: "Shareholders are voting on a business combination with Sample Target. Redemption results and the minimum cash condition are the key closing risks.",
-    keyEvidence: [],
-    watchNext: ["Shareholder vote result", "Final redemption numbers", "Closing 8-K and ticker-change date"],
-    displayType: "proxy_vote",
-    displayVersion: "proxy_vote_v1",
-    displayData: {
-      current_stage: "proxy",
-      current_stage_label: "Proxy vote pending",
-      deal_status: "Business combination vote pending",
-      spac_status: "Shareholders are voting on the business combination. Redemptions and minimum cash determine closing pressure.",
-      stage_summary: "Vote result, redemption levels, and closing conditions determine whether the target can complete the listing.",
-      stages: [
-        { code: "target", label: "Deal Signed", date: "Apr 15, 2026" },
-        { code: "proxy", label: "Proxy Filed", date: "Jul 7, 2026" },
-        { code: "vote", label: "Vote / Redemption", date: "Pending" },
-        { code: "redemption", label: "Redemption Result", date: "Pending" },
-        { code: "cash", label: "Cash Conditions", date: "Before closing" },
-        { code: "closing", label: "Close / Ticker", date: "Pending" },
-      ],
-      target_company: "Sample Target Inc.",
-      target_summary: "Sample Target Inc. is the operating company expected to become public through the SPAC merger.",
-      target_company_story:
-        "Sample Target Inc. is the operating company expected to become public through this SPAC merger. Investors should focus on whether redemptions leave enough cash to close and whether the ticker change happens after approval.",
-      expected_ticker: "SAMP",
-      deal_value: "$750M enterprise value",
-      announced_date: "Apr 15, 2026",
-      merger_agreement_date: "Apr 15, 2026",
-      sponsor: "Sample Sponsor LLC",
-      ipo_underwriter: "Sample Underwriter",
-      ipo_date: "2025",
-      ipo_year: "2025",
-      unit_right_warrant_terms: "One share plus one-half warrant",
-      vote_date: "Aug 12, 2026",
-      redemption_deadline: "Aug 10, 2026",
-      redemption_result_date: "Pending",
-      redemption_rate: "Not known yet",
-      trust_cash_before: "$200.0M",
-      trust_cash_after: "Not known yet",
-      redemption_price: "$10.50",
-      public_shares_remaining: "Not known yet",
-      min_cash_condition: "$75.0M",
-      min_cash_status: "Pending",
-      float_impact: "Depends on redemption results",
-      closing_date: "After shareholder vote",
-      ticker_change_date: "After closing",
-      risk_flags: ["High redemptions could reduce cash available at closing.", "Minimum cash may require a waiver or backstop financing."],
-      watch_next: ["Shareholder vote result", "Final redemption numbers", "Closing 8-K and ticker-change confirmation"],
-      sources: [
-        { title: "Proxy statement", detail: "Business combination vote and redemption mechanics", form: "DEFM14A" },
-      ],
-      event_history: [
-        { date: "Jul 7, 2026", form: "DEFM14A", title: "Proxy UI sample filed", source: "Development sample", status: "Current" },
       ],
     },
   }),
@@ -3850,20 +3453,7 @@ function isProxyVoteDetail(filing: FilingEvent) {
   return displayType === "proxy_vote" || displayVersion === "proxy_vote_v1";
 }
 
-function buildProxyCombinedVoteSummaryRows(data: Record<string, unknown>) {
-  const proposalCount =
-    displayString(data, "proposal_count", "") ||
-    (recordArray(data.proposals).length ? String(recordArray(data.proposals).length) : "Not disclosed");
-  return [
-    { label: "Meeting Date", value: displayString(data, "meeting_date", "Not disclosed") },
-    { label: "Record Date", value: displayString(data, "record_date", "Not disclosed") },
-    { label: "Key Proposals", value: displayString(data, "key_focus", "") || `${proposalCount} proposals` },
-    { label: "Board Recommends", value: displayString(data, "board_recommendation", "Not disclosed") },
-  ].filter((row): row is ProxySummaryRow => Boolean(row));
-}
-
 function buildProxyUnifiedSnapshotRows(data: Record<string, unknown>) {
-  const hasExplicitSnapshot = Array.isArray(data.snapshot);
   const snapshotRows = recordArray(data.snapshot)
     .map((row): ProxySummaryRow | null => {
       const label = readRowString(row, "label");
@@ -3873,9 +3463,7 @@ function buildProxyUnifiedSnapshotRows(data: Record<string, unknown>) {
       return { label, value, note: note || undefined };
     })
     .filter((row): row is ProxySummaryRow => Boolean(row));
-  if (hasExplicitSnapshot) return snapshotRows;
-  if (snapshotRows.length) return snapshotRows;
-  return buildProxyCombinedVoteSummaryRows(data);
+  return snapshotRows;
 }
 
 function buildProxySummaryTitle(
@@ -3890,21 +3478,6 @@ function buildProxySummaryTitle(
     return "Proxy Materials Update";
   }
   return "Proxy Vote Summary";
-}
-
-function buildProxyCapitalStructureIntro(data: Record<string, unknown>) {
-  const proposals = recordArray(data.capital_structure_proposals);
-  const proposalText = proposals
-    .map((proposal) => `${readRowString(proposal, "category")} ${readRowString(proposal, "title")}`)
-    .join(" ");
-
-  if (/reverse\s*(?:stock\s*)?split/i.test(proposalText)) {
-    return "Shareholders are voting on whether to authorize a reverse stock split. Key terms are summarized below.";
-  }
-  if (/authorized/i.test(proposalText)) {
-    return "Shareholders are voting on proposed share-capacity changes. Key terms are summarized below.";
-  }
-  return "Shareholders are voting on capital structure changes. Key terms are summarized below.";
 }
 
 function buildProxyVoteIntro(data: Record<string, unknown>, proposals: ProxyProposalItem[], displayVersion: string) {
@@ -3926,7 +3499,7 @@ function buildProxyVoteIntro(data: Record<string, unknown>, proposals: ProxyProp
     return "Shareholders are voting on a proposed merger or transaction.";
   }
   if (/reverse\s*(?:stock\s*)?split|authorized shares|capital structure|listing compliance/i.test(haystack)) {
-    return buildProxyCapitalStructureIntro(data).replace(" Key terms are summarized below.", "");
+    return "Shareholders are voting on capital structure changes.";
   }
   if (/equity plan|incentive plan|stock option plan|share reserve/i.test(haystack)) {
     return "Shareholders are voting on an equity plan or share reserve proposal.";

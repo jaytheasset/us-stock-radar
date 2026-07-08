@@ -23,7 +23,6 @@ import { buildS1F1AnalysisPrompt } from "@/lib/sources/sec/forms/s1-f1/analysisP
 import { parseS1F1Filing } from "@/lib/sources/sec/forms/s1-f1/parser";
 import {
   buildProxyAnalysisPrompt,
-  buildProxyLlmRouterPlaceholder,
 } from "@/lib/sources/sec/forms/proxy/analysisPrompt";
 import { parseProxyFiling } from "@/lib/sources/sec/forms/proxy/parser";
 import { supabaseDelete, supabaseSelect } from "@/lib/supabase";
@@ -1899,8 +1898,7 @@ async function readRoomFiles(room: SecDevRoom, testFiles: string[], fixtures: st
     ["parser", "parser.ts"],
     ["adapter", "adapter.ts"],
     ["adapter", "index.ts"],
-    ["prompt", "routerPrompt.ts"],
-    ["prompt", "router.ts"],
+    ...(room.key === "proxy" ? [] : ([["prompt", "routerPrompt.ts"], ["prompt", "router.ts"]] as const)),
     ["prompt", "analysisPrompt.ts"],
     ["prompt", "analysis.ts"],
     ["display", "displayPayload.ts"],
@@ -2021,7 +2019,7 @@ function resolveOutputPreviewFormType(
 
 async function readPromptPreviews(room: SecDevRoom): Promise<SecDevPromptPreview[]> {
   const base = path.join(FORMS_ROOT, room.folder);
-  const promptFiles = ["routerPrompt.ts", "router.ts", "analysisPrompt.ts", "analysis.ts"];
+  const promptFiles = room.key === "proxy" ? ["analysisPrompt.ts", "analysis.ts"] : ["routerPrompt.ts", "router.ts", "analysisPrompt.ts", "analysis.ts"];
   const previews: SecDevPromptPreview[] = [];
 
   for (const file of promptFiles) {
@@ -2125,15 +2123,12 @@ function buildProxyPromptVariantPreviews() {
       "The record date is April 16, 2026.",
     ].join("\n"),
   });
-  const routerDecision = buildProxyLlmRouterPlaceholder();
-
   return [
     {
       name: "Default proxy",
       text: normalizePromptPreviewText(
         buildProxyAnalysisPrompt({
           parserOutput: previewParserOutput,
-          routerDecision,
         }),
       ),
     },

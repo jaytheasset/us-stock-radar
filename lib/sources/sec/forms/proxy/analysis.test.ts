@@ -3,10 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { APPROVED_PROXY_EVENT_TYPES, parseProxyFiling } from "./parser.ts";
-import {
-  buildProxyAnalysisPrompt,
-  buildProxyLlmRouterPlaceholder,
-} from "./analysisPrompt.ts";
+import { buildProxyAnalysisPrompt } from "./analysisPrompt.ts";
 
 const CASES = [
   "annual-meeting-routine",
@@ -28,10 +25,8 @@ const currentDir = path.dirname(fileURLToPath(import.meta.url));
 for (const caseName of CASES) {
   const fixture = readJson(`fixtures/${caseName}.json`);
   const parserOutput = parseProxyFiling(fixture.input);
-  const routerDecision = buildProxyLlmRouterPlaceholder();
   const prompt = buildProxyAnalysisPrompt({
     parserOutput,
-    routerDecision,
     marketContext: fixture.input.market_context ?? null,
   });
 

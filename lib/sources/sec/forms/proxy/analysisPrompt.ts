@@ -3,12 +3,10 @@ import {
   type ProxyParserOutput,
 } from "./parser.ts";
 import type { ProxyDisplayPayload } from "./displayPayload.ts";
-import type { ProxyRouterDecision } from "./routerPrompt.ts";
-import { buildProxySourceBlockPromptInput } from "./routerPrompt.ts";
+import { buildProxySourceBlockPromptInput } from "./sourceInput.ts";
 
 export interface ProxyAnalysisPromptInput {
   parserOutput: ProxyParserOutput;
-  routerDecision: ProxyRouterDecision;
   marketContext?: Record<string, unknown> | null;
 }
 
@@ -30,7 +28,6 @@ export function buildProxyAnalysisPrompt(input: ProxyAnalysisPromptInput): strin
     "",
     "Return JSON only in this exact top-level shape:",
     JSON.stringify(requiredOutputSkeleton(), null, 2),
-    ...proxyRuntimeHintSections(input.routerDecision),
     "",
     "cleaned_source_blocks:",
     JSON.stringify(buildProxySourceBlockPromptInput(input.parserOutput, input.marketContext ?? null), null, 2),
@@ -49,7 +46,6 @@ function proxyOpeningInstructions(): string[] {
     "Do not copy parser labels or SEC boilerplate as prose. Rewrite source-backed facts in clear investor language.",
     "Choose event_type yourself from the source blocks.",
     "Always use display_payload.display_type = proxy_vote and display_payload.display_version = proxy_vote_v1.",
-    "Treat router_decision as a non-binding parser hint only. It may be a placeholder and must not control the final UI.",
     "If market context exists, use only the fixture JSON market_context provided below.",
     "Preserve parser warnings when the filing is preliminary, notice-only, supplemental, image-heavy, or filed by a third-party solicitor.",
   ];
@@ -77,7 +73,7 @@ function proxyDisplayInstructions(): string[] {
     "Each proposal.details item uses label and value. Omit note by default because the UI is compact. Use note only when the value would be misleading without a source-stated condition, and keep note under 80 characters.",
     "For DEFA14A or other additional proxy materials that only add solicitation materials, presentations, websites, ads, letters, or campaign updates, do not invent an N/A proposal row or snapshot tiles. Use proposals: [], snapshot: [], and explain the update in summary_sentence.",
     "For archive-level supplemental proxy materials with no new proposal or vote change, use summary_title = Proxy Materials Update, keep summary_sentence concise, and set analysis_output.what_to_watch_next = [] and analysis_output.key_evidence = [].",
-    "Do not create separate proposal_modules. Put proposal-specific details inside the matching proposal.details array.",
+    "Do not create separate proposal module arrays. Put proposal-specific details inside the matching proposal.details array.",
     "- display_payload.data.expected_followup_forms: optional internal list of likely follow-up filing forms. This is not UI copy. Do not force these form names into what_to_watch_next.",
     "Do not put proposal-specific facts only in summary. If a fact matters to a proposal-based proxy UI, put it in display_payload.data.snapshot or display_payload.data.proposals.",
     "display_payload.evidence and display_payload.notes are optional support only. They do not replace display_payload.data and may be empty when visible data is complete.",
@@ -146,29 +142,6 @@ function proxyScoringInstructions(): string[] {
     "- Avoid 90+ unless the source shows an extreme outcome: deal break, failed vote, immediate delisting risk, financing failure, regulatory block, or actual control change.",
     "- score_explanation.summary must match the chosen score band and visible UI. It should not introduce a new fact that is absent from display_payload.data, key_evidence, or the source blocks.",
   ];
-}
-
-function proxyRuntimeHintSections(routerDecision: ProxyRouterDecision): string[] {
-  return [
-    "",
-    "parser_route_hint_non_binding:",
-    JSON.stringify(routerDecision, null, 2),
-  ];
-}
-
-export function buildProxyLlmRouterPlaceholder(): ProxyRouterDecision {
-  return {
-    stage: "router",
-    usesLlm: true,
-    analysis_needed: true,
-    event_type: "other",
-    display_type: "proxy_vote",
-    display_version: "proxy_vote_v1",
-    preliminary_action: "analyze",
-    preliminary_score: 50,
-    rationale: "Placeholder only. The analysis prompt must classify the proxy event and fill the unified proxy vote UI.",
-    analysis_focus: ["Classify proxy event", "Fill unified proxy vote UI fields"],
-  };
 }
 
 export function buildProxyLlmDisplayPayloadPlaceholder(): ProxyDisplayPayload {

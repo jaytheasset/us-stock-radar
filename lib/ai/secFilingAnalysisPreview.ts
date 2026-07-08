@@ -86,7 +86,6 @@ import { parseSc13Filing } from "@/lib/sources/sec/forms/sc13/parser";
 import type { Sc13ParserOutput } from "@/lib/sources/sec/forms/sc13/types";
 import {
   buildProxyAnalysisPrompt,
-  buildProxyLlmRouterPlaceholder,
   SEC_PROXY_ANALYSIS_PROMPT_KEY,
   SEC_PROXY_ANALYSIS_PROMPT_VERSION,
 } from "@/lib/sources/sec/forms/proxy/analysisPrompt";
@@ -2496,7 +2495,6 @@ function buildSecProxyAnalysisPromptForInput(
   if (!parserOutput) {
     throw new Error("SEC proxy parser output is missing from filing package");
   }
-  const routerDecision = buildProxyLlmRouterPlaceholder();
   const marketContext = readRecord(readRecord(input.filing_package)?.market_context);
 
   return {
@@ -2510,7 +2508,6 @@ function buildSecProxyAnalysisPromptForInput(
     ].join("\n"),
     user: buildProxyAnalysisPrompt({
       parserOutput,
-      routerDecision,
       marketContext,
     }),
     responseFormat: {

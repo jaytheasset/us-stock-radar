@@ -7,15 +7,13 @@ import {
 import {
   buildProxyAnalysisPrompt,
   buildProxyLlmDisplayPayloadPlaceholder,
-  buildProxyLlmRouterPlaceholder,
   deriveDeliveryLevel,
   type ProxyAnalysisPromptInput,
 } from "./analysisPrompt.ts";
 import type { ProxyDisplayPayload } from "./displayPayload.ts";
-import type { ProxyRouterDecision } from "./routerPrompt.ts";
 
 export const PROXY_ADAPTER_KEY = "sec_proxy";
-export const PROXY_ANALYSIS_MODE = "router_required";
+export const PROXY_ANALYSIS_MODE = "analysis_only";
 
 export const PROXY_SUPPORTED_FORMS = [
   "DEF 14A",
@@ -43,7 +41,6 @@ export interface ProxyAdapterRuntimeInput {
 
 export interface ProxyAdapterRuntimePackage {
   parser_output: ProxyParserOutput;
-  router_decision: ProxyRouterDecision;
   display_payload: ProxyDisplayPayload;
   analysis_prompt: string | null;
   analysis_output: Record<string, unknown> | null;
@@ -59,18 +56,15 @@ export function isProxySupportedForm(formType: string | null | undefined): boole
 
 export function buildProxyRuntimePackage(input: ProxyAdapterRuntimeInput): ProxyAdapterRuntimePackage {
   const parserOutput = parseProxyFiling(input.parserInput);
-  const routerDecision = buildProxyLlmRouterPlaceholder();
   const displayPayload = buildProxyLlmDisplayPayloadPlaceholder();
   const deterministicAnalysis = null;
   const analysisPrompt = buildProxyAnalysisPrompt({
     parserOutput,
-    routerDecision,
     marketContext: input.marketContext ?? input.parserInput.market_context ?? null,
   });
 
   return {
     parser_output: parserOutput,
-    router_decision: routerDecision,
     display_payload: displayPayload,
     analysis_prompt: analysisPrompt,
     analysis_output: deterministicAnalysis,
