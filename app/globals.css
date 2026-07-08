@@ -7230,18 +7230,8 @@ td {
 }
 
 .proxy-agenda-proposal-heading {
-  display: grid;
-  grid-template-columns: 36px minmax(0, 1fr);
-  gap: 10px;
-  align-items: start;
-}
-
-.proxy-agenda-proposal-id {
+  display: block;
   min-width: 0;
-  color: #40506b;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.35;
 }
 
 .proxy-agenda-proposal-main {
@@ -7269,7 +7259,24 @@ td {
   line-height: 1.35;
 }
 
+.proxy-agenda-proposal-copy {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px;
+  min-width: 0;
+  align-items: baseline;
+}
+
+.proxy-agenda-proposal-number {
+  grid-column: 1;
+  color: #40506b;
+  font-size: 15px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
 .proxy-agenda-proposal-main strong {
+  grid-column: 2;
   min-width: 0;
   color: #07122f;
   font-size: 15px;
@@ -7285,6 +7292,7 @@ td {
 }
 
 .proxy-agenda-explanation {
+  grid-column: 2;
   display: flex;
   gap: 8px;
   align-items: flex-start;
@@ -7341,7 +7349,7 @@ td {
 .proxy-agenda-detail-list {
   display: grid;
   gap: 0;
-  margin-left: 88px;
+  margin-left: 22px;
   padding: 2px 0 0;
   border-top: 1px solid rgba(219, 227, 238, 0.8);
 }
@@ -7443,6 +7451,7 @@ html[data-theme="dark"] .proxy-agenda-detail-row span:last-child {
   color: #e5eefc;
 }
 
+html[data-theme="dark"] .proxy-agenda-proposal-number,
 html[data-theme="dark"] .proxy-agenda-detail-row span,
 html[data-theme="dark"] .proxy-agenda-detail-row p {
   color: #9fb0c8;
@@ -7459,7 +7468,7 @@ html[data-theme="dark"] .proxy-agenda-explanation span {
 
 @media (max-width: 1180px) {
   .proxy-agenda-detail-list {
-    margin-left: 46px;
+    margin-left: 22px;
   }
 
   .proxy-agenda-detail-row {
@@ -7487,11 +7496,6 @@ html[data-theme="dark"] .proxy-agenda-explanation span {
     border-bottom: 0;
   }
 
-  .proxy-agenda-proposal-heading {
-    grid-template-columns: 28px minmax(0, 1fr);
-    gap: 8px;
-  }
-
   .proxy-agenda-proposal-meta {
     gap: 4px;
   }
@@ -7502,6 +7506,10 @@ html[data-theme="dark"] .proxy-agenda-explanation span {
   }
 
   .proxy-agenda-proposal-main strong {
+    font-size: 14px;
+  }
+
+  .proxy-agenda-proposal-number {
     font-size: 14px;
   }
 
@@ -7537,7 +7545,7 @@ html[data-theme="dark"] .proxy-agenda-explanation span {
   }
 
   .proxy-agenda-detail-list {
-    margin-left: 36px;
+    margin-left: 0;
     padding: 2px 0 0;
   }
 
@@ -7558,10 +7566,6 @@ html[data-theme="dark"] .proxy-agenda-explanation span {
 @media (max-width: 420px) {
   .proxy-agenda-row {
     grid-template-columns: 64px minmax(0, 1fr);
-  }
-
-  .proxy-agenda-detail-list {
-    padding-left: 76px;
   }
 }
 

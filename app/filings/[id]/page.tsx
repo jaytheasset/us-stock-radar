@@ -3395,22 +3395,24 @@ function ProxyProposalAgenda({ proposals }: { proposals: ProxyProposalItem[] }) 
         {proposals.map((proposal) => (
           <div className="proxy-agenda-row-group" key={`${proposal.id}-${proposal.title}`}>
             <div className="proxy-agenda-proposal-heading">
-              <span className="proxy-agenda-proposal-id">{proposal.id}</span>
               <div className="proxy-agenda-proposal-main">
                 <div className="proxy-agenda-proposal-meta">
                   <span>{proposal.category}</span>
                   {proposal.isShareholderProposal ? <span>Shareholder proposal</span> : null}
                   <span>Board {proposal.recommendation || "Not disclosed"}</span>
                 </div>
-                <strong>{proposal.title}</strong>
-                {proposal.explanation ? (
-                  <div className="proxy-agenda-explanation">
-                    <span aria-label="Plain-English explanation" title="Plain-English explanation">
-                      <Info size={12} strokeWidth={2.4} aria-hidden="true" />
-                    </span>
-                    <p>{proposal.explanation}</p>
-                  </div>
-                ) : null}
+                <div className="proxy-agenda-proposal-copy">
+                  <span className="proxy-agenda-proposal-number">{proposal.id}.</span>
+                  <strong>{proposal.title}</strong>
+                  {proposal.explanation ? (
+                    <div className="proxy-agenda-explanation">
+                      <span aria-label="Plain-English explanation" title="Plain-English explanation">
+                        <Info size={12} strokeWidth={2.4} aria-hidden="true" />
+                      </span>
+                      <p>{proposal.explanation}</p>
+                    </div>
+                  ) : null}
+                </div>
               </div>
             </div>
             {proposal.details.length ? (
