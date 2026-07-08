@@ -66,7 +66,6 @@ export const form25FormAdapter = {
   buildAnalysisPrompt: (parserOutput: SecForm25ParserOutput) =>
     buildSecForm25AnalysisPromptDraft({
       parser_output: parserOutput,
-      router_result: {},
     }),
 };
 
@@ -111,7 +110,6 @@ function nullableString(value: unknown) {
 }
 
 export { buildSecForm25AnalysisPromptDraft } from "./analysisPrompt";
-export { buildSecForm25RouterInput, buildSecForm25RouterPromptDraft } from "./routerPrompt";
 export { buildSecForm25DisplayPayload, resolveSecForm25SelectedClassification } from "./displayPayload";
 export { parseSecForm25Filing } from "./parser";
 export type { SecForm25ParserOutput } from "./parser";

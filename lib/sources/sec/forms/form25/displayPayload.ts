@@ -1,7 +1,5 @@
 import {
-  SEC_FORM25_APPROVED_EVENT_TYPES,
   SEC_FORM25_DISPLAY_PAYLOAD_VERSION,
-  SEC_FORM25_DISPLAY_TYPE_VALUES,
   type SecForm25ApprovedEventType,
   type SecForm25DisplayType,
   type SecForm25ParserOutput,
@@ -11,7 +9,7 @@ export type SecForm25SelectedClassification = {
   event_type: SecForm25ApprovedEventType;
   display_type: SecForm25DisplayType;
   display_version: typeof SEC_FORM25_DISPLAY_PAYLOAD_VERSION;
-  classification_source: "parser_deterministic" | "router" | "fallback";
+  classification_source: "parser_deterministic" | "fallback";
   routing_reason: string;
   analysis_llm_needed: boolean;
   needs_human_review: boolean;
@@ -25,40 +23,30 @@ export type SecForm25DisplayPayload = {
   notes: string[];
 };
 
-export function resolveSecForm25SelectedClassification(
-  parserOutput: SecForm25ParserOutput,
-  routerResult: Record<string, unknown>
-): SecForm25SelectedClassification {
+export function resolveSecForm25SelectedClassification(parserOutput: SecForm25ParserOutput): SecForm25SelectedClassification {
   const facts = parserOutput.facts;
-  const routerEventType = approvedEventType(routerResult.event_type);
   const parserEventType = facts.routing.event_type;
-  const eventType = routerEventType || parserEventType || facts.routing.suggested_event_types[0] || "other";
-  const routerDisplayType = displayType(routerResult.display_type);
-  const displayTypeValue = routerDisplayType || facts.routing.display_type || "sec_form25_listing_removal";
-  const displayVersion =
-    routerResult.display_version === SEC_FORM25_DISPLAY_PAYLOAD_VERSION
-      ? SEC_FORM25_DISPLAY_PAYLOAD_VERSION
-      : facts.routing.display_version || SEC_FORM25_DISPLAY_PAYLOAD_VERSION;
-  const usedRouter = Boolean(routerEventType);
-  const usedFallback = !usedRouter && !parserEventType;
+  const eventType = parserEventType || facts.routing.suggested_event_types[0] || "other";
+  const displayTypeValue = facts.routing.display_type || "sec_form25_listing_removal";
+  const displayVersion = facts.routing.display_version || SEC_FORM25_DISPLAY_PAYLOAD_VERSION;
+  const usedFallback = !parserEventType;
 
   return {
     event_type: eventType,
     display_type: displayTypeValue,
     display_version: displayVersion,
-    classification_source: usedRouter ? "router" : usedFallback ? "fallback" : "parser_deterministic",
+    classification_source: usedFallback ? "fallback" : "parser_deterministic",
     routing_reason:
-      stringValue(routerResult.routing_reason) ||
       facts.routing.classification_reason ||
-      "No router result was supplied; using parser suggested event type.",
-    analysis_llm_needed: booleanValue(routerResult.analysis_llm_needed) ?? facts.routing.analysis_llm_required,
-    needs_human_review: booleanValue(routerResult.needs_human_review) ?? facts.routing.router_required,
+      "Using parser suggested event type.",
+    analysis_llm_needed: facts.routing.analysis_llm_required,
+    needs_human_review: facts.routing.router_required,
   };
 }
 
 export function buildSecForm25DisplayPayload(
   parserOutput: SecForm25ParserOutput,
-  selectedClassification = resolveSecForm25SelectedClassification(parserOutput, {})
+  selectedClassification = resolveSecForm25SelectedClassification(parserOutput)
 ): SecForm25DisplayPayload {
   return {
     display_type: selectedClassification.display_type,
@@ -97,7 +85,6 @@ export function summarizeForm25ForDisplay(parserOutput: SecForm25ParserOutput) {
     consideration_summary: facts.consideration_summary?.value || null,
     ipo_kind: null,
     deterministic_case: facts.filing_meaning.case,
-    router_required: facts.routing.router_required,
   };
 }
 
@@ -116,32 +103,12 @@ function buildDisplayNotes(parserOutput: SecForm25ParserOutput, selectedClassifi
     `display_payload_version:${selectedClassification.display_version}`,
     `classification_source:${selectedClassification.classification_source}`,
     selectedClassification.analysis_llm_needed ? "analysis_llm_needed" : "analysis_llm_optional",
-    parserOutput.facts.routing.router_required ? "router_required" : "router_not_required",
+    selectedClassification.needs_human_review ? "human_review_needed" : "human_review_not_needed",
     ...parserOutput.warnings.map((warning) => `warning:${warning}`),
     `document_count:${parserOutput.raw.sourceInventory.documents.length}`,
     `attachment_count:${parserOutput.raw.sourceInventory.attachments.length}`,
   ];
   return [...new Set(notes)].slice(0, 12);
-}
-
-function approvedEventType(value: unknown): SecForm25ApprovedEventType | null {
-  return typeof value === "string" && SEC_FORM25_APPROVED_EVENT_TYPES.includes(value as SecForm25ApprovedEventType)
-    ? (value as SecForm25ApprovedEventType)
-    : null;
-}
-
-function displayType(value: unknown): SecForm25DisplayType | null {
-  return typeof value === "string" && SEC_FORM25_DISPLAY_TYPE_VALUES.includes(value as SecForm25DisplayType)
-    ? (value as SecForm25DisplayType)
-    : null;
-}
-
-function booleanValue(value: unknown) {
-  return typeof value === "boolean" ? value : null;
-}
-
-function stringValue(value: unknown) {
-  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 function truncate(value: string, max: number) {

@@ -13,28 +13,8 @@ import {
 const sentinel = "RAW_FORM25_FULL_TEXT_SENTINEL_SHOULD_NOT_REACH_PROMPTS";
 const fixturesDir = join(process.cwd(), "lib", "sources", "sec", "forms", "form25", "fixtures");
 const parsed = parseSecForm25Filing(readFixture("merger-completion-removal.json"));
-const routerResult = {
-  source_group: "filings",
-  source_form_type: "25-NSE",
-  analysis_family: "sec_form25_listing_removal",
-  event_type: "strategic_transaction",
-  display_type: "sec_form25_listing_removal",
-  display_version: "sec_form25_listing_removal_v1",
-  confidence: "high",
-  route_case: "merger_completion_removal",
-  routing_reason: "Completed merger removal.",
-  analysis_llm_needed: false,
-  evidence: ["The merger between Hess Corporation and Chevron Corporation became effective."],
-  parser_facts_used: ["removal_reason_category", "consideration_summary"],
-  needs_human_review: false,
-  debug: {
-    parser_version: "sec_form25_parser_v1",
-    router_prompt_key: "sec_form25_router_draft",
-    router_prompt_version: "v1"
-  }
-};
-const analysisInput = buildSecForm25AnalysisInput({ parser_output: parsed, router_result: routerResult });
-const analysisPrompt = buildSecForm25AnalysisPromptDraft({ parser_output: parsed, router_result: routerResult });
+const analysisInput = buildSecForm25AnalysisInput({ parser_output: parsed });
+const analysisPrompt = buildSecForm25AnalysisPromptDraft({ parser_output: parsed });
 
 assert.equal(analysisPrompt.key, "sec_form25_analysis_draft");
 assert.deepEqual(secForm25RequiredOutputSchema.required, ["parser_output", "analysis_output", "display_payload", "fixture_expected"]);
@@ -72,7 +52,6 @@ assert.equal(displayData.trading_suspension_date, "2025-07-18");
 assert.equal(displayData.successor_or_acquirer, "Hess Corporation / Chevron Corporation");
 assert.equal(displayData.ipo_kind, null);
 assert.equal(displayData.deterministic_case, "merger_completion_removal");
-assert.equal(displayData.router_required, false);
 assert.equal(buildSecForm25DisplayPayload(parsed, analysisInput.selected_classification).display_type, "sec_form25_listing_removal");
 
 console.log("sec form25 analysis prompt checks passed");

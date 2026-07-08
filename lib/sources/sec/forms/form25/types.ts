@@ -23,4 +23,4 @@ export type {
   SecForm25SelectedClassification,
 } from "./displayPayload";
 export type { SecForm25AnalysisPromptInput } from "./analysisPrompt";
-export type { SecForm25RouterPromptInput } from "./routerPrompt";
+export type { SecForm25SourceBlockInput } from "./sourceBlocks";

@@ -658,7 +658,6 @@ function makeForm25SampleFilingEvent(): FilingEvent {
         consideration_summary: "Not applicable",
         ipo_kind: null,
         deterministic_case: null,
-        router_required: false,
       },
       evidence: [
         "Form 25 filed by Nasdaq Stock Market LLC.",

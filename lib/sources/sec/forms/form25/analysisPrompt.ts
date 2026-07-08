@@ -11,12 +11,7 @@ import {
   type SecForm25DisplayPayload,
   type SecForm25SelectedClassification,
 } from "./displayPayload";
-import {
-  SEC_FORM25_ROUTER_PROMPT_KEY,
-  SEC_FORM25_ROUTER_PROMPT_VERSION,
-  buildSecForm25RouterInput,
-  type SecForm25RouterPromptInput,
-} from "./routerPrompt";
+import { buildSecForm25SourceBlockInput, type SecForm25SourceBlockInput } from "./sourceBlocks";
 
 export const SEC_FORM25_ANALYSIS_PROMPT_KEY = "sec_form25_analysis_draft";
 export const SEC_FORM25_ANALYSIS_PROMPT_VERSION = "v1";
@@ -25,8 +20,7 @@ export const SEC_FORM25_MARKET_SCOPE_VALUES = ["company", "sector", "theme", "ma
 export const SEC_FORM25_SIGNAL_VALUES = ["bullish", "bearish", "volatile", "neutral"] as const;
 export const SEC_FORM25_CONFIDENCE_VALUES = ["high", "medium", "low"] as const;
 
-export type SecForm25AnalysisPromptInput = SecForm25RouterPromptInput & {
-  router_result: Record<string, unknown>;
+export type SecForm25AnalysisPromptInput = SecForm25SourceBlockInput & {
   market_context?: Record<string, unknown> | null;
 };
 
@@ -45,10 +39,10 @@ export const secForm25AnalysisSystemPrompt = [
   "Use selected_classification.event_type for analysis_output.event_type exactly.",
   "Return prebuilt_display_payload as display_payload exactly; do not invent UI fields or a new display type.",
   "Use cleaned_source_blocks and selected classification as the evidence base. Do not invent facts, dates, tickers, exchanges, security classes, merger parties, or listing venues.",
-  "Do not use parser-generated facts, signals, route hints, routing flags, extraction summaries, event labels, display labels, or investment labels as analysis authority.",
+  "Do not use parser-generated facts, signals, extraction summaries, event labels, display labels, or investment labels as analysis authority.",
   "If the parser did not provide a source-backed primary ticker, keep primary_ticker.ticker null and do not treat the filing as archive-ready.",
   "Do not request or rely on full raw filing text. The user payload intentionally excludes it.",
-  "The parser or router/classifier has already selected event_type and display_type. You choose only signal, score, confidence, human-review status, and concise investor-facing wording.",
+  "The parser/classifier has already selected event_type and display_type. You choose only signal, score, confidence, human-review status, and concise investor-facing wording.",
   "Clear matured, redeemed, retired, or paid-at-maturity non-common securities should usually be neutral, score 0-39, and low-impact archive when common equity is not affected and no source evidence shows credit or legal stress.",
   "Do not describe a routine maturity, redemption, retirement, or paid-at-maturity non-common removal as listing_risk merely because Form 25 removes the class from an exchange.",
   "Use listing_risk, financial_risk, or legal_risk for a non-common removal only when source evidence mentions listing-standard failure, bankruptcy, insolvency, receivership, default, litigation, or other legal stress.",
@@ -244,7 +238,6 @@ export const secForm25RequiredOutputSchema = {
             "consideration_summary",
             "ipo_kind",
             "deterministic_case",
-            "router_required",
           ],
           properties: {
             accession_number: { type: ["string", "null"] },
@@ -272,7 +265,6 @@ export const secForm25RequiredOutputSchema = {
             consideration_summary: { type: ["string", "null"] },
             ipo_kind: { enum: ["traditional", "spac", null] },
             deterministic_case: { type: ["string", "null"] },
-            router_required: { type: "boolean" },
           },
         },
         evidence: { type: "array", items: { type: "string" } },
@@ -324,17 +316,16 @@ export function buildSecForm25AnalysisPromptDraft(input: SecForm25AnalysisPrompt
 }
 
 export function buildSecForm25AnalysisInput(input: SecForm25AnalysisPromptInput) {
-  const selectedClassification = resolveSecForm25SelectedClassification(input.parser_output, input.router_result);
+  const selectedClassification = resolveSecForm25SelectedClassification(input.parser_output);
   const prebuiltDisplayPayload = buildSecForm25DisplayPayload(input.parser_output, selectedClassification);
 
   return {
-    cleaned_source_blocks_input: buildSecForm25RouterInput({
+    cleaned_source_blocks_input: buildSecForm25SourceBlockInput({
       parser_output: input.parser_output,
       fixture_context: input.fixture_context || null,
     }),
     selected_classification: selectedClassification,
     prebuilt_display_payload: prebuiltDisplayPayload,
-    router_result: input.router_result,
     market_context: input.market_context || null,
     output_shape: {
       required_top_level_keys: ["parser_output", "analysis_output", "display_payload", "fixture_expected"],
