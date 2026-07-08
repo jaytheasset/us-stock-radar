@@ -86,14 +86,14 @@ import { parseSc13Filing } from "@/lib/sources/sec/forms/sc13/parser";
 import type { Sc13ParserOutput } from "@/lib/sources/sec/forms/sc13/types";
 import {
   buildProxyAnalysisPrompt,
+  buildProxyLlmDisplayPayloadPlaceholder,
+  buildProxyLlmRouterPlaceholder,
   normalizeProxyAnalysisPromptVariant,
   SEC_PROXY_ANALYSIS_PROMPT_KEY,
   SEC_PROXY_ANALYSIS_PROMPT_VERSION,
   SEC_PROXY_SECTIONED_TEST_PROMPT_VERSION,
 } from "@/lib/sources/sec/forms/proxy/analysisPrompt";
-import { buildProxyDisplayPayload } from "@/lib/sources/sec/forms/proxy/displayPayload";
 import type { ProxyParserOutput } from "@/lib/sources/sec/forms/proxy/parser";
-import { routeProxyFiling } from "@/lib/sources/sec/forms/proxy/routerPrompt";
 import { supabaseSelect } from "@/lib/supabase";
 
 type PreviewOptions = {
@@ -169,6 +169,7 @@ type SecLlmOptions = {
 type SecLlmConfig = {
   provider: SecLlmProvider;
   model: string;
+  fallbackModel?: string;
   apiKey: string;
   apiKeyEnvName: "OPENAI_API_KEY" | "GEMINI_API_KEY";
 };
@@ -224,8 +225,6 @@ const PROXY_LIGHTWEIGHT_IPO_LISTING_BLOCKER_PATTERN =
   /\b(?:spac|de-spac|de\s+spac|special\s+purpose\s+acquisition|blank\s+check|business\s+combination|merger(?:\s+agreement)?|acquisition|redemption|liquidation|dissolution|minimum\s+cash|closing\s+condition|ticker\s+change|consummation|reverse\s+stock\s+split|minimum\s+bid|delisting|nasdaq\s+compliance|nyse\s+compliance|authorized\s+shares?|share\s+issuance|issuance\s+of\s+shares|contested|dissident|proxy\s+contest|universal\s+proxy|poison\s+pill|bylaw|charter\s+amendment|certificate\s+of\s+incorporation|regulatory\s+investigation|litigation|antitrust|sanctions)\b/i;
 const PROXY_LIGHTWEIGHT_EQUITY_PLAN_BLOCKER_PATTERN =
   /\b(?:reverse\s+stock\s+split|minimum\s+bid|delisting|nasdaq\s+compliance|nyse\s+compliance|authorized\s+shares?|employee\s+stock\s+purchase\s+plan|espp|repricing|evergreen|business\s+combination|merger(?:\s+agreement)?|acquisition|asset\s+sale|liquidation|dissolution|contested|dissident|proxy\s+contest|universal\s+proxy|poison\s+pill|bylaw|charter\s+amendment|certificate\s+of\s+incorporation|regulatory\s+investigation|litigation|antitrust|sanctions)\b/i;
-const PROXY_LIGHTWEIGHT_CAPITAL_STRUCTURE_BLOCKER_PATTERN =
-  /\b(?:equity\s+incentive\s+plan|stock\s+incentive\s+plan|employee\s+stock\s+purchase\s+plan|espp|repricing|evergreen|share\s+issuance|issuance\s+of\s+shares|private\s+placement|financing|business\s+combination|merger(?:\s+agreement)?|acquisition|asset\s+sale|liquidation|dissolution|contested|dissident|proxy\s+contest|universal\s+proxy|poison\s+pill|classified\s+board|declassify|independent\s+chair|bylaw|regulatory\s+investigation|litigation|antitrust|sanctions)\b/i;
 
 export type SecFilingAnalysisRunResult = {
   ok: boolean;
@@ -1416,7 +1415,7 @@ export async function runSecFilingAnalysisForRawRow(
   }
 
   const proxyPromptVariant = normalizeProxyAnalysisPromptVariant(options.secPromptVariant);
-  if (isProxyFilingInput(input) && proxyPromptVariant !== "default") {
+  if (isProxyFilingInput(input)) {
     await attachSecMarketContext(input);
     const prompt = buildSecProxyAnalysisPromptForInput(input, { promptVariant: proxyPromptVariant });
     const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
@@ -1425,6 +1424,7 @@ export async function runSecFilingAnalysisForRawRow(
         ok: false,
         stage: "openai",
         status: analysisRun.status,
+        model: analysisRun.model,
         error: `SEC proxy analysis failed after ${analysisRun.attempts} attempt(s): ${analysisRun.error || "no parseable JSON"}`,
         sourceItem: summarizeRawRow(rawItem),
         input,
@@ -1444,6 +1444,7 @@ export async function runSecFilingAnalysisForRawRow(
         ok: false,
         stage: "openai",
         status: analysisRun.status,
+        model: analysisRun.model,
         error: proxyAnalysis.error,
         sourceItem: summarizeRawRow(rawItem),
         input,
@@ -1461,14 +1462,14 @@ export async function runSecFilingAnalysisForRawRow(
       ok: true,
       stage: "complete",
       status: analysisRun.status,
-      model: llmConfig.model,
+      model: analysisRun.model,
       openAiResponseId: analysisRun.openAiResponseId,
       sourceItem: summarizeRawRow(rawItem),
       input,
       analysis: proxyAnalysis.analysis,
       outputText: analysisRun.outputText,
       usage: analysisRun.usage,
-      costEstimate: estimateCost(llmConfig.model, analysisRun.usage),
+      costEstimate: estimateCost(analysisRun.model, analysisRun.usage),
       prompt: {
         key: prompt.key,
         version: prompt.version,
@@ -1545,14 +1546,20 @@ function resolveSecLlmConfig(
     env.secAnalysisAllowOpenAi,
   );
   if (provider === "gemini") {
+    const model = (
+      options.llmModel ||
+      resolveGeminiModelForSecInput(env, input) ||
+      env.geminiModel ||
+      "gemini-2.5-flash"
+    ).trim();
+    const fallbackModel =
+      input && isLightweightProxyLlmCandidate(input) && model !== "gemini-2.5-flash"
+        ? "gemini-2.5-flash"
+        : undefined;
     return {
       provider,
-      model: (
-        options.llmModel ||
-        resolveGeminiModelForSecInput(env, input) ||
-        env.geminiModel ||
-        "gemini-2.5-flash"
-      ).trim(),
+      model,
+      fallbackModel,
       apiKey: env.geminiApiKey,
       apiKeyEnvName: "GEMINI_API_KEY",
     };
@@ -1592,7 +1599,6 @@ function isLightweightProxyLlmCandidate(input: SecFilingAnalysisInput) {
   if (isRoutineAnnualProxyLiteCandidate(facts, proposals, explicitProxyText)) return true;
   if (isCleanIpoListingProxyLiteCandidate(facts, signals, explicitProxyText)) return true;
   if (isCleanEquityPlanProxyLiteCandidate(facts, signals, explicitProxyText)) return true;
-  if (isCleanCapitalStructureProxyLiteCandidate(facts, signals, explicitProxyText)) return true;
 
   return false;
 }
@@ -1655,31 +1661,6 @@ function isCleanEquityPlanProxyLiteCandidate(
     return false;
   }
   return !PROXY_LIGHTWEIGHT_EQUITY_PLAN_BLOCKER_PATTERN.test(explicitProxyText);
-}
-
-function isCleanCapitalStructureProxyLiteCandidate(
-  facts: Record<string, unknown>,
-  signals: Record<string, unknown>[],
-  explicitProxyText: string,
-) {
-  const eventTypes = proxyEventTypes(facts, signals);
-  const hasCapitalStructureVote =
-    /\b(?:reverse\s+stock\s+split|authorized\s+shares?|increase\s+(?:the\s+)?(?:number\s+of\s+)?authorized|minimum\s+bid|nasdaq\s+compliance|nyse\s+compliance|listing\s+compliance)\b/i.test(
-      explicitProxyText,
-    );
-
-  if (!hasCapitalStructureVote) return false;
-  if (
-    [...eventTypes].some(
-      (eventType) =>
-        eventType !== "listing_risk" &&
-        eventType !== "dilution_risk" &&
-        eventType !== "shareholder_vote",
-    )
-  ) {
-    return false;
-  }
-  return !PROXY_LIGHTWEIGHT_CAPITAL_STRUCTURE_BLOCKER_PATTERN.test(explicitProxyText);
 }
 
 function buildProxyRoutingText(
@@ -2647,8 +2628,8 @@ function buildSecProxyAnalysisPromptForInput(
     throw new Error("SEC proxy parser output is missing from filing package");
   }
   const promptVariant = normalizeProxyAnalysisPromptVariant(options.promptVariant);
-  const routerDecision = routeProxyFiling(parserOutput);
-  const displayPayload = buildProxyDisplayPayload(parserOutput, routerDecision.event_type);
+  const routerDecision = buildProxyLlmRouterPlaceholder();
+  const displayPayload = buildProxyLlmDisplayPayloadPlaceholder();
   const marketContext = readRecord(readRecord(input.filing_package)?.market_context);
 
   return {
@@ -2660,7 +2641,7 @@ function buildSecProxyAnalysisPromptForInput(
     system: [
       "Analyze one SEC proxy filing from cleaned source blocks.",
       "Return the full proxy Required Output JSON shape.",
-      "Use the supplied proxy router decision and display payload contract.",
+      "Choose the proxy event type and display payload from source blocks; parser hints are non-binding.",
       "Score means investor attention and urgency. Delivery is derived later from score only.",
     ].join("\n"),
     user: buildProxyAnalysisPrompt({
@@ -2689,6 +2670,7 @@ function adaptSecProxyAnalysisPromptResultForAnalysis(root: Record<string, unkno
   if (!displayPayload) {
     return { ok: false as const, error: "SEC proxy result did not contain display_payload" };
   }
+  appendSecProxyDisplayWarnings(displayPayload, validateSecProxyDisplayPayload(displayPayload));
   return {
     ok: true as const,
     analysis: {
@@ -2697,6 +2679,140 @@ function adaptSecProxyAnalysisPromptResultForAnalysis(root: Record<string, unkno
     },
   };
 }
+
+function validateSecProxyDisplayPayload(displayPayload: Record<string, unknown>): string[] {
+  const warnings: string[] = [];
+  const displayVersion = stringValue(displayPayload.display_version);
+  if (!PROXY_DISPLAY_DATA_REQUIRED_KEYS[displayVersion]) {
+    warnings.push(`SEC proxy display_payload.display_version is not allowed: ${displayVersion || "(empty)"}`);
+    return warnings;
+  }
+  const data = readRecord(displayPayload.data);
+  if (!data || Object.keys(data).length === 0) {
+    warnings.push("SEC proxy result display_payload.data was empty; selected proxy UI cannot render source facts.");
+    return warnings;
+  }
+
+  const missingKeys = PROXY_DISPLAY_DATA_REQUIRED_KEYS[displayVersion].filter((key) =>
+    !Object.prototype.hasOwnProperty.call(data, key)
+  );
+  if (missingKeys.length) {
+    warnings.push(`SEC proxy ${displayVersion} data missing required field(s): ${missingKeys.join(", ")}`);
+  }
+
+  for (const arrayKey of PROXY_DISPLAY_DATA_REQUIRED_ARRAY_KEYS[displayVersion] || []) {
+    if (!Array.isArray(data[arrayKey])) {
+      warnings.push(`SEC proxy ${displayVersion} data requires ${arrayKey} to be an array.`);
+    }
+  }
+
+  if ((PROXY_DISPLAY_DATA_REQUIRED_ARRAY_KEYS[displayVersion] || []).includes("proposals")) {
+    const proposals = readRecordArray(data.proposals);
+    if (!proposals.length) {
+      warnings.push(`SEC proxy ${displayVersion} data.proposals must include visible proposal rows.`);
+    } else {
+      const emptyProposalIndexes = proposals
+        .map((proposal, index) => (stringValue(proposal.title) ? null : index + 1))
+        .filter((value): value is number => value !== null);
+      if (emptyProposalIndexes.length) {
+        warnings.push(`SEC proxy ${displayVersion} data.proposals missing title for row(s): ${emptyProposalIndexes.join(", ")}.`);
+      }
+      const missingCategoryIndexes = proposals
+        .map((proposal, index) => (stringValue(proposal.category) ? null : index + 1))
+        .filter((value): value is number => value !== null);
+      if (missingCategoryIndexes.length) {
+        warnings.push(`SEC proxy ${displayVersion} data.proposals missing category/type for row(s): ${missingCategoryIndexes.join(", ")}.`);
+      }
+      const missingRecommendationIndexes = proposals
+        .map((proposal, index) => (stringValue(proposal.recommendation) ? null : index + 1))
+        .filter((value): value is number => value !== null);
+      if (missingRecommendationIndexes.length) {
+        warnings.push(`SEC proxy ${displayVersion} data.proposals missing board recommendation for row(s): ${missingRecommendationIndexes.join(", ")}.`);
+      }
+    }
+  }
+
+  return warnings;
+}
+
+function appendSecProxyDisplayWarnings(displayPayload: Record<string, unknown>, warnings: string[]) {
+  const uniqueWarnings = uniqueStrings(warnings);
+  if (!uniqueWarnings.length) return;
+  const data = readRecord(displayPayload.data) ?? {};
+  displayPayload.data = data;
+  data.display_warnings = uniqueStrings([...readStringArray(data.display_warnings), ...uniqueWarnings]);
+  displayPayload.notes = uniqueStrings([...readStringArray(displayPayload.notes), ...uniqueWarnings]);
+}
+
+const PROXY_DISPLAY_DATA_REQUIRED_KEYS: Record<string, string[]> = {
+  proxy_generic_v1: ["meeting_date", "record_date", "proposal_count", "board_recommendation", "proposals"],
+  proxy_ipo_listing_v1: [
+    "ipo_kind",
+    "listing_action",
+    "exchange_ticker",
+    "meeting_date",
+    "record_date",
+    "proposals",
+  ],
+  proxy_equity_plan_vote_v1: [
+    "plan_name",
+    "shares_requested",
+    "percent_of_outstanding",
+    "vote_requirement",
+    "proposals",
+  ],
+  proxy_transaction_vote_v1: [
+    "transaction_summary",
+    "consideration",
+    "vote_required",
+    "meeting_date",
+    "record_date",
+    "board_recommendation",
+    "closing_conditions",
+    "proposals",
+  ],
+  proxy_capital_structure_vote_v1: [
+    "reverse_split",
+    "capital_structure_proposals",
+    "listing_context",
+    "board_recommendation",
+    "meeting_date",
+    "record_date",
+    "proposals",
+  ],
+  proxy_governance_vote_v1: [
+    "governance_focus",
+    "contested",
+    "shareholder_or_governance_proposals",
+    "board_recommendation",
+    "meeting_date",
+    "record_date",
+    "proposals",
+  ],
+  proxy_spac_transaction_status_v1: [
+    "current_stage_label",
+    "deal_status",
+    "target_company",
+    "target_company_story",
+    "expected_ticker",
+    "vote_date",
+    "min_cash_condition",
+    "min_cash_status",
+    "redemption_rate",
+    "risk_flags",
+    "watch_next",
+  ],
+};
+
+const PROXY_DISPLAY_DATA_REQUIRED_ARRAY_KEYS: Record<string, string[]> = {
+  proxy_generic_v1: ["proposals"],
+  proxy_ipo_listing_v1: ["proposals"],
+  proxy_equity_plan_vote_v1: ["proposals"],
+  proxy_transaction_vote_v1: ["proposals"],
+  proxy_capital_structure_vote_v1: ["capital_structure_proposals", "proposals"],
+  proxy_governance_vote_v1: ["shareholder_or_governance_proposals", "proposals"],
+  proxy_spac_transaction_status_v1: ["risk_flags", "watch_next"],
+};
 
 function readProxyParserOutput(input: SecFilingAnalysisInput): ProxyParserOutput | null {
   const filingPackage = readRecord(input.filing_package);
@@ -2725,10 +2841,106 @@ const secProxyRequiredOutputSchema = {
           type: "string",
           enum: ["generic", "offering_terms", "candidate_special", "spac_transaction_status"],
         },
-        display_version: { type: "string" },
+        display_version: {
+          type: "string",
+          enum: Object.keys(PROXY_DISPLAY_DATA_REQUIRED_KEYS),
+        },
         data: {
           type: "object",
           additionalProperties: true,
+          required: ["proposals"],
+          minProperties: 1,
+          description: "Must contain visible UI fields for the selected display_version; never return an empty object. Version-specific missing fields are recorded as display_warnings, not persistence errors.",
+          properties: {
+            meeting_date: { type: ["string", "number", "null"] },
+            record_date: { type: ["string", "number", "null"] },
+            proposal_count: { type: ["string", "number", "null"] },
+            board_recommendation: { type: ["string", "null"] },
+            proposals: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: true,
+                required: ["title", "category", "recommendation"],
+                properties: {
+                  id: { type: ["string", "number", "null"] },
+                  title: { type: "string", minLength: 1 },
+                  category: { type: "string", minLength: 1 },
+                  recommendation: { type: "string", minLength: 1 },
+                  board_recommendation: { type: ["string", "null"] },
+                  is_shareholder_proposal: { type: ["boolean", "string", "null"] },
+                },
+              },
+            },
+            ipo_kind: { type: ["string", "null"] },
+            listing_action: { type: ["string", "null"] },
+            exchange_ticker: { type: ["string", "null"] },
+            plan_name: { type: ["string", "null"] },
+            shares_requested: { type: ["string", "number", "null"] },
+            percent_of_outstanding: { type: ["string", "number", "null"] },
+            vote_requirement: { type: ["string", "null"] },
+            transaction_summary: { type: ["string", "null"] },
+            consideration: { type: ["string", "null"] },
+            vote_required: { type: ["string", "null"] },
+            closing_conditions: { type: ["string", "null"] },
+            appraisal_rights_mentioned: { type: ["boolean", "string", "null"] },
+            delisting_mentioned: { type: ["boolean", "string", "null"] },
+            reverse_split: {
+              type: ["object", "null"],
+              additionalProperties: true,
+              required: ["ratio", "ratio_range", "implementation_timing", "purpose", "status", "note"],
+              properties: {
+                ratio: { type: ["string", "null"] },
+                ratio_range: { type: ["string", "null"] },
+                implementation_timing: { type: ["string", "null"] },
+                purpose: { type: ["string", "null"] },
+                status: { type: ["string", "null"] },
+                note: { type: ["string", "null"] },
+              },
+            },
+            capital_structure_proposals: {
+              type: "array",
+              minItems: 1,
+              description: "Capital-structure proposal rows such as reverse split, authorized shares, charter amendment, listing compliance, or related adjournment. Use this when display_version is proxy_capital_structure_vote_v1.",
+              items: {
+                type: "object",
+                additionalProperties: true,
+                required: ["title", "category", "recommendation"],
+                properties: {
+                  id: { type: ["string", "number", "null"] },
+                  title: { type: "string", minLength: 1 },
+                  category: { type: "string", minLength: 1 },
+                  recommendation: { type: "string", minLength: 1 },
+                  board_recommendation: { type: ["string", "null"] },
+                  source_area: { type: ["string", "null"] },
+                },
+              },
+            },
+            listing_context: {
+              type: ["string", "null"],
+              description: "Nasdaq/NYSE compliance, minimum bid, financing capacity, or Not disclosed for capital-structure votes.",
+            },
+            governance_focus: { type: ["string", "null"] },
+            contested: { type: ["object", "string", "null"], additionalProperties: true },
+            shareholder_or_governance_proposals: {
+              type: "array",
+              items: { type: "object", additionalProperties: true },
+            },
+            current_stage_label: { type: ["string", "null"] },
+            deal_status: { type: ["string", "null"] },
+            target_company: { type: ["string", "null"] },
+            target_company_story: { type: ["string", "null"] },
+            expected_ticker: { type: ["string", "null"] },
+            vote_date: { type: ["string", "null"] },
+            redemption_deadline: { type: ["string", "null"] },
+            min_cash_condition: { type: ["string", "number", "null"] },
+            min_cash_status: { type: ["string", "null"] },
+            redemption_rate: { type: ["string", "number", "null"] },
+            closing_date: { type: ["string", "null"] },
+            ticker_change_date: { type: ["string", "null"] },
+            risk_flags: { type: "array", items: { type: "string" } },
+            watch_next: { type: "array", items: { type: "string" } },
+          },
         },
         evidence: {
           type: "array",
@@ -3120,6 +3332,24 @@ function buildEffectParentFilingContextFromPackage(
 }
 
 async function runGeminiJsonPrompt(prompt: OpenAiPrompt, llmConfig: SecLlmConfig): Promise<OpenAiPromptRun> {
+  const primaryRun = await runGeminiJsonPromptAttempts(prompt, llmConfig);
+  if (primaryRun.ok || !shouldUseGeminiFallback(primaryRun, llmConfig)) return primaryRun;
+
+  return runGeminiJsonPromptAttempts(prompt, {
+    ...llmConfig,
+    model: llmConfig.fallbackModel || llmConfig.model,
+    fallbackModel: undefined,
+  });
+}
+
+function shouldUseGeminiFallback(run: OpenAiPromptRun, llmConfig: SecLlmConfig) {
+  if (!llmConfig.fallbackModel) return false;
+  if (llmConfig.fallbackModel === llmConfig.model) return false;
+  if (/\bMAX_TOKENS\b/i.test(run.error || "")) return true;
+  return shouldRetryOpenAiRun(run.status, run.error);
+}
+
+async function runGeminiJsonPromptAttempts(prompt: OpenAiPrompt, llmConfig: SecLlmConfig): Promise<OpenAiPromptRun> {
   const maxAttempts = SEC_LLM_MAX_ATTEMPTS;
   let lastRun: OpenAiPromptRun | null = null;
   const url = buildGeminiGenerateContentUrl(llmConfig);

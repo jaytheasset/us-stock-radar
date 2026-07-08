@@ -7,15 +7,13 @@ import {
 import {
   buildDeterministicProxyAnalysis,
   buildProxyAnalysisPrompt,
+  buildProxyLlmDisplayPayloadPlaceholder,
+  buildProxyLlmRouterPlaceholder,
   deriveDeliveryLevel,
   type ProxyAnalysisOutput,
   type ProxyAnalysisPromptInput,
 } from "./analysisPrompt.ts";
-import {
-  buildProxyDisplayPayload,
-  selectProxyDisplaySpec,
-  type ProxyDisplayPayload,
-} from "./displayPayload.ts";
+import type { ProxyDisplayPayload } from "./displayPayload.ts";
 import {
   buildProxyRouterPrompt,
   routeProxyFiling,
@@ -67,19 +65,15 @@ export function isProxySupportedForm(formType: string | null | undefined): boole
 
 export function buildProxyRuntimePackage(input: ProxyAdapterRuntimeInput): ProxyAdapterRuntimePackage {
   const parserOutput = parseProxyFiling(input.parserInput);
-  const routerDecision = routeProxyFiling(parserOutput);
-  const displayPayload = routerDecision.analysis_needed
-    ? buildProxyDisplayPayloadContract(routerDecision)
-    : buildProxyDisplayPayload(parserOutput, routerDecision.event_type);
-  const deterministicAnalysis = buildDeterministicProxyAnalysis(parserOutput);
-  const analysisPrompt = routerDecision.analysis_needed
-    ? buildProxyAnalysisPrompt({
-        parserOutput,
-        routerDecision,
-        displayPayload,
-        marketContext: input.marketContext ?? input.parserInput.market_context ?? null,
-      })
-    : null;
+  const routerDecision = buildProxyLlmRouterPlaceholder();
+  const displayPayload = buildProxyLlmDisplayPayloadPlaceholder();
+  const deterministicAnalysis = null;
+  const analysisPrompt = buildProxyAnalysisPrompt({
+    parserOutput,
+    routerDecision,
+    displayPayload,
+    marketContext: input.marketContext ?? input.parserInput.market_context ?? null,
+  });
 
   return {
     parser_output: parserOutput,
@@ -90,16 +84,6 @@ export function buildProxyRuntimePackage(input: ProxyAdapterRuntimeInput): Proxy
     analysis_mode: PROXY_ANALYSIS_MODE,
     adapter_key: PROXY_ADAPTER_KEY,
     parser_group: PROXY_PARSER_GROUP,
-  };
-}
-
-function buildProxyDisplayPayloadContract(routerDecision: ProxyRouterDecision): ProxyDisplayPayload {
-  return {
-    display_type: routerDecision.display_type,
-    display_version: routerDecision.display_version,
-    data: {},
-    evidence: [],
-    notes: [],
   };
 }
 
@@ -117,8 +101,6 @@ export const proxyAdapter = {
   parse: parseProxyFiling,
   route: routeProxyFiling,
   buildRouterPrompt: buildProxyRouterPrompt,
-  selectDisplaySpec: selectProxyDisplaySpec,
-  buildDisplayPayload: buildProxyDisplayPayload,
   buildAnalysisPrompt: buildProxyAnalysisPromptFromRuntime,
   buildRuntimePackage: buildProxyRuntimePackage,
   buildDeterministicAnalysis: buildDeterministicProxyAnalysis,

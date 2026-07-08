@@ -172,6 +172,14 @@ export const secFilingAnalysisResponseSchema = {
     score: { type: "integer", minimum: 0, maximum: 100 },
     score_reason: { type: "string" },
     signal: { type: "string", enum: SIGNAL_VALUES },
+    score_explanation: {
+      type: ["object", "null"],
+      additionalProperties: false,
+      required: ["summary"],
+      properties: {
+        summary: { type: "string" },
+      },
+    },
     quick_take: { type: "string" },
     summary: { type: "string" },
     why_it_matters: { type: "string" },

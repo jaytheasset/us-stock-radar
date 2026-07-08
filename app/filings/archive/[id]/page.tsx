@@ -51,6 +51,15 @@ type ArchiveFilingEvent = {
   attachmentSnippets: FilingAttachmentSnippet[];
   marketContext: SectorThemeContext | null;
   displayPayloadType: string;
+  proxyProposals: ArchiveProxyProposalItem[];
+};
+
+type ArchiveProxyProposalItem = {
+  id: string;
+  title: string;
+  category: string;
+  recommendation: string;
+  isShareholderProposal: boolean;
 };
 
 type FilingDocumentInventoryItem = {
@@ -194,6 +203,8 @@ export default async function FilingArchiveDetailPage({ params }: FilingArchiveD
           {archiveEvent.marketContext ? (
             <SectorThemeContextPanel context={archiveEvent.marketContext} ticker={archiveEvent.ticker} />
           ) : null}
+
+          {archiveEvent.proxyProposals.length ? <ArchiveProxyProposalAgenda proposals={archiveEvent.proxyProposals} /> : null}
 
           <section className="stock-detail-card full-text-card archive-original-section">
             <div className="card-heading-row">
@@ -479,7 +490,170 @@ async function mapArchiveFilingEvent(
     attachmentSnippets: mapAttachmentSnippets(rawPayload),
     marketContext,
     displayPayloadType: readString(displayPayload, "display_type"),
+    proxyProposals: buildArchiveProxyProposals(displayPayloadData),
   };
+}
+
+function ArchiveProxyProposalAgenda({ proposals }: { proposals: ArchiveProxyProposalItem[] }) {
+  return (
+    <section className="stock-detail-card proxy-agenda-card">
+      <div className="card-heading-row">
+        <h2>Proposal Agenda</h2>
+        <span>{proposals.length} proposals</span>
+      </div>
+      <div className="proxy-agenda-table">
+        <div className="proxy-agenda-row proxy-agenda-header">
+          <span>No.</span>
+          <span>Proposal</span>
+          <span>Type</span>
+          <span>Board recommends</span>
+        </div>
+        {proposals.map((proposal) => (
+          <div className="proxy-agenda-row" key={`${proposal.id}-${proposal.title}`}>
+            <span>{proposal.id}</span>
+            <strong>{proposal.title}</strong>
+            <span>
+              {proposal.category || "Not disclosed"}
+              {proposal.isShareholderProposal ? " · shareholder" : ""}
+            </span>
+            <span>{proposal.recommendation || "Not disclosed"}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function buildArchiveProxyProposals(data: Record<string, unknown> | null): ArchiveProxyProposalItem[] {
+  return recordArray(data?.proposals)
+    .map((proposal, index) => {
+      const title = formatArchiveProxyProposalTitle(readString(proposal, "title"));
+      if (!title) return null;
+      return {
+        id: readString(proposal, "id") || `Proposal ${index + 1}`,
+        title,
+        category: formatArchiveProxyProposalCategory(readString(proposal, "category")) || "Not disclosed",
+        recommendation: formatArchiveProxyBoardRecommendation(readString(proposal, "recommendation")) || "Not disclosed",
+        isShareholderProposal: Boolean(proposal.is_shareholder_proposal),
+      };
+    })
+    .filter((proposal): proposal is ArchiveProxyProposalItem => Boolean(proposal));
+}
+
+function formatArchiveProxyProposalTitle(value: string) {
+  const title = value.replace(/\s+/g, " ").trim();
+  if (!title) return "";
+  if (isMostlyUppercaseArchiveProxyTitle(title)) return toArchiveProxyProposalTitleCase(title);
+  return normalizeArchiveProxyProposalKnownTerms(title);
+}
+
+const ARCHIVE_PROXY_PROPOSAL_SMALL_TITLE_WORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "as",
+  "at",
+  "by",
+  "for",
+  "from",
+  "in",
+  "into",
+  "of",
+  "on",
+  "or",
+  "per",
+  "the",
+  "to",
+  "via",
+  "with",
+]);
+
+const ARCHIVE_PROXY_PROPOSAL_ACRONYMS = new Set([
+  "ADR",
+  "ADS",
+  "CEO",
+  "CFO",
+  "COO",
+  "ESG",
+  "GAAP",
+  "IPO",
+  "LLC",
+  "LLP",
+  "LP",
+  "NASDAQ",
+  "NOL",
+  "NYSE",
+  "PLC",
+  "PSU",
+  "RSU",
+  "SEC",
+  "SPAC",
+]);
+
+function isMostlyUppercaseArchiveProxyTitle(value: string) {
+  const letters = value.replace(/[^A-Za-z]/g, "");
+  return Boolean(letters) && letters === letters.toUpperCase();
+}
+
+function toArchiveProxyProposalTitleCase(value: string) {
+  let wordIndex = 0;
+  const formatted = value.toLowerCase().replace(/[a-z0-9]+(?:['\u2019][a-z0-9]+)?(?:-[a-z0-9]+(?:['\u2019][a-z0-9]+)?)*/g, (word) => {
+    const result = formatArchiveProxyProposalTitleWord(word, wordIndex);
+    wordIndex += 1;
+    return result;
+  });
+  return normalizeArchiveProxyProposalKnownTerms(formatted);
+}
+
+function formatArchiveProxyProposalTitleWord(word: string, wordIndex: number) {
+  if (/^say-on-pay$/i.test(word)) return "Say-on-Pay";
+  return word
+    .split("-")
+    .map((part, partIndex) => formatArchiveProxyProposalTitlePart(part, wordIndex === 0 && partIndex === 0))
+    .join("-");
+}
+
+function formatArchiveProxyProposalTitlePart(part: string, isFirst: boolean): string {
+  const possessive = part.match(/^([a-z0-9]+)(['\u2019])s$/i);
+  if (possessive) {
+    const mark = possessive[2] === "\u2019" ? "\u2019" : "'";
+    return `${formatArchiveProxyProposalTitlePart(possessive[1], isFirst)}${mark}s`;
+  }
+  if (/^\d+$/.test(part)) return part;
+  const acronym = part.toUpperCase();
+  if (ARCHIVE_PROXY_PROPOSAL_ACRONYMS.has(acronym)) return acronym;
+  if (!isFirst && ARCHIVE_PROXY_PROPOSAL_SMALL_TITLE_WORDS.has(part)) return part;
+  return part.charAt(0).toUpperCase() + part.slice(1);
+}
+
+function normalizeArchiveProxyProposalKnownTerms(value: string) {
+  return value
+    .replace(/\bSay-On-Pay\b/gi, "Say-on-Pay")
+    .replace(/\bLlc\b/g, "LLC")
+    .replace(/\bLlp\b/g, "LLP")
+    .replace(/\bLp\b/g, "LP")
+    .replace(/\bPlc\b/g, "PLC")
+    .replace(/([A-Za-z])\u2019S\b/g, "$1\u2019s")
+    .replace(/([A-Za-z])'S\b/g, "$1's");
+}
+
+function formatArchiveProxyProposalCategory(value: string) {
+  const normalized = value.replace(/\s+/g, " ").trim().toLowerCase();
+  if (!normalized) return "";
+  if (/say[-\s]?on[-\s]?pay|executive compensation|compensation/.test(normalized)) return "Executive pay vote";
+  if (/auditor|accounting firm|ratification/.test(normalized)) return "Auditor approval";
+  if (/director/.test(normalized)) return "Director election";
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function formatArchiveProxyBoardRecommendation(value: string) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized) return "";
+  if (/^for$/i.test(normalized)) return "Support";
+  if (/^against$/i.test(normalized)) return "Oppose";
+  if (/^withhold$/i.test(normalized)) return "Withhold";
+  if (/^abstain$/i.test(normalized)) return "Abstain";
+  return normalized;
 }
 
 async function loadTickerProfile(ticker: string): Promise<TickerProfile | null> {

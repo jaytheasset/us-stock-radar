@@ -3426,7 +3426,7 @@ function extractReverseSplitFacts(
   proposals: ProxyProposal[],
 ): ProxyReverseSplitFacts | null {
   const reverseSplitProposal = proposals.find((proposal) => /\breverse\s+stock\s+split\b/i.test(proposal.title));
-  const sourceText = reverseSplitProposal?.sourceText ?? null;
+  const sourceText = buildReverseSplitSourceText(text, reverseSplitProposal?.sourceText ?? null);
 
   if (!sourceText) {
     return null;
@@ -3445,6 +3445,27 @@ function extractReverseSplitFacts(
     minimumBidMentioned: /\bminimum\s+bid\s+price\b/i.test(text),
     sourceText,
   };
+}
+
+function buildReverseSplitSourceText(text: string, proposalSourceText: string | null): string | null {
+  const ratioEvidence = firstMatchingSentence(text, [
+    /\b(?:approval|approve|implement|effect)[^.]{0,500}\breverse\s+stock\s+split[^.]{0,700}\b(?:one-for-\d+|1-for-\d+|\d+\s*:\s*\d+)[^.]{0,700}\./i,
+    /\breverse\s+stock\s+split[^.]{0,700}\bratio\s+ranging[^.]{0,700}\./i,
+  ]);
+  const listingEvidence = firstMatchingSentence(text, [
+    /\b(?:Without|If)[^.]{0,220}\bReverse\s+Stock\s+Split[^.]{0,600}\b(?:Nasdaq|NYSE|minimum\s+bid|delisting)[^.]{0,600}\./i,
+    /\b(?:Nasdaq|NYSE)[^.]{0,600}\bminimum\s+bid\s+price[^.]{0,600}\./i,
+  ]);
+  const timingEvidence = firstMatchingSentence(text, [
+    /\b(?:If|Assuming)[^.]{0,220}\bReverse\s+Stock\s+Split[^.]{0,700}\b(?:Certificate of Amendment|effective|file)[^.]{0,700}\./i,
+    /\bCertificate of Amendment[^.]{0,700}\b(?:effective|file|Secretary of State|Delaware)[^.]{0,700}\./i,
+    /\b(?:will|would)\s+be\s+effective[^.]{0,700}\b(?:Certificate of Amendment|Secretary of State|Delaware)[^.]{0,700}\./i,
+  ]);
+
+  const parts = [proposalSourceText, ratioEvidence, listingEvidence, timingEvidence]
+    .map((value) => cleanString(value))
+    .filter((value): value is string => Boolean(value));
+  return parts.length ? trimBlockText(unique(parts).join(" ")) : null;
 }
 
 function extractReverseSplitRatio(text: string): string | null {

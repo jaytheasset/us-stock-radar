@@ -3,7 +3,7 @@ import {
   type ProxyEventType,
   type ProxyParserOutput,
 } from "./parser.ts";
-import { selectProxyDisplaySpec, type ProxyDisplayType } from "./displayPayload.ts";
+import type { ProxyDisplayType } from "./displayPayload.ts";
 import { buildCurrentFilingIdentity, currentFilingIdentityText } from "../common/currentFilingIdentity.ts";
 
 export interface ProxyRouterDecision {
@@ -172,13 +172,13 @@ export function routeProxyFiling(parserOutput: ProxyParserOutput): ProxyRouterDe
   const deterministic = parserOutput.facts.deterministic;
 
   if (deterministic.canFinishWithoutLlm && deterministic.eventType && deterministic.suggestedScore !== null) {
-    const display = selectProxyDisplaySpec(parserOutput, deterministic.eventType);
     return {
       stage: "parser",
       usesLlm: false,
       analysis_needed: false,
       event_type: deterministic.eventType,
-      ...display,
+      display_type: "generic",
+      display_version: "proxy_generic_v1",
       preliminary_action: "archive",
       preliminary_score: deterministic.suggestedScore,
       rationale: deterministic.reason ?? "Parser identified a deterministic proxy case.",

@@ -3,7 +3,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseProxyFiling } from "./parser.ts";
-import { buildProxyDisplayPayload } from "./displayPayload.ts";
 import { routeProxyFiling } from "./routerPrompt.ts";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -134,25 +133,19 @@ const phase5Cases = JSON.parse(fs.readFileSync(path.join(currentDir, "fixtures",
 {
   const parsed = parseCase("spac-ipo-listing");
   const decision = routeProxyFiling(parsed);
-  const displayPayload = buildProxyDisplayPayload(parsed, "ipo_listing");
   assert.equal(decision.event_type, "other");
   assert.equal(decision.usesLlm, true);
-  assert.equal(displayPayload.display_type, "generic");
-  assert.equal(displayPayload.display_version, "proxy_ipo_listing_v1");
-  assert.equal(displayPayload.data.ipo_kind, "spac");
+  assert.equal(decision.display_type, "generic");
+  assert.equal(decision.display_version, "proxy_generic_v1");
 }
 
 {
   const parsed = parseCase("spac-business-combination-not-ipo");
   const decision = routeProxyFiling(parsed);
-  const displayPayload = buildProxyDisplayPayload(parsed, "strategic_transaction");
   assert.equal(decision.event_type, "other");
   assert.equal(decision.display_type, "generic");
   assert.equal(decision.usesLlm, true);
-  assert.equal(displayPayload.display_type, "spac_transaction_status");
-  assert.equal(displayPayload.display_version, "proxy_spac_transaction_status_v1");
-  assert.equal(displayPayload.data.spac_transaction_kind, "business_combination_status");
-  assert.equal(displayPayload.data.redemption_mentioned, true);
+  assert.equal(decision.display_version, "proxy_generic_v1");
   assert.ok(parsed.signals.every((signal) => signal.eventType !== "ipo_listing"));
 }
 

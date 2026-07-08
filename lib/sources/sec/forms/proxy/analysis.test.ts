@@ -7,9 +7,9 @@ import {
   assertRequiredProxyOutputShape,
   buildDeterministicProxyAnalysis,
   buildProxyAnalysisPrompt,
+  buildProxyLlmDisplayPayloadPlaceholder,
   deriveDeliveryLevel,
 } from "./analysisPrompt.ts";
-import { buildProxyDisplayPayload } from "./displayPayload.ts";
 import { routeProxyFiling } from "./routerPrompt.ts";
 
 const CASES = [
@@ -34,15 +34,7 @@ for (const caseName of CASES) {
   const expected = readJson(`expected/${caseName}.expected.json`);
   const parserOutput = parseProxyFiling(fixture.input);
   const routerDecision = routeProxyFiling(parserOutput);
-  const displayPayload = expected.parser_output.facts.deterministic.canFinishWithoutLlm
-    ? buildProxyDisplayPayload(parserOutput, routerDecision.event_type)
-    : {
-        display_type: routerDecision.display_type,
-        display_version: routerDecision.display_version,
-        data: {},
-        evidence: [],
-        notes: [],
-      };
+  const displayPayload = buildProxyLlmDisplayPayloadPlaceholder();
   const prompt = buildProxyAnalysisPrompt({
     parserOutput,
     routerDecision,
@@ -64,19 +56,17 @@ for (const caseName of CASES) {
     assert.ok(prompt.includes(`- ${eventType}`), `${caseName}: analysis prompt omitted ${eventType}`);
   }
   assert.ok(prompt.includes("Do not call live market data"), `${caseName}: prompt should block live market data`);
-  assert.ok(prompt.includes("Do not choose event_type, display_type, display_version"), `${caseName}: prompt should block UI routing decisions`);
-  assert.ok(prompt.includes("display_payload_return_contract"), `${caseName}: prompt should include display payload contract`);
+  assert.ok(prompt.includes("Choose event_type, display_payload.display_type, and display_payload.display_version yourself"), `${caseName}: prompt should require LLM display routing`);
+  assert.ok(prompt.includes("Required display_payload.data keys by display_version"), `${caseName}: prompt should include display payload contract`);
+  assert.ok(prompt.includes("score_explanation is required"), `${caseName}: prompt should require score explanation for the visible score rationale UI`);
+  assert.ok(!prompt.includes("score_explanation is not in this schema"), `${caseName}: prompt must not suppress score explanation`);
   assert.ok(!prompt.includes("prebuilt_display_payload"), `${caseName}: prompt should not include full prebuilt display payload`);
   const sourceInput = prompt.slice(prompt.indexOf("cleaned_source_blocks:"));
   assert.ok(!sourceInput.includes('"facts":'), `${caseName}: source input should not include parser facts`);
   assert.ok(!sourceInput.includes('"signals":'), `${caseName}: source input should not include parser signals`);
   assert.ok(!sourceInput.includes('"eventType":'), `${caseName}: source input should not include parser event labels`);
-  assert.ok(displayPayload.display_version.startsWith("proxy_"), `${caseName}: display payload should be versioned`);
-  if (expected.parser_output.facts.deterministic.canFinishWithoutLlm) {
-    assert.equal(displayPayload.display_type, expected.display_payload.display_type, `${caseName}: deterministic display builder selected wrong display_type`);
-  } else {
-    assert.equal(displayPayload.display_type, "generic", `${caseName}: non-deterministic parser must not preselect display_type`);
-  }
+  assert.equal(displayPayload.display_type, "generic", `${caseName}: parser must not preselect display_type`);
+  assert.equal(displayPayload.display_version, "proxy_generic_v1", `${caseName}: placeholder display payload should stay generic`);
 
   const deterministicAnalysis = buildDeterministicProxyAnalysis(parserOutput);
   if (expected.parser_output.facts.deterministic.canFinishWithoutLlm) {

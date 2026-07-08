@@ -21,8 +21,10 @@ import {
 } from "@/lib/sources/sec/forms/424b/types";
 import { buildS1F1AnalysisPrompt } from "@/lib/sources/sec/forms/s1-f1/analysisPrompt";
 import { parseS1F1Filing } from "@/lib/sources/sec/forms/s1-f1/parser";
-import { buildProxyAnalysisPrompt } from "@/lib/sources/sec/forms/proxy/analysisPrompt";
-import { buildProxyDisplayPayload } from "@/lib/sources/sec/forms/proxy/displayPayload";
+import {
+  buildProxyAnalysisPrompt,
+  buildProxyLlmDisplayPayloadPlaceholder,
+} from "@/lib/sources/sec/forms/proxy/analysisPrompt";
 import { parseProxyFiling } from "@/lib/sources/sec/forms/proxy/parser";
 import { routeProxyFiling } from "@/lib/sources/sec/forms/proxy/routerPrompt";
 import { supabaseDelete, supabaseSelect } from "@/lib/supabase";
@@ -2120,7 +2122,7 @@ function buildProxyPromptVariantPreviews() {
     ].join("\n"),
   });
   const routerDecision = routeProxyFiling(previewParserOutput);
-  const displayPayload = buildProxyDisplayPayload(previewParserOutput, routerDecision.event_type);
+  const displayPayload = buildProxyLlmDisplayPayloadPlaceholder();
 
   return [
     {

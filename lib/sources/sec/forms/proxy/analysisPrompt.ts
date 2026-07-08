@@ -3,7 +3,7 @@ import {
   type ProxyEventType,
   type ProxyParserOutput,
 } from "./parser.ts";
-import { buildProxyDisplayPayload, type ProxyDisplayPayload } from "./displayPayload.ts";
+import type { ProxyDisplayPayload } from "./displayPayload.ts";
 import type { ProxyRouterDecision } from "./routerPrompt.ts";
 import { buildProxySourceBlockPromptInput } from "./routerPrompt.ts";
 
@@ -18,7 +18,7 @@ export interface ProxyAnalysisPromptInput {
 export type ProxyAnalysisPromptVariant = "default" | "proxy_sectioned_test";
 
 export const SEC_PROXY_ANALYSIS_PROMPT_KEY = "sec_proxy_analysis";
-export const SEC_PROXY_ANALYSIS_PROMPT_VERSION = "proxy-analysis-v1";
+export const SEC_PROXY_ANALYSIS_PROMPT_VERSION = "proxy-analysis-v2-llm-display-routing";
 export const SEC_PROXY_SECTIONED_TEST_PROMPT_VERSION = "proxy-analysis-v2-sectioned-test";
 
 export function normalizeProxyAnalysisPromptVariant(value: unknown): ProxyAnalysisPromptVariant {
@@ -44,6 +44,9 @@ export interface ProxyAnalysisOutput {
   sub_theme: string | null;
   score: number;
   score_reason: string;
+  score_explanation?: {
+    summary: string;
+  } | null;
   signal: "bullish" | "bearish" | "volatile" | "neutral";
   quick_take: string;
   summary: string;
@@ -78,53 +81,7 @@ export interface ProxyRequiredOutput {
 }
 
 export function buildProxyAnalysisPrompt(input: ProxyAnalysisPromptInput): string {
-  const displayPayload = input.displayPayload ?? buildProxyDisplayPayload(input.parserOutput, input.routerDecision.event_type);
   const variant = normalizeProxyAnalysisPromptVariant(input.variant);
-  if (variant === "default") {
-    return [
-      "You are writing investor-facing analysis for an SEC Proxy filing.",
-      "",
-      "Use cleaned_source_blocks as source-backed evidence. Do not call live market data, live FMP, live DB, alerts, ingest, or app/UI systems.",
-      "Do not use parser-generated facts, signals, route hints, extraction summaries, event labels, display labels, or investment labels as analysis authority.",
-      "Do not choose event_type, display_type, display_version, or UI template. Those are selected by the router step.",
-      "Use router_decision.event_type exactly. Return display_payload with the same display_type/display_version contract; integration/UI can rebuild display data from parser output after analysis.",
-      "If market context exists, use only the fixture JSON market_context provided below.",
-      "Preserve parser warnings, especially when the filing is preliminary, notice-only, a supplement needing parent proxy context, or filed by a soliciting party other than the registrant.",
-      "For ipo_listing, do not split event_type by IPO type. If the router/display contract later carries ipo_kind, keep it in display_payload metadata rather than changing event_type.",
-      "Do not use ipo_listing for ordinary resale registration, shelf offering, ATM/offering dilution, already-listed issuer resale, post-closing business update, or SPAC redemption/liquidation/de-SPAC unless the selected router event_type is ipo_listing.",
-      "For display_type spac_transaction_status, explain SPAC/de-SPAC transaction status facts from cleaned_source_blocks; do not use that display for a plain blank-check IPO registration.",
-      "When cleaned_source_blocks show a third-party solicitation, clearly attribute recommendations to the soliciting party and do not describe them as board recommendations unless the source says so.",
-      "If cleaned_source_blocks show an authorized-share increase, share-authorization proposal, or articles/certificate amendment to increase authorized shares, use event_type dilution_risk rather than generic shareholder_vote.",
-      "For authorized-share increases, explain future issuance capacity without claiming a priced offering unless the source text states one.",
-      "Do not downgrade a router_decision.event_type of dilution_risk to shareholder_vote just because the source is proxy soliciting material.",
-      "",
-      "Allowed event_type values:",
-      ...APPROVED_PROXY_EVENT_TYPES.map((eventType) => `- ${eventType}`),
-      "",
-      "Score bands are fixed:",
-      "- score below 50: archive",
-      "- score 50 to 74: feed",
-      "- score 75 or above: alert",
-      "",
-      "Return JSON only in this exact top-level shape:",
-      JSON.stringify(requiredOutputSkeleton(), null, 2),
-      "",
-      "display_payload return contract. Return this display_type/display_version; do not invent UI fields or display types.",
-      "",
-      "router_decision:",
-      JSON.stringify(input.routerDecision, null, 2),
-      "",
-      "display_payload_return_contract:",
-      JSON.stringify(displayPayloadReturnContract(displayPayload), null, 2),
-      "",
-      "cleaned_source_blocks:",
-      JSON.stringify(buildProxySourceBlockPromptInput(input.parserOutput, input.marketContext ?? null), null, 2),
-      "",
-      "market_context_fixture:",
-      JSON.stringify(input.marketContext ?? null, null, 2),
-    ].join("\n");
-  }
-
   return [
     ...proxyOpeningInstructions(),
     "",
@@ -139,7 +96,7 @@ export function buildProxyAnalysisPrompt(input: ProxyAnalysisPromptInput): strin
     "",
     "Return JSON only in this exact top-level shape:",
     JSON.stringify(requiredOutputSkeleton(), null, 2),
-    ...proxyRuntimeHintSections(variant, input.routerDecision, displayPayload),
+    ...proxyRuntimeHintSections(variant, input.routerDecision),
     "",
     "cleaned_source_blocks:",
     JSON.stringify(buildProxySourceBlockPromptInput(input.parserOutput, input.marketContext ?? null), null, 2),
@@ -156,8 +113,8 @@ function proxyOpeningInstructions(): string[] {
     "Use cleaned_source_blocks as source-backed evidence. Do not call live market data, live FMP, live DB, alerts, ingest, or app/UI systems.",
     "Use the filing text as source of truth. If a fact is not stated, write Not disclosed or use an empty array.",
     "Do not copy parser labels or SEC boilerplate as prose. Rewrite source-backed facts in clear investor language.",
-    "For this test variant, choose event_type, display_payload.display_type, and display_payload.display_version yourself from the source blocks.",
-    "Treat router_decision as a non-binding parser hint only. It may be a placeholder.",
+    "Choose event_type, display_payload.display_type, and display_payload.display_version yourself from the source blocks.",
+    "Treat router_decision as a non-binding parser hint only. It may be a placeholder and must not control the final UI.",
     "If market context exists, use only the fixture JSON market_context provided below.",
     "Preserve parser warnings when the filing is preliminary, notice-only, supplemental, image-heavy, or filed by a third-party solicitor.",
   ];
@@ -166,14 +123,35 @@ function proxyOpeningInstructions(): string[] {
 function proxyDisplayInstructions(): string[] {
   return [
     "Choose exactly one proxy display version and fill only the data fields relevant to that UI.",
-    "- Routine annual meeting: display_type generic, display_version proxy_generic_v1. Use meeting_date, record_date, proposal_count, proposals, board_recommendation when stated.",
+    "display_payload.data must contain the visible UI fields for the selected display_version; never return an empty data object.",
+    "Required display_payload.data keys by display_version. Required means the key must be present in display_payload.data, not only mentioned in summary, key_evidence, or notes:",
+    "- proxy_generic_v1 requires meeting_date, record_date, proposal_count, board_recommendation, proposals.",
+    "- proxy_ipo_listing_v1 requires ipo_kind, listing_action, exchange_ticker, meeting_date, record_date, proposals.",
+    "- proxy_equity_plan_vote_v1 requires plan_name, shares_requested, percent_of_outstanding, vote_requirement, proposals.",
+    "- proxy_transaction_vote_v1 requires transaction_summary, consideration, vote_required, meeting_date, record_date, board_recommendation, closing_conditions, proposals.",
+    "- proxy_capital_structure_vote_v1 requires reverse_split, capital_structure_proposals, listing_context, board_recommendation, meeting_date, vote_date, record_date, proposals.",
+    "- proxy_governance_vote_v1 requires governance_focus, contested, shareholder_or_governance_proposals, board_recommendation, meeting_date, record_date, proposals.",
+    "- proxy_spac_transaction_status_v1 requires current_stage_label, deal_status, target_company, target_company_story, expected_ticker, vote_date, min_cash_condition, min_cash_status, redemption_rate, risk_flags, watch_next.",
+    "Before final JSON, compare display_payload.display_version to the required-key list above and add any missing key to display_payload.data. Use Not disclosed or an empty array only when the filing does not state the fact.",
+    "Every proxy UI should include display_payload.data.proposals when the filing has proposal text. This is the visible agenda table. Do not omit proposals just because a specialized field exists.",
+    "When proposals are required, each item in display_payload.data.proposals must be a visible proposal row with id/proposal number, title, category/type, recommendation, and is_shareholder_proposal when clear. Do not return empty proposal objects like {}.",
+    "For proposal category/type, use investor-readable labels such as Director election, Executive pay vote, Auditor approval, Equity plan, Merger vote, Reverse split, Authorized shares, Adjournment, Shareholder proposal, or Other.",
+    "For proposal recommendation, use the board recommendation shown by the filing, usually For, Against, Withhold, Mixed, or Not disclosed.",
+    "If several proxy themes appear, choose the investor-material main UI in this order: SPAC/de-SPAC transaction status, merger/transaction vote, capital structure vote, equity plan vote, contested/governance proxy, IPO/listing proxy vote, routine annual meeting.",
+    "- Routine annual meeting: display_type generic, display_version proxy_generic_v1. Use this for ordinary director election, say-on-pay, say-on-frequency, auditor ratification, and routine annual meeting business. Fill meeting_date, record_date, proposal_count, board_recommendation, and proposals. Use Not disclosed only when the filing does not state the fact.",
     "- IPO or listing-related proxy vote: display_type generic, display_version proxy_ipo_listing_v1. Use ipo_kind, listing_action, exchange_ticker, vote_requirement, meeting_date, record_date, proposals.",
     "- Equity plan vote: display_type offering_terms, display_version proxy_equity_plan_vote_v1. Use plan_name, shares_requested, percent_of_outstanding, vote_requirement, proposals, snapshot_metrics, offering_details.",
     "- Merger or transaction vote: display_type candidate_special, display_version proxy_transaction_vote_v1. Use transaction_summary, consideration, vote_required, meeting_date, record_date, board_recommendation, closing_conditions, appraisal_rights_mentioned, delisting_mentioned, proposals.",
-    "- Reverse split, authorized shares, or listing-compliance capital vote: display_type candidate_special, display_version proxy_capital_structure_vote_v1. Use reverse_split, capital_structure_proposals, listing_context, board_recommendation, meeting_date, record_date, proposals.",
-    "- Governance, contested, supplement, dissident, or board-control proxy: display_type candidate_special, display_version proxy_governance_vote_v1. Use governance_focus, contested, supplement, shareholder_or_governance_proposals, board_recommendation, meeting_date, record_date, proposals.",
+    "- Reverse split, authorized shares, or listing-compliance capital vote: display_type candidate_special, display_version proxy_capital_structure_vote_v1. Use reverse_split, capital_structure_proposals, listing_context, board_recommendation, meeting_date, vote_date, record_date, proposals.",
+    "  For proxy_capital_structure_vote_v1, capital_structure_proposals must be a non-empty array when the filing has a reverse split, authorized-share, charter amendment, listing-compliance, or adjournment proposal tied to capital structure. If the filing has one reverse split proposal, put that same proposal in both proposals and capital_structure_proposals.",
+    "  For proxy_capital_structure_vote_v1, reverse_split must be an object with ratio, ratio_range, implementation_timing, purpose, status, and note when those facts are source-stated.",
+    "  For reverse split ratio, use the stated exact ratio if final; otherwise use the stated approved range such as 1-for-5 to 1-for-10 in ratio_range. Do not write Not disclosed when the filing states a ratio range.",
+    "  For implementation_timing, summarize when the split would become effective if approved, such as after shareholder approval and board filing of the certificate amendment, or a stated effective date/time. If no effective date is stated, say that no fixed effective date is stated after approval; do not invent a date.",
+    "  Use listing_context: Nasdaq/NYSE compliance, minimum bid, financing capacity, or Not disclosed, based only on source text.",
+    "- Special governance, contested, supplement, dissident, shareholder proposal, or board-control proxy: display_type candidate_special, display_version proxy_governance_vote_v1. Do not use this for ordinary director elections, say-on-pay, auditor ratification, or routine annual meeting governance. Use governance_focus, contested, supplement, shareholder_or_governance_proposals, board_recommendation, meeting_date, record_date, proposals.",
     "- SPAC or de-SPAC vote/status: display_type spac_transaction_status, display_version proxy_spac_transaction_status_v1. Use current_stage_label, deal_status, target_company, target_company_story, expected_ticker, vote_date, redemption_deadline, min_cash_condition, min_cash_status, redemption_rate, closing_date, ticker_change_date, risk_flags, watch_next.",
     "Do not put UI-specific facts only in summary. If a fact matters to the selected UI, put it in display_payload.data.",
+    "display_payload.evidence and display_payload.notes are optional support only. They do not replace display_payload.data and may be empty when visible data is complete.",
   ];
 }
 
@@ -187,7 +165,13 @@ function proxyWritingInstructions(): string[] {
     "- key_evidence: at most three compact source-backed items.",
     "- what_to_watch_next: at most three concrete follow-up items.",
     "- score_reason: under 18 words.",
-    "- score_explanation is not in this schema; keep score_reason and summary clear enough for the score card.",
+    "- score_explanation is required for the visible score rationale card. Do not omit it and do not return null.",
+    "- Only write score_explanation.summary. Do not add base_band, upward_factors, limiting_factors, final_read, or other nested score fields for proxy filings.",
+    "- score_explanation.summary is the visible sentence. Write one concise analyst-style conclusion, 12-24 words, explaining why the score is reasonable.",
+    "- score_explanation.summary must explain the strongest 1-2 score drivers and one material offset only when it changes the score.",
+    "- Do not format score_explanation.summary as bullets, labels, sections, or an internal scoring review.",
+    "- Do not start score_explanation.summary with the issuer name, ticker, form type, filed, scheduled, announced, or registered.",
+    "- Do not repeat quick_take or summary. Write the score rationale, not another filing summary.",
     "Avoid duplicate wording between quick_take, summary, key_evidence, and what_to_watch_next.",
   ];
 }
@@ -198,39 +182,35 @@ function proxyScoringInstructions(): string[] {
     "- score below 50: archive",
     "- score 50 to 74: feed",
     "- score 75 or above: alert",
-    "Proxy scoring guidance:",
-    "- Routine annual meeting with directors, say-on-pay, and auditor ratification only: usually 25-49.",
-    "- Simple vote schedule disclosure without unusual proposal: usually cap at 72.",
-    "- Equity plan share reserve increase: usually 50-68, higher only if clearly large vs outstanding or tied to dilution pressure.",
-    "- Reverse split or authorized-share vote: usually 52-68; 75-82 if tied to Nasdaq/NYSE compliance, financing, or clear dilution capacity.",
-    "- Merger, acquisition, sale, or business-combination vote: usually 58-74; higher if vote failure, delay, redemption, minimum-cash, or closing risk is source-backed.",
-    "- SPAC/de-SPAC vote/status: usually 55-74; 75-88 for high redemptions, minimum cash risk, waiver/backstop need, or imminent closing/ticker change.",
-    "- Contested proxy, dissident slate, or board-control fight: usually 65-84 depending on board-control stakes and recommendation changes.",
-    "- Legal, regulatory, investigation, sanctions, antitrust, or compliance shareholder proposal: score by severity and source-backed company exposure.",
+    "Proxy scoring guide:",
+    "- Core rule: score only what this proxy filing asks shareholders to vote on or materially updates. Do not score up merely because the form is DEF 14A, PRE 14A, DEFM14A, or DEFA14A.",
+    "- Routine annual meeting: director elections, say-on-pay, say-on-frequency, and auditor ratification only should be 25-49. Use 50+ only with a source-backed contested item, shareholder proposal, weak governance issue, compensation issue, transaction, listing, legal, or control-change driver.",
+    "- Equity plan vote: score by requested shares or dilution scale when stated. Under 5% of outstanding usually 35-49; 5-10% usually 50-59; 10-20% usually 60-69; over 20% usually 70-79. Use 75+ only when large reserve plus microcap, listing, financing, or dilution pressure is source-backed.",
+    "- Reverse split or listing capital vote: routine reverse split usually 52-68. Use 70-82 when tied to Nasdaq/NYSE minimum bid, delisting deadline, or listing compliance. Use 75+ only when active delisting or compliance loss is central. Authorized-share increase is 45-64 routine, 65-79 when it creates large future issuance capacity or is tied to financing/dilution pressure.",
+    "- Merger, acquisition, sale, or business-combination vote: usually 58-74. Use 75-88 when vote failure risk, appraisal risk, closing-condition risk, minimum-cash risk, regulatory issue, deal break risk, delisting, ticker transition, or changed holder economics is source-backed.",
+    "- SPAC or de-SPAC vote/status: proxy filed or vote pending usually 55-74. Use 75-88 for high redemptions, minimum cash risk, waiver/backstop need, redemption deadline, closing uncertainty, or imminent closing/ticker change. Score from closing/redemption/cash risk, not from the SPAC label alone.",
+    "- Contested proxy or governance fight: routine shareholder proposal usually 35-59. Dissident slate, third-party solicitation, recommendation change, or board-control fight usually 65-84; use 75+ when board control or strategic direction could change.",
+    "- IPO or listing proxy: ordinary listing approval usually 45-64. Use 65-79 when the vote gates listing, reverse split/listing compliance, financing timing, or ticker transition.",
+    "- Legal, regulatory, investigation, sanctions, antitrust, or compliance shareholder proposal: score by severity and direct company exposure.",
+    "- Preliminary proxy: do not cap solely because it is preliminary if the proposal terms are material, but mention that final proxy or vote result is pending.",
+    "- Alert gate: 75+ requires a source-backed near-term investor decision driver: listing compliance or delisting risk, major dilution authorization, merger/de-SPAC closing condition, board-control contest, failed vote/deal break risk, legal/regulatory block, or imminent listing/ticker change.",
+    "- Do not copy the skeleton score value. For a routine annual proxy with analyzable meeting/proposal facts, choose a real score in the 25-49 range.",
     "- Do not mark a proxy as alert just because it is a shareholder vote.",
-    "- Avoid 90+ unless the source shows an extreme outcome: deal break, failed vote, immediate delisting risk, financing failure, or actual control change.",
+    "- Avoid 90+ unless the source shows an extreme outcome: deal break, failed vote, immediate delisting risk, financing failure, regulatory block, or actual control change.",
+    "- score_explanation.summary must match the chosen score band and visible UI. It should not introduce a new fact that is absent from display_payload.data, key_evidence, or the source blocks.",
   ];
 }
 
 function proxyRuntimeHintSections(
   variant: ProxyAnalysisPromptVariant,
   routerDecision: ProxyRouterDecision,
-  displayPayload: ProxyDisplayPayload,
 ): string[] {
-  if (variant === "proxy_sectioned_test") {
-    return [
-      "",
-      "router_decision_hint_non_binding:",
-      JSON.stringify(routerDecision, null, 2),
-    ];
-  }
   return [
     "",
-    "router_decision:",
+    variant === "proxy_sectioned_test"
+      ? "router_decision_hint_non_binding:"
+      : "parser_route_hint_non_binding:",
     JSON.stringify(routerDecision, null, 2),
-    "",
-    "display_payload_return_contract:",
-    JSON.stringify(displayPayloadReturnContract(displayPayload), null, 2),
   ];
 }
 
@@ -274,13 +254,28 @@ export function buildDeterministicProxyAnalysis(
   };
 }
 
-function displayPayloadReturnContract(displayPayload: ProxyDisplayPayload): ProxyDisplayPayload {
+export function buildProxyLlmRouterPlaceholder(): ProxyRouterDecision {
   return {
-    display_type: displayPayload.display_type,
-    display_version: displayPayload.display_version,
+    stage: "router",
+    usesLlm: true,
+    analysis_needed: true,
+    event_type: "other",
+    display_type: "generic",
+    display_version: "proxy_generic_v1",
+    preliminary_action: "analyze",
+    preliminary_score: 50,
+    rationale: "Placeholder only. The analysis prompt must choose proxy event and UI from cleaned source blocks.",
+    analysis_focus: ["Classify proxy event", "Choose display UI", "Fill selected visible UI fields"],
+  };
+}
+
+export function buildProxyLlmDisplayPayloadPlaceholder(): ProxyDisplayPayload {
+  return {
+    display_type: "generic",
+    display_version: "proxy_generic_v1",
     data: {},
     evidence: [],
-    notes: [],
+    notes: ["Placeholder only. LLM must select and fill the final proxy display payload."],
   };
 }
 
@@ -343,6 +338,9 @@ function requiredOutputSkeleton(): ProxyRequiredOutput {
       sub_theme: "string | null",
       score: 0,
       score_reason: "string",
+      score_explanation: {
+        summary: "one short investor-facing sentence explaining the score",
+      },
       signal: "neutral",
       quick_take: "string",
       summary: "string",
@@ -359,7 +357,21 @@ function requiredOutputSkeleton(): ProxyRequiredOutput {
     display_payload: {
       display_type: "generic",
       display_version: "proxy_generic_v1",
-      data: {},
+      data: {
+        meeting_date: "string | Not disclosed",
+        record_date: "string | Not disclosed",
+        proposal_count: "number | Not disclosed",
+        board_recommendation: "string | Not disclosed",
+        proposals: [
+          {
+            id: "string",
+            title: "string",
+            category: "string",
+            recommendation: "For | Against | Mixed | Not disclosed",
+            is_shareholder_proposal: false,
+          },
+        ],
+      },
       evidence: [],
       notes: [],
     },
