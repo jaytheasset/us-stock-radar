@@ -645,7 +645,7 @@ function makeForm25SampleFilingEvent(): FilingEvent {
         primary_ticker: "DLST",
         primary_ticker_exchange: "NASDAQ",
         removed_security: "Common Stock",
-        security_category: "common_equity",
+        security_category: "common_stock",
         exchange: "Nasdaq Stock Market LLC",
         rule_provision: "Exchange Act Rule 12d2-2",
         removal_reason: "listing_standards_failure",
@@ -3733,7 +3733,7 @@ function Form25ListingStatusTemplate({
 
       <section className="stock-detail-card spac-summary-panel">
         <div className="spac-summary-heading">
-          <h2>Investor Impact</h2>
+          <h2>Summary</h2>
           <p>{model.investorImpact}</p>
         </div>
         {model.detailRows.length ? (
@@ -6243,9 +6243,9 @@ function buildForm25ListingStatusModel(filing: FilingEvent): Form25ListingStatus
   const considerationSummary = displayString(data, "consideration_summary", "");
   const commonEquityAffected =
     data.common_equity_affected === true
-      ? "Common equity affected"
+      ? "Common stock / ADS affected"
       : data.common_equity_affected === false
-        ? "Common equity not affected"
+        ? "Common stock / ADS not affected"
         : displayString(data, "common_equity_affected", "Equity impact not stated");
   const tone =
     filing.score >= 75 ||
@@ -6270,7 +6270,7 @@ function buildForm25ListingStatusModel(filing: FilingEvent): Form25ListingStatus
   ].filter((row) => isDisclosedValue(row.value));
 
   return {
-    title: "Listing Status Change",
+    title: formatForm25PanelTitle(reasonCode, deterministicCase),
     statusLabel,
     statusSummary,
     removedSecurity,
@@ -6303,6 +6303,18 @@ function formatForm25ReasonLabel(reasonCode: string, deterministicCase: string) 
   if (/continued_listing|transfer/.test(text)) return "Transfer / continued listing";
   if (/voluntary|withdrawal|going_dark/.test(text)) return "Voluntary withdrawal";
   return "Reason not disclosed";
+}
+
+function formatForm25PanelTitle(reasonCode: string, deterministicCase: string) {
+  const text = `${reasonCode} ${deterministicCase}`.toLowerCase();
+  if (/listing_standards_failure|continued_listing_standards|exchange_determination/.test(text)) {
+    return "Exchange Delisting";
+  }
+  if (/merger|business_combination|acquisition/.test(text)) return "Merger Completion";
+  if (/continued_listing|transfer/.test(text)) return "Listing Venue Change";
+  if (/voluntary|withdrawal|going_dark/.test(text)) return "Voluntary Delisting";
+  if (/matured|redeemed|retired/.test(text)) return "Security Removal";
+  return "Listing Status";
 }
 
 function formatForm25StatusLabel(reasonCode: string, deterministicCase: string) {
