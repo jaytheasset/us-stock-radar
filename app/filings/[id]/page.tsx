@@ -10,6 +10,7 @@ import {
   DollarSign,
   ExternalLink,
   FileText,
+  Info,
   TriangleAlert,
   TrendingDown,
   TrendingUp,
@@ -3370,6 +3371,7 @@ function ProxyVoteSummarySnapshot({ rows }: { rows: ProxySummaryRow[] }) {
 type ProxyProposalItem = {
   id: string;
   title: string;
+  explanation: string;
   category: string;
   recommendation: string;
   isShareholderProposal: boolean;
@@ -3382,14 +3384,6 @@ type ProxyProposalDetail = {
   note: string;
 };
 
-function isMaterialProxyProposal(proposal: ProxyProposalItem) {
-  const text = `${proposal.category} ${proposal.title}`.toLowerCase();
-  if (/\b(?:adjourn|auditor|ratif|say-on-pay|executive compensation|director election|elect directors?)\b/i.test(text)) {
-    return false;
-  }
-  return /\b(?:merger|transaction|business combination|de-spac|spac|reverse split|authorized|share issuance|listing|equity plan|incentive plan|stock plan|espp|contested|dissident|shareholder proposal|governance|poison pill|bylaw|charter)\b/i.test(text);
-}
-
 function ProxyProposalAgenda({ proposals }: { proposals: ProxyProposalItem[] }) {
   return (
     <section className="stock-detail-card proxy-agenda-card">
@@ -3398,43 +3392,44 @@ function ProxyProposalAgenda({ proposals }: { proposals: ProxyProposalItem[] }) 
         <span>{proposals.length} proposals</span>
       </div>
       <div className="proxy-agenda-table">
-        <div className="proxy-agenda-row proxy-agenda-header">
-          <span>No.</span>
-          <span>Proposal</span>
-          <span>Type</span>
-          <span>Board recommends</span>
-        </div>
-        {proposals.map((proposal) => {
-          const isMaterial = isMaterialProxyProposal(proposal);
-          return (
-            <div
-              className={`proxy-agenda-row-group${isMaterial ? " proxy-agenda-row-group-material" : ""}`}
-              key={`${proposal.id}-${proposal.title}`}
-            >
-              <div className="proxy-agenda-row">
-                <span>{proposal.id}</span>
-                {isMaterial ? <strong>{proposal.title}</strong> : <span>{proposal.title}</span>}
-                <span>
-                  {proposal.category}
-                  {proposal.isShareholderProposal ? " · shareholder" : ""}
-                </span>
-                <span>{proposal.recommendation || "Not disclosed"}</span>
-              </div>
-              {proposal.details.length ? (
-                <div className="proxy-agenda-detail-list">
-                  {proposal.details.map((detail) => (
-                    <div className="proxy-agenda-detail" key={`${proposal.id}-${detail.label}`}>
-                      <div className="proxy-agenda-detail-row">
-                        <span>{detail.label}</span>
-                        <span>{detail.value}</span>
-                      </div>
-                    </div>
-                  ))}
+        {proposals.map((proposal) => (
+          <div className="proxy-agenda-row-group" key={`${proposal.id}-${proposal.title}`}>
+            <div className="proxy-agenda-proposal-heading">
+              <span className="proxy-agenda-proposal-id">{proposal.id}</span>
+              <div className="proxy-agenda-proposal-main">
+                <div className="proxy-agenda-proposal-meta">
+                  <span>{proposal.category}</span>
+                  {proposal.isShareholderProposal ? <span>Shareholder proposal</span> : null}
+                  <span>Board {proposal.recommendation || "Not disclosed"}</span>
                 </div>
-              ) : null}
+                <strong>{proposal.title}</strong>
+                {proposal.explanation ? (
+                  <div className="proxy-agenda-explanation">
+                    <span aria-label="Plain-English explanation" title="Plain-English explanation">
+                      <Info size={12} strokeWidth={2.4} aria-hidden="true" />
+                    </span>
+                    <p>{proposal.explanation}</p>
+                  </div>
+                ) : null}
+              </div>
             </div>
-          );
-        })}
+            {proposal.details.length ? (
+              <div className="proxy-agenda-detail-list">
+                {proposal.details.map((detail) => (
+                  <div className="proxy-agenda-detail" key={`${proposal.id}-${detail.label}`}>
+                    <div className="proxy-agenda-detail-row">
+                      <span>{detail.label}</span>
+                      <span>
+                        {detail.value}
+                        {detail.note ? <small>{detail.note}</small> : null}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ))}
       </div>
     </section>
   );
@@ -3535,6 +3530,7 @@ function buildProxyProposalSummary(data: Record<string, unknown>) {
       const id = readRowString(proposal, "id") || `Proposal ${index + 1}`;
       const title = formatProxyProposalTitle(readRowString(proposal, "title"));
       if (!title) return null;
+      const explanation = formatProxyProposalExplanation(readRowString(proposal, "explanation"));
       const category = readRowString(proposal, "type") || readRowString(proposal, "category");
       const recommendation = readRowString(proposal, "board_recommendation") || readRowString(proposal, "recommendation");
       const isShareholderProposal = Boolean(proposal.is_shareholder_proposal);
@@ -3544,12 +3540,15 @@ function buildProxyProposalSummary(data: Record<string, unknown>) {
           const value = readRowString(detail, "value");
           const note = readRowString(detail, "note");
           if (!label || !value) return null;
+          if (isNonUsefulProxyDetailValue(value)) return null;
           return { label, value, note };
         })
-        .filter((detail): detail is ProxyProposalDetail => Boolean(detail));
+        .filter((detail): detail is ProxyProposalDetail => Boolean(detail))
+        .slice(0, 4);
       return {
         id,
         title,
+        explanation,
         category: formatProxyProposalCategory(category) || "Not disclosed",
         recommendation: formatProxyBoardRecommendation(recommendation) || "Not disclosed",
         isShareholderProposal,
@@ -3557,6 +3556,15 @@ function buildProxyProposalSummary(data: Record<string, unknown>) {
       };
     })
     .filter((item): item is ProxyProposalItem => Boolean(item));
+}
+
+function formatProxyProposalExplanation(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function isNonUsefulProxyDetailValue(value: string) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  return /^(?:not\s+disclosed|not\s+stated|not\s+known\s+yet|unknown|n\/a|none|-|—)$/i.test(normalized);
 }
 
 function formatProxyProposalTitle(value: string) {

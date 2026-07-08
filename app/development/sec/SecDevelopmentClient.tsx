@@ -2951,7 +2951,14 @@ function getDisplayLabelGuide(roomKey: string): DisplayLabelGuide | null {
             },
             {
               title: "Proposal agenda",
-              items: ["proposals[].id", "proposals[].title", "proposals[].type", "proposals[].board_recommendation", "proposals[].details"],
+              items: [
+                "proposals[].id",
+                "proposals[].title",
+                "proposals[].explanation",
+                "proposals[].type",
+                "proposals[].board_recommendation",
+                "proposals[].details[0..4]",
+              ],
             },
             {
               title: "What To Watch Next",

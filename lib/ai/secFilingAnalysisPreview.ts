@@ -2586,7 +2586,11 @@ function validateSecProxyDisplayPayload(displayPayload: Record<string, unknown>)
       if (!proposalType) warnings.push(`SEC proxy proxy_vote_v1 data.proposals row ${row} missing type.`);
       const recommendation = stringValue(proposal.board_recommendation) || stringValue(proposal.recommendation);
       if (!recommendation) warnings.push(`SEC proxy proxy_vote_v1 data.proposals row ${row} missing board_recommendation.`);
+      if (!stringValue(proposal.explanation)) warnings.push(`SEC proxy proxy_vote_v1 data.proposals row ${row} missing beginner explanation.`);
       const details = readRecordArray(proposal.details);
+      if (details.length > 4) {
+        warnings.push(`SEC proxy proxy_vote_v1 data.proposals row ${row} should contain at most 4 detail rows, got ${details.length}.`);
+      }
       if (isMaterialProxyProposalType(`${proposalType} ${stringValue(proposal.title)}`) && !details.length) {
         warnings.push(`SEC proxy proxy_vote_v1 data.proposals row ${row} should include details for material proposal terms.`);
       }
@@ -2688,15 +2692,17 @@ const secProxyRequiredOutputSchema = {
               items: {
                 type: "object",
                 additionalProperties: true,
-                required: ["id", "title", "type", "board_recommendation", "is_shareholder_proposal", "details"],
+                required: ["id", "title", "type", "board_recommendation", "is_shareholder_proposal", "explanation", "details"],
                 properties: {
                   id: { type: "string", minLength: 1, maxLength: 24 },
                   title: { type: "string", minLength: 1, maxLength: 160 },
                   type: { type: "string", minLength: 1, maxLength: 40 },
                   board_recommendation: { type: "string", minLength: 1, maxLength: 32 },
                   is_shareholder_proposal: { type: "boolean" },
+                  explanation: { type: "string", minLength: 1, maxLength: 120 },
                   details: {
                     type: "array",
+                    maxItems: 4,
                     items: {
                       type: "object",
                       additionalProperties: true,
