@@ -4,12 +4,18 @@ import { useCallback, useState } from "react";
 import { DashboardHeader } from "@/components/dashboard-v2/DashboardHeader";
 import { FilterBar } from "@/components/dashboard-v2/FilterBar";
 import { MarketMoversTable } from "@/components/dashboard-v2/MarketMoversTable";
+import { MobileFilterBottomSheet } from "@/components/dashboard-v2/MobileFilterBottomSheet";
 import {
   MobileTickerBottomSheet,
   type MobileSheetSection,
 } from "@/components/dashboard-v2/MobileTickerBottomSheet";
 import { SegmentedTabs } from "@/components/dashboard-v2/SegmentedTabs";
 import { TickerDetailPanel } from "@/components/dashboard-v2/TickerDetailPanel";
+import {
+  dashboardV2AllFilterValue,
+  dashboardV2DefaultFilterState,
+  type DashboardV2FilterKey,
+} from "@/components/dashboard-v2/dashboardV2FilterConfig";
 import styles from "@/components/dashboard-v2/StockRadarDashboardV2.module.css";
 import {
   dashboardV2Filters,
@@ -28,7 +34,9 @@ export function StockRadarDashboardV2() {
   const [activeSession, setActiveSession] = useState<DashboardV2Session>("Regular");
   const [selectedTicker, setSelectedTicker] = useState(dashboardV2SelectedTicker);
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
+  const [isMobileFilterSheetOpen, setIsMobileFilterSheetOpen] = useState(false);
   const [mobileSheetSection, setMobileSheetSection] = useState<MobileSheetSection>("summary");
+  const [filterState, setFilterState] = useState(dashboardV2DefaultFilterState);
   const marketMoverRows = dashboardV2MarketMoversByTab[activeMoverTab];
   const openTickerDetail = useCallback((row: DashboardV2MarketMover, section: MobileSheetSection) => {
     setSelectedTicker(getDashboardV2TickerDetail(row));
@@ -37,6 +45,15 @@ export function StockRadarDashboardV2() {
     if (window.matchMedia("(max-width: 760px)").matches) {
       setIsMobileSheetOpen(true);
     }
+  }, []);
+  const updateFilter = useCallback((key: DashboardV2FilterKey, value: string) => {
+    setFilterState((current) => ({ ...current, [key]: value }));
+  }, []);
+  const resetFilter = useCallback((key: DashboardV2FilterKey) => {
+    setFilterState((current) => ({ ...current, [key]: dashboardV2AllFilterValue }));
+  }, []);
+  const clearFilters = useCallback(() => {
+    setFilterState({ ...dashboardV2DefaultFilterState });
   }, []);
 
   return (
@@ -59,7 +76,12 @@ export function StockRadarDashboardV2() {
               variant="session"
             />
           </div>
-          <FilterBar filters={dashboardV2Filters} />
+          <FilterBar
+            filterState={filterState}
+            filters={dashboardV2Filters}
+            onOpenMoreFilters={() => setIsMobileFilterSheetOpen(true)}
+            onResetFilter={resetFilter}
+          />
           <MarketMoversTable
             onOpenChart={(row) => openTickerDetail(row, "chart")}
             onSelectRow={(row) => openTickerDetail(row, "summary")}
@@ -74,6 +96,13 @@ export function StockRadarDashboardV2() {
         isOpen={isMobileSheetOpen}
         onClose={() => setIsMobileSheetOpen(false)}
         ticker={selectedTicker}
+      />
+      <MobileFilterBottomSheet
+        filterState={filterState}
+        isOpen={isMobileFilterSheetOpen}
+        onChangeFilter={updateFilter}
+        onClearFilters={clearFilters}
+        onClose={() => setIsMobileFilterSheetOpen(false)}
       />
     </main>
   );

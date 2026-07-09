@@ -1,4 +1,7 @@
-import { Bell, Search, Settings } from "lucide-react";
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { Bell, Menu, Search, Settings } from "lucide-react";
 
 const primaryNavItems = [
   { label: "Markets", href: "/dashboard-v2", active: true },
@@ -11,42 +14,119 @@ const primaryNavItems = [
   { label: "Premium", href: "/premium", premium: true },
 ];
 
+const mobileMenuItems = [
+  ...primaryNavItems,
+  { label: "Settings", href: "#settings" },
+];
+
 export function DashboardHeader() {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+
+      if (mobileMenuRef.current?.contains(target) || mobileMenuButtonRef.current?.contains(target)) {
+        return;
+      }
+
+      setIsMobileMenuOpen(false);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isMobileMenuOpen]);
+
   return (
-    <header className="dashboard-v2-header">
-      <div className="dashboard-v2-brand">
-        <span>STOCK RADAR</span>
-        <small>
-          15m delayed
-          <i aria-hidden="true" />
-        </small>
-      </div>
+    <>
+      <header className="dashboard-v2-header">
+        <div className="dashboard-v2-brand">
+          <span>STOCK RADAR</span>
+          <small>
+            15m delayed
+            <i aria-hidden="true" />
+          </small>
+        </div>
 
-      <nav className="dashboard-v2-primary-nav" aria-label="Primary navigation">
-        {primaryNavItems.map((item) => (
-          <a
-            key={item.label}
-            className={item.premium ? "dashboard-v2-nav-premium" : undefined}
-            href={item.href}
-            aria-current={item.active ? "page" : undefined}
+        <nav className="dashboard-v2-primary-nav dashboard-v2-primary-nav-desktop" aria-label="Primary navigation">
+          {primaryNavItems.map((item) => (
+            <a
+              key={item.label}
+              className={item.premium ? "dashboard-v2-nav-premium" : undefined}
+              href={item.href}
+              aria-current={item.active ? "page" : undefined}
+            >
+              {item.label}
+            </a>
+          ))}
+        </nav>
+
+        <div className="dashboard-v2-header-actions" aria-label="Dashboard actions">
+          <button type="button" aria-label="Search">
+            <Search aria-hidden="true" size={18} />
+            <span>Search</span>
+          </button>
+          <button className="dashboard-v2-icon-button has-alert" type="button" aria-label="Alerts">
+            <Bell aria-hidden="true" size={18} />
+          </button>
+          <button className="dashboard-v2-icon-button dashboard-v2-settings-button" type="button" aria-label="Settings">
+            <Settings aria-hidden="true" size={18} />
+          </button>
+          <button
+            aria-controls="dashboard-v2-mobile-menu"
+            aria-expanded={isMobileMenuOpen}
+            aria-haspopup="menu"
+            aria-label="Open menu"
+            className="dashboard-v2-icon-button dashboard-v2-mobile-menu-button"
+            onClick={() => setIsMobileMenuOpen((current) => !current)}
+            ref={mobileMenuButtonRef}
+            type="button"
           >
-            {item.label}
-          </a>
-        ))}
-      </nav>
+            <Menu aria-hidden="true" size={19} />
+          </button>
+        </div>
+      </header>
 
-      <div className="dashboard-v2-header-actions" aria-label="Dashboard actions">
-        <button type="button">
-          <Search aria-hidden="true" size={18} />
-          <span>Search</span>
-        </button>
-        <button className="dashboard-v2-icon-button has-alert" type="button" aria-label="Alerts">
-          <Bell aria-hidden="true" size={18} />
-        </button>
-        <button className="dashboard-v2-icon-button" type="button" aria-label="Settings">
-          <Settings aria-hidden="true" size={18} />
-        </button>
-      </div>
-    </header>
+      {isMobileMenuOpen ? (
+        <div
+          className="dashboard-v2-mobile-menu-popover"
+          id="dashboard-v2-mobile-menu"
+          ref={mobileMenuRef}
+          role="menu"
+        >
+          <nav className="dashboard-v2-mobile-menu-list" aria-label="Mobile menu">
+            {mobileMenuItems.map((item) => (
+              <a
+                aria-current={item.active ? "page" : undefined}
+                className={item.premium ? "dashboard-v2-mobile-menu-premium" : undefined}
+                href={item.href}
+                key={item.label}
+                onClick={() => setIsMobileMenuOpen(false)}
+                role="menuitem"
+              >
+                <span>{item.label}</span>
+              </a>
+            ))}
+          </nav>
+        </div>
+      ) : null}
+    </>
   );
 }
