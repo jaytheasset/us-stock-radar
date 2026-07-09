@@ -1133,20 +1133,70 @@
     padding: 14px 12px;
   }
 
+  :global(.dashboard-v2-control-row) {
+    gap: 10px;
+  }
+
   :global(.dashboard-v2-tabs-primary),
   :global(.dashboard-v2-tabs-session) {
     grid-template-columns: repeat(3, minmax(100px, 1fr));
     overflow-x: auto;
+    border-radius: 7px;
+  }
+
+  :global(.dashboard-v2-tabs-primary button) {
+    min-height: 46px;
+    padding: 6px 10px;
+    font-size: 12px;
+    line-height: 1.25;
+    white-space: normal;
+  }
+
+  :global(.dashboard-v2-tabs-session button) {
+    min-height: 38px;
+    padding: 5px 10px;
+    font-size: 12px;
+    line-height: 1.15;
   }
 
   :global(.dashboard-v2-filter-bar) {
     flex-wrap: nowrap;
+    gap: 8px;
+    margin-top: 12px;
+    margin-bottom: 14px;
     overflow-x: auto;
     padding-bottom: 2px;
   }
 
   :global(.dashboard-v2-filter) {
     flex: 0 0 auto;
+    min-height: 36px;
+    border-radius: 7px;
+  }
+
+  :global(.dashboard-v2-filter span) {
+    min-height: 36px;
+    padding: 0 10px;
+    font-size: 11px;
+  }
+
+  :global(.dashboard-v2-filter b) {
+    min-width: 44px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+
+  :global(.dashboard-v2-filter svg) {
+    margin-right: 8px;
+  }
+
+  :global(.dashboard-v2-filter-more) {
+    gap: 8px;
+    padding-right: 10px;
+  }
+
+  :global(.dashboard-v2-filter-more span) {
+    padding-right: 2px;
   }
 
   :global(.dashboard-v2-table-footer) {
