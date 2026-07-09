@@ -1177,8 +1177,8 @@
     align-items: center;
     flex-direction: row;
     min-height: 0;
-    gap: 10px;
-    padding: 16px;
+    gap: 8px;
+    padding: 14px;
   }
 
   :global(.dashboard-v2-brand) {
@@ -1187,7 +1187,7 @@
     align-items: flex-start;
     flex-direction: column;
     justify-content: center;
-    gap: 5px;
+    gap: 4px;
   }
 
   :global(.dashboard-v2-brand span) {
@@ -1214,16 +1214,16 @@
   :global(.dashboard-v2-header-actions) {
     width: auto;
     justify-content: flex-end;
-    gap: 8px;
+    gap: 6px;
     margin-left: auto;
   }
 
   :global(.dashboard-v2-header-actions button) {
-    min-height: 34px;
+    min-height: 32px;
   }
 
   :global(.dashboard-v2-header-actions button:not(.dashboard-v2-icon-button)) {
-    width: 34px;
+    width: 32px;
     justify-content: center;
   }
 
@@ -1302,11 +1302,11 @@
   }
 
   :global(.dashboard-v2-left) {
-    padding: 14px 12px;
+    padding: 12px 12px;
   }
 
   :global(.dashboard-v2-control-row) {
-    gap: 10px;
+    gap: 8px;
   }
 
   :global(.dashboard-v2-tabs-primary),
@@ -1317,17 +1317,17 @@
   }
 
   :global(.dashboard-v2-tabs-primary button) {
-    min-height: 46px;
-    padding: 6px 10px;
-    font-size: 12px;
+    min-height: 42px;
+    padding: 5px 8px;
+    font-size: 11.5px;
     line-height: 1.25;
     white-space: normal;
   }
 
   :global(.dashboard-v2-tabs-session button) {
-    min-height: 38px;
-    padding: 5px 10px;
-    font-size: 12px;
+    min-height: 35px;
+    padding: 4px 8px;
+    font-size: 11.5px;
     line-height: 1.15;
   }
 
@@ -1338,21 +1338,21 @@
   :global(.dashboard-v2-mobile-filter-controls) {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 5px;
-    margin-top: 12px;
-    margin-bottom: 8px;
+    gap: 4px;
+    margin-top: 10px;
+    margin-bottom: 7px;
   }
 
   :global(.dashboard-v2-mobile-quick-filter) {
     display: flex;
     min-width: 0;
-    min-height: 36px;
+    min-height: 34px;
     align-items: center;
     justify-content: center;
-    gap: 3px;
+    gap: 2px;
     border: 1px solid var(--dash-v2-border);
     border-radius: 7px;
-    padding: 0 5px;
+    padding: 0 4px;
     color: #d6d9de;
     background: #0e1216;
   }
@@ -1367,15 +1367,47 @@
     min-width: 0;
     overflow: visible;
     color: inherit;
-    font-size: 10.5px;
+    font-size: 11px;
     font-weight: 760;
     line-height: 1;
     text-transform: uppercase;
     white-space: nowrap;
   }
 
+  :global(.dashboard-v2-market-table th),
+  :global(.dashboard-v2-market-table td) {
+    padding: 0 10px;
+  }
+
+  :global(.dashboard-v2-market-table th) {
+    height: 38px;
+    font-size: 10.75px;
+  }
+
+  :global(.dashboard-v2-market-table td) {
+    height: 40px;
+    font-size: 13px;
+  }
+
+  :global(.dashboard-v2-market-table th:nth-child(9)),
+  :global(.dashboard-v2-market-table td:nth-child(9)) {
+    padding: 0 6px;
+  }
+
+  :global(.dashboard-v2-ticker-cell) {
+    grid-template-columns: 50px minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  :global(.dashboard-v2-ticker-cell strong),
+  :global(.dashboard-v2-ticker-cell span) {
+    font-size: 13px;
+  }
+
   :global(.dashboard-v2-mobile-quick-filter svg) {
     flex: 0 0 auto;
+    width: 12px;
+    height: 12px;
     color: currentColor;
     opacity: 0.85;
   }
