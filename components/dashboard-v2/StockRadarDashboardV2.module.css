@@ -1773,12 +1773,18 @@
     width: 100%;
     align-items: center;
     flex-direction: column;
-    gap: 8px;
+    gap: 7px;
     text-align: center;
+  }
+
+  :global(.dashboard-v2-mobile-sheet .dashboard-v2-detail-title h1) {
+    font-size: 31px;
+    line-height: 0.98;
   }
 
   :global(.dashboard-v2-mobile-sheet .dashboard-v2-detail-title span) {
     max-width: min(310px, 100%);
+    font-size: 13px;
     line-height: 1.35;
   }
 
@@ -1787,18 +1793,25 @@
     justify-content: center;
     flex-direction: row;
     flex-wrap: wrap;
-    gap: 8px 12px;
+    gap: 6px 10px;
     width: 100%;
+    margin-top: 11px;
     text-align: center;
   }
 
   :global(.dashboard-v2-mobile-sheet .dashboard-v2-price-line strong) {
     width: 100%;
+    font-size: 26px;
+  }
+
+  :global(.dashboard-v2-mobile-sheet .dashboard-v2-price-line span) {
+    font-size: 15.5px;
   }
 
   :global(.dashboard-v2-mobile-sheet .dashboard-v2-detail-badges) {
     width: 100%;
     justify-content: center;
+    margin-top: 20px;
     text-align: center;
   }
 
@@ -1812,13 +1825,21 @@
   }
 
   :global(.dashboard-v2-mobile-sheet .dashboard-v2-chart-nav) {
-    align-items: stretch;
+    align-items: flex-start;
     flex-direction: column;
-    padding: 8px 0;
+    gap: 6px;
+    padding: 8px 0 10px;
   }
 
   :global(.dashboard-v2-mobile-sheet .dashboard-v2-range-tabs) {
+    width: 100%;
+    justify-content: flex-start;
     overflow-x: auto;
+  }
+
+  :global(.dashboard-v2-mobile-sheet .dashboard-v2-chart-tools) {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   :global(.dashboard-v2-mobile-sheet .dashboard-v2-event-timeline) {
