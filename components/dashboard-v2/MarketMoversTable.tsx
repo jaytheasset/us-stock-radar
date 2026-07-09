@@ -3,7 +3,19 @@ import { EventBadge } from "@/components/dashboard-v2/EventBadge";
 import { ImpactBadge } from "@/components/dashboard-v2/ImpactBadge";
 import type { DashboardV2MarketMover } from "@/lib/mock/dashboardV2Data";
 
-export function MarketMoversTable({ rows }: { rows: DashboardV2MarketMover[] }) {
+type MarketMoversTableProps = {
+  onOpenChart?: (row: DashboardV2MarketMover) => void;
+  onSelectRow?: (row: DashboardV2MarketMover) => void;
+  rows: DashboardV2MarketMover[];
+  selectedTicker?: string;
+};
+
+export function MarketMoversTable({
+  onOpenChart,
+  onSelectRow,
+  rows,
+  selectedTicker,
+}: MarketMoversTableProps) {
   const rowsPerPage = rows.length;
   const totalResults = 500;
   const lastPage = Math.ceil(totalResults / rowsPerPage);
@@ -30,11 +42,21 @@ export function MarketMoversTable({ rows }: { rows: DashboardV2MarketMover[] }) 
               const changeClass = row.changePercent.startsWith("-")
                 ? "dashboard-v2-negative"
                 : "dashboard-v2-positive";
+              const isSelected = selectedTicker ? selectedTicker === row.ticker : row.selected;
 
               return (
                 <tr
-                  className={row.selected ? "dashboard-v2-row-selected" : undefined}
+                  aria-selected={isSelected}
+                  className={isSelected ? "dashboard-v2-row-selected" : undefined}
                   key={row.ticker}
+                  onClick={() => onSelectRow?.(row)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onSelectRow?.(row);
+                    }
+                  }}
+                  tabIndex={0}
                 >
                   <td>{row.rank}</td>
                   <td>
@@ -62,6 +84,11 @@ export function MarketMoversTable({ rows }: { rows: DashboardV2MarketMover[] }) 
                       className="dashboard-v2-chart-button"
                       type="button"
                       aria-label={`Open ${row.ticker} chart`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onOpenChart?.(row);
+                      }}
+                      onKeyDown={(event) => event.stopPropagation()}
                     >
                       <BarChart3 aria-hidden="true" size={18} />
                     </button>

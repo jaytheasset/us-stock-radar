@@ -918,3 +918,111 @@ export const dashboardV2SelectedTicker: DashboardV2TickerDetail = {
     },
   ],
 };
+
+const detailCompanyNames: Partial<Record<string, string>> = {
+  AMD: "Advanced Micro Devices, Inc.",
+  AMZN: "Amazon.com, Inc.",
+  AVGO: "Broadcom Inc.",
+  COIN: "Coinbase Global, Inc.",
+  CRWD: "CrowdStrike Holdings, Inc.",
+  GOOGL: "Alphabet Inc. Class A",
+  INTC: "Intel Corporation",
+  META: "Meta Platforms, Inc.",
+  MSFT: "Microsoft Corporation",
+  NFLX: "Netflix, Inc.",
+  NVDA: "NVIDIA Corporation",
+  PLTR: "Palantir Technologies Inc.",
+  TSLA: "Tesla, Inc.",
+  WBA: "Walgreens Boots Alliance, Inc.",
+};
+
+const detailEventTitles: Record<DashboardV2EventType, string> = {
+  dilution: "Capital structure update flagged",
+  earnings: "Earnings update reported",
+  govt: "Government or policy event detected",
+  insider: "Insider transaction reported",
+  legal: "Legal headline flagged",
+  listing: "Listing-related update detected",
+  ma: "Strategic transaction mentioned",
+  product: "Product or platform update detected",
+};
+
+const detailEventTimes = [
+  "May 15, 2024 09:12 AM ET",
+  "May 14, 2024 04:05 PM ET",
+  "May 13, 2024 03:47 PM ET",
+  "May 9, 2024 08:31 AM ET",
+];
+
+export function getDashboardV2TickerDetail(row: DashboardV2MarketMover): DashboardV2TickerDetail {
+  if (row.ticker === dashboardV2SelectedTicker.ticker) {
+    return dashboardV2SelectedTicker;
+  }
+
+  const latestPrice = parseDashboardV2Number(row.price) ?? 341.47;
+  const candles = shiftDashboardV2Candles(latestPrice);
+  const highs = candles.map((candle) => candle.high);
+  const lows = candles.map((candle) => candle.low);
+
+  return {
+    ticker: row.ticker,
+    company: detailCompanyNames[row.ticker] ?? row.company,
+    price: row.price,
+    changePercent: row.changePercent,
+    changeAmount: getDashboardV2ChangeAmount(row.price, row.changePercent),
+    badges: row.events.slice(0, 3),
+    ohlc: {
+      open: candles[0].open.toFixed(2),
+      high: Math.max(...highs).toFixed(2),
+      low: Math.min(...lows).toFixed(2),
+      close: latestPrice.toFixed(2),
+    },
+    candles,
+    recentEvents: row.events.slice(0, 4).map((type, index) => ({
+      id: `${row.ticker.toLowerCase()}-${type}-${index}`,
+      type,
+      title: `${row.ticker} ${detailEventTitles[type]}`,
+      timestamp: detailEventTimes[index] ?? detailEventTimes[detailEventTimes.length - 1],
+      impact: index < 2 || row.maxImpact === "major" || row.maxImpact === "high" ? "high" : "medium",
+    })),
+  };
+}
+
+function parseDashboardV2Number(value: string) {
+  const parsed = Number(value.replace(/[$,%]/g, "").replace(/,/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getDashboardV2ChangeAmount(price: string, changePercent: string) {
+  const currentPrice = parseDashboardV2Number(price);
+  const percent = parseDashboardV2Number(changePercent);
+
+  if (currentPrice === null || percent === null) {
+    return dashboardV2SelectedTicker.changeAmount;
+  }
+
+  const previousPrice = currentPrice / (1 + percent / 100);
+  const changeAmount = currentPrice - previousPrice;
+  const sign = changeAmount >= 0 ? "+" : "-";
+
+  return `${sign}${Math.abs(changeAmount).toFixed(2)}`;
+}
+
+function shiftDashboardV2Candles(targetClose: number) {
+  const baseClose =
+    dashboardV2SelectedTicker.candles[dashboardV2SelectedTicker.candles.length - 1]?.close ??
+    targetClose;
+  const offset = targetClose - baseClose;
+
+  return dashboardV2SelectedTicker.candles.map((candle) => ({
+    ...candle,
+    close: roundDashboardV2Price(candle.close + offset),
+    high: roundDashboardV2Price(candle.high + offset),
+    low: roundDashboardV2Price(candle.low + offset),
+    open: roundDashboardV2Price(candle.open + offset),
+  }));
+}
+
+function roundDashboardV2Price(value: number) {
+  return Number(value.toFixed(2));
+}
