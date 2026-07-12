@@ -4,6 +4,7 @@ import { ImpactBadge } from "@/components/dashboard-v2/ImpactBadge";
 import type { DashboardV2MarketMover } from "@/lib/mock/dashboardV2Data";
 
 type MarketMoversTableProps = {
+  mobileValueMode?: "change" | "volume";
   onOpenChart?: (row: DashboardV2MarketMover) => void;
   onSelectRow?: (row: DashboardV2MarketMover) => void;
   rows: DashboardV2MarketMover[];
@@ -11,6 +12,7 @@ type MarketMoversTableProps = {
 };
 
 export function MarketMoversTable({
+  mobileValueMode = "change",
   onOpenChart,
   onSelectRow,
   rows,
@@ -19,11 +21,15 @@ export function MarketMoversTable({
   const rowsPerPage = rows.length;
   const totalResults = 500;
   const lastPage = Math.ceil(totalResults / rowsPerPage);
+  const tableModeClass =
+    mobileValueMode === "volume"
+      ? "dashboard-v2-market-table-volume"
+      : "dashboard-v2-market-table-change";
 
   return (
     <section className="dashboard-v2-table-panel" aria-label="Market movers">
       <div className="dashboard-v2-table-scroll">
-        <table className="dashboard-v2-market-table">
+        <table className={`dashboard-v2-market-table ${tableModeClass}`}>
           <thead>
             <tr>
               <th>#</th>

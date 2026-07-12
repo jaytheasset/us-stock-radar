@@ -83,6 +83,7 @@ export function StockRadarDashboardV2() {
             onResetFilter={resetFilter}
           />
           <MarketMoversTable
+            mobileValueMode={activeMoverTab === "Top Volume" ? "volume" : "change"}
             onOpenChart={(row) => openTickerDetail(row, "chart")}
             onSelectRow={(row) => openTickerDetail(row, "summary")}
             rows={marketMoverRows}
