@@ -213,6 +213,7 @@
   --sr-size-nav-item: 30px;
   --sr-size-icon-button: 34px;
   --sr-size-icon-button-mobile: 32px;
+  --sr-size-header-action: 38px;
   --sr-size-close-button: 38px;
   --sr-size-control: 40px;
   --sr-size-mobile-primary-tab: 42px;
@@ -224,6 +225,7 @@
   --sr-size-mobile-list-row: 48px;
   --sr-size-table-footer: 42px;
   --sr-size-badge: 22px;
+  --sr-size-badge-lg: 29px;
   --sr-size-filter-chip: 28px;
   --sr-size-analysis-cta: 58px;
   --sr-size-chart-min-height: 250px;

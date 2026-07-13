@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Bell, Menu, Search, Settings } from "lucide-react";
+import { IconButton } from "@/components/ui/IconButton";
 
 const primaryNavItems = [
   { label: "Markets", href: "/dashboard-v2", active: true },
@@ -79,28 +80,30 @@ export function DashboardHeader() {
         </nav>
 
         <div className="dashboard-v2-header-actions" aria-label="Dashboard actions">
-          <button type="button" aria-label="Search">
+          <button className="dashboard-v2-header-search-button" type="button" aria-label="Search">
             <Search aria-hidden="true" size={18} />
             <span>Search</span>
           </button>
-          <button className="dashboard-v2-icon-button has-alert" type="button" aria-label="Alerts">
+          <IconButton aria-label="Alerts" indicator>
             <Bell aria-hidden="true" size={18} />
-          </button>
-          <button className="dashboard-v2-icon-button dashboard-v2-settings-button" type="button" aria-label="Settings">
+          </IconButton>
+          <IconButton
+            aria-label="Settings"
+            className="dashboard-v2-settings-button"
+          >
             <Settings aria-hidden="true" size={18} />
-          </button>
-          <button
+          </IconButton>
+          <IconButton
             aria-controls="dashboard-v2-mobile-menu"
             aria-expanded={isMobileMenuOpen}
             aria-haspopup="menu"
             aria-label="Open menu"
-            className="dashboard-v2-icon-button dashboard-v2-mobile-menu-button"
+            className="dashboard-v2-mobile-menu-button"
             onClick={() => setIsMobileMenuOpen((current) => !current)}
             ref={mobileMenuButtonRef}
-            type="button"
           >
             <Menu aria-hidden="true" size={19} />
-          </button>
+          </IconButton>
         </div>
       </header>
 

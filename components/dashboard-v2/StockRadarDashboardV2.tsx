@@ -9,8 +9,11 @@ import {
   MobileTickerBottomSheet,
   type MobileSheetSection,
 } from "@/components/dashboard-v2/MobileTickerBottomSheet";
-import { SegmentedTabs } from "@/components/dashboard-v2/SegmentedTabs";
 import { TickerDetailPanel } from "@/components/dashboard-v2/TickerDetailPanel";
+import {
+  SegmentedControl,
+  type SegmentedControlItem,
+} from "@/components/ui/SegmentedControl";
 import {
   dashboardV2AllFilterValue,
   dashboardV2DefaultFilterState,
@@ -28,6 +31,13 @@ import {
   type DashboardV2Session,
   type DashboardV2Tab,
 } from "@/lib/mock/dashboardV2Data";
+
+const marketMoverItems: readonly SegmentedControlItem<DashboardV2Tab>[] = dashboardV2Tabs.map(
+  (item) => ({ label: item.toUpperCase(), value: item }),
+);
+
+const marketSessionItems: readonly SegmentedControlItem<DashboardV2Session>[] =
+  dashboardV2Sessions.map((item) => ({ label: item.toUpperCase(), value: item }));
 
 export function StockRadarDashboardV2() {
   const [activeMoverTab, setActiveMoverTab] = useState<DashboardV2Tab>("Top Gainers");
@@ -62,18 +72,18 @@ export function StockRadarDashboardV2() {
       <div className="dashboard-v2-workspace">
         <section className="dashboard-v2-left" aria-label="Market movers dashboard">
           <div className="dashboard-v2-control-row">
-            <SegmentedTabs
-              active={activeMoverTab}
+            <SegmentedControl
               ariaLabel="Market mover category"
-              items={dashboardV2Tabs}
-              onSelect={(item) => setActiveMoverTab(item as DashboardV2Tab)}
+              items={marketMoverItems}
+              onValueChange={setActiveMoverTab}
+              value={activeMoverTab}
             />
-            <SegmentedTabs
-              active={activeSession}
+            <SegmentedControl
               ariaLabel="Market session"
-              items={dashboardV2Sessions}
-              onSelect={(item) => setActiveSession(item as DashboardV2Session)}
-              variant="session"
+              items={marketSessionItems}
+              onValueChange={setActiveSession}
+              value={activeSession}
+              variant="compact"
             />
           </div>
           <FilterBar

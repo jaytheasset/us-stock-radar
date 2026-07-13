@@ -1,4 +1,5 @@
 import type { DashboardV2EventType } from "@/lib/mock/dashboardV2Data";
+import { Badge, type BadgeSize, type BadgeTone } from "@/components/ui/Badge";
 
 const eventLabels: Record<DashboardV2EventType, string> = {
   dilution: "DILUTION",
@@ -11,10 +12,26 @@ const eventLabels: Record<DashboardV2EventType, string> = {
   product: "PRODUCT",
 };
 
-export function EventBadge({ type }: { type: DashboardV2EventType }) {
+const eventTones: Record<DashboardV2EventType, BadgeTone> = {
+  dilution: "neutral",
+  earnings: "earnings",
+  govt: "neutral",
+  insider: "insider",
+  legal: "legal",
+  listing: "transaction",
+  ma: "transaction",
+  product: "product",
+};
+
+type EventBadgeProps = {
+  size?: BadgeSize;
+  type: DashboardV2EventType;
+};
+
+export function EventBadge({ size = "small", type }: EventBadgeProps) {
   return (
-    <span className={`dashboard-v2-event-badge dashboard-v2-event-badge-${type}`}>
+    <Badge className="dashboard-v2-event-badge" size={size} tone={eventTones[type]}>
       {eventLabels[type]}
-    </span>
+    </Badge>
   );
 }

@@ -34,7 +34,7 @@ export function TickerDetailContent({ ticker, titleId, sectionRefs }: TickerDeta
         </div>
         <div className="dashboard-v2-detail-badges">
           {ticker.badges.map((badge) => (
-            <EventBadge key={badge} type={badge} />
+            <EventBadge key={badge} size="large" type={badge} />
           ))}
         </div>
       </header>
