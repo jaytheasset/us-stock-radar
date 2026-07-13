@@ -6,6 +6,11 @@ import { buildS1F1AnalysisPrompt, validateS1F1RequiredOutputShape } from "./anal
 import { s1F1Adapter } from "./adapter.ts";
 import { parseS1F1Filing } from "./parser.ts";
 import {
+  applySecS1F1ValidationRepairPatches,
+  buildSecS1F1ValidationRepairPlan,
+} from "../../../../ai/secS1F1AnalysisAdapter.ts";
+import type { SecFilingAnalysisInput } from "../../../../prompts/secFilingAnalysis.ts";
+import {
   APPROVED_SEC_EVENT_TYPES,
   type S1F1ParserInput,
   type S1F1RequiredOutputJson,
@@ -140,4 +145,150 @@ describe("S-1/F-1 analysis output fixtures", () => {
     assert.ok(errors.includes("analysis_output.primary_ticker must be null; ticker metadata is restored from filing_package."));
     assert.ok(errors.includes("analysis_output.tickers must be empty; ticker metadata is restored from filing_package."));
   });
+
+  it("builds one source-backed repair plan for conflicting overhang prose", () => {
+    const input = buildRepairTestInput();
+    const analysisResult = buildRepairTestAnalysis();
+    const plan = buildSecS1F1ValidationRepairPlan({ analysisResult, input });
+
+    assert.ok(plan);
+    assert.ok(plan.issues.some((issue) => issue.code === "conflicting_overhang_percentage"));
+    assert.ok(plan.allowedPatchPaths.includes("/analysis_output/event_title"));
+    assert.ok(plan.sourceBlockIds.length > 0 && plan.sourceBlockIds.length <= 3);
+    assert.equal(new Set(plan.sourceBlockIds).size, plan.sourceBlockIds.length);
+    assert.ok(plan.prompt.user.includes("selected_original_source_blocks"));
+    assert.ok(plan.prompt.system.includes("only repair attempt"));
+  });
+
+  it("repairs only explicitly allowed existing scalar paths", () => {
+    const analysisResult = buildRepairTestAnalysis();
+    const result = applySecS1F1ValidationRepairPatches({
+      analysisResult,
+      allowedPatchPaths: ["/analysis_output/event_title"],
+      repairResult: {
+        patches: [
+          {
+            path: "/analysis_output/event_title",
+            replacement: "Test issuer files primary offering",
+            reason: "Remove unsupported percentage.",
+            source_block_ids: ["s1f1_primary_offering_1"],
+          },
+          {
+            path: "/analysis_output/score",
+            replacement: 5,
+            reason: "Unauthorized score edit.",
+            source_block_ids: [],
+          },
+          {
+            path: "/display_payload/data/new_field",
+            replacement: "not allowed",
+            reason: "Unauthorized add.",
+            source_block_ids: [],
+          },
+        ],
+        unresolved: [],
+      },
+    });
+
+    assert.equal((result.value.analysis_output as Record<string, unknown>).event_title, "Test issuer files primary offering");
+    assert.equal((result.value.analysis_output as Record<string, unknown>).score, 70);
+    assert.deepEqual(result.appliedPaths, ["/analysis_output/event_title"]);
+    assert.ok(result.ignoredPaths.includes("/analysis_output/score"));
+    assert.ok(result.ignoredPaths.includes("/display_payload/data/new_field"));
+  });
+
+  it("flags unresolved visible placeholders and a conditional pre-funded row as local repair candidates", () => {
+    const input = buildRepairTestInput();
+    const analysisResult = buildRepairTestAnalysis();
+    const analysisOutput = analysisResult.analysis_output as Record<string, unknown>;
+    analysisOutput.summary = "Estimated price range of $ to $ per share.";
+    const data = (analysisResult.display_payload as Record<string, unknown>).data as Record<string, unknown>;
+    const shareOverhang = data.share_overhang as Record<string, unknown>;
+    const rows = shareOverhang.rows as Array<Record<string, unknown>>;
+    rows[0].row_role = "conditional";
+    rows[0].label = "Pre-Funded Warrant Shares";
+    rows[0].note = "$0.001 exercise price";
+
+    const plan = buildSecS1F1ValidationRepairPlan({ analysisResult, input });
+
+    assert.ok(plan);
+    assert.ok(plan.issues.some((issue) => issue.code === "unresolved_visible_placeholder"));
+    assert.ok(plan.issues.some((issue) => issue.code === "share_equivalent_marked_conditional"));
+    assert.ok(plan.allowedPatchPaths.includes("/analysis_output/summary"));
+    assert.ok(plan.allowedPatchPaths.includes("/display_payload/data/share_overhang/rows/0/row_role"));
+    assert.ok(!plan.allowedPatchPaths.includes("/analysis_output/score"));
+  });
 });
+
+function buildRepairTestInput() {
+  const parserOutput = parseS1F1Filing({
+    formType: "S-1",
+    accessionNumber: "0000000000-26-000099",
+    companyName: "Repair Test Inc.",
+    ticker: "RPR",
+    filingText: [
+      "The company is offering 9,240,000 shares of common stock or pre-funded warrants in lieu of common stock.",
+      "The pre-funded warrants have an exercise price of $0.001 per share.",
+      "There were 10,000,000 shares of common stock outstanding before the offering.",
+    ].join("\n"),
+  });
+  return {
+    filing_package: {
+      hard_parsers: {
+        "s1-f1": parserOutput,
+      },
+    },
+  } as unknown as SecFilingAnalysisInput;
+}
+
+function buildRepairTestAnalysis(): Record<string, unknown> {
+  return {
+    analysis_output: {
+      event_title: "Repair Test Announces 88.0% Dilution Offering",
+      score: 70,
+      signal: "bearish",
+      quick_take: "The offering expands potential supply.",
+      summary: "The company filed a primary offering.",
+      score_reason: "Potential dilution is material.",
+      score_explanation: {
+        summary: "The offering can materially increase share supply.",
+        final_read: "Watch final pricing and share count.",
+        upward_factors: [],
+        limiting_factors: [],
+      },
+    },
+    display_payload: {
+      display_type: "offering_terms",
+      display_version: "s1_f1_offering_v1",
+      data: {
+        display_mode: "primary_offering",
+        display_quick_take: "The offering expands potential supply.",
+        company_story: "Repair Test develops test products.",
+        share_overhang: {
+          status_value: "92.4%",
+          rows: [
+            {
+              label: "Primary Shares",
+              value: "9,240,000 shares",
+              numeric_value: 9_240_000,
+              unit: "shares",
+              row_role: "counted",
+              note: "Current primary offering supply",
+            },
+          ],
+          basis: {
+            label: "Shares outstanding",
+            value: "10,000,000 shares",
+            numeric_value: 10_000_000,
+            unit: "shares",
+          },
+          total_note: {
+            numerator: "9,240,000 shares",
+            denominator: "10,000,000 shares",
+            ratio: "92.4%",
+          },
+        },
+      },
+    },
+  };
+}

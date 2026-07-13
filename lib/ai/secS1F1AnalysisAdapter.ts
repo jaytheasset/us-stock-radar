@@ -18,6 +18,8 @@ export const SEC_S1_F1_ANALYSIS_PROMPT_KEY = "sec_s1_f1_analysis";
 export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v31-pending-terms-default";
 // Legacy backup: pre-pending-terms default prompt kept selectable only in the debug console.
 export const SEC_S1_F1_LEGACY_BACKUP_PROMPT_VERSION = "v28-spac-ipo-minimal-legacy-backup";
+export const SEC_S1_F1_VALIDATION_REPAIR_PROMPT_KEY = "sec_s1_f1_validation_repair";
+export const SEC_S1_F1_VALIDATION_REPAIR_PROMPT_VERSION = "v1-one-pass-source-backed-patch";
 
 const S1_F1_SHARE_OVERHANG_PERCENT_TOLERANCE = 0.049;
 
@@ -188,6 +190,21 @@ export type SecS1F1AnalysisAdapterResult =
   | { ok: true; analysis: Record<string, unknown> }
   | { ok: false; error: string };
 
+export type SecS1F1ValidationRepairIssue = {
+  code: string;
+  warning: string;
+  field_paths: string[];
+  allowed_patch_paths: string[];
+  candidate_source_block_ids: string[];
+};
+
+export type SecS1F1ValidationRepairPlan = {
+  prompt: ReturnType<typeof buildS1F1ValidationRepairPrompt>;
+  issues: SecS1F1ValidationRepairIssue[];
+  allowedPatchPaths: string[];
+  sourceBlockIds: string[];
+};
+
 export function isS1F1FilingInput(input: SecFilingAnalysisInput) {
   return Boolean(readS1F1ParserOutput(input));
 }
@@ -229,6 +246,486 @@ export function buildSecS1F1AnalysisPromptForInput(
       },
     },
   };
+}
+
+export function buildSecS1F1ValidationRepairPlan({
+  analysisResult,
+  input,
+}: {
+  analysisResult: Record<string, unknown>;
+  input: SecFilingAnalysisInput;
+}): SecS1F1ValidationRepairPlan | null {
+  const root = readRecord(analysisResult);
+  const analysisOutput = readRecord(root?.analysis_output);
+  const displayPayload = readRecord(root?.display_payload);
+  const data = readRecord(displayPayload?.data);
+  if (!root || !analysisOutput || !data) return null;
+
+  const issues: SecS1F1ValidationRepairIssue[] = [];
+  const shareOverhang = readRecord(data.share_overhang);
+  const sourceBlocks = buildS1F1RepairSourceBlocks(input);
+
+  if (shareOverhang) {
+    const ratioText = readS1F1ShareOverhangRatio(shareOverhang);
+    const ratio = parseS1F1PercentNumber(ratioText);
+    if (ratio !== null) {
+      const fields = collectS1F1ConflictingShareOverhangPercentFields(analysisOutput, shareOverhang);
+      for (const field of fields) {
+        const path = s1F1AnalysisFieldToJsonPointer(field);
+        if (!path || !hasJsonPointer(analysisResult, path)) continue;
+        issues.push({
+          code: "conflicting_overhang_percentage",
+          warning: `${field} contains a dilution/overhang percentage that conflicts with the displayed headline ratio ${ratioText}.`,
+          field_paths: [path],
+          allowed_patch_paths: [path],
+          candidate_source_block_ids: [],
+        });
+      }
+    }
+    collectS1F1ShareOverhangRepairIssues(analysisResult, shareOverhang, issues);
+  }
+
+  collectS1F1PlaceholderRepairIssues(analysisOutput, "/analysis_output", issues);
+  collectS1F1PlaceholderRepairIssues(data, "/display_payload/data", issues);
+
+  const displayMode = stringValue(data.display_mode);
+  if (["ipo_registration", "ipo_amendment", "spac_ipo", "rule_462b_mef"].includes(displayMode)) {
+    for (const field of ["display_quick_take", "company_story"] as const) {
+      const path = `/display_payload/data/${field}`;
+      if (Object.prototype.hasOwnProperty.call(data, field) && !stringValue(data[field])) {
+        issues.push({
+          code: `missing_${field}`,
+          warning: `${field} is empty even though the selected IPO/MEF display mode renders it directly.`,
+          field_paths: [path],
+          allowed_patch_paths: [path],
+          candidate_source_block_ids: [],
+        });
+      }
+    }
+  }
+
+  const dedupedIssues = dedupeS1F1RepairIssues(issues);
+  if (!dedupedIssues.length) return null;
+
+  const selectedSourceBlocks = selectS1F1RepairSourceBlocks(sourceBlocks, dedupedIssues, analysisResult);
+  const sourceBlockIds = selectedSourceBlocks.map((block) => stringValue(block.block_id)).filter(Boolean);
+  const issuesWithSources = dedupedIssues.map((issue) => ({
+    ...issue,
+    candidate_source_block_ids: sourceBlockIds,
+  }));
+  const allowedPatchPaths = uniqueStrings(issuesWithSources.flatMap((issue) => issue.allowed_patch_paths));
+
+  return {
+    prompt: buildS1F1ValidationRepairPrompt({
+      analysisResult,
+      issues: issuesWithSources,
+      allowedPatchPaths,
+      selectedSourceBlocks,
+    }),
+    issues: issuesWithSources,
+    allowedPatchPaths,
+    sourceBlockIds,
+  };
+}
+
+export function applySecS1F1ValidationRepairPatches({
+  analysisResult,
+  repairResult,
+  allowedPatchPaths,
+}: {
+  analysisResult: Record<string, unknown>;
+  repairResult: unknown;
+  allowedPatchPaths: string[];
+}) {
+  const next = JSON.parse(JSON.stringify(analysisResult)) as Record<string, unknown>;
+  const allowed = new Set(allowedPatchPaths);
+  const repair = readRecord(repairResult);
+  const patches = Array.isArray(repair?.patches) ? repair.patches : [];
+  const appliedPaths: string[] = [];
+  const ignoredPaths: string[] = [];
+
+  for (const rawPatch of patches) {
+    const patch = readRecord(rawPatch);
+    const path = stringValue(patch?.path);
+    if (!path || !allowed.has(path) || !hasJsonPointer(next, path)) {
+      if (path) ignoredPaths.push(path);
+      continue;
+    }
+    if (!isS1F1RepairScalar(patch?.replacement)) {
+      ignoredPaths.push(path);
+      continue;
+    }
+    if (replaceJsonPointer(next, path, patch?.replacement)) {
+      appliedPaths.push(path);
+    } else {
+      ignoredPaths.push(path);
+    }
+  }
+
+  return {
+    value: next,
+    appliedPaths: uniqueStrings(appliedPaths),
+    ignoredPaths: uniqueStrings(ignoredPaths),
+    unresolved: Array.isArray(repair?.unresolved) ? repair.unresolved : [],
+  };
+}
+
+function buildS1F1ValidationRepairPrompt({
+  analysisResult,
+  issues,
+  allowedPatchPaths,
+  selectedSourceBlocks,
+}: {
+  analysisResult: Record<string, unknown>;
+  issues: SecS1F1ValidationRepairIssue[];
+  allowedPatchPaths: string[];
+  selectedSourceBlocks: Array<Record<string, unknown>>;
+}) {
+  return {
+    key: SEC_S1_F1_VALIDATION_REPAIR_PROMPT_KEY,
+    version: SEC_S1_F1_VALIDATION_REPAIR_PROMPT_VERSION,
+    system: [
+      "Repair one completed SEC S-1/F-1 analysis in one bounded pass.",
+      "The validator warning identifies a possible inconsistency but is not evidence.",
+      "Use only the selected original source blocks and the existing analysis result as evidence.",
+      "Return scalar replacement patches only for the exact allowed paths. Never add, remove, reorder, or rewrite arrays or objects.",
+      "Preserve event classification, score, signal, display mode, and all fields that are not explicitly allowed.",
+      "Preserve the distinction between counted, conditional, alternative, fixed, pending, and not calculable supply.",
+      "If the selected source blocks do not support a reliable replacement, leave the issue unresolved instead of guessing.",
+      "This is the only repair attempt. Return JSON only.",
+    ].join("\n"),
+    user: JSON.stringify(
+      {
+        task: "Patch only source-verifiable validator issues in the existing S-1/F-1 analysis.",
+        allowed_patch_paths: allowedPatchPaths,
+        validator_issues: issues,
+        selected_original_source_blocks: selectedSourceBlocks,
+        existing_analysis_result: analysisResult,
+      },
+      null,
+      2,
+    ),
+    responseFormat: {
+      json_schema: {
+        name: "sec_s1_f1_validation_repair",
+        strict: true,
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["patches", "unresolved"],
+          properties: {
+            patches: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["path", "replacement", "reason", "source_block_ids"],
+                properties: {
+                  path: { type: "string", enum: allowedPatchPaths },
+                  replacement: { type: ["string", "number", "boolean", "null"] },
+                  reason: { type: "string", maxLength: 240 },
+                  source_block_ids: {
+                    type: "array",
+                    items: { type: "string" },
+                  },
+                },
+              },
+            },
+            unresolved: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["code", "reason"],
+                properties: {
+                  code: { type: "string" },
+                  reason: { type: "string", maxLength: 240 },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+}
+
+function buildS1F1RepairSourceBlocks(input: SecFilingAnalysisInput) {
+  const parserOutput = readS1F1ParserOutput(input);
+  const blocks = parserOutput?.raw?.cleanedSourceBlocks ?? [];
+  return blocks.map((block, index) => ({
+    block_id: buildS1F1RepairBlockId(block.sectionKey, block.source, index),
+    source_ref: [block.source, block.documentName, block.sectionKey].filter(Boolean).join(":"),
+    origin: block.source,
+    section_key: block.sectionKey,
+    section_title: block.sectionTitle,
+    document_name: block.documentName,
+    text: clipS1F1RepairSourceText(block.text, 5_000),
+    tables: block.tables.map((table) => clipS1F1RepairSourceText(table, 1_500)).filter(Boolean).slice(0, 2),
+    source_order: index,
+  }));
+}
+
+function buildS1F1RepairBlockId(sectionKey: string | null, source: string, index: number) {
+  const stem = `${source}_${sectionKey || "section"}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 48);
+  return `s1f1_${stem || "source"}_${index + 1}`;
+}
+
+function clipS1F1RepairSourceText(value: string, maxLength: number) {
+  const text = stringValue(value);
+  if (text.length <= maxLength) return text;
+  const clipped = text.slice(0, maxLength);
+  const sentenceEnd = Math.max(clipped.lastIndexOf(". "), clipped.lastIndexOf("\n"));
+  return `${clipped.slice(0, sentenceEnd > maxLength * 0.6 ? sentenceEnd + 1 : maxLength).trim()}...`;
+}
+
+function selectS1F1RepairSourceBlocks(
+  sourceBlocks: Array<Record<string, unknown>>,
+  issues: SecS1F1ValidationRepairIssue[],
+  analysisResult: Record<string, unknown>,
+) {
+  if (!sourceBlocks.length) return [];
+  const issueText = issues.map((issue) => `${issue.code} ${issue.warning}`).join(" ");
+  const currentValues = issues
+    .flatMap((issue) => issue.field_paths)
+    .map((path) => stringValue(readJsonPointer(analysisResult, path)))
+    .filter(Boolean)
+    .join(" ");
+  const wantsOverhang = /overhang|dilution|share|warrant|placeholder/i.test(`${issueText} ${currentValues}`);
+  const wantsIpoNarrative = /display_quick_take|company_story|ipo|mef/i.test(issueText);
+  const keywords = uniqueStrings(
+    `${currentValues} ${issueText}`
+      .toLowerCase()
+      .replace(/[^a-z0-9$%.]+/g, " ")
+      .split(/\s+/)
+      .filter((word) => word.length >= 5)
+      .slice(0, 30),
+  );
+
+  return sourceBlocks
+    .map((block) => {
+      const metadata = `${stringValue(block.section_key)} ${stringValue(block.section_title)} ${stringValue(block.document_name)}`;
+      const content = `${metadata} ${stringValue(block.text)}`.toLowerCase();
+      let score = 0;
+      if (wantsOverhang && /offering|dilution|capitalization|share.count|warrant|security|cover|front.matter/i.test(metadata)) score += 12;
+      if (wantsIpoNarrative && /summary|business|offering|cover|front.matter|rule.462|fee/i.test(metadata)) score += 10;
+      if (/primary/i.test(stringValue(block.origin))) score += 2;
+      score += keywords.reduce((total, keyword) => total + (content.includes(keyword) ? 1 : 0), 0);
+      return { block, score, order: numberValue(block.source_order) ?? 0 };
+    })
+    .sort((a, b) => b.score - a.score || a.order - b.order)
+    .slice(0, 3)
+    .sort((a, b) => a.order - b.order)
+    .map(({ block }) => block);
+}
+
+function collectS1F1PlaceholderRepairIssues(
+  value: unknown,
+  path: string,
+  issues: SecS1F1ValidationRepairIssue[],
+) {
+  if (typeof value === "string") {
+    if (hasS1F1UnresolvedPlaceholderText(value)) {
+      issues.push({
+        code: "unresolved_visible_placeholder",
+        warning: `Visible output contains unresolved placeholder text at ${path}: ${compactWarningText(value)}`,
+        field_paths: [path],
+        allowed_patch_paths: [path],
+        candidate_source_block_ids: [],
+      });
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => collectS1F1PlaceholderRepairIssues(item, `${path}/${index}`, issues));
+    return;
+  }
+  const record = readRecord(value);
+  if (!record) return;
+  for (const [key, child] of Object.entries(record)) {
+    if (key === "display_warnings") continue;
+    collectS1F1PlaceholderRepairIssues(child, `${path}/${escapeJsonPointerSegment(key)}`, issues);
+  }
+}
+
+function collectS1F1ShareOverhangRepairIssues(
+  analysisResult: Record<string, unknown>,
+  shareOverhang: Record<string, unknown>,
+  issues: SecS1F1ValidationRepairIssue[],
+) {
+  const rawRows = Array.isArray(shareOverhang.rows) ? shareOverhang.rows : [];
+  const rows = rawRows.map((item) => readRecord(item));
+  const countedRows = rows.filter((row): row is Record<string, unknown> => Boolean(row && isS1F1CountedShareOverhangRow(row, true)));
+  const totalNoteKey = Object.prototype.hasOwnProperty.call(shareOverhang, "total_note") ? "total_note" : "totalNote";
+  const totalNote = readRecord(shareOverhang[totalNoteKey]);
+  const includedRowSum = countedRows.reduce((total, row) => total + (s1F1ShareOverhangNumericValue(row) || 0), 0);
+  const numerator = parseS1F1ShareCount(stringValue(totalNote?.numerator));
+  const denominator = parseS1F1ShareCount(stringValue(totalNote?.denominator));
+  const ratioText = readS1F1ShareOverhangRatio(shareOverhang);
+  const ratio = parseS1F1PercentNumber(ratioText);
+
+  if (
+    includedRowSum > 0 &&
+    numerator &&
+    Math.abs(includedRowSum - numerator) / Math.max(includedRowSum, numerator) > 0.02
+  ) {
+    const candidatePaths = [`/display_payload/data/share_overhang/${totalNoteKey}/numerator`].filter((path) =>
+      hasJsonPointer(analysisResult, path),
+    );
+    if (candidatePaths.length) {
+      issues.push({
+        code: "overhang_counted_sum_mismatch",
+        warning: `Counted row sum (${includedRowSum}) does not reconcile to total numerator (${numerator}); repair only the source-inconsistent scalar or leave unresolved.`,
+        field_paths: candidatePaths,
+        allowed_patch_paths: candidatePaths,
+        candidate_source_block_ids: [],
+      });
+    }
+  }
+
+  if (numerator && denominator && ratio !== null) {
+    const expectedRatio = (numerator / denominator) * 100;
+    if (Number.isFinite(expectedRatio) && Math.abs(expectedRatio - ratio) > S1_F1_SHARE_OVERHANG_PERCENT_TOLERANCE) {
+      const ratioPath = findS1F1OverhangRatioPath(analysisResult, shareOverhang, totalNoteKey);
+      if (ratioPath) {
+        issues.push({
+          code: "overhang_ratio_math_mismatch",
+          warning: `Displayed ratio ${ratioText} does not reconcile to ${numerator} divided by ${denominator} (${expectedRatio.toFixed(1)}%).`,
+          field_paths: [ratioPath],
+          allowed_patch_paths: [ratioPath],
+          candidate_source_block_ids: [],
+        });
+      }
+    }
+  }
+
+  rows.forEach((row, index) => {
+    if (!row) return;
+    const rowText = `${stringValue(row.label)} ${stringValue(row.value)} ${stringValue(row.note)}`;
+    const role = s1F1ShareOverhangRowRole(row);
+    const roleKey = Object.prototype.hasOwnProperty.call(row, "row_role") ? "row_role" : Object.prototype.hasOwnProperty.call(row, "rowRole") ? "rowRole" : "";
+    if (!roleKey) return;
+    const path = `/display_payload/data/share_overhang/rows/${index}/${roleKey}`;
+    if (role === "conditional" && isS1F1ShareEquivalentCountedText(rowText)) {
+      issues.push({
+        code: "share_equivalent_marked_conditional",
+        warning: `${stringValue(row.label)} appears share-equivalent but is marked conditional; verify whether it is counted or an alternative replacement pool.`,
+        field_paths: [path],
+        allowed_patch_paths: [path],
+        candidate_source_block_ids: [],
+      });
+    }
+    if (role === "counted" && isNonShareEquivalentWarrantText(rowText)) {
+      issues.push({
+        code: "future_warrant_marked_counted",
+        warning: `${stringValue(row.label)} appears to be future warrant exercise supply but is marked counted.`,
+        field_paths: [path],
+        allowed_patch_paths: [path],
+        candidate_source_block_ids: [],
+      });
+    }
+  });
+}
+
+function findS1F1OverhangRatioPath(
+  analysisResult: Record<string, unknown>,
+  shareOverhang: Record<string, unknown>,
+  totalNoteKey: string,
+) {
+  const candidates = [
+    `/display_payload/data/share_overhang/${totalNoteKey}/ratio`,
+    `/display_payload/data/share_overhang/${Object.prototype.hasOwnProperty.call(shareOverhang, "ratio_value") ? "ratio_value" : "ratioValue"}`,
+    `/display_payload/data/share_overhang/${Object.prototype.hasOwnProperty.call(shareOverhang, "status_value") ? "status_value" : "statusValue"}`,
+  ];
+  return candidates.find((path) => hasJsonPointer(analysisResult, path)) || "";
+}
+
+function s1F1AnalysisFieldToJsonPointer(field: string) {
+  const parts = field
+    .replace(/\[(\d+)\]/g, ".$1")
+    .split(".")
+    .filter(Boolean)
+    .map(escapeJsonPointerSegment);
+  return parts.length ? `/analysis_output/${parts.join("/")}` : "";
+}
+
+function dedupeS1F1RepairIssues(issues: SecS1F1ValidationRepairIssue[]) {
+  const seen = new Set<string>();
+  return issues.filter((issue) => {
+    issue.field_paths = uniqueStrings(issue.field_paths);
+    issue.allowed_patch_paths = uniqueStrings(issue.allowed_patch_paths);
+    const key = `${issue.code}:${issue.allowed_patch_paths.join("|")}`;
+    if (!issue.allowed_patch_paths.length || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function escapeJsonPointerSegment(value: string) {
+  return value.replace(/~/g, "~0").replace(/\//g, "~1");
+}
+
+function unescapeJsonPointerSegment(value: string) {
+  return value.replace(/~1/g, "/").replace(/~0/g, "~");
+}
+
+function readJsonPointer(root: unknown, path: string): unknown {
+  if (!path.startsWith("/")) return undefined;
+  let current = root;
+  for (const rawSegment of path.slice(1).split("/")) {
+    const segment = unescapeJsonPointerSegment(rawSegment);
+    if (Array.isArray(current)) {
+      const index = Number(segment);
+      if (!Number.isInteger(index) || index < 0 || index >= current.length) return undefined;
+      current = current[index];
+      continue;
+    }
+    const record = readRecord(current);
+    if (!record || !Object.prototype.hasOwnProperty.call(record, segment)) return undefined;
+    current = record[segment];
+  }
+  return current;
+}
+
+function hasJsonPointer(root: unknown, path: string) {
+  return readJsonPointer(root, path) !== undefined;
+}
+
+function replaceJsonPointer(root: unknown, path: string, replacement: unknown) {
+  if (!path.startsWith("/")) return false;
+  const segments = path.slice(1).split("/").map(unescapeJsonPointerSegment);
+  const finalSegment = segments.pop();
+  if (!finalSegment) return false;
+  let current = root;
+  for (const segment of segments) {
+    if (Array.isArray(current)) {
+      const index = Number(segment);
+      if (!Number.isInteger(index) || index < 0 || index >= current.length) return false;
+      current = current[index];
+      continue;
+    }
+    const record = readRecord(current);
+    if (!record || !Object.prototype.hasOwnProperty.call(record, segment)) return false;
+    current = record[segment];
+  }
+  if (Array.isArray(current)) {
+    const index = Number(finalSegment);
+    if (!Number.isInteger(index) || index < 0 || index >= current.length) return false;
+    current[index] = replacement;
+    return true;
+  }
+  const record = readRecord(current);
+  if (!record || !Object.prototype.hasOwnProperty.call(record, finalSegment)) return false;
+  record[finalSegment] = replacement;
+  return true;
+}
+
+function isS1F1RepairScalar(value: unknown) {
+  return value === null || ["string", "number", "boolean"].includes(typeof value);
 }
 
 function withRuntimeMarketContext(parserOutput: S1F1ParserOutput | null, input: SecFilingAnalysisInput) {

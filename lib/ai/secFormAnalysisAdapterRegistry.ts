@@ -70,8 +70,12 @@ import {
 import {
   SEC_S1_F1_ANALYSIS_PROMPT_KEY,
   SEC_S1_F1_ANALYSIS_PROMPT_VERSION,
+  SEC_S1_F1_VALIDATION_REPAIR_PROMPT_KEY,
+  SEC_S1_F1_VALIDATION_REPAIR_PROMPT_VERSION,
+  applySecS1F1ValidationRepairPatches,
   adaptSecS1F1AnalysisPromptResultForAnalysis,
   buildSecS1F1AnalysisPromptForInput,
+  buildSecS1F1ValidationRepairPlan,
   isS1F1FilingInput,
 } from "@/lib/ai/secS1F1AnalysisAdapter";
 
@@ -97,6 +101,9 @@ export {
   SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY,
   SEC_S1_F1_ANALYSIS_PROMPT_KEY,
   SEC_S1_F1_ANALYSIS_PROMPT_VERSION,
+  SEC_S1_F1_VALIDATION_REPAIR_PROMPT_KEY,
+  SEC_S1_F1_VALIDATION_REPAIR_PROMPT_VERSION,
+  applySecS1F1ValidationRepairPatches,
   adaptSec424bAnalysisPromptResultForAnalysis,
   adaptSec8k6kAnalysisPromptResultForAnalysis,
   adaptOwnershipPromptResultForAnalysis,
@@ -117,6 +124,7 @@ export {
   buildSecS3AnalysisPrompt,
   buildSecS3TriagePrompt,
   buildSecS1F1AnalysisPromptForInput,
+  buildSecS1F1ValidationRepairPlan,
   buildSecTenderAnalysisPromptForInput,
   buildSecSc13AnalysisPromptForInput,
   buildSecS4F4AnalysisPromptForInput,

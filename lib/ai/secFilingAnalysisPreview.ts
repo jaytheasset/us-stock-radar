@@ -12,6 +12,7 @@ import {
   SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY,
   SEC_S1_F1_ANALYSIS_PROMPT_KEY,
   SEC_S1_F1_ANALYSIS_PROMPT_VERSION,
+  SEC_S1_F1_VALIDATION_REPAIR_PROMPT_KEY,
   SEC_TENDER_ANALYSIS_PROMPT_KEY,
   SEC_SC13_ANALYSIS_PROMPT_KEY,
   SEC_SC13_ANALYSIS_PROMPT_VERSION,
@@ -26,6 +27,7 @@ import {
   adaptSecS8AnalysisPromptResultForAnalysis,
   adaptSecS3AnalysisPromptResultForAnalysis,
   adaptSecS1F1AnalysisPromptResultForAnalysis,
+  applySecS1F1ValidationRepairPatches,
   buildDeterministicSc13Analysis,
   buildDeterministicOwnershipAnalysis,
   buildDeterministicS8ArchiveAnalysis,
@@ -40,6 +42,7 @@ import {
   buildSecS3AnalysisPrompt,
   buildSecS3TriagePrompt,
   buildSecS1F1AnalysisPromptForInput,
+  buildSecS1F1ValidationRepairPlan,
   buildSecTenderAnalysisPromptForInput,
   is424bFilingInput,
   isSec8k6kFilingInput,
@@ -209,9 +212,6 @@ type OpenAiPromptRun = {
 };
 
 const SEC_LLM_MAX_ATTEMPTS = 3;
-const SEC_S1_F1_EVENT_TITLE_REPAIR_MAX_ATTEMPTS = 3;
-const SEC_S1_F1_SHARE_OVERHANG_PERCENT_TOLERANCE = 0.049;
-const SEC_S1_F1_EVENT_TITLE_REPAIR_PROMPT_KEY = "sec_s1_f1_event_title_repair";
 const SEC_S1_F1_ROUTE_ONLY_PROMPT_KEY = "sec_s1_f1_route_only";
 const SEC_S1_F1_ROUTE_ONLY_PROMPT_VERSION = "s1-f1-route-only-v2-amendment-gate";
 const SEC_LLM_RUNAWAY_OUTPUT_CHARS = 30_000;
@@ -223,6 +223,7 @@ export type SecFilingAnalysisRunResult = {
   model?: string;
   openAiResponseId?: string | null;
   auditOpenAiResponseId?: string | null;
+  repairOpenAiResponseId?: string | null;
   sourceItem?: ReturnType<typeof summarizeRawRow>;
   input?: SecFilingAnalysisInput;
   triage?: Record<string, unknown> | null;
@@ -230,9 +231,11 @@ export type SecFilingAnalysisRunResult = {
   analysis?: Record<string, unknown> | null;
   triageOutputText?: string;
   auditOutputText?: string;
+  repairOutputText?: string;
   outputText?: string;
   triageUsage?: OpenAIUsage | null;
   auditUsage?: OpenAIUsage | null;
+  repairUsage?: OpenAIUsage | null;
   usage?: OpenAIUsage | null;
   costEstimate?: CostEstimate | null;
   prompt?: {
@@ -254,9 +257,16 @@ export type SecFilingAnalysisRunResult = {
       system?: string;
       responseFormat?: unknown;
     };
+    repair?: {
+      key: string;
+      version: string;
+      system?: string;
+      responseFormat?: unknown;
+    };
   };
   error?: string;
   rawOpenAIResponse?: OpenAIResponseBody | GeminiResponseBody | null;
+  validationRepair?: Record<string, unknown> | null;
 };
 
 export async function runSecFilingAnalysisPreview(options: PreviewOptions = {}) {
@@ -1304,9 +1314,34 @@ export async function runSecFilingAnalysisForRawRow(
       };
     }
 
-    const titleRepair = await repairS1F1EventTitleIfNeeded(env, analysisRun.parsed, llmConfig);
-    const usage = combineUsage(analysisRun.usage, titleRepair.usage);
-    const secS1F1Analysis = adaptSecS1F1AnalysisPromptResultForAnalysis(titleRepair.value, input);
+    const repairPlan = buildSecS1F1ValidationRepairPlan({
+      analysisResult: analysisRun.parsed,
+      input,
+    });
+    let repairedValue = analysisRun.parsed;
+    let repairRun: OpenAiPromptRun | null = null;
+    let repairAppliedPaths: string[] = [];
+    let repairIgnoredPaths: string[] = [];
+    let repairUnresolved: unknown[] = [];
+    if (repairPlan) {
+      repairRun = await runOpenAiJsonPrompt(env, repairPlan.prompt, llmConfig, {
+        maxAttempts: 1,
+        disableFallback: true,
+      });
+      if (repairRun.ok && repairRun.parsed) {
+        const repairApplication = applySecS1F1ValidationRepairPatches({
+          analysisResult: analysisRun.parsed,
+          repairResult: repairRun.parsed,
+          allowedPatchPaths: repairPlan.allowedPatchPaths,
+        });
+        repairedValue = repairApplication.value;
+        repairAppliedPaths = repairApplication.appliedPaths;
+        repairIgnoredPaths = repairApplication.ignoredPaths;
+        repairUnresolved = repairApplication.unresolved;
+      }
+    }
+    const usage = combineUsage(analysisRun.usage, repairRun?.usage);
+    const secS1F1Analysis = adaptSecS1F1AnalysisPromptResultForAnalysis(repairedValue, input);
     if (!secS1F1Analysis.ok) {
       return {
         ok: false,
@@ -1316,11 +1351,34 @@ export async function runSecFilingAnalysisForRawRow(
         sourceItem: summarizeRawRow(rawItem),
         input,
         outputText: analysisRun.outputText,
+        repairOutputText: repairRun?.outputText,
         usage,
+        repairUsage: repairRun?.usage,
         rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        validationRepair: repairPlan
+          ? {
+              attempted: true,
+              succeeded: Boolean(repairRun?.ok && repairRun.parsed),
+              issue_codes: repairPlan.issues.map((issue) => issue.code),
+              source_block_ids: repairPlan.sourceBlockIds,
+              allowed_patch_paths: repairPlan.allowedPatchPaths,
+              applied_patch_paths: repairAppliedPaths,
+              ignored_patch_paths: repairIgnoredPaths,
+              unresolved: repairUnresolved,
+              error: repairRun?.error || null,
+            }
+          : { attempted: false },
         prompt: {
           key: prompt.key,
           version: prompt.version,
+          repair: repairPlan
+            ? {
+                key: repairPlan.prompt.key,
+                version: repairPlan.prompt.version,
+                system: repairPlan.prompt.system,
+                responseFormat: repairPlan.prompt.responseFormat,
+              }
+            : undefined,
         },
       };
     }
@@ -1331,15 +1389,39 @@ export async function runSecFilingAnalysisForRawRow(
       status: analysisRun.status,
       model: llmConfig.model,
       openAiResponseId: analysisRun.openAiResponseId,
+      repairOpenAiResponseId: repairRun?.openAiResponseId || null,
       sourceItem: summarizeRawRow(rawItem),
       input,
       analysis: secS1F1Analysis.analysis,
       outputText: analysisRun.outputText,
+      repairOutputText: repairRun?.outputText,
       usage,
+      repairUsage: repairRun?.usage,
       costEstimate: estimateCost(llmConfig.model, usage),
+      validationRepair: repairPlan
+        ? {
+            attempted: true,
+            succeeded: Boolean(repairRun?.ok && repairRun.parsed),
+            issue_codes: repairPlan.issues.map((issue) => issue.code),
+            source_block_ids: repairPlan.sourceBlockIds,
+            allowed_patch_paths: repairPlan.allowedPatchPaths,
+            applied_patch_paths: repairAppliedPaths,
+            ignored_patch_paths: repairIgnoredPaths,
+            unresolved: repairUnresolved,
+            error: repairRun?.error || null,
+          }
+        : { attempted: false },
       prompt: {
         key: prompt.key,
         version: prompt.version,
+        repair: repairPlan
+          ? {
+              key: repairPlan.prompt.key,
+              version: repairPlan.prompt.version,
+              system: repairPlan.prompt.system,
+              responseFormat: repairPlan.prompt.responseFormat,
+            }
+          : undefined,
       },
     };
   }
@@ -1579,111 +1661,6 @@ function normalizeSecLlmProvider(value: string | undefined, allowOpenAi = false)
   return "gemini";
 }
 
-async function repairS1F1EventTitleIfNeeded(
-  env: ReturnType<typeof getServerEnv>,
-  value: Record<string, unknown>,
-  llmConfig: SecLlmConfig,
-): Promise<{ value: Record<string, unknown>; usage: OpenAIUsage | null }> {
-  const conflict = readS1F1EventTitlePercentConflict(value);
-  if (!conflict) return { value, usage: null };
-
-  let usage: OpenAIUsage | null = null;
-  for (let attempt = 1; attempt <= SEC_S1_F1_EVENT_TITLE_REPAIR_MAX_ATTEMPTS; attempt += 1) {
-    const run = await runOpenAiJsonPrompt(env, buildS1F1EventTitleRepairPrompt(value, conflict), llmConfig);
-    usage = combineUsage(usage, run.usage);
-    const repairedTitle = stringValue(readRecord(run.parsed)?.event_title);
-    if (!repairedTitle || hasS1F1TitleConflictingPercent(repairedTitle, conflict.expectedRatio)) continue;
-
-    const analysisOutput = readRecord(value.analysis_output);
-    if (analysisOutput) analysisOutput.event_title = repairedTitle;
-    return { value, usage };
-  }
-
-  return { value, usage };
-}
-
-function buildS1F1EventTitleRepairPrompt(
-  value: Record<string, unknown>,
-  conflict: { eventTitle: string; expectedRatioText: string; expectedRatio: number },
-): OpenAiPrompt {
-  const analysisOutput = readRecord(value.analysis_output);
-  const displayPayload = readRecord(value.display_payload);
-  const data = readRecord(displayPayload?.data);
-  const shareOverhang = readRecord(data?.share_overhang);
-  const totalNote = readRecord(shareOverhang?.total_note || shareOverhang?.totalNote);
-  const basis = readRecord(shareOverhang?.basis);
-  const rows = Array.isArray(shareOverhang?.rows)
-    ? shareOverhang.rows
-        .map((row) => readRecord(row))
-        .filter(Boolean)
-        .map((row) => ({
-          label: stringValue(row?.label),
-          role: stringValue(row?.row_role || row?.rowRole),
-          value: stringValue(row?.value || row?.value_text || row?.valueText),
-          note: stringValue(row?.note),
-        }))
-        .slice(0, 8)
-    : [];
-
-  return {
-    key: SEC_S1_F1_EVENT_TITLE_REPAIR_PROMPT_KEY,
-    version: "v1",
-    system: [
-      "Rewrite only the SEC filing event title.",
-      "Do not redo the analysis.",
-      "Use only the provided facts.",
-      "If the title includes a dilution, overhang, or supply percentage, it must exactly use the provided headline ratio.",
-      "If a clean title would be awkward with that ratio, omit the percentage.",
-      "Do not mention conditional, alternative, or if-exercised percentages in the title.",
-      "Return JSON only.",
-    ].join("\n"),
-    user: JSON.stringify(
-      {
-        repair_reason:
-          "The current event_title contains a dilution, overhang, or supply percentage that conflicts with share_overhang.total_note.ratio. Rewrite only the title so it uses the headline ratio or omits the percentage.",
-        current_event_title: conflict.eventTitle,
-        required_headline_ratio: conflict.expectedRatioText,
-        issuer: stringValue(analysisOutput?.issuer || analysisOutput?.company_name || analysisOutput?.companyName),
-        ticker: stringValue(analysisOutput?.primary_ticker || analysisOutput?.ticker),
-        display_mode: stringValue(data?.display_mode),
-        chart_title: stringValue(shareOverhang?.chart_title || shareOverhang?.chartTitle),
-        total_note: {
-          title: stringValue(totalNote?.title),
-          numerator: stringValue(totalNote?.numerator),
-          denominator: stringValue(totalNote?.denominator),
-          ratio: stringValue(totalNote?.ratio),
-          suffix: stringValue(totalNote?.suffix),
-        },
-        basis: {
-          label: stringValue(basis?.label),
-          value: stringValue(basis?.value || basis?.value_text || basis?.valueText),
-          note: stringValue(basis?.note),
-        },
-        rows,
-      },
-      null,
-      2,
-    ),
-    responseFormat: {
-      json_schema: {
-        name: "sec_s1_f1_event_title_repair",
-        strict: true,
-        schema: {
-          type: "object",
-          additionalProperties: false,
-          required: ["event_title"],
-          properties: {
-            event_title: {
-              type: "string",
-              maxLength: 160,
-            },
-          },
-        },
-      },
-    },
-  };
-}
-
 function readS1F1ParserOutputForRoute(input: SecFilingAnalysisInput): S1F1ParserOutput | null {
   const filingPackage = readRecord(input.filing_package);
   const hardParsers = readRecord(filingPackage?.hard_parsers);
@@ -1871,49 +1848,27 @@ function clipRouteOnlyText(value: string, maxLength: number) {
   return text.slice(0, maxLength).trim();
 }
 
-function readS1F1EventTitlePercentConflict(value: Record<string, unknown>) {
-  const analysisOutput = readRecord(value.analysis_output);
-  const eventTitle = stringValue(analysisOutput?.event_title);
-  if (!eventTitle || !/%/.test(eventTitle)) return null;
-  const displayPayload = readRecord(value.display_payload);
-  const data = readRecord(displayPayload?.data);
-  const shareOverhang = readRecord(data?.share_overhang);
-  const totalNote = readRecord(shareOverhang?.total_note || shareOverhang?.totalNote);
-  const expectedRatioText =
-    stringValue(totalNote?.ratio) ||
-    stringValue(shareOverhang?.ratio_value || shareOverhang?.ratioValue) ||
-    stringValue(shareOverhang?.status_value || shareOverhang?.statusValue);
-  const expectedRatio = parsePercentNumber(expectedRatioText);
-  if (expectedRatio === null) return null;
-  if (!hasS1F1TitleConflictingPercent(eventTitle, expectedRatio)) return null;
-  return { eventTitle, expectedRatioText, expectedRatio };
-}
-
-function hasS1F1TitleConflictingPercent(value: string, expectedRatio: number) {
-  const matches = [...value.matchAll(/\d[\d,]*(?:\.\d+)?\s*%/g)];
-  return matches.some((match) => {
-    const parsed = parsePercentNumber(match[0]);
-    return parsed !== null && Math.abs(parsed - expectedRatio) > SEC_S1_F1_SHARE_OVERHANG_PERCENT_TOLERANCE;
-  });
-}
-
-function parsePercentNumber(value: unknown) {
-  const match = stringValue(value).match(/(\d[\d,]*(?:\.\d+)?)\s*%/);
-  if (!match) return null;
-  const parsed = Number(match[1].replace(/,/g, ""));
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
 async function runOpenAiJsonPrompt(
   env: ReturnType<typeof getServerEnv>,
   prompt: OpenAiPrompt,
   llmConfig: SecLlmConfig = resolveSecLlmConfig(env),
+  options: { maxAttempts?: number; disableFallback?: boolean } = {},
 ): Promise<OpenAiPromptRun> {
   if (llmConfig.provider === "gemini") {
+    if (options.maxAttempts || options.disableFallback) {
+      return runGeminiJsonPromptAttempts(
+        prompt,
+        {
+          ...llmConfig,
+          fallbackModel: options.disableFallback ? undefined : llmConfig.fallbackModel,
+        },
+        options.maxAttempts || 1,
+      );
+    }
     return runGeminiJsonPrompt(prompt, llmConfig);
   }
 
-  const maxAttempts = SEC_LLM_MAX_ATTEMPTS;
+  const maxAttempts = options.maxAttempts || SEC_LLM_MAX_ATTEMPTS;
   let lastRun: OpenAiPromptRun | null = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -2477,7 +2432,7 @@ function readMaxOutputTokens(promptKey: string) {
   if (promptKey === SEC_424B_ANALYSIS_PROMPT_KEY) return 8000;
   if (promptKey === SEC_S1_F1_ANALYSIS_PROMPT_KEY) return 8000;
   if (promptKey === SEC_PROXY_ANALYSIS_PROMPT_KEY) return 3500;
-  if (promptKey === SEC_S1_F1_EVENT_TITLE_REPAIR_PROMPT_KEY) return 600;
+  if (promptKey === SEC_S1_F1_VALIDATION_REPAIR_PROMPT_KEY) return 1800;
   if (promptKey === SEC_S1_F1_ROUTE_ONLY_PROMPT_KEY) return 1200;
   if (promptKey === SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY) return 2500;
   if (promptKey === SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY) return 7000;
