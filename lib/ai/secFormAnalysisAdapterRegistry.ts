@@ -26,9 +26,13 @@ import {
 import {
   SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY,
   SEC_OWNERSHIP_ANALYSIS_PROMPT_VERSION,
+  SEC_OWNERSHIP_VALIDATION_REPAIR_PROMPT_KEY,
+  SEC_OWNERSHIP_VALIDATION_REPAIR_PROMPT_VERSION,
+  applySecOwnershipValidationRepairPatches,
   adaptOwnershipPromptResultForAnalysis,
   buildDeterministicOwnershipAnalysis,
   buildSecOwnershipAnalysisPrompt,
+  buildSecOwnershipValidationRepairPlan,
   isOwnershipFilingInput,
 } from "@/lib/ai/secOwnershipAnalysisAdapter";
 import {
@@ -112,6 +116,8 @@ export {
   SEC_8K_6K_ROUTER_PROMPT_VERSION,
   SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY,
   SEC_OWNERSHIP_ANALYSIS_PROMPT_VERSION,
+  SEC_OWNERSHIP_VALIDATION_REPAIR_PROMPT_KEY,
+  SEC_OWNERSHIP_VALIDATION_REPAIR_PROMPT_VERSION,
   SEC_TENDER_ANALYSIS_PROMPT_KEY,
   SEC_TENDER_ANALYSIS_PROMPT_VERSION,
   SEC_SC13_ANALYSIS_PROMPT_KEY,
@@ -141,6 +147,7 @@ export {
   applySec424bValidationRepairPatches,
   adaptSec8k6kAnalysisPromptResultForAnalysis,
   adaptOwnershipPromptResultForAnalysis,
+  applySecOwnershipValidationRepairPatches,
   adaptSecTenderAnalysisPromptResultForAnalysis,
   adaptSecSc13AnalysisPromptResultForAnalysis,
   adaptSecS4F4AnalysisPromptResultForAnalysis,
@@ -159,6 +166,7 @@ export {
   buildSec8k6kArchiveAnalysis,
   buildSec8k6kRouterPromptForInput,
   buildSecOwnershipAnalysisPrompt,
+  buildSecOwnershipValidationRepairPlan,
   buildSecS3AnalysisPrompt,
   buildSecS3TriagePrompt,
   buildSecS3ValidationRepairPlan,

@@ -6,9 +6,32 @@ import {
   type OwnershipParserOutput,
 } from "@/lib/sources/sec/forms/ownership/parser";
 import { buildOwnershipAnalysisPrompt } from "@/lib/sources/sec/forms/ownership/analysisPrompt";
+import {
+  applySecValidationRepairPatches,
+  escapeSecValidationJsonPointerSegment,
+  hasSecValidationJsonPointer,
+  readSecValidationJsonPointer,
+} from "@/lib/ai/secValidationRepairPatch";
 
 export const SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY = "sec_ownership_analysis";
 export const SEC_OWNERSHIP_ANALYSIS_PROMPT_VERSION = "v1";
+export const SEC_OWNERSHIP_VALIDATION_REPAIR_PROMPT_KEY = "sec_ownership_validation_repair";
+export const SEC_OWNERSHIP_VALIDATION_REPAIR_PROMPT_VERSION = "v1-one-pass-source-backed-patch";
+
+export type SecOwnershipValidationRepairIssue = {
+  code: string;
+  warning: string;
+  field_paths: string[];
+  allowed_patch_paths: string[];
+  candidate_source_block_ids: string[];
+};
+
+export type SecOwnershipValidationRepairPlan = {
+  prompt: ReturnType<typeof buildOwnershipValidationRepairPrompt>;
+  issues: SecOwnershipValidationRepairIssue[];
+  allowedPatchPaths: string[];
+  sourceBlockIds: string[];
+};
 
 export type SecOwnershipAnalysisPrompt = {
   key: string;
@@ -73,6 +96,69 @@ Integration addendum:
   };
 }
 
+export function buildSecOwnershipValidationRepairPlan({
+  analysisResult,
+  input,
+}: {
+  analysisResult: Record<string, unknown>;
+  input: SecFilingAnalysisInput;
+}): SecOwnershipValidationRepairPlan | null {
+  const parserOutput = readOwnershipParserOutput(input);
+  const root = readRecord(analysisResult);
+  const analysisOutput = readRecord(root?.analysis_output);
+  const displayPayload = readRecord(root?.display_payload);
+  const data = readRecord(displayPayload?.data);
+  if (!parserOutput || !root || !analysisOutput || !displayPayload || !data) return null;
+
+  const warnings = collectOwnershipRuntimeDisplayPayloadWarnings(displayPayload);
+  const issues: SecOwnershipValidationRepairIssue[] = [];
+  const filingSummaryPath = "/display_payload/data/filing_summary";
+  if (
+    warnings.some((warning) => /filing_summary|ownership details/i.test(warning)) &&
+    hasSecValidationJsonPointer(root, filingSummaryPath) &&
+    !stringValue(readSecValidationJsonPointer(root, filingSummaryPath))
+  ) {
+    issues.push(buildOwnershipRepairIssue("missing_filing_summary", "The visible ownership filing summary is empty.", [filingSummaryPath]));
+  }
+  collectOwnershipPlaceholderRepairIssues(analysisOutput, "/analysis_output", issues);
+  collectOwnershipPlaceholderRepairIssues(data, "/display_payload/data", issues);
+
+  const dedupedIssues = dedupeOwnershipRepairIssues(issues);
+  if (!dedupedIssues.length) return null;
+  const sourceBlocks = buildOwnershipRepairSourceBlocks(parserOutput);
+  if (!sourceBlocks.length) return null;
+  const sourceBlockIds = sourceBlocks.map((block) => stringValue(block.block_id)).filter(Boolean);
+  const issuesWithSources = dedupedIssues.map((issue) => ({
+    ...issue,
+    candidate_source_block_ids: sourceBlockIds,
+  }));
+  const allowedPatchPaths = uniqueStrings(issuesWithSources.flatMap((issue) => issue.allowed_patch_paths));
+
+  return {
+    prompt: buildOwnershipValidationRepairPrompt({
+      analysisResult: root,
+      issues: issuesWithSources,
+      allowedPatchPaths,
+      sourceBlocks,
+    }),
+    issues: issuesWithSources,
+    allowedPatchPaths,
+    sourceBlockIds,
+  };
+}
+
+export function applySecOwnershipValidationRepairPatches({
+  analysisResult,
+  repairResult,
+  allowedPatchPaths,
+}: {
+  analysisResult: Record<string, unknown>;
+  repairResult: unknown;
+  allowedPatchPaths: string[];
+}) {
+  return applySecValidationRepairPatches({ analysisResult, repairResult, allowedPatchPaths });
+}
+
 export function adaptOwnershipPromptResultForAnalysis(
   value: unknown,
   input: SecFilingAnalysisInput,
@@ -112,13 +198,10 @@ function adaptOwnershipRoomResultForAnalysis(
   }
 
   if (!isDeterministic) {
-    const displayPayloadError = validateOwnershipRuntimeDisplayPayload(requiredOutput.display_payload);
-    if (displayPayloadError) {
-      return {
-        ok: false,
-        error: displayPayloadError,
-      };
-    }
+    appendOwnershipDisplayWarnings(
+      requiredOutput.display_payload,
+      collectOwnershipRuntimeDisplayPayloadWarnings(requiredOutput.display_payload),
+    );
   }
 
   const adapted = adaptSecFormRoomOutputForIngest(requiredOutput);
@@ -203,15 +286,179 @@ function hasOwnershipTransactionDisplayData(data: Record<string, unknown>) {
   return Boolean(readRecord(data.form4) || readRecord(data.form144));
 }
 
-function validateOwnershipRuntimeDisplayPayload(displayPayload: Record<string, unknown>) {
+export function collectOwnershipRuntimeDisplayPayloadWarnings(displayPayload: Record<string, unknown>) {
+  const warnings: string[] = [];
   const data = readRecord(displayPayload.data);
   if (!data || Object.keys(data).length === 0) {
-    return "SEC ownership display_payload.data must be filled by the analysis LLM";
+    warnings.push("SEC ownership display_payload.data must be filled by the analysis LLM.");
+    return warnings;
   }
   if (!hasOwnershipTransactionDisplayData(data) && !stringValue(data.filing_summary)) {
-    return "SEC ownership display_payload.data must include LLM-authored ownership details or filing_summary";
+    warnings.push("SEC ownership display_payload.data must include LLM-authored ownership details or filing_summary.");
   }
-  return "";
+  return warnings;
+}
+
+function appendOwnershipDisplayWarnings(displayPayload: Record<string, unknown>, warnings: string[]) {
+  const uniqueWarnings = uniqueStrings(warnings);
+  if (!uniqueWarnings.length) return;
+  const data = readRecord(displayPayload.data) ?? {};
+  displayPayload.data = data;
+  data.display_warnings = uniqueStrings([...readStringArray(data.display_warnings), ...uniqueWarnings]);
+  displayPayload.notes = uniqueStrings([...readStringArray(displayPayload.notes), ...uniqueWarnings]);
+}
+
+function buildOwnershipValidationRepairPrompt({
+  analysisResult,
+  issues,
+  allowedPatchPaths,
+  sourceBlocks,
+}: {
+  analysisResult: Record<string, unknown>;
+  issues: SecOwnershipValidationRepairIssue[];
+  allowedPatchPaths: string[];
+  sourceBlocks: Array<Record<string, unknown>>;
+}) {
+  return {
+    key: SEC_OWNERSHIP_VALIDATION_REPAIR_PROMPT_KEY,
+    version: SEC_OWNERSHIP_VALIDATION_REPAIR_PROMPT_VERSION,
+    system: [
+      "Repair one completed SEC Ownership analysis in one bounded pass.",
+      "Validator warnings identify possible inconsistencies but are not evidence.",
+      "Use only the selected original SEC source excerpt and the existing result as evidence.",
+      "Return scalar replacement patches only for exact allowed paths. Never add, remove, reorder, truncate, or rewrite arrays or objects.",
+      "Preserve event classification, score, signal, display mode, transaction type, amendment status, and all fields not explicitly allowed.",
+      "Keep Form 144 proposed-sale language distinct from executed Form 4 transactions.",
+      "If the source excerpt does not support a reliable replacement, return the issue as unresolved instead of using parser facts or guessing.",
+      "This is the only repair attempt. Return JSON only.",
+    ].join("\n"),
+    user: JSON.stringify(
+      {
+        task: "Patch only source-verifiable validator issues in the existing Ownership analysis.",
+        allowed_patch_paths: allowedPatchPaths,
+        validator_issues: issues,
+        selected_original_source_blocks: sourceBlocks,
+        existing_analysis_result: analysisResult,
+      },
+      null,
+      2,
+    ),
+    responseFormat: {
+      json_schema: {
+        name: "sec_ownership_validation_repair",
+        strict: true,
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["patches", "unresolved"],
+          properties: {
+            patches: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["path", "replacement", "reason", "source_block_ids"],
+                properties: {
+                  path: { type: "string", enum: allowedPatchPaths },
+                  replacement: { type: ["string", "number", "boolean", "null"] },
+                  reason: { type: "string", maxLength: 240 },
+                  source_block_ids: { type: "array", items: { type: "string" } },
+                },
+              },
+            },
+            unresolved: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["code", "reason"],
+                properties: {
+                  code: { type: "string" },
+                  reason: { type: "string", maxLength: 240 },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+}
+
+function collectOwnershipPlaceholderRepairIssues(
+  value: unknown,
+  path: string,
+  issues: SecOwnershipValidationRepairIssue[],
+) {
+  if (typeof value === "string") {
+    if (hasOwnershipVisiblePlaceholder(value)) {
+      issues.push(
+        buildOwnershipRepairIssue(
+          "unresolved_visible_placeholder",
+          `Visible output contains unresolved placeholder text at ${path}.`,
+          [path],
+        ),
+      );
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => collectOwnershipPlaceholderRepairIssues(item, `${path}/${index}`, issues));
+    return;
+  }
+  const record = readRecord(value);
+  if (!record) return;
+  for (const [key, child] of Object.entries(record)) {
+    if (key === "display_warnings") continue;
+    collectOwnershipPlaceholderRepairIssues(child, `${path}/${escapeSecValidationJsonPointerSegment(key)}`, issues);
+  }
+}
+
+function hasOwnershipVisiblePlaceholder(value: string) {
+  const text = stringValue(value);
+  return Boolean(
+    /\$\s*(?:and|to|-)\s*\$/i.test(text) ||
+      /\bbetween\s+\$\s+(?:and|to|-)\s+\$/i.test(text) ||
+      /\$\s*(?:per\s+(?:share|unit)|shares?|securities?|million|billion)\b/i.test(text) ||
+      /\$\s*$/i.test(text) ||
+      /\[\s*[●•?]\s*\]|_{2,}/.test(text)
+  );
+}
+
+function buildOwnershipRepairSourceBlocks(parserOutput: OwnershipParserOutput) {
+  const raw = readRecord(parserOutput.raw);
+  const sourceExcerpt = stringValue(raw?.source_excerpt);
+  if (!sourceExcerpt) return [];
+  return [
+    {
+      block_id: "ownership_original_source_excerpt_1",
+      source_ref: "SEC ownership source excerpt",
+      block_type: "original_source_excerpt",
+      label: "Current ownership filing source excerpt",
+      text: sourceExcerpt,
+      source_order: 0,
+    },
+  ];
+}
+
+function buildOwnershipRepairIssue(code: string, warning: string, paths: string[]): SecOwnershipValidationRepairIssue {
+  return {
+    code,
+    warning,
+    field_paths: paths,
+    allowed_patch_paths: paths,
+    candidate_source_block_ids: [],
+  };
+}
+
+function dedupeOwnershipRepairIssues(issues: SecOwnershipValidationRepairIssue[]) {
+  const seen = new Set<string>();
+  return issues.filter((issue) => {
+    const key = `${issue.code}:${issue.allowed_patch_paths.join("|")}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function pickOwnershipDisplayCopyFields(data: Record<string, unknown>) {
@@ -279,6 +526,14 @@ function arrayValue(value: unknown) {
   if (Array.isArray(value)) return value;
   if (value === undefined || value === null || value === "") return [];
   return [value];
+}
+
+function readStringArray(value: unknown) {
+  return Array.isArray(value) ? value.map((item) => stringValue(item)).filter(Boolean) : [];
+}
+
+function uniqueStrings(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
 const ownershipRequiredOutputJsonSchema = {
