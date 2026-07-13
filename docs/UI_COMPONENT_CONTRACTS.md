@@ -1,12 +1,12 @@
 # Stock Radar UI Component Contracts
 
-Phase: 3A/3B - foundational shared components and filter controls
+Phase: 3A/3B/3C - foundational controls, filter controls, and market results
 
 Canonical visual baseline: commit `f87660f` and `docs/ui-reference/dashboard-v2/`
 
 Token foundation: commit `7280394`, `app/stock-radar-tokens.css`, and `docs/UI_DESIGN_TOKENS.md`
 
-This phase extracts only IconButton, SegmentedControl, and Badge. The contracts preserve the canonical dashboard-v2 DOM behavior and computed presentation. They do not introduce routing, data, filtering, chart, panel, popover, or sheet abstractions.
+These phases extract only the documented controls and market-result presentations. The contracts preserve the canonical dashboard-v2 behavior and computed presentation. They do not introduce routing, data fetching, filtering, chart, panel, popover, or sheet abstractions.
 
 ## 1. IconButton
 
@@ -50,7 +50,7 @@ Do not use IconButton for icon-plus-text search actions, decorative icons, overl
 
 - Desktop detail close remains local because its canonical icon position includes inherited global button padding. Normalizing it would change the baseline.
 - Mobile ticker/filter close controls remain with their sheet implementations because their border, surface, focus management, and ref behavior belong to the future sheet shell.
-- Table chart action remains local because stop-propagation and selected-row interaction belong to the market-row contract.
+- Table chart action uses the 3C market-domain wrapper because stop-propagation and ticker-specific naming belong to the market-row contract.
 - Chart toolbar actions remain local because their non-square 22 x 30 geometry and chart ownership do not match the header size contract.
 
 ## 2. SegmentedControl
@@ -147,7 +147,7 @@ Do not hardcode business event maps in Badge, attach click handlers to make it a
 
 ### Deliberate exclusion
 
-ImpactBadge remains local. It is borderless impact text with different weight and status semantics, not the bordered event-label contract. Combining it would require an oversized appearance API and weaken both components.
+The borderless 3C `MarketImpactLabel` remains separate from Badge. Combining the two would require an oversized appearance API and weaken both contracts.
 
 ## 4. CSS Ownership
 
@@ -271,16 +271,166 @@ Do not pass a filter key into FilterOption, store selected state inside it, or c
 - Active-filter chips remain local reset controls with removal icons; their geometry and action contract do not match FilterTrigger or FilterOption.
 - Filter row layout, option-group wrapping, action-grid layout, and the mobile sheet shell remain dashboard-owned.
 
-## 8. Deferred Beyond Phase 3B
+## 8. Deferred Beyond Phase 3C
 
-- Desktop market table and mobile market row
-- Pagination and rows-per-page controls
+- Market table shell, header, and column layout
+- Rows-per-page control
 - Panel and detail-panel shells
 - Navigation popover
 - Bottom-sheet shell, overlay, handle, and close control
 - Active-filter chip contract
 - Chart range control and chart toolbar
 - Chart shell
-- Impact label contract
 
-These remain deferred because they combine layout, domain state, responsive composition, focus management, or container-specific interaction beyond the demonstrated filter-control contracts.
+## 9. DesktopMarketRow
+
+### Purpose and files
+
+- Component: `components/market/DesktopMarketRow.tsx`
+- Shared market-result styles: `components/market/MarketResultRows.module.css`
+- Purpose: semantic desktop `tr`/`td` presentation for a ranked market result.
+- Current dashboard use: every desktop result rendered by `components/dashboard-v2/MarketMoversTable.tsx`.
+
+### Props
+
+| Prop | Type | Required | Contract |
+| --- | --- | --- | --- |
+| `rank` | `number` | yes | Visible ranking. |
+| `ticker` | `string` | yes | Visible ticker and chart-action accessible-name input. |
+| `company` | `string` | yes | Ellipsized company label. |
+| `price` | `string` | yes | Preformatted visible price. |
+| `change` | `string` | yes | Preformatted percentage; a leading minus selects the negative tone. |
+| `volume` | `string` | yes | Preformatted visible volume. |
+| `marketCap` | `string` | yes | Preformatted visible market cap. |
+| `events` | `ReactNode` | yes | Parent-rendered `EventBadge` group; the row does not import mock event types. |
+| `impact` | `high | low | major | medium` | yes | Actual supported impact level for `MarketImpactLabel`. |
+| `selected` | `boolean` | no | Controls `aria-selected` and the canonical selected-row treatment. |
+| `onSelect` | `() => void` | no | Parent-owned row selection callback. |
+| `onOpenChart` | `() => void` | no | Parent-owned chart action callback. |
+
+The table shell, header, fixed column widths, page data, sorting, and filtering remain dashboard-owned. `MarketMoversTable` maps the current mock row into these presentation props.
+
+### Interaction
+
+- The row is keyboard reachable; Enter and Space invoke `onSelect` once.
+- Pointer activation invokes `onSelect` once.
+- The nested chart action stops click and keydown propagation so chart activation does not also select the row.
+- Visible column order remains rank, identity, price, change, volume, market cap, events, impact, chart.
+
+### Usage
+
+```tsx
+<DesktopMarketRow
+  change={row.changePercent}
+  company={row.company}
+  events={row.events.map((event) => <EventBadge key={event} type={event} />)}
+  impact={row.maxImpact}
+  marketCap={row.marketCap}
+  onOpenChart={() => onOpenChart(row)}
+  onSelect={() => onSelectRow(row)}
+  price={row.price}
+  rank={row.rank}
+  selected={row.ticker === selectedTicker}
+  ticker={row.ticker}
+  volume={row.volume}
+/>
+```
+
+## 10. MobileMarketRow
+
+### Purpose and files
+
+- Component: `components/market/MobileMarketRow.tsx`
+- Styles: `components/market/MarketResultRows.module.css`
+- Purpose: mobile-only three-area market result with no horizontal scroll.
+- Current dashboard use: every mobile result rendered by `MarketMoversTable`.
+
+### Props
+
+| Prop | Type | Required | Contract |
+| --- | --- | --- | --- |
+| `rank` | `number` | yes | Left ranking area. |
+| `ticker` | `string` | yes | Bold center identity. |
+| `company` | `string` | yes | Single-line ellipsized center metadata. |
+| `primaryValue` | `string` | yes | Right, first-line value. |
+| `secondaryValue` | `string` | yes | Right, second-line value. |
+| `primaryTone` | `negative | neutral | positive` | no | Primary semantic market tone; defaults to neutral. |
+| `secondaryTone` | `negative | neutral | positive` | no | Secondary semantic market tone; defaults to neutral. |
+| `selected` | `boolean` | no | Controls `aria-selected` and the canonical outline/surface. |
+| `onSelect` | `() => void` | no | Parent-owned selection and ticker-sheet opening callback. |
+
+`MarketMoversTable` owns mode interpretation. Gainers/Losers pass change then price; Top Volume passes volume then change. The row does not inspect tab names or mock data and does not add a mobile chart action.
+
+### Accessibility and layout
+
+- Enter, Space, and pointer activation invoke the same parent callback.
+- Desktop and mobile row instances are both emitted by the responsive table composition, but CSS renders only the matching contract at each breakpoint; hidden rows are removed from layout and the accessibility tree.
+- The visual areas are rank, ticker/company, and right-aligned primary/secondary values. Separate right-side cells preserve the canonical text rasterization while sharing one grid column.
+
+## 11. MarketImpactLabel and MarketChartAction
+
+### MarketImpactLabel
+
+- Component: `components/market/MarketImpactLabel.tsx`
+- Props: `impact: "high" | "low" | "major" | "medium"`.
+- It preserves the borderless uppercase label. An exhaustive `Record<MarketImpact, string>` maps major/high to accent, medium to warning, and low to positive; unsupported runtime values do not receive an arbitrary fallback tone.
+- It is intentionally separate from generic Badge and contains no speculative levels, appearance, or size variants.
+
+### MarketChartAction
+
+- Component: `components/market/MarketChartAction.tsx`
+- Props: `ticker: string`, optional `onOpen: () => void`, and native button props except the component-owned accessible name, children, class, click/keydown handlers, and type.
+- It preserves the 30 x 30 market-cell geometry, existing BarChart3 icon, and `Open {ticker} chart` accessible label.
+- It forwards its button ref, fixes `type="button"`, and supports native disabled behavior plus tokenized focus-visible and disabled states.
+- Click and keydown propagation are stopped to isolate it from row selection. Enter/Space retain native button activation and invoke `onOpen` once without invoking the row callback. It is not an IconButton variant because header IconButton has a different 34 px geometry and ownership contract.
+
+## 12. Pagination
+
+### Purpose and files
+
+- Component: `components/ui/Pagination.tsx`
+- Styles: `components/ui/Pagination.module.css`
+- Purpose: business-neutral page navigation presentation; page state and visible-page calculation remain caller-owned.
+
+### Props
+
+| Prop | Type | Required | Contract |
+| --- | --- | --- | --- |
+| `currentPage` | `number` | yes | Current page and previous/next disabled-state source. |
+| `totalPages` | `number` | yes | Last boundary and next disabled-state source. |
+| `items` | `readonly PaginationItem[]` | yes | Caller-calculated unique page numbers and the optional single ellipsis marker. |
+| `onPageChange` | `(page: number) => void` | yes | Parent-owned page request callback. |
+| `ariaLabel` | `string` | no | Navigation landmark name; defaults to `Pagination`. |
+
+`PaginationItem` is a page number or the literal `"ellipsis"`. The caller owns the visible item calculation and must provide unique page numbers within `1..totalPages`, include `currentPage` exactly once, and include at most one ellipsis. `currentPage` alone owns the active state, while `totalPages` owns previous/next boundaries; `items` owns only the visible sequence. There is no responsive variant because the canonical desktop and mobile geometry is the same.
+
+### Accessibility and keyboard
+
+- The root is a named `nav`; controls are native `button type="button"` elements.
+- The current page exposes `aria-current="page"`; each page and direction control has an accessible label.
+- Previous and next use native disabled state at their respective boundaries while preserving the canonical visual opacity.
+- Requests for the current page, a non-integer page, or a page outside `1..totalPages` are suppressed before `onPageChange`.
+- Tab, Enter, and Space behavior is native; focus-visible uses Stock Radar focus tokens.
+
+### Usage
+
+```tsx
+<Pagination
+  currentPage={page}
+  items={[1, 2, 3, "ellipsis", totalPages]}
+  onPageChange={setPage}
+  totalPages={totalPages}
+/>
+```
+
+The current dashboard still supplies a no-op callback because pagination is a canonical mock. This extraction does not add pagination behavior.
+
+## 13. Phase 3C Boundaries and Deferred Work
+
+- `components/ui` contains only the business-neutral Pagination contract.
+- `components/market` owns ticker/market-value semantics, impact mapping, row interaction, and the cell-specific chart action.
+- `MarketMoversTable` retains mock-data coupling, result/page calculations, mode mapping, table shell/header, column geometry, and rows-per-page UI.
+- Event label/tone mapping stays in the existing dashboard `EventBadge` wrapper; generic Badge remains business-neutral.
+- Generic data-table engines, sorting, filtering, data fetching, active-filter chips, responsive table shells, panels, sheets, popovers, chart controls, and real pagination remain deferred.
+
+These remain deferred because they combine broader layout, domain state, responsive composition, focus management, or container-specific interaction beyond the demonstrated 3C contracts.

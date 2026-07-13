@@ -1,6 +1,8 @@
-import { BarChart3, ChevronLeft, ChevronRight } from "lucide-react";
+import { Fragment } from "react";
 import { EventBadge } from "@/components/dashboard-v2/EventBadge";
-import { ImpactBadge } from "@/components/dashboard-v2/ImpactBadge";
+import { DesktopMarketRow } from "@/components/market/DesktopMarketRow";
+import { MobileMarketRow, type MarketValueTone } from "@/components/market/MobileMarketRow";
+import { Pagination, type PaginationItem } from "@/components/ui/Pagination";
 import type { DashboardV2MarketMover } from "@/lib/mock/dashboardV2Data";
 
 type MarketMoversTableProps = {
@@ -21,15 +23,18 @@ export function MarketMoversTable({
   const rowsPerPage = rows.length;
   const totalResults = 500;
   const lastPage = Math.ceil(totalResults / rowsPerPage);
-  const tableModeClass =
-    mobileValueMode === "volume"
-      ? "dashboard-v2-market-table-volume"
-      : "dashboard-v2-market-table-change";
+  const paginationItems: readonly PaginationItem[] = [
+    1,
+    2,
+    3,
+    "ellipsis",
+    lastPage,
+  ];
 
   return (
     <section className="dashboard-v2-table-panel" aria-label="Market movers">
       <div className="dashboard-v2-table-scroll">
-        <table className={`dashboard-v2-market-table ${tableModeClass}`}>
+        <table className="dashboard-v2-market-table">
           <thead>
             <tr>
               <th>#</th>
@@ -45,61 +50,47 @@ export function MarketMoversTable({
           </thead>
           <tbody>
             {rows.map((row) => {
-              const changeClass = row.changePercent.startsWith("-")
-                ? "dashboard-v2-negative"
-                : "dashboard-v2-positive";
+              const changeTone: MarketValueTone = row.changePercent.startsWith("-")
+                ? "negative"
+                : "positive";
               const isSelected = selectedTicker ? selectedTicker === row.ticker : row.selected;
+              const primaryValue =
+                mobileValueMode === "volume" ? row.volume : row.changePercent;
+              const secondaryValue =
+                mobileValueMode === "volume" ? row.changePercent : row.price;
+              const primaryTone = mobileValueMode === "volume" ? "neutral" : changeTone;
+              const secondaryTone = mobileValueMode === "volume" ? changeTone : "neutral";
 
               return (
-                <tr
-                  aria-selected={isSelected}
-                  className={isSelected ? "dashboard-v2-row-selected" : undefined}
-                  key={row.ticker}
-                  onClick={() => onSelectRow?.(row)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      onSelectRow?.(row);
-                    }
-                  }}
-                  tabIndex={0}
-                >
-                  <td>{row.rank}</td>
-                  <td>
-                    <div className="dashboard-v2-ticker-cell">
-                      <strong>{row.ticker}</strong>
-                      <span>{row.company}</span>
-                    </div>
-                  </td>
-                  <td>{row.price}</td>
-                  <td className={changeClass}>{row.changePercent}</td>
-                  <td>{row.volume}</td>
-                  <td>{row.marketCap}</td>
-                  <td>
-                    <div className="dashboard-v2-badge-row">
-                      {row.events.map((event) => (
-                        <EventBadge key={`${row.ticker}-${event}`} type={event} />
-                      ))}
-                    </div>
-                  </td>
-                  <td>
-                    <ImpactBadge impact={row.maxImpact} />
-                  </td>
-                  <td>
-                    <button
-                      className="dashboard-v2-chart-button"
-                      type="button"
-                      aria-label={`Open ${row.ticker} chart`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onOpenChart?.(row);
-                      }}
-                      onKeyDown={(event) => event.stopPropagation()}
-                    >
-                      <BarChart3 aria-hidden="true" size={18} />
-                    </button>
-                  </td>
-                </tr>
+                <Fragment key={row.ticker}>
+                  <DesktopMarketRow
+                    change={row.changePercent}
+                    company={row.company}
+                    events={row.events.map((event) => (
+                      <EventBadge key={`${row.ticker}-${event}`} type={event} />
+                    ))}
+                    impact={row.maxImpact}
+                    marketCap={row.marketCap}
+                    onOpenChart={() => onOpenChart?.(row)}
+                    onSelect={() => onSelectRow?.(row)}
+                    price={row.price}
+                    rank={row.rank}
+                    selected={isSelected}
+                    ticker={row.ticker}
+                    volume={row.volume}
+                  />
+                  <MobileMarketRow
+                    company={row.company}
+                    onSelect={() => onSelectRow?.(row)}
+                    primaryTone={primaryTone}
+                    primaryValue={primaryValue}
+                    rank={row.rank}
+                    secondaryTone={secondaryTone}
+                    secondaryValue={secondaryValue}
+                    selected={isSelected}
+                    ticker={row.ticker}
+                  />
+                </Fragment>
               );
             })}
           </tbody>
@@ -107,19 +98,12 @@ export function MarketMoversTable({
       </div>
       <footer className="dashboard-v2-table-footer">
         <span>{`Results: 1-${rowsPerPage} of ${totalResults}`}</span>
-        <div className="dashboard-v2-pagination" aria-label="Pagination">
-          <button type="button" aria-label="Previous page">
-            <ChevronLeft aria-hidden="true" size={15} />
-          </button>
-          <strong>1</strong>
-          <button type="button">2</button>
-          <button type="button">3</button>
-          <span>...</span>
-          <button type="button">{lastPage}</button>
-          <button type="button" aria-label="Next page">
-            <ChevronRight aria-hidden="true" size={15} />
-          </button>
-        </div>
+        <Pagination
+          currentPage={1}
+          items={paginationItems}
+          onPageChange={() => undefined}
+          totalPages={lastPage}
+        />
         <div className="dashboard-v2-rows-select">
           <span>Rows per page:</span>
           <button type="button">

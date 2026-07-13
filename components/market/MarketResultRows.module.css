@@ -1,0 +1,261 @@
+.desktopRow,
+.mobileRow {
+  cursor: pointer;
+}
+
+.desktopRow:hover td,
+.desktopRow:focus-visible td {
+  background: var(--sr-color-surface-table-hover);
+}
+
+.desktopRow:focus-visible td {
+  outline: var(--sr-border-width) solid var(--sr-color-accent-focus-soft);
+  outline-offset: -1px;
+}
+
+.tickerCell {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 54px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sr-space-1-75);
+  line-height: var(--sr-line-height-none);
+}
+
+.tickerCell strong {
+  color: var(--sr-color-text-ticker);
+  font-size: var(--sr-font-size-base);
+  font-weight: var(--sr-font-weight-display);
+  line-height: var(--sr-line-height-none);
+}
+
+.tickerCell span {
+  overflow: hidden;
+  color: var(--sr-color-text-secondary);
+  line-height: var(--sr-line-height-none);
+  text-overflow: ellipsis;
+}
+
+.desktopRow .positive,
+.mobileRow .positive {
+  color: var(--sr-color-positive);
+  font-variant-numeric: var(--sr-font-variant-numeric);
+}
+
+.desktopRow .negative,
+.mobileRow .negative {
+  color: var(--sr-color-negative);
+  font-variant-numeric: var(--sr-font-variant-numeric);
+}
+
+.desktopRow .neutral,
+.mobileRow .neutral {
+  color: var(--sr-color-text-mobile-value);
+}
+
+.badgeRow {
+  display: flex;
+  min-height: var(--sr-size-badge);
+  align-items: center;
+  gap: var(--sr-space-1-5);
+}
+
+.impact {
+  display: inline-flex;
+  height: var(--sr-size-badge);
+  align-items: center;
+  justify-content: center;
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-heavy);
+  line-height: var(--sr-line-height-none);
+}
+
+.impact-major,
+.impact-high {
+  color: var(--sr-color-accent);
+}
+
+.impact-medium {
+  color: var(--sr-color-warning);
+}
+
+.impact-low {
+  color: var(--sr-color-positive);
+}
+
+.chartAction {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: var(--sr-border-width) solid transparent;
+  border-radius: var(--sr-radius-sm);
+  padding: var(--sr-space-2-25) var(--sr-space-3-25);
+  color: var(--sr-color-text-chart-icon);
+  background: transparent;
+  font: inherit;
+  vertical-align: middle;
+}
+
+.chartAction svg {
+  stroke-width: 1.8;
+}
+
+.chartAction:focus-visible {
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: calc(var(--sr-focus-ring-offset) * -1);
+}
+
+.chartAction:disabled {
+  color: var(--sr-color-state-disabled-text);
+  background: var(--sr-color-state-disabled-surface);
+  cursor: not-allowed;
+  opacity: var(--sr-opacity-disabled);
+}
+
+.desktopRow.selected td {
+  background: var(--sr-color-accent-selected);
+  box-shadow:
+    inset 0 1px 0 var(--sr-color-accent),
+    inset 0 -1px 0 var(--sr-color-accent);
+}
+
+.desktopRow.selected td:first-child {
+  box-shadow:
+    inset 1px 0 0 var(--sr-color-negative),
+    inset 0 1px 0 var(--sr-color-accent),
+    inset 0 -1px 0 var(--sr-color-accent);
+}
+
+.desktopRow.selected td:last-child {
+  box-shadow:
+    inset -1px 0 0 var(--sr-color-accent),
+    inset 0 1px 0 var(--sr-color-accent),
+    inset 0 -1px 0 var(--sr-color-accent);
+}
+
+.mobileRow {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .desktopRow {
+    display: none;
+  }
+
+  .mobileRow {
+    position: relative;
+    display: grid;
+    min-width: 0;
+    min-height: var(--sr-size-mobile-list-row);
+    grid-template-columns: 26px minmax(0, 1fr) minmax(76px, max-content);
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: var(--sr-space-2);
+    border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
+    padding: var(--sr-space-1-75) var(--sr-space-2-5);
+    background: var(--sr-color-surface-table-row);
+  }
+
+  .mobileRow:hover {
+    background: var(--sr-color-surface-table-hover);
+  }
+
+  .mobileRow:focus-visible {
+    outline: var(--sr-border-width) solid var(--sr-color-accent-focus-mobile);
+    outline-offset: -1px;
+  }
+
+  .mobileRow.mobileRow :where(td) {
+    display: block;
+    width: auto;
+    height: auto;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+    font-size: var(--sr-font-size-md);
+    line-height: var(--sr-line-height-snug);
+  }
+
+  .mobileRow .mobileRank {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    align-self: center;
+    color: var(--sr-color-text-mobile-rank);
+    font-size: var(--sr-font-size-sm);
+    font-weight: var(--sr-font-weight-strong);
+    text-align: left;
+  }
+
+  .mobileRow.mobileRow .mobileIdentity {
+    display: grid;
+    min-width: 0;
+    grid-column: 2;
+    grid-row: 1 / 3;
+    gap: var(--sr-space-1);
+  }
+
+  .mobileIdentity strong,
+  .mobileIdentity span {
+    overflow: hidden;
+    line-height: var(--sr-line-height-none);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobileIdentity strong {
+    color: var(--sr-color-text-ticker);
+    font-size: var(--sr-font-size-md-plus);
+    font-weight: var(--sr-font-weight-display);
+  }
+
+  .mobileIdentity span {
+    color: var(--sr-color-text-mobile-company);
+    font-size: var(--sr-font-size-sm);
+    line-height: var(--sr-line-height-compact);
+  }
+
+  .mobileRow .mobilePrimary,
+  .mobileRow .mobileSecondary {
+    grid-column: 3;
+    justify-self: end;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .mobileRow .mobilePrimary {
+    grid-row: 1;
+    font-size: var(--sr-font-size-base);
+    font-weight: var(--sr-font-weight-heavy);
+    line-height: var(--sr-line-height-none);
+  }
+
+  .mobileRow .mobileSecondary {
+    grid-row: 2;
+    font-size: var(--sr-font-size-sm);
+    font-weight: var(--sr-font-weight-semibold);
+    line-height: var(--sr-line-height-compact);
+  }
+
+  .mobileRow .positive {
+    color: var(--sr-color-positive);
+  }
+
+  .mobileRow .negative {
+    color: var(--sr-color-negative);
+  }
+
+  .mobileRow .neutral {
+    color: var(--sr-color-text-mobile-value);
+  }
+
+  .mobileRow.selected {
+    background: var(--sr-color-accent-selected);
+    box-shadow:
+      inset 1px 0 0 var(--sr-color-negative),
+      inset -1px 0 0 var(--sr-color-accent),
+      inset 0 1px 0 var(--sr-color-accent),
+      inset 0 -1px 0 var(--sr-color-accent);
+  }
+}
