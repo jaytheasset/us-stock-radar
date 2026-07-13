@@ -15,11 +15,35 @@ import {
   validate424bDisplayPayload,
 } from "@/lib/ai/sec424bAnalysisAdapter";
 import { collectSecOfferingMarketContextWarnings } from "@/lib/secOfferingMarketContext";
+import {
+  applySecValidationRepairPatches,
+  escapeSecValidationJsonPointerSegment,
+  hasSecValidationJsonPointer,
+  readSecValidationJsonPointer,
+} from "@/lib/ai/secValidationRepairPatch";
 
 export {
   SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
   SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
   SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY,
+};
+
+export const SEC_S3_VALIDATION_REPAIR_PROMPT_KEY = "sec_s3_validation_repair";
+export const SEC_S3_VALIDATION_REPAIR_PROMPT_VERSION = "v1-one-pass-source-backed-patch";
+
+export type SecS3ValidationRepairIssue = {
+  code: string;
+  warning: string;
+  field_paths: string[];
+  allowed_patch_paths: string[];
+  candidate_source_block_ids: string[];
+};
+
+export type SecS3ValidationRepairPlan = {
+  prompt: ReturnType<typeof buildS3ValidationRepairPrompt>;
+  issues: SecS3ValidationRepairIssue[];
+  allowedPatchPaths: string[];
+  sourceBlockIds: string[];
 };
 
 export type SecS3AnalysisAdapterResult =
@@ -64,6 +88,366 @@ export function buildSecS3AnalysisPrompt(input: SecFilingAnalysisInput) {
 
 export function buildSecS3TriagePrompt(input: SecFilingAnalysisInput) {
   return buildSecS3AmendmentTriagePrompt(input);
+}
+
+export function buildSecS3ValidationRepairPlan({
+  analysisResult,
+  input,
+}: {
+  analysisResult: Record<string, unknown>;
+  input: SecFilingAnalysisInput;
+}): SecS3ValidationRepairPlan | null {
+  const root = readRecord(analysisResult);
+  const analysisOutput = readRecord(root?.analysis_output);
+  const displayPayload = normalizeS3DisplayPayloadForParentContext(readRecord(root?.display_payload), input);
+  const data = readRecord(displayPayload?.data);
+  if (!root || !analysisOutput || !displayPayload || !data) return null;
+
+  const issues: SecS3ValidationRepairIssue[] = [];
+  const warnings = [
+    validate424bDisplayPayload(displayPayload, {
+      requireKeyCashTermFacts: true,
+      requireMixedComponents: false,
+      strictLabels: false,
+    }),
+    ...collect424bDisplayPayloadWarnings(displayPayload),
+  ].filter(Boolean) as string[];
+
+  const investorTakeawayPath = "/display_payload/data/investor_takeaway";
+  if (
+    Object.prototype.hasOwnProperty.call(data, "investor_takeaway") &&
+    !stringValue(data.investor_takeaway) &&
+    warnings.some((warning) => /investor_takeaway/i.test(warning))
+  ) {
+    issues.push(buildS3RepairIssue("missing_investor_takeaway", warnings.find((warning) => /investor_takeaway/i.test(warning)) || "Investor takeaway is empty.", [investorTakeawayPath]));
+  }
+
+  collectS3PlaceholderRepairIssues(analysisOutput, "/analysis_output", issues);
+  collectS3PlaceholderRepairIssues(data, "/display_payload/data", issues);
+  collectS3OverhangRepairIssues(analysisResult, analysisOutput, data, warnings, issues);
+
+  const dedupedIssues = dedupeS3RepairIssues(issues);
+  if (!dedupedIssues.length) return null;
+  const sourceBlocks = selectS3RepairSourceBlocks(buildS3RepairSourceBlocks(input), dedupedIssues, analysisResult);
+  if (!sourceBlocks.length) return null;
+  const sourceBlockIds = sourceBlocks.map((block) => stringValue(block.block_id)).filter(Boolean);
+  const issuesWithSources = dedupedIssues.map((issue) => ({ ...issue, candidate_source_block_ids: sourceBlockIds }));
+  const allowedPatchPaths = uniqueStrings(issuesWithSources.flatMap((issue) => issue.allowed_patch_paths));
+
+  return {
+    prompt: buildS3ValidationRepairPrompt({
+      analysisResult,
+      issues: issuesWithSources,
+      allowedPatchPaths,
+      sourceBlocks,
+    }),
+    issues: issuesWithSources,
+    allowedPatchPaths,
+    sourceBlockIds,
+  };
+}
+
+export function applySecS3ValidationRepairPatches({
+  analysisResult,
+  repairResult,
+  allowedPatchPaths,
+}: {
+  analysisResult: Record<string, unknown>;
+  repairResult: unknown;
+  allowedPatchPaths: string[];
+}) {
+  return applySecValidationRepairPatches({ analysisResult, repairResult, allowedPatchPaths });
+}
+
+function buildS3ValidationRepairPrompt({
+  analysisResult,
+  issues,
+  allowedPatchPaths,
+  sourceBlocks,
+}: {
+  analysisResult: Record<string, unknown>;
+  issues: SecS3ValidationRepairIssue[];
+  allowedPatchPaths: string[];
+  sourceBlocks: Array<Record<string, unknown>>;
+}) {
+  return {
+    key: SEC_S3_VALIDATION_REPAIR_PROMPT_KEY,
+    version: SEC_S3_VALIDATION_REPAIR_PROMPT_VERSION,
+    system: [
+      "Repair one completed SEC S-3/F-3 analysis in one bounded pass.",
+      "Validator warnings identify possible inconsistencies but are not evidence.",
+      "Use only the selected original source blocks and the existing result as evidence.",
+      "Return scalar replacement patches only for exact allowed paths. Never add, remove, reorder, or rewrite arrays or objects.",
+      "Preserve event classification, score, signal, display mode, amendment status, and all fields not explicitly allowed.",
+      "Preserve counted, conditional, alternative, reference, fixed, variable, pending, and not-calculable distinctions.",
+      "If the source blocks do not support a reliable replacement, return the issue as unresolved instead of guessing.",
+      "This is the only repair attempt. Return JSON only.",
+    ].join("\n"),
+    user: JSON.stringify(
+      {
+        task: "Patch only source-verifiable validator issues in the existing S-3/F-3 analysis.",
+        allowed_patch_paths: allowedPatchPaths,
+        validator_issues: issues,
+        selected_original_source_blocks: sourceBlocks,
+        existing_analysis_result: analysisResult,
+      },
+      null,
+      2,
+    ),
+    responseFormat: {
+      json_schema: {
+        name: "sec_s3_validation_repair",
+        strict: true,
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["patches", "unresolved"],
+          properties: {
+            patches: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["path", "replacement", "reason", "source_block_ids"],
+                properties: {
+                  path: { type: "string", enum: allowedPatchPaths },
+                  replacement: { type: ["string", "number", "boolean", "null"] },
+                  reason: { type: "string", maxLength: 240 },
+                  source_block_ids: { type: "array", items: { type: "string" } },
+                },
+              },
+            },
+            unresolved: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["code", "reason"],
+                properties: {
+                  code: { type: "string" },
+                  reason: { type: "string", maxLength: 240 },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+}
+
+function buildS3RepairIssue(code: string, warning: string, paths: string[]): SecS3ValidationRepairIssue {
+  return {
+    code,
+    warning: warning.replace(/^SEC 424B\b/, "SEC S3"),
+    field_paths: paths,
+    allowed_patch_paths: paths,
+    candidate_source_block_ids: [],
+  };
+}
+
+function collectS3PlaceholderRepairIssues(value: unknown, path: string, issues: SecS3ValidationRepairIssue[]) {
+  if (typeof value === "string") {
+    if (hasS3VisiblePlaceholder(value)) {
+      issues.push(buildS3RepairIssue("unresolved_visible_placeholder", `Visible output contains unresolved placeholder text at ${path}.`, [path]));
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => collectS3PlaceholderRepairIssues(item, `${path}/${index}`, issues));
+    return;
+  }
+  const record = readRecord(value);
+  if (!record) return;
+  for (const [key, child] of Object.entries(record)) {
+    if (key === "display_warnings") continue;
+    collectS3PlaceholderRepairIssues(child, `${path}/${escapeSecValidationJsonPointerSegment(key)}`, issues);
+  }
+}
+
+function hasS3VisiblePlaceholder(value: string) {
+  const text = stringValue(value);
+  return Boolean(
+    /\$\s*(?:and|to|-)\s*\$/i.test(text) ||
+      /\bbetween\s+\$\s+(?:and|to|-)\s+\$/i.test(text) ||
+      /\$\s*(?:per\s+(?:share|unit|ADS)|million|billion)\b/i.test(text) ||
+      /\$\s*$/i.test(text) ||
+      /\[\s*[?●•]?\s*\]|_{2,}/.test(text)
+  );
+}
+
+function collectS3OverhangRepairIssues(
+  analysisResult: Record<string, unknown>,
+  analysisOutput: Record<string, unknown>,
+  data: Record<string, unknown>,
+  warnings: string[],
+  issues: SecS3ValidationRepairIssue[],
+) {
+  const shareOverhang = readRecord(data.share_overhang);
+  if (!shareOverhang) return;
+  const rows = Array.isArray(shareOverhang.rows)
+    ? shareOverhang.rows.map((row) => readRecord(row))
+    : [];
+  const totalNoteKey = Object.prototype.hasOwnProperty.call(shareOverhang, "total_note") ? "total_note" : "totalNote";
+  const totalNote = readRecord(shareOverhang[totalNoteKey]);
+
+  if (warnings.some((warning) => /counted row numeric_value sum does not reconcile/i.test(warning))) {
+    const path = `/display_payload/data/share_overhang/${totalNoteKey}/numerator`;
+    if (hasSecValidationJsonPointer(analysisResult, path)) {
+      issues.push(buildS3RepairIssue("overhang_counted_sum_mismatch", warnings.find((warning) => /counted row numeric_value sum does not reconcile/i.test(warning)) || "Counted rows do not reconcile to the numerator.", [path]));
+    }
+  }
+  if (warnings.some((warning) => /total_note ratio does not reconcile/i.test(warning))) {
+    const path = findS3RatioPath(analysisResult, shareOverhang, totalNoteKey);
+    if (path) {
+      issues.push(buildS3RepairIssue("overhang_ratio_math_mismatch", warnings.find((warning) => /total_note ratio does not reconcile/i.test(warning)) || "The displayed ratio does not reconcile.", [path]));
+    }
+  }
+  if (warnings.some((warning) => /pre-funded replacement supply/i.test(warning))) {
+    const paths = rows.flatMap((row, index) => {
+      if (!row || !/pre[-\s]?funded/i.test(`${stringValue(row.label)} ${stringValue(row.value)} ${stringValue(row.note)}`)) return [];
+      const key = Object.prototype.hasOwnProperty.call(row, "row_role") ? "row_role" : Object.prototype.hasOwnProperty.call(row, "rowRole") ? "rowRole" : "";
+      const path = key ? `/display_payload/data/share_overhang/rows/${index}/${key}` : "";
+      return path && hasSecValidationJsonPointer(analysisResult, path) ? [path] : [];
+    });
+    if (paths.length) {
+      issues.push(buildS3RepairIssue("duplicate_prefunded_replacement_pool", warnings.find((warning) => /pre-funded replacement supply/i.test(warning)) || "Pre-funded replacement supply may be double-counted.", paths));
+    }
+  }
+
+  const expectedRatio = parseS3Percent(
+    stringValue(totalNote?.ratio) || stringValue(shareOverhang.ratio_value || shareOverhang.ratioValue) || stringValue(shareOverhang.status_value || shareOverhang.statusValue),
+  );
+  const hasExcludedRows = rows.some((row) => ["conditional", "alternative", "reference"].includes(s3RowRole(row)));
+  if (expectedRatio === null || !hasExcludedRows) return;
+  for (const [field, value] of readS3AnalysisProseFields(analysisOutput)) {
+    if (!hasS3ConflictingOverhangPercent(value, expectedRatio)) continue;
+    const path = s3AnalysisFieldToJsonPointer(field);
+    if (hasSecValidationJsonPointer(analysisResult, path)) {
+      issues.push(buildS3RepairIssue("conflicting_overhang_percentage", `${field} conflicts with the headline overhang ratio.`, [path]));
+    }
+  }
+}
+
+function readS3AnalysisProseFields(analysisOutput: Record<string, unknown>): Array<[string, unknown]> {
+  const fields: Array<[string, unknown]> = [
+    ["event_title", analysisOutput.event_title],
+    ["quick_take", analysisOutput.quick_take],
+    ["summary", analysisOutput.summary],
+    ["score_reason", analysisOutput.score_reason],
+  ];
+  const scoreExplanation = readRecord(analysisOutput.score_explanation);
+  if (scoreExplanation) {
+    fields.push(["score_explanation.summary", scoreExplanation.summary], ["score_explanation.final_read", scoreExplanation.final_read]);
+  }
+  return fields;
+}
+
+function hasS3ConflictingOverhangPercent(value: unknown, expectedRatio: number) {
+  const text = stringValue(value);
+  return [...text.matchAll(/\d[\d,]*(?:\.\d+)?\s*%/g)].some((match) => {
+    const index = match.index ?? 0;
+    const context = text.slice(Math.max(0, index - 90), index + match[0].length + 90);
+    if (!/dilut|overhang|supply|current\s+shares?|outstanding\s+shares?/i.test(context)) return false;
+    const parsed = parseS3Percent(match[0]);
+    return parsed !== null && Math.abs(parsed - expectedRatio) > 0.05;
+  });
+}
+
+function parseS3Percent(value: string) {
+  const match = value.match(/(-?\d[\d,]*(?:\.\d+)?)\s*%/);
+  if (!match) return null;
+  const parsed = Number(match[1].replace(/,/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function s3RowRole(row: Record<string, unknown> | null) {
+  return stringValue(row?.row_role || row?.rowRole).toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+function findS3RatioPath(analysisResult: Record<string, unknown>, shareOverhang: Record<string, unknown>, totalNoteKey: string) {
+  const candidates = [
+    `/display_payload/data/share_overhang/${totalNoteKey}/ratio`,
+    `/display_payload/data/share_overhang/${Object.prototype.hasOwnProperty.call(shareOverhang, "ratio_value") ? "ratio_value" : "ratioValue"}`,
+    `/display_payload/data/share_overhang/${Object.prototype.hasOwnProperty.call(shareOverhang, "status_value") ? "status_value" : "statusValue"}`,
+  ];
+  return candidates.find((path) => hasSecValidationJsonPointer(analysisResult, path)) || "";
+}
+
+function s3AnalysisFieldToJsonPointer(field: string) {
+  return `/analysis_output/${field.split(".").map(escapeSecValidationJsonPointerSegment).join("/")}`;
+}
+
+function buildS3RepairSourceBlocks(input: SecFilingAnalysisInput) {
+  const filingPackage = readRecord(input.filing_package);
+  const hardParsers = readRecord(filingPackage?.hard_parsers);
+  const s3 = readRecord(hardParsers?.s3);
+  const blocks = Array.isArray(s3?.cleaned_source_blocks) ? s3.cleaned_source_blocks : [];
+  return blocks
+    .map((item, index) => {
+      const block = readRecord(item);
+      const text = stringValue(block?.text);
+      if (!block || !text) return null;
+      const stem = `${stringValue(block.source)}_${stringValue(block.block_type)}_${stringValue(block.label)}`
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "")
+        .slice(0, 48);
+      return {
+        block_id: `s3_${stem || "source"}_${index + 1}`,
+        source_ref: stringValue(block.source),
+        block_type: stringValue(block.block_type),
+        label: stringValue(block.label),
+        text: clipS3RepairText(text, 5_000),
+        source_order: index,
+      };
+    })
+    .filter((block): block is NonNullable<typeof block> => Boolean(block));
+}
+
+function selectS3RepairSourceBlocks(
+  blocks: Array<Record<string, unknown>>,
+  issues: SecS3ValidationRepairIssue[],
+  analysisResult: Record<string, unknown>,
+) {
+  const issueText = issues.map((issue) => `${issue.code} ${issue.warning}`).join(" ").toLowerCase();
+  const currentText = issues
+    .flatMap((issue) => issue.field_paths)
+    .map((path) => stringValue(readSecValidationJsonPointer(analysisResult, path)))
+    .join(" ")
+    .toLowerCase();
+  const keywords = uniqueStrings(`${issueText} ${currentText}`.replace(/[^a-z0-9$%.]+/g, " ").split(/\s+/).filter((word) => word.length >= 5).slice(0, 30));
+  return blocks
+    .map((block) => {
+      const content = `${stringValue(block.block_type)} ${stringValue(block.label)} ${stringValue(block.text)}`.toLowerCase();
+      let score = /cover|offering|dilution|capital|warrant|security|selling|prospectus/i.test(`${stringValue(block.block_type)} ${stringValue(block.label)}`) ? 8 : 0;
+      score += keywords.reduce((total, keyword) => total + (content.includes(keyword) ? 1 : 0), 0);
+      return { block, score, order: numberValue(block.source_order) ?? 0 };
+    })
+    .sort((a, b) => b.score - a.score || a.order - b.order)
+    .slice(0, 3)
+    .sort((a, b) => a.order - b.order)
+    .map(({ block }) => block);
+}
+
+function clipS3RepairText(value: string, maxLength: number) {
+  const text = stringValue(value);
+  if (text.length <= maxLength) return text;
+  const clipped = text.slice(0, maxLength);
+  const boundary = Math.max(clipped.lastIndexOf(". "), clipped.lastIndexOf("\n"));
+  return `${clipped.slice(0, boundary > maxLength * 0.6 ? boundary + 1 : maxLength).trim()}...`;
+}
+
+function dedupeS3RepairIssues(issues: SecS3ValidationRepairIssue[]) {
+  const seen = new Set<string>();
+  return issues.filter((issue) => {
+    issue.field_paths = uniqueStrings(issue.field_paths);
+    issue.allowed_patch_paths = uniqueStrings(issue.allowed_patch_paths);
+    const key = `${issue.code}:${issue.allowed_patch_paths.join("|")}`;
+    if (!issue.allowed_patch_paths.length || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export function adaptSecS3AnalysisPromptResultForAnalysis(

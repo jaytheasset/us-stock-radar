@@ -10,6 +10,7 @@ import {
   SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
   SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
   SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY,
+  SEC_S3_VALIDATION_REPAIR_PROMPT_KEY,
   SEC_S1_F1_ANALYSIS_PROMPT_KEY,
   SEC_S1_F1_ANALYSIS_PROMPT_VERSION,
   SEC_S1_F1_VALIDATION_REPAIR_PROMPT_KEY,
@@ -26,6 +27,7 @@ import {
   adaptSecS4F4AnalysisPromptResultForAnalysis,
   adaptSecS8AnalysisPromptResultForAnalysis,
   adaptSecS3AnalysisPromptResultForAnalysis,
+  applySecS3ValidationRepairPatches,
   adaptSecS1F1AnalysisPromptResultForAnalysis,
   applySecS1F1ValidationRepairPatches,
   buildDeterministicSc13Analysis,
@@ -41,6 +43,7 @@ import {
   buildSecS8AnalysisPromptForInput,
   buildSecS3AnalysisPrompt,
   buildSecS3TriagePrompt,
+  buildSecS3ValidationRepairPlan,
   buildSecS1F1AnalysisPromptForInput,
   buildSecS1F1ValidationRepairPlan,
   buildSecTenderAnalysisPromptForInput,
@@ -1448,7 +1451,47 @@ export async function runSecFilingAnalysisForRawRow(
       };
     }
 
-    const secS3Analysis = adaptSecS3AnalysisPromptResultForAnalysis(analysisRun.parsed, input);
+    const repairPlan = buildSecS3ValidationRepairPlan({
+      analysisResult: analysisRun.parsed,
+      input,
+    });
+    let repairedValue = analysisRun.parsed;
+    let repairRun: OpenAiPromptRun | null = null;
+    let repairAppliedPaths: string[] = [];
+    let repairIgnoredPaths: string[] = [];
+    let repairUnresolved: unknown[] = [];
+    if (repairPlan) {
+      repairRun = await runOpenAiJsonPrompt(env, repairPlan.prompt, llmConfig, {
+        maxAttempts: 1,
+        disableFallback: true,
+      });
+      if (repairRun.ok && repairRun.parsed) {
+        const repairApplication = applySecS3ValidationRepairPatches({
+          analysisResult: analysisRun.parsed,
+          repairResult: repairRun.parsed,
+          allowedPatchPaths: repairPlan.allowedPatchPaths,
+        });
+        repairedValue = repairApplication.value;
+        repairAppliedPaths = repairApplication.appliedPaths;
+        repairIgnoredPaths = repairApplication.ignoredPaths;
+        repairUnresolved = repairApplication.unresolved;
+      }
+    }
+    const usage = combineUsage(analysisRun.usage, repairRun?.usage);
+    const validationRepair = repairPlan
+      ? {
+          attempted: true,
+          succeeded: Boolean(repairRun?.ok && repairRun.parsed),
+          issue_codes: repairPlan.issues.map((issue) => issue.code),
+          source_block_ids: repairPlan.sourceBlockIds,
+          allowed_patch_paths: repairPlan.allowedPatchPaths,
+          applied_patch_paths: repairAppliedPaths,
+          ignored_patch_paths: repairIgnoredPaths,
+          unresolved: repairUnresolved,
+          error: repairRun?.error || null,
+        }
+      : { attempted: false };
+    const secS3Analysis = adaptSecS3AnalysisPromptResultForAnalysis(repairedValue, input);
     if (!secS3Analysis.ok) {
       return {
         ok: false,
@@ -1458,11 +1501,22 @@ export async function runSecFilingAnalysisForRawRow(
         sourceItem: summarizeRawRow(rawItem),
         input,
         outputText: analysisRun.outputText,
-        usage: analysisRun.usage,
+        repairOutputText: repairRun?.outputText,
+        usage,
+        repairUsage: repairRun?.usage,
         rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        validationRepair,
         prompt: {
           key: prompt.key,
           version: prompt.version,
+          repair: repairPlan
+            ? {
+                key: repairPlan.prompt.key,
+                version: repairPlan.prompt.version,
+                system: repairPlan.prompt.system,
+                responseFormat: repairPlan.prompt.responseFormat,
+              }
+            : undefined,
         },
       };
     }
@@ -1473,15 +1527,27 @@ export async function runSecFilingAnalysisForRawRow(
       status: analysisRun.status,
       model: llmConfig.model,
       openAiResponseId: analysisRun.openAiResponseId,
+      repairOpenAiResponseId: repairRun?.openAiResponseId || null,
       sourceItem: summarizeRawRow(rawItem),
       input,
       analysis: secS3Analysis.analysis,
       outputText: analysisRun.outputText,
-      usage: analysisRun.usage,
-      costEstimate: estimateCost(llmConfig.model, analysisRun.usage),
+      repairOutputText: repairRun?.outputText,
+      usage,
+      repairUsage: repairRun?.usage,
+      costEstimate: estimateCost(llmConfig.model, usage),
+      validationRepair,
       prompt: {
         key: prompt.key,
         version: prompt.version,
+        repair: repairPlan
+          ? {
+              key: repairPlan.prompt.key,
+              version: repairPlan.prompt.version,
+              system: repairPlan.prompt.system,
+              responseFormat: repairPlan.prompt.responseFormat,
+            }
+          : undefined,
       },
     };
   }
@@ -2433,6 +2499,7 @@ function readMaxOutputTokens(promptKey: string) {
   if (promptKey === SEC_S1_F1_ANALYSIS_PROMPT_KEY) return 8000;
   if (promptKey === SEC_PROXY_ANALYSIS_PROMPT_KEY) return 3500;
   if (promptKey === SEC_S1_F1_VALIDATION_REPAIR_PROMPT_KEY) return 1800;
+  if (promptKey === SEC_S3_VALIDATION_REPAIR_PROMPT_KEY) return 1800;
   if (promptKey === SEC_S1_F1_ROUTE_ONLY_PROMPT_KEY) return 1200;
   if (promptKey === SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY) return 2500;
   if (promptKey === SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY) return 7000;
