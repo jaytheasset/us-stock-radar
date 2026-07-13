@@ -86,6 +86,12 @@ import {
   buildSecS1F1ValidationRepairPlan,
   isS1F1FilingInput,
 } from "@/lib/ai/secS1F1AnalysisAdapter";
+import {
+  SEC_PROXY_VALIDATION_REPAIR_PROMPT_KEY,
+  SEC_PROXY_VALIDATION_REPAIR_PROMPT_VERSION,
+  applySecProxyValidationRepairPatches,
+  buildSecProxyValidationRepairPlan,
+} from "@/lib/ai/secProxyAnalysisAdapter";
 
 export {
   SEC_424B_ANALYSIS_PROMPT_KEY,
@@ -115,6 +121,9 @@ export {
   SEC_S1_F1_ANALYSIS_PROMPT_VERSION,
   SEC_S1_F1_VALIDATION_REPAIR_PROMPT_KEY,
   SEC_S1_F1_VALIDATION_REPAIR_PROMPT_VERSION,
+  SEC_PROXY_VALIDATION_REPAIR_PROMPT_KEY,
+  SEC_PROXY_VALIDATION_REPAIR_PROMPT_VERSION,
+  applySecProxyValidationRepairPatches,
   applySecS1F1ValidationRepairPatches,
   adaptSec424bAnalysisPromptResultForAnalysis,
   applySec424bValidationRepairPatches,
@@ -141,6 +150,7 @@ export {
   buildSecS3ValidationRepairPlan,
   buildSecS1F1AnalysisPromptForInput,
   buildSecS1F1ValidationRepairPlan,
+  buildSecProxyValidationRepairPlan,
   buildSecTenderAnalysisPromptForInput,
   buildSecSc13AnalysisPromptForInput,
   buildSecS4F4AnalysisPromptForInput,

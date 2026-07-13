@@ -15,6 +15,7 @@ import {
   SEC_S1_F1_ANALYSIS_PROMPT_KEY,
   SEC_S1_F1_ANALYSIS_PROMPT_VERSION,
   SEC_S1_F1_VALIDATION_REPAIR_PROMPT_KEY,
+  SEC_PROXY_VALIDATION_REPAIR_PROMPT_KEY,
   SEC_TENDER_ANALYSIS_PROMPT_KEY,
   SEC_SC13_ANALYSIS_PROMPT_KEY,
   SEC_SC13_ANALYSIS_PROMPT_VERSION,
@@ -32,6 +33,7 @@ import {
   applySecS3ValidationRepairPatches,
   adaptSecS1F1AnalysisPromptResultForAnalysis,
   applySecS1F1ValidationRepairPatches,
+  applySecProxyValidationRepairPatches,
   buildDeterministicSc13Analysis,
   buildDeterministicOwnershipAnalysis,
   buildDeterministicS8ArchiveAnalysis,
@@ -49,6 +51,7 @@ import {
   buildSecS3ValidationRepairPlan,
   buildSecS1F1AnalysisPromptForInput,
   buildSecS1F1ValidationRepairPlan,
+  buildSecProxyValidationRepairPlan,
   buildSecTenderAnalysisPromptForInput,
   is424bFilingInput,
   isSec8k6kFilingInput,
@@ -63,6 +66,10 @@ import {
   normalizeSec8k6kRouterResult,
   shouldRunSec8k6kAnalysis,
 } from "@/lib/ai/secFormAnalysisAdapterRegistry";
+import {
+  appendSecProxyDisplayWarnings,
+  validateSecProxyDisplayPayload,
+} from "@/lib/ai/secProxyAnalysisAdapter";
 import { buildSecFilingAnalysisPackage } from "@/lib/prompts/secFilingAnalysisPackage";
 import {
   buildSecFilingAnalysisPrompt,
@@ -1638,7 +1645,47 @@ export async function runSecFilingAnalysisForRawRow(
       };
     }
 
-    const proxyAnalysis = adaptSecProxyAnalysisPromptResultForAnalysis(analysisRun.parsed);
+    const repairPlan = buildSecProxyValidationRepairPlan({
+      analysisResult: analysisRun.parsed,
+      input,
+    });
+    let repairedValue = analysisRun.parsed;
+    let repairRun: OpenAiPromptRun | null = null;
+    let repairAppliedPaths: string[] = [];
+    let repairIgnoredPaths: string[] = [];
+    let repairUnresolved: unknown[] = [];
+    if (repairPlan) {
+      repairRun = await runOpenAiJsonPrompt(env, repairPlan.prompt, llmConfig, {
+        maxAttempts: 1,
+        disableFallback: true,
+      });
+      if (repairRun.ok && repairRun.parsed) {
+        const repairApplication = applySecProxyValidationRepairPatches({
+          analysisResult: analysisRun.parsed,
+          repairResult: repairRun.parsed,
+          allowedPatchPaths: repairPlan.allowedPatchPaths,
+        });
+        repairedValue = repairApplication.value;
+        repairAppliedPaths = repairApplication.appliedPaths;
+        repairIgnoredPaths = repairApplication.ignoredPaths;
+        repairUnresolved = repairApplication.unresolved;
+      }
+    }
+    const usage = combineUsage(analysisRun.usage, repairRun?.usage);
+    const validationRepair = repairPlan
+      ? {
+          attempted: true,
+          succeeded: Boolean(repairRun?.ok && repairRun.parsed),
+          issue_codes: repairPlan.issues.map((issue) => issue.code),
+          source_block_ids: repairPlan.sourceBlockIds,
+          allowed_patch_paths: repairPlan.allowedPatchPaths,
+          applied_patch_paths: repairAppliedPaths,
+          ignored_patch_paths: repairIgnoredPaths,
+          unresolved: repairUnresolved,
+          error: repairRun?.error || null,
+        }
+      : { attempted: false };
+    const proxyAnalysis = adaptSecProxyAnalysisPromptResultForAnalysis(repairedValue);
     if (!proxyAnalysis.ok) {
       return {
         ok: false,
@@ -1649,11 +1696,22 @@ export async function runSecFilingAnalysisForRawRow(
         sourceItem: summarizeRawRow(rawItem),
         input,
         outputText: analysisRun.outputText,
-        usage: analysisRun.usage,
+        repairOutputText: repairRun?.outputText,
+        usage,
+        repairUsage: repairRun?.usage,
         rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        validationRepair,
         prompt: {
           key: prompt.key,
           version: prompt.version,
+          repair: repairPlan
+            ? {
+                key: repairPlan.prompt.key,
+                version: repairPlan.prompt.version,
+                system: repairPlan.prompt.system,
+                responseFormat: repairPlan.prompt.responseFormat,
+              }
+            : undefined,
         },
       };
     }
@@ -1664,15 +1722,27 @@ export async function runSecFilingAnalysisForRawRow(
       status: analysisRun.status,
       model: analysisRun.model,
       openAiResponseId: analysisRun.openAiResponseId,
+      repairOpenAiResponseId: repairRun?.openAiResponseId || null,
       sourceItem: summarizeRawRow(rawItem),
       input,
       analysis: proxyAnalysis.analysis,
       outputText: analysisRun.outputText,
-      usage: analysisRun.usage,
-      costEstimate: estimateCost(analysisRun.model, analysisRun.usage),
+      repairOutputText: repairRun?.outputText,
+      usage,
+      repairUsage: repairRun?.usage,
+      costEstimate: estimateCost(analysisRun.model, usage),
+      validationRepair,
       prompt: {
         key: prompt.key,
         version: prompt.version,
+        repair: repairPlan
+          ? {
+              key: repairPlan.prompt.key,
+              version: repairPlan.prompt.version,
+              system: repairPlan.prompt.system,
+              responseFormat: repairPlan.prompt.responseFormat,
+            }
+          : undefined,
       },
     };
   }
@@ -2562,6 +2632,7 @@ function readMaxOutputTokens(promptKey: string) {
   if (promptKey === SEC_424B_VALIDATION_REPAIR_PROMPT_KEY) return 1800;
   if (promptKey === SEC_S1_F1_ANALYSIS_PROMPT_KEY) return 8000;
   if (promptKey === SEC_PROXY_ANALYSIS_PROMPT_KEY) return 3500;
+  if (promptKey === SEC_PROXY_VALIDATION_REPAIR_PROMPT_KEY) return 1800;
   if (promptKey === SEC_S1_F1_VALIDATION_REPAIR_PROMPT_KEY) return 1800;
   if (promptKey === SEC_S3_VALIDATION_REPAIR_PROMPT_KEY) return 1800;
   if (promptKey === SEC_S1_F1_ROUTE_ONLY_PROMPT_KEY) return 1200;
@@ -2624,92 +2695,6 @@ function adaptSecProxyAnalysisPromptResultForAnalysis(root: Record<string, unkno
     },
   };
 }
-
-function validateSecProxyDisplayPayload(displayPayload: Record<string, unknown>): string[] {
-  const warnings: string[] = [];
-  const displayVersion = stringValue(displayPayload.display_version);
-  if (displayVersion !== "proxy_vote_v1") {
-    warnings.push(`SEC proxy display_payload.display_version should be proxy_vote_v1, got: ${displayVersion || "(empty)"}`);
-  }
-  const data = readRecord(displayPayload.data);
-  if (!data || Object.keys(data).length === 0) {
-    warnings.push("SEC proxy result display_payload.data was empty; selected proxy UI cannot render source facts.");
-    return warnings;
-  }
-
-  const missingKeys = PROXY_DISPLAY_DATA_REQUIRED_KEYS.proxy_vote_v1.filter((key) =>
-    !Object.prototype.hasOwnProperty.call(data, key)
-  );
-  if (missingKeys.length) {
-    warnings.push(`SEC proxy proxy_vote_v1 data missing required field(s): ${missingKeys.join(", ")}`);
-  }
-
-  for (const arrayKey of PROXY_DISPLAY_DATA_REQUIRED_ARRAY_KEYS.proxy_vote_v1) {
-    if (!Array.isArray(data[arrayKey])) {
-      warnings.push(`SEC proxy proxy_vote_v1 data requires ${arrayKey} to be an array.`);
-    }
-  }
-
-  const snapshot = readRecordArray(data.snapshot);
-  if (snapshot.length > 4) {
-    warnings.push(`SEC proxy proxy_vote_v1 data.snapshot should contain at most 4 rows, got ${snapshot.length}.`);
-  }
-  snapshot.forEach((row, index) => {
-    if (!stringValue(row.label)) warnings.push(`SEC proxy proxy_vote_v1 data.snapshot row ${index + 1} missing label.`);
-    if (!stringValue(row.value)) warnings.push(`SEC proxy proxy_vote_v1 data.snapshot row ${index + 1} missing value.`);
-  });
-
-  const proposals = readRecordArray(data.proposals);
-  if (proposals.length && !snapshot.length) {
-    warnings.push("SEC proxy proxy_vote_v1 data.snapshot should include visible summary rows when proposals are present.");
-  }
-  if (proposals.length) {
-    proposals.forEach((proposal, index) => {
-      const row = index + 1;
-      if (!stringValue(proposal.id)) warnings.push(`SEC proxy proxy_vote_v1 data.proposals row ${row} missing id.`);
-      if (!stringValue(proposal.title)) warnings.push(`SEC proxy proxy_vote_v1 data.proposals row ${row} missing title.`);
-      const proposalType = stringValue(proposal.type) || stringValue(proposal.category);
-      if (!proposalType) warnings.push(`SEC proxy proxy_vote_v1 data.proposals row ${row} missing type.`);
-      const recommendation = stringValue(proposal.board_recommendation) || stringValue(proposal.recommendation);
-      if (!recommendation) warnings.push(`SEC proxy proxy_vote_v1 data.proposals row ${row} missing board_recommendation.`);
-      if (!stringValue(proposal.explanation)) warnings.push(`SEC proxy proxy_vote_v1 data.proposals row ${row} missing beginner explanation.`);
-      const details = readRecordArray(proposal.details);
-      if (details.length > 4) {
-        warnings.push(`SEC proxy proxy_vote_v1 data.proposals row ${row} should contain at most 4 detail rows, got ${details.length}.`);
-      }
-      if (isMaterialProxyProposalType(`${proposalType} ${stringValue(proposal.title)}`) && !details.length) {
-        warnings.push(`SEC proxy proxy_vote_v1 data.proposals row ${row} should include details for material proposal terms.`);
-      }
-      details.forEach((detail, detailIndex) => {
-        if (!stringValue(detail.label)) warnings.push(`SEC proxy proxy_vote_v1 proposal row ${row} detail ${detailIndex + 1} missing label.`);
-        if (!stringValue(detail.value)) warnings.push(`SEC proxy proxy_vote_v1 proposal row ${row} detail ${detailIndex + 1} missing value.`);
-      });
-    });
-  }
-
-  return warnings;
-}
-
-function isMaterialProxyProposalType(value: string) {
-  return /merger|transaction|reverse|authorized|equity|incentive|listing|spac|de-spac|business combination|shareholder|contest|dissident|governance/i.test(value);
-}
-
-function appendSecProxyDisplayWarnings(displayPayload: Record<string, unknown>, warnings: string[]) {
-  const uniqueWarnings = uniqueStrings(warnings);
-  if (!uniqueWarnings.length) return;
-  const data = readRecord(displayPayload.data) ?? {};
-  displayPayload.data = data;
-  data.display_warnings = uniqueStrings([...readStringArray(data.display_warnings), ...uniqueWarnings]);
-  displayPayload.notes = uniqueStrings([...readStringArray(displayPayload.notes), ...uniqueWarnings]);
-}
-
-const PROXY_DISPLAY_DATA_REQUIRED_KEYS: Record<string, string[]> = {
-  proxy_vote_v1: ["summary_title", "summary_sentence", "snapshot", "proposals"],
-};
-
-const PROXY_DISPLAY_DATA_REQUIRED_ARRAY_KEYS: Record<string, string[]> = {
-  proxy_vote_v1: ["snapshot", "proposals"],
-};
 
 function readProxyParserOutput(input: SecFilingAnalysisInput): ProxyParserOutput | null {
   const filingPackage = readRecord(input.filing_package);
