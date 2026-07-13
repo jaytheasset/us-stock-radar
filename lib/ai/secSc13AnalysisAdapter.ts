@@ -12,11 +12,34 @@ import {
   SC13_ROUTER_PROMPT_VERSION,
 } from "@/lib/sources/sec/forms/sc13/routerPrompt";
 import type { Sc13ParserOutput, Sc13RouteDecision } from "@/lib/sources/sec/forms/sc13/types";
+import {
+  applySecValidationRepairPatches,
+  escapeSecValidationJsonPointerSegment,
+  hasSecValidationJsonPointer,
+  readSecValidationJsonPointer,
+} from "@/lib/ai/secValidationRepairPatch";
 
 export const SEC_SC13_ROUTER_PROMPT_KEY = "sec_sc13_router";
 export const SEC_SC13_ROUTER_PROMPT_VERSION = SC13_ROUTER_PROMPT_VERSION;
 export const SEC_SC13_ANALYSIS_PROMPT_KEY = "sec_sc13_analysis";
 export const SEC_SC13_ANALYSIS_PROMPT_VERSION = SC13_ANALYSIS_PROMPT_VERSION;
+export const SEC_SC13_VALIDATION_REPAIR_PROMPT_KEY = "sec_sc13_validation_repair";
+export const SEC_SC13_VALIDATION_REPAIR_PROMPT_VERSION = "v1-one-pass-source-backed-patch";
+
+export type SecSc13ValidationRepairIssue = {
+  code: string;
+  warning: string;
+  field_paths: string[];
+  allowed_patch_paths: string[];
+  candidate_source_block_ids: string[];
+};
+
+export type SecSc13ValidationRepairPlan = {
+  prompt: ReturnType<typeof buildSc13ValidationRepairPrompt>;
+  issues: SecSc13ValidationRepairIssue[];
+  allowedPatchPaths: string[];
+  sourceBlockIds: string[];
+};
 
 export type SecSc13AnalysisAdapterResult =
   | { ok: true; analysis: Record<string, unknown> }
@@ -145,6 +168,79 @@ export function adaptSecSc13AnalysisPromptResultForAnalysis(
   return adaptSc13RoomResultForAnalysis(value, input, routerResult);
 }
 
+export function buildSecSc13ValidationRepairPlan({
+  analysisResult,
+  input,
+}: {
+  analysisResult: Record<string, unknown>;
+  input: SecFilingAnalysisInput;
+}): SecSc13ValidationRepairPlan | null {
+  const parserOutput = readSc13ParserOutput(input);
+  const root = readRecord(analysisResult);
+  const analysisOutput = readRecord(root?.analysis_output);
+  const displayPayload = readRecord(root?.display_payload);
+  const data = readRecord(displayPayload?.data);
+  if (!parserOutput || !root || !analysisOutput || !displayPayload || !data) return null;
+
+  const warnings = collectSc13RuntimeDisplayPayloadWarnings(displayPayload);
+  const issues: SecSc13ValidationRepairIssue[] = [];
+  const issuerNamePath = "/display_payload/data/issuerName";
+  if (
+    warnings.some((warning) => /issuerName/i.test(warning)) &&
+    hasSecValidationJsonPointer(root, issuerNamePath) &&
+    !stringValue(readSecValidationJsonPointer(root, issuerNamePath))
+  ) {
+    issues.push(buildSc13RepairIssue("missing_issuer_name", "The visible SC13 issuer name is empty.", [issuerNamePath]));
+  }
+  const ownershipIntentPath = "/display_payload/data/ownershipIntent";
+  if (
+    warnings.some((warning) => /ownershipIntent/i.test(warning)) &&
+    hasSecValidationJsonPointer(root, ownershipIntentPath) &&
+    !stringValue(readSecValidationJsonPointer(root, ownershipIntentPath))
+  ) {
+    issues.push(
+      buildSc13RepairIssue("missing_ownership_intent", "The visible SC13 ownership intent is empty.", [ownershipIntentPath]),
+    );
+  }
+  collectSc13PlaceholderRepairIssues(analysisOutput, "/analysis_output", issues);
+  collectSc13PlaceholderRepairIssues(data, "/display_payload/data", issues);
+
+  const dedupedIssues = dedupeSc13RepairIssues(issues);
+  if (!dedupedIssues.length) return null;
+  const sourceBlocks = selectSc13RepairSourceBlocks(buildSc13RepairSourceBlocks(parserOutput), dedupedIssues);
+  if (!sourceBlocks.length) return null;
+  const sourceBlockIds = sourceBlocks.map((block) => stringValue(block.block_id)).filter(Boolean);
+  const issuesWithSources = dedupedIssues.map((issue) => ({
+    ...issue,
+    candidate_source_block_ids: sourceBlockIds,
+  }));
+  const allowedPatchPaths = uniqueStrings(issuesWithSources.flatMap((issue) => issue.allowed_patch_paths));
+
+  return {
+    prompt: buildSc13ValidationRepairPrompt({
+      analysisResult: root,
+      issues: issuesWithSources,
+      allowedPatchPaths,
+      sourceBlocks,
+    }),
+    issues: issuesWithSources,
+    allowedPatchPaths,
+    sourceBlockIds,
+  };
+}
+
+export function applySecSc13ValidationRepairPatches({
+  analysisResult,
+  repairResult,
+  allowedPatchPaths,
+}: {
+  analysisResult: Record<string, unknown>;
+  repairResult: unknown;
+  allowedPatchPaths: string[];
+}) {
+  return applySecValidationRepairPatches({ analysisResult, repairResult, allowedPatchPaths });
+}
+
 function adaptSc13RoomResultForAnalysis(
   value: unknown,
   input: SecFilingAnalysisInput,
@@ -165,13 +261,7 @@ function adaptSc13RoomResultForAnalysis(
   const displayPayload = normalizeSc13DisplayPayloadForValidation(
     llmDisplayPayload,
   );
-  const displayPayloadError = validateSc13RuntimeDisplayPayload(displayPayload);
-  if (displayPayloadError) {
-    return {
-      ok: false,
-      error: displayPayloadError,
-    };
-  }
+  appendSc13DisplayWarnings(displayPayload, collectSc13RuntimeDisplayPayloadWarnings(displayPayload));
 
   const normalizedAnalysisOutput = normalizeSc13AnalysisOutput(
     {
@@ -206,21 +296,209 @@ function normalizeSc13DisplayPayloadForValidation(value: Record<string, unknown>
   };
 }
 
-function validateSc13RuntimeDisplayPayload(value: Record<string, unknown>) {
+export function collectSc13RuntimeDisplayPayloadWarnings(value: Record<string, unknown>) {
+  const warnings: string[] = [];
   const data = readRecord(value.data);
   if (!data || Object.keys(data).length === 0) {
-    return "SEC SC13 display_payload.data must be filled by the analysis LLM";
+    warnings.push("SEC SC13 display_payload.data must be filled by the analysis LLM.");
+    return warnings;
   }
-  if (!Object.prototype.hasOwnProperty.call(data, "issuerName")) {
-    return "SEC SC13 display_payload.data.issuerName is required";
+  if (!Object.prototype.hasOwnProperty.call(data, "issuerName") || !stringValue(data.issuerName)) {
+    warnings.push("SEC SC13 display_payload.data.issuerName is required.");
   }
-  if (!Array.isArray(data.reportingPersons)) {
-    return "SEC SC13 display_payload.data.reportingPersons is required";
+  if (!Array.isArray(data.reportingPersons) || data.reportingPersons.length === 0) {
+    warnings.push("SEC SC13 display_payload.data.reportingPersons is required.");
   }
-  if (!Object.prototype.hasOwnProperty.call(data, "ownershipIntent")) {
-    return "SEC SC13 display_payload.data.ownershipIntent is required";
+  if (!Object.prototype.hasOwnProperty.call(data, "ownershipIntent") || !stringValue(data.ownershipIntent)) {
+    warnings.push("SEC SC13 display_payload.data.ownershipIntent is required.");
   }
-  return "";
+  return warnings;
+}
+
+function appendSc13DisplayWarnings(displayPayload: Record<string, unknown>, warnings: string[]) {
+  const uniqueWarnings = uniqueStrings(warnings);
+  if (!uniqueWarnings.length) return;
+  const data = readRecord(displayPayload.data) ?? {};
+  displayPayload.data = data;
+  data.display_warnings = uniqueStrings([...readStringArray(data.display_warnings), ...uniqueWarnings]);
+  displayPayload.notes = uniqueStrings([...readStringArray(displayPayload.notes), ...uniqueWarnings]);
+}
+
+function buildSc13ValidationRepairPrompt({
+  analysisResult,
+  issues,
+  allowedPatchPaths,
+  sourceBlocks,
+}: {
+  analysisResult: Record<string, unknown>;
+  issues: SecSc13ValidationRepairIssue[];
+  allowedPatchPaths: string[];
+  sourceBlocks: Array<Record<string, unknown>>;
+}) {
+  return {
+    key: SEC_SC13_VALIDATION_REPAIR_PROMPT_KEY,
+    version: SEC_SC13_VALIDATION_REPAIR_PROMPT_VERSION,
+    system: [
+      "Repair one completed SEC Schedule 13D/13G analysis in one bounded pass.",
+      "Validator warnings identify possible inconsistencies but are not evidence.",
+      "Use only the selected original SEC source blocks and the existing result as evidence.",
+      "Return scalar replacement patches only for exact allowed paths. Never add, remove, reorder, truncate, or rewrite arrays or objects.",
+      "Preserve event classification, score, signal, display mode, schedule type, amendment status, ownership percentages, and all fields not explicitly allowed.",
+      "Keep passive 13G ownership distinct from active 13D intent and preserve proposed, current, and exited ownership states.",
+      "If the selected source blocks do not support a reliable replacement, return the issue as unresolved instead of using parser facts or guessing.",
+      "This is the only repair attempt. Return JSON only.",
+    ].join("\n"),
+    user: JSON.stringify(
+      {
+        task: "Patch only source-verifiable validator issues in the existing Schedule 13D/13G analysis.",
+        allowed_patch_paths: allowedPatchPaths,
+        validator_issues: issues,
+        selected_original_source_blocks: sourceBlocks,
+        existing_analysis_result: analysisResult,
+      },
+      null,
+      2,
+    ),
+    responseFormat: {
+      json_schema: {
+        name: "sec_sc13_validation_repair",
+        strict: true,
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["patches", "unresolved"],
+          properties: {
+            patches: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["path", "replacement", "reason", "source_block_ids"],
+                properties: {
+                  path: { type: "string", enum: allowedPatchPaths },
+                  replacement: { type: ["string", "number", "boolean", "null"] },
+                  reason: { type: "string", maxLength: 240 },
+                  source_block_ids: { type: "array", items: { type: "string" } },
+                },
+              },
+            },
+            unresolved: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["code", "reason"],
+                properties: {
+                  code: { type: "string" },
+                  reason: { type: "string", maxLength: 240 },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+}
+
+function collectSc13PlaceholderRepairIssues(
+  value: unknown,
+  path: string,
+  issues: SecSc13ValidationRepairIssue[],
+) {
+  if (typeof value === "string") {
+    if (hasSc13VisiblePlaceholder(value)) {
+      issues.push(
+        buildSc13RepairIssue(
+          "unresolved_visible_placeholder",
+          `Visible output contains unresolved placeholder text at ${path}.`,
+          [path],
+        ),
+      );
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => collectSc13PlaceholderRepairIssues(item, `${path}/${index}`, issues));
+    return;
+  }
+  const record = readRecord(value);
+  if (!record) return;
+  for (const [key, child] of Object.entries(record)) {
+    if (key === "display_warnings") continue;
+    collectSc13PlaceholderRepairIssues(child, `${path}/${escapeSecValidationJsonPointerSegment(key)}`, issues);
+  }
+}
+
+function hasSc13VisiblePlaceholder(value: string) {
+  const text = stringValue(value);
+  return Boolean(
+    /\$\s*(?:and|to|-)\s*\$/i.test(text) ||
+      /\bbetween\s+\$\s+(?:and|to|-)\s+\$/i.test(text) ||
+      /\$\s*(?:per\s+(?:share|unit)|shares?|securities?|million|billion)\b/i.test(text) ||
+      /\$\s*$/i.test(text) ||
+      /\[\s*[●•?]\s*\]|_{2,}/.test(text)
+  );
+}
+
+function buildSc13RepairSourceBlocks(parserOutput: Sc13ParserOutput) {
+  return parserOutput.cleaned_source_blocks
+    .map((block, index) => ({
+      block_id: `sc13_original_source_block_${index + 1}`,
+      source_ref: block.source,
+      block_type: block.block_type,
+      title: block.title,
+      text: block.text,
+      source_order: index,
+    }))
+    .filter(
+      (block) =>
+        ["cover_page", "item_section", "sales_table_source", "exhibit_reference"].includes(block.block_type) &&
+        stringValue(block.text),
+    );
+}
+
+function selectSc13RepairSourceBlocks(
+  blocks: Array<Record<string, unknown>>,
+  issues: SecSc13ValidationRepairIssue[],
+) {
+  const issueText = issues.map((issue) => `${issue.code} ${issue.warning} ${issue.field_paths.join(" ")}`).join(" ").toLowerCase();
+  return blocks
+    .map((block, index) => {
+      const haystack = `${stringValue(block.title)} ${stringValue(block.source)} ${stringValue(block.text)}`.toLowerCase();
+      let score = stringValue(block.block_type) === "item_section" ? 20 : 10;
+      if (/issuer|reporting person/.test(issueText) && /issuer|reporting person|name of issuer|name of reporting/.test(haystack)) score += 80;
+      if (/ownership.?intent/.test(issueText) && /item\s*4|purpose|intent|plans|proposals/.test(haystack)) score += 100;
+      if (/placeholder/.test(issueText) && /item\s*[3456]|percent|shares|beneficial|purpose/.test(haystack)) score += 40;
+      return { block, score, index };
+    })
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .slice(0, 3)
+    .map((entry) => entry.block);
+}
+
+function buildSc13RepairIssue(code: string, warning: string, paths: string[]): SecSc13ValidationRepairIssue {
+  return {
+    code,
+    warning,
+    field_paths: paths,
+    allowed_patch_paths: paths,
+    candidate_source_block_ids: [],
+  };
+}
+
+function dedupeSc13RepairIssues(issues: SecSc13ValidationRepairIssue[]) {
+  const seen = new Set<string>();
+  return issues.filter((issue) => {
+    const key = `${issue.code}:${issue.allowed_patch_paths.join("|")}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function uniqueStrings(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
 function normalizeDisplayPayloadNotes(value: unknown) {
