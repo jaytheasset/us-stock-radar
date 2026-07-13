@@ -60,9 +60,13 @@ import {
 import {
   SEC_S8_ANALYSIS_PROMPT_KEY,
   SEC_S8_ANALYSIS_PROMPT_VERSION,
+  SEC_S8_VALIDATION_REPAIR_PROMPT_KEY,
+  SEC_S8_VALIDATION_REPAIR_PROMPT_VERSION,
+  applySecS8ValidationRepairPatches,
   adaptSecS8AnalysisPromptResultForAnalysis,
   buildDeterministicS8ArchiveAnalysis,
   buildSecS8AnalysisPromptForInput,
+  buildSecS8ValidationRepairPlan,
   isS8FilingInput,
 } from "@/lib/ai/secS8AnalysisAdapter";
 import {
@@ -118,6 +122,8 @@ export {
   SEC_S4_F4_VALIDATION_REPAIR_PROMPT_VERSION,
   SEC_S8_ANALYSIS_PROMPT_KEY,
   SEC_S8_ANALYSIS_PROMPT_VERSION,
+  SEC_S8_VALIDATION_REPAIR_PROMPT_KEY,
+  SEC_S8_VALIDATION_REPAIR_PROMPT_VERSION,
   SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
   SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
   SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY,
@@ -140,6 +146,7 @@ export {
   adaptSecS4F4AnalysisPromptResultForAnalysis,
   applySecS4F4ValidationRepairPatches,
   adaptSecS8AnalysisPromptResultForAnalysis,
+  applySecS8ValidationRepairPatches,
   adaptSecS3AnalysisPromptResultForAnalysis,
   applySecS3ValidationRepairPatches,
   adaptSecS1F1AnalysisPromptResultForAnalysis,
@@ -163,6 +170,7 @@ export {
   buildSecS4F4AnalysisPromptForInput,
   buildSecS4F4ValidationRepairPlan,
   buildSecS8AnalysisPromptForInput,
+  buildSecS8ValidationRepairPlan,
   is424bFilingInput,
   isSec8k6kFilingInput,
   isOwnershipFilingInput,

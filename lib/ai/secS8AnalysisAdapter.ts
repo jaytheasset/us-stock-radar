@@ -2,7 +2,13 @@ import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
 import { buildSecRequiredOutputSchema } from "@/lib/ai/secRequiredOutputSchema";
 import { adaptSecFormRoomOutputForIngest, type SecFormRoomAdapterOutput } from "@/lib/sources/sec/forms/common/formRoomAdapter";
 import { buildS8AnalysisPrompt } from "@/lib/sources/sec/forms/s8/analysisPrompt";
-import { routeS8Filing } from "@/lib/sources/sec/forms/s8/routerPrompt";
+import { buildS8SourceBlockPromptInput, routeS8Filing } from "@/lib/sources/sec/forms/s8/routerPrompt";
+import {
+  applySecValidationRepairPatches,
+  escapeSecValidationJsonPointerSegment,
+  hasSecValidationJsonPointer,
+  readSecValidationJsonPointer,
+} from "@/lib/ai/secValidationRepairPatch";
 import {
   S8_CONTEXT_DETAIL_LABELS,
   S8_SNAPSHOT_METRIC_LABELS,
@@ -12,6 +18,23 @@ import {
 
 export const SEC_S8_ANALYSIS_PROMPT_KEY = "sec_s8_analysis";
 export const SEC_S8_ANALYSIS_PROMPT_VERSION = "v1";
+export const SEC_S8_VALIDATION_REPAIR_PROMPT_KEY = "sec_s8_validation_repair";
+export const SEC_S8_VALIDATION_REPAIR_PROMPT_VERSION = "v1-one-pass-source-backed-patch";
+
+export type SecS8ValidationRepairIssue = {
+  code: string;
+  warning: string;
+  field_paths: string[];
+  allowed_patch_paths: string[];
+  candidate_source_block_ids: string[];
+};
+
+export type SecS8ValidationRepairPlan = {
+  prompt: ReturnType<typeof buildS8ValidationRepairPrompt>;
+  issues: SecS8ValidationRepairIssue[];
+  allowedPatchPaths: string[];
+  sourceBlockIds: string[];
+};
 
 const S8_DISPLAY_UI_MODES = [
   "plan_registration",
@@ -67,6 +90,70 @@ export function buildSecS8AnalysisPromptForInput(input: SecFilingAnalysisInput) 
   };
 }
 
+export function buildSecS8ValidationRepairPlan({
+  analysisResult,
+  input,
+}: {
+  analysisResult: Record<string, unknown>;
+  input: SecFilingAnalysisInput;
+}): SecS8ValidationRepairPlan | null {
+  const parserOutput = readS8ParserOutput(input);
+  const root = readRecord(analysisResult);
+  const analysisOutput = readRecord(root?.analysis_output);
+  const displayPayload = readRecord(root?.display_payload);
+  const data = readRecord(displayPayload?.data);
+  if (!parserOutput || !root || !analysisOutput || !displayPayload || !data) return null;
+
+  const warnings = collectS8RuntimeDisplayPayloadWarnings(displayPayload);
+  const issues: SecS8ValidationRepairIssue[] = [];
+  const narrativePath = "/display_payload/data/narrative_summary";
+  if (
+    warnings.some((warning) => /narrative_summary/i.test(warning)) &&
+    hasSecValidationJsonPointer(root, narrativePath) &&
+    !stringValue(readSecValidationJsonPointer(root, narrativePath))
+  ) {
+    issues.push(buildS8RepairIssue("missing_narrative_summary", "The visible S-8 narrative summary is empty.", [narrativePath]));
+  }
+  collectS8PlaceholderRepairIssues(analysisOutput, "/analysis_output", issues);
+  collectS8PlaceholderRepairIssues(data, "/display_payload/data", issues);
+
+  const dedupedIssues = dedupeS8RepairIssues(issues);
+  if (!dedupedIssues.length) return null;
+  const sourceBlocks = selectS8RepairSourceBlocks(buildS8RepairSourceBlocks(parserOutput, input), dedupedIssues, root);
+  if (!sourceBlocks.length) return null;
+
+  const sourceBlockIds = sourceBlocks.map((block) => stringValue(block.block_id)).filter(Boolean);
+  const issuesWithSources = dedupedIssues.map((issue) => ({
+    ...issue,
+    candidate_source_block_ids: sourceBlockIds,
+  }));
+  const allowedPatchPaths = uniqueStrings(issuesWithSources.flatMap((issue) => issue.allowed_patch_paths));
+
+  return {
+    prompt: buildS8ValidationRepairPrompt({
+      analysisResult: root,
+      issues: issuesWithSources,
+      allowedPatchPaths,
+      sourceBlocks,
+    }),
+    issues: issuesWithSources,
+    allowedPatchPaths,
+    sourceBlockIds,
+  };
+}
+
+export function applySecS8ValidationRepairPatches({
+  analysisResult,
+  repairResult,
+  allowedPatchPaths,
+}: {
+  analysisResult: Record<string, unknown>;
+  repairResult: unknown;
+  allowedPatchPaths: string[];
+}) {
+  return applySecValidationRepairPatches({ analysisResult, repairResult, allowedPatchPaths });
+}
+
 export function adaptSecS8AnalysisPromptResultForAnalysis(
   value: unknown,
   input: SecFilingAnalysisInput,
@@ -83,13 +170,7 @@ export function adaptSecS8AnalysisPromptResultForAnalysis(
   }
 
   const sanitizedDisplayPayload = sanitizeS8DisplayPayload(displayPayload);
-  const displayPayloadError = validateS8RuntimeDisplayPayload(sanitizedDisplayPayload);
-  if (displayPayloadError) {
-    return {
-      ok: false,
-      error: displayPayloadError,
-    };
-  }
+  appendS8DisplayWarnings(sanitizedDisplayPayload, collectS8RuntimeDisplayPayloadWarnings(sanitizedDisplayPayload));
 
   return adaptS8RoomResultForAnalysis({
     parser_output: parserOutput,
@@ -346,21 +427,231 @@ function sanitizeS8DisplayPayload(value: Record<string, unknown>) {
   return record;
 }
 
-function validateS8RuntimeDisplayPayload(value: Record<string, unknown>) {
+export function collectS8RuntimeDisplayPayloadWarnings(value: Record<string, unknown>) {
+  const warnings: string[] = [];
   const data = readRecord(value.data);
   if (!data || Object.keys(data).length === 0) {
-    return "SEC S-8 display_payload.data must be filled by the analysis LLM";
+    warnings.push("SEC S-8 display_payload.data must be filled by the analysis LLM.");
+    return warnings;
   }
 
   const mode = stringValue(data.s8_ui_mode);
   if (!S8_DISPLAY_UI_MODES.includes(mode as (typeof S8_DISPLAY_UI_MODES)[number])) {
-    return "SEC S-8 display_payload.data.s8_ui_mode is required and must be a supported S-8 UI mode";
+    warnings.push("SEC S-8 display_payload.data.s8_ui_mode is required and must be a supported S-8 UI mode.");
   }
   if (!stringValue(data.narrative_summary)) {
-    return "SEC S-8 display_payload.data.narrative_summary is required for the S-8 detail summary UI";
+    warnings.push("SEC S-8 display_payload.data.narrative_summary is required for the S-8 detail summary UI.");
   }
 
-  return "";
+  return warnings;
+}
+
+function appendS8DisplayWarnings(displayPayload: Record<string, unknown>, warnings: string[]) {
+  const uniqueWarnings = uniqueStrings(warnings);
+  if (!uniqueWarnings.length) return;
+  const data = readRecord(displayPayload.data) ?? {};
+  displayPayload.data = data;
+  data.display_warnings = uniqueStrings([...readStringArray(data.display_warnings), ...uniqueWarnings]);
+  displayPayload.notes = uniqueStrings([...readStringArray(displayPayload.notes), ...uniqueWarnings]);
+}
+
+function buildS8ValidationRepairPrompt({
+  analysisResult,
+  issues,
+  allowedPatchPaths,
+  sourceBlocks,
+}: {
+  analysisResult: Record<string, unknown>;
+  issues: SecS8ValidationRepairIssue[];
+  allowedPatchPaths: string[];
+  sourceBlocks: Array<Record<string, unknown>>;
+}) {
+  return {
+    key: SEC_S8_VALIDATION_REPAIR_PROMPT_KEY,
+    version: SEC_S8_VALIDATION_REPAIR_PROMPT_VERSION,
+    system: [
+      "Repair one completed SEC S-8 analysis in one bounded pass.",
+      "Validator warnings identify possible inconsistencies but are not evidence.",
+      "Use only the selected original source blocks and the existing result as evidence.",
+      "Return scalar replacement patches only for exact allowed paths. Never add, remove, reorder, truncate, or rewrite arrays or objects.",
+      "Preserve event classification, score, signal, S-8 UI mode, filing subtype, and all fields not explicitly allowed.",
+      "If the source blocks do not support a reliable replacement, return the issue as unresolved instead of guessing.",
+      "This is the only repair attempt. Return JSON only.",
+    ].join("\n"),
+    user: JSON.stringify(
+      {
+        task: "Patch only source-verifiable validator issues in the existing S-8 analysis.",
+        allowed_patch_paths: allowedPatchPaths,
+        validator_issues: issues,
+        selected_original_source_blocks: sourceBlocks,
+        existing_analysis_result: analysisResult,
+      },
+      null,
+      2,
+    ),
+    responseFormat: {
+      json_schema: {
+        name: "sec_s8_validation_repair",
+        strict: true,
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["patches", "unresolved"],
+          properties: {
+            patches: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["path", "replacement", "reason", "source_block_ids"],
+                properties: {
+                  path: { type: "string", enum: allowedPatchPaths },
+                  replacement: { type: ["string", "number", "boolean", "null"] },
+                  reason: { type: "string", maxLength: 240 },
+                  source_block_ids: { type: "array", items: { type: "string" } },
+                },
+              },
+            },
+            unresolved: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["code", "reason"],
+                properties: {
+                  code: { type: "string" },
+                  reason: { type: "string", maxLength: 240 },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+}
+
+function collectS8PlaceholderRepairIssues(value: unknown, path: string, issues: SecS8ValidationRepairIssue[]) {
+  if (typeof value === "string") {
+    if (hasS8VisiblePlaceholder(value)) {
+      issues.push(
+        buildS8RepairIssue(
+          "unresolved_visible_placeholder",
+          `Visible output contains unresolved placeholder text at ${path}.`,
+          [path],
+        ),
+      );
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => collectS8PlaceholderRepairIssues(item, `${path}/${index}`, issues));
+    return;
+  }
+  const record = readRecord(value);
+  if (!record) return;
+  for (const [key, child] of Object.entries(record)) {
+    if (key === "display_warnings") continue;
+    collectS8PlaceholderRepairIssues(child, `${path}/${escapeSecValidationJsonPointerSegment(key)}`, issues);
+  }
+}
+
+function hasS8VisiblePlaceholder(value: string) {
+  const text = stringValue(value);
+  return Boolean(
+    /\$\s*(?:and|to|-)\s*\$/i.test(text) ||
+      /\bbetween\s+\$\s+(?:and|to|-)\s+\$/i.test(text) ||
+      /\$\s*(?:per\s+(?:share|unit|ADS)|million|billion)\b/i.test(text) ||
+      /\$\s*(?:shares?|securities?)\b/i.test(text) ||
+      /\$\s*$/i.test(text) ||
+      /\[\s*[●•?]\s*\]|_{2,}/.test(text)
+  );
+}
+
+function buildS8RepairSourceBlocks(parserOutput: S8ParserOutput, input: SecFilingAnalysisInput) {
+  const sourceInput = buildS8SourceBlockPromptInput({
+    parserOutput,
+    marketContext: readMarketContext(input),
+    parentFilingContext: readParentFilingContext(input),
+  });
+  return sourceInput.cleaned_source_blocks
+    .map((block, index) => {
+      const text = stringValue(block.text);
+      if (!text || block.block_type === "parser_warnings") return null;
+      const stem = `${block.block_type}_${stringValue(block.label)}`
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "")
+        .slice(0, 48);
+      return {
+        block_id: `s8_${stem || "source"}_${index + 1}`,
+        source_ref: stringValue(block.source),
+        block_type: block.block_type,
+        label: stringValue(block.label),
+        text: clipS8RepairText(text, 5_000),
+        source_order: index,
+      };
+    })
+    .filter((block): block is NonNullable<typeof block> => Boolean(block));
+}
+
+function selectS8RepairSourceBlocks(
+  blocks: Array<Record<string, unknown>>,
+  issues: SecS8ValidationRepairIssue[],
+  analysisResult: Record<string, unknown>,
+) {
+  const issueText = issues.map((issue) => `${issue.code} ${issue.warning}`).join(" ").toLowerCase();
+  const currentText = issues
+    .flatMap((issue) => issue.field_paths)
+    .map((path) => stringValue(readSecValidationJsonPointer(analysisResult, path)))
+    .join(" ")
+    .toLowerCase();
+  const keywords = uniqueStrings(
+    `${issueText} ${currentText}`
+      .replace(/[^a-z0-9$%.]+/g, " ")
+      .split(/\s+/)
+      .filter((word) => word.length >= 5)
+      .slice(0, 30),
+  );
+
+  return blocks
+    .map((block) => {
+      const label = `${stringValue(block.block_type)} ${stringValue(block.label)}`;
+      const content = `${label} ${stringValue(block.text)}`.toLowerCase();
+      let score = /primary|plan|registration|award|reoffer|resale|selling|table/i.test(label) ? 8 : 0;
+      score += keywords.reduce((total, keyword) => total + (content.includes(keyword) ? 1 : 0), 0);
+      return { block, score, order: numberValue(block.source_order) ?? 0 };
+    })
+    .sort((a, b) => b.score - a.score || a.order - b.order)
+    .slice(0, 3)
+    .sort((a, b) => a.order - b.order)
+    .map(({ block }) => block);
+}
+
+function buildS8RepairIssue(code: string, warning: string, paths: string[]): SecS8ValidationRepairIssue {
+  return {
+    code,
+    warning,
+    field_paths: paths,
+    allowed_patch_paths: paths,
+    candidate_source_block_ids: [],
+  };
+}
+
+function dedupeS8RepairIssues(issues: SecS8ValidationRepairIssue[]) {
+  const seen = new Set<string>();
+  return issues.filter((issue) => {
+    const key = `${issue.code}:${issue.allowed_patch_paths.join("|")}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function clipS8RepairText(value: string, maxLength: number) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength - 1).trimEnd()}…`;
 }
 
 function buildS8AnalysisSearchText(value: Record<string, unknown>, input: SecFilingAnalysisInput) {
@@ -540,6 +831,10 @@ function normalizeConfidence(value: string) {
 
 function readStringArray(value: unknown) {
   return Array.isArray(value) ? value.map((item) => stringValue(item)).filter(Boolean) : [];
+}
+
+function uniqueStrings(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
 function readLimitedStringArray(value: unknown, maxItems: number) {
