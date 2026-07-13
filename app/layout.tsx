@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import "./stock-radar-tokens.css";
 import "./globals.css";
 
 export const metadata: Metadata = {

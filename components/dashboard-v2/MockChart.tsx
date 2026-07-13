@@ -69,8 +69,8 @@ export function MockChart({ candles, changeAmount, changePercent, ohlc }: MockCh
         <title>Mock intraday candlestick chart for CRWD</title>
         <defs>
           <linearGradient id="dashboard-v2-volume-fade" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0" stopColor="#2be38a" stopOpacity="0.42" />
-            <stop offset="1" stopColor="#2be38a" stopOpacity="0.12" />
+            <stop offset="0" stopColor="var(--sr-color-chart-volume-bullish)" stopOpacity="0.42" />
+            <stop offset="1" stopColor="var(--sr-color-chart-volume-bullish)" stopOpacity="0.12" />
           </linearGradient>
         </defs>
 
