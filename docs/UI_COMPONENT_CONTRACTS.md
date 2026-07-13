@@ -1,6 +1,6 @@
 # Stock Radar UI Component Contracts
 
-Phase: 3A - foundational shared components
+Phase: 3A/3B - foundational shared components and filter controls
 
 Canonical visual baseline: commit `f87660f` and `docs/ui-reference/dashboard-v2/`
 
@@ -152,22 +152,135 @@ ImpactBadge remains local. It is borderless impact text with different weight an
 ## 4. CSS Ownership
 
 - Primitive modules own reset, dimensions, typography, focus/disabled states, border/radius, and semantic tone styling.
-- `StockRadarDashboardV2.module.css` retains page composition, control-row placement, badge-group spacing, mobile timeline placement, and responsive visibility hooks.
+- `FilterTrigger.module.css` owns both demonstrated trigger geometries; `FilterOption.module.css` owns the mobile single-select option presentation.
+- `StockRadarDashboardV2.module.css` retains page composition, filter-row and option-group layout, sheet/action layout, badge-group spacing, mobile timeline placement, and responsive visibility hooks.
 - Moved selectors were removed from the dashboard module rather than duplicated.
-- Primitive CSS contains no literal color and does not use `!important`.
+- Shared component CSS contains no literal color and does not use `!important`.
 - The pre-existing global button styles remain unchanged, but every extracted button explicitly defines the properties required for its canonical presentation.
 
-## 5. Deferred to Phase 3B
+## 5. FilterTrigger
 
-- FilterTrigger and active-filter chips
-- Filter option groups and filter actions
+### Purpose and files
+
+- Component: `components/ui/FilterTrigger.tsx`
+- Styles: `components/ui/FilterTrigger.module.css`
+- Purpose: native filter button presentation for the demonstrated desktop split-label/value control and mobile compact quick filter.
+- Current dashboard use: Market Cap, Price, Volume, Event Type, Signal, desktop More Filters, and the four mobile quick filters in `components/dashboard-v2/FilterBar.tsx`.
+
+### Props
+
+| Prop | Type | Required | Contract |
+| --- | --- | --- | --- |
+| `label` | `string` | yes | Visible trigger label supplied by the business layer. |
+| `value` | `string` | no | Renders the desktop value segment. Absence produces the demonstrated label-plus-icon More Filters geometry. |
+| `trailingIcon` | `ReactNode` | no | Existing decorative icon rendered after label/value; callers keep it `aria-hidden`. |
+| `variant` | `"split" | "compact"` | no | Desktop split geometry or mobile quick-filter geometry. Defaults to `split`. |
+| `active` | `boolean` | no | Indicates that a non-default filter value is applied and controls only the demonstrated compact visual state. |
+| `expanded` | `boolean` | no | Indicates whether the connected popup is open and maps only to `aria-expanded`; omission leaves the attribute absent. |
+| Native button props | `ButtonHTMLAttributes<HTMLButtonElement>` | no | Supports `onClick`, `disabled`, `aria-label`, `aria-controls`, and other native behavior. `aria-expanded`, `children`, and `type` are controlled by this contract. |
+| `className` | `string` | no | Placement-only extension; it must not redefine trigger geometry or state styling. |
+
+The component forwards its button ref and defaults `type` to `button`. It contains no filter keys, labels, values, open state, or update logic.
+
+### Accessibility and keyboard
+
+- Uses a native `button`, preserving Enter and Space activation.
+- The visible label provides the accessible name; abbreviated mobile labels may add a fuller `aria-label` through native props.
+- `active` and `expanded` are independent: an applied filter can remain active while its dialog is closed.
+- Mobile triggers expose `aria-haspopup="dialog"` and boolean `aria-expanded`; `aria-controls` is present only while the controlled sheet is rendered with the matching ID.
+- Inert desktop triggers do not expose `aria-haspopup`, `aria-expanded`, or `aria-controls` because no popup exists.
+- Closing the mobile sheet through X, overlay, Escape, or Apply restores focus to the exact trigger that opened it.
+- Disabled state uses Stock Radar disabled tokens and native button behavior.
+- The trailing icon is decorative and must not duplicate the accessible label.
+
+### Usage
+
+Desktop split trigger:
+
+```tsx
+<FilterTrigger
+  label="MARKET CAP"
+  trailingIcon={<ChevronDown aria-hidden="true" size={15} />}
+  value={filterState.marketCap}
+/>
+```
+
+Mobile compact trigger:
+
+```tsx
+<FilterTrigger
+  active={filterState.marketCap !== "All"}
+  aria-controls={isMobileFilterOpen ? "dashboard-v2-filter-sheet" : undefined}
+  aria-haspopup="dialog"
+  aria-label="Market Cap filter"
+  expanded={isMobileFilterOpen}
+  label="Mkt Cap"
+  onClick={openFilters}
+  trailingIcon={<ChevronDown aria-hidden="true" size={12} />}
+  variant="compact"
+/>
+```
+
+Do not put option lists, dropdown positioning, sheet state, filter keys, or data filtering inside FilterTrigger.
+
+## 6. FilterOption
+
+### Purpose and files
+
+- Component: `components/ui/FilterOption.tsx`
+- Styles: `components/ui/FilterOption.module.css`
+- Purpose: the existing single-select mobile filter option rendered as a toggle button.
+- Current dashboard use: every option in `components/dashboard-v2/MobileFilterBottomSheet.tsx`.
+
+### Props
+
+| Prop | Type | Required | Contract |
+| --- | --- | --- | --- |
+| `label` | `string` | yes | Visible option label supplied by the filter configuration. |
+| `selected` | `boolean` | yes | Controls `aria-pressed` and the selected visual state. |
+| Native button props | `ButtonHTMLAttributes<HTMLButtonElement>` | no | Supports parent-owned `onClick`, `disabled`, metadata, and native keyboard behavior. `aria-pressed`, `children`, and `type` are controlled by this contract. |
+| `className` | `string` | no | Placement-only extension. |
+
+The component forwards its button ref and defaults `type` to `button`.
+
+### Accessibility and keyboard
+
+- Retains the canonical native toggle-button model with `aria-pressed`; it does not introduce unrequested radio or checkbox semantics.
+- The parent retains the labeled `role="group"` for each filter section.
+- Enter and Space select through the parent callback. Disabled options remain non-interactive.
+
+### Usage
+
+```tsx
+<FilterOption
+  label={option}
+  onClick={() => onChangeFilter(section.key, option)}
+  selected={filterState[section.key] === option}
+/>
+```
+
+Do not pass a filter key into FilterOption, store selected state inside it, or combine single-select and multi-select behavior in one API.
+
+## 7. Filter Boundaries and Deliberate Exclusions
+
+- `StockRadarDashboardV2` continues to own filter state, mobile-sheet open state, and opener focus restoration.
+- `FilterBar` continues to own dashboard labels, key mapping, active-filter derivation, and the callback that opens the mobile sheet.
+- `MobileFilterBottomSheet` continues to own section iteration, option-to-key mapping, overlay, close behavior, focus, scroll lock, and actions.
+- Desktop triggers remain the canonical inert mock controls. No dropdown, outside-click, Escape, or option-selection behavior was added where none existed, and no popup ARIA is advertised.
+- No `FilterAction` was created. Clear all and Apply filters each occur once, have different visual/behavioral contracts, and do not demonstrate a reusable variant set.
+- Active-filter chips remain local reset controls with removal icons; their geometry and action contract do not match FilterTrigger or FilterOption.
+- Filter row layout, option-group wrapping, action-grid layout, and the mobile sheet shell remain dashboard-owned.
+
+## 8. Deferred Beyond Phase 3B
+
 - Desktop market table and mobile market row
 - Pagination and rows-per-page controls
 - Panel and detail-panel shells
 - Navigation popover
 - Bottom-sheet shell, overlay, handle, and close control
+- Active-filter chip contract
 - Chart range control and chart toolbar
 - Chart shell
 - Impact label contract
 
-These are deferred because they combine layout, domain state, responsive composition, focus management, or container-specific interaction beyond a foundational primitive.
+These remain deferred because they combine layout, domain state, responsive composition, focus management, or container-specific interaction beyond the demonstrated filter-control contracts.

@@ -69,7 +69,6 @@
 :global(.dashboard-v2-price-line),
 :global(.dashboard-v2-detail-title),
 :global(.dashboard-v2-badge-row),
-:global(.dashboard-v2-filter),
 :global(.dashboard-v2-control-row),
 :global(.dashboard-v2-table-footer),
 :global(.dashboard-v2-pagination),
@@ -257,51 +256,6 @@
   gap: var(--sr-space-2-5);
   margin-top: var(--sr-space-4-5);
   margin-bottom: var(--sr-space-4-5);
-}
-
-:global(.dashboard-v2-filter) {
-  min-height: var(--sr-size-control);
-  overflow: hidden;
-  border: var(--sr-border-width) solid var(--sr-color-border);
-  border-radius: var(--sr-radius-control);
-  padding: 0;
-  color: var(--sr-color-text-control-strong);
-  background: var(--sr-color-surface-control);
-}
-
-:global(.dashboard-v2-filter span) {
-  display: inline-grid;
-  min-height: var(--sr-size-control);
-  place-items: center;
-  border-right: var(--sr-border-width) solid var(--sr-color-border);
-  padding: 0 var(--sr-space-3-25);
-  color: var(--sr-color-text-filter-label);
-  font-size: var(--sr-font-size-sm);
-  font-weight: var(--sr-font-weight-display);
-}
-
-:global(.dashboard-v2-filter b) {
-  min-width: 56px;
-  padding: 0 var(--sr-space-2-5);
-  color: var(--sr-color-text-filter-value);
-  font-size: var(--sr-font-size-md);
-  font-weight: var(--sr-font-weight-medium);
-  text-align: left;
-}
-
-:global(.dashboard-v2-filter svg) {
-  margin-right: var(--sr-space-2-5);
-  color: var(--sr-color-text-filter-icon);
-}
-
-:global(.dashboard-v2-filter-more) {
-  gap: var(--sr-space-3);
-  padding-right: var(--sr-space-3);
-}
-
-:global(.dashboard-v2-filter-more span) {
-  border-right: 0;
-  padding-right: var(--sr-space-1-25);
 }
 
 :global(.dashboard-v2-mobile-filter-controls),
@@ -1192,37 +1146,6 @@
     margin-bottom: var(--sr-space-1-75);
   }
 
-  :global(.dashboard-v2-mobile-quick-filter) {
-    display: flex;
-    min-width: 0;
-    min-height: var(--sr-size-mobile-quick-filter);
-    align-items: center;
-    justify-content: center;
-    gap: var(--sr-space-0-5);
-    border: var(--sr-border-width) solid var(--sr-color-border);
-    border-radius: var(--sr-radius-mobile-control);
-    padding: 0 var(--sr-space-1);
-    color: var(--sr-color-text-control-strong);
-    background: var(--sr-color-surface-control);
-  }
-
-  :global(.dashboard-v2-mobile-quick-filter.is-active) {
-    border-color: var(--sr-color-accent-border-active);
-    color: var(--sr-color-accent);
-    background: var(--sr-color-accent-active-soft);
-  }
-
-  :global(.dashboard-v2-mobile-quick-filter span) {
-    min-width: 0;
-    overflow: visible;
-    color: inherit;
-    font-size: var(--sr-font-size-xs);
-    font-weight: var(--sr-font-weight-display);
-    line-height: var(--sr-line-height-none);
-    text-transform: uppercase;
-    white-space: nowrap;
-  }
-
   :global(.dashboard-v2-table-scroll) {
     overflow-x: visible;
   }
@@ -1372,14 +1295,6 @@
       inset -1px 0 0 var(--sr-color-accent),
       inset 0 1px 0 var(--sr-color-accent),
       inset 0 -1px 0 var(--sr-color-accent);
-  }
-
-  :global(.dashboard-v2-mobile-quick-filter svg) {
-    flex: 0 0 auto;
-    width: 12px;
-    height: 12px;
-    color: currentColor;
-    opacity: 0.85;
   }
 
   :global(.dashboard-v2-mobile-filter-chips) {
@@ -1545,10 +1460,8 @@
   }
 
   :global(.dashboard-v2-mobile-filter-sheet-close:focus-visible),
-  :global(.dashboard-v2-mobile-filter-option:focus-visible),
   :global(.dashboard-v2-mobile-filter-clear:focus-visible),
   :global(.dashboard-v2-mobile-filter-apply:focus-visible),
-  :global(.dashboard-v2-mobile-quick-filter:focus-visible),
   :global(.dashboard-v2-mobile-filter-chip:focus-visible) {
     outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
     outline-offset: var(--sr-focus-ring-offset);
@@ -1598,23 +1511,6 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--sr-space-2);
-  }
-
-  :global(.dashboard-v2-mobile-filter-option) {
-    min-height: var(--sr-size-filter-option);
-    border: var(--sr-border-width) solid var(--sr-color-border-control);
-    border-radius: var(--sr-radius-pill);
-    padding: 0 var(--sr-space-3);
-    color: var(--sr-color-text-option);
-    background: var(--sr-color-surface-option);
-    font-size: var(--sr-font-size-sm);
-    font-weight: var(--sr-font-weight-semibold);
-  }
-
-  :global(.dashboard-v2-mobile-filter-option.is-active) {
-    border-color: var(--sr-color-accent-border-strong);
-    color: var(--sr-color-accent);
-    background: var(--sr-color-accent-active-strong);
   }
 
   :global(.dashboard-v2-mobile-filter-sheet-actions) {

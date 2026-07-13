@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
+import { FilterOption } from "@/components/ui/FilterOption";
 import {
   dashboardV2FilterSections,
   type DashboardV2FilterKey,
@@ -66,6 +67,7 @@ export function MobileFilterBottomSheet({
       aria-labelledby="dashboard-v2-filter-sheet-title"
       aria-modal="true"
       className="dashboard-v2-mobile-filter-sheet-root"
+      id="dashboard-v2-filter-sheet"
       role="dialog"
     >
       <button
@@ -99,15 +101,12 @@ export function MobileFilterBottomSheet({
                   const isActive = filterState[section.key] === option;
 
                   return (
-                    <button
-                      aria-pressed={isActive}
-                      className={`dashboard-v2-mobile-filter-option${isActive ? " is-active" : ""}`}
+                    <FilterOption
                       key={option}
+                      label={option}
                       onClick={() => onChangeFilter(section.key, option)}
-                      type="button"
-                    >
-                      {option}
-                    </button>
+                      selected={isActive}
+                    />
                   );
                 })}
               </div>

@@ -1,4 +1,5 @@
 import { ChevronDown, SlidersHorizontal, X } from "lucide-react";
+import { FilterTrigger } from "@/components/ui/FilterTrigger";
 import {
   dashboardV2AllFilterValue,
   dashboardV2FilterLabels,
@@ -17,7 +18,8 @@ type DashboardV2Filter = {
 type FilterBarProps = {
   filterState: DashboardV2FilterState;
   filters: DashboardV2Filter[];
-  onOpenMoreFilters: () => void;
+  isMobileFilterOpen: boolean;
+  onOpenMoreFilters: (trigger: HTMLButtonElement) => void;
   onResetFilter: (key: DashboardV2FilterKey) => void;
 };
 
@@ -31,7 +33,13 @@ const desktopFilterKeyByLabel: Record<string, DashboardV2FilterKey> = {
 
 const dashboardV2QuickFilterKeySet = new Set<DashboardV2FilterKey>(dashboardV2QuickFilterKeys);
 
-export function FilterBar({ filterState, filters, onOpenMoreFilters, onResetFilter }: FilterBarProps) {
+export function FilterBar({
+  filterState,
+  filters,
+  isMobileFilterOpen,
+  onOpenMoreFilters,
+  onResetFilter,
+}: FilterBarProps) {
   const activeFilters = (Object.keys(filterState) as DashboardV2FilterKey[]).filter(
     (key) => filterState[key] !== dashboardV2AllFilterValue,
   );
@@ -44,44 +52,45 @@ export function FilterBar({ filterState, filters, onOpenMoreFilters, onResetFilt
           const filterKey = desktopFilterKeyByLabel[filter.label];
 
           return (
-            <button className="dashboard-v2-filter" key={filter.label} type="button">
-              <span>{filter.label.toUpperCase()}</span>
-              <b>{filterKey ? filterState[filterKey] : filter.value}</b>
-              <ChevronDown aria-hidden="true" size={15} />
-            </button>
+            <FilterTrigger
+              key={filter.label}
+              label={filter.label.toUpperCase()}
+              trailingIcon={<ChevronDown aria-hidden="true" size={15} />}
+              value={filterKey ? filterState[filterKey] : filter.value}
+            />
           );
         })}
-        <button className="dashboard-v2-filter dashboard-v2-filter-more" type="button">
-          <span>MORE FILTERS</span>
-          <SlidersHorizontal aria-hidden="true" size={15} />
-        </button>
+        <FilterTrigger
+          label="MORE FILTERS"
+          trailingIcon={<SlidersHorizontal aria-hidden="true" size={15} />}
+        />
       </div>
 
       <div className="dashboard-v2-mobile-filter-controls" aria-label="Market mover quick filters">
         {dashboardV2QuickFilterKeys.map((key) => (
-          <button
+          <FilterTrigger
+            active={filterState[key] !== dashboardV2AllFilterValue}
+            aria-controls={isMobileFilterOpen ? "dashboard-v2-filter-sheet" : undefined}
+            aria-haspopup="dialog"
             aria-label={`${dashboardV2FilterLabels[key]} filter`}
-            className={`dashboard-v2-mobile-quick-filter${
-              filterState[key] !== dashboardV2AllFilterValue ? " is-active" : ""
-            }`}
+            expanded={isMobileFilterOpen}
             key={key}
-            onClick={onOpenMoreFilters}
-            type="button"
-          >
-            <span>{dashboardV2MobileFilterLabels[key]}</span>
-            <ChevronDown aria-hidden="true" size={12} />
-          </button>
+            label={dashboardV2MobileFilterLabels[key]}
+            onClick={(event) => onOpenMoreFilters(event.currentTarget)}
+            trailingIcon={<ChevronDown aria-hidden="true" size={12} />}
+            variant="compact"
+          />
         ))}
-        <button
-          className={`dashboard-v2-mobile-quick-filter dashboard-v2-mobile-quick-filter-more${
-            secondaryActiveCount > 0 ? " is-active" : ""
-          }`}
-          onClick={onOpenMoreFilters}
-          type="button"
-        >
-          <span>More</span>
-          <SlidersHorizontal aria-hidden="true" size={12} />
-        </button>
+        <FilterTrigger
+          active={secondaryActiveCount > 0}
+          aria-controls={isMobileFilterOpen ? "dashboard-v2-filter-sheet" : undefined}
+          aria-haspopup="dialog"
+          expanded={isMobileFilterOpen}
+          label="More"
+          onClick={(event) => onOpenMoreFilters(event.currentTarget)}
+          trailingIcon={<SlidersHorizontal aria-hidden="true" size={12} />}
+          variant="compact"
+        />
       </div>
 
       {activeFilters.length > 0 ? (

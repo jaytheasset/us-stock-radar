@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { DashboardHeader } from "@/components/dashboard-v2/DashboardHeader";
 import { FilterBar } from "@/components/dashboard-v2/FilterBar";
 import { MarketMoversTable } from "@/components/dashboard-v2/MarketMoversTable";
@@ -47,6 +47,7 @@ export function StockRadarDashboardV2() {
   const [isMobileFilterSheetOpen, setIsMobileFilterSheetOpen] = useState(false);
   const [mobileSheetSection, setMobileSheetSection] = useState<MobileSheetSection>("summary");
   const [filterState, setFilterState] = useState(dashboardV2DefaultFilterState);
+  const mobileFilterTriggerRef = useRef<HTMLButtonElement>(null);
   const marketMoverRows = dashboardV2MarketMoversByTab[activeMoverTab];
   const openTickerDetail = useCallback((row: DashboardV2MarketMover, section: MobileSheetSection) => {
     setSelectedTicker(getDashboardV2TickerDetail(row));
@@ -64,6 +65,14 @@ export function StockRadarDashboardV2() {
   }, []);
   const clearFilters = useCallback(() => {
     setFilterState({ ...dashboardV2DefaultFilterState });
+  }, []);
+  const openMobileFilters = useCallback((trigger: HTMLButtonElement) => {
+    mobileFilterTriggerRef.current = trigger;
+    setIsMobileFilterSheetOpen(true);
+  }, []);
+  const closeMobileFilters = useCallback(() => {
+    setIsMobileFilterSheetOpen(false);
+    requestAnimationFrame(() => mobileFilterTriggerRef.current?.focus({ preventScroll: true }));
   }, []);
 
   return (
@@ -89,7 +98,8 @@ export function StockRadarDashboardV2() {
           <FilterBar
             filterState={filterState}
             filters={dashboardV2Filters}
-            onOpenMoreFilters={() => setIsMobileFilterSheetOpen(true)}
+            isMobileFilterOpen={isMobileFilterSheetOpen}
+            onOpenMoreFilters={openMobileFilters}
             onResetFilter={resetFilter}
           />
           <MarketMoversTable
@@ -113,7 +123,7 @@ export function StockRadarDashboardV2() {
         isOpen={isMobileFilterSheetOpen}
         onChangeFilter={updateFilter}
         onClearFilters={clearFilters}
-        onClose={() => setIsMobileFilterSheetOpen(false)}
+        onClose={closeMobileFilters}
       />
     </main>
   );
