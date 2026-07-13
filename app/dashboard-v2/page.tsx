@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { StockRadarDashboardV2 } from "@/components/dashboard-v2/StockRadarDashboardV2";
+import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 
 export const metadata: Metadata = {
   title: "Dashboard v2 | Stock Radar",
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function DashboardV2Page() {
-  return <StockRadarDashboardV2 />;
+  return (
+    <StockRadarAppShell activeNavigationItem="markets">
+      <StockRadarDashboardV2 />
+    </StockRadarAppShell>
+  );
 }

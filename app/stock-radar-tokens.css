@@ -23,7 +23,6 @@
   --sr-color-surface-overlay-footer: rgba(13, 17, 22, 0.96);
   --sr-color-surface-muted-action: rgba(19, 24, 30, 0.96);
   --sr-color-surface-emphasized-action: #14171b;
-  --sr-color-surface-navigation-menu: rgba(12, 16, 21, 0.98);
   --sr-color-overlay-filter: rgba(3, 5, 8, 0.66);
   --sr-color-overlay-ticker: rgba(3, 5, 8, 0.68);
 
@@ -86,7 +85,6 @@
   --sr-color-accent-active: rgba(255, 122, 26, 0.13);
   --sr-color-accent-active-soft: rgba(255, 122, 26, 0.12);
   --sr-color-accent-active-strong: rgba(255, 122, 26, 0.14);
-  --sr-color-accent-hover: rgba(255, 122, 26, 0.08);
   --sr-color-accent-subtle: rgba(255, 122, 26, 0.04);
   --sr-color-accent-menu: rgba(255, 122, 26, 0.032);
   --sr-color-accent-sheet-glow: rgba(255, 122, 26, 0.06);
@@ -97,7 +95,6 @@
   --sr-color-accent-cta-strong-bottom: rgba(255, 122, 26, 0.08);
   --sr-color-accent-transparent: rgba(255, 122, 26, 0);
   --sr-color-accent-border: rgba(255, 122, 26, 0.58);
-  --sr-color-accent-border-open: rgba(255, 122, 26, 0.52);
   --sr-color-accent-border-active: rgba(255, 122, 26, 0.78);
   --sr-color-accent-border-strong: rgba(255, 122, 26, 0.8);
   --sr-color-accent-border-emphasis: rgba(255, 122, 26, 0.88);
@@ -250,7 +247,6 @@
   --sr-shadow-panel: 0 18px 52px rgba(0, 0, 0, 0.24);
   --sr-shadow-pagination-active: 0 0 20px rgba(255, 122, 26, 0.34);
   --sr-shadow-menu: 0 16px 36px rgba(0, 0, 0, 0.38);
-  --sr-shadow-navigation-menu: 0 16px 34px rgba(0, 0, 0, 0.42);
   --sr-shadow-filter-sheet: 0 -22px 48px rgba(0, 0, 0, 0.44);
   --sr-shadow-ticker-sheet: 0 -28px 70px rgba(0, 0, 0, 0.56);
   --sr-shadow-cta: inset 0 0 0 1px rgba(255, 122, 26, 0.18), 0 0 22px rgba(255, 122, 26, 0.08);
@@ -266,7 +262,6 @@
   --sr-z-ticker-sheet: 80;
   --sr-z-mobile-menu: 86;
   --sr-z-filter-sheet: 90;
-  --sr-z-navigation-menu: 95;
   --sr-motion-duration-menu: 130ms;
   --sr-motion-duration-sheet: 170ms;
   --sr-motion-duration-reduced: 1ms;

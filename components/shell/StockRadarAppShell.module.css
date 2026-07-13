@@ -1,0 +1,59 @@
+.shell {
+  min-height: 100vh;
+  overflow-x: hidden;
+  isolation: isolate;
+  color: var(--sr-color-text-primary);
+  background:
+    radial-gradient(circle at 52% -8%, var(--sr-color-page-glow), transparent 22%),
+    linear-gradient(180deg, var(--sr-color-page-background-top) 0%, var(--sr-color-page-background) 100%);
+  font-family: var(--sr-font-family-sans);
+  font-weight: var(--sr-font-weight-regular);
+  line-height: var(--sr-line-height-default);
+  letter-spacing: var(--sr-letter-spacing-default);
+}
+
+.shell,
+.shell * {
+  box-sizing: border-box;
+  scrollbar-color: var(--sr-color-scrollbar-thumb) var(--sr-color-scrollbar-track);
+  scrollbar-width: thin;
+}
+
+.shell ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.shell ::-webkit-scrollbar-track {
+  background: var(--sr-color-scrollbar-track);
+}
+
+.shell ::-webkit-scrollbar-thumb {
+  border: var(--sr-border-width-strong) solid var(--sr-color-scrollbar-track);
+  border-radius: var(--sr-radius-pill);
+  background: var(--sr-color-scrollbar-thumb);
+}
+
+.shell ::-webkit-scrollbar-thumb:hover {
+  background: var(--sr-color-scrollbar-thumb-hover);
+}
+
+.shell + :global(.theme-toggle) {
+  display: none;
+}
+
+.shell button {
+  font-family: inherit;
+  letter-spacing: var(--sr-letter-spacing-default);
+}
+
+.main {
+  min-width: 0;
+}
+
+@media (max-width: 1180px) {
+  .shell {
+    overflow-x: hidden;
+    overflow-y: visible;
+  }
+}

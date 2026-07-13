@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { DashboardHeader } from "@/components/dashboard-v2/DashboardHeader";
 import { FilterBar } from "@/components/dashboard-v2/FilterBar";
 import { MarketMoversTable } from "@/components/dashboard-v2/MarketMoversTable";
 import { MobileFilterBottomSheet } from "@/components/dashboard-v2/MobileFilterBottomSheet";
@@ -76,9 +75,8 @@ export function StockRadarDashboardV2() {
   }, []);
 
   return (
-    <main className={`dashboard-v2-page ${styles.root}`}>
-      <DashboardHeader />
-      <div className="dashboard-v2-workspace">
+    <>
+      <div className={styles.workspace}>
         <section className="dashboard-v2-left" aria-label="Market movers dashboard">
           <div className="dashboard-v2-control-row">
             <SegmentedControl
@@ -125,6 +123,6 @@ export function StockRadarDashboardV2() {
         onClearFilters={clearFilters}
         onClose={closeMobileFilters}
       />
-    </main>
+    </>
   );
 }

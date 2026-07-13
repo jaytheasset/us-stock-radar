@@ -1,12 +1,12 @@
 # Stock Radar UI Component Contracts
 
-Phase: 3A/3B/3C - foundational controls, filter controls, and market results
+Phase: 3A/3B/3C/3D - foundational controls, market results, and product shell
 
 Canonical visual baseline: commit `f87660f` and `docs/ui-reference/dashboard-v2/`
 
 Token foundation: commit `7280394`, `app/stock-radar-tokens.css`, and `docs/UI_DESIGN_TOKENS.md`
 
-These phases extract only the documented controls and market-result presentations. The contracts preserve the canonical dashboard-v2 behavior and computed presentation. They do not introduce routing, data fetching, filtering, chart, panel, popover, or sheet abstractions.
+These phases extract only the documented controls, market-result presentations, and Stock Radar product shell. The contracts preserve the canonical dashboard-v2 behavior and computed presentation. They do not introduce data fetching, filtering, chart, panel, generic popover, or sheet abstractions.
 
 ## 1. IconButton
 
@@ -15,7 +15,7 @@ These phases extract only the documented controls and market-result presentation
 - Component: `components/ui/IconButton.tsx`
 - Styles: `components/ui/IconButton.module.css`
 - Purpose: accessible icon-only header actions with an explicit button reset, size, indicator, disabled state, and focus-visible state.
-- Current dashboard use: alert, settings, and mobile-menu actions in `components/dashboard-v2/DashboardHeader.tsx`.
+- Current shell use: alert, settings, and mobile-menu actions in `components/shell/StockRadarProductHeader.tsx`.
 
 ### Props
 
@@ -271,12 +271,12 @@ Do not pass a filter key into FilterOption, store selected state inside it, or c
 - Active-filter chips remain local reset controls with removal icons; their geometry and action contract do not match FilterTrigger or FilterOption.
 - Filter row layout, option-group wrapping, action-grid layout, and the mobile sheet shell remain dashboard-owned.
 
-## 8. Deferred Beyond Phase 3C
+## 8. Deferred Beyond Phase 3D
 
 - Market table shell, header, and column layout
 - Rows-per-page control
 - Panel and detail-panel shells
-- Navigation popover
+- Generic popover framework
 - Bottom-sheet shell, overlay, handle, and close control
 - Active-filter chip contract
 - Chart range control and chart toolbar
@@ -434,3 +434,114 @@ The current dashboard still supplies a no-op callback because pagination is a ca
 - Generic data-table engines, sorting, filtering, data fetching, active-filter chips, responsive table shells, panels, sheets, popovers, chart controls, and real pagination remain deferred.
 
 These remain deferred because they combine broader layout, domain state, responsive composition, focus management, or container-specific interaction beyond the demonstrated 3C contracts.
+
+## 14. StockRadarAppShell
+
+### Purpose and files
+
+- Component: `components/shell/StockRadarAppShell.tsx`
+- Styles: `components/shell/StockRadarAppShell.module.css`
+- Purpose: Stock Radar page canvas, product header, and exactly one main-content landmark.
+
+### Props
+
+| Prop | Type | Required | Contract |
+| --- | --- | --- | --- |
+| `activeNavigationItem` | `StockRadarPrimaryNavigationKey` | yes | Single source of truth for the active product navigation item. |
+| `children` | `ReactNode` | yes | Full-width page-owned content rendered inside the main landmark. |
+
+The shell owns the canonical page background, minimum viewport height, Stock Radar typography inheritance, scrollbar treatment, hidden legacy theme toggle, product header, and `main#stock-radar-main-content`. It does not own page maximum width, gutters, table/detail grids, sidebars, filters, panels, sheets, or data state.
+
+The dashboard passes its workspace and mobile sheets as the content slot. Its table/detail split remains in `StockRadarDashboardV2.module.css` and is not normalized for other routes.
+
+### Server and client boundary
+
+- `StockRadarAppShell` has no `"use client"` directive and is composed by the Server Component route in `app/dashboard-v2/page.tsx`.
+- `StockRadarProductHeader` is the only shell component that declares `"use client"`; it owns the mobile-menu state, refs, document listeners, and focus restoration.
+- Desktop/mobile navigation renderers and the navigation configuration contain no hooks or browser APIs. They enter the client graph only through ProductHeader.
+- The `children` slot remains server-compatible. Dashboard-v2 is already a Client Component for its own market, filter, and sheet state; the shell does not move otherwise-server page content across a client boundary.
+
+### Usage
+
+```tsx
+import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
+
+<StockRadarAppShell activeNavigationItem="markets">
+  <PageOwnedLayout />
+</StockRadarAppShell>
+```
+
+A skip link was not added in 3D. Introducing its focus placement and visible focus treatment would create a new interaction contract not present in the approved baseline; the stable main ID leaves that work possible in a later accessibility phase.
+
+## 15. StockRadarProductHeader
+
+### Purpose and files
+
+- Component: `components/shell/StockRadarProductHeader.tsx`
+- Styles: `components/shell/StockRadarProductHeader.module.css`
+- Purpose: canonical brand/status, desktop product navigation, inert header actions, and mobile menu trigger/state.
+- Replaced component: deleted `components/dashboard-v2/DashboardHeader.tsx`.
+
+### Props
+
+| Prop | Type | Required | Contract |
+| --- | --- | --- | --- |
+| `activeNavigationItem` | `StockRadarPrimaryNavigationKey` | yes | Passed unchanged to desktop and mobile navigation renderers. |
+
+Product name `STOCK RADAR` and market status `15m delayed` are exported product constants in `stockRadarNavigation.ts`; they are not dashboard data or customizable speculative props. Header height, padding, surface, divider, brand geometry, status dot, action spacing, and the 760 px breakpoint preserve the canonical computed values.
+
+### Header actions and ARIA
+
+- Alert, Settings, and mobile menu actions reuse `IconButton`; the alert keeps its indicator.
+- Search keeps its existing icon-plus-text native button because the header IconButton contract is icon-only. It remains inert.
+- Search, Alert, and desktop Settings do not advertise `aria-haspopup`, `aria-expanded`, or `aria-controls` because no popup exists.
+- Only the mobile menu trigger exposes `aria-haspopup="menu"` and boolean `aria-expanded`. `aria-controls` is present only while the matching menu DOM exists.
+- None of the inert actions gained new search, notification, settings, auth, or Premium behavior.
+
+## 16. Navigation Configuration and Desktop Navigation
+
+### Files and data contract
+
+- Configuration: `components/shell/stockRadarNavigation.ts`
+- Renderer: `components/shell/StockRadarDesktopNavigation.tsx`
+- `StockRadarPrimaryNavigationKey`: markets, feed, watchlist, news, filings, alerts, calendar, or premium.
+- `StockRadarNavigationKey`: a primary navigation key or the mobile-only Settings action key.
+- Link item: `{ kind: "link", key, label, href, premium? }`.
+- Inert mobile action: `{ kind: "action", key: "settings", label: "Settings" }`.
+
+The shared primary list retains Markets, Live Feed, Watchlist, News, Filings, Alerts, Calendar, and Premium in that order. Every primary href corresponds to an existing route. Active state is derived only from `activeNavigationItem`; it is not duplicated in configuration. Premium retains its separate accent contract.
+
+Desktop navigation renders native anchors and the current item uses `aria-current="page"`. Labels and hrefs are declared once and shared with mobile rendering. The configuration contains no React nodes, route creation, dashboard selection state, or mock market data.
+
+`StockRadarDesktopNavigation` accepts one required prop: `activeItem: StockRadarPrimaryNavigationKey`.
+
+## 17. Mobile Product Navigation
+
+### Purpose and files
+
+- Component: `components/shell/StockRadarMobileNavigationMenu.tsx`
+- Menu ID: `stock-radar-mobile-navigation-menu`, distinct from ticker and filter sheet IDs.
+- State owner: `StockRadarProductHeader`.
+
+| Prop | Type | Required | Contract |
+| --- | --- | --- | --- |
+| `activeItem` | `StockRadarPrimaryNavigationKey` | yes | Applies `aria-current="page"` to the matching link. |
+| `menuRef` | `Ref<HTMLDivElement>` | yes | Gives ProductHeader the rendered popover boundary for outside-pointer detection. |
+| `onItemActivate` | `(item: StockRadarNavigationItem) => void` | yes | Reports one activated link/action so ProductHeader can close the popover. |
+
+The menu reuses the primary link configuration and appends Settings as an inert native button rather than the previous fake `#settings` anchor. Link and action items remain visually identical to the baseline; activating any item closes the menu.
+
+### Interaction contract
+
+- Hamburger pointer, Enter, and Space toggle the menu through native IconButton behavior.
+- A second trigger activation, document-level outside pointerdown, Escape, or item activation closes the menu.
+- Escape explicitly restores focus to the opener. The opener naturally retains focus on trigger toggles; the inert Settings action restores it after close. Link activation prioritizes route navigation.
+- The canonical compact popover is non-modal: it has no visible X, dim overlay, focus trap, or body scroll lock. Body overflow remains untouched, and click-away handling replaces an overlay. This preserves the approved open-menu geometry and avoids ownership conflicts with ticker/filter modal sheets.
+- Closed menu DOM is not rendered, so it cannot intercept pointer events. The product popover uses its own z-index below the dashboard filter sheet and does not share IDs or overlays with either sheet.
+
+## 18. Phase 3D Boundaries and Deferred Work
+
+- `components/shell` owns only Stock Radar canvas, brand/status, product navigation, header actions, and the canonical mobile product menu.
+- `app/dashboard-v2/page.tsx` supplies `activeNavigationItem="markets"`; `StockRadarDashboardV2` owns only market/session/filter/ticker state and page content.
+- Dashboard workspace, page-specific gutters, detail grid, table, panels, ticker/filter sheets, rows-per-page, and chart controls remain page-owned.
+- Generic layout variants, max-width containers, generic popovers, modal/focus-trap frameworks, skip-link presentation, actual action behavior, new routes, auth, and Premium behavior remain deferred.
