@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { CandlestickChart, Expand, LineChart, SlidersHorizontal } from "lucide-react";
 import type { DashboardV2Candle, DashboardV2TickerDetail } from "@/lib/mock/dashboardV2Data";
 
@@ -9,6 +10,7 @@ type MockChartProps = {
 };
 
 export function MockChart({ candles, changeAmount, changePercent, ohlc }: MockChartProps) {
+  const volumeFadeId = useId();
   const width = 620;
   const height = 282;
   const chartLeft = 12;
@@ -68,7 +70,7 @@ export function MockChart({ candles, changeAmount, changePercent, ohlc }: MockCh
       <svg className="dashboard-v2-mock-chart" viewBox={`0 0 ${width} ${height}`} role="img">
         <title>Mock intraday candlestick chart for CRWD</title>
         <defs>
-          <linearGradient id="dashboard-v2-volume-fade" x1="0" x2="0" y1="0" y2="1">
+          <linearGradient id={volumeFadeId} x1="0" x2="0" y1="0" y2="1">
             <stop offset="0" stopColor="var(--sr-color-chart-volume-bullish)" stopOpacity="0.42" />
             <stop offset="1" stopColor="var(--sr-color-chart-volume-bullish)" stopOpacity="0.12" />
           </linearGradient>

@@ -1,12 +1,12 @@
 # Stock Radar UI Component Contracts
 
-Phase: 3A/3B/3C/3D - foundational controls, market results, and product shell
+Phase: 3A/3B/3C/3D/3E - foundational controls, market results, product shell, and panel/sheet shells
 
 Canonical visual baseline: commit `f87660f` and `docs/ui-reference/dashboard-v2/`
 
 Token foundation: commit `7280394`, `app/stock-radar-tokens.css`, and `docs/UI_DESIGN_TOKENS.md`
 
-These phases extract only the documented controls, market-result presentations, and Stock Radar product shell. The contracts preserve the canonical dashboard-v2 behavior and computed presentation. They do not introduce data fetching, filtering, chart, panel, generic popover, or sheet abstractions.
+These phases extract only the documented controls, market-result presentations, Stock Radar product shell, detail-panel surface, and modal bottom-sheet lifecycle. The contracts preserve the canonical dashboard-v2 behavior and computed presentation. They do not introduce data fetching, filtering, chart, generic popover, focus-trap framework, or new modal behavior.
 
 ## 1. IconButton
 
@@ -263,21 +263,19 @@ Do not pass a filter key into FilterOption, store selected state inside it, or c
 
 ## 7. Filter Boundaries and Deliberate Exclusions
 
-- `StockRadarDashboardV2` continues to own filter state, mobile-sheet open state, and opener focus restoration.
+- `StockRadarDashboardV2` continues to own filter state, mobile-sheet open state, and each sheet's opener ref.
 - `FilterBar` continues to own dashboard labels, key mapping, active-filter derivation, and the callback that opens the mobile sheet.
-- `MobileFilterBottomSheet` continues to own section iteration, option-to-key mapping, overlay, close behavior, focus, scroll lock, and actions.
+- `MobileFilterBottomSheet` continues to own section iteration, option-to-key mapping, and actions. Phase 3E moves only overlay, close, Escape, focus restoration, and scroll-lock lifecycle into `BottomSheetShell`.
 - Desktop triggers remain the canonical inert mock controls. No dropdown, outside-click, Escape, or option-selection behavior was added where none existed, and no popup ARIA is advertised.
 - No `FilterAction` was created. Clear all and Apply filters each occur once, have different visual/behavioral contracts, and do not demonstrate a reusable variant set.
 - Active-filter chips remain local reset controls with removal icons; their geometry and action contract do not match FilterTrigger or FilterOption.
-- Filter row layout, option-group wrapping, action-grid layout, and the mobile sheet shell remain dashboard-owned.
+- Filter row layout, option-group wrapping, action-grid layout, and filter-sheet business content remain dashboard-owned.
 
-## 8. Deferred Beyond Phase 3D
+## 8. Deferred Beyond Phase 3E
 
 - Market table shell, header, and column layout
 - Rows-per-page control
-- Panel and detail-panel shells
 - Generic popover framework
-- Bottom-sheet shell, overlay, handle, and close control
 - Active-filter chip contract
 - Chart range control and chart toolbar
 - Chart shell
@@ -543,5 +541,91 @@ The menu reuses the primary link configuration and appends Settings as an inert 
 
 - `components/shell` owns only Stock Radar canvas, brand/status, product navigation, header actions, and the canonical mobile product menu.
 - `app/dashboard-v2/page.tsx` supplies `activeNavigationItem="markets"`; `StockRadarDashboardV2` owns only market/session/filter/ticker state and page content.
-- Dashboard workspace, page-specific gutters, detail grid, table, panels, ticker/filter sheets, rows-per-page, and chart controls remain page-owned.
+- Dashboard workspace, page-specific gutters, detail grid, table, detail business content, ticker/filter sheet content, rows-per-page, and chart controls remain page-owned. Phase 3E only supersedes the outer panel/sheet-shell ownership described here.
 - Generic layout variants, max-width containers, generic popovers, modal/focus-trap frameworks, skip-link presentation, actual action behavior, new routes, auth, and Premium behavior remain deferred.
+
+## 19. DetailPanelShell
+
+### Purpose and files
+
+- Component: `components/ui/DetailPanelShell.tsx`
+- Styles: `components/ui/DetailPanelShell.module.css`
+- Purpose: the reusable non-modal complementary surface used by the desktop/tablet ticker detail panel.
+- Current dashboard use: outer container in `components/dashboard-v2/TickerDetailPanel.tsx`.
+
+### Props
+
+| Prop | Type | Required | Contract |
+| --- | --- | --- | --- |
+| `children` | `ReactNode` | yes | Domain-owned summary, chart, timeline, CTA, and any local controls. |
+| `aria-label` | `string` | one naming prop | Direct accessible name. Mutually exclusive with `aria-labelledby`. |
+| `aria-labelledby` | `string` | one naming prop | ID of visible labeling content. Mutually exclusive with `aria-label`. |
+| `className` | `string` | no | Placement-only hook; dashboard-v2 uses it to hide the desktop panel at the mobile breakpoint. |
+
+The shell renders an `aside`, owns the canonical sticky/header-offset surface, vertical overflow, background, and the existing stacked behavior at 1180 px. Dashboard grid columns, panel width, and the 760 px hide rule stay in dashboard layout CSS. It is non-modal and therefore has no overlay, `aria-modal`, focus lock, or body scroll lock.
+
+`TickerDetailPanel` retains the existing 34 px desktop close control and its baseline no-op behavior. It was not merged into the modal sheet close contract: the geometry, border, focus treatment, and current action contract differ, and expanding `IconButton` for one inert control would be speculative.
+
+### Usage
+
+```tsx
+<DetailPanelShell
+  aria-label={`${ticker.ticker} detail panel`}
+  className="dashboard-v2-desktop-detail-panel"
+>
+  <TickerDetailContent ticker={ticker} />
+</DetailPanelShell>
+```
+
+## 20. BottomSheetShell
+
+### Purpose and files
+
+- Component: `components/ui/BottomSheetShell.tsx`
+- Styles: `components/ui/BottomSheetShell.module.css`
+- Purpose: shared mobile modal surface, backdrop, handle, close control, focus containment, dismiss lifecycle, opener focus restoration, and body scroll lock.
+- Current dashboard uses: ticker detail sheet and filter sheet.
+
+### Props
+
+| Prop | Type | Required | Contract |
+| --- | --- | --- | --- |
+| `isOpen` | `boolean` | yes | Parent-owned controlled visibility; false returns `null`. |
+| `onDismiss` | `() => void` | yes | Parent-owned close request. X, overlay, and Escape route through a once-per-open guard. |
+| `openerRef` | `RefObject<HTMLElement \| null>` | yes | Exact trigger/row that regains focus after the sheet leaves the DOM. |
+| `layout` | `content-footer \| full-scroll` | yes | Demonstrated presentation contract. `content-footer` is an 82dvh flex surface with a scrollable content region and in-flow footer; `full-scroll` is a 90dvh surface whose full body scrolls. |
+| `children` | `ReactNode` | yes | Domain-owned sheet content. |
+| `closeLabel` | `string` | yes | Required accessible name for the native close button. |
+| `overlayLabel` | `string` | yes | Required accessible name for the native overlay dismiss button. |
+| `aria-label` | `string` | one naming prop | Direct dialog name. Mutually exclusive with `aria-labelledby`. |
+| `aria-labelledby` | `string` | one naming prop | Visible dialog-title ID. Mutually exclusive with `aria-label`. |
+| `id` | `string` | no | Dialog surface ID used by a real controlling trigger. |
+
+No speculative size, side, gesture, portal, header, content, footer, or sticky-action API was added. The two layouts represent only verified geometry and scroll behavior; they contain no market, ticker, filter, selection, or data state. Domain components choose the demonstrated layout and continue to own all content.
+
+### Modal and dismiss rules
+
+- The visible surface owns `role="dialog"`, `aria-modal="true"`, and exactly one accessible naming mechanism.
+- Closed sheet DOM is not rendered and cannot intercept pointer events.
+- X and overlay are native `button type="button"` controls. Overlay dismissal requires a direct overlay activation; a pointer gesture beginning inside the surface cannot dismiss on release over the overlay.
+- Escape is listened for only while a visible mobile sheet is open. Composing, already-prevented, and repeated keydown events are ignored. The close guard ensures X, overlay, or Escape requests `onDismiss` exactly once before controlled state updates.
+- The close button receives initial focus. Tab from the last eligible control wraps to the first, and Shift+Tab from the first wraps to the last. Disabled, hidden, inert, and `aria-hidden` descendants are excluded. If no eligible descendant exists, the dialog surface is the fallback focus target.
+- Cleanup restores focus after the dialog leaves the DOM. It uses the captured opener when it remains connected, enabled, and visible; otherwise it safely focuses the current main landmark. A replacing modal takes priority and suppresses stale restoration.
+- Each open instance captures the exact pre-existing inline `body.style.overflow` value, including `clip`, sets `hidden`, and restores that captured value on close or unmount. Effect cleanup never calls `onDismiss`.
+- Listener, focus containment, and scroll-lock cleanup remain safe under React Strict Mode effect replay. The parent enforces a single-modal-sheet contract by closing one sheet before opening the other; the non-modal product menu does not participate in this lifecycle.
+
+The focus containment is local to this modal shell. It is not a generic portal or application-wide modal manager, and it is intentionally not applied to the mobile navigation popover. Portal infrastructure, drag gestures, and additional sheet layouts remain deferred.
+
+### Ticker and filter boundaries
+
+- `MobileTickerBottomSheet` selects `full-scroll` and retains ticker selection, summary/chart refs, initial-section scroll targeting, `TickerDetailContent`, chart, timeline, and sticky CTA.
+- `MobileFilterBottomSheet` selects `content-footer` and retains typed filter state, option rendering, Clear all, Apply filters, content scrolling, and footer layout.
+- `StockRadarDashboardV2` retains both controlled open states and distinct opener refs: the focused market row for ticker detail and the exact quick-filter trigger for filters.
+- The mobile navigation menu remains a non-modal popover. It does not use this shell, does not lock body scroll, and does not share dialog IDs.
+
+## 21. Phase 3E Boundaries and Deferred Work
+
+- Detail summary, chart controls, chart shell, timeline, CTA, filter business state, and option/action layout remain domain-owned.
+- The existing mobile ticker sticky CTA/timeline overlap risk remains documented and intentionally unchanged.
+- Desktop panel width and split-grid composition remain dashboard-owned.
+- Generic portal infrastructure, drawer/popover unification, gestures, drag-to-dismiss, and new animation variants remain deferred.

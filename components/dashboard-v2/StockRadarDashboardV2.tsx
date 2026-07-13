@@ -46,6 +46,7 @@ export function StockRadarDashboardV2() {
   const [isMobileFilterSheetOpen, setIsMobileFilterSheetOpen] = useState(false);
   const [mobileSheetSection, setMobileSheetSection] = useState<MobileSheetSection>("summary");
   const [filterState, setFilterState] = useState(dashboardV2DefaultFilterState);
+  const mobileTickerOpenerRef = useRef<HTMLElement>(null);
   const mobileFilterTriggerRef = useRef<HTMLButtonElement>(null);
   const marketMoverRows = dashboardV2MarketMoversByTab[activeMoverTab];
   const openTickerDetail = useCallback((row: DashboardV2MarketMover, section: MobileSheetSection) => {
@@ -53,6 +54,10 @@ export function StockRadarDashboardV2() {
     setMobileSheetSection(section);
 
     if (window.matchMedia("(max-width: 760px)").matches) {
+      mobileTickerOpenerRef.current = document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+      setIsMobileFilterSheetOpen(false);
       setIsMobileSheetOpen(true);
     }
   }, []);
@@ -67,11 +72,14 @@ export function StockRadarDashboardV2() {
   }, []);
   const openMobileFilters = useCallback((trigger: HTMLButtonElement) => {
     mobileFilterTriggerRef.current = trigger;
+    setIsMobileSheetOpen(false);
     setIsMobileFilterSheetOpen(true);
   }, []);
   const closeMobileFilters = useCallback(() => {
     setIsMobileFilterSheetOpen(false);
-    requestAnimationFrame(() => mobileFilterTriggerRef.current?.focus({ preventScroll: true }));
+  }, []);
+  const closeMobileTicker = useCallback(() => {
+    setIsMobileSheetOpen(false);
   }, []);
 
   return (
@@ -113,7 +121,8 @@ export function StockRadarDashboardV2() {
       <MobileTickerBottomSheet
         initialSection={mobileSheetSection}
         isOpen={isMobileSheetOpen}
-        onClose={() => setIsMobileSheetOpen(false)}
+        onClose={closeMobileTicker}
+        openerRef={mobileTickerOpenerRef}
         ticker={selectedTicker}
       />
       <MobileFilterBottomSheet
@@ -122,6 +131,7 @@ export function StockRadarDashboardV2() {
         onChangeFilter={updateFilter}
         onClearFilters={clearFilters}
         onClose={closeMobileFilters}
+        openerRef={mobileFilterTriggerRef}
       />
     </>
   );
