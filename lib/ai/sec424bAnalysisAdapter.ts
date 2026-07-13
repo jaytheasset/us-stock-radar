@@ -11,10 +11,18 @@ import {
   scoreExplanationSchema,
   shareOverhangSchema,
 } from "@/lib/ai/secOfferingOutputSchemas";
+import {
+  applySecValidationRepairPatches,
+  escapeSecValidationJsonPointerSegment,
+  hasSecValidationJsonPointer,
+  readSecValidationJsonPointer,
+} from "@/lib/ai/secValidationRepairPatch";
 
 export const SEC_424B_ANALYSIS_PROMPT_KEY = "sec_424b_analysis";
 export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v20";
 export const SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION = "v40-news-style-taxonomy-schema";
+export const SEC_424B_VALIDATION_REPAIR_PROMPT_KEY = "sec_424b_validation_repair";
+export const SEC_424B_VALIDATION_REPAIR_PROMPT_VERSION = "v1-one-pass-source-backed-patch";
 const ALLOWED_424B_DISPLAY_MODES = new Set([
   "atm",
   "resale_registration",
@@ -46,6 +54,21 @@ export const APPROVED_424B_SHARE_OVERHANG_CHART_TITLES = [
 export type Sec424bAnalysisAdapterResult =
   | { ok: true; analysis: Record<string, unknown> }
   | { ok: false; error: string };
+
+export type Sec424bValidationRepairIssue = {
+  code: string;
+  warning: string;
+  field_paths: string[];
+  allowed_patch_paths: string[];
+  candidate_source_block_ids: string[];
+};
+
+export type Sec424bValidationRepairPlan = {
+  prompt: ReturnType<typeof build424bValidationRepairPrompt>;
+  issues: Sec424bValidationRepairIssue[];
+  allowedPatchPaths: string[];
+  sourceBlockIds: string[];
+};
 
 export function is424bFilingInput(input: SecFilingAnalysisInput) {
   return Boolean(read424bParserOutput(input));
@@ -84,6 +107,328 @@ export function buildSec424bAnalysisPromptForInput(
       },
     },
   };
+}
+
+export function buildSec424bValidationRepairPlan({
+  analysisResult,
+  input,
+}: {
+  analysisResult: Record<string, unknown>;
+  input: SecFilingAnalysisInput;
+}): Sec424bValidationRepairPlan | null {
+  const root = readRecord(analysisResult);
+  const analysisOutput = readRecord(root?.analysis_output);
+  const displayPayload = readRecord(root?.display_payload);
+  const data = readRecord(displayPayload?.data);
+  if (!root || !analysisOutput || !displayPayload || !data) return null;
+
+  const issues: Sec424bValidationRepairIssue[] = [];
+  const warnings = [validate424bDisplayPayload(displayPayload), ...collect424bDisplayPayloadWarnings(displayPayload)].filter(Boolean);
+  if (
+    Object.prototype.hasOwnProperty.call(data, "investor_takeaway") &&
+    !stringValue(data.investor_takeaway) &&
+    warnings.some((warning) => /investor_takeaway/i.test(warning))
+  ) {
+    issues.push(build424bRepairIssue("missing_investor_takeaway", "Investor takeaway is empty.", ["/display_payload/data/investor_takeaway"]));
+  }
+  collect424bPlaceholderRepairIssues(analysisOutput, "/analysis_output", issues);
+  collect424bPlaceholderRepairIssues(data, "/display_payload/data", issues);
+  collect424bOverhangRepairIssues(analysisResult, analysisOutput, data, warnings, issues);
+
+  const dedupedIssues = dedupe424bRepairIssues(issues);
+  if (!dedupedIssues.length) return null;
+  const sourceBlocks = select424bRepairSourceBlocks(build424bRepairSourceBlocks(input), dedupedIssues, analysisResult);
+  if (!sourceBlocks.length) return null;
+  const sourceBlockIds = sourceBlocks.map((block) => stringValue(block.block_id)).filter(Boolean);
+  const issuesWithSources = dedupedIssues.map((issue) => ({ ...issue, candidate_source_block_ids: sourceBlockIds }));
+  const allowedPatchPaths = uniqueStrings(issuesWithSources.flatMap((issue) => issue.allowed_patch_paths));
+
+  return {
+    prompt: build424bValidationRepairPrompt({ analysisResult, issues: issuesWithSources, allowedPatchPaths, sourceBlocks }),
+    issues: issuesWithSources,
+    allowedPatchPaths,
+    sourceBlockIds,
+  };
+}
+
+export function applySec424bValidationRepairPatches({
+  analysisResult,
+  repairResult,
+  allowedPatchPaths,
+}: {
+  analysisResult: Record<string, unknown>;
+  repairResult: unknown;
+  allowedPatchPaths: string[];
+}) {
+  return applySecValidationRepairPatches({ analysisResult, repairResult, allowedPatchPaths });
+}
+
+function build424bValidationRepairPrompt({
+  analysisResult,
+  issues,
+  allowedPatchPaths,
+  sourceBlocks,
+}: {
+  analysisResult: Record<string, unknown>;
+  issues: Sec424bValidationRepairIssue[];
+  allowedPatchPaths: string[];
+  sourceBlocks: Array<Record<string, unknown>>;
+}) {
+  return {
+    key: SEC_424B_VALIDATION_REPAIR_PROMPT_KEY,
+    version: SEC_424B_VALIDATION_REPAIR_PROMPT_VERSION,
+    system: [
+      "Repair one completed SEC 424B analysis in one bounded pass.",
+      "Validator warnings identify possible inconsistencies but are not evidence.",
+      "Use only the selected original source blocks and the existing result as evidence.",
+      "Return scalar replacement patches only for exact allowed paths. Never add, remove, reorder, or rewrite arrays or objects.",
+      "Preserve event classification, score, signal, display mode, offering structure, and all fields not explicitly allowed.",
+      "Preserve counted, conditional, alternative, reference, fixed, variable, pending, and not-calculable distinctions.",
+      "If the source blocks do not support a reliable replacement, return the issue as unresolved instead of guessing.",
+      "This is the only repair attempt. Return JSON only.",
+    ].join("\n"),
+    user: JSON.stringify(
+      {
+        task: "Patch only source-verifiable validator issues in the existing 424B analysis.",
+        allowed_patch_paths: allowedPatchPaths,
+        validator_issues: issues,
+        selected_original_source_blocks: sourceBlocks,
+        existing_analysis_result: analysisResult,
+      },
+      null,
+      2,
+    ),
+    responseFormat: {
+      json_schema: {
+        name: "sec_424b_validation_repair",
+        strict: true,
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["patches", "unresolved"],
+          properties: {
+            patches: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["path", "replacement", "reason", "source_block_ids"],
+                properties: {
+                  path: { type: "string", enum: allowedPatchPaths },
+                  replacement: { type: ["string", "number", "boolean", "null"] },
+                  reason: { type: "string", maxLength: 240 },
+                  source_block_ids: { type: "array", items: { type: "string" } },
+                },
+              },
+            },
+            unresolved: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["code", "reason"],
+                properties: {
+                  code: { type: "string" },
+                  reason: { type: "string", maxLength: 240 },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+}
+
+function build424bRepairIssue(code: string, warning: string, paths: string[]): Sec424bValidationRepairIssue {
+  return { code, warning, field_paths: paths, allowed_patch_paths: paths, candidate_source_block_ids: [] };
+}
+
+function collect424bPlaceholderRepairIssues(value: unknown, path: string, issues: Sec424bValidationRepairIssue[]) {
+  if (typeof value === "string") {
+    if (has424bVisiblePlaceholder(value)) {
+      issues.push(build424bRepairIssue("unresolved_visible_placeholder", `Visible output contains unresolved placeholder text at ${path}.`, [path]));
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => collect424bPlaceholderRepairIssues(item, `${path}/${index}`, issues));
+    return;
+  }
+  const record = readRecord(value);
+  if (!record) return;
+  for (const [key, child] of Object.entries(record)) {
+    if (key === "display_warnings") continue;
+    collect424bPlaceholderRepairIssues(child, `${path}/${escapeSecValidationJsonPointerSegment(key)}`, issues);
+  }
+}
+
+function has424bVisiblePlaceholder(value: string) {
+  const text = stringValue(value);
+  return Boolean(
+    /\$\s*(?:and|to|-)\s*\$/i.test(text) ||
+      /\bbetween\s+\$\s+(?:and|to|-)\s+\$/i.test(text) ||
+      /\$\s*(?:per\s+(?:share|unit|ADS)|million|billion)\b/i.test(text) ||
+      /\$\s*$/i.test(text) ||
+      /\[\s*[?●•]?\s*\]|_{2,}/.test(text)
+  );
+}
+
+function collect424bOverhangRepairIssues(
+  analysisResult: Record<string, unknown>,
+  analysisOutput: Record<string, unknown>,
+  data: Record<string, unknown>,
+  warnings: string[],
+  issues: Sec424bValidationRepairIssue[],
+) {
+  const shareOverhang = readRecord(data.share_overhang);
+  if (!shareOverhang) return;
+  const rows = arrayValue(shareOverhang.rows).map((row) => readRecord(row));
+  const totalNoteKey = Object.prototype.hasOwnProperty.call(shareOverhang, "total_note") ? "total_note" : "totalNote";
+  const totalNote = readRecord(shareOverhang[totalNoteKey]);
+  if (warnings.some((warning) => /counted row numeric_value sum does not reconcile/i.test(warning))) {
+    const path = `/display_payload/data/share_overhang/${totalNoteKey}/numerator`;
+    if (hasSecValidationJsonPointer(analysisResult, path)) {
+      issues.push(build424bRepairIssue("overhang_counted_sum_mismatch", "Counted rows do not reconcile to the displayed numerator.", [path]));
+    }
+  }
+  if (warnings.some((warning) => /total_note ratio does not reconcile/i.test(warning))) {
+    const path = find424bRatioPath(analysisResult, shareOverhang, totalNoteKey);
+    if (path) issues.push(build424bRepairIssue("overhang_ratio_math_mismatch", "The displayed ratio does not reconcile to numerator divided by denominator.", [path]));
+  }
+  if (warnings.some((warning) => /pre-funded replacement supply/i.test(warning))) {
+    const paths = rows.flatMap((row, index) => {
+      if (!row || !/pre[-\s]?funded/i.test(`${stringValue(row.label)} ${stringValue(row.value)} ${stringValue(row.note)}`)) return [];
+      const key = Object.prototype.hasOwnProperty.call(row, "row_role") ? "row_role" : Object.prototype.hasOwnProperty.call(row, "rowRole") ? "rowRole" : "";
+      const path = key ? `/display_payload/data/share_overhang/rows/${index}/${key}` : "";
+      return path && hasSecValidationJsonPointer(analysisResult, path) ? [path] : [];
+    });
+    if (paths.length) issues.push(build424bRepairIssue("duplicate_prefunded_replacement_pool", "Pre-funded replacement supply may be double-counted.", paths));
+  }
+
+  const expectedRatio = parse424bRepairPercent(
+    stringValue(totalNote?.ratio) || stringValue(shareOverhang.ratio_value || shareOverhang.ratioValue) || stringValue(shareOverhang.status_value || shareOverhang.statusValue),
+  );
+  const hasExcludedRows = rows.some((row) => ["conditional", "alternative", "reference"].includes(repair424bRowRole(row)));
+  if (expectedRatio === null || !hasExcludedRows) return;
+  for (const [field, value] of read424bRepairProseFields(analysisOutput)) {
+    if (!has424bRepairConflictingPercent(value, expectedRatio)) continue;
+    const path = `/analysis_output/${field.split(".").map(escapeSecValidationJsonPointerSegment).join("/")}`;
+    if (hasSecValidationJsonPointer(analysisResult, path)) {
+      issues.push(build424bRepairIssue("conflicting_overhang_percentage", `${field} conflicts with the headline overhang ratio.`, [path]));
+    }
+  }
+}
+
+function read424bRepairProseFields(analysisOutput: Record<string, unknown>): Array<[string, unknown]> {
+  const fields: Array<[string, unknown]> = [
+    ["event_title", analysisOutput.event_title],
+    ["quick_take", analysisOutput.quick_take],
+    ["summary", analysisOutput.summary],
+    ["score_reason", analysisOutput.score_reason],
+  ];
+  const scoreExplanation = readRecord(analysisOutput.score_explanation);
+  if (scoreExplanation) fields.push(["score_explanation.summary", scoreExplanation.summary], ["score_explanation.final_read", scoreExplanation.final_read]);
+  return fields;
+}
+
+function has424bRepairConflictingPercent(value: unknown, expectedRatio: number) {
+  const text = stringValue(value);
+  return [...text.matchAll(/\d[\d,]*(?:\.\d+)?\s*%/g)].some((match) => {
+    const index = match.index ?? 0;
+    const context = text.slice(Math.max(0, index - 90), index + match[0].length + 90);
+    if (!/dilut|overhang|supply|current\s+shares?|outstanding\s+shares?/i.test(context)) return false;
+    const parsed = parse424bRepairPercent(match[0]);
+    return parsed !== null && Math.abs(parsed - expectedRatio) > 0.05;
+  });
+}
+
+function parse424bRepairPercent(value: string) {
+  const match = value.match(/(-?\d[\d,]*(?:\.\d+)?)\s*%/);
+  if (!match) return null;
+  const parsed = Number(match[1].replace(/,/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function repair424bRowRole(row: Record<string, unknown> | null) {
+  return stringValue(row?.row_role || row?.rowRole).toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+function find424bRatioPath(analysisResult: Record<string, unknown>, shareOverhang: Record<string, unknown>, totalNoteKey: string) {
+  const candidates = [
+    `/display_payload/data/share_overhang/${totalNoteKey}/ratio`,
+    `/display_payload/data/share_overhang/${Object.prototype.hasOwnProperty.call(shareOverhang, "ratio_value") ? "ratio_value" : "ratioValue"}`,
+    `/display_payload/data/share_overhang/${Object.prototype.hasOwnProperty.call(shareOverhang, "status_value") ? "status_value" : "statusValue"}`,
+  ];
+  return candidates.find((path) => hasSecValidationJsonPointer(analysisResult, path)) || "";
+}
+
+function build424bRepairSourceBlocks(input: SecFilingAnalysisInput) {
+  const parserOutput = read424bParserOutput(input);
+  const raw = readRecord(parserOutput?.raw);
+  const blocks = arrayValue(raw?.cleaned_source_blocks);
+  return blocks
+    .map((item, index) => {
+      const block = readRecord(item);
+      const text = stringValue(block?.text);
+      if (!block || !text) return null;
+      const stem = `${stringValue(block.source)}_${stringValue(block.block_type)}_${stringValue(block.label)}`
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "")
+        .slice(0, 48);
+      return {
+        block_id: `424b_${stem || "source"}_${index + 1}`,
+        source_ref: stringValue(block.source),
+        block_type: stringValue(block.block_type),
+        label: stringValue(block.label),
+        text: clip424bRepairText(text, 5_000),
+        source_order: index,
+      };
+    })
+    .filter((block): block is NonNullable<typeof block> => Boolean(block));
+}
+
+function select424bRepairSourceBlocks(
+  blocks: Array<Record<string, unknown>>,
+  issues: Sec424bValidationRepairIssue[],
+  analysisResult: Record<string, unknown>,
+) {
+  const issueText = issues.map((issue) => `${issue.code} ${issue.warning}`).join(" ").toLowerCase();
+  const currentText = issues.flatMap((issue) => issue.field_paths).map((path) => stringValue(readSecValidationJsonPointer(analysisResult, path))).join(" ").toLowerCase();
+  const keywords = uniqueStrings(`${issueText} ${currentText}`.replace(/[^a-z0-9$%.]+/g, " ").split(/\s+/).filter((word) => word.length >= 5).slice(0, 30));
+  return blocks
+    .map((block) => {
+      const metadata = `${stringValue(block.block_type)} ${stringValue(block.label)}`;
+      const content = `${metadata} ${stringValue(block.text)}`.toLowerCase();
+      let score = /cover|offering|dilution|capital|warrant|security|selling|proceeds/i.test(metadata) ? 8 : 0;
+      score += keywords.reduce((total, keyword) => total + (content.includes(keyword) ? 1 : 0), 0);
+      return { block, score, order: numberValue(block.source_order) ?? 0 };
+    })
+    .sort((a, b) => b.score - a.score || a.order - b.order)
+    .slice(0, 3)
+    .sort((a, b) => a.order - b.order)
+    .map(({ block }) => block);
+}
+
+function clip424bRepairText(value: string, maxLength: number) {
+  const text = stringValue(value);
+  if (text.length <= maxLength) return text;
+  const clipped = text.slice(0, maxLength);
+  const boundary = Math.max(clipped.lastIndexOf(". "), clipped.lastIndexOf("\n"));
+  return `${clipped.slice(0, boundary > maxLength * 0.6 ? boundary + 1 : maxLength).trim()}...`;
+}
+
+function dedupe424bRepairIssues(issues: Sec424bValidationRepairIssue[]) {
+  const seen = new Set<string>();
+  return issues.filter((issue) => {
+    issue.field_paths = uniqueStrings(issue.field_paths);
+    issue.allowed_patch_paths = uniqueStrings(issue.allowed_patch_paths);
+    const key = `${issue.code}:${issue.allowed_patch_paths.join("|")}`;
+    if (!issue.allowed_patch_paths.length || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function attach424bPromptMarketContext(

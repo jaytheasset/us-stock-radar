@@ -5,6 +5,11 @@ import { join } from "node:path";
 import { build424bAnalysisPrompt, validate424bRoomResult } from "./analysisPrompt.ts";
 import { parse424bFiling } from "./parser.ts";
 import {
+  applySec424bValidationRepairPatches,
+  buildSec424bValidationRepairPlan,
+} from "../../../../ai/sec424bAnalysisAdapter.ts";
+import type { SecFilingAnalysisInput } from "../../../../prompts/secFilingAnalysis.ts";
+import {
   APPROVED_424B_EVENT_TYPES,
   type Sec424bFixtureInput,
   type Sec424bRoomResult,
@@ -66,4 +71,119 @@ describe("424B analysis fixtures", () => {
       assert.ok(prompt.includes(`- ${eventType}`));
     }
   });
+
+  it("builds a one-pass source-backed repair plan for local 424B inconsistencies", () => {
+    const parserOutput = parse424bFiling({
+      formType: "424B5",
+      accessionNumber: "0000000000-26-000424",
+      companyName: "Repair 424B Inc.",
+      ticker: "RPRB",
+      filingText: [
+        "The selling stockholders may resell 5,000,000 shares of common stock.",
+        "There were 10,000,000 shares of common stock outstanding.",
+        "Additional warrant shares are issuable only upon future exercise.",
+      ].join("\n"),
+    });
+    const input = {
+      filing_package: { hard_parsers: { "424b": parserOutput } },
+    } as unknown as SecFilingAnalysisInput;
+    const analysisResult = build424bRepairAnalysis();
+    const plan = buildSec424bValidationRepairPlan({ analysisResult, input });
+
+    assert.ok(plan);
+    assert.ok(plan.sourceBlockIds.length > 0 && plan.sourceBlockIds.length <= 3);
+    assert.ok(plan.issues.some((issue) => issue.code === "conflicting_overhang_percentage"));
+    assert.ok(plan.issues.some((issue) => issue.code === "unresolved_visible_placeholder"));
+    assert.ok(plan.allowedPatchPaths.includes("/analysis_output/event_title"));
+    assert.ok(!plan.allowedPatchPaths.includes("/analysis_output/score"));
+    assert.ok(plan.prompt.system.includes("only repair attempt"));
+  });
+
+  it("applies only allowed existing scalar patches", () => {
+    const analysisResult = build424bRepairAnalysis();
+    const result = applySec424bValidationRepairPatches({
+      analysisResult,
+      allowedPatchPaths: ["/analysis_output/event_title"],
+      repairResult: {
+        patches: [
+          {
+            path: "/analysis_output/event_title",
+            replacement: "Repair 424B registers resale shares",
+            reason: "Remove conflicting percentage.",
+            source_block_ids: ["424b_primary_1"],
+          },
+          {
+            path: "/analysis_output/score",
+            replacement: 5,
+            reason: "Not allowed.",
+            source_block_ids: [],
+          },
+        ],
+        unresolved: [],
+      },
+    });
+
+    assert.equal((result.value.analysis_output as Record<string, unknown>).event_title, "Repair 424B registers resale shares");
+    assert.equal((result.value.analysis_output as Record<string, unknown>).score, 80);
+    assert.deepEqual(result.appliedPaths, ["/analysis_output/event_title"]);
+    assert.ok(result.ignoredPaths.includes("/analysis_output/score"));
+  });
 });
+
+function build424bRepairAnalysis(): Record<string, unknown> {
+  return {
+    analysis_output: {
+      event_title: "Repair 424B registers shares with 75% overhang",
+      quick_take: "The resale pool equals 50% of outstanding shares.",
+      summary: "Estimated sale price of $ per share.",
+      score: 80,
+      score_reason: "The resale pool is material.",
+      score_explanation: {
+        summary: "Registered resale supply can increase tradable shares.",
+        final_read: "Watch selling-holder activity.",
+      },
+    },
+    display_payload: {
+      display_type: "offering_terms",
+      display_version: "424b-display-payload-v1",
+      data: {
+        display_mode: "resale_registration",
+        investor_takeaway: "Registered resale supply may pressure the stock.",
+        needs_human_review: false,
+        snapshot_metrics: [{ label: "Resale shares", value: "5,000,000 shares" }],
+        share_overhang: {
+          status_value: "50.0%",
+          basis: {
+            label: "Shares outstanding",
+            value: "10,000,000 shares",
+            numeric_value: 10_000_000,
+            unit: "shares",
+          },
+          rows: [
+            {
+              label: "Resale shares",
+              value: "5,000,000 shares",
+              numeric_value: 5_000_000,
+              unit: "shares",
+              row_role: "counted",
+            },
+            {
+              label: "Warrant shares",
+              value: "1,000,000 shares",
+              numeric_value: 1_000_000,
+              unit: "shares",
+              row_role: "conditional",
+            },
+          ],
+          total_note: {
+            numerator: "5,000,000 shares",
+            denominator: "10,000,000 shares",
+            ratio: "50.0%",
+          },
+        },
+      },
+      evidence: [],
+      notes: [],
+    },
+  };
+}

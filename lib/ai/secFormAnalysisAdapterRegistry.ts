@@ -2,8 +2,12 @@ import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
 import {
   SEC_424B_ANALYSIS_PROMPT_KEY,
   SEC_424B_ANALYSIS_PROMPT_VERSION,
+  SEC_424B_VALIDATION_REPAIR_PROMPT_KEY,
+  SEC_424B_VALIDATION_REPAIR_PROMPT_VERSION,
+  applySec424bValidationRepairPatches,
   adaptSec424bAnalysisPromptResultForAnalysis,
   buildSec424bAnalysisPromptForInput,
+  buildSec424bValidationRepairPlan,
   is424bFilingInput,
 } from "@/lib/ai/sec424bAnalysisAdapter";
 import {
@@ -86,6 +90,8 @@ import {
 export {
   SEC_424B_ANALYSIS_PROMPT_KEY,
   SEC_424B_ANALYSIS_PROMPT_VERSION,
+  SEC_424B_VALIDATION_REPAIR_PROMPT_KEY,
+  SEC_424B_VALIDATION_REPAIR_PROMPT_VERSION,
   SEC_8K_6K_ANALYSIS_PROMPT_KEY,
   SEC_8K_6K_ANALYSIS_PROMPT_VERSION,
   SEC_8K_6K_ROUTER_PROMPT_KEY,
@@ -111,6 +117,7 @@ export {
   SEC_S1_F1_VALIDATION_REPAIR_PROMPT_VERSION,
   applySecS1F1ValidationRepairPatches,
   adaptSec424bAnalysisPromptResultForAnalysis,
+  applySec424bValidationRepairPatches,
   adaptSec8k6kAnalysisPromptResultForAnalysis,
   adaptOwnershipPromptResultForAnalysis,
   adaptSecTenderAnalysisPromptResultForAnalysis,
@@ -124,6 +131,7 @@ export {
   buildDeterministicOwnershipAnalysis,
   buildDeterministicS8ArchiveAnalysis,
   buildSec424bAnalysisPromptForInput,
+  buildSec424bValidationRepairPlan,
   buildSec8k6kAnalysisPromptForInput,
   buildSec8k6kArchiveAnalysis,
   buildSec8k6kRouterPromptForInput,
