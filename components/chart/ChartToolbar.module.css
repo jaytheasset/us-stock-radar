@@ -1,0 +1,33 @@
+.root {
+  display: flex;
+  align-items: center;
+  gap: var(--sr-space-3);
+}
+
+.root button {
+  display: grid;
+  width: 22px;
+  height: 30px;
+  place-items: center;
+  border: 0;
+  color: var(--sr-color-text-control);
+  background: transparent;
+}
+
+.root button:focus-visible {
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: var(--sr-focus-ring-offset);
+}
+
+@media (min-width: 1181px) and (max-width: 1320px) {
+  .root {
+    gap: var(--sr-space-3-25);
+  }
+}
+
+@media (max-width: 760px) {
+  :global([data-sr-bottom-sheet-layout="full-scroll"]) .root {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}

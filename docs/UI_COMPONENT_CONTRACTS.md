@@ -1,12 +1,12 @@
 # Stock Radar UI Component Contracts
 
-Phase: 3A/3B/3C/3D/3E - foundational controls, market results, product shell, and panel/sheet shells
+Phase: 3A/3B/3C/3D/3E/3F - foundational controls, market results, product shell, panel/sheet shells, and chart composition
 
 Canonical visual baseline: commit `f87660f` and `docs/ui-reference/dashboard-v2/`
 
 Token foundation: commit `7280394`, `app/stock-radar-tokens.css`, and `docs/UI_DESIGN_TOKENS.md`
 
-These phases extract only the documented controls, market-result presentations, Stock Radar product shell, detail-panel surface, and modal bottom-sheet lifecycle. The contracts preserve the canonical dashboard-v2 behavior and computed presentation. They do not introduce data fetching, filtering, chart, generic popover, focus-trap framework, or new modal behavior.
+These phases extract only the documented controls, market-result presentations, Stock Radar product shell, detail-panel surface, modal bottom-sheet lifecycle, and provider-neutral chart composition. The contracts preserve the canonical dashboard-v2 behavior and computed presentation. They do not introduce data fetching, real filtering, a chart provider, generic popover, application-wide focus-trap framework, or new modal behavior.
 
 ## 1. IconButton
 
@@ -51,7 +51,7 @@ Do not use IconButton for icon-plus-text search actions, decorative icons, overl
 - Desktop detail close remains local because its canonical icon position includes inherited global button padding. Normalizing it would change the baseline.
 - Mobile ticker/filter close controls remain with their sheet implementations because their border, surface, focus management, and ref behavior belong to the future sheet shell.
 - Table chart action uses the 3C market-domain wrapper because stop-propagation and ticker-specific naming belong to the market-row contract.
-- Chart toolbar actions remain local because their non-square 22 x 30 geometry and chart ownership do not match the header size contract.
+- Chart toolbar actions use the chart-domain `ChartToolbar`; their non-square 22 x 30 geometry remains intentionally separate from this header control.
 
 ## 2. SegmentedControl
 
@@ -101,7 +101,7 @@ Do not store business state inside the primitive, derive items from API data ins
 
 ### Deliberate exclusion
 
-The chart range row remains local. It is currently an uncontrolled visual selector with an underline treatment, overflow behavior, and chart-toolbar relationship that do not match the controlled segmented-container contract. It can be reconsidered with the chart shell after its state model is defined.
+The chart range row uses the chart-domain `ChartRangeSelector`. Its underline geometry, fixed financial ranges, radio-group semantics, and chart-toolbar relationship do not match this generic segmented tab contract.
 
 ## 3. Badge
 
@@ -271,14 +271,14 @@ Do not pass a filter key into FilterOption, store selected state inside it, or c
 - Active-filter chips remain local reset controls with removal icons; their geometry and action contract do not match FilterTrigger or FilterOption.
 - Filter row layout, option-group wrapping, action-grid layout, and filter-sheet business content remain dashboard-owned.
 
-## 8. Deferred Beyond Phase 3E
+## 8. Filter Boundaries and Deferred Work
 
 - Market table shell, header, and column layout
 - Rows-per-page control
 - Generic popover framework
 - Active-filter chip contract
-- Chart range control and chart toolbar
-- Chart shell
+
+Chart shell and control extraction is now defined by the phase 3F contracts below; filter state and filter-sheet content remain independent of it.
 
 ## 9. DesktopMarketRow
 
@@ -429,7 +429,7 @@ The current dashboard still supplies a no-op callback because pagination is a ca
 - `components/market` owns ticker/market-value semantics, impact mapping, row interaction, and the cell-specific chart action.
 - `MarketMoversTable` retains mock-data coupling, result/page calculations, mode mapping, table shell/header, column geometry, and rows-per-page UI.
 - Event label/tone mapping stays in the existing dashboard `EventBadge` wrapper; generic Badge remains business-neutral.
-- Generic data-table engines, sorting, filtering, data fetching, active-filter chips, responsive table shells, panels, sheets, popovers, chart controls, and real pagination remain deferred.
+- Generic data-table engines, sorting, filtering, data fetching, active-filter chips, responsive table shells, panels, sheets, popovers, and real pagination remain deferred. Phase 3F supersedes the chart-control deferral from this 3C boundary.
 
 These remain deferred because they combine broader layout, domain state, responsive composition, focus management, or container-specific interaction beyond the demonstrated 3C contracts.
 
@@ -541,7 +541,7 @@ The menu reuses the primary link configuration and appends Settings as an inert 
 
 - `components/shell` owns only Stock Radar canvas, brand/status, product navigation, header actions, and the canonical mobile product menu.
 - `app/dashboard-v2/page.tsx` supplies `activeNavigationItem="markets"`; `StockRadarDashboardV2` owns only market/session/filter/ticker state and page content.
-- Dashboard workspace, page-specific gutters, detail grid, table, detail business content, ticker/filter sheet content, rows-per-page, and chart controls remain page-owned. Phase 3E only supersedes the outer panel/sheet-shell ownership described here.
+- Dashboard workspace, page-specific gutters, detail grid, table, detail business content, ticker/filter sheet content, rows-per-page, and chart state remain page-owned. Phase 3E supersedes the outer panel/sheet-shell ownership and phase 3F supersedes chart shell/control ownership described here.
 - Generic layout variants, max-width containers, generic popovers, modal/focus-trap frameworks, skip-link presentation, actual action behavior, new routes, auth, and Premium behavior remain deferred.
 
 ## 19. DetailPanelShell
@@ -625,7 +625,87 @@ The focus containment is local to this modal shell. It is not a generic portal o
 
 ## 21. Phase 3E Boundaries and Deferred Work
 
-- Detail summary, chart controls, chart shell, timeline, CTA, filter business state, and option/action layout remain domain-owned.
+- Detail summary, chart state, renderer content, timeline, CTA, filter business state, and option/action layout remain domain-owned. Phase 3F supersedes the chart shell/control ownership described here.
 - The existing mobile ticker sticky CTA/timeline overlap risk remains documented and intentionally unchanged.
 - Desktop panel width and split-grid composition remain dashboard-owned.
 - Generic portal infrastructure, drawer/popover unification, gestures, drag-to-dismiss, and new animation variants remain deferred.
+
+## 22. ChartShell
+
+### Purpose and files
+
+- Component: `components/chart/ChartShell.tsx`
+- Styles: `components/chart/ChartShell.module.css`
+- Purpose: provider-neutral chart region that preserves the canonical range, toolbar, and renderer placement while connecting an accessible name and text summary.
+- Current use: the shared `TickerDetailContent` rendered by both the desktop detail panel and mobile ticker sheet.
+
+### Props
+
+| Prop | Type | Required | Contract |
+| --- | --- | --- | --- |
+| `children` | `ReactNode` | yes | Provider- or mock-owned renderer content. The shell does not inspect or transform it. |
+| `rangeControl` | `ReactNode` | yes | Caller-owned controlled range selector. |
+| `toolbar` | `ReactNode` | yes | Caller-owned chart actions. |
+| `summary` | `string` | yes | Visually hidden text alternative connected through `aria-describedby`. |
+| `aria-label` | `string` | one naming prop | Direct accessible name. Mutually exclusive with `aria-labelledby`. |
+| `aria-labelledby` | `string` | one naming prop | ID of visible labeling content. Mutually exclusive with `aria-label`. |
+
+The shell renders a named `section`, its control navigation, one hidden summary, and the renderer slot. It owns no ticker model, OHLC type, candles, API client, provider lifecycle, loading state, error state, empty state, dimensions, or panel/sheet behavior. Width is inherited from the owning detail surface; canonical desktop/mobile chart heights remain in renderer and responsive CSS. `ChartShell` has no client directive or event state; `useId` supplies a collision-safe summary ID while the component remains server-compatible.
+
+```tsx
+<ChartShell
+  aria-label={`${ticker} intraday chart`}
+  rangeControl={<ChartRangeSelector ariaLabel="Chart time range" {...rangeState} />}
+  summary={accessibleSummary}
+  toolbar={<ChartToolbar ariaLabel="Chart tools" />}
+>
+  <ProviderRenderer />
+</ChartShell>
+```
+
+Do not import provider data into `ChartShell`, add speculative loading/error slots, or make it calculate chart dimensions. A future renderer replacement supplies only the `children` content and preserves the shell/control contract.
+
+## 23. ChartRangeSelector
+
+### Type and props
+
+- Component: `components/chart/ChartRangeSelector.tsx`
+- Styles: `components/chart/ChartRangeSelector.module.css`
+- `ChartRange`: `"1D" | "5D" | "1M" | "3M" | "6M" | "YTD" | "1Y" | "5Y"`.
+- The ordered `chartRanges` tuple is the single source for labels, keyboard order, and the exported type.
+
+| Prop | Type | Required | Contract |
+| --- | --- | --- | --- |
+| `ariaLabel` | `string` | yes | Names the horizontal radio group. |
+| `value` | `ChartRange` | yes | Parent-owned controlled selected range. |
+| `onValueChange` | `(value: ChartRange) => void` | yes | Reports one pointer or navigation selection. |
+
+The root uses `role="radiogroup"` and horizontal orientation. Every native button uses `role="radio"`, `aria-checked`, and roving `tabIndex`; exactly one range is selected and tabbable. Arrow Right/Left wrap and select the adjacent value. Home/End select the first/last value. Navigation prevents the corresponding native page movement, focuses the selected control, and invokes the callback through one keyboard path only when the value changes. Native Enter, Space, and pointer activation use the click path once; activating the already-selected range is a no-op. A runtime guard throws for a value outside the exported tuple instead of silently rendering a group with no selection. No disabled or custom-range API exists because the canonical dashboard demonstrates neither.
+
+Dashboard-v2 initializes the controlled state to `1D`. Range selection updates the underline and accessible selected state but intentionally does not change mock candle data. The range control remains separate from `SegmentedControl` because its values, radio semantics, underline geometry, mobile overflow, and chart-specific placement are distinct.
+
+## 24. ChartToolbar
+
+### Purpose and props
+
+- Component: `components/chart/ChartToolbar.tsx`
+- Styles: `components/chart/ChartToolbar.module.css`
+- Fixed ordered actions: `candles`, `indicators`, `settings`, `expand`.
+- Existing Lucide assets and labels: CandlestickChart/`Candles`, LineChart/`Indicators`, SlidersHorizontal/`Chart settings`, Expand/`Expand chart`.
+
+| Prop | Type | Required | Contract |
+| --- | --- | --- | --- |
+| `ariaLabel` | `string` | yes | Names the `role="toolbar"` container. |
+
+Each action is a native `button type="button"` with a required fixed accessible name, decorative icon, canonical 22 x 30 geometry, and tokenized focus-visible ring. The action configuration is pure static presentation data; it contains no React nodes, provider contract, availability state, or business callback. The toolbar exposes no speculative callback or action type. Pointer, Enter, and Space retain native button behavior without creating a feature, and the server-compatible component needs no client directive.
+
+Inert actions must not advertise nonexistent `aria-haspopup`, `aria-expanded`, or `aria-controls`. A future implemented toolbar should introduce its action contract together with the real behavior; popup/dialog ARIA belongs to the actual controlled overlay trigger when that overlay exists. The toolbar is not forced through `IconButton`: its geometry and chart grouping are different from the canonical header control.
+
+## 25. Mock Renderer and Responsive Boundary
+
+- `components/dashboard-v2/MockChart.tsx` now owns only the existing SVG renderer: candle/volume calculations, axis labels, grid, last-price treatment, gradient, viewBox, coordinates, and renderer-specific CSS classes.
+- It receives the existing candle/OHLC/change props and imports no shell or control. `ChartShell` imports no mock data type and has no knowledge of this renderer.
+- The existing SVG title still names CRWD, but the mock SVG is now presentational (`aria-hidden="true"`, `focusable="false"`) so it cannot duplicate or contradict the surrounding selected-ticker name and OHLC summary. Its title text, coordinates, calculations, data, and visible labels remain unchanged.
+- `TickerDetailContent` is the narrow client composition boundary that owns only the selected range state needed by `ChartRangeSelector`. `ChartShell` and inert `ChartToolbar` remain server-compatible. Because desktop and mobile already reuse `TickerDetailContent`, both surfaces use the same chart shell, range selector, toolbar, renderer, and accessible summary without duplicating contracts or adding client state to the app shell.
+- Desktop/mobile width, sheet scrolling, sticky CTA behavior, detail-panel composition, and renderer-specific SVG sizing remain with their established owners. The chart components do not import panel/sheet shells.
+- No provider adapter, live data, loading/error/empty presentation, toolbar feature, candle algorithm, table shell, or rows-per-page contract was added in 3F.

@@ -1,5 +1,4 @@
 import { useId } from "react";
-import { CandlestickChart, Expand, LineChart, SlidersHorizontal } from "lucide-react";
 import type { DashboardV2Candle, DashboardV2TickerDetail } from "@/lib/mock/dashboardV2Data";
 
 type MockChartProps = {
@@ -42,32 +41,12 @@ export function MockChart({ candles, changeAmount, changePercent, ohlc }: MockCh
   }
 
   return (
-    <section className="dashboard-v2-chart-panel" aria-label="CRWD mock chart">
-      <div className="dashboard-v2-chart-nav">
-        <div className="dashboard-v2-range-tabs">
-          {["1D", "5D", "1M", "3M", "6M", "YTD", "1Y", "5Y"].map((range) => (
-            <button className={range === "1D" ? "is-active" : undefined} key={range} type="button">
-              {range}
-            </button>
-          ))}
-        </div>
-        <div className="dashboard-v2-chart-tools" aria-label="Chart tools">
-          <button type="button" aria-label="Candles">
-            <CandlestickChart aria-hidden="true" size={17} />
-          </button>
-          <button type="button" aria-label="Indicators">
-            <LineChart aria-hidden="true" size={17} />
-          </button>
-          <button type="button" aria-label="Chart settings">
-            <SlidersHorizontal aria-hidden="true" size={17} />
-          </button>
-          <button type="button" aria-label="Expand chart">
-            <Expand aria-hidden="true" size={17} />
-          </button>
-        </div>
-      </div>
-
-      <svg className="dashboard-v2-mock-chart" viewBox={`0 0 ${width} ${height}`} role="img">
+    <svg
+      aria-hidden="true"
+      className="dashboard-v2-mock-chart"
+      focusable="false"
+      viewBox={`0 0 ${width} ${height}`}
+    >
         <title>Mock intraday candlestick chart for CRWD</title>
         <defs>
           <linearGradient id={volumeFadeId} x1="0" x2="0" y1="0" y2="1">
@@ -145,7 +124,6 @@ export function MockChart({ candles, changeAmount, changePercent, ohlc }: MockCh
         <text className="dashboard-v2-last-price-text" x={chartRight + 27} y={latestY + 4}>
           {latest.close.toFixed(2)}
         </text>
-      </svg>
-    </section>
+    </svg>
   );
 }
