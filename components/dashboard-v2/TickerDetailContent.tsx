@@ -146,7 +146,7 @@ export function TickerDetailContent({
       </div>
 
       <button className="dashboard-v2-analysis-button" type="button">
-        <span>View Full Analysis</span>
+        <span>View {ticker.ticker} details</span>
         <ChevronRight aria-hidden="true" size={22} />
       </button>
     </>

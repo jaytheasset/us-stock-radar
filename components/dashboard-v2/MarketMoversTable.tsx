@@ -4,6 +4,7 @@ import {
   getEventAccessibleLabel,
 } from "@/components/dashboard-v2/EventBadge";
 import { DesktopInlineAdSlot } from "@/components/dashboard-v2/DesktopInlineAdSlot";
+import { MobileInlineAdSlot } from "@/components/dashboard-v2/MobileInlineAdSlot";
 import { DesktopMarketRow } from "@/components/market/DesktopMarketRow";
 import { MobileMarketRow, type MarketValueTone } from "@/components/market/MobileMarketRow";
 import type { DashboardV2MarketMover } from "@/lib/mock/dashboardV2Data";
@@ -118,6 +119,7 @@ export function MarketMoversTable({
                     selected={isSelected}
                     ticker={row.ticker}
                   />
+                  {rows.length >= 50 && index === 24 ? <MobileInlineAdSlot /> : null}
                 </Fragment>
               );
             })}

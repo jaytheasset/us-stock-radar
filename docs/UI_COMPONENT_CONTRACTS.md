@@ -753,7 +753,12 @@ If the key is missing, FMP is unavailable, the response is not a list, or the re
 - Component: `components/dashboard-v2/DesktopInlineAdSlot.tsx`
 - Styles: `components/dashboard-v2/DesktopInlineAdSlot.module.css`
 - Current placement owner: `components/dashboard-v2/MarketMoversTable.tsx`, after the 25th desktop market result and after the final result of a 50-row list.
+- Component: `components/dashboard-v2/MobileInlineAdSlot.tsx`
+- Styles: `components/dashboard-v2/MobileInlineAdSlot.module.css`
+- Current placement owner: `components/dashboard-v2/MarketMoversTable.tsx`, after the 25th mobile market result of a 50-row list.
 
 `DesktopRailAdSlot` is a dashboard-local, inert `300 x 250` presentation reservation. `DesktopInlineAdSlot` is a separate, semantic-table-local `728 x 90` reservation that spans all nine desktop columns. Both are visible above 1180 px, including the 1181-1320 px compact desktop layout, and are hidden for the tablet stack and mobile layout. The inline slot caps its visual width at 728 px without exceeding its table-cell width. The rail slot is intentionally outside the ticker detail panel so it does not interrupt chart, timeline, or CTA content. For a 50-row list, inline slots appear after rank 25 and rank 50. Shorter mock lists retain an uninterrupted final result.
+
+`MobileInlineAdSlot` is a separate `320 x 100` reservation visible only at 760 px and below. It appears after rank 25 only when the current list has 50 results. It stays in the mobile result-list flow and is intentionally excluded from the page header, quick filters, ticker sheet, filter sheet, and the end of the list.
 
 The components have no props, advertising SDK, network request, ad-unit identifier, auto-refresh behavior, or provider-specific logic. A future AdSense integration must be a separately scoped change that replaces only the placeholder content while preserving the reserved geometry. They are not a generic `AdSlot` primitive because provider loading, consent, responsive inventory, and page-level monetization policy have not been established.
