@@ -80,7 +80,6 @@ const mobileChartBox: ChartBox = {
 
 export function FmpChart({ mobileOnly, onMarketData, range, ticker }: FmpChartProps) {
   const [data, setData] = useState<FmpChartResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState<boolean | null>(null);
   const onMarketDataRef = useRef(onMarketData);
@@ -106,7 +105,6 @@ export function FmpChart({ mobileOnly, onMarketData, range, ticker }: FmpChartPr
 
     async function loadChart() {
       setData(null);
-      setError(null);
       setIsLoading(true);
 
       try {
@@ -117,7 +115,7 @@ export function FmpChart({ mobileOnly, onMarketData, range, ticker }: FmpChartPr
         const payload = (await response.json()) as FmpChartResponse;
 
         if (!response.ok || !payload.ok || !payload.points?.length) {
-          throw new Error(payload.error || "FMP chart request failed");
+          throw new Error(payload.error || "Chart request failed");
         }
 
         setData(payload);
@@ -131,7 +129,6 @@ export function FmpChart({ mobileOnly, onMarketData, range, ticker }: FmpChartPr
       } catch (requestError) {
         if (!controller.signal.aborted) {
           setData(null);
-          setError(requestError instanceof Error ? requestError.message : "FMP chart request failed");
         }
       } finally {
         if (!controller.signal.aborted) setIsLoading(false);
@@ -145,11 +142,11 @@ export function FmpChart({ mobileOnly, onMarketData, range, ticker }: FmpChartPr
   if (isMobileViewport === null || isMobileViewport !== mobileOnly) return null;
 
   if (isLoading && !data) {
-    return <div className={styles.status}>Loading FMP market data</div>;
+    return <div className={styles.status}>Loading chart…</div>;
   }
 
   if (!data) {
-    return <div className={styles.status}>FMP chart unavailable{error ? `: ${error}` : ""}</div>;
+    return <div className={styles.status}>Chart data unavailable</div>;
   }
 
   return <FmpCandlestickChart data={data} mobile={mobileOnly} />;
@@ -166,6 +163,8 @@ function FmpCandlestickChart({ data, mobile }: { data: FmpChartResponse; mobile:
   const priceMin = Math.max(0, rawMin - padding);
   const priceMax = rawMax + padding;
   const maxVolume = Math.max(...points.map((point) => point.volume), 1);
+  // Keep the highest FMP volume bar clear of the price/volume divider.
+  const volumeScaleMax = maxVolume * 1.12;
   const ticks = useMemo(
     () => Array.from({ length: 4 }, (_, index) => priceMax - ((priceMax - priceMin) * index) / 3),
     [priceMax, priceMin],
@@ -217,7 +216,7 @@ function FmpCandlestickChart({ data, mobile }: { data: FmpChartResponse; mobile:
             const bullish = point.close >= point.open;
             const bodyY = Math.min(openY, closeY);
             const bodyHeight = Math.max(1.5, Math.abs(closeY - openY));
-            const volumeHeight = Math.max(1, (point.volume / maxVolume) * (chartBox.volumeBottom - chartBox.volumeTop));
+            const volumeHeight = Math.max(1, (point.volume / volumeScaleMax) * (chartBox.volumeBottom - chartBox.volumeTop));
             const width = candleWidth(points.length, chartBox);
             const tone = bullish ? styles.bullish : styles.bearish;
 
@@ -237,6 +236,12 @@ function FmpCandlestickChart({ data, mobile }: { data: FmpChartResponse; mobile:
             y1={chartBox.volumeTop}
             y2={chartBox.volumeTop}
           />
+          <text className={styles.volumeAxis} textAnchor="end" x={chartBox.axisLabelX} y={chartBox.volumeTop + 8}>
+            {formatVolume(volumeScaleMax)}
+          </text>
+          <text className={styles.volumeAxis} textAnchor="end" x={chartBox.axisLabelX} y={chartBox.volumeBottom}>
+            0
+          </text>
           <line className={styles.lastPriceLine} x1={chartBox.plotLeft} x2={chartBox.plotRight} y1={latestY} y2={latestY} />
           {!mobile ? (
             <>
