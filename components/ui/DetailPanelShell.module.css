@@ -1,18 +1,11 @@
 .panel {
-  position: sticky;
-  top: var(--sr-size-header);
+  position: relative;
   min-width: 0;
-  max-height: calc(100vh - var(--sr-size-header));
-  overflow-y: auto;
   background: linear-gradient(180deg, var(--sr-color-surface-detail-start) 0%, var(--sr-color-surface) 100%);
 }
 
 @media (max-width: 1180px) {
   .panel {
-    position: relative;
-    top: auto;
-    max-height: none;
-    overflow-y: visible;
     border-top: var(--sr-border-width) solid var(--sr-color-divider);
   }
 }

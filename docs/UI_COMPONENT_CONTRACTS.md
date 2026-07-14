@@ -571,7 +571,7 @@ The menu reuses the primary link configuration and appends Settings as an inert 
 | `aria-labelledby` | `string` | one naming prop | ID of visible labeling content. Mutually exclusive with `aria-label`. |
 | `className` | `string` | no | Placement-only hook; dashboard-v2 uses it to hide the desktop panel at the mobile breakpoint. |
 
-The shell renders an `aside`, owns the canonical sticky/header-offset surface, vertical overflow, background, and the existing stacked behavior at 1180 px. Dashboard grid columns, panel width, and the 760 px hide rule stay in dashboard layout CSS. It is non-modal and therefore has no overlay, `aria-modal`, focus lock, or body scroll lock.
+The shell renders an `aside`, owns the canonical natural-height complementary surface, background, and the existing stacked behavior at 1180 px. On desktop it stays in normal document flow: chart, timeline, and CTA are reached through page scrolling rather than a viewport-capped internal scrollbar. Dashboard grid columns, panel width, and the 760 px hide rule stay in dashboard layout CSS. It is non-modal and therefore has no overlay, `aria-modal`, focus lock, or body scroll lock.
 
 `TickerDetailPanel` retains the existing 34 px desktop close control and its baseline no-op behavior. It was not merged into the modal sheet close contract: the geometry, border, focus treatment, and current action contract differ, and expanding `IconButton` for one inert control would be speculative.
 

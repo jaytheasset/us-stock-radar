@@ -74,7 +74,7 @@ Responsive rules:
 - Mobile market results use the three-area `MobileMarketRow`: rank, ticker/company, and primary/secondary values.
 - Mobile market results must not use horizontal table scrolling as the default solution. Reprioritize information and expose deeper fields through detail views.
 - Mobile filters show four quick triggers and move secondary options into a modal filter sheet.
-- Mobile ticker detail is a modal sheet; desktop/tablet ticker detail is a non-modal complementary panel.
+- Mobile ticker detail is a modal sheet; desktop/tablet ticker detail is a non-modal, natural-height complementary panel. Its chart, timeline, and CTA remain in document flow rather than a viewport-capped internal scroller.
 - Validate at all four canonical viewports. Add intermediate checks when a change touches 1180px or 1320px behavior.
 
 The current 1440px desktop table overflow is a known defect, not a reusable layout rule. Do not encode it into new pages or widen new shells to reproduce it.
