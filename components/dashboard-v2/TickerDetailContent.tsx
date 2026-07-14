@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type Ref } from "react";
+import { useCallback, useEffect, useState, type Ref } from "react";
 import { ChevronRight, Star } from "lucide-react";
 import {
   ChartRangeSelector,
@@ -11,8 +11,8 @@ import { ChartShell } from "@/components/chart/ChartShell";
 import { ChartToolbar } from "@/components/chart/ChartToolbar";
 import { EventBadge } from "@/components/dashboard-v2/EventBadge";
 import { EventTimeline } from "@/components/dashboard-v2/EventTimeline";
-import { MockChart } from "@/components/dashboard-v2/MockChart";
 import { MarketTickerLogo } from "@/components/market/MarketTickerLogo";
+import { FmpChart, type FmpMarketSnapshot } from "@/components/dashboard-v2/FmpChart";
 import type { DashboardV2TickerDetail } from "@/lib/mock/dashboardV2Data";
 
 type TickerDetailContentProps = {
@@ -36,10 +36,35 @@ export function TickerDetailContent({
   sectionRefs,
 }: TickerDetailContentProps) {
   const [chartRange, setChartRange] = useState<ChartRange>("1D");
-  const priceLineClass = ticker.changePercent.startsWith("-")
+  const [fmpMarketData, setFmpMarketData] = useState<FmpMarketSnapshot | null>(null);
+  const activeMarketData = fmpMarketData?.ticker === ticker.ticker ? fmpMarketData : null;
+  const activePrice = activeMarketData ? formatCurrency(activeMarketData.latestPrice) : ticker.price;
+  const activeChangePercent = activeMarketData
+    ? formatSignedPercent(activeMarketData.changePercent)
+    : ticker.changePercent;
+  const activeChangeAmount = activeMarketData
+    ? formatSignedNumber(activeMarketData.changeAmount)
+    : ticker.changeAmount;
+  const priceLineClass = activeChangePercent.startsWith("-")
     ? "dashboard-v2-price-line is-negative"
     : "dashboard-v2-price-line";
-  const chartSummary = `${ticker.ticker} intraday values. Open ${ticker.ohlc.open}, high ${ticker.ohlc.high}, low ${ticker.ohlc.low}, close ${ticker.ohlc.close}, change ${ticker.changeAmount} (${ticker.changePercent}).`;
+  const chartSummary = activeMarketData
+    ? `FMP ${chartRange} chart for ${ticker.ticker}. Latest price ${activePrice}, change ${activeChangeAmount} (${activeChangePercent}).`
+    : `Loading FMP ${chartRange} chart for ${ticker.ticker}.`;
+  const handleFmpMarketData = useCallback((next: FmpMarketSnapshot) => {
+    setFmpMarketData((current) =>
+      current?.ticker === next.ticker &&
+      current.latestPrice === next.latestPrice &&
+      current.changeAmount === next.changeAmount &&
+      current.changePercent === next.changePercent
+        ? current
+        : next,
+    );
+  }, []);
+
+  useEffect(() => {
+    setFmpMarketData(null);
+  }, [ticker.ticker]);
 
   return (
     <>
@@ -81,9 +106,9 @@ export function TickerDetailContent({
           </div>
         )}
         <div className={priceLineClass}>
-          <strong>{ticker.price}</strong>
-          <span>{ticker.changePercent}</span>
-          <span>({ticker.changeAmount})</span>
+          <strong>{activePrice}</strong>
+          <span>{activeChangePercent}</span>
+          <span>({activeChangeAmount})</span>
         </div>
         <div className="dashboard-v2-detail-badges">
           {ticker.badges.map((badge) => (
@@ -94,7 +119,7 @@ export function TickerDetailContent({
 
       <div className="dashboard-v2-detail-chart-anchor" ref={sectionRefs?.chart}>
         <ChartShell
-          aria-label={`${ticker.ticker} mock intraday chart`}
+          aria-label={`${ticker.ticker} FMP price chart`}
           rangeControl={
             <ChartRangeSelector
               ariaLabel="Chart time range"
@@ -106,12 +131,12 @@ export function TickerDetailContent({
           summary={chartSummary}
           toolbar={<ChartToolbar ariaLabel="Chart tools" compact={Boolean(mobileSheetHeader)} />}
         >
-          <MockChart
-            candles={ticker.candles}
-            changeAmount={ticker.changeAmount}
-            changePercent={ticker.changePercent}
-            ohlc={ticker.ohlc}
-            tall={Boolean(mobileSheetHeader)}
+          <FmpChart
+            key={`${mobileSheetHeader ? "mobile" : "desktop"}-${ticker.ticker}`}
+            mobileOnly={Boolean(mobileSheetHeader)}
+            onMarketData={handleFmpMarketData}
+            range={chartRange}
+            ticker={ticker.ticker}
           />
         </ChartShell>
       </div>
@@ -126,4 +151,21 @@ export function TickerDetailContent({
       </button>
     </>
   );
+}
+
+function formatCurrency(value: number) {
+  return `$${value.toLocaleString("en-US", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+  })}`;
+}
+
+function formatSignedPercent(value: number) {
+  const sign = value > 0 ? "+" : value < 0 ? "-" : "";
+  return `${sign}${Math.abs(value).toFixed(2)}%`;
+}
+
+function formatSignedNumber(value: number) {
+  const sign = value > 0 ? "+" : value < 0 ? "-" : "";
+  return `${sign}${Math.abs(value).toFixed(2)}`;
 }
