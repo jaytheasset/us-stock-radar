@@ -3,6 +3,7 @@ import {
   EventBadge,
   getEventAccessibleLabel,
 } from "@/components/dashboard-v2/EventBadge";
+import { DesktopInlineAdSlot } from "@/components/dashboard-v2/DesktopInlineAdSlot";
 import { DesktopMarketRow } from "@/components/market/DesktopMarketRow";
 import { MobileMarketRow, type MarketValueTone } from "@/components/market/MobileMarketRow";
 import type { DashboardV2MarketMover } from "@/lib/mock/dashboardV2Data";
@@ -47,7 +48,7 @@ export function MarketMoversTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => {
+            {rows.map((row, index) => {
               const changeTone: MarketValueTone = row.changePercent.startsWith("-")
                 ? "negative"
                 : "positive";
@@ -89,6 +90,8 @@ export function MarketMoversTable({
                     ticker={row.ticker}
                     volume={row.volume}
                   />
+                  {rows.length > 25 && index === 24 ? <DesktopInlineAdSlot /> : null}
+                  {rows.length >= 50 && index === rows.length - 1 ? <DesktopInlineAdSlot /> : null}
                   <MobileMarketRow
                     company={row.company}
                     eventBadges={

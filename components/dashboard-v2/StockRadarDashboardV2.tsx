@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { FilterBar } from "@/components/dashboard-v2/FilterBar";
 import { MarketMoversTable } from "@/components/dashboard-v2/MarketMoversTable";
 import { MobileFilterBottomSheet } from "@/components/dashboard-v2/MobileFilterBottomSheet";
+import { DesktopRailAdSlot } from "@/components/dashboard-v2/DesktopRailAdSlot";
 import {
   MobileTickerBottomSheet,
   type MobileSheetSection,
@@ -174,7 +175,10 @@ export function StockRadarDashboardV2() {
             selectedTicker={selectedTicker.ticker}
           />
         </section>
-        <TickerDetailPanel ticker={selectedTicker} />
+        <div className={styles.rightRail}>
+          <TickerDetailPanel ticker={selectedTicker} />
+          <DesktopRailAdSlot />
+        </div>
       </div>
       <MobileTickerBottomSheet
         initialSection={mobileSheetSection}

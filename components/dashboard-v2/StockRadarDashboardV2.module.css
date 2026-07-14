@@ -13,6 +13,10 @@
   min-height: calc(100vh - var(--sr-size-header));
 }
 
+.rightRail {
+  min-width: 0;
+}
+
 :global(.dashboard-v2-left) {
   min-width: 0;
   overflow: visible;
@@ -48,6 +52,7 @@
 }
 
 :global(.dashboard-v2-table-scroll) {
+  container-type: inline-size;
   overflow-x: auto;
 }
 
