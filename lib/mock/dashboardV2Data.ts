@@ -14,6 +14,7 @@ export type DashboardV2MarketMover = {
   rank: number;
   ticker: string;
   company: string;
+  logoUrl?: string;
   price: string;
   changePercent: string;
   volume: string;

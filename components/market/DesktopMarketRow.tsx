@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { MarketChartAction } from "@/components/market/MarketChartAction";
 import { MarketImpactLabel, type MarketImpact } from "@/components/market/MarketImpactLabel";
+import { MarketTickerLogo } from "@/components/market/MarketTickerLogo";
 import styles from "./MarketResultRows.module.css";
 
 export type DesktopMarketRowProps = {
@@ -8,6 +9,7 @@ export type DesktopMarketRowProps = {
   company: string;
   events: ReactNode;
   impact: MarketImpact;
+  logoUrl?: string;
   marketCap: string;
   onOpenChart?: () => void;
   onSelect?: () => void;
@@ -23,6 +25,7 @@ export function DesktopMarketRow({
   company,
   events,
   impact,
+  logoUrl,
   marketCap,
   onOpenChart,
   onSelect,
@@ -50,6 +53,7 @@ export function DesktopMarketRow({
       <td>{rank}</td>
       <td>
         <div className={styles.tickerCell}>
+          <MarketTickerLogo logoUrl={logoUrl} size="desktop" ticker={ticker} />
           <strong>{ticker}</strong>
           <span>{company}</span>
         </div>

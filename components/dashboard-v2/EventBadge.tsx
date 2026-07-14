@@ -12,6 +12,17 @@ const eventLabels: Record<DashboardV2EventType, string> = {
   product: "PRODUCT",
 };
 
+const eventAccessibleLabels: Record<DashboardV2EventType, string> = {
+  dilution: "Dilution",
+  earnings: "Earnings",
+  govt: "Government",
+  insider: "Insider",
+  legal: "Legal",
+  listing: "Listing",
+  ma: "Mergers and acquisitions",
+  product: "Product",
+};
+
 const eventTones: Record<DashboardV2EventType, BadgeTone> = {
   dilution: "neutral",
   earnings: "earnings",
@@ -29,9 +40,21 @@ type EventBadgeProps = {
 };
 
 export function EventBadge({ size = "small", type }: EventBadgeProps) {
+  const accessibleLabel = eventAccessibleLabels[type];
+
   return (
-    <Badge className="dashboard-v2-event-badge" size={size} tone={eventTones[type]}>
+    <Badge
+      aria-label={accessibleLabel}
+      className="dashboard-v2-event-badge"
+      size={size}
+      title={accessibleLabel}
+      tone={eventTones[type]}
+    >
       {eventLabels[type]}
     </Badge>
   );
+}
+
+export function getEventAccessibleLabel(type: DashboardV2EventType) {
+  return eventAccessibleLabels[type];
 }

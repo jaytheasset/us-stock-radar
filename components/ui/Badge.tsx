@@ -9,7 +9,7 @@ export type BadgeTone =
   | "product"
   | "neutral";
 
-export type BadgeSize = "small" | "large";
+export type BadgeSize = "micro" | "small" | "large";
 
 export type BadgeProps = Omit<HTMLAttributes<HTMLSpanElement>, "children"> & {
   children: ReactNode;

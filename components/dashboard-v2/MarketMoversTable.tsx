@@ -1,5 +1,8 @@
 import { Fragment } from "react";
-import { EventBadge } from "@/components/dashboard-v2/EventBadge";
+import {
+  EventBadge,
+  getEventAccessibleLabel,
+} from "@/components/dashboard-v2/EventBadge";
 import { DesktopMarketRow } from "@/components/market/DesktopMarketRow";
 import { MobileMarketRow, type MarketValueTone } from "@/components/market/MobileMarketRow";
 import { Pagination, type PaginationItem } from "@/components/ui/Pagination";
@@ -36,7 +39,7 @@ export function MarketMoversTable({
       <div className="dashboard-v2-table-scroll">
         <table className="dashboard-v2-market-table">
           <thead>
-            <tr>
+            <tr className="dashboard-v2-desktop-table-head">
               <th>#</th>
               <th>Ticker</th>
               <th>Price</th>
@@ -46,6 +49,13 @@ export function MarketMoversTable({
               <th>Events (7D)</th>
               <th>Max Impact</th>
               <th aria-label="Chart" />
+            </tr>
+            <tr className="dashboard-v2-mobile-table-head">
+              <th>#</th>
+              <th>Ticker</th>
+              <th>{mobileValueMode === "volume" ? "Volume" : "Chg %"}</th>
+              <th>Events (7D)</th>
+              <th>Impact</th>
             </tr>
           </thead>
           <tbody>
@@ -60,6 +70,13 @@ export function MarketMoversTable({
                 mobileValueMode === "volume" ? row.changePercent : row.price;
               const primaryTone = mobileValueMode === "volume" ? "neutral" : changeTone;
               const secondaryTone = mobileValueMode === "volume" ? changeTone : "neutral";
+              const visibleMobileEvents = row.events.slice(0, 2);
+              const hiddenMobileEvents = row.events.slice(2);
+              const hiddenEventLabel = hiddenMobileEvents.length
+                ? `Additional events: ${hiddenMobileEvents
+                    .map(getEventAccessibleLabel)
+                    .join(", ")}`
+                : undefined;
 
               return (
                 <Fragment key={row.ticker}>
@@ -70,6 +87,7 @@ export function MarketMoversTable({
                       <EventBadge key={`${row.ticker}-${event}`} type={event} />
                     ))}
                     impact={row.maxImpact}
+                    logoUrl={row.logoUrl}
                     marketCap={row.marketCap}
                     onOpenChart={() => onOpenChart?.(row)}
                     onSelect={() => onSelectRow?.(row)}
@@ -81,6 +99,21 @@ export function MarketMoversTable({
                   />
                   <MobileMarketRow
                     company={row.company}
+                    eventBadges={
+                      visibleMobileEvents.length
+                        ? visibleMobileEvents.map((event) => (
+                            <EventBadge
+                              key={`${row.ticker}-mobile-${event}`}
+                              size="micro"
+                              type={event}
+                            />
+                          ))
+                        : undefined
+                    }
+                    eventOverflowCount={hiddenMobileEvents.length}
+                    eventOverflowLabel={hiddenEventLabel}
+                    impact={row.maxImpact}
+                    logoUrl={row.logoUrl}
                     onSelect={() => onSelectRow?.(row)}
                     primaryTone={primaryTone}
                     primaryValue={primaryValue}

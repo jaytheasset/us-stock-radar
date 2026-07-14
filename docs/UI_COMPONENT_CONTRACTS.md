@@ -119,7 +119,7 @@ The chart range row uses the chart-domain `ChartRangeSelector`. Its underline ge
 | --- | --- | --- | --- |
 | `children` | `ReactNode` | yes | Visible label. Meaning must remain available as text. |
 | `tone` | `earnings | legal | insider | transaction | product | neutral` | yes | Visual event-semantic color and surface only. |
-| `size` | `small | large` | no | 22 px table/timeline size or canonical 29 px detail size. Defaults to `small`. |
+| `size` | `micro | small | large` | no | 18 px mobile metadata size, 22 px table/timeline size, or canonical 29 px detail size. Defaults to `small`. |
 | Native span props | `HTMLAttributes<HTMLSpanElement>` | no | Supports semantic metadata without adding interaction. |
 | `className` | `string` | no | Placement-only extension, currently used for mobile timeline fit-content behavior. |
 
@@ -134,6 +134,7 @@ The generic component does not contain `EARN`, `LEGAL`, `M&A`, or other business
 
 ```tsx
 <Badge size="small" tone="earnings">EARN</Badge>
+<Badge size="micro" tone="legal">LEGAL</Badge>
 ```
 
 Business-layer usage:
@@ -296,6 +297,7 @@ Chart shell and control extraction is now defined by the phase 3F contracts belo
 | `rank` | `number` | yes | Visible ranking. |
 | `ticker` | `string` | yes | Visible ticker and chart-action accessible-name input. |
 | `company` | `string` | yes | Ellipsized company label. |
+| `logoUrl` | `string` | no | Local mock logo URL. Missing or failed images render the ticker monogram in the fixed 24px identity slot. |
 | `price` | `string` | yes | Preformatted visible price. |
 | `change` | `string` | yes | Preformatted percentage; a leading minus selects the negative tone. |
 | `volume` | `string` | yes | Preformatted visible volume. |
@@ -323,6 +325,7 @@ The table shell, header, fixed column widths, page data, sorting, and filtering 
   company={row.company}
   events={row.events.map((event) => <EventBadge key={event} type={event} />)}
   impact={row.maxImpact}
+  logoUrl={row.logoUrl}
   marketCap={row.marketCap}
   onOpenChart={() => onOpenChart(row)}
   onSelect={() => onSelectRow(row)}
@@ -350,6 +353,11 @@ The table shell, header, fixed column widths, page data, sorting, and filtering 
 | `rank` | `number` | yes | Left ranking area. |
 | `ticker` | `string` | yes | Bold center identity. |
 | `company` | `string` | yes | Single-line ellipsized center metadata. |
+| `logoUrl` | `string` | no | Local mock logo URL. Missing or failed images render the ticker monogram in the fixed 22px identity slot. Real logos retain a transparent background; only fallback monograms receive the neutral border and surface. |
+| `eventBadges` | `ReactNode` | no | Parent-rendered content for the dedicated mobile event column; missing content renders a muted dash. |
+| `eventOverflowCount` | `number` | no | Count shown after the first two mobile event badges. Defaults to zero. |
+| `eventOverflowLabel` | `string` | no | Accessible title and label for the collapsed event names. |
+| `impact` | `high | low | major | medium` | no | Dedicated mobile impact column rendered through `MarketImpactLabel`; missing content renders a muted dash. |
 | `primaryValue` | `string` | yes | Right, first-line value. |
 | `secondaryValue` | `string` | yes | Right, second-line value. |
 | `primaryTone` | `negative | neutral | positive` | no | Primary semantic market tone; defaults to neutral. |
@@ -357,22 +365,22 @@ The table shell, header, fixed column widths, page data, sorting, and filtering 
 | `selected` | `boolean` | no | Controls `aria-selected` and the canonical outline/surface. |
 | `onSelect` | `() => void` | no | Parent-owned selection and ticker-sheet opening callback. |
 
-`MarketMoversTable` owns mode interpretation. Gainers/Losers pass change then price; Top Volume passes volume then change. The row does not inspect tab names or mock data and does not add a mobile chart action.
+`MarketMoversTable` owns mode interpretation. Gainers/Losers pass change then price; Top Volume passes volume then change. It also limits mobile event presentation to the first two badges and passes the remaining count plus accessible names. The row does not inspect tab names or mock data and does not add a mobile chart action.
 
 ### Accessibility and layout
 
 - Enter, Space, and pointer activation invoke the same parent callback.
 - Desktop and mobile row instances are both emitted by the responsive table composition, but CSS renders only the matching contract at each breakpoint; hidden rows are removed from layout and the accessibility tree.
-- The visual areas are rank, ticker/company, and right-aligned primary/secondary values. Separate right-side cells preserve the canonical text rasterization while sharing one grid column.
+- The existing two-line row is retained as five columns: rank, fixed-width logo plus ticker/company, right-aligned primary/secondary values, compact events, and borderless impact. The mobile-only header exposes Ticker, the mode-specific primary value, Events (7D), and Impact in the same order. Events wrap only inside their dedicated column; impact and numeric values remain nowrap.
 
 ## 11. MarketImpactLabel and MarketChartAction
 
 ### MarketImpactLabel
 
 - Component: `components/market/MarketImpactLabel.tsx`
-- Props: `impact: "high" | "low" | "major" | "medium"`.
+- Props: `impact: "high" | "low" | "major" | "medium"`; optional `size: "compact" | "default"` defaults to `default`.
 - It preserves the borderless uppercase label. An exhaustive `Record<MarketImpact, string>` maps major/high to accent, medium to warning, and low to positive; unsupported runtime values do not receive an arbitrary fallback tone.
-- It is intentionally separate from generic Badge and contains no speculative levels, appearance, or size variants.
+- The compact size preserves the same exhaustive tone mapping while using the borderless 18px mobile metadata geometry and title-case label. The default desktop form remains uppercase. It is intentionally separate from generic Badge and contains no speculative impact levels or appearances.
 
 ### MarketChartAction
 

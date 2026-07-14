@@ -17,6 +17,13 @@
   font-size: var(--sr-font-size-xs);
 }
 
+.micro {
+  height: var(--sr-space-4-5);
+  border-radius: var(--sr-radius-sm);
+  padding: 0 var(--sr-space-1);
+  font-size: calc(var(--sr-font-size-xs) - var(--sr-border-width));
+}
+
 .large {
   height: var(--sr-size-badge);
   min-height: var(--sr-size-badge-lg);
