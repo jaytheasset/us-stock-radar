@@ -58,7 +58,7 @@ There are 248 tokens: 128 color, 38 typography, 22 spacing, 24 sizing, 21 shape/
 | `--sr-color-surface-table-panel` (source `app/stock-radar-tokens.css:16`) | `rgba(12, 15, 18, 0.95)` | Semantic surface table panel color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:50` |
 | `--sr-color-surface-table-row` (source `app/stock-radar-tokens.css:17`) | `rgba(12, 15, 18, 0.86)` | Semantic surface table row color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:90`<br>`components/market/MarketResultRows.module.css:157` |
 | `--sr-color-surface-table-hover` (source `app/stock-radar-tokens.css:18`) | `#11171c` | Semantic surface table hover color. | `components/market/MarketResultRows.module.css:8`<br>`components/market/MarketResultRows.module.css:161` |
-| `--sr-color-surface-footer-start` (source `app/stock-radar-tokens.css:19`) | `#191e23` | Semantic surface footer start color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:152` |
+| `--sr-color-surface-footer-start` (source `app/stock-radar-tokens.css:19`) | `#191e23` | Semantic surface footer start color. | Retained generic foundation role; the current capped market-movers list has no footer. |
 | `--sr-color-surface-detail-start` (source `app/stock-radar-tokens.css:20`) | `#101419` | Semantic surface detail start color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:515`<br>`components/ui/DetailPanelShell.module.css:7` |
 | `--sr-color-surface-option` (source `app/stock-radar-tokens.css:21`) | `rgba(14, 18, 22, 0.92)` | Semantic surface option color. | `components/ui/FilterOption.module.css:9` |
 | `--sr-color-surface-overlay-control` (source `app/stock-radar-tokens.css:22`) | `rgba(13, 17, 22, 0.72)` | Semantic surface overlay control color. | `components/ui/BottomSheetShell.module.css:111` |
@@ -90,7 +90,7 @@ There are 248 tokens: 128 color, 38 typography, 22 spacing, 24 sizing, 21 shape/
 | `--sr-color-text-detail-secondary` (source `app/stock-radar-tokens.css:52`) | `#bdc3cb` | Semantic text detail secondary color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:230`<br>`components/dashboard-v2/StockRadarDashboardV2.module.css:286` |
 | `--sr-color-text-control` (source `app/stock-radar-tokens.css:53`) | `#c8ced6` | Semantic text control color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:171`<br>`components/dashboard-v2/StockRadarDashboardV2.module.css:316`<br>`components/dashboard-v2/StockRadarDashboardV2.module.css:810`<br>`components/ui/Pagination.module.css:17`<br>`components/ui/Pagination.module.css:41` |
 | `--sr-color-text-control-strong` (source `app/stock-radar-tokens.css:54`) | `#d6d9de` | Semantic text control strong color. | `components/ui/FilterTrigger.module.css:10` |
-| `--sr-color-text-footer` (source `app/stock-radar-tokens.css:55`) | `#c9cdd3` | Semantic text footer color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:151` |
+| `--sr-color-text-footer` (source `app/stock-radar-tokens.css:55`) | `#c9cdd3` | Semantic text footer color. | Retained generic foundation role; the current capped market-movers list has no footer. |
 | `--sr-color-text-label` (source `app/stock-radar-tokens.css:56`) | `#cbd0d7` | Semantic text label color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:401` |
 | `--sr-color-text-close` (source `app/stock-radar-tokens.css:57`) | `#d7dce3` | Semantic text close color. | `components/ui/BottomSheetShell.module.css:110` |
 | `--sr-color-text-option` (source `app/stock-radar-tokens.css:58`) | `#d4d8df` | Semantic text option color. | `components/ui/FilterOption.module.css:8` |
@@ -244,7 +244,7 @@ There are 248 tokens: 128 color, 38 typography, 22 spacing, 24 sizing, 21 shape/
 | `--sr-size-table-header-row` (source `app/stock-radar-tokens.css:220`) | `46px` | Canonical table header row dimension. | `components/dashboard-v2/StockRadarDashboardV2.module.css:77` |
 | `--sr-size-table-row` (source `app/stock-radar-tokens.css:221`) | `43px` | Canonical table row dimension. | `components/dashboard-v2/StockRadarDashboardV2.module.css:88` |
 | `--sr-size-mobile-list-row` (source `app/stock-radar-tokens.css:222`) | `48px` | Canonical mobile list row dimension. | `components/market/MarketResultRows.module.css:150` |
-| `--sr-size-table-footer` (source `app/stock-radar-tokens.css:223`) | `42px` | Canonical table footer dimension. | `components/dashboard-v2/StockRadarDashboardV2.module.css:148` |
+| `--sr-size-table-footer` (source `app/stock-radar-tokens.css:223`) | `42px` | Table footer dimension. | Retained generic foundation role; the current capped market-movers list has no footer. |
 | `--sr-size-badge` (source `app/stock-radar-tokens.css:224`) | `22px` | Canonical badge dimension. | `components/market/MarketResultRows.module.css:58`<br>`components/market/MarketResultRows.module.css:65`<br>`components/ui/Badge.module.css:14`<br>`components/ui/Badge.module.css:21` |
 | `--sr-size-badge-lg` (source `app/stock-radar-tokens.css:225`) | `29px` | Canonical badge lg dimension. | `components/ui/Badge.module.css:22` |
 | `--sr-size-filter-chip` (source `app/stock-radar-tokens.css:226`) | `28px` | Canonical filter chip dimension. | `components/dashboard-v2/StockRadarDashboardV2.module.css:661` |

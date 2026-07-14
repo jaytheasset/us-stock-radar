@@ -20,7 +20,7 @@ export type DashboardV2MarketMover = {
   volume: string;
   marketCap: string;
   events: DashboardV2EventType[];
-  maxImpact: DashboardV2Impact;
+  maxImpact?: DashboardV2Impact;
   selected?: boolean;
 };
 

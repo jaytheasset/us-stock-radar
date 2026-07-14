@@ -103,7 +103,6 @@ Canonical repeated measurements come from tokens:
 | Desktop table header row | `--sr-size-table-header-row`: 46px |
 | Desktop table body row | `--sr-size-table-row`: 43px |
 | Mobile market list row | `--sr-size-mobile-list-row`: 48px |
-| Desktop table footer | `--sr-size-table-footer`: 42px |
 
 Use `--sr-space-*` for repeated component gaps, padding, and offsets. Use semantic gutter and sizing tokens when the value expresses a stable role. Do not add an arbitrary pixel value when an existing token expresses the same role.
 
@@ -243,11 +242,10 @@ Exact props, accessibility models, and exclusions are maintained in [UI_COMPONEN
 | Area | Desktop/tablet | Mobile at 760px and below | Source |
 | --- | --- | --- | --- |
 | Header/navigation | Full primary navigation and header actions. | Brand/status plus search, alert, and hamburger; compact non-modal menu popover. | `components/shell/` |
-| Market results | Semantic table with nine columns and chart action. | Three-area list row with no horizontal market-table scroll. | `components/market/`, `MarketMoversTable` |
+| Market results | Semantic table with nine columns, chart action, and a capped 50-result continuous list. | Three-area list row with no horizontal market-table scroll; the same capped continuous list. | `components/market/`, `MarketMoversTable` |
 | Detail | Sticky complementary panel above 1180px; stacked panel from 761-1180px. | Desktop panel hidden; full-scroll ticker sheet. | `DetailPanelShell`, `BottomSheetShell` |
 | Filters | Six split triggers; currently inert mock controls. | Four quick triggers, optional active chips, and content-footer modal sheet. | `FilterTrigger`, `FilterOption`, dashboard filter components |
 | Chart | Shared named shell, ranges, toolbar, and renderer in panel. | Same composition in ticker sheet with responsive renderer sizing. | `components/chart/` |
-| Pagination | Shared footer pagination and rows-per-page presentation. | Same pagination contract in a taller stacked footer. | `Pagination`, dashboard table footer |
 | Overlays | No modal for standard detail; no generic popover framework. | Product nav is non-modal; ticker and filter sheets are modal and mutually exclusive. | Product header and sheet shell |
 
 ## 13. New Page Workflow

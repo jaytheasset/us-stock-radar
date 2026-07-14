@@ -5,7 +5,6 @@ import {
 } from "@/components/dashboard-v2/EventBadge";
 import { DesktopMarketRow } from "@/components/market/DesktopMarketRow";
 import { MobileMarketRow, type MarketValueTone } from "@/components/market/MobileMarketRow";
-import { Pagination, type PaginationItem } from "@/components/ui/Pagination";
 import type { DashboardV2MarketMover } from "@/lib/mock/dashboardV2Data";
 
 type MarketMoversTableProps = {
@@ -23,17 +22,6 @@ export function MarketMoversTable({
   rows,
   selectedTicker,
 }: MarketMoversTableProps) {
-  const rowsPerPage = rows.length;
-  const totalResults = 500;
-  const lastPage = Math.ceil(totalResults / rowsPerPage);
-  const paginationItems: readonly PaginationItem[] = [
-    1,
-    2,
-    3,
-    "ellipsis",
-    lastPage,
-  ];
-
   return (
     <section className="dashboard-v2-table-panel" aria-label="Market movers">
       <div className="dashboard-v2-table-scroll">
@@ -83,9 +71,13 @@ export function MarketMoversTable({
                   <DesktopMarketRow
                     change={row.changePercent}
                     company={row.company}
-                    events={row.events.map((event) => (
-                      <EventBadge key={`${row.ticker}-${event}`} type={event} />
-                    ))}
+                    events={
+                      row.events.length
+                        ? row.events.map((event) => (
+                            <EventBadge key={`${row.ticker}-${event}`} type={event} />
+                          ))
+                        : undefined
+                    }
                     impact={row.maxImpact}
                     logoUrl={row.logoUrl}
                     marketCap={row.marketCap}
@@ -129,30 +121,6 @@ export function MarketMoversTable({
           </tbody>
         </table>
       </div>
-      <footer className="dashboard-v2-table-footer">
-        <span>{`Results: 1-${rowsPerPage} of ${totalResults}`}</span>
-        <Pagination
-          currentPage={1}
-          items={paginationItems}
-          onPageChange={() => undefined}
-          totalPages={lastPage}
-        />
-        <div className="dashboard-v2-rows-select">
-          <span>Rows per page:</span>
-          <button type="button">
-            {rowsPerPage}
-            <ChevronDownIcon />
-          </button>
-        </div>
-      </footer>
     </section>
-  );
-}
-
-function ChevronDownIcon() {
-  return (
-    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-      <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6" />
-    </svg>
   );
 }

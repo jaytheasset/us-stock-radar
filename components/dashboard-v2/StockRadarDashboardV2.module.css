@@ -1,8 +1,6 @@
 :global(.dashboard-v2-price-line),
 :global(.dashboard-v2-detail-title),
 :global(.dashboard-v2-control-row),
-:global(.dashboard-v2-table-footer),
-:global(.dashboard-v2-rows-select),
 :global(.dashboard-v2-detail-badges) {
   display: flex;
   align-items: center;
@@ -142,60 +140,6 @@
   border-left: var(--sr-border-width) solid var(--sr-color-divider);
   padding: 0 var(--sr-space-1-75);
   text-align: center;
-}
-
-:global(.dashboard-v2-table-footer) {
-  justify-content: space-between;
-  gap: var(--sr-space-4-5);
-  height: var(--sr-size-table-footer);
-  border-top: var(--sr-border-width) solid var(--sr-color-divider);
-  padding: 0 var(--sr-space-3-5);
-  color: var(--sr-color-text-footer);
-  background: linear-gradient(180deg, var(--sr-color-surface-footer-start), var(--sr-color-surface-control-strong));
-  font-size: var(--sr-font-size-md);
-  line-height: var(--sr-line-height-none);
-}
-
-:global(.dashboard-v2-table-footer > span) {
-  display: inline-flex;
-  height: 28px;
-  align-items: center;
-  line-height: var(--sr-line-height-none);
-}
-
-:global(.dashboard-v2-rows-select button) {
-  display: inline-grid;
-  min-width: 30px;
-  height: 28px;
-  place-items: center;
-  border: var(--sr-border-width) solid transparent;
-  border-radius: var(--sr-radius-control);
-  color: var(--sr-color-text-control);
-  background: transparent;
-  font-size: var(--sr-font-size-sm);
-  font-weight: var(--sr-font-weight-medium);
-}
-
-:global(.dashboard-v2-rows-select) {
-  height: 28px;
-  gap: var(--sr-space-2-5);
-  line-height: var(--sr-line-height-none);
-}
-
-:global(.dashboard-v2-rows-select span) {
-  display: inline-flex;
-  height: 28px;
-  align-items: center;
-  color: var(--sr-color-text-subtle);
-  line-height: var(--sr-line-height-none);
-}
-
-:global(.dashboard-v2-rows-select button) {
-  grid-auto-flow: column;
-  gap: var(--sr-space-2);
-  min-width: 70px;
-  border-color: var(--sr-color-border);
-  background: var(--sr-color-surface-control-strong);
 }
 
 :global(.dashboard-v2-detail-close) {
@@ -644,14 +588,6 @@
 
   :global(.dashboard-v2-mobile-filter-chip svg) {
     color: currentColor;
-  }
-
-  :global(.dashboard-v2-table-footer) {
-    align-items: flex-start;
-    flex-direction: column;
-    height: auto;
-    min-height: 118px;
-    padding: var(--sr-space-3);
   }
 
   :global(.dashboard-v2-desktop-detail-panel) {

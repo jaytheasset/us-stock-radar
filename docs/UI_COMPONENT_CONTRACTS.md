@@ -6,7 +6,7 @@ Canonical visual baseline: commit `f87660f` and `docs/ui-reference/dashboard-v2/
 
 Token foundation: commit `7280394`, `app/stock-radar-tokens.css`, and `docs/UI_DESIGN_TOKENS.md`
 
-These phases extract only the documented controls, market-result presentations, Stock Radar product shell, detail-panel surface, modal bottom-sheet lifecycle, and provider-neutral chart composition. The contracts preserve the canonical dashboard-v2 behavior and computed presentation. They do not introduce data fetching, real filtering, a chart provider, generic popover, application-wide focus-trap framework, or new modal behavior.
+These phases extract only the documented controls, market-result presentations, Stock Radar product shell, detail-panel surface, modal bottom-sheet lifecycle, and provider-neutral chart composition. The contracts preserve the canonical dashboard-v2 behavior and computed presentation. Shared components do not introduce provider fetching, real filtering, a generic popover, an application-wide focus-trap framework, or new modal behavior; the dashboard-owned FMP chart and mover routes are documented separately.
 
 ## 1. IconButton
 
@@ -302,13 +302,13 @@ Chart shell and control extraction is now defined by the phase 3F contracts belo
 | `change` | `string` | yes | Preformatted percentage; a leading minus selects the negative tone. |
 | `volume` | `string` | yes | Preformatted visible volume. |
 | `marketCap` | `string` | yes | Preformatted visible market cap. |
-| `events` | `ReactNode` | yes | Parent-rendered `EventBadge` group; the row does not import mock event types. |
-| `impact` | `high | low | major | medium` | yes | Actual supported impact level for `MarketImpactLabel`. |
+| `events` | `ReactNode` | no | Parent-rendered `EventBadge` group; the row does not import mock event types. Missing event metadata renders a muted dash. |
+| `impact` | `high | low | major | medium` | no | Actual supported impact level for `MarketImpactLabel`. Missing impact metadata renders a muted dash. |
 | `selected` | `boolean` | no | Controls `aria-selected` and the canonical selected-row treatment. |
 | `onSelect` | `() => void` | no | Parent-owned row selection callback. |
 | `onOpenChart` | `() => void` | no | Parent-owned chart action callback. |
 
-The table shell, header, fixed column widths, page data, sorting, and filtering remain dashboard-owned. `MarketMoversTable` maps the current mock row into these presentation props.
+The table shell, header, fixed column widths, page data, sorting, and filtering remain dashboard-owned. `MarketMoversTable` maps normalized dashboard rows into these presentation props.
 
 ### Interaction
 
@@ -430,13 +430,13 @@ The table shell, header, fixed column widths, page data, sorting, and filtering 
 />
 ```
 
-The current dashboard still supplies a no-op callback because pagination is a canonical mock. This extraction does not add pagination behavior.
+`Pagination` is currently retained as a generic shared contract but is not mounted by the dashboard market-movers list. The dashboard presents each available ranked result as one continuous list rather than introducing mock page navigation.
 
 ## 13. Phase 3C Boundaries and Deferred Work
 
 - `components/ui` contains only the business-neutral Pagination contract.
 - `components/market` owns ticker/market-value semantics, impact mapping, row interaction, and the cell-specific chart action.
-- `MarketMoversTable` retains mock-data coupling, result/page calculations, mode mapping, table shell/header, column geometry, and rows-per-page UI.
+- `MarketMoversTable` retains the table shell, header, column geometry, and continuous-list composition. It receives already-normalized rows and does not import an FMP client or mock fixture directly.
 - Event label/tone mapping stays in the existing dashboard `EventBadge` wrapper; generic Badge remains business-neutral.
 - Generic data-table engines, sorting, filtering, data fetching, active-filter chips, responsive table shells, panels, sheets, popovers, and real pagination remain deferred. Phase 3F supersedes the chart-control deferral from this 3C boundary.
 
@@ -720,3 +720,25 @@ Inert actions must not advertise nonexistent `aria-haspopup`, `aria-expanded`, o
 - `TickerDetailContent` is the narrow client composition boundary that owns only the selected range state needed by `ChartRangeSelector`. `ChartShell` and inert `ChartToolbar` remain server-compatible. Because desktop and mobile already reuse `TickerDetailContent`, both surfaces use the same chart shell, range selector, toolbar, renderer, and accessible summary without duplicating contracts or adding client state to the app shell.
 - Desktop/mobile width, sheet scrolling, sticky CTA behavior, detail-panel composition, and renderer-specific SVG sizing remain with their established owners. The chart components do not import panel/sheet shells.
 - No provider adapter, live data, loading/error/empty presentation, toolbar feature, candle algorithm, table shell, or rows-per-page contract was added in 3F.
+
+## 26. Live FMP Market Mover Boundary
+
+### Purpose and files
+
+- Route: `app/api/dashboard-v2/movers/route.ts`
+- Controller: `components/dashboard-v2/StockRadarDashboardV2.tsx`
+- Presentation: `components/dashboard-v2/MarketMoversTable.tsx`, `components/market/DesktopMarketRow.tsx`, and `components/market/MobileMarketRow.tsx`
+
+The dashboard controller requests live market movers only for the `Regular` session. The server route keeps `FMP_API_KEY` server-side, calls FMP's `biggest-gainers`, `biggest-losers`, or `most-actives` endpoint for the selected mover tab, and normalizes the provider payload into the existing `DashboardV2MarketMover` presentation shape. The response can contain 50 ranked provider results; the route exposes all 50 as one continuous dashboard list. The generic market-result components remain provider-neutral and receive only normalized display props.
+
+### Availability and missing metadata
+
+- FMP's current mover payload supplies ticker, company name, price, and change percentage. It does not supply the per-row market cap, event history, impact level, or a usable per-row volume figure for this dashboard access level.
+- For live Regular rows, the dashboard therefore displays a muted dash for unavailable desktop volume, market-cap, event, and impact metadata. It does not merge corresponding mock values into a real ticker row.
+- `Top Volume` uses FMP's real `most-actives` ranking. Its rank is live, but the unavailable individual volume value is displayed as a muted dash rather than fabricated.
+- FMP market-wide Pre and After ranking feeds are not available to the currently configured dashboard key. Those sessions retain the existing deterministic mock rows. This is a provider/access limitation, not a reusable session-design rule.
+- The dashboard does not render pagination or rows-per-page controls for these capped result lists. It renders every available ranked row in one continuous list, up to the provider's 50-row response limit.
+
+### Failure behavior
+
+If the key is missing, FMP is unavailable, the response is not a list, or the request is aborted during a tab/session change, the controller retains the established mock rows. The route emits `Cache-Control: no-store`, and no FMP key, provider response, or fallback DOM manipulation reaches the browser.

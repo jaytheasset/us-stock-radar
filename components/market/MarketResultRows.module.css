@@ -150,6 +150,13 @@
   color: var(--sr-color-positive);
 }
 
+.marketMetadataEmpty {
+  color: var(--sr-color-text-muted);
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-semibold);
+  line-height: var(--sr-line-height-none);
+}
+
 .chartAction {
   display: inline-grid;
   width: 30px;

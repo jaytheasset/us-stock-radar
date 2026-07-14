@@ -7,8 +7,8 @@ import styles from "./MarketResultRows.module.css";
 export type DesktopMarketRowProps = {
   change: string;
   company: string;
-  events: ReactNode;
-  impact: MarketImpact;
+  events?: ReactNode;
+  impact?: MarketImpact;
   logoUrl?: string;
   marketCap: string;
   onOpenChart?: () => void;
@@ -64,11 +64,15 @@ export function DesktopMarketRow({
       <td>{marketCap}</td>
       <td>
         <div className={styles.badgeRow}>
-          {events}
+          {events ?? <span className={styles.marketMetadataEmpty}>—</span>}
         </div>
       </td>
       <td>
-        <MarketImpactLabel impact={impact} />
+        {impact ? (
+          <MarketImpactLabel impact={impact} />
+        ) : (
+          <span className={styles.marketMetadataEmpty}>—</span>
+        )}
       </td>
       <td>
         <MarketChartAction onOpen={onOpenChart} ticker={ticker} />

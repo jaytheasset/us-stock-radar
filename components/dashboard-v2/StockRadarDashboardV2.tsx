@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FilterBar } from "@/components/dashboard-v2/FilterBar";
 import { MarketMoversTable } from "@/components/dashboard-v2/MarketMoversTable";
 import { MobileFilterBottomSheet } from "@/components/dashboard-v2/MobileFilterBottomSheet";
@@ -38,6 +38,25 @@ const marketMoverItems: readonly SegmentedControlItem<DashboardV2Tab>[] = dashbo
 const marketSessionItems: readonly SegmentedControlItem<DashboardV2Session>[] =
   dashboardV2Sessions.map((item) => ({ label: item.toUpperCase(), value: item }));
 
+const fmpModeByMoverTab: Record<DashboardV2Tab, "gainers" | "losers" | "volume"> = {
+  "Top Gainers": "gainers",
+  "Top Losers": "losers",
+  "Top Volume": "volume",
+};
+
+type FmpMarketMoversResponse = {
+  available: boolean;
+  mode: "gainers" | "losers" | "volume";
+  ok: boolean;
+  rows: DashboardV2MarketMover[];
+  sourceCount: number;
+};
+
+type LiveMarketMovers = {
+  rows: DashboardV2MarketMover[];
+  tab: DashboardV2Tab;
+};
+
 export function StockRadarDashboardV2() {
   const [activeMoverTab, setActiveMoverTab] = useState<DashboardV2Tab>("Top Gainers");
   const [activeSession, setActiveSession] = useState<DashboardV2Session>("Regular");
@@ -46,9 +65,48 @@ export function StockRadarDashboardV2() {
   const [isMobileFilterSheetOpen, setIsMobileFilterSheetOpen] = useState(false);
   const [mobileSheetSection, setMobileSheetSection] = useState<MobileSheetSection>("summary");
   const [filterState, setFilterState] = useState(dashboardV2DefaultFilterState);
+  const [liveMarketMovers, setLiveMarketMovers] = useState<LiveMarketMovers | null>(null);
   const mobileTickerOpenerRef = useRef<HTMLElement>(null);
   const mobileFilterTriggerRef = useRef<HTMLButtonElement>(null);
-  const marketMoverRows = dashboardV2MarketMoversByTab[activeMoverTab];
+  const mockMarketMoverRows = dashboardV2MarketMoversByTab[activeMoverTab];
+  const marketMoverRows =
+    liveMarketMovers?.tab === activeMoverTab
+      ? liveMarketMovers.rows
+      : mockMarketMoverRows;
+
+  useEffect(() => {
+    if (activeSession !== "Regular") {
+      setLiveMarketMovers(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    setLiveMarketMovers(null);
+
+    async function loadMarketMovers() {
+      try {
+        const response = await fetch(
+          `/api/dashboard-v2/movers?session=Regular&mode=${fmpModeByMoverTab[activeMoverTab]}`,
+          { cache: "no-store", signal: controller.signal },
+        );
+        const payload = (await response.json()) as FmpMarketMoversResponse;
+
+        if (!response.ok || !payload.ok || !payload.available || controller.signal.aborted) {
+          return;
+        }
+
+        setLiveMarketMovers({
+          rows: payload.rows,
+          tab: activeMoverTab,
+        });
+      } catch {
+        // Preserve the established mock table when FMP is unavailable.
+      }
+    }
+
+    loadMarketMovers();
+    return () => controller.abort();
+  }, [activeMoverTab, activeSession]);
   const openTickerDetail = useCallback((row: DashboardV2MarketMover, section: MobileSheetSection) => {
     setSelectedTicker(getDashboardV2TickerDetail(row));
     setMobileSheetSection(section);
