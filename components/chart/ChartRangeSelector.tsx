@@ -7,19 +7,23 @@ export const chartRanges = ["1D", "5D", "1M", "3M", "6M", "YTD", "1Y", "5Y"] as 
 
 export type ChartRange = (typeof chartRanges)[number];
 
+export const mobileChartRanges = ["1D", "5D", "1M", "3M", "1Y", "YTD"] as const satisfies readonly ChartRange[];
+
 export type ChartRangeSelectorProps = {
   ariaLabel: string;
   onValueChange: (value: ChartRange) => void;
+  ranges?: readonly ChartRange[];
   value: ChartRange;
 };
 
 export function ChartRangeSelector({
   ariaLabel,
   onValueChange,
+  ranges = chartRanges,
   value,
 }: ChartRangeSelectorProps) {
   const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const selectedIndex = chartRanges.indexOf(value);
+  const selectedIndex = ranges.indexOf(value);
 
   if (selectedIndex === -1) {
     throw new Error(`Unsupported chart range: ${value}`);
@@ -37,13 +41,13 @@ export function ChartRangeSelector({
     let nextIndex: number | undefined;
 
     if (event.key === "ArrowRight") {
-      nextIndex = (currentIndex + 1) % chartRanges.length;
+      nextIndex = (currentIndex + 1) % ranges.length;
     } else if (event.key === "ArrowLeft") {
-      nextIndex = (currentIndex - 1 + chartRanges.length) % chartRanges.length;
+      nextIndex = (currentIndex - 1 + ranges.length) % ranges.length;
     } else if (event.key === "Home") {
       nextIndex = 0;
     } else if (event.key === "End") {
-      nextIndex = chartRanges.length - 1;
+      nextIndex = ranges.length - 1;
     }
 
     if (nextIndex === undefined) {
@@ -51,13 +55,13 @@ export function ChartRangeSelector({
     }
 
     event.preventDefault();
-    const nextRange = chartRanges[nextIndex];
+    const nextRange = ranges[nextIndex];
     selectRange(nextRange, nextIndex);
   };
 
   return (
     <div aria-label={ariaLabel} aria-orientation="horizontal" className={styles.root} role="radiogroup">
-      {chartRanges.map((range, index) => {
+      {ranges.map((range, index) => {
         const isSelected = range === value;
 
         return (

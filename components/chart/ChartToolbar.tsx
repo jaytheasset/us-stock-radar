@@ -20,12 +20,15 @@ const toolbarActions = [
 
 export type ChartToolbarProps = {
   ariaLabel: string;
+  compact?: boolean;
 };
 
-export function ChartToolbar({ ariaLabel }: ChartToolbarProps) {
+export function ChartToolbar({ ariaLabel, compact = false }: ChartToolbarProps) {
+  const actions = compact ? toolbarActions.filter(({ key }) => key === "expand") : toolbarActions;
+
   return (
     <div aria-label={ariaLabel} className={styles.root} role="toolbar">
-      {toolbarActions.map(({ icon: Icon, key, label }) => (
+      {actions.map(({ icon: Icon, key, label }) => (
         <button
           aria-label={label}
           key={key}

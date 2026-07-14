@@ -44,8 +44,9 @@
   }
 
   :global([data-sr-bottom-sheet-layout="full-scroll"]) .navigation {
-    align-items: flex-start;
-    gap: var(--sr-space-1-5);
+    align-items: center;
+    flex-direction: row;
+    gap: var(--sr-space-2);
     padding: var(--sr-space-2) 0 var(--sr-space-2-5);
   }
 }

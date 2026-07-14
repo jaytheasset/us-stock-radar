@@ -44,6 +44,7 @@ export type DashboardV2Candle = {
 export type DashboardV2TickerDetail = {
   ticker: string;
   company: string;
+  logoUrl?: string;
   price: string;
   changePercent: string;
   changeAmount: string;
@@ -968,6 +969,7 @@ export function getDashboardV2TickerDetail(row: DashboardV2MarketMover): Dashboa
   return {
     ticker: row.ticker,
     company: detailCompanyNames[row.ticker] ?? row.company,
+    logoUrl: row.logoUrl,
     price: row.price,
     changePercent: row.changePercent,
     changeAmount: getDashboardV2ChangeAmount(row.price, row.changePercent),

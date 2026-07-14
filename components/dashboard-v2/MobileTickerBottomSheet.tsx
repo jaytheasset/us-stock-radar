@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { TickerDetailContent } from "@/components/dashboard-v2/TickerDetailContent";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import type { DashboardV2TickerDetail } from "@/lib/mock/dashboardV2Data";
@@ -25,6 +25,22 @@ export function MobileTickerBottomSheet({
   const summaryRef = useRef<HTMLElement>(null);
   const chartRef = useRef<HTMLDivElement>(null);
   const titleId = `dashboard-v2-mobile-sheet-title-${ticker.ticker}`;
+  const [favorites, setFavorites] = useState<ReadonlySet<string>>(() => new Set());
+  const isFavorite = favorites.has(ticker.ticker);
+
+  const toggleFavorite = () => {
+    setFavorites((currentFavorites) => {
+      const nextFavorites = new Set(currentFavorites);
+
+      if (nextFavorites.has(ticker.ticker)) {
+        nextFavorites.delete(ticker.ticker);
+      } else {
+        nextFavorites.add(ticker.ticker);
+      }
+
+      return nextFavorites;
+    });
+  };
 
   useEffect(() => {
     if (!isOpen) {
@@ -53,6 +69,7 @@ export function MobileTickerBottomSheet({
       overlayLabel="Close ticker detail overlay"
     >
       <TickerDetailContent
+        mobileSheetHeader={{ isFavorite, onToggleFavorite: toggleFavorite }}
         ticker={ticker}
         titleId={titleId}
         sectionRefs={{ summary: summaryRef, chart: chartRef }}

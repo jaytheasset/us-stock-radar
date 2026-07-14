@@ -372,6 +372,7 @@ The table shell, header, fixed column widths, page data, sorting, and filtering 
 - Enter, Space, and pointer activation invoke the same parent callback.
 - Desktop and mobile row instances are both emitted by the responsive table composition, but CSS renders only the matching contract at each breakpoint; hidden rows are removed from layout and the accessibility tree.
 - The existing two-line row is retained as five columns: rank, fixed-width logo plus ticker/company, right-aligned primary/secondary values, compact events, and borderless impact. The mobile-only header exposes Ticker, the mode-specific primary value, Events (7D), and Impact in the same order. Events wrap only inside their dedicated column; impact and numeric values remain nowrap.
+- `MarketTickerLogo` owns local logo rendering and the fixed monogram fallback. Its supported presentation sizes are `desktop` (24px), `mobile` (22px), and `detail` (28px). The `detail` size is used only by the mobile ticker-sheet summary; a real local logo remains transparent, while missing or failed URLs render the bordered neutral monogram.
 
 ## 11. MarketImpactLabel and MarketChartAction
 
@@ -617,7 +618,7 @@ No speculative size, side, gesture, portal, header, content, footer, or sticky-a
 - Closed sheet DOM is not rendered and cannot intercept pointer events.
 - X and overlay are native `button type="button"` controls. Overlay dismissal requires a direct overlay activation; a pointer gesture beginning inside the surface cannot dismiss on release over the overlay.
 - Escape is listened for only while a visible mobile sheet is open. Composing, already-prevented, and repeated keydown events are ignored. The close guard ensures X, overlay, or Escape requests `onDismiss` exactly once before controlled state updates.
-- The close button receives initial focus. Tab from the last eligible control wraps to the first, and Shift+Tab from the first wraps to the last. Disabled, hidden, inert, and `aria-hidden` descendants are excluded. If no eligible descendant exists, the dialog surface is the fallback focus target.
+- `content-footer` opens with focus on its close button. `full-scroll` opens with focus on the dialog surface so its transparent ticker close glyph does not appear persistently focused; Tab moves to the first eligible control and Shift+Tab to the last. Thereafter, Tab from the last eligible control wraps to the first, and Shift+Tab from the first wraps to the last. Disabled, hidden, inert, and `aria-hidden` descendants are excluded. If no eligible descendant exists, the dialog surface is the fallback focus target.
 - Cleanup restores focus after the dialog leaves the DOM. It uses the captured opener when it remains connected, enabled, and visible; otherwise it safely focuses the current main landmark. A replacing modal takes priority and suppresses stale restoration.
 - Each open instance captures the exact pre-existing inline `body.style.overflow` value, including `clip`, sets `hidden`, and restores that captured value on close or unmount. Effect cleanup never calls `onDismiss`.
 - Listener, focus containment, and scroll-lock cleanup remain safe under React Strict Mode effect replay. The parent enforces a single-modal-sheet contract by closing one sheet before opening the other; the non-modal product menu does not participate in this lifecycle.
@@ -627,6 +628,7 @@ The focus containment is local to this modal shell. It is not a generic portal o
 ### Ticker and filter boundaries
 
 - `MobileTickerBottomSheet` selects `full-scroll` and retains ticker selection, summary/chart refs, initial-section scroll targeting, `TickerDetailContent`, chart, timeline, and sticky CTA.
+- The mobile ticker summary is domain content: it owns the 28px `MarketTickerLogo`, left-aligned ticker/company, a parent-local mock watchlist toggle, price/change, and event badges. Its full-scroll close control keeps the canonical 38px target but is transparent and borderless; `content-footer` filter close geometry remains unchanged.
 - `MobileFilterBottomSheet` selects `content-footer` and retains typed filter state, option rendering, Clear all, Apply filters, content scrolling, and footer layout.
 - `StockRadarDashboardV2` retains both controlled open states and distinct opener refs: the focused market row for ticker detail and the exact quick-filter trigger for filters.
 - The mobile navigation menu remains a non-modal popover. It does not use this shell, does not lock body scroll, and does not share dialog IDs.
@@ -680,17 +682,18 @@ Do not import provider data into `ChartShell`, add speculative loading/error slo
 - Component: `components/chart/ChartRangeSelector.tsx`
 - Styles: `components/chart/ChartRangeSelector.module.css`
 - `ChartRange`: `"1D" | "5D" | "1M" | "3M" | "6M" | "YTD" | "1Y" | "5Y"`.
-- The ordered `chartRanges` tuple is the single source for labels, keyboard order, and the exported type.
+- The ordered `chartRanges` tuple is the default desktop label and keyboard order. `mobileChartRanges` provides the verified ticker-sheet order: `1D`, `5D`, `1M`, `3M`, `1Y`, `YTD`.
 
 | Prop | Type | Required | Contract |
 | --- | --- | --- | --- |
 | `ariaLabel` | `string` | yes | Names the horizontal radio group. |
 | `value` | `ChartRange` | yes | Parent-owned controlled selected range. |
 | `onValueChange` | `(value: ChartRange) => void` | yes | Reports one pointer or navigation selection. |
+| `ranges` | `readonly ChartRange[]` | no | Ordered visible range set; defaults to `chartRanges`. The controlled value must be included. |
 
-The root uses `role="radiogroup"` and horizontal orientation. Every native button uses `role="radio"`, `aria-checked`, and roving `tabIndex`; exactly one range is selected and tabbable. Arrow Right/Left wrap and select the adjacent value. Home/End select the first/last value. Navigation prevents the corresponding native page movement, focuses the selected control, and invokes the callback through one keyboard path only when the value changes. Native Enter, Space, and pointer activation use the click path once; activating the already-selected range is a no-op. A runtime guard throws for a value outside the exported tuple instead of silently rendering a group with no selection. No disabled or custom-range API exists because the canonical dashboard demonstrates neither.
+The root uses `role="radiogroup"` and horizontal orientation. Every native button uses `role="radio"`, `aria-checked`, and roving `tabIndex`; exactly one visible range is selected and tabbable. Arrow Right/Left wrap and select the adjacent visible value. Home/End select the first/last visible value. Navigation prevents the corresponding native page movement, focuses the selected control, and invokes the callback through one keyboard path only when the value changes. Native Enter, Space, and pointer activation use the click path once; activating the already-selected range is a no-op. A runtime guard throws for a value outside the supplied visible range set instead of silently rendering a group with no selection. No disabled or custom-range API exists because the canonical dashboard demonstrates neither.
 
-Dashboard-v2 initializes the controlled state to `1D`. Range selection updates the underline and accessible selected state but intentionally does not change mock candle data. The range control remains separate from `SegmentedControl` because its values, radio semantics, underline geometry, mobile overflow, and chart-specific placement are distinct.
+Dashboard-v2 initializes the controlled state to `1D`. Range selection updates the selected state but intentionally does not change mock candle data. Desktop uses the eight default ranges and underline; the mobile ticker sheet renders the six-item segmented row with the compact visible order. The range control remains separate from `SegmentedControl` because its values, radio semantics, underline geometry, mobile overflow, and chart-specific placement are distinct.
 
 ## 24. ChartToolbar
 
@@ -704,15 +707,16 @@ Dashboard-v2 initializes the controlled state to `1D`. Range selection updates t
 | Prop | Type | Required | Contract |
 | --- | --- | --- | --- |
 | `ariaLabel` | `string` | yes | Names the `role="toolbar"` container. |
+| `compact` | `boolean` | no | Renders only the verified Expand chart action for the mobile ticker sheet; defaults to the full toolbar. |
 
-Each action is a native `button type="button"` with a required fixed accessible name, decorative icon, canonical 22 x 30 geometry, and tokenized focus-visible ring. The action configuration is pure static presentation data; it contains no React nodes, provider contract, availability state, or business callback. The toolbar exposes no speculative callback or action type. Pointer, Enter, and Space retain native button behavior without creating a feature, and the server-compatible component needs no client directive.
+Each action is a native `button type="button"` with a required fixed accessible name, decorative icon, canonical 22 x 30 geometry, and tokenized focus-visible ring. The mobile compact toolbar uses one 40px bordered Expand control beside the range group. The action configuration is pure static presentation data; it contains no React nodes, provider contract, availability state, or business callback. The toolbar exposes no speculative callback or action type. Pointer, Enter, and Space retain native button behavior without creating a feature, and the server-compatible component needs no client directive.
 
 Inert actions must not advertise nonexistent `aria-haspopup`, `aria-expanded`, or `aria-controls`. A future implemented toolbar should introduce its action contract together with the real behavior; popup/dialog ARIA belongs to the actual controlled overlay trigger when that overlay exists. The toolbar is not forced through `IconButton`: its geometry and chart grouping are different from the canonical header control.
 
 ## 25. Mock Renderer and Responsive Boundary
 
 - `components/dashboard-v2/MockChart.tsx` now owns only the existing SVG renderer: candle/volume calculations, axis labels, grid, last-price treatment, gradient, viewBox, coordinates, and renderer-specific CSS classes.
-- It receives the existing candle/OHLC/change props and imports no shell or control. `ChartShell` imports no mock data type and has no knowledge of this renderer.
+- It receives the existing candle/OHLC/change props plus an optional `tall` geometry flag. `tall` scales only the SVG's vertical viewBox and plotting coordinates for the mobile ticker sheet; the default desktop geometry remains unchanged. It imports no shell or control, while `ChartShell` imports no mock data type and has no knowledge of this renderer.
 - The existing SVG title still names CRWD, but the mock SVG is now presentational (`aria-hidden="true"`, `focusable="false"`) so it cannot duplicate or contradict the surrounding selected-ticker name and OHLC summary. Its title text, coordinates, calculations, data, and visible labels remain unchanged.
 - `TickerDetailContent` is the narrow client composition boundary that owns only the selected range state needed by `ChartRangeSelector`. `ChartShell` and inert `ChartToolbar` remain server-compatible. Because desktop and mobile already reuse `TickerDetailContent`, both surfaces use the same chart shell, range selector, toolbar, renderer, and accessible summary without duplicating contracts or adding client state to the app shell.
 - Desktop/mobile width, sheet scrolling, sticky CTA behavior, detail-panel composition, and renderer-specific SVG sizing remain with their established owners. The chart components do not import panel/sheet shells.

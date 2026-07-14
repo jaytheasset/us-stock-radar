@@ -5,7 +5,7 @@ import styles from "./MarketResultRows.module.css";
 
 export type MarketTickerLogoProps = {
   logoUrl?: string;
-  size: "desktop" | "mobile";
+  size: "desktop" | "detail" | "mobile";
   ticker: string;
 };
 
@@ -18,7 +18,11 @@ export function MarketTickerLogo({
   const showLogo = Boolean(logoUrl && failedUrl !== logoUrl);
   const monogram = ticker.trim().slice(0, 2).toUpperCase();
   const sizeClass =
-    size === "desktop" ? styles.tickerLogoDesktop : styles.tickerLogoMobile;
+    size === "desktop"
+      ? styles.tickerLogoDesktop
+      : size === "detail"
+        ? styles.tickerLogoDetail
+        : styles.tickerLogoMobile;
   const appearanceClass = showLogo
     ? styles.tickerLogoImage
     : styles.tickerLogoFallback;

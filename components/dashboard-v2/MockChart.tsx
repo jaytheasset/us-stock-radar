@@ -6,18 +6,21 @@ type MockChartProps = {
   ohlc: DashboardV2TickerDetail["ohlc"];
   changeAmount: string;
   changePercent: string;
+  tall?: boolean;
 };
 
-export function MockChart({ candles, changeAmount, changePercent, ohlc }: MockChartProps) {
+export function MockChart({ candles, changeAmount, changePercent, ohlc, tall = false }: MockChartProps) {
   const volumeFadeId = useId();
   const width = 620;
-  const height = 282;
+  const defaultHeight = 282;
+  const height = tall ? 500 : defaultHeight;
+  const verticalScale = height / defaultHeight;
   const chartLeft = 12;
   const chartRight = 562;
-  const priceTop = 36;
-  const priceBottom = 228;
-  const volumeTop = 210;
-  const volumeBottom = 264;
+  const priceTop = 36 * verticalScale;
+  const priceBottom = 228 * verticalScale;
+  const volumeTop = 210 * verticalScale;
+  const volumeBottom = 264 * verticalScale;
   const highs = candles.map((candle) => candle.high);
   const lows = candles.map((candle) => candle.low);
   const volumes = candles.map((candle) => candle.volume);
@@ -79,7 +82,7 @@ export function MockChart({ candles, changeAmount, changePercent, ohlc }: MockCh
           );
         })}
 
-        <text className="dashboard-v2-ohlc" x={chartLeft} y={22}>
+        <text className="dashboard-v2-ohlc" x={chartLeft} y={22 * verticalScale}>
           O {ohlc.open}  H {ohlc.high}  L {ohlc.low}  C {ohlc.close}  {changeAmount} ({changePercent})
         </text>
 

@@ -49,6 +49,11 @@
   height: var(--sr-size-badge);
 }
 
+.tickerLogoDetail {
+  width: var(--sr-space-8);
+  height: var(--sr-space-8);
+}
+
 .tickerLogoFallback {
   border: var(--sr-border-width) solid var(--sr-color-border-control);
   color: var(--sr-color-text-secondary);

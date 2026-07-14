@@ -27,7 +27,17 @@
 
 @media (max-width: 760px) {
   :global([data-sr-bottom-sheet-layout="full-scroll"]) .root {
+    width: var(--sr-size-control);
+    height: var(--sr-size-control);
+    flex: 0 0 auto;
+    justify-content: center;
+    border: var(--sr-border-width) solid var(--sr-color-border-control);
+    border-radius: var(--sr-radius-mobile-control);
+    background: var(--sr-color-surface-control-group);
+  }
+
+  :global([data-sr-bottom-sheet-layout="full-scroll"]) .root button {
     width: 100%;
-    justify-content: flex-start;
+    height: 100%;
   }
 }

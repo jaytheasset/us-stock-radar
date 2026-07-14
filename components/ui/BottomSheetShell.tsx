@@ -172,6 +172,12 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
         return;
       }
 
+      if (activeElement === surface) {
+        event.preventDefault();
+        (event.shiftKey ? lastFocusable : firstFocusable).focus({ preventScroll: true });
+        return;
+      }
+
       if (event.shiftKey && activeElement === firstFocusable) {
         event.preventDefault();
         lastFocusable.focus({ preventScroll: true });
@@ -182,7 +188,8 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    const initialFocus = closeButtonRef.current ?? surfaceRef.current;
+    const initialFocus =
+      layout === "full-scroll" ? surfaceRef.current : closeButtonRef.current ?? surfaceRef.current;
     initialFocus?.focus({ preventScroll: true });
 
     return () => {
@@ -197,7 +204,7 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
         }
       });
     };
-  }, [isOpen, openerRef, requestDismiss]);
+  }, [isOpen, layout, openerRef, requestDismiss]);
 
   if (!isOpen) {
     return null;
