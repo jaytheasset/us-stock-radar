@@ -40,13 +40,13 @@
 }
 
 .tickerLogoDesktop {
-  width: var(--sr-space-6);
-  height: var(--sr-space-6);
+  width: var(--sr-space-5);
+  height: var(--sr-space-5);
 }
 
 .tickerLogoMobile {
-  width: var(--sr-size-badge);
-  height: var(--sr-size-badge);
+  width: var(--sr-space-5);
+  height: var(--sr-space-5);
 }
 
 .tickerLogoDetail {

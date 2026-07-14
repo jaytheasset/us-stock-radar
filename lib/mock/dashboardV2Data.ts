@@ -77,7 +77,16 @@ export const dashboardV2Filters = [
 
 const withRanks = (
   rows: Omit<DashboardV2MarketMover, "rank">[],
-): DashboardV2MarketMover[] => rows.map((row, index) => ({ rank: index + 1, ...row }));
+): DashboardV2MarketMover[] =>
+  rows.map((row, index) => ({
+    rank: index + 1,
+    ...row,
+    logoUrl: row.logoUrl ?? fmpStockLogoUrl(row.ticker),
+  }));
+
+function fmpStockLogoUrl(ticker: string) {
+  return `https://financialmodelingprep.com/image-stock/${encodeURIComponent(ticker)}.png`;
+}
 
 const topGainersRows = withRanks([
   {
@@ -851,6 +860,7 @@ export const dashboardV2MarketMovers = dashboardV2MarketMoversByTab["Top Gainers
 export const dashboardV2SelectedTicker: DashboardV2TickerDetail = {
   ticker: "CRWD",
   company: "CrowdStrike Holdings, Inc.",
+  logoUrl: fmpStockLogoUrl("CRWD"),
   price: "$341.47",
   changePercent: "+2.94%",
   changeAmount: "+9.77",

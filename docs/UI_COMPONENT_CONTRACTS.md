@@ -297,7 +297,7 @@ Chart shell and control extraction is now defined by the phase 3F contracts belo
 | `rank` | `number` | yes | Visible ranking. |
 | `ticker` | `string` | yes | Visible ticker and chart-action accessible-name input. |
 | `company` | `string` | yes | Ellipsized company label. |
-| `logoUrl` | `string` | no | Local mock logo URL. Missing or failed images render the ticker monogram in the fixed 24px identity slot. |
+| `logoUrl` | `string` | no | Dashboard-v2 mock rows provide FMP ticker-image URLs. Missing or failed images render the ticker monogram in the fixed 24px identity slot. |
 | `price` | `string` | yes | Preformatted visible price. |
 | `change` | `string` | yes | Preformatted percentage; a leading minus selects the negative tone. |
 | `volume` | `string` | yes | Preformatted visible volume. |
@@ -353,7 +353,7 @@ The table shell, header, fixed column widths, page data, sorting, and filtering 
 | `rank` | `number` | yes | Left ranking area. |
 | `ticker` | `string` | yes | Bold center identity. |
 | `company` | `string` | yes | Single-line ellipsized center metadata. |
-| `logoUrl` | `string` | no | Local mock logo URL. Missing or failed images render the ticker monogram in the fixed 22px identity slot. Real logos retain a transparent background; only fallback monograms receive the neutral border and surface. |
+| `logoUrl` | `string` | no | Dashboard-v2 mock rows provide FMP ticker-image URLs. Missing or failed images render the 20px ticker monogram within the reserved 22px identity slot. Real logos retain a transparent background; only fallback monograms receive the neutral border and surface. |
 | `eventBadges` | `ReactNode` | no | Parent-rendered content for the dedicated mobile event column; missing content renders a muted dash. |
 | `eventOverflowCount` | `number` | no | Count shown after the first two mobile event badges. Defaults to zero. |
 | `eventOverflowLabel` | `string` | no | Accessible title and label for the collapsed event names. |
@@ -372,7 +372,7 @@ The table shell, header, fixed column widths, page data, sorting, and filtering 
 - Enter, Space, and pointer activation invoke the same parent callback.
 - Desktop and mobile row instances are both emitted by the responsive table composition, but CSS renders only the matching contract at each breakpoint; hidden rows are removed from layout and the accessibility tree.
 - The existing two-line row is retained as five columns: rank, fixed-width logo plus ticker/company, right-aligned primary/secondary values, compact events, and borderless impact. The mobile-only header exposes Ticker, the mode-specific primary value, Events (7D), and Impact in the same order. Events wrap only inside their dedicated column; impact and numeric values remain nowrap.
-- `MarketTickerLogo` owns local logo rendering and the fixed monogram fallback. Its supported presentation sizes are `desktop` (24px), `mobile` (22px), and `detail` (28px). The `detail` size is used only by the mobile ticker-sheet summary; a real local logo remains transparent, while missing or failed URLs render the bordered neutral monogram.
+- `MarketTickerLogo` owns URL-based logo rendering and the fixed monogram fallback. Its supported presentation sizes are `desktop` (20px inside a reserved 24px identity slot), `mobile` (20px inside a reserved 22px identity slot), and `detail` (28px). The `detail` size is used only by the mobile ticker-sheet summary; a real logo remains transparent, while missing or failed URLs render the bordered neutral monogram. The generic component does not know the provider; dashboard-v2 mock fixtures currently supply FMP ticker-image URLs.
 
 ## 11. MarketImpactLabel and MarketChartAction
 

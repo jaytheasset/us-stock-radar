@@ -35,6 +35,8 @@ export function MarketTickerLogo({
       {showLogo ? (
         <img
           alt=""
+          decoding="async"
+          loading="lazy"
           onError={() => setFailedUrl(logoUrl ?? null)}
           src={logoUrl}
         />
