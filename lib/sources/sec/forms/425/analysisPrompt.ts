@@ -25,7 +25,7 @@ import { buildSec425DisplayPayload } from "./displayPayload";
 import { buildSecSourceBlockPromptInput } from "../common/sourceBlockPromptInput";
 
 export const SEC_425_ANALYSIS_PROMPT_KEY = "sec_425_analysis_draft";
-export const SEC_425_ANALYSIS_PROMPT_VERSION = "v1";
+export const SEC_425_ANALYSIS_PROMPT_VERSION = "v2";
 
 export const SEC_425_ANALYSIS_CASE_VALUES = [
   "strategic_transaction_terms",
@@ -51,7 +51,7 @@ export type Sec425AnalysisPromptInput = Sec425RouterPromptInput & {
 
 export const sec425AnalysisSystemPrompt = [
   "Write investor-facing analysis for one SEC Form 425 transaction communication and return only strict JSON matching the Required Output JSON shape.",
-  "Use only cleaned_source_blocks, router result, and fixture-provided market_context source blocks. Do not call, request, or assume live market data.",
+  "Use only cleaned_source_blocks, router result, related_transaction_context, and fixture-provided market_context. Do not call, request, or assume live market data.",
   "Use current_filing.form_type exactly when naming the SEC form. Do not substitute another form from the same 425 family.",
   "Do not use parser-generated facts, signals, route hints, extraction summaries, event labels, display labels, or investment labels as analysis authority.",
   `Use only these approved event types: ${SEC_425_APPROVED_EVENT_TYPES.join(", ")}.`,
@@ -59,6 +59,9 @@ export const sec425AnalysisSystemPrompt = [
   "Do not choose, create, or tune the detail UI. Copy display_payload exactly from the supplied display_payload object.",
   "Do not create new display types. The router/classifier and UI payload builder already selected display_type, display_version, and display data.",
   "Use router_result.routing_reason and cleaned_source_blocks as the evidence base.",
+  "related_transaction_context contains compact analyses of already-saved prior transaction filings. Use it only as background for identifying what this Form 425 changes, confirms, repeats, or advances.",
+  "Do not present a prior filing's terms as a new disclosure in the current Form 425. Current facts must come from cleaned_source_blocks; prior context may explain the baseline and transaction lifecycle.",
+  "If related_transaction_context.status is not_found, do not invent parent terms. If it is multiple_candidates, use only facts consistently supported by the current filing and avoid claiming a definitive parent match.",
   "Do not ask for full raw filing text. If filing_excerpt is supplied, treat it as selected source snippets only.",
   "Do not add delivery_level as a model field. The fixture expected delivery level is derived from analysis_output.score: below 50 archive, 50 to 74 feed, 75 or above alert.",
   "Prioritize investor impact: deal economics, consideration changes, vote deadlines, litigation or regulatory risk, financing risk, and whether the communication changes previously known terms.",
@@ -199,6 +202,8 @@ export const sec425RequiredOutputResponseSchema = {
 } as const;
 
 export function buildSec425AnalysisPromptDraft(input: Sec425AnalysisPromptInput) {
+  const filingContext = readRecord(input.filing_package.filing_context);
+  const relatedTransactionContext = readRecord(filingContext?.related_transaction);
   return {
     key: SEC_425_ANALYSIS_PROMPT_KEY,
     version: SEC_425_ANALYSIS_PROMPT_VERSION,
@@ -212,6 +217,7 @@ export function buildSec425AnalysisPromptDraft(input: Sec425AnalysisPromptInput)
       }),
       router_result: input.router_result,
       display_payload: input.display_payload,
+      related_transaction_context: relatedTransactionContext,
       market_context: input.market_context || null,
     }),
     responseFormat: {
@@ -223,6 +229,12 @@ export function buildSec425AnalysisPromptDraft(input: Sec425AnalysisPromptInput)
       },
     },
   };
+}
+
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
 }
 
 export function buildSec425DeterministicRoomResult(

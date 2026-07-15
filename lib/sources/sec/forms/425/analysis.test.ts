@@ -72,7 +72,21 @@ const mergerRoute = buildRouterDecision(mergerParserOutput, {
 });
 const mergerDisplayPayload = buildSec425DisplayPayload(mergerParserOutput, mergerRoute);
 const analysisPrompt = buildSec425AnalysisPromptDraft({
-  filing_package: { fixture: "merger-terms-strategic-transaction" },
+  filing_package: {
+    fixture: "merger-terms-strategic-transaction",
+    filing_context: {
+      related_transaction: {
+        status: "found",
+        selected_filings: [
+          {
+            form_type: "S-4",
+            event_title: "Prior merger registration statement",
+            summary: "The parties previously disclosed the signed merger terms.",
+          },
+        ],
+      },
+    },
+  },
   parser_output: mergerParserOutput,
   router_result: mergerRoute,
   display_payload: mergerDisplayPayload,
@@ -81,7 +95,7 @@ const analysisPrompt = buildSec425AnalysisPromptDraft({
 });
 
 assert.equal(analysisPrompt.key, "sec_425_analysis_draft");
-assert.equal(analysisPrompt.version, "v1");
+assert.equal(analysisPrompt.version, "v2");
 assert.deepEqual(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.event_type.enum, SEC_425_APPROVED_EVENT_TYPES);
 assert.ok(SEC_425_APPROVED_EVENT_TYPES.includes("ipo_listing"));
 assert.ok(analysisPrompt.system.includes("Required Output JSON shape"));
@@ -90,7 +104,10 @@ assert.ok(analysisPrompt.system.includes("Copy analysis_output.event_type exactl
 assert.ok(analysisPrompt.system.includes("Copy display_payload exactly from the supplied display_payload object"));
 assert.ok(analysisPrompt.system.includes("For ipo_listing cases"));
 assert.ok(analysisPrompt.system.includes("Do not call"));
+assert.ok(analysisPrompt.system.includes("prior transaction filings"));
 assert.ok(analysisPrompt.user.includes("\"display_payload\""));
+assert.ok(analysisPrompt.user.includes("\"related_transaction_context\""));
+assert.ok(analysisPrompt.user.includes("Prior merger registration statement"));
 assert.ok(analysisPrompt.user.includes("\"display_version\":\"sec_425_display_v1\""));
 assert.ok(analysisPrompt.user.includes("\"market_context\""));
 assert.ok(analysisPrompt.user.includes("\"market_cap\":3500000000"));

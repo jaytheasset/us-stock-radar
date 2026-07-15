@@ -1,4 +1,11 @@
 import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
+import {
+  buildSec425TransactionContextMatchPlan,
+  normalizeSec425TransactionContextForm,
+  SEC_425_TRANSACTION_CONTEXT_VERSION,
+  type Sec425RankedTransactionContextCandidate,
+  type Sec425TransactionContextCandidate,
+} from "@/lib/sources/sec/forms/425/transactionContext";
 import { parseSc13Filing } from "@/lib/sources/sec/forms/sc13/parser";
 import type { Sc13ParserOutput } from "@/lib/sources/sec/forms/sc13/types";
 import { parseSecS3Filing, type SecS3FilingFacts } from "@/lib/sources/sec/forms/s3-f3/parser";
@@ -39,6 +46,108 @@ export async function attachSecParentContexts(input: SecFilingAnalysisInput, raw
   await attachS1F1AmendmentParentFilingContext(input, rawItem);
   await attachEffectParentFilingContext(input, rawItem);
   await attachGenericAmendmentParentFilingContext(input, rawItem);
+  await attachSec425TransactionFilingContext(input, rawItem);
+}
+
+async function attachSec425TransactionFilingContext(input: SecFilingAnalysisInput, rawItem: SecRawItemRow) {
+  const filingPackage = readRecord(input.filing_package);
+  const hardParsers = readRecord(filingPackage?.hard_parsers);
+  const parserOutput = readRecord(hardParsers?.["425"]);
+  if (!filingPackage || !parserOutput) return;
+
+  const existingFilingContext = readRecord(filingPackage.filing_context) || {};
+  if (readRecord(existingFilingContext.related_transaction)) return;
+
+  const facts = readRecord(parserOutput.facts) || {};
+  const deal = readRecord(facts.deal) || {};
+  const offer = readRecord(facts.offer) || {};
+  const spac = readRecord(facts.spac) || {};
+  const current = {
+    accession_number: stringValue(parserOutput.accessionNumber) || readRawAccession(rawItem) || null,
+    filed_at:
+      stringValue(readRecord(parserOutput.raw)?.publishedAt) ||
+      stringValue(rawItem.published_at) ||
+      readRawFiledDate(rawItem) ||
+      null,
+    cik: normalizeCik(readRawCik(rawItem)) || null,
+    ticker: stringValue(facts.primary_ticker) || readRawTicker(rawItem) || null,
+    company_name: stringValue(facts.company_name) || readRawCompanyName(rawItem) || null,
+    related_names: uniqueStrings([
+      ...readStringArray(facts.transaction_parties),
+      ...readStringArray(deal.parties),
+      stringValue(facts.subject_company),
+      stringValue(offer.subject_company),
+      stringValue(spac.spac_name),
+      stringValue(spac.target_name),
+      stringValue(spac.combined_company_name),
+    ]),
+  };
+
+  const candidateRows = (await fetchSec425TransactionCandidateRows(rawItem, current.ticker || ""))
+    .filter((row) => readRawAccession(row) !== current.accession_number)
+    .filter((row) => isSec425TransactionContextCandidateForm(readRawFormType(row)))
+    .filter((row) => isPriorSecFiling(row, current.filed_at))
+    .sort((left, right) => Date.parse(stringValue(right.published_at)) - Date.parse(stringValue(left.published_at)))
+    .slice(0, 24);
+
+  const compactCandidates = await Promise.all(candidateRows.map(compactGenericParentCandidateRow));
+  const candidates: Sec425TransactionContextCandidate[] = compactCandidates.map((candidate) => ({
+    raw_item_id: stringValue(candidate.raw_item_id),
+    event_id: stringValue(candidate.event_id) || null,
+    accession_number: stringValue(candidate.accession_number) || null,
+    form_type: stringValue(candidate.form_type) || null,
+    filed_at: stringValue(candidate.filed_at) || null,
+    cik: normalizeCik(stringValue(candidate.cik)) || null,
+    ticker: stringValue(candidate.ticker) || null,
+    company_name: stringValue(candidate.company_name) || null,
+    event_type: stringValue(candidate.event_type) || null,
+    event_title: stringValue(candidate.event_title) || null,
+    quick_take: stringValue(candidate.quick_take) || null,
+    summary: stringValue(candidate.summary) || null,
+    transaction_fingerprint: readRecord(candidate.transaction_fingerprint),
+  }));
+  const matchPlan = buildSec425TransactionContextMatchPlan(current, candidates);
+  const rowById = new Map(candidateRows.map((row) => [stringValue(row.id), row]));
+  const selected = await Promise.all(
+    matchPlan.selected.map(async (match) => {
+      const row = rowById.get(match.raw_item_id);
+      if (!row) return null;
+      const compact = await compactGenericParentRow(row);
+      return compactSec425SelectedTransactionContext(compact, match);
+    }),
+  );
+
+  filingPackage.filing_context = {
+    ...existingFilingContext,
+    related_transaction: {
+      version: SEC_425_TRANSACTION_CONTEXT_VERSION,
+      context_kind: "sec_425_related_transaction",
+      source: "persisted_raw_items_events_analysis_compact",
+      status: matchPlan.status,
+      confidence: matchPlan.confidence,
+      current_filing: current,
+      selected_filings: selected.filter(Boolean),
+      candidates: matchPlan.candidates.map((candidate) => ({
+        raw_item_id: candidate.raw_item_id,
+        event_id: candidate.event_id,
+        accession_number: candidate.accession_number,
+        form_type: candidate.form_type,
+        filed_at: candidate.filed_at,
+        company_name: candidate.company_name,
+        ticker: candidate.ticker,
+        event_type: candidate.event_type,
+        quick_take: candidate.quick_take,
+        match_score: candidate.match_score,
+        match_reasons: candidate.match_reasons,
+      })),
+      source_notes: [
+        "Only prior filings with an existing saved analysis are eligible.",
+        "Historical full filing text is excluded; selected context contains compact prior analysis and transaction metadata only.",
+        "The Form 425 router still classifies the current communication without this historical context.",
+        "Analysis must treat prior filings as background and must not present old terms as new Form 425 disclosures.",
+      ],
+    },
+  };
 }
 
 async function findOwnershipAmendmentParentBeforeParser(rawItem: SecRawItemRow): Promise<OwnershipPreParserParent | null> {
@@ -1254,9 +1363,42 @@ async function compactGenericParentCandidateRow(row: SecRawItemRow) {
     event_type: existing?.event_type || null,
     score: existing?.score ?? null,
     delivery_level: existing?.delivery_level || null,
+    event_title: existing?.event_title || null,
     quick_take: existing?.quick_take || null,
+    summary: existing?.summary || null,
     transaction_fingerprint: existing?.transaction_fingerprint || null,
     sc13_facts: compactSc13ParentFactsFromRawRow(row),
+  };
+}
+
+function compactSec425SelectedTransactionContext(
+  compact: Awaited<ReturnType<typeof compactGenericParentRow>>,
+  match: Sec425RankedTransactionContextCandidate,
+) {
+  return {
+    raw_item_id: compact.raw_item_id,
+    event_id: compact.event_id,
+    accession_number: compact.accession_number,
+    form_type: compact.form_type,
+    filed_at: compact.filed_at,
+    source_url: compact.source_url,
+    company_name: compact.company_name,
+    ticker: compact.ticker,
+    exchange: compact.exchange,
+    cik: compact.cik,
+    event_type: compact.event_type,
+    score: compact.score,
+    delivery_level: compact.delivery_level,
+    signal: compact.signal,
+    event_title: compactContextText(compact.event_title, 240),
+    quick_take: compactContextText(compact.quick_take, 500),
+    summary: compactContextText(compact.summary, 1_500),
+    key_evidence: compact.key_evidence.slice(0, 3).map((item) => compactContextText(item, 500)).filter(Boolean),
+    display_payload: compact.display_payload,
+    transaction_fingerprint: compact.transaction_fingerprint,
+    match_score: match.match_score,
+    match_reasons: match.match_reasons,
+    matched_related_names: match.matched_related_names,
   };
 }
 
@@ -1438,6 +1580,49 @@ async function fetchGenericAmendmentParentCandidateRows(rawItem: SecRawItemRow, 
       limit: "300",
     });
     if (result.ok && Array.isArray(result.data)) rows.push(...(result.data as SecRawItemRow[]));
+  }
+
+  return dedupeRawRows(rows);
+}
+
+async function fetchSec425TransactionCandidateRows(rawItem: SecRawItemRow, parserTicker: string) {
+  const select = "id,source_unique_id,source_url,title,published_at,body_text,analysis_text,raw_payload,metadata";
+  const rawCik = readRawCik(rawItem);
+  const cikValues = uniqueStrings([rawCik, normalizeCik(rawCik)].filter(Boolean));
+  const tickerValues = uniqueStrings([readRawTicker(rawItem), parserTicker].filter(Boolean));
+  const rows: SecRawItemRow[] = [];
+
+  for (const cik of cikValues.slice(0, 2)) {
+    const byPayload = await supabaseSelect("raw_items", {
+      select,
+      source_code: "eq.sec_edgar",
+      "raw_payload->>cik": `eq.${cik}`,
+      order: "published_at.desc",
+      limit: "120",
+    });
+    if (byPayload.ok && Array.isArray(byPayload.data)) rows.push(...(byPayload.data as SecRawItemRow[]));
+
+    const byMetadata = await supabaseSelect("raw_items", {
+      select,
+      source_code: "eq.sec_edgar",
+      "metadata->>cik": `eq.${cik}`,
+      order: "published_at.desc",
+      limit: "120",
+    });
+    if (byMetadata.ok && Array.isArray(byMetadata.data)) rows.push(...(byMetadata.data as SecRawItemRow[]));
+  }
+
+  for (const ticker of tickerValues.slice(0, 2)) {
+    const normalizedTicker = stringValue(ticker).toUpperCase();
+    if (!normalizedTicker) continue;
+    const byPayload = await supabaseSelect("raw_items", {
+      select,
+      source_code: "eq.sec_edgar",
+      "raw_payload->>ticker": `eq.${normalizedTicker}`,
+      order: "published_at.desc",
+      limit: "120",
+    });
+    if (byPayload.ok && Array.isArray(byPayload.data)) rows.push(...(byPayload.data as SecRawItemRow[]));
   }
 
   return dedupeRawRows(rows);
@@ -2281,6 +2466,46 @@ function normalizeSecFormForParentContext(formType: string) {
     .replace(/\s*\/\s*A$/, "/A")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function isSec425TransactionContextCandidateForm(formType: string) {
+  const normalized = normalizeSec425TransactionContextForm(formType);
+  return [
+    "S-4",
+    "S-4/A",
+    "F-4",
+    "F-4/A",
+    "DEFM14A",
+    "PREM14A",
+    "DEFA14A",
+    "DEF 14A",
+    "PRE 14A",
+    "8-K",
+    "8-K/A",
+    "6-K",
+    "6-K/A",
+    "425",
+    "SC TO-C",
+    "SC TO-T",
+    "SC TO-I",
+    "SC 13E3",
+    "SC 14D9",
+    "CB",
+    "424B3",
+  ].includes(normalized);
+}
+
+function isPriorSecFiling(row: SecRawItemRow, currentFiledAt: string | null) {
+  const current = Date.parse(stringValue(currentFiledAt));
+  const candidate = Date.parse(stringValue(row.published_at) || readRawFiledDate(row));
+  if (!Number.isFinite(current) || !Number.isFinite(candidate)) return true;
+  return candidate < current;
+}
+
+function compactContextText(value: unknown, maxChars: number) {
+  const text = stringValue(value).replace(/\s+/g, " ").trim();
+  if (!text || text.length <= maxChars) return text || null;
+  return `${text.slice(0, Math.max(0, maxChars - 3)).trimEnd()}...`;
 }
 
 function normalizeCompanyNameForParentMatch(value: string) {

@@ -482,6 +482,8 @@ export async function runSec425RouteOnlyPreviewForRawItem(rawItem: RawItemRow, o
     openAiResponseId: run.openAiResponseId,
     sourceItem: summarizeRawRow(rawItem),
     input: JSON.parse(prompt.user) as Record<string, unknown>,
+    relatedTransactionContext:
+      readRecord(readRecord(readRecord(input.filing_package)?.filing_context)?.related_transaction) || null,
     route,
     outputText: run.outputText,
     usage: run.usage,

@@ -742,6 +742,9 @@ function buildRouteOnlyItem(rawItem: RawItemRow, routeResult: unknown) {
   const input = readRecord(resultRecord.input);
   const route = readRecord(resultRecord.route);
   const prompt = readRecord(resultRecord.prompt);
+  const relatedTransactionContext = buildSec425RelatedTransactionContextPreview(
+    resultRecord.relatedTransactionContext,
+  );
   const rawPayload = readRecord(rawItem.raw_payload);
   const ok = resultRecord.ok === true;
 
@@ -780,6 +783,7 @@ function buildRouteOnlyItem(rawItem: RawItemRow, routeResult: unknown) {
             rejected_modes: Array.isArray(route.rejected_modes) ? route.rejected_modes.slice(0, 5) : [],
           }
       : null,
+    related_transaction_context: relatedTransactionContext,
     runtime_output: route
       ? {
           model: stringValue(resultRecord.model) || stringValue(prompt?.model) || null,
@@ -1374,6 +1378,10 @@ export async function runSecDevRouteOnly(
           ? (readRecord(routeResult.input)?.cleaned_source_blocks as unknown[]).length
           : null,
         source_block_previews: buildRouteOnlySourceBlockPreviews(routeResult.input),
+        related_transaction_context:
+          room.key === "425"
+            ? buildSec425RelatedTransactionContextPreview(readRecord(routeResult)?.relatedTransactionContext)
+            : null,
       },
       error: item.ok === true ? null : stringValue(item.error) || "Route-only dry-run failed",
     };
@@ -1399,6 +1407,33 @@ export async function runSecDevRouteOnly(
 
   await appendLiveRun(room.key, liveRun);
   return getSecDevRoomDetail(room.key);
+}
+
+function buildSec425RelatedTransactionContextPreview(value: unknown) {
+  const context = readRecord(value);
+  if (!context) return null;
+
+  const selected = Array.isArray(context.selected_filings) ? context.selected_filings : [];
+  const candidates = Array.isArray(context.candidates) ? context.candidates : [];
+  return {
+    status: stringValue(context.status) || "not_found",
+    confidence: stringValue(context.confidence) || "low",
+    selected_count: selected.length,
+    selected_filings: selected.slice(0, 3).map((value) => {
+      const filing = readRecord(value) || {};
+      return {
+        accession_number: stringValue(filing.accession_number) || null,
+        form_type: stringValue(filing.form_type) || null,
+        filed_at: stringValue(filing.filed_at) || null,
+        company_name: stringValue(filing.company_name) || null,
+        event_type: stringValue(filing.event_type) || null,
+        event_title: stringValue(filing.event_title).slice(0, 180) || null,
+        match_score: numberValue(filing.match_score),
+        match_reasons: stringArray(filing.match_reasons).slice(0, 8),
+      };
+    }),
+    candidate_count: candidates.length,
+  };
 }
 
 function buildRouteOnlySourceBlockPreviews(input: unknown) {
