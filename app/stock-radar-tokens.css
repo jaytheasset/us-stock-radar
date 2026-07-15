@@ -382,7 +382,7 @@
   --sr-color-accent-focus-mobile: rgba(201, 79, 0, 0.6);
 
   /* Color: market and event semantics */
-  --sr-color-positive: #087a3b;
+  --sr-color-positive: #0d8749;
   --sr-color-negative: #c9362b;
   --sr-color-warning: #946200;
   --sr-color-info: #2563a6;
@@ -400,7 +400,7 @@
   --sr-color-event-neutral-surface: rgba(89, 102, 120, 0.12);
 
   /* Color: chart */
-  --sr-color-chart-bullish: #0f8a4b;
+  --sr-color-chart-bullish: #0d8749;
   --sr-color-chart-bearish: #d1433b;
   --sr-color-chart-grid: rgba(15, 23, 42, 0.1);
   --sr-color-chart-axis: #64748b;
