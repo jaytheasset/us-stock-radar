@@ -1741,7 +1741,12 @@ function findSpacTargetName(
   )?.[1];
   if (explicitTarget) {
     const cleaned = cleanCompanyName(explicitTarget);
-    if (!sameCompany(cleaned, spacName || companyName) && !isTransactionShellCompany(cleaned)) return cleaned;
+    if (isValidSpacTargetCandidate(cleaned, spacName || companyName)) return cleaned;
+  }
+
+  const presentationTarget = findInvestorPresentationSubject(text);
+  if (presentationTarget && isValidSpacTargetCandidate(presentationTarget, spacName || companyName)) {
+    return presentationTarget;
   }
 
   const namedTarget = text.match(
@@ -1749,7 +1754,7 @@ function findSpacTargetName(
   )?.[1];
   if (namedTarget) {
     const cleaned = cleanCompanyName(namedTarget);
-    if (!sameCompany(cleaned, spacName || companyName) && !isTransactionShellCompany(cleaned)) return cleaned;
+    if (isValidSpacTargetCandidate(cleaned, spacName || companyName)) return cleaned;
   }
 
   const aliasTarget = aliases.find((candidate) =>
@@ -1760,6 +1765,39 @@ function findSpacTargetName(
   return parties.find((party) =>
     !sameCompany(party, spacName || companyName) && !isTransactionShellCompany(party),
   ) || null;
+}
+
+function findInvestorPresentationSubject(text: string) {
+  const introducing = text.match(
+    /\bINTRODUCING\s+([A-Z][A-Z0-9&.'\u2019-]{1,60})(?=\s+(?:[A-Z][a-z][A-Za-z0-9&.'\u2019-]*\s+)?is\b|\s*\n|\s*$)/,
+  )?.[1];
+  if (introducing) return normalizePresentationCompanyName(introducing);
+
+  const presentationIndex = text.search(/\b(?:PUBLIC\s+)?INVESTOR PRESENTATION\b/i);
+  if (presentationIndex < 0) return null;
+
+  const coverPrefix = text.slice(Math.max(0, presentationIndex - 600), presentationIndex);
+  const coverMatches = Array.from(coverPrefix.matchAll(
+    /\b([A-Z][A-Z0-9&.'\u2019-]{1,60})\s+(?:A|AN)\s+[A-Za-z][A-Za-z0-9&,'\u2019 -]{2,120}?\s+Company\b/g,
+  ));
+  const coverName = coverMatches.at(-1)?.[1];
+  return coverName ? normalizePresentationCompanyName(coverName) : null;
+}
+
+function normalizePresentationCompanyName(value: string) {
+  const cleaned = cleanCompanyName(value);
+  if (!/^[A-Z0-9&.'\u2019-]+$/.test(cleaned) || cleaned.length <= 4) return cleaned;
+  return cleaned.charAt(0) + cleaned.slice(1).toLowerCase();
+}
+
+function isValidSpacTargetCandidate(value: string, spacName: string | null) {
+  const cleaned = cleanCompanyName(value);
+  if (!cleaned || cleaned.length < 2 || cleaned.length > 120) return false;
+  if (sameCompany(cleaned, spacName) || isTransactionShellCompany(cleaned)) return false;
+  if (/^(?:the\s+(?:u\.?s\.?|united states|sec|commission)|respect to|with the)\b/i.test(cleaned)) return false;
+  if (/^(?:company|target|target company|issuer)$/i.test(cleaned)) return false;
+  if (/\b(?:Securities and Exchange Commission|file(?:d|s|ing)? with|investor presentation|business combination)\b/i.test(cleaned)) return false;
+  return /[A-Za-z]/.test(cleaned);
 }
 
 function findSpacValuationMetric(text: string, kind: "equity" | "enterprise") {

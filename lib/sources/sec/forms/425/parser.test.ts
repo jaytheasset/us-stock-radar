@@ -433,6 +433,19 @@ assert.equal(spacAliasPresentation.facts.spac.target_name, "Precision Aerospace 
 assert.equal(spacAliasPresentation.facts.spac.equity_value, "$314.5 million");
 assert.equal(spacAliasPresentation.facts.spac.enterprise_value, "$310.3 million");
 
+const spacPresentationWithoutLegalSuffix = parseInline("spac-presentation-subject", `
+Filed by: SPACSphere Acquisition Corp.
+MOBILEWALLA A Vertical & Agentic AI Company
+PUBLIC INVESTOR PRESENTATION
+Issued in connection with the previously announced business combination with SPACSphere Acquisition Corp.
+
+INTRODUCING MOBILEWALLA
+Mobilewalla is a Vertical & Agentic AI company.
+In connection with the Business Combination, SPACSphere and Mobilewalla intend to jointly file with the U.S. Securities and Exchange Commission.
+`);
+assert.equal(spacPresentationWithoutLegalSuffix.facts.spac.spac_name, "SPACSphere Acquisition Corp.");
+assert.equal(spacPresentationWithoutLegalSuffix.facts.spac.target_name, "Mobilewalla");
+
 const changedDuplicate = parseInline("changed-duplicate", `
 This communication repeats the previously announced transaction information and contains no new material information except that the parties increased the offer price to $12.00 per share.
 The amendment changes the merger consideration payable to target shareholders.
