@@ -14,6 +14,7 @@ import {
   type Sec425ParserOutput,
   type Sec425RoomResult,
   type Sec425Signal,
+  type Sec425SourceBlock,
 } from "./types";
 import {
   SEC_425_ROUTER_PROMPT_KEY,
@@ -292,8 +293,12 @@ function selectSec425AnalysisSourceBlocks(
         }
       }
     }
+    const materialDocumentIndexes = selectMaterialDocumentIndexes(blocks, routerResult);
+    for (const index of materialDocumentIndexes) includedIndexes.add(index);
     return {
-      mode: "router_selected_with_adjacent_context" as const,
+      mode: materialDocumentIndexes.some((index) => !selectedIndexes.includes(index))
+        ? "router_selected_with_material_document_context" as const
+        : "router_selected_with_adjacent_context" as const,
       blocks: Array.from(includedIndexes)
         .sort((left, right) => left - right)
         .slice(0, 24)
@@ -314,6 +319,63 @@ function selectSec425AnalysisSourceBlocks(
     mode: "bounded_source_fallback" as const,
     blocks: blocks.filter((block) => !block.is_boilerplate).slice(0, 24),
   };
+}
+
+function selectMaterialDocumentIndexes(
+  blocks: Sec425SourceBlock[],
+  routerResult: Sec425RouterDecision,
+) {
+  const requiredDocumentRoles = routerResult.route_case === "agreement_amendment"
+    ? new Set(["agreement_amendment"])
+    : null;
+  const requiredContentRoles = routerResult.route_case === "agreement_amendment"
+    ? new Set(["transaction_agreement"])
+    : null;
+  if (!requiredDocumentRoles) return [];
+
+  const explicitDocumentIndexes = blocks
+    .map((block, index) => (
+      !block.is_boilerplate && requiredDocumentRoles.has(block.document_role) ? index : -1
+    ))
+    .filter((index) => index >= 0);
+  const contentRoleIndexes = blocks
+    .map((block, index) => (
+      !block.is_boilerplate && requiredContentRoles?.has(block.content_role) ? index : -1
+    ))
+    .filter((index) => index >= 0);
+  const candidates = explicitDocumentIndexes.length > 0
+    ? explicitDocumentIndexes
+    : contentRoleIndexes;
+
+  return candidates
+    .map((index) => ({ index, score: scoreMaterialAmendmentBlock(blocks[index]) }))
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .slice(0, 12)
+    .map((entry) => entry.index)
+    .sort((left, right) => left - right);
+}
+
+function scoreMaterialAmendmentBlock(block: Sec425SourceBlock) {
+  const text = `${block.heading || ""}\n${block.text}`.trim();
+  let score = Math.min(block.char_count / 1_000, 2);
+
+  if (/\b(?:section|article|schedule|exhibit)\b[\s\S]{0,180}\b(?:amend(?:ed|ment)?|delete(?:d)?|replace(?:d)?|insert(?:ed)?|modify|modified)\b/i.test(text)) {
+    score += 10;
+  }
+  if (/\b(?:is hereby amended|deleted in its entirety|replaced with the following|amended and restated)\b/i.test(text)) {
+    score += 8;
+  }
+  if (/\b(?:consideration|purchase price|exchange ratio|liquidation preference|earnout|outside date|termination date|closing condition|financing condition|redemption|lock-?up)\b/i.test(text)) {
+    score += 6;
+  }
+  if (/^\s*(?:whereas\b|now,? therefore\b|capitalized terms used\b)/i.test(block.text)) {
+    score -= 8;
+  }
+  if (/^\s*(?:ex-?\d|exhibit\s+\d|\d+\s+[a-z0-9_.-]+\.html?)\s*$/i.test(block.text)) {
+    score -= 12;
+  }
+
+  return score;
 }
 
 function readRecord(value: unknown): Record<string, unknown> | null {

@@ -123,6 +123,41 @@ assert.ok(analysisPrompt.user.includes(mergerParserOutput.raw.cleaned_source_blo
 assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.key_evidence.maxItems, 3);
 assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.what_to_watch_next.maxItems, 3);
 
+const amendmentParserOutput = parseSec425Filing({
+  title: "425 - merger amendment notice",
+  formType: "425",
+  filingText: "The parties entered into a second amendment to their merger agreement.",
+  attachments: [{
+    documentType: "EX-2.1",
+    description: "Second Amendment to Agreement and Plan of Merger",
+    filename: "second-amendment.htm",
+    text: [
+      "SECOND AMENDMENT TO AGREEMENT AND PLAN OF MERGER",
+      ...Array.from(
+        { length: 14 },
+        (_, index) => `WHEREAS, recital ${index + 1} describes background to the original agreement without changing its terms.`,
+      ),
+      "NOW, THEREFORE, Section 1.7 is replaced to permit eligible preferred holders to make a Liquidation Preference Election.",
+    ].join("\n"),
+  }],
+});
+const amendmentRoute = buildRouterDecision(amendmentParserOutput, {
+  route_case: "agreement_amendment",
+  communication_mode: "agreement_filing",
+  transaction_stage: "amended",
+  selected_source_block_ids: [amendmentParserOutput.raw.cleaned_source_blocks[0]?.block_id || "missing-block-id"],
+});
+const amendmentPrompt = buildSec425AnalysisPromptDraft({
+  filing_package: { fixture: "agreement-amendment-source-selection" },
+  parser_output: amendmentParserOutput,
+  router_result: amendmentRoute,
+  display_payload: buildSec425DisplayPayload(amendmentParserOutput, amendmentRoute),
+  filing_excerpt: "",
+  market_context: null,
+});
+assert.ok(amendmentPrompt.user.includes("router_selected_with_material_document_context"));
+assert.ok(amendmentPrompt.user.includes("Liquidation Preference Election"));
+
 console.log("sec 425 analysis fixtures passed");
 
 function readFixture(name: string): Sec425ParseInput {
