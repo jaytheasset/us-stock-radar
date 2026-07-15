@@ -297,6 +297,17 @@ Dark is the default and canonical palette. A Stock Radar shell defaults to `fixe
 
 Exact override values are maintained in the final `[data-sr-theme="light"]` block of `app/stock-radar-tokens.css`.
 
+Light surface hierarchy:
+
+| Level | Roles | Contract |
+| --- | --- | --- |
+| Canvas | Page background and top gradient | Luminous cool-white outer workspace that feels open without becoming a visibly gray field. |
+| Recessed | Panel, elevated, control-group, table-header, footer, and muted-action surfaces | Uses a restrained blue-neutral tint to group controls and supporting regions in the same visual family as the canvas. |
+| Content | Base surface and detail gradient | White reading surface for the chart, detail rail, advertising reservations, and content panels. |
+| Raised | Table panel, table rows, controls, options, header, and overlays | White interactive/data surfaces separated from the canvas by restrained borders and compact elevation. |
+
+The Light page glow and panel/header shadows are intentionally weaker and tighter than their Dark equivalents. Dark uses ambient glow against a low-luminance canvas; Light uses a luminous cool-white tonal shift, borders, and compact elevation instead of a broad gray or warm-tinted workspace.
+
 | Override family | Count | Covered roles |
 | --- | ---: | --- |
 | Canvas, surfaces, and overlays | 25 | Neutral page canvas, white/near-white panels, controls, table surfaces, sheet surfaces, and dim overlays. |
