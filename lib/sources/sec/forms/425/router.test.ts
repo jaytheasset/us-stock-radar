@@ -62,6 +62,48 @@ assert.ok(routerPrompt.user.includes("\"cleaned_source_blocks\""));
 assert.equal(routerPrompt.user.includes("This text must not be copied"), false);
 assert.equal(routerPrompt.user.includes("\"facts\""), false);
 
+const presentationParserOutput = parseSec425Filing({
+  formType: "425",
+  accessionNumber: "0000000000-26-042599",
+  companyName: "Presentation SPAC Corp.",
+  filingText: [
+    "PUBLIC INVESTOR PRESENTATION",
+    "This presentation is issued in connection with the previously announced business combination between Presentation SPAC Corp. and Target Systems Inc.",
+    "TRANSACTION OVERVIEW",
+    "The proposed business combination values Target Systems at an enterprise value of $500 million and is expected to close after shareholder approval.",
+    "BUSINESS OVERVIEW",
+    "Target Systems provides operational software to enterprise customers and plans to expand through organic product growth.",
+    "GROWTH PLAN",
+    "The combined company expects to use public equity as acquisition currency following completion of the business combination.",
+  ].join("\n\n"),
+});
+assert.ok(presentationParserOutput.raw.router_source_blocks.length >= 2);
+assert.ok(
+  presentationParserOutput.raw.router_source_blocks.some((block) =>
+    /previously announced business combination/i.test(block.text),
+  ),
+);
+
+const callNoticeParserOutput = parseSec425Filing({
+  formType: "425",
+  accessionNumber: "0000000000-26-042598",
+  companyName: "Call Notice SPAC Corp.",
+  filingText: [
+    "Filed by Call Notice SPAC Corp. pursuant to Rule 425.",
+    "TargetAI to Host Business Update Call",
+    "TargetAI announced that it will provide a business update by conference call. During the call, management will discuss commercial, financial, and strategic milestones before the proposed business combination with Call Notice SPAC Corp.",
+    "Conference Call Details",
+    "Domestic dial-in: 1-800-555-0100. Replay conference ID: 123456.",
+    "Additional Information",
+    "The registration statement includes a proxy statement for the shareholder vote on the proposed business combination.",
+  ].join("\n\n"),
+});
+assert.ok(
+  callNoticeParserOutput.raw.router_source_blocks.some((block) =>
+    /will provide a business update by conference call/i.test(block.text),
+  ),
+);
+
 const availableIds = shareholderParserOutput.raw.router_source_blocks.map((block) => block.block_id);
 const selectedId = availableIds[0];
 assert.ok(selectedId);

@@ -662,17 +662,52 @@ function selectRouterSourceBlocks(blocks: Sec425SourceBlock[]) {
       )
       .sort((left, right) => routerBlockPriority(right) - routerBlockPriority(left) || left.sequence - right.sequence);
     const documentSelected: Sec425SourceBlock[] = [];
+
+    const leadBlock = [...substantive]
+      .sort((left, right) => left.sequence - right.sequence)
+      .find((block) => isSubstantiveLeadBlock(block));
+    if (leadBlock) documentSelected.push(leadBlock);
+
+    const identityBlock = [...substantive]
+      .sort((left, right) => left.sequence - right.sequence)
+      .find((block) => isTransactionIdentityBlock(block.text));
+    if (identityBlock && !documentSelected.some((block) => block.block_id === identityBlock.block_id)) {
+      documentSelected.push(identityBlock);
+    }
+
     const roles = new Set<Sec425DocumentRole>();
+    for (const block of documentSelected) roles.add(block.content_role);
     for (const block of substantive) {
+      if (documentSelected.some((selectedBlock) => selectedBlock.block_id === block.block_id)) continue;
       if (roles.has(block.content_role)) continue;
       documentSelected.push(block);
       roles.add(block.content_role);
       if (documentSelected.length >= ROUTER_BLOCKS_PER_DOCUMENT) break;
     }
+
+    for (const block of substantive) {
+      if (documentSelected.length >= ROUTER_BLOCKS_PER_DOCUMENT) break;
+      if (documentSelected.some((selectedBlock) => selectedBlock.block_id === block.block_id)) continue;
+      documentSelected.push(block);
+    }
     selected.push(...documentSelected.map(toRouterSourceBlock));
   }
 
   return dedupeSourceBlocks(selected).slice(0, ROUTER_BLOCK_LIMIT);
+}
+
+function isSubstantiveLeadBlock(block: Sec425SourceBlock) {
+  const text = compactText(block.text);
+  if (block.block_type === "cover" || block.is_boilerplate) return false;
+  if (looksLikeSourceFileHeader(text) || isSecViewerArtifact(text)) return false;
+  if (text.length < 80) return false;
+  return block.sequence <= 8 || /\b(?:announc(?:e|ed|es)|will provide|entered into|proposed|business combination|merger|acquisition|offer|transaction)\b/i.test(text);
+}
+
+function isTransactionIdentityBlock(text: string) {
+  return /\b(?:issued|filed|furnished|prepared|published|posted)\s+in\s+connection\s+with\b[\s\S]{0,260}\b(?:business combination|merger|acquisition|transaction|tender offer|exchange offer)\b/i.test(text) ||
+    /\b(?:previously announced|proposed|definitive)\b[\s\S]{0,220}\b(?:business combination|merger|acquisition|transaction|tender offer|exchange offer)\b/i.test(text) ||
+    /\b(?:business combination|merger|acquisition|transaction|offer)\s+(?:between|with)\b[\s\S]{0,220}\b(?:Corp\.?|Inc\.?|Ltd\.?|plc|Company)\b/i.test(text);
 }
 
 function hasMaterialCoverTail(text: string) {
