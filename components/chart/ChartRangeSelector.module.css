@@ -17,7 +17,7 @@
 }
 
 .selected {
-  color: var(--sr-color-text-inverse);
+  color: var(--sr-color-text-chart-range-selected);
 }
 
 .selected::after {

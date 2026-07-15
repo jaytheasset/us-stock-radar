@@ -36,7 +36,7 @@ All names use the `--sr-` prefix and semantic roles:
 
 ## 3. Token Inventory
 
-There are 248 unique tokens: 128 color, 38 typography, 22 spacing, 24 sizing, 21 shape/effect, and 15 layer/motion tokens. The Light selector redefines 136 existing roles; it does not create a second token vocabulary.
+There are 249 unique tokens: 129 color, 38 typography, 22 spacing, 24 sizing, 21 shape/effect, and 15 layer/motion tokens. The Light selector redefines 137 existing roles; it does not create a second token vocabulary.
 
 ### Color: canvas, surfaces, and overlays
 
@@ -290,6 +290,7 @@ There are 248 unique tokens: 128 color, 38 typography, 22 spacing, 24 sizing, 21
 | `--sr-motion-distance-drawer` (source `app/stock-radar-tokens.css:270`) | `28px` | Motion travel distance for drawer. | `components/dashboard-v2/StockRadarDashboardV2.module.css:525` |
 | `--sr-motion-distance-reduced` (source `app/stock-radar-tokens.css:271`) | `0px` | Motion travel distance for reduced. | Reserved foundation role; see Migration Result for its phase 3 contract. |
 | `--sr-motion-easing-standard` (source `app/stock-radar-tokens.css:272`) | `ease-out` | Motion easing for standard. | `components/shell/StockRadarProductHeader.module.css:207`<br>`components/ui/BottomSheetShell.module.css:61` |
+| `--sr-color-text-chart-range-selected` (source `app/stock-radar-tokens.css:275`) | `#ffffff` | Selected chart-range text that remains canonical white in Dark and readable on the transparent Light chart surface. | `components/chart/ChartRangeSelector.module.css:20` |
 ## 3A. Light Theme Override Inventory
 
 Dark is the default and canonical palette. A Stock Radar shell defaults to `fixed-dark`. A route that explicitly selects `user-selectable` renders `data-sr-theme="dark"` when `sr-theme` is missing, invalid, or unreadable. The operating system color-scheme preference is not consulted. In that mode, a stored `light` value changes the same shell to `data-sr-theme="light"`; no route-specific Light stylesheet or duplicate component tree exists.
@@ -300,13 +301,13 @@ Exact override values are maintained in the final `[data-sr-theme="light"]` bloc
 | --- | ---: | --- |
 | Canvas, surfaces, and overlays | 25 | Neutral page canvas, white/near-white panels, controls, table surfaces, sheet surfaces, and dim overlays. |
 | Borders and dividers | 11 | Standard, overlay, section, close-control, and action boundaries. |
-| Text hierarchy | 33 | Primary, heading, ticker, body, control, menu, metadata, mobile, and inverse text. |
+| Text hierarchy | 34 | Primary, heading, ticker, body, control, menu, metadata, mobile, inverse, and selected chart-range text. |
 | Accent and interaction | 27 | Orange accent, selected/active states, CTA tones, navigation emphasis, and focus-adjacent states. |
 | Market and event semantics | 16 | Positive, negative, warning, info, and all event text/background pairs. |
 | Chart | 9 | Grid, axis, bullish/bearish candles, OHLC, volume, and last-price treatment. |
 | Scrollbar and disabled state | 6 | Track, thumb, handle, and disabled text/surface. |
 | Shadows and focus effect | 9 | Header, panel, menu, sheet, CTA, pagination, delay dot, and focus ring. |
-| **Total** | **136** | Existing semantic roles overridden for Light. |
+| **Total** | **137** | Existing semantic roles overridden for Light. |
 
 Theme selector rules:
 
