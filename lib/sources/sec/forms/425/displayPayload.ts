@@ -26,6 +26,7 @@ export function buildSec425DisplayPayload(
     data: {
       display_version: SEC_425_DISPLAY_PAYLOAD_VERSION,
       route_case: routerDecision.route_case,
+      transaction_stage: routerDecision.transaction_stage,
       event_type: routerDecision.event_type,
       score_hint: routerDecision.score,
       routing_reason: routerDecision.routing_reason,

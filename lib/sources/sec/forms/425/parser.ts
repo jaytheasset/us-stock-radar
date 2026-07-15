@@ -1377,13 +1377,7 @@ function findDealFacts(text: string, parties: string[]): Sec425DealFacts {
     ["tender_offer", /\btender offer\b|\boffer to purchase\b/i],
     ["exchange_offer", /\bexchange offer\b/i],
   ])?.value || null;
-  const status = readFirstField(text, [
-    ["announced", /\bannounced\b|\bentered into\b/i],
-    ["pending", /\bpending\b|\bproposed\b/i],
-    ["delayed", /\bdelay\b|\bdelayed\b|\bpostponed\b/i],
-    ["terminated", /\bterminated\b|\btermination\b/i],
-    ["completed", /\bcompleted\b|\bclosed\b/i],
-  ])?.value || null;
+  const status = findTransactionStatus(text);
   const considerationEvidence = findConsiderationEvidence(text);
   const exchangeRatio = text.match(/\b(\d+(?:\.\d+)?)\s+(?:shares?|common shares?)\s+of\s+[A-Z][A-Za-z0-9&.,' -]+?(?:common stock|common shares|stock)\b/i)?.[1] || null;
   const cashComponent = findCashComponent(text);
@@ -1412,8 +1406,24 @@ function findDealFacts(text: string, parties: string[]): Sec425DealFacts {
   };
 }
 
+function findTransactionStatus(text: string) {
+  const candidates: Array<[string, RegExp]> = [
+    ["completed", /\b(?:transaction|merger|acquisition|business combination)\b.{0,100}\b(?:has been completed|was completed|has closed|was consummated|is now complete)\b/i],
+    ["terminated", /\b(?:parties|company|board|agreement|transaction|merger)\b.{0,100}\b(?:terminated the agreement|has been terminated|was terminated|will not proceed)\b/i],
+    ["delayed", /\b(?:closing|transaction|merger|meeting|vote)\b.{0,100}\b(?:has been delayed|was delayed|postponed|adjourned)\b/i],
+    ["agreement_signed", /\b(?:entered into|executed|signed)\b.{0,100}\b(?:definitive agreement|agreement and plan of merger|merger agreement|business combination agreement|transaction agreement)\b/i],
+    ["pending", /\b(?:transaction|merger|acquisition|business combination)\b.{0,80}\b(?:remains pending|is pending|proposed)\b/i],
+    ["announced", /\b(?:announced|jointly announced)\b.{0,100}\b(?:transaction|merger|acquisition|business combination|agreement)\b/i],
+  ];
+  return readFirstField(text, candidates)?.value || null;
+}
+
 function findConsiderationEvidence(text: string) {
   const patterns = [
+    /\baggregate purchase price\b.{0,280}\b(?:cash|shares|stock)\b/i,
+    /\b(?:purchase price paid|transaction consideration)\b.{0,240}\b(?:cash|shares|stock|per share)\b/i,
+    /\b(?:each (?:issued and outstanding )?share|stockholders?|shareholders?|equityholders?)\b.{0,220}\b(?:will receive|entitled to receive|converted into the right to receive)\b.{0,180}\b(?:cash|shares|stock|per share)\b/i,
+    /\$[\d,.]+\s+(?:cash\s+)?per share\b.{0,180}\b(?:cash|stock|shares|consideration|transaction|offer)\b/i,
     /\bconsideration\b.{0,180}\b(?:cash|stock|shares|exchange ratio|per share|will receive|consists?|converted|payable)\b/i,
     /\b(?:will receive|entitled to receive|converted into the right to receive)\b.{0,180}\b(?:cash|shares|stock|per share)\b/i,
     /\bmix of cash and [^.|\n]{0,160}?(?:common stock|shares|equity)\b/i,
@@ -1426,9 +1436,21 @@ function findConsiderationEvidence(text: string) {
 
   for (const pattern of patterns) {
     const sentence = findSentence(text, pattern);
-    if (sentence && !isCoverSecurityNoise(sentence) && !isNoteBoilerplateSentence(sentence)) return sentence;
+    if (
+      sentence &&
+      !isCoverSecurityNoise(sentence) &&
+      !isNoteBoilerplateSentence(sentence) &&
+      !isDefinedTermOnlySentence(sentence)
+    ) {
+      return sentence;
+    }
   }
   return null;
+}
+
+function isDefinedTermOnlySentence(sentence: string) {
+  return /^(?:["']?[A-Z][A-Za-z0-9 ()/-]{2,80}["']?\s+)?means\b/i.test(sentence.trim()) ||
+    /\bmeans the\b.{0,180}\b(?:estimated|aggregate|merger) consideration\b/i.test(sentence);
 }
 
 function findCashComponent(text: string) {
@@ -1640,14 +1662,23 @@ function isNoteBoilerplateSentence(sentence: string) {
 }
 
 function findFinancingFacts(text: string): Sec425FinancingFacts {
-  const financingRisk = findSentences(text, /\b(?:financing condition|debt financing|financing commitments?|cash condition|funding|financing may not be available)\b/i, 4);
+  const financingRisk = findSentences(text, /\b(?:financing condition|debt financing|financing commitments?|cash condition|funding|financing may not be available)\b/i, 8)
+    .filter(isMaterialFinancingSentence)
+    .slice(0, 4);
   const goingConcern = findSentences(text, /\b(?:going concern|liquidity|cash runway|substantial doubt|need to raise additional capital|unable to continue)\b/i, 4);
-  const financingCondition = findSentence(text, /\bfinancing condition\b|\bdebt financing\b|\bcash condition\b/i);
+  const financingCondition = findSentences(text, /\bfinancing condition\b|\bdebt financing\b|\bcash condition\b/i, 8)
+    .find(isMaterialFinancingSentence) || null;
   return {
     financing_risk: financingRisk,
     financing_condition: financingCondition,
     going_concern_or_liquidity_risk: goingConcern,
   };
+}
+
+function isMaterialFinancingSentence(sentence: string) {
+  if (/\|\s*\d+\s*\||\bExhibits?\s+Exhibit\b|\bTable of Contents\b/i.test(sentence)) return false;
+  if (isDefinedTermOnlySentence(sentence)) return false;
+  return /\b(?:commit(?:ment|ted)?|finance|financing|fund(?:ed|ing)?|condition|available|proceeds?|bridge|facility|cash)\b/i.test(sentence);
 }
 
 function hasNoNewMaterialInfo(text: string) {
@@ -2071,9 +2102,9 @@ function splitSentences(text: string) {
 
 function pickEvidenceSentence(text: string, index: number) {
   const start = Math.max(0, text.lastIndexOf(".", index - 1), text.lastIndexOf("\n", index - 1));
-  let end = text.indexOf(".", index + 1);
+  let end = findNextSentencePeriod(text, index + 1);
   if (end >= 0 && end - index < 80) {
-    const nextEnd = text.indexOf(".", end + 1);
+    const nextEnd = findNextSentencePeriod(text, end + 1);
     if (nextEnd >= 0) end = nextEnd;
   }
   if (end < 0) end = Math.min(text.length, index + 360);
@@ -2084,10 +2115,24 @@ function pickEvidenceSentence(text: string, index: number) {
 function pickEvidenceWindow(text: string, index: number) {
   const start = Math.max(0, text.lastIndexOf("\n", index - 1), text.lastIndexOf(".", index - 1));
   let end = text.indexOf("\n", index + 1);
-  const sentenceEnd = text.indexOf(".", index + 1);
+  const sentenceEnd = findNextSentencePeriod(text, index + 1);
   if (sentenceEnd >= 0 && (end < 0 || sentenceEnd < end)) end = sentenceEnd + 1;
   if (end < 0 || end - index < 80) end = Math.min(text.length, index + 360);
   return truncate(compactText(text.slice(start > 0 ? start + 1 : start, end)), 420);
+}
+
+function findNextSentencePeriod(text: string, from: number) {
+  let cursor = Math.max(0, from);
+  while (cursor < text.length) {
+    const period = text.indexOf(".", cursor);
+    if (period < 0) return -1;
+    if (/\d/.test(text[period - 1] || "") && /\d/.test(text[period + 1] || "")) {
+      cursor = period + 1;
+      continue;
+    }
+    return period;
+  }
+  return -1;
 }
 
 function cleanCompanyName(value: string) {

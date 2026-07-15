@@ -6324,6 +6324,7 @@ function buildForm425TransactionModel(filing: FilingEvent): Form425TransactionMo
   }
 
   const routeCase = readRowString(data, "route_case");
+  const transactionStage = readRowString(data, "transaction_stage");
   const deal = readPlainRecord(data.deal);
   const vote = readPlainRecord(data.vote);
   const offer = readPlainRecord(data.offer);
@@ -6365,7 +6366,11 @@ function buildForm425TransactionModel(filing: FilingEvent): Form425TransactionMo
     formatForm425Label(readRowString(deal, "transaction_type")),
     parties.length >= 2 ? parties.slice(0, 2).join(" / ") : "",
   );
-  pushRow("Current Status", formatForm425Label(readRowString(deal, "transaction_status")), readRowString(deal, "expected_close") ? `Expected close: ${readRowString(deal, "expected_close")}` : "");
+  pushRow(
+    "Current Status",
+    formatForm425TransactionStage(transactionStage || readRowString(deal, "transaction_status")),
+    readRowString(deal, "expected_close") ? `Expected close: ${readRowString(deal, "expected_close")}` : "",
+  );
   pushRow(
     "Consideration",
     readRowString(deal, "consideration_text") || readRowString(deal, "cash_component") || readRowString(deal, "stock_component"),
@@ -6383,10 +6388,11 @@ function buildForm425TransactionModel(filing: FilingEvent): Form425TransactionMo
     ...displayStringArray(financing?.going_concern_or_liquidity_risk, []),
   ];
   const financingCondition = readRowString(financing, "financing_condition");
-  if (financingCondition) {
-    pushRow("Key Condition", "Financing commitment", shortenForm425Note(financingCondition));
-  } else if (legalRisks[0]) {
+  const prefersFinancingCondition = routeCase === "financing_or_liquidity_risk";
+  if (legalRisks[0] && !prefersFinancingCondition) {
     pushRow("Key Condition", "Regulatory / legal review", shortenForm425Note(legalRisks[0]));
+  } else if (financingCondition) {
+    pushRow("Key Condition", "Financing commitment", shortenForm425Note(financingCondition));
   } else if (financingRisks[0]) {
     pushRow("Key Condition", "Financing / liquidity risk", shortenForm425Note(financingRisks[0]));
   }
@@ -6421,6 +6427,18 @@ function formatForm425Label(value: string) {
     .replace(/[_-]+/g, " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase())
     .trim();
+}
+
+function formatForm425TransactionStage(value: string) {
+  const labels: Record<string, string> = {
+    agreement_signed: "Agreement signed",
+    vote_pending: "Vote pending",
+    vote_update: "Vote updated",
+    regulatory_review: "Regulatory review",
+    closing_pending: "Closing pending",
+    opposition_or_competing_offer: "Competing proposal",
+  };
+  return labels[value] || formatForm425Label(value);
 }
 
 function cleanForm425DisplayValue(value: string) {

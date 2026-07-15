@@ -203,6 +203,18 @@ The proposed consideration would consist of 50% cash and 50% GameStop Class A co
 assert.equal(/Trading Symbol|NYSE|par value/i.test(offerWithRegisteredSecuritiesTable.facts.offer.consideration || ""), false);
 assert.ok(/publicly proposes to acquire Example Marketplace for \$125\.00 per share/i.test(offerWithRegisteredSecuritiesTable.facts.offer.consideration || ""));
 
+const signedMergerPackage = parseInline("signed-merger-terms", `
+On March 30, 2026, Sysco Corporation entered into an Agreement and Plan of Merger with JRD Unico, Inc.
+The aggregate purchase price paid by Sysco will consist of $21.6 billion in cash and 91.5 million shares of HoldCo Common Stock.
+"Aggregate Merger Consideration" means the Maverick OpCo Estimated Cash Consideration plus the Maverick PropCo Estimated Cash Consideration.
+Debt Financing Sources | 130 | Exhibits Exhibit A - Form of Stockholders Agreement
+The completion of the mergers is subject to expiration or termination of the applicable Hart-Scott-Rodino waiting period.
+`);
+assert.equal(signedMergerPackage.facts.deal.transaction_status, "agreement_signed");
+assert.match(signedMergerPackage.facts.deal.consideration_text || "", /\$21\.6 billion in cash and 91\.5 million shares/i);
+assert.doesNotMatch(signedMergerPackage.facts.deal.consideration_text || "", /^Aggregate Merger Consideration means/i);
+assert.equal(signedMergerPackage.facts.financing.financing_condition, null);
+
 const premiumFalsePositive = parseInline("premium-false", `
 Investor Note
 The company discussed premium brand positioning and insurance premium expense trends.
