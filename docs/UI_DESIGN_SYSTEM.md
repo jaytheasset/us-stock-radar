@@ -1,6 +1,6 @@
 # Stock Radar UI Design System
 
-Status: official UI-system entry point at commit `6909e95`
+Status: official UI-system entry point at canonical head `11447fc`
 
 Canonical route: `/dashboard-v2`
 
@@ -23,7 +23,7 @@ This system makes the approved `/dashboard-v2` presentation reusable without tur
 
 When sources disagree, use this priority:
 
-1. Current checked-in token and component code at `6909e95`.
+1. Current checked-in token and component code at the canonical head.
 2. [UI_DESIGN_TOKENS.md](UI_DESIGN_TOKENS.md).
 3. [UI_COMPONENT_CONTRACTS.md](UI_COMPONENT_CONTRACTS.md).
 4. The eight [canonical baseline screenshots](ui-reference/dashboard-v2/).
@@ -46,7 +46,7 @@ Do not compare screenshots produced by different Chrome, font, operating-system,
 
 ## 3. Visual Principles
 
-- **Dark and data-first.** Near-black canvases and charcoal surfaces support dense, repeated financial scanning.
+- **Dark canonical, Light alternate.** Dark remains the default canonical presentation. Light preserves the same dense information hierarchy with a neutral gray canvas, white/near-white surfaces, explicit borders, and high-contrast semantic market tones.
 - **Density before decoration.** Prefer rows, bands, dividers, and compact controls over marketing cards, large empty space, gradients used as decoration, or oversized type.
 - **Orange has a job.** Orange marks product accent, active navigation, selected rows, strong calls to action, and high-priority emphasis. It is not a general decorative color.
 - **Market meaning is semantic.** Positive and negative movement use their market tones. Warning, info, event, and impact meanings use their dedicated roles.
@@ -54,7 +54,7 @@ Do not compare screenshots produced by different Chrome, font, operating-system,
 - **Mobile reprioritizes.** Mobile does not shrink a desktop table until every column fits. It presents the same record as a purpose-built list row and moves detail into a sheet.
 - **Scan speed wins.** Stable row heights, tabular numerals, right-aligned metrics, nowrap values, and ellipsized identity metadata reduce visual movement.
 
-Do not add unverified brand philosophy, illustration rules, a light theme, or alternate palettes. Those contracts do not exist in the canonical implementation.
+Do not add unverified brand philosophy, illustration rules, or additional palettes. Dark and Light are the only supported Stock Radar themes.
 
 ## 4. Responsive System
 
@@ -155,6 +155,16 @@ Important boundaries:
 
 Literal hex, RGB, HSL, or named colors are not allowed in reusable Stock Radar component CSS. Before adding a token, prove that no current semantic role fits, choose a role-based `--sr-` name, add it to `app/stock-radar-tokens.css`, update [UI_DESIGN_TOKENS.md](UI_DESIGN_TOKENS.md), and verify existing baselines. Do not create component-name color tokens for a one-off styling preference.
 
+## 7A. Theme Variants
+
+- `StockRadarAppShell` scopes the product theme through `data-sr-theme="dark|light"`. Its default mode is `fixed-dark`; only `/dashboard-v2` opts into `user-selectable`, so Feed Chart Lab, unrelated routes, and the existing application-level theme control remain unchanged.
+- Dark is canonical and is always the fallback when the Stock Radar `sr-theme` storage value is absent, invalid, or unavailable. `prefers-color-scheme` does not choose the Stock Radar default.
+- Light is an alternate rendering of the same route, DOM, layout, typography, spacing, data, and interaction contracts. Do not create a parallel Light route or Light-only component tree.
+- Components use one semantic `--sr-*` vocabulary. Theme values are selected only by the token source; component modules must not contain separate Dark/Light declarations or literal colors.
+- In `user-selectable` mode, the product-header theme action is available on desktop and mobile, has an action-specific accessible name, uses the shared `IconButton`, and persists the selection under `sr-theme`. New routes must opt in deliberately after both themes are verified.
+- Sheets, detail panels, menus, filters, charts, market rows, and ad placeholders stay inside the shell and inherit its theme attribute.
+- Validate both themes at 375x812, 390x844, 1440x900, and 1920x1080. Dark comparisons use the same runtime before and after a canonical visual change; Light references are stored separately under `docs/ui-reference/dashboard-v2-light/`.
+
 ## 8. Icons
 
 The current icon source is `lucide-react` `1.16.0`. Reuse Lucide assets already present before adding a dependency or drawing SVG controls manually.
@@ -254,7 +264,7 @@ Exact props, accessibility models, and exclusions are maintained in [UI_COMPONEN
 2. Inspect existing shell, generic UI, market, and chart components before adding code.
 3. Define the page's information hierarchy and business ownership without copying dashboard mock state.
 4. Design desktop and mobile composition together; specify what is hidden, reordered, summarized, or moved to detail.
-5. Use existing semantic tokens only.
+5. Use existing semantic tokens only and verify both Dark and Light through the shell theme contract.
 6. If no token or component fits, document at least two real uses and the missing semantic contract before proposing one.
 7. Validate at 375x812, 390x844, 1440x900, and 1920x1080, plus any touched breakpoint boundary.
 8. Validate keyboard operation, ARIA relationships, focus restoration, numeric wrapping, text truncation, and overflow.
@@ -277,6 +287,7 @@ Exact props, accessibility models, and exclusions are maintained in [UI_COMPONEN
 Do:
 
 - Use `var(--sr-*)` semantic tokens.
+- Support the canonical Dark and alternate Light themes through the same DOM and component APIs.
 - Reuse the narrowest verified component that matches the interaction and geometry.
 - Keep business state and API models in page/domain adapters.
 - Reprioritize information for mobile.
@@ -287,6 +298,7 @@ Do:
 Don't:
 
 - Add arbitrary hex/RGB colors, typography, spacing, radius, shadow, or breakpoints.
+- Add component-local theme selectors or duplicate a route/component tree for Light.
 - force a desktop market table into mobile horizontal scrolling.
 - Put business filter, event, ticker, route, or API names in generic UI props.
 - Create speculative variants or components for a single unproven use.
@@ -324,7 +336,7 @@ Before adding a token, component, or pattern:
 7. Add a new route-specific reference only when it establishes a distinct, approved canonical pattern.
 8. Keep unrelated features, data changes, and defect fixes out of the refactor.
 
-Current token health at `6909e95`: 248 definitions, 248 documented, 243 referenced, 5 documented foundation tokens unused by dashboard-v2, and 0 undefined references.
+Current token health: 248 unique definitions, 136 Light overrides of existing roles, and no second theme-specific token vocabulary. Undefined references must remain at zero.
 
 ## 18. Verification Checklist
 
@@ -334,6 +346,7 @@ Copy this checklist into Stock Radar UI pull requests:
 [ ] Read AGENTS.md, UI_DESIGN_SYSTEM.md, UI_DESIGN_TOKENS.md, and UI_COMPONENT_CONTRACTS.md.
 [ ] Change scope contains no unrelated feature, data, API, parser, auth, routing, or SEO work.
 [ ] Existing token/component contracts were reused before adding new ones.
+[ ] Dark and Light render through the same route, DOM, layout, and semantic token names.
 [ ] Reusable CSS contains no literal color, !important, or unexplained arbitrary sizing.
 [ ] Token definitions/documentation/references have no mismatch or undefined reference.
 [ ] TypeScript typecheck passes.

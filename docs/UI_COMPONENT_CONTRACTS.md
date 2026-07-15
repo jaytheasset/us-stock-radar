@@ -1,12 +1,12 @@
 # Stock Radar UI Component Contracts
 
-Phase: 3A/3B/3C/3D/3E/3F - foundational controls, market results, product shell, panel/sheet shells, and chart composition
+Phase: 3A/3B/3C/3D/3E/3F plus theme variants - foundational controls, market results, product shell, theme state, panel/sheet shells, and chart composition
 
 Canonical visual baseline: commit `f87660f` and `docs/ui-reference/dashboard-v2/`
 
 Token foundation: commit `7280394`, `app/stock-radar-tokens.css`, and `docs/UI_DESIGN_TOKENS.md`
 
-These phases extract only the documented controls, market-result presentations, Stock Radar product shell, detail-panel surface, modal bottom-sheet lifecycle, and provider-neutral chart composition. The contracts preserve the canonical dashboard-v2 behavior and computed presentation. Shared components do not introduce provider fetching, real filtering, a generic popover, an application-wide focus-trap framework, or new modal behavior; the dashboard-owned FMP chart and mover routes are documented separately.
+These phases extract only the documented controls, market-result presentations, Stock Radar product shell and theme state, detail-panel surface, modal bottom-sheet lifecycle, and provider-neutral chart composition. The contracts preserve the canonical dashboard-v2 behavior and computed presentation. Shared components do not introduce provider fetching, real filtering, a generic popover, an application-wide focus-trap framework, or new modal behavior; the dashboard-owned FMP chart and mover routes are documented separately.
 
 ## 1. IconButton
 
@@ -456,15 +456,28 @@ These remain deferred because they combine broader layout, domain state, respons
 | --- | --- | --- | --- |
 | `activeNavigationItem` | `StockRadarPrimaryNavigationKey` | yes | Single source of truth for the active product navigation item. |
 | `children` | `ReactNode` | yes | Full-width page-owned content rendered inside the main landmark. |
+| `themeMode` | `"fixed-dark" \| "user-selectable"` | no | Defaults to `"fixed-dark"`. A route must explicitly opt in to the persisted Light control. |
 
-The shell owns the canonical page background, minimum viewport height, Stock Radar typography inheritance, scrollbar treatment, hidden legacy theme toggle, product header, and `main#stock-radar-main-content`. It does not own page maximum width, gutters, table/detail grids, sidebars, filters, panels, sheets, or data state.
+The shell owns the canonical page background, minimum viewport height, Stock Radar typography inheritance, scrollbar treatment, scoped Stock Radar theme provider, hidden legacy application theme toggle, product header, and `main#stock-radar-main-content`. It does not own page maximum width, gutters, table/detail grids, sidebars, filters, panels, sheets, or data state.
 
 The dashboard passes its workspace and mobile sheets as the content slot. Its table/detail split remains in `StockRadarDashboardV2.module.css` and is not normalized for other routes.
+
+### Theme provider and control
+
+- Provider: `components/shell/StockRadarThemeProvider.tsx`.
+- Control: `components/shell/StockRadarThemeToggle.tsx`, rendered in `StockRadarProductHeader` through the shared `IconButton`.
+- `StockRadarTheme` is the closed union `"dark" | "light"`; `StockRadarThemeMode` is the closed union `"fixed-dark" | "user-selectable"`.
+- `StockRadarThemeProvider` accepts `children: ReactNode`, optional placement-only `className`, and optional `mode`. It renders the shell root with `data-sr-theme`, exposes `{ theme, toggleTheme }` through `useStockRadarTheme`, and throws when the hook is used outside the provider.
+- `fixed-dark` is the provider and app-shell default. It renders Dark, does not read or write `sr-theme`, emits no initialization script, and exposes no header toggle. This keeps existing shell consumers such as Feed Chart Lab unchanged.
+- `/dashboard-v2` explicitly passes `themeMode="user-selectable"`. In that mode, `sr-theme` is the sole Stock Radar persistence key. Missing, invalid, or unreadable storage resolves to Dark and never consults `prefers-color-scheme`.
+- In `user-selectable` mode only, a shell-local initialization script applies a valid stored Light value before the shell content paints. The server and React initial state remain Dark, `suppressHydrationWarning` is limited to the theme root, and the first client effect reconciles controlled state without changing DOM structure.
+- The toggle uses Sun for the action from Dark to Light and Moon for the action from Light to Dark. Its accessible name and title are `Switch to light theme` or `Switch to dark theme` according to the next action. Native button keyboard behavior and the existing tokenized focus-visible ring are preserved.
+- Theme state changes only semantic token values. The provider owns no route, market, filter, ticker, data, provider, or overlay logic.
 
 ### Server and client boundary
 
 - `StockRadarAppShell` has no `"use client"` directive and is composed by the Server Component route in `app/dashboard-v2/page.tsx`.
-- `StockRadarProductHeader` is the only shell component that declares `"use client"`; it owns the mobile-menu state, refs, document listeners, and focus restoration.
+- `StockRadarThemeProvider`, `StockRadarThemeToggle`, and `StockRadarProductHeader` declare `"use client"`. The provider owns only theme persistence/context; ProductHeader continues to own mobile-menu state, refs, document listeners, and focus restoration.
 - Desktop/mobile navigation renderers and the navigation configuration contain no hooks or browser APIs. They enter the client graph only through ProductHeader.
 - The `children` slot remains server-compatible. Dashboard-v2 is already a Client Component for its own market, filter, and sheet state; the shell does not move otherwise-server page content across a client boundary.
 
@@ -473,7 +486,10 @@ The dashboard passes its workspace and mobile sheets as the content slot. Its ta
 ```tsx
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 
-<StockRadarAppShell activeNavigationItem="markets">
+<StockRadarAppShell
+  activeNavigationItem="markets"
+  themeMode="user-selectable"
+>
   <PageOwnedLayout />
 </StockRadarAppShell>
 ```
@@ -486,7 +502,7 @@ A skip link was not added in 3D. Introducing its focus placement and visible foc
 
 - Component: `components/shell/StockRadarProductHeader.tsx`
 - Styles: `components/shell/StockRadarProductHeader.module.css`
-- Purpose: canonical brand/status, desktop product navigation, inert header actions, and mobile menu trigger/state.
+- Purpose: canonical brand/status, desktop product navigation, theme action, inert header actions, and mobile menu trigger/state.
 - Replaced component: deleted `components/dashboard-v2/DashboardHeader.tsx`.
 
 ### Props
@@ -494,12 +510,14 @@ A skip link was not added in 3D. Introducing its focus placement and visible foc
 | Prop | Type | Required | Contract |
 | --- | --- | --- | --- |
 | `activeNavigationItem` | `StockRadarPrimaryNavigationKey` | yes | Passed unchanged to desktop and mobile navigation renderers. |
+| `showThemeToggle` | `boolean` | no | Defaults to `false`; the app shell enables it only for `user-selectable` theme mode. |
 
 Product name `STOCK RADAR` and market status `15m delayed` are exported product constants in `stockRadarNavigation.ts`; they are not dashboard data or customizable speculative props. Header height, padding, surface, divider, brand geometry, status dot, action spacing, and the 760 px breakpoint preserve the canonical computed values.
 
 ### Header actions and ARIA
 
-- Alert, Settings, and mobile menu actions reuse `IconButton`; the alert keeps its indicator.
+- Alert, Settings, the optional Stock Radar theme action, and mobile menu actions reuse `IconButton`; the alert keeps its indicator.
+- When enabled, the theme action is visible on desktop and mobile. It does not replace Search, Alert, Settings, or Menu, and it does not change the header height.
 - Search keeps its existing icon-plus-text native button because the header IconButton contract is icon-only. It remains inert.
 - Search, Alert, and desktop Settings do not advertise `aria-haspopup`, `aria-expanded`, or `aria-controls` because no popup exists.
 - Only the mobile menu trigger exposes `aria-haspopup="menu"` and boolean `aria-expanded`. `aria-controls` is present only while the matching menu DOM exists.

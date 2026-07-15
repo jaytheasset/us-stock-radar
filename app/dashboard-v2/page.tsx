@@ -9,7 +9,10 @@ export const metadata: Metadata = {
 
 export default function DashboardV2Page() {
   return (
-    <StockRadarAppShell activeNavigationItem="markets">
+    <StockRadarAppShell
+      activeNavigationItem="markets"
+      themeMode="user-selectable"
+    >
       <StockRadarDashboardV2 />
     </StockRadarAppShell>
   );

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Bell, Menu, Search, Settings } from "lucide-react";
 import { StockRadarDesktopNavigation } from "@/components/shell/StockRadarDesktopNavigation";
+import { StockRadarThemeToggle } from "@/components/shell/StockRadarThemeToggle";
 import {
   StockRadarMobileNavigationMenu,
   stockRadarMobileMenuId,
@@ -18,10 +19,12 @@ import styles from "./StockRadarProductHeader.module.css";
 
 export type StockRadarProductHeaderProps = {
   activeNavigationItem: StockRadarPrimaryNavigationKey;
+  showThemeToggle?: boolean;
 };
 
 export function StockRadarProductHeader({
   activeNavigationItem,
+  showThemeToggle = false,
 }: StockRadarProductHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
@@ -92,6 +95,7 @@ export function StockRadarProductHeader({
           <IconButton aria-label="Alerts" indicator>
             <Bell aria-hidden="true" size={18} />
           </IconButton>
+          {showThemeToggle ? <StockRadarThemeToggle /> : null}
           <IconButton aria-label="Settings" className={styles.settingsButton}>
             <Settings aria-hidden="true" size={18} />
           </IconButton>
