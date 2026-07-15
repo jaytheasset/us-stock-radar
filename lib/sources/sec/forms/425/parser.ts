@@ -2356,6 +2356,7 @@ function escapeRegExp(value: string) {
 function cleanCompanyName(value: string) {
   return compactText(value)
     .replace(/\s*\(Filed by\)\s*CIK\s*:\s*\d+.*$/i, "")
+    .replace(/\s+CIK\s*:\s*\d+.*$/i, "")
     .replace(/\s*\([^)]*\)\s*/g, " ")
     .replace(/\b(?:a Delaware corporation|a corporation|Inc\.? and|LLC and)$/i, "")
     .replace(/\s+/g, " ")

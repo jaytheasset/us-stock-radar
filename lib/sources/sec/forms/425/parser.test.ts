@@ -134,6 +134,15 @@ assert.equal(coverOnly.facts.raw_data.parser_only_case, "cover_only_no_substanti
 assert.ok(coverOnly.facts.deterministic_archive_reason);
 assert.ok(coverOnly.warnings.includes("cover_only_filing"));
 
+const companyNameWithCikSuffix = parseSec425Filing({
+  title: "425 - registrant name cleanup",
+  formType: "425",
+  accessionNumber: "0000000000-26-000426",
+  companyName: "NewHold Investment Corp. III CIK : 0002043699",
+  filingText: "Employee FAQ regarding a proposed business combination.",
+});
+assert.equal(companyNameWithCikSuffix.facts.company_name, "NewHold Investment Corp. III");
+
 const coverWithUnknownBody = parseInline("cover-body", `
 UNITED STATES
 SECURITIES AND EXCHANGE COMMISSION
