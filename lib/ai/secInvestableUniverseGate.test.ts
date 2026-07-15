@@ -136,6 +136,13 @@ assertKept("de-SPAC transaction without resolved current ticker", {
   llm_text: "The special purpose acquisition company disclosed a business combination and expected ticker change.",
 });
 
+assertKept("Form 425 transaction communication without resolved ticker", {
+  form_type: "425",
+  title: "RAYONIER INC files 425",
+  company_name: "RAYONIER INC",
+  llm_text: "Employee questions and answers regarding a pending merger transaction.",
+});
+
 const skipAnalysis = buildSecInvestableUniverseSkipAnalysis(
   input({
     form_type: "SC TO-I",
