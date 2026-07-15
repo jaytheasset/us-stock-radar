@@ -336,7 +336,7 @@ Before adding a token, component, or pattern:
 7. Add a new route-specific reference only when it establishes a distinct, approved canonical pattern.
 8. Keep unrelated features, data changes, and defect fixes out of the refactor.
 
-Current token health: 248 unique definitions, 136 Light overrides of existing roles, and no second theme-specific token vocabulary. Undefined references must remain at zero.
+Current token health: 249 unique definitions, 137 Light overrides of existing roles, and no second theme-specific token vocabulary. Undefined references must remain at zero.
 
 ## 18. Verification Checklist
 

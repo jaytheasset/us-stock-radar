@@ -270,6 +270,9 @@
   --sr-motion-distance-drawer: 28px;
   --sr-motion-distance-reduced: 0px;
   --sr-motion-easing-standard: ease-out;
+
+  /* Theme-dependent component text roles */
+  --sr-color-text-chart-range-selected: #ffffff;
 }
 
 [data-sr-theme="light"] {
@@ -345,6 +348,7 @@
   --sr-color-text-filter-icon: #5f6d7e;
   --sr-color-text-section-label: #4b5868;
   --sr-color-text-chart-icon: #526174;
+  --sr-color-text-chart-range-selected: #101820;
   --sr-color-text-detail-close: #526174;
   --sr-color-text-inverse: #ffffff;
 
