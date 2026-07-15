@@ -115,6 +115,8 @@ assert.ok(analysisPrompt.user.includes("\"display_version\":\"sec_425_display_v1
 assert.ok(analysisPrompt.user.includes("\"market_context\""));
 assert.ok(analysisPrompt.user.includes("\"market_cap\":3500000000"));
 assert.ok(analysisPrompt.user.includes("\"analysis_source_block_count\""));
+assert.ok(analysisPrompt.user.includes("\"analysis_source_selection\""));
+assert.ok(analysisPrompt.user.includes("router_selected_with_adjacent_context"));
 assert.ok(analysisPrompt.user.includes(mergerParserOutput.raw.cleaned_source_blocks[0]?.block_id || "missing-block-id"));
 assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.key_evidence.maxItems, 3);
 assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.what_to_watch_next.maxItems, 3);

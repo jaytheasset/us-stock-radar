@@ -7507,7 +7507,10 @@ function buildSpacTransactionStatusModel(filing: FilingEvent): SpacTransactionSt
         target_summary: filing.summary,
         target_company_story: filing.summary,
         expected_ticker: readRowString(form425SpacData, "expected_ticker"),
-        deal_value: readRowString(form425SpacData, "pre_money_valuation"),
+        deal_value:
+          readRowString(form425SpacData, "enterprise_value") ||
+          readRowString(form425SpacData, "equity_value") ||
+          readRowString(form425SpacData, "pre_money_valuation"),
         vote_date: form425VoteDate,
         proxy_filing_date: filing.filedAt,
         closing_date: form425ExpectedClose,

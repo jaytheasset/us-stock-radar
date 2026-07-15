@@ -88,6 +88,8 @@ function buildSpacTransactionStatusData(parserOutput: Sec425ParserOutput, router
     expected_ticker: facts.spac.expected_ticker,
     pipe_amount: facts.spac.pipe_amount,
     pre_money_valuation: facts.spac.pre_money_valuation,
+    equity_value: facts.spac.equity_value,
+    enterprise_value: facts.spac.enterprise_value,
     trust_cash: facts.spac.trust_cash,
     redemption_risk: facts.spac.redemption_risk,
     earnout_shares: facts.spac.earnout_shares,

@@ -231,6 +231,8 @@ export type Sec425SpacFacts = {
   combined_company_name: string | null;
   expected_ticker: string | null;
   pre_money_valuation: string | null;
+  equity_value: string | null;
+  enterprise_value: string | null;
   pipe_amount: string | null;
   trust_cash: string | null;
   earnout_shares: string | null;

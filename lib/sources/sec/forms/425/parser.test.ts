@@ -413,10 +413,25 @@ Synergies | $25 million
 assert.ok(spacDespac.facts.raw_data.content_types.includes("investor presentation"));
 assert.ok(spacDespac.facts.raw_data.content_types.includes("deal update"));
 assert.equal(spacDespac.facts.spac.is_spac_business_combination, true);
+assert.equal(spacDespac.facts.spac.target_name, "Target Mobility");
 assert.equal(spacDespac.facts.vote.solicitation_present, true);
 assert.equal(spacDespac.facts.raw_data.parser_only_case, null);
 assert.ok(/PIPE|trust account|redemption|Pro Forma Ownership/i.test(spacDespac.facts.raw_data.candidate_text));
 assert.ok(hasRawCandidate(spacDespac.facts.raw_data.table_rows, /Enterprise Value|Pro Forma Ownership|Synergies/i));
+
+const spacAliasPresentation = parseInline("spac-alias-presentation", `
+Investor Day
+This presentation is being furnished by FACT II Acquisition Corp. ("FACT") and Precision Aerospace & Defense Group, Inc. (the "Company" or "PAD").
+BCA Dated November 27, 2025 between PAD and FACT.
+Pro Forma Valuation
+$314.5 Pro-Forma Equity Value ($M)
+$310.3 Pro-Forma Enterprise Value ($M)
+`);
+assert.equal(spacAliasPresentation.facts.company_name, null);
+assert.equal(spacAliasPresentation.facts.spac.spac_name, "FACT II Acquisition Corp.");
+assert.equal(spacAliasPresentation.facts.spac.target_name, "Precision Aerospace & Defense Group, Inc.");
+assert.equal(spacAliasPresentation.facts.spac.equity_value, "$314.5 million");
+assert.equal(spacAliasPresentation.facts.spac.enterprise_value, "$310.3 million");
 
 const changedDuplicate = parseInline("changed-duplicate", `
 This communication repeats the previously announced transaction information and contains no new material information except that the parties increased the offer price to $12.00 per share.

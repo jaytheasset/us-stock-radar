@@ -92,11 +92,12 @@ export function parseSec425Filing(input: Sec425ParseInput): Sec425ParserOutput {
   const documents = buildDocumentSummaries(input, rawPayload);
   const filedBy = readFiledByCompany(text);
   const subjectCompany = readSubjectCompany(text);
-  const companyName =
+  const companyNameCandidate =
     nullableString(input.companyName) ||
     nullableString(rawPayload.company_name) ||
     nullableString(metadata.company_name) ||
     filedBy;
+  const companyName = companyNameCandidate ? cleanCompanyName(companyNameCandidate) : null;
   const primaryTicker =
     normalizeTicker(input.primaryTicker) ||
     normalizeTicker(rawPayload.ticker) ||
@@ -1645,13 +1646,16 @@ function findOfferConsiderationEvidence(text: string) {
 
 function findSpacFacts(text: string, parties: string[], companyName: string | null): Sec425SpacFacts {
   const isSpac = /\bSPAC\b|\bde-SPAC\b|\bdeSPAC\b|\bspecial purpose acquisition company\b|\bbusiness combination\b|\btrust account\b|\bredemption requests?\b/i.test(text);
-  const targetName =
-    text.match(/\bbetween\s+([A-Z][A-Za-z0-9&.,' -]+?)\s+(?:and|with)\s+([A-Z][A-Za-z0-9&.,' -]+?)(?:\.|,|\n)/i)?.[2]?.trim() ||
-    text.match(/\bwith\s+([A-Z][A-Za-z0-9&.,' -]+?)\s+(?:\(|,|\bto become\b|\bfor\b)/i)?.[1]?.trim() ||
-    null;
-  const combinedCompanyName = text.match(/\bcombined company(?:\s+will be|\s+is expected to be|\s+will be renamed)?\s+([A-Z][A-Za-z0-9&.,' -]+?)(?:\.|,|\sand\b|\sunder\b|\n)/i)?.[1]?.trim() || null;
+  const aliases = findCompanyAliases(text);
+  const spacName = isSpac ? findSpacCompanyName(aliases, parties, companyName) : null;
+  const targetName = isSpac ? findSpacTargetName(text, aliases, parties, companyName, spacName) : null;
+  const combinedCompanyName = text.match(
+    /\bcombined company\s+(?:will be named|will be called|will be renamed|is expected to be named)\s+([A-Z][A-Za-z0-9&.,' -]{2,120}?)(?:\.|,|\sunder\b|\n)/i,
+  )?.[1]?.trim() || null;
   const expectedTicker = text.match(/\b(?:under\s+the\s+ticker|ticker symbol)\s+["“]?([A-Z][A-Z0-9.]{1,8})["”]?\b/i)?.[1] || null;
   const preMoneyValuation = text.match(/\b(?:pre-money valuation|Company valuation)\s+(?:of\s+|is\s+|based on\s+)?(\$[\d,.]+\s*(?:million|billion|m|bn))/i)?.[1] || null;
+  const equityValue = findSpacValuationMetric(text, "equity");
+  const enterpriseValue = findSpacValuationMetric(text, "enterprise");
   const pipeAmount = text.match(/\b(?:PIPE|private placement)[^.\n]{0,160}?(\$[\d,.]+\s*(?:million|billion|m|bn))/i)?.[1] || null;
   const trustCash = text.match(/\b(?:trust account|cash held in trust|remaining cash in trust)[^.\n]{0,160}?(\$[\d,.]+\s*(?:million|billion|m|bn))/i)?.[1] || null;
   const earnoutShares = text.match(/\b(up to\s+)?(\d[\d,.]*\s*(?:million|m)?\s+(?:New\s+Viking\s+)?(?:common\s+)?shares?[^.\n]{0,80}earnout|earnout shares?[^.\n]{0,100}\d[\d,.]*\s*(?:million|m)?\s+shares?)/i)?.[0] || null;
@@ -1667,11 +1671,13 @@ function findSpacFacts(text: string, parties: string[], companyName: string | nu
 
   return {
     is_spac_business_combination: isSpac,
-    spac_name: isSpac ? parties.find((party) => /\b(?:Acquisition|Capital|SPAC|Corp\.? I|Corp\.? II|Corp\.? IV)\b/i.test(party)) || companyName : null,
+    spac_name: spacName,
     target_name: targetName,
     combined_company_name: combinedCompanyName,
     expected_ticker: expectedTicker,
     pre_money_valuation: preMoneyValuation,
+    equity_value: equityValue,
+    enterprise_value: enterpriseValue,
     pipe_amount: pipeAmount,
     trust_cash: trustCash,
     earnout_shares: earnoutShares,
@@ -1680,6 +1686,111 @@ function findSpacFacts(text: string, parties: string[], companyName: string | nu
     redemption_risk: redemptionRisk,
     evidence,
   };
+}
+
+type CompanyAlias = {
+  name: string;
+  aliases: string[];
+};
+
+function findCompanyAliases(text: string): CompanyAlias[] {
+  const companies: CompanyAlias[] = [];
+  const pattern = /(?:\bby\b|\band\b|\bwith\b|\bbetween\b|^|\n)\s+([A-Z][A-Za-z0-9&.,' -]{2,150}?(?:Group,\s*Inc\.?|Corporation|Corp\.?|Inc\.?|LLC|Ltd\.?|Limited|plc|Holdings))\s*\(([^)\n]{1,120})\)/g;
+  for (const match of text.matchAll(pattern)) {
+    const name = cleanCompanyName(match[1]);
+    const aliases = Array.from(match[2].matchAll(/["“]([A-Z][A-Z0-9.]{1,10})["”]/g))
+      .map((aliasMatch) => aliasMatch[1].toUpperCase())
+      .filter((alias) => !["THE", "COMPANY", "PARENT", "NEWCO"].includes(alias));
+    if (!looksLikeCompany(name) || aliases.length === 0) continue;
+    companies.push({ name, aliases: uniqueStrings(aliases) });
+  }
+  return companies.filter((company, index, all) =>
+    all.findIndex((candidate) => normalizeCompanyKey(candidate.name) === normalizeCompanyKey(company.name)) === index,
+  );
+}
+
+function findSpacCompanyName(aliases: CompanyAlias[], parties: string[], companyName: string | null) {
+  const exactCompany = aliases.find((candidate) => sameCompany(candidate.name, companyName));
+  if (exactCompany) return exactCompany.name;
+  const aliasSpac = aliases.find((candidate) => /\b(?:Acquisition|Capital|SPAC)\b/i.test(candidate.name));
+  if (aliasSpac) return aliasSpac.name;
+  return parties.find((party) => /\b(?:Acquisition|Capital|SPAC)\b/i.test(party)) || companyName;
+}
+
+function findSpacTargetName(
+  text: string,
+  aliases: CompanyAlias[],
+  parties: string[],
+  companyName: string | null,
+  spacName: string | null,
+) {
+  const agreementAliases = text.match(
+    /\b(?:BCA|Business Combination Agreement)\b[^.\n]{0,220}?\bbetween\s+([A-Z][A-Z0-9.]{1,10})\s+and\s+([A-Z][A-Z0-9.]{1,10})\b/i,
+  );
+  if (agreementAliases) {
+    for (const alias of [agreementAliases[1], agreementAliases[2]]) {
+      const company = aliases.find((candidate) => candidate.aliases.includes(alias.toUpperCase()));
+      if (company && !sameCompany(company.name, spacName || companyName) && !isTransactionShellCompany(company.name)) {
+        return company.name;
+      }
+    }
+  }
+
+  const explicitTarget = text.match(
+    /\b(?:proposed\s+)?business combination(?:\s+agreement)?\b[^.\n]{0,180}?\bwith\s+([A-Z][A-Za-z0-9&.,' -]{2,150}?(?:Group,\s*Inc\.?|Corporation|Corp\.?|Inc\.?|LLC|Ltd\.?|Limited|plc|Holdings))\b/i,
+  )?.[1];
+  if (explicitTarget) {
+    const cleaned = cleanCompanyName(explicitTarget);
+    if (!sameCompany(cleaned, spacName || companyName) && !isTransactionShellCompany(cleaned)) return cleaned;
+  }
+
+  const namedTarget = text.match(
+    /\b(?:de-SPAC transaction|proposed business combination|business combination)\b[^.\n]{0,120}?\bwith\s+([A-Z][A-Za-z0-9&.,' -]{2,100}?)(?=\s+(?:that|which|to become|for purposes of)\b|[,.\n])/i,
+  )?.[1];
+  if (namedTarget) {
+    const cleaned = cleanCompanyName(namedTarget);
+    if (!sameCompany(cleaned, spacName || companyName) && !isTransactionShellCompany(cleaned)) return cleaned;
+  }
+
+  const aliasTarget = aliases.find((candidate) =>
+    !sameCompany(candidate.name, spacName || companyName) && !isTransactionShellCompany(candidate.name),
+  );
+  if (aliasTarget) return aliasTarget.name;
+
+  return parties.find((party) =>
+    !sameCompany(party, spacName || companyName) && !isTransactionShellCompany(party),
+  ) || null;
+}
+
+function findSpacValuationMetric(text: string, kind: "equity" | "enterprise") {
+  const label = kind === "equity" ? "Equity" : "Enterprise";
+  const amountBeforeLabel = text.match(
+    new RegExp(`\\$([\\d,.]+)\\s+(?:Pro\\s*-\\s*Forma\\s+)?${label}\\s+Value\\s*\\(\\$M\\)`, "i"),
+  )?.[1];
+  if (amountBeforeLabel) return `$${amountBeforeLabel} million`;
+
+  return text.match(
+    new RegExp(`\\b(?:pro\\s*-?\\s*forma\\s+)?${label}\\s+value\\b[^$\\n]{0,100}(\\$[\\d,.]+\\s*(?:million|billion|m|bn))`, "i"),
+  )?.[1] || null;
+}
+
+function sameCompany(left: string | null, right: string | null) {
+  if (!left || !right) return false;
+  const leftKey = normalizeCompanyKey(left);
+  const rightKey = normalizeCompanyKey(right);
+  return Boolean(leftKey && rightKey && (leftKey === rightKey || leftKey.includes(rightKey) || rightKey.includes(leftKey)));
+}
+
+function normalizeCompanyKey(value: string) {
+  return cleanCompanyName(value)
+    .toLowerCase()
+    .replace(/\b(?:incorporated|inc|corporation|corp|company|co|limited|ltd|plc|llc|holdings|group)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function isTransactionShellCompany(value: string) {
+  return /\b(?:Merger Sub|Amalgamation|NewCo|Holdco)\b/i.test(value);
 }
 
 function findLegalFacts(text: string): Sec425LegalFacts {
@@ -2199,6 +2310,7 @@ function escapeRegExp(value: string) {
 
 function cleanCompanyName(value: string) {
   return compactText(value)
+    .replace(/\s*\(Filed by\)\s*CIK\s*:\s*\d+.*$/i, "")
     .replace(/\s*\([^)]*\)\s*/g, " ")
     .replace(/\b(?:a Delaware corporation|a corporation|Inc\.? and|LLC and)$/i, "")
     .replace(/\s+/g, " ")

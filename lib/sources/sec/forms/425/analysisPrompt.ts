@@ -223,7 +223,8 @@ export function buildSec425AnalysisPromptDraft(input: Sec425AnalysisPromptInput)
     marketContext: input.market_context,
     maxBlocks: 2,
   });
-  const analysisSourceBlocks = input.parser_output.raw.cleaned_source_blocks.slice(0, 60).map((block) => ({
+  const sourceSelection = selectSec425AnalysisSourceBlocks(input.parser_output, input.router_result);
+  const analysisSourceBlocks = sourceSelection.blocks.map((block) => ({
     block_id: block.block_id,
     block_type: block.block_type,
     source_ref: block.source_ref,
@@ -245,8 +246,12 @@ export function buildSec425AnalysisPromptDraft(input: Sec425AnalysisPromptInput)
       current_filing: sourcePromptInput.current_filing,
       cleaned_source_blocks: analysisSourceBlocks,
       analysis_source_block_count: analysisSourceBlocks.length,
-      analysis_source_blocks_truncated:
-        input.parser_output.raw.cleaned_source_blocks.length > analysisSourceBlocks.length,
+      analysis_source_blocks_truncated: input.parser_output.raw.cleaned_source_blocks.length > analysisSourceBlocks.length,
+      analysis_source_selection: {
+        mode: sourceSelection.mode,
+        router_selected_source_block_ids: input.router_result.selected_source_block_ids,
+        selected_block_count: analysisSourceBlocks.length,
+      },
       router_result: input.router_result,
       display_payload: input.display_payload,
       related_transaction_context: relatedTransactionContext,
@@ -260,6 +265,52 @@ export function buildSec425AnalysisPromptDraft(input: Sec425AnalysisPromptInput)
         schema: sec425RequiredOutputResponseSchema,
       },
     },
+  };
+}
+
+function selectSec425AnalysisSourceBlocks(
+  parserOutput: Sec425ParserOutput,
+  routerResult: Sec425RouterDecision,
+) {
+  const blocks = parserOutput.raw.cleaned_source_blocks;
+  const selectedIds = new Set(routerResult.selected_source_block_ids || []);
+  const selectedIndexes = blocks
+    .map((block, index) => selectedIds.has(block.block_id) ? index : -1)
+    .filter((index) => index >= 0);
+
+  if (selectedIndexes.length > 0) {
+    const includedIndexes = new Set<number>();
+    for (const index of selectedIndexes) {
+      includedIndexes.add(index);
+      for (const adjacentIndex of [index - 1, index + 1]) {
+        const adjacent = blocks[adjacentIndex];
+        const selected = blocks[index];
+        if (adjacent && selected && adjacent.source_ref === selected.source_ref && !adjacent.is_boilerplate) {
+          includedIndexes.add(adjacentIndex);
+        }
+      }
+    }
+    return {
+      mode: "router_selected_with_adjacent_context" as const,
+      blocks: Array.from(includedIndexes)
+        .sort((left, right) => left - right)
+        .slice(0, 24)
+        .map((index) => blocks[index]),
+    };
+  }
+
+  const routerIds = new Set(parserOutput.raw.router_source_blocks.map((block) => block.block_id));
+  const routerBackedBlocks = blocks.filter((block) => routerIds.has(block.block_id)).slice(0, 24);
+  if (routerBackedBlocks.length > 0) {
+    return {
+      mode: "router_bundle_fallback" as const,
+      blocks: routerBackedBlocks,
+    };
+  }
+
+  return {
+    mode: "bounded_source_fallback" as const,
+    blocks: blocks.filter((block) => !block.is_boilerplate).slice(0, 24),
   };
 }
 
