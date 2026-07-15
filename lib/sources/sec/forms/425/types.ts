@@ -1,4 +1,4 @@
-export const SEC_425_PARSER_VERSION = "sec_425_parser_v1";
+export const SEC_425_PARSER_VERSION = "sec_425_parser_v2";
 export const SEC_425_PARSER_GROUP = "425";
 
 export const SEC_425_APPROVED_EVENT_TYPES = [
@@ -56,9 +56,65 @@ export type Sec425CalendarItem = {
 export type Sec425AttachmentInput = {
   documentType?: string | null;
   description?: string | null;
+  filename?: string | null;
   text?: string | null;
   isPrimary?: boolean | null;
   url?: string | null;
+};
+
+export const SEC_425_DOCUMENT_ROLE_VALUES = [
+  "primary_425",
+  "offer_letter",
+  "press_release",
+  "investor_presentation",
+  "fact_sheet",
+  "transaction_agreement",
+  "agreement_amendment",
+  "stockholder_agreement",
+  "employment_agreement",
+  "faq",
+  "transcript",
+  "stakeholder_communication",
+  "meeting_notice",
+  "regulatory_update",
+  "social_media",
+  "other",
+] as const;
+
+export type Sec425DocumentRole = (typeof SEC_425_DOCUMENT_ROLE_VALUES)[number];
+
+export type Sec425SourceBlock = {
+  block_id: string;
+  block_type: string;
+  source_ref: string;
+  origin: "primary" | "attachment";
+  document_index: number | null;
+  document_type: string | null;
+  document_role: Sec425DocumentRole;
+  content_role: Sec425DocumentRole;
+  exhibit_number: string | null;
+  filename: string | null;
+  url: string | null;
+  heading: string | null;
+  sequence: number;
+  text: string;
+  char_count: number;
+  is_table: boolean;
+  is_boilerplate: boolean;
+};
+
+export type Sec425SourceDocument = {
+  source_ref: string;
+  origin: "primary" | "attachment";
+  document_index: number | null;
+  document_type: string | null;
+  document_role: Sec425DocumentRole;
+  description: string | null;
+  filename: string | null;
+  url: string | null;
+  is_primary: boolean;
+  text_char_count: number;
+  source_block_count: number;
 };
 
 export type Sec425MarketContext = {
@@ -75,6 +131,9 @@ export type Sec425ParseInput = {
   rawItemId?: string | null;
   sourceUniqueId?: string | null;
   sourceUrl?: string | null;
+  primaryDocumentUrl?: string | null;
+  primaryDocumentFilename?: string | null;
+  primaryDocumentDescription?: string | null;
   title?: string | null;
   publishedAt?: string | null;
   formType?: string | null;
@@ -281,6 +340,9 @@ export type Sec425ParserOutput = {
       attachmentTextChars: number;
     };
     parentFilingContextPresent: boolean;
+    cleaned_source_blocks: Sec425SourceBlock[];
+    router_source_blocks: Sec425SourceBlock[];
+    document_inventory: Sec425SourceDocument[];
   };
 };
 

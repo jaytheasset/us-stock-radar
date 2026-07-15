@@ -5,6 +5,7 @@ import {
   type Sec425AmendmentFacts,
   type Sec425DealFacts,
   type Sec425DocumentSummary,
+  type Sec425DocumentRole,
   type Sec425Field,
   type Sec425FinancingFacts,
   type Sec425LegalFacts,
@@ -15,6 +16,8 @@ import {
   type Sec425RawDataCandidate,
   type Sec425RawDataFacts,
   type Sec425SignalFact,
+  type Sec425SourceBlock,
+  type Sec425SourceDocument,
   type Sec425SourceSection,
   type Sec425SpacFacts,
   type Sec425VoteFacts,
@@ -40,7 +43,17 @@ type RawDocumentSegment = {
   source: "primary" | "attachment";
   documentType: string | null;
   documentIndex: number | null;
+  description: string | null;
+  filename: string | null;
+  url: string | null;
+  isPrimary: boolean;
   text: string;
+};
+
+type SourceBundle = {
+  blocks: Sec425SourceBlock[];
+  routerBlocks: Sec425SourceBlock[];
+  documents: Sec425SourceDocument[];
 };
 
 type SectionAnalysis = {
@@ -58,7 +71,7 @@ const RISK_RELEVANT_LANGUAGE_PATTERN =
   /\b(?:superior proposal|competing proposal|unsolicited proposal|revised proposal|revised offer|termination|termination fee|amendment|waiver|fiduciary out|no-shop|go-shop|voting agreement|support agreement|litigation|injunction|antitrust|regulatory approval|conflict of interest|compensation|severance|retention)\b/i;
 
 const BOILERPLATE_HEADING_PATTERN =
-  /\b(?:Forward-Looking Statements|Cautionary Statement Regarding Forward-Looking Statements|Safe Harbor Statement|No Offer or Solicitation|Additional Information and Where to Find It|Important Additional Information|Participants in the Solicitation|Where You Can Find Additional Information)\b/i;
+  /\b(?:Forward-Looking Statements|Cautionary Statement Regarding Forward-Looking Statements|Safe Harbor Statement|No Offer or Solicitation|Additional\s+Information\s+and\s+Where\s+to\s+Find\s+It|Important Additional Information|Participants in the Solicitation|Where You Can Find Additional Information)\b/i;
 
 export function parseSec425Filing(input: Sec425ParseInput): Sec425ParserOutput {
   const rawPayload = toRecord(input.rawPayload) || {};
@@ -104,16 +117,30 @@ export function parseSec425Filing(input: Sec425ParseInput): Sec425ParserOutput {
   const noNewMaterialInfo = hasNoNewMaterialInfo(text);
   const materialChange = hasMaterialChange(text);
   const rawSegments: RawDocumentSegment[] = [
-    { source: "primary", documentType: null, documentIndex: null, text: filingText },
+    {
+      source: "primary",
+      documentType: "425",
+      documentIndex: null,
+      description: nullableString(input.primaryDocumentDescription) || nullableString(input.title),
+      filename: nullableString(input.primaryDocumentFilename) || filenameFromUrl(input.primaryDocumentUrl) || filenameFromUrl(input.sourceUrl),
+      url: nullableString(input.primaryDocumentUrl) || nullableString(input.sourceUrl),
+      isPrimary: true,
+      text: filingText,
+    },
     ...normalizedAttachments.map(({ attachment, index, text: attachmentTextValue }) => ({
       source: "attachment" as const,
       documentType: nullableString(attachment.documentType) || nullableString(attachment.description),
       documentIndex: index,
+      description: nullableString(attachment.description),
+      filename: nullableString(attachment.filename) || filenameFromUrl(attachment.url),
+      url: nullableString(attachment.url),
+      isPrimary: Boolean(attachment.isPrimary),
       text: attachmentTextValue,
     })),
   ];
   const sectionAnalysis = buildSectionAnalysis(rawSegments, documents, stringValue(input.title));
   const rawData = buildRawDataFacts(rawSegments, sectionAnalysis);
+  const sourceBundle = buildSourceBundle(rawSegments);
   const deterministicArchiveReason = buildDeterministicArchiveReason({
     noNewMaterialInfo,
     materialChange,
@@ -187,8 +214,535 @@ export function parseSec425Filing(input: Sec425ParseInput): Sec425ParserOutput {
         attachmentTextChars: attachmentText.length,
       },
       parentFilingContextPresent: Boolean(input.parent_filing_context),
+      cleaned_source_blocks: sourceBundle.blocks,
+      router_source_blocks: sourceBundle.routerBlocks,
+      document_inventory: sourceBundle.documents,
     },
   };
+}
+
+const SOURCE_BLOCK_CHAR_LIMIT = 4_500;
+const ROUTER_BLOCK_CHAR_LIMIT = 1_500;
+const ROUTER_BLOCK_LIMIT = 18;
+const ROUTER_BLOCKS_PER_DOCUMENT = 4;
+
+function buildSourceBundle(segments: RawDocumentSegment[]): SourceBundle {
+  const blocks: Sec425SourceBlock[] = [];
+  const documents: Sec425SourceDocument[] = [];
+
+  for (const segment of segments) {
+    if (!segment.text) continue;
+    const sourceRef = segment.source === "primary" ? "primary" : `attachment_${(segment.documentIndex ?? 0) + 1}`;
+    const documentRole = classifyDocumentRole(segment);
+    const documentBlocks = isNonTextSourceDocument(segment)
+      ? []
+      : buildDocumentSourceBlocks(segment, sourceRef, documentRole);
+    blocks.push(...documentBlocks);
+    documents.push({
+      source_ref: sourceRef,
+      origin: segment.source,
+      document_index: segment.documentIndex,
+      document_type: segment.documentType,
+      document_role: documentRole,
+      description: segment.description,
+      filename: segment.filename,
+      url: segment.url,
+      is_primary: segment.isPrimary,
+      text_char_count: segment.text.length,
+      source_block_count: documentBlocks.length,
+    });
+  }
+
+  return {
+    blocks,
+    routerBlocks: selectRouterSourceBlocks(blocks),
+    documents,
+  };
+}
+
+function isNonTextSourceDocument(segment: RawDocumentSegment) {
+  const documentType = compactText(segment.documentType || "");
+  const fileReference = compactText([segment.filename, segment.url].filter(Boolean).join(" "));
+  return /^(?:GRAPHIC|IMAGE|ZIP|EXCEL|XML|XBRL|JSON)$/i.test(documentType) || /\.(?:jpe?g|png|gif|tiff?|bmp|svg|zip|xls[xm]?|xml|xsd|json)\b/i.test(fileReference);
+}
+
+function startsWithTransactionAgreementAmendment(text: string) {
+  const titleArea = truncate(text, 1_500);
+  return /\b(?:(?:first|second|third|fourth|fifth|sixth)\s+amendment|amendment(?:\s+no\.?\s*\d+)?)\s+(?:to\s+)?(?:the\s+)?(?:agreement\s+and\s+plan\s+of\s+merger|merger\s+agreement|business\s+combination\s+agreement|transaction\s+agreement|arrangement\s+agreement)\b/i.test(titleArea);
+}
+
+function classifyDocumentRole(segment: RawDocumentSegment): Sec425DocumentRole {
+  if (segment.source === "primary") return "primary_425";
+  const metadata = compactText([
+    segment.documentType,
+    segment.description,
+    segment.filename,
+    segment.url,
+  ].filter(Boolean).join(" "));
+  const sample = truncate(segment.text, 6_000);
+  const value = `${metadata}\n${sample}`;
+
+  if (/\b(?:fact sheet|transaction facts?|deal facts?)\b/i.test(metadata)) return "fact_sheet";
+  if (/\b(?:offer letter|proposal letter|acquisition proposal|public proposal)\b/i.test(metadata)) return "offer_letter";
+  if (/\b(?:stockholders? agreement|shareholders? agreement|voting and support agreement|support agreement)\b/i.test(value)) {
+    return "stockholder_agreement";
+  }
+  if (/\b(?:employment agreement|retention agreement|severance agreement|change in control agreement)\b/i.test(value)) {
+    return "employment_agreement";
+  }
+  if (startsWithTransactionAgreementAmendment(`${metadata}\n${sample}`) && hasAgreementDocumentStructure(value)) {
+    return "agreement_amendment";
+  }
+  if (/\b(?:amendment|amended|first amendment|second amendment|third amendment)\b[\s\S]{0,120}\b(?:merger|business combination|transaction|arrangement) agreement\b/i.test(metadata)) {
+    return "agreement_amendment";
+  }
+  if (/\b(?:agreement and plan of merger|merger agreement|business combination agreement|transaction agreement|arrangement agreement)\b/i.test(metadata)) {
+    return "transaction_agreement";
+  }
+  if (/\b(?:employee faq|frequently asked questions|questions and answers|\bFAQ\b)\b/i.test(metadata)) return "faq";
+  if (/\b(?:transcript|conference call transcript|prepared remarks|interview|podcast|video remarks?|town hall)\b/i.test(metadata)) return "transcript";
+  if (/\b(?:investor presentation|joint presentation|transaction presentation|investor day|presentation)\b/i.test(metadata)) return "investor_presentation";
+  if (/\b(?:press release|news release)\b/i.test(metadata)) return "press_release";
+  if (/\b(?:employee communication|all employee|letter to employees|team member communication|internal faq|employee benefits?)\b/i.test(metadata)) {
+    return "stakeholder_communication";
+  }
+  if (/\b(?:amendment|amended|first amendment|second amendment|third amendment)\b[\s\S]{0,120}\b(?:merger|business combination|transaction|arrangement) agreement\b/i.test(value) && hasAgreementDocumentStructure(value)) {
+    return "agreement_amendment";
+  }
+  if (/\b(?:agreement and plan of merger|merger agreement|business combination agreement|transaction agreement|arrangement agreement)\b/i.test(value) && hasAgreementDocumentStructure(value)) {
+    return "transaction_agreement";
+  }
+  if (/\b(?:offer letter|proposal letter|acquisition proposal|public proposal)\b/i.test(value)) return "offer_letter";
+  if (/\b(?:fact sheet|transaction facts?|deal facts?)\b/i.test(value)) return "fact_sheet";
+  if (/\b(?:employee faq|frequently asked questions|questions and answers|\bFAQ\b)\b/i.test(value) || /(?:^|\n)\s*Q\s*&\s*A\s*(?:\n|$)/im.test(value)) return "faq";
+  if (isEventNotice(value)) return "meeting_notice";
+  if (/\b(?:transcript|conference call transcript|prepared remarks|interview|podcast|video remarks?|town hall)\b/i.test(value)) return "transcript";
+  if (/\b(?:investor presentation|joint presentation|transaction presentation|investor day|presentation)\b/i.test(value)) return "investor_presentation";
+  if (/\b(?:press release|news release|for immediate release)\b/i.test(value)) return "press_release";
+  if (/\b(?:employee communication|all employee|letter to employees|team member communication|internal faq)\b/i.test(value)) {
+    return "stakeholder_communication";
+  }
+  if (/\b(?:special meeting|record date|meeting date|adjourned|reconvened|reconvene)\b/i.test(value)) return "meeting_notice";
+  if (/\b(?:regulatory approval|antitrust clearance|proxy (?:filed|mailed)|definitive proxy statement|closing condition update)\b/i.test(value)) {
+    return "regulatory_update";
+  }
+  if (/\b(?:social media|twitter|tweet|\bX post\b|linkedin|repost)\b/i.test(value)) return "social_media";
+  return "other";
+}
+
+function hasAgreementDocumentStructure(text: string) {
+  return /\b(?:ARTICLE\s+[IVX\d]+|RECITALS|WITNESSETH|NOW,? THEREFORE|representations and warranties|conditions to closing|termination provisions?)\b/i.test(text);
+}
+
+function buildDocumentSourceBlocks(
+  segment: RawDocumentSegment,
+  sourceRef: string,
+  documentRole: Sec425DocumentRole,
+): Sec425SourceBlock[] {
+  const embeddedExhibitRoles = findEmbeddedExhibitRoles(segment.text);
+  const defaultContentRole = segment.source === "primary" && embeddedExhibitRoles.size === 0
+    ? inferPrimaryContentRole(segment.text)
+    : null;
+  const units = splitSourceDocument(segment.text, embeddedExhibitRoles, defaultContentRole);
+  const blocks: Sec425SourceBlock[] = [];
+  let sequence = 0;
+
+  for (const unit of units) {
+    const chunks = splitLongSourceText(unit.text, SOURCE_BLOCK_CHAR_LIMIT);
+    for (const chunk of chunks) {
+      const text = compactText(chunk);
+      if (!text) continue;
+      sequence += 1;
+      const contentRole = unit.contentRole || classifyContentRole(text, unit.heading, documentRole);
+      const blockType = classifySourceBlockType(text, unit.heading, contentRole, unit.isTable);
+      const isBoilerplate = blockType === "legal_boilerplate" || isGenericBoilerplateParagraph(text);
+      blocks.push({
+        block_id: `425_${sourceRef}_${String(sequence).padStart(3, "0")}`,
+        block_type: blockType,
+        source_ref: sourceRef,
+        origin: segment.source,
+        document_index: segment.documentIndex,
+        document_type: segment.documentType,
+        document_role: documentRole,
+        content_role: contentRole,
+        exhibit_number: unit.exhibitNumber,
+        filename: segment.filename,
+        url: segment.url,
+        heading: unit.heading,
+        sequence,
+        text,
+        char_count: text.length,
+        is_table: unit.isTable,
+        is_boilerplate: isBoilerplate,
+      });
+    }
+  }
+
+  return blocks;
+}
+
+type SourceUnit = {
+  heading: string | null;
+  text: string;
+  isTable: boolean;
+  contentRole: Sec425DocumentRole | null;
+  exhibitNumber: string | null;
+};
+
+function splitSourceDocument(
+  text: string,
+  embeddedExhibitRoles: Map<string, Sec425DocumentRole>,
+  defaultContentRole: Sec425DocumentRole | null,
+): SourceUnit[] {
+  const lines = compactText(text).split("\n");
+  const units: SourceUnit[] = [];
+  let heading: string | null = null;
+  let contentRole: Sec425DocumentRole | null = defaultContentRole;
+  let exhibitNumber: string | null = null;
+  let currentLines: string[] = [];
+  let tableLines: string[] = [];
+
+  const flushText = (preserveHeading = false) => {
+    const value = compactText(currentLines.join("\n"));
+    if (value) {
+      units.push({ heading, text: value, isTable: false, contentRole, exhibitNumber });
+      if (!preserveHeading) heading = null;
+    }
+    currentLines = [];
+  };
+  const flushTable = (preserveHeading = false) => {
+    const value = compactText(tableLines.join("\n"));
+    if (value) {
+      units.push({ heading, text: value, isTable: true, contentRole, exhibitNumber });
+      if (!preserveHeading) heading = null;
+    }
+    tableLines = [];
+  };
+
+  for (const rawLine of lines) {
+    const line = compactText(rawLine);
+    if (!line) {
+      flushTable(true);
+      flushText(true);
+      continue;
+    }
+    const exhibitBoundary = line.match(/^Exhibit\s+(\d+(?:\.\d+)?)$/i);
+    if (exhibitBoundary) {
+      flushTable();
+      flushText();
+      heading = line;
+      exhibitNumber = exhibitBoundary[1];
+      contentRole = embeddedExhibitRoles.get(exhibitNumber) || defaultRoleForExhibitNumber(exhibitNumber);
+      continue;
+    }
+    const isTableLine = isSourceTableLine(line);
+    if (isTableLine) {
+      flushText();
+      if (tableLines.join("\n").length + line.length > SOURCE_BLOCK_CHAR_LIMIT) flushTable(true);
+      tableLines.push(line);
+      continue;
+    }
+    flushTable();
+    if (looksLikeSourceHeading(line)) {
+      flushText();
+      heading = line;
+      continue;
+    }
+    if (currentLines.join("\n").length + line.length > SOURCE_BLOCK_CHAR_LIMIT) flushText(true);
+    currentLines.push(line);
+  }
+  flushTable();
+  flushText();
+
+  if (!units.length && text) return [{ heading: null, text, isTable: false, contentRole: null, exhibitNumber: null }];
+  return units;
+}
+
+function findEmbeddedExhibitRoles(text: string) {
+  const roles = new Map<string, Sec425DocumentRole>();
+  const value = compactText(text);
+  const pattern = /\b(99\.\d+)\b[\s|:;,.()-]{0,80}\b(Offer Letter|Press Release|News Release|Investor Presentation|Joint Presentation|Transaction Presentation|Fact Sheet|Employee FAQ|Frequently Asked Questions|Transcript|Conference Call Transcript|Employee Communication)\b/gi;
+  for (const match of value.matchAll(pattern)) {
+    const role = documentRoleFromLabel(match[2]);
+    if (role) roles.set(match[1], role);
+  }
+  return roles;
+}
+
+function documentRoleFromLabel(value: string): Sec425DocumentRole | null {
+  if (/offer letter/i.test(value)) return "offer_letter";
+  if (/(?:press|news) release/i.test(value)) return "press_release";
+  if (/presentation/i.test(value)) return "investor_presentation";
+  if (/fact sheet/i.test(value)) return "fact_sheet";
+  if (/faq|frequently asked questions/i.test(value)) return "faq";
+  if (/transcript/i.test(value)) return "transcript";
+  if (/employee communication/i.test(value)) return "stakeholder_communication";
+  return null;
+}
+
+function inferPrimaryContentRole(text: string): Sec425DocumentRole | null {
+  const value = truncate(compactText(text), 4_000);
+  if (
+    /\b(?:GLOBE NEWSWIRE|BUSINESS WIRE|PR NEWSWIRE|for immediate release|press release|news release)\b/i.test(value) ||
+    /\b[A-Z][A-Z .'-]{2,40},(?:\s+[A-Z][a-z.]{1,15},)?\s+(?:[A-Z][a-z]{2,8}\.?\s+\d{1,2},\s+20\d{2})\s+[—-]/.test(value)
+  ) return "press_release";
+  if (/\b(?:transcript|prepared remarks|interview|podcast|town hall)\b/i.test(value)) return "transcript";
+  if (
+    /\b(?:investor presentation|joint presentation|transaction presentation)\b/i.test(value) ||
+    (/\binvestor day\b/i.test(value) && /\bpresentation\b/i.test(value)) ||
+    /\bpresentation\b[\s\S]{0,120}\bfiled in connection with\b/i.test(value) ||
+    /\b(?:published|issued|made available)\b[\s\S]{0,80}\bfollowing presentation\b/i.test(value)
+  ) {
+    return "investor_presentation";
+  }
+  if (/\b(?:employee faq|frequently asked questions|questions and answers|\bFAQ\b)\b/i.test(value)) return "faq";
+  if (hasTranscriptSpeakerPattern(value)) return "transcript";
+  if (isEventNotice(value)) return "meeting_notice";
+  if (/\b(?:social media|twitter|tweet|\bX post\b|linkedin|repost)\b/i.test(value)) return "social_media";
+  return null;
+}
+
+function defaultRoleForExhibitNumber(exhibitNumber: string): Sec425DocumentRole | null {
+  return /^2(?:\.|$)/.test(exhibitNumber) ? "transaction_agreement" : null;
+}
+
+function isSourceTableLine(line: string) {
+  const pipes = (line.match(/\|/g) || []).length;
+  if (pipes >= 1) return true;
+  return /^(?:\$?[\d,.()% -]+\s{2,}){2,}/.test(line);
+}
+
+function looksLikeSourceHeading(line: string) {
+  if (!line || line.length > 180) return false;
+  if (/^Exhibit\s+\d+(?:\.\d+)?$/i.test(line)) return true;
+  if (/^(?:Filed by|Subject Company|Commission File|Date|Pursuant to Rule 425)\b/i.test(line)) return false;
+  if (/[.!?]$/.test(line)) return false;
+  if (classifySectionHeading(line)) return true;
+  if (/^(?:Q\.?|A\.?)\s+/i.test(line)) return false;
+  if (/^(?:Operator|CEO|CFO|Chief Executive Officer|Chief Financial Officer|[A-Z][a-z]+\s+[A-Z][a-z]+):/.test(line)) return false;
+  const words = line.split(/\s+/).filter(Boolean);
+  if (words.length < 2 || words.length > 18) return false;
+  const letters = line.replace(/[^A-Za-z]/g, "");
+  const uppercase = line.replace(/[^A-Z]/g, "");
+  if (letters.length >= 4 && uppercase.length / letters.length >= 0.75) return true;
+  return /\b(?:Overview|Highlights|Transaction|Terms|Timeline|Rationale|Benefits|Questions|Employees|Customers|Shareholders|Stockholders|Meeting|Amendment|Agreement|Approval|Regulatory|Next Steps|Additional Information)\b/i.test(line);
+}
+
+function splitLongSourceText(text: string, maxChars: number) {
+  const value = compactText(text);
+  if (value.length <= maxChars) return [value];
+  const sentences = value.split(/(?<=[.!?])\s+(?=[A-Z0-9(])/);
+  const chunks: string[] = [];
+  let current = "";
+  for (const sentence of sentences) {
+    if (sentence.length > maxChars) {
+      if (current) chunks.push(current);
+      current = "";
+      chunks.push(...splitAtWordBoundary(sentence, maxChars));
+      continue;
+    }
+    const next = current ? `${current} ${sentence}` : sentence;
+    if (next.length > maxChars && current) {
+      chunks.push(current);
+      current = sentence;
+    } else {
+      current = next;
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks;
+}
+
+function splitAtWordBoundary(text: string, maxChars: number) {
+  const chunks: string[] = [];
+  let remaining = compactText(text);
+  while (remaining.length > maxChars) {
+    const window = remaining.slice(0, maxChars + 1);
+    const cut = Math.max(window.lastIndexOf(" "), maxChars - 400);
+    chunks.push(remaining.slice(0, cut).trim());
+    remaining = remaining.slice(cut).trim();
+  }
+  if (remaining) chunks.push(remaining);
+  return chunks;
+}
+
+function classifySourceBlockType(
+  text: string,
+  heading: string | null,
+  documentRole: Sec425DocumentRole,
+  isTable: boolean,
+) {
+  const value = `${heading || ""}\n${text}`;
+  if (isSecCoverBlock(value) || looksLikeSourceFileHeader(value) || isSecViewerArtifact(value)) return "cover";
+  if (isSourceTableOfContents(value)) return "table_of_contents";
+  if (isTable) return "table";
+  if (BOILERPLATE_HEADING_PATTERN.test(value) || isGenericBoilerplateParagraph(value)) return "legal_boilerplate";
+  if (/^(?:Q\.?|Question\b)/im.test(value) && /(?:^|\n)(?:A\.?|Answer\b)/im.test(value)) return "question_answer";
+  if (hasTranscriptSpeakerPattern(value)) return "transcript_turns";
+  if (
+    documentRole === "transaction_agreement" ||
+    documentRole === "agreement_amendment" ||
+    documentRole === "stockholder_agreement" ||
+    documentRole === "employment_agreement"
+  ) return "agreement_section";
+  if (documentRole === "investor_presentation" || documentRole === "fact_sheet") return "presentation_section";
+  if (documentRole === "press_release" || documentRole === "offer_letter") return "communication_section";
+  if (documentRole === "faq") return "question_answer";
+  if (documentRole === "transcript") return "transcript_turns";
+  if (documentRole === "stakeholder_communication") return "stakeholder_message";
+  if (documentRole === "meeting_notice") return "meeting_notice";
+  if (documentRole === "regulatory_update") return "regulatory_update";
+  if ((hasCoverIdentityLanguage(value) || looksLikeSourceFileHeader(value)) && !containsTransactionLanguage(value)) return "cover";
+  return "paragraph";
+}
+
+function classifyContentRole(
+  text: string,
+  heading: string | null,
+  documentRole: Sec425DocumentRole,
+): Sec425DocumentRole {
+  if (documentRole !== "primary_425" && documentRole !== "other") return documentRole;
+  const value = `${heading || ""}\n${text}`;
+  if (isSecCoverBlock(value)) return documentRole;
+  if (/\b(?:copies? of|the foregoing)\b[\s\S]{0,500}\b(?:attached hereto|incorporated by reference|furnished pursuant to Item)\b/i.test(value)) {
+    return documentRole;
+  }
+  if (/\b(?:fact sheet|transaction facts?|deal facts?)\b/i.test(value)) return "fact_sheet";
+  if (/\b(?:offer letter|proposal letter|non-binding (?:offer|proposal|expression of interest)|public acquisition proposal)\b/i.test(value)) return "offer_letter";
+  if (/\b(?:frequently asked questions|questions and answers|employee faq|\bFAQ\b)\b/i.test(value) || /(?:^|\n)\s*Q\s*&\s*A\s*(?:\n|$)/im.test(value)) return "faq";
+  if (isEventNotice(value)) return "meeting_notice";
+  if (/\b(?:transcript|conference call transcript|prepared remarks|interview|podcast|town hall)\b/i.test(value) || hasTranscriptSpeakerPattern(value)) return "transcript";
+  if (/\b(?:investor presentation|joint presentation|transaction presentation|investor day)\b/i.test(value) || /\bpresentation\b[\s\S]{0,120}\bfiled in connection with\b/i.test(value)) return "investor_presentation";
+  if (/\b(?:for immediate release|business wire|press release|news release)\b/i.test(value)) return "press_release";
+  if (/\b(?:agreement and plan of merger|business combination agreement|merger agreement)\b/i.test(value) && /\b(?:ARTICLE|SECTION|RECITALS|conditions to closing|representations and warranties)\b/i.test(value)) return "transaction_agreement";
+  if (/\b(?:employee communication|dear (?:colleagues|employees|team members)|all employee)\b/i.test(value)) return "stakeholder_communication";
+  if (/\b(?:special meeting|record date|meeting date|adjourned|reconvened|reconvene)\b/i.test(value)) return "meeting_notice";
+  if (/\b(?:regulatory approval|antitrust clearance|definitive proxy (?:filed|mailed)|closing condition update)\b/i.test(value)) return "regulatory_update";
+  if (/\b(?:social media|twitter|tweet|\bX post\b|linkedin|repost)\b/i.test(value)) return "social_media";
+  return documentRole;
+}
+
+function isSourceTableOfContents(value: string) {
+  const sectionRefs = (value.match(/\b(?:ARTICLE|Section)\s+[A-ZIVX\d.]+/gi) || []).length;
+  const pageRefs = (value.match(/\|\s*\d{1,3}\s*(?:\||$)/gm) || []).length;
+  return sectionRefs >= 5 || pageRefs >= 6;
+}
+
+function looksLikeSourceFileHeader(value: string) {
+  return /^(?:###\s+)?425\b[\s\S]{0,100}\.(?:htm|html)\b/i.test(value) || /^(?:###\s+)?425\s+-\s+425\b/i.test(value);
+}
+
+function isSecViewerArtifact(value: string) {
+  return /^\s*\d+\s*-\s*Document\s*-\s*Cover\b/i.test(value) || /\blink:(?:presentationLink|calculationLink|definitionLink)\b/i.test(value);
+}
+
+function selectRouterSourceBlocks(blocks: Sec425SourceBlock[]) {
+  const selected: Sec425SourceBlock[] = [];
+  const byDocument = new Map<string, Sec425SourceBlock[]>();
+  for (const block of blocks) {
+    const list = byDocument.get(block.source_ref) || [];
+    list.push(block);
+    byDocument.set(block.source_ref, list);
+  }
+
+  for (const documentBlocks of byDocument.values()) {
+    const substantive = documentBlocks
+      .filter((block) =>
+        !block.is_boilerplate &&
+        (block.block_type !== "cover" || hasMaterialCoverTail(block.text)) &&
+        block.block_type !== "table_of_contents" &&
+        (
+          block.text.replace(/[^A-Za-z0-9]/g, "").length >= 40 ||
+          (
+            block.content_role !== "primary_425" &&
+            block.content_role !== "other" &&
+            block.text.replace(/[^A-Za-z0-9]/g, "").length >= 16
+          )
+        )
+      )
+      .sort((left, right) => routerBlockPriority(right) - routerBlockPriority(left) || left.sequence - right.sequence);
+    const documentSelected: Sec425SourceBlock[] = [];
+    const roles = new Set<Sec425DocumentRole>();
+    for (const block of substantive) {
+      if (roles.has(block.content_role)) continue;
+      documentSelected.push(block);
+      roles.add(block.content_role);
+      if (documentSelected.length >= ROUTER_BLOCKS_PER_DOCUMENT) break;
+    }
+    selected.push(...documentSelected.map(toRouterSourceBlock));
+  }
+
+  return dedupeSourceBlocks(selected).slice(0, ROUTER_BLOCK_LIMIT);
+}
+
+function hasMaterialCoverTail(text: string) {
+  return /\b(?:Explanatory Note|Item\s+\d+)\b[\s\S]{0,1500}\b(?:reposted|posted|shared|published|issued|interview|transcript|presentation|communication)\b/i.test(text);
+}
+
+function routerBlockPriority(block: Sec425SourceBlock) {
+  let score = 0;
+  if (block.content_role !== "primary_425" && block.content_role !== "other") score += 50;
+  if (block.block_type === "cover" && hasMaterialCoverTail(block.text)) score += 70;
+  if (block.heading) score += 12;
+  if (/\b(?:transaction|deal|business combination|offer|proposal)\s+(?:overview|summary|terms?)\b/i.test(block.heading || "")) score += 35;
+  if (
+    block.content_role === "meeting_notice" &&
+    /\b(?:will now be held|adjourned to|reconven(?:e|ed) on|new record date|new meeting date|rescheduled|postponed|changed from|distribution record date)\b/i.test(block.text)
+  ) score += 45;
+  if (block.block_type === "question_answer" || block.block_type === "transcript_turns") score += 10;
+  if (block.block_type === "question_answer" && /(?:^|\n)\s*(?:Q\.?|Question\b)|\?/im.test(block.text)) score += 30;
+  if (
+    block.content_role === "faq" &&
+    /\?|\b(?:what does this mean|employees?|team members?|day to day|job security|benefits?|compensation|stock options?|promotions?|workplace|manager)\b/i.test(block.text)
+  ) score += 40;
+  if (block.block_type === "transcript_turns" && hasTranscriptSpeakerPattern(block.text)) score += 30;
+  if (block.block_type === "table") score += 4;
+  if (block.text.length >= 180) score += 6;
+  if (/\b(?:consideration|offer price|per share|transaction value|premium|exchange ratio|closing condition|termination fee|shareholder approval|stockholder approval|record date|meeting date|amendment|regulatory approval|business combination|merger|acquisition)\b/i.test(block.text)) score += 24;
+  if (/\b(?:indicate by check mark|the foregoing information is furnished|attached hereto as exhibits?|incorporated by reference into this item|this document is not a substitute for|investors? and security holders? are urged to read)\b/i.test(block.text)) score -= 45;
+  if (isProspectiveTransactionFilingNotice(block.text)) score -= 45;
+  if (isForwardLookingRiskEnumeration(block.text)) score -= 55;
+  if (/^(?:\d+|425|FORM 425|EXHIBIT)\b/i.test(block.text) && block.text.length < 120) score -= 30;
+  return score;
+}
+
+function toRouterSourceBlock(block: Sec425SourceBlock): Sec425SourceBlock {
+  const explanatoryNoteIndex = block.block_type === "cover" && hasMaterialCoverTail(block.text)
+    ? block.text.search(/\b(?:Item\s+\d+\s+)?Explanatory Note\b/i)
+    : -1;
+  const sourceText = explanatoryNoteIndex >= 0 ? block.text.slice(explanatoryNoteIndex) : block.text;
+  const text = truncateAtSentence(sourceText, ROUTER_BLOCK_CHAR_LIMIT);
+  return { ...block, text, char_count: text.length };
+}
+
+function truncateAtSentence(text: string, maxChars: number) {
+  const value = compactText(text);
+  if (value.length <= maxChars) return value;
+  const window = value.slice(0, maxChars + 1);
+  const sentenceEnd = Math.max(window.lastIndexOf(". "), window.lastIndexOf("? "), window.lastIndexOf("! "));
+  const cut = sentenceEnd >= maxChars * 0.55 ? sentenceEnd + 1 : Math.max(window.lastIndexOf(" "), maxChars - 200);
+  return `${value.slice(0, cut).trim()}...`;
+}
+
+function dedupeSourceBlocks(blocks: Sec425SourceBlock[]) {
+  const seen = new Set<string>();
+  return blocks.filter((block) => {
+    const key = `${block.source_ref}:${block.text.slice(0, 240)}`.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function filenameFromUrl(value: unknown) {
+  const text = stringValue(value);
+  if (!text) return null;
+  try {
+    const pathname = new URL(text).pathname;
+    return nullableString(pathname.split("/").filter(Boolean).pop());
+  } catch {
+    return nullableString(text.split(/[\\/]/).filter(Boolean).pop());
+  }
 }
 
 function buildRawDataFacts(segments: RawDocumentSegment[], sectionAnalysis: SectionAnalysis): Sec425RawDataFacts {
@@ -459,12 +1013,38 @@ function isLowValueParagraph(text: string) {
 }
 
 function hasTranscriptSpeakerPattern(text: string) {
-  const speakerLines = text.match(/(?:^|\n)\s*(?:Operator|CEO|CFO|Chief Executive Officer|Chief Financial Officer|[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\s*:/g) || [];
+  const speakerLines = [...text.matchAll(/(?:^|\n)\s*(Operator|CEO|CFO|Chief Executive Officer|Chief Financial Officer|[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\s*:/g)]
+    .map((match) => match[1])
+    .filter((speaker) => !/^(?:Filed By|Subject Company|Commission File Number|Securities Act File Number|Date Filed)$/i.test(speaker));
   return speakerLines.length >= 2 && /\b(?:call|webcast|prepared remarks|question|answer|transaction|merger|business combination|acquisition)\b/i.test(text);
 }
 
+function isEventNotice(text: string) {
+  return /\b(?:conference call|webcast|investor day)\b/i.test(text) &&
+    /\b(?:will host|will hold|is scheduled|register|registration|event url|replay|dial-in|listen live|join us)\b/i.test(text) &&
+    !/\b(?:transcript|prepared remarks|question-and-answer|Q&A)\b/i.test(text);
+}
+
 function isGenericBoilerplateParagraph(text: string) {
-  return /\b(?:forward-looking statements?|safe harbor|does not constitute an offer|no offer or solicitation|additional information (?:about|and) where to find it|where you can find additional information|participants in (?:the )?solicitation)\b/i.test(text);
+  return /\b(?:forward-looking statements?|safe harbor|does not constitute an offer|no offer or solicitation|not for release,? publication or distribution|this document is not a substitute for|investors? and security holders? are urged to read|additional\s+information\s+(?:about|and)\s+where\s+to\s+find\s+it|where\s+you\s+can\s+find\s+additional\s+information|participants\s+in\s+(?:the\s+)?solicitation)\b/i.test(text) || isProspectiveTransactionFilingNotice(text) || isForwardLookingRiskEnumeration(text);
+}
+
+function isProspectiveTransactionFilingNotice(text: string) {
+  return /\b(?:intend(?:s)? to|may|will) file\b[\s\S]{0,220}\b(?:SEC|Securities and Exchange Commission)\b[\s\S]{0,900}\b(?:registration statement|proxy statement|prospectus|information statement|Schedule TO|Form F-4|Form S-4)\b/i.test(text) &&
+    /\b(?:proposed transaction|business combination|merger|exchange offer)\b/i.test(text);
+}
+
+function isForwardLookingRiskEnumeration(text: string) {
+  return (text.match(/\(\d{1,2}\)/g) || []).length >= 3 &&
+    /\b(?:risks? related to|ability to|uncertaint(?:y|ies)|could adversely affect)\b/i.test(text);
+}
+
+function isSecCoverBlock(text: string) {
+  const labels = text.match(/(?:^|\n)\s*(?:Filed by|Subject Company|Commission File Number|Securities Act File Number|Date Filed)\s*:?\s+/gim) || [];
+  return labels.length >= 2 || (
+    labels.length >= 1 &&
+    /\b(?:Rule 425|Securities Act of 1933|Securities Exchange Act of 1934)\b/i.test(text)
+  );
 }
 
 function isMostlyBoilerplate(text: string) {
@@ -1174,6 +1754,12 @@ function buildWarnings(text: string, facts: Sec425ParserFacts) {
   if (facts.documents.filter((document) => /graphic|image/i.test(`${document.document_type} ${document.description}`)).length >= 5) {
     warnings.push("image_heavy_filing");
   }
+  if (
+    /\b(?:reposted|posted|shared)\b[\s\S]{0,160}\b(?:X|Twitter|social media)\b/i.test(text) &&
+    facts.documents.some((document) => /graphic|image/i.test(`${document.document_type} ${document.description}`))
+  ) {
+    warnings.push("social_media_content_may_be_in_graphic");
+  }
   if (facts.communication_types.includes("investor_presentation") && !facts.deal.consideration_text && !facts.spac.pipe_amount) {
     warnings.push("investor_presentation_terms_may_be_in_graphics");
   }
@@ -1511,6 +2097,7 @@ function decodeCodePoint(codePoint: number) {
 function compactText(value: string) {
   return stringValue(value)
     .replace(/\u00a0/g, " ")
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g, " ")
     .replace(/\r/g, "\n")
     .replace(/[ \t\f\v]+/g, " ")
     .replace(/ *\n */g, "\n")

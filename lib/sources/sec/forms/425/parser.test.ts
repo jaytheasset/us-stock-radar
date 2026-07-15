@@ -8,7 +8,7 @@ import type { Sec425ParseInput } from "./types";
 const fixturesDir = join(process.cwd(), "lib", "sources", "sec", "forms", "425", "fixtures");
 
 const mergerTerms = parseSec425Filing(readFixture("merger-terms-strategic-transaction.json"));
-assert.equal(mergerTerms.parserVersion, "sec_425_parser_v1");
+assert.equal(mergerTerms.parserVersion, "sec_425_parser_v2");
 assert.equal(mergerTerms.parserGroup, "425");
 assert.equal(mergerTerms.formType, "425");
 assert.equal(mergerTerms.accessionNumber, "0000000000-26-000425");
@@ -393,6 +393,256 @@ Investor Presentation
 assert.ok(projectionTable.facts.raw_data.content_types.includes("investor presentation"));
 assert.ok(hasRawCandidate(projectionTable.facts.raw_data.table_rows, /Projected Revenue|Adjusted EBITDA|Free Cash Flow/i));
 assert.ok(/Projected Revenue|Adjusted EBITDA|Free Cash Flow/i.test(projectionTable.facts.raw_data.candidate_text));
+
+const multiDocumentOffer = parseSec425Filing(readFixture("multi-document-offer-package.json"));
+assert.deepEqual(
+  multiDocumentOffer.raw.document_inventory.map((document) => document.document_role),
+  ["primary_425", "offer_letter", "press_release", "investor_presentation", "fact_sheet"],
+);
+assert.equal(new Set(multiDocumentOffer.raw.cleaned_source_blocks.map((block) => block.block_id)).size, multiDocumentOffer.raw.cleaned_source_blocks.length);
+assert.ok(multiDocumentOffer.raw.cleaned_source_blocks.some((block) => block.source_ref === "attachment_1" && /\$42\.00 per share/i.test(block.text)));
+assert.ok(multiDocumentOffer.raw.cleaned_source_blocks.some((block) => block.source_ref === "attachment_3" && block.block_type === "table"));
+assert.ok(multiDocumentOffer.raw.cleaned_source_blocks.some((block) => block.source_ref === "attachment_4" && /no definitive agreement signed/i.test(block.text)));
+assert.ok(multiDocumentOffer.raw.router_source_blocks.length <= 18);
+assert.ok(multiDocumentOffer.raw.router_source_blocks.every((block) => block.char_count <= 1_503));
+
+const transactionAgreement = parseSec425Filing(readFixture("transaction-agreement-package.json"));
+assert.deepEqual(
+  transactionAgreement.raw.document_inventory.map((document) => document.document_role),
+  ["primary_425", "transaction_agreement", "stakeholder_communication"],
+);
+assert.ok(transactionAgreement.raw.cleaned_source_blocks.some((block) => block.document_role === "transaction_agreement" && block.block_type === "agreement_section"));
+assert.ok(transactionAgreement.raw.cleaned_source_blocks.some((block) => block.document_role === "stakeholder_communication" && block.block_type === "stakeholder_message"));
+assert.ok(transactionAgreement.raw.cleaned_source_blocks.every((block) => block.text.length <= 4_500));
+
+const thirdAmendmentPackage = parseSec425Filing({
+  title: "425 - third merger agreement amendment",
+  formType: "425",
+  filingText: "The parties entered into a third amendment to their merger agreement.",
+  attachments: [{
+    documentType: "EX-2.1",
+    description: "EXHIBIT 2.1",
+    filename: "third-amendment.htm",
+    text: "THIRD AMENDMENT TO AGREEMENT AND PLAN OF MERGER\nRECITALS\nThe parties amend the outside date to August 31, 2026.\nNOW, THEREFORE, the parties agree as follows.",
+  }],
+});
+assert.equal(thirdAmendmentPackage.raw.document_inventory[1]?.document_role, "agreement_amendment");
+assert.ok(thirdAmendmentPackage.raw.router_source_blocks.some((block) => block.document_role === "agreement_amendment"));
+
+const embeddedExhibitPackage = parseInline("embedded-exhibits", `
+Exhibit No. | Description
+99.1 | Offer Letter
+99.2 | Press Release
+99.3 | Investor Presentation
+99.4 | Fact Sheet
+
+Exhibit 99.1
+The buyer proposes to acquire all outstanding shares for $42.00 per share in cash.
+
+Exhibit 99.2
+FOR IMMEDIATE RELEASE
+The buyer announced its non-binding acquisition proposal.
+
+Exhibit 99.3
+Transaction Overview
+Offer price | $42.00 per share
+Premium | 35%
+
+Exhibit 99.4
+Transaction Fact Sheet
+No definitive agreement has been signed.
+`);
+assert.ok(embeddedExhibitPackage.raw.cleaned_source_blocks.some((block) => block.content_role === "offer_letter" && block.exhibit_number === "99.1"));
+assert.ok(embeddedExhibitPackage.raw.cleaned_source_blocks.some((block) => block.content_role === "press_release" && block.exhibit_number === "99.2"));
+assert.ok(embeddedExhibitPackage.raw.cleaned_source_blocks.some((block) => block.content_role === "investor_presentation"));
+assert.ok(embeddedExhibitPackage.raw.cleaned_source_blocks.some((block) => block.content_role === "fact_sheet"));
+assert.deepEqual(
+  new Set(embeddedExhibitPackage.raw.router_source_blocks.map((block) => block.content_role)),
+  new Set(["offer_letter", "press_release", "investor_presentation", "fact_sheet"]),
+);
+
+const stockholderAgreementPackage = parseSec425Filing({
+  title: "425 - stockholder agreement",
+  formType: "425",
+  filingText: "The transaction documents are attached.",
+  attachments: [{
+    documentType: "EX-10.1",
+    filename: "stockholders-agreement.htm",
+    text: "STOCKHOLDERS AGREEMENT\nBoard designation rights, transfer restrictions, and registration rights apply after closing.",
+  }],
+});
+assert.equal(stockholderAgreementPackage.raw.document_inventory[1]?.document_role, "stockholder_agreement");
+assert.ok(stockholderAgreementPackage.raw.cleaned_source_blocks.some((block) => block.document_role === "stockholder_agreement" && block.block_type === "agreement_section"));
+
+const eventNoticePackage = parseInline("event-notice", `
+Filed by: Sample SPAC Corp.
+Subject Company: Sample Target Inc.
+Commission File Number: 001-12345
+
+Business Combination Update Webcast
+The company will host a conference call on April 21, 2026. Registration and replay details are available at the event URL.
+`);
+assert.ok(eventNoticePackage.raw.router_source_blocks.some((block) => block.content_role === "meeting_notice"));
+assert.equal(eventNoticePackage.raw.router_source_blocks.some((block) => block.content_role === "transcript"), false);
+assert.equal(eventNoticePackage.raw.router_source_blocks.some((block) => /Filed by|Subject Company/i.test(block.text)), false);
+
+const presentationDisclaimerPackage = parseInline("presentation-disclaimer", `
+Investor Presentation
+Not for release, publication or distribution in any jurisdiction where doing so would be unlawful.
+
+Transaction Overview
+The proposed business combination values the target at $500 million and remains subject to shareholder approval.
+`);
+assert.ok(presentationDisclaimerPackage.raw.router_source_blocks.some((block) => /values the target at \$500 million/i.test(block.text)));
+assert.equal(presentationDisclaimerPackage.raw.router_source_blocks.some((block) => /not for release, publication or distribution/i.test(block.text)), false);
+
+const filedPresentationPackage = parseInline("filed-presentation", `
+Presentation is being filed in connection with the proposed merger of equals transaction.
+Transaction Overview
+The parties expect the combined company to close after shareholder and regulatory approvals.\u0085
+`);
+assert.ok(filedPresentationPackage.raw.router_source_blocks.some((block) => block.content_role === "investor_presentation"));
+assert.equal(filedPresentationPackage.raw.cleaned_source_blocks.some((block) => block.text.includes("\u0085")), false);
+
+const faqWithLegalNoticePackage = parseInline("faq-with-legal-notice", `
+Frequently Asked Questions
+Additional Information
+The parties intend to file a registration statement with the SEC. This document is not a substitute for that registration statement, and investors are urged to read it.
+
+Q. What was announced today?
+A. The companies signed an all-stock merger agreement, subject to shareholder approval.
+`);
+assert.ok(faqWithLegalNoticePackage.raw.router_source_blocks.some((block) => /What was announced today/i.test(block.text)));
+assert.equal(faqWithLegalNoticePackage.raw.router_source_blocks.some((block) => /not a substitute/i.test(block.text)), false);
+
+const transcriptWithLegalNoticePackage = parseInline("transcript-with-legal-notice", `
+Conference Call Transcript
+Additional Information
+This document is not a substitute for the proxy statement, and investors and security holders are urged to read it.
+
+CEO: We signed the transaction agreement today and expect the deal to close after regulatory approval.
+CFO: The stated consideration is $25.00 per share in cash.
+`);
+assert.ok(transcriptWithLegalNoticePackage.raw.router_source_blocks.some((block) => /\$25\.00 per share/i.test(block.text)));
+assert.equal(transcriptWithLegalNoticePackage.raw.router_source_blocks.some((block) => /not a substitute/i.test(block.text)), false);
+
+const employeeQaPackage = parseInline("employee-qa", `
+Q&A
+What happens now that the merger is announced?
+The companies will begin integration planning, while normal operations continue until closing.
+
+Will my compensation change?
+No immediate base-pay change is planned for employees who remain in comparable roles.
+`);
+assert.ok(employeeQaPackage.raw.router_source_blocks.some((block) => block.content_role === "faq"));
+assert.equal(employeeQaPackage.raw.router_source_blocks.some((block) => block.content_role === "transcript"), false);
+
+const changedMeetingPackage = parseInline("changed-meeting", `
+Special Meeting Update
+The adjournment proposal would permit the meeting to be adjourned from time to time to solicit additional proxies.
+
+The Special Meeting will now be held on August 25, 2026. The record date and proposals are unchanged.
+`);
+assert.ok(changedMeetingPackage.raw.router_source_blocks.some((block) => /will now be held on August 25, 2026/i.test(block.text)));
+
+const secViewerArtifactPackage = parseInline("sec-viewer-artifact", `
+00000001 - Document - Cover link:presentationLink link:calculationLink link:definitionLink
+
+Transaction Update
+The parties rescheduled the shareholder meeting to September 15, 2026.
+`);
+assert.equal(secViewerArtifactPackage.raw.router_source_blocks.some((block) => /presentationLink|calculationLink|definitionLink/i.test(block.text)), false);
+
+const newswireRegulatoryUpdate = parseInline("newswire-regulatory-update", `
+425
+Filed by Test Company
+Subject Company: Test Company
+Pursuant to Rule 425 under the Securities Act of 1933
+
+Test Company Schedules Special Meeting After Proxy Becomes Effective
+NEW YORK (GLOBE NEWSWIRE) -- The SEC declared the Form F-4 effective. The company filed its definitive proxy statement and scheduled the shareholder meeting for August 5, 2026.
+Completion remains subject to shareholder approval and customary closing conditions.
+`);
+assert.ok(newswireRegulatoryUpdate.raw.router_source_blocks.some((block) => block.content_role === "press_release" && /definitive proxy statement/i.test(block.text)));
+assert.equal(newswireRegulatoryUpdate.raw.router_source_blocks.some((block) => block.block_type === "cover"), false);
+
+const datelinePressRelease = parseInline("dateline-press-release", `
+Test Company Supports the Proposed Transaction
+HOLLYWOOD, Calif., January 7, 2026 — Test Company welcomed the board's decision to maintain the existing merger agreement.
+`);
+assert.ok(datelinePressRelease.raw.router_source_blocks.some((block) => block.content_role === "press_release"));
+
+const publishedPresentation = parseInline("published-presentation", `
+On June 1, 2026, the company published the following presentation:
+
+Transaction Overview
+The proposed transaction remains subject to regulatory approval and customary closing conditions.
+`);
+assert.ok(publishedPresentation.raw.router_source_blocks.some((block) => block.content_role === "investor_presentation"));
+
+const imageBasedSocialPost = parseSec425Filing({
+  title: "425 - image social post",
+  formType: "425",
+  filingText: `425
+Filed by: Buyer Corp.
+Subject Company: Target Corp.
+Pursuant to Rule 425 under the Securities Act of 1933
+Item 1 Explanatory Note: The buyer's CEO reposted the following post on X under the CEO's X handle.
+X Post:`,
+  attachments: [{
+    documentType: "GRAPHIC",
+    description: "X post screenshot image",
+    filename: "social-post.jpg",
+    text: "binary image payload",
+  }],
+});
+assert.ok(imageBasedSocialPost.raw.router_source_blocks.some((block) => block.content_role === "social_media" && /reposted/i.test(block.text)));
+assert.equal(imageBasedSocialPost.raw.router_source_blocks.some((block) => /Filed by:/i.test(block.text)), false);
+assert.ok(imageBasedSocialPost.warnings.includes("social_media_content_may_be_in_graphic"));
+
+const proxyCardPackage = parseSec425Filing({
+  title: "425 - proxy card",
+  formType: "425",
+  filingText: "Special Meeting Notice\nThe meeting will now be held on September 15, 2026.",
+  attachments: [{
+    documentType: "DEFA14A",
+    description: "Proxy card",
+    filename: "proxy-card.htm",
+    text: "Vote by Internet. Please vote today to approve the amended merger agreement.",
+  }],
+});
+assert.equal(proxyCardPackage.raw.document_inventory[1]?.document_role, "other");
+
+const graphicAttachmentPackage = parseSec425Filing({
+  title: "425 - graphic attachment package",
+  formType: "425",
+  accessionNumber: "0000000000-26-000425",
+  filingText: "Investor Presentation\nTransaction overview and proposed business combination terms.",
+  attachments: [{
+    documentType: "GRAPHIC",
+    description: "Presentation image",
+    filename: "slide001.jpg",
+    text: "M][_S BBBMA 1110 4444 binary image payload",
+  }],
+});
+assert.equal(graphicAttachmentPackage.raw.document_inventory.length, 2);
+assert.equal(graphicAttachmentPackage.raw.document_inventory[1]?.source_block_count, 0);
+assert.equal(graphicAttachmentPackage.raw.cleaned_source_blocks.some((block) => block.document_type === "GRAPHIC"), false);
+assert.equal(graphicAttachmentPackage.raw.router_source_blocks.some((block) => block.document_type === "GRAPHIC"), false);
+
+const xbrlAttachmentPackage = parseSec425Filing({
+  title: "425 - XBRL attachment package",
+  formType: "425",
+  filingText: "Transaction Update\nThe parties amended the proposed business combination.",
+  attachments: [{
+    documentType: "JSON",
+    description: "IDEA: XBRL DOCUMENT",
+    filename: "FilingSummary.json",
+    text: "presentation role calculation link definition link",
+  }],
+});
+assert.equal(xbrlAttachmentPackage.raw.document_inventory[1]?.source_block_count, 0);
+assert.equal(xbrlAttachmentPackage.raw.router_source_blocks.some((block) => block.document_type === "JSON"), false);
 
 console.log("sec 425 parser fixtures passed");
 

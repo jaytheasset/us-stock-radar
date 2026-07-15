@@ -1,0 +1,39 @@
+{
+  "title": "Form 425 multi-document public acquisition proposal package",
+  "formType": "425",
+  "accessionNumber": "0000000000-26-202500",
+  "companyName": "Example Buyer Corp.",
+  "primaryTicker": "BUYR",
+  "sourceUrl": "https://example.test/425-primary.htm",
+  "filingText": "Filed pursuant to Rule 425. Filed by: Example Buyer Corp. Subject Company: Example Target Inc. The following written communications are attached.",
+  "attachments": [
+    {
+      "documentType": "425",
+      "description": "Offer Letter",
+      "filename": "offer-letter.htm",
+      "url": "https://example.test/offer-letter.htm",
+      "text": "PUBLIC ACQUISITION PROPOSAL\nExample Buyer Corp. proposes to acquire all outstanding shares of Example Target Inc. for $42.00 per share in cash.\nThe proposal is subject to confirmatory due diligence and negotiation of a definitive merger agreement."
+    },
+    {
+      "documentType": "EX-99.1",
+      "description": "Press Release",
+      "filename": "press-release.htm",
+      "url": "https://example.test/press-release.htm",
+      "text": "FOR IMMEDIATE RELEASE\nExample Buyer Publicly Proposes to Acquire Example Target\nThe proposed cash consideration represents a 35% premium to the unaffected closing price."
+    },
+    {
+      "documentType": "EX-99.2",
+      "description": "Investor Presentation",
+      "filename": "investor-presentation.htm",
+      "url": "https://example.test/investor-presentation.htm",
+      "text": "INVESTOR PRESENTATION\nTransaction Overview\nOffer Price | $42.00 per share\nImplied Equity Value | $5.1 billion\nStrategic Rationale\nThe combination would expand the buyer's marketplace and payments platform."
+    },
+    {
+      "documentType": "EX-99.3",
+      "description": "Transaction Fact Sheet",
+      "filename": "fact-sheet.htm",
+      "url": "https://example.test/fact-sheet.htm",
+      "text": "TRANSACTION FACT SHEET\nMetric | Proposed Term\nConsideration | $42.00 per share in cash\nStatus | Public proposal; no definitive agreement signed\nNext Step | Target board review"
+    }
+  ]
+}

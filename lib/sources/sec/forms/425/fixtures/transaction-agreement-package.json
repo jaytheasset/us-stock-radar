@@ -1,0 +1,22 @@
+{
+  "title": "Form 425 transaction agreement package",
+  "formType": "425",
+  "accessionNumber": "0000000000-26-025116",
+  "companyName": "Example Acquirer Corp.",
+  "primaryTicker": "ACQR",
+  "filingText": "Filed pursuant to Rule 425. Filed by: Example Acquirer Corp. Subject Company: Example Target Corp. The merger agreement and related employee communication are attached.",
+  "attachments": [
+    {
+      "documentType": "EX-2.1",
+      "description": "Agreement and Plan of Merger",
+      "filename": "merger-agreement.htm",
+      "text": "AGREEMENT AND PLAN OF MERGER\nThis Agreement and Plan of Merger is entered into by Example Acquirer Corp., Merger Sub Inc., and Example Target Corp.\nARTICLE I THE MERGER\nAt the effective time, each outstanding target share will be converted into the right to receive the merger consideration.\nARTICLE VII CONDITIONS TO CLOSING\nClosing remains subject to shareholder approval and regulatory clearance."
+    },
+    {
+      "documentType": "EX-99.1",
+      "description": "Employee Communication",
+      "filename": "employee-communication.htm",
+      "text": "EMPLOYEE COMMUNICATION\nDear colleagues,\nThe merger agreement includes employee treatment provisions that apply after closing. Existing compensation and benefits remain unchanged before the transaction closes."
+    }
+  ]
+}

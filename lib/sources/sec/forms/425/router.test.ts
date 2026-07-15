@@ -20,6 +20,7 @@ const fixtureNames = readdirSync(fixturesDir).filter((name) => name.endsWith(".j
 
 for (const fixtureName of fixtureNames) {
   const fixture = readFixture(fixtureName);
+  if (!fixture.expected?.event_type || !fixture.expected?.expected_delivery_level) continue;
   const parserOutput = parseSec425Filing(fixture);
   const decision = routeSec425ParserOutput(parserOutput);
 

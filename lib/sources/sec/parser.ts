@@ -340,6 +340,7 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
             .map((document) => ({
               type: document.type,
               description: document.description,
+              filename: document.document,
               url: document.url,
               text: document.text,
             })),
