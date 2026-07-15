@@ -47,6 +47,7 @@ assert.equal(financingRisk.facts.market_context?.price, 8.2);
 
 const routineArchive = parseSec425Filing(readFixture("routine-investor-faq-deterministic-archive.json"));
 assert.equal(routineArchive.facts.primary_ticker, "CDBK");
+assert.equal(routineArchive.raw.document_inventory[0]?.document_role, "faq");
 assert.equal(routineArchive.facts.no_new_material_info, true);
 assert.equal(routineArchive.facts.material_change, false);
 assert.ok(routineArchive.facts.deterministic_archive_reason);
@@ -397,7 +398,7 @@ assert.ok(/Projected Revenue|Adjusted EBITDA|Free Cash Flow/i.test(projectionTab
 const multiDocumentOffer = parseSec425Filing(readFixture("multi-document-offer-package.json"));
 assert.deepEqual(
   multiDocumentOffer.raw.document_inventory.map((document) => document.document_role),
-  ["primary_425", "offer_letter", "press_release", "investor_presentation", "fact_sheet"],
+  ["offer_letter", "offer_letter", "press_release", "investor_presentation", "fact_sheet"],
 );
 assert.equal(new Set(multiDocumentOffer.raw.cleaned_source_blocks.map((block) => block.block_id)).size, multiDocumentOffer.raw.cleaned_source_blocks.length);
 assert.ok(multiDocumentOffer.raw.cleaned_source_blocks.some((block) => block.source_ref === "attachment_1" && /\$42\.00 per share/i.test(block.text)));
@@ -409,7 +410,7 @@ assert.ok(multiDocumentOffer.raw.router_source_blocks.every((block) => block.cha
 const transactionAgreement = parseSec425Filing(readFixture("transaction-agreement-package.json"));
 assert.deepEqual(
   transactionAgreement.raw.document_inventory.map((document) => document.document_role),
-  ["primary_425", "transaction_agreement", "stakeholder_communication"],
+  ["transaction_agreement", "transaction_agreement", "stakeholder_communication"],
 );
 assert.ok(transactionAgreement.raw.cleaned_source_blocks.some((block) => block.document_role === "transaction_agreement" && block.block_type === "agreement_section"));
 assert.ok(transactionAgreement.raw.cleaned_source_blocks.some((block) => block.document_role === "stakeholder_communication" && block.block_type === "stakeholder_message"));

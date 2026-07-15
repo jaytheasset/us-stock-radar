@@ -151,6 +151,7 @@ export const sec425RouterSystemPrompt = [
   "The cleaned_source_blocks are compact, context-preserving excerpts from the original filing. Treat their block_id values as the only selectable evidence IDs.",
   "Do not infer from parser facts, extracted values, keyword hits, parser summaries, prior event labels, or display labels.",
   "Classify the investor-relevant purpose and transaction stage, not merely the document format. A presentation, FAQ, transcript, or social post can carry material transaction terms or only repeat known information.",
+  "Before choosing route_case, identify the communication's stated title, intended audience, and substantive purpose from the original blocks. Treat transaction definitions, forward-looking risk lists, PIPE definitions, and SEC solicitation boilerplate as context, not as the dominant purpose.",
   `Choose event_type only from: ${SEC_425_ROUTER_EVENT_TYPES.join(", ")}.`,
   `Choose route_case only from: ${SEC_425_ROUTER_CASE_VALUES.join(", ")}.`,
   `Choose communication_mode only from: ${SEC_425_COMMUNICATION_MODE_VALUES.join(", ")}.`,
@@ -158,7 +159,8 @@ export const sec425RouterSystemPrompt = [
   "Use acquisition_offer_or_proposal for a public, unsolicited, hostile, competing, tender, or exchange proposal that is not yet a signed transaction.",
   "Do not treat the legal phrase 'proposed merger' or 'proposed transaction' by itself as transaction_stage proposal. Use proposal only when the source shows an offer or proposal that has not been accepted or signed. Use announced when the transaction is jointly announced but signing is not established in the supplied blocks, and agreement_signed when the supplied blocks establish an executed agreement.",
   "Use transaction_announcement_or_terms for a signed or announced merger or acquisition and its material economics, parties, consideration, or closing conditions.",
-  "Use spac_business_combination for a de-SPAC transaction, including target, valuation, PIPE, redemptions, minimum cash, vote, closing, or ticker-transition status.",
+  "Choose route_case by the dominant purpose of this Form 425 communication, not merely the underlying transaction type. When the filing expressly says that an FAQ was provided to employees, customers, or partners, use communication_mode faq and route_case stakeholder_faq_or_communication even if introductory questions recap SPAC, PIPE, merger, or listing terms. Override this only when the filing primarily communicates a separate new material transaction change rather than stakeholder guidance.",
+  "Use spac_business_combination for investor-facing communications that substantively update de-SPAC target, valuation, PIPE, redemptions, minimum cash, vote, closing, or ticker-transition status, rather than for an explicitly labeled stakeholder FAQ that merely explains those terms.",
   "Use transaction_presentation_or_call when the main new information is transaction rationale, forecasts, operating metrics, or management discussion in a presentation or transcript.",
   "Use stakeholder_faq_or_communication when the communication mainly explains effects on employees, customers, partners, compensation, benefits, or day-to-day operations.",
   "Use shareholder_meeting_or_vote for meeting dates, record dates, adjournments, solicitation, vote status, or vote results.",
@@ -168,6 +170,7 @@ export const sec425RouterSystemPrompt = [
   "Use financing_or_liquidity_risk only when transaction funding, minimum cash, financing availability, liquidity, or failure-to-close funding consequences dominate the communication.",
   "Use routine_repetition only when the selected source blocks show no new material terms, status change, date, vote development, regulatory development, or stakeholder consequence.",
   "A short communication is not automatically routine. Social media, interviews, event notices, and FAQs may still contain a material proposal or status update.",
+  "Final conflict check: if an original block expressly labels the communication as an FAQ provided to employees, customers, or partners and the filing contains stakeholder questions or instructions, output communication_mode faq and route_case stakeholder_faq_or_communication. Do not let underlying SPAC, PIPE, merger, or solicitation boilerplate override that communication purpose.",
   "Set archive_like_candidate true and needs_analysis_llm false only for source-backed routine repetition with no material update. Otherwise analysis is required.",
   "Set needs_parent_context true when the communication cannot be understood reliably without a prior merger agreement, proxy, tender document, or earlier transaction event.",
   "Router score is an archive gate, not the final impact score. Use 0-49 only for archive-like repetition and 50 for all cases requiring analysis. Do not assign alert-level scores in the router.",
@@ -292,9 +295,14 @@ export function normalizeSec425RouterResult(value: Record<string, unknown>, pars
   ]).filter((blockId) => availableIds.has(blockId)).slice(0, 8);
   const needsAnalysis = value.needs_analysis_llm !== false || value.archive_like_candidate !== true;
   const score = needsAnalysis ? 50 : Math.min(49, Math.max(0, Math.round(numberValue(value.score) ?? 0)));
+  const communicationMode = typeof value.communication_mode === "string" ? value.communication_mode : "";
+  const routeCase = communicationMode === "faq"
+    ? "stakeholder_faq_or_communication"
+    : value.route_case;
 
   return {
     ...value,
+    route_case: routeCase,
     score,
     expected_delivery_level: needsAnalysis ? "feed" : "archive",
     action: needsAnalysis ? "feed" : "archive",

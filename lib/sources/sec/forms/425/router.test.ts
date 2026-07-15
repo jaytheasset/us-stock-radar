@@ -60,6 +60,11 @@ assert.ok(routerPrompt.system.includes("Router score is an archive gate"));
 assert.ok(routerPrompt.system.includes("needs_parent_context"));
 assert.ok(routerPrompt.system.includes("proposed merger"));
 assert.ok(routerPrompt.system.includes("has not been accepted or signed"));
+assert.ok(routerPrompt.system.includes("an FAQ was provided to employees"));
+assert.ok(routerPrompt.system.includes("use communication_mode faq"));
+assert.ok(routerPrompt.system.includes("intended audience"));
+assert.ok(routerPrompt.system.includes("SEC solicitation boilerplate as context"));
+assert.ok(routerPrompt.system.includes("Final conflict check"));
 assert.ok(routerPrompt.user.includes("\"cleaned_source_blocks\""));
 assert.equal(routerPrompt.user.includes("This text must not be copied"), false);
 assert.equal(routerPrompt.user.includes("\"facts\""), false);
@@ -141,6 +146,13 @@ assert.equal(normalized.action, "feed");
 assert.deepEqual(normalized.selected_source_block_ids, [selectedId]);
 assert.equal(normalized.needs_analysis_llm, true);
 assert.equal(normalized.archive_like_candidate, false);
+
+const normalizedFaq = normalizeSec425RouterResult({
+  ...normalized,
+  route_case: "spac_business_combination",
+  communication_mode: "faq",
+}, shareholderParserOutput);
+assert.equal(normalizedFaq.route_case, "stakeholder_faq_or_communication");
 
 console.log("sec 425 router fixtures passed");
 

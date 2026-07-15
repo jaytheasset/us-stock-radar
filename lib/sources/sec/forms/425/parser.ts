@@ -272,7 +272,6 @@ function startsWithTransactionAgreementAmendment(text: string) {
 }
 
 function classifyDocumentRole(segment: RawDocumentSegment): Sec425DocumentRole {
-  if (segment.source === "primary") return "primary_425";
   const metadata = compactText([
     segment.documentType,
     segment.description,
@@ -327,7 +326,7 @@ function classifyDocumentRole(segment: RawDocumentSegment): Sec425DocumentRole {
     return "regulatory_update";
   }
   if (/\b(?:social media|twitter|tweet|\bX post\b|linkedin|repost)\b/i.test(value)) return "social_media";
-  return "other";
+  return segment.source === "primary" ? "primary_425" : "other";
 }
 
 function hasAgreementDocumentStructure(text: string) {
