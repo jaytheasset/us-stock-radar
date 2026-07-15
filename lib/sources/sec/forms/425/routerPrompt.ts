@@ -156,7 +156,8 @@ export const sec425RouterSystemPrompt = [
   `Choose route_case only from: ${SEC_425_ROUTER_CASE_VALUES.join(", ")}.`,
   `Choose communication_mode only from: ${SEC_425_COMMUNICATION_MODE_VALUES.join(", ")}.`,
   `Choose transaction_stage only from: ${SEC_425_TRANSACTION_STAGE_VALUES.join(", ")}.`,
-  "Use acquisition_offer_or_proposal for a public, unsolicited, hostile, competing, tender, or exchange proposal that is not yet a signed transaction.",
+  "Use acquisition_offer_or_proposal only when the current communication makes, sponsors, advances, or materially revises a public, unsolicited, hostile, competing, tender, or exchange proposal that is not yet a signed transaction.",
+  "When the current communication reaffirms an already signed transaction or recommends rejecting a competing proposal, use transaction_announcement_or_terms with transaction_stage opposition_or_competing_offer unless the filing itself introduces a new or revised offer.",
   "Do not treat the legal phrase 'proposed merger' or 'proposed transaction' by itself as transaction_stage proposal. Use proposal only when the source shows an offer or proposal that has not been accepted or signed. Use announced when the transaction is jointly announced but signing is not established in the supplied blocks, and agreement_signed when the supplied blocks establish an executed agreement.",
   "Use transaction_announcement_or_terms for a signed or announced merger or acquisition and its material economics, parties, consideration, or closing conditions.",
   "Choose route_case by the dominant purpose of this Form 425 communication, not merely the underlying transaction type. When the filing expressly says that an FAQ was provided to employees, customers, or partners, use communication_mode faq and route_case stakeholder_faq_or_communication even if introductory questions recap SPAC, PIPE, merger, or listing terms. Override this only when the filing primarily communicates a separate new material transaction change rather than stakeholder guidance.",
@@ -171,6 +172,7 @@ export const sec425RouterSystemPrompt = [
   "Use financing_or_liquidity_risk only when transaction funding, minimum cash, financing availability, liquidity, or failure-to-close funding consequences dominate the communication.",
   "Use routine_repetition only when the selected source blocks show no new material terms, status change, date, vote development, regulatory development, or stakeholder consequence.",
   "A short communication is not automatically routine. Social media, interviews, event notices, and FAQs may still contain a material proposal or status update.",
+  "If a filing merely reports that a social-media post, repost, interview, or other communication occurred but does not include its substantive content, do not infer a transaction update from the missing content. Treat it as archive-like routine repetition unless another supplied source block independently establishes a new material event.",
   "Final conflict check: if an original block expressly labels the communication as an FAQ provided to employees, customers, or partners and the filing contains stakeholder questions or instructions, output communication_mode faq and route_case stakeholder_faq_or_communication. Do not let underlying SPAC, PIPE, merger, or solicitation boilerplate override that communication purpose.",
   "Set archive_like_candidate true and needs_analysis_llm false only for source-backed routine repetition with no material update. Otherwise analysis is required.",
   "Set needs_parent_context true when the communication cannot be understood reliably without a prior merger agreement, proxy, tender document, or earlier transaction event.",
@@ -294,12 +296,14 @@ export function normalizeSec425RouterResult(value: Record<string, unknown>, pars
     ...stringArray(value.selected_source_block_ids),
     ...stringArray(value.source_blocks_used),
   ]).filter((blockId) => availableIds.has(blockId)).slice(0, 8);
-  const needsAnalysis = value.needs_analysis_llm !== false || value.archive_like_candidate !== true;
-  const score = needsAnalysis ? 50 : Math.min(49, Math.max(0, Math.round(numberValue(value.score) ?? 0)));
   const communicationMode = typeof value.communication_mode === "string" ? value.communication_mode : "";
   const routeCase = communicationMode === "faq"
     ? "stakeholder_faq_or_communication"
     : value.route_case;
+  const needsAnalysis = routeCase === "routine_repetition"
+    ? false
+    : value.needs_analysis_llm !== false || value.archive_like_candidate !== true;
+  const score = needsAnalysis ? 50 : Math.min(49, Math.max(0, Math.round(numberValue(value.score) ?? 0)));
   const eventType = routeCase === "shareholder_meeting_or_vote"
     ? "shareholder_vote"
     : value.event_type;

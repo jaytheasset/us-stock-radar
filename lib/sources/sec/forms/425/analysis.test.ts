@@ -59,7 +59,27 @@ assert.equal(routineResult.display_payload.display_type, routineRoute.display_ty
 assert.equal(routineResult.display_payload.data.display_version, "sec_425_display_v1");
 assert.equal(routineResult.display_payload.data.route_case, routineRoute.route_case);
 assert.equal(routineResult.analysis_output.needs_human_review, false);
+assert.equal(routineResult.analysis_output.summary, routineParserOutput.facts.deterministic_archive_reason);
+assert.deepEqual(routineResult.analysis_output.what_to_watch_next, []);
 assert.deepEqual(validateSec425RoomResult(routineResult), []);
+
+const routerReasonArchive = buildSec425DeterministicRoomResult(
+  {
+    ...routineParserOutput,
+    facts: {
+      ...routineParserOutput.facts,
+      deterministic_archive_reason: null,
+    },
+  },
+  {
+    ...routineRoute,
+    routing_reason: "The filing reports a social-media repost but does not provide its substantive content.",
+  },
+);
+assert.equal(
+  routerReasonArchive?.analysis_output.summary,
+  "The filing reports a social-media repost but does not provide its substantive content.",
+);
 
 const mergerFixture = readFixture("merger-terms-strategic-transaction.json");
 const mergerParserOutput = parseSec425Filing(mergerFixture);
@@ -107,6 +127,7 @@ assert.ok(analysisPrompt.system.includes("For ipo_listing cases"));
 assert.ok(analysisPrompt.system.includes("Do not call"));
 assert.ok(analysisPrompt.system.includes("prior transaction filings"));
 assert.ok(analysisPrompt.system.includes("incremental investor impact of this Form 425"));
+assert.ok(analysisPrompt.system.includes("without supplying its substantive content"));
 assert.ok(analysisPrompt.system.includes("normally feed-level rather than alert-level"));
 assert.ok(analysisPrompt.system.includes("Write no more than 3 key_evidence items"));
 assert.ok(analysisPrompt.system.includes("no more than 3 what_to_watch_next items"));

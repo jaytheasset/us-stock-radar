@@ -68,6 +68,8 @@ assert.ok(routerPrompt.system.includes("does not yet disclose the promised opera
 assert.ok(routerPrompt.system.includes("SEC solicitation boilerplate as context"));
 assert.ok(routerPrompt.system.includes("Final conflict check"));
 assert.ok(routerPrompt.system.includes("concrete adjournment"));
+assert.ok(routerPrompt.system.includes("reaffirms an already signed transaction"));
+assert.ok(routerPrompt.system.includes("does not include its substantive content"));
 assert.ok(routerPrompt.user.includes("\"cleaned_source_blocks\""));
 assert.equal(routerPrompt.user.includes("This text must not be copied"), false);
 assert.equal(routerPrompt.user.includes("\"facts\""), false);
@@ -163,6 +165,21 @@ const normalizedMeetingUpdate = normalizeSec425RouterResult({
   route_case: "shareholder_meeting_or_vote",
 }, shareholderParserOutput);
 assert.equal(normalizedMeetingUpdate.event_type, "shareholder_vote");
+
+const normalizedRoutine = normalizeSec425RouterResult({
+  ...normalized,
+  event_type: "other",
+  route_case: "routine_repetition",
+  communication_mode: "social_media",
+  score: 50,
+  needs_analysis_llm: true,
+  archive_like_candidate: false,
+}, shareholderParserOutput);
+assert.equal(normalizedRoutine.needs_analysis_llm, false);
+assert.equal(normalizedRoutine.archive_like_candidate, true);
+assert.equal(normalizedRoutine.deterministic_stage, "router");
+assert.equal(normalizedRoutine.score, 49);
+assert.equal(normalizedRoutine.expected_delivery_level, "archive");
 
 console.log("sec 425 router fixtures passed");
 

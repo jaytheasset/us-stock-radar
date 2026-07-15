@@ -69,6 +69,7 @@ export const sec425AnalysisSystemPrompt = [
   "Prioritize investor impact: deal economics, consideration changes, vote deadlines, litigation or regulatory risk, financing risk, and whether the communication changes previously known terms.",
   "Score the incremental investor impact of this Form 425, not the importance of the underlying transaction. Repeated merger context, prior S-4 effectiveness, or previously mailed proxy materials do not justify a higher score unless this filing adds a material change or a concrete new transaction milestone.",
   "An announcement of a future call, webcast, investor day, interview, or presentation without new economics, operating results, forecasts, vote results, regulatory decisions, financing terms, or closing status is normally feed-level rather than alert-level. The promised future discussion is not evidence that those facts were disclosed now.",
+  "A filing that only says a social-media post, repost, interview, or other communication occurred, without supplying its substantive content, does not establish a new investor event. Score it below 50 and archive it unless another supplied source block independently provides a material update.",
   "For routine Form 425 materials that explicitly contain no new material information and no changed terms, keep event_type other, score below 50, neutral signal, high confidence, and needs_human_review false.",
   "For strategic transaction terms, explain consideration, transaction value, parties, closing timeline, and what to watch next.",
   "For a signed transaction agreement, prioritize the complete economic consideration disclosed for each security and any stated post-closing ownership. Do not substitute fractional-share cash cleanup, award treatment, or a defined-term fragment for the principal merger consideration.",
@@ -394,6 +395,9 @@ export function buildSec425DeterministicRoomResult(
     ticker: parserOutput.facts.primary_ticker,
     exchange: parserOutput.facts.exchange,
   };
+  const archiveSummary = parserOutput.facts.deterministic_archive_reason ||
+    routerDecision.routing_reason ||
+    "No new material transaction term or status change is supported by this communication.";
   return {
     parser_output: parserOutput,
     analysis_output: {
@@ -408,15 +412,15 @@ export function buildSec425DeterministicRoomResult(
       theme_group: "M&A communications",
       sub_theme: "Routine deal communication",
       score: routerDecision.score,
-      score_reason: "Archived because the router found source-backed repetition without a new material transaction update.",
+      score_reason: "The communication does not provide a new material transaction term, decision, or status change.",
       signal: "neutral",
-      quick_take: "Routine transaction communication; no new deal terms were identified.",
-      summary: parserOutput.facts.deterministic_archive_reason || "The Form 425 communication repeats prior deal information without changed material terms.",
-      why_it_matters: "Routine Form 425 communications can create noise around pending transactions; this case does not add a new investor-relevant event.",
+      quick_take: archiveSummary,
+      summary: archiveSummary,
+      why_it_matters: "No new investor-relevant transaction change is supported by the supplied communication.",
       bullish_points: [],
       bearish_points: [],
       key_evidence: routerDecision.evidence,
-      what_to_watch_next: ["Watch for future Form 425, proxy, 8-K, or merger filings that change consideration, timing, vote dates, or closing conditions."],
+      what_to_watch_next: [],
       related_tickers: [],
       calendar_items: parserOutput.calendarItems,
       confidence: "high",
