@@ -4,7 +4,12 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { runSecFilingAnalysisIngest } from "@/lib/secFilingAnalysisIngest";
-import { runSecFilingAnalysisPreviewForRawItem, runSecS1F1RouteOnlyPreviewForRawItem, findSecRawItem } from "@/lib/ai/secFilingAnalysisPreview";
+import {
+  findSecRawItem,
+  runSec425RouteOnlyPreviewForRawItem,
+  runSecFilingAnalysisPreviewForRawItem,
+  runSecS1F1RouteOnlyPreviewForRawItem,
+} from "@/lib/ai/secFilingAnalysisPreview";
 import {
   createSecSourceRun,
   ensureSecSource,
@@ -753,28 +758,51 @@ function buildRouteOnlyItem(rawItem: RawItemRow, routeResult: unknown) {
     stage: stringValue(resultRecord.stage) || null,
     model: stringValue(resultRecord.model) || stringValue(prompt?.model) || null,
     route_only: route
-      ? {
-          display_mode: stringValue(route.display_mode),
-          confidence: numberValue(route.confidence),
-          route_reason: stringValue(route.route_reason),
-          required_surfaces: stringArray(route.required_surfaces),
-          rejected_modes: Array.isArray(route.rejected_modes) ? route.rejected_modes.slice(0, 5) : [],
-        }
+      ? stringValue(route.source_form_type) === "425"
+        ? {
+            event_type: stringValue(route.event_type),
+            route_case: stringValue(route.route_case),
+            communication_mode: stringValue(route.communication_mode),
+            transaction_stage: stringValue(route.transaction_stage),
+            analysis_needed: route.needs_analysis_llm === true,
+            archive_like_candidate: route.archive_like_candidate === true,
+            needs_parent_context: route.needs_parent_context === true,
+            confidence: stringValue(route.confidence),
+            routing_reason: stringValue(route.routing_reason),
+            selected_source_block_ids: stringArray(route.selected_source_block_ids),
+          }
+        : {
+            display_mode: stringValue(route.display_mode),
+            confidence: numberValue(route.confidence),
+            route_reason: stringValue(route.route_reason),
+            required_surfaces: stringArray(route.required_surfaces),
+            rejected_modes: Array.isArray(route.rejected_modes) ? route.rejected_modes.slice(0, 5) : [],
+          }
       : null,
     runtime_output: route
       ? {
           model: stringValue(resultRecord.model) || stringValue(prompt?.model) || null,
           event_title: stringValue(rawItem.title),
+          event_type: stringValue(route.event_type) || null,
           display_type: "route_only",
-          parser_route: "S-1/F-1 route-only test",
+          parser_route: stringValue(route.source_form_type) === "425" ? "425 route-only test" : "S-1/F-1 route-only test",
           is_parser_completed_archive: false,
           is_excluded: false,
-          display_data: [
-            `display_mode: ${stringValue(route.display_mode) || "-"}`,
-            `confidence: ${stringValue(route.confidence) || "-"}`,
-            `reason: ${stringValue(route.route_reason) || "-"}`,
-            `surfaces: ${stringArray(route.required_surfaces).join(", ") || "-"}`,
-          ],
+          display_data: stringValue(route.source_form_type) === "425"
+            ? [
+                `event_type: ${stringValue(route.event_type) || "-"}`,
+                `route_case: ${stringValue(route.route_case) || "-"}`,
+                `communication_mode: ${stringValue(route.communication_mode) || "-"}`,
+                `transaction_stage: ${stringValue(route.transaction_stage) || "-"}`,
+                `analysis_needed: ${route.needs_analysis_llm === true}`,
+                `source_blocks: ${stringArray(route.selected_source_block_ids).join(", ") || "-"}`,
+              ]
+            : [
+                `display_mode: ${stringValue(route.display_mode) || "-"}`,
+                `confidence: ${stringValue(route.confidence) || "-"}`,
+                `reason: ${stringValue(route.route_reason) || "-"}`,
+                `surfaces: ${stringArray(route.required_surfaces).join(", ") || "-"}`,
+              ],
           usage: readRecord(resultRecord.usage) || null,
           cost_estimate: readRecord(resultRecord.costEstimate) || null,
         }
@@ -1280,7 +1308,7 @@ export async function runSecDevAccessionDryRun(
   return getSecDevRoomDetail(room.key);
 }
 
-export async function runSecDevS1F1RouteOnly(
+export async function runSecDevRouteOnly(
   roomKey: string,
   options: { accessionNumber?: string; rawItemId?: string; llmProvider?: string; llmModel?: string } = {},
 ): Promise<SecDevRoomDetail | null> {
@@ -1296,8 +1324,8 @@ export async function runSecDevS1F1RouteOnly(
 
   try {
     routeOnlyStep = "validate_room";
-    if (room.key !== "s1-f1") {
-      throw new Error("Route-only dry-run is currently limited to the S-1 / F-1 room.");
+    if (room.key !== "s1-f1" && room.key !== "425") {
+      throw new Error("Route-only dry-run is currently available for the S-1 / F-1 and 425 rooms.");
     }
     if (!accessionNumber && !rawItemId) {
       throw new Error("Route-only dry-run requires accessionNumber or rawItemId.");
@@ -1313,10 +1341,15 @@ export async function runSecDevS1F1RouteOnly(
     }
 
     routeOnlyStep = "run_route_only_prompt";
-    const routeResult = await runSecS1F1RouteOnlyPreviewForRawItem(rawResult.rawItem, {
-      llmProvider: stringValue(options.llmProvider) || undefined,
-      llmModel: stringValue(options.llmModel) || undefined,
-    });
+    const routeResult = room.key === "425"
+      ? await runSec425RouteOnlyPreviewForRawItem(rawResult.rawItem, {
+          llmProvider: stringValue(options.llmProvider) || undefined,
+          llmModel: stringValue(options.llmModel) || undefined,
+        })
+      : await runSecS1F1RouteOnlyPreviewForRawItem(rawResult.rawItem, {
+          llmProvider: stringValue(options.llmProvider) || undefined,
+          llmModel: stringValue(options.llmModel) || undefined,
+        });
     routeOnlyStep = "build_route_only_item";
     const item = buildRouteOnlyItem(rawResult.rawItem, routeResult);
 
@@ -1329,7 +1362,9 @@ export async function runSecDevS1F1RouteOnly(
       formTypes: room.forms,
       accessionNumber: accessionNumber || stringValue(item.accession_number) || null,
       rawItemId: rawItemId || stringValue(rawResult.rawItem.id) || null,
-      summary: "Routed one existing S-1/F-1 raw item to a display mode only; no full analysis, no DB writes, no alerts.",
+      summary: room.key === "425"
+        ? "Routed one existing Form 425 raw item by communication purpose and transaction stage; no full analysis, no DB writes, no alerts."
+        : "Routed one existing S-1/F-1 raw item to a display mode only; no full analysis, no DB writes, no alerts.",
       items: [item],
       diagnostics: {
         route_only: true,

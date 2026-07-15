@@ -6,7 +6,7 @@ import {
   runSecDevLatestAnalysisDryRun,
   runSecDevLiveDryRun,
   runSecDevResetAnalysis,
-  runSecDevS1F1RouteOnly,
+  runSecDevRouteOnly,
 } from "@/lib/development/secFormDevDashboard";
 
 export const dynamic = "force-dynamic";
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
             secPromptVariant: readString(record.secPromptVariant),
           })
         : mode === "route_only"
-          ? await runSecDevS1F1RouteOnly(room, {
+          ? await runSecDevRouteOnly(room, {
               accessionNumber: readString(record.accessionNumber),
               rawItemId: readString(record.rawItemId),
               llmProvider: readString(record.llmProvider),

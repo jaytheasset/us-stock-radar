@@ -3,7 +3,7 @@ import type { SecFormParserInput } from "../common/parserContract";
 import { buildSec425AnalysisPromptDraft, buildSec425DeterministicRoomResult } from "./analysisPrompt";
 import { buildSec425DisplayPayload } from "./displayPayload";
 import { parseSec425Filing } from "./parser";
-import { buildSec425RouterPromptDraft, routeSec425ParserOutput } from "./routerPrompt";
+import { buildSec425RouterPromptDraft } from "./routerPrompt";
 import { SEC_425_PARSER_GROUP, type Sec425ParseInput } from "./types";
 
 export const SEC_425_ADAPTER_KEY = "sec_425";
@@ -22,7 +22,6 @@ export const sec425Adapter = {
   parse: parseSec425AdapterInput,
   parser: parseSec425AdapterInput,
   parseSec425Filing,
-  route: routeSec425ParserOutput,
   buildRouterPrompt: buildSec425RouterPromptDraft,
   buildDisplayPayload: buildSec425DisplayPayload,
   buildAnalysisPrompt: buildSec425AnalysisPromptDraft,

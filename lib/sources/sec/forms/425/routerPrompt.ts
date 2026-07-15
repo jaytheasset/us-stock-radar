@@ -1,37 +1,79 @@
 import {
-  SEC_425_APPROVED_EVENT_TYPES,
   SEC_425_PARSER_VERSION,
-  deliveryLevelFromScore,
   type Sec425ApprovedEventType,
   type Sec425Confidence,
   type Sec425DeliveryLevel,
   type Sec425DisplayType,
   type Sec425ParserOutput,
+  type Sec425SourceBlock,
 } from "./types";
-import { buildSecSourceBlockPromptInput } from "../common/sourceBlockPromptInput";
+import {
+  buildCurrentFilingIdentity,
+  currentFilingIdentityText,
+} from "../common/currentFilingIdentity.ts";
 
-export const SEC_425_ROUTER_PROMPT_KEY = "sec_425_router_draft";
-export const SEC_425_ROUTER_PROMPT_VERSION = "v1";
+export const SEC_425_ROUTER_PROMPT_KEY = "sec_425_router";
+export const SEC_425_ROUTER_PROMPT_VERSION = "v2";
 export const SEC_425_DISPLAY_PAYLOAD_VERSION = "sec_425_display_v1";
 
 export const SEC_425_ROUTER_ACTION_VALUES = ["archive", "feed", "alert"] as const;
+export const SEC_425_ROUTER_EVENT_TYPES = [
+  "strategic_transaction",
+  "shareholder_vote",
+  "legal_risk",
+  "financial_risk",
+  "dilution_risk",
+  "ipo_listing",
+  "other",
+] as const satisfies readonly Sec425ApprovedEventType[];
 export const SEC_425_ROUTER_CASE_VALUES = [
-  "merger_or_acquisition_terms",
-  "spac_business_combination_terms",
-  "tender_or_exchange_offer",
+  "acquisition_offer_or_proposal",
+  "transaction_announcement_or_terms",
+  "spac_business_combination",
+  "transaction_presentation_or_call",
+  "stakeholder_faq_or_communication",
+  "shareholder_meeting_or_vote",
   "agreement_amendment",
-  "shareholder_vote_solicitation",
-  "shareholder_vote_results",
-  "shareholder_meeting_adjournment",
+  "regulatory_or_closing_update",
   "deal_litigation_or_regulatory_risk",
   "financing_or_liquidity_risk",
-  "investor_day_notice",
   "routine_repetition",
   "unclear_425_communication",
+] as const;
+export const SEC_425_COMMUNICATION_MODE_VALUES = [
+  "offer_letter",
+  "press_release",
+  "investor_presentation",
+  "fact_sheet",
+  "agreement",
+  "faq",
+  "transcript",
+  "stakeholder_communication",
+  "meeting_notice",
+  "regulatory_update",
+  "social_media",
+  "mixed",
+  "other",
+] as const;
+export const SEC_425_TRANSACTION_STAGE_VALUES = [
+  "proposal",
+  "announced",
+  "agreement_signed",
+  "solicitation",
+  "vote_pending",
+  "vote_update",
+  "regulatory_review",
+  "closing_pending",
+  "closed",
+  "amended",
+  "opposition_or_competing_offer",
+  "unclear",
 ] as const;
 
 export type Sec425RouterAction = (typeof SEC_425_ROUTER_ACTION_VALUES)[number];
 export type Sec425RouterCase = (typeof SEC_425_ROUTER_CASE_VALUES)[number];
+export type Sec425CommunicationMode = (typeof SEC_425_COMMUNICATION_MODE_VALUES)[number];
+export type Sec425TransactionStage = (typeof SEC_425_TRANSACTION_STAGE_VALUES)[number];
 
 export type Sec425RouterPromptInput = {
   filing_package: Record<string, unknown>;
@@ -49,13 +91,18 @@ export type Sec425RouterDecision = {
   expected_delivery_level: Sec425DeliveryLevel;
   action: Sec425RouterAction;
   route_case: Sec425RouterCase;
+  communication_mode: Sec425CommunicationMode;
+  transaction_stage: Sec425TransactionStage;
   display_type: Sec425DisplayType;
   display_version: typeof SEC_425_DISPLAY_PAYLOAD_VERSION;
   confidence: Sec425Confidence;
   needs_analysis_llm: boolean;
-  deterministic_stage: "parser" | "router" | null;
+  archive_like_candidate: boolean;
+  needs_parent_context: boolean;
+  deterministic_stage: "router" | null;
   routing_reason: string;
   evidence: string[];
+  selected_source_block_ids: string[];
   source_blocks_used: string[];
   needs_human_review: boolean;
   debug: {
@@ -65,36 +112,68 @@ export type Sec425RouterDecision = {
   };
 };
 
+type Sec425RouterPromptBlock = Pick<
+  Sec425SourceBlock,
+  | "block_id"
+  | "block_type"
+  | "source_ref"
+  | "origin"
+  | "document_type"
+  | "document_role"
+  | "content_role"
+  | "exhibit_number"
+  | "filename"
+  | "heading"
+  | "sequence"
+  | "text"
+>;
+
+export type Sec425RouterSourcePromptInput = {
+  current_filing: ReturnType<typeof buildCurrentFilingIdentity>;
+  filing_identity_text: string;
+  document_inventory: Array<{
+    source_ref: string;
+    origin: "primary" | "attachment";
+    document_type: string | null;
+    document_role: string;
+    description: string | null;
+    filename: string | null;
+    source_block_count: number;
+  }>;
+  cleaned_source_blocks: Sec425RouterPromptBlock[];
+  parser_warnings: string[];
+};
+
 export const sec425RouterSystemPrompt = [
-  "Route one SEC Form 425 filing from cleaned source blocks.",
-  "Return only strict JSON matching the schema. Do not invent fields, event types, dates, tickers, deal terms, or market data.",
-  "Use current_filing.form_type exactly when naming the SEC form. Do not substitute another form from the same 425 family.",
-  `Use only these approved event types: ${SEC_425_APPROVED_EVENT_TYPES.join(", ")}.`,
-  "This form family requires routing/classification because Form 425 can map to strategic_transaction, shareholder_vote, legal_risk, financial_risk, dilution_risk, ipo_listing, or other.",
-  "Use only cleaned_source_blocks. Do not require full raw filing text.",
-  "Do not use parser-generated facts, signals, route hints, extraction summaries, event labels, display labels, or investment labels as classification authority.",
-  "If filing_excerpt is supplied, treat it as selected source snippets only, not as a full raw filing dump.",
-  "Form 425 usually involves merger, acquisition, exchange offer, tender offer, proxy solicitation, or other deal-related communications.",
-  "Classify by investor-relevant content, not by form number alone.",
-  "Use strategic_transaction for material merger, acquisition, business-combination, consideration, closing, or deal-status communications.",
-  "Use strategic_transaction for tender offers, exchange offers, hostile offers, SPAC business-combination terms, agreement amendments with changed economics, or concrete transaction security terms.",
-  "Use shareholder_vote when the communication mainly solicits votes, announces a special meeting, updates record dates, reports vote results, or announces an adjourned or reconvened meeting.",
-  "Use legal_risk when litigation, injunction, regulatory approval, second request, antitrust, settlement, or claims could affect the deal or investor outcome.",
-  "Use financial_risk when the communication highlights financing availability, financing conditions, liquidity, going-concern, cash runway, or failure-to-close funding consequences.",
-  "Use dilution_risk only when cleaned source blocks show transaction financing, PIPE, share issuance, warrants, redemptions, or pro forma ownership terms where dilution is the main event.",
-  "Use ipo_listing only when the main event is a traditional IPO, SPAC IPO, direct listing, IPO pricing, first trading/listing date, or registration effectiveness tied to a new public listing.",
-  "Do not use ipo_listing for ordinary resale registration, shelf offering, ATM/offering dilution, already-listed issuer resale, post-closing business update, or SPAC redemption/liquidation/de-SPAC cases unless the IPO/listing itself is the main event.",
-  "For IPO/listing display data, do not split event_type; use event_type ipo_listing and display_payload.data.ipo_kind traditional or spac when source-backed.",
-  "Use other only for routine, unclear, educational, or no-new-material-information communications.",
-  "Choose display_type and display_version for the UI payload builder.",
-  "Use display_type spac_transaction_status when a 425 is about SPAC/de-SPAC business-combination status, merger vote, redemption result, closing condition, ticker change, minimum cash condition, or de-SPAC closing update and cleaned source blocks are sufficient to populate that page.",
-  "Do not use spac_transaction_status for a plain blank-check IPO registration with no target or deal status; those remain generic/archive unless there is a material transaction update.",
-  "Use candidate_special only when source-backed deal, tender, financing, dilution, or complex vote fields need a future dedicated filing detail treatment and no scheduled/special display type fits; otherwise use generic. Do not create new display types.",
-  "Deterministic archives are allowed only when the filing expressly repeats prior materials and states there is no change to material terms, timeline, vote date, consideration, or conditions, or when cleaned source blocks show cover-only or boilerplate-only content with no deal-specific risk language.",
-  "Use score bands exactly: below 50 archive, 50 to 74 feed, 75 or above alert.",
-  "expected_delivery_level and action must be derived from score; they are not free choices.",
-  "Return whether analysis LLM is needed. Analysis writes investor-facing copy only and must use the selected event_type, display_type, and display payload.",
-  "If the filing needs market context, use only market_context supplied in the fixture JSON. Do not request or assume live market data.",
+  "Act as a route planner for one SEC Form 425 communication.",
+  "Return only strict JSON matching the schema. Do not write the final investor analysis.",
+  "Use only current_filing, document_inventory, and cleaned_source_blocks supplied in the user message.",
+  "The cleaned_source_blocks are compact, context-preserving excerpts from the original filing. Treat their block_id values as the only selectable evidence IDs.",
+  "Do not infer from parser facts, extracted values, keyword hits, parser summaries, prior event labels, or display labels.",
+  "Classify the investor-relevant purpose and transaction stage, not merely the document format. A presentation, FAQ, transcript, or social post can carry material transaction terms or only repeat known information.",
+  `Choose event_type only from: ${SEC_425_ROUTER_EVENT_TYPES.join(", ")}.`,
+  `Choose route_case only from: ${SEC_425_ROUTER_CASE_VALUES.join(", ")}.`,
+  `Choose communication_mode only from: ${SEC_425_COMMUNICATION_MODE_VALUES.join(", ")}.`,
+  `Choose transaction_stage only from: ${SEC_425_TRANSACTION_STAGE_VALUES.join(", ")}.`,
+  "Use acquisition_offer_or_proposal for a public, unsolicited, hostile, competing, tender, or exchange proposal that is not yet a signed transaction.",
+  "Use transaction_announcement_or_terms for a signed or announced merger or acquisition and its material economics, parties, consideration, or closing conditions.",
+  "Use spac_business_combination for a de-SPAC transaction, including target, valuation, PIPE, redemptions, minimum cash, vote, closing, or ticker-transition status.",
+  "Use transaction_presentation_or_call when the main new information is transaction rationale, forecasts, operating metrics, or management discussion in a presentation or transcript.",
+  "Use stakeholder_faq_or_communication when the communication mainly explains effects on employees, customers, partners, compensation, benefits, or day-to-day operations.",
+  "Use shareholder_meeting_or_vote for meeting dates, record dates, adjournments, solicitation, vote status, or vote results.",
+  "Use agreement_amendment only when the filing changes an agreement term, outside date, consideration, condition, financing, termination right, or another material transaction mechanic.",
+  "Use regulatory_or_closing_update for regulatory approval, proxy effectiveness or mailing, satisfaction of closing conditions, closing completion, or a concrete next closing step.",
+  "Use deal_litigation_or_regulatory_risk when litigation, injunction, antitrust review, a second request, or another unresolved regulatory obstacle is the dominant investor issue.",
+  "Use financing_or_liquidity_risk only when transaction funding, minimum cash, financing availability, liquidity, or failure-to-close funding consequences dominate the communication.",
+  "Use routine_repetition only when the selected source blocks show no new material terms, status change, date, vote development, regulatory development, or stakeholder consequence.",
+  "A short communication is not automatically routine. Social media, interviews, event notices, and FAQs may still contain a material proposal or status update.",
+  "Set archive_like_candidate true and needs_analysis_llm false only for source-backed routine repetition with no material update. Otherwise analysis is required.",
+  "Set needs_parent_context true when the communication cannot be understood reliably without a prior merger agreement, proxy, tender document, or earlier transaction event.",
+  "Router score is an archive gate, not the final impact score. Use 0-49 only for archive-like repetition and 50 for all cases requiring analysis. Do not assign alert-level scores in the router.",
+  "Derive expected_delivery_level and action from score: below 50 archive; 50 feed. The analysis LLM will assign the final score and delivery level.",
+  "Select 1-8 source block IDs that best support the route. Use original block_id values exactly and do not return labels in selected_source_block_ids.",
+  "Evidence must be short source-backed reasons, not long quotations.",
+  "Use display_type spac_transaction_status only for de-SPAC status. Use candidate_special for material transaction terms or complex vote/offer cases. Otherwise use generic.",
 ].join("\n");
 
 export const sec425RouterResponseSchema = {
@@ -109,13 +188,18 @@ export const sec425RouterResponseSchema = {
     "expected_delivery_level",
     "action",
     "route_case",
+    "communication_mode",
+    "transaction_stage",
     "display_type",
     "display_version",
     "confidence",
     "needs_analysis_llm",
+    "archive_like_candidate",
+    "needs_parent_context",
     "deterministic_stage",
     "routing_reason",
     "evidence",
+    "selected_source_block_ids",
     "source_blocks_used",
     "needs_human_review",
     "debug",
@@ -124,19 +208,24 @@ export const sec425RouterResponseSchema = {
     source_group: { type: "string", enum: ["filings"] },
     source_form_type: { type: "string", enum: ["425"] },
     parser_group: { type: "string", enum: ["425"] },
-    event_type: { type: "string", enum: SEC_425_APPROVED_EVENT_TYPES },
-    score: { type: "integer", minimum: 0, maximum: 100 },
-    expected_delivery_level: { type: "string", enum: ["archive", "feed", "alert"] },
-    action: { type: "string", enum: SEC_425_ROUTER_ACTION_VALUES },
+    event_type: { type: "string", enum: SEC_425_ROUTER_EVENT_TYPES },
+    score: { type: "integer", minimum: 0, maximum: 50 },
+    expected_delivery_level: { type: "string", enum: ["archive", "feed"] },
+    action: { type: "string", enum: ["archive", "feed"] },
     route_case: { type: "string", enum: SEC_425_ROUTER_CASE_VALUES },
-    display_type: { type: "string", enum: ["generic", "offering_terms", "candidate_special", "spac_transaction_status"] },
+    communication_mode: { type: "string", enum: SEC_425_COMMUNICATION_MODE_VALUES },
+    transaction_stage: { type: "string", enum: SEC_425_TRANSACTION_STAGE_VALUES },
+    display_type: { type: "string", enum: ["generic", "candidate_special", "spac_transaction_status"] },
     display_version: { type: "string", enum: [SEC_425_DISPLAY_PAYLOAD_VERSION] },
     confidence: { type: "string", enum: ["high", "medium", "low"] },
     needs_analysis_llm: { type: "boolean" },
-    deterministic_stage: { type: ["string", "null"], enum: ["parser", "router", null] },
-    routing_reason: { type: "string" },
-    evidence: { type: "array", items: { type: "string" } },
-    source_blocks_used: { type: "array", items: { type: "string" } },
+    archive_like_candidate: { type: "boolean" },
+    needs_parent_context: { type: "boolean" },
+    deterministic_stage: { type: ["string", "null"], enum: ["router", null] },
+    routing_reason: { type: "string", maxLength: 500 },
+    evidence: { type: "array", maxItems: 4, items: { type: "string", maxLength: 300 } },
+    selected_source_block_ids: { type: "array", minItems: 1, maxItems: 8, items: { type: "string" } },
+    source_blocks_used: { type: "array", minItems: 1, maxItems: 8, items: { type: "string" } },
     needs_human_review: { type: "boolean" },
     debug: {
       type: "object",
@@ -156,14 +245,7 @@ export function buildSec425RouterPromptDraft(input: Sec425RouterPromptInput) {
     key: SEC_425_ROUTER_PROMPT_KEY,
     version: SEC_425_ROUTER_PROMPT_VERSION,
     system: sec425RouterSystemPrompt,
-    user: JSON.stringify(
-      buildSecSourceBlockPromptInput({
-        filingPackage: input.filing_package,
-        parserOutput: input.parser_output as unknown as Record<string, unknown>,
-        fallbackText: input.filing_excerpt,
-        marketContext: input.market_context,
-      }),
-    ),
+    user: JSON.stringify(buildSec425RouterSourcePromptInput(input)),
     responseFormat: {
       type: "json_schema",
       json_schema: {
@@ -175,280 +257,88 @@ export function buildSec425RouterPromptDraft(input: Sec425RouterPromptInput) {
   };
 }
 
-export function routeSec425ParserOutput(parserOutput: Sec425ParserOutput): Sec425RouterDecision {
-  const facts = parserOutput.facts;
+export function buildSec425RouterSourcePromptInput(input: Sec425RouterPromptInput): Sec425RouterSourcePromptInput {
+  const filingPackage = input.filing_package || {};
+  const parserOutput = input.parser_output;
+  const currentFiling = buildCurrentFilingIdentity({
+    filingPackage,
+    parserOutput: parserOutput as unknown as Record<string, unknown>,
+    formFamily: "425",
+  });
 
-  if (facts.deterministic_archive_reason) {
-    return buildDecision({
-      parserOutput,
-      eventType: "other",
-      score: 35,
-      action: "archive",
-      routeCase: "routine_repetition",
-      displayType: "generic",
-      confidence: "high",
-      needsAnalysisLlm: false,
-      deterministicStage: "parser",
-      reason: facts.deterministic_archive_reason,
-      evidence: [facts.deterministic_archive_reason],
-      parserFactsUsed: ["facts.no_new_material_info", "facts.deterministic_archive_reason"],
-      needsHumanReview: false,
-    });
-  }
+  return {
+    current_filing: currentFiling,
+    filing_identity_text: currentFilingIdentityText(currentFiling),
+    document_inventory: parserOutput.raw.document_inventory.map((document) => ({
+      source_ref: document.source_ref,
+      origin: document.origin,
+      document_type: document.document_type,
+      document_role: document.document_role,
+      description: document.description,
+      filename: document.filename,
+      source_block_count: document.source_block_count,
+    })),
+    cleaned_source_blocks: parserOutput.raw.router_source_blocks.map(toRouterPromptBlock),
+    parser_warnings: parserOutput.warnings.slice(0, 12),
+  };
+}
 
-  const highRiskRegulatoryEvidence = facts.legal.regulatory_risk.filter((evidence) =>
-    /\b(?:FTC|DOJ|antitrust|HSR Act|Hart-Scott-Rodino|second request)\b/i.test(evidence),
-  );
-  if (facts.legal.litigation_or_claims.length || highRiskRegulatoryEvidence.length || facts.legal.injunction_or_delay_risk.length) {
-    return buildDecision({
-      parserOutput,
-      eventType: "legal_risk",
-      score: 70,
-      action: "feed",
-      routeCase: "deal_litigation_or_regulatory_risk",
-      displayType: "generic",
-      confidence: "medium",
-      needsAnalysisLlm: true,
-      deterministicStage: null,
-      reason: "Form 425 communication includes litigation, regulatory, injunction, or delay language that can affect deal certainty.",
-      evidence: [...facts.legal.litigation_or_claims, ...highRiskRegulatoryEvidence, ...facts.legal.injunction_or_delay_risk].slice(0, 4),
-      parserFactsUsed: ["facts.legal", "facts.deal.transaction_type"],
-      needsHumanReview: false,
-    });
-  }
+export function normalizeSec425RouterResult(value: Record<string, unknown>, parserOutput: Sec425ParserOutput) {
+  const availableIds = new Set(parserOutput.raw.router_source_blocks.map((block) => block.block_id));
+  const selectedIds = uniqueStrings([
+    ...stringArray(value.selected_source_block_ids),
+    ...stringArray(value.source_blocks_used),
+  ]).filter((blockId) => availableIds.has(blockId)).slice(0, 8);
+  const needsAnalysis = value.needs_analysis_llm !== false || value.archive_like_candidate !== true;
+  const score = needsAnalysis ? 50 : Math.min(49, Math.max(0, Math.round(numberValue(value.score) ?? 0)));
 
-  if (facts.financing.financing_risk.length || facts.financing.going_concern_or_liquidity_risk.length) {
-    return buildDecision({
-      parserOutput,
-      eventType: "financial_risk",
-      score: 68,
-      action: "feed",
-      routeCase: "financing_or_liquidity_risk",
-      displayType: "candidate_special",
-      confidence: "medium",
-      needsAnalysisLlm: true,
-      deterministicStage: null,
-      reason: "Form 425 communication discusses financing, liquidity, or going-concern consequences tied to the transaction.",
-      evidence: [...facts.financing.financing_risk, ...facts.financing.going_concern_or_liquidity_risk].slice(0, 4),
-      parserFactsUsed: ["facts.financing", "facts.deal.transaction_type"],
-      needsHumanReview: false,
-    });
-  }
+  return {
+    ...value,
+    score,
+    expected_delivery_level: needsAnalysis ? "feed" : "archive",
+    action: needsAnalysis ? "feed" : "archive",
+    needs_analysis_llm: needsAnalysis,
+    archive_like_candidate: !needsAnalysis,
+    deterministic_stage: needsAnalysis ? null : "router",
+    selected_source_block_ids: selectedIds,
+    source_blocks_used: selectedIds,
+    selected_source_block_ids_normalized: selectedIds.length !== uniqueStrings(stringArray(value.selected_source_block_ids)).length,
+    needs_human_review: value.needs_human_review === true || selectedIds.length === 0,
+  };
+}
 
-  if (facts.offer.offer_type) {
-    return buildDecision({
-      parserOutput,
-      eventType: "strategic_transaction",
-      score: facts.offer.is_hostile_or_unsolicited ? 78 : 70,
-      action: facts.offer.is_hostile_or_unsolicited ? "alert" : "feed",
-      routeCase: "tender_or_exchange_offer",
-      displayType: "candidate_special",
-      confidence: "high",
-      needsAnalysisLlm: true,
-      deterministicStage: null,
-      reason: "Form 425 communication contains tender, exchange-offer, or consent-solicitation mechanics tied to a transaction.",
-      evidence: facts.offer.evidence.slice(0, 4),
-      parserFactsUsed: ["facts.offer", "facts.subject_company"],
-      needsHumanReview: facts.offer.evidence.length === 0,
-    });
-  }
+function toRouterPromptBlock(block: Sec425SourceBlock): Sec425RouterPromptBlock {
+  return {
+    block_id: block.block_id,
+    block_type: block.block_type,
+    source_ref: block.source_ref,
+    origin: block.origin,
+    document_type: block.document_type,
+    document_role: block.document_role,
+    content_role: block.content_role,
+    exhibit_number: block.exhibit_number,
+    filename: block.filename,
+    heading: block.heading,
+    sequence: block.sequence,
+    text: block.text,
+  };
+}
 
-  if (facts.vote.vote_results.length) {
-    return buildDecision({
-      parserOutput,
-      eventType: "shareholder_vote",
-      score: 66,
-      action: "feed",
-      routeCase: "shareholder_vote_results",
-      displayType: "generic",
-      confidence: "high",
-      needsAnalysisLlm: true,
-      deterministicStage: null,
-      reason: "Form 425 communication reports proposal-level shareholder vote results for the transaction.",
-      evidence: facts.vote.vote_results.map((result) => result.evidence).slice(0, 4),
-      parserFactsUsed: ["facts.vote.vote_results", "facts.vote.quorum"],
-      needsHumanReview: false,
-    });
-  }
+function stringArray(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && Boolean(item.trim())).map((item) => item.trim()) : [];
+}
 
-  if (facts.vote.adjourned || facts.vote.no_vote_conducted || facts.vote.reconvened_date) {
-    return buildDecision({
-      parserOutput,
-      eventType: "shareholder_vote",
-      score: 62,
-      action: "feed",
-      routeCase: "shareholder_meeting_adjournment",
-      displayType: "generic",
-      confidence: facts.vote.reconvened_date ? "high" : "medium",
-      needsAnalysisLlm: true,
-      deterministicStage: null,
-      reason: "Form 425 communication announces an adjourned or reconvened shareholder meeting or states that no vote was conducted.",
-      evidence: facts.vote.evidence.slice(0, 4),
-      parserFactsUsed: ["facts.vote.adjourned", "facts.vote.reconvened_date", "facts.vote.no_vote_conducted"],
-      needsHumanReview: !facts.vote.reconvened_date && !facts.vote.no_vote_conducted,
-    });
-  }
-
-  if (facts.vote.solicitation_present || facts.vote.meeting_date) {
-    return buildDecision({
-      parserOutput,
-      eventType: "shareholder_vote",
-      score: 64,
-      action: "feed",
-      routeCase: "shareholder_vote_solicitation",
-      displayType: "generic",
-      confidence: facts.vote.meeting_date ? "high" : "medium",
-      needsAnalysisLlm: true,
-      deterministicStage: null,
-      reason: "Form 425 communication solicits shareholder votes or gives a special meeting date for the transaction.",
-      evidence: facts.vote.evidence.slice(0, 4),
-      parserFactsUsed: ["facts.vote"],
-      needsHumanReview: false,
-    });
-  }
-
-  if (facts.amendment.is_amendment_or_follow_up && facts.material_change) {
-    return buildDecision({
-      parserOutput,
-      eventType: "strategic_transaction",
-      score: 68,
-      action: "feed",
-      routeCase: "agreement_amendment",
-      displayType: "candidate_special",
-      confidence: "medium",
-      needsAnalysisLlm: true,
-      deterministicStage: null,
-      reason: "Form 425 communication contains an amendment or follow-up filing with changed transaction terms or mechanics.",
-      evidence: facts.amendment.evidence.slice(0, 4),
-      parserFactsUsed: ["facts.amendment", "facts.material_change"],
-      needsHumanReview: facts.amendment.amended_sections.length === 0,
-    });
-  }
-
-  if (facts.spac.is_spac_business_combination && (facts.spac.pipe_amount || facts.spac.pre_money_valuation || facts.spac.earnout_shares || facts.spac.warrant_terms)) {
-    return buildDecision({
-      parserOutput,
-      eventType: "strategic_transaction",
-      score: 76,
-      action: "alert",
-      routeCase: "spac_business_combination_terms",
-      displayType: "spac_transaction_status",
-      confidence: facts.spac.pipe_amount || facts.spac.pre_money_valuation ? "high" : "medium",
-      needsAnalysisLlm: true,
-      deterministicStage: null,
-      reason: "Form 425 SPAC business-combination communication includes enough de-SPAC transaction status, financing, valuation, earnout, warrant, or ownership facts for the SPAC transaction status display.",
-      evidence: facts.spac.evidence.slice(0, 4),
-      parserFactsUsed: ["facts.spac", "facts.deal.transaction_type"],
-      needsHumanReview: false,
-    });
-  }
-
-  if (facts.communication_types.includes("investor_day_notice")) {
-    return buildDecision({
-      parserOutput,
-      eventType: "other",
-      score: 42,
-      action: "archive",
-      routeCase: "investor_day_notice",
-      displayType: "generic",
-      confidence: "high",
-      needsAnalysisLlm: true,
-      deterministicStage: null,
-      reason: "Form 425 communication gives an investor-day or webcast notice tied to a proposed transaction, without changed transaction terms in the source blocks.",
-      evidence: parserOutput.facts.source_excerpts.slice(0, 4),
-      parserFactsUsed: ["facts.communication_types", "calendarItems"],
-      needsHumanReview: false,
-    });
-  }
-
-  if (facts.deal.transaction_type || facts.deal.consideration_text || facts.deal.transaction_value) {
-    const alertLevel = Boolean(facts.deal.consideration_text && (facts.deal.transaction_value || facts.deal.exchange_ratio));
-    return buildDecision({
-      parserOutput,
-      eventType: "strategic_transaction",
-      score: alertLevel ? 78 : 66,
-      action: alertLevel ? "alert" : "feed",
-      routeCase: "merger_or_acquisition_terms",
-      displayType: "candidate_special",
-      confidence: facts.deal.consideration_text ? "high" : "medium",
-      needsAnalysisLlm: true,
-      deterministicStage: null,
-      reason: "Form 425 communication contains material merger, acquisition, business-combination, or consideration terms.",
-      evidence: facts.deal.evidence.slice(0, 4),
-      parserFactsUsed: ["facts.deal", "facts.transaction_parties"],
-      needsHumanReview: false,
-    });
-  }
-
-  return buildDecision({
-    parserOutput,
-    eventType: "other",
-    score: 30,
-    action: "archive",
-    routeCase: "unclear_425_communication",
-    displayType: "generic",
-    confidence: "low",
-    needsAnalysisLlm: true,
-    deterministicStage: null,
-    reason: "The Form 425 communication did not expose enough source-backed facts to classify into a more specific approved event type.",
-    evidence: parserOutput.facts.source_excerpts.slice(0, 3),
-    parserFactsUsed: ["facts.source_excerpts", "warnings"],
-    needsHumanReview: true,
+function uniqueStrings(values: string[]) {
+  const seen = new Set<string>();
+  return values.filter((value) => {
+    const key = value.toLowerCase();
+    if (!value || seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
 }
 
-function buildDecision({
-  parserOutput,
-  eventType,
-  score,
-  action,
-  routeCase,
-  displayType,
-  confidence,
-  needsAnalysisLlm,
-  deterministicStage,
-  reason,
-  evidence,
-  parserFactsUsed,
-  needsHumanReview,
-}: {
-  parserOutput: Sec425ParserOutput;
-  eventType: Sec425ApprovedEventType;
-  score: number;
-  action: Sec425RouterAction;
-  routeCase: Sec425RouterCase;
-  displayType: Sec425DisplayType;
-  confidence: Sec425Confidence;
-  needsAnalysisLlm: boolean;
-  deterministicStage: Sec425RouterDecision["deterministic_stage"];
-  reason: string;
-  evidence: string[];
-  parserFactsUsed: string[];
-  needsHumanReview: boolean;
-}): Sec425RouterDecision {
-  const derivedAction = deliveryLevelFromScore(score);
-  return {
-    source_group: "filings",
-    source_form_type: "425",
-    parser_group: "425",
-    event_type: eventType,
-    score,
-    expected_delivery_level: derivedAction,
-    action: derivedAction,
-    route_case: routeCase,
-    display_type: displayType,
-    display_version: SEC_425_DISPLAY_PAYLOAD_VERSION,
-    confidence,
-    needs_analysis_llm: needsAnalysisLlm,
-    deterministic_stage: deterministicStage,
-    routing_reason: reason,
-    evidence,
-    source_blocks_used: parserFactsUsed,
-    needs_human_review: needsHumanReview,
-    debug: {
-      parser_version: parserOutput.parserVersion,
-      router_prompt_key: SEC_425_ROUTER_PROMPT_KEY,
-      router_prompt_version: SEC_425_ROUTER_PROMPT_VERSION,
-    },
-  };
+function numberValue(value: unknown) {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }

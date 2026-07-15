@@ -24,6 +24,13 @@ import {
   shouldRunSec8k6kAnalysis,
 } from "@/lib/ai/sec8k6kAnalysisAdapter";
 import {
+  SEC_425_ROUTER_PROMPT_KEY,
+  SEC_425_ROUTER_PROMPT_VERSION,
+  buildSec425RouterPromptForInput,
+  isSec425FilingInput,
+  normalizeSec425RouterResultForInput,
+} from "@/lib/ai/sec425AnalysisAdapter";
+import {
   SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY,
   SEC_OWNERSHIP_ANALYSIS_PROMPT_VERSION,
   SEC_OWNERSHIP_VALIDATION_REPAIR_PROMPT_KEY,
@@ -118,6 +125,8 @@ export {
   SEC_8K_6K_ANALYSIS_PROMPT_VERSION,
   SEC_8K_6K_ROUTER_PROMPT_KEY,
   SEC_8K_6K_ROUTER_PROMPT_VERSION,
+  SEC_425_ROUTER_PROMPT_KEY,
+  SEC_425_ROUTER_PROMPT_VERSION,
   SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY,
   SEC_OWNERSHIP_ANALYSIS_PROMPT_VERSION,
   SEC_OWNERSHIP_VALIDATION_REPAIR_PROMPT_KEY,
@@ -172,6 +181,7 @@ export {
   buildSec8k6kAnalysisPromptForInput,
   buildSec8k6kArchiveAnalysis,
   buildSec8k6kRouterPromptForInput,
+  buildSec425RouterPromptForInput,
   buildSecOwnershipAnalysisPrompt,
   buildSecOwnershipValidationRepairPlan,
   buildSecS3AnalysisPrompt,
@@ -189,6 +199,7 @@ export {
   buildSecS8ValidationRepairPlan,
   is424bFilingInput,
   isSec8k6kFilingInput,
+  isSec425FilingInput,
   isOwnershipFilingInput,
   isS3AmendmentInput,
   isS3FilingInput,
@@ -198,6 +209,7 @@ export {
   isS4F4FilingInput,
   isS8FilingInput,
   normalizeSec8k6kRouterResult,
+  normalizeSec425RouterResultForInput,
   shouldRunSec8k6kAnalysis,
 };
 
@@ -205,6 +217,7 @@ export function getSecAnalysisAdapterMode(input: SecFilingAnalysisInput) {
   if (is424bFilingInput(input)) return "analysis_only";
   if (isOwnershipFilingInput(input)) return "ownership_direct_analysis";
   if (isSec8k6kFilingInput(input)) return "current_report_router_flow";
+  if (isSec425FilingInput(input)) return "router_required";
   if (isTenderFilingInput(input)) return "analysis_only";
   if (isSc13FilingInput(input)) return "analysis_only";
   if (isS4F4FilingInput(input)) return "s4_f4_analysis_only";

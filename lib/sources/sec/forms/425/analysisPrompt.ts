@@ -229,7 +229,7 @@ export function buildSec425DeterministicRoomResult(
   parserOutput: Sec425ParserOutput,
   routerDecision: Sec425RouterDecision,
 ): Sec425RoomResult | null {
-  if (routerDecision.deterministic_stage !== "parser" || routerDecision.needs_analysis_llm) return null;
+  if (routerDecision.deterministic_stage !== "router" || routerDecision.needs_analysis_llm) return null;
   const displayPayload = buildSec425DisplayPayload(parserOutput, routerDecision);
   const ticker = {
     ticker: parserOutput.facts.primary_ticker,
@@ -249,7 +249,7 @@ export function buildSec425DeterministicRoomResult(
       theme_group: "M&A communications",
       sub_theme: "Routine deal communication",
       score: routerDecision.score,
-      score_reason: "Archived because the parser found explicit no-new-material-information and no-change-to-terms language.",
+      score_reason: "Archived because the router found source-backed repetition without a new material transaction update.",
       signal: "neutral",
       quick_take: "Routine transaction communication; no new deal terms were identified.",
       summary: parserOutput.facts.deterministic_archive_reason || "The Form 425 communication repeats prior deal information without changed material terms.",
@@ -272,7 +272,7 @@ export function buildSec425DeterministicRoomResult(
       market_context_fields: [],
       special_ui_needed: false,
       special_ui_reason: null,
-      integration_notes: ["Deterministic parser archive can be saved to company filing history without router or analysis LLM."],
+      integration_notes: ["Router-confirmed routine repetition can be saved to company filing history without the analysis LLM."],
     },
   };
 }

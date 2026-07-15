@@ -10,7 +10,7 @@ import {
 } from "./analysisPrompt";
 import { buildSec425DisplayPayload } from "./displayPayload";
 import { parseSec425Filing } from "./parser";
-import { routeSec425ParserOutput } from "./routerPrompt";
+import type { Sec425RouterDecision } from "./routerPrompt";
 import {
   SEC_425_APPROVED_EVENT_TYPES,
   deliveryLevelFromScore,
@@ -35,7 +35,19 @@ for (const expectedName of expectedNames) {
 
 const routineFixture = readFixture("routine-investor-faq-deterministic-archive.json");
 const routineParserOutput = parseSec425Filing(routineFixture);
-const routineRoute = routeSec425ParserOutput(routineParserOutput);
+const routineRoute = buildRouterDecision(routineParserOutput, {
+  event_type: "other",
+  score: 35,
+  expected_delivery_level: "archive",
+  action: "archive",
+  route_case: "routine_repetition",
+  communication_mode: "faq",
+  transaction_stage: "solicitation",
+  display_type: "generic",
+  needs_analysis_llm: false,
+  archive_like_candidate: true,
+  deterministic_stage: "router",
+});
 const routineResult = buildSec425DeterministicRoomResult(routineParserOutput, routineRoute);
 if (!routineResult) {
   throw new Error("routine fixture should produce a deterministic room result");
@@ -51,7 +63,13 @@ assert.deepEqual(validateSec425RoomResult(routineResult), []);
 
 const mergerFixture = readFixture("merger-terms-strategic-transaction.json");
 const mergerParserOutput = parseSec425Filing(mergerFixture);
-const mergerRoute = routeSec425ParserOutput(mergerParserOutput);
+const mergerRoute = buildRouterDecision(mergerParserOutput, {
+  event_type: "strategic_transaction",
+  route_case: "transaction_announcement_or_terms",
+  communication_mode: "press_release",
+  transaction_stage: "agreement_signed",
+  display_type: "candidate_special",
+});
 const mergerDisplayPayload = buildSec425DisplayPayload(mergerParserOutput, mergerRoute);
 const analysisPrompt = buildSec425AnalysisPromptDraft({
   filing_package: { fixture: "merger-terms-strategic-transaction" },
@@ -85,4 +103,42 @@ function readFixture(name: string): Sec425ParseInput {
 
 function readExpected(name: string): Sec425RoomResult {
   return JSON.parse(readFileSync(join(expectedDir, name), "utf8")) as Sec425RoomResult;
+}
+
+function buildRouterDecision(
+  parserOutput: ReturnType<typeof parseSec425Filing>,
+  overrides: Partial<Sec425RouterDecision>,
+): Sec425RouterDecision {
+  const selectedId = parserOutput.raw.router_source_blocks[0]?.block_id;
+  if (!selectedId) throw new Error("fixture must provide a router source block");
+  return {
+    source_group: "filings",
+    source_form_type: "425",
+    parser_group: "425",
+    event_type: "strategic_transaction",
+    score: 50,
+    expected_delivery_level: "feed",
+    action: "feed",
+    route_case: "transaction_announcement_or_terms",
+    communication_mode: "press_release",
+    transaction_stage: "agreement_signed",
+    display_type: "candidate_special",
+    display_version: "sec_425_display_v1",
+    confidence: "high",
+    needs_analysis_llm: true,
+    archive_like_candidate: false,
+    needs_parent_context: false,
+    deterministic_stage: null,
+    routing_reason: "The selected original source block contains a material transaction update.",
+    evidence: ["The selected source block contains the transaction update."],
+    selected_source_block_ids: [selectedId],
+    source_blocks_used: [selectedId],
+    needs_human_review: false,
+    debug: {
+      parser_version: "sec_425_parser_v2",
+      router_prompt_key: "sec_425_router",
+      router_prompt_version: "v2",
+    },
+    ...overrides,
+  };
 }

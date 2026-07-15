@@ -4,75 +4,99 @@ import { join } from "node:path";
 
 import { parseSec425Filing } from "./parser";
 import {
+  SEC_425_COMMUNICATION_MODE_VALUES,
   SEC_425_ROUTER_CASE_VALUES,
+  SEC_425_ROUTER_EVENT_TYPES,
+  SEC_425_TRANSACTION_STAGE_VALUES,
   buildSec425RouterPromptDraft,
-  routeSec425ParserOutput,
+  buildSec425RouterSourcePromptInput,
+  normalizeSec425RouterResult,
   sec425RouterResponseSchema,
 } from "./routerPrompt";
-import {
-  SEC_425_APPROVED_EVENT_TYPES,
-  deliveryLevelFromScore,
-  type Sec425ParseInput,
-} from "./types";
+import type { Sec425ParseInput } from "./types";
 
 const fixturesDir = join(process.cwd(), "lib", "sources", "sec", "forms", "425", "fixtures");
 const fixtureNames = readdirSync(fixturesDir).filter((name) => name.endsWith(".json")).sort();
 
 for (const fixtureName of fixtureNames) {
   const fixture = readFixture(fixtureName);
-  if (!fixture.expected?.event_type || !fixture.expected?.expected_delivery_level) continue;
   const parserOutput = parseSec425Filing(fixture);
-  const decision = routeSec425ParserOutput(parserOutput);
+  const sourceInput = buildSec425RouterSourcePromptInput({
+    filing_package: { fixture: fixtureName },
+    parser_output: parserOutput,
+    filing_excerpt: fixture.filingText,
+    market_context: fixture.market_context || null,
+  });
 
-  assert.equal(decision.source_group, "filings", fixtureName);
-  assert.equal(decision.source_form_type, "425", fixtureName);
-  assert.equal(decision.parser_group, "425", fixtureName);
-  assert.equal(decision.event_type, fixture.expected?.event_type, fixtureName);
-  assert.equal(decision.expected_delivery_level, fixture.expected?.expected_delivery_level, fixtureName);
-  assert.equal(decision.expected_delivery_level, deliveryLevelFromScore(decision.score), fixtureName);
-  assert.equal(decision.action, deliveryLevelFromScore(decision.score), fixtureName);
-  assert.ok(SEC_425_ROUTER_CASE_VALUES.includes(decision.route_case), fixtureName);
-  assert.ok(["generic", "offering_terms", "candidate_special", "spac_transaction_status"].includes(decision.display_type), fixtureName);
-  assert.equal(decision.display_version, "sec_425_display_v1", fixtureName);
-  assert.ok(decision.routing_reason.length > 20, fixtureName);
-
-  if (fixture.expected?.deterministic) {
-    assert.equal(decision.needs_analysis_llm, false, fixtureName);
-    assert.equal(decision.deterministic_stage, "parser", fixtureName);
-    assert.equal(decision.action, "archive", fixtureName);
-    assert.equal(decision.score < 50, true, fixtureName);
-  } else {
-    assert.equal(decision.needs_analysis_llm, true, fixtureName);
-    assert.equal(decision.deterministic_stage, null, fixtureName);
-  }
+  assert.deepEqual(
+    sourceInput.cleaned_source_blocks.map((block) => block.block_id),
+    parserOutput.raw.router_source_blocks.map((block) => block.block_id),
+    fixtureName,
+  );
+  assert.ok(sourceInput.cleaned_source_blocks.length > 0, fixtureName);
+  assert.ok(sourceInput.cleaned_source_blocks.every((block) => block.text.length <= 1_500), fixtureName);
+  assert.equal("facts" in sourceInput, false, fixtureName);
+  assert.equal(JSON.stringify(sourceInput).includes("source_value_evidence"), false, fixtureName);
 }
 
+const shareholderParserOutput = parseSec425Filing(readFixture("shareholder-vote-solicitation.json"));
 const routerPrompt = buildSec425RouterPromptDraft({
   filing_package: { fixture: "shareholder-vote-solicitation" },
-  parser_output: parseSec425Filing(readFixture("shareholder-vote-solicitation.json")),
-  filing_excerpt: "The special meeting of Northstar stockholders will be held on July 15, 2026.",
+  parser_output: shareholderParserOutput,
+  filing_excerpt: "This text must not be copied into the compact router bundle.",
   market_context: null,
 });
 
-assert.equal(routerPrompt.key, "sec_425_router_draft");
-assert.equal(routerPrompt.version, "v1");
-assert.deepEqual(sec425RouterResponseSchema.properties.event_type.enum, SEC_425_APPROVED_EVENT_TYPES);
-assert.ok(SEC_425_APPROVED_EVENT_TYPES.includes("ipo_listing"));
+assert.equal(routerPrompt.key, "sec_425_router");
+assert.equal(routerPrompt.version, "v2");
+assert.deepEqual(sec425RouterResponseSchema.properties.event_type.enum, SEC_425_ROUTER_EVENT_TYPES);
+assert.deepEqual(sec425RouterResponseSchema.properties.route_case.enum, SEC_425_ROUTER_CASE_VALUES);
+assert.deepEqual(sec425RouterResponseSchema.properties.communication_mode.enum, SEC_425_COMMUNICATION_MODE_VALUES);
+assert.deepEqual(sec425RouterResponseSchema.properties.transaction_stage.enum, SEC_425_TRANSACTION_STAGE_VALUES);
 assert.deepEqual(sec425RouterResponseSchema.properties.display_version.enum, ["sec_425_display_v1"]);
-assert.ok(routerPrompt.system.includes("below 50 archive, 50 to 74 feed, 75 or above alert"));
-assert.ok(routerPrompt.system.includes("Use ipo_listing only when the main event is a traditional IPO"));
-assert.ok(routerPrompt.system.includes("Do not use ipo_listing for ordinary resale registration"));
-assert.ok(routerPrompt.system.includes("Choose display_type and display_version"));
-assert.ok(routerPrompt.system.includes("Use display_type spac_transaction_status"));
-assert.ok(routerPrompt.system.includes("Do not use spac_transaction_status for a plain blank-check IPO registration"));
-assert.ok(routerPrompt.system.includes("Do not use parser-generated facts"));
-assert.ok(routerPrompt.system.includes("Do not request or assume live market data") || routerPrompt.system.includes("Do not request"));
+assert.ok(routerPrompt.system.includes("route planner"));
+assert.ok(routerPrompt.system.includes("compact, context-preserving excerpts"));
+assert.ok(routerPrompt.system.includes("Router score is an archive gate"));
+assert.ok(routerPrompt.system.includes("needs_parent_context"));
 assert.ok(routerPrompt.user.includes("\"cleaned_source_blocks\""));
+assert.equal(routerPrompt.user.includes("This text must not be copied"), false);
+assert.equal(routerPrompt.user.includes("\"facts\""), false);
 
-const spacDecision = routeSec425ParserOutput(parseSec425Filing(readFixture("spac-pipe-business-combination.json")));
-assert.equal(spacDecision.route_case, "spac_business_combination_terms");
-assert.equal(spacDecision.event_type, "strategic_transaction");
-assert.equal(spacDecision.display_type, "spac_transaction_status");
+const availableIds = shareholderParserOutput.raw.router_source_blocks.map((block) => block.block_id);
+const selectedId = availableIds[0];
+assert.ok(selectedId);
+const normalized = normalizeSec425RouterResult({
+  source_group: "filings",
+  source_form_type: "425",
+  parser_group: "425",
+  event_type: "shareholder_vote",
+  score: 85,
+  expected_delivery_level: "alert",
+  action: "alert",
+  route_case: "shareholder_meeting_or_vote",
+  communication_mode: "meeting_notice",
+  transaction_stage: "vote_pending",
+  display_type: "candidate_special",
+  display_version: "sec_425_display_v1",
+  confidence: "high",
+  needs_analysis_llm: true,
+  archive_like_candidate: false,
+  needs_parent_context: false,
+  deterministic_stage: null,
+  routing_reason: "The filing provides a material shareholder meeting update.",
+  evidence: ["The filing sets a meeting date."],
+  selected_source_block_ids: [selectedId, "missing-block"],
+  source_blocks_used: [selectedId],
+  needs_human_review: false,
+  debug: {},
+}, shareholderParserOutput);
+
+assert.equal(normalized.score, 50);
+assert.equal(normalized.expected_delivery_level, "feed");
+assert.equal(normalized.action, "feed");
+assert.deepEqual(normalized.selected_source_block_ids, [selectedId]);
+assert.equal(normalized.needs_analysis_llm, true);
+assert.equal(normalized.archive_like_candidate, false);
 
 console.log("sec 425 router fixtures passed");
 

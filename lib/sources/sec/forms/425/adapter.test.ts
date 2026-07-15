@@ -18,7 +18,6 @@ assert.equal(sec425Adapter.parserGroup, "425");
 assert.equal(sec425Adapter.analysisMode, SEC_425_ANALYSIS_MODE);
 assert.equal(sec425Adapter.supportedForms.includes("425"), true);
 assert.equal(typeof sec425Adapter.parse, "function");
-assert.equal(typeof sec425Adapter.route, "function");
 assert.equal(typeof sec425Adapter.buildRouterPrompt, "function");
 assert.equal(typeof sec425Adapter.buildDisplayPayload, "function");
 assert.equal(typeof sec425Adapter.buildAnalysisPrompt, "function");
@@ -61,9 +60,13 @@ assert.equal(parserOutput.accessionNumber, "0000000000-26-042500");
 assert.equal(parserOutput.facts.primary_ticker, "TST");
 assert.equal(parserOutput.facts.deal.cash_component, "$10.75 per share in cash");
 assert.ok(parserOutput.facts.documents.some((document) => document.document_type === "EX-99.1"));
-
-const route = sec425Adapter.route(parserOutput);
-assert.equal(route.event_type, "strategic_transaction");
-assert.equal(route.needs_analysis_llm, true);
+const routerPrompt = sec425Adapter.buildRouterPrompt({
+  filing_package: { accession_number: parserOutput.accessionNumber },
+  parser_output: parserOutput,
+  filing_excerpt: null,
+  market_context: null,
+});
+assert.equal(routerPrompt.key, "sec_425_router");
+assert.ok(routerPrompt.user.includes("cleaned_source_blocks"));
 
 console.log("sec 425 adapter fixtures passed");

@@ -6,6 +6,8 @@ import {
   SEC_8K_6K_ANALYSIS_PROMPT_KEY,
   SEC_8K_6K_ROUTER_PROMPT_KEY,
   SEC_8K_6K_ROUTER_PROMPT_VERSION,
+  SEC_425_ROUTER_PROMPT_KEY,
+  SEC_425_ROUTER_PROMPT_VERSION,
   SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY,
   SEC_OWNERSHIP_ANALYSIS_PROMPT_VERSION,
   SEC_OWNERSHIP_VALIDATION_REPAIR_PROMPT_KEY,
@@ -50,6 +52,7 @@ import {
   buildSec8k6kAnalysisPromptForInput,
   buildSec8k6kArchiveAnalysis,
   buildSec8k6kRouterPromptForInput,
+  buildSec425RouterPromptForInput,
   buildSecOwnershipAnalysisPrompt,
   buildSecOwnershipValidationRepairPlan,
   buildSecSc13AnalysisPromptForInput,
@@ -67,6 +70,7 @@ import {
   buildSecTenderAnalysisPromptForInput,
   is424bFilingInput,
   isSec8k6kFilingInput,
+  isSec425FilingInput,
   isOwnershipFilingInput,
   isSc13FilingInput,
   isS4F4FilingInput,
@@ -76,6 +80,7 @@ import {
   isS1F1FilingInput,
   isTenderFilingInput,
   normalizeSec8k6kRouterResult,
+  normalizeSec425RouterResultForInput,
   shouldRunSec8k6kAnalysis,
 } from "@/lib/ai/secFormAnalysisAdapterRegistry";
 import {
@@ -446,6 +451,51 @@ export async function runSecS1F1RouteOnlyPreviewForRawItem(rawItem: RawItemRow, 
       responseFormat: prompt.responseFormat,
     },
     error: run.ok ? undefined : run.error || "S-1/F-1 route-only prompt failed.",
+  };
+}
+
+export async function runSec425RouteOnlyPreviewForRawItem(rawItem: RawItemRow, options: SecLlmOptions = {}) {
+  const input = await buildInputFromSecRawRowWithContext(rawItem);
+  if (!isSec425FilingInput(input)) {
+    return {
+      ok: false,
+      stage: "route_only",
+      status: 400,
+      sourceItem: summarizeRawRow(rawItem),
+      error: "SEC 425 parser output is missing from filing package.",
+    };
+  }
+
+  const env = getServerEnv();
+  const llmConfig = resolveSecLlmConfig(env, options);
+  const prompt = buildSec425RouterPromptForInput(input);
+  const run = await runOpenAiJsonPrompt(env, prompt, llmConfig);
+  const route = run.ok && run.parsed
+    ? normalizeSec425RouterResultForInput(run.parsed, input)
+    : null;
+
+  return {
+    ok: Boolean(run.ok && route),
+    stage: "route_only",
+    status: run.status,
+    model: run.model,
+    openAiResponseId: run.openAiResponseId,
+    sourceItem: summarizeRawRow(rawItem),
+    input: JSON.parse(prompt.user) as Record<string, unknown>,
+    route,
+    outputText: run.outputText,
+    usage: run.usage,
+    costEstimate: estimateCost(run.model, run.usage),
+    rawOpenAIResponse: run.rawOpenAIResponse,
+    prompt: {
+      key: SEC_425_ROUTER_PROMPT_KEY,
+      version: SEC_425_ROUTER_PROMPT_VERSION,
+      provider: run.provider,
+      model: run.model,
+      system: prompt.system,
+      responseFormat: prompt.responseFormat,
+    },
+    error: run.ok && route ? undefined : run.error || "SEC 425 route-only prompt failed.",
   };
 }
 
