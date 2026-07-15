@@ -339,10 +339,12 @@ function buildDocumentSourceBlocks(
   documentRole: Sec425DocumentRole,
 ): Sec425SourceBlock[] {
   const embeddedExhibitRoles = findEmbeddedExhibitRoles(segment.text);
-  const defaultContentRole = segment.source === "primary" && embeddedExhibitRoles.size === 0
+  // document_role describes the document format. content_role is classified per
+  // block so a press release can still expose a meeting or regulatory update.
+  const inferredContentRole = segment.source === "primary" && embeddedExhibitRoles.size === 0
     ? inferPrimaryContentRole(segment.text)
     : null;
-  const units = splitSourceDocument(segment.text, embeddedExhibitRoles, defaultContentRole);
+  const units = splitSourceDocument(segment.text, embeddedExhibitRoles, null);
   const blocks: Sec425SourceBlock[] = [];
   let sequence = 0;
 
@@ -352,7 +354,11 @@ function buildDocumentSourceBlocks(
       const text = compactText(chunk);
       if (!text) continue;
       sequence += 1;
-      const contentRole = unit.contentRole || classifyContentRole(text, unit.heading, documentRole);
+      const contentRole = unit.contentRole || classifyContentRole(
+        text,
+        unit.heading,
+        inferredContentRole || documentRole,
+      );
       const blockType = classifySourceBlockType(text, unit.heading, contentRole, unit.isTable);
       const isBoilerplate = blockType === "legal_boilerplate" || isGenericBoilerplateParagraph(text);
       blocks.push({
@@ -600,24 +606,39 @@ function classifyContentRole(
   heading: string | null,
   documentRole: Sec425DocumentRole,
 ): Sec425DocumentRole {
-  if (documentRole !== "primary_425" && documentRole !== "other") return documentRole;
   const value = `${heading || ""}\n${text}`;
   if (isSecCoverBlock(value)) return documentRole;
   if (/\b(?:copies? of|the foregoing)\b[\s\S]{0,500}\b(?:attached hereto|incorporated by reference|furnished pursuant to Item)\b/i.test(value)) {
     return documentRole;
   }
+  if (
+    documentRole === "transaction_agreement" ||
+    documentRole === "agreement_amendment" ||
+    documentRole === "stockholder_agreement" ||
+    documentRole === "employment_agreement"
+  ) {
+    return documentRole;
+  }
   if (/\b(?:fact sheet|transaction facts?|deal facts?)\b/i.test(value)) return "fact_sheet";
   if (/\b(?:offer letter|proposal letter|non-binding (?:offer|proposal|expression of interest)|public acquisition proposal)\b/i.test(value)) return "offer_letter";
   if (/\b(?:frequently asked questions|questions and answers|employee faq|\bFAQ\b)\b/i.test(value) || /(?:^|\n)\s*Q\s*&\s*A\s*(?:\n|$)/im.test(value)) return "faq";
-  if (isEventNotice(value)) return "meeting_notice";
   if (/\b(?:transcript|conference call transcript|prepared remarks|interview|podcast|town hall)\b/i.test(value) || hasTranscriptSpeakerPattern(value)) return "transcript";
   if (/\b(?:investor presentation|joint presentation|transaction presentation|investor day)\b/i.test(value) || /\bpresentation\b[\s\S]{0,120}\bfiled in connection with\b/i.test(value)) return "investor_presentation";
-  if (/\b(?:for immediate release|business wire|press release|news release)\b/i.test(value)) return "press_release";
   if (/\b(?:agreement and plan of merger|business combination agreement|merger agreement)\b/i.test(value) && /\b(?:ARTICLE|SECTION|RECITALS|conditions to closing|representations and warranties)\b/i.test(value)) return "transaction_agreement";
   if (/\b(?:employee communication|dear (?:colleagues|employees|team members)|all employee)\b/i.test(value)) return "stakeholder_communication";
-  if (/\b(?:special meeting|record date|meeting date|adjourned|reconvened|reconvene)\b/i.test(value)) return "meeting_notice";
-  if (/\b(?:regulatory approval|antitrust clearance|definitive proxy (?:filed|mailed)|closing condition update)\b/i.test(value)) return "regulatory_update";
+  if (
+    isEventNotice(value) ||
+    /\b(?:special meeting|record date|meeting date|adjourned|reconvened|reconvene|postponed|rescheduled|voting results?)\b/i.test(value)
+  ) return "meeting_notice";
+  if (
+    /\b(?:received|obtained|secured|granted|completed)\b[\s\S]{0,80}\b(?:regulatory approval|antitrust clearance)\b/i.test(value) ||
+    /\b(?:SEC\s+(?:declared|has declared)[\s\S]{0,80}\beffective|(?:filed|mailed)\s+(?:its\s+|the\s+)?definitive proxy|closing condition\s+(?:was|has been|is)\s+(?:satisfied|waived))\b/i.test(value)
+  ) return "regulatory_update";
   if (/\b(?:social media|twitter|tweet|\bX post\b|linkedin|repost)\b/i.test(value)) return "social_media";
+  if (
+    /\b(?:for immediate release|business wire|globe newswire|pr newswire|press release|news release)\b/i.test(value) ||
+    /\b[A-Z][A-Z .'-]{2,40},(?:\s+[A-Z][a-z.]{1,15},)?\s+(?:[A-Z][a-z]{2,8}\.?\s+\d{1,2},\s+20\d{2})\s+(?:--|[—–]|\?\?)/.test(value)
+  ) return "press_release";
   return documentRole;
 }
 

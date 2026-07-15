@@ -1373,6 +1373,7 @@ export async function runSecDevRouteOnly(
         source_block_count: Array.isArray(readRecord(routeResult.input)?.cleaned_source_blocks)
           ? (readRecord(routeResult.input)?.cleaned_source_blocks as unknown[]).length
           : null,
+        source_block_previews: buildRouteOnlySourceBlockPreviews(routeResult.input),
       },
       error: item.ok === true ? null : stringValue(item.error) || "Route-only dry-run failed",
     };
@@ -1398,6 +1399,22 @@ export async function runSecDevRouteOnly(
 
   await appendLiveRun(room.key, liveRun);
   return getSecDevRoomDetail(room.key);
+}
+
+function buildRouteOnlySourceBlockPreviews(input: unknown) {
+  const blocks = readRecord(input)?.cleaned_source_blocks;
+  if (!Array.isArray(blocks)) return [];
+  return blocks.slice(0, 18).map((value) => {
+    const block = readRecord(value) || {};
+    return {
+      block_id: stringValue(block.block_id) || null,
+      block_type: stringValue(block.block_type) || null,
+      document_role: stringValue(block.document_role) || null,
+      content_role: stringValue(block.content_role) || null,
+      heading: stringValue(block.heading) || null,
+      preview: stringValue(block.text).slice(0, 360) || null,
+    };
+  });
 }
 
 export async function runSecDevRawIngestOnly(

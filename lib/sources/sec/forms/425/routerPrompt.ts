@@ -163,7 +163,7 @@ export const sec425RouterSystemPrompt = [
   "Use spac_business_combination for investor-facing communications that substantively update de-SPAC target, valuation, PIPE, redemptions, minimum cash, vote, closing, or ticker-transition status, rather than for an explicitly labeled stakeholder FAQ that merely explains those terms.",
   "Use transaction_presentation_or_call when the main new information is transaction rationale, forecasts, operating metrics, or management discussion in a presentation or transcript.",
   "Use stakeholder_faq_or_communication when the communication mainly explains effects on employees, customers, partners, compensation, benefits, or day-to-day operations.",
-  "Use shareholder_meeting_or_vote for meeting dates, record dates, adjournments, solicitation, vote status, or vote results.",
+  "Use shareholder_meeting_or_vote for meeting dates, record dates, adjournments, solicitation, vote status, or vote results. A concrete adjournment, postponement, reconvened date, changed record date, or reported vote result is a shareholder_vote and vote_update even when the underlying proposal is a merger or business combination.",
   "Use agreement_amendment only when the filing changes an agreement term, outside date, consideration, condition, financing, termination right, or another material transaction mechanic.",
   "Use regulatory_or_closing_update for regulatory approval, proxy effectiveness or mailing, satisfaction of closing conditions, closing completion, or a concrete next closing step.",
   "Use deal_litigation_or_regulatory_risk when litigation, injunction, antitrust review, a second request, or another unresolved regulatory obstacle is the dominant investor issue.",
@@ -299,9 +299,13 @@ export function normalizeSec425RouterResult(value: Record<string, unknown>, pars
   const routeCase = communicationMode === "faq"
     ? "stakeholder_faq_or_communication"
     : value.route_case;
+  const eventType = routeCase === "shareholder_meeting_or_vote"
+    ? "shareholder_vote"
+    : value.event_type;
 
   return {
     ...value,
+    event_type: eventType,
     route_case: routeCase,
     score,
     expected_delivery_level: needsAnalysis ? "feed" : "archive",

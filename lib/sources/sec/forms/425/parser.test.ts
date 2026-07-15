@@ -546,6 +546,27 @@ The Special Meeting will now be held on August 25, 2026. The record date and pro
 `);
 assert.ok(changedMeetingPackage.raw.router_source_blocks.some((block) => /will now be held on August 25, 2026/i.test(block.text)));
 
+const pressReleaseMeetingUpdate = parseSec425Filing({
+  title: "425 - press release meeting update",
+  formType: "425",
+  accessionNumber: "0000000000-26-000426",
+  primaryDocumentDescription: "Press Release",
+  filingText: `
+SunLink Announces Special Meeting Adjournment
+ATLANTA, July 24, 2025 (GLOBE NEWSWIRE) -- SunLink previously announced a proposed merger transaction.
+
+Meeting Update
+Stockholders approved the adjournment proposal. The Special Meeting was adjourned and will reconvene on August 4, 2025.
+
+Additional Information
+Investors are urged to read the proxy statement and other documents filed with the SEC.
+`,
+});
+assert.equal(pressReleaseMeetingUpdate.raw.document_inventory[0]?.document_role, "press_release");
+assert.ok(pressReleaseMeetingUpdate.raw.router_source_blocks.some((block) =>
+  block.content_role === "meeting_notice" && /will reconvene on August 4, 2025/i.test(block.text)
+));
+
 const secViewerArtifactPackage = parseInline("sec-viewer-artifact", `
 00000001 - Document - Cover link:presentationLink link:calculationLink link:definitionLink
 
@@ -564,7 +585,7 @@ Test Company Schedules Special Meeting After Proxy Becomes Effective
 NEW YORK (GLOBE NEWSWIRE) -- The SEC declared the Form F-4 effective. The company filed its definitive proxy statement and scheduled the shareholder meeting for August 5, 2026.
 Completion remains subject to shareholder approval and customary closing conditions.
 `);
-assert.ok(newswireRegulatoryUpdate.raw.router_source_blocks.some((block) => block.content_role === "press_release" && /definitive proxy statement/i.test(block.text)));
+assert.ok(newswireRegulatoryUpdate.raw.router_source_blocks.some((block) => block.content_role === "meeting_notice" && /definitive proxy statement/i.test(block.text)));
 assert.equal(newswireRegulatoryUpdate.raw.router_source_blocks.some((block) => block.block_type === "cover"), false);
 
 const datelinePressRelease = parseInline("dateline-press-release", `

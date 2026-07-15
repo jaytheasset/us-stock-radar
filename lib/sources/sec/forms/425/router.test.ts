@@ -65,6 +65,7 @@ assert.ok(routerPrompt.system.includes("use communication_mode faq"));
 assert.ok(routerPrompt.system.includes("intended audience"));
 assert.ok(routerPrompt.system.includes("SEC solicitation boilerplate as context"));
 assert.ok(routerPrompt.system.includes("Final conflict check"));
+assert.ok(routerPrompt.system.includes("concrete adjournment"));
 assert.ok(routerPrompt.user.includes("\"cleaned_source_blocks\""));
 assert.equal(routerPrompt.user.includes("This text must not be copied"), false);
 assert.equal(routerPrompt.user.includes("\"facts\""), false);
@@ -153,6 +154,13 @@ const normalizedFaq = normalizeSec425RouterResult({
   communication_mode: "faq",
 }, shareholderParserOutput);
 assert.equal(normalizedFaq.route_case, "stakeholder_faq_or_communication");
+
+const normalizedMeetingUpdate = normalizeSec425RouterResult({
+  ...normalized,
+  event_type: "strategic_transaction",
+  route_case: "shareholder_meeting_or_vote",
+}, shareholderParserOutput);
+assert.equal(normalizedMeetingUpdate.event_type, "shareholder_vote");
 
 console.log("sec 425 router fixtures passed");
 
