@@ -6336,14 +6336,20 @@ function buildForm425TransactionModel(filing: FilingEvent): Form425TransactionMo
 
   const pushRow = (label: string, value: string, note = "") => {
     const cleanValue = cleanForm425DisplayValue(value);
-    if (!cleanValue || rows.some((row) => row.label === label || row.value.toLowerCase() === cleanValue.toLowerCase())) return;
+    const boundedValue = shortenForm425SnapshotValue(cleanValue);
+    if (!boundedValue || rows.some((row) => row.label === label || row.value.toLowerCase() === boundedValue.toLowerCase())) return;
     const cleanNote = cleanForm425DisplayValue(note);
-    rows.push({ label, value: cleanValue, ...(cleanNote ? { note: cleanNote } : {}) });
+    rows.push({ label, value: boundedValue, ...(cleanNote ? { note: shortenForm425Note(cleanNote) } : {}) });
   };
 
   if (routeCase === "acquisition_offer_or_proposal") {
-    pushRow("Offer", formatForm425Label(readRowString(offer, "offer_type")), readRowString(offer, "subject_company"));
-    pushRow("Consideration", readRowString(offer, "consideration"));
+    pushRow(
+      "Offer",
+      formatForm425Label(readRowString(offer, "offer_type")) ||
+        (readRowString(offer, "is_hostile_or_unsolicited") === "true" ? "Unsolicited proposal" : "Acquisition proposal"),
+      readRowString(offer, "subject_company"),
+    );
+    pushRow("Consideration", buildForm425CompactConsideration(deal, offer), buildForm425ConsiderationNote(deal));
   }
 
   if (routeCase === "shareholder_meeting_or_vote") {
@@ -6354,6 +6360,7 @@ function buildForm425TransactionModel(filing: FilingEvent): Form425TransactionMo
 
   if (routeCase === "agreement_amendment") {
     pushRow("Amendment", readRowString(amendment, "amendment_title") || "Transaction terms amended", readRowString(amendment, "amendment_date"));
+    pushRow("Key Change", selectForm425MaterialAmendmentChange(displayStringArray(amendment?.amended_sections, [])));
     pushRow("Original Agreement", readRowString(amendment, "original_agreement_date"));
   }
 
@@ -6375,8 +6382,8 @@ function buildForm425TransactionModel(filing: FilingEvent): Form425TransactionMo
   );
   pushRow(
     "Consideration",
-    readRowString(deal, "consideration_text") || readRowString(deal, "cash_component") || readRowString(deal, "stock_component"),
-    readRowString(deal, "transaction_value") || readRowString(deal, "premium"),
+    buildForm425CompactConsideration(deal, offer),
+    buildForm425ConsiderationNote(deal),
   );
   pushRow("Expected Close", readRowString(deal, "expected_close"));
 
@@ -6449,6 +6456,70 @@ function cleanForm425DisplayValue(value: string) {
   return cleaned;
 }
 
+function buildForm425CompactConsideration(
+  deal: Record<string, unknown> | null,
+  offer: Record<string, unknown> | null,
+) {
+  const source =
+    readRowString(offer, "consideration") ||
+    readRowString(deal, "consideration_text") ||
+    [readRowString(deal, "cash_component"), readRowString(deal, "stock_component")].filter(Boolean).join(" + ");
+  if (!source) return "";
+
+  const perShare = source.match(/\$[\d,.]+\s*(?:cash\s+)?(?:per share|a share)/i)?.[0]
+    ?.replace(/\s+a share$/i, " per share")
+    .replace(/\s+/g, " ");
+  const cashPercent = source.match(/\b(\d+(?:\.\d+)?)%\s+cash\b/i)?.[1];
+  const stockPercent = source.match(
+    /\b(\d+(?:\.\d+)?)%\s+(?:[A-Z][A-Za-z0-9&.'-]+\s+){0,3}(?:common\s+)?(?:stock|shares)\b/i,
+  )?.[1];
+  const exchangeRatio = readRowString(deal, "exchange_ratio");
+  const parts = [
+    perShare || "",
+    cashPercent && stockPercent ? `${cashPercent}% cash / ${stockPercent}% stock` : "",
+    !perShare && exchangeRatio ? `${exchangeRatio} shares per share` : "",
+  ].filter(Boolean);
+
+  return parts.length ? parts.join("; ") : source;
+}
+
+function buildForm425ConsiderationNote(deal: Record<string, unknown> | null) {
+  return uniqueForm425Strings([
+    readRowString(deal, "transaction_value"),
+    readRowString(deal, "premium"),
+  ]).join(" · ");
+}
+
+function selectForm425MaterialAmendmentChange(values: string[]) {
+  const candidates = values
+    .map(cleanForm425DisplayValue)
+    .filter(Boolean)
+    .filter((value) => !/^agreement and plan of merger,? dated\b/i.test(value))
+    .filter((value) => !/^as (?:previously )?amended\b/i.test(value))
+    .filter((value) => !/^(?:except as expressly modified|all other terms|the remainder of).*(?:remain|unchanged)/i.test(value));
+  const materialTermPattern =
+    /\b(?:consideration|exchange ratio|outside date|termination|closing|condition|financing|waiver|deadline|extended|extension|amended|modified|revised)\b/i;
+  return candidates.find((value) => materialTermPattern.test(value)) || candidates[0] || "";
+}
+
+function uniqueForm425Strings(values: string[]) {
+  const seen = new Set<string>();
+  return values.filter((value) => {
+    const cleaned = cleanForm425DisplayValue(value);
+    const key = cleaned.toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function shortenForm425SnapshotValue(value: string) {
+  const cleaned = cleanForm425DisplayValue(value);
+  if (cleaned.length <= 96) return cleaned;
+  const shortened = cleaned.slice(0, 93).replace(/\s+\S*$/, "").trim();
+  return `${shortened || cleaned.slice(0, 93).trim()}...`;
+}
+
 function shortenForm425Note(value: string) {
   const cleaned = cleanForm425DisplayValue(value);
   if (cleaned.length <= 80) return cleaned;
@@ -6458,6 +6529,9 @@ function shortenForm425Note(value: string) {
 
 function cleanForm425CompanyName(value: string) {
   return value
+    .replace(/\s*\/\s*or buy securities[\s\S]*$/i, "")
+    .replace(/^or buy securities[\s\S]*$/i, "")
+    .replace(/^On\s+[A-Z][a-z]+\s+\d{1,2},\s+\d{4},\s+/i, "")
     .replace(/\s*\((?:subject|filed by)\)\s*/gi, " ")
     .replace(/\s+CIK\s*:\s*\d+[\s\S]*$/i, "")
     .replace(/\s+\(see all company filings\)[\s\S]*$/i, "")
