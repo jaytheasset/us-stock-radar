@@ -101,16 +101,23 @@ assert.ok(SEC_425_APPROVED_EVENT_TYPES.includes("ipo_listing"));
 assert.ok(analysisPrompt.system.includes("Required Output JSON shape"));
 assert.ok(analysisPrompt.system.includes("below 50 archive, 50 to 74 feed, 75 or above alert"));
 assert.ok(analysisPrompt.system.includes("Copy analysis_output.event_type exactly from router_result.event_type"));
-assert.ok(analysisPrompt.system.includes("Copy display_payload exactly from the supplied display_payload object"));
+assert.ok(analysisPrompt.system.includes("Treat supplied display_payload as read-only integration context"));
+assert.ok(analysisPrompt.system.includes("Return display_payload only when the response schema explicitly asks for it"));
 assert.ok(analysisPrompt.system.includes("For ipo_listing cases"));
 assert.ok(analysisPrompt.system.includes("Do not call"));
 assert.ok(analysisPrompt.system.includes("prior transaction filings"));
+assert.ok(analysisPrompt.system.includes("Write no more than 3 key_evidence items"));
+assert.ok(analysisPrompt.system.includes("no more than 3 what_to_watch_next items"));
 assert.ok(analysisPrompt.user.includes("\"display_payload\""));
 assert.ok(analysisPrompt.user.includes("\"related_transaction_context\""));
 assert.ok(analysisPrompt.user.includes("Prior merger registration statement"));
 assert.ok(analysisPrompt.user.includes("\"display_version\":\"sec_425_display_v1\""));
 assert.ok(analysisPrompt.user.includes("\"market_context\""));
 assert.ok(analysisPrompt.user.includes("\"market_cap\":3500000000"));
+assert.ok(analysisPrompt.user.includes("\"analysis_source_block_count\""));
+assert.ok(analysisPrompt.user.includes(mergerParserOutput.raw.cleaned_source_blocks[0]?.block_id || "missing-block-id"));
+assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.key_evidence.maxItems, 3);
+assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.what_to_watch_next.maxItems, 3);
 
 console.log("sec 425 analysis fixtures passed");
 

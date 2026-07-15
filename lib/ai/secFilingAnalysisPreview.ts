@@ -6,6 +6,8 @@ import {
   SEC_8K_6K_ANALYSIS_PROMPT_KEY,
   SEC_8K_6K_ROUTER_PROMPT_KEY,
   SEC_8K_6K_ROUTER_PROMPT_VERSION,
+  SEC_425_ANALYSIS_PROMPT_KEY,
+  SEC_425_ANALYSIS_PROMPT_VERSION,
   SEC_425_ROUTER_PROMPT_KEY,
   SEC_425_ROUTER_PROMPT_VERSION,
   SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY,
@@ -30,6 +32,7 @@ import {
   adaptSec424bAnalysisPromptResultForAnalysis,
   applySec424bValidationRepairPatches,
   adaptSec8k6kAnalysisPromptResultForAnalysis,
+  adaptSec425AnalysisPromptResultForAnalysis,
   adaptOwnershipPromptResultForAnalysis,
   applySecOwnershipValidationRepairPatches,
   adaptSecTenderAnalysisPromptResultForAnalysis,
@@ -52,6 +55,8 @@ import {
   buildSec8k6kAnalysisPromptForInput,
   buildSec8k6kArchiveAnalysis,
   buildSec8k6kRouterPromptForInput,
+  buildSec425AnalysisPromptForInput,
+  buildSec425DeterministicAnalysisForInput,
   buildSec425RouterPromptForInput,
   buildSecOwnershipAnalysisPrompt,
   buildSecOwnershipValidationRepairPlan,
@@ -82,6 +87,7 @@ import {
   normalizeSec8k6kRouterResult,
   normalizeSec425RouterResultForInput,
   shouldRunSec8k6kAnalysis,
+  shouldRunSec425Analysis,
 } from "@/lib/ai/secFormAnalysisAdapterRegistry";
 import {
   appendSecProxyDisplayWarnings,
@@ -985,6 +991,159 @@ export async function runSecFilingAnalysisForRawRow(
               responseFormat: repairPlan.prompt.responseFormat,
             }
           : undefined,
+      },
+    };
+  }
+
+  if (isSec425FilingInput(input)) {
+    const routerPrompt = buildSec425RouterPromptForInput(input);
+    const routerRun = await runOpenAiJsonPrompt(env, routerPrompt, llmConfig);
+    if (!routerRun.ok || !routerRun.parsed) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: routerRun.status,
+        error: `SEC 425 router failed after ${routerRun.attempts} attempt(s): ${routerRun.error || "no parseable JSON"}`,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        triageOutputText: routerRun.outputText,
+        triageUsage: routerRun.usage,
+        rawOpenAIResponse: routerRun.rawOpenAIResponse,
+        prompt: {
+          key: SEC_425_ROUTER_PROMPT_KEY,
+          version: SEC_425_ROUTER_PROMPT_VERSION,
+        },
+      };
+    }
+    const routerResult = normalizeSec425RouterResultForInput(routerRun.parsed, input);
+
+    if (!shouldRunSec425Analysis(routerResult)) {
+      const archiveAnalysis = buildSec425DeterministicAnalysisForInput(input, routerResult);
+      if (!archiveAnalysis?.ok) {
+        return {
+          ok: false,
+          stage: "openai",
+          status: routerRun.status,
+          error: archiveAnalysis?.error || "SEC 425 router skipped analysis without a deterministic archive result.",
+          sourceItem: summarizeRawRow(rawItem),
+          input,
+          triage: routerResult,
+          triageOutputText: routerRun.outputText,
+          triageUsage: routerRun.usage,
+          rawOpenAIResponse: routerRun.rawOpenAIResponse,
+          prompt: {
+            key: SEC_425_ROUTER_PROMPT_KEY,
+            version: SEC_425_ROUTER_PROMPT_VERSION,
+          },
+        };
+      }
+
+      const usage = combineUsage(routerRun.usage);
+      return {
+        ok: true,
+        stage: "complete",
+        status: routerRun.status,
+        model: llmConfig.model,
+        openAiResponseId: routerRun.openAiResponseId,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        triage: routerResult,
+        analysis: archiveAnalysis.analysis,
+        triageOutputText: routerRun.outputText,
+        triageUsage: routerRun.usage,
+        usage,
+        costEstimate: estimateCost(llmConfig.model, usage),
+        prompt: {
+          key: SEC_425_ROUTER_PROMPT_KEY,
+          version: SEC_425_ROUTER_PROMPT_VERSION,
+          triage: {
+            key: SEC_425_ROUTER_PROMPT_KEY,
+            version: SEC_425_ROUTER_PROMPT_VERSION,
+          },
+        },
+      };
+    }
+
+    const prompt = buildSec425AnalysisPromptForInput(input, routerResult);
+    const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
+    if (!analysisRun.ok || !analysisRun.parsed) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: analysisRun.status,
+        error: `SEC 425 analysis failed after ${analysisRun.attempts} attempt(s): ${analysisRun.error || "no parseable JSON"}`,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        triage: routerResult,
+        triageOutputText: routerRun.outputText,
+        triageUsage: routerRun.usage,
+        outputText: analysisRun.outputText,
+        usage: combineUsage(routerRun.usage, analysisRun.usage),
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        prompt: {
+          key: SEC_425_ANALYSIS_PROMPT_KEY,
+          version: SEC_425_ANALYSIS_PROMPT_VERSION,
+          triage: {
+            key: SEC_425_ROUTER_PROMPT_KEY,
+            version: SEC_425_ROUTER_PROMPT_VERSION,
+          },
+        },
+      };
+    }
+
+    const sec425Analysis = adaptSec425AnalysisPromptResultForAnalysis(
+      analysisRun.parsed,
+      input,
+      routerResult,
+    );
+    if (!sec425Analysis.ok) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: analysisRun.status,
+        error: sec425Analysis.error,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        triage: routerResult,
+        triageOutputText: routerRun.outputText,
+        triageUsage: routerRun.usage,
+        outputText: analysisRun.outputText,
+        usage: combineUsage(routerRun.usage, analysisRun.usage),
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        prompt: {
+          key: SEC_425_ANALYSIS_PROMPT_KEY,
+          version: SEC_425_ANALYSIS_PROMPT_VERSION,
+          triage: {
+            key: SEC_425_ROUTER_PROMPT_KEY,
+            version: SEC_425_ROUTER_PROMPT_VERSION,
+          },
+        },
+      };
+    }
+
+    const usage = combineUsage(routerRun.usage, analysisRun.usage);
+    return {
+      ok: true,
+      stage: "complete",
+      status: analysisRun.status,
+      model: llmConfig.model,
+      openAiResponseId: analysisRun.openAiResponseId,
+      sourceItem: summarizeRawRow(rawItem),
+      input,
+      triage: routerResult,
+      analysis: sec425Analysis.analysis,
+      triageOutputText: routerRun.outputText,
+      outputText: analysisRun.outputText,
+      triageUsage: routerRun.usage,
+      usage,
+      costEstimate: estimateCost(llmConfig.model, usage),
+      prompt: {
+        key: SEC_425_ANALYSIS_PROMPT_KEY,
+        version: SEC_425_ANALYSIS_PROMPT_VERSION,
+        triage: {
+          key: SEC_425_ROUTER_PROMPT_KEY,
+          version: SEC_425_ROUTER_PROMPT_VERSION,
+        },
       },
     };
   }
@@ -3179,6 +3338,7 @@ export function buildInputFromSecRawRow(rawItem: RawItemRow): SecFilingAnalysisI
 function buildSecFilingPromptForInput(input: SecFilingAnalysisInput, options: { secPromptVariant?: string } = {}) {
   if (is424bFilingInput(input)) return buildSec424bAnalysisPromptForInput(input, { promptVariant: options.secPromptVariant });
   if (isOwnershipFilingInput(input)) return buildSecOwnershipAnalysisPrompt(input);
+  if (isSec425FilingInput(input)) return buildSec425RouterPromptForInput(input);
   if (isSec8k6kFilingInput(input)) return buildSec8k6kRouterPromptForInput(input);
   if (isTenderFilingInput(input)) return buildSecTenderAnalysisPromptForInput(input);
   if (isSc13FilingInput(input)) return buildSecSc13AnalysisPromptForInput(input);

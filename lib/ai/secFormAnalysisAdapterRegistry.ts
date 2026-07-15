@@ -24,11 +24,17 @@ import {
   shouldRunSec8k6kAnalysis,
 } from "@/lib/ai/sec8k6kAnalysisAdapter";
 import {
+  SEC_425_ANALYSIS_PROMPT_KEY,
+  SEC_425_ANALYSIS_PROMPT_VERSION,
   SEC_425_ROUTER_PROMPT_KEY,
   SEC_425_ROUTER_PROMPT_VERSION,
+  adaptSec425AnalysisPromptResultForAnalysis,
+  buildSec425AnalysisPromptForInput,
+  buildSec425DeterministicAnalysisForInput,
   buildSec425RouterPromptForInput,
   isSec425FilingInput,
   normalizeSec425RouterResultForInput,
+  shouldRunSec425Analysis,
 } from "@/lib/ai/sec425AnalysisAdapter";
 import {
   SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY,
@@ -125,6 +131,8 @@ export {
   SEC_8K_6K_ANALYSIS_PROMPT_VERSION,
   SEC_8K_6K_ROUTER_PROMPT_KEY,
   SEC_8K_6K_ROUTER_PROMPT_VERSION,
+  SEC_425_ANALYSIS_PROMPT_KEY,
+  SEC_425_ANALYSIS_PROMPT_VERSION,
   SEC_425_ROUTER_PROMPT_KEY,
   SEC_425_ROUTER_PROMPT_VERSION,
   SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY,
@@ -161,6 +169,7 @@ export {
   adaptSec424bAnalysisPromptResultForAnalysis,
   applySec424bValidationRepairPatches,
   adaptSec8k6kAnalysisPromptResultForAnalysis,
+  adaptSec425AnalysisPromptResultForAnalysis,
   adaptOwnershipPromptResultForAnalysis,
   applySecOwnershipValidationRepairPatches,
   adaptSecTenderAnalysisPromptResultForAnalysis,
@@ -181,6 +190,8 @@ export {
   buildSec8k6kAnalysisPromptForInput,
   buildSec8k6kArchiveAnalysis,
   buildSec8k6kRouterPromptForInput,
+  buildSec425AnalysisPromptForInput,
+  buildSec425DeterministicAnalysisForInput,
   buildSec425RouterPromptForInput,
   buildSecOwnershipAnalysisPrompt,
   buildSecOwnershipValidationRepairPlan,
@@ -211,13 +222,14 @@ export {
   normalizeSec8k6kRouterResult,
   normalizeSec425RouterResultForInput,
   shouldRunSec8k6kAnalysis,
+  shouldRunSec425Analysis,
 };
 
 export function getSecAnalysisAdapterMode(input: SecFilingAnalysisInput) {
   if (is424bFilingInput(input)) return "analysis_only";
   if (isOwnershipFilingInput(input)) return "ownership_direct_analysis";
   if (isSec8k6kFilingInput(input)) return "current_report_router_flow";
-  if (isSec425FilingInput(input)) return "router_required";
+  if (isSec425FilingInput(input)) return "form_425_router_flow";
   if (isTenderFilingInput(input)) return "analysis_only";
   if (isSc13FilingInput(input)) return "analysis_only";
   if (isS4F4FilingInput(input)) return "s4_f4_analysis_only";

@@ -505,6 +505,14 @@ The parties expect the combined company to close after shareholder and regulator
 assert.ok(filedPresentationPackage.raw.router_source_blocks.some((block) => block.content_role === "investor_presentation"));
 assert.equal(filedPresentationPackage.raw.cleaned_source_blocks.some((block) => block.text.includes("\u0085")), false);
 
+const mojibakePackage = parseInline("mojibake", `
+Transaction Update
+eBay\u00e2\u20ac\u2122s board is reviewing the proposal\u00e2\u20ac\u201dthe parties expect the process to continue.
+`);
+assert.ok(mojibakePackage.raw.cleaned_source_blocks.some((block) => block.text.includes("eBay's board")));
+assert.ok(mojibakePackage.raw.cleaned_source_blocks.some((block) => block.text.includes("proposal-the parties")));
+assert.equal(mojibakePackage.raw.cleaned_source_blocks.some((block) => /[\u0080-\u009f]/.test(block.text)), false);
+
 const faqWithLegalNoticePackage = parseInline("faq-with-legal-notice", `
 Frequently Asked Questions
 Additional Information

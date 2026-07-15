@@ -56,7 +56,8 @@ export const sec425AnalysisSystemPrompt = [
   "Do not use parser-generated facts, signals, route hints, extraction summaries, event labels, display labels, or investment labels as analysis authority.",
   `Use only these approved event types: ${SEC_425_APPROVED_EVENT_TYPES.join(", ")}.`,
   "Do not choose the event_type. Copy analysis_output.event_type exactly from router_result.event_type.",
-  "Do not choose, create, or tune the detail UI. Copy display_payload exactly from the supplied display_payload object.",
+  "Do not choose, create, or tune the detail UI. Treat supplied display_payload as read-only integration context.",
+  "Return display_payload only when the response schema explicitly asks for it, and then copy it exactly. Runtime integration rebuilds it from the router result and parser output.",
   "Do not create new display types. The router/classifier and UI payload builder already selected display_type, display_version, and display data.",
   "Use router_result.routing_reason and cleaned_source_blocks as the evidence base.",
   "related_transaction_context contains compact analyses of already-saved prior transaction filings. Use it only as background for identifying what this Form 425 changes, confirms, repeats, or advances.",
@@ -73,6 +74,8 @@ export const sec425AnalysisSystemPrompt = [
   "For amendment cases, analyze only what the amendment changed; do not restate the parent agreement as a new event unless changed terms are evident.",
   "For legal_risk and financial_risk cases, explain how the issue could affect closing certainty, funding, dilution, or downside risk without overstating facts.",
   "For ipo_listing cases, explain only source-backed IPO/listing facts already selected by the router/classifier; keep ipo_kind in display_payload.data as traditional or spac and do not reclassify SPAC redemption, liquidation, or de-SPAC updates as IPO listings.",
+  "Write no more than 3 key_evidence items. Usually select 2 or 3 of the strongest non-repetitive original-source facts, but use 1 when the filing supports only one distinct material fact. Do not restate the full summary.",
+  "Write no more than 3 what_to_watch_next items. Each item must name a concrete transaction milestone, decision, deadline, or changed condition supported by the filing context.",
   "Analysis is responsible for investor-facing copy: event_title, score_reason, signal, quick_take, summary, why_it_matters, points, evidence, watch items, confidence, and human-review flag.",
 ].join("\n");
 
@@ -155,8 +158,16 @@ export const sec425RequiredOutputResponseSchema = {
         why_it_matters: { type: "string" },
         bullish_points: { type: "array", items: { type: "string" } },
         bearish_points: { type: "array", items: { type: "string" } },
-        key_evidence: { type: "array", items: { type: "string" } },
-        what_to_watch_next: { type: "array", items: { type: "string" } },
+        key_evidence: {
+          type: "array",
+          maxItems: 3,
+          items: { type: "string", maxLength: 300 },
+        },
+        what_to_watch_next: {
+          type: "array",
+          maxItems: 3,
+          items: { type: "string", maxLength: 240 },
+        },
         related_tickers: { type: "array", items: { type: "object", additionalProperties: true } },
         calendar_items: { type: "array", items: { type: "object", additionalProperties: true } },
         confidence: { type: "string", enum: SEC_425_CONFIDENCE_VALUES },
@@ -204,17 +215,37 @@ export const sec425RequiredOutputResponseSchema = {
 export function buildSec425AnalysisPromptDraft(input: Sec425AnalysisPromptInput) {
   const filingContext = readRecord(input.filing_package.filing_context);
   const relatedTransactionContext = readRecord(filingContext?.related_transaction);
+  const sourcePromptInput = buildSecSourceBlockPromptInput({
+    filingPackage: input.filing_package,
+    parserOutput: input.parser_output as unknown as Record<string, unknown>,
+    fallbackText: input.filing_excerpt,
+    marketContext: input.market_context,
+    maxBlocks: 2,
+  });
+  const analysisSourceBlocks = input.parser_output.raw.cleaned_source_blocks.slice(0, 60).map((block) => ({
+    block_id: block.block_id,
+    block_type: block.block_type,
+    source_ref: block.source_ref,
+    origin: block.origin,
+    document_type: block.document_type,
+    document_role: block.document_role,
+    content_role: block.content_role,
+    exhibit_number: block.exhibit_number,
+    filename: block.filename,
+    heading: block.heading,
+    sequence: block.sequence,
+    text: block.text,
+  }));
   return {
     key: SEC_425_ANALYSIS_PROMPT_KEY,
     version: SEC_425_ANALYSIS_PROMPT_VERSION,
     system: sec425AnalysisSystemPrompt,
     user: JSON.stringify({
-      ...buildSecSourceBlockPromptInput({
-        filingPackage: input.filing_package,
-        parserOutput: input.parser_output as unknown as Record<string, unknown>,
-        fallbackText: input.filing_excerpt,
-        marketContext: input.market_context,
-      }),
+      current_filing: sourcePromptInput.current_filing,
+      cleaned_source_blocks: analysisSourceBlocks,
+      analysis_source_block_count: analysisSourceBlocks.length,
+      analysis_source_blocks_truncated:
+        input.parser_output.raw.cleaned_source_blocks.length > analysisSourceBlocks.length,
       router_result: input.router_result,
       display_payload: input.display_payload,
       related_transaction_context: relatedTransactionContext,
@@ -303,6 +334,12 @@ export function validateSec425RoomResult(result: Sec425RoomResult): string[] {
   if (!SEC_425_CONFIDENCE_VALUES.includes(analysis.confidence as Sec425Confidence)) errors.push("analysis_output.confidence is invalid");
   if (!SEC_425_DISPLAY_TYPE_VALUES.includes(result.display_payload.display_type as Sec425DisplayType)) errors.push("display_payload.display_type is invalid");
   if (!Number.isInteger(analysis.score) || analysis.score < 0 || analysis.score > 100) errors.push("analysis_output.score must be an integer from 0 to 100");
+  if (analysis.key_evidence.length > 3) {
+    errors.push("analysis_output.key_evidence must contain no more than 3 non-repetitive items");
+  }
+  if (analysis.what_to_watch_next.length > 3) {
+    errors.push("analysis_output.what_to_watch_next must contain no more than 3 items");
+  }
 
   const derivedDeliveryLevel = deliveryLevelFromScore(analysis.score);
   if (derivedDeliveryLevel !== fixtureExpected.expected_delivery_level) {
