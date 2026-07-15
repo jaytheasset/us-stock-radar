@@ -121,6 +121,18 @@ type FilingDisplayPayload = {
   [key: string]: unknown;
 };
 
+type Form425SnapshotRow = {
+  label: string;
+  value: string;
+  note?: string;
+};
+
+type Form425TransactionModel = {
+  title: string;
+  intro: string;
+  snapshotRows: Form425SnapshotRow[];
+};
+
 type RecentFiling = {
   id?: string;
   form: string;
@@ -234,6 +246,7 @@ type SpacTransactionStatusModel = {
   nextCheck: string;
   riskFlags: string[];
   watchNext: string[];
+  keyEvidence: string[];
   sources: SpacSourceItem[];
   eventHistory: SpacHistoryItem[];
 };
@@ -1906,22 +1919,51 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
   const useIpoDetail = Boolean(ipoModel);
   const spacModel = !useEffectDetail && !useIpoDetail ? buildSpacTransactionStatusModel(filing) : null;
   const useSpacDetail = Boolean(spacModel);
+  const form425TransactionModel =
+    !useEffectDetail && !useIpoDetail && !useSpacDetail ? buildForm425TransactionModel(filing) : null;
+  const useForm425TransactionDetail = Boolean(form425TransactionModel);
   const canUseDilutionDetail = canRenderDilutionOfferingDetail(filing);
-  const form25Model = !useEffectDetail && !useIpoDetail && !useSpacDetail ? buildForm25ListingStatusModel(filing) : null;
+  const form25Model =
+    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useForm425TransactionDetail
+      ? buildForm25ListingStatusModel(filing)
+      : null;
   const useForm25Detail = Boolean(form25Model);
-  const useProxyDetail = !useEffectDetail && !useIpoDetail && !useSpacDetail && !useForm25Detail && isProxyVoteDetail(filing);
+  const useProxyDetail =
+    !useEffectDetail &&
+    !useIpoDetail &&
+    !useSpacDetail &&
+    !useForm425TransactionDetail &&
+    !useForm25Detail &&
+    isProxyVoteDetail(filing);
   const listingRiskModel =
-    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useForm25Detail && !useProxyDetail && !canUseDilutionDetail
+    !useEffectDetail &&
+    !useIpoDetail &&
+    !useSpacDetail &&
+    !useForm425TransactionDetail &&
+    !useForm25Detail &&
+    !useProxyDetail &&
+    !canUseDilutionDetail
       ? buildListingRiskModel(filing)
       : null;
   const useListingRiskDetail = Boolean(listingRiskModel);
   const earningsModel =
-    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useForm25Detail && !useListingRiskDetail
+    !useEffectDetail &&
+    !useIpoDetail &&
+    !useSpacDetail &&
+    !useForm425TransactionDetail &&
+    !useForm25Detail &&
+    !useListingRiskDetail
       ? buildEarningsModel(filing)
       : null;
   const useEarningsDetail = Boolean(earningsModel);
   const fdaClinicalModel =
-    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useForm25Detail && !useListingRiskDetail && !useEarningsDetail
+    !useEffectDetail &&
+    !useIpoDetail &&
+    !useSpacDetail &&
+    !useForm425TransactionDetail &&
+    !useForm25Detail &&
+    !useListingRiskDetail &&
+    !useEarningsDetail
       ? buildFdaClinicalModel(filing)
       : null;
   const useFdaClinicalDetail = Boolean(fdaClinicalModel);
@@ -1937,6 +1979,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
     !useEffectDetail &&
     !useIpoDetail &&
     !useSpacDetail &&
+    !useForm425TransactionDetail &&
     !useForm25Detail &&
     !useProxyDetail &&
     !useListingRiskDetail &&
@@ -2012,6 +2055,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
                 {useEffectDetail ? <span className="filing-template-chip">SEC Effective</span> : null}
                 {useIpoDetail ? <span className="filing-template-chip">IPO Listing</span> : null}
                 {useSpacDetail ? <span className="filing-template-chip">SPAC Transaction Status</span> : null}
+                {useForm425TransactionDetail ? <span className="filing-template-chip">Transaction Communication</span> : null}
                 {useForm25Detail ? <span className="filing-template-chip">Listing Status Change</span> : null}
                 {useListingRiskDetail ? <span className="filing-template-chip">Listing Risk</span> : null}
                 {useEarningsDetail ? <span className="filing-template-chip">Earnings</span> : null}
@@ -2026,6 +2070,8 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             <IpoListingTemplate eventLabel={eventBadge.label} filing={filing} model={ipoModel} />
           ) : useSpacDetail && spacModel ? (
             <SpacTransactionStatusTemplate eventLabel={eventBadge.label} filing={filing} model={spacModel} />
+          ) : useForm425TransactionDetail && form425TransactionModel ? (
+            <Form425TransactionTemplate eventLabel={eventBadge.label} filing={filing} model={form425TransactionModel} />
           ) : useForm25Detail && form25Model ? (
             <Form25ListingStatusTemplate eventLabel={eventBadge.label} filing={filing} model={form25Model} />
           ) : useProxyDetail ? (
@@ -2078,7 +2124,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             <MetricRow label="Event Type" value={eventBadge.label} />
             <MetricRow label="Form Type" value={filing.formType} />
             <MetricRow label="Signal" value={filing.signal} />
-            {(useDilutionDetail || useProxyDetail || useSpacDetail) && filing.scoreExplanation ? (
+            {(useDilutionDetail || useProxyDetail || useSpacDetail || useForm425TransactionDetail) && filing.scoreExplanation ? (
               <a className="score-rationale-link" href="#score-rationale">
                 View score rationale
               </a>
@@ -2248,12 +2294,16 @@ async function buildDbFilingEvent(item: LiveFeedItem, fallback: FilingEvent): Pr
     readMetadataString(eventRow, "source_url") ||
     readMetadataString(eventRow, "url") ||
     "https://www.sec.gov/edgar/search/";
-  const company =
+  const rawCompany =
     readRowString(metadata, "issuer") ||
     readRowString(metadata, "company") ||
     readRowString(metadata, "company_name") ||
     readRowString(rawPayload, "issuer") ||
     (ticker && ticker !== "N/A" ? ticker : fallback.company);
+  const form425DisplayData = formType === "425" ? readDisplayPayloadData(displayPayload) : null;
+  const company = form425DisplayData
+    ? cleanForm425CompanyName(readRowString(form425DisplayData, "subject_company") || rawCompany)
+    : rawCompany;
   const primaryDocumentUrl = readPrimaryDocumentUrl(rawPayload, eventRow, sourceUrl);
   const originalHtml = await readOriginalHtml(eventRow, rawItem, rawPayload, primaryDocumentUrl);
   const recentFilingRows = toRows(recentFilingsResult.data);
@@ -3295,6 +3345,56 @@ function CommonFilingTemplate({ eventLabel, filing }: { eventLabel: string; fili
       <FilingMarketContextPanel filing={filing} />
 
       <OriginalFilingText filing={filing} eventLabel={eventLabel} includeTemplateStatus />
+    </>
+  );
+}
+
+function Form425TransactionTemplate({
+  eventLabel,
+  filing,
+  model,
+}: {
+  eventLabel: string;
+  filing: FilingEvent;
+  model: Form425TransactionModel;
+}) {
+  const hasEvidenceOrWatch = filing.keyEvidence.length > 0 || filing.watchNext.length > 0;
+
+  return (
+    <>
+      <section className="stock-detail-top-grid special-overview-grid">
+        <FilingPriceChart filing={filing} />
+
+        <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card">
+          <div className="quick-take-card quick-take-block">
+            <div className="card-heading-row">
+              <h2>{model.title}</h2>
+              <span>{filing.formType}</span>
+            </div>
+            <p className="proxy-summary-context">{model.intro}</p>
+            <ProxyVoteSummarySnapshot rows={model.snapshotRows} />
+          </div>
+        </section>
+      </section>
+
+      <section className="stock-detail-card spac-summary-panel">
+        <div className="spac-summary-heading">
+          <h2>Summary</h2>
+          <p>{filing.summary}</p>
+        </div>
+      </section>
+
+      <ScoreBasisPanel filing={filing} />
+
+      {hasEvidenceOrWatch ? (
+        <section className="stock-detail-card-grid two-up insight-summary-grid">
+          <AnalysisList title="Key Evidence" items={filing.keyEvidence} numbered />
+          <AnalysisList title="What To Watch Next" items={filing.watchNext} numbered />
+        </section>
+      ) : null}
+
+      <FilingMarketContextPanel filing={filing} />
+      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
     </>
   );
 }
@@ -4663,13 +4763,18 @@ function SpacTransactionStatusTemplate({
   filing: FilingEvent;
   model: SpacTransactionStatusModel;
 }) {
-  const targetLine = `${model.targetCompany} / ${model.expectedTicker}`;
-  const closingLine = model.closingDate === model.tickerChangeDate ? model.closingDate : `${model.closingDate} / ${model.tickerChangeDate}`;
-  const keyEvidence = [
-    `Minimum cash condition: ${model.minCashCondition} (${model.minCashStatus}).`,
-    `Redemptions: ${model.redemptionRate}${model.redemptionDeadline !== "Not disclosed" ? `; deadline ${model.redemptionDeadline}.` : "."}`,
-    `Closing / listing: ${closingLine}.`,
-  ];
+  const targetLine = model.expectedTicker === "Not disclosed" ? model.targetCompany : `${model.targetCompany} / ${model.expectedTicker}`;
+  const closingValues = [model.closingDate, model.tickerChangeDate].filter(
+    (value, index, values) => value !== "Not disclosed" && values.indexOf(value) === index,
+  );
+  const closingLine = closingValues.join(" / ") || "Not disclosed";
+  const keyEvidence = model.keyEvidence.length
+    ? model.keyEvidence.slice(0, 3)
+    : [
+        `Minimum cash condition: ${model.minCashCondition} (${model.minCashStatus}).`,
+        `Redemptions: ${model.redemptionRate}${model.redemptionDeadline !== "Not disclosed" ? `; deadline ${model.redemptionDeadline}.` : "."}`,
+        `Closing / listing: ${closingLine}.`,
+      ];
   const watchItems = model.watchNext.slice(0, 3);
 
   return (
@@ -6208,6 +6313,154 @@ const SPAC_STAGE_LABELS = SPAC_STAGE_ORDER.reduce<Record<SpacStageCode, string>>
   return labels;
 }, {} as Record<SpacStageCode, string>);
 
+function buildForm425TransactionModel(filing: FilingEvent): Form425TransactionModel | null {
+  if (filing.formType.trim().toUpperCase() !== "425") return null;
+
+  const displayPayload = readPlainRecord(filing.displayPayload);
+  const data = readDisplayPayloadData(displayPayload);
+  const displayVersion = readRowString(data, "display_version") || readRowString(displayPayload, "display_version");
+  if (displayVersion !== "sec_425_display_v1" || readRowString(displayPayload, "display_type") !== "candidate_special") {
+    return null;
+  }
+
+  const routeCase = readRowString(data, "route_case");
+  const deal = readPlainRecord(data.deal);
+  const vote = readPlainRecord(data.vote);
+  const offer = readPlainRecord(data.offer);
+  const amendment = readPlainRecord(data.amendment);
+  const legal = readPlainRecord(data.legal);
+  const financing = readPlainRecord(data.financing);
+  const rows: Form425SnapshotRow[] = [];
+
+  const pushRow = (label: string, value: string, note = "") => {
+    const cleanValue = cleanForm425DisplayValue(value);
+    if (!cleanValue || rows.some((row) => row.label === label || row.value.toLowerCase() === cleanValue.toLowerCase())) return;
+    const cleanNote = cleanForm425DisplayValue(note);
+    rows.push({ label, value: cleanValue, ...(cleanNote ? { note: cleanNote } : {}) });
+  };
+
+  if (routeCase === "acquisition_offer_or_proposal") {
+    pushRow("Offer", formatForm425Label(readRowString(offer, "offer_type")), readRowString(offer, "subject_company"));
+    pushRow("Consideration", readRowString(offer, "consideration"));
+  }
+
+  if (routeCase === "shareholder_meeting_or_vote") {
+    pushRow("Meeting Date", readRowString(vote, "meeting_date"), readRowString(vote, "reconvened_date") ? `Reconvened: ${readRowString(vote, "reconvened_date")}` : "");
+    pushRow("Record Date", readRowString(vote, "record_date"));
+    pushRow("Board Recommendation", readRowString(vote, "vote_recommendation"));
+  }
+
+  if (routeCase === "agreement_amendment") {
+    pushRow("Amendment", readRowString(amendment, "amendment_title") || "Transaction terms amended", readRowString(amendment, "amendment_date"));
+    pushRow("Original Agreement", readRowString(amendment, "original_agreement_date"));
+  }
+
+  const parties = uniqueForm425PartyNames([
+    readRowString(data, "filed_by"),
+    ...displayStringArray(deal?.parties, []),
+    readRowString(data, "subject_company"),
+  ]);
+  pushRow(
+    "Transaction",
+    formatForm425Label(readRowString(deal, "transaction_type")),
+    parties.length >= 2 ? parties.slice(0, 2).join(" / ") : "",
+  );
+  pushRow("Current Status", formatForm425Label(readRowString(deal, "transaction_status")), readRowString(deal, "expected_close") ? `Expected close: ${readRowString(deal, "expected_close")}` : "");
+  pushRow(
+    "Consideration",
+    readRowString(deal, "consideration_text") || readRowString(deal, "cash_component") || readRowString(deal, "stock_component"),
+    readRowString(deal, "transaction_value") || readRowString(deal, "premium"),
+  );
+  pushRow("Expected Close", readRowString(deal, "expected_close"));
+
+  const legalRisks = [
+    ...displayStringArray(legal?.regulatory_risk, []),
+    ...displayStringArray(legal?.litigation_or_claims, []),
+    ...displayStringArray(legal?.injunction_or_delay_risk, []),
+  ];
+  const financingRisks = [
+    ...displayStringArray(financing?.financing_risk, []),
+    ...displayStringArray(financing?.going_concern_or_liquidity_risk, []),
+  ];
+  const financingCondition = readRowString(financing, "financing_condition");
+  if (financingCondition) {
+    pushRow("Key Condition", "Financing commitment", shortenForm425Note(financingCondition));
+  } else if (legalRisks[0]) {
+    pushRow("Key Condition", "Regulatory / legal review", shortenForm425Note(legalRisks[0]));
+  } else if (financingRisks[0]) {
+    pushRow("Key Condition", "Financing / liquidity risk", shortenForm425Note(financingRisks[0]));
+  }
+
+  const communicationTypes = displayStringArray(data.communication_types, []).map(formatForm425Label);
+  pushRow("Communication", communicationTypes.slice(0, 2).join(" / "));
+
+  return {
+    title: buildForm425SnapshotTitle(routeCase),
+    intro: filing.filingBrief || filing.whyItMatters || filing.summary,
+    snapshotRows: rows.slice(0, 4),
+  };
+}
+
+function buildForm425SnapshotTitle(routeCase: string) {
+  const titles: Record<string, string> = {
+    acquisition_offer_or_proposal: "Acquisition Proposal Snapshot",
+    transaction_announcement_or_terms: "Transaction Snapshot",
+    transaction_presentation_or_call: "Transaction Update",
+    stakeholder_faq_or_communication: "Transaction Communication",
+    shareholder_meeting_or_vote: "Transaction Vote Update",
+    agreement_amendment: "Transaction Amendment",
+    regulatory_or_closing_update: "Transaction Status",
+    deal_litigation_or_regulatory_risk: "Transaction Risk Snapshot",
+    financing_or_liquidity_risk: "Transaction Financing Snapshot",
+  };
+  return titles[routeCase] || "Transaction Update";
+}
+
+function formatForm425Label(value: string) {
+  return value
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+    .trim();
+}
+
+function cleanForm425DisplayValue(value: string) {
+  const cleaned = value.replace(/\s+/g, " ").trim();
+  if (!cleaned || /^(?:not disclosed|not stated|unknown|n\/?a|null|none)$/i.test(cleaned)) return "";
+  return cleaned;
+}
+
+function shortenForm425Note(value: string) {
+  const cleaned = cleanForm425DisplayValue(value);
+  if (cleaned.length <= 80) return cleaned;
+  const shortened = cleaned.slice(0, 77).replace(/\s+\S*$/, "").trim();
+  return `${shortened || cleaned.slice(0, 77).trim()}...`;
+}
+
+function cleanForm425CompanyName(value: string) {
+  return value
+    .replace(/\s*\((?:subject|filed by)\)\s*/gi, " ")
+    .replace(/\s+CIK\s*:\s*\d+[\s\S]*$/i, "")
+    .replace(/\s+\(see all company filings\)[\s\S]*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function uniqueForm425PartyNames(values: string[]) {
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const value of values) {
+    const name = cleanForm425CompanyName(value);
+    const key = name
+      .toLowerCase()
+      .replace(/\b(?:incorporated|inc|corporation|corp|company|co|limited|ltd)\b/g, "")
+      .replace(/[^a-z0-9]+/g, "");
+    if (!name || !key || seen.has(key)) continue;
+    seen.add(key);
+    names.push(name);
+  }
+  return names;
+}
+
 function buildForm25ListingStatusModel(filing: FilingEvent): Form25ListingStatusModel | null {
   const displayPayload = readPlainRecord(filing.displayPayload);
   const displayType = readRowString(displayPayload, "display_type");
@@ -7219,7 +7472,34 @@ function buildSpacTransactionStatusModel(filing: FilingEvent): SpacTransactionSt
   const displayPayload = readPlainRecord(filing.displayPayload);
   if (readRowString(displayPayload, "display_type") !== "spac_transaction_status") return null;
 
-  const data = readDisplayPayloadData(displayPayload);
+  const rawData = readDisplayPayloadData(displayPayload);
+  const form425SpacData = readPlainRecord(rawData.spac_transaction_status);
+  const form425Financing = readPlainRecord(rawData.financing);
+  const form425TransactionStatus = readRowString(form425SpacData, "transaction_status");
+  const form425ExpectedClose = readRowString(form425SpacData, "expected_close");
+  const form425VoteDate = readRowString(form425SpacData, "meeting_date");
+  const data: Record<string, unknown> = form425SpacData
+    ? {
+        ...rawData,
+        deal_status: form425TransactionStatus || filing.filingFocus,
+        spac_status: filing.filingBrief || filing.summary,
+        stage_summary: filing.filingBrief || filing.summary,
+        current_stage: inferForm425SpacStage(form425TransactionStatus, form425VoteDate, form425ExpectedClose),
+        target_company: readRowString(form425SpacData, "target_name") || filing.company,
+        target_summary: filing.summary,
+        target_company_story: filing.summary,
+        expected_ticker: readRowString(form425SpacData, "expected_ticker"),
+        deal_value: readRowString(form425SpacData, "pre_money_valuation"),
+        vote_date: form425VoteDate,
+        proxy_filing_date: filing.filedAt,
+        closing_date: form425ExpectedClose,
+        trust_cash_before: readRowString(form425SpacData, "trust_cash"),
+        min_cash_condition: readRowString(form425Financing, "financing_condition"),
+        float_impact: readRowString(form425SpacData, "redemption_risk"),
+        risk_flags: filing.bearishPoints,
+        watch_next: filing.watchNext,
+      }
+    : rawData;
   if (
     !hasEnoughSpecialDisplayFields(
       data,
@@ -7304,9 +7584,20 @@ function buildSpacTransactionStatusModel(filing: FilingEvent): SpacTransactionSt
     nextCheck: buildSpacNextCheck(closingDate, tickerChangeDate, minCashStatus),
     riskFlags,
     watchNext,
+    keyEvidence: filing.keyEvidence,
     sources: normalizeSpacSources(data.sources, filing.sourceUrl),
     eventHistory: normalizeSpacEventHistory(data.event_history),
   };
+}
+
+function inferForm425SpacStage(transactionStatus: string, voteDate: string, expectedClose: string): SpacStageCode {
+  const text = `${transactionStatus} ${voteDate} ${expectedClose}`.toLowerCase();
+  if (/closed|completed|ticker change/.test(text)) return "closing";
+  if (/redemption result|redeemed/.test(text)) return "redemption";
+  if (/minimum cash|financing condition|backstop/.test(text)) return "cash";
+  if (voteDate || /vote|meeting|shareholder approval/.test(text)) return "vote";
+  if (/proxy|s-4|f-4/.test(text)) return "proxy";
+  return "target";
 }
 
 function normalizeSpacStages(items: unknown[], currentStage: SpacStageCode): SpacStageItem[] {

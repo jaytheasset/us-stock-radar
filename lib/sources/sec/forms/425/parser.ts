@@ -1526,7 +1526,7 @@ function findOfferFacts(text: string, subjectCompany: string | null): Sec425Offe
         ? "tender_offer"
         : null;
   const isHostileOrUnsolicited = /\bhostile\b|\bunsolicited\b|\bnot been approved\b|\bcommence a hostile\b/i.test(text);
-  const consideration = findSentence(text, /\b(?:mix of cash|cash and (?:stock|shares)|common stock|notes|unsecured public notes|consent solicitation|exchange offers?)\b/i);
+  const consideration = findOfferConsiderationEvidence(text);
   const scheduleToReference = /\bSchedule TO\b/i.test(text);
   const formS4Reference = /\bForm S-4\b|\bRegistration Statement on Form S-4\b/i.test(text);
   const consentSolicitation = /\bconsent solicitations?\b/i.test(text);
@@ -1546,6 +1546,21 @@ function findOfferFacts(text: string, subjectCompany: string | null): Sec425Offe
     consent_solicitation: consentSolicitation,
     evidence,
   };
+}
+
+function findOfferConsiderationEvidence(text: string) {
+  const offerPatterns = [
+    /\b(?:offer|proposal|proposes?|proposed|acquire|acquisition|purchase price)\b.{0,220}\$[\d,.]+\s*(?:per share|a share)\b/i,
+    /\b(?:offer|proposal|consideration|transaction)\b.{0,220}\b(?:mix of cash and (?:stock|shares)|cash and (?:stock|shares)|\d+(?:\.\d+)?%\s+cash.{0,80}\d+(?:\.\d+)?%\s+(?:stock|shares))\b/i,
+    /\b(?:exchange offer|tender offer|offer to purchase)\b.{0,220}\b(?:notes|unsecured public notes|stock|shares|cash)\b/i,
+  ];
+
+  for (const pattern of offerPatterns) {
+    const sentence = findSentence(text, pattern);
+    if (sentence && !isCoverSecurityNoise(sentence) && !isNoteBoilerplateSentence(sentence)) return sentence;
+  }
+
+  return findConsiderationEvidence(text);
 }
 
 function findSpacFacts(text: string, parties: string[], companyName: string | null): Sec425SpacFacts {

@@ -189,6 +189,20 @@ assert.ok(/right to receive \$10\.75 per share in cash/i.test(truePerShareConsid
 assert.equal(truePerShareConsideration.facts.deal.cash_component, "$10.75 per share in cash");
 assert.ok(truePerShareConsideration.signals.some((signal) => signal.type === "deal_terms_present"));
 
+const offerWithRegisteredSecuritiesTable = parseInline("offer-securities-table", `
+UNITED STATES
+SECURITIES AND EXCHANGE COMMISSION
+FORM 425
+Title of each class | Trading Symbol | Name of each exchange on which registered
+Class A Common Stock | GME | NYSE
+Warrants to Purchase Common Stock, par value $0.001 per share | GME WS | NYSE
+
+GameStop publicly proposes to acquire Example Marketplace for $125.00 per share.
+The proposed consideration would consist of 50% cash and 50% GameStop Class A common stock.
+`);
+assert.equal(/Trading Symbol|NYSE|par value/i.test(offerWithRegisteredSecuritiesTable.facts.offer.consideration || ""), false);
+assert.ok(/publicly proposes to acquire Example Marketplace for \$125\.00 per share/i.test(offerWithRegisteredSecuritiesTable.facts.offer.consideration || ""));
+
 const premiumFalsePositive = parseInline("premium-false", `
 Investor Note
 The company discussed premium brand positioning and insurance premium expense trends.
