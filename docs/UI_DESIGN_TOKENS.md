@@ -334,7 +334,7 @@ Theme selector rules:
 - Use `--sr-color-text-*` by information hierarchy. Do not substitute muted or metadata text based only on visual similarity.
 - Use `--sr-color-accent` for the canonical orange emphasis. Alpha variants encode selected, active, hover, focus, menu, CTA, and overlay roles.
 - Use `--sr-color-positive`, `--sr-color-negative`, `--sr-color-warning`, and `--sr-color-info` for market/status semantics.
-- Use `--sr-color-event-*` for event badges and timeline markers. Legal, earnings, insider, transaction, product, and neutral roles are intentionally separate.
+- Use `--sr-color-event-*` for event badges and timeline markers. Legal, earnings, insider, transaction, product, and neutral roles are intentionally separate. In Light, semantic badge surfaces use a moderate tint so adjacent event types remain distinguishable on white data rows without turning into solid-color labels; neutral remains one step quieter, and outline/text tones retain small-label contrast against the stronger tint.
 - Use `--sr-color-chart-*` inside chart rendering. Chart candle colors are not aliases for market text colors; the current baseline uses different greens and reds.
 - Focus indicators should use the `--sr-focus-*` tokens rather than a border or selected-state alpha.
 

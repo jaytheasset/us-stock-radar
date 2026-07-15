@@ -386,18 +386,18 @@
   --sr-color-negative: #c9362b;
   --sr-color-warning: #946200;
   --sr-color-info: #2563a6;
-  --sr-color-event-earnings: #087f73;
-  --sr-color-event-earnings-surface: rgba(8, 127, 115, 0.1);
-  --sr-color-event-legal: #c9362b;
-  --sr-color-event-legal-surface: rgba(201, 54, 43, 0.1);
+  --sr-color-event-earnings: #066b61;
+  --sr-color-event-earnings-surface: rgba(8, 127, 115, 0.16);
+  --sr-color-event-legal: #ae2c23;
+  --sr-color-event-legal-surface: rgba(201, 54, 43, 0.15);
   --sr-color-event-insider: #7c3db2;
-  --sr-color-event-insider-surface: rgba(124, 61, 178, 0.1);
+  --sr-color-event-insider-surface: rgba(124, 61, 178, 0.15);
   --sr-color-event-transaction: #2563a6;
-  --sr-color-event-transaction-surface: rgba(37, 99, 166, 0.1);
-  --sr-color-event-product: #946200;
-  --sr-color-event-product-surface: rgba(148, 98, 0, 0.1);
+  --sr-color-event-transaction-surface: rgba(37, 99, 166, 0.15);
+  --sr-color-event-product: #7a5000;
+  --sr-color-event-product-surface: rgba(148, 98, 0, 0.16);
   --sr-color-event-neutral: #596678;
-  --sr-color-event-neutral-surface: rgba(89, 102, 120, 0.08);
+  --sr-color-event-neutral-surface: rgba(89, 102, 120, 0.12);
 
   /* Color: chart */
   --sr-color-chart-bullish: #0f8a4b;
