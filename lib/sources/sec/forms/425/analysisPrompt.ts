@@ -68,6 +68,7 @@ export const sec425AnalysisSystemPrompt = [
   "Prioritize investor impact: deal economics, consideration changes, vote deadlines, litigation or regulatory risk, financing risk, and whether the communication changes previously known terms.",
   "For routine Form 425 materials that explicitly contain no new material information and no changed terms, keep event_type other, score below 50, neutral signal, high confidence, and needs_human_review false.",
   "For strategic transaction terms, explain consideration, transaction value, parties, closing timeline, and what to watch next.",
+  "For a signed transaction agreement, prioritize the complete economic consideration disclosed for each security and any stated post-closing ownership. Do not substitute fractional-share cash cleanup, award treatment, or a defined-term fragment for the principal merger consideration.",
   "For SPAC business-combination terms, focus on target, valuation, PIPE, trust cash, redemptions, earnout shares, warrants, lock-up, support, and expected ticker only when source-backed.",
   "For tender or exchange offers, separate offer mechanics from advocacy, hostile language, and boilerplate tender-offer disclaimers.",
   "For shareholder vote cases, focus on meeting date, record date, adjournment, vote results, board recommendation, vote consequence, and next calendar item.",

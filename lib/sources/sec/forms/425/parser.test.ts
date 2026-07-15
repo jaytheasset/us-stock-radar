@@ -215,6 +215,19 @@ assert.match(signedMergerPackage.facts.deal.consideration_text || "", /\$21\.6 b
 assert.doesNotMatch(signedMergerPackage.facts.deal.consideration_text || "", /^Aggregate Merger Consideration means/i);
 assert.equal(signedMergerPackage.facts.financing.financing_condition, null);
 
+const signedMixedConsiderationMerger = parseInline("signed-mixed-consideration-merger", `
+Roku, Inc. entered into an Agreement and Plan of Merger by and among Roku, Inc., Fox Corporation, Falcon Merger Sub 1, Inc. and Falcon Merger Sub 2, LLC.
+Each share of Roku common stock outstanding immediately before the effective time
+will be converted into the right to receive (i) 0.9693 (the "Exchange Ratio") shares of Fox Class A Common Stock
+and (ii) $96.00 in cash, collectively the Merger Consideration.
+No fractional shares of Fox Class A Common Stock will be issued, and stockholders will receive cash in lieu of fractional shares.
+Merger Sub 1 will merge with and into the Company, with the Company surviving.
+`);
+assert.match(signedMixedConsiderationMerger.facts.deal.consideration_text || "", /\$96\.00 in cash plus 0\.9693 shares of Fox Class A Common Stock per company share/i);
+assert.equal(signedMixedConsiderationMerger.facts.deal.exchange_ratio, "0.9693");
+assert.equal(signedMixedConsiderationMerger.facts.deal.parties.includes("Fox Corporation"), true);
+assert.equal(signedMixedConsiderationMerger.facts.deal.parties.some((party) => /^and into the Company$/i.test(party)), false);
+
 const premiumFalsePositive = parseInline("premium-false", `
 Investor Note
 The company discussed premium brand positioning and insurance premium expense trends.

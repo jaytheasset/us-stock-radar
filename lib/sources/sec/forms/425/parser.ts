@@ -1355,6 +1355,10 @@ function findTransactionParties(text: string, companyName: string | null, subjec
   const filedBy = readFiledByCompany(text);
   if (filedBy) parties.push(cleanCompanyName(filedBy));
 
+  for (const party of findNamedAgreementParties(text)) {
+    parties.push(party);
+  }
+
   const between = text.match(/\b(?:merger agreement|business combination agreement|transaction agreement)\s+(?:by and )?(?:among|between)\s+(.{20,220}?)(?:\.|\n)/i)?.[1];
   if (between) {
     for (const part of between.split(/\s+(?:and|, and)\s+|,\s+/i)) {
@@ -1364,9 +1368,26 @@ function findTransactionParties(text: string, companyName: string | null, subjec
   }
 
   const acquireTarget = text.match(/\b(?:acquire|acquisition of|combine with|merge with)\s+([A-Z][A-Za-z0-9&.,' -]+?)(?:\s+in\b|\s+for\b|\s+and\b|\.|,|\n)/i)?.[1];
-  if (acquireTarget) parties.push(cleanCompanyName(acquireTarget));
+  if (acquireTarget) {
+    const cleaned = cleanCompanyName(acquireTarget);
+    if (!/^(?:and into|into|the company|the parent|merger sub|surviving corporation)\b/i.test(cleaned)) {
+      parties.push(cleaned);
+    }
+  }
 
   return uniqueStrings(parties).slice(0, 6);
+}
+
+function findNamedAgreementParties(text: string) {
+  const clause = text.match(
+    /\b(?:Agreement and Plan of Merger|Merger Agreement|Business Combination Agreement|Transaction Agreement)\b[\s\S]{0,500}?\b(?:by and among|between)\b([\s\S]{20,1200}?)(?:\.\s+(?:Pursuant|Each|The|At|Merger)|\n\s*\n)/i,
+  )?.[1];
+  if (!clause) return [];
+
+  const parties = Array.from(clause.matchAll(
+    /\b([A-Z][A-Za-z0-9&.'’ -]{1,100}?(?:Corporation|Corp\.?|Inc\.?|LLC|Ltd\.?|Limited|plc|L\.P\.?))\b/g,
+  )).map((match) => cleanCompanyName(match[1]));
+  return uniqueStrings(parties.filter(looksLikeCompany));
 }
 
 function findDealFacts(text: string, parties: string[]): Sec425DealFacts {
@@ -1378,9 +1399,11 @@ function findDealFacts(text: string, parties: string[]): Sec425DealFacts {
     ["exchange_offer", /\bexchange offer\b/i],
   ])?.value || null;
   const status = findTransactionStatus(text);
-  const considerationEvidence = findConsiderationEvidence(text);
-  const exchangeRatio = text.match(/\b(\d+(?:\.\d+)?)\s+(?:shares?|common shares?)\s+of\s+[A-Z][A-Za-z0-9&.,' -]+?(?:common stock|common shares|stock)\b/i)?.[1] || null;
+  const exchangeRatio = findExchangeRatio(text);
   const cashComponent = findCashComponent(text);
+  const considerationEvidence =
+    findNormalizedPrincipalConsideration(text, exchangeRatio, cashComponent) ||
+    findConsiderationEvidence(text);
   const stockComponent = exchangeRatio ? `${exchangeRatio} share exchange ratio` : null;
   const transactionValue = text.match(/\b(?:approximately|about)?\s*(\$[\d,.]+\s*(?:million|billion|m|bn))\b/i)?.[1] || null;
   const premium = text.match(/\b(\d+(?:\.\d+)?%\s+premium|premium\s+of\s+\d+(?:\.\d+)?%)\b/i)?.[1] || null;
@@ -1422,6 +1445,7 @@ function findConsiderationEvidence(text: string) {
   const patterns = [
     /\baggregate purchase price\b.{0,280}\b(?:cash|shares|stock)\b/i,
     /\b(?:purchase price paid|transaction consideration)\b.{0,240}\b(?:cash|shares|stock|per share)\b/i,
+    /\beach (?:issued and outstanding )?share\b[\s\S]{0,1600}\bconverted into the right to receive\b[\s\S]{0,1600}\b(?:Merger Consideration|Transaction Consideration)\b/i,
     /\b(?:each (?:issued and outstanding )?share|stockholders?|shareholders?|equityholders?)\b.{0,220}\b(?:will receive|entitled to receive|converted into the right to receive)\b.{0,180}\b(?:cash|shares|stock|per share)\b/i,
     /\$[\d,.]+\s+(?:cash\s+)?per share\b.{0,180}\b(?:cash|stock|shares|consideration|transaction|offer)\b/i,
     /\bconsideration\b.{0,180}\b(?:cash|stock|shares|exchange ratio|per share|will receive|consists?|converted|payable)\b/i,
@@ -1446,6 +1470,40 @@ function findConsiderationEvidence(text: string) {
     }
   }
   return null;
+}
+
+function findNormalizedPrincipalConsideration(
+  text: string,
+  exchangeRatio: string | null,
+  cashComponent: string | null,
+) {
+  if (!exchangeRatio || !cashComponent) return null;
+  const clauses = compactText(text)
+    .split(/\n{2,}|(?<=[.!?])\s+(?=[A-Z(])/)
+    .map((candidate) => compactText(candidate).replace(/\n+/g, " "))
+    .filter((candidate) => candidate.length > 20);
+  const sentence = clauses.find((candidate) =>
+    /\bconverted into the right to receive\b/i.test(candidate) &&
+    /\b(?:Merger Consideration|Transaction Consideration)\b/i.test(candidate) &&
+    candidate.includes(exchangeRatio) &&
+    candidate.includes(cashComponent),
+  );
+  if (!sentence) return null;
+
+  const escapedRatio = escapeRegExp(exchangeRatio);
+  const stockName = sentence.match(
+    new RegExp(`${escapedRatio}[\\s\\S]{0,180}?shares? of ([A-Z][A-Za-z0-9&.'’ ()-]{1,100}?(?:Common Stock|Common Shares|Stock))\\b`, "i"),
+  )?.[1]?.replace(/\s+/g, " ").trim();
+  return `${cashComponent} plus ${exchangeRatio} shares${stockName ? ` of ${stockName}` : ""} per company share`;
+}
+
+function findExchangeRatio(text: string) {
+  const labeled = text.match(
+    /\b(\d+(?:\.\d+)?)\s*(?:\([^)]{0,140}\bExchange Ratio\b[^)]*\)\s*)?(?:shares?|common shares?)\s+of\s+[A-Z][A-Za-z0-9&.,'’() -]{1,180}?(?:common stock|common shares|stock)\b/i,
+  )?.[1];
+  if (labeled) return labeled;
+
+  return text.match(/\bExchange Ratio\b[^\d]{0,100}(\d+(?:\.\d+)?)/i)?.[1] || null;
 }
 
 function isDefinedTermOnlySentence(sentence: string) {
@@ -2133,6 +2191,10 @@ function findNextSentencePeriod(text: string, from: number) {
     return period;
   }
   return -1;
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function cleanCompanyName(value: string) {
