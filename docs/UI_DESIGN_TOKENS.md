@@ -14,7 +14,7 @@ This document defines the semantic token layer extracted from the canonical dash
 - Global load path: `app/layout.tsx` imports `./stock-radar-tokens.css` before `./globals.css`.
 - Consumption: dashboard modules and the extracted `components/ui`, `components/market`, and `components/shell` CSS modules use the same global custom properties without component-local token aliases.
 - Inline SVG exception: `components/dashboard-v2/MockChart.tsx` uses `var(--sr-color-chart-volume-bullish)` in SVG `stopColor`; browsers resolve the custom property without a JavaScript token mirror.
-- Scope: tokens are declared once on `:root`. No unrequested light theme or alternate palette is defined.
+- Scope: `:root` declares the canonical Dark values. `[data-sr-theme="light"]` overrides only theme-dependent semantic colors and effects inside a Stock Radar shell.
 
 `app/globals.css` was not changed. Its existing global button cascade remains an audited exception rather than being corrected during this phase.
 
@@ -36,7 +36,7 @@ All names use the `--sr-` prefix and semantic roles:
 
 ## 3. Token Inventory
 
-There are 248 tokens: 128 color, 38 typography, 22 spacing, 24 sizing, 21 shape/effect, and 15 layer/motion tokens.
+There are 248 unique tokens: 128 color, 38 typography, 22 spacing, 24 sizing, 21 shape/effect, and 15 layer/motion tokens. The Light selector redefines 136 existing roles; it does not create a second token vocabulary.
 
 ### Color: canvas, surfaces, and overlays
 
@@ -290,6 +290,31 @@ There are 248 tokens: 128 color, 38 typography, 22 spacing, 24 sizing, 21 shape/
 | `--sr-motion-distance-drawer` (source `app/stock-radar-tokens.css:270`) | `28px` | Motion travel distance for drawer. | `components/dashboard-v2/StockRadarDashboardV2.module.css:525` |
 | `--sr-motion-distance-reduced` (source `app/stock-radar-tokens.css:271`) | `0px` | Motion travel distance for reduced. | Reserved foundation role; see Migration Result for its phase 3 contract. |
 | `--sr-motion-easing-standard` (source `app/stock-radar-tokens.css:272`) | `ease-out` | Motion easing for standard. | `components/shell/StockRadarProductHeader.module.css:207`<br>`components/ui/BottomSheetShell.module.css:61` |
+## 3A. Light Theme Override Inventory
+
+Dark is the default and canonical palette. A Stock Radar shell defaults to `fixed-dark`. A route that explicitly selects `user-selectable` renders `data-sr-theme="dark"` when `sr-theme` is missing, invalid, or unreadable. The operating system color-scheme preference is not consulted. In that mode, a stored `light` value changes the same shell to `data-sr-theme="light"`; no route-specific Light stylesheet or duplicate component tree exists.
+
+Exact override values are maintained in the final `[data-sr-theme="light"]` block of `app/stock-radar-tokens.css`.
+
+| Override family | Count | Covered roles |
+| --- | ---: | --- |
+| Canvas, surfaces, and overlays | 25 | Neutral page canvas, white/near-white panels, controls, table surfaces, sheet surfaces, and dim overlays. |
+| Borders and dividers | 11 | Standard, overlay, section, close-control, and action boundaries. |
+| Text hierarchy | 33 | Primary, heading, ticker, body, control, menu, metadata, mobile, and inverse text. |
+| Accent and interaction | 27 | Orange accent, selected/active states, CTA tones, navigation emphasis, and focus-adjacent states. |
+| Market and event semantics | 16 | Positive, negative, warning, info, and all event text/background pairs. |
+| Chart | 9 | Grid, axis, bullish/bearish candles, OHLC, volume, and last-price treatment. |
+| Scrollbar and disabled state | 6 | Track, thumb, handle, and disabled text/surface. |
+| Shadows and focus effect | 9 | Header, panel, menu, sheet, CTA, pagination, delay dot, and focus ring. |
+| **Total** | **136** | Existing semantic roles overridden for Light. |
+
+Theme selector rules:
+
+- Apply `data-sr-theme` to `StockRadarAppShell` through `StockRadarThemeProvider`; do not apply it to `html`, `body`, or unrelated routes. The shell remains `fixed-dark` unless a verified route explicitly opts into `user-selectable`.
+- Component CSS consumes the same `var(--sr-*)` names in both themes. Do not add `[data-sr-theme]` branches to dashboard or shared component modules.
+- Light overrides may change semantic colors, opacity used by color rendering, shadows, and focus color. They must not redefine typography, spacing, control heights, row geometry, radii, layers, motion, or breakpoints.
+- New Stock Radar pages must render correctly in both themes without literal color declarations in reusable component CSS before they opt into `user-selectable`; otherwise they retain the `fixed-dark` default.
+
 ## 4. Semantic Color Rules
 
 - Use `--sr-color-page-*` only for the app canvas and page-level glow.
@@ -389,7 +414,6 @@ Phase 3E moves the detail-panel surface and duplicated mobile sheet outer geomet
 ## 10. Unresolved Items
 
 - Inter remains declaration-only. Actual glyph rendering depends on the client machine's installed fonts.
-- There is no light theme, theme switching contract, or alternate market palette.
 - Disabled-state and reduced-motion tokens are defined, but dashboard-v2 currently has no matching rendered state or reduced-motion override to migrate without changing behavior.
 - Some token values preserve visually close but distinct colors. Consolidation requires a separate visual decision and new baseline approval.
 - The global button cascade and dashboard ownership boundary remain as documented in `docs/UI_BASELINE_AUDIT.md`.
