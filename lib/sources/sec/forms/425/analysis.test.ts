@@ -106,6 +106,8 @@ assert.ok(analysisPrompt.system.includes("Return display_payload only when the r
 assert.ok(analysisPrompt.system.includes("For ipo_listing cases"));
 assert.ok(analysisPrompt.system.includes("Do not call"));
 assert.ok(analysisPrompt.system.includes("prior transaction filings"));
+assert.ok(analysisPrompt.system.includes("incremental investor impact of this Form 425"));
+assert.ok(analysisPrompt.system.includes("normally feed-level rather than alert-level"));
 assert.ok(analysisPrompt.system.includes("Write no more than 3 key_evidence items"));
 assert.ok(analysisPrompt.system.includes("no more than 3 what_to_watch_next items"));
 assert.ok(analysisPrompt.user.includes("\"display_payload\""));

@@ -6331,6 +6331,7 @@ function buildForm425TransactionModel(filing: FilingEvent): Form425TransactionMo
   const amendment = readPlainRecord(data.amendment);
   const legal = readPlainRecord(data.legal);
   const financing = readPlainRecord(data.financing);
+  const spac = readPlainRecord(data.spac);
   const rows: Form425SnapshotRow[] = [];
 
   const pushRow = (label: string, value: string, note = "") => {
@@ -6359,6 +6360,7 @@ function buildForm425TransactionModel(filing: FilingEvent): Form425TransactionMo
   const parties = uniqueForm425PartyNames([
     readRowString(data, "filed_by"),
     ...displayStringArray(deal?.parties, []),
+    readRowString(spac, "target_name"),
     readRowString(data, "subject_company"),
   ]);
   pushRow(

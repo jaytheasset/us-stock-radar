@@ -63,6 +63,8 @@ assert.ok(routerPrompt.system.includes("has not been accepted or signed"));
 assert.ok(routerPrompt.system.includes("an FAQ was provided to employees"));
 assert.ok(routerPrompt.system.includes("use communication_mode faq"));
 assert.ok(routerPrompt.system.includes("intended audience"));
+assert.ok(routerPrompt.system.includes("announcement of a future investor call"));
+assert.ok(routerPrompt.system.includes("does not yet disclose the promised operating metrics"));
 assert.ok(routerPrompt.system.includes("SEC solicitation boilerplate as context"));
 assert.ok(routerPrompt.system.includes("Final conflict check"));
 assert.ok(routerPrompt.system.includes("concrete adjournment"));

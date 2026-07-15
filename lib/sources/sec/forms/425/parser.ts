@@ -1371,7 +1371,7 @@ function findTransactionParties(text: string, companyName: string | null, subjec
   const acquireTarget = text.match(/\b(?:acquire|acquisition of|combine with|merge with)\s+([A-Z][A-Za-z0-9&.,' -]+?)(?:\s+in\b|\s+for\b|\s+and\b|\.|,|\n)/i)?.[1];
   if (acquireTarget) {
     const cleaned = cleanCompanyName(acquireTarget);
-    if (!/^(?:and into|into|the company|the parent|merger sub|surviving corporation)\b/i.test(cleaned)) {
+    if (!/^(?:and into|into|(?:a|an|the)\s+(?:company|business|target)|the parent|merger sub|surviving corporation)\b/i.test(cleaned)) {
       parties.push(cleaned);
     }
   }
@@ -1695,12 +1695,18 @@ type CompanyAlias = {
 
 function findCompanyAliases(text: string): CompanyAlias[] {
   const companies: CompanyAlias[] = [];
-  const pattern = /(?:\bby\b|\band\b|\bwith\b|\bbetween\b|^|\n)\s+([A-Z][A-Za-z0-9&.,' -]{2,150}?(?:Group,\s*Inc\.?|Corporation|Corp\.?|Inc\.?|LLC|Ltd\.?|Limited|plc|Holdings))\s*\(([^)\n]{1,120})\)/g;
+  const pattern = /(?:\bby\b|\band\b|\bwith\b|\bbetween\b|\bof\b|^|\n)\s+([A-Z][A-Za-z0-9&.,' -]{2,150}?(?:Group,\s*Inc\.?|Corporation|Corp\.?|Inc\.?|LLC|Ltd\.?|Limited|plc|Holdings))(?:,\s*(?:a|an)\s+[A-Za-z][A-Za-z .,'-]{1,80})?\s*\(([^)\n]{1,120})\)/g;
   for (const match of text.matchAll(pattern)) {
-    const name = cleanCompanyName(match[1]);
+    const name = cleanCompanyName(match[1]).replace(
+      /^(?:CEO|Chief Executive Officer|President|Chairman|Executive Chairman)\s+of\s+/i,
+      "",
+    );
     const aliases = Array.from(match[2].matchAll(/["“]([A-Z][A-Z0-9.]{1,10})["”]/g))
       .map((aliasMatch) => aliasMatch[1].toUpperCase())
       .filter((alias) => !["THE", "COMPANY", "PARENT", "NEWCO"].includes(alias));
+    aliases.push(...Array.from(match[2].matchAll(/["\u201c]\s*([A-Za-z][A-Za-z0-9.&' -]{1,40}?)\s*["\u201d]/g))
+      .map((aliasMatch) => aliasMatch[1].trim().toUpperCase())
+      .filter((alias) => !["THE", "COMPANY", "PARENT", "NEWCO"].includes(alias)));
     if (!looksLikeCompany(name) || aliases.length === 0) continue;
     companies.push({ name, aliases: uniqueStrings(aliases) });
   }
@@ -1796,6 +1802,7 @@ function isValidSpacTargetCandidate(value: string, spacName: string | null) {
   if (sameCompany(cleaned, spacName) || isTransactionShellCompany(cleaned)) return false;
   if (/^(?:the\s+(?:u\.?s\.?|united states|sec|commission)|respect to|with the)\b/i.test(cleaned)) return false;
   if (/^(?:company|target|target company|issuer)$/i.test(cleaned)) return false;
+  if (/^(?:a|an)\s+.+\bcompany$/i.test(cleaned)) return false;
   if (/\b(?:Securities and Exchange Commission|file(?:d|s|ing)? with|investor presentation|business combination)\b/i.test(cleaned)) return false;
   return /[A-Za-z]/.test(cleaned);
 }

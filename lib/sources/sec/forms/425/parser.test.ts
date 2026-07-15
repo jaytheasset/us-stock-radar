@@ -446,6 +446,17 @@ In connection with the Business Combination, SPACSphere and Mobilewalla intend t
 assert.equal(spacPresentationWithoutLegalSuffix.facts.spac.spac_name, "SPACSphere Acquisition Corp.");
 assert.equal(spacPresentationWithoutLegalSuffix.facts.spac.target_name, "Mobilewalla");
 
+const spacExecutiveInterview = parseInline("spac-executive-interview", `
+Filed by: Live Oak Acquisition Corp. V
+Podcast Transcript
+Michael Brown, co-founder and CEO of Teamshares Inc., a Delaware corporation (" Teamshares "), which helps employee-owned businesses, discussed the company strategy.
+Teamshares is party to a previously disclosed Business Combination Agreement with Live Oak Acquisition Corp. V.
+The company reviews potential opportunities to acquire a company for long-term employee ownership.
+`);
+assert.equal(spacExecutiveInterview.facts.spac.spac_name, "Live Oak Acquisition Corp. V");
+assert.equal(spacExecutiveInterview.facts.spac.target_name, "Teamshares Inc.");
+assert.equal(spacExecutiveInterview.facts.deal.parties.includes("a company"), false);
+
 const changedDuplicate = parseInline("changed-duplicate", `
 This communication repeats the previously announced transaction information and contains no new material information except that the parties increased the offer price to $12.00 per share.
 The amendment changes the merger consideration payable to target shareholders.
