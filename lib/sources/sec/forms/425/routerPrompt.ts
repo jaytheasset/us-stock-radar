@@ -156,6 +156,7 @@ export const sec425RouterSystemPrompt = [
   `Choose communication_mode only from: ${SEC_425_COMMUNICATION_MODE_VALUES.join(", ")}.`,
   `Choose transaction_stage only from: ${SEC_425_TRANSACTION_STAGE_VALUES.join(", ")}.`,
   "Use acquisition_offer_or_proposal for a public, unsolicited, hostile, competing, tender, or exchange proposal that is not yet a signed transaction.",
+  "Do not treat the legal phrase 'proposed merger' or 'proposed transaction' by itself as transaction_stage proposal. Use proposal only when the source shows an offer or proposal that has not been accepted or signed. Use announced when the transaction is jointly announced but signing is not established in the supplied blocks, and agreement_signed when the supplied blocks establish an executed agreement.",
   "Use transaction_announcement_or_terms for a signed or announced merger or acquisition and its material economics, parties, consideration, or closing conditions.",
   "Use spac_business_combination for a de-SPAC transaction, including target, valuation, PIPE, redemptions, minimum cash, vote, closing, or ticker-transition status.",
   "Use transaction_presentation_or_call when the main new information is transaction rationale, forecasts, operating metrics, or management discussion in a presentation or transcript.",

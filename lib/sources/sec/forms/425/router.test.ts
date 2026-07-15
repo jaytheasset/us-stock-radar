@@ -58,6 +58,8 @@ assert.ok(routerPrompt.system.includes("route planner"));
 assert.ok(routerPrompt.system.includes("compact, context-preserving excerpts"));
 assert.ok(routerPrompt.system.includes("Router score is an archive gate"));
 assert.ok(routerPrompt.system.includes("needs_parent_context"));
+assert.ok(routerPrompt.system.includes("proposed merger"));
+assert.ok(routerPrompt.system.includes("has not been accepted or signed"));
 assert.ok(routerPrompt.user.includes("\"cleaned_source_blocks\""));
 assert.equal(routerPrompt.user.includes("This text must not be copied"), false);
 assert.equal(routerPrompt.user.includes("\"facts\""), false);

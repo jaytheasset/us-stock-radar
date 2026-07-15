@@ -70,6 +70,7 @@ export type SecDevLiveRunResult = {
     | "live_dry_run"
     | "latest_analysis_dry_run"
     | "accession_dry_run"
+    | "raw_ingest_only"
     | "route_only"
     | "controlled_persist"
     | "reset_analysis"
@@ -1392,6 +1393,75 @@ export async function runSecDevRouteOnly(
         error_name: error instanceof Error ? error.name : null,
       },
       error: error instanceof Error ? error.message || "Route-only dry-run failed with an empty error message" : "Route-only dry-run failed",
+    };
+  }
+
+  await appendLiveRun(room.key, liveRun);
+  return getSecDevRoomDetail(room.key);
+}
+
+export async function runSecDevRawIngestOnly(
+  roomKey: string,
+  options: {
+    accessionNumber?: string;
+    cik?: string;
+    rawItemId?: string;
+    attachmentLimit?: number;
+  } = {},
+): Promise<SecDevRoomDetail | null> {
+  const room = SEC_DEV_ROOMS.find((item) => item.key === roomKey);
+  if (!room) return null;
+
+  const accessionNumber = stringValue(options.accessionNumber);
+  const cik = stringValue(options.cik);
+  const rawItemId = stringValue(options.rawItemId);
+  const started = Date.now();
+  const ranAt = new Date().toISOString();
+  let liveRun: SecDevLiveRunResult;
+
+  try {
+    if (!accessionNumber && !rawItemId) {
+      throw new Error("Raw ingest requires accessionNumber or rawItemId.");
+    }
+
+    const rawResult = await ensureDevRawItemForPersist({
+      room,
+      accessionNumber,
+      cik,
+      rawItemId,
+      attachmentLimit: clampNumber(options.attachmentLimit, 0, 12, 6),
+    });
+    liveRun = {
+      mode: "raw_ingest_only",
+      status: "pass",
+      ranAt,
+      durationMs: Date.now() - started,
+      room: room.key,
+      formTypes: room.forms,
+      accessionNumber: accessionNumber || stringValue(rawResult.accessionNumber) || null,
+      rawItemId: rawResult.rawItemId || rawItemId || null,
+      summary: "Ingested one SEC raw item for development testing; no analysis, event, or alert was created.",
+      items: [],
+      diagnostics: {
+        raw_source: rawResult.source,
+        fetch: readRecord(rawResult.diagnostics) || null,
+      },
+      error: null,
+    };
+  } catch (error) {
+    liveRun = {
+      mode: "raw_ingest_only",
+      status: "fail",
+      ranAt,
+      durationMs: Date.now() - started,
+      room: room.key,
+      formTypes: room.forms,
+      accessionNumber: accessionNumber || null,
+      rawItemId: rawItemId || null,
+      summary: "Raw ingest failed.",
+      items: [],
+      diagnostics: null,
+      error: error instanceof Error ? error.message : "Raw ingest failed",
     };
   }
 

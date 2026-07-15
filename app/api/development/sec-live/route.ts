@@ -5,6 +5,7 @@ import {
   runSecDevControlledPersist,
   runSecDevLatestAnalysisDryRun,
   runSecDevLiveDryRun,
+  runSecDevRawIngestOnly,
   runSecDevResetAnalysis,
   runSecDevRouteOnly,
 } from "@/lib/development/secFormDevDashboard";
@@ -23,7 +24,14 @@ export async function POST(request: NextRequest) {
   const mode = readString(record.mode);
 
   const detail =
-    mode === "controlled_persist"
+    mode === "raw_ingest_only"
+      ? await runSecDevRawIngestOnly(room, {
+          accessionNumber: readString(record.accessionNumber),
+          cik: readString(record.cik),
+          rawItemId: readString(record.rawItemId),
+          attachmentLimit: readNumber(record.attachmentLimit, 6),
+        })
+      : mode === "controlled_persist"
       ? await runSecDevControlledPersist(room, {
           accessionNumber: readString(record.accessionNumber),
           cik: readString(record.cik),
