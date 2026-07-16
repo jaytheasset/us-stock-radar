@@ -37,6 +37,7 @@ import {
   adaptSec425AnalysisPromptResultForAnalysis,
   adaptOwnershipPromptResultForAnalysis,
   adaptSecPeriodicReportsAnalysisPromptResultForAnalysis,
+  applySecPeriodicReportsValidationRepairPatches,
   applySecOwnershipValidationRepairPatches,
   adaptSecTenderAnalysisPromptResultForAnalysis,
   adaptSecSc13AnalysisPromptResultForAnalysis,
@@ -64,6 +65,7 @@ import {
   buildSecOwnershipAnalysisPrompt,
   buildSecOwnershipValidationRepairPlan,
   buildSecPeriodicReportsAnalysisPromptForInput,
+  buildSecPeriodicReportsValidationRepairPlan,
   buildSecSc13AnalysisPromptForInput,
   buildSecSc13ValidationRepairPlan,
   buildSecS4F4AnalysisPromptForInput,
@@ -2217,8 +2219,48 @@ export async function runSecFilingAnalysisForRawRow(
       };
     }
 
+    const repairPlan = buildSecPeriodicReportsValidationRepairPlan({
+      analysisResult: analysisRun.parsed,
+      input,
+    });
+    let repairedValue = analysisRun.parsed;
+    let repairRun: OpenAiPromptRun | null = null;
+    let repairAppliedPaths: string[] = [];
+    let repairIgnoredPaths: string[] = [];
+    let repairUnresolved: unknown[] = [];
+    if (repairPlan) {
+      repairRun = await runOpenAiJsonPrompt(env, repairPlan.prompt, llmConfig, {
+        maxAttempts: 1,
+        disableFallback: true,
+      });
+      if (repairRun.ok && repairRun.parsed) {
+        const repairApplication = applySecPeriodicReportsValidationRepairPatches({
+          analysisResult: analysisRun.parsed,
+          repairResult: repairRun.parsed,
+          allowedPatchPaths: repairPlan.allowedPatchPaths,
+        });
+        repairedValue = repairApplication.value;
+        repairAppliedPaths = repairApplication.appliedPaths;
+        repairIgnoredPaths = repairApplication.ignoredPaths;
+        repairUnresolved = repairApplication.unresolved;
+      }
+    }
+    const usage = combineUsage(analysisRun.usage, repairRun?.usage);
+    const validationRepair = repairPlan
+      ? {
+          attempted: true,
+          succeeded: Boolean(repairRun?.ok && repairRun.parsed),
+          issue_codes: repairPlan.issues.map((issue) => issue.code),
+          source_block_ids: repairPlan.sourceBlockIds,
+          allowed_patch_paths: repairPlan.allowedPatchPaths,
+          applied_patch_paths: repairAppliedPaths,
+          ignored_patch_paths: repairIgnoredPaths,
+          unresolved: repairUnresolved,
+          error: repairRun?.error || null,
+        }
+      : { attempted: false };
     const periodicAnalysis = adaptSecPeriodicReportsAnalysisPromptResultForAnalysis(
-      analysisRun.parsed,
+      repairedValue,
       input,
     );
     if (!periodicAnalysis.ok) {
@@ -2231,11 +2273,22 @@ export async function runSecFilingAnalysisForRawRow(
         sourceItem: summarizeRawRow(rawItem),
         input,
         outputText: analysisRun.outputText,
-        usage: analysisRun.usage,
+        repairOutputText: repairRun?.outputText,
+        usage,
+        repairUsage: repairRun?.usage,
         rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        validationRepair,
         prompt: {
           key: prompt.key,
           version: prompt.version,
+          repair: repairPlan
+            ? {
+                key: repairPlan.prompt.key,
+                version: repairPlan.prompt.version,
+                system: repairPlan.prompt.system,
+                responseFormat: repairPlan.prompt.responseFormat,
+              }
+            : undefined,
         },
       };
     }
@@ -2246,15 +2299,27 @@ export async function runSecFilingAnalysisForRawRow(
       status: analysisRun.status,
       model: analysisRun.model,
       openAiResponseId: analysisRun.openAiResponseId,
+      repairOpenAiResponseId: repairRun?.openAiResponseId || null,
       sourceItem: summarizeRawRow(rawItem),
       input,
       analysis: periodicAnalysis.analysis,
       outputText: analysisRun.outputText,
-      usage: analysisRun.usage,
-      costEstimate: estimateCost(analysisRun.model, analysisRun.usage),
+      repairOutputText: repairRun?.outputText,
+      usage,
+      repairUsage: repairRun?.usage,
+      costEstimate: estimateCost(analysisRun.model, usage),
+      validationRepair,
       prompt: {
         key: SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY,
         version: SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION,
+        repair: repairPlan
+          ? {
+              key: repairPlan.prompt.key,
+              version: repairPlan.prompt.version,
+              system: repairPlan.prompt.system,
+              responseFormat: repairPlan.prompt.responseFormat,
+            }
+          : undefined,
       },
     };
   }

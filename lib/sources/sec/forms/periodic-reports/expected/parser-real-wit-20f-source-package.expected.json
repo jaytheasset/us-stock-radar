@@ -1,6 +1,6 @@
 {
   "parser_output": {
-    "parserVersion": "sec_periodic_reports_raw_parser_v3",
+    "parserVersion": "sec_periodic_reports_raw_parser_v4",
     "parserGroup": "periodic-reports",
     "formType": "20-F",
     "accessionNumber": "0000950170-25-076303",
@@ -48,7 +48,7 @@
       "fpi_raw"
     ],
     "evidence_labels_present": [
-      "cash_flow",
+      "cash_and_equivalents",
       "ifrs-full:Revenue",
       "ifrs-full:ProfitLoss",
       "ifrs-full:CashAndCashEquivalents",

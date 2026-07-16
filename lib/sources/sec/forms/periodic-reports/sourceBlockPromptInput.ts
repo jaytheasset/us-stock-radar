@@ -85,6 +85,7 @@ export function buildSecPeriodicReportsSourceBlockPromptInput(
   });
 
   addAmendmentBlock(candidates, parserOutput);
+  addContextSnippetBlocks(candidates, parserOutput);
   addSectionBlocks(candidates, facts.sections);
   addTableBlocks(candidates, normalized);
   addXbrlBlocks(candidates, parserOutput);
@@ -137,6 +138,38 @@ export function buildSecPeriodicReportsSourceBlockPromptInput(
     },
     cleaned_source_blocks: selected,
   };
+}
+
+function addContextSnippetBlocks(
+  blocks: SecPeriodicReportsSourceBlock[],
+  parserOutput: PeriodicParserOutput,
+) {
+  for (const [index, snippet] of parserOutput.facts.contextSnippets.entries()) {
+    addBlock(blocks, {
+      block_id: snippet.id,
+      block_type: "context_preserving_snippet",
+      label: snippet.topic.replace(/_/g, " "),
+      source: snippet.source,
+      origin: "filing",
+      priority: contextSnippetPriority(snippet.topic) + index / 100,
+      item_number: snippet.item,
+      section_key: snippet.sectionKey,
+      document_type: parserOutput.formType,
+      text: snippet.text,
+    });
+  }
+}
+
+function contextSnippetPriority(topic: string) {
+  if (topic === "financial_results") return 5;
+  if (topic === "period_comparison") return 6;
+  if (topic === "outlook_and_guidance") return 7;
+  if (topic === "liquidity_and_debt") return 8;
+  if (topic === "segments_and_drivers") return 9;
+  if (topic === "controls_and_accounting") return 11;
+  if (topic === "legal_and_regulatory") return 12;
+  if (topic === "capital_allocation") return 13;
+  return 20;
 }
 
 function addAmendmentBlock(blocks: SecPeriodicReportsSourceBlock[], parserOutput: PeriodicParserOutput) {
@@ -259,6 +292,7 @@ function addXbrlBlocks(blocks: SecPeriodicReportsSourceBlock[], parserOutput: Pe
     .slice(0, MAX_XBRL_BLOCKS);
 
   for (const { statement, facts, order, priority } of selectedGroups) {
+    const selectedFacts = selectXbrlFactsForPrompt(facts);
     addBlock(blocks, {
       block_id: stableBlockId("periodic-xbrl", `${statement}-${order + 1}`),
       block_type: "xbrl_statement_facts",
@@ -270,7 +304,7 @@ function addXbrlBlocks(blocks: SecPeriodicReportsSourceBlock[], parserOutput: Pe
       section_key: null,
       document_type: "XBRL",
       text: compactJson(
-        facts.slice(0, 16).map((fact) => ({
+        selectedFacts.map((fact) => ({
           name: fact.name,
           label: fact.label,
           value: fact.value,
@@ -282,6 +316,43 @@ function addXbrlBlocks(blocks: SecPeriodicReportsSourceBlock[], parserOutput: Pe
       ),
     });
   }
+}
+
+function selectXbrlFactsForPrompt(
+  facts: PeriodicParserOutput["facts"]["sourcePackage"]["xbrlFacts"],
+) {
+  const byConcept = new Map<string, typeof facts>();
+  for (const fact of facts) {
+    const concept = fact.name.split(":").pop()?.toLowerCase() || fact.name.toLowerCase();
+    const values = byConcept.get(concept) || [];
+    if (!values.some((item) => item.period === fact.period && item.value === fact.value && item.unitRef === fact.unitRef)) {
+      values.push(fact);
+    }
+    byConcept.set(concept, values);
+  }
+
+  return Array.from(byConcept.entries())
+    .sort(([left], [right]) => xbrlConceptPriority(left) - xbrlConceptPriority(right) || left.localeCompare(right))
+    .flatMap(([, values]) =>
+      [...values]
+        .sort((left, right) => (right.period || "").localeCompare(left.period || ""))
+        .slice(0, 2),
+    )
+    .slice(0, 20);
+}
+
+function xbrlConceptPriority(concept: string) {
+  if (/revenue|salesrevenuenet/.test(concept)) return 0;
+  if (/grossprofit/.test(concept)) return 1;
+  if (/operatingincomeloss/.test(concept)) return 2;
+  if (/netincomeloss|profitloss/.test(concept)) return 3;
+  if (/earningspershare/.test(concept)) return 4;
+  if (/cashandcashequivalents/.test(concept)) return 5;
+  if (/assets$|liabilities$|stockholdersequity|shareholdersequity/.test(concept)) return 6;
+  if (/longtermdebt|shorttermdebt|borrowings/.test(concept)) return 7;
+  if (/netcashprovidedbyusedin/.test(concept)) return 8;
+  if (/sharesoutstanding|weightedaveragenumberofshares/.test(concept)) return 9;
+  return 20;
 }
 
 function xbrlPriority(statement: string) {
@@ -374,6 +445,7 @@ function addFallbackBlocks(
 
 function hasSubstantiveSourceBlock(blocks: SecPeriodicReportsSourceBlock[]) {
   return blocks.some((block) => [
+    "context_preserving_snippet",
     "periodic_report_section",
     "financial_table",
     "xbrl_statement_facts",

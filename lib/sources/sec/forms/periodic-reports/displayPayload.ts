@@ -1,18 +1,26 @@
 import type { PeriodicDisplayPayload, PeriodicParserOutput, PeriodicReportDisplayType } from "./types";
+import { clipPeriodicDisplayText } from "./uiNormalization";
 
-export const SEC_PERIODIC_REPORTS_DISPLAY_PAYLOAD_VERSION = "periodic_report_display_v1";
-const PERIODIC_REPORT_DISPLAY_TYPES = ["generic", "offering_terms", "candidate_special"] as const;
+export const SEC_PERIODIC_REPORTS_DISPLAY_PAYLOAD_VERSION = "periodic_report_display_v2";
+const PERIODIC_REPORT_DISPLAY_TYPES = ["generic", "periodic_report", "offering_terms", "candidate_special"] as const;
 
 export type SecPeriodicReportsDisplayPayloadInput = {
   parser_output: PeriodicParserOutput;
+  analysis_output?: Record<string, unknown> | null;
 };
 
 export function buildSecPeriodicReportsDisplayPayload(input: SecPeriodicReportsDisplayPayloadInput): PeriodicDisplayPayload {
   const parserOutput = input.parser_output;
+  const analysisOutput = toRecord(input.analysis_output) || {};
+  const reportUi = toRecord(analysisOutput.report_ui);
   const deterministic = toRecord(parserOutput.raw.deterministic_classification) || {};
   const facts = parserOutput.facts;
-  const displayType = readDisplayType(deterministic.display_type) || "generic";
-  const displayVersion = nullableString(deterministic.display_version) || SEC_PERIODIC_REPORTS_DISPLAY_PAYLOAD_VERSION;
+  const displayType = reportUi && hasPeriodicReportUiContent(reportUi)
+    ? "periodic_report"
+    : readDisplayType(deterministic.display_type) || "generic";
+  const displayVersion = displayType === "periodic_report"
+    ? SEC_PERIODIC_REPORTS_DISPLAY_PAYLOAD_VERSION
+    : nullableString(deterministic.display_version) || SEC_PERIODIC_REPORTS_DISPLAY_PAYLOAD_VERSION;
   const selectedEventType = nullableString(deterministic.event_type);
   const sourcePackage = facts.sourcePackage;
   const normalizedPrimary = toRecord(parserOutput.raw.normalized_primary_document) || {};
@@ -75,9 +83,54 @@ export function buildSecPeriodicReportsDisplayPayload(input: SecPeriodicReportsD
         numeric_cell_count: numberOrNull(table.numericCellCount),
       })),
       parser_warnings: parserOutput.warnings,
+      ...(reportUi ? normalizeReportUiForDisplay(reportUi) : {}),
     },
     evidence: collectDisplayEvidence(parserOutput),
     notes: buildDisplayNotes(parserOutput, deterministic),
+  };
+}
+
+function hasPeriodicReportUiContent(reportUi: Record<string, unknown>) {
+  return Boolean(
+    nullableString(reportUi.snapshot_intro) ||
+      recordArray(reportUi.snapshot_metrics).length ||
+      recordArray(reportUi.performance_comparisons).length ||
+      recordArray(reportUi.key_business_updates).length,
+  );
+}
+
+function normalizeReportUiForDisplay(reportUi: Record<string, unknown>) {
+  return {
+    snapshot_intro: clipPeriodicDisplayText(reportUi.snapshot_intro, 200) || null,
+    snapshot_metrics: recordArray(reportUi.snapshot_metrics).slice(0, 4).map((item) => ({
+      ...item,
+      label: clipPeriodicDisplayText(item.label, 36),
+      value: clipPeriodicDisplayText(item.value, 64),
+      note: clipPeriodicDisplayText(item.note, 80) || null,
+    })),
+    performance_comparisons: recordArray(reportUi.performance_comparisons).slice(0, 3).map((item) => ({
+      ...item,
+      label: clipPeriodicDisplayText(item.label, 48),
+      current_label: clipPeriodicDisplayText(item.current_label, 24),
+      current_value: clipPeriodicDisplayText(item.current_value, 32),
+      comparison_label: clipPeriodicDisplayText(item.comparison_label, 24),
+      comparison_value: clipPeriodicDisplayText(item.comparison_value, 32),
+      change_note: clipPeriodicDisplayText(item.change_note, 64) || null,
+    })),
+    guidance_metrics: recordArray(reportUi.guidance_metrics).slice(0, 3).map((item) => ({
+      ...item,
+      label: clipPeriodicDisplayText(item.label, 48),
+      guidance_label: clipPeriodicDisplayText(item.guidance_label, 32),
+      guidance_value: clipPeriodicDisplayText(item.guidance_value, 48),
+      performance_label: clipPeriodicDisplayText(item.performance_label, 48) || null,
+      note: clipPeriodicDisplayText(item.note, 80) || null,
+    })),
+    key_business_updates: recordArray(reportUi.key_business_updates).slice(0, 3).map((item) => ({
+      ...item,
+      title: clipPeriodicDisplayText(item.title, 64),
+      value: clipPeriodicDisplayText(item.value, 64) || null,
+      summary: clipPeriodicDisplayText(item.summary, 180),
+    })),
   };
 }
 

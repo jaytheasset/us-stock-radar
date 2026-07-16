@@ -5,6 +5,7 @@ import type {
   PeriodicReportAmendmentFacts,
   PeriodicReportCalendarItem,
   PeriodicReportCoverPageFacts,
+  PeriodicReportContextSnippet,
   PeriodicReportCoverageCheck,
   PeriodicReportFacts,
   PeriodicReportNoiseCandidate,
@@ -16,13 +17,13 @@ import type {
   SupportedPeriodicReportForm,
 } from "./types";
 
-export const SEC_PERIODIC_REPORTS_PARSER_VERSION = "sec_periodic_reports_raw_parser_v3";
+export const SEC_PERIODIC_REPORTS_PARSER_VERSION = "sec_periodic_reports_raw_parser_v4";
 
 const PERIODIC_REPORTS_PARSER_GROUP = "periodic-reports";
 const PERIODIC_REPORTS_FORM_SCOPE = "10-K / 10-Q / 20-F, 10-K/A / 10-Q/A / 20-F/A";
 const SUPPORTED_PERIODIC_REPORT_FORMS = ["10-K", "10-Q", "20-F", "10-K/A", "10-Q/A", "20-F/A"] as const;
 const PERIODIC_REPORTS_DEFAULT_DISPLAY_TYPE = "generic";
-const PERIODIC_REPORTS_DISPLAY_VERSION = "periodic_report_display_v1";
+const PERIODIC_REPORTS_DISPLAY_VERSION = "periodic_report_display_v2";
 const SOURCE_MATERIAL_CHECK_IDS = new Set([
   "source_package_inventory",
   "primary_document_inventory",
@@ -62,6 +63,9 @@ type SecDocumentPayload = {
   text?: unknown;
   textCharCount?: unknown;
   textTruncated?: unknown;
+  rawHtml?: unknown;
+  rawHtmlCharCount?: unknown;
+  rawHtmlTruncated?: unknown;
 };
 
 type AttachmentTextPayload = {
@@ -552,6 +556,10 @@ function normalizeXbrlFacts(
   ];
   const records = [
     ...candidates.flatMap(normalizeXbrlFactRecords),
+    ...extractXbrlFactsFromSourceText(
+      rawPayload.primary_document_html || rawPayload.primaryDocumentHtml,
+      nullableString(rawPayload.primary_document_url) || readPrimaryDocumentName(documents) || nullableString(rootInput.sourceUrl),
+    ),
     ...extractXbrlFactsFromSourceText(rootInput.bodyText, readPrimaryDocumentName(documents) || nullableString(rootInput.sourceUrl)),
     ...extractXbrlFactsFromSourceText(rootInput.analysisText, "analysisText"),
     ...attachmentTexts.flatMap((attachment) =>
@@ -598,7 +606,7 @@ function normalizeXbrlFacts(
     });
   }
 
-  return facts;
+  return facts.sort(compareXbrlFacts);
 }
 
 function extractXbrlFactsFromSourceText(value: unknown, sourceDocument: string | null): Record<string, unknown>[] {
@@ -606,42 +614,98 @@ function extractXbrlFactsFromSourceText(value: unknown, sourceDocument: string |
   if (!text || !/(?:<ix:|<xbrli:xbrl|<xbrl|us-gaap:|ifrs-full:|dei:)/i.test(text)) return [];
 
   const cleaned = text.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ");
+  const contextPeriods = extractXbrlContextPeriods(cleaned);
   const records: Record<string, unknown>[] = [];
   const inlinePattern = /<ix:(?:nonFraction|nonNumeric)\b([^>]*)>([\s\S]*?)<\/ix:(?:nonFraction|nonNumeric)>/gi;
   let inlineMatch: RegExpExecArray | null;
-  while ((inlineMatch = inlinePattern.exec(cleaned)) !== null && records.length < 300) {
+  while ((inlineMatch = inlinePattern.exec(cleaned)) !== null && records.length < 2000) {
     const attrs = parseXmlAttributes(inlineMatch[1] || "");
     const name = nullableString(attrs.name);
     if (!name) continue;
+    const contextRef = readAttribute(attrs, "contextRef");
     records.push({
       name,
       value: normalizeXmlFactValue(inlineMatch[2] || "", attrs),
-      unitRef: attrs.unitRef,
-      decimals: attrs.decimals,
-      contextRef: attrs.contextRef,
-      scale: attrs.scale,
-      format: attrs.format,
+      unitRef: readAttribute(attrs, "unitRef"),
+      decimals: readAttribute(attrs, "decimals"),
+      contextRef,
+      period: contextRef ? contextPeriods.get(contextRef) || null : null,
+      statement: inferXbrlStatement(name),
+      scale: readAttribute(attrs, "scale"),
+      format: readAttribute(attrs, "format"),
       sourceDocument,
     });
   }
 
   const xmlFactPattern = /<([A-Za-z_][\w.-]*:[A-Za-z_][\w.-]*)\b([^>]*)>([^<]{1,1000})<\/\1>/gi;
   let xmlMatch: RegExpExecArray | null;
-  while ((xmlMatch = xmlFactPattern.exec(cleaned)) !== null && records.length < 600) {
+  while ((xmlMatch = xmlFactPattern.exec(cleaned)) !== null && records.length < 3000) {
     const name = xmlMatch[1] || "";
     if (/^(?:xbrli|link|xlink|xsi|ix):/i.test(name)) continue;
     const attrs = parseXmlAttributes(xmlMatch[2] || "");
+    const contextRef = readAttribute(attrs, "contextRef");
     records.push({
       name,
       value: normalizeXmlFactValue(xmlMatch[3] || "", attrs),
-      unitRef: attrs.unitRef,
-      decimals: attrs.decimals,
-      contextRef: attrs.contextRef,
+      unitRef: readAttribute(attrs, "unitRef"),
+      decimals: readAttribute(attrs, "decimals"),
+      contextRef,
+      period: contextRef ? contextPeriods.get(contextRef) || null : null,
+      statement: inferXbrlStatement(name),
       sourceDocument,
     });
   }
 
   return records;
+}
+
+function extractXbrlContextPeriods(text: string) {
+  const periods = new Map<string, string>();
+  const pattern = /<(?:xbrli:)?context\b([^>]*)>([\s\S]*?)<\/(?:xbrli:)?context>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(text)) !== null) {
+    const attrs = parseXmlAttributes(match[1] || "");
+    const id = readAttribute(attrs, "id");
+    if (!id) continue;
+    const body = match[2] || "";
+    const instant = body.match(/<(?:xbrli:)?instant\b[^>]*>([^<]+)<\/(?:xbrli:)?instant>/i)?.[1]?.trim();
+    const start = body.match(/<(?:xbrli:)?startDate\b[^>]*>([^<]+)<\/(?:xbrli:)?startDate>/i)?.[1]?.trim();
+    const end = body.match(/<(?:xbrli:)?endDate\b[^>]*>([^<]+)<\/(?:xbrli:)?endDate>/i)?.[1]?.trim();
+    const period = instant || (start && end ? `${start}/${end}` : end || start || null);
+    if (period) periods.set(id, period);
+  }
+  return periods;
+}
+
+function readAttribute(attrs: Record<string, string>, name: string) {
+  const entry = Object.entries(attrs).find(([key]) => key.toLowerCase() === name.toLowerCase());
+  return entry?.[1] || null;
+}
+
+function inferXbrlStatement(name: string) {
+  const concept = name.split(":").pop() || name;
+  if (/Revenue|SalesRevenue|CostOfRevenue|GrossProfit|OperatingIncomeLoss|NetIncomeLoss|ProfitLoss|EarningsPerShare/i.test(concept)) {
+    return "Income statement";
+  }
+  if (/Assets|Liabilities|StockholdersEquity|ShareholdersEquity|CashAndCashEquivalents|LongTermDebt|ShortTermDebt|Borrowings/i.test(concept)) {
+    return "Balance sheet";
+  }
+  if (/NetCashProvidedByUsedIn|PaymentsToAcquire|ProceedsFrom|CashFlow/i.test(concept)) return "Cash flow statement";
+  if (/CommonStockSharesOutstanding|EntityCommonStockSharesOutstanding|WeightedAverageNumberOfShares/i.test(concept)) return "Shares";
+  return "Other reported XBRL facts";
+}
+
+function compareXbrlFacts(left: PeriodicReportXbrlFact, right: PeriodicReportXbrlFact) {
+  const statementRank = (statement: string | null) => {
+    if (statement === "Income statement") return 0;
+    if (statement === "Balance sheet") return 1;
+    if (statement === "Cash flow statement") return 2;
+    if (statement === "Shares") return 3;
+    return 4;
+  };
+  const rank = statementRank(left.statement) - statementRank(right.statement);
+  if (rank) return rank;
+  return (right.period || "").localeCompare(left.period || "");
 }
 
 function parseXmlAttributes(value: string): Record<string, string> {
@@ -659,9 +723,11 @@ function parseXmlAttributes(value: string): Record<string, string> {
 function normalizeXmlFactValue(value: string, attrs: Record<string, string>) {
   const text = htmlToPlainText(value);
   if (!text) return null;
-  const sign = attrs.sign === "-" ? -1 : 1;
-  const scale = Number(attrs.scale || 0);
-  const normalized = text.replace(/,/g, "");
+  if (/^(?:true|1)$/i.test(readAttribute(attrs, "nil") || "")) return null;
+  const parenthesized = /^\(.*\)$/.test(text.trim());
+  const sign = readAttribute(attrs, "sign") === "-" || parenthesized ? -1 : 1;
+  const scale = Number(readAttribute(attrs, "scale") || 0);
+  const normalized = text.replace(/[,$%()\s]/g, "");
   const numeric = Number(normalized);
   if (Number.isFinite(numeric) && /^-?[\d.]+$/.test(normalized)) {
     return numeric * sign * (Number.isFinite(scale) ? 10 ** scale : 1);
@@ -763,10 +829,25 @@ export function parseSecPeriodicReport(input: SecPeriodicReportParseInput): Peri
   });
   const primaryDocumentSelection = selectPrimaryFilingDocument(rawDocuments, preliminaryFormType, input.title);
   const documents = applyPrimaryDocumentSelection(rawDocuments, primaryDocumentSelection);
-  const normalizedPrimaryDocument = normalizeSecVisibleDocument(primaryDocumentSelection.selected?.text || input.bodyText || "");
-  const selectedPrimaryDocumentText = stringValue(primaryDocumentSelection.selected?.text) ? normalizedPrimaryDocument.text : "";
+  const preservedPrimaryHtml =
+    nullableString(rawPayload.primary_document_html) ||
+    nullableString(rawPayload.primaryDocumentHtml) ||
+    nullableString(primaryDocumentSelection.selected?.rawHtml);
+  const primaryDocumentSource =
+    preservedPrimaryHtml ||
+    stringValue(primaryDocumentSelection.selected?.text) ||
+    stringValue(input.bodyText);
+  const normalizedPrimaryDocument = normalizeSecVisibleDocument(primaryDocumentSource);
+  const selectedPrimaryDocumentText = primaryDocumentSource ? normalizedPrimaryDocument.text : "";
   const primaryFilingText = selectedPrimaryDocumentText || bodyText;
-  const sourcePackage = buildSourcePackage({ attachmentTexts, documents, rawPayload, rootInput: input });
+  const sourcePackage = buildSourcePackage({
+    attachmentTexts,
+    documents,
+    rawPayload: preservedPrimaryHtml
+      ? { ...rawPayload, primary_document_html: preservedPrimaryHtml }
+      : rawPayload,
+    rootInput: input,
+  });
   const rawSourceText = compactText([primaryFilingText, attachmentText].filter(Boolean).join("\n\n"));
   const usedAnalysisFallback = !rawSourceText && Boolean(analysisText);
   const sourceText = rawSourceText || analysisText;
@@ -800,7 +881,12 @@ export function parseSecPeriodicReport(input: SecPeriodicReportParseInput): Peri
     text,
   });
   const sections = extractSections(text, formType);
-  const financialStatementLines = extractFinancialStatementLines(text);
+  const contextSnippets = extractContextSnippets(normalizedPrimaryDocument.blocks, formType);
+  const financialStatementLines = extractFinancialStatementLines(
+    normalizedPrimaryDocument.tables,
+    sections,
+    sourcePackage.xbrlFacts,
+  );
   const highValueEvidence = extractHighValueEvidence(text, amendment, financialStatementLines, sourcePackage.xbrlFacts);
   const dateCandidates = extractDateCandidates(text);
   const noiseCandidates = extractNoiseCandidates(text, documents);
@@ -845,6 +931,7 @@ export function parseSecPeriodicReport(input: SecPeriodicReportParseInput): Peri
     coverPage,
     amendment,
     sections,
+    contextSnippets,
     financialStatementLines,
     highValueEvidence,
     dateCandidates,
@@ -853,7 +940,13 @@ export function parseSecPeriodicReport(input: SecPeriodicReportParseInput): Peri
       hasPotentiallyUselessRawData: noiseCandidates.length > 0,
       mustHaveChecks,
       noiseCandidates,
-      retainedEvidenceCount: sections.length + financialStatementLines.length + highValueEvidence.length + dateCandidates.length + sourcePackage.retainedXbrlFactCount,
+      retainedEvidenceCount:
+        sections.length +
+        contextSnippets.length +
+        financialStatementLines.length +
+        highValueEvidence.length +
+        dateCandidates.length +
+        sourcePackage.retainedXbrlFactCount,
       notes: buildAuditNotes({ highValueEvidence, missingCriticalRawData, noiseCandidates, sections, sourcePackage }),
     },
   };
@@ -900,6 +993,12 @@ export function parseSecPeriodicReport(input: SecPeriodicReportParseInput): Peri
         raw_body_chars: stringValue(input.bodyText).length,
         body_chars: bodyText.length,
         body_text_was_html: bodyInputWasHtml,
+        primary_document_source: preservedPrimaryHtml
+          ? "preserved_primary_html"
+          : stringValue(primaryDocumentSelection.selected?.text)
+            ? "selected_document_text"
+            : "raw_item_body_text",
+        preserved_primary_html_chars: stringValue(preservedPrimaryHtml).length,
         normalized_primary_document_block_count: normalizedPrimaryDocument.diagnostics.blockCount,
         normalized_primary_document_visible_chars: normalizedPrimaryDocument.diagnostics.visibleChars,
         raw_analysis_chars: stringValue(input.analysisText).length,
@@ -1109,7 +1208,7 @@ function extractSections(text: string, formType: SupportedPeriodicReportForm | n
     if (charCount < 20) continue;
     const key = sectionKey(heading, formType);
     const entries = grouped.get(key) || [];
-    entries.push({ ...heading, end, excerpt: truncate(excerpt, 1400), charCount });
+    entries.push({ ...heading, end, excerpt: truncate(excerpt, 4000), charCount });
     grouped.set(key, entries);
   }
 
@@ -1138,50 +1237,235 @@ function chooseBestSectionOccurrence<T extends { charCount: number; excerpt: str
   return [...pool].sort((a, b) => b.charCount - a.charCount)[0];
 }
 
-function extractFinancialStatementLines(text: string): PeriodicRawEvidence[] {
-  const labels: Array<[string, RegExp]> = [
-    ["revenue_or_net_sales", /\b(?:revenue|revenues|net sales|sales)\b/i],
-    ["gross_profit", /\bgross profit\b/i],
-    ["operating_income_loss", /\b(?:operating income|operating loss|loss from operations|income from operations)\b/i],
-    ["net_income_loss", /\b(?:net income|net loss|net earnings|loss attributable)\b/i],
-    ["cash_and_equivalents", /\bcash and cash equivalents\b/i],
-    ["total_assets", /\btotal assets\b/i],
-    ["total_liabilities", /\btotal liabilities\b/i],
-    ["debt_or_borrowings", /\b(?:total debt|long-term debt|short-term debt|borrowings|notes payable)\b/i],
-    ["working_capital", /\bworking capital\b/i],
-    ["cash_flow", /\b(?:net cash provided by|net cash used in|cash flows?)\b/i],
+function extractContextSnippets(
+  blocks: VisibleDomBlock[],
+  formType: SupportedPeriodicReportForm | null,
+): PeriodicReportContextSnippet[] {
+  const topics: Array<{ topic: string; pattern: RegExp; priority: number }> = [
+    {
+      topic: "financial_results",
+      pattern: /\b(?:revenue|revenues|net sales|gross profit|gross margin|operating income|operating loss|net income|net loss|diluted earnings per share|diluted EPS)\b/i,
+      priority: 0,
+    },
+    {
+      topic: "period_comparison",
+      pattern: /\b(?:increased|decreased|grew|declined|compared with|compared to|year over year|year-over-year)\b/i,
+      priority: 1,
+    },
+    {
+      topic: "outlook_and_guidance",
+      pattern: /\b(?:guidance|outlook|forecast|expects?|anticipates?|projects?)\b/i,
+      priority: 2,
+    },
+    {
+      topic: "liquidity_and_debt",
+      pattern: /\b(?:liquidity|cash and cash equivalents|free cash flow|working capital|borrowings|long-term debt|debt maturit|going concern)\b/i,
+      priority: 3,
+    },
+    {
+      topic: "segments_and_drivers",
+      pattern: /\b(?:reportable segment|segment revenue|data center|customer demand|pricing|volume|product mix)\b/i,
+      priority: 4,
+    },
+    {
+      topic: "controls_and_accounting",
+      pattern: /\b(?:material weakness|internal control over financial reporting|critical accounting estimate|restatement|non-reliance)\b/i,
+      priority: 5,
+    },
+    {
+      topic: "legal_and_regulatory",
+      pattern: /\b(?:material legal proceedings|class action|government investigation|regulatory proceeding|settlement|contingenc)\b/i,
+      priority: 6,
+    },
+    {
+      topic: "capital_allocation",
+      pattern: /\b(?:share repurchase|stock repurchase|cash dividend|capital expenditure|capital allocation)\b/i,
+      priority: 7,
+    },
   ];
+  const usable = blocks.filter((block) =>
+    Boolean(block.text) &&
+    !block.tableLike &&
+    !["cover_page", "signature", "exhibit_index", "empty_decorative"].includes(block.kind),
+  );
+  const itemByIndex = new Map<number, string | null>();
+  let currentItem: string | null = null;
+  for (const block of usable) {
+    const itemMatch = block.text.match(/^ITEM\s+(\d+[A-Z]?|\d+\.[A-Z])\.?\b/i);
+    if (itemMatch?.[1]) currentItem = itemMatch[1].toUpperCase();
+    itemByIndex.set(block.index, currentItem);
+  }
 
+  const candidates: Array<PeriodicReportContextSnippet & { priority: number; order: number }> = [];
+  const perTopic = new Map<string, number>();
+  for (let index = 0; index < usable.length; index += 1) {
+    const block = usable[index];
+    if (block.text.length < 40 || block.text.length > 9000) continue;
+    if (looksLikeTableOfContents(block.text) || isBoilerplateSnippet(block.text)) continue;
+    const topic = topics.find((candidate) => candidate.pattern.test(block.text));
+    if (!topic || (perTopic.get(topic.topic) || 0) >= 3) continue;
+
+    const neighbors = usable
+      .slice(Math.max(0, index - 1), Math.min(usable.length, index + 2))
+      .filter((candidate) => !looksLikeTableOfContents(candidate.text) && !isBoilerplateSnippet(candidate.text));
+    const text = truncate(uniqueStrings(neighbors.map((candidate) => candidate.text)).join("\n\n"), 3600);
+    if (text.length < 80) continue;
+    const item = itemByIndex.get(block.index) || null;
+    const coreItemBoost = isCorePeriodicItem(item, formType) ? -4 : 0;
+    candidates.push({
+      id: `periodic_context_${slug(`${topic.topic}_${item || "general"}_${block.index}`)}`,
+      topic: topic.topic,
+      item,
+      sectionKey: item ? `item_${slug(item)}` : null,
+      text,
+      source: "primary_document_context",
+      confidence: item ? "high" : "medium",
+      priority: topic.priority + coreItemBoost,
+      order: block.index,
+    });
+    perTopic.set(topic.topic, (perTopic.get(topic.topic) || 0) + 1);
+  }
+
+  const seen = new Set<string>();
+  return candidates
+    .sort((left, right) => left.priority - right.priority || left.order - right.order)
+    .filter((candidate) => {
+      const key = candidate.text.toLowerCase().slice(0, 500);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 16)
+    .map(({ priority: _priority, order: _order, ...snippet }) => snippet);
+}
+
+function isCorePeriodicItem(item: string | null, formType: SupportedPeriodicReportForm | null) {
+  if (!item) return false;
+  if (/^10-K/i.test(formType || "")) return /^(?:7|7A|8|9A)$/i.test(item);
+  if (/^10-Q/i.test(formType || "")) return /^(?:1|2|3|4)$/i.test(item);
+  if (/^20-F/i.test(formType || "")) return /^(?:3|5|8|11|15)$/i.test(item);
+  return false;
+}
+
+function extractFinancialStatementLines(
+  tables: VisibleTable[],
+  sections: PeriodicReportSection[],
+  xbrlFacts: PeriodicReportXbrlFact[],
+): PeriodicRawEvidence[] {
   const result: PeriodicRawEvidence[] = [];
   const seen = new Set<string>();
-  for (const rawLine of text.split("\n")) {
-    const line = compactText(rawLine);
-    if (line.length < 12 || line.length > 420 || !line.match(/\d/)) continue;
+  const financialTables = tables.filter((table) =>
+    table.classification === "data" &&
+    table.typeHints.some((hint) =>
+      ["income_statement", "balance_sheet", "cash_flow_statement", "equity_statement", "segment_revenue"].includes(hint),
+    ),
+  );
 
-    for (const [label, pattern] of labels) {
-      if (!pattern.test(line)) continue;
+  for (const table of financialTables) {
+    for (const row of table.rows) {
+      const line = compactText(row.text);
+      const label = financialMetricLabel(line);
+      if (!label || row.numericCellCount < 1) continue;
       const values = extractNumbers(line);
       if (!values.length) continue;
       const key = `${label}:${line.toLowerCase()}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      result.push({
-        id: `financial_statement_line_${result.length + 1}`,
-        category: "financial_statement_line",
-        label,
-        value: values,
-        evidence: truncate(line, 420),
-        source: "filing_text",
-        locationHint: "Financial statements or MD&A",
-        confidence: values.length >= 2 ? "high" : "medium",
-      });
-      break;
+      result.push(buildFinancialStatementEvidence(result.length, label, values, line, "financial_table"));
+      if (result.length >= 18) return result;
     }
+  }
 
+  const financialSectionText = sections
+    .filter((section) => /financial statements|management.s discussion|operating and financial review|results of operations/i.test(`${section.key} ${section.title}`))
+    .map((section) => section.excerpt)
+    .join("\n");
+  for (const rawLine of financialSectionText.split(/\n|(?<=[.;])\s+(?=[A-Z])/)) {
+    const line = compactText(rawLine);
+    const label = financialMetricLabel(line);
+    if (!label || line.length < 12 || line.length > 700 || !/\d/.test(line)) continue;
+    const values = extractNumbers(line);
+    if (!values.length) continue;
+    const key = `${label}:${line.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(buildFinancialStatementEvidence(result.length, label, values, line, "financial_section"));
     if (result.length >= 18) break;
   }
 
+  for (const fact of xbrlFacts) {
+    if (result.length >= 18) break;
+    const label = xbrlFinancialMetricLabel(fact.name);
+    if (!label || fact.value === null || fact.value === "") continue;
+    const evidence = [fact.name, String(fact.value), fact.unitRef, fact.period].filter(Boolean).join(" | ");
+    const key = `${label}:${fact.name}:${fact.period}:${fact.value}`.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const numericValue = typeof fact.value === "number" ? fact.value : Number(String(fact.value).replace(/,/g, ""));
+    result.push({
+      id: `financial_statement_line_${result.length + 1}`,
+      category: "financial_statement_line",
+      label,
+      value: Number.isFinite(numericValue) ? [numericValue] : [String(fact.value)],
+      evidence: truncate(evidence, 700),
+      source: fact.sourceDocument || "xbrl",
+      locationHint: "Structured XBRL fact",
+      confidence: fact.period ? "high" : "medium",
+    });
+  }
+
   return result;
+}
+
+function xbrlFinancialMetricLabel(name: string) {
+  const concept = name.split(":").pop() || name;
+  if (/Revenue|SalesRevenueNet/i.test(concept)) return "revenue_or_net_sales";
+  if (/GrossProfit/i.test(concept)) return "gross_profit";
+  if (/OperatingIncomeLoss/i.test(concept)) return "operating_income_loss";
+  if (/NetIncomeLoss|ProfitLoss/i.test(concept)) return "net_income_loss";
+  if (/EarningsPerShareDiluted/i.test(concept)) return "diluted_eps";
+  if (/CashAndCashEquivalents/i.test(concept)) return "cash_and_equivalents";
+  if (/Assets$/i.test(concept)) return "total_assets";
+  if (/Liabilities$/i.test(concept)) return "total_liabilities";
+  if (/LongTermDebt|ShortTermDebt|Borrowings/i.test(concept)) return "debt_or_borrowings";
+  if (/NetCashProvidedByUsedIn/i.test(concept)) return "cash_flow";
+  return null;
+}
+
+function financialMetricLabel(line: string) {
+  const labels: Array<[string, RegExp]> = [
+    ["revenue_or_net_sales", /\b(?:revenue|revenues|net sales)\b/i],
+    ["gross_profit", /\bgross profit\b/i],
+    ["gross_margin", /\bgross margin\b/i],
+    ["operating_income_loss", /\b(?:operating income|operating loss|loss from operations|income from operations)\b/i],
+    ["net_income_loss", /\b(?:net income|net loss|net earnings|loss attributable)\b/i],
+    ["diluted_eps", /\b(?:diluted earnings per share|diluted EPS|earnings per diluted share)\b/i],
+    ["cash_and_equivalents", /\bcash and cash equivalents\b/i],
+    ["total_assets", /\btotal assets\b/i],
+    ["total_liabilities", /\btotal liabilities\b/i],
+    ["debt_or_borrowings", /\b(?:total debt|long-term debt|short-term debt|borrowings|notes payable)\b/i],
+    ["cash_flow", /\b(?:net cash provided by|net cash used in|cash flows?)\b/i],
+  ];
+  return labels.find(([, pattern]) => pattern.test(line))?.[0] || null;
+}
+
+function buildFinancialStatementEvidence(
+  index: number,
+  label: string,
+  values: number[],
+  line: string,
+  source: string,
+): PeriodicRawEvidence {
+  return {
+    id: `financial_statement_line_${index + 1}`,
+    category: "financial_statement_line",
+    label,
+    value: values,
+    evidence: truncate(line, 700),
+    source,
+    locationHint: source === "financial_table" ? "Financial statement table" : "Financial statements or MD&A",
+    confidence: values.length >= 2 ? "high" : "medium",
+  };
 }
 
 function extractHighValueEvidence(
@@ -1869,11 +2153,15 @@ function readExchangeFromText(text: string) {
 }
 
 function readReportingPeriod(text: string) {
-  return (
-    text.match(/\b(?:quarterly period|fiscal year|transition period)\s+ended\s+([A-Z][a-z]+\.?\s+\d{1,2},\s+\d{4})/i)?.[1]?.trim() ||
-    text.match(/\bperiod\s+ended\s+([A-Z][a-z]+\.?\s+\d{1,2},\s+\d{4})/i)?.[1]?.trim() ||
-    null
-  );
+  const candidates = [
+    ...text.matchAll(/\b(?:quarterly period|fiscal year|transition period)\s+ended\s+([A-Z][a-z]+\.?\s+\d{1,2},\s+\d{4})/gi),
+    ...text.matchAll(/\bperiod\s+ended\s+([A-Z][a-z]+\.?\s+\d{1,2},\s+\d{4})/gi),
+  ]
+    .map((match) => match[1]?.trim())
+    .filter((value): value is string => Boolean(value))
+    .map((value) => ({ value, timestamp: Date.parse(value.replace(/\.$/, "")) }))
+    .filter((candidate) => Number.isFinite(candidate.timestamp));
+  return candidates.sort((left, right) => right.timestamp - left.timestamp)[0]?.value || null;
 }
 
 function readFiscalYear(reportingPeriod: string | null, text: string) {
@@ -2228,9 +2516,9 @@ function parseVisibleHtmlDocument(input: string): SecVisibleDocument {
 
   return {
     text,
-    blocks: retainedBlocks.slice(0, 400),
-    tables: tableExtraction.tables.slice(0, 120),
-    inlineXbrlMentions: inlineXbrlMentions.filter((mention) => mention.visibleText).slice(0, 200),
+    blocks: retainedBlocks.slice(0, 5000),
+    tables: tableExtraction.tables.slice(0, 600),
+    inlineXbrlMentions: inlineXbrlMentions.filter((mention) => mention.visibleText).slice(0, 2000),
     warnings: uniqueStrings(warnings),
     diagnostics: {
       parser: "sec_visible_dom_stream_v1",

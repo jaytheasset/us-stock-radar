@@ -445,6 +445,65 @@ for (const tableCase of tableFixture.cases) {
   }
 }
 
+const preservedPrimaryHtml = `
+<html><body>
+  <div>FORM 10-K</div>
+  <div>For the fiscal year ended December 31, 2026</div>
+  <div>Parser Regression Corp. (Exact name of registrant as specified in its charter)</div>
+  <div>TABLE OF CONTENTS</div>
+  <p>ITEM 7. Management's Discussion and Analysis of Financial Condition and Results of Operations</p>
+  <p>ITEM 8. Financial Statements and Supplementary Data</p>
+  <p>ITEM 1. Business</p>
+  <p>The company develops parser regression products.</p>
+  <p>ITEM 7. Management's Discussion and Analysis of Financial Condition and Results of Operations</p>
+  <p>Revenue increased 65% to $215.9 billion from $130.5 billion, led by Data Center demand.</p>
+  <p>Gross margin declined to 71.1% from 75.0% after a $4.5 billion charge.</p>
+  <p>ITEM 8. Financial Statements and Supplementary Data</p>
+  <p>CONSOLIDATED STATEMENTS OF OPERATIONS</p>
+  <table>
+    <tr><th>Year ended December 31</th><th>2026</th><th>2025</th></tr>
+    <tr><td>Revenue</td><td>215,938</td><td>130,497</td></tr>
+    <tr><td>Operating income</td><td>130,387</td><td>81,453</td></tr>
+    <tr><td>Net income</td><td>120,067</td><td>72,880</td></tr>
+    <tr><td>Diluted earnings per share</td><td>4.90</td><td>2.94</td></tr>
+  </table>
+  <p>ITEM 9A. Controls and Procedures</p>
+  <p>Disclosure controls and procedures were effective.</p>
+</body></html>`;
+
+const preservedSourceParsed = parseSecPeriodicReport({
+  rawItemId: "periodic-preserved-primary-html",
+  sourceUniqueId: "0000000000-26-000001",
+  title: "Parser Regression Corp. Form 10-K",
+  bodyText: "FORM 10-K\nTABLE OF CONTENTS\nITEM 1. Business\nTruncated before Item 7 and Item 8.",
+  rawPayload: {
+    form_type: "10-K",
+    accession_number: "0000000000-26-000001",
+    company_name: "Parser Regression Corp.",
+    primary_document_html: preservedPrimaryHtml,
+    primary_document_url: "https://www.sec.gov/example.htm",
+    documents: [
+      {
+        sequence: "1",
+        type: "10-K",
+        description: "Annual report",
+        filename: "example.htm",
+        isPrimary: true,
+        textCharCount: preservedPrimaryHtml.length,
+        textTruncated: true,
+      },
+    ],
+  },
+});
+
+const preservedStats = toRecord(preservedSourceParsed.raw.source_text_stats) || {};
+assert.equal(preservedStats.primary_document_source, "preserved_primary_html", "preserved primary HTML is the parser source");
+assert.ok(preservedSourceParsed.facts.sections.some((section) => section.item === "7" && section.excerpt.includes("Revenue increased 65%")), "actual Item 7 beats TOC occurrence");
+assert.ok(preservedSourceParsed.facts.sections.some((section) => section.item === "8" && section.charCount > 200), "actual Item 8 is retained");
+assert.ok(preservedSourceParsed.facts.contextSnippets.some((snippet) => snippet.text.includes("Gross margin declined")), "context snippets retain surrounding MD&A paragraphs");
+assert.ok(preservedSourceParsed.facts.financialStatementLines.some((line) => line.label === "revenue_or_net_sales" && line.evidence.includes("215,938")), "financial statement table rows are extracted");
+assert.equal(preservedSourceParsed.facts.financialStatementLines.some((line) => /employee|certification/i.test(line.evidence)), false, "financial lines exclude unrelated numeric prose");
+
 globalThis.fetch = originalFetch;
 
 console.log("sec periodic reports raw parser fixtures passed");

@@ -7193,6 +7193,318 @@ td {
   overflow-wrap: anywhere;
 }
 
+.periodic-report-section {
+  border-bottom: 1px solid var(--detail-divider);
+  padding: 22px 0;
+}
+
+.periodic-report-section-heading {
+  margin-bottom: 14px;
+}
+
+.periodic-report-section-heading h2 {
+  margin: 0;
+  color: #111a33;
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.periodic-performance-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--detail-divider);
+  border-bottom: 1px solid var(--detail-divider);
+}
+
+.periodic-performance-list.count-1 {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.periodic-performance-list.count-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.periodic-performance-item {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 14px 18px;
+}
+
+.periodic-performance-item:first-child {
+  padding-left: 0;
+}
+
+.periodic-performance-item + .periodic-performance-item {
+  border-left: 1px solid var(--detail-divider);
+}
+
+.periodic-performance-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.periodic-performance-heading strong {
+  min-width: 0;
+  color: #111a33;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.periodic-performance-heading span {
+  flex: 0 0 auto;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: right;
+}
+
+.periodic-performance-heading span.improvement {
+  color: #16a34a;
+}
+
+.periodic-performance-heading span.deterioration {
+  color: #ef4444;
+}
+
+.periodic-performance-pair,
+.periodic-signed-row {
+  display: grid;
+  grid-template-columns: 54px minmax(72px, 1fr) minmax(70px, auto);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.periodic-performance-pair > span,
+.periodic-signed-row > span {
+  color: #64728a;
+  font-size: 10px;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+.periodic-performance-pair > b,
+.periodic-signed-row > b {
+  color: #071a3d;
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.periodic-performance-track,
+.periodic-signed-track {
+  position: relative;
+  height: 8px;
+  overflow: hidden;
+  background: #eaf0f8;
+}
+
+.periodic-performance-track i,
+.periodic-signed-bar {
+  display: block;
+  height: 100%;
+}
+
+.periodic-performance-track i.current,
+.periodic-signed-bar.positive {
+  background: #2563eb;
+}
+
+.periodic-performance-track i.comparison,
+.periodic-signed-bar.comparison {
+  background: #94a3b8;
+}
+
+.periodic-signed-comparison {
+  display: grid;
+  gap: 8px;
+}
+
+.periodic-signed-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.periodic-signed-bar.negative {
+  background: #ef4444;
+}
+
+.periodic-signed-bar.neutral {
+  background: #64748b;
+}
+
+.periodic-signed-zero {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: #7f91aa;
+  transform: translateX(-0.5px);
+}
+
+.periodic-signed-row > b.positive {
+  color: #2563eb;
+}
+
+.periodic-signed-row > b.negative {
+  color: #ef4444;
+}
+
+.periodic-signed-row > b.neutral {
+  color: #475569;
+}
+
+.periodic-guidance-footer {
+  margin-top: 12px;
+  border-top: 1px solid var(--detail-divider);
+  padding-top: 11px;
+}
+
+.periodic-guidance-footer > div {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.periodic-guidance-footer span,
+.periodic-guidance-footer small {
+  color: #64748b;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.periodic-guidance-footer strong {
+  color: #071a3d;
+  font-size: 12px;
+  line-height: 1.3;
+  max-width: 58%;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.periodic-guidance-footer small {
+  display: block;
+  margin-top: 4px;
+}
+
+.periodic-business-updates-section {
+  width: min(100%, 920px);
+}
+
+.periodic-business-update-list {
+  border-top: 1px solid var(--detail-divider);
+}
+
+.periodic-business-update-row {
+  display: grid;
+  gap: 4px;
+  border-bottom: 1px solid var(--detail-divider);
+  padding: 12px 0;
+}
+
+.periodic-business-update-heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.periodic-business-update-heading > span {
+  color: #50617d;
+  font-weight: 600;
+}
+
+.periodic-business-update-heading > strong {
+  color: #111a33;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.periodic-business-update-heading > b {
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.periodic-business-update-heading > b::before {
+  margin-right: 6px;
+  color: #94a3b8;
+  content: "\00b7";
+}
+
+.periodic-business-update-row > p {
+  margin: 0;
+  color: #40506b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 760px) {
+  .periodic-performance-list {
+    grid-template-columns: 1fr;
+  }
+
+  .periodic-performance-item,
+  .periodic-performance-item:first-child {
+    padding-right: 0;
+    padding-left: 0;
+  }
+
+  .periodic-performance-item + .periodic-performance-item {
+    border-top: 1px solid var(--detail-divider);
+    border-left: 0;
+  }
+
+  .periodic-performance-heading {
+    align-items: flex-start;
+  }
+
+  .periodic-performance-pair,
+  .periodic-signed-row {
+    grid-template-columns: 58px minmax(70px, 1fr) minmax(68px, auto);
+  }
+}
+
+html[data-theme="dark"] .stock-detail-page :is(
+  .periodic-report-section-heading h2,
+  .periodic-performance-heading strong,
+  .periodic-performance-pair > b,
+  .periodic-signed-row > b,
+  .periodic-guidance-footer strong,
+  .periodic-business-update-heading > strong
+) {
+  color: var(--text);
+}
+
+html[data-theme="dark"] .stock-detail-page :is(
+  .periodic-performance-pair > span,
+  .periodic-signed-row > span,
+  .periodic-guidance-footer span,
+  .periodic-guidance-footer small,
+  .periodic-business-update-row > p
+) {
+  color: var(--muted);
+}
+
+html[data-theme="dark"] .stock-detail-page :is(.periodic-performance-track, .periodic-signed-track) {
+  background: #273244;
+}
+
+html[data-theme="dark"] .stock-detail-page .periodic-business-update-heading > b {
+  color: #7da6ff;
+}
+
 .proxy-summary-context {
   margin: 0 0 14px;
   color: #07122f;

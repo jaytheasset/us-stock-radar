@@ -25,6 +25,11 @@ import { PriceChartCard } from "@/app/events/[id]/PriceChartCard";
 import { SectorThemeContextPanel } from "@/app/events/[id]/SectorThemeContextPanel";
 import { SecFilingHtmlViewer } from "@/app/filings/SecFilingHtmlViewer";
 import {
+  clipPeriodicDisplayText,
+  normalizePeriodicChartNumber,
+  normalizePeriodicComparisonBasis,
+} from "@/lib/sources/sec/forms/periodic-reports/uiNormalization";
+import {
   CURRENT_SHARES_MARKET_CONTEXT_NOTE,
   DILUTION_MARKET_DATA_DISCLAIMER,
   DilutionShareOverhang,
@@ -392,6 +397,49 @@ type EarningsRiskSignal = {
   status: string;
   detail: string;
   tone: "clear" | "watch" | "risk";
+};
+
+type PeriodicReportSnapshotMetric = {
+  label: string;
+  value: string;
+  note?: string;
+};
+
+type PeriodicReportPerformanceComparison = {
+  label: string;
+  currentLabel: string;
+  currentValue: string;
+  currentNumeric: number;
+  comparisonLabel: string;
+  comparisonValue: string;
+  comparisonNumeric: number;
+  comparisonBasis: "yoy" | "qoq" | "other";
+  changeNote?: string;
+  changeTone: "improvement" | "deterioration" | "neutral";
+};
+
+type PeriodicReportGuidanceMetric = {
+  label: string;
+  guidanceLabel: string;
+  guidanceValue: string;
+  performanceRelationship: "same_basis" | "related_different_basis" | "standalone";
+  performanceLabel?: string;
+  note?: string;
+};
+
+type PeriodicReportBusinessUpdate = {
+  title: string;
+  value?: string;
+  summary: string;
+};
+
+type PeriodicReportModel = {
+  snapshotTitle: string;
+  snapshotIntro: string;
+  snapshotMetrics: PeriodicReportSnapshotMetric[];
+  performanceComparisons: PeriodicReportPerformanceComparison[];
+  guidanceMetrics: PeriodicReportGuidanceMetric[];
+  keyBusinessUpdates: PeriodicReportBusinessUpdate[];
 };
 
 type EarningsModel = {
@@ -1956,13 +2004,26 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
       ? buildListingRiskModel(filing)
       : null;
   const useListingRiskDetail = Boolean(listingRiskModel);
+  const periodicReportModel =
+    !useEffectDetail &&
+    !useIpoDetail &&
+    !useSpacDetail &&
+    !useForm425TransactionDetail &&
+    !useForm25Detail &&
+    !useProxyDetail &&
+    !useListingRiskDetail &&
+    !canUseDilutionDetail
+      ? buildPeriodicReportModel(filing)
+      : null;
+  const usePeriodicReportDetail = Boolean(periodicReportModel);
   const earningsModel =
     !useEffectDetail &&
     !useIpoDetail &&
     !useSpacDetail &&
     !useForm425TransactionDetail &&
     !useForm25Detail &&
-    !useListingRiskDetail
+    !useListingRiskDetail &&
+    !usePeriodicReportDetail
       ? buildEarningsModel(filing)
       : null;
   const useEarningsDetail = Boolean(earningsModel);
@@ -1973,6 +2034,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
     !useForm425TransactionDetail &&
     !useForm25Detail &&
     !useListingRiskDetail &&
+    !usePeriodicReportDetail &&
     !useEarningsDetail
       ? buildFdaClinicalModel(filing)
       : null;
@@ -1993,6 +2055,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
     !useForm25Detail &&
     !useProxyDetail &&
     !useListingRiskDetail &&
+    !usePeriodicReportDetail &&
     !useEarningsDetail &&
     !useFdaClinicalDetail &&
     canUseDilutionDetail
@@ -2068,6 +2131,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
                 {useForm425TransactionDetail ? <span className="filing-template-chip">Transaction Communication</span> : null}
                 {useForm25Detail ? <span className="filing-template-chip">Listing Status Change</span> : null}
                 {useListingRiskDetail ? <span className="filing-template-chip">Listing Risk</span> : null}
+                {usePeriodicReportDetail ? <span className="filing-template-chip">Periodic Report</span> : null}
                 {useEarningsDetail ? <span className="filing-template-chip">Earnings</span> : null}
                 {useFdaClinicalDetail ? <span className="filing-template-chip">FDA Clinical</span> : null}
               </div>
@@ -2088,6 +2152,8 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             <ProxyVoteTemplate filing={filing} />
           ) : useListingRiskDetail && listingRiskModel ? (
             <ListingRiskTemplate eventLabel={eventBadge.label} filing={filing} model={listingRiskModel} />
+          ) : usePeriodicReportDetail && periodicReportModel ? (
+            <PeriodicReportTemplate eventLabel={eventBadge.label} filing={filing} model={periodicReportModel} />
           ) : useEarningsDetail && earningsModel ? (
             <EarningsTemplate eventLabel={eventBadge.label} filing={filing} model={earningsModel} />
           ) : useFdaClinicalDetail && fdaClinicalModel ? (
@@ -3986,6 +4052,285 @@ function ListingRiskTemplate({
       <OriginalFilingText filing={filing} eventLabel={eventLabel} />
     </>
   );
+}
+
+function PeriodicReportTemplate({
+  eventLabel,
+  filing,
+  model,
+}: {
+  eventLabel: string;
+  filing: FilingEvent;
+  model: PeriodicReportModel;
+}) {
+  return (
+    <>
+      <section className="stock-detail-top-grid listing-risk-top-grid">
+        <FilingPriceChart filing={filing} />
+
+        <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card periodic-report-snapshot-card">
+          <div className="quick-take-card quick-take-block">
+            <div className="card-heading-row">
+              <h2>{model.snapshotTitle}</h2>
+              <span>{filing.formType}</span>
+            </div>
+            {model.snapshotIntro ? <p className="proxy-summary-context">{model.snapshotIntro}</p> : null}
+            <ProxyVoteSummarySnapshot rows={model.snapshotMetrics} />
+          </div>
+        </section>
+      </section>
+
+      <AnalysisCard title="Summary" body={clipPeriodicDisplayText(filing.summary, 900)} />
+      <ScoreBasisPanel filing={filing} />
+
+      {model.performanceComparisons.length ? (
+        <PeriodicPerformanceOutlookSection
+          guidanceItems={model.guidanceMetrics}
+          performanceItems={model.performanceComparisons}
+        />
+      ) : null}
+
+      {model.keyBusinessUpdates.length ? (
+        <PeriodicBusinessUpdatesSection items={model.keyBusinessUpdates} />
+      ) : null}
+
+      <FilingMarketContextPanel filing={filing} hideUnavailable />
+      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
+    </>
+  );
+}
+
+function PeriodicPerformanceOutlookSection({
+  guidanceItems,
+  performanceItems,
+}: {
+  guidanceItems: PeriodicReportGuidanceMetric[];
+  performanceItems: PeriodicReportPerformanceComparison[];
+}) {
+  const performanceByLabel = new Map(
+    performanceItems.map((item) => [normalizePeriodicMetricKey(item.label), item]),
+  );
+  const attachedGuidance = new Map<string, PeriodicReportGuidanceMetric>();
+
+  for (const guidance of guidanceItems) {
+    if (guidance.performanceRelationship === "standalone" || !guidance.performanceLabel) continue;
+    const performance = performanceByLabel.get(normalizePeriodicMetricKey(guidance.performanceLabel));
+    if (performance && !attachedGuidance.has(performance.label)) {
+      attachedGuidance.set(performance.label, guidance);
+    }
+  }
+
+  return (
+    <section className="periodic-report-section periodic-performance-section">
+      <div className="periodic-report-section-heading">
+        <h2>Performance &amp; Outlook</h2>
+      </div>
+      <div className={`periodic-performance-list count-${Math.min(3, performanceItems.length)}`}>
+        {performanceItems.map((item) => {
+          const guidance = attachedGuidance.get(item.label);
+          return item.currentNumeric < 0 || item.comparisonNumeric < 0 ? (
+            <PeriodicSignedPerformanceItem
+              guidance={guidance}
+              item={item}
+              key={`${item.label}-${item.currentLabel}`}
+            />
+          ) : (
+            <PeriodicPositivePerformanceItem
+              guidance={guidance}
+              item={item}
+              key={`${item.label}-${item.currentLabel}`}
+            />
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function PeriodicPositivePerformanceItem({
+  guidance,
+  item,
+}: {
+  guidance?: PeriodicReportGuidanceMetric;
+  item: PeriodicReportPerformanceComparison;
+}) {
+  const scale = Math.max(Math.abs(item.currentNumeric), Math.abs(item.comparisonNumeric));
+  const currentWidth = scale > 0 ? Math.max(4, (Math.abs(item.currentNumeric) / scale) * 100) : 0;
+  const comparisonWidth = scale > 0 ? Math.max(4, (Math.abs(item.comparisonNumeric) / scale) * 100) : 0;
+  const changeLabel = periodicPerformanceChangeLabel(item);
+
+  return (
+    <div className="periodic-performance-item">
+      <div className="periodic-performance-heading">
+        <strong>{item.label}</strong>
+        {changeLabel ? <span className={item.changeTone}>{changeLabel}</span> : null}
+      </div>
+      <div className="periodic-performance-pair">
+        <span>{item.comparisonLabel}</span>
+        <div className="periodic-performance-track" aria-hidden="true">
+          <i className="comparison" style={{ width: `${comparisonWidth}%` }} />
+        </div>
+        <b>{item.comparisonValue}</b>
+        <span>{item.currentLabel}</span>
+        <div className="periodic-performance-track" aria-hidden="true">
+          <i className="current" style={{ width: `${currentWidth}%` }} />
+        </div>
+        <b>{item.currentValue}</b>
+      </div>
+      {guidance ? <PeriodicGuidanceFooter guidance={guidance} /> : null}
+    </div>
+  );
+}
+
+function PeriodicSignedPerformanceItem({
+  guidance,
+  item,
+}: {
+  guidance?: PeriodicReportGuidanceMetric;
+  item: PeriodicReportPerformanceComparison;
+}) {
+  const scale = Math.max(Math.abs(item.currentNumeric), Math.abs(item.comparisonNumeric));
+  return (
+    <div className="periodic-performance-item signed">
+      <div className="periodic-performance-heading">
+        <strong>{item.label}</strong>
+        <span className={item.changeTone}>{periodicPerformanceChangeLabel(item)}</span>
+      </div>
+      <div className="periodic-signed-comparison">
+        <PeriodicSignedBarRow
+          comparison
+          label={item.comparisonLabel}
+          scale={scale}
+          value={item.comparisonNumeric}
+          valueText={item.comparisonValue}
+        />
+        <PeriodicSignedBarRow
+          label={item.currentLabel}
+          scale={scale}
+          value={item.currentNumeric}
+          valueText={item.currentValue}
+        />
+      </div>
+      {guidance ? <PeriodicGuidanceFooter guidance={guidance} /> : null}
+    </div>
+  );
+}
+
+function PeriodicSignedBarRow({
+  comparison = false,
+  label,
+  scale,
+  value,
+  valueText,
+}: {
+  comparison?: boolean;
+  label: string;
+  scale: number;
+  value: number;
+  valueText: string;
+}) {
+  const width = scale > 0 ? (Math.abs(value) / scale) * 50 : 0;
+  const barStyle = value < 0
+    ? { right: "50%", width: `${width}%` }
+    : { left: "50%", width: `${width}%` };
+  const tone = value < 0 ? "negative" : value > 0 ? "positive" : "neutral";
+
+  return (
+    <div className="periodic-signed-row">
+      <span>{label}</span>
+      <div className="periodic-signed-track" aria-hidden="true">
+        <i className={`periodic-signed-bar ${comparison ? "comparison" : tone}`} style={barStyle} />
+        <i className="periodic-signed-zero" />
+      </div>
+      <b className={tone}>{valueText}</b>
+    </div>
+  );
+}
+
+function PeriodicGuidanceFooter({ guidance }: { guidance: PeriodicReportGuidanceMetric }) {
+  const label = guidance.guidanceLabel || `${guidance.label} Guidance`;
+  const basisNote = guidance.performanceRelationship === "related_different_basis"
+    ? "Different accounting basis from the actual result."
+    : null;
+  return (
+    <div className="periodic-guidance-footer">
+      <div>
+        <span>{label}</span>
+        <strong>{formatPeriodicGuidanceValue(guidance.guidanceValue)}</strong>
+      </div>
+      {guidance.note || basisNote ? <small>{guidance.note || basisNote}</small> : null}
+    </div>
+  );
+}
+
+function PeriodicBusinessUpdatesSection({ items }: { items: PeriodicReportBusinessUpdate[] }) {
+  return (
+    <section className="periodic-report-section periodic-business-updates-section">
+      <div className="periodic-report-section-heading">
+        <h2>Key Business Updates</h2>
+      </div>
+      <div className="periodic-business-update-list">
+        {items.map((item, index) => (
+          <div className="periodic-business-update-row" key={`${item.title}-${item.value || ""}`}>
+            <div className="periodic-business-update-heading">
+              <span>{index + 1}.</span>
+              <strong>{item.title}</strong>
+              {item.value ? <b>{item.value}</b> : null}
+            </div>
+            <p>{item.summary}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function periodicPerformanceChangeLabel(item: PeriodicReportPerformanceComparison) {
+  const previous = item.comparisonNumeric;
+  const current = item.currentNumeric;
+  const suffix = item.comparisonBasis === "yoy" ? " YoY" : item.comparisonBasis === "qoq" ? " QoQ" : "";
+  if (!suffix) return item.changeNote || "";
+  if (previous < 0 && current >= 0) return `Turned profitable${suffix}`;
+  if (previous >= 0 && current < 0) return `Swung to a loss${suffix}`;
+  if (previous === 0) return item.changeNote || "";
+  if (previous < 0 && current < 0) {
+    const magnitudeChange = ((Math.abs(current) - Math.abs(previous)) / Math.abs(previous)) * 100;
+    if (!Number.isFinite(magnitudeChange) || magnitudeChange === 0) return `Loss unchanged${suffix}`;
+    return `Loss ${magnitudeChange > 0 ? "widened" : "narrowed"} ${Math.round(Math.abs(magnitudeChange))}%${suffix}`;
+  }
+  if (item.currentValue.includes("%") && item.comparisonValue.includes("%")) {
+    const pointChange = current - previous;
+    if (!Number.isFinite(pointChange) || pointChange === 0) return `Unchanged${suffix}`;
+    return `${pointChange > 0 ? "Up" : "Down"} ${formatPeriodicPointChange(Math.abs(pointChange))} pts${suffix}`;
+  }
+  const change = ((current - previous) / Math.abs(previous)) * 100;
+  if (!Number.isFinite(change)) return item.changeNote || "";
+  return `${change >= 0 ? "Up" : "Down"} ${Math.round(Math.abs(change))}%${suffix}`;
+}
+
+function formatPeriodicPointChange(value: number) {
+  return value.toLocaleString("en-US", { maximumFractionDigits: 1 });
+}
+
+function normalizePeriodicMetricKey(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/\btotal\b/g, "")
+    .replace(/\brevenues\b/g, "revenue")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function formatPeriodicGuidanceValue(value: string) {
+  return value
+    .replace(/\$\s*([\d,]+(?:\.\d+)?)\s*(million|billion)\b/gi, (_match, rawNumber: string, unit: string) => {
+      const numeric = Number(rawNumber.replace(/,/g, ""));
+      const suffix = unit.toLowerCase() === "billion" ? "B" : "M";
+      if (!Number.isFinite(numeric)) return `$${rawNumber}${suffix}`;
+      if (suffix === "M" && numeric >= 1000) return `$${(numeric / 1000).toFixed(2)}B`;
+      return `$${numeric.toLocaleString("en-US", { maximumFractionDigits: 1 })}${suffix}`;
+    })
+    .replace(/\s+(?:to|[-–—])\s+/gi, "–");
 }
 
 function EarningsTemplate({
@@ -6736,6 +7081,125 @@ function buildListingRiskModel(filing: FilingEvent): ListingRiskModel | null {
     watchNext: displayStringArray(data.watch_next, filing.watchNext.length ? filing.watchNext : ["Next exchange compliance update."]),
     sources: normalizeSpecialSources(data.sources, filing.sourceUrl, "Listing-risk source evidence"),
   };
+}
+
+function buildPeriodicReportModel(filing: FilingEvent): PeriodicReportModel | null {
+  const displayPayload = readPlainRecord(filing.displayPayload);
+  if (readRowString(displayPayload, "display_type") !== "periodic_report") return null;
+
+  const data = readDisplayPayloadData(displayPayload);
+  const snapshotMetrics = recordArray(data.snapshot_metrics)
+    .map((item) => ({
+      label: clipPeriodicDisplayText(readRowString(item, "label"), 36),
+      value: clipPeriodicDisplayText(readRowString(item, "value"), 64),
+      note: clipPeriodicDisplayText(readRowString(item, "note"), 80) || undefined,
+    }))
+    .filter((item) => item.label && item.value && !isPeriodicPlaceholder(item.value))
+    .slice(0, 4);
+  const performanceComparisons = recordArray(data.performance_comparisons)
+    .map((item) => {
+      const currentNumeric = readOptionalPeriodicNumber(item.current_numeric);
+      const comparisonNumeric = readOptionalPeriodicNumber(item.comparison_numeric);
+      const comparisonBasis = readRowString(item, "comparison_basis");
+      const changeTone = readRowString(item, "change_tone");
+      const suppliedComparisonBasis: PeriodicReportPerformanceComparison["comparisonBasis"] =
+        comparisonBasis === "yoy" || comparisonBasis === "qoq" ? comparisonBasis : "other";
+      const normalizedChangeTone: PeriodicReportPerformanceComparison["changeTone"] =
+        changeTone === "improvement" || changeTone === "deterioration" ? changeTone : "neutral";
+      const currentLabel = clipPeriodicDisplayText(readRowString(item, "current_label"), 24);
+      const currentValue = clipPeriodicDisplayText(readRowString(item, "current_value"), 32);
+      const comparisonLabel = clipPeriodicDisplayText(readRowString(item, "comparison_label"), 24);
+      const comparisonValue = clipPeriodicDisplayText(readRowString(item, "comparison_value"), 32);
+      return {
+        label: clipPeriodicDisplayText(readRowString(item, "label"), 48),
+        currentLabel,
+        currentValue,
+        currentNumeric: currentNumeric === null ? null : normalizePeriodicChartNumber(currentValue, currentNumeric),
+        comparisonLabel,
+        comparisonValue,
+        comparisonNumeric: comparisonNumeric === null
+          ? null
+          : normalizePeriodicChartNumber(comparisonValue, comparisonNumeric),
+        comparisonBasis: normalizePeriodicComparisonBasis(
+          currentLabel,
+          comparisonLabel,
+          suppliedComparisonBasis,
+        ),
+        changeNote: clipPeriodicDisplayText(readRowString(item, "change_note"), 64) || undefined,
+        changeTone: normalizedChangeTone,
+      };
+    })
+    .filter(
+      (item) =>
+        item.label &&
+        item.currentLabel &&
+        item.currentValue &&
+        item.currentNumeric !== null &&
+        item.comparisonLabel &&
+        item.comparisonValue &&
+        item.comparisonNumeric !== null,
+    )
+    .map((item) => ({
+      ...item,
+      currentNumeric: item.currentNumeric as number,
+      comparisonNumeric: item.comparisonNumeric as number,
+    }))
+    .slice(0, 3);
+  const guidanceMetrics = recordArray(data.guidance_metrics)
+    .map((item) => {
+      const relationship = readRowString(item, "performance_relationship");
+      const performanceRelationship: PeriodicReportGuidanceMetric["performanceRelationship"] =
+        relationship === "same_basis" || relationship === "related_different_basis"
+          ? relationship
+          : "standalone";
+      return {
+        label: clipPeriodicDisplayText(readRowString(item, "label"), 48),
+        guidanceLabel: clipPeriodicDisplayText(readRowString(item, "guidance_label"), 32),
+        guidanceValue: clipPeriodicDisplayText(readRowString(item, "guidance_value"), 48),
+        performanceRelationship,
+        performanceLabel: clipPeriodicDisplayText(readRowString(item, "performance_label"), 48) || undefined,
+        note: clipPeriodicDisplayText(readRowString(item, "note"), 80) || undefined,
+      };
+    })
+    .filter((item) => item.label && item.guidanceLabel && item.guidanceValue)
+    .slice(0, 3);
+  const keyBusinessUpdates = recordArray(data.key_business_updates)
+    .map((item) => ({
+      title: clipPeriodicDisplayText(readRowString(item, "title"), 64),
+      value: clipPeriodicDisplayText(readRowString(item, "value"), 64) || undefined,
+      summary: clipPeriodicDisplayText(readRowString(item, "summary"), 180),
+    }))
+    .filter((item) => item.title && item.summary)
+    .slice(0, 3);
+
+  if (!snapshotMetrics.length && !performanceComparisons.length && !keyBusinessUpdates.length) return null;
+
+  return {
+    snapshotTitle: periodicReportSnapshotTitle(filing.formType),
+    snapshotIntro: clipPeriodicDisplayText(readRowString(data, "snapshot_intro"), 200),
+    snapshotMetrics,
+    performanceComparisons,
+    guidanceMetrics,
+    keyBusinessUpdates,
+  };
+}
+
+function periodicReportSnapshotTitle(formType: string) {
+  const normalized = formType.trim().toUpperCase();
+  if (normalized.endsWith("/A")) return "Report Amendment Snapshot";
+  if (normalized === "10-Q") return "Quarterly Report Snapshot";
+  if (normalized === "20-F") return "Annual Report Snapshot";
+  return "Annual Report Snapshot";
+}
+
+function readOptionalPeriodicNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) return Number(value);
+  return null;
+}
+
+function isPeriodicPlaceholder(value: string) {
+  return /^(?:not disclosed|not available|unknown|n\/?a|-|—)$/i.test(value.trim());
 }
 
 function buildEarningsModel(filing: FilingEvent): EarningsModel | null {

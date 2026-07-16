@@ -124,8 +124,12 @@ import {
 import {
   SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY,
   SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION,
+  SEC_PERIODIC_REPORTS_VALIDATION_REPAIR_PROMPT_KEY,
+  SEC_PERIODIC_REPORTS_VALIDATION_REPAIR_PROMPT_VERSION,
   adaptSecPeriodicReportsAnalysisPromptResultForAnalysis,
+  applySecPeriodicReportsValidationRepairPatches,
   buildSecPeriodicReportsAnalysisPromptForInput,
+  buildSecPeriodicReportsValidationRepairPlan,
   isSecPeriodicReportsFilingInput,
 } from "@/lib/ai/secPeriodicReportsAnalysisAdapter";
 
@@ -173,8 +177,11 @@ export {
   SEC_PROXY_VALIDATION_REPAIR_PROMPT_VERSION,
   SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY,
   SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION,
+  SEC_PERIODIC_REPORTS_VALIDATION_REPAIR_PROMPT_KEY,
+  SEC_PERIODIC_REPORTS_VALIDATION_REPAIR_PROMPT_VERSION,
   applySecProxyValidationRepairPatches,
   adaptSecPeriodicReportsAnalysisPromptResultForAnalysis,
+  applySecPeriodicReportsValidationRepairPatches,
   applySecS1F1ValidationRepairPatches,
   adaptSec424bAnalysisPromptResultForAnalysis,
   applySec424bValidationRepairPatches,
@@ -212,6 +219,7 @@ export {
   buildSecS1F1ValidationRepairPlan,
   buildSecProxyValidationRepairPlan,
   buildSecPeriodicReportsAnalysisPromptForInput,
+  buildSecPeriodicReportsValidationRepairPlan,
   buildSecTenderAnalysisPromptForInput,
   buildSecSc13AnalysisPromptForInput,
   buildSecSc13ValidationRepairPlan,

@@ -11,8 +11,14 @@ import {
   secPeriodicReportsAnalysisResponseSchema,
   secPeriodicReportsAnalysisSystemPrompt,
 } from "./analysisPrompt";
+import { collectSecPeriodicReportsScoringWarnings } from "../../../../ai/secPeriodicReportsAnalysisAdapter";
 import { buildSecPeriodicReportsDisplayPayload } from "./displayPayload";
 import { parseSecPeriodicReport } from "./parser";
+import {
+  clipPeriodicDisplayText,
+  normalizePeriodicChartNumber,
+  normalizePeriodicComparisonBasis,
+} from "./uiNormalization";
 import {
   APPROVED_SEC_EVENT_TYPES,
   PERIODIC_REPORT_DISPLAY_TYPES,
@@ -46,11 +52,58 @@ assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.fixture_expecte
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /score below 50 is archive/i, "analysis prompt archive band");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /50 to 74 is feed/i, "analysis prompt feed band");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /75 or above is alert/i, "analysis prompt alert band");
+assert.match(secPeriodicReportsAnalysisSystemPrompt, /Score measures investor attention and urgency/i, "analysis separates impact from direction");
+assert.match(secPeriodicReportsAnalysisSystemPrompt, /micro below \$100M/i, "analysis defines market-cap tiers");
+assert.match(secPeriodicReportsAnalysisSystemPrompt, /micro 25% \/ 50% \/ 100%/i, "analysis defines revenue thresholds by market cap");
+assert.match(secPeriodicReportsAnalysisSystemPrompt, /Neutral signal must have score below 75/i, "analysis prevents neutral alerts");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /Use market context only when supplied in the site_market_context source block/i, "analysis uses supplied market context only");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /Choose event_type directly/i, "analysis chooses representative event type");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /Do not return parser_output, display_payload, fixture_expected/i, "analysis omits integration-owned output");
 assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.key_evidence.maxItems, 3, "analysis limits key evidence");
+assert.ok(secPeriodicReportsAnalysisResponseSchema.required.includes("scoring_assessment"), "analysis requires scoring assessment");
+assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.scoring_assessment.properties.material_offsets.maxItems, 3, "analysis bounds material offsets");
 assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.calendar_items.maxItems, 4, "analysis limits calendar items");
+assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.report_ui.properties.snapshot_metrics.maxItems, 4, "analysis limits snapshot metrics");
+assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.report_ui.properties.performance_comparisons.maxItems, 3, "analysis limits comparison charts");
+assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.report_ui.properties.key_business_updates.maxItems, 3, "analysis limits business updates");
+assert.equal(normalizePeriodicComparisonBasis("Q1 2026", "Q1 2025", "other"), "yoy", "same quarter derives YoY");
+assert.equal(normalizePeriodicComparisonBasis("Q1 2026", "Q4 2025", "yoy"), "qoq", "consecutive quarters override an invalid YoY label");
+assert.equal(normalizePeriodicComparisonBasis("FY2026", "FY2025", "other"), "yoy", "annual periods derive prior-year comparison");
+assert.equal(normalizePeriodicChartNumber("($90 million)", 90), -90_000_000, "display value preserves negative sign and magnitude");
+assert.equal(normalizePeriodicChartNumber("$1.01B", 1.01), 1_010_000_000, "display value normalizes billion units");
+assert.ok(clipPeriodicDisplayText("A long narrative sentence that must fit a compact interface.", 32).length <= 32, "display text is bounded");
+
+const scoringWarnings = collectSecPeriodicReportsScoringWarnings(
+  {
+    score: 78,
+    signal: "neutral",
+    scoring_assessment: {
+      market_cap_tier: "small",
+      primary_change_severity: "meaningful",
+      operating_direction: "positive",
+      cash_flow_direction: "negative",
+      guidance_direction: "mixed",
+      earnings_quality: "low",
+      material_offsets: ["Free cash flow deteriorated."],
+      alert_driver: null,
+    },
+    report_ui: {
+      performance_comparisons: [
+        {
+          label: "Total Revenue",
+          current_numeric: 120,
+          comparison_numeric: 100,
+        },
+      ],
+    },
+  },
+  { filing_package: { market_context: { market_cap: 12_000_000_000 } } },
+);
+assert.ok(scoringWarnings.some((warning) => warning.code === "market_cap_tier_mismatch"), "validator checks market-cap tier");
+assert.ok(scoringWarnings.some((warning) => warning.code === "neutral_alert_score_conflict"), "validator checks neutral alert conflict");
+assert.ok(scoringWarnings.some((warning) => warning.code === "missing_alert_driver"), "validator requires alert driver");
+assert.ok(scoringWarnings.some((warning) => warning.code === "score_severity_mismatch"), "validator checks severity band");
+assert.ok(scoringWarnings.some((warning) => warning.code === "performance_threshold_understated"), "validator applies market-cap performance thresholds");
 
 for (const fixtureName of fixtureNames) {
   const fixture = readJson<Fixture>(join(roomDir, "fixtures", `${fixtureName}.json`));
@@ -87,9 +140,46 @@ for (const fixtureName of fixtureNames) {
   const displayPayload = buildSecPeriodicReportsDisplayPayload({
     parser_output: parserOutput,
   });
-  assert.equal(displayPayload.data.version, "periodic_report_display_v1", `${fixtureName}: display payload version`);
+  assert.equal(displayPayload.data.version, "periodic_report_display_v2", `${fixtureName}: parser-only display payload version`);
   assert.equal(displayPayload.display_type, expected.display_payload.display_type, `${fixtureName}: builder display type`);
   assert.equal(displayPayload.data.ipo_kind, null, `${fixtureName}: non-IPO display payload kind`);
+
+  if (fixtureName === "routine-10q-earnings") {
+    const reportDisplayPayload = buildSecPeriodicReportsDisplayPayload({
+      parser_output: parserOutput,
+      analysis_output: {
+        report_ui: {
+          snapshot_intro: "Quarterly revenue and profit improved from the prior-year period.",
+          snapshot_metrics: [
+            { label: "Period", value: "Q1 2026", note: null },
+            { label: "Revenue", value: "$120.4M", note: null },
+          ],
+          performance_comparisons: [
+            {
+              label: "Revenue",
+              current_label: "Q1 2026",
+              current_value: "$120.4M",
+              current_numeric: 120.4,
+              comparison_label: "Q1 2025",
+              comparison_value: "$112.0M",
+              comparison_numeric: 112,
+              comparison_basis: "yoy",
+              change_note: "Up 8% YoY",
+              change_tone: "improvement",
+            },
+          ],
+          guidance_metrics: [],
+          key_business_updates: [
+            { title: "Cash position", value: "$220.0M", summary: "Cash remains available for operations." },
+          ],
+        },
+      },
+    });
+    assert.equal(reportDisplayPayload.display_type, "periodic_report", "analysis UI selects periodic report display");
+    assert.equal(reportDisplayPayload.data.version, "periodic_report_display_v2", "analysis UI uses display v2");
+    assert.equal((reportDisplayPayload.data.snapshot_metrics as unknown[]).length, 2, "analysis UI keeps snapshot metrics");
+    assert.equal((reportDisplayPayload.data.performance_comparisons as unknown[]).length, 1, "analysis UI keeps comparison charts");
+  }
 
   const analysisPrompt = buildSecPeriodicReportsAnalysisPromptDraft({
     parser_output: parserOutput,
@@ -101,7 +191,7 @@ for (const fixtureName of fixtureNames) {
   assert.equal(analysisPrompt.version, SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION, `${fixtureName}: analysis prompt version`);
   assert.equal(analysisPrompt.responseFormat.json_schema.schema, secPeriodicReportsAnalysisResponseSchema, `${fixtureName}: analysis schema`);
   assert.ok(analysisPrompt.user.includes(String(parserOutput.formType)), `${fixtureName}: analysis prompt carries filing identity`);
-  assert.equal(analysisPrompt.user.includes("periodic_report_display_v1"), false, `${fixtureName}: analysis prompt omits display payload`);
+  assert.equal(analysisPrompt.user.includes("periodic_report_display_v2"), false, `${fixtureName}: analysis prompt omits display payload`);
   assertSourceBlockOnlyPayload(analysisPrompt.user, `${fixtureName}: analysis`);
 }
 

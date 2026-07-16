@@ -26,7 +26,7 @@ export const APPROVED_SEC_EVENT_TYPES = [
 
 export type ApprovedSecEventType = (typeof APPROVED_SEC_EVENT_TYPES)[number];
 
-export const PERIODIC_REPORT_DISPLAY_TYPES = ["generic", "offering_terms", "candidate_special"] as const;
+export const PERIODIC_REPORT_DISPLAY_TYPES = ["generic", "periodic_report", "offering_terms", "candidate_special"] as const;
 export type PeriodicReportDisplayType = (typeof PERIODIC_REPORT_DISPLAY_TYPES)[number];
 
 export type DeliveryLevel = "archive" | "feed" | "alert";
@@ -59,6 +59,16 @@ export type PeriodicReportSection = {
   charCount: number;
   excerpt: string;
   source: "filing_text";
+  confidence: ConfidenceLevel;
+};
+
+export type PeriodicReportContextSnippet = {
+  id: string;
+  topic: string;
+  item: string | null;
+  sectionKey: string | null;
+  text: string;
+  source: "primary_document_context";
   confidence: ConfidenceLevel;
 };
 
@@ -191,6 +201,7 @@ export type PeriodicReportFacts = {
   coverPage: PeriodicReportCoverPageFacts;
   amendment: PeriodicReportAmendmentFacts;
   sections: PeriodicReportSection[];
+  contextSnippets: PeriodicReportContextSnippet[];
   financialStatementLines: PeriodicRawEvidence[];
   highValueEvidence: PeriodicRawEvidence[];
   dateCandidates: PeriodicRawEvidence[];
@@ -241,6 +252,16 @@ export type PeriodicAnalysisOutput = {
   industry_group: string | null;
   theme_group: string | null;
   sub_theme: string | null;
+  scoring_assessment: {
+    market_cap_tier: "micro" | "small" | "mid" | "large" | "mega" | "unknown";
+    primary_change_severity: "routine" | "meaningful" | "strong" | "major" | "critical";
+    operating_direction: "positive" | "negative" | "mixed" | "neutral" | "unknown";
+    cash_flow_direction: "positive" | "negative" | "mixed" | "neutral" | "unknown";
+    guidance_direction: "positive" | "negative" | "mixed" | "neutral" | "absent";
+    earnings_quality: "high" | "mixed" | "low" | "unknown";
+    material_offsets: string[];
+    alert_driver: string | null;
+  };
   score: number;
   score_reason: string;
   signal: SignalDirection;
@@ -251,6 +272,31 @@ export type PeriodicAnalysisOutput = {
   bearish_points: string[];
   key_evidence: string[];
   what_to_watch_next: string[];
+  report_ui: {
+    snapshot_intro: string;
+    snapshot_metrics: Array<{ label: string; value: string; note: string | null }>;
+    performance_comparisons: Array<{
+      label: string;
+      current_label: string;
+      current_value: string;
+      current_numeric: number;
+      comparison_label: string;
+      comparison_value: string;
+      comparison_numeric: number;
+      comparison_basis: "yoy" | "qoq" | "other";
+      change_note: string | null;
+      change_tone: "improvement" | "deterioration" | "neutral";
+    }>;
+    guidance_metrics: Array<{
+      label: string;
+      guidance_label: string;
+      guidance_value: string;
+      performance_relationship: "same_basis" | "related_different_basis" | "standalone";
+      performance_label: string | null;
+      note: string | null;
+    }>;
+    key_business_updates: Array<{ title: string; value: string | null; summary: string }>;
+  };
   related_tickers: string[];
   calendar_items: PeriodicReportCalendarItem[];
   confidence: ConfidenceLevel;
