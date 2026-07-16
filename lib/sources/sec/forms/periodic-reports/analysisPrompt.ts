@@ -95,27 +95,21 @@ const analysisOutputSchema = {
       properties: {
         market_cap_tier: {
           type: "string",
-          enum: ["micro", "small", "mid", "large", "mega", "unknown"],
         },
         primary_change_severity: {
           type: "string",
-          enum: ["routine", "meaningful", "strong", "major", "critical"],
         },
         operating_direction: {
           type: "string",
-          enum: ["positive", "negative", "mixed", "neutral", "unknown"],
         },
         cash_flow_direction: {
           type: "string",
-          enum: ["positive", "negative", "mixed", "neutral", "unknown"],
         },
         guidance_direction: {
           type: "string",
-          enum: ["positive", "negative", "mixed", "neutral", "absent"],
         },
         earnings_quality: {
           type: "string",
-          enum: ["high", "mixed", "low", "unknown"],
         },
         material_offsets: {
           type: "array",
@@ -272,6 +266,7 @@ export const secPeriodicReportsAnalysisSystemPrompt = [
   "Periodic reports may contain several material subjects. Select one representative event_type for feed filtering, but preserve other material findings in the investor-facing analysis instead of discarding them.",
   "Score measures investor attention and urgency, not bullishness or bearishness. Signal expresses direction. A large positive or negative surprise can both receive a high score.",
   "Complete report_ui performance comparisons and scoring_assessment before assigning score, signal, score_reason, quick_take, or summary.",
+  "Use only these scoring_assessment values: market_cap_tier micro/small/mid/large/mega/unknown; primary_change_severity routine/meaningful/strong/major/critical; operating_direction and cash_flow_direction positive/negative/mixed/neutral/unknown; guidance_direction positive/negative/mixed/neutral/absent; earnings_quality high/mixed/low/unknown.",
   "Use site-provided market capitalization only to choose the percentage threshold tier; never add or subtract score points merely because a company is larger or smaller.",
   "Market-cap tiers are fixed: micro below $100M; small $100M to below $500M; mid $500M to below $2B; large $2B to below $10B; mega $10B or more. Use unknown when market cap is absent or unusable.",
   "For revenue or sales changes, meaningful / strong / major percentage thresholds are: micro 25% / 50% / 100%; small 15% / 30% / 60%; mid 10% / 20% / 40%; large 7% / 15% / 30%; mega 5% / 10% / 20%. If market-cap tier is unknown, use mid thresholds conservatively and set market_cap_tier to unknown.",
