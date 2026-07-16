@@ -237,12 +237,12 @@
 
 .listHeader {
   display: flex;
-  min-height: var(--sr-size-table-header-row);
+  min-height: calc(var(--sr-size-table-header-row) + var(--sr-space-3));
   align-items: center;
   justify-content: space-between;
   gap: var(--sr-space-4);
   border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
-  padding: 0 var(--sr-space-3);
+  padding: 0 var(--sr-space-5);
   background: var(--sr-color-surface-table-header-start);
 }
 
@@ -261,7 +261,7 @@
   overflow: hidden;
   margin: 0;
   color: var(--sr-color-text-primary);
-  font-size: var(--sr-font-size-base);
+  font-size: var(--sr-font-size-xl);
   font-weight: var(--sr-font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -269,17 +269,17 @@
 
 .liveLabel {
   flex: 0 0 auto;
-  gap: var(--sr-space-1-5);
+  gap: var(--sr-space-2);
   color: var(--sr-color-accent);
-  font-size: var(--sr-font-size-xs);
-  font-weight: var(--sr-font-weight-heavy);
+  font-size: var(--sr-font-size-base);
+  font-weight: var(--sr-font-weight-semibold);
   line-height: var(--sr-line-height-none);
   text-transform: uppercase;
 }
 
 .liveLabel i {
-  width: var(--sr-space-2);
-  height: var(--sr-space-2);
+  width: calc(var(--sr-space-2) + var(--sr-space-0-5));
+  height: calc(var(--sr-space-2) + var(--sr-space-0-5));
   border-radius: var(--sr-radius-pill);
   background: var(--sr-color-accent);
 }
@@ -287,7 +287,7 @@
 .listHeaderCount {
   flex: 0 0 auto;
   color: var(--sr-color-text-secondary);
-  font-size: var(--sr-font-size-sm);
+  font-size: var(--sr-font-size-base);
   font-variant-numeric: var(--sr-font-variant-numeric);
   white-space: nowrap;
 }
@@ -299,7 +299,7 @@
 .filingItem {
   display: grid;
   min-width: 0;
-  min-height: calc(var(--sr-size-table-row) + var(--sr-space-8) + var(--sr-space-4));
+  min-height: calc(var(--sr-size-table-row) + var(--sr-space-8));
   grid-template-columns:
     calc(var(--sr-space-8) + var(--sr-space-6) + var(--sr-space-0-5))
     calc(var(--sr-space-8) * 2 + var(--sr-space-3))
@@ -420,8 +420,7 @@
 
 .identity strong,
 .identity span,
-.filingCopy h2,
-.filingCopy p {
+.filingCopy h2 {
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -481,20 +480,12 @@
 }
 
 .filingCopy h2 {
+  display: -webkit-box;
   margin: 0;
   color: var(--sr-color-text-primary);
   font-size: var(--sr-font-size-base);
   font-weight: var(--sr-font-weight-medium);
   line-height: var(--sr-line-height-body);
-  white-space: nowrap;
-}
-
-.filingCopy p {
-  display: -webkit-box;
-  margin: var(--sr-space-1) 0 0;
-  color: var(--sr-color-text-meta);
-  font-size: var(--sr-font-size-xs);
-  line-height: var(--sr-line-height-relaxed);
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
@@ -1116,12 +1107,12 @@
   }
 
   .filingItem {
-    min-height: calc(var(--sr-size-table-row) + var(--sr-space-8) + var(--sr-space-2));
+    min-height: calc(var(--sr-size-table-row) + var(--sr-space-8));
     grid-template-columns: max-content minmax(0, 1fr) max-content;
     grid-template-rows: auto auto;
     align-items: start;
     gap: var(--sr-space-1-5);
-    padding: var(--sr-space-3) var(--sr-space-2-5);
+    padding: var(--sr-space-2) var(--sr-space-2-5);
   }
 
   .filingItemTime {
@@ -1166,10 +1157,6 @@
     white-space: normal;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
-  }
-
-  .filingCopy p {
-    display: none;
   }
 
   .filingMarketReaction {

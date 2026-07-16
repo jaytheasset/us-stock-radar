@@ -144,7 +144,6 @@ export function FilingsV2List({
                         <span>{record.source} · {record.formType}</span>
                       </div>
                       <h2 title={record.title}>{record.title}</h2>
-                      <p>{record.summary}</p>
                     </div>
                     <FilingsV2MarketReaction recordId={record.id} signal={record.signal} ticker={record.ticker} />
                     <div className={styles.filingImpact}>
