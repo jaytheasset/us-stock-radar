@@ -121,6 +121,13 @@ import {
   applySecProxyValidationRepairPatches,
   buildSecProxyValidationRepairPlan,
 } from "@/lib/ai/secProxyAnalysisAdapter";
+import {
+  SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY,
+  SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION,
+  adaptSecPeriodicReportsAnalysisPromptResultForAnalysis,
+  buildSecPeriodicReportsAnalysisPromptForInput,
+  isSecPeriodicReportsFilingInput,
+} from "@/lib/ai/secPeriodicReportsAnalysisAdapter";
 
 export {
   SEC_424B_ANALYSIS_PROMPT_KEY,
@@ -164,7 +171,10 @@ export {
   SEC_S1_F1_VALIDATION_REPAIR_PROMPT_VERSION,
   SEC_PROXY_VALIDATION_REPAIR_PROMPT_KEY,
   SEC_PROXY_VALIDATION_REPAIR_PROMPT_VERSION,
+  SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY,
+  SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION,
   applySecProxyValidationRepairPatches,
+  adaptSecPeriodicReportsAnalysisPromptResultForAnalysis,
   applySecS1F1ValidationRepairPatches,
   adaptSec424bAnalysisPromptResultForAnalysis,
   applySec424bValidationRepairPatches,
@@ -201,6 +211,7 @@ export {
   buildSecS1F1AnalysisPromptForInput,
   buildSecS1F1ValidationRepairPlan,
   buildSecProxyValidationRepairPlan,
+  buildSecPeriodicReportsAnalysisPromptForInput,
   buildSecTenderAnalysisPromptForInput,
   buildSecSc13AnalysisPromptForInput,
   buildSecSc13ValidationRepairPlan,
@@ -219,6 +230,7 @@ export {
   isSc13FilingInput,
   isS4F4FilingInput,
   isS8FilingInput,
+  isSecPeriodicReportsFilingInput,
   normalizeSec8k6kRouterResult,
   normalizeSec425RouterResultForInput,
   shouldRunSec8k6kAnalysis,
@@ -236,5 +248,6 @@ export function getSecAnalysisAdapterMode(input: SecFilingAnalysisInput) {
   if (isS8FilingInput(input)) return "analysis_only";
   if (isS3FilingInput(input)) return "analysis_only";
   if (isS1F1FilingInput(input)) return "analysis_only";
+  if (isSecPeriodicReportsFilingInput(input)) return "periodic_report_analysis_only";
   return "generic_sec_analysis";
 }
