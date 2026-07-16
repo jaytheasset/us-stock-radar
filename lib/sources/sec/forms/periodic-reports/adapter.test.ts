@@ -30,11 +30,11 @@ assert.equal(secPeriodicReportsAdapter.parserGroup, PERIODIC_REPORTS_PARSER_GROU
 assert.equal(secPeriodicReportsAdapter.formScope, PERIODIC_REPORTS_FORM_SCOPE, "form scope");
 assert.deepEqual(secPeriodicReportsAdapter.supportedForms, SUPPORTED_PERIODIC_REPORT_FORMS, "supported forms");
 assert.equal(secPeriodicReportsAdapter.analysisMode, SEC_PERIODIC_REPORTS_ANALYSIS_MODE, "analysis mode");
-assert.equal(secPeriodicReportsAdapter.analysisMode, "router_then_display_payload_then_analysis", "stable analysis mode");
+assert.equal(secPeriodicReportsAdapter.analysisMode, "analysis_only", "stable analysis mode");
 assert.deepEqual(secPeriodicReportsAdapter.displayTypes, PERIODIC_REPORT_DISPLAY_TYPES, "display types");
 assert.equal(typeof secPeriodicReportsAdapter.parse, "function", "parse export");
 assert.equal(typeof secPeriodicReportsAdapter.parser, "function", "parser export");
-assert.equal(typeof secPeriodicReportsAdapter.buildRouterPrompt, "function", "router prompt export");
+assert.equal("buildRouterPrompt" in secPeriodicReportsAdapter, false, "router prompt removed");
 assert.equal(typeof secPeriodicReportsAdapter.buildAnalysisPrompt, "function", "analysis prompt export");
 assert.equal(typeof secPeriodicReportsAdapter.buildDisplayPayload, "function", "display payload export");
 
@@ -42,43 +42,20 @@ const parserOutput = secPeriodicReportsAdapter.parse(fixture.filing);
 assert.equal(parserOutput.parserGroup, PERIODIC_REPORTS_PARSER_GROUP, "adapter parser output group");
 assert.equal(parserOutput.formType, "10-Q", "adapter parser output form");
 
-const routerPrompt = secPeriodicReportsAdapter.buildRouterPrompt({
-  parser_output: parserOutput,
-  filing_excerpt: fixture.filing.bodyText,
-  market_context: null,
-});
-const routerPromptPayload = JSON.parse(routerPrompt.user);
-assert.ok(Array.isArray(routerPromptPayload.cleaned_source_blocks), "router prompt uses cleaned source blocks");
-assert.ok(routerPromptPayload.cleaned_source_blocks.length > 0, "router prompt has cleaned source blocks");
-
 const displayPayload = secPeriodicReportsAdapter.buildDisplayPayload({
   parser_output: parserOutput,
-  router_result: {
-    event_type: fixture.expected_event_type || "earnings",
-    display_type: "generic",
-    display_version: secPeriodicReportsAdapter.displayPayloadVersion,
-    ipo_kind: null,
-    analysis_llm_needed: true,
-  },
 });
 assert.equal(displayPayload.display_type, "generic", "display payload type");
 assert.equal(displayPayload.data.version, secPeriodicReportsAdapter.displayPayloadVersion, "display payload version");
 
 const analysisPrompt = secPeriodicReportsAdapter.buildAnalysisPrompt({
   parser_output: parserOutput,
-  router_result: {
-    event_type: fixture.expected_event_type || "earnings",
-    display_type: "generic",
-    display_version: secPeriodicReportsAdapter.displayPayloadVersion,
-    preliminary_score: 60,
-    derived_delivery_level: "feed",
-    analysis_llm_needed: true,
-  },
   display_payload: displayPayload,
   filing_excerpt: fixture.filing.bodyText,
   market_context: null,
 });
 assert.ok(analysisPrompt.user.includes(secPeriodicReportsAdapter.displayPayloadVersion), "analysis prompt receives display payload");
+assert.ok(Array.isArray(JSON.parse(analysisPrompt.user).cleaned_source_blocks), "analysis prompt receives source blocks");
 
 console.log("sec periodic reports adapter contract passed");
 

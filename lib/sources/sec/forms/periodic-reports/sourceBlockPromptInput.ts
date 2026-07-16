@@ -1,58 +1,13 @@
-import type { PeriodicParserOutput } from "./types";
 import {
   buildCurrentFilingIdentity,
   currentFilingIdentityText,
   type SecCurrentFilingIdentity,
 } from "../common/currentFilingIdentity.ts";
-
-export const SEC_PERIODIC_REPORTS_ROUTER_PROMPT_KEY = "sec_periodic_reports_router_draft";
-export const SEC_PERIODIC_REPORTS_ROUTER_PROMPT_VERSION = "v3";
-export const SEC_PERIODIC_REPORTS_DISPLAY_PAYLOAD_VERSION = "periodic_report_display_v1";
+import type { PeriodicParserOutput } from "./types.ts";
 
 const PERIODIC_REPORTS_FORM_SCOPE = "10-K / 10-Q / 20-F, 10-K/A / 10-Q/A / 20-F/A";
-const APPROVED_SEC_EVENT_TYPES = [
-  "listing_risk",
-  "dilution_risk",
-  "ipo_listing",
-  "earnings",
-  "sales_performance",
-  "product_update",
-  "leadership_governance",
-  "insider_ownership",
-  "shareholder_vote",
-  "strategic_transaction",
-  "financial_risk",
-  "legal_risk",
-  "dividends",
-  "capital_return",
-  "fda_clinical",
-  "other",
-] as const;
 
-export const SEC_PERIODIC_REPORTS_ROUTER_ACTION_VALUES = ["archive", "feed", "alert"] as const;
-export const SEC_PERIODIC_REPORTS_ROUTER_DELIVERY_LEVEL_VALUES = SEC_PERIODIC_REPORTS_ROUTER_ACTION_VALUES;
-export const SEC_PERIODIC_REPORTS_ROUTER_CONFIDENCE_VALUES = ["high", "medium", "low"] as const;
-export const SEC_PERIODIC_REPORTS_ROUTER_DISPLAY_TYPES = ["generic", "offering_terms", "candidate_special"] as const;
-export const SEC_PERIODIC_REPORTS_ROUTER_CASE_VALUES = [
-  "routine_periodic_report",
-  "earnings_results",
-  "sales_performance",
-  "going_concern_or_liquidity",
-  "legal_or_regulatory_risk",
-  "dividend_or_capital_return",
-  "product_or_business_update",
-  "fda_or_clinical_update",
-  "leadership_or_governance",
-  "strategic_transaction",
-  "ipo_listing",
-  "listing_risk",
-  "routine_amendment_no_llm",
-  "material_amendment",
-  "needs_human_review",
-  "other",
-] as const;
-
-export type SecPeriodicReportsRouterPromptInput = {
+export type SecPeriodicReportsPromptInput = {
   filing_package?: Record<string, unknown>;
   parser_output: PeriodicParserOutput;
   filing_excerpt?: string | null;
@@ -72,114 +27,8 @@ export type SecPeriodicReportsSourceBlockPromptInput = {
   cleaned_source_blocks: SecPeriodicReportsSourceBlock[];
 };
 
-export const secPeriodicReportsRouterSystemPrompt = [
-  `Route one SEC periodic report filing in scope: ${PERIODIC_REPORTS_FORM_SCOPE}.`,
-  "Return only strict JSON matching the response schema. Do not call live APIs, live FMP, live databases, ingest, alerts, UI, or shared services.",
-  "Use only cleaned_source_blocks, fixture market_context source blocks, and fixture parent_filing_context source blocks supplied in the user message.",
-  "Use current_filing.form_type exactly when naming the SEC form. Do not substitute another form from the same periodic-report family.",
-  "Do not use parser-generated facts, signals, route hints, deterministic classification, extraction summaries, event labels, display labels, or investment labels as classification authority.",
-  "Do not request or rely on full raw filing text.",
-  "Choose exactly one event_type from the approved 16 values. Do not invent or rename event types.",
-  "Choose exactly one existing display_type and display_version for the UI payload builder. Do not create new display types.",
-  "Use ipo_listing for traditional IPOs, SPAC IPOs, direct listings, IPO pricing, first trading/listing dates, and registration effectiveness tied to a new public listing.",
-  "Do not use ipo_listing for ordinary resale registration, shelf offerings, ATM/offering dilution, already-listed issuer resales, or post-closing business updates.",
-  "For IPO/listing detail, do not split event_type. Return ipo_kind as traditional or spac; use null when event_type is not ipo_listing or the source does not support the kind.",
-  "SPAC redemption, liquidation, and de-SPAC cases are not automatically ipo_listing. Classify by the main event: listing_risk, shareholder_vote, strategic_transaction, financial_risk, or ipo_listing only when IPO/listing itself is dominant.",
-  "The UI payload builder, not analysis LLM, builds display_payload.data after classifier output.",
-  "Return whether analysis LLM is needed. Routine deterministic parser archive cases do not need analysis LLM.",
-  "Periodic reports can bundle many disclosures. Route to the dominant investor-relevant event, not simply the first fact found.",
-  "Use earnings for broad quarterly or annual operating results when revenue and profit/loss are the main update.",
-  "Use sales_performance when revenue, unit sales, bookings, subscribers, or customer demand is the dominant surprise or deterioration.",
-  "Use financial_risk for going-concern language, severe liquidity pressure, covenant/default risk, financing runway problems, or debt stress.",
-  "Use legal_risk for material litigation, investigations, subpoenas, enforcement actions, or regulatory proceedings.",
-  "Use dividends for dividend declarations or changes. Use capital_return for share repurchase authorizations or meaningful buyback activity.",
-  "Use product_update, fda_clinical, leadership_governance, listing_risk, or strategic_transaction only when those facts dominate the periodic report impact.",
-  "For 10-K/A, 10-Q/A, and 20-F/A, treat the filing as an update, not automatically as a new event.",
-  "Deterministic archive handling is allowed only for mechanically clear routine amendment source text. Otherwise route from cleaned_source_blocks.",
-  "If an amendment changes financial statements, going-concern language, legal proceedings, controls, or other material facts, route only the changed matter and mark material_amendment.",
-  "Use fixture market context only when the parser or excerpt gives a reason to compare size or severity. Never request or assume live market data.",
-  "Score bands are fixed and delivery is derived from preliminary_score: score below 50 derived_delivery_level archive; score 50 to 74 feed; score 75 or above alert.",
-  "When evidence is ambiguous, choose needs_human_review, lower confidence, and avoid alert-level scoring unless evidence is concrete.",
-].join("\n");
-
-export const secPeriodicReportsRouterResponseSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: [
-    "source_group",
-    "source_form_scope",
-    "source_form_type",
-    "event_type",
-    "display_type",
-    "display_version",
-    "ipo_kind",
-    "route_case",
-    "preliminary_score",
-    "derived_delivery_level",
-    "signal",
-    "confidence",
-    "routing_reason",
-    "evidence",
-    "source_blocks_used",
-    "market_context_needed",
-    "market_context_fields",
-    "analysis_llm_needed",
-    "needs_human_review",
-    "debug",
-  ],
-  properties: {
-    source_group: { type: "string", enum: ["filings"] },
-    source_form_scope: { type: "string", enum: [PERIODIC_REPORTS_FORM_SCOPE] },
-    source_form_type: { type: "string", enum: ["10-K", "10-Q", "20-F", "10-K/A", "10-Q/A", "20-F/A"] },
-    event_type: { type: "string", enum: APPROVED_SEC_EVENT_TYPES },
-    display_type: { type: "string", enum: SEC_PERIODIC_REPORTS_ROUTER_DISPLAY_TYPES },
-    display_version: { type: "string", enum: [SEC_PERIODIC_REPORTS_DISPLAY_PAYLOAD_VERSION] },
-    ipo_kind: { type: ["string", "null"], enum: ["traditional", "spac", null] },
-    route_case: { type: "string", enum: SEC_PERIODIC_REPORTS_ROUTER_CASE_VALUES },
-    preliminary_score: { type: "integer", minimum: 0, maximum: 100 },
-    derived_delivery_level: { type: "string", enum: SEC_PERIODIC_REPORTS_ROUTER_DELIVERY_LEVEL_VALUES },
-    signal: { type: "string", enum: ["bullish", "bearish", "volatile", "neutral"] },
-    confidence: { type: "string", enum: SEC_PERIODIC_REPORTS_ROUTER_CONFIDENCE_VALUES },
-    routing_reason: { type: "string" },
-    evidence: { type: "array", items: { type: "string" } },
-    source_blocks_used: { type: "array", items: { type: "string" } },
-    market_context_needed: { type: "boolean" },
-    market_context_fields: { type: "array", items: { type: "string" } },
-    analysis_llm_needed: { type: "boolean" },
-    needs_human_review: { type: "boolean" },
-    debug: {
-      type: "object",
-      additionalProperties: false,
-      required: ["parser_version", "router_prompt_key", "router_prompt_version"],
-      properties: {
-        parser_version: { type: ["string", "null"] },
-        router_prompt_key: { type: "string" },
-        router_prompt_version: { type: "string" },
-      },
-    },
-  },
-} as const;
-
-export function buildSecPeriodicReportsRouterPromptDraft(input: SecPeriodicReportsRouterPromptInput) {
-  const userPayload = buildSecPeriodicReportsSourceBlockPromptInput(input);
-  return {
-    key: SEC_PERIODIC_REPORTS_ROUTER_PROMPT_KEY,
-    version: SEC_PERIODIC_REPORTS_ROUTER_PROMPT_VERSION,
-    system: secPeriodicReportsRouterSystemPrompt,
-    user: JSON.stringify(userPayload),
-    responseFormat: {
-      type: "json_schema",
-      json_schema: {
-        name: "sec_periodic_reports_router",
-        strict: true,
-        schema: secPeriodicReportsRouterResponseSchema,
-      },
-    },
-  };
-}
-
 export function buildSecPeriodicReportsSourceBlockPromptInput(
-  input: SecPeriodicReportsRouterPromptInput,
+  input: SecPeriodicReportsPromptInput,
 ): SecPeriodicReportsSourceBlockPromptInput {
   const parserOutput = input.parser_output;
   const facts = parserOutput.facts;

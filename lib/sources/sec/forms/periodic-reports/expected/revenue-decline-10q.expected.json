@@ -31,7 +31,7 @@
     "calendarItems": [],
     "warnings": [],
     "raw": {
-      "processing_path": "parser_router_analysis",
+      "processing_path": "parser_analysis",
       "market_context_used": false
     }
   },

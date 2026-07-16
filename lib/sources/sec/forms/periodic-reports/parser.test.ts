@@ -179,7 +179,7 @@ for (const caseName of cases) {
     assert.equal(deterministicClassification?.derived_delivery_level, "archive", `${caseName}: deterministic delivery`);
     assert.equal(deterministicClassification?.analysis_llm_needed, false, `${caseName}: deterministic skips analysis LLM`);
   }
-  assert.deepEqual(parsed.signals, [], `${caseName}: parser leaves event signals for router`);
+  assert.deepEqual(parsed.signals, [], `${caseName}: parser leaves event signals for analysis`);
   assert.equal(hasOwn(parsed.facts, "dominantParserEventType"), false, `${caseName}: no parser event ranking`);
   assert.equal(hasOwn(parsed.facts, "deterministicConclusion"), false, `${caseName}: no parser score conclusion`);
   if (!deterministicParserPath) assert.equal(JSON.stringify(parsed).includes('"event_type"'), false, `${caseName}: no event_type field in non-deterministic parser output`);

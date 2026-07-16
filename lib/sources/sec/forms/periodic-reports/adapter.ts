@@ -2,11 +2,10 @@ import { buildSecPeriodicReportsAnalysisPromptDraft, SEC_PERIODIC_REPORTS_ANALYS
 import { buildSecPeriodicReportsDisplayPayload, SEC_PERIODIC_REPORTS_DISPLAY_PAYLOAD_VERSION } from "./displayPayload.ts";
 import { secPeriodicReportsFetchPlan } from "./fetchPlan.ts";
 import { parseSecPeriodicReport, SEC_PERIODIC_REPORTS_PARSER_VERSION } from "./parser.ts";
-import { buildSecPeriodicReportsRouterPromptDraft, SEC_PERIODIC_REPORTS_ROUTER_PROMPT_KEY, SEC_PERIODIC_REPORTS_ROUTER_PROMPT_VERSION } from "./routerPrompt.ts";
 import { PERIODIC_REPORT_DISPLAY_TYPES, PERIODIC_REPORTS_FORM_SCOPE, PERIODIC_REPORTS_PARSER_GROUP, SUPPORTED_PERIODIC_REPORT_FORMS } from "./types.ts";
 
 export const SEC_PERIODIC_REPORTS_ADAPTER_KEY = "sec-periodic-reports";
-export const SEC_PERIODIC_REPORTS_ANALYSIS_MODE = "router_then_display_payload_then_analysis";
+export const SEC_PERIODIC_REPORTS_ANALYSIS_MODE = "analysis_only";
 
 export const secPeriodicReportsAdapter = {
   key: SEC_PERIODIC_REPORTS_ADAPTER_KEY,
@@ -15,8 +14,6 @@ export const secPeriodicReportsAdapter = {
   supportedForms: SUPPORTED_PERIODIC_REPORT_FORMS,
   analysisMode: SEC_PERIODIC_REPORTS_ANALYSIS_MODE,
   parserVersion: SEC_PERIODIC_REPORTS_PARSER_VERSION,
-  routerPromptKey: SEC_PERIODIC_REPORTS_ROUTER_PROMPT_KEY,
-  routerPromptVersion: SEC_PERIODIC_REPORTS_ROUTER_PROMPT_VERSION,
   analysisPromptKey: SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY,
   analysisPromptVersion: SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION,
   displayPayloadVersion: SEC_PERIODIC_REPORTS_DISPLAY_PAYLOAD_VERSION,
@@ -24,7 +21,6 @@ export const secPeriodicReportsAdapter = {
   fetchPlan: secPeriodicReportsFetchPlan,
   parse: parseSecPeriodicReport,
   parser: parseSecPeriodicReport,
-  buildRouterPrompt: buildSecPeriodicReportsRouterPromptDraft,
   buildAnalysisPrompt: buildSecPeriodicReportsAnalysisPromptDraft,
   buildDisplayPayload: buildSecPeriodicReportsDisplayPayload,
 } as const;

@@ -2,22 +2,18 @@ import type { PeriodicDisplayPayload, PeriodicParserOutput, PeriodicReportDispla
 
 export const SEC_PERIODIC_REPORTS_DISPLAY_PAYLOAD_VERSION = "periodic_report_display_v1";
 const PERIODIC_REPORT_DISPLAY_TYPES = ["generic", "offering_terms", "candidate_special"] as const;
-const IPO_KIND_VALUES = ["traditional", "spac"] as const;
 
 export type SecPeriodicReportsDisplayPayloadInput = {
   parser_output: PeriodicParserOutput;
-  router_result?: Record<string, unknown> | null;
 };
 
 export function buildSecPeriodicReportsDisplayPayload(input: SecPeriodicReportsDisplayPayloadInput): PeriodicDisplayPayload {
   const parserOutput = input.parser_output;
-  const routerResult = toRecord(input.router_result) || {};
   const deterministic = toRecord(parserOutput.raw.deterministic_classification) || {};
   const facts = parserOutput.facts;
-  const displayType = readDisplayType(routerResult.display_type) || readDisplayType(deterministic.display_type) || "generic";
-  const displayVersion = nullableString(routerResult.display_version) || nullableString(deterministic.display_version) || SEC_PERIODIC_REPORTS_DISPLAY_PAYLOAD_VERSION;
-  const selectedEventType = nullableString(routerResult.event_type) || nullableString(deterministic.event_type);
-  const ipoKind = selectedEventType === "ipo_listing" ? readIpoKind(routerResult.ipo_kind) : null;
+  const displayType = readDisplayType(deterministic.display_type) || "generic";
+  const displayVersion = nullableString(deterministic.display_version) || SEC_PERIODIC_REPORTS_DISPLAY_PAYLOAD_VERSION;
+  const selectedEventType = nullableString(deterministic.event_type);
   const sourcePackage = facts.sourcePackage;
   const normalizedPrimary = toRecord(parserOutput.raw.normalized_primary_document) || {};
   const normalizedDiagnostics = toRecord(normalizedPrimary.diagnostics) || {};
@@ -28,7 +24,7 @@ export function buildSecPeriodicReportsDisplayPayload(input: SecPeriodicReportsD
     data: {
       version: displayVersion,
       event_type: selectedEventType,
-      ipo_kind: ipoKind,
+      ipo_kind: null,
       form_type: parserOutput.formType,
       accession_number: parserOutput.accessionNumber,
       company_name: facts.companyName,
@@ -47,10 +43,8 @@ export function buildSecPeriodicReportsDisplayPayload(input: SecPeriodicReportsD
         parent_accession_number: facts.amendment.parentAccessionNumber,
         original_filing_date: facts.amendment.originalFilingDate,
       },
-      routing: {
-        route_case: nullableString(routerResult.route_case),
-        confidence: nullableString(routerResult.confidence),
-        analysis_llm_needed: booleanOrNull(routerResult.analysis_llm_needed) ?? booleanOrNull(deterministic.analysis_llm_needed),
+      analysis: {
+        analysis_llm_needed: booleanOrNull(deterministic.analysis_llm_needed) ?? true,
       },
       source_inventory: {
         document_count: sourcePackage.documentCount,
@@ -83,7 +77,7 @@ export function buildSecPeriodicReportsDisplayPayload(input: SecPeriodicReportsD
       parser_warnings: parserOutput.warnings,
     },
     evidence: collectDisplayEvidence(parserOutput),
-    notes: buildDisplayNotes(parserOutput, routerResult, deterministic),
+    notes: buildDisplayNotes(parserOutput, deterministic),
   };
 }
 
@@ -96,13 +90,11 @@ function collectDisplayEvidence(parserOutput: PeriodicParserOutput) {
   ]).slice(0, 12);
 }
 
-function buildDisplayNotes(parserOutput: PeriodicParserOutput, routerResult: Record<string, unknown>, deterministic: Record<string, unknown>) {
+function buildDisplayNotes(parserOutput: PeriodicParserOutput, deterministic: Record<string, unknown>) {
   const notes: string[] = [];
-  notes.push("Display payload built from source-backed fields and classifier output; analysis LLM should not invent UI fields.");
+  notes.push("Display payload built from source-backed parser fields; analysis LLM should not invent UI fields.");
   const deterministicReason = nullableString(deterministic.reason);
   if (deterministicReason) notes.push(deterministicReason);
-  const routingReason = nullableString(routerResult.routing_reason);
-  if (routingReason) notes.push(`Router: ${routingReason}`);
   if (parserOutput.warnings.length) notes.push(`Parser warnings: ${parserOutput.warnings.slice(0, 6).join("; ")}`);
   return notes;
 }
@@ -110,11 +102,6 @@ function buildDisplayNotes(parserOutput: PeriodicParserOutput, routerResult: Rec
 function readDisplayType(value: unknown): PeriodicReportDisplayType | null {
   const text = nullableString(value);
   return text && PERIODIC_REPORT_DISPLAY_TYPES.includes(text as PeriodicReportDisplayType) ? (text as PeriodicReportDisplayType) : null;
-}
-
-function readIpoKind(value: unknown) {
-  const text = nullableString(value);
-  return text && IPO_KIND_VALUES.includes(text as (typeof IPO_KIND_VALUES)[number]) ? text : null;
 }
 
 function toRecord(value: unknown): Record<string, unknown> | null {

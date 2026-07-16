@@ -1895,24 +1895,15 @@ function getDisplayLabelGuide(roomKey: string): DisplayLabelGuide | null {
           items: ["generic", "offering_terms", "candidate_special"],
         },
         {
-          title: "2. Router cases",
+          title: "2. Analysis focus",
           items: [
-            "routine_periodic_report",
-            "earnings_results",
-            "sales_performance",
-            "going_concern_or_liquidity",
-            "legal_or_regulatory_risk",
-            "dividend_or_capital_return",
-            "product_or_business_update",
-            "fda_or_clinical_update",
-            "leadership_or_governance",
-            "strategic_transaction",
-            "ipo_listing",
-            "listing_risk",
-            "routine_amendment_no_llm",
-            "material_amendment",
-            "needs_human_review",
-            "other",
+            "Financial performance and outlook",
+            "Liquidity and going concern",
+            "Controls and accounting",
+            "Legal and regulatory matters",
+            "Capital allocation",
+            "Material business updates",
+            "Amendment changes",
           ],
         },
         {
@@ -1938,7 +1929,7 @@ function getDisplayLabelGuide(roomKey: string): DisplayLabelGuide | null {
       detailModes: [
         {
           mode: "generic periodic report payload",
-          purpose: "Default 10-K, 10-Q, or 20-F detail payload built from parser facts and router output.",
+          purpose: "Default 10-K, 10-Q, or 20-F detail payload built from parser facts and direct analysis output.",
           groups: [
             {
               title: "Display payload",
@@ -1949,8 +1940,8 @@ function getDisplayLabelGuide(roomKey: string): DisplayLabelGuide | null {
               items: ["Company name", "Primary ticker", "Exchange", "Reporting period", "Fiscal year", "Fiscal quarter", "Form type"],
             },
             {
-              title: "Routing fields",
-              items: ["route_case", "confidence", "analysis_llm_needed", "derived_delivery_level", "source_blocks_used"],
+              title: "Analysis fields",
+              items: ["event_type", "score", "signal", "confidence", "source_blocks_used"],
             },
           ],
         },
@@ -1963,8 +1954,8 @@ function getDisplayLabelGuide(roomKey: string): DisplayLabelGuide | null {
               items: ["Revenue", "Net income / loss", "EPS", "Gross margin", "Operating loss", "Cash balance", "Bookings", "Subscribers / units"],
             },
             {
-              title: "Route cases",
-              items: ["earnings_results", "sales_performance", "routine_periodic_report"],
+              title: "Analysis outcomes",
+              items: ["earnings", "sales_performance", "financial_risk", "other"],
             },
             {
               title: "Event choices",

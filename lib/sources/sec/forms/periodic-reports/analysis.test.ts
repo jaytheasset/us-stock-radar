@@ -13,7 +13,6 @@ import {
 } from "./analysisPrompt";
 import { buildSecPeriodicReportsDisplayPayload } from "./displayPayload";
 import { parseSecPeriodicReport } from "./parser";
-import { buildSecPeriodicReportsRouterPromptDraft } from "./routerPrompt";
 import {
   APPROVED_SEC_EVENT_TYPES,
   PERIODIC_REPORT_DISPLAY_TYPES,
@@ -46,11 +45,9 @@ assert.match(secPeriodicReportsAnalysisSystemPrompt, /score below 50 is archive/
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /50 to 74 is feed/i, "analysis prompt feed band");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /75 or above is alert/i, "analysis prompt alert band");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /Use market context only when supplied as fixture/i, "analysis fixture market context only");
-assert.match(secPeriodicReportsAnalysisSystemPrompt, /analysis LLM writes investor-facing copy only/i, "analysis only writes investor copy");
+assert.match(secPeriodicReportsAnalysisSystemPrompt, /Choose analysis_output\.event_type directly/i, "analysis chooses representative event type");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /Copy display_payload from the supplied display_payload/i, "analysis copies display payload");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /Do not choose the UI template/i, "analysis display type guardrail");
-assert.match(secPeriodicReportsAnalysisSystemPrompt, /event_type is ipo_listing/i, "analysis preserves IPO listing event type");
-assert.match(secPeriodicReportsAnalysisSystemPrompt, /display_payload\.data\.ipo_kind as traditional or spac/i, "analysis preserves IPO kind detail");
 
 for (const fixtureName of fixtureNames) {
   const fixture = readJson<Fixture>(join(roomDir, "fixtures", `${fixtureName}.json`));
@@ -84,33 +81,15 @@ for (const fixtureName of fixtureNames) {
   }
 
   const parserOutput = parseSecPeriodicReport(fixture.filing);
-  const routerResult = {
-    event_type: expected.analysis_output.event_type,
-    display_type: expected.display_payload.display_type,
-    display_version: "periodic_report_display_v1",
-    ipo_kind: null,
-    preliminary_score: expected.analysis_output.score,
-    derived_delivery_level: expected.fixture_expected.expected_delivery_level,
-    analysis_llm_needed: expected.parser_output.raw.processing_path !== "deterministic_parser_archive",
-    route_case: expected.parser_output.raw.processing_path === "deterministic_parser_archive" ? "routine_amendment_no_llm" : "fixture_expected",
-    confidence: expected.analysis_output.confidence,
-  };
   const displayPayload = buildSecPeriodicReportsDisplayPayload({
     parser_output: parserOutput,
-    router_result: routerResult,
   });
   assert.equal(displayPayload.data.version, "periodic_report_display_v1", `${fixtureName}: display payload version`);
   assert.equal(displayPayload.display_type, expected.display_payload.display_type, `${fixtureName}: builder display type`);
   assert.equal(displayPayload.data.ipo_kind, null, `${fixtureName}: non-IPO display payload kind`);
 
-  const routerPrompt = buildSecPeriodicReportsRouterPromptDraft({
-    parser_output: parserOutput,
-    filing_excerpt: fixture.filing.bodyText,
-    market_context: fixture.market_context || null,
-  });
   const analysisPrompt = buildSecPeriodicReportsAnalysisPromptDraft({
     parser_output: parserOutput,
-    router_result: routerResult,
     display_payload: displayPayload,
     filing_excerpt: fixture.filing.bodyText,
     market_context: fixture.market_context || null,
@@ -119,27 +98,10 @@ for (const fixtureName of fixtureNames) {
   assert.equal(analysisPrompt.key, SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY, `${fixtureName}: analysis prompt key`);
   assert.equal(analysisPrompt.version, SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION, `${fixtureName}: analysis prompt version`);
   assert.equal(analysisPrompt.responseFormat.json_schema.schema, secPeriodicReportsAnalysisResponseSchema, `${fixtureName}: analysis schema`);
-  assert.ok(routerPrompt.user.includes(String(parserOutput.formType)), `${fixtureName}: router prompt carries parser output`);
-  assert.ok(analysisPrompt.user.includes(String(expected.analysis_output.event_type)), `${fixtureName}: analysis prompt carries router result`);
+  assert.ok(analysisPrompt.user.includes(String(parserOutput.formType)), `${fixtureName}: analysis prompt carries filing identity`);
   assert.ok(analysisPrompt.user.includes("periodic_report_display_v1"), `${fixtureName}: analysis prompt carries built display payload`);
-  assertSourceBlockOnlyPayload(routerPrompt.user, `${fixtureName}: router`);
   assertSourceBlockOnlyPayload(analysisPrompt.user, `${fixtureName}: analysis`);
 }
-
-const ipoFixture = readJson<Fixture>(join(roomDir, "fixtures", "routine-10q-earnings.json"));
-const ipoParserOutput = parseSecPeriodicReport(ipoFixture.filing);
-const ipoDisplayPayload = buildSecPeriodicReportsDisplayPayload({
-  parser_output: ipoParserOutput,
-  router_result: {
-    event_type: "ipo_listing",
-    display_type: "generic",
-    display_version: "periodic_report_display_v1",
-    ipo_kind: "spac",
-    analysis_llm_needed: true,
-  },
-});
-assert.equal(ipoDisplayPayload.data.event_type, "ipo_listing", "display payload carries IPO listing event type");
-assert.equal(ipoDisplayPayload.data.ipo_kind, "spac", "display payload carries IPO kind");
 
 console.log("sec periodic reports analysis fixtures passed");
 

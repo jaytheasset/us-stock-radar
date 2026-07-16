@@ -1,5 +1,5 @@
 import type { PeriodicDisplayPayload, PeriodicParserOutput } from "./types";
-import { buildSecPeriodicReportsSourceBlockPromptInput, type SecPeriodicReportsRouterPromptInput } from "./routerPrompt.ts";
+import { buildSecPeriodicReportsSourceBlockPromptInput, type SecPeriodicReportsPromptInput } from "./sourceBlockPromptInput.ts";
 
 export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY = "sec_periodic_reports_analysis_draft";
 export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION = "v3";
@@ -25,9 +25,8 @@ const APPROVED_SEC_EVENT_TYPES = [
 ] as const;
 const PERIODIC_REPORT_DISPLAY_TYPES = ["generic", "offering_terms", "candidate_special"] as const;
 
-export type SecPeriodicReportsAnalysisPromptInput = SecPeriodicReportsRouterPromptInput & {
+export type SecPeriodicReportsAnalysisPromptInput = SecPeriodicReportsPromptInput & {
   parser_output: PeriodicParserOutput;
-  router_result: Record<string, unknown>;
   display_payload: PeriodicDisplayPayload;
   market_context?: Record<string, unknown> | null;
 };
@@ -170,10 +169,9 @@ export const secPeriodicReportsAnalysisSystemPrompt = [
   "Return only strict JSON matching the required room result shape: parser_output, analysis_output, display_payload, and fixture_expected.",
   "Use cleaned_source_blocks as the evidence base. Do not invent source links, accession numbers, tickers, dates, or evidence.",
   "Do not use parser-generated facts, signals, route hints, deterministic classification, extraction summaries, event labels, display labels, or investment labels as analysis authority.",
-  "Use router_result as the selected classification, not a suggestion. The analysis LLM writes investor-facing copy only.",
-  "Copy analysis_output.event_type from router_result.event_type or parser deterministic classification. Do not choose, alter, invent, or rename event types.",
+  "Choose analysis_output.event_type directly from the approved event types based on the dominant investor-relevant conclusion supported by the original source blocks.",
+  "Periodic reports may contain several material subjects. Select one representative event_type for feed filtering, but preserve other material findings in the investor-facing analysis instead of discarding them.",
   "Copy display_payload from the supplied display_payload. Do not choose the UI template, do not invent UI fields, and do not create display types.",
-  "If event_type is ipo_listing, preserve display_payload.data.ipo_kind as traditional or spac when supplied; do not split ipo_listing into separate event types.",
   "Score bands are fixed and must not be changed: score below 50 is archive, 50 to 74 is feed, 75 or above is alert.",
   "The delivery level belongs in fixture_expected.expected_delivery_level and must be derived from analysis_output.score.",
   "Use market context only when supplied as fixture market_context. Do not call or ask for live market data.",
@@ -184,9 +182,8 @@ export const secPeriodicReportsAnalysisSystemPrompt = [
   "For ipo_listing, discuss only source-backed IPO/listing facts such as traditional IPO, SPAC IPO, direct listing, IPO pricing, first trading/listing date, or registration effectiveness tied to a new public listing.",
   "Do not treat ordinary resale registration, shelf offerings, ATM/offering dilution, already-listed issuer resale, post-closing business updates, SPAC redemption, liquidation, or de-SPAC updates as ipo_listing unless the IPO/listing itself is the dominant event.",
   "For 10-K/A, 10-Q/A, and 20-F/A, analyze only the change from the parent filing. Routine exhibit-only, certification-only, signature-only, XBRL-only, or no-other-change amendments should archive as other.",
-  "Deterministic archive handling is allowed only when router_result says analysis_llm_needed is false for mechanically clear routine source text.",
-  "If router_result.analysis_llm_needed is false, keep the copy brief and source-backed; do not escalate into a richer investor event.",
-  "Do not decide special UI. If supplied display_payload.display_type is candidate_special, explain only the investor-facing implications and preserve the payload unchanged.",
+  "For mechanically clear routine amendment source text, keep the copy brief and source-backed and do not escalate it into a richer investor event.",
+  "Do not decide special UI. Preserve the supplied display payload and write only the investor-facing analysis fields.",
 ].join("\n");
 
 export function buildSecPeriodicReportsAnalysisPromptDraft(input: SecPeriodicReportsAnalysisPromptInput) {
@@ -196,7 +193,6 @@ export function buildSecPeriodicReportsAnalysisPromptDraft(input: SecPeriodicRep
     system: secPeriodicReportsAnalysisSystemPrompt,
     user: JSON.stringify({
       ...buildSecPeriodicReportsSourceBlockPromptInput(input),
-      router_result: input.router_result,
       display_payload: input.display_payload,
     }),
     responseFormat: {
