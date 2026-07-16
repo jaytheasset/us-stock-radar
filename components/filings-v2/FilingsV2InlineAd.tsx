@@ -19,11 +19,9 @@ export function FilingsV2InlineAd({ format }: FilingsV2InlineAdProps) {
 
   if (format === "desktop") {
     return (
-      <tr className={styles.inlineAdTableRow}>
-        <td colSpan={9}>{slot}</td>
-      </tr>
+      <div className={styles.desktopInlineAdItem}>{slot}</div>
     );
   }
 
-  return <li className={styles.mobileInlineAdItem}>{slot}</li>;
+  return <div className={styles.mobileInlineAdItem}>{slot}</div>;
 }
