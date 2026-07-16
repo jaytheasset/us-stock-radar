@@ -4768,13 +4768,7 @@ function SpacTransactionStatusTemplate({
     (value, index, values) => value !== "Not disclosed" && values.indexOf(value) === index,
   );
   const closingLine = closingValues.join(" / ") || "Not disclosed";
-  const keyEvidence = model.keyEvidence.length
-    ? model.keyEvidence.slice(0, 3)
-    : [
-        `Minimum cash condition: ${model.minCashCondition} (${model.minCashStatus}).`,
-        `Redemptions: ${model.redemptionRate}${model.redemptionDeadline !== "Not disclosed" ? `; deadline ${model.redemptionDeadline}.` : "."}`,
-        `Closing / listing: ${closingLine}.`,
-      ];
+  const keyEvidence = model.keyEvidence.slice(0, 3);
   const watchItems = model.watchNext.slice(0, 3);
 
   return (
@@ -4807,36 +4801,39 @@ function SpacTransactionStatusTemplate({
         <div className="card-heading-row">
           <div>
             <h2>Target Company Overview</h2>
-            <p>What public investors are actually getting if the merger closes.</p>
           </div>
           <span>{model.expectedTicker}</span>
         </div>
         <p className="spac-target-overview-copy">{model.targetCompanyStory}</p>
       </section>
 
-      <section className="stock-detail-card spac-context-strip">
-        <div className="spac-compact-columns">
-          <section className="spac-watch-card">
-            <h3>Key Evidence</h3>
-            <ol>
-              {keyEvidence.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ol>
-          </section>
-
-          <section className="spac-watch-card">
-            <h3>What To Watch Next</h3>
-            {watchItems.length ? (
-              <ol>
-                {watchItems.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ol>
+      {keyEvidence.length || watchItems.length ? (
+        <section className="stock-detail-card spac-context-strip">
+          <div className="spac-compact-columns">
+            {keyEvidence.length ? (
+              <section className="spac-watch-card">
+                <h3>Key Evidence</h3>
+                <ol>
+                  {keyEvidence.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ol>
+              </section>
             ) : null}
-          </section>
-        </div>
-      </section>
+
+            {watchItems.length ? (
+              <section className="spac-watch-card">
+                <h3>What To Watch Next</h3>
+                <ol>
+                  {watchItems.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ol>
+              </section>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
 
       <OriginalFilingText filing={filing} eventLabel={eventLabel} />
     </>
