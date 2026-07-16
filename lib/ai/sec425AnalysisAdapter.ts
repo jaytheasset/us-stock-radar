@@ -84,15 +84,10 @@ export function buildSec425AnalysisPromptForInput(
     throw new Error("SEC 425 parser output is missing from filing package");
   }
 
-  const displayPayload = buildSec425DisplayPayload(
-    parserOutput,
-    routerResult as unknown as Sec425RouterDecision,
-  );
   const prompt = buildSec425AnalysisPromptDraft({
     filing_package: readFilingPackage(input),
     parser_output: parserOutput,
     router_result: routerResult as unknown as Sec425RouterDecision,
-    display_payload: displayPayload,
     filing_excerpt: null,
     market_context: readMarketContext(input),
   });
@@ -101,7 +96,7 @@ export function buildSec425AnalysisPromptForInput(
     ...prompt,
     system: [
       prompt.system,
-      "Runtime integration note: return only impact_level, analysis_output, analysis_case, and source_blocks_used. Parser output and display_payload are supplied or rebuilt by integration and must not be returned.",
+      "Runtime integration note: return only impact_level, analysis_output, analysis_case, and source_blocks_used. Parser output and display_payload are rebuilt by integration and must not be returned.",
       "Use source block IDs exactly as supplied when listing source_blocks_used.",
       "Router score is only an archive gate. Assign the final score from the explicit material event established by the current Form 425 source blocks alone.",
     ].join("\n"),
@@ -170,6 +165,9 @@ export function adaptSec425AnalysisPromptResultForAnalysis(
     quick_take: stringValue(analysisOutput.quick_take),
     summary: stringValue(analysisOutput.summary),
     why_it_matters: stringValue(analysisOutput.why_it_matters),
+    snapshot_title: stringValue(analysisOutput.snapshot_title),
+    snapshot_summary: stringValue(analysisOutput.snapshot_summary),
+    snapshot_items: normalizeSnapshotItems(analysisOutput.snapshot_items),
     bullish_points: archiveScore ? [] : readStringArray(analysisOutput.bullish_points),
     bearish_points: archiveScore ? [] : readStringArray(analysisOutput.bearish_points),
     key_evidence: archiveScore ? [] : readStringArray(analysisOutput.key_evidence),
@@ -181,10 +179,23 @@ export function adaptSec425AnalysisPromptResultForAnalysis(
     confidence: normalizeConfidence(stringValue(analysisOutput.confidence)),
     needs_human_review: analysisOutput.needs_human_review === true,
   };
-  const displayPayload = buildSec425DisplayPayload(
+  const baseDisplayPayload = buildSec425DisplayPayload(
     parserOutput,
     routerResult as unknown as Sec425RouterDecision,
   );
+  const displayPayload = normalizedOutput.snapshot_items.length > 0
+    ? {
+        ...baseDisplayPayload,
+        data: {
+          ...baseDisplayPayload.data,
+          analysis_snapshot: {
+            title: normalizedOutput.snapshot_title,
+            summary: normalizedOutput.snapshot_summary,
+            items: normalizedOutput.snapshot_items,
+          },
+        },
+      }
+    : baseDisplayPayload;
   const roomResult: Sec425RoomResult = {
     parser_output: parserOutput,
     analysis_output: normalizedOutput,
@@ -291,6 +302,25 @@ function normalizeTickerRows(value: unknown, primaryTicker: { ticker: string | n
     normalized.unshift(primaryTicker as { ticker: string; exchange: string | null });
   }
   return normalized;
+}
+
+function normalizeSnapshotItems(value: unknown): Sec425AnalysisOutput["snapshot_items"] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      const record = readRecord(item);
+      if (!record) return null;
+      const label = stringValue(record.label);
+      const itemValue = stringValue(record.value);
+      if (!label || !itemValue) return null;
+      return {
+        label,
+        value: itemValue,
+        note: stringValue(record.note),
+      };
+    })
+    .filter((item): item is Sec425AnalysisOutput["snapshot_items"][number] => Boolean(item))
+    .slice(0, 4);
 }
 
 function buildFallbackEventTitle(input: SecFilingAnalysisInput, parserOutput: Sec425ParserOutput, eventType: string) {

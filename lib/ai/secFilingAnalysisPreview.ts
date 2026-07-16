@@ -1121,7 +1121,8 @@ export async function runSecFilingAnalysisForRawRow(
       };
     }
 
-    const sec425Analysis = adaptSec425AnalysisPromptResultForAnalysis(
+    let finalSec425Value = analysisRun.parsed;
+    let sec425Analysis = adaptSec425AnalysisPromptResultForAnalysis(
       analysisRun.parsed,
       input,
       routerResult,
@@ -1154,7 +1155,40 @@ export async function runSecFilingAnalysisForRawRow(
       };
     }
 
-    const usage = combineUsage(routerRun.usage, analysisRun.usage);
+    const sec425ValidationWarnings = readStringArray(
+      sec425Analysis.analysis.sec_425_validation_warnings,
+    );
+    const keyEvidenceRepairNeeded = sec425ValidationWarnings.some((warning) =>
+      /key_evidence items must be (?:under 28 words|180 characters or fewer)/i.test(warning),
+    );
+    const keyEvidenceRepairPrompt = keyEvidenceRepairNeeded
+      ? buildSec425KeyEvidenceRepairPrompt(prompt, analysisRun.parsed, sec425ValidationWarnings)
+      : null;
+    const keyEvidenceRepairRun = keyEvidenceRepairPrompt
+      ? await runOpenAiJsonPrompt(env, keyEvidenceRepairPrompt, analysisLlmConfig, {
+          maxAttempts: 1,
+          disableFallback: true,
+        })
+      : null;
+    let keyEvidenceRepairApplied = false;
+
+    if (keyEvidenceRepairRun?.ok && keyEvidenceRepairRun.parsed) {
+      const repairedEvidence = readStringArray(keyEvidenceRepairRun.parsed.key_evidence);
+      if (isValidSec425KeyEvidence(repairedEvidence)) {
+        finalSec425Value = replaceSec425KeyEvidence(analysisRun.parsed, repairedEvidence);
+        const repairedAnalysis = adaptSec425AnalysisPromptResultForAnalysis(
+          finalSec425Value,
+          input,
+          routerResult,
+        );
+        if (repairedAnalysis.ok) {
+          sec425Analysis = repairedAnalysis;
+          keyEvidenceRepairApplied = true;
+        }
+      }
+    }
+
+    const usage = combineUsage(routerRun.usage, analysisRun.usage, keyEvidenceRepairRun?.usage);
     return {
       ok: true,
       stage: "complete",
@@ -1170,16 +1204,35 @@ export async function runSecFilingAnalysisForRawRow(
       analysis: sec425Analysis.analysis,
       triageOutputText: routerRun.outputText,
       outputText: analysisRun.outputText,
+      repairOutputText: keyEvidenceRepairRun?.outputText,
       triageUsage: routerRun.usage,
+      repairUsage: keyEvidenceRepairRun?.usage,
       usage,
       costEstimate: estimateCost(analysisRun.model, usage),
+      repairOpenAiResponseId: keyEvidenceRepairRun?.openAiResponseId || null,
+      validationRepair: keyEvidenceRepairPrompt
+        ? {
+            attempted: true,
+            succeeded: keyEvidenceRepairApplied,
+            issue_codes: ["key_evidence_length"],
+            error: keyEvidenceRepairRun?.error || null,
+          }
+        : null,
       prompt: {
         key: SEC_425_ANALYSIS_PROMPT_KEY,
         version: SEC_425_ANALYSIS_PROMPT_VERSION,
         triage: {
-          key: SEC_425_ROUTER_PROMPT_KEY,
-          version: SEC_425_ROUTER_PROMPT_VERSION,
-        },
+            key: SEC_425_ROUTER_PROMPT_KEY,
+            version: SEC_425_ROUTER_PROMPT_VERSION,
+          },
+        repair: keyEvidenceRepairPrompt
+          ? {
+              key: keyEvidenceRepairPrompt.key,
+              version: keyEvidenceRepairPrompt.version,
+              system: keyEvidenceRepairPrompt.system,
+              responseFormat: keyEvidenceRepairPrompt.responseFormat,
+            }
+          : undefined,
       },
     };
   }
@@ -2436,6 +2489,89 @@ function buildSec425AnalysisModelPlan(
     selectedModel,
     reason,
   };
+}
+
+function buildSec425KeyEvidenceRepairPrompt(
+  analysisPrompt: OpenAiPrompt,
+  analysisResult: Record<string, unknown>,
+  validationWarnings: string[],
+): OpenAiPrompt {
+  const analysisOutput = readRecord(analysisResult.analysis_output) || {};
+  const promptPayload = parseAnalysisJson(analysisPrompt.user);
+  const sourceBlocks = readRecordArray(promptPayload?.cleaned_source_blocks);
+  const usedBlockIds = new Set(readStringArray(analysisResult.source_blocks_used));
+  const matchingBlocks = usedBlockIds.size > 0
+    ? sourceBlocks.filter((block) => usedBlockIds.has(stringValue(block.block_id)))
+    : [];
+  const selectedSourceBlocks = (matchingBlocks.length > 0 ? matchingBlocks : sourceBlocks)
+    .slice(0, 3)
+    .map((block) => ({
+      block_id: stringValue(block.block_id),
+      source_ref: stringValue(block.source_ref),
+      heading: stringValue(block.heading),
+      text: stringValue(block.text),
+    }));
+
+  return {
+    key: "sec_425_key_evidence_repair",
+    version: "v1",
+    system: [
+      "Repair only the Key Evidence list for one SEC Form 425 analysis and return strict JSON.",
+      "Use the supplied original source blocks to preserve factual meaning.",
+      "Return no more than 3 non-repetitive items.",
+      "Each item must be one complete sentence under 28 words and 180 characters.",
+      "Prefer the strongest transaction facts. Do not repeat the summary or add unsupported facts.",
+      "This is one repair attempt. Return only the requested JSON object.",
+    ].join("\n"),
+    user: JSON.stringify({
+      validator_warnings: validationWarnings.filter((warning) => /key_evidence/i.test(warning)),
+      current_key_evidence: readStringArray(analysisOutput.key_evidence),
+      selected_original_source_blocks: selectedSourceBlocks,
+    }),
+    responseFormat: {
+      json_schema: {
+        name: "sec_425_key_evidence_repair",
+        strict: true,
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["key_evidence"],
+          properties: {
+            key_evidence: {
+              type: "array",
+              maxItems: 3,
+              items: {
+                type: "string",
+                maxLength: 180,
+                description: "One complete source-backed sentence under 28 words.",
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+}
+
+function replaceSec425KeyEvidence(
+  analysisResult: Record<string, unknown>,
+  keyEvidence: string[],
+): Record<string, unknown> {
+  const analysisOutput = readRecord(analysisResult.analysis_output) || {};
+  return {
+    ...analysisResult,
+    analysis_output: {
+      ...analysisOutput,
+      key_evidence: keyEvidence,
+    },
+  };
+}
+
+function isValidSec425KeyEvidence(items: string[]) {
+  return items.length <= 3 && items.every((item) => {
+    const wordCount = item.trim().split(/\s+/).filter(Boolean).length;
+    return wordCount <= 28 && item.length <= 180;
+  });
 }
 
 function resolveGeminiModelForSecInput(env: ReturnType<typeof getServerEnv>, input?: SecFilingAnalysisInput) {
@@ -3954,7 +4090,6 @@ function toGeminiResponseSchema(value: unknown): unknown {
   for (const [key, childValue] of Object.entries(record)) {
     if (key === "additionalProperties") continue;
     if (key === "maxLength") continue;
-    if (key === "maxItems") continue;
     if (key === "type" && Array.isArray(childValue)) {
       const nonNullType = childValue.find((item) => item !== "null");
       if (typeof nonNullType === "string") {
@@ -3964,6 +4099,15 @@ function toGeminiResponseSchema(value: unknown): unknown {
       continue;
     }
     output[key] = toGeminiResponseSchema(childValue);
+  }
+
+  const maxLength = numberValue(record.maxLength);
+  if (maxLength !== null && maxLength > 0) {
+    const existingDescription = stringValue(output.description);
+    const lengthGuidance = `Keep this string within ${maxLength} characters.`;
+    output.description = existingDescription
+      ? `${existingDescription} ${lengthGuidance}`
+      : lengthGuidance;
   }
 
   return output;

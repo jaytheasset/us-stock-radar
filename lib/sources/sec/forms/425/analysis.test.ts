@@ -9,7 +9,6 @@ import {
   sec425RequiredOutputResponseSchema,
   validateSec425RoomResult,
 } from "./analysisPrompt";
-import { buildSec425DisplayPayload } from "./displayPayload";
 import { parseSec425Filing } from "./parser";
 import type { Sec425RouterDecision } from "./routerPrompt";
 import {
@@ -91,7 +90,6 @@ const mergerRoute = buildRouterDecision(mergerParserOutput, {
   transaction_stage: "agreement_signed",
   display_type: "candidate_special",
 });
-const mergerDisplayPayload = buildSec425DisplayPayload(mergerParserOutput, mergerRoute);
 const analysisPrompt = buildSec425AnalysisPromptDraft({
   filing_package: {
     fixture: "merger-terms-strategic-transaction",
@@ -110,13 +108,12 @@ const analysisPrompt = buildSec425AnalysisPromptDraft({
   },
   parser_output: mergerParserOutput,
   router_result: mergerRoute,
-  display_payload: mergerDisplayPayload,
   filing_excerpt: mergerFixture.filingText,
   market_context: mergerFixture.market_context || null,
 });
 
 assert.equal(analysisPrompt.key, "sec_425_analysis_draft");
-assert.equal(analysisPrompt.version, "v7");
+assert.equal(analysisPrompt.version, "v8");
 assert.deepEqual(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.event_type.enum, SEC_425_APPROVED_EVENT_TYPES);
 assert.ok(SEC_425_APPROVED_EVENT_TYPES.includes("ipo_listing"));
 assert.ok(analysisPrompt.system.includes("Required Output JSON shape"));
@@ -140,8 +137,9 @@ assert.ok(analysisPrompt.system.includes("score_reason is the visible score expl
 assert.ok(analysisPrompt.system.includes("targeting 18-32 words"));
 assert.ok(analysisPrompt.system.includes("Do not begin with 'The score'"));
 assert.ok(analysisPrompt.system.includes("Copy analysis_output.event_type exactly from router_result.event_type"));
-assert.ok(analysisPrompt.system.includes("Treat supplied display_payload as read-only integration context"));
-assert.ok(analysisPrompt.system.includes("Return display_payload only when the response schema explicitly asks for it"));
+assert.ok(analysisPrompt.system.includes("Do not use parser-generated display payload fields as evidence"));
+assert.ok(analysisPrompt.system.includes("write exactly 4 snapshot_items"));
+assert.ok(analysisPrompt.system.includes("Never output Not disclosed"));
 assert.ok(analysisPrompt.system.includes("For ipo_listing cases"));
 assert.ok(analysisPrompt.system.includes("Do not call"));
 assert.ok(analysisPrompt.system.includes("Analyze this Form 425 independently"));
@@ -155,10 +153,9 @@ assert.ok(analysisPrompt.system.includes("Write no more than 3 key_evidence item
 assert.ok(analysisPrompt.system.includes("no more than 3 what_to_watch_next items"));
 assert.ok(analysisPrompt.system.includes("summary 2 to 4 concise sentences under 100 words total"));
 assert.ok(analysisPrompt.system.includes("Keep each item under 72 characters"));
-assert.ok(analysisPrompt.user.includes("\"display_payload\""));
+assert.equal(analysisPrompt.user.includes("\"display_payload\""), false);
 assert.equal(analysisPrompt.user.includes("\"related_transaction_context\""), false);
 assert.equal(analysisPrompt.user.includes("Prior merger registration statement"), false);
-assert.ok(analysisPrompt.user.includes("\"display_version\":\"sec_425_display_v1\""));
 assert.ok(analysisPrompt.user.includes("\"market_context\""));
 assert.ok(analysisPrompt.user.includes("\"market_cap\":3500000000"));
 assert.ok(analysisPrompt.user.includes("\"analysis_source_block_count\""));
@@ -166,10 +163,12 @@ assert.ok(analysisPrompt.user.includes("\"analysis_source_selection\""));
 assert.ok(analysisPrompt.user.includes("router_selected_with_adjacent_context"));
 assert.ok(analysisPrompt.user.includes(mergerParserOutput.raw.cleaned_source_blocks[0]?.block_id || "missing-block-id"));
 assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.key_evidence.maxItems, 3);
+assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.key_evidence.items.maxLength, 180);
 assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.what_to_watch_next.maxItems, 3);
 assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.event_title.maxLength, 90);
 assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.score_reason.maxLength, 180);
 assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.what_to_watch_next.items.maxLength, 72);
+assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.snapshot_items.maxItems, 4);
 
 const amendmentParserOutput = parseSec425Filing({
   title: "425 - merger amendment notice",
@@ -199,7 +198,6 @@ const amendmentPrompt = buildSec425AnalysisPromptDraft({
   filing_package: { fixture: "agreement-amendment-source-selection" },
   parser_output: amendmentParserOutput,
   router_result: amendmentRoute,
-  display_payload: buildSec425DisplayPayload(amendmentParserOutput, amendmentRoute),
   filing_excerpt: "",
   market_context: null,
 });

@@ -8,7 +8,6 @@ import {
   deliveryLevelFromScore,
   isSec425ApprovedEventType,
   type Sec425Confidence,
-  type Sec425DisplayPayload,
   type Sec425DisplayType,
   type Sec425MarketScope,
   type Sec425ParserOutput,
@@ -26,7 +25,7 @@ import { buildSec425DisplayPayload } from "./displayPayload";
 import { buildSecSourceBlockPromptInput } from "../common/sourceBlockPromptInput";
 
 export const SEC_425_ANALYSIS_PROMPT_KEY = "sec_425_analysis_draft";
-export const SEC_425_ANALYSIS_PROMPT_VERSION = "v7";
+export const SEC_425_ANALYSIS_PROMPT_VERSION = "v8";
 
 export const SEC_425_ANALYSIS_CASE_VALUES = [
   "strategic_transaction_terms",
@@ -54,7 +53,6 @@ export type Sec425AnalysisCase = (typeof SEC_425_ANALYSIS_CASE_VALUES)[number];
 
 export type Sec425AnalysisPromptInput = Sec425RouterPromptInput & {
   router_result: Sec425RouterDecision;
-  display_payload: Sec425DisplayPayload;
 };
 
 export const sec425AnalysisSystemPrompt = [
@@ -64,9 +62,9 @@ export const sec425AnalysisSystemPrompt = [
   "Do not use parser-generated facts, signals, route hints, extraction summaries, event labels, display labels, or investment labels as analysis authority.",
   `Use only these approved event types: ${SEC_425_APPROVED_EVENT_TYPES.join(", ")}.`,
   "Do not choose the event_type. Copy analysis_output.event_type exactly from router_result.event_type.",
-  "Do not choose, create, or tune the detail UI. Treat supplied display_payload as read-only integration context.",
-  "Return display_payload only when the response schema explicitly asks for it, and then copy it exactly. Runtime integration rebuilds it from the router result and parser output.",
-  "Do not create new display types. The router/classifier and UI payload builder already selected display_type, display_version, and display data.",
+  "Do not choose or change display_type. The router already selected the page family.",
+  "Do not use parser-generated display payload fields as evidence. They are not included in this analysis input.",
+  "For the selected page family, write only the investor-facing snapshot fields requested in analysis_output from the original cleaned_source_blocks.",
   "Use router_result.routing_reason and cleaned_source_blocks as the evidence base.",
   "Analyze this Form 425 independently. Prior 8-K, 6-K, S-4, F-4, proxy, tender, and Form 425 analyses are not supplied as evidence and must not be assumed.",
   "Treat the router as a candidate gate, not final proof of materiality. Before writing analysis, independently verify from the selected original source blocks that this current Form 425 establishes an explicit material transaction event.",
@@ -104,8 +102,14 @@ export const sec425AnalysisSystemPrompt = [
   "Keep investor-facing copy consistent with the other SEC analysis rooms: event_title under 90 characters; quick_take one sentence under 22 words; summary 2 to 4 concise sentences under 100 words total; why_it_matters one sentence under 35 words.",
   "score_reason is the visible score explanation. Write exactly one concise analyst-style conclusion for stock investors, targeting 18-32 words, that explains why the impact is material without repeating the filing summary.",
   "Do not format score_reason as sections, bullets, labels, or an internal scoring review. Do not begin with 'The score' and do not mention the score, score level, impact band, delivery level, form type, filing mechanics, or SEC form labels.",
-  "Write no more than 3 key_evidence items. Usually select 2 or 3 of the strongest non-repetitive original-source facts, but use 1 when the filing supports only one distinct material fact. Keep each item under 28 words and do not restate the full summary.",
+  "Write no more than 3 key_evidence items. Usually select 2 or 3 of the strongest non-repetitive original-source facts, but use 1 when the filing supports only one distinct material fact. Keep each item under 28 words and 180 characters, and do not restate the full summary.",
   "Write no more than 3 what_to_watch_next items. Keep each item under 72 characters and name a concrete transaction milestone, decision, deadline, or changed condition supported by the filing context.",
+  "When router_result.display_type is spac_transaction_status, write exactly 4 snapshot_items. Choose concise labels that fit this filing's actual event; do not force fixed labels such as Vote Date, Target / Ticker, or Closing / Listing.",
+  "Every snapshot item must be directly supported by the original cleaned_source_blocks. Never use parser facts, extracted values, keyword snippets, or UI defaults to fill a snapshot item.",
+  "Never output Not disclosed, Not available, Unknown, N/A, placeholder ticker text, or an inferred date in snapshot_items. If one fact is unavailable, choose another material disclosed fact so the snapshot still contains 4 useful items.",
+  "For dates, identify the date's exact role from the source, such as original meeting, adjourned meeting, reconvened meeting, record date, vote deadline, or expected closing. Do not merge different dates or treat an intermediate adjournment date as the final reconvened date.",
+  "Keep snapshot_title under 40 characters, snapshot_summary to one sentence under 35 words, each snapshot label under 28 characters, each value under 80 characters, and each optional note under 100 characters.",
+  "When router_result.display_type is not spac_transaction_status, return empty snapshot_title, snapshot_summary, and snapshot_items.",
   "For archive-score communications, keep bullish_points, bearish_points, key_evidence, and what_to_watch_next empty. Use one concise summary sentence describing the communication and whether it changed the transaction.",
   "Analysis is responsible for investor-facing copy: event_title, score_reason, signal, quick_take, summary, why_it_matters, points, evidence, watch items, confidence, and human-review flag.",
 ].join("\n");
@@ -153,6 +157,9 @@ export const sec425RequiredOutputResponseSchema = {
         "quick_take",
         "summary",
         "why_it_matters",
+        "snapshot_title",
+        "snapshot_summary",
+        "snapshot_items",
         "bullish_points",
         "bearish_points",
         "key_evidence",
@@ -187,12 +194,28 @@ export const sec425RequiredOutputResponseSchema = {
         quick_take: { type: "string", maxLength: 180 },
         summary: { type: "string", maxLength: 800 },
         why_it_matters: { type: "string", maxLength: 260 },
+        snapshot_title: { type: "string", maxLength: 40 },
+        snapshot_summary: { type: "string", maxLength: 260 },
+        snapshot_items: {
+          type: "array",
+          maxItems: 4,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["label", "value", "note"],
+            properties: {
+              label: { type: "string", maxLength: 28 },
+              value: { type: "string", maxLength: 80 },
+              note: { type: "string", maxLength: 100 },
+            },
+          },
+        },
         bullish_points: { type: "array", items: { type: "string" } },
         bearish_points: { type: "array", items: { type: "string" } },
         key_evidence: {
           type: "array",
           maxItems: 3,
-          items: { type: "string", maxLength: 220 },
+          items: { type: "string", maxLength: 180 },
         },
         what_to_watch_next: {
           type: "array",
@@ -281,7 +304,6 @@ export function buildSec425AnalysisPromptDraft(input: Sec425AnalysisPromptInput)
         selected_block_count: analysisSourceBlocks.length,
       },
       router_result: input.router_result,
-      display_payload: input.display_payload,
       market_context: input.market_context || null,
     }),
     responseFormat: {
@@ -434,6 +456,9 @@ export function buildSec425DeterministicRoomResult(
       quick_take: "No new investor-relevant transaction change was disclosed.",
       summary: archiveSummary,
       why_it_matters: "No new investor-relevant transaction change is supported by the supplied communication.",
+      snapshot_title: "",
+      snapshot_summary: "",
+      snapshot_items: [],
       bullish_points: [],
       bearish_points: [],
       key_evidence: [],
@@ -461,6 +486,9 @@ export function validateSec425RoomResult(result: Sec425RoomResult): string[] {
   const errors: string[] = [];
   const analysis = result.analysis_output;
   const fixtureExpected = result.fixture_expected;
+  const snapshotItems = Array.isArray(analysis.snapshot_items) ? analysis.snapshot_items : [];
+  const snapshotTitle = typeof analysis.snapshot_title === "string" ? analysis.snapshot_title : "";
+  const snapshotSummary = typeof analysis.snapshot_summary === "string" ? analysis.snapshot_summary : "";
 
   if (result.parser_output.parserGroup !== "425") errors.push("parser_output.parserGroup must be 425");
   if (result.parser_output.formType !== "425") errors.push("parser_output.formType must be 425");
@@ -482,11 +510,27 @@ export function validateSec425RoomResult(result: Sec425RoomResult): string[] {
   if (analysis.key_evidence.some((item) => wordCount(item) > 28)) {
     errors.push("analysis_output.key_evidence items must be under 28 words");
   }
+  if (analysis.key_evidence.some((item) => item.length > 180)) {
+    errors.push("analysis_output.key_evidence items must be 180 characters or fewer");
+  }
   if (analysis.what_to_watch_next.length > 3) {
     errors.push("analysis_output.what_to_watch_next must contain no more than 3 items");
   }
   if (analysis.what_to_watch_next.some((item) => item.length > 72)) {
     errors.push("analysis_output.what_to_watch_next items must be under 72 characters");
+  }
+  if (result.display_payload.display_type === "spac_transaction_status") {
+    if (snapshotItems.length !== 4) {
+      errors.push("spac_transaction_status requires exactly 4 source-backed snapshot items");
+    }
+    if (!snapshotTitle.trim() || !snapshotSummary.trim()) {
+      errors.push("spac_transaction_status requires snapshot_title and snapshot_summary");
+    }
+    if (snapshotItems.some((item) => isMissingSnapshotValue(item.value))) {
+      errors.push("spac_transaction_status snapshot items must not contain missing-value placeholders");
+    }
+  } else if (snapshotTitle || snapshotSummary || snapshotItems.length > 0) {
+    errors.push("non-SPAC display types must not include snapshot output");
   }
   if (analysis.score < 50 && (
     analysis.bullish_points.length > 0 ||
@@ -511,6 +555,10 @@ export function validateSec425RoomResult(result: Sec425RoomResult): string[] {
     errors.push("market_context_needed requires market_context_fields");
   }
   return errors;
+}
+
+function isMissingSnapshotValue(value: string) {
+  return /^(?:-|n\/?a|none|unknown|not\s+(?:disclosed|available|fixed)|symbol|ticker)$/i.test(value.trim());
 }
 
 function wordCount(value: string): number {

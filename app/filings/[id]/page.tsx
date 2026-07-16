@@ -206,7 +206,17 @@ type SpacHistoryItem = {
   current: boolean;
 };
 
+type SpacSnapshotItem = {
+  label: string;
+  value: string;
+  note?: string;
+};
+
 type SpacTransactionStatusModel = {
+  snapshotTitle: string;
+  snapshotItems: SpacSnapshotItem[];
+  contextTitle: string;
+  contextBadge: string;
   currentStage: SpacStageCode;
   currentStageNumber: number;
   currentStageLabel: string;
@@ -4763,11 +4773,6 @@ function SpacTransactionStatusTemplate({
   filing: FilingEvent;
   model: SpacTransactionStatusModel;
 }) {
-  const targetLine = model.expectedTicker === "Not disclosed" ? model.targetCompany : `${model.targetCompany} / ${model.expectedTicker}`;
-  const closingValues = [model.closingDate, model.tickerChangeDate].filter(
-    (value, index, values) => value !== "Not disclosed" && values.indexOf(value) === index,
-  );
-  const closingLine = closingValues.join(" / ") || "Not disclosed";
   const keyEvidence = model.keyEvidence.slice(0, 3);
   const watchItems = model.watchNext.slice(0, 3);
 
@@ -4779,17 +4784,16 @@ function SpacTransactionStatusTemplate({
         <section className="stock-detail-card spac-summary-panel spac-status-panel">
           <div className="spac-summary-heading">
             <div>
-              <h2>de-SPAC Snapshot</h2>
+              <h2>{model.snapshotTitle}</h2>
               <p>{model.stageSummary}</p>
             </div>
           </div>
 
           <div className="spac-status-board">
             <div className="spac-status-readouts">
-              <SpacReadoutItem label="Current Step" value={model.currentStageLabel} note={model.dealStatus} />
-              <SpacReadoutItem label="Target / Ticker" value={targetLine} note={model.dealValue} />
-              <SpacReadoutItem label="Vote Date" value={model.voteDate} note={model.redemptionDeadline !== "Not disclosed" ? `Redemption deadline: ${model.redemptionDeadline}` : "Redemption deadline not disclosed"} />
-              <SpacReadoutItem label="Closing / Listing" value={closingLine} note={model.minCashStatus !== "Not disclosed" ? `Minimum cash: ${model.minCashStatus}` : "Subject to closing conditions"} />
+              {model.snapshotItems.map((item) => (
+                <SpacReadoutItem key={`${item.label}-${item.value}`} label={item.label} value={item.value} note={item.note} />
+              ))}
             </div>
           </div>
         </section>
@@ -4800,9 +4804,9 @@ function SpacTransactionStatusTemplate({
       <section className="stock-detail-card spac-context-strip">
         <div className="card-heading-row">
           <div>
-            <h2>Target Company Overview</h2>
+            <h2>{model.contextTitle}</h2>
           </div>
-          <span>{model.expectedTicker}</span>
+          {model.contextBadge ? <span>{model.contextBadge}</span> : null}
         </div>
         <p className="spac-target-overview-copy">{model.targetCompanyStory}</p>
       </section>
@@ -7567,6 +7571,10 @@ function buildSpacTransactionStatusModel(filing: FilingEvent): SpacTransactionSt
   const rawData = readDisplayPayloadData(displayPayload);
   const form425SpacData = readPlainRecord(rawData.spac_transaction_status);
   const form425Financing = readPlainRecord(rawData.financing);
+  const form425AnalysisSnapshot = form425SpacData
+    ? readSpacAnalysisSnapshot(rawData.analysis_snapshot)
+    : null;
+  if (form425SpacData && !form425AnalysisSnapshot) return null;
   const form425TransactionStatus = readRowString(form425SpacData, "transaction_status");
   const form425ExpectedClose = readRowString(form425SpacData, "expected_close");
   const form425VoteDate = readRowString(form425SpacData, "meeting_date");
@@ -7596,6 +7604,7 @@ function buildSpacTransactionStatusModel(filing: FilingEvent): SpacTransactionSt
       }
     : rawData;
   if (
+    !form425SpacData &&
     !hasEnoughSpecialDisplayFields(
       data,
       [
@@ -7638,15 +7647,33 @@ function buildSpacTransactionStatusModel(filing: FilingEvent): SpacTransactionSt
   const redemptionDeadline = displayString(data, "redemption_deadline", "Not disclosed");
   const sourceDate = buildSpacSourceDate(redemptionResultDate, voteDate, filing.filedAt);
   const ipoUnderwriter = displayString(data, "ipo_underwriter", "Not disclosed");
+  const targetLine = expectedTicker === "Not disclosed" ? targetCompany : `${targetCompany} / ${expectedTicker}`;
+  const closingValues = [closingDate, tickerChangeDate].filter(
+    (value, index, values) => value !== "Not disclosed" && values.indexOf(value) === index,
+  );
+  const snapshot = form425AnalysisSnapshot || {
+    title: "de-SPAC Snapshot",
+    summary: displayString(data, "stage_summary", filing.filingBrief || filing.summary),
+    items: [
+      { label: "Current Step", value: currentStageLabel, note: displayString(data, "deal_status", filing.filingFocus || "SPAC transaction update") },
+      { label: "Target / Ticker", value: targetLine, note: displayString(data, "deal_value", "Not disclosed") },
+      { label: "Vote Date", value: voteDate, note: redemptionDeadline !== "Not disclosed" ? `Redemption deadline: ${redemptionDeadline}` : "Redemption deadline not disclosed" },
+      { label: "Closing / Listing", value: closingValues.join(" / ") || "Not disclosed", note: minCashStatus !== "Not disclosed" ? `Minimum cash: ${minCashStatus}` : "Subject to closing conditions" },
+    ],
+  };
 
   return {
+    snapshotTitle: snapshot.title,
+    snapshotItems: snapshot.items,
+    contextTitle: form425AnalysisSnapshot ? "Transaction Update" : "Target Company Overview",
+    contextBadge: form425AnalysisSnapshot || expectedTicker === "Not disclosed" ? "" : expectedTicker,
     currentStage,
     currentStageNumber,
     currentStageLabel,
     stageBadge: `Stage ${currentStageNumber}/${stages.length} · ${currentStageLabel}`,
     dealStatus: displayString(data, "deal_status", filing.filingFocus || "SPAC transaction update"),
     spacStatus: displayString(data, "spac_status", filing.filingBrief || filing.summary),
-    stageSummary: displayString(data, "stage_summary", filing.filingBrief || filing.summary),
+    stageSummary: snapshot.summary,
     stages,
     targetCompany,
     targetSummary: displayString(data, "target_summary", filing.summary),
@@ -7683,6 +7710,28 @@ function buildSpacTransactionStatusModel(filing: FilingEvent): SpacTransactionSt
     sources: normalizeSpacSources(data.sources, filing.sourceUrl),
     eventHistory: normalizeSpacEventHistory(data.event_history),
   };
+}
+
+function readSpacAnalysisSnapshot(value: unknown) {
+  const snapshot = readPlainRecord(value);
+  const title = readRowString(snapshot, "title");
+  const summary = readRowString(snapshot, "summary");
+  const items = Array.isArray(snapshot?.items)
+    ? snapshot.items
+        .map((item) => {
+          const record = readPlainRecord(item);
+          const label = readRowString(record, "label");
+          const itemValue = readRowString(record, "value");
+          if (!label || !itemValue || /^(?:-|n\/?a|none|unknown|not\s+(?:disclosed|available|fixed)|symbol|ticker)$/i.test(itemValue)) {
+            return null;
+          }
+          const note = readRowString(record, "note");
+          return { label, value: itemValue, ...(note ? { note } : {}) };
+        })
+        .filter((item): item is SpacSnapshotItem => Boolean(item))
+    : [];
+  if (!title || !summary || items.length !== 4) return null;
+  return { title, summary, items };
 }
 
 function inferForm425SpacStage(transactionStatus: string, voteDate: string, expectedClose: string): SpacStageCode {

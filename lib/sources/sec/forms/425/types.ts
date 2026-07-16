@@ -353,6 +353,12 @@ export type Sec425PrimaryTicker = {
   exchange: string | null;
 };
 
+export type Sec425SnapshotItem = {
+  label: string;
+  value: string;
+  note: string;
+};
+
 export type Sec425AnalysisOutput = {
   source_group: "filings";
   market_scope: Sec425MarketScope;
@@ -370,6 +376,9 @@ export type Sec425AnalysisOutput = {
   quick_take: string;
   summary: string;
   why_it_matters: string;
+  snapshot_title: string;
+  snapshot_summary: string;
+  snapshot_items: Sec425SnapshotItem[];
   bullish_points: string[];
   bearish_points: string[];
   key_evidence: string[];
