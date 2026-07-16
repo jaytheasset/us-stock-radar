@@ -11433,17 +11433,17 @@ html[data-theme="dark"] .proxy-agenda-explanation span {
 
 .spac-watch-card ol {
   display: grid;
-  gap: 9px;
+  gap: 8px;
   margin: 0;
   padding-left: 18px;
-  color: #17213d;
+  color: #40506b;
   font-size: 12px;
-  line-height: 1.43;
+  line-height: 1.45;
 }
 
 .spac-watch-card li::marker {
-  color: #0f55ff;
-  font-weight: 900;
+  color: currentColor;
+  font-weight: inherit;
 }
 
 .spac-source-card .card-heading-row a {
