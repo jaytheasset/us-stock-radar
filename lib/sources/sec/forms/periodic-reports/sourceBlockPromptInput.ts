@@ -1,11 +1,17 @@
 import {
   buildCurrentFilingIdentity,
-  currentFilingIdentityText,
   type SecCurrentFilingIdentity,
 } from "../common/currentFilingIdentity.ts";
-import type { PeriodicParserOutput } from "./types.ts";
+import type { PeriodicParserOutput, PeriodicReportSection } from "./types.ts";
 
 const PERIODIC_REPORTS_FORM_SCOPE = "10-K / 10-Q / 20-F, 10-K/A / 10-Q/A / 20-F/A";
+const MAX_ANALYSIS_BLOCKS = 24;
+const MAX_ANALYSIS_CHARS = 48_000;
+const MAX_BLOCK_CHARS = 4_000;
+const MAX_SECTION_BLOCKS = 14;
+const MAX_TABLE_BLOCKS = 6;
+const MAX_XBRL_BLOCKS = 4;
+const MAX_ATTACHMENT_BLOCKS = 3;
 
 export type SecPeriodicReportsPromptInput = {
   filing_package?: Record<string, unknown>;
@@ -16,14 +22,26 @@ export type SecPeriodicReportsPromptInput = {
 };
 
 export type SecPeriodicReportsSourceBlock = {
+  block_id: string;
   block_type: string;
   label: string | null;
   source: string | null;
+  origin: "filing" | "xbrl" | "attachment" | "parent_context" | "market_context";
+  priority: number;
+  item_number: string | null;
+  section_key: string | null;
+  document_type: string | null;
   text: string;
 };
 
 export type SecPeriodicReportsSourceBlockPromptInput = {
   current_filing: SecCurrentFilingIdentity;
+  source_bundle: {
+    selection_method: "periodic_report_structure";
+    selected_block_count: number;
+    selected_text_chars: number;
+    omitted_block_count: number;
+  };
   cleaned_source_blocks: SecPeriodicReportsSourceBlock[];
 };
 
@@ -39,158 +57,174 @@ export function buildSecPeriodicReportsSourceBlockPromptInput(
     parserOutput: parserOutput as unknown as Record<string, unknown>,
     formFamily: PERIODIC_REPORTS_FORM_SCOPE,
   });
-  const blocks: SecPeriodicReportsSourceBlock[] = [];
+  const candidates: SecPeriodicReportsSourceBlock[] = [];
 
-  addBlock(blocks, {
-    block_type: "current_filing",
-    label: "Current SEC filing identity",
+  addBlock(candidates, {
+    block_id: "periodic-report-context",
+    block_type: "report_context",
+    label: "Periodic report context",
     source: "filing_package",
-    text: currentFilingIdentityText(currentFiling),
-  });
-
-  addBlock(blocks, {
-    block_type: "filing_metadata",
-    label: "SEC filing metadata",
-    source: "filing_package",
+    origin: "filing",
+    priority: 0,
+    item_number: null,
+    section_key: null,
+    document_type: parserOutput.formType,
     text: compactJson({
-      parserVersion: parserOutput.parserVersion,
-      parserGroup: parserOutput.parserGroup,
-      formType: currentFiling.form_type,
-      formFamily: currentFiling.form_family,
-      accessionNumber: parserOutput.accessionNumber,
-      isSupported: parserOutput.isSupported,
-      companyName: facts.companyName,
-      primaryTicker: facts.primaryTicker,
+      form_type: currentFiling.form_type,
+      accession_number: parserOutput.accessionNumber,
+      company_name: facts.companyName,
+      ticker: facts.primaryTicker,
       exchange: facts.exchange,
-      reportingPeriod: facts.reportingPeriod,
-      fiscalYear: facts.fiscalYear,
-      fiscalQuarter: facts.fiscalQuarter,
+      reporting_period: facts.reportingPeriod,
+      fiscal_year: facts.fiscalYear,
+      fiscal_quarter: facts.fiscalQuarter,
+      is_amendment: facts.isAmendment,
       source_url: nullableString(raw.source_url),
       published_at: nullableString(raw.published_at),
-      primary_document_url: nullableString(toRecord(input.filing_package)?.primary_document_url),
     }),
   });
 
-  addInventoryBlocks(blocks, parserOutput);
-  addPrimaryDocumentBlocks(blocks, normalized);
-  addTableBlocks(blocks, normalized);
-  addXbrlBlocks(blocks, parserOutput);
-  addWarningBlocks(blocks, parserOutput.warnings);
+  addAmendmentBlock(candidates, parserOutput);
+  addSectionBlocks(candidates, facts.sections);
+  addTableBlocks(candidates, normalized);
+  addXbrlBlocks(candidates, parserOutput);
+  addAttachmentBlocks(candidates, input.filing_package);
+
+  if (!hasSubstantiveSourceBlock(candidates)) {
+    addFallbackBlocks(candidates, normalized, input.filing_excerpt);
+  }
 
   if (input.parent_filing_context) {
-    addBlock(blocks, {
+    addBlock(candidates, {
+      block_id: "periodic-parent-filing-context",
       block_type: "parent_filing_context",
-      label: "Site-provided parent filing context",
+      label: "Parent filing context",
       source: "integration",
+      origin: "parent_context",
+      priority: facts.isAmendment ? 2 : 30,
+      item_number: null,
+      section_key: null,
+      document_type: null,
       text: compactJson(input.parent_filing_context),
     });
   }
 
   if (input.market_context) {
-    addBlock(blocks, {
+    addBlock(candidates, {
+      block_id: "periodic-market-context",
       block_type: "site_market_context",
       label: "Site-provided market context",
       source: "integration",
+      origin: "market_context",
+      priority: 35,
+      item_number: null,
+      section_key: null,
+      document_type: null,
       text: compactJson(input.market_context),
     });
   }
 
-  if (!hasSourceTextBlock(blocks)) {
-    addBlock(blocks, {
-      block_type: "source_excerpt",
-      label: "Fallback filing excerpt",
-      source: "filing_excerpt",
-      text: nullableString(input.filing_excerpt),
-    });
-  }
+  const deduped = dedupeBlocks(candidates).sort(compareBlocks);
+  const selected = selectWithinBudget(deduped);
 
   return {
     current_filing: currentFiling,
-    cleaned_source_blocks: dedupeBlocks(blocks).slice(0, 60),
+    source_bundle: {
+      selection_method: "periodic_report_structure",
+      selected_block_count: selected.length,
+      selected_text_chars: selected.reduce((total, block) => total + block.text.length, 0),
+      omitted_block_count: Math.max(0, deduped.length - selected.length),
+    },
+    cleaned_source_blocks: selected,
   };
 }
 
-function toRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
-}
-
-function recordArray(value: unknown) {
-  return Array.isArray(value) ? value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item)) : [];
-}
-
-function addInventoryBlocks(blocks: SecPeriodicReportsSourceBlock[], parserOutput: PeriodicParserOutput) {
-  const sourcePackage = parserOutput.facts.sourcePackage;
-
+function addAmendmentBlock(blocks: SecPeriodicReportsSourceBlock[], parserOutput: PeriodicParserOutput) {
+  const amendment = parserOutput.facts.amendment;
+  if (!amendment.isAmendment) return;
+  const text = [
+    amendment.explanatoryNote,
+    ...amendment.sourceEvidence,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
   addBlock(blocks, {
-    block_type: "document_inventory",
-    label: "Document inventory",
-    source: "parser_source_inventory",
-    text: compactJson(
-      sourcePackage.documents.slice(0, 40).map((document) => ({
-        sequence: document.sequence,
-        type: document.type,
-        description: document.description,
-        filename: document.filename,
-        url: document.url,
-        isPrimary: document.isPrimary,
-        hasText: document.hasText,
-        textCharCount: document.textCharCount,
-        textTruncated: document.textTruncated,
-        isInlineXbrl: document.isInlineXbrl,
-        isMachineReadableXbrl: document.isMachineReadableXbrl,
-      })),
-    ),
-  });
-
-  addBlock(blocks, {
-    block_type: "attachment_inventory",
-    label: "Attachment inventory",
-    source: "parser_source_inventory",
-    text: compactJson(
-      sourcePackage.attachmentTexts.slice(0, 30).map((attachment) => ({
-        sequence: attachment.sequence,
-        type: attachment.type,
-        description: attachment.description,
-        filename: attachment.filename,
-        url: attachment.url,
-        textCharCount: attachment.textCharCount,
-        textTruncated: attachment.textTruncated,
-        includedInSourceText: attachment.includedInSourceText,
-      })),
-    ),
+    block_id: "periodic-amendment-scope",
+    block_type: "amendment_scope",
+    label: "Amendment scope",
+    source: "filing_text",
+    origin: "filing",
+    priority: 1,
+    item_number: null,
+    section_key: "amendment_scope",
+    document_type: parserOutput.formType,
+    text,
   });
 }
 
-function addPrimaryDocumentBlocks(blocks: SecPeriodicReportsSourceBlock[], normalized: Record<string, unknown> | null) {
-  recordArray(normalized?.blocks)
-    .filter((block) => !["empty_decorative", "signature"].includes(nullableString(block.kind)))
-    .filter((block) => Boolean(nullableString(block.text)))
-    .slice(0, 28)
-    .forEach((block, index) => {
-      addBlock(blocks, {
-        block_type: nullableString(block.kind) === "table" ? "table_source_block" : "cleaned_source_block",
-        label: `Primary document block ${index + 1}`,
-        source: "normalized_primary_document.blocks",
-        text: nullableString(block.text),
-      });
+function addSectionBlocks(blocks: SecPeriodicReportsSourceBlock[], sections: PeriodicReportSection[]) {
+  const selected = sections
+    .map((section, order) => ({ section, order, priority: sectionPriority(section) }))
+    .sort((left, right) => left.priority - right.priority || left.order - right.order)
+    .slice(0, MAX_SECTION_BLOCKS);
+
+  for (const { section, order, priority } of selected) {
+    addBlock(blocks, {
+      block_id: stableBlockId("periodic-section", section.key || `${section.item}-${order + 1}`),
+      block_type: "periodic_report_section",
+      label: [section.part, `Item ${section.item}`, section.title].filter(Boolean).join(" - "),
+      source: section.source,
+      origin: "filing",
+      priority,
+      item_number: section.item,
+      section_key: section.key,
+      document_type: null,
+      text: section.excerpt,
     });
+  }
 }
 
-function addTableBlocks(blocks: SecPeriodicReportsSourceBlock[], normalized: Record<string, unknown> | null) {
-  for (const [index, table] of recordArray(normalized?.tables).slice(0, 12).entries()) {
+function sectionPriority(section: PeriodicReportSection) {
+  const value = `${section.key} ${section.title}`.toLowerCase();
+  if (/financial statements|operating and financial review|management.s discussion|results of operations/.test(value)) return 10;
+  if (/liquidity|capital resources|going concern|defaults|delinquencies/.test(value)) return 12;
+  if (/controls and procedures|internal control|certifying accountant/.test(value)) return 14;
+  if (/legal proceedings|financial information/.test(value)) return 16;
+  if (/risk factors|key information/.test(value)) return 18;
+  if (/business|information on the company|properties/.test(value)) return 20;
+  if (/market risk|share repurchase|equity securities|major shareholders|related party/.test(value)) return 22;
+  if (/unregistered sales|use of proceeds|material modifications/.test(value)) return 24;
+  return 40;
+}
+
+function addTableBlocks(blocks: SecPeriodicReportsSourceBlock[], normalized: Record<string, unknown>) {
+  const tables = recordArray(normalized.tables)
+    .filter((table) => !["layout", "toc", "exhibit_index"].includes(nullableString(table.classification).toLowerCase()))
+    .filter((table) => numberValue(table.numericCellCount) > 0)
+    .map((table, order) => ({ table, order, priority: tablePriority(table) }))
+    .sort((left, right) => left.priority - right.priority || left.order - right.order)
+    .slice(0, MAX_TABLE_BLOCKS);
+
+  for (const { table, order, priority } of tables) {
     const rows = recordArray(table.rows)
-      .slice(0, 12)
+      .slice(0, 18)
       .map((row) => nullableString(row.text))
       .filter(Boolean);
+    const label = nullableString(table.caption) || stringArray(table.typeHints).join(" / ") || `Financial table ${order + 1}`;
     addBlock(blocks, {
-      block_type: "table_source_block",
-      label: nullableString(table.caption) || `Extracted table ${index + 1}`,
+      block_id: stableBlockId("periodic-table", `${label}-${order + 1}`),
+      block_type: "financial_table",
+      label,
       source: "normalized_primary_document.tables",
+      origin: "filing",
+      priority,
+      item_number: null,
+      section_key: null,
+      document_type: null,
       text: [
         nullableString(table.caption),
         nullableString(table.unitHint) ? `Unit: ${nullableString(table.unitHint)}` : "",
-        nullableString(table.text),
-        rows.length ? rows.join("\n") : "",
+        rows.length ? rows.join("\n") : nullableString(table.text),
         ...stringArray(table.footnotes).slice(0, 4),
       ]
         .filter(Boolean)
@@ -199,59 +233,234 @@ function addTableBlocks(blocks: SecPeriodicReportsSourceBlock[], normalized: Rec
   }
 }
 
+function tablePriority(table: Record<string, unknown>) {
+  const value = [nullableString(table.caption), ...stringArray(table.typeHints), nullableString(table.text).slice(0, 300)]
+    .join(" ")
+    .toLowerCase();
+  if (/statement.*(?:operations|income|earnings)|results of operations/.test(value)) return 8;
+  if (/balance sheet|financial position/.test(value)) return 9;
+  if (/cash flow/.test(value)) return 10;
+  if (/stockholders. equity|shareholders. equity/.test(value)) return 11;
+  return 28;
+}
+
 function addXbrlBlocks(blocks: SecPeriodicReportsSourceBlock[], parserOutput: PeriodicParserOutput) {
-  addBlock(blocks, {
-    block_type: "xbrl_source_data",
-    label: "Selected XBRL source data",
-    source: "source_package.xbrlFacts",
-    text: compactJson(
-      parserOutput.facts.sourcePackage.xbrlFacts.slice(0, 60).map((fact) => ({
-        name: fact.name,
-        label: fact.label,
-        value: fact.value,
-        unitRef: fact.unitRef,
-        period: fact.period,
-        statement: fact.statement,
-        sourceDocument: fact.sourceDocument,
-      })),
-    ),
-  });
+  const grouped = new Map<string, typeof parserOutput.facts.sourcePackage.xbrlFacts>();
+  for (const fact of parserOutput.facts.sourcePackage.xbrlFacts) {
+    const group = fact.statement || "Other reported XBRL facts";
+    const values = grouped.get(group) || [];
+    values.push(fact);
+    grouped.set(group, values);
+  }
+
+  const selectedGroups = Array.from(grouped.entries())
+    .map(([statement, facts], order) => ({ statement, facts, order, priority: xbrlPriority(statement) }))
+    .sort((left, right) => left.priority - right.priority || left.order - right.order)
+    .slice(0, MAX_XBRL_BLOCKS);
+
+  for (const { statement, facts, order, priority } of selectedGroups) {
+    addBlock(blocks, {
+      block_id: stableBlockId("periodic-xbrl", `${statement}-${order + 1}`),
+      block_type: "xbrl_statement_facts",
+      label: statement,
+      source: "source_package.xbrlFacts",
+      origin: "xbrl",
+      priority,
+      item_number: null,
+      section_key: null,
+      document_type: "XBRL",
+      text: compactJson(
+        facts.slice(0, 16).map((fact) => ({
+          name: fact.name,
+          label: fact.label,
+          value: fact.value,
+          unit: fact.unitRef,
+          period: fact.period,
+          statement: fact.statement,
+          source_document: fact.sourceDocument,
+        })),
+      ),
+    });
+  }
 }
 
-function addWarningBlocks(blocks: SecPeriodicReportsSourceBlock[], warnings: string[]) {
-  addBlock(blocks, {
-    block_type: "parser_warnings",
-    label: "Parser warnings",
-    source: "parser",
-    text: warnings.join("\n"),
-  });
+function xbrlPriority(statement: string) {
+  const value = statement.toLowerCase();
+  if (/operations|income|earnings|profit or loss/.test(value)) return 6;
+  if (/balance sheet|financial position/.test(value)) return 7;
+  if (/cash flow/.test(value)) return 8;
+  if (/equity/.test(value)) return 9;
+  return 30;
 }
 
-function hasSourceTextBlock(blocks: SecPeriodicReportsSourceBlock[]) {
-  return blocks.some((block) => ["cleaned_source_block", "table_source_block", "xbrl_source_data", "source_excerpt"].includes(block.block_type));
+function addAttachmentBlocks(blocks: SecPeriodicReportsSourceBlock[], filingPackage: Record<string, unknown> | undefined) {
+  const filing = toRecord(filingPackage);
+  const rawPayload = firstRecord(filing.rawPayload, filing.raw_payload);
+  const attachments = [
+    ...recordArray(rawPayload.attachment_texts),
+    ...recordArray(rawPayload.attachmentTexts),
+    ...recordArray(rawPayload.attachments),
+  ]
+    .filter((attachment) => attachmentIsMaterial(attachment))
+    .slice(0, MAX_ATTACHMENT_BLOCKS);
+
+  for (const [index, attachment] of attachments.entries()) {
+    const type = nullableString(attachment.type || attachment.document_type);
+    const filename = nullableString(attachment.filename || attachment.name);
+    addBlock(blocks, {
+      block_id: stableBlockId("periodic-attachment", `${type}-${filename}-${index + 1}`),
+      block_type: "material_attachment",
+      label: nullableString(attachment.description || attachment.title) || type || filename || `Attachment ${index + 1}`,
+      source: filename || "filing_package.raw_payload",
+      origin: "attachment",
+      priority: /EX-99/i.test(type) ? 13 : 26,
+      item_number: null,
+      section_key: null,
+      document_type: type || null,
+      text: nullableString(attachment.text || attachment.content || attachment.body_text),
+    });
+  }
+}
+
+function attachmentIsMaterial(attachment: Record<string, unknown>) {
+  const type = nullableString(attachment.type || attachment.document_type);
+  const description = nullableString(attachment.description || attachment.title);
+  const text = nullableString(attachment.text || attachment.content || attachment.body_text);
+  if (!text) return false;
+  if (/EX-(?:31|32|101)|CERTIFICATION|XBRL/i.test(`${type} ${description}`)) return false;
+  return /EX-(?:2|10|99)|earnings|results|presentation|investor|material agreement/i.test(`${type} ${description}`);
+}
+
+function addFallbackBlocks(
+  blocks: SecPeriodicReportsSourceBlock[],
+  normalized: Record<string, unknown>,
+  filingExcerpt: string | null | undefined,
+) {
+  const originals = recordArray(normalized.blocks)
+    .filter((block) => !["empty_decorative", "signature", "exhibit_index"].includes(nullableString(block.kind)))
+    .filter((block) => Boolean(nullableString(block.text)))
+    .slice(0, 8);
+
+  for (const [index, block] of originals.entries()) {
+    addBlock(blocks, {
+      block_id: `periodic-fallback-${index + 1}`,
+      block_type: nullableString(block.kind) === "table" ? "financial_table" : "source_excerpt",
+      label: `Fallback source block ${index + 1}`,
+      source: "normalized_primary_document.blocks",
+      origin: "filing",
+      priority: 60 + index,
+      item_number: null,
+      section_key: null,
+      document_type: null,
+      text: nullableString(block.text),
+    });
+  }
+
+  if (!originals.length) {
+    addBlock(blocks, {
+      block_id: "periodic-fallback-excerpt",
+      block_type: "source_excerpt",
+      label: "Fallback filing excerpt",
+      source: "filing_excerpt",
+      origin: "filing",
+      priority: 70,
+      item_number: null,
+      section_key: null,
+      document_type: null,
+      text: nullableString(filingExcerpt),
+    });
+  }
+}
+
+function hasSubstantiveSourceBlock(blocks: SecPeriodicReportsSourceBlock[]) {
+  return blocks.some((block) => [
+    "periodic_report_section",
+    "financial_table",
+    "xbrl_statement_facts",
+    "material_attachment",
+    "amendment_scope",
+  ].includes(block.block_type));
 }
 
 function addBlock(blocks: SecPeriodicReportsSourceBlock[], block: SecPeriodicReportsSourceBlock) {
-  const text = compactText(block.text, 5000);
+  const text = truncateAtBoundary(normalizeSourceText(block.text), MAX_BLOCK_CHARS);
   if (!text || text === "[]" || text === "{}") return;
-  blocks.push({
-    block_type: block.block_type,
-    label: block.label,
-    source: block.source,
-    text,
-  });
+  blocks.push({ ...block, text });
+}
+
+function selectWithinBudget(blocks: SecPeriodicReportsSourceBlock[]) {
+  const selected: SecPeriodicReportsSourceBlock[] = [];
+  let chars = 0;
+  for (const block of blocks) {
+    if (selected.length >= MAX_ANALYSIS_BLOCKS) break;
+    if (chars + block.text.length > MAX_ANALYSIS_CHARS && selected.length > 0) continue;
+    selected.push(block);
+    chars += block.text.length;
+  }
+  return selected;
+}
+
+function compareBlocks(left: SecPeriodicReportsSourceBlock, right: SecPeriodicReportsSourceBlock) {
+  return left.priority - right.priority || left.block_id.localeCompare(right.block_id);
 }
 
 function dedupeBlocks(blocks: SecPeriodicReportsSourceBlock[]) {
-  const seen = new Set<string>();
-  const deduped: SecPeriodicReportsSourceBlock[] = [];
+  const seenIds = new Set<string>();
+  const seenText = new Set<string>();
+  const result: SecPeriodicReportsSourceBlock[] = [];
   for (const block of blocks) {
-    const key = `${block.block_type}:${block.label || ""}:${block.text.slice(0, 240)}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    deduped.push(block);
+    const textKey = block.text.slice(0, 500).toLowerCase();
+    if (seenIds.has(block.block_id) || seenText.has(textKey)) continue;
+    seenIds.add(block.block_id);
+    seenText.add(textKey);
+    result.push(block);
   }
-  return deduped;
+  return result;
+}
+
+function stableBlockId(prefix: string, value: string) {
+  const slug = value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+  return `${prefix}-${slug || "source"}`;
+}
+
+function normalizeSourceText(value: string) {
+  return value
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => line.replace(/[\t ]+/g, " ").trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function truncateAtBoundary(value: string, maxChars: number) {
+  if (value.length <= maxChars) return value;
+  const window = value.slice(0, maxChars + 1);
+  const paragraph = window.lastIndexOf("\n");
+  const sentence = Math.max(window.lastIndexOf(". "), window.lastIndexOf("; "));
+  const boundary = Math.max(paragraph, sentence);
+  const cut = boundary >= maxChars * 0.6 ? boundary + 1 : window.lastIndexOf(" ");
+  return `${window.slice(0, Math.max(1, cut)).trim()}...`;
+}
+
+function toRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function firstRecord(...values: unknown[]) {
+  for (const value of values) {
+    const record = toRecord(value);
+    if (Object.keys(record).length) return record;
+  }
+  return {};
+}
+
+function recordArray(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item)) : [];
 }
 
 function stringArray(value: unknown) {
@@ -265,12 +474,12 @@ function nullableString(value: unknown) {
   return "";
 }
 
-function compactJson(value: unknown) {
-  return JSON.stringify(value, null, 2);
+function numberValue(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && Number.isFinite(Number(value))) return Number(value);
+  return 0;
 }
 
-function compactText(value: string, max: number) {
-  const text = value.replace(/\s+/g, " ").trim();
-  if (!text) return "";
-  return text.length > max ? `${text.slice(0, max - 3).trim()}...` : text;
+function compactJson(value: unknown) {
+  return JSON.stringify(value, null, 2);
 }

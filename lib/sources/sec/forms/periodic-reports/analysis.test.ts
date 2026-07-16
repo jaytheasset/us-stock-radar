@@ -171,6 +171,12 @@ function readJson<T>(path: string): T {
 function assertSourceBlockOnlyPayload(promptUser: string, label: string) {
   const payload = JSON.parse(promptUser) as {
     cleaned_source_blocks?: unknown;
+    source_bundle?: {
+      selection_method?: unknown;
+      selected_block_count?: unknown;
+      selected_text_chars?: unknown;
+      omitted_block_count?: unknown;
+    };
     parser_output?: unknown;
     facts?: unknown;
     signals?: unknown;
@@ -179,6 +185,16 @@ function assertSourceBlockOnlyPayload(promptUser: string, label: string) {
   assert.equal(payload.facts, undefined, `${label}: prompt omits top-level facts`);
   assert.equal(payload.signals, undefined, `${label}: prompt omits top-level signals`);
   assert.ok(Array.isArray(payload.cleaned_source_blocks), `${label}: prompt has cleaned_source_blocks`);
+  assert.equal(payload.source_bundle?.selection_method, "periodic_report_structure", `${label}: structural source selection`);
+  assert.equal(payload.source_bundle?.selected_block_count, payload.cleaned_source_blocks.length, `${label}: selected block count`);
+  assert.ok(payload.cleaned_source_blocks.length <= 24, `${label}: bounded source block count`);
+  const sourceBlocks = payload.cleaned_source_blocks as Array<Record<string, unknown>>;
+  const totalChars = sourceBlocks.reduce((total, block) => total + String(block.text || "").length, 0);
+  assert.ok(totalChars <= 48_000, `${label}: bounded source text size`);
+  assert.equal(payload.source_bundle?.selected_text_chars, totalChars, `${label}: selected text size`);
+  assert.ok(sourceBlocks.some((block) => ["periodic_report_section", "financial_table", "xbrl_statement_facts", "amendment_scope", "source_excerpt"].includes(String(block.block_type))), `${label}: includes substantive filing source`);
+  assert.equal(sourceBlocks.some((block) => ["document_inventory", "attachment_inventory", "parser_warnings"].includes(String(block.block_type))), false, `${label}: excludes debug inventory and warnings`);
+  assert.equal(new Set(sourceBlocks.map((block) => String(block.block_id))).size, sourceBlocks.length, `${label}: stable unique block ids`);
   assert.deepEqual(findForbiddenKeys(payload.cleaned_source_blocks), [], `${label}: source blocks omit parser judgment keys`);
 }
 
