@@ -48,7 +48,7 @@ const routerPrompt = buildSec425RouterPromptDraft({
 });
 
 assert.equal(routerPrompt.key, "sec_425_router");
-assert.equal(routerPrompt.version, "v3");
+assert.equal(routerPrompt.version, "v4");
 assert.deepEqual(sec425RouterResponseSchema.properties.event_type.enum, SEC_425_ROUTER_EVENT_TYPES);
 assert.deepEqual(sec425RouterResponseSchema.properties.route_case.enum, SEC_425_ROUTER_CASE_VALUES);
 assert.deepEqual(sec425RouterResponseSchema.properties.communication_mode.enum, SEC_425_COMMUNICATION_MODE_VALUES);
@@ -73,6 +73,8 @@ assert.ok(routerPrompt.system.includes("Final conflict check"));
 assert.ok(routerPrompt.system.includes("concrete adjournment"));
 assert.ok(routerPrompt.system.includes("reaffirms an already signed transaction"));
 assert.ok(routerPrompt.system.includes("does not include its substantive content"));
+assert.ok(routerPrompt.system.includes("supporting communication by default"));
+assert.ok(routerPrompt.system.includes("employee-facing video, town hall, transcript, or interview"));
 assert.ok(routerPrompt.user.includes("\"cleaned_source_blocks\""));
 assert.equal(routerPrompt.user.includes("This text must not be copied"), false);
 assert.equal(routerPrompt.user.includes("\"facts\""), false);
@@ -118,6 +120,19 @@ assert.ok(
     /will provide a business update by conference call/i.test(block.text),
   ),
 );
+
+const employeeVideoParserOutput = parseSec425Filing({
+  formType: "425",
+  accessionNumber: "0000000000-26-042597",
+  companyName: "Employee Video Corp.",
+  filingText: [
+    "TRANSCRIPT OF A VIDEO ANNOUNCEMENT MADE TO EMPLOYEES",
+    "This is a transcript of a video announcement made to employees in connection with the proposed business combination between Employee Video Corp. and Acquirer Inc.",
+    "Management described the strategic rationale, expected benefits, and employee transition planning for the proposed transaction.",
+  ].join("\n\n"),
+});
+assert.equal(employeeVideoParserOutput.raw.document_inventory[0]?.document_role, "stakeholder_communication");
+assert.ok(employeeVideoParserOutput.raw.router_source_blocks.every((block) => block.document_role === "stakeholder_communication"));
 
 const availableIds = shareholderParserOutput.raw.router_source_blocks.map((block) => block.block_id);
 const selectedId = availableIds[0];

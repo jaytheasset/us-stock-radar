@@ -300,6 +300,9 @@ function classifyDocumentRole(segment: RawDocumentSegment): Sec425DocumentRole {
     return "transaction_agreement";
   }
   if (/\b(?:employee faq|frequently asked questions|questions and answers|\bFAQ\b)\b/i.test(metadata)) return "faq";
+  // Preserve the audience when a transcript is an employee or stakeholder briefing.
+  // This is document structure for downstream routing, not an event classification.
+  if (isStakeholderTranscript(value)) return "stakeholder_communication";
   if (/\b(?:transcript|conference call transcript|prepared remarks|interview|podcast|video remarks?|town hall)\b/i.test(metadata)) return "transcript";
   if (/\b(?:investor presentation|joint presentation|transaction presentation|investor day|presentation)\b/i.test(metadata)) return "investor_presentation";
   if (/\b(?:press release|news release)\b/i.test(metadata)) return "press_release";
@@ -316,6 +319,7 @@ function classifyDocumentRole(segment: RawDocumentSegment): Sec425DocumentRole {
   if (/\b(?:fact sheet|transaction facts?|deal facts?)\b/i.test(value)) return "fact_sheet";
   if (/\b(?:employee faq|frequently asked questions|questions and answers|\bFAQ\b)\b/i.test(value) || /(?:^|\n)\s*Q\s*&\s*A\s*(?:\n|$)/im.test(value)) return "faq";
   if (isEventNotice(value)) return "meeting_notice";
+  if (isStakeholderTranscript(value)) return "stakeholder_communication";
   if (/\b(?:transcript|conference call transcript|prepared remarks|interview|podcast|video remarks?|town hall)\b/i.test(value)) return "transcript";
   if (/\b(?:investor presentation|joint presentation|transaction presentation|investor day|presentation)\b/i.test(value)) return "investor_presentation";
   if (/\b(?:press release|news release|for immediate release)\b/i.test(value)) return "press_release";
@@ -328,6 +332,10 @@ function classifyDocumentRole(segment: RawDocumentSegment): Sec425DocumentRole {
   }
   if (/\b(?:social media|twitter|tweet|\bX post\b|linkedin|repost)\b/i.test(value)) return "social_media";
   return segment.source === "primary" ? "primary_425" : "other";
+}
+
+function isStakeholderTranscript(value: string) {
+  return /\b(?:transcript of (?:a )?(?:video |town hall |webcast )?(?:announcement|message|communication|remarks?)\s+(?:made|provided|addressed)\s+to\s+(?:all\s+)?(?:employees|team members|colleagues|customers|suppliers|partners)|(?:video|town hall|webcast)\s+(?:announcement|message|communication|remarks?)\s+(?:for|to)\s+(?:all\s+)?(?:employees|team members|colleagues|customers|suppliers|partners)|employee(?:s)?\s+(?:video|town hall|webcast|transcript)|(?:all\s+)?employee(?:s)?\s+(?:video|town hall|webcast|transcript))\b/i.test(value);
 }
 
 function hasAgreementDocumentStructure(text: string) {
@@ -623,6 +631,7 @@ function classifyContentRole(
   if (/\b(?:fact sheet|transaction facts?|deal facts?)\b/i.test(value)) return "fact_sheet";
   if (/\b(?:offer letter|proposal letter|non-binding (?:offer|proposal|expression of interest)|public acquisition proposal)\b/i.test(value)) return "offer_letter";
   if (/\b(?:frequently asked questions|questions and answers|employee faq|\bFAQ\b)\b/i.test(value) || /(?:^|\n)\s*Q\s*&\s*A\s*(?:\n|$)/im.test(value)) return "faq";
+  if (isStakeholderTranscript(value)) return "stakeholder_communication";
   if (/\b(?:transcript|conference call transcript|prepared remarks|interview|podcast|town hall)\b/i.test(value) || hasTranscriptSpeakerPattern(value)) return "transcript";
   if (/\b(?:investor presentation|joint presentation|transaction presentation|investor day)\b/i.test(value) || /\bpresentation\b[\s\S]{0,120}\bfiled in connection with\b/i.test(value)) return "investor_presentation";
   if (/\b(?:agreement and plan of merger|business combination agreement|merger agreement)\b/i.test(value) && /\b(?:ARTICLE|SECTION|RECITALS|conditions to closing|representations and warranties)\b/i.test(value)) return "transaction_agreement";
@@ -948,6 +957,7 @@ function classifySectionText(text: string, heading: string | null) {
   if (BOILERPLATE_HEADING_PATTERN.test(value) || isMostlyBoilerplate(value)) return "legal_boilerplate";
   if (/\b(?:For Immediate Release|Press Release|News Release)\b/i.test(value)) return "press_release";
   if (/\b(?:Investor Presentation|Slide\s+\d+|Transaction Overview|Investment Highlights|Pro Forma|Financial Outlook|Projected Revenue|Adjusted EBITDA|Market Opportunity|Combined Company)\b/i.test(value)) return "investor_presentation";
+  if (isStakeholderTranscript(value)) return "stakeholder_communication";
   if (/\b(?:Operator:|CEO:|CFO:|Conference Call|Webcast|Transcript|Prepared Remarks|Question-and-Answer(?: Session)?|Q&A)\b/i.test(value) || hasTranscriptSpeakerPattern(value)) return "transcript";
   if (/\b(?:FAQ|Frequently Asked Questions|Q:|A:|Q\.\s|A\.\s|Questions and Answers)\b/i.test(value)) return "faq";
   if (/\b(?:Dear (?:employees|customers|suppliers|shareholders|stockholders|team|team members|colleagues)|To:\s*All Employees|team member communication|customer communication|supplier communication|integration communication)\b/i.test(value)) return "stakeholder_communication";

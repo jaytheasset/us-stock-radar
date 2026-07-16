@@ -116,7 +116,7 @@ const analysisPrompt = buildSec425AnalysisPromptDraft({
 });
 
 assert.equal(analysisPrompt.key, "sec_425_analysis_draft");
-assert.equal(analysisPrompt.version, "v6");
+assert.equal(analysisPrompt.version, "v7");
 assert.deepEqual(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.event_type.enum, SEC_425_APPROVED_EVENT_TYPES);
 assert.ok(SEC_425_APPROVED_EVENT_TYPES.includes("ipo_listing"));
 assert.ok(analysisPrompt.system.includes("Required Output JSON shape"));
@@ -146,6 +146,9 @@ assert.ok(analysisPrompt.system.includes("For ipo_listing cases"));
 assert.ok(analysisPrompt.system.includes("Do not call"));
 assert.ok(analysisPrompt.system.includes("Analyze this Form 425 independently"));
 assert.ok(analysisPrompt.system.includes("Prior 8-K, 6-K, S-4, F-4, proxy, tender, and Form 425 analyses are not supplied"));
+assert.ok(analysisPrompt.system.includes("candidate gate, not final proof of materiality"));
+assert.ok(analysisPrompt.system.includes("stakeholder-facing transcript, video, town hall, FAQ, interview, or message"));
+assert.ok(analysisPrompt.system.includes("override the router candidate"));
 assert.ok(analysisPrompt.system.includes("without supplying its substantive content"));
 assert.ok(analysisPrompt.system.includes("is archive-level"));
 assert.ok(analysisPrompt.system.includes("Write no more than 3 key_evidence items"));
@@ -247,7 +250,7 @@ function buildRouterDecision(
     debug: {
       parser_version: "sec_425_parser_v2",
       router_prompt_key: "sec_425_router",
-      router_prompt_version: "v3",
+      router_prompt_version: "v4",
     },
     ...overrides,
   };

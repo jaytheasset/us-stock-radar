@@ -13,7 +13,7 @@ import {
 } from "../common/currentFilingIdentity.ts";
 
 export const SEC_425_ROUTER_PROMPT_KEY = "sec_425_router";
-export const SEC_425_ROUTER_PROMPT_VERSION = "v3";
+export const SEC_425_ROUTER_PROMPT_VERSION = "v4";
 export const SEC_425_DISPLAY_PAYLOAD_VERSION = "sec_425_display_v1";
 
 export const SEC_425_ROUTER_ACTION_VALUES = ["archive", "feed", "alert"] as const;
@@ -157,6 +157,8 @@ export const sec425RouterSystemPrompt = [
   "Material information is not automatically a material event. The gate asks whether a transaction action, decision, status, or binding term changed in the current communication, not whether the communication contains detailed or investment-relevant information.",
   "Transaction background, existing agreement terms, pro-forma financials, forecasts, operating metrics, risk factors, pending acquisition descriptions, redemption scenarios, or possible financing do not satisfy the gate unless the source expressly establishes a current change, execution, approval, result, termination, or completed milestone.",
   "A presentation, FAQ, transcript, employee communication, interview, social post, meeting notice, or repeated transaction explanation is not material merely because it describes an important underlying deal. Set material_update_present false unless that communication itself announces one of the explicit material events above.",
+  "Treat a transcript, video, town hall, FAQ, or message explicitly made to employees, customers, suppliers, partners, or other stakeholders as supporting communication by default. Phrases such as 'in connection with the proposed transaction', management rationale, deal benefits, principal consideration, or a speaker saying they are 'announcing' the transaction do not establish a separate current-filing event on their own.",
+  "For a stakeholder communication, set material_update_present true only when the communication itself clearly states a discrete completed or changed action beyond the explanatory message: an executed or amended agreement, changed consideration, completed vote, regulatory decision, termination, financing outcome, or closing milestone. Otherwise use stakeholder_faq_or_communication or routine_repetition and archive it.",
   "Before choosing route_case, identify the communication's stated title, intended audience, and substantive purpose from the original blocks. Treat transaction definitions, forward-looking risk lists, PIPE definitions, and SEC solicitation boilerplate as context, not as the dominant purpose.",
   `Choose event_type only from: ${SEC_425_ROUTER_EVENT_TYPES.join(", ")}.`,
   `Choose route_case only from: ${SEC_425_ROUTER_CASE_VALUES.join(", ")}.`,
@@ -180,6 +182,7 @@ export const sec425RouterSystemPrompt = [
   "A short communication is not automatically routine. Social media, interviews, event notices, and FAQs may still contain a material proposal or status update.",
   "If a filing merely reports that a social-media post, repost, interview, or other communication occurred but does not include its substantive content, do not infer a transaction update from the missing content. Treat it as archive-like routine repetition unless another supplied source block independently establishes a new material event.",
   "Final conflict check: if an original block expressly labels the communication as an FAQ provided to employees, customers, or partners and the filing contains stakeholder questions or instructions, output communication_mode faq and route_case stakeholder_faq_or_communication. Do not let underlying SPAC, PIPE, merger, or solicitation boilerplate override that communication purpose.",
+  "Apply the same conflict check to an employee-facing video, town hall, transcript, or interview. Its transcript format does not override its stated stakeholder audience or turn a transaction explanation into a new transaction announcement.",
   "Set material_update_reason to one concise current-filing fact when material_update_present is true; otherwise explain briefly why the communication is informational or repetitive.",
   "Final material-event check: material_update_reason must describe what happened or changed in this communication. If it only says that the filing provides details, an update, background, forecasts, pro-forma information, transaction rationale, possible financing, or risk disclosure, set material_update_present false.",
   "Set archive_like_candidate true and needs_analysis_llm false whenever material_update_present is false. Otherwise analysis is required.",

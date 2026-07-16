@@ -26,7 +26,7 @@ import { buildSec425DisplayPayload } from "./displayPayload";
 import { buildSecSourceBlockPromptInput } from "../common/sourceBlockPromptInput";
 
 export const SEC_425_ANALYSIS_PROMPT_KEY = "sec_425_analysis_draft";
-export const SEC_425_ANALYSIS_PROMPT_VERSION = "v6";
+export const SEC_425_ANALYSIS_PROMPT_VERSION = "v7";
 
 export const SEC_425_ANALYSIS_CASE_VALUES = [
   "strategic_transaction_terms",
@@ -69,7 +69,10 @@ export const sec425AnalysisSystemPrompt = [
   "Do not create new display types. The router/classifier and UI payload builder already selected display_type, display_version, and display data.",
   "Use router_result.routing_reason and cleaned_source_blocks as the evidence base.",
   "Analyze this Form 425 independently. Prior 8-K, 6-K, S-4, F-4, proxy, tender, and Form 425 analyses are not supplied as evidence and must not be assumed.",
-  "The router has already confirmed that this filing itself contains an explicit material update. Analyze only that current-filing event and its directly stated investor consequences.",
+  "Treat the router as a candidate gate, not final proof of materiality. Before writing analysis, independently verify from the selected original source blocks that this current Form 425 establishes an explicit material transaction event.",
+  "A stakeholder-facing transcript, video, town hall, FAQ, interview, or message explaining an announced transaction is archive-level unless its selected original blocks clearly establish a separate executed or changed action: a signed or amended agreement, changed consideration, vote result, regulatory decision, termination, financing outcome, or concrete closing milestone.",
+  "Do not treat management language that it is 'announcing' a transaction, or explanations of deal rationale, benefits, consideration, forecasts, or integration plans, as proof of a separate current-filing event when the document is expressly addressed to employees or other stakeholders in connection with a proposed transaction.",
+  "If the selected original blocks do not establish that discrete current action, override the router candidate by using impact_level repeated_information, analysis_case routine_archive, an archive score of 25-39, and one concise summary sentence. Leave bullish_points, bearish_points, key_evidence, and what_to_watch_next empty.",
   "Do not ask for full raw filing text. If filing_excerpt is supplied, treat it as selected source snippets only.",
   "Do not add delivery_level as a model field. The fixture expected delivery level is derived from analysis_output.score: below 50 archive, 50 to 74 feed, 75 or above alert.",
   "Prioritize the standalone investor impact established by the current Form 425: new deal economics, a new or revised proposal, a signed agreement, changed consideration, agreement amendment, termination, vote result, regulatory decision, financing event, or concrete closing milestone.",
