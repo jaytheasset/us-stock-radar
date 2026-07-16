@@ -98,7 +98,7 @@ There are 249 unique tokens: 129 color, 38 typography, 22 spacing, 24 sizing, 21
 | `--sr-color-text-subtle` (source `app/stock-radar-tokens.css:60`) | `#aeb5be` | Semantic text subtle color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:78`<br>`components/dashboard-v2/StockRadarDashboardV2.module.css:187`<br>`components/dashboard-v2/StockRadarDashboardV2.module.css:438` |
 | `--sr-color-text-muted` (source `app/stock-radar-tokens.css:61`) | `#9aa2ad` | Semantic text muted color. | Reserved foundation role; see Migration Result for its phase 3 contract. |
 | `--sr-color-text-meta` (source `app/stock-radar-tokens.css:62`) | `#8a929d` | Semantic text meta color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:487` |
-| `--sr-color-text-delay` (source `app/stock-radar-tokens.css:63`) | `#8a919a` | Semantic text delay color. | `components/shell/StockRadarProductHeader.module.css:39` |
+| `--sr-color-text-delay` (source `app/stock-radar-tokens.css:63`) | `#8a919a` | Semantic text delay color. | Reserved product-status role; the shared header no longer renders a delay label. |
 | `--sr-color-text-nav` (source `app/stock-radar-tokens.css:64`) | `#9ba3ad` | Semantic text nav color. | `components/shell/StockRadarProductHeader.module.css:74` |
 | `--sr-color-text-tab` (source `app/stock-radar-tokens.css:65`) | `#b5bac1` | Semantic text tab color. | `components/ui/SegmentedControl.module.css:25` |
 | `--sr-color-text-mobile-company` (source `app/stock-radar-tokens.css:66`) | `#9ca4ae` | Semantic text mobile company color. | `components/market/MarketResultRows.module.css:214` |
@@ -265,7 +265,7 @@ There are 249 unique tokens: 129 color, 38 typography, 22 spacing, 24 sizing, 21
 | `--sr-radius-sheet` (source `app/stock-radar-tokens.css:243`) | `22px` | Corner radius for sheet. | `components/ui/BottomSheetShell.module.css:60` |
 | `--sr-radius-pill` (source `app/stock-radar-tokens.css:244`) | `999px` | Corner radius for pill. | `components/dashboard-v2/StockRadarDashboardV2.module.css:437`<br>`components/dashboard-v2/StockRadarDashboardV2.module.css:665`<br>`components/shell/StockRadarAppShell.module.css:33`<br>`components/shell/StockRadarProductHeader.module.css:46`<br>`components/ui/BottomSheetShell.module.css:93`<br>`components/ui/BottomSheetShell.module.css:108`<br>`components/ui/FilterOption.module.css:6`<br>`components/ui/IconButton.module.css:30` |
 | `--sr-shadow-header` (source `app/stock-radar-tokens.css:245`) | `0 1px 0 rgba(255, 255, 255, 0.03)` | Elevation/effect shadow for header. | `components/shell/StockRadarProductHeader.module.css:10` |
-| `--sr-shadow-delay-dot` (source `app/stock-radar-tokens.css:246`) | `0 0 13px rgba(255, 122, 26, 0.65)` | Elevation/effect shadow for delay dot. | `components/shell/StockRadarProductHeader.module.css:48` |
+| `--sr-shadow-delay-dot` (source `app/stock-radar-tokens.css:246`) | `0 0 13px rgba(255, 122, 26, 0.65)` | Elevation/effect shadow for delay dot. | Reserved product-status effect; the shared header no longer renders a delay dot. |
 | `--sr-shadow-panel` (source `app/stock-radar-tokens.css:247`) | `0 18px 52px rgba(0, 0, 0, 0.24)` | Elevation/effect shadow for panel. | `components/dashboard-v2/StockRadarDashboardV2.module.css:51` |
 | `--sr-shadow-pagination-active` (source `app/stock-radar-tokens.css:248`) | `0 0 20px rgba(255, 122, 26, 0.34)` | Elevation/effect shadow for pagination active. | `components/ui/Pagination.module.css:28` |
 | `--sr-shadow-menu` (source `app/stock-radar-tokens.css:249`) | `0 16px 36px rgba(0, 0, 0, 0.38)` | Elevation/effect shadow for menu. | `components/shell/StockRadarProductHeader.module.css:206` |
@@ -406,11 +406,12 @@ The phase 2 quality pass removed nine tokens that lacked an independent reusable
 
 Phase 3D removed five more tokens that were referenced only by obsolete, unrendered nav-more selectors: `surface-navigation-menu`, `accent-hover`, `accent-border-open`, `shadow-navigation-menu`, and `z-navigation-menu`. The canonical product menu continues to use the existing overlay surface, menu shadow, accent-menu, and mobile-menu layer tokens.
 
-Five foundation tokens are intentionally defined but not rendered by dashboard-v2:
+Seven foundation tokens are intentionally defined but not rendered by dashboard-v2:
 
 - `--sr-color-surface-elevated`: phase 3 elevated panel and popover surface contract.
 - `--sr-color-text-muted`: phase 3 shared helper and metadata text hierarchy.
 - `--sr-color-info`: non-event informational status; kept distinct from transaction-event blue.
+- `--sr-color-text-delay` and `--sr-shadow-delay-dot`: reserved product-status roles retained after the shared header removed its market-delay label.
 - `--sr-motion-duration-reduced` and `--sr-motion-distance-reduced`: phase 3 reduced-motion variants for shared menu and sheet shells.
 
 Phase 3A added `--sr-size-header-action` and `--sr-size-badge-lg` to preserve the extracted IconButton and Badge computed sizes without component-local aliases. The 18 px and 19 px icon dimensions remain owned by the existing Lucide icon instances because they are verified one-off glyph inputs, not a reusable public size scale. The shared controls now consume the disabled text, surface, and opacity tokens directly.
@@ -419,7 +420,7 @@ Phase 3B reuses the existing control, quick-filter, option, semantic state, and 
 
 Phase 3C reuses the existing row, market tone, selected state, impact, chart-action, pagination, focus, and responsive tokens for the market result and Pagination contracts. No new token was added; table column widths and the 30 px chart-cell action remain component-owned geometry rather than speculative global sizes.
 
-Phase 3D moves the page canvas, header, brand/status, desktop navigation, actions, and mobile product menu to `components/shell` without adding tokens. Page-specific workspace geometry stays in the dashboard module, while the shell consumes the established page, header, navigation, menu, scrollbar, focus, and responsive tokens.
+Phase 3D moves the page canvas, header, brand, desktop navigation, actions, and mobile product menu to `components/shell` without adding tokens. Page-specific workspace geometry stays in the dashboard module, while the shell consumes the established page, header, navigation, menu, scrollbar, focus, and responsive tokens.
 
 Phase 3E moves the detail-panel surface and duplicated mobile sheet outer geometry to `components/ui` without adding tokens. The shared sheet shell consumes the established overlay, surface, border, radius, shadow, close, layer, and motion roles; the demonstrated `content-footer` and `full-scroll` layouts preserve the existing height and scroll formulas without exposing domain state through the generic API.
 

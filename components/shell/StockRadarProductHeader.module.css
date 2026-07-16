@@ -20,7 +20,6 @@
 
 .brand {
   flex: 0 0 auto;
-  gap: var(--sr-space-6);
   min-width: max-content;
 }
 
@@ -30,22 +29,6 @@
   font-weight: var(--sr-font-weight-display);
   line-height: var(--sr-line-height-none);
   letter-spacing: var(--sr-letter-spacing-brand);
-}
-
-.brand small {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sr-space-2-25);
-  color: var(--sr-color-text-delay);
-  font-size: var(--sr-font-size-base);
-}
-
-.brand i {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--sr-radius-pill);
-  background: var(--sr-color-accent);
-  box-shadow: var(--sr-shadow-delay-dot);
 }
 
 .primaryNavigation {

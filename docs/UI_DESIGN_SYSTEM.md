@@ -252,7 +252,7 @@ Exact props, accessibility models, and exclusions are maintained in [UI_COMPONEN
 
 | Area | Desktop/tablet | Mobile at 760px and below | Source |
 | --- | --- | --- | --- |
-| Header/navigation | Full primary navigation and header actions. | Brand/status plus search, alert, and hamburger; compact non-modal menu popover. | `components/shell/` |
+| Header/navigation | Full primary navigation and header actions. | Brand plus search, alert, and hamburger; compact non-modal menu popover. | `components/shell/` |
 | Market results | Semantic table with nine columns, chart action, and a capped 50-result continuous list. | Three-area list row with no horizontal market-table scroll; the same capped continuous list. | `components/market/`, `MarketMoversTable` |
 | Detail | Sticky complementary panel above 1180px; stacked panel from 761-1180px. | Desktop panel hidden; full-scroll ticker sheet. | `DetailPanelShell`, `BottomSheetShell` |
 | Filters | Six split triggers; currently inert mock controls. | Four quick triggers, optional active chips, and content-footer modal sheet. | `FilterTrigger`, `FilterOption`, dashboard filter components |

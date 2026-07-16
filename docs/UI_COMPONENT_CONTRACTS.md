@@ -502,7 +502,7 @@ A skip link was not added in 3D. Introducing its focus placement and visible foc
 
 - Component: `components/shell/StockRadarProductHeader.tsx`
 - Styles: `components/shell/StockRadarProductHeader.module.css`
-- Purpose: canonical brand/status, desktop product navigation, theme action, inert header actions, and mobile menu trigger/state.
+- Purpose: canonical brand, desktop product navigation, theme action, inert header actions, and mobile menu trigger/state.
 - Replaced component: deleted `components/dashboard-v2/DashboardHeader.tsx`.
 
 ### Props
@@ -512,7 +512,7 @@ A skip link was not added in 3D. Introducing its focus placement and visible foc
 | `activeNavigationItem` | `StockRadarPrimaryNavigationKey` | yes | Passed unchanged to desktop and mobile navigation renderers. |
 | `showThemeToggle` | `boolean` | no | Defaults to `false`; the app shell enables it only for `user-selectable` theme mode. |
 
-Product name `STOCK RADAR` and market status `15m delayed` are exported product constants in `stockRadarNavigation.ts`; they are not dashboard data or customizable speculative props. Header height, padding, surface, divider, brand geometry, status dot, action spacing, and the 760 px breakpoint preserve the canonical computed values.
+Product name `STOCK RADAR` is exported as a product constant in `stockRadarNavigation.ts`; it is not dashboard data or a customizable speculative prop. The shared header does not display a market-delay status. Header height, padding, surface, divider, brand geometry, action spacing, and the 760 px breakpoint preserve the canonical computed values.
 
 ### Header actions and ARIA
 
@@ -566,7 +566,7 @@ The menu reuses the primary link configuration and appends Settings as an inert 
 
 ## 18. Phase 3D Boundaries and Deferred Work
 
-- `components/shell` owns only Stock Radar canvas, brand/status, product navigation, header actions, and the canonical mobile product menu.
+- `components/shell` owns only Stock Radar canvas, brand, product navigation, header actions, and the canonical mobile product menu.
 - `app/dashboard-v2/page.tsx` supplies `activeNavigationItem="markets"`; `StockRadarDashboardV2` owns only market/session/filter/ticker state and page content.
 - Dashboard workspace, page-specific gutters, detail grid, table, detail business content, ticker/filter sheet content, rows-per-page, and chart state remain page-owned. Phase 3E supersedes the outer panel/sheet-shell ownership and phase 3F supersedes chart shell/control ownership described here.
 - Generic layout variants, max-width containers, generic popovers, modal/focus-trap frameworks, skip-link presentation, actual action behavior, new routes, auth, and Premium behavior remain deferred.

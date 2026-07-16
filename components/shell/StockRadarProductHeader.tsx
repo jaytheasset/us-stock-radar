@@ -9,7 +9,6 @@ import {
   stockRadarMobileMenuId,
 } from "@/components/shell/StockRadarMobileNavigationMenu";
 import {
-  stockRadarMarketStatus,
   stockRadarProductName,
   type StockRadarNavigationItem,
   type StockRadarPrimaryNavigationKey,
@@ -79,10 +78,6 @@ export function StockRadarProductHeader({
       <header className={styles.header}>
         <div className={styles.brand}>
           <span>{stockRadarProductName}</span>
-          <small>
-            {stockRadarMarketStatus}
-            <i aria-hidden="true" />
-          </small>
         </div>
 
         <StockRadarDesktopNavigation activeItem={activeNavigationItem} />

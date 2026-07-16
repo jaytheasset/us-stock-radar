@@ -1,5 +1,4 @@
 export const stockRadarProductName = "STOCK RADAR";
-export const stockRadarMarketStatus = "15m delayed";
 
 export type StockRadarPrimaryNavigationKey =
   | "alerts"
