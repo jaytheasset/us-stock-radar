@@ -1,3 +1,4 @@
+import { filingsV2HighImpactMinimum } from "@/lib/mock/filingsV2Data";
 import styles from "./StockRadarFilingsV2.module.css";
 
 type FilingsV2ImpactScoreProps = {
@@ -9,7 +10,7 @@ export function FilingsV2ImpactScore({
   compact = false,
   score,
 }: FilingsV2ImpactScoreProps) {
-  const toneClass = score >= 70
+  const toneClass = score >= filingsV2HighImpactMinimum
     ? styles.impactScoreHigh
     : score >= 40
       ? styles.impactScoreMedium

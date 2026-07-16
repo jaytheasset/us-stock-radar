@@ -8,12 +8,12 @@ export type FilingsV2EventType =
   | "ma"
   | "governance";
 
-export type FilingsV2ImpactFilter = "All" | "90–99" | "70–89" | "40–69" | "1–39";
+export type FilingsV2ImpactFilter = "Alerts 75+" | "50–74";
 export type FilingsV2Signal = "bullish" | "bearish" | "neutral" | "volatile";
 export type FilingsV2Category = "all" | "high-impact" | "watchlist";
 export type FilingsV2Sort = "newest" | "oldest";
-export type FilingsV2DateRange = "All" | "24 Hours" | "7 Days" | "30 Days";
-export type FilingsV2MarketCap = "All" | "Mega" | "Large" | "Mid" | "Small";
+export type FilingsV2DateRange = "24 Hours" | "7 Days" | "30 Days";
+export type FilingsV2MarketCap = "Mega" | "Large" | "Mid" | "Small" | "Micro";
 
 export type FilingsV2Record = {
   accession: string;
@@ -27,7 +27,7 @@ export type FilingsV2Record = {
   id: string;
   impact: number;
   keyPoints: readonly string[];
-  marketCap: Exclude<FilingsV2MarketCap, "All">;
+  marketCap: FilingsV2MarketCap;
   relatedIds: readonly string[];
   signal: FilingsV2Signal;
   source: "SEC";
@@ -37,29 +37,36 @@ export type FilingsV2Record = {
   watchlist: boolean;
 };
 
+export type FilingsV2FilterGroup =
+  | "signals"
+  | "marketCaps"
+  | "formTypes"
+  | "eventTypes"
+  | "impacts"
+  | "dateRanges";
+
 export type FilingsV2FilterState = {
-  dateRange: FilingsV2DateRange;
-  eventType: "All" | FilingsV2EventType;
-  formType: string;
-  impact: FilingsV2ImpactFilter;
-  marketCap: FilingsV2MarketCap;
-  signal: "All" | FilingsV2Signal;
+  signals: FilingsV2Signal[];
+  marketCaps: FilingsV2MarketCap[];
+  formTypes: string[];
+  eventTypes: FilingsV2EventType[];
+  impacts: FilingsV2ImpactFilter[];
+  dateRanges: FilingsV2DateRange[];
 };
 
 export const filingsV2LastUpdated = "Jul 15, 2026 · 4:15 PM ET";
 export const filingsV2ReferenceDate = "2026-07-15T20:15:00.000Z";
 
 export const filingsV2DefaultFilters: FilingsV2FilterState = {
-  dateRange: "All",
-  eventType: "All",
-  formType: "All",
-  impact: "All",
-  marketCap: "All",
-  signal: "All",
+  signals: [],
+  marketCaps: [],
+  formTypes: [],
+  eventTypes: [],
+  impacts: [],
+  dateRanges: [],
 };
 
 export const filingsV2FormOptions = [
-  "All",
   "8-K",
   "10-Q",
   "10-K",
@@ -72,29 +79,24 @@ export const filingsV2FormOptions = [
 ] as const;
 
 export const filingsV2EventOptions = [
-  "All",
   "earnings",
   "insider",
   "offering",
-  "dilution",
   "listing",
   "legal",
   "ma",
   "governance",
 ] as const;
 
-export const filingsV2HighImpactMinimum = 70;
-export const filingsV2ImpactOptions = ["All", "90–99", "70–89", "40–69", "1–39"] as const;
-export const filingsV2SignalOptions = ["All", "bullish", "bearish", "neutral", "volatile"] as const;
-export const filingsV2DateOptions = ["All", "24 Hours", "7 Days", "30 Days"] as const;
-export const filingsV2MarketCapOptions = ["All", "Mega", "Large", "Mid", "Small"] as const;
+export const filingsV2HighImpactMinimum = 75;
+export const filingsV2ImpactOptions = ["Alerts 75+", "50–74"] as const;
+export const filingsV2SignalOptions = ["bullish", "bearish", "neutral", "volatile"] as const;
+export const filingsV2DateOptions = ["24 Hours", "7 Days", "30 Days"] as const;
+export const filingsV2MarketCapOptions = ["Mega", "Large", "Mid", "Small", "Micro"] as const;
 
 export function matchesFilingsV2ImpactFilter(score: number, filter: FilingsV2ImpactFilter) {
-  if (filter === "All") return true;
-  if (filter === "90–99") return score >= 90;
-  if (filter === "70–89") return score >= 70 && score <= 89;
-  if (filter === "40–69") return score >= 40 && score <= 69;
-  return score >= 1 && score <= 39;
+  if (filter === "Alerts 75+") return score >= filingsV2HighImpactMinimum;
+  return score >= 50 && score <= 74;
 }
 
 type FilingSeed = Omit<

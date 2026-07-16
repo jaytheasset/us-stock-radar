@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { ChevronDown, SlidersHorizontal } from "lucide-react";
+import { useEffect, useRef, useState, type RefObject } from "react";
+import { ChevronDown, SlidersHorizontal, X } from "lucide-react";
+import { FilingsV2MarketCapOption } from "@/components/filings-v2/FilingsV2MarketCapOption";
 import { FilterOption } from "@/components/ui/FilterOption";
 import { FilterTrigger } from "@/components/ui/FilterTrigger";
 import {
@@ -13,65 +14,70 @@ import {
   filingsV2MarketCapOptions,
   filingsV2SignalLabels,
   filingsV2SignalOptions,
+  type FilingsV2FilterGroup,
   type FilingsV2FilterState,
 } from "@/lib/mock/filingsV2Data";
 import styles from "./StockRadarFilingsV2.module.css";
 
-type FilterKey = keyof FilingsV2FilterState;
-
 type FilingsV2FilterBarProps = {
   filters: FilingsV2FilterState;
   isMobileSheetOpen: boolean;
-  onChange: (key: FilterKey, value: string) => void;
-  onOpenMobileFilters: (trigger: HTMLButtonElement) => void;
+  mobileFilterOpenerRef: RefObject<HTMLButtonElement | null>;
+  onClearFilterGroup: (group: FilingsV2FilterGroup) => void;
+  onOpenMobileFilters: () => void;
+  onRemoveFilter: (group: FilingsV2FilterGroup, value: string) => void;
+  onReset: () => void;
+  onToggleFilter: (group: FilingsV2FilterGroup, value: string) => void;
 };
 
-const desktopSections = [
-  { key: "formType", label: "Form Type", options: filingsV2FormOptions },
-  { key: "eventType", label: "Event Type", options: filingsV2EventOptions },
-  { key: "impact", label: "Impact", options: filingsV2ImpactOptions },
-  { key: "signal", label: "Signal", options: filingsV2SignalOptions },
-  { key: "dateRange", label: "Date Range", options: filingsV2DateOptions },
-  { key: "marketCap", label: "Market Cap", options: filingsV2MarketCapOptions },
-] as const;
+const menuGroups = [
+  { group: "formTypes" as const, label: "Form Type", options: filingsV2FormOptions },
+  { group: "eventTypes" as const, label: "Event Type", options: filingsV2EventOptions },
+  { group: "impacts" as const, label: "Impact", options: filingsV2ImpactOptions },
+  { group: "dateRanges" as const, label: "Date Range", options: filingsV2DateOptions },
+];
 
-function optionLabel(key: FilterKey, value: string) {
-  if (key === "eventType" && value !== "All") {
-    return filingsV2EventLabels[value as keyof typeof filingsV2EventLabels];
-  }
+type FilingsV2MenuGroup = (typeof menuGroups)[number]["group"];
 
-  if (key === "signal" && value !== "All") {
+function filterLabel(group: FilingsV2FilterGroup, value: string) {
+  if (group === "signals") {
     return filingsV2SignalLabels[value as keyof typeof filingsV2SignalLabels];
   }
+  if (group === "eventTypes") {
+    return filingsV2EventLabels[value as keyof typeof filingsV2EventLabels];
+  }
+  return value;
+}
 
-  return value.charAt(0).toUpperCase() + value.slice(1);
+export function getActiveFilingsV2Filters(filters: FilingsV2FilterState) {
+  return (Object.entries(filters) as Array<[FilingsV2FilterGroup, string[]]>).flatMap(
+    ([group, values]) => values.map((value) => ({ group, label: filterLabel(group, value), value })),
+  );
 }
 
 export function FilingsV2FilterBar({
   filters,
   isMobileSheetOpen,
-  onChange,
+  mobileFilterOpenerRef,
+  onClearFilterGroup,
   onOpenMobileFilters,
+  onRemoveFilter,
+  onReset,
+  onToggleFilter,
 }: FilingsV2FilterBarProps) {
-  const [openFilter, setOpenFilter] = useState<FilterKey | "more" | null>(null);
-  const [mobileOpener, setMobileOpener] = useState<string | null>(null);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const popoverId = "filings-v2-desktop-filter-popover";
+  const [openMenu, setOpenMenu] = useState<FilingsV2MenuGroup | null>(null);
+  const filterMenusRef = useRef<HTMLDivElement>(null);
+  const activeFilters = getActiveFilingsV2Filters(filters);
+  const activeCount = activeFilters.length;
 
   useEffect(() => {
-    if (!openFilter) {
-      return;
-    }
+    if (!openMenu) return;
 
     const handlePointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpenFilter(null);
-      }
+      if (!filterMenusRef.current?.contains(event.target as Node)) setOpenMenu(null);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOpenFilter(null);
-      }
+      if (event.key === "Escape") setOpenMenu(null);
     };
 
     document.addEventListener("pointerdown", handlePointerDown);
@@ -80,96 +86,126 @@ export function FilingsV2FilterBar({
       document.removeEventListener("pointerdown", handlePointerDown);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [openFilter]);
-
-  const activeMoreCount = [filters.signal, filters.dateRange, filters.marketCap].filter(
-    (value) => value !== "All",
-  ).length;
-  const visibleSections = openFilter === "more"
-    ? desktopSections
-    : desktopSections.filter((section) => section.key === openFilter);
+  }, [openMenu]);
 
   return (
-    <div className={styles.filterRegion} ref={rootRef}>
-      <div aria-label="Filing filters" className={styles.desktopFilters}>
-        {desktopSections.map((section) => {
-          const isOpen = openFilter === section.key;
-          return (
-            <FilterTrigger
-              aria-controls={isOpen ? popoverId : undefined}
-              expanded={isOpen}
-              key={section.key}
-              label={section.label}
-              onClick={() => setOpenFilter((current) => current === section.key ? null : section.key)}
-              trailingIcon={<ChevronDown aria-hidden="true" size={15} />}
-              value={optionLabel(section.key, filters[section.key])}
-            />
-          );
-        })}
-        <FilterTrigger
-          active={activeMoreCount > 0}
-          aria-controls={openFilter === "more" ? popoverId : undefined}
-          expanded={openFilter === "more"}
-          label={activeMoreCount ? `More Filters (${activeMoreCount})` : "More Filters"}
-          onClick={() => setOpenFilter((current) => current === "more" ? null : "more")}
-          trailingIcon={<SlidersHorizontal aria-hidden="true" size={15} />}
-        />
-      </div>
-
-      <div aria-label="Mobile filing filters" className={styles.mobileFilters}>
-        {[
-          { active: filters.formType !== "All", label: "Form" },
-          { active: filters.eventType !== "All", label: "Event" },
-          { active: filters.impact !== "All", label: "Impact" },
-          { active: activeMoreCount > 0, label: "More" },
-        ].map((item) => (
-          <FilterTrigger
-            active={item.active}
-            aria-controls={isMobileSheetOpen && mobileOpener === item.label ? "filings-v2-filter-sheet" : undefined}
-            aria-haspopup="dialog"
-            aria-label={`${item.label} filing filters`}
-            expanded={isMobileSheetOpen && mobileOpener === item.label}
-            key={item.label}
-            label={item.label}
-            onClick={(event) => {
-              setMobileOpener(item.label);
-              onOpenMobileFilters(event.currentTarget);
-            }}
-            trailingIcon={item.label === "More"
-              ? <SlidersHorizontal aria-hidden="true" size={12} />
-              : <ChevronDown aria-hidden="true" size={12} />}
-            variant="compact"
-          />
-        ))}
-      </div>
-
-      {openFilter ? (
-        <div aria-label="Filter options" className={styles.desktopFilterPopover} id={popoverId} role="group">
-          {visibleSections.map((section) => (
-            <section className={styles.desktopFilterSection} key={section.key}>
-              <h2>{section.label}</h2>
-              <div className={styles.filterOptions}>
-                {section.options.map((option) => {
-                  const value = String(option);
-                  return (
-                    <FilterOption
-                      key={value}
-                      label={optionLabel(section.key, value)}
-                      onClick={() => {
-                        onChange(section.key, value);
-                        if (openFilter !== "more") {
-                          setOpenFilter(null);
-                        }
-                      }}
-                      selected={filters[section.key] === value}
-                    />
-                  );
-                })}
-              </div>
-            </section>
-          ))}
+    <section aria-label="Filing filters" className={styles.filterBar}>
+      <div className={styles.desktopFilterMatrix}>
+        <div className={styles.filterGroupRow}>
+          <span className={styles.filterGroupLabel}>Signal</span>
+          <div className={styles.filterOptionRow}>
+            {filingsV2SignalOptions.map((signal) => (
+              <FilterOption
+                key={signal}
+                label={filingsV2SignalLabels[signal]}
+                onClick={() => onToggleFilter("signals", signal)}
+                selected={filters.signals.includes(signal)}
+              />
+            ))}
+          </div>
         </div>
-      ) : null}
-    </div>
+
+        <div className={styles.filterGroupRow}>
+          <span className={styles.filterGroupLabel}>Cap</span>
+          <div className={styles.filterOptionRow}>
+            {filingsV2MarketCapOptions.map((marketCap) => (
+              <FilingsV2MarketCapOption
+                key={marketCap}
+                marketCap={marketCap}
+                onClick={() => onToggleFilter("marketCaps", marketCap)}
+                selected={filters.marketCaps.includes(marketCap)}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className={styles.filterMenuRow}>
+          <span className={styles.filterGroupLabel}>More</span>
+          <div className={styles.filterMenus} ref={filterMenusRef}>
+            {menuGroups.map(({ group, label, options }) => (
+              <div className={styles.filterMenu} key={group}>
+                <button
+                  aria-controls={openMenu === group ? `filings-v2-${group}-options` : undefined}
+                  aria-expanded={openMenu === group}
+                  className={styles.filterMenuTrigger}
+                  onClick={() => setOpenMenu((current) => current === group ? null : group)}
+                  type="button"
+                >
+                  <span>{label}</span>
+                  {filters[group].length ? <b>{filters[group].length}</b> : null}
+                  <ChevronDown aria-hidden="true" size={14} />
+                </button>
+                {openMenu === group ? (
+                  <div
+                    aria-label={`${label} options`}
+                    className={styles.filterMenuOptions}
+                    id={`filings-v2-${group}-options`}
+                    role="group"
+                  >
+                    <FilterOption
+                      className={styles.filterMenuOption}
+                      label="All"
+                      onClick={() => onClearFilterGroup(group)}
+                      selected={!filters[group].length}
+                    />
+                    {options.map((option) => (
+                      <FilterOption
+                        className={styles.filterMenuOption}
+                        key={option}
+                        label={filterLabel(group, option)}
+                        onClick={() => onToggleFilter(group, option)}
+                        selected={filters[group].includes(option as never)}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className={styles.activeFilterRow}>
+          <span className={styles.filterGroupLabel}>Active</span>
+          <div className={styles.activeFilterChips}>
+            {activeFilters.length ? activeFilters.map((filter) => (
+              <button
+                aria-label={`Remove ${filter.label} filter`}
+                className={styles.activeFilterChip}
+                key={`${filter.group}-${filter.value}`}
+                onClick={() => onRemoveFilter(filter.group, filter.value)}
+                type="button"
+              >
+                {filter.label}
+                <X aria-hidden="true" size={12} />
+              </button>
+            )) : <span className={styles.noActiveFilters}>No active filters</span>}
+          </div>
+          <div className={styles.filterRowActions}>
+            <button className={styles.resetButton} disabled={!activeCount} onClick={onReset} type="button">
+              Reset
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.mobileFilterActions}>
+        <FilterTrigger
+          active={activeCount > 0}
+          aria-controls={isMobileSheetOpen ? "filings-v2-filter-sheet" : undefined}
+          aria-haspopup="dialog"
+          aria-label={`Open filing filters${activeCount ? `, ${activeCount} active` : ""}`}
+          expanded={isMobileSheetOpen}
+          label="Filters"
+          onClick={onOpenMobileFilters}
+          ref={mobileFilterOpenerRef}
+          trailingIcon={<SlidersHorizontal aria-hidden="true" size={15} />}
+          value={activeCount ? String(activeCount) : undefined}
+          variant="compact"
+        />
+        {activeCount ? (
+          <button className={styles.mobileResetButton} onClick={onReset} type="button">Reset</button>
+        ) : null}
+      </div>
+    </section>
   );
 }

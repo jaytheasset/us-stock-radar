@@ -1,4 +1,5 @@
 import type { RefObject } from "react";
+import { FilingsV2MarketCapOption } from "@/components/filings-v2/FilingsV2MarketCapOption";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import { FilterOption } from "@/components/ui/FilterOption";
 import {
@@ -10,88 +11,106 @@ import {
   filingsV2MarketCapOptions,
   filingsV2SignalLabels,
   filingsV2SignalOptions,
+  type FilingsV2FilterGroup,
   type FilingsV2FilterState,
 } from "@/lib/mock/filingsV2Data";
 import styles from "./StockRadarFilingsV2.module.css";
 
-type FilterKey = keyof FilingsV2FilterState;
-
 type MobileFilingsV2FilterSheetProps = {
   filters: FilingsV2FilterState;
   isOpen: boolean;
-  onApply: () => void;
-  onChange: (key: FilterKey, value: string) => void;
-  onClear: () => void;
+  onClearFilterGroup: (group: FilingsV2FilterGroup) => void;
   onDismiss: () => void;
+  onReset: () => void;
+  onToggleFilter: (group: FilingsV2FilterGroup, value: string) => void;
   openerRef: RefObject<HTMLElement | null>;
 };
 
-const sections = [
-  { key: "formType", label: "Form Type", options: filingsV2FormOptions },
-  { key: "eventType", label: "Event Type", options: filingsV2EventOptions },
-  { key: "impact", label: "Impact", options: filingsV2ImpactOptions },
-  { key: "signal", label: "Signal", options: filingsV2SignalOptions },
-  { key: "dateRange", label: "Date Range", options: filingsV2DateOptions },
-  { key: "marketCap", label: "Market Cap", options: filingsV2MarketCapOptions },
-] as const;
+const mobileGroups = [
+  { group: "signals" as const, includeAll: false, label: "Signal", options: filingsV2SignalOptions },
+  { group: "marketCaps" as const, includeAll: false, label: "Market cap", options: filingsV2MarketCapOptions },
+  { group: "formTypes" as const, includeAll: true, label: "Form type", options: filingsV2FormOptions },
+  { group: "eventTypes" as const, includeAll: true, label: "Event type", options: filingsV2EventOptions },
+  { group: "impacts" as const, includeAll: true, label: "Impact", options: filingsV2ImpactOptions },
+  { group: "dateRanges" as const, includeAll: true, label: "Date range", options: filingsV2DateOptions },
+];
 
-function labelFor(key: FilterKey, value: string) {
-  if (key === "eventType" && value !== "All") {
-    return filingsV2EventLabels[value as keyof typeof filingsV2EventLabels];
-  }
-  if (key === "signal" && value !== "All") {
+function optionLabel(group: FilingsV2FilterGroup, value: string) {
+  if (group === "signals") {
     return filingsV2SignalLabels[value as keyof typeof filingsV2SignalLabels];
   }
-  return value.charAt(0).toUpperCase() + value.slice(1);
+  if (group === "eventTypes") {
+    return filingsV2EventLabels[value as keyof typeof filingsV2EventLabels];
+  }
+  return value;
 }
+
+const mobileFilterHeadingId = "filings-v2-mobile-filter-title";
 
 export function MobileFilingsV2FilterSheet({
   filters,
   isOpen,
-  onApply,
-  onChange,
-  onClear,
+  onClearFilterGroup,
   onDismiss,
+  onReset,
+  onToggleFilter,
   openerRef,
 }: MobileFilingsV2FilterSheetProps) {
   return (
     <BottomSheetShell
-      aria-labelledby="filings-v2-filter-title"
+      aria-labelledby={mobileFilterHeadingId}
       closeLabel="Close filing filters"
       id="filings-v2-filter-sheet"
       isOpen={isOpen}
-      layout="content-footer"
+      layout="full-scroll"
       onDismiss={onDismiss}
       openerRef={openerRef}
-      overlayLabel="Close filing filters"
+      overlayLabel="Dismiss filing filter overlay"
     >
-      <header className={styles.filterSheetHeader}>
-        <h2 id="filings-v2-filter-title">Filter filings</h2>
-      </header>
-      <div className={styles.filterSheetContent}>
-        {sections.map((section) => (
-          <section className={styles.filterSheetSection} key={section.key}>
-            <h3>{section.label}</h3>
-            <div aria-label={`${section.label} options`} className={styles.filterOptions} role="group">
-              {section.options.map((option) => {
-                const value = String(option);
-                return (
-                  <FilterOption
-                    key={value}
-                    label={labelFor(section.key, value)}
-                    onClick={() => onChange(section.key, value)}
-                    selected={filters[section.key] === value}
-                  />
-                );
-              })}
+      <div className={styles.mobileFilterSheetContent}>
+        <header>
+          <span>REFINE FILINGS</span>
+          <h2 id={mobileFilterHeadingId}>Filters</h2>
+          <p>Select multiple values to narrow the mock filing list.</p>
+        </header>
+
+        {mobileGroups.map(({ group, includeAll, label, options }) => (
+          <section className={styles.mobileFilterGroup} key={group}>
+            <h3>{label}</h3>
+            <div>
+              {includeAll ? (
+                <FilterOption
+                  label="All"
+                  onClick={() => onClearFilterGroup(group)}
+                  selected={!filters[group].length}
+                />
+              ) : null}
+              {group === "marketCaps"
+                ? filingsV2MarketCapOptions.map((marketCap) => (
+                    <FilingsV2MarketCapOption
+                      key={marketCap}
+                      marketCap={marketCap}
+                      onClick={() => onToggleFilter("marketCaps", marketCap)}
+                      selected={filters.marketCaps.includes(marketCap)}
+                    />
+                  ))
+                : options.map((option) => (
+                    <FilterOption
+                      key={option}
+                      label={optionLabel(group, option)}
+                      onClick={() => onToggleFilter(group, option)}
+                      selected={filters[group].includes(option as never)}
+                    />
+                  ))}
             </div>
           </section>
         ))}
+
+        <footer className={styles.mobileFilterSheetActions}>
+          <button className={styles.secondaryAction} onClick={onReset} type="button">Reset all</button>
+          <button className={styles.primaryAction} onClick={onDismiss} type="button">Show results</button>
+        </footer>
       </div>
-      <footer className={styles.filterSheetActions}>
-        <button className={styles.secondaryAction} onClick={onClear} type="button">Clear all</button>
-        <button className={styles.primaryAction} onClick={onApply} type="button">Apply filters</button>
-      </footer>
     </BottomSheetShell>
   );
 }
