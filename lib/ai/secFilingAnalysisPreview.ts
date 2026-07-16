@@ -1092,7 +1092,9 @@ export async function runSecFilingAnalysisForRawRow(
     const prompt = buildSec425AnalysisPromptForInput(input, routerResult);
     const analysisModelPlan = buildSec425AnalysisModelPlan(prompt, llmConfig);
     const analysisLlmConfig = resolveSec425AnalysisLlmConfig(llmConfig, options, analysisModelPlan);
-    const analysisRun = await runOpenAiJsonPrompt(env, prompt, analysisLlmConfig);
+    const analysisRun = await runOpenAiJsonPrompt(env, prompt, analysisLlmConfig, {
+      retryRunawayOnce: true,
+    });
     if (!analysisRun.ok || !analysisRun.parsed) {
       return {
         ok: false,
@@ -1158,37 +1160,39 @@ export async function runSecFilingAnalysisForRawRow(
     const sec425ValidationWarnings = readStringArray(
       sec425Analysis.analysis.sec_425_validation_warnings,
     );
-    const keyEvidenceRepairNeeded = sec425ValidationWarnings.some((warning) =>
-      /key_evidence items must be (?:under 28 words|180 characters or fewer)/i.test(warning),
+    const sec425RepairWarnings = sec425ValidationWarnings.filter((warning) =>
+      /(?:key_evidence|current_changes)/i.test(warning),
     );
-    const keyEvidenceRepairPrompt = keyEvidenceRepairNeeded
-      ? buildSec425KeyEvidenceRepairPrompt(prompt, analysisRun.parsed, sec425ValidationWarnings)
+    const validationRepairPrompt = sec425RepairWarnings.length > 0
+      ? buildSec425ValidationRepairPrompt(prompt, analysisRun.parsed, sec425RepairWarnings)
       : null;
-    const keyEvidenceRepairRun = keyEvidenceRepairPrompt
-      ? await runOpenAiJsonPrompt(env, keyEvidenceRepairPrompt, analysisLlmConfig, {
+    const validationRepairRun = validationRepairPrompt
+      ? await runOpenAiJsonPrompt(env, validationRepairPrompt, analysisLlmConfig, {
           maxAttempts: 1,
           disableFallback: true,
         })
       : null;
-    let keyEvidenceRepairApplied = false;
+    let validationRepairApplied = false;
 
-    if (keyEvidenceRepairRun?.ok && keyEvidenceRepairRun.parsed) {
-      const repairedEvidence = readStringArray(keyEvidenceRepairRun.parsed.key_evidence);
-      if (isValidSec425KeyEvidence(repairedEvidence)) {
-        finalSec425Value = replaceSec425KeyEvidence(analysisRun.parsed, repairedEvidence);
-        const repairedAnalysis = adaptSec425AnalysisPromptResultForAnalysis(
-          finalSec425Value,
-          input,
-          routerResult,
-        );
-        if (repairedAnalysis.ok) {
-          sec425Analysis = repairedAnalysis;
-          keyEvidenceRepairApplied = true;
-        }
+    if (validationRepairRun?.ok && validationRepairRun.parsed) {
+      const repairedValue = applySec425ValidationRepair(
+        analysisRun.parsed,
+        validationRepairRun.parsed,
+        sec425RepairWarnings,
+      );
+      const repairedAnalysis = adaptSec425AnalysisPromptResultForAnalysis(
+        repairedValue,
+        input,
+        routerResult,
+      );
+      if (repairedAnalysis.ok) {
+        finalSec425Value = repairedValue;
+        sec425Analysis = repairedAnalysis;
+        validationRepairApplied = true;
       }
     }
 
-    const usage = combineUsage(routerRun.usage, analysisRun.usage, keyEvidenceRepairRun?.usage);
+    const usage = combineUsage(routerRun.usage, analysisRun.usage, validationRepairRun?.usage);
     return {
       ok: true,
       stage: "complete",
@@ -1204,18 +1208,18 @@ export async function runSecFilingAnalysisForRawRow(
       analysis: sec425Analysis.analysis,
       triageOutputText: routerRun.outputText,
       outputText: analysisRun.outputText,
-      repairOutputText: keyEvidenceRepairRun?.outputText,
+      repairOutputText: validationRepairRun?.outputText,
       triageUsage: routerRun.usage,
-      repairUsage: keyEvidenceRepairRun?.usage,
+      repairUsage: validationRepairRun?.usage,
       usage,
       costEstimate: estimateCost(analysisRun.model, usage),
-      repairOpenAiResponseId: keyEvidenceRepairRun?.openAiResponseId || null,
-      validationRepair: keyEvidenceRepairPrompt
+      repairOpenAiResponseId: validationRepairRun?.openAiResponseId || null,
+      validationRepair: validationRepairPrompt
         ? {
             attempted: true,
-            succeeded: keyEvidenceRepairApplied,
-            issue_codes: ["key_evidence_length"],
-            error: keyEvidenceRepairRun?.error || null,
+            succeeded: validationRepairApplied,
+            issue_codes: buildSec425RepairIssueCodes(sec425RepairWarnings),
+            error: validationRepairRun?.error || null,
           }
         : null,
       prompt: {
@@ -1225,12 +1229,12 @@ export async function runSecFilingAnalysisForRawRow(
             key: SEC_425_ROUTER_PROMPT_KEY,
             version: SEC_425_ROUTER_PROMPT_VERSION,
           },
-        repair: keyEvidenceRepairPrompt
+        repair: validationRepairPrompt
           ? {
-              key: keyEvidenceRepairPrompt.key,
-              version: keyEvidenceRepairPrompt.version,
-              system: keyEvidenceRepairPrompt.system,
-              responseFormat: keyEvidenceRepairPrompt.responseFormat,
+              key: validationRepairPrompt.key,
+              version: validationRepairPrompt.version,
+              system: validationRepairPrompt.system,
+              responseFormat: validationRepairPrompt.responseFormat,
             }
           : undefined,
       },
@@ -2491,7 +2495,7 @@ function buildSec425AnalysisModelPlan(
   };
 }
 
-function buildSec425KeyEvidenceRepairPrompt(
+function buildSec425ValidationRepairPrompt(
   analysisPrompt: OpenAiPrompt,
   analysisResult: Record<string, unknown>,
   validationWarnings: string[],
@@ -2499,7 +2503,11 @@ function buildSec425KeyEvidenceRepairPrompt(
   const analysisOutput = readRecord(analysisResult.analysis_output) || {};
   const promptPayload = parseAnalysisJson(analysisPrompt.user);
   const sourceBlocks = readRecordArray(promptPayload?.cleaned_source_blocks);
-  const usedBlockIds = new Set(readStringArray(analysisResult.source_blocks_used));
+  const currentChanges = readRecordArray(analysisOutput.current_changes);
+  const usedBlockIds = new Set([
+    ...readStringArray(analysisResult.source_blocks_used),
+    ...currentChanges.map((item) => stringValue(item.source_block_id)).filter(Boolean),
+  ]);
   const matchingBlocks = usedBlockIds.size > 0
     ? sourceBlocks.filter((block) => usedBlockIds.has(stringValue(block.block_id)))
     : [];
@@ -2513,37 +2521,105 @@ function buildSec425KeyEvidenceRepairPrompt(
     }));
 
   return {
-    key: "sec_425_key_evidence_repair",
+    key: "sec_425_validation_repair",
     version: "v1",
     system: [
-      "Repair only the Key Evidence list for one SEC Form 425 analysis and return strict JSON.",
-      "Use the supplied original source blocks to preserve factual meaning.",
-      "Return no more than 3 non-repetitive items.",
-      "Each item must be one complete sentence under 28 words and 180 characters.",
-      "Prefer the strongest transaction facts. Do not repeat the summary or add unsupported facts.",
+      "Repair one SEC Form 425 analysis after validation and return strict JSON.",
+      "Use only the supplied original source blocks as factual authority.",
+      "Address only the validator warnings. Preserve unrelated analysis content and do not change event type, score, signal, or delivery.",
+      "current_changes must list up to 4 explicit actions, decisions, status changes, changed dates, or changed binding terms announced by this filing, each citing an exact supplied source_block_id.",
+      "Collapse one decision and its supporting rationale into one current change. A best-interests conclusion is not separate from the board position it explains.",
+      "Snapshot and Summary must collectively state every current change before unchanged transaction background.",
+      "Return no more than 3 Key Evidence items. Each must cover a different objective decision, changed term, amount, deadline, approval, vote result, or condition.",
+      "Map Key Evidence one-to-one to different current_changes items and use at most one evidence sentence per current change.",
+      "A rationale or best-interests conclusion for the same board decision is not a separate evidence item. Preserve a distinct competing-offer rejection or other separate current change when supported.",
+      "When a duplicate-evidence warning is present, delete the weaker duplicate rather than paraphrasing it. If only two distinct facts exist, return two items.",
+      "Exclude slogans, aspirations, expected benefits, and promotional claims from Key Evidence.",
+      "Each Key Evidence item must be a complete sentence under 28 words and 180 characters.",
       "This is one repair attempt. Return only the requested JSON object.",
     ].join("\n"),
     user: JSON.stringify({
-      validator_warnings: validationWarnings.filter((warning) => /key_evidence/i.test(warning)),
-      current_key_evidence: readStringArray(analysisOutput.key_evidence),
+      validator_warnings: validationWarnings,
+      current_analysis: {
+        summary: stringValue(analysisOutput.summary),
+        current_changes: currentChanges,
+        snapshot_title: stringValue(analysisOutput.snapshot_title),
+        snapshot_summary: stringValue(analysisOutput.snapshot_summary),
+        snapshot_items: readRecordArray(analysisOutput.snapshot_items),
+        key_evidence: readStringArray(analysisOutput.key_evidence),
+      },
       selected_original_source_blocks: selectedSourceBlocks,
     }),
     responseFormat: {
       json_schema: {
-        name: "sec_425_key_evidence_repair",
+        name: "sec_425_validation_repair",
         strict: true,
         schema: {
           type: "object",
           additionalProperties: false,
-          required: ["key_evidence"],
+          required: [
+            "summary",
+            "current_changes",
+            "snapshot_title",
+            "snapshot_summary",
+            "snapshot_items",
+            "key_evidence",
+          ],
           properties: {
+            summary: {
+              type: "string",
+              description: "The repaired investor summary, no more than 100 words.",
+            },
+            current_changes: {
+              type: "array",
+              maxItems: 4,
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["topic", "change", "result", "priority", "source_block_id"],
+                properties: {
+                  topic: { type: "string" },
+                  change: { type: "string" },
+                  result: { type: "string" },
+                  priority: { type: "string", enum: ["primary", "secondary"] },
+                  source_block_id: { type: "string" },
+                },
+              },
+            },
+            snapshot_title: { type: "string" },
+            snapshot_summary: { type: "string" },
+            snapshot_items: {
+              type: "array",
+              maxItems: 4,
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["label", "value", "note"],
+                properties: {
+                  label: { type: "string" },
+                  value: { type: "string" },
+                  note: { type: "string" },
+                },
+              },
+            },
             key_evidence: {
               type: "array",
               maxItems: 3,
               items: {
-                type: "string",
-                maxLength: 180,
-                description: "One complete source-backed sentence under 28 words.",
+                type: "object",
+                additionalProperties: false,
+                required: ["topic", "fact"],
+                properties: {
+                  topic: {
+                    type: "string",
+                    description: "A concise decision, term, deadline, approval, vote, or condition topic not used by another item.",
+                  },
+                  fact: {
+                    type: "string",
+                    maxLength: 180,
+                    description: "One complete source-backed sentence under 28 words.",
+                  },
+                },
               },
             },
           },
@@ -2553,25 +2629,47 @@ function buildSec425KeyEvidenceRepairPrompt(
   };
 }
 
-function replaceSec425KeyEvidence(
+function applySec425ValidationRepair(
   analysisResult: Record<string, unknown>,
-  keyEvidence: string[],
+  repairResult: Record<string, unknown>,
+  validationWarnings: string[],
 ): Record<string, unknown> {
   const analysisOutput = readRecord(analysisResult.analysis_output) || {};
+  const repairCurrentChanges = validationWarnings.some((warning) => /current_changes/i.test(warning));
+  const repairKeyEvidence = validationWarnings.some((warning) => /key_evidence/i.test(warning));
   return {
     ...analysisResult,
     analysis_output: {
       ...analysisOutput,
-      key_evidence: keyEvidence,
+      ...(repairCurrentChanges
+        ? {
+            summary: stringValue(repairResult.summary) || stringValue(analysisOutput.summary),
+            current_changes: readRecordArray(repairResult.current_changes),
+            snapshot_title: stringValue(repairResult.snapshot_title),
+            snapshot_summary: stringValue(repairResult.snapshot_summary),
+            snapshot_items: readRecordArray(repairResult.snapshot_items),
+          }
+        : {}),
+      ...(repairKeyEvidence
+        ? {
+            key_evidence: readRecordArray(repairResult.key_evidence)
+              .map((item) => stringValue(item.fact))
+              .filter(Boolean),
+          }
+        : {}),
     },
   };
 }
 
-function isValidSec425KeyEvidence(items: string[]) {
-  return items.length <= 3 && items.every((item) => {
-    const wordCount = item.trim().split(/\s+/).filter(Boolean).length;
-    return wordCount <= 28 && item.length <= 180;
-  });
+function buildSec425RepairIssueCodes(validationWarnings: string[]) {
+  const codes: string[] = [];
+  if (validationWarnings.some((warning) => /current_changes/i.test(warning))) {
+    codes.push("current_change_coverage");
+  }
+  if (validationWarnings.some((warning) => /key_evidence/i.test(warning))) {
+    codes.push("key_evidence_quality");
+  }
+  return codes;
 }
 
 function resolveGeminiModelForSecInput(env: ReturnType<typeof getServerEnv>, input?: SecFilingAnalysisInput) {
@@ -2782,9 +2880,29 @@ async function runOpenAiJsonPrompt(
   env: ReturnType<typeof getServerEnv>,
   prompt: OpenAiPrompt,
   llmConfig: SecLlmConfig = resolveSecLlmConfig(env),
-  options: { maxAttempts?: number; disableFallback?: boolean } = {},
+  options: { maxAttempts?: number; disableFallback?: boolean; retryRunawayOnce?: boolean } = {},
 ): Promise<OpenAiPromptRun> {
   if (llmConfig.provider === "gemini") {
+    if (options.retryRunawayOnce) {
+      const firstRun = await runGeminiJsonPrompt(prompt, llmConfig);
+      if (firstRun.ok || !isSecLlmRunawayError(firstRun.error)) return firstRun;
+
+      await waitForRetry(1);
+      const retryRun = await runGeminiJsonPromptAttempts(
+        prompt,
+        {
+          ...llmConfig,
+          model: firstRun.model || llmConfig.model,
+          fallbackModel: undefined,
+        },
+        1,
+        firstRun.attempts,
+      );
+      return {
+        ...retryRun,
+        usage: combineUsage(firstRun.usage, retryRun.usage),
+      };
+    }
     if (options.maxAttempts || options.disableFallback) {
       return runGeminiJsonPromptAttempts(
         prompt,
@@ -2902,6 +3020,10 @@ function isNonRetryableSecLlmError(error: string | undefined) {
   return /\b(?:MAX_TOKENS|parseable JSON|too many states|response schema|runaway output|repeated output|output too long)\b/i.test(text);
 }
 
+function isSecLlmRunawayError(error: string | undefined) {
+  return /\b(?:MAX_TOKENS|runaway output|repeated output|output too long)\b/i.test(error || "");
+}
+
 function readSecLlmSafetyStopReason({
   outputText,
   finishReason,
@@ -2937,7 +3059,18 @@ function hasRepeatedSecLlmOutput(outputText: string) {
     /bullish_points/gi,
     /bearish_points/gi,
   ];
-  return patterns.some((pattern) => (outputText.match(pattern) || []).length >= 4);
+  if (patterns.some((pattern) => (outputText.match(pattern) || []).length >= 4)) return true;
+
+  const sentenceCounts = new Map<string, number>();
+  const sentences = outputText.match(/[^.!?\n]{40,320}[.!?]/g) || [];
+  for (const sentence of sentences) {
+    const normalized = sentence.toLowerCase().replace(/\s+/g, " ").trim();
+    if (!normalized) continue;
+    const count = (sentenceCounts.get(normalized) || 0) + 1;
+    if (count >= 4) return true;
+    sentenceCounts.set(normalized, count);
+  }
+  return false;
 }
 
 function waitForRetry(attempt: number) {

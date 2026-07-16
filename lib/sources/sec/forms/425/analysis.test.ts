@@ -150,6 +150,9 @@ assert.ok(analysisPrompt.system.includes("override the router candidate"));
 assert.ok(analysisPrompt.system.includes("without supplying its substantive content"));
 assert.ok(analysisPrompt.system.includes("is archive-level"));
 assert.ok(analysisPrompt.system.includes("Write no more than 3 key_evidence items"));
+assert.ok(analysisPrompt.system.includes("populate current_changes from the original source blocks"));
+assert.ok(analysisPrompt.system.includes("Snapshot and Summary must collectively cover every current_changes item"));
+assert.ok(analysisPrompt.system.includes("Exclude slogans, aspirations, expected benefits, and promotional claims"));
 assert.ok(analysisPrompt.system.includes("no more than 3 what_to_watch_next items"));
 assert.ok(analysisPrompt.system.includes("summary 2 to 4 concise sentences under 100 words total"));
 assert.ok(analysisPrompt.system.includes("Keep each item under 72 characters"));
@@ -169,6 +172,30 @@ assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.prope
 assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.score_reason.maxLength, 180);
 assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.what_to_watch_next.items.maxLength, 72);
 assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.snapshot_items.maxItems, 4);
+assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.current_changes.maxItems, 4);
+
+const validationFixture = JSON.parse(JSON.stringify(routineResult)) as Sec425RoomResult;
+const validationSourceBlockId = validationFixture.parser_output.raw.cleaned_source_blocks[0]?.block_id;
+if (!validationSourceBlockId) throw new Error("validation fixture requires an original source block");
+validationFixture.analysis_output.score = 65;
+validationFixture.analysis_output.summary = "The board discussed the transaction and its strategic rationale.";
+validationFixture.analysis_output.current_changes = [{
+  topic: "Distribution record date",
+  change: "The filing changed the distribution record date.",
+  result: "July 6, 2026",
+  priority: "secondary",
+  source_block_id: validationSourceBlockId,
+}];
+validationFixture.analysis_output.key_evidence = [
+  "The board reaffirmed its support for the transaction.",
+  "The board recommended continued support for the transaction.",
+  "This combination will define the next century of the industry.",
+];
+validationFixture.fixture_expected.expected_delivery_level = "feed";
+const qualityWarnings = validateSec425RoomResult(validationFixture);
+assert.ok(qualityWarnings.some((warning) => /current_changes not reflected/i.test(warning)));
+assert.ok(qualityWarnings.some((warning) => /duplicate decision topics/i.test(warning)));
+assert.ok(qualityWarnings.some((warning) => /promotional or non-verifiable claims/i.test(warning)));
 
 const amendmentParserOutput = parseSec425Filing({
   title: "425 - merger amendment notice",

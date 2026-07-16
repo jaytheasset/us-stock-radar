@@ -717,6 +717,25 @@ assert.ok(imageBasedSocialPost.raw.router_source_blocks.some((block) => block.co
 assert.equal(imageBasedSocialPost.raw.router_source_blocks.some((block) => /Filed by:/i.test(block.text)), false);
 assert.ok(imageBasedSocialPost.warnings.includes("social_media_content_may_be_in_graphic"));
 
+const socialPostWithTransactionLegalUpdate = parseSec425Filing({
+  title: "425 - social post with transaction status in legal text",
+  formType: "425",
+  filingText: "Filed pursuant to Rule 425. The attached image reproduces a social-media post.",
+  attachments: [{
+    documentType: "425",
+    description: "Additional information and transaction status",
+    filename: "additional-information.htm",
+    text: [
+      "ADDITIONAL INFORMATION AND WHERE TO FIND IT",
+      "On June 3, 2026, the HSR Act Condition was satisfied.",
+      "The shares underlying the option may now be physically settled under the transaction agreement.",
+    ].join("\n"),
+  }],
+});
+assert.ok(socialPostWithTransactionLegalUpdate.raw.router_source_blocks.some((block) =>
+  /HSR Act Condition was satisfied/i.test(block.text) && /physically settled/i.test(block.text)
+));
+
 const proxyCardPackage = parseSec425Filing({
   title: "425 - proxy card",
   formType: "425",

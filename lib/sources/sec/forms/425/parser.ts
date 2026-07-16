@@ -678,7 +678,7 @@ function selectRouterSourceBlocks(blocks: Sec425SourceBlock[]) {
   for (const documentBlocks of byDocument.values()) {
     const substantive = documentBlocks
       .filter((block) =>
-        !block.is_boilerplate &&
+        (!block.is_boilerplate || isTransactionSpecificFactBlock(block.text)) &&
         (block.block_type !== "cover" || hasMaterialCoverTail(block.text)) &&
         block.block_type !== "table_of_contents" &&
         (
@@ -746,6 +746,7 @@ function hasMaterialCoverTail(text: string) {
 
 function routerBlockPriority(block: Sec425SourceBlock) {
   let score = 0;
+  if (isTransactionSpecificFactBlock(block.text)) score += 80;
   if (block.content_role !== "primary_425" && block.content_role !== "other") score += 50;
   if (block.block_type === "cover" && hasMaterialCoverTail(block.text)) score += 70;
   if (block.heading) score += 12;
@@ -769,6 +770,21 @@ function routerBlockPriority(block: Sec425SourceBlock) {
   if (isForwardLookingRiskEnumeration(block.text)) score -= 55;
   if (/^(?:\d+|425|FORM 425|EXHIBIT)\b/i.test(block.text) && block.text.length < 120) score -= 30;
   return score;
+}
+
+function isTransactionSpecificFactBlock(text: string) {
+  const value = compactText(text);
+  if (!value || isForwardLookingRiskEnumeration(value)) return false;
+
+  const completedOrChangedAction =
+    /\b(?:was|were|has been|have been|is hereby|are hereby)\s+(?:satisfied|approved|granted|received|obtained|executed|signed|amended|terminated|completed|closed|settled|converted|changed|extended|rejected|withdrawn)\b/i.test(value) ||
+    /\b(?:received|obtained|granted|completed|executed|signed|amended|terminated|closed|settled|changed|extended|rejected|withdrew)\b[\s\S]{0,180}\b(?:approval|clearance|condition|agreement|transaction|offer|proposal|settlement|record date|meeting date|consideration|financing)\b/i.test(value) ||
+    /\b(?:condition|waiting period|review)\b[\s\S]{0,120}\b(?:satisfied|expired|completed|cleared|granted)\b/i.test(value);
+  const securityPositionChanged =
+    /\b(?:physical settlement|settleable in shares|option to elect physical settlement|voting power|dispositive power)\b/i.test(value) &&
+    /\b(?:now|became|satisfied|received|effective|as a result)\b/i.test(value);
+
+  return completedOrChangedAction || securityPositionChanged;
 }
 
 function toRouterSourceBlock(block: Sec425SourceBlock): Sec425SourceBlock {

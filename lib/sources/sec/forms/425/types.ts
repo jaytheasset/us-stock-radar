@@ -359,6 +359,14 @@ export type Sec425SnapshotItem = {
   note: string;
 };
 
+export type Sec425CurrentChange = {
+  topic: string;
+  change: string;
+  result: string;
+  priority: "primary" | "secondary";
+  source_block_id: string;
+};
+
 export type Sec425AnalysisOutput = {
   source_group: "filings";
   market_scope: Sec425MarketScope;
@@ -376,6 +384,7 @@ export type Sec425AnalysisOutput = {
   quick_take: string;
   summary: string;
   why_it_matters: string;
+  current_changes: Sec425CurrentChange[];
   snapshot_title: string;
   snapshot_summary: string;
   snapshot_items: Sec425SnapshotItem[];

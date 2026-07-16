@@ -165,6 +165,7 @@ export function adaptSec425AnalysisPromptResultForAnalysis(
     quick_take: stringValue(analysisOutput.quick_take),
     summary: stringValue(analysisOutput.summary),
     why_it_matters: stringValue(analysisOutput.why_it_matters),
+    current_changes: normalizeCurrentChanges(analysisOutput.current_changes),
     snapshot_title: stringValue(analysisOutput.snapshot_title),
     snapshot_summary: stringValue(analysisOutput.snapshot_summary),
     snapshot_items: normalizeSnapshotItems(analysisOutput.snapshot_items),
@@ -320,6 +321,30 @@ function normalizeSnapshotItems(value: unknown): Sec425AnalysisOutput["snapshot_
       };
     })
     .filter((item): item is Sec425AnalysisOutput["snapshot_items"][number] => Boolean(item))
+    .slice(0, 4);
+}
+
+function normalizeCurrentChanges(value: unknown): Sec425AnalysisOutput["current_changes"] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      const record = readRecord(item);
+      if (!record) return null;
+      const topic = stringValue(record.topic);
+      const change = stringValue(record.change);
+      const result = stringValue(record.result);
+      const sourceBlockId = stringValue(record.source_block_id);
+      const priority = stringValue(record.priority) === "secondary" ? "secondary" : "primary";
+      if (!topic || !change || !result || !sourceBlockId) return null;
+      return {
+        topic,
+        change,
+        result,
+        priority,
+        source_block_id: sourceBlockId,
+      };
+    })
+    .filter((item): item is Sec425AnalysisOutput["current_changes"][number] => Boolean(item))
     .slice(0, 4);
 }
 

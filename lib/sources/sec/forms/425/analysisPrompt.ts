@@ -10,6 +10,7 @@ import {
   type Sec425Confidence,
   type Sec425DisplayType,
   type Sec425MarketScope,
+  type Sec425AnalysisOutput,
   type Sec425ParserOutput,
   type Sec425RoomResult,
   type Sec425Signal,
@@ -100,9 +101,12 @@ export const sec425AnalysisSystemPrompt = [
   "For legal_risk and financial_risk cases, explain how the issue could affect closing certainty, funding, dilution, or downside risk without overstating facts.",
   "For ipo_listing cases, explain only source-backed IPO/listing facts already selected by the router/classifier; keep ipo_kind in display_payload.data as traditional or spac and do not reclassify SPAC redemption, liquidation, or de-SPAC updates as IPO listings.",
   "Keep investor-facing copy consistent with the other SEC analysis rooms: event_title under 90 characters; quick_take one sentence under 22 words; summary 2 to 4 concise sentences under 100 words total; why_it_matters one sentence under 35 words.",
+  "Before writing Snapshot, Summary, or Key Evidence, populate current_changes from the original source blocks. Include up to 4 explicit actions, decisions, status changes, changed dates, or changed binding terms announced by this current filing; do not include unchanged background facts.",
+  "For each current_changes item, write a concise topic, the complete change, the resulting current value or status, primary or secondary priority, and the exact source_block_id. Collapse one decision and its supporting rationale into one current change; a best-interests conclusion is not separate from the board position it explains. If the filing only repeats known information, return an empty current_changes array.",
+  "Snapshot and Summary must collectively cover every current_changes item before using static transaction background. A changed value or status has priority over an unchanged meeting, record, valuation, or transaction fact.",
   "score_reason is the visible score explanation. Write exactly one concise analyst-style conclusion for stock investors, targeting 18-32 words, that explains why the impact is material without repeating the filing summary.",
   "Do not format score_reason as sections, bullets, labels, or an internal scoring review. Do not begin with 'The score' and do not mention the score, score level, impact band, delivery level, form type, filing mechanics, or SEC form labels.",
-  "Write no more than 3 key_evidence items. Usually select 2 or 3 of the strongest non-repetitive original-source facts, but use 1 when the filing supports only one distinct material fact. Keep each item under 28 words and 180 characters, and do not restate the full summary.",
+  "Write no more than 3 key_evidence items. Usually select 2 or 3 of the strongest non-repetitive original-source facts, but use 1 when the filing supports only one distinct material fact. Map each item to a different current_changes item and use at most one evidence sentence per current change. A rationale or best-interests conclusion for the same board decision is not a separate evidence item. Each item must cover a different objective decision, changed term, amount, deadline, approval, vote result, or transaction condition. Exclude slogans, aspirations, expected benefits, and promotional claims. Keep each item under 28 words and 180 characters, and do not restate the full summary.",
   "Write no more than 3 what_to_watch_next items. Keep each item under 72 characters and name a concrete transaction milestone, decision, deadline, or changed condition supported by the filing context.",
   "When router_result.display_type is spac_transaction_status, write exactly 4 snapshot_items. Choose concise labels that fit this filing's actual event; do not force fixed labels such as Vote Date, Target / Ticker, or Closing / Listing.",
   "Every snapshot item must be directly supported by the original cleaned_source_blocks. Never use parser facts, extracted values, keyword snippets, or UI defaults to fill a snapshot item.",
@@ -157,6 +161,7 @@ export const sec425RequiredOutputResponseSchema = {
         "quick_take",
         "summary",
         "why_it_matters",
+        "current_changes",
         "snapshot_title",
         "snapshot_summary",
         "snapshot_items",
@@ -194,6 +199,22 @@ export const sec425RequiredOutputResponseSchema = {
         quick_take: { type: "string", maxLength: 180 },
         summary: { type: "string", maxLength: 800 },
         why_it_matters: { type: "string", maxLength: 260 },
+        current_changes: {
+          type: "array",
+          maxItems: 4,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["topic", "change", "result", "priority", "source_block_id"],
+            properties: {
+              topic: { type: "string", maxLength: 40 },
+              change: { type: "string", maxLength: 180 },
+              result: { type: "string", maxLength: 80 },
+              priority: { type: "string", enum: ["primary", "secondary"] },
+              source_block_id: { type: "string", maxLength: 80 },
+            },
+          },
+        },
         snapshot_title: { type: "string", maxLength: 40 },
         snapshot_summary: { type: "string", maxLength: 260 },
         snapshot_items: {
@@ -341,8 +362,10 @@ function selectSec425AnalysisSourceBlocks(
     }
     const materialDocumentIndexes = selectMaterialDocumentIndexes(blocks, routerResult);
     for (const index of materialDocumentIndexes) includedIndexes.add(index);
+    const routeContextIndexes = selectRouteContextIndexes(blocks, routerResult, selectedIndexes);
+    for (const index of routeContextIndexes) includedIndexes.add(index);
     return {
-      mode: materialDocumentIndexes.some((index) => !selectedIndexes.includes(index))
+      mode: [...materialDocumentIndexes, ...routeContextIndexes].some((index) => !selectedIndexes.includes(index))
         ? "router_selected_with_material_document_context" as const
         : "router_selected_with_adjacent_context" as const,
       blocks: Array.from(includedIndexes)
@@ -365,6 +388,27 @@ function selectSec425AnalysisSourceBlocks(
     mode: "bounded_source_fallback" as const,
     blocks: blocks.filter((block) => !block.is_boilerplate).slice(0, 24),
   };
+}
+
+function selectRouteContextIndexes(
+  blocks: Sec425SourceBlock[],
+  routerResult: Sec425RouterDecision,
+  selectedIndexes: number[],
+) {
+  if (routerResult.route_case !== "shareholder_meeting_or_vote") return [];
+  const selectedSourceRefs = new Set(
+    selectedIndexes.map((index) => blocks[index]?.source_ref).filter(Boolean),
+  );
+  return blocks
+    .map((block, index) => (
+      selectedSourceRefs.has(block.source_ref) &&
+      !block.is_boilerplate &&
+      block.content_role === "meeting_notice"
+        ? index
+        : -1
+    ))
+    .filter((index) => index >= 0)
+    .slice(0, 8);
 }
 
 function selectMaterialDocumentIndexes(
@@ -456,6 +500,7 @@ export function buildSec425DeterministicRoomResult(
       quick_take: "No new investor-relevant transaction change was disclosed.",
       summary: archiveSummary,
       why_it_matters: "No new investor-relevant transaction change is supported by the supplied communication.",
+      current_changes: [],
       snapshot_title: "",
       snapshot_summary: "",
       snapshot_items: [],
@@ -487,6 +532,7 @@ export function validateSec425RoomResult(result: Sec425RoomResult): string[] {
   const analysis = result.analysis_output;
   const fixtureExpected = result.fixture_expected;
   const snapshotItems = Array.isArray(analysis.snapshot_items) ? analysis.snapshot_items : [];
+  const currentChanges = Array.isArray(analysis.current_changes) ? analysis.current_changes : [];
   const snapshotTitle = typeof analysis.snapshot_title === "string" ? analysis.snapshot_title : "";
   const snapshotSummary = typeof analysis.snapshot_summary === "string" ? analysis.snapshot_summary : "";
 
@@ -504,6 +550,24 @@ export function validateSec425RoomResult(result: Sec425RoomResult): string[] {
   if (wordCount(analysis.summary) > 100) errors.push("analysis_output.summary must be under 100 words");
   if (wordCount(analysis.why_it_matters) > 35) errors.push("analysis_output.why_it_matters must be under 35 words");
   if (wordCount(analysis.score_reason) > 32) errors.push("analysis_output.score_reason must be 32 words or fewer");
+  if (currentChanges.length > 4) {
+    errors.push("analysis_output.current_changes must contain no more than 4 items");
+  }
+  const validSourceBlockIds = new Set(result.parser_output.raw.cleaned_source_blocks.map((block) => block.block_id));
+  if (currentChanges.some((item) => !validSourceBlockIds.has(item.source_block_id))) {
+    errors.push("analysis_output.current_changes must cite valid original source_block_id values");
+  }
+  if (hasDuplicateCurrentChanges(currentChanges)) {
+    errors.push("analysis_output.current_changes contains duplicate decision topics");
+  }
+  if (analysis.score >= 50 && "current_changes" in analysis && currentChanges.length === 0) {
+    errors.push("material 425 analysis requires at least one source-backed current_changes item");
+  }
+  const visibleAnalysisText = buildVisibleAnalysisText(analysis);
+  const uncoveredChanges = currentChanges.filter((item) => !isCurrentChangeCovered(item.result, visibleAnalysisText));
+  if (uncoveredChanges.length > 0) {
+    errors.push(`current_changes not reflected in Snapshot or Summary: ${uncoveredChanges.map((item) => item.topic).join(", ")}`);
+  }
   if (analysis.key_evidence.length > 3) {
     errors.push("analysis_output.key_evidence must contain no more than 3 non-repetitive items");
   }
@@ -512,6 +576,12 @@ export function validateSec425RoomResult(result: Sec425RoomResult): string[] {
   }
   if (analysis.key_evidence.some((item) => item.length > 180)) {
     errors.push("analysis_output.key_evidence items must be 180 characters or fewer");
+  }
+  if (hasDuplicateKeyEvidence(analysis.key_evidence)) {
+    errors.push("analysis_output.key_evidence contains duplicate decision topics");
+  }
+  if (analysis.key_evidence.some((item) => isPromotionalKeyEvidence(item))) {
+    errors.push("analysis_output.key_evidence contains promotional or non-verifiable claims");
   }
   if (analysis.what_to_watch_next.length > 3) {
     errors.push("analysis_output.what_to_watch_next must contain no more than 3 items");
@@ -555,6 +625,94 @@ export function validateSec425RoomResult(result: Sec425RoomResult): string[] {
     errors.push("market_context_needed requires market_context_fields");
   }
   return errors;
+}
+
+function buildVisibleAnalysisText(analysis: Sec425AnalysisOutput) {
+  return [
+    analysis.quick_take,
+    analysis.summary,
+    analysis.snapshot_title,
+    analysis.snapshot_summary,
+    ...analysis.snapshot_items.flatMap((item) => [item.label, item.value, item.note]),
+  ].filter(Boolean).join(" ");
+}
+
+function isCurrentChangeCovered(result: string, visibleText: string) {
+  const normalizedResult = normalizeCoverageText(result);
+  const normalizedVisible = normalizeCoverageText(visibleText);
+  if (!normalizedResult) return true;
+  if (normalizedVisible.includes(normalizedResult)) return true;
+
+  const resultMarkers = extractCoverageMarkers(result);
+  if (resultMarkers.length > 0) {
+    return resultMarkers.some((marker) => normalizedVisible.includes(normalizeCoverageText(marker)));
+  }
+
+  const resultTokens = coverageTokens(result);
+  if (resultTokens.length === 0) return true;
+  const visibleTokens = new Set(coverageTokens(visibleText));
+  const matched = resultTokens.filter((token) => visibleTokens.has(token)).length;
+  return matched >= Math.min(3, Math.max(1, Math.ceil(resultTokens.length * 0.6)));
+}
+
+function extractCoverageMarkers(value: string) {
+  return uniqueStrings([
+    ...(value.match(/\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,\s+\d{4})?/gi) || []),
+    ...(value.match(/(?:\$|US\$)\s?\d[\d,.]*(?:\s?(?:million|billion|M|B))?|\b\d+(?:\.\d+)?%\b/gi) || []),
+  ]);
+}
+
+function normalizeCoverageText(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9$%]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function coverageTokens(value: string) {
+  const stopWords = new Set([
+    "the", "a", "an", "and", "or", "of", "to", "for", "in", "on", "at", "by", "with", "from",
+    "this", "that", "its", "is", "are", "was", "were", "be", "been", "transaction", "company", "filing",
+  ]);
+  return uniqueStrings(normalizeCoverageText(value).split(" ").filter((token) => token.length >= 3 && !stopWords.has(token)));
+}
+
+function uniqueStrings(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function hasDuplicateKeyEvidence(items: string[]) {
+  const classified = items.map((item) => ({
+    actionClass: keyEvidenceActionClass(item),
+    tokens: new Set(coverageTokens(item)),
+  }));
+  for (let left = 0; left < classified.length; left += 1) {
+    for (let right = left + 1; right < classified.length; right += 1) {
+      if (!classified[left].actionClass || classified[left].actionClass !== classified[right].actionClass) continue;
+      const union = new Set([...classified[left].tokens, ...classified[right].tokens]);
+      const intersection = [...classified[left].tokens].filter((token) => classified[right].tokens.has(token));
+      if (union.size > 0 && intersection.length / union.size >= 0.2) return true;
+    }
+  }
+  return false;
+}
+
+function hasDuplicateCurrentChanges(items: Sec425AnalysisOutput["current_changes"]) {
+  return hasDuplicateKeyEvidence(items.map((item) => `${item.topic}. ${item.change}. ${item.result}`));
+}
+
+function isPromotionalKeyEvidence(value: string) {
+  if (extractCoverageMarkers(value).length > 0) return false;
+  return !keyEvidenceActionClass(value);
+}
+
+function keyEvidenceActionClass(value: string) {
+  if (/\b(?:reaffirm|recommend|support|oppose|reject|conclud|best interests|board commitment)\w*\b/i.test(value)) return "board_position";
+  if (/\b(?:regulatory|approval|clearance|antitrust|HSR|condition satisfied)\b/i.test(value)) return "regulatory";
+  if (/\b(?:vote|voting|stockholder approval|shareholder approval|adjourn|reconven)\w*\b/i.test(value)) return "vote";
+  if (/\b(?:sign|execute|enter into|amend|extend|terminate|withdraw|revise|change)\w*\b/i.test(value)) return "agreement_change";
+  if (/\b(?:consideration|offer price|per share|exchange ratio|enterprise value|equity value|cash-and-stock)\b/i.test(value)) return "economics";
+  if (/\b(?:close|closing|completed|completion|effective time)\b/i.test(value)) return "closing";
+  if (/\b(?:financing|funding|PIPE|debt|credit facility|minimum cash)\b/i.test(value)) return "financing";
+  if (/\b(?:tender|redemption|ownership|shares outstanding|physical settlement|voting power)\b/i.test(value)) return "security_status";
+  return "";
 }
 
 function isMissingSnapshotValue(value: string) {
