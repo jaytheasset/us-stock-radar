@@ -5,6 +5,7 @@ import { join } from "node:path";
 import {
   buildSec425AnalysisPromptDraft,
   buildSec425DeterministicRoomResult,
+  SEC_425_IMPACT_LEVEL_VALUES,
   sec425RequiredOutputResponseSchema,
   validateSec425RoomResult,
 } from "./analysisPrompt";
@@ -115,25 +116,43 @@ const analysisPrompt = buildSec425AnalysisPromptDraft({
 });
 
 assert.equal(analysisPrompt.key, "sec_425_analysis_draft");
-assert.equal(analysisPrompt.version, "v2");
+assert.equal(analysisPrompt.version, "v5");
 assert.deepEqual(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.event_type.enum, SEC_425_APPROVED_EVENT_TYPES);
 assert.ok(SEC_425_APPROVED_EVENT_TYPES.includes("ipo_listing"));
 assert.ok(analysisPrompt.system.includes("Required Output JSON shape"));
 assert.ok(analysisPrompt.system.includes("below 50 archive, 50 to 74 feed, 75 or above alert"));
+assert.ok(analysisPrompt.system.includes("set impact_level to exactly one of repeated_information, procedural_update, material_progression, or decisive_outcome"));
+assert.deepEqual(SEC_425_IMPACT_LEVEL_VALUES, [
+  "repeated_information",
+  "procedural_update",
+  "material_progression",
+  "decisive_outcome",
+]);
+assert.ok(analysisPrompt.system.includes("Use 75-84 only when the current Form 425 itself establishes a decisive new catalyst"));
+assert.ok(analysisPrompt.system.includes("A resolved material external condition is a decisive_outcome even when closing remains pending"));
+assert.ok(analysisPrompt.system.includes("Do not downgrade a decisive current-filing update merely because the underlying transaction was announced earlier"));
+assert.ok(analysisPrompt.system.includes("Use 75-79 when this Form 425 first reports final regulatory clearance"));
+assert.ok(analysisPrompt.system.includes("If it cannot, cap the score at 74"));
+assert.ok(analysisPrompt.system.includes("A procedural_update is analyzed but archived"));
+assert.ok(analysisPrompt.system.includes("Feed begins only when the current filing establishes a substantive change"));
+assert.ok(analysisPrompt.system.includes("A meeting date, record-date change, proxy mailing, solicitation reminder, or routine adjournment is archive-level"));
+assert.ok(analysisPrompt.system.includes("Do not begin with 'The score'"));
 assert.ok(analysisPrompt.system.includes("Copy analysis_output.event_type exactly from router_result.event_type"));
 assert.ok(analysisPrompt.system.includes("Treat supplied display_payload as read-only integration context"));
 assert.ok(analysisPrompt.system.includes("Return display_payload only when the response schema explicitly asks for it"));
 assert.ok(analysisPrompt.system.includes("For ipo_listing cases"));
 assert.ok(analysisPrompt.system.includes("Do not call"));
-assert.ok(analysisPrompt.system.includes("prior transaction filings"));
-assert.ok(analysisPrompt.system.includes("incremental investor impact of this Form 425"));
+assert.ok(analysisPrompt.system.includes("Analyze this Form 425 independently"));
+assert.ok(analysisPrompt.system.includes("Prior 8-K, 6-K, S-4, F-4, proxy, tender, and Form 425 analyses are not supplied"));
 assert.ok(analysisPrompt.system.includes("without supplying its substantive content"));
-assert.ok(analysisPrompt.system.includes("normally feed-level rather than alert-level"));
+assert.ok(analysisPrompt.system.includes("is archive-level"));
 assert.ok(analysisPrompt.system.includes("Write no more than 3 key_evidence items"));
 assert.ok(analysisPrompt.system.includes("no more than 3 what_to_watch_next items"));
+assert.ok(analysisPrompt.system.includes("summary 2 to 4 concise sentences under 100 words total"));
+assert.ok(analysisPrompt.system.includes("Keep each item under 72 characters"));
 assert.ok(analysisPrompt.user.includes("\"display_payload\""));
-assert.ok(analysisPrompt.user.includes("\"related_transaction_context\""));
-assert.ok(analysisPrompt.user.includes("Prior merger registration statement"));
+assert.equal(analysisPrompt.user.includes("\"related_transaction_context\""), false);
+assert.equal(analysisPrompt.user.includes("Prior merger registration statement"), false);
 assert.ok(analysisPrompt.user.includes("\"display_version\":\"sec_425_display_v1\""));
 assert.ok(analysisPrompt.user.includes("\"market_context\""));
 assert.ok(analysisPrompt.user.includes("\"market_cap\":3500000000"));
@@ -143,6 +162,8 @@ assert.ok(analysisPrompt.user.includes("router_selected_with_adjacent_context"))
 assert.ok(analysisPrompt.user.includes(mergerParserOutput.raw.cleaned_source_blocks[0]?.block_id || "missing-block-id"));
 assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.key_evidence.maxItems, 3);
 assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.what_to_watch_next.maxItems, 3);
+assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.event_title.maxLength, 90);
+assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.what_to_watch_next.items.maxLength, 72);
 
 const amendmentParserOutput = parseSec425Filing({
   title: "425 - merger amendment notice",
@@ -211,6 +232,8 @@ function buildRouterDecision(
     confidence: "high",
     needs_analysis_llm: true,
     archive_like_candidate: false,
+    material_update_present: true,
+    material_update_reason: "The current filing announces an explicit material transaction event.",
     needs_parent_context: false,
     deterministic_stage: null,
     routing_reason: "The selected original source block contains a material transaction update.",
@@ -221,7 +244,7 @@ function buildRouterDecision(
     debug: {
       parser_version: "sec_425_parser_v2",
       router_prompt_key: "sec_425_router",
-      router_prompt_version: "v2",
+      router_prompt_version: "v3",
     },
     ...overrides,
   };

@@ -1,6 +1,7 @@
 import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
 import {
   SEC_425_ANALYSIS_CASE_VALUES,
+  SEC_425_IMPACT_LEVEL_VALUES,
   SEC_425_ANALYSIS_PROMPT_KEY,
   SEC_425_ANALYSIS_PROMPT_VERSION,
   buildSec425AnalysisPromptDraft,
@@ -100,9 +101,9 @@ export function buildSec425AnalysisPromptForInput(
     ...prompt,
     system: [
       prompt.system,
-      "Runtime integration note: return only analysis_output, analysis_case, and source_blocks_used. Parser output and display_payload are supplied or rebuilt by integration and must not be returned.",
+      "Runtime integration note: return only impact_level, analysis_output, analysis_case, and source_blocks_used. Parser output and display_payload are supplied or rebuilt by integration and must not be returned.",
       "Use source block IDs exactly as supplied when listing source_blocks_used.",
-      "Router score is only an archive gate. Assign the final score from the current Form 425 communication and source-backed transaction impact.",
+      "Router score is only an archive gate. Assign the final score from the explicit material event established by the current Form 425 source blocks alone.",
     ].join("\n"),
     responseFormat: {
       type: "json_schema",
@@ -144,8 +145,14 @@ export function adaptSec425AnalysisPromptResultForAnalysis(
   if (!parserOutput) return { ok: false, error: "SEC 425 parser output is missing from filing package" };
 
   const routerEventType = normalizeEventType(stringValue(routerResult.event_type));
-  const score = clampScore(numberValue(analysisOutput.score) ?? numberValue(routerResult.score) ?? 0);
+  const proposedScore = clampScore(numberValue(analysisOutput.score) ?? numberValue(routerResult.score) ?? 0);
+  const modelImpactLevel = normalizeImpactLevel(stringValue(root.impact_level), proposedScore);
+  const impactLevel = isProceduralVoteCommunication(parserOutput, analysisOutput)
+    ? "procedural_update"
+    : modelImpactLevel;
+  const score = capScoreForImpactLevel(proposedScore, impactLevel);
   const primaryTicker = normalizePrimaryTicker(readRecord(analysisOutput.primary_ticker), input, parserOutput);
+  const archiveScore = score < 50;
   const normalizedOutput: Sec425AnalysisOutput = {
     source_group: "filings",
     market_scope: normalizeMarketScope(stringValue(analysisOutput.market_scope)),
@@ -163,10 +170,10 @@ export function adaptSec425AnalysisPromptResultForAnalysis(
     quick_take: stringValue(analysisOutput.quick_take),
     summary: stringValue(analysisOutput.summary),
     why_it_matters: stringValue(analysisOutput.why_it_matters),
-    bullish_points: readStringArray(analysisOutput.bullish_points),
-    bearish_points: readStringArray(analysisOutput.bearish_points),
-    key_evidence: readStringArray(analysisOutput.key_evidence),
-    what_to_watch_next: readStringArray(analysisOutput.what_to_watch_next),
+    bullish_points: archiveScore ? [] : readStringArray(analysisOutput.bullish_points),
+    bearish_points: archiveScore ? [] : readStringArray(analysisOutput.bearish_points),
+    key_evidence: archiveScore ? [] : readStringArray(analysisOutput.key_evidence),
+    what_to_watch_next: archiveScore ? [] : readStringArray(analysisOutput.what_to_watch_next),
     related_tickers: normalizeTickerRows(analysisOutput.related_tickers, { ticker: null, exchange: null }),
     calendar_items: Array.isArray(analysisOutput.calendar_items)
       ? (analysisOutput.calendar_items as Sec425AnalysisOutput["calendar_items"])
@@ -199,6 +206,7 @@ export function adaptSec425AnalysisPromptResultForAnalysis(
     routerResult,
     stringValue(root.analysis_case),
     readStringArray(root.source_blocks_used),
+    { impactLevel, proposedScore },
   );
 }
 
@@ -223,10 +231,16 @@ function adaptSec425RoomResultForPersistence(
   routerResult: Record<string, unknown>,
   analysisCase: string,
   sourceBlocksUsed: string[],
+  scoring?: {
+    impactLevel: (typeof SEC_425_IMPACT_LEVEL_VALUES)[number];
+    proposedScore: number;
+  },
 ): Sec425AnalysisAdapterResult {
   const validationWarnings = validateSec425RoomResult(roomResult);
   const analysis = roomResult.analysis_output;
   const archiveSummary = analysis.score < 50 ? analysis.summary || analysis.quick_take : null;
+  const impactLevel = scoring?.impactLevel || normalizeImpactLevel("", analysis.score);
+  const proposedScore = scoring?.proposedScore ?? analysis.score;
   return {
     ok: true,
     analysis: {
@@ -235,9 +249,13 @@ function adaptSec425RoomResultForPersistence(
       display_payload: roomResult.display_payload,
       sec_425_router_result: routerResult,
       sec_425_analysis_case: analysisCase || stringValue(routerResult.route_case) || null,
+      sec_425_impact_level: impactLevel,
+      sec_425_score_adjustment: proposedScore === analysis.score
+        ? null
+        : `Score capped from ${proposedScore} to ${analysis.score} by impact level ${impactLevel}.`,
       source_blocks_used: sourceBlocksUsed,
       sec_425_validation_warnings: validationWarnings,
-      related_transaction_context_status: stringValue(
+      related_filings_status: stringValue(
         readRecord(readRecord(readFilingPackage(input).filing_context)?.related_transaction)?.status,
       ) || "not_found",
     },
@@ -305,6 +323,45 @@ function normalizeConfidence(value: string) {
     : "medium";
 }
 
+function normalizeImpactLevel(value: string, score: number) {
+  if (SEC_425_IMPACT_LEVEL_VALUES.includes(value as (typeof SEC_425_IMPACT_LEVEL_VALUES)[number])) {
+    return value as (typeof SEC_425_IMPACT_LEVEL_VALUES)[number];
+  }
+  if (score >= 75) return "decisive_outcome" as const;
+  if (score >= 60) return "material_progression" as const;
+  if (score >= 50) return "procedural_update" as const;
+  return "repeated_information" as const;
+}
+
+function capScoreForImpactLevel(
+  score: number,
+  impactLevel: (typeof SEC_425_IMPACT_LEVEL_VALUES)[number],
+) {
+  if (impactLevel === "repeated_information") return Math.min(score, 49);
+  if (impactLevel === "procedural_update") return Math.min(score, 49);
+  if (impactLevel === "material_progression") return Math.min(score, 74);
+  return score;
+}
+
+function isProceduralVoteCommunication(
+  parserOutput: Sec425ParserOutput,
+  analysisOutput: Record<string, unknown>,
+) {
+  if (normalizeEventType(stringValue(analysisOutput.event_type)) !== "shareholder_vote") return false;
+
+  const facts = readRecord(parserOutput.facts);
+  const vote = readRecord(facts?.vote);
+  const voteResults = Array.isArray(vote?.vote_results) ? vote.vote_results : [];
+  if (voteResults.length > 0) return false;
+
+  const communicationTypes = Array.isArray(facts?.communication_types)
+    ? facts.communication_types.map((value) => stringValue(value))
+    : [];
+  return vote?.adjourned === true || communicationTypes.some((value) =>
+    value === "meeting_adjournment" || value === "proxy_solicitation"
+  );
+}
+
 function clampScore(value: number) {
   return Math.max(0, Math.min(100, Math.round(Number.isFinite(value) ? value : 0)));
 }
@@ -342,8 +399,9 @@ function readRecord(value: unknown): Record<string, unknown> | null {
 const sec425RuntimeAnalysisResponseSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["analysis_output", "analysis_case", "source_blocks_used"],
+  required: ["impact_level", "analysis_output", "analysis_case", "source_blocks_used"],
   properties: {
+    impact_level: { type: "string", enum: SEC_425_IMPACT_LEVEL_VALUES },
     analysis_output: sec425RequiredOutputResponseSchema.properties.analysis_output,
     analysis_case: { type: "string", enum: SEC_425_ANALYSIS_CASE_VALUES },
     source_blocks_used: {

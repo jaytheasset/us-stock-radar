@@ -62,7 +62,7 @@
     "theme_group": "M&A",
     "sub_theme": "Cash-and-stock merger",
     "score": 78,
-    "score_reason": "Alert-level because the Form 425 includes transaction value, cash-and-stock consideration, exchange ratio, premium, and expected close timing for a major strategic transaction.",
+    "score_reason": "Cash-and-stock terms, premium, and closing timing make this a major transaction update.",
     "signal": "volatile",
     "quick_take": "Alpha disclosed concrete cash-and-stock merger terms for Beta Bio.",
     "summary": "Alpha Therapeutics filed a Form 425 communication describing a definitive merger agreement with Beta Bio. The consideration includes $12.50 in cash plus 0.60 Alpha shares per Beta Bio share, with an approximately $4.2 billion transaction value.",
@@ -82,8 +82,8 @@
     ],
     "what_to_watch_next": [
       "Regulatory approval status and any HSR or antitrust updates.",
-      "Shareholder materials that clarify voting requirements or closing conditions.",
-      "Alpha share price moves that change the value of the stock consideration."
+      "Voting requirements and remaining closing conditions.",
+      "Alpha share moves affecting the stock consideration value."
     ],
     "related_tickers": [],
     "calendar_items": [],

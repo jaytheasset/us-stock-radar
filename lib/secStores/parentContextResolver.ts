@@ -142,9 +142,9 @@ async function attachSec425TransactionFilingContext(input: SecFilingAnalysisInpu
       })),
       source_notes: [
         "Only prior filings with an existing saved analysis are eligible.",
-        "Historical full filing text is excluded; selected context contains compact prior analysis and transaction metadata only.",
-        "The Form 425 router still classifies the current communication without this historical context.",
-        "Analysis must treat prior filings as background and must not present old terms as new Form 425 disclosures.",
+        "Related filings are display-only navigation for Form 425 pages.",
+        "Historical analysis and filing text are excluded from the Form 425 router and analysis prompts.",
+        "The current Form 425 is classified and analyzed independently from this related-filings list.",
       ],
     },
   };

@@ -770,6 +770,8 @@ function buildRouteOnlyItem(rawItem: RawItemRow, routeResult: unknown) {
             transaction_stage: stringValue(route.transaction_stage),
             analysis_needed: route.needs_analysis_llm === true,
             archive_like_candidate: route.archive_like_candidate === true,
+            material_update_present: route.material_update_present === true,
+            material_update_reason: stringValue(route.material_update_reason) || null,
             needs_parent_context: route.needs_parent_context === true,
             confidence: stringValue(route.confidence),
             routing_reason: stringValue(route.routing_reason),

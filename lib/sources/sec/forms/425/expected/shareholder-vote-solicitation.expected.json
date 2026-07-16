@@ -56,27 +56,16 @@
     "industry_group": null,
     "theme_group": "M&A",
     "sub_theme": "Merger vote",
-    "score": 64,
-    "score_reason": "Feed-level because the filing gives a concrete shareholder vote date and board recommendation, but does not change merger economics.",
+    "score": 49,
+    "score_reason": "The filing supplies meeting logistics and repeats the board recommendation without changing transaction terms or vote status.",
     "signal": "neutral",
     "quick_take": "Northstar scheduled the merger vote and reiterated the board's FOR recommendation.",
     "summary": "Northstar filed a Form 425 proxy solicitation communication for its proposed merger with Delta Robotics. The special meeting is scheduled for July 15, 2026, with a June 12, 2026 record date.",
-    "why_it_matters": "Shareholder approval is a key closing condition for many strategic transactions, and the meeting date gives investors a clear catalyst.",
-    "bullish_points": [
-      "The board unanimously recommends voting FOR the merger agreement."
-    ],
-    "bearish_points": [
-      "The filing does not add new consideration terms or remove vote uncertainty."
-    ],
-    "key_evidence": [
-      "The special meeting of Northstar stockholders will be held on July 15, 2026.",
-      "Stockholders of record as of June 12, 2026 are entitled to vote.",
-      "The board unanimously recommends that stockholders vote FOR the adoption of the merger agreement."
-    ],
-    "what_to_watch_next": [
-      "Vote outcome at the July 15, 2026 special meeting.",
-      "Any supplemental proxy disclosures before the vote."
-    ],
+    "why_it_matters": "The filing confirms when shareholders will vote but does not change the proposed merger or resolve its approval condition.",
+    "bullish_points": [],
+    "bearish_points": [],
+    "key_evidence": [],
+    "what_to_watch_next": [],
     "related_tickers": [],
     "calendar_items": [
       {
@@ -103,8 +92,8 @@
     "notes": []
   },
   "fixture_expected": {
-    "expected_delivery_level": "feed",
-    "expected_impact": "medium",
+    "expected_delivery_level": "archive",
+    "expected_impact": "low",
     "market_context_needed": false,
     "market_context_reason": null,
     "market_context_fields": [],

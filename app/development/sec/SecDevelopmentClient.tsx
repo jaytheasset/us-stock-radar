@@ -1441,7 +1441,16 @@ function getDisplayLabelGuide(roomKey: string): DisplayLabelGuide | null {
           items: ["generic", "offering_terms", "spac_transaction_status", "candidate_special"],
         },
         {
-          title: "2. Router cases",
+          title: "2. Standalone material gate",
+          items: [
+            "Explicit new proposal / signed agreement / revised economics",
+            "Agreement amendment / termination / regulatory decision",
+            "Vote result / concrete closing milestone",
+            "No explicit material event = archive communication",
+          ],
+        },
+        {
+          title: "3. Router cases",
           items: [
             "listing_risk",
             "dilution_or_offering",
@@ -1699,8 +1708,12 @@ function getDisplayLabelGuide(roomKey: string): DisplayLabelGuide | null {
           ],
         },
         {
-          title: "3. Event choices",
+          title: "4. Event choices",
           items: ["strategic_transaction", "shareholder_vote", "legal_risk", "financial_risk", "dilution_risk", "ipo_listing", "other"],
+        },
+        {
+          title: "5. Related filings",
+          items: ["Display-only navigation", "Excluded from router evidence", "Excluded from analysis evidence"],
         },
       ],
       detailModes: [

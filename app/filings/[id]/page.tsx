@@ -6208,11 +6208,12 @@ function FilingRelatedFilingsPanel({ filing }: { filing: FilingEvent }) {
   const contextFilings = filing.contextRelatedFilings ?? [];
   if (contextFilings.length > 0) {
     const isEffect = filing.formType.trim().toUpperCase() === "EFFECT";
+    const isForm425 = filing.formType.trim().toUpperCase() === "425";
     return (
       <RelatedFilingsContextList
         filings={contextFilings}
         heading="Related Filings"
-        subheading={isEffect ? "" : "Transaction context"}
+        subheading={isEffect ? "" : isForm425 ? "Related transaction filings" : "Transaction context"}
         relationLabelFormatter={isEffect ? formatEffectRelatedFilingRelation : undefined}
       />
     );
@@ -12845,6 +12846,12 @@ function buildFilingContextRelatedFilings({
   const filingContext = readPlainRecord(metadata?.filing_context);
   const transactionHistory = readPlainRecord(filingContext?.transaction_history);
   const priorFilings = recordArray(transactionHistory?.prior_filings);
+  const relatedTransaction = readPlainRecord(filingContext?.related_transaction);
+  const relatedTransactionFilings = recordArray(relatedTransaction?.selected_filings).map((item) => ({
+    ...item,
+    match_source: "sec_425_related_transaction",
+    match_confidence: readRowString(relatedTransaction, "confidence"),
+  }));
   const parentContext = readPlainRecord(metadata?.parent_filing_context);
   const parentFiling = readPlainRecord(parentContext?.parent);
   const parentContextItem = parentFiling
@@ -12856,7 +12863,9 @@ function buildFilingContextRelatedFilings({
         match_score: readRowNumber(parentContext, "match_score"),
       }
     : null;
-  const relatedSourceItems = parentContextItem ? [parentContextItem, ...priorFilings] : priorFilings;
+  const relatedSourceItems = parentContextItem
+    ? [parentContextItem, ...relatedTransactionFilings, ...priorFilings]
+    : [...relatedTransactionFilings, ...priorFilings];
   const seen = new Set<string>();
 
   return relatedSourceItems
@@ -12921,6 +12930,14 @@ function classifyFilingContextRelation(item: Record<string, unknown>, formType: 
       label: "Parent",
       description: "Original filing matched for this amendment.",
       candidate: false,
+    };
+  }
+
+  if (source === "sec_425_related_transaction") {
+    return {
+      label: "Related transaction",
+      description: "Earlier filing associated with the same proposed transaction.",
+      candidate: confidence !== "high",
     };
   }
 

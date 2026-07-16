@@ -57,7 +57,7 @@
     "theme_group": "M&A",
     "sub_theme": "Deal financing risk",
     "score": 68,
-    "score_reason": "Feed-level because the filing identifies debt-financing availability and liquidity consequences, but says the transaction is not subject to a financing condition and does not announce a failed financing.",
+    "score_reason": "Financing uncertainty raises liquidity risk, though closing is not financing-conditioned.",
     "signal": "bearish",
     "quick_take": "Solara says market disruption could affect debt financing and failure to close may require more capital raising.",
     "summary": "Solara filed a Form 425 update for its proposed Harbor Brands acquisition. Although the transaction is not subject to a financing condition, Solara disclosed that committed debt financing may not be available if market disruption continues and that failure to close would require evaluation of capital raising alternatives.",

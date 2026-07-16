@@ -26,7 +26,7 @@ import { buildSec425DisplayPayload } from "./displayPayload";
 import { buildSecSourceBlockPromptInput } from "../common/sourceBlockPromptInput";
 
 export const SEC_425_ANALYSIS_PROMPT_KEY = "sec_425_analysis_draft";
-export const SEC_425_ANALYSIS_PROMPT_VERSION = "v2";
+export const SEC_425_ANALYSIS_PROMPT_VERSION = "v5";
 
 export const SEC_425_ANALYSIS_CASE_VALUES = [
   "strategic_transaction_terms",
@@ -43,6 +43,13 @@ export const SEC_425_ANALYSIS_CASE_VALUES = [
   "other_425",
 ] as const;
 
+export const SEC_425_IMPACT_LEVEL_VALUES = [
+  "repeated_information",
+  "procedural_update",
+  "material_progression",
+  "decisive_outcome",
+] as const;
+
 export type Sec425AnalysisCase = (typeof SEC_425_ANALYSIS_CASE_VALUES)[number];
 
 export type Sec425AnalysisPromptInput = Sec425RouterPromptInput & {
@@ -52,7 +59,7 @@ export type Sec425AnalysisPromptInput = Sec425RouterPromptInput & {
 
 export const sec425AnalysisSystemPrompt = [
   "Write investor-facing analysis for one SEC Form 425 transaction communication and return only strict JSON matching the Required Output JSON shape.",
-  "Use only cleaned_source_blocks, router result, related_transaction_context, and fixture-provided market_context. Do not call, request, or assume live market data.",
+  "Use only cleaned_source_blocks, router result, and fixture-provided market_context. Do not call, request, or assume live market data.",
   "Use current_filing.form_type exactly when naming the SEC form. Do not substitute another form from the same 425 family.",
   "Do not use parser-generated facts, signals, route hints, extraction summaries, event labels, display labels, or investment labels as analysis authority.",
   `Use only these approved event types: ${SEC_425_APPROVED_EVENT_TYPES.join(", ")}.`,
@@ -61,16 +68,28 @@ export const sec425AnalysisSystemPrompt = [
   "Return display_payload only when the response schema explicitly asks for it, and then copy it exactly. Runtime integration rebuilds it from the router result and parser output.",
   "Do not create new display types. The router/classifier and UI payload builder already selected display_type, display_version, and display data.",
   "Use router_result.routing_reason and cleaned_source_blocks as the evidence base.",
-  "related_transaction_context contains compact analyses of already-saved prior transaction filings. Use it only as background for identifying what this Form 425 changes, confirms, repeats, or advances.",
-  "Do not present a prior filing's terms as a new disclosure in the current Form 425. Current facts must come from cleaned_source_blocks; prior context may explain the baseline and transaction lifecycle.",
-  "If related_transaction_context.status is not_found, do not invent parent terms. If it is multiple_candidates, use only facts consistently supported by the current filing and avoid claiming a definitive parent match.",
+  "Analyze this Form 425 independently. Prior 8-K, 6-K, S-4, F-4, proxy, tender, and Form 425 analyses are not supplied as evidence and must not be assumed.",
+  "The router has already confirmed that this filing itself contains an explicit material update. Analyze only that current-filing event and its directly stated investor consequences.",
   "Do not ask for full raw filing text. If filing_excerpt is supplied, treat it as selected source snippets only.",
   "Do not add delivery_level as a model field. The fixture expected delivery level is derived from analysis_output.score: below 50 archive, 50 to 74 feed, 75 or above alert.",
-  "Prioritize investor impact: deal economics, consideration changes, vote deadlines, litigation or regulatory risk, financing risk, and whether the communication changes previously known terms.",
-  "Score the incremental investor impact of this Form 425, not the importance of the underlying transaction. Repeated merger context, prior S-4 effectiveness, or previously mailed proxy materials do not justify a higher score unless this filing adds a material change or a concrete new transaction milestone.",
-  "An announcement of a future call, webcast, investor day, interview, or presentation without new economics, operating results, forecasts, vote results, regulatory decisions, financing terms, or closing status is normally feed-level rather than alert-level. The promised future discussion is not evidence that those facts were disclosed now.",
+  "Prioritize the standalone investor impact established by the current Form 425: new deal economics, a new or revised proposal, a signed agreement, changed consideration, agreement amendment, termination, vote result, regulatory decision, financing event, or concrete closing milestone.",
+  "Do not raise the score merely because the underlying transaction is important. Score the explicit event announced by this filing.",
+  "Score impact magnitude separately from direction. A neutral transaction event can have a high score, while bullish or bearish advocacy can still have a low score.",
+  "Before scoring, set impact_level to exactly one of repeated_information, procedural_update, material_progression, or decisive_outcome. Use the current filing's new action, decision, changed binding term, or resolved condition as the basis, not its communication format or transaction size.",
+  "Use 0-24 for administrative or extremely low-signal communications; 25-39 for explanatory, promotional, or stakeholder communications that repeat known transaction information; and 40-49 for concrete but procedural updates. These are archive scores.",
+  "A procedural_update is analyzed but archived. It includes ordinary meeting logistics, record-date changes, proxy mailing, solicitation reminders, or a routine adjournment that does not itself resolve or materially endanger a required transaction condition.",
+  "Feed begins only when the current filing establishes a substantive change in transaction economics, closing certainty, a required condition, financing, regulation, litigation, or vote status. Use 50-59 for a meaningful but limited change and 60-69 for stronger but still conditional progress or risk.",
+  "Use 70-74 only for a highly material update that remains unresolved or conditional. This is still feed, not alert.",
+  "Use 75-84 only when the current Form 425 itself establishes a decisive new catalyst: a signed definitive agreement, a new or revised acquisition proposal, changed principal consideration or control terms, a transaction approval or rejection that resolves a material condition, final regulatory clearance or block, termination, closing, or a material financing outcome.",
+  "A resolved material external condition is a decisive_outcome even when closing remains pending. For example, final regulatory approval with no further regulatory approvals required is decisive; an interim approval or pending review is material_progression.",
+  "Do not downgrade a decisive current-filing update merely because the underlying transaction was announced earlier. Use 75-79 when this Form 425 first reports final regulatory clearance, shareholder approval, or another resolved required condition but closing remains pending; use 80-84 only when the update creates unusually high closing certainty or an immediate closing step.",
+  "Use 85-94 for exceptional changes to control, economics, or closing certainty, such as a superior or competing proposal, transaction collapse, blocking injunction, failed essential financing, or materially revised consideration. Reserve 95-100 for rare immediate and extraordinary outcomes.",
+  "Do not score 75 or above unless score_reason can name the decisive current-filing event that changed transaction economics, control, a required condition, or closing outcome. If it cannot, cap the score at 74.",
+  "A communication format does not determine the score by itself. Presentations, FAQs, transcripts, interviews, employee communications, and social posts remain below 50 unless their supplied content explicitly announces a decisive event; transaction size, detailed projections, rationale, or promotional language alone do not raise the score.",
+  "A meeting date, record-date change, proxy mailing, solicitation reminder, or routine adjournment is archive-level unless another fact in the current filing establishes a substantive transaction change. A disclosed failure to obtain a required vote or another concrete threat may justify 50-74, while an actual approval or rejection of the transaction may qualify for 75 or above.",
+  "An announcement of a future call, webcast, investor day, interview, or presentation without a new proposal, signed agreement, revised economics, vote result, regulatory decision, financing event, termination, or concrete closing milestone is archive-level. The promised future discussion is not evidence that those facts were disclosed now.",
   "A filing that only says a social-media post, repost, interview, or other communication occurred, without supplying its substantive content, does not establish a new investor event. Score it below 50 and archive it unless another supplied source block independently provides a material update.",
-  "For routine Form 425 materials that explicitly contain no new material information and no changed terms, keep event_type other, score below 50, neutral signal, high confidence, and needs_human_review false.",
+  "Routine presentations, FAQs, employee communications, interviews, transcripts, reposts, and transaction explanations with no explicit material event in the current filing are archive-level even when they do not expressly say that no new information is included.",
   "For strategic transaction terms, explain consideration, transaction value, parties, closing timeline, and what to watch next.",
   "For a signed transaction agreement, prioritize the complete economic consideration disclosed for each security and any stated post-closing ownership. Do not substitute fractional-share cash cleanup, award treatment, or a defined-term fragment for the principal merger consideration.",
   "For SPAC business-combination terms, focus on target, valuation, PIPE, trust cash, redemptions, earnout shares, warrants, lock-up, support, and expected ticker only when source-backed.",
@@ -79,8 +98,11 @@ export const sec425AnalysisSystemPrompt = [
   "For amendment cases, analyze only what the amendment changed; do not restate the parent agreement as a new event unless changed terms are evident.",
   "For legal_risk and financial_risk cases, explain how the issue could affect closing certainty, funding, dilution, or downside risk without overstating facts.",
   "For ipo_listing cases, explain only source-backed IPO/listing facts already selected by the router/classifier; keep ipo_kind in display_payload.data as traditional or spac and do not reclassify SPAC redemption, liquidation, or de-SPAC updates as IPO listings.",
-  "Write no more than 3 key_evidence items. Usually select 2 or 3 of the strongest non-repetitive original-source facts, but use 1 when the filing supports only one distinct material fact. Do not restate the full summary.",
-  "Write no more than 3 what_to_watch_next items. Each item must name a concrete transaction milestone, decision, deadline, or changed condition supported by the filing context.",
+  "Keep investor-facing copy consistent with the other SEC analysis rooms: event_title under 90 characters; quick_take one sentence under 22 words; summary 2 to 4 concise sentences under 100 words total; why_it_matters one sentence under 35 words; score_reason under 18 words.",
+  "Write score_reason as a concise investor-impact conclusion. Do not begin with 'The score' or explain the scoring process; state the event and why it belongs in its impact band.",
+  "Write no more than 3 key_evidence items. Usually select 2 or 3 of the strongest non-repetitive original-source facts, but use 1 when the filing supports only one distinct material fact. Keep each item under 28 words and do not restate the full summary.",
+  "Write no more than 3 what_to_watch_next items. Keep each item under 72 characters and name a concrete transaction milestone, decision, deadline, or changed condition supported by the filing context.",
+  "For archive-score communications, keep bullish_points, bearish_points, key_evidence, and what_to_watch_next empty. Use one concise summary sentence describing the communication and whether it changed the transaction.",
   "Analysis is responsible for investor-facing copy: event_title, score_reason, signal, quick_take, summary, why_it_matters, points, evidence, watch items, confidence, and human-review flag.",
 ].join("\n");
 
@@ -140,7 +162,7 @@ export const sec425RequiredOutputResponseSchema = {
         source_group: { type: "string", enum: ["filings"] },
         market_scope: { type: "string", enum: SEC_425_MARKET_SCOPE_VALUES },
         event_type: { type: "string", enum: SEC_425_APPROVED_EVENT_TYPES },
-        event_title: { type: "string" },
+        event_title: { type: "string", maxLength: 90 },
         primary_ticker: {
           type: "object",
           additionalProperties: false,
@@ -156,22 +178,22 @@ export const sec425RequiredOutputResponseSchema = {
         theme_group: { type: ["string", "null"] },
         sub_theme: { type: ["string", "null"] },
         score: { type: "integer", minimum: 0, maximum: 100 },
-        score_reason: { type: "string" },
+        score_reason: { type: "string", maxLength: 140 },
         signal: { type: "string", enum: SEC_425_SIGNAL_VALUES },
-        quick_take: { type: "string" },
-        summary: { type: "string" },
-        why_it_matters: { type: "string" },
+        quick_take: { type: "string", maxLength: 180 },
+        summary: { type: "string", maxLength: 800 },
+        why_it_matters: { type: "string", maxLength: 260 },
         bullish_points: { type: "array", items: { type: "string" } },
         bearish_points: { type: "array", items: { type: "string" } },
         key_evidence: {
           type: "array",
           maxItems: 3,
-          items: { type: "string", maxLength: 300 },
+          items: { type: "string", maxLength: 220 },
         },
         what_to_watch_next: {
           type: "array",
           maxItems: 3,
-          items: { type: "string", maxLength: 240 },
+          items: { type: "string", maxLength: 72 },
         },
         related_tickers: { type: "array", items: { type: "object", additionalProperties: true } },
         calendar_items: { type: "array", items: { type: "object", additionalProperties: true } },
@@ -218,8 +240,6 @@ export const sec425RequiredOutputResponseSchema = {
 } as const;
 
 export function buildSec425AnalysisPromptDraft(input: Sec425AnalysisPromptInput) {
-  const filingContext = readRecord(input.filing_package.filing_context);
-  const relatedTransactionContext = readRecord(filingContext?.related_transaction);
   const sourcePromptInput = buildSecSourceBlockPromptInput({
     filingPackage: input.filing_package,
     parserOutput: input.parser_output as unknown as Record<string, unknown>,
@@ -258,7 +278,6 @@ export function buildSec425AnalysisPromptDraft(input: Sec425AnalysisPromptInput)
       },
       router_result: input.router_result,
       display_payload: input.display_payload,
-      related_transaction_context: relatedTransactionContext,
       market_context: input.market_context || null,
     }),
     responseFormat: {
@@ -379,12 +398,6 @@ function scoreMaterialAmendmentBlock(block: Sec425SourceBlock) {
   return score;
 }
 
-function readRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
 export function buildSec425DeterministicRoomResult(
   parserOutput: Sec425ParserOutput,
   routerDecision: Sec425RouterDecision,
@@ -414,12 +427,12 @@ export function buildSec425DeterministicRoomResult(
       score: routerDecision.score,
       score_reason: "The communication does not provide a new material transaction term, decision, or status change.",
       signal: "neutral",
-      quick_take: archiveSummary,
+      quick_take: "No new investor-relevant transaction change was disclosed.",
       summary: archiveSummary,
       why_it_matters: "No new investor-relevant transaction change is supported by the supplied communication.",
       bullish_points: [],
       bearish_points: [],
-      key_evidence: routerDecision.evidence,
+      key_evidence: [],
       what_to_watch_next: [],
       related_tickers: [],
       calendar_items: parserOutput.calendarItems,
@@ -454,11 +467,30 @@ export function validateSec425RoomResult(result: Sec425RoomResult): string[] {
   if (!SEC_425_CONFIDENCE_VALUES.includes(analysis.confidence as Sec425Confidence)) errors.push("analysis_output.confidence is invalid");
   if (!SEC_425_DISPLAY_TYPE_VALUES.includes(result.display_payload.display_type as Sec425DisplayType)) errors.push("display_payload.display_type is invalid");
   if (!Number.isInteger(analysis.score) || analysis.score < 0 || analysis.score > 100) errors.push("analysis_output.score must be an integer from 0 to 100");
+  if (analysis.event_title.length > 90) errors.push("analysis_output.event_title must be under 90 characters");
+  if (wordCount(analysis.quick_take) > 22) errors.push("analysis_output.quick_take must be under 22 words");
+  if (wordCount(analysis.summary) > 100) errors.push("analysis_output.summary must be under 100 words");
+  if (wordCount(analysis.why_it_matters) > 35) errors.push("analysis_output.why_it_matters must be under 35 words");
+  if (wordCount(analysis.score_reason) > 18) errors.push("analysis_output.score_reason must be under 18 words");
   if (analysis.key_evidence.length > 3) {
     errors.push("analysis_output.key_evidence must contain no more than 3 non-repetitive items");
   }
+  if (analysis.key_evidence.some((item) => wordCount(item) > 28)) {
+    errors.push("analysis_output.key_evidence items must be under 28 words");
+  }
   if (analysis.what_to_watch_next.length > 3) {
     errors.push("analysis_output.what_to_watch_next must contain no more than 3 items");
+  }
+  if (analysis.what_to_watch_next.some((item) => item.length > 72)) {
+    errors.push("analysis_output.what_to_watch_next items must be under 72 characters");
+  }
+  if (analysis.score < 50 && (
+    analysis.bullish_points.length > 0 ||
+    analysis.bearish_points.length > 0 ||
+    analysis.key_evidence.length > 0 ||
+    analysis.what_to_watch_next.length > 0
+  )) {
+    errors.push("archive-score communications must not include point, evidence, or watch lists");
   }
 
   const derivedDeliveryLevel = deliveryLevelFromScore(analysis.score);
@@ -475,6 +507,10 @@ export function validateSec425RoomResult(result: Sec425RoomResult): string[] {
     errors.push("market_context_needed requires market_context_fields");
   }
   return errors;
+}
+
+function wordCount(value: string): number {
+  return value.trim() ? value.trim().split(/\s+/).length : 0;
 }
 
 export const sec425AnalysisDebugFields = {

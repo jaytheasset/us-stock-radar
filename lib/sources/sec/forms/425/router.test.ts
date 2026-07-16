@@ -48,7 +48,7 @@ const routerPrompt = buildSec425RouterPromptDraft({
 });
 
 assert.equal(routerPrompt.key, "sec_425_router");
-assert.equal(routerPrompt.version, "v2");
+assert.equal(routerPrompt.version, "v3");
 assert.deepEqual(sec425RouterResponseSchema.properties.event_type.enum, SEC_425_ROUTER_EVENT_TYPES);
 assert.deepEqual(sec425RouterResponseSchema.properties.route_case.enum, SEC_425_ROUTER_CASE_VALUES);
 assert.deepEqual(sec425RouterResponseSchema.properties.communication_mode.enum, SEC_425_COMMUNICATION_MODE_VALUES);
@@ -57,7 +57,10 @@ assert.deepEqual(sec425RouterResponseSchema.properties.display_version.enum, ["s
 assert.ok(routerPrompt.system.includes("route planner"));
 assert.ok(routerPrompt.system.includes("compact, context-preserving excerpts"));
 assert.ok(routerPrompt.system.includes("Router score is an archive gate"));
-assert.ok(routerPrompt.system.includes("needs_parent_context"));
+assert.ok(routerPrompt.system.includes("related filings are display-only navigation"));
+assert.ok(routerPrompt.system.includes("material_update_present true only"));
+assert.ok(routerPrompt.system.includes("Material information is not automatically a material event"));
+assert.ok(routerPrompt.system.includes("material_update_reason must describe what happened or changed"));
 assert.ok(routerPrompt.system.includes("proposed merger"));
 assert.ok(routerPrompt.system.includes("has not been accepted or signed"));
 assert.ok(routerPrompt.system.includes("an FAQ was provided to employees"));
@@ -135,6 +138,8 @@ const normalized = normalizeSec425RouterResult({
   confidence: "high",
   needs_analysis_llm: true,
   archive_like_candidate: false,
+  material_update_present: true,
+  material_update_reason: "The filing sets a new shareholder meeting date.",
   needs_parent_context: false,
   deterministic_stage: null,
   routing_reason: "The filing provides a material shareholder meeting update.",
@@ -174,12 +179,25 @@ const normalizedRoutine = normalizeSec425RouterResult({
   score: 50,
   needs_analysis_llm: true,
   archive_like_candidate: false,
+  material_update_present: false,
+  material_update_reason: "The communication repeats transaction background without an explicit new event.",
 }, shareholderParserOutput);
 assert.equal(normalizedRoutine.needs_analysis_llm, false);
 assert.equal(normalizedRoutine.archive_like_candidate, true);
 assert.equal(normalizedRoutine.deterministic_stage, "router");
 assert.equal(normalizedRoutine.score, 49);
 assert.equal(normalizedRoutine.expected_delivery_level, "archive");
+assert.equal(normalizedRoutine.needs_parent_context, false);
+
+const normalizedFaqArchive = normalizeSec425RouterResult({
+  ...normalized,
+  route_case: "stakeholder_faq_or_communication",
+  communication_mode: "faq",
+  material_update_present: false,
+  material_update_reason: "Employee guidance does not announce a new transaction event.",
+}, shareholderParserOutput);
+assert.equal(normalizedFaqArchive.needs_analysis_llm, false);
+assert.equal(normalizedFaqArchive.expected_delivery_level, "archive");
 
 console.log("sec 425 router fixtures passed");
 

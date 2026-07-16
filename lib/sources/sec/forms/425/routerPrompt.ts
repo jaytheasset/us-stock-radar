@@ -13,7 +13,7 @@ import {
 } from "../common/currentFilingIdentity.ts";
 
 export const SEC_425_ROUTER_PROMPT_KEY = "sec_425_router";
-export const SEC_425_ROUTER_PROMPT_VERSION = "v2";
+export const SEC_425_ROUTER_PROMPT_VERSION = "v3";
 export const SEC_425_DISPLAY_PAYLOAD_VERSION = "sec_425_display_v1";
 
 export const SEC_425_ROUTER_ACTION_VALUES = ["archive", "feed", "alert"] as const;
@@ -98,6 +98,8 @@ export type Sec425RouterDecision = {
   confidence: Sec425Confidence;
   needs_analysis_llm: boolean;
   archive_like_candidate: boolean;
+  material_update_present: boolean;
+  material_update_reason: string | null;
   needs_parent_context: boolean;
   deterministic_stage: "router" | null;
   routing_reason: string;
@@ -150,7 +152,11 @@ export const sec425RouterSystemPrompt = [
   "Use only current_filing, document_inventory, and cleaned_source_blocks supplied in the user message.",
   "The cleaned_source_blocks are compact, context-preserving excerpts from the original filing. Treat their block_id values as the only selectable evidence IDs.",
   "Do not infer from parser facts, extracted values, keyword hits, parser summaries, prior event labels, or display labels.",
-  "Classify the investor-relevant purpose and transaction stage, not merely the document format. A presentation, FAQ, transcript, or social post can carry material transaction terms or only repeat known information.",
+  "Classify the investor-relevant purpose and transaction stage from this Form 425 alone. Do not compare it with or depend on a prior filing.",
+  "Separately decide whether this filing itself announces an explicit material transaction event. Set material_update_present true only when the current source blocks establish a new proposal, signed definitive agreement, revised economics, agreement amendment, termination, regulatory decision, vote result, or concrete closing milestone.",
+  "Material information is not automatically a material event. The gate asks whether a transaction action, decision, status, or binding term changed in the current communication, not whether the communication contains detailed or investment-relevant information.",
+  "Transaction background, existing agreement terms, pro-forma financials, forecasts, operating metrics, risk factors, pending acquisition descriptions, redemption scenarios, or possible financing do not satisfy the gate unless the source expressly establishes a current change, execution, approval, result, termination, or completed milestone.",
+  "A presentation, FAQ, transcript, employee communication, interview, social post, meeting notice, or repeated transaction explanation is not material merely because it describes an important underlying deal. Set material_update_present false unless that communication itself announces one of the explicit material events above.",
   "Before choosing route_case, identify the communication's stated title, intended audience, and substantive purpose from the original blocks. Treat transaction definitions, forward-looking risk lists, PIPE definitions, and SEC solicitation boilerplate as context, not as the dominant purpose.",
   `Choose event_type only from: ${SEC_425_ROUTER_EVENT_TYPES.join(", ")}.`,
   `Choose route_case only from: ${SEC_425_ROUTER_CASE_VALUES.join(", ")}.`,
@@ -170,12 +176,14 @@ export const sec425RouterSystemPrompt = [
   "Use regulatory_or_closing_update for regulatory approval, proxy effectiveness or mailing, satisfaction of closing conditions, closing completion, or a concrete next closing step.",
   "Use deal_litigation_or_regulatory_risk when litigation, injunction, antitrust review, a second request, or another unresolved regulatory obstacle is the dominant investor issue.",
   "Use financing_or_liquidity_risk only when transaction funding, minimum cash, financing availability, liquidity, or failure-to-close funding consequences dominate the communication.",
-  "Use routine_repetition only when the selected source blocks show no new material terms, status change, date, vote development, regulatory development, or stakeholder consequence.",
+  "Use routine_repetition when the current communication provides transaction background, advocacy, presentation content, FAQs, employee guidance, interview commentary, reposted material, or logistical information without an explicit material transaction event in this filing.",
   "A short communication is not automatically routine. Social media, interviews, event notices, and FAQs may still contain a material proposal or status update.",
   "If a filing merely reports that a social-media post, repost, interview, or other communication occurred but does not include its substantive content, do not infer a transaction update from the missing content. Treat it as archive-like routine repetition unless another supplied source block independently establishes a new material event.",
   "Final conflict check: if an original block expressly labels the communication as an FAQ provided to employees, customers, or partners and the filing contains stakeholder questions or instructions, output communication_mode faq and route_case stakeholder_faq_or_communication. Do not let underlying SPAC, PIPE, merger, or solicitation boilerplate override that communication purpose.",
-  "Set archive_like_candidate true and needs_analysis_llm false only for source-backed routine repetition with no material update. Otherwise analysis is required.",
-  "Set needs_parent_context true when the communication cannot be understood reliably without a prior merger agreement, proxy, tender document, or earlier transaction event.",
+  "Set material_update_reason to one concise current-filing fact when material_update_present is true; otherwise explain briefly why the communication is informational or repetitive.",
+  "Final material-event check: material_update_reason must describe what happened or changed in this communication. If it only says that the filing provides details, an update, background, forecasts, pro-forma information, transaction rationale, possible financing, or risk disclosure, set material_update_present false.",
+  "Set archive_like_candidate true and needs_analysis_llm false whenever material_update_present is false. Otherwise analysis is required.",
+  "Set needs_parent_context false. Form 425 routing and analysis are intentionally standalone; related filings are display-only navigation and are not analysis evidence.",
   "Router score is an archive gate, not the final impact score. Use 0-49 only for archive-like repetition and 50 for all cases requiring analysis. Do not assign alert-level scores in the router.",
   "Derive expected_delivery_level and action from score: below 50 archive; 50 feed. The analysis LLM will assign the final score and delivery level.",
   "Select 1-8 source block IDs that best support the route. Use original block_id values exactly and do not return labels in selected_source_block_ids.",
@@ -202,6 +210,8 @@ export const sec425RouterResponseSchema = {
     "confidence",
     "needs_analysis_llm",
     "archive_like_candidate",
+    "material_update_present",
+    "material_update_reason",
     "needs_parent_context",
     "deterministic_stage",
     "routing_reason",
@@ -227,6 +237,8 @@ export const sec425RouterResponseSchema = {
     confidence: { type: "string", enum: ["high", "medium", "low"] },
     needs_analysis_llm: { type: "boolean" },
     archive_like_candidate: { type: "boolean" },
+    material_update_present: { type: "boolean" },
+    material_update_reason: { type: ["string", "null"], maxLength: 500 },
     needs_parent_context: { type: "boolean" },
     deterministic_stage: { type: ["string", "null"], enum: ["router", null] },
     routing_reason: { type: "string", maxLength: 500 },
@@ -300,9 +312,8 @@ export function normalizeSec425RouterResult(value: Record<string, unknown>, pars
   const routeCase = communicationMode === "faq"
     ? "stakeholder_faq_or_communication"
     : value.route_case;
-  const needsAnalysis = routeCase === "routine_repetition"
-    ? false
-    : value.needs_analysis_llm !== false || value.archive_like_candidate !== true;
+  const materialUpdatePresent = value.material_update_present === true;
+  const needsAnalysis = materialUpdatePresent;
   const score = needsAnalysis ? 50 : Math.min(49, Math.max(0, Math.round(numberValue(value.score) ?? 0)));
   const eventType = routeCase === "shareholder_meeting_or_vote"
     ? "shareholder_vote"
@@ -317,6 +328,11 @@ export function normalizeSec425RouterResult(value: Record<string, unknown>, pars
     action: needsAnalysis ? "feed" : "archive",
     needs_analysis_llm: needsAnalysis,
     archive_like_candidate: !needsAnalysis,
+    material_update_present: materialUpdatePresent,
+    material_update_reason: typeof value.material_update_reason === "string"
+      ? value.material_update_reason.trim() || null
+      : null,
+    needs_parent_context: false,
     deterministic_stage: needsAnalysis ? null : "router",
     selected_source_block_ids: selectedIds,
     source_blocks_used: selectedIds,
