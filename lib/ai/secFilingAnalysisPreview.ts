@@ -209,6 +209,25 @@ type SecLlmConfig = {
   apiKeyEnvName: "OPENAI_API_KEY" | "GEMINI_API_KEY";
 };
 
+type Sec425AnalysisModelPlan = {
+  selectedBlockCount: number;
+  sourceDocumentCount: number;
+  selectedTextChars: number;
+  hasComplexDocument: boolean;
+  selectedModel: "gemini-2.5-flash-lite" | "gemini-2.5-flash";
+  reason: string;
+};
+
+const SEC_425_GEMINI_LITE_MODEL = "gemini-2.5-flash-lite";
+const SEC_425_GEMINI_FLASH_MODEL = "gemini-2.5-flash";
+const SEC_425_COMPLEX_DOCUMENT_ROLES = new Set([
+  "investor_presentation",
+  "transaction_agreement",
+  "agreement_amendment",
+  "stockholder_agreement",
+  "employment_agreement",
+]);
+
 type CostEstimate = {
   model: string;
   currency: "USD";
@@ -257,6 +276,9 @@ export type SecFilingAnalysisRunResult = {
   stage: "raw_item" | "openai" | "complete";
   status: number;
   model?: string;
+  routerModel?: string;
+  analysisModel?: string | null;
+  analysisModelPlan?: Sec425AnalysisModelPlan;
   openAiResponseId?: string | null;
   auditOpenAiResponseId?: string | null;
   repairOpenAiResponseId?: string | null;
@@ -997,7 +1019,8 @@ export async function runSecFilingAnalysisForRawRow(
 
   if (isSec425FilingInput(input)) {
     const routerPrompt = buildSec425RouterPromptForInput(input);
-    const routerRun = await runOpenAiJsonPrompt(env, routerPrompt, llmConfig);
+    const routerLlmConfig = resolveSec425RouterLlmConfig(llmConfig, options);
+    const routerRun = await runOpenAiJsonPrompt(env, routerPrompt, routerLlmConfig);
     if (!routerRun.ok || !routerRun.parsed) {
       return {
         ok: false,
@@ -1043,7 +1066,9 @@ export async function runSecFilingAnalysisForRawRow(
         ok: true,
         stage: "complete",
         status: routerRun.status,
-        model: llmConfig.model,
+        model: routerRun.model,
+        routerModel: routerRun.model,
+        analysisModel: null,
         openAiResponseId: routerRun.openAiResponseId,
         sourceItem: summarizeRawRow(rawItem),
         input,
@@ -1052,7 +1077,7 @@ export async function runSecFilingAnalysisForRawRow(
         triageOutputText: routerRun.outputText,
         triageUsage: routerRun.usage,
         usage,
-        costEstimate: estimateCost(llmConfig.model, usage),
+        costEstimate: estimateCost(routerRun.model, usage),
         prompt: {
           key: SEC_425_ROUTER_PROMPT_KEY,
           version: SEC_425_ROUTER_PROMPT_VERSION,
@@ -1065,7 +1090,9 @@ export async function runSecFilingAnalysisForRawRow(
     }
 
     const prompt = buildSec425AnalysisPromptForInput(input, routerResult);
-    const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
+    const analysisModelPlan = buildSec425AnalysisModelPlan(prompt, llmConfig);
+    const analysisLlmConfig = resolveSec425AnalysisLlmConfig(llmConfig, options, analysisModelPlan);
+    const analysisRun = await runOpenAiJsonPrompt(env, prompt, analysisLlmConfig);
     if (!analysisRun.ok || !analysisRun.parsed) {
       return {
         ok: false,
@@ -1078,6 +1105,9 @@ export async function runSecFilingAnalysisForRawRow(
         triageOutputText: routerRun.outputText,
         triageUsage: routerRun.usage,
         outputText: analysisRun.outputText,
+        routerModel: routerRun.model,
+        analysisModel: analysisRun.model,
+        analysisModelPlan,
         usage: combineUsage(routerRun.usage, analysisRun.usage),
         rawOpenAIResponse: analysisRun.rawOpenAIResponse,
         prompt: {
@@ -1108,6 +1138,9 @@ export async function runSecFilingAnalysisForRawRow(
         triageOutputText: routerRun.outputText,
         triageUsage: routerRun.usage,
         outputText: analysisRun.outputText,
+        routerModel: routerRun.model,
+        analysisModel: analysisRun.model,
+        analysisModelPlan,
         usage: combineUsage(routerRun.usage, analysisRun.usage),
         rawOpenAIResponse: analysisRun.rawOpenAIResponse,
         prompt: {
@@ -1126,7 +1159,10 @@ export async function runSecFilingAnalysisForRawRow(
       ok: true,
       stage: "complete",
       status: analysisRun.status,
-      model: llmConfig.model,
+      model: analysisRun.model,
+      routerModel: routerRun.model,
+      analysisModel: analysisRun.model,
+      analysisModelPlan,
       openAiResponseId: analysisRun.openAiResponseId,
       sourceItem: summarizeRawRow(rawItem),
       input,
@@ -1136,7 +1172,7 @@ export async function runSecFilingAnalysisForRawRow(
       outputText: analysisRun.outputText,
       triageUsage: routerRun.usage,
       usage,
-      costEstimate: estimateCost(llmConfig.model, usage),
+      costEstimate: estimateCost(analysisRun.model, usage),
       prompt: {
         key: SEC_425_ANALYSIS_PROMPT_KEY,
         version: SEC_425_ANALYSIS_PROMPT_VERSION,
@@ -2315,6 +2351,90 @@ function resolveSecLlmConfig(
     model: (options.llmModel || env.openAiModel || "gpt-5-mini").trim(),
     apiKey: env.openAiApiKey,
     apiKeyEnvName: "OPENAI_API_KEY",
+  };
+}
+
+function resolveSec425RouterLlmConfig(
+  baseConfig: SecLlmConfig,
+  options: SecLlmOptions,
+): SecLlmConfig {
+  if (baseConfig.provider !== "gemini" || options.llmModel?.trim()) return baseConfig;
+
+  return withGeminiFallback(
+    baseConfig,
+    SEC_425_GEMINI_LITE_MODEL,
+    SEC_425_GEMINI_FLASH_MODEL,
+  );
+}
+
+function resolveSec425AnalysisLlmConfig(
+  baseConfig: SecLlmConfig,
+  options: SecLlmOptions,
+  plan: Sec425AnalysisModelPlan,
+): SecLlmConfig {
+  if (baseConfig.provider !== "gemini" || options.llmModel?.trim()) return baseConfig;
+
+  return plan.selectedModel === SEC_425_GEMINI_LITE_MODEL
+    ? withGeminiFallback(
+      baseConfig,
+      SEC_425_GEMINI_LITE_MODEL,
+      SEC_425_GEMINI_FLASH_MODEL,
+    )
+    : { ...baseConfig, model: SEC_425_GEMINI_FLASH_MODEL, fallbackModel: undefined };
+}
+
+function withGeminiFallback(
+  baseConfig: SecLlmConfig,
+  model: string,
+  fallbackModel: string,
+): SecLlmConfig {
+  return {
+    ...baseConfig,
+    model,
+    fallbackModel: fallbackModel !== model ? fallbackModel : undefined,
+  };
+}
+
+function buildSec425AnalysisModelPlan(
+  prompt: OpenAiPrompt,
+  baseConfig: SecLlmConfig,
+): Sec425AnalysisModelPlan {
+  const payload = parseAnalysisJson(prompt.user);
+  const sourceBlocks = readRecordArray(payload?.cleaned_source_blocks);
+  const sourceRefs = new Set<string>();
+  let selectedTextChars = 0;
+  let hasComplexDocument = false;
+
+  for (const [index, block] of sourceBlocks.entries()) {
+    const sourceRef = stringValue(block.source_ref) || `selected-block-${index}`;
+    sourceRefs.add(sourceRef);
+    selectedTextChars += stringValue(block.text).length;
+    if (SEC_425_COMPLEX_DOCUMENT_ROLES.has(stringValue(block.document_role))) {
+      hasComplexDocument = true;
+    }
+  }
+
+  const selectedBlockCount = sourceBlocks.length;
+  const sourceDocumentCount = sourceRefs.size;
+  const useFlash =
+    selectedBlockCount > 6 ||
+    sourceDocumentCount > 1 ||
+    selectedTextChars > 18_000 ||
+    (hasComplexDocument && selectedBlockCount > 3);
+  const selectedModel = useFlash || baseConfig.provider !== "gemini"
+    ? SEC_425_GEMINI_FLASH_MODEL
+    : SEC_425_GEMINI_LITE_MODEL;
+  const reason = useFlash
+    ? "Selected 425 analysis evidence spans a large or multi-document transaction bundle."
+    : "Selected 425 analysis evidence is a compact single-document bundle."
+
+  return {
+    selectedBlockCount,
+    sourceDocumentCount,
+    selectedTextChars,
+    hasComplexDocument,
+    selectedModel,
+    reason,
   };
 }
 
