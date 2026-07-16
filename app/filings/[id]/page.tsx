@@ -3377,19 +3377,19 @@ function Form425TransactionTemplate({
         </section>
       </section>
 
-      <section className="stock-detail-card spac-summary-panel">
-        <div className="spac-summary-heading">
+      <section className="stock-detail-card filing-summary-panel">
+        <div className="card-heading-row">
           <h2>Summary</h2>
-          <p>{filing.summary}</p>
         </div>
+        <p>{filing.summary}</p>
       </section>
 
       <ScoreBasisPanel filing={filing} />
 
       {hasEvidenceOrWatch ? (
         <section className="stock-detail-card-grid two-up insight-summary-grid">
-          <AnalysisList title="Key Evidence" items={filing.keyEvidence} numbered />
-          <AnalysisList title="What To Watch Next" items={filing.watchNext} numbered />
+          <AnalysisList title="Key Evidence" items={filing.keyEvidence} />
+          <AnalysisList title="What To Watch Next" items={filing.watchNext} />
         </section>
       ) : null}
 
@@ -6516,9 +6516,9 @@ function uniqueForm425Strings(values: string[]) {
 
 function shortenForm425SnapshotValue(value: string) {
   const cleaned = cleanForm425DisplayValue(value);
-  if (cleaned.length <= 96) return cleaned;
-  const shortened = cleaned.slice(0, 93).replace(/\s+\S*$/, "").trim();
-  return `${shortened || cleaned.slice(0, 93).trim()}...`;
+  if (cleaned.length <= 55) return cleaned;
+  const shortened = cleaned.slice(0, 52).replace(/\s+\S*$/, "").trim();
+  return `${shortened || cleaned.slice(0, 52).trim()}...`;
 }
 
 function shortenForm425Note(value: string) {
@@ -12439,7 +12439,7 @@ function ScoreBasisPanel({ filing, summaryOverride }: { filing: FilingEvent; sum
   if (!scoreSummary) return null;
 
   return (
-    <section className="stock-detail-card score-basis-card score-basis-card-main" id="score-rationale">
+    <section className={`stock-detail-card score-basis-card score-basis-card-main ${filing.signal}`} id="score-rationale">
       <div className="score-basis-header">
         <span className={`score-basis-score ${filing.signal}`}>
           <strong>{filing.score}</strong>

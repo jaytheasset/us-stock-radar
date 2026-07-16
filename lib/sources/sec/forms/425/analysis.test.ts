@@ -116,7 +116,7 @@ const analysisPrompt = buildSec425AnalysisPromptDraft({
 });
 
 assert.equal(analysisPrompt.key, "sec_425_analysis_draft");
-assert.equal(analysisPrompt.version, "v5");
+assert.equal(analysisPrompt.version, "v6");
 assert.deepEqual(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.event_type.enum, SEC_425_APPROVED_EVENT_TYPES);
 assert.ok(SEC_425_APPROVED_EVENT_TYPES.includes("ipo_listing"));
 assert.ok(analysisPrompt.system.includes("Required Output JSON shape"));
@@ -136,6 +136,8 @@ assert.ok(analysisPrompt.system.includes("If it cannot, cap the score at 74"));
 assert.ok(analysisPrompt.system.includes("A procedural_update is analyzed but archived"));
 assert.ok(analysisPrompt.system.includes("Feed begins only when the current filing establishes a substantive change"));
 assert.ok(analysisPrompt.system.includes("A meeting date, record-date change, proxy mailing, solicitation reminder, or routine adjournment is archive-level"));
+assert.ok(analysisPrompt.system.includes("score_reason is the visible score explanation"));
+assert.ok(analysisPrompt.system.includes("targeting 18-32 words"));
 assert.ok(analysisPrompt.system.includes("Do not begin with 'The score'"));
 assert.ok(analysisPrompt.system.includes("Copy analysis_output.event_type exactly from router_result.event_type"));
 assert.ok(analysisPrompt.system.includes("Treat supplied display_payload as read-only integration context"));
@@ -163,6 +165,7 @@ assert.ok(analysisPrompt.user.includes(mergerParserOutput.raw.cleaned_source_blo
 assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.key_evidence.maxItems, 3);
 assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.what_to_watch_next.maxItems, 3);
 assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.event_title.maxLength, 90);
+assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.score_reason.maxLength, 180);
 assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.what_to_watch_next.items.maxLength, 72);
 
 const amendmentParserOutput = parseSec425Filing({

@@ -26,7 +26,7 @@ import { buildSec425DisplayPayload } from "./displayPayload";
 import { buildSecSourceBlockPromptInput } from "../common/sourceBlockPromptInput";
 
 export const SEC_425_ANALYSIS_PROMPT_KEY = "sec_425_analysis_draft";
-export const SEC_425_ANALYSIS_PROMPT_VERSION = "v5";
+export const SEC_425_ANALYSIS_PROMPT_VERSION = "v6";
 
 export const SEC_425_ANALYSIS_CASE_VALUES = [
   "strategic_transaction_terms",
@@ -98,8 +98,9 @@ export const sec425AnalysisSystemPrompt = [
   "For amendment cases, analyze only what the amendment changed; do not restate the parent agreement as a new event unless changed terms are evident.",
   "For legal_risk and financial_risk cases, explain how the issue could affect closing certainty, funding, dilution, or downside risk without overstating facts.",
   "For ipo_listing cases, explain only source-backed IPO/listing facts already selected by the router/classifier; keep ipo_kind in display_payload.data as traditional or spac and do not reclassify SPAC redemption, liquidation, or de-SPAC updates as IPO listings.",
-  "Keep investor-facing copy consistent with the other SEC analysis rooms: event_title under 90 characters; quick_take one sentence under 22 words; summary 2 to 4 concise sentences under 100 words total; why_it_matters one sentence under 35 words; score_reason under 18 words.",
-  "Write score_reason as a concise investor-impact conclusion. Do not begin with 'The score' or explain the scoring process; state the event and why it belongs in its impact band.",
+  "Keep investor-facing copy consistent with the other SEC analysis rooms: event_title under 90 characters; quick_take one sentence under 22 words; summary 2 to 4 concise sentences under 100 words total; why_it_matters one sentence under 35 words.",
+  "score_reason is the visible score explanation. Write exactly one concise analyst-style conclusion for stock investors, targeting 18-32 words, that explains why the impact is material without repeating the filing summary.",
+  "Do not format score_reason as sections, bullets, labels, or an internal scoring review. Do not begin with 'The score' and do not mention the score, score level, impact band, delivery level, form type, filing mechanics, or SEC form labels.",
   "Write no more than 3 key_evidence items. Usually select 2 or 3 of the strongest non-repetitive original-source facts, but use 1 when the filing supports only one distinct material fact. Keep each item under 28 words and do not restate the full summary.",
   "Write no more than 3 what_to_watch_next items. Keep each item under 72 characters and name a concrete transaction milestone, decision, deadline, or changed condition supported by the filing context.",
   "For archive-score communications, keep bullish_points, bearish_points, key_evidence, and what_to_watch_next empty. Use one concise summary sentence describing the communication and whether it changed the transaction.",
@@ -178,7 +179,7 @@ export const sec425RequiredOutputResponseSchema = {
         theme_group: { type: ["string", "null"] },
         sub_theme: { type: ["string", "null"] },
         score: { type: "integer", minimum: 0, maximum: 100 },
-        score_reason: { type: "string", maxLength: 140 },
+        score_reason: { type: "string", maxLength: 180 },
         signal: { type: "string", enum: SEC_425_SIGNAL_VALUES },
         quick_take: { type: "string", maxLength: 180 },
         summary: { type: "string", maxLength: 800 },
@@ -471,7 +472,7 @@ export function validateSec425RoomResult(result: Sec425RoomResult): string[] {
   if (wordCount(analysis.quick_take) > 22) errors.push("analysis_output.quick_take must be under 22 words");
   if (wordCount(analysis.summary) > 100) errors.push("analysis_output.summary must be under 100 words");
   if (wordCount(analysis.why_it_matters) > 35) errors.push("analysis_output.why_it_matters must be under 35 words");
-  if (wordCount(analysis.score_reason) > 18) errors.push("analysis_output.score_reason must be under 18 words");
+  if (wordCount(analysis.score_reason) > 32) errors.push("analysis_output.score_reason must be 32 words or fewer");
   if (analysis.key_evidence.length > 3) {
     errors.push("analysis_output.key_evidence must contain no more than 3 non-repetitive items");
   }

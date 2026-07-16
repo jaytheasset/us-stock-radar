@@ -7036,6 +7036,23 @@ td {
   gap: 18px;
 }
 
+.filing-summary-panel {
+  display: grid;
+  gap: 0;
+}
+
+.filing-summary-panel .card-heading-row {
+  margin-bottom: 8px;
+}
+
+.filing-summary-panel p {
+  max-width: none;
+  margin: 0;
+  color: #40506b;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
 .quick-case-panel.single {
   margin-top: -1px;
   border-top: 2px solid var(--detail-divider);
@@ -13705,6 +13722,21 @@ html[data-theme="dark"] .proxy-agenda-explanation span {
   background: linear-gradient(90deg, #fff7f7 0%, #ffffff 42%);
 }
 
+.score-basis-card-main.bullish {
+  border-left-color: #07834b;
+  background: linear-gradient(90deg, #f3fbf6 0%, #ffffff 42%);
+}
+
+.score-basis-card-main.volatile {
+  border-left-color: #b45309;
+  background: linear-gradient(90deg, #fffaf2 0%, #ffffff 42%);
+}
+
+.score-basis-card-main.neutral {
+  border-left-color: #64748b;
+  background: linear-gradient(90deg, #f8fafc 0%, #ffffff 42%);
+}
+
 .score-basis-header {
   display: grid;
   grid-template-columns: minmax(96px, auto) minmax(0, 1fr);
@@ -18283,6 +18315,21 @@ html[data-theme="dark"] .stock-detail-page .price-volume-chart .volume-bar {
 html[data-theme="dark"] .score-basis-card-main {
   border-left-color: #f87171;
   background: linear-gradient(90deg, rgba(127, 29, 29, 0.22) 0%, var(--detail-card-bg) 46%);
+}
+
+html[data-theme="dark"] .score-basis-card-main.bullish {
+  border-left-color: #4ade80;
+  background: linear-gradient(90deg, rgba(20, 83, 45, 0.22) 0%, var(--detail-card-bg) 46%);
+}
+
+html[data-theme="dark"] .score-basis-card-main.volatile {
+  border-left-color: #fbbf24;
+  background: linear-gradient(90deg, rgba(120, 53, 15, 0.22) 0%, var(--detail-card-bg) 46%);
+}
+
+html[data-theme="dark"] .score-basis-card-main.neutral {
+  border-left-color: #94a3b8;
+  background: linear-gradient(90deg, rgba(51, 65, 85, 0.24) 0%, var(--detail-card-bg) 46%);
 }
 
 html[data-theme="dark"] .score-basis-summary,
