@@ -1,4 +1,4 @@
-import { Fragment, type KeyboardEvent } from "react";
+import { Fragment } from "react";
 import { FilingsV2EventBadge } from "@/components/filings-v2/FilingsV2EventBadge";
 import { FilingsV2ImpactScore } from "@/components/filings-v2/FilingsV2ImpactScore";
 import { FilingsV2InlineAd } from "@/components/filings-v2/FilingsV2InlineAd";
@@ -30,10 +30,10 @@ type FilingsV2ListProps = {
 
 function FilingIdentity({ record }: { record: FilingsV2Record }) {
   return (
-    <div className={styles.identity}>
+    <span className={styles.identity}>
       <strong>{record.ticker ?? "No ticker"}</strong>
       <span title={record.company}>{record.company}</span>
-    </div>
+    </span>
   );
 }
 
@@ -44,7 +44,7 @@ function FilingEvents({ record, mobile = false }: { mobile?: boolean; record: Fi
 
   const visibleEvents = record.events.slice(0, mobile ? 1 : 2);
   return (
-    <div className={styles.eventBadges}>
+    <span className={styles.eventBadges}>
       {visibleEvents.map((event) => (
         <FilingsV2EventBadge event={event} key={event} size={mobile ? "micro" : "small"} />
       ))}
@@ -53,19 +53,8 @@ function FilingEvents({ record, mobile = false }: { mobile?: boolean; record: Fi
           +{record.events.length - visibleEvents.length}
         </span>
       ) : null}
-    </div>
+    </span>
   );
-}
-
-function handleRowKeyDown(
-  event: KeyboardEvent<HTMLElement>,
-  record: FilingsV2Record,
-  onSelect: FilingsV2ListProps["onSelect"],
-) {
-  if (event.key === "Enter" || event.key === " ") {
-    event.preventDefault();
-    onSelect(record, event.currentTarget);
-  }
 }
 
 function EmptyState({ unavailable = false }: { unavailable?: boolean }) {
@@ -123,34 +112,34 @@ export function FilingsV2List({
               const selected = record.id === selectedId;
               return (
                 <Fragment key={record.id}>
-                  <article
-                    aria-label={`${record.formType} filing for ${record.ticker ?? record.company}`}
-                    aria-pressed={selected}
-                    className={`${styles.filingItem}${selected ? ` ${styles.selectedFilingItem}` : ""}`}
-                    onClick={(event) => onSelect(record, event.currentTarget)}
-                    onKeyDown={(event) => handleRowKeyDown(event, record, onSelect)}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <time className={styles.filingItemTime} dateTime={record.filedAt}>
-                      <span>{record.filedDate}</span>
-                      <span>{record.filedTime}</span>
-                    </time>
-                    <FilingIdentity record={record} />
-                    <div className={styles.filingCopy}>
-                      <div className={styles.filingMeta}>
-                        <FilingEvents mobile record={record} />
-                        <span className={styles.mobileFiledAt}>{record.filedDate} {record.filedTime}</span>
-                        <span>{record.source} · {record.formType}</span>
-                      </div>
-                      <h2 title={record.title}>{record.title}</h2>
-                    </div>
-                    <FilingsV2MarketReaction recordId={record.id} signal={record.signal} ticker={record.ticker} />
-                    <div className={styles.filingImpact}>
-                      <span className={`${styles.signal} ${styles[record.signal]}`}>{filingsV2SignalLabels[record.signal]}</span>
-                      <FilingsV2ImpactScore score={record.impact} />
-                    </div>
-                  </article>
+                  <div className={styles.filingItemSlot}>
+                    <button
+                      aria-label={`${record.formType} filing for ${record.ticker ?? record.company}`}
+                      aria-pressed={selected}
+                      className={`${styles.filingItem}${selected ? ` ${styles.selectedFilingItem}` : ""}`}
+                      onClick={(event) => onSelect(record, event.currentTarget)}
+                      type="button"
+                    >
+                      <time className={styles.filingItemTime} dateTime={record.filedAt}>
+                        <span>{record.filedDate}</span>
+                        <span>{record.filedTime}</span>
+                      </time>
+                      <FilingIdentity record={record} />
+                      <span className={styles.filingCopy}>
+                        <span className={styles.filingMeta}>
+                          <FilingEvents mobile record={record} />
+                          <span className={styles.mobileFiledAt}>{record.filedDate} {record.filedTime}</span>
+                          <span>{record.source} · {record.formType}</span>
+                        </span>
+                        <span className={styles.filingTitle} title={record.title}>{record.title}</span>
+                      </span>
+                      <FilingsV2MarketReaction recordId={record.id} signal={record.signal} ticker={record.ticker} />
+                      <span className={styles.filingImpact}>
+                        <span className={`${styles.signal} ${styles[record.signal]}`}>{filingsV2SignalLabels[record.signal]}</span>
+                        <FilingsV2ImpactScore score={record.impact} />
+                      </span>
+                    </button>
+                  </div>
                   {records.length >= minimumInlineAdRecords && index === desktopInlineAdIndex
                     ? <FilingsV2InlineAd format="desktop" />
                     : null}

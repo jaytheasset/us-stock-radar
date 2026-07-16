@@ -65,11 +65,11 @@ export function FilingsV2MarketReaction({ recordId, signal, ticker }: FilingsV2M
     : "Mock price trend unavailable";
 
   return (
-    <div className={styles.filingMarketReaction}>
-      <div className={styles.filingPrice}>
+    <span className={styles.filingMarketReaction}>
+      <span className={styles.filingPrice}>
         <strong>{priceLabel}</strong>
         <span className={styles[signal]}>{ticker ? changeLabel : "No quote"}</span>
-      </div>
+      </span>
       <svg
         aria-label={accessibleTrend}
         className={`${styles.filingSparkline} ${styles[signal]}`}
@@ -79,6 +79,6 @@ export function FilingsV2MarketReaction({ recordId, signal, ticker }: FilingsV2M
       >
         <polyline points={createSparklinePoints(seed, ticker ? signal : "neutral")} />
       </svg>
-    </div>
+    </span>
   );
 }

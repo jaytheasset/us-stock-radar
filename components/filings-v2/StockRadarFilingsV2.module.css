@@ -300,7 +300,25 @@
   display: grid;
 }
 
+.filingItemSlot {
+  position: relative;
+  min-width: 0;
+}
+
+.filingItemSlot::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: var(--sr-border-width);
+  background: var(--sr-color-divider);
+  content: "";
+  pointer-events: none;
+}
+
 .filingItem {
+  width: 100%;
+  appearance: none;
   display: grid;
   min-width: 0;
   min-height: calc(var(--sr-size-table-row) + var(--sr-space-8));
@@ -312,11 +330,14 @@
     calc(var(--sr-space-8) + var(--sr-space-6) - var(--sr-space-0-5));
   align-items: center;
   gap: var(--sr-space-2-5);
-  border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
+  border: 0;
+  border-radius: 0;
   padding: var(--sr-space-2) var(--sr-space-3);
   color: var(--sr-color-text-body);
   background: var(--sr-color-surface-table-row);
   cursor: pointer;
+  font: inherit;
+  text-align: left;
 }
 
 .filingItem:hover,
@@ -329,13 +350,10 @@
   outline-offset: calc(var(--sr-focus-ring-offset) * -1);
 }
 
-.selectedFilingItem {
+.filingItem.selectedFilingItem,
+.filingItem.selectedFilingItem:hover {
   background: var(--sr-color-accent-selected);
-  box-shadow:
-    inset var(--sr-border-width) 0 0 var(--sr-color-negative),
-    inset calc(var(--sr-border-width) * -1) 0 0 var(--sr-color-accent),
-    inset 0 var(--sr-border-width) 0 var(--sr-color-accent),
-    inset 0 calc(var(--sr-border-width) * -1) 0 var(--sr-color-accent);
+  box-shadow: inset var(--sr-border-width-strong) 0 0 var(--sr-color-accent);
 }
 
 .filingItemTime {
@@ -424,7 +442,7 @@
 
 .identity strong,
 .identity span,
-.filingCopy h2 {
+.filingTitle {
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -460,6 +478,7 @@
 }
 
 .filingCopy {
+  display: block;
   min-width: 0;
 }
 
@@ -483,9 +502,8 @@
   display: none;
 }
 
-.filingCopy h2 {
+.filingTitle {
   display: -webkit-box;
-  margin: 0;
   color: var(--sr-color-text-primary);
   font-size: var(--sr-font-size-base);
   font-weight: var(--sr-font-weight-medium);
@@ -1160,7 +1178,7 @@
     display: inline;
   }
 
-  .filingCopy h2 {
+  .filingTitle {
     grid-column: 1 / 3;
     grid-row: 2;
     display: -webkit-box;
