@@ -133,7 +133,7 @@ function filing(id: string, seed: FilingSeed): FilingsV2Record {
   };
 }
 
-export const filingsV2Records: readonly FilingsV2Record[] = [
+const canonicalFilingsV2Records: readonly FilingsV2Record[] = [
   filing("001", {
     company: "Advanced Micro Devices, Inc.", events: ["earnings"], filedAt: "2026-07-15T20:02:00.000Z", filedDate: "Jul 15", filedTime: "4:02 PM", formType: "8-K", impact: 84, marketCap: "Mega", signal: "bullish", ticker: "AMD", title: "Current report furnishes quarterly results and updated outlook", watchlist: true,
     summary: "The mock 8-K groups an earnings release and outlook update for fast scanning; figures are intentionally omitted.",
@@ -226,6 +226,65 @@ export const filingsV2Records: readonly FilingsV2Record[] = [
   filing("028", {
     company: "Longview Renewable Infrastructure and Energy Transition Holdings, Inc.", events: ["ma", "governance"], filedAt: "2026-07-02T19:52:00.000Z", filedDate: "Jul 2", filedTime: "3:52 PM", formType: "13D", impact: 66, marketCap: "Small", signal: "volatile", ticker: "LREV", title: "Amended beneficial ownership filing describes continuing strategic review and board engagement",
   }),
+];
+
+type GeneratedFilingTemplate = Pick<
+  FilingSeed,
+  "company" | "events" | "formType" | "ticker" | "title"
+>;
+
+const generatedFilingTemplates = [
+  { company: "Advanced Micro Devices, Inc.", events: ["earnings"], formType: "8-K", ticker: "AMD", title: "Current report furnishes a quarterly operating update" },
+  { company: "Tesla, Inc.", events: ["insider"], formType: "Form 4", ticker: "TSLA", title: "Reporting person discloses a change in beneficial ownership" },
+  { company: "Aurora Innovation, Inc.", events: ["offering"], formType: "S-3", ticker: "AUR", title: "Registration statement outlines potential securities issuance" },
+  { company: "CrowdStrike Holdings, Inc.", events: ["legal"], formType: "8-K", ticker: "CRWD", title: "Current report updates a material legal proceeding" },
+  { company: "Palantir Technologies Inc.", events: ["governance"], formType: "8-K", ticker: "PLTR", title: "Company reports governance and committee developments" },
+  { company: "NVIDIA Corporation", events: ["insider"], formType: "Form 4", ticker: "NVDA", title: "Executive reports a transaction under an equity plan" },
+  { company: "QuantumScape Corporation", events: ["listing"], formType: "8-K", ticker: "QS", title: "Exchange compliance status and remediation plan disclosed" },
+  { company: "Microsoft Corporation", events: ["earnings"], formType: "10-Q", ticker: "MSFT", title: "Quarterly report updates financial results and risk factors" },
+  { company: "Rivian Automotive, Inc.", events: ["offering"], formType: "424B5", ticker: "RIVN", title: "Prospectus supplement describes a proposed offering" },
+  { company: "Amazon.com, Inc.", events: ["governance"], formType: "8-K", ticker: "AMZN", title: "Voting results and corporate governance actions reported" },
+  { company: "Alphabet Inc.", events: ["legal"], formType: "10-Q", ticker: "GOOGL", title: "Quarterly filing updates legal contingencies" },
+  { company: "Marathon Digital Holdings, Inc.", events: ["ma"], formType: "13D", ticker: "MARA", title: "Beneficial ownership filing describes strategic discussions" },
+] satisfies readonly GeneratedFilingTemplate[];
+
+const generatedFilingSignals: readonly FilingsV2Signal[] = ["bullish", "bearish", "neutral", "volatile"];
+const generatedFilingMarketCaps: readonly FilingsV2MarketCap[] = ["Mega", "Large", "Mid", "Small", "Micro"];
+const generatedFilingStart = Date.parse("2026-07-02T18:45:00.000Z");
+const generatedFilingInterval = 47 * 60 * 1000;
+const generatedFilingCount = 300 - canonicalFilingsV2Records.length;
+const generatedDateFormatter = new Intl.DateTimeFormat("en-US", {
+  day: "numeric",
+  month: "short",
+  timeZone: "America/New_York",
+});
+const generatedTimeFormatter = new Intl.DateTimeFormat("en-US", {
+  hour: "numeric",
+  minute: "2-digit",
+  timeZone: "America/New_York",
+});
+
+const generatedFilingsV2Records = Array.from({ length: generatedFilingCount }, (_, index) => {
+  const sequence = canonicalFilingsV2Records.length + index + 1;
+  const id = String(sequence).padStart(3, "0");
+  const template = generatedFilingTemplates[index % generatedFilingTemplates.length];
+  const filedAt = new Date(generatedFilingStart - index * generatedFilingInterval);
+
+  return filing(id, {
+    ...template,
+    filedAt: filedAt.toISOString(),
+    filedDate: generatedDateFormatter.format(filedAt),
+    filedTime: generatedTimeFormatter.format(filedAt),
+    impact: ((index * 17 + 43) % 99) + 1,
+    marketCap: generatedFilingMarketCaps[index % generatedFilingMarketCaps.length],
+    signal: generatedFilingSignals[index % generatedFilingSignals.length],
+    watchlist: index % 7 === 0,
+  });
+});
+
+export const filingsV2Records: readonly FilingsV2Record[] = [
+  ...canonicalFilingsV2Records,
+  ...generatedFilingsV2Records,
 ];
 
 export const filingsV2EventLabels: Record<FilingsV2EventType, string> = {
