@@ -9,7 +9,10 @@ export const metadata: Metadata = {
 
 export default function FilingsV2Page() {
   return (
-    <StockRadarAppShell activeNavigationItem="filings">
+    <StockRadarAppShell
+      activeNavigationItem="filings"
+      themeMode="user-selectable"
+    >
       <StockRadarFilingsV2 />
     </StockRadarAppShell>
   );
