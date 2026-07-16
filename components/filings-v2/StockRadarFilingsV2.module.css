@@ -237,13 +237,16 @@
 
 .listHeader {
   display: flex;
-  min-height: calc(var(--sr-size-table-header-row) + var(--sr-space-3));
+  min-height: var(--sr-size-table-header-row);
   align-items: center;
   justify-content: space-between;
   gap: var(--sr-space-4);
-  border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
-  padding: 0 var(--sr-space-5);
-  background: var(--sr-color-surface-table-header-start);
+  padding: 0 var(--sr-space-4);
+  background: linear-gradient(
+    180deg,
+    var(--sr-color-surface-table-header-start),
+    var(--sr-color-surface-table-header-end)
+  );
 }
 
 .listHeaderTitle,
@@ -260,34 +263,35 @@
 .listHeaderTitle h2 {
   overflow: hidden;
   margin: 0;
-  color: var(--sr-color-text-primary);
-  font-size: var(--sr-font-size-xl);
-  font-weight: var(--sr-font-weight-semibold);
+  color: var(--sr-color-text-heading);
+  font-size: var(--sr-font-size-base);
+  font-weight: var(--sr-font-weight-display);
+  line-height: var(--sr-line-height-none);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .liveLabel {
   flex: 0 0 auto;
-  gap: var(--sr-space-2);
-  color: var(--sr-color-accent);
-  font-size: var(--sr-font-size-base);
-  font-weight: var(--sr-font-weight-semibold);
+  gap: var(--sr-space-1-5);
+  color: var(--sr-color-accent-text-soft);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-label);
   line-height: var(--sr-line-height-none);
   text-transform: uppercase;
 }
 
 .liveLabel i {
-  width: calc(var(--sr-space-2) + var(--sr-space-0-5));
-  height: calc(var(--sr-space-2) + var(--sr-space-0-5));
+  width: var(--sr-space-2);
+  height: var(--sr-space-2);
   border-radius: var(--sr-radius-pill);
   background: var(--sr-color-accent);
 }
 
 .listHeaderCount {
   flex: 0 0 auto;
-  color: var(--sr-color-text-secondary);
-  font-size: var(--sr-font-size-base);
+  color: var(--sr-color-text-subtle);
+  font-size: var(--sr-font-size-sm);
   font-variant-numeric: var(--sr-font-variant-numeric);
   white-space: nowrap;
 }
@@ -1086,6 +1090,14 @@
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: var(--sr-space-1);
+  }
+
+  .listHeader {
+    padding-inline: var(--sr-space-2-5);
+  }
+
+  .listHeaderTitle h2 {
+    font-size: var(--sr-font-size-md);
   }
 
   .desktopInlineAdItem {
