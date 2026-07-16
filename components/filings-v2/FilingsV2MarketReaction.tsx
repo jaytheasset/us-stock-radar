@@ -59,6 +59,7 @@ export function FilingsV2MarketReaction({ recordId, signal, ticker }: FilingsV2M
   const seed = createSeed(recordId);
   const snapshot = createMarketSnapshot(seed, signal);
   const changeLabel = `${snapshot.change >= 0 ? "+" : ""}${snapshot.change.toFixed(2)}%`;
+  const marketToneClass = snapshot.change >= 0 ? styles.bullish : styles.bearish;
   const priceLabel = ticker ? `$${snapshot.price.toFixed(2)}` : "—";
   const accessibleTrend = ticker
     ? `${filingsV2SignalLabels[signal]} mock price trend, ${priceLabel}, ${snapshot.change >= 0 ? "up" : "down"} ${Math.abs(snapshot.change).toFixed(2)} percent`
@@ -68,11 +69,11 @@ export function FilingsV2MarketReaction({ recordId, signal, ticker }: FilingsV2M
     <span className={styles.filingMarketReaction}>
       <span className={styles.filingPrice}>
         <strong>{priceLabel}</strong>
-        <span className={styles[signal]}>{ticker ? changeLabel : "No quote"}</span>
+        <span className={ticker ? marketToneClass : styles.neutral}>{ticker ? changeLabel : "No quote"}</span>
       </span>
       <svg
         aria-label={accessibleTrend}
-        className={`${styles.filingSparkline} ${styles[signal]}`}
+        className={`${styles.filingSparkline} ${marketToneClass}`}
         preserveAspectRatio="none"
         role="img"
         viewBox={`0 0 ${chartWidth} ${chartHeight}`}
