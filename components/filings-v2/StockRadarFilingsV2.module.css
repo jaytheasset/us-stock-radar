@@ -1,28 +1,33 @@
 .root {
   display: grid;
-  height: calc(100vh - var(--sr-size-header));
-  min-height: 0;
+  min-height: calc(100vh - var(--sr-size-header));
   grid-template-columns: minmax(0, 72fr) minmax(0, 28fr);
-  align-items: stretch;
-  overflow: hidden;
+  align-items: start;
 }
 
 .primaryColumn {
   min-width: 0;
-  height: 100%;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
   padding: var(--sr-space-5) var(--sr-page-gutter-desktop) var(--sr-space-6);
 }
 
 .detailRail {
+  position: sticky;
+  top: var(--sr-space-3);
+  display: grid;
   min-width: 0;
-  height: 100%;
+  max-height: calc(100dvh - var(--sr-space-6));
+  grid-template-columns: minmax(0, 1fr);
+  align-self: start;
+  align-content: start;
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   border-left: var(--sr-border-width) solid var(--sr-color-divider);
+}
+
+.detailRailPreview {
+  min-width: 0;
 }
 
 .pageHeader {
@@ -1213,22 +1218,16 @@
 
 @media (max-width: 1180px) {
   .root {
-    height: auto;
     min-height: calc(100vh - var(--sr-size-header));
     grid-template-columns: 1fr;
     align-items: start;
-    overflow: visible;
-  }
-
-  .primaryColumn {
-    height: auto;
-    overflow-y: visible;
-    overscroll-behavior: auto;
-    scrollbar-gutter: auto;
   }
 
   .detailRail {
-    height: auto;
+    position: static;
+    max-height: none;
+    display: block;
+    overflow-x: visible;
     overflow-y: visible;
     overscroll-behavior: auto;
     scrollbar-gutter: auto;

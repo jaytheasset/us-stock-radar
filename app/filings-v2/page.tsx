@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { StockRadarFilingsV2 } from "@/components/filings-v2/StockRadarFilingsV2";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
+import styles from "./page.module.css";
 
 export const metadata: Metadata = {
   title: "Filings v2 | Stock Radar",
@@ -9,11 +10,13 @@ export const metadata: Metadata = {
 
 export default function FilingsV2Page() {
   return (
-    <StockRadarAppShell
-      activeNavigationItem="filings"
-      themeMode="user-selectable"
-    >
-      <StockRadarFilingsV2 />
-    </StockRadarAppShell>
+    <div className={styles.route}>
+      <StockRadarAppShell
+        activeNavigationItem="filings"
+        themeMode="user-selectable"
+      >
+        <StockRadarFilingsV2 />
+      </StockRadarAppShell>
+    </div>
   );
 }

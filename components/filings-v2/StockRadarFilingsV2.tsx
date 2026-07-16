@@ -23,7 +23,7 @@ import {
 } from "@/lib/mock/filingsV2Data";
 import styles from "./StockRadarFilingsV2.module.css";
 
-const pageSize = 25;
+const pageSize = 100;
 const mockAvailability: "available" | "unavailable" = "available";
 
 function daysForRange(range: FilingsV2DateRange) {
@@ -52,7 +52,10 @@ export function StockRadarFilingsV2() {
   const [isDetailSheetOpen, setIsDetailSheetOpen] = useState(false);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [detailNotice, setDetailNotice] = useState("");
+  const [previewRequestId, setPreviewRequestId] = useState(0);
   const detailOpenerRef = useRef<HTMLElement | null>(null);
+  const detailPreviewRef = useRef<HTMLDivElement | null>(null);
+  const detailRailRef = useRef<HTMLElement | null>(null);
   const filterOpenerRef = useRef<HTMLButtonElement | null>(null);
   const refreshTimerRef = useRef<number | null>(null);
 
@@ -122,6 +125,21 @@ export function StockRadarFilingsV2() {
     }
   }, []);
 
+  useEffect(() => {
+    if (previewRequestId === 0) return;
+
+    const preview = detailPreviewRef.current;
+    const rail = detailRailRef.current;
+    if (!preview || !rail) return;
+
+    const previewTop = preview.getBoundingClientRect().top;
+    const railTop = rail.getBoundingClientRect().top;
+    rail.scrollTo({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      top: rail.scrollTop + previewTop - railTop,
+    });
+  }, [previewRequestId]);
+
   const toggleFilter = (group: FilingsV2FilterGroup, value: string) => {
     setFilters((current) => ({
       ...current,
@@ -143,8 +161,13 @@ export function StockRadarFilingsV2() {
     setFilters(filingsV2DefaultFilters);
   };
   const selectRecord = (record: FilingsV2Record, opener: HTMLElement) => {
+    const usesDesktopRail = window.matchMedia("(min-width: 1181px)").matches;
+
     setSelectedId(record.id);
     setDetailNotice("");
+    if (usesDesktopRail) {
+      setPreviewRequestId((current) => current + 1);
+    }
     if (window.matchMedia("(max-width: 760px)").matches) {
       detailOpenerRef.current = opener;
       setIsFilterSheetOpen(false);
@@ -208,13 +231,15 @@ export function StockRadarFilingsV2() {
         />
       </section>
 
-      <aside className={styles.detailRail}>
-        <FilingsV2DetailPanel
-          detailNotice={detailNotice}
-          onMockDetails={showMockDetailNotice}
-          record={selectedRecord}
-          relatedRecords={relatedRecords}
-        />
+      <aside className={styles.detailRail} ref={detailRailRef}>
+        <div className={styles.detailRailPreview} ref={detailPreviewRef}>
+          <FilingsV2DetailPanel
+            detailNotice={detailNotice}
+            onMockDetails={showMockDetailNotice}
+            record={selectedRecord}
+            relatedRecords={relatedRecords}
+          />
+        </div>
       </aside>
 
       <MobileFilingsV2DetailSheet
