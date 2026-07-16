@@ -50,12 +50,13 @@ assert.equal(displayPayload.data.version, secPeriodicReportsAdapter.displayPaylo
 
 const analysisPrompt = secPeriodicReportsAdapter.buildAnalysisPrompt({
   parser_output: parserOutput,
-  display_payload: displayPayload,
   filing_excerpt: fixture.filing.bodyText,
   market_context: null,
 });
-assert.ok(analysisPrompt.user.includes(secPeriodicReportsAdapter.displayPayloadVersion), "analysis prompt receives display payload");
-assert.ok(Array.isArray(JSON.parse(analysisPrompt.user).cleaned_source_blocks), "analysis prompt receives source blocks");
+const analysisPromptPayload = JSON.parse(analysisPrompt.user);
+assert.ok(Array.isArray(analysisPromptPayload.cleaned_source_blocks), "analysis prompt receives source blocks");
+assert.equal(analysisPromptPayload.display_payload, undefined, "analysis prompt omits display payload");
+assert.equal(analysisPromptPayload.parser_output, undefined, "analysis prompt omits parser output");
 
 console.log("sec periodic reports adapter contract passed");
 

@@ -38,16 +38,19 @@ const fixtureNames = [
   "routine-amendment-10qa",
 ];
 
-assert.deepEqual(secPeriodicReportsAnalysisResponseSchema.properties.analysis_output.properties.event_type.enum, APPROVED_SEC_EVENT_TYPES);
-assert.ok(secPeriodicReportsAnalysisResponseSchema.properties.analysis_output.properties.event_type.enum.includes("ipo_listing"), "analysis schema includes ipo_listing");
-assert.deepEqual(secPeriodicReportsAnalysisResponseSchema.properties.display_payload.properties.display_type.enum, PERIODIC_REPORT_DISPLAY_TYPES);
+assert.deepEqual(secPeriodicReportsAnalysisResponseSchema.properties.event_type.enum, APPROVED_SEC_EVENT_TYPES);
+assert.ok(secPeriodicReportsAnalysisResponseSchema.properties.event_type.enum.includes("ipo_listing"), "analysis schema includes ipo_listing");
+assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.parser_output, undefined, "analysis schema omits parser output");
+assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.display_payload, undefined, "analysis schema omits display payload");
+assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.fixture_expected, undefined, "analysis schema omits fixture expectations");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /score below 50 is archive/i, "analysis prompt archive band");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /50 to 74 is feed/i, "analysis prompt feed band");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /75 or above is alert/i, "analysis prompt alert band");
-assert.match(secPeriodicReportsAnalysisSystemPrompt, /Use market context only when supplied as fixture/i, "analysis fixture market context only");
-assert.match(secPeriodicReportsAnalysisSystemPrompt, /Choose analysis_output\.event_type directly/i, "analysis chooses representative event type");
-assert.match(secPeriodicReportsAnalysisSystemPrompt, /Copy display_payload from the supplied display_payload/i, "analysis copies display payload");
-assert.match(secPeriodicReportsAnalysisSystemPrompt, /Do not choose the UI template/i, "analysis display type guardrail");
+assert.match(secPeriodicReportsAnalysisSystemPrompt, /Use market context only when supplied in the site_market_context source block/i, "analysis uses supplied market context only");
+assert.match(secPeriodicReportsAnalysisSystemPrompt, /Choose event_type directly/i, "analysis chooses representative event type");
+assert.match(secPeriodicReportsAnalysisSystemPrompt, /Do not return parser_output, display_payload, fixture_expected/i, "analysis omits integration-owned output");
+assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.key_evidence.maxItems, 3, "analysis limits key evidence");
+assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.calendar_items.maxItems, 4, "analysis limits calendar items");
 
 for (const fixtureName of fixtureNames) {
   const fixture = readJson<Fixture>(join(roomDir, "fixtures", `${fixtureName}.json`));
@@ -90,7 +93,6 @@ for (const fixtureName of fixtureNames) {
 
   const analysisPrompt = buildSecPeriodicReportsAnalysisPromptDraft({
     parser_output: parserOutput,
-    display_payload: displayPayload,
     filing_excerpt: fixture.filing.bodyText,
     market_context: fixture.market_context || null,
   });
@@ -99,7 +101,7 @@ for (const fixtureName of fixtureNames) {
   assert.equal(analysisPrompt.version, SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION, `${fixtureName}: analysis prompt version`);
   assert.equal(analysisPrompt.responseFormat.json_schema.schema, secPeriodicReportsAnalysisResponseSchema, `${fixtureName}: analysis schema`);
   assert.ok(analysisPrompt.user.includes(String(parserOutput.formType)), `${fixtureName}: analysis prompt carries filing identity`);
-  assert.ok(analysisPrompt.user.includes("periodic_report_display_v1"), `${fixtureName}: analysis prompt carries built display payload`);
+  assert.equal(analysisPrompt.user.includes("periodic_report_display_v1"), false, `${fixtureName}: analysis prompt omits display payload`);
   assertSourceBlockOnlyPayload(analysisPrompt.user, `${fixtureName}: analysis`);
 }
 
@@ -180,10 +182,14 @@ function assertSourceBlockOnlyPayload(promptUser: string, label: string) {
     parser_output?: unknown;
     facts?: unknown;
     signals?: unknown;
+    display_payload?: unknown;
+    fixture_expected?: unknown;
   };
   assert.equal(payload.parser_output, undefined, `${label}: prompt omits parser_output`);
   assert.equal(payload.facts, undefined, `${label}: prompt omits top-level facts`);
   assert.equal(payload.signals, undefined, `${label}: prompt omits top-level signals`);
+  assert.equal(payload.display_payload, undefined, `${label}: prompt omits display payload`);
+  assert.equal(payload.fixture_expected, undefined, `${label}: prompt omits fixture expectations`);
   assert.ok(Array.isArray(payload.cleaned_source_blocks), `${label}: prompt has cleaned_source_blocks`);
   assert.equal(payload.source_bundle?.selection_method, "periodic_report_structure", `${label}: structural source selection`);
   assert.equal(payload.source_bundle?.selected_block_count, payload.cleaned_source_blocks.length, `${label}: selected block count`);
