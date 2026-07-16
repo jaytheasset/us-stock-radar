@@ -7,7 +7,6 @@ import { FilingsV2Header } from "@/components/filings-v2/FilingsV2Header";
 import { FilingsV2List, type FilingsV2ListState } from "@/components/filings-v2/FilingsV2List";
 import { FilingsV2Summary } from "@/components/filings-v2/FilingsV2Summary";
 import { MobileFilingsV2FilterSheet } from "@/components/filings-v2/MobileFilingsV2FilterSheet";
-import type { PaginationItem } from "@/components/ui/Pagination";
 import {
   filingsV2DefaultFilters,
   filingsV2EventLabels,
@@ -23,7 +22,7 @@ import {
 } from "@/lib/mock/filingsV2Data";
 import styles from "./StockRadarFilingsV2.module.css";
 
-const pageSize = 100;
+const loadMoreSize = 25;
 const mockAvailability: "available" | "unavailable" = "available";
 
 function daysForRange(range: FilingsV2DateRange) {
@@ -33,20 +32,11 @@ function daysForRange(range: FilingsV2DateRange) {
   return null;
 }
 
-function getPaginationItems(totalPages: number, currentPage: number): readonly PaginationItem[] {
-  if (totalPages <= 5) {
-    return Array.from({ length: totalPages }, (_, index) => index + 1);
-  }
-
-  const middle = Math.min(Math.max(currentPage, 2), totalPages - 1);
-  return [1, middle, "ellipsis", totalPages];
-}
-
 export function StockRadarFilingsV2() {
   const [filters, setFilters] = useState<FilingsV2FilterState>(filingsV2DefaultFilters);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<FilingsV2Sort>("newest");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [visibleCount, setVisibleCount] = useState(loadMoreSize);
   const [selectedId, setSelectedId] = useState(filingsV2Records[0].id);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isDetailSheetOpen, setIsDetailSheetOpen] = useState(false);
@@ -97,8 +87,8 @@ export function StockRadarFilingsV2() {
       });
   }, [filters, query, sort]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredRecords.length / pageSize));
-  const visibleRecords = filteredRecords.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const visibleRecords = filteredRecords.slice(0, visibleCount);
+  const remainingCount = Math.max(filteredRecords.length - visibleRecords.length, 0);
   const selectedRecord = filingsV2Records.find((record) => record.id === selectedId) ?? filingsV2Records[0];
   const relatedRecords = selectedRecord.relatedIds
     .map((id) => filingsV2Records.find((record) => record.id === id))
@@ -110,7 +100,7 @@ export function StockRadarFilingsV2() {
       : "ready";
 
   useEffect(() => {
-    setCurrentPage(1);
+    setVisibleCount(loadMoreSize);
   }, [filters, query, sort]);
 
   useEffect(() => {
@@ -159,6 +149,9 @@ export function StockRadarFilingsV2() {
   };
   const resetFilters = () => {
     setFilters(filingsV2DefaultFilters);
+  };
+  const showMoreRecords = () => {
+    setVisibleCount((current) => Math.min(current + loadMoreSize, filteredRecords.length));
   };
   const selectRecord = (record: FilingsV2Record, opener: HTMLElement) => {
     const usesDesktopRail = window.matchMedia("(min-width: 1181px)").matches;
@@ -219,15 +212,13 @@ export function StockRadarFilingsV2() {
           />
         </div>
         <FilingsV2List
-          currentPage={currentPage}
-          items={getPaginationItems(totalPages, currentPage)}
-          onPageChange={setCurrentPage}
+          onLoadMore={remainingCount > 0 ? showMoreRecords : undefined}
           onSelect={selectRecord}
           records={visibleRecords}
+          remainingCount={remainingCount}
           selectedId={selectedId}
           state={listState}
           totalCount={filteredRecords.length}
-          totalPages={totalPages}
         />
       </section>
 

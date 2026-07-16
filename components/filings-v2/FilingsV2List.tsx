@@ -3,7 +3,6 @@ import { FilingsV2EventBadge } from "@/components/filings-v2/FilingsV2EventBadge
 import { FilingsV2ImpactScore } from "@/components/filings-v2/FilingsV2ImpactScore";
 import { FilingsV2InlineAd } from "@/components/filings-v2/FilingsV2InlineAd";
 import { FilingsV2MarketReaction } from "@/components/filings-v2/FilingsV2MarketReaction";
-import { Pagination, type PaginationItem } from "@/components/ui/Pagination";
 import {
   filingsV2SignalLabels,
   type FilingsV2Record,
@@ -13,20 +12,26 @@ import styles from "./StockRadarFilingsV2.module.css";
 export type FilingsV2ListState = "loading" | "ready" | "unavailable";
 
 const minimumInlineAdRecords = 10;
-const desktopInlineAdIndex = 9;
-const mobileInlineAdIndex = 7;
+const inlineAdGroupSize = 25;
 
 type FilingsV2ListProps = {
-  currentPage: number;
-  items: readonly PaginationItem[];
-  onPageChange: (page: number) => void;
+  onLoadMore?: () => void;
   onSelect: (record: FilingsV2Record, opener: HTMLElement) => void;
   records: readonly FilingsV2Record[];
+  remainingCount: number;
   selectedId: string;
   state: FilingsV2ListState;
   totalCount: number;
-  totalPages: number;
 };
+
+function shouldInsertInlineAd(index: number, recordCount: number) {
+  const groupStart = Math.floor(index / inlineAdGroupSize) * inlineAdGroupSize;
+  const groupLength = Math.min(inlineAdGroupSize, recordCount - groupStart);
+  if (groupLength < minimumInlineAdRecords) return false;
+
+  const groupMidpoint = groupStart + Math.ceil(groupLength / 2) - 1;
+  return index === groupMidpoint;
+}
 
 function FilingIdentity({ record }: { record: FilingsV2Record }) {
   return (
@@ -71,15 +76,13 @@ function EmptyState({ unavailable = false }: { unavailable?: boolean }) {
 }
 
 export function FilingsV2List({
-  currentPage,
-  items,
-  onPageChange,
+  onLoadMore,
   onSelect,
   records,
+  remainingCount,
   selectedId,
   state,
   totalCount,
-  totalPages,
 }: FilingsV2ListProps) {
   if (state === "loading") {
     return (
@@ -110,6 +113,7 @@ export function FilingsV2List({
           <div aria-label="Mock SEC filings" className={styles.filingList}>
             {records.map((record, index) => {
               const selected = record.id === selectedId;
+              const showInlineAd = shouldInsertInlineAd(index, records.length);
               return (
                 <Fragment key={record.id}>
                   <div className={styles.filingItemSlot}>
@@ -140,12 +144,8 @@ export function FilingsV2List({
                       </span>
                     </button>
                   </div>
-                  {records.length >= minimumInlineAdRecords && index === desktopInlineAdIndex
-                    ? <FilingsV2InlineAd format="desktop" />
-                    : null}
-                  {records.length >= minimumInlineAdRecords && index === mobileInlineAdIndex
-                    ? <FilingsV2InlineAd format="mobile" />
-                    : null}
+                  {showInlineAd ? <FilingsV2InlineAd format="desktop" /> : null}
+                  {showInlineAd ? <FilingsV2InlineAd format="mobile" /> : null}
                 </Fragment>
               );
             })}
@@ -154,16 +154,14 @@ export function FilingsV2List({
       )}
 
       <footer className={styles.listFooter}>
-        <span>{totalCount} filings · Page {currentPage} of {totalPages}</span>
-        {totalPages > 1 ? (
-          <Pagination
-            ariaLabel="Filings pages"
-            currentPage={currentPage}
-            items={items}
-            onPageChange={onPageChange}
-            totalPages={totalPages}
-          />
-        ) : null}
+        {onLoadMore ? (
+          <button className={styles.loadMoreButton} onClick={onLoadMore} type="button">
+            View more filings
+            <span>{remainingCount} more</span>
+          </button>
+        ) : (
+          <span aria-live="polite" className={styles.listComplete}>{records.length} filings shown</span>
+        )}
       </footer>
     </section>
   );

@@ -799,12 +799,44 @@
   display: flex;
   min-height: var(--sr-size-table-footer);
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: var(--sr-space-3);
-  padding: var(--sr-space-2) var(--sr-space-3);
+  padding: var(--sr-space-3);
   color: var(--sr-color-text-footer);
   background: var(--sr-color-surface-table-header-end);
   font-size: var(--sr-font-size-sm);
+}
+
+.loadMoreButton {
+  display: inline-flex;
+  min-height: var(--sr-size-control);
+  align-items: center;
+  justify-content: center;
+  gap: var(--sr-space-2);
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-control);
+  padding: 0 var(--sr-space-4);
+  color: var(--sr-color-text-control-strong);
+  background: var(--sr-color-surface-control);
+  font: var(--sr-font-weight-semibold) var(--sr-font-size-sm) / var(--sr-line-height-none)
+    var(--sr-font-family-sans);
+  cursor: pointer;
+}
+
+.loadMoreButton span,
+.listComplete {
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-regular);
+}
+
+.loadMoreButton:hover {
+  background: var(--sr-color-surface-table-hover);
+}
+
+.loadMoreButton:focus-visible {
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: var(--sr-focus-ring-offset);
 }
 
 .emptyState,
@@ -1432,11 +1464,6 @@
     min-width: auto;
     height: auto;
     font-size: var(--sr-font-size-base);
-  }
-
-  .listFooter {
-    align-items: flex-start;
-    flex-direction: column;
   }
 
   .detailContent {
