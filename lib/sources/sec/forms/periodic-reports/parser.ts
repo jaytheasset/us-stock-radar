@@ -24,6 +24,13 @@ const PERIODIC_REPORTS_FORM_SCOPE = "10-K / 10-Q / 20-F, 10-K/A / 10-Q/A / 20-F/
 const SUPPORTED_PERIODIC_REPORT_FORMS = ["10-K", "10-Q", "20-F", "10-K/A", "10-Q/A", "20-F/A"] as const;
 const PERIODIC_REPORTS_DEFAULT_DISPLAY_TYPE = "generic";
 const PERIODIC_REPORTS_DISPLAY_VERSION = "periodic_report_display_v2";
+const CORE_DOCUMENT_PERIOD_XBRL_CONCEPTS = new Set([
+  "documenttype",
+  "documentfiscalperiodfocus",
+  "documentfiscalyearfocus",
+  "documentperiodenddate",
+  "currentfiscalyearenddate",
+]);
 const SOURCE_MATERIAL_CHECK_IDS = new Set([
   "source_package_inventory",
   "primary_document_inventory",
@@ -222,7 +229,7 @@ function buildSourcePackage({
   const rawAttachments = recordArray(rawPayload.attachments) as AttachmentTextPayload[];
   const attachmentInventory = [...rawAttachments.map((item) => mapAttachmentText(item, false)), ...attachmentTexts.map((item) => mapAttachmentText(item, true))];
   const xbrlFacts = normalizeXbrlFacts(rawPayload, rootInput, [...rawAttachments, ...attachmentTexts], documents);
-  const retainedXbrlFacts = xbrlFacts.slice(0, 200);
+  const retainedXbrlFacts = retainXbrlFacts(xbrlFacts, 200);
 
   return {
     documents: sourceDocuments,
@@ -237,6 +244,90 @@ function buildSourcePackage({
     hasMachineReadableXbrlDocument: sourceDocuments.some((document) => document.isMachineReadableXbrl),
     hasTruncatedSource: sourceDocuments.some((document) => document.textTruncated) || attachmentInventory.some((attachment) => attachment.textTruncated),
   };
+}
+
+function retainXbrlFacts(facts: PeriodicReportXbrlFact[], limit: number) {
+  if (facts.length <= limit) return facts;
+
+  const coreFacts: PeriodicReportXbrlFact[] = [];
+  const retainedCoreConcepts = new Set<string>();
+  for (const fact of facts) {
+    const concept = normalizeXbrlConceptName(fact.name);
+    if (!CORE_DOCUMENT_PERIOD_XBRL_CONCEPTS.has(concept) || retainedCoreConcepts.has(concept)) continue;
+    retainedCoreConcepts.add(concept);
+    coreFacts.push(fact);
+  }
+
+  const coreSet = new Set(coreFacts);
+  const ordinaryFacts = facts.filter((fact) => !coreSet.has(fact));
+  return [...coreFacts, ...ordinaryFacts.slice(0, Math.max(0, limit - coreFacts.length))].slice(0, limit);
+}
+
+function normalizeXbrlConceptName(name: string) {
+  return (name.split(":").pop() || name).replace(/[^a-z0-9]/gi, "").toLowerCase();
+}
+
+type XbrlDocumentPeriodMetadata = {
+  reportingPeriod: string | null;
+  fiscalYear: string | null;
+  fiscalQuarter: string | null;
+  documentFiscalPeriodFocus: string | null;
+  documentFiscalYearFocus: string | null;
+  documentPeriodEndDate: string | null;
+  currentFiscalYearEndDate: string | null;
+};
+
+function readXbrlDocumentPeriodMetadata(facts: PeriodicReportXbrlFact[]): XbrlDocumentPeriodMetadata {
+  const valueByConcept = new Map<string, string>();
+  for (const fact of facts) {
+    const concept = normalizeXbrlConceptName(fact.name);
+    if (!CORE_DOCUMENT_PERIOD_XBRL_CONCEPTS.has(concept) || valueByConcept.has(concept)) continue;
+    const value = nullableString(fact.value);
+    if (value) valueByConcept.set(concept, value);
+  }
+
+  const documentFiscalPeriodFocus = valueByConcept.get("documentfiscalperiodfocus") || null;
+  const documentFiscalYearFocus = valueByConcept.get("documentfiscalyearfocus") || null;
+  const documentPeriodEndDate = valueByConcept.get("documentperiodenddate") || null;
+  const currentFiscalYearEndDate = valueByConcept.get("currentfiscalyearenddate") || null;
+
+  return {
+    reportingPeriod: normalizeXbrlPeriodEndDate(documentPeriodEndDate),
+    fiscalYear: normalizeFiscalYear(documentFiscalYearFocus),
+    fiscalQuarter: normalizeFiscalQuarter(documentFiscalPeriodFocus),
+    documentFiscalPeriodFocus,
+    documentFiscalYearFocus,
+    documentPeriodEndDate,
+    currentFiscalYearEndDate,
+  };
+}
+
+function normalizeFiscalYear(value: unknown) {
+  return nullableString(value)?.match(/\b(19\d{2}|20\d{2})\b/)?.[1] || null;
+}
+
+function normalizeFiscalQuarter(value: unknown) {
+  const text = nullableString(value)?.toLowerCase();
+  if (!text) return null;
+  if (/^(?:q1|first(?:\s+fiscal)?\s+quarter)$/.test(text)) return "first quarter";
+  if (/^(?:q2|second(?:\s+fiscal)?\s+quarter)$/.test(text)) return "second quarter";
+  if (/^(?:q3|third(?:\s+fiscal)?\s+quarter)$/.test(text)) return "third quarter";
+  if (/^(?:q4|fourth(?:\s+fiscal)?\s+quarter|fy|annual|year)$/.test(text)) return text === "q4" || text.startsWith("fourth") ? "fourth quarter" : null;
+  return null;
+}
+
+function normalizeXbrlPeriodEndDate(value: string | null) {
+  if (!value) return null;
+  const match = value.match(/\b(19\d{2}|20\d{2})-(\d{2})-(\d{2})\b/);
+  if (!match) return null;
+  const monthIndex = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const month = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+  ][monthIndex];
+  if (!month || day < 1 || day > 31) return null;
+  return `${month} ${day}, ${match[1]}`;
 }
 
 function dedupeSourceDocuments(documents: PeriodicReportSourceDocument[]) {
@@ -862,9 +953,41 @@ export function parseSecPeriodicReport(input: SecPeriodicReportParseInput): Peri
   });
   const isSupported = isSupportedPeriodicReportForm(formType);
   const accessionNumber = nullableString(rawPayload.accession_number) || nullableString(rawPayload.accessionNumber) || nullableString(input.sourceUniqueId);
-  const reportingPeriod = nullableString(rawPayload.reporting_period) || nullableString(rawPayload.reportingPeriod) || readReportingPeriod(text);
-  const fiscalYear = nullableString(rawPayload.fiscal_year) || nullableString(rawPayload.fiscalYear) || readFiscalYear(reportingPeriod, text);
-  const fiscalQuarter = nullableString(rawPayload.fiscal_quarter) || nullableString(rawPayload.fiscalQuarter) || readFiscalQuarter(formType, reportingPeriod, text);
+  const xbrlPeriodMetadata = readXbrlDocumentPeriodMetadata(sourcePackage.xbrlFacts);
+  const payloadReportingPeriod = nullableString(rawPayload.reporting_period) || nullableString(rawPayload.reportingPeriod);
+  const reportingPeriod = xbrlPeriodMetadata.reportingPeriod || payloadReportingPeriod || readReportingPeriod(text);
+  const payloadFiscalYear = normalizeFiscalYear(rawPayload.fiscal_year) || normalizeFiscalYear(rawPayload.fiscalYear);
+  const fiscalYear = xbrlPeriodMetadata.fiscalYear || payloadFiscalYear || readFiscalYear(reportingPeriod, text);
+  const payloadFiscalQuarter = normalizeFiscalQuarter(rawPayload.fiscal_quarter) || normalizeFiscalQuarter(rawPayload.fiscalQuarter);
+  const textFiscalQuarter = readFiscalQuarter(formType, text);
+  const fiscalQuarter = xbrlPeriodMetadata.fiscalQuarter || payloadFiscalQuarter || textFiscalQuarter;
+  const fiscalPeriodResolution = {
+    reporting_period_source: xbrlPeriodMetadata.reportingPeriod
+      ? "xbrl_dei_document_period_end_date"
+      : payloadReportingPeriod
+        ? "raw_payload"
+        : reportingPeriod
+          ? "cover_text"
+          : "unresolved",
+    fiscal_year_source: xbrlPeriodMetadata.fiscalYear
+      ? "xbrl_dei_document_fiscal_year_focus"
+      : payloadFiscalYear
+        ? "raw_payload"
+        : fiscalYear
+          ? "reporting_period_or_cover_text"
+          : "unresolved",
+    fiscal_quarter_source: xbrlPeriodMetadata.fiscalQuarter
+      ? "xbrl_dei_document_fiscal_period_focus"
+      : payloadFiscalQuarter
+        ? "raw_payload"
+        : textFiscalQuarter
+          ? "cover_text"
+          : "unresolved",
+    xbrl_document_fiscal_period_focus: xbrlPeriodMetadata.documentFiscalPeriodFocus,
+    xbrl_document_fiscal_year_focus: xbrlPeriodMetadata.documentFiscalYearFocus,
+    xbrl_document_period_end_date: xbrlPeriodMetadata.documentPeriodEndDate,
+    xbrl_current_fiscal_year_end_date: xbrlPeriodMetadata.currentFiscalYearEndDate,
+  };
   const securities = extractSecurities(text);
   const companyName =
     nullableString(rawPayload.company_name) ||
@@ -988,6 +1111,7 @@ export function parseSecPeriodicReport(input: SecPeriodicReportParseInput): Peri
       deterministic_classification: deterministicClassification,
       parent_filing_context_present: Boolean(input.parentFilingContext || rawPayload.parent_filing_context || rawPayload.parentFilingContext),
       missing_source: missingSource,
+      fiscal_period_resolution: fiscalPeriodResolution,
       truncation_notes: stringArray(rawPayload.truncation_notes || rawPayload.truncationNotes),
       source_text_stats: {
         raw_body_chars: stringValue(input.bodyText).length,
@@ -2174,15 +2298,13 @@ function readFiscalYear(reportingPeriod: string | null, text: string) {
   return reportingPeriod?.match(/\b(20\d{2}|19\d{2})\b/)?.[1] || text.match(/\bfiscal\s+year\s+(20\d{2}|19\d{2})\b/i)?.[1] || null;
 }
 
-function readFiscalQuarter(formType: SupportedPeriodicReportForm | null, reportingPeriod: string | null, text: string) {
+function readFiscalQuarter(formType: SupportedPeriodicReportForm | null, text: string) {
   if (formType !== "10-Q" && formType !== "10-Q/A") return null;
-  const explicitQuarter = text.match(/\b(?:first|second|third|fourth)\s+quarter\b/i)?.[0]?.toLowerCase();
-  if (explicitQuarter) return explicitQuarter;
-  if (!reportingPeriod) return null;
-  if (/\bMarch\b/i.test(reportingPeriod)) return "first quarter";
-  if (/\bJune\b/i.test(reportingPeriod)) return "second quarter";
-  if (/\bSeptember\b/i.test(reportingPeriod)) return "third quarter";
-  return null;
+  const coverText = text.slice(0, 12_000);
+  const explicitQuarter = coverText.match(
+    /\b(?:for\s+the\s+)?((?:first|second|third|fourth)(?:\s+fiscal)?\s+quarter)\s+(?:of\s+(?:fiscal\s+year\s+)?(?:19|20)\d{2}\s+)?(?:ended|ending)\b/i,
+  )?.[1];
+  return normalizeFiscalQuarter(explicitQuarter);
 }
 
 function readJurisdiction(text: string) {

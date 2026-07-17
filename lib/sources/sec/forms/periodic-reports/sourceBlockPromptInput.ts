@@ -52,6 +52,7 @@ export function buildSecPeriodicReportsSourceBlockPromptInput(
   const facts = parserOutput.facts;
   const raw = parserOutput.raw || {};
   const normalized = toRecord(raw.normalized_primary_document) || {};
+  const fiscalPeriodResolution = toRecord(raw.fiscal_period_resolution) || {};
   const currentFiling = buildCurrentFilingIdentity({
     filingPackage: input.filing_package,
     parserOutput: parserOutput as unknown as Record<string, unknown>,
@@ -78,6 +79,7 @@ export function buildSecPeriodicReportsSourceBlockPromptInput(
       reporting_period: facts.reportingPeriod,
       fiscal_year: facts.fiscalYear,
       fiscal_quarter: facts.fiscalQuarter,
+      fiscal_period_resolution: fiscalPeriodResolution,
       is_amendment: facts.isAmendment,
       source_url: nullableString(raw.source_url),
       published_at: nullableString(raw.published_at),

@@ -107,6 +107,49 @@ assert.ok(scoringWarnings.some((warning) => warning.code === "missing_alert_driv
 assert.ok(scoringWarnings.some((warning) => warning.code === "score_severity_mismatch"), "validator checks severity band");
 assert.ok(scoringWarnings.some((warning) => warning.code === "performance_threshold_understated"), "validator applies market-cap performance thresholds");
 
+const fiscalPeriodParserOutput = parseSecPeriodicReport({
+  rawItemId: "periodic-fiscal-period-validator",
+  sourceUniqueId: "0000000000-26-000003",
+  title: "Fiscal Period Validator Corp. Form 10-Q",
+  bodyText: "FORM 10-Q For the quarterly period ended March 31, 2026. PART I ITEM 1. Financial Statements.",
+  xbrl_facts: [
+    { name: "dei:DocumentFiscalPeriodFocus", value: "Q3", contextRef: "Document", period: "2026-03-31" },
+    { name: "dei:DocumentFiscalYearFocus", value: "2026", contextRef: "Document", period: "2026-03-31" },
+    { name: "dei:DocumentPeriodEndDate", value: "2026-03-31", contextRef: "Document", period: "2026-03-31" },
+  ],
+  rawPayload: { form_type: "10-Q", company_name: "Fiscal Period Validator Corp." },
+});
+const fiscalPeriodWarnings = collectSecPeriodicReportsScoringWarnings(
+  {
+    event_title: "Fiscal Period Validator reports first quarter fiscal year 2026 results",
+    quick_take: "Q1 FY2026 revenue increased.",
+    summary: "The company reported first quarter fiscal year 2026 performance.",
+    score_reason: "Operating changes were meaningful.",
+    score: 60,
+    signal: "bullish",
+    scoring_assessment: {
+      market_cap_tier: "mid",
+      primary_change_severity: "meaningful",
+      operating_direction: "positive",
+      cash_flow_direction: "neutral",
+      guidance_direction: "absent",
+      earnings_quality: "high",
+      material_offsets: [],
+      alert_driver: null,
+    },
+    report_ui: {
+      snapshot_metrics: [{ label: "Fiscal Quarter", value: "Q1 FY2026", note: null }],
+      performance_comparisons: [{ current_label: "Q1 2026", comparison_label: "Q1 2025" }],
+    },
+  },
+  { filing_package: { hard_parsers: { "periodic-reports": fiscalPeriodParserOutput } } },
+);
+const fiscalPeriodWarning = fiscalPeriodWarnings.find((warning) => warning.code === "fiscal_period_label_mismatch");
+assert.ok(fiscalPeriodWarning, "validator catches analysis labels that conflict with XBRL fiscal metadata");
+assert.ok(fiscalPeriodWarning.allowed_patch_paths.includes("/event_title"), "validator can repair event-title fiscal period");
+assert.ok(fiscalPeriodWarning.allowed_patch_paths.includes("/report_ui/snapshot_metrics/0/value"), "validator can repair snapshot fiscal period");
+assert.ok(fiscalPeriodWarning.allowed_patch_paths.includes("/report_ui/performance_comparisons/0/current_label"), "validator can repair comparison fiscal period");
+
 const filingMarketCapParserOutput = parseSecPeriodicReport({
   rawItemId: "periodic-filing-market-cap-priority",
   sourceUniqueId: "0000000000-26-000004",

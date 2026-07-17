@@ -2,7 +2,7 @@ import type { PeriodicParserOutput } from "./types";
 import { buildSecPeriodicReportsSourceBlockPromptInput, type SecPeriodicReportsPromptInput } from "./sourceBlockPromptInput.ts";
 
 export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY = "sec_periodic_reports_analysis";
-export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION = "v7-filing-first-market-cap";
+export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION = "v8-xbrl-fiscal-period";
 
 const PERIODIC_REPORTS_FORM_SCOPE = "10-K / 10-Q / 20-F, 10-K/A / 10-Q/A / 20-F/A";
 const APPROVED_SEC_EVENT_TYPES = [
@@ -261,6 +261,8 @@ export const secPeriodicReportsAnalysisSystemPrompt = [
   "The source bundle is selected from periodic-report structure, not from an event router. Review all supplied material sections before choosing the representative event_type.",
   "Document inventory, attachment inventory, and parser warnings are not evidence and are intentionally excluded from cleaned_source_blocks.",
   "XBRL statement facts are filing-source data. Use their period and statement context, and never compare values from incompatible periods or units.",
+  "Treat report_context fiscal_year and fiscal_quarter as authoritative when fiscal_period_resolution identifies XBRL DEI metadata. Do not infer a fiscal quarter from the calendar month of the reporting-period end date.",
+  "If fiscal_quarter is unresolved, describe the reporting period by its disclosed end date and do not invent a Q1/Q2/Q3 label.",
   "Do not use parser-generated facts, signals, route hints, deterministic classification, extraction summaries, event labels, display labels, or investment labels as analysis authority.",
   "Choose event_type directly from the approved event types based on the dominant investor-relevant conclusion supported by the original source blocks.",
   "Periodic reports may contain several material subjects. Select one representative event_type for feed filtering, but preserve other material findings in the investor-facing analysis instead of discarding them.",

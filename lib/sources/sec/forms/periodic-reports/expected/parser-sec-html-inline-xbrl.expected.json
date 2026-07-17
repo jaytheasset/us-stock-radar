@@ -10,6 +10,8 @@
       "primaryTicker": "HIX",
       "exchange": "Nasdaq Global Market",
       "reportingPeriod": "March 31, 2026",
+      "fiscalYear": "2026",
+      "fiscalQuarter": "third quarter",
       "isAmendment": false
     }
   },
@@ -21,6 +23,12 @@
     "min_document_count": 2,
     "min_attachment_text_count": 1,
     "min_xbrl_fact_count": 3,
+    "xbrl_fact_names_present": [
+      "dei:DocumentFiscalPeriodFocus",
+      "dei:DocumentFiscalYearFocus",
+      "dei:DocumentPeriodEndDate",
+      "dei:CurrentFiscalYearEndDate"
+    ],
     "section_keys_present": [
       "part_i_item_1_financial_statements",
       "part_i_item_2_management_s_discussion_and_analysis_of_financial_condition",

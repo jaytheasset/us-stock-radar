@@ -27,6 +27,8 @@ type ParserExpected = {
       primaryTicker?: string | null;
       exchange?: string | null;
       reportingPeriod?: string | null;
+      fiscalYear?: string | null;
+      fiscalQuarter?: string | null;
       isAmendment?: boolean;
     };
   };
@@ -188,6 +190,8 @@ for (const caseName of cases) {
   assertExpectedFact(parsed.facts.primaryTicker, expected.parser_output.facts.primaryTicker, `${caseName}: ticker`);
   assertExpectedFact(parsed.facts.exchange, expected.parser_output.facts.exchange, `${caseName}: exchange`);
   assertExpectedFact(parsed.facts.reportingPeriod, expected.parser_output.facts.reportingPeriod, `${caseName}: reporting period`);
+  assertExpectedFact(parsed.facts.fiscalYear, expected.parser_output.facts.fiscalYear, `${caseName}: fiscal year`);
+  assertExpectedFact(parsed.facts.fiscalQuarter, expected.parser_output.facts.fiscalQuarter, `${caseName}: fiscal quarter`);
   assertExpectedFact(parsed.facts.isAmendment, expected.parser_output.facts.isAmendment, `${caseName}: amendment`);
 
   assert.equal(parsed.facts.rawDataAudit.missingCriticalRawData, expected.expected_raw_extraction.missing_critical_raw_data, `${caseName}: critical raw-data completeness`);
@@ -263,6 +267,44 @@ for (const caseName of cases) {
     assert.ok(attachmentFilenames.has(filename), `${caseName}: attachment text ${filename}`);
   }
 }
+
+const crowdedXbrlFacts: Array<Record<string, unknown>> = Array.from({ length: 220 }, (_, index) => ({
+  name: `us-gaap:SyntheticFinancialFact${index + 1}`,
+  value: index + 1,
+  unitRef: "usd",
+  contextRef: `CurrentQuarter${index + 1}`,
+  period: "2026-01-01/2026-03-31",
+  statement: "Income statement",
+}));
+crowdedXbrlFacts.push(
+  { name: "dei:DocumentFiscalPeriodFocus", value: "Q3", unitRef: null, contextRef: "Document", period: "2026-03-31", statement: "Other reported XBRL facts" },
+  { name: "dei:DocumentFiscalYearFocus", value: "2026", unitRef: null, contextRef: "Document", period: "2026-03-31", statement: "Other reported XBRL facts" },
+  { name: "dei:DocumentPeriodEndDate", value: "2026-03-31", unitRef: null, contextRef: "Document", period: "2026-03-31", statement: "Other reported XBRL facts" },
+  { name: "dei:CurrentFiscalYearEndDate", value: "--06-30", unitRef: null, contextRef: "Document", period: "2026-03-31", statement: "Other reported XBRL facts" },
+);
+const crowdedXbrlParsed = parseSecPeriodicReport({
+  rawItemId: "periodic-crowded-xbrl-period-metadata",
+  sourceUniqueId: "0000000000-26-000777",
+  title: "Crowded XBRL Corp. Form 10-Q",
+  bodyText: "FORM 10-Q For the quarterly period ended March 31, 2026. PART I ITEM 1. Financial Statements. Revenue was $100 million.",
+  xbrl_facts: crowdedXbrlFacts,
+  rawPayload: { form_type: "10-Q", company_name: "Crowded XBRL Corp." },
+});
+assert.equal(crowdedXbrlParsed.facts.sourcePackage.retainedXbrlFactCount, 200, "core DEI facts fit within XBRL cap");
+assert.equal(crowdedXbrlParsed.facts.fiscalYear, "2026", "DEI fiscal year survives XBRL cap");
+assert.equal(crowdedXbrlParsed.facts.fiscalQuarter, "third quarter", "DEI fiscal quarter survives XBRL cap");
+for (const concept of ["DocumentFiscalPeriodFocus", "DocumentFiscalYearFocus", "DocumentPeriodEndDate", "CurrentFiscalYearEndDate"]) {
+  assert.ok(crowdedXbrlParsed.facts.sourcePackage.xbrlFacts.some((fact) => fact.name.endsWith(concept)), `core DEI fact retained: ${concept}`);
+}
+
+const unresolvedCalendarQuarter = parseSecPeriodicReport({
+  rawItemId: "periodic-no-calendar-quarter-guess",
+  sourceUniqueId: "0000000000-26-000778",
+  title: "Noncalendar Corp. Form 10-Q",
+  bodyText: "FORM 10-Q For the quarterly period ended March 31, 2026. PART I ITEM 1. Financial Statements. Revenue was $100 million.",
+  rawPayload: { form_type: "10-Q", company_name: "Noncalendar Corp.", reporting_period: "March 31, 2026" },
+});
+assert.equal(unresolvedCalendarQuarter.facts.fiscalQuarter, null, "calendar month does not determine fiscal quarter");
 
 const selectorFixture = readJson<SelectorFixture>(join(roomDir, "fixtures", "parser-primary-document-selector.json"));
 const selectorExpected = readJson<SelectorExpected>(join(roomDir, "expected", "parser-primary-document-selector.expected.json"));

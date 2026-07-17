@@ -120,8 +120,13 @@ export function collectSecPeriodicReportsScoringWarnings(
   input: SecFilingAnalysisInput,
 ): SecPeriodicReportsValidationRepairIssue[] {
   const root = readRecord(analysisResult);
+  if (!root) return [];
+  const issues: SecPeriodicReportsValidationRepairIssue[] = [];
+  const fiscalPeriodIssue = buildFiscalPeriodLabelMismatchIssue(root, input);
+  if (fiscalPeriodIssue) issues.push(fiscalPeriodIssue);
+
   const assessment = readRecord(root?.scoring_assessment);
-  if (!root || !assessment) return [];
+  if (!assessment) return dedupePeriodicRepairIssues(issues);
 
   const score = clampScore(root.score);
   const signal = normalizeSignal(root.signal);
@@ -132,8 +137,6 @@ export function collectSecPeriodicReportsScoringWarnings(
   const guidanceDirection = stringValue(assessment.guidance_direction).toLowerCase();
   const alertDriver = nullableString(assessment.alert_driver);
   const offsets = stringArray(assessment.material_offsets);
-  const issues: SecPeriodicReportsValidationRepairIssue[] = [];
-
   const resolvedMarketCap = readPeriodicReportsMarketCap(input);
   const actualTier = marketCapTier(resolvedMarketCap.value);
   const reportedTier = stringValue(assessment.market_cap_tier).toLowerCase();
@@ -333,8 +336,9 @@ function buildPeriodicReportsValidationRepairPrompt({
     version: SEC_PERIODIC_REPORTS_VALIDATION_REPAIR_PROMPT_VERSION,
     system: [
       "Repair one completed SEC periodic-report analysis in one bounded pass.",
-      "Validator warnings identify possible score, signal, or earnings-quality inconsistencies but are not evidence.",
+      "Validator warnings identify possible scoring, earnings-quality, or reporting-period inconsistencies but are not evidence.",
       "Use only the selected original source blocks, site market context, and existing result as evidence.",
+      "For reporting-period repairs, treat report_context XBRL DEI fiscal metadata as authoritative and do not infer fiscal quarter from calendar month.",
       "Score is investor attention and urgency; signal is direction. Market capitalization changes percentage thresholds, not score points.",
       "Do not treat one-time, non-operating, tax, fair-value, derivative, or non-cash gains as pure operating improvement.",
       "Return scalar replacement patches only for exact allowed paths. Never add, remove, reorder, or rewrite arrays or objects.",
@@ -343,7 +347,7 @@ function buildPeriodicReportsValidationRepairPrompt({
     ].join("\n"),
     user: JSON.stringify(
       {
-        task: "Patch only source-verifiable periodic-report scoring inconsistencies.",
+        task: "Patch only source-verifiable periodic-report scoring or reporting-period inconsistencies.",
         allowed_patch_paths: allowedPatchPaths,
         validator_issues: issues,
         selected_original_source_blocks: sourceBlocks,
@@ -440,6 +444,7 @@ function scorePeriodicRepairSourceBlock(
   const haystack = `${stringValue(block.label)} ${stringValue(block.section_key)} ${stringValue(block.text)}`.toLowerCase();
   let score = 0;
 
+  if (issueCodes.has("fiscal_period_label_mismatch") && type === "report_context") score += 160;
   if (issueCodes.has("market_cap_tier_mismatch") && origin === "filing" && hasExplicitFilingMarketCap(haystack)) score += 140;
   if (origin === "market_context") score += issueCodes.has("market_cap_tier_mismatch") ? 110 : 8;
   if (["financial_table", "xbrl_statement_facts", "periodic_report_section", "context_preserving_snippet"].includes(type)) {
@@ -451,6 +456,84 @@ function scorePeriodicRepairSourceBlock(
   if (/tax benefit|fair value|warrant|derivative|impairment|non-cash|one-time|asset sale|remeasurement/.test(haystack)) score += 22;
   if (type === "report_context") score += 2;
   return score;
+}
+
+function buildFiscalPeriodLabelMismatchIssue(
+  analysisResult: Record<string, unknown>,
+  input: SecFilingAnalysisInput,
+): SecPeriodicReportsValidationRepairIssue | null {
+  const parserOutput = readSecPeriodicReportsParserOutput(input);
+  const fiscalQuarter = nullableString(parserOutput?.facts.fiscalQuarter);
+  const fiscalYear = nullableString(parserOutput?.facts.fiscalYear);
+  const expectedQuarter = fiscalQuarterNumber(fiscalQuarter);
+  if (!expectedQuarter) return null;
+
+  const paths: string[] = [];
+  for (const key of ["event_title", "quick_take", "summary", "why_it_matters", "score_reason"] as const) {
+    if (hasConflictingFiscalQuarter(analysisResult[key], expectedQuarter, fiscalYear, false)) paths.push(`/${key}`);
+  }
+
+  const reportUi = readRecord(analysisResult.report_ui);
+  const snapshotMetrics = Array.isArray(reportUi?.snapshot_metrics) ? reportUi.snapshot_metrics : [];
+  snapshotMetrics.forEach((item, index) => {
+    const row = readRecord(item);
+    if (!row || !/reporting period|fiscal quarter|fiscal period|quarter/i.test(stringValue(row.label))) return;
+    if (hasConflictingFiscalQuarter(row.value, expectedQuarter, fiscalYear, true)) {
+      paths.push(`/report_ui/snapshot_metrics/${index}/value`);
+    }
+  });
+
+  const comparisons = Array.isArray(reportUi?.performance_comparisons) ? reportUi.performance_comparisons : [];
+  comparisons.forEach((item, index) => {
+    const row = readRecord(item);
+    if (row && hasConflictingFiscalQuarter(row.current_label, expectedQuarter, fiscalYear, true)) {
+      paths.push(`/report_ui/performance_comparisons/${index}/current_label`);
+    }
+  });
+
+  if (!paths.length) return null;
+  return buildPeriodicRepairIssue(
+    "fiscal_period_label_mismatch",
+    `The filing metadata identifies fiscal ${fiscalQuarter}${fiscalYear ? ` ${fiscalYear}` : ""}, but current-period analysis labels use a different fiscal quarter.`,
+    uniqueStrings(paths),
+  );
+}
+
+function fiscalQuarterNumber(value: string | null) {
+  if (!value) return null;
+  const match = value.toLowerCase().match(/\bq([1-4])\b/);
+  if (match) return Number(match[1]);
+  if (/\bfirst\b/.test(value)) return 1;
+  if (/\bsecond\b/.test(value)) return 2;
+  if (/\bthird\b/.test(value)) return 3;
+  if (/\bfourth\b/.test(value)) return 4;
+  return null;
+}
+
+function hasConflictingFiscalQuarter(
+  value: unknown,
+  expectedQuarter: number,
+  fiscalYear: string | null,
+  currentPeriodField: boolean,
+) {
+  const text = stringValue(value);
+  if (!text) return false;
+  const matches = [
+    ...text.matchAll(/\bQ([1-4])\b/gi),
+    ...text.matchAll(/\b(first|second|third|fourth)(?:\s+fiscal)?\s+quarter\b/gi),
+  ];
+  for (const match of matches) {
+    const number = match[1] && /^\d$/.test(match[1])
+      ? Number(match[1])
+      : fiscalQuarterNumber(match[1] || null);
+    if (!number || number === expectedQuarter) continue;
+    if (currentPeriodField) return true;
+    const index = match.index || 0;
+    const nearby = text.slice(Math.max(0, index - 40), index + match[0].length + 70);
+    if (fiscalYear && new RegExp(`\\b(?:FY\\s*)?${fiscalYear}\\b`, "i").test(nearby)) return true;
+    if (/\bfiscal\s+year\b/i.test(nearby)) return true;
+  }
+  return false;
 }
 
 function buildPeriodicRepairIssue(
