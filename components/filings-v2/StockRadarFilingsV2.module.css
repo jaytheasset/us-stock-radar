@@ -10,7 +10,7 @@
   padding: var(--sr-space-5) var(--sr-page-gutter-desktop) var(--sr-space-6);
 }
 
-.root .detailRail {
+.detailRail {
   position: sticky;
   top: var(--sr-space-3);
   display: grid;
@@ -21,15 +21,10 @@
   align-content: start;
   gap: var(--sr-space-4);
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
   overscroll-behavior-x: contain;
   overscroll-behavior-y: auto;
-  scrollbar-width: none;
   border-left: var(--sr-border-width) solid var(--sr-color-divider);
-}
-
-.root .detailRail::-webkit-scrollbar {
-  display: none;
 }
 
 .detailRailPreview {
