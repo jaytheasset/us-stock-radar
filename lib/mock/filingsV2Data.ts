@@ -11,7 +11,6 @@ export type FilingsV2EventType =
 export type FilingsV2ImpactFilter = "Alerts 75+" | "50–74";
 export type FilingsV2Signal = "bullish" | "bearish" | "neutral" | "volatile";
 export type FilingsV2Category = "all" | "high-impact" | "watchlist";
-export type FilingsV2Sort = "newest" | "oldest";
 export type FilingsV2DateRange = "24 Hours" | "7 Days" | "30 Days";
 export type FilingsV2MarketCap = "Mega" | "Large" | "Mid" | "Small" | "Micro";
 
@@ -54,7 +53,6 @@ export type FilingsV2FilterState = {
   dateRanges: FilingsV2DateRange[];
 };
 
-export const filingsV2LastUpdated = "Jul 15, 2026 · 4:15 PM ET";
 export const filingsV2ReferenceDate = "2026-07-15T20:15:00.000Z";
 
 export const filingsV2DefaultFilters: FilingsV2FilterState = {

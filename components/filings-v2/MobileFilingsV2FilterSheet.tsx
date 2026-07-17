@@ -19,6 +19,7 @@ import styles from "./StockRadarFilingsV2.module.css";
 type MobileFilingsV2FilterSheetProps = {
   filters: FilingsV2FilterState;
   isOpen: boolean;
+  onApply: () => void;
   onClearFilterGroup: (group: FilingsV2FilterGroup) => void;
   onDismiss: () => void;
   onReset: () => void;
@@ -50,6 +51,7 @@ const mobileFilterHeadingId = "filings-v2-mobile-filter-title";
 export function MobileFilingsV2FilterSheet({
   filters,
   isOpen,
+  onApply,
   onClearFilterGroup,
   onDismiss,
   onReset,
@@ -108,7 +110,7 @@ export function MobileFilingsV2FilterSheet({
 
         <footer className={styles.mobileFilterSheetActions}>
           <button className={styles.secondaryAction} onClick={onReset} type="button">Reset all</button>
-          <button className={styles.primaryAction} onClick={onDismiss} type="button">Show results</button>
+          <button className={styles.primaryAction} onClick={onApply} type="button">Show results</button>
         </footer>
       </div>
     </BottomSheetShell>

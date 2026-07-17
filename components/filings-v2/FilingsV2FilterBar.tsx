@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { ChevronDown, SlidersHorizontal, X } from "lucide-react";
+import { ChevronDown, Search, SlidersHorizontal, X } from "lucide-react";
 import { FilingsV2MarketCapOption } from "@/components/filings-v2/FilingsV2MarketCapOption";
 import { FilterOption } from "@/components/ui/FilterOption";
 import { FilterTrigger } from "@/components/ui/FilterTrigger";
@@ -25,9 +25,12 @@ type FilingsV2FilterBarProps = {
   mobileFilterOpenerRef: RefObject<HTMLButtonElement | null>;
   onClearFilterGroup: (group: FilingsV2FilterGroup) => void;
   onOpenMobileFilters: () => void;
+  onQueryChange: (value: string) => void;
   onRemoveFilter: (group: FilingsV2FilterGroup, value: string) => void;
   onReset: () => void;
+  onSearch: () => void;
   onToggleFilter: (group: FilingsV2FilterGroup, value: string) => void;
+  query: string;
 };
 
 const menuGroups = [
@@ -61,9 +64,12 @@ export function FilingsV2FilterBar({
   mobileFilterOpenerRef,
   onClearFilterGroup,
   onOpenMobileFilters,
+  onQueryChange,
   onRemoveFilter,
   onReset,
+  onSearch,
   onToggleFilter,
+  query,
 }: FilingsV2FilterBarProps) {
   const [openMenu, setOpenMenu] = useState<FilingsV2MenuGroup | null>(null);
   const filterMenusRef = useRef<HTMLDivElement>(null);
@@ -90,6 +96,30 @@ export function FilingsV2FilterBar({
 
   return (
     <section aria-label="Filing filters" className={styles.filterBar}>
+      <div className={styles.filterUtilityRow}>
+        <form
+          className={styles.searchForm}
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSearch();
+          }}
+          role="search"
+        >
+          <label className={styles.searchControl}>
+            <Search aria-hidden="true" size={17} />
+            <span className={styles.visuallyHidden}>Search filings</span>
+            <input
+              onChange={(event) => onQueryChange(event.target.value)}
+              placeholder="Search filings"
+              type="search"
+              value={query}
+            />
+          </label>
+          <button className={styles.searchButton} type="submit">Search</button>
+        </form>
+
+      </div>
+
       <div className={styles.desktopFilterMatrix}>
         <div className={styles.filterGroupRow}>
           <span className={styles.filterGroupLabel}>Signal</span>
@@ -184,6 +214,7 @@ export function FilingsV2FilterBar({
             <button className={styles.resetButton} disabled={!activeCount} onClick={onReset} type="button">
               Reset
             </button>
+            <button className={styles.searchButton} onClick={onSearch} type="button">Search</button>
           </div>
         </div>
       </div>
