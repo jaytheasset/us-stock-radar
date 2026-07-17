@@ -11,6 +11,10 @@ import {
 } from "@/lib/sources/sec/forms/periodic-reports/analysisPrompt";
 import { buildSecPeriodicReportsDisplayPayload } from "@/lib/sources/sec/forms/periodic-reports/displayPayload";
 import {
+  classifyPeriodicCorePerformanceFact,
+  selectQuarterlyCorePerformanceFacts,
+} from "@/lib/sources/sec/forms/periodic-reports/sourceBlockPromptInput";
+import {
   fitPeriodicNarrativeText,
   normalizePeriodicChartNumber,
   normalizePeriodicNarrativeText,
@@ -30,7 +34,7 @@ export {
 export const SEC_PERIODIC_REPORTS_VALIDATION_REPAIR_PROMPT_KEY =
   "sec_periodic_reports_validation_repair";
 export const SEC_PERIODIC_REPORTS_VALIDATION_REPAIR_PROMPT_VERSION =
-  "v5-loss-direction-and-amendment-materiality";
+  "v6-quarterly-scope-and-quick-take";
 
 export type SecPeriodicReportsAnalysisAdapterResult =
   | { ok: true; analysis: Record<string, unknown> }
@@ -136,6 +140,8 @@ export function collectSecPeriodicReportsScoringWarnings(
   const issues: SecPeriodicReportsValidationRepairIssue[] = [];
   const narrativeLengthIssue = buildPeriodicNarrativeLengthIssue(root);
   if (narrativeLengthIssue) issues.push(narrativeLengthIssue);
+  const quickTakeQualityIssue = buildPeriodicQuickTakeQualityIssue(root, input);
+  if (quickTakeQualityIssue) issues.push(quickTakeQualityIssue);
   const fiscalPeriodIssue = buildFiscalPeriodLabelMismatchIssue(root, input);
   if (fiscalPeriodIssue) issues.push(fiscalPeriodIssue);
   const annualComparisonIssue = buildAnnualPriorYearComparisonIssue(root, input);
@@ -144,6 +150,10 @@ export function collectSecPeriodicReportsScoringWarnings(
   if (annualCorePerformanceIssue) issues.push(annualCorePerformanceIssue);
   const annualScopeIssue = buildAnnualConsolidatedMetricScopeIssue(root, input);
   if (annualScopeIssue) issues.push(annualScopeIssue);
+  const quarterlyMetricIssue = buildQuarterlyConsolidatedMetricIssue(root, input);
+  if (quarterlyMetricIssue) issues.push(quarterlyMetricIssue);
+  const quarterlyOperatingScopeIssue = buildQuarterlyOperatingScopeIssue(root, input);
+  if (quarterlyOperatingScopeIssue) issues.push(quarterlyOperatingScopeIssue);
   const quantitativeNarrativeIssue = buildQuantitativeNarrativeConsistencyIssue(root);
   if (quantitativeNarrativeIssue) issues.push(quantitativeNarrativeIssue);
   const amendmentTitleMaterialityIssue = buildAmendmentTitleMaterialityIssue(root);
@@ -475,6 +485,18 @@ function scorePeriodicRepairSourceBlock(
   let score = 0;
 
   if (issueCodes.has("fiscal_period_label_mismatch") && type === "report_context") score += 160;
+  if (issueCodes.has("quick_take_quality_failure") && type === "report_context") score += 80;
+  if (
+    (issueCodes.has("quick_take_quality_failure") ||
+      issueCodes.has("quarterly_consolidated_metric_mismatch") ||
+      issueCodes.has("quarterly_operating_scope_mismatch")) &&
+    type === "quarterly_core_performance_facts"
+  ) score += 200;
+  if (
+    (issueCodes.has("quarterly_consolidated_metric_mismatch") ||
+      issueCodes.has("quarterly_operating_scope_mismatch")) &&
+    type === "quarterly_core_statement"
+  ) score += 220;
   if (
     (issueCodes.has("annual_prior_year_comparison_mismatch") || issueCodes.has("annual_core_performance_missing") || issueCodes.has("annual_consolidated_metric_scope_mismatch")) &&
     type === "annual_core_performance_facts"
@@ -488,7 +510,7 @@ function scorePeriodicRepairSourceBlock(
   if (issueCodes.has("narrative_length_exceeded") && origin === "filing") score += 35;
   if (issueCodes.has("narrative_length_exceeded") && type === "amendment_scope") score += 120;
   if (origin === "market_context") score += issueCodes.has("market_cap_tier_mismatch") ? 110 : 8;
-  if (["financial_table", "xbrl_statement_facts", "periodic_report_section", "context_preserving_snippet"].includes(type)) {
+  if (["financial_table", "xbrl_statement_facts", "periodic_report_section", "context_preserving_snippet", "quarterly_core_statement"].includes(type)) {
     score += 18;
   }
   if (
@@ -963,6 +985,181 @@ function buildAnnualConsolidatedMetricScopeIssue(
   );
 }
 
+function buildQuarterlyConsolidatedMetricIssue(
+  analysisResult: Record<string, unknown>,
+  input: SecFilingAnalysisInput,
+): SecPeriodicReportsValidationRepairIssue | null {
+  const parserOutput = readSecPeriodicReportsParserOutput(input);
+  if (!parserOutput?.facts.isQuarterlyReport || parserOutput.facts.isAmendment) return null;
+  const series = readQuarterlyCoreSeries(parserOutput);
+  const reportUi = readRecord(analysisResult.report_ui);
+  const comparisons = Array.isArray(reportUi?.performance_comparisons) ? reportUi.performance_comparisons : [];
+  const affectedIndexes: number[] = [];
+  const details: string[] = [];
+
+  comparisons.forEach((item, index) => {
+    const row = readRecord(item);
+    if (!row) return;
+    const label = stringValue(row.label);
+    const kind = quarterlyComparisonKind(label);
+    if (!kind) return;
+    const expected = series.get(kind);
+    if (!expected || expected.length < 2) return;
+    const current = readPeriodicComparisonAmount(row.current_value, row.current_numeric);
+    const prior = readPeriodicComparisonAmount(row.comparison_value, row.comparison_numeric);
+    if (current === null || prior === null) return;
+    const expectedCurrent = Number(expected[0]?.value);
+    const expectedPrior = Number(expected[1]?.value);
+    if (!Number.isFinite(expectedCurrent) || !Number.isFinite(expectedPrior)) return;
+    if (
+      approximatelySamePeriodicAmount(current, expectedCurrent) &&
+      approximatelySamePeriodicAmount(prior, expectedPrior)
+    ) return;
+    affectedIndexes.push(index);
+    details.push(`${label || kind} does not match the non-dimensional consolidated current/prior facts.`);
+  });
+
+  if (!affectedIndexes.length) return null;
+  const paths = periodicComparisonRepairPaths(affectedIndexes);
+  paths.push(
+    "/event_title",
+    "/quick_take",
+    "/summary",
+    "/score_reason",
+    "/report_ui/snapshot_intro",
+    "/scoring_assessment/primary_change_severity",
+    "/scoring_assessment/operating_direction",
+    "/scoring_assessment/earnings_quality",
+    "/scoring_assessment/alert_driver",
+    "/score",
+    "/signal",
+  );
+  return buildPeriodicRepairIssue(
+    "quarterly_consolidated_metric_mismatch",
+    `Quarterly performance must use non-dimensional consolidated totals rather than clinic, product, segment, or other subset values. ${details.join(" ")}`,
+    uniqueStrings(paths),
+  );
+}
+
+function buildQuarterlyOperatingScopeIssue(
+  analysisResult: Record<string, unknown>,
+  input: SecFilingAnalysisInput,
+): SecPeriodicReportsValidationRepairIssue | null {
+  const parserOutput = readSecPeriodicReportsParserOutput(input);
+  if (!parserOutput?.facts.isQuarterlyReport || parserOutput.facts.isAmendment) return null;
+  const series = readQuarterlyCoreSeries(parserOutput);
+  const total = series.get("net_income");
+  const continuing = series.get("continuing_operations");
+  const discontinued = series.get("discontinued_operations");
+  if (!total || total.length < 2 || !continuing || continuing.length < 2 || !discontinued?.length) return null;
+
+  const totalCurrent = Number(total[0]?.value);
+  const totalPrior = Number(total[1]?.value);
+  const continuingCurrent = Number(continuing[0]?.value);
+  const continuingPrior = Number(continuing[1]?.value);
+  const discontinuedMagnitude = Math.max(...discontinued.map((fact) => Math.abs(Number(fact.value) || 0)));
+  const comparisonMagnitude = Math.max(Math.abs(totalCurrent), Math.abs(totalPrior), 1);
+  if (
+    ![totalCurrent, totalPrior, continuingCurrent, continuingPrior].every(Number.isFinite) ||
+    discontinuedMagnitude < comparisonMagnitude * 0.1 ||
+    Math.sign(totalCurrent - totalPrior) === Math.sign(continuingCurrent - continuingPrior)
+  ) return null;
+
+  const reportUi = readRecord(analysisResult.report_ui);
+  const comparisons = Array.isArray(reportUi?.performance_comparisons) ? reportUi.performance_comparisons : [];
+  const affectedIndexes: number[] = [];
+  comparisons.forEach((item, index) => {
+    const row = readRecord(item);
+    const label = stringValue(row?.label);
+    if (!/net (?:income|loss)|profit.*loss|profit\/loss/i.test(label) || /continuing operations/i.test(label)) return;
+    affectedIndexes.push(index);
+  });
+  if (!affectedIndexes.length) return null;
+
+  const paths = periodicComparisonRepairPaths(affectedIndexes);
+  paths.push(
+    "/event_title",
+    "/quick_take",
+    "/summary",
+    "/score_reason",
+    "/report_ui/snapshot_intro",
+    "/scoring_assessment/primary_change_severity",
+    "/scoring_assessment/operating_direction",
+    "/scoring_assessment/earnings_quality",
+    "/scoring_assessment/alert_driver",
+    "/score",
+    "/signal",
+  );
+  return buildPeriodicRepairIssue(
+    "quarterly_operating_scope_mismatch",
+    "Total net income or loss moves in the opposite direction from continuing operations because discontinued operations changed the comparison base. Use continuing operations for the like-for-like performance read and explain discontinued operations separately.",
+    uniqueStrings(paths),
+  );
+}
+
+function readQuarterlyCoreSeries(parserOutput: PeriodicParserOutput) {
+  const result = new Map<string, ReturnType<typeof selectQuarterlyCorePerformanceFacts>>();
+  for (const fact of selectQuarterlyCorePerformanceFacts(parserOutput)) {
+    const kind = classifyPeriodicCorePerformanceFact(fact.name);
+    if (!kind) continue;
+    const values = result.get(kind) || [];
+    values.push(fact);
+    values.sort((left, right) => xbrlFactPeriodEnd(right.period) - xbrlFactPeriodEnd(left.period));
+    result.set(kind, values);
+  }
+  return result;
+}
+
+function quarterlyComparisonKind(label: string) {
+  if (/revenue|sales/i.test(label)) return "revenue";
+  if (/operating income|operating profit|operating loss/i.test(label)) return "operating_income";
+  if (/continuing operations/i.test(label)) return "continuing_operations";
+  if (/net income|net loss|profit.*loss|profit\/loss/i.test(label)) return "net_income";
+  if (/operating cash flow|cash from operations/i.test(label)) return "operating_cash_flow";
+  return null;
+}
+
+function readPeriodicComparisonAmount(displayValue: unknown, numericValue: unknown) {
+  const display = stringValue(displayValue);
+  if (display) {
+    const normalized = normalizePeriodicChartNumber(display, Number.NaN);
+    if (Number.isFinite(normalized)) return normalized;
+  }
+  return finiteNumber(numericValue);
+}
+
+function approximatelySamePeriodicAmount(actual: number, expected: number) {
+  const tolerance = Math.max(1, Math.abs(expected) * 0.01);
+  return Math.abs(actual - expected) <= tolerance;
+}
+
+function xbrlFactPeriodEnd(period: string | null) {
+  const value = period?.includes("/") ? period.split("/").pop() : period;
+  const timestamp = Date.parse(value || "");
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function periodicComparisonRepairPaths(indexes: number[]) {
+  const paths: string[] = [];
+  for (const index of indexes) {
+    for (const field of [
+      "label",
+      "current_label",
+      "current_value",
+      "current_numeric",
+      "comparison_label",
+      "comparison_value",
+      "comparison_numeric",
+      "comparison_basis",
+      "change_note",
+      "change_tone",
+    ]) {
+      paths.push(`/report_ui/performance_comparisons/${index}/${field}`);
+    }
+  }
+  return paths;
+}
+
 function extractMagnitudeKeys(value: unknown) {
   const text = stringValue(value).toLowerCase();
   const result = new Set<string>();
@@ -1076,10 +1273,42 @@ function buildPeriodicRepairIssue(
   };
 }
 
+function buildPeriodicQuickTakeQualityIssue(
+  analysisResult: Record<string, unknown>,
+  input: SecFilingAnalysisInput,
+): SecPeriodicReportsValidationRepairIssue | null {
+  const quickTake = normalizePeriodicNarrativeText(analysisResult.quick_take);
+  const parserOutput = readSecPeriodicReportsParserOutput(input);
+  const companyName = nullableString(parserOutput?.facts.companyName);
+  const companyOnly = Boolean(
+    companyName &&
+    normalizePeriodicIdentityText(quickTake) === normalizePeriodicIdentityText(companyName),
+  );
+  const wordCount = quickTake.split(/\s+/).filter(Boolean).length;
+  const hasEventVerb = /\b(?:reported|posted|generated|grew|rose|increased|declined|fell|decreased|widened|narrowed|turned|expects?|forecast|guides?|raised|lowered|cut|maintained|filed|added|restated|corrected|completed|acquired|sold|faces?|shows?|signals?|leaves?|drives?|offsets?|reflects?|includes?|reveals?|improves?|weakens?|remains?|is|are|was|were|has|have)\b/i.test(quickTake);
+  if (quickTake && !companyOnly && wordCount >= 6 && hasEventVerb) return null;
+
+  return buildPeriodicRepairIssue(
+    "quick_take_quality_failure",
+    "Quick Take must be a complete investor-facing conclusion with an event verb and the material change or practical read-through; an issuer name or filing label alone is not valid.",
+    ["/quick_take"],
+  );
+}
+
+function normalizePeriodicIdentityText(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/\b(?:incorporated|inc|corp(?:oration)?|company|co|limited|ltd|plc|n\.v\.|group|holdings?)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function buildPeriodicNarrativeLengthIssue(
   analysisResult: Record<string, unknown>,
 ): SecPeriodicReportsValidationRepairIssue | null {
   const scalarLimits: Array<[string, unknown, number]> = [
+    ["/event_title", analysisResult.event_title, 140],
     ["/score_reason", analysisResult.score_reason, 220],
     ["/quick_take", analysisResult.quick_take, 220],
     ["/summary", analysisResult.summary, 900],

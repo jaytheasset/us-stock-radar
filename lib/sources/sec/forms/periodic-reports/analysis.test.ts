@@ -87,6 +87,8 @@ assert.match(secPeriodicReportsAnalysisSystemPrompt, /quick_take as one self-con
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /Never output only the issuer name, form type, filing label/i, "analysis rejects issuer-only quick take");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /Do not copy event_title or the opening of summary into quick_take/i, "analysis keeps quick take distinct");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /at least one exact core metric/i, "analysis asks for a source-backed core metric");
+assert.match(secPeriodicReportsAnalysisSystemPrompt, /quarterly_core_performance_facts and quarterly_core_statement/i, "analysis prioritizes consolidated quarterly source blocks");
+assert.match(secPeriodicReportsAnalysisSystemPrompt, /discontinued operations materially change the comparison base/i, "analysis keeps continuing operations comparable");
 assert.match(secPeriodicReportsAmendmentAnalysisSystemPrompt, /quick_take as one self-contained investor-facing sentence of roughly 14 to 28 words/i, "amendment analysis defines quick take purpose and length");
 assert.match(secPeriodicReportsAmendmentAnalysisSystemPrompt, /name the exact amended item or exhibit instead of inventing a number/i, "amendment quick take handles metric-free corrections");
 assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.key_evidence.maxItems, 3, "analysis limits key evidence");
@@ -346,6 +348,96 @@ assert.match(String(annualCoreBlock?.text), /2025-01-01\/2025-12-31/, "annual co
 assert.match(String(annualCoreBlock?.text), /2024-01-01\/2024-12-31/, "annual core block includes immediately preceding fiscal year");
 assert.doesNotMatch(String(annualCoreBlock?.text), /2023-01-01\/2023-12-31/, "annual core block excludes older annual periods when adjacent years exist");
 
+const quarterlyScopeParserOutput = parseSecPeriodicReport({
+  rawItemId: "periodic-quarterly-consolidated-scope",
+  sourceUniqueId: "0000000000-26-000009",
+  title: "Quarterly Scope Corp. Form 10-Q",
+  bodyText: `
+    FORM 10-Q For the quarterly period ended March 31, 2026.
+    Total revenue | 2,015,225 | 1,637,185
+    Net loss from continuing operations | (5,539,351) | (1,492,271)
+    Net loss from discontinued operations | - | (15,911,315)
+    Net loss | (5,539,351) | (17,403,586)
+  `,
+  xbrl_facts: [
+    { name: "dei:DocumentFiscalPeriodFocus", value: "Q1", contextRef: "Document", period: "2026-03-31" },
+    { name: "dei:DocumentFiscalYearFocus", value: "2026", contextRef: "Document", period: "2026-03-31" },
+    { name: "dei:DocumentPeriodEndDate", value: "2026-03-31", contextRef: "Document", period: "2026-03-31" },
+    { name: "us-gaap:Revenues", value: 2_015_225, unitRef: "USD", contextRef: "Q12026", period: "2026-01-01/2026-03-31", statement: "Income statement", hasDimensions: false },
+    { name: "us-gaap:Revenues", value: 1_637_185, unitRef: "USD", contextRef: "Q12025", period: "2025-01-01/2025-03-31", statement: "Income statement", hasDimensions: false },
+    { name: "IVF:IntersegmentRevenues", value: 1_982_233, unitRef: "USD", contextRef: "ClinicQ12026", period: "2026-01-01/2026-03-31", statement: "Income statement", hasDimensions: true },
+    { name: "IVF:IntersegmentRevenues", value: 1_603_844, unitRef: "USD", contextRef: "ClinicQ12025", period: "2025-01-01/2025-03-31", statement: "Income statement", hasDimensions: true },
+    { name: "us-gaap:IncomeLossFromContinuingOperations", value: -5_539_351, unitRef: "USD", contextRef: "Q12026", period: "2026-01-01/2026-03-31", statement: "Income statement", hasDimensions: false },
+    { name: "us-gaap:IncomeLossFromContinuingOperations", value: -1_492_271, unitRef: "USD", contextRef: "Q12025", period: "2025-01-01/2025-03-31", statement: "Income statement", hasDimensions: false },
+    { name: "us-gaap:IncomeLossFromDiscontinuedOperationsNetOfTax", value: 0, unitRef: "USD", contextRef: "Q12026", period: "2026-01-01/2026-03-31", statement: "Income statement", hasDimensions: false },
+    { name: "us-gaap:IncomeLossFromDiscontinuedOperationsNetOfTax", value: -15_911_315, unitRef: "USD", contextRef: "Q12025", period: "2025-01-01/2025-03-31", statement: "Income statement", hasDimensions: false },
+    { name: "us-gaap:NetIncomeLoss", value: -5_539_351, unitRef: "USD", contextRef: "Q12026", period: "2026-01-01/2026-03-31", statement: "Income statement", hasDimensions: false },
+    { name: "us-gaap:NetIncomeLoss", value: -17_403_586, unitRef: "USD", contextRef: "Q12025", period: "2025-01-01/2025-03-31", statement: "Income statement", hasDimensions: false },
+  ],
+  rawPayload: { form_type: "10-Q", company_name: "Quarterly Scope Corp." },
+});
+const quarterlyScopePromptPayload = JSON.parse(buildSecPeriodicReportsAnalysisPromptDraft({
+  parser_output: quarterlyScopeParserOutput,
+}).user) as Record<string, unknown>;
+const quarterlyScopeBlocks = Array.isArray(quarterlyScopePromptPayload.cleaned_source_blocks)
+  ? quarterlyScopePromptPayload.cleaned_source_blocks as Array<Record<string, unknown>>
+  : [];
+const quarterlyCoreBlock = quarterlyScopeBlocks.find((block) => block.block_type === "quarterly_core_performance_facts");
+assert.ok(quarterlyCoreBlock, "quarterly reports include a dedicated consolidated current/prior-quarter core block");
+assert.match(String(quarterlyCoreBlock?.text), /2015225/, "quarterly core block includes consolidated total revenue");
+assert.doesNotMatch(String(quarterlyCoreBlock?.text), /1982233/, "quarterly core block excludes dimensional clinic revenue");
+const quarterlyStatementBlock = quarterlyScopeBlocks.find((block) => block.block_type === "quarterly_core_statement");
+assert.match(String(quarterlyStatementBlock?.text || ""), /continuing operations/i, "quarterly statement block preserves continuing-operations context");
+assert.match(String(quarterlyStatementBlock?.text || ""), /discontinued operations/i, "quarterly statement block preserves discontinued-operations context");
+
+const quarterlyScopeWarnings = collectSecPeriodicReportsScoringWarnings(
+  {
+    event_title: "Quarterly Scope reports improved quarterly performance",
+    quick_take: "Quarterly Scope reported narrower total losses despite mixed operating trends.",
+    summary: "Revenue increased and total net loss narrowed year over year.",
+    score_reason: "Headline losses narrowed, supporting a constructive investor read.",
+    report_ui: {
+      snapshot_intro: "Revenue increased while total net loss narrowed.",
+      snapshot_metrics: [],
+      performance_comparisons: [
+        {
+          label: "Total Revenue",
+          current_label: "Q1 2026",
+          current_value: "$1.982M",
+          current_numeric: 1_982_233,
+          comparison_label: "Q1 2025",
+          comparison_value: "$1.604M",
+          comparison_numeric: 1_603_844,
+          comparison_basis: "yoy",
+          change_note: "Up 24% YoY",
+          change_tone: "improvement",
+        },
+        {
+          label: "Net Loss",
+          current_label: "Q1 2026",
+          current_value: "$(5.539M)",
+          current_numeric: -5_539_351,
+          comparison_label: "Q1 2025",
+          comparison_value: "$(17.404M)",
+          comparison_numeric: -17_403_586,
+          comparison_basis: "yoy",
+          change_note: "Loss narrowed",
+          change_tone: "improvement",
+        },
+      ],
+    },
+  },
+  { filing_package: { hard_parsers: { "periodic-reports": quarterlyScopeParserOutput } } },
+);
+assert.ok(
+  quarterlyScopeWarnings.some((warning) => warning.code === "quarterly_consolidated_metric_mismatch"),
+  "validator catches subset revenue presented as consolidated quarterly revenue",
+);
+assert.ok(
+  quarterlyScopeWarnings.some((warning) => warning.code === "quarterly_operating_scope_mismatch"),
+  "validator catches total-loss improvement driven by a discontinued-operations comparison base",
+);
+
 const quantitativeNarrativeWarnings = collectSecPeriodicReportsScoringWarnings(
   {
     event_title: "Annual Net Income More Than Doubled",
@@ -575,6 +667,19 @@ assert.ok(narrativeLengthWarning, "validator catches overlong or visibly truncat
 assert.ok(narrativeLengthWarning.allowed_patch_paths.includes("/quick_take"), "validator repairs truncated quick take");
 assert.ok(narrativeLengthWarning.allowed_patch_paths.includes("/summary"), "validator repairs overlong summary");
 assert.ok(narrativeLengthWarning.allowed_patch_paths.includes("/key_evidence/1"), "validator repairs overlong evidence item");
+
+const quickTakeQualityWarnings = collectSecPeriodicReportsScoringWarnings(
+  {
+    event_title: "Quarterly Scope Corp. reports quarterly results with a title that keeps repeating material details well beyond the compact title limit and should be rewritten around the dominant investor conclusion",
+    quick_take: "Quarterly Scope Corp.",
+  },
+  { filing_package: { hard_parsers: { "periodic-reports": quarterlyScopeParserOutput } } },
+);
+const quickTakeQualityWarning = quickTakeQualityWarnings.find((warning) => warning.code === "quick_take_quality_failure");
+assert.ok(quickTakeQualityWarning, "validator rejects an issuer-only Quick Take");
+assert.ok(quickTakeQualityWarning.allowed_patch_paths.includes("/quick_take"), "validator can repair issuer-only Quick Take");
+const overlongTitleWarning = quickTakeQualityWarnings.find((warning) => warning.code === "narrative_length_exceeded");
+assert.ok(overlongTitleWarning?.allowed_patch_paths.includes("/event_title"), "validator repairs an overlong event title");
 
 const fiscalPeriodParserOutput = parseSecPeriodicReport({
   rawItemId: "periodic-fiscal-period-validator",

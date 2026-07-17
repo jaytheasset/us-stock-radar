@@ -90,6 +90,8 @@ export function buildSecPeriodicReportsSourceBlockPromptInput(
 
   addAmendmentBlock(candidates, parserOutput);
   addAnnualCorePerformanceBlock(candidates, parserOutput);
+  addQuarterlyCorePerformanceBlock(candidates, parserOutput);
+  addQuarterlyCoreStatementBlock(candidates, normalized, parserOutput);
   addContextSnippetBlocks(candidates, parserOutput);
   addSectionBlocks(candidates, facts.sections);
   addTableBlocks(candidates, normalized);
@@ -215,6 +217,144 @@ function selectAnnualCorePerformanceFacts(parserOutput: PeriodicParserOutput) {
   return selected;
 }
 
+const CORE_PERFORMANCE_FACT_GROUPS = [
+  {
+    key: "revenue",
+    pattern: /^(?:revenues?|totalrevenues?|salesrevenuenet|salesrevenuegoodsnet|salesrevenueservicesnet|revenuefromcontractwithcustomerexcludingassessedtax|revenuefromcontractwithcustomerincludingassessedtax)$/i,
+  },
+  {
+    key: "operating_income",
+    pattern: /^(?:operatingincomeloss|operatingprofitloss|profitlossfromoperatingactivities)$/i,
+  },
+  {
+    key: "continuing_operations",
+    pattern: /^(?:incomelossfromcontinuingoperations|incomelossfromcontinuingoperationsincludingportionattributabletononcontrollinginterest|profitlossfromcontinuingoperations)$/i,
+  },
+  {
+    key: "discontinued_operations",
+    pattern: /^(?:incomelossfromdiscontinuedoperationsnetoftax|discontinuedoperationincomelossnetoftax|profitlossfromdiscontinuedoperationsnetoftax)$/i,
+  },
+  {
+    key: "net_income",
+    pattern: /^(?:netincomeloss|profitloss)$/i,
+  },
+  {
+    key: "operating_cash_flow",
+    pattern: /^netcashprovidedbyusedinoperatingactivities/i,
+  },
+] as const;
+
+export type PeriodicCorePerformanceFactKind = (typeof CORE_PERFORMANCE_FACT_GROUPS)[number]["key"];
+
+export function classifyPeriodicCorePerformanceFact(name: string): PeriodicCorePerformanceFactKind | null {
+  const concept = name.split(":").pop() || name;
+  return CORE_PERFORMANCE_FACT_GROUPS.find((group) => group.pattern.test(concept))?.key || null;
+}
+
+export function selectQuarterlyCorePerformanceFacts(parserOutput: PeriodicParserOutput) {
+  if (!parserOutput.facts.isQuarterlyReport || parserOutput.facts.isAmendment) return [];
+  const facts = parserOutput.facts.sourcePackage.xbrlFacts.filter((fact) =>
+    typeof fact.value === "number" && fact.hasDimensions !== true,
+  );
+  const selected: typeof facts = [];
+
+  for (const group of CORE_PERFORMANCE_FACT_GROUPS) {
+    const concepts = new Map<string, typeof facts>();
+    for (const fact of facts) {
+      const concept = fact.name.split(":").pop() || fact.name;
+      if (!group.pattern.test(concept)) continue;
+      const values = concepts.get(concept) || [];
+      values.push(fact);
+      concepts.set(concept, values);
+    }
+
+    const candidates = Array.from(concepts.values())
+      .map((values) => selectComparableQuarterlyFacts(values, 2))
+      .filter((values) => values.length)
+      .sort((left, right) => right.length - left.length);
+    if (candidates[0]) selected.push(...candidates[0]);
+  }
+
+  return selected;
+}
+
+function addQuarterlyCorePerformanceBlock(
+  blocks: SecPeriodicReportsSourceBlock[],
+  parserOutput: PeriodicParserOutput,
+) {
+  const facts = selectQuarterlyCorePerformanceFacts(parserOutput);
+  if (!facts.length) return;
+
+  addBlock(blocks, {
+    block_id: "periodic-quarterly-core-performance",
+    block_type: "quarterly_core_performance_facts",
+    label: "Current and prior-year-quarter consolidated performance facts",
+    source: "source_package.xbrlFacts",
+    origin: "xbrl",
+    priority: 3,
+    item_number: null,
+    section_key: "quarterly_core_performance",
+    document_type: "XBRL",
+    text: compactJson(
+      facts.map((fact) => ({
+        metric_kind: classifyPeriodicCorePerformanceFact(fact.name),
+        name: fact.name,
+        label: fact.label,
+        value: fact.value,
+        unit: fact.unitRef,
+        period: fact.period,
+        statement: fact.statement,
+        source_document: fact.sourceDocument,
+        has_dimensions: false,
+      })),
+    ),
+  });
+}
+
+function addQuarterlyCoreStatementBlock(
+  blocks: SecPeriodicReportsSourceBlock[],
+  normalized: Record<string, unknown>,
+  parserOutput: PeriodicParserOutput,
+) {
+  if (!parserOutput.facts.isQuarterlyReport || parserOutput.facts.isAmendment) return;
+  const candidates = recordArray(normalized.blocks)
+    .map((block, order) => ({
+      block,
+      order,
+      score: quarterlyStatementBlockScore(nullableString(block.text), nullableString(block.kind)),
+    }))
+    .filter((entry) => entry.score > 0)
+    .sort((left, right) => right.score - left.score || left.order - right.order);
+  const selected = candidates[0];
+  if (!selected) return;
+
+  addBlock(blocks, {
+    block_id: "periodic-quarterly-core-statement",
+    block_type: "quarterly_core_statement",
+    label: "Consolidated quarterly statement and operating-scope context",
+    source: "normalized_primary_document.blocks",
+    origin: "filing",
+    priority: 4,
+    item_number: null,
+    section_key: "quarterly_core_statement",
+    document_type: parserOutput.formType,
+    text: nullableString(selected.block.text),
+  });
+}
+
+function quarterlyStatementBlockScore(text: string, kind: string) {
+  const value = text.toLowerCase();
+  if (!value || /^table of contents\b/.test(value)) return 0;
+  let score = 0;
+  if (/\btotal (?:revenue|revenues|net sales)\b/.test(value)) score += 60;
+  if (/\b(?:net income|net loss|profit for the period)\b/.test(value)) score += 55;
+  if (/\bcontinuing operations\b/.test(value)) score += 100;
+  if (/\bdiscontinued operations\b/.test(value)) score += 100;
+  if (/\boperating (?:income|loss|profit)\b/.test(value)) score += 35;
+  if (/table/.test(kind)) score += 15;
+  return score >= 100 ? score : 0;
+}
+
 function selectComparableAnnualFacts(
   facts: PeriodicParserOutput["facts"]["sourcePackage"]["xbrlFacts"],
   preferredYears: Set<number> | null,
@@ -245,6 +385,40 @@ function selectComparableAnnualFacts(
   }
 
   return selected;
+}
+
+function selectComparableQuarterlyFacts(
+  facts: PeriodicParserOutput["facts"]["sourcePackage"]["xbrlFacts"],
+  maximum: number,
+) {
+  const quarterlyFacts = facts.filter((fact) => isQuarterlyXbrlDuration(fact.period));
+  const pool = quarterlyFacts.length >= 2 ? quarterlyFacts : facts;
+  const ordered = [...pool].sort(comparePromptXbrlFacts);
+  if (!ordered.length) return [];
+
+  const current = ordered[0];
+  const selected = [current];
+  const currentPeriod = readXbrlDuration(current.period);
+  if (currentPeriod) {
+    const prior = ordered.find((fact) => {
+      if (fact === current) return false;
+      const period = readXbrlDuration(fact.period);
+      return Boolean(
+        period &&
+        period.endYear === currentPeriod.endYear - 1 &&
+        period.startMonthDay === currentPeriod.startMonthDay &&
+        period.endMonthDay === currentPeriod.endMonthDay,
+      );
+    });
+    if (prior) selected.push(prior);
+  }
+
+  for (const fact of ordered) {
+    if (selected.length >= maximum) break;
+    if (selected.includes(fact)) continue;
+    selected.push(fact);
+  }
+  return selected.slice(0, maximum);
 }
 
 function addContextSnippetBlocks(
@@ -343,6 +517,7 @@ function sectionPriority(section: PeriodicReportSection) {
 function addTableBlocks(blocks: SecPeriodicReportsSourceBlock[], normalized: Record<string, unknown>) {
   const tables = recordArray(normalized.tables)
     .filter((table) => !["layout", "toc", "exhibit_index"].includes(nullableString(table.classification).toLowerCase()))
+    .filter((table) => !isTableOfContentsTable(table))
     .filter((table) => numberValue(table.numericCellCount) > 0)
     .map((table, order) => ({ table, order, priority: tablePriority(table) }))
     .sort((left, right) => left.priority - right.priority || left.order - right.order)
@@ -374,6 +549,13 @@ function addTableBlocks(blocks: SecPeriodicReportsSourceBlock[], normalized: Rec
         .join("\n"),
     });
   }
+}
+
+function isTableOfContentsTable(table: Record<string, unknown>) {
+  const value = `${nullableString(table.caption)} ${nullableString(table.text).slice(0, 500)}`
+    .trim()
+    .toLowerCase();
+  return /^table of contents\b/.test(value) || (/\btable of contents\b/.test(value) && (value.match(/\bitem\s+\d/gi) || []).length >= 3);
 }
 
 function tablePriority(table: Record<string, unknown>) {
@@ -517,6 +699,27 @@ function isAnnualXbrlDuration(period: string | null) {
   return days >= 300 && days <= 400;
 }
 
+function isQuarterlyXbrlDuration(period: string | null) {
+  const duration = readXbrlDuration(period);
+  return Boolean(duration && duration.days >= 60 && duration.days <= 120);
+}
+
+function readXbrlDuration(period: string | null) {
+  if (!period?.includes("/")) return null;
+  const [start, end] = period.split("/");
+  const startTimestamp = Date.parse(start || "");
+  const endTimestamp = Date.parse(end || "");
+  if (!Number.isFinite(startTimestamp) || !Number.isFinite(endTimestamp)) return null;
+  const startDate = new Date(startTimestamp);
+  const endDate = new Date(endTimestamp);
+  return {
+    days: (endTimestamp - startTimestamp) / 86_400_000,
+    endYear: endDate.getUTCFullYear(),
+    startMonthDay: `${startDate.getUTCMonth() + 1}-${startDate.getUTCDate()}`,
+    endMonthDay: `${endDate.getUTCMonth() + 1}-${endDate.getUTCDate()}`,
+  };
+}
+
 function xbrlConceptPriority(concept: string) {
   if (/revenue|salesrevenuenet/.test(concept)) return 0;
   if (/grossprofit/.test(concept)) return 1;
@@ -621,6 +824,9 @@ function addFallbackBlocks(
 
 function hasSubstantiveSourceBlock(blocks: SecPeriodicReportsSourceBlock[]) {
   return blocks.some((block) => [
+    "annual_core_performance_facts",
+    "quarterly_core_performance_facts",
+    "quarterly_core_statement",
     "context_preserving_snippet",
     "periodic_report_section",
     "financial_table",

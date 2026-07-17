@@ -5,7 +5,7 @@ import {
 import { buildSecPeriodicReportsSourceBlockPromptInput, type SecPeriodicReportsPromptInput } from "./sourceBlockPromptInput.ts";
 
 export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY = "sec_periodic_reports_analysis";
-export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION = "v10-period-consistency";
+export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION = "v11-quarterly-scope-and-quick-take";
 export const SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_KEY = "sec_periodic_reports_amendment_analysis";
 export const SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_VERSION = "v2-material-delta-priority";
 
@@ -367,6 +367,8 @@ export const secPeriodicReportsAnalysisSystemPrompt = [
   "For material filings, write two or three concise key_evidence points chosen by importance. For routine archive filings, key_evidence may be empty.",
   "Use market context only when supplied in the site_market_context source block and only after checking current-filing original source blocks for an explicit total market capitalization. Do not call or ask for live market data.",
   "For earnings and sales_performance, emphasize period-over-period revenue, profit/loss, margins, demand metrics, and management context only when source-backed.",
+  "For quarterly reports, use the dedicated quarterly_core_performance_facts and quarterly_core_statement blocks before generic XBRL or dimensional facts. Use consolidated total revenue rather than clinic, product, segment, or other subset revenue.",
+  "When discontinued operations materially change the comparison base, do not describe an improvement in total net income or loss as operating improvement. Prefer a like-for-like continuing-operations comparison and explain the discontinued-operations effect separately.",
   "Populate report_ui for substantive periodic reports. The application chooses the template; do not name or choose a UI display type.",
   "For a substantive report, write a one-sentence snapshot_intro and up to four source-backed snapshot_metrics. Prefer reporting period, revenue or sales, GAAP/IFRS net income or loss, and cash, free cash flow, debt, or another material balance-sheet measure. Omit unavailable metrics; never write Not disclosed placeholders.",
   "Write at most three performance_comparisons. Each comparison must use the same metric definition, unit, and period length. For annual reports, compare the current fiscal year with the immediately preceding fiscal year. For quarterly reports, use the same fiscal quarter in the immediately preceding year. Use quarter-over-quarter only when no comparable year-over-year value is supplied, and label it qoq.",

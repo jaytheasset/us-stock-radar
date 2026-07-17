@@ -276,6 +276,8 @@ crowdedXbrlFacts.push(
   { name: "dei:DocumentFiscalYearFocus", value: "2026", unitRef: null, contextRef: "Document", period: "2026-03-31", statement: "Other reported XBRL facts" },
   { name: "dei:DocumentPeriodEndDate", value: "2026-03-31", unitRef: null, contextRef: "Document", period: "2026-03-31", statement: "Other reported XBRL facts" },
   { name: "dei:CurrentFiscalYearEndDate", value: "--06-30", unitRef: null, contextRef: "Document", period: "2026-03-31", statement: "Other reported XBRL facts" },
+  { name: "us-gaap:IncomeLossFromContinuingOperations", value: -5_500_000, unitRef: "USD", contextRef: "Q12026", period: "2026-01-01/2026-03-31", statement: "Income statement" },
+  { name: "us-gaap:IncomeLossFromDiscontinuedOperationsNetOfTax", value: -15_900_000, unitRef: "USD", contextRef: "Q12025", period: "2025-01-01/2025-03-31", statement: "Income statement" },
 );
 const crowdedXbrlParsed = parseSecPeriodicReport({
   rawItemId: "periodic-crowded-xbrl-period-metadata",
@@ -290,6 +292,9 @@ assert.equal(crowdedXbrlParsed.facts.fiscalYear, "2026", "DEI fiscal year surviv
 assert.equal(crowdedXbrlParsed.facts.fiscalQuarter, "third quarter", "DEI fiscal quarter survives XBRL cap");
 for (const concept of ["DocumentFiscalPeriodFocus", "DocumentFiscalYearFocus", "DocumentPeriodEndDate", "CurrentFiscalYearEndDate"]) {
   assert.ok(crowdedXbrlParsed.facts.sourcePackage.xbrlFacts.some((fact) => fact.name.endsWith(concept)), `core DEI fact retained: ${concept}`);
+}
+for (const concept of ["IncomeLossFromContinuingOperations", "IncomeLossFromDiscontinuedOperationsNetOfTax"]) {
+  assert.ok(crowdedXbrlParsed.facts.sourcePackage.xbrlFacts.some((fact) => fact.name.endsWith(concept)), `core operating-scope fact retained: ${concept}`);
 }
 
 const partialDeiDateParsed = parseSecPeriodicReport({
