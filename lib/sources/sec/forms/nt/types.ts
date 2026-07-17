@@ -250,6 +250,16 @@ export interface NtAnalysisOutput {
     material_offset: string | null;
     alert_driver: string | null;
   };
+  nt_snapshot: {
+    reason_for_delay: {
+      value: string;
+      note: string | null;
+    };
+    expected_results_impact: {
+      value: string;
+      note: string | null;
+    };
+  };
   signal: NtSignalTone;
   quick_take: string;
   summary: string;
@@ -269,7 +279,7 @@ export interface NtAnalysisOutput {
 }
 
 export interface NtDisplayPayload {
-  display_type: "generic" | "offering_terms" | "candidate_special";
+  display_type: "nt_late_filing" | "generic" | "offering_terms" | "candidate_special";
   display_version: string;
   data: Record<string, unknown>;
   evidence: string[];

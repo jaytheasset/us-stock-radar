@@ -107,7 +107,7 @@
     "needs_human_review": false
   },
   "display_payload": {
-    "display_type": "generic",
+    "display_type": "nt_late_filing",
     "display_version": "nt_late_filing_v1",
     "data": {
       "delayed_report": "10-Q",

@@ -37,6 +37,7 @@ import {
   adaptSec425AnalysisPromptResultForAnalysis,
   adaptOwnershipPromptResultForAnalysis,
   adaptSecNtAnalysisPromptResultForAnalysis,
+  applySecNtValidationRepairPatches,
   adaptSecPeriodicReportsAnalysisPromptResultForAnalysis,
   applySecPeriodicReportsValidationRepairPatches,
   applySecOwnershipValidationRepairPatches,
@@ -65,6 +66,7 @@ import {
   buildSec425RouterPromptForInput,
   buildSecOwnershipAnalysisPrompt,
   buildSecNtAnalysisPromptForInput,
+  buildSecNtValidationRepairPlan,
   buildSecOwnershipValidationRepairPlan,
   buildSecPeriodicReportsAnalysisPromptForInput,
   buildSecPeriodicReportsValidationRepairPlan,
@@ -2222,7 +2224,47 @@ export async function runSecFilingAnalysisForRawRow(
       };
     }
 
-    const ntAnalysis = adaptSecNtAnalysisPromptResultForAnalysis(analysisRun.parsed, input);
+    const repairPlan = buildSecNtValidationRepairPlan({
+      analysisResult: analysisRun.parsed,
+      input,
+    });
+    let repairedValue = analysisRun.parsed;
+    let repairRun: OpenAiPromptRun | null = null;
+    let repairAppliedPaths: string[] = [];
+    let repairIgnoredPaths: string[] = [];
+    let repairUnresolved: unknown[] = [];
+    if (repairPlan) {
+      repairRun = await runOpenAiJsonPrompt(env, repairPlan.prompt, llmConfig, {
+        maxAttempts: 1,
+        disableFallback: true,
+      });
+      if (repairRun.ok && repairRun.parsed) {
+        const repairApplication = applySecNtValidationRepairPatches({
+          analysisResult: analysisRun.parsed,
+          repairResult: repairRun.parsed,
+          allowedPatchPaths: repairPlan.allowedPatchPaths,
+        });
+        repairedValue = repairApplication.value;
+        repairAppliedPaths = repairApplication.appliedPaths;
+        repairIgnoredPaths = repairApplication.ignoredPaths;
+        repairUnresolved = repairApplication.unresolved;
+      }
+    }
+    const usage = combineUsage(analysisRun.usage, repairRun?.usage);
+    const validationRepair = repairPlan
+      ? {
+          attempted: true,
+          succeeded: Boolean(repairRun?.ok && repairRun.parsed),
+          issue_codes: repairPlan.issues.map((issue) => issue.code),
+          source_block_ids: repairPlan.sourceBlockIds,
+          allowed_patch_paths: repairPlan.allowedPatchPaths,
+          applied_patch_paths: repairAppliedPaths,
+          ignored_patch_paths: repairIgnoredPaths,
+          unresolved: repairUnresolved,
+          error: repairRun?.error || null,
+        }
+      : { attempted: false };
+    const ntAnalysis = adaptSecNtAnalysisPromptResultForAnalysis(repairedValue, input);
     if (!ntAnalysis.ok) {
       return {
         ok: false,
@@ -2233,11 +2275,22 @@ export async function runSecFilingAnalysisForRawRow(
         sourceItem: summarizeRawRow(rawItem),
         input,
         outputText: analysisRun.outputText,
-        usage: analysisRun.usage,
+        repairOutputText: repairRun?.outputText,
+        usage,
+        repairUsage: repairRun?.usage,
         rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        validationRepair,
         prompt: {
           key: prompt.key,
           version: prompt.version,
+          repair: repairPlan
+            ? {
+                key: repairPlan.prompt.key,
+                version: repairPlan.prompt.version,
+                system: repairPlan.prompt.system,
+                responseFormat: repairPlan.prompt.responseFormat,
+              }
+            : undefined,
         },
       };
     }
@@ -2252,12 +2305,22 @@ export async function runSecFilingAnalysisForRawRow(
       input,
       analysis: ntAnalysis.analysis,
       outputText: analysisRun.outputText,
-      usage: analysisRun.usage,
-      costEstimate: estimateCost(analysisRun.model, analysisRun.usage),
-      validationRepair: { attempted: false },
+      repairOutputText: repairRun?.outputText,
+      usage,
+      repairUsage: repairRun?.usage,
+      costEstimate: estimateCost(analysisRun.model, usage),
+      validationRepair,
       prompt: {
         key: SEC_NT_ANALYSIS_PROMPT_KEY,
         version: SEC_NT_ANALYSIS_PROMPT_VERSION,
+        repair: repairPlan
+          ? {
+              key: repairPlan.prompt.key,
+              version: repairPlan.prompt.version,
+              system: repairPlan.prompt.system,
+              responseFormat: repairPlan.prompt.responseFormat,
+            }
+          : undefined,
       },
     };
   }

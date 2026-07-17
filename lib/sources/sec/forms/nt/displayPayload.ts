@@ -10,10 +10,15 @@ export function buildNtDisplayPayload(args: {
 }): NtDisplayPayload {
   const { parserOutput, analysisOutput = null } = args;
   const facts = parserOutput.facts;
-  const finalEventType = readString(analysisOutput?.event_type) || "other";
+  const analysis = readRecord(analysisOutput);
+  const scoringAssessment = readRecord(analysis?.nt_scoring_assessment);
+  const snapshot = readRecord(analysis?.nt_snapshot);
+  const reasonForDelay = readRecord(snapshot?.reason_for_delay);
+  const expectedResultsImpact = readRecord(snapshot?.expected_results_impact);
+  const finalEventType = readString(analysis?.event_type) || "other";
 
   return {
-    display_type: "generic",
+    display_type: "nt_late_filing",
     display_version: "nt_late_filing_v1",
     data: {
       form_family: "nt",
@@ -22,10 +27,22 @@ export function buildNtDisplayPayload(args: {
       delayed_report: facts.delayedReport,
       period_of_report: facts.periodOfReport,
       filed_at: facts.filedAt,
+      extension_days: facts.extensionDays,
       company_name: facts.companyName,
       ticker: facts.ticker,
       exchange: facts.exchange,
       selected_event_type: finalEventType,
+      snapshot_intro: readString(analysis?.quick_take),
+      delay_status: readString(scoringAssessment?.delay_status),
+      underlying_issue: readString(scoringAssessment?.underlying_issue),
+      results_change: readString(scoringAssessment?.results_change),
+      financial_reliability_risk: readString(scoringAssessment?.financial_reliability_risk),
+      severity: readString(scoringAssessment?.severity),
+      material_offset: readString(scoringAssessment?.material_offset) || null,
+      reason_for_delay_value: readString(reasonForDelay?.value),
+      reason_for_delay_note: readString(reasonForDelay?.note) || null,
+      expected_results_impact_value: readString(expectedResultsImpact?.value),
+      expected_results_impact_note: readString(expectedResultsImpact?.note) || null,
       is_amendment: facts.isAmendment,
       amendment_purpose: facts.amendmentPurpose,
       is_transition_report: facts.isTransitionReport,
@@ -59,4 +76,10 @@ export function buildNtDisplayPayload(args: {
 
 function readString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
 }

@@ -4,7 +4,7 @@ import { buildSecSourceBlockPromptInput } from "../common/sourceBlockPromptInput
 import { NT_APPROVED_EVENT_TYPES, type NtParserOutput } from "./types";
 
 export const SEC_NT_ANALYSIS_PROMPT_KEY = "sec_nt_analysis";
-export const SEC_NT_ANALYSIS_PROMPT_VERSION = "v2-source-block-analysis-only";
+export const SEC_NT_ANALYSIS_PROMPT_VERSION = "v3-material-results-first";
 
 const ntAnalysisResponseSchema = {
   ...secFilingAnalysisResponseSchema,
@@ -12,6 +12,7 @@ const ntAnalysisResponseSchema = {
     ...secFilingAnalysisResponseSchema.required,
     "score_explanation",
     "nt_scoring_assessment",
+    "nt_snapshot",
   ],
   properties: {
     ...secFilingAnalysisResponseSchema.properties,
@@ -45,6 +46,31 @@ const ntAnalysisResponseSchema = {
         severity: { type: "string", maxLength: 24 },
         material_offset: { type: ["string", "null"], maxLength: 160 },
         alert_driver: { type: ["string", "null"], maxLength: 160 },
+      },
+    },
+    nt_snapshot: {
+      type: "object",
+      additionalProperties: false,
+      required: ["reason_for_delay", "expected_results_impact"],
+      properties: {
+        reason_for_delay: {
+          type: "object",
+          additionalProperties: false,
+          required: ["value", "note"],
+          properties: {
+            value: { type: "string", maxLength: 56 },
+            note: { type: ["string", "null"], maxLength: 96 },
+          },
+        },
+        expected_results_impact: {
+          type: "object",
+          additionalProperties: false,
+          required: ["value", "note"],
+          properties: {
+            value: { type: "string", maxLength: 64 },
+            note: { type: ["string", "null"], maxLength: 120 },
+          },
+        },
       },
     },
     quick_take: { type: "string", maxLength: 180 },
@@ -96,6 +122,9 @@ export const secNtAnalysisSystemPrompt = [
   "Use sales_performance for a material revenue, sales, customer-order, or margin change; use earnings for broader profit, EPS, or loss changes.",
   "Use listing_risk, legal_risk, leadership_governance, or strategic_transaction only when the original blocks directly support that underlying issue.",
   "Use other for a routine extension notice without a separate material investor event.",
+  "Determine the underlying investor event before considering whether the delayed report is expected within the extension window.",
+  "A substantive disclosed results change is a separate investor event. Do not classify it as other or routine merely because the report is expected within the extension window.",
+  "When the filing discloses a broader profit, loss, or EPS change, use earnings even if revenue or sales also changed. Use sales_performance only when the material change is primarily revenue, sales, orders, or margin without a broader earnings change.",
   "Before writing investor-facing prose, complete nt_scoring_assessment in this order: delay status, underlying issue, disclosed results change, financial-reliability risk, severity, material offset, and alert driver.",
   "Use these assessment values exactly where applicable: delay_status within_extension/outside_extension/unclear; financial_reliability_risk none/possible/explicit; severity technical/routine/limited/meaningful/major/critical.",
   "results_change must briefly state positive, negative, mixed, none disclosed, or unclear and include a source-backed magnitude when the filing gives one.",
@@ -111,6 +140,8 @@ export const secNtAnalysisSystemPrompt = [
   "A checked Yes answer to a significant-results-change question without a substantive explanation cannot by itself support a score above 59.",
   "An attached accountant statement, audit work, acquisition consolidation, or internal-control testing does not by itself support alert status. Escalate only when the original text states a material unresolved problem or consequence.",
   "Expected filing within the extension and no significant results change are mitigating facts, but they do not erase an explicit restatement, material weakness, going-concern, default, or listing issue.",
+  "A substantive results change cannot receive a score below 50. A quantified profit-to-loss reversal, major loss expansion, or similarly material deterioration should be evaluated in the 60-74 band or above; expected filing within the extension is an offset, not a reason to return to the routine band.",
+  "Do not assign points from one percentage alone. Use disclosed direction, breadth across the income statement, reliability risk, timing, and material offsets to choose a score within the applicable band.",
   "Missing or unclear information is uncertainty, not proof of a negative event. Do not fill gaps with bearish assumptions.",
   "For a disclosed positive results change, score materiality normally but account for the reporting delay as an offset; use volatile when positive performance and reporting uncertainty are both material.",
   "Score measures investor attention and urgency; signal measures direction. Neutral signal must have score below 75. A score of 75 or above requires a concise source-backed nt_scoring_assessment.alert_driver.",
@@ -119,6 +150,8 @@ export const secNtAnalysisSystemPrompt = [
   "event_title must identify the company-specific issue and remain under 100 characters.",
   "quick_take must be one self-contained sentence under 22 words.",
   "summary must be 2-4 sentences covering the cause, expected timing, disclosed financial change, and investor consequence when available.",
+  "nt_snapshot is compact UI copy, not scoring analysis. Write short plain-English value text and an optional supporting note without ellipses, copied legal boilerplate, or repeated labels.",
+  "For nt_snapshot.reason_for_delay, summarize the actual work or issue causing the delay. For nt_snapshot.expected_results_impact, state the direction first and put the most useful source-backed magnitude in note.",
   "score_reason and score_explanation.summary must reflect nt_scoring_assessment, including the strongest driver and one material offset when it changes the conclusion.",
   "score_explanation.summary is the visible score rationale: write one concise analyst-style conclusion of 18-32 words explaining why the impact level is reasonable.",
   "Do not start score rationale with 'The score is', the issuer name, a ticker, a form label, or filing-action verbs such as filed or submitted.",

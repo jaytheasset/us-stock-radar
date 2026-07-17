@@ -1,3 +1,4 @@
+import { applySecValidationRepairPatches } from "@/lib/ai/secValidationRepairPatch";
 import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
 import {
   buildNtAnalysisPromptDraft,
@@ -16,6 +17,9 @@ export {
   SEC_NT_ANALYSIS_PROMPT_VERSION,
 };
 
+export const SEC_NT_VALIDATION_REPAIR_PROMPT_KEY = "sec_nt_validation_repair";
+export const SEC_NT_VALIDATION_REPAIR_PROMPT_VERSION = "v1-material-results-consistency";
+
 export type SecNtAnalysisAdapterResult =
   | { ok: true; analysis: Record<string, unknown> }
   | { ok: false; error: string };
@@ -23,6 +27,16 @@ export type SecNtAnalysisAdapterResult =
 export type SecNtScoringWarning = {
   code: string;
   warning: string;
+  field_paths: string[];
+  allowed_patch_paths: string[];
+  candidate_source_block_ids: string[];
+};
+
+export type SecNtValidationRepairPlan = {
+  prompt: ReturnType<typeof buildNtValidationRepairPrompt>;
+  issues: SecNtScoringWarning[];
+  allowedPatchPaths: string[];
+  sourceBlockIds: string[];
 };
 
 export function isSecNtFilingInput(input: SecFilingAnalysisInput) {
@@ -72,7 +86,7 @@ export function adaptSecNtAnalysisPromptResultForAnalysis(
     score,
     signal,
     nt_scoring_assessment: scoringAssessment,
-  });
+  }, input);
   const displayPayload = buildNtDisplayPayload({
     parserOutput,
     analysisOutput: { ...root, event_type: eventType } as Partial<NtAnalysisOutput>,
@@ -111,6 +125,7 @@ export function adaptSecNtAnalysisPromptResultForAnalysis(
 
 export function collectSecNtScoringWarnings(
   analysisResult: Record<string, unknown>,
+  input?: SecFilingAnalysisInput,
 ): SecNtScoringWarning[] {
   const score = clampScore(analysisResult.score);
   const signal = normalizeSignal(analysisResult.signal);
@@ -119,22 +134,39 @@ export function collectSecNtScoringWarnings(
   const band = ntSeverityScoreBand(assessment.severity);
 
   if (signal === "neutral" && score >= 75) {
-    warnings.push({
-      code: "neutral_alert_score_conflict",
-      warning: "Neutral NT analysis cannot carry an alert-band score of 75 or above.",
-    });
+    warnings.push(buildNtRepairIssue(
+      "neutral_alert_score_conflict",
+      "Neutral NT analysis cannot carry an alert-band score of 75 or above.",
+      ["/score", "/signal", "/score_reason", "/score_explanation/summary"],
+    ));
   }
   if (score >= 75 && !assessment.alert_driver) {
-    warnings.push({
-      code: "missing_alert_driver",
-      warning: "Alert-band NT analysis requires one explicit source-backed alert driver.",
-    });
+    warnings.push(buildNtRepairIssue(
+      "missing_alert_driver",
+      "Alert-band NT analysis requires one explicit source-backed alert driver.",
+      [
+        "/nt_scoring_assessment/alert_driver",
+        "/nt_scoring_assessment/severity",
+        "/score",
+        "/signal",
+        "/score_reason",
+        "/score_explanation/summary",
+      ],
+    ));
   }
   if (band && (score < band.minimum || score > band.maximum)) {
-    warnings.push({
-      code: "score_severity_mismatch",
-      warning: `${assessment.severity} NT severity does not align with score ${score}.`,
-    });
+    warnings.push(buildNtRepairIssue(
+      "score_severity_mismatch",
+      `${assessment.severity} NT severity does not align with score ${score}.`,
+      [
+        "/nt_scoring_assessment/severity",
+        "/nt_scoring_assessment/alert_driver",
+        "/score",
+        "/signal",
+        "/score_reason",
+        "/score_explanation/summary",
+      ],
+    ));
   }
   if (
     assessment.delay_status === "within_extension" &&
@@ -143,21 +175,234 @@ export function collectSecNtScoringWarnings(
     /none disclosed|no significant|unchanged/i.test(assessment.results_change) &&
     score >= 50
   ) {
-    warnings.push({
-      code: "routine_delay_overstated",
-      warning: "A routine within-extension delay with no disclosed results change should remain below the feed threshold.",
-    });
+    warnings.push(buildNtRepairIssue(
+      "routine_delay_overstated",
+      "A routine within-extension delay with no disclosed results change should remain below the feed threshold.",
+      [
+        "/nt_scoring_assessment/severity",
+        "/score",
+        "/signal",
+        "/score_reason",
+        "/score_explanation/summary",
+      ],
+    ));
   }
   if (
     assessment.financial_reliability_risk === "explicit" &&
     !["major", "critical"].includes(assessment.severity)
   ) {
-    warnings.push({
-      code: "explicit_financial_risk_understated",
-      warning: "Explicit financial-reliability risk requires major or critical severity unless the source states a clear resolution.",
-    });
+    warnings.push(buildNtRepairIssue(
+      "explicit_financial_risk_understated",
+      "Explicit financial-reliability risk requires major or critical severity unless the source states a clear resolution.",
+      [
+        "/event_type",
+        "/nt_scoring_assessment/severity",
+        "/nt_scoring_assessment/alert_driver",
+        "/score",
+        "/signal",
+        "/score_reason",
+        "/score_explanation/summary",
+        "/quick_take",
+        "/summary",
+      ],
+    ));
   }
-  return warnings;
+
+  const parserOutput = input ? readSecNtParserOutput(input) : null;
+  const significantChange = parserOutput?.facts.partIv.significantChange;
+  const significantExplanation = stringValue(significantChange?.explanation);
+  const substantiveResultsChange = Boolean(
+    significantChange?.answer === true &&
+      significantExplanation.length >= 32 &&
+      !/^(?:yes|see narrative|significant change expected)\.?$/i.test(significantExplanation),
+  );
+  const eventType = normalizeEventType(analysisResult.event_type);
+  if (
+    substantiveResultsChange &&
+    (eventType === "other" || score < 50 || ["technical", "routine"].includes(assessment.severity))
+  ) {
+    warnings.push(buildNtRepairIssue(
+      "material_results_change_classified_routine",
+      "Part IV discloses a substantive results change, but the analysis classifies or scores the filing as routine. Reassess the underlying earnings or sales event before applying the extension-timing offset.",
+      [
+        "/event_type",
+        "/nt_scoring_assessment/results_change",
+        "/nt_scoring_assessment/severity",
+        "/nt_scoring_assessment/material_offset",
+        "/nt_scoring_assessment/alert_driver",
+        "/score",
+        "/signal",
+        "/score_reason",
+        "/score_explanation/summary",
+        "/quick_take",
+        "/summary",
+        "/nt_snapshot/expected_results_impact/value",
+        "/nt_snapshot/expected_results_impact/note",
+      ],
+    ));
+  }
+  return dedupeNtRepairIssues(warnings);
+}
+
+export function buildSecNtValidationRepairPlan({
+  analysisResult,
+  input,
+}: {
+  analysisResult: Record<string, unknown>;
+  input: SecFilingAnalysisInput;
+}): SecNtValidationRepairPlan | null {
+  const issues = collectSecNtScoringWarnings(analysisResult, input);
+  if (!issues.length) return null;
+  const sourceBlocks = selectNtRepairSourceBlocks(input);
+  if (!sourceBlocks.length) return null;
+  const sourceBlockIds = sourceBlocks.map((block) => stringValue(block.block_id)).filter(Boolean);
+  const issuesWithSources = issues.map((issue) => ({
+    ...issue,
+    candidate_source_block_ids: sourceBlockIds,
+  }));
+  const allowedPatchPaths = uniqueStrings(issuesWithSources.flatMap((issue) => issue.allowed_patch_paths));
+  return {
+    prompt: buildNtValidationRepairPrompt({
+      analysisResult,
+      issues: issuesWithSources,
+      allowedPatchPaths,
+      sourceBlocks,
+    }),
+    issues: issuesWithSources,
+    allowedPatchPaths,
+    sourceBlockIds,
+  };
+}
+
+export function applySecNtValidationRepairPatches({
+  analysisResult,
+  repairResult,
+  allowedPatchPaths,
+}: {
+  analysisResult: Record<string, unknown>;
+  repairResult: unknown;
+  allowedPatchPaths: string[];
+}) {
+  return applySecValidationRepairPatches({ analysisResult, repairResult, allowedPatchPaths });
+}
+
+function buildNtValidationRepairPrompt({
+  analysisResult,
+  issues,
+  allowedPatchPaths,
+  sourceBlocks,
+}: {
+  analysisResult: Record<string, unknown>;
+  issues: SecNtScoringWarning[];
+  allowedPatchPaths: string[];
+  sourceBlocks: Array<Record<string, unknown>>;
+}) {
+  return {
+    key: SEC_NT_VALIDATION_REPAIR_PROMPT_KEY,
+    version: SEC_NT_VALIDATION_REPAIR_PROMPT_VERSION,
+    system: [
+      "Repair one completed SEC NT filing analysis in one bounded pass.",
+      "Validator warnings identify possible classification, scoring, or snapshot inconsistencies but are not evidence.",
+      "Use only the selected original Part III/Part IV source blocks and the existing result as evidence.",
+      "Classify and score a substantive disclosed results change before treating expected filing within the extension as an offset.",
+      "Use earnings for broader profit, loss, or EPS changes. Use sales_performance only when the material change is primarily revenue, sales, orders, or margin.",
+      "A substantive results change cannot remain other, routine, or below score 50.",
+      "Patch scalar values only at exact allowed paths. Preserve unrelated fields and arrays.",
+      "If evidence is insufficient, return the issue as unresolved instead of guessing.",
+      "This is the only repair attempt. Return JSON only.",
+    ].join("\n"),
+    user: JSON.stringify({
+      task: "Patch only source-verifiable NT classification, scoring, or snapshot inconsistencies.",
+      allowed_patch_paths: allowedPatchPaths,
+      validator_issues: issues,
+      selected_original_source_blocks: sourceBlocks,
+      existing_analysis_result: analysisResult,
+    }, null, 2),
+    responseFormat: {
+      json_schema: {
+        name: "sec_nt_validation_repair",
+        strict: true,
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["patches", "unresolved"],
+          properties: {
+            patches: {
+              type: "array",
+              maxItems: 24,
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["path", "replacement", "reason", "source_block_ids"],
+                properties: {
+                  path: { type: "string", enum: allowedPatchPaths },
+                  replacement: { type: ["string", "number", "boolean", "null"] },
+                  reason: { type: "string", maxLength: 220 },
+                  source_block_ids: { type: "array", maxItems: 3, items: { type: "string" } },
+                },
+              },
+            },
+            unresolved: {
+              type: "array",
+              maxItems: 6,
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["code", "reason"],
+                properties: {
+                  code: { type: "string" },
+                  reason: { type: "string", maxLength: 220 },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+}
+
+function selectNtRepairSourceBlocks(input: SecFilingAnalysisInput): Array<Record<string, unknown>> {
+  try {
+    const prompt = buildSecNtAnalysisPromptForInput(input);
+    const payload = JSON.parse(prompt.user) as Record<string, unknown>;
+    return recordArray(payload.cleaned_source_blocks)
+      .map((block, index) => ({ block, index, score: ntRepairSourceBlockScore(block) }))
+      .filter((entry) => entry.score > 0)
+      .sort((left, right) => right.score - left.score || left.index - right.index)
+      .slice(0, 3)
+      .map(({ block }) => ({ ...block, text: stringValue(block.text).slice(0, 4_000) }));
+  } catch {
+    return [];
+  }
+}
+
+function ntRepairSourceBlockScore(block: Record<string, unknown>) {
+  const type = stringValue(block.block_type).toLowerCase();
+  if (type === "nt_part_iv") return 200;
+  if (type === "nt_part_iii") return 180;
+  if (type === "nt_accountant_statement") return 120;
+  return 0;
+}
+
+function buildNtRepairIssue(code: string, warning: string, paths: string[]): SecNtScoringWarning {
+  const uniquePaths = uniqueStrings(paths);
+  return {
+    code,
+    warning,
+    field_paths: uniquePaths,
+    allowed_patch_paths: uniquePaths,
+    candidate_source_block_ids: [],
+  };
+}
+
+function dedupeNtRepairIssues(issues: SecNtScoringWarning[]) {
+  const seen = new Set<string>();
+  return issues.filter((issue) => {
+    if (seen.has(issue.code)) return false;
+    seen.add(issue.code);
+    return true;
+  });
 }
 
 export function readSecNtParserOutput(input: SecFilingAnalysisInput): NtParserOutput | null {

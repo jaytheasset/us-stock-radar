@@ -449,6 +449,12 @@ type PeriodicAmendmentModel = {
   keyChanges: PeriodicReportBusinessUpdate[];
 };
 
+type NtLateFilingModel = {
+  snapshotTitle: string;
+  snapshotIntro: string;
+  snapshotMetrics: PeriodicReportSnapshotMetric[];
+};
+
 type EarningsModel = {
   periodType: string;
   period: string;
@@ -2011,6 +2017,18 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
       ? buildListingRiskModel(filing)
       : null;
   const useListingRiskDetail = Boolean(listingRiskModel);
+  const ntLateFilingModel =
+    !useEffectDetail &&
+    !useIpoDetail &&
+    !useSpacDetail &&
+    !useForm425TransactionDetail &&
+    !useForm25Detail &&
+    !useProxyDetail &&
+    !useListingRiskDetail &&
+    !canUseDilutionDetail
+      ? buildNtLateFilingModel(filing)
+      : null;
+  const useNtLateFilingDetail = Boolean(ntLateFilingModel);
   const periodicAmendmentModel =
     !useEffectDetail &&
     !useIpoDetail &&
@@ -2019,6 +2037,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
     !useForm25Detail &&
     !useProxyDetail &&
     !useListingRiskDetail &&
+    !useNtLateFilingDetail &&
     !canUseDilutionDetail
       ? buildPeriodicAmendmentModel(filing)
       : null;
@@ -2031,6 +2050,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
     !useForm25Detail &&
     !useProxyDetail &&
     !useListingRiskDetail &&
+    !useNtLateFilingDetail &&
     !usePeriodicAmendmentDetail &&
     !canUseDilutionDetail
       ? buildPeriodicReportModel(filing)
@@ -2043,6 +2063,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
     !useForm425TransactionDetail &&
     !useForm25Detail &&
     !useListingRiskDetail &&
+    !useNtLateFilingDetail &&
     !usePeriodicAmendmentDetail &&
     !usePeriodicReportDetail
       ? buildEarningsModel(filing)
@@ -2055,6 +2076,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
     !useForm425TransactionDetail &&
     !useForm25Detail &&
     !useListingRiskDetail &&
+    !useNtLateFilingDetail &&
     !usePeriodicAmendmentDetail &&
     !usePeriodicReportDetail &&
     !useEarningsDetail
@@ -2077,6 +2099,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
     !useForm25Detail &&
     !useProxyDetail &&
     !useListingRiskDetail &&
+    !useNtLateFilingDetail &&
     !usePeriodicAmendmentDetail &&
     !usePeriodicReportDetail &&
     !useEarningsDetail &&
@@ -2154,6 +2177,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
                 {useForm425TransactionDetail ? <span className="filing-template-chip">Transaction Communication</span> : null}
                 {useForm25Detail ? <span className="filing-template-chip">Listing Status Change</span> : null}
                 {useListingRiskDetail ? <span className="filing-template-chip">Listing Risk</span> : null}
+                {useNtLateFilingDetail ? <span className="filing-template-chip">Late Filing</span> : null}
                 {usePeriodicAmendmentDetail ? <span className="filing-template-chip">Report Amendment</span> : null}
                 {usePeriodicReportDetail ? <span className="filing-template-chip">Periodic Report</span> : null}
                 {useEarningsDetail ? <span className="filing-template-chip">Earnings</span> : null}
@@ -2176,6 +2200,8 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             <ProxyVoteTemplate filing={filing} />
           ) : useListingRiskDetail && listingRiskModel ? (
             <ListingRiskTemplate eventLabel={eventBadge.label} filing={filing} model={listingRiskModel} />
+          ) : useNtLateFilingDetail && ntLateFilingModel ? (
+            <NtLateFilingTemplate eventLabel={eventBadge.label} filing={filing} model={ntLateFilingModel} />
           ) : usePeriodicAmendmentDetail && periodicAmendmentModel ? (
             <PeriodicAmendmentTemplate eventLabel={eventBadge.label} filing={filing} model={periodicAmendmentModel} />
           ) : usePeriodicReportDetail && periodicReportModel ? (
@@ -4111,6 +4137,50 @@ function PeriodicAmendmentTemplate({
 
       {model.keyChanges.length ? (
         <PeriodicBusinessUpdatesSection items={model.keyChanges} title="Key Changes" />
+      ) : null}
+
+      <FilingMarketContextPanel filing={filing} hideUnavailable />
+      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
+    </>
+  );
+}
+
+function NtLateFilingTemplate({
+  eventLabel,
+  filing,
+  model,
+}: {
+  eventLabel: string;
+  filing: FilingEvent;
+  model: NtLateFilingModel;
+}) {
+  const hasEvidenceOrWatch = filing.keyEvidence.length > 0 || filing.watchNext.length > 0;
+
+  return (
+    <>
+      <section className="stock-detail-top-grid listing-risk-top-grid">
+        <FilingPriceChart filing={filing} />
+
+        <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card periodic-report-snapshot-card">
+          <div className="quick-take-card quick-take-block">
+            <div className="card-heading-row">
+              <h2>{model.snapshotTitle}</h2>
+              <span>{filing.formType}</span>
+            </div>
+            {model.snapshotIntro ? <p className="proxy-summary-context">{model.snapshotIntro}</p> : null}
+            <ProxyVoteSummarySnapshot rows={model.snapshotMetrics} />
+          </div>
+        </section>
+      </section>
+
+      <AnalysisCard title="Summary" body={clipPeriodicDisplayText(filing.summary, 900)} />
+      <ScoreBasisPanel filing={filing} />
+
+      {hasEvidenceOrWatch ? (
+        <section className="stock-detail-card-grid two-up insight-summary-grid">
+          <AnalysisList title="Key Evidence" items={filing.keyEvidence} />
+          <AnalysisList title="What To Watch Next" items={filing.watchNext} />
+        </section>
       ) : null}
 
       <FilingMarketContextPanel filing={filing} hideUnavailable />
@@ -7202,6 +7272,141 @@ function buildPeriodicAmendmentModel(filing: FilingEvent): PeriodicAmendmentMode
     snapshotMetrics,
     keyChanges,
   };
+}
+
+function buildNtLateFilingModel(filing: FilingEvent): NtLateFilingModel | null {
+  const displayPayload = readPlainRecord(filing.displayPayload);
+  const displayType = readRowString(displayPayload, "display_type");
+  const displayVersion = readRowString(displayPayload, "display_version");
+  if (displayType !== "nt_late_filing" && displayVersion !== "nt_late_filing_v1") return null;
+
+  const data = readDisplayPayloadData(displayPayload);
+  const delayedReport = cleanNtSnapshotText(
+    readRowString(data, "delayed_report") || filing.formType.replace(/^NT\s*/i, ""),
+    32,
+  );
+  const periodOfReport = readRowString(data, "period_of_report");
+  const extensionDays = Number(data.extension_days);
+  const anticipatedWithinExtension = data.anticipated_within_extension;
+  const delayStatus = formatNtDelayStatus(
+    readRowString(data, "delay_status"),
+    typeof anticipatedWithinExtension === "boolean" ? anticipatedWithinExtension : null,
+  );
+  const underlyingIssue = normalizeNtSnapshotText(
+    readRowString(data, "reason_for_delay_value") ||
+      readRowString(data, "underlying_issue") ||
+      readRowString(data, "late_filing_reason"),
+  );
+  const underlyingIssueNote = normalizeNtSnapshotText(readRowString(data, "reason_for_delay_note"));
+  const resultsChange = normalizeNtSnapshotText(
+    readRowString(data, "expected_results_impact_value"),
+  ) || formatNtResultsChange(
+    readRowString(data, "results_change"),
+    data.significant_change_expected,
+  );
+  const resultsChangeNote = normalizeNtSnapshotText(
+    readRowString(data, "expected_results_impact_note"),
+  );
+  const reliabilityRisk = formatNtReliabilityRisk(readRowString(data, "financial_reliability_risk"));
+  const snapshotMetrics: PeriodicReportSnapshotMetric[] = [];
+
+  if (delayedReport) {
+    snapshotMetrics.push({
+      label: "Delayed Report",
+      value: delayedReport,
+      note: periodOfReport ? `Period ended ${formatDetailDateOnly(periodOfReport, periodOfReport)}` : undefined,
+    });
+  }
+  if (delayStatus) {
+    snapshotMetrics.push({
+      label: "Filing Timing",
+      value: delayStatus,
+      note:
+        anticipatedWithinExtension === true && Number.isFinite(extensionDays)
+          ? `${extensionDays}-day extension window`
+          : undefined,
+    });
+  }
+  if (underlyingIssue && !isNtPlaceholder(underlyingIssue)) {
+    snapshotMetrics.push({
+      label: "Reason for Delay",
+      value: underlyingIssue,
+      note: underlyingIssueNote || undefined,
+    });
+  }
+  if (resultsChange && !isNtPlaceholder(resultsChange)) {
+    snapshotMetrics.push({
+      label: "Expected Results Impact",
+      value: resultsChange,
+      note: resultsChangeNote || reliabilityRisk || undefined,
+    });
+  }
+
+  if (!snapshotMetrics.length) return null;
+  return {
+    snapshotTitle: "Late Filing Snapshot",
+    snapshotIntro: clipPeriodicDisplayText(
+      readRowString(data, "snapshot_intro") || filing.filingBrief,
+      220,
+    ),
+    snapshotMetrics: snapshotMetrics.slice(0, 4),
+  };
+}
+
+function formatNtDelayStatus(value: string, anticipatedWithinExtension: boolean | null) {
+  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (/within_extension|extension_expected|expected_within/.test(normalized)) return "Expected within extension";
+  if (/outside_extension|extension_missed|not_expected_within/.test(normalized)) return "Extension window at risk";
+  if (/filed|completed/.test(normalized)) return "Report filed";
+  if (value && !isNtPlaceholder(value)) return cleanNtSnapshotText(value, 64);
+  if (anticipatedWithinExtension === true) return "Expected within extension";
+  if (anticipatedWithinExtension === false) return "Extension timing not confirmed";
+  return "";
+}
+
+function formatNtResultsChange(value: string, significantChangeExpected: unknown) {
+  const normalized = value.trim().toLowerCase().replace(/[\s_-]+/g, " ");
+  if (/^(?:none|none disclosed|no significant change|unchanged)$/.test(normalized)) {
+    return "No significant change disclosed";
+  }
+  if (value && !isNtPlaceholder(value)) return normalizeNtSnapshotText(value);
+  if (significantChangeExpected === true) return "Significant change expected";
+  if (significantChangeExpected === false) return "No significant change disclosed";
+  return "";
+}
+
+function normalizeNtSnapshotText(value: string) {
+  const normalized = value
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized) return "";
+  return /^[a-z]/.test(normalized)
+    ? `${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`
+    : normalized;
+}
+
+function formatNtReliabilityRisk(value: string) {
+  const normalized = value.trim().toLowerCase().replace(/[\s_-]+/g, " ");
+  if (!normalized || /^(?:none|none disclosed|not disclosed|unknown)$/.test(normalized)) return "";
+  if (normalized === "explicit") return "Financial reporting risk disclosed";
+  return cleanNtSnapshotText(value, 80);
+}
+
+function cleanNtSnapshotText(value: string, maxLength: number) {
+  const normalized = value
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized) return "";
+  const sentenceCase = /^[a-z]/.test(normalized)
+    ? `${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`
+    : normalized;
+  return clipPeriodicDisplayText(sentenceCase, maxLength);
+}
+
+function isNtPlaceholder(value: string) {
+  return /^(?:not disclosed|not stated|unknown|n\/?a|none|-|—)$/i.test(value.trim());
 }
 
 function buildPeriodicReportModel(filing: FilingEvent): PeriodicReportModel | null {

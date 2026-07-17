@@ -135,8 +135,12 @@ import {
 import {
   SEC_NT_ANALYSIS_PROMPT_KEY,
   SEC_NT_ANALYSIS_PROMPT_VERSION,
+  SEC_NT_VALIDATION_REPAIR_PROMPT_KEY,
+  SEC_NT_VALIDATION_REPAIR_PROMPT_VERSION,
   adaptSecNtAnalysisPromptResultForAnalysis,
+  applySecNtValidationRepairPatches,
   buildSecNtAnalysisPromptForInput,
+  buildSecNtValidationRepairPlan,
   isSecNtFilingInput,
 } from "@/lib/ai/secNtAnalysisAdapter";
 
@@ -188,9 +192,12 @@ export {
   SEC_PERIODIC_REPORTS_VALIDATION_REPAIR_PROMPT_VERSION,
   SEC_NT_ANALYSIS_PROMPT_KEY,
   SEC_NT_ANALYSIS_PROMPT_VERSION,
+  SEC_NT_VALIDATION_REPAIR_PROMPT_KEY,
+  SEC_NT_VALIDATION_REPAIR_PROMPT_VERSION,
   applySecProxyValidationRepairPatches,
   adaptSecPeriodicReportsAnalysisPromptResultForAnalysis,
   adaptSecNtAnalysisPromptResultForAnalysis,
+  applySecNtValidationRepairPatches,
   applySecPeriodicReportsValidationRepairPatches,
   applySecS1F1ValidationRepairPatches,
   adaptSec424bAnalysisPromptResultForAnalysis,
@@ -230,6 +237,7 @@ export {
   buildSecProxyValidationRepairPlan,
   buildSecPeriodicReportsAnalysisPromptForInput,
   buildSecNtAnalysisPromptForInput,
+  buildSecNtValidationRepairPlan,
   buildSecPeriodicReportsValidationRepairPlan,
   buildSecTenderAnalysisPromptForInput,
   buildSecSc13AnalysisPromptForInput,
