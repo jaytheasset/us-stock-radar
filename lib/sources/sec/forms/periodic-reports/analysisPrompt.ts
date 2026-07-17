@@ -1,4 +1,7 @@
-import type { PeriodicParserOutput } from "./types";
+import {
+  APPROVED_SEC_EVENT_TYPES,
+  PERIODIC_REPORTS_FORM_SCOPE,
+} from "./types.ts";
 import { buildSecPeriodicReportsSourceBlockPromptInput, type SecPeriodicReportsPromptInput } from "./sourceBlockPromptInput.ts";
 
 export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY = "sec_periodic_reports_analysis";
@@ -6,30 +9,7 @@ export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION = "v9-annual-core-perf
 export const SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_KEY = "sec_periodic_reports_amendment_analysis";
 export const SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_VERSION = "v1-amendment-delta-only";
 
-const PERIODIC_REPORTS_FORM_SCOPE = "10-K / 10-Q / 20-F, 10-K/A / 10-Q/A / 20-F/A";
-const APPROVED_SEC_EVENT_TYPES = [
-  "listing_risk",
-  "dilution_risk",
-  "ipo_listing",
-  "earnings",
-  "sales_performance",
-  "product_update",
-  "leadership_governance",
-  "insider_ownership",
-  "shareholder_vote",
-  "strategic_transaction",
-  "financial_risk",
-  "legal_risk",
-  "dividends",
-  "capital_return",
-  "fda_clinical",
-  "other",
-] as const;
-
-export type SecPeriodicReportsAnalysisPromptInput = SecPeriodicReportsPromptInput & {
-  parser_output: PeriodicParserOutput;
-  market_context?: Record<string, unknown> | null;
-};
+export type SecPeriodicReportsAnalysisPromptInput = SecPeriodicReportsPromptInput;
 
 const analysisOutputSchema = {
   type: "object",
@@ -360,7 +340,7 @@ export const secPeriodicReportsAnalysisSystemPrompt = [
   "A source block marked source_scope=segment_or_subset is valid only for that segment or subset. Never relabel its metrics as consolidated company totals. Prefer non-dimensional XBRL or clearly consolidated financial-statement evidence for company-wide performance comparisons.",
   "Treat report_context fiscal_year and fiscal_quarter as authoritative when fiscal_period_resolution identifies XBRL DEI metadata. Do not infer a fiscal quarter from the calendar month of the reporting-period end date.",
   "If fiscal_quarter is unresolved, describe the reporting period by its disclosed end date and do not invent a Q1/Q2/Q3 label.",
-  "Do not use parser-generated facts, signals, route hints, deterministic classification, extraction summaries, event labels, display labels, or investment labels as analysis authority.",
+  "Do not use parser-generated facts, route hints, deterministic classification, extraction summaries, event labels, display labels, or investment labels as analysis authority.",
   "Choose event_type directly from the approved event types based on the dominant investor-relevant conclusion supported by the original source blocks.",
   "Periodic reports may contain several material subjects. Select one representative event_type for feed filtering, but preserve other material findings in the investor-facing analysis instead of discarding them.",
   "For a substantive non-amendment 10-K or 20-F, annual operating performance is the primary analytical frame. Review current-year and immediately preceding-year revenue or sales, operating income or loss, GAAP/IFRS net income or loss, and operating cash flow before considering dividends, buybacks, or other capital-return items.",

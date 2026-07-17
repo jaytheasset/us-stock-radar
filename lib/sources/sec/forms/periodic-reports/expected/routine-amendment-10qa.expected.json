@@ -1,48 +1,4 @@
 {
-  "parser_output": {
-    "parserVersion": "sec_periodic_reports_parser_v1",
-    "parserGroup": "periodic-reports",
-    "formType": "10-Q/A",
-    "accessionNumber": "0007777777-26-000019",
-    "isSupported": true,
-    "summary": "Pico Semiconductors Inc. filed a routine 10-Q/A for March 31, 2026; parser rules indicate archive-level handling without LLM analysis.",
-    "facts": {
-      "companyName": "Pico Semiconductors Inc.",
-      "primaryTicker": "PICO",
-      "exchange": "Nasdaq Global Market",
-      "reportingPeriod": "March 31, 2026",
-      "fiscalQuarter": "first quarter",
-      "dominantParserEventType": "other",
-      "amendment": {
-        "isAmendment": true,
-        "amendmentNumber": 1,
-        "isRoutine": true,
-        "routineReason": "solely to include Exhibit 101 interactive data files"
-      },
-      "deterministicConclusion": {
-        "canFinishWithoutLlm": true,
-        "eventType": "other",
-        "score": 20
-      }
-    },
-    "signals": [
-      {
-        "event_type": "other",
-        "signal_type": "routine_amendment",
-        "strength": "low",
-        "summary": "Routine amendment with no material changed periodic-report facts.",
-        "evidence": "This Amendment No. 1 on Form 10-Q/A is being filed solely to include Exhibit 101 interactive data files that were omitted from the original Form 10-Q.",
-        "deterministic": true
-      }
-    ],
-    "calendarItems": [],
-    "warnings": [],
-    "raw": {
-      "processing_path": "parser_analysis",
-      "market_context_used": false,
-      "parent_filing_context_present": true
-    }
-  },
   "analysis_output": {
     "source_group": "filings",
     "market_scope": "company",
@@ -60,7 +16,7 @@
     "score": 20,
     "score_reason": "Archive-level score because the amendment is limited to Exhibit 101 interactive data and states that no other disclosures changed.",
     "signal": "neutral",
-    "quick_take": "PICO's 10-Q/A is administrative and can be archived without LLM analysis.",
+    "quick_take": "PICO's 10-Q/A is an administrative exhibit-only amendment with no substantive disclosure change.",
     "summary": "The amendment was filed solely to include omitted Exhibit 101 interactive data files. It states that no financial statements, risk factors, MD&A, or other disclosures were changed.",
     "why_it_matters": "The filing does not create a new market event; it updates the filing package for administrative completeness.",
     "bullish_points": [],
@@ -101,7 +57,7 @@
     "special_ui_needed": false,
     "special_ui_reason": null,
     "integration_notes": [
-      "Integration room should avoid creating a new investor event for routine exhibit-only periodic amendments."
+      "Store routine exhibit-only periodic amendments at archive level without escalating them as new investor events."
     ]
   }
 }

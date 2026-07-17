@@ -846,6 +846,8 @@ async function findGenericAmendmentParentFilingContext({
       let score = 0;
 
       if (currentPeriodicReportingPeriod) {
+        // Periodic amendments must resolve to the original report for the same
+        // issuer, base form, and reporting period; recency alone is unsafe.
         if (rowFamily !== currentFamily) return null;
         if (isSecAmendmentFormForParentContext(readRawFormType(row))) return null;
         if (currentCik && rowCik !== currentCik) return null;

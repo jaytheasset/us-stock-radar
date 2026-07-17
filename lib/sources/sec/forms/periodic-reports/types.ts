@@ -26,7 +26,7 @@ export const APPROVED_SEC_EVENT_TYPES = [
 
 export type ApprovedSecEventType = (typeof APPROVED_SEC_EVENT_TYPES)[number];
 
-export const PERIODIC_REPORT_DISPLAY_TYPES = ["generic", "periodic_report", "periodic_amendment", "offering_terms", "candidate_special"] as const;
+export const PERIODIC_REPORT_DISPLAY_TYPES = ["generic", "periodic_report", "periodic_amendment"] as const;
 export type PeriodicReportDisplayType = (typeof PERIODIC_REPORT_DISPLAY_TYPES)[number];
 
 export type DeliveryLevel = "archive" | "feed" | "alert";
@@ -210,15 +210,6 @@ export type PeriodicReportFacts = {
   rawDataAudit: PeriodicReportRawDataAudit;
 };
 
-export type PeriodicReportSignal = {
-  event_type: ApprovedSecEventType;
-  signal_type: string;
-  strength: ImpactLevel;
-  summary: string;
-  evidence: string;
-  deterministic: boolean;
-};
-
 export type PeriodicReportCalendarItem = {
   item_type: string;
   date: string | null;
@@ -232,10 +223,7 @@ export type PeriodicParserOutput = {
   formType: SupportedPeriodicReportForm | typeof PERIODIC_REPORTS_FORM_SCOPE;
   accessionNumber: string | null;
   isSupported: boolean;
-  summary: string | null;
   facts: PeriodicReportFacts;
-  signals: PeriodicReportSignal[];
-  calendarItems: PeriodicReportCalendarItem[];
   warnings: string[];
   raw: Record<string, unknown>;
 };
@@ -328,24 +316,6 @@ export type PeriodicDisplayPayload = {
   data: Record<string, unknown>;
   evidence: string[];
   notes: string[];
-};
-
-export type PeriodicFixtureExpected = {
-  expected_delivery_level: DeliveryLevel;
-  expected_impact: ImpactLevel;
-  market_context_needed: boolean;
-  market_context_reason: string | null;
-  market_context_fields: string[];
-  special_ui_needed: boolean;
-  special_ui_reason: string | null;
-  integration_notes: string[];
-};
-
-export type PeriodicRoomResult = {
-  parser_output: PeriodicParserOutput;
-  analysis_output: PeriodicAnalysisOutput;
-  display_payload: PeriodicDisplayPayload;
-  fixture_expected: PeriodicFixtureExpected;
 };
 
 export function deriveDeliveryLevel(score: number): DeliveryLevel {

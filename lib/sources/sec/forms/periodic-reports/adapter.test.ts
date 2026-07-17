@@ -2,18 +2,18 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import type { SecPeriodicReportParseInput } from "./parser";
+import type { SecPeriodicReportParseInput } from "./parser.ts";
 import {
   SEC_PERIODIC_REPORTS_ADAPTER_KEY,
   SEC_PERIODIC_REPORTS_ANALYSIS_MODE,
   secPeriodicReportsAdapter,
-} from "./adapter";
+} from "./adapter.ts";
 import {
   PERIODIC_REPORT_DISPLAY_TYPES,
   PERIODIC_REPORTS_FORM_SCOPE,
   PERIODIC_REPORTS_PARSER_GROUP,
   SUPPORTED_PERIODIC_REPORT_FORMS,
-} from "./types";
+} from "./types.ts";
 
 
 type Fixture = {

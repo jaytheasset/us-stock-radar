@@ -2,9 +2,10 @@ import {
   buildCurrentFilingIdentity,
   type SecCurrentFilingIdentity,
 } from "../common/currentFilingIdentity.ts";
-import type { PeriodicParserOutput, PeriodicReportSection } from "./types.ts";
+import { PERIODIC_REPORTS_FORM_SCOPE, type PeriodicParserOutput, type PeriodicReportSection } from "./types.ts";
 
-const PERIODIC_REPORTS_FORM_SCOPE = "10-K / 10-Q / 20-F, 10-K/A / 10-Q/A / 20-F/A";
+// Keep the analysis bundle broad enough for a full periodic report, but bounded so
+// large Inline XBRL filings cannot crowd out the highest-value original sections.
 const MAX_ANALYSIS_BLOCKS = 24;
 const MAX_ANALYSIS_CHARS = 48_000;
 const MAX_BLOCK_CHARS = 4_000;

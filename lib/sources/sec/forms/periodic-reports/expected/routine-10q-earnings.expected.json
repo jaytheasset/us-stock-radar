@@ -1,40 +1,4 @@
 {
-  "parser_output": {
-    "parserVersion": "sec_periodic_reports_parser_v1",
-    "parserGroup": "periodic-reports",
-    "formType": "10-Q",
-    "accessionNumber": "0001111111-26-000010",
-    "isSupported": true,
-    "summary": "Acme Robotics Inc. filed 10-Q for March 31, 2026; broad quarterly operating results are the dominant event.",
-    "facts": {
-      "companyName": "Acme Robotics Inc.",
-      "primaryTicker": "ARBT",
-      "exchange": "Nasdaq Global Market",
-      "reportingPeriod": "March 31, 2026",
-      "fiscalQuarter": "first quarter",
-      "dominantParserEventType": "earnings",
-      "revenue": 120400000,
-      "revenuePriorPeriod": 112000000,
-      "netIncome": 12300000,
-      "cashAndEquivalents": 220000000
-    },
-    "signals": [
-      {
-        "event_type": "earnings",
-        "signal_type": "periodic_financial_results",
-        "strength": "medium",
-        "summary": "Quarterly revenue and net income improved year over year.",
-        "evidence": "Revenue was $120.4 million for the three months ended March 31, 2026 compared to $112.0 million for the prior-year period. Net income was $12.3 million compared with net income of $6.8 million in the prior-year period.",
-        "deterministic": false
-      }
-    ],
-    "calendarItems": [],
-    "warnings": [],
-    "raw": {
-      "processing_path": "parser_analysis",
-      "market_context_used": false
-    }
-  },
   "analysis_output": {
     "source_group": "filings",
     "market_scope": "company",

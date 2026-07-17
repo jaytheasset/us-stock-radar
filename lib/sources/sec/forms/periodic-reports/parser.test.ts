@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import type { SecPeriodicReportParseInput } from "./parser";
-import { parseSecPeriodicReport } from "./parser";
-import { PERIODIC_REPORTS_PARSER_GROUP } from "./types";
+import type { SecPeriodicReportParseInput } from "./parser.ts";
+import { parseSecPeriodicReport } from "./parser.ts";
+import { PERIODIC_REPORTS_PARSER_GROUP } from "./types.ts";
 
 const originalFetch = globalThis.fetch;
 globalThis.fetch = (() => {
@@ -174,7 +174,9 @@ for (const caseName of cases) {
   assert.equal(parsed.raw.parser_assigns_score_or_delivery, false, `${caseName}: parser never assigns score or delivery`);
   assert.equal(parsed.raw.processing_path, "parser_analysis", `${caseName}: parser always hands off to analysis`);
   assert.equal(hasOwn(parsed.raw, "deterministic_classification"), false, `${caseName}: no deterministic parser classification`);
-  assert.deepEqual(parsed.signals, [], `${caseName}: parser leaves event signals for analysis`);
+  assert.equal(hasOwn(parsed, "signals"), false, `${caseName}: parser omits legacy event signals`);
+  assert.equal(hasOwn(parsed, "summary"), false, `${caseName}: parser omits legacy extraction summary`);
+  assert.equal(hasOwn(parsed, "calendarItems"), false, `${caseName}: parser leaves calendar output to analysis`);
   assert.equal(hasOwn(parsed.facts, "dominantParserEventType"), false, `${caseName}: no parser event ranking`);
   assert.equal(hasOwn(parsed.facts, "deterministicConclusion"), false, `${caseName}: no parser score conclusion`);
   assert.equal(JSON.stringify(parsed).includes('"event_type"'), false, `${caseName}: no event_type field in parser output`);

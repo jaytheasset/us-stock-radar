@@ -1,5 +1,5 @@
-import type { PeriodicDisplayPayload, PeriodicParserOutput } from "./types";
-import { clipPeriodicDisplayText } from "./uiNormalization";
+import type { PeriodicDisplayPayload, PeriodicParserOutput } from "./types.ts";
+import { clipPeriodicDisplayText } from "./uiNormalization.ts";
 
 export const SEC_PERIODIC_REPORTS_DISPLAY_PAYLOAD_VERSION = "periodic_report_display_v2";
 

@@ -1,37 +1,4 @@
 {
-  "parser_output": {
-    "parserVersion": "sec_periodic_reports_parser_v1",
-    "parserGroup": "periodic-reports",
-    "formType": "20-F",
-    "accessionNumber": "0004444444-26-000009",
-    "isSupported": true,
-    "summary": "HelioGrid PLC filed 20-F for December 31, 2025; legal and regulatory risk are the dominant event.",
-    "facts": {
-      "companyName": "HelioGrid PLC",
-      "primaryTicker": "HLGD",
-      "exchange": "Nasdaq Global Select Market",
-      "reportingPeriod": "December 31, 2025",
-      "fiscalYear": "2025",
-      "dominantParserEventType": "legal_risk",
-      "legalProceedings": "SEC subpoena and parallel Department of Justice investigation"
-    },
-    "signals": [
-      {
-        "event_type": "legal_risk",
-        "signal_type": "legal_proceedings",
-        "strength": "medium",
-        "summary": "20-F discloses SEC and DOJ matters plus securities litigation.",
-        "evidence": "The company is responding to an SEC subpoena and a parallel Department of Justice investigation related to revenue recognition for certain distributor contracts.",
-        "deterministic": false
-      }
-    ],
-    "calendarItems": [],
-    "warnings": [],
-    "raw": {
-      "processing_path": "parser_analysis",
-      "market_context_used": false
-    }
-  },
   "analysis_output": {
     "source_group": "filings",
     "market_scope": "company",

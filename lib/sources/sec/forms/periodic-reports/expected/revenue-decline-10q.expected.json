@@ -1,40 +1,4 @@
 {
-  "parser_output": {
-    "parserVersion": "sec_periodic_reports_parser_v1",
-    "parserGroup": "periodic-reports",
-    "formType": "10-Q",
-    "accessionNumber": "0003333333-26-000014",
-    "isSupported": true,
-    "summary": "Nova Retail Group filed 10-Q for March 31, 2026; sales performance is the dominant event.",
-    "facts": {
-      "companyName": "Nova Retail Group",
-      "primaryTicker": "NOVA",
-      "exchange": "NYSE",
-      "reportingPeriod": "March 31, 2026",
-      "fiscalQuarter": "first quarter",
-      "dominantParserEventType": "sales_performance",
-      "revenue": 84000000,
-      "revenuePriorPeriod": 102400000,
-      "revenueChangePercent": -18,
-      "netIncome": 2100000
-    },
-    "signals": [
-      {
-        "event_type": "sales_performance",
-        "signal_type": "sales_decline",
-        "strength": "medium",
-        "summary": "Revenue declined materially year over year.",
-        "evidence": "Revenue decreased 18% to $84.0 million from $102.4 million in the prior-year quarter.",
-        "deterministic": false
-      }
-    ],
-    "calendarItems": [],
-    "warnings": [],
-    "raw": {
-      "processing_path": "parser_analysis",
-      "market_context_used": false
-    }
-  },
   "analysis_output": {
     "source_group": "filings",
     "market_scope": "company",

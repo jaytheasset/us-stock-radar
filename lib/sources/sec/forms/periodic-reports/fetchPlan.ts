@@ -1,8 +1,9 @@
-import type { SecFormFetchPlan } from "../common/fetchPlan";
+import type { SecFormFetchPlan } from "../common/fetchPlan.ts";
+import { PERIODIC_REPORTS_PARSER_GROUP, SUPPORTED_PERIODIC_REPORT_FORMS } from "./types.ts";
 
 export const secPeriodicReportsFetchPlan = {
-  room: "periodic-reports",
-  forms: ["10-K", "10-Q", "20-F", "10-K/A", "10-Q/A", "20-F/A"],
+  room: PERIODIC_REPORTS_PARSER_GROUP,
+  forms: [...SUPPORTED_PERIODIC_REPORT_FORMS],
   defaultAttachmentLimit: 8,
   notes: [
     "Periodic reports need primary HTML plus machine-readable XBRL/XML when available.",

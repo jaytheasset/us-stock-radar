@@ -1,37 +1,4 @@
 {
-  "parser_output": {
-    "parserVersion": "sec_periodic_reports_parser_v1",
-    "parserGroup": "periodic-reports",
-    "formType": "20-F",
-    "accessionNumber": "0006666666-26-000012",
-    "isSupported": true,
-    "summary": "Orion Payments Ltd. filed 20-F for December 31, 2025; product update is the dominant event.",
-    "facts": {
-      "companyName": "Orion Payments Ltd.",
-      "primaryTicker": "OPAY",
-      "exchange": "Nasdaq Global Market",
-      "reportingPeriod": "December 31, 2025",
-      "fiscalYear": "2025",
-      "dominantParserEventType": "product_update",
-      "productUpdate": "new cross-border payments platform in Brazil and Mexico"
-    },
-    "signals": [
-      {
-        "event_type": "product_update",
-        "signal_type": "product_update",
-        "strength": "medium",
-        "summary": "20-F includes a product and customer rollout update.",
-        "evidence": "The company launched a new cross-border payments platform in Brazil and Mexico during the fourth quarter and completed major customer rollout with three enterprise merchants.",
-        "deterministic": false
-      }
-    ],
-    "calendarItems": [],
-    "warnings": [],
-    "raw": {
-      "processing_path": "parser_analysis",
-      "market_context_used": false
-    }
-  },
   "analysis_output": {
     "source_group": "filings",
     "market_scope": "company",

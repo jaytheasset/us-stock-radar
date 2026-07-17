@@ -1,27 +1,26 @@
-import type {
-  ConfidenceLevel,
-  PeriodicParserOutput,
-  PeriodicRawEvidence,
-  PeriodicReportAmendmentFacts,
-  PeriodicReportCalendarItem,
-  PeriodicReportCoverPageFacts,
-  PeriodicReportContextSnippet,
-  PeriodicReportCoverageCheck,
-  PeriodicReportFacts,
-  PeriodicReportNoiseCandidate,
-  PeriodicReportSection,
-  PeriodicReportSecurity,
-  PeriodicReportSourceDocument,
-  PeriodicReportSourcePackage,
-  PeriodicReportXbrlFact,
-  SupportedPeriodicReportForm,
-} from "./types";
+import {
+  PERIODIC_REPORTS_FORM_SCOPE,
+  PERIODIC_REPORTS_PARSER_GROUP,
+  SUPPORTED_PERIODIC_REPORT_FORMS,
+  type ConfidenceLevel,
+  type PeriodicParserOutput,
+  type PeriodicRawEvidence,
+  type PeriodicReportAmendmentFacts,
+  type PeriodicReportCoverPageFacts,
+  type PeriodicReportContextSnippet,
+  type PeriodicReportCoverageCheck,
+  type PeriodicReportFacts,
+  type PeriodicReportNoiseCandidate,
+  type PeriodicReportSection,
+  type PeriodicReportSecurity,
+  type PeriodicReportSourceDocument,
+  type PeriodicReportSourcePackage,
+  type PeriodicReportXbrlFact,
+  type SupportedPeriodicReportForm,
+} from "./types.ts";
 
 export const SEC_PERIODIC_REPORTS_PARSER_VERSION = "sec_periodic_reports_raw_parser_v4";
 
-const PERIODIC_REPORTS_PARSER_GROUP = "periodic-reports";
-const PERIODIC_REPORTS_FORM_SCOPE = "10-K / 10-Q / 20-F, 10-K/A / 10-Q/A / 20-F/A";
-const SUPPORTED_PERIODIC_REPORT_FORMS = ["10-K", "10-Q", "20-F", "10-K/A", "10-Q/A", "20-F/A"] as const;
 const CORE_DOCUMENT_PERIOD_XBRL_CONCEPTS = new Set([
   "documenttype",
   "documentfiscalperiodfocus",
@@ -1133,10 +1132,7 @@ export function parseSecPeriodicReport(input: SecPeriodicReportParseInput): Peri
     formType: formType || PERIODIC_REPORTS_FORM_SCOPE,
     accessionNumber,
     isSupported,
-    summary: buildSummary(facts),
     facts,
-    signals: [],
-    calendarItems: dateCandidates.map(mapDateCandidateToCalendarItem),
     warnings,
     raw: {
       raw_item_id: nullableString(input.rawItemId),
@@ -1146,7 +1142,6 @@ export function parseSecPeriodicReport(input: SecPeriodicReportParseInput): Peri
       parser_assigns_event_type: false,
       parser_assigns_score_or_delivery: false,
       processing_path: "parser_analysis",
-      next_stage_expected: "ui_payload_builder_then_analysis_llm",
       parent_filing_context_present: Boolean(input.parentFilingContext || rawPayload.parent_filing_context || rawPayload.parentFilingContext),
       missing_source: missingSource,
       fiscal_period_resolution: fiscalPeriodResolution,
@@ -2140,26 +2135,6 @@ function buildAuditNotes({
   notes.push(`${highValueEvidence.length} high-value source-backed evidence candidates retained without assigning event type or score.`);
   if (noiseCandidates.length) notes.push(`${noiseCandidates.length} likely boilerplate/noise blocks identified separately from retained evidence.`);
   return notes;
-}
-
-function buildSummary(facts: PeriodicReportFacts) {
-  return [
-    `Raw parser extracted ${facts.sections.length} section blocks`,
-    `${facts.financialStatementLines.length} financial statement lines`,
-    `${facts.sourcePackage.retainedXbrlFactCount} XBRL facts`,
-    `${facts.highValueEvidence.length} high-value evidence candidates`,
-    `${facts.rawDataAudit.noiseCandidates.length} noise candidates`,
-    `missing critical raw data: ${facts.rawDataAudit.missingCriticalRawData ? "yes" : "no"}`,
-  ].join("; ");
-}
-
-function mapDateCandidateToCalendarItem(candidate: PeriodicRawEvidence): PeriodicReportCalendarItem {
-  return {
-    item_type: candidate.label,
-    date: Array.isArray(candidate.value) ? null : typeof candidate.value === "string" ? candidate.value : null,
-    description: `Raw date candidate extracted by parser: ${candidate.label}.`,
-    evidence: candidate.evidence,
-  };
 }
 
 function extractSecurities(text: string): PeriodicReportSecurity[] {

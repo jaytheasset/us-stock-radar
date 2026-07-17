@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import type { SecPeriodicReportParseInput } from "./parser";
-import type { PeriodicRoomResult } from "./types";
-import { extractPeriodicReportIngestEvidence } from "./ingestSourceExtract";
+import type { SecPeriodicReportParseInput } from "./parser.ts";
+import type { PeriodicAnalysisOutput, PeriodicDisplayPayload } from "./types.ts";
+import { extractPeriodicReportIngestEvidence } from "./ingestSourceExtract.ts";
 import {
   SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_KEY,
   SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_VERSION,
@@ -15,26 +15,41 @@ import {
   secPeriodicReportsAmendmentAnalysisResponseSchema,
   secPeriodicReportsAnalysisResponseSchema,
   secPeriodicReportsAnalysisSystemPrompt,
-} from "./analysisPrompt";
-import { collectSecPeriodicReportsScoringWarnings } from "../../../../ai/secPeriodicReportsAnalysisAdapter";
-import { buildSecPeriodicReportsDisplayPayload } from "./displayPayload";
-import { parseSecPeriodicReport } from "./parser";
+} from "./analysisPrompt.ts";
+import { collectSecPeriodicReportsScoringWarnings } from "../../../../ai/secPeriodicReportsAnalysisAdapter.ts";
+import { buildSecPeriodicReportsDisplayPayload } from "./displayPayload.ts";
+import { parseSecPeriodicReport } from "./parser.ts";
 import {
   clipPeriodicDisplayText,
   normalizePeriodicChartNumber,
   normalizePeriodicComparisonBasis,
-} from "./uiNormalization";
+} from "./uiNormalization.ts";
 import {
   APPROVED_SEC_EVENT_TYPES,
   PERIODIC_REPORT_DISPLAY_TYPES,
   deriveDeliveryLevel,
   isApprovedSecEventType,
-} from "./types";
+} from "./types.ts";
 
 type Fixture = {
   filing: SecPeriodicReportParseInput;
   expected_event_type: string;
   market_context?: Record<string, unknown> | null;
+};
+
+type ExpectedPeriodicFixture = {
+  analysis_output: PeriodicAnalysisOutput;
+  display_payload: PeriodicDisplayPayload;
+  fixture_expected: {
+    expected_delivery_level: "archive" | "feed" | "alert";
+    expected_impact: "low" | "medium" | "high";
+    market_context_needed: boolean;
+    market_context_reason: string | null;
+    market_context_fields: string[];
+    special_ui_needed: boolean;
+    special_ui_reason: string | null;
+    integration_notes: string[];
+  };
 };
 
 const roomDir = join(process.cwd(), "lib", "sources", "sec", "forms", "periodic-reports");
@@ -594,10 +609,9 @@ assert.ok(wrongFilingTierWarnings.some((warning) => warning.code === "market_cap
 
 for (const fixtureName of fixtureNames) {
   const fixture = readJson<Fixture>(join(roomDir, "fixtures", `${fixtureName}.json`));
-  const expected = readJson<PeriodicRoomResult>(join(roomDir, "expected", `${fixtureName}.expected.json`));
-  assertRequiredRoomShape(expected, fixtureName);
+  const expected = readJson<ExpectedPeriodicFixture>(join(roomDir, "expected", `${fixtureName}.expected.json`));
+  assertRequiredExpectedShape(expected, fixtureName);
 
-  assert.equal(expected.parser_output.parserGroup, "periodic-reports", `${fixtureName}: parser group`);
   assert.equal(expected.analysis_output.source_group, "filings", `${fixtureName}: source group`);
   assert.equal(expected.analysis_output.event_type, fixture.expected_event_type, `${fixtureName}: expected event type`);
   assert.ok(isApprovedSecEventType(expected.analysis_output.event_type), `${fixtureName}: approved final event type`);
@@ -617,6 +631,7 @@ for (const fixtureName of fixtureNames) {
   }
 
   const parserOutput = parseSecPeriodicReport(fixture.filing);
+  assert.equal(parserOutput.parserGroup, "periodic-reports", `${fixtureName}: current parser group`);
   const displayPayload = buildSecPeriodicReportsDisplayPayload({
     parser_output: parserOutput,
   });
@@ -741,25 +756,9 @@ for (const fixtureName of fixtureNames) {
 
 console.log("sec periodic reports analysis fixtures passed");
 
-function assertRequiredRoomShape(result: PeriodicRoomResult, label: string) {
-  for (const key of ["parser_output", "analysis_output", "display_payload", "fixture_expected"] as const) {
+function assertRequiredExpectedShape(result: ExpectedPeriodicFixture, label: string) {
+  for (const key of ["analysis_output", "display_payload", "fixture_expected"] as const) {
     assert.ok(hasOwn(result, key), `${label}: required top-level ${key}`);
-  }
-
-  for (const key of [
-    "parserVersion",
-    "parserGroup",
-    "formType",
-    "accessionNumber",
-    "isSupported",
-    "summary",
-    "facts",
-    "signals",
-    "calendarItems",
-    "warnings",
-    "raw",
-  ] as const) {
-    assert.ok(hasOwn(result.parser_output, key), `${label}: parser_output.${key}`);
   }
 
   for (const key of [
