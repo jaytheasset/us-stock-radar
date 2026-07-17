@@ -3,18 +3,11 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
-  buildNtAnalysisPrompt,
-  validateNtRequiredOutputJson,
+  buildNtAnalysisPromptDraft,
+  SEC_NT_ANALYSIS_PROMPT_KEY,
 } from "./analysisPrompt";
-import { buildNtDisplayPayload } from "./displayPayload";
 import { parseNtFiling } from "./parser";
-import { routeNtParserOutput } from "./routerPrompt";
-import {
-  NT_APPROVED_EVENT_TYPES,
-  deriveNtDeliveryLevel,
-  type NtFilingInput,
-  type NtRequiredOutputJson,
-} from "./types";
+import type { NtFilingInput } from "./types";
 
 const CASES = [
   "routine-nt-10q",
@@ -23,76 +16,45 @@ const CASES = [
   "foreign-issuer-nt-20f",
 ] as const;
 
-test("expected outputs follow the required NT room JSON shape", () => {
-  for (const caseName of CASES) {
-    const expected = loadExpected(caseName);
-    const errors = validateNtRequiredOutputJson(expected);
-
-    assert.deepEqual(errors, [], caseName);
-    assert.equal(expected.parser_output.parserGroup, "nt", caseName);
-    assert.ok(
-      NT_APPROVED_EVENT_TYPES.includes(expected.analysis_output.event_type),
-      caseName,
-    );
-    assert.equal(
-      expected.fixture_expected.expected_delivery_level,
-      deriveNtDeliveryLevel(expected.analysis_output.score),
-      caseName,
-    );
-  }
-});
-
-test("analysis prompt uses parser, router, and fixture market context only", () => {
+test("analysis prompt uses bounded original source blocks and no parser route", () => {
   const fixture = loadFixture("material-sales-change-nt-10q");
   const parserOutput = parseNtFiling(fixture.source);
-  const routerDecision = routeNtParserOutput(parserOutput);
-  const displayPayload = buildNtDisplayPayload({ parserOutput, routerDecision });
-  const prompt = buildNtAnalysisPrompt({
+  const prompt = buildNtAnalysisPromptDraft({
+    input: {
+      filing_package: {
+        form_type: fixture.source.formType,
+        company_name: fixture.source.companyName,
+        ticker: fixture.source.ticker,
+        market_context: fixture.market_context,
+        hard_parsers: { nt: parserOutput },
+      },
+    },
     parserOutput,
-    routerDecision,
-    displayPayload,
-    marketContext: fixture.market_context,
   });
+  const payload = JSON.parse(prompt.user) as Record<string, unknown>;
+  const blocks = payload.cleaned_source_blocks as Array<Record<string, unknown>>;
 
-  assert.match(prompt, /Use only parser_output, router_decision, display_payload, and optional fixture market_context/);
-  assert.match(prompt, /Do not call live APIs, FMP, SEC, databases, app\/UI code, alert delivery, or external market data/);
-  assert.match(prompt, /Allowed event_type values are exactly/);
-  assert.match(prompt, /Use router_decision\.event_type exactly/);
-  assert.match(prompt, /Do not choose UI templates/);
-  assert.match(prompt, /Treat amendments and follow-up NT filings as updates/);
-  assert.match(prompt, /For transition reports, preserve transition report type/);
-  assert.match(prompt, /Use accountant statements and Rule 12b-25\(c\) source text as evidence only/);
-  assert.match(prompt, /"market_cap": 210000000/);
-  assert.match(prompt, /"event_type": "sales_performance"/);
-  assert.match(prompt, /"display_version": "nt_late_filing_v1"/);
+  assert.equal(prompt.key, SEC_NT_ANALYSIS_PROMPT_KEY);
+  assert.match(prompt.system, /Use current_filing and current-filing original cleaned_source_blocks/);
+  assert.match(prompt.system, /10-24 for a technical amendment/);
+  assert.match(prompt.system, /85-94 is reserved for explicit non-reliance\/restatement risk/);
+  assert.match(prompt.system, /Neutral signal must have score below 75/);
+  assert.doesNotMatch(prompt.user, /router_decision|sourceTextFlags|significantChangeExpected/);
+  assert.ok(blocks.length <= 12);
+  assert.ok(blocks.some((block) => block.block_type === "nt_part_iii"));
+  assert.ok(blocks.every((block) => String(block.text || "").length <= 4_003));
+  assert.ok(blocks.every((block) => block.block_type !== "parser_warnings"));
+  const responseSchema = prompt.responseFormat.json_schema.schema;
+  assert.ok(responseSchema.required.includes("nt_scoring_assessment"));
+  assert.ok(responseSchema.required.includes("score_explanation"));
 });
 
-test("display payload builder uses parser and router facts instead of analysis LLM fields", () => {
-  const fixture = loadFixture("material-sales-change-nt-10q");
-  const parserOutput = parseNtFiling(fixture.source);
-  const routerDecision = routeNtParserOutput(parserOutput);
-  const displayPayload = buildNtDisplayPayload({ parserOutput, routerDecision });
-
-  assert.equal(displayPayload.display_type, routerDecision.display_type);
-  assert.equal(displayPayload.display_version, "nt_late_filing_v1");
-  assert.equal(displayPayload.data.selected_event_type, routerDecision.event_type);
-  assert.equal(displayPayload.data.significant_change_expected, true);
-  assert.match(String(displayPayload.data.significant_change_explanation), /revenue/i);
-  assert.ok(displayPayload.notes.some((note) => note.includes("not analysis LLM output")));
-});
-
-test("analysis fixtures do not request unapproved display types or special UI", () => {
+test("NT parser emits context-preserving analysis source blocks", () => {
   for (const caseName of CASES) {
-    const expected = loadExpected(caseName);
-
-    assert.ok(
-      ["generic", "offering_terms", "candidate_special"].includes(
-        expected.display_payload.display_type,
-      ),
-      caseName,
-    );
-    assert.equal(expected.display_payload.display_version, "nt_late_filing_v1", caseName);
-    assert.equal(expected.fixture_expected.special_ui_needed, false, caseName);
+    const parserOutput = parseNtFiling(loadFixture(caseName).source);
+    const blocks = parserOutput.raw.cleanedSourceBlocks || [];
+    assert.ok(blocks.length >= 3, caseName);
+    assert.ok(blocks.some((block) => block.block_type === "nt_part_iii"), caseName);
   }
 });
 
@@ -103,10 +65,6 @@ interface NtFixture {
 
 function loadFixture(caseName: string): NtFixture {
   return loadJson<NtFixture>(`./fixtures/${caseName}.json`);
-}
-
-function loadExpected(caseName: string): NtRequiredOutputJson {
-  return loadJson<NtRequiredOutputJson>(`./expected/${caseName}.expected.json`);
 }
 
 function loadJson<T>(relativePath: string): T {

@@ -13,6 +13,8 @@ import {
   SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY,
   SEC_OWNERSHIP_ANALYSIS_PROMPT_VERSION,
   SEC_OWNERSHIP_VALIDATION_REPAIR_PROMPT_KEY,
+  SEC_NT_ANALYSIS_PROMPT_KEY,
+  SEC_NT_ANALYSIS_PROMPT_VERSION,
   SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
   SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
   SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY,
@@ -34,6 +36,7 @@ import {
   adaptSec8k6kAnalysisPromptResultForAnalysis,
   adaptSec425AnalysisPromptResultForAnalysis,
   adaptOwnershipPromptResultForAnalysis,
+  adaptSecNtAnalysisPromptResultForAnalysis,
   adaptSecPeriodicReportsAnalysisPromptResultForAnalysis,
   applySecPeriodicReportsValidationRepairPatches,
   applySecOwnershipValidationRepairPatches,
@@ -61,6 +64,7 @@ import {
   buildSec425DeterministicAnalysisForInput,
   buildSec425RouterPromptForInput,
   buildSecOwnershipAnalysisPrompt,
+  buildSecNtAnalysisPromptForInput,
   buildSecOwnershipValidationRepairPlan,
   buildSecPeriodicReportsAnalysisPromptForInput,
   buildSecPeriodicReportsValidationRepairPlan,
@@ -81,6 +85,7 @@ import {
   isSec8k6kFilingInput,
   isSec425FilingInput,
   isOwnershipFilingInput,
+  isSecNtFilingInput,
   isSecPeriodicReportsFilingInput,
   isSc13FilingInput,
   isS4F4FilingInput,
@@ -2195,6 +2200,68 @@ export async function runSecFilingAnalysisForRawRow(
     };
   }
 
+  if (isSecNtFilingInput(input)) {
+    const prompt = buildSecNtAnalysisPromptForInput(input);
+    const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
+    if (!analysisRun.ok || !analysisRun.parsed) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: analysisRun.status,
+        model: analysisRun.model,
+        error: `SEC NT analysis failed after ${analysisRun.attempts} attempt(s): ${analysisRun.error || "no parseable JSON"}`,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        outputText: analysisRun.outputText,
+        usage: analysisRun.usage,
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        prompt: {
+          key: prompt.key,
+          version: prompt.version,
+        },
+      };
+    }
+
+    const ntAnalysis = adaptSecNtAnalysisPromptResultForAnalysis(analysisRun.parsed, input);
+    if (!ntAnalysis.ok) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: analysisRun.status,
+        model: analysisRun.model,
+        error: ntAnalysis.error,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        outputText: analysisRun.outputText,
+        usage: analysisRun.usage,
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        prompt: {
+          key: prompt.key,
+          version: prompt.version,
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      stage: "complete",
+      status: analysisRun.status,
+      model: analysisRun.model,
+      openAiResponseId: analysisRun.openAiResponseId,
+      sourceItem: summarizeRawRow(rawItem),
+      input,
+      analysis: ntAnalysis.analysis,
+      outputText: analysisRun.outputText,
+      usage: analysisRun.usage,
+      costEstimate: estimateCost(analysisRun.model, analysisRun.usage),
+      validationRepair: { attempted: false },
+      prompt: {
+        key: SEC_NT_ANALYSIS_PROMPT_KEY,
+        version: SEC_NT_ANALYSIS_PROMPT_VERSION,
+      },
+    };
+  }
+
   if (isSecPeriodicReportsFilingInput(input)) {
     const prompt = buildSecPeriodicReportsAnalysisPromptForInput(input);
     const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
@@ -2811,20 +2878,10 @@ function resolveGeminiModelForSecInput(env: ReturnType<typeof getServerEnv>, inp
   if (input && isProxyFilingInput(input)) {
     return env.secProxyRoutineGeminiModel || "gemini-2.5-flash-lite";
   }
-  if (input && isNtFilingInput(input)) {
+  if (input && isSecNtFilingInput(input)) {
     return env.secNtGeminiModel || "gemini-2.5-flash-lite";
   }
   return "";
-}
-
-function isNtFilingInput(input: SecFilingAnalysisInput) {
-  const filingPackage = readRecord(input.filing_package);
-  const formType = stringValue(filingPackage?.form_type).toUpperCase();
-  const hardParsers = readRecord(filingPackage?.hard_parsers);
-  return (
-    /^(?:NT 10-K|NT 10-Q|NT 20-F)(?:\/A)?$/.test(formType) ||
-    Boolean(readRecord(hardParsers?.nt))
-  );
 }
 
 function normalizeSecLlmProvider(value: string | undefined, allowOpenAi = false): SecLlmProvider {
@@ -3879,6 +3936,7 @@ function buildSecFilingPromptForInput(input: SecFilingAnalysisInput, options: { 
   if (isS4F4FilingInput(input)) return buildSecS4F4AnalysisPromptForInput(input);
   if (isS8FilingInput(input)) return buildSecS8AnalysisPromptForInput(input);
   if (isS1F1FilingInput(input)) return buildSecS1F1AnalysisPromptForInput(input, { promptVariant: options.secPromptVariant });
+  if (isSecNtFilingInput(input)) return buildSecNtAnalysisPromptForInput(input);
   if (isSecPeriodicReportsFilingInput(input)) return buildSecPeriodicReportsAnalysisPromptForInput(input);
   return isS3FilingInput(input) ? buildSecS3AnalysisPrompt(input) : buildSecFilingAnalysisPrompt(input);
 }

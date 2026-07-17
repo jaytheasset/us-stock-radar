@@ -361,8 +361,39 @@ export function parseNtFiling(input: NtFilingInput): NtParserOutput {
       },
       documentInventory: selectedDocument.inventory,
       sectionSegments: sections,
+      cleanedSourceBlocks: buildNtCleanedSourceBlocks(sections, accountantStatementText, normalizedText),
     },
   };
+}
+
+function buildNtCleanedSourceBlocks(
+  sections: NtSectionSegments,
+  accountantStatementText: string | null,
+  normalizedText: string,
+): NonNullable<NtParserOutput["raw"]["cleanedSourceBlocks"]> {
+  const blocks: NonNullable<NtParserOutput["raw"]["cleanedSourceBlocks"]> = [];
+  const add = (blockType: string, label: string, text: string | null) => {
+    const normalized = normalizeWhitespace(text ?? "");
+    if (!normalized) return;
+    blocks.push({
+      block_type: blockType,
+      label,
+      source: "Form 12b-25",
+      text: clip(normalized, 5_000),
+    });
+  };
+
+  add("nt_filing_header", "Filing header and registrant", sections.topBlock);
+  add("nt_part_i", "Part I - Registrant information", sections.partI);
+  add("nt_part_ii", "Part II - Rule 12b-25 extension statements", sections.partII);
+  add("nt_part_iii", "Part III - Narrative", sections.partIII);
+  add("nt_part_iv", "Part IV - Other information", sections.partIV);
+  add("nt_accountant_statement", "Accountant statement", accountantStatementText);
+
+  if (!blocks.some((block) => block.block_type === "nt_part_iii")) {
+    add("nt_filing_body", "Form 12b-25 body", normalizedText);
+  }
+  return blocks;
 }
 
 function selectNtFilingDocument(input: NtFilingInput): NtSelectedDocument {

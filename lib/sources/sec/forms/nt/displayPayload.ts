@@ -1,19 +1,20 @@
 import type {
+  NtAnalysisOutput,
   NtDisplayPayload,
   NtParserOutput,
-  NtRouterDecision,
 } from "./types";
 
 export function buildNtDisplayPayload(args: {
   parserOutput: NtParserOutput;
-  routerDecision: NtRouterDecision;
+  analysisOutput?: Partial<NtAnalysisOutput> | Record<string, unknown> | null;
 }): NtDisplayPayload {
-  const { parserOutput, routerDecision } = args;
+  const { parserOutput, analysisOutput = null } = args;
   const facts = parserOutput.facts;
+  const finalEventType = readString(analysisOutput?.event_type) || "other";
 
   return {
-    display_type: routerDecision.display_type,
-    display_version: routerDecision.display_version,
+    display_type: "generic",
+    display_version: "nt_late_filing_v1",
     data: {
       form_family: "nt",
       source_form_type: facts.sourceFormType,
@@ -24,7 +25,7 @@ export function buildNtDisplayPayload(args: {
       company_name: facts.companyName,
       ticker: facts.ticker,
       exchange: facts.exchange,
-      selected_event_type: routerDecision.event_type,
+      selected_event_type: finalEventType,
       is_amendment: facts.isAmendment,
       amendment_purpose: facts.amendmentPurpose,
       is_transition_report: facts.isTransitionReport,
@@ -51,7 +52,11 @@ export function buildNtDisplayPayload(args: {
     },
     evidence: facts.sourceExcerpts.map((excerpt) => excerpt.text),
     notes: [
-      "Display payload was built from source-backed fields and router/classifier output, not analysis LLM output.",
+      "Display payload was built in code from source-backed parser fields and the final analysis event type.",
     ],
   };
+}
+
+function readString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
 }

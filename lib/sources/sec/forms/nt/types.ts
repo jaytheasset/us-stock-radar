@@ -213,19 +213,13 @@ export interface NtParserOutput {
       confidence: NtConfidence;
       warnings: string[];
     };
+    cleanedSourceBlocks?: Array<{
+      block_type: string;
+      label: string | null;
+      source: string | null;
+      text: string;
+    }>;
   };
-}
-
-export interface NtRouterDecision {
-  event_type: NtApprovedEventType;
-  display_type: NtDisplayPayload["display_type"];
-  display_version: string;
-  preliminary_action: "archive" | "feed" | "alert_candidate";
-  analysis_needed: boolean;
-  deterministic: boolean;
-  score_band: "below_50" | "50_to_74" | "75_or_above";
-  reason: string;
-  evidence: string[];
 }
 
 export interface NtAnalysisOutput {
@@ -244,6 +238,18 @@ export interface NtAnalysisOutput {
   sub_theme: string | null;
   score: number;
   score_reason: string;
+  score_explanation: {
+    summary: string;
+  };
+  nt_scoring_assessment: {
+    delay_status: string;
+    underlying_issue: string;
+    results_change: string;
+    financial_reliability_risk: string;
+    severity: string;
+    material_offset: string | null;
+    alert_driver: string | null;
+  };
   signal: NtSignalTone;
   quick_take: string;
   summary: string;

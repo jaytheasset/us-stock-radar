@@ -2066,7 +2066,7 @@ async function deleteSecDerivedRows(
 
 async function readRoomFiles(room: SecDevRoom, testFiles: string[], fixtures: string[], expected: string[]) {
   const base = path.join(FORMS_ROOT, room.folder);
-  const analysisOnlyRoom = room.key === "proxy" || room.key === "periodic-reports";
+  const analysisOnlyRoom = room.key === "proxy" || room.key === "periodic-reports" || room.key === "nt";
   const primaryFiles = [
     ["parser", "parser.ts"],
     ["adapter", "adapter.ts"],
@@ -2192,7 +2192,7 @@ function resolveOutputPreviewFormType(
 
 async function readPromptPreviews(room: SecDevRoom): Promise<SecDevPromptPreview[]> {
   const base = path.join(FORMS_ROOT, room.folder);
-  const analysisOnlyRoom = room.key === "proxy" || room.key === "periodic-reports";
+  const analysisOnlyRoom = room.key === "proxy" || room.key === "periodic-reports" || room.key === "nt";
   const promptFiles = analysisOnlyRoom
     ? ["analysisPrompt.ts", "analysis.ts"]
     : ["routerPrompt.ts", "router.ts", "analysisPrompt.ts", "analysis.ts"];
