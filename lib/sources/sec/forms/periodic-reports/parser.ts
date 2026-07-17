@@ -22,8 +22,6 @@ export const SEC_PERIODIC_REPORTS_PARSER_VERSION = "sec_periodic_reports_raw_par
 const PERIODIC_REPORTS_PARSER_GROUP = "periodic-reports";
 const PERIODIC_REPORTS_FORM_SCOPE = "10-K / 10-Q / 20-F, 10-K/A / 10-Q/A / 20-F/A";
 const SUPPORTED_PERIODIC_REPORT_FORMS = ["10-K", "10-Q", "20-F", "10-K/A", "10-Q/A", "20-F/A"] as const;
-const PERIODIC_REPORTS_DEFAULT_DISPLAY_TYPE = "generic";
-const PERIODIC_REPORTS_DISPLAY_VERSION = "periodic_report_display_v2";
 const CORE_DOCUMENT_PERIOD_XBRL_CONCEPTS = new Set([
   "documenttype",
   "documentfiscalperiodfocus",
@@ -115,18 +113,6 @@ type PrimaryDocumentSelection = {
   selected: SecDocumentPayload | null;
   confidence: ConfidenceLevel;
   warnings: string[];
-};
-
-type DeterministicParserClassification = {
-  can_finish_without_llm: boolean;
-  event_type: "other";
-  display_type: typeof PERIODIC_REPORTS_DEFAULT_DISPLAY_TYPE;
-  display_version: typeof PERIODIC_REPORTS_DISPLAY_VERSION;
-  score: number;
-  derived_delivery_level: "archive";
-  analysis_llm_needed: false;
-  reason: string;
-  evidence: string[];
 };
 
 type VisibleBlockKind = "heading" | "paragraph" | "table" | "list" | "cover_page" | "signature" | "exhibit_index" | "empty_decorative";
@@ -1092,7 +1078,6 @@ export function parseSecPeriodicReport(input: SecPeriodicReportParseInput): Peri
   });
   const missingCriticalRawData = mustHaveChecks.some((check) => check.critical && (check.status === "missing" || check.status === "ambiguous"));
   const missingSource = buildMissingSourceRecords(mustHaveChecks);
-  const deterministicClassification = buildDeterministicParserClassification(amendment);
   const facts: PeriodicReportFacts = {
     companyName,
     primaryTicker,
@@ -1158,11 +1143,10 @@ export function parseSecPeriodicReport(input: SecPeriodicReportParseInput): Peri
       source_url: nullableString(input.sourceUrl) || nullableString(rawPayload.detail_url) || nullableString(rawPayload.source_url),
       published_at: nullableString(input.publishedAt),
       market_context_used: false,
-      parser_assigns_event_type: Boolean(deterministicClassification),
-      parser_assigns_score_or_delivery: Boolean(deterministicClassification),
-      processing_path: deterministicClassification ? "deterministic_parser_archive" : "parser_analysis",
-      next_stage_expected: deterministicClassification ? "ui_payload_builder_then_required_output_json" : "ui_payload_builder_then_analysis_llm",
-      deterministic_classification: deterministicClassification,
+      parser_assigns_event_type: false,
+      parser_assigns_score_or_delivery: false,
+      processing_path: "parser_analysis",
+      next_stage_expected: "ui_payload_builder_then_analysis_llm",
       parent_filing_context_present: Boolean(input.parentFilingContext || rawPayload.parent_filing_context || rawPayload.parentFilingContext),
       missing_source: missingSource,
       fiscal_period_resolution: fiscalPeriodResolution,
@@ -2134,25 +2118,6 @@ function buildMissingSourceRecords(checks: PeriodicReportCoverageCheck[]) {
       evidence: check.evidence,
       critical: check.critical,
     }));
-}
-
-function buildDeterministicParserClassification(amendment: PeriodicReportAmendmentFacts): DeterministicParserClassification | null {
-  if (!amendment.isAmendment) return null;
-  const hasRoutineScope = amendment.routineIndicators.some((item) => item.label === "routine_xbrl_exhibit_or_certification_indicator");
-  const hasNoOtherChanges = amendment.routineIndicators.some((item) => item.label === "no_other_changes_indicator");
-  if (!hasRoutineScope || !hasNoOtherChanges || amendment.restatementIndicators.length > 0) return null;
-
-  return {
-    can_finish_without_llm: true,
-    event_type: "other",
-    display_type: PERIODIC_REPORTS_DEFAULT_DISPLAY_TYPE,
-    display_version: PERIODIC_REPORTS_DISPLAY_VERSION,
-    score: 20,
-    derived_delivery_level: "archive",
-    analysis_llm_needed: false,
-    reason: "Routine periodic-report amendment limited to exhibit, certification, signature, or XBRL package completion with no other disclosure changes.",
-    evidence: uniqueStrings([amendment.explanatoryNote, ...amendment.routineIndicators.map((item) => item.evidence)].filter(Boolean) as string[]).slice(0, 4),
-  };
 }
 
 function buildAuditNotes({

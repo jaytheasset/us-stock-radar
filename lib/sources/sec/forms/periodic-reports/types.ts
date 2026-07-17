@@ -26,7 +26,7 @@ export const APPROVED_SEC_EVENT_TYPES = [
 
 export type ApprovedSecEventType = (typeof APPROVED_SEC_EVENT_TYPES)[number];
 
-export const PERIODIC_REPORT_DISPLAY_TYPES = ["generic", "periodic_report", "offering_terms", "candidate_special"] as const;
+export const PERIODIC_REPORT_DISPLAY_TYPES = ["generic", "periodic_report", "periodic_amendment", "offering_terms", "candidate_special"] as const;
 export type PeriodicReportDisplayType = (typeof PERIODIC_REPORT_DISPLAY_TYPES)[number];
 
 export type DeliveryLevel = "archive" | "feed" | "alert";
@@ -274,7 +274,7 @@ export type PeriodicAnalysisOutput = {
   bearish_points: string[];
   key_evidence: string[];
   what_to_watch_next: string[];
-  report_ui: {
+  report_ui?: {
     snapshot_intro: string;
     snapshot_metrics: Array<{ label: string; value: string; note: string | null }>;
     performance_comparisons: Array<{
@@ -298,6 +298,24 @@ export type PeriodicAnalysisOutput = {
       note: string | null;
     }>;
     key_business_updates: Array<{ title: string; value: string | null; summary: string }>;
+  };
+  amendment_ui?: {
+    amendment_type: "administrative_correction" | "disclosure_update" | "material_restatement";
+    parent_accession_number: string | null;
+    affected_period: string | null;
+    snapshot_intro: string;
+    snapshot_metrics: Array<{ label: string; value: string; note: string | null }>;
+    amended_items: string[];
+    financial_statements_changed: boolean;
+    changed_metrics: Array<{
+      label: string;
+      previous_value: string | null;
+      amended_value: string | null;
+      change_summary: string;
+    }>;
+    change_details: Array<{ title: string; value: string | null; note: string }>;
+    accounting_or_control_impact: string | null;
+    investor_impact: string;
   };
   related_tickers: string[];
   calendar_items: PeriodicReportCalendarItem[];

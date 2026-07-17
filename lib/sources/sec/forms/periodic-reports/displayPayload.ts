@@ -1,8 +1,7 @@
-import type { PeriodicDisplayPayload, PeriodicParserOutput, PeriodicReportDisplayType } from "./types";
+import type { PeriodicDisplayPayload, PeriodicParserOutput } from "./types";
 import { clipPeriodicDisplayText } from "./uiNormalization";
 
 export const SEC_PERIODIC_REPORTS_DISPLAY_PAYLOAD_VERSION = "periodic_report_display_v2";
-const PERIODIC_REPORT_DISPLAY_TYPES = ["generic", "periodic_report", "offering_terms", "candidate_special"] as const;
 
 export type SecPeriodicReportsDisplayPayloadInput = {
   parser_output: PeriodicParserOutput;
@@ -13,15 +12,15 @@ export function buildSecPeriodicReportsDisplayPayload(input: SecPeriodicReportsD
   const parserOutput = input.parser_output;
   const analysisOutput = toRecord(input.analysis_output) || {};
   const reportUi = toRecord(analysisOutput.report_ui);
-  const deterministic = toRecord(parserOutput.raw.deterministic_classification) || {};
+  const amendmentUi = toRecord(analysisOutput.amendment_ui);
   const facts = parserOutput.facts;
-  const displayType = reportUi && hasPeriodicReportUiContent(reportUi)
-    ? "periodic_report"
-    : readDisplayType(deterministic.display_type) || "generic";
-  const displayVersion = displayType === "periodic_report"
-    ? SEC_PERIODIC_REPORTS_DISPLAY_PAYLOAD_VERSION
-    : nullableString(deterministic.display_version) || SEC_PERIODIC_REPORTS_DISPLAY_PAYLOAD_VERSION;
-  const selectedEventType = nullableString(deterministic.event_type);
+  const displayType = amendmentUi && hasPeriodicAmendmentUiContent(amendmentUi)
+    ? "periodic_amendment"
+    : reportUi && hasPeriodicReportUiContent(reportUi)
+      ? "periodic_report"
+      : "generic";
+  const displayVersion = SEC_PERIODIC_REPORTS_DISPLAY_PAYLOAD_VERSION;
+  const selectedEventType = nullableString(analysisOutput.event_type);
   const sourcePackage = facts.sourcePackage;
   const normalizedPrimary = toRecord(parserOutput.raw.normalized_primary_document) || {};
   const normalizedDiagnostics = toRecord(normalizedPrimary.diagnostics) || {};
@@ -52,7 +51,7 @@ export function buildSecPeriodicReportsDisplayPayload(input: SecPeriodicReportsD
         original_filing_date: facts.amendment.originalFilingDate,
       },
       analysis: {
-        analysis_llm_needed: booleanOrNull(deterministic.analysis_llm_needed) ?? true,
+        analysis_llm_needed: true,
       },
       source_inventory: {
         document_count: sourcePackage.documentCount,
@@ -84,9 +83,10 @@ export function buildSecPeriodicReportsDisplayPayload(input: SecPeriodicReportsD
       })),
       parser_warnings: parserOutput.warnings,
       ...(reportUi ? normalizeReportUiForDisplay(reportUi) : {}),
+      ...(amendmentUi ? normalizeAmendmentUiForDisplay(amendmentUi) : {}),
     },
     evidence: collectDisplayEvidence(parserOutput),
-    notes: buildDisplayNotes(parserOutput, deterministic),
+    notes: buildDisplayNotes(parserOutput),
   };
 }
 
@@ -96,6 +96,15 @@ function hasPeriodicReportUiContent(reportUi: Record<string, unknown>) {
       recordArray(reportUi.snapshot_metrics).length ||
       recordArray(reportUi.performance_comparisons).length ||
       recordArray(reportUi.key_business_updates).length,
+  );
+}
+
+function hasPeriodicAmendmentUiContent(amendmentUi: Record<string, unknown>) {
+  return Boolean(
+    nullableString(amendmentUi.snapshot_intro) ||
+      recordArray(amendmentUi.snapshot_metrics).length ||
+      recordArray(amendmentUi.changed_metrics).length ||
+      recordArray(amendmentUi.change_details).length,
   );
 }
 
@@ -134,6 +143,35 @@ function normalizeReportUiForDisplay(reportUi: Record<string, unknown>) {
   };
 }
 
+function normalizeAmendmentUiForDisplay(amendmentUi: Record<string, unknown>) {
+  return {
+    amendment_type: nullableString(amendmentUi.amendment_type),
+    parent_accession_number: nullableString(amendmentUi.parent_accession_number),
+    affected_period: nullableString(amendmentUi.affected_period),
+    snapshot_intro: clipPeriodicDisplayText(amendmentUi.snapshot_intro, 200) || null,
+    snapshot_metrics: recordArray(amendmentUi.snapshot_metrics).slice(0, 4).map((item) => ({
+      label: clipPeriodicDisplayText(item.label, 36),
+      value: clipPeriodicDisplayText(item.value, 64),
+      note: clipPeriodicDisplayText(item.note, 80) || null,
+    })),
+    amended_items: stringArray(amendmentUi.amended_items).slice(0, 6),
+    financial_statements_changed: amendmentUi.financial_statements_changed === true,
+    changed_metrics: recordArray(amendmentUi.changed_metrics).slice(0, 3).map((item) => ({
+      label: clipPeriodicDisplayText(item.label, 48),
+      previous_value: clipPeriodicDisplayText(item.previous_value, 40) || null,
+      amended_value: clipPeriodicDisplayText(item.amended_value, 40) || null,
+      change_summary: clipPeriodicDisplayText(item.change_summary, 140),
+    })),
+    change_details: recordArray(amendmentUi.change_details).slice(0, 4).map((item) => ({
+      title: clipPeriodicDisplayText(item.title, 64),
+      value: clipPeriodicDisplayText(item.value, 80) || null,
+      note: clipPeriodicDisplayText(item.note, 180),
+    })),
+    accounting_or_control_impact: clipPeriodicDisplayText(amendmentUi.accounting_or_control_impact, 220) || null,
+    investor_impact: clipPeriodicDisplayText(amendmentUi.investor_impact, 260) || null,
+  };
+}
+
 function collectDisplayEvidence(parserOutput: PeriodicParserOutput) {
   const facts = parserOutput.facts;
   return uniqueStrings([
@@ -143,18 +181,11 @@ function collectDisplayEvidence(parserOutput: PeriodicParserOutput) {
   ]).slice(0, 12);
 }
 
-function buildDisplayNotes(parserOutput: PeriodicParserOutput, deterministic: Record<string, unknown>) {
+function buildDisplayNotes(parserOutput: PeriodicParserOutput) {
   const notes: string[] = [];
   notes.push("Display payload built from source-backed parser fields; analysis LLM should not invent UI fields.");
-  const deterministicReason = nullableString(deterministic.reason);
-  if (deterministicReason) notes.push(deterministicReason);
   if (parserOutput.warnings.length) notes.push(`Parser warnings: ${parserOutput.warnings.slice(0, 6).join("; ")}`);
   return notes;
-}
-
-function readDisplayType(value: unknown): PeriodicReportDisplayType | null {
-  const text = nullableString(value);
-  return text && PERIODIC_REPORT_DISPLAY_TYPES.includes(text as PeriodicReportDisplayType) ? (text as PeriodicReportDisplayType) : null;
 }
 
 function toRecord(value: unknown): Record<string, unknown> | null {
@@ -177,10 +208,6 @@ function numberOrNull(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && Number.isFinite(Number(value))) return Number(value);
   return null;
-}
-
-function booleanOrNull(value: unknown) {
-  return typeof value === "boolean" ? value : null;
 }
 
 function uniqueStrings(values: string[]) {

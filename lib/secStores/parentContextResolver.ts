@@ -9,6 +9,10 @@ import {
 import { parseSc13Filing } from "@/lib/sources/sec/forms/sc13/parser";
 import type { Sc13ParserOutput } from "@/lib/sources/sec/forms/sc13/types";
 import { parseSecS3Filing, type SecS3FilingFacts } from "@/lib/sources/sec/forms/s3-f3/parser";
+import {
+  normalizePeriodicReportingPeriod,
+  readPeriodicReportingPeriodFromRawRow,
+} from "@/lib/secStores/periodicParentPeriod";
 import { supabaseSelect } from "@/lib/supabase";
 
 export type SecRawItemRow = Record<string, unknown>;
@@ -34,6 +38,8 @@ type Sc13ParentMatchFacts = {
   cusip: string;
   securityClass: string;
 };
+
+const PERIODIC_PARENT_CONTEXT_FAMILIES = new Set(["10-K", "10-Q", "20-F"]);
 
 export async function prepareSecRawItemWithParentContextForParser(rawItem: SecRawItemRow): Promise<SecRawItemRow> {
   const ownershipParent = await findOwnershipAmendmentParentBeforeParser(rawItem);
@@ -775,6 +781,9 @@ async function findGenericAmendmentParentFilingContext({
   const currentTicker = readRawTicker(rawItem);
   const currentCik = normalizeCik(readRawCik(rawItem));
   const currentSc13Facts = isSc13ParentContextFamily(currentFamily) ? readSc13ParentMatchFactsFromInput(input) : null;
+  const currentPeriodicReportingPeriod = PERIODIC_PARENT_CONTEXT_FAMILIES.has(currentFamily)
+    ? readPeriodicReportingPeriodFromInput(input)
+    : "";
 
   if (currentFamily === "S-8") {
     const s8RegistrationParent = await findS8RegistrationParentFilingContext({
@@ -801,6 +810,19 @@ async function findGenericAmendmentParentFilingContext({
     }
   }
 
+  if (PERIODIC_PARENT_CONTEXT_FAMILIES.has(currentFamily) && !currentPeriodicReportingPeriod) {
+    return buildGenericAmendmentParentContext({
+      status: "not_found",
+      confidence: "low",
+      matchMethod: "periodic_reporting_period_missing",
+      matchScore: 0,
+      matchReasons: ["current_reporting_period_not_resolved"],
+      rawItem,
+      parentRow: null,
+      candidateRows: [],
+    });
+  }
+
   const candidateRows = dedupeRawRows([
     ...(await fetchGenericAmendmentParentCandidateRows(rawItem)),
     ...(currentSc13Facts ? await fetchSc13ParentCandidateRows(currentSc13Facts) : []),
@@ -822,6 +844,18 @@ async function findGenericAmendmentParentFilingContext({
       const rowCik = normalizeCik(readRawCik(row));
       const matchReasons: string[] = [];
       let score = 0;
+
+      if (currentPeriodicReportingPeriod) {
+        if (rowFamily !== currentFamily) return null;
+        if (isSecAmendmentFormForParentContext(readRawFormType(row))) return null;
+        if (currentCik && rowCik !== currentCik) return null;
+        if (!currentCik && currentTicker && rowTicker !== currentTicker) return null;
+
+        const rowReportingPeriod = readPeriodicReportingPeriodFromRawRow(row);
+        if (!rowReportingPeriod || rowReportingPeriod !== currentPeriodicReportingPeriod) return null;
+        score += 300;
+        matchReasons.push("same_reporting_period");
+      }
 
       if (currentSc13Facts) {
         if (!isSc13ParentContextFamily(rowFamily)) return null;
@@ -891,7 +925,11 @@ async function findGenericAmendmentParentFilingContext({
         row,
         score,
         matchReasons,
-        matchMethod: currentSc13Facts ? "sc13_same_issuer_reporter_security_recent" : "same_issuer_form_family_recent",
+        matchMethod: currentSc13Facts
+          ? "sc13_same_issuer_reporter_security_recent"
+          : currentPeriodicReportingPeriod
+            ? "periodic_same_issuer_form_period"
+            : "same_issuer_form_family_recent",
       };
     })
     .filter((item): item is { row: SecRawItemRow; score: number; matchReasons: string[]; matchMethod: string } => Boolean(item))
@@ -1292,6 +1330,7 @@ async function buildGenericAmendmentParentContext({
       accession_number: readRawAccession(rawItem) || null,
       form_type: readRawFormType(rawItem) || null,
       filed_at: stringValue(rawItem.published_at) || readRawFiledDate(rawItem) || null,
+      reporting_period: readPeriodicReportingPeriodFromRawRow(rawItem) || null,
       source_url: stringValue(rawItem.source_url) || null,
       company_name: readRawCompanyName(rawItem) || null,
       ticker: readRawTicker(rawItem) || null,
@@ -1324,6 +1363,7 @@ async function compactGenericParentRow(row: SecRawItemRow) {
     accession_number: readRawAccession(row) || null,
     form_type: readRawFormType(row) || null,
     filed_at: stringValue(row.published_at) || stringValue(rawPayload.filing_date) || null,
+    reporting_period: readPeriodicReportingPeriodFromRawRow(row) || null,
     source_url: stringValue(row.source_url) || stringValue(rawPayload.detail_url) || null,
     company_name: readRawCompanyName(row) || stringValue(metadata.company_name) || null,
     ticker: (readRawTicker(row) || stringValue(existing?.ticker)).toUpperCase() || null,
@@ -1356,6 +1396,7 @@ async function compactGenericParentCandidateRow(row: SecRawItemRow) {
     accession_number: readRawAccession(row) || null,
     form_type: readRawFormType(row) || null,
     filed_at: stringValue(row.published_at) || readRawFiledDate(row) || null,
+    reporting_period: readPeriodicReportingPeriodFromRawRow(row) || null,
     company_name: readRawCompanyName(row) || null,
     ticker: (readRawTicker(row) || stringValue(existing?.ticker)).toUpperCase() || null,
     exchange: stringValue(existing?.exchange) || null,
@@ -1540,14 +1581,23 @@ async function fetchGenericAmendmentParentCandidateRows(rawItem: SecRawItemRow, 
   const rows: SecRawItemRow[] = [];
 
   for (const cik of cikValues) {
-    const result = await supabaseSelect("raw_items", {
+    const byPayload = await supabaseSelect("raw_items", {
       select,
       source_code: "eq.sec_edgar",
       "raw_payload->>cik": `eq.${cik}`,
       order: "published_at.desc",
       limit: "300",
     });
-    if (result.ok && Array.isArray(result.data)) rows.push(...(result.data as SecRawItemRow[]));
+    if (byPayload.ok && Array.isArray(byPayload.data)) rows.push(...(byPayload.data as SecRawItemRow[]));
+
+    const byMetadata = await supabaseSelect("raw_items", {
+      select,
+      source_code: "eq.sec_edgar",
+      "metadata->>cik": `eq.${cik}`,
+      order: "published_at.desc",
+      limit: "300",
+    });
+    if (byMetadata.ok && Array.isArray(byMetadata.data)) rows.push(...(byMetadata.data as SecRawItemRow[]));
   }
 
   if (ticker) {
@@ -2466,6 +2516,19 @@ function normalizeSecFormForParentContext(formType: string) {
     .replace(/\s*\/\s*A$/, "/A")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function readPeriodicReportingPeriodFromInput(input: SecFilingAnalysisInput) {
+  const filingPackage = readRecord(input.filing_package);
+  const hardParsers = readRecord(filingPackage?.hard_parsers);
+  const parserOutput = readRecord(hardParsers?.["periodic-reports"]);
+  const facts = readRecord(parserOutput?.facts);
+  return normalizePeriodicReportingPeriod(
+    facts?.reportingPeriod ||
+      facts?.reporting_period ||
+      filingPackage?.reporting_period ||
+      filingPackage?.period_of_report,
+  );
 }
 
 function isSec425TransactionContextCandidateForm(formType: string) {

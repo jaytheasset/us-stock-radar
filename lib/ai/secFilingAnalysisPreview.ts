@@ -13,8 +13,6 @@ import {
   SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY,
   SEC_OWNERSHIP_ANALYSIS_PROMPT_VERSION,
   SEC_OWNERSHIP_VALIDATION_REPAIR_PROMPT_KEY,
-  SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY,
-  SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION,
   SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
   SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
   SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY,
@@ -2310,8 +2308,8 @@ export async function runSecFilingAnalysisForRawRow(
       costEstimate: estimateCost(analysisRun.model, usage),
       validationRepair,
       prompt: {
-        key: SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY,
-        version: SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION,
+        key: prompt.key,
+        version: prompt.version,
         repair: repairPlan
           ? {
               key: repairPlan.prompt.key,

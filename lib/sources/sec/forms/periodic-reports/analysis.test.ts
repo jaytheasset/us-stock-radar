@@ -6,9 +6,13 @@ import type { SecPeriodicReportParseInput } from "./parser";
 import type { PeriodicRoomResult } from "./types";
 import { extractPeriodicReportIngestEvidence } from "./ingestSourceExtract";
 import {
+  SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_KEY,
+  SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_VERSION,
   SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY,
   SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION,
+  buildSecPeriodicReportsAmendmentAnalysisPromptDraft,
   buildSecPeriodicReportsAnalysisPromptDraft,
+  secPeriodicReportsAmendmentAnalysisResponseSchema,
   secPeriodicReportsAnalysisResponseSchema,
   secPeriodicReportsAnalysisSystemPrompt,
 } from "./analysisPrompt";
@@ -30,7 +34,6 @@ import {
 type Fixture = {
   filing: SecPeriodicReportParseInput;
   expected_event_type: string;
-  deterministic_without_llm?: boolean;
   market_context?: Record<string, unknown> | null;
 };
 
@@ -613,13 +616,6 @@ for (const fixtureName of fixtureNames) {
     assert.equal(expected.fixture_expected.special_ui_reason, null, `${fixtureName}: no special UI reason`);
   }
 
-  if (fixture.deterministic_without_llm) {
-    assert.equal(expected.parser_output.raw.processing_path, "deterministic_parser_archive", `${fixtureName}: expected deterministic path`);
-    assert.equal(expected.analysis_output.score < 50, true, `${fixtureName}: deterministic archive score`);
-    assert.equal(expected.analysis_output.event_type, "other", `${fixtureName}: deterministic event type`);
-    assert.equal(expected.analysis_output.needs_human_review, false, `${fixtureName}: deterministic no human review`);
-  }
-
   const parserOutput = parseSecPeriodicReport(fixture.filing);
   const displayPayload = buildSecPeriodicReportsDisplayPayload({
     parser_output: parserOutput,
@@ -665,18 +661,82 @@ for (const fixtureName of fixtureNames) {
     assert.equal((reportDisplayPayload.data.performance_comparisons as unknown[]).length, 1, "analysis UI keeps comparison charts");
   }
 
-  const analysisPrompt = buildSecPeriodicReportsAnalysisPromptDraft({
+  const promptInput = {
     parser_output: parserOutput,
     filing_excerpt: fixture.filing.bodyText,
     market_context: fixture.market_context || null,
-  });
+  };
+  const analysisPrompt = parserOutput.facts.isAmendment
+    ? buildSecPeriodicReportsAmendmentAnalysisPromptDraft(promptInput)
+    : buildSecPeriodicReportsAnalysisPromptDraft(promptInput);
 
-  assert.equal(analysisPrompt.key, SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY, `${fixtureName}: analysis prompt key`);
-  assert.equal(analysisPrompt.version, SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION, `${fixtureName}: analysis prompt version`);
-  assert.equal(analysisPrompt.responseFormat.json_schema.schema, secPeriodicReportsAnalysisResponseSchema, `${fixtureName}: analysis schema`);
+  assert.equal(
+    analysisPrompt.key,
+    parserOutput.facts.isAmendment ? SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_KEY : SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY,
+    `${fixtureName}: analysis prompt key`,
+  );
+  assert.equal(
+    analysisPrompt.version,
+    parserOutput.facts.isAmendment ? SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_VERSION : SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION,
+    `${fixtureName}: analysis prompt version`,
+  );
+  assert.equal(
+    analysisPrompt.responseFormat.json_schema.schema,
+    parserOutput.facts.isAmendment ? secPeriodicReportsAmendmentAnalysisResponseSchema : secPeriodicReportsAnalysisResponseSchema,
+    `${fixtureName}: analysis schema`,
+  );
   assert.ok(analysisPrompt.user.includes(String(parserOutput.formType)), `${fixtureName}: analysis prompt carries filing identity`);
   assert.equal(analysisPrompt.user.includes("periodic_report_display_v2"), false, `${fixtureName}: analysis prompt omits display payload`);
   assertSourceBlockOnlyPayload(analysisPrompt.user, `${fixtureName}: analysis`);
+
+  if (fixtureName === "routine-amendment-10qa") {
+    const amendmentDisplayPayload = buildSecPeriodicReportsDisplayPayload({
+      parser_output: parserOutput,
+      analysis_output: {
+        source_group: "filings",
+        market_scope: "company",
+        event_type: "other",
+        event_title: "Pico adds omitted interactive data files",
+        primary_ticker: { ticker: "PICO", exchange: "Nasdaq Global Market" },
+        tickers: ["PICO"],
+        score: 20,
+        score_reason: "Only filing-package data changed; the reported financial statements and investor conclusions remain unchanged.",
+        signal: "neutral",
+        quick_take: "The amendment adds omitted interactive data files without changing the quarterly report.",
+        summary: "Pico filed the amendment solely to add omitted Exhibit 101 files. It states that the financial statements and other disclosures did not change.",
+        why_it_matters: "This is an administrative correction rather than a new operating event.",
+        bullish_points: [],
+        bearish_points: [],
+        key_evidence: [],
+        what_to_watch_next: [],
+        related_tickers: [],
+        calendar_items: [],
+        confidence: "high",
+        needs_human_review: false,
+        amendment_ui: {
+          amendment_type: "administrative_correction",
+          parent_accession_number: "0007777777-26-000017",
+          affected_period: "March 31, 2026",
+          snapshot_intro: "The amendment adds omitted XBRL files without changing reported results.",
+          snapshot_metrics: [
+            { label: "Change", value: "Exhibit 101 added", note: "Interactive data files" },
+            { label: "Financials", value: "Unchanged", note: null },
+          ],
+          amended_items: ["Exhibit 101 interactive data files"],
+          financial_statements_changed: false,
+          changed_metrics: [],
+          change_details: [
+            { title: "Filing package", value: "Corrected", note: "No other disclosure changed." },
+          ],
+          accounting_or_control_impact: null,
+          investor_impact: "No new operating or valuation change is disclosed.",
+        },
+      },
+    });
+    assert.equal(amendmentDisplayPayload.display_type, "periodic_amendment", "amendment analysis selects amendment display");
+    assert.equal((amendmentDisplayPayload.data.snapshot_metrics as unknown[]).length, 2, "amendment display keeps snapshot metrics");
+    assert.equal((amendmentDisplayPayload.data.change_details as unknown[]).length, 1, "amendment display keeps delta details");
+  }
 }
 
 console.log("sec periodic reports analysis fixtures passed");

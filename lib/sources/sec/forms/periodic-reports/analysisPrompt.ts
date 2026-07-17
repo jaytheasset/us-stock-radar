@@ -3,6 +3,8 @@ import { buildSecPeriodicReportsSourceBlockPromptInput, type SecPeriodicReportsP
 
 export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY = "sec_periodic_reports_analysis";
 export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION = "v9-annual-core-performance";
+export const SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_KEY = "sec_periodic_reports_amendment_analysis";
+export const SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_VERSION = "v1-amendment-delta-only";
 
 const PERIODIC_REPORTS_FORM_SCOPE = "10-K / 10-Q / 20-F, 10-K/A / 10-Q/A / 20-F/A";
 const APPROVED_SEC_EVENT_TYPES = [
@@ -253,6 +255,98 @@ const analysisOutputSchema = {
 
 export const secPeriodicReportsAnalysisResponseSchema = analysisOutputSchema;
 
+const amendmentSharedProperties = Object.fromEntries(
+  Object.entries(analysisOutputSchema.properties).filter(([field]) => field !== "report_ui"),
+);
+
+export const secPeriodicReportsAmendmentAnalysisResponseSchema = {
+  ...analysisOutputSchema,
+  required: [
+    ...analysisOutputSchema.required.filter((field) => field !== "report_ui"),
+    "amendment_ui",
+  ],
+  properties: {
+    ...amendmentSharedProperties,
+    amendment_ui: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "amendment_type",
+        "parent_accession_number",
+        "affected_period",
+        "snapshot_intro",
+        "snapshot_metrics",
+        "amended_items",
+        "financial_statements_changed",
+        "changed_metrics",
+        "change_details",
+        "accounting_or_control_impact",
+        "investor_impact",
+      ],
+      properties: {
+        amendment_type: {
+          type: "string",
+          enum: ["administrative_correction", "disclosure_update", "material_restatement"],
+        },
+        parent_accession_number: { type: ["string", "null"], maxLength: 32 },
+        affected_period: { type: ["string", "null"], maxLength: 40 },
+        snapshot_intro: { type: "string", maxLength: 200 },
+        snapshot_metrics: {
+          type: "array",
+          maxItems: 4,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["label", "value", "note"],
+            properties: {
+              label: { type: "string", maxLength: 36 },
+              value: { type: "string", maxLength: 64 },
+              note: { type: ["string", "null"], maxLength: 80 },
+            },
+          },
+        },
+        amended_items: {
+          type: "array",
+          maxItems: 6,
+          items: { type: "string", maxLength: 80 },
+        },
+        financial_statements_changed: { type: "boolean" },
+        changed_metrics: {
+          type: "array",
+          maxItems: 3,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["label", "previous_value", "amended_value", "change_summary"],
+            properties: {
+              label: { type: "string", maxLength: 48 },
+              previous_value: { type: ["string", "null"], maxLength: 40 },
+              amended_value: { type: ["string", "null"], maxLength: 40 },
+              change_summary: { type: "string", maxLength: 140 },
+            },
+          },
+        },
+        change_details: {
+          type: "array",
+          maxItems: 4,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["title", "value", "note"],
+            properties: {
+              title: { type: "string", maxLength: 64 },
+              value: { type: ["string", "null"], maxLength: 80 },
+              note: { type: "string", maxLength: 180 },
+            },
+          },
+        },
+        accounting_or_control_impact: { type: ["string", "null"], maxLength: 220 },
+        investor_impact: { type: "string", maxLength: 260 },
+      },
+    },
+  },
+} as const;
+
 export const secPeriodicReportsAnalysisSystemPrompt = [
   `Analyze one SEC periodic report filing in scope: ${PERIODIC_REPORTS_FORM_SCOPE}.`,
   "Return only the strict investor-analysis JSON object matching the response schema.",
@@ -311,6 +405,22 @@ export const secPeriodicReportsAnalysisSystemPrompt = [
   "Write only investor-facing analysis fields and structured report_ui facts. Do not choose or describe an internal UI template.",
 ].join("\n");
 
+export const secPeriodicReportsAmendmentAnalysisSystemPrompt = [
+  "Analyze one SEC periodic-report amendment: 10-K/A, 10-Q/A, or 20-F/A.",
+  "Return only the strict investor-analysis JSON object matching the response schema.",
+  "Use cleaned_source_blocks as evidence. The current amendment blocks are primary evidence; parent_filing_context is comparison context, not proof of a new change by itself.",
+  "Analyze only what the amendment changes. Do not reconstruct or resummarize the full parent annual or quarterly report.",
+  "Classify amendment_type as administrative_correction for exhibit, certification, signature, XBRL, typo, or other non-substantive corrections; disclosure_update for a substantive narrative or disclosure change without restated financial statements; material_restatement when financial statements, material accounting amounts, non-reliance, or material controls are changed.",
+  "If the parent filing is not matched with high confidence, do not invent previous values or claim that a field changed. Set unknown comparison values to null and explain the limitation briefly.",
+  "Populate amendment_ui only with source-backed changed facts. Omit placeholders such as Not disclosed and do not add ordinary parent-report performance graphs or guidance.",
+  "Use snapshot_metrics for two to four concise amendment facts when available: amendment type, affected period, amended item, financial-statement impact, filing status, or a material corrected value.",
+  "Use changed_metrics only when both the prior and amended values are source-backed. Otherwise put the source-backed change in change_details.",
+  "For administrative corrections, normally use event_type other, neutral signal, score below 50, archive-style concise copy, and no what_to_watch_next unless a concrete next event is stated.",
+  "For disclosure updates and material restatements, score investor attention and urgency based on the actual changed disclosure, not the importance of the original report as a whole.",
+  "Write score_reason as one concise analyst-style conclusion explaining why the score is reasonable. Do not begin with 'The score is'.",
+  "Write plain investor English and preserve exact dates, amounts, periods, and accounting direction from the source.",
+].join("\n");
+
 export function buildSecPeriodicReportsAnalysisPromptDraft(input: SecPeriodicReportsAnalysisPromptInput) {
   return {
     key: SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY,
@@ -325,6 +435,25 @@ export function buildSecPeriodicReportsAnalysisPromptDraft(input: SecPeriodicRep
         name: "sec_periodic_reports_analysis",
         strict: true,
         schema: secPeriodicReportsAnalysisResponseSchema,
+      },
+    },
+  };
+}
+
+export function buildSecPeriodicReportsAmendmentAnalysisPromptDraft(input: SecPeriodicReportsAnalysisPromptInput) {
+  return {
+    key: SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_KEY,
+    version: SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_VERSION,
+    system: secPeriodicReportsAmendmentAnalysisSystemPrompt,
+    user: JSON.stringify({
+      ...buildSecPeriodicReportsSourceBlockPromptInput(input),
+    }),
+    responseFormat: {
+      type: "json_schema",
+      json_schema: {
+        name: "sec_periodic_reports_amendment_analysis",
+        strict: true,
+        schema: secPeriodicReportsAmendmentAnalysisResponseSchema,
       },
     },
   };

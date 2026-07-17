@@ -442,6 +442,13 @@ type PeriodicReportModel = {
   keyBusinessUpdates: PeriodicReportBusinessUpdate[];
 };
 
+type PeriodicAmendmentModel = {
+  snapshotTitle: string;
+  snapshotIntro: string;
+  snapshotMetrics: PeriodicReportSnapshotMetric[];
+  keyChanges: PeriodicReportBusinessUpdate[];
+};
+
 type EarningsModel = {
   periodType: string;
   period: string;
@@ -2004,6 +2011,18 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
       ? buildListingRiskModel(filing)
       : null;
   const useListingRiskDetail = Boolean(listingRiskModel);
+  const periodicAmendmentModel =
+    !useEffectDetail &&
+    !useIpoDetail &&
+    !useSpacDetail &&
+    !useForm425TransactionDetail &&
+    !useForm25Detail &&
+    !useProxyDetail &&
+    !useListingRiskDetail &&
+    !canUseDilutionDetail
+      ? buildPeriodicAmendmentModel(filing)
+      : null;
+  const usePeriodicAmendmentDetail = Boolean(periodicAmendmentModel);
   const periodicReportModel =
     !useEffectDetail &&
     !useIpoDetail &&
@@ -2012,6 +2031,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
     !useForm25Detail &&
     !useProxyDetail &&
     !useListingRiskDetail &&
+    !usePeriodicAmendmentDetail &&
     !canUseDilutionDetail
       ? buildPeriodicReportModel(filing)
       : null;
@@ -2023,6 +2043,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
     !useForm425TransactionDetail &&
     !useForm25Detail &&
     !useListingRiskDetail &&
+    !usePeriodicAmendmentDetail &&
     !usePeriodicReportDetail
       ? buildEarningsModel(filing)
       : null;
@@ -2034,6 +2055,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
     !useForm425TransactionDetail &&
     !useForm25Detail &&
     !useListingRiskDetail &&
+    !usePeriodicAmendmentDetail &&
     !usePeriodicReportDetail &&
     !useEarningsDetail
       ? buildFdaClinicalModel(filing)
@@ -2055,6 +2077,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
     !useForm25Detail &&
     !useProxyDetail &&
     !useListingRiskDetail &&
+    !usePeriodicAmendmentDetail &&
     !usePeriodicReportDetail &&
     !useEarningsDetail &&
     !useFdaClinicalDetail &&
@@ -2131,6 +2154,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
                 {useForm425TransactionDetail ? <span className="filing-template-chip">Transaction Communication</span> : null}
                 {useForm25Detail ? <span className="filing-template-chip">Listing Status Change</span> : null}
                 {useListingRiskDetail ? <span className="filing-template-chip">Listing Risk</span> : null}
+                {usePeriodicAmendmentDetail ? <span className="filing-template-chip">Report Amendment</span> : null}
                 {usePeriodicReportDetail ? <span className="filing-template-chip">Periodic Report</span> : null}
                 {useEarningsDetail ? <span className="filing-template-chip">Earnings</span> : null}
                 {useFdaClinicalDetail ? <span className="filing-template-chip">FDA Clinical</span> : null}
@@ -2152,6 +2176,8 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             <ProxyVoteTemplate filing={filing} />
           ) : useListingRiskDetail && listingRiskModel ? (
             <ListingRiskTemplate eventLabel={eventBadge.label} filing={filing} model={listingRiskModel} />
+          ) : usePeriodicAmendmentDetail && periodicAmendmentModel ? (
+            <PeriodicAmendmentTemplate eventLabel={eventBadge.label} filing={filing} model={periodicAmendmentModel} />
           ) : usePeriodicReportDetail && periodicReportModel ? (
             <PeriodicReportTemplate eventLabel={eventBadge.label} filing={filing} model={periodicReportModel} />
           ) : useEarningsDetail && earningsModel ? (
@@ -4054,6 +4080,45 @@ function ListingRiskTemplate({
   );
 }
 
+function PeriodicAmendmentTemplate({
+  eventLabel,
+  filing,
+  model,
+}: {
+  eventLabel: string;
+  filing: FilingEvent;
+  model: PeriodicAmendmentModel;
+}) {
+  return (
+    <>
+      <section className="stock-detail-top-grid listing-risk-top-grid">
+        <FilingPriceChart filing={filing} />
+
+        <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card periodic-report-snapshot-card">
+          <div className="quick-take-card quick-take-block">
+            <div className="card-heading-row">
+              <h2>{model.snapshotTitle}</h2>
+              <span>{filing.formType}</span>
+            </div>
+            {model.snapshotIntro ? <p className="proxy-summary-context">{model.snapshotIntro}</p> : null}
+            <ProxyVoteSummarySnapshot rows={model.snapshotMetrics} />
+          </div>
+        </section>
+      </section>
+
+      <AnalysisCard title="Summary" body={clipPeriodicDisplayText(filing.summary, 900)} />
+      <ScoreBasisPanel filing={filing} />
+
+      {model.keyChanges.length ? (
+        <PeriodicBusinessUpdatesSection items={model.keyChanges} title="Key Changes" />
+      ) : null}
+
+      <FilingMarketContextPanel filing={filing} hideUnavailable />
+      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
+    </>
+  );
+}
+
 function PeriodicReportTemplate({
   eventLabel,
   filing,
@@ -4263,11 +4328,17 @@ function PeriodicGuidanceFooter({ guidance }: { guidance: PeriodicReportGuidance
   );
 }
 
-function PeriodicBusinessUpdatesSection({ items }: { items: PeriodicReportBusinessUpdate[] }) {
+function PeriodicBusinessUpdatesSection({
+  items,
+  title = "Key Business Updates",
+}: {
+  items: PeriodicReportBusinessUpdate[];
+  title?: string;
+}) {
   return (
     <section className="periodic-report-section periodic-business-updates-section">
       <div className="periodic-report-section-heading">
-        <h2>Key Business Updates</h2>
+        <h2>{title}</h2>
       </div>
       <div className="periodic-business-update-list">
         {items.map((item, index) => (
@@ -7080,6 +7151,56 @@ function buildListingRiskModel(filing: FilingEvent): ListingRiskModel | null {
     riskFlags: displayStringArray(data.risk_flags, filing.bearishPoints.length ? filing.bearishPoints : ["No active deficiency disclosed."]),
     watchNext: displayStringArray(data.watch_next, filing.watchNext.length ? filing.watchNext : ["Next exchange compliance update."]),
     sources: normalizeSpecialSources(data.sources, filing.sourceUrl, "Listing-risk source evidence"),
+  };
+}
+
+function buildPeriodicAmendmentModel(filing: FilingEvent): PeriodicAmendmentModel | null {
+  const displayPayload = readPlainRecord(filing.displayPayload);
+  if (readRowString(displayPayload, "display_type") !== "periodic_amendment") return null;
+
+  const data = readDisplayPayloadData(displayPayload);
+  const snapshotMetrics = recordArray(data.snapshot_metrics)
+    .map((item) => ({
+      label: clipPeriodicDisplayText(readRowString(item, "label"), 36),
+      value: clipPeriodicDisplayText(readRowString(item, "value"), 64),
+      note: clipPeriodicDisplayText(readRowString(item, "note"), 80) || undefined,
+    }))
+    .filter((item) => item.label && item.value && !isPeriodicPlaceholder(item.value))
+    .slice(0, 4);
+  const changedMetrics = recordArray(data.changed_metrics)
+    .map((item) => {
+      const previousValue = clipPeriodicDisplayText(readRowString(item, "previous_value"), 40);
+      const amendedValue = clipPeriodicDisplayText(readRowString(item, "amended_value"), 40);
+      return {
+        title: clipPeriodicDisplayText(readRowString(item, "label"), 48),
+        value: previousValue && amendedValue ? `${previousValue} -> ${amendedValue}` : amendedValue || previousValue || undefined,
+        summary: clipPeriodicDisplayText(readRowString(item, "change_summary"), 140),
+      };
+    })
+    .filter((item) => item.title && item.summary);
+  const changeDetails = recordArray(data.change_details)
+    .map((item) => ({
+      title: clipPeriodicDisplayText(readRowString(item, "title"), 64),
+      value: clipPeriodicDisplayText(readRowString(item, "value"), 80) || undefined,
+      summary: clipPeriodicDisplayText(readRowString(item, "note"), 180),
+    }))
+    .filter((item) => item.title && item.summary);
+  const keyChanges = [...changedMetrics, ...changeDetails].slice(0, 4);
+  const accountingImpact = clipPeriodicDisplayText(readRowString(data, "accounting_or_control_impact"), 220);
+  const investorImpact = clipPeriodicDisplayText(readRowString(data, "investor_impact"), 260);
+  if (accountingImpact && keyChanges.length < 4) {
+    keyChanges.push({ title: "Accounting / Controls", value: undefined, summary: accountingImpact });
+  }
+  if (investorImpact && keyChanges.length < 4) {
+    keyChanges.push({ title: "Investor Impact", value: undefined, summary: investorImpact });
+  }
+
+  if (!snapshotMetrics.length && !keyChanges.length) return null;
+  return {
+    snapshotTitle: "Report Amendment Snapshot",
+    snapshotIntro: clipPeriodicDisplayText(readRowString(data, "snapshot_intro"), 200),
+    snapshotMetrics,
+    keyChanges,
   };
 }
 

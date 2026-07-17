@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import type { SecPeriodicReportParseInput } from "./parser";
 import { parseSecPeriodicReport } from "./parser";
-import { APPROVED_SEC_EVENT_TYPES, PERIODIC_REPORTS_PARSER_GROUP } from "./types";
+import { PERIODIC_REPORTS_PARSER_GROUP } from "./types";
 
 const originalFetch = globalThis.fetch;
 globalThis.fetch = (() => {
@@ -170,21 +170,14 @@ for (const caseName of cases) {
   assert.equal(parsed.accessionNumber, expected.parser_output.accessionNumber, `${caseName}: accession`);
   assert.equal(parsed.isSupported, expected.parser_output.isSupported, `${caseName}: supported form`);
   assert.equal(parsed.raw.market_context_used, false, `${caseName}: parser must not use live or fixture market context`);
-  const deterministicClassification = toRecord(parsed.raw.deterministic_classification);
-  const deterministicParserPath = Boolean(deterministicClassification?.can_finish_without_llm);
-  assert.equal(parsed.raw.parser_assigns_event_type, deterministicParserPath, `${caseName}: parser assigns event type only for deterministic-safe cases`);
-  assert.equal(parsed.raw.parser_assigns_score_or_delivery, deterministicParserPath, `${caseName}: parser assigns score/delivery only for deterministic-safe cases`);
-  if (deterministicParserPath) {
-    assert.equal(deterministicClassification?.event_type, "other", `${caseName}: deterministic parser event type`);
-    assert.ok(APPROVED_SEC_EVENT_TYPES.includes(String(deterministicClassification?.event_type) as (typeof APPROVED_SEC_EVENT_TYPES)[number]), `${caseName}: deterministic approved event type`);
-    assert.equal(deterministicClassification?.display_type, "generic", `${caseName}: deterministic display type`);
-    assert.equal(deterministicClassification?.derived_delivery_level, "archive", `${caseName}: deterministic delivery`);
-    assert.equal(deterministicClassification?.analysis_llm_needed, false, `${caseName}: deterministic skips analysis LLM`);
-  }
+  assert.equal(parsed.raw.parser_assigns_event_type, false, `${caseName}: parser never assigns event type`);
+  assert.equal(parsed.raw.parser_assigns_score_or_delivery, false, `${caseName}: parser never assigns score or delivery`);
+  assert.equal(parsed.raw.processing_path, "parser_analysis", `${caseName}: parser always hands off to analysis`);
+  assert.equal(hasOwn(parsed.raw, "deterministic_classification"), false, `${caseName}: no deterministic parser classification`);
   assert.deepEqual(parsed.signals, [], `${caseName}: parser leaves event signals for analysis`);
   assert.equal(hasOwn(parsed.facts, "dominantParserEventType"), false, `${caseName}: no parser event ranking`);
   assert.equal(hasOwn(parsed.facts, "deterministicConclusion"), false, `${caseName}: no parser score conclusion`);
-  if (!deterministicParserPath) assert.equal(JSON.stringify(parsed).includes('"event_type"'), false, `${caseName}: no event_type field in non-deterministic parser output`);
+  assert.equal(JSON.stringify(parsed).includes('"event_type"'), false, `${caseName}: no event_type field in parser output`);
 
   assertExpectedFact(parsed.facts.companyName, expected.parser_output.facts.companyName, `${caseName}: company`);
   assertExpectedFact(parsed.facts.primaryTicker, expected.parser_output.facts.primaryTicker, `${caseName}: ticker`);
@@ -315,7 +308,7 @@ assert.equal(
   "DEI period context supplies the year when the visible period-end value omits it",
 );
 assert.equal(
-  partialDeiDateParsed.facts.fiscalPeriodResolution.reporting_period_source,
+  toRecord(partialDeiDateParsed.raw.fiscal_period_resolution)?.reporting_period_source,
   "xbrl_dei_document_period_end_date",
   "DEI period context remains the authoritative reporting-period source",
 );
@@ -363,16 +356,10 @@ for (const selectorCase of selectorFixture.cases) {
   for (const warning of expected.warnings_exclude || []) {
     assert.equal(parsed.warnings.includes(warning), false, `${selectorCase.name}: excluded selector warning ${warning}`);
   }
-  const deterministicClassification = toRecord(parsed.raw.deterministic_classification);
-  const deterministicParserPath = Boolean(deterministicClassification?.can_finish_without_llm);
-  assert.equal(parsed.raw.parser_assigns_event_type, deterministicParserPath, `${selectorCase.name}: selector only allows parser event type in deterministic-safe cases`);
-  assert.equal(parsed.raw.parser_assigns_score_or_delivery, deterministicParserPath, `${selectorCase.name}: selector only allows parser score/delivery in deterministic-safe cases`);
-  if (deterministicParserPath) {
-    assert.equal(deterministicClassification?.event_type, "other", `${selectorCase.name}: deterministic selector event type`);
-    assert.equal(deterministicClassification?.display_type, "generic", `${selectorCase.name}: deterministic selector display type`);
-    assert.equal(deterministicClassification?.derived_delivery_level, "archive", `${selectorCase.name}: deterministic selector delivery`);
-    assert.equal(deterministicClassification?.analysis_llm_needed, false, `${selectorCase.name}: deterministic selector skips analysis LLM`);
-  }
+  assert.equal(parsed.raw.parser_assigns_event_type, false, `${selectorCase.name}: selector never assigns event type`);
+  assert.equal(parsed.raw.parser_assigns_score_or_delivery, false, `${selectorCase.name}: selector never assigns score or delivery`);
+  assert.equal(parsed.raw.processing_path, "parser_analysis", `${selectorCase.name}: selector hands off to analysis`);
+  assert.equal(hasOwn(parsed.raw, "deterministic_classification"), false, `${selectorCase.name}: no deterministic selector classification`);
 }
 
 const normalizerFixture = readJson<NormalizerFixture>(join(roomDir, "fixtures", "parser-html-normalizer.json"));

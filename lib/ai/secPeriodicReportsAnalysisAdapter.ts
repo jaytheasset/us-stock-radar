@@ -2,7 +2,10 @@ import { normalizeCalendarEventType } from "@/lib/calendarEventRegistry";
 import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
 import { applySecValidationRepairPatches } from "@/lib/ai/secValidationRepairPatch";
 import {
+  buildSecPeriodicReportsAmendmentAnalysisPromptDraft,
   buildSecPeriodicReportsAnalysisPromptDraft,
+  SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_KEY,
+  SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_VERSION,
   SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY,
   SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION,
 } from "@/lib/sources/sec/forms/periodic-reports/analysisPrompt";
@@ -14,6 +17,8 @@ import {
 } from "@/lib/sources/sec/forms/periodic-reports/types";
 
 export {
+  SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_KEY,
+  SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_VERSION,
   SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY,
   SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION,
 };
@@ -54,13 +59,16 @@ export function buildSecPeriodicReportsAnalysisPromptForInput(input: SecFilingAn
   }
 
   const filingPackage = readRecord(input.filing_package) || {};
-  return buildSecPeriodicReportsAnalysisPromptDraft({
+  const promptInput = {
     filing_package: filingPackage,
     parser_output: parserOutput,
     filing_excerpt: stringValue(filingPackage.llm_text) || null,
     market_context: readRecord(filingPackage.market_context),
     parent_filing_context: readRecord(filingPackage.parent_filing_context),
-  });
+  };
+  return parserOutput.facts.isAmendment
+    ? buildSecPeriodicReportsAmendmentAnalysisPromptDraft(promptInput)
+    : buildSecPeriodicReportsAnalysisPromptDraft(promptInput);
 }
 
 export function buildSecPeriodicReportsValidationRepairPlan({

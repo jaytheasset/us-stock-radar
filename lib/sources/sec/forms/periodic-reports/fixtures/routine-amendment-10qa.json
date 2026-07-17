@@ -1,6 +1,6 @@
 {
   "name": "routine-amendment-10qa",
-  "description": "10-Q/A that can finish deterministically because it only files XBRL data and makes no other changes.",
+  "description": "10-Q/A that should be analyzed as a delta-only administrative correction because it only files XBRL data.",
   "filing": {
     "rawItemId": "sec-fixture-periodic-007",
     "sourceUniqueId": "0007777777-26-000019",
@@ -32,6 +32,5 @@
   },
   "market_context": null,
   "expected_event_type": "other",
-  "expected_score_band": "archive",
-  "deterministic_without_llm": true
+  "expected_score_band": "archive"
 }
