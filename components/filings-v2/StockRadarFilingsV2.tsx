@@ -44,6 +44,7 @@ export function StockRadarFilingsV2() {
   const detailOpenerRef = useRef<HTMLElement | null>(null);
   const detailPreviewRef = useRef<HTMLDivElement | null>(null);
   const detailRailRef = useRef<HTMLElement | null>(null);
+  const detailRailScrollProgressRef = useRef(0);
   const filterOpenerRef = useRef<HTMLButtonElement | null>(null);
 
   const filteredRecords = useMemo(() => {
@@ -110,9 +111,15 @@ export function StockRadarFilingsV2() {
 
     const previewTop = preview.getBoundingClientRect().top;
     const railTop = rail.getBoundingClientRect().top;
+    const maxScrollTop = Math.max(rail.scrollHeight - rail.clientHeight, 0);
+    const previewScrollTop = Math.min(
+      Math.max(rail.scrollTop + previewTop - railTop, 0),
+      maxScrollTop,
+    );
+    detailRailScrollProgressRef.current = previewScrollTop;
     rail.scrollTo({
       behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-      top: rail.scrollTop + previewTop - railTop,
+      top: previewScrollTop,
     });
   }, [previewRequestId]);
 
@@ -129,13 +136,21 @@ export function StockRadarFilingsV2() {
       const scrollDelta = pendingScrollDelta;
       pendingScrollDelta = 0;
 
-      if (!desktopRailQuery.matches || !rail || scrollDelta === 0) return;
+      if (!desktopRailQuery.matches) {
+        detailRailScrollProgressRef.current = 0;
+        return;
+      }
+      if (!rail || scrollDelta === 0) return;
 
       const stickyTop = Number.parseFloat(window.getComputedStyle(rail).top) || 0;
       if (rail.getBoundingClientRect().top > stickyTop + 1) return;
 
       const maxScrollTop = Math.max(rail.scrollHeight - rail.clientHeight, 0);
-      const nextScrollTop = Math.min(Math.max(rail.scrollTop + scrollDelta, 0), maxScrollTop);
+      detailRailScrollProgressRef.current = Math.max(
+        detailRailScrollProgressRef.current + scrollDelta,
+        0,
+      );
+      const nextScrollTop = Math.min(detailRailScrollProgressRef.current, maxScrollTop);
       rail.scrollTo({ behavior: "auto", top: nextScrollTop });
     };
 
