@@ -1420,8 +1420,9 @@
     grid-template-columns: max-content minmax(0, 1fr) max-content;
     grid-template-rows: auto auto;
     align-items: start;
-    gap: var(--sr-space-1-5);
-    padding: var(--sr-space-2) var(--sr-space-2-5);
+    column-gap: var(--sr-space-1-5);
+    row-gap: var(--sr-space-2);
+    padding: var(--sr-space-3) var(--sr-space-2-5);
   }
 
   .filingItemTime {
