@@ -9,7 +9,7 @@ export const SEC_FORM_PARSER_GROUPS = [
   },
   {
     slug: "nt",
-    forms: ["NT 10-K", "NT 10-Q", "NT 20-F"],
+    forms: ["NT 10-K", "NT 10-K/A", "NT 10-Q", "NT 10-Q/A", "NT 20-F", "NT 20-F/A"],
   },
   {
     slug: "s1-f1",

@@ -2013,7 +2013,7 @@ function getDisplayLabelGuide(roomKey: string): DisplayLabelGuide | null {
       overview: [
         {
           title: "1. UI",
-          items: ["generic", "offering_terms", "candidate_special"],
+          items: ["nt_late_filing_v1"],
         },
         {
           title: "2. Detail UI choices",

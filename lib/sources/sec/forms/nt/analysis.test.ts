@@ -11,9 +11,13 @@ import type { NtFilingInput } from "./types";
 
 const CASES = [
   "routine-nt-10q",
+  "routine-nt-10k-no-change",
   "accounting-delay-nt-10k",
   "material-sales-change-nt-10q",
   "foreign-issuer-nt-20f",
+  "restatement-no-reliance-nt-10k",
+  "transition-nt-10q",
+  "amended-narrative-nt-10qa",
 ] as const;
 
 test("analysis prompt uses bounded original source blocks and no parser route", () => {

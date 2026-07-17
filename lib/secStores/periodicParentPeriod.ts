@@ -64,10 +64,56 @@ export function readPeriodicReportingPeriodFromRawRow(row: Record<string, unknow
   const text = `${stringValue(row.body_text)}\n${stringValue(row.analysis_text)}`.slice(0, 250_000);
   const xbrlMatch = text.match(/DocumentPeriodEndDate[^\d]{0,160}(\d{4}-\d{2}-\d{2})/i);
   if (xbrlMatch?.[1]) return normalizePeriodicReportingPeriod(xbrlMatch[1]);
+  const ntPeriodMatch = text.match(
+    /(?:for\s+period\s+ended|period\s+of\s+report)\s*:?\s*((?:[A-Z][a-z]+\.?\s+\d{1,2},\s+\d{4})|(?:\d{1,2}\/\d{1,2}\/\d{4})|(?:\d{4}-\d{2}-\d{2}))/i,
+  );
+  if (ntPeriodMatch?.[1]) return normalizePeriodicReportingPeriod(ntPeriodMatch[1]);
   const periodMatch = text.match(
     /(?:fiscal\s+(?:year|quarter)|three\s+months|six\s+months|nine\s+months|year)\s+ended\s+([A-Z][a-z]+\s+\d{1,2},\s+\d{4})/i,
   );
   return normalizePeriodicReportingPeriod(periodMatch?.[1]);
+}
+
+export function readPeriodicReportingPeriodFromFilingPackage(value: unknown) {
+  const filingPackage = readRecord(value) || {};
+  const hardParsers = readRecord(filingPackage.hard_parsers) || {};
+  const periodicFacts = readRecord(readRecord(hardParsers["periodic-reports"])?.facts) || {};
+  const ntFacts = readRecord(readRecord(hardParsers.nt)?.facts) || {};
+  const candidates = [
+    ntFacts.periodOfReport,
+    ntFacts.period_of_report,
+    periodicFacts.reportingPeriod,
+    periodicFacts.reporting_period,
+    filingPackage.reporting_period,
+    filingPackage.period_of_report,
+  ];
+  for (const candidate of candidates) {
+    const normalized = normalizePeriodicReportingPeriod(candidate);
+    if (normalized) return normalized;
+  }
+  return "";
+}
+
+export function isMatchingNtLifecyclePeriod({
+  reportForm,
+  noticeForm,
+  reportPeriod,
+  noticePeriod,
+}: {
+  reportForm: unknown;
+  noticeForm: unknown;
+  reportPeriod: unknown;
+  noticePeriod: unknown;
+}) {
+  const normalizedReportForm = normalizePeriodicForm(reportForm);
+  const normalizedNoticeForm = normalizePeriodicForm(noticeForm);
+  if (!["10-K", "10-Q", "20-F"].includes(normalizedReportForm)) return false;
+  if (normalizedNoticeForm !== `NT ${normalizedReportForm}`) return false;
+  const normalizedReportPeriod = normalizePeriodicReportingPeriod(reportPeriod);
+  return Boolean(
+    normalizedReportPeriod &&
+    normalizedReportPeriod === normalizePeriodicReportingPeriod(noticePeriod),
+  );
 }
 
 export function normalizePeriodicReportingPeriod(value: unknown) {
@@ -168,4 +214,13 @@ function readRecord(value: unknown): Record<string, unknown> | null {
 
 function stringValue(value: unknown) {
   return typeof value === "string" ? value.trim() : value === null || value === undefined ? "" : String(value).trim();
+}
+
+function normalizePeriodicForm(value: unknown) {
+  return stringValue(value)
+    .toUpperCase()
+    .replace(/^FORM\s+/, "")
+    .replace(/\s*\/\s*A$/, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }

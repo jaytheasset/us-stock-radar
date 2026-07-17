@@ -205,7 +205,7 @@ export const SEC_DEV_ROOMS: SecDevRoom[] = [
   },
   { key: "s8", label: "S-8", forms: ["S-8", "S-8/A", "S-8 POS"], folder: "s8" },
   { key: "sc13", label: "13D / SC 13D", forms: ["SC 13D", "SC 13D/A", "SC 13G", "SC 13G/A"], folder: "sc13" },
-  { key: "nt", label: "NT Reports", forms: ["NT 10-K", "NT 10-Q", "NT 20-F"], folder: "nt" },
+  { key: "nt", label: "NT Reports", forms: ["NT 10-K", "NT 10-K/A", "NT 10-Q", "NT 10-Q/A", "NT 20-F", "NT 20-F/A"], folder: "nt" },
   { key: "form25", label: "Form 25", forms: ["25", "25-NSE"], folder: "form25" },
   { key: "effect", label: "EFFECT", forms: ["EFFECT"], folder: "effect" },
   { key: "other", label: "Other SEC", forms: ["OTHER"], folder: "other" },
@@ -2073,7 +2073,7 @@ async function readRoomFiles(room: SecDevRoom, testFiles: string[], fixtures: st
     ["adapter", "index.ts"],
     ...(analysisOnlyRoom ? [] : ([["prompt", "routerPrompt.ts"], ["prompt", "router.ts"]] as const)),
     ["prompt", "analysisPrompt.ts"],
-    ["prompt", "analysis.ts"],
+    ...(analysisOnlyRoom ? [] : ([["prompt", "analysis.ts"]] as const)),
     ["display", "displayPayload.ts"],
   ] as const;
 
@@ -2194,7 +2194,7 @@ async function readPromptPreviews(room: SecDevRoom): Promise<SecDevPromptPreview
   const base = path.join(FORMS_ROOT, room.folder);
   const analysisOnlyRoom = room.key === "proxy" || room.key === "periodic-reports" || room.key === "nt";
   const promptFiles = analysisOnlyRoom
-    ? ["analysisPrompt.ts", "analysis.ts"]
+    ? ["analysisPrompt.ts"]
     : ["routerPrompt.ts", "router.ts", "analysisPrompt.ts", "analysis.ts"];
   const previews: SecDevPromptPreview[] = [];
 

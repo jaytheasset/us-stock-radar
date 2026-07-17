@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 
 import {
+  isMatchingNtLifecyclePeriod,
   normalizePeriodicReportingPeriod,
+  readPeriodicReportingPeriodFromFilingPackage,
   readPeriodicReportingPeriodFromRawRow,
 } from "./periodicParentPeriod";
 
@@ -34,5 +36,38 @@ assert.equal(
   }),
   "2025-12-31",
 );
+
+assert.equal(
+  readPeriodicReportingPeriodFromFilingPackage({
+    hard_parsers: {
+      nt: {
+        facts: {
+          periodOfReport: "December 31, 2025",
+        },
+      },
+    },
+  }),
+  "2025-12-31",
+);
+
+assert.equal(
+  readPeriodicReportingPeriodFromRawRow({
+    body_text: "FORM 12b-25 NOTIFICATION OF LATE FILING\nFor Period Ended: March 31, 2026",
+  }),
+  "2026-03-31",
+);
+
+assert.equal(isMatchingNtLifecyclePeriod({
+  reportForm: "10-Q",
+  noticeForm: "NT 10-Q/A",
+  reportPeriod: "2026-03-31",
+  noticePeriod: "March 31, 2026",
+}), true);
+assert.equal(isMatchingNtLifecyclePeriod({
+  reportForm: "10-Q",
+  noticeForm: "NT 10-Q",
+  reportPeriod: "2026-03-31",
+  noticePeriod: "2025-12-31",
+}), false);
 
 console.log("periodic parent reporting-period tests passed");

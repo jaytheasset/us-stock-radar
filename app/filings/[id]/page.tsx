@@ -13689,6 +13689,13 @@ function buildFilingContextRelatedFilings({
     match_source: "sec_425_related_transaction",
     match_confidence: readRowString(relatedTransaction, "confidence"),
   }));
+  const ntLifecycle = readPlainRecord(filingContext?.nt_lifecycle);
+  const ntLifecycleFilings = recordArray(ntLifecycle?.selected_filings).map((item) => ({
+    ...item,
+    match_source: "nt_lifecycle",
+    match_method: readRowString(ntLifecycle, "match_method"),
+    match_confidence: readRowString(ntLifecycle, "match_confidence"),
+  }));
   const parentContext = readPlainRecord(metadata?.parent_filing_context);
   const parentFiling = readPlainRecord(parentContext?.parent);
   const parentContextItem = parentFiling
@@ -13701,8 +13708,8 @@ function buildFilingContextRelatedFilings({
       }
     : null;
   const relatedSourceItems = parentContextItem
-    ? [parentContextItem, ...relatedTransactionFilings, ...priorFilings]
-    : [...relatedTransactionFilings, ...priorFilings];
+    ? [parentContextItem, ...ntLifecycleFilings, ...relatedTransactionFilings, ...priorFilings]
+    : [...ntLifecycleFilings, ...relatedTransactionFilings, ...priorFilings];
   const seen = new Set<string>();
 
   return relatedSourceItems
@@ -13766,6 +13773,14 @@ function classifyFilingContextRelation(item: Record<string, unknown>, formType: 
     return {
       label: "Parent",
       description: "Original filing matched for this amendment.",
+      candidate: false,
+    };
+  }
+
+  if (source === "nt_lifecycle") {
+    return {
+      label: "Late filing notice",
+      description: "The delayed report was subsequently filed for the same reporting period.",
       candidate: false,
     };
   }

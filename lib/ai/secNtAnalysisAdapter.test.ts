@@ -169,6 +169,26 @@ test("NT scoring validator catches overstated routine and neutral alert outputs"
   assert.ok(codes.includes("routine_delay_overstated"));
 });
 
+test("NT scoring validator escalates explicit restatement and reliability risk", () => {
+  const input = makeRestatementRiskInput();
+  const warnings = collectSecNtScoringWarnings({
+    event_type: "other",
+    score: 55,
+    signal: "neutral",
+    nt_scoring_assessment: {
+      delay_status: "within_extension",
+      underlying_issue: "Restatement and non-reliance review",
+      results_change: "Prior financial statements cannot be relied upon",
+      financial_reliability_risk: "explicit",
+      severity: "meaningful",
+      material_offset: null,
+      alert_driver: null,
+    },
+  }, input);
+  const codes = warnings.map((warning) => warning.code);
+  assert.ok(codes.includes("explicit_financial_risk_understated"));
+});
+
 test("NT validator routes oversized Key Evidence through one bounded repair", () => {
   const input = makeInput();
   const analysis = {
@@ -308,6 +328,34 @@ function makePositiveMaterialResultsInput() {
       form_type: "NT 20-F",
       company_name: "Positive Change Issuer Ltd.",
       ticker: "PCI",
+      exchange: "Nasdaq",
+      hard_parsers: { nt: parserOutput },
+    },
+  };
+}
+
+function makeRestatementRiskInput() {
+  const parserOutput = parseNtFiling({
+    formType: "NT 10-K",
+    accessionNumber: "0000000000-26-000004",
+    companyName: "Restatement Risk Issuer Inc.",
+    ticker: "RRI",
+    exchange: "Nasdaq",
+    filingText: [
+      "FORM 12b-25 NOTIFICATION OF LATE FILING",
+      "PART I - REGISTRANT INFORMATION Restatement Risk Issuer Inc.",
+      "PART II - RULE 12b-25(b) AND (c) The subject Form 10-K will be filed within fifteen calendar days.",
+      "PART III - NARRATIVE Additional time is required to complete a restatement and related audit procedures.",
+      "The audit committee concluded that prior financial statements should no longer be relied upon due to material accounting errors.",
+      "PART IV - OTHER INFORMATION",
+      "SIGNATURE",
+    ].join("\n"),
+  });
+  return {
+    filing_package: {
+      form_type: "NT 10-K",
+      company_name: "Restatement Risk Issuer Inc.",
+      ticker: "RRI",
       exchange: "Nasdaq",
       hard_parsers: { nt: parserOutput },
     },

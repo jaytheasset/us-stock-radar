@@ -10,7 +10,8 @@ import { parseSc13Filing } from "@/lib/sources/sec/forms/sc13/parser";
 import type { Sc13ParserOutput } from "@/lib/sources/sec/forms/sc13/types";
 import { parseSecS3Filing, type SecS3FilingFacts } from "@/lib/sources/sec/forms/s3-f3/parser";
 import {
-  normalizePeriodicReportingPeriod,
+  isMatchingNtLifecyclePeriod,
+  readPeriodicReportingPeriodFromFilingPackage,
   readPeriodicReportingPeriodFromRawRow,
 } from "@/lib/secStores/periodicParentPeriod";
 import { supabaseSelect } from "@/lib/supabase";
@@ -39,7 +40,14 @@ type Sc13ParentMatchFacts = {
   securityClass: string;
 };
 
-const PERIODIC_PARENT_CONTEXT_FAMILIES = new Set(["10-K", "10-Q", "20-F"]);
+const PERIODIC_PARENT_CONTEXT_FAMILIES = new Set([
+  "10-K",
+  "10-Q",
+  "20-F",
+  "NT 10-K",
+  "NT 10-Q",
+  "NT 20-F",
+]);
 
 export async function prepareSecRawItemWithParentContextForParser(rawItem: SecRawItemRow): Promise<SecRawItemRow> {
   const ownershipParent = await findOwnershipAmendmentParentBeforeParser(rawItem);
@@ -52,7 +60,73 @@ export async function attachSecParentContexts(input: SecFilingAnalysisInput, raw
   await attachS1F1AmendmentParentFilingContext(input, rawItem);
   await attachEffectParentFilingContext(input, rawItem);
   await attachGenericAmendmentParentFilingContext(input, rawItem);
+  await attachNtLifecycleFilingContext(input, rawItem);
   await attachSec425TransactionFilingContext(input, rawItem);
+}
+
+async function attachNtLifecycleFilingContext(input: SecFilingAnalysisInput, rawItem: SecRawItemRow) {
+  const filingPackage = readRecord(input.filing_package);
+  if (!filingPackage) return;
+
+  const currentForm = normalizeSecFormForParentContext(
+    stringValue(filingPackage.form_type) || readRawFormType(rawItem),
+  );
+  if (!["10-K", "10-Q", "20-F"].includes(currentForm)) return;
+
+  const reportingPeriod = readPeriodicReportingPeriodFromInput(input);
+  if (!reportingPeriod) return;
+
+  const currentAccession = readRawAccession(rawItem);
+  const currentFiledAt = Date.parse(stringValue(rawItem.published_at) || readRawFiledDate(rawItem));
+  const currentCik = normalizeCik(readRawCik(rawItem));
+  const currentTicker = readRawTicker(rawItem);
+  const candidateRows = (await fetchGenericAmendmentParentCandidateRows(rawItem))
+    .filter((row) => readRawAccession(row) !== currentAccession)
+    .filter((row) => isMatchingNtLifecyclePeriod({
+      reportForm: currentForm,
+      noticeForm: readRawFormType(row),
+      reportPeriod: reportingPeriod,
+      noticePeriod: readPeriodicReportingPeriodFromRawRow(row),
+    }))
+    .filter((row) => {
+      const rowCik = normalizeCik(readRawCik(row));
+      const rowTicker = readRawTicker(row);
+      return Boolean(
+        (currentCik && rowCik === currentCik) ||
+        (!currentCik && currentTicker && rowTicker === currentTicker),
+      );
+    })
+    .filter((row) => {
+      const rowFiledAt = Date.parse(stringValue(row.published_at) || readRawFiledDate(row));
+      return !Number.isFinite(currentFiledAt) || !Number.isFinite(rowFiledAt) || rowFiledAt < currentFiledAt;
+    })
+    .sort((left, right) => Date.parse(stringValue(right.published_at)) - Date.parse(stringValue(left.published_at)));
+  const selectedRow = candidateRows[0];
+  if (!selectedRow) return;
+
+  const selected = await compactGenericParentRow(selectedRow);
+  const existingFilingContext = readRecord(filingPackage.filing_context) || {};
+  filingPackage.filing_context = {
+    ...existingFilingContext,
+    nt_lifecycle: {
+      version: "v1",
+      status: "delayed_report_filed",
+      reporting_period: reportingPeriod,
+      match_confidence: "high",
+      match_method: "same_issuer_form_reporting_period",
+      match_reasons: ["same_issuer", "matching_nt_form", "same_reporting_period", "filed_before_report"],
+      delayed_report: {
+        accession_number: currentAccession || null,
+        form_type: currentForm,
+        filed_at: stringValue(rawItem.published_at) || readRawFiledDate(rawItem) || null,
+      },
+      selected_filings: [{ ...selected, match_source: "nt_lifecycle" }],
+      source_notes: [
+        "The late-filing notice is linked only by issuer, base report form, and exact reporting period.",
+        "This lifecycle context is display metadata and is excluded from the periodic-report analysis prompt.",
+      ],
+    },
+  };
 }
 
 async function attachSec425TransactionFilingContext(input: SecFilingAnalysisInput, rawItem: SecRawItemRow) {
@@ -2521,16 +2595,7 @@ function normalizeSecFormForParentContext(formType: string) {
 }
 
 function readPeriodicReportingPeriodFromInput(input: SecFilingAnalysisInput) {
-  const filingPackage = readRecord(input.filing_package);
-  const hardParsers = readRecord(filingPackage?.hard_parsers);
-  const parserOutput = readRecord(hardParsers?.["periodic-reports"]);
-  const facts = readRecord(parserOutput?.facts);
-  return normalizePeriodicReportingPeriod(
-    facts?.reportingPeriod ||
-      facts?.reporting_period ||
-      filingPackage?.reporting_period ||
-      filingPackage?.period_of_report,
-  );
+  return readPeriodicReportingPeriodFromFilingPackage(input.filing_package);
 }
 
 function isSec425TransactionContextCandidateForm(formType: string) {
