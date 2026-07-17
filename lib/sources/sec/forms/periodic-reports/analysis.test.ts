@@ -13,6 +13,7 @@ import {
   buildSecPeriodicReportsAmendmentAnalysisPromptDraft,
   buildSecPeriodicReportsAnalysisPromptDraft,
   secPeriodicReportsAmendmentAnalysisResponseSchema,
+  secPeriodicReportsAmendmentAnalysisSystemPrompt,
   secPeriodicReportsAnalysisResponseSchema,
   secPeriodicReportsAnalysisSystemPrompt,
 } from "./analysisPrompt.ts";
@@ -82,6 +83,12 @@ assert.match(secPeriodicReportsAnalysisSystemPrompt, /aggregate market value hel
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /Use market context only when supplied in the site_market_context source block and only after checking current-filing/i, "analysis uses supplied market context only as fallback");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /Choose event_type directly/i, "analysis chooses representative event type");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /Do not return parser_output, display_payload, fixture_expected/i, "analysis omits integration-owned output");
+assert.match(secPeriodicReportsAnalysisSystemPrompt, /quick_take as one self-contained investor-facing sentence of roughly 18 to 32 words/i, "analysis defines quick take purpose and length");
+assert.match(secPeriodicReportsAnalysisSystemPrompt, /Never output only the issuer name, form type, filing label/i, "analysis rejects issuer-only quick take");
+assert.match(secPeriodicReportsAnalysisSystemPrompt, /Do not copy event_title or the opening of summary into quick_take/i, "analysis keeps quick take distinct");
+assert.match(secPeriodicReportsAnalysisSystemPrompt, /at least one exact core metric/i, "analysis asks for a source-backed core metric");
+assert.match(secPeriodicReportsAmendmentAnalysisSystemPrompt, /quick_take as one self-contained investor-facing sentence of roughly 14 to 28 words/i, "amendment analysis defines quick take purpose and length");
+assert.match(secPeriodicReportsAmendmentAnalysisSystemPrompt, /name the exact amended item or exhibit instead of inventing a number/i, "amendment quick take handles metric-free corrections");
 assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.key_evidence.maxItems, 3, "analysis limits key evidence");
 assert.ok(secPeriodicReportsAnalysisResponseSchema.required.includes("scoring_assessment"), "analysis requires scoring assessment");
 assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.scoring_assessment.properties.material_offsets.maxItems, 3, "analysis bounds material offsets");
