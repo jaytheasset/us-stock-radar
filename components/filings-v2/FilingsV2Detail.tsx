@@ -39,7 +39,9 @@ export function FilingsV2DetailContent({
           </div>
           <span className={styles.watchlistStatus}>
             <Bookmark aria-hidden="true" size={14} />
-            {record.watchlist ? "Watchlist" : "Not watched"}
+            <span className={styles.watchlistStatusText}>
+              {record.watchlist ? "Watchlist" : "Not watched"}
+            </span>
           </span>
         </div>
 
