@@ -1463,6 +1463,7 @@
     grid-row: 2;
     display: -webkit-box;
     overflow: hidden;
+    color: var(--sr-color-text-secondary);
     line-height: var(--sr-line-height-control);
     white-space: normal;
     -webkit-box-orient: vertical;
