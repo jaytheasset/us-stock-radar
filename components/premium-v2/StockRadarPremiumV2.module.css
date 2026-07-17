@@ -246,7 +246,7 @@
   min-width: 0;
   overflow: hidden;
   border: var(--sr-border-width) solid var(--sr-color-border);
-  border-radius: var(--sr-radius-panel);
+  border-radius: var(--sr-radius-base);
   background: var(--sr-color-surface-table-panel);
   box-shadow: var(--sr-shadow-panel);
 }
@@ -820,7 +820,7 @@
   justify-content: space-between;
   gap: var(--sr-space-5);
   border: var(--sr-border-width) solid var(--sr-color-accent-border-premium);
-  border-radius: var(--sr-radius-panel);
+  border-radius: var(--sr-radius-base);
   padding: var(--sr-space-5);
   background: var(--sr-color-accent-subtle);
 }
