@@ -1891,23 +1891,28 @@ function getDisplayLabelGuide(roomKey: string): DisplayLabelGuide | null {
     return {
       overview: [
         {
-          title: "1. UI",
-          items: ["generic", "offering_terms", "candidate_special"],
-        },
-        {
-          title: "2. Analysis focus",
+          title: "1. Analysis paths",
           items: [
-            "Financial performance and outlook",
-            "Liquidity and going concern",
-            "Controls and accounting",
-            "Legal and regulatory matters",
-            "Capital allocation",
-            "Material business updates",
-            "Amendment changes",
+            "10-K / 10-Q / 20-F: full periodic report analysis",
+            "10-K/A / 10-Q/A / 20-F/A: parent-linked delta-only amendment analysis",
+            "No router LLM",
           ],
         },
         {
-          title: "3. Event choices",
+          title: "2. Display types",
+          items: ["periodic_report", "periodic_amendment", "generic fallback"],
+        },
+        {
+          title: "3. Evidence and validation",
+          items: [
+            "Original cleaned source blocks",
+            "XBRL facts with period, unit, and dimensional scope",
+            "Parent filing context for amendments",
+            "One source-backed validator repair attempt",
+          ],
+        },
+        {
+          title: "4. Event choices",
           items: [
             "earnings",
             "sales_performance",
@@ -1928,152 +1933,74 @@ function getDisplayLabelGuide(roomKey: string): DisplayLabelGuide | null {
       ],
       detailModes: [
         {
-          mode: "generic periodic report payload",
-          purpose: "Default 10-K, 10-Q, or 20-F detail payload built from parser facts and direct analysis output.",
+          mode: "periodic_report",
+          purpose: "Investor analysis for a substantive 10-K, 10-Q, or 20-F. The LLM receives bounded original source blocks and chooses one representative event type without a router.",
           groups: [
             {
-              title: "Display payload",
-              items: ["display_type", "data.version", "data.event_type", "data.form_type", "data.accession_number", "evidence", "notes"],
+              title: "Snapshot",
+              items: ["snapshot_intro", "snapshot_metrics (up to 4)"],
             },
             {
-              title: "Filing identity",
-              items: ["Company name", "Primary ticker", "Exchange", "Reporting period", "Fiscal year", "Fiscal quarter", "Form type"],
+              title: "Performance & outlook",
+              items: ["performance_comparisons (up to 3)", "guidance_metrics (up to 3)", "YoY preferred; QoQ only when comparable YoY is unavailable"],
             },
             {
-              title: "Analysis fields",
-              items: ["event_type", "score", "signal", "confidence", "source_blocks_used"],
+              title: "Supporting analysis",
+              items: ["key_business_updates (up to 3)", "quick_take", "summary", "score_reason", "key_evidence", "what_to_watch_next"],
             },
           ],
         },
         {
-          mode: "earnings_results / sales_performance",
-          purpose: "Quarterly or annual operating results, revenue demand, bookings, subscribers, margin, or sales deterioration.",
+          mode: "periodic_amendment",
+          purpose: "Delta-only analysis for 10-K/A, 10-Q/A, or 20-F/A. The amendment is compared with its matched parent report and is not presented as a new full-period analysis.",
           groups: [
             {
-              title: "Result labels",
-              items: ["Revenue", "Net income / loss", "EPS", "Gross margin", "Operating loss", "Cash balance", "Bookings", "Subscribers / units"],
+              title: "Amendment identity",
+              items: ["amendment_type", "parent_accession_number", "affected_period", "amended_items", "financial_statements_changed"],
             },
             {
-              title: "Analysis outcomes",
-              items: ["earnings", "sales_performance", "financial_risk", "other"],
+              title: "Changed information",
+              items: ["snapshot_intro", "snapshot_metrics (up to 4)", "changed_metrics (up to 3)", "change_details (up to 4)"],
             },
             {
-              title: "Event choices",
-              items: ["earnings", "sales_performance", "financial_risk", "other"],
+              title: "Impact",
+              items: ["accounting_or_control_impact", "investor_impact", "Routine administrative changes remain archive-level after LLM analysis"],
             },
           ],
         },
         {
-          mode: "going_concern_or_liquidity",
-          purpose: "Going-concern language, liquidity runway, debt stress, covenant/default risk, or working-capital pressure.",
+          mode: "source_bundle",
+          purpose: "Parser and source-selection diagnostics. Parser output structures evidence but does not assign event type, score, signal, delivery, or calendar events.",
           groups: [
             {
-              title: "Risk labels",
-              items: ["Going concern", "Substantial doubt", "Cash runway", "Working capital deficit", "Debt maturity", "Default / waiver", "Covenant risk"],
+              title: "Selection limits",
+              items: ["Up to 24 cleaned source blocks", "Up to 48,000 selected characters", "Up to 4,000 characters per block"],
             },
             {
-              title: "Parser evidence labels",
-              items: ["going_concern_language", "liquidity_or_cash_runway_language", "debt_default_or_covenant_language"],
+              title: "Preferred evidence",
+              items: ["Report context", "Financial statements and MD&A", "Risk and controls sections", "Core XBRL facts", "Material attachment text"],
             },
             {
-              title: "Event choices",
-              items: ["financial_risk", "dilution_risk", "listing_risk"],
+              title: "Excluded as authority",
+              items: ["Parser summaries", "Parser event labels", "Inventory metadata", "Warnings without original evidence"],
             },
           ],
         },
         {
-          mode: "legal_or_regulatory_risk / controls",
-          purpose: "Legal proceedings, investigations, enforcement actions, restatements, non-reliance, or internal-control problems.",
+          mode: "scoring_and_repair",
+          purpose: "The analysis LLM scores investor attention and direction separately. Validator warnings may trigger one narrowly scoped, source-backed repair attempt.",
           groups: [
             {
-              title: "Legal labels",
-              items: ["Litigation", "SEC / DOJ investigation", "Subpoena", "Settlement", "Loss contingency", "Regulatory proceeding"],
+              title: "Scoring assessment",
+              items: ["market_cap_tier", "primary_change_severity", "operating_direction", "cash_flow_direction", "guidance_direction", "earnings_quality"],
             },
             {
-              title: "Controls / accounting labels",
-              items: ["Material weakness", "Restatement", "Non-reliance", "Amended financials", "Disclosure controls"],
+              title: "Visible output",
+              items: ["score", "signal", "score_reason", "material_offsets", "alert_driver"],
             },
             {
-              title: "Parser evidence labels",
-              items: ["legal_or_regulatory_proceedings", "material_weakness_language", "restatement_indicator", "material_weakness_or_controls_change_in_amendment"],
-            },
-          ],
-        },
-        {
-          mode: "dividend_or_capital_return",
-          purpose: "Dividend, special dividend, buyback authorization, issuer purchases, or capital-return changes disclosed in the periodic report.",
-          groups: [
-            {
-              title: "Capital-return labels",
-              items: ["Dividend declared", "Special dividend", "Record date", "Payable date", "Share repurchase authorization", "Shares repurchased"],
-            },
-            {
-              title: "Parser evidence labels",
-              items: ["dividend_declaration_or_payment", "dividend_record_date", "dividend_payable_date", "share_repurchase_activity_or_authorization"],
-            },
-            {
-              title: "Event choices",
-              items: ["dividends", "capital_return"],
-            },
-          ],
-        },
-        {
-          mode: "business / listing / governance updates",
-          purpose: "Non-earnings business updates that dominate the periodic report impact.",
-          groups: [
-            {
-              title: "Business labels",
-              items: ["Product launch", "Clinical update", "FDA milestone", "Customer rollout", "Strategic transaction", "Asset sale"],
-            },
-            {
-              title: "Listing / governance labels",
-              items: ["Minimum bid deficiency", "Delisting notice", "Cure deadline", "Board / CEO / CFO change", "Shareholder vote"],
-            },
-            {
-              title: "Parser evidence labels",
-              items: [
-                "product_launch_or_customer_rollout_language",
-                "fda_or_clinical_trial_language",
-                "exchange_deficiency_or_delisting_notice",
-                "leadership_or_board_change_language",
-                "shareholder_vote_or_annual_meeting_language",
-              ],
-            },
-          ],
-        },
-        {
-          mode: "amendment handling",
-          purpose: "10-K/A, 10-Q/A, and 20-F/A should be scored by what changed in the amendment, not by the full original report.",
-          groups: [
-            {
-              title: "Amendment fields",
-              items: ["is_amendment", "amendment_number", "explanatory_note", "amended_items", "parent_accession_number", "original_filing_date"],
-            },
-            {
-              title: "Routine archive labels",
-              items: ["XBRL-only", "Certification-only", "Signature-only", "No other changes", "Routine amendment no LLM"],
-            },
-            {
-              title: "Material amendment labels",
-              items: ["Financial statement change", "Restatement", "Going-concern change", "Controls change", "Legal proceeding change", "Listing-risk change"],
-            },
-          ],
-        },
-        {
-          mode: "source inventory / table summary",
-          purpose: "Parser/debug context for whether the periodic report source package was complete enough to analyze.",
-          groups: [
-            {
-              title: "Source inventory",
-              items: ["document_count", "attachment_text_count", "xbrl_fact_count", "has_primary_document", "has_inline_xbrl_document", "has_truncated_source"],
-            },
-            {
-              title: "Table summary",
-              items: ["classification", "confidence", "type_hints", "caption", "unit_hint", "row_count", "column_count", "numeric_cell_count"],
-            },
-            {
-              title: "Coverage warnings",
-              items: ["missingCriticalRawData", "hasPotentiallyUselessRawData", "parser_warnings", "noiseCandidates"],
+              title: "Repair boundary",
+              items: ["One repair attempt only", "Only warning-relevant original source blocks", "Unresolved warnings remain visible; no retry loop"],
             },
           ],
         },

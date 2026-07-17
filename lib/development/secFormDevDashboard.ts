@@ -27,6 +27,14 @@ import {
 import { buildS1F1AnalysisPrompt } from "@/lib/sources/sec/forms/s1-f1/analysisPrompt";
 import { parseS1F1Filing } from "@/lib/sources/sec/forms/s1-f1/parser";
 import {
+  buildSecPeriodicReportsAmendmentAnalysisPromptDraft,
+  buildSecPeriodicReportsAnalysisPromptDraft,
+} from "@/lib/sources/sec/forms/periodic-reports/analysisPrompt";
+import {
+  parseSecPeriodicReport,
+  type SecPeriodicReportParseInput,
+} from "@/lib/sources/sec/forms/periodic-reports/parser";
+import {
   buildProxyAnalysisPrompt,
 } from "@/lib/sources/sec/forms/proxy/analysisPrompt";
 import { parseProxyFiling } from "@/lib/sources/sec/forms/proxy/parser";
@@ -189,7 +197,12 @@ export const SEC_DEV_ROOMS: SecDevRoom[] = [
     forms: ["DEF 14A", "PRE 14A", "DEFA14A", "DEFM14A", "PREM14A", "DEFC14A", "PREC14A"],
     folder: "proxy",
   },
-  { key: "periodic-reports", label: "Periodic Reports", forms: ["10-K", "10-Q", "20-F"], folder: "periodic-reports" },
+  {
+    key: "periodic-reports",
+    label: "Periodic Reports",
+    forms: ["10-K", "10-K/A", "10-Q", "10-Q/A", "20-F", "20-F/A"],
+    folder: "periodic-reports",
+  },
   { key: "s8", label: "S-8", forms: ["S-8", "S-8/A", "S-8 POS"], folder: "s8" },
   { key: "sc13", label: "13D / SC 13D", forms: ["SC 13D", "SC 13D/A", "SC 13G", "SC 13G/A"], folder: "sc13" },
   { key: "nt", label: "NT Reports", forms: ["NT 10-K", "NT 10-Q", "NT 20-F"], folder: "nt" },
@@ -2053,11 +2066,12 @@ async function deleteSecDerivedRows(
 
 async function readRoomFiles(room: SecDevRoom, testFiles: string[], fixtures: string[], expected: string[]) {
   const base = path.join(FORMS_ROOT, room.folder);
+  const analysisOnlyRoom = room.key === "proxy" || room.key === "periodic-reports";
   const primaryFiles = [
     ["parser", "parser.ts"],
     ["adapter", "adapter.ts"],
     ["adapter", "index.ts"],
-    ...(room.key === "proxy" ? [] : ([["prompt", "routerPrompt.ts"], ["prompt", "router.ts"]] as const)),
+    ...(analysisOnlyRoom ? [] : ([["prompt", "routerPrompt.ts"], ["prompt", "router.ts"]] as const)),
     ["prompt", "analysisPrompt.ts"],
     ["prompt", "analysis.ts"],
     ["display", "displayPayload.ts"],
@@ -2178,7 +2192,10 @@ function resolveOutputPreviewFormType(
 
 async function readPromptPreviews(room: SecDevRoom): Promise<SecDevPromptPreview[]> {
   const base = path.join(FORMS_ROOT, room.folder);
-  const promptFiles = room.key === "proxy" ? ["analysisPrompt.ts", "analysis.ts"] : ["routerPrompt.ts", "router.ts", "analysisPrompt.ts", "analysis.ts"];
+  const analysisOnlyRoom = room.key === "proxy" || room.key === "periodic-reports";
+  const promptFiles = analysisOnlyRoom
+    ? ["analysisPrompt.ts", "analysis.ts"]
+    : ["routerPrompt.ts", "router.ts", "analysisPrompt.ts", "analysis.ts"];
   const previews: SecDevPromptPreview[] = [];
 
   for (const file of promptFiles) {
@@ -2192,6 +2209,8 @@ async function readPromptPreviews(room: SecDevRoom): Promise<SecDevPromptPreview
             ? buildS1F1PromptVariantPreviews()
             : room.key === "proxy" && file === "analysisPrompt.ts"
               ? buildProxyPromptVariantPreviews()
+              : room.key === "periodic-reports" && file === "analysisPrompt.ts"
+                ? await buildPeriodicReportsPromptVariantPreviews(base)
             : extractPromptTemplateLiterals(raw);
       if (prompts.length) {
         previews.push({ file, prompts });
@@ -2292,6 +2311,56 @@ function buildProxyPromptVariantPreviews() {
       ),
     },
   ];
+}
+
+async function buildPeriodicReportsPromptVariantPreviews(base: string) {
+  const cases = [
+    {
+      file: "routine-10q-earnings.json",
+      name: "Periodic report analysis (10-K / 10-Q / 20-F)",
+      amendment: false,
+    },
+    {
+      file: "routine-amendment-10qa.json",
+      name: "Periodic amendment analysis (10-K/A / 10-Q/A / 20-F/A)",
+      amendment: true,
+    },
+  ] as const;
+  const previews: Array<{ name: string; text: string }> = [];
+
+  for (const previewCase of cases) {
+    const raw = await fs.readFile(path.join(base, "fixtures", previewCase.file), "utf8");
+    const fixture = readRecord(JSON.parse(raw));
+    const filing = readRecord(fixture?.filing);
+    if (!filing) continue;
+
+    const parserOutput = parseSecPeriodicReport(filing as SecPeriodicReportParseInput);
+    const promptInput = {
+      parser_output: parserOutput,
+      filing_excerpt: stringValue(filing.bodyText),
+      market_context: readRecord(fixture?.market_context),
+      parent_filing_context: readRecord(filing.parentFilingContext),
+    };
+    const prompt = previewCase.amendment
+      ? buildSecPeriodicReportsAmendmentAnalysisPromptDraft(promptInput)
+      : buildSecPeriodicReportsAnalysisPromptDraft(promptInput);
+
+    previews.push({
+      name: previewCase.name,
+      text: normalizePromptPreviewText([
+        `Prompt key: ${prompt.key}`,
+        `Prompt version: ${prompt.version}`,
+        "",
+        "SYSTEM",
+        prompt.system,
+        "",
+        "EXAMPLE DYNAMIC USER PAYLOAD",
+        prompt.user,
+      ].join("\n")),
+    });
+  }
+
+  return previews;
 }
 
 function extractPromptTemplateLiterals(source: string) {
