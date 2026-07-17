@@ -67,6 +67,7 @@ import {
   buildSecOwnershipAnalysisPrompt,
   buildSecNtAnalysisPromptForInput,
   buildSecNtValidationRepairPlan,
+  enforceSecNtPostRepairInvariants,
   buildSecOwnershipValidationRepairPlan,
   buildSecPeriodicReportsAnalysisPromptForInput,
   buildSecPeriodicReportsValidationRepairPlan,
@@ -2234,7 +2235,11 @@ export async function runSecFilingAnalysisForRawRow(
     let repairIgnoredPaths: string[] = [];
     let repairUnresolved: unknown[] = [];
     if (repairPlan) {
-      repairRun = await runOpenAiJsonPrompt(env, repairPlan.prompt, llmConfig, {
+      const ntRepairLlmConfig =
+        llmConfig.provider === "gemini" && llmConfig.model === "gemini-2.5-flash-lite"
+          ? { ...llmConfig, model: "gemini-2.5-flash", fallbackModel: undefined }
+          : llmConfig;
+      repairRun = await runOpenAiJsonPrompt(env, repairPlan.prompt, ntRepairLlmConfig, {
         maxAttempts: 1,
         disableFallback: true,
       });
@@ -2250,6 +2255,11 @@ export async function runSecFilingAnalysisForRawRow(
         repairUnresolved = repairApplication.unresolved;
       }
     }
+    const postRepairEnforcement = enforceSecNtPostRepairInvariants({
+      analysisResult: repairedValue,
+      input,
+    });
+    repairedValue = postRepairEnforcement.value;
     const usage = combineUsage(analysisRun.usage, repairRun?.usage);
     const validationRepair = repairPlan
       ? {
@@ -2262,8 +2272,19 @@ export async function runSecFilingAnalysisForRawRow(
           ignored_patch_paths: repairIgnoredPaths,
           unresolved: repairUnresolved,
           error: repairRun?.error || null,
+          repair_model: repairRun?.model || null,
+          post_repair_guard_applied: postRepairEnforcement.applied,
+          post_repair_guard_paths: postRepairEnforcement.appliedPaths,
+          post_repair_guard_reason: postRepairEnforcement.reason,
+          remaining_issue_codes: postRepairEnforcement.remainingWarnings.map((warning) => warning.code),
         }
-      : { attempted: false };
+      : {
+          attempted: false,
+          post_repair_guard_applied: postRepairEnforcement.applied,
+          post_repair_guard_paths: postRepairEnforcement.appliedPaths,
+          post_repair_guard_reason: postRepairEnforcement.reason,
+          remaining_issue_codes: postRepairEnforcement.remainingWarnings.map((warning) => warning.code),
+        };
     const ntAnalysis = adaptSecNtAnalysisPromptResultForAnalysis(repairedValue, input);
     if (!ntAnalysis.ok) {
       return {
@@ -2303,7 +2324,16 @@ export async function runSecFilingAnalysisForRawRow(
       openAiResponseId: analysisRun.openAiResponseId,
       sourceItem: summarizeRawRow(rawItem),
       input,
-      analysis: ntAnalysis.analysis,
+      analysis: {
+        ...ntAnalysis.analysis,
+        nt_validation_repair: validationRepair,
+        nt_post_repair_enforcement: {
+          applied: postRepairEnforcement.applied,
+          applied_paths: postRepairEnforcement.appliedPaths,
+          reason: postRepairEnforcement.reason,
+          remaining_issue_codes: postRepairEnforcement.remainingWarnings.map((warning) => warning.code),
+        },
+      },
       outputText: analysisRun.outputText,
       repairOutputText: repairRun?.outputText,
       usage,

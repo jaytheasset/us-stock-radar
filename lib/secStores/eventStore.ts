@@ -132,6 +132,11 @@ export async function saveAnalyzedSecFilingEvent({
       market_context: marketContext,
       dilution_metrics: dilutionMetrics,
       related_tickers: analysis.related_tickers || [],
+      nt_validation_warnings: Array.isArray(analysis.nt_validation_warnings)
+        ? analysis.nt_validation_warnings
+        : [],
+      nt_validation_repair: toRecord(analysis.nt_validation_repair),
+      nt_post_repair_enforcement: toRecord(analysis.nt_post_repair_enforcement),
     },
   };
 

@@ -18,7 +18,7 @@ export {
 };
 
 export const SEC_NT_VALIDATION_REPAIR_PROMPT_KEY = "sec_nt_validation_repair";
-export const SEC_NT_VALIDATION_REPAIR_PROMPT_VERSION = "v3-concise-snapshot";
+export const SEC_NT_VALIDATION_REPAIR_PROMPT_VERSION = "v4-material-results-guard";
 
 export type SecNtAnalysisAdapterResult =
   | { ok: true; analysis: Record<string, unknown> }
@@ -37,6 +37,14 @@ export type SecNtValidationRepairPlan = {
   issues: SecNtScoringWarning[];
   allowedPatchPaths: string[];
   sourceBlockIds: string[];
+};
+
+export type SecNtPostRepairEnforcement = {
+  value: Record<string, unknown>;
+  applied: boolean;
+  appliedPaths: string[];
+  reason: string | null;
+  remainingWarnings: SecNtScoringWarning[];
 };
 
 export function isSecNtFilingInput(input: SecFilingAnalysisInput) {
@@ -315,6 +323,91 @@ export function applySecNtValidationRepairPatches({
   return applySecValidationRepairPatches({ analysisResult, repairResult, allowedPatchPaths });
 }
 
+export function enforceSecNtPostRepairInvariants({
+  analysisResult,
+  input,
+}: {
+  analysisResult: Record<string, unknown>;
+  input: SecFilingAnalysisInput;
+}): SecNtPostRepairEnforcement {
+  const initialWarnings = collectSecNtScoringWarnings(analysisResult, input);
+  const materialResultsWarning = initialWarnings.find(
+    (warning) => warning.code === "material_results_change_classified_routine",
+  );
+  if (!materialResultsWarning) {
+    return {
+      value: analysisResult,
+      applied: false,
+      appliedPaths: [],
+      reason: null,
+      remainingWarnings: initialWarnings,
+    };
+  }
+
+  const parserOutput = readSecNtParserOutput(input);
+  const significantChange = parserOutput?.facts.partIv.significantChange;
+  const assessment = normalizeNtScoringAssessment(analysisResult.nt_scoring_assessment);
+  const sourceChange = [assessment.results_change, significantChange?.explanation]
+    .map(stringValue)
+    .filter(Boolean)
+    .join(" ");
+  const quantified = significantChange?.quantitativeDisclosurePresent === true;
+  const scoreFloor = quantified ? 60 : 50;
+  const currentScore = clampScore(analysisResult.score);
+  const eventType = normalizeEventType(analysisResult.event_type) === "other"
+    ? inferNtResultsEventType(sourceChange)
+    : normalizeEventType(analysisResult.event_type);
+  const direction = inferNtResultsDirection(sourceChange);
+  const signal = normalizeSignal(analysisResult.signal) === "neutral"
+    ? direction === "negative"
+      ? "bearish"
+      : "volatile"
+    : normalizeSignal(analysisResult.signal);
+  const nextScore = Math.max(currentScore, scoreFloor);
+  const nextSeverity = nextScore >= 75 ? "major" : nextScore >= 60 ? "meaningful" : "limited";
+  const resultLabel = eventType === "sales_performance" ? "sales change" : "earnings change";
+  const rationale = direction === "negative"
+    ? `The quantified ${resultLabel} is materially negative despite the expected extension-period filing.`
+    : direction === "positive"
+      ? `The quantified ${resultLabel} is material, while the late filing keeps the near-term signal volatile.`
+      : `The quantified ${resultLabel} requires investor review despite the expected extension-period filing.`;
+  const next = JSON.parse(JSON.stringify(analysisResult)) as Record<string, unknown>;
+  const appliedPaths = [
+    "/event_type",
+    "/score",
+    "/signal",
+    "/score_reason",
+    "/score_explanation/summary",
+    "/nt_scoring_assessment/severity",
+  ];
+
+  next.event_type = eventType;
+  next.score = nextScore;
+  next.signal = signal;
+  next.score_reason = rationale;
+  next.score_explanation = {
+    ...(readRecord(next.score_explanation) || {}),
+    summary: rationale,
+  };
+  next.nt_scoring_assessment = {
+    ...(readRecord(next.nt_scoring_assessment) || {}),
+    severity: nextSeverity,
+    alert_driver:
+      nextScore >= 75
+        ? nullableString(assessment.alert_driver) || assessment.results_change
+        : nullableString(assessment.alert_driver),
+  };
+  next.needs_human_review = true;
+
+  return {
+    value: next,
+    applied: true,
+    appliedPaths,
+    reason: "A source-backed material results change remained routine or below the minimum score after the single repair attempt.",
+    remainingWarnings: collectSecNtScoringWarnings(next, input),
+  };
+}
+
 function buildNtValidationRepairPrompt({
   analysisResult,
   issues,
@@ -415,6 +508,28 @@ function ntRepairSourceBlockScore(block: Record<string, unknown>) {
   if (type === "nt_part_iii") return 180;
   if (type === "nt_accountant_statement") return 120;
   return 0;
+}
+
+function inferNtResultsEventType(value: string) {
+  if (/\b(?:net income|comprehensive income|operating income|profit|loss|earnings|e\.?p\.?s\.?)\b/i.test(value)) {
+    return "earnings";
+  }
+  if (/\b(?:revenue|sales|orders?|margin)\b/i.test(value)) return "sales_performance";
+  return "earnings";
+}
+
+function inferNtResultsDirection(value: string): "positive" | "negative" | "mixed" {
+  if (
+    /profit[^.]{0,80}(?:to|into)[^.]{0,40}loss|loss[^.]{0,80}(?:increase|widen|higher|greater)|(?:declin|decreas|deterior|fell|lower)[a-z]*[^.]{0,80}(?:revenue|sales|income|profit|earnings)/i.test(value)
+  ) {
+    return "negative";
+  }
+  if (
+    /loss[^.]{0,80}(?:to|into)[^.]{0,40}profit|(?:net income|comprehensive income|operating income|profit|earnings|revenue|sales)[^.]{0,100}(?:increase|improv|rose|grew|higher|surge)/i.test(value)
+  ) {
+    return "positive";
+  }
+  return "mixed";
 }
 
 function buildNtRepairIssue(code: string, warning: string, paths: string[]): SecNtScoringWarning {

@@ -4,7 +4,7 @@ import { buildSecSourceBlockPromptInput } from "../common/sourceBlockPromptInput
 import { NT_APPROVED_EVENT_TYPES, type NtParserOutput } from "./types";
 
 export const SEC_NT_ANALYSIS_PROMPT_KEY = "sec_nt_analysis";
-export const SEC_NT_ANALYSIS_PROMPT_VERSION = "v5-concise-snapshot";
+export const SEC_NT_ANALYSIS_PROMPT_VERSION = "v6-material-results-floor";
 
 const ntAnalysisResponseSchema = {
   ...secFilingAnalysisResponseSchema,
@@ -118,6 +118,7 @@ export const secNtAnalysisSystemPrompt = [
   "Do not assign points from one percentage alone. Use disclosed direction, breadth across the income statement, reliability risk, timing, and material offsets to choose a score within the applicable band.",
   "Missing or unclear information is uncertainty, not proof of a negative event. Do not fill gaps with bearish assumptions.",
   "For a disclosed positive results change, score materiality normally but account for the reporting delay as an offset; use volatile when positive performance and reporting uncertainty are both material.",
+  "A large quantified positive earnings change is not a routine filing-delay event. Classify it as earnings, use at least meaningful severity, and treat within-extension filing as an offset rather than the primary classification.",
   "Score measures investor attention and urgency; signal measures direction. Neutral signal must have score below 75. A score of 75 or above requires a concise source-backed nt_scoring_assessment.alert_driver.",
   "If the filing is an amendment, analyze what the amendment changes and do not present the entire original late-filing event as new unless the source blocks show a material change.",
   "Use plain investor language and explain the practical consequence of the delay.",

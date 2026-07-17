@@ -141,6 +141,7 @@ import {
   applySecNtValidationRepairPatches,
   buildSecNtAnalysisPromptForInput,
   buildSecNtValidationRepairPlan,
+  enforceSecNtPostRepairInvariants,
   isSecNtFilingInput,
 } from "@/lib/ai/secNtAnalysisAdapter";
 
@@ -238,6 +239,7 @@ export {
   buildSecPeriodicReportsAnalysisPromptForInput,
   buildSecNtAnalysisPromptForInput,
   buildSecNtValidationRepairPlan,
+  enforceSecNtPostRepairInvariants,
   buildSecPeriodicReportsValidationRepairPlan,
   buildSecTenderAnalysisPromptForInput,
   buildSecSc13AnalysisPromptForInput,

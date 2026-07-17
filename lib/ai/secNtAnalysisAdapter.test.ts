@@ -6,6 +6,7 @@ import {
   buildSecNtAnalysisPromptForInput,
   buildSecNtValidationRepairPlan,
   collectSecNtScoringWarnings,
+  enforceSecNtPostRepairInvariants,
   isSecNtFilingInput,
 } from "./secNtAnalysisAdapter";
 import { parseNtFiling } from "../sources/sec/forms/nt/parser";
@@ -107,6 +108,44 @@ test("NT validator repairs routine classifications when Part IV discloses materi
   assert.ok(repairPlan?.sourceBlockIds.length);
   assert.ok(repairPlan?.allowedPatchPaths.includes("/event_type"));
   assert.ok(repairPlan?.allowedPatchPaths.includes("/score"));
+});
+
+test("NT post-repair guard prevents quantified earnings changes from remaining routine archives", () => {
+  const input = makePositiveMaterialResultsInput();
+  const enforcement = enforceSecNtPostRepairInvariants({
+    input,
+    analysisResult: {
+      event_type: "other",
+      score: 35,
+      signal: "neutral",
+      score_reason: "The report is expected within the extension period.",
+      score_explanation: { summary: "A routine filing delay." },
+      nt_scoring_assessment: {
+        delay_status: "within_extension",
+        underlying_issue: "Annual report completion delay",
+        results_change: "Net income SGD32K to SGD3.9M",
+        financial_reliability_risk: "none",
+        severity: "routine",
+        material_offset: "Filing expected within the extension period",
+        alert_driver: null,
+      },
+    },
+  });
+
+  assert.equal(enforcement.applied, true);
+  assert.equal(enforcement.value.event_type, "earnings");
+  assert.equal(enforcement.value.score, 60);
+  assert.equal(enforcement.value.signal, "volatile");
+  assert.equal(
+    (enforcement.value.nt_scoring_assessment as Record<string, unknown>).severity,
+    "meaningful",
+  );
+  assert.equal(
+    enforcement.remainingWarnings.some(
+      (warning) => warning.code === "material_results_change_classified_routine",
+    ),
+    false,
+  );
 });
 
 test("NT scoring validator catches overstated routine and neutral alert outputs", () => {
@@ -240,6 +279,35 @@ function makeMaterialResultsInput() {
       form_type: "NT 10-K",
       company_name: "Material Change Issuer Inc.",
       ticker: "MCI",
+      exchange: "Nasdaq",
+      hard_parsers: { nt: parserOutput },
+    },
+  };
+}
+
+function makePositiveMaterialResultsInput() {
+  const parserOutput = parseNtFiling({
+    formType: "NT 20-F",
+    accessionNumber: "0000000000-26-000003",
+    companyName: "Positive Change Issuer Ltd.",
+    ticker: "PCI",
+    exchange: "Nasdaq",
+    filingText: [
+      "FORM 12b-25 NOTIFICATION OF LATE FILING",
+      "PART I - REGISTRANT INFORMATION Positive Change Issuer Ltd.",
+      "PART II - RULE 12b-25(b) AND (c) The subject Form 20-F will be filed within fifteen calendar days.",
+      "PART III - NARRATIVE Additional time is required to complete and finalize the annual report.",
+      "PART IV - OTHER INFORMATION",
+      "Is it anticipated that any significant change in results of operations will be reflected? Yes.",
+      "Net income is expected to increase to SGD3.9 million from SGD32 thousand in the prior year.",
+      "SIGNATURE",
+    ].join("\n"),
+  });
+  return {
+    filing_package: {
+      form_type: "NT 20-F",
+      company_name: "Positive Change Issuer Ltd.",
+      ticker: "PCI",
       exchange: "Nasdaq",
       hard_parsers: { nt: parserOutput },
     },
