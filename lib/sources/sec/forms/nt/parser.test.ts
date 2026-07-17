@@ -52,7 +52,7 @@ test("NT parser extracts source-backed facts from fixture JSON only", () => {
   }
 });
 
-test("routine NT 10-Q fixture proves deterministic non-LLM path", () => {
+test("routine NT 10-Q fixture preserves facts for LLM analysis", () => {
   const fixture = loadFixture("routine-nt-10q");
   const actual = parseNtFiling(fixture.source);
 
@@ -118,7 +118,7 @@ test("NT parser detects inline accountant statements and no-reliance/restatement
   assert.ok(restatement.facts.sourceTextFlags.includes("no_reliance_or_restatement_terms"));
 });
 
-test("routine NT 10-K no-change fixture proves annual deterministic non-LLM path", () => {
+test("routine NT 10-K no-change fixture preserves annual facts for LLM analysis", () => {
   const actual = parseNtFiling(loadFixture("routine-nt-10k-no-change").source);
 
   assert.equal(actual.formType, "NT 10-K");

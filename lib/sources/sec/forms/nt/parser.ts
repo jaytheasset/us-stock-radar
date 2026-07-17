@@ -196,18 +196,6 @@ export function parseNtFiling(input: NtFilingInput): NtParserOutput {
     detectNoRelianceOrRestatement(normalizedText);
   const portionOnly = detectPortionOnlyFacts(normalizedText, sections);
   const electronicFilingDifficulty = detectElectronicFilingDifficulty(lateFilingReason);
-  const deterministicClassification = classifyNtDeterministically({
-    isAmendment,
-    isTransitionReport,
-    lateFilingReason,
-    significantChangeExpected,
-    anticipatedWithinExtension,
-    noRelianceOrRestatementDisclosed,
-    partIiiNarrativeFlags,
-    partIv,
-    portionOnly,
-    electronicFilingDifficulty,
-  });
   const sourceText = [
     lateFilingReason,
     significantChangeDescription,
@@ -332,7 +320,6 @@ export function parseNtFiling(input: NtFilingInput): NtParserOutput {
       partIiiNarrativeFlags,
       portionOnly,
       electronicFilingDifficulty,
-      deterministicClassification,
       sourceTextFlags,
       rawDataQuality,
       sourceExcerpts,
@@ -2004,163 +1991,6 @@ function isElectronicFilingPrimaryReason(partIiiText: string, matchIndex: number
   const hasOperationalReason =
     /\b(audit|auditor|accountant|financial\s+statements?|consolidation|review\s+procedures|internal\s+control|revenue|sales|inventory|valuation|tax|restatement|liquidity|going\s+concern)\b/i.test(firstReason);
   return matchIndex <= 220 && !hasOperationalReason;
-}
-
-function classifyNtDeterministically(args: {
-  isAmendment: boolean;
-  isTransitionReport: boolean;
-  lateFilingReason: string | null;
-  significantChangeExpected: boolean | null;
-  anticipatedWithinExtension: boolean | null;
-  noRelianceOrRestatementDisclosed: boolean;
-  partIiiNarrativeFlags: string[];
-  partIv: NtPartIvFacts;
-  portionOnly: NtPortionOnlyFacts;
-  electronicFilingDifficulty: NtElectronicFilingDifficultyFacts;
-}): NtParserOutput["facts"]["deterministicClassification"] {
-  const evidence = [
-    args.lateFilingReason,
-    args.partIv.significantChange.explanation,
-    args.partIv.otherPeriodicReports.explanation,
-    args.electronicFilingDifficulty.evidence,
-    args.portionOnly.evidence,
-  ]
-    .filter(Boolean)
-    .map((item) => clip(item as string, 260));
-
-  const ambiguous =
-    !args.lateFilingReason ||
-    args.isAmendment ||
-    args.isTransitionReport ||
-    args.partIv.significantChange.ambiguous ||
-    args.partIv.otherPeriodicReports.ambiguous ||
-    args.partIv.significantChange.foundByFallback ||
-    args.partIv.otherPeriodicReports.foundByFallback ||
-    args.significantChangeExpected === null;
-
-  const base = {
-    display_type: "generic" as const,
-    display_version: "nt_late_filing_v1",
-    evidence,
-  };
-
-  if (
-    !ambiguous &&
-    args.significantChangeExpected === false &&
-    args.anticipatedWithinExtension === true &&
-    !args.noRelianceOrRestatementDisclosed &&
-    !hasFinancialRiskLanguage(args.lateFilingReason) &&
-    !hasSalesPerformanceLanguage(args.partIv.significantChange.explanation) &&
-    !hasLegalRiskLanguage(args.lateFilingReason) &&
-    !hasListingRiskLanguage(args.lateFilingReason)
-  ) {
-    return {
-      ...base,
-      event_type: "other",
-      confidence: "high",
-      reason: "Routine NT filing expects to file within the Rule 12b-25 extension and answers No to significant results change.",
-      router_required: false,
-    };
-  }
-
-  if (ambiguous) {
-    return {
-      ...base,
-      event_type: null,
-      confidence: "low",
-      reason: "Late-filing reason or Part IV answers are ambiguous; router/classifier should choose event type.",
-      router_required: true,
-    };
-  }
-
-  if (hasListingRiskLanguage(args.lateFilingReason)) {
-    return {
-      ...base,
-      event_type: "listing_risk",
-      confidence: "high",
-      reason: "Late-filing reason contains exchange-listing or delisting language.",
-      router_required: false,
-    };
-  }
-
-  if (hasLegalRiskLanguage(args.lateFilingReason)) {
-    return {
-      ...base,
-      event_type: "legal_risk",
-      confidence: "high",
-      reason: "Late-filing reason contains litigation, investigation, subpoena, enforcement, or regulatory language.",
-      router_required: false,
-    };
-  }
-
-  if (
-    args.noRelianceOrRestatementDisclosed ||
-    hasFinancialRiskLanguage(args.lateFilingReason) ||
-    args.partIiiNarrativeFlags.some((flag) =>
-      [
-        "part_iii_restatement_correction_terms",
-        "part_iii_audit_review_terms",
-        "part_iii_internal_control_terms",
-        "part_iii_liquidity_default_terms",
-      ].includes(flag),
-    )
-  ) {
-    return {
-      ...base,
-      event_type: "financial_risk",
-      confidence: "high",
-      reason: "Source-backed facts show accounting, audit, restatement, internal-control, liquidity, or financial-statement completion risk.",
-      router_required: false,
-    };
-  }
-
-  if (args.significantChangeExpected === true && hasSalesPerformanceLanguage(args.partIv.significantChange.explanation)) {
-    return {
-      ...base,
-      event_type: "sales_performance",
-      confidence: "high",
-      reason: "Part IV Q3 explanation contains source-backed sales, revenue, customer-order, or margin change language.",
-      router_required: false,
-    };
-  }
-
-  if (args.significantChangeExpected === true) {
-    return {
-      ...base,
-      event_type: "earnings",
-      confidence: "medium",
-      reason: "Part IV Q3 is answered Yes without a more specific sales-performance or financial-risk classification.",
-      router_required: false,
-    };
-  }
-
-  return {
-    ...base,
-    event_type: "other",
-    confidence: "medium",
-    reason: "No more specific source-backed NT event classification was safely identified.",
-    router_required: false,
-  };
-}
-
-function hasFinancialRiskLanguage(value: string | null): boolean {
-  return Boolean(value) &&
-    /\b(accounting|audit|auditor|accountant|internal control|material weakness|restatement|restate|correction|error|no longer be relied upon|going concern|liquidity|covenant|default|valuation|impairment|tax provision|financial statements?)\b/i.test(value || "");
-}
-
-function hasSalesPerformanceLanguage(value: string | null): boolean {
-  return Boolean(value) &&
-    /\b(sales|revenue|customer|order|gross margin|margin|shipments?)\b/i.test(value || "");
-}
-
-function hasListingRiskLanguage(value: string | null): boolean {
-  return Boolean(value) &&
-    /\b(nasdaq|nyse|listing|delist|continued listing|minimum bid)\b/i.test(value || "");
-}
-
-function hasLegalRiskLanguage(value: string | null): boolean {
-  return Boolean(value) &&
-    /\b(litigation|lawsuit|investigation|subpoena|sec inquiry|regulatory|enforcement)\b/i.test(value || "");
 }
 
 function detectSourceTextFlags(args: {

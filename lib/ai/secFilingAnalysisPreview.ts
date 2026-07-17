@@ -2811,7 +2811,20 @@ function resolveGeminiModelForSecInput(env: ReturnType<typeof getServerEnv>, inp
   if (input && isProxyFilingInput(input)) {
     return env.secProxyRoutineGeminiModel || "gemini-2.5-flash-lite";
   }
+  if (input && isNtFilingInput(input)) {
+    return env.secNtGeminiModel || "gemini-2.5-flash-lite";
+  }
   return "";
+}
+
+function isNtFilingInput(input: SecFilingAnalysisInput) {
+  const filingPackage = readRecord(input.filing_package);
+  const formType = stringValue(filingPackage?.form_type).toUpperCase();
+  const hardParsers = readRecord(filingPackage?.hard_parsers);
+  return (
+    /^(?:NT 10-K|NT 10-Q|NT 20-F)(?:\/A)?$/.test(formType) ||
+    Boolean(readRecord(hardParsers?.nt))
+  );
 }
 
 function normalizeSecLlmProvider(value: string | undefined, allowOpenAi = false): SecLlmProvider {

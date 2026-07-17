@@ -33,10 +33,11 @@ export function buildNtRouterPrompt(parserOutput: NtParserOutput): string {
     "Choose display_type and display_version for the detail UI from cleaned_source_blocks.",
     "Do not invent display types. Use display_type generic and display_version nt_late_filing_v1 unless cleaned_source_blocks prove another approved display type is needed.",
     "Do not change score bands: below 50 archive, 50 to 74 feed, 75 or above alert.",
+    "This router only proposes an analysis route. Every supported NT filing must continue to the analysis LLM.",
+    "Always return analysis_needed true and deterministic false.",
     "Routing guidance:",
-    "- Deterministic handling is allowed only for mechanically clear low-impact source text.",
-    "- Otherwise use router/classifier judgment from cleaned_source_blocks.",
-    "- Routine late-filing notice, expected filing inside Rule 12b-25 extension, and no significant results change: event_type other, archive, analysis_needed false.",
+    "- Use router/classifier judgment from cleaned_source_blocks; parser metadata is not a final classification.",
+    "- Routine late-filing notice, expected filing inside Rule 12b-25 extension, and no significant results change: event_type other and preliminary_action archive, but analysis_needed remains true.",
     "- Amendments and follow-up NT filings are updates, not automatically new events. Use amendment purpose and amended sections from cleaned_source_blocks.",
     "- Transition reports should preserve the checked transition report type and transition period facts; do not infer a missing transition period.",
     "- Accountant statements or Rule 12b-25(c) exhibits are evidence. They do not decide event_type by themselves.",
@@ -58,24 +59,8 @@ export function routeNtParserOutput(
   parserOutput: NtParserOutput,
 ): NtRouterDecision {
   const facts = parserOutput.facts;
-  const deterministic = facts.deterministicClassification;
   const flags = new Set(facts.sourceTextFlags);
   const evidence = buildRouterEvidence(parserOutput);
-
-  if (!deterministic.router_required && deterministic.event_type) {
-    const scoreBand = scoreBandForDeterministic(parserOutput, deterministic.event_type);
-    return {
-      event_type: deterministic.event_type,
-      display_type: deterministic.display_type ?? "generic",
-      display_version: deterministic.display_version ?? "nt_late_filing_v1",
-      preliminary_action: preliminaryActionForScoreBand(scoreBand),
-      analysis_needed: deterministic.event_type !== "other" || scoreBand !== "below_50",
-      deterministic: true,
-      score_band: scoreBand,
-      reason: deterministic.reason ?? "Parser safely classified the NT filing from source-backed facts.",
-      evidence: deterministic.evidence.length ? deterministic.evidence : evidence,
-    };
-  }
 
   if (flags.has("exchange_listing_terms")) {
     return decision("listing_risk", "alert_candidate", "75_or_above", true, false, evidence);
@@ -124,34 +109,17 @@ export function routeNtParserOutput(
   }
 
   return {
-    event_type: "financial_risk",
+    event_type: "other",
     display_type: "generic",
     display_version: "nt_late_filing_v1",
-    preliminary_action: "feed",
+    preliminary_action: "archive",
     analysis_needed: true,
     deterministic: false,
-    score_band: "50_to_74",
+    score_band: "below_50",
     reason:
-      "Late periodic-report filing has unresolved timing or disclosure uncertainty and should be analyzed as financial risk.",
+      "The NT filing requires LLM analysis from source-backed late-filing context.",
     evidence,
   };
-}
-
-function isRoutineDeterministicArchive(parserOutput: NtParserOutput): boolean {
-  const facts = parserOutput.facts;
-  const allowedRoutineFlags = new Set([
-    "significant_change_no",
-    "extension_within",
-  ]);
-
-  return (
-    facts.significantChangeExpected === false &&
-    facts.anticipatedWithinExtension === true &&
-    !facts.isAmendment &&
-    !facts.isTransitionReport &&
-    facts.rawDataQuality.missingCriticalFields.length === 0 &&
-    facts.sourceTextFlags.every((flag) => allowedRoutineFlags.has(flag))
-  );
 }
 
 function decision(
@@ -175,89 +143,11 @@ function decision(
   };
 }
 
-function buildCompactRouterInput(parserOutput: NtParserOutput): Record<string, unknown> {
-  const facts = parserOutput.facts;
-  return {
-    parserVersion: parserOutput.parserVersion,
-    parserGroup: parserOutput.parserGroup,
-    formType: parserOutput.formType,
-    accessionNumber: parserOutput.accessionNumber,
-    isSupported: parserOutput.isSupported,
-    summary: parserOutput.summary,
-    facts: {
-      companyName: facts.companyName,
-      ticker: facts.ticker,
-      exchange: facts.exchange,
-      sourceFormType: facts.sourceFormType,
-      bodyFormType: facts.bodyFormType,
-      submissionBodyFormMismatch: facts.submissionBodyFormMismatch,
-      delayedReport: facts.delayedReport,
-      periodOfReport: facts.periodOfReport,
-      isAmendment: facts.isAmendment,
-      amendmentPurpose: facts.amendmentPurpose,
-      isTransitionReport: facts.isTransitionReport,
-      transitionReportType: facts.transitionReportType,
-      transitionPeriodEnded: facts.transitionPeriodEnded,
-      unableWithoutUnreasonableEffort: facts.unableWithoutUnreasonableEffort,
-      anticipatedWithinExtension: facts.anticipatedWithinExtension,
-      accountantStatementAttached: facts.accountantStatementAttached,
-      significantChangeExpected: facts.significantChangeExpected,
-      significantChangeDescription: facts.significantChangeDescription,
-      otherPeriodicReportsFiled: facts.otherPeriodicReportsFiled,
-      noRelianceOrRestatementDisclosed: facts.noRelianceOrRestatementDisclosed,
-      partIiiNarrativeFlags: facts.partIiiNarrativeFlags,
-      sourceTextFlags: facts.sourceTextFlags,
-      partIv: facts.partIv,
-      portionOnly: facts.portionOnly,
-      electronicFilingDifficulty: facts.electronicFilingDifficulty,
-      deterministicClassification: facts.deterministicClassification,
-      rawDataQuality: facts.rawDataQuality,
-      sourceExcerpts: facts.sourceExcerpts,
-    },
-    warnings: parserOutput.warnings,
-    sourceInventory: parserOutput.raw.selectedDocument,
-    attachmentInventory: parserOutput.raw.documentInventory,
-    sectionMetadata: parserOutput.raw.sectionSegments
-      ? {
-          confidence: parserOutput.raw.sectionSegments.confidence,
-          warnings: parserOutput.raw.sectionSegments.warnings,
-        }
-      : null,
-  };
-}
-
 function buildRouterEvidence(parserOutput: NtParserOutput): string[] {
   return parserOutput.facts.sourceExcerpts
     .map((excerpt) => excerpt.text)
-    .concat(parserOutput.facts.deterministicClassification.evidence)
     .filter(Boolean)
     .map((item) => item.slice(0, 360));
-}
-
-function scoreBandForDeterministic(
-  parserOutput: NtParserOutput,
-  eventType: NtApprovedEventType,
-): NtRouterDecision["score_band"] {
-  const facts = parserOutput.facts;
-  if (eventType === "other") return "below_50";
-  if (
-    eventType === "listing_risk" ||
-    facts.noRelianceOrRestatementDisclosed ||
-    facts.significantChangeExpected === true ||
-    facts.partIv.significantChange.quantitativeDisclosurePresent ||
-    /material weakness|restatement|going concern|default/i.test(facts.lateFilingReason ?? "")
-  ) {
-    return "75_or_above";
-  }
-  return "50_to_74";
-}
-
-function preliminaryActionForScoreBand(
-  scoreBand: NtRouterDecision["score_band"],
-): NtRouterDecision["preliminary_action"] {
-  if (scoreBand === "below_50") return "archive";
-  if (scoreBand === "50_to_74") return "feed";
-  return "alert_candidate";
 }
 
 function routeReason(eventType: NtApprovedEventType): string {

@@ -29,7 +29,7 @@ export const secNtFormAdapter = {
   parserGroup: NT_PARSER_GROUP,
   parserVersion: NT_PARSER_VERSION,
   supportedForms: SEC_NT_SUPPORTED_FORMS,
-  analysisMode: "deterministic-first-router-fallback",
+  analysisMode: "router_then_analysis",
   fetchPlan: secNtFetchPlan,
   parse: parseNtFiling,
   buildRouterPrompt: buildNtRouterPrompt,
@@ -42,7 +42,7 @@ export const secNtFormAdapter = {
   parserGroup: typeof NT_PARSER_GROUP;
   parserVersion: typeof NT_PARSER_VERSION;
   supportedForms: typeof SEC_NT_SUPPORTED_FORMS;
-  analysisMode: "deterministic-first-router-fallback";
+  analysisMode: "router_then_analysis";
   fetchPlan: typeof secNtFetchPlan;
   parse: (input: NtFilingInput) => NtParserOutput;
   buildRouterPrompt: (parserOutput: NtParserOutput) => string;

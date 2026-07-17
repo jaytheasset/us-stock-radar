@@ -146,15 +146,6 @@ export interface NtParserOutput {
       primaryReason: boolean;
       evidence: string | null;
     };
-    deterministicClassification: {
-      event_type: NtApprovedEventType | null;
-      display_type: NtDisplayPayload["display_type"] | null;
-      display_version: string | null;
-      confidence: NtConfidence;
-      reason: string | null;
-      evidence: string[];
-      router_required: boolean;
-    };
     sourceTextFlags: string[];
     rawDataQuality: {
       requiredFieldsPresent: {

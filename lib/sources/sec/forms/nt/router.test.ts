@@ -44,43 +44,41 @@ test("NT router maps fixtures to approved event types", () => {
   }
 });
 
-test("routine case stops deterministically before analysis LLM", () => {
+test("routine case still continues to the analysis LLM", () => {
   const parserOutput = parseNtFiling(loadFixture("routine-nt-10q").source);
   const routerDecision = routeNtParserOutput(parserOutput);
 
-  assert.equal(parserOutput.facts.deterministicClassification.router_required, false);
-  assert.equal(parserOutput.facts.deterministicClassification.event_type, "other");
   assert.equal(routerDecision.event_type, "other");
   assert.equal(routerDecision.display_type, "generic");
   assert.equal(routerDecision.display_version, "nt_late_filing_v1");
   assert.equal(routerDecision.preliminary_action, "archive");
-  assert.equal(routerDecision.analysis_needed, false);
-  assert.equal(routerDecision.deterministic, true);
+  assert.equal(routerDecision.analysis_needed, true);
+  assert.equal(routerDecision.deterministic, false);
 });
 
-test("NT deterministic classifier handles source-backed non-routine cases before router fallback", () => {
+test("NT route candidates never bypass analysis", () => {
   const accountingOutput = parseNtFiling(loadFixture("accounting-delay-nt-10k").source);
   const salesOutput = parseNtFiling(loadFixture("material-sales-change-nt-10q").source);
 
-  assert.equal(accountingOutput.facts.deterministicClassification.router_required, false);
-  assert.equal(accountingOutput.facts.deterministicClassification.event_type, "financial_risk");
-  assert.equal(routeNtParserOutput(accountingOutput).deterministic, true);
-  assert.equal(routeNtParserOutput(accountingOutput).event_type, "financial_risk");
+  const accountingDecision = routeNtParserOutput(accountingOutput);
+  assert.equal(accountingDecision.deterministic, false);
+  assert.equal(accountingDecision.analysis_needed, true);
+  assert.equal(accountingDecision.event_type, "financial_risk");
 
-  assert.equal(salesOutput.facts.deterministicClassification.router_required, false);
-  assert.equal(salesOutput.facts.deterministicClassification.event_type, "sales_performance");
-  assert.equal(routeNtParserOutput(salesOutput).deterministic, true);
-  assert.equal(routeNtParserOutput(salesOutput).event_type, "sales_performance");
+  const salesDecision = routeNtParserOutput(salesOutput);
+  assert.equal(salesDecision.deterministic, false);
+  assert.equal(salesDecision.analysis_needed, true);
+  assert.equal(salesDecision.event_type, "sales_performance");
 });
 
-test("routine NT 10-K no-change case also stops deterministically", () => {
+test("routine NT 10-K no-change case also continues to analysis", () => {
   const parserOutput = parseNtFiling(loadFixture("routine-nt-10k-no-change").source);
   const routerDecision = routeNtParserOutput(parserOutput);
 
   assert.equal(routerDecision.event_type, "other");
   assert.equal(routerDecision.preliminary_action, "archive");
-  assert.equal(routerDecision.analysis_needed, false);
-  assert.equal(routerDecision.deterministic, true);
+  assert.equal(routerDecision.analysis_needed, true);
+  assert.equal(routerDecision.deterministic, false);
 });
 
 test("transition, amendment, and restatement edge fixtures require analysis", () => {
@@ -113,6 +111,8 @@ test("router prompt hard-limits event types and live calls", () => {
   assert.match(prompt, /Do not call live APIs/);
   assert.match(prompt, /Do not invent event types/);
   assert.match(prompt, /Use only cleaned_source_blocks supplied below/);
+  assert.match(prompt, /Every supported NT filing must continue to the analysis LLM/);
+  assert.match(prompt, /Always return analysis_needed true and deterministic false/);
   assert.match(prompt, /Choose display_type and display_version/);
   assert.match(prompt, /below 50 archive, 50 to 74 feed, 75 or above alert/);
   assert.doesNotMatch(prompt, /textExcerpt/);
@@ -121,7 +121,7 @@ test("router prompt hard-limits event types and live calls", () => {
 test("NT adapter exports runtime integration entrypoints", () => {
   assert.equal(secNtFormAdapter.adapterKey, SEC_NT_ADAPTER_KEY);
   assert.equal(secNtFormAdapter.parserGroup, "nt");
-  assert.equal(secNtFormAdapter.analysisMode, "deterministic-first-router-fallback");
+  assert.equal(secNtFormAdapter.analysisMode, "router_then_analysis");
   assert.deepEqual([...secNtFormAdapter.supportedForms], [...SEC_NT_SUPPORTED_FORMS]);
   assert.ok(secNtFormAdapter.supportedForms.includes("NT 10-K/A"));
   assert.equal(secNtFormAdapter.parse, parseNtFiling);
