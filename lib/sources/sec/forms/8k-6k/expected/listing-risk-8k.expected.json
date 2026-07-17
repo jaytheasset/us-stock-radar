@@ -71,33 +71,46 @@
     "signal": "bearish",
     "quick_take": "Nasdaq minimum-bid noncompliance puts the listing status on watch.",
     "summary": "Metro Widget disclosed a Nasdaq notice tied to its common stock trading below $1.00 for 30 consecutive business days.",
-    "why_it_matters": "Failure to regain compliance can lead to delisting proceedings or reverse-split pressure.",
-    "bullish_points": [
-      "The company has a 180-day cure period."
-    ],
-    "bearish_points": [
-      "The notice confirms continued-listing noncompliance."
-    ],
     "key_evidence": [
-      "Nasdaq stated the Company was not in compliance with the minimum bid price requirement."
+      "Nasdaq stated the Company was not in compliance with the minimum bid price requirement.",
+      "The company has 180 calendar days to regain compliance."
     ],
     "what_to_watch_next": [
       "Bid-price cure progress and any reverse split proposal."
     ],
-    "related_tickers": [],
-    "calendar_items": [],
     "confidence": "high",
-    "needs_human_review": false
+    "needs_human_review": false,
+    "material_events": [
+      {
+        "role": "primary",
+        "event_type": "listing_risk",
+        "event_summary": "Nasdaq minimum-bid noncompliance puts the listing status on watch.",
+        "key_terms": [],
+        "source_block_ids": []
+      }
+    ],
+    "score_explanation": {
+      "summary": "Minimum-bid deficiency creates common-equity listing risk and a defined cure period."
+    },
+    "listing_status_snapshot": [
+      {
+        "label": "Current Status",
+        "value": "Nasdaq deficiency notice",
+        "note": "Minimum bid price requirement"
+      },
+      {
+        "label": "Cure Period",
+        "value": "180 calendar days",
+        "note": null
+      }
+    ]
   },
   "display_payload": {
     "display_type": "generic",
     "data": {
-      "rule": "minimum bid price",
-      "cure_period": "180 calendar days"
+      "display_version": "sec_8k_6k_generic_v1"
     },
-    "evidence": [
-      "The Company has 180 calendar days to regain compliance."
-    ],
+    "evidence": [],
     "notes": []
   },
   "fixture_expected": {
@@ -109,8 +122,9 @@
       "price",
       "previous_close"
     ],
-    "special_ui_needed": false,
-    "special_ui_reason": null,
-    "integration_notes": []
+    "integration_notes": [],
+    "analysis_family": "risk_status",
+    "expected_display_type": "generic",
+    "expected_display_version": "sec_8k_6k_generic_v1"
   }
 }

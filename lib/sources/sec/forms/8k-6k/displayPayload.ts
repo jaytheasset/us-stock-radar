@@ -77,6 +77,7 @@ function normalizeDisplayVersion(value: unknown, displayType: string) {
     return version;
   }
   if (displayType === "offering_terms") return "sec_8k_6k_offering_terms_v1";
+  if (displayType === "capital_financing") return "sec_8k_6k_capital_financing_v1";
   if (displayType === "spac_transaction_status") return "sec_8k_6k_spac_transaction_status_v1";
   if (displayType === "candidate_special") return "sec_8k_6k_candidate_special_v1";
   return "sec_8k_6k_generic_v1";
@@ -280,7 +281,7 @@ function sourceAvailabilityNote(sourceUrl: string | null, snippetCount: number, 
 function buildDisplayNotes({ displayVersion, warnings, sourceUrl }: { displayVersion: string; warnings: string[]; sourceUrl: string | null }) {
   return [
     `Display payload built by parser/router-side UI payload builder (${displayVersion}).`,
-    "Analysis LLM must not choose or invent display_type, display_version, or display_payload fields.",
+    "This parser-built payload is source/debug context. Analysis may replace it only for approved LLM-authored capital or strategic transaction detail views.",
     sourceUrl ? "Original SEC source link is available in display_payload.data.source_url." : "Original SEC source link was not available in parser facts.",
     ...warnings.slice(0, 8).map((warning) => `Parser warning: ${warning}`),
   ];

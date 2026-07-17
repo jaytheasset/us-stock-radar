@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { parseSec8k6kFiling } from "./parser";
@@ -18,11 +18,26 @@ const roomDir = join(process.cwd(), "lib", "sources", "sec", "forms", "8k-6k");
 const fixturesDir = join(roomDir, "fixtures");
 const expectedDir = join(roomDir, "expected");
 
-const fixtureNames = readdirSync(fixturesDir)
+const allFixtureNames = readdirSync(fixturesDir)
   .filter((name: string) => name.endsWith(".json"))
   .sort();
+const expectedNames = readdirSync(expectedDir)
+  .filter((name: string) => name.endsWith(".expected.json"))
+  .sort();
+const fixtureNames = allFixtureNames.filter((name) => existsSync(join(expectedDir, name.replace(/\.json$/, ".expected.json"))));
 
-assert.equal(fixtureNames.length, 15);
+assert.equal(expectedNames.length, 15);
+assert.equal(fixtureNames.length, expectedNames.length);
+for (const policyFixtureName of [
+  "complex-financing-8k.json",
+  "exchange-delisting-8k.json",
+  "material-vote-results-8k.json",
+  "merger-closing-delisting-8k.json",
+  "six-k-exhibit-99-1.json",
+  "voluntary-delisting-8k.json",
+]) {
+  assert.ok(allFixtureNames.includes(policyFixtureName), policyFixtureName);
+}
 
 const expectedCueByFixture: Record<string, string> = {
   "capital-return-8k.json": "capital_return_authorization",
@@ -78,9 +93,26 @@ const amendment = parseSec8k6kFiling(readFixture("routine-amendment-8ka.json"));
 assert.equal(amendment.facts.isAmendment, true);
 assert.equal(amendment.facts.amendment.amendmentNumber, 1);
 assert.equal(amendment.facts.amendment.parentAccessionNumber, "0015151515-26-000001");
+assert.equal(amendment.facts.amendment.parentFiledDate, "May 1, 2026");
 assert.equal(amendment.facts.amendment.isRoutineAdministrativeOnly, true);
 assert.ok(amendment.facts.filingCues.some((cue) => cue.cueType === "routine_administrative_amendment"));
 assertParserHasNoRoutingDecision(amendment, "routine-amendment-8ka.json");
+
+const archiveLinkedAmendment = parseSec8k6kFiling({
+  sourceUniqueId: "0000000000-26-000002",
+  title: "Example issuer Form 8-K/A",
+  publishedAt: "2026-06-08T16:00:00Z",
+  bodyText: [
+    "FORM 8-K/A",
+    "Explanatory Note",
+    "This Amendment amends the Current Report on Form 8-K filed on 2026-06-01.",
+    "The original report is available at https://www.sec.gov/Archives/edgar/data/1234567/000123456726000001/original.htm.",
+    "SEC File No. 001-99999.",
+  ].join("\n"),
+  rawPayload: { accession_number: "0000000000-26-000002", form_type: "8-K/A" },
+});
+assert.equal(archiveLinkedAmendment.facts.amendment.parentAccessionNumber, "0001234567-26-000001");
+assert.equal(archiveLinkedAmendment.facts.amendment.parentFiledDate, "2026-06-01");
 
 const dividend = parseSec8k6kFiling(readFixture("dividends-6k.json"));
 assert.deepEqual(
@@ -90,6 +122,52 @@ assert.deepEqual(
 
 const fda = parseSec8k6kFiling(readFixture("fda-clinical-6k.json"));
 assert.ok(fda.calendarItems.some((item) => item.label === "pdufa_date"));
+
+const explicitProxyReference = parseSec8k6kFiling({
+  sourceUniqueId: "0001829635-25-016947",
+  title: "TransCode Therapeutics Form 8-K vote results",
+  publishedAt: "2025-02-25T16:00:00Z",
+  bodyText: [
+    "FORM 8-K",
+    "Item 5.07 Submission of Matters to a Vote of Security Holders.",
+    "The Company voted upon the proposals set forth in the definitive proxy statement on Schedule 14A filed by the Company with the Securities and Exchange Commission on December 30, 2024.",
+    "Stockholders approved the full issuance of shares upon exercise of the Series C Warrants and Series D Warrants.",
+  ].join("\n"),
+  rawPayload: { accession_number: "0001829635-25-016947", form_type: "8-K", cik: "0001829635" },
+});
+assert.deepEqual(explicitProxyReference.facts.referencedFilings, [
+  {
+    formType: "DEF 14A",
+    filedDate: "2024-12-30",
+    accessionNumber: null,
+    itemNumber: "5.07",
+    evidence:
+      "The Company voted upon the proposals set forth in the definitive proxy statement on Schedule 14A filed by the Company with the Securities and Exchange Commission on December 30, 2024.",
+    confidence: "high",
+  },
+]);
+
+const introductoryNote = parseSec8k6kFiling({
+  sourceUniqueId: "0000000000-26-000002",
+  title: "8-K - Merger Closing",
+  bodyText: [
+    "FORM 8-K",
+    "Introductory Note",
+    "The purchaser offered $57.00 per share in cash.",
+    "A total of 46,731,511 shares, representing 92.8% of outstanding shares, were tendered.",
+    "The merger closed and the company became a wholly owned subsidiary of the parent.",
+    "Item 2.01 Completion of Acquisition or Disposition of Assets.",
+    "The information in the Introductory Note is incorporated by reference.",
+    "Item 3.01 Notice of Delisting or Failure to Satisfy a Continued Listing Rule or Standard.",
+    "The company requested suspension of trading after the completed merger.",
+    "SIGNATURES",
+  ].join("\n"),
+  rawPayload: { accession_number: "0000000000-26-000002", form_type: "8-K" },
+});
+assert.equal(introductoryNote.facts.unnumberedSections?.length, 1);
+assert.equal(introductoryNote.facts.unnumberedSections?.[0]?.heading, "Introductory Note");
+assert.match(introductoryNote.facts.unnumberedSections?.[0]?.evidence || "", /\$57\.00 per share/);
+assert.match(introductoryNote.facts.unnumberedSections?.[0]?.evidence || "", /92\.8%/);
 
 const noisyPackage = parseSec8k6kFiling({
   sourceUniqueId: "0000000000-26-000001",
@@ -352,6 +430,33 @@ const sixKMultipleExhibits = parseSec8k6kFiling({
 assert.equal(sixKExhibits(sixKMultipleExhibits).length, 2);
 assert.ok(sixKExhibits(sixKMultipleExhibits).some((exhibit) => roleCandidates(exhibit).includes("investor_presentation")));
 
+const sixKExhibitLabelBeforeHeadline = parseSec8k6kFiling({
+  sourceUniqueId: "0000000000-26-000203-headline",
+  title: "ForeignOperationsCo files 6-K",
+  bodyText: "Report of Foreign Private Issuer. Materials are attached hereto as Exhibit 99.2.",
+  rawPayload: {
+    accession_number: "0000000000-26-000203-headline",
+    form_type: "6-K",
+    documents: [
+      { type: "6-K", description: "Primary filing", isPrimary: true, textCharCount: 240, textExtractionStatus: "text_extracted" },
+      { type: "EX-99.2", description: "EXHIBIT 99.2", filename: "ex992.htm", textCharCount: 1800, includedInParserText: true, includedTextCharCount: 1800, textExtractionStatus: "text_extracted" },
+    ],
+    attachment_texts: [
+      {
+        type: "EX-99.2",
+        description: "EXHIBIT 99.2",
+        text: [
+          "EXHIBIT 99.2",
+          "Lithium Producer Reports 2024 Production Results and 2025 Guidance",
+          "Production reached 25,400 tonnes and 2025 guidance is 30,000 to 35,000 tonnes.",
+        ].join("\n"),
+      },
+    ],
+  },
+});
+const labeledExhibit = sixKExhibits(sixKExhibitLabelBeforeHeadline).find((exhibit) => exhibit.exhibitNumber === "99.2");
+assert.equal(labeledExhibit?.headline, "Lithium Producer Reports 2024 Production Results and 2025 Guidance");
+
 const sixKMissingReferencedExhibit = parseSec8k6kFiling({
   sourceUniqueId: "0000000000-26-000204",
   title: "ForeignMissingCo files 6-K",
@@ -587,6 +692,62 @@ const duplicateBodyAnalysis = parseSec8k6kFiling({
 });
 assert.deepEqual(duplicateBodyAnalysis.facts.items.map((item) => item.item), ["2.02"]);
 assert.ok(duplicateBodyAnalysis.facts.textStats.combinedChars < duplicateBodyAnalysis.facts.textStats.bodyChars + duplicateBodyAnalysis.facts.textStats.analysisChars);
+
+const exchangeDelisting = parseSec8k6kFiling(readFixture("exchange-delisting-8k.json"));
+assert.deepEqual(exchangeDelisting.facts.items.map((item) => item.item), ["3.01", "9.01"]);
+assert.ok(exchangeDelisting.facts.filingCues.some((cue) => cue.cueType === "exchange_listing_notice"));
+assert.ok(
+  exchangeDelisting.facts.dates.some(
+    (date) => String(date.label || "").includes("Trading suspension") || String(date.evidence || "").includes("suspended"),
+  ),
+);
+assertParserHasNoRoutingDecision(exchangeDelisting, "exchange-delisting-8k.json");
+
+const voluntaryDelisting = parseSec8k6kFiling(readFixture("voluntary-delisting-8k.json"));
+assert.deepEqual(voluntaryDelisting.facts.items.map((item) => item.item), ["8.01", "9.01"]);
+assert.ok(voluntaryDelisting.facts.filingCues.some((cue) => cue.cueType === "exchange_listing_notice"));
+assert.ok(voluntaryDelisting.facts.filingCues.some((cue) => cue.evidence.toLowerCase().includes("voluntary delisting")));
+assertParserHasNoRoutingDecision(voluntaryDelisting, "voluntary-delisting-8k.json");
+
+const mergerClosingDelisting = parseSec8k6kFiling(readFixture("merger-closing-delisting-8k.json"));
+assert.deepEqual(mergerClosingDelisting.facts.items.map((item) => item.item), ["2.01", "3.01", "5.01", "9.01"]);
+assert.ok(mergerClosingDelisting.facts.filingCues.some((cue) => cue.cueType === "strategic_transaction_terms"));
+assert.ok(mergerClosingDelisting.facts.filingCues.some((cue) => cue.cueType === "exchange_listing_notice"));
+assertParserHasNoRoutingDecision(mergerClosingDelisting, "merger-closing-delisting-8k.json");
+
+const materialVoteResults = parseSec8k6kFiling(readFixture("material-vote-results-8k.json"));
+assert.deepEqual(materialVoteResults.facts.items.map((item) => item.item), ["5.07"]);
+assert.ok(materialVoteResults.facts.filingCues.some((cue) => cue.cueType === "shareholder_vote_or_approval"));
+assert.ok(materialVoteResults.facts.shareCounts.some((count) => count.value === 32_000_000));
+assertParserHasNoRoutingDecision(materialVoteResults, "material-vote-results-8k.json");
+
+const complexFinancing = parseSec8k6kFiling(readFixture("complex-financing-8k.json"));
+assert.deepEqual(complexFinancing.facts.items.map((item) => item.item), ["1.01", "2.03", "3.02", "9.01"]);
+assert.ok(complexFinancing.facts.filingCues.some((cue) => cue.cueType === "securities_offering_or_issuance"));
+assert.ok(complexFinancing.facts.moneyAmounts.some((amount) => amount.value.amount === 12_000_000));
+assert.ok(complexFinancing.facts.shareCounts.some((count) => count.value === 8_000_000));
+assertParserHasNoRoutingDecision(complexFinancing, "complex-financing-8k.json");
+
+const longItemText = Array.from(
+  { length: 52 },
+  (_, index) => `Background paragraph ${index + 1}. The company describes the amended certificate and related capital terms in original filing language.`,
+).join("\n\n");
+const longItemParsed = parseSec8k6kFiling({
+  sourceUniqueId: "0000000000-26-000310",
+  title: "Long Item 5.03 filing",
+  bodyText: [
+    "FORM 8-K",
+    "Item 5.03 Amendments to Articles of Incorporation or Bylaws; Change in Fiscal Year.",
+    longItemText,
+    "The Series B conversion price equals 85% of the lowest ten-day VWAP, subject to a 75% triggering-event adjustment.",
+    "SIGNATURES",
+  ].join("\n"),
+  rawPayload: { accession_number: "0000000000-26-000310", form_type: "8-K" },
+});
+const longItem503 = longItemParsed.facts.items.find((item) => item.item === "5.03");
+assert.ok(longItem503);
+assert.match(longItem503.evidence, /85% of the lowest ten-day VWAP/);
+assert.ok(longItem503.evidence.length > 6_000);
 
 console.log("sec 8k-6k parser fixtures passed");
 

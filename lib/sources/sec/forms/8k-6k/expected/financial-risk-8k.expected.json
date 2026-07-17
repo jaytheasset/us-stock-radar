@@ -71,32 +71,46 @@
     "signal": "bearish",
     "quick_take": "Harbor Energy is in default under its credit agreement.",
     "summary": "Lenders reserved rights after a minimum liquidity covenant failure, while the company seeks a waiver.",
-    "why_it_matters": "Debt defaults can accelerate obligations, constrain liquidity, or force restructuring.",
-    "bullish_points": [
-      "The company is seeking a waiver."
-    ],
-    "bearish_points": [
-      "Lenders reserved rights and remedies."
-    ],
     "key_evidence": [
-      "An event of default occurred under its credit agreement because the Company failed to satisfy a minimum liquidity covenant."
+      "An event of default occurred under its credit agreement because the Company failed to satisfy a minimum liquidity covenant.",
+      "The lenders reserved their rights while the company seeks a waiver."
     ],
     "what_to_watch_next": [
       "Waiver outcome, liquidity disclosures, and restructuring alternatives."
     ],
-    "related_tickers": [],
-    "calendar_items": [],
     "confidence": "high",
-    "needs_human_review": false
+    "needs_human_review": false,
+    "material_events": [
+      {
+        "role": "primary",
+        "event_type": "financial_risk",
+        "event_summary": "Harbor Energy is in default under its credit agreement.",
+        "key_terms": [],
+        "source_block_ids": []
+      }
+    ],
+    "score_explanation": {
+      "summary": "A lender default notice tied to liquidity covenant failure is high-severity financial risk."
+    },
+    "listing_status_snapshot": [
+      {
+        "label": "Default Status",
+        "value": "Credit agreement default",
+        "note": "Minimum liquidity covenant failure"
+      },
+      {
+        "label": "Company Response",
+        "value": "Waiver sought",
+        "note": "Lenders reserved their rights"
+      }
+    ]
   },
   "display_payload": {
     "display_type": "generic",
     "data": {
-      "risk": "minimum liquidity covenant default"
+      "display_version": "sec_8k_6k_generic_v1"
     },
-    "evidence": [
-      "The lenders reserved their rights and remedies."
-    ],
+    "evidence": [],
     "notes": []
   },
   "fixture_expected": {
@@ -105,8 +119,9 @@
     "market_context_needed": false,
     "market_context_reason": null,
     "market_context_fields": [],
-    "special_ui_needed": false,
-    "special_ui_reason": null,
-    "integration_notes": []
+    "integration_notes": [],
+    "analysis_family": "risk_status",
+    "expected_display_type": "generic",
+    "expected_display_version": "sec_8k_6k_generic_v1"
   }
 }

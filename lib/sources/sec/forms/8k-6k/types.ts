@@ -8,6 +8,7 @@ export const SEC_8K_6K_APPROVED_EVENT_TYPES = [
   "ipo_listing",
   "earnings",
   "sales_performance",
+  "operating_update",
   "product_update",
   "leadership_governance",
   "insider_ownership",
@@ -25,7 +26,33 @@ export type Sec8k6kEventType = (typeof SEC_8K_6K_APPROVED_EVENT_TYPES)[number];
 export type Sec8k6kConfidence = "high" | "medium" | "low";
 export type Sec8k6kSignal = "bullish" | "bearish" | "volatile" | "neutral";
 export type Sec8k6kDeliveryLevel = "archive" | "feed" | "alert";
-export type Sec8k6kDisplayType = "generic" | "offering_terms" | "spac_transaction_status" | "candidate_special";
+export type Sec8k6kDisplayType =
+  | "generic"
+  | "offering_terms"
+  | "capital_financing"
+  | "spac_transaction_status"
+  | "candidate_special"
+  | "strategic_transaction"
+  | "governance_event"
+  | "operating_event";
+
+export type Sec8k6kAnalysisFamily =
+  | "risk_status"
+  | "capital_financing"
+  | "strategic_transaction"
+  | "governance_vote"
+  | "operating_legal_routine";
+
+export const SEC_8K_6K_CAPITAL_FINANCING_MODE_VALUES = [
+  "equity_issuance",
+  "share_linked_financing",
+  "atm_capacity",
+  "debt_liquidity",
+  "capital_structure_action",
+  "capital_return",
+] as const;
+
+export type Sec8k6kCapitalFinancingMode = (typeof SEC_8K_6K_CAPITAL_FINANCING_MODE_VALUES)[number];
 
 export const SEC_8K_6K_FILING_CUE_TYPES = [
   "exchange_listing_notice",
@@ -100,6 +127,20 @@ export type Sec8k6kItem = {
   evidence: string;
 };
 
+export type Sec8k6kReferencedFiling = {
+  formType: string;
+  filedDate: string;
+  accessionNumber: string | null;
+  itemNumber: string | null;
+  evidence: string;
+  confidence: Sec8k6kConfidence;
+};
+
+export type Sec8k6kUnnumberedSection = {
+  heading: string;
+  evidence: string;
+};
+
 export type Sec8k6kFilingCue = {
   cueType: Sec8k6kFilingCueType;
   label: string;
@@ -139,6 +180,7 @@ export type Sec8k6kCalendarItem = {
   evidence: string;
 };
 
+export type Sec8k6kSourceCue = Sec8k6kFilingCue;
 export type Sec8k6kParserSignal = Sec8k6kFilingCue;
 
 export type Sec8k6kParserFacts = {
@@ -152,7 +194,10 @@ export type Sec8k6kParserFacts = {
   isAmendment: boolean;
   amendment: Sec8k6kAmendmentInfo;
   items: Sec8k6kItem[];
+  referencedFilings: Sec8k6kReferencedFiling[];
+  unnumberedSections?: Sec8k6kUnnumberedSection[];
   filingCues: Sec8k6kFilingCue[];
+  sourceCues: Sec8k6kSourceCue[];
   moneyAmounts: Sec8k6kMoneyField[];
   shareCounts: Sec8k6kNumberField[];
   dates: Sec8k6kField[];
@@ -184,6 +229,13 @@ export type Sec8k6kAnalysisOutput = {
   source_group: "filings";
   market_scope: "company" | "sector" | "theme" | "macro";
   event_type: Sec8k6kEventType;
+  material_events?: Array<{
+    role: "primary" | "secondary";
+    event_type: Sec8k6kEventType;
+    event_summary: string;
+    key_terms: string[];
+    source_block_ids: string[];
+  }>;
   event_title: string;
   primary_ticker: {
     ticker: string | null;
@@ -196,16 +248,24 @@ export type Sec8k6kAnalysisOutput = {
   sub_theme: string | null;
   score: number;
   score_reason: string;
+  score_explanation?: {
+    summary: string;
+  };
   signal: Sec8k6kSignal;
   quick_take: string;
   summary: string;
-  why_it_matters: string;
-  bullish_points: string[];
-  bearish_points: string[];
-  key_evidence: string[];
-  what_to_watch_next: string[];
-  related_tickers: string[];
-  calendar_items: Sec8k6kCalendarItem[];
+  listing_status_snapshot?: Array<{
+    label: string;
+    value: string;
+    note: string | null;
+  }>;
+  why_it_matters?: string;
+  bullish_points?: string[];
+  bearish_points?: string[];
+  key_evidence?: string[];
+  what_to_watch_next?: string[];
+  related_tickers?: string[];
+  calendar_items?: Sec8k6kCalendarItem[];
   confidence: Sec8k6kConfidence;
   needs_human_review: boolean;
 };
@@ -213,8 +273,8 @@ export type Sec8k6kAnalysisOutput = {
 export type Sec8k6kDisplayPayload = {
   display_type: Sec8k6kDisplayType;
   data: Record<string, unknown>;
-  evidence: string[];
-  notes: string[];
+  evidence?: string[];
+  notes?: string[];
 };
 
 export type Sec8k6kFixtureExpected = {
@@ -223,8 +283,9 @@ export type Sec8k6kFixtureExpected = {
   market_context_needed: boolean;
   market_context_reason: string | null;
   market_context_fields: string[];
-  special_ui_needed: boolean;
-  special_ui_reason: string | null;
+  analysis_family: Sec8k6kAnalysisFamily;
+  expected_display_type: Sec8k6kDisplayType;
+  expected_display_version: string;
   integration_notes: string[];
 };
 

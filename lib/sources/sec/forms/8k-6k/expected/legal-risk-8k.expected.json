@@ -65,33 +65,49 @@
     "signal": "bearish",
     "quick_take": "Luma will pay $18.5 million to resolve warranty litigation.",
     "summary": "The settlement will result in a second-quarter charge and includes no admission of liability.",
-    "why_it_matters": "Legal settlements affect cash, earnings, and remaining product-risk perception.",
-    "bullish_points": [
-      "The settlement resolves pending litigation."
-    ],
-    "bearish_points": [
-      "The company will record an $18.5 million charge."
-    ],
-    "key_evidence": [
-      "The Company will pay $18.5 million and will record a charge in the second quarter."
-    ],
-    "what_to_watch_next": [
-      "Whether related warranty exposure remains."
-    ],
-    "related_tickers": [],
-    "calendar_items": [],
     "confidence": "medium",
-    "needs_human_review": false
+    "needs_human_review": false,
+    "material_events": [
+      {
+        "role": "primary",
+        "event_type": "legal_risk",
+        "event_summary": "Luma will pay $18.5 million to resolve warranty litigation.",
+        "key_terms": [],
+        "source_block_ids": []
+      }
+    ],
+    "score_explanation": {
+      "summary": "The settlement is material and includes an $18.5 million payment, but it resolves rather than escalates the dispute."
+    }
   },
   "display_payload": {
-    "display_type": "generic",
+    "display_type": "operating_event",
     "data": {
-      "settlement_amount": "$18.5 million"
-    },
-    "evidence": [
-      "The settlement does not include any admission of liability."
-    ],
-    "notes": []
+      "display_version": "sec_8k_6k_operating_event_v1",
+      "operating_mode": "legal_or_accounting",
+      "performance_comparisons": [],
+      "regulatory_stage": "not_applicable",
+      "snapshot_title": "Legal / Accounting Snapshot",
+      "snapshot_metrics": [
+        {
+          "label": "Settlement",
+          "value": "$18.5 million",
+          "note": null
+        },
+        {
+          "label": "Financial Impact",
+          "value": "Second-quarter charge",
+          "note": null
+        },
+        {
+          "label": "Liability Admission",
+          "value": "None",
+          "note": null
+        }
+      ],
+      "guidance_metrics": [],
+      "business_catalysts": []
+    }
   },
   "fixture_expected": {
     "expected_delivery_level": "feed",
@@ -99,8 +115,9 @@
     "market_context_needed": false,
     "market_context_reason": null,
     "market_context_fields": [],
-    "special_ui_needed": false,
-    "special_ui_reason": null,
-    "integration_notes": []
+    "integration_notes": [],
+    "analysis_family": "operating_legal_routine",
+    "expected_display_type": "operating_event",
+    "expected_display_version": "sec_8k_6k_operating_event_v1"
   }
 }

@@ -1,0 +1,50 @@
+{
+  "title": "ForeignCo Form 6-K Exhibit 99.1 press release",
+  "publishedAt": "2026-05-18T12:30:00Z",
+  "sourceUniqueId": "0018181818-26-000018",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/18181818/001818181826000018/",
+  "bodyText": "UNITED STATES\nFORM 6-K\nReport of Foreign Private Issuer\nThe information contained in Exhibit 99.1 is furnished herewith.",
+  "rawPayload": {
+    "form_type": "6-K",
+    "accession_number": "0018181818-26-000018",
+    "company_name": "ForeignCo plc",
+    "ticker": "FRGN",
+    "documents": [
+      {
+        "type": "6-K",
+        "description": "Report of foreign issuer",
+        "url": "primary.htm",
+        "isPrimary": true,
+        "textCharCount": 220,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      },
+      {
+        "type": "EX-99.1",
+        "description": "Press Release",
+        "filename": "ex991.htm",
+        "textCharCount": 3200,
+        "includedInParserText": true,
+        "includedTextCharCount": 3200,
+        "textExtractionStatus": "text_extracted"
+      }
+    ],
+    "attachment_texts": [
+      {
+        "type": "EX-99.1",
+        "description": "Press Release",
+        "filename": "ex991.htm",
+        "text": "ForeignCo plc announces a strategic commercial agreement with a European utility customer.\nThe agreement includes an initial deployment milestone and potential expansion across additional markets."
+      }
+    ]
+  },
+  "metadata": {
+    "company_name": "ForeignCo plc",
+    "ticker": "FRGN"
+  },
+  "expected": {
+    "eventType": "product_update",
+    "deliveryLevel": "feed"
+  }
+}

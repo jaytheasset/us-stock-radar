@@ -1,0 +1,33 @@
+{
+  "title": "Vector Digital Form 8-K special meeting vote results",
+  "publishedAt": "2026-01-30T21:45:00Z",
+  "sourceUniqueId": "0005050505-26-000050",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/5050505/000505050526000050/",
+  "bodyText": "UNITED STATES\nFORM 8-K\nItem 5.07 Submission of Matters to a Vote of Security Holders.\nVector Digital Inc. held a special meeting of stockholders on January 30, 2026. Stockholders approved the issuance of up to 32,000,000 shares of common stock upon conversion of preferred stock and exercise of warrants issued in a private placement, as required by Nasdaq Listing Rule 5635. Stockholders also approved an amendment to the Company's certificate of incorporation to effect a reverse stock split at a ratio between 1-for-10 and 1-for-40, with the final ratio to be determined by the Board. The share issuance proposal received 18,450,000 votes for, 2,100,000 votes against, and 150,000 abstentions. The reverse stock split proposal received 17,900,000 votes for, 2,800,000 votes against, and 100,000 abstentions.",
+  "rawPayload": {
+    "form_type": "8-K",
+    "accession_number": "0005050505-26-000050",
+    "company_name": "Vector Digital Inc.",
+    "ticker": "VECX",
+    "documents": [
+      {
+        "type": "8-K",
+        "description": "Current report",
+        "url": "primary.htm",
+        "isPrimary": true,
+        "textCharCount": 980,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      }
+    ]
+  },
+  "metadata": {
+    "company_name": "Vector Digital Inc.",
+    "ticker": "VECX"
+  },
+  "expected": {
+    "eventType": "shareholder_vote",
+    "deliveryLevel": "alert"
+  }
+}

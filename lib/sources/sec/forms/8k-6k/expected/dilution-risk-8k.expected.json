@@ -71,36 +71,80 @@
     "signal": "bearish",
     "quick_take": "Arbor Battery is raising capital through a share-and-warrant offering.",
     "summary": "The company agreed to sell 12.5 million shares and matching warrants for expected gross proceeds of about $25 million.",
-    "why_it_matters": "The share issuance and warrants can increase supply and dilute existing holders.",
-    "bullish_points": [
-      "The offering adds working-capital funding."
-    ],
-    "bearish_points": [
-      "The transaction adds 12.5 million shares plus warrant overhang."
-    ],
-    "key_evidence": [
-      "Gross proceeds are expected to be approximately $25.0 million before fees."
-    ],
-    "what_to_watch_next": [
-      "Closing, warrant exercise terms, and use of proceeds."
-    ],
-    "related_tickers": [],
-    "calendar_items": [],
     "confidence": "high",
-    "needs_human_review": false
+    "needs_human_review": false,
+    "material_events": [
+      {
+        "role": "primary",
+        "event_type": "dilution_risk",
+        "event_summary": "Arbor Battery is raising capital through a share-and-warrant offering.",
+        "key_terms": [],
+        "source_block_ids": []
+      }
+    ],
+    "score_explanation": {
+      "summary": "The financing includes common stock and warrant coverage that should be measured against float and market cap."
+    }
   },
   "display_payload": {
-    "display_type": "offering_terms",
+    "display_type": "capital_financing",
     "data": {
-      "offering_amount": "$25.0 million",
-      "shares": "12,500,000",
-      "purchase_price": "$2.00",
-      "warrants": "12,500,000 warrants at $2.25 exercise price"
+      "display_version": "sec_8k_6k_capital_financing_v1",
+      "capital_mode": "share_linked_financing",
+      "snapshot_metrics": [
+        {
+          "label": "Offering Size",
+          "value": "$25.0 million",
+          "note": "Expected gross proceeds before fees"
+        },
+        {
+          "label": "New Shares",
+          "value": "12,500,000 shares",
+          "note": null
+        },
+        {
+          "label": "Purchase Price",
+          "value": "$2.00 per share and warrant",
+          "note": null
+        },
+        {
+          "label": "Warrant Shares",
+          "value": "12,500,000 shares",
+          "note": null
+        }
+      ],
+      "share_overhang": null,
+      "instrument_details": [
+        {
+          "label": "Type",
+          "value": "Common warrants",
+          "note": null
+        },
+        {
+          "label": "Shares / Securities",
+          "value": "12,500,000 warrant shares",
+          "note": null
+        },
+        {
+          "label": "Exercise / Conversion Price",
+          "value": "$2.25 per share",
+          "note": null
+        }
+      ],
+      "offering_details": [
+        {
+          "label": "Gross Proceeds",
+          "value": "$25.0 million",
+          "note": "Expected before fees"
+        },
+        {
+          "label": "Purchase Price",
+          "value": "$2.00 per share and accompanying warrant",
+          "note": null
+        }
+      ]
     },
-    "evidence": [
-      "The purchase price is $2.00 per share and accompanying warrant.",
-      "The warrants will have an exercise price of $2.25 per share."
-    ],
+    "evidence": [],
     "notes": []
   },
   "fixture_expected": {
@@ -114,8 +158,9 @@
       "shares_outstanding",
       "public_float"
     ],
-    "special_ui_needed": false,
-    "special_ui_reason": null,
-    "integration_notes": []
+    "integration_notes": [],
+    "analysis_family": "capital_financing",
+    "expected_display_type": "capital_financing",
+    "expected_display_version": "sec_8k_6k_capital_financing_v1"
   }
 }

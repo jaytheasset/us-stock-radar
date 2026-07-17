@@ -56,33 +56,50 @@
     "signal": "neutral",
     "quick_take": "HelioGrid announced a commercial launch for GridOS 3.0.",
     "summary": "The platform adds automated battery dispatch and customer deployment tools.",
-    "why_it_matters": "Product launches can support future revenue if deployments scale.",
-    "bullish_points": [
-      "First customer deployment is scheduled for June 2026."
-    ],
-    "bearish_points": [
-      "No contract value or revenue contribution was disclosed."
-    ],
-    "key_evidence": [
-      "HelioGrid plc announced the commercial launch of its GridOS 3.0 platform."
-    ],
-    "what_to_watch_next": [
-      "Customer wins, deployment timing, and revenue conversion."
-    ],
-    "related_tickers": [],
-    "calendar_items": [],
     "confidence": "medium",
-    "needs_human_review": false
+    "needs_human_review": false,
+    "material_events": [
+      {
+        "role": "primary",
+        "event_type": "product_update",
+        "event_summary": "HelioGrid announced a commercial launch for GridOS 3.0.",
+        "key_terms": [],
+        "source_block_ids": []
+      }
+    ],
+    "score_explanation": {
+      "summary": "Commercial launch is relevant, but the fixture does not include financial terms or adoption scale."
+    }
   },
   "display_payload": {
-    "display_type": "generic",
+    "display_type": "operating_event",
     "data": {
-      "product": "GridOS 3.0"
-    },
-    "evidence": [
-      "The new platform adds automated battery dispatch and customer deployment tools."
-    ],
-    "notes": []
+      "display_version": "sec_8k_6k_operating_event_v1",
+      "operating_mode": "product_or_regulatory",
+      "performance_comparisons": [],
+      "regulatory_stage": "not_applicable",
+      "snapshot_title": "Product / Regulatory Snapshot",
+      "snapshot_metrics": [
+        {
+          "label": "Product",
+          "value": "GridOS 3.0",
+          "note": null
+        },
+        {
+          "label": "Launch Status",
+          "value": "Commercially launched",
+          "note": null
+        }
+      ],
+      "guidance_metrics": [],
+      "business_catalysts": [
+        {
+          "title": "Platform capabilities expanded",
+          "value": null,
+          "summary": "GridOS 3.0 adds automated battery dispatch and customer deployment tools."
+        }
+      ]
+    }
   },
   "fixture_expected": {
     "expected_delivery_level": "feed",
@@ -90,8 +107,9 @@
     "market_context_needed": false,
     "market_context_reason": null,
     "market_context_fields": [],
-    "special_ui_needed": false,
-    "special_ui_reason": null,
-    "integration_notes": []
+    "integration_notes": [],
+    "analysis_family": "operating_legal_routine",
+    "expected_display_type": "operating_event",
+    "expected_display_version": "sec_8k_6k_operating_event_v1"
   }
 }

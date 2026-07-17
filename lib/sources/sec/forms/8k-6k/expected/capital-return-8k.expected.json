@@ -65,33 +65,49 @@
     "signal": "bullish",
     "quick_take": "Stonebridge approved a new $150 million buyback.",
     "summary": "The board authorized repurchases over the next 18 months through open-market or privately negotiated transactions.",
-    "why_it_matters": "Repurchase authorizations can support per-share value if executed, but they are discretionary.",
-    "bullish_points": [
-      "The authorization equals a notable capital-return commitment."
-    ],
-    "bearish_points": [
-      "Actual repurchases are discretionary."
-    ],
-    "key_evidence": [
-      "The board authorized a new stock repurchase program to buy back up to $150 million of common stock."
-    ],
-    "what_to_watch_next": [
-      "Actual repurchase activity and cash-balance impact."
-    ],
-    "related_tickers": [],
-    "calendar_items": [],
     "confidence": "high",
-    "needs_human_review": false
+    "needs_human_review": false,
+    "material_events": [
+      {
+        "role": "primary",
+        "event_type": "capital_return",
+        "event_summary": "Stonebridge approved a new $150 million buyback.",
+        "key_terms": [],
+        "source_block_ids": []
+      }
+    ],
+    "score_explanation": {
+      "summary": "The buyback authorization is meaningful and should be sized against market capitalization."
+    }
   },
   "display_payload": {
-    "display_type": "generic",
+    "display_type": "capital_financing",
     "data": {
-      "authorization": "$150 million",
-      "duration": "18 months"
+      "display_version": "sec_8k_6k_capital_financing_v1",
+      "capital_mode": "capital_return",
+      "snapshot_metrics": [
+        {
+          "label": "Buyback Size",
+          "value": "$150 million",
+          "note": null
+        },
+        {
+          "label": "Authorization Period",
+          "value": "18 months",
+          "note": null
+        }
+      ],
+      "share_overhang": null,
+      "instrument_details": [],
+      "offering_details": [
+        {
+          "label": "Repurchase Methods",
+          "value": "Open-market or privately negotiated transactions",
+          "note": null
+        }
+      ]
     },
-    "evidence": [
-      "Repurchases may be made through open market transactions or privately negotiated transactions."
-    ],
+    "evidence": [],
     "notes": []
   },
   "fixture_expected": {
@@ -104,8 +120,9 @@
       "market_cap",
       "shares_outstanding"
     ],
-    "special_ui_needed": false,
-    "special_ui_reason": null,
-    "integration_notes": []
+    "integration_notes": [],
+    "analysis_family": "capital_financing",
+    "expected_display_type": "capital_financing",
+    "expected_display_version": "sec_8k_6k_capital_financing_v1"
   }
 }

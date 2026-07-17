@@ -3,6 +3,7 @@ export const SEC_INTEGRATION_EVENT_TYPES = [
   "dilution_risk",
   "earnings",
   "sales_performance",
+  "operating_update",
   "product_update",
   "leadership_governance",
   "insider_ownership",

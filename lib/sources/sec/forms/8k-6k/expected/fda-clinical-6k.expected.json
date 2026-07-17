@@ -62,41 +62,55 @@
     "signal": "volatile",
     "quick_take": "NovaCure says NC-201 met the primary endpoint in Phase 3.",
     "summary": "The company plans to submit a BLA to the FDA after statistically significant progression-free survival results.",
-    "why_it_matters": "Pivotal trial success can materially change approval odds and commercial expectations.",
-    "bullish_points": [
-      "The Phase 3 trial met its primary endpoint."
-    ],
-    "bearish_points": [
-      "Regulatory submission and review are still pending."
-    ],
-    "key_evidence": [
-      "The trial met its primary endpoint with statistically significant improvement in progression-free survival."
-    ],
-    "what_to_watch_next": [
-      "BLA submission acceptance and any confirmed PDUFA date."
-    ],
-    "related_tickers": [],
-    "calendar_items": [
+    "confidence": "high",
+    "needs_human_review": false,
+    "material_events": [
       {
-        "label": "pdufa_date",
-        "dateText": "December 18, 2026",
-        "evidence": "The Company plans to submit a BLA to the FDA and noted a potential PDUFA target action date of December 18, 2026 if accepted for priority review."
+        "role": "primary",
+        "event_type": "fda_clinical",
+        "event_summary": "NovaCure says NC-201 met the primary endpoint in Phase 3.",
+        "key_terms": [],
+        "source_block_ids": []
       }
     ],
-    "confidence": "high",
-    "needs_human_review": false
+    "score_explanation": {
+      "summary": "Positive Phase 3 primary endpoint data is high-impact clinical news."
+    }
   },
   "display_payload": {
-    "display_type": "generic",
+    "display_type": "operating_event",
     "data": {
-      "trial_phase": "Phase 3",
-      "asset": "NC-201",
-      "endpoint": "progression-free survival"
-    },
-    "evidence": [
-      "The Company plans to submit a BLA to the FDA."
-    ],
-    "notes": []
+      "display_version": "sec_8k_6k_operating_event_v1",
+      "operating_mode": "product_or_regulatory",
+      "performance_comparisons": [],
+      "regulatory_stage": "clinical_update",
+      "snapshot_title": "Product / Regulatory Snapshot",
+      "snapshot_metrics": [
+        {
+          "label": "Clinical Stage",
+          "value": "Phase 3",
+          "note": null
+        },
+        {
+          "label": "Asset",
+          "value": "NC-201",
+          "note": null
+        },
+        {
+          "label": "Primary Endpoint",
+          "value": "Met",
+          "note": "Progression-free survival"
+        }
+      ],
+      "guidance_metrics": [],
+      "business_catalysts": [
+        {
+          "title": "BLA submission planned",
+          "value": null,
+          "summary": "The company plans to submit a BLA after the positive Phase 3 topline result."
+        }
+      ]
+    }
   },
   "fixture_expected": {
     "expected_delivery_level": "alert",
@@ -104,8 +118,9 @@
     "market_context_needed": false,
     "market_context_reason": null,
     "market_context_fields": [],
-    "special_ui_needed": false,
-    "special_ui_reason": null,
-    "integration_notes": []
+    "integration_notes": [],
+    "analysis_family": "operating_legal_routine",
+    "expected_display_type": "operating_event",
+    "expected_display_version": "sec_8k_6k_operating_event_v1"
   }
 }

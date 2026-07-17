@@ -9,7 +9,13 @@ import {
   type Sec8k6kParserOutput,
 } from "./types";
 
-export { buildSec8k6kAnalysisPromptDraft } from "./analysisPrompt";
+export {
+  buildSec8k6kAnalysisPromptDraft,
+  isSec8k6kAnalysisPromptKey,
+  resolveSec8k6kAnalysisPromptFamily,
+  SEC_8K_6K_ANALYSIS_PROMPT_FAMILY_VALUES,
+  SEC_8K_6K_ANALYSIS_PROMPT_KEYS,
+} from "./analysisPrompt";
 export { buildSec8k6kDisplayPayload } from "./displayPayload";
 export { parseSec8k6kFiling } from "./parser";
 export { buildSec8k6kRouterPromptDraft } from "./routerPrompt";

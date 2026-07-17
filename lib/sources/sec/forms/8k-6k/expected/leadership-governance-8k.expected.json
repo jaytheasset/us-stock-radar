@@ -71,34 +71,53 @@
     "signal": "neutral",
     "quick_take": "Beacon Retail is changing finance leadership.",
     "summary": "The CFO resigned effective immediately and the board appointed Maria Chen as interim CFO.",
-    "why_it_matters": "Finance leadership changes can affect reporting confidence and strategic execution.",
-    "bullish_points": [
-      "An interim CFO was appointed immediately."
-    ],
-    "bearish_points": [
-      "The resignation was effective immediately."
-    ],
-    "key_evidence": [
-      "The board of directors appointed Maria Chen as interim Chief Financial Officer."
-    ],
-    "what_to_watch_next": [
-      "Permanent CFO search and any accounting or reporting follow-up."
-    ],
-    "related_tickers": [],
-    "calendar_items": [],
     "confidence": "high",
-    "needs_human_review": false
+    "needs_human_review": false,
+    "material_events": [
+      {
+        "role": "primary",
+        "event_type": "leadership_governance",
+        "event_summary": "Beacon Retail is changing finance leadership.",
+        "key_terms": [],
+        "source_block_ids": []
+      }
+    ],
+    "score_explanation": {
+      "summary": "A CFO resignation is governance-relevant but the filing names an interim replacement."
+    }
   },
   "display_payload": {
-    "display_type": "generic",
+    "display_type": "governance_event",
     "data": {
-      "role": "Chief Financial Officer",
-      "successor": "Maria Chen"
-    },
-    "evidence": [
-      "The Chief Financial Officer resigned effective immediately."
-    ],
-    "notes": []
+      "display_version": "sec_8k_6k_governance_event_v1",
+      "governance_mode": "leadership_change",
+      "snapshot_title": "Leadership Change Overview",
+      "snapshot_metrics": [
+        {
+          "label": "Departing Role",
+          "value": "Chief Financial Officer",
+          "note": null
+        },
+        {
+          "label": "Successor",
+          "value": "Maria Chen",
+          "note": "Interim Chief Financial Officer"
+        },
+        {
+          "label": "Effective Date",
+          "value": "Immediately",
+          "note": null
+        }
+      ],
+      "key_changes": [
+        {
+          "title": "CFO transition",
+          "category": "Leadership",
+          "explanation": "The chief financial officer resigned and the board appointed Maria Chen as interim CFO.",
+          "details": []
+        }
+      ]
+    }
   },
   "fixture_expected": {
     "expected_delivery_level": "feed",
@@ -106,8 +125,9 @@
     "market_context_needed": false,
     "market_context_reason": null,
     "market_context_fields": [],
-    "special_ui_needed": false,
-    "special_ui_reason": null,
-    "integration_notes": []
+    "integration_notes": [],
+    "analysis_family": "governance_vote",
+    "expected_display_type": "governance_event",
+    "expected_display_version": "sec_8k_6k_governance_event_v1"
   }
 }

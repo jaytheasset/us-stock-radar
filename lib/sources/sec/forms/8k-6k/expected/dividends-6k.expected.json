@@ -67,43 +67,48 @@
     "signal": "bullish",
     "quick_take": "BlueRiver declared a $0.22 quarterly cash dividend.",
     "summary": "The dividend has a June 5, 2026 record date and June 20, 2026 payment date.",
-    "why_it_matters": "Dividend actions signal capital policy and cash-return capacity.",
-    "bullish_points": [
-      "The dividend is consistent with the company's capital policy."
-    ],
-    "bearish_points": [],
-    "key_evidence": [
-      "BlueRiver Bancorp declared a quarterly cash dividend of $0.22 per ordinary share."
-    ],
-    "what_to_watch_next": [
-      "Future payout consistency and earnings coverage."
-    ],
-    "related_tickers": [],
-    "calendar_items": [
+    "confidence": "high",
+    "needs_human_review": false,
+    "material_events": [
       {
-        "label": "record_date",
-        "dateText": "June 5, 2026",
-        "evidence": "The record date is June 5, 2026, and the payment date is June 20, 2026."
-      },
-      {
-        "label": "payment_date",
-        "dateText": "June 20, 2026",
-        "evidence": "The record date is June 5, 2026, and the payment date is June 20, 2026."
+        "role": "primary",
+        "event_type": "dividends",
+        "event_summary": "BlueRiver declared a $0.22 quarterly cash dividend.",
+        "key_terms": [],
+        "source_block_ids": []
       }
     ],
-    "confidence": "high",
-    "needs_human_review": false
+    "score_explanation": {
+      "summary": "A regular dividend declaration matters for income investors but is not an alert-level surprise in this fixture."
+    }
   },
   "display_payload": {
-    "display_type": "generic",
+    "display_type": "capital_financing",
     "data": {
-      "dividend": "$0.22 per ordinary share",
-      "record_date": "June 5, 2026",
-      "payment_date": "June 20, 2026"
+      "display_version": "sec_8k_6k_capital_financing_v1",
+      "capital_mode": "capital_return",
+      "snapshot_metrics": [
+        {
+          "label": "Dividend",
+          "value": "$0.22 per ordinary share",
+          "note": null
+        },
+        {
+          "label": "Record Date",
+          "value": "June 5, 2026",
+          "note": null
+        },
+        {
+          "label": "Payment Date",
+          "value": "June 20, 2026",
+          "note": null
+        }
+      ],
+      "share_overhang": null,
+      "instrument_details": [],
+      "offering_details": []
     },
-    "evidence": [
-      "The record date is June 5, 2026, and the payment date is June 20, 2026."
-    ],
+    "evidence": [],
     "notes": []
   },
   "fixture_expected": {
@@ -112,8 +117,9 @@
     "market_context_needed": false,
     "market_context_reason": null,
     "market_context_fields": [],
-    "special_ui_needed": false,
-    "special_ui_reason": null,
-    "integration_notes": []
+    "integration_notes": [],
+    "analysis_family": "capital_financing",
+    "expected_display_type": "capital_financing",
+    "expected_display_version": "sec_8k_6k_capital_financing_v1"
   }
 }

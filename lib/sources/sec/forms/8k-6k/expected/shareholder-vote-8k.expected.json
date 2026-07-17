@@ -71,45 +71,59 @@
     "signal": "neutral",
     "quick_take": "Atlas reported annual meeting results, including a rejected shareholder proposal.",
     "summary": "Stockholders approved directors and say-on-pay while rejecting a classified-board shareholder proposal.",
-    "why_it_matters": "Vote results show investor support for board and compensation matters.",
-    "bullish_points": [
-      "Director elections and compensation proposal were approved."
-    ],
-    "bearish_points": [
-      "A governance proposal was rejected."
-    ],
-    "key_evidence": [
-      "Stockholders approved the election of all directors."
-    ],
-    "what_to_watch_next": [
-      "Governance follow-up after the rejected shareholder proposal."
-    ],
-    "related_tickers": [],
-    "calendar_items": [
+    "confidence": "high",
+    "needs_human_review": false,
+    "material_events": [
       {
-        "label": "meeting_date",
-        "dateText": "May 8, 2026",
-        "evidence": "Atlas Robotics held its annual meeting on May 8, 2026."
+        "role": "primary",
+        "event_type": "shareholder_vote",
+        "event_summary": "Atlas reported annual meeting results, including a rejected shareholder proposal.",
+        "key_terms": [],
+        "source_block_ids": []
       }
     ],
-    "confidence": "high",
-    "needs_human_review": false
+    "score_explanation": {
+      "summary": "Vote outcomes affect governance but the fixture does not show a failed critical proposal."
+    }
   },
   "display_payload": {
-    "display_type": "generic",
+    "display_type": "governance_event",
     "data": {
-      "approved": [
-        "directors",
-        "say-on-pay"
+      "display_version": "sec_8k_6k_governance_event_v1",
+      "governance_mode": "vote_result",
+      "snapshot_title": "Shareholder Vote Results",
+      "snapshot_metrics": [
+        {
+          "label": "Directors",
+          "value": "Approved",
+          "note": null
+        },
+        {
+          "label": "Say-on-Pay",
+          "value": "Approved",
+          "note": null
+        },
+        {
+          "label": "Shareholder Proposal",
+          "value": "Rejected",
+          "note": "Classified-board proposal"
+        }
       ],
-      "rejected": [
-        "classified board shareholder proposal"
+      "key_changes": [
+        {
+          "title": "Directors and say-on-pay approved",
+          "category": "Company Proposals",
+          "explanation": "Stockholders approved the director nominees and the advisory executive compensation proposal.",
+          "details": []
+        },
+        {
+          "title": "Classified-board proposal rejected",
+          "category": "Shareholder Proposal",
+          "explanation": "Stockholders rejected the shareholder proposal concerning a classified board.",
+          "details": []
+        }
       ]
-    },
-    "evidence": [
-      "The final vote included 42,100,000 votes for and 3,500,000 votes against the compensation proposal."
-    ],
-    "notes": []
+    }
   },
   "fixture_expected": {
     "expected_delivery_level": "feed",
@@ -117,8 +131,9 @@
     "market_context_needed": false,
     "market_context_reason": null,
     "market_context_fields": [],
-    "special_ui_needed": false,
-    "special_ui_reason": null,
-    "integration_notes": []
+    "integration_notes": [],
+    "analysis_family": "governance_vote",
+    "expected_display_type": "governance_event",
+    "expected_display_version": "sec_8k_6k_governance_event_v1"
   }
 }

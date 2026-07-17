@@ -71,32 +71,49 @@
     "signal": "neutral",
     "quick_take": "Summit reported April delivery and production growth.",
     "summary": "The company delivered 18,420 vehicles in April 2026, up 27% from the prior year.",
-    "why_it_matters": "Delivery momentum can move expectations before formal earnings.",
-    "bullish_points": [
-      "Deliveries rose 27% year over year."
-    ],
-    "bearish_points": [],
-    "key_evidence": [
-      "The Company delivered 18,420 vehicles in April 2026, up 27% from April 2025."
-    ],
-    "what_to_watch_next": [
-      "Whether delivery growth converts into revenue and margin growth."
-    ],
-    "related_tickers": [],
-    "calendar_items": [],
     "confidence": "medium",
-    "needs_human_review": false
+    "needs_human_review": false,
+    "material_events": [
+      {
+        "role": "primary",
+        "event_type": "sales_performance",
+        "event_summary": "Summit reported April delivery and production growth.",
+        "key_terms": [],
+        "source_block_ids": []
+      }
+    ],
+    "score_explanation": {
+      "summary": "Monthly deliveries and preliminary revenue are useful operating indicators but not full earnings."
+    }
   },
   "display_payload": {
-    "display_type": "generic",
+    "display_type": "operating_event",
     "data": {
-      "deliveries": "18,420 vehicles",
-      "production": "19,100 vehicles"
-    },
-    "evidence": [
-      "Production volumes were 19,100 vehicles."
-    ],
-    "notes": []
+      "display_version": "sec_8k_6k_operating_event_v1",
+      "operating_mode": "operating_update",
+      "performance_comparisons": [],
+      "regulatory_stage": "not_applicable",
+      "snapshot_title": "Operating Snapshot",
+      "snapshot_metrics": [
+        {
+          "label": "Deliveries",
+          "value": "18,420 vehicles",
+          "note": null
+        },
+        {
+          "label": "Production",
+          "value": "19,100 vehicles",
+          "note": null
+        },
+        {
+          "label": "Delivery Growth",
+          "value": "Up 27% year over year",
+          "note": null
+        }
+      ],
+      "guidance_metrics": [],
+      "business_catalysts": []
+    }
   },
   "fixture_expected": {
     "expected_delivery_level": "feed",
@@ -108,8 +125,9 @@
       "volume",
       "avg_volume"
     ],
-    "special_ui_needed": false,
-    "special_ui_reason": null,
-    "integration_notes": []
+    "integration_notes": [],
+    "analysis_family": "operating_legal_routine",
+    "expected_display_type": "operating_event",
+    "expected_display_version": "sec_8k_6k_operating_event_v1"
   }
 }

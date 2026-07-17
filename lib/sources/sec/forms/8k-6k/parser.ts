@@ -17,7 +17,10 @@ import {
   type Sec8k6kParseInput,
   type Sec8k6kParserOutput,
   type Sec8k6kParserSignal,
+  type Sec8k6kReferencedFiling,
+  type Sec8k6kUnnumberedSection,
 } from "./types";
+import { findSecDocumentHeadline, semanticHeadlineCandidate } from "./documentHeadline";
 
 const SEC_8K_6K_FORMS = ["8-K", "6-K", "8-K/A", "6-K/A"] as const;
 
@@ -229,7 +232,7 @@ const FILING_CUE_PATTERNS: CuePattern[] = [
   {
     cueType: "financial_distress_or_default",
     label: "Default, liquidity, going concern, bankruptcy, impairment, restructuring, or financial distress language",
-    itemNumbers: ["2.03", "2.04", "2.05", "2.06"],
+    itemNumbers: ["2.04", "2.05", "2.06"],
     patterns: [
       /\b(?:default|event of default|covenant breach|liquidity|going concern|bankruptcy|chapter 11|impairment|restructuring|workforce reduction)\b/i,
       /\b(?:material impairment|exit or disposal activities|cost reduction plan)\b/i,
@@ -295,6 +298,7 @@ export function parseSec8k6kFiling(input: Sec8k6kParseInput): Sec8k6kParserOutpu
     text: combinedText,
   });
   const items = formProfile.is8kLike ? extract8kItems(combinedText) : [];
+  const unnumberedSections = formProfile.is8kLike ? extract8kUnnumberedSections(combinedText) : [];
   const exhibitFacts = buildExhibitFacts({
     attachmentTexts,
     documentSummaries,
@@ -305,6 +309,7 @@ export function parseSec8k6kFiling(input: Sec8k6kParseInput): Sec8k6kParserOutpu
   });
   const tableFacts = buildTableFacts(combinedText, documents);
   const amendment = buildAmendmentInfo(secFormType, combinedText);
+  const referencedFilings = extractReferencedFilings(combinedText, items);
   const filingCues = buildFilingCues({
     amendment,
     items,
@@ -362,7 +367,10 @@ export function parseSec8k6kFiling(input: Sec8k6kParseInput): Sec8k6kParserOutpu
       isAmendment: amendment.isAmendment,
       amendment,
       items,
+      referencedFilings,
+      unnumberedSections,
       filingCues,
+      sourceCues: filingCues,
       moneyAmounts,
       shareCounts,
       dates,
@@ -654,6 +662,12 @@ function buildExhibitFacts({
       const attachmentText = findAttachmentTextForDocument(document, attachmentTexts);
       const attachmentSample = truncate(stringValue(attachmentText?.text), 1_500);
       const exhibitNumber = normalizeExhibitNumberFromDocument(document);
+      const headline = extractRoutingHeadline(
+        attachmentSample,
+        nullableString(document.description),
+        nullableString(document.filename) || nullableString(document.document),
+      );
+      const routingSummary = extractRoutingSummary(attachmentSample, headline);
       const roleCandidates = inferSixKExhibitRoleCandidates({
         description: nullableString(document.description),
         filename: nullableString(document.filename) || nullableString(document.document),
@@ -665,6 +679,8 @@ function buildExhibitFacts({
         type: nullableString(document.type),
         description: nullableString(document.description),
         filename: nullableString(document.filename) || nullableString(document.document),
+        headline,
+        routingSummary,
         role,
         noiseClass,
         textAvailable: Boolean(stringValue(attachmentText?.text)) || numberValue(document.includedTextCharCount) > 0 || numberValue(document.textCharCount) > 0,
@@ -705,6 +721,8 @@ function buildExhibitFacts({
           type: document.type,
           description: document.description,
           filename: document.filename,
+          headline: document.headline,
+          routingSummary: document.routingSummary,
           roleCandidates: document.roleCandidates.length ? document.roleCandidates : ["other_material_information"],
           textAvailable: document.textAvailable,
           noiseClass: document.noiseClass,
@@ -979,8 +997,8 @@ function buildAmendmentInfo(formType: Sec8k6kFormType | null, text: string): Sec
   return {
     isAmendment,
     amendmentNumber: numberFromMatch(scopeText.match(/\bAmendment\s+No\.?\s*(\d+)/i)?.[1]),
-    parentAccessionNumber: scopeText.match(/\b(?:accession|file)\s+no\.?\s*([0-9-]{10,})/i)?.[1] || null,
-    parentFiledDate: scopeText.match(/\b(?:filed|furnished)\s+(?:on\s+)?([A-Z][a-z]+ \d{1,2}, \d{4})/i)?.[1] || null,
+    parentAccessionNumber: extractAmendmentParentAccession(scopeText),
+    parentFiledDate: extractAmendmentParentFiledDate(scopeText),
     administrativeSignals,
     materialChangeSignals,
     isRoutineAdministrativeOnly,
@@ -988,6 +1006,36 @@ function buildAmendmentInfo(formType: Sec8k6kFormType | null, text: string): Sec
     needsParentContext: isAmendment && !isRoutineAdministrativeOnly,
     excerpt,
   };
+}
+
+function extractAmendmentParentAccession(value: string) {
+  const explicit = value.match(
+    /\baccession\s+(?:number|no\.?)\s*[:#]?\s*(\d{10}-\d{2}-\d{6})\b/i,
+  )?.[1];
+  if (explicit) return explicit;
+
+  const archiveDigits = value.match(/\/Archives\/edgar\/data\/\d+\/(\d{18})(?:\/|\b)/i)?.[1];
+  if (!archiveDigits) return null;
+  return `${archiveDigits.slice(0, 10)}-${archiveDigits.slice(10, 12)}-${archiveDigits.slice(12)}`;
+}
+
+function extractAmendmentParentFiledDate(value: string) {
+  const datePattern = "(?:[A-Z][a-z]+\\s+\\d{1,2},\\s+\\d{4}|\\d{4}-\\d{2}-\\d{2})";
+  const reportContextPatterns = [
+    new RegExp(
+      `\\b(?:Current\\s+Report|Report\\s+of\\s+Foreign\\s+Private\\s+Issuer)[\\s\\S]{0,180}?\\bon\\s+Form\\s+(?:8-K|6-K)(?:\\/A)?[\\s\\S]{0,220}?\\b(?:filed|furnished)(?:\\s+with\\s+the\\s+(?:SEC|Securities\\s+and\\s+Exchange\\s+Commission))?\\s+(?:on\\s+)?(${datePattern})`,
+      "i",
+    ),
+    new RegExp(
+      `\\bForm\\s+(?:8-K|6-K)(?:\\/A)?[\\s\\S]{0,220}?\\b(?:filed|furnished)(?:\\s+with\\s+the\\s+(?:SEC|Securities\\s+and\\s+Exchange\\s+Commission))?\\s+(?:on\\s+)?(${datePattern})`,
+      "i",
+    ),
+  ];
+  for (const pattern of reportContextPatterns) {
+    const match = value.match(pattern)?.[1];
+    if (match) return match;
+  }
+  return null;
 }
 
 function buildMarketContextFacts(
@@ -1556,12 +1604,45 @@ function extract8kItems(text: string): Sec8k6kItem[] {
 
   return headings.map((heading, index) => {
     const nextStart = headings[index + 1]?.start ?? scanText.length;
+    const sectionText = compactText(scanText.slice(heading.start, nextStart));
     return {
       item: heading.item,
       label: heading.label,
-      evidence: truncate(compactText(scanText.slice(heading.start, nextStart)), 620),
+      evidence: truncateSourceSection(sectionText, itemEvidenceLimit(heading.item)),
     };
   });
+}
+
+function extract8kUnnumberedSections(text: string): Sec8k6kUnnumberedSection[] {
+  const scanText = text.slice(0, signatureBoundaryIndex(text));
+  const lines = splitLinesWithOffsets(scanText);
+  const sections: Sec8k6kUnnumberedSection[] = [];
+
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex];
+    const heading = line.text.trim();
+    if (!/^(?:Introductory|Explanatory)\s+Note\s*:?$/i.test(heading)) continue;
+
+    let end = scanText.length;
+    for (let nextIndex = lineIndex + 1; nextIndex < lines.length; nextIndex += 1) {
+      const nextLine = lines[nextIndex];
+      const nextHeading = nextLine.text.trim();
+      if (
+        parse8kItemHeading(nextLine.text) ||
+        parseSplit8kItemHeading(nextLine.text, lines[nextIndex + 1]?.text) ||
+        /^(?:Introductory|Explanatory)\s+Note\s*:?$/i.test(nextHeading) ||
+        /^SIGNATURES?$/i.test(nextHeading)
+      ) {
+        end = nextLine.start;
+        break;
+      }
+    }
+
+    const sectionText = truncateSourceSection(scanText.slice(line.start, end), 8_000);
+    if (sectionText) sections.push({ heading: heading.replace(/:$/, ""), evidence: sectionText });
+  }
+
+  return sections;
 }
 
 function splitLinesWithOffsets(text: string) {
@@ -1842,6 +1923,153 @@ function pickEvidenceSentence(text: string, index: number) {
   if (end < 0 || end - safeIndex > 520) end = Math.min(clean.length, safeIndex + 420);
   else end += 1;
   return truncate(clean.slice(start > 0 ? start + 1 : start, end), 420);
+}
+
+function itemEvidenceLimit(itemNumber: string) {
+  if (["1.01", "2.01", "3.01", "3.02", "5.02", "5.03", "5.07", "8.01"].includes(itemNumber)) {
+    return 32_000;
+  }
+  return 12_000;
+}
+
+function extractRoutingHeadline(text: string, description: string | null, filename: string | null) {
+  const fallback = semanticHeadlineCandidate(description || "") || semanticHeadlineCandidate(filename || "");
+  const headline = findSecDocumentHeadline(text);
+  return nullableString(truncate(headline || fallback || "", 240));
+}
+
+function extractRoutingSummary(text: string, headline: string | null) {
+  const normalizedHeadline = compactText(headline || "").toLowerCase();
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => compactText(line))
+    .filter(Boolean);
+  const meaningful = lines.filter((line) => {
+    const semantic = semanticHeadlineCandidate(line);
+    if (!semantic) return false;
+    if (compactText(semantic).toLowerCase() === normalizedHeadline) return false;
+    if (/^(?:press release|news release|immediate release|for immediate release|contact|investor relations)\b/i.test(semantic)) return false;
+    if (isTableLikeRoutingText(line)) return false;
+    return semantic.length >= 40;
+  });
+  const context = meaningful.find((line) =>
+    /\b(?:announc|approv|authoriz|effect|implement|complet|enter|appoint|resign|dismiss|engag|report|expect|guidance|production|revenue|merger|acquisition|reverse stock split)\w*\b/i.test(line),
+  ) || meaningful[0] || "";
+  return nullableString(truncate([headline, context].filter(Boolean).join(". "), 620));
+}
+
+function isTableLikeRoutingText(value: string) {
+  return (value.match(/\|/g) || []).length >= 2 || (value.match(/\t/g) || []).length >= 2;
+}
+
+const REFERENCED_FILING_DATE_PATTERN =
+  "(?:January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{1,2},\\s+\\d{4}";
+
+function extractReferencedFilings(text: string, items: Sec8k6kItem[]): Sec8k6kReferencedFiling[] {
+  const references: Sec8k6kReferencedFiling[] = [];
+  const patterns: Array<{ pattern: RegExp; formType: (match: RegExpExecArray) => string }> = [
+    {
+      pattern: new RegExp(
+        `\\b((?:definitive|preliminary)\\s+proxy statement(?:\\s+on\\s+Schedule\\s+14A)?)[\\s\\S]{0,320}?\\bfiled\\b[\\s\\S]{0,180}?\\b(?:on\\s+)?(${REFERENCED_FILING_DATE_PATTERN})\\b`,
+        "gi",
+      ),
+      formType: (match) => (/\bpreliminary\b/i.test(match[1] || "") ? "PRE 14A" : "DEF 14A"),
+    },
+    {
+      pattern: new RegExp(
+        `\\b((?:(?:Current|Annual|Quarterly)\\s+Report|Registration\\s+Statement|Prospectus)\\s+(?:on\\s+)?Form\\s+(8-K(?:\\/A)?|6-K(?:\\/A)?|S-[1348](?:\\/A)?|F-[134](?:\\/A)?|424B[345]|425|DEF\\s*14A|PRE\\s*14A|DEFA14A|DEFM14A|DEFC14A))[\\s\\S]{0,320}?\\bfiled\\b[\\s\\S]{0,180}?\\b(?:on\\s+)?(${REFERENCED_FILING_DATE_PATTERN})\\b`,
+        "gi",
+      ),
+      formType: (match) => normalizeReferencedFormType(match[2] || match[1] || ""),
+    },
+    {
+      pattern: new RegExp(
+        `\\b(Schedule\\s+(14A|TO(?:-[IT])?|13[DG](?:\\/A)?))[\\s\\S]{0,320}?\\bfiled\\b[\\s\\S]{0,180}?\\b(?:on\\s+)?(${REFERENCED_FILING_DATE_PATTERN})\\b`,
+        "gi",
+      ),
+      formType: (match) => normalizeReferencedFormType(match[2] || match[1] || ""),
+    },
+  ];
+
+  for (const { pattern, formType } of patterns) {
+    for (const match of text.matchAll(pattern)) {
+      const matchedText = compactText(match[0] || "");
+      const dateText = match[match.length - 1] || "";
+      const filedDate = normalizeReferencedFiledDate(dateText);
+      const normalizedFormType = formType(match as RegExpExecArray);
+      if (!matchedText || !filedDate || !normalizedFormType) continue;
+      const evidence = truncate(pickEvidenceSentence(text, match.index || 0) || matchedText, 520);
+      const accessionNumber = evidence.match(/\b\d{10}-\d{2}-\d{6}\b/)?.[0] || null;
+      const itemNumber = items.find((item) => item.evidence.includes(match[0] || ""))?.item || null;
+      references.push({
+        formType: normalizedFormType,
+        filedDate,
+        accessionNumber,
+        itemNumber,
+        evidence,
+        confidence: "high",
+      });
+    }
+  }
+
+  const seen = new Set<string>();
+  return references.filter((reference) => {
+    if (
+      reference.formType === "SCHEDULE 14A" &&
+      references.some(
+        (candidate) =>
+          (candidate.formType === "DEF 14A" || candidate.formType === "PRE 14A") &&
+          candidate.filedDate === reference.filedDate,
+      )
+    ) {
+      return false;
+    }
+    const key = `${reference.formType}|${reference.filedDate}|${reference.accessionNumber || ""}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 12);
+}
+
+function normalizeReferencedFormType(value: string) {
+  const compact = value.toUpperCase().replace(/\s+/g, " ").trim();
+  if (!compact) return "";
+  if (compact === "14A" || compact === "SCHEDULE 14A") return "SCHEDULE 14A";
+  if (compact === "DEF 14A") return "DEF 14A";
+  if (compact === "PRE 14A") return "PRE 14A";
+  if (compact.startsWith("TO")) return `SC ${compact}`;
+  if (/^13[DG](?:\/A)?$/.test(compact)) return `SC ${compact}`;
+  return compact.replace(/^FORM\s+/, "");
+}
+
+function normalizeReferencedFiledDate(value: string) {
+  const match = value.match(
+    /^(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),\s+(\d{4})$/i,
+  );
+  if (!match) return "";
+  const months = [
+    "january", "february", "march", "april", "may", "june",
+    "july", "august", "september", "october", "november", "december",
+  ];
+  const month = months.indexOf((match[1] || "").toLowerCase()) + 1;
+  const day = Number(match[2]);
+  const year = Number(match[3]);
+  if (!month || !Number.isInteger(day) || day < 1 || day > 31 || !Number.isInteger(year)) return "";
+  return `${year.toString().padStart(4, "0")}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+}
+
+function truncateSourceSection(value: string, max: number) {
+  const text = compactText(value);
+  if (text.length <= max) return text;
+  const slice = text.slice(0, max);
+  const boundary = Math.max(
+    slice.lastIndexOf("\n\n"),
+    slice.lastIndexOf("\n"),
+    slice.lastIndexOf(". "),
+    slice.lastIndexOf("; "),
+  );
+  if (boundary > Math.floor(max * 0.65)) return `${slice.slice(0, boundary + 1).trim()}...`;
+  return `${slice.trim()}...`;
 }
 
 function compactText(value: string) {

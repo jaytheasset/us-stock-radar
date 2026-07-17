@@ -65,34 +65,48 @@
     "signal": "neutral",
     "quick_take": "A founder with a large stake agreed to vote in favor of board and governance proposals.",
     "summary": "The founder and CEO beneficially owns about 38% of Canyon's common stock and entered a voting agreement.",
-    "why_it_matters": "Large insider voting commitments can shape governance outcomes and minority-holder influence.",
-    "bullish_points": [
-      "The agreement may improve proposal certainty."
-    ],
-    "bearish_points": [
-      "The founder's voting block concentrates control."
-    ],
-    "key_evidence": [
-      "The founder beneficially owns approximately 38% of the outstanding common stock."
-    ],
-    "what_to_watch_next": [
-      "Annual meeting results and governance amendment details."
-    ],
-    "related_tickers": [],
-    "calendar_items": [],
     "confidence": "medium",
-    "needs_human_review": false
+    "needs_human_review": false,
+    "material_events": [
+      {
+        "role": "primary",
+        "event_type": "insider_ownership",
+        "event_summary": "A founder with a large stake agreed to vote in favor of board and governance proposals.",
+        "key_terms": [],
+        "source_block_ids": []
+      }
+    ],
+    "score_explanation": {
+      "summary": "The voting agreement affects control dynamics but does not disclose a sale or financing."
+    }
   },
   "display_payload": {
-    "display_type": "generic",
+    "display_type": "governance_event",
     "data": {
-      "beneficial_owner": "founder and Chief Executive Officer",
-      "ownership": "approximately 38%"
-    },
-    "evidence": [
-      "The founder beneficially owns approximately 38% of the outstanding common stock."
-    ],
-    "notes": []
+      "display_version": "sec_8k_6k_governance_event_v1",
+      "governance_mode": "governance_change",
+      "snapshot_title": "Ownership & Voting Overview",
+      "snapshot_metrics": [
+        {
+          "label": "Beneficial Owner",
+          "value": "Founder and Chief Executive Officer",
+          "note": null
+        },
+        {
+          "label": "Ownership",
+          "value": "Approximately 38%",
+          "note": null
+        }
+      ],
+      "key_changes": [
+        {
+          "title": "Founder enters voting agreement",
+          "category": "Voting Control",
+          "explanation": "The founder agreed to vote a large ownership stake in favor of board and governance proposals.",
+          "details": []
+        }
+      ]
+    }
   },
   "fixture_expected": {
     "expected_delivery_level": "feed",
@@ -100,8 +114,9 @@
     "market_context_needed": false,
     "market_context_reason": null,
     "market_context_fields": [],
-    "special_ui_needed": false,
-    "special_ui_reason": null,
-    "integration_notes": []
+    "integration_notes": [],
+    "analysis_family": "governance_vote",
+    "expected_display_type": "governance_event",
+    "expected_display_version": "sec_8k_6k_governance_event_v1"
   }
 }

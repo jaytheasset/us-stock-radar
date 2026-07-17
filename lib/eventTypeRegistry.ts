@@ -88,6 +88,17 @@ export const eventTypeDefinitions: EventTypeDefinition[] = [
     examples: ["revenue growth update", "sales decline warning", "backlog improvement"],
   },
   {
+    code: "operating_update",
+    label: "Operating Update",
+    category: "Filing Events",
+    tone: "general",
+    sourceGroups: ["filings"],
+    status: "active",
+    coveredForms: currentReportForms,
+    description: "Workforce, restructuring, cost reduction, facility, capacity, or other operating-plan disclosure outside a full earnings report.",
+    examples: ["workforce reduction", "cost restructuring plan", "facility exit or consolidation"],
+  },
+  {
     code: "product_update",
     label: "Product Update",
     category: "Filing Events",

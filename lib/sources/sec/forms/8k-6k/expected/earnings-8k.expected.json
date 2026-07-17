@@ -71,33 +71,49 @@
     "signal": "neutral",
     "quick_take": "Northstar furnished quarterly results with revenue and EPS detail.",
     "summary": "Revenue was $184.2 million and diluted EPS was $0.18 for the quarter ended March 31, 2026.",
-    "why_it_matters": "Earnings updates reset expectations for growth, margins, and guidance follow-through.",
-    "bullish_points": [
-      "Revenue increased versus the prior-year period."
-    ],
-    "bearish_points": [],
-    "key_evidence": [
-      "Revenue was $184.2 million, compared with $151.0 million in the prior-year period."
-    ],
-    "what_to_watch_next": [
-      "Management guidance and margin commentary."
-    ],
-    "related_tickers": [],
-    "calendar_items": [],
     "confidence": "high",
-    "needs_human_review": false
+    "needs_human_review": false,
+    "material_events": [
+      {
+        "role": "primary",
+        "event_type": "earnings",
+        "event_summary": "Northstar furnished quarterly results with revenue and EPS detail.",
+        "key_terms": [],
+        "source_block_ids": []
+      }
+    ],
+    "score_explanation": {
+      "summary": "Quarterly revenue, net income, and EPS are material but not automatically alert-level without surprise context."
+    }
   },
   "display_payload": {
-    "display_type": "generic",
+    "display_type": "operating_event",
     "data": {
-      "revenue": "$184.2 million",
-      "net_income": "$12.4 million",
-      "eps": "$0.18"
-    },
-    "evidence": [
-      "Net income was $12.4 million and diluted EPS was $0.18."
-    ],
-    "notes": []
+      "display_version": "sec_8k_6k_operating_event_v1",
+      "operating_mode": "earnings",
+      "performance_comparisons": [],
+      "regulatory_stage": "not_applicable",
+      "snapshot_title": "Earnings Snapshot",
+      "snapshot_metrics": [
+        {
+          "label": "Revenue",
+          "value": "$184.2 million",
+          "note": "Quarter ended March 31, 2026"
+        },
+        {
+          "label": "Net Income",
+          "value": "$12.4 million",
+          "note": null
+        },
+        {
+          "label": "Diluted EPS",
+          "value": "$0.18",
+          "note": null
+        }
+      ],
+      "guidance_metrics": [],
+      "business_catalysts": []
+    }
   },
   "fixture_expected": {
     "expected_delivery_level": "feed",
@@ -105,8 +121,9 @@
     "market_context_needed": false,
     "market_context_reason": null,
     "market_context_fields": [],
-    "special_ui_needed": false,
-    "special_ui_reason": null,
-    "integration_notes": []
+    "integration_notes": [],
+    "analysis_family": "operating_legal_routine",
+    "expected_display_type": "operating_event",
+    "expected_display_version": "sec_8k_6k_operating_event_v1"
   }
 }

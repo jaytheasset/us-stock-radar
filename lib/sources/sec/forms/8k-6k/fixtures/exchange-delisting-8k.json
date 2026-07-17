@@ -1,0 +1,50 @@
+{
+  "title": "Nova Battery Corp. Form 8-K exchange delisting notice",
+  "publishedAt": "2026-04-12T20:30:00Z",
+  "sourceUniqueId": "0002020202-26-000020",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/2020202/000202020226000020/",
+  "bodyText": "UNITED STATES\nFORM 8-K\nItem 3.01 Notice of Delisting or Failure to Satisfy a Continued Listing Rule or Standard; Transfer of Listing.\nOn April 10, 2026, Nova Battery Corp. received a Staff Delisting Determination from The Nasdaq Stock Market LLC stating that the Company's common stock would be delisted because the Company no longer satisfied Nasdaq Listing Rule 5550(a)(2), the minimum bid price requirement. Trading of the Company's common stock will be suspended at the opening of business on April 15, 2026 unless the Company requests a hearing before the Nasdaq Hearings Panel. The Company intends to request a hearing, which will stay the suspension pending the Panel's decision. If the Company does not appeal, Nasdaq will file a Form 25-NSE with the Securities and Exchange Commission to remove the Company's common stock from listing and registration.\nItem 9.01 Financial Statements and Exhibits.\n99.1 Press Release dated April 12, 2026.",
+  "rawPayload": {
+    "form_type": "8-K",
+    "accession_number": "0002020202-26-000020",
+    "company_name": "Nova Battery Corp.",
+    "ticker": "NVBT",
+    "documents": [
+      {
+        "type": "8-K",
+        "description": "Current report",
+        "url": "primary.htm",
+        "isPrimary": true,
+        "textCharCount": 980,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      },
+      {
+        "type": "EX-99.1",
+        "description": "Press Release",
+        "filename": "ex991.htm",
+        "textCharCount": 1100,
+        "includedInParserText": true,
+        "includedTextCharCount": 1100,
+        "textExtractionStatus": "text_extracted"
+      }
+    ],
+    "attachment_texts": [
+      {
+        "type": "EX-99.1",
+        "description": "Press Release",
+        "filename": "ex991.htm",
+        "text": "Nova Battery Corp. announced that it received a Nasdaq Staff Delisting Determination. The Company intends to request a hearing before the Nasdaq Hearings Panel and trading may be suspended if the request is not timely made."
+      }
+    ]
+  },
+  "metadata": {
+    "company_name": "Nova Battery Corp.",
+    "ticker": "NVBT"
+  },
+  "expected": {
+    "eventType": "listing_risk",
+    "deliveryLevel": "alert"
+  }
+}

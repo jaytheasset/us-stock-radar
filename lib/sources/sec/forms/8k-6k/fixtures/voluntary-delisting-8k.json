@@ -1,0 +1,50 @@
+{
+  "title": "Orion Foods Inc. Form 8-K voluntary delisting",
+  "publishedAt": "2026-03-04T21:00:00Z",
+  "sourceUniqueId": "0003030303-26-000030",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/3030303/000303030326000030/",
+  "bodyText": "UNITED STATES\nFORM 8-K\nItem 8.01 Other Events.\nOn March 4, 2026, Orion Foods Inc. announced that its Board of Directors approved the voluntary delisting of the Company's common stock from the New York Stock Exchange. The Company intends to file a Form 25 with the Securities and Exchange Commission on or about March 18, 2026, and expects the delisting to become effective approximately ten days after the Form 25 filing. The Company cited the costs of maintaining an exchange listing, limited trading volume, and a strategic decision to operate as a non-exchange-listed public company. The Company expects its common stock to be quoted on the OTC market after delisting and may later file a Form 15 to deregister its common stock if eligible.\nItem 9.01 Financial Statements and Exhibits.\n99.1 Press Release dated March 4, 2026.",
+  "rawPayload": {
+    "form_type": "8-K",
+    "accession_number": "0003030303-26-000030",
+    "company_name": "Orion Foods Inc.",
+    "ticker": "ORFD",
+    "documents": [
+      {
+        "type": "8-K",
+        "description": "Current report",
+        "url": "primary.htm",
+        "isPrimary": true,
+        "textCharCount": 900,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      },
+      {
+        "type": "EX-99.1",
+        "description": "Press Release",
+        "filename": "ex991.htm",
+        "textCharCount": 950,
+        "includedInParserText": true,
+        "includedTextCharCount": 950,
+        "textExtractionStatus": "text_extracted"
+      }
+    ],
+    "attachment_texts": [
+      {
+        "type": "EX-99.1",
+        "description": "Press Release",
+        "filename": "ex991.htm",
+        "text": "Orion Foods Inc. announced its Board approved a voluntary NYSE delisting of the Company's common stock. Orion expects OTC quotation after delisting and is evaluating Form 15 deregistration if eligible."
+      }
+    ]
+  },
+  "metadata": {
+    "company_name": "Orion Foods Inc.",
+    "ticker": "ORFD"
+  },
+  "expected": {
+    "eventType": "listing_risk",
+    "deliveryLevel": "alert"
+  }
+}

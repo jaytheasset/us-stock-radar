@@ -1,0 +1,80 @@
+{
+  "title": "Cobalt Therapeutics Form 8-K securities purchase agreement",
+  "publishedAt": "2026-06-14T12:05:00Z",
+  "sourceUniqueId": "0006060606-26-000060",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/6060606/000606060626000060/",
+  "bodyText": "UNITED STATES\nFORM 8-K\nItem 1.01 Entry into a Material Definitive Agreement.\nOn June 14, 2026, Cobalt Therapeutics Inc. entered into a securities purchase agreement with institutional investors for a registered direct offering and concurrent private placement. The Company agreed to sell 8,000,000 shares of common stock and warrants to purchase 8,000,000 shares of common stock at a combined purchase price of $1.25 per share and accompanying warrant. The warrants have an exercise price of $1.50 per share and are exercisable six months after issuance.\nItem 2.03 Creation of a Direct Financial Obligation or an Obligation under an Off-Balance Sheet Arrangement of a Registrant.\nThe Company also issued $12,000,000 principal amount of senior secured convertible notes. The notes are convertible into common stock at an initial conversion price of $1.10 per share, subject to adjustment.\nItem 3.02 Unregistered Sales of Equity Securities.\nThe warrants and convertible notes were issued in a private placement exempt from registration under Section 4(a)(2) of the Securities Act.\nItem 9.01 Financial Statements and Exhibits.\n10.1 Securities Purchase Agreement\n10.2 Senior Secured Convertible Note\n4.1 Form of Warrant",
+  "rawPayload": {
+    "form_type": "8-K",
+    "accession_number": "0006060606-26-000060",
+    "company_name": "Cobalt Therapeutics Inc.",
+    "ticker": "CBLT",
+    "documents": [
+      {
+        "type": "8-K",
+        "description": "Current report",
+        "url": "primary.htm",
+        "isPrimary": true,
+        "textCharCount": 1300,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      },
+      {
+        "type": "EX-10.1",
+        "description": "Securities Purchase Agreement",
+        "filename": "ex10-1.htm",
+        "textCharCount": 2400,
+        "includedInParserText": true,
+        "includedTextCharCount": 2400,
+        "textExtractionStatus": "text_extracted"
+      },
+      {
+        "type": "EX-10.2",
+        "description": "Senior Secured Convertible Note",
+        "filename": "ex10-2.htm",
+        "textCharCount": 2200,
+        "includedInParserText": true,
+        "includedTextCharCount": 2200,
+        "textExtractionStatus": "text_extracted"
+      },
+      {
+        "type": "EX-4.1",
+        "description": "Form of Warrant",
+        "filename": "ex4-1.htm",
+        "textCharCount": 2100,
+        "includedInParserText": true,
+        "includedTextCharCount": 2100,
+        "textExtractionStatus": "text_extracted"
+      }
+    ],
+    "attachment_texts": [
+      {
+        "type": "EX-10.1",
+        "description": "Securities Purchase Agreement",
+        "filename": "ex10-1.htm",
+        "text": "Securities Purchase Agreement: purchasers will buy 8,000,000 shares and warrants to purchase 8,000,000 shares at a combined purchase price of $1.25 per share and warrant."
+      },
+      {
+        "type": "EX-10.2",
+        "description": "Senior Secured Convertible Note",
+        "filename": "ex10-2.htm",
+        "text": "Senior Secured Convertible Note: $12,000,000 principal amount, convertible at an initial conversion price of $1.10 per share, subject to adjustment."
+      },
+      {
+        "type": "EX-4.1",
+        "description": "Form of Warrant",
+        "filename": "ex4-1.htm",
+        "text": "Form of Warrant: exercisable for shares of common stock at $1.50 per share beginning six months after issuance."
+      }
+    ]
+  },
+  "metadata": {
+    "company_name": "Cobalt Therapeutics Inc.",
+    "ticker": "CBLT"
+  },
+  "expected": {
+    "eventType": "dilution_risk",
+    "deliveryLevel": "alert"
+  }
+}

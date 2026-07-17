@@ -1,0 +1,50 @@
+{
+  "title": "Harbor Analytics Form 8-K merger closing and delisting",
+  "publishedAt": "2026-02-20T13:15:00Z",
+  "sourceUniqueId": "0004040404-26-000040",
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/4040404/000404040426000040/",
+  "bodyText": "UNITED STATES\nFORM 8-K\nItem 2.01 Completion of Acquisition or Disposition of Assets.\nOn February 20, 2026, Harbor Analytics Inc. completed its previously announced merger with Lake Parent LLC. At the effective time, each outstanding share of Harbor common stock was converted into the right to receive $18.25 in cash, without interest. As a result of the merger, Harbor became a wholly owned subsidiary of Lake Parent LLC.\nItem 3.01 Notice of Delisting or Failure to Satisfy a Continued Listing Rule or Standard; Transfer of Listing.\nIn connection with the completion of the merger, Harbor notified Nasdaq that the merger had been completed and requested that Nasdaq suspend trading of Harbor common stock before the opening of trading on February 21, 2026 and file a Form 25 with the SEC to delist and deregister the common stock. The delisting is procedural and results from the completed merger.\nItem 5.01 Changes in Control of Registrant.\nAs a result of the merger, a change in control of Harbor occurred.\nItem 9.01 Financial Statements and Exhibits.\n99.1 Press Release dated February 20, 2026.",
+  "rawPayload": {
+    "form_type": "8-K",
+    "accession_number": "0004040404-26-000040",
+    "company_name": "Harbor Analytics Inc.",
+    "ticker": "HARB",
+    "documents": [
+      {
+        "type": "8-K",
+        "description": "Current report",
+        "url": "primary.htm",
+        "isPrimary": true,
+        "textCharCount": 1150,
+        "textTruncated": false,
+        "fetchStatus": 200,
+        "fetchError": null
+      },
+      {
+        "type": "EX-99.1",
+        "description": "Press Release",
+        "filename": "ex991.htm",
+        "textCharCount": 1000,
+        "includedInParserText": true,
+        "includedTextCharCount": 1000,
+        "textExtractionStatus": "text_extracted"
+      }
+    ],
+    "attachment_texts": [
+      {
+        "type": "EX-99.1",
+        "description": "Press Release",
+        "filename": "ex991.htm",
+        "text": "Harbor Analytics Inc. announced completion of its acquisition by Lake Parent LLC for $18.25 per share in cash. Trading in Harbor common stock will be suspended in connection with the completed merger."
+      }
+    ]
+  },
+  "metadata": {
+    "company_name": "Harbor Analytics Inc.",
+    "ticker": "HARB"
+  },
+  "expected": {
+    "eventType": "strategic_transaction",
+    "deliveryLevel": "alert"
+  }
+}
