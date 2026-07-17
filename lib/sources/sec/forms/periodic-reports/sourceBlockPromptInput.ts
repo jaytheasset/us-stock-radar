@@ -161,6 +161,7 @@ function addContextSnippetBlocks(
 }
 
 function contextSnippetPriority(topic: string) {
+  if (topic === "company_value_context") return 4;
   if (topic === "financial_results") return 5;
   if (topic === "period_comparison") return 6;
   if (topic === "outlook_and_guidance") return 7;

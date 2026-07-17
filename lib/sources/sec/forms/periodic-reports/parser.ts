@@ -1243,6 +1243,11 @@ function extractContextSnippets(
 ): PeriodicReportContextSnippet[] {
   const topics: Array<{ topic: string; pattern: RegExp; priority: number }> = [
     {
+      topic: "company_value_context",
+      pattern: /\b(?:total\s+)?market\s+cap(?:italization)?\b/i,
+      priority: -1,
+    },
+    {
       topic: "financial_results",
       pattern: /\b(?:revenue|revenues|net sales|gross profit|gross margin|operating income|operating loss|net income|net loss|diluted earnings per share|diluted EPS)\b/i,
       priority: 0,
@@ -1286,7 +1291,7 @@ function extractContextSnippets(
   const usable = blocks.filter((block) =>
     Boolean(block.text) &&
     !block.tableLike &&
-    !["cover_page", "signature", "exhibit_index", "empty_decorative"].includes(block.kind),
+    !["signature", "exhibit_index", "empty_decorative"].includes(block.kind),
   );
   const itemByIndex = new Map<number, string | null>();
   let currentItem: string | null = null;
@@ -1303,6 +1308,7 @@ function extractContextSnippets(
     if (block.text.length < 40 || block.text.length > 9000) continue;
     if (looksLikeTableOfContents(block.text) || isBoilerplateSnippet(block.text)) continue;
     const topic = topics.find((candidate) => candidate.pattern.test(block.text));
+    if (block.kind === "cover_page" && topic?.topic !== "company_value_context") continue;
     if (!topic || (perTopic.get(topic.topic) || 0) >= 3) continue;
 
     const neighbors = usable

@@ -21,7 +21,7 @@ export {
 export const SEC_PERIODIC_REPORTS_VALIDATION_REPAIR_PROMPT_KEY =
   "sec_periodic_reports_validation_repair";
 export const SEC_PERIODIC_REPORTS_VALIDATION_REPAIR_PROMPT_VERSION =
-  "v1-market-cap-score-consistency";
+  "v2-filing-first-market-cap";
 
 export type SecPeriodicReportsAnalysisAdapterResult =
   | { ok: true; analysis: Record<string, unknown> }
@@ -134,12 +134,13 @@ export function collectSecPeriodicReportsScoringWarnings(
   const offsets = stringArray(assessment.material_offsets);
   const issues: SecPeriodicReportsValidationRepairIssue[] = [];
 
-  const actualTier = marketCapTier(readPeriodicReportsMarketCap(input));
+  const resolvedMarketCap = readPeriodicReportsMarketCap(input);
+  const actualTier = marketCapTier(resolvedMarketCap.value);
   const reportedTier = stringValue(assessment.market_cap_tier).toLowerCase();
   if (actualTier !== "unknown" && reportedTier !== actualTier) {
     issues.push(buildPeriodicRepairIssue(
       "market_cap_tier_mismatch",
-      `Site market cap maps to ${actualTier}, but scoring_assessment uses ${reportedTier || "no tier"}.`,
+      `${resolvedMarketCap.label} maps to ${actualTier}, but scoring_assessment uses ${reportedTier || "no tier"}.`,
       [
         "/scoring_assessment/market_cap_tier",
         "/scoring_assessment/primary_change_severity",
@@ -439,7 +440,8 @@ function scorePeriodicRepairSourceBlock(
   const haystack = `${stringValue(block.label)} ${stringValue(block.section_key)} ${stringValue(block.text)}`.toLowerCase();
   let score = 0;
 
-  if (origin === "market_context") score += issueCodes.has("market_cap_tier_mismatch") ? 120 : 8;
+  if (issueCodes.has("market_cap_tier_mismatch") && origin === "filing" && hasExplicitFilingMarketCap(haystack)) score += 140;
+  if (origin === "market_context") score += issueCodes.has("market_cap_tier_mismatch") ? 110 : 8;
   if (["financial_table", "xbrl_statement_facts", "periodic_report_section", "context_preserving_snippet"].includes(type)) {
     score += 18;
   }
@@ -553,14 +555,75 @@ function finiteNumber(value: unknown) {
 }
 
 function readPeriodicReportsMarketCap(input: SecFilingAnalysisInput) {
+  const filingMarketCap = readExplicitFilingMarketCap(input);
+  if (filingMarketCap !== null) {
+    return {
+      value: filingMarketCap,
+      label: "Current-filing explicit market capitalization",
+      source: "filing" as const,
+    };
+  }
+
   const filingPackage = readRecord(input.filing_package);
   const marketContext = readRecord(filingPackage?.market_context);
-  if (!marketContext) return null;
-  for (const key of ["market_cap", "marketCap", "market_capitalization", "marketCapitalization"]) {
-    const parsed = parseScaledNumber(marketContext[key]);
+  if (marketContext) {
+    for (const key of ["market_cap", "marketCap", "market_capitalization", "marketCapitalization"]) {
+      const parsed = parseScaledNumber(marketContext[key]);
+      if (parsed !== null) {
+        return {
+          value: parsed,
+          label: "Site market cap",
+          source: "market_context" as const,
+        };
+      }
+    }
+  }
+  return { value: null, label: "No usable market cap", source: "none" as const };
+}
+
+function readExplicitFilingMarketCap(input: SecFilingAnalysisInput) {
+  const parserOutput = readSecPeriodicReportsParserOutput(input);
+  if (!parserOutput) return null;
+
+  const sourceTexts = [
+    ...parserOutput.facts.contextSnippets.map((snippet) => snippet.text),
+    ...parserOutput.facts.sections.map((section) => section.excerpt),
+    ...parserOutput.facts.highValueEvidence.map((item) => item.evidence),
+  ];
+  const normalized = readRecord(parserOutput.raw.normalized_primary_document);
+  const rawBlocks = Array.isArray(normalized?.blocks) ? normalized.blocks : [];
+  for (const value of rawBlocks) {
+    const block = readRecord(value);
+    const text = stringValue(block?.text);
+    if (text) sourceTexts.push(text);
+  }
+
+  for (const text of uniqueStrings(sourceTexts)) {
+    const parsed = parseExplicitFilingMarketCap(text);
     if (parsed !== null) return parsed;
   }
   return null;
+}
+
+function parseExplicitFilingMarketCap(text: string) {
+  if (!hasExplicitFilingMarketCap(text)) return null;
+  const patterns = [
+    /\b(?:our|the\s+(?:company|registrant)(?:'s)?)?\s*(?:total\s+)?market\s+capitalization\s+(?:was|is|stood\s+at|totaled|of)\s+(?:approximately\s+|about\s+)?(\$\s*[0-9][0-9,.]*\s*(?:thousand|million|billion|trillion|[KMBT])?)/gi,
+    /\b(?:our|the\s+(?:company|registrant)(?:'s)?)?\s*market\s+cap\s+(?:was|is|stood\s+at|totaled|of)\s+(?:approximately\s+|about\s+)?(\$\s*[0-9][0-9,.]*\s*(?:thousand|million|billion|trillion|[KMBT])?)/gi,
+  ];
+  for (const pattern of patterns) {
+    for (const match of text.matchAll(pattern)) {
+      const nearby = text.slice(Math.max(0, (match.index || 0) - 140), (match.index || 0) + match[0].length + 140);
+      if (/held\s+by\s+non-affiliates|non-affiliate\s+shares|public\s+float/i.test(nearby)) continue;
+      const parsed = parseScaledNumber(match[1]);
+      if (parsed !== null) return parsed;
+    }
+  }
+  return null;
+}
+
+function hasExplicitFilingMarketCap(text: string) {
+  return /\b(?:total\s+)?market\s+cap(?:italization)?\b/i.test(text);
 }
 
 function parseScaledNumber(value: unknown): number | null {

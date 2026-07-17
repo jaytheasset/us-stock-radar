@@ -49,14 +49,16 @@ assert.ok(secPeriodicReportsAnalysisResponseSchema.properties.event_type.enum.in
 assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.parser_output, undefined, "analysis schema omits parser output");
 assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.display_payload, undefined, "analysis schema omits display payload");
 assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.fixture_expected, undefined, "analysis schema omits fixture expectations");
-assert.match(secPeriodicReportsAnalysisSystemPrompt, /score below 50 is archive/i, "analysis prompt archive band");
-assert.match(secPeriodicReportsAnalysisSystemPrompt, /50 to 74 is feed/i, "analysis prompt feed band");
-assert.match(secPeriodicReportsAnalysisSystemPrompt, /75 or above is alert/i, "analysis prompt alert band");
+assert.match(secPeriodicReportsAnalysisSystemPrompt, /below 50 is archive/i, "analysis prompt archive band");
+assert.match(secPeriodicReportsAnalysisSystemPrompt, /50 to 59 is routine or limited change/i, "analysis prompt routine band");
+assert.match(secPeriodicReportsAnalysisSystemPrompt, /75 to 84 requires a major inflection/i, "analysis prompt alert band");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /Score measures investor attention and urgency/i, "analysis separates impact from direction");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /micro below \$100M/i, "analysis defines market-cap tiers");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /micro 25% \/ 50% \/ 100%/i, "analysis defines revenue thresholds by market cap");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /Neutral signal must have score below 75/i, "analysis prevents neutral alerts");
-assert.match(secPeriodicReportsAnalysisSystemPrompt, /Use market context only when supplied in the site_market_context source block/i, "analysis uses supplied market context only");
+assert.match(secPeriodicReportsAnalysisSystemPrompt, /explicit total market capitalization stated in current-filing original source blocks; otherwise site-provided market_context\.market_cap/i, "analysis uses filing-first market cap priority");
+assert.match(secPeriodicReportsAnalysisSystemPrompt, /aggregate market value held by non-affiliates is public float value, not total market capitalization/i, "analysis distinguishes public float from market cap");
+assert.match(secPeriodicReportsAnalysisSystemPrompt, /Use market context only when supplied in the site_market_context source block and only after checking current-filing/i, "analysis uses supplied market context only as fallback");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /Choose event_type directly/i, "analysis chooses representative event type");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /Do not return parser_output, display_payload, fixture_expected/i, "analysis omits integration-owned output");
 assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.key_evidence.maxItems, 3, "analysis limits key evidence");
@@ -104,6 +106,76 @@ assert.ok(scoringWarnings.some((warning) => warning.code === "neutral_alert_scor
 assert.ok(scoringWarnings.some((warning) => warning.code === "missing_alert_driver"), "validator requires alert driver");
 assert.ok(scoringWarnings.some((warning) => warning.code === "score_severity_mismatch"), "validator checks severity band");
 assert.ok(scoringWarnings.some((warning) => warning.code === "performance_threshold_understated"), "validator applies market-cap performance thresholds");
+
+const filingMarketCapParserOutput = parseSecPeriodicReport({
+  rawItemId: "periodic-filing-market-cap-priority",
+  sourceUniqueId: "0000000000-26-000004",
+  title: "Filing Market Cap Priority Corp. Form 10-K",
+  bodyText: `
+    <html><body>
+      <p>FORM 10-K</p>
+      <p>Filing Market Cap Priority Corp.</p>
+      <p>As of December 31, 2025, our total market capitalization was approximately $350 million.</p>
+      <p>The aggregate market value of common stock held by non-affiliates was approximately $140 million.</p>
+      <h1>ITEM 7. MANAGEMENT'S DISCUSSION AND ANALYSIS</h1>
+      <p>Revenue increased 20% year over year.</p>
+    </body></html>
+  `,
+  rawPayload: {
+    form_type: "10-K",
+    accession_number: "0000000000-26-000004",
+    company_name: "Filing Market Cap Priority Corp.",
+  },
+});
+const filingFirstWarnings = collectSecPeriodicReportsScoringWarnings(
+  {
+    score: 65,
+    signal: "bullish",
+    scoring_assessment: {
+      market_cap_tier: "small",
+      primary_change_severity: "strong",
+      operating_direction: "positive",
+      cash_flow_direction: "neutral",
+      guidance_direction: "absent",
+      earnings_quality: "high",
+      material_offsets: [],
+      alert_driver: null,
+    },
+    report_ui: { performance_comparisons: [] },
+  },
+  {
+    filing_package: {
+      hard_parsers: { "periodic-reports": filingMarketCapParserOutput },
+      market_context: { market_cap: 12_000_000_000 },
+    },
+  },
+);
+assert.equal(filingFirstWarnings.some((warning) => warning.code === "market_cap_tier_mismatch"), false, "validator prefers explicit filing market cap over site market cap");
+
+const wrongFilingTierWarnings = collectSecPeriodicReportsScoringWarnings(
+  {
+    score: 65,
+    signal: "bullish",
+    scoring_assessment: {
+      market_cap_tier: "mega",
+      primary_change_severity: "strong",
+      operating_direction: "positive",
+      cash_flow_direction: "neutral",
+      guidance_direction: "absent",
+      earnings_quality: "high",
+      material_offsets: [],
+      alert_driver: null,
+    },
+    report_ui: { performance_comparisons: [] },
+  },
+  {
+    filing_package: {
+      hard_parsers: { "periodic-reports": filingMarketCapParserOutput },
+      market_context: { market_cap: 12_000_000_000 },
+    },
+  },
+);
+assert.ok(wrongFilingTierWarnings.some((warning) => warning.code === "market_cap_tier_mismatch" && /Current-filing explicit market capitalization maps to small/.test(warning.warning)), "validator explains filing-first tier mismatch");
 
 for (const fixtureName of fixtureNames) {
   const fixture = readJson<Fixture>(join(roomDir, "fixtures", `${fixtureName}.json`));

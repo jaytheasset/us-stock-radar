@@ -2,7 +2,7 @@ import type { PeriodicParserOutput } from "./types";
 import { buildSecPeriodicReportsSourceBlockPromptInput, type SecPeriodicReportsPromptInput } from "./sourceBlockPromptInput.ts";
 
 export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY = "sec_periodic_reports_analysis";
-export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION = "v6-market-cap-scoring";
+export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION = "v7-filing-first-market-cap";
 
 const PERIODIC_REPORTS_FORM_SCOPE = "10-K / 10-Q / 20-F, 10-K/A / 10-Q/A / 20-F/A";
 const APPROVED_SEC_EVENT_TYPES = [
@@ -267,7 +267,9 @@ export const secPeriodicReportsAnalysisSystemPrompt = [
   "Score measures investor attention and urgency, not bullishness or bearishness. Signal expresses direction. A large positive or negative surprise can both receive a high score.",
   "Complete report_ui performance comparisons and scoring_assessment before assigning score, signal, score_reason, quick_take, or summary.",
   "Use only these scoring_assessment values: market_cap_tier micro/small/mid/large/mega/unknown; primary_change_severity routine/meaningful/strong/major/critical; operating_direction and cash_flow_direction positive/negative/mixed/neutral/unknown; guidance_direction positive/negative/mixed/neutral/absent; earnings_quality high/mixed/low/unknown.",
-  "Use site-provided market capitalization only to choose the percentage threshold tier; never add or subtract score points merely because a company is larger or smaller.",
+  "Choose the market-cap threshold tier by this absolute source priority: an explicit total market capitalization stated in current-filing original source blocks; otherwise site-provided market_context.market_cap; otherwise unknown. Never replace a filing-stated market capitalization with market context.",
+  "The filing phrase aggregate market value held by non-affiliates is public float value, not total market capitalization. Do not use it as Market Cap or as the market_cap_tier input. A filing-derived shares-outstanding-times-price value is Market Value at Last Sale Price, not Market Cap.",
+  "Market capitalization changes percentage thresholds only; never add or subtract score points merely because a company is larger or smaller.",
   "Market-cap tiers are fixed: micro below $100M; small $100M to below $500M; mid $500M to below $2B; large $2B to below $10B; mega $10B or more. Use unknown when market cap is absent or unusable.",
   "For revenue or sales changes, meaningful / strong / major percentage thresholds are: micro 25% / 50% / 100%; small 15% / 30% / 60%; mid 10% / 20% / 40%; large 7% / 15% / 30%; mega 5% / 10% / 20%. If market-cap tier is unknown, use mid thresholds conservatively and set market_cap_tier to unknown.",
   "For operating income, net income, or EPS changes, meaningful / strong / major thresholds are: micro 50% / 100% / 200%; small 30% / 60% / 120%; mid 20% / 40% / 80%; large 15% / 30% / 60%; mega 10% / 20% / 40%. Apply these percentages only when both periods are positive, comparable, and use the same accounting basis.",
@@ -278,7 +280,7 @@ export const secPeriodicReportsAnalysisSystemPrompt = [
   "Neutral signal must have score below 75. A score of 75 or above requires a concise, source-backed alert_driver. When major positive and negative developments coexist, prefer volatile over forcing bullish or bearish.",
   "Write score_reason as one concise analyst-style conclusion of roughly 18 to 32 words. Explain why the impact level is reasonable without saying 'the score', repeating the summary, or describing filing mechanics.",
   "For material filings, write two or three concise key_evidence points chosen by importance. For routine archive filings, key_evidence may be empty.",
-  "Use market context only when supplied in the site_market_context source block. Do not call or ask for live market data.",
+  "Use market context only when supplied in the site_market_context source block and only after checking current-filing original source blocks for an explicit total market capitalization. Do not call or ask for live market data.",
   "For earnings and sales_performance, emphasize period-over-period revenue, profit/loss, margins, demand metrics, and management context only when source-backed.",
   "Populate report_ui for substantive periodic reports. The application chooses the template; do not name or choose a UI display type.",
   "For a substantive report, write a one-sentence snapshot_intro and up to four source-backed snapshot_metrics. Prefer reporting period, revenue or sales, GAAP/IFRS net income or loss, and cash, free cash flow, debt, or another material balance-sheet measure. Omit unavailable metrics; never write Not disclosed placeholders.",

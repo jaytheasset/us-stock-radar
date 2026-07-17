@@ -504,6 +504,50 @@ assert.ok(preservedSourceParsed.facts.contextSnippets.some((snippet) => snippet.
 assert.ok(preservedSourceParsed.facts.financialStatementLines.some((line) => line.label === "revenue_or_net_sales" && line.evidence.includes("215,938")), "financial statement table rows are extracted");
 assert.equal(preservedSourceParsed.facts.financialStatementLines.some((line) => /employee|certification/i.test(line.evidence)), false, "financial lines exclude unrelated numeric prose");
 
+const companyValueParsed = parseSecPeriodicReport({
+  rawItemId: "periodic-company-value-context",
+  sourceUniqueId: "0000000000-26-000002",
+  title: "Company Value Context Corp. Form 10-K",
+  bodyText: `
+    <html><body>
+      <p>FORM 10-K</p>
+      <p>Company Value Context Corp.</p>
+      <p>As of December 31, 2025, our total market capitalization was approximately $350 million.</p>
+      <p>The aggregate market value of common stock held by non-affiliates was approximately $140 million.</p>
+      <h1>ITEM 1. BUSINESS</h1>
+      <p>We provide software services to enterprise customers.</p>
+    </body></html>
+  `,
+  rawPayload: {
+    form_type: "10-K",
+    accession_number: "0000000000-26-000002",
+    company_name: "Company Value Context Corp.",
+  },
+});
+const companyValueSnippet = companyValueParsed.facts.contextSnippets.find((snippet) => snippet.topic === "company_value_context");
+assert.ok(companyValueSnippet?.text.includes("market capitalization was approximately $350 million"), "parser retains explicit filing market cap with context");
+
+const publicFloatOnlyParsed = parseSecPeriodicReport({
+  rawItemId: "periodic-public-float-only",
+  sourceUniqueId: "0000000000-26-000003",
+  title: "Public Float Corp. Form 10-K",
+  bodyText: `
+    <html><body>
+      <p>FORM 10-K</p>
+      <p>Public Float Corp.</p>
+      <p>The aggregate market value of common stock held by non-affiliates was approximately $350 million.</p>
+      <h1>ITEM 1. BUSINESS</h1>
+      <p>We provide software services to enterprise customers.</p>
+    </body></html>
+  `,
+  rawPayload: {
+    form_type: "10-K",
+    accession_number: "0000000000-26-000003",
+    company_name: "Public Float Corp.",
+  },
+});
+assert.equal(publicFloatOnlyParsed.facts.contextSnippets.some((snippet) => snippet.topic === "company_value_context"), false, "public float value is not extracted as market cap context");
+
 globalThis.fetch = originalFetch;
 
 console.log("sec periodic reports raw parser fixtures passed");
