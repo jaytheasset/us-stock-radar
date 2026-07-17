@@ -43,9 +43,7 @@ export function normalizePeriodicChartNumber(displayValue: string, fallback: num
 }
 
 export function clipPeriodicDisplayText(value: unknown, maxLength: number) {
-  const text = typeof value === "string"
-    ? normalizePeriodicDisplayEncoding(value).trim().replace(/\s+/g, " ")
-    : "";
+  const text = normalizePeriodicNarrativeText(value);
   if (!text || text.length <= maxLength) return text;
 
   const suffix = "...";
@@ -59,6 +57,32 @@ export function clipPeriodicDisplayText(value: unknown, maxLength: number) {
       ? wordBoundary
       : available;
   return `${candidate.slice(0, boundary).trimEnd()}${suffix}`;
+}
+
+export function normalizePeriodicNarrativeText(value: unknown) {
+  return typeof value === "string"
+    ? normalizePeriodicDisplayEncoding(value).trim().replace(/\s+/g, " ")
+    : "";
+}
+
+export function fitPeriodicNarrativeText(value: unknown, maxLength: number) {
+  const text = normalizePeriodicNarrativeText(value);
+  if (!text || text.length <= maxLength) return text;
+
+  const sentences = text.match(/.*?(?:[.!?](?:[\"')\]]+)?(?=\s|$)|$)/g) || [];
+  let fitted = "";
+  for (const rawSentence of sentences) {
+    const sentence = rawSentence.trim();
+    if (!sentence) continue;
+    const candidate = fitted ? `${fitted} ${sentence}` : sentence;
+    if (candidate.length > maxLength) break;
+    fitted = candidate;
+  }
+  if (fitted) return fitted;
+
+  // A single overlong sentence cannot be shortened safely without rewriting.
+  // Preserve it rather than corrupting an amount, date, or investor conclusion.
+  return text;
 }
 
 function normalizePeriodicDisplayEncoding(value: string) {

@@ -360,6 +360,7 @@ export const secPeriodicReportsAnalysisSystemPrompt = [
   "Score bands are fixed: below 50 is archive; 50 to 59 is routine or limited change; 60 to 64 is one meaningful change; 65 to 74 is a strong change or several aligned changes; 75 to 84 requires a major inflection, guidance shock, or material mixed shock; 85 to 94 is reserved for severe accounting reliability, liquidity, or business-continuity risk; 95 or above is reserved for bankruptcy or similarly existential events.",
   "Neutral signal must have score below 75. A score of 75 or above requires a concise, source-backed alert_driver. When major positive and negative developments coexist, prefer volatile over forcing bullish or bearish.",
   "Write score_reason as one concise analyst-style conclusion of roughly 18 to 32 words. Explain why the impact level is reasonable without saying 'the score', repeating the summary, or describing filing mechanics.",
+  "Write complete narrative sentences within the response-schema limits: event_title 140 characters, score_reason 220, quick_take 220, summary 900, why_it_matters 500, each key_evidence item 260, and each what_to_watch_next item 180. Never end a field with an ellipsis or a cut-off sentence.",
   "For material filings, write two or three concise key_evidence points chosen by importance. For routine archive filings, key_evidence may be empty.",
   "Use market context only when supplied in the site_market_context source block and only after checking current-filing original source blocks for an explicit total market capitalization. Do not call or ask for live market data.",
   "For earnings and sales_performance, emphasize period-over-period revenue, profit/loss, margins, demand metrics, and management context only when source-backed.",
@@ -400,6 +401,7 @@ export const secPeriodicReportsAmendmentAnalysisSystemPrompt = [
   "For administrative corrections, normally use event_type other, neutral signal, score below 50, archive-style concise copy, and no what_to_watch_next unless a concrete next event is stated.",
   "For disclosure updates and material restatements, score investor attention and urgency based on the actual changed disclosure, not the importance of the original report as a whole.",
   "Write score_reason as one concise analyst-style conclusion explaining why the score is reasonable. Do not begin with 'The score is'.",
+  "Write complete narrative sentences within the response-schema limits and never end a field with an ellipsis or a cut-off sentence.",
   "Write plain investor English and preserve exact dates, amounts, periods, and accounting direction from the source.",
 ].join("\n");
 

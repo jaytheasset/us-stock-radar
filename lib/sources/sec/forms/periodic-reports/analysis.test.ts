@@ -21,8 +21,10 @@ import { buildSecPeriodicReportsDisplayPayload } from "./displayPayload.ts";
 import { parseSecPeriodicReport } from "./parser.ts";
 import {
   clipPeriodicDisplayText,
+  fitPeriodicNarrativeText,
   normalizePeriodicChartNumber,
   normalizePeriodicComparisonBasis,
+  normalizePeriodicNarrativeText,
 } from "./uiNormalization.ts";
 import {
   APPROVED_SEC_EVENT_TYPES,
@@ -103,6 +105,32 @@ assert.equal(
   clipPeriodicDisplayText("A long narrative sentence that must fit a compact interface.", 32).endsWith("..."),
   true,
   "clipped display text uses an ASCII ellipsis",
+);
+assert.equal(
+  normalizePeriodicNarrativeText("  A complete narrative sentence that must remain intact.  "),
+  "A complete narrative sentence that must remain intact.",
+  "investor narrative normalization preserves the complete sentence",
+);
+assert.equal(
+  fitPeriodicNarrativeText(
+    "First material sentence remains complete. Second material sentence also remains complete. Third sentence exceeds the available display budget.",
+    90,
+  ),
+  "First material sentence remains complete. Second material sentence also remains complete.",
+  "bounded investor narrative keeps only complete sentences and does not append an ellipsis",
+);
+assert.equal(
+  fitPeriodicNarrativeText("One unusually long sentence explains revenue, profitability, liquidity, and the operating outlook without stopping", 72),
+  "One unusually long sentence explains revenue, profitability, liquidity, and the operating outlook without stopping",
+  "single-sentence fallback preserves facts rather than cutting the sentence",
+);
+assert.equal(
+  fitPeriodicNarrativeText(
+    "Revenue decreased 18.9% to $34.4 million. Net loss widened to $61.4 million from $9.6 million. A third sentence exceeds the display budget.",
+    105,
+  ),
+  "Revenue decreased 18.9% to $34.4 million. Net loss widened to $61.4 million from $9.6 million.",
+  "sentence fitting does not split decimal values",
 );
 
 const fullAnnualHtml = `${"<!-- filing padding -->".repeat(100_000)}
@@ -524,6 +552,22 @@ assert.ok(scoringWarnings.some((warning) => warning.code === "neutral_alert_scor
 assert.ok(scoringWarnings.some((warning) => warning.code === "missing_alert_driver"), "validator requires alert driver");
 assert.ok(scoringWarnings.some((warning) => warning.code === "score_severity_mismatch"), "validator checks severity band");
 assert.ok(scoringWarnings.some((warning) => warning.code === "performance_threshold_understated"), "validator applies market-cap performance thresholds");
+
+const narrativeLengthWarnings = collectSecPeriodicReportsScoringWarnings(
+  {
+    event_title: "Complete title",
+    quick_take: "This quick take was cut off...",
+    summary: `Complete opening sentence. ${"Material investor context ".repeat(45)}Complete closing sentence.`,
+    score_reason: "Complete score explanation.",
+    key_evidence: ["Complete evidence.", `${"Overlong evidence ".repeat(20)}Complete ending.`],
+  },
+  { filing_package: {} },
+);
+const narrativeLengthWarning = narrativeLengthWarnings.find((warning) => warning.code === "narrative_length_exceeded");
+assert.ok(narrativeLengthWarning, "validator catches overlong or visibly truncated narrative fields");
+assert.ok(narrativeLengthWarning.allowed_patch_paths.includes("/quick_take"), "validator repairs truncated quick take");
+assert.ok(narrativeLengthWarning.allowed_patch_paths.includes("/summary"), "validator repairs overlong summary");
+assert.ok(narrativeLengthWarning.allowed_patch_paths.includes("/key_evidence/1"), "validator repairs overlong evidence item");
 
 const fiscalPeriodParserOutput = parseSecPeriodicReport({
   rawItemId: "periodic-fiscal-period-validator",

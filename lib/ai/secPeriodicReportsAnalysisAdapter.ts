@@ -11,8 +11,9 @@ import {
 } from "@/lib/sources/sec/forms/periodic-reports/analysisPrompt";
 import { buildSecPeriodicReportsDisplayPayload } from "@/lib/sources/sec/forms/periodic-reports/displayPayload";
 import {
-  clipPeriodicDisplayText,
+  fitPeriodicNarrativeText,
   normalizePeriodicChartNumber,
+  normalizePeriodicNarrativeText,
 } from "@/lib/sources/sec/forms/periodic-reports/uiNormalization";
 import {
   APPROVED_SEC_EVENT_TYPES,
@@ -133,6 +134,8 @@ export function collectSecPeriodicReportsScoringWarnings(
   const root = readRecord(analysisResult);
   if (!root) return [];
   const issues: SecPeriodicReportsValidationRepairIssue[] = [];
+  const narrativeLengthIssue = buildPeriodicNarrativeLengthIssue(root);
+  if (narrativeLengthIssue) issues.push(narrativeLengthIssue);
   const fiscalPeriodIssue = buildFiscalPeriodLabelMismatchIssue(root, input);
   if (fiscalPeriodIssue) issues.push(fiscalPeriodIssue);
   const annualComparisonIssue = buildAnnualPriorYearComparisonIssue(root, input);
@@ -365,9 +368,10 @@ function buildPeriodicReportsValidationRepairPrompt({
       "For annual_consolidated_metric_scope_mismatch, a source_scope=segment_or_subset block cannot support a company-wide total. Remove the unscoped claim from narrative scalars or explicitly label it as a segment/subset metric. Replace an unsupported consolidated comparison with another trusted consolidated core metric when available.",
       "For quantitative_narrative_mismatch, make narrative scalar fields agree with the structured performance or amendment comparison. Prefer the exact rounded percentage change, remove inconsistent multiplier wording, and describe a smaller absolute loss as narrowing rather than increasing.",
       "For amendment_title_materiality_mismatch, rewrite the title around the most investor-relevant material correction supported by changed_metrics and source blocks, not a rounding-level secondary change.",
+      "For narrative_length_exceeded, rewrite every listed scalar as complete investor-facing sentences within the stated character limit. Preserve the material facts, never cut a sentence, and never end with an ellipsis or other truncation marker.",
       "Score is investor attention and urgency; signal is direction. Market capitalization changes percentage thresholds, not score points.",
       "Do not treat one-time, non-operating, tax, fair-value, derivative, or non-cash gains as pure operating improvement.",
-      "Return scalar replacement patches only for exact allowed paths. Never add, remove, reorder, or rewrite arrays or objects.",
+      "Return scalar replacement patches only for exact allowed paths. Never replace a whole array or object. You may replace an explicitly allowed scalar array item path such as /key_evidence/1.",
       "Preserve all unrelated analysis and UI fields. If evidence is insufficient, return the issue as unresolved instead of guessing.",
       "This is the only repair attempt. Return JSON only.",
     ].join("\n"),
@@ -481,6 +485,8 @@ function scorePeriodicRepairSourceBlock(
     type === "amendment_scope"
   ) score += 220;
   if (issueCodes.has("market_cap_tier_mismatch") && origin === "filing" && hasExplicitFilingMarketCap(haystack)) score += 140;
+  if (issueCodes.has("narrative_length_exceeded") && origin === "filing") score += 35;
+  if (issueCodes.has("narrative_length_exceeded") && type === "amendment_scope") score += 120;
   if (origin === "market_context") score += issueCodes.has("market_cap_tier_mismatch") ? 110 : 8;
   if (["financial_table", "xbrl_statement_facts", "periodic_report_section", "context_preserving_snippet"].includes(type)) {
     score += 18;
@@ -1070,6 +1076,53 @@ function buildPeriodicRepairIssue(
   };
 }
 
+function buildPeriodicNarrativeLengthIssue(
+  analysisResult: Record<string, unknown>,
+): SecPeriodicReportsValidationRepairIssue | null {
+  const scalarLimits: Array<[string, unknown, number]> = [
+    ["/score_reason", analysisResult.score_reason, 220],
+    ["/quick_take", analysisResult.quick_take, 220],
+    ["/summary", analysisResult.summary, 900],
+    ["/why_it_matters", analysisResult.why_it_matters, 500],
+  ];
+  const arrayLimits: Array<[string, unknown, number]> = [
+    ["/bullish_points", analysisResult.bullish_points, 220],
+    ["/bearish_points", analysisResult.bearish_points, 220],
+    ["/key_evidence", analysisResult.key_evidence, 260],
+    ["/what_to_watch_next", analysisResult.what_to_watch_next, 180],
+  ];
+  const paths: string[] = [];
+  const details: string[] = [];
+
+  for (const [path, value, maxLength] of scalarLimits) {
+    const text = normalizePeriodicNarrativeText(value);
+    if (!text || (text.length <= maxLength && !hasTrailingTruncationMarker(text))) continue;
+    paths.push(path);
+    details.push(`${path} is ${text.length} characters; maximum ${maxLength}`);
+  }
+  for (const [basePath, value, maxLength] of arrayLimits) {
+    for (const [index, item] of stringArray(value).entries()) {
+      const text = normalizePeriodicNarrativeText(item);
+      if (!text || (text.length <= maxLength && !hasTrailingTruncationMarker(text))) continue;
+      const path = `${basePath}/${index}`;
+      paths.push(path);
+      details.push(`${path} is ${text.length} characters; maximum ${maxLength}`);
+    }
+  }
+
+  return paths.length
+    ? buildPeriodicRepairIssue(
+        "narrative_length_exceeded",
+        `Narrative fields must be complete and bounded without truncation markers: ${details.join("; ")}.`,
+        paths,
+      )
+    : null;
+}
+
+function hasTrailingTruncationMarker(value: string) {
+  return /(?:\.\.\.|\u2026)\s*$/.test(value);
+}
+
 function dedupePeriodicRepairIssues(issues: SecPeriodicReportsValidationRepairIssue[]) {
   const seen = new Set<string>();
   return issues.filter((issue) => {
@@ -1273,23 +1326,23 @@ function isRecord(value: Record<string, unknown> | null): value is Record<string
 function normalizePeriodicAnalysisText(root: Record<string, unknown>): Record<string, unknown> {
   return {
     ...root,
-    event_title: clipPeriodicDisplayText(root.event_title, 140),
-    score_reason: clipPeriodicDisplayText(root.score_reason, 220),
-    quick_take: clipPeriodicDisplayText(root.quick_take, 220),
-    summary: clipPeriodicDisplayText(root.summary, 900),
-    why_it_matters: clipPeriodicDisplayText(root.why_it_matters, 500),
+    event_title: normalizePeriodicNarrativeText(root.event_title),
+    score_reason: fitPeriodicNarrativeText(root.score_reason, 220),
+    quick_take: fitPeriodicNarrativeText(root.quick_take, 220),
+    summary: fitPeriodicNarrativeText(root.summary, 900),
+    why_it_matters: fitPeriodicNarrativeText(root.why_it_matters, 500),
     bullish_points: stringArray(root.bullish_points)
       .slice(0, 3)
-      .map((item) => clipPeriodicDisplayText(item, 220)),
+      .map((item) => fitPeriodicNarrativeText(item, 220)),
     bearish_points: stringArray(root.bearish_points)
       .slice(0, 3)
-      .map((item) => clipPeriodicDisplayText(item, 220)),
+      .map((item) => fitPeriodicNarrativeText(item, 220)),
     key_evidence: stringArray(root.key_evidence)
       .slice(0, 3)
-      .map((item) => clipPeriodicDisplayText(item, 260)),
+      .map((item) => fitPeriodicNarrativeText(item, 260)),
     what_to_watch_next: stringArray(root.what_to_watch_next)
       .slice(0, 3)
-      .map((item) => clipPeriodicDisplayText(item, 180)),
+      .map((item) => fitPeriodicNarrativeText(item, 180)),
   };
 }
 

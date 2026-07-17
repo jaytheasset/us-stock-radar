@@ -26,6 +26,7 @@ import { SectorThemeContextPanel } from "@/app/events/[id]/SectorThemeContextPan
 import { SecFilingHtmlViewer } from "@/app/filings/SecFilingHtmlViewer";
 import {
   clipPeriodicDisplayText,
+  fitPeriodicNarrativeText,
   normalizePeriodicChartNumber,
   normalizePeriodicComparisonBasis,
 } from "@/lib/sources/sec/forms/periodic-reports/uiNormalization";
@@ -4132,7 +4133,7 @@ function PeriodicAmendmentTemplate({
         </section>
       </section>
 
-      <AnalysisCard title="Summary" body={clipPeriodicDisplayText(filing.summary, 900)} />
+      <AnalysisCard title="Summary" body={fitPeriodicNarrativeText(filing.summary, 900)} />
       <ScoreBasisPanel filing={filing} />
 
       {model.keyChanges.length ? (
@@ -4173,7 +4174,7 @@ function NtLateFilingTemplate({
         </section>
       </section>
 
-      <AnalysisCard title="Summary" body={clipPeriodicDisplayText(filing.summary, 900)} />
+      <AnalysisCard title="Summary" body={fitPeriodicNarrativeText(filing.summary, 900)} />
       <ScoreBasisPanel filing={filing} />
 
       {hasEvidenceOrWatch ? (
@@ -4215,7 +4216,7 @@ function PeriodicReportTemplate({
         </section>
       </section>
 
-      <AnalysisCard title="Summary" body={clipPeriodicDisplayText(filing.summary, 900)} />
+      <AnalysisCard title="Summary" body={fitPeriodicNarrativeText(filing.summary, 900)} />
       <ScoreBasisPanel filing={filing} />
 
       {model.performanceComparisons.length ? (
