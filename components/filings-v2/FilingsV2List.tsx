@@ -3,6 +3,7 @@ import { FilingsV2EventBadge } from "@/components/filings-v2/FilingsV2EventBadge
 import { FilingsV2ImpactScore } from "@/components/filings-v2/FilingsV2ImpactScore";
 import { FilingsV2InlineAd } from "@/components/filings-v2/FilingsV2InlineAd";
 import { FilingsV2MarketReaction } from "@/components/filings-v2/FilingsV2MarketReaction";
+import { PremiumUpgradeCard } from "@/components/filings-v2/PremiumUpgradeCard";
 import {
   filingsV2SignalLabels,
   isFilingsV2Today,
@@ -14,6 +15,7 @@ export type FilingsV2ListState = "loading" | "ready" | "unavailable";
 
 const minimumInlineAdRecords = 10;
 const inlineAdGroupSize = 25;
+const mobilePremiumCtaInsertIndex = 3;
 
 type FilingsV2ListProps = {
   onLoadMore?: () => void;
@@ -152,6 +154,9 @@ export function FilingsV2List({
                   </div>
                   {showInlineAd ? <FilingsV2InlineAd format="desktop" /> : null}
                   {showInlineAd ? <FilingsV2InlineAd format="mobile" /> : null}
+                  {index === mobilePremiumCtaInsertIndex ? (
+                    <PremiumUpgradeCard className={styles.premiumCtaMobile} />
+                  ) : null}
                 </Fragment>
               );
             })}

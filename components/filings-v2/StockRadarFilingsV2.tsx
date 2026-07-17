@@ -6,6 +6,7 @@ import { FilingsV2FilterBar } from "@/components/filings-v2/FilingsV2FilterBar";
 import { FilingsV2List, type FilingsV2ListState } from "@/components/filings-v2/FilingsV2List";
 import { FilingsV2Summary } from "@/components/filings-v2/FilingsV2Summary";
 import { MobileFilingsV2FilterSheet } from "@/components/filings-v2/MobileFilingsV2FilterSheet";
+import { PremiumUpgradeCard } from "@/components/filings-v2/PremiumUpgradeCard";
 import {
   filingsV2DefaultFilters,
   filingsV2EventLabels,
@@ -200,6 +201,7 @@ export function StockRadarFilingsV2() {
       </section>
 
       <aside className={styles.detailRail} ref={detailRailRef}>
+        <PremiumUpgradeCard className={styles.premiumCtaDesktop} />
         <div className={styles.detailRailPreview} ref={detailPreviewRef}>
           <FilingsV2DetailPanel
             detailNotice={detailNotice}
