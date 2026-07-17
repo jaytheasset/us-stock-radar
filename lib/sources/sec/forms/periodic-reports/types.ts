@@ -136,6 +136,7 @@ export type PeriodicReportXbrlFact = {
   period: string | null;
   statement: string | null;
   sourceDocument: string | null;
+  hasDimensions?: boolean | null;
   evidence: string;
   confidence: ConfidenceLevel;
 };

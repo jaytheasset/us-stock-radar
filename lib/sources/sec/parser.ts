@@ -1,6 +1,11 @@
 import { XMLParser } from "fast-xml-parser";
 import { getServerEnv } from "@/lib/env";
 import { getSecFormFetchPlan, matchesSecFormFetchRule } from "@/lib/sources/sec/forms/fetchPlanRegistry";
+import {
+  extractPeriodicReportIngestEvidence,
+  type PeriodicReportIngestSourceBlock,
+  type PeriodicReportIngestXbrlFact,
+} from "@/lib/sources/sec/forms/periodic-reports/ingestSourceExtract";
 
 const SEC_BASE_URL = "https://www.sec.gov";
 const SEC_CURRENT_URL = `${SEC_BASE_URL}/cgi-bin/browse-edgar`;
@@ -43,6 +48,8 @@ export type SecDocument = {
   rawHtml?: string | null;
   rawHtmlCharCount?: number;
   rawHtmlTruncated?: boolean;
+  periodicReportCoreXbrlFacts?: PeriodicReportIngestXbrlFact[];
+  periodicReportCoreSourceBlocks?: PeriodicReportIngestSourceBlock[];
   fetchStatus?: number;
   fetchError?: string;
 };
@@ -310,6 +317,8 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
           primary_document_html: primary?.rawHtml || null,
           primary_document_html_char_count: primary?.rawHtmlCharCount || 0,
           primary_document_html_truncated: Boolean(primary?.rawHtmlTruncated),
+          periodic_report_core_xbrl_facts: primary?.periodicReportCoreXbrlFacts || [],
+          periodic_report_core_source_blocks: primary?.periodicReportCoreSourceBlocks || [],
           ownership_source_url: ownershipSource?.url || null,
           ownership_source_format: ownershipSource?.rawSourceFormat || null,
           ownership_source_text: ownershipSource?.rawText || null,
@@ -767,6 +776,13 @@ async function fetchFilingDetail({
       const cleaned = cleanDocumentText(text);
       const truncated = cleaned.length > MAX_DOCUMENT_TEXT_CHARS;
       const primaryRawHtml = buildPrimaryDocumentHtmlSource(document, text);
+      const periodicReportEvidence = extractPeriodicReportIngestEvidence({
+        cleanedText: cleaned,
+        formType: effectiveFormType,
+        html: text,
+        isPrimary: document.isPrimary,
+        sourceDocument: document.document || document.url,
+      });
       const rawOwnershipSource = buildOwnershipRawSource({
         document,
         formType: effectiveFormType,
@@ -785,6 +801,8 @@ async function fetchFilingDetail({
         rawHtml: primaryRawHtml?.html || null,
         rawHtmlCharCount: primaryRawHtml?.charCount || 0,
         rawHtmlTruncated: Boolean(primaryRawHtml?.truncated),
+        periodicReportCoreXbrlFacts: periodicReportEvidence?.xbrlFacts || [],
+        periodicReportCoreSourceBlocks: periodicReportEvidence?.sourceBlocks || [],
         fetchStatus: documentResponse.status,
       });
     } catch (error) {

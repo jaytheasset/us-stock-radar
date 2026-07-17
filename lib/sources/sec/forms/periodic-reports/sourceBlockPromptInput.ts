@@ -87,6 +87,7 @@ export function buildSecPeriodicReportsSourceBlockPromptInput(
   });
 
   addAmendmentBlock(candidates, parserOutput);
+  addAnnualCorePerformanceBlock(candidates, parserOutput);
   addContextSnippetBlocks(candidates, parserOutput);
   addSectionBlocks(candidates, facts.sections);
   addTableBlocks(candidates, normalized);
@@ -142,6 +143,107 @@ export function buildSecPeriodicReportsSourceBlockPromptInput(
   };
 }
 
+function addAnnualCorePerformanceBlock(
+  blocks: SecPeriodicReportsSourceBlock[],
+  parserOutput: PeriodicParserOutput,
+) {
+  if (
+    (!parserOutput.facts.isAnnualReport && !parserOutput.facts.isForeignIssuerAnnualReport) ||
+    parserOutput.facts.isAmendment
+  ) return;
+  const facts = selectAnnualCorePerformanceFacts(parserOutput);
+  if (!facts.length) return;
+
+  addBlock(blocks, {
+    block_id: "periodic-annual-core-performance",
+    block_type: "annual_core_performance_facts",
+    label: "Current and immediately preceding annual performance facts",
+    source: "source_package.xbrlFacts",
+    origin: "xbrl",
+    priority: 3,
+    item_number: null,
+    section_key: "annual_core_performance",
+    document_type: "XBRL",
+    text: compactJson(
+      facts.map((fact) => ({
+        name: fact.name,
+        label: fact.label,
+        value: fact.value,
+        unit: fact.unitRef,
+        period: fact.period,
+        statement: fact.statement,
+        source_document: fact.sourceDocument,
+      })),
+    ),
+  });
+}
+
+function selectAnnualCorePerformanceFacts(parserOutput: PeriodicParserOutput) {
+  const facts = parserOutput.facts.sourcePackage.xbrlFacts.filter((fact) =>
+    typeof fact.value === "number" && fact.hasDimensions !== true,
+  );
+  const fiscalYear = Number(parserOutput.facts.fiscalYear);
+  const preferredYears = Number.isInteger(fiscalYear) ? new Set([fiscalYear, fiscalYear - 1]) : null;
+  const groups: Array<{ pattern: RegExp; maximum: number }> = [
+    { pattern: /^(?:revenues?|totalrevenues?|salesrevenuenet|salesrevenuegoodsnet|salesrevenueservicesnet|revenuefromcontractwithcustomerexcludingassessedtax|revenuefromcontractwithcustomerincludingassessedtax)$/i, maximum: 2 },
+    { pattern: /^(?:operatingincomeloss|operatingprofitloss|profitlossfromoperatingactivities)$/i, maximum: 2 },
+    { pattern: /^(?:netincomeloss|profitloss)$/i, maximum: 2 },
+    { pattern: /^netcashprovidedbyusedinoperatingactivities/i, maximum: 2 },
+  ];
+  const selected: typeof facts = [];
+
+  for (const group of groups) {
+    const concepts = new Map<string, typeof facts>();
+    for (const fact of facts) {
+      const concept = fact.name.split(":").pop() || fact.name;
+      if (!group.pattern.test(concept)) continue;
+      const values = concepts.get(concept) || [];
+      values.push(fact);
+      concepts.set(concept, values);
+    }
+
+    const candidates = Array.from(concepts.values())
+      .map((values) => selectComparableAnnualFacts(values, preferredYears, group.maximum))
+      .filter((values) => values.length)
+      .sort((left, right) => right.length - left.length);
+    if (candidates[0]) selected.push(...candidates[0]);
+  }
+
+  return selected;
+}
+
+function selectComparableAnnualFacts(
+  facts: PeriodicParserOutput["facts"]["sourcePackage"]["xbrlFacts"],
+  preferredYears: Set<number> | null,
+  maximum: number,
+) {
+  const annualDurationFacts = facts.filter((fact) => isAnnualXbrlDuration(fact.period));
+  const pool = annualDurationFacts.length >= 2 ? annualDurationFacts : facts;
+  const selected: typeof facts = [];
+  const seenYears = new Set<number>();
+
+  for (const fact of [...pool].sort(comparePromptXbrlFacts)) {
+    const year = xbrlPeriodEndYear(fact.period);
+    if (preferredYears && year && !preferredYears.has(year)) continue;
+    if (year && seenYears.has(year)) continue;
+    if (year) seenYears.add(year);
+    selected.push(fact);
+    if (selected.length >= maximum) break;
+  }
+
+  if (selected.length < maximum && preferredYears) {
+    for (const fact of [...pool].sort(comparePromptXbrlFacts)) {
+      const year = xbrlPeriodEndYear(fact.period);
+      if (selected.includes(fact) || (year && seenYears.has(year))) continue;
+      if (year) seenYears.add(year);
+      selected.push(fact);
+      if (selected.length >= maximum) break;
+    }
+  }
+
+  return selected;
+}
+
 function addContextSnippetBlocks(
   blocks: SecPeriodicReportsSourceBlock[],
   parserOutput: PeriodicParserOutput,
@@ -163,6 +265,7 @@ function addContextSnippetBlocks(
 }
 
 function contextSnippetPriority(topic: string) {
+  if (topic === "annual_core_performance") return 2;
   if (topic === "company_value_context") return 4;
   if (topic === "financial_results") return 5;
   if (topic === "period_comparison") return 6;
@@ -295,7 +398,7 @@ function addXbrlBlocks(blocks: SecPeriodicReportsSourceBlock[], parserOutput: Pe
     .slice(0, MAX_XBRL_BLOCKS);
 
   for (const { statement, facts, order, priority } of selectedGroups) {
-    const selectedFacts = selectXbrlFactsForPrompt(facts);
+    const selectedFacts = selectXbrlFactsForPrompt(facts, parserOutput);
     addBlock(blocks, {
       block_id: stableBlockId("periodic-xbrl", `${statement}-${order + 1}`),
       block_type: "xbrl_statement_facts",
@@ -323,6 +426,7 @@ function addXbrlBlocks(blocks: SecPeriodicReportsSourceBlock[], parserOutput: Pe
 
 function selectXbrlFactsForPrompt(
   facts: PeriodicParserOutput["facts"]["sourcePackage"]["xbrlFacts"],
+  parserOutput: PeriodicParserOutput,
 ) {
   const byConcept = new Map<string, typeof facts>();
   for (const fact of facts) {
@@ -334,14 +438,65 @@ function selectXbrlFactsForPrompt(
     byConcept.set(concept, values);
   }
 
+  const isAnnualReport =
+    (parserOutput.facts.isAnnualReport || parserOutput.facts.isForeignIssuerAnnualReport) &&
+    !parserOutput.facts.isAmendment;
+  const fiscalYear = Number(parserOutput.facts.fiscalYear);
+  const preferredYears = Number.isInteger(fiscalYear) ? new Set([fiscalYear, fiscalYear - 1]) : null;
+
   return Array.from(byConcept.entries())
     .sort(([left], [right]) => xbrlConceptPriority(left) - xbrlConceptPriority(right) || left.localeCompare(right))
-    .flatMap(([, values]) =>
-      [...values]
-        .sort((left, right) => (right.period || "").localeCompare(left.period || ""))
-        .slice(0, 2),
-    )
+    .flatMap(([, values]) => isAnnualReport
+      ? selectComparableAnnualFacts(values, preferredYears, 2)
+      : selectDistinctXbrlPeriods(values, 2))
     .slice(0, 20);
+}
+
+function selectDistinctXbrlPeriods(
+  facts: PeriodicParserOutput["facts"]["sourcePackage"]["xbrlFacts"],
+  maximum: number,
+) {
+  const selected: typeof facts = [];
+  const seen = new Set<string>();
+  for (const fact of [...facts].sort(comparePromptXbrlFacts)) {
+    const periodKey = fact.period || `undated:${fact.contextRef || fact.value}`;
+    if (seen.has(periodKey)) continue;
+    seen.add(periodKey);
+    selected.push(fact);
+    if (selected.length >= maximum) break;
+  }
+  return selected;
+}
+
+function comparePromptXbrlFacts(
+  left: PeriodicParserOutput["facts"]["sourcePackage"]["xbrlFacts"][number],
+  right: PeriodicParserOutput["facts"]["sourcePackage"]["xbrlFacts"][number],
+) {
+  const endDifference = xbrlPeriodEndTimestamp(right.period) - xbrlPeriodEndTimestamp(left.period);
+  if (endDifference) return endDifference;
+  return (right.period || "").localeCompare(left.period || "");
+}
+
+function xbrlPeriodEndTimestamp(period: string | null) {
+  if (!period) return 0;
+  const end = period.includes("/") ? period.split("/").pop() || "" : period;
+  const timestamp = Date.parse(end);
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function xbrlPeriodEndYear(period: string | null) {
+  const timestamp = xbrlPeriodEndTimestamp(period);
+  return timestamp ? new Date(timestamp).getUTCFullYear() : null;
+}
+
+function isAnnualXbrlDuration(period: string | null) {
+  if (!period?.includes("/")) return false;
+  const [start, end] = period.split("/");
+  const startTimestamp = Date.parse(start || "");
+  const endTimestamp = Date.parse(end || "");
+  if (!Number.isFinite(startTimestamp) || !Number.isFinite(endTimestamp)) return false;
+  const days = (endTimestamp - startTimestamp) / 86_400_000;
+  return days >= 300 && days <= 400;
 }
 
 function xbrlConceptPriority(concept: string) {

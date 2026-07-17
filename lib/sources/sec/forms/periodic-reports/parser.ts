@@ -258,13 +258,27 @@ function retainXbrlFacts(facts: PeriodicReportXbrlFact[], limit: number) {
     coreFacts.push(fact);
   }
 
-  const coreSet = new Set(coreFacts);
+  const coreFinancialFacts = facts
+    .filter((fact) => typeof fact.value === "number" && isCoreFinancialXbrlConcept(fact.name))
+    .sort(compareXbrlFacts)
+    .slice(0, 120);
+  const coreSet = new Set([...coreFacts, ...coreFinancialFacts]);
   const ordinaryFacts = facts.filter((fact) => !coreSet.has(fact));
-  return [...coreFacts, ...ordinaryFacts.slice(0, Math.max(0, limit - coreFacts.length))].slice(0, limit);
+  return [
+    ...coreFacts,
+    ...coreFinancialFacts,
+    ...ordinaryFacts.slice(0, Math.max(0, limit - coreSet.size)),
+  ].slice(0, limit);
 }
 
 function normalizeXbrlConceptName(name: string) {
   return (name.split(":").pop() || name).replace(/[^a-z0-9]/gi, "").toLowerCase();
+}
+
+function isCoreFinancialXbrlConcept(name: string) {
+  const concept = normalizeXbrlConceptName(name);
+  if (/(?:practicalexpedient|policy|disclosure|textblock|extensibleenumeration|member|axis|domain)/.test(concept)) return false;
+  return /^(?:revenues?|totalrevenues?|salesrevenuenet|salesrevenuegoodsnet|salesrevenueservicesnet|revenuefromcontractwithcustomerexcludingassessedtax|revenuefromcontractwithcustomerincludingassessedtax|grossprofit|operatingincomeloss|operatingprofitloss|profitlossfromoperatingactivities|netincomeloss|profitloss|profitfortheyear|profitlossattributabletoownersofparent|earningspersharebasic|earningspersharediluted|basicearningslosspershare|dilutedearningslosspershare|netcashprovidedbyusedinoperatingactivities|cashflowsfromusedinoperatingactivities|cashandcashequivalents|longtermdebt|shorttermdebt|borrowings)$/.test(concept);
 }
 
 type XbrlDocumentPeriodMetadata = {
@@ -636,6 +650,8 @@ function normalizeXbrlFacts(
 ): PeriodicReportXbrlFact[] {
   const xbrlPayload = toRecord(rawPayload.xbrl) || {};
   const candidates = [
+    rawPayload.periodic_report_core_xbrl_facts,
+    rawPayload.periodicReportCoreXbrlFacts,
     rawPayload.xbrl_facts,
     rawPayload.xbrlFacts,
     rawPayload.inline_xbrl_facts,
@@ -678,6 +694,11 @@ function normalizeXbrlFacts(
     const period = readXbrlPeriod(record);
     const statement = nullableString(record.statement) || nullableString(record.section) || nullableString(record.role);
     const sourceDocument = nullableString(record.sourceDocument) || nullableString(record.filename) || nullableString(record.document);
+    const hasDimensions = typeof record.hasDimensions === "boolean"
+      ? record.hasDimensions
+      : typeof record.has_dimensions === "boolean"
+        ? record.has_dimensions
+        : null;
     const key = `${name}:${value}:${unitRef}:${contextRef}:${period}`.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
@@ -692,6 +713,7 @@ function normalizeXbrlFacts(
       period,
       statement,
       sourceDocument,
+      hasDimensions,
       evidence: truncate([name, label, value === null ? null : String(value), unitRef, period].filter(Boolean).join(" | "), 420),
       confidence: value === null ? "medium" : "high",
     });
@@ -787,6 +809,12 @@ function inferXbrlStatement(name: string) {
 }
 
 function compareXbrlFacts(left: PeriodicReportXbrlFact, right: PeriodicReportXbrlFact) {
+  if (left.hasDimensions !== right.hasDimensions) {
+    if (left.hasDimensions === false) return -1;
+    if (right.hasDimensions === false) return 1;
+    if (left.hasDimensions === true) return 1;
+    if (right.hasDimensions === true) return -1;
+  }
   const statementRank = (statement: string | null) => {
     if (statement === "Income statement") return 0;
     if (statement === "Balance sheet") return 1;
@@ -1004,7 +1032,10 @@ export function parseSecPeriodicReport(input: SecPeriodicReportParseInput): Peri
     text,
   });
   const sections = extractSections(text, formType);
-  const contextSnippets = extractContextSnippets(normalizedPrimaryDocument.blocks, formType);
+  const contextSnippets = mergeContextSnippets(
+    readPreservedPeriodicCoreSourceBlocks(rawPayload),
+    extractContextSnippets(normalizedPrimaryDocument.blocks, formType),
+  );
   const financialStatementLines = extractFinancialStatementLines(
     normalizedPrimaryDocument.tables,
     sections,
@@ -1467,6 +1498,49 @@ function extractContextSnippets(
     })
     .slice(0, 16)
     .map(({ priority: _priority, order: _order, ...snippet }) => snippet);
+}
+
+function readPreservedPeriodicCoreSourceBlocks(rawPayload: Record<string, unknown>): PeriodicReportContextSnippet[] {
+  const records = [
+    ...recordArray(rawPayload.periodic_report_core_source_blocks),
+    ...recordArray(rawPayload.periodicReportCoreSourceBlocks),
+  ];
+  const result: PeriodicReportContextSnippet[] = [];
+  const seen = new Set<string>();
+
+  for (const [index, record] of records.entries()) {
+    const text = truncate(stringValue(record.text), 3600);
+    if (text.length < 80) continue;
+    const key = text.toLowerCase().replace(/\W+/g, "").slice(0, 400);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push({
+      id: nullableString(record.blockId) || nullableString(record.block_id) || `periodic_ingest_core_${index + 1}`,
+      topic: "annual_core_performance",
+      item: null,
+      sectionKey: "annual_core_performance",
+      text,
+      source: "primary_document_context",
+      confidence: "high",
+    });
+  }
+
+  return result.slice(0, 5);
+}
+
+function mergeContextSnippets(
+  preferred: PeriodicReportContextSnippet[],
+  fallback: PeriodicReportContextSnippet[],
+) {
+  const result: PeriodicReportContextSnippet[] = [];
+  const seen = new Set<string>();
+  for (const snippet of [...preferred, ...fallback]) {
+    const key = snippet.text.toLowerCase().replace(/\W+/g, "").slice(0, 400);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(snippet);
+  }
+  return result.slice(0, 16);
 }
 
 function isCorePeriodicItem(item: string | null, formType: SupportedPeriodicReportForm | null) {

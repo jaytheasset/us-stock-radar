@@ -2,7 +2,7 @@ import type { PeriodicParserOutput } from "./types";
 import { buildSecPeriodicReportsSourceBlockPromptInput, type SecPeriodicReportsPromptInput } from "./sourceBlockPromptInput.ts";
 
 export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY = "sec_periodic_reports_analysis";
-export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION = "v8-xbrl-fiscal-period";
+export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION = "v9-annual-core-performance";
 
 const PERIODIC_REPORTS_FORM_SCOPE = "10-K / 10-Q / 20-F, 10-K/A / 10-Q/A / 20-F/A";
 const APPROVED_SEC_EVENT_TYPES = [
@@ -266,6 +266,8 @@ export const secPeriodicReportsAnalysisSystemPrompt = [
   "Do not use parser-generated facts, signals, route hints, deterministic classification, extraction summaries, event labels, display labels, or investment labels as analysis authority.",
   "Choose event_type directly from the approved event types based on the dominant investor-relevant conclusion supported by the original source blocks.",
   "Periodic reports may contain several material subjects. Select one representative event_type for feed filtering, but preserve other material findings in the investor-facing analysis instead of discarding them.",
+  "For a substantive non-amendment 10-K or 20-F, annual operating performance is the primary analytical frame. Review current-year and immediately preceding-year revenue or sales, operating income or loss, GAAP/IFRS net income or loss, and operating cash flow before considering dividends, buybacks, or other capital-return items.",
+  "A routine dividend, buyback, or capital-allocation disclosure must not displace material annual operating performance as the representative event or as the focus of report_ui, quick_take, summary, and score_reason. Treat capital returns as secondary unless the filing is genuinely dominated by a new extraordinary capital-return event.",
   "Score measures investor attention and urgency, not bullishness or bearishness. Signal expresses direction. A large positive or negative surprise can both receive a high score.",
   "Complete report_ui performance comparisons and scoring_assessment before assigning score, signal, score_reason, quick_take, or summary.",
   "Use only these scoring_assessment values: market_cap_tier micro/small/mid/large/mega/unknown; primary_change_severity routine/meaningful/strong/major/critical; operating_direction and cash_flow_direction positive/negative/mixed/neutral/unknown; guidance_direction positive/negative/mixed/neutral/absent; earnings_quality high/mixed/low/unknown.",
@@ -286,11 +288,12 @@ export const secPeriodicReportsAnalysisSystemPrompt = [
   "For earnings and sales_performance, emphasize period-over-period revenue, profit/loss, margins, demand metrics, and management context only when source-backed.",
   "Populate report_ui for substantive periodic reports. The application chooses the template; do not name or choose a UI display type.",
   "For a substantive report, write a one-sentence snapshot_intro and up to four source-backed snapshot_metrics. Prefer reporting period, revenue or sales, GAAP/IFRS net income or loss, and cash, free cash flow, debt, or another material balance-sheet measure. Omit unavailable metrics; never write Not disclosed placeholders.",
-  "Write at most three performance_comparisons. Each comparison must use the same metric definition, unit, and period length. Prefer year-over-year comparisons for quarterly results and prior-year comparisons for annual results. Use quarter-over-quarter only when no comparable year-over-year value is supplied, and label it qoq.",
-  "The period labels must visibly support comparison_basis: yoy requires the same quarter or comparable annual period in different years; qoq requires consecutive quarters. If the labels do not establish either relationship, use other and do not describe the result as YoY or QoQ.",
+  "Write at most three performance_comparisons. Each comparison must use the same metric definition, unit, and period length. For annual reports, compare the current fiscal year with the immediately preceding fiscal year. For quarterly reports, use the same fiscal quarter in the immediately preceding year. Use quarter-over-quarter only when no comparable year-over-year value is supplied, and label it qoq.",
+  "The period labels must visibly support comparison_basis: annual yoy requires adjacent fiscal years, such as FY2026 versus FY2025; quarterly yoy requires the same quarter in adjacent years; qoq requires consecutive quarters. A two-year or longer annual span is not YoY. If the labels do not establish the required relationship, use other and do not describe the result as YoY or QoQ.",
   "current_numeric and comparison_numeric must be raw signed numbers in the displayed unit. A loss or negative cash flow must be negative. current_value and comparison_value must retain the filing currency and clearly show negative values with parentheses or a minus sign.",
   "Set change_tone from investor meaning, not arithmetic direction alone. Higher revenue or profit is usually improvement; higher losses, expenses, cash burn, or debt can be deterioration.",
   "Choose the three comparisons that best explain investor impact. Normally include revenue or sales and GAAP/IFRS net income or loss when available. Do not let adjusted metrics hide a material deterioration in GAAP/IFRS results.",
+  "For a substantive non-amendment 10-K or 20-F, performance_comparisons must normally include current-year versus immediately preceding-year revenue or sales and GAAP/IFRS net income or loss when both are disclosed. Use operating income or loss or operating cash flow as the third comparison when material. Do not use dividend comparisons in place of these core annual metrics.",
   "Put forward guidance in guidance_metrics, not in performance_comparisons. Link guidance to a performance metric only when it is the same measure and accounting basis. Use related_different_basis for adjusted guidance next to a GAAP/IFRS actual, and standalone when no matching comparison exists.",
   "Write at most three key_business_updates for material business drivers, segment trends, operating milestones, risks, or offsets not already obvious from the comparison graph. Do not repeat the summary or merely restate a graphed number.",
   "For a routine amendment that should archive, report_ui arrays may be empty and snapshot_intro may be brief. Do not reconstruct the entire parent report.",

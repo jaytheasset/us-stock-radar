@@ -21,7 +21,7 @@ export {
 export const SEC_PERIODIC_REPORTS_VALIDATION_REPAIR_PROMPT_KEY =
   "sec_periodic_reports_validation_repair";
 export const SEC_PERIODIC_REPORTS_VALIDATION_REPAIR_PROMPT_VERSION =
-  "v2-filing-first-market-cap";
+  "v3-annual-core-performance";
 
 export type SecPeriodicReportsAnalysisAdapterResult =
   | { ok: true; analysis: Record<string, unknown> }
@@ -124,6 +124,10 @@ export function collectSecPeriodicReportsScoringWarnings(
   const issues: SecPeriodicReportsValidationRepairIssue[] = [];
   const fiscalPeriodIssue = buildFiscalPeriodLabelMismatchIssue(root, input);
   if (fiscalPeriodIssue) issues.push(fiscalPeriodIssue);
+  const annualComparisonIssue = buildAnnualPriorYearComparisonIssue(root, input);
+  if (annualComparisonIssue) issues.push(annualComparisonIssue);
+  const annualCorePerformanceIssue = buildAnnualCorePerformanceMissingIssue(root, input);
+  if (annualCorePerformanceIssue) issues.push(annualCorePerformanceIssue);
 
   const assessment = readRecord(root?.scoring_assessment);
   if (!assessment) return dedupePeriodicRepairIssues(issues);
@@ -339,6 +343,8 @@ function buildPeriodicReportsValidationRepairPrompt({
       "Validator warnings identify possible scoring, earnings-quality, or reporting-period inconsistencies but are not evidence.",
       "Use only the selected original source blocks, site market context, and existing result as evidence.",
       "For reporting-period repairs, treat report_context XBRL DEI fiscal metadata as authoritative and do not infer fiscal quarter from calendar month.",
+      "For annual-report repairs, YoY means the current fiscal year versus the immediately preceding fiscal year. Replace non-adjacent annual comparison fields with source-backed adjacent-year values when available.",
+      "When annual core performance is missing, use existing performance-comparison and snapshot scalar fields for revenue or sales, GAAP/IFRS net income or loss, operating income or loss, or operating cash flow. Capital-return rows must not displace those metrics.",
       "Score is investor attention and urgency; signal is direction. Market capitalization changes percentage thresholds, not score points.",
       "Do not treat one-time, non-operating, tax, fair-value, derivative, or non-cash gains as pure operating improvement.",
       "Return scalar replacement patches only for exact allowed paths. Never add, remove, reorder, or rewrite arrays or objects.",
@@ -367,7 +373,7 @@ function buildPeriodicReportsValidationRepairPrompt({
           properties: {
             patches: {
               type: "array",
-              maxItems: 10,
+              maxItems: 30,
               items: {
                 type: "object",
                 additionalProperties: false,
@@ -445,11 +451,19 @@ function scorePeriodicRepairSourceBlock(
   let score = 0;
 
   if (issueCodes.has("fiscal_period_label_mismatch") && type === "report_context") score += 160;
+  if (
+    (issueCodes.has("annual_prior_year_comparison_mismatch") || issueCodes.has("annual_core_performance_missing")) &&
+    type === "annual_core_performance_facts"
+  ) score += 180;
   if (issueCodes.has("market_cap_tier_mismatch") && origin === "filing" && hasExplicitFilingMarketCap(haystack)) score += 140;
   if (origin === "market_context") score += issueCodes.has("market_cap_tier_mismatch") ? 110 : 8;
   if (["financial_table", "xbrl_statement_facts", "periodic_report_section", "context_preserving_snippet"].includes(type)) {
     score += 18;
   }
+  if (
+    issueCodes.has("annual_core_performance_missing") &&
+    /annual|revenue|sales|operating income|operating profit|net income|net loss|profit or loss|cash flow/.test(haystack)
+  ) score += 45;
   if (/revenue|sales|operating income|operating profit|net income|net loss|earnings per share|\beps\b/.test(haystack)) score += 24;
   if (/cash flow|free cash flow|capital expenditure|capex|liquidity|debt|borrow/.test(haystack)) score += 20;
   if (/guidance|outlook|forecast|expect/.test(haystack)) score += 18;
@@ -497,6 +511,176 @@ function buildFiscalPeriodLabelMismatchIssue(
     `The filing metadata identifies fiscal ${fiscalQuarter}${fiscalYear ? ` ${fiscalYear}` : ""}, but current-period analysis labels use a different fiscal quarter.`,
     uniqueStrings(paths),
   );
+}
+
+function buildAnnualPriorYearComparisonIssue(
+  analysisResult: Record<string, unknown>,
+  input: SecFilingAnalysisInput,
+): SecPeriodicReportsValidationRepairIssue | null {
+  const parserOutput = readSecPeriodicReportsParserOutput(input);
+  if (!isSubstantiveAnnualReport(parserOutput)) return null;
+
+  const reportUi = readRecord(analysisResult.report_ui);
+  const comparisons = Array.isArray(reportUi?.performance_comparisons) ? reportUi.performance_comparisons : [];
+  const paths: string[] = [];
+  const mismatches: string[] = [];
+
+  comparisons.forEach((item, index) => {
+    const row = readRecord(item);
+    if (!row) return;
+    const currentYear = annualPeriodYear(row.current_label);
+    const comparisonYear = annualPeriodYear(row.comparison_label);
+    if (!currentYear || !comparisonYear || currentYear - comparisonYear === 1) return;
+    if (currentYear <= comparisonYear) return;
+
+    mismatches.push(`${stringValue(row.current_label)} versus ${stringValue(row.comparison_label)}`);
+    for (const field of [
+      "label",
+      "current_label",
+      "current_value",
+      "current_numeric",
+      "comparison_label",
+      "comparison_value",
+      "comparison_numeric",
+      "comparison_basis",
+      "change_note",
+      "change_tone",
+    ]) {
+      paths.push(`/report_ui/performance_comparisons/${index}/${field}`);
+    }
+  });
+
+  if (!paths.length) return null;
+  paths.push(
+    "/scoring_assessment/primary_change_severity",
+    "/scoring_assessment/operating_direction",
+    "/scoring_assessment/earnings_quality",
+    "/scoring_assessment/alert_driver",
+    "/score",
+    "/signal",
+    "/score_reason",
+    "/quick_take",
+    "/summary",
+  );
+  return buildPeriodicRepairIssue(
+    "annual_prior_year_comparison_mismatch",
+    `Annual YoY comparisons must use the immediately preceding fiscal year; non-adjacent comparisons found: ${mismatches.join(", ")}.`,
+    uniqueStrings(paths),
+  );
+}
+
+function buildAnnualCorePerformanceMissingIssue(
+  analysisResult: Record<string, unknown>,
+  input: SecFilingAnalysisInput,
+): SecPeriodicReportsValidationRepairIssue | null {
+  const parserOutput = readSecPeriodicReportsParserOutput(input);
+  if (!isSubstantiveAnnualReport(parserOutput)) return null;
+  const evidence = annualCoreEvidence(parserOutput);
+  if (!evidence.revenue && !evidence.netIncome && !evidence.operatingIncome) return null;
+
+  const reportUi = readRecord(analysisResult.report_ui);
+  const comparisons = Array.isArray(reportUi?.performance_comparisons) ? reportUi.performance_comparisons : [];
+  const labels = comparisons
+    .map((item) => stringValue(readRecord(item)?.label).toLowerCase())
+    .filter(Boolean);
+  const hasRevenue = labels.some((label) => /revenue|sales/.test(label));
+  const hasNetIncome = labels.some((label) => /net income|net loss|profit.*loss|profit\/loss/.test(label));
+  const eventType = stringValue(analysisResult.event_type).toLowerCase();
+  const displacedByCapitalReturn = eventType === "dividends" || eventType === "capital_return";
+  const missingRequiredRevenue = evidence.revenue && !hasRevenue;
+  const missingRequiredNetIncome = evidence.netIncome && !hasNetIncome;
+  if (!displacedByCapitalReturn && !missingRequiredRevenue && !missingRequiredNetIncome) return null;
+
+  const paths = [
+    "/event_type",
+    "/event_title",
+    "/scoring_assessment/primary_change_severity",
+    "/scoring_assessment/operating_direction",
+    "/scoring_assessment/cash_flow_direction",
+    "/scoring_assessment/earnings_quality",
+    "/scoring_assessment/alert_driver",
+    "/score",
+    "/signal",
+    "/score_reason",
+    "/quick_take",
+    "/summary",
+    "/why_it_matters",
+    "/report_ui/snapshot_intro",
+  ];
+  comparisons.forEach((item, index) => {
+    if (!readRecord(item)) return;
+    for (const field of [
+      "label",
+      "current_label",
+      "current_value",
+      "current_numeric",
+      "comparison_label",
+      "comparison_value",
+      "comparison_numeric",
+      "comparison_basis",
+      "change_note",
+      "change_tone",
+    ]) {
+      paths.push(`/report_ui/performance_comparisons/${index}/${field}`);
+    }
+  });
+  const snapshotMetrics = Array.isArray(reportUi?.snapshot_metrics) ? reportUi.snapshot_metrics : [];
+  snapshotMetrics.forEach((item, index) => {
+    if (!readRecord(item)) return;
+    paths.push(
+      `/report_ui/snapshot_metrics/${index}/label`,
+      `/report_ui/snapshot_metrics/${index}/value`,
+      `/report_ui/snapshot_metrics/${index}/note`,
+    );
+  });
+
+  const missing = [
+    displacedByCapitalReturn ? "capital return displaced the annual operating result" : "",
+    missingRequiredRevenue ? "revenue or sales comparison" : "",
+    missingRequiredNetIncome ? "GAAP/IFRS net income or loss comparison" : "",
+  ].filter(Boolean);
+  return buildPeriodicRepairIssue(
+    "annual_core_performance_missing",
+    `A substantive annual report contains core financial evidence, but the analysis is missing or displacing: ${missing.join(", ")}.`,
+    uniqueStrings(paths),
+  );
+}
+
+function isSubstantiveAnnualReport(
+  parserOutput: PeriodicParserOutput | null,
+): parserOutput is PeriodicParserOutput {
+  if (!parserOutput || parserOutput.facts.isAmendment) return false;
+  return (
+    (parserOutput.facts.isAnnualReport || parserOutput.facts.isForeignIssuerAnnualReport) &&
+    /^(?:10-K|20-F)$/i.test(parserOutput.formType || "")
+  );
+}
+
+function annualCoreEvidence(parserOutput: PeriodicParserOutput) {
+  const concepts = parserOutput.facts.sourcePackage.xbrlFacts.map((fact) =>
+    (fact.name.split(":").pop() || fact.name).replace(/[^a-z0-9]/gi, "").toLowerCase(),
+  );
+  const lineLabels = new Set(
+    parserOutput.facts.financialStatementLines.map((item) => item.label.toLowerCase()),
+  );
+  return {
+    revenue:
+      concepts.some((concept) => /revenue|salesrevenuenet/.test(concept)) ||
+      lineLabels.has("revenue_or_net_sales"),
+    operatingIncome:
+      concepts.some((concept) => /^(?:operatingincomeloss|operatingprofitloss|profitlossfromoperatingactivities)$/.test(concept)) ||
+      lineLabels.has("operating_income_loss"),
+    netIncome:
+      concepts.some((concept) => /^(?:netincomeloss|profitloss)$/.test(concept)) ||
+      lineLabels.has("net_income_loss"),
+  };
+}
+
+function annualPeriodYear(value: unknown) {
+  const text = stringValue(value);
+  if (!text || /\bQ[1-4]\b|\bquarter\b/i.test(text)) return null;
+  const match = text.match(/\b(?:FY\s*)?(19\d{2}|20\d{2})\b/i);
+  return match ? Number(match[1]) : null;
 }
 
 function fiscalQuarterNumber(value: string | null) {

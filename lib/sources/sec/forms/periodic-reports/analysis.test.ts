@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 import type { SecPeriodicReportParseInput } from "./parser";
 import type { PeriodicRoomResult } from "./types";
+import { extractPeriodicReportIngestEvidence } from "./ingestSourceExtract";
 import {
   SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY,
   SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION,
@@ -71,9 +72,182 @@ assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.report_ui.prope
 assert.equal(normalizePeriodicComparisonBasis("Q1 2026", "Q1 2025", "other"), "yoy", "same quarter derives YoY");
 assert.equal(normalizePeriodicComparisonBasis("Q1 2026", "Q4 2025", "yoy"), "qoq", "consecutive quarters override an invalid YoY label");
 assert.equal(normalizePeriodicComparisonBasis("FY2026", "FY2025", "other"), "yoy", "annual periods derive prior-year comparison");
+assert.equal(normalizePeriodicComparisonBasis("FY2025", "FY2023", "yoy"), "other", "non-adjacent annual periods are not YoY");
 assert.equal(normalizePeriodicChartNumber("($90 million)", 90), -90_000_000, "display value preserves negative sign and magnitude");
 assert.equal(normalizePeriodicChartNumber("$1.01B", 1.01), 1_010_000_000, "display value normalizes billion units");
 assert.ok(clipPeriodicDisplayText("A long narrative sentence that must fit a compact interface.", 32).length <= 32, "display text is bounded");
+assert.equal(
+  clipPeriodicDisplayText("Annual performance improved\u00e2\u20ac\u00a6", 80),
+  "Annual performance improved...",
+  "display text repairs UTF-8 punctuation decoded as Windows-1252",
+);
+assert.equal(
+  clipPeriodicDisplayText("A long narrative sentence that must fit a compact interface.", 32).endsWith("..."),
+  true,
+  "clipped display text uses an ASCII ellipsis",
+);
+
+const fullAnnualHtml = `${"<!-- filing padding -->".repeat(100_000)}
+  <xbrli:context id="FY2026"><xbrli:entity><xbrli:identifier scheme="test">1</xbrli:identifier></xbrli:entity><xbrli:period><xbrli:startDate>2025-04-01</xbrli:startDate><xbrli:endDate>2026-03-31</xbrli:endDate></xbrli:period></xbrli:context>
+  <xbrli:context id="FY2025"><xbrli:entity><xbrli:identifier scheme="test">1</xbrli:identifier></xbrli:entity><xbrli:period><xbrli:startDate>2024-04-01</xbrli:startDate><xbrli:endDate>2025-03-31</xbrli:endDate></xbrli:period></xbrli:context>
+  <ix:nonFraction name="ifrs-full:Revenue" contextRef="FY2026" unitRef="USD" decimals="-6">1,024</ix:nonFraction>
+  <ix:nonFraction name="ifrs-full:Revenue" contextRef="FY2025" unitRef="USD" decimals="-6">996</ix:nonFraction>
+  <ix:nonNumeric name="ifrs-full:RevenuePracticalExpedientFinancingComponent" contextRef="FY2026">true</ix:nonNumeric>`;
+const annualIngestEvidence = extractPeriodicReportIngestEvidence({
+  cleanedText: "During fiscal year 2026, total revenue increased 3% from fiscal year 2025, while net income decreased 19% compared with the prior year.",
+  formType: "20-F",
+  html: fullAnnualHtml,
+  isPrimary: true,
+  sourceDocument: "annual-20f.htm",
+});
+assert.ok(annualIngestEvidence, "annual periodic filings preserve compact evidence before general source truncation");
+assert.equal(annualIngestEvidence?.xbrlFacts.filter((fact) => /:Revenue$/i.test(fact.name)).length, 2, "full-document extraction retains adjacent annual revenue facts beyond the generic HTML cap");
+assert.equal(annualIngestEvidence?.xbrlFacts.some((fact) => /PracticalExpedient/i.test(fact.name)), false, "disclosure booleans are not retained as core performance facts");
+assert.match(annualIngestEvidence?.sourceBlocks[0]?.text || "", /net income decreased 19%/i, "annual core performance paragraph is preserved with its comparison context");
+
+const preservedAnnualParserOutput = parseSecPeriodicReport({
+  rawItemId: "periodic-preserved-annual-core",
+  sourceUniqueId: "0000000000-26-000006",
+  title: "Preserved Annual Core Ltd. Form 20-F",
+  bodyText: "FORM 20-F For the fiscal year ended March 31, 2026.",
+  rawPayload: {
+    form_type: "20-F",
+    company_name: "Preserved Annual Core Ltd.",
+    periodic_report_core_xbrl_facts: annualIngestEvidence?.xbrlFacts,
+    periodic_report_core_source_blocks: annualIngestEvidence?.sourceBlocks,
+  },
+});
+const preservedAnnualPromptPayload = JSON.parse(buildSecPeriodicReportsAnalysisPromptDraft({
+  parser_output: preservedAnnualParserOutput,
+}).user) as Record<string, unknown>;
+const preservedAnnualBlocks = Array.isArray(preservedAnnualPromptPayload.cleaned_source_blocks)
+  ? preservedAnnualPromptPayload.cleaned_source_blocks as Array<Record<string, unknown>>
+  : [];
+assert.ok(preservedAnnualBlocks.some((block) => block.block_type === "annual_core_performance_facts"), "preserved full-document XBRL reaches the annual analysis bundle");
+assert.ok(preservedAnnualBlocks.some((block) => block.block_type === "context_preserving_snippet" && /net income decreased 19%/i.test(String(block.text))), "preserved annual performance context reaches the analysis bundle");
+
+const annualCoreParserOutput = parseSecPeriodicReport({
+  rawItemId: "periodic-annual-core-performance",
+  sourceUniqueId: "0000000000-26-000005",
+  title: "Annual Core Performance Ltd. Form 20-F",
+  bodyText: "FORM 20-F For the fiscal year ended December 31, 2025. Revenue and net income are presented in the audited financial statements.",
+  xbrl_facts: [
+    { name: "dei:DocumentFiscalPeriodFocus", value: "FY", contextRef: "Document", period: "2025-12-31" },
+    { name: "dei:DocumentFiscalYearFocus", value: "2025", contextRef: "Document", period: "2025-12-31" },
+    { name: "dei:DocumentPeriodEndDate", value: "2025-12-31", contextRef: "Document", period: "2025-12-31" },
+    { name: "ifrs-full:Revenue", value: 2200, unitRef: "USD", contextRef: "FY2025", period: "2025-01-01/2025-12-31", statement: "Income statement" },
+    { name: "ifrs-full:Revenue", value: 1800, unitRef: "USD", contextRef: "FY2024", period: "2024-01-01/2024-12-31", statement: "Income statement" },
+    { name: "ifrs-full:Revenue", value: 1200, unitRef: "USD", contextRef: "FY2023", period: "2023-01-01/2023-12-31", statement: "Income statement" },
+    { name: "ifrs-full:ProfitLoss", value: 160, unitRef: "USD", contextRef: "FY2025", period: "2025-01-01/2025-12-31", statement: "Income statement" },
+    { name: "ifrs-full:ProfitLoss", value: 45, unitRef: "USD", contextRef: "FY2024", period: "2024-01-01/2024-12-31", statement: "Income statement" },
+  ],
+  rawPayload: { form_type: "20-F", company_name: "Annual Core Performance Ltd." },
+});
+const annualCorePromptPayload = JSON.parse(buildSecPeriodicReportsAnalysisPromptDraft({
+  parser_output: annualCoreParserOutput,
+}).user) as Record<string, unknown>;
+const annualCoreBlocks = Array.isArray(annualCorePromptPayload.cleaned_source_blocks)
+  ? annualCorePromptPayload.cleaned_source_blocks as Array<Record<string, unknown>>
+  : [];
+const annualCoreBlock = annualCoreBlocks.find((block) => block.block_type === "annual_core_performance_facts");
+assert.ok(annualCoreBlock, "annual reports include a dedicated current/prior-year core performance block");
+assert.match(String(annualCoreBlock?.text), /2025-01-01\/2025-12-31/, "annual core block includes current fiscal year");
+assert.match(String(annualCoreBlock?.text), /2024-01-01\/2024-12-31/, "annual core block includes immediately preceding fiscal year");
+assert.doesNotMatch(String(annualCoreBlock?.text), /2023-01-01\/2023-12-31/, "annual core block excludes older annual periods when adjacent years exist");
+
+const nonAdjacentAnnualWarnings = collectSecPeriodicReportsScoringWarnings(
+  {
+    event_type: "earnings",
+    score: 75,
+    signal: "bullish",
+    scoring_assessment: {
+      market_cap_tier: "large",
+      primary_change_severity: "major",
+      operating_direction: "positive",
+      cash_flow_direction: "positive",
+      guidance_direction: "absent",
+      earnings_quality: "high",
+      material_offsets: [],
+      alert_driver: "Material annual growth",
+    },
+    report_ui: {
+      performance_comparisons: [
+        {
+          label: "Revenue",
+          current_label: "FY2025",
+          current_value: "$2.2B",
+          current_numeric: 2200,
+          comparison_label: "FY2023",
+          comparison_value: "$1.2B",
+          comparison_numeric: 1200,
+          comparison_basis: "yoy",
+          change_note: "Up 83% YoY",
+          change_tone: "improvement",
+        },
+        {
+          label: "Net Income",
+          current_label: "FY2025",
+          current_value: "$160M",
+          current_numeric: 160,
+          comparison_label: "FY2024",
+          comparison_value: "$45M",
+          comparison_numeric: 45,
+          comparison_basis: "yoy",
+          change_note: "Up 256% YoY",
+          change_tone: "improvement",
+        },
+      ],
+    },
+  },
+  { filing_package: { hard_parsers: { "periodic-reports": annualCoreParserOutput } } },
+);
+const nonAdjacentAnnualWarning = nonAdjacentAnnualWarnings.find((warning) => warning.code === "annual_prior_year_comparison_mismatch");
+assert.ok(nonAdjacentAnnualWarning, "validator catches non-adjacent annual comparisons");
+assert.ok(nonAdjacentAnnualWarning.allowed_patch_paths.includes("/report_ui/performance_comparisons/0/comparison_value"), "validator can repair the incorrect prior-year value");
+
+const displacedAnnualWarnings = collectSecPeriodicReportsScoringWarnings(
+  {
+    event_type: "dividends",
+    score: 55,
+    signal: "neutral",
+    scoring_assessment: {
+      market_cap_tier: "large",
+      primary_change_severity: "routine",
+      operating_direction: "neutral",
+      cash_flow_direction: "neutral",
+      guidance_direction: "absent",
+      earnings_quality: "unknown",
+      material_offsets: [],
+      alert_driver: null,
+    },
+    report_ui: {
+      snapshot_intro: "Annual dividend update",
+      snapshot_metrics: [
+        { label: "Dividend", value: "$1.05", note: null },
+        { label: "Reporting Period", value: "FY2025", note: null },
+      ],
+      performance_comparisons: [
+        {
+          label: "Dividend per ADS",
+          current_label: "FY2025",
+          current_value: "$1.05",
+          current_numeric: 1.05,
+          comparison_label: "FY2024",
+          comparison_value: "$2.00",
+          comparison_numeric: 2,
+          comparison_basis: "yoy",
+          change_note: "Down 48% YoY",
+          change_tone: "deterioration",
+        },
+      ],
+    },
+  },
+  { filing_package: { hard_parsers: { "periodic-reports": annualCoreParserOutput } } },
+);
+const displacedAnnualWarning = displacedAnnualWarnings.find((warning) => warning.code === "annual_core_performance_missing");
+assert.ok(displacedAnnualWarning, "validator catches annual results displaced by dividend analysis");
+assert.ok(displacedAnnualWarning.allowed_patch_paths.includes("/event_type"), "validator can repair the representative annual event");
+assert.ok(displacedAnnualWarning.allowed_patch_paths.includes("/report_ui/performance_comparisons/0/label"), "validator can repurpose an existing comparison row for annual core performance");
 
 const scoringWarnings = collectSecPeriodicReportsScoringWarnings(
   {
