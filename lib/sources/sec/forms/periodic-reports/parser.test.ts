@@ -297,6 +297,29 @@ for (const concept of ["DocumentFiscalPeriodFocus", "DocumentFiscalYearFocus", "
   assert.ok(crowdedXbrlParsed.facts.sourcePackage.xbrlFacts.some((fact) => fact.name.endsWith(concept)), `core DEI fact retained: ${concept}`);
 }
 
+const partialDeiDateParsed = parseSecPeriodicReport({
+  rawItemId: "periodic-partial-dei-date",
+  sourceUniqueId: "0000000000-26-000779",
+  title: "Partial DEI Date Ltd. Form 20-F",
+  bodyText: "FORM 20-F. A historical disclosure refers to the fiscal year ended December 31, 2021.",
+  xbrl_facts: [
+    { name: "dei:DocumentFiscalPeriodFocus", value: "FY", contextRef: "Document", period: "2025-01-01/2025-12-31" },
+    { name: "dei:DocumentFiscalYearFocus", value: "2025", contextRef: "Document", period: "2025-01-01/2025-12-31" },
+    { name: "dei:DocumentPeriodEndDate", value: "December 31", contextRef: "Document", period: "2025-01-01/2025-12-31" },
+  ],
+  rawPayload: { form_type: "20-F", company_name: "Partial DEI Date Ltd." },
+});
+assert.equal(
+  partialDeiDateParsed.facts.reportingPeriod,
+  "December 31, 2025",
+  "DEI period context supplies the year when the visible period-end value omits it",
+);
+assert.equal(
+  partialDeiDateParsed.facts.fiscalPeriodResolution.reporting_period_source,
+  "xbrl_dei_document_period_end_date",
+  "DEI period context remains the authoritative reporting-period source",
+);
+
 const unresolvedCalendarQuarter = parseSecPeriodicReport({
   rawItemId: "periodic-no-calendar-quarter-guess",
   sourceUniqueId: "0000000000-26-000778",

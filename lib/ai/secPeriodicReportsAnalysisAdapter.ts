@@ -21,7 +21,7 @@ export {
 export const SEC_PERIODIC_REPORTS_VALIDATION_REPAIR_PROMPT_KEY =
   "sec_periodic_reports_validation_repair";
 export const SEC_PERIODIC_REPORTS_VALIDATION_REPAIR_PROMPT_VERSION =
-  "v3-annual-core-performance";
+  "v4-quantitative-narrative-consistency";
 
 export type SecPeriodicReportsAnalysisAdapterResult =
   | { ok: true; analysis: Record<string, unknown> }
@@ -130,6 +130,8 @@ export function collectSecPeriodicReportsScoringWarnings(
   if (annualCorePerformanceIssue) issues.push(annualCorePerformanceIssue);
   const annualScopeIssue = buildAnnualConsolidatedMetricScopeIssue(root, input);
   if (annualScopeIssue) issues.push(annualScopeIssue);
+  const quantitativeNarrativeIssue = buildQuantitativeNarrativeConsistencyIssue(root);
+  if (quantitativeNarrativeIssue) issues.push(quantitativeNarrativeIssue);
 
   const assessment = readRecord(root?.scoring_assessment);
   if (!assessment) return dedupePeriodicRepairIssues(issues);
@@ -348,6 +350,7 @@ function buildPeriodicReportsValidationRepairPrompt({
       "For annual-report repairs, YoY means the current fiscal year versus the immediately preceding fiscal year. Replace non-adjacent annual comparison fields with source-backed adjacent-year values when available.",
       "When annual core performance is missing, use existing performance-comparison and snapshot scalar fields for revenue or sales, GAAP/IFRS net income or loss, operating income or loss, or operating cash flow. Capital-return rows must not displace those metrics.",
       "For annual_consolidated_metric_scope_mismatch, a source_scope=segment_or_subset block cannot support a company-wide total. Remove the unscoped claim from narrative scalars or explicitly label it as a segment/subset metric. Replace an unsupported consolidated comparison with another trusted consolidated core metric when available.",
+      "For quantitative_narrative_mismatch, make narrative scalar fields agree with the structured performance comparison. Prefer the exact rounded percentage change and remove inconsistent doubled, more-than-doubled, tripled, or halved wording.",
       "Score is investor attention and urgency; signal is direction. Market capitalization changes percentage thresholds, not score points.",
       "Do not treat one-time, non-operating, tax, fair-value, derivative, or non-cash gains as pure operating improvement.",
       "Return scalar replacement patches only for exact allowed paths. Never add, remove, reorder, or rewrite arrays or objects.",
@@ -458,6 +461,7 @@ function scorePeriodicRepairSourceBlock(
     (issueCodes.has("annual_prior_year_comparison_mismatch") || issueCodes.has("annual_core_performance_missing") || issueCodes.has("annual_consolidated_metric_scope_mismatch")) &&
     type === "annual_core_performance_facts"
   ) score += 180;
+  if (issueCodes.has("quantitative_narrative_mismatch") && type === "annual_core_performance_facts") score += 180;
   if (issueCodes.has("market_cap_tier_mismatch") && origin === "filing" && hasExplicitFilingMarketCap(haystack)) score += 140;
   if (origin === "market_context") score += issueCodes.has("market_cap_tier_mismatch") ? 110 : 8;
   if (["financial_table", "xbrl_statement_facts", "periodic_report_section", "context_preserving_snippet"].includes(type)) {
@@ -473,6 +477,74 @@ function scorePeriodicRepairSourceBlock(
   if (/tax benefit|fair value|warrant|derivative|impairment|non-cash|one-time|asset sale|remeasurement/.test(haystack)) score += 22;
   if (type === "report_context") score += 2;
   return score;
+}
+
+function buildQuantitativeNarrativeConsistencyIssue(
+  analysisResult: Record<string, unknown>,
+): SecPeriodicReportsValidationRepairIssue | null {
+  const reportUi = readRecord(analysisResult.report_ui);
+  const comparisons = Array.isArray(reportUi?.performance_comparisons) ? reportUi.performance_comparisons : [];
+  const narrativeFields: Array<[string, unknown]> = [
+    ["/event_title", analysisResult.event_title],
+    ["/quick_take", analysisResult.quick_take],
+    ["/summary", analysisResult.summary],
+    ["/score_reason", analysisResult.score_reason],
+    ["/report_ui/snapshot_intro", reportUi?.snapshot_intro],
+  ];
+  const affectedPaths = new Set<string>();
+  const mismatches: string[] = [];
+
+  for (const item of comparisons) {
+    const row = readRecord(item);
+    if (!row) continue;
+    const current = finiteNumber(row.current_numeric);
+    const comparison = finiteNumber(row.comparison_numeric);
+    if (current === null || comparison === null || current <= 0 || comparison <= 0) continue;
+    const metricPattern = narrativeMetricPattern(stringValue(row.label));
+    if (!metricPattern) continue;
+    const ratio = current / comparison;
+    const changePercent = ((current - comparison) / comparison) * 100;
+
+    for (const [path, value] of narrativeFields) {
+      const text = stringValue(value);
+      if (!text) continue;
+      const sentences = text.split(/(?<=[.!?])\s+|\n+/);
+      const conflictingSentence = sentences.find((sentence) =>
+        metricPattern.test(sentence) && hasInconsistentMultiplierWording(sentence, ratio),
+      );
+      if (!conflictingSentence) continue;
+      affectedPaths.add(path);
+      mismatches.push(
+        `${stringValue(row.label)} changed ${Math.round(changePercent)}% (${stringValue(row.comparison_value)} to ${stringValue(row.current_value)}), but ${path} uses inconsistent multiplier wording.`,
+      );
+    }
+  }
+
+  if (!affectedPaths.size) return null;
+  return buildPeriodicRepairIssue(
+    "quantitative_narrative_mismatch",
+    uniqueStrings(mismatches).join(" "),
+    [...affectedPaths],
+  );
+}
+
+function narrativeMetricPattern(label: string) {
+  const normalized = label.toLowerCase();
+  if (/operating income|operating profit/.test(normalized)) return /\b(?:operating income|operating profit)\b/i;
+  if (/net income|net profit|profit.*loss|profit\/loss/.test(normalized)) return /\b(?:net income|net profit)\b/i;
+  if (/revenue|sales/.test(normalized)) return /\b(?:revenue|revenues|sales)\b/i;
+  if (/earnings per share|\beps\b/.test(normalized)) return /\b(?:earnings per share|eps)\b/i;
+  return null;
+}
+
+function hasInconsistentMultiplierWording(text: string, ratio: number) {
+  if (/\bmore than doubl(?:ed|ing)\b/i.test(text)) return ratio <= 2;
+  if (/\b(?:nearly|almost) doubl(?:ed|ing)\b/i.test(text)) return ratio < 1.8 || ratio >= 2;
+  if (/\bdoubl(?:ed|ing)\b/i.test(text)) return Math.abs(ratio - 2) > 0.02;
+  if (/\bmore than tripl(?:ed|ing)\b/i.test(text)) return ratio <= 3;
+  if (/\btripl(?:ed|ing)\b/i.test(text)) return Math.abs(ratio - 3) > 0.03;
+  if (/\bhalv(?:ed|ing)\b/i.test(text)) return Math.abs(ratio - 0.5) > 0.02;
+  return false;
 }
 
 function buildFiscalPeriodLabelMismatchIssue(

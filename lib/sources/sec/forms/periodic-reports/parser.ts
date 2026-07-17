@@ -292,21 +292,33 @@ type XbrlDocumentPeriodMetadata = {
 };
 
 function readXbrlDocumentPeriodMetadata(facts: PeriodicReportXbrlFact[]): XbrlDocumentPeriodMetadata {
-  const valueByConcept = new Map<string, string>();
+  const factsByConcept = new Map<string, PeriodicReportXbrlFact[]>();
   for (const fact of facts) {
     const concept = normalizeXbrlConceptName(fact.name);
-    if (!CORE_DOCUMENT_PERIOD_XBRL_CONCEPTS.has(concept) || valueByConcept.has(concept)) continue;
-    const value = nullableString(fact.value);
-    if (value) valueByConcept.set(concept, value);
+    if (!CORE_DOCUMENT_PERIOD_XBRL_CONCEPTS.has(concept)) continue;
+    const conceptFacts = factsByConcept.get(concept) || [];
+    conceptFacts.push(fact);
+    factsByConcept.set(concept, conceptFacts);
   }
 
-  const documentFiscalPeriodFocus = valueByConcept.get("documentfiscalperiodfocus") || null;
-  const documentFiscalYearFocus = valueByConcept.get("documentfiscalyearfocus") || null;
-  const documentPeriodEndDate = valueByConcept.get("documentperiodenddate") || null;
-  const currentFiscalYearEndDate = valueByConcept.get("currentfiscalyearenddate") || null;
+  const firstConceptValue = (concept: string) =>
+    factsByConcept.get(concept)?.map((fact) => nullableString(fact.value)).find(Boolean) || null;
+  const documentFiscalPeriodFocus = firstConceptValue("documentfiscalperiodfocus");
+  const documentFiscalYearFocus = firstConceptValue("documentfiscalyearfocus");
+  const documentPeriodEndDate = firstConceptValue("documentperiodenddate");
+  const currentFiscalYearEndDate = firstConceptValue("currentfiscalyearenddate");
+  const documentPeriodFacts = factsByConcept.get("documentperiodenddate") || [];
+  const reportingPeriod =
+    documentPeriodFacts
+      .map((fact) => normalizeXbrlPeriodEndDate(nullableString(fact.value)))
+      .find(Boolean) ||
+    documentPeriodFacts
+      .map((fact) => normalizeXbrlPeriodEndDate(fact.period))
+      .find(Boolean) ||
+    null;
 
   return {
-    reportingPeriod: normalizeXbrlPeriodEndDate(documentPeriodEndDate),
+    reportingPeriod,
     fiscalYear: normalizeFiscalYear(documentFiscalYearFocus),
     fiscalQuarter: normalizeFiscalQuarter(documentFiscalPeriodFocus),
     documentFiscalPeriodFocus,
@@ -332,16 +344,27 @@ function normalizeFiscalQuarter(value: unknown) {
 
 function normalizeXbrlPeriodEndDate(value: string | null) {
   if (!value) return null;
-  const match = value.match(/\b(19\d{2}|20\d{2})-(\d{2})-(\d{2})\b/);
-  if (!match) return null;
-  const monthIndex = Number(match[2]) - 1;
-  const day = Number(match[3]);
+  const isoMatches = [...value.matchAll(/\b(19\d{2}|20\d{2})-(\d{2})-(\d{2})\b/g)];
+  const isoMatch = isoMatches.at(-1);
+  const naturalMatch = value.match(
+    /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),\s+(19\d{2}|20\d{2})\b/i,
+  );
+  const year = isoMatch?.[1] || naturalMatch?.[3];
+  const monthIndex = isoMatch
+    ? Number(isoMatch[2]) - 1
+    : naturalMatch
+      ? [
+        "january", "february", "march", "april", "may", "june",
+        "july", "august", "september", "october", "november", "december",
+      ].indexOf(naturalMatch[1].toLowerCase())
+      : -1;
+  const day = Number(isoMatch?.[3] || naturalMatch?.[2]);
   const month = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December",
   ][monthIndex];
-  if (!month || day < 1 || day > 31) return null;
-  return `${month} ${day}, ${match[1]}`;
+  if (!year || !month || day < 1 || day > 31) return null;
+  return `${month} ${day}, ${year}`;
 }
 
 function dedupeSourceDocuments(documents: PeriodicReportSourceDocument[]) {

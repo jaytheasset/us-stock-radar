@@ -293,6 +293,39 @@ assert.match(String(annualCoreBlock?.text), /2025-01-01\/2025-12-31/, "annual co
 assert.match(String(annualCoreBlock?.text), /2024-01-01\/2024-12-31/, "annual core block includes immediately preceding fiscal year");
 assert.doesNotMatch(String(annualCoreBlock?.text), /2023-01-01\/2023-12-31/, "annual core block excludes older annual periods when adjacent years exist");
 
+const quantitativeNarrativeWarnings = collectSecPeriodicReportsScoringWarnings(
+  {
+    event_title: "Annual Net Income More Than Doubled",
+    quick_take: "Net income more than doubled to EUR2.21 billion.",
+    summary: "Net income more than doubled from EUR1.14 billion to EUR2.21 billion.",
+    score_reason: "Profitability improved materially.",
+    report_ui: {
+      snapshot_intro: "Net income more than doubled during the year.",
+      performance_comparisons: [
+        {
+          label: "Net Income",
+          current_label: "FY2025",
+          current_value: "EUR2.21B",
+          current_numeric: 2_212_000_000,
+          comparison_label: "FY2024",
+          comparison_value: "EUR1.14B",
+          comparison_numeric: 1_138_000_000,
+          comparison_basis: "yoy",
+          change_note: "Up 94% YoY",
+          change_tone: "improvement",
+        },
+      ],
+    },
+  },
+  { filing_package: { hard_parsers: { "periodic-reports": annualCoreParserOutput } } },
+);
+const quantitativeNarrativeWarning = quantitativeNarrativeWarnings.find(
+  (warning) => warning.code === "quantitative_narrative_mismatch",
+);
+assert.ok(quantitativeNarrativeWarning, "validator catches multiplier wording that conflicts with structured comparison values");
+assert.ok(quantitativeNarrativeWarning.allowed_patch_paths.includes("/event_title"), "validator can repair conflicting title wording");
+assert.ok(quantitativeNarrativeWarning.allowed_patch_paths.includes("/summary"), "validator can repair conflicting summary wording");
+
 const dimensionalAnnualParserOutput = parseSecPeriodicReport({
   rawItemId: "periodic-dimensional-annual-core",
   sourceUniqueId: "0000000000-26-000007",
