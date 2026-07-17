@@ -42,7 +42,7 @@ export function StockRadarFilingsV2() {
   const [detailNotice, setDetailNotice] = useState("");
   const [previewRequestId, setPreviewRequestId] = useState(0);
   const detailOpenerRef = useRef<HTMLElement | null>(null);
-  const detailPreviewRef = useRef<HTMLDivElement | null>(null);
+  const detailSelectionAnchorRef = useRef<HTMLDivElement | null>(null);
   const detailRailRef = useRef<HTMLElement | null>(null);
   const detailRailScrollProgressRef = useRef(0);
   const filterOpenerRef = useRef<HTMLButtonElement | null>(null);
@@ -105,21 +105,21 @@ export function StockRadarFilingsV2() {
   useEffect(() => {
     if (previewRequestId === 0) return;
 
-    const preview = detailPreviewRef.current;
+    const selectionAnchor = detailSelectionAnchorRef.current;
     const rail = detailRailRef.current;
-    if (!preview || !rail) return;
+    if (!selectionAnchor || !rail) return;
 
-    const previewTop = preview.getBoundingClientRect().top;
+    const selectionAnchorTop = selectionAnchor.getBoundingClientRect().top;
     const railTop = rail.getBoundingClientRect().top;
     const maxScrollTop = Math.max(rail.scrollHeight - rail.clientHeight, 0);
-    const previewScrollTop = Math.min(
-      Math.max(rail.scrollTop + previewTop - railTop, 0),
+    const selectionScrollTop = Math.min(
+      Math.max(rail.scrollTop + selectionAnchorTop - railTop, 0),
       maxScrollTop,
     );
-    detailRailScrollProgressRef.current = previewScrollTop;
+    detailRailScrollProgressRef.current = selectionScrollTop;
     rail.scrollTo({
       behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-      top: previewScrollTop,
+      top: selectionScrollTop,
     });
   }, [previewRequestId]);
 
@@ -140,7 +140,15 @@ export function StockRadarFilingsV2() {
         detailRailScrollProgressRef.current = 0;
         return;
       }
-      if (!rail || scrollDelta === 0) return;
+      if (!rail) return;
+
+      if (window.scrollY <= 0) {
+        detailRailScrollProgressRef.current = 0;
+        rail.scrollTo({ behavior: "auto", top: 0 });
+        return;
+      }
+
+      if (scrollDelta === 0) return;
 
       const stickyTop = Number.parseFloat(window.getComputedStyle(rail).top) || 0;
       if (rail.getBoundingClientRect().top > stickyTop + 1) return;
@@ -258,8 +266,10 @@ export function StockRadarFilingsV2() {
       </section>
 
       <aside className={styles.detailRail} ref={detailRailRef}>
-        <PremiumUpgradeCard className={styles.premiumCtaDesktop} />
-        <div className={styles.detailRailPreview} ref={detailPreviewRef}>
+        <div ref={detailSelectionAnchorRef}>
+          <PremiumUpgradeCard className={styles.premiumCtaDesktop} />
+        </div>
+        <div className={styles.detailRailPreview}>
           <FilingsV2DetailPanel
             detailNotice={detailNotice}
             onMockDetails={showMockDetailNotice}
