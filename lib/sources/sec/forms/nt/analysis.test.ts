@@ -46,10 +46,14 @@ test("analysis prompt uses bounded original source blocks and no parser route", 
   assert.ok(blocks.every((block) => block.block_type !== "parser_warnings"));
   const responseSchema = prompt.responseFormat.json_schema.schema;
   assert.ok(responseSchema.required.includes("nt_scoring_assessment"));
-  assert.ok(responseSchema.required.includes("nt_snapshot"));
   assert.ok(responseSchema.required.includes("score_explanation"));
-  assert.equal(responseSchema.properties.nt_snapshot.properties.reason_for_delay.properties.value.maxLength, 56);
-  assert.equal(responseSchema.properties.nt_snapshot.properties.expected_results_impact.properties.note.maxLength, 120);
+  assert.equal(responseSchema.required.includes("reason_for_delay_value"), false);
+  assert.equal(responseSchema.required.includes("expected_results_impact_value"), false);
+  assert.equal(responseSchema.properties.nt_scoring_assessment.properties.underlying_issue.maxLength, 64);
+  assert.equal(responseSchema.properties.nt_scoring_assessment.properties.results_change.maxLength, 90);
+  assert.equal(responseSchema.properties.key_evidence.items.maxLength, 140);
+  assert.match(prompt.system, /no more than 140 characters/);
+  assert.match(prompt.system, /compact snapshot values/);
 });
 
 test("NT parser emits context-preserving analysis source blocks", () => {

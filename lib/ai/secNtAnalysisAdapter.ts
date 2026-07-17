@@ -18,7 +18,7 @@ export {
 };
 
 export const SEC_NT_VALIDATION_REPAIR_PROMPT_KEY = "sec_nt_validation_repair";
-export const SEC_NT_VALIDATION_REPAIR_PROMPT_VERSION = "v1-material-results-consistency";
+export const SEC_NT_VALIDATION_REPAIR_PROMPT_VERSION = "v3-concise-snapshot";
 
 export type SecNtAnalysisAdapterResult =
   | { ok: true; analysis: Record<string, unknown> }
@@ -208,6 +208,37 @@ export function collectSecNtScoringWarnings(
     ));
   }
 
+  const keyEvidence = Array.isArray(analysisResult.key_evidence)
+    ? analysisResult.key_evidence
+    : [];
+  const oversizedKeyEvidencePaths = keyEvidence.flatMap((item, index) =>
+    typeof item === "string" && item.trim().length > 140
+      ? [`/key_evidence/${index}`]
+      : [],
+  );
+  if (oversizedKeyEvidencePaths.length) {
+    warnings.push(buildNtRepairIssue(
+      "key_evidence_too_long",
+      "Key Evidence must contain concise analyst paraphrases of no more than 140 characters per item, not copied filing sentences or legal boilerplate.",
+      oversizedKeyEvidencePaths,
+    ));
+  }
+
+  if (assessment.underlying_issue.length > 64) {
+    warnings.push(buildNtRepairIssue(
+      "snapshot_reason_too_long",
+      "Reason for Delay must be a compact snapshot value of no more than 64 characters, not a full explanatory sentence.",
+      ["/nt_scoring_assessment/underlying_issue"],
+    ));
+  }
+  if (assessment.results_change.length > 90) {
+    warnings.push(buildNtRepairIssue(
+      "snapshot_results_too_long",
+      "Expected Results Impact must combine direction and the most useful figures in no more than 90 characters.",
+      ["/nt_scoring_assessment/results_change"],
+    ));
+  }
+
   const parserOutput = input ? readSecNtParserOutput(input) : null;
   const significantChange = parserOutput?.facts.partIv.significantChange;
   const significantExplanation = stringValue(significantChange?.explanation);
@@ -236,8 +267,6 @@ export function collectSecNtScoringWarnings(
         "/score_explanation/summary",
         "/quick_take",
         "/summary",
-        "/nt_snapshot/expected_results_impact/value",
-        "/nt_snapshot/expected_results_impact/note",
       ],
     ));
   }
@@ -308,6 +337,9 @@ function buildNtValidationRepairPrompt({
       "Use earnings for broader profit, loss, or EPS changes. Use sales_performance only when the material change is primarily revenue, sales, orders, or margin.",
       "A substantive results change cannot remain other, routine, or below score 50.",
       "Patch scalar values only at exact allowed paths. Preserve unrelated fields and arrays.",
+      "For a key_evidence_too_long warning, rewrite only the flagged array item as one source-faithful analyst paraphrase of no more than 140 characters. Preserve the material fact and remove legal boilerplate.",
+      "For snapshot_reason_too_long, rewrite underlying_issue as a plain-English issue label of no more than 64 characters, without the issuer, form name, or reporting period.",
+      "For snapshot_results_too_long, rewrite results_change in no more than 90 characters using the expected current direction and only the most useful source-backed figures. Omit prior-period figures unless needed to understand direction.",
       "If evidence is insufficient, return the issue as unresolved instead of guessing.",
       "This is the only repair attempt. Return JSON only.",
     ].join("\n"),

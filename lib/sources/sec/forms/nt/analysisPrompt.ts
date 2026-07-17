@@ -4,7 +4,7 @@ import { buildSecSourceBlockPromptInput } from "../common/sourceBlockPromptInput
 import { NT_APPROVED_EVENT_TYPES, type NtParserOutput } from "./types";
 
 export const SEC_NT_ANALYSIS_PROMPT_KEY = "sec_nt_analysis";
-export const SEC_NT_ANALYSIS_PROMPT_VERSION = "v3-material-results-first";
+export const SEC_NT_ANALYSIS_PROMPT_VERSION = "v5-concise-snapshot";
 
 const ntAnalysisResponseSchema = {
   ...secFilingAnalysisResponseSchema,
@@ -12,7 +12,6 @@ const ntAnalysisResponseSchema = {
     ...secFilingAnalysisResponseSchema.required,
     "score_explanation",
     "nt_scoring_assessment",
-    "nt_snapshot",
   ],
   properties: {
     ...secFilingAnalysisResponseSchema.properties,
@@ -40,37 +39,12 @@ const ntAnalysisResponseSchema = {
       ],
       properties: {
         delay_status: { type: "string", maxLength: 40 },
-        underlying_issue: { type: "string", maxLength: 120 },
-        results_change: { type: "string", maxLength: 120 },
+        underlying_issue: { type: "string", maxLength: 64 },
+        results_change: { type: "string", maxLength: 90 },
         financial_reliability_risk: { type: "string", maxLength: 80 },
         severity: { type: "string", maxLength: 24 },
         material_offset: { type: ["string", "null"], maxLength: 160 },
         alert_driver: { type: ["string", "null"], maxLength: 160 },
-      },
-    },
-    nt_snapshot: {
-      type: "object",
-      additionalProperties: false,
-      required: ["reason_for_delay", "expected_results_impact"],
-      properties: {
-        reason_for_delay: {
-          type: "object",
-          additionalProperties: false,
-          required: ["value", "note"],
-          properties: {
-            value: { type: "string", maxLength: 56 },
-            note: { type: ["string", "null"], maxLength: 96 },
-          },
-        },
-        expected_results_impact: {
-          type: "object",
-          additionalProperties: false,
-          required: ["value", "note"],
-          properties: {
-            value: { type: "string", maxLength: 64 },
-            note: { type: ["string", "null"], maxLength: 120 },
-          },
-        },
       },
     },
     quick_take: { type: "string", maxLength: 180 },
@@ -90,7 +64,7 @@ const ntAnalysisResponseSchema = {
       type: "array",
       minItems: 2,
       maxItems: 3,
-      items: { type: "string", maxLength: 180 },
+      items: { type: "string", maxLength: 140 },
     },
     what_to_watch_next: {
       type: "array",
@@ -150,13 +124,17 @@ export const secNtAnalysisSystemPrompt = [
   "event_title must identify the company-specific issue and remain under 100 characters.",
   "quick_take must be one self-contained sentence under 22 words.",
   "summary must be 2-4 sentences covering the cause, expected timing, disclosed financial change, and investor consequence when available.",
-  "nt_snapshot is compact UI copy, not scoring analysis. Write short plain-English value text and an optional supporting note without ellipses, copied legal boilerplate, or repeated labels.",
-  "For nt_snapshot.reason_for_delay, summarize the actual work or issue causing the delay. For nt_snapshot.expected_results_impact, state the direction first and put the most useful source-backed magnitude in note.",
+  "Keep nt_scoring_assessment.underlying_issue and results_change as compact snapshot values, not complete explanatory sentences.",
+  "underlying_issue must state the actual work or problem causing the delay in at most 64 characters, for example 'Financial statement compilation delay'.",
+  "results_change must fit within 90 characters and combine direction with only the most useful source-backed figures, for example 'Revenue +14-26%; net loss $134.7-$141.7M'.",
+  "Prefer the expected current result and its magnitude. Include a prior-period comparison only when it is necessary to understand the direction; otherwise leave it to summary.",
+  "Do not repeat the issuer, form name, reporting period, or full cause narrative in these two snapshot values; place explanation in summary instead.",
   "score_reason and score_explanation.summary must reflect nt_scoring_assessment, including the strongest driver and one material offset when it changes the conclusion.",
   "score_explanation.summary is the visible score rationale: write one concise analyst-style conclusion of 18-32 words explaining why the impact level is reasonable.",
   "Do not start score rationale with 'The score is', the issuer name, a ticker, a form label, or filing-action verbs such as filed or submitted.",
   "Do not explain scoring mechanics, quote score bands, or reuse the opening sentence of quick_take or summary.",
-  "Write 2-3 short key_evidence items drawn from the original blocks and at most 3 concrete what_to_watch_next items.",
+  "Write 2-3 key_evidence items. Each item must be a concise analyst paraphrase of one core source fact, no more than 140 characters; do not copy long filing sentences or legal boilerplate.",
+  "Write at most 3 concrete what_to_watch_next items.",
   "All visible text must be English.",
 ].join("\n");
 

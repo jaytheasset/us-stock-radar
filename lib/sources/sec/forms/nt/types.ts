@@ -250,16 +250,6 @@ export interface NtAnalysisOutput {
     material_offset: string | null;
     alert_driver: string | null;
   };
-  nt_snapshot: {
-    reason_for_delay: {
-      value: string;
-      note: string | null;
-    };
-    expected_results_impact: {
-      value: string;
-      note: string | null;
-    };
-  };
   signal: NtSignalTone;
   quick_take: string;
   summary: string;

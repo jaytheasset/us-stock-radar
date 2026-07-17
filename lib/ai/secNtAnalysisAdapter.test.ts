@@ -48,16 +48,6 @@ test("NT adapter builds display payload in code from final analysis", () => {
         material_offset: "The report is expected within the extension window.",
         alert_driver: null,
       },
-      nt_snapshot: {
-        reason_for_delay: {
-          value: "Quarterly review completion",
-          note: "Additional time is needed to finish the statements.",
-        },
-        expected_results_impact: {
-          value: "No significant change disclosed",
-          note: null,
-        },
-      },
       signal: "neutral",
       quick_take: "The quarterly report is delayed but expected within the standard extension window.",
       summary: "Example issuer needs additional time to complete its quarterly report. It expects to file within the Rule 12b-25 extension and reports no significant results change.",
@@ -83,8 +73,10 @@ test("NT adapter builds display payload in code from final analysis", () => {
   assert.equal(data.delay_status, "within_extension");
   assert.equal(data.underlying_issue, "Routine quarterly review completion");
   assert.equal(data.results_change, "none disclosed");
-  assert.equal(data.reason_for_delay_value, "Quarterly review completion");
-  assert.equal(data.expected_results_impact_value, "No significant change disclosed");
+  assert.equal(data.reason_for_delay_value, "Routine quarterly review completion");
+  assert.equal(data.reason_for_delay_note, null);
+  assert.equal(data.expected_results_impact_value, "none disclosed");
+  assert.equal(data.expected_results_impact_note, null);
   assert.equal(data.extension_days, 5);
   assert.equal(result.analysis.archive_summary, result.analysis.summary);
   assert.ok(Number((result.analysis.nt_source_bundle as Record<string, unknown>).block_count) >= 3);
@@ -136,6 +128,66 @@ test("NT scoring validator catches overstated routine and neutral alert outputs"
   assert.ok(codes.includes("missing_alert_driver"));
   assert.ok(codes.includes("score_severity_mismatch"));
   assert.ok(codes.includes("routine_delay_overstated"));
+});
+
+test("NT validator routes oversized Key Evidence through one bounded repair", () => {
+  const input = makeInput();
+  const analysis = {
+    event_type: "other",
+    score: 28,
+    signal: "neutral",
+    nt_scoring_assessment: {
+      delay_status: "within_extension",
+      underlying_issue: "Routine quarterly review completion",
+      results_change: "none disclosed",
+      financial_reliability_risk: "none",
+      severity: "routine",
+      material_offset: null,
+      alert_driver: null,
+    },
+    key_evidence: [
+      "The registrant is filing a notification of late filing because the compilation, dissemination, and review of all information required for the report could not be completed without unreasonable effort and expense.",
+      "The report is expected within the extension period.",
+    ],
+  };
+
+  const warnings = collectSecNtScoringWarnings(analysis, input);
+  const warning = warnings.find((item) => item.code === "key_evidence_too_long");
+  assert.ok(warning);
+  assert.deepEqual(warning?.allowed_patch_paths, ["/key_evidence/0"]);
+
+  const repairPlan = buildSecNtValidationRepairPlan({ analysisResult: analysis, input });
+  assert.ok(repairPlan?.allowedPatchPaths.includes("/key_evidence/0"));
+  assert.match(repairPlan?.prompt.system || "", /no more than 140 characters/);
+});
+
+test("NT validator routes oversized snapshot values through one bounded repair", () => {
+  const input = makeInput();
+  const analysis = {
+    event_type: "earnings",
+    score: 65,
+    signal: "bearish",
+    nt_scoring_assessment: {
+      delay_status: "within_extension",
+      underlying_issue: "Compilation and review of financial statements and information for the annual report.",
+      results_change: "Revenue increase of 14-26% ($1.2-$2.2M), but net loss of $134.7-$141.7M versus prior-year net income of $0.7M.",
+      financial_reliability_risk: "possible",
+      severity: "meaningful",
+      material_offset: null,
+      alert_driver: null,
+    },
+  };
+
+  const warnings = collectSecNtScoringWarnings(analysis, input);
+  const codes = warnings.map((warning) => warning.code);
+  assert.ok(codes.includes("snapshot_reason_too_long"));
+  assert.ok(codes.includes("snapshot_results_too_long"));
+
+  const repairPlan = buildSecNtValidationRepairPlan({ analysisResult: analysis, input });
+  assert.ok(repairPlan?.allowedPatchPaths.includes("/nt_scoring_assessment/underlying_issue"));
+  assert.ok(repairPlan?.allowedPatchPaths.includes("/nt_scoring_assessment/results_change"));
+  assert.match(repairPlan?.prompt.system || "", /no more than 64 characters/);
+  assert.match(repairPlan?.prompt.system || "", /no more than 90 characters/);
 });
 
 function makeInput() {

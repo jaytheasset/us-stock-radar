@@ -12,9 +12,6 @@ export function buildNtDisplayPayload(args: {
   const facts = parserOutput.facts;
   const analysis = readRecord(analysisOutput);
   const scoringAssessment = readRecord(analysis?.nt_scoring_assessment);
-  const snapshot = readRecord(analysis?.nt_snapshot);
-  const reasonForDelay = readRecord(snapshot?.reason_for_delay);
-  const expectedResultsImpact = readRecord(snapshot?.expected_results_impact);
   const finalEventType = readString(analysis?.event_type) || "other";
 
   return {
@@ -39,10 +36,10 @@ export function buildNtDisplayPayload(args: {
       financial_reliability_risk: readString(scoringAssessment?.financial_reliability_risk),
       severity: readString(scoringAssessment?.severity),
       material_offset: readString(scoringAssessment?.material_offset) || null,
-      reason_for_delay_value: readString(reasonForDelay?.value),
-      reason_for_delay_note: readString(reasonForDelay?.note) || null,
-      expected_results_impact_value: readString(expectedResultsImpact?.value),
-      expected_results_impact_note: readString(expectedResultsImpact?.note) || null,
+      reason_for_delay_value: readString(scoringAssessment?.underlying_issue),
+      reason_for_delay_note: null,
+      expected_results_impact_value: readString(scoringAssessment?.results_change),
+      expected_results_impact_note: null,
       is_amendment: facts.isAmendment,
       amendment_purpose: facts.amendmentPurpose,
       is_transition_report: facts.isTransitionReport,
