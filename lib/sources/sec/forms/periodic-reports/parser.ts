@@ -19,7 +19,7 @@ import {
   type SupportedPeriodicReportForm,
 } from "./types.ts";
 
-export const SEC_PERIODIC_REPORTS_PARSER_VERSION = "sec_periodic_reports_raw_parser_v4";
+export const SEC_PERIODIC_REPORTS_PARSER_VERSION = "sec_periodic_reports_raw_parser_v5";
 
 const CORE_DOCUMENT_PERIOD_XBRL_CONCEPTS = new Set([
   "documenttype",
@@ -272,6 +272,7 @@ type XbrlDocumentPeriodMetadata = {
   fiscalQuarter: string | null;
   documentFiscalPeriodFocus: string | null;
   documentFiscalYearFocus: string | null;
+  documentFiscalYearFactPeriod: string | null;
   documentPeriodEndDate: string | null;
   currentFiscalYearEndDate: string | null;
 };
@@ -290,6 +291,8 @@ function readXbrlDocumentPeriodMetadata(facts: PeriodicReportXbrlFact[]): XbrlDo
     factsByConcept.get(concept)?.map((fact) => nullableString(fact.value)).find(Boolean) || null;
   const documentFiscalPeriodFocus = firstConceptValue("documentfiscalperiodfocus");
   const documentFiscalYearFocus = firstConceptValue("documentfiscalyearfocus");
+  const documentFiscalYearFactPeriod =
+    factsByConcept.get("documentfiscalyearfocus")?.find((fact) => nullableString(fact.value))?.period || null;
   const documentPeriodEndDate = firstConceptValue("documentperiodenddate");
   const currentFiscalYearEndDate = firstConceptValue("currentfiscalyearenddate");
   const documentPeriodFacts = factsByConcept.get("documentperiodenddate") || [];
@@ -308,8 +311,73 @@ function readXbrlDocumentPeriodMetadata(facts: PeriodicReportXbrlFact[]): XbrlDo
     fiscalQuarter: normalizeFiscalQuarter(documentFiscalPeriodFocus),
     documentFiscalPeriodFocus,
     documentFiscalYearFocus,
+    documentFiscalYearFactPeriod,
     documentPeriodEndDate,
     currentFiscalYearEndDate,
+  };
+}
+
+function resolvePeriodicFiscalYear({
+  formType,
+  payloadFiscalYear,
+  reportingPeriod,
+  text,
+  xbrlPeriodMetadata,
+}: {
+  formType: SupportedPeriodicReportForm | null;
+  payloadFiscalYear: string | null;
+  reportingPeriod: string | null;
+  text: string;
+  xbrlPeriodMetadata: XbrlDocumentPeriodMetadata;
+}) {
+  const xbrlFiscalYear = xbrlPeriodMetadata.fiscalYear;
+  const reportingPeriodYear = normalizeFiscalYear(reportingPeriod);
+  const annualReport = formType === "10-K" || formType === "10-K/A" || formType === "20-F" || formType === "20-F/A";
+  const xbrlContextYears = xbrlPeriodMetadata.documentFiscalYearFactPeriod
+    ?.match(/\b(19\d{2}|20\d{2})-\d{2}-\d{2}\b/g)
+    ?.map((value) => value.slice(0, 4)) || [];
+  const xbrlContextIsSingleReportingYear =
+    xbrlContextYears.length >= 2 &&
+    Boolean(reportingPeriodYear) &&
+    xbrlContextYears.every((year) => year === reportingPeriodYear);
+  const xbrlConflict = Boolean(
+    annualReport &&
+    xbrlFiscalYear &&
+    reportingPeriodYear &&
+    xbrlFiscalYear !== reportingPeriodYear &&
+    xbrlContextIsSingleReportingYear,
+  );
+
+  if (xbrlConflict) {
+    return {
+      fiscalYear: reportingPeriodYear,
+      source: "xbrl_period_context_consistency_override",
+      warning: "xbrl_fiscal_year_focus_conflicts_with_reporting_period",
+      conflict: true,
+    };
+  }
+  if (xbrlFiscalYear) {
+    return {
+      fiscalYear: xbrlFiscalYear,
+      source: "xbrl_dei_document_fiscal_year_focus",
+      warning: null,
+      conflict: false,
+    };
+  }
+  if (payloadFiscalYear) {
+    return {
+      fiscalYear: payloadFiscalYear,
+      source: "raw_payload",
+      warning: null,
+      conflict: false,
+    };
+  }
+  const fallbackFiscalYear = readFiscalYear(reportingPeriod, text);
+  return {
+    fiscalYear: fallbackFiscalYear,
+    source: fallbackFiscalYear ? "reporting_period_or_cover_text" : "unresolved",
+    warning: null,
+    conflict: false,
   };
 }
 
@@ -993,7 +1061,14 @@ export function parseSecPeriodicReport(input: SecPeriodicReportParseInput): Peri
   const payloadReportingPeriod = nullableString(rawPayload.reporting_period) || nullableString(rawPayload.reportingPeriod);
   const reportingPeriod = xbrlPeriodMetadata.reportingPeriod || payloadReportingPeriod || readReportingPeriod(text);
   const payloadFiscalYear = normalizeFiscalYear(rawPayload.fiscal_year) || normalizeFiscalYear(rawPayload.fiscalYear);
-  const fiscalYear = xbrlPeriodMetadata.fiscalYear || payloadFiscalYear || readFiscalYear(reportingPeriod, text);
+  const fiscalYearResolution = resolvePeriodicFiscalYear({
+    formType,
+    payloadFiscalYear,
+    reportingPeriod,
+    text,
+    xbrlPeriodMetadata,
+  });
+  const fiscalYear = fiscalYearResolution.fiscalYear;
   const payloadFiscalQuarter = normalizeFiscalQuarter(rawPayload.fiscal_quarter) || normalizeFiscalQuarter(rawPayload.fiscalQuarter);
   const textFiscalQuarter = readFiscalQuarter(formType, text);
   const fiscalQuarter = xbrlPeriodMetadata.fiscalQuarter || payloadFiscalQuarter || textFiscalQuarter;
@@ -1005,13 +1080,8 @@ export function parseSecPeriodicReport(input: SecPeriodicReportParseInput): Peri
         : reportingPeriod
           ? "cover_text"
           : "unresolved",
-    fiscal_year_source: xbrlPeriodMetadata.fiscalYear
-      ? "xbrl_dei_document_fiscal_year_focus"
-      : payloadFiscalYear
-        ? "raw_payload"
-        : fiscalYear
-          ? "reporting_period_or_cover_text"
-          : "unresolved",
+    fiscal_year_source: fiscalYearResolution.source,
+    fiscal_year_conflict_resolved: fiscalYearResolution.conflict,
     fiscal_quarter_source: xbrlPeriodMetadata.fiscalQuarter
       ? "xbrl_dei_document_fiscal_period_focus"
       : payloadFiscalQuarter
@@ -1021,6 +1091,7 @@ export function parseSecPeriodicReport(input: SecPeriodicReportParseInput): Peri
           : "unresolved",
     xbrl_document_fiscal_period_focus: xbrlPeriodMetadata.documentFiscalPeriodFocus,
     xbrl_document_fiscal_year_focus: xbrlPeriodMetadata.documentFiscalYearFocus,
+    xbrl_document_fiscal_year_fact_period: xbrlPeriodMetadata.documentFiscalYearFactPeriod,
     xbrl_document_period_end_date: xbrlPeriodMetadata.documentPeriodEndDate,
     xbrl_current_fiscal_year_end_date: xbrlPeriodMetadata.currentFiscalYearEndDate,
   };
@@ -1124,6 +1195,7 @@ export function parseSecPeriodicReport(input: SecPeriodicReportParseInput): Peri
     sourceText,
     usedAnalysisFallback,
     missingSource,
+    additionalWarnings: fiscalYearResolution.warning ? [fiscalYearResolution.warning] : [],
   });
 
   return {
@@ -2061,6 +2133,7 @@ function buildWarnings({
   securities,
   sourceText,
   usedAnalysisFallback,
+  additionalWarnings,
 }: {
   accessionNumber: string | null;
   amendment: PeriodicReportAmendmentFacts;
@@ -2074,6 +2147,7 @@ function buildWarnings({
   securities: PeriodicReportSecurity[];
   sourceText: string;
   usedAnalysisFallback: boolean;
+  additionalWarnings: string[];
 }) {
   const warnings: string[] = [];
   if (!isSupported) warnings.push(`unsupported_periodic_report_form:${formType || "unknown"}`);
@@ -2083,6 +2157,7 @@ function buildWarnings({
   if (documents.some((document) => Boolean(document.textTruncated))) warnings.push("source_document_text_truncated");
   warnings.push(...normalizationWarnings);
   warnings.push(...primaryDocumentSelection.warnings);
+  warnings.push(...additionalWarnings);
   if (securities.length > 1) warnings.push("multiple_securities_detected_primary_ticker_may_be_ambiguous");
   if (amendment.isAmendment && !amendment.explanatoryNote && !amendment.routineIndicators.length && !amendment.restatementIndicators.length) {
     warnings.push("amendment_scope_not_clearly_extracted");

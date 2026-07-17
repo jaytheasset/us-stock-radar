@@ -5,9 +5,9 @@ import {
 import { buildSecPeriodicReportsSourceBlockPromptInput, type SecPeriodicReportsPromptInput } from "./sourceBlockPromptInput.ts";
 
 export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY = "sec_periodic_reports_analysis";
-export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION = "v9-annual-core-performance";
+export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION = "v10-period-consistency";
 export const SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_KEY = "sec_periodic_reports_amendment_analysis";
-export const SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_VERSION = "v1-amendment-delta-only";
+export const SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_VERSION = "v2-material-delta-priority";
 
 export type SecPeriodicReportsAnalysisPromptInput = SecPeriodicReportsPromptInput;
 
@@ -338,7 +338,7 @@ export const secPeriodicReportsAnalysisSystemPrompt = [
   "An XBRL fact with has_dimensions=true is a segment, product, geography, counterparty, or other subset fact. Never present it as a consolidated company total. If no non-dimensional consolidated total is supplied, omit that total rather than substituting a dimensional value.",
   "A product, segment, geography, target, or regulatory-program paragraph must not substitute for consolidated revenue, operating profit, net income, or operating cash flow. Identify its scope explicitly and omit unavailable consolidated metrics.",
   "A source block marked source_scope=segment_or_subset is valid only for that segment or subset. Never relabel its metrics as consolidated company totals. Prefer non-dimensional XBRL or clearly consolidated financial-statement evidence for company-wide performance comparisons.",
-  "Treat report_context fiscal_year and fiscal_quarter as authoritative when fiscal_period_resolution identifies XBRL DEI metadata. Do not infer a fiscal quarter from the calendar month of the reporting-period end date.",
+  "Treat the resolved report_context fiscal_year and fiscal_quarter as authoritative. The parser may replace an internally inconsistent annual DocumentFiscalYearFocus with the year supported by the XBRL reporting-period context; use fiscal_period_resolution rather than the rejected raw focus value. Do not infer a fiscal quarter from the calendar month of the reporting-period end date.",
   "If fiscal_quarter is unresolved, describe the reporting period by its disclosed end date and do not invent a Q1/Q2/Q3 label.",
   "Do not use parser-generated facts, route hints, deterministic classification, extraction summaries, event labels, display labels, or investment labels as analysis authority.",
   "Choose event_type directly from the approved event types based on the dominant investor-relevant conclusion supported by the original source blocks.",
@@ -395,6 +395,8 @@ export const secPeriodicReportsAmendmentAnalysisSystemPrompt = [
   "Populate amendment_ui only with source-backed changed facts. Omit placeholders such as Not disclosed and do not add ordinary parent-report performance graphs or guidance.",
   "Use snapshot_metrics for two to four concise amendment facts when available: amendment type, affected period, amended item, financial-statement impact, filing status, or a material corrected value.",
   "Use changed_metrics only when both the prior and amended values are source-backed. Otherwise put the source-backed change in change_details.",
+  "Rank amendment changes by investor relevance and quantitative materiality before writing event_title, quick_take, and summary. Lead with the largest meaningful revenue, profit, cash-flow, balance-sheet, or reliability correction; do not foreground a tiny rounding-level change while larger corrected metrics are disclosed.",
+  "For loss metrics, compare absolute loss amounts: a smaller absolute loss is loss narrowing or decreasing, while a larger absolute loss is loss widening or increasing. Apply the same direction consistently in changed_metrics, event_title, quick_take, summary, and score_reason.",
   "For administrative corrections, normally use event_type other, neutral signal, score below 50, archive-style concise copy, and no what_to_watch_next unless a concrete next event is stated.",
   "For disclosure updates and material restatements, score investor attention and urgency based on the actual changed disclosure, not the importance of the original report as a whole.",
   "Write score_reason as one concise analyst-style conclusion explaining why the score is reasonable. Do not begin with 'The score is'.",

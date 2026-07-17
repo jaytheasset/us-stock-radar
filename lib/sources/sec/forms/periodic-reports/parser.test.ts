@@ -315,6 +315,56 @@ assert.equal(
   "DEI period context remains the authoritative reporting-period source",
 );
 
+const conflictingAnnualDeiYearParsed = parseSecPeriodicReport({
+  rawItemId: "periodic-conflicting-annual-dei-year",
+  sourceUniqueId: "0000000000-26-000780",
+  title: "Annual DEI Conflict Corp. Form 10-K",
+  bodyText: "FORM 10-K For the fiscal year ended December 31, 2025.",
+  xbrl_facts: [
+    { name: "dei:DocumentFiscalPeriodFocus", value: "FY", contextRef: "Document", period: "2025-01-01/2025-12-31" },
+    { name: "dei:DocumentFiscalYearFocus", value: "2024", contextRef: "Document", period: "2025-01-01/2025-12-31" },
+    { name: "dei:DocumentPeriodEndDate", value: "December 31, 2025", contextRef: "Document", period: "2025-01-01/2025-12-31" },
+  ],
+  rawPayload: { form_type: "10-K", company_name: "Annual DEI Conflict Corp." },
+});
+assert.equal(
+  conflictingAnnualDeiYearParsed.facts.fiscalYear,
+  "2025",
+  "annual fiscal year follows the internally consistent reporting-period context when DEI year focus conflicts",
+);
+assert.equal(
+  toRecord(conflictingAnnualDeiYearParsed.raw.fiscal_period_resolution)?.fiscal_year_source,
+  "xbrl_period_context_consistency_override",
+  "annual DEI conflict records the consistency override source",
+);
+assert.ok(
+  conflictingAnnualDeiYearParsed.warnings.includes("xbrl_fiscal_year_focus_conflicts_with_reporting_period"),
+  "annual DEI conflict emits a parser warning",
+);
+
+const nonCalendarQuarterDeiYearParsed = parseSecPeriodicReport({
+  rawItemId: "periodic-noncalendar-quarter-dei-year",
+  sourceUniqueId: "0000000000-26-000781",
+  title: "Noncalendar Quarter Corp. Form 10-Q",
+  bodyText: "FORM 10-Q For the quarterly period ended December 31, 2025.",
+  xbrl_facts: [
+    { name: "dei:DocumentFiscalPeriodFocus", value: "Q1", contextRef: "Document", period: "2025-10-01/2025-12-31" },
+    { name: "dei:DocumentFiscalYearFocus", value: "2026", contextRef: "Document", period: "2025-10-01/2025-12-31" },
+    { name: "dei:DocumentPeriodEndDate", value: "December 31, 2025", contextRef: "Document", period: "2025-10-01/2025-12-31" },
+  ],
+  rawPayload: { form_type: "10-Q", company_name: "Noncalendar Quarter Corp." },
+});
+assert.equal(
+  nonCalendarQuarterDeiYearParsed.facts.fiscalYear,
+  "2026",
+  "quarterly filings retain a valid noncalendar fiscal-year focus",
+);
+assert.equal(
+  nonCalendarQuarterDeiYearParsed.warnings.includes("xbrl_fiscal_year_focus_conflicts_with_reporting_period"),
+  false,
+  "noncalendar quarterly fiscal years do not trigger the annual consistency override",
+);
+
 const unresolvedCalendarQuarter = parseSecPeriodicReport({
   rawItemId: "periodic-no-calendar-quarter-guess",
   sourceUniqueId: "0000000000-26-000778",

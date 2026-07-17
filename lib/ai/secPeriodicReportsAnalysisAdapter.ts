@@ -10,7 +10,10 @@ import {
   SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION,
 } from "@/lib/sources/sec/forms/periodic-reports/analysisPrompt";
 import { buildSecPeriodicReportsDisplayPayload } from "@/lib/sources/sec/forms/periodic-reports/displayPayload";
-import { clipPeriodicDisplayText } from "@/lib/sources/sec/forms/periodic-reports/uiNormalization";
+import {
+  clipPeriodicDisplayText,
+  normalizePeriodicChartNumber,
+} from "@/lib/sources/sec/forms/periodic-reports/uiNormalization";
 import {
   APPROVED_SEC_EVENT_TYPES,
   type PeriodicParserOutput,
@@ -26,7 +29,7 @@ export {
 export const SEC_PERIODIC_REPORTS_VALIDATION_REPAIR_PROMPT_KEY =
   "sec_periodic_reports_validation_repair";
 export const SEC_PERIODIC_REPORTS_VALIDATION_REPAIR_PROMPT_VERSION =
-  "v4-quantitative-narrative-consistency";
+  "v5-loss-direction-and-amendment-materiality";
 
 export type SecPeriodicReportsAnalysisAdapterResult =
   | { ok: true; analysis: Record<string, unknown> }
@@ -140,6 +143,8 @@ export function collectSecPeriodicReportsScoringWarnings(
   if (annualScopeIssue) issues.push(annualScopeIssue);
   const quantitativeNarrativeIssue = buildQuantitativeNarrativeConsistencyIssue(root);
   if (quantitativeNarrativeIssue) issues.push(quantitativeNarrativeIssue);
+  const amendmentTitleMaterialityIssue = buildAmendmentTitleMaterialityIssue(root);
+  if (amendmentTitleMaterialityIssue) issues.push(amendmentTitleMaterialityIssue);
 
   const assessment = readRecord(root?.scoring_assessment);
   if (!assessment) return dedupePeriodicRepairIssues(issues);
@@ -354,11 +359,12 @@ function buildPeriodicReportsValidationRepairPrompt({
       "Repair one completed SEC periodic-report analysis in one bounded pass.",
       "Validator warnings identify possible scoring, earnings-quality, or reporting-period inconsistencies but are not evidence.",
       "Use only the selected original source blocks, site market context, and existing result as evidence.",
-      "For reporting-period repairs, treat report_context XBRL DEI fiscal metadata as authoritative and do not infer fiscal quarter from calendar month.",
+      "For reporting-period repairs, treat the resolved report_context fiscal metadata and fiscal_period_resolution as authoritative. Do not restore a raw XBRL fiscal-year focus that the parser rejected as internally inconsistent, and do not infer fiscal quarter from calendar month.",
       "For annual-report repairs, YoY means the current fiscal year versus the immediately preceding fiscal year. Replace non-adjacent annual comparison fields with source-backed adjacent-year values when available.",
       "When annual core performance is missing, use existing performance-comparison and snapshot scalar fields for revenue or sales, GAAP/IFRS net income or loss, operating income or loss, or operating cash flow. Capital-return rows must not displace those metrics.",
       "For annual_consolidated_metric_scope_mismatch, a source_scope=segment_or_subset block cannot support a company-wide total. Remove the unscoped claim from narrative scalars or explicitly label it as a segment/subset metric. Replace an unsupported consolidated comparison with another trusted consolidated core metric when available.",
-      "For quantitative_narrative_mismatch, make narrative scalar fields agree with the structured performance comparison. Prefer the exact rounded percentage change and remove inconsistent doubled, more-than-doubled, tripled, or halved wording.",
+      "For quantitative_narrative_mismatch, make narrative scalar fields agree with the structured performance or amendment comparison. Prefer the exact rounded percentage change, remove inconsistent multiplier wording, and describe a smaller absolute loss as narrowing rather than increasing.",
+      "For amendment_title_materiality_mismatch, rewrite the title around the most investor-relevant material correction supported by changed_metrics and source blocks, not a rounding-level secondary change.",
       "Score is investor attention and urgency; signal is direction. Market capitalization changes percentage thresholds, not score points.",
       "Do not treat one-time, non-operating, tax, fair-value, derivative, or non-cash gains as pure operating improvement.",
       "Return scalar replacement patches only for exact allowed paths. Never add, remove, reorder, or rewrite arrays or objects.",
@@ -470,6 +476,10 @@ function scorePeriodicRepairSourceBlock(
     type === "annual_core_performance_facts"
   ) score += 180;
   if (issueCodes.has("quantitative_narrative_mismatch") && type === "annual_core_performance_facts") score += 180;
+  if (
+    (issueCodes.has("quantitative_narrative_mismatch") || issueCodes.has("amendment_title_materiality_mismatch")) &&
+    type === "amendment_scope"
+  ) score += 220;
   if (issueCodes.has("market_cap_tier_mismatch") && origin === "filing" && hasExplicitFilingMarketCap(haystack)) score += 140;
   if (origin === "market_context") score += issueCodes.has("market_cap_tier_mismatch") ? 110 : 8;
   if (["financial_table", "xbrl_statement_facts", "periodic_report_section", "context_preserving_snippet"].includes(type)) {
@@ -491,7 +501,8 @@ function buildQuantitativeNarrativeConsistencyIssue(
   analysisResult: Record<string, unknown>,
 ): SecPeriodicReportsValidationRepairIssue | null {
   const reportUi = readRecord(analysisResult.report_ui);
-  const comparisons = Array.isArray(reportUi?.performance_comparisons) ? reportUi.performance_comparisons : [];
+  const amendmentUi = readRecord(analysisResult.amendment_ui);
+  const comparisons = collectNarrativeComparisons(reportUi, amendmentUi);
   const narrativeFields: Array<[string, unknown]> = [
     ["/event_title", analysisResult.event_title],
     ["/quick_take", analysisResult.quick_take],
@@ -499,31 +510,42 @@ function buildQuantitativeNarrativeConsistencyIssue(
     ["/score_reason", analysisResult.score_reason],
     ["/report_ui/snapshot_intro", reportUi?.snapshot_intro],
   ];
+  for (const comparison of comparisons) {
+    if (comparison.changeSummaryPath) {
+      narrativeFields.push([comparison.changeSummaryPath, comparison.changeSummary]);
+    }
+  }
   const affectedPaths = new Set<string>();
   const mismatches: string[] = [];
 
-  for (const item of comparisons) {
-    const row = readRecord(item);
-    if (!row) continue;
-    const current = finiteNumber(row.current_numeric);
-    const comparison = finiteNumber(row.comparison_numeric);
-    if (current === null || comparison === null || current <= 0 || comparison <= 0) continue;
-    const metricPattern = narrativeMetricPattern(stringValue(row.label));
+  for (const row of comparisons) {
+    const { current, comparison } = row;
+    if (Math.abs(comparison) < 1e-9) continue;
+    const metricPattern = narrativeMetricPattern(row.label);
     if (!metricPattern) continue;
-    const ratio = current / comparison;
-    const changePercent = ((current - comparison) / comparison) * 100;
+    const ratio = current > 0 && comparison > 0 ? current / comparison : null;
+    const changePercent = ((current - comparison) / Math.abs(comparison)) * 100;
 
     for (const [path, value] of narrativeFields) {
       const text = stringValue(value);
       if (!text) continue;
       const sentences = text.split(/(?<=[.!?])\s+|\n+/);
       const conflictingSentence = sentences.find((sentence) =>
-        metricPattern.test(sentence) && hasInconsistentMultiplierWording(sentence, ratio),
+        metricPattern.test(sentence) &&
+        (
+          (ratio !== null && hasInconsistentMultiplierWording(sentence, ratio)) ||
+          hasInconsistentLossDirectionWording(sentence, row.label, current, comparison)
+        ),
       );
       if (!conflictingSentence) continue;
       affectedPaths.add(path);
+      const direction = /loss/i.test(row.label)
+        ? Math.abs(current) > Math.abs(comparison)
+          ? "loss widened"
+          : "loss narrowed"
+        : `${changePercent >= 0 ? "increased" : "decreased"} ${Math.abs(Math.round(changePercent))}%`;
       mismatches.push(
-        `${stringValue(row.label)} changed ${Math.round(changePercent)}% (${stringValue(row.comparison_value)} to ${stringValue(row.current_value)}), but ${path} uses inconsistent multiplier wording.`,
+        `${row.label} ${direction} (${row.comparisonValue} to ${row.currentValue}), but ${path} uses inconsistent quantitative direction or multiplier wording.`,
       );
     }
   }
@@ -536,13 +558,124 @@ function buildQuantitativeNarrativeConsistencyIssue(
   );
 }
 
+type NarrativeComparison = {
+  label: string;
+  current: number;
+  comparison: number;
+  currentValue: string;
+  comparisonValue: string;
+  changeSummaryPath: string | null;
+  changeSummary: unknown;
+};
+
+function collectNarrativeComparisons(
+  reportUi: Record<string, unknown> | null,
+  amendmentUi: Record<string, unknown> | null,
+): NarrativeComparison[] {
+  const comparisons: NarrativeComparison[] = [];
+  const performanceRows = Array.isArray(reportUi?.performance_comparisons) ? reportUi.performance_comparisons : [];
+  for (const item of performanceRows) {
+    const row = readRecord(item);
+    if (!row) continue;
+    const current = finiteNumber(row.current_numeric);
+    const comparison = finiteNumber(row.comparison_numeric);
+    if (current === null || comparison === null) continue;
+    comparisons.push({
+      label: stringValue(row.label),
+      current,
+      comparison,
+      currentValue: stringValue(row.current_value),
+      comparisonValue: stringValue(row.comparison_value),
+      changeSummaryPath: null,
+      changeSummary: null,
+    });
+  }
+
+  const changedMetrics = Array.isArray(amendmentUi?.changed_metrics) ? amendmentUi.changed_metrics : [];
+  changedMetrics.forEach((item, index) => {
+    const row = readRecord(item);
+    if (!row) return;
+    const currentValue = stringValue(row.amended_value);
+    const comparisonValue = stringValue(row.previous_value);
+    const current = normalizePeriodicChartNumber(currentValue, Number.NaN);
+    const comparison = normalizePeriodicChartNumber(comparisonValue, Number.NaN);
+    if (!Number.isFinite(current) || !Number.isFinite(comparison)) return;
+    comparisons.push({
+      label: stringValue(row.label),
+      current,
+      comparison,
+      currentValue,
+      comparisonValue,
+      changeSummaryPath: `/amendment_ui/changed_metrics/${index}/change_summary`,
+      changeSummary: row.change_summary,
+    });
+  });
+  return comparisons.filter((row) => row.label);
+}
+
+function buildAmendmentTitleMaterialityIssue(
+  analysisResult: Record<string, unknown>,
+): SecPeriodicReportsValidationRepairIssue | null {
+  const amendmentUi = readRecord(analysisResult.amendment_ui);
+  const rows = collectNarrativeComparisons(null, amendmentUi)
+    .filter((row) => Math.abs(row.comparison) > 1e-9)
+    .map((row) => ({
+      ...row,
+      relativeChange: Math.abs(row.current - row.comparison) / Math.abs(row.comparison),
+      pattern: narrativeMetricPattern(row.label),
+    }))
+    .filter((row) => row.pattern);
+  if (rows.length < 2) return null;
+
+  const title = stringValue(analysisResult.event_title);
+  const ranked = [...rows].sort((left, right) => right.relativeChange - left.relativeChange);
+  const mostMaterial = ranked[0];
+  const titleMetric = rows.find((row) => row.pattern?.test(title));
+  if (
+    !titleMetric ||
+    titleMetric === mostMaterial ||
+    titleMetric.relativeChange > 0.05 ||
+    mostMaterial.relativeChange < 0.15 ||
+    mostMaterial.relativeChange < titleMetric.relativeChange * 3
+  ) return null;
+
+  return buildPeriodicRepairIssue(
+    "amendment_title_materiality_mismatch",
+    `The amendment title foregrounds ${titleMetric.label}, a ${Math.round(titleMetric.relativeChange * 100)}% correction, while ${mostMaterial.label} changed ${Math.round(mostMaterial.relativeChange * 100)}%.`,
+    ["/event_title", "/quick_take", "/summary"],
+  );
+}
+
 function narrativeMetricPattern(label: string) {
   const normalized = label.toLowerCase();
   if (/operating income|operating profit/.test(normalized)) return /\b(?:operating income|operating profit)\b/i;
+  if (/net loss/.test(normalized)) return /\bnet loss(?:es)?\b/i;
+  if (/operating loss/.test(normalized)) return /\boperating loss(?:es)?\b/i;
+  if (/gross profit/.test(normalized)) return /\bgross profit\b/i;
   if (/net income|net profit|profit.*loss|profit\/loss/.test(normalized)) return /\b(?:net income|net profit)\b/i;
   if (/revenue|sales/.test(normalized)) return /\b(?:revenue|revenues|sales)\b/i;
   if (/earnings per share|\beps\b/.test(normalized)) return /\b(?:earnings per share|eps)\b/i;
   return null;
+}
+
+function hasInconsistentLossDirectionWording(
+  text: string,
+  label: string,
+  current: number,
+  comparison: number,
+) {
+  if (!/loss/i.test(label) || Math.abs(Math.abs(current) - Math.abs(comparison)) < 1e-9) return false;
+  const lossTerm = "(?:net\\s+|operating\\s+|gross\\s+)?loss(?:es)?";
+  const worsening = new RegExp(
+    `(?:\\b(?:increas(?:e|es|ed|ing)|widen(?:s|ed|ing)?|higher|larger|greater|deepening)\\s+(?:the\\s+)?${lossTerm}\\b|\\b${lossTerm}\\s+(?:increases?|increased|widens?|widened|grew|deepened)\\b)`,
+    "i",
+  );
+  const improving = new RegExp(
+    `(?:\\b(?:decreas(?:e|es|ed|ing)|narrow(?:s|ed|ing)?|reduc(?:e|es|ed|ing)|lower|smaller|improving)\\s+(?:the\\s+)?${lossTerm}\\b|\\b${lossTerm}\\s+(?:decreases?|decreased|narrows?|narrowed|shr(?:ank|unk)|improved)\\b)`,
+    "i",
+  );
+  const lossWidened = Math.abs(current) > Math.abs(comparison);
+  return lossWidened ? improving.test(text) : worsening.test(text);
 }
 
 function hasInconsistentMultiplierWording(text: string, ratio: number) {

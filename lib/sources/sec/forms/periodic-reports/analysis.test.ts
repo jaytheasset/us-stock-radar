@@ -344,6 +344,37 @@ assert.ok(quantitativeNarrativeWarning, "validator catches multiplier wording th
 assert.ok(quantitativeNarrativeWarning.allowed_patch_paths.includes("/event_title"), "validator can repair conflicting title wording");
 assert.ok(quantitativeNarrativeWarning.allowed_patch_paths.includes("/summary"), "validator can repair conflicting summary wording");
 
+const amendmentDirectionWarnings = collectSecPeriodicReportsScoringWarnings(
+  {
+    event_title: "Nocera Amendment Increases Net Loss to $2.88M from $2.90M",
+    quick_take: "The amendment increases net loss slightly while correcting several financial statement values.",
+    summary: "Net loss increased from $2.90 million to $2.88 million. Revenue was also corrected lower.",
+    score_reason: "The amendment changes reported financial results.",
+    amendment_ui: {
+      changed_metrics: [
+        { label: "Revenue", previous_value: "$13.6M", amended_value: "$11.03M", change_summary: "Revenue decreased 19%." },
+        { label: "Gross Profit", previous_value: "$271K", amended_value: "$161K", change_summary: "Gross profit decreased 41%." },
+        { label: "Net Loss", previous_value: "$(2.90)M", amended_value: "$(2.88)M", change_summary: "Net loss increased slightly." },
+      ],
+    },
+  },
+  { filing_package: { hard_parsers: { "periodic-reports": annualCoreParserOutput } } },
+);
+const amendmentLossDirectionWarning = amendmentDirectionWarnings.find(
+  (warning) => warning.code === "quantitative_narrative_mismatch",
+);
+assert.ok(amendmentLossDirectionWarning, "validator catches a loss-increase claim when the absolute amended loss is smaller");
+assert.ok(amendmentLossDirectionWarning.allowed_patch_paths.includes("/event_title"), "validator can repair amendment title loss direction");
+assert.ok(
+  amendmentLossDirectionWarning.allowed_patch_paths.includes("/amendment_ui/changed_metrics/2/change_summary"),
+  "validator can repair the changed-metric loss direction",
+);
+const amendmentTitleMaterialityWarning = amendmentDirectionWarnings.find(
+  (warning) => warning.code === "amendment_title_materiality_mismatch",
+);
+assert.ok(amendmentTitleMaterialityWarning, "validator catches a title that foregrounds a rounding-level correction over material amendment changes");
+assert.ok(amendmentTitleMaterialityWarning.allowed_patch_paths.includes("/event_title"), "validator can retitle the amendment around its material correction");
+
 const dimensionalAnnualParserOutput = parseSecPeriodicReport({
   rawItemId: "periodic-dimensional-annual-core",
   sourceUniqueId: "0000000000-26-000007",
