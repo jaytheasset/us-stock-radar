@@ -5,6 +5,7 @@ import { FilingsV2InlineAd } from "@/components/filings-v2/FilingsV2InlineAd";
 import { FilingsV2MarketReaction } from "@/components/filings-v2/FilingsV2MarketReaction";
 import {
   filingsV2SignalLabels,
+  isFilingsV2Today,
   type FilingsV2Record,
 } from "@/lib/mock/filingsV2Data";
 import styles from "./StockRadarFilingsV2.module.css";
@@ -31,6 +32,10 @@ function shouldInsertInlineAd(index: number, recordCount: number) {
 
   const groupMidpoint = groupStart + Math.ceil(groupLength / 2) - 1;
   return index === groupMidpoint;
+}
+
+function getFilingDateLabel(record: FilingsV2Record) {
+  return isFilingsV2Today(record.filedAt) ? "Today" : record.filedDate;
 }
 
 function FilingIdentity({ record }: { record: FilingsV2Record }) {
@@ -114,6 +119,7 @@ export function FilingsV2List({
             {records.map((record, index) => {
               const selected = record.id === selectedId;
               const showInlineAd = shouldInsertInlineAd(index, records.length);
+              const filingDateLabel = getFilingDateLabel(record);
               return (
                 <Fragment key={record.id}>
                   <div className={styles.filingItemSlot}>
@@ -125,14 +131,14 @@ export function FilingsV2List({
                       type="button"
                     >
                       <time className={styles.filingItemTime} dateTime={record.filedAt}>
-                        <span>{record.filedDate}</span>
+                        <span>{filingDateLabel}</span>
                         <span>{record.filedTime}</span>
                       </time>
                       <FilingIdentity record={record} />
                       <span className={styles.filingCopy}>
                         <span className={styles.filingMeta}>
                           <FilingEvents mobile record={record} />
-                          <span className={styles.mobileFiledAt}>{record.filedDate} {record.filedTime}</span>
+                          <span className={styles.mobileFiledAt}>{filingDateLabel} {record.filedTime}</span>
                           <span>{record.source} · {record.formType}</span>
                         </span>
                         <span className={styles.filingTitle} title={record.title}>{record.title}</span>

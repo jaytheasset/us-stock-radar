@@ -53,7 +53,21 @@ export type FilingsV2FilterState = {
   dateRanges: FilingsV2DateRange[];
 };
 
-export const filingsV2ReferenceDate = "2026-07-15T20:15:00.000Z";
+export const filingsV2ReferenceDate = "2026-07-17T20:15:00.000Z";
+
+const filingsV2DateKeyFormatter = new Intl.DateTimeFormat("en-US", {
+  day: "2-digit",
+  month: "2-digit",
+  timeZone: "America/New_York",
+  year: "numeric",
+});
+const filingsV2ReferenceDateKey = filingsV2DateKeyFormatter.format(
+  new Date(filingsV2ReferenceDate),
+);
+
+export function isFilingsV2Today(filedAt: string) {
+  return filingsV2DateKeyFormatter.format(new Date(filedAt)) === filingsV2ReferenceDateKey;
+}
 
 export const filingsV2DefaultFilters: FilingsV2FilterState = {
   signals: [],
@@ -132,6 +146,17 @@ function filing(id: string, seed: FilingSeed): FilingsV2Record {
 }
 
 const canonicalFilingsV2Records: readonly FilingsV2Record[] = [
+  filing("029", {
+    company: "NVIDIA Corporation", events: ["earnings"], filedAt: "2026-07-17T20:06:00.000Z", filedDate: "Jul 17", filedTime: "4:06 PM", formType: "8-K", impact: 91, marketCap: "Mega", signal: "bullish", ticker: "NVDA", title: "Current report furnishes an updated business outlook", watchlist: true,
+    summary: "The mock 8-K highlights an updated outlook and related investor materials without presenting live financial data.",
+    keyPoints: ["An updated business outlook is furnished as an exhibit.", "The filing is categorized as an earnings event.", "The filing carries an impact score of 91 in this fixture."],
+  }),
+  filing("030", {
+    company: "Tesla, Inc.", events: ["insider"], filedAt: "2026-07-17T19:22:00.000Z", filedDate: "Jul 17", filedTime: "3:22 PM", formType: "Form 4", impact: 58, marketCap: "Mega", signal: "neutral", ticker: "TSLA", title: "Officer reports a change in beneficial ownership", watchlist: true,
+  }),
+  filing("031", {
+    company: "Aurora Innovation, Inc.", events: ["offering", "dilution"], filedAt: "2026-07-17T18:47:00.000Z", filedDate: "Jul 17", filedTime: "2:47 PM", formType: "424B5", impact: 95, marketCap: "Mid", signal: "bearish", ticker: "AUR", title: "Prospectus supplement details a proposed common stock offering", watchlist: true,
+  }),
   filing("001", {
     company: "Advanced Micro Devices, Inc.", events: ["earnings"], filedAt: "2026-07-15T20:02:00.000Z", filedDate: "Jul 15", filedTime: "4:02 PM", formType: "8-K", impact: 84, marketCap: "Mega", signal: "bullish", ticker: "AMD", title: "Current report furnishes quarterly results and updated outlook", watchlist: true,
     summary: "The mock 8-K groups an earnings release and outlook update for fast scanning; figures are intentionally omitted.",
