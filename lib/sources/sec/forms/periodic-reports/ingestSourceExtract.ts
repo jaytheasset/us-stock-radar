@@ -15,6 +15,7 @@ export type PeriodicReportIngestSourceBlock = {
   topic: "annual_core_performance";
   text: string;
   sourceDocument: string | null;
+  scope: "segment_or_subset" | "unknown";
 };
 
 export type PeriodicReportIngestEvidence = {
@@ -44,35 +45,37 @@ export function extractPeriodicReportIngestEvidence({
   formType,
   html,
   isPrimary,
+  isAnnualReportAttachment = false,
+  isMachineReadableXbrl = false,
   sourceDocument,
 }: {
   cleanedText: string;
   formType: string | null;
   html: string;
   isPrimary: boolean;
+  isAnnualReportAttachment?: boolean;
+  isMachineReadableXbrl?: boolean;
   sourceDocument: string | null;
 }): PeriodicReportIngestEvidence | null {
   const normalizedFormType = normalizeFormType(formType);
-  if (!isPrimary || !PERIODIC_REPORT_FORMS.has(normalizedFormType)) return null;
+  if ((!isPrimary && !isAnnualReportAttachment && !isMachineReadableXbrl) || !PERIODIC_REPORT_FORMS.has(normalizedFormType)) return null;
 
   return {
     xbrlFacts: extractCoreXbrlFacts(html, sourceDocument),
-    sourceBlocks: /^(?:10-K|20-F)(?:\/A)?$/.test(normalizedFormType)
+    sourceBlocks: !isMachineReadableXbrl && /^(?:10-K|20-F)(?:\/A)?$/.test(normalizedFormType)
       ? extractCorePerformanceBlocks(cleanedText, sourceDocument)
       : [],
   };
 }
 
 function extractCoreXbrlFacts(html: string, sourceDocument: string | null) {
-  if (!/<ix:(?:nonFraction|nonNumeric)\b/i.test(html)) return [];
-
   const contexts = extractContexts(html);
   const facts: PeriodicReportIngestXbrlFact[] = [];
   const seen = new Set<string>();
-  const pattern = /<ix:(nonFraction|nonNumeric)\b([^>]*)>([\s\S]*?)<\/ix:\1>/gi;
+  const inlinePattern = /<ix:(nonFraction|nonNumeric)\b([^>]*)>([\s\S]*?)<\/ix:\1>/gi;
   let match: RegExpExecArray | null;
 
-  while ((match = pattern.exec(html)) !== null) {
+  while ((match = inlinePattern.exec(html)) !== null) {
     const kind = (match[1] || "").toLowerCase();
     const attrs = parseAttributes(match[2] || "");
     const name = readAttribute(attrs, "name");
@@ -93,17 +96,26 @@ function extractCoreXbrlFacts(html: string, sourceDocument: string | null) {
     if (seen.has(key)) continue;
     seen.add(key);
 
-    facts.push({
-      name,
-      value,
-      unitRef,
-      decimals: readAttribute(attrs, "decimals"),
-      contextRef,
-      period: context?.period || null,
-      statement: inferStatement(concept),
-      sourceDocument,
-      hasDimensions: Boolean(context?.hasDimensions),
-    });
+    facts.push(buildFact(name, value, attrs, context, sourceDocument));
+  }
+
+  const standardPattern = /<([A-Za-z_][\w.-]*:[A-Za-z_][\w.-]*)\b([^>]*)>([^<]*)<\/\1>/gi;
+  while ((match = standardPattern.exec(html)) !== null) {
+    const name = match[1] || "";
+    const concept = normalizeConcept(name);
+    const isDocumentConcept = DOCUMENT_CONCEPTS.has(concept);
+    if (!isDocumentConcept && !isCoreFinancialConcept(concept)) continue;
+    const attrs = parseAttributes(match[2] || "");
+    const rawValue = visibleFactText(match[3] || "");
+    const value = isDocumentConcept ? rawValue : parseNumericValue(rawValue, attrs);
+    if (value === null || value === "") continue;
+    const contextRef = readAttribute(attrs, "contextRef");
+    const context = contextRef ? contexts.get(contextRef) : null;
+    const unitRef = readAttribute(attrs, "unitRef");
+    const key = `${name}:${String(value)}:${unitRef || ""}:${contextRef || ""}:${context?.period || ""}`.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    facts.push(buildFact(name, value, attrs, context, sourceDocument));
   }
 
   return facts
@@ -115,6 +127,26 @@ function extractCoreXbrlFacts(html: string, sourceDocument: string | null) {
       return String(right.period || "").localeCompare(String(left.period || ""));
     })
     .slice(0, MAX_FACTS);
+}
+
+function buildFact(
+  name: string,
+  value: string | number,
+  attrs: Record<string, string>,
+  context: XbrlContext | null | undefined,
+  sourceDocument: string | null,
+): PeriodicReportIngestXbrlFact {
+  return {
+    name,
+    value,
+    unitRef: readAttribute(attrs, "unitRef"),
+    decimals: readAttribute(attrs, "decimals"),
+    contextRef: readAttribute(attrs, "contextRef"),
+    period: context?.period || null,
+    statement: inferStatement(normalizeConcept(name)),
+    sourceDocument,
+    hasDimensions: Boolean(context?.hasDimensions),
+  };
 }
 
 function extractContexts(html: string) {
@@ -141,9 +173,11 @@ function extractContexts(html: string) {
 
 function extractCorePerformanceBlocks(cleanedText: string, sourceDocument: string | null) {
   if (!cleanedText) return [];
-  const paragraphs = cleanedText
+  const sourceParagraphs = cleanedText
     .split(/\n{2,}/)
     .map((text, index) => ({ text: compactText(text), index }))
+    .filter(({ text }) => Boolean(text));
+  const paragraphs = sourceParagraphs
     .filter(({ text }) => text.length >= 100 && text.length <= 12_000)
     .map((candidate) => ({ ...candidate, score: scorePerformanceParagraph(candidate.text) }))
     .filter(({ score }) => score >= 8)
@@ -158,12 +192,85 @@ function extractCorePerformanceBlocks(cleanedText: string, sourceDocument: strin
 
   return selected
     .sort((left, right) => left.index - right.index)
-    .map(({ text, index }) => ({
-      blockId: `periodic-ingest-core-${index}-${stableHash(text)}`,
-      topic: "annual_core_performance" as const,
-      text: truncateAtSentence(text, MAX_SOURCE_BLOCK_CHARS),
-      sourceDocument,
-    }));
+    .map(({ text, index }) => {
+      const contextualText = prependNearbySectionHeadings(sourceParagraphs, index, text);
+      return {
+        blockId: `periodic-ingest-core-${index}-${stableHash(contextualText)}`,
+        topic: "annual_core_performance" as const,
+        text: truncateAtSentence(contextualText, MAX_SOURCE_BLOCK_CHARS),
+        sourceDocument,
+        scope: inferPerformanceBlockScope(contextualText),
+      };
+    });
+}
+
+function inferPerformanceBlockScope(text: string): PeriodicReportIngestSourceBlock["scope"] {
+  if (
+    /\b(?:reportable|operating|business|geographic)\s+segments?\b|\bsegment\s+(?:results|performance|revenue|profit)\b|\bresults\s+by\s+(?:business|segment|geography|region)\b|\bfor\s+business\s+segment\s+financial\s+performance\s+commentary\b/i.test(text)
+  ) {
+    return "segment_or_subset";
+  }
+  return "unknown";
+}
+
+function prependNearbySectionHeadings(
+  paragraphs: Array<{ text: string; index: number }>,
+  sourceIndex: number,
+  body: string,
+) {
+  const headings: string[] = [];
+  const scopeHeading = findDefinedBusinessScopeHeading(paragraphs, sourceIndex);
+  if (scopeHeading) headings.push(scopeHeading);
+  const localHeadings: string[] = [];
+  for (let index = sourceIndex - 1; index >= Math.max(0, sourceIndex - 8); index -= 1) {
+    const candidate = paragraphs[index]?.text || "";
+    if (!looksLikeSourceSectionHeading(candidate)) continue;
+    localHeadings.unshift(candidate);
+    if (localHeadings.length >= 2) break;
+  }
+  for (const heading of localHeadings) {
+    if (!headings.includes(heading)) headings.push(heading);
+  }
+  return headings.length > 0 ? `${headings.join("\n")}\n${body}` : body;
+}
+
+function findDefinedBusinessScopeHeading(
+  paragraphs: Array<{ text: string; index: number }>,
+  sourceIndex: number,
+) {
+  const bySourceIndex = new Map(paragraphs.map((paragraph) => [paragraph.index, paragraph.text]));
+  const lowerBound = Math.max(0, sourceIndex - 320);
+
+  for (let index = sourceIndex - 1; index >= lowerBound; index -= 1) {
+    const definition = compactText([
+      bySourceIndex.get(index) || "",
+      bySourceIndex.get(index + 1) || "",
+    ].join(" "));
+    if (!/\b(?:our|the)\s+.+?\s+(?:business|segment)\s+(?:comprises|consists(?:\s+of)?|includes)\b/i.test(definition)) continue;
+
+    const headingParts: string[] = [];
+    for (let headingIndex = index - 1; headingIndex >= Math.max(lowerBound, index - 3); headingIndex -= 1) {
+      const candidate = bySourceIndex.get(headingIndex) || "";
+      if (!looksLikeSourceSectionHeading(candidate)) break;
+      if (/^(?:business segments?|strategic report|financial review)$/i.test(compactText(candidate))) break;
+      headingParts.unshift(compactText(candidate));
+      if (headingParts.length >= 2) break;
+    }
+    if (headingParts.length > 0) return headingParts.join(" ");
+  }
+
+  return null;
+}
+
+function looksLikeSourceSectionHeading(value: string) {
+  const text = compactText(value);
+  if (text.length < 3 || text.length > 180) return false;
+  if (/^\||\|\s*\|/.test(text)) return false;
+  if (text.split(/\s+/).length > 22) return false;
+  if (/[.;!?]/.test(text)) return false;
+  if (/^(?:page\s+)?\d+(?:\s+of\s+\d+)?$/i.test(text)) return false;
+  if ((text.match(/\d/g) || []).length > 6) return false;
+  return /[A-Za-z]/.test(text);
 }
 
 function scorePerformanceParagraph(text: string) {

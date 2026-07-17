@@ -128,6 +128,8 @@ export function collectSecPeriodicReportsScoringWarnings(
   if (annualComparisonIssue) issues.push(annualComparisonIssue);
   const annualCorePerformanceIssue = buildAnnualCorePerformanceMissingIssue(root, input);
   if (annualCorePerformanceIssue) issues.push(annualCorePerformanceIssue);
+  const annualScopeIssue = buildAnnualConsolidatedMetricScopeIssue(root, input);
+  if (annualScopeIssue) issues.push(annualScopeIssue);
 
   const assessment = readRecord(root?.scoring_assessment);
   if (!assessment) return dedupePeriodicRepairIssues(issues);
@@ -345,6 +347,7 @@ function buildPeriodicReportsValidationRepairPrompt({
       "For reporting-period repairs, treat report_context XBRL DEI fiscal metadata as authoritative and do not infer fiscal quarter from calendar month.",
       "For annual-report repairs, YoY means the current fiscal year versus the immediately preceding fiscal year. Replace non-adjacent annual comparison fields with source-backed adjacent-year values when available.",
       "When annual core performance is missing, use existing performance-comparison and snapshot scalar fields for revenue or sales, GAAP/IFRS net income or loss, operating income or loss, or operating cash flow. Capital-return rows must not displace those metrics.",
+      "For annual_consolidated_metric_scope_mismatch, a source_scope=segment_or_subset block cannot support a company-wide total. Remove the unscoped claim from narrative scalars or explicitly label it as a segment/subset metric. Replace an unsupported consolidated comparison with another trusted consolidated core metric when available.",
       "Score is investor attention and urgency; signal is direction. Market capitalization changes percentage thresholds, not score points.",
       "Do not treat one-time, non-operating, tax, fair-value, derivative, or non-cash gains as pure operating improvement.",
       "Return scalar replacement patches only for exact allowed paths. Never add, remove, reorder, or rewrite arrays or objects.",
@@ -452,7 +455,7 @@ function scorePeriodicRepairSourceBlock(
 
   if (issueCodes.has("fiscal_period_label_mismatch") && type === "report_context") score += 160;
   if (
-    (issueCodes.has("annual_prior_year_comparison_mismatch") || issueCodes.has("annual_core_performance_missing")) &&
+    (issueCodes.has("annual_prior_year_comparison_mismatch") || issueCodes.has("annual_core_performance_missing") || issueCodes.has("annual_consolidated_metric_scope_mismatch")) &&
     type === "annual_core_performance_facts"
   ) score += 180;
   if (issueCodes.has("market_cap_tier_mismatch") && origin === "filing" && hasExplicitFilingMarketCap(haystack)) score += 140;
@@ -461,7 +464,7 @@ function scorePeriodicRepairSourceBlock(
     score += 18;
   }
   if (
-    issueCodes.has("annual_core_performance_missing") &&
+    (issueCodes.has("annual_core_performance_missing") || issueCodes.has("annual_consolidated_metric_scope_mismatch")) &&
     /annual|revenue|sales|operating income|operating profit|net income|net loss|profit or loss|cash flow/.test(haystack)
   ) score += 45;
   if (/revenue|sales|operating income|operating profit|net income|net loss|earnings per share|\beps\b/.test(haystack)) score += 24;
@@ -646,6 +649,122 @@ function buildAnnualCorePerformanceMissingIssue(
   );
 }
 
+function buildAnnualConsolidatedMetricScopeIssue(
+  analysisResult: Record<string, unknown>,
+  input: SecFilingAnalysisInput,
+): SecPeriodicReportsValidationRepairIssue | null {
+  const parserOutput = readSecPeriodicReportsParserOutput(input);
+  if (!isSubstantiveAnnualReport(parserOutput)) return null;
+  const evidence = annualCoreEvidence(parserOutput);
+  const segmentText = parserOutput.facts.contextSnippets
+    .filter((snippet) => snippet.scope === "segment_or_subset")
+    .map((snippet) => snippet.text)
+    .join("\n")
+    .toLowerCase();
+  if (!segmentText) return null;
+
+  const reportUi = readRecord(analysisResult.report_ui);
+  const comparisons = Array.isArray(reportUi?.performance_comparisons) ? reportUi.performance_comparisons : [];
+  const affectedIndexes: number[] = [];
+  comparisons.forEach((item, index) => {
+    const label = stringValue(readRecord(item)?.label).toLowerCase();
+    if (!label) return;
+    const unsupportedRevenue = /revenue|sales/.test(label) && !evidence.revenue && /revenue|sales/.test(segmentText);
+    const unsupportedOperating = /operating income|operating profit|operating loss/.test(label) && !evidence.operatingIncome && /operating income|operating profit|operating loss/.test(segmentText);
+    const unsupportedNetIncome = /net income|net loss|profit.*loss|profit\/loss/.test(label) && !evidence.netIncome && /net income|net loss|profit/.test(segmentText);
+    if (unsupportedRevenue || unsupportedOperating || unsupportedNetIncome) affectedIndexes.push(index);
+  });
+
+  const segmentMetricKeys = extractMagnitudeKeys(segmentText);
+  const textPaths: string[] = [];
+  for (const key of ["quick_take", "summary", "score_reason"] as const) {
+    if (containsUnscopedSegmentMetric(analysisResult[key], segmentMetricKeys)) textPaths.push(`/${key}`);
+  }
+  if (containsUnscopedSegmentMetric(reportUi?.snapshot_intro, segmentMetricKeys)) {
+    textPaths.push("/report_ui/snapshot_intro");
+  }
+  const snapshotMetrics = Array.isArray(reportUi?.snapshot_metrics) ? reportUi.snapshot_metrics : [];
+  snapshotMetrics.forEach((item, index) => {
+    const row = readRecord(item);
+    if (!row) return;
+    const combined = `${stringValue(row.label)} ${stringValue(row.value)} ${stringValue(row.note)}`;
+    if (!containsUnscopedSegmentMetric(combined, segmentMetricKeys)) return;
+    textPaths.push(
+      `/report_ui/snapshot_metrics/${index}/label`,
+      `/report_ui/snapshot_metrics/${index}/value`,
+      `/report_ui/snapshot_metrics/${index}/note`,
+    );
+  });
+  const businessUpdates = Array.isArray(reportUi?.key_business_updates) ? reportUi.key_business_updates : [];
+  businessUpdates.forEach((item, index) => {
+    const row = readRecord(item);
+    if (!row) return;
+    const combined = `${stringValue(row.title)} ${stringValue(row.value)} ${stringValue(row.summary)}`;
+    if (!containsUnscopedSegmentMetric(combined, segmentMetricKeys)) return;
+    textPaths.push(
+      `/report_ui/key_business_updates/${index}/title`,
+      `/report_ui/key_business_updates/${index}/value`,
+      `/report_ui/key_business_updates/${index}/summary`,
+    );
+  });
+  if (!affectedIndexes.length && !textPaths.length) return null;
+
+  const paths = [
+    "/score",
+    "/signal",
+    "/score_reason",
+    "/quick_take",
+    "/summary",
+    "/scoring_assessment/primary_change_severity",
+    "/scoring_assessment/operating_direction",
+    "/scoring_assessment/earnings_quality",
+    "/scoring_assessment/alert_driver",
+    ...textPaths,
+  ];
+  for (const index of affectedIndexes) {
+    for (const field of [
+      "label",
+      "current_label",
+      "current_value",
+      "current_numeric",
+      "comparison_label",
+      "comparison_value",
+      "comparison_numeric",
+      "comparison_basis",
+      "change_note",
+      "change_tone",
+    ]) {
+      paths.push(`/report_ui/performance_comparisons/${index}/${field}`);
+    }
+  }
+  return buildPeriodicRepairIssue(
+    "annual_consolidated_metric_scope_mismatch",
+    "The analysis presents a segment or subset metric without its scope, making it read as a consolidated company total even though no trusted consolidated source supports that use.",
+    uniqueStrings(paths),
+  );
+}
+
+function extractMagnitudeKeys(value: unknown) {
+  const text = stringValue(value).toLowerCase();
+  const result = new Set<string>();
+  for (const match of text.matchAll(/(?:[$£€]\s*)?\(?(-?\d+(?:\.\d+)?)\)?\s*(bn|billion|m|million)\b/g)) {
+    const amount = match[1];
+    const unit = /^(?:bn|billion)$/.test(match[2] || "") ? "b" : "m";
+    if (amount) result.add(`${amount}${unit}`);
+  }
+  return result;
+}
+
+function containsUnscopedSegmentMetric(value: unknown, metricKeys: Set<string>) {
+  if (!metricKeys.size) return false;
+  const sentences = stringValue(value).split(/(?<=[.!?])\s+|\n+/);
+  return sentences.some((sentence) => {
+    const keys = extractMagnitudeKeys(sentence);
+    if (![...keys].some((key) => metricKeys.has(key))) return false;
+    return !/\b(?:segment|business\s+unit|division|geograph(?:y|ic)|region|product\s+line|portfolio|subsidiary)\b/i.test(sentence);
+  });
+}
+
 function isSubstantiveAnnualReport(
   parserOutput: PeriodicParserOutput | null,
 ): parserOutput is PeriodicParserOutput {
@@ -657,11 +776,15 @@ function isSubstantiveAnnualReport(
 }
 
 function annualCoreEvidence(parserOutput: PeriodicParserOutput) {
-  const concepts = parserOutput.facts.sourcePackage.xbrlFacts.map((fact) =>
+  const concepts = parserOutput.facts.sourcePackage.xbrlFacts
+    .filter((fact) => fact.hasDimensions !== true)
+    .map((fact) =>
     (fact.name.split(":").pop() || fact.name).replace(/[^a-z0-9]/gi, "").toLowerCase(),
   );
   const lineLabels = new Set(
-    parserOutput.facts.financialStatementLines.map((item) => item.label.toLowerCase()),
+    parserOutput.facts.financialStatementLines
+      .filter((item) => item.source !== "financial_section")
+      .map((item) => item.label.toLowerCase()),
   );
   return {
     revenue:

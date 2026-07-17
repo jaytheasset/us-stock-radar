@@ -105,6 +105,73 @@ assert.equal(annualIngestEvidence?.xbrlFacts.filter((fact) => /:Revenue$/i.test(
 assert.equal(annualIngestEvidence?.xbrlFacts.some((fact) => /PracticalExpedient/i.test(fact.name)), false, "disclosure booleans are not retained as core performance facts");
 assert.match(annualIngestEvidence?.sourceBlocks[0]?.text || "", /net income decreased 19%/i, "annual core performance paragraph is preserved with its comparison context");
 
+const foreignAnnualReportAttachmentEvidence = extractPeriodicReportIngestEvidence({
+  cleanedText: "For the year ended December 31, 2025, total sales increased 6% from 2024 and operating profit decreased 1% compared with the prior year.",
+  formType: "20-F",
+  html: fullAnnualHtml,
+  isPrimary: false,
+  isAnnualReportAttachment: true,
+  sourceDocument: "annual-report-exhibit-15-1.htm",
+});
+assert.ok(foreignAnnualReportAttachmentEvidence, "20-F annual report exhibits preserve financial evidence even when the primary filing is a wrapper");
+assert.equal(foreignAnnualReportAttachmentEvidence?.xbrlFacts.filter((fact) => /:Revenue$/i.test(fact.name)).length, 2, "annual report exhibit XBRL facts are preserved");
+
+const segmentHeadingEvidence = extractPeriodicReportIngestEvidence({
+  cleanedText: [
+    "Results by business",
+    "International Wealth and Premier Banking",
+    "Financial performance Revenue of $14.5bn was $0.7bn or 5% higher than in 2024. Net income increased compared with 2024, while operating expenses of $9.3bn were $0.4bn or 4% higher.",
+  ].join("\n\n"),
+  formType: "20-F",
+  html: "",
+  isPrimary: true,
+  sourceDocument: "bank-annual-report.htm",
+});
+assert.match(
+  segmentHeadingEvidence?.sourceBlocks[0]?.text || "",
+  /Results by business\nInternational Wealth and Premier Banking\nFinancial performance/i,
+  "annual performance blocks retain nearby original section headings so segment metrics are not mistaken for consolidated totals",
+);
+assert.equal(
+  segmentHeadingEvidence?.sourceBlocks[0]?.scope,
+  "segment_or_subset",
+  "annual segment performance paragraphs carry explicit subset scope metadata",
+);
+
+const distantSegmentHeadingEvidence = extractPeriodicReportIngestEvidence({
+  cleanedText: [
+    "Business segments",
+    "International Wealth and",
+    "Premier Banking",
+    "Our IWPB business comprises Premier banking outside Hong Kong and the UK, our Private Bank, Asset Management and Insurance businesses.",
+    ...Array.from({ length: 230 }, (_, index) => `| table row ${index} | ${index + 1} |`),
+    "Financial performance Revenue of $14.5bn was $0.7bn or 5% higher than in 2024. Net income increased compared with 2024, while operating expenses of $9.3bn were $0.4bn or 4% higher. For business segment financial performance commentary, see the annual report.",
+  ].join("\n\n"),
+  formType: "20-F",
+  html: "",
+  isPrimary: true,
+  sourceDocument: "bank-annual-report-long-table.htm",
+});
+assert.match(
+  distantSegmentHeadingEvidence?.sourceBlocks[0]?.text || "",
+  /^International Wealth and Premier Banking\nFinancial performance/i,
+  "segment definition headings survive long intervening tables without treating table rows as headings",
+);
+
+const standardXbrlInstanceEvidence = extractPeriodicReportIngestEvidence({
+  cleanedText: "",
+  formType: "20-F",
+  html: `<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:ifrs-full="https://xbrl.ifrs.org/taxonomy/2025-03-27/ifrs-full">
+    <xbrli:context id="FY2025"><xbrli:entity><xbrli:identifier scheme="test">1</xbrli:identifier></xbrli:entity><xbrli:period><xbrli:startDate>2025-01-01</xbrli:startDate><xbrli:endDate>2025-12-31</xbrli:endDate></xbrli:period></xbrli:context>
+    <ifrs-full:Revenue contextRef="FY2025" unitRef="DKK" decimals="-6">309064000000</ifrs-full:Revenue>
+  </xbrli:xbrl>`,
+  isPrimary: false,
+  isMachineReadableXbrl: true,
+  sourceDocument: "annual_htm.xml",
+});
+assert.equal(standardXbrlInstanceEvidence?.xbrlFacts[0]?.period, "2025-01-01/2025-12-31", "machine-readable XBRL instance supplies the annual fact period");
+assert.equal(standardXbrlInstanceEvidence?.xbrlFacts[0]?.value, 309064000000, "machine-readable XBRL instance supplies the annual fact value");
+
 const preservedAnnualParserOutput = parseSecPeriodicReport({
   rawItemId: "periodic-preserved-annual-core",
   sourceUniqueId: "0000000000-26-000006",
@@ -125,6 +192,77 @@ const preservedAnnualBlocks = Array.isArray(preservedAnnualPromptPayload.cleaned
   : [];
 assert.ok(preservedAnnualBlocks.some((block) => block.block_type === "annual_core_performance_facts"), "preserved full-document XBRL reaches the annual analysis bundle");
 assert.ok(preservedAnnualBlocks.some((block) => block.block_type === "context_preserving_snippet" && /net income decreased 19%/i.test(String(block.text))), "preserved annual performance context reaches the analysis bundle");
+
+const segmentScopedParserOutput = parseSecPeriodicReport({
+  rawItemId: "periodic-segment-scoped-annual",
+  sourceUniqueId: "0000000000-26-000008",
+  title: "Segment Scoped Annual Ltd. Form 20-F",
+  bodyText: "FORM 20-F For the fiscal year ended December 31, 2025.",
+  xbrl_facts: [
+    { name: "dei:DocumentFiscalYearFocus", value: "2025", contextRef: "Document", period: "2025-12-31" },
+    { name: "ifrs-full:ProfitLoss", value: 23131, unitRef: "USD", contextRef: "FY2025", period: "2025-01-01/2025-12-31", statement: "Income statement", hasDimensions: false },
+    { name: "ifrs-full:ProfitLoss", value: 24999, unitRef: "USD", contextRef: "FY2024", period: "2024-01-01/2024-12-31", statement: "Income statement", hasDimensions: false },
+  ],
+  rawPayload: {
+    form_type: "20-F",
+    company_name: "Segment Scoped Annual Ltd.",
+    periodic_report_core_source_blocks: segmentHeadingEvidence?.sourceBlocks,
+  },
+});
+const segmentScopedPromptPayload = JSON.parse(buildSecPeriodicReportsAnalysisPromptDraft({
+  parser_output: segmentScopedParserOutput,
+}).user) as Record<string, unknown>;
+const segmentScopedBlocks = Array.isArray(segmentScopedPromptPayload.cleaned_source_blocks)
+  ? segmentScopedPromptPayload.cleaned_source_blocks as Array<Record<string, unknown>>
+  : [];
+assert.ok(
+  segmentScopedBlocks.some((block) => block.source_scope === "segment_or_subset"),
+  "analysis input preserves segment-or-subset scope metadata",
+);
+const segmentScopeWarnings = collectSecPeriodicReportsScoringWarnings(
+  {
+    event_type: "earnings",
+    score: 75,
+    signal: "volatile",
+    quick_take: "Revenue reached $14.5 billion while consolidated profit declined.",
+    summary: "Revenue reached $14.5 billion in FY2025.",
+    score_reason: "Profitability weakened despite $14.5 billion of revenue.",
+    scoring_assessment: {
+      market_cap_tier: "mega",
+      primary_change_severity: "major",
+      operating_direction: "mixed",
+      cash_flow_direction: "negative",
+      guidance_direction: "neutral",
+      earnings_quality: "mixed",
+      material_offsets: [],
+      alert_driver: "Operating cash flow declined materially.",
+    },
+    report_ui: {
+      performance_comparisons: [
+        {
+          label: "Revenue",
+          current_label: "FY2025",
+          current_value: "$14.5B",
+          current_numeric: 14_500_000_000,
+          comparison_label: "FY2024",
+          comparison_value: "$13.8B",
+          comparison_numeric: 13_800_000_000,
+          comparison_basis: "yoy",
+          change_note: "Up 5% YoY",
+          change_tone: "improvement",
+        },
+      ],
+      key_business_updates: [
+        { title: "Revenue", value: "$14.5bn", summary: "Revenue increased 5%." },
+      ],
+    },
+  },
+  { filing_package: { hard_parsers: { "periodic-reports": segmentScopedParserOutput } } },
+);
+const segmentScopeWarning = segmentScopeWarnings.find((warning) => warning.code === "annual_consolidated_metric_scope_mismatch");
+assert.ok(segmentScopeWarning, "validator catches segment metrics presented as consolidated annual totals");
+assert.ok(segmentScopeWarning.allowed_patch_paths.includes("/summary"), "validator can repair an unscoped segment metric in summary");
+assert.ok(segmentScopeWarning.allowed_patch_paths.includes("/report_ui/key_business_updates/0/value"), "validator can repair an unscoped segment metric in business updates");
 
 const annualCoreParserOutput = parseSecPeriodicReport({
   rawItemId: "periodic-annual-core-performance",
@@ -154,6 +292,30 @@ assert.ok(annualCoreBlock, "annual reports include a dedicated current/prior-yea
 assert.match(String(annualCoreBlock?.text), /2025-01-01\/2025-12-31/, "annual core block includes current fiscal year");
 assert.match(String(annualCoreBlock?.text), /2024-01-01\/2024-12-31/, "annual core block includes immediately preceding fiscal year");
 assert.doesNotMatch(String(annualCoreBlock?.text), /2023-01-01\/2023-12-31/, "annual core block excludes older annual periods when adjacent years exist");
+
+const dimensionalAnnualParserOutput = parseSecPeriodicReport({
+  rawItemId: "periodic-dimensional-annual-core",
+  sourceUniqueId: "0000000000-26-000007",
+  title: "Dimensional Annual Ltd. Form 20-F",
+  bodyText: "FORM 20-F For the fiscal year ended December 31, 2025.",
+  xbrl_facts: [
+    { name: "dei:DocumentFiscalYearFocus", value: "2025", contextRef: "Document", period: "2025-12-31" },
+    { name: "ifrs-full:Revenue", value: 5336, unitRef: "USD", contextRef: "SegmentFY2025", period: "2025-01-01/2025-12-31", statement: "Income statement", hasDimensions: true },
+    { name: "ifrs-full:ProfitLoss", value: 23131, unitRef: "USD", contextRef: "FY2025", period: "2025-01-01/2025-12-31", statement: "Income statement", hasDimensions: false },
+    { name: "ifrs-full:ProfitLoss", value: 24999, unitRef: "USD", contextRef: "FY2024", period: "2024-01-01/2024-12-31", statement: "Income statement", hasDimensions: false },
+  ],
+  rawPayload: { form_type: "20-F", company_name: "Dimensional Annual Ltd." },
+});
+const dimensionalAnnualPromptPayload = JSON.parse(buildSecPeriodicReportsAnalysisPromptDraft({
+  parser_output: dimensionalAnnualParserOutput,
+}).user) as Record<string, unknown>;
+const dimensionalAnnualBlocks = Array.isArray(dimensionalAnnualPromptPayload.cleaned_source_blocks)
+  ? dimensionalAnnualPromptPayload.cleaned_source_blocks as Array<Record<string, unknown>>
+  : [];
+const dimensionalCoreBlock = dimensionalAnnualBlocks.find((block) => block.block_type === "annual_core_performance_facts");
+assert.doesNotMatch(String(dimensionalCoreBlock?.text || ""), /5336/, "dimensional revenue is excluded from consolidated annual core performance");
+const dimensionalXbrlBlock = dimensionalAnnualBlocks.find((block) => block.block_type === "xbrl_dimensional_facts");
+assert.match(String(dimensionalXbrlBlock?.text || ""), /\"has_dimensions\":\s*true/, "dimensional XBRL evidence is explicitly marked for the analysis LLM");
 
 const nonAdjacentAnnualWarnings = collectSecPeriodicReportsScoringWarnings(
   {

@@ -10,6 +10,15 @@ export const secPeriodicReportsFetchPlan = {
   ],
   rules: [
     {
+      id: "foreign-issuer-annual-report-exhibit",
+      reason: "Some Form 20-F issuers place the audited annual report and inline XBRL statements in Exhibit 15.1 instead of the primary filing body.",
+      typePrefixes: ["EX-15"],
+      labelPatterns: [/annual report|financial statements|EX-15\.1/i],
+      filenamePatterns: [/annual|financial|(?:^|[-_.])d2\.(?:htm|html)$/i],
+      maxDocuments: 1,
+      preserveRawText: true,
+    },
+    {
       id: "xbrl-instance-and-ex101",
       reason: "Financial statement facts and iXBRL instance data can be more reliable than narrative text.",
       typePrefixes: ["EX-101"],

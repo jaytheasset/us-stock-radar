@@ -31,6 +31,7 @@ export type SecPeriodicReportsSourceBlock = {
   item_number: string | null;
   section_key: string | null;
   document_type: string | null;
+  source_scope?: "segment_or_subset" | "unknown";
   text: string;
 };
 
@@ -173,6 +174,7 @@ function addAnnualCorePerformanceBlock(
         period: fact.period,
         statement: fact.statement,
         source_document: fact.sourceDocument,
+        has_dimensions: false,
       })),
     ),
   });
@@ -259,6 +261,7 @@ function addContextSnippetBlocks(
       item_number: snippet.item,
       section_key: snippet.sectionKey,
       document_type: parserOutput.formType,
+      source_scope: snippet.scope,
       text: snippet.text,
     });
   }
@@ -386,23 +389,36 @@ function tablePriority(table: Record<string, unknown>) {
 function addXbrlBlocks(blocks: SecPeriodicReportsSourceBlock[], parserOutput: PeriodicParserOutput) {
   const grouped = new Map<string, typeof parserOutput.facts.sourcePackage.xbrlFacts>();
   for (const fact of parserOutput.facts.sourcePackage.xbrlFacts) {
-    const group = fact.statement || "Other reported XBRL facts";
+    const dimensionClass = fact.hasDimensions === true ? "dimensional" : "consolidated";
+    const group = `${fact.statement || "Other reported XBRL facts"}::${dimensionClass}`;
     const values = grouped.get(group) || [];
     values.push(fact);
     grouped.set(group, values);
   }
 
   const selectedGroups = Array.from(grouped.entries())
-    .map(([statement, facts], order) => ({ statement, facts, order, priority: xbrlPriority(statement) }))
+    .map(([group, facts], order) => {
+      const [statement, dimensionClass] = group.split("::");
+      const dimensional = dimensionClass === "dimensional";
+      return {
+        statement,
+        dimensional,
+        facts,
+        order,
+        priority: xbrlPriority(statement) + (dimensional ? 18 : 0),
+      };
+    })
     .sort((left, right) => left.priority - right.priority || left.order - right.order)
     .slice(0, MAX_XBRL_BLOCKS);
 
-  for (const { statement, facts, order, priority } of selectedGroups) {
+  for (const { statement, dimensional, facts, order, priority } of selectedGroups) {
     const selectedFacts = selectXbrlFactsForPrompt(facts, parserOutput);
     addBlock(blocks, {
-      block_id: stableBlockId("periodic-xbrl", `${statement}-${order + 1}`),
-      block_type: "xbrl_statement_facts",
-      label: statement,
+      block_id: stableBlockId("periodic-xbrl", `${statement}-${dimensional ? "dimensional" : "consolidated"}-${order + 1}`),
+      block_type: dimensional ? "xbrl_dimensional_facts" : "xbrl_statement_facts",
+      label: dimensional
+        ? `${statement} - dimensional segment, product, geography, or subset facts; not consolidated totals`
+        : statement,
       source: "source_package.xbrlFacts",
       origin: "xbrl",
       priority,
@@ -418,6 +434,7 @@ function addXbrlBlocks(blocks: SecPeriodicReportsSourceBlock[], parserOutput: Pe
           period: fact.period,
           statement: fact.statement,
           source_document: fact.sourceDocument,
+          has_dimensions: fact.hasDimensions === true,
         })),
       ),
     });

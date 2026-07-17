@@ -317,8 +317,12 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
           primary_document_html: primary?.rawHtml || null,
           primary_document_html_char_count: primary?.rawHtmlCharCount || 0,
           primary_document_html_truncated: Boolean(primary?.rawHtmlTruncated),
-          periodic_report_core_xbrl_facts: primary?.periodicReportCoreXbrlFacts || [],
-          periodic_report_core_source_blocks: primary?.periodicReportCoreSourceBlocks || [],
+          periodic_report_core_xbrl_facts: detail.documents.flatMap(
+            (document) => document.periodicReportCoreXbrlFacts || [],
+          ),
+          periodic_report_core_source_blocks: detail.documents.flatMap(
+            (document) => document.periodicReportCoreSourceBlocks || [],
+          ),
           ownership_source_url: ownershipSource?.url || null,
           ownership_source_format: ownershipSource?.rawSourceFormat || null,
           ownership_source_text: ownershipSource?.rawText || null,
@@ -781,6 +785,8 @@ async function fetchFilingDetail({
         formType: effectiveFormType,
         html: text,
         isPrimary: document.isPrimary,
+        isAnnualReportAttachment: isPeriodicAnnualReportAttachment(document, effectiveFormType),
+        isMachineReadableXbrl: isMachineReadableXbrlDocument(document),
         sourceDocument: document.document || document.url,
       });
       const rawOwnershipSource = buildOwnershipRawSource({
@@ -830,35 +836,39 @@ async function fetchFilingDetail({
 }
 
 function parseFilingDocuments(html: string, detailUrl: string, formType: string | null): SecDocument[] {
-  const table = extractFirst(
-    html,
-    /<table[^>]+summary=["']Document Format Files["'][^>]*>([\s\S]*?)<\/table>/i,
-  );
-  if (!table) return [];
-
   const documents: SecDocument[] = [];
-  for (const rowMatch of table.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)) {
-    const rowHtml = rowMatch[1] || "";
-    const cells = [...rowHtml.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((match) => match[1] || "");
-    if (cells.length < 4) continue;
+  const seenUrls = new Set<string>();
+  const tables = [...html.matchAll(
+    /<table[^>]+summary=["'](?:Document Format Files|Data Files)["'][^>]*>([\s\S]*?)<\/table>/gi,
+  )];
 
-    const linkHref = extractFirst(cells[2], /<a[^>]+href=["']([^"']+)["'][^>]*>/i);
-    const type = cleanInlineText(cells[3]) || null;
-    const documentUrl = absoluteSecUrl(linkHref, detailUrl);
-    const document: SecDocument = {
-      sequence: cleanInlineText(cells[0]) || null,
-      description: cleanInlineText(cells[1]) || null,
-      document: cleanInlineText(cells[2]) || null,
-      type,
-      size: cleanInlineText(cells[4]) || null,
-      url: documentUrl,
-      isPrimary: false,
-      text: null,
-      textCharCount: 0,
-      textTruncated: false,
-    };
-    documents.push(document);
+  for (const tableMatch of tables) {
+    const table = tableMatch[1] || "";
+    for (const rowMatch of table.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)) {
+      const rowHtml = rowMatch[1] || "";
+      const cells = [...rowHtml.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((match) => match[1] || "");
+      if (cells.length < 4) continue;
+
+      const linkHref = extractFirst(cells[2], /<a[^>]+href=["']([^"']+)["'][^>]*>/i);
+      const documentUrl = absoluteSecUrl(linkHref, detailUrl);
+      if (!documentUrl || seenUrls.has(documentUrl)) continue;
+      seenUrls.add(documentUrl);
+      documents.push({
+        sequence: cleanInlineText(cells[0]) || null,
+        description: cleanInlineText(cells[1]) || null,
+        document: cleanInlineText(cells[2]) || null,
+        type: cleanInlineText(cells[3]) || null,
+        size: cleanInlineText(cells[4]) || null,
+        url: documentUrl,
+        isPrimary: false,
+        text: null,
+        textCharCount: 0,
+        textTruncated: false,
+      });
+    }
   }
+
+  if (!documents.length) return [];
 
   const effectiveFormType = formType || inferPrimaryFormTypeFromDocuments(documents);
   const primaryIndex = documents.findIndex((document) => isPrimaryDocument(document, effectiveFormType));
@@ -972,6 +982,15 @@ function isInterestingAttachment(document: SecDocument) {
 
 function isS3FamilyForm(formType: string | null) {
   return /^(?:S-3|F-3)(?:ASR|MEF|\/A)?$/i.test(normalizeFormType(formType));
+}
+
+function isPeriodicAnnualReportAttachment(document: SecDocument, formType: string | null) {
+  if (!/^20-F(?:\/A)?$/i.test(normalizeFormType(formType))) return false;
+  const type = stringValue(document.type).toUpperCase();
+  const label = `${document.description || ""} ${document.document || ""}`;
+  return type === "EX-15.1" || (
+    type.startsWith("EX-15") && /annual report|financial statements/i.test(label)
+  );
 }
 
 function isOfferingFeeTableForm(formType: string | null) {

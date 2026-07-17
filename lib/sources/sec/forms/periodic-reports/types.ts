@@ -70,6 +70,7 @@ export type PeriodicReportContextSnippet = {
   text: string;
   source: "primary_document_context";
   confidence: ConfidenceLevel;
+  scope?: "segment_or_subset" | "unknown";
 };
 
 export type PeriodicReportSecurity = {

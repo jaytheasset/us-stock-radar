@@ -1522,6 +1522,7 @@ function readPreservedPeriodicCoreSourceBlocks(rawPayload: Record<string, unknow
       text,
       source: "primary_document_context",
       confidence: "high",
+      scope: stringValue(record.scope) === "segment_or_subset" ? "segment_or_subset" : "unknown",
     });
   }
 
@@ -1599,6 +1600,7 @@ function extractFinancialStatementLines(
 
   for (const fact of xbrlFacts) {
     if (result.length >= 18) break;
+    if (fact.hasDimensions === true) continue;
     const label = xbrlFinancialMetricLabel(fact.name);
     if (!label || fact.value === null || fact.value === "") continue;
     const evidence = [fact.name, String(fact.value), fact.unitRef, fact.period].filter(Boolean).join(" | ");
