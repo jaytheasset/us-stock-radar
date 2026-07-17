@@ -29,43 +29,6 @@ export type SecForm25DisplayType = (typeof SEC_FORM25_DISPLAY_TYPE_VALUES)[numbe
 export type SecForm25Confidence = "high" | "medium" | "low";
 export type SecForm25SourceFormType = "25" | "25-NSE" | "25/A" | "25-NSE/A" | null;
 
-export type SecForm25SecurityCategory =
-  | "common_stock"
-  | "ordinary_shares"
-  | "ads"
-  | "units"
-  | "warrants"
-  | "debt"
-  | "preferred"
-  | "other_non_common"
-  | "unknown";
-
-export type SecForm25RemovalReasonCategory =
-  | "matured_redeemed_retired"
-  | "merger_completion"
-  | "listing_standards_failure"
-  | "voluntary_withdrawal"
-  | "exchange_transfer_or_continued_listing"
-  | "unknown";
-
-export type SecForm25DeterministicCase =
-  | "matured_redeemed_retired_non_common"
-  | "merger_completion_removal"
-  | "voluntary_withdrawal_continued_listing_or_transfer";
-
-export type SecForm25AnalysisReason =
-  | "common_equity_delisting_possible"
-  | "ambiguous_units_or_ads"
-  | "unclear_voluntary_withdrawal"
-  | "missing_or_unclear_reason"
-  | "listing_standards_failure"
-  | "unsupported_or_unrecognized_form"
-  | "security_title_not_found"
-  | "archive_required_ticker_missing"
-  | "archive_required_exchange_missing"
-  | "archive_required_issuer_identity_missing"
-  | "archive_required_source_missing";
-
 export type SecForm25Field<T> = {
   value: T;
   evidence: string;
@@ -111,25 +74,16 @@ export type SecForm25EvidenceSnippet = {
   text: string;
 };
 
-export type SecForm25FilingMeaning = {
-  deterministic: boolean;
-  case: SecForm25DeterministicCase | null;
-  reason: string | null;
-  evidence: string[];
-};
-
-export type SecForm25RoutingFacts = {
-  analysis_required: boolean;
-  analysis_reasons: SecForm25AnalysisReason[];
-  suggested_event_types: SecForm25ApprovedEventType[];
-  router_required: boolean;
-  event_type: SecForm25ApprovedEventType | null;
-  display_type: SecForm25DisplayType | null;
-  display_version: typeof SEC_FORM25_DISPLAY_PAYLOAD_VERSION | null;
-  classification_source: "parser_deterministic" | "router_required" | "unsupported";
-  classification_reason: string | null;
-  classification_evidence: string[];
-  analysis_llm_required: boolean;
+export type SecForm25DirectSourceBlock = {
+  block_id: string;
+  block_type: "form25_primary_document" | "form25_exchange_determination" | "form25_attachment";
+  label: string;
+  source_ref: string;
+  origin: "primary" | "attachment";
+  priority: number;
+  document_type: string | null;
+  document_description: string | null;
+  text: string;
 };
 
 export type SecForm25Facts = {
@@ -149,18 +103,13 @@ export type SecForm25Facts = {
   filed_by_cik: SecForm25Field<string> | null;
   exchange: SecForm25Field<string> | null;
   removed_security: SecForm25Field<string> | null;
-  security_category: SecForm25Field<SecForm25SecurityCategory>;
   rule_provision: SecForm25Field<string> | null;
   removal_reason_text: SecForm25Field<string> | null;
-  removal_reason_category: SecForm25Field<SecForm25RemovalReasonCategory>;
-  common_equity_affected: SecForm25Field<boolean | null>;
   delisting_or_removal_date: SecForm25Field<string> | null;
   trading_suspension_date: SecForm25Field<string> | null;
   continued_listing_or_trading_venue: SecForm25Field<string> | null;
   successor_or_acquirer: SecForm25Field<string> | null;
   consideration_summary: SecForm25Field<string> | null;
-  filing_meaning: SecForm25FilingMeaning;
-  routing: SecForm25RoutingFacts;
   extracted_field_count: number;
 };
 
@@ -177,6 +126,7 @@ export type SecForm25ParserOutput = {
   warnings: string[];
   raw: {
     sourceInventory: SecForm25SourceInventory;
+    directSourceBlocks: SecForm25DirectSourceBlock[];
     selectedEvidenceSnippets: SecForm25EvidenceSnippet[];
     selectedAttachmentSnippets: SecForm25EvidenceSnippet[];
     selectedTableSnippets: SecForm25EvidenceSnippet[];
@@ -272,24 +222,37 @@ export function parseSecForm25Filing(input: SecForm25ParseInput): SecForm25Parse
     stringFieldFromValue(rawPayload.file_number, "raw_payload.file_number") ||
     findXmlTagValue(sourceTexts, "fileNumber", "xml.file_number") ||
     findTextValue(sourceTexts, /\b(?:SEC FILE NUMBER|Commission File Number)\s*:?\s*([0-9-]+)/i);
+  const filingHeaderName =
+    stringFieldFromCompanyName(rawPayload.company_name, "raw_payload.company_name") ||
+    stringFieldFromCompanyName(metadata.company_name, "metadata.company_name") ||
+    findTextValue(sourceTexts, /\bCOMPANY CONFORMED NAME:\s*([^\n]+)/i);
+  const filingHeaderCik =
+    stringFieldFromValue(rawPayload.cik, "raw_payload.cik") ||
+    stringFieldFromValue(metadata.cik, "metadata.cik") ||
+    findTextValue(sourceTexts, /\bCENTRAL INDEX KEY:\s*([0-9]{1,10})/i);
+  const ruleProvision =
+    stringFieldFromValue(rawPayload.rule_provision, "raw_payload.rule_provision") ||
+    findXmlTagValue(sourceTexts, "ruleProvision", "xml.rule_provision") ||
+    findRuleProvision(sourceTexts);
   const issuerName =
-    stringFieldFromValue(rawPayload.company_name, "raw_payload.company_name") ||
-    stringFieldFromValue(metadata.company_name, "metadata.company_name") ||
     findXmlIssuerName(sourceTexts) ||
-    findIssuerName(sourceTexts);
+    findIssuerName(sourceTexts) ||
+    filingHeaderName;
   const subjectCompanyCik =
     stringFieldFromValue(rawPayload.subject_company_cik, "raw_payload.subject_company_cik") ||
-    stringFieldFromValue(metadata.cik, "metadata.cik") ||
     findXmlIssuerCik(sourceTexts) ||
-    findTextValue(sourceTexts, /\bSUBJECT COMPANY:[\s\S]{0,260}?\bCENTRAL INDEX KEY:\s*([0-9]{1,10})/i);
+    findStructuredSubjectCompanyCik(sourceTexts, issuerName?.value || null) ||
+    findTextValue(sourceTexts, /\bSUBJECT COMPANY:[\s\S]{0,260}?\bCENTRAL INDEX KEY:\s*([0-9]{1,10})/i) ||
+    (isIssuerFiledVoluntaryWithdrawal(formType, ruleProvision) ? filingHeaderCik : null);
   const primaryTicker = findPrimaryTicker({ rawPayload, metadata, sourceTexts });
   const primaryTickerExchange = findPrimaryTickerExchange({ rawPayload, metadata, primaryTicker });
-  const filedByName =
+  const explicitFiledByName =
     stringFieldFromValue(rawPayload.filed_by_name, "raw_payload.filed_by_name") ||
     findTextValue(sourceTexts, /\bFILED BY:[\s\S]{0,220}?\bCOMPANY CONFORMED NAME:\s*([^\n]+)/i);
   const filedByCik =
     stringFieldFromValue(rawPayload.filed_by_cik, "raw_payload.filed_by_cik") ||
-    findTextValue(sourceTexts, /\bFILED BY:[\s\S]{0,260}?\bCENTRAL INDEX KEY:\s*([0-9]{1,10})/i);
+    findTextValue(sourceTexts, /\bFILED BY:[\s\S]{0,260}?\bCENTRAL INDEX KEY:\s*([0-9]{1,10})/i) ||
+    filingHeaderCik;
   const exchange =
     stringFieldFromValue(rawPayload.form25_exchange, "raw_payload.form25_exchange") ||
     stringFieldFromValue(rawPayload.listing_exchange, "raw_payload.listing_exchange") ||
@@ -298,27 +261,24 @@ export function parseSecForm25Filing(input: SecForm25ParseInput): SecForm25Parse
     stringFieldFromValue(metadata.listing_exchange, "metadata.listing_exchange") ||
     stringFieldFromValue(metadata.removal_exchange, "metadata.removal_exchange") ||
     findXmlExchangeName(sourceTexts) ||
-    findExchange(sourceTexts, filedByName?.value || null) ||
+    findExchange(sourceTexts, explicitFiledByName?.value || null) ||
     stringFieldFromValue(rawPayload.exchange, "raw_payload.exchange");
+  const filedByIdentity = resolveFiledByName({
+    exchange,
+    explicitFiledByName,
+    filedByCik,
+    filingHeaderName,
+    formType,
+  });
+  const filedByName = filedByIdentity.field;
   const removedSecurity =
     stringFieldFromValue(rawPayload.security_title, "raw_payload.security_title") ||
     findXmlTagValue(sourceTexts, "descriptionClassSecurity", "xml.description_class_security") ||
     findRemovedSecurity(sourceTexts);
-  const securityCategory = classifySecurity(removedSecurity);
-  const commonEquityAffected = classifyCommonEquity(removedSecurity, securityCategory, filingText);
-  const ruleProvision =
-    stringFieldFromValue(rawPayload.rule_provision, "raw_payload.rule_provision") ||
-    findXmlTagValue(sourceTexts, "ruleProvision", "xml.rule_provision") ||
-    findRuleProvision(sourceTexts);
   const removalReasonText =
     stringFieldFromValue(rawPayload.removal_reason_text, "raw_payload.removal_reason_text") ||
-    findRemovalReasonText(sourceTexts);
-  const reasonTextForClassification = compactText(`${removalReasonText?.value || ""}\n\n${filingText.slice(0, 5000)}`);
-  const removalReasonCategory = refineRemovalReasonCategory({
-    initial: classifyRemovalReason(reasonTextForClassification, removalReasonText?.source || "combined_filing_text"),
-    reasonText: reasonTextForClassification,
-    ruleProvision,
-  });
+    findRemovalReasonText(sourceTexts) ||
+    findRemovalReasonFromRuleProvision(ruleProvision);
   const removalDate =
     dateFieldFromValue(rawPayload.delisting_or_removal_date, "raw_payload.delisting_or_removal_date") ||
     findRemovalDate(sourceTexts);
@@ -334,29 +294,6 @@ export function parseSecForm25Filing(input: SecForm25ParseInput): SecForm25Parse
   const considerationSummary =
     stringFieldFromValue(rawPayload.consideration_summary, "raw_payload.consideration_summary") ||
     findConsiderationSummary(sourceTexts);
-  const filingMeaning = buildFilingMeaning({
-    commonEquityAffected,
-    considerationSummary,
-    continuedListingOrTradingVenue,
-    removalReasonCategory,
-    removalReasonText,
-    securityCategory,
-    successorOrAcquirer,
-  });
-  const routing = buildRoutingFacts({
-    commonEquityAffected,
-    exchange,
-    filingMeaning,
-    issuerName,
-    isSupported,
-    primaryTicker,
-    removalReasonCategory,
-    removalReasonText,
-    securityCategory,
-    removedSecurity,
-    sourceUrl,
-    subjectCompanyCik,
-  });
   const documentSummaries = documents.map(mapDocumentSummary);
   const attachmentSummaries = attachmentSources.map(mapAttachmentSummary);
   const sourceInventory = buildSourceInventory({
@@ -365,6 +302,7 @@ export function parseSecForm25Filing(input: SecForm25ParseInput): SecForm25Parse
     primaryText,
     sourceTexts,
   });
+  const directSourceBlocks = buildDirectSourceBlocks(sourceTexts);
   const selectedAttachmentSnippets = selectAttachmentSnippets(attachmentSources);
   const selectedTableSnippets = selectTableSnippets(sourceTexts);
   const selectedEvidenceSnippets = selectEvidenceSnippets([
@@ -375,8 +313,6 @@ export function parseSecForm25Filing(input: SecForm25ParseInput): SecForm25Parse
     removedSecurity,
     ruleProvision,
     removalReasonText,
-    removalReasonCategory,
-    commonEquityAffected,
     removalDate,
     suspensionDate,
     continuedListingOrTradingVenue,
@@ -420,21 +356,21 @@ export function parseSecForm25Filing(input: SecForm25ParseInput): SecForm25Parse
     filed_by_cik: filedByCik,
     exchange,
     removed_security: removedSecurity,
-    security_category: securityCategory,
     rule_provision: ruleProvision,
     removal_reason_text: removalReasonText,
-    removal_reason_category: removalReasonCategory,
-    common_equity_affected: commonEquityAffected,
     delisting_or_removal_date: removalDate,
     trading_suspension_date: suspensionDate,
     continued_listing_or_trading_venue: continuedListingOrTradingVenue,
     successor_or_acquirer: successorOrAcquirer,
     consideration_summary: considerationSummary,
-    filing_meaning: filingMeaning,
-    routing,
     extracted_field_count: extractedFieldCount,
   };
-  const warnings = buildWarnings({ facts, isSupported, sourceInventory });
+  const warnings = buildWarnings({
+    facts,
+    filedByNameNormalized: filedByIdentity.normalized,
+    isSupported,
+    sourceInventory,
+  });
 
   return {
     parserVersion: SEC_FORM25_PARSER_VERSION,
@@ -444,11 +380,12 @@ export function parseSecForm25Filing(input: SecForm25ParseInput): SecForm25Parse
     isSupported,
     summary: buildSummary(facts),
     facts,
-    signals: buildSignals(facts),
+    signals: [],
     calendarItems: [],
     warnings,
     raw: {
       sourceInventory,
+      directSourceBlocks,
       selectedEvidenceSnippets,
       selectedAttachmentSnippets,
       selectedTableSnippets,
@@ -456,264 +393,22 @@ export function parseSecForm25Filing(input: SecForm25ParseInput): SecForm25Parse
   };
 }
 
-function buildFilingMeaning({
-  commonEquityAffected,
-  considerationSummary,
-  continuedListingOrTradingVenue,
-  removalReasonCategory,
-  removalReasonText,
-  securityCategory,
-  successorOrAcquirer,
-}: {
-  commonEquityAffected: SecForm25Field<boolean | null>;
-  considerationSummary: SecForm25Field<string> | null;
-  continuedListingOrTradingVenue: SecForm25Field<string> | null;
-  removalReasonCategory: SecForm25Field<SecForm25RemovalReasonCategory>;
-  removalReasonText: SecForm25Field<string> | null;
-  securityCategory: SecForm25Field<SecForm25SecurityCategory>;
-  successorOrAcquirer: SecForm25Field<string> | null;
-}): SecForm25FilingMeaning {
-  const evidence = [
-    removalReasonText?.evidence,
-    removalReasonCategory.evidence,
-    considerationSummary?.evidence,
-    continuedListingOrTradingVenue?.evidence,
-    successorOrAcquirer?.evidence,
-  ].filter((item): item is string => Boolean(item));
-
-  if (
-    removalReasonCategory.value === "matured_redeemed_retired" &&
-    commonEquityAffected.value !== true &&
-    !["ads", "units", "common_stock", "ordinary_shares", "unknown"].includes(securityCategory.value)
-  ) {
-    return {
-      deterministic: true,
-      case: "matured_redeemed_retired_non_common",
-      reason: "The filing states the removed security matured, was redeemed, or was retired, and the security is not common equity.",
-      evidence: evidence.slice(0, 3),
-    };
-  }
-
-  if (removalReasonCategory.value === "merger_completion" && (successorOrAcquirer || considerationSummary || removalReasonText)) {
-    return {
-      deterministic: true,
-      case: "merger_completion_removal",
-      reason: "The filing states the removal follows completion or effectiveness of a merger.",
-      evidence: evidence.slice(0, 3),
-    };
-  }
-
-  if (
-    (removalReasonCategory.value === "voluntary_withdrawal" ||
-      removalReasonCategory.value === "exchange_transfer_or_continued_listing") &&
-    continuedListingOrTradingVenue
-  ) {
-    return {
-      deterministic: true,
-      case: "voluntary_withdrawal_continued_listing_or_transfer",
-      reason: "The filing states a voluntary withdrawal while another listing, trading venue, or transfer remains available.",
-      evidence: evidence.slice(0, 3),
-    };
-  }
-
-  return {
-    deterministic: false,
-    case: null,
-    reason: null,
-    evidence: evidence.slice(0, 3),
-  };
-}
-
-function buildRoutingFacts({
-  commonEquityAffected,
-  exchange,
-  filingMeaning,
-  issuerName,
-  isSupported,
-  primaryTicker,
-  removalReasonCategory,
-  removalReasonText,
-  removedSecurity,
-  securityCategory,
-  sourceUrl,
-  subjectCompanyCik,
-}: {
-  commonEquityAffected: SecForm25Field<boolean | null>;
-  exchange: SecForm25Field<string> | null;
-  filingMeaning: SecForm25FilingMeaning;
-  issuerName: SecForm25Field<string> | null;
-  isSupported: boolean;
-  primaryTicker: SecForm25Field<string> | null;
-  removalReasonCategory: SecForm25Field<SecForm25RemovalReasonCategory>;
-  removalReasonText: SecForm25Field<string> | null;
-  removedSecurity: SecForm25Field<string> | null;
-  securityCategory: SecForm25Field<SecForm25SecurityCategory>;
-  sourceUrl: string | null;
-  subjectCompanyCik: SecForm25Field<string> | null;
-}): SecForm25RoutingFacts {
-  const reasons = new Set<SecForm25AnalysisReason>();
-  const ambiguityReasons = new Set<SecForm25AnalysisReason>();
-  if (!isSupported) reasons.add("unsupported_or_unrecognized_form");
-  if (!removedSecurity) reasons.add("security_title_not_found");
-  if (removalReasonCategory.value === "unknown") reasons.add("missing_or_unclear_reason");
-  if (!isSupported) ambiguityReasons.add("unsupported_or_unrecognized_form");
-  if (!removedSecurity) ambiguityReasons.add("security_title_not_found");
-  if (removalReasonCategory.value === "unknown") ambiguityReasons.add("missing_or_unclear_reason");
-
-  if (filingMeaning.deterministic) {
-    if (!primaryTicker) reasons.add("archive_required_ticker_missing");
-    if (!exchange) reasons.add("archive_required_exchange_missing");
-    if (!issuerName || !subjectCompanyCik) reasons.add("archive_required_issuer_identity_missing");
-    if (!sourceUrl) reasons.add("archive_required_source_missing");
-  }
-
-  if (!filingMeaning.deterministic) {
-    if (commonEquityAffected.value === true) reasons.add("common_equity_delisting_possible");
-    if (securityCategory.value === "units" || securityCategory.value === "ads") {
-      reasons.add("ambiguous_units_or_ads");
-      ambiguityReasons.add("ambiguous_units_or_ads");
-    }
-    if (removalReasonCategory.value === "voluntary_withdrawal") {
-      reasons.add("unclear_voluntary_withdrawal");
-      ambiguityReasons.add("unclear_voluntary_withdrawal");
-    }
-    if (removalReasonCategory.value === "listing_standards_failure") {
-      reasons.add("listing_standards_failure");
-      if (commonEquityAffected.value !== true || !isPlainCommonEquityCategory(securityCategory.value)) {
-        ambiguityReasons.add("listing_standards_failure");
-      }
-    }
-  }
-
-  const suggested = new Set<SecForm25ApprovedEventType>();
-  if (removalReasonCategory.value === "merger_completion") suggested.add("strategic_transaction");
-  if (removalReasonCategory.value === "listing_standards_failure" || reasons.has("common_equity_delisting_possible")) {
-    suggested.add("listing_risk");
-  }
-  if (/bankruptcy|chapter 11|insolvenc|receivership/i.test(`${removalReasonText?.value || ""}`)) {
-    suggested.add("financial_risk");
-    suggested.add("legal_risk");
-  }
-  if (!suggested.size) suggested.add("other");
-
-  const deterministic = classifyDeterministicRoute({
-    commonEquityAffected,
-    filingMeaning,
-    removalReasonCategory,
-    removalReasonText,
-    removedSecurity,
-    securityCategory,
-  });
-  const routerRequired = !deterministic.event_type || ambiguityReasons.size > 0;
-  const displayType: SecForm25DisplayType | null = isSupported ? "sec_form25_listing_removal" : null;
-  const displayVersion = isSupported ? SEC_FORM25_DISPLAY_PAYLOAD_VERSION : null;
-  const classificationSource = !isSupported ? "unsupported" : routerRequired ? "router_required" : "parser_deterministic";
-
-  return {
-    analysis_required: reasons.size > 0,
-    analysis_reasons: [...reasons],
-    suggested_event_types: [...suggested],
-    router_required: routerRequired,
-    event_type: routerRequired ? null : deterministic.event_type,
-    display_type: displayType,
-    display_version: displayVersion,
-    classification_source: classificationSource,
-    classification_reason: routerRequired
-      ? "Router/classifier required because security type, reason, or investor impact is ambiguous."
-      : deterministic.reason,
-    classification_evidence: deterministic.evidence,
-    analysis_llm_required: routerRequired || deterministic.analysis_llm_required,
-  };
-}
-
-function classifyDeterministicRoute({
-  commonEquityAffected,
-  filingMeaning,
-  removalReasonCategory,
-  removalReasonText,
-  removedSecurity,
-  securityCategory,
-}: {
-  commonEquityAffected: SecForm25Field<boolean | null>;
-  filingMeaning: SecForm25FilingMeaning;
-  removalReasonCategory: SecForm25Field<SecForm25RemovalReasonCategory>;
-  removalReasonText: SecForm25Field<string> | null;
-  removedSecurity: SecForm25Field<string> | null;
-  securityCategory: SecForm25Field<SecForm25SecurityCategory>;
-}): {
-  event_type: SecForm25ApprovedEventType | null;
-  reason: string | null;
-  evidence: string[];
-  analysis_llm_required: boolean;
-} {
-  const evidence = [
-    ...filingMeaning.evidence,
-    removalReasonText?.evidence,
-    removalReasonCategory.evidence,
-    removedSecurity?.evidence,
-  ].filter((item): item is string => Boolean(item));
-  const uniqueEvidence = [...new Set(evidence)].slice(0, 5);
-
-  if (filingMeaning.case === "merger_completion_removal") {
-    return {
-      event_type: "strategic_transaction",
-      reason: "Parser classified a completed merger removal from source-backed Form 25 facts.",
-      evidence: uniqueEvidence,
-      analysis_llm_required: false,
-    };
-  }
-
-  if (
-    filingMeaning.case === "matured_redeemed_retired_non_common" ||
-    filingMeaning.case === "voluntary_withdrawal_continued_listing_or_transfer"
-  ) {
-    return {
-      event_type: "other",
-      reason: "Parser classified a deterministic low-impact Form 25 removal from source-backed facts.",
-      evidence: uniqueEvidence,
-      analysis_llm_required: false,
-    };
-  }
-
-  if (
-    commonEquityAffected.value === true &&
-    isPlainCommonEquityCategory(securityCategory.value) &&
-    removalReasonCategory.value === "listing_standards_failure"
-  ) {
-    return {
-      event_type: "listing_risk",
-      reason: "Parser classified a common-equity listing-standard delisting from source-backed Form 25 facts.",
-      evidence: uniqueEvidence,
-      analysis_llm_required: true,
-    };
-  }
-
-  return {
-    event_type: null,
-    reason: null,
-    evidence: uniqueEvidence,
-    analysis_llm_required: true,
-  };
-}
-
-function isPlainCommonEquityCategory(value: SecForm25SecurityCategory) {
-  return value === "common_stock" || value === "ordinary_shares";
-}
-
 function buildWarnings({
   facts,
+  filedByNameNormalized,
   isSupported,
   sourceInventory,
 }: {
   facts: SecForm25Facts;
+  filedByNameNormalized: boolean;
   isSupported: boolean;
   sourceInventory: SecForm25SourceInventory;
 }) {
   const warnings: string[] = [];
   if (!isSupported) warnings.push("unsupported_or_unrecognized_form");
   if (!facts.removed_security) warnings.push("security_title_not_found");
-  if (!facts.removal_reason_text || facts.removal_reason_category.value === "unknown") warnings.push("missing_or_unclear_reason");
-  if (facts.routing.analysis_required) warnings.push(...facts.routing.analysis_reasons);
+  if (!facts.removal_reason_text) warnings.push("missing_or_unclear_reason");
+  if (filedByNameNormalized) warnings.push("filed_by_name_normalized_to_exchange");
   warnings.push(...sourceInventory.truncation_notes);
   return [...new Set(warnings)];
 }
@@ -722,20 +417,7 @@ function buildSummary(facts: SecForm25Facts) {
   const issuer = facts.issuer_name?.value || "Issuer";
   const security = facts.removed_security?.value || "a listed security";
   const exchange = facts.exchange?.value ? ` from ${facts.exchange.value}` : "";
-  const reason = facts.removal_reason_category.value !== "unknown" ? `; raw reason category: ${facts.removal_reason_category.value}` : "";
-  return `${issuer} filed ${facts.source_form_type || "Form 25"} to remove ${security}${exchange}${reason}.`;
-}
-
-function buildSignals(facts: SecForm25Facts) {
-  const signals = new Set<string>();
-  if (facts.filing_meaning.deterministic && facts.filing_meaning.case) signals.add(`deterministic:${facts.filing_meaning.case}`);
-  if (facts.routing.event_type) signals.add(`event_type:${facts.routing.event_type}`);
-  if (facts.routing.router_required) signals.add("router_required");
-  if (!facts.routing.router_required && facts.routing.event_type) signals.add("parser_classified_event_type");
-  if (facts.routing.analysis_required) signals.add("analysis_required");
-  facts.routing.analysis_reasons.forEach((reason) => signals.add(reason));
-  if (facts.common_equity_affected.value === true) signals.add("common_equity_affected");
-  return [...signals];
+  return `${issuer} filed ${facts.source_form_type || "Form 25"} to remove ${security}${exchange}.`;
 }
 
 function buildSourceInventory({
@@ -796,214 +478,132 @@ function mapAttachmentSummary(attachment: SourceText): SecForm25AttachmentSummar
   };
 }
 
-function classifySecurity(removedSecurity: SecForm25Field<string> | null): SecForm25Field<SecForm25SecurityCategory> {
-  const title = removedSecurity?.value || "";
-  const lower = title.toLowerCase();
-  let value: SecForm25SecurityCategory = "unknown";
-  if (/\b(?:note|notes|debenture|debentures|bond|bonds|senior\s+notes|subordinated\s+notes)\b/i.test(lower)) value = "debt";
-  else if (/\bwarrants?\b/i.test(lower)) value = "warrants";
-  else if (/\bpreferred\b/i.test(lower)) value = "preferred";
-  else if (/\b(?:american depositary|ads|adr)\b/i.test(lower)) value = "ads";
-  else if (/\bordinary shares?\b/i.test(lower)) value = "ordinary_shares";
-  else if (/\b(?:common stock|common shares?|class [a-z] common)\b/i.test(lower)) value = "common_stock";
-  else if (/\bunits?\b/i.test(lower)) value = "units";
-  else if (title) value = "other_non_common";
+const MAX_DIRECT_SOURCE_BLOCKS = 8;
+const MAX_DIRECT_SOURCE_BLOCK_CHARS = 4_500;
+const FORM25_FIXTURE_SENTINEL = /\bRAW_FORM25_FULL_TEXT_SENTINEL_SHOULD_NOT_REACH_PROMPTS\b/g;
 
-  return {
-    value,
-    evidence: removedSecurity?.evidence || "Security title was not found in the filing text.",
-    source: removedSecurity?.source || "derived",
-    confidence: value === "unknown" ? "low" : "high",
-  };
+function buildDirectSourceBlocks(sourceTexts: SourceText[]): SecForm25DirectSourceBlock[] {
+  const candidates = sourceTexts
+    .map((source, sourceIndex) => {
+      const descriptor = `${source.type || ""} ${source.description || ""} ${source.source}`;
+      const isPrimary = source.source === "primary_filing_text";
+      const isExchangeDetermination = /\b(?:EX-99\.25|99\.25|delist(?:ing)?|removal|rule\s*provision\s*notice)\b/i.test(
+        descriptor,
+      );
+      const blockType: SecForm25DirectSourceBlock["block_type"] = isExchangeDetermination
+        ? "form25_exchange_determination"
+        : isPrimary
+          ? "form25_primary_document"
+          : "form25_attachment";
+      const priority = isExchangeDetermination ? 100 : isPrimary ? 90 : 60;
+      const cleanedText = cleanDirectSourceText(source.text);
+
+      return chunkDirectSourceText(cleanedText).map((text, chunkIndex) => ({
+        block_id: buildDirectSourceBlockId(blockType, source.source, chunkIndex),
+        block_type: blockType,
+        label: directSourceBlockLabel({ source, blockType, chunkIndex }),
+        source_ref: source.source,
+        origin: isPrimary ? ("primary" as const) : ("attachment" as const),
+        priority,
+        document_type: source.type,
+        document_description: source.description,
+        text,
+        source_index: sourceIndex,
+        chunk_index: chunkIndex,
+      }));
+    })
+    .flat()
+    .filter((block) => Boolean(block.text))
+    .sort((left, right) => right.priority - left.priority || left.source_index - right.source_index || left.chunk_index - right.chunk_index);
+
+  const seen = new Set<string>();
+  const result: SecForm25DirectSourceBlock[] = [];
+  for (const candidate of candidates) {
+    const normalized = candidate.text.replace(/\s+/g, " ").trim().toLowerCase();
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    const { source_index: _sourceIndex, chunk_index: _chunkIndex, ...block } = candidate;
+    result.push(block);
+    if (result.length >= MAX_DIRECT_SOURCE_BLOCKS) break;
+  }
+  return result;
 }
 
-function classifyCommonEquity(
-  removedSecurity: SecForm25Field<string> | null,
-  securityCategory: SecForm25Field<SecForm25SecurityCategory>,
-  filingText: string,
-): SecForm25Field<boolean | null> {
-  const title = removedSecurity?.value || "";
-  if (securityCategory.value !== "ads" && securityCategory.value !== "units" && hasStandaloneCommonEquityClass(title)) {
-    return {
-      value: true,
-      evidence: removedSecurity?.evidence || title,
-      source: removedSecurity?.source || "derived",
-      confidence: "high",
-    };
-  }
-  if (securityCategory.value === "common_stock" || securityCategory.value === "ordinary_shares") {
-    return {
-      value: true,
-      evidence: removedSecurity?.evidence || title,
-      source: removedSecurity?.source || "derived",
-      confidence: "high",
-    };
-  }
-  if (securityCategory.value === "ads") {
-    const adsCommonMatch =
-      title.match(/\b(?:representing|represents|each\s+representing)[^.\n]{0,120}\bcommon\b/i) ||
-      filingText.match(/\b(?:ADS|American Depositary Shares?)[^.\n]{0,180}\b(?:representing|represents|each\s+representing)[^.\n]{0,180}\bcommon\b/i);
-    return {
-      value: adsCommonMatch ? true : null,
-      evidence: adsCommonMatch
-        ? pickEvidenceSentence(filingText, adsCommonMatch.index || 0)
-        : removedSecurity?.evidence || title || "ADS security title found without enough underlying equity detail.",
-      source: adsCommonMatch ? "combined_filing_text" : removedSecurity?.source || "derived",
-      confidence: adsCommonMatch ? "medium" : "low",
-    };
-  }
-  if (securityCategory.value === "units") {
-    return {
-      value: null,
-      evidence: removedSecurity?.evidence || title || "Unit security title found without enough component detail.",
-      source: removedSecurity?.source || "derived",
-      confidence: "low",
-    };
-  }
-  if (["debt", "warrants", "preferred", "other_non_common"].includes(securityCategory.value)) {
-    return {
-      value: false,
-      evidence: removedSecurity?.evidence || title,
-      source: removedSecurity?.source || "derived",
-      confidence: securityCategory.value === "other_non_common" ? "medium" : "high",
-    };
-  }
-  return {
-    value: null,
-    evidence: "Security class was not clear enough to determine whether common equity is affected.",
-    source: "derived",
-    confidence: "low",
-  };
+function cleanDirectSourceText(value: string) {
+  return compactText(value.replace(FORM25_FIXTURE_SENTINEL, ""));
 }
 
-function hasStandaloneCommonEquityClass(title: string) {
-  if (!/\b(?:common stock|common shares?|ordinary shares?)\b/i.test(title)) return false;
-  const warrantOnlyUnderlying =
-    /^\s*warrants?\b[\s\S]{0,260}\b(?:to purchase|exercisable for)\b[\s\S]{0,260}\b(?:common|ordinary)\b/i.test(title) &&
-    !/[;]\s*(?:class\s+[a-z]\s+)?(?:common stock|common shares?|ordinary shares?)\b/i.test(title) &&
-    !/^\s*(?:class\s+[a-z]\s+)?(?:common stock|common shares?|ordinary shares?)\b/i.test(title);
-  return !warrantOnlyUnderlying;
-}
+function chunkDirectSourceText(value: string) {
+  if (!value) return [];
+  if (value.length <= MAX_DIRECT_SOURCE_BLOCK_CHARS) return [value];
 
-function classifyRemovalReason(text: string, source: string): SecForm25Field<SecForm25RemovalReasonCategory> {
-  const patterns: Array<[SecForm25RemovalReasonCategory, RegExp, SecForm25Confidence]> = [
-    [
-      "matured_redeemed_retired",
-      /\b(?:called for redemption|redeemed|paid at maturity|maturity|retirement|retired|expired|all rights[^.\n]{0,120}extinguished|funds sufficient for the payment)\b/i,
-      "high",
-    ],
-    [
-      "merger_completion",
-      /\b(?:merger|acquisition|business combination|redomiciliation|simplification of the corporate structure)[\s\S]{0,520}?\b(?:became effective|completed|consummated|closed|closing|exchanged for|converted into|will be converted|will receive)\b|\b(?:was|were|is|are|will be)?\s*(?:converted into|exchanged for)\b/i,
-      "high",
-    ],
-    [
-      "exchange_transfer_or_continued_listing",
-      /\b(?:continue|continues|will continue)\s+(?:to be\s+)?(?:listed|trading)\b|\btransfer(?:red)?\s+(?:its\s+)?listing\b|\bprincipal listing exchange\b/i,
-      "high",
-    ],
-    [
-      "voluntary_withdrawal",
-      /\b(?:voluntar(?:y|ily)\s+(?:delist|withdraw)|issuer has complied[^.\n]{0,160}voluntary withdrawal|withdraw(?:al)?\s+from\s+listing)\b/i,
-      "medium",
-    ],
-    [
-      "listing_standards_failure",
-      /\b(?:no longer suitable|failed to cure|minimum bid|below \$?1\.00|continued listing standard|Listing Rule|Listed Company Manual|non-compliance|not appeal|did not appeal|delisting determination|chapter 11|bankrupt)\b/i,
-      "high",
-    ],
-  ];
+  const segments = value.match(/[^.!?]+[.!?]+(?:["')\]]+)?|[^.!?]+$/g) || [value];
+  const chunks: string[] = [];
+  let current = "";
 
-  for (const [value, pattern, confidence] of patterns) {
-    const match = text.match(pattern);
-    if (match) {
-      return {
-        value,
-        evidence: pickEvidenceSentence(text, match.index || 0),
-        source,
-        confidence,
-      };
+  for (const rawSegment of segments) {
+    const segment = compactText(rawSegment);
+    if (!segment) continue;
+    for (const piece of splitOversizedDirectSegment(segment)) {
+      if (!current) {
+        current = piece;
+        continue;
+      }
+      if (`${current} ${piece}`.length <= MAX_DIRECT_SOURCE_BLOCK_CHARS) {
+        current = `${current} ${piece}`;
+        continue;
+      }
+      chunks.push(current);
+      current = piece;
     }
   }
-
-  return {
-    value: "unknown",
-    evidence: text ? truncate(text, 420) : "No removal reason text found.",
-    source,
-    confidence: "low",
-  };
+  if (current) chunks.push(current);
+  return chunks.filter(Boolean);
 }
 
-function refineRemovalReasonCategory({
-  initial,
-  reasonText,
-  ruleProvision,
+function splitOversizedDirectSegment(value: string) {
+  if (value.length <= MAX_DIRECT_SOURCE_BLOCK_CHARS) return [value];
+  const pieces: string[] = [];
+  let remaining = value;
+  while (remaining.length > MAX_DIRECT_SOURCE_BLOCK_CHARS) {
+    const boundary = remaining.lastIndexOf(" ", MAX_DIRECT_SOURCE_BLOCK_CHARS);
+    const cutAt = boundary > MAX_DIRECT_SOURCE_BLOCK_CHARS * 0.7 ? boundary : MAX_DIRECT_SOURCE_BLOCK_CHARS;
+    pieces.push(remaining.slice(0, cutAt).trim());
+    remaining = remaining.slice(cutAt).trim();
+  }
+  if (remaining) pieces.push(remaining);
+  return pieces;
+}
+
+function buildDirectSourceBlockId(
+  blockType: SecForm25DirectSourceBlock["block_type"],
+  sourceRef: string,
+  chunkIndex: number,
+) {
+  const sourceSlug = sourceRef
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48) || "source";
+  return `${blockType}:${sourceSlug}:${chunkIndex + 1}`;
+}
+
+function directSourceBlockLabel({
+  source,
+  blockType,
+  chunkIndex,
 }: {
-  initial: SecForm25Field<SecForm25RemovalReasonCategory>;
-  reasonText: string;
-  ruleProvision: SecForm25Field<string> | null;
-}): SecForm25Field<SecForm25RemovalReasonCategory> {
-  const rule = ruleProvision?.value || "";
-
-  if (isRuleA1OrA2(rule) && initial.value === "unknown") {
-    return reasonCategoryFromRule(
-      "matured_redeemed_retired",
-      ruleProvision,
-      "Rule 12d2-2(a)(1)/(a)(2) states the class was called for redemption, matured, retired, redeemed, or paid.",
-    );
-  }
-
-  if (isRuleA4(rule) && initial.value === "unknown") {
-    return reasonCategoryFromRule(
-      "matured_redeemed_retired",
-      ruleProvision,
-      "Rule 12d2-2(a)(4) states all rights pertaining to the class were extinguished.",
-    );
-  }
-
-  if (isRuleA3(rule) && hasTransactionCompletionEvidence(reasonText)) {
-    return {
-      value: "merger_completion",
-      evidence: pickEvidenceSentence(reasonText, reasonText.search(transactionCompletionPattern())),
-      source: initial.value === "unknown" ? ruleProvision?.source || initial.source : initial.source,
-      confidence: "high",
-    };
-  }
-
-  return initial;
-}
-
-function reasonCategoryFromRule(
-  value: SecForm25RemovalReasonCategory,
-  ruleProvision: SecForm25Field<string> | null,
-  fallbackEvidence: string,
-): SecForm25Field<SecForm25RemovalReasonCategory> {
-  return {
-    value,
-    evidence: ruleProvision?.evidence || fallbackEvidence,
-    source: ruleProvision?.source || "rule_provision",
-    confidence: "high",
-  };
-}
-
-function isRuleA1OrA2(rule: string) {
-  return /12d2-2\(a\)\([12]\)/i.test(rule);
-}
-
-function isRuleA3(rule: string) {
-  return /12d2-2\(a\)\(3\)/i.test(rule);
-}
-
-function isRuleA4(rule: string) {
-  return /12d2-2\(a\)\(4\)/i.test(rule);
-}
-
-function transactionCompletionPattern() {
-  return /\b(?:merger|acquisition|business combination|redomiciliation|simplification of the corporate structure)[\s\S]{0,520}?\b(?:became effective|completed|consummated|closed|closing|exchanged for|converted into|will be converted|will receive)\b|\b(?:was|were|is|are|will be)?\s*(?:converted into|exchanged for)\b/i;
-}
-
-function hasTransactionCompletionEvidence(text: string) {
-  return transactionCompletionPattern().test(text);
+  source: SourceText;
+  blockType: SecForm25DirectSourceBlock["block_type"];
+  chunkIndex: number;
+}) {
+  const base =
+    blockType === "form25_exchange_determination"
+      ? "Exchange delisting determination"
+      : blockType === "form25_primary_document"
+        ? "Form 25 primary document"
+        : source.description || source.type || "Form 25 attachment";
+  return chunkIndex ? `${base} (part ${chunkIndex + 1})` : base;
 }
 
 function findRemovalReasonText(sourceTexts: SourceText[]): SecForm25Field<string> | null {
@@ -1014,7 +614,7 @@ function findRemovalReasonText(sourceTexts: SourceText[]): SecForm25Field<string
   for (const source of sources) {
     const text = source.text;
     const match = text.match(
-      /\b(?:NOTIFICATION OF THE REMOVAL FROM LISTING AND REGISTRATION OF THE STATED SECURITIES|Delisting Determination|voluntar(?:y|ily)\s+(?:delist|withdraw)|no longer suitable|called for redemption|redeemed|paid at maturity|expired|all rights[^.\n]{0,120}extinguished|merger|acquisition|business combination|redomiciliation|simplification of the corporate structure|converted into|exchanged for|continued listing|continue to be listed)\b/i,
+      /\b(?:Delisting Determination|voluntar(?:y|ily)\s+(?:delist|withdraw)|no longer suitable|called for redemption|redeemed|paid at maturity|expired|all rights[^.\n]{0,120}extinguished|merger|acquisition|business combination|redomiciliation|simplification of the corporate structure|converted into|exchanged for|continued listing|continue to be listed)\b/i,
     );
     if (!match) continue;
     const start = Math.max(0, (match.index || 0) - 80);
@@ -1140,6 +740,42 @@ function findXmlIssuerCik(sourceTexts: SourceText[]) {
   return findXmlNestedTagValue(sourceTexts, "issuer", "cik", "xml.issuer.cik");
 }
 
+function findStructuredSubjectCompanyCik(
+  sourceTexts: SourceText[],
+  issuerName: string | null,
+): SecForm25Field<string> | null {
+  const issuerPattern = issuerName
+    ? new RegExp(`\\b(\\d{6,10})\\s+${escapeRegExp(compactText(issuerName)).replace(/\s+/g, "\\s+")}(?=\\s|$)`, "i")
+    : null;
+  const exchangePattern =
+    /\bX0203\s+\d{1,10}\s+(?:NEW YORK STOCK EXCHANGE LLC|NYSE AMERICAN LLC|NYSE Arca(?:, Inc\.| Equities, Inc\.)?|Nasdaq Stock Market LLC|The Nasdaq Stock Market LLC)\s+(\d{1,10})\s+([A-Z][A-Za-z0-9&.,'\/ -]{2,}?)\s+\d{3}-\d{4,10}\b/i;
+
+  for (const source of sourceTexts) {
+    const text = compactText(source.text);
+    const issuerMatch = issuerPattern ? text.match(issuerPattern) : null;
+    if (issuerMatch?.[1]) {
+      return {
+        value: issuerMatch[1],
+        evidence: truncate(issuerMatch[0], 220),
+        source: `${source.source}.structured_form25_subject_cik`,
+        confidence: "medium",
+      };
+    }
+
+    const exchangeMatch = text.match(exchangePattern);
+    if (exchangeMatch?.[1]) {
+      return {
+        value: exchangeMatch[1],
+        evidence: truncate(exchangeMatch[0], 220),
+        source: `${source.source}.structured_form25_subject_cik`,
+        confidence: "medium",
+      };
+    }
+  }
+
+  return null;
+}
+
 function findXmlExchangeName(sourceTexts: SourceText[]) {
   return findXmlNestedTagValue(sourceTexts, "exchange", "entityName", "xml.exchange.entity_name");
 }
@@ -1168,6 +804,7 @@ function findXmlNestedTagValue(
 
 function findIssuerName(sourceTexts: SourceText[]) {
   return (
+    findTextValue(sourceTexts, /\bIssuer:\s*\|?\s*\n\s*([^\n|]+)/i) ||
     findTextValue(sourceTexts, /\bIssuer:\s*([^\n]+)/i) ||
     findTextValue(sourceTexts, /\bSUBJECT COMPANY:[\s\S]{0,200}?\bCOMPANY CONFORMED NAME:\s*([^\n]+)/i) ||
     findTextValue(sourceTexts, /\b([A-Z][A-Za-z0-9&.,' -]+?)\s*\/\s*(?:NYSE|NASDAQ|NYSE Arca|NYSE American)/i)
@@ -1176,6 +813,7 @@ function findIssuerName(sourceTexts: SourceText[]) {
 
 function findExchange(sourceTexts: SourceText[], filedByName: string | null) {
   return (
+    findTextValue(sourceTexts, /\bExchange:\s*\|?\s*\n\s*([^\n|]+)/i) ||
     findTextValue(sourceTexts, /\bExchange:\s*([^\n]+)/i) ||
     normalizeExchangeFromFiledBy(filedByName) ||
     findTextValue(sourceTexts, /\b(?:NEW YORK STOCK EXCHANGE LLC|NYSE AMERICAN LLC|NYSE Arca(?:, Inc\.| Equities, Inc\.)?|Nasdaq Stock Market LLC|The Nasdaq Stock Market LLC)\b/i)
@@ -1193,7 +831,65 @@ function normalizeExchangeFromFiledBy(value: string | null): SecForm25Field<stri
   if (/nyse american/i.test(value)) {
     return { value: "NYSE AMERICAN LLC", evidence: value, source: "filed_by_name", confidence: "medium" };
   }
+  if (/^nyse$/i.test(value.trim())) {
+    return { value: "NEW YORK STOCK EXCHANGE LLC", evidence: value, source: "filed_by_name", confidence: "medium" };
+  }
   return null;
+}
+
+function resolveFiledByName({
+  exchange,
+  explicitFiledByName,
+  filedByCik,
+  filingHeaderName,
+  formType,
+}: {
+  exchange: SecForm25Field<string> | null;
+  explicitFiledByName: SecForm25Field<string> | null;
+  filedByCik: SecForm25Field<string> | null;
+  filingHeaderName: SecForm25Field<string> | null;
+  formType: SecForm25SourceFormType;
+}): { field: SecForm25Field<string> | null; normalized: boolean } {
+  const isExchangeFiled = formType === "25-NSE" || formType === "25-NSE/A";
+  if (!isExchangeFiled) {
+    return { field: explicitFiledByName || filingHeaderName, normalized: false };
+  }
+
+  const explicitExchangeName = normalizeExchangeFromFiledBy(explicitFiledByName?.value || null);
+  if (explicitExchangeName) {
+    return {
+      field: { ...explicitExchangeName, source: explicitFiledByName?.source || explicitExchangeName.source },
+      normalized: false,
+    };
+  }
+
+  const exchangeName = normalizeExchangeFromFiledBy(exchange?.value || null) || exchange;
+  const cikExchangeName = exchangeNameFromCik(filedByCik?.value || null);
+  const field = exchangeName || cikExchangeName;
+  const headerIsExchange = Boolean(normalizeExchangeFromFiledBy(filingHeaderName?.value || null));
+  const replacedNonExchangeName = Boolean(
+    field &&
+      ((explicitFiledByName && !explicitExchangeName) || (!explicitFiledByName && filingHeaderName && !headerIsExchange)),
+  );
+
+  return { field, normalized: replacedNonExchangeName };
+}
+
+function exchangeNameFromCik(value: string | null): SecForm25Field<string> | null {
+  const cik = stringValue(value).replace(/^0+/, "");
+  const exchangeNames: Record<string, string> = {
+    "1354457": "Nasdaq Stock Market LLC",
+    "876661": "NEW YORK STOCK EXCHANGE LLC",
+    "1143313": "NYSE AMERICAN LLC",
+  };
+  const exchangeName = exchangeNames[cik];
+  if (!exchangeName) return null;
+  return {
+    value: exchangeName,
+    evidence: value || exchangeName,
+    source: "filed_by_cik",
+    confidence: "high",
+  };
 }
 
 function findRemovedSecurity(sourceTexts: SourceText[]) {
@@ -1205,7 +901,7 @@ function findRemovedSecurity(sourceTexts: SourceText[]) {
 }
 
 function findRuleProvision(sourceTexts: SourceText[]) {
-  const checked = findTextValue(sourceTexts, /\[\s*X\s*\]\s*(17\s+C[FP]R\s+240\.12d[2D]-2\([a-c]\)(?:\(\d\))?)/i);
+  const checked = findCheckedRuleProvision(sourceTexts);
   if (checked) return checked;
 
   const rawStructuredSources = sourceTexts.filter((source) =>
@@ -1225,6 +921,30 @@ function findRuleProvision(sourceTexts: SourceText[]) {
   );
 }
 
+function findCheckedRuleProvision(sourceTexts: SourceText[]) {
+  const checkedMarker = String.raw`(?:\[\s*X\s*\]|\(\s*X\s*\)|☒|☑|■|&#9746;|&#x2612;|&#9745;|&#x2611;)`;
+  const uncheckedMarker = String.raw`(?:\[\s*\]|\(\s*\)|☐|□|&#9744;|&#x2610;)`;
+  const rulePattern = String.raw`(17\s+C[FP]R\s+240\.12d[2D]-2\([a-c]\)(?:\(\d\))?)`;
+  const checkedRulePatterns = [
+    new RegExp(`${checkedMarker}(?:(?!${uncheckedMarker})[\\s\\S]){0,360}?\\b${rulePattern}`, "gi"),
+    new RegExp(`(?:^|[\\n|])\\s*[xX]\\s*\\|?(?:(?!${uncheckedMarker})[\\s\\S]){0,360}?\\b${rulePattern}`, "gi"),
+  ];
+
+  for (const source of sourceTexts) {
+    const matches = checkedRulePatterns.flatMap((pattern) => [...source.text.matchAll(pattern)]);
+    const uniqueRules = [...new Set(matches.map((match) => compactText(match[1] || "")))].filter(Boolean);
+    if (uniqueRules.length !== 1) continue;
+    return {
+      value: uniqueRules[0],
+      evidence: pickEvidenceSentence(source.text, matches[0]?.index || 0),
+      source: source.source,
+      confidence: "high" as const,
+    };
+  }
+
+  return null;
+}
+
 function findSingleRuleProvision(sourceTexts: SourceText[]) {
   const rulePattern = /\b17\s+C[FP]R\s+240\.12d[2D]-2\([a-c]\)(?:\(\d\))?/gi;
   for (const source of sourceTexts) {
@@ -1241,10 +961,20 @@ function findSingleRuleProvision(sourceTexts: SourceText[]) {
   return null;
 }
 
+function findRemovalReasonFromRuleProvision(ruleProvision: SecForm25Field<string> | null) {
+  if (!ruleProvision || !/\b12d[2D]-2\(c\)/i.test(ruleProvision.value)) return null;
+  return {
+    value: "Issuer voluntary withdrawal from listing and registration under Rule 12d2-2(c).",
+    evidence: ruleProvision.evidence,
+    source: ruleProvision.source,
+    confidence: ruleProvision.confidence,
+  };
+}
+
 function findRemovalDate(sourceTexts: SourceText[]) {
   return findDateField(
     sourceTexts,
-    /\b(?:remove[^.\n]{0,220}?from listing[^.\n]{0,220}?on|from listing and registration[^.\n]{0,160}?on|effective at the opening of the trading session on|opening of business on)\s+([A-Z][a-z]+ \d{1,2}, \d{4}|\d{4}-\d{2}-\d{2})/i,
+    /\b(?:remove[^.]{0,220}?from listing[^.]{0,220}?on|from listing and registration[^.]{0,160}?on|effective\s+at\s+the\s+opening\s+of\s+(?:the\s+)?(?:trading\s+session|business)\s+on|opening\s+of\s+business\s+on)\s+([A-Z][a-z]+ \d{1,2}, \d{4}|\d{4}-\d{2}-\d{2})/i,
     "delisting_or_removal_date",
   );
 }
@@ -1252,7 +982,7 @@ function findRemovalDate(sourceTexts: SourceText[]) {
 function findSuspensionDate(sourceTexts: SourceText[]) {
   return findDateField(
     sourceTexts,
-    /\b(?:suspended from trading|trading[^.\n]{0,120}?suspended|securities were suspended)[^.\n]{0,160}?\b(?:on|effective(?: at)?(?: the opening of business on)?)\s+([A-Z][a-z]+ \d{1,2}, \d{4}|\d{4}-\d{2}-\d{2})/i,
+    /\b(?:suspended\s+from\s+trading|trading[^.]{0,120}?suspended|(?:security|securities|stock|shares?)\s+(?:was|were)\s+suspended)[^.]{0,160}?\b(?:on|effective(?:\s+at)?(?:\s+the\s+opening\s+of\s+business\s+on)?)\s+([A-Z][a-z]+ \d{1,2}, \d{4}|\d{4}-\d{2}-\d{2})/i,
     "trading_suspension_date",
   );
 }
@@ -1344,6 +1074,12 @@ function stringFieldFromValue(value: unknown, source: string): SecForm25Field<st
         confidence: "high",
       }
     : null;
+}
+
+function stringFieldFromCompanyName(value: unknown, source: string): SecForm25Field<string> | null {
+  const text = nullableString(value);
+  if (!text || /\bfiled by\b/i.test(text)) return null;
+  return stringFieldFromValue(text, source);
 }
 
 function dateFieldFromValue(value: unknown, source: string): SecForm25Field<string> | null {
@@ -1456,6 +1192,13 @@ function isForm25Family(value: SecForm25SourceFormType) {
   return value === "25" || value === "25-NSE" || value === "25/A" || value === "25-NSE/A";
 }
 
+function isIssuerFiledVoluntaryWithdrawal(
+  formType: SecForm25SourceFormType,
+  ruleProvision: SecForm25Field<string> | null,
+) {
+  return (formType === "25" || formType === "25/A") && /12d2-2\(c\)/i.test(ruleProvision?.value || "");
+}
+
 function formatAttachmentSource(type: string | null, description: string | null, index: number) {
   const label = compactText([type, description].filter(Boolean).join(" "));
   return label ? `attachment_${index + 1}:${label}` : `attachment_${index + 1}`;
@@ -1558,6 +1301,10 @@ function cleanExtractedTextValue(value: string) {
 function truncate(value: string, max: number) {
   const text = compactText(value);
   return text.length > max ? `${text.slice(0, max - 3).trim()}...` : text;
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function toRecord(value: unknown): Record<string, unknown> | null {

@@ -2,19 +2,12 @@ import {
   SEC_FORM25_APPROVED_EVENT_TYPES,
   SEC_FORM25_DISPLAY_PAYLOAD_VERSION,
   SEC_FORM25_DISPLAY_TYPE_VALUES,
-  SEC_FORM25_PARSER_VERSION,
   type SecForm25ParserOutput,
 } from "./parser";
-import {
-  buildSecForm25DisplayPayload,
-  resolveSecForm25SelectedClassification,
-  type SecForm25DisplayPayload,
-  type SecForm25SelectedClassification,
-} from "./displayPayload";
 import { buildSecForm25SourceBlockInput, type SecForm25SourceBlockInput } from "./sourceBlocks";
 
 export const SEC_FORM25_ANALYSIS_PROMPT_KEY = "sec_form25_analysis_draft";
-export const SEC_FORM25_ANALYSIS_PROMPT_VERSION = "v1";
+export const SEC_FORM25_ANALYSIS_PROMPT_VERSION = "v14-related-reason-context";
 
 export const SEC_FORM25_MARKET_SCOPE_VALUES = ["company", "sector", "theme", "macro"] as const;
 export const SEC_FORM25_SIGNAL_VALUES = ["bullish", "bearish", "volatile", "neutral"] as const;
@@ -24,37 +17,66 @@ export type SecForm25AnalysisPromptInput = SecForm25SourceBlockInput & {
   market_context?: Record<string, unknown> | null;
 };
 
-export {
-  buildSecForm25DisplayPayload,
-  resolveSecForm25SelectedClassification,
-  summarizeForm25ForDisplay,
-} from "./displayPayload";
-export type { SecForm25DisplayPayload, SecForm25SelectedClassification } from "./displayPayload";
-
 export const secForm25AnalysisSystemPrompt = [
   "Analyze one SEC Form 25 / 25-NSE filing and return only strict JSON matching the Required Output JSON schema.",
-  "The required top-level shape is exactly parser_output, analysis_output, display_payload, and fixture_expected.",
+  "The required top-level shape is exactly analysis_output and display_payload.",
   "Use current_filing.form_type exactly when naming the SEC form. Do not substitute another Form 25 variant.",
-  "Write investor-facing copy only. Do not choose the event type, display template, or display version.",
-  "Use selected_classification.event_type for analysis_output.event_type exactly.",
-  "Return prebuilt_display_payload as display_payload exactly; do not invent UI fields or a new display type.",
-  "Use cleaned_source_blocks and selected classification as the evidence base. Do not invent facts, dates, tickers, exchanges, security classes, merger parties, or listing venues.",
-  "Do not use parser-generated facts, signals, extraction summaries, event labels, display labels, or investment labels as analysis authority.",
+  "Write investor-facing copy only. Choose event_type, display_payload.display_type, score, and signal from cleaned_source_blocks.",
+  "Use cleaned_source_blocks as the evidence base. Do not invent facts, dates, tickers, exchanges, security classes, merger parties, or listing venues.",
+  "If cleaned_source_blocks include related_filing_context, use it only as source-backed context for the same subject company. It can explain whether the Form 25 follows a completed merger, acquisition, share exchange, de-SPAC transition, or other corporate action.",
+  "For display_payload.data removal reason fields, use this evidence order: a reason stated by the current Form 25 first; otherwise removal_reason_context from the matched analyzed related filing; otherwise Reason not disclosed. Keep the snapshot consistent with the summary when both use the same related filing context.",
+  "Do not invent related context when related_filing_context is absent. Do not override direct Form 25 facts with unrelated historical filings.",
+  "Choose form25_lifecycle.disposition from the filing and supplied related filing context: standalone_event whenever no supplied analyzed event explains the removal, including low-impact routine removals; related_event_update when it confirms or advances an existing analyzed event; administrative_cleanup when it only removes a class after a completed transaction or routine retirement already represented by an existing analyzed event; and context_unresolved only when the output claims a relationship that the supplied context cannot establish.",
+  "standalone_event describes source independence, not materiality. It can still be neutral, low score, and archive-level.",
+  "Set related_event_id and related_accession_number only from a selected_filings entry that has a non-null event_id in related_filing_context. Never invent an identifier or treat an unanalyzed raw filing as the prior event.",
+  "Set has_new_material_information true only when this Form 25 changes the investor's known state beyond the prior analyzed event, such as a newly disclosed cause, a new trading suspension not previously disclosed, an appeal outcome, a continued trading venue, a successor security, or a holder payment right.",
+  "A Form 25 filing occurrence or formal removal/effectiveness date alone is not new material information when the supplied prior analyzed filing already disclosed the delisting decision, trading suspension, or expected Form 25. Treat that filing as an archive-level procedural lifecycle update.",
+  "Keep date roles distinct in every investor-facing field. A trading suspension date is when exchange trading stopped; a delisting determination date is when the exchange decision became final; a delisting_or_removal_date or effectiveness_date is when formal exchange removal becomes effective.",
+  "Never describe a trading suspension date or final-determination date as the formal delisting/removal effective date. When more than one date matters, label both roles explicitly, for example: 'Trading was suspended on February 12; formal removal became effective July 21.'",
+  "When no original source block establishes a formal removal/effectiveness date, do not convert filing_date into that date. You may say the Form 25 was filed on filing_date, but omit any claimed formal removal date.",
+  "For quick_take, prefer the date tied to the stated action. If mentioning formal removal or delisting effectiveness, use delisting_or_removal_date or effectiveness_date; if mentioning halted trading, use trading_suspension_date and say trading was suspended.",
+  "When a matched related filing states that OTC, OTCQX, OTCQB, Pink, or another venue continues after exchange delisting, preserve that fact in summary and continued_listing_or_trading_venue. Do not imply complete loss of trading liquidity.",
+  "A related_event_update or administrative_cleanup with no new material information is an archive-level lifecycle update, not a duplicate alert. Score it 10-25, use neutral signal, and summarize only the procedural change rather than repeating the prior event analysis.",
+  "For Form 25/A or 25-NSE/A, when the supplied related filing context contains the original Form 25 or 25-NSE, always use related_event_update rather than standalone_event. Describe only the correction or confirmation made by the amendment, keep the score below 50, and do not repeat the original listing-risk alert. If the amendment source does not identify a substantive change, state that it updates the original filing without establishing a new investor-risk event.",
+  "Base filing facts on the original Form 25 primary-document and exchange-determination source blocks. Parser-extracted values and evidence snippets are internal metadata, not analysis evidence.",
+  "Do not use parser-generated signals, event labels, display labels, investment labels, route hints, or classifier hints as analysis authority.",
   "If the parser did not provide a source-backed primary ticker, keep primary_ticker.ticker null and do not treat the filing as archive-ready.",
-  "Do not request or rely on full raw filing text. The user payload intentionally excludes it.",
-  "The parser/classifier has already selected event_type and display_type. You choose only signal, score, confidence, human-review status, and concise investor-facing wording.",
+  "Do not request the complete SEC submission beyond the supplied direct source blocks. Those blocks preserve the relevant original Form 25 and EX-99.25 context.",
+  "Writing style:",
+  "- Use plain investor language. Rewrite SEC/legal phrasing into clear, simple wording without changing the meaning.",
+  "- Do not copy filing jargon when a simpler phrase is possible.",
+  "- Keep each point self-contained and easy to understand.",
+  "- Avoid legalistic fragments, copied definitions, and sentence pieces that only make sense inside the original filing.",
+  "- Write like a stock analyst explaining the practical read-through to investors. You may offer a cautious interpretation, a warning, or a suggested investor focus when the source supports it.",
+  "- Do not exaggerate beyond the filing. Opinion should explain why the filing matters, not invent market reaction.",
   "Clear matured, redeemed, retired, or paid-at-maturity non-common securities should usually be neutral, score 0-39, and low-impact archive when common equity is not affected and no source evidence shows credit or legal stress.",
   "Do not describe a routine maturity, redemption, retirement, or paid-at-maturity non-common removal as listing_risk merely because Form 25 removes the class from an exchange.",
   "Use listing_risk, financial_risk, or legal_risk for a non-common removal only when source evidence mentions listing-standard failure, bankruptcy, insolvency, receivership, default, litigation, or other legal stress.",
   "Use financial_risk or legal_risk only when source evidence mentions bankruptcy, insolvency, receivership, default, litigation, or other legal stress.",
-  "ipo_listing is approved globally, but use it only if selected_classification.event_type is ipo_listing; then preserve prebuilt_display_payload.data.ipo_kind as traditional or spac.",
+  "Do not use listing_risk merely because common stock, ordinary shares, ADSs, trading suspension, or Rule 12d2-2(a)(3) appears in the filing.",
+  "Use listing_risk only when cleaned_source_blocks show listing-standard failure, exchange suitability concerns, no continued trading venue after voluntary delisting, or another direct liquidity/listing warning.",
+  "Classify from the investor consequence, not the Form 25 procedure: voluntary removal of common equity with no clearly disclosed continued exchange venue is listing_risk; use strategic_transaction only when source evidence shows a merger, acquisition, business combination, cash-out, or security substitution transaction.",
+  "If Rule 12d2-2(a)(3) removes common equity but no listing-standard failure, legal stress, or voluntary going-dark reason is stated, treat it as a substitution/transaction cleanup case and use strategic_transaction or neutral/volatile language with human review if needed.",
+  "ipo_listing is approved globally, but use it only when cleaned_source_blocks show the Form 25 is part of a SPAC/de-SPAC ticker transition or another listing transition rather than an ordinary delisting.",
   "Do not treat SPAC redemption, liquidation, de-SPAC follow-up, resale registration, shelf offering, or ATM/offering dilution as ipo_listing unless the selected main event is IPO/listing itself.",
   "Form 25 scoring guide:",
   "- Exchange-forced common stock, ordinary share, or ADS delisting for listing-standard failure is bearish and usually alert-level, score 80-95 when removal or trading suspension is active or near-term.",
   "- Voluntary common-equity delisting, going-dark, or deregistration that reduces exchange liquidity is usually bearish or volatile, score 70-85, and can be alert-level when no clear continued trading venue is disclosed.",
   "- Completed merger, acquisition, share exchange, cash-out, or de-SPAC cleanup removal is usually strategic_transaction, not bearish by default. Score 45-70 unless the filing newly changes holder economics, consideration, closing certainty, or trading status.",
   "- SPAC/de-SPAC ticker transition or old SPAC security removal after a successor listing is usually neutral or volatile, score 55-74 unless there is source-backed listing failure, redemption/liquidity stress, or deal-break risk.",
+  "- Automatic unit separation into disclosed underlying shares, rights, or warrants is usually a routine security lifecycle event, neutral and score 0-39, when holders retain the underlying securities and no listing, transaction, or financial stress is disclosed.",
+  "- Automatic unit separation is not a SPAC/de-SPAC ticker transition unless the source also identifies a successor company, ticker, or listing transition.",
   "- Matured, redeemed, retired, paid-at-maturity, or expired non-common securities are usually neutral, score 0-39, unless source evidence shows default, bankruptcy, legal stress, or common-equity impact.",
+  "Rule guidance for Form 25:",
+  "- Rule 12d2-2(a)(1)/(a)(2) often points to redemption, maturity, retirement, or payment of a class.",
+  "- Rule 12d2-2(a)(3) often points to securities being replaced by other securities or cash rights. Use source context to decide whether this is merger cleanup, unit separation, de-SPAC/ticker transition, or another substitution event.",
+  "- Rule 12d2-2(b) often points to exchange-initiated delisting. Look for listing-standard failure, suspension, appeal, or suitability language before calling it listing_risk.",
+  "- Rule 12d2-2(c) often points to voluntary withdrawal. Check whether another listing or trading venue continues.",
+  "- When common equity is removed but the source does not disclose a clear reason, do not use alert-level scoring unless the source also explicitly states listing-standard failure or legal/financial stress.",
+  "- For common-equity Form 25 filings with missing_or_unclear_reason, score must be 50-74, signal must be volatile or neutral, and needs_human_review must be true.",
+  "- A score of 75 or higher is invalid for missing_or_unclear_reason unless cleaned_source_blocks explicitly show listing-standard failure or legal/financial stress.",
+  "- Do not infer no continued trading path from null, missing, or blank continued_listing_or_trading_venue fields.",
+  "- Boilerplate or unchecked Rule 12d2-2(b)/(c) language does not count as exchange-forced failure or voluntary going-dark evidence.",
   "Score-derived delivery only: score below 50 maps to archive, 50-74 maps to feed, and 75 or above maps to alert. Do not create any other delivery decision.",
   "Always include score_explanation.summary. It is visible on the detail page.",
   "score_explanation.summary should read like a concise analyst bottom-line for stock investors, 18-32 words.",
@@ -64,47 +86,24 @@ export const secForm25AnalysisSystemPrompt = [
   "Do not reuse the opening structure or sentence from analysis_output.summary, quick_take, why_it_matters, or display_payload.data fields in score_explanation.summary.",
   "Write score_explanation.summary in plain investor language. Avoid SEC/legal terms when a simpler phrase is accurate.",
   "Do not provide market taxonomy from the filing. Use site-provided market_context when present; otherwise keep sector, industry_group, theme_group, and sub_theme null.",
-  "Keep output short: event_title under 90 characters; quick_take one sentence under 22 words; summary 2-4 sentences under 100 words total; why_it_matters one sentence under 35 words.",
+  "For analysis_output.summary, write 3-5 sentences under 130 words total. Include the filing action, what it means for trading/liquidity or holder economics, and one analyst-style investor read-through.",
+  "The summary should not be a bare fact list. After the facts, add a practical view such as whether this is routine cleanup, a liquidity warning, a merger completion step, or a reason to check continued trading venue.",
+  "Keep output concise: event_title under 90 characters; quick_take one sentence under 22 words; why_it_matters one sentence under 35 words.",
   "Keep score_reason under 18 words.",
   "Keep bullish_points, bearish_points, key_evidence, and what_to_watch_next to at most 3 items each, and each item under 16 words.",
+  "Use what_to_watch_next only when there is a real next investor check. Return [] for archive-level cleanup, matured/redeemed/retired non-common securities, routine merger cleanup, or low-impact voluntary withdrawals.",
+  "For exchange-forced delisting or trading suspension, what_to_watch_next may mention continued/OTC trading venue, appeal/compliance updates, or company follow-up.",
+  "For merger, acquisition, de-SPAC, or ticker-transition removals, what_to_watch_next may mention consideration payment, successor ticker/listing, closing confirmation, or redemption/transition updates.",
+  "Do not add generic watch items such as 'monitor announcements' unless the filing leaves a specific trading venue, payment, closing, compliance, or successor-listing question open.",
+  "Display payload data is visible UI. Keep snapshot/card note fields such as removal_reason_text under 80 characters. Do not paste raw notice paragraphs into UI fields.",
   "Do not copy raw parser, formatter, schema, or structured-field wording into user-facing analysis. Rewrite source facts in natural investor language.",
 ].join("\n");
 
 export const secForm25RequiredOutputSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["parser_output", "analysis_output", "display_payload", "fixture_expected"],
+  required: ["analysis_output", "display_payload"],
   properties: {
-    parser_output: {
-      type: "object",
-      additionalProperties: false,
-      required: [
-        "parserVersion",
-        "parserGroup",
-        "formType",
-        "accessionNumber",
-        "isSupported",
-        "summary",
-        "facts",
-        "signals",
-        "calendarItems",
-        "warnings",
-        "raw",
-      ],
-      properties: {
-        parserVersion: { type: "string", enum: [SEC_FORM25_PARSER_VERSION] },
-        parserGroup: { type: "string", enum: ["form25"] },
-        formType: { type: "string", enum: ["Form 25 / 25-NSE"] },
-        accessionNumber: { type: ["string", "null"] },
-        isSupported: { type: "boolean" },
-        summary: { type: ["string", "null"] },
-        facts: { type: "object", additionalProperties: true },
-        signals: { type: "array", items: { type: "string" } },
-        calendarItems: { type: "array", items: { type: "object", additionalProperties: true } },
-        warnings: { type: "array", items: { type: "string" } },
-        raw: { type: "object", additionalProperties: true },
-      },
-    },
     analysis_output: {
       type: "object",
       additionalProperties: false,
@@ -134,6 +133,7 @@ export const secForm25RequiredOutputSchema = {
         "calendar_items",
         "confidence",
         "needs_human_review",
+        "form25_lifecycle",
       ],
       properties: {
         source_group: { type: "string", enum: ["filings"] },
@@ -200,6 +200,27 @@ export const secForm25RequiredOutputSchema = {
         calendar_items: { type: "array", items: { type: "object", additionalProperties: true } },
         confidence: { type: "string", enum: SEC_FORM25_CONFIDENCE_VALUES },
         needs_human_review: { type: "boolean" },
+        form25_lifecycle: {
+          type: "object",
+          additionalProperties: false,
+          required: [
+            "disposition",
+            "related_event_id",
+            "related_accession_number",
+            "has_new_material_information",
+            "rationale",
+          ],
+          properties: {
+            disposition: {
+              type: "string",
+              enum: ["standalone_event", "related_event_update", "administrative_cleanup", "context_unresolved"],
+            },
+            related_event_id: { type: ["string", "null"] },
+            related_accession_number: { type: ["string", "null"] },
+            has_new_material_information: { type: "boolean" },
+            rationale: { type: "string", maxLength: 240 },
+          },
+        },
       },
     },
     display_payload: {
@@ -225,19 +246,16 @@ export const secForm25RequiredOutputSchema = {
             "primary_ticker",
             "primary_ticker_exchange",
             "removed_security",
-            "security_category",
             "exchange",
             "rule_provision",
             "removal_reason",
             "removal_reason_text",
-            "common_equity_affected",
             "delisting_or_removal_date",
             "trading_suspension_date",
             "continued_listing_or_trading_venue",
             "successor_or_acquirer",
             "consideration_summary",
             "ipo_kind",
-            "deterministic_case",
           ],
           properties: {
             accession_number: { type: ["string", "null"] },
@@ -251,48 +269,21 @@ export const secForm25RequiredOutputSchema = {
             filed_by_cik: { type: ["string", "null"] },
             primary_ticker: { type: ["string", "null"] },
             primary_ticker_exchange: { type: ["string", "null"] },
-            removed_security: { type: ["string", "null"] },
-            security_category: { type: "string" },
-            exchange: { type: ["string", "null"] },
-            rule_provision: { type: ["string", "null"] },
-            removal_reason: { type: ["string", "null"] },
-            removal_reason_text: { type: ["string", "null"] },
-            common_equity_affected: { type: ["boolean", "null"] },
-            delisting_or_removal_date: { type: ["string", "null"] },
-            trading_suspension_date: { type: ["string", "null"] },
-            continued_listing_or_trading_venue: { type: ["string", "null"] },
-            successor_or_acquirer: { type: ["string", "null"] },
-            consideration_summary: { type: ["string", "null"] },
+            removed_security: { type: ["string", "null"], maxLength: 120 },
+            exchange: { type: ["string", "null"], maxLength: 80 },
+            rule_provision: { type: ["string", "null"], maxLength: 80 },
+            removal_reason: { type: ["string", "null"], maxLength: 80 },
+            removal_reason_text: { type: ["string", "null"], maxLength: 80 },
+            delisting_or_removal_date: { type: ["string", "null"], maxLength: 40 },
+            trading_suspension_date: { type: ["string", "null"], maxLength: 40 },
+            continued_listing_or_trading_venue: { type: ["string", "null"], maxLength: 80 },
+            successor_or_acquirer: { type: ["string", "null"], maxLength: 80 },
+            consideration_summary: { type: ["string", "null"], maxLength: 80 },
             ipo_kind: { enum: ["traditional", "spac", null] },
-            deterministic_case: { type: ["string", "null"] },
           },
         },
         evidence: { type: "array", items: { type: "string" } },
         notes: { type: "array", items: { type: "string" } },
-      },
-    },
-    fixture_expected: {
-      type: "object",
-      additionalProperties: false,
-      required: [
-        "expected_delivery_level",
-        "expected_impact",
-        "market_context_needed",
-        "market_context_reason",
-        "market_context_fields",
-        "special_ui_needed",
-        "special_ui_reason",
-        "integration_notes",
-      ],
-      properties: {
-        expected_delivery_level: { type: "string", enum: ["archive", "feed", "alert"] },
-        expected_impact: { type: "string", enum: ["low", "medium", "high"] },
-        market_context_needed: { type: "boolean" },
-        market_context_reason: { type: ["string", "null"] },
-        market_context_fields: { type: "array", items: { type: "string" } },
-        special_ui_needed: { type: "boolean" },
-        special_ui_reason: { type: ["string", "null"] },
-        integration_notes: { type: "array", items: { type: "string" } },
       },
     },
   },
@@ -316,21 +307,18 @@ export function buildSecForm25AnalysisPromptDraft(input: SecForm25AnalysisPrompt
 }
 
 export function buildSecForm25AnalysisInput(input: SecForm25AnalysisPromptInput) {
-  const selectedClassification = resolveSecForm25SelectedClassification(input.parser_output);
-  const prebuiltDisplayPayload = buildSecForm25DisplayPayload(input.parser_output, selectedClassification);
-
   return {
     cleaned_source_blocks_input: buildSecForm25SourceBlockInput({
       parser_output: input.parser_output,
       fixture_context: input.fixture_context || null,
+      related_filing_context: input.related_filing_context || null,
     }),
-    selected_classification: selectedClassification,
-    prebuilt_display_payload: prebuiltDisplayPayload,
     market_context: input.market_context || null,
     output_shape: {
-      required_top_level_keys: ["parser_output", "analysis_output", "display_payload", "fixture_expected"],
-      event_type_policy: "Use selected_classification.event_type exactly; do not choose a different event_type.",
-      display_payload_policy: "Return prebuilt_display_payload exactly; do not add, remove, or rename UI fields.",
+      required_top_level_keys: ["analysis_output", "display_payload"],
+      event_type_policy: "Choose event_type from cleaned_source_blocks only.",
+      display_payload_policy:
+        "Build display_payload.data from source-backed Form 25 facts in cleaned_source_blocks. Use null when a field is not disclosed.",
       score_delivery_policy: {
         archive: "score below 50",
         feed: "score 50 to 74",
@@ -338,11 +326,21 @@ export function buildSecForm25AnalysisInput(input: SecForm25AnalysisPromptInput)
       },
       form25_case_policies: {
         matured_redeemed_retired_non_common:
-          "If common_equity_affected is false and no credit/legal stress evidence exists, use neutral signal, score 0-39, and archive.",
+          "If only non-common securities are removed and no credit/legal stress evidence exists, use neutral signal, score 0-39, and archive.",
         completed_merger_removal:
           "Keep score below 50 when the filing is an administrative cleanup after a completed merger.",
+        automatic_unit_separation:
+          "When units are automatically separated into disclosed underlying securities and holders retain those securities, use neutral, score 0-39, and archive unless separate risk evidence exists.",
+        voluntary_common_equity_removal:
+          "When common equity is voluntarily removed without a clearly disclosed continued exchange venue, use listing_risk; use strategic_transaction only with source-backed transaction evidence.",
+        rule_a3_common_equity_no_failure:
+          "Rule 12d2-2(a)(3) common-equity removal without listing-standard failure is not listing_risk by itself; use strategic_transaction or human review.",
         common_equity_or_ads_unclear:
-          "Use human review when common equity, ADS, units, or removal reason ambiguity could affect listed equity holders.",
+          "Use human review, score 50-74, and avoid alert-level scoring when common equity, ADS, or an ambiguous unit removal could affect listed equity holders but no failure/stress reason is source-backed. This does not apply when the source clearly states an automatic unit separation into retained underlying securities.",
+        lifecycle_follow_up:
+          "Use related_event_update or administrative_cleanup when a supplied prior analyzed event already explains the cause. If Form 25 adds no material investor fact, keep score below 50 and do not create a duplicate alert.",
+        lifecycle_standalone:
+          "Use standalone_event whenever no supplied prior analyzed event explains the removal. This disposition can still be neutral, low score, and archive-level.",
       },
     },
   };
