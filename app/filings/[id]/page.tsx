@@ -117,6 +117,7 @@ type FilingEvent = {
   offeringTerms?: Record<string, unknown> | null;
   s3Case?: string | null;
   displayPayload?: FilingDisplayPayload | null;
+  listingStatusSnapshot?: ListingStatusSnapshotItem[];
 };
 
 type FilingDisplayPayload = {
@@ -360,11 +361,12 @@ type Form25ListingStatusModel = {
   title: string;
   statusLabel: string;
   statusSummary: string;
+  headerCompany: string;
   removedSecurity: string;
   exchange: string;
   reasonLabel: string;
   reasonDetail: string;
-  commonEquityAffected: string;
+  effectiveDateLabel: string;
   effectiveDate: string;
   tradingSuspensionDate: string;
   filedByName: string;
@@ -2000,20 +2002,67 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
       ? buildForm25ListingStatusModel(filing)
       : null;
   const useForm25Detail = Boolean(form25Model);
+  const strategicTransactionModel =
+    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useForm425TransactionDetail && !useForm25Detail
+      ? buildStrategicTransactionModel(filing)
+      : null;
+  const useStrategicTransactionDetail = Boolean(strategicTransactionModel);
   const useProxyDetail =
     !useEffectDetail &&
     !useIpoDetail &&
     !useSpacDetail &&
     !useForm425TransactionDetail &&
     !useForm25Detail &&
+    !useStrategicTransactionDetail &&
     isProxyVoteDetail(filing);
+  const capitalFinancingModel =
+    !useEffectDetail &&
+    !useIpoDetail &&
+    !useSpacDetail &&
+    !useForm425TransactionDetail &&
+    !useForm25Detail &&
+    !useStrategicTransactionDetail &&
+    !useProxyDetail
+      ? buildCapitalFinancingModel(filing)
+      : null;
+  const useCapitalFinancingDetail = Boolean(capitalFinancingModel);
+  const governanceEventModel =
+    !useEffectDetail &&
+    !useIpoDetail &&
+    !useSpacDetail &&
+    !useForm425TransactionDetail &&
+    !useForm25Detail &&
+    !useStrategicTransactionDetail &&
+    !useProxyDetail &&
+    !useCapitalFinancingDetail
+      ? buildGovernanceEventModel(filing)
+      : null;
+  const useGovernanceEventDetail = Boolean(governanceEventModel);
+  const riskStatusModel =
+    !useEffectDetail &&
+    !useIpoDetail &&
+    !useSpacDetail &&
+    !useForm425TransactionDetail &&
+    !useForm25Detail &&
+    !useStrategicTransactionDetail &&
+    !useProxyDetail &&
+    !useCapitalFinancingDetail &&
+    !useGovernanceEventDetail &&
+    !canUseDilutionDetail
+      ? buildRiskStatusModel(filing)
+      : null;
+  const useRiskStatusDetail = Boolean(riskStatusModel);
   const listingRiskModel =
     !useEffectDetail &&
     !useIpoDetail &&
     !useSpacDetail &&
     !useForm425TransactionDetail &&
     !useForm25Detail &&
+    !useStrategicTransactionDetail &&
     !useProxyDetail &&
+    !useCapitalFinancingDetail &&
+    !useGovernanceEventDetail &&
+    !useRiskStatusDetail &&
     !canUseDilutionDetail
       ? buildListingRiskModel(filing)
       : null;
@@ -2024,7 +2073,11 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
     !useSpacDetail &&
     !useForm425TransactionDetail &&
     !useForm25Detail &&
+    !useStrategicTransactionDetail &&
     !useProxyDetail &&
+    !useCapitalFinancingDetail &&
+    !useGovernanceEventDetail &&
+    !useRiskStatusDetail &&
     !useListingRiskDetail &&
     !canUseDilutionDetail
       ? buildNtLateFilingModel(filing)
@@ -2036,7 +2089,11 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
     !useSpacDetail &&
     !useForm425TransactionDetail &&
     !useForm25Detail &&
+    !useStrategicTransactionDetail &&
     !useProxyDetail &&
+    !useCapitalFinancingDetail &&
+    !useGovernanceEventDetail &&
+    !useRiskStatusDetail &&
     !useListingRiskDetail &&
     !useNtLateFilingDetail &&
     !canUseDilutionDetail
@@ -2049,7 +2106,11 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
     !useSpacDetail &&
     !useForm425TransactionDetail &&
     !useForm25Detail &&
+    !useStrategicTransactionDetail &&
     !useProxyDetail &&
+    !useCapitalFinancingDetail &&
+    !useGovernanceEventDetail &&
+    !useRiskStatusDetail &&
     !useListingRiskDetail &&
     !useNtLateFilingDetail &&
     !usePeriodicAmendmentDetail &&
@@ -2057,16 +2118,39 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
       ? buildPeriodicReportModel(filing)
       : null;
   const usePeriodicReportDetail = Boolean(periodicReportModel);
+  const operatingEventModel =
+    !useEffectDetail &&
+    !useIpoDetail &&
+    !useSpacDetail &&
+    !useForm425TransactionDetail &&
+    !useForm25Detail &&
+    !useStrategicTransactionDetail &&
+    !useProxyDetail &&
+    !useCapitalFinancingDetail &&
+    !useGovernanceEventDetail &&
+    !useRiskStatusDetail &&
+    !useListingRiskDetail &&
+    !useNtLateFilingDetail &&
+    !usePeriodicAmendmentDetail &&
+    !usePeriodicReportDetail
+      ? buildOperatingEventModel(filing)
+      : null;
+  const useOperatingEventDetail = Boolean(operatingEventModel);
   const earningsModel =
     !useEffectDetail &&
     !useIpoDetail &&
     !useSpacDetail &&
     !useForm425TransactionDetail &&
     !useForm25Detail &&
+    !useStrategicTransactionDetail &&
+    !useCapitalFinancingDetail &&
+    !useGovernanceEventDetail &&
+    !useRiskStatusDetail &&
     !useListingRiskDetail &&
     !useNtLateFilingDetail &&
     !usePeriodicAmendmentDetail &&
-    !usePeriodicReportDetail
+    !usePeriodicReportDetail &&
+    !useOperatingEventDetail
       ? buildEarningsModel(filing)
       : null;
   const useEarningsDetail = Boolean(earningsModel);
@@ -2076,10 +2160,15 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
     !useSpacDetail &&
     !useForm425TransactionDetail &&
     !useForm25Detail &&
+    !useStrategicTransactionDetail &&
+    !useCapitalFinancingDetail &&
+    !useGovernanceEventDetail &&
+    !useRiskStatusDetail &&
     !useListingRiskDetail &&
     !useNtLateFilingDetail &&
     !usePeriodicAmendmentDetail &&
     !usePeriodicReportDetail &&
+    !useOperatingEventDetail &&
     !useEarningsDetail
       ? buildFdaClinicalModel(filing)
       : null;
@@ -2092,13 +2181,18 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
     useEffectDetail && effectModel?.originalFiling?.exchange && !isRealTicker(filing.ticker)
       ? effectModel.originalFiling.exchange
       : filing.exchange;
+  const displayCompany = useForm25Detail && form25Model?.headerCompany ? form25Model.headerCompany : filing.company;
   const dilutionModel =
     !useEffectDetail &&
     !useIpoDetail &&
     !useSpacDetail &&
     !useForm425TransactionDetail &&
     !useForm25Detail &&
+    !useStrategicTransactionDetail &&
     !useProxyDetail &&
+    !useCapitalFinancingDetail &&
+    !useGovernanceEventDetail &&
+    !useRiskStatusDetail &&
     !useListingRiskDetail &&
     !useNtLateFilingDetail &&
     !usePeriodicAmendmentDetail &&
@@ -2168,7 +2262,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
               <h1>{filing.title}</h1>
               <div className="stock-detail-meta">
                 <span className="ticker-chip">{displayExchange}:{displayTicker}</span>
-                <span>{filing.company}</span>
+                <span>{displayCompany}</span>
                 <span className="filing-form-pill">{filing.formType}</span>
                 <span className={`signal-badge ${filing.signal}`}>{filing.signal}</span>
                 <span className={`source-badge impact-badge ${filing.signal}`}>Impact {filing.score}</span>
@@ -2177,10 +2271,17 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
                 {useSpacDetail ? <span className="filing-template-chip">SPAC Transaction Status</span> : null}
                 {useForm425TransactionDetail ? <span className="filing-template-chip">Transaction Communication</span> : null}
                 {useForm25Detail ? <span className="filing-template-chip">Listing Status Change</span> : null}
+                {useStrategicTransactionDetail ? <span className="filing-template-chip">Strategic Transaction</span> : null}
+                {useCapitalFinancingDetail ? <span className="filing-template-chip">Capital Financing</span> : null}
+                {useGovernanceEventDetail ? <span className="filing-template-chip">Governance Event</span> : null}
+                {useRiskStatusDetail ? <span className="filing-template-chip">{riskStatusChipLabel(filing)}</span> : null}
                 {useListingRiskDetail ? <span className="filing-template-chip">Listing Risk</span> : null}
                 {useNtLateFilingDetail ? <span className="filing-template-chip">Late Filing</span> : null}
                 {usePeriodicAmendmentDetail ? <span className="filing-template-chip">Report Amendment</span> : null}
                 {usePeriodicReportDetail ? <span className="filing-template-chip">Periodic Report</span> : null}
+                {useOperatingEventDetail && operatingEventModel ? (
+                  <span className="filing-template-chip">{operatingEventChipLabel(operatingEventModel.mode)}</span>
+                ) : null}
                 {useEarningsDetail ? <span className="filing-template-chip">Earnings</span> : null}
                 {useFdaClinicalDetail ? <span className="filing-template-chip">FDA Clinical</span> : null}
               </div>
@@ -2197,8 +2298,16 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             <Form425TransactionTemplate eventLabel={eventBadge.label} filing={filing} model={form425TransactionModel} />
           ) : useForm25Detail && form25Model ? (
             <Form25ListingStatusTemplate eventLabel={eventBadge.label} filing={filing} model={form25Model} />
+          ) : useStrategicTransactionDetail && strategicTransactionModel ? (
+            <StrategicTransactionTemplate eventLabel={eventBadge.label} filing={filing} model={strategicTransactionModel} />
           ) : useProxyDetail ? (
             <ProxyVoteTemplate filing={filing} />
+          ) : useCapitalFinancingDetail && capitalFinancingModel ? (
+            <CapitalFinancingTemplate eventLabel={eventBadge.label} filing={filing} model={capitalFinancingModel} />
+          ) : useGovernanceEventDetail && governanceEventModel ? (
+            <GovernanceEventTemplate eventLabel={eventBadge.label} filing={filing} model={governanceEventModel} />
+          ) : useRiskStatusDetail && riskStatusModel ? (
+            <RiskStatusTemplate eventLabel={eventBadge.label} filing={filing} model={riskStatusModel} />
           ) : useListingRiskDetail && listingRiskModel ? (
             <ListingRiskTemplate eventLabel={eventBadge.label} filing={filing} model={listingRiskModel} />
           ) : useNtLateFilingDetail && ntLateFilingModel ? (
@@ -2207,6 +2316,8 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             <PeriodicAmendmentTemplate eventLabel={eventBadge.label} filing={filing} model={periodicAmendmentModel} />
           ) : usePeriodicReportDetail && periodicReportModel ? (
             <PeriodicReportTemplate eventLabel={eventBadge.label} filing={filing} model={periodicReportModel} />
+          ) : useOperatingEventDetail && operatingEventModel ? (
+            <OperatingEventTemplate eventLabel={eventBadge.label} filing={filing} model={operatingEventModel} />
           ) : useEarningsDetail && earningsModel ? (
             <EarningsTemplate eventLabel={eventBadge.label} filing={filing} model={earningsModel} />
           ) : useFdaClinicalDetail && fdaClinicalModel ? (
@@ -2223,8 +2334,12 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             <section className="stock-detail-card recent-filings-card">
               <div className="card-heading-row">
                 <div>
-                  <h2>{useDilutionDetail ? "Related Filings" : "Recent Filings"}</h2>
-                  <p>{useDilutionDetail ? `${filing.ticker} related filing history` : `${filing.ticker} filing history`}</p>
+                  <h2>{useDilutionDetail || useCapitalFinancingDetail ? "Related Filings" : "Recent Filings"}</h2>
+                  <p>
+                    {useDilutionDetail || useCapitalFinancingDetail
+                      ? `${filing.ticker} related filing history`
+                      : `${filing.ticker} filing history`}
+                  </p>
                 </div>
                 <Link href="/filings">View all</Link>
               </div>
@@ -2253,7 +2368,13 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             <MetricRow label="Event Type" value={eventBadge.label} />
             <MetricRow label="Form Type" value={filing.formType} />
             <MetricRow label="Signal" value={filing.signal} />
-            {(useDilutionDetail || useProxyDetail || useSpacDetail || useForm425TransactionDetail) && filing.scoreExplanation ? (
+            {(useDilutionDetail ||
+              useProxyDetail ||
+              useSpacDetail ||
+              useForm425TransactionDetail ||
+              useStrategicTransactionDetail ||
+              useOperatingEventDetail) &&
+            filing.scoreExplanation ? (
               <a className="score-rationale-link" href="#score-rationale">
                 View score rationale
               </a>
@@ -2527,6 +2648,9 @@ async function buildDbFilingEvent(item: LiveFeedItem, fallback: FilingEvent): Pr
       readRowString(metadata, "s3_case") ||
       null,
     displayPayload: displayPayload as FilingDisplayPayload | null,
+    listingStatusSnapshot: normalizeListingStatusSnapshot(
+      analysisMetadata?.listing_status_snapshot ?? metadata?.listing_status_snapshot,
+    ),
   };
 }
 
@@ -3924,42 +4048,41 @@ function Form25ListingStatusTemplate({
 }) {
   const hasEvidence = filing.keyEvidence.length > 0;
   const hasWatchNext = model.watchNext.length > 0;
+  const showWatchNext = filing.deliveryLevel !== "archive" && hasWatchNext;
 
   return (
     <>
       <section className="stock-detail-top-grid special-overview-grid">
         <FilingPriceChart filing={filing} />
 
-        <section className="stock-detail-card spac-summary-panel">
-          <div className="spac-summary-heading">
-            <h2>{model.title}</h2>
-            <p>
-              <strong>{model.statusLabel}.</strong> {model.statusSummary}
+        <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card">
+          <div className="quick-take-card quick-take-block">
+            <div className="card-heading-row">
+              <h2>{model.title}</h2>
+              <span>{filing.formType}</span>
+            </div>
+            <p className="proxy-summary-context">
+              {model.statusLabel}. {model.statusSummary}
             </p>
-          </div>
-          <div className="spac-metric-grid">
-            <SpacMetricCard
-              icon="status"
-              label="Removed security"
-              note={model.commonEquityAffected}
-              tone={model.tone}
-              value={model.removedSecurity}
-            />
-            <SpacMetricCard icon="redemption" label="Exchange / venue" note={model.filedByName} value={model.exchange} />
-            <SpacMetricCard icon="cash" label="Reason" note={model.reasonDetail} tone={model.tone} value={model.reasonLabel} />
-            <SpacMetricCard
-              icon="closing"
-              label="Effective / removal date"
-              note={model.tradingSuspensionDate ? `Trading suspension: ${model.tradingSuspensionDate}` : ""}
-              value={model.effectiveDate}
-            />
+            <div className="proxy-vote-summary-snapshot">
+              <Form25SnapshotCard
+                label="Removed security"
+                note=""
+                value={model.removedSecurity}
+              />
+              <Form25SnapshotCard label="Exchange / venue" note="" value={model.exchange} />
+              <Form25SnapshotCard label="Reason" note={model.reasonDetail} value={model.reasonLabel} />
+              <Form25SnapshotCard
+                label={model.effectiveDateLabel}
+                note={model.tradingSuspensionDate ? `Trading suspension: ${model.tradingSuspensionDate}` : ""}
+                value={model.effectiveDate}
+              />
+            </div>
           </div>
         </section>
       </section>
 
-      <ScoreBasisPanel filing={filing} />
-
-      <section className="stock-detail-card spac-summary-panel">
+      <section className="stock-detail-card spac-summary-panel form25-long-summary-panel">
         <div className="spac-summary-heading">
           <h2>Summary</h2>
           <p>{model.investorImpact}</p>
@@ -3977,15 +4100,16 @@ function Form25ListingStatusTemplate({
         ) : null}
       </section>
 
-      {hasEvidence || hasWatchNext ? (
+      <ScoreBasisPanel filing={filing} />
+
+      {hasEvidence || showWatchNext ? (
         <section className="stock-detail-card-grid two-up insight-summary-grid">
           <AnalysisList title="Key Evidence" items={filing.keyEvidence} />
-          <AnalysisList title="What To Watch Next" items={model.watchNext} numbered />
+          {showWatchNext ? <AnalysisList title="What To Watch Next" items={model.watchNext} /> : null}
         </section>
       ) : null}
 
       <FilingMarketContextPanel filing={filing} />
-      <SpacSourceEvidence filing={filing} model={{ sources: model.sources }} />
       <OriginalFilingText eventLabel={eventLabel} filing={filing} />
     </>
   );
@@ -6695,13 +6819,16 @@ function OwnershipRelatedFilingsPanel({ filing }: { filing: FilingEvent }) {
 function FilingRelatedFilingsPanel({ filing }: { filing: FilingEvent }) {
   const contextFilings = filing.contextRelatedFilings ?? [];
   if (contextFilings.length > 0) {
-    const isEffect = filing.formType.trim().toUpperCase() === "EFFECT";
-    const isForm425 = filing.formType.trim().toUpperCase() === "425";
+    const normalizedForm = filing.formType.trim().toUpperCase();
+    const isEffect = normalizedForm === "EFFECT";
+    const isForm425 = normalizedForm === "425";
+    const isForm25 = /^25(?:-|$)/.test(normalizedForm);
+    const isCurrentReport = /^(?:8-K|8-K\/A|6-K|6-K\/A)$/i.test(normalizedForm);
     return (
       <RelatedFilingsContextList
         filings={contextFilings}
         heading="Related Filings"
-        subheading={isEffect ? "" : isForm425 ? "Related transaction filings" : "Transaction context"}
+        subheading={isEffect || isForm25 || isCurrentReport ? "" : isForm425 ? "Related transaction filings" : "Transaction context"}
         relationLabelFormatter={isEffect ? formatEffectRelatedFilingRelation : undefined}
       />
     );
@@ -7058,33 +7185,33 @@ function buildForm25ListingStatusModel(filing: FilingEvent): Form25ListingStatus
   if (displayType !== "sec_form25_listing_removal" && !isForm25) return null;
 
   const data = readDisplayPayloadData(displayPayload);
+  const issuerName =
+    cleanForm25IssuerName(displayString(data, "issuer_name", "")) || extractForm25IssuerFromOriginalHtml(filing.originalHtml);
   const removedSecurity = displayString(data, "removed_security", "Security class not disclosed");
   const exchange = displayString(data, "exchange", filing.exchange || "Exchange not disclosed");
   const reasonCode = readRowString(data, "removal_reason");
-  const deterministicCase = readRowString(data, "deterministic_case");
-  const reasonLabel = formatForm25ReasonLabel(reasonCode, deterministicCase);
-  const reasonDetail = displayString(data, "removal_reason_text", "");
-  const statusLabel = formatForm25StatusLabel(reasonCode, deterministicCase);
-  const effectiveDate = displayString(
-    data,
-    "delisting_or_removal_date",
-    displayString(data, "effectiveness_date", displayString(data, "filing_date", filing.filedAt || "Not disclosed")),
+  const reasonDetail = compactForm25CardNote(displayString(data, "removal_reason_text", ""));
+  const reasonLabel = formatForm25ReasonLabel(reasonCode, "", reasonDetail);
+  const statusLabel = formatForm25StatusLabel(reasonCode, "");
+  const filingDate = displayString(data, "filing_date", filing.filedAt || "Not disclosed");
+  const explicitRemovalDate = displayString(data, "delisting_or_removal_date", "");
+  const reportedEffectivenessDate = displayString(data, "effectiveness_date", "");
+  const hasDistinctEffectivenessDate =
+    Boolean(reportedEffectivenessDate) &&
+    normalizeComparableForm25Date(reportedEffectivenessDate) !== normalizeComparableForm25Date(filingDate);
+  const hasFormalRemovalDate = Boolean(explicitRemovalDate || hasDistinctEffectivenessDate);
+  const effectiveDate = formatForm25DisplayDate(
+    explicitRemovalDate || (hasDistinctEffectivenessDate ? reportedEffectivenessDate : filingDate),
   );
-  const tradingSuspensionDate = displayString(data, "trading_suspension_date", "");
+  const tradingSuspensionDate = formatForm25DisplayDate(displayString(data, "trading_suspension_date", ""));
   const filedByName = displayString(data, "filed_by_name", "");
   const ruleProvision = displayString(data, "rule_provision", "");
   const continuedVenue = displayString(data, "continued_listing_or_trading_venue", "");
   const successorOrAcquirer = displayString(data, "successor_or_acquirer", "");
-  const considerationSummary = displayString(data, "consideration_summary", "");
-  const commonEquityAffected =
-    data.common_equity_affected === true
-      ? "Common stock / ADS affected"
-      : data.common_equity_affected === false
-        ? "Common stock / ADS not affected"
-        : displayString(data, "common_equity_affected", "Equity impact not stated");
+  const considerationSummary = cleanForm25ConsiderationSummary(displayString(data, "consideration_summary", ""));
   const tone =
     filing.score >= 75 ||
-    /listing_standards_failure|voluntary_withdrawal|common_equity/i.test(`${reasonCode} ${deterministicCase}`)
+    /listing_standards_failure|voluntary_withdrawal/i.test(reasonCode)
       ? "risk"
       : "neutral";
   const statusSummary = compactInlineText(
@@ -7097,22 +7224,19 @@ function buildForm25ListingStatusModel(filing: FilingEvent): Form25ListingStatus
     filing.formType,
   );
   const detailRows: Form25DetailRow[] = [
-    { label: "Rule provision", value: ruleProvision },
-    { label: "Filed by", value: filedByName },
     { label: "Continued venue", value: continuedVenue },
-    { label: "Successor / acquirer", value: successorOrAcquirer },
-    { label: "Consideration", value: considerationSummary },
   ].filter((row) => isDisclosedValue(row.value));
 
   return {
-    title: formatForm25PanelTitle(reasonCode, deterministicCase),
+    title: formatForm25PanelTitle(reasonCode, ""),
     statusLabel,
     statusSummary,
+    headerCompany: formatForm25HeaderCompany({ fallbackCompany: filing.company, fallbackTicker: filing.ticker, issuerName }),
     removedSecurity,
     exchange,
     reasonLabel,
     reasonDetail,
-    commonEquityAffected,
+    effectiveDateLabel: hasFormalRemovalDate ? "Effective / removal date" : "Form 25 filed",
     effectiveDate,
     tradingSuspensionDate,
     filedByName,
@@ -7128,10 +7252,13 @@ function buildForm25ListingStatusModel(filing: FilingEvent): Form25ListingStatus
   };
 }
 
-function formatForm25ReasonLabel(reasonCode: string, deterministicCase: string) {
-  const text = `${reasonCode} ${deterministicCase}`.toLowerCase();
-  if (/listing_standards_failure|continued_listing_standards|exchange_determination/.test(text)) {
-    return "Listing standards failure";
+function formatForm25ReasonLabel(reasonCode: string, deterministicCase: string, reasonDetail = "") {
+  const text = `${reasonCode} ${deterministicCase} ${reasonDetail}`.toLowerCase();
+  if (/unit separation|separated into underlying shares|underlying shares and warrants/.test(text)) return "Unit separation";
+  if (isForm25ListingStandardsReason(text)) {
+    const statedReason = reasonCode.replace(/\s+/g, " ").trim();
+    if (isDisclosedValue(statedReason) && !statedReason.includes("_")) return statedReason;
+    return "No longer qualified for listing";
   }
   if (/merger|business_combination|acquisition/.test(text)) return "Merger / transaction completed";
   if (/matured|redeemed|retired/.test(text)) return "Matured / redeemed security";
@@ -7142,7 +7269,7 @@ function formatForm25ReasonLabel(reasonCode: string, deterministicCase: string) 
 
 function formatForm25PanelTitle(reasonCode: string, deterministicCase: string) {
   const text = `${reasonCode} ${deterministicCase}`.toLowerCase();
-  if (/listing_standards_failure|continued_listing_standards|exchange_determination/.test(text)) {
+  if (isForm25ListingStandardsReason(text)) {
     return "Exchange Delisting";
   }
   if (/merger|business_combination|acquisition/.test(text)) return "Merger Completion";
@@ -7154,7 +7281,7 @@ function formatForm25PanelTitle(reasonCode: string, deterministicCase: string) {
 
 function formatForm25StatusLabel(reasonCode: string, deterministicCase: string) {
   const text = `${reasonCode} ${deterministicCase}`.toLowerCase();
-  if (/listing_standards_failure|continued_listing_standards|exchange_determination/.test(text)) {
+  if (isForm25ListingStandardsReason(text)) {
     return "Exchange delisting";
   }
   if (/merger|business_combination|acquisition/.test(text)) return "Transaction completed";
@@ -13697,7 +13824,10 @@ function buildFilingContextRelatedFilings({
     match_confidence: readRowString(ntLifecycle, "match_confidence"),
   }));
   const parentContext = readPlainRecord(metadata?.parent_filing_context);
-  const parentFiling = readPlainRecord(parentContext?.parent);
+  const nestedParentFiling = readPlainRecord(parentContext?.parent);
+  const parentFiling =
+    nestedParentFiling ||
+    (readRowString(parentContext, "context_kind") === "current_report_parent_filing" ? parentContext : null);
   const parentContextItem = parentFiling
     ? {
         ...parentFiling,
@@ -13707,9 +13837,10 @@ function buildFilingContextRelatedFilings({
         match_score: readRowNumber(parentContext, "match_score"),
       }
     : null;
+  const explicitlyRelatedFilings = recordArray(metadata?.related_filing_contexts);
   const relatedSourceItems = parentContextItem
-    ? [parentContextItem, ...ntLifecycleFilings, ...relatedTransactionFilings, ...priorFilings]
-    : [...ntLifecycleFilings, ...relatedTransactionFilings, ...priorFilings];
+    ? [parentContextItem, ...explicitlyRelatedFilings, ...ntLifecycleFilings, ...relatedTransactionFilings, ...priorFilings]
+    : [...explicitlyRelatedFilings, ...ntLifecycleFilings, ...relatedTransactionFilings, ...priorFilings];
   const seen = new Set<string>();
 
   return relatedSourceItems
@@ -13773,6 +13904,30 @@ function classifyFilingContextRelation(item: Record<string, unknown>, formType: 
     return {
       label: "Parent",
       description: "Original filing matched for this amendment.",
+      candidate: false,
+    };
+  }
+
+  if (source === "form25_related_filing_context") {
+    return {
+      label: "Earlier filing",
+      description: "Earlier SEC filing connected to this listing change.",
+      candidate: confidence === "low",
+    };
+  }
+
+  if (source === "amendment_lifecycle_context") {
+    return {
+      label: "Prior amendment",
+      description: "Earlier amendment in the same 8-K/6-K filing sequence.",
+      candidate: false,
+    };
+  }
+
+  if (source === "explicit_related_filing_context") {
+    return {
+      label: "Referenced filing",
+      description: "This filing is explicitly referenced by the current report.",
       candidate: false,
     };
   }
@@ -14361,4 +14516,1665 @@ function sampleTrend(trend: number[], count: number) {
 
 function roundPrice(value: number) {
   return Number(value.toFixed(2));
+}
+
+/* Latest 8-K/6-K and Form 25 detail models integrated from their dedicated SEC rooms. */
+type ListingStatusSnapshotItem = {
+  label: string;
+  value: string;
+  note?: string;
+};
+
+type RiskStatusModel = {
+  snapshot: ListingStatusSnapshotItem[];
+};
+
+type StrategicTransactionModel = {
+  snapshot: ListingStatusSnapshotItem[];
+};
+
+type GovernanceEventMode =
+  | "leadership_change"
+  | "auditor_change"
+  | "vote_result"
+  | "governance_change"
+  | "mixed";
+
+type GovernanceChangeDetail = {
+  label: string;
+  value: string;
+  note?: string;
+};
+
+type GovernanceChangeItem = {
+  title: string;
+  category: string;
+  explanation: string;
+  details: GovernanceChangeDetail[];
+};
+
+type GovernanceEventModel = {
+  mode: GovernanceEventMode;
+  snapshotTitle: string;
+  snapshotMetrics: ListingStatusSnapshotItem[];
+  changesTitle: string;
+  changes: GovernanceChangeItem[];
+};
+
+type OperatingEventMode =
+  | "earnings"
+  | "operating_update"
+  | "product_or_regulatory"
+  | "legal_or_accounting"
+  | "routine_archive";
+
+type OperatingRegulatoryStage =
+  | "not_applicable"
+  | "ind_or_clinical_hold"
+  | "application_review"
+  | "advisory_committee"
+  | "approval"
+  | "crl_or_appeal"
+  | "clinical_update"
+  | "other_regulatory";
+
+type OperatingEventDetailSection = {
+  title: string;
+  rows: ListingStatusSnapshotItem[];
+};
+
+type OperatingEventSecondaryUpdate = {
+  label: string;
+  title: string;
+  summary: string;
+};
+
+type OperatingPerformanceComparison = {
+  label: string;
+  currentLabel: string;
+  currentValue: string;
+  currentNumeric: number;
+  comparisonLabel: string;
+  comparisonValue: string;
+  comparisonNumeric: number;
+  comparisonBasis: "yoy" | "qoq" | "other";
+  changeNote?: string;
+};
+
+type OperatingBusinessCatalyst = {
+  title: string;
+  value?: string;
+  summary: string;
+};
+
+type OperatingGuidanceMetric = {
+  label: string;
+  guidanceLabel: string;
+  guidanceValue: string;
+  guidanceKind: "numeric_range" | "point" | "qualitative";
+  guidanceLowNumeric: number | null;
+  guidanceHighNumeric: number | null;
+  performanceRelationship?: "same_basis" | "related_different_basis" | "standalone";
+  performanceLabel?: string;
+  note?: string;
+};
+
+type OperatingEventModel = {
+  mode: OperatingEventMode;
+  detailsTitle: string;
+  snapshotTitle: string;
+  snapshotMetrics: ListingStatusSnapshotItem[];
+  performanceComparisons: OperatingPerformanceComparison[];
+  guidanceMetrics: OperatingGuidanceMetric[];
+  businessCatalysts: OperatingBusinessCatalyst[];
+  detailSections: OperatingEventDetailSection[];
+  secondaryUpdates: OperatingEventSecondaryUpdate[];
+};
+
+type CapitalFinancingMode =
+  | "equity_issuance"
+  | "share_linked_financing"
+  | "atm_capacity"
+  | "debt_liquidity"
+  | "capital_structure_action"
+  | "capital_return";
+
+type CapitalFinancingModel = {
+  mode: CapitalFinancingMode;
+  snapshotMetrics: ListingStatusSnapshotItem[];
+  offeringDetails: DilutionDisclosureRow[];
+  instrumentDetails: InstrumentDetailsTableRow[];
+  shareOverhang: LlmShareOverhangModel | null;
+};
+
+type InstrumentDetailsTableRow = {
+  type: string;
+  sharesSecurities: string;
+  exerciseConversionPrice: string;
+  resetFloor: string;
+  termLimits: string;
+};
+
+function makeGovernanceSampleFilingEvent(): FilingEvent {
+  const displayVersion = "sec_8k_6k_governance_event_v1";
+  return {
+    id: "governance-ui-auditor-change",
+    ticker: "GOVR",
+    exchange: "NASDAQ",
+    company: "Governance UI Sample Corp.",
+    title: "Governance UI Sample Corp. Appoints New Independent Auditor",
+    formType: "8-K",
+    filedAt: "Dec 12, 2024 - 4:15 PM ET",
+    source: "SEC EDGAR",
+    sourceUrl: "https://www.sec.gov/edgar/search/",
+    eventType: "leadership_governance",
+    impact: "medium",
+    deliveryLevel: "feed",
+    score: 55,
+    scoreExplanation: {
+      summary:
+        "An orderly auditor transition with no disclosed accounting dispute limits immediate risk, while the new auditor's first review remains important.",
+      baseBand: "Routine governance change",
+      upwardFactors: [],
+      limitingFactors: ["No disagreement or adverse audit opinion was disclosed."],
+      finalRead: "Monitor",
+    },
+    signal: "neutral",
+    price: "$18.40",
+    changeAmount: "+$0.12",
+    change: "+0.66%",
+    filingFocus: "Independent auditor change",
+    filingBrief: "Development-only governance UI sample. No LLM analysis or SEC ingest is used.",
+    whyItMatters:
+      "Auditor changes matter most when they involve accounting disputes, adverse opinions, delayed filings, or later restatements.",
+    bullishPoints: [],
+    bearishPoints: [],
+    summary:
+      "The Audit Committee dismissed Marcum LLP and appointed CohnReznick LLP as the company's new independent auditor. The filing reports no disagreement over accounting principles, financial disclosure, or audit scope and no adverse audit opinion in the covered periods. That makes the transition look orderly, though investors should still watch the new auditor's first filed opinion and any later accounting update.",
+    keyEvidence: [],
+    watchNext: [
+      "The new auditor's first filed opinion.",
+      "Any delayed filing, restatement, or later disagreement disclosure.",
+    ],
+    recentFilings: [],
+    relatedNews: [],
+    context: null,
+    priceSeries: buildPriceSeries({
+      lastClose: 18.4,
+      previousClose: 18.28,
+      trend: [48, 49, 48, 50, 51, 50, 52, 51, 52, 53, 52, 54],
+      volumeBase: 42_000,
+    }),
+    originalTextNote: "Development-only governance UI sample. This page is not a real SEC analysis.",
+    originalHtml: `
+      <h3>Governance UI Sample</h3>
+      <p>This sample exists only to inspect the 8-K / 6-K governance event layout.</p>
+      <p>Display version: ${displayVersion}</p>
+    `,
+    displayPayload: {
+      display_type: "governance_event",
+      display_version: displayVersion,
+      data: {
+        display_version: displayVersion,
+        governance_mode: "auditor_change",
+        snapshot_title: "Governance Snapshot",
+        snapshot_metrics: [
+          { label: "Change", value: "Marcum to CohnReznick" },
+          { label: "Effective Date", value: "Dec 11, 2024" },
+          { label: "Disagreements", value: "None disclosed" },
+          { label: "Audit Opinions", value: "No adverse opinions" },
+        ],
+        key_changes: [
+          {
+            title: "Independent Auditor Changed",
+            category: "Auditor change",
+            explanation: "The company replaced its external auditor and disclosed no accounting dispute.",
+            details: [
+              { label: "Previous Auditor", value: "Marcum LLP" },
+              { label: "New Auditor", value: "CohnReznick LLP" },
+              { label: "Selection", value: "Approved by the Audit Committee" },
+            ],
+          },
+          {
+            title: "No Reportable Disagreement Disclosed",
+            category: "Accounting context",
+            explanation: "The filing does not identify a dispute over accounting, disclosure, or audit scope.",
+            details: [
+              { label: "Accounting Dispute", value: "None disclosed" },
+              { label: "Adverse Opinion", value: "None disclosed" },
+            ],
+          },
+        ],
+      },
+      evidence: [],
+      notes: ["Development-only governance UI sample."],
+    },
+  };
+}
+
+function StrategicTransactionTemplate({
+  eventLabel,
+  filing,
+  model,
+}: {
+  eventLabel: string;
+  filing: FilingEvent;
+  model: StrategicTransactionModel;
+}) {
+  const snapshotPanel = (
+    <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card transaction-snapshot-card">
+      <div className="quick-take-card quick-take-block">
+        <div className="card-heading-row">
+          <h2>Transaction Snapshot</h2>
+          <span>{filing.formType}</span>
+        </div>
+        <div className="proxy-vote-summary-snapshot">
+          {model.snapshot.map((item) => (
+            <Form25SnapshotCard key={`${item.label}-${item.value}`} label={item.label} note={item.note} value={item.value} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+  const summaryPanel = <AnalysisCard title="Summary" body={filing.summary} />;
+  const hasChart = isRealTicker(filing.ticker);
+
+  return (
+    <>
+      {hasChart ? (
+        <>
+          <section className="stock-detail-top-grid listing-risk-top-grid">
+            <FilingPriceChart filing={filing} />
+            {snapshotPanel}
+          </section>
+          {summaryPanel}
+        </>
+      ) : (
+        <section className="stock-detail-card-grid two-up initial-ipo-compact-grid listing-risk-no-chart-grid">
+          {snapshotPanel}
+          {summaryPanel}
+        </section>
+      )}
+
+      <ScoreBasisPanel filing={filing} />
+
+      {filing.watchNext.length ? (
+        <section className="stock-detail-card-grid insight-summary-grid listing-risk-support-grid">
+          <AnalysisList title="What To Watch Next" items={filing.watchNext} />
+        </section>
+      ) : null}
+
+      <FilingMarketContextPanel filing={filing} hideUnavailable />
+      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
+    </>
+  );
+}
+
+function GovernanceEventTemplate({
+  eventLabel,
+  filing,
+  model,
+}: {
+  eventLabel: string;
+  filing: FilingEvent;
+  model: GovernanceEventModel;
+}) {
+  const snapshotPanel = (
+    <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card governance-event-snapshot-card">
+      <div className="quick-take-card quick-take-block">
+        <div className="card-heading-row">
+          <h2>{model.snapshotTitle}</h2>
+          <span>{filing.formType}</span>
+        </div>
+        <div className="proxy-vote-summary-snapshot">
+          {model.snapshotMetrics.map((item) => (
+            <Form25SnapshotCard key={`${item.label}-${item.value}`} label={item.label} note={item.note} value={item.value} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+  const summaryPanel = <AnalysisCard title="Summary" body={filing.summary} />;
+  const hasChart = isRealTicker(filing.ticker);
+
+  return (
+    <>
+      {hasChart ? (
+        <>
+          <section className="stock-detail-top-grid listing-risk-top-grid">
+            <FilingPriceChart filing={filing} />
+            {snapshotPanel}
+          </section>
+          {summaryPanel}
+        </>
+      ) : (
+        <section className="stock-detail-card-grid two-up initial-ipo-compact-grid listing-risk-no-chart-grid">
+          {snapshotPanel}
+          {summaryPanel}
+        </section>
+      )}
+
+      <ScoreBasisPanel filing={filing} />
+
+      {model.changes.length ? <GovernanceChangesSection model={model} /> : null}
+
+      <FilingMarketContextPanel filing={filing} hideUnavailable />
+      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
+    </>
+  );
+}
+
+function GovernanceChangesSection({ model }: { model: GovernanceEventModel }) {
+  return (
+    <section className="stock-detail-card proxy-agenda-card governance-change-card">
+      <div className="card-heading-row">
+        <h2>{model.changesTitle}</h2>
+        <span>{model.changes.length} {model.changes.length === 1 ? "item" : "items"}</span>
+      </div>
+      <div className="proxy-agenda-table">
+        {model.changes.map((change, index) => (
+          <div className="proxy-agenda-row-group" key={`${change.title}-${index}`}>
+            <div className="proxy-agenda-proposal-heading">
+              <div className="proxy-agenda-proposal-main">
+                {change.category ? (
+                  <div className="proxy-agenda-proposal-meta">
+                    <span>{change.category}</span>
+                  </div>
+                ) : null}
+                <div className="proxy-agenda-proposal-copy">
+                  <span className="proxy-agenda-proposal-number">{index + 1}.</span>
+                  <strong>{change.title}</strong>
+                  {change.explanation ? (
+                    <div className="proxy-agenda-explanation">
+                      <span aria-label="Plain-English explanation" title="Plain-English explanation">
+                        <Info size={12} strokeWidth={2.4} aria-hidden="true" />
+                      </span>
+                      <p>{change.explanation}</p>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+            {change.details.length ? (
+              <div className="proxy-agenda-detail-list">
+                {change.details.map((detail) => (
+                  <div className="proxy-agenda-detail" key={`${change.title}-${detail.label}`}>
+                    <div className="proxy-agenda-detail-row">
+                      <span>{detail.label}</span>
+                      <span>
+                        {detail.value}
+                        {detail.note ? <small>{detail.note}</small> : null}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function OperatingEventTemplate({
+  eventLabel,
+  filing,
+  model,
+}: {
+  eventLabel: string;
+  filing: FilingEvent;
+  model: OperatingEventModel;
+}) {
+  const hasChart = isRealTicker(filing.ticker);
+  const hasSnapshot = model.snapshotMetrics.length > 0;
+  const projectEconomics = model.detailSections.find(
+    (section) => section.title.trim().toLowerCase() === "project economics",
+  );
+  const remainingDetailSections = model.detailSections.filter(
+    (section) => section.title.trim().toLowerCase() !== "project economics",
+  );
+  const snapshotPanel = hasSnapshot ? (
+    <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card operating-event-snapshot-card">
+      <div className="quick-take-card quick-take-block">
+        <div className="card-heading-row">
+          <h2>{model.snapshotTitle}</h2>
+          <span>{filing.formType}</span>
+        </div>
+        <div className="proxy-vote-summary-snapshot">
+          {model.snapshotMetrics.map((item) => (
+            <Form25SnapshotCard key={`${item.label}-${item.value}`} label={item.label} note={item.note} value={item.value} />
+          ))}
+        </div>
+      </div>
+    </section>
+  ) : null;
+  const summaryPanel = <AnalysisCard title="Summary" body={filing.summary} />;
+
+  return (
+    <>
+      {hasChart && hasSnapshot ? (
+        <>
+          <section className="stock-detail-top-grid listing-risk-top-grid">
+            <FilingPriceChart filing={filing} />
+            {snapshotPanel}
+          </section>
+          {summaryPanel}
+        </>
+      ) : hasChart ? (
+        <section className="stock-detail-top-grid listing-risk-top-grid">
+          <FilingPriceChart filing={filing} />
+          {summaryPanel}
+        </section>
+      ) : hasSnapshot ? (
+        <section className="stock-detail-card-grid two-up initial-ipo-compact-grid listing-risk-no-chart-grid">
+          {snapshotPanel}
+          {summaryPanel}
+        </section>
+      ) : (
+        summaryPanel
+      )}
+
+      <ScoreBasisPanel filing={filing} />
+
+      {model.performanceComparisons.length || model.guidanceMetrics.length ? (
+        <OperatingPerformanceOutlookSection
+          guidanceItems={model.guidanceMetrics}
+          performanceItems={model.performanceComparisons}
+        />
+      ) : null}
+
+      {model.businessCatalysts.length || projectEconomics ? (
+        <OperatingKeyDetailsSection
+          businessCatalysts={model.businessCatalysts}
+          projectEconomics={projectEconomics}
+        />
+      ) : null}
+
+      {remainingDetailSections.length ? (
+        <section className="operating-event-section">
+          <div className={`operating-event-detail-grid${model.mode === "earnings" ? " single" : ""}`}>
+            {remainingDetailSections.map((section) => (
+              <div className="operating-event-detail-group" key={section.title}>
+                <h3>{section.title}</h3>
+                <div>
+                  {section.rows.map((row) => (
+                    <div className="operating-event-detail-row" key={`${section.title}-${row.label}-${row.value}`}>
+                      <span>{row.label}</span>
+                      <strong>{row.value}</strong>
+                      {row.note ? <small>{row.note}</small> : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {model.secondaryUpdates.length ? (
+        <section className="operating-event-section operating-secondary-updates-section">
+          <div className="operating-event-section-heading">
+            <h2>Other Material Event</h2>
+          </div>
+          <div className="operating-event-secondary-list">
+            {model.secondaryUpdates.map((update) => (
+              <div className="operating-event-secondary-row" key={`${update.label}-${update.title}`}>
+                <span>{update.label}</span>
+                <strong>{update.title}</strong>
+                <p>{update.summary}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <FilingMarketContextPanel filing={filing} hideUnavailable />
+      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
+    </>
+  );
+}
+
+function OperatingPerformanceOutlookSection({
+  guidanceItems,
+  performanceItems,
+}: {
+  guidanceItems: OperatingGuidanceMetric[];
+  performanceItems: OperatingPerformanceComparison[];
+}) {
+  const performanceByLabel = new Map(performanceItems.map((item) => [item.label.trim().toLowerCase(), item]));
+  const attachedGuidance = new Map<string, OperatingGuidanceMetric>();
+  const relatedGuidance = new Map<string, OperatingGuidanceMetric>();
+  const standaloneGuidance: OperatingGuidanceMetric[] = [];
+
+  for (const guidance of guidanceItems) {
+    const performanceLabel = guidance.performanceLabel?.trim().toLowerCase();
+    const performance = performanceLabel ? performanceByLabel.get(performanceLabel) : undefined;
+    const relationship = guidance.performanceRelationship || (performance ? "same_basis" : "standalone");
+    if (relationship === "same_basis" && performance && !attachedGuidance.has(performance.label)) {
+      attachedGuidance.set(performance.label, guidance);
+    } else if (relationship === "related_different_basis" && performance && !relatedGuidance.has(performance.label)) {
+      relatedGuidance.set(performance.label, guidance);
+    } else {
+      standaloneGuidance.push(guidance);
+    }
+  }
+
+  return (
+    <section className="operating-event-section operating-performance-section">
+      <div className="operating-event-section-heading">
+        <h2>Performance &amp; Outlook</h2>
+      </div>
+      {performanceItems.length ? <div className="operating-performance-list">
+        {performanceItems.map((item) => {
+          const guidance = attachedGuidance.get(item.label);
+          const related = relatedGuidance.get(item.label);
+          if (item.currentNumeric < 0 || item.comparisonNumeric < 0) {
+            return (
+              <OperatingSignedPerformanceItem
+                guidance={guidance}
+                item={item}
+                key={`${item.label}-${item.currentLabel}`}
+                relatedGuidance={related}
+              />
+            );
+          }
+          const scale = Math.max(item.currentNumeric, item.comparisonNumeric);
+          const currentWidth = scale > 0 ? Math.max(4, (item.currentNumeric / scale) * 100) : 0;
+          const comparisonWidth = scale > 0 ? Math.max(4, (item.comparisonNumeric / scale) * 100) : 0;
+          const changeLabel = formatOperatingPerformanceChange(item);
+          const changeTone = operatingPerformanceChangeTone(item);
+          return (
+            <div className="operating-performance-item" key={`${item.label}-${item.currentLabel}`}>
+              <div className="operating-performance-heading">
+                <strong>{item.label}</strong>
+                {changeLabel ? <span className={changeTone}>{changeLabel}</span> : null}
+              </div>
+              <div className="operating-performance-pair">
+                <span>{item.comparisonLabel}</span>
+                <div className="operating-performance-track" aria-hidden="true">
+                  <i className="comparison" style={{ width: `${comparisonWidth}%` }} />
+                </div>
+                <b>{item.comparisonValue}</b>
+                <span>{item.currentLabel}</span>
+                <div className="operating-performance-track" aria-hidden="true">
+                  <i className="current" style={{ width: `${currentWidth}%` }} />
+                </div>
+                <b>{item.currentValue}</b>
+              </div>
+              {guidance ? <OperatingMetricGuidanceFooter guidance={guidance} /> : null}
+              {related ? <OperatingMetricGuidanceFooter guidance={related} /> : null}
+            </div>
+          );
+        })}
+      </div> : null}
+
+      {!performanceItems.length && standaloneGuidance.length ? (
+        <div className="operating-outlook-list">
+          {standaloneGuidance.map((item) => (
+            <OperatingOutlookRow item={item} key={`${item.label}-${item.guidanceValue}`} />
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function OperatingSignedPerformanceItem({
+  guidance,
+  item,
+  relatedGuidance,
+}: {
+  guidance?: OperatingGuidanceMetric;
+  item: OperatingPerformanceComparison;
+  relatedGuidance?: OperatingGuidanceMetric;
+}) {
+  const transitionLabel = formatOperatingSignedTransition(item);
+  const transitionTone = operatingSignedTransitionTone(item.currentNumeric, item.comparisonNumeric);
+  const scale = Math.max(Math.abs(item.currentNumeric), Math.abs(item.comparisonNumeric));
+
+  return (
+    <div className="operating-performance-item signed" key={`${item.label}-${item.currentLabel}`}>
+      <div className="operating-performance-heading">
+        <strong>{item.label}</strong>
+        {transitionLabel ? <span className={transitionTone}>{transitionLabel}</span> : null}
+      </div>
+      <div className="operating-signed-comparison">
+        <OperatingSignedBarRow
+          period="comparison"
+          label={item.comparisonLabel}
+          scale={scale}
+          value={item.comparisonNumeric}
+          valueText={item.comparisonValue}
+        />
+        <OperatingSignedBarRow
+          period="current"
+          label={item.currentLabel}
+          scale={scale}
+          value={item.currentNumeric}
+          valueText={item.currentValue}
+        />
+      </div>
+      {guidance ? <OperatingMetricGuidanceFooter guidance={guidance} /> : null}
+      {relatedGuidance ? <OperatingMetricGuidanceFooter guidance={relatedGuidance} /> : null}
+    </div>
+  );
+}
+
+function OperatingMetricGuidanceFooter({ guidance }: { guidance: OperatingGuidanceMetric }) {
+  return (
+    <div className="operating-metric-guidance-footer">
+      <div>
+        <span>{formatMetricGuidanceFooterLabel(guidance)}</span>
+        <strong>{formatCompactGuidanceValue(guidance.guidanceValue)}</strong>
+      </div>
+    </div>
+  );
+}
+
+function OperatingSignedBarRow({
+  label,
+  period,
+  scale,
+  value,
+  valueText,
+}: {
+  label: string;
+  period: "comparison" | "current";
+  scale: number;
+  value: number;
+  valueText: string;
+}) {
+  const width = scale > 0 ? (Math.abs(value) / scale) * 50 : 0;
+  const barStyle = value < 0
+    ? { right: "50%", width: `${width}%` }
+    : { left: "50%", width: `${width}%` };
+
+  return (
+    <div className="operating-signed-row">
+      <span>{label}</span>
+      <div className="operating-signed-track" aria-hidden="true">
+        <i
+          className={`operating-signed-bar ${period === "comparison" ? "comparison" : operatingSignedValueTone(value)}`}
+          style={barStyle}
+        />
+        <i className="operating-signed-zero" />
+      </div>
+      <b className={operatingSignedValueTone(value)}>{valueText}</b>
+    </div>
+  );
+}
+
+function formatStandaloneGuidanceLabel(guidance: OperatingGuidanceMetric) {
+  const label = guidance.label.trim() || guidance.guidanceLabel.trim();
+  return /\b(?:guidance|outlook|forecast)\b/i.test(label) ? label : `${label} Guidance`;
+}
+
+function formatMetricGuidanceFooterLabel(guidance: OperatingGuidanceMetric) {
+  const period = extractGuidancePeriod(guidance) || guidance.guidanceLabel.trim();
+  const adjusted = /\b(?:adjusted|non[ -]gaap|non[ -]ifrs)\b/i.test(guidance.label);
+  return [period, adjusted ? "Adjusted" : "", "Guidance"].filter(Boolean).join(" ");
+}
+
+function extractGuidancePeriod(guidance: OperatingGuidanceMetric) {
+  return `${guidance.guidanceLabel} ${guidance.label}`.match(
+    /\b(?:Q[1-4]\s+(?:FY\s+)?20\d{2}|FY\s*20\d{2}|Full Year(?:\s+Fiscal)?\s+20\d{2})\b/i,
+  )?.[0] || "";
+}
+
+function formatCompactGuidanceValue(value: string) {
+  return value
+    .replace(/\$\s*([\d,]+(?:\.\d+)?)\s*(million|billion)\b/gi, (_match, rawNumber: string, unit: string) => {
+      return compactGuidanceAmount(rawNumber, unit.toLowerCase() === "billion" ? "B" : "M");
+    })
+    .replace(/\$\s*([\d,]+(?:\.\d+)?)\s*([MB])\b/g, (_match, rawNumber: string, unit: string) => {
+      return compactGuidanceAmount(rawNumber, unit.toUpperCase());
+    })
+    .replace(/\s+(?:to|[-–—])\s+/gi, "–");
+}
+
+function compactGuidanceAmount(rawNumber: string, unit: string) {
+  const numeric = Number(rawNumber.replace(/,/g, ""));
+  if (!Number.isFinite(numeric)) return `$${rawNumber}${unit}`;
+  if (unit === "M" && numeric >= 1000) {
+    const billions = numeric / 1000;
+    return `$${billions.toFixed(2)}B`;
+  }
+  return `$${numeric.toLocaleString("en-US", { maximumFractionDigits: 1 })}${unit}`;
+}
+
+function formatOperatingSignedTransition(item: OperatingPerformanceComparison) {
+  const { comparisonNumeric: comparison, currentNumeric: current } = item;
+  const suffix = item.comparisonBasis === "yoy" ? " YoY" : item.comparisonBasis === "qoq" ? " QoQ" : "";
+  if (comparison < 0 && current > 0) return `Turned profitable${suffix}`;
+  if (comparison > 0 && current < 0) return `Swung to a loss${suffix}`;
+  if (comparison < 0 && current === 0) return `Reached break-even${suffix}`;
+  if (comparison === 0 && current < 0) return `Moved into a loss${suffix}`;
+  if (comparison < 0 && current < 0) {
+    const percent = Math.round(Math.abs((Math.abs(current) - Math.abs(comparison)) / Math.abs(comparison)) * 100);
+    return `${Math.abs(current) < Math.abs(comparison) ? "Loss narrowed" : "Loss widened"} ${percent}%${suffix}`;
+  }
+  return "";
+}
+
+function operatingSignedValueTone(value: number) {
+  if (value < 0) return "negative";
+  if (value > 0) return "positive";
+  return "neutral";
+}
+
+function formatOperatingPerformanceChange(item: OperatingPerformanceComparison) {
+  if (item.currentNumeric <= 0 || item.comparisonNumeric <= 0) return item.changeNote || "";
+  const percentChange = ((item.currentNumeric - item.comparisonNumeric) / item.comparisonNumeric) * 100;
+  if (!Number.isFinite(percentChange)) return item.changeNote || "";
+  const rounded = Math.round(Math.abs(percentChange));
+  const suffix = item.comparisonBasis === "yoy" ? " YoY" : item.comparisonBasis === "qoq" ? " QoQ" : "";
+  if (rounded === 0) return item.comparisonBasis === "other" && item.changeNote ? item.changeNote : `Flat${suffix}`;
+  if (item.comparisonBasis === "other" && item.changeNote) return item.changeNote;
+  return `${percentChange > 0 ? "Up" : "Down"} ${rounded}%${suffix}`;
+}
+
+function operatingPerformanceChangeTone(item: OperatingPerformanceComparison) {
+  if (item.currentNumeric > item.comparisonNumeric) return "improvement";
+  if (item.currentNumeric < item.comparisonNumeric) return "deterioration";
+  return "neutral";
+}
+
+function operatingSignedTransitionTone(current: number, comparison: number) {
+  if (comparison < 0 && current >= 0) return "improvement";
+  if (comparison < 0 && current < 0) return Math.abs(current) < Math.abs(comparison) ? "improvement" : "deterioration";
+  if (comparison >= 0 && current < 0) return "deterioration";
+  return "neutral";
+}
+
+function OperatingOutlookRow({ item }: { item: OperatingGuidanceMetric }) {
+  return (
+    <div className="operating-outlook-compact-row">
+      <span>{formatStandaloneGuidanceLabel(item)}</span>
+      <strong>{formatCompactGuidanceValue(item.guidanceValue)}</strong>
+      {item.note ? <small>{item.note}</small> : null}
+    </div>
+  );
+}
+
+function OperatingKeyDetailsSection({
+  businessCatalysts,
+  projectEconomics,
+}: {
+  businessCatalysts: OperatingBusinessCatalyst[];
+  projectEconomics?: OperatingEventDetailSection;
+}) {
+  return (
+    <section className="operating-event-section operating-key-details-section">
+      <div className="operating-event-section-heading">
+        <h2>Key Business Updates</h2>
+      </div>
+
+      <div className="operating-business-highlight-list">
+        {businessCatalysts.map((item, index) => (
+          <div className="operating-business-highlight-row" key={`${item.title}-${item.value || ""}`}>
+            <div className="operating-business-highlight-heading">
+              <span className="operating-business-highlight-number">{index + 1}.</span>
+              <strong>{item.title}</strong>
+              {item.value ? <span className="operating-business-highlight-value">{item.value}</span> : null}
+            </div>
+            <p>{item.summary}</p>
+          </div>
+        ))}
+        {projectEconomics ? (
+          <div className="operating-business-highlight-row operating-project-economics-row">
+            <div className="operating-business-highlight-heading">
+              <span className="operating-business-highlight-number">{businessCatalysts.length + 1}.</span>
+              <strong>{projectEconomics.title}</strong>
+            </div>
+            <div className="operating-project-economics-list">
+              {projectEconomics.rows.map((row) => (
+                <div className="operating-project-economics-item" key={`${row.label}-${row.value}`}>
+                  <span>{row.label}</span>
+                  <strong>{row.value}</strong>
+                  {row.note ? <small>{row.note}</small> : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function Form25SnapshotCard({
+  label,
+  note,
+  value,
+}: {
+  label: string;
+  note?: string;
+  value: string;
+}) {
+  return (
+    <div className="proxy-vote-summary-tile">
+      <span>{label}</span>
+      <strong>{value}</strong>
+      {note ? <small>{note}</small> : null}
+    </div>
+  );
+}
+
+function normalizeListingStatusSnapshot(value: unknown): ListingStatusSnapshotItem[] {
+  return recordArray(value)
+    .map((item) => ({
+      label: readRowString(item, "label"),
+      value: readRowString(item, "value"),
+      note: readRowString(item, "note") || undefined,
+    }))
+    .filter((item) => item.label && item.value)
+    .slice(0, 4);
+}
+
+function RiskStatusTemplate({
+  eventLabel,
+  filing,
+  model,
+}: {
+  eventLabel: string;
+  filing: FilingEvent;
+  model: RiskStatusModel;
+}) {
+  const snapshotPanel = (
+    <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card listing-risk-snapshot-card">
+      <div className="quick-take-card quick-take-block">
+        <div className="card-heading-row">
+          <h2>{riskStatusSnapshotTitle(filing)}</h2>
+          <span>{filing.formType}</span>
+        </div>
+        <div className="proxy-vote-summary-snapshot">
+          {model.snapshot.map((item) => (
+            <Form25SnapshotCard key={`${item.label}-${item.value}`} label={item.label} note={item.note} value={item.value} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+  const summaryPanel = <AnalysisCard title="Summary" body={filing.summary} />;
+  const hasChart = isRealTicker(filing.ticker);
+
+  return (
+    <>
+      {hasChart ? (
+        <>
+          <section className="stock-detail-top-grid listing-risk-top-grid">
+            <FilingPriceChart filing={filing} />
+            {snapshotPanel}
+          </section>
+          {summaryPanel}
+        </>
+      ) : (
+        <section className="stock-detail-card-grid two-up initial-ipo-compact-grid listing-risk-no-chart-grid">
+          {snapshotPanel}
+          {summaryPanel}
+        </section>
+      )}
+
+      <ScoreBasisPanel filing={filing} />
+
+      {filing.keyEvidence.length || filing.watchNext.length ? (
+        <section className="stock-detail-card-grid two-up insight-summary-grid listing-risk-support-grid">
+          <AnalysisList title="Key Evidence" items={filing.keyEvidence} />
+          <AnalysisList title="What To Watch Next" items={filing.watchNext} />
+        </section>
+      ) : null}
+
+      <FilingMarketContextPanel filing={filing} />
+      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
+    </>
+  );
+}
+
+function CapitalFinancingTemplate({
+  eventLabel,
+  filing,
+  model,
+}: {
+  eventLabel: string;
+  filing: FilingEvent;
+  model: CapitalFinancingModel;
+}) {
+  const snapshotPanel = <CapitalFinancingSnapshot filing={filing} model={model} />;
+  const summaryPanel = <AnalysisCard title="Summary" body={filing.summary} />;
+  const hasChart = isRealTicker(filing.ticker);
+  const detailsTitle = capitalFinancingDetailsTitle(model.mode);
+
+  return (
+    <>
+      {hasChart ? (
+        <>
+          <section className="stock-detail-top-grid listing-risk-top-grid">
+            <FilingPriceChart filing={filing} />
+            {snapshotPanel}
+          </section>
+          {summaryPanel}
+        </>
+      ) : (
+        <section className="stock-detail-card-grid two-up initial-ipo-compact-grid listing-risk-no-chart-grid">
+          {snapshotPanel}
+          {summaryPanel}
+        </section>
+      )}
+
+      <ScoreBasisPanel filing={filing} />
+
+      {model.mode === "atm_capacity" ? (
+        <CapitalFinancingAtmCapacity filing={filing} model={model} detailsTitle={detailsTitle} />
+      ) : model.shareOverhang ? (
+        <CapitalFinancingShareOverhang
+          overhang={model.shareOverhang}
+          offeringDetails={model.offeringDetails}
+          detailsTitle={detailsTitle}
+        />
+      ) : model.offeringDetails.length ? (
+        <DilutionDisclosureSection
+          title={detailsTitle}
+          rows={model.offeringDetails}
+          emptyText=""
+        />
+      ) : null}
+
+      {model.instrumentDetails.length ? (
+        <DilutionInstrumentDetailsSection
+          rows={model.instrumentDetails}
+          emptyText=""
+        />
+      ) : null}
+
+      <FilingMarketContextPanel filing={filing} />
+      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
+    </>
+  );
+}
+
+function CapitalFinancingSnapshot({ filing, model }: { filing: FilingEvent; model: CapitalFinancingModel }) {
+  return (
+    <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card listing-risk-snapshot-card">
+      <div className="quick-take-card quick-take-block">
+        <div className="card-heading-row">
+          <h2>{capitalFinancingSnapshotTitle(model.mode)}</h2>
+          <span>{filing.formType}</span>
+        </div>
+        <div className="proxy-vote-summary-snapshot">
+          {model.snapshotMetrics.map((item) => (
+            <Form25SnapshotCard key={`${item.label}-${item.value}`} label={item.label} note={item.note} value={item.value} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CapitalFinancingShareOverhang({
+  overhang,
+  offeringDetails,
+  detailsTitle,
+}: {
+  overhang: LlmShareOverhangModel;
+  offeringDetails: CapitalFinancingModel["offeringDetails"];
+  detailsTitle: string;
+}) {
+  const canRenderChart = overhang.overhangBarSegments.length > 0;
+  const ratioValue = overhang.totalNoteRatio || overhang.ratioValue || overhang.statusValue;
+  const currentValue = formatVisibleWholeNumber(overhang.totalNoteDenominator);
+  const supplyValue = formatVisibleWholeNumber(overhang.totalNoteNumerator);
+
+  return (
+    <DilutionShareOverhang
+      model={{
+        canRenderOverhangChart: canRenderChart,
+        chartTitle: overhang.chartTitle || "Share Overhang",
+        currentDetailLabel: overhang.currentLabel || "Current Shares Outstanding",
+        currentSharesCompact: currentValue,
+        dilutionRatioPercentValue: overhang.statusValue || ratioValue,
+        dilutionRatioValue: ratioValue,
+        overhangAriaLabel: overhang.chartTitle ? `${overhang.chartTitle}: ${ratioValue}` : undefined,
+        overhangBarSegments: overhang.overhangBarSegments,
+        overhangLevel: overhang.statusLabel,
+        overhangNote: overhang.note,
+        overhangScoreCaption: overhang.caption || overhang.ratioLabel,
+        overhangSubtitle: overhang.subtitle,
+        overhangUnavailableMessage: overhang.note || undefined,
+        potentialSupplyCompact: supplyValue,
+        showBreakdownPanel: false,
+        showSegmentLegend: canRenderChart,
+        showTotalNote: Boolean(overhang.totalNoteNumerator && overhang.totalNoteDenominator && overhang.totalNoteRatio),
+        requireProvidedSupplyDetails: true,
+        supplyDetailRows: offeringDetails,
+        conditionalSupplyRows: overhang.conditionalSupplyRows,
+        supplyDetailTitle: detailsTitle,
+        supplyDetailLabel: overhang.supplyLabel || "Included Supply",
+        totalNoteSuffix: overhang.totalNoteSuffix,
+        totalNoteTitle: overhang.totalNoteTitle,
+        totalOverhangLabel: overhang.ratioLabel,
+        unavailableRows: overhang.unavailableRows,
+      }}
+    />
+  );
+}
+
+function CapitalFinancingAtmCapacity({
+  filing,
+  model,
+  detailsTitle,
+}: {
+  filing: FilingEvent;
+  model: CapitalFinancingModel;
+  detailsTitle: string;
+}) {
+  const overhang = model.shareOverhang;
+  const monetaryBasis = overhang?.overhangBarSegments.find(
+    (segment) =>
+      segment.calculationRole === "denominator" &&
+      (segment.unit?.toLowerCase() === "usd" || /market cap|company value|public float/i.test(segment.label)),
+  );
+  const monetaryCapacity = overhang?.conditionalSupplyRows.find(
+    (row) =>
+      row.rowRole === "reference" &&
+      (row.unit?.toLowerCase() === "usd" || /\$/.test(row.value)) &&
+      /\batm\b|at-the-market|remaining capacity|sale capacity/i.test(`${row.label} ${row.note || ""}`),
+  );
+  const snapshotCapacity = findCapitalFinancingAtmCapacity(model.snapshotMetrics);
+  const denominatorAmount =
+    (monetaryBasis ? parseMoneyValue(monetaryBasis.value) : 0) ||
+    (overhang?.totalNoteDenominator && /\$/.test(overhang.totalNoteDenominator)
+      ? parseMoneyValue(overhang.totalNoteDenominator)
+      : 0) ||
+    readMarketCapAmount(filing.offeringMarketContext);
+  const numeratorAmount =
+    (monetaryCapacity ? parseMoneyValue(monetaryCapacity.value) : 0) ||
+    (overhang?.totalNoteNumerator && /\$/.test(overhang.totalNoteNumerator)
+      ? parseMoneyValue(overhang.totalNoteNumerator)
+      : 0) ||
+    parseMoneyValue(snapshotCapacity?.value || "");
+  const denominatorValue = denominatorAmount ? formatMoneyValue(denominatorAmount) : "Market cap unavailable";
+  const numeratorValue = numeratorAmount
+    ? formatMoneyValue(numeratorAmount)
+    : snapshotCapacity?.value || "ATM capacity unavailable";
+  const canRenderChart = denominatorAmount > 0 && numeratorAmount > 0;
+  const totalAmount = denominatorAmount + numeratorAmount;
+  const ratioValue = canRenderChart ? formatPercentCompact((numeratorAmount / denominatorAmount) * 100) : "Not calculated";
+
+  return (
+    <DilutionShareOverhang
+      model={{
+        canRenderOverhangChart: canRenderChart,
+        chartTitle: "ATM Program",
+        currentDetailLabel: monetaryBasis?.label || "Market Cap",
+        currentSharesCompact: denominatorValue,
+        dilutionRatioPercentValue: ratioValue,
+        dilutionRatioValue: ratioValue,
+        overhangAriaLabel: `ATM capacity compared with market cap: ${ratioValue}`,
+        overhangBarSegments: canRenderChart
+          ? [
+              {
+                key: "atm-market-cap",
+                className: "current-base",
+                label: monetaryBasis?.label || "Market Cap",
+                value: denominatorValue,
+                width: (denominatorAmount / totalAmount) * 100,
+                compact: denominatorAmount / totalAmount < 0.24,
+                roleBadge: "Base",
+                roleKind: "base",
+              },
+              {
+                key: "atm-remaining-capacity",
+                className: "registered-supply",
+                label: snapshotCapacity?.label || monetaryCapacity?.label || "Remaining ATM Capacity",
+                value: numeratorValue,
+                width: (numeratorAmount / totalAmount) * 100,
+                compact: numeratorAmount / totalAmount < 0.24,
+                roleBadge: "Capacity",
+                roleKind: "included",
+              },
+            ]
+          : [],
+        overhangLevel: "Capacity Scale",
+        overhangLevelLabel: "Capacity Level",
+        overhangNote: "Actual dilution depends on how much stock the company sells and at what prices.",
+        overhangScoreCaption: "of market cap",
+        overhangSubtitle: "Current market value plus remaining ATM sale capacity",
+        overhangUnavailableMessage: "ATM capacity scale could not be shown because capacity or market cap was unavailable.",
+        potentialSupplyCompact: numeratorValue,
+        showBreakdownPanel: false,
+        showSegmentLegend: canRenderChart,
+        showTotalNote: canRenderChart,
+        requireProvidedSupplyDetails: true,
+        supplyDetailRows: model.offeringDetails,
+        conditionalSupplyRows: [],
+        supplyDetailTitle: detailsTitle,
+        supplyDetailLabel: "ATM Capacity",
+        totalNoteSuffix: "remaining capacity vs. market cap",
+        totalNoteTitle: "ATM Capacity Scale",
+        totalOverhangLabel: "Capacity vs Market Cap",
+        unavailableRows: [],
+      }}
+    />
+  );
+}
+
+function findCapitalFinancingAtmCapacity(rows: CapitalFinancingModel["snapshotMetrics"]) {
+  const priorities = [
+    /remaining atm capacity/i,
+    /remaining capacity/i,
+    /new offering size/i,
+    /current atm capacity/i,
+    /^atm capacity$/i,
+    /new atm capacity/i,
+    /total atm capacity/i,
+    /atm program size/i,
+  ];
+
+  for (const pattern of priorities) {
+    const match = rows.find((row) => pattern.test(row.label) && !/increase/i.test(row.label) && parseMoneyValue(row.value) > 0);
+    if (match) return match;
+  }
+  return null;
+}
+
+function capitalFinancingSnapshotTitle(mode: CapitalFinancingMode) {
+  if (mode === "atm_capacity") return "ATM Program Snapshot";
+  if (mode === "equity_issuance" || mode === "share_linked_financing") return "Financing Snapshot";
+  if (mode === "debt_liquidity") return "Liquidity Snapshot";
+  if (mode === "capital_structure_action") return "Capital Structure Snapshot";
+  return "Capital Return Snapshot";
+}
+
+function capitalFinancingDetailsTitle(mode: CapitalFinancingMode) {
+  if (mode === "atm_capacity") return "Offering Details";
+  if (mode === "equity_issuance" || mode === "share_linked_financing") return "Offering Details";
+  if (mode === "debt_liquidity") return "Financing Details";
+  if (mode === "capital_structure_action") return "Capital Structure Details";
+  return "Capital Return Details";
+}
+
+function normalizeComparableForm25Date(value: string) {
+  const text = value.trim();
+  const iso = text.match(/\b\d{4}-\d{2}-\d{2}\b/);
+  if (iso) return iso[0];
+  const parsed = Date.parse(text);
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString().slice(0, 10) : text.toLowerCase();
+}
+
+function formatForm25DisplayDate(value: string) {
+  const text = value.trim();
+  if (!text) return "";
+  const hasIsoDatePrefix =
+    text.length >= 10 &&
+    text[4] === "-" &&
+    text[7] === "-" &&
+    Number.isFinite(Number(text.slice(0, 4))) &&
+    Number.isFinite(Number(text.slice(5, 7))) &&
+    Number.isFinite(Number(text.slice(8, 10)));
+  return hasIsoDatePrefix ? text.slice(0, 10) : text;
+}
+
+function compactForm25CardNote(value: string) {
+  const text = value.replace(/\s+/g, " ").trim();
+  if (!text || !isDisclosedValue(text)) return "";
+  if (text.length <= 80) return text;
+  if (/mandatory.{0,80}separation|unit holders?.{0,120}receive|underlying their units/i.test(text)) {
+    return "Units separated into underlying shares and warrants.";
+  }
+  if (/12d2-2\(a\)\(3\)/i.test(text) && /\bsubstitution|immediate cash payment|other securities\b/i.test(text)) {
+    return "Security was replaced by another security or cash right.";
+  }
+  if (/\bmerger|acquisition|business combination|converted into|exchanged for\b/i.test(text)) {
+    return "Removal follows a completed transaction or exchange.";
+  }
+  if (/\bredeemed|matured|retired|expired|extinguished\b/i.test(text)) {
+    return "Security was redeemed, retired, matured, or expired.";
+  }
+  if (/\bvoluntary|withdrawal\b/i.test(text)) return "Issuer chose to remove this security from the exchange.";
+  if (isForm25ListingStandardsReason(text)) {
+    const listingRule = text.match(/\b(?:Nasdaq\s+)?Listing Rule\s+[A-Z0-9().-]+/i)?.[0];
+    if (listingRule) return `No longer qualified under ${listingRule}.`;
+    return "Delisting tied to exchange listing-standard issues.";
+  }
+  return "See source filing for full removal reason.";
+}
+
+function formatForm25HeaderCompany({
+  fallbackCompany,
+  fallbackTicker,
+  issuerName,
+}: {
+  fallbackCompany: string;
+  fallbackTicker: string;
+  issuerName: string;
+}) {
+  if (isDisclosedValue(issuerName)) return issuerName;
+  if (!/exchange|filed by|see all company filings|cik\s*:/i.test(fallbackCompany)) return fallbackCompany;
+  return isRealTicker(fallbackTicker) ? fallbackTicker : "Issuer not disclosed";
+}
+
+function cleanForm25IssuerName(value: string) {
+  const text = value.replace(/\s+/g, " ").replace(/\s+\(Filed by\).*$/i, "").trim();
+  if (!text || !isDisclosedValue(text)) return "";
+  if (/\b(?:exchange|stock market|nyse|nasdaq|cboe|nyse american)\b/i.test(text)) return "";
+  if (/\b(?:filed by|see all company filings|cik\s*:)\b/i.test(text)) return "";
+  return text.length > 90 ? "" : text;
+}
+
+function extractForm25IssuerFromOriginalHtml(html: string) {
+  const text = stripHtml(html);
+  const match = text.match(/\bIssuer:\s*([A-Z0-9][A-Za-z0-9 .,&'/-]{2,120}?)(?:\s+Exchange:|\s+Description|\s+Rule|\s+File Number|$)/i);
+  return cleanForm25IssuerName(match?.[1] || "");
+}
+
+function cleanForm25ConsiderationSummary(value: string) {
+  const text = value.replace(/\s+/g, " ").trim();
+  if (!text || !isDisclosedValue(text)) return "";
+  if (/12d2-2|17\s*CFR|NOTIFICATION OF THE REMOVAL|the exchange hereby notifies/i.test(text)) return "";
+  if (text.length > 180 && !/\$|per share|receive|converted|exchanged|consideration/i.test(text)) return "";
+  return text;
+}
+
+function isForm25ListingStandardsReason(value: string) {
+  return /listing_standards_failure|continued_listing_standards|exchange_determination|no longer qualif(?:y|ied)|listing rules?|listing standards?|minimum bid|non[- ]compliance|delisting determination/i.test(
+    value,
+  );
+}
+
+function buildCapitalFinancingModel(filing: FilingEvent): CapitalFinancingModel | null {
+  const displayPayload = readPlainRecord(filing.displayPayload);
+  if (readRowString(displayPayload, "display_type") !== "capital_financing") return null;
+
+  const data = readDisplayPayloadData(displayPayload);
+  const mode = normalizeCapitalFinancingMode(readRowString(data, "capital_mode"));
+  const snapshotMetrics = normalizeCapitalFinancingRows(data.snapshot_metrics, 4);
+  if (!mode || snapshotMetrics.length < 2) return null;
+
+  return {
+    mode,
+    snapshotMetrics,
+    offeringDetails: normalizeCapitalFinancingRows(data.offering_details, 6),
+    instrumentDetails: readWarrantInstrumentRows(data),
+    shareOverhang: readLlmShareOverhang(data, null),
+  };
+}
+
+function normalizeCapitalFinancingMode(value: string): CapitalFinancingMode | null {
+  if (
+    value === "equity_issuance" ||
+    value === "share_linked_financing" ||
+    value === "atm_capacity" ||
+    value === "debt_liquidity" ||
+    value === "capital_structure_action" ||
+    value === "capital_return"
+  ) {
+    return value;
+  }
+  return null;
+}
+
+function normalizeCapitalFinancingRows(value: unknown, limit: number): ListingStatusSnapshotItem[] {
+  return recordArray(value)
+    .map((item) => ({
+      label: readRowString(item, "label"),
+      value: readRowString(item, "value"),
+      note: readRowString(item, "note") || undefined,
+    }))
+    .filter((item) => item.label && item.value)
+    .slice(0, limit);
+}
+
+function buildRiskStatusModel(filing: FilingEvent): RiskStatusModel | null {
+  if (filing.eventType !== "listing_risk" && filing.eventType !== "financial_risk") return null;
+  if (!filing.listingStatusSnapshot || filing.listingStatusSnapshot.length < 2) return null;
+  return { snapshot: filing.listingStatusSnapshot.slice(0, 4) };
+}
+
+function riskStatusSnapshotTitle(filing: FilingEvent) {
+  return filing.eventType === "listing_risk" ? "Listing Status Snapshot" : "Risk Status Snapshot";
+}
+
+function riskStatusChipLabel(filing: FilingEvent) {
+  return filing.eventType === "listing_risk" ? "Listing Risk" : "Financial Risk";
+}
+
+function buildStrategicTransactionModel(filing: FilingEvent): StrategicTransactionModel | null {
+  if (filing.eventType !== "strategic_transaction") return null;
+  const displayPayload = readPlainRecord(filing.displayPayload);
+  if (readRowString(displayPayload, "display_type") !== "strategic_transaction") return null;
+
+  const snapshot = normalizeCapitalFinancingRows(readDisplayPayloadData(displayPayload).snapshot_metrics, 4);
+  return snapshot.length >= 2 ? { snapshot } : null;
+}
+
+function buildGovernanceEventModel(filing: FilingEvent): GovernanceEventModel | null {
+  const displayPayload = readPlainRecord(filing.displayPayload);
+  if (readRowString(displayPayload, "display_type") !== "governance_event") return null;
+
+  const data = readDisplayPayloadData(displayPayload);
+  const mode = normalizeGovernanceEventMode(readRowString(data, "governance_mode"));
+  const snapshotMetrics = normalizeCapitalFinancingRows(data.snapshot_metrics, 4);
+  if (!mode || snapshotMetrics.length < 2) return null;
+
+  const changes = recordArray(data.key_changes)
+    .map((item) => ({
+      title: readRowString(item, "title"),
+      category: readRowString(item, "category"),
+      explanation: readRowString(item, "explanation"),
+      details: normalizeCapitalFinancingRows(item.details, 3),
+    }))
+    .filter((item) => item.title && item.explanation)
+    .slice(0, 4);
+
+  return {
+    mode,
+    snapshotTitle: readRowString(data, "snapshot_title") || "Governance Snapshot",
+    snapshotMetrics,
+    changesTitle: mode === "vote_result" ? "Vote Results" : "Key Changes",
+    changes,
+  };
+}
+
+function normalizeGovernanceEventMode(value: string): GovernanceEventMode | null {
+  if (
+    value === "leadership_change" ||
+    value === "auditor_change" ||
+    value === "vote_result" ||
+    value === "governance_change" ||
+    value === "mixed"
+  ) {
+    return value;
+  }
+  return null;
+}
+
+function buildOperatingEventModel(filing: FilingEvent): OperatingEventModel | null {
+  const displayPayload = readPlainRecord(filing.displayPayload);
+  if (readRowString(displayPayload, "display_type") !== "operating_event") return null;
+
+  const data = readDisplayPayloadData(displayPayload);
+  const mode = normalizeOperatingEventMode(readRowString(data, "operating_mode"));
+  if (!mode) return null;
+  const regulatoryStage = normalizeOperatingRegulatoryStage(readRowString(data, "regulatory_stage"));
+
+  const snapshotMetrics = normalizeCapitalFinancingRows(data.snapshot_metrics, 4);
+  if (mode !== "routine_archive" && snapshotMetrics.length < 2) return null;
+
+  const performanceComparisons = recordArray(data.performance_comparisons)
+    .map((item) => ({
+      label: readRowString(item, "label"),
+      currentLabel: readRowString(item, "current_label"),
+      currentValue: readRowString(item, "current_value"),
+      currentNumeric: readOptionalRowNumber(item, "current_numeric"),
+      comparisonLabel: readRowString(item, "comparison_label"),
+      comparisonValue: readRowString(item, "comparison_value"),
+      comparisonNumeric: readOptionalRowNumber(item, "comparison_numeric"),
+      comparisonBasis: normalizeOperatingComparisonBasisForDisplay(
+        readRowString(item, "comparison_basis"),
+        readRowString(item, "current_label"),
+        readRowString(item, "comparison_label"),
+      ),
+      changeNote: readRowString(item, "change_note") || undefined,
+    }))
+    .filter(
+      (item) =>
+        item.label &&
+        item.currentLabel &&
+        item.currentValue &&
+        item.currentNumeric !== null &&
+        item.comparisonLabel &&
+        item.comparisonValue &&
+        item.comparisonNumeric !== null,
+    )
+    .map((item) => ({
+      ...item,
+      currentNumeric: item.currentNumeric as number,
+      comparisonNumeric: item.comparisonNumeric as number,
+    }))
+    .slice(0, 3);
+  const guidanceMetrics = recordArray(data.guidance_metrics)
+    .map((item) => ({
+        label: readRowString(item, "label"),
+        guidanceLabel: readRowString(item, "guidance_label"),
+        guidanceValue: readRowString(item, "guidance_value"),
+        guidanceKind: readOperatingGuidanceKind(item.guidance_kind, item.guidance_low_numeric, item.guidance_high_numeric),
+        guidanceLowNumeric: readOptionalRowNumber(item, "guidance_low_numeric"),
+        guidanceHighNumeric: readOptionalRowNumber(item, "guidance_high_numeric"),
+        performanceRelationship: readOperatingPerformanceRelationship(item.performance_relationship),
+        performanceLabel: readRowString(item, "performance_label") || undefined,
+        note: readRowString(item, "note") || undefined,
+      }))
+    .filter(
+      (item) =>
+        item.label &&
+        item.guidanceLabel &&
+        item.guidanceValue,
+    )
+    .slice(0, 3);
+  const promotedGuidanceMetrics = new Set<OperatingGuidanceMetric>();
+  if (mode === "operating_update" && snapshotMetrics.length < 4) {
+    for (const guidance of guidanceMetrics) {
+      if (snapshotMetrics.length >= 4) break;
+      const normalizedValue = guidance.guidanceValue.trim().toLowerCase();
+      const alreadyVisible = snapshotMetrics.some(
+        (item) => item.value.trim().toLowerCase() === normalizedValue,
+      );
+      if (alreadyVisible) continue;
+
+      snapshotMetrics.push({
+        label: `${guidance.guidanceLabel} Guidance`,
+        value: guidance.guidanceValue,
+        note: guidance.label,
+      });
+      promotedGuidanceMetrics.add(guidance);
+    }
+  }
+  const businessCatalysts = recordArray(data.business_catalysts)
+    .map((item) => ({
+      title: readRowString(item, "title"),
+      value: readRowString(item, "value") || undefined,
+      summary: readRowString(item, "summary"),
+    }))
+    .filter((item) => item.title && item.summary)
+    .slice(0, 3);
+  if (!businessCatalysts.length) {
+    businessCatalysts.push(
+      ...normalizeCapitalFinancingRows(data.operating_metrics, 3).map((item) => ({
+        title: item.label,
+        value: item.value,
+        summary: item.note || "",
+      })),
+      ...recordArray(data.business_highlights).map((item) => ({
+        title: readRowString(item, "title"),
+        value: undefined,
+        summary: readRowString(item, "summary"),
+      })),
+    );
+  }
+
+  const detailSections = (mode === "earnings" ? [] : recordArray(data.detail_sections))
+    .map((section) => ({
+      title: readRowString(section, "title"),
+      rows: normalizeCapitalFinancingRows(section.rows, 5),
+    }))
+    .filter((section) => section.title && section.rows.length)
+    .slice(0, 2);
+  const secondaryUpdates = recordArray(data.secondary_updates)
+    .map((update) => ({
+      label: readRowString(update, "label"),
+      title: readRowString(update, "title"),
+      summary: readRowString(update, "summary"),
+    }))
+    .filter((update) => update.label && update.title && update.summary)
+    .slice(0, 1);
+
+  return {
+    mode,
+    detailsTitle: operatingEventDetailsTitle(mode, regulatoryStage),
+    snapshotTitle: readRowString(data, "snapshot_title") || operatingEventSnapshotTitle(mode),
+    snapshotMetrics,
+    performanceComparisons,
+    guidanceMetrics: guidanceMetrics.filter((item) => !promotedGuidanceMetrics.has(item)),
+    businessCatalysts: businessCatalysts.filter((item) => item.title && item.summary).slice(0, 3),
+    detailSections,
+    secondaryUpdates,
+  };
+}
+
+function normalizeOperatingComparisonBasisForDisplay(
+  value: string,
+  currentLabel: string,
+  comparisonLabel: string,
+): "yoy" | "qoq" | "other" {
+  const inferred = inferOperatingComparisonBasisForDisplay(currentLabel, comparisonLabel);
+  if (inferred) return inferred;
+  if (value === "yoy" || value === "qoq" || value === "other") return value;
+  return "other";
+}
+
+function inferOperatingComparisonBasisForDisplay(currentLabel: string, comparisonLabel: string) {
+  const current = parseOperatingQuarterLabelForDisplay(currentLabel);
+  const comparison = parseOperatingQuarterLabelForDisplay(comparisonLabel);
+  if (current && comparison) {
+    if (current.quarter === comparison.quarter && current.year === comparison.year + 1) return "yoy" as const;
+    const currentSequence = current.year * 4 + current.quarter;
+    const comparisonSequence = comparison.year * 4 + comparison.quarter;
+    if (currentSequence === comparisonSequence + 1) return "qoq" as const;
+    return "other" as const;
+  }
+
+  const currentYear = parseOperatingFiscalYearLabelForDisplay(currentLabel);
+  const comparisonYear = parseOperatingFiscalYearLabelForDisplay(comparisonLabel);
+  if (currentYear !== null && comparisonYear !== null && currentYear === comparisonYear + 1) return "yoy" as const;
+  return null;
+}
+
+function parseOperatingQuarterLabelForDisplay(label: string) {
+  const normalized = label.toLowerCase().replace(/[’']/g, "").replace(/\s+/g, " ").trim();
+  const quarterFirst = normalized.match(/\bq([1-4])\s*(?:fy\s*)?(\d{2,4})\b/);
+  const numberFirst = normalized.match(/\b([1-4])q\s*(?:fy\s*)?(\d{2,4})\b/);
+  const wordQuarter = normalized.match(/\b(first|second|third|fourth) quarter\s+(\d{4})\b/);
+  const match = quarterFirst || numberFirst;
+  if (match) {
+    return {
+      quarter: Number(match[1]),
+      year: normalizeOperatingPeriodYearForDisplay(Number(match[2])),
+    };
+  }
+  if (!wordQuarter) return null;
+  return {
+    quarter: { first: 1, second: 2, third: 3, fourth: 4 }[wordQuarter[1] as "first" | "second" | "third" | "fourth"],
+    year: Number(wordQuarter[2]),
+  };
+}
+
+function parseOperatingFiscalYearLabelForDisplay(label: string) {
+  const normalized = label.toLowerCase().replace(/[’']/g, "").replace(/\s+/g, " ").trim();
+  const match = normalized.match(/\b(?:fy|fiscal year|full year)\s*(\d{2,4})\b/);
+  return match ? normalizeOperatingPeriodYearForDisplay(Number(match[1])) : null;
+}
+
+function normalizeOperatingPeriodYearForDisplay(value: number) {
+  return value < 100 ? 2000 + value : value;
+}
+
+function normalizeOperatingEventMode(value: string): OperatingEventMode | null {
+  if (
+    value === "earnings" ||
+    value === "operating_update" ||
+    value === "product_or_regulatory" ||
+    value === "legal_or_accounting" ||
+    value === "routine_archive"
+  ) {
+    return value;
+  }
+  return null;
+}
+
+function normalizeOperatingRegulatoryStage(value: string): OperatingRegulatoryStage {
+  if (
+    value === "ind_or_clinical_hold" ||
+    value === "application_review" ||
+    value === "advisory_committee" ||
+    value === "approval" ||
+    value === "crl_or_appeal" ||
+    value === "clinical_update" ||
+    value === "other_regulatory"
+  ) {
+    return value;
+  }
+  return "not_applicable";
+}
+
+function operatingEventDetailsTitle(mode: OperatingEventMode, stage: OperatingRegulatoryStage) {
+  if (mode !== "product_or_regulatory") return "Key Details";
+  if (stage === "ind_or_clinical_hold") return "Key IND Details";
+  if (stage === "application_review" || stage === "advisory_committee") return "Key FDA Review Details";
+  if (stage === "approval") return "Key FDA Approval Details";
+  if (stage === "crl_or_appeal") return "Key FDA Appeal Details";
+  if (stage === "clinical_update") return "Key Clinical Details";
+  if (stage === "other_regulatory") return "Key Regulatory Details";
+  return "Key Details";
+}
+
+function operatingEventSnapshotTitle(mode: OperatingEventMode) {
+  if (mode === "earnings") return "Earnings Snapshot";
+  if (mode === "operating_update") return "Operating Snapshot";
+  if (mode === "product_or_regulatory") return "Product / Regulatory Snapshot";
+  if (mode === "legal_or_accounting") return "Legal / Accounting Snapshot";
+  return "Event Snapshot";
+}
+
+function operatingEventChipLabel(mode: OperatingEventMode) {
+  if (mode === "earnings") return "Earnings";
+  if (mode === "operating_update") return "Operating Update";
+  if (mode === "product_or_regulatory") return "Product / Regulatory";
+  if (mode === "legal_or_accounting") return "Legal / Accounting";
+  return "Filing Update";
+}
+
+function formatVisibleWholeNumber(value: string) {
+  const text = cleanDisclosureValue(value);
+  const normalized = text.replace(/,/g, "");
+  if (!/^-?\d+$/.test(normalized)) return value;
+
+  const numericValue = Number(normalized);
+  return Number.isSafeInteger(numericValue) ? numericValue.toLocaleString("en-US") : value;
+}
+
+function WatchNextItems({ items }: { items: string[] }) {
+  return (
+    <ol className="filing-watch-next-list">
+      {items.map((item) => (
+        <li key={item}>{item}</li>
+      ))}
+    </ol>
+  );
+}
+
+function readOperatingPerformanceRelationship(value: unknown): OperatingGuidanceMetric["performanceRelationship"] {
+  if (value === "same_basis" || value === "related_different_basis" || value === "standalone") return value;
+  return undefined;
+}
+
+function readOperatingGuidanceKind(
+  value: unknown,
+  lowValue: unknown,
+  highValue: unknown,
+): OperatingGuidanceMetric["guidanceKind"] {
+  if (value === "numeric_range" || value === "point" || value === "qualitative") return value;
+  const low = typeof lowValue === "number" && Number.isFinite(lowValue) ? lowValue : null;
+  const high = typeof highValue === "number" && Number.isFinite(highValue) ? highValue : null;
+  if (low !== null && high !== null) return low === high ? "point" : "numeric_range";
+  if (low !== null || high !== null) return "point";
+  return "qualitative";
+}
+
+function readOptionalRowNumber(row: Record<string, unknown> | null | undefined, key: string) {
+  if (!row || !Object.prototype.hasOwnProperty.call(row, key)) return null;
+  const value = row[key];
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) return Number(value);
+  return null;
 }

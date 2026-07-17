@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { evaluateCalendarItemPolicy } from "@/lib/calendarPolicy";
 import { getCalendarEventGroup, normalizeCalendarEventType } from "@/lib/calendarEventRegistry";
-import { SEC_EVENT_TYPE_VALUES } from "@/lib/prompts/secFilingAnalysis";
+import { SEC_INTEGRATION_EVENT_TYPES } from "@/lib/sources/sec/forms/common/secIntegrationContract";
 import { SIGNAL_VALUES } from "@/lib/prompts/newsEventAnalysis";
 import { buildSecFilingAlertCandidate, enqueueSecFilingAlertCandidate } from "@/lib/secStores/alertQueue";
 import { supabaseDelete, supabaseSelect, supabaseUpsert } from "@/lib/supabase";
@@ -14,7 +14,7 @@ type Impact = "high" | "medium" | "low";
 type AnalysisScope = "company" | "sector" | "theme" | "market";
 type PersistedRow = Record<string, unknown>;
 
-const allowedEventTypes = new Set<string>(SEC_EVENT_TYPE_VALUES);
+const allowedEventTypes = new Set<string>(SEC_INTEGRATION_EVENT_TYPES);
 const allowedSignals = new Set<string>(SIGNAL_VALUES);
 const allowedTickerRoles = new Set<string>([
   "primary",
@@ -63,7 +63,8 @@ export async function saveAnalyzedSecFilingEvent({
   const displayPayload = toRecord(analysis.display_payload);
   const transactionFingerprint = toRecord(analysis.transaction_fingerprint);
   const archiveSummary = nullableString(analysis.archive_summary) || (deliveryLevel === "archive" ? nullableString(analysis.summary) : null);
-  const analysisRuntimeSource = openAiResponseId ? "llm" : "parser_deterministic";
+  const analysisRuntimeSource =
+    nullableString(analysis.analysis_runtime_source) || (openAiResponseId ? "llm" : "parser_deterministic");
   const archiveRoute =
     deliveryLevel === "archive"
       ? analysisRuntimeSource === "llm"
@@ -121,7 +122,8 @@ export async function saveAnalyzedSecFilingEvent({
       archive_summary: archiveSummary,
       filing_context: toRecord(filingPackage.filing_context),
       parent_registration_context: toRecord(filingPackage.parent_registration_context),
-      parent_filing_context: toRecord(filingPackage.parent_filing_context),
+      parent_filing_context: compactParentFilingContextForMetadata(filingPackage.parent_filing_context),
+      related_filing_contexts: compactRelatedFilingContextsForMetadata(filingPackage.related_filing_contexts),
       display_payload: displayPayload,
       transaction_fingerprint: transactionFingerprint,
       display_payload_storage_target: nullableString(analysis.display_payload_storage_target),
@@ -129,6 +131,10 @@ export async function saveAnalyzedSecFilingEvent({
       candidate_special_metadata_only: Boolean(analysis.candidate_special_metadata_only),
       offering_display_model: toRecord(analysis.offering_display_model),
       offering_security_audit: offeringSecurityAudit,
+      listing_status_snapshot: normalizeJsonArray(analysis.listing_status_snapshot),
+      material_events: normalizeJsonArray(analysis.material_events),
+      sec_8k_6k_amendment_delta: toRecord(analysis.sec_8k_6k_amendment_delta),
+      sec_8k_6k_prompt_metadata: toRecord(analysis.sec_8k_6k_prompt_metadata),
       market_context: marketContext,
       dilution_metrics: dilutionMetrics,
       related_tickers: analysis.related_tickers || [],
@@ -170,6 +176,41 @@ export async function saveAnalyzedSecFilingEvent({
   return eventRow;
 }
 
+function compactParentFilingContextForMetadata(value: unknown) {
+  const context = toRecord(value);
+  if (!context) return null;
+  const compact = { ...context };
+  delete compact.source_blocks;
+  delete compact.sourceBlocks;
+  return compact;
+}
+
+function compactRelatedFilingContextsForMetadata(value: unknown) {
+  return recordArray(value)
+    .slice(0, 6)
+    .map((context) => ({
+      match_source: nullableString(context.match_source) || "explicit_related_filing_context",
+      match_method: nullableString(context.match_method),
+      match_confidence: nullableString(context.confidence),
+      event_id: nullableString(context.event_id),
+      raw_item_id: nullableString(context.raw_item_id),
+      accession_number: nullableString(context.accession_number),
+      form_type: nullableString(context.form_type) || nullableString(context.referenced_form_type),
+      filed_at: nullableString(context.filed_at) || nullableString(context.referenced_filed_date),
+      source_url: nullableString(context.source_url),
+      company_name: nullableString(context.company_name),
+      ticker: nullableString(context.ticker),
+      event_type: nullableString(context.event_type),
+      score: numberValue(context.score),
+      delivery_level: nullableString(context.delivery_level),
+      signal: nullableString(context.signal),
+      event_title: nullableString(context.event_title),
+      quick_take: nullableString(context.quick_take),
+      summary: nullableString(context.summary),
+      reference_evidence: nullableString(context.reference_evidence),
+    }));
+}
+
 async function persistEventAnalysis(
   eventRow: PersistedRow,
   analysis: Record<string, unknown>,
@@ -189,6 +230,9 @@ async function persistEventAnalysis(
       score_explanation: toRecord(analysis.score_explanation),
       offering_display_model: toRecord(analysis.offering_display_model),
       offering_security_audit: toRecord(analysis.offering_security_audit),
+      listing_status_snapshot: normalizeJsonArray(analysis.listing_status_snapshot),
+      sec_8k_6k_amendment_delta: toRecord(analysis.sec_8k_6k_amendment_delta),
+      sec_8k_6k_prompt_metadata: toRecord(analysis.sec_8k_6k_prompt_metadata),
     },
   };
 

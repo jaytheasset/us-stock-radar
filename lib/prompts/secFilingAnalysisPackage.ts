@@ -940,25 +940,86 @@ function buildTextSections({
     if (!budget) return "";
     const cleaned = compactText(text);
     const truncated = cleaned.length > budget;
-    const selected = truncated ? cleaned.slice(0, budget) : cleaned;
+    const selected = truncated ? truncateAtTextBoundary(cleaned, budget) : cleaned;
     sections.push({ label, text: selected.trim(), truncated });
     remaining -= selected.length;
     return selected;
   };
 
   const includedPrimaryText = pushSection("Primary Filing Text", bodyText, maxDocumentChars);
+  const rankedAttachments = attachmentTexts
+    .map((attachment, index) => ({
+      attachment,
+      index,
+      priority: attachmentAnalysisPriority(attachment),
+    }))
+    .filter(({ attachment }) => {
+      const text = stringValue(attachment.text);
+      return text && !isAttachmentAlreadyIncluded(includedPrimaryText, text);
+    })
+    .sort((left, right) => right.priority - left.priority || left.index - right.index);
+  const coverageLengths = new Map<number, number>();
+  const coverageCandidates = rankedAttachments.slice(0, 8);
+  let coverageBudget = Math.min(18_000, Math.max(0, remaining - 8_000));
+
+  // Reserve source-backed context across important exhibits before a long contract
+  // can consume the full package budget. Later sections use the remaining text.
+  for (let index = 0; index < coverageCandidates.length && coverageBudget >= 1_000; index += 1) {
+    const candidate = coverageCandidates[index];
+    const candidatesLeft = coverageCandidates.length - index - 1;
+    const reservedForLater = candidatesLeft * 1_000;
+    const available = Math.max(1_000, coverageBudget - reservedForLater);
+    const preferred = preferredAttachmentCoverageChars(candidate.attachment);
+    const limit = Math.min(preferred, available);
+    const text = compactText(stringValue(candidate.attachment.text));
+    const label = attachmentSectionLabel(candidate.attachment);
+    const selected = pushSection(`${label} - Priority Source`, text, limit);
+    if (!selected) continue;
+    coverageLengths.set(candidate.index, selected.length);
+    coverageBudget -= selected.length;
+  }
+
   pushSection("Instrument Term Excerpts", buildInstrumentTermExcerpts(attachmentTexts), Math.min(12_000, maxDocumentChars));
 
-  for (const attachment of attachmentTexts) {
+  for (const candidate of rankedAttachments) {
     if (remaining < 1_000) break;
-    if (isAttachmentAlreadyIncluded(includedPrimaryText, stringValue(attachment.text))) continue;
-    const type = nullableString(attachment.type) || "Exhibit";
-    const description = nullableString(attachment.description);
-    const label = description ? `${type} - ${description}` : type;
-    pushSection(label, stringValue(attachment.text), Math.min(maxDocumentChars, Math.max(4_000, remaining)));
+    const text = compactText(stringValue(candidate.attachment.text));
+    const coveredChars = coverageLengths.get(candidate.index) || 0;
+    if (coveredChars >= text.length) continue;
+    const label = attachmentSectionLabel(candidate.attachment);
+    pushSection(
+      coveredChars ? `${label} - Continued` : label,
+      text.slice(coveredChars).trim(),
+      Math.min(maxDocumentChars, Math.max(4_000, remaining)),
+    );
   }
 
   return sections;
+}
+
+function attachmentSectionLabel(attachment: AttachmentTextPayload) {
+  const type = nullableString(attachment.type) || "Exhibit";
+  const description = nullableString(attachment.description);
+  return description && compactComparableText(description) !== compactComparableText(type)
+    ? `${type} - ${description}`
+    : type;
+}
+
+function attachmentAnalysisPriority(attachment: AttachmentTextPayload) {
+  const haystack = `${stringValue(attachment.type)} ${stringValue(attachment.description)} ${stringValue(attachment.url)}`;
+  if (/\bEX[-\s]?99(?:\.\d+)?\b|press release|news release|earnings release|auditor letter/i.test(haystack)) return 100;
+  if (/\bEX[-\s]?2(?:\.\d+)?\b|merger agreement|asset purchase agreement|business combination agreement/i.test(haystack)) return 90;
+  if (/\bEX[-\s]?(?:4|10)(?:\.\d+)?\b|warrant|indenture|financing agreement|material agreement/i.test(haystack)) return 80;
+  if (/\bEX[-\s]?\d+(?:\.\d+)?\b/i.test(haystack)) return 60;
+  return 40;
+}
+
+function preferredAttachmentCoverageChars(attachment: AttachmentTextPayload) {
+  const priority = attachmentAnalysisPriority(attachment);
+  if (priority >= 100) return 6_000;
+  if (priority >= 90) return 4_000;
+  if (priority >= 80) return 2_500;
+  return 1_500;
 }
 
 function buildInstrumentTermExcerpts(attachmentTexts: AttachmentTextPayload[]) {
@@ -1070,6 +1131,22 @@ function compactText(value: string) {
     .join("\n")
     .replace(/\n{4,}/g, "\n\n\n")
     .trim();
+}
+
+function truncateAtTextBoundary(value: string, max: number) {
+  if (value.length <= max) return value;
+  const minimumBoundary = Math.floor(max * 0.6);
+  const prefix = value.slice(0, max);
+  const paragraphBoundary = prefix.lastIndexOf("\n\n");
+  if (paragraphBoundary >= minimumBoundary) return prefix.slice(0, paragraphBoundary).trim();
+  const sentenceMatches = Array.from(prefix.matchAll(/[.!?](?:["')\]]+)?(?=\s|$)/g));
+  const sentenceBoundary = sentenceMatches.at(-1)?.index;
+  if (sentenceBoundary != null && sentenceBoundary >= minimumBoundary) {
+    return prefix.slice(0, sentenceBoundary + 1).trim();
+  }
+  const lineBoundary = prefix.lastIndexOf("\n");
+  if (lineBoundary >= minimumBoundary) return prefix.slice(0, lineBoundary).trim();
+  return prefix.trim();
 }
 
 function truncate(value: string, max: number) {

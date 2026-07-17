@@ -1,6 +1,15 @@
 import { XMLParser } from "fast-xml-parser";
 import { getServerEnv } from "@/lib/env";
-import { getSecFormFetchPlan, matchesSecFormFetchRule } from "@/lib/sources/sec/forms/fetchPlanRegistry";
+import {
+  getSecFormFetchPlan,
+  isSecTextFetchCandidate,
+  matchesSecFormFetchRule,
+} from "@/lib/sources/sec/forms/fetchPlanRegistry";
+import {
+  buildSecArchiveFilingUrls,
+  buildSecArchiveIndexUrlFromMasterFilename,
+} from "@/lib/sources/sec/archiveUrls";
+import { decodeSecHtmlEntities } from "@/lib/sources/sec/htmlEntities";
 import {
   extractPeriodicReportIngestEvidence,
   type PeriodicReportIngestSourceBlock,
@@ -17,6 +26,8 @@ const MAX_DOCUMENT_TEXT_CHARS = 160_000;
 const MAX_COMBINED_TEXT_CHARS = 500_000;
 const MAX_OWNERSHIP_SOURCE_TEXT_CHARS = 500_000;
 const MAX_PRIMARY_DOCUMENT_HTML_CHARS = 2_000_000;
+const SEC_FETCH_MAX_ATTEMPTS = 3;
+const SEC_TRANSIENT_HTTP_STATUSES = new Set([403, 408, 425, 429, 500, 502, 503, 504]);
 
 type FetchOptions = {
   formTypes?: string[];
@@ -52,6 +63,7 @@ export type SecDocument = {
   periodicReportCoreSourceBlocks?: PeriodicReportIngestSourceBlock[];
   fetchStatus?: number;
   fetchError?: string;
+  textExtractionStatus?: string | null;
 };
 
 export type SecParsedRawItem = {
@@ -240,6 +252,21 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
 
       const primary = detail.documents.find((document) => document.isPrimary) || detail.documents[0] || null;
       const bodyText = buildCombinedText(detail.documents);
+      if (includeDocuments && !bodyText) {
+        const sourceFailure = summarizeDocumentSourceFailure(detailUrl, detail.documents);
+        if (requestedAccessionNumber) {
+          return {
+            ok: false,
+            status: sourceFailure.status,
+            fetchedAt,
+            count: 0,
+            items: [],
+            diagnostics,
+            error: sourceFailure.message,
+          };
+        }
+        continue;
+      }
       const formType = chooseRawItemFormType(entry.formType, primary?.type);
       const ownershipSource =
         detail.documents.find((document) => document.rawSourceFormat === "ownership_xml") ||
@@ -347,6 +374,7 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
             rawSourceFormat: document.rawSourceFormat || null,
             fetchStatus: document.fetchStatus || null,
             fetchError: document.fetchError || null,
+            textExtractionStatus: document.textExtractionStatus || null,
           })),
           attachment_texts: detail.documents
             .filter((document) => !document.isPrimary && document.text)
@@ -442,6 +470,11 @@ async function fetchSecCurrentFeedByAccession(accessionNumber: string, options: 
     };
   }
 
+  if (normalizeCik(options.cik)) {
+    const directArchive = await fetchSecAccessionFromArchivePath(normalized, options.cik);
+    if (directArchive.ok && directArchive.entry) return directArchive;
+  }
+
   return fetchSecAccessionFromFullIndex(normalized, options);
 }
 
@@ -483,7 +516,7 @@ async function fetchSecAccessionFromFullIndex(accessionNumber: string, options: 
       const formType = normalizeFormType(parts[2]) || null;
       const filedDate = stringValue(parts[3]);
       const filename = stringValue(parts[4]);
-      const detailUrl = accessionIndexUrlFromMasterFilename(filename);
+      const detailUrl = buildSecArchiveIndexUrlFromMasterFilename(filename);
       if (!detailUrl) continue;
 
       return {
@@ -596,12 +629,18 @@ async function fetchSecAccessionFromArchivePath(accessionNumber: string, cik?: s
     };
   }
 
-  const archiveDir = `${SEC_BASE_URL}/Archives/edgar/data/${filerCik}/${accessionNoDashes}`;
-  const indexJsonUrl = `${archiveDir}/index.json`;
-  const detailUrl = `${archiveDir}/${normalized}-index.html`;
+  const archiveUrls = buildSecArchiveFilingUrls(filerCik, normalized);
+  if (!archiveUrls) {
+    return {
+      ok: false,
+      status: 400,
+      entry: null,
+      error: `Cannot build SEC archive URLs for ${normalized}.`,
+    };
+  }
 
   try {
-    const response = await secFetch(indexJsonUrl);
+    const response = await secFetch(archiveUrls.indexJsonUrl);
     if (!response.ok) {
       return {
         ok: false,
@@ -617,7 +656,7 @@ async function fetchSecAccessionFromArchivePath(accessionNumber: string, cik?: s
       entry: {
         title: `SEC filing ${normalized}`,
         updated: null,
-        detailUrl,
+        detailUrl: archiveUrls.indexHtmlUrl,
         summary: null,
         formType: null,
         requestedFormType: null,
@@ -631,12 +670,6 @@ async function fetchSecAccessionFromArchivePath(accessionNumber: string, cik?: s
       error: error instanceof Error ? error.message : "SEC archive accession fallback failed",
     };
   }
-}
-
-function accessionIndexUrlFromMasterFilename(filename: string) {
-  const cleaned = filename.trim().replace(/^\/+/, "");
-  if (!/^edgar\/data\/\d+\/.+\.txt$/i.test(cleaned)) return null;
-  return `${SEC_BASE_URL}/Archives/${cleaned.replace(/\.txt$/i, "-index.html")}`;
 }
 
 function yearFromAccessionNumber(accessionNumber: string) {
@@ -766,7 +799,6 @@ async function fetchFilingDetail({
 
     try {
       const documentResponse = await secFetch(document.url);
-      const text = await documentResponse.text();
       if (!documentResponse.ok) {
         documentsFailed += 1;
         documentsWithText.push({
@@ -776,6 +808,18 @@ async function fetchFilingDetail({
         });
         continue;
       }
+
+      const contentType = documentResponse.headers.get("content-type");
+      if (!isSecTextDocumentResponse(document, contentType)) {
+        documentsWithText.push({
+          ...document,
+          fetchStatus: documentResponse.status,
+          textExtractionStatus: "not_extracted_binary_or_graphic",
+        });
+        continue;
+      }
+
+      const text = await documentResponse.text();
 
       const cleaned = cleanDocumentText(text);
       const truncated = cleaned.length > MAX_DOCUMENT_TEXT_CHARS;
@@ -810,6 +854,7 @@ async function fetchFilingDetail({
         periodicReportCoreXbrlFacts: periodicReportEvidence?.xbrlFacts || [],
         periodicReportCoreSourceBlocks: periodicReportEvidence?.sourceBlocks || [],
         fetchStatus: documentResponse.status,
+        textExtractionStatus: "text_extracted",
       });
     } catch (error) {
       documentsFailed += 1;
@@ -935,7 +980,7 @@ function selectDocumentsForText(documents: SecDocument[], attachmentLimit: numbe
         if (matchedDocumentCount >= maxDocuments) break;
         if (!document.url || document.isPrimary) continue;
         if (selected.has(document.url)) continue;
-        if (matchesSecFormFetchRule(document, rule)) {
+        if (isSecTextFetchCandidate(document) && matchesSecFormFetchRule(document, rule)) {
           selected.add(document.url);
           matchedDocumentCount += 1;
         }
@@ -948,7 +993,7 @@ function selectDocumentsForText(documents: SecDocument[], attachmentLimit: numbe
     if (selectedAttachmentCount >= attachmentLimit) break;
     if (!document.url || document.isPrimary) continue;
     if (selected.has(document.url)) continue;
-    if (isInterestingAttachment(document)) {
+    if (isSecTextFetchCandidate(document) && isInterestingAttachment(document)) {
       selected.add(document.url);
       selectedAttachmentCount += 1;
     }
@@ -982,6 +1027,17 @@ function isInterestingAttachment(document: SecDocument) {
 
 function isS3FamilyForm(formType: string | null) {
   return /^(?:S-3|F-3)(?:ASR|MEF|\/A)?$/i.test(normalizeFormType(formType));
+}
+
+function isSecTextDocumentResponse(document: SecDocument, contentType: string | null) {
+  if (!isSecTextFetchCandidate(document)) return false;
+  const normalized = stringValue(contentType).toLowerCase();
+  if (!normalized) return true;
+  if (/^(?:image|audio|video)\//.test(normalized)) return false;
+  if (/\bapplication\/(?:pdf|zip|gzip|x-7z-compressed|x-rar-compressed|octet-stream)\b/.test(normalized)) {
+    return false;
+  }
+  return !/^font\//.test(normalized);
 }
 
 function isPeriodicAnnualReportAttachment(document: SecDocument, formType: string | null) {
@@ -1094,6 +1150,28 @@ function buildCombinedText(documents: SecDocument[]) {
 
   const combined = sections.join("\n\n").trim();
   return combined.length > MAX_COMBINED_TEXT_CHARS ? combined.slice(0, MAX_COMBINED_TEXT_CHARS) : combined;
+}
+
+function summarizeDocumentSourceFailure(detailUrl: string, documents: SecDocument[]) {
+  const failedDocuments = documents.filter((document) => document.fetchError || document.fetchStatus);
+  const status = failedDocuments.find((document) => document.fetchStatus)?.fetchStatus || 502;
+  const reasons = Array.from(
+    new Set(
+      failedDocuments
+        .map((document) => {
+          const label = document.document || document.type || "filing document";
+          const reason = document.fetchError || (document.fetchStatus ? `HTTP ${document.fetchStatus}` : "fetch failed");
+          return `${label}: ${reason}`;
+        })
+        .filter(Boolean),
+    ),
+  ).slice(0, 3);
+  const suffix = reasons.length ? ` (${reasons.join("; ")})` : "";
+
+  return {
+    status,
+    message: `SEC filing source text could not be retrieved from ${detailUrl}${suffix}`,
+  };
 }
 
 function readOwnershipIssuerIdentity(text: string) {
@@ -1498,15 +1576,48 @@ function tickerQualityScore(ticker: string) {
 async function secFetch(input: string | URL) {
   const env = getServerEnv();
   const userAgent = env.secUserAgent || "US-Stock-Radar/0.1 contact@example.com";
+  let lastError: unknown = null;
 
-  return fetch(input, {
-    cache: "no-store",
-    headers: {
-      "User-Agent": userAgent,
-      Accept: "application/atom+xml, application/json, text/html, text/plain, */*",
-      "Accept-Encoding": "gzip, deflate, br",
-    },
-  });
+  for (let attempt = 0; attempt < SEC_FETCH_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const response = await fetch(input, {
+        cache: "no-store",
+        headers: {
+          "User-Agent": userAgent,
+          Accept: "application/atom+xml, application/json, text/html, text/plain, */*",
+          "Accept-Encoding": "gzip, deflate, br",
+        },
+      });
+
+      const shouldRetry = SEC_TRANSIENT_HTTP_STATUSES.has(response.status) && attempt < SEC_FETCH_MAX_ATTEMPTS - 1;
+      if (!shouldRetry) return response;
+
+      await response.body?.cancel().catch(() => undefined);
+      await waitForSecRetry(secRetryDelayMs(response, attempt));
+    } catch (error) {
+      lastError = error;
+      if (attempt >= SEC_FETCH_MAX_ATTEMPTS - 1) throw error;
+      await waitForSecRetry(500 * (attempt + 1));
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("SEC request failed after retries.");
+}
+
+function secRetryDelayMs(response: Response, attempt: number) {
+  const retryAfter = response.headers.get("retry-after");
+  if (retryAfter) {
+    const seconds = Number(retryAfter);
+    if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds * 1_000, 2_000);
+
+    const retryAt = Date.parse(retryAfter);
+    if (Number.isFinite(retryAt)) return Math.min(Math.max(retryAt - Date.now(), 0), 2_000);
+  }
+  return 500 * (attempt + 1);
+}
+
+function waitForSecRetry(delayMs: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, delayMs));
 }
 
 function cleanDocumentText(input: string) {
@@ -1522,7 +1633,7 @@ function cleanDocumentText(input: string) {
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/(td|th)>/gi, " | ");
 
-  return decodeHtmlEntities(withBreaks)
+  return decodeSecHtmlEntities(withBreaks)
     .replace(/<[^>]+>/g, " ")
     .replace(/\r/g, "\n")
     .replace(/[ \t\f\v]+/g, " ")
@@ -1774,7 +1885,7 @@ function absoluteSecUrl(value: string | null, base?: string) {
 }
 
 function cleanInlineText(value: string) {
-  return decodeHtmlEntities(value)
+  return decodeSecHtmlEntities(value)
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();

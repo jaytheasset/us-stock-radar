@@ -26,6 +26,8 @@ export type SecFetchCandidate = {
 };
 
 export function matchesSecFormFetchRule(candidate: SecFetchCandidate, rule: SecFormFetchRule) {
+  if (!isSecTextFetchCandidate(candidate)) return false;
+
   const type = stringValue(candidate.type).toUpperCase();
   const label = [candidate.type, candidate.description, candidate.document, candidate.url].map(stringValue).join(" ");
   const filename = stringValue(candidate.document) || stringValue(candidate.url);
@@ -36,6 +38,18 @@ export function matchesSecFormFetchRule(candidate: SecFetchCandidate, rule: SecF
   if (rule.filenamePatterns?.some((pattern) => pattern.test(filename))) return true;
 
   return false;
+}
+
+export function isSecTextFetchCandidate(candidate: SecFetchCandidate) {
+  const type = stringValue(candidate.type).toUpperCase();
+  const filename = `${stringValue(candidate.document)} ${stringValue(candidate.url)}`;
+
+  if (/^(?:GRAPHIC|PDF|ZIP|EXCEL|XLS|XLSX|POWERPOINT|PPT|PPTX|BINARY)$/.test(type)) return false;
+  if (/\.(?:avif|bmp|gif|ico|jpe?g|png|svg|tiff?|webp|pdf|zip|7z|rar|gz|xlsx?|xlsm|pptx?)(?:$|[?#])/i.test(filename)) {
+    return false;
+  }
+
+  return true;
 }
 
 function stringValue(value: unknown) {

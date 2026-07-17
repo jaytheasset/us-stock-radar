@@ -3250,10 +3250,14 @@ function PromptPreviewSections({ previews }: { previews: SecDevRoomDetail["promp
               <p>Prompt body extracted from the TypeScript source.</p>
             </div>
           </div>
-          {file.prompts.map((prompt) => (
-            <article className={styles.promptPreview} key={`${file.file}-${prompt.name}`}>
-              <h3>{prompt.name}</h3>
-              <pre>{prompt.text}</pre>
+            {file.prompts.map((prompt) => (
+              <article className={styles.promptPreview} key={`${file.file}-${prompt.name}`}>
+                <div className={styles.promptPreviewTitle}>
+                  <h3>{prompt.displayName || prompt.name}</h3>
+                  {prompt.displayName ? <p>{prompt.name}</p> : null}
+                  {prompt.description ? <p>{prompt.description}</p> : null}
+                </div>
+                <pre>{prompt.text}</pre>
             </article>
           ))}
         </section>

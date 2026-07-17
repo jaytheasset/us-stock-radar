@@ -15,7 +15,7 @@ import { secSc13FetchPlan } from "@/lib/sources/sec/forms/sc13/fetchPlan";
 import { secTenderFetchPlan } from "@/lib/sources/sec/forms/tender/fetchPlan";
 import { secOtherFetchPlan } from "@/lib/sources/sec/forms/other/fetchPlan";
 import type { SecFormFetchPlan } from "@/lib/sources/sec/forms/common/fetchPlan";
-import { matchesSecFormFetchRule } from "@/lib/sources/sec/forms/common/fetchPlan";
+import { isSecTextFetchCandidate, matchesSecFormFetchRule } from "@/lib/sources/sec/forms/common/fetchPlan";
 
 export const SEC_FORM_FETCH_PLANS = [
   sec8k6kFetchPlan,
@@ -44,7 +44,7 @@ export function getSecFormFetchPlan(formType: string | null | undefined) {
   return formPlanLookup.get(normalized) || null;
 }
 
-export { matchesSecFormFetchRule };
+export { isSecTextFetchCandidate, matchesSecFormFetchRule };
 
 function buildFormPlanLookup() {
   const lookup = new Map<string, SecFormFetchPlan>();

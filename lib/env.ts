@@ -21,6 +21,7 @@ const serverKeys = [
   "SEC_OWNERSHIP_GEMINI_MODEL",
   "SEC_PROXY_ROUTINE_GEMINI_MODEL",
   "SEC_NT_GEMINI_MODEL",
+  "SEC_FORM25_GEMINI_MODEL",
   "SEC_ANALYSIS_LLM_PROVIDER",
   "SEC_ANALYSIS_ALLOW_OPENAI",
   "WEB_PUSH_VAPID_PUBLIC_KEY",
@@ -58,6 +59,7 @@ export function getServerEnv() {
     secOwnershipGeminiModel: process.env.SEC_OWNERSHIP_GEMINI_MODEL || "gemini-2.5-flash-lite",
     secProxyRoutineGeminiModel: process.env.SEC_PROXY_ROUTINE_GEMINI_MODEL || "gemini-2.5-flash-lite",
     secNtGeminiModel: process.env.SEC_NT_GEMINI_MODEL || "gemini-2.5-flash-lite",
+    secForm25GeminiModel: process.env.SEC_FORM25_GEMINI_MODEL || "gemini-2.5-flash-lite",
     secAnalysisLlmProvider: process.env.SEC_ANALYSIS_LLM_PROVIDER || "gemini",
     secAnalysisAllowOpenAi:
       (process.env.SEC_ANALYSIS_ALLOW_OPENAI || "false").toLowerCase() === "true",
@@ -96,6 +98,7 @@ export function envStatus() {
     SEC_OWNERSHIP_GEMINI_MODEL: values.secOwnershipGeminiModel,
     SEC_PROXY_ROUTINE_GEMINI_MODEL: values.secProxyRoutineGeminiModel,
     SEC_NT_GEMINI_MODEL: values.secNtGeminiModel,
+    SEC_FORM25_GEMINI_MODEL: values.secForm25GeminiModel,
     SEC_ANALYSIS_LLM_PROVIDER: values.secAnalysisLlmProvider,
     SEC_ANALYSIS_ALLOW_OPENAI: String(values.secAnalysisAllowOpenAi),
     WEB_PUSH_VAPID_PUBLIC_KEY: values.webPushVapidPublicKey,

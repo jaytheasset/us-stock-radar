@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import { runSecFilingAnalysisIngest } from "@/lib/secFilingAnalysisIngest";
 import {
   findSecRawItem,
+  runSec8k6kRouteOnlyPreviewForRawItem,
   runSec425RouteOnlyPreviewForRawItem,
   runSecFilingAnalysisPreviewForRawItem,
   runSecS1F1RouteOnlyPreviewForRawItem,
@@ -137,6 +138,8 @@ export type SecDevPromptPreview = {
   file: string;
   prompts: Array<{
     name: string;
+    displayName?: string;
+    description?: string;
     text: string;
   }>;
 };
@@ -760,6 +763,9 @@ function buildRouteOnlyItem(rawItem: RawItemRow, routeResult: unknown) {
   );
   const rawPayload = readRecord(rawItem.raw_payload);
   const ok = resultRecord.ok === true;
+  const formType = stringValue(rawPayload?.form_type).toUpperCase();
+  const isSec8k6kRoute = /^(?:8-K|8-K\/A|6-K|6-K\/A)$/.test(formType);
+  const primaryRoute = readRecord(route?.primary_route_candidate);
 
   return {
     ok,
@@ -775,7 +781,20 @@ function buildRouteOnlyItem(rawItem: RawItemRow, routeResult: unknown) {
     stage: stringValue(resultRecord.stage) || null,
     model: stringValue(resultRecord.model) || stringValue(prompt?.model) || null,
     route_only: route
-      ? stringValue(route.source_form_type) === "425"
+      ? isSec8k6kRoute
+        ? {
+            primary_route_candidate: primaryRoute,
+            route_candidates: Array.isArray(route.route_candidates) ? route.route_candidates.slice(0, 8) : [],
+            analysis_needed: route.analysis_needed === true,
+            archive_like_candidate: route.archive_like_candidate === true,
+            deterministic_possible: route.deterministic_possible === true,
+            filing_complexity: stringValue(route.filing_complexity),
+            low_signal_reason: stringValue(route.low_signal_reason) || null,
+            needs_parent_context: route.needs_parent_context === true,
+            market_context_needed: route.market_context_needed === true,
+            selected_source_block_ids: stringArray(route.selected_source_block_ids),
+          }
+        : stringValue(route.source_form_type) === "425"
         ? {
             event_type: stringValue(route.event_type),
             route_case: stringValue(route.route_case),
@@ -803,12 +822,25 @@ function buildRouteOnlyItem(rawItem: RawItemRow, routeResult: unknown) {
       ? {
           model: stringValue(resultRecord.model) || stringValue(prompt?.model) || null,
           event_title: stringValue(rawItem.title),
-          event_type: stringValue(route.event_type) || null,
+          event_type: isSec8k6kRoute
+            ? stringValue(primaryRoute?.route_type) || stringValue(route.event_type) || null
+            : stringValue(route.event_type) || null,
           display_type: "route_only",
-          parser_route: stringValue(route.source_form_type) === "425" ? "425 route-only test" : "S-1/F-1 route-only test",
+          parser_route: isSec8k6kRoute
+            ? "8-K/6-K route-only test"
+            : stringValue(route.source_form_type) === "425"
+              ? "425 route-only test"
+              : "S-1/F-1 route-only test",
           is_parser_completed_archive: false,
           is_excluded: false,
-          display_data: stringValue(route.source_form_type) === "425"
+          display_data: isSec8k6kRoute
+            ? [
+                `primary_route: ${stringValue(primaryRoute?.route_type) || stringValue(route.event_type) || "-"}`,
+                `complexity: ${stringValue(route.filing_complexity) || "-"}`,
+                `analysis_needed: ${route.analysis_needed === true ? "yes" : "no"}`,
+                `selected_blocks: ${stringArray(route.selected_source_block_ids).join(", ") || "-"}`,
+              ]
+            : stringValue(route.source_form_type) === "425"
             ? [
                 `event_type: ${stringValue(route.event_type) || "-"}`,
                 `route_case: ${stringValue(route.route_case) || "-"}`,
@@ -841,12 +873,18 @@ function buildRuntimeAnalysisItem(rawItem: RawItemRow, result: unknown) {
   const parentRegistrationContext = readRecord(filingPackage?.parent_registration_context);
   const parentFilingContext = readRecord(filingPackage?.parent_filing_context);
   const filingContext = readRecord(filingPackage?.filing_context);
+  const form25RelatedContext = readRecord(filingPackage?.form25_related_filing_context);
+  const form25Parser = readRecord(hardParsers?.form25);
+  const form25Facts = readRecord(form25Parser?.facts);
+  const form25Raw = readRecord(form25Parser?.raw);
+  const form25DirectSourceBlocks = debugRecordArray(form25Raw?.directSourceBlocks);
   const ownershipContext = readRecord(filingContext?.ownership);
   const archiveContextGuard = readRecord(ownershipContext?.archive_context_guard);
   const prompt = readRecord(resultRecord.prompt) || readRecord(resultRecord.runtime);
   const model = stringValue(resultRecord.model);
   const rawPayload = readRecord(rawItem.raw_payload);
   const analysis = readRecord(resultRecord.analysis);
+  const form25ValidationRepair = readRecord(resultRecord.form25ValidationRepair);
   const ok = resultRecord.ok === true;
   const llmFailureDebug = ok ? null : buildLlmFailureDebug(resultRecord);
   const investableUniverseGate = readRecord(filingPackage?.investable_universe_gate);
@@ -855,6 +893,17 @@ function buildRuntimeAnalysisItem(rawItem: RawItemRow, result: unknown) {
   const score = numberValue(analysis?.score);
   const displayPayload = readRecord(analysis?.display_payload);
   const displayData = readRecord(displayPayload?.data);
+  const persisted8k6kRouterResult = readRecord(analysis?.sec_8k_6k_router_result) || readRecord(resultRecord.triage);
+  const sec8k6kDebug = readRecord(resultRecord.sec8k6kDebug) ||
+    (persisted8k6kRouterResult
+      ? {
+          router_result: persisted8k6kRouterResult,
+          analysis_source_blocks: [],
+          analysis_source_bundle: {
+            warnings: ["Detailed source-block previews were unavailable after persistence."],
+          },
+        }
+      : null);
   const primaryTicker = readRecord(analysis?.primary_ticker);
   const deliveryLevel = deriveDeliveryLabel(score);
   const isParserCompletedArchive =
@@ -931,6 +980,34 @@ function buildRuntimeAnalysisItem(rawItem: RawItemRow, result: unknown) {
           what_to_watch_next: stringArray(analysis.what_to_watch_next).slice(0, 8),
           parser_signals: parserSignals,
           transaction_fingerprint: readRecord(analysis.transaction_fingerprint) || null,
+          form25_parser_context: form25Parser
+            ? {
+                subject_company_cik: stringValue(readRecord(form25Facts?.subject_company_cik)?.value) || null,
+                issuer_name: stringValue(readRecord(form25Facts?.issuer_name)?.value) || null,
+                removal_reason_text: stringValue(readRecord(form25Facts?.removal_reason_text)?.value) || null,
+                direct_source_block_count: form25DirectSourceBlocks.length,
+                direct_source_blocks: form25DirectSourceBlocks.slice(0, 3).map((block) => ({
+                  block_id: stringValue(block.block_id) || null,
+                  label: stringValue(block.label) || null,
+                  priority: numberValue(block.priority),
+                  text_preview: stringValue(block.text).slice(0, 240),
+                })),
+              }
+            : null,
+          form25_lifecycle: readRecord(analysis.form25_lifecycle) || null,
+          form25_related_context: buildForm25RelatedContextDebug(form25RelatedContext),
+          form25_validation_repair: form25ValidationRepair
+            ? {
+                attempted: form25ValidationRepair.attempted === true,
+                run_ok: form25ValidationRepair.run_ok === true,
+                run_error: stringValue(form25ValidationRepair.run_error) || null,
+                issue_codes: stringArray(form25ValidationRepair.issue_codes).slice(0, 8),
+                source_block_ids: stringArray(form25ValidationRepair.source_block_ids).slice(0, 3),
+                applied_patch_paths: stringArray(form25ValidationRepair.applied_patch_paths).slice(0, 16),
+                unresolved_warning_codes: stringArray(form25ValidationRepair.unresolved_warning_codes).slice(0, 8),
+              }
+            : null,
+          sec_8k_6k_debug: sec8k6kDebug,
           display_data: previewDisplayData(displayData),
           display_payload_debug: buildDisplayPayloadDebug(displayPayload, displayData, analysis),
           usage: readRecord(resultRecord.usage) || null,
@@ -1344,8 +1421,8 @@ export async function runSecDevRouteOnly(
 
   try {
     routeOnlyStep = "validate_room";
-    if (room.key !== "s1-f1" && room.key !== "425") {
-      throw new Error("Route-only dry-run is currently available for the S-1 / F-1 and 425 rooms.");
+    if (room.key !== "s1-f1" && room.key !== "425" && room.key !== "8k-6k") {
+      throw new Error("Route-only dry-run is currently available for the S-1 / F-1, 8-K / 6-K, and 425 rooms.");
     }
     if (!accessionNumber && !rawItemId) {
       throw new Error("Route-only dry-run requires accessionNumber or rawItemId.");
@@ -1361,8 +1438,13 @@ export async function runSecDevRouteOnly(
     }
 
     routeOnlyStep = "run_route_only_prompt";
-    const routeResult = room.key === "425"
-      ? await runSec425RouteOnlyPreviewForRawItem(rawResult.rawItem, {
+    const routeResult = room.key === "8k-6k"
+      ? await runSec8k6kRouteOnlyPreviewForRawItem(rawResult.rawItem, {
+          llmProvider: stringValue(options.llmProvider) || undefined,
+          llmModel: stringValue(options.llmModel) || undefined,
+        })
+      : room.key === "425"
+        ? await runSec425RouteOnlyPreviewForRawItem(rawResult.rawItem, {
           llmProvider: stringValue(options.llmProvider) || undefined,
           llmModel: stringValue(options.llmModel) || undefined,
         })
@@ -1382,17 +1464,18 @@ export async function runSecDevRouteOnly(
       formTypes: room.forms,
       accessionNumber: accessionNumber || stringValue(item.accession_number) || null,
       rawItemId: rawItemId || stringValue(rawResult.rawItem.id) || null,
-      summary: room.key === "425"
-        ? "Routed one existing Form 425 raw item by communication purpose and transaction stage; no full analysis, no DB writes, no alerts."
-        : "Routed one existing S-1/F-1 raw item to a display mode only; no full analysis, no DB writes, no alerts.",
+      summary: room.key === "8k-6k"
+        ? "Routed one existing 8-K / 6-K raw item to analysis families and source blocks; no full analysis, no DB writes, no alerts."
+        : room.key === "425"
+          ? "Routed one existing Form 425 raw item by communication purpose and transaction stage; no full analysis, no DB writes, no alerts."
+          : "Routed one existing S-1/F-1 raw item to a display mode only; no full analysis, no DB writes, no alerts.",
       items: [item],
       diagnostics: {
         route_only: true,
         prompt: readRecord(routeResult.prompt) || null,
-        source_block_count: Array.isArray(readRecord(routeResult.input)?.cleaned_source_blocks)
-          ? (readRecord(routeResult.input)?.cleaned_source_blocks as unknown[]).length
-          : null,
+        source_block_count: readRouteOnlySourceBlockCount(routeResult),
         source_block_previews: buildRouteOnlySourceBlockPreviews(routeResult.input),
+        sec_8k_6k_debug: readRecord(readRecord(routeResult)?.sec8k6kDebug) || null,
         related_transaction_context:
           room.key === "425"
             ? buildSec425RelatedTransactionContextPreview(readRecord(routeResult)?.relatedTransactionContext)
@@ -1422,6 +1505,45 @@ export async function runSecDevRouteOnly(
 
   await appendLiveRun(room.key, liveRun);
   return getSecDevRoomDetail(room.key);
+}
+
+function buildForm25RelatedContextDebug(context: Record<string, unknown> | null) {
+  if (!context) return null;
+  const selectedFilings = debugRecordArray(context.selected_filings).slice(0, 8).map((filing) => ({
+    event_id: stringValue(filing.event_id) || null,
+    raw_item_id: stringValue(filing.raw_item_id) || null,
+    accession_number: stringValue(filing.accession_number) || null,
+    form_type: stringValue(filing.form_type) || null,
+    filed_at: stringValue(filing.filed_at) || null,
+    event_type: stringValue(filing.event_type) || null,
+    event_title: stringValue(filing.event_title) || stringValue(filing.title) || null,
+    score: numberValue(filing.score),
+    match_score: numberValue(filing.match_score),
+    match_confidence: stringValue(filing.match_confidence) || null,
+  }));
+
+  return {
+    subject_company_cik: stringValue(context.subject_company_cik) || null,
+    candidate_count: numberValue(context.candidate_count),
+    selected_count: selectedFilings.length,
+    selected_filings: selectedFilings,
+  };
+}
+
+function debugRecordArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.map((item) => readRecord(item)).filter((item): item is Record<string, unknown> => Boolean(item))
+    : [];
+}
+
+function readRouteOnlySourceBlockCount(routeResult: unknown) {
+  const result = readRecord(routeResult) || {};
+  const input = readRecord(result.input);
+  if (Array.isArray(input?.cleaned_source_blocks)) return input.cleaned_source_blocks.length;
+
+  const debug = readRecord(result.sec8k6kDebug);
+  if (Array.isArray(debug?.selected_source_blocks)) return debug.selected_source_blocks.length;
+  return null;
 }
 
 function buildSec425RelatedTransactionContextPreview(value: unknown) {
@@ -2213,7 +2335,7 @@ async function readPromptPreviews(room: SecDevRoom): Promise<SecDevPromptPreview
                 ? await buildPeriodicReportsPromptVariantPreviews(base)
             : extractPromptTemplateLiterals(raw);
       if (prompts.length) {
-        previews.push({ file, prompts });
+        previews.push({ file, prompts: applyPromptPreviewDisplayLabels(room, prompts) });
       }
     } catch {
       // Prompt files are optional per form room.
@@ -2312,6 +2434,49 @@ function buildProxyPromptVariantPreviews() {
     },
   ];
 }
+
+function applyPromptPreviewDisplayLabels(
+  room: SecDevRoom,
+  prompts: SecDevPromptPreview["prompts"],
+): SecDevPromptPreview["prompts"] {
+  if (room.key !== "8k-6k") return prompts;
+
+  return prompts.map((prompt) => {
+    const label = SEC_8K_6K_PROMPT_DISPLAY_LABELS[prompt.name];
+    return label ? { ...prompt, ...label } : prompt;
+  });
+}
+
+const SEC_8K_6K_PROMPT_DISPLAY_LABELS: Record<string, { displayName: string; description: string }> = {
+  sec8k6kRouterSystemPrompt: {
+    displayName: "Router prompt - route planner",
+    description: "Chooses analysis families and source block IDs. It does not write the final analysis.",
+  },
+  sec8k6kAnalysisSystemPrompt: {
+    displayName: "Common analysis rules - base prompt",
+    description: "Shared writing, evidence, scoring, and output rules for every 8-K / 6-K analysis family.",
+  },
+  sec8k6kListingFinancialRiskPrompt: {
+    displayName: "Analysis family - Listing / Financial Risk",
+    description: "Delisting, suspension, bankruptcy, default, liquidity, restatement, and financial distress.",
+  },
+  sec8k6kFinancingDilutionCapitalStructurePrompt: {
+    displayName: "Analysis family - Financing / Dilution / Capital Structure",
+    description: "Offerings, warrants, convertibles, reverse splits, dividends, buybacks, debt, and capital changes.",
+  },
+  sec8k6kStrategicTransactionPrompt: {
+    displayName: "Analysis family - Strategic Transaction",
+    description: "Mergers, acquisitions, de-SPAC status, closings, terminations, amendments, and asset transactions.",
+  },
+  sec8k6kGovernanceVoteLeadershipPrompt: {
+    displayName: "Analysis family - Governance / Vote / Leadership",
+    description: "Shareholder votes, executive and board changes, auditors, governance contests, and control updates.",
+  },
+  sec8k6kOperatingLegalRoutinePrompt: {
+    displayName: "Analysis family - Operating / Legal / Routine",
+    description: "Earnings, operating updates, legal and regulatory matters, FDA and clinical events, and routine filings.",
+  },
+};
 
 async function buildPeriodicReportsPromptVariantPreviews(base: string) {
   const cases = [

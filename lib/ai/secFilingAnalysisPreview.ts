@@ -3,7 +3,7 @@ import {
   SEC_424B_ANALYSIS_PROMPT_KEY,
   SEC_424B_ANALYSIS_PROMPT_VERSION,
   SEC_424B_VALIDATION_REPAIR_PROMPT_KEY,
-  SEC_8K_6K_ANALYSIS_PROMPT_KEY,
+  SEC_8K_6K_VALIDATION_REPAIR_PROMPT_KEY,
   SEC_8K_6K_ROUTER_PROMPT_KEY,
   SEC_8K_6K_ROUTER_PROMPT_VERSION,
   SEC_425_ANALYSIS_PROMPT_KEY,
@@ -34,6 +34,9 @@ import {
   adaptSec424bAnalysisPromptResultForAnalysis,
   applySec424bValidationRepairPatches,
   adaptSec8k6kAnalysisPromptResultForAnalysis,
+  applySec8k6kArchiveSafetyGate,
+  applySec8k6kReverseSplitRouteGuard,
+  applySec8k6kValidationRepairPatches,
   adaptSec425AnalysisPromptResultForAnalysis,
   adaptOwnershipPromptResultForAnalysis,
   adaptSecNtAnalysisPromptResultForAnalysis,
@@ -60,7 +63,9 @@ import {
   buildSec424bValidationRepairPlan,
   buildSec8k6kAnalysisPromptForInput,
   buildSec8k6kArchiveAnalysis,
+  buildSec8k6kPreviewDebug,
   buildSec8k6kRouterPromptForInput,
+  buildSec8k6kValidationRepairPlan,
   buildSec425AnalysisPromptForInput,
   buildSec425DeterministicAnalysisForInput,
   buildSec425RouterPromptForInput,
@@ -85,6 +90,7 @@ import {
   buildSecProxyValidationRepairPlan,
   buildSecTenderAnalysisPromptForInput,
   is424bFilingInput,
+  isSec8k6kAnalysisPromptKey,
   isSec8k6kFilingInput,
   isSec425FilingInput,
   isOwnershipFilingInput,
@@ -142,6 +148,16 @@ import {
   SEC_PROXY_ANALYSIS_PROMPT_VERSION,
 } from "@/lib/sources/sec/forms/proxy/analysisPrompt";
 import type { ProxyParserOutput } from "@/lib/sources/sec/forms/proxy/parser";
+import { buildProxySourceBlockPromptInput } from "@/lib/sources/sec/forms/proxy/sourceInput";
+import { buildSecSourceBlockPromptInput } from "@/lib/sources/sec/forms/8k-6k/sourceBlockPromptInput";
+import { applySecForm25PostAnalysisGuards } from "@/lib/sources/sec/forms/form25/analysisGuards";
+import { buildSecForm25AnalysisPromptDraft } from "@/lib/sources/sec/forms/form25/analysisPrompt";
+import type { SecForm25ParserOutput } from "@/lib/sources/sec/forms/form25/parser";
+import {
+  applySecForm25ValidationRepairPatches,
+  buildSecForm25ValidationRepairPlan,
+  inspectSecForm25ValidationRepairIssues,
+} from "@/lib/sources/sec/forms/form25/validationRepair";
 import { supabaseSelect } from "@/lib/supabase";
 
 type PreviewOptions = {
@@ -338,6 +354,8 @@ export type SecFilingAnalysisRunResult = {
   error?: string;
   rawOpenAIResponse?: OpenAIResponseBody | GeminiResponseBody | null;
   validationRepair?: Record<string, unknown> | null;
+  sec8k6kDebug?: Record<string, unknown> | null;
+  form25ValidationRepair?: Record<string, unknown> | null;
 };
 
 export async function runSecFilingAnalysisPreview(options: PreviewOptions = {}) {
@@ -492,6 +510,65 @@ export async function runSecS1F1RouteOnlyPreviewForRawItem(rawItem: RawItemRow, 
       responseFormat: prompt.responseFormat,
     },
     error: run.ok ? undefined : run.error || "S-1/F-1 route-only prompt failed.",
+  };
+}
+
+export async function runSec8k6kRouteOnlyPreviewForRawItem(rawItem: RawItemRow, options: SecLlmOptions = {}) {
+  const input = await buildInputFromSecRawRowWithContext(rawItem);
+  if (!isSec8k6kFilingInput(input)) {
+    return {
+      ok: false,
+      stage: "route_only",
+      status: 400,
+      sourceItem: summarizeRawRow(rawItem),
+      error: "8-K/6-K parser output is missing from filing package.",
+    };
+  }
+
+  const env = getServerEnv();
+  const llmConfig = resolveSecLlmConfig(env, options);
+  const prompt = buildSec8k6kRouterPromptForInput(input);
+  const run = await runOpenAiJsonPrompt(env, prompt, llmConfig);
+  const route = run.parsed
+    ? applySec8k6kArchiveSafetyGate(
+        applySec8k6kReverseSplitRouteGuard(
+          normalizeSec8k6kRouterResult(run.parsed),
+          input,
+          prompt.user,
+        ),
+        input,
+      )
+    : null;
+
+  return {
+    ok: run.ok && Boolean(route),
+    stage: "route_only",
+    status: run.status,
+    model: run.model,
+    openAiResponseId: run.openAiResponseId,
+    sourceItem: summarizeRawRow(rawItem),
+    input,
+    route,
+    sec8k6kDebug: route
+      ? buildSec8k6kPreviewDebug({
+          routerResult: route,
+          routerPromptUser: prompt.user,
+          analysisSkipped: true,
+        })
+      : null,
+    outputText: run.outputText,
+    usage: run.usage,
+    costEstimate: estimateCost(run.model, run.usage),
+    rawOpenAIResponse: run.rawOpenAIResponse,
+    prompt: {
+      key: prompt.key,
+      version: prompt.version,
+      provider: run.provider,
+      model: run.model,
+      system: prompt.system,
+      responseFormat: prompt.responseFormat,
+    },
+    error: run.ok && route ? undefined : run.error || "8-K/6-K route-only prompt failed.",
   };
 }
 
@@ -1274,10 +1351,25 @@ export async function runSecFilingAnalysisForRawRow(
         },
       };
     }
-    const routerResult = normalizeSec8k6kRouterResult(routerRun.parsed);
+    const routerResult = applySec8k6kArchiveSafetyGate(
+      applySec8k6kReverseSplitRouteGuard(
+        normalizeSec8k6kRouterResult(routerRun.parsed),
+        input,
+        routerPrompt.user,
+      ),
+      input,
+    );
 
     if (!shouldRunSec8k6kAnalysis(routerResult)) {
       const archiveAnalysis = buildSec8k6kArchiveAnalysis(input, routerResult);
+      const sec8k6kDebug = {
+        ...buildSec8k6kPreviewDebug({
+          routerResult,
+          routerPromptUser: routerPrompt.user,
+          analysisSkipped: true,
+        }),
+        router_llm: summarizeSecLlmRun(routerRun),
+      };
       if (!archiveAnalysis.ok) {
         return {
           ok: false,
@@ -1287,6 +1379,7 @@ export async function runSecFilingAnalysisForRawRow(
           sourceItem: summarizeRawRow(rawItem),
           input,
           triage: routerResult,
+          sec8k6kDebug,
           triageOutputText: routerRun.outputText,
           triageUsage: routerRun.usage,
           rawOpenAIResponse: routerRun.rawOpenAIResponse,
@@ -1307,6 +1400,7 @@ export async function runSecFilingAnalysisForRawRow(
         sourceItem: summarizeRawRow(rawItem),
         input,
         triage: routerResult,
+        sec8k6kDebug,
         analysis: archiveAnalysis.analysis,
         triageOutputText: routerRun.outputText,
         triageUsage: routerRun.usage,
@@ -1324,7 +1418,20 @@ export async function runSecFilingAnalysisForRawRow(
     }
 
     const prompt = buildSec8k6kAnalysisPromptForInput(input, routerResult);
+    let sec8k6kDebug: Record<string, unknown> = {
+      ...buildSec8k6kPreviewDebug({
+        routerResult,
+        routerPromptUser: routerPrompt.user,
+        analysisPromptUser: prompt.user,
+        analysisSkipped: false,
+      }),
+      router_llm: summarizeSecLlmRun(routerRun),
+    };
     const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
+    sec8k6kDebug = {
+      ...sec8k6kDebug,
+      analysis_llm: summarizeSecLlmRun(analysisRun),
+    };
     if (!analysisRun.ok || !analysisRun.parsed) {
       return {
         ok: false,
@@ -1334,6 +1441,7 @@ export async function runSecFilingAnalysisForRawRow(
         sourceItem: summarizeRawRow(rawItem),
         input,
         triage: routerResult,
+        sec8k6kDebug,
         triageOutputText: routerRun.outputText,
         triageUsage: routerRun.usage,
         outputText: analysisRun.outputText,
@@ -1350,7 +1458,7 @@ export async function runSecFilingAnalysisForRawRow(
       };
     }
 
-    const sec8k6kAnalysis = adaptSec8k6kAnalysisPromptResultForAnalysis(analysisRun.parsed, input, routerResult);
+    let sec8k6kAnalysis = adaptSec8k6kAnalysisPromptResultForAnalysis(analysisRun.parsed, input, routerResult);
     if (!sec8k6kAnalysis.ok) {
       return {
         ok: false,
@@ -1360,6 +1468,7 @@ export async function runSecFilingAnalysisForRawRow(
         sourceItem: summarizeRawRow(rawItem),
         input,
         triage: routerResult,
+        sec8k6kDebug,
         triageOutputText: routerRun.outputText,
         triageUsage: routerRun.usage,
         outputText: analysisRun.outputText,
@@ -1376,20 +1485,82 @@ export async function runSecFilingAnalysisForRawRow(
       };
     }
 
-    const usage = combineUsage(routerRun.usage, analysisRun.usage);
+    const repairPlan = buildSec8k6kValidationRepairPlan({
+      analysisResult: analysisRun.parsed,
+      analysisPromptUser: prompt.user,
+      additionalSourceBlocks: () => buildCurrentReportAmendmentRepairSourceBlocks(input),
+    });
+    let repairRun: OpenAiPromptRun | null = null;
+    let appliedPatchPaths: string[] = [];
+    let ignoredPatchPaths: string[] = [];
+    let unresolvedWarningCodes: string[] = [];
+    let repairAdaptationError: string | null = null;
+
+    if (repairPlan) {
+      repairRun = await runOpenAiJsonPrompt(env, repairPlan.prompt, llmConfig, {
+        maxAttempts: 1,
+        disableFallback: true,
+      });
+      if (repairRun.ok && repairRun.parsed) {
+        const repaired = applySec8k6kValidationRepairPatches({
+          analysisResult: analysisRun.parsed,
+          repairResult: repairRun.parsed,
+          allowedPatchPaths: repairPlan.allowedPatchPaths,
+        });
+        appliedPatchPaths = repaired.appliedPatchPaths;
+        ignoredPatchPaths = repaired.ignoredPatchPaths;
+        unresolvedWarningCodes = repaired.unresolvedWarningCodes;
+        if (appliedPatchPaths.length) {
+          const repairedAnalysis = adaptSec8k6kAnalysisPromptResultForAnalysis(
+            repaired.analysisResult,
+            input,
+            routerResult,
+          );
+          if (repairedAnalysis.ok) sec8k6kAnalysis = repairedAnalysis;
+          else repairAdaptationError = repairedAnalysis.error;
+        }
+      }
+
+      sec8k6kDebug = {
+        ...sec8k6kDebug,
+        validation_repair: {
+          attempted: true,
+          max_attempts: 1,
+          run_ok: repairRun.ok,
+          run_error: repairRun.error || null,
+          llm_run: summarizeSecLlmRun(repairRun),
+          issue_codes: repairPlan.issues.map((issue) => issue.code),
+          source_block_ids: repairPlan.sourceBlockIds,
+          allowed_patch_paths: repairPlan.allowedPatchPaths,
+          applied_patch_paths: appliedPatchPaths,
+          ignored_patch_paths: ignoredPatchPaths,
+          unresolved_warning_codes: unresolvedWarningCodes,
+          adaptation_error: repairAdaptationError,
+          remaining_display_warnings: sec8k6kAnalysis.ok
+            ? readSec8k6kDisplayWarnings(sec8k6kAnalysis.analysis)
+            : [],
+        },
+      };
+    }
+
+    const usage = combineUsage(routerRun.usage, analysisRun.usage, repairRun?.usage);
     return {
       ok: true,
       stage: "complete",
       status: analysisRun.status,
       model: llmConfig.model,
       openAiResponseId: analysisRun.openAiResponseId,
+      repairOpenAiResponseId: repairRun?.openAiResponseId || null,
       sourceItem: summarizeRawRow(rawItem),
       input,
       triage: routerResult,
+      sec8k6kDebug,
       analysis: sec8k6kAnalysis.analysis,
       triageOutputText: routerRun.outputText,
       outputText: analysisRun.outputText,
+      repairOutputText: repairRun?.outputText,
       triageUsage: routerRun.usage,
+      repairUsage: repairRun?.usage,
       usage,
       costEstimate: estimateCost(llmConfig.model, usage),
       prompt: {
@@ -2355,6 +2526,150 @@ export async function runSecFilingAnalysisForRawRow(
     };
   }
 
+if (isForm25FilingInput(input)) {
+    await attachSecMarketContext(input);
+    await attachForm25IssuerRelatedContext(input, rawItem);
+    const prompt = buildSecForm25AnalysisPromptForInput(input);
+    const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
+    if (!analysisRun.ok || !analysisRun.parsed) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: analysisRun.status,
+        model: analysisRun.model,
+        error: `SEC Form 25 analysis failed after ${analysisRun.attempts} attempt(s): ${analysisRun.error || "no parseable JSON"}`,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        outputText: analysisRun.outputText,
+        usage: analysisRun.usage,
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        prompt: {
+          key: prompt.key,
+          version: prompt.version,
+        },
+      };
+    }
+
+    const relatedFilingContext = readRecord(readRecord(input.filing_package)?.form25_related_filing_context);
+    const parserOutput = readForm25ParserOutput(input) as SecForm25ParserOutput | null;
+    let analysisResult = analysisRun.parsed;
+    const validationIssues = parserOutput
+      ? inspectSecForm25ValidationRepairIssues({
+          analysisResult,
+          parserOutput,
+          relatedFilingContext,
+        })
+      : [];
+    const repairPlan = parserOutput
+      ? buildSecForm25ValidationRepairPlan({
+          analysisResult,
+          parserOutput,
+          relatedFilingContext,
+        })
+      : null;
+    let repairRun: OpenAiPromptRun | null = null;
+    let appliedPatchPaths: string[] = [];
+    let ignoredPatchPaths: string[] = [];
+    let unresolvedWarningCodes: string[] = [];
+
+    if (repairPlan) {
+      repairRun = await runOpenAiJsonPrompt(env, repairPlan.prompt, llmConfig, {
+        maxAttempts: 1,
+        disableFallback: true,
+      });
+      if (repairRun.ok && repairRun.parsed) {
+        const repaired = applySecForm25ValidationRepairPatches({
+          analysisResult,
+          repairResult: repairRun.parsed,
+          allowedPatchPaths: repairPlan.allowedPatchPaths,
+        });
+        analysisResult = repaired.analysisResult;
+        appliedPatchPaths = repaired.appliedPatchPaths;
+        ignoredPatchPaths = repaired.ignoredPatchPaths;
+        unresolvedWarningCodes = repaired.unresolvedWarningCodes;
+      }
+    }
+
+    let effectiveAnalysisResult = analysisResult;
+    let form25Analysis = adaptSecForm25AnalysisPromptResultForAnalysis(
+      effectiveAnalysisResult,
+      parserOutput,
+      relatedFilingContext,
+    );
+    let repairAdaptationError: string | null = null;
+    if (!form25Analysis.ok && analysisResult !== analysisRun.parsed) {
+      repairAdaptationError = form25Analysis.error;
+      effectiveAnalysisResult = analysisRun.parsed;
+      form25Analysis = adaptSecForm25AnalysisPromptResultForAnalysis(
+        effectiveAnalysisResult,
+        parserOutput,
+        relatedFilingContext,
+      );
+    }
+    if (!form25Analysis.ok) {
+      return {
+        ok: false,
+        stage: "openai",
+        status: analysisRun.status,
+        model: analysisRun.model,
+        error: form25Analysis.error,
+        sourceItem: summarizeRawRow(rawItem),
+        input,
+        outputText: analysisRun.outputText,
+        usage: combineUsage(analysisRun.usage, repairRun?.usage),
+        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        prompt: {
+          key: prompt.key,
+          version: prompt.version,
+        },
+      };
+    }
+    unresolvedWarningCodes = parserOutput
+      ? inspectSecForm25ValidationRepairIssues({
+          analysisResult: effectiveAnalysisResult,
+          parserOutput,
+          relatedFilingContext,
+        }).map((issue) => issue.code)
+      : [];
+    attachForm25LifecycleFilingContext(input, form25Analysis.analysis, relatedFilingContext);
+
+    const usage = combineUsage(analysisRun.usage, repairRun?.usage);
+    const form25ValidationRepair = validationIssues.length
+      ? {
+          attempted: Boolean(repairPlan),
+          max_attempts: 1,
+          run_ok: repairRun?.ok === true,
+          run_error: repairRun?.error || (repairPlan ? null : "No original source blocks available for repair."),
+          issue_codes: validationIssues.map((issue) => issue.code),
+          source_block_ids: repairPlan?.sourceBlockIds || [],
+          allowed_patch_paths: repairPlan?.allowedPatchPaths || [],
+          applied_patch_paths: appliedPatchPaths,
+          ignored_patch_paths: ignoredPatchPaths,
+          unresolved_warning_codes: unresolvedWarningCodes,
+          adaptation_error: repairAdaptationError,
+        }
+      : null;
+
+    return {
+      ok: true,
+      stage: "complete",
+      status: analysisRun.status,
+      model: analysisRun.model,
+      openAiResponseId: analysisRun.openAiResponseId,
+      sourceItem: summarizeRawRow(rawItem),
+      input,
+      analysis: form25Analysis.analysis,
+      form25ValidationRepair,
+      outputText: analysisRun.outputText,
+      usage,
+      costEstimate: estimateCost(analysisRun.model, usage),
+      prompt: {
+        key: prompt.key,
+        version: prompt.version,
+      },
+    };
+  }
+
   if (isSecPeriodicReportsFilingInput(input)) {
     const prompt = buildSecPeriodicReportsAnalysisPromptForInput(input);
     const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
@@ -2973,6 +3288,9 @@ function resolveGeminiModelForSecInput(env: ReturnType<typeof getServerEnv>, inp
   }
   if (input && isSecNtFilingInput(input)) {
     return env.secNtGeminiModel || "gemini-2.5-flash-lite";
+  }
+  if (input && isForm25FilingInput(input)) {
+    return env.secForm25GeminiModel || "gemini-2.5-flash-lite";
   }
   return "";
 }
@@ -3785,7 +4103,8 @@ function attachS3AmendmentTriage(input: SecFilingAnalysisInput, triage: Record<s
 
 function readMaxOutputTokens(promptKey: string) {
   if (promptKey === SEC_8K_6K_ROUTER_PROMPT_KEY) return 3000;
-  if (promptKey === SEC_8K_6K_ANALYSIS_PROMPT_KEY) return 8000;
+  if (promptKey === SEC_8K_6K_VALIDATION_REPAIR_PROMPT_KEY) return 1800;
+  if (isSec8k6kAnalysisPromptKey(promptKey)) return 8000;
   if (promptKey === SEC_TENDER_ANALYSIS_PROMPT_KEY) return 8000;
   if (promptKey === SEC_424B_ANALYSIS_PROMPT_KEY) return 8000;
   if (promptKey === SEC_424B_VALIDATION_REPAIR_PROMPT_KEY) return 1800;
@@ -4030,6 +4349,7 @@ function buildSecFilingPromptForInput(input: SecFilingAnalysisInput, options: { 
   if (isS8FilingInput(input)) return buildSecS8AnalysisPromptForInput(input);
   if (isS1F1FilingInput(input)) return buildSecS1F1AnalysisPromptForInput(input, { promptVariant: options.secPromptVariant });
   if (isSecNtFilingInput(input)) return buildSecNtAnalysisPromptForInput(input);
+  if (isForm25FilingInput(input)) return buildSecForm25AnalysisPromptForInput(input);
   if (isSecPeriodicReportsFilingInput(input)) return buildSecPeriodicReportsAnalysisPromptForInput(input);
   return isS3FilingInput(input) ? buildSecS3AnalysisPrompt(input) : buildSecFilingAnalysisPrompt(input);
 }
@@ -4609,6 +4929,8 @@ async function buildInputFromSecRawRowWithParentContext(rawItem: RawItemRow): Pr
   const input = buildInputFromSecRawRow(inputRawItem);
   await attachSecParentContexts(input, rawItem);
   await attachCurrentReportParentFilingContext(input, rawItem);
+  await attachCurrentReportRelatedFilingContexts(input, rawItem);
+  await attachCurrentReportAmendmentLifecycleContexts(input, rawItem);
   await attachTenderFilingContext(input, rawItem);
   return input;
 }
@@ -6561,7 +6883,9 @@ async function attachCurrentReportParentFilingContext(input: SecFilingAnalysisIn
   if (!isSec8k6kFilingInput(input)) return;
 
   const filingPackage = readRecord(input.filing_package);
-  if (!filingPackage || readRecord(filingPackage.parent_filing_context)) return;
+  if (!filingPackage) return;
+  const existingParentContext = readRecord(filingPackage.parent_filing_context);
+  if (stringValue(existingParentContext?.context_kind) === "current_report_parent_filing") return;
 
   const parserOutput = readCurrentReportParserOutput(input);
   const facts = readRecord(parserOutput?.facts);
@@ -6575,6 +6899,7 @@ async function attachCurrentReportParentFilingContext(input: SecFilingAnalysisIn
   });
   if (!parentContext) return;
 
+  // Preserve the matched prior analysis; raw historical blocks are reserved for warning repair.
   filingPackage.parent_filing_context = parentContext;
 }
 
@@ -7169,10 +7494,23 @@ async function findCurrentReportParentFilingContext({
   rawItem: RawItemRow;
 }) {
   const currentAccession = readRawAccession(rawItem);
+  const currentCik = normalizeCik(readRawCik(rawItem));
+  const currentFamily = normalizeCurrentReportFamily(readRawFormType(rawItem));
+  if (!currentCik || !currentFamily) return null;
+
   const explicitParentAccession = stringValue(amendment.parentAccessionNumber || amendment.parent_accession_number);
   if (explicitParentAccession) {
     const row = await fetchSecRawItemByAccession(explicitParentAccession);
-    if (row && readRawAccession(row) !== currentAccession && isCurrentReportParentCandidate(row)) {
+    const rowFiledAt = row ? Date.parse(stringValue(row.published_at)) : Number.NaN;
+    const currentFiledAt = Date.parse(stringValue(rawItem.published_at));
+    const isPriorFiling = !Number.isFinite(currentFiledAt) || !Number.isFinite(rowFiledAt) || rowFiledAt < currentFiledAt;
+    if (
+      row &&
+      readRawAccession(row) !== currentAccession &&
+      normalizeCik(readRawCik(row)) === currentCik &&
+      normalizeCurrentReportFamily(readRawFormType(row)) === currentFamily &&
+      isPriorFiling
+    ) {
       return buildCurrentReportParentContext({
         row,
         matchMethod: "explicit_parent_accession",
@@ -7181,92 +7519,34 @@ async function findCurrentReportParentFilingContext({
         parserOutput,
       });
     }
+    return null;
   }
+
+  const parentFiledDate = normalizeDateOnly(stringValue(amendment.parentFiledDate || amendment.parent_filed_date));
+  if (!parentFiledDate) return null;
 
   const candidates = await fetchCurrentReportParentCandidateRows(rawItem);
   if (!candidates.length) return null;
 
   const currentFiledAt = Date.parse(stringValue(rawItem.published_at));
-  const parentFiledDate = normalizeDateOnly(stringValue(amendment.parentFiledDate || amendment.parent_filed_date));
-  const currentItems = readCurrentReportItemNumbers(parserOutput);
-  const currentExhibits = readCurrentReportExhibitNumbers(parserOutput);
-  const currentTicker = readRawTicker(rawItem);
-  const currentCik = readRawCik(rawItem);
-  const currentFamily = normalizeCurrentReportFamily(readRawFormType(rawItem));
+  const exactMatches = candidates.filter((row) => {
+    if (readRawAccession(row) === currentAccession) return false;
+    if (normalizeCik(readRawCik(row)) !== currentCik) return false;
+    if (normalizeCurrentReportFamily(readRawFormType(row)) !== currentFamily) return false;
+    if (isCurrentReportAmendmentForm(readRawFormType(row))) return false;
+    if (normalizeDateOnly(readRawFiledDate(row)) !== parentFiledDate) return false;
+    const rowFiledAt = Date.parse(stringValue(row.published_at));
+    return !Number.isFinite(currentFiledAt) || !Number.isFinite(rowFiledAt) || rowFiledAt < currentFiledAt;
+  });
 
-  const scored = candidates
-    .filter((row) => readRawAccession(row) !== currentAccession && isCurrentReportParentCandidate(row))
-    .map((row) => {
-      const rowFiledAt = Date.parse(stringValue(row.published_at));
-      if (Number.isFinite(currentFiledAt) && Number.isFinite(rowFiledAt) && rowFiledAt >= currentFiledAt) return null;
-      if (
-        Number.isFinite(currentFiledAt) &&
-        Number.isFinite(rowFiledAt) &&
-        currentFiledAt - rowFiledAt > 365 * 24 * 60 * 60 * 1000
-      ) {
-        return null;
-      }
-
-      const rowFamily = normalizeCurrentReportFamily(readRawFormType(row));
-      const rowTicker = readRawTicker(row);
-      const rowCik = readRawCik(row);
-      const rowDate = normalizeDateOnly(readRawFiledDate(row));
-      const itemOverlap = countCurrentReportTextOverlap(row, currentItems.map((item) => `Item ${item}`));
-      const exhibitOverlap = countCurrentReportTextOverlap(row, currentExhibits.map((item) => `Exhibit ${item}`));
-      const matchReasons: string[] = [];
-      let score = 0;
-
-      if (currentFamily && rowFamily && currentFamily === rowFamily) {
-        score += 40;
-        matchReasons.push("same_current_report_family");
-      }
-      if (currentCik && rowCik && currentCik === rowCik) {
-        score += 60;
-        matchReasons.push("same_cik");
-      }
-      if (currentTicker && rowTicker && currentTicker === rowTicker) {
-        score += 35;
-        matchReasons.push("same_ticker");
-      }
-      if (parentFiledDate && rowDate && parentFiledDate === rowDate) {
-        score += 120;
-        matchReasons.push("parent_filed_date_match");
-      }
-      if (itemOverlap > 0) {
-        score += Math.min(40, itemOverlap * 20);
-        matchReasons.push("same_item_number");
-      }
-      if (exhibitOverlap > 0) {
-        score += Math.min(40, exhibitOverlap * 20);
-        matchReasons.push("same_exhibit_number");
-      }
-      if (!isCurrentReportAmendmentForm(readRawFormType(row))) {
-        score += 25;
-        matchReasons.push("non_amendment_parent_preferred");
-      }
-
-      return {
-        row,
-        score,
-        matchReasons,
-        matchMethod: parentFiledDate && rowDate === parentFiledDate ? "parent_filed_date" : "same_issuer_recent_context",
-      };
-    })
-    .filter((item): item is { row: RawItemRow; score: number; matchReasons: string[]; matchMethod: string } => Boolean(item))
-    .filter((item) => item.score >= 95)
-    .sort((left, right) => {
-      if (right.score !== left.score) return right.score - left.score;
-      return Date.parse(stringValue(right.row.published_at)) - Date.parse(stringValue(left.row.published_at));
-    });
-
-  const best = scored[0];
-  if (!best) return null;
+  if (exactMatches.length !== 1) return null;
+  const parentRow = exactMatches[0];
 
   return buildCurrentReportParentContext({
-    row: best.row,
-    matchMethod: best.matchMethod,
-    matchScore: best.score,
-    matchReasons: best.matchReasons,
+    row: parentRow,
+    matchMethod: "parent_filed_date_unique",
+    matchScore: 1000,
+    matchReasons: ["same_cik", "same_current_report_family", "parent_filed_date_exact", "unique_non_amendment_candidate"],
     parserOutput,
   });
 }
@@ -7775,7 +8055,7 @@ async function fetchSecRawItemByAccession(accession: string) {
 }
 
 async function fetchCurrentReportParentCandidateRows(rawItem: RawItemRow) {
-  const select = "id,source_unique_id,source_url,title,published_at,analysis_text,raw_payload,metadata";
+  const select = "id,source_unique_id,source_url,title,published_at,body_text,analysis_text,raw_payload,metadata";
   const cik = readRawCik(rawItem);
   const ticker = readRawTicker(rawItem);
   const rows: RawItemRow[] = [];
@@ -8491,7 +8771,10 @@ async function buildCurrentReportParentContext({
     selected_source_snippets: selectedSourceSnippets,
     selected_tables: selectedTables,
     attachment_inventory: attachmentInventory.length ? attachmentInventory : compactRawDocumentInventory(rawPayload).slice(0, 12),
-    source_availability_note: displayData?.source_availability_note || "Parent context excludes full raw filing text.",
+    source_blocks: buildCurrentReportLifecycleSourceBlocks(row, parserOutput),
+    source_availability_note:
+      displayData?.source_availability_note ||
+      "Relevant original source blocks are attached separately for amendment comparison.",
   };
 }
 
@@ -8681,6 +8964,7 @@ async function fetchExistingGenericParentEventContext(rawItemId: string) {
     key_evidence: readStringArray(analysis?.key_evidence).slice(0, 6),
     what_to_watch_next: readStringArray(analysis?.what_to_watch_next).slice(0, 6),
     display_payload: displayPayload,
+    removal_reason_context: extractRelatedRemovalReasonContext(analysisOutput, metadata, displayPayload),
     transaction_fingerprint: readRecord(metadata.transaction_fingerprint),
   };
 }
@@ -9265,6 +9549,21 @@ function finiteNumber(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
+function summarizeSecLlmRun(run: OpenAiPromptRun) {
+  return {
+    provider: run.provider,
+    final_model: run.model,
+    attempts: run.attempts,
+    error: run.error || null,
+  };
+}
+
+function readSec8k6kDisplayWarnings(analysis: Record<string, unknown>) {
+  const displayPayload = readRecord(analysis.display_payload);
+  const data = readRecord(displayPayload?.data);
+  return readStringArray(data?.display_warnings);
+}
+
 function readRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -9299,4 +9598,895 @@ function readFieldValueArray(value: unknown) {
       return stringValue(record?.value) || stringValue(item);
     })
     .filter(Boolean);
+}
+
+/* Form 25 lifecycle analysis helpers integrated from the dedicated SEC room. */
+function isForm25FilingInput(input: SecFilingAnalysisInput) {
+  return Boolean(readForm25ParserOutput(input));
+}
+
+function buildSecForm25AnalysisPromptForInput(input: SecFilingAnalysisInput): OpenAiPrompt {
+  const parserOutput = readForm25ParserOutput(input);
+  if (!parserOutput) {
+    throw new Error("SEC Form 25 parser output is missing from filing package");
+  }
+  const filingPackage = readRecord(input.filing_package);
+  const marketContext = readRecord(filingPackage?.market_context);
+  const relatedFilingContext = readRecord(filingPackage?.form25_related_filing_context);
+
+  return buildSecForm25AnalysisPromptDraft({
+    parser_output: parserOutput as unknown as SecForm25ParserOutput,
+    market_context: marketContext,
+    related_filing_context: relatedFilingContext,
+  });
+}
+
+async function attachForm25IssuerRelatedContext(input: SecFilingAnalysisInput, rawItem: RawItemRow) {
+  const filingPackage = readRecord(input.filing_package);
+  if (!filingPackage || readRecord(filingPackage.form25_related_filing_context)) return;
+
+  const parserOutput = readForm25ParserOutput(input);
+  if (!parserOutput) return;
+
+  const subjectCik = normalizeCik(readForm25FactValue(parserOutput, "subject_company_cik"));
+  const issuerName = readForm25FactValue(parserOutput, "issuer_name");
+  if (!subjectCik && !issuerName) return;
+
+  const relatedContext = await buildForm25IssuerRelatedContext({
+    subjectCik,
+    issuerName,
+    currentAccession: readRawAccession(rawItem),
+    currentRawItemId: stringValue(rawItem.id),
+    currentFiledAt: stringValue(rawItem.published_at) || readRawFiledDate(rawItem),
+  });
+
+  if (relatedContext) {
+    filingPackage.form25_related_filing_context = relatedContext;
+  }
+}
+
+async function buildForm25IssuerRelatedContext({
+  subjectCik,
+  issuerName,
+  currentAccession,
+  currentRawItemId,
+  currentFiledAt,
+}: {
+  subjectCik: string;
+  issuerName: string;
+  currentAccession: string;
+  currentRawItemId: string;
+  currentFiledAt: string;
+}) {
+  const rows = await fetchForm25IssuerRelatedRows(subjectCik, issuerName);
+  const currentFiledAtMs = Date.parse(currentFiledAt);
+  const scored = uniqueRawRows(rows)
+    .filter((row) => readRawAccession(row) !== currentAccession)
+    .filter((row) => stringValue(row.id) !== currentRawItemId)
+    .map((row) => ({
+      row,
+      score: scoreForm25RelatedRow(row, currentFiledAtMs, subjectCik, issuerName),
+    }))
+    .filter(({ score }) => score > 0)
+    .sort((left, right) => {
+      if (right.score !== left.score) return right.score - left.score;
+      return Date.parse(stringValue(right.row.published_at)) - Date.parse(stringValue(left.row.published_at));
+    });
+
+  const compactedCandidates = await Promise.all(
+    scored.slice(0, 24).map(({ row, score }) => compactForm25IssuerRelatedRow(row, score)),
+  );
+  const selected = compactedCandidates
+    .sort((left, right) => {
+      const analyzedDifference = Number(Boolean(right.event_id)) - Number(Boolean(left.event_id));
+      if (analyzedDifference !== 0) return analyzedDifference;
+      return Number(right.match_score || 0) - Number(left.match_score || 0);
+    })
+    .slice(0, 8);
+  if (!selected.length) return null;
+
+  return {
+    context_kind: "form25_subject_company_related_filings",
+    subject_company_cik: subjectCik || null,
+    subject_company_name: issuerName || null,
+    source: "persisted_sec_raw_items_and_existing_analysis",
+    candidate_count: scored.length,
+    selected_filings: selected,
+    source_notes: [
+      "Related filing context is selected from persisted SEC raw items by subject-company CIK and company-name references.",
+      "This context is evidence for the LLM only; code does not classify the Form 25 outcome.",
+      "Full raw filing text is excluded; snippets and existing analysis summaries are compacted.",
+    ],
+  };
+}
+
+async function fetchForm25IssuerRelatedRows(subjectCik: string, issuerName: string) {
+  const select = "id,source_unique_id,source_url,title,published_at,body_text,analysis_text,raw_payload,metadata";
+  const rows: RawItemRow[] = [];
+  const cikCandidates = subjectCik ? uniqueStrings([subjectCik, subjectCik.padStart(10, "0")]) : [];
+
+  for (const cik of cikCandidates) {
+    const byPayloadCik = await supabaseSelect("raw_items", {
+      select,
+      "raw_payload->>cik": `eq.${cik}`,
+      order: "published_at.desc",
+      limit: "200",
+    });
+    if (byPayloadCik.ok && Array.isArray(byPayloadCik.data)) rows.push(...(byPayloadCik.data as RawItemRow[]));
+
+    const byMetadataCik = await supabaseSelect("raw_items", {
+      select,
+      "metadata->>cik": `eq.${cik}`,
+      order: "published_at.desc",
+      limit: "200",
+    });
+    if (byMetadataCik.ok && Array.isArray(byMetadataCik.data)) rows.push(...(byMetadataCik.data as RawItemRow[]));
+  }
+
+  for (const searchTerm of form25RelatedCompanySearchTerms(issuerName)) {
+    for (const column of ["body_text", "analysis_text"]) {
+      const byCompanyReference = await supabaseSelect("raw_items", {
+        select,
+        [column]: `ilike.*${searchTerm}*`,
+        order: "published_at.desc",
+        limit: "120",
+      });
+      if (byCompanyReference.ok && Array.isArray(byCompanyReference.data)) {
+        rows.push(...(byCompanyReference.data as RawItemRow[]));
+      }
+    }
+  }
+
+  return uniqueRawRows(rows);
+}
+
+function form25RelatedCompanySearchTerms(issuerName: string) {
+  const stopWords = new Set([
+    "company",
+    "corporation",
+    "corp",
+    "incorporated",
+    "inc",
+    "limited",
+    "ltd",
+    "holdings",
+    "holding",
+    "group",
+    "plc",
+    "acquisition",
+  ]);
+  const words = normalizeComparableName(issuerName)
+    .split(" ")
+    .filter((word) => word.length >= 4 && !stopWords.has(word));
+  if (!words.length) return [];
+
+  const phrase = words.slice(0, 4).join(" ");
+  return phrase.length >= 5 ? [phrase] : [];
+}
+
+function scoreForm25RelatedRow(
+  row: RawItemRow,
+  currentFiledAtMs: number,
+  subjectCik: string,
+  issuerName: string,
+) {
+  const text = form25RelatedSearchText(row);
+  if (!text || !form25RelatedCompanyIdentityMatches(row, subjectCik, issuerName, text)) return 0;
+
+  const rowFiledAtMs = Date.parse(stringValue(row.published_at));
+  let score = 0;
+  const formType = readRawFormType(row).toUpperCase();
+
+  if (/\b(?:8-K|425|DEFM14A|PREM14A|S-4|S-4\/A|F-4|F-4\/A|SC TO|SC 14D9|13E3)\b/.test(formType)) score += 45;
+  if (/\b(?:merger|merged|acquisition|acquired|business combination|share exchange|cash merger|tender offer|going private)\b/i.test(text)) {
+    score += 120;
+  }
+  if (/\b(?:completed|consummated|closed|became effective|effective time|closing of the transaction)\b/i.test(text)) score += 75;
+  if (/\b(?:delist|delisting|deregister|Form 25|trading suspension|suspended from trading)\b/i.test(text)) score += 45;
+  if (/\b(?:consideration|per share|cash payment|converted into|right to receive)\b/i.test(text)) score += 30;
+
+  if (Number.isFinite(currentFiledAtMs) && Number.isFinite(rowFiledAtMs)) {
+    const ageDays = Math.round((currentFiledAtMs - rowFiledAtMs) / (24 * 60 * 60 * 1000));
+    if (ageDays >= -14 && ageDays <= 45) score += 50;
+    else if (ageDays >= -30 && ageDays <= 180) score += 20;
+    else if (ageDays > 730) score -= 50;
+  }
+
+  return score;
+}
+
+function form25RelatedCompanyIdentityMatches(
+  row: RawItemRow,
+  subjectCik: string,
+  issuerName: string,
+  searchText: string,
+) {
+  const normalizedSubjectCik = normalizeCik(subjectCik);
+  const normalizedRowCik = normalizeCik(readRawCik(row));
+  if (normalizedSubjectCik && normalizedRowCik === normalizedSubjectCik) return true;
+
+  const searchTerms = form25RelatedCompanySearchTerms(issuerName);
+  if (!searchTerms.length) return false;
+  const normalizedText = normalizeComparableName(searchText);
+  return searchTerms.some((term) => normalizedText.includes(normalizeComparableName(term)));
+}
+
+async function compactForm25IssuerRelatedRow(row: RawItemRow, matchScore: number) {
+  const existing = await fetchExistingGenericParentEventContext(stringValue(row.id));
+  return {
+    raw_item_id: stringValue(row.id) || null,
+    event_id: existing?.event_id || null,
+    accession_number: readRawAccession(row) || null,
+    form_type: readRawFormType(row) || null,
+    filed_at: stringValue(row.published_at) || readRawFiledDate(row) || null,
+    title: stringValue(row.title) || null,
+    ticker: readRawTicker(row) || existing?.ticker || null,
+    exchange: existing?.exchange || null,
+    company_name: readRawCompanyName(row) || null,
+    match_score: matchScore,
+    match_confidence: form25RelatedMatchConfidence(matchScore, Boolean(existing?.event_id)),
+    source_url: stringValue(row.source_url) || null,
+    event_type: existing?.event_type || null,
+    score: existing?.score ?? null,
+    delivery_level: existing?.delivery_level || null,
+    signal: existing?.signal || null,
+    event_title: existing?.event_title || null,
+    summary: existing?.summary || null,
+    quick_take: existing?.quick_take || null,
+    key_evidence: existing?.key_evidence || [],
+    removal_reason_context: existing?.removal_reason_context || null,
+    source_snippets: buildForm25RelatedSourceSnippets(row),
+  };
+}
+
+function form25RelatedMatchConfidence(matchScore: number, hasExistingEvent: boolean) {
+  if (hasExistingEvent && matchScore >= 170) return "high";
+  if (hasExistingEvent && matchScore >= 100) return "medium";
+  return "low";
+}
+
+function form25RelatedSearchText(row: RawItemRow) {
+  return truncateCompactContextText(
+    [row.title, row.analysis_text, row.body_text].map(stringValue).filter(Boolean).join("\n"),
+    180_000,
+  );
+}
+
+function buildForm25RelatedSourceSnippets(row: RawItemRow) {
+  const text = form25RelatedSearchText(row);
+  if (!text) return [];
+
+  const patterns = [
+    /\b(?:merger|merged|acquisition|acquired|business combination|share exchange|cash merger|tender offer|going private)\b/gi,
+    /\b(?:completed|consummated|closed|became effective|effective time|closing of the transaction)\b/gi,
+    /\b(?:delist|delisting|deregister|Form 25|trading suspension|suspended from trading)\b/gi,
+    /\b(?:consideration|per share|cash payment|converted into|right to receive)\b/gi,
+  ];
+  const snippets: string[] = [];
+
+  for (const pattern of patterns) {
+    for (const match of text.matchAll(pattern)) {
+      const index = match.index ?? 0;
+      snippets.push(truncateCompactContextText(text.slice(Math.max(0, index - 280), index + 720), 900));
+      if (snippets.length >= 5) return uniqueStrings(snippets).slice(0, 5);
+    }
+  }
+
+  return uniqueStrings(snippets).slice(0, 5);
+}
+
+function readForm25FactValue(parserOutput: Record<string, unknown>, key: string) {
+  const facts = readRecord(parserOutput.facts);
+  const field = readRecord(facts?.[key]);
+  return stringValue(field?.value);
+}
+
+function adaptSecForm25AnalysisPromptResultForAnalysis(
+  root: Record<string, unknown>,
+  parserOutput: SecForm25ParserOutput | null,
+  relatedFilingContext: Record<string, unknown> | null,
+) {
+  const analysisOutput = readRecord(root.analysis_output);
+  const displayPayload = readRecord(root.display_payload);
+  if (!analysisOutput) {
+    return { ok: false as const, error: "SEC Form 25 result did not contain analysis_output" };
+  }
+  if (!displayPayload) {
+    return { ok: false as const, error: "SEC Form 25 result did not contain display_payload" };
+  }
+  applySecForm25IdentityFacts(displayPayload, parserOutput);
+  applySecForm25PostAnalysisGuards(root, parserOutput, relatedFilingContext);
+  return {
+    ok: true as const,
+    analysis: {
+      ...analysisOutput,
+      display_payload: displayPayload,
+    },
+  };
+}
+
+function applySecForm25IdentityFacts(
+  displayPayload: Record<string, unknown>,
+  parserOutput: SecForm25ParserOutput | null,
+) {
+  if (!parserOutput) return;
+  const data = readRecord(displayPayload.data);
+  if (!data) return;
+
+  for (const key of ["issuer_name", "subject_company_cik", "filed_by_name", "filed_by_cik"] as const) {
+    const value = readForm25FactValue(parserOutput as unknown as Record<string, unknown>, key);
+    if (value) data[key] = value;
+  }
+}
+
+function attachForm25LifecycleFilingContext(
+  input: SecFilingAnalysisInput,
+  analysis: Record<string, unknown>,
+  relatedFilingContext: Record<string, unknown> | null,
+) {
+  const lifecycle = readRecord(analysis.form25_lifecycle);
+  const disposition = stringValue(lifecycle?.disposition);
+  if (disposition !== "related_event_update" && disposition !== "administrative_cleanup") return;
+
+  const relatedEventId = stringValue(lifecycle?.related_event_id);
+  const relatedAccession = normalizeForm25Accession(stringValue(lifecycle?.related_accession_number));
+  const matched = readRecordArray(relatedFilingContext?.selected_filings).find((candidate) => {
+    const candidateEventId = stringValue(candidate.event_id);
+    const candidateAccession = normalizeForm25Accession(stringValue(candidate.accession_number));
+    if (!candidateEventId) return false;
+    return Boolean(
+      (relatedEventId && candidateEventId === relatedEventId) ||
+        (relatedAccession && candidateAccession === relatedAccession),
+    );
+  });
+  if (!matched) return;
+
+  const filingPackage = readRecord(input.filing_package);
+  if (!filingPackage) return;
+  const existingContext = readRecord(filingPackage.filing_context) || {};
+  const existingHistory = readRecord(existingContext.transaction_history) || {};
+  const priorFiling = {
+    event_id: stringValue(matched.event_id) || null,
+    raw_item_id: stringValue(matched.raw_item_id) || null,
+    accession_number: stringValue(matched.accession_number) || null,
+    form_type: stringValue(matched.form_type) || null,
+    filed_at: stringValue(matched.filed_at) || null,
+    title: stringValue(matched.title) || null,
+    event_title: stringValue(matched.event_title) || null,
+    event_type: stringValue(matched.event_type) || null,
+    ticker: stringValue(matched.ticker) || null,
+    exchange: stringValue(matched.exchange) || null,
+    score: numberValue(matched.score),
+    delivery_level: stringValue(matched.delivery_level) || null,
+    signal: stringValue(matched.signal) || null,
+    quick_take: stringValue(matched.quick_take) || null,
+    summary: stringValue(matched.summary) || null,
+    source_url: stringValue(matched.source_url) || null,
+    match_source: "form25_related_filing_context",
+    match_confidence: stringValue(matched.match_confidence) || null,
+    match_score: numberValue(matched.match_score),
+    relation: disposition === "administrative_cleanup" ? "Administrative follow-up" : "Listing follow-up",
+  };
+  const priorFilings = dedupeForm25PriorFilings([
+    priorFiling,
+    ...readRecordArray(existingHistory.prior_filings),
+  ]);
+
+  filingPackage.filing_context = {
+    ...existingContext,
+    context_kind: stringValue(existingContext.context_kind) || "form25_lifecycle_follow_up",
+    transaction_history: {
+      ...existingHistory,
+      status: "found",
+      current_stage: "form25_filed",
+      prior_filings: priorFilings,
+    },
+  };
+}
+
+function dedupeForm25PriorFilings(items: Record<string, unknown>[]) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key =
+      stringValue(item.event_id) ||
+      normalizeForm25Accession(stringValue(item.accession_number)) ||
+      stringValue(item.raw_item_id);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 6);
+}
+
+function normalizeForm25Accession(value: string) {
+  return value.replace(/[^0-9]/g, "");
+}
+
+function readForm25ParserOutput(input: SecFilingAnalysisInput): Record<string, unknown> | null {
+  const filingPackage = readRecord(input.filing_package);
+  const hardParsers = readRecord(filingPackage?.hard_parsers);
+  const form25 = readRecord(hardParsers?.form25);
+  if (!form25 || stringValue(form25.parserGroup) !== "form25") return null;
+  return form25;
+}
+
+function extractRelatedRemovalReasonContext(
+  analysisOutput: Record<string, unknown>,
+  analysisMetadata: Record<string, unknown>,
+  displayPayload: Record<string, unknown> | null,
+) {
+  const displayData = readRecord(displayPayload?.data) || {};
+  const directReason = stringValue(displayData.removal_reason);
+  if (directReason && !isUndisclosedContextValue(directReason)) {
+    return {
+      label: "Removal Reason",
+      value: truncateCompactContextText(directReason, 80),
+      note: truncateCompactContextText(stringValue(displayData.removal_reason_text), 80) || null,
+    };
+  }
+
+  const rows = [
+    ...readRecordArray(analysisOutput.listing_status_snapshot),
+    ...readRecordArray(analysisMetadata.listing_status_snapshot),
+    ...readRecordArray(displayData.snapshot_metrics),
+  ];
+  const preferred = rows.find((row) => {
+    const label = stringValue(row.label);
+    const value = stringValue(row.value);
+    return (
+      /(?:delisting|removal) reason|listing issue|compliance issue|primary issue/i.test(label) &&
+      Boolean(value) &&
+      !isUndisclosedContextValue(value)
+    );
+  });
+  if (!preferred) return null;
+
+  return {
+    label: stringValue(preferred.label) || "Removal Reason",
+    value: truncateCompactContextText(stringValue(preferred.value), 80),
+    note: truncateCompactContextText(stringValue(preferred.note), 80) || null,
+  };
+}
+
+function isUndisclosedContextValue(value: string) {
+  return /^(?:reason\s+)?(?:not disclosed|not stated|unknown|unclear|n\/?a)$/i.test(value.trim());
+}
+
+/* Current-report related filing and amendment lifecycle helpers. */
+async function attachCurrentReportRelatedFilingContexts(input: SecFilingAnalysisInput, rawItem: RawItemRow) {
+  if (!isSec8k6kFilingInput(input)) return;
+
+  const filingPackage = readRecord(input.filing_package);
+  if (!filingPackage || readRecordArray(filingPackage.related_filing_contexts).length) return;
+
+  const parserOutput = readCurrentReportParserOutput(input);
+  const references = readRecordArray(readRecord(parserOutput?.facts)?.referencedFilings).slice(0, 12);
+  if (!references.length) return;
+
+  const currentAccession = readRawAccession(rawItem);
+  const currentCik = normalizeCik(readRawCik(rawItem));
+  if (!currentCik) return;
+
+  const candidateRows = await fetchExplicitRelatedFilingCandidateRows(rawItem);
+  const contexts: Array<Record<string, unknown>> = [];
+  const parentRawItemId = stringValue(readRecord(filingPackage.parent_filing_context)?.raw_item_id);
+  const usedRawItemIds = new Set<string>(parentRawItemId ? [parentRawItemId] : []);
+
+  for (const reference of references) {
+    const explicitAccession = stringValue(reference.accessionNumber);
+    let matchedRow = explicitAccession ? await fetchSecRawItemByAccession(explicitAccession) : null;
+    if (matchedRow && !matchesExplicitRelatedFilingReference(matchedRow, reference, currentCik, currentAccession)) {
+      matchedRow = null;
+    }
+    matchedRow ||= candidateRows.find((row) =>
+      matchesExplicitRelatedFilingReference(row, reference, currentCik, currentAccession),
+    ) || null;
+    if (!matchedRow) continue;
+
+    const rawItemId = stringValue(matchedRow.id);
+    if (!rawItemId || usedRawItemIds.has(rawItemId)) continue;
+    const existing = await fetchExistingGenericParentEventContext(rawItemId);
+    if (!existing) continue;
+
+    contexts.push(buildExplicitRelatedFilingContext(matchedRow, existing, reference));
+    usedRawItemIds.add(rawItemId);
+    if (contexts.length >= 4) break;
+  }
+
+  if (contexts.length) filingPackage.related_filing_contexts = contexts;
+}
+
+async function attachCurrentReportAmendmentLifecycleContexts(
+  input: SecFilingAnalysisInput,
+  rawItem: RawItemRow,
+) {
+  if (!isSec8k6kFilingInput(input) || !isCurrentReportAmendmentForm(readRawFormType(rawItem))) return;
+
+  const filingPackage = readRecord(input.filing_package);
+  const parserOutput = readCurrentReportParserOutput(input);
+  if (!filingPackage || !parserOutput) return;
+
+  const currentAccession = readRawAccession(rawItem);
+  const currentCik = normalizeCik(readRawCik(rawItem));
+  const currentFamily = normalizeCurrentReportFamily(readRawFormType(rawItem));
+  const currentFiledAt = Date.parse(stringValue(rawItem.published_at));
+  if (!currentCik || !currentFamily) return;
+
+  const parentRawItemId = stringValue(readRecord(filingPackage.parent_filing_context)?.raw_item_id);
+  const existingContexts = readRecordArray(filingPackage.related_filing_contexts);
+  const usedRawItemIds = new Set(
+    [parentRawItemId, ...existingContexts.map((context) => stringValue(context.raw_item_id))].filter(Boolean),
+  );
+
+  const candidateRows = (await fetchCurrentReportParentCandidateRows(rawItem))
+    .filter((row) => {
+      const rawItemId = stringValue(row.id);
+      const filedAt = Date.parse(stringValue(row.published_at));
+      return Boolean(
+        rawItemId &&
+          !usedRawItemIds.has(rawItemId) &&
+          readRawAccession(row) !== currentAccession &&
+          normalizeCik(readRawCik(row)) === currentCik &&
+          normalizeCurrentReportFamily(readRawFormType(row)) === currentFamily &&
+          isCurrentReportAmendmentForm(readRawFormType(row)) &&
+          (!Number.isFinite(currentFiledAt) || !Number.isFinite(filedAt) || filedAt < currentFiledAt),
+      );
+    })
+    .sort((left, right) => Date.parse(stringValue(right.published_at)) - Date.parse(stringValue(left.published_at)));
+
+  const lifecycleContexts: Array<Record<string, unknown>> = [];
+  for (const row of candidateRows) {
+    const existing = await fetchExistingCurrentReportEventContext(stringValue(row.id));
+    if (!existing) continue;
+    lifecycleContexts.push(buildCurrentReportAmendmentLifecycleContext(row, existing, parserOutput));
+    if (lifecycleContexts.length >= 2) break;
+  }
+
+  if (lifecycleContexts.length) {
+    filingPackage.related_filing_contexts = [...existingContexts, ...lifecycleContexts].slice(0, 6);
+  }
+}
+
+async function fetchExplicitRelatedFilingCandidateRows(rawItem: RawItemRow) {
+  const select = "id,source_unique_id,source_url,title,published_at,body_text,analysis_text,raw_payload,metadata";
+  const rawCik = readRawCik(rawItem);
+  const cikValues = uniqueStrings([rawCik, normalizeCik(rawCik)].filter(Boolean));
+  const rows: RawItemRow[] = [];
+
+  for (const cik of cikValues) {
+    const rawPayloadResult = await supabaseSelect("raw_items", {
+      select,
+      source_code: "eq.sec_edgar",
+      "raw_payload->>cik": `eq.${cik}`,
+      order: "published_at.desc",
+      limit: "300",
+    });
+    if (rawPayloadResult.ok && Array.isArray(rawPayloadResult.data)) rows.push(...(rawPayloadResult.data as RawItemRow[]));
+
+    const metadataResult = await supabaseSelect("raw_items", {
+      select,
+      source_code: "eq.sec_edgar",
+      "metadata->>cik": `eq.${cik}`,
+      order: "published_at.desc",
+      limit: "300",
+    });
+    if (metadataResult.ok && Array.isArray(metadataResult.data)) rows.push(...(metadataResult.data as RawItemRow[]));
+  }
+
+  return dedupeRawRows(rows);
+}
+
+function matchesExplicitRelatedFilingReference(
+  row: RawItemRow,
+  reference: Record<string, unknown>,
+  currentCik: string,
+  currentAccession: string,
+) {
+  if (readRawAccession(row) === currentAccession) return false;
+  if (normalizeCik(readRawCik(row)) !== currentCik) return false;
+  if (!matchesExplicitRelatedForm(stringValue(reference.formType), readRawFormType(row))) return false;
+  const referencedDate = normalizeDateOnly(stringValue(reference.filedDate));
+  return Boolean(referencedDate && normalizeDateOnly(readRawFiledDate(row)) === referencedDate);
+}
+
+function matchesExplicitRelatedForm(referenceForm: string, candidateForm: string) {
+  const reference = normalizeSecFormForParentContext(referenceForm).replace(/\s+/g, "");
+  const candidate = normalizeSecFormForParentContext(candidateForm).replace(/\s+/g, "");
+  if (!reference || !candidate) return false;
+  if (reference === candidate) return true;
+  if (reference === "SC14A") return /^(?:DEF14A|PRE14A|DEFA14A|DEFM14A|DEFC14A|PREM14A|PREC14A)$/.test(candidate);
+  if (reference === "25") return /^(?:25|25-NSE)(?:\/A)?$/.test(candidate);
+  return false;
+}
+
+function buildExplicitRelatedFilingContext(
+  row: RawItemRow,
+  existing: Record<string, unknown>,
+  reference: Record<string, unknown>,
+) {
+  return {
+    context_kind: "explicitly_referenced_analyzed_filing",
+    match_method: stringValue(reference.accessionNumber) ? "explicit_accession" : "same_cik_form_filed_date",
+    confidence: "high",
+    reference_evidence: truncateCompactContextText(stringValue(reference.evidence), 520) || null,
+    referenced_form_type: stringValue(reference.formType) || null,
+    referenced_filed_date: stringValue(reference.filedDate) || null,
+    raw_item_id: stringValue(row.id) || null,
+    event_id: stringValue(existing.event_id) || null,
+    accession_number: readRawAccession(row) || null,
+    form_type: readRawFormType(row) || null,
+    filed_at: stringValue(row.published_at) || readRawFiledDate(row) || null,
+    source_url: stringValue(row.source_url) || null,
+    company_name: readRawCompanyName(row) || null,
+    ticker: stringValue(existing.ticker) || readRawTicker(row) || null,
+    event_type: stringValue(existing.event_type) || null,
+    score: numberValue(existing.score),
+    delivery_level: stringValue(existing.delivery_level) || null,
+    signal: stringValue(existing.signal) || null,
+    event_title: stringValue(existing.event_title) || null,
+    quick_take: stringValue(existing.quick_take) || null,
+    summary: stringValue(existing.summary) || null,
+    key_evidence: readStringArray(existing.key_evidence).slice(0, 3),
+    display_payload: compactParentDisplayPayload(readRecord(existing.display_payload)),
+    source_blocks: buildExplicitRelatedFilingSourceBlocks(row, existing),
+  };
+}
+
+function buildExplicitRelatedFilingSourceBlocks(
+  row: RawItemRow,
+  existing: Record<string, unknown>,
+) {
+  const relatedPackage = readRecord(buildSecFilingAnalysisPackage(row, {
+    maxChars: 80_000,
+    maxDocumentChars: 48_000,
+  }));
+  if (!relatedPackage) return [];
+
+  const formType = readRawFormType(row) || stringValue(relatedPackage.form_type) || "SEC filing";
+  const accession = readRawAccession(row) || stringValue(relatedPackage.accession_number);
+  const hardParsers = readRecord(relatedPackage.hard_parsers);
+  const proxyParserOutput = readRecord(hardParsers?.proxy);
+  const candidates: Array<Record<string, unknown>> = [];
+
+  if (proxyParserOutput) {
+    const proxySourceInput = buildProxySourceBlockPromptInput(
+      proxyParserOutput as unknown as ProxyParserOutput,
+    );
+    for (const block of readRecordArray(proxySourceInput.cleaned_source_blocks)) {
+      const blockType = stringValue(block.block_type);
+      if (!blockType || blockType === "current_filing") continue;
+      const text = stringValue(block.text);
+      if (!text) continue;
+      candidates.push({
+        block_type: blockType,
+        label: stringValue(block.label) || `${formType} source`,
+        text,
+        source_ref: accession ? `${formType} ${accession}` : formType,
+        origin: "linked_filing.proxy_parser",
+      });
+    }
+  }
+
+  const llmText = stringValue(relatedPackage.llm_text);
+  for (const [index, text] of splitRelatedFilingSourceText(llmText).entries()) {
+    candidates.push({
+      block_type: "related_filing_section",
+      label: `${formType} original section ${index + 1}`,
+      text,
+      source_ref: accession ? `${formType} ${accession}` : formType,
+      origin: "linked_filing.original_text",
+    });
+  }
+
+  const rankingContext = [
+    stringValue(existing.event_title),
+    stringValue(existing.quick_take),
+    stringValue(existing.summary),
+    ...readStringArray(existing.key_evidence),
+  ].join(" ");
+
+  return dedupeRelatedFilingSourceBlocks(candidates)
+    .map((block, index) => ({
+      block,
+      index,
+      score: scoreRelatedFilingSourceBlock(block, rankingContext),
+    }))
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .slice(0, 4)
+    .map(({ block }) => block);
+}
+
+function splitRelatedFilingSourceText(value: string, maxChars = 4_500) {
+  const text = value.replace(/\r\n/g, "\n").trim();
+  if (!text) return [];
+
+  const paragraphs = text
+    .split(/\n{2,}|(?=^###\s+)/m)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+  const chunks: string[] = [];
+  let current = "";
+
+  const flush = () => {
+    if (current.trim()) chunks.push(current.trim());
+    current = "";
+  };
+
+  for (const paragraph of paragraphs) {
+    if (paragraph.length > maxChars) {
+      flush();
+      const sentences = paragraph.match(/[^.!?\n]+(?:[.!?]+|$)/g) || [paragraph];
+      for (const sentence of sentences) {
+        const next = current ? `${current} ${sentence.trim()}` : sentence.trim();
+        if (next.length > maxChars && current) flush();
+        current = current ? `${current} ${sentence.trim()}` : sentence.trim();
+      }
+      flush();
+      continue;
+    }
+
+    const next = current ? `${current}\n\n${paragraph}` : paragraph;
+    if (next.length > maxChars && current) flush();
+    current = current ? `${current}\n\n${paragraph}` : paragraph;
+  }
+  flush();
+  return chunks.slice(0, 24);
+}
+
+function scoreRelatedFilingSourceBlock(block: Record<string, unknown>, rankingContext: string) {
+  const blockType = stringValue(block.block_type);
+  const text = `${stringValue(block.label)} ${stringValue(block.text)}`;
+  let score = blockType === "proxy_source_block" ? 40 : blockType === "table_source_block" ? 36 : 20;
+  if (/\b(?:proposal|shareholder approval|vote required)\b/i.test(text)) score += 18;
+  if (/\b(?:warrant|convertible|preferred stock|common stock|underlying shares?|share issuance)\b/i.test(text)) score += 24;
+  if (/\b(?:Series\s+[A-Z0-9-]+|pre-funded|cashless exercise|exercise price|conversion price)\b/i.test(text)) score += 22;
+  if (/\b\d{1,3}(?:,\d{3})+\s+(?:shares?|warrants?|securities)\b/i.test(text)) score += 28;
+  if (/\b(?:merger|business combination|acquisition|consideration|closing)\b/i.test(text)) score += 20;
+  if (/\b(?:delist|listing|trading suspension|Form 25|exchange)\b/i.test(text)) score += 18;
+  if (/\b(?:reverse split|authorized shares?|equity plan)\b/i.test(text)) score += 16;
+  if (/\b(?:record date|proxy card|only stockholders of record|TABLE OF CONTENTS)\b/i.test(text)) score -= 18;
+
+  const rankingTerms = uniqueStrings(
+    rankingContext
+      .toLowerCase()
+      .match(/[a-z][a-z0-9-]{5,}/g) || [],
+  ).filter((term) => !RELATED_FILING_COMMON_TERMS.has(term));
+  const haystack = text.toLowerCase();
+  score += rankingTerms.slice(0, 40).filter((term) => haystack.includes(term)).length * 2;
+  return score;
+}
+
+const RELATED_FILING_COMMON_TERMS = new Set([
+  "company",
+  "filing",
+  "shares",
+  "stockholders",
+  "shareholders",
+  "proposal",
+  "approved",
+  "approval",
+  "common",
+  "current",
+  "related",
+]);
+
+function dedupeRelatedFilingSourceBlocks(blocks: Array<Record<string, unknown>>) {
+  const seen = new Set<string>();
+  return blocks.filter((block) => {
+    const text = stringValue(block.text).replace(/\s+/g, " ").trim();
+    if (!text) return false;
+    const key = text.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function buildCurrentReportAmendmentLifecycleContext(
+  row: RawItemRow,
+  existing: Record<string, unknown>,
+  currentParserOutput: Record<string, unknown>,
+) {
+  return {
+    context_kind: "current_report_amendment_lifecycle",
+    match_source: "amendment_lifecycle_context",
+    match_method: "same_cik_current_report_family",
+    confidence: "high",
+    raw_item_id: stringValue(row.id) || null,
+    event_id: stringValue(existing.event_id) || null,
+    accession_number: readRawAccession(row) || null,
+    form_type: readRawFormType(row) || null,
+    filed_at: stringValue(row.published_at) || readRawFiledDate(row) || null,
+    source_url: stringValue(row.source_url) || null,
+    company_name: readRawCompanyName(row) || null,
+    ticker: readRawTicker(row) || null,
+    event_type: stringValue(existing.event_type) || null,
+    score: numberValue(existing.score),
+    delivery_level: stringValue(existing.delivery_level) || null,
+    signal: stringValue(existing.signal) || null,
+    event_title: stringValue(existing.event_title) || null,
+    quick_take: stringValue(existing.quick_take) || null,
+    summary: stringValue(existing.summary) || null,
+    key_evidence: readStringArray(existing.key_evidence).slice(0, 3),
+    source_blocks: buildCurrentReportLifecycleSourceBlocks(row, currentParserOutput),
+  };
+}
+
+function buildCurrentReportLifecycleSourceBlocks(
+  row: RawItemRow,
+  currentParserOutput: Record<string, unknown>,
+) {
+  const historicalPackage = readRecord(buildSecFilingAnalysisPackage(row, {
+    maxChars: 80_000,
+    maxDocumentChars: 48_000,
+  }));
+  const historicalParserOutput = readRecord(readRecord(historicalPackage?.hard_parsers)?.["8k-6k"]);
+  if (!historicalPackage || !historicalParserOutput) return [];
+
+  const sourceInput = buildSecSourceBlockPromptInput({
+    filingPackage: historicalPackage,
+    parserOutput: historicalParserOutput,
+    fallbackText: stringValue(historicalPackage.llm_text) || stringValue(row.body_text),
+  });
+  const currentItems = new Set(readCurrentReportItemNumbers(currentParserOutput));
+  const currentExhibits = new Set(readCurrentReportExhibitNumbers(currentParserOutput));
+  const excludedTypes = new Set([
+    "current_filing",
+    "filing_metadata",
+    "parser_warnings",
+    "source_inventory",
+    "attachment_inventory",
+    "document_inventory",
+    "parent_filing_context",
+    "related_filing_context",
+    "related_filing_source_block",
+    "site_market_context",
+  ]);
+
+  return sourceInput.cleaned_source_blocks
+    .filter((block) => !excludedTypes.has(block.block_type) && Boolean(block.text))
+    .map((block, index) => ({
+      block,
+      index,
+      score:
+        block.priority +
+        (block.item_number && currentItems.has(block.item_number) ? 80 : 0) +
+        (block.exhibit_number && currentExhibits.has(block.exhibit_number) ? 70 : 0),
+    }))
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .slice(0, 6)
+    .map(({ block }) => ({
+      block_type: block.block_type,
+      label: block.label,
+      text: block.text,
+      source_ref: block.source_ref,
+      origin: block.origin,
+      item_number: block.item_number || null,
+      exhibit_number: block.exhibit_number || null,
+      document_type: block.document_type || null,
+      document_reference: block.document_reference || null,
+    }));
+}
+
+function buildCurrentReportAmendmentRepairSourceBlocks(input: SecFilingAnalysisInput) {
+  const filingPackage = readRecord(input.filing_package);
+  if (!filingPackage || !isCurrentReportAmendmentForm(stringValue(filingPackage.form_type))) return [];
+
+  const sourceInput = buildSecSourceBlockPromptInput({
+    filingPackage,
+    parserOutput: readCurrentReportParserOutput(input),
+    fallbackText: stringValue(filingPackage.llm_text),
+    parentFilingContext: readRecord(filingPackage.parent_filing_context),
+    relatedFilingContexts: readRecordArray(filingPackage.related_filing_contexts),
+    includeAmendmentHistoricalSourceBlocks: true,
+    maxBlockChars: 5_000,
+  });
+
+  return sourceInput.cleaned_source_blocks
+    .filter((block) =>
+      block.block_type === "parent_filing_source_block" || block.block_type === "related_filing_source_block"
+    )
+    .map((block) => ({
+      ...block,
+      origin: `integration.amendment_repair.${block.origin}`,
+    }));
 }
