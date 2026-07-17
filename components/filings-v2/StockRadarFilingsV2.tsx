@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FilingsV2DetailPanel, MobileFilingsV2DetailSheet } from "@/components/filings-v2/FilingsV2Detail";
 import { FilingsV2FilterBar } from "@/components/filings-v2/FilingsV2FilterBar";
 import { FilingsV2List, type FilingsV2ListState } from "@/components/filings-v2/FilingsV2List";
+import { FilingsRailAdSlot } from "@/components/filings-v2/FilingsRailAdSlot";
 import { FilingsV2Summary } from "@/components/filings-v2/FilingsV2Summary";
 import { MobileFilingsV2FilterSheet } from "@/components/filings-v2/MobileFilingsV2FilterSheet";
 import { PremiumUpgradeCard } from "@/components/filings-v2/PremiumUpgradeCard";
@@ -115,6 +116,47 @@ export function StockRadarFilingsV2() {
     });
   }, [previewRequestId]);
 
+  useEffect(() => {
+    const desktopRailQuery = window.matchMedia("(min-width: 1181px)");
+    let previousScrollY = window.scrollY;
+    let pendingScrollDelta = 0;
+    let animationFrameId: number | null = null;
+
+    const syncDetailRail = () => {
+      animationFrameId = null;
+
+      const rail = detailRailRef.current;
+      const scrollDelta = pendingScrollDelta;
+      pendingScrollDelta = 0;
+
+      if (!desktopRailQuery.matches || !rail || scrollDelta === 0) return;
+
+      const stickyTop = Number.parseFloat(window.getComputedStyle(rail).top) || 0;
+      if (rail.getBoundingClientRect().top > stickyTop + 1) return;
+
+      const maxScrollTop = Math.max(rail.scrollHeight - rail.clientHeight, 0);
+      const nextScrollTop = Math.min(Math.max(rail.scrollTop + scrollDelta, 0), maxScrollTop);
+      rail.scrollTo({ behavior: "auto", top: nextScrollTop });
+    };
+
+    const handlePageScroll = () => {
+      const currentScrollY = window.scrollY;
+      pendingScrollDelta += currentScrollY - previousScrollY;
+      previousScrollY = currentScrollY;
+
+      if (animationFrameId === null) {
+        animationFrameId = window.requestAnimationFrame(syncDetailRail);
+      }
+    };
+
+    window.addEventListener("scroll", handlePageScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", handlePageScroll);
+      if (animationFrameId !== null) window.cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
   const toggleFilter = (group: FilingsV2FilterGroup, value: string) => {
     setDraftFilters((current) => ({
       ...current,
@@ -209,6 +251,9 @@ export function StockRadarFilingsV2() {
             record={selectedRecord}
             relatedRecords={relatedRecords}
           />
+        </div>
+        <div className={styles.detailRailAdFill}>
+          <FilingsRailAdSlot />
         </div>
       </aside>
 

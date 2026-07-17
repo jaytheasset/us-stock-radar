@@ -22,13 +22,19 @@
   gap: var(--sr-space-4);
   overflow-x: hidden;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
   scrollbar-gutter: stable;
   border-left: var(--sr-border-width) solid var(--sr-color-divider);
 }
 
 .detailRailPreview {
   min-width: 0;
+}
+
+.detailRailAdFill {
+  min-width: 0;
+  min-height: 600px;
 }
 
 .premiumCta {
@@ -1314,6 +1320,10 @@
     min-height: 0;
     border-top: var(--sr-border-width) solid var(--sr-color-divider);
     border-left: 0;
+  }
+
+  .detailRailAdFill {
+    display: none;
   }
 
   .detailPanel {
