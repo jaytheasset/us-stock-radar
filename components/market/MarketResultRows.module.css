@@ -139,7 +139,7 @@
 
 .impact-major,
 .impact-high {
-  color: var(--sr-color-accent);
+  color: var(--sr-color-impact-high);
 }
 
 .impact-medium {

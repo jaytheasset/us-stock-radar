@@ -65,6 +65,8 @@ There are 249 unique tokens: 129 color, 38 typography, 22 spacing, 24 sizing, 21
 | `--sr-color-surface-overlay-footer` (source `app/stock-radar-tokens.css:23`) | `rgba(13, 17, 22, 0.96)` | Semantic surface overlay footer color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:797` |
 | `--sr-color-surface-muted-action` (source `app/stock-radar-tokens.css:24`) | `rgba(19, 24, 30, 0.96)` | Semantic surface muted action color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:811` |
 | `--sr-color-surface-emphasized-action` (source `app/stock-radar-tokens.css:25`) | `#14171b` | Semantic surface emphasized action color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:819` |
+| `--sr-color-surface-primary-action` | `#101419` | Theme-specific primary-action surface. Light uses the Upgrade orange RGB at 90% alpha: `rgba(255, 122, 26, 0.9)`. | `components/dashboard-v2/StockRadarDashboardV2.module.css` |
+| `--sr-color-surface-sticky-action` | `#11161b` | Theme-specific sticky primary-action surface preserving the canonical Dark mobile treatment. Light uses the Upgrade orange RGB at 90% alpha. | `components/dashboard-v2/StockRadarDashboardV2.module.css` |
 | `--sr-color-overlay-content-footer` (source `app/stock-radar-tokens.css:26`) | `rgba(3, 5, 8, 0.66)` | Overlay color for the content-footer sheet layout. | `components/ui/BottomSheetShell.module.css:27` |
 | `--sr-color-overlay-full-scroll` (source `app/stock-radar-tokens.css:27`) | `rgba(3, 5, 8, 0.68)` | Overlay color for the full-scroll sheet layout. | `components/ui/BottomSheetShell.module.css:32` |
 | `--sr-color-border` (source `app/stock-radar-tokens.css:30`) | `#2c333a` | Semantic border color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:195`<br>`components/dashboard-v2/StockRadarDashboardV2.module.css:424`<br>`components/ui/FilterTrigger.module.css:7`<br>`components/ui/FilterTrigger.module.css:24`<br>`components/ui/FilterTrigger.module.css:95`<br>`components/ui/SegmentedControl.module.css:4`<br>`components/ui/SegmentedControl.module.css:22` |
@@ -111,6 +113,8 @@ There are 249 unique tokens: 129 color, 38 typography, 22 spacing, 24 sizing, 21
 | `--sr-color-text-chart-icon` (source `app/stock-radar-tokens.css:73`) | `#c4c9d0` | Semantic text chart icon color. | `components/market/MarketResultRows.module.css:94` |
 | `--sr-color-text-detail-close` (source `app/stock-radar-tokens.css:74`) | `#ccd1d7` | Semantic text detail close color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:208` |
 | `--sr-color-text-inverse` (source `app/stock-radar-tokens.css:75`) | `#ffffff` | Semantic text inverse color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:293`<br>`components/dashboard-v2/StockRadarDashboardV2.module.css:388`<br>`components/ui/Pagination.module.css:26` |
+| `--sr-color-text-primary-action` | `#ff9a3c` | Theme-specific primary-action label. Light maps this role to white `#FFFFFF`. | `components/dashboard-v2/StockRadarDashboardV2.module.css` |
+| `--sr-color-text-emphasized-action` | `#ff9a4a` | Theme-specific emphasized secondary action label. Light maps this role to white `#FFFFFF`. | `components/dashboard-v2/StockRadarDashboardV2.module.css` |
 | `--sr-color-accent` (source `app/stock-radar-tokens.css:78`) | `#ff7a1a` | Semantic accent color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:302`<br>`components/dashboard-v2/StockRadarDashboardV2.module.css:499`<br>`components/market/MarketResultRows.module.css:75`<br>`components/market/MarketResultRows.module.css:119`<br>`components/market/MarketResultRows.module.css:120`<br>`components/market/MarketResultRows.module.css:126`<br>`components/market/MarketResultRows.module.css:127`<br>`components/market/MarketResultRows.module.css:132`<br>`components/market/MarketResultRows.module.css:133`<br>`components/market/MarketResultRows.module.css:134`<br>`components/market/MarketResultRows.module.css:257`<br>`components/market/MarketResultRows.module.css:258`<br>`components/market/MarketResultRows.module.css:259`<br>`components/shell/StockRadarProductHeader.module.css:47`<br>`components/shell/StockRadarProductHeader.module.css:83`<br>`components/shell/StockRadarProductHeader.module.css:242`<br>`components/shell/StockRadarProductHeader.module.css:247`<br>`components/ui/FilterOption.module.css:20`<br>`components/ui/FilterTrigger.module.css:66`<br>`components/ui/IconButton.module.css:31`<br>`components/ui/Pagination.module.css:27`<br>`components/ui/SegmentedControl.module.css:39`<br>`components/ui/SegmentedControl.module.css:41` |
 | `--sr-color-accent-strong` (source `app/stock-radar-tokens.css:79`) | `#ff8b2e` | Semantic accent strong color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:510` |
 | `--sr-color-accent-highlight` (source `app/stock-radar-tokens.css:80`) | `#ffad67` | Semantic accent highlight color. | `components/ui/Pagination.module.css:27` |
@@ -142,6 +146,7 @@ There are 249 unique tokens: 129 color, 38 typography, 22 spacing, 24 sizing, 21
 | `--sr-color-negative` (source `app/stock-radar-tokens.css:108`) | `#ff675f` | Semantic negative color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:253`<br>`components/market/MarketResultRows.module.css:47`<br>`components/market/MarketResultRows.module.css:125`<br>`components/market/MarketResultRows.module.css:246`<br>`components/market/MarketResultRows.module.css:256` |
 | `--sr-color-warning` (source `app/stock-radar-tokens.css:109`) | `#f4c542` | Semantic warning color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:492`<br>`components/market/MarketResultRows.module.css:79` |
 | `--sr-color-info` (source `app/stock-radar-tokens.css:110`) | `#5cadff` | Semantic info color. | Reserved foundation role; see Migration Result for its phase 3 contract. |
+| `--sr-color-impact-high` | `#ff7a1a` | Major/high market-impact emphasis kept independent from the theme product accent. | `components/dashboard-v2/StockRadarDashboardV2.module.css`<br>`components/market/MarketResultRows.module.css` |
 | `--sr-color-event-earnings` (source `app/stock-radar-tokens.css:111`) | `#36d5c2` | Semantic event earnings color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:446`<br>`components/ui/Badge.module.css:29` |
 | `--sr-color-event-earnings-surface` (source `app/stock-radar-tokens.css:112`) | `rgba(54, 213, 194, 0.12)` | Semantic event earnings surface color. | `components/ui/Badge.module.css:30` |
 | `--sr-color-event-legal` (source `app/stock-radar-tokens.css:113`) | `#ff675f` | Semantic event legal color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:442`<br>`components/ui/Badge.module.css:34` |
@@ -301,24 +306,24 @@ Light surface hierarchy:
 
 | Level | Roles | Contract |
 | --- | --- | --- |
-| Canvas | Page background and top gradient | Luminous cool-white outer workspace that feels open without becoming a visibly gray field. |
-| Recessed | Panel, elevated, control-group, table-header, footer, and muted-action surfaces | Uses a restrained blue-neutral tint to group controls and supporting regions in the same visual family as the canvas. |
+| Canvas | Page background and top gradient | Clear white workspace that maximizes light and open space without introducing a gray or warm cast. |
+| Recessed | Panel, elevated, control-group, table-header, footer, and muted-action surfaces | Uses a restrained cool-blue tint where grouping needs to remain visible against the canvas. |
 | Content | Base surface and detail gradient | White reading surface for the chart, detail rail, advertising reservations, and content panels. |
-| Raised | Table panel, table rows, controls, options, header, and overlays | White interactive/data surfaces separated from the canvas by restrained borders and compact elevation. |
+| Raised | Table panel, table rows, controls, options, header, and overlays | White interactive/data surfaces separated by crisp cool borders and shallow layered elevation. |
 
-The Light page glow and panel/header shadows are intentionally weaker and tighter than their Dark equivalents. Dark uses ambient glow against a low-luminance canvas; Light uses a luminous cool-white tonal shift, borders, and compact elevation instead of a broad gray or warm-tinted workspace.
+The Light page glow remains near-imperceptible, while low-opacity two-stage panel/header shadows may reinforce major surface separation. Dark uses ambient glow against a low-luminance canvas; Light uses clear white space, crisp navy text, controlled cool-blue depth, and cool low-contrast borders instead of a broad gray or warm-tinted workspace.
 
 | Override family | Count | Covered roles |
 | --- | ---: | --- |
-| Canvas, surfaces, and overlays | 25 | Neutral page canvas, white/near-white panels, controls, table surfaces, sheet surfaces, and dim overlays. |
+| Canvas, surfaces, and overlays | 27 | Neutral page canvas, white/near-white panels, controls, table surfaces, sheet surfaces, primary and sticky actions, and dim overlays. |
 | Borders and dividers | 11 | Standard, overlay, section, close-control, and action boundaries. |
-| Text hierarchy | 34 | Primary, heading, ticker, body, control, menu, metadata, mobile, inverse, and selected chart-range text. |
-| Accent and interaction | 27 | Orange accent, selected/active states, CTA tones, navigation emphasis, and focus-adjacent states. |
-| Market and event semantics | 16 | Positive, negative, warning, info, and all event text/background pairs. |
+| Text hierarchy | 36 | Primary, heading, ticker, body, control, menu, metadata, mobile, inverse, emphasized actions, and selected chart-range text. |
+| Accent and interaction | 27 | Orange product accent, selected/active states, CTA tones, navigation emphasis, Premium emphasis, and focus-adjacent states. |
+| Market and event semantics | 17 | Positive, negative, warning, info, high impact, and all event text/background pairs. |
 | Chart | 9 | Grid, axis, bullish/bearish candles, OHLC, volume, and last-price treatment. |
 | Scrollbar and disabled state | 6 | Track, thumb, handle, and disabled text/surface. |
 | Shadows and focus effect | 9 | Header, panel, menu, sheet, CTA, pagination, delay dot, and focus ring. |
-| **Total** | **137** | Existing semantic roles overridden for Light. |
+| **Total** | **142** | Existing semantic roles overridden for Light. |
 
 Theme selector rules:
 
@@ -332,7 +337,8 @@ Theme selector rules:
 - Use `--sr-color-page-*` only for the app canvas and page-level glow.
 - Use `--sr-color-surface-*` for panels, controls, tables, overlays, and elevated actions. Select the token matching the UI role even when another surface currently has the same literal value.
 - Use `--sr-color-text-*` by information hierarchy. Do not substitute muted or metadata text based only on visual similarity.
-- Use `--sr-color-accent` for the canonical orange emphasis. Alpha variants encode selected, active, hover, focus, menu, CTA, and overlay roles.
+- Use `--sr-color-accent` for orange product emphasis in both themes. Light maps compact active text to the readable `#C94F00`, while selected surfaces, borders, underlines, focus, menu, and overlay variants reuse the Upgrade orange RGB (`255, 122, 26`) at role-specific alpha levels.
+- Use `--sr-color-surface-primary-action` with `--sr-color-text-primary-action` for primary actions. Light uses the Upgrade orange RGB at 90% alpha (`rgba(255, 122, 26, 0.9)`) with white `#FFFFFF` and no CTA glow. White-text contrast remains a documented accessibility limitation to resolve with the shared brand CTA palette.
 - Use `--sr-color-positive`, `--sr-color-negative`, `--sr-color-warning`, and `--sr-color-info` for market/status semantics. Light positive values align visually with the bullish candle green and remain readable at compact table text sizes.
 - Use `--sr-color-event-*` for event badges and timeline markers. Legal, earnings, insider, transaction, product, and neutral roles are intentionally separate. In Light, semantic badge surfaces use a moderate tint so adjacent event types remain distinguishable on white data rows without turning into solid-color labels; neutral remains one step quieter, and outline/text tones retain small-label contrast against the stronger tint.
 - Use `--sr-color-chart-*` inside chart rendering. Chart candle colors remain separate semantic contracts from market text colors even when Light intentionally assigns the same green value to positive text and bullish candles; bearish and negative roles remain independently tunable.
