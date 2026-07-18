@@ -1,51 +1,32 @@
 "use client";
 
 import { useState } from "react";
-import { PremiumBillingControl } from "@/components/premium-v2/PremiumBillingControl";
 import { PremiumFeatureComparison } from "@/components/premium-v2/PremiumFeatureComparison";
 import {
-  premiumV2AlertModel,
-  premiumV2Benefits,
-  premiumV2Categories,
-  premiumV2CategoryLegend,
   premiumV2CurrentPlan,
   premiumV2FaqItems,
-  premiumV2LiveAlerts,
+  premiumV2MarketCoverageGroups,
   premiumV2PlanOrder,
   premiumV2Plans,
   premiumV2RecommendedPlan,
-  type PremiumV2BillingCycle,
+  premiumV2SampleAlerts,
   type PremiumV2PlanKey,
 } from "@/lib/mock/premiumV2Data";
 import styles from "./StockRadarPremiumV2.module.css";
 
-function getDisplayedPrice(planKey: PremiumV2PlanKey, billingCycle: PremiumV2BillingCycle) {
+function getDisplayedPrice(planKey: PremiumV2PlanKey) {
   const plan = premiumV2Plans[planKey];
 
-  if (billingCycle === "monthly") {
-    return { price: plan.monthlyPrice, suffix: "/ mo" };
-  }
-
-  if (plan.annualPrice) {
-    return { price: plan.annualPrice, suffix: "/ yr" };
-  }
-
-  return { price: "Unconfirmed", suffix: "annual" };
+  return { price: plan.monthlyPrice, suffix: "/ mo" };
 }
 
 export function StockRadarPremiumV2() {
-  const [billingCycle, setBillingCycle] = useState<PremiumV2BillingCycle>("monthly");
   const [selectionMessage, setSelectionMessage] = useState("");
-
-  const selectBillingCycle = (cycle: PremiumV2BillingCycle) => {
-    setBillingCycle(cycle);
-    setSelectionMessage("");
-  };
 
   const previewPlan = (planKey: PremiumV2PlanKey) => {
     const plan = premiumV2Plans[planKey];
     setSelectionMessage(
-      `${plan.name} ${billingCycle} selected for preview. No checkout, payment, or account change was started.`,
+      `${plan.name} selected for preview. No checkout, payment, or account change was started.`,
     );
   };
 
@@ -56,62 +37,58 @@ export function StockRadarPremiumV2() {
           <div className={styles.titleBlock}>
             <span>Account / Plan</span>
             <h1>Premium</h1>
-            <p>Compare alert coverage, limits, and delivery lanes before choosing a plan.</p>
+            <p>Choose the alert coverage and delivery level that fits how you trade.</p>
           </div>
           <div className={styles.headerControls}>
             <div className={styles.currentPlanLine}>
               <span>Current plan</span>
               <strong>{premiumV2Plans[premiumV2CurrentPlan].name}</strong>
             </div>
-            <PremiumBillingControl onChange={selectBillingCycle} value={billingCycle} />
           </div>
         </header>
 
-        {billingCycle === "annual" ? (
-          <p className={styles.annualNotice} role="status">
-            Annual pricing and savings are not confirmed in the current product source. No discount has been applied.
-          </p>
-        ) : null}
-
         <section aria-labelledby="premium-v2-intro-heading" className={styles.heroSection}>
           <div className={styles.heroCopy}>
-            <span className={styles.eyebrow}>Premium Alerts</span>
-            <h2 id="premium-v2-intro-heading">Choose the market events you never want to miss.</h2>
+            <span className={styles.eyebrow}>Ticker Alerts + Market Alerts</span>
+            <h2 id="premium-v2-intro-heading">Follow the stocks you know. Scan the risks you don't.</h2>
             <p>
-              Get news and filing alerts for your watchlist, plus Market Discovery alerts outside your
-              watchlist based on the categories included in your plan.
+              Get the news and filings that can change a position, with plan levels that unlock broader risk
+              coverage, stronger filters, and more ways to receive an alert.
             </p>
             <div className={styles.actionRow}>
               <button className={styles.primaryButton} onClick={() => previewPlan("free")} type="button">
                 Start Free
               </button>
-              <button className={styles.secondaryButton} onClick={() => previewPlan("pro")} type="button">
-                Upgrade to Pro
+              <button className={styles.secondaryButton} onClick={() => previewPlan("advanced")} type="button">
+                Go Advanced
               </button>
             </div>
           </div>
 
-          <aside aria-label="Example live alerts" className={styles.alertPreview}>
+          <aside aria-label="Sample alerts" className={styles.alertPreview}>
             <header>
               <div>
-                <span>Signal Preview</span>
-                <strong>Live alerts</strong>
+                <span>Market-Moving Events</span>
+                <strong>The risk you weren&apos;t watching.</strong>
               </div>
-              <span>Mock feed</span>
+              <span>Advanced Scan</span>
             </header>
             <div className={styles.alertList}>
-              {premiumV2LiveAlerts.map((alert) => (
+              {premiumV2SampleAlerts.map((alert) => (
                 <article className={styles.alertRow} key={alert.title}>
                   <span className={`${styles.alertDot} ${styles[alert.tone]}`} aria-hidden="true" />
                   <div>
                     <span className={styles.alertType}>{alert.type}</span>
                     <strong>{alert.title}</strong>
-                    <small>{alert.source} · {alert.age}</small>
+                    <small>{alert.context} / {alert.lane}</small>
                   </div>
-                  <span className={styles.alertSeverity}>{alert.severity}</span>
+                  <span className={styles.alertSignal}>{alert.signal}</span>
                 </article>
               ))}
             </div>
+            <p className={styles.alertNote}>
+              Advanced scans beyond your watchlist for dilution filings, delisting notices, and FDA catalysts.
+            </p>
           </aside>
         </section>
 
@@ -121,26 +98,28 @@ export function StockRadarPremiumV2() {
               <span>Plan Summary</span>
               <h2 id="premium-v2-plans-heading">Choose a coverage tier</h2>
             </div>
-            <p>Monthly prices and limits match the current product source. Annual prices are not confirmed.</p>
+            <p>Start with the alerts you need, then unlock broader coverage and delivery options as your workflow grows.</p>
           </div>
 
           <div className={styles.planGrid}>
             {premiumV2PlanOrder.map((planKey) => {
               const plan = premiumV2Plans[planKey];
-              const displayedPrice = getDisplayedPrice(planKey, billingCycle);
+              const displayedPrice = getDisplayedPrice(planKey);
               const isCurrent = planKey === premiumV2CurrentPlan;
               const isRecommended = planKey === premiumV2RecommendedPlan;
 
               return (
                 <article
-                  className={`${styles.planCard}${isRecommended ? ` ${styles.recommendedCard}` : ""}`}
+                  className={`${styles.planCard}${planKey === "pro" ? ` ${styles.planCardPro}` : ""}${planKey === "ultimate" ? ` ${styles.planCardUltimate}` : ""}${isRecommended ? ` ${styles.recommendedCard}` : ""}`}
                   key={planKey}
                 >
                   <header className={styles.planCardHeader}>
                     <div className={styles.planIdentity}>
                       <h3>{plan.name}</h3>
                       {isCurrent ? <span className={styles.planState}>Current</span> : null}
-                      {isRecommended ? <span className={styles.recommendedState}>Most popular</span> : null}
+                      {isRecommended ? (
+                        <span className={styles.recommendedState}>{plan.badge ?? "Recommended"}</span>
+                      ) : null}
                     </div>
                     <div className={styles.price}>
                       <strong>{displayedPrice.price}</strong>
@@ -154,7 +133,11 @@ export function StockRadarPremiumV2() {
                   {isCurrent ? (
                     <div className={styles.currentPlanAction}>Active plan</div>
                   ) : (
-                    <button className={isRecommended ? styles.primaryButton : styles.secondaryButton} onClick={() => previewPlan(planKey)} type="button">
+                    <button
+                      className={isRecommended ? styles.primaryButton : styles.secondaryButton}
+                      onClick={() => previewPlan(planKey)}
+                      type="button"
+                    >
                       {plan.cta}
                     </button>
                   )}
@@ -168,46 +151,45 @@ export function StockRadarPremiumV2() {
           </p>
         </section>
 
-        <section aria-label="Premium alert model" className={styles.modelSection}>
-          <div className={styles.benefitGrid}>
-            {premiumV2Benefits.map((benefit) => (
-              <article key={benefit.title}>
-                <h3>{benefit.title}</h3>
-                <p>{benefit.description}</p>
-              </article>
-            ))}
-          </div>
-          <aside className={styles.alertModel}>
-            <span className={styles.eyebrow}>Alert Model</span>
-            <h2>Two alert lanes, one subscription.</h2>
-            {premiumV2AlertModel.map((item) => (
-              <article key={item.title}>
-                <h3>{item.title}</h3>
-                <p>{item.body}</p>
-                <p>{item.detail}</p>
-              </article>
-            ))}
-          </aside>
-        </section>
-
         <section aria-labelledby="premium-v2-categories-heading" className={styles.categoriesSection}>
           <div className={styles.sectionHeading}>
             <div>
-              <span>Discovery Coverage</span>
-              <h2 id="premium-v2-categories-heading">Market Discovery categories</h2>
+              <span>Major News & Filings</span>
+              <h2 id="premium-v2-categories-heading">Market-Wide News & Filings Alerts</h2>
             </div>
-            <p>Choose event categories outside your watchlist. Your plan controls how many can be active.</p>
           </div>
-          <div className={styles.categoryLegend} aria-label="Category limits by plan">
-            {premiumV2CategoryLegend.map((item) => (
-              <span key={item.label}><i aria-hidden="true" />{item.label} <strong>{item.count}</strong></span>
+          <div className={styles.coverageGroups}>
+            {premiumV2MarketCoverageGroups.map((group) => (
+              <article
+                className={`${styles.coverageGroup} ${styles[`coverageGroup-${group.planKey}`]}`}
+                data-plan-tier={group.planKey}
+                key={group.title}
+              >
+                <header>
+                  <div>
+                    <span className={styles.coverageTier}>
+                      {premiumV2Plans[group.planKey].name} lane
+                    </span>
+                    <h3>{group.title}</h3>
+                    <p>{group.description}</p>
+                  </div>
+                  <span className={styles.planState}>{group.badge}</span>
+                </header>
+                <div className={styles.categoryList}>
+                  {group.items.map((category) => (
+                    <span className={styles[`category-${category.tone}`]} key={category.label}>
+                      <span>{category.label}</span>
+                      <strong>{group.badge}</strong>
+                    </span>
+                  ))}
+                </div>
+              </article>
             ))}
           </div>
-          <div className={styles.categoryList}>
-            {premiumV2Categories.map((category) => (
-              <span className={styles[`category-${category.tone}`]} key={category.label}>{category.label}</span>
-            ))}
-          </div>
+          <p className={`${styles.alertNote} ${styles.coverageNote}`}>
+            Market-wide alerts can use News, Filings, or both as sources. Selecting event types narrows
+            scope and does not bypass the minimum alert score.
+          </p>
         </section>
 
         <PremiumFeatureComparison />
@@ -218,7 +200,7 @@ export function StockRadarPremiumV2() {
               <span>Supporting Information</span>
               <h2 id="premium-v2-faq-heading">Frequently asked questions</h2>
             </div>
-            <p>Policy and payment details are intentionally not asserted by this mock.</p>
+            <p>Short answers for the alert model. Detailed limits are in the comparison table.</p>
           </div>
           <div className={styles.faqGrid}>
             {premiumV2FaqItems.map((item) => (
@@ -233,12 +215,12 @@ export function StockRadarPremiumV2() {
         <section aria-label="Premium call to action" className={styles.finalCta}>
           <div>
             <span className={styles.eyebrow}>Alert Coverage</span>
-            <h2>Ready to stop missing market-moving alerts?</h2>
-            <p>Start free, or preview Pro for real-time watchlist and discovery alerts.</p>
+            <h2>Choose the alert lane that matches your workflow.</h2>
+            <p>Your ticker alerts cover what you're watching. Advanced finds high-impact risks across the market.</p>
           </div>
           <div className={styles.actionRow}>
             <button className={styles.secondaryButton} onClick={() => previewPlan("free")} type="button">Start Free</button>
-            <button className={styles.primaryButton} onClick={() => previewPlan("pro")} type="button">Upgrade to Pro</button>
+            <button className={styles.primaryButton} onClick={() => previewPlan("advanced")} type="button">Go Advanced</button>
           </div>
         </section>
       </div>

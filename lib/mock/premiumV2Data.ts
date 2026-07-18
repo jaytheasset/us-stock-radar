@@ -5,17 +5,16 @@ export type PremiumV2PlanKey =
   | "advanced"
   | "ultimate";
 
-export type PremiumV2BillingCycle = "annual" | "monthly";
+export type PremiumV2BillingCycle = "monthly";
 export type PremiumV2CategoryTone =
   | "governance"
-  | "neutral"
   | "performance"
   | "policy"
   | "risk"
   | "transaction";
 
 export type PremiumV2Plan = {
-  annualPrice: string | null;
+  badge?: string;
   benefits: readonly string[];
   cta: string;
   description: string;
@@ -28,6 +27,17 @@ export type PremiumV2ComparisonRow = {
   values: Record<PremiumV2PlanKey, string>;
 };
 
+export type PremiumV2MarketCoverageGroup = {
+  badge: string;
+  description: string;
+  items: readonly {
+    label: string;
+    tone: PremiumV2CategoryTone;
+  }[];
+  planKey: Extract<PremiumV2PlanKey, "pro" | "advanced">;
+  title: string;
+};
+
 export const premiumV2PlanOrder = [
   "free",
   "adFree",
@@ -36,269 +46,243 @@ export const premiumV2PlanOrder = [
   "ultimate",
 ] as const satisfies readonly PremiumV2PlanKey[];
 
-// Product names, monthly prices and limits mirror the existing /premium route
-// and lib/subscriptionPolicy.ts. Annual pricing remains intentionally unset.
 export const premiumV2Plans: Record<PremiumV2PlanKey, PremiumV2Plan> = {
   free: {
-    annualPrice: "$0",
     benefits: [
-      "3 watchlist tickers",
-      "1 of 17 Market Discovery categories",
-      "5-minute delay",
-      "Web alerts",
+      "Ticker Alerts for 1 ticker",
+      "5-minute delivery delay",
+      "Web + App alerts",
+      "Unlimited watchlist",
       "Ads included",
     ],
     cta: "Start Free",
-    description: "Start tracking the market.",
+    description: "Experience alerts for one company.",
     monthlyPrice: "$0",
     name: "Free",
   },
   adFree: {
-    annualPrice: null,
     benefits: [
-      "5 watchlist tickers",
-      "2 of 17 Market Discovery categories",
-      "5-minute delay",
-      "Web alerts",
+      "Ticker Alerts for 5 tickers",
+      "5-minute delivery delay",
+      "Web + App alerts",
+      "Unlimited watchlist",
       "Ads removed",
     ],
     cta: "Choose Ad-Free",
-    description: "Cleaner experience for casual users.",
+    description: "Cleaner alerts for a small ticker list.",
     monthlyPrice: "$4.99",
     name: "Ad-Free",
   },
   pro: {
-    annualPrice: null,
     benefits: [
-      "30 watchlist tickers",
-      "6 of 17 Market Discovery categories",
-      "Real-time alerts",
-      "Web + Telegram alerts",
-      "Standard filters",
+      "Ticker Alerts for 30 tickers",
+      "All event types for selected tickers",
+      "Core Market Events",
+      "Market alerts scoring 75+",
+      "Web + App + Telegram",
     ],
     cta: "Upgrade to Pro",
-    description: "Real-time alerts for your watchlist and selected market categories.",
+    description: "Alerts for your selected tickers and core market events.",
     monthlyPrice: "$19",
     name: "Pro",
   },
   advanced: {
-    annualPrice: null,
+    badge: "Full Market Scanner",
     benefits: [
-      "150 watchlist tickers",
-      "All 17 Market Discovery categories",
-      "Priority real-time alerts",
-      "Web + Telegram + Email alerts",
-      "Advanced filters",
+      "Ticker Alerts for 150 tickers",
+      "Full Market Coverage",
+      "Dilution, listing, financial, legal, and FDA / Clinical",
+      "Advanced filters and score controls",
+      "Web + App + Telegram + Email",
     ],
     cta: "Go Advanced",
-    description: "All 17 categories with advanced filters.",
+    description: "Full-market risk and catalyst detection for active traders.",
     monthlyPrice: "$49",
     name: "Advanced",
   },
   ultimate: {
-    annualPrice: null,
     benefits: [
-      "Unlimited watchlist",
-      "17 categories + custom rules",
-      "Fastest alerts",
-      "Web + Telegram + Email + API alerts",
+      "Unlimited Ticker Alerts",
+      "Full Market Coverage",
       "Custom Rules",
+      "API / Webhook delivery",
+      "Professional configuration",
     ],
-    cta: "Start Ultimate",
-    description: "Full scanner access for professionals.",
-    monthlyPrice: "$199+",
+    cta: "Contact Sales",
+    description: "Build professional custom scanning and delivery workflows.",
+    monthlyPrice: "From $199",
     name: "Ultimate",
   },
 };
 
 export const premiumV2CurrentPlan: PremiumV2PlanKey = "free";
-export const premiumV2RecommendedPlan: PremiumV2PlanKey = "pro";
+export const premiumV2RecommendedPlan: PremiumV2PlanKey = "advanced";
 
-export const premiumV2LiveAlerts = [
+export const premiumV2SampleAlerts = [
   {
-    age: "2m ago",
-    severity: "Critical",
-    source: "8-K filing",
-    title: "XYZ Corp files $75M offering",
+    context: "Market-wide scan",
+    lane: "Not on your watchlist",
+    signal: "Bearish 94",
+    title: "MULN files $150M mixed-shelf offering",
     tone: "critical",
     type: "Dilution Risk",
   },
   {
-    age: "5m ago",
-    severity: "High",
-    source: "Press Release",
-    title: "ABC receives FDA approval",
-    tone: "positive",
-    type: "FDA / Clinical",
-  },
-  {
-    age: "6m ago",
-    severity: "High",
-    source: "8-K filing",
-    title: "DEF receives Nasdaq deficiency notice",
+    context: "Market-wide scan",
+    lane: "Not on your watchlist",
+    signal: "Bearish 88",
+    title: "WE receives Nasdaq delisting notice",
     tone: "warning",
     type: "Listing Risk",
   },
   {
-    age: "10m ago",
-    severity: "Medium",
-    source: "Press Release",
-    title: "GHI reports Q1 earnings beat",
+    context: "Market-wide scan",
+    lane: "Not on your watchlist",
+    signal: "Bullish 82",
+    title: "MRNA reports FDA fast-track designation",
     tone: "earnings",
-    type: "Earnings",
+    type: "FDA Catalyst",
   },
 ] as const;
 
-export const premiumV2Benefits = [
+export const premiumV2MarketCoverageGroups: readonly PremiumV2MarketCoverageGroup[] = [
   {
-    description: "Pro and higher plans remove the 5-minute delay for watchlist news and filing alerts.",
-    title: "Real-time watchlist alerts",
+    badge: "Pro+",
+    description: "Available with Pro and higher",
+    items: [
+      { label: "Earnings", tone: "performance" },
+      { label: "Sales Performance", tone: "performance" },
+      { label: "Product Updates", tone: "performance" },
+      { label: "Leadership & Governance", tone: "governance" },
+      { label: "Insider Ownership", tone: "governance" },
+      { label: "Shareholder Vote", tone: "governance" },
+      { label: "Strategic Transactions", tone: "transaction" },
+      { label: "Dividends", tone: "performance" },
+      { label: "Capital Return", tone: "performance" },
+      { label: "IPO / Listing", tone: "transaction" },
+      { label: "Policy & Regulation", tone: "policy" },
+      { label: "Macro Market", tone: "policy" },
+    ],
+    planKey: "pro",
+    title: "Core Market Events",
   },
   {
-    description: "Track selected event categories outside your watchlist without turning every source into noise.",
-    title: "Market Discovery scanner",
+    badge: "Advanced+",
+    description: "Available with Advanced and higher",
+    items: [
+      { label: "Dilution Risk", tone: "risk" },
+      { label: "Listing Risk", tone: "risk" },
+      { label: "Financial Risk", tone: "risk" },
+      { label: "Legal Risk", tone: "risk" },
+      { label: "FDA / Clinical", tone: "policy" },
+    ],
+    planKey: "advanced",
+    title: "Full-market Risk & Catalyst Events",
   },
-  {
-    description: "Use plan-level filters for event type, signal, market cap, source, and category delivery.",
-    title: "Advanced alert filters",
-  },
-  {
-    description: "Higher tiers add delivery channels for traders who need alerts outside the website.",
-    title: "Telegram, email, and API lanes",
-  },
-] as const;
-
-export const premiumV2AlertModel = [
-  {
-    body: "Track matching news and filing events for saved tickers, within your plan limit.",
-    detail: "Pro and higher plans remove the 5-minute delay.",
-    title: "Watchlist alerts",
-  },
-  {
-    body: "Monitor selected event categories outside your watchlist.",
-    detail: "Your plan controls how many categories and filters can be active.",
-    title: "Market Discovery alerts",
-  },
-  {
-    body: "A broad public stream remains separate from personalized delivery.",
-    detail: "Direct plan alerts are not the public Telegram channel.",
-    title: "Public Telegram channel",
-  },
-] as const;
-
-export const premiumV2CategoryLegend = [
-  { count: "1", label: "Free" },
-  { count: "2", label: "Ad-Free" },
-  { count: "6", label: "Pro" },
-  { count: "17", label: "Advanced" },
-  { count: "17 + Custom", label: "Ultimate" },
-] as const;
-
-export const premiumV2Categories: readonly {
-  label: string;
-  tone: PremiumV2CategoryTone;
-}[] = [
-  { label: "Listing Risk", tone: "risk" },
-  { label: "Dilution Risk", tone: "risk" },
-  { label: "Earnings", tone: "performance" },
-  { label: "Sales Performance", tone: "performance" },
-  { label: "Product Updates", tone: "performance" },
-  { label: "Leadership & Governance", tone: "governance" },
-  { label: "Insider Ownership", tone: "governance" },
-  { label: "Shareholder Vote", tone: "governance" },
-  { label: "Strategic Transactions", tone: "transaction" },
-  { label: "Financial Risk", tone: "risk" },
-  { label: "Legal Risk", tone: "risk" },
-  { label: "Dividends", tone: "performance" },
-  { label: "Capital Return", tone: "performance" },
-  { label: "FDA / Clinical", tone: "policy" },
-  { label: "Policy & Regulation", tone: "policy" },
-  { label: "Macro Market", tone: "policy" },
-  { label: "Other", tone: "neutral" },
 ];
 
 export const premiumV2ComparisonRows: readonly PremiumV2ComparisonRow[] = [
   {
-    feature: "Watchlist tickers",
-    values: { free: "3", adFree: "5", pro: "30", advanced: "150", ultimate: "Unlimited" },
+    feature: "Watchlist",
+    values: { free: "Unlimited", adFree: "Unlimited", pro: "Unlimited", advanced: "Unlimited", ultimate: "Unlimited" },
   },
   {
-    feature: "Market Discovery categories",
-    values: { free: "1", adFree: "2", pro: "6", advanced: "17", ultimate: "17 + Custom" },
+    feature: "Ticker Alerts",
+    values: { free: "1", adFree: "5", pro: "30", advanced: "150", ultimate: "Unlimited" },
   },
   {
-    feature: "Alert delay",
-    values: { free: "5 min", adFree: "5 min", pro: "No delay", advanced: "No delay", ultimate: "No delay" },
+    feature: "Ticker Event Coverage",
+    values: { free: "All types", adFree: "All types", pro: "All types", advanced: "All types", ultimate: "All types" },
   },
   {
-    feature: "Watchlist news alerts",
-    values: { free: "Delayed", adFree: "Delayed", pro: "Real-time", advanced: "Real-time", ultimate: "Real-time" },
+    feature: "Market-Wide Alerts",
+    values: { free: "No personalized alerts", adFree: "No personalized alerts", pro: "Core Events", advanced: "Full Coverage", ultimate: "Full + Custom" },
   },
   {
-    feature: "Watchlist filing alerts",
-    values: { free: "Delayed", adFree: "Delayed", pro: "Real-time", advanced: "Real-time", ultimate: "Real-time" },
+    feature: "Market News Alerts",
+    values: { free: "No", adFree: "No", pro: "Yes", advanced: "Yes", ultimate: "Yes" },
   },
   {
-    feature: "Discovery news + filings",
-    values: {
-      free: "1 category, delayed",
-      adFree: "2 categories, delayed",
-      pro: "6 categories, real-time",
-      advanced: "All categories",
-      ultimate: "Full scanner",
-    },
+    feature: "Market Filing Alerts",
+    values: { free: "No", adFree: "No", pro: "Yes", advanced: "Yes", ultimate: "Yes" },
+  },
+  {
+    feature: "Full-market Dilution Risk",
+    values: { free: "No", adFree: "No", pro: "No", advanced: "Yes", ultimate: "Yes" },
+  },
+  {
+    feature: "Full-market Listing Risk",
+    values: { free: "No", adFree: "No", pro: "No", advanced: "Yes", ultimate: "Yes" },
+  },
+  {
+    feature: "Full-market Financial Risk",
+    values: { free: "No", adFree: "No", pro: "No", advanced: "Yes", ultimate: "Yes" },
+  },
+  {
+    feature: "Full-market Legal Risk",
+    values: { free: "No", adFree: "No", pro: "No", advanced: "Yes", ultimate: "Yes" },
+  },
+  {
+    feature: "Full-market FDA / Clinical",
+    values: { free: "No", adFree: "No", pro: "No", advanced: "Yes", ultimate: "Yes" },
+  },
+  {
+    feature: "Minimum Market Alert Score",
+    values: { free: "No market alerts", adFree: "No market alerts", pro: "75+", advanced: "Adjustable", ultimate: "Custom" },
+  },
+  {
+    feature: "Advanced Filters",
+    values: { free: "No", adFree: "No", pro: "Standard", advanced: "Advanced", ultimate: "Custom" },
+  },
+  {
+    feature: "Alert Delay",
+    values: { free: "5 min", adFree: "5 min", pro: "No artificial delivery delay", advanced: "No artificial delivery delay", ultimate: "No artificial delivery delay" },
+  },
+  {
+    feature: "Web Alerts",
+    values: { free: "Yes", adFree: "Yes", pro: "Yes", advanced: "Yes", ultimate: "Yes" },
+  },
+  {
+    feature: "App Notifications",
+    values: { free: "Yes", adFree: "Yes", pro: "Yes", advanced: "Yes", ultimate: "Yes" },
   },
   {
     feature: "Telegram",
-    values: { free: "—", adFree: "—", pro: "Yes", advanced: "Yes", ultimate: "Yes" },
+    values: { free: "No", adFree: "No", pro: "Yes", advanced: "Yes", ultimate: "Yes" },
   },
   {
     feature: "Email",
-    values: { free: "—", adFree: "—", pro: "—", advanced: "Yes", ultimate: "Yes" },
+    values: { free: "No", adFree: "No", pro: "No", advanced: "Yes", ultimate: "Yes" },
   },
   {
     feature: "Webhook / API",
-    values: { free: "—", adFree: "—", pro: "—", advanced: "—", ultimate: "Yes" },
+    values: { free: "No", adFree: "No", pro: "No", advanced: "No", ultimate: "Yes" },
   },
   {
     feature: "Custom Rules",
-    values: { free: "—", adFree: "—", pro: "—", advanced: "—", ultimate: "Yes" },
+    values: { free: "No", adFree: "No", pro: "No", advanced: "No", ultimate: "Yes" },
   },
 ];
 
-// These answers describe the mock and confirmed product limits only. They do
-// not define cancellation, refund, payment-method or checkout policy.
 export const premiumV2FaqItems = [
   {
-    answer: "This mock does not start an account change. It only records the selected plan in local page state.",
-    question: "What happens if I choose a plan here?",
+    answer: "Ticker Alerts monitor companies you select. Market-Wide News & Filings Alerts detect qualifying events outside your alert-enabled tickers.",
+    question: "What is the difference between Ticker Alerts and Market-Wide Alerts?",
   },
   {
-    answer: "The current product source assigns real-time alerts to Pro, Advanced and Ultimate. This mock does not change an account or delivery service.",
-    question: "Which plans include real-time alerts?",
+    answer: "No. Watchlist storage is unlimited on every plan. Your plan only limits how many tickers can have alerts enabled at the same time.",
+    question: "Is my watchlist limited?",
   },
   {
-    answer: "A category is an event type monitored outside your watchlist. The current source defines 17 categories and plan-specific active-category limits.",
-    question: "What counts as a Market Discovery category?",
+    answer: "Pro tracks the risks affecting your selected tickers and adds Core Market Events. Advanced finds full-market risk and catalyst events even when the company is not on your alert list.",
+    question: "Why choose Advanced instead of Pro?",
   },
   {
-    answer: "Yes. Watchlist alerts cover saved tickers; Market Discovery monitors selected event categories outside the watchlist.",
-    question: "Are watchlist and Discovery alerts separate?",
+    answer: "No artificial delay means Stock Radar does not intentionally hold the alert after it is generated. Source publication, ingestion, analysis, processing, network, and third-party delivery may add latency.",
+    question: "What does no artificial delivery delay mean?",
   },
   {
-    answer: "No. The current product source keeps a 5-minute delay on Ad-Free; real-time begins with Pro.",
-    question: "Does Ad-Free include real-time alerts?",
-  },
-  {
-    answer: "Ultimate is presented for professional scanning and automation workflows, with all 17 categories, custom rules and API/Webhook access.",
-    question: "What is Ultimate for?",
-  },
-  {
-    answer: "No annual price or discount is confirmed in the current source, so Annual is shown only as an unpriced mock selection.",
-    question: "Is Annual pricing confirmed?",
-  },
-  {
-    answer: "No. Every CTA on this page is a local interaction preview. Checkout, billing providers and payment methods are not connected.",
+    answer: "No. Every CTA on this page is a local preview interaction. Checkout, payment, billing, and account changes are not connected.",
     question: "Does the upgrade button start payment?",
   },
 ] as const;

@@ -6,7 +6,26 @@ import {
 import styles from "./StockRadarPremiumV2.module.css";
 
 function isPremiumValue(value: string) {
-  return !["—", "1", "2", "3", "5", "5 min", "Delayed"].includes(value);
+  return ![
+    "No",
+    "No market alerts",
+    "No personalized alerts",
+    "1",
+    "5",
+    "5 min",
+  ].includes(value);
+}
+
+function getTierColumnClass(planKey: string) {
+  if (planKey === "pro") {
+    return styles["comparisonColumn-pro"];
+  }
+
+  if (planKey === "advanced") {
+    return styles["comparisonColumn-advanced"];
+  }
+
+  return undefined;
 }
 
 export function PremiumFeatureComparison() {
@@ -15,18 +34,27 @@ export function PremiumFeatureComparison() {
       <div className={styles.sectionHeading}>
         <div>
           <span>Feature Comparison</span>
-          <h2 id="premium-v2-feature-heading">Plan limits by tier</h2>
+          <h2 id="premium-v2-feature-heading">Alert coverage by tier</h2>
         </div>
-        <p>Confirmed alert, watchlist, category, and delivery limits from the current product source.</p>
+        <p>Compare ticker alerts, market-wide alerts, filters, scoring, and delivery channels.</p>
       </div>
 
       <div className={styles.desktopComparison}>
         <table>
-          <caption>Stock Radar plan limits by tier</caption>
+          <caption>Stock Radar alert coverage by tier</caption>
           <thead>
             <tr>
               <th scope="col">Feature</th>
-              {premiumV2PlanOrder.map((planKey) => <th key={planKey} scope="col">{premiumV2Plans[planKey].name}</th>)}
+              {premiumV2PlanOrder.map((planKey) => (
+                <th className={getTierColumnClass(planKey)} key={planKey} scope="col">
+                  {premiumV2Plans[planKey].name}
+                  {(planKey === "pro" || planKey === "advanced") ? (
+                    <span className={styles.comparisonTierLabel}>
+                      {planKey === "pro" ? "Core events" : "Full coverage"}
+                    </span>
+                  ) : null}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -35,7 +63,18 @@ export function PremiumFeatureComparison() {
                 <th scope="row">{row.feature}</th>
                 {premiumV2PlanOrder.map((planKey) => {
                   const value = row.values[planKey];
-                  return <td className={isPremiumValue(value) ? styles.premiumValue : undefined} key={planKey}>{value}</td>;
+
+                  return (
+                    <td
+                      className={[
+                        isPremiumValue(value) ? styles.premiumValue : undefined,
+                        getTierColumnClass(planKey),
+                      ].filter(Boolean).join(" ") || undefined}
+                      key={planKey}
+                    >
+                      {value}
+                    </td>
+                  );
                 })}
               </tr>
             ))}
@@ -50,10 +89,18 @@ export function PremiumFeatureComparison() {
             <dl>
               {premiumV2PlanOrder.map((planKey) => {
                 const value = row.values[planKey];
+
                 return (
-                  <div key={planKey}>
+                  <div className={getTierColumnClass(planKey)} key={planKey}>
                     <dt>{premiumV2Plans[planKey].name}</dt>
-                    <dd className={isPremiumValue(value) ? styles.premiumValue : undefined}>{value}</dd>
+                    <dd
+                      className={[
+                        isPremiumValue(value) ? styles.premiumValue : undefined,
+                        getTierColumnClass(planKey),
+                      ].filter(Boolean).join(" ") || undefined}
+                    >
+                      {value}
+                    </dd>
                   </div>
                 );
               })}

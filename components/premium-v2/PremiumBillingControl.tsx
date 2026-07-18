@@ -8,7 +8,6 @@ export type PremiumBillingControlProps = {
 
 const billingOptions = [
   { label: "Monthly", value: "monthly" },
-  { label: "Annual", value: "annual" },
 ] as const satisfies readonly { label: string; value: PremiumV2BillingCycle }[];
 
 export function PremiumBillingControl({ onChange, value }: PremiumBillingControlProps) {
