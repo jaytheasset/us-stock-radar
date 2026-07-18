@@ -191,6 +191,12 @@
   margin-top: var(--sr-space-4);
 }
 
+.heroCopy .actionRow {
+  display: grid;
+  width: min(100%, 420px);
+  grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr);
+}
+
 .primaryButton,
 .secondaryButton,
 .currentPlanAction {
@@ -249,8 +255,6 @@
   display: flex;
   min-height: calc(var(--sr-size-table-header-row) + var(--sr-space-1));
   align-items: center;
-  justify-content: space-between;
-  gap: var(--sr-space-3);
   border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
   padding: var(--sr-space-1-5) var(--sr-space-3);
   background: var(--sr-color-surface-table-header-start);
@@ -261,8 +265,7 @@
   gap: var(--sr-space-1);
 }
 
-.alertPreview > header div span,
-.alertPreview > header > span {
+.alertPreview > header div span {
   color: var(--sr-color-text-meta);
   font-size: var(--sr-font-size-xs);
   line-height: var(--sr-line-height-none);
@@ -1157,7 +1160,12 @@
   }
 
   .pageHeader {
+    position: relative;
     gap: var(--sr-space-4);
+  }
+
+  .titleBlock > span {
+    padding-right: calc(var(--sr-space-8) + var(--sr-space-7));
   }
 
   .titleBlock h1 {
@@ -1165,13 +1173,29 @@
   }
 
   .headerControls {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: var(--sr-space-3);
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--sr-space-2);
   }
 
   .currentPlanLine {
-    gap: var(--sr-space-2);
+    min-height: var(--sr-size-badge-lg);
+    align-items: center;
+    gap: var(--sr-space-1-5);
+  }
+
+  .currentPlanLine span {
+    font-size: var(--sr-font-size-xs);
+    text-transform: uppercase;
+  }
+
+  .currentPlanLine strong {
+    min-height: var(--sr-size-badge-lg);
+    padding-inline: var(--sr-space-2);
+    font-size: var(--sr-font-size-sm);
   }
 
   .billingControl {

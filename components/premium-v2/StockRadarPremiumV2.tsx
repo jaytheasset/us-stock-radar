@@ -56,10 +56,10 @@ export function StockRadarPremiumV2() {
               coverage, stronger filters, and more ways to receive an alert.
             </p>
             <div className={styles.actionRow}>
-              <button className={styles.primaryButton} onClick={() => previewPlan("free")} type="button">
+              <button className={styles.secondaryButton} onClick={() => previewPlan("free")} type="button">
                 Start Free
               </button>
-              <button className={styles.secondaryButton} onClick={() => previewPlan("advanced")} type="button">
+              <button className={styles.primaryButton} onClick={() => previewPlan("advanced")} type="button">
                 Go Advanced
               </button>
             </div>
@@ -71,7 +71,6 @@ export function StockRadarPremiumV2() {
                 <span>Market-Moving Events</span>
                 <strong>Catch market-moving risks early</strong>
               </div>
-              <span>Advanced Scan</span>
             </header>
             <div className={styles.alertList}>
               {premiumV2SampleAlerts.map((alert) => (

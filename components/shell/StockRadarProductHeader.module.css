@@ -157,7 +157,7 @@
   }
 
   .brand small {
-    font-size: var(--sr-font-size-sm);
+    display: none;
   }
 
   .primaryNavigation {
