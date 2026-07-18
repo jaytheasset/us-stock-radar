@@ -964,7 +964,7 @@
 
 .comparisonDetailList {
   display: grid;
-  gap: var(--sr-space-1);
+  gap: var(--sr-space-3);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -976,8 +976,8 @@
 
 .desktopComparison tbody tr.comparisonRowEmphasized > th,
 .desktopComparison tbody tr.comparisonRowEmphasized > td {
-  padding-top: var(--sr-space-3-5);
-  padding-bottom: var(--sr-space-3-5);
+  padding-top: var(--sr-space-6);
+  padding-bottom: var(--sr-space-6);
 }
 
 .mobileComparison {
@@ -1105,8 +1105,8 @@
   }
 
   .mobileComparison article.comparisonRowEmphasized dl > div {
-    padding-top: var(--sr-space-3);
-    padding-bottom: var(--sr-space-3);
+    padding-top: var(--sr-space-5);
+    padding-bottom: var(--sr-space-5);
   }
 
   .mobileComparison dl > div:first-child {
