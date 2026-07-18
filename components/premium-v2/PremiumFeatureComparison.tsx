@@ -77,7 +77,7 @@ export function PremiumFeatureComparison() {
           </thead>
           <tbody>
             {premiumV2ComparisonRows.map((row) => (
-              <tr key={row.feature}>
+              <tr className={row.emphasized ? styles.comparisonRowEmphasized : undefined} key={row.feature}>
                 <th scope="row">{row.feature}</th>
                 {premiumV2PlanOrder.map((planKey) => {
                   const value = row.values[planKey];
@@ -97,7 +97,7 @@ export function PremiumFeatureComparison() {
                           <ul className={styles.comparisonDetailList}>
                             {detailItems.map((detail) => (
                               <li key={detail.label}>
-                                <Badge size="micro" tone={categoryBadgeTones[detail.tone]}>{detail.label}</Badge>
+                                <Badge size="small" tone={categoryBadgeTones[detail.tone]}>{detail.label}</Badge>
                               </li>
                             ))}
                           </ul>
@@ -114,7 +114,7 @@ export function PremiumFeatureComparison() {
 
       <div className={styles.mobileComparison}>
         {premiumV2ComparisonRows.map((row) => (
-          <article key={row.feature}>
+          <article className={row.emphasized ? styles.comparisonRowEmphasized : undefined} key={row.feature}>
             <h3>{row.feature}</h3>
             <dl>
               {premiumV2PlanOrder.map((planKey) => {
@@ -135,7 +135,7 @@ export function PremiumFeatureComparison() {
                         <ul className={styles.comparisonDetailList}>
                           {detailItems.map((detail) => (
                             <li key={detail.label}>
-                              <Badge size="micro" tone={categoryBadgeTones[detail.tone]}>{detail.label}</Badge>
+                              <Badge size="small" tone={categoryBadgeTones[detail.tone]}>{detail.label}</Badge>
                             </li>
                           ))}
                         </ul>

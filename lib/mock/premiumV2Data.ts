@@ -27,6 +27,7 @@ export type PremiumV2ComparisonRow = {
     label: string;
     tone: PremiumV2CategoryTone;
   }[]>>;
+  emphasized?: boolean;
   feature: string;
   values: Record<PremiumV2PlanKey, string>;
 };
@@ -221,6 +222,7 @@ export const premiumV2ComparisonRows: readonly PremiumV2ComparisonRow[] = [
       ],
     },
     feature: "Risk & Catalyst Alerts",
+    emphasized: true,
     values: {
       free: "5 types · selected 1 ticker only",
       adFree: "5 types · selected 5 tickers only",

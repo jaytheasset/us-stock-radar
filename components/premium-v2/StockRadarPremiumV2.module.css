@@ -891,7 +891,7 @@
 .desktopComparison td.comparisonColumn-pro {
   border-left-color: var(--sr-color-event-transaction);
   border-right: var(--sr-border-width) solid var(--sr-color-accent-border-active);
-  border-bottom-color: var(--sr-color-border-overlay-strong);
+  border-bottom-color: var(--sr-color-divider);
   background: var(--sr-color-event-transaction-surface);
 }
 
@@ -934,7 +934,7 @@
 
 .desktopComparison tbody td {
   color: var(--sr-color-text-secondary);
-  font-size: var(--sr-font-size-sm);
+  font-size: var(--sr-font-size-base);
   font-variant-numeric: var(--sr-font-variant-numeric);
   line-height: var(--sr-line-height-body);
   overflow-wrap: anywhere;
@@ -968,6 +968,12 @@
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.desktopComparison tbody tr.comparisonRowEmphasized > th,
+.desktopComparison tbody tr.comparisonRowEmphasized > td {
+  padding-top: var(--sr-space-3-5);
+  padding-bottom: var(--sr-space-3-5);
 }
 
 .mobileComparison {
@@ -1094,6 +1100,11 @@
     padding: var(--sr-space-2) var(--sr-space-3);
   }
 
+  .mobileComparison article.comparisonRowEmphasized dl > div {
+    padding-top: var(--sr-space-3);
+    padding-bottom: var(--sr-space-3);
+  }
+
   .mobileComparison dl > div:first-child {
     border-top: 0;
   }
@@ -1122,7 +1133,7 @@
     min-width: 0;
     margin: 0;
     color: var(--sr-color-text-secondary);
-    font-size: var(--sr-font-size-sm);
+    font-size: var(--sr-font-size-base);
     font-variant-numeric: var(--sr-font-variant-numeric);
     line-height: var(--sr-line-height-body);
     text-align: right;
