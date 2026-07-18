@@ -139,9 +139,11 @@ export function FilingsV2List({
                       <FilingIdentity record={record} />
                       <span className={styles.filingCopy}>
                         <span className={styles.filingMeta}>
-                          <FilingEvents mobile record={record} />
+                          <span className={styles.formLabel}>{record.formType}</span>
+                          <span className={styles.desktopFilingEvents}><FilingEvents record={record} /></span>
+                          <span className={styles.mobileFilingEvents}><FilingEvents mobile record={record} /></span>
                           <span className={styles.mobileFiledAt}>{filingDateLabel} {record.filedTime}</span>
-                          <span>{record.source} · {record.formType}</span>
+                          <span className={styles.filingSource}>{record.source}</span>
                         </span>
                         <span className={styles.filingTitle} title={record.title}>{record.title}</span>
                       </span>

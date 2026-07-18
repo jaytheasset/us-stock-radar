@@ -572,18 +572,18 @@
   appearance: none;
   display: grid;
   min-width: 0;
-  min-height: calc(var(--sr-size-table-row) + var(--sr-space-8));
+  min-height: calc(var(--sr-size-table-row) + var(--sr-space-7));
   grid-template-columns:
-    calc(var(--sr-space-8) + var(--sr-space-6) + var(--sr-space-0-5))
-    calc(var(--sr-space-8) * 2 + var(--sr-space-3))
-    minmax(0, 1fr)
-    calc(var(--sr-space-8) * 6 - var(--sr-space-1))
-    calc(var(--sr-space-8) + var(--sr-space-6) - var(--sr-space-0-5));
+    72px
+    minmax(84px, 0.35fr)
+    minmax(320px, 2.2fr)
+    minmax(190px, 0.95fr)
+    58px;
   align-items: center;
   gap: var(--sr-space-2-5);
   border: 0;
   border-radius: 0;
-  padding: var(--sr-space-2) var(--sr-space-3);
+  padding: var(--sr-space-2) var(--sr-space-4);
   color: var(--sr-color-text-body);
   background: var(--sr-color-surface-table-row);
   cursor: pointer;
@@ -749,18 +749,26 @@
   text-overflow: ellipsis;
 }
 
+.desktopFilingEvents {
+  display: inline-flex;
+  min-width: 0;
+}
+
+.mobileFilingEvents {
+  display: none;
+}
+
 .mobileFiledAt {
   display: none;
 }
 
 .filingTitle {
-  display: -webkit-box;
+  display: block;
   color: var(--sr-color-text-primary);
   font-size: var(--sr-font-size-base);
   font-weight: var(--sr-font-weight-medium);
   line-height: var(--sr-line-height-body);
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  white-space: nowrap;
 }
 
 .eventBadges {
@@ -815,7 +823,7 @@
 .filingMarketReaction {
   display: grid;
   min-width: 0;
-  grid-template-columns: calc(var(--sr-space-8) * 2 + var(--sr-space-1-75)) minmax(0, 1fr);
+  grid-template-columns: minmax(68px, 0.65fr) minmax(84px, 1fr);
   align-items: center;
   gap: var(--sr-space-2);
 }
@@ -841,8 +849,10 @@
 
 .filingSparkline {
   width: 100%;
+  max-width: 100px;
   height: calc(var(--sr-space-8) + var(--sr-space-1-5));
   overflow: visible;
+  justify-self: end;
 }
 
 .filingSparkline polyline {
@@ -856,7 +866,7 @@
 
 .filingImpact {
   display: grid;
-  justify-items: end;
+  justify-items: center;
   gap: var(--sr-space-1);
   border-left: var(--sr-border-width) solid var(--sr-color-divider);
   padding-left: var(--sr-space-3);
@@ -1325,6 +1335,19 @@
   to { transform: rotate(1turn); }
 }
 
+@media (max-width: 1320px) and (min-width: 761px) {
+  .filingItem {
+    grid-template-columns:
+      58px
+      minmax(76px, 0.35fr)
+      minmax(242px, 2fr)
+      minmax(160px, 0.9fr)
+      54px;
+    gap: var(--sr-space-2-5);
+    padding-inline: var(--sr-space-3);
+  }
+}
+
 @media (max-width: 1180px) {
   .root {
     min-height: calc(100vh - var(--sr-size-header));
@@ -1461,7 +1484,7 @@
 
   .filingItem {
     min-height: calc(var(--sr-size-table-row) + var(--sr-space-8));
-    grid-template-columns: max-content minmax(0, 1fr) max-content;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-rows: auto auto;
     align-items: start;
     column-gap: var(--sr-space-1-5);
@@ -1496,6 +1519,19 @@
     gap: var(--sr-space-1-5);
     margin: 0;
     overflow: hidden;
+  }
+
+  .desktopFilingEvents {
+    display: none;
+  }
+
+  .mobileFilingEvents {
+    display: inline-flex;
+    min-width: 0;
+  }
+
+  .filingSource {
+    display: none;
   }
 
   .mobileFiledAt {
