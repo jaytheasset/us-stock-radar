@@ -890,7 +890,7 @@
 .desktopComparison th.comparisonColumn-pro,
 .desktopComparison td.comparisonColumn-pro {
   border-left-color: var(--sr-color-event-transaction);
-  border-right: var(--sr-border-width) solid var(--sr-color-event-transaction);
+  border-right: var(--sr-border-width) solid var(--sr-color-accent-border-active);
   border-bottom-color: var(--sr-color-border-overlay-strong);
   background: var(--sr-color-event-transaction-surface);
 }
@@ -942,6 +942,14 @@
 
 .desktopComparison tbody tr:last-child > * {
   border-bottom: 0;
+}
+
+.desktopComparison tbody tr:last-child > .comparisonColumn-pro {
+  border-bottom: var(--sr-space-0-5) solid var(--sr-color-event-transaction);
+}
+
+.desktopComparison tbody tr:last-child > .comparisonColumn-advanced {
+  border-bottom: var(--sr-space-0-5) solid var(--sr-color-accent-border-active);
 }
 
 .premiumValue {
