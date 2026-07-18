@@ -6,6 +6,7 @@ import {
   type Sec8k6kCalendarItem,
   type Sec8k6kConfidence,
   type Sec8k6kDocumentSummary,
+  type Sec8k6kDocumentRoutingOutline,
   type Sec8k6kField,
   type Sec8k6kFilingCue,
   type Sec8k6kFilingCueType,
@@ -20,7 +21,7 @@ import {
   type Sec8k6kReferencedFiling,
   type Sec8k6kUnnumberedSection,
 } from "./types";
-import { findSecDocumentHeadline, semanticHeadlineCandidate } from "./documentHeadline";
+import { extractSecDocumentRoutingOutline, findSecDocumentHeadline, semanticHeadlineCandidate } from "./documentHeadline";
 
 const SEC_8K_6K_FORMS = ["8-K", "6-K", "8-K/A", "6-K/A"] as const;
 
@@ -297,6 +298,10 @@ export function parseSec8k6kFiling(input: Sec8k6kParseInput): Sec8k6kParserOutpu
     secFormType,
     text: combinedText,
   });
+  const documentRoutingOutlines = buildDocumentRoutingOutlines({
+    formType: secFormType,
+    primaryText: stringValue(input.analysisText) || stringValue(input.bodyText) || combinedText,
+  });
   const items = formProfile.is8kLike ? extract8kItems(combinedText) : [];
   const unnumberedSections = formProfile.is8kLike ? extract8kUnnumberedSections(combinedText) : [];
   const exhibitFacts = buildExhibitFacts({
@@ -390,6 +395,7 @@ export function parseSec8k6kFiling(input: Sec8k6kParseInput): Sec8k6kParserOutpu
         text: combinedText,
       }),
       documents: documentSummaries,
+      documentRoutingOutlines,
       textStats: {
         bodyChars: stringValue(input.bodyText).length,
         analysisChars: stringValue(input.analysisText).length,
@@ -405,6 +411,28 @@ export function parseSec8k6kFiling(input: Sec8k6kParseInput): Sec8k6kParserOutpu
       metadata,
     },
   };
+}
+
+function buildDocumentRoutingOutlines({
+  formType,
+  primaryText,
+}: {
+  formType: Sec8k6kFormType | null;
+  primaryText: string;
+}): Sec8k6kDocumentRoutingOutline[] {
+  if (!primaryText) return [];
+  const outline = extractSecDocumentRoutingOutline(primaryText);
+  if (!outline.title && !outline.subtitle && !outline.lead_context.length && !outline.section_headings.length) {
+    return [];
+  }
+  return [{
+    source_ref: "primary_filing",
+    document_type: formType,
+    title: outline.title,
+    subtitle: outline.subtitle,
+    lead_context: outline.lead_context,
+    section_headings: outline.section_headings,
+  }];
 }
 
 function buildFilingCues({

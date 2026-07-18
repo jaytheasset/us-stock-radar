@@ -98,7 +98,7 @@ function hasTradableTicker(filingPackage: Record<string, unknown>, title: string
 }
 
 function isAlwaysAllowedWithoutTicker(formType: string) {
-  if (/^(?:S-1|F-1|S-1\/A|F-1\/A|EFFECT|424B4|8-A|8-A12B|425)$/.test(formType)) return true;
+  if (/^(?:8-K|8-K\/A|6-K|6-K\/A|S-1|F-1|S-1\/A|F-1\/A|EFFECT|424B4|8-A|8-A12B|425)$/.test(formType)) return true;
   return false;
 }
 

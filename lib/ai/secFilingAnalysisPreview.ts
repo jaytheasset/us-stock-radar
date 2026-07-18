@@ -526,9 +526,9 @@ export async function runSec8k6kRouteOnlyPreviewForRawItem(rawItem: RawItemRow, 
   }
 
   const env = getServerEnv();
-  const llmConfig = resolveSecLlmConfig(env, options);
+  const llmConfig = resolveSecLlmConfig(env, options, input);
   const prompt = buildSec8k6kRouterPromptForInput(input);
-  const run = await runOpenAiJsonPrompt(env, prompt, llmConfig);
+  const run = await runSec8k6kRouterPrompt(env, prompt, llmConfig);
   const route = run.parsed
     ? applySec8k6kArchiveSafetyGate(
         applySec8k6kReverseSplitRouteGuard(
@@ -1333,7 +1333,7 @@ export async function runSecFilingAnalysisForRawRow(
 
   if (isSec8k6kFilingInput(input)) {
     const routerPrompt = buildSec8k6kRouterPromptForInput(input);
-    const routerRun = await runOpenAiJsonPrompt(env, routerPrompt, llmConfig);
+    const routerRun = await runSec8k6kRouterPrompt(env, routerPrompt, llmConfig);
     if (!routerRun.ok || !routerRun.parsed) {
       return {
         ok: false,
@@ -2997,8 +2997,11 @@ function resolveSecLlmConfig(
       env.geminiModel ||
       "gemini-2.5-flash"
     ).trim();
+    const shouldUseFlashFallback = Boolean(
+      input && (isProxyFilingInput(input) || isSec8k6kFilingInput(input)),
+    );
     const fallbackModel =
-      input && isProxyFilingInput(input) && model !== "gemini-2.5-flash"
+      shouldUseFlashFallback && model !== "gemini-2.5-flash"
         ? "gemini-2.5-flash"
         : undefined;
     return {
@@ -3286,6 +3289,9 @@ function resolveGeminiModelForSecInput(env: ReturnType<typeof getServerEnv>, inp
   if (input && isProxyFilingInput(input)) {
     return env.secProxyRoutineGeminiModel || "gemini-2.5-flash-lite";
   }
+  if (input && isSec8k6kFilingInput(input)) {
+    return "gemini-2.5-flash-lite";
+  }
   if (input && isSecNtFilingInput(input)) {
     return env.secNtGeminiModel || "gemini-2.5-flash-lite";
   }
@@ -3487,6 +3493,49 @@ function clipRouteOnlyText(value: string, maxLength: number) {
   const text = value.trim();
   if (!text || text.length <= maxLength) return text;
   return text.slice(0, maxLength).trim();
+}
+
+async function runSec8k6kRouterPrompt(
+  env: ReturnType<typeof getServerEnv>,
+  prompt: OpenAiPrompt,
+  llmConfig: SecLlmConfig,
+): Promise<OpenAiPromptRun> {
+  const firstRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
+  if (
+    llmConfig.provider !== "gemini" ||
+    llmConfig.model !== "gemini-2.5-flash-lite" ||
+    !firstRun.ok ||
+    !firstRun.parsed ||
+    !isLowQualitySec8k6kArchiveRoute(firstRun.parsed)
+  ) {
+    return firstRun;
+  }
+
+  const flashRun = await runOpenAiJsonPrompt(
+    env,
+    prompt,
+    {
+      ...llmConfig,
+      model: "gemini-2.5-flash",
+      fallbackModel: undefined,
+    },
+    { maxAttempts: 1, disableFallback: true },
+  );
+  if (!flashRun.ok || !flashRun.parsed) return firstRun;
+
+  return {
+    ...flashRun,
+    attempts: firstRun.attempts + flashRun.attempts,
+    usage: combineUsage(firstRun.usage, flashRun.usage),
+  };
+}
+
+function isLowQualitySec8k6kArchiveRoute(value: Record<string, unknown>) {
+  const normalized = normalizeSec8k6kRouterResult(value);
+  const primaryCandidate = readRecord(normalized.primary_route_candidate);
+  const eventType = stringValue(primaryCandidate?.route_type || normalized.event_type).toLowerCase();
+  const confidence = stringValue(primaryCandidate?.confidence).toLowerCase();
+  return eventType === "other" && (confidence === "low" || normalized.analysis_needed !== true);
 }
 
 async function runOpenAiJsonPrompt(
@@ -4840,6 +4889,12 @@ function toGeminiResponseSchema(value: unknown): unknown {
   for (const [key, childValue] of Object.entries(record)) {
     if (key === "additionalProperties") continue;
     if (key === "maxLength") continue;
+    if (key === "maxItems") {
+      // Gemini rejects deeply nested schemas when every internal array carries a
+      // provider-side cap. Preserve only explicit small visible-list limits.
+      if (isGeminiProviderBoundedArraySchema(record)) output[key] = childValue;
+      continue;
+    }
     if (key === "type" && Array.isArray(childValue)) {
       const nonNullType = childValue.find((item) => item !== "null");
       if (typeof nonNullType === "string") {
@@ -4861,6 +4916,20 @@ function toGeminiResponseSchema(value: unknown): unknown {
   }
 
   return output;
+}
+
+function isGeminiProviderBoundedArraySchema(record: Record<string, unknown>) {
+  if (record.type !== "array") return false;
+
+  const description = stringValue(record.description);
+  const limits = new Map<number, RegExp>([
+    [1, /never return more than one item/i],
+    [2, /never return more than two items/i],
+    [3, /never return more than three items/i],
+    [4, /never return more than four items/i],
+  ]);
+  const maxItems = finiteNumber(record.maxItems);
+  return maxItems !== null && Boolean(limits.get(maxItems)?.test(description));
 }
 
 function buildGeminiGenerateContentUrl(llmConfig: SecLlmConfig) {

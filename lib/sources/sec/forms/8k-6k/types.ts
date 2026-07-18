@@ -101,6 +101,15 @@ export type Sec8k6kDocumentSummary = {
   fetch_error: string | null;
 };
 
+export type Sec8k6kDocumentRoutingOutline = {
+  source_ref: string;
+  document_type: string | null;
+  title: string | null;
+  subtitle: string | null;
+  lead_context: string[];
+  section_headings: string[];
+};
+
 export type Sec8k6kField<T = string> = {
   value: T;
   evidence: string;
@@ -204,6 +213,7 @@ export type Sec8k6kParserFacts = {
   marketContext: Sec8k6kMarketContextFacts;
   extracted: Record<string, unknown>;
   documents: Sec8k6kDocumentSummary[];
+  documentRoutingOutlines: Sec8k6kDocumentRoutingOutline[];
   textStats: {
     bodyChars: number;
     analysisChars: number;

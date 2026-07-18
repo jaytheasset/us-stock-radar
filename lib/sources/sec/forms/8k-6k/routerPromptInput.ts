@@ -1,5 +1,5 @@
 import { buildCurrentFilingIdentity, type SecCurrentFilingIdentity } from "../common/currentFilingIdentity.ts";
-import { findSecDocumentHeadline, semanticHeadlineCandidate } from "./documentHeadline.ts";
+import { extractSecDocumentRoutingOutline, semanticHeadlineCandidate } from "./documentHeadline.ts";
 
 export type Sec8k6kRouterDigestInput = {
   current_filing: SecCurrentFilingIdentity;
@@ -15,6 +15,9 @@ export type Sec8k6kRouterDigestInput = {
       document_type: string | null;
       exhibit_number: string | null;
       title: string | null;
+      subtitle: string | null;
+      lead_context: string[];
+      section_headings: string[];
       headline_or_summary: string;
     }>;
     tables: Array<{
@@ -61,17 +64,27 @@ export function buildSec8k6kRouterDigestInput(params: {
   });
   documents.push(...extractDocumentHeadingDigest(stringValue(params.fallbackText)));
   const dedupedDocuments = dedupeBy(documents, (document) =>
-    `${document.source_ref || ""}|${document.title || ""}|${document.headline_or_summary}`,
+    [document.title, document.subtitle, document.title || document.subtitle ? "" : document.headline_or_summary]
+      .map((value) => stringValue(value).toLowerCase())
+      .filter(Boolean)
+      .join("|"),
   );
   const tables = buildTableDigest(toRecord(extracted.tableFacts));
 
-  if (!items.length && stringValue(params.fallbackText)) {
+  if (
+    !items.length &&
+    stringValue(params.fallbackText) &&
+    !dedupedDocuments.some((document) => document.title || document.subtitle || document.lead_context.length)
+  ) {
     dedupedDocuments.push({
       source_ref: "primary_filing_summary",
       document_type: "primary_filing_summary",
       exhibit_number: null,
       title: "Primary filing summary",
-      headline_or_summary: compactSummary(stringValue(params.fallbackText), 420),
+      subtitle: null,
+      lead_context: [],
+      section_headings: [],
+      headline_or_summary: buildPrimaryFilingRoutingSummary(stringValue(params.fallbackText)),
     });
   }
 
@@ -197,6 +210,7 @@ function buildDocumentDigest({
   const exhibitFacts = toRecord(extracted.exhibitFacts);
   const sixK = toRecord(exhibitFacts.sixK);
   const candidates = [
+    ...arrayRecords(facts.documentRoutingOutlines),
     ...arrayRecords(exhibitFacts.documentExhibits),
     ...arrayRecords(sixK.exhibits),
     ...arrayRecords(facts.documents),
@@ -207,17 +221,25 @@ function buildDocumentDigest({
     const semanticTitle = semanticHeadlineCandidate(firstString(document.description, document.title, document.filename));
     const documentHeadline = semanticHeadlineCandidate(firstString(document.headline));
     const title = nullableString(semanticTitle || documentHeadline);
+    const subtitle = nullableString(firstString(document.subtitle));
+    const leadContext = stringArray(document.lead_context).map((value) => compactSummary(value, 520)).slice(0, 3);
+    const sectionHeadings = stringArray(document.section_headings).map((value) => compactText(value, 120)).slice(0, 8);
     const roleCandidates = stringArray(document.roleCandidates);
     return {
-      source_ref: exhibitNumber ? `Exhibit ${exhibitNumber}` : documentType || title,
+      source_ref: nullableString(firstString(document.source_ref)) || (exhibitNumber ? `Exhibit ${exhibitNumber}` : documentType || title),
       document_type: documentType,
       exhibit_number: exhibitNumber,
       title,
+      subtitle,
+      lead_context: leadContext,
+      section_headings: sectionHeadings,
       headline_or_summary: compactSummary(
         firstString(
           document.routingSummary,
           document.routing_summary,
           document.headline,
+          subtitle,
+          leadContext[0],
           title,
           roleCandidates.join(", "),
           document.role,
@@ -227,7 +249,7 @@ function buildDocumentDigest({
         620,
       ),
     };
-  });
+  }).filter((document) => !isMetadataOnlyDocument(document));
 
   for (const context of [parentFilingContext, ...(relatedFilingContexts || [])]) {
     const record = toRecord(context);
@@ -242,6 +264,9 @@ function buildDocumentDigest({
       document_type: "related_filing_context",
       exhibit_number: null,
       title,
+      subtitle: null,
+      lead_context: [],
+      section_headings: [],
       headline_or_summary: summary,
     });
   }
@@ -259,43 +284,32 @@ function extractDocumentHeadingDigest(value: string) {
     const bodyStart = (match.index || 0) + match[0].length;
     const bodyEnd = headings[index + 1]?.index ?? value.length;
     const body = value.slice(bodyStart, bodyEnd);
-    const headline = findSecDocumentHeadline(body);
+    const outline = extractSecDocumentRoutingOutline(body);
     const semanticTitle = semanticHeadlineCandidate(title);
-    const context = firstMeaningfulDocumentContext(body, headline);
     return {
       source_ref: title,
       document_type: documentTypeFromHeading(title),
       exhibit_number: nullableString(title.match(/\bEX(?:HIBIT)?[-\s]*([0-9]{1,3}(?:\.[0-9A-Z]+)?)/i)?.[1]),
-      title: nullableString(semanticTitle || headline),
+      title: nullableString(outline.title || semanticTitle),
+      subtitle: outline.subtitle,
+      lead_context: outline.lead_context,
+      section_headings: outline.section_headings,
       headline_or_summary: compactSummary(
-        [headline || semanticTitle || title, context].filter(Boolean).join(". "),
+        [outline.title || semanticTitle || title, outline.subtitle].filter(Boolean).join(". "),
         620,
       ),
     };
-  });
+  }).filter((document) => !isMetadataOnlyDocument(document));
 }
 
-function firstMeaningfulDocumentContext(value: string, headline: string | null) {
-  const normalizedHeadline = stringValue(headline).toLowerCase();
-  const paragraphs = value
-    .split(/\n\s*\n+|\r?\n/)
-    .map((paragraph) => paragraph.replace(/\s+/g, " ").trim())
-    .filter((paragraph) => paragraph.length >= 40)
-    .filter((paragraph) => {
-      const semantic = semanticHeadlineCandidate(paragraph);
-      if (!semantic) return false;
-      if (semantic.toLowerCase() === normalizedHeadline) return false;
-      if (isTableLikeRoutingText(paragraph)) return false;
-      return !/^(?:press release|news release|immediate release|for immediate release|contact|investor relations)\b/i.test(semantic);
-    });
-  const selected = paragraphs.find((paragraph) =>
-    /\b(?:announc|approv|authoriz|effect|implement|complet|enter|appoint|resign|dismiss|engag|report|expect|guidance|production|revenue|merger|acquisition|reverse stock split)\w*\b/i.test(paragraph),
-  ) || paragraphs[0] || "";
-  return compactSummary(selected, 460);
-}
-
-function isTableLikeRoutingText(value: string) {
-  return (value.match(/\|/g) || []).length >= 2 || (value.match(/\t/g) || []).length >= 2;
+function buildPrimaryFilingRoutingSummary(value: string) {
+  const outline = extractSecDocumentRoutingOutline(value);
+  const summary = [outline.title, outline.subtitle]
+    .filter(Boolean)
+    .filter((part, index, values) => index === 0 || part?.toLowerCase() !== values[0]?.toLowerCase())
+    .map((part) => part?.replace(/[.!?]+$/, ""))
+    .join(". ");
+  return compactSummary(summary || value, 620);
 }
 
 function documentTypeFromHeading(value: string) {
@@ -309,7 +323,7 @@ function buildTableDigest(tableFacts: Record<string, unknown>) {
   for (const block of arrayRecords(tableFacts.tableLikeBlocks)) {
     const rows = arrayRows(block.rows);
     const heading = rows[0]?.join(" | ") || firstString(block.label, block.kind);
-    if (!heading) continue;
+    if (!isUsefulTableHeading(heading)) continue;
     tables.push({
       source_ref: nullableString(firstString(block.label, block.kind)),
       title: nullableString(firstString(block.label, block.kind)),
@@ -321,7 +335,7 @@ function buildTableDigest(tableFacts: Record<string, unknown>) {
     const table = toRecord(wrapper.table);
     const headers = stringArray(table.headers);
     const heading = firstString(table.caption, headers.join(" | "));
-    if (!heading) continue;
+    if (!isUsefulTableHeading(heading)) continue;
     tables.push({
       source_ref: nullableString(firstString(wrapper.filename, wrapper.documentType)),
       title: nullableString(firstString(table.caption, wrapper.documentDescription)),
@@ -330,6 +344,35 @@ function buildTableDigest(tableFacts: Record<string, unknown>) {
   }
 
   return dedupeBy(tables, (table) => `${table.source_ref || ""}|${table.title || ""}|${table.heading}`);
+}
+
+function isMetadataOnlyDocument(document: Sec8k6kRouterDigestInput["router_digest"]["documents"][number]) {
+  if (document.lead_context.length || document.subtitle || document.section_headings.length) return false;
+  const values = [document.source_ref, document.document_type, document.title, document.headline_or_summary]
+    .map(stringValue)
+    .filter(Boolean);
+  return Boolean(values.length) && values.every((value) =>
+    /^(?:complete submission text file|primary filing text|filing_document|6-K\s*-\s*(?:FORM\s+)?6-K|8-K\s*-\s*(?:FORM\s+)?8-K|6-K|8-K)$/i.test(value),
+  );
+}
+
+function isUsefulTableHeading(value: string) {
+  const heading = value.replace(/\s+/g, " ").trim();
+  if (!heading || heading.length < 6) return false;
+  if (/^(?:\|?\s*[-:]+\s*)+\|?$/.test(heading)) return false;
+  if (
+    (heading.match(/\|/g) || []).length >= 2 &&
+    !/\b(?:metric|financial|revenue|sales|income|loss|profit|earnings|EPS|EBITDA|cash flow|guidance|outlook|production|delivery|volume|shares?|warrants?|proceeds|for|against|abstain|votes?|FY\d*|Q[1-4])\b/i.test(heading)
+  ) return false;
+  const words = heading.match(/[A-Za-z]{3,}/g) || [];
+  const numbers = heading.match(/\(?-?\d[\d,.]*%?\)?/g) || [];
+  if (!words.length) return false;
+  if (
+    numbers.length >= 5 &&
+    words.length <= 2 &&
+    !/\b(?:metric|FY\d*|Q[1-4]|quarter|year|period|current|prior)\b/i.test(heading)
+  ) return false;
+  return true;
 }
 
 function compactSummary(value: string, maxLength: number) {

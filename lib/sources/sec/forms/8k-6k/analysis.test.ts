@@ -888,6 +888,40 @@ assert.equal(
   "operating_update",
 );
 
+const regulatoryEventTypeAnalysis = {
+  analysis_output: repairAnalysisOutput("product_update", "fda_exhibit_99_1"),
+  display_payload: {
+    display_type: "operating_event",
+    data: {
+      operating_mode: "product_or_regulatory",
+      regulatory_stage: "approval",
+      snapshot_metrics: [],
+      performance_comparisons: [],
+      guidance_metrics: [],
+      business_catalysts: [],
+      detail_sections: [],
+      secondary_updates: [],
+    },
+  },
+};
+const regulatoryEventTypePlan = buildSec8k6kValidationRepairPlan({
+  analysisResult: regulatoryEventTypeAnalysis,
+  analysisPromptUser: repairSourceBlocks({
+    block_id: "fda_exhibit_99_1",
+    exhibit_number: "99.1",
+    label: "FDA approval",
+    text: "The FDA approved the company's therapy for the disclosed indication.",
+  }),
+});
+assert.ok(regulatoryEventTypePlan);
+assert.ok(
+  regulatoryEventTypePlan.issues.some(
+    (issue) => issue.code === "operating_regulatory_event_type_mismatch",
+  ),
+);
+assert.ok(regulatoryEventTypePlan.allowedPatchPaths.includes("/analysis_output/event_type"));
+assert.ok(regulatoryEventTypePlan.allowedPatchPaths.includes("/analysis_output/material_events/0/event_type"));
+
 const splitProjectEconomicsAnalysis = {
   analysis_output: repairAnalysisOutput("operating_update", "operating_exhibit_99_1"),
   display_payload: {

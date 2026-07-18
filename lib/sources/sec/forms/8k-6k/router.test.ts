@@ -343,6 +343,8 @@ assert.equal(sec8k6kRouterSystemPrompt.includes("not to write the final investme
 assert.ok(sec8k6kRouterSystemPrompt.includes("Use source-backed judgment to identify the strongest downstream analysis route"));
 assert.ok(sec8k6kRouterSystemPrompt.includes("Use only current_filing and router_digest"));
 assert.ok(sec8k6kRouterSystemPrompt.includes("source coverage may be incomplete"));
+assert.ok(sec8k6kRouterSystemPrompt.includes("Security-class removal boundary"));
+assert.ok(sec8k6kRouterSystemPrompt.includes("notes, preferred shares, warrants, units"));
 assert.ok(sec8k6kRouterSystemPrompt.includes("For 8-K and 8-K/A, use the digest's Item numbers"));
 assert.ok(sec8k6kRouterSystemPrompt.includes("Choose display_type from the approved list only"));
 assert.ok(sec8k6kRouterSystemPrompt.includes("primary_route_candidate"));
@@ -540,6 +542,28 @@ const sourceIncompleteRouterResult = applySec8k6kArchiveSafetyGate(safeArchiveRo
 assert.equal(sourceIncompleteRouterResult.analysis_needed, true);
 assert.equal(sourceIncompleteRouterResult.delivery_level, "feed");
 assert.equal(sourceIncompleteRouterResult.archive_safety_blocked, true);
+
+const substantiveCueArchiveInput = {
+  filing_package: {
+    company_name: "Substantive Foreign Issuer",
+    form_type: "6-K",
+    hard_parsers: {
+      "8k-6k": {
+        isSupported: true,
+        warnings: [],
+        facts: {
+          filingCues: [{ cueType: "financial_results", confidence: "medium" }],
+        },
+      },
+    },
+  },
+} as unknown as SecFilingAnalysisInput;
+const substantiveCueArchiveResult = applySec8k6kArchiveSafetyGate(
+  safeArchiveRouterResult,
+  substantiveCueArchiveInput,
+);
+assert.equal(substantiveCueArchiveResult.analysis_needed, true);
+assert.match(JSON.stringify(substantiveCueArchiveResult.archive_safety_reasons), /financial_results/);
 
 const compactArchiveInput = {
   filing_package: {
@@ -856,6 +880,97 @@ const sixKPrimaryOnlyPayload = buildRouterPayload({
   },
 });
 assert.ok(hasSourceBlockText(sixKPrimaryOnlyPayload, "revenue of $12 million"));
+
+const sixKBodyOnlyFdaPayload = buildRouterPayload({
+  sourceUniqueId: "0000000000-26-100005-fda",
+  title: "Foreign issuer current report",
+  bodyText: [
+    "6-K - FORM 6-K",
+    "UNITED STATES",
+    "SECURITIES AND EXCHANGE COMMISSION",
+    "Washington, D.C. 20549",
+    "REPORT OF FOREIGN PRIVATE ISSUER",
+    "PURSUANT TO RULE 13a-16 OR 15d-16",
+    "Commission File Number 001-00000",
+    "Example Pharma AG",
+    "This cover-page text identifies the registrant and reporting period but does not describe the material event furnished in this report.",
+    "This additional cover-page statement keeps the substantive announcement outside the first 420 characters used by the previous router digest.",
+    "Example Pharma receives FDA approval for its new gene therapy",
+    "The FDA approved the therapy for treatment of a rare disease and commercial launch is expected this quarter.",
+  ].join("\n"),
+  rawPayload: {
+    form_type: "6-K",
+    documents: [{ type: "6-K", description: "6-K", isPrimary: true, textCharCount: 1_200 }],
+  },
+});
+assert.match(JSON.stringify(sixKBodyOnlyFdaPayload.router_digest), /receives FDA approval/i);
+assert.doesNotMatch(JSON.stringify(sixKBodyOnlyFdaPayload.router_digest), /headline_or_summary":"6-K - FORM 6-K/i);
+
+const sixKBodyOnlyLeadershipPayload = buildRouterPayload({
+  sourceUniqueId: "0000000000-26-100005-leadership",
+  title: "Foreign issuer current report",
+  bodyText: [
+    "FORM 6-K",
+    "REPORT OF FOREIGN PRIVATE ISSUER",
+    "PURSUANT TO RULE 13a-16 OR 15d-16",
+    "Commission File Number 001-00001",
+    "Example Industrials A/S",
+    "For the month of July 2026",
+    "Example Industrials appoints Jane Doe as Chief Executive Officer",
+    "The board appointed Jane Doe as CEO effective August 1, 2026 as part of a management transition.",
+  ].join("\n"),
+  rawPayload: {
+    form_type: "6-K",
+    documents: [{ type: "6-K", description: "6-K", isPrimary: true, textCharCount: 900 }],
+  },
+});
+assert.match(JSON.stringify(sixKBodyOnlyLeadershipPayload.router_digest), /appoints Jane Doe as Chief Executive Officer/i);
+
+const sixKDirectBodyEarningsPayload = buildRouterPayload({
+  sourceUniqueId: "0000353278-25-000005",
+  title: "Novo Nordisk 6-K",
+  bodyText: [
+    "6-K - FORM 6-K",
+    "Financial report for the period 1 January 2025 to 30 September 2025",
+    "5 November 2025",
+    "Novo Nordisk's sales increased by 12% in Danish kroner and by 15% at constant exchange rates.",
+    "Sales within Diabetes and Obesity care increased by 14%.",
+    "R&D: Wegovy was approved by the FDA and an acquisition was completed.",
+  ].join("\n"),
+  rawPayload: {
+    form_type: "6-K",
+    documents: [{ type: "6-K", description: "6-K", isPrimary: true, textCharCount: 1_400 }],
+  },
+});
+const sixKEarningsOutline = sixKDirectBodyEarningsPayload.router_digest.documents.find(
+  (document: Record<string, unknown>) => document.source_ref === "primary_filing",
+);
+assert.equal(sixKEarningsOutline?.title, "Financial report for the period 1 January 2025 to 30 September 2025");
+assert.match(String(sixKEarningsOutline?.subtitle), /sales increased by 12%/i);
+assert.notEqual(sixKEarningsOutline?.title, "R&D: Wegovy was approved by the FDA and an acquisition was completed.");
+
+const sixKDirectBodyLeadershipPayload = buildRouterPayload({
+  sourceUniqueId: "0001171843-25-004761",
+  title: "Novo Nordisk 6-K",
+  bodyText: [
+    "FORM 6-K",
+    "Maziar Mike Doustdar appointed as president and chief executive",
+    "officer of Novo Nordisk",
+    "Bagsvaerd, Denmark, 29 July 2025 - Novo Nordisk today announced that Maziar Mike Doustdar has been appointed as president and chief executive officer, effective 7 August 2025. Mike Doustdar succeeds Lars Fruergaard Jorgensen.",
+  ].join("\n"),
+  rawPayload: {
+    form_type: "6-K",
+    documents: [{ type: "6-K", description: "6-K", isPrimary: true, textCharCount: 1_000 }],
+  },
+});
+const sixKLeadershipOutline = sixKDirectBodyLeadershipPayload.router_digest.documents.find(
+  (document: Record<string, unknown>) => document.source_ref === "primary_filing",
+);
+assert.equal(
+  sixKLeadershipOutline?.title,
+  "Maziar Mike Doustdar appointed as president and chief executive officer of Novo Nordisk",
+);
+assert.match(String(sixKLeadershipOutline?.subtitle), /effective 7 August 2025/i);
 
 const sixKBinaryPayload = buildRouterPayload({
   sourceUniqueId: "0000000000-26-100006",

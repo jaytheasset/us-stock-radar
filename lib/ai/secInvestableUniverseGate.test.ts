@@ -143,6 +143,20 @@ assertKept("Form 425 transaction communication without resolved ticker", {
   llm_text: "Employee questions and answers regarding a pending merger transaction.",
 });
 
+assertKept("6-K security redemption without resolved ticker", {
+  form_type: "6-K",
+  title: "Atlas Corp. furnishes a redemption notice",
+  company_name: "Atlas Corp.",
+  llm_text: "The company will redeem listed notes and Series D and H preferred shares.",
+});
+
+assertKept("8-K material event without resolved ticker", {
+  form_type: "8-K",
+  title: "Example Corp. reports a material current event",
+  company_name: "Example Corp.",
+  llm_text: "The company entered into a material credit agreement.",
+});
+
 const skipAnalysis = buildSecInvestableUniverseSkipAnalysis(
   input({
     form_type: "SC TO-I",

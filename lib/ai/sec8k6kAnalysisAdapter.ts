@@ -259,7 +259,20 @@ export function applySec8k6kArchiveSafetyGate(
   const blockingWarnings = readStringArray(parserOutput.warnings).filter((warning) =>
     SEC_8K_6K_ARCHIVE_BLOCKING_SOURCE_WARNINGS.has(warning),
   );
-  if (!blockingWarnings.length) return routerResult;
+  const parserFacts = readRecord(parserOutput.facts);
+  const substantiveCueTypes = readRecordArray(parserFacts?.filingCues)
+    .map((cue) => stringValue(cue.cueType))
+    .filter((cueType) => cueType && !["routine_administrative_amendment", "uncategorized_text"].includes(cueType));
+  const primaryCandidate = readRecord(routerResult.primary_route_candidate);
+  const routerConfidence = stringValue(primaryCandidate?.confidence || routerResult.confidence).toLowerCase();
+  const lowConfidenceArchive = routerConfidence === "low";
+
+  const safetyReasons = [
+    ...blockingWarnings.map((warning) => `source_warning:${warning}`),
+    ...substantiveCueTypes.map((cueType) => `substantive_parser_cue:${cueType}`),
+    ...(lowConfidenceArchive ? ["low_confidence_router_archive"] : []),
+  ];
+  if (!safetyReasons.length) return routerResult;
 
   return {
     ...routerResult,
@@ -268,6 +281,7 @@ export function applySec8k6kArchiveSafetyGate(
     analysis_needed: true,
     archive_safety_blocked: true,
     archive_safety_warnings: blockingWarnings,
+    archive_safety_reasons: safetyReasons,
     router_score_normalized_by_integration: true,
   };
 }
@@ -500,6 +514,7 @@ export function buildSec8k6kValidationRepairPlan(input: {
         "For operating comparisons, the current and comparison values must use the same metric, unit, and period scope. A quarter, half year, year-to-date period, nine-month period, and full year are not interchangeable.",
         "Use only enum values from the existing analysis schema. In particular, operating_mode must be earnings or operating_update for performance output, and comparison_basis must be yoy, qoq, or other.",
         "For operating_nonfinancial_performance_misclassified_as_earnings, use exactly operating_update for analysis_output.event_type, the primary material event event_type, and display_payload.data.operating_mode; use Operating Snapshot for snapshot_title.",
+        "For operating_regulatory_event_type_mismatch, keep product_or_regulatory and the source-backed regulatory_stage unchanged, but use fda_clinical for analysis_output.event_type and the primary material event event_type when regulatory_stage is not not_applicable. Use product_update only when regulatory_stage is not_applicable.",
         "For operating_project_economics_section_missing, create one Project Economics detail section and move every project valuation, ownership, reserve/capacity, or long-term unit-economics fact out of snapshot_metrics and business_catalysts into that section. Preserve primary operating KPIs in the snapshot and do not duplicate moved facts.",
         "For operating_project_economics_fact_duplication, keep each duplicated project-economics fact only in Project Economics. Remove it from snapshot_metrics, business_catalysts, or another detail section while preserving unrelated primary operating facts.",
         "For operating_secondary_material_event_missing, move any separate governance, capital, legal, or transaction detail section into one compact secondary_updates item. Remove that moved section from detail_sections and preserve only details that directly support the primary operating event.",
@@ -1666,15 +1681,44 @@ function getSec8k6kOperatingRepairIssues(
   if (stringValue(displayPayload.display_type) !== "operating_event") return [];
   const data = readRecord(displayPayload.data) || {};
   const operatingMode = stringValue(data.operating_mode);
-  if (operatingMode !== "earnings" && operatingMode !== "operating_update") return [];
   const issues: Sec8k6kValidationRepairIssue[] = [];
+  const materialEvents = readRecordArray(analysisOutput.material_events);
+  const primaryMaterialEventIndex = materialEvents.findIndex((event) => stringValue(event.role) === "primary");
+  const primarySourceBlockIds = primaryMaterialEventSourceIds(analysisOutput);
+
+  if (operatingMode === "product_or_regulatory") {
+    const regulatoryStage = stringValue(data.regulatory_stage);
+    const expectedEventType = regulatoryStage && regulatoryStage !== "not_applicable"
+      ? "fda_clinical"
+      : "product_update";
+    const primaryEventType = primaryMaterialEventIndex >= 0
+      ? stringValue(materialEvents[primaryMaterialEventIndex].event_type)
+      : "";
+    if (
+      stringValue(analysisOutput.event_type) !== expectedEventType ||
+      primaryEventType !== expectedEventType
+    ) {
+      const allowedPatchPaths = ["/analysis_output/event_type"];
+      if (primaryMaterialEventIndex >= 0) {
+        allowedPatchPaths.push(`/analysis_output/material_events/${primaryMaterialEventIndex}/event_type`);
+      }
+      issues.push({
+        code: "operating_regulatory_event_type_mismatch",
+        warning: "The product/regulatory display and its source-backed regulatory stage conflict with the final event classification.",
+        field_paths: allowedPatchPaths,
+        allowed_patch_paths: allowedPatchPaths,
+        candidate_source_block_ids: primarySourceBlockIds,
+      });
+    }
+    return issues;
+  }
+
+  if (operatingMode !== "earnings" && operatingMode !== "operating_update") return issues;
   const comparisons = readRecordArray(data.performance_comparisons);
   const detailSections = readRecordArray(data.detail_sections);
   const snapshotMetrics = readRecordArray(data.snapshot_metrics);
   const businessCatalysts = readRecordArray(data.business_catalysts);
   const secondaryUpdates = readRecordArray(data.secondary_updates);
-  const materialEvents = readRecordArray(analysisOutput.material_events);
-  const primarySourceBlockIds = primaryMaterialEventSourceIds(analysisOutput);
   const performanceAndOutlookText = [
     ...snapshotMetrics.map((row) => `${stringValue(row.label)} ${stringValue(row.value)} ${stringValue(row.note)}`),
     ...comparisons.map(
@@ -1695,7 +1739,6 @@ function getSec8k6kOperatingRepairIssues(
     operatingMode === "earnings" && hasOperatingPerformance && !hasFinancialPerformance;
 
   if (shouldBeOperatingUpdate) {
-    const primaryMaterialEventIndex = materialEvents.findIndex((event) => stringValue(event.role) === "primary");
     const allowedPatchPaths = [
       "/analysis_output/event_type",
       "/display_payload/data/operating_mode",
