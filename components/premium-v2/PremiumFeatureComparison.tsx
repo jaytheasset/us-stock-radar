@@ -114,8 +114,10 @@ export function PremiumFeatureComparison() {
 
       <div className={styles.mobileComparison}>
         {premiumV2ComparisonRows.map((row) => (
-          <article className={row.emphasized ? styles.comparisonRowEmphasized : undefined} key={row.feature}>
-            <h3>{row.feature}</h3>
+          <details className={row.emphasized ? styles.comparisonRowEmphasized : undefined} key={row.feature}>
+            <summary>
+              <span>{row.feature}</span>
+            </summary>
             <dl>
               {premiumV2PlanOrder.map((planKey) => {
                 const value = row.values[planKey];
@@ -145,7 +147,7 @@ export function PremiumFeatureComparison() {
                 );
               })}
             </dl>
-          </article>
+          </details>
         ))}
       </div>
     </section>

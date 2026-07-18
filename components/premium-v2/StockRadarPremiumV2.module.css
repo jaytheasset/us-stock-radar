@@ -39,7 +39,7 @@
 .heroCopy p,
 .planCard h3,
 .planDescription,
-.mobileComparison h3,
+.mobileComparison summary span,
 .faqGrid p,
 .finalCta h2,
 .finalCta p {
@@ -237,6 +237,7 @@
 
 .primaryButton:focus-visible,
 .secondaryButton:focus-visible,
+.mobileComparison summary:focus-visible,
 .faqGrid summary:focus-visible {
   outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
   outline-offset: var(--sr-focus-ring-offset);
@@ -1079,7 +1080,7 @@
     gap: var(--sr-space-2);
   }
 
-  .mobileComparison article {
+  .mobileComparison details {
     min-width: 0;
     overflow: hidden;
     border: var(--sr-border-width) solid var(--sr-color-border);
@@ -1087,11 +1088,37 @@
     background: var(--sr-color-surface-table-panel);
   }
 
-  .mobileComparison h3 {
+  .mobileComparison summary {
+    display: flex;
+    min-height: var(--sr-size-control-lg);
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sr-space-3);
     border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
     padding: var(--sr-space-2-5) var(--sr-space-3);
     color: var(--sr-color-text-strong);
     background: var(--sr-color-surface-table-header-start);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .mobileComparison summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .mobileComparison summary::after {
+    flex: 0 0 auto;
+    color: var(--sr-color-text-meta);
+    font-size: var(--sr-font-size-xs);
+    font-weight: var(--sr-font-weight-label);
+    content: "+";
+  }
+
+  .mobileComparison details[open] summary::after {
+    content: "−";
+  }
+
+  .mobileComparison summary span {
     font-size: var(--sr-font-size-md);
     font-weight: var(--sr-font-weight-strong);
     line-height: var(--sr-line-height-body);
@@ -1109,7 +1136,7 @@
     padding: var(--sr-space-2) var(--sr-space-3);
   }
 
-  .mobileComparison article.comparisonRowEmphasized dl > div {
+  .mobileComparison details.comparisonRowEmphasized dl > div {
     padding-top: var(--sr-space-5);
     padding-bottom: var(--sr-space-5);
   }
@@ -1152,7 +1179,7 @@
 
 @media (max-width: 760px) {
   .root {
-    padding: var(--sr-space-4) var(--sr-page-gutter-mobile) var(--sr-space-6);
+    padding: var(--sr-space-5) var(--sr-page-gutter-mobile) var(--sr-space-7);
   }
 
   .workspace {
@@ -1204,9 +1231,9 @@
 
   .heroSection {
     grid-template-columns: 1fr;
-    gap: var(--sr-space-3);
-    margin-top: var(--sr-space-4);
-    padding-bottom: var(--sr-space-4);
+    gap: var(--sr-space-5);
+    margin-top: var(--sr-space-5);
+    padding-bottom: var(--sr-space-5);
   }
 
   .heroCopy {
@@ -1245,7 +1272,7 @@
   .comparisonSection,
   .faqSection,
   .finalCta {
-    margin-top: var(--sr-space-5);
+    margin-top: var(--sr-space-7);
   }
 
   .sectionHeading {
@@ -1267,6 +1294,26 @@
   .mobileComparison,
   .faqGrid {
     grid-template-columns: 1fr;
+    gap: var(--sr-space-4);
+  }
+
+  .planCard,
+  .coverageGroup {
+    padding: var(--sr-space-5);
+  }
+
+  .benefitList {
+    gap: var(--sr-space-4-5);
+    margin: var(--sr-space-5) 0;
+  }
+
+  .mobileComparison dl > div {
+    padding: var(--sr-space-4);
+  }
+
+  .mobileComparison details.comparisonRowEmphasized dl > div {
+    padding-top: var(--sr-space-7);
+    padding-bottom: var(--sr-space-7);
   }
 
   .planDescription {
@@ -1292,7 +1339,7 @@
 
   .finalCta {
     display: grid;
-    padding: var(--sr-space-4);
+    padding: var(--sr-space-5);
   }
 
   .finalCta .actionRow {
