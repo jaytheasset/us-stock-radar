@@ -5,6 +5,7 @@ import {
 } from "@/lib/sources/sec/forms/common/forms";
 import { SEC_FORM_FETCH_PLANS } from "@/lib/sources/sec/forms/fetchPlanRegistry";
 import { SEC_FORM_WORKERS, canonicalSecFormType } from "@/lib/sources/sec/forms/formWorkerRegistry";
+import { SEC_SPECIALIZED_DISPLAY_CONTRACTS } from "@/lib/sources/sec/forms/specializedDisplayContracts";
 
 export type SecFormReleaseGateCheck = {
   id: string;
@@ -97,6 +98,9 @@ export function buildSecFormRoutingReleaseGate() {
     );
     return formCount * group.countPerForm > 50;
   });
+  const specializedDisplayTypes = SEC_SPECIALIZED_DISPLAY_CONTRACTS.map((item) => item.displayType);
+  const specializedDisplayRooms = SEC_SPECIALIZED_DISPLAY_CONTRACTS.map((item) => item.room);
+  const specializedDisplayRenderers = SEC_SPECIALIZED_DISPLAY_CONTRACTS.map((item) => item.renderer);
   const globalChecks = [
     check(
       "room_count",
@@ -130,6 +134,33 @@ export function buildSecFormRoutingReleaseGate() {
         ? `Groups exceed the 50-item ingest limit: ${oversizedIngestGroups.map((group) => group.id).join(", ")}.`
         : "Every production ingest group fits within the 50-item request limit.",
     ),
+    check(
+      "specialized_display_contract_count",
+      SEC_SPECIALIZED_DISPLAY_CONTRACTS.length === 8,
+      `Expected 8 specialized SEC display contracts; found ${SEC_SPECIALIZED_DISPLAY_CONTRACTS.length}.`,
+    ),
+    check(
+      "specialized_display_types_unique",
+      new Set(specializedDisplayTypes).size === specializedDisplayTypes.length,
+      `Specialized display contracts contain ${specializedDisplayTypes.length - new Set(specializedDisplayTypes).size} duplicate display types.`,
+    ),
+    check(
+      "specialized_display_rooms_registered",
+      specializedDisplayRooms.every((slug) => manifestRooms.includes(slug)),
+      specializedDisplayRooms.every((slug) => manifestRooms.includes(slug))
+        ? "Every specialized display contract belongs to a registered SEC room."
+        : `Unknown specialized display room(s): ${specializedDisplayRooms.filter((slug) => !manifestRooms.includes(slug)).join(", ")}.`,
+    ),
+    check(
+      "specialized_display_renderers_unique",
+      new Set(specializedDisplayRenderers).size === specializedDisplayRenderers.length,
+      `Specialized display contracts contain ${specializedDisplayRenderers.length - new Set(specializedDisplayRenderers).size} duplicate renderer assignments.`,
+    ),
+    check(
+      "specialized_display_versions_declared",
+      SEC_SPECIALIZED_DISPLAY_CONTRACTS.every((item) => item.displayVersion && item.versionPath),
+      "Every specialized display contract declares a version and its payload path.",
+    ),
   ];
   const checks = [...globalChecks, ...roomResults.flatMap((room) => room.checks)];
 
@@ -145,6 +176,7 @@ export function buildSecFormRoutingReleaseGate() {
     },
     checks: globalChecks,
     rooms: roomResults,
+    specializedDisplayContracts: SEC_SPECIALIZED_DISPLAY_CONTRACTS,
     productionSchedule: SEC_PRODUCTION_INGEST_SCHEDULE,
   };
 }

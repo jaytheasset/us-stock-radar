@@ -33,6 +33,14 @@ try {
               ok: room.ok,
             }))
           : [],
+        specializedDisplayContracts: Array.isArray(result.specializedDisplayContracts)
+          ? result.specializedDisplayContracts.map((contract) => ({
+              room: contract.room,
+              displayType: contract.displayType,
+              displayVersion: contract.displayVersion,
+              renderer: contract.renderer,
+            }))
+          : [],
         productionSchedule: result.productionSchedule,
       };
   console.log(JSON.stringify(output, null, 2));

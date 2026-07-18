@@ -30,6 +30,7 @@ import {
   normalizePeriodicChartNumber,
   normalizePeriodicComparisonBasis,
 } from "@/lib/sources/sec/forms/periodic-reports/uiNormalization";
+import { matchesSecSpecializedDisplayContract } from "@/lib/sources/sec/forms/specializedDisplayContracts";
 import {
   CURRENT_SHARES_MARKET_CONTEXT_NOTE,
   DILUTION_MARKET_DATA_DISCLAIMER,
@@ -2445,7 +2446,7 @@ async function resolveFilingEvent(id: string): Promise<FilingEvent> {
     redirect(`/filings/archive/${item.id}`);
   }
 
-  return buildDbFilingEvent(item, commonFilingEvents["tsla-8k-operational-update"]);
+  return buildDbFilingEvent(item);
 }
 
 async function hydrateFallbackFilingPriceSeries(filing: FilingEvent): Promise<FilingEvent> {
@@ -2495,7 +2496,8 @@ async function shouldUseCompactArchiveFilingPage(eventId: string) {
   return !readRowString(metadata, "openai_response_id");
 }
 
-async function buildDbFilingEvent(item: LiveFeedItem, fallback: FilingEvent): Promise<FilingEvent> {
+async function buildDbFilingEvent(item: LiveFeedItem): Promise<FilingEvent> {
+  const fallback = createEmptyDbFilingEvent();
   const ticker = item.ticker.trim().toUpperCase();
   const canLoadTickerContext = isRealTicker(ticker);
   const [eventResult, analysisResult, relatedNewsResult, recentFilingsResult, offeringTermsResult] = await Promise.all([
@@ -2651,6 +2653,50 @@ async function buildDbFilingEvent(item: LiveFeedItem, fallback: FilingEvent): Pr
     listingStatusSnapshot: normalizeListingStatusSnapshot(
       analysisMetadata?.listing_status_snapshot ?? metadata?.listing_status_snapshot,
     ),
+  };
+}
+
+function createEmptyDbFilingEvent(): FilingEvent {
+  return {
+    id: "",
+    ticker: "N/A",
+    exchange: "",
+    company: "Issuer not disclosed",
+    title: "SEC filing",
+    formType: "SEC",
+    filedAt: "",
+    source: "SEC EDGAR",
+    sourceUrl: "https://www.sec.gov/edgar/search/",
+    eventType: "other",
+    impact: "low",
+    deliveryLevel: "archive",
+    score: 0,
+    scoreExplanation: null,
+    signal: "neutral",
+    price: "N/A",
+    changeAmount: "$0.00",
+    change: "+0.00%",
+    filingBrief: "SEC filing disclosure",
+    filingFocus: "SEC filing disclosure",
+    whyItMatters: "",
+    bullishPoints: [],
+    bearishPoints: [],
+    summary: "",
+    keyEvidence: [],
+    watchNext: [],
+    recentFilings: [],
+    relatedNews: [],
+    context: null,
+    priceSeries: emptyFilingPriceSeries(),
+    originalTextNote: "Original SEC filing text has not been parsed for this event yet.",
+    originalHtml: "",
+    offeringDisplayModel: null,
+    offeringMarketContext: null,
+    offeringDilutionMetrics: null,
+    offeringTerms: null,
+    s3Case: null,
+    displayPayload: null,
+    listingStatusSnapshot: [],
   };
 }
 
@@ -7191,7 +7237,7 @@ function buildForm25ListingStatusModel(filing: FilingEvent): Form25ListingStatus
     formType === "25-NSE/A" ||
     formType === "FORM 25" ||
     formType === "FORM 25-NSE";
-  if (displayType !== "sec_form25_listing_removal" && !isForm25) return null;
+  if (!matchesSecSpecializedDisplayContract(displayType, "form25_listing_status") && !isForm25) return null;
 
   const data = readDisplayPayloadData(displayPayload);
   const issuerName =
@@ -7363,7 +7409,7 @@ function buildListingRiskModel(filing: FilingEvent): ListingRiskModel | null {
 
 function buildPeriodicAmendmentModel(filing: FilingEvent): PeriodicAmendmentModel | null {
   const displayPayload = readPlainRecord(filing.displayPayload);
-  if (readRowString(displayPayload, "display_type") !== "periodic_amendment") return null;
+  if (!matchesSecSpecializedDisplayContract(readRowString(displayPayload, "display_type"), "periodic_amendment")) return null;
 
   const data = readDisplayPayloadData(displayPayload);
   const snapshotMetrics = recordArray(data.snapshot_metrics)
@@ -7415,7 +7461,7 @@ function buildNtLateFilingModel(filing: FilingEvent): NtLateFilingModel | null {
   const displayPayload = readPlainRecord(filing.displayPayload);
   const displayType = readRowString(displayPayload, "display_type");
   const displayVersion = readRowString(displayPayload, "display_version");
-  if (displayType !== "nt_late_filing" && displayVersion !== "nt_late_filing_v1") return null;
+  if (!matchesSecSpecializedDisplayContract(displayType, "nt_late_filing") && displayVersion !== "nt_late_filing_v1") return null;
 
   const data = readDisplayPayloadData(displayPayload);
   const delayedReport = cleanNtSnapshotText(
@@ -7548,7 +7594,7 @@ function isNtPlaceholder(value: string) {
 
 function buildPeriodicReportModel(filing: FilingEvent): PeriodicReportModel | null {
   const displayPayload = readPlainRecord(filing.displayPayload);
-  if (readRowString(displayPayload, "display_type") !== "periodic_report") return null;
+  if (!matchesSecSpecializedDisplayContract(readRowString(displayPayload, "display_type"), "periodic_report")) return null;
 
   const data = readDisplayPayloadData(displayPayload);
   const snapshotMetrics = recordArray(data.snapshot_metrics)
@@ -15814,7 +15860,7 @@ function isForm25ListingStandardsReason(value: string) {
 
 function buildCapitalFinancingModel(filing: FilingEvent): CapitalFinancingModel | null {
   const displayPayload = readPlainRecord(filing.displayPayload);
-  if (readRowString(displayPayload, "display_type") !== "capital_financing") return null;
+  if (!matchesSecSpecializedDisplayContract(readRowString(displayPayload, "display_type"), "capital_financing")) return null;
 
   const data = readDisplayPayloadData(displayPayload);
   const mode = normalizeCapitalFinancingMode(readRowString(data, "capital_mode"));
@@ -15872,7 +15918,7 @@ function riskStatusChipLabel(filing: FilingEvent) {
 function buildStrategicTransactionModel(filing: FilingEvent): StrategicTransactionModel | null {
   if (filing.eventType !== "strategic_transaction") return null;
   const displayPayload = readPlainRecord(filing.displayPayload);
-  if (readRowString(displayPayload, "display_type") !== "strategic_transaction") return null;
+  if (!matchesSecSpecializedDisplayContract(readRowString(displayPayload, "display_type"), "strategic_transaction")) return null;
 
   const snapshot = normalizeCapitalFinancingRows(readDisplayPayloadData(displayPayload).snapshot_metrics, 4);
   return snapshot.length >= 2 ? { snapshot } : null;
@@ -15880,7 +15926,7 @@ function buildStrategicTransactionModel(filing: FilingEvent): StrategicTransacti
 
 function buildGovernanceEventModel(filing: FilingEvent): GovernanceEventModel | null {
   const displayPayload = readPlainRecord(filing.displayPayload);
-  if (readRowString(displayPayload, "display_type") !== "governance_event") return null;
+  if (!matchesSecSpecializedDisplayContract(readRowString(displayPayload, "display_type"), "governance_event")) return null;
 
   const data = readDisplayPayloadData(displayPayload);
   const mode = normalizeGovernanceEventMode(readRowString(data, "governance_mode"));
@@ -15921,7 +15967,7 @@ function normalizeGovernanceEventMode(value: string): GovernanceEventMode | null
 
 function buildOperatingEventModel(filing: FilingEvent): OperatingEventModel | null {
   const displayPayload = readPlainRecord(filing.displayPayload);
-  if (readRowString(displayPayload, "display_type") !== "operating_event") return null;
+  if (!matchesSecSpecializedDisplayContract(readRowString(displayPayload, "display_type"), "operating_event")) return null;
 
   const data = readDisplayPayloadData(displayPayload);
   const mode = normalizeOperatingEventMode(readRowString(data, "operating_mode"));
