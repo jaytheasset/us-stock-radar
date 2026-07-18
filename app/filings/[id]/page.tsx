@@ -12325,6 +12325,7 @@ function readWarrantInstrumentRows(model: Record<string, unknown> | null) {
   }
 
   return groups
+    .filter((group) => !isPlainEquityInstrumentGroupType(group.type))
     .map((group) => ({
       type: shortWarrantTypeLabel(group.type),
       sharesSecurities: compactInstrumentSharesValue(group.rows.get("Shares / Securities") || group.rows.get("Underlying Shares") || ""),
@@ -12341,6 +12342,16 @@ function readWarrantInstrumentRows(model: Record<string, unknown> | null) {
     }))
     .filter((row) => row.type && (row.sharesSecurities || row.exerciseConversionPrice || row.resetFloor || row.termLimits))
     .slice(0, 7);
+}
+
+function isPlainEquityInstrumentGroupType(value: string) {
+  const normalized = value
+    .replace(/[()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return /^(?:(?:class|series)\s+[a-z0-9-]+\s+)?(?:common stock|common shares?|ordinary shares?|ads|adss|american depositary shares?)$/i.test(
+    normalized,
+  );
 }
 
 function readDisplayInstrumentPriceGroups(model: Record<string, unknown> | null): Array<{ type: string; price: string; shares?: string }> {

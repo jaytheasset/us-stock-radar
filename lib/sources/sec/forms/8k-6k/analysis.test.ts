@@ -1817,6 +1817,33 @@ assert.equal(normalizedCapitalRatioOverhang.status_value, "109.9%");
 assert.equal(normalizedCapitalRatioOverhang.ratio_value, "109.9%");
 assert.equal((normalizedCapitalRatioOverhang.total_note as Record<string, unknown>).ratio, "109.9%");
 
+const normalizedPlainEquityInstrumentDisplay = normalizeSec8k6kCapitalDisplayPayloadForPersistence({
+  display_type: "capital_financing",
+  data: {
+    capital_mode: "equity_issuance",
+    snapshot_metrics: [{ label: "Offering Size", value: "10,156,000 ADSs", note: null }],
+    share_overhang: null,
+    instrument_details: [
+      { label: "Type", value: "Ordinary Shares", note: null },
+      { label: "Shares / Securities", value: "10,156,000", note: null },
+      { label: "Exercise / Conversion Price", value: "-", note: null },
+      { label: "Reset / Floor", value: "-", note: null },
+      { label: "Term / Limits", value: "-", note: null },
+      { label: "Type", value: "Common warrant", note: null },
+      { label: "Shares / Securities", value: "2,000,000 shares", note: null },
+      { label: "Exercise / Conversion Price", value: "$5.00", note: null },
+    ],
+    offering_details: [],
+  },
+});
+assert.deepEqual(
+  (
+    (normalizedPlainEquityInstrumentDisplay.data as Record<string, unknown>)
+      .instrument_details as Array<Record<string, unknown>>
+  ).map((row) => row.value),
+  ["Common warrant", "2,000,000 shares", "$5.00"],
+);
+
 const longAgreementText = "WARRANT AGREEMENT\n" + "Long agreement provision. ".repeat(1_500);
 const priorityPressReleaseText = [
   "SHATTUCK LABS ANNOUNCES PRIVATE PLACEMENT",
@@ -2275,6 +2302,32 @@ const missingCapitalInventoryWarnings = getSec8k6kCapitalSecurityCoverageWarning
   ],
 );
 assert.ok(missingCapitalInventoryWarnings.some((warning) => warning.includes("Series B warrant")));
+const plainEquityCapitalInventoryWarnings = getSec8k6kCapitalSecurityCoverageWarnings(
+  {
+    display_type: "capital_financing",
+    data: {
+      capital_mode: "equity_issuance",
+      instrument_details: [],
+      share_overhang: {
+        basis: { numeric_value: 73_432_835 },
+        rows: [{ row_role: "counted", numeric_value: 10_156_000 }],
+        total_note: { numerator: "10,156,000", denominator: "73,432,835", ratio: "13.8%" },
+        status_value: "13.8%",
+      },
+    },
+  },
+  [
+    {
+      security_name: "Ordinary Shares",
+      display_target: "instrument_details",
+      instrument_details_type: "Ordinary Shares",
+    },
+  ],
+);
+assert.equal(
+  plainEquityCapitalInventoryWarnings.some((warning) => warning.includes("Instrument Details")),
+  false,
+);
 const inconsistentCapitalShareOverhangWarnings = getSec8k6kCapitalSecurityCoverageWarnings(
   {
     display_type: "capital_financing",

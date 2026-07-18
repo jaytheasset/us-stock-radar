@@ -1008,13 +1008,22 @@ function isReverseSplitCapitalDisplay(displayPayload: Record<string, unknown>) {
 
 function normalizeSecurityInventory(value: unknown) {
   return readRecordArray(value)
-    .map((item) => ({
-      security_name: stringValue(item.security_name),
-      security_role: stringValue(item.security_role),
-      display_target: stringValue(item.display_target),
-      source_block_id: stringValue(item.source_block_id),
-      instrument_details_type: nullableString(item.instrument_details_type),
-    }))
+    .map((item) => {
+      const securityName = stringValue(item.security_name);
+      const instrumentDetailsType = nullableString(item.instrument_details_type);
+      const plainEquity = isPlainEquityInstrumentType(instrumentDetailsType || securityName);
+
+      return {
+        security_name: securityName,
+        security_role: stringValue(item.security_role),
+        display_target:
+          plainEquity && stringValue(item.display_target) === "instrument_details"
+            ? "share_overhang"
+            : stringValue(item.display_target),
+        source_block_id: stringValue(item.source_block_id),
+        instrument_details_type: plainEquity ? null : instrumentDetailsType,
+      };
+    })
     .filter((item) => item.security_name);
 }
 
@@ -1023,9 +1032,14 @@ export function normalizeSec8k6kCapitalDisplayPayloadForPersistence(displayPaylo
 
   const originalData = readRecord(displayPayload.data) || {};
   const normalizedShareOverhang = normalizeCapitalShareOverhangRatio(readRecord(originalData.share_overhang));
-  const data = normalizedShareOverhang
+  let data = normalizedShareOverhang
     ? { ...originalData, share_overhang: normalizedShareOverhang }
     : originalData;
+  const originalInstrumentDetails = readRecordArray(data.instrument_details);
+  const instrumentDetailsWithoutPlainEquity = removePlainEquityInstrumentDetailGroups(originalInstrumentDetails);
+  if (instrumentDetailsWithoutPlainEquity.length !== originalInstrumentDetails.length) {
+    data = { ...data, instrument_details: instrumentDetailsWithoutPlainEquity };
+  }
   const shareOverhang = readRecord(data.share_overhang);
   const countedSupply = readRecordArray(shareOverhang?.rows)
     .filter((row) => stringValue(row.row_role || row.rowRole) === "counted")
@@ -1062,6 +1076,30 @@ export function normalizeSec8k6kCapitalDisplayPayloadForPersistence(displayPaylo
       share_overhang: hasCalculableSupply ? shareOverhang : null,
     },
   };
+}
+
+function removePlainEquityInstrumentDetailGroups(rows: Array<Record<string, unknown>>) {
+  const filtered: Array<Record<string, unknown>> = [];
+  let omitCurrentGroup = false;
+
+  for (const row of rows) {
+    if (stringValue(row.label) === "Type") {
+      omitCurrentGroup = isPlainEquityInstrumentType(stringValue(row.value));
+    }
+    if (!omitCurrentGroup) filtered.push(row);
+  }
+
+  return filtered;
+}
+
+function isPlainEquityInstrumentType(value: string) {
+  const normalized = value
+    .replace(/[()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return /^(?:(?:class|series)\s+[a-z0-9-]+\s+)?(?:common stock|common shares?|ordinary shares?|ads|adss|american depositary shares?)$/i.test(
+    normalized,
+  );
 }
 
 function normalizeCapitalShareOverhangRatio(shareOverhang: Record<string, unknown> | null) {
@@ -1121,6 +1159,13 @@ export function getSec8k6kCapitalSecurityCoverageWarnings(
 
   for (const item of securityInventory) {
     if (stringValue(item.display_target) !== "instrument_details") continue;
+    if (
+      isPlainEquityInstrumentType(
+        stringValue(item.instrument_details_type) || stringValue(item.security_name),
+      )
+    ) {
+      continue;
+    }
     const expectedType = normalizeSecurityCoverageValue(stringValue(item.instrument_details_type));
     if (!expectedType) {
       warnings.push(`Security inventory row ${stringValue(item.security_name)} targets Instrument Details without instrument_details_type.`);
