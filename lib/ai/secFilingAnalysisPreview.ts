@@ -1252,7 +1252,7 @@ export async function runSecFilingAnalysisForRawRow(
       sec425Analysis.analysis.sec_425_validation_warnings,
     );
     const sec425RepairWarnings = sec425ValidationWarnings.filter((warning) =>
-      /(?:key_evidence|current_changes)/i.test(warning),
+      /(?:key_evidence|current_changes|snapshot)/i.test(warning),
     );
     const validationRepairPrompt = sec425RepairWarnings.length > 0
       ? buildSec425ValidationRepairPrompt(prompt, analysisRun.parsed, sec425RepairWarnings)
@@ -3144,6 +3144,7 @@ function buildSec425ValidationRepairPrompt(
       "current_changes must list up to 4 explicit actions, decisions, status changes, changed dates, or changed binding terms announced by this filing, each citing an exact supplied source_block_id.",
       "Collapse one decision and its supporting rationale into one current change. A best-interests conclusion is not separate from the board position it explains.",
       "Snapshot and Summary must collectively state every current change before unchanged transaction background.",
+      "When a snapshot warning is present, return exactly 4 useful source-backed snapshot items with event-specific labels. Never use missing-value placeholders or parser-generated fragments.",
       "Return no more than 3 Key Evidence items. Each must cover a different objective decision, changed term, amount, deadline, approval, vote result, or condition.",
       "Map Key Evidence one-to-one to different current_changes items and use at most one evidence sentence per current change.",
       "A rationale or best-interests conclusion for the same board decision is not a separate evidence item. Preserve a distinct competing-offer rejection or other separate current change when supported.",
@@ -3187,6 +3188,7 @@ function buildSec425ValidationRepairPrompt(
             current_changes: {
               type: "array",
               maxItems: 4,
+              description: "Return only distinct current-filing changes. Never return more than four items.",
               items: {
                 type: "object",
                 additionalProperties: false,
@@ -3205,6 +3207,7 @@ function buildSec425ValidationRepairPrompt(
             snapshot_items: {
               type: "array",
               maxItems: 4,
+              description: "Return exactly four useful source-backed snapshot items. Never return more than four items.",
               items: {
                 type: "object",
                 additionalProperties: false,
@@ -3219,6 +3222,7 @@ function buildSec425ValidationRepairPrompt(
             key_evidence: {
               type: "array",
               maxItems: 3,
+              description: "Return only the strongest distinct evidence. Never return more than three items.",
               items: {
                 type: "object",
                 additionalProperties: false,
@@ -3251,6 +3255,7 @@ function applySec425ValidationRepair(
   const analysisOutput = readRecord(analysisResult.analysis_output) || {};
   const repairCurrentChanges = validationWarnings.some((warning) => /current_changes/i.test(warning));
   const repairKeyEvidence = validationWarnings.some((warning) => /key_evidence/i.test(warning));
+  const repairSnapshot = validationWarnings.some((warning) => /snapshot/i.test(warning));
   return {
     ...analysisResult,
     analysis_output: {
@@ -3271,6 +3276,13 @@ function applySec425ValidationRepair(
               .filter(Boolean),
           }
         : {}),
+      ...(repairSnapshot
+        ? {
+            snapshot_title: stringValue(repairResult.snapshot_title),
+            snapshot_summary: stringValue(repairResult.snapshot_summary),
+            snapshot_items: readRecordArray(repairResult.snapshot_items),
+          }
+        : {}),
     },
   };
 }
@@ -3282,6 +3294,9 @@ function buildSec425RepairIssueCodes(validationWarnings: string[]) {
   }
   if (validationWarnings.some((warning) => /key_evidence/i.test(warning))) {
     codes.push("key_evidence_quality");
+  }
+  if (validationWarnings.some((warning) => /snapshot/i.test(warning))) {
+    codes.push("snapshot_quality");
   }
   return codes;
 }

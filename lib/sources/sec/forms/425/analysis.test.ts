@@ -115,7 +115,7 @@ const analysisPrompt = buildSec425AnalysisPromptDraft({
 });
 
 assert.equal(analysisPrompt.key, "sec_425_analysis_draft");
-assert.equal(analysisPrompt.version, "v8");
+assert.equal(analysisPrompt.version, "v9");
 assert.deepEqual(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.event_type.enum, SEC_425_APPROVED_EVENT_TYPES);
 assert.ok(SEC_425_APPROVED_EVENT_TYPES.includes("ipo_listing"));
 assert.ok(analysisPrompt.system.includes("Required Output JSON shape"));
@@ -140,6 +140,7 @@ assert.ok(analysisPrompt.system.includes("targeting 18-32 words"));
 assert.ok(analysisPrompt.system.includes("Do not begin with 'The score'"));
 assert.ok(analysisPrompt.system.includes("Copy analysis_output.event_type exactly from router_result.event_type"));
 assert.ok(analysisPrompt.system.includes("Do not use parser-generated display payload fields as evidence"));
+assert.ok(analysisPrompt.system.includes("spac_transaction_status or candidate_special"));
 assert.ok(analysisPrompt.system.includes("write exactly 4 snapshot_items"));
 assert.ok(analysisPrompt.system.includes("Never output Not disclosed"));
 assert.ok(analysisPrompt.system.includes("For ipo_listing cases"));
@@ -174,6 +175,7 @@ assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.prope
 assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.score_reason.maxLength, 180);
 assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.what_to_watch_next.items.maxLength, 72);
 assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.snapshot_items.maxItems, 4);
+assert.ok(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.snapshot_items.description.includes("Never return more than four items"));
 assert.equal(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.current_changes.maxItems, 4);
 
 const validationFixture = JSON.parse(JSON.stringify(routineResult)) as Sec425RoomResult;
@@ -198,6 +200,21 @@ const qualityWarnings = validateSec425RoomResult(validationFixture);
 assert.ok(qualityWarnings.some((warning) => /current_changes not reflected/i.test(warning)));
 assert.ok(qualityWarnings.some((warning) => /duplicate decision topics/i.test(warning)));
 assert.ok(qualityWarnings.some((warning) => /promotional or non-verifiable claims/i.test(warning)));
+
+const candidateSnapshotFixture = JSON.parse(JSON.stringify(validationFixture)) as Sec425RoomResult;
+candidateSnapshotFixture.display_payload.display_type = "candidate_special";
+candidateSnapshotFixture.analysis_output.snapshot_title = "Transaction Status";
+candidateSnapshotFixture.analysis_output.snapshot_summary = "The filing reports a source-backed transaction status update.";
+candidateSnapshotFixture.analysis_output.snapshot_items = [
+  { label: "Approval", value: "Final approval received", note: "No remaining regulatory approvals" },
+  { label: "Current Status", value: "Closing pending", note: "Transaction remains subject to closing" },
+  { label: "Expected Close", value: "Mid-June 2026", note: "Company estimate" },
+  { label: "Tender Support", value: "16%", note: "Unsupported shares tendered" },
+];
+const validCandidateSnapshotWarnings = validateSec425RoomResult(candidateSnapshotFixture);
+assert.equal(validCandidateSnapshotWarnings.some((warning) => /candidate_special requires/i.test(warning)), false);
+candidateSnapshotFixture.analysis_output.snapshot_items.pop();
+assert.ok(validateSec425RoomResult(candidateSnapshotFixture).some((warning) => /candidate_special requires exactly 4/i.test(warning)));
 
 const amendmentParserOutput = parseSec425Filing({
   title: "425 - merger amendment notice",

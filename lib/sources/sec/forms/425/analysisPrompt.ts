@@ -26,7 +26,7 @@ import { buildSec425DisplayPayload } from "./displayPayload";
 import { buildSecSourceBlockPromptInput } from "../common/sourceBlockPromptInput";
 
 export const SEC_425_ANALYSIS_PROMPT_KEY = "sec_425_analysis_draft";
-export const SEC_425_ANALYSIS_PROMPT_VERSION = "v8";
+export const SEC_425_ANALYSIS_PROMPT_VERSION = "v9";
 
 export const SEC_425_ANALYSIS_CASE_VALUES = [
   "strategic_transaction_terms",
@@ -108,12 +108,12 @@ export const sec425AnalysisSystemPrompt = [
   "Do not format score_reason as sections, bullets, labels, or an internal scoring review. Do not begin with 'The score' and do not mention the score, score level, impact band, delivery level, form type, filing mechanics, or SEC form labels.",
   "Write no more than 3 key_evidence items. Usually select 2 or 3 of the strongest non-repetitive original-source facts, but use 1 when the filing supports only one distinct material fact. Map each item to a different current_changes item and use at most one evidence sentence per current change. A rationale or best-interests conclusion for the same board decision is not a separate evidence item. Each item must cover a different objective decision, changed term, amount, deadline, approval, vote result, or transaction condition. Exclude slogans, aspirations, expected benefits, and promotional claims. Keep each item under 28 words and 180 characters, and do not restate the full summary.",
   "Write no more than 3 what_to_watch_next items. Keep each item under 72 characters and name a concrete transaction milestone, decision, deadline, or changed condition supported by the filing context.",
-  "When router_result.display_type is spac_transaction_status, write exactly 4 snapshot_items. Choose concise labels that fit this filing's actual event; do not force fixed labels such as Vote Date, Target / Ticker, or Closing / Listing.",
+  "When router_result.display_type is spac_transaction_status or candidate_special, write exactly 4 snapshot_items. Choose concise labels that fit this filing's actual event; do not force fixed labels such as Vote Date, Target / Ticker, Consideration, Key Condition, or Closing / Listing.",
   "Every snapshot item must be directly supported by the original cleaned_source_blocks. Never use parser facts, extracted values, keyword snippets, or UI defaults to fill a snapshot item.",
   "Never output Not disclosed, Not available, Unknown, N/A, placeholder ticker text, or an inferred date in snapshot_items. If one fact is unavailable, choose another material disclosed fact so the snapshot still contains 4 useful items.",
   "For dates, identify the date's exact role from the source, such as original meeting, adjourned meeting, reconvened meeting, record date, vote deadline, or expected closing. Do not merge different dates or treat an intermediate adjournment date as the final reconvened date.",
   "Keep snapshot_title under 40 characters, snapshot_summary to one sentence under 35 words, each snapshot label under 28 characters, each value under 80 characters, and each optional note under 100 characters.",
-  "When router_result.display_type is not spac_transaction_status, return empty snapshot_title, snapshot_summary, and snapshot_items.",
+  "When router_result.display_type is generic, return empty snapshot_title, snapshot_summary, and snapshot_items.",
   "For archive-score communications, keep bullish_points, bearish_points, key_evidence, and what_to_watch_next empty. Use one concise summary sentence describing the communication and whether it changed the transaction.",
   "Analysis is responsible for investor-facing copy: event_title, score_reason, signal, quick_take, summary, why_it_matters, points, evidence, watch items, confidence, and human-review flag.",
 ].join("\n");
@@ -220,6 +220,7 @@ export const sec425RequiredOutputResponseSchema = {
         snapshot_items: {
           type: "array",
           maxItems: 4,
+          description: "Return exactly four source-backed items for candidate_special or spac_transaction_status. Never return more than four items.",
           items: {
             type: "object",
             additionalProperties: false,
@@ -589,18 +590,25 @@ export function validateSec425RoomResult(result: Sec425RoomResult): string[] {
   if (analysis.what_to_watch_next.some((item) => item.length > 72)) {
     errors.push("analysis_output.what_to_watch_next items must be under 72 characters");
   }
-  if (result.display_payload.display_type === "spac_transaction_status") {
+  const specialSnapshotDisplay =
+    result.display_payload.display_type === "spac_transaction_status" ||
+    result.display_payload.display_type === "candidate_special";
+  const hasSnapshotContractFields =
+    "snapshot_title" in analysis ||
+    "snapshot_summary" in analysis ||
+    "snapshot_items" in analysis;
+  if (specialSnapshotDisplay && (result.display_payload.display_type === "spac_transaction_status" || hasSnapshotContractFields)) {
     if (snapshotItems.length !== 4) {
-      errors.push("spac_transaction_status requires exactly 4 source-backed snapshot items");
+      errors.push(`${result.display_payload.display_type} requires exactly 4 source-backed snapshot items`);
     }
     if (!snapshotTitle.trim() || !snapshotSummary.trim()) {
-      errors.push("spac_transaction_status requires snapshot_title and snapshot_summary");
+      errors.push(`${result.display_payload.display_type} requires snapshot_title and snapshot_summary`);
     }
     if (snapshotItems.some((item) => isMissingSnapshotValue(item.value))) {
-      errors.push("spac_transaction_status snapshot items must not contain missing-value placeholders");
+      errors.push(`${result.display_payload.display_type} snapshot items must not contain missing-value placeholders`);
     }
-  } else if (snapshotTitle || snapshotSummary || snapshotItems.length > 0) {
-    errors.push("non-SPAC display types must not include snapshot output");
+  } else if (!specialSnapshotDisplay && (snapshotTitle || snapshotSummary || snapshotItems.length > 0)) {
+    errors.push("generic display types must not include snapshot output");
   }
   if (analysis.score < 50 && (
     analysis.bullish_points.length > 0 ||

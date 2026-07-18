@@ -6939,6 +6939,15 @@ function buildForm425TransactionModel(filing: FilingEvent): Form425TransactionMo
     return null;
   }
 
+  const analysisSnapshot = readSpacAnalysisSnapshot(data.analysis_snapshot);
+  if (analysisSnapshot) {
+    return {
+      title: analysisSnapshot.title,
+      intro: analysisSnapshot.summary,
+      snapshotRows: analysisSnapshot.items,
+    };
+  }
+
   const routeCase = readRowString(data, "route_case");
   const transactionStage = readRowString(data, "transaction_stage");
   const deal = readPlainRecord(data.deal);
