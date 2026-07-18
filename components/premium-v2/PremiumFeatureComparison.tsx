@@ -97,7 +97,7 @@ export function PremiumFeatureComparison() {
                           <ul className={styles.comparisonDetailList}>
                             {detailItems.map((detail) => (
                               <li key={detail.label}>
-                                <Badge size="small" tone={categoryBadgeTones[detail.tone]}>{detail.label}</Badge>
+                                <Badge className={styles.comparisonDetailBadge} size="small" tone={categoryBadgeTones[detail.tone]}>{detail.label}</Badge>
                               </li>
                             ))}
                           </ul>
@@ -135,7 +135,7 @@ export function PremiumFeatureComparison() {
                         <ul className={styles.comparisonDetailList}>
                           {detailItems.map((detail) => (
                             <li key={detail.label}>
-                              <Badge size="small" tone={categoryBadgeTones[detail.tone]}>{detail.label}</Badge>
+                              <Badge className={styles.comparisonDetailBadge} size="small" tone={categoryBadgeTones[detail.tone]}>{detail.label}</Badge>
                             </li>
                           ))}
                         </ul>

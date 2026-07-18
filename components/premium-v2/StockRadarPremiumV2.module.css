@@ -245,12 +245,12 @@
 
 .alertPreview > header {
   display: flex;
-  min-height: var(--sr-size-table-header-row);
+  min-height: calc(var(--sr-size-table-header-row) + var(--sr-space-1));
   align-items: center;
   justify-content: space-between;
   gap: var(--sr-space-3);
   border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
-  padding: 0 var(--sr-space-3);
+  padding: var(--sr-space-1-5) var(--sr-space-3);
   background: var(--sr-color-surface-table-header-start);
 }
 
@@ -286,7 +286,7 @@
   gap: var(--sr-space-2-5);
   min-width: 0;
   border-top: var(--sr-border-width) solid var(--sr-color-divider);
-  padding: var(--sr-space-2-5) var(--sr-space-3);
+  padding: var(--sr-space-4) var(--sr-space-3);
 }
 
 .alertRow:first-child {
@@ -333,18 +333,18 @@
 .alertRow strong {
   color: var(--sr-color-text-strong);
   font-size: var(--sr-font-size-md);
-  line-height: var(--sr-line-height-body);
+  line-height: var(--sr-line-height-default);
   overflow-wrap: anywhere;
 }
 
 .alertNote {
   margin: 0;
   border-top: var(--sr-border-width) solid var(--sr-color-divider);
-  padding: var(--sr-space-2-5) var(--sr-space-3);
+  padding: var(--sr-space-3) var(--sr-space-3);
   color: var(--sr-color-text-meta);
   background: var(--sr-color-surface-table-row);
   font-size: var(--sr-font-size-xs);
-  line-height: var(--sr-line-height-body);
+  line-height: var(--sr-line-height-default);
 }
 
 .alertSignal {
@@ -414,7 +414,7 @@
   min-width: 0;
   border: var(--sr-border-width) solid var(--sr-color-border);
   border-radius: var(--sr-radius-control);
-  padding: var(--sr-space-3);
+  padding: var(--sr-space-4);
   background: var(--sr-color-surface-panel);
 }
 
@@ -490,7 +490,7 @@
 
 .planCardHeader {
   display: grid;
-  gap: var(--sr-space-3);
+  gap: var(--sr-space-3-5);
 }
 
 .planIdentity {
@@ -559,18 +559,18 @@
 }
 
 .planDescription {
-  min-height: calc(var(--sr-space-8) + var(--sr-space-1));
-  margin-top: var(--sr-space-2-5);
+  min-height: calc(var(--sr-space-8) + var(--sr-space-2));
+  margin-top: var(--sr-space-3);
   color: var(--sr-color-text-subtle);
   font-size: var(--sr-font-size-sm);
-  line-height: var(--sr-line-height-body);
+  line-height: var(--sr-line-height-default);
 }
 
 .benefitList {
   display: grid;
   align-content: start;
-  gap: var(--sr-space-2);
-  margin: var(--sr-space-3) 0;
+  gap: var(--sr-space-4);
+  margin: var(--sr-space-4) 0;
   padding: 0;
   list-style: none;
 }
@@ -581,7 +581,7 @@
   padding-left: var(--sr-space-3);
   color: var(--sr-color-text-body);
   font-size: var(--sr-font-size-sm);
-  line-height: var(--sr-line-height-body);
+  line-height: var(--sr-line-height-default);
   overflow-wrap: anywhere;
 }
 
@@ -647,7 +647,7 @@
   min-width: 0;
   border: var(--sr-border-width) solid var(--sr-color-border);
   border-radius: var(--sr-radius-control);
-  padding: var(--sr-space-2-5);
+  padding: var(--sr-space-4);
   background: var(--sr-color-surface-table-row);
 }
 
@@ -688,16 +688,16 @@
   align-items: start;
   justify-content: space-between;
   gap: var(--sr-space-3);
-  margin-bottom: var(--sr-space-3);
+  margin-bottom: var(--sr-space-3-5);
 }
 
 .coverageGroup-pro header {
-  padding-bottom: var(--sr-space-2);
+  padding-bottom: var(--sr-space-2-5);
   border-bottom: var(--sr-border-width) solid var(--sr-color-event-transaction);
 }
 
 .coverageGroup-advanced header {
-  padding-bottom: var(--sr-space-2);
+  padding-bottom: var(--sr-space-2-5);
   border-bottom: var(--sr-border-width) solid var(--sr-color-accent-border-active);
 }
 
@@ -726,10 +726,10 @@
 }
 
 .coverageGroup p {
-  margin-top: var(--sr-space-1);
+  margin-top: var(--sr-space-1-5);
   color: var(--sr-color-text-meta);
   font-size: var(--sr-font-size-sm);
-  line-height: var(--sr-line-height-body);
+  line-height: var(--sr-line-height-default);
 }
 
 .coverageGroup-pro p,
@@ -774,7 +774,7 @@
 .categoryList {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--sr-space-2);
+  gap: var(--sr-space-3);
 }
 
 .categoryList > span {
@@ -954,7 +954,7 @@
 
 .premiumValue {
   color: var(--sr-color-accent-text-soft) !important;
-  font-weight: var(--sr-font-weight-semibold);
+  font-weight: var(--sr-font-weight-regular);
 }
 
 .comparisonValue {
@@ -968,6 +968,10 @@
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.comparisonDetailBadge {
+  font-weight: var(--sr-font-weight-regular);
 }
 
 .desktopComparison tbody tr.comparisonRowEmphasized > th,
