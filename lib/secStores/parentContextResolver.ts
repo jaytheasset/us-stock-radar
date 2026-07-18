@@ -40,6 +40,13 @@ type Sc13ParentMatchFacts = {
   securityClass: string;
 };
 
+type ExplicitCurrentReportParentReference = {
+  formType: "8-K" | "6-K";
+  filedDate: string;
+  accessionNumber: string;
+  source: "referenced_filings" | "amendment_parent_filed_date";
+};
+
 const PERIODIC_PARENT_CONTEXT_FAMILIES = new Set([
   "10-K",
   "10-Q",
@@ -854,6 +861,7 @@ async function findGenericAmendmentParentFilingContext({
   const currentFamily = normalizeGenericParentFormFamily(formType);
   const currentTicker = readRawTicker(rawItem);
   const currentCik = normalizeCik(readRawCik(rawItem));
+  const explicitCurrentReportReference = readExplicitCurrentReportParentReference(input, formType);
   const currentSc13Facts = isSc13ParentContextFamily(currentFamily) ? readSc13ParentMatchFactsFromInput(input) : null;
   const currentPeriodicReportingPeriod = PERIODIC_PARENT_CONTEXT_FAMILIES.has(currentFamily)
     ? readPeriodicReportingPeriodFromInput(input)
@@ -901,6 +909,55 @@ async function findGenericAmendmentParentFilingContext({
     ...(await fetchGenericAmendmentParentCandidateRows(rawItem)),
     ...(currentSc13Facts ? await fetchSc13ParentCandidateRows(currentSc13Facts) : []),
   ]);
+
+  if (explicitCurrentReportReference) {
+    const exactRows = candidateRows.filter((row) => {
+      if (readRawAccession(row) === currentAccession) return false;
+      if (normalizeGenericParentFormFamily(readRawFormType(row)) !== explicitCurrentReportReference.formType) return false;
+      if (isSecAmendmentFormForParentContext(readRawFormType(row))) return false;
+
+      const rowCik = normalizeCik(readRawCik(row));
+      const rowTicker = readRawTicker(row);
+      if (currentCik && rowCik !== currentCik) return false;
+      if (!currentCik && currentTicker && rowTicker !== currentTicker) return false;
+
+      return normalizeDateOnly(readRawFiledDate(row)) === explicitCurrentReportReference.filedDate;
+    });
+    const matchReasons = [
+      `explicit_parent_form:${explicitCurrentReportReference.formType}`,
+      `explicit_parent_filed_date:${explicitCurrentReportReference.filedDate}`,
+      `explicit_reference_source:${explicitCurrentReportReference.source}`,
+    ];
+
+    if (exactRows.length === 1) {
+      return buildGenericAmendmentParentContext({
+        status: "found",
+        confidence: "high",
+        matchMethod: "explicit_parent_form_filed_date",
+        matchScore: 950,
+        matchReasons,
+        rawItem,
+        parentRow: exactRows[0],
+        candidateRows: exactRows,
+      });
+    }
+
+    return buildGenericAmendmentParentContext({
+      status: exactRows.length > 1 ? "multiple_candidates" : "not_found",
+      confidence: exactRows.length > 1 ? "medium" : "low",
+      matchMethod: exactRows.length > 1
+        ? "explicit_parent_form_filed_date_ambiguous"
+        : "explicit_parent_form_filed_date_not_found",
+      matchScore: exactRows.length > 1 ? 900 : 0,
+      matchReasons: exactRows.length > 1
+        ? [...matchReasons, "multiple_exact_parent_candidates"]
+        : [...matchReasons, "explicit_parent_not_persisted"],
+      rawItem,
+      parentRow: null,
+      candidateRows: exactRows,
+    });
+  }
+
   const scored = candidateRows
     .filter((row) => readRawAccession(row) !== currentAccession)
     .map((row) => {
@@ -2480,6 +2537,43 @@ function extractExplicitParentAccessionForAmendment(input: SecFilingAnalysisInpu
 
   const accessions = uniqueStrings([...text.matchAll(/\b\d{10}-\d{2}-\d{6}\b/g)].map((match) => match[0]));
   return accessions.find((accession) => accession !== currentAccession) || "";
+}
+
+function readExplicitCurrentReportParentReference(
+  input: SecFilingAnalysisInput,
+  formType: string,
+): ExplicitCurrentReportParentReference | null {
+  const normalizedFormType = normalizeSecFormForParentContext(formType);
+  if (normalizedFormType !== "8-K/A" && normalizedFormType !== "6-K/A") return null;
+
+  const expectedParentForm = normalizeGenericParentFormFamily(normalizedFormType) as "8-K" | "6-K";
+  const filingPackage = readRecord(input.filing_package) || {};
+  const hardParsers = readRecord(filingPackage.hard_parsers) || {};
+  const parser = readRecord(hardParsers["8k-6k"]);
+  const facts = readRecord(parser?.facts);
+  const referencedFilings = readRecordArray(facts?.referencedFilings);
+
+  for (const reference of referencedFilings) {
+    if (normalizeGenericParentFormFamily(stringValue(reference.formType)) !== expectedParentForm) continue;
+    const filedDate = normalizeDateOnly(stringValue(reference.filedDate));
+    if (!filedDate) continue;
+    return {
+      formType: expectedParentForm,
+      filedDate,
+      accessionNumber: stringValue(reference.accessionNumber),
+      source: "referenced_filings",
+    };
+  }
+
+  const amendment = readRecord(facts?.amendment);
+  const filedDate = normalizeDateOnly(stringValue(amendment?.parentFiledDate));
+  if (!filedDate) return null;
+  return {
+    formType: expectedParentForm,
+    filedDate,
+    accessionNumber: stringValue(amendment?.parentAccessionNumber),
+    source: "amendment_parent_filed_date",
+  };
 }
 
 function extractExplicitParentAccessionFromRawItem(rawItem: SecRawItemRow) {

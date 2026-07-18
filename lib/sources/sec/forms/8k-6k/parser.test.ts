@@ -114,6 +114,24 @@ const archiveLinkedAmendment = parseSec8k6kFiling({
 assert.equal(archiveLinkedAmendment.facts.amendment.parentAccessionNumber, "0001234567-26-000001");
 assert.equal(archiveLinkedAmendment.facts.amendment.parentFiledDate, "2026-06-01");
 
+const explicitlyDatedCurrentReportAmendment = parseSec8k6kFiling({
+  sourceUniqueId: "0001193125-26-134682",
+  title: "Infleqtion, Inc. Form 8-K/A",
+  publishedAt: "2026-04-01T16:00:00Z",
+  bodyText: [
+    "FORM 8-K/A",
+    "Explanatory Note",
+    "This Amendment No. 1 amends the Current Report on Form 8-K filed with the Securities and Exchange Commission on March 26, 2026.",
+    "The disclosure concerns the dismissal and engagement of independent registered public accounting firms.",
+  ].join("\n"),
+  rawPayload: { accession_number: "0001193125-26-134682", form_type: "8-K/A", cik: "0002007825" },
+});
+assert.equal(explicitlyDatedCurrentReportAmendment.facts.referencedFilings.length, 1);
+assert.equal(explicitlyDatedCurrentReportAmendment.facts.referencedFilings[0]?.formType, "8-K");
+assert.equal(explicitlyDatedCurrentReportAmendment.facts.referencedFilings[0]?.filedDate, "2026-03-26");
+assert.equal(explicitlyDatedCurrentReportAmendment.facts.referencedFilings[0]?.confidence, "high");
+assert.match(explicitlyDatedCurrentReportAmendment.facts.referencedFilings[0]?.evidence || "", /March 26, 2026/);
+
 const dividend = parseSec8k6kFiling(readFixture("dividends-6k.json"));
 assert.deepEqual(
   dividend.calendarItems.map((item) => item.label),
