@@ -148,6 +148,11 @@ export function applySecForm25PostAnalysisGuards(
       (disposition === "related_event_update" || disposition === "administrative_cleanup") &&
       Boolean(matchedRelatedFiling)
     ) {
+      const relatedEventType = stringValue(matchedRelatedFiling?.event_type);
+      if (relatedEventType && relatedEventType !== stringValue(analysisOutput.event_type)) {
+        analysisOutput.event_type = relatedEventType;
+        changed = true;
+      }
       if (backfillRemovalReasonFromAvailableContext(root, parserOutput, matchedRelatedFiling)) {
         changed = true;
       }

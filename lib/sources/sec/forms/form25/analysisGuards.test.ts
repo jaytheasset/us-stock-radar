@@ -136,11 +136,13 @@ const relatedContext = {
       event_id: "prior-event-1",
       accession_number: "0000000000-26-000010",
       form_type: "8-K",
+      event_type: "listing_risk",
     },
   ],
 };
 const followUpRoot: Record<string, any> = {
   analysis_output: {
+    event_type: "strategic_transaction",
     score: 82,
     signal: "bearish",
     confidence: "high",
@@ -159,6 +161,7 @@ const followUpRoot: Record<string, any> = {
 const followUpResult = applySecForm25PostAnalysisGuards(followUpRoot, baseParserOutput, relatedContext);
 assert.equal(followUpResult.changed, true);
 assert.equal(followUpRoot.analysis_output.score, 20);
+assert.equal(followUpRoot.analysis_output.event_type, "listing_risk");
 assert.equal(followUpRoot.analysis_output.analysis_action, "related_event_update");
 assert.deepEqual(followUpRoot.analysis_output.what_to_watch_next, []);
 assert.equal(
