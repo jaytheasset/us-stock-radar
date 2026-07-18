@@ -321,11 +321,16 @@ export function normalizeSec425RouterResult(value: Record<string, unknown>, pars
   const eventType = routeCase === "shareholder_meeting_or_vote"
     ? "shareholder_vote"
     : value.event_type;
+  const requestedDisplayType = typeof value.display_type === "string" ? value.display_type : "generic";
+  const displayType = requestedDisplayType === "spac_transaction_status" && !hasExplicitSpacDisplayEvidence(parserOutput)
+    ? (materialUpdatePresent ? "candidate_special" : "generic")
+    : requestedDisplayType;
 
   return {
     ...value,
     event_type: eventType,
     route_case: routeCase,
+    display_type: displayType,
     score,
     expected_delivery_level: needsAnalysis ? "feed" : "archive",
     action: needsAnalysis ? "feed" : "archive",
@@ -342,6 +347,15 @@ export function normalizeSec425RouterResult(value: Record<string, unknown>, pars
     selected_source_block_ids_normalized: selectedIds.length !== uniqueStrings(stringArray(value.selected_source_block_ids)).length,
     needs_human_review: value.needs_human_review === true || selectedIds.length === 0,
   };
+}
+
+function hasExplicitSpacDisplayEvidence(parserOutput: Sec425ParserOutput) {
+  if (parserOutput.facts.spac.is_spac_business_combination) return true;
+  const sourceText = parserOutput.raw.router_source_blocks.map((block) => block.text).join("\n");
+  return /\b(?:SPAC|de-SPAC|deSPAC|special purpose acquisition company|blank[- ]check company|initial business combination|trust account|cash held in trust|founder shares?)\b/i.test(sourceText) ||
+    /\b(?:Filed by|Subject Company):\s*[^\n]{0,120}\b(?:Acquisition|Capital)\s+Corp(?:oration)?\b/i.test(sourceText) ||
+    /\b(?:redeem|redemption)\w*\b.{0,180}\b(?:public shares?|class a ordinary shares?|trust account)\b/i.test(sourceText) ||
+    /\b(?:public shares?|class a ordinary shares?)\b.{0,180}\b(?:redeem|redemption)\w*\b/i.test(sourceText);
 }
 
 function toRouterPromptBlock(block: Sec425SourceBlock): Sec425RouterPromptBlock {

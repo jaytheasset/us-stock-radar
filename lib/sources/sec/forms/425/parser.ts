@@ -1671,7 +1671,7 @@ function findOfferConsiderationEvidence(text: string) {
 }
 
 function findSpacFacts(text: string, parties: string[], companyName: string | null): Sec425SpacFacts {
-  const isSpac = /\bSPAC\b|\bde-SPAC\b|\bdeSPAC\b|\bspecial purpose acquisition company\b|\bbusiness combination\b|\btrust account\b|\bredemption requests?\b/i.test(text);
+  const isSpac = hasExplicitSpacContext(text);
   const aliases = findCompanyAliases(text);
   const spacName = isSpac ? findSpacCompanyName(aliases, parties, companyName) : null;
   const targetName = isSpac ? findSpacTargetName(text, aliases, parties, companyName, spacName) : null;
@@ -1712,6 +1712,20 @@ function findSpacFacts(text: string, parties: string[], companyName: string | nu
     redemption_risk: redemptionRisk,
     evidence,
   };
+}
+
+function hasExplicitSpacContext(text: string) {
+  if (/\b(?:SPAC|de-SPAC|deSPAC|special purpose acquisition company|blank[- ]check company|initial business combination)\b/i.test(text)) {
+    return true;
+  }
+  if (/\b(?:Filed by|Subject Company):\s*[^\n]{0,120}\b(?:Acquisition|Capital)\s+Corp(?:oration)?\b/i.test(text)) {
+    return true;
+  }
+  if (/\b(?:trust account|cash held in trust|founder shares?)\b/i.test(text)) return true;
+  if (/\b(?:redeem|redemption)\w*\b.{0,180}\b(?:public shares?|class a ordinary shares?|trust account)\b/i.test(text)) {
+    return true;
+  }
+  return /\b(?:public shares?|class a ordinary shares?)\b.{0,180}\b(?:redeem|redemption)\w*\b/i.test(text);
 }
 
 type CompanyAlias = {

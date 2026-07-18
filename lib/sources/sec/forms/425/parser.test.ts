@@ -780,6 +780,18 @@ const xbrlAttachmentPackage = parseSec425Filing({
 assert.equal(xbrlAttachmentPackage.raw.document_inventory[1]?.source_block_count, 0);
 assert.equal(xbrlAttachmentPackage.raw.router_source_blocks.some((block) => block.document_type === "JSON"), false);
 
+const nonSpacBusinessCombination = parseInline("ordinary-combination-regulatory-update", `
+Rumble Inc. announced that its proposed business combination with Northern Data AG received final regulatory approval.
+No further regulatory approvals are required, and closing is expected in mid-June 2026.
+`);
+assert.equal(nonSpacBusinessCombination.facts.spac.is_spac_business_combination, false);
+
+const explicitSpacBusinessCombination = parseInline("explicit-spac-business-combination", `
+Viking Acquisition Corp. I, a special purpose acquisition company, entered into a business combination agreement with Target Systems Inc.
+The transaction includes cash held in trust and redemption rights for public shares.
+`);
+assert.equal(explicitSpacBusinessCombination.facts.spac.is_spac_business_combination, true);
+
 console.log("sec 425 parser fixtures passed");
 
 function readFixture(name: string): Sec425ParseInput {

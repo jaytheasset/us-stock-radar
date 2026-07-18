@@ -214,6 +214,38 @@ const normalizedFaqArchive = normalizeSec425RouterResult({
 assert.equal(normalizedFaqArchive.needs_analysis_llm, false);
 assert.equal(normalizedFaqArchive.expected_delivery_level, "archive");
 
+const nonSpacCombinationParserOutput = parseSec425Filing({
+  formType: "425",
+  accessionNumber: "0000000000-26-042596",
+  companyName: "Rumble Inc.",
+  filingText: [
+    "Rumble Inc. announced that its proposed business combination with Northern Data AG received final regulatory approval.",
+    "No further regulatory approvals are required, and closing is expected in mid-June 2026.",
+  ].join("\n"),
+});
+const nonSpacSelectedId = nonSpacCombinationParserOutput.raw.router_source_blocks[0]?.block_id;
+if (!nonSpacSelectedId) throw new Error("non-SPAC fixture requires a router source block");
+const normalizedNonSpacCombination = normalizeSec425RouterResult({
+  ...normalized,
+  display_type: "spac_transaction_status",
+  route_case: "regulatory_or_closing_update",
+  selected_source_block_ids: [nonSpacSelectedId],
+  source_blocks_used: [nonSpacSelectedId],
+}, nonSpacCombinationParserOutput);
+assert.equal(normalizedNonSpacCombination.display_type, "candidate_special");
+
+const explicitSpacParserOutput = parseSec425Filing(readFixture("spac-pipe-business-combination.json"));
+const explicitSpacSelectedId = explicitSpacParserOutput.raw.router_source_blocks[0]?.block_id;
+if (!explicitSpacSelectedId) throw new Error("SPAC fixture requires a router source block");
+const normalizedExplicitSpac = normalizeSec425RouterResult({
+  ...normalized,
+  display_type: "spac_transaction_status",
+  route_case: "spac_business_combination",
+  selected_source_block_ids: [explicitSpacSelectedId],
+  source_blocks_used: [explicitSpacSelectedId],
+}, explicitSpacParserOutput);
+assert.equal(normalizedExplicitSpac.display_type, "spac_transaction_status");
+
 console.log("sec 425 router fixtures passed");
 
 function readFixture(name: string): Sec425ParseInput {

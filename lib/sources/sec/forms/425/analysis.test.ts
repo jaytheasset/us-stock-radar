@@ -25,6 +25,8 @@ const expectedNames = readdirSync(expectedDir).filter((name) => name.endsWith(".
 
 for (const expectedName of expectedNames) {
   const expected = readExpected(expectedName);
+  const fixtureName = expectedName.replace(/\.expected\.json$/, ".json");
+  expected.parser_output = parseSec425Filing(readFixture(fixtureName));
   const validationErrors = validateSec425RoomResult(expected);
   assert.deepEqual(validationErrors, [], expectedName);
   assert.equal(expected.analysis_output.source_group, "filings", expectedName);

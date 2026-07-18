@@ -628,12 +628,13 @@ export function validateSec425RoomResult(result: Sec425RoomResult): string[] {
 }
 
 function buildVisibleAnalysisText(analysis: Sec425AnalysisOutput) {
+  const snapshotItems = Array.isArray(analysis.snapshot_items) ? analysis.snapshot_items : [];
   return [
     analysis.quick_take,
     analysis.summary,
     analysis.snapshot_title,
     analysis.snapshot_summary,
-    ...analysis.snapshot_items.flatMap((item) => [item.label, item.value, item.note]),
+    ...snapshotItems.flatMap((item) => [item.label, item.value, item.note]),
   ].filter(Boolean).join(" ");
 }
 
@@ -708,9 +709,10 @@ function keyEvidenceActionClass(value: string) {
   if (/\b(?:regulatory|approval|clearance|antitrust|HSR|condition satisfied)\b/i.test(value)) return "regulatory";
   if (/\b(?:vote|voting|stockholder approval|shareholder approval|adjourn|reconven)\w*\b/i.test(value)) return "vote";
   if (/\b(?:sign|execute|enter into|amend|extend|terminate|withdraw|revise|change)\w*\b/i.test(value)) return "agreement_change";
-  if (/\b(?:consideration|offer price|per share|exchange ratio|enterprise value|equity value|cash-and-stock)\b/i.test(value)) return "economics";
+  if (/\b(?:consideration|offer price|per share|exchange ratio|enterprise value|equity value|cash-and-stock|mix of cash and (?:stock|shares)|cash and (?:common )?(?:stock|shares))\b/i.test(value)) return "economics";
+  if (/\bmix of cash and\b.{0,80}\b(?:stock|shares)\b/i.test(value)) return "economics";
   if (/\b(?:close|closing|completed|completion|effective time)\b/i.test(value)) return "closing";
-  if (/\b(?:financing|funding|PIPE|debt|credit facility|minimum cash)\b/i.test(value)) return "financing";
+  if (/\b(?:financing|funding|PIPE|debt|credit facility|minimum cash|capital rais\w*|liquidity)\b/i.test(value)) return "financing";
   if (/\b(?:tender|redemption|ownership|shares outstanding|physical settlement|voting power)\b/i.test(value)) return "security_status";
   return "";
 }
