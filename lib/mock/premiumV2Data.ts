@@ -23,6 +23,10 @@ export type PremiumV2Plan = {
 };
 
 export type PremiumV2ComparisonRow = {
+  details?: Partial<Record<PremiumV2PlanKey, readonly {
+    label: string;
+    tone: PremiumV2CategoryTone;
+  }[]>>;
   feature: string;
   values: Record<PremiumV2PlanKey, string>;
 };
@@ -75,7 +79,7 @@ export const premiumV2Plans: Record<PremiumV2PlanKey, PremiumV2Plan> = {
   },
   pro: {
     benefits: [
-      "Ticker Alerts for 30 tickers",
+      "Ticker Alerts for 15 tickers",
       "All event types for selected tickers",
       "Core Market Events",
       "Market alerts scoring 75+",
@@ -89,7 +93,7 @@ export const premiumV2Plans: Record<PremiumV2PlanKey, PremiumV2Plan> = {
   advanced: {
     badge: "Full Market Scanner",
     benefits: [
-      "Ticker Alerts for 150 tickers",
+      "Unlimited Ticker Alerts",
       "Full Market Coverage",
       "Dilution, listing, financial, legal, and FDA / Clinical",
       "Advanced filters and score controls",
@@ -102,7 +106,6 @@ export const premiumV2Plans: Record<PremiumV2PlanKey, PremiumV2Plan> = {
   },
   ultimate: {
     benefits: [
-      "Unlimited Ticker Alerts",
       "Full Market Coverage",
       "Custom Rules",
       "API / Webhook delivery",
@@ -151,7 +154,7 @@ export const premiumV2SampleAlerts = [
 export const premiumV2MarketCoverageGroups: readonly PremiumV2MarketCoverageGroup[] = [
   {
     badge: "Pro+",
-    description: "Available with Pro and higher",
+    description: "Major news and filings across core event types.",
     items: [
       { label: "Earnings", tone: "performance" },
       { label: "Sales Performance", tone: "performance" },
@@ -171,7 +174,7 @@ export const premiumV2MarketCoverageGroups: readonly PremiumV2MarketCoverageGrou
   },
   {
     badge: "Advanced+",
-    description: "Available with Advanced and higher",
+    description: "Full-market risk and catalyst coverage.",
     items: [
       { label: "Dilution Risk", tone: "risk" },
       { label: "Listing Risk", tone: "risk" },
@@ -180,96 +183,68 @@ export const premiumV2MarketCoverageGroups: readonly PremiumV2MarketCoverageGrou
       { label: "FDA / Clinical", tone: "policy" },
     ],
     planKey: "advanced",
-    title: "Full-market Risk & Catalyst Events",
+    title: "Risk & Catalyst Events",
   },
 ];
 
 export const premiumV2ComparisonRows: readonly PremiumV2ComparisonRow[] = [
   {
-    feature: "Watchlist",
-    values: { free: "Unlimited", adFree: "Unlimited", pro: "Unlimited", advanced: "Unlimited", ultimate: "Unlimited" },
-  },
-  {
     feature: "Ticker Alerts",
-    values: { free: "1", adFree: "5", pro: "30", advanced: "150", ultimate: "Unlimited" },
+    values: { free: "1", adFree: "5", pro: "15", advanced: "Unlimited", ultimate: "Unlimited" },
   },
   {
-    feature: "Ticker Event Coverage",
-    values: { free: "All types", adFree: "All types", pro: "All types", advanced: "All types", ultimate: "All types" },
+    feature: "Selected Ticker Coverage",
+    values: { free: "All alert categories", adFree: "All alert categories", pro: "All alert categories", advanced: "All alert categories", ultimate: "All alert categories" },
   },
   {
-    feature: "Market-Wide Alerts",
-    values: { free: "No personalized alerts", adFree: "No personalized alerts", pro: "Core Events", advanced: "Full Coverage", ultimate: "Full + Custom" },
+    feature: "Market-Wide Core Events",
+    values: { free: "—", adFree: "—", pro: "Included", advanced: "Included", ultimate: "Included" },
   },
   {
-    feature: "Market News Alerts",
-    values: { free: "No", adFree: "No", pro: "Yes", advanced: "Yes", ultimate: "Yes" },
+    details: {
+      advanced: [
+        { label: "Dilution Risk", tone: "risk" },
+        { label: "Listing Risk", tone: "risk" },
+        { label: "Financial Risk", tone: "risk" },
+        { label: "Legal Risk", tone: "risk" },
+        { label: "FDA / Clinical", tone: "policy" },
+      ],
+      ultimate: [
+        { label: "Dilution Risk", tone: "risk" },
+        { label: "Listing Risk", tone: "risk" },
+        { label: "Financial Risk", tone: "risk" },
+        { label: "Legal Risk", tone: "risk" },
+        { label: "FDA / Clinical", tone: "policy" },
+      ],
+    },
+    feature: "Market-Wide Risk & Catalyst",
+    values: { free: "—", adFree: "—", pro: "—", advanced: "5 types", ultimate: "5 types + rules" },
   },
   {
-    feature: "Market Filing Alerts",
-    values: { free: "No", adFree: "No", pro: "Yes", advanced: "Yes", ultimate: "Yes" },
+    feature: "Alert Score",
+    values: { free: "—", adFree: "—", pro: "75+", advanced: "Adjustable", ultimate: "Custom" },
   },
   {
-    feature: "Full-market Dilution Risk",
-    values: { free: "No", adFree: "No", pro: "No", advanced: "Yes", ultimate: "Yes" },
+    feature: "Filter Controls",
+    values: { free: "—", adFree: "—", pro: "Standard", advanced: "Advanced", ultimate: "Custom" },
   },
   {
-    feature: "Full-market Listing Risk",
-    values: { free: "No", adFree: "No", pro: "No", advanced: "Yes", ultimate: "Yes" },
+    feature: "Delivery Delay",
+    values: { free: "5 min", adFree: "5 min", pro: "No delay", advanced: "No delay", ultimate: "No delay" },
   },
   {
-    feature: "Full-market Financial Risk",
-    values: { free: "No", adFree: "No", pro: "No", advanced: "Yes", ultimate: "Yes" },
-  },
-  {
-    feature: "Full-market Legal Risk",
-    values: { free: "No", adFree: "No", pro: "No", advanced: "Yes", ultimate: "Yes" },
-  },
-  {
-    feature: "Full-market FDA / Clinical",
-    values: { free: "No", adFree: "No", pro: "No", advanced: "Yes", ultimate: "Yes" },
-  },
-  {
-    feature: "Minimum Market Alert Score",
-    values: { free: "No market alerts", adFree: "No market alerts", pro: "75+", advanced: "Adjustable", ultimate: "Custom" },
-  },
-  {
-    feature: "Advanced Filters",
-    values: { free: "No", adFree: "No", pro: "Standard", advanced: "Advanced", ultimate: "Custom" },
-  },
-  {
-    feature: "Alert Delay",
-    values: { free: "5 min", adFree: "5 min", pro: "No artificial delivery delay", advanced: "No artificial delivery delay", ultimate: "No artificial delivery delay" },
-  },
-  {
-    feature: "Web Alerts",
-    values: { free: "Yes", adFree: "Yes", pro: "Yes", advanced: "Yes", ultimate: "Yes" },
-  },
-  {
-    feature: "App Notifications",
-    values: { free: "Yes", adFree: "Yes", pro: "Yes", advanced: "Yes", ultimate: "Yes" },
-  },
-  {
-    feature: "Telegram",
-    values: { free: "No", adFree: "No", pro: "Yes", advanced: "Yes", ultimate: "Yes" },
-  },
-  {
-    feature: "Email",
-    values: { free: "No", adFree: "No", pro: "No", advanced: "Yes", ultimate: "Yes" },
-  },
-  {
-    feature: "Webhook / API",
-    values: { free: "No", adFree: "No", pro: "No", advanced: "No", ultimate: "Yes" },
+    feature: "Delivery Channels",
+    values: { free: "Web + App", adFree: "Web + App", pro: "+ Telegram", advanced: "+ Telegram + Email", ultimate: "All + Webhook/API" },
   },
   {
     feature: "Custom Rules",
-    values: { free: "No", adFree: "No", pro: "No", advanced: "No", ultimate: "Yes" },
+    values: { free: "—", adFree: "—", pro: "—", advanced: "—", ultimate: "Included" },
   },
 ];
 
 export const premiumV2FaqItems = [
   {
-    answer: "Ticker Alerts monitor companies you select. Market-Wide News & Filings Alerts detect qualifying events outside your alert-enabled tickers.",
+    answer: "Ticker Alerts follow companies you select. Market-wide alerts follow the core or risk-and-catalyst coverage included in your plan.",
     question: "What is the difference between Ticker Alerts and Market-Wide Alerts?",
   },
   {
@@ -277,7 +252,7 @@ export const premiumV2FaqItems = [
     question: "Is my watchlist limited?",
   },
   {
-    answer: "Pro tracks the risks affecting your selected tickers and adds Core Market Events. Advanced finds full-market risk and catalyst events even when the company is not on your alert list.",
+    answer: "Pro adds Core Market Events. Advanced adds the five Risk & Catalyst event types shown above, with broader score and filter controls.",
     question: "Why choose Advanced instead of Pro?",
   },
   {

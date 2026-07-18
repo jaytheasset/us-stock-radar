@@ -2,17 +2,30 @@ import {
   premiumV2ComparisonRows,
   premiumV2PlanOrder,
   premiumV2Plans,
+  type PremiumV2CategoryTone,
 } from "@/lib/mock/premiumV2Data";
+import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import styles from "./StockRadarPremiumV2.module.css";
+
+const categoryBadgeTones: Record<PremiumV2CategoryTone, BadgeTone> = {
+  governance: "insider",
+  performance: "earnings",
+  policy: "product",
+  risk: "legal",
+  transaction: "transaction",
+};
 
 function isPremiumValue(value: string) {
   return ![
     "No",
+    "—",
     "No market alerts",
     "No personalized alerts",
     "1",
     "5",
     "5 min",
+    "Web + App",
+    "All alert categories",
   ].includes(value);
 }
 
@@ -63,6 +76,7 @@ export function PremiumFeatureComparison() {
                 <th scope="row">{row.feature}</th>
                 {premiumV2PlanOrder.map((planKey) => {
                   const value = row.values[planKey];
+                  const detailItems = row.details?.[planKey];
 
                   return (
                     <td
@@ -72,7 +86,18 @@ export function PremiumFeatureComparison() {
                       ].filter(Boolean).join(" ") || undefined}
                       key={planKey}
                     >
-                      {value}
+                      <div className={styles.comparisonValue}>
+                        <span>{value}</span>
+                        {detailItems ? (
+                          <ul className={styles.comparisonDetailList}>
+                            {detailItems.map((detail) => (
+                              <li key={detail.label}>
+                                <Badge size="micro" tone={categoryBadgeTones[detail.tone]}>{detail.label}</Badge>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </div>
                     </td>
                   );
                 })}
@@ -89,6 +114,7 @@ export function PremiumFeatureComparison() {
             <dl>
               {premiumV2PlanOrder.map((planKey) => {
                 const value = row.values[planKey];
+                const detailItems = row.details?.[planKey];
 
                 return (
                   <div className={getTierColumnClass(planKey)} key={planKey}>
@@ -99,7 +125,16 @@ export function PremiumFeatureComparison() {
                         getTierColumnClass(planKey),
                       ].filter(Boolean).join(" ") || undefined}
                     >
-                      {value}
+                      <span>{value}</span>
+                      {detailItems ? (
+                        <ul className={styles.comparisonDetailList}>
+                          {detailItems.map((detail) => (
+                            <li key={detail.label}>
+                              <Badge size="micro" tone={categoryBadgeTones[detail.tone]}>{detail.label}</Badge>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
                     </dd>
                   </div>
                 );

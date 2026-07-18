@@ -156,8 +156,8 @@ export function StockRadarPremiumV2() {
         <section aria-labelledby="premium-v2-categories-heading" className={styles.categoriesSection}>
           <div className={styles.sectionHeading}>
             <div>
-              <span>Major News & Filings</span>
-              <h2 id="premium-v2-categories-heading">Market-Wide News & Filings Alerts</h2>
+              <span>Alert Coverage</span>
+              <h2 id="premium-v2-categories-heading">Core Events vs Risk &amp; Catalyst Events</h2>
             </div>
           </div>
           <div className={styles.coverageGroups}>
