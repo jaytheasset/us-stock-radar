@@ -255,7 +255,7 @@ export const premiumV2ComparisonRows: readonly PremiumV2ComparisonRow[] = [
 
 export const premiumV2FaqItems = [
   {
-    answer: "Ticker Alerts follow companies you select. Market-wide alerts follow the core or risk-and-catalyst coverage included in your plan.",
+    answer: "Ticker Alerts cover the companies you choose. Pro covers 12 Core Event types and 5 Risk & Catalyst types for up to 15 selected tickers. Advanced extends that coverage across all market tickers.",
     question: "What is the difference between Ticker Alerts and Market-Wide Alerts?",
   },
   {
@@ -263,15 +263,19 @@ export const premiumV2FaqItems = [
     question: "Is my watchlist limited?",
   },
   {
-    answer: "Pro adds Core Market Events. Advanced adds the five Risk & Catalyst event types shown above, with broader score and filter controls.",
+    answer: "Pro covers 12 Core Event types and 5 Risk & Catalyst types for 15 selected tickers. Advanced scans those same event types across all market tickers, with unlimited ticker alerts, advanced filters, and email delivery.",
     question: "Why choose Advanced instead of Pro?",
+  },
+  {
+    answer: "Yes. Enabled tickers receive all 12 Core Event types and all 5 Risk & Catalyst types available for their plan.",
+    question: "Do selected tickers receive Risk & Catalyst Alerts?",
   },
   {
     answer: "No artificial delay means Stock Radar does not intentionally hold the alert after it is generated. Source publication, ingestion, analysis, processing, network, and third-party delivery may add latency.",
     question: "What does no artificial delivery delay mean?",
   },
   {
-    answer: "No. Every CTA on this page is a local preview interaction. Checkout, payment, billing, and account changes are not connected.",
+    answer: "Not in this preview. Selecting a plan only updates the local page state and does not start checkout.",
     question: "Does the upgrade button start payment?",
   },
 ] as const;
