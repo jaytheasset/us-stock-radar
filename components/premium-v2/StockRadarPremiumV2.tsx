@@ -82,7 +82,9 @@ export function StockRadarPremiumV2() {
                     <strong>{alert.title}</strong>
                     <small>{alert.context} / {alert.lane}</small>
                   </div>
-                  <span className={styles.alertSignal}>{alert.signal}</span>
+                  <span className={`${styles.alertSignal} ${styles[`alertSignal-${alert.signalTone}`]}`}>
+                    {alert.signal}
+                  </span>
                 </article>
               ))}
             </div>

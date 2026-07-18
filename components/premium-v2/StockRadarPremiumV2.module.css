@@ -357,6 +357,16 @@
   white-space: nowrap;
 }
 
+.alertSignal-negative {
+  border-color: var(--sr-color-negative);
+  color: var(--sr-color-negative);
+}
+
+.alertSignal-positive {
+  border-color: var(--sr-color-positive);
+  color: var(--sr-color-positive);
+}
+
 .plansSection,
 .categoriesSection,
 .comparisonSection,
