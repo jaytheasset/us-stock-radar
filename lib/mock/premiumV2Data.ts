@@ -233,7 +233,7 @@ export const premiumV2ComparisonRows: readonly PremiumV2ComparisonRow[] = [
   },
   {
     feature: "Alert Score",
-    values: { free: "—", adFree: "—", pro: "75+", advanced: "75+", ultimate: "75+" },
+    values: { free: "75+", adFree: "75+", pro: "75+", advanced: "75+", ultimate: "75+" },
   },
   {
     feature: "Filter Controls",
