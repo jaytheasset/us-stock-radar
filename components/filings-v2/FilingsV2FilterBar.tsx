@@ -225,6 +225,7 @@ export function FilingsV2FilterBar({
           aria-controls={isMobileSheetOpen ? "filings-v2-filter-sheet" : undefined}
           aria-haspopup="dialog"
           aria-label={`Open filing filters${activeCount ? `, ${activeCount} active` : ""}`}
+          className={styles.mobileFilterTrigger}
           expanded={isMobileSheetOpen}
           label="Filters"
           onClick={onOpenMobileFilters}
