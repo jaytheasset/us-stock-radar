@@ -18,7 +18,7 @@ export {
 };
 
 export const SEC_NT_VALIDATION_REPAIR_PROMPT_KEY = "sec_nt_validation_repair";
-export const SEC_NT_VALIDATION_REPAIR_PROMPT_VERSION = "v4-material-results-guard";
+export const SEC_NT_VALIDATION_REPAIR_PROMPT_VERSION = "v5-key-evidence-array-repair";
 
 export type SecNtAnalysisAdapterResult =
   | { ok: true; analysis: Record<string, unknown> }
@@ -231,6 +231,13 @@ export function collectSecNtScoringWarnings(
       oversizedKeyEvidencePaths,
     ));
   }
+  if (Array.isArray(analysisResult.key_evidence) && (keyEvidence.length < 2 || keyEvidence.length > 3)) {
+    warnings.push(buildNtRepairIssue(
+      "key_evidence_count_out_of_range",
+      "Key Evidence must contain 2-3 prioritized, source-backed analyst paraphrases.",
+      ["/key_evidence"],
+    ));
+  }
 
   if (assessment.underlying_issue.length > 64) {
     warnings.push(buildNtRepairIssue(
@@ -320,7 +327,28 @@ export function applySecNtValidationRepairPatches({
   repairResult: unknown;
   allowedPatchPaths: string[];
 }) {
-  return applySecValidationRepairPatches({ analysisResult, repairResult, allowedPatchPaths });
+  const application = applySecValidationRepairPatches({
+    analysisResult,
+    repairResult,
+    allowedPatchPaths,
+  });
+  const repair = readRecord(repairResult);
+  const replacement = stringArray(repair?.key_evidence_replacement);
+  const canReplaceKeyEvidence =
+    allowedPatchPaths.includes("/key_evidence") &&
+    replacement.length >= 2 &&
+    replacement.length <= 3 &&
+    replacement.every((item) => item.length <= 140);
+
+  if (canReplaceKeyEvidence) {
+    application.value.key_evidence = replacement;
+    application.appliedPaths = uniqueStrings([...application.appliedPaths, "/key_evidence"]);
+    application.ignoredPaths = application.ignoredPaths.filter((path) => path !== "/key_evidence");
+  } else if (allowedPatchPaths.includes("/key_evidence")) {
+    application.ignoredPaths = uniqueStrings([...application.ignoredPaths, "/key_evidence"]);
+  }
+
+  return application;
 }
 
 export function enforceSecNtPostRepairInvariants({
@@ -430,6 +458,9 @@ function buildNtValidationRepairPrompt({
       "Use earnings for broader profit, loss, or EPS changes. Use sales_performance only when the material change is primarily revenue, sales, orders, or margin.",
       "A substantive results change cannot remain other, routine, or below score 50.",
       "Patch scalar values only at exact allowed paths. Preserve unrelated fields and arrays.",
+      "For a key_evidence_count_out_of_range warning, do not patch array indexes. Return the complete replacement in key_evidence_replacement.",
+      "key_evidence_replacement must contain exactly 2-3 prioritized, source-faithful analyst paraphrases, each no more than 140 characters.",
+      "When there is no key_evidence_count_out_of_range warning, return an empty key_evidence_replacement array.",
       "For a key_evidence_too_long warning, rewrite only the flagged array item as one source-faithful analyst paraphrase of no more than 140 characters. Preserve the material fact and remove legal boilerplate.",
       "For snapshot_reason_too_long, rewrite underlying_issue as a plain-English issue label of no more than 64 characters, without the issuer, form name, or reporting period.",
       "For snapshot_results_too_long, rewrite results_change in no more than 90 characters using the expected current direction and only the most useful source-backed figures. Omit prior-period figures unless needed to understand direction.",
@@ -450,7 +481,7 @@ function buildNtValidationRepairPrompt({
         schema: {
           type: "object",
           additionalProperties: false,
-          required: ["patches", "unresolved"],
+          required: ["patches", "key_evidence_replacement", "unresolved"],
           properties: {
             patches: {
               type: "array",
@@ -466,6 +497,12 @@ function buildNtValidationRepairPrompt({
                   source_block_ids: { type: "array", maxItems: 3, items: { type: "string" } },
                 },
               },
+            },
+            key_evidence_replacement: {
+              type: "array",
+              minItems: 0,
+              maxItems: 3,
+              items: { type: "string", maxLength: 140 },
             },
             unresolved: {
               type: "array",
@@ -496,7 +533,13 @@ function selectNtRepairSourceBlocks(input: SecFilingAnalysisInput): Array<Record
       .filter((entry) => entry.score > 0)
       .sort((left, right) => right.score - left.score || left.index - right.index)
       .slice(0, 3)
-      .map(({ block }) => ({ ...block, text: stringValue(block.text).slice(0, 4_000) }));
+      .map(({ block, index }) => ({
+        ...block,
+        block_id:
+          stringValue(block.block_id) ||
+          `nt_repair_${stringValue(block.block_type) || "source"}_${index + 1}`,
+        text: stringValue(block.text).slice(0, 4_000),
+      }));
   } catch {
     return [];
   }

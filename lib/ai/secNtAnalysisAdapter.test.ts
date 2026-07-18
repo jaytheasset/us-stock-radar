@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   adaptSecNtAnalysisPromptResultForAnalysis,
+  applySecNtValidationRepairPatches,
   buildSecNtAnalysisPromptForInput,
   buildSecNtValidationRepairPlan,
   collectSecNtScoringWarnings,
@@ -218,6 +219,58 @@ test("NT validator routes oversized Key Evidence through one bounded repair", ()
   const repairPlan = buildSecNtValidationRepairPlan({ analysisResult: analysis, input });
   assert.ok(repairPlan?.allowedPatchPaths.includes("/key_evidence/0"));
   assert.match(repairPlan?.prompt.system || "", /no more than 140 characters/);
+});
+
+test("NT validator repairs the complete Key Evidence array when Gemini exceeds maxItems", () => {
+  const input = makeInput();
+  const analysis = {
+    event_type: "other",
+    score: 28,
+    signal: "neutral",
+    nt_scoring_assessment: {
+      delay_status: "within_extension",
+      underlying_issue: "Routine quarterly review completion",
+      results_change: "none disclosed",
+      financial_reliability_risk: "none",
+      severity: "routine",
+      material_offset: null,
+      alert_driver: null,
+    },
+    key_evidence: [
+      "The quarterly report is delayed.",
+      "The issuer expects to use the extension period.",
+      "No material results change is disclosed.",
+      "The notice cites completion of the quarterly review.",
+    ],
+  };
+
+  const warnings = collectSecNtScoringWarnings(analysis, input);
+  const countWarning = warnings.find((item) => item.code === "key_evidence_count_out_of_range");
+  assert.deepEqual(countWarning?.allowed_patch_paths, ["/key_evidence"]);
+
+  const repairPlan = buildSecNtValidationRepairPlan({ analysisResult: analysis, input });
+  assert.ok(repairPlan?.allowedPatchPaths.includes("/key_evidence"));
+  assert.match(repairPlan?.prompt.system || "", /complete replacement/);
+
+  const application = applySecNtValidationRepairPatches({
+    analysisResult: analysis,
+    allowedPatchPaths: repairPlan?.allowedPatchPaths || [],
+    repairResult: {
+      patches: [],
+      key_evidence_replacement: [
+        "The quarterly report is delayed while the issuer completes its review.",
+        "The issuer expects to file within the standard extension period.",
+      ],
+      unresolved: [],
+    },
+  });
+
+  assert.deepEqual(application.value.key_evidence, [
+    "The quarterly report is delayed while the issuer completes its review.",
+    "The issuer expects to file within the standard extension period.",
+  ]);
+  assert.ok(application.appliedPaths.includes("/key_evidence"));
+  assert.equal(collectSecNtScoringWarnings(application.value, input).length, 0);
 });
 
 test("NT validator routes oversized snapshot values through one bounded repair", () => {

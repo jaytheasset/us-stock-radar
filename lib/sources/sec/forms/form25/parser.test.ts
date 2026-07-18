@@ -189,6 +189,31 @@ assert.equal(exchangeFiledHeaderMustNotBecomeSubject.facts.subject_company_cik, 
 assert.equal(exchangeFiledHeaderMustNotBecomeSubject.facts.filed_by_cik?.value, "1354457");
 assert.equal(exchangeFiledHeaderMustNotBecomeSubject.facts.filed_by_name?.value, "Nasdaq Stock Market LLC");
 
+const exchangeFiledPollutedCik = parseSecForm25Filing({
+  sourceUniqueId: "fixture-form25-exchange-polluted-cik",
+  title: "Sleep Number Form 25-NSE",
+  publishedAt: "2026-07-13",
+  bodyText: `
+FORM 25-NSE
+Issuer:
+Sleep Number Corporation
+Exchange:
+Nasdaq Stock Market LLC
+Common Stock
+17 CFR 240.12d2-2(a)(3)
+  `,
+  rawPayload: {
+    form_type: "25-NSE",
+    filed_by_name: "Nasdaq Stock Market LLC",
+    filed_by_cik: "827187",
+    subject_company_cik: "827187",
+  },
+});
+assert.equal(exchangeFiledPollutedCik.facts.subject_company_cik?.value, "827187");
+assert.equal(exchangeFiledPollutedCik.facts.filed_by_name?.value, "Nasdaq Stock Market LLC");
+assert.equal(exchangeFiledPollutedCik.facts.filed_by_cik?.value, "1354457");
+assert.equal(exchangeFiledPollutedCik.facts.filed_by_cik?.source, "normalized.filed_by_name");
+
 const exchangeFiledPollutedHeaderName = parseSecForm25Filing({
   sourceUniqueId: "fixture-form25-exchange-polluted-header-name",
   title: "Accelerate Diagnostics Inc 25-NSE",

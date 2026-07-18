@@ -249,7 +249,7 @@ export function parseSecForm25Filing(input: SecForm25ParseInput): SecForm25Parse
   const explicitFiledByName =
     stringFieldFromValue(rawPayload.filed_by_name, "raw_payload.filed_by_name") ||
     findTextValue(sourceTexts, /\bFILED BY:[\s\S]{0,220}?\bCOMPANY CONFORMED NAME:\s*([^\n]+)/i);
-  const filedByCik =
+  const extractedFiledByCik =
     stringFieldFromValue(rawPayload.filed_by_cik, "raw_payload.filed_by_cik") ||
     findTextValue(sourceTexts, /\bFILED BY:[\s\S]{0,260}?\bCENTRAL INDEX KEY:\s*([0-9]{1,10})/i) ||
     filingHeaderCik;
@@ -266,11 +266,16 @@ export function parseSecForm25Filing(input: SecForm25ParseInput): SecForm25Parse
   const filedByIdentity = resolveFiledByName({
     exchange,
     explicitFiledByName,
-    filedByCik,
+    filedByCik: extractedFiledByCik,
     filingHeaderName,
     formType,
   });
   const filedByName = filedByIdentity.field;
+  const filedByCik = resolveFiledByCik({
+    extractedFiledByCik,
+    filedByName,
+    formType,
+  });
   const removedSecurity =
     stringFieldFromValue(rawPayload.security_title, "raw_payload.security_title") ||
     findXmlTagValue(sourceTexts, "descriptionClassSecurity", "xml.description_class_security") ||
@@ -889,6 +894,31 @@ function exchangeNameFromCik(value: string | null): SecForm25Field<string> | nul
     evidence: value || exchangeName,
     source: "filed_by_cik",
     confidence: "high",
+  };
+}
+
+function resolveFiledByCik({
+  extractedFiledByCik,
+  filedByName,
+  formType,
+}: {
+  extractedFiledByCik: SecForm25Field<string> | null;
+  filedByName: SecForm25Field<string> | null;
+  formType: SecForm25SourceFormType;
+}) {
+  if (formType !== "25-NSE" && formType !== "25-NSE/A") return extractedFiledByCik;
+  const exchangeCiks: Array<{ pattern: RegExp; cik: string }> = [
+    { pattern: /nasdaq/i, cik: "1354457" },
+    { pattern: /nyse american/i, cik: "1143313" },
+    { pattern: /new york stock exchange|^nyse$/i, cik: "876661" },
+  ];
+  const match = exchangeCiks.find(({ pattern }) => pattern.test(stringValue(filedByName?.value)));
+  if (!match) return extractedFiledByCik;
+  return {
+    value: match.cik,
+    evidence: filedByName?.evidence || filedByName?.value || match.cik,
+    source: "normalized.filed_by_name",
+    confidence: "high" as const,
   };
 }
 
