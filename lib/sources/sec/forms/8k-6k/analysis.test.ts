@@ -308,6 +308,61 @@ assert.ok(riskRepairPlan.sourceBlockIds.includes("risk_item_3_01"));
 assert.ok(riskRepairPlan.sourceBlockIds.includes("historical_risk_item_3_01"));
 assert.ok(riskRepairPlan.sourceBlockIds.length <= 3);
 
+const listingSuspensionDateRepairPlan = buildSec8k6kValidationRepairPlan({
+  analysisResult: {
+    analysis_output: repairAnalysisOutput("listing_risk", "sleep_number_item_3_01", {
+      event_title: "Sleep Number common stock to be delisted after bankruptcy filing",
+      quick_take: "Nasdaq will delist Sleep Number common stock effective June 23, 2026.",
+      score_reason: "Trading access is ending after the bankruptcy filing.",
+      listing_status_snapshot: [
+        { label: "Trading Suspension", value: "June 23, 2026", note: "Form 25-NSE will follow" },
+        { label: "Company Response", value: "No appeal", note: null },
+        { label: "Primary Reason", value: "Chapter 11", note: null },
+        { label: "Continued Venue", value: "OTC possible", note: "Not assured" },
+      ],
+    }),
+    display_payload: { display_type: "generic", data: {} },
+  },
+  analysisPromptUser: repairSourceBlocks({
+    block_id: "sleep_number_item_3_01",
+    item_number: "3.01",
+    label: "Notice of Delisting",
+    text: "Trading on Nasdaq of the Company's common stock will be suspended at the beginning of business on June 23, 2026. Nasdaq will file a Form 25-NSE with the SEC to remove the common stock from Nasdaq.",
+  }),
+});
+assert.ok(listingSuspensionDateRepairPlan);
+assert.ok(
+  listingSuspensionDateRepairPlan.issues.some(
+    (issue) => issue.code === "risk_listing_suspension_date_misclassified_as_removal",
+  ),
+);
+assert.ok(listingSuspensionDateRepairPlan.allowedPatchPaths.includes("/analysis_output/quick_take"));
+assert.deepEqual(listingSuspensionDateRepairPlan.sourceBlockIds, ["sleep_number_item_3_01"]);
+
+const correctListingSuspensionDatePlan = buildSec8k6kValidationRepairPlan({
+  analysisResult: {
+    analysis_output: repairAnalysisOutput("listing_risk", "sleep_number_item_3_01", {
+      event_title: "Sleep Number common stock to be delisted after bankruptcy filing",
+      quick_take: "Nasdaq trading will be suspended on June 23, 2026, with a Form 25-NSE removal filing to follow.",
+      score_reason: "Trading access is ending after the bankruptcy filing.",
+      listing_status_snapshot: [
+        { label: "Trading Suspension", value: "June 23, 2026", note: "Form 25-NSE will follow" },
+        { label: "Company Response", value: "No appeal", note: null },
+        { label: "Primary Reason", value: "Chapter 11", note: null },
+        { label: "Continued Venue", value: "OTC possible", note: "Not assured" },
+      ],
+    }),
+    display_payload: { display_type: "generic", data: {} },
+  },
+  analysisPromptUser: repairSourceBlocks({
+    block_id: "sleep_number_item_3_01",
+    item_number: "3.01",
+    label: "Notice of Delisting",
+    text: "Trading on Nasdaq of the Company's common stock will be suspended at the beginning of business on June 23, 2026. Nasdaq will file a Form 25-NSE with the SEC to remove the common stock from Nasdaq.",
+  }),
+});
+assert.equal(correctListingSuspensionDatePlan, null);
+
 const amendmentRepairAnalysis = {
   amendment_delta: {
     is_amendment: true,

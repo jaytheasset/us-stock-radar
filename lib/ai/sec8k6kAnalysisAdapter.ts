@@ -59,7 +59,7 @@ export type Sec8k6kValidationRepairPlan = {
 };
 
 export const SEC_8K_6K_VALIDATION_REPAIR_PROMPT_KEY = "sec_8k_6k_validation_repair";
-export const SEC_8K_6K_VALIDATION_REPAIR_PROMPT_VERSION = "v2-five-family-one-pass-patch";
+export const SEC_8K_6K_VALIDATION_REPAIR_PROMPT_VERSION = "v3-listing-date-role-one-pass-patch";
 
 export function isSec8k6kFilingInput(input: SecFilingAnalysisInput) {
   const parserOutput = readSec8k6kParserOutput(input);
@@ -524,6 +524,7 @@ export function buildSec8k6kValidationRepairPlan(input: {
         "For amendment_parent_comparison_required or amendment_delta_missing_or_invalid, compare the current amendment blocks with the supplied original filing or prior-amendment source blocks. Classify only the present delta. Use clerical_correction for an identifier, caption, date, name, typographical, formatting, or filing-description correction that leaves economic, legal, operational, voting, listing, and transaction substance unchanged. Use supplemental_update or material_change only for a source-backed new investor-relevant fact or changed term. Never repeat the unchanged parent event as the amendment's new event.",
         "For amendment_clerical_event_overstated, set change_kind to clerical_correction, unchanged_parent_event to true, and changed_fields to the corrected administrative fields. Use event_type other, neutral signal, score below 50, and amendment-only title, quick take, summary, and score rationale.",
         "For structured_snapshot_count_mismatch, return exactly four non-duplicative source-backed snapshot rows. Use four useful status, scope, amount, timing, party, condition, or next-stage facts. Never pad with an immaterial Not disclosed row. routine_archive remains empty.",
+        "For risk_listing_suspension_date_misclassified_as_removal, preserve the source-backed date role exactly. A trading suspension date is not a delisting or removal effective date. Rewrite only the flagged fields to describe trading as suspended on that date, and mention a later Form 25 removal without assigning an effective date unless the source explicitly provides one.",
         "For capital_reverse_split_alert_policy, use event_type dilution_risk, a bearish signal, and a score of at least 75. Explain listing, price, or capital pressure and do not describe the proportional share consolidation itself as mechanical dilution.",
         "For score_rationale_meta_language, rewrite score_reason and score_explanation.summary as investor-impact conclusions. Do not mention a score, rating, impact band, alert/feed/archive level, or why a number was assigned.",
         "Do not fix an incompatible-period comparison by relabeling a value. Replace the labels, displayed values, numeric values, comparison basis, and change note only when the supplied source blocks contain a complete comparable pair; otherwise leave it unresolved.",
@@ -1362,9 +1363,10 @@ function getSec8k6kSourceConsistencyRepairIssues(
   analysisResult: Record<string, unknown>,
   sourceBlocks: Record<string, unknown>[],
 ): Sec8k6kValidationRepairIssue[] {
+  const listingDateRoleIssues = getSec8k6kListingDateRoleRepairIssues(analysisResult, sourceBlocks);
   const analysisOutput = readRecord(analysisResult.analysis_output) || {};
   const summary = stringValue(analysisOutput.summary);
-  if (!summary) return [];
+  if (!summary) return listingDateRoleIssues;
 
   const qualifiedAmountBlocks = sourceBlocks
     .map((block) => ({
@@ -1372,14 +1374,14 @@ function getSec8k6kSourceConsistencyRepairIssues(
       matches: materialQualifiedAmounts(stringValue(block.text)),
     }))
     .filter((item) => item.matches.length > 0);
-  if (!qualifiedAmountBlocks.length) return [];
+  if (!qualifiedAmountBlocks.length) return listingDateRoleIssues;
 
   const omitted = qualifiedAmountBlocks.filter((item) =>
     item.matches.some((match) => summaryMentionsAmountWithoutQualifier(summary, match.amount, match.qualifierText))
   );
-  if (!omitted.length) return [];
+  if (!omitted.length) return listingDateRoleIssues;
 
-  return [{
+  return [...listingDateRoleIssues, {
     code: "source_material_amount_qualifier_omitted",
     warning: "Summary states a material payment or proceeds amount but omits a source-backed offset, deduction, netting, or third-party payment condition attached to that amount.",
     field_paths: ["/analysis_output/summary"],
@@ -1388,6 +1390,132 @@ function getSec8k6kSourceConsistencyRepairIssues(
       omitted.map((item) => stringValue(item.block.block_id)).filter(Boolean),
     ),
   }];
+}
+
+function getSec8k6kListingDateRoleRepairIssues(
+  analysisResult: Record<string, unknown>,
+  sourceBlocks: Record<string, unknown>[],
+): Sec8k6kValidationRepairIssue[] {
+  const analysisOutput = readRecord(analysisResult.analysis_output) || {};
+  if (stringValue(analysisOutput.event_type) !== "listing_risk") return [];
+
+  const sourceSuspensionDates = new Map<string, Set<string>>();
+  const sourceRemovalDates = new Set<string>();
+  for (const block of sourceBlocks) {
+    const blockId = stringValue(block.block_id);
+    if (!blockId) continue;
+    const roles = extractListingDateRoles(stringValue(block.text));
+    sourceSuspensionDates.set(blockId, roles.suspension);
+    for (const date of roles.removal) sourceRemovalDates.add(date);
+  }
+
+  const suspensionDates = new Set<string>();
+  for (const dates of sourceSuspensionDates.values()) {
+    for (const date of dates) suspensionDates.add(date);
+  }
+  if (!suspensionDates.size) return [];
+
+  const flaggedPaths: string[] = [];
+  const misclassifiedDates = new Set<string>();
+  const inspectText = (path: string, value: unknown) => {
+    const roles = extractListingDateRoles(stringValue(value));
+    const mismatches = [...roles.removal].filter(
+      (date) => suspensionDates.has(date) && !sourceRemovalDates.has(date),
+    );
+    if (!mismatches.length) return;
+    flaggedPaths.push(path);
+    for (const date of mismatches) misclassifiedDates.add(date);
+  };
+
+  inspectText("/analysis_output/event_title", analysisOutput.event_title);
+  inspectText("/analysis_output/quick_take", analysisOutput.quick_take);
+  inspectText("/analysis_output/summary", analysisOutput.summary);
+  inspectText("/analysis_output/score_reason", analysisOutput.score_reason);
+
+  readRecordArray(analysisOutput.material_events).forEach((event, index) => {
+    inspectText(`/analysis_output/material_events/${index}/event_summary`, event.event_summary);
+  });
+  readRecordArray(analysisOutput.listing_status_snapshot).forEach((row, index) => {
+    const rowText = `${stringValue(row.label)}: ${stringValue(row.value)}. ${stringValue(row.note)}`;
+    const before = flaggedPaths.length;
+    inspectText(`/analysis_output/listing_status_snapshot/${index}/label`, rowText);
+    if (flaggedPaths.length > before) {
+      flaggedPaths.pop();
+      flaggedPaths.push(
+        `/analysis_output/listing_status_snapshot/${index}/label`,
+        `/analysis_output/listing_status_snapshot/${index}/value`,
+        `/analysis_output/listing_status_snapshot/${index}/note`,
+      );
+    }
+  });
+
+  const allowedPatchPaths = uniqueStrings(flaggedPaths);
+  if (!allowedPatchPaths.length) return [];
+
+  const candidateSourceBlockIds = [...sourceSuspensionDates.entries()]
+    .filter(([, dates]) => [...dates].some((date) => misclassifiedDates.has(date)))
+    .map(([blockId]) => blockId);
+
+  return [{
+    code: "risk_listing_suspension_date_misclassified_as_removal",
+    warning: "A trading suspension date is presented as the effective delisting or removal date, although the source assigns that date only to suspension of trading.",
+    field_paths: allowedPatchPaths,
+    allowed_patch_paths: allowedPatchPaths,
+    candidate_source_block_ids: candidateSourceBlockIds,
+  }];
+}
+
+function extractListingDateRoles(value: string) {
+  const suspension = new Set<string>();
+  const removal = new Set<string>();
+  const segments = String(value || "")
+    .replace(/\s+/g, " ")
+    .split(/(?<=[.!?])\s+(?=[A-Z0-9])/)
+    .filter(Boolean);
+
+  for (const segment of segments) {
+    for (const mention of extractCalendarDateMentions(segment)) {
+      const window = segment.slice(Math.max(0, mention.index - 140), mention.index + mention.text.length + 140);
+      if (hasTradingSuspensionDateLanguage(window)) suspension.add(mention.key);
+      if (hasEffectiveRemovalDateLanguage(window)) removal.add(mention.key);
+    }
+  }
+  return { suspension, removal };
+}
+
+function extractCalendarDateMentions(value: string) {
+  const pattern = /\b(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan\.?|Feb\.?|Mar\.?|Apr\.?|Jun\.?|Jul\.?|Aug\.?|Sep\.?|Sept\.?|Oct\.?|Nov\.?|Dec\.?)\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\/\d{4}\b/gi;
+  return [...String(value || "").matchAll(pattern)].flatMap((match) => {
+    const key = normalizeCalendarDateMention(match[0]);
+    return key ? [{ text: match[0], key, index: match.index ?? 0 }] : [];
+  });
+}
+
+function normalizeCalendarDateMention(value: string) {
+  const text = String(value || "").trim().replace(/\./g, "");
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+
+  const numeric = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (numeric) return `${numeric[3]}-${numeric[1].padStart(2, "0")}-${numeric[2].padStart(2, "0")}`;
+
+  const named = text.match(/^([A-Za-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})$/i);
+  if (!named) return null;
+  const month = ({
+    jan: "01", january: "01", feb: "02", february: "02", mar: "03", march: "03",
+    apr: "04", april: "04", may: "05", jun: "06", june: "06", jul: "07", july: "07",
+    aug: "08", august: "08", sep: "09", sept: "09", september: "09", oct: "10", october: "10",
+    nov: "11", november: "11", dec: "12", december: "12",
+  } as Record<string, string>)[named[1].toLowerCase()];
+  return month ? `${named[3]}-${month}-${named[2].padStart(2, "0")}` : null;
+}
+
+function hasTradingSuspensionDateLanguage(value: string) {
+  return /(?:\btrading\b.{0,100}\b(?:suspend(?:ed|sion)?|halt(?:ed)?)\b|\b(?:suspend(?:ed|sion)?|halt(?:ed)?)\b.{0,100}\btrading\b|\btrading suspension date\b)/i.test(value);
+}
+
+function hasEffectiveRemovalDateLanguage(value: string) {
+  return /(?:\b(?:delist(?:ed|ing)?|remov(?:ed|al))\b.{0,90}\b(?:effective|takes? effect|will occur|scheduled for)\b|\b(?:effective|takes? effect)\b.{0,90}\b(?:delist(?:ed|ing)?|remov(?:ed|al))\b|\b(?:is|was|will be)\s+(?:delisted|removed)\b.{0,60}\bon\b|\b(?:delisting|removal) date\b)/i.test(value);
 }
 
 function getSec8k6kRiskRepairIssues(
