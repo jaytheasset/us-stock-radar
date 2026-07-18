@@ -953,7 +953,7 @@
 }
 
 .premiumValue {
-  color: var(--sr-color-accent-text-soft) !important;
+  color: var(--sr-color-text-secondary) !important;
   font-weight: var(--sr-font-weight-regular);
 }
 
