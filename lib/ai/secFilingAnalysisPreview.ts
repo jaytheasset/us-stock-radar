@@ -152,6 +152,7 @@ import { buildProxySourceBlockPromptInput } from "@/lib/sources/sec/forms/proxy/
 import { buildSecSourceBlockPromptInput } from "@/lib/sources/sec/forms/8k-6k/sourceBlockPromptInput";
 import { applySecForm25PostAnalysisGuards } from "@/lib/sources/sec/forms/form25/analysisGuards";
 import { buildSecForm25AnalysisPromptDraft } from "@/lib/sources/sec/forms/form25/analysisPrompt";
+import { scoreSecForm25RelatedFormType } from "@/lib/sources/sec/forms/form25/lifecyclePolicy";
 import type { SecForm25ParserOutput } from "@/lib/sources/sec/forms/form25/parser";
 import {
   applySecForm25ValidationRepairPatches,
@@ -9849,7 +9850,7 @@ function scoreForm25RelatedRow(
   let score = 0;
   const formType = readRawFormType(row).toUpperCase();
 
-  if (/\b(?:8-K|425|DEFM14A|PREM14A|S-4|S-4\/A|F-4|F-4\/A|SC TO|SC 14D9|13E3)\b/.test(formType)) score += 45;
+  score += scoreSecForm25RelatedFormType(formType);
   if (/\b(?:merger|merged|acquisition|acquired|business combination|share exchange|cash merger|tender offer|going private)\b/i.test(text)) {
     score += 120;
   }

@@ -8,6 +8,14 @@ export type SecForm25ProceduralFollowUpAssessment = {
   reason: string | null;
 };
 
+export function scoreSecForm25RelatedFormType(formType: string) {
+  return /^(?:8-K|8-K\/A|6-K|6-K\/A|425|DEFM14A|PREM14A|S-4|S-4\/A|F-4|F-4\/A|SC TO|SC 14D9|13E3)$/i.test(
+    formType.trim(),
+  )
+    ? 45
+    : 0;
+}
+
 export function assessSecForm25ProceduralFollowUp(input: {
   analysisOutput: JsonRecord;
   parserOutput: SecForm25ParserOutput;

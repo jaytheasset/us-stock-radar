@@ -157,6 +157,15 @@ assertKept("8-K material event without resolved ticker", {
   llm_text: "The company entered into a material credit agreement.",
 });
 
+for (const formType of ["25", "25/A", "25-NSE", "25-NSE/A"]) {
+  assertKept(`${formType} lifecycle filing without resolved ticker`, {
+    form_type: formType,
+    title: `${formType} - Example Corp. common stock removal`,
+    company_name: "Example Corp.",
+    llm_text: "The exchange filed Form 25 to remove the common stock from listing and registration.",
+  });
+}
+
 const skipAnalysis = buildSecInvestableUniverseSkipAnalysis(
   input({
     form_type: "SC TO-I",

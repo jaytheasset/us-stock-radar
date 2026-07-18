@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { applySecForm25PostAnalysisGuards } from "./analysisGuards";
+import { scoreSecForm25RelatedFormType } from "./lifecyclePolicy";
 import type { SecForm25ParserOutput } from "./parser";
+
+assert.equal(scoreSecForm25RelatedFormType("8-K"), 45);
+assert.equal(scoreSecForm25RelatedFormType("6-K"), 45);
+assert.equal(scoreSecForm25RelatedFormType("6-K/A"), 45);
+assert.equal(scoreSecForm25RelatedFormType("20-F"), 0);
 
 const baseParserOutput: SecForm25ParserOutput = {
   parserVersion: "sec_form25_parser_v1",
