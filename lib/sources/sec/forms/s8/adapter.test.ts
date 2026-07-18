@@ -12,7 +12,8 @@ test("S-8 adapter exposes live-integration entrypoint metadata", () => {
   assert.match(adapterSource, /SEC_S8_ADAPTER_KEY = "sec_s8"/);
   assert.match(adapterSource, /SEC_S8_PARSER_GROUP = "s8"/);
   assert.match(adapterSource, /SEC_S8_ANALYSIS_MODE = "analysis_only"/);
-  assert.match(adapterSource, /SEC_S8_SUPPORTED_FORMS = \["S-8", "S-8\/A", "S-8 POS"\]/);
+  assert.match(adapterSource, /import \{ SEC_S8_FORMS \} from "\.\.\/common\/forms"/);
+  assert.match(adapterSource, /SEC_S8_SUPPORTED_FORMS = SEC_S8_FORMS/);
   assert.match(adapterSource, /parseS8FormRoomFiling/);
   assert.doesNotMatch(adapterSource, /buildS8DisplayPayload/);
   assert.doesNotMatch(adapterSource, /buildDisplayPayload/);

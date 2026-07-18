@@ -336,7 +336,8 @@ assert.ok(secTenderAnalysisSystemPrompt.includes("Cap score at 68 unless financi
 assert.ok(secTenderAnalysisSystemPrompt.includes("failed, terminated, blocked, litigated, financing-stressed, or coercive tender 70-90"));
 assert.ok(secTenderAnalysisSystemPrompt.includes("Offer price premium / discount guide"));
 assert.ok(secTenderAnalysisSystemPrompt.includes("premium_or_discount_percent"));
-assert.ok(secTenderAnalysisSystemPrompt.includes("Prefer previous_close when supplied"));
+assert.ok(secTenderAnalysisSystemPrompt.includes("Premium reference-price priority"));
+assert.ok(secTenderAnalysisSystemPrompt.includes("Use market_context previous_close or current price only when no filing-stated reference exists"));
 assert.ok(secTenderAnalysisSystemPrompt.includes("SC TO-I listed common/ordinary/ADS cash issuer tender table"));
 assert.ok(secTenderAnalysisSystemPrompt.includes("Do not apply this table to fund NAV tenders"));
 assert.ok(secTenderAnalysisSystemPrompt.includes("employee option exchanges, underwater option repricings"));

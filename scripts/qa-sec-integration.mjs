@@ -20,7 +20,7 @@ try {
   const baseFixture = makeFixture();
   const validResult = contract.validateSecRequiredOutputJson(baseFixture);
   check("valid Required Output JSON passes validation", validResult.ok === true, validResult);
-  check("SEC contract exposes 16 event types", contract.SEC_INTEGRATION_EVENT_TYPES.length === 16, contract.SEC_INTEGRATION_EVENT_TYPES);
+  check("SEC contract exposes 17 event types", contract.SEC_INTEGRATION_EVENT_TYPES.length === 17, contract.SEC_INTEGRATION_EVENT_TYPES);
   check("SEC contract includes ipo_listing event type", contract.SEC_INTEGRATION_EVENT_TYPES.includes("ipo_listing"), contract.SEC_INTEGRATION_EVENT_TYPES);
   check(
     "SEC IPO/SPAC score policy means attention urgency",
@@ -146,7 +146,7 @@ try {
   );
   check("ipo_listing display payload is accepted", ipoListingResult.ok === true, ipoListingResult);
 
-  const invalidIpoKindResult = contract.validateSecRequiredOutputJson(
+  const unusualIpoKindResult = contract.validateSecRequiredOutputJson(
     makeFixture({
       analysis_output: {
         event_type: "ipo_listing",
@@ -160,9 +160,9 @@ try {
     }),
   );
   check(
-    "ipo_listing rejects unsupported ipo_kind",
-    invalidIpoKindResult.ok === false && includesError(invalidIpoKindResult, "display_payload.data.ipo_kind"),
-    invalidIpoKindResult,
+    "ipo_listing accepts an unusual ipo_kind with a warning",
+    unusualIpoKindResult.ok === true && includesWarning(unusualIpoKindResult, "display_payload.data.ipo_kind"),
+    unusualIpoKindResult,
   );
 
   const missingIpoKindResult = contract.validateSecRequiredOutputJson(
@@ -173,8 +173,8 @@ try {
     }),
   );
   check(
-    "ipo_listing requires ipo_kind in display payload data",
-    missingIpoKindResult.ok === false && includesError(missingIpoKindResult, "display_payload.data.ipo_kind"),
+    "ipo_listing accepts missing ipo_kind with a warning",
+    missingIpoKindResult.ok === true && includesWarning(missingIpoKindResult, "display_payload.data.ipo_kind"),
     missingIpoKindResult,
   );
 
@@ -717,6 +717,10 @@ function check(name, ok, detail) {
 
 function includesError(result, text) {
   return Array.isArray(result.errors) && result.errors.some((error) => String(error).includes(text));
+}
+
+function includesWarning(result, text) {
+  return Array.isArray(result.warnings) && result.warnings.some((warning) => String(warning).includes(text));
 }
 
 function isPlainObject(value) {
