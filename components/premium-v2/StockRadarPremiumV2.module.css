@@ -4,7 +4,10 @@
 }
 
 .workspace {
-  width: 100%;
+  width: calc(
+    100% - var(--sr-page-gutter-desktop) - var(--sr-page-gutter-desktop)
+  );
+  margin: 0 auto;
 }
 
 .pageHeader {
@@ -1147,6 +1150,10 @@
 @media (max-width: 760px) {
   .root {
     padding: var(--sr-space-4) var(--sr-page-gutter-mobile) var(--sr-space-6);
+  }
+
+  .workspace {
+    width: 100%;
   }
 
   .pageHeader {
