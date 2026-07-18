@@ -134,6 +134,17 @@ export function buildSec424bValidationRepairPlan({
   collect424bPlaceholderRepairIssues(analysisOutput, "/analysis_output", issues);
   collect424bPlaceholderRepairIssues(data, "/display_payload/data", issues);
   collect424bOverhangRepairIssues(analysisResult, analysisOutput, data, warnings, issues);
+  const normalizedDisplayPayload = normalize424bDisplayPayload(displayPayload);
+  const normalizedData = readRecord(normalizedDisplayPayload.data);
+  if (normalizedData) {
+    collect424bOverhangRepairIssues(
+      analysisResult,
+      analysisOutput,
+      normalizedData,
+      collect424bDisplayPayloadWarnings(normalizedDisplayPayload),
+      issues,
+    );
+  }
 
   const dedupedIssues = dedupe424bRepairIssues(issues);
   if (!dedupedIssues.length) return null;
@@ -160,7 +171,46 @@ export function applySec424bValidationRepairPatches({
   repairResult: unknown;
   allowedPatchPaths: string[];
 }) {
-  return applySecValidationRepairPatches({ analysisResult, repairResult, allowedPatchPaths });
+  return applySecValidationRepairPatches({
+    analysisResult,
+    repairResult: normalize424bValidationRepairRowRoles(repairResult),
+    allowedPatchPaths,
+  });
+}
+
+function normalize424bValidationRepairRowRoles(value: unknown) {
+  const repair = readRecord(value);
+  if (!repair || !Array.isArray(repair.patches)) return value;
+  return {
+    ...repair,
+    patches: repair.patches.map((rawPatch) => {
+      const patch = readRecord(rawPatch);
+      if (!patch || !/\/share_overhang\/rows\/\d+\/(?:row_role|rowRole)$/.test(stringValue(patch.path))) {
+        return rawPatch;
+      }
+      const normalizedRole = normalize424bRepairRowRole(patch.replacement);
+      return normalizedRole ? { ...patch, replacement: normalizedRole } : rawPatch;
+    }),
+  };
+}
+
+function normalize424bRepairRowRole(value: unknown) {
+  const normalized = stringValue(value).toLowerCase().replace(/[\s-]+/g, "_");
+  if (
+    [
+      "counted",
+      "current_offering_pool",
+      "registered_resale_supply",
+      "common_equivalent_supply",
+      "orphan_prefunded_alternative_pool",
+    ].includes(normalized)
+  ) {
+    return "counted";
+  }
+  if (["conditional", "conditional_future_supply"].includes(normalized)) return "conditional";
+  if (["alternative", "replacement_supply"].includes(normalized)) return "alternative";
+  if (["reference", "context", "reference_context"].includes(normalized)) return "reference";
+  return "";
 }
 
 function build424bValidationRepairPrompt({
@@ -184,6 +234,9 @@ function build424bValidationRepairPrompt({
       "Return scalar replacement patches only for exact allowed paths. Never add, remove, reorder, or rewrite arrays or objects.",
       "Preserve event classification, score, signal, display mode, offering structure, and all fields not explicitly allowed.",
       "Preserve counted, conditional, alternative, reference, fixed, variable, pending, and not-calculable distinctions.",
+      "For orphan_prefunded_alternative_pool, the only valid row_role replacement is counted. The adapter recalculates numerator, ratio, and snapshot values from final counted rows.",
+      "For orphan_prefunded_alternative_pool, rewrite every allowed prose field that uses the stale dilution percentage so it matches the corrected counted supply or states the effect qualitatively.",
+      "For duplicate_prefunded_replacement_pool, keep the ordinary/common maximum pool counted and mark its one-for-one pre-funded replacement row alternative. Rewrite every allowed stale dilution percentage consistently.",
       "If the source blocks do not support a reliable replacement, return the issue as unresolved instead of guessing.",
       "This is the only repair attempt. Return JSON only.",
     ].join("\n"),
@@ -286,7 +339,13 @@ function collect424bOverhangRepairIssues(
   const rows = arrayValue(shareOverhang.rows).map((row) => readRecord(row));
   const totalNoteKey = Object.prototype.hasOwnProperty.call(shareOverhang, "total_note") ? "total_note" : "totalNote";
   const totalNote = readRecord(shareOverhang[totalNoteKey]);
-  if (warnings.some((warning) => /counted row numeric_value sum does not reconcile/i.test(warning))) {
+  const orphanPrefundedAlternativeWarning = warnings.find(
+    (warning) => /pre-funded row_role alternative without a matching counted/i.test(warning),
+  );
+  if (
+    !orphanPrefundedAlternativeWarning &&
+    warnings.some((warning) => /counted row numeric_value sum does not reconcile/i.test(warning))
+  ) {
     const path = `/display_payload/data/share_overhang/${totalNoteKey}/numerator`;
     if (hasSecValidationJsonPointer(analysisResult, path)) {
       issues.push(build424bRepairIssue("overhang_counted_sum_mismatch", "Counted rows do not reconcile to the displayed numerator.", [path]));
@@ -296,21 +355,51 @@ function collect424bOverhangRepairIssues(
     const path = find424bRatioPath(analysisResult, shareOverhang, totalNoteKey);
     if (path) issues.push(build424bRepairIssue("overhang_ratio_math_mismatch", "The displayed ratio does not reconcile to numerator divided by denominator.", [path]));
   }
-  if (warnings.some((warning) => /pre-funded replacement supply/i.test(warning))) {
-    const paths = rows.flatMap((row, index) => {
+  if (!orphanPrefundedAlternativeWarning && warnings.some((warning) => /pre-funded replacement supply/i.test(warning))) {
+    const rowPaths = rows.flatMap((row, index) => {
       if (!row || !/pre[-\s]?funded/i.test(`${stringValue(row.label)} ${stringValue(row.value)} ${stringValue(row.note)}`)) return [];
       const key = Object.prototype.hasOwnProperty.call(row, "row_role") ? "row_role" : Object.prototype.hasOwnProperty.call(row, "rowRole") ? "rowRole" : "";
       const path = key ? `/display_payload/data/share_overhang/rows/${index}/${key}` : "";
       return path && hasSecValidationJsonPointer(analysisResult, path) ? [path] : [];
     });
-    if (paths.length) issues.push(build424bRepairIssue("duplicate_prefunded_replacement_pool", "Pre-funded replacement supply may be double-counted.", paths));
+    const paths = uniqueStrings([...rowPaths, ...collect424bRepairOverhangProsePaths(analysisResult, analysisOutput)]);
+    if (rowPaths.length) issues.push(build424bRepairIssue("duplicate_prefunded_replacement_pool", "Pre-funded replacement supply may be double-counted.", paths));
+  }
+  if (orphanPrefundedAlternativeWarning) {
+    const rowPaths = rows.flatMap((row, index) => {
+      if (
+        !row ||
+        repair424bRowRole(row) !== "alternative" ||
+        !/\bpre[-\s]?funded\b/i.test(`${stringValue(row.label)} ${stringValue(row.value)} ${stringValue(row.note)}`)
+      ) {
+        return [];
+      }
+      const key = Object.prototype.hasOwnProperty.call(row, "row_role")
+        ? "row_role"
+        : Object.prototype.hasOwnProperty.call(row, "rowRole")
+          ? "rowRole"
+          : "";
+      const path = key ? `/display_payload/data/share_overhang/rows/${index}/${key}` : "";
+      return path && hasSecValidationJsonPointer(analysisResult, path) ? [path] : [];
+    });
+    const prosePaths = collect424bRepairOverhangProsePaths(analysisResult, analysisOutput);
+    const paths = uniqueStrings([...rowPaths, ...prosePaths]);
+    if (rowPaths.length) {
+      issues.push(
+        build424bRepairIssue(
+          "orphan_prefunded_alternative_pool",
+          orphanPrefundedAlternativeWarning,
+          paths,
+        ),
+      );
+    }
   }
 
   const expectedRatio = parse424bRepairPercent(
     stringValue(totalNote?.ratio) || stringValue(shareOverhang.ratio_value || shareOverhang.ratioValue) || stringValue(shareOverhang.status_value || shareOverhang.statusValue),
   );
   const hasExcludedRows = rows.some((row) => ["conditional", "alternative", "reference"].includes(repair424bRowRole(row)));
-  if (expectedRatio === null || !hasExcludedRows) return;
+  if (expectedRatio === null || !hasExcludedRows || orphanPrefundedAlternativeWarning) return;
   for (const [field, value] of read424bRepairProseFields(analysisOutput)) {
     if (!has424bRepairConflictingPercent(value, expectedRatio)) continue;
     const path = `/analysis_output/${field.split(".").map(escapeSecValidationJsonPointerSegment).join("/")}`;
@@ -318,6 +407,22 @@ function collect424bOverhangRepairIssues(
       issues.push(build424bRepairIssue("conflicting_overhang_percentage", `${field} conflicts with the headline overhang ratio.`, [path]));
     }
   }
+}
+
+function collect424bRepairOverhangProsePaths(
+  analysisResult: Record<string, unknown>,
+  analysisOutput: Record<string, unknown>,
+) {
+  return read424bRepairProseFields(analysisOutput).flatMap(([field, value]) => {
+    if (!has424bOverhangPercentageText(value)) return [];
+    const path = `/analysis_output/${field.split(".").map(escapeSecValidationJsonPointerSegment).join("/")}`;
+    return hasSecValidationJsonPointer(analysisResult, path) ? [path] : [];
+  });
+}
+
+function has424bOverhangPercentageText(value: unknown) {
+  const text = stringValue(value);
+  return /\d[\d,]*(?:\.\d+)?\s*%/.test(text) && /dilut|overhang|supply|current\s+shares?|outstanding\s+shares?/i.test(text);
 }
 
 function read424bRepairProseFields(analysisOutput: Record<string, unknown>): Array<[string, unknown]> {
@@ -339,7 +444,7 @@ function has424bRepairConflictingPercent(value: unknown, expectedRatio: number) 
     const context = text.slice(Math.max(0, index - 90), index + match[0].length + 90);
     if (!/dilut|overhang|supply|current\s+shares?|outstanding\s+shares?/i.test(context)) return false;
     const parsed = parse424bRepairPercent(match[0]);
-    return parsed !== null && Math.abs(parsed - expectedRatio) > 0.05;
+    return parsed !== null && Math.abs(parsed - expectedRatio) > Math.max(0.55, Math.abs(expectedRatio) * 0.001);
   });
 }
 
@@ -485,21 +590,22 @@ export function adaptSec424bAnalysisPromptResultForAnalysis(
     };
   }
   const normalizedDisplayPayload = normalize424bDisplayPayload(displayPayload);
+  const alignedAnalysisOutput = align424bAnalysisOutputToDisplayPayload(
+    normalizedAnalysisOutput,
+    normalizedDisplayPayload,
+  );
   const displayPayloadError = validate424bDisplayPayload(normalizedDisplayPayload);
   const displayPayloadWarnings = [
     ...(displayPayloadError ? [displayPayloadError] : []),
     ...collect424bDisplayPayloadWarnings(normalizedDisplayPayload),
-    ...collect424bScoreConsistencyWarnings(normalizedAnalysisOutput, normalizedDisplayPayload),
+    ...collect424bScoreConsistencyWarnings(alignedAnalysisOutput, normalizedDisplayPayload),
     ...collectSecOfferingMarketContextWarnings(filingPackage?.market_context, "SEC 424B"),
   ];
   append424bDisplayWarnings(normalizedDisplayPayload, displayPayloadWarnings);
 
   return adapt424bRoomResultForAnalysis({
     parser_output: parserOutput,
-    analysis_output: align424bAnalysisOutputToDisplayPayload(
-      normalizedAnalysisOutput,
-      normalizedDisplayPayload,
-    ),
+    analysis_output: alignedAnalysisOutput,
     display_payload: normalizedDisplayPayload,
   }, displayPayloadWarnings);
 }
@@ -786,8 +892,13 @@ function normalizedPercentToken(value: unknown) {
 function hasConflictingPercent(value: unknown, expectedRatio: string) {
   const text = stringValue(value);
   if (!text) return false;
+  const expected = Number(expectedRatio);
+  if (!Number.isFinite(expected)) return false;
   const matches = [...text.matchAll(/(?:over\s+|approximately\s+|approx\.?\s+|around\s+|about\s+)?\d[\d,]*(?:\.\d+)?\s*%/gi)];
-  return matches.some((match) => normalizedPercentToken(match[0]) !== expectedRatio);
+  return matches.some((match) => {
+    const parsed = Number(normalizedPercentToken(match[0]));
+    return Number.isFinite(parsed) && Math.abs(parsed - expected) > Math.max(0.55, Math.abs(expected) * 0.001);
+  });
 }
 
 function validateKeyCashTermFacts(data: Record<string, unknown>) {
@@ -937,11 +1048,11 @@ export function normalize424bOfferingDisplayModel(data: Record<string, unknown> 
     key_cash_terms: normalizeKeyCashTerms(readRecord(data.key_cash_terms)),
     registered_security_totals: normalizeRegisteredSecurityTotals(readRecord(data.registered_security_totals)),
     ...(shareOverhang ? { share_overhang: shareOverhang } : {}),
-    investor_takeaway: stringValue(data.investor_takeaway),
+    investor_takeaway: rewrite424bOverhangPercentages(stringValue(data.investor_takeaway), shareOverhangScale?.ratio_value),
     offering_details: normalizeOfferingDetails(data.offering_details),
     amendment_changes: normalizeOfferingDetails(data.amendment_changes),
     instrument_details: instrumentDetails,
-    narrative_summary: stringValue(data.narrative_summary),
+    narrative_summary: rewrite424bOverhangPercentages(stringValue(data.narrative_summary), shareOverhangScale?.ratio_value),
     watch_items: readStringArray(data.watch_items),
     source_notes: readStringArray(data.source_notes),
     review_reasons: readStringArray(data.review_reasons),
@@ -967,9 +1078,9 @@ function normalizeShareOverhang(value: Record<string, unknown> | null, instrumen
         note: nullableString(basisRecord.note),
       }
     : null;
-  const rows = arrayValue(value.rows)
+  const rows = normalizeShareOverhangReplacementRows(arrayValue(value.rows)
     .map((row) => normalizeShareOverhangRow(readRecord(row), false))
-    .filter(Boolean);
+    .filter((row): row is NonNullable<ReturnType<typeof normalizeShareOverhangRow>> => Boolean(row)));
   const hasStructuredRows = Boolean(basis) || rows.length > 0;
   const unavailableRows = arrayValue(hasStructuredRows ? value.unavailable_rows || value.detail_rows : value.unavailable_rows || value.detail_rows || value.rows)
     .map((row) => {
@@ -1212,16 +1323,54 @@ function shareOverhangNumericValue(record: Record<string, unknown>) {
 }
 
 function hasDuplicateOrdinaryPrefundedCountedRows(rows: Record<string, unknown>[]) {
-  const ordinaryRows = rows.filter(isOrdinaryOrUnitSupplyRow);
-  const prefundedRows = rows.filter((row) => /\bpre[-\s]?funded\b/i.test(shareOverhangInstrumentIdentityText(row)));
-  return ordinaryRows.some((ordinaryRow) => {
+  const ordinaryRows = rows
+    .map((row, index) => ({ row, index }))
+    .filter(({ row }) => isOrdinaryOrUnitSupplyRow(row));
+  const prefundedRows = rows
+    .map((row, index) => ({ row, index }))
+    .filter(({ row }) => isPrefundedOnlySupplyRow(row));
+  return ordinaryRows.some(({ row: ordinaryRow, index: ordinaryIndex }) => {
     const ordinaryValue = shareOverhangNumericValue(ordinaryRow);
     if (!ordinaryValue) return false;
-    return prefundedRows.some((prefundedRow) => {
+    return prefundedRows.some(({ row: prefundedRow, index: prefundedIndex }) => {
+      if (ordinaryIndex === prefundedIndex) return false;
       const prefundedValue = shareOverhangNumericValue(prefundedRow);
       return Boolean(prefundedValue && Math.abs(ordinaryValue - prefundedValue) / Math.max(ordinaryValue, prefundedValue) <= 0.01);
     });
   });
+}
+
+function normalizeShareOverhangReplacementRows<T extends Record<string, unknown>>(rows: T[]) {
+  const normalized: Array<T & { row_role?: string }> = rows.map((row) => ({ ...row }));
+
+  normalized.forEach((row, index) => {
+    if (shareOverhangRowRole(row) !== "counted" || !isPrefundedOnlySupplyRow(row)) return;
+    const rowValue = shareOverhangNumericValue(row);
+    if (!rowValue) return;
+    const matchingOrdinaryPool = normalized.some((candidate, candidateIndex) => {
+      if (candidateIndex === index || shareOverhangRowRole(candidate) !== "counted" || !isOrdinaryOrUnitSupplyRow(candidate)) {
+        return false;
+      }
+      const candidateValue = shareOverhangNumericValue(candidate);
+      return Boolean(candidateValue && Math.abs(candidateValue - rowValue) / Math.max(candidateValue, rowValue) <= 0.01);
+    });
+    if (matchingOrdinaryPool) row.row_role = "alternative";
+  });
+
+  normalized.forEach((row) => {
+    if (shareOverhangRowRole(row) !== "alternative" || !/\bpre[-\s]?funded\b/i.test(shareBasisText(row))) return;
+    const hasMatchingCountedPool = normalized.some(
+      (candidate) => candidate !== row && shareOverhangRowRole(candidate) === "counted" && isMatchingPrefundedReplacementPool(row, candidate),
+    );
+    if (!hasMatchingCountedPool) row.row_role = "counted";
+  });
+
+  return normalized;
+}
+
+function isPrefundedOnlySupplyRow(row: Record<string, unknown>) {
+  const text = shareOverhangInstrumentIdentityText(row);
+  return /\bpre[-\s]?funded\b/i.test(text) && !/\b(?:ordinary|common)\b[^\n]{0,40}\b(?:or|and|\/)\b[^\n]{0,40}\bpre[-\s]?funded\b/i.test(text);
 }
 
 function hasOrphanPrefundedAlternativeRow(rows: Record<string, unknown>[]) {
@@ -1717,8 +1866,12 @@ function align424bAnalysisOutputToDisplayPayload(
   displayPayload: Record<string, unknown>,
 ) {
   if (stringValue(displayPayload.display_type) !== "offering_terms") return analysis;
+  const data = readRecord(displayPayload.data);
+  const shareOverhang = readRecord(data?.share_overhang);
+  const ratio = readShareOverhangRatio(shareOverhang);
+  const synchronized = synchronize424bAnalysisOverhangPercentages(analysis, ratio);
   return {
-    ...analysis,
+    ...synchronized,
     why_it_matters: "",
     bullish_points: [],
     bearish_points: [],
@@ -1727,6 +1880,54 @@ function align424bAnalysisOutputToDisplayPayload(
     related_tickers: [],
     calendar_items: [],
   };
+}
+
+export function synchronize424bAnalysisOverhangPercentages(
+  analysis: Record<string, unknown>,
+  ratio: string,
+) {
+  if (!ratio) return analysis;
+  const synchronized = { ...analysis };
+  for (const field of ["event_title", "quick_take", "summary", "score_reason"] as const) {
+    synchronized[field] = rewrite424bOverhangPercentages(stringValue(analysis[field]), ratio);
+  }
+  const scoreExplanation = readRecord(analysis.score_explanation);
+  if (scoreExplanation) {
+    synchronized.score_explanation = {
+      ...scoreExplanation,
+      summary: rewrite424bOverhangPercentages(stringValue(scoreExplanation.summary), ratio),
+      final_read: rewrite424bOverhangPercentages(stringValue(scoreExplanation.final_read), ratio),
+      upward_factors: readStringArray(scoreExplanation.upward_factors).map((value) => rewrite424bOverhangPercentages(value, ratio)),
+      limiting_factors: readStringArray(scoreExplanation.limiting_factors).map((value) => rewrite424bOverhangPercentages(value, ratio)),
+    };
+  }
+  return synchronized;
+}
+
+function rewrite424bOverhangPercentages(value: string, ratio: string | null | undefined) {
+  const text = stringValue(value);
+  const expected = parse424bRepairPercent(stringValue(ratio));
+  if (!text || expected === null) return text;
+  return text.replace(
+    /(?:over\s+|approximately\s+|approx\.?\s+|around\s+|about\s+)?\d[\d,]*(?:\.\d+)?\s*%/gi,
+    (match, offset: number) => {
+      const parsed = parse424bRepairPercent(match);
+      if (parsed === null || Math.abs(parsed - expected) <= Math.max(0.55, Math.abs(expected) * 0.001)) return match;
+      const beforeMatch = text.slice(Math.max(0, offset - 45), offset);
+      const afterMatch = text.slice(offset + match.length, offset + match.length + 45);
+      if (
+        /(?:ownership|beneficial|holder|exercise\s+cap|conversion\s+cap)(?:\s+\w+){0,3}\s*$/i.test(beforeMatch) ||
+        /^\s*(?:beneficial\s+)?ownership(?:\s+\w+){0,2}/i.test(afterMatch)
+      ) {
+        return match;
+      }
+      const context = text.slice(Math.max(0, offset - 100), offset + match.length + 100);
+      if (!/dilut|overhang|supply\s+(?:vs|relative)|relative\s+to\s+(?:current|outstanding)\s+shares?/i.test(context)) {
+        return match;
+      }
+      return match.replace(/\d[\d,]*(?:\.\d+)?\s*%/i, stringValue(ratio));
+    },
+  );
 }
 
 function normalizeTickerRows(value: unknown, primaryTicker: { ticker: string | null; exchange: string | null }, role: string) {

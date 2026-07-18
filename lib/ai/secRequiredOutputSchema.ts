@@ -9,6 +9,7 @@ import { marketTaxonomyAnalysisOutputSchemaProperties } from "@/lib/marketTaxono
 
 type SecRequiredOutputSchemaOptions = {
   displayTypes?: readonly string[];
+  analysisOutputProperties?: Record<string, unknown>;
   displayDataProperties?: Record<string, unknown>;
   displayDataRequired?: readonly string[];
 };
@@ -22,13 +23,13 @@ export function buildSecRequiredOutputSchema(options: SecRequiredOutputSchemaOpt
     required: ["analysis_output", "display_payload"],
     properties: {
       parser_output: { type: "object", additionalProperties: true },
-      analysis_output: buildSecAnalysisOutputSchema(),
+      analysis_output: buildSecAnalysisOutputSchema(options),
       display_payload: buildSecDisplayPayloadSchema(options),
     },
   } as const;
 }
 
-function buildSecAnalysisOutputSchema() {
+function buildSecAnalysisOutputSchema(options: SecRequiredOutputSchemaOptions = {}) {
   return {
     type: "object",
     additionalProperties: true,
@@ -87,6 +88,7 @@ function buildSecAnalysisOutputSchema() {
       calendar_items: { type: "array", items: { type: "object", additionalProperties: true } },
       confidence: { type: "string", enum: SEC_CONFIDENCE_LEVELS },
       needs_human_review: { type: "boolean" },
+      ...options.analysisOutputProperties,
     },
   } as const;
 }

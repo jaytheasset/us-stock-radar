@@ -5,7 +5,9 @@ import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
 import {
   adaptSecS4F4AnalysisPromptResultForAnalysis,
   applySecS4F4ValidationRepairPatches,
+  buildSecS4F4AnalysisPromptForInput,
   buildSecS4F4ValidationRepairPlan,
+  collectS4F4RuntimeAnalysisWarnings,
   collectS4F4RuntimeDisplayPayloadWarnings,
 } from "@/lib/ai/secS4F4AnalysisAdapter";
 
@@ -87,6 +89,28 @@ describe("S-4/F-4 validation repair", () => {
     const displayPayload = result.analysis.display_payload as Record<string, unknown>;
     const notes = displayPayload.notes as string[];
     assert.ok(notes.some((warning) => /filing_summary/i.test(warning)));
+  });
+
+  it("bounds Key Evidence in the response schema and catches provider violations", () => {
+    const prompt = buildSecS4F4AnalysisPromptForInput(buildS4F4RepairInput());
+    const schema = prompt.responseFormat.json_schema.schema as Record<string, unknown>;
+    const properties = schema.properties as Record<string, Record<string, unknown>>;
+    const analysisOutput = properties.analysis_output;
+    const analysisProperties = analysisOutput.properties as Record<string, Record<string, unknown>>;
+    const keyEvidenceSchema = analysisProperties.key_evidence;
+
+    assert.equal(keyEvidenceSchema.maxItems, 3);
+    assert.match(String(keyEvidenceSchema.description), /Never return more than three items/i);
+
+    const warnings = collectS4F4RuntimeAnalysisWarnings({
+      key_evidence: [
+        "First source-backed fact.",
+        "Second source-backed fact.",
+        "Third source-backed fact.",
+        "Fourth source-backed fact.",
+      ],
+    });
+    assert.ok(warnings.some((warning) => /no more than 3 items/i.test(warning)));
   });
 });
 

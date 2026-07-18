@@ -81,7 +81,10 @@ export function buildSecS4F4ValidationRepairPlan({
   const data = readRecord(displayPayload?.data);
   if (!parserOutput || !root || !analysisOutput || !displayPayload || !data) return null;
 
-  const warnings = collectS4F4RuntimeDisplayPayloadWarnings(displayPayload);
+  const warnings = [
+    ...collectS4F4RuntimeDisplayPayloadWarnings(displayPayload),
+    ...collectS4F4RuntimeAnalysisWarnings(analysisOutput),
+  ];
   const issues: SecS4F4ValidationRepairIssue[] = [];
   const summaryPath = "/display_payload/data/filing_summary";
   if (
@@ -147,7 +150,10 @@ export function adaptSecS4F4AnalysisPromptResultForAnalysis(
     };
   }
 
-  appendS4F4DisplayWarnings(displayPayload, collectS4F4RuntimeDisplayPayloadWarnings(displayPayload));
+  appendS4F4DisplayWarnings(displayPayload, [
+    ...collectS4F4RuntimeDisplayPayloadWarnings(displayPayload),
+    ...collectS4F4RuntimeAnalysisWarnings(analysisOutput),
+  ]);
 
   const requiredOutput = {
     parser_output: parserOutput,
@@ -181,6 +187,21 @@ export function collectS4F4RuntimeDisplayPayloadWarnings(value: Record<string, u
   if (!Array.isArray(data.key_terms)) {
     warnings.push("SEC S-4/F-4 display_payload.data.key_terms is required.");
   }
+  return warnings;
+}
+
+export function collectS4F4RuntimeAnalysisWarnings(value: Record<string, unknown>) {
+  const warnings: string[] = [];
+  const keyEvidence = readStringArray(value.key_evidence);
+  if (keyEvidence.length > 3) {
+    warnings.push(`SEC S-4/F-4 analysis_output.key_evidence must contain no more than 3 items; received ${keyEvidence.length}.`);
+  }
+  keyEvidence.forEach((item, index) => {
+    const wordCount = item.split(/\s+/).filter(Boolean).length;
+    if (wordCount >= 22) {
+      warnings.push(`SEC S-4/F-4 analysis_output.key_evidence[${index}] must stay under 22 words; received ${wordCount}.`);
+    }
+  });
   return warnings;
 }
 
@@ -531,6 +552,18 @@ function readRecord(value: unknown): Record<string, unknown> | null {
 const s4F4RequiredOutputSchema = {
   ...buildSecRequiredOutputSchema({
     displayTypes: ["generic"],
+    analysisOutputProperties: {
+      key_evidence: {
+        type: "array",
+        maxItems: 3,
+        description: "Never return more than three items.",
+        items: {
+          type: "string",
+          maxLength: 180,
+          description: "Use fewer than 22 words and only concrete, source-backed facts.",
+        },
+      },
+    },
     displayDataRequired: ["filing_summary", "key_terms"],
     displayDataProperties: {
       display_version: { type: ["string", "null"] },
