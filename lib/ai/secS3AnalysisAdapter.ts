@@ -29,7 +29,7 @@ export {
 };
 
 export const SEC_S3_VALIDATION_REPAIR_PROMPT_KEY = "sec_s3_validation_repair";
-export const SEC_S3_VALIDATION_REPAIR_PROMPT_VERSION = "v1-one-pass-source-backed-patch";
+export const SEC_S3_VALIDATION_REPAIR_PROMPT_VERSION = "v2-one-pass-source-backed-row-role-patch";
 
 export type SecS3ValidationRepairIssue = {
   code: string;
@@ -99,7 +99,9 @@ export function buildSecS3ValidationRepairPlan({
 }): SecS3ValidationRepairPlan | null {
   const root = readRecord(analysisResult);
   const analysisOutput = readRecord(root?.analysis_output);
-  const displayPayload = normalizeS3DisplayPayloadForParentContext(readRecord(root?.display_payload), input);
+  const displayPayload = normalizeS3DisplayPayloadRowRoles(
+    normalizeS3DisplayPayloadForParentContext(readRecord(root?.display_payload), input),
+  );
   const data = readRecord(displayPayload?.data);
   if (!root || !analysisOutput || !displayPayload || !data) return null;
 
@@ -156,7 +158,46 @@ export function applySecS3ValidationRepairPatches({
   repairResult: unknown;
   allowedPatchPaths: string[];
 }) {
-  return applySecValidationRepairPatches({ analysisResult, repairResult, allowedPatchPaths });
+  return applySecValidationRepairPatches({
+    analysisResult,
+    repairResult: normalizeS3ValidationRepairRowRoles(repairResult),
+    allowedPatchPaths,
+  });
+}
+
+function normalizeS3ValidationRepairRowRoles(value: unknown) {
+  const repair = readRecord(value);
+  if (!repair || !Array.isArray(repair.patches)) return value;
+  return {
+    ...repair,
+    patches: repair.patches.map((rawPatch) => {
+      const patch = readRecord(rawPatch);
+      if (!patch || !/\/share_overhang\/rows\/\d+\/(?:row_role|rowRole)$/.test(stringValue(patch.path))) {
+        return rawPatch;
+      }
+      const normalizedRole = normalizeS3RepairRowRole(patch.replacement);
+      return normalizedRole ? { ...patch, replacement: normalizedRole } : rawPatch;
+    }),
+  };
+}
+
+function normalizeS3RepairRowRole(value: unknown) {
+  const normalized = stringValue(value).toLowerCase().replace(/[\s-]+/g, "_");
+  if (
+    [
+      "counted",
+      "current_offering_pool",
+      "registered_resale_supply",
+      "common_equivalent_supply",
+      "orphan_prefunded_alternative_pool",
+    ].includes(normalized)
+  ) {
+    return "counted";
+  }
+  if (["conditional", "conditional_future_supply"].includes(normalized)) return "conditional";
+  if (["alternative", "replacement_supply"].includes(normalized)) return "alternative";
+  if (["reference", "context", "reference_context"].includes(normalized)) return "reference";
+  return "";
 }
 
 function buildS3ValidationRepairPrompt({
@@ -180,6 +221,7 @@ function buildS3ValidationRepairPrompt({
       "Return scalar replacement patches only for exact allowed paths. Never add, remove, reorder, or rewrite arrays or objects.",
       "Preserve event classification, score, signal, display mode, amendment status, and all fields not explicitly allowed.",
       "Preserve counted, conditional, alternative, reference, fixed, variable, pending, and not-calculable distinctions.",
+      "For orphan_prefunded_alternative_pool, the only valid row_role replacement is counted. Never return legacy role names such as current_offering_pool or registered_resale_supply.",
       "If the source blocks do not support a reliable replacement, return the issue as unresolved instead of guessing.",
       "This is the only repair attempt. Return JSON only.",
     ].join("\n"),
@@ -290,8 +332,14 @@ function collectS3OverhangRepairIssues(
     : [];
   const totalNoteKey = Object.prototype.hasOwnProperty.call(shareOverhang, "total_note") ? "total_note" : "totalNote";
   const totalNote = readRecord(shareOverhang[totalNoteKey]);
+  const orphanPrefundedAlternativeWarning = warnings.find(
+    (warning) => /pre-funded row_role alternative without a matching counted/i.test(warning),
+  );
 
-  if (warnings.some((warning) => /counted row numeric_value sum does not reconcile/i.test(warning))) {
+  if (
+    !orphanPrefundedAlternativeWarning &&
+    warnings.some((warning) => /counted row numeric_value sum does not reconcile/i.test(warning))
+  ) {
     const path = `/display_payload/data/share_overhang/${totalNoteKey}/numerator`;
     if (hasSecValidationJsonPointer(analysisResult, path)) {
       issues.push(buildS3RepairIssue("overhang_counted_sum_mismatch", warnings.find((warning) => /counted row numeric_value sum does not reconcile/i.test(warning)) || "Counted rows do not reconcile to the numerator.", [path]));
@@ -314,12 +362,39 @@ function collectS3OverhangRepairIssues(
       issues.push(buildS3RepairIssue("duplicate_prefunded_replacement_pool", warnings.find((warning) => /pre-funded replacement supply/i.test(warning)) || "Pre-funded replacement supply may be double-counted.", paths));
     }
   }
+  if (orphanPrefundedAlternativeWarning) {
+    const paths = rows.flatMap((row, index) => {
+      if (
+        !row ||
+        s3RowRole(row) !== "alternative" ||
+        !/\bpre[-\s]?funded\b/i.test(`${stringValue(row.label)} ${stringValue(row.value)} ${stringValue(row.note)}`)
+      ) {
+        return [];
+      }
+      const key = Object.prototype.hasOwnProperty.call(row, "row_role")
+        ? "row_role"
+        : Object.prototype.hasOwnProperty.call(row, "rowRole")
+          ? "rowRole"
+          : "";
+      const path = key ? `/display_payload/data/share_overhang/rows/${index}/${key}` : "";
+      return path && hasSecValidationJsonPointer(analysisResult, path) ? [path] : [];
+    });
+    if (paths.length) {
+      issues.push(
+        buildS3RepairIssue(
+          "orphan_prefunded_alternative_pool",
+          orphanPrefundedAlternativeWarning,
+          paths,
+        ),
+      );
+    }
+  }
 
   const expectedRatio = parseS3Percent(
     stringValue(totalNote?.ratio) || stringValue(shareOverhang.ratio_value || shareOverhang.ratioValue) || stringValue(shareOverhang.status_value || shareOverhang.statusValue),
   );
   const hasExcludedRows = rows.some((row) => ["conditional", "alternative", "reference"].includes(s3RowRole(row)));
-  if (expectedRatio === null || !hasExcludedRows) return;
+  if (expectedRatio === null || !hasExcludedRows || orphanPrefundedAlternativeWarning) return;
   for (const [field, value] of readS3AnalysisProseFields(analysisOutput)) {
     if (!hasS3ConflictingOverhangPercent(value, expectedRatio)) continue;
     const path = s3AnalysisFieldToJsonPointer(field);
@@ -350,7 +425,7 @@ function hasS3ConflictingOverhangPercent(value: unknown, expectedRatio: number) 
     const context = text.slice(Math.max(0, index - 90), index + match[0].length + 90);
     if (!/dilut|overhang|supply|current\s+shares?|outstanding\s+shares?/i.test(context)) return false;
     const parsed = parseS3Percent(match[0]);
-    return parsed !== null && Math.abs(parsed - expectedRatio) > 0.05;
+    return parsed !== null && Math.abs(parsed - expectedRatio) > Math.max(0.15, Math.abs(expectedRatio) * 0.001);
   });
 }
 
@@ -362,7 +437,7 @@ function parseS3Percent(value: string) {
 }
 
 function s3RowRole(row: Record<string, unknown> | null) {
-  return stringValue(row?.row_role || row?.rowRole).toLowerCase().replace(/[\s-]+/g, "_");
+  return normalizeS3RepairRowRole(row?.row_role || row?.rowRole);
 }
 
 function findS3RatioPath(analysisResult: Record<string, unknown>, shareOverhang: Record<string, unknown>, totalNoteKey: string) {
@@ -456,7 +531,9 @@ export function adaptSecS3AnalysisPromptResultForAnalysis(
 ): SecS3AnalysisAdapterResult {
   const root = readRecord(value);
   const analysisOutput = readRecord(root?.analysis_output);
-  const displayPayload = normalizeS3DisplayPayloadForParentContext(readRecord(root?.display_payload), input);
+  const displayPayload = normalizeS3DisplayPayloadRowRoles(
+    normalizeS3DisplayPayloadForParentContext(readRecord(root?.display_payload), input),
+  );
   const filingPackage = readRecord(input.filing_package);
   if (!analysisOutput || !displayPayload) {
     return {
@@ -522,6 +599,35 @@ function normalizeS3DisplayPayloadForParentContext(
     data: {
       ...data,
       amendment_changes: [],
+    },
+  };
+}
+
+function normalizeS3DisplayPayloadRowRoles(displayPayload: Record<string, unknown> | null) {
+  if (!displayPayload) return displayPayload;
+  const data = readRecord(displayPayload.data);
+  const shareOverhang = readRecord(data?.share_overhang);
+  if (!data || !shareOverhang || !Array.isArray(shareOverhang.rows)) return displayPayload;
+
+  return {
+    ...displayPayload,
+    data: {
+      ...data,
+      share_overhang: {
+        ...shareOverhang,
+        rows: shareOverhang.rows.map((rawRow) => {
+          const row = readRecord(rawRow);
+          if (!row) return rawRow;
+          const roleKey = Object.prototype.hasOwnProperty.call(row, "row_role")
+            ? "row_role"
+            : Object.prototype.hasOwnProperty.call(row, "rowRole")
+              ? "rowRole"
+              : "";
+          if (!roleKey) return rawRow;
+          const normalizedRole = normalizeS3RepairRowRole(row[roleKey]);
+          return normalizedRole ? { ...row, [roleKey]: normalizedRole } : rawRow;
+        }),
+      },
     },
   };
 }

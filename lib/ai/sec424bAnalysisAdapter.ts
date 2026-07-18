@@ -691,6 +691,11 @@ export function collect424bDisplayPayloadWarnings(displayPayload: Record<string,
       "SEC 424B share_overhang appears to count ordinary/unit supply and pre-funded replacement supply with the same numeric_value; use one ordinary-or-pre-funded current_offering_pool row or mark the replacement row row_role alternative.",
     );
   }
+  if (hasOrphanPrefundedAlternativeRow(shareOverhangRows)) {
+    warnings.push(
+      "SEC 424B share_overhang has pre-funded row_role alternative without a matching counted ordinary/common/ADS/unit maximum replacement pool; use row_role counted for standalone pre-funded supply.",
+    );
+  }
   return warnings;
 }
 
@@ -1162,7 +1167,12 @@ function isIncludedShareOverhangRow(row: Record<string, unknown>) {
 
 function shareOverhangRowRole(row: Record<string, unknown> | null) {
   const normalized = stringValue(row?.row_role || row?.rowRole).toLowerCase().replace(/[\s-]+/g, "_");
-  if (["counted", "conditional", "alternative", "reference"].includes(normalized)) return normalized;
+  if (["counted", "current_offering_pool", "registered_resale_supply", "common_equivalent_supply"].includes(normalized)) {
+    return "counted";
+  }
+  if (["conditional", "conditional_future_supply"].includes(normalized)) return "conditional";
+  if (["alternative", "replacement_supply"].includes(normalized)) return "alternative";
+  if (["reference", "context", "reference_context"].includes(normalized)) return "reference";
   return "";
 }
 
@@ -1202,11 +1212,8 @@ function shareOverhangNumericValue(record: Record<string, unknown>) {
 }
 
 function hasDuplicateOrdinaryPrefundedCountedRows(rows: Record<string, unknown>[]) {
-  const ordinaryRows = rows.filter((row) => {
-    const text = shareBasisText(row);
-    return /\b(?:ordinary|common|class\s+a|ADSs?|units?)\b/i.test(text) && !/\bpre[-\s]?funded\b/i.test(text);
-  });
-  const prefundedRows = rows.filter((row) => /\bpre[-\s]?funded\b/i.test(shareBasisText(row)));
+  const ordinaryRows = rows.filter(isOrdinaryOrUnitSupplyRow);
+  const prefundedRows = rows.filter((row) => /\bpre[-\s]?funded\b/i.test(shareOverhangInstrumentIdentityText(row)));
   return ordinaryRows.some((ordinaryRow) => {
     const ordinaryValue = shareOverhangNumericValue(ordinaryRow);
     if (!ordinaryValue) return false;
@@ -1215,6 +1222,52 @@ function hasDuplicateOrdinaryPrefundedCountedRows(rows: Record<string, unknown>[
       return Boolean(prefundedValue && Math.abs(ordinaryValue - prefundedValue) / Math.max(ordinaryValue, prefundedValue) <= 0.01);
     });
   });
+}
+
+function hasOrphanPrefundedAlternativeRow(rows: Record<string, unknown>[]) {
+  const countedRows = rows.filter((row) => shareOverhangRowRole(row) === "counted");
+  return rows.some((row) => {
+    if (shareOverhangRowRole(row) !== "alternative" || !/\bpre[-\s]?funded\b/i.test(shareBasisText(row))) {
+      return false;
+    }
+    return !countedRows.some((candidate) => isMatchingPrefundedReplacementPool(row, candidate));
+  });
+}
+
+function isMatchingPrefundedReplacementPool(
+  prefundedRow: Record<string, unknown>,
+  countedRow: Record<string, unknown>,
+) {
+  const countedText = shareOverhangInstrumentIdentityText(countedRow);
+  const namesEligiblePool =
+    isOrdinaryOrUnitSupplyRow(countedRow) ||
+    /\b(?:current\s+offering|maximum(?:\s+offering)?|aggregate|replacement)\s+pool\b/i.test(countedText);
+  if (!namesEligiblePool) return false;
+
+  const prefundedValue = shareOverhangNumericValue(prefundedRow);
+  const countedValue = shareOverhangNumericValue(countedRow);
+  if (!prefundedValue || !countedValue || countedValue < prefundedValue) return false;
+
+  const valuesMatch = Math.abs(countedValue - prefundedValue) / Math.max(countedValue, prefundedValue) <= 0.01;
+  const explicitlyNamesSharedPool =
+    /\b(?:pool|maximum|aggregate|up\s+to|in\s+lieu|instead\s+of|replacement)\b/i.test(countedText) ||
+    (/\bpre[-\s]?funded\b/i.test(countedText) && /\b(?:or|and\/or)\b/i.test(countedText));
+  return valuesMatch || explicitlyNamesSharedPool;
+}
+
+function isOrdinaryOrUnitSupplyRow(row: Record<string, unknown>) {
+  const text = shareOverhangInstrumentIdentityText(row);
+  if (!/\b(?:ordinary|common|class\s+a|ADSs?|American Depositary Shares?|units?)\b/i.test(text)) {
+    return false;
+  }
+  return !/\b(?:warrants?|options?|convertible|preferred|notes?|debentures?)\b/i.test(text);
+}
+
+function shareOverhangInstrumentIdentityText(row: Record<string, unknown>) {
+  return [row.label, row.instrument_type, row.instrumentType, row.security_type, row.securityType, row.type]
+    .map(stringValue)
+    .filter(Boolean)
+    .join(" ");
 }
 
 function parseShareCount(value: string) {
