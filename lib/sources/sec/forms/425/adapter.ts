@@ -1,4 +1,5 @@
 import type { SecFormParserInput } from "../common/parserContract";
+import { SEC_425_FORMS } from "../common/forms";
 
 import { buildSec425AnalysisPromptDraft, buildSec425DeterministicRoomResult } from "./analysisPrompt";
 import { buildSec425DisplayPayload } from "./displayPayload";
@@ -7,7 +8,7 @@ import { buildSec425RouterPromptDraft } from "./routerPrompt";
 import { SEC_425_PARSER_GROUP, type Sec425ParseInput } from "./types";
 
 export const SEC_425_ADAPTER_KEY = "sec_425";
-export const SEC_425_SUPPORTED_FORMS = ["425"] as const;
+export const SEC_425_SUPPORTED_FORMS = SEC_425_FORMS;
 export const SEC_425_ANALYSIS_MODE = "router_required" as const;
 
 export function parseSec425AdapterInput(input: SecFormParserInput) {

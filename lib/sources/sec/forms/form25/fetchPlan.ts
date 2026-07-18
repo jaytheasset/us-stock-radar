@@ -1,8 +1,9 @@
 import type { SecFormFetchPlan } from "../common/fetchPlan";
+import { SEC_FORM25_FORMS } from "../common/forms";
 
 export const secForm25FetchPlan = {
   room: "form25",
-  forms: ["25", "25/A", "25-NSE", "25-NSE/A"],
+  forms: SEC_FORM25_FORMS,
   defaultAttachmentLimit: 5,
   notes: [
     "Form 25/25-NSE analysis needs the security class, exchange, removal reason, and whether common equity is affected.",

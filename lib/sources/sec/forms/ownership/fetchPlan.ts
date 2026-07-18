@@ -1,8 +1,9 @@
 import type { SecFormFetchPlan } from "../common/fetchPlan";
+import { SEC_OWNERSHIP_FORMS } from "../common/forms";
 
 export const secOwnershipFetchPlan = {
   room: "ownership",
-  forms: ["4", "4/A", "144", "144/A"],
+  forms: SEC_OWNERSHIP_FORMS,
   defaultAttachmentLimit: 4,
   notes: [
     "Ownership forms must preserve canonical ownership XML or Form 144 XML, not just cleaned XSL-rendered text.",

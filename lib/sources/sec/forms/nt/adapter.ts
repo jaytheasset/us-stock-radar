@@ -1,4 +1,5 @@
 import { secNtFetchPlan } from "./fetchPlan";
+import { SEC_NT_FORMS } from "../common/forms";
 import { parseNtFiling } from "./parser";
 import {
   NT_PARSER_GROUP,
@@ -9,14 +10,7 @@ import {
 
 export const SEC_NT_ADAPTER_KEY = "sec-form-nt";
 
-export const SEC_NT_SUPPORTED_FORMS = [
-  "NT 10-K",
-  "NT 10-K/A",
-  "NT 10-Q",
-  "NT 10-Q/A",
-  "NT 20-F",
-  "NT 20-F/A",
-] as const;
+export const SEC_NT_SUPPORTED_FORMS = SEC_NT_FORMS;
 
 export type SecNtSupportedRuntimeForm = (typeof SEC_NT_SUPPORTED_FORMS)[number];
 

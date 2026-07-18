@@ -1,8 +1,9 @@
 import type { SecFormFetchPlan } from "../common/fetchPlan";
+import { SEC_NT_FORMS } from "../common/forms";
 
 export const secNtFetchPlan = {
   room: "nt",
-  forms: ["NT 10-K", "NT 10-K/A", "NT 10-Q", "NT 10-Q/A", "NT 20-F", "NT 20-F/A"],
+  forms: SEC_NT_FORMS,
   defaultAttachmentLimit: 4,
   notes: [
     "Late-filing notices usually depend on the primary notice text and any attached explanatory exhibit.",

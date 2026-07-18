@@ -2,112 +2,21 @@
 
 import { spawn } from "node:child_process";
 import {
-  cpSync,
   existsSync,
-  mkdirSync,
   readFileSync,
-  rmSync,
   statSync,
-  writeFileSync,
 } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import ts from "typescript";
 
 const SCRIPT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const CODEX_ROOT = path.resolve(SCRIPT_ROOT, "..");
-const INTEGRATION_OWNED_FORM_FILES = ["adapter.ts", "displayPayload.ts"];
-
-const ROOM_CONFIGS = [
-  {
-    project: "US-Stock-Radar-sec-8k-6k",
-    folder: "8k-6k",
-    formTypes: ["8-K", "6-K", "8-K/A", "6-K/A"],
-  },
-  {
-    project: "US-Stock-Radar-sec-periodic-reports",
-    folder: "periodic-reports",
-    formTypes: ["10-K", "10-Q", "20-F", "10-K/A", "10-Q/A", "20-F/A"],
-  },
-  {
-    project: "US-Stock-Radar-sec-nt",
-    folder: "nt",
-    formTypes: ["NT 10-K", "NT 10-Q", "NT 20-F"],
-  },
-  {
-    project: "US-Stock-Radar-sec-s1-f1",
-    folder: "s1-f1",
-    formTypes: ["S-1", "F-1", "S-1/A", "F-1/A", "S-1MEF", "F-1MEF", "POS AM"],
-  },
-  {
-    project: "US-Stock-Radar-sec-s3-f3",
-    folder: "s3-f3",
-    formTypes: ["S-3", "F-3", "S-3ASR", "F-3ASR", "S-3MEF", "F-3MEF", "S-3/A", "F-3/A"],
-  },
-  {
-    project: "US-Stock-Radar-sec-424b",
-    folder: "424b",
-    formTypes: ["424B3", "424B5"],
-  },
-  {
-    project: "US-Stock-Radar-sec-s8",
-    folder: "s8",
-    formTypes: ["S-8", "S-8/A"],
-  },
-  {
-    project: "US-Stock-Radar-sec-effect",
-    folder: "effect",
-    formTypes: ["EFFECT"],
-  },
-  {
-    project: "US-Stock-Radar-sec-ownership",
-    folder: "ownership",
-    formTypes: ["4", "4/A", "144", "144/A"],
-  },
-  {
-    project: "US-Stock-Radar-sec-sc13",
-    folder: "sc13",
-    formTypes: ["SC 13D", "SC 13D/A", "SC 13G", "SC 13G/A"],
-  },
-  {
-    project: "US-Stock-Radar-sec-proxy",
-    folder: "proxy",
-    formTypes: ["DEF 14A", "PRE 14A", "DEFA14A", "DEFM14A", "PREM14A", "DEFC14A", "PREC14A"],
-  },
-  {
-    project: "US-Stock-Radar-sec-425",
-    folder: "425",
-    formTypes: ["425"],
-  },
-  {
-    project: "US-Stock-Radar-sec-s4-f4",
-    folder: "s4-f4",
-    formTypes: ["S-4", "F-4", "S-4/A", "F-4/A"],
-  },
-  {
-    project: "US-Stock-Radar-sec-tender-cb-13e3",
-    folder: "tender",
-    formTypes: ["SC TO-I", "SC TO-T", "SC 13E3", "CB"],
-  },
-  {
-    project: "US-Stock-Radar-sec-form25",
-    folder: "form25",
-    formTypes: ["25", "25-NSE"],
-  },
-  {
-    project: "US-Stock-Radar-sec-other",
-    folder: "other",
-    formTypes: [],
-  },
-];
+const ROOM_CONFIGS = await loadRoomConfigs();
 
 const args = parseArgs(process.argv.slice(2));
-const roomRoot = path.resolve(stringArg("roomRoot") || process.cwd());
-const integrationRoot = path.resolve(
-  stringArg("integrationRoot") ||
-    process.env.SEC_INTEGRATION_ROOT ||
-    path.join(CODEX_ROOT, "US-Stock-Radar-sec-ingest-integration"),
-);
-const baseUrl = normalizeBaseUrl(stringArg("base") || process.env.SEC_LIVE_TEST_BASE_URL || "http://127.0.0.1:3002");
+const roomRoot = SCRIPT_ROOT;
+const integrationRoot = SCRIPT_ROOT;
+const baseUrl = normalizeBaseUrl(stringArg("base") || process.env.SEC_LIVE_TEST_BASE_URL || "http://127.0.0.1:3110");
 const room = resolveRoom();
 const formTypes = csvArg("formTypes") || room.formTypes;
 const limit = numberArg("limit", 1, 1, 20);
@@ -116,9 +25,7 @@ const attachmentLimit = numberArg("attachmentLimit", 6, 0, 20);
 const includeDocuments = booleanArg("includeDocuments", true);
 const force = booleanArg("force", true);
 const startServer = booleanArg("startServer", true);
-const sync = booleanArg("sync", true);
 const alerts = booleanArg("alerts", true);
-const syncOnly = booleanArg("syncOnly", false) || booleanArg("sync-only", false);
 const accessionNumber = stringArg("accessionNumber") || stringArg("accession");
 const cik = stringArg("cik") || stringArg("filerCik") || stringArg("filer-cik");
 const rawItemId = stringArg("rawItemId");
@@ -153,7 +60,7 @@ const result = {
   secPromptVariant: secPromptVariant || null,
   resetExistingAnalysis,
   allowRepeatLlm,
-  sync: null,
+  sync: { mode: "main_only", copied: false },
   server: null,
   ingest: null,
   analyses: [],
@@ -166,18 +73,6 @@ try {
   }
 
   assertDirectory(integrationRoot, "integration root");
-  ensureIntegrationEnv();
-
-  if (sync && room.folder) {
-    result.sync = syncFormFolder(room.folder);
-  }
-
-  if (syncOnly) {
-    result.ok = true;
-    printResult(result);
-    process.exit(0);
-  }
-
   result.server = await ensureServer();
 
   if (rawItemId || accessionNumber) {
@@ -224,60 +119,6 @@ try {
   result.error = error instanceof Error ? error.message : String(error);
   printResult(result);
   process.exitCode = 1;
-}
-
-function syncFormFolder(folder) {
-  const source = path.resolve(roomRoot, "lib", "sources", "sec", "forms", folder);
-  const target = path.resolve(integrationRoot, "lib", "sources", "sec", "forms", folder);
-  const targetFormsRoot = path.resolve(integrationRoot, "lib", "sources", "sec", "forms");
-
-  assertDirectory(source, `source form folder ${folder}`);
-  assertInside(targetFormsRoot, target, "target form folder");
-  if (!existsSync(path.join(source, "parser.ts")) && folder !== "other") {
-    throw new Error(`Source form folder has no parser.ts: ${source}`);
-  }
-
-  const preserved = preserveIntegrationOwnedFormFiles(source, target);
-
-  rmSync(target, { recursive: true, force: true });
-  mkdirSync(path.dirname(target), { recursive: true });
-  cpSync(source, target, {
-    recursive: true,
-    force: true,
-    filter: (from) => !from.includes(`${path.sep}.next${path.sep}`) && !from.includes(`${path.sep}node_modules${path.sep}`),
-  });
-  restoreIntegrationOwnedFormFiles(target, preserved);
-
-  return {
-    source,
-    target,
-    copied: true,
-    preserved: preserved.map((item) => item.relativePath),
-  };
-}
-
-function preserveIntegrationOwnedFormFiles(source, target) {
-  const preserved = [];
-  for (const relativePath of INTEGRATION_OWNED_FORM_FILES) {
-    const sourceFile = path.join(source, relativePath);
-    const targetFile = path.join(target, relativePath);
-    if (existsSync(sourceFile) || !existsSync(targetFile)) continue;
-    const stat = statSync(targetFile);
-    if (!stat.isFile()) continue;
-    preserved.push({
-      relativePath,
-      content: readFileSync(targetFile),
-    });
-  }
-  return preserved;
-}
-
-function restoreIntegrationOwnedFormFiles(target, preserved) {
-  for (const item of preserved) {
-    const targetFile = path.join(target, item.relativePath);
-    mkdirSync(path.dirname(targetFile), { recursive: true });
-    writeFileSync(targetFile, item.content);
-  }
 }
 
 async function analyzeOne({ rawItemId, accessionNumber }) {
@@ -589,38 +430,46 @@ function normalizeDetailUrl(value, eventId, deliveryLevel) {
   return value || buildDetailUrl(eventId, deliveryLevel);
 }
 
-function ensureIntegrationEnv() {
-  const target = path.join(integrationRoot, ".env.local");
-  if (existsSync(target)) return;
-
-  const source = path.join(CODEX_ROOT, "US-Stock Radar", ".env.local");
-  if (!existsSync(source)) return;
-
-  cpSync(source, target, { force: false });
-}
-
 function resolveRoom() {
   const explicitFolder = stringArg("formFolder") || stringArg("folder");
   if (explicitFolder) {
     const config = ROOM_CONFIGS.find((item) => item.folder === explicitFolder);
-    return config || { project: path.basename(roomRoot), folder: explicitFolder, formTypes: csvArg("formTypes") || [] };
+    return config || { folder: explicitFolder, formTypes: csvArg("formTypes") || [] };
   }
 
-  const projectName = path.basename(roomRoot);
-  const config = ROOM_CONFIGS.find((item) => item.project === projectName);
-  if (config) return config;
-
-  if (path.resolve(roomRoot) === path.resolve(integrationRoot)) {
-    return {
-      project: projectName,
-      folder: stringArg("formFolder") || null,
-      formTypes: csvArg("formTypes") || ["4"],
-    };
+  const requestedForms = csvArg("formTypes") || [];
+  if (requestedForms.length) {
+    const config = ROOM_CONFIGS.find((item) => requestedForms.every((form) => item.formTypes.includes(form)));
+    if (config) return config;
   }
 
   throw new Error(
-    `Cannot infer SEC form room from ${projectName}. Pass --formFolder=<folder> and --formTypes=<SEC forms>.`,
+    "Cannot infer the SEC form room. Pass --formFolder=<folder> or a formTypes list belonging to one room.",
   );
+}
+
+async function loadRoomConfigs() {
+  const manifestPath = path.join(SCRIPT_ROOT, "lib", "sources", "sec", "forms", "common", "forms.ts");
+  const source = readFileSync(manifestPath, "utf8");
+  const output = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.ESNext,
+      target: ts.ScriptTarget.ES2022,
+    },
+    fileName: manifestPath,
+  }).outputText;
+  const moduleUrl = `data:text/javascript;base64,${Buffer.from(output).toString("base64")}`;
+  const manifestModule = await import(moduleUrl);
+  const manifest = Array.isArray(manifestModule.SEC_FORM_ROOM_MANIFEST)
+    ? manifestModule.SEC_FORM_ROOM_MANIFEST
+    : [];
+  if (manifest.length !== 15) {
+    throw new Error(`Expected 15 SEC form rooms in ${manifestPath}, found ${manifest.length}.`);
+  }
+  return manifest.map((room) => ({
+    folder: String(room.folder || room.slug),
+    formTypes: Array.isArray(room.forms) ? room.forms.map(String) : [],
+  }));
 }
 
 function parseLocalUrl(value) {
@@ -671,13 +520,6 @@ function booleanArg(key, fallback) {
 function assertDirectory(value, label) {
   if (!existsSync(value) || !statSync(value).isDirectory()) {
     throw new Error(`Missing ${label}: ${value}`);
-  }
-}
-
-function assertInside(parent, child, label) {
-  const relative = path.relative(parent, child);
-  if (relative.startsWith("..") || path.isAbsolute(relative)) {
-    throw new Error(`${label} is outside allowed folder: ${child}`);
   }
 }
 

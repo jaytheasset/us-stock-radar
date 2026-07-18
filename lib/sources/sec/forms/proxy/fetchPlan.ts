@@ -1,8 +1,9 @@
 import type { SecFormFetchPlan } from "../common/fetchPlan";
+import { SEC_PROXY_FORMS } from "../common/forms";
 
 export const secProxyFetchPlan = {
   room: "proxy",
-  forms: ["DEF 14A", "PRE 14A", "DEFA14A", "DEFM14A", "PREM14A", "DEFC14A", "PREC14A", "SC 14D9", "SC 14D9/A"],
+  forms: SEC_PROXY_FORMS,
   defaultAttachmentLimit: 8,
   notes: [
     "Proxy analysis needs proposal text, vote dates, recommendations, transaction terms, and supplemental soliciting materials.",

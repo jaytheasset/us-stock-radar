@@ -8,9 +8,10 @@ import {
   type TickerRef,
 } from "./types.ts";
 import type { SecFormParserAttachment, SecFormParserInput } from "../common/parserContract.ts";
+import { SEC_S4_F4_FORMS } from "../common/forms.ts";
 
 export const SEC_S4_F4_ADAPTER_KEY = "sec:s4-f4";
-export const SEC_S4_F4_SUPPORTED_FORMS = ["S-4", "S-4/A", "F-4", "F-4/A"] as const;
+export const SEC_S4_F4_SUPPORTED_FORMS = SEC_S4_F4_FORMS;
 export const SEC_S4_F4_ANALYSIS_MODE = "analysis_only" as const;
 
 export type SecS4F4SupportedForm = (typeof SEC_S4_F4_SUPPORTED_FORMS)[number];

@@ -12,23 +12,12 @@ import {
   SEC_TENDER_PARSER_GROUP,
   SEC_TENDER_ROOM_FORM_TYPE,
 } from "./types";
+import { SEC_TENDER_FORMS } from "../common/forms";
 
 export const SEC_TENDER_ADAPTER_KEY = "sec_tender_cb_13e3";
 export const SEC_TENDER_ANALYSIS_MODE = "analysis_only";
 
-export const SEC_TENDER_SUPPORTED_FORMS = [
-  "SC TO-C",
-  "SC TO-I",
-  "SC TO-I/A",
-  "SC TO-T",
-  "SC TO-T/A",
-  "SC 13E3",
-  "SC 13E3/A",
-  "CB",
-  "CB/A",
-  "SC 14D9",
-  "SC 14D9/A",
-] as const;
+export const SEC_TENDER_SUPPORTED_FORMS = SEC_TENDER_FORMS;
 
 export const secTenderFormAdapter = {
   key: SEC_TENDER_ADAPTER_KEY,

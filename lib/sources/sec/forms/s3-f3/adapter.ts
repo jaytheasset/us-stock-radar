@@ -3,9 +3,11 @@ import type {
   SecFormAdapterParseResult,
   SecFormAdapterRawItem,
 } from "@/lib/sources/sec/forms/common/secFormAdapter";
+import { SEC_S3_F3_FORMS } from "@/lib/sources/sec/forms/common/forms";
 import { parseSecS3Filing, type SecS3FilingFacts } from "./parser";
 
 export type { SecS3FilingFacts } from "./parser";
+export const SEC_S3_F3_SUPPORTED_FORMS = SEC_S3_F3_FORMS;
 
 export type S3F3FormAdapterResult = SecFormAdapterParseResult<"s3_f3"> & {
   hardParsers: {
@@ -22,7 +24,7 @@ export const s3F3FormAdapter: SecFormAdapterDefinition<
 > = {
   key: "s3_f3",
   parserGroup: "s3",
-  forms: ["S-3", "F-3", "S-3ASR", "F-3ASR", "S-3MEF", "F-3MEF", "S-3/A", "F-3/A"],
+  forms: SEC_S3_F3_SUPPORTED_FORMS,
   analysisMode: "s3_offering_flow",
   matches: isS3F3CanonicalFormType,
   parse: (rawItem): S3F3FormAdapterResult => {
@@ -54,16 +56,7 @@ export const s3F3FormAdapter: SecFormAdapterDefinition<
 };
 
 function isS3F3CanonicalFormType(form: string | null | undefined) {
-  return (
-    form === "S-3" ||
-    form === "S-3/A" ||
-    form === "S-3ASR" ||
-    form === "S-3MEF" ||
-    form === "F-3" ||
-    form === "F-3/A" ||
-    form === "F-3ASR" ||
-    form === "F-3MEF"
-  );
+  return typeof form === "string" && SEC_S3_F3_SUPPORTED_FORMS.includes(form as (typeof SEC_S3_F3_SUPPORTED_FORMS)[number]);
 }
 
 function buildS3HardParserPayload(parsed: SecS3FilingFacts) {

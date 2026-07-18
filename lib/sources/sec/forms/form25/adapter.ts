@@ -1,4 +1,5 @@
 import { buildSecForm25AnalysisPromptDraft } from "./analysisPrompt";
+import { SEC_FORM25_FORMS } from "../common/forms";
 import { secForm25FetchPlan } from "./fetchPlan";
 import {
   SEC_FORM25_PARSER_GROUP,
@@ -7,7 +8,7 @@ import {
 } from "./parser";
 
 export const SEC_FORM25_ADAPTER_KEY = "form25";
-export const SEC_FORM25_SUPPORTED_FORMS = ["25", "25/A", "25-NSE", "25-NSE/A"] as const;
+export const SEC_FORM25_SUPPORTED_FORMS = SEC_FORM25_FORMS;
 export const SEC_FORM25_ANALYSIS_MODE = "generic_sec_analysis";
 
 export type SecForm25AdapterRawItem = {

@@ -1,4 +1,5 @@
 import { buildS1F1AnalysisPrompt } from "./analysisPrompt.ts";
+import { SEC_S1_F1_FORMS } from "../common/forms.ts";
 import { parseS1F1Filing } from "./parser.ts";
 import {
   S1F1_PARSER_GROUP,
@@ -8,7 +9,7 @@ import {
 } from "./types.ts";
 
 export const S1F1_ADAPTER_KEY = "sec-s1-f1";
-export const S1F1_SUPPORTED_FORMS = ["S-1", "S-1/A", "F-1", "F-1/A", "S-1MEF", "F-1MEF", "POS AM"] as const;
+export const S1F1_SUPPORTED_FORMS = SEC_S1_F1_FORMS;
 export const S1F1_ADJACENT_FORMS = [] as const;
 export const S1F1_ANALYSIS_MODE = "analysis_only";
 

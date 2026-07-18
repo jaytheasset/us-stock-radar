@@ -1,8 +1,9 @@
 import type { SecFormFetchPlan } from "../common/fetchPlan";
+import { SEC_S4_F4_FORMS } from "../common/forms";
 
 export const secS4F4FetchPlan = {
   room: "s4-f4",
-  forms: ["S-4", "F-4", "S-4/A", "F-4/A"],
+  forms: SEC_S4_F4_FORMS,
   defaultAttachmentLimit: 12,
   notes: [
     "S-4/F-4 filings need registration/proxy text plus merger agreement, exchange ratio, vote, fairness, and fee-table materials.",

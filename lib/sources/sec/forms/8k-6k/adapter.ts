@@ -1,4 +1,5 @@
 import { createGenericSecFormAdapter } from "@/lib/sources/sec/forms/common/formAdapterRuntime";
+import { SEC_CURRENT_REPORT_FORMS } from "@/lib/sources/sec/forms/common/forms";
 import { buildSec8k6kAnalysisPromptDraft } from "./analysisPrompt";
 import { buildSec8k6kDisplayPayload } from "./displayPayload";
 import { parseSec8k6kFiling } from "./parser";
@@ -23,7 +24,7 @@ export { SEC_8K_6K_FORM_SCOPE, SEC_8K_6K_PARSER_GROUP } from "./types";
 export type { Sec8k6kParserOutput } from "./types";
 
 export const SEC_8K_6K_ADAPTER_KEY = "current_report";
-export const SEC_8K_6K_SUPPORTED_FORMS = ["8-K", "8-K/A", "6-K", "6-K/A"] as const;
+export const SEC_8K_6K_SUPPORTED_FORMS = SEC_CURRENT_REPORT_FORMS;
 export const SEC_8K_6K_ANALYSIS_MODE = "current_report_router_flow";
 
 export const currentReportFormAdapter = createGenericSecFormAdapter({

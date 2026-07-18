@@ -6,19 +6,11 @@ import {
   PARSER_VERSION_424B,
 } from "./types";
 import type { SecFormParserInput } from "../common/parserContract";
+import { SEC_424B_FORMS } from "../common/forms";
 import type { Sec424bAttachment, Sec424bParseInput } from "./types";
 
 export const SEC_424B_ADAPTER_KEY = "sec-424b";
-export const SEC_424B_SUPPORTED_FORMS = [
-  "424B",
-  "424B1",
-  "424B2",
-  "424B3",
-  "424B4",
-  "424B5",
-  "424B7",
-  "424B8",
-] as const;
+export const SEC_424B_SUPPORTED_FORMS = SEC_424B_FORMS;
 export const SEC_424B_ANALYSIS_MODE = "analysis_only" as const;
 
 function attachmentTextFromRawPayload(rawPayload: Record<string, unknown> | null | undefined): Sec424bAttachment[] {

@@ -1,8 +1,9 @@
 import type { SecFormFetchPlan } from "../common/fetchPlan";
+import { SEC_S3_F3_FORMS } from "../common/forms";
 
 export const secS3F3FetchPlan = {
   room: "s3-f3",
-  forms: ["S-3", "F-3", "S-3ASR", "F-3ASR", "S-3MEF", "F-3MEF", "S-3/A", "F-3/A"],
+  forms: SEC_S3_F3_FORMS,
   defaultAttachmentLimit: 10,
   notes: [
     "Shelf, resale, ATM, and mixed offering analysis depends on fee tables, prospectus supplement text, and selling-holder terms.",

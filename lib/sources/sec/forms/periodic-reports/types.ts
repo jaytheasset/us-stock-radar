@@ -1,7 +1,9 @@
+import { SEC_PERIODIC_REPORT_FORMS } from "../common/forms";
+
 export const PERIODIC_REPORTS_PARSER_GROUP = "periodic-reports";
 export const PERIODIC_REPORTS_FORM_SCOPE = "10-K / 10-Q / 20-F, 10-K/A / 10-Q/A / 20-F/A";
 
-export const SUPPORTED_PERIODIC_REPORT_FORMS = ["10-K", "10-Q", "20-F", "10-K/A", "10-Q/A", "20-F/A"] as const;
+export const SUPPORTED_PERIODIC_REPORT_FORMS = SEC_PERIODIC_REPORT_FORMS;
 
 export type SupportedPeriodicReportForm = (typeof SUPPORTED_PERIODIC_REPORT_FORMS)[number];
 

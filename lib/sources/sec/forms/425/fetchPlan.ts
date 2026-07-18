@@ -1,8 +1,9 @@
 import type { SecFormFetchPlan } from "../common/fetchPlan";
+import { SEC_425_FORMS } from "../common/forms";
 
 export const sec425FetchPlan = {
   room: "425",
-  forms: ["425"],
+  forms: SEC_425_FORMS,
   defaultAttachmentLimit: 8,
   notes: [
     "Form 425 often puts the real transaction communication in EX-99 press releases, investor presentations, FAQs, or transcripts.",

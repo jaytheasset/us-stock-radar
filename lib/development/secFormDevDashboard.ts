@@ -19,6 +19,7 @@ import {
   saveSecRawItem,
 } from "@/lib/secStores/rawStore";
 import { fetchSecEdgarRawItems, type SecParsedRawItem } from "@/lib/sources/sec/parser";
+import { SEC_FORM_ROOM_MANIFEST } from "@/lib/sources/sec/forms/common/forms";
 import { build424bAnalysisPrompt } from "@/lib/sources/sec/forms/424b/analysisPrompt";
 import {
   PARSER_GROUP_424B,
@@ -176,41 +177,13 @@ const LLM_DISABLED_DRY_RUN_MESSAGE = "LLM required but disabled for SEC analysis
 type RawItemRow = Record<string, unknown>;
 
 export const SEC_DEV_ROOMS: SecDevRoom[] = [
-  { key: "ownership", label: "Ownership", forms: ["4", "4/A", "144", "144/A"], folder: "ownership", adapterKey: "ownership" },
-  { key: "8k-6k", label: "8-K / 6-K", forms: ["8-K", "8-K/A", "6-K", "6-K/A"], folder: "8k-6k", adapterKey: "current_report" },
-  {
-    key: "s1-f1",
-    label: "S-1 / F-1",
-    forms: ["S-1", "S-1/A", "F-1", "F-1/A", "S-1MEF", "F-1MEF", "POS AM"],
-    folder: "s1-f1",
-  },
-  {
-    key: "s3-f3",
-    label: "S-3 / F-3",
-    forms: ["S-3", "S-3/A", "S-3ASR", "S-3MEF", "F-3", "F-3/A", "F-3ASR", "F-3MEF"],
-    folder: "s3-f3",
-  },
-  { key: "s4-f4", label: "S-4 / F-4", forms: ["S-4", "S-4/A", "F-4", "F-4/A"], folder: "s4-f4" },
-  { key: "425", label: "425", forms: ["425"], folder: "425" },
-  { key: "424b", label: "424B", forms: ["424B3", "424B4", "424B5"], folder: "424b" },
-  { key: "tender", label: "Tender / CB / 13E3", forms: ["SC TO-I", "SC TO-T", "SC 13E3", "CB", "SC 14D9"], folder: "tender" },
-  {
-    key: "proxy",
-    label: "Proxy",
-    forms: ["DEF 14A", "PRE 14A", "DEFA14A", "DEFM14A", "PREM14A", "DEFC14A", "PREC14A"],
-    folder: "proxy",
-  },
-  {
-    key: "periodic-reports",
-    label: "Periodic Reports",
-    forms: ["10-K", "10-K/A", "10-Q", "10-Q/A", "20-F", "20-F/A"],
-    folder: "periodic-reports",
-  },
-  { key: "s8", label: "S-8", forms: ["S-8", "S-8/A", "S-8 POS"], folder: "s8" },
-  { key: "sc13", label: "13D / SC 13D", forms: ["SC 13D", "SC 13D/A", "SC 13G", "SC 13G/A"], folder: "sc13" },
-  { key: "nt", label: "NT Reports", forms: ["NT 10-K", "NT 10-K/A", "NT 10-Q", "NT 10-Q/A", "NT 20-F", "NT 20-F/A"], folder: "nt" },
-  { key: "form25", label: "Form 25", forms: ["25", "25-NSE"], folder: "form25" },
-  { key: "effect", label: "EFFECT", forms: ["EFFECT"], folder: "effect" },
+  ...SEC_FORM_ROOM_MANIFEST.map((room) => ({
+    key: room.slug,
+    label: room.label,
+    forms: [...room.forms],
+    folder: room.folder,
+    adapterKey: room.workerKey,
+  })),
   { key: "other", label: "Other SEC", forms: ["OTHER"], folder: "other" },
 ];
 

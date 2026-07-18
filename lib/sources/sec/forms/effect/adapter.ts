@@ -1,11 +1,12 @@
 import { analyzeEffectFiling, buildEffectResult } from "./analysis";
+import { SEC_EFFECT_FORMS } from "../common/forms";
 import { buildEffectDisplayPayload } from "./displayPayload";
 import { parseEffectFiling } from "./parser";
 import { routeEffectFiling } from "./router";
 import { EFFECT_PARSER_GROUP } from "./types";
 
 export const effectAdapterKey = "sec-effect";
-export const effectSupportedForms = ["EFFECT"] as const;
+export const effectSupportedForms = SEC_EFFECT_FORMS;
 export const effectParserGroup = EFFECT_PARSER_GROUP;
 export const effectAnalysisMode = "generic_sec_analysis";
 

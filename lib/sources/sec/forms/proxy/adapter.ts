@@ -10,27 +10,13 @@ import {
   deriveDeliveryLevel,
   type ProxyAnalysisPromptInput,
 } from "./analysisPrompt.ts";
+import { SEC_PROXY_FORMS } from "../common/forms.ts";
 import type { ProxyDisplayPayload } from "./displayPayload.ts";
 
 export const PROXY_ADAPTER_KEY = "sec_proxy";
 export const PROXY_ANALYSIS_MODE = "analysis_only";
 
-export const PROXY_SUPPORTED_FORMS = [
-  "DEF 14A",
-  "DEF 14A/A",
-  "PRE 14A",
-  "PRE 14A/A",
-  "DEFA14A",
-  "DEFA14A/A",
-  "DEFR14A",
-  "PRER14A",
-  "DEFM14A",
-  "PREM14A",
-  "DEFC14A",
-  "PREC14A",
-  "SC 14A",
-  "SC 14A/A",
-] as const;
+export const PROXY_SUPPORTED_FORMS = SEC_PROXY_FORMS;
 
 export type ProxySupportedForm = (typeof PROXY_SUPPORTED_FORMS)[number];
 

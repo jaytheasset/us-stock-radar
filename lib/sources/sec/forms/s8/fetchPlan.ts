@@ -1,8 +1,9 @@
 import type { SecFormFetchPlan } from "../common/fetchPlan";
+import { SEC_S8_FORMS } from "../common/forms";
 
 export const secS8FetchPlan = {
   room: "s8",
-  forms: ["S-8", "S-8/A", "S-8 POS"],
+  forms: SEC_S8_FORMS,
   defaultAttachmentLimit: 8,
   notes: [
     "S-8 analysis needs registered share counts, plan names, fee table values, and amendment context.",

@@ -1,8 +1,9 @@
 import type { SecFormFetchPlan } from "../common/fetchPlan";
+import { SEC_CURRENT_REPORT_FORMS } from "../common/forms";
 
 export const sec8k6kFetchPlan = {
   room: "8k-6k",
-  forms: ["8-K", "8-K/A", "6-K", "6-K/A"],
+  forms: SEC_CURRENT_REPORT_FORMS,
   defaultAttachmentLimit: 8,
   notes: [
     "Current reports often put the market-moving detail in EX-99 press releases or EX-10 agreements.",

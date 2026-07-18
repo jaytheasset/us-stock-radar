@@ -1,8 +1,9 @@
 import type { SecFormFetchPlan } from "../common/fetchPlan";
+import { SEC_SC13_FORMS } from "../common/forms";
 
 export const secSc13FetchPlan = {
   room: "sc13",
-  forms: ["SC 13D", "SC 13D/A", "SC 13G", "SC 13G/A"],
+  forms: SEC_SC13_FORMS,
   defaultAttachmentLimit: 5,
   notes: [
     "SC 13D/13G parser should preserve issuer, reporting person, ownership percentage, Item 4 intent, and amendment context.",

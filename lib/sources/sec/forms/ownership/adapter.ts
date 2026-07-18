@@ -6,6 +6,7 @@ import {
   OWNERSHIP_PARSER_GROUP,
   parseOwnershipFiling,
 } from "./parser.ts";
+import { SEC_OWNERSHIP_FORMS } from "../common/forms.ts";
 import {
   buildOwnershipAnalysisInput,
   buildOwnershipAnalysisPrompt,
@@ -16,7 +17,7 @@ export type { OwnershipParserOutput } from "./parser.ts";
 
 export const ownershipAdapterKey = "ownership";
 export const ownershipParserGroup = OWNERSHIP_PARSER_GROUP;
-export const ownershipSupportedForms = ["4", "4/A", "144", "144/A"] as const;
+export const ownershipSupportedForms = SEC_OWNERSHIP_FORMS;
 export const ownershipAnalysisMode = "ownership_direct_analysis" as const;
 
 export function parseOwnershipForm(input: OwnershipFixtureInput): OwnershipParserOutput {

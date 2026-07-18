@@ -1,8 +1,9 @@
 import type { SecFormFetchPlan } from "../common/fetchPlan";
+import { SEC_424B_FORMS } from "../common/forms";
 
 export const sec424bFetchPlan = {
   room: "424b",
-  forms: ["424B3", "424B5"],
+  forms: SEC_424B_FORMS,
   defaultAttachmentLimit: 8,
   notes: [
     "424B filings often carry final pricing, resale, warrant, unit, ATM, or prospectus-supplement terms.",

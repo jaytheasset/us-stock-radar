@@ -1,8 +1,9 @@
 import type { SecFormFetchPlan } from "../common/fetchPlan";
+import { SEC_EFFECT_FORMS } from "../common/forms";
 
 export const secEffectFetchPlan = {
   room: "effect",
-  forms: ["EFFECT"],
+  forms: SEC_EFFECT_FORMS,
   defaultAttachmentLimit: 3,
   notes: [
     "EFFECT is usually deterministic from the primary notice and referenced registration number.",

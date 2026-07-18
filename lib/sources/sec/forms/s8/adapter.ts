@@ -1,4 +1,5 @@
 import type { SecFormParserInput } from "../common/parserContract";
+import { SEC_S8_FORMS } from "../common/forms";
 import { secS8FetchPlan } from "./fetchPlan";
 import { parseS8Filing } from "./parser";
 import { buildS8RouterPrompt, routeS8Filing } from "./routerPrompt";
@@ -12,7 +13,7 @@ import type { S8FixtureInput, S8ParserOutput } from "./types";
 export const SEC_S8_ADAPTER_KEY = "sec_s8";
 export const SEC_S8_PARSER_GROUP = "s8";
 export const SEC_S8_ANALYSIS_MODE = "analysis_only";
-export const SEC_S8_SUPPORTED_FORMS = ["S-8", "S-8/A", "S-8 POS"] as const;
+export const SEC_S8_SUPPORTED_FORMS = SEC_S8_FORMS;
 
 export type S8SupportedFormType = (typeof SEC_S8_SUPPORTED_FORMS)[number];
 

@@ -1,8 +1,9 @@
 import type { SecFormFetchPlan } from "../common/fetchPlan";
+import { SEC_TENDER_FORMS } from "../common/forms";
 
 export const secTenderFetchPlan = {
   room: "tender",
-  forms: ["SC TO-I", "SC TO-I/A", "SC TO-T", "SC TO-T/A", "SC TO-C", "SC 13E3", "SC 13E3/A", "CB", "CB/A"],
+  forms: SEC_TENDER_FORMS,
   defaultAttachmentLimit: 12,
   notes: [
     "Tender, CB, and 13E3 filings depend heavily on offer documents, transmittal letters, fairness materials, financing, and amendment exhibits.",
