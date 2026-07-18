@@ -852,7 +852,12 @@ for (const fixtureName of fixtureNames) {
           ],
           guidance_metrics: [],
           key_business_updates: [
-            { title: "Cash position", value: "$220.0M", summary: "Cash remains available for operations." },
+            {
+              title: "Cash position",
+              value: "$220.0M",
+              summary:
+                "Cash remains available for operations. Management expects liquidity to support the current investment plan. A third sentence exceeds the compact narrative budget.",
+            },
           ],
         },
       },
@@ -861,6 +866,8 @@ for (const fixtureName of fixtureNames) {
     assert.equal(reportDisplayPayload.data.version, "periodic_report_display_v2", "analysis UI uses display v2");
     assert.equal((reportDisplayPayload.data.snapshot_metrics as unknown[]).length, 2, "analysis UI keeps snapshot metrics");
     assert.equal((reportDisplayPayload.data.performance_comparisons as unknown[]).length, 1, "analysis UI keeps comparison charts");
+    const displayedUpdate = (reportDisplayPayload.data.key_business_updates as Array<{ summary: string }>)[0];
+    assert.equal(displayedUpdate.summary.endsWith("..."), false, "analysis UI never clips business updates mid-sentence");
   }
 
   const promptInput = {

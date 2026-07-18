@@ -112,7 +112,7 @@
     "source_group": "filings",
     "market_scope": "company",
     "event_type": "ipo_listing",
-    "event_title": "Ibotta, Inc. EFFECT notice needs registration context",
+    "event_title": "Ibotta, Inc. S-1 registration statement declared effective",
     "primary_ticker": {
       "ticker": "IBTA",
       "exchange": "NYSE"
@@ -128,7 +128,7 @@
     "theme_group": null,
     "sub_theme": null,
     "score": 68,
-    "score_reason": "The fixture parent filing context identifies this EFFECT as an update to a prior ipo_listing analysis.",
+    "score_reason": "This S-1 EFFECT is linked to the prior ipo_listing filing context.",
     "signal": "neutral",
     "quick_take": "Ibotta, Inc.'s S-1 registration statement became effective; investors should review the original registration filing for securities, holders, and transaction terms.",
     "summary": "Ibotta, Inc.'s S-1 registration statement became effective on 2024-04-17.",
@@ -215,7 +215,7 @@
       }
     ],
     "notes": [
-      "EFFECT room did not query live DB; original filing context is fixture-only.",
+      "Original filing context is resolved by integration when available.",
       "Integration should link this EFFECT notice to the original analyzed registration filing."
     ]
   },
@@ -230,7 +230,7 @@
     "integration_notes": [
       "Link EFFECT filing to the related registration filing during integration; do not resolve that link from this form room.",
       "Delivery level is derived from score using shared score bands.",
-      "Fixture proves deterministic handling; no router or analysis LLM is needed.",
+      "Source-backed facts support deterministic handling; no router or analysis LLM is needed.",
       "Show the original registration filing analysis when available."
     ]
   }

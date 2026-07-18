@@ -80,7 +80,7 @@ function buildEventTitle(company: string, form: string, eventType: string): stri
 
 function buildQuickTake(company: string, form: string, routeDecision: EffectRouterDecision): string {
   if (routeDecision.eventType === "other") {
-    return `${company} filed an EFFECT notice, but the fixture does not identify enough related registration context for a stronger deterministic call.`;
+    return `${company} filed an EFFECT notice, but the notice does not identify enough related registration context for a stronger deterministic call.`;
   }
 
   return `${company}'s ${form} registration statement became effective; investors should review the original registration filing for securities, holders, and transaction terms.`;
@@ -120,7 +120,7 @@ function buildBearishPoints(routeDecision: EffectRouterDecision, form: string): 
   }
 
   if (routeDecision.eventType === "other") {
-    return ["The fixture lacks the related registration filing, so investors cannot assess the specific securities or transaction terms from this EFFECT notice alone."];
+    return ["The EFFECT notice lacks the related registration filing, so investors cannot assess the specific securities or transaction terms from the notice alone."];
   }
 
   return [];
@@ -174,7 +174,7 @@ function buildIntegrationNotes(parserOutput: EffectParserOutput, routeDecision: 
   if (routeDecision.requiresLlm) {
     notes.push("Router or analysis LLM would be needed for this case.");
   } else {
-    notes.push("Fixture proves deterministic handling; no router or analysis LLM is needed.");
+    notes.push("Source-backed facts support deterministic handling; no router or analysis LLM is needed.");
   }
 
   if (parserOutput.facts.originalAnalysisShouldBeShown) {

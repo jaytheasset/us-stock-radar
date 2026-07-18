@@ -5012,6 +5012,8 @@ async function attachSecMarketContext(input: SecFilingAnalysisInput) {
   const filingPackage = readRecord(input.filing_package);
   if (!filingPackage) return;
 
+  await attachSc13IssuerTicker(input, filingPackage);
+
   const existingMarketContext = (readRecord(filingPackage.market_context) || readRecord(filingPackage.marketContext)) as
     | Awaited<ReturnType<typeof resolveSecOfferingMarketContext>>
     | null;
@@ -5030,6 +5032,121 @@ async function attachSecMarketContext(input: SecFilingAnalysisInput) {
   if (isS3FilingInput(input)) {
     filingPackage.dilution_metrics = buildSecOfferingDilutionMetrics(filingPackage, marketContext);
   }
+}
+
+type Sc13SecTickerRow = {
+  cik: string;
+  name: string;
+  ticker: string;
+  exchange: string | null;
+};
+
+let sc13SecTickerRowsPromise: Promise<Sc13SecTickerRow[]> | null = null;
+
+async function attachSc13IssuerTicker(
+  input: SecFilingAnalysisInput,
+  filingPackage: Record<string, unknown>,
+) {
+  if (!isSc13FilingInput(input) || resolveSecMarketContextSymbol(filingPackage)) return;
+
+  const hardParsers = readRecord(filingPackage.hard_parsers);
+  const parserOutput = readRecord(hardParsers?.sc13);
+  const facts = readRecord(parserOutput?.facts);
+  const issuerName = stringValue(facts?.issuerName);
+  if (!issuerName) return;
+
+  const packageCik = normalizeCik(stringValue(filingPackage.cik));
+  const rows = await fetchSc13SecTickerRows();
+  const normalizedIssuerName = normalizeSc13IssuerName(issuerName);
+  const exactNameRows = rows.filter((row) => normalizeSc13IssuerName(row.name) === normalizedIssuerName);
+  const cikAndNameRows = packageCik
+    ? exactNameRows.filter((row) => row.cik === packageCik)
+    : [];
+  const candidates = cikAndNameRows.length ? cikAndNameRows : exactNameRows;
+  const selected = [...candidates].sort((left, right) => sc13TickerQualityScore(right.ticker) - sc13TickerQualityScore(left.ticker))[0];
+  if (!selected) return;
+
+  filingPackage.cik = selected.cik;
+  filingPackage.primary_ticker = {
+    ticker: selected.ticker,
+    exchange: selected.exchange,
+  };
+  filingPackage.tickers = [{ ticker: selected.ticker, exchange: selected.exchange, role: "issuer" }];
+  filingPackage.sc13_ticker_resolution = {
+    source: cikAndNameRows.length ? "sec_cik_and_issuer_name" : "sec_exact_issuer_name",
+    issuer_name: issuerName,
+    cik: selected.cik,
+  };
+
+  const parserPrimaryTicker = readRecord(facts?.primaryTicker);
+  if (parserPrimaryTicker) {
+    facts!.primaryTicker = {
+      ...parserPrimaryTicker,
+      ticker: selected.ticker,
+      exchange: selected.exchange,
+    };
+  }
+}
+
+async function fetchSc13SecTickerRows() {
+  if (!sc13SecTickerRowsPromise) {
+    sc13SecTickerRowsPromise = fetch("https://www.sec.gov/files/company_tickers_exchange.json", {
+      cache: "no-store",
+      headers: {
+        "User-Agent": getServerEnv().secUserAgent || "US-Stock-Radar/0.1 contact@example.com",
+        Accept: "application/json",
+      },
+    })
+      .then(async (response) => {
+        if (!response.ok) return [];
+        const payload = await response.json().catch(() => null);
+        const fields = Array.isArray(payload?.fields) ? payload.fields.map(stringValue) : [];
+        const cikIndex = fields.indexOf("cik");
+        const nameIndex = fields.indexOf("name");
+        const tickerIndex = fields.indexOf("ticker");
+        const exchangeIndex = fields.indexOf("exchange");
+        if (cikIndex < 0 || nameIndex < 0 || tickerIndex < 0) return [];
+
+        const dataRows: unknown[] = Array.isArray(payload?.data) ? payload.data : [];
+        return dataRows
+          .filter((row): row is unknown[] => Array.isArray(row))
+          .map((row): Sc13SecTickerRow | null => {
+            const cik = normalizeCik(stringValue(row[cikIndex]));
+            const name = stringValue(row[nameIndex]);
+            const ticker = normalizeMarketContextTicker(stringValue(row[tickerIndex]));
+            if (!cik || !name || !ticker) return null;
+            return {
+              cik,
+              name,
+              ticker,
+              exchange: stringValue(row[exchangeIndex]) || null,
+            };
+          })
+          .filter((row): row is Sc13SecTickerRow => Boolean(row));
+      })
+      .catch(() => []);
+  }
+
+  return sc13SecTickerRowsPromise;
+}
+
+function normalizeSc13IssuerName(value: string) {
+  return value
+    .normalize("NFKD")
+    .replace(/[^A-Z0-9]+/gi, " ")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toUpperCase();
+}
+
+function sc13TickerQualityScore(ticker: string) {
+  const value = ticker.toUpperCase();
+  let score = 100;
+  if (value.endsWith("W") || value.endsWith("WS") || value.endsWith("WT")) score -= 40;
+  if (value.endsWith("U") || value.endsWith("UN")) score -= 25;
+  if (value.endsWith("R") || value.endsWith("RT")) score -= 20;
+  if (value.includes(".")) score -= 5;
+  return score - Math.max(0, value.length - 4) * 3;
 }
 
 function resolveSecMarketContextSymbol(filingPackage: Record<string, unknown>) {

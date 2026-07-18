@@ -77,11 +77,21 @@ interface ExtractedXml {
   filers: EffectFilerFact[];
 }
 
+interface ExtractedPlainTextEffectFacts {
+  effectiveDate: string | null;
+  effectiveTime: string | null;
+  relatedForm: string | null;
+  cik: string | null;
+  companyName: string | null;
+  registrationNumber: string | null;
+}
+
 export function parseEffectFiling(input: EffectParseInput): EffectParserOutput {
   const normalized = normalizeInput(input);
   const sourceText = collectSourceText(normalized);
   const plainText = normalizeWhitespace(stripHtml(sourceText));
   const xml = extractXml(sourceText);
+  const plainTextFacts = extractPlainTextEffectFacts(plainText);
   const headerDetected = /<SEC-HEADER>/i.test(sourceText);
   const parentContext = normalized.parentFilingContext ?? null;
   const parentEventType = isApprovedEventType(parentContext?.eventType) ? parentContext.eventType : null;
@@ -101,15 +111,25 @@ export function parseEffectFiling(input: EffectParseInput): EffectParserOutput {
     indexRegistrationForm,
     headerRegistrationForm,
     parentForm: parentContext?.formType,
-    plainText,
+    plainTextForm: plainTextFacts.relatedForm,
   });
   const effectiveDateChoice = chooseEffectiveDate({
     fixtureDate: normalized.effectiveDate,
     xmlDate: xml.effectiveDate,
     headerDate: headerEffectivenessDate,
-    plainText,
+    plainTextDate: plainTextFacts.effectiveDate,
   });
-  const effectiveTime = normalizeTime(normalized.effectiveTime) ?? normalizeTime(xml.effectiveTime);
+  const normalizedEffectiveTime = normalizeTime(normalized.effectiveTime);
+  const xmlEffectiveTime = normalizeTime(xml.effectiveTime);
+  const effectiveTime = normalizedEffectiveTime ?? xmlEffectiveTime ?? plainTextFacts.effectiveTime;
+  const effectiveTimeSource =
+    normalizedEffectiveTime !== null
+      ? "fixture.effectiveTime"
+      : xmlEffectiveTime !== null
+        ? "effectiveData.finalEffectivenessDispTime"
+        : plainTextFacts.effectiveTime !== null
+          ? "filing text"
+          : null;
   const referenceAccessionNumber =
     cleanString(normalized.referenceAccessionNumber) ??
     xml.referenceAccessionNumber ??
@@ -134,6 +154,7 @@ export function parseEffectFiling(input: EffectParseInput): EffectParserOutput {
     cleanString(primaryFiler?.fileNumber) ??
     cleanString(parentContext?.registrationNumber) ??
     firstHeaderValue(sourceText, "SEC FILE NUMBER") ??
+    plainTextFacts.registrationNumber ??
     firstMatch(plainText, /\b(?:registration|file)\s+(?:number|no\.?)\s*[:#]?\s*((?:333|001|811)-[0-9A-Z-]+)\b/i);
   const originalFilingReference =
     cleanString(normalized.originalFilingReference) ??
@@ -146,11 +167,13 @@ export function parseEffectFiling(input: EffectParseInput): EffectParserOutput {
     cleanString(parentContext?.companyName) ??
     cleanString(primaryFiler?.entityName) ??
     headerCompanyName ??
+    plainTextFacts.companyName ??
     firstMatch(plainText, /\b(?:company|registrant|issuer)\s*[:\-]\s*([A-Z][A-Za-z0-9 .,&'-]{2,120})/i);
   const cik =
     cleanString(normalized.cik) ??
     cleanString(primaryFiler?.cik) ??
-    headerCik;
+    headerCik ??
+    plainTextFacts.cik;
   const filingDate = parseDateLike(normalized.filingDate) ?? parseDateLike(parentContext?.filingDate) ?? headerFiledDate;
   const ticker =
     normalizeTicker(normalized.ticker) ??
@@ -187,6 +210,7 @@ export function parseEffectFiling(input: EffectParseInput): EffectParserOutput {
     filers: xml.filers,
     formSource: formChoice.source,
     dateSource: effectiveDateChoice.source,
+    timeSource: effectiveTimeSource,
   });
   const warnings = buildWarnings({
     companyName,
@@ -307,6 +331,48 @@ function collectSourceText(input: NormalizedInput): string {
   return chunks.join("\n");
 }
 
+function extractPlainTextEffectFacts(text: string): ExtractedPlainTextEffectFacts {
+  const separator = String.raw`\s*(?:\|\s*)*`;
+  const dateText = firstMatch(
+    text,
+    new RegExp(
+      String.raw`\beffective(?:ness)?\s+date\s*:${separator}([A-Za-z]+\s+\d{1,2},\s*\d{4}|\d{4}-\d{2}-\d{2})`,
+      "i",
+    ),
+  );
+  const labeledTime = firstMatch(
+    text,
+    new RegExp(
+      String.raw`\beffective(?:ness)?\s+date\s*:${separator}(?:[A-Za-z]+\s+\d{1,2},\s*\d{4}|\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2}(?::\d{2})?\s*(?:A\.?M\.?|P\.?M\.?))`,
+      "i",
+    ),
+  );
+  const sequential = /\bLIVE\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\s+([A-Z0-9-]+(?:\/A)?)\s+(\d{10})\s+(.{2,160}?)\s+((?:333|001|811)-[0-9A-Z-]+)\b/i.exec(text);
+
+  return {
+    effectiveDate: parseDateLike(dateText) ?? parseDateLike(sequential?.[1]),
+    effectiveTime: normalizeEffectTime(labeledTime) ?? normalizeTime(sequential?.[2]),
+    relatedForm:
+      extractRelatedFormFromText(text) ??
+      normalizeRelatedForm(sequential?.[3]),
+    cik:
+      firstMatch(text, new RegExp(String.raw`\bCIK\s*:${separator}(\d{1,10})\b`, "i")) ??
+      cleanString(sequential?.[4]),
+    companyName:
+      decodeXmlEntities(
+        firstMatch(
+          text,
+          new RegExp(String.raw`\bCompany\s+Name\s*:${separator}([^|]{2,160}?)(?=\s*\||\s+File\s+Number\b|$)`, "i"),
+        ),
+      ) ?? decodeXmlEntities(cleanString(sequential?.[5])),
+    registrationNumber:
+      firstMatch(
+        text,
+        new RegExp(String.raw`\b(?:Registration|File)\s+(?:Number|No\.?)\s*:${separator}((?:333|001|811)-[0-9A-Z-]+)\b`, "i"),
+      ) ?? cleanString(sequential?.[6]),
+  };
+}
+
 function addText(chunks: string[], value: string | null | undefined): void {
   const cleaned = cleanString(value);
 
@@ -386,7 +452,7 @@ function chooseEffectiveForm(input: {
   indexRegistrationForm: string | null;
   headerRegistrationForm: string | null;
   parentForm: string | null | undefined;
-  plainText: string;
+  plainTextForm: string | null;
 }): { value: string | null; source: string | null } {
   const candidates = [
     { value: normalizeRelatedForm(input.fixtureForm), source: "fixture.effectiveFilingForm" },
@@ -395,7 +461,7 @@ function chooseEffectiveForm(input: {
     { value: input.indexRegistrationForm, source: "fixture.indexRegistrationForm" },
     { value: input.headerRegistrationForm, source: "fixture.headerRegistrationForm" },
     { value: normalizeRelatedForm(input.parentForm), source: "fixture.parentFilingContext.formType" },
-    { value: extractRelatedFormFromText(input.plainText), source: "filing text" },
+    { value: input.plainTextForm, source: "filing text" },
   ];
   const selected = candidates.find((candidate) => candidate.value !== null);
 
@@ -406,21 +472,13 @@ function chooseEffectiveDate(input: {
   fixtureDate: string | null | undefined;
   xmlDate: string | null;
   headerDate: string | null;
-  plainText: string;
+  plainTextDate: string | null;
 }): { value: string | null; source: string | null } {
   const candidates = [
     { value: parseDateLike(input.fixtureDate), source: "fixture.effectiveDate" },
     { value: input.xmlDate, source: "effectiveData.finalEffectivenessDispDate" },
     { value: input.headerDate, source: "SEC-HEADER.EFFECTIVENESS DATE" },
-    {
-      value: parseDateLike(
-        firstMatch(
-          input.plainText,
-          /\beffective(?:ness)?\s+date\s*[:\-]\s*([A-Za-z]+ \d{1,2}, \d{4}|\d{4}-\d{2}-\d{2})/i,
-        ),
-      ),
-      source: "filing text",
-    },
+    { value: input.plainTextDate, source: "filing text" },
   ];
   const selected = candidates.find((candidate) => candidate.value !== null);
 
@@ -498,7 +556,10 @@ function normalizeRelatedForm(value: string | null | undefined): string | null {
 function extractRelatedFormFromText(text: string): string | null {
   for (const formType of KNOWN_RELATED_FORMS) {
     const escaped = formType.replace("/", "\\/").replace(" ", "\\s+");
-    const pattern = new RegExp(`\\b(?:form\\s+|registration\\s+statement\\s+on\\s+|statement\\s+on\\s+)${escaped}\\b`, "i");
+    const pattern = new RegExp(
+      `\\b(?:form\\s*:\\s*(?:\\|\\s*)*|form\\s+|registration\\s+statement\\s+on\\s+|statement\\s+on\\s+)${escaped}\\b`,
+      "i",
+    );
 
     if (pattern.test(text)) {
       return formType;
@@ -564,6 +625,20 @@ function normalizeTime(value: string | null | undefined): string | null {
   return match === null ? null : cleaned;
 }
 
+function normalizeEffectTime(value: string | null | undefined): string | null {
+  const normalized = normalizeTime(value);
+  if (normalized) return normalized;
+
+  const cleaned = cleanString(value)?.toUpperCase().replace(/\s+/g, " ");
+  const match = cleaned?.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AP])\.?M\.?$/);
+  if (!match) return null;
+  let hour = Number(match[1]);
+  if (hour < 1 || hour > 12) return null;
+  if (match[4] === "A") hour %= 12;
+  else if (hour < 12) hour += 12;
+  return `${String(hour).padStart(2, "0")}:${match[2]}:${match[3] ?? "00"}`;
+}
+
 function buildEvidence(fields: {
   effectiveFilingForm: string | null;
   effectiveDate: string | null;
@@ -573,6 +648,7 @@ function buildEvidence(fields: {
   filers: EffectFilerFact[];
   formSource: string | null;
   dateSource: string | null;
+  timeSource: string | null;
 }): EvidenceItem[] {
   const evidence: EvidenceItem[] = [];
 
@@ -596,7 +672,7 @@ function buildEvidence(fields: {
     evidence.push({
       label: "effective_time",
       value: fields.effectiveTime,
-      source: "effectiveData.finalEffectivenessDispTime",
+      source: fields.timeSource ?? "EFFECT notice",
     });
   }
 
@@ -867,8 +943,10 @@ function buildSummary(companyName: string | null, relatedForm: string | null, ef
   const filerPhrase = filerCount > 1 ? ` for ${filerCount} filers` : "";
 
   if (relatedForm === null && effectiveDate === null) {
-    return `${company} filed an EFFECT notice, but the fixture does not identify the related registration filing or effective date.`;
+    return `${company} filed an EFFECT notice, but the notice does not identify the related registration filing or effective date.`;
   }
 
-  return `${company}'s ${form} registration statement became effective${datePhrase}${filerPhrase}.`;
+  return relatedForm === null
+    ? `${company}'s registration statement became effective${datePhrase}${filerPhrase}.`
+    : `${company}'s ${form} registration statement became effective${datePhrase}${filerPhrase}.`;
 }

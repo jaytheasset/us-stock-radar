@@ -131,12 +131,12 @@
     "score": 35,
     "score_reason": "POS AM effectiveness was mechanically identified, but this EFFECT room cannot infer operating-company investor impact from the notice alone.",
     "signal": "neutral",
-    "quick_take": "Hero Technologies Inc. filed an EFFECT notice, but the fixture does not identify enough related registration context for a stronger deterministic call.",
+    "quick_take": "Hero Technologies Inc. filed an EFFECT notice, but the notice does not identify enough related registration context for a stronger deterministic call.",
     "summary": "Hero Technologies Inc.'s POS AM registration statement became effective on 2022-12-12.",
     "why_it_matters": "An EFFECT notice confirms SEC effectiveness, but the investor impact depends on the related registration statement.",
     "bullish_points": [],
     "bearish_points": [
-      "The fixture lacks the related registration filing, so investors cannot assess the specific securities or transaction terms from this EFFECT notice alone."
+      "The EFFECT notice lacks the related registration filing, so investors cannot assess the specific securities or transaction terms from the notice alone."
     ],
     "key_evidence": [
       {
@@ -219,7 +219,7 @@
       }
     ],
     "notes": [
-      "EFFECT room did not query live DB; original filing context is fixture-only.",
+      "Original filing context is resolved by integration when available.",
       "Integration should link this EFFECT notice to the original analyzed registration filing."
     ]
   },
@@ -234,7 +234,7 @@
     "integration_notes": [
       "Link EFFECT filing to the related registration filing during integration; do not resolve that link from this form room.",
       "Delivery level is derived from score using shared score bands.",
-      "Fixture proves deterministic handling; no router or analysis LLM is needed.",
+      "Source-backed facts support deterministic handling; no router or analysis LLM is needed.",
       "Show the original registration filing analysis when available."
     ]
   }

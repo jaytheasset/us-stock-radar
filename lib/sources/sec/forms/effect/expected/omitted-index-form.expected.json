@@ -127,7 +127,7 @@
     "theme_group": null,
     "sub_theme": null,
     "score": 55,
-    "score_reason": "S-3 effectiveness can permit registered issuance or resale activity, so the deterministic room classifies it as dilution risk.",
+    "score_reason": "S-3 is now effective, and related registered securities may become saleable under the filing terms.",
     "signal": "volatile",
     "quick_take": "AMERICAN BATTERY TECHNOLOGY Co's S-3 registration statement became effective; investors should review the original registration filing for securities, holders, and transaction terms.",
     "summary": "AMERICAN BATTERY TECHNOLOGY Co's S-3 registration statement became effective on 2025-06-26.",
@@ -217,7 +217,7 @@
       }
     ],
     "notes": [
-      "EFFECT room did not query live DB; original filing context is fixture-only."
+      "Original filing context is resolved by integration when available."
     ]
   },
   "fixture_expected": {
@@ -231,7 +231,7 @@
     "integration_notes": [
       "Link EFFECT filing to the related registration filing during integration; do not resolve that link from this form room.",
       "Delivery level is derived from score using shared score bands.",
-      "Fixture proves deterministic handling; no router or analysis LLM is needed."
+      "Source-backed facts support deterministic handling; no router or analysis LLM is needed."
     ]
   }
 }

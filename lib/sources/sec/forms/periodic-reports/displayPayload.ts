@@ -1,5 +1,5 @@
 import type { PeriodicDisplayPayload, PeriodicParserOutput } from "./types.ts";
-import { clipPeriodicDisplayText } from "./uiNormalization.ts";
+import { clipPeriodicDisplayText, fitPeriodicNarrativeText } from "./uiNormalization.ts";
 
 export const SEC_PERIODIC_REPORTS_DISPLAY_PAYLOAD_VERSION = "periodic_report_display_v2";
 
@@ -138,7 +138,7 @@ function normalizeReportUiForDisplay(reportUi: Record<string, unknown>) {
       ...item,
       title: clipPeriodicDisplayText(item.title, 64),
       value: clipPeriodicDisplayText(item.value, 64) || null,
-      summary: clipPeriodicDisplayText(item.summary, 180),
+      summary: fitPeriodicNarrativeText(item.summary, 180),
     })),
   };
 }

@@ -36,7 +36,7 @@ export function routeEffectFiling(parserOutput: EffectParserOutput): EffectRoute
       requiresLlm: false,
       eventType: "other",
       routeReason:
-        "The EFFECT fixture does not identify the related registration form, so the room archives it conservatively rather than guessing.",
+        "The EFFECT notice does not identify the related registration form, so the room archives it conservatively rather than guessing.",
       preliminaryScore: 30,
       preliminarySignal: "neutral",
       preliminaryConfidence: "low",

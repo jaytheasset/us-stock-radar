@@ -7621,7 +7621,7 @@ function buildPeriodicReportModel(filing: FilingEvent): PeriodicReportModel | nu
     .map((item) => ({
       title: clipPeriodicDisplayText(readRowString(item, "title"), 64),
       value: clipPeriodicDisplayText(readRowString(item, "value"), 64) || undefined,
-      summary: clipPeriodicDisplayText(readRowString(item, "summary"), 180),
+      summary: fitPeriodicNarrativeText(readRowString(item, "summary"), 180),
     }))
     .filter((item) => item.title && item.summary)
     .slice(0, 3);
@@ -9649,7 +9649,13 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
   const payloadOfferingDetailsRows = readOfferingDetailsRows(displayPayloadData);
   const llmOfferingDetailsRows = readOfferingDetailsRows(llmDisplayModel);
   const offeringDetailsRows = payloadOfferingDetailsRows.length ? payloadOfferingDetailsRows : llmOfferingDetailsRows;
-  const llmShareOverhang = readLlmShareOverhang(displayPayloadData, llmDisplayModel);
+  const parsedLlmShareOverhang = readLlmShareOverhang(displayPayloadData, llmDisplayModel);
+  const llmShareOverhang = parsedLlmShareOverhang && isS8PlanRegistration
+    ? {
+        ...parsedLlmShareOverhang,
+        note: "Registered plan shares may be issued over time as awards vest or options are exercised.",
+      }
+    : parsedLlmShareOverhang;
   const s3AmendmentChangeRows = /^(?:S-3|F-3)\/A$/i.test(filing.formType.trim())
     ? readS3AmendmentChangeRows(displayPayloadData, llmDisplayModel)
     : [];
@@ -10559,6 +10565,9 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     offeringAmount,
     offeringStructureRows,
     offeringType,
+    overhangNote: isS8PlanRegistration
+      ? "Registered plan shares may be issued over time as awards vest or options are exercised."
+      : undefined,
     overhangScoreCaption: displayLabels.overhangScoreCaption,
     overhangSubtitle: displayLabels.overhangSubtitle,
     overhangUnavailableMessage: displayLabels.unavailableMessage,

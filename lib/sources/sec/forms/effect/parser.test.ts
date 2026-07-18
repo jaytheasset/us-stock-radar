@@ -49,6 +49,24 @@ const insufficientContext = parseEffectFiling(readFixture("insufficient-context"
 assert.equal(insufficientContext.facts.effectiveFilingForm, null);
 assert.ok(insufficientContext.warnings.includes("Related registration form type was not identified."));
 
+const flattenedNotice = parseEffectFiling({
+  formType: "EFFECT",
+  accessionNumber: "9999999995-24-001005",
+  text: [
+    "Effectiveness Date: | April 17, 2024 4:00 P.M. |",
+    "Form: | S-1 |",
+    "CIK: | 0001538379 |",
+    "Company Name: | Ibotta, Inc. |",
+    "File Number: | 333-278172 |",
+  ].join(" "),
+});
+assert.equal(flattenedNotice.facts.effectiveDate, "2024-04-17");
+assert.equal(flattenedNotice.facts.effectiveTime, "16:00:00");
+assert.equal(flattenedNotice.facts.effectiveFilingForm, "S-1");
+assert.equal(flattenedNotice.facts.cik, "0001538379");
+assert.equal(flattenedNotice.facts.companyName, "Ibotta, Inc.");
+assert.equal(flattenedNotice.facts.registrationNumber, "333-278172");
+
 console.log("sec effect parser fixture tests passed");
 
 function readFixture(name: string): EffectFixtureInput {
