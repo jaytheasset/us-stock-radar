@@ -112,7 +112,7 @@ export function StockRadarPremiumV2() {
 
               return (
                 <article
-                  className={`${styles.planCard}${planKey === "pro" ? ` ${styles.planCardPro}` : ""}${planKey === "ultimate" ? ` ${styles.planCardUltimate}` : ""}${isRecommended ? ` ${styles.recommendedCard}` : ""}`}
+                  className={`${styles.planCard}${planKey === "pro" ? ` ${styles.planCardPro}` : ""}${planKey === "advanced" ? ` ${styles.planCardAdvanced}` : ""}${planKey === "ultimate" ? ` ${styles.planCardUltimate}` : ""}${isRecommended ? ` ${styles.recommendedCard}` : ""}`}
                   key={planKey}
                 >
                   <header className={styles.planCardHeader}>

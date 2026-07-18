@@ -8,14 +8,18 @@ import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import styles from "./StockRadarPremiumV2.module.css";
 
 const categoryBadgeTones: Record<PremiumV2CategoryTone, BadgeTone> = {
-  governance: "insider",
-  performance: "earnings",
-  policy: "product",
-  risk: "legal",
+  earnings: "earnings",
+  insider: "insider",
+  legal: "legal",
+  product: "product",
   transaction: "transaction",
 };
 
-function isPremiumValue(value: string) {
+function isPremiumValue(value: string, planKey: string) {
+  if (planKey === "free" || planKey === "adFree") {
+    return false;
+  }
+
   return ![
     "No",
     "—",
@@ -26,6 +30,7 @@ function isPremiumValue(value: string) {
     "5 min",
     "Web + App",
     "All alert categories",
+    "All 5 types · selected tickers",
   ].includes(value);
 }
 
@@ -81,7 +86,7 @@ export function PremiumFeatureComparison() {
                   return (
                     <td
                       className={[
-                        isPremiumValue(value) ? styles.premiumValue : undefined,
+                        isPremiumValue(value, planKey) ? styles.premiumValue : undefined,
                         getTierColumnClass(planKey),
                       ].filter(Boolean).join(" ") || undefined}
                       key={planKey}
@@ -121,7 +126,7 @@ export function PremiumFeatureComparison() {
                     <dt>{premiumV2Plans[planKey].name}</dt>
                     <dd
                       className={[
-                        isPremiumValue(value) ? styles.premiumValue : undefined,
+                        isPremiumValue(value, planKey) ? styles.premiumValue : undefined,
                         getTierColumnClass(planKey),
                       ].filter(Boolean).join(" ") || undefined}
                     >

@@ -7,10 +7,10 @@ export type PremiumV2PlanKey =
 
 export type PremiumV2BillingCycle = "monthly";
 export type PremiumV2CategoryTone =
-  | "governance"
-  | "performance"
-  | "policy"
-  | "risk"
+  | "earnings"
+  | "insider"
+  | "legal"
+  | "product"
   | "transaction";
 
 export type PremiumV2Plan = {
@@ -80,13 +80,13 @@ export const premiumV2Plans: Record<PremiumV2PlanKey, PremiumV2Plan> = {
   pro: {
     benefits: [
       "Ticker Alerts for 15 tickers",
-      "All event types for selected tickers",
-      "Core Market Events",
+      "12 core event types for selected tickers",
+      "5 risk & catalyst types for selected tickers",
       "Market alerts scoring 75+",
       "Web + App + Telegram",
     ],
     cta: "Upgrade to Pro",
-    description: "Alerts for your selected tickers and core market events.",
+    description: "Twelve core and five risk & catalyst event types for your selected tickers.",
     monthlyPrice: "$19",
     name: "Pro",
   },
@@ -94,9 +94,9 @@ export const premiumV2Plans: Record<PremiumV2PlanKey, PremiumV2Plan> = {
     badge: "Full Market Scanner",
     benefits: [
       "Unlimited Ticker Alerts",
-      "Full Market Coverage",
+      "12 core + 5 risk & catalyst types across all market tickers",
       "Dilution, listing, financial, legal, and FDA / Clinical",
-      "Advanced filters and score controls",
+      "Advanced filters",
       "Web + App + Telegram + Email",
     ],
     cta: "Go Advanced",
@@ -106,7 +106,7 @@ export const premiumV2Plans: Record<PremiumV2PlanKey, PremiumV2Plan> = {
   },
   ultimate: {
     benefits: [
-      "Full Market Coverage",
+      "12 core + 5 risk & catalyst types across all market tickers",
       "Custom Rules",
       "API / Webhook delivery",
       "Professional configuration",
@@ -154,20 +154,20 @@ export const premiumV2SampleAlerts = [
 export const premiumV2MarketCoverageGroups: readonly PremiumV2MarketCoverageGroup[] = [
   {
     badge: "Pro+",
-    description: "Major news and filings across core event types.",
+    description: "Twelve core event types for your selected ticker alerts.",
     items: [
-      { label: "Earnings", tone: "performance" },
-      { label: "Sales Performance", tone: "performance" },
-      { label: "Product Updates", tone: "performance" },
-      { label: "Leadership & Governance", tone: "governance" },
-      { label: "Insider Ownership", tone: "governance" },
-      { label: "Shareholder Vote", tone: "governance" },
+      { label: "Earnings", tone: "earnings" },
+      { label: "Sales Performance", tone: "earnings" },
+      { label: "Product Updates", tone: "product" },
+      { label: "Leadership & Governance", tone: "insider" },
+      { label: "Insider Ownership", tone: "insider" },
+      { label: "Shareholder Vote", tone: "insider" },
       { label: "Strategic Transactions", tone: "transaction" },
-      { label: "Dividends", tone: "performance" },
-      { label: "Capital Return", tone: "performance" },
+      { label: "Dividends", tone: "earnings" },
+      { label: "Capital Return", tone: "earnings" },
       { label: "IPO / Listing", tone: "transaction" },
-      { label: "Policy & Regulation", tone: "policy" },
-      { label: "Macro Market", tone: "policy" },
+      { label: "Policy & Regulation", tone: "transaction" },
+      { label: "Macro Market", tone: "transaction" },
     ],
     planKey: "pro",
     title: "Core Market Events",
@@ -176,11 +176,11 @@ export const premiumV2MarketCoverageGroups: readonly PremiumV2MarketCoverageGrou
     badge: "Advanced+",
     description: "Full-market risk and catalyst coverage.",
     items: [
-      { label: "Dilution Risk", tone: "risk" },
-      { label: "Listing Risk", tone: "risk" },
-      { label: "Financial Risk", tone: "risk" },
-      { label: "Legal Risk", tone: "risk" },
-      { label: "FDA / Clinical", tone: "policy" },
+      { label: "Dilution Risk", tone: "legal" },
+      { label: "Listing Risk", tone: "legal" },
+      { label: "Financial Risk", tone: "legal" },
+      { label: "Legal Risk", tone: "legal" },
+      { label: "FDA / Clinical", tone: "product" },
     ],
     planKey: "advanced",
     title: "Risk & Catalyst Events",
@@ -193,36 +193,51 @@ export const premiumV2ComparisonRows: readonly PremiumV2ComparisonRow[] = [
     values: { free: "1", adFree: "5", pro: "15", advanced: "Unlimited", ultimate: "Unlimited" },
   },
   {
-    feature: "Selected Ticker Coverage",
-    values: { free: "All alert categories", adFree: "All alert categories", pro: "All alert categories", advanced: "All alert categories", ultimate: "All alert categories" },
-  },
-  {
-    feature: "Market-Wide Core Events",
-    values: { free: "—", adFree: "—", pro: "Included", advanced: "Included", ultimate: "Included" },
+    feature: "Core Event Alerts",
+    values: {
+      free: "12 types · selected 1 ticker only",
+      adFree: "12 types · selected 5 tickers only",
+      pro: "12 types · selected 15 tickers",
+      advanced: "12 types · all market tickers",
+      ultimate: "12 types · all market tickers + rules",
+    },
   },
   {
     details: {
+      pro: [
+        { label: "Dilution Risk", tone: "legal" },
+        { label: "Listing Risk", tone: "legal" },
+        { label: "Financial Risk", tone: "legal" },
+        { label: "Legal Risk", tone: "legal" },
+        { label: "FDA / Clinical", tone: "product" },
+      ],
       advanced: [
-        { label: "Dilution Risk", tone: "risk" },
-        { label: "Listing Risk", tone: "risk" },
-        { label: "Financial Risk", tone: "risk" },
-        { label: "Legal Risk", tone: "risk" },
-        { label: "FDA / Clinical", tone: "policy" },
+        { label: "Dilution Risk", tone: "legal" },
+        { label: "Listing Risk", tone: "legal" },
+        { label: "Financial Risk", tone: "legal" },
+        { label: "Legal Risk", tone: "legal" },
+        { label: "FDA / Clinical", tone: "product" },
       ],
       ultimate: [
-        { label: "Dilution Risk", tone: "risk" },
-        { label: "Listing Risk", tone: "risk" },
-        { label: "Financial Risk", tone: "risk" },
-        { label: "Legal Risk", tone: "risk" },
-        { label: "FDA / Clinical", tone: "policy" },
+        { label: "Dilution Risk", tone: "legal" },
+        { label: "Listing Risk", tone: "legal" },
+        { label: "Financial Risk", tone: "legal" },
+        { label: "Legal Risk", tone: "legal" },
+        { label: "FDA / Clinical", tone: "product" },
       ],
     },
-    feature: "Market-Wide Risk & Catalyst",
-    values: { free: "—", adFree: "—", pro: "—", advanced: "5 types", ultimate: "5 types + rules" },
+    feature: "Risk & Catalyst Alerts",
+    values: {
+      free: "5 types · selected 1 ticker only",
+      adFree: "5 types · selected 5 tickers only",
+      pro: "5 types · selected 15 tickers",
+      advanced: "5 types · all market tickers",
+      ultimate: "5 types · all market tickers + rules",
+    },
   },
   {
     feature: "Alert Score",
-    values: { free: "—", adFree: "—", pro: "75+", advanced: "Adjustable", ultimate: "Custom" },
+    values: { free: "—", adFree: "—", pro: "75+", advanced: "75+", ultimate: "75+" },
   },
   {
     feature: "Filter Controls",

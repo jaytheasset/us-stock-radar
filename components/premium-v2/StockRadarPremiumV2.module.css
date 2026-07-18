@@ -421,6 +421,11 @@
   background: var(--sr-color-event-transaction-surface);
 }
 
+.planCardAdvanced {
+  border-color: var(--sr-color-accent-border-active);
+  background: var(--sr-color-accent-subtle);
+}
+
 .planCardUltimate {
   border-color: var(--sr-color-border-overlay-strong);
   background: var(--sr-color-surface-elevated);
@@ -433,7 +438,13 @@
   box-shadow: var(--sr-shadow-panel);
 }
 
+.planCardAdvanced.recommendedCard {
+  border-color: var(--sr-color-accent-border-active);
+  background: var(--sr-color-accent-subtle);
+}
+
 .planCardPro::before,
+.planCardAdvanced::before,
 .planCardUltimate::before,
 .recommendedCard::before {
   position: absolute;
@@ -448,11 +459,19 @@
   background: var(--sr-color-event-transaction);
 }
 
+.planCardAdvanced::before {
+  background: var(--sr-color-accent);
+}
+
 .planCardUltimate::before {
   background: var(--sr-color-text-muted);
 }
 
 .recommendedCard::before {
+  background: var(--sr-color-accent);
+}
+
+.planCardAdvanced.recommendedCard::before {
   background: var(--sr-color-accent);
 }
 
@@ -677,7 +696,7 @@
 
 .coverageGroup-advanced header {
   padding-bottom: var(--sr-space-2);
-  border-bottom: var(--sr-border-width) solid var(--sr-color-accent-border-premium);
+  border-bottom: var(--sr-border-width) solid var(--sr-color-accent-border-active);
 }
 
 .coverageTier {
@@ -688,6 +707,20 @@
   font-weight: var(--sr-font-weight-label);
   line-height: var(--sr-line-height-none);
   text-transform: uppercase;
+}
+
+.coverageGroup-pro .coverageTier,
+.coverageGroup-pro .planState {
+  border-color: var(--sr-color-event-transaction);
+  color: var(--sr-color-event-transaction);
+  background: var(--sr-color-event-transaction-surface);
+}
+
+.coverageGroup-advanced .coverageTier,
+.coverageGroup-advanced .planState {
+  border-color: var(--sr-color-accent-border-active);
+  color: var(--sr-color-accent-text);
+  background: var(--sr-color-accent-subtle);
 }
 
 .coverageGroup p {
@@ -769,19 +802,19 @@
   text-transform: uppercase;
 }
 
-.categoryList > .category-risk {
+.categoryList > .category-legal {
   border-color: var(--sr-color-event-legal);
   color: var(--sr-color-event-legal);
   background: var(--sr-color-event-legal-surface);
 }
 
-.categoryList > .category-performance {
+.categoryList > .category-earnings {
   border-color: var(--sr-color-event-earnings);
   color: var(--sr-color-event-earnings);
   background: var(--sr-color-event-earnings-surface);
 }
 
-.categoryList > .category-governance {
+.categoryList > .category-insider {
   border-color: var(--sr-color-event-insider);
   color: var(--sr-color-event-insider);
   background: var(--sr-color-event-insider-surface);
@@ -793,7 +826,7 @@
   background: var(--sr-color-event-transaction-surface);
 }
 
-.categoryList > .category-policy {
+.categoryList > .category-product {
   border-color: var(--sr-color-event-product);
   color: var(--sr-color-event-product);
   background: var(--sr-color-event-product-surface);
@@ -856,13 +889,14 @@
 .desktopComparison td.comparisonColumn-pro {
   border-left-color: var(--sr-color-event-transaction);
   border-right: var(--sr-border-width) solid var(--sr-color-event-transaction);
+  border-bottom-color: var(--sr-color-border-overlay-strong);
   background: var(--sr-color-event-transaction-surface);
 }
 
 .desktopComparison th.comparisonColumn-advanced,
 .desktopComparison td.comparisonColumn-advanced {
-  border-left-color: var(--sr-color-accent-border-premium);
-  border-right: var(--sr-border-width) solid var(--sr-color-accent-border-premium);
+  border-left-color: var(--sr-color-accent-border-active);
+  border-right: var(--sr-border-width) solid var(--sr-color-accent-border-active);
   background: var(--sr-color-accent-subtle);
 }
 
@@ -872,7 +906,7 @@
 }
 
 .desktopComparison thead th.comparisonColumn-advanced {
-  border-top: var(--sr-space-0-5) solid var(--sr-color-accent);
+  border-top: var(--sr-space-0-5) solid var(--sr-color-accent-border-active);
   color: var(--sr-color-text-strong);
 }
 
@@ -1056,11 +1090,12 @@
 
   .mobileComparison dl > div.comparisonColumn-pro {
     border-left: var(--sr-space-0-5) solid var(--sr-color-event-transaction);
+    border-top-color: var(--sr-color-event-transaction);
     background: var(--sr-color-event-transaction-surface);
   }
 
   .mobileComparison dl > div.comparisonColumn-advanced {
-    border-left: var(--sr-space-0-5) solid var(--sr-color-accent);
+    border-left: var(--sr-space-0-5) solid var(--sr-color-accent-border-active);
     background: var(--sr-color-accent-subtle);
   }
 
