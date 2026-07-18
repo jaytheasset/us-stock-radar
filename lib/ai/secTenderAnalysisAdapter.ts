@@ -5,8 +5,31 @@ import {
   SEC_TENDER_ANALYSIS_PROMPT_VERSION,
   buildSecTenderAnalysisPromptDraft,
 } from "@/lib/sources/sec/forms/tender/analysisPrompt";
+import { buildSecTenderSourceBlockPromptInput } from "@/lib/sources/sec/forms/tender/sourceBlockPromptInput";
+import {
+  applySecValidationRepairPatches,
+  readSecValidationJsonPointer,
+} from "@/lib/ai/secValidationRepairPatch";
 
 export { SEC_TENDER_ANALYSIS_PROMPT_KEY, SEC_TENDER_ANALYSIS_PROMPT_VERSION };
+
+export const SEC_TENDER_VALIDATION_REPAIR_PROMPT_KEY = "sec_tender_validation_repair";
+export const SEC_TENDER_VALIDATION_REPAIR_PROMPT_VERSION = "v1-one-pass-source-backed-patch";
+
+export type SecTenderValidationRepairIssue = {
+  code: string;
+  warning: string;
+  field_paths: string[];
+  allowed_patch_paths: string[];
+  candidate_source_block_ids: string[];
+};
+
+export type SecTenderValidationRepairPlan = {
+  prompt: ReturnType<typeof buildTenderValidationRepairPrompt>;
+  issues: SecTenderValidationRepairIssue[];
+  allowedPatchPaths: string[];
+  sourceBlockIds: string[];
+};
 
 export type SecTenderAnalysisAdapterResult =
   | { ok: true; analysis: Record<string, unknown> }
@@ -36,6 +59,71 @@ export function buildSecTenderAnalysisPromptForInput(input: SecFilingAnalysisInp
     parent_filing_context: readRecord(filingPackage.parent_filing_context) || null,
     market_context: readMarketContext(input),
   });
+}
+
+export function buildSecTenderValidationRepairPlan({
+  analysisResult,
+  input,
+}: {
+  analysisResult: Record<string, unknown>;
+  input: SecFilingAnalysisInput;
+}): SecTenderValidationRepairPlan | null {
+  const root = readRecord(analysisResult);
+  const filingPackage = readFilingPackage(input);
+  const parserOutput = readTenderParserOutput(input);
+  const marketContext = readMarketContext(input);
+  if (!root || !parserOutput || !marketContext) return null;
+
+  const filingDate = readTenderFilingDate(filingPackage, parserOutput);
+  const marketAsOf = firstString(
+    marketContext.as_of,
+    marketContext.asOf,
+    marketContext.date,
+    marketContext.timestamp,
+  );
+  if (!isMateriallyLaterDate(marketAsOf, filingDate)) return null;
+
+  const premiumClaimPaths = collectTenderPremiumClaimPaths(root);
+  if (!premiumClaimPaths.length) return null;
+
+  const sourceBlocks = selectTenderRepairSourceBlocks(
+    buildTenderRepairSourceBlocks({ filingPackage, parserOutput, marketContext }),
+  );
+  if (!sourceBlocks.length) return null;
+
+  const sourceBlockIds = sourceBlocks.map((block) => stringValue(block.block_id)).filter(Boolean);
+  const warning = `Tender premium language used market context dated ${marketAsOf} for filing dated ${filingDate}; use a filing-stated unaffected/reference price or remove the premium claim.`;
+  const issue: SecTenderValidationRepairIssue = {
+    code: "stale_market_context_premium",
+    warning,
+    field_paths: premiumClaimPaths,
+    allowed_patch_paths: premiumClaimPaths,
+    candidate_source_block_ids: sourceBlockIds,
+  };
+
+  return {
+    prompt: buildTenderValidationRepairPrompt({
+      analysisResult: root,
+      issues: [issue],
+      allowedPatchPaths: premiumClaimPaths,
+      sourceBlocks,
+    }),
+    issues: [issue],
+    allowedPatchPaths: premiumClaimPaths,
+    sourceBlockIds,
+  };
+}
+
+export function applySecTenderValidationRepairPatches({
+  analysisResult,
+  repairResult,
+  allowedPatchPaths,
+}: {
+  analysisResult: Record<string, unknown>;
+  repairResult: unknown;
+  allowedPatchPaths: string[];
+}) {
+  return applySecValidationRepairPatches({ analysisResult, repairResult, allowedPatchPaths });
 }
 
 export function adaptSecTenderAnalysisPromptResultForAnalysis(
@@ -525,6 +613,171 @@ function resolveTenderTickerExchange(
   return null;
 }
 
+function buildTenderValidationRepairPrompt({
+  analysisResult,
+  issues,
+  allowedPatchPaths,
+  sourceBlocks,
+}: {
+  analysisResult: Record<string, unknown>;
+  issues: SecTenderValidationRepairIssue[];
+  allowedPatchPaths: string[];
+  sourceBlocks: Array<Record<string, unknown>>;
+}) {
+  return {
+    key: SEC_TENDER_VALIDATION_REPAIR_PROMPT_KEY,
+    version: SEC_TENDER_VALIDATION_REPAIR_PROMPT_VERSION,
+    system: [
+      "Repair one completed SEC Tender analysis in one bounded pass.",
+      "Validator warnings identify possible inconsistencies but are not evidence.",
+      "Use only the selected original source blocks and the existing result as evidence.",
+      "A filing-stated unaffected price or pre-announcement reference price takes priority over site market context for transaction premium.",
+      "Never compare a historical offer price with site market context dated materially after the filing.",
+      "If the source blocks support a reliable filing-date reference, recalculate the premium accurately. Otherwise remove unsupported premium or discount wording without inventing a number.",
+      "Return scalar replacement patches only for exact allowed paths. Never add, remove, reorder, truncate, or rewrite arrays or objects.",
+      "Preserve event classification, score, signal, transaction fingerprint, and all fields not explicitly allowed.",
+      "If the source blocks do not support a reliable replacement, return the issue as unresolved instead of guessing.",
+      "This is the only repair attempt. Return JSON only.",
+    ].join("\n"),
+    user: JSON.stringify(
+      {
+        task: "Patch only source-verifiable stale-market premium claims in the existing Tender analysis.",
+        allowed_patch_paths: allowedPatchPaths,
+        validator_issues: issues,
+        selected_original_source_blocks: sourceBlocks,
+        existing_analysis_result: analysisResult,
+      },
+      null,
+      2,
+    ),
+    responseFormat: {
+      json_schema: {
+        name: "sec_tender_validation_repair",
+        strict: true,
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["patches", "unresolved"],
+          properties: {
+            patches: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["path", "replacement", "reason", "source_block_ids"],
+                properties: {
+                  path: { type: "string", enum: allowedPatchPaths },
+                  replacement: { type: ["string", "number", "boolean", "null"] },
+                  reason: { type: "string", maxLength: 240 },
+                  source_block_ids: { type: "array", items: { type: "string" } },
+                },
+              },
+            },
+            unresolved: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["code", "reason"],
+                properties: {
+                  code: { type: "string" },
+                  reason: { type: "string", maxLength: 240 },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+}
+
+function collectTenderPremiumClaimPaths(analysisResult: Record<string, unknown>) {
+  const paths = [
+    "/analysis_output/event_title",
+    "/analysis_output/quick_take",
+    "/analysis_output/summary",
+    "/analysis_output/why_it_matters",
+    "/analysis_output/score_reason",
+    "/analysis_output/score_explanation/summary",
+  ];
+  for (const key of ["bullish_points", "bearish_points", "key_evidence", "what_to_watch_next"]) {
+    const values = stringArray(readRecord(analysisResult.analysis_output)?.[key]);
+    values.forEach((_value, index) => paths.push(`/analysis_output/${key}/${index}`));
+  }
+  return paths.filter((path) => TENDER_PREMIUM_CLAIM_PATTERN.test(stringValue(readSecValidationJsonPointer(analysisResult, path))));
+}
+
+const TENDER_PREMIUM_CLAIM_PATTERN = /\b(?:premium|discount|above[-\s]market|below[-\s]market)\b/i;
+
+function buildTenderRepairSourceBlocks({
+  filingPackage,
+  parserOutput,
+  marketContext,
+}: {
+  filingPackage: Record<string, unknown>;
+  parserOutput: Record<string, unknown>;
+  marketContext: Record<string, unknown>;
+}) {
+  const promptInput = buildSecTenderSourceBlockPromptInput({
+    filingPackage,
+    parserOutput,
+    fallbackText: stringValue(filingPackage.llm_text),
+    parentFilingContext: readRecord(filingPackage.parent_filing_context),
+    marketContext,
+  });
+  return promptInput.cleaned_source_blocks.map((block, index) => ({
+    block_id: `tender_${String(block.block_type || "source").toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 36)}_${index + 1}`,
+    source_ref: block.label,
+    block_type: block.block_type,
+    label: block.label,
+    source: block.source,
+    text: stringValue(block.text).slice(0, 5_000),
+    source_order: index,
+  }));
+}
+
+function selectTenderRepairSourceBlocks(blocks: Array<Record<string, unknown>>) {
+  return blocks
+    .map((block) => {
+      const label = `${stringValue(block.block_type)} ${stringValue(block.label)}`.toLowerCase();
+      const text = stringValue(block.text).toLowerCase();
+      let score = 0;
+      if (/unaffected|reference market price/.test(label)) score += 60;
+      if (/last full (?:trading day|day of trading)|before (?:the )?public announcement|unaffected (?:closing )?price/.test(text)) score += 40;
+      if (/cash consideration|offer price|purchase price|per-share/.test(label)) score += 24;
+      if (/\$\s?\d|usd\s?\d/.test(text)) score += 8;
+      if (/filing metadata|current filing/.test(label)) score += 12;
+      if (/site market context/.test(label)) score -= 30;
+      return { block, score, order: numberValue(block.source_order) ?? 0 };
+    })
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score || a.order - b.order)
+    .slice(0, 3)
+    .sort((a, b) => a.order - b.order)
+    .map(({ block }) => block);
+}
+
+function readTenderFilingDate(filingPackage: Record<string, unknown>, parserOutput: Record<string, unknown>) {
+  const rawPayload = readRecord(filingPackage.rawPayload);
+  return firstString(
+    filingPackage.filed_at,
+    filingPackage.filedAt,
+    filingPackage.published_at,
+    filingPackage.publishedAt,
+    rawPayload?.filing_date,
+    parserOutput.filedAt,
+    parserOutput.filingDate,
+  );
+}
+
+function isMateriallyLaterDate(laterValue: string, earlierValue: string) {
+  const later = Date.parse(laterValue);
+  const earlier = Date.parse(earlierValue);
+  if (!Number.isFinite(later) || !Number.isFinite(earlier)) return false;
+  return later - earlier > 3 * 24 * 60 * 60 * 1_000;
+}
+
 function recordArray(value: unknown) {
   return Array.isArray(value)
     ? value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item))
@@ -572,6 +825,14 @@ function nullableString(value: unknown) {
 function stringValue(value: unknown) {
   if (typeof value === "string") return value.trim();
   if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return "";
+}
+
+function firstString(...values: unknown[]) {
+  for (const value of values) {
+    const normalized = stringValue(value);
+    if (normalized) return normalized;
+  }
   return "";
 }
 

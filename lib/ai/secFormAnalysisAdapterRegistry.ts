@@ -60,8 +60,12 @@ import {
 import {
   SEC_TENDER_ANALYSIS_PROMPT_KEY,
   SEC_TENDER_ANALYSIS_PROMPT_VERSION,
+  SEC_TENDER_VALIDATION_REPAIR_PROMPT_KEY,
+  SEC_TENDER_VALIDATION_REPAIR_PROMPT_VERSION,
   adaptSecTenderAnalysisPromptResultForAnalysis,
+  applySecTenderValidationRepairPatches,
   buildSecTenderAnalysisPromptForInput,
+  buildSecTenderValidationRepairPlan,
   isTenderFilingInput,
 } from "@/lib/ai/secTenderAnalysisAdapter";
 import {
@@ -176,6 +180,8 @@ export {
   SEC_OWNERSHIP_VALIDATION_REPAIR_PROMPT_VERSION,
   SEC_TENDER_ANALYSIS_PROMPT_KEY,
   SEC_TENDER_ANALYSIS_PROMPT_VERSION,
+  SEC_TENDER_VALIDATION_REPAIR_PROMPT_KEY,
+  SEC_TENDER_VALIDATION_REPAIR_PROMPT_VERSION,
   SEC_SC13_ANALYSIS_PROMPT_KEY,
   SEC_SC13_ANALYSIS_PROMPT_VERSION,
   SEC_SC13_VALIDATION_REPAIR_PROMPT_KEY,
@@ -223,6 +229,7 @@ export {
   adaptOwnershipPromptResultForAnalysis,
   applySecOwnershipValidationRepairPatches,
   adaptSecTenderAnalysisPromptResultForAnalysis,
+  applySecTenderValidationRepairPatches,
   adaptSecSc13AnalysisPromptResultForAnalysis,
   applySecSc13ValidationRepairPatches,
   adaptSecS4F4AnalysisPromptResultForAnalysis,
@@ -259,6 +266,7 @@ export {
   enforceSecNtPostRepairInvariants,
   buildSecPeriodicReportsValidationRepairPlan,
   buildSecTenderAnalysisPromptForInput,
+  buildSecTenderValidationRepairPlan,
   buildSecSc13AnalysisPromptForInput,
   buildSecSc13ValidationRepairPlan,
   buildSecS4F4AnalysisPromptForInput,

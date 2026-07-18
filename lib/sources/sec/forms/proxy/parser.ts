@@ -443,6 +443,7 @@ export interface ProxyRawImportantBlock {
     | "supplement"
     | "contested"
     | "reverse_split"
+    | "reverse_split_risk"
     | "notice_only"
     | "preliminary_placeholder"
     | "spac_business_combination"
@@ -1328,6 +1329,7 @@ function buildImportantBlocks(
   add("supplement", "proxy supplement or amendment", input.supplement?.sourceText);
   add("contested", "contested solicitation evidence", input.contested?.sourceText);
   add("reverse_split", "reverse split proposal evidence", input.reverseSplit?.sourceText);
+  if (input.reverseSplit?.hasReverseSplitProposal) addReverseSplitRiskImportantBlocks(blocks, text);
   add("notice_only", "notice-only proxy evidence", input.noticeOnly?.sourceText);
 
   if (input.preliminary?.placeholderFields.length) {
@@ -1401,6 +1403,41 @@ function addSpacExtensionImportantBlocks(blocks: ProxyRawImportantBlock[], text:
   );
 }
 
+function addReverseSplitRiskImportantBlocks(blocks: ProxyRawImportantBlock[], text: string): void {
+  const normalizedText = normalizeSpaces(text);
+  const patterns = [
+    /\b(?:primary|principal|main)\s+(?:goal|purpose|objective)[^.]{0,700}\b(?:Nasdaq|NYSE|minimum\s+bid|listing|delisting)[^.]{0,900}/i,
+    /\b(?:OTC|over-the-counter|delist(?:ed|ing)?)[^.]{0,900}\b(?:less\s+liquid|liquidity|volatile|market\s+price|trading)[^.]{0,900}/i,
+    /\b(?:ability|inability)\s+to\s+(?:raise|obtain|secure)[^.]{0,900}\b(?:equity|capital|financing|funds)[^.]{0,900}/i,
+  ];
+  const windows = patterns
+    .map((pattern) => pattern.exec(normalizedText))
+    .filter((match): match is RegExpExecArray => Boolean(match && match.index !== undefined))
+    .map((match) => ({
+      start: Math.max(0, match.index - 700),
+      end: Math.min(normalizedText.length, match.index + match[0].length + 1_800),
+    }))
+    .sort((a, b) => a.start - b.start);
+  if (!windows.length) return;
+
+  const merged = windows.reduce<Array<{ start: number; end: number }>>((result, window) => {
+    const previous = result[result.length - 1];
+    if (previous && window.start <= previous.end + 300) {
+      previous.end = Math.max(previous.end, window.end);
+    } else {
+      result.push({ ...window });
+    }
+    return result;
+  }, []);
+  for (const window of merged.slice(0, 2)) {
+    blocks.push({
+      kind: "reverse_split_risk",
+      label: "Reverse split listing, liquidity, and capital risk",
+      text: trimBlockText(normalizedText.slice(window.start, window.end), 3_200),
+    });
+  }
+}
+
 function isLikelySpacExtensionText(text: string): boolean {
   return /\b(?:SPAC|special purpose acquisition company|business combination|trust account)\b/i.test(text)
     && /\b(?:extension amendment|extend(?:ing)?\s+(?:the\s+)?(?:deadline|date|time)|combination period|monthly extension)\b/i.test(text);
@@ -1418,7 +1455,7 @@ function addRegexImportantBlock(
   const match = normalizedText.match(pattern);
   if (!match?.[0] || match.index === undefined) return;
   const sourceText = sourceWindowAt(normalizedText, match.index, match[0].length, beforeChars, afterChars);
-  blocks.push({ kind, label, text: trimBlockText(sourceText, 1600) });
+  blocks.push({ kind, label, text: trimBlockText(sourceText, 1_600) });
 }
 
 function sourceWindowAt(

@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { adaptSecTenderAnalysisPromptResultForAnalysis } from "./secTenderAnalysisAdapter";
+import {
+  adaptSecTenderAnalysisPromptResultForAnalysis,
+  buildSecTenderValidationRepairPlan,
+} from "./secTenderAnalysisAdapter";
+import { parseSecTenderFiling } from "../sources/sec/forms/tender/parser";
 
 const fixturePath = join(process.cwd(), "lib/sources/sec/forms/tender/expected/third-party-acquisition-tender.expected.json");
 const fixture = JSON.parse(readFileSync(fixturePath, "utf8")) as Record<string, unknown>;
@@ -237,6 +241,60 @@ const rupeeResult = adaptSecTenderAnalysisPromptResultForAnalysis(
 assert.equal(rupeeResult.ok, true);
 assert.equal(rupeeResult.analysis.title, "Wipro proposes buyback at INR 250");
 assert.match(String(rupeeResult.analysis.summary), /INR 250 per share/);
+
+const stalePremiumParserOutput = parseSecTenderFiling({
+  sourceUniqueId: "0001193125-24-181268",
+  publishedAt: "2024-07-23",
+  bodyText: "SC TO-T tender offer at $57.00 per Share in cash.",
+  rawPayload: { form_type: "SC TO-T", accession_number: "0001193125-24-181268" },
+  attachmentTexts: [
+    {
+      type: "EX-99.(A)(1)(A)",
+      description: "Offer to Purchase",
+      text: [
+        "The Offer Price is $57.00 per Share in cash.",
+        "The unaffected closing price on July 5, 2024, the last full trading day before public announcement of the merger, was $31.84 per Share.",
+      ].join(" "),
+    },
+  ],
+});
+
+const stalePremiumRepairPlan = buildSecTenderValidationRepairPlan({
+  analysisResult: {
+    analysis_output: {
+      event_title: "Morphic tender offer closes at a 0.05% premium",
+      quick_take: "The $57 offer represents a 0.05% premium to the current quote.",
+      summary: "The transaction pays $57 per share, a 0.05% premium to the current market price.",
+      score_reason: "The small premium limits the holder benefit.",
+      key_evidence: [],
+      bullish_points: [],
+      bearish_points: [],
+      what_to_watch_next: [],
+    },
+  },
+  input: {
+    filing_package: {
+      form_type: "SC TO-T",
+      filed_at: "2024-07-23",
+      llm_text: "SC TO-T tender offer at $57.00 per Share in cash.",
+      market_context: {
+        price: 56.97,
+        previous_close: 56.97,
+        as_of: "2026-07-18T00:00:00.000Z",
+      },
+      hard_parsers: {
+        tender: stalePremiumParserOutput,
+      },
+    },
+  },
+});
+
+assert.ok(stalePremiumRepairPlan);
+assert.ok(stalePremiumRepairPlan.sourceBlockIds.length > 0 && stalePremiumRepairPlan.sourceBlockIds.length <= 3);
+assert.ok(stalePremiumRepairPlan.issues.some((issue) => issue.code === "stale_market_context_premium"));
+assert.ok(stalePremiumRepairPlan.allowedPatchPaths.includes("/analysis_output/quick_take"));
+assert.ok(stalePremiumRepairPlan.prompt.user.includes("31.84"));
+assert.ok(stalePremiumRepairPlan.prompt.system.includes("Never compare a historical offer price"));
 
 const indianGroupingResult = adaptSecTenderAnalysisPromptResultForAnalysis(
   {

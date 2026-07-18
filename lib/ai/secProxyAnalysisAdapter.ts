@@ -40,7 +40,7 @@ export function buildSecProxyValidationRepairPlan({
   if (!root || !displayPayload || !data || !parserOutput) return null;
 
   const warnings = validateSecProxyDisplayPayload(displayPayload);
-  const issues = collectProxyScalarRepairIssues(root, data, warnings);
+  const issues = collectProxyScalarRepairIssues(root, data, warnings, parserOutput);
   if (!issues.length) return null;
 
   const sourceBlocks = selectProxyRepairSourceBlocks(
@@ -157,6 +157,7 @@ function collectProxyScalarRepairIssues(
   analysisResult: Record<string, unknown>,
   data: Record<string, unknown>,
   warnings: string[],
+  parserOutput: ProxyParserOutput,
 ) {
   const issues: SecProxyValidationRepairIssue[] = [];
   const warningText = warnings.join("\n");
@@ -214,8 +215,33 @@ function collectProxyScalarRepairIssues(
     });
   });
 
+  const reverseSplitRiskBlocks = parserOutput.raw.importantBlocks.filter((block) => block.kind === "reverse_split_risk");
+  if (reverseSplitRiskBlocks.length) {
+    const candidatePaths = [
+      "/analysis_output/quick_take",
+      "/analysis_output/score_reason",
+      "/analysis_output/why_it_matters",
+      "/analysis_output/score_explanation/summary",
+      ...readRecordArray(data.proposals).map((_proposal, index) => `/display_payload/data/proposals/${index}/explanation`),
+    ];
+    const problematicPaths = candidatePaths.filter((path) => {
+      const value = stringValue(readSecValidationJsonPointer(analysisResult, path));
+      return value && REVERSE_SPLIT_LIQUIDITY_BENEFIT_PATTERN.test(value) && !REVERSE_SPLIT_INVESTOR_RISK_PATTERN.test(value);
+    });
+    if (problematicPaths.length) {
+      issues.push(buildProxyRepairIssue(
+        "reverse_split_benefit_only_framing",
+        "Reverse-split copy claims improved liquidity while source blocks disclose listing, OTC-liquidity, or capital-access risk.",
+        problematicPaths,
+      ));
+    }
+  }
+
   return dedupeProxyRepairIssues(issues);
 }
+
+const REVERSE_SPLIT_LIQUIDITY_BENEFIT_PATTERN = /\b(?:boost|improv|enhanc|increase|support)\w*[^.]{0,90}\bliquidit/i;
+const REVERSE_SPLIT_INVESTOR_RISK_PATTERN = /\b(?:minimum\s+bid|listing\s+compliance|delist|OTC|less\s+liquid|capital|financing|funding|restructur|risk)\b/i;
 
 function buildProxyValidationRepairPrompt({
   analysisResult,
@@ -238,6 +264,7 @@ function buildProxyValidationRepairPrompt({
       "Return scalar replacement patches only for exact allowed paths. Never add, remove, reorder, truncate, or rewrite arrays or objects.",
       "Preserve event classification, score, signal, display mode, proposal order, and all fields not explicitly allowed.",
       "For proposal explanations, use one short beginner-friendly sentence with a clear subject.",
+      "For a reverse split, distinguish the issuer's objective from investor consequences. Do not claim improved liquidity when source blocks disclose listing, OTC-liquidity, capital-access, or restructuring risk.",
       "If the source blocks do not support a reliable replacement, return the issue as unresolved instead of guessing.",
       "This is the only repair attempt. Return JSON only.",
     ].join("\n"),
@@ -341,7 +368,7 @@ function selectProxyRepairSourceBlocks(
   return blocks
     .map((block) => {
       const content = `${stringValue(block.block_type)} ${stringValue(block.label)} ${stringValue(block.text)}`.toLowerCase();
-      let score = /proposal|meeting|vote|transaction|merger|split|authorized|equity|spac|governance/i.test(
+      let score = /proposal|meeting|vote|transaction|merger|split|authorized|equity|spac|governance|minimum bid|delisting|liquidity|financing/i.test(
         `${stringValue(block.block_type)} ${stringValue(block.label)}`,
       )
         ? 8
@@ -416,4 +443,3 @@ function numberValue(value: unknown) {
 function uniqueStrings(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
-

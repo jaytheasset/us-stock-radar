@@ -202,12 +202,14 @@ export function parseSecTenderFiling(input: SecTenderParseInput): SecTenderParse
   const combinedText = compactText(stringValue(input.analysisText) || stringValue(input.bodyText));
   const primaryText = extractPrimaryText(combinedText, formType);
   const attachmentText = compactText(attachmentTexts.map((item) => stringValue(item.text)).join("\n\n"));
+  const targetedAttachmentSourceBlocks = buildTargetedAttachmentSourceBlocks(attachmentTexts);
   const tenderText = compactText([stringValue(input.title), primaryText, attachmentText].filter(Boolean).join("\n\n"));
   const documentSummaries = documents.map((document) => mapDocumentSummary(document, formType));
   const attachmentSummaries = attachmentTexts.map((attachment, index) => mapAttachmentSummary(attachment, index, formType));
   const sourcePackage = buildSourcePackage({
     accessionNumber: nullableString(rawPayload.accession_number) || nullableString(input.sourceUniqueId),
     attachmentSummaries,
+    targetedAttachmentSourceBlocks,
     attachmentText,
     combinedText,
     documentSummaries,
@@ -2181,6 +2183,7 @@ function readAttachmentTexts(input: SecTenderParseInput, rawPayload: Record<stri
 function buildSourcePackage({
   accessionNumber,
   attachmentSummaries,
+  targetedAttachmentSourceBlocks,
   attachmentText,
   combinedText,
   documentSummaries,
@@ -2192,6 +2195,7 @@ function buildSourcePackage({
 }: {
   accessionNumber: string | null;
   attachmentSummaries: Array<Record<string, unknown>>;
+  targetedAttachmentSourceBlocks: Array<Record<string, unknown>>;
   attachmentText: string;
   combinedText: string;
   documentSummaries: SecTenderDocumentSummary[];
@@ -2245,6 +2249,7 @@ function buildSourcePackage({
       fetch_errors: documentSummaries.filter((document) => Boolean(document.fetch_error)).length,
     },
     attachment_texts: attachmentSummaries,
+    targeted_source_blocks: targetedAttachmentSourceBlocks,
     raw_data_audit: rawDataAudit,
     source_noise: sourceNoise,
     text: {
@@ -2258,6 +2263,49 @@ function buildSourcePackage({
     },
     fetch_warnings: fetchWarnings,
   };
+}
+
+function buildTargetedAttachmentSourceBlocks(attachmentTexts: SecTenderAttachmentText[]) {
+  const patterns = [
+    {
+      label: "Unaffected / Reference Market Price",
+      pattern:
+        /\b(?:unaffected\s+(?:closing\s+)?price|last\s+full\s+(?:trading\s+day|day\s+of\s+trading)[\s\S]{0,500}(?:before|prior\s+to)[\s\S]{0,320}(?:public\s+announcement|announcement\s+of\s+the\s+(?:transaction|offer|merger)|merger\s+agreement)|closing\s+(?:sale\s+)?price[\s\S]{0,280}(?:before|prior\s+to)[\s\S]{0,280}(?:public\s+announcement|announcement\s+of\s+the\s+(?:transaction|offer|merger)))\b/i,
+    },
+  ];
+  const blocks: Array<Record<string, unknown>> = [];
+  for (const attachment of attachmentTexts.slice(0, 12)) {
+    const text = compactText(stringValue(attachment.text));
+    if (!text) continue;
+    for (const target of patterns) {
+      const match = target.pattern.exec(text);
+      if (!match || match.index === undefined) continue;
+      blocks.push({
+        block_type: "tender_attachment_section",
+        label: target.label,
+        source: nullableString(attachment.description) || nullableString(attachment.type) || "Tender attachment",
+        text: contextPreservingSourceWindow(text, match.index, match[0].length, 3_600),
+      });
+    }
+  }
+  return blocks.slice(0, 4);
+}
+
+function contextPreservingSourceWindow(text: string, matchIndex: number, matchLength: number, maxChars: number) {
+  const preferredStart = Math.max(0, matchIndex - 1_100);
+  const preferredEnd = Math.min(text.length, matchIndex + matchLength + 2_200);
+  const paragraphStart = text.lastIndexOf("\n\n", preferredStart);
+  const paragraphEnd = text.indexOf("\n\n", preferredEnd);
+  const start = paragraphStart >= 0 ? paragraphStart + 2 : preferredStart;
+  const end = paragraphEnd >= 0 ? paragraphEnd : preferredEnd;
+  const candidate = text.slice(start, end);
+  if (candidate.length <= maxChars) return compactText(candidate);
+
+  const centeredStart = Math.max(0, matchIndex - Math.floor(maxChars * 0.4));
+  const centeredEnd = Math.min(text.length, centeredStart + maxChars);
+  const sentenceStart = Math.max(text.lastIndexOf(". ", centeredStart), text.lastIndexOf("\n", centeredStart));
+  const sentenceEnd = text.indexOf(". ", centeredEnd);
+  return compactText(text.slice(sentenceStart >= 0 ? sentenceStart + 2 : centeredStart, sentenceEnd >= 0 ? sentenceEnd + 1 : centeredEnd));
 }
 
 function buildSourceFetchWarnings({

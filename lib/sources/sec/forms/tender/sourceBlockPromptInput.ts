@@ -99,6 +99,7 @@ export function buildSecTenderSourceBlockPromptInput({
   collectExistingSourceBlocks(raw.cleaned_source_blocks, blocks, "cleaned_source_block", maxBlockChars);
   collectExistingSourceBlocks(raw.cleanedSourceBlocks, blocks, "cleaned_source_block", maxBlockChars);
   collectExistingSourceBlocks(parser.cleaned_source_blocks, blocks, "cleaned_source_block", maxBlockChars);
+  collectExistingSourceBlocks(sourcePackage.targeted_source_blocks, blocks, "tender_attachment_section", maxBlockChars);
 
   collectSourceTextCandidate(sourceText.primary_excerpt, blocks, "primary_source_block", "raw.source_package.text.primary_excerpt", maxBlockChars);
   collectTargetedSectionBlocks(sourceText.primary_excerpt, blocks, "raw.source_package.text.primary_excerpt", maxBlockChars);
@@ -360,6 +361,12 @@ function findTenderSectionSnippets(text: string) {
       pattern: /\b(?:cash\s+equal\s+to|cash\s+in\s+an\s+amount\s+per\s+(?:share|ADS)\s+equal\s+to|amount\s+in\s+cash\s+equal\s+to|right\s+to\s+receive\s+cash\s+in\s+an\s+amount\s+per\s+(?:share|ADS)\s+equal\s+to|right\s+to\s+receive\s+an\s+amount\s+in\s+cash\s+equal\s+to|right\s+to\s+receive)\s*(?:US\$|\$)\s?\d[\d,]*(?:\.\d+)?[\s\S]{0,260}(?:per\s+(?:share|ADS)|Merger\s+Consideration|Per\s+(?:Share|ADS)\s+Price)\b/i,
       before: 900,
       after: 3_200,
+    },
+    {
+      label: "Unaffected / Reference Market Price",
+      pattern: /\b(?:unaffected\s+(?:closing\s+)?price|last\s+full\s+(?:trading\s+day|day\s+of\s+trading)[\s\S]{0,420}(?:before|prior\s+to)[\s\S]{0,260}(?:public\s+announcement|announcement\s+of\s+the\s+(?:transaction|offer|merger)|merger\s+agreement)|closing\s+(?:sale\s+)?price[\s\S]{0,220}(?:before|prior\s+to)[\s\S]{0,220}(?:public\s+announcement|announcement\s+of\s+the\s+(?:transaction|offer|merger)))\b/i,
+      before: 700,
+      after: 3_000,
     },
     {
       label: "NAV Purchase Price",
