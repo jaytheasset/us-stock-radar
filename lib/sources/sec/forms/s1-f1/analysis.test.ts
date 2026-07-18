@@ -217,6 +217,8 @@ describe("S-1/F-1 analysis output fixtures", () => {
     assert.ok(plan.allowedPatchPaths.includes("/analysis_output/summary"));
     assert.ok(plan.allowedPatchPaths.includes("/display_payload/data/share_overhang/rows/0/row_role"));
     assert.ok(!plan.allowedPatchPaths.includes("/analysis_output/score"));
+    assert.match(plan.prompt.system, /replace only the affected scalar with concise pending wording/i);
+    assert.match(plan.prompt.system, /never infer, calculate, or invent a missing price/i);
   });
 });
 

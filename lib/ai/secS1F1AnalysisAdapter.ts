@@ -25,7 +25,7 @@ export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v31-pending-terms-default";
 // Legacy backup: pre-pending-terms default prompt kept selectable only in the debug console.
 export const SEC_S1_F1_LEGACY_BACKUP_PROMPT_VERSION = "v28-spac-ipo-minimal-legacy-backup";
 export const SEC_S1_F1_VALIDATION_REPAIR_PROMPT_KEY = "sec_s1_f1_validation_repair";
-export const SEC_S1_F1_VALIDATION_REPAIR_PROMPT_VERSION = "v1-one-pass-source-backed-patch";
+export const SEC_S1_F1_VALIDATION_REPAIR_PROMPT_VERSION = "v2-pending-placeholder-patch";
 
 const S1_F1_SHARE_OVERHANG_PERCENT_TOLERANCE = 0.049;
 
@@ -367,6 +367,9 @@ function buildS1F1ValidationRepairPrompt({
       "Return scalar replacement patches only for the exact allowed paths. Never add, remove, reorder, or rewrite arrays or objects.",
       "Preserve event classification, score, signal, display mode, and all fields that are not explicitly allowed.",
       "Preserve the distinction between counted, conditional, alternative, fixed, pending, and not calculable supply.",
+      "For unresolved_visible_placeholder issues, a blank or placeholder source term is evidence that the term is not yet disclosed; replace only the affected scalar with concise pending wording instead of repeating the placeholder.",
+      "Use natural phrases such as 'Price range not yet disclosed', 'Share count pending', or 'Final proceeds not yet disclosed', choosing only the term supported by the affected field and source context.",
+      "Never infer, calculate, or invent a missing price, share count, proceeds amount, or dilution value while repairing a placeholder.",
       "If the selected source blocks do not support a reliable replacement, leave the issue unresolved instead of guessing.",
       "This is the only repair attempt. Return JSON only.",
     ].join("\n"),
