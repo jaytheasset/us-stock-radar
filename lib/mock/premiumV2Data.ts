@@ -123,8 +123,6 @@ export const premiumV2RecommendedPlan: PremiumV2PlanKey = "advanced";
 
 export const premiumV2SampleAlerts = [
   {
-    context: "Market-wide scan",
-    lane: "Not on your watchlist",
     signal: "Bearish 94",
     signalTone: "negative",
     title: "MULN files $150M mixed-shelf offering",
@@ -132,8 +130,6 @@ export const premiumV2SampleAlerts = [
     type: "Dilution Risk",
   },
   {
-    context: "Market-wide scan",
-    lane: "Not on your watchlist",
     signal: "Bearish 88",
     signalTone: "negative",
     title: "WE receives Nasdaq delisting notice",
@@ -141,8 +137,6 @@ export const premiumV2SampleAlerts = [
     type: "Listing Risk",
   },
   {
-    context: "Market-wide scan",
-    lane: "Not on your watchlist",
     signal: "Bullish 82",
     signalTone: "positive",
     title: "MRNA reports FDA fast-track designation",

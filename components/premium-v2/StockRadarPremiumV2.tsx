@@ -50,7 +50,7 @@ export function StockRadarPremiumV2() {
         <section aria-labelledby="premium-v2-intro-heading" className={styles.heroSection}>
           <div className={styles.heroCopy}>
             <span className={styles.eyebrow}>Ticker Alerts + Market Alerts</span>
-            <h2 id="premium-v2-intro-heading">Follow the stocks you know. Scan the risks you don't.</h2>
+            <h2 id="premium-v2-intro-heading">Catch market-moving risks early.</h2>
             <p>
               Get the news and filings that can change a position, with plan levels that unlock broader risk
               coverage, stronger filters, and more ways to receive an alert.
@@ -80,7 +80,6 @@ export function StockRadarPremiumV2() {
                   <div>
                     <span className={styles.alertType}>{alert.type}</span>
                     <strong>{alert.title}</strong>
-                    <small>{alert.context} / {alert.lane}</small>
                   </div>
                   <span className={`${styles.alertSignal} ${styles[`alertSignal-${alert.signalTone}`]}`}>
                     {alert.signal}
