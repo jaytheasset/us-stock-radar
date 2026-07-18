@@ -59,7 +59,7 @@ export type Sec8k6kValidationRepairPlan = {
 };
 
 export const SEC_8K_6K_VALIDATION_REPAIR_PROMPT_KEY = "sec_8k_6k_validation_repair";
-export const SEC_8K_6K_VALIDATION_REPAIR_PROMPT_VERSION = "v5-rationale-bounded-fallback";
+export const SEC_8K_6K_VALIDATION_REPAIR_PROMPT_VERSION = "v6-source-backed-regression-guards";
 
 export function isSec8k6kFilingInput(input: SecFilingAnalysisInput) {
   const parserOutput = readSec8k6kParserOutput(input);
@@ -484,7 +484,7 @@ export function buildSec8k6kValidationRepairPlan(input: {
           required: ["path", "value", "reason", "source_block_ids"],
           properties: {
             path: { type: "string", enum: allowedPatchPaths },
-            value: { type: ["string", "null"], maxLength: 1600 },
+            value: { type: ["string", "null"], maxLength: 4000 },
             reason: { type: "string", maxLength: 180 },
             source_block_ids: {
               type: "array",
@@ -527,7 +527,8 @@ export function buildSec8k6kValidationRepairPlan(input: {
         "Use only enum values from the existing analysis schema. In particular, operating_mode must be earnings or operating_update for performance output, and comparison_basis must be yoy, qoq, or other.",
         "For operating_nonfinancial_performance_misclassified_as_earnings, use exactly operating_update for analysis_output.event_type, the primary material event event_type, and display_payload.data.operating_mode; use Operating Snapshot for snapshot_title.",
         "For operating_regulatory_event_type_mismatch, keep product_or_regulatory and the source-backed regulatory_stage unchanged, but use fda_clinical for analysis_output.event_type and the primary material event event_type when regulatory_stage is not not_applicable. Use product_update only when regulatory_stage is not_applicable.",
-        "For operating_project_economics_section_missing, create one Project Economics detail section and move every project valuation, ownership, reserve/capacity, or long-term unit-economics fact out of snapshot_metrics and business_catalysts into that section. Preserve primary operating KPIs in the snapshot and do not duplicate moved facts.",
+        "For operating_project_economics_section_missing, create one Project Economics detail section and include every material source-backed project valuation, ownership, reserve/capacity, or long-term unit-economics fact supplied for repair. The warning names the required fact categories: return at least one separate rows item for every named category supported by the supplied blocks, and cite every block used for those rows. Preserve primary operating KPIs in the snapshot and do not duplicate project-economics facts elsewhere.",
+        "A /display_payload/data/detail_sections collection patch value must be a JSON array of objects shaped exactly as [{\"title\":\"Project Economics\",\"rows\":[{\"label\":\"After-Tax NPV (8%)\",\"value\":\"$3.6 billion\",\"note\":null}]}]. Never use label or summary at the section level. Include a separate rows item for each material source-backed valuation, ownership, reserve/capacity, or unit-economics fact in the supplied repair blocks.",
         "For operating_project_economics_fact_duplication, keep each duplicated project-economics fact only in Project Economics. Remove it from snapshot_metrics, business_catalysts, or another detail section while preserving unrelated primary operating facts.",
         "For operating_secondary_material_event_missing, move any separate governance, capital, legal, or transaction detail section into one compact secondary_updates item. Remove that moved section from detail_sections and preserve only details that directly support the primary operating event.",
         "For operating_snapshot_sign_conflict, restore the source-backed negative sign using parentheses or a leading minus sign without changing the disclosed magnitude, unit, or period.",
@@ -538,11 +539,15 @@ export function buildSec8k6kValidationRepairPlan(input: {
         "For structured_snapshot_count_mismatch, return exactly four non-duplicative source-backed snapshot rows. Use four useful status, scope, amount, timing, party, condition, or next-stage facts. Never pad with an immaterial Not disclosed row. routine_archive remains empty.",
         "For risk_listing_suspension_date_misclassified_as_removal, preserve the source-backed date role exactly. A trading suspension date is not a delisting or removal effective date. Rewrite only the flagged fields to describe trading as suspended on that date, and mention a later Form 25 removal without assigning an effective date unless the source explicitly provides one.",
         "For capital_reverse_split_alert_policy, use event_type dilution_risk, a bearish signal, and a score of at least 75. Explain listing, price, or capital pressure and do not describe the proportional share consolidation itself as mechanical dilution.",
+        "For capital_severe_dilution_alert_policy, apply the shared active-offering dilution bands to the fixed counted ratio already shown in Share Overhang. A ratio of 100% or more is severe: use dilution_risk, bearish, and a score of at least 84, then explain the supply pressure and any material funding offset without repeating the transaction terms.",
+        "For capital_conditional_proceeds_snapshot, distinguish cash expected at closing from additional proceeds available only if warrants or another instrument are exercised. Do not present their sum as closed Gross Proceeds or an unconditional Offering Size. Keep both source-backed amounts in one compact row when needed and state the condition in the note.",
+        "For governance_auditor_icfr_scope_misclassified_as_qualification, separate the financial-statement audit opinion from the scope of the internal-control audit. An auditor statement that it was not engaged to opine on ICFR is not an exception to, or qualification of, the financial-statement opinion.",
+        "For key_evidence_count_exceeded, replace the complete key_evidence array with the strongest two or three non-duplicative source-backed proof points. Rank them by direct support for the central conclusion; do not simply keep the first three. Each item must be no more than 18 words.",
         "For score_rationale_meta_language, rewrite score_reason and score_explanation.summary as investor-impact conclusions. Do not mention a score, rating, impact band, alert/feed/archive level, or why a number was assigned.",
         "For score_rationale_filing_recap, rewrite only the flagged score rationale fields as a 12-24 word analyst bottom line. Explain the practical scoring principle through immediacy, economic scale, dilution mechanics, financing quality, balance-sheet effect, or another controlling investor consequence. Do not repeat exact share counts, prices, proceeds, dates, transaction mechanics, or facts already visible in the snapshot and details. Use at most two controlling drivers and one material offset when it changes the reading. Begin with the investor consequence or economic principle, such as Immediate equity supply, Large actionable overhang, or Severe liquidity pressure. Never begin with The offering, The financing, The transaction, The company, an issuer name, The score, or This score.",
         "Do not fix an incompatible-period comparison by relabeling a value. Replace the labels, displayed values, numeric values, comparison basis, and change note only when the supplied source blocks contain a complete comparable pair; otherwise leave it unresolved.",
         "For an allowed path ending in _numeric, return the replacement as a plain numeric string without units or thousands separators; the integration converts it to a JSON number.",
-        "For an allowed snapshot_metrics, business_catalysts, detail_sections, or secondary_updates collection path, return the complete replacement array as a compact JSON string. Preserve valid existing items, remove only validator-identified duplication, and add only source-backed missing items.",
+        "For an allowed snapshot_metrics, business_catalysts, detail_sections, secondary_updates, or key_evidence collection path, return the complete replacement array as a compact JSON string. Preserve valid existing items, remove only validator-identified duplication, and add only source-backed missing items.",
         "If the supplied source blocks do not establish a correction, return no patch for that warning and list its code in unresolved_warning_codes.",
         "Each patch must cite at least one supplied source block that supports the replacement value.",
       ]).join("\n"),
@@ -827,7 +832,7 @@ export function adaptSec8k6kAnalysisPromptResultForAnalysis(
 
   const generatedDisplayPayload = buildDisplayPayload(parserOutput, routerResult, readMarketContext(input));
   const securityInventory = normalizeSecurityInventory(root.security_inventory);
-  const initialDisplayPayload = appendSec8k6kValidationSemanticWarnings(
+  const initialDisplayPayload = repairSec8k6kDisplayPayloadEncoding(
     appendCapitalSecurityCoverageWarnings(
       normalizeSec8k6kOperatingDisplayPayloadForPersistence(
         normalizeSec8k6kCapitalDisplayPayloadForPersistence(
@@ -836,17 +841,23 @@ export function adaptSec8k6kAnalysisPromptResultForAnalysis(
       ),
       securityInventory,
     ),
-    analysisOutput,
   );
   const amendmentDelta = normalizeSec8k6kAmendmentDelta(root.amendment_delta, input);
   const reverseSplitPolicyOutput = applySec8k6kReverseSplitAnalysisPolicy(analysisOutput, initialDisplayPayload);
-  const amendmentPolicy = applySec8k6kAmendmentAnalysisPolicy(
+  const capitalDilutionPolicyOutput = applySec8k6kSevereDilutionAnalysisPolicy(
     reverseSplitPolicyOutput,
+    initialDisplayPayload,
+  );
+  const amendmentPolicy = applySec8k6kAmendmentAnalysisPolicy(
+    capitalDilutionPolicyOutput,
     initialDisplayPayload,
     amendmentDelta,
   );
   const policyAnalysisOutput = amendmentPolicy.analysisOutput;
-  const displayPayload = amendmentPolicy.displayPayload;
+  const displayPayload = appendSec8k6kValidationSemanticWarnings(
+    amendmentPolicy.displayPayload,
+    policyAnalysisOutput,
+  );
   const score = clampScore(numberValue(policyAnalysisOutput.score) ?? numberValue(routerResult.score) ?? 0);
   const archiveSummary =
     nullableString(policyAnalysisOutput.archive_summary) ||
@@ -1027,6 +1038,27 @@ function normalizeSecurityInventory(value: unknown) {
     .filter((item) => item.security_name);
 }
 
+function applySec8k6kSevereDilutionAnalysisPolicy(
+  analysisOutput: Record<string, unknown>,
+  displayPayload: Record<string, unknown>,
+) {
+  if (stringValue(displayPayload.display_type) !== "capital_financing") return analysisOutput;
+  const data = readRecord(displayPayload.data) || {};
+  if (!["equity_issuance", "share_linked_financing"].includes(stringValue(data.capital_mode))) return analysisOutput;
+  const shareOverhang = readRecord(data.share_overhang);
+  const totalNote = readRecord(shareOverhang?.total_note || shareOverhang?.totalNote);
+  const fixedRatio = capitalShareOverhangPercent(
+    shareOverhang?.status_value || shareOverhang?.statusValue || totalNote?.ratio || totalNote?.ratio_value,
+  );
+  if (fixedRatio == null || fixedRatio < 100) return analysisOutput;
+  return {
+    ...analysisOutput,
+    event_type: "dilution_risk",
+    score: Math.max(84, clampScore(numberValue(analysisOutput.score) ?? 0)),
+    signal: "bearish",
+  };
+}
+
 export function normalizeSec8k6kCapitalDisplayPayloadForPersistence(displayPayload: Record<string, unknown>) {
   if (stringValue(displayPayload.display_type) !== "capital_financing") return displayPayload;
 
@@ -1117,6 +1149,9 @@ function normalizeCapitalShareOverhangRatio(shareOverhang: Record<string, unknow
   const countedSupply = readRecordArray(shareOverhang.rows)
     .filter((row) => stringValue(row.row_role || row.rowRole) === "counted")
     .reduce((sum, row) => sum + (capitalShareOverhangNumber(row.numeric_value ?? row.numericValue) || 0), 0);
+  const hasConditionalSupply = readRecordArray(shareOverhang.rows).some(
+    (row) => stringValue(row.row_role || row.rowRole) === "conditional",
+  );
   const basis = readRecord(shareOverhang.basis);
   const numerator = countedSupply > 0
     ? countedSupply
@@ -1127,11 +1162,19 @@ function normalizeCapitalShareOverhangRatio(shareOverhang: Record<string, unknow
   if (numerator == null || numerator <= 0 || denominator == null || denominator <= 0) return shareOverhang;
 
   const normalizedRatio = `${(((numerator / denominator) * 100) + Number.EPSILON).toFixed(1)}%`;
-  const normalizedTotalNote = { ...totalNote, ratio: normalizedRatio };
+  const numeratorKey = "numerator" in totalNote
+    ? "numerator"
+    : "supply_value" in totalNote
+      ? "supply_value"
+      : "supplyValue";
+  const normalizedTotalNote = { ...totalNote, [numeratorKey]: numerator, ratio: normalizedRatio };
   const normalized = {
     ...shareOverhang,
     [totalNoteKey]: normalizedTotalNote,
   };
+  if (countedSupply > 0 && hasConditionalSupply) {
+    normalized.note = "Headline ratio includes counted supply only; conditional future supply is shown separately.";
+  }
   if ("statusValue" in shareOverhang && !("status_value" in shareOverhang)) normalized.statusValue = normalizedRatio;
   else normalized.status_value = normalizedRatio;
   if ("ratioValue" in shareOverhang && !("ratio_value" in shareOverhang)) normalized.ratioValue = normalizedRatio;
@@ -1257,6 +1300,20 @@ function capitalShareOverhangDiffers(left: number, right: number) {
   return Math.abs(left - right) / Math.max(Math.abs(left), Math.abs(right), 1) > 0.02;
 }
 
+function sourceBlockShowsConditionalExerciseProceeds(value: string) {
+  const text = value.replace(/\s+/g, " ").trim();
+  if (!text || !/\bproceeds\b/i.test(text) || !/\b(?:warrant|option|right)s?\b/i.test(text)) return false;
+  const hasExerciseCondition = [
+    /\bif\b[^.]{0,120}\b(?:exercise|exercised)\b/i,
+    /\b(?:upon|from|assuming)\b[^.]{0,100}\b(?:exercise|exercised)\b/i,
+    /\b(?:exercise|exercised)\b[^.]{0,120}\b(?:additional|further|future|potential)\s+(?:gross\s+)?proceeds\b/i,
+  ].some((pattern) => pattern.test(text));
+  const monetaryAmounts = text.match(
+    /(?:US\s*)?\$\s?\d[\d,.]*(?:\s?(?:million|billion|thousand|m|bn))?/gi,
+  );
+  return hasExerciseCondition && (monetaryAmounts?.length || 0) >= 2;
+}
+
 function appendCapitalSecurityCoverageWarnings(
   displayPayload: Record<string, unknown>,
   securityInventory: Array<Record<string, unknown>>,
@@ -1309,11 +1366,12 @@ function getSec8k6kValidationRepairIssuesForFields(
   return [
     ...getSec8k6kSnapshotCountRepairIssues(displayPayload, analysisOutput),
     ...getSec8k6kTextEncodingRepairIssues(analysisOutput),
+    ...getSec8k6kKeyEvidenceRepairIssues(analysisOutput),
     ...getSec8k6kScoreRationaleRepairIssues(analysisOutput),
     ...getSec8k6kRiskRepairIssues(analysisOutput),
-    ...getSec8k6kCapitalRepairIssues(displayPayload, analysisOutput),
+    ...getSec8k6kCapitalRepairIssues(displayPayload, analysisOutput, sourceBlocks),
     ...getSec8k6kStrategicRepairIssues(displayPayload, analysisOutput),
-    ...getSec8k6kGovernanceRepairIssues(displayPayload, analysisOutput),
+    ...getSec8k6kGovernanceRepairIssues(displayPayload, analysisOutput, sourceBlocks),
     ...getSec8k6kOperatingRepairIssues(displayPayload, analysisOutput, sourceBlocks),
   ];
 }
@@ -1729,9 +1787,24 @@ function getSec8k6kRiskRepairIssues(
   return issues;
 }
 
+function getSec8k6kKeyEvidenceRepairIssues(
+  analysisOutput: Record<string, unknown>,
+): Sec8k6kValidationRepairIssue[] {
+  const keyEvidence = readStringArray(analysisOutput.key_evidence);
+  if (keyEvidence.length <= 3) return [];
+  return [{
+    code: "key_evidence_count_exceeded",
+    warning: "Key Evidence exceeds the two-to-three-item contract and must be re-ranked from the original evidence rather than truncated by position.",
+    field_paths: ["/analysis_output/key_evidence"],
+    allowed_patch_paths: ["/analysis_output/key_evidence"],
+    candidate_source_block_ids: primaryMaterialEventSourceIds(analysisOutput),
+  }];
+}
+
 function getSec8k6kCapitalRepairIssues(
   displayPayload: Record<string, unknown>,
   analysisOutput: Record<string, unknown>,
+  sourceBlocks: Record<string, unknown>[] = [],
 ): Sec8k6kValidationRepairIssue[] {
   if (stringValue(displayPayload.display_type) !== "capital_financing") return [];
   const data = readRecord(displayPayload.data) || {};
@@ -1762,6 +1835,37 @@ function getSec8k6kCapitalRepairIssues(
       });
     }
   }
+  const conditionalProceedsSourceBlocks = sourceBlocks.filter((block) =>
+    sourceBlockShowsConditionalExerciseProceeds(stringValue(block.text))
+  );
+  if (conditionalProceedsSourceBlocks.length > 0) {
+    const snapshotMetrics = readRecordArray(data.snapshot_metrics);
+    for (let index = 0; index < snapshotMetrics.length; index += 1) {
+      const metric = snapshotMetrics[index];
+      const label = stringValue(metric.label);
+      const value = stringValue(metric.value);
+      const note = stringValue(metric.note);
+      const snapshotProceedsText = `${value} ${note}`;
+      const visibleAmounts = snapshotProceedsText.match(/(?:US\s*)?\$\s?\d[\d,.]*(?:\s?(?:million|billion|thousand|m|bn))?/gi) || [];
+      if (
+        /\b(?:offering|financing) size\b|\bgross proceeds\b/i.test(label) &&
+        /\bup to\b/i.test(value) &&
+        (visibleAmounts.length < 2 || !/\b(?:exercise|conditional|if all|if fully)\b/i.test(snapshotProceedsText))
+      ) {
+        const basePath = `/display_payload/data/snapshot_metrics/${index}`;
+        issues.push({
+          code: "capital_conditional_proceeds_snapshot",
+          warning: "The capital snapshot presents an aggregate maximum as unconditional offering proceeds even though original sources split closing proceeds from exercise-contingent additional proceeds.",
+          field_paths: [`${basePath}/label`, `${basePath}/value`, `${basePath}/note`],
+          allowed_patch_paths: [`${basePath}/label`, `${basePath}/value`, `${basePath}/note`],
+          candidate_source_block_ids: uniqueStrings([
+            ...primaryMaterialEventSourceIds(analysisOutput),
+            ...conditionalProceedsSourceBlocks.map((block) => stringValue(block.block_id)),
+          ]),
+        });
+      }
+    }
+  }
   const shareOverhang = readRecord(data.share_overhang);
   if (!shareOverhang) return issues;
 
@@ -1785,6 +1889,39 @@ function getSec8k6kCapitalRepairIssues(
   const totalRatioValue = stringValue(totalNote[ratioKey]);
   const totalRatio = capitalShareOverhangPercent(totalRatioValue);
   const statusRatio = capitalShareOverhangPercent(statusValue);
+  const visibleFixedRatio = statusRatio ?? totalRatio;
+  const capitalMode = stringValue(data.capital_mode);
+
+  if (
+    ["equity_issuance", "share_linked_financing"].includes(capitalMode) &&
+    visibleFixedRatio != null &&
+    visibleFixedRatio >= 100
+  ) {
+    const score = numberValue(analysisOutput.score);
+    const eventType = stringValue(analysisOutput.event_type);
+    const signal = stringValue(analysisOutput.signal);
+    if (score == null || score < 84 || eventType !== "dilution_risk" || signal !== "bearish") {
+      issues.push({
+        code: "capital_severe_dilution_alert_policy",
+        warning: "A fixed counted share-overhang ratio of 100% or more is in the shared severe-dilution band and requires an alert-level bearish dilution assessment.",
+        field_paths: [
+          "/analysis_output/event_type",
+          "/analysis_output/score",
+          "/analysis_output/signal",
+          "/analysis_output/score_reason",
+          "/analysis_output/score_explanation/summary",
+        ],
+        allowed_patch_paths: [
+          "/analysis_output/event_type",
+          "/analysis_output/score",
+          "/analysis_output/signal",
+          "/analysis_output/score_reason",
+          "/analysis_output/score_explanation/summary",
+        ],
+        candidate_source_block_ids: primaryMaterialEventSourceIds(analysisOutput),
+      });
+    }
+  }
 
   if (statusValue && !isAllowedCapitalShareOverhangStatus(statusValue)) {
     issues.push({
@@ -1897,12 +2034,21 @@ function getSec8k6kStrategicRepairIssues(
 function getSec8k6kGovernanceRepairIssues(
   displayPayload: Record<string, unknown>,
   analysisOutput: Record<string, unknown>,
+  sourceBlocks: Record<string, unknown>[] = [],
 ): Sec8k6kValidationRepairIssue[] {
   if (stringValue(displayPayload.display_type) !== "governance_event") return [];
   const data = readRecord(displayPayload.data) || {};
   if (stringValue(data.governance_mode) !== "auditor_change") return [];
 
   const issues: Sec8k6kValidationRepairIssue[] = [];
+  const icfrScopeSourceBlockIds = sourceBlocks
+    .filter((block) => {
+      const text = stringValue(block.text);
+      return /\b(?:internal control over financial reporting|ICFR)\b/i.test(text) &&
+        /\b(?:not engaged to|did not express|does not express|not required to)\b/i.test(text);
+    })
+    .map((block) => stringValue(block.block_id))
+    .filter(Boolean);
   const summarySentences = stringValue(analysisOutput.summary).split(/(?<=[.!?])\s+/);
   if (summarySentences.some((sentence) =>
     /\b(?:no|without)\s+(?:disagreements?|reportable events?)\b/i.test(sentence) &&
@@ -1935,6 +2081,22 @@ function getSec8k6kGovernanceRepairIssues(
           field_paths: [`${basePath}/label`, `${basePath}/value`, `${basePath}/note`],
           allowed_patch_paths: [`${basePath}/label`, `${basePath}/value`, `${basePath}/note`],
           candidate_source_block_ids: [],
+        });
+      }
+      if (
+        /\b(?:auditor reports?|audit opinion|qualification)\b/i.test(label) &&
+        /\b(?:qualified|qualification|except)\b/i.test(valueAndNote) &&
+        /\b(?:internal control over financial reporting|ICFR|internal control)\b/i.test(valueAndNote)
+      ) {
+        issues.push({
+          code: "governance_auditor_icfr_scope_misclassified_as_qualification",
+          warning: "Governance UI treats the auditor's separate lack of an ICFR opinion as a qualification or exception to the financial-statement audit opinion.",
+          field_paths: [`${basePath}/label`, `${basePath}/value`, `${basePath}/note`],
+          allowed_patch_paths: [`${basePath}/label`, `${basePath}/value`, `${basePath}/note`],
+          candidate_source_block_ids: uniqueStrings([
+            ...icfrScopeSourceBlockIds,
+            ...primaryMaterialEventSourceIds(analysisOutput),
+          ]),
         });
       }
       if (
@@ -2019,6 +2181,15 @@ function getSec8k6kOperatingRepairIssues(
   const snapshotMetrics = readRecordArray(data.snapshot_metrics);
   const businessCatalysts = readRecordArray(data.business_catalysts);
   const secondaryUpdates = readRecordArray(data.secondary_updates);
+  const sourceProjectEconomicsBlocks = sourceBlocks.filter((block) =>
+    projectEconomicsSourceFactGroups(stringValue(block.text)).length > 0
+  );
+  const sourceProjectEconomicsGroups = uniqueStrings(
+    sourceProjectEconomicsBlocks.flatMap((block) => projectEconomicsSourceFactGroups(stringValue(block.text))),
+  );
+  const sourceProjectEconomicsBlockIds = sourceProjectEconomicsBlocks
+    .map((block) => stringValue(block.block_id))
+    .filter(Boolean);
   const performanceAndOutlookText = [
     ...snapshotMetrics.map((row) => `${stringValue(row.label)} ${stringValue(row.value)} ${stringValue(row.note)}`),
     ...comparisons.map(
@@ -2072,9 +2243,11 @@ function getSec8k6kOperatingRepairIssues(
         ),
       ]),
     ].join(" ");
-    const hasProjectEconomicsFacts = /\b(?:NPV|net present value|ownership|reserves?|technical report|operating cost|unit cost)\b/i.test(
-      visibleProjectText,
-    );
+    const visibleProjectEconomicsGroups = projectEconomicsFactGroups(visibleProjectText);
+    const hasProjectEconomicsFacts = sourceProjectEconomicsGroups.length > 0 ||
+      /\b(?:NPV|net present value|ownership|reserves?|technical report|operating cost|unit cost)\b/i.test(
+        visibleProjectText,
+      );
     const projectSectionIndex = detailSections.findIndex((section) => {
       const sectionText = readRecordArray(section.rows)
         .map((row) => `${stringValue(row.label)} ${stringValue(row.value)} ${stringValue(row.note)}`)
@@ -2083,21 +2256,25 @@ function getSec8k6kOperatingRepairIssues(
     });
 
     if (hasProjectEconomicsFacts && projectSectionIndex < 0) {
-      const projectCollectionPaths = [
-        "/display_payload/data/snapshot_metrics",
-        "/display_payload/data/business_catalysts",
-        "/display_payload/data/detail_sections",
-      ];
+      const sourceFactsWereOmitted = sourceProjectEconomicsGroups.length > 0 && visibleProjectEconomicsGroups.length === 0;
+      const projectCollectionPaths = sourceFactsWereOmitted
+        ? ["/display_payload/data/detail_sections"]
+        : [
+            "/display_payload/data/snapshot_metrics",
+            "/display_payload/data/business_catalysts",
+            "/display_payload/data/detail_sections",
+          ];
       issues.push({
         code: "operating_project_economics_section_missing",
-        warning: "Material project valuation, ownership, reserves, or technical economics are missing from a consolidated Project Economics section. Move those facts out of Snapshot and Key Business Updates while creating the section so each fact appears once.",
+        warning: sourceFactsWereOmitted
+          ? `Original source blocks contain material ${sourceProjectEconomicsGroups.join(", ")} facts that are absent from the visible analysis. Add them once in Project Economics while preserving the four primary operating snapshot rows.`
+          : "Material project valuation, ownership, reserves, or technical economics are missing from a consolidated Project Economics section. Move those facts out of Snapshot and Key Business Updates while creating the section so each fact appears once.",
         field_paths: projectCollectionPaths,
         allowed_patch_paths: projectCollectionPaths,
-        candidate_source_block_ids: uniqueStrings(
-          materialEvents
-            .filter((event) => stringValue(event.role) === "primary")
-            .flatMap((event) => readStringArray(event.source_block_ids)),
-        ),
+        candidate_source_block_ids: uniqueStrings([
+          ...sourceProjectEconomicsBlockIds,
+          ...primarySourceBlockIds,
+        ]),
       });
     }
 
@@ -2109,7 +2286,10 @@ function getSec8k6kOperatingRepairIssues(
           (row) => `${stringValue(row.label)} ${stringValue(row.value)} ${stringValue(row.note)}`,
         ),
       ].join(" ");
-      const missingProjectFactGroups = projectEconomicsFactGroups(visibleProjectText).filter(
+      const missingProjectFactGroups = uniqueStrings([
+        ...sourceProjectEconomicsGroups,
+        ...visibleProjectEconomicsGroups,
+      ]).filter(
         (group) => !projectEconomicsFactGroups(projectSectionText).includes(group),
       );
       const outsideProjectText = [
@@ -2141,11 +2321,10 @@ function getSec8k6kOperatingRepairIssues(
             "/display_payload/data/business_catalysts",
             "/display_payload/data/detail_sections",
           ],
-          candidate_source_block_ids: uniqueStrings(
-            materialEvents
-              .filter((event) => stringValue(event.role) === "primary")
-              .flatMap((event) => readStringArray(event.source_block_ids)),
-          ),
+          candidate_source_block_ids: uniqueStrings([
+            ...sourceProjectEconomicsBlockIds,
+            ...primarySourceBlockIds,
+          ]),
         });
       } else if (duplicatedProjectFactGroups.length > 0) {
         issues.push({
@@ -2480,6 +2659,29 @@ function projectEconomicsFactGroups(value: string) {
     groups.push("unit economics");
   }
   return groups;
+}
+
+function projectEconomicsSourceFactGroups(value: string) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return [];
+  return projectEconomicsFactGroups(text).filter((group) => {
+    if (group === "valuation") {
+      return /\b(?:NPV|net present value|IRR|internal rate of return|project valuation)\b[^.]{0,140}(?:\$|US\$|\d)/i.test(text) ||
+        /(?:\$|US\$|\d)[^.]{0,140}\b(?:NPV|net present value|IRR|internal rate of return|project valuation)\b/i.test(text);
+    }
+    if (group === "ownership") {
+      return /\b(?:ownership|equity interest|working interest|stake)\b[^.]{0,100}\d[\d,.]*\s*%/i.test(text) ||
+        /\d[\d,.]*\s*%[^.]{0,100}\b(?:ownership|equity interest|working interest|stake)\b/i.test(text);
+    }
+    if (group === "resource or capacity") {
+      return /\b\d[\d,.]*\s*(?:tonnes?|tons?|units?|MW|GW|GWh|barrels?)\b/i.test(text);
+    }
+    if (group === "unit economics") {
+      return /(?:\$|US\$)?\s*\d[\d,.]*\s*(?:\/|per\s+)(?:tonne|ton|unit)\b/i.test(text) ||
+        /\b(?:operating cost|unit cost|cash cost)\b[^.]{0,100}(?:\$|US\$|\d)/i.test(text);
+    }
+    return false;
+  });
 }
 
 function appendSec8k6kValidationSemanticWarnings(
@@ -3139,6 +3341,94 @@ function hasLikelyMojibake(value: string) {
   return /(?:Ã[\u0080-\u00ff]?|Â[\u0080-\u00ff]?|â[\u0080-\u00ff]|ï¿½|\uFFFD|[\u0080-\u009F])/.test(value);
 }
 
+export function repairSec8k6kDisplayPayloadEncoding(value: Record<string, unknown>) {
+  return repairSec8k6kDisplayValue(value) as Record<string, unknown>;
+}
+
+function repairSec8k6kDisplayValue(value: unknown): unknown {
+  if (typeof value === "string") return repairSec8k6kUtf8Mojibake(value);
+  if (Array.isArray(value)) return value.map(repairSec8k6kDisplayValue);
+  const record = readRecord(value);
+  if (!record) return value;
+  return Object.fromEntries(
+    Object.entries(record).map(([key, item]) => [key, repairSec8k6kDisplayValue(item)]),
+  );
+}
+
+function repairSec8k6kUtf8Mojibake(value: string) {
+  if (!/[\u00c2\u00c3\u00e2]/.test(value)) return value;
+  const characters = Array.from(value);
+  let repaired = "";
+
+  for (let index = 0; index < characters.length; index += 1) {
+    const leadByte = sec8k6kWindows1252Byte(characters[index]);
+    const sequenceLength = sec8k6kUtf8SequenceLength(leadByte);
+    if (sequenceLength <= 1 || index + sequenceLength > characters.length) {
+      repaired += characters[index];
+      continue;
+    }
+    const bytes = characters.slice(index, index + sequenceLength).map(sec8k6kWindows1252Byte);
+    if (bytes.some((byte) => byte === null) || bytes.slice(1).some((byte) => byte! < 0x80 || byte! > 0xbf)) {
+      repaired += characters[index];
+      continue;
+    }
+    try {
+      const encoded = bytes.map((byte) => `%${byte!.toString(16).padStart(2, "0")}`).join("");
+      repaired += decodeURIComponent(encoded);
+      index += sequenceLength - 1;
+    } catch {
+      repaired += characters[index];
+    }
+  }
+
+  return repaired;
+}
+
+function sec8k6kUtf8SequenceLength(leadByte: number | null) {
+  if (leadByte === null) return 0;
+  if (leadByte >= 0xc2 && leadByte <= 0xdf) return 2;
+  if (leadByte >= 0xe0 && leadByte <= 0xef) return 3;
+  if (leadByte >= 0xf0 && leadByte <= 0xf4) return 4;
+  return 1;
+}
+
+function sec8k6kWindows1252Byte(character: string): number | null {
+  const codePoint = character.codePointAt(0);
+  if (codePoint === undefined) return null;
+  if (codePoint <= 0xff) return codePoint;
+  return SEC_8K_6K_WINDOWS_1252_SPECIAL_BYTES[codePoint] ?? null;
+}
+
+const SEC_8K_6K_WINDOWS_1252_SPECIAL_BYTES: Record<number, number> = {
+  0x20ac: 0x80,
+  0x201a: 0x82,
+  0x0192: 0x83,
+  0x201e: 0x84,
+  0x2026: 0x85,
+  0x2020: 0x86,
+  0x2021: 0x87,
+  0x02c6: 0x88,
+  0x2030: 0x89,
+  0x0160: 0x8a,
+  0x2039: 0x8b,
+  0x0152: 0x8c,
+  0x017d: 0x8e,
+  0x2018: 0x91,
+  0x2019: 0x92,
+  0x201c: 0x93,
+  0x201d: 0x94,
+  0x2022: 0x95,
+  0x2013: 0x96,
+  0x2014: 0x97,
+  0x02dc: 0x98,
+  0x2122: 0x99,
+  0x0161: 0x9a,
+  0x203a: 0x9b,
+  0x0153: 0x9c,
+  0x017e: 0x9e,
+  0x0178: 0x9f,
+};
+
 function materialQualifiedAmounts(value: string) {
   const text = String(value || "").replace(/\s+/g, " ").trim();
   if (!text) return [];
@@ -3277,6 +3567,12 @@ function normalizeValidationRepairPatchValue(path: string, value: unknown): unkn
   if (path === "/display_payload/data/business_catalysts") {
     return normalizeValidationRepairBusinessCatalysts(value);
   }
+  if (path === "/analysis_output/key_evidence") {
+    const parsed = parseValidationRepairCollection(value);
+    if (!parsed) return undefined;
+    const evidence = parsed.map(stringValue).map((item) => item.trim()).filter(Boolean);
+    return evidence.length >= 2 && evidence.length <= 3 ? evidence : undefined;
+  }
   if (path === "/analysis_output/event_type" || /\/material_events\/\d+\/event_type$/.test(path)) {
     const eventType = stringValue(value);
     return SEC_8K_6K_APPROVED_EVENT_TYPES.includes(eventType as (typeof SEC_8K_6K_APPROVED_EVENT_TYPES)[number])
@@ -3347,7 +3643,7 @@ function normalizeValidationRepairDetailSections(value: string) {
     if (!section) return [];
     const title = stringValue(section.title).slice(0, 40);
     const rows = readRecordArray(section.rows).slice(0, 5).flatMap((row) => {
-      const label = stringValue(row.label).slice(0, 32);
+      const label = stringValue(row.label).slice(0, 48);
       const rowValue = stringValue(row.value).slice(0, 100);
       const note = nullableString(row.note);
       if (!label || !rowValue) return [];

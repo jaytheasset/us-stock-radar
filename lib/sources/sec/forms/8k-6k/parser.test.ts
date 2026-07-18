@@ -728,6 +728,20 @@ assert.ok(complexFinancing.facts.moneyAmounts.some((amount) => amount.value.amou
 assert.ok(complexFinancing.facts.shareCounts.some((count) => count.value === 8_000_000));
 assertParserHasNoRoutingDecision(complexFinancing, "complex-financing-8k.json");
 
+const coverTableTicker = parseSec8k6kFiling({
+  sourceUniqueId: "0000000000-26-000ticker",
+  title: "Morphic Holding files 8-K",
+  bodyText: [
+    "FORM 8-K",
+    "Title of each class | Trading\nSymbol(s) | Name of each exchange on which registered",
+    "Common Stock, $0.0001 par value per share | | MORF | | The Nasdaq Stock Market LLC",
+    "Item 2.01 Completion of Acquisition or Disposition of Assets.",
+    "The merger was completed for $57 per share in cash.",
+  ].join("\n"),
+  rawPayload: { accession_number: "0000000000-26-000ticker", form_type: "8-K" },
+});
+assert.equal(coverTableTicker.facts.ticker, "MORF");
+
 const longItemText = Array.from(
   { length: 52 },
   (_, index) => `Background paragraph ${index + 1}. The company describes the amended certificate and related capital terms in original filing language.`,

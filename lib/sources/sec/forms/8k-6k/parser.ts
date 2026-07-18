@@ -338,6 +338,10 @@ export function parseSec8k6kFiling(input: Sec8k6kParseInput): Sec8k6kParserOutpu
     secFormType,
     tableFacts,
   });
+  const ticker =
+    nullableString(rawPayload.ticker) ||
+    nullableString(metadata.ticker) ||
+    readTradingSymbol(combinedText);
 
   return {
     parserVersion: SEC_8K_6K_PARSER_VERSION,
@@ -355,7 +359,7 @@ export function parseSec8k6kFiling(input: Sec8k6kParseInput): Sec8k6kParserOutpu
       cueCount: filingCues.length,
       formType: secFormType,
       itemCount: items.length,
-      ticker: nullableString(rawPayload.ticker) || nullableString(metadata.ticker),
+      ticker,
     }),
     facts: {
       rawItemId: nullableString(input.rawItemId),
@@ -366,7 +370,7 @@ export function parseSec8k6kFiling(input: Sec8k6kParseInput): Sec8k6kParserOutpu
         nullableString(metadata.company_name) ||
         nullableString(metadata.issuer) ||
         readCompanyName(combinedText),
-      ticker: nullableString(rawPayload.ticker) || nullableString(metadata.ticker),
+      ticker,
       secFormType,
       isForeignIssuerReport: secFormType === "6-K" || secFormType === "6-K/A",
       isAmendment: amendment.isAmendment,
@@ -1885,6 +1889,19 @@ function readCompanyName(text: string) {
     text.match(/\b([A-Z][A-Za-z0-9&.,' -]{2,80})\s+(?:announced|reported|entered into|filed)\b/)?.[1]?.trim() ||
     null
   );
+}
+
+function readTradingSymbol(text: string) {
+  const headerIndex = text.search(/\bTrading\s+Symbol\s*\(s\)/i);
+  if (headerIndex < 0) return null;
+  const coverWindow = text.slice(headerIndex, headerIndex + 2_500);
+  const securityPattern = /\b(?:class\s+[a-z0-9-]+\s+)?(?:common stock|ordinary shares?|american depositary shares?|ADSs?)\b[\s\S]{0,260}?\|\s*(?:\|\s*)?([A-Z][A-Z0-9.-]{0,9})\s*\|/gi;
+  const excluded = new Set(["ADS", "ADSS", "COMMON", "N/A", "NASDAQ", "NONE", "NYSE", "STOCK", "THE"]);
+  for (const match of coverWindow.matchAll(securityPattern)) {
+    const symbol = stringValue(match[1]).toUpperCase();
+    if (symbol && !excluded.has(symbol)) return symbol;
+  }
+  return null;
 }
 
 function mapDocumentSummary(document: DocumentPayload): Sec8k6kDocumentSummary {

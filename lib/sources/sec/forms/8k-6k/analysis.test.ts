@@ -10,6 +10,7 @@ import {
   getSec8k6kValidationSemanticWarnings,
   normalizeSec8k6kCapitalDisplayPayloadForPersistence,
   normalizeSec8k6kOperatingDisplayPayloadForPersistence,
+  repairSec8k6kDisplayPayloadEncoding,
 } from "../../../../ai/sec8k6kAnalysisAdapter";
 import { buildSecFilingAnalysisPackage } from "../../../../prompts/secFilingAnalysisPackage";
 import {
@@ -49,6 +50,13 @@ const expectedNames = readdirSync(expectedDir)
   .sort();
 
 assert.equal(expectedNames.length, 15);
+
+assert.deepEqual(
+  repairSec8k6kDisplayPayloadEncoding({
+    data: { note: "Cauchar\u00c3\u00ad-Olaroz", nested: ["LYTENAVA\u00e2\u201e\u00a2"] },
+  }),
+  { data: { note: "Cauchar\u00ed-Olaroz", nested: ["LYTENAVA\u2122"] } },
+);
 
 const coveredEventTypes = new Set<string>();
 const coveredAnalysisFamilies = new Set<string>();
@@ -275,6 +283,153 @@ const repairAnalysisOutput = (
   ],
   ...extra,
 });
+
+const severeDilutionRepairPlan = buildSec8k6kValidationRepairPlan({
+  analysisResult: {
+    analysis_output: repairAnalysisOutput("dilution_risk", "sttk_offering", {
+      score: 65,
+      signal: "bearish",
+      score_reason: "Immediate supply pressure outweighs the funding benefit.",
+      score_explanation: { summary: "Immediate supply pressure outweighs the funding benefit." },
+    }),
+    display_payload: {
+      display_type: "capital_financing",
+      data: {
+        capital_mode: "share_linked_financing",
+        snapshot_metrics: [
+          { label: "Offering Size", value: "Up to $103 million", note: "Gross proceeds before fees" },
+          { label: "Purchase Price", value: "$0.875", note: null },
+          { label: "Closing", value: "Expected", note: null },
+          { label: "Use of Proceeds", value: "Clinical development", note: null },
+        ],
+        share_overhang: {
+          status_value: "109.9%",
+          rows: [
+            { label: "Common and pre-funded", numeric_value: 52_635_346, row_role: "counted" },
+            { label: "Common warrants", numeric_value: 52_635_346, row_role: "conditional" },
+          ],
+          basis: { numeric_value: 47_903_215 },
+          total_note: { numerator: 52_635_346, denominator: 47_903_215, ratio: "109.9%" },
+        },
+      },
+    },
+  },
+  analysisPromptUser: repairSourceBlocks({
+    block_id: "sttk_offering",
+    exhibit_number: "99.1",
+    label: "Private placement terms",
+    text: "The private placement is expected to produce gross proceeds of $46 million at closing. If all Common Warrants are exercised, the company may receive additional gross proceeds of $57 million.",
+  }),
+});
+assert.ok(severeDilutionRepairPlan);
+assert.ok(severeDilutionRepairPlan.issues.some((issue) => issue.code === "capital_severe_dilution_alert_policy"));
+assert.ok(severeDilutionRepairPlan.issues.some((issue) => issue.code === "capital_conditional_proceeds_snapshot"));
+assert.ok(severeDilutionRepairPlan.allowedPatchPaths.includes("/analysis_output/score"));
+assert.ok(severeDilutionRepairPlan.allowedPatchPaths.includes("/display_payload/data/snapshot_metrics/0/note"));
+
+const omittedProjectEconomicsPlan = buildSec8k6kValidationRepairPlan({
+  analysisResult: {
+    analysis_output: repairAnalysisOutput("operating_update", "lar_operating_update", { score: 60, signal: "neutral" }),
+    display_payload: {
+      display_type: "operating_event",
+      data: {
+        operating_mode: "operating_update",
+        performance_comparisons: [],
+        snapshot_metrics: [
+          { label: "2024 Production", value: "25,400 tonnes", note: null },
+          { label: "Q4 Capacity", value: "85%", note: null },
+          { label: "2025 Guidance", value: "30,000-35,000 tonnes", note: null },
+          { label: "Operating Focus", value: "Ramp-up", note: null },
+        ],
+        business_catalysts: [],
+        detail_sections: [],
+        secondary_updates: [],
+      },
+    },
+  },
+  analysisPromptUser: repairSourceBlocks({
+    block_id: "lar_operating_update",
+    exhibit_number: "99.2",
+    label: "Operations and technical report",
+    text: "Stage 1 after-tax NPV (8%) is $3.6 billion. Lithium Argentina owns 44.8%. Estimated operating cost is $6,543 per tonne.",
+  }),
+});
+assert.ok(omittedProjectEconomicsPlan);
+assert.ok(omittedProjectEconomicsPlan.issues.some((issue) => issue.code === "operating_project_economics_section_missing"));
+assert.deepEqual(omittedProjectEconomicsPlan.allowedPatchPaths, ["/display_payload/data/detail_sections"]);
+assert.match(omittedProjectEconomicsPlan.prompt.system, /Never use label or summary at the section level/);
+assert.deepEqual(omittedProjectEconomicsPlan.sourceBlockIds, ["lar_operating_update"]);
+
+const auditorIcfrRepairPlan = buildSec8k6kValidationRepairPlan({
+  analysisResult: {
+    analysis_output: repairAnalysisOutput("leadership_governance", "fonr_item_4_01", { score: 55, signal: "neutral" }),
+    display_payload: {
+      display_type: "governance_event",
+      data: {
+        governance_mode: "auditor_change",
+        snapshot_metrics: [
+          { label: "Previous Auditor", value: "Marcum", note: null },
+          { label: "New Auditor", value: "CohnReznick", note: null },
+          { label: "Disagreements", value: "None", note: null },
+          { label: "Approval Date", value: "September 23, 2024", note: null },
+        ],
+        key_changes: [{
+          details: [{
+            label: "Auditor Reports",
+            value: "No qualification, except for an ICFR statement",
+            note: "The auditor did not express an opinion on internal control over financial reporting.",
+          }],
+        }],
+      },
+    },
+  },
+  analysisPromptUser: repairSourceBlocks({
+    block_id: "fonr_item_4_01",
+    item_number: "4.01",
+    label: "Auditor reports",
+    text: "The reports contained no adverse opinion, disclaimer, or qualification. Marcum was not engaged to express an opinion on internal control over financial reporting.",
+  }),
+});
+assert.ok(auditorIcfrRepairPlan);
+assert.ok(auditorIcfrRepairPlan.issues.some((issue) => issue.code === "governance_auditor_icfr_scope_misclassified_as_qualification"));
+
+const keyEvidenceRepairPlan = buildSec8k6kValidationRepairPlan({
+  analysisResult: {
+    analysis_output: repairAnalysisOutput("listing_risk", "nkla_item_3_01", {
+      score: 92,
+      signal: "bearish",
+      key_evidence: ["Evidence one", "Evidence two", "Evidence three", "Evidence four"],
+    }),
+    display_payload: { display_type: "generic", data: {} },
+  },
+  analysisPromptUser: repairSourceBlocks({
+    block_id: "nkla_item_3_01",
+    item_number: "3.01",
+    label: "Nasdaq delisting notice",
+    text: "Nasdaq will suspend trading after the bankruptcy filing, and the company will not appeal the determination.",
+  }),
+});
+assert.ok(keyEvidenceRepairPlan);
+assert.ok(keyEvidenceRepairPlan.issues.some((issue) => issue.code === "key_evidence_count_exceeded"));
+const keyEvidenceRepairApplied = applySec8k6kValidationRepairPatches({
+  analysisResult: {
+    analysis_output: repairAnalysisOutput("listing_risk", "nkla_item_3_01", {
+      key_evidence: ["Evidence one", "Evidence two", "Evidence three", "Evidence four"],
+    }),
+  },
+  repairResult: {
+    patches: [{
+      path: "/analysis_output/key_evidence",
+      value: JSON.stringify(["Bankruptcy triggered Nasdaq delisting.", "Trading suspension is scheduled.", "The company will not appeal."]),
+    }],
+    unresolved_warning_codes: [],
+  },
+  allowedPatchPaths: keyEvidenceRepairPlan.allowedPatchPaths,
+});
+assert.equal(
+  ((keyEvidenceRepairApplied.analysisResult.analysis_output as Record<string, unknown>).key_evidence as string[]).length,
+  3,
+);
 
 const riskRepairPlan = buildSec8k6kValidationRepairPlan({
   analysisResult: {

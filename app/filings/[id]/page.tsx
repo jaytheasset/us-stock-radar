@@ -14809,9 +14809,10 @@ function StrategicTransactionTemplate({
 
       <ScoreBasisPanel filing={filing} />
 
-      {filing.watchNext.length ? (
-        <section className="stock-detail-card-grid insight-summary-grid listing-risk-support-grid">
-          <AnalysisList title="What To Watch Next" items={filing.watchNext} />
+      {filing.keyEvidence.length || filing.watchNext.length ? (
+        <section className="stock-detail-card-grid two-up insight-summary-grid listing-risk-support-grid">
+          {filing.keyEvidence.length ? <AnalysisList title="Key Evidence" items={filing.keyEvidence} /> : null}
+          {filing.watchNext.length ? <AnalysisList title="What To Watch Next" items={filing.watchNext} /> : null}
         </section>
       ) : null}
 

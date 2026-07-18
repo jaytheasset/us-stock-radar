@@ -28,7 +28,7 @@ export const SEC_8K_6K_ANALYSIS_PROMPT_KEYS = {
 } as const;
 
 export const SEC_8K_6K_ANALYSIS_PROMPT_KEY = SEC_8K_6K_ANALYSIS_PROMPT_KEYS.operatingLegalRoutine;
-export const SEC_8K_6K_ANALYSIS_PROMPT_VERSION = "v40-reverse-split-alert-policy";
+export const SEC_8K_6K_ANALYSIS_PROMPT_VERSION = "v41-source-backed-regression-guards";
 
 export const SEC_8K_6K_ANALYSIS_PROMPT_FAMILY_VALUES = [
   "risk_status",
@@ -830,7 +830,7 @@ const operatingEventDisplayPayloadSchema = {
                   additionalProperties: false,
                   required: ["label", "value", "note"],
                   properties: {
-                    label: { type: "string", maxLength: 32 },
+                    label: { type: "string", maxLength: 48 },
                     value: { type: "string", maxLength: 100 },
                     note: { type: ["string", "null"], maxLength: 80 },
                   },
@@ -1194,6 +1194,7 @@ export const sec8k6kFinancingDilutionCapitalStructurePrompt = [
   "When a fixed common-share equivalent is source-backed, preserve both the legal security amount and the fixed common-share equivalent. When the common-share equivalent varies with price, reset, exercise, conversion, approval, or another unresolved condition, describe it as variable and do not invent a fixed amount.",
   "Never hide known fixed common-share exposure merely because total exposure is not calculable. Preserve the fixed exposure in Instrument Details or Snapshot even when share_overhang must remain null because the denominator is unavailable or another material instrument remains variable.",
   "Distinguish funded or closed amounts from commitments, maximum financing size, capacity, and conditional future tranches. If an aggregate includes unfunded or conditional tranches, do not label the aggregate Gross Proceeds or imply that the full amount has closed; use a source-backed commitment or financing-size label and show funded amounts separately when stated.",
+  "When a headline says up to an aggregate amount but the original source separately states closing proceeds and additional exercise-contingent proceeds, show that split in one compact snapshot row. Never let an unconditional Gross Proceeds or Offering Size label hide that part of the maximum depends on future warrant or instrument exercise.",
   "Prioritize terms that change common-share supply, cash received, investor economics, or timing. Omit unavailable rows and immaterial legal protections rather than filling the UI with Not disclosed values or internal class-governance provisions.",
   "Keep each term scoped to the instrument, series, tranche, or transaction to which it applies. Do not present a Series B placement agent, funding condition, reset, ownership limit, or other series-specific term as a condition of the entire financing.",
   "SECTION: Build the visible capital model before prose.",
@@ -1289,6 +1290,7 @@ export const sec8k6kGovernanceVoteLeadershipPrompt = [
   "For vote_result, use key_changes for the material proposals and outcomes. State approved, rejected, elected, withheld, or unresolved before procedural vote counts; include counts only when they materially clarify the result.",
   "For auditor_change, use both the selected Item 4.01 block and selected auditor letter when available. Distinguish dismissal, resignation, and appointment; identify disagreements, adverse or disclaimer opinions, and reportable events only when source-backed.",
   "For auditor_change, keep disagreements, reportable events, audit opinion, going-concern language, and appointment conditions as separate disclosure dimensions. Never describe going concern, an adverse opinion, a disclaimer, or another audit-opinion issue as an exception to no disagreements or no reportable events.",
+  "For auditor_change, also separate the financial-statement audit opinion from ICFR audit scope. A statement that the auditor was not engaged to audit or opine on internal control over financial reporting is not a qualification, exception, or adverse modification of the financial-statement opinion.",
   "For auditor_change dates, preserve the disclosed state. When engagement remains subject to a filing, agreement, consent, or other condition, label the date Approval Date or Conditional Engagement rather than Engagement Date or Effective Date.",
   "For leadership_change, distinguish permanent and interim appointments, effective dates, stated reasons, succession coverage, and any source-backed disagreement or investigation. Do not turn biography or praise into investor evidence.",
   "The Governance Snapshot and Key Changes are the visible evidence. Do not return key_evidence for this family and do not write display_payload evidence or notes.",
