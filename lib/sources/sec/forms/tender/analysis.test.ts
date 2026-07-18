@@ -306,6 +306,10 @@ assert.equal(secTenderRequiredOutputSchema.properties.analysis_output.properties
 assert.equal(secTenderRequiredOutputSchema.properties.analysis_output.properties.bearish_points.maxItems, 3);
 assert.equal(secTenderRequiredOutputSchema.properties.analysis_output.properties.key_evidence.maxItems, 3);
 assert.equal(secTenderRequiredOutputSchema.properties.analysis_output.properties.what_to_watch_next.maxItems, 3);
+assert.ok(secTenderRequiredOutputSchema.properties.analysis_output.properties.bullish_points.description.includes("Never return more than three items"));
+assert.ok(secTenderRequiredOutputSchema.properties.analysis_output.properties.bearish_points.description.includes("Never return more than three items"));
+assert.ok(secTenderRequiredOutputSchema.properties.analysis_output.properties.key_evidence.description.includes("Never return more than three items"));
+assert.ok(secTenderRequiredOutputSchema.properties.analysis_output.properties.what_to_watch_next.description.includes("Never return more than three items"));
 assert.ok(secTenderAnalysisSystemPrompt.includes("The site UI handles Source / Original filing"));
 assert.ok(secTenderAnalysisSystemPrompt.includes("Do not fabricate or restate source links"));
 assert.ok(secTenderAnalysisSystemPrompt.includes("Use only cleaned_source_blocks"));
