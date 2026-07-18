@@ -943,6 +943,114 @@ assert.equal(
   "operating_update",
 );
 
+const offeringRecapRationaleAnalysis = {
+  analysis_output: repairAnalysisOutput("dilution_risk", "abivax_offering", {
+    score: 75,
+    signal: "bearish",
+    score_reason: "The offering of 10,156,000 ADSs at $64.00 per ADS, raising approximately $608.6 million, presents a material dilution risk for existing shareholders.",
+    score_explanation: {
+      summary: "The company issued 10,156,000 ADSs and raised approximately $608.6 million through the offering.",
+    },
+  }),
+  display_payload: { display_type: "generic", data: {} },
+};
+const offeringRecapRationaleRepairPlan = buildSec8k6kValidationRepairPlan({
+  analysisResult: offeringRecapRationaleAnalysis,
+  analysisPromptUser: repairSourceBlocks({
+    block_id: "abivax_offering",
+    item_number: "8.01",
+    label: "ADS Offering",
+    text: "The company offered 10,156,000 ADSs at $64.00 per ADS and expected net proceeds of approximately $608.6 million.",
+  }),
+});
+assert.ok(offeringRecapRationaleRepairPlan);
+assert.ok(
+  offeringRecapRationaleRepairPlan.issues.some(
+    (issue) => issue.code === "score_rationale_filing_recap",
+  ),
+);
+assert.ok(offeringRecapRationaleRepairPlan.allowedPatchPaths.includes("/analysis_output/score_reason"));
+assert.ok(offeringRecapRationaleRepairPlan.allowedPatchPaths.includes("/analysis_output/score_explanation/summary"));
+assert.ok(offeringRecapRationaleRepairPlan.prompt.system.includes("12-24 word analyst bottom line"));
+assert.ok(!offeringRecapRationaleRepairPlan.prompt.system.includes("operating_project_economics_section_missing"));
+
+const offeringSizeRecapRationaleRepairPlan = buildSec8k6kValidationRepairPlan({
+  analysisResult: {
+    analysis_output: repairAnalysisOutput("dilution_risk", "abivax_offering", {
+      score: 65,
+      signal: "bearish",
+      score_reason: "The offering size represents a significant dilution risk for existing shareholders, particularly given the company's market capitalization.",
+      score_explanation: {
+        summary: "The score reflects a material dilution risk from the ADS offering.",
+      },
+    }),
+    display_payload: { display_type: "generic", data: {} },
+  },
+  analysisPromptUser: repairSourceBlocks({
+    block_id: "abivax_offering",
+    item_number: "8.01",
+    label: "ADS Offering",
+    text: "The company offered 10,156,000 ADSs at $64.00 per ADS and expected net proceeds of approximately $608.6 million.",
+  }),
+});
+assert.ok(offeringSizeRecapRationaleRepairPlan);
+assert.ok(
+  offeringSizeRecapRationaleRepairPlan.issues.some(
+    (issue) => issue.code === "score_rationale_filing_recap",
+  ),
+);
+assert.ok(
+  offeringSizeRecapRationaleRepairPlan.issues.some(
+    (issue) => issue.code === "score_rationale_meta_language",
+  ),
+);
+const offeringSizeFallbackResult = applySec8k6kValidationRepairPatches({
+  analysisResult: offeringRecapRationaleAnalysis,
+  allowedPatchPaths: offeringSizeRecapRationaleRepairPlan.allowedPatchPaths,
+  repairResult: {
+    patches: [
+      {
+        path: "/analysis_output/score_reason",
+        value: "The offering size represents a significant dilution risk for existing shareholders.",
+      },
+      {
+        path: "/analysis_output/score_explanation/summary",
+        value: "The score reflects a material dilution risk from the ADS offering.",
+      },
+    ],
+    unresolved_warning_codes: [],
+  },
+});
+assert.deepEqual(offeringSizeFallbackResult.rationaleFallbackPaths, [
+  "/analysis_output/score_reason",
+  "/analysis_output/score_explanation/summary",
+]);
+assert.equal(
+  (offeringSizeFallbackResult.analysisResult.analysis_output as Record<string, unknown>).score_reason,
+  "Immediate equity supply creates meaningful ownership dilution, while added liquidity provides a partial balance-sheet offset.",
+);
+
+const analyticalOfferingRationalePlan = buildSec8k6kValidationRepairPlan({
+  analysisResult: {
+    analysis_output: repairAnalysisOutput("dilution_risk", "abivax_offering", {
+      score: 75,
+      signal: "bearish",
+      score_reason: "Immediate equity supply creates meaningful ownership dilution, partly offset by a substantially stronger cash position.",
+      score_explanation: {
+        summary: "Confirmed issuance makes dilution immediate, while the resulting liquidity provides a meaningful balance-sheet offset.",
+      },
+    }),
+    display_payload: { display_type: "generic", data: {} },
+  },
+  analysisPromptUser: repairSourceBlocks({
+    block_id: "abivax_offering",
+    item_number: "8.01",
+    label: "ADS Offering",
+    text: "The company offered 10,156,000 ADSs at $64.00 per ADS and expected net proceeds of approximately $608.6 million.",
+  }),
+});
+assert.equal(analyticalOfferingRationalePlan, null);
+
 const regulatoryEventTypeAnalysis = {
   analysis_output: repairAnalysisOutput("product_update", "fda_exhibit_99_1"),
   display_payload: {

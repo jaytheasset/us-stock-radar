@@ -59,7 +59,7 @@ export type Sec8k6kValidationRepairPlan = {
 };
 
 export const SEC_8K_6K_VALIDATION_REPAIR_PROMPT_KEY = "sec_8k_6k_validation_repair";
-export const SEC_8K_6K_VALIDATION_REPAIR_PROMPT_VERSION = "v3-listing-date-role-one-pass-patch";
+export const SEC_8K_6K_VALIDATION_REPAIR_PROMPT_VERSION = "v5-rationale-bounded-fallback";
 
 export function isSec8k6kFilingInput(input: SecFilingAnalysisInput) {
   const parserOutput = readSec8k6kParserOutput(input);
@@ -467,6 +467,9 @@ export function buildSec8k6kValidationRepairPlan(input: {
       candidate_source_block_ids: issueSourceIds.length ? issueSourceIds : sourceBlockIds,
     };
   });
+  const scoreRationaleOnlyRepair = issuesWithSources.every(
+    (issue) => issue.code === "score_rationale_meta_language" || issue.code === "score_rationale_filing_recap",
+  );
   const responseSchema = {
     type: "object",
     additionalProperties: false,
@@ -503,7 +506,16 @@ export function buildSec8k6kValidationRepairPlan(input: {
     prompt: {
       key: SEC_8K_6K_VALIDATION_REPAIR_PROMPT_KEY,
       version: SEC_8K_6K_VALIDATION_REPAIR_PROMPT_VERSION,
-      system: [
+      system: (scoreRationaleOnlyRepair ? [
+        "Repair only the validator-identified score rationale fields in an existing SEC 8-K/6-K analysis.",
+        "This is one bounded repair pass, not a new analysis. Return JSON patches only and do not change any unlisted path.",
+        "The warning is not evidence. Use the supplied original source blocks only to preserve the correct investor consequence and material offset.",
+        "Write each replacement as a 12-24 word analyst bottom line explaining the practical scoring principle, not the filing facts or transaction mechanics.",
+        "Begin with the investor consequence or economic principle. Never begin with The offering, The financing, The transaction, The company, an issuer name, The score, or This score.",
+        "Do not repeat exact share counts, security counts, prices, proceeds, dates, issuer names, or terms already visible in the snapshot and details.",
+        "Use at most two controlling drivers and one material offset when it changes the investor reading. Do not mention a score, rating, impact band, or delivery level.",
+        "If the sources do not support a replacement, return no patch and list the warning code in unresolved_warning_codes. Every patch must cite a supplied source block.",
+      ] : [
         "Repair only the validator-identified fields in an existing SEC 8-K/6-K analysis.",
         "This is one bounded repair pass, not a new analysis. Return JSON patches only.",
         "The warning identifies a possible problem but is not evidence. Use only the supplied original source blocks as factual authority.",
@@ -527,12 +539,13 @@ export function buildSec8k6kValidationRepairPlan(input: {
         "For risk_listing_suspension_date_misclassified_as_removal, preserve the source-backed date role exactly. A trading suspension date is not a delisting or removal effective date. Rewrite only the flagged fields to describe trading as suspended on that date, and mention a later Form 25 removal without assigning an effective date unless the source explicitly provides one.",
         "For capital_reverse_split_alert_policy, use event_type dilution_risk, a bearish signal, and a score of at least 75. Explain listing, price, or capital pressure and do not describe the proportional share consolidation itself as mechanical dilution.",
         "For score_rationale_meta_language, rewrite score_reason and score_explanation.summary as investor-impact conclusions. Do not mention a score, rating, impact band, alert/feed/archive level, or why a number was assigned.",
+        "For score_rationale_filing_recap, rewrite only the flagged score rationale fields as a 12-24 word analyst bottom line. Explain the practical scoring principle through immediacy, economic scale, dilution mechanics, financing quality, balance-sheet effect, or another controlling investor consequence. Do not repeat exact share counts, prices, proceeds, dates, transaction mechanics, or facts already visible in the snapshot and details. Use at most two controlling drivers and one material offset when it changes the reading. Begin with the investor consequence or economic principle, such as Immediate equity supply, Large actionable overhang, or Severe liquidity pressure. Never begin with The offering, The financing, The transaction, The company, an issuer name, The score, or This score.",
         "Do not fix an incompatible-period comparison by relabeling a value. Replace the labels, displayed values, numeric values, comparison basis, and change note only when the supplied source blocks contain a complete comparable pair; otherwise leave it unresolved.",
         "For an allowed path ending in _numeric, return the replacement as a plain numeric string without units or thousands separators; the integration converts it to a JSON number.",
         "For an allowed snapshot_metrics, business_catalysts, detail_sections, or secondary_updates collection path, return the complete replacement array as a compact JSON string. Preserve valid existing items, remove only validator-identified duplication, and add only source-backed missing items.",
         "If the supplied source blocks do not establish a correction, return no patch for that warning and list its code in unresolved_warning_codes.",
         "Each patch must cite at least one supplied source block that supports the replacement value.",
-      ].join("\n"),
+      ]).join("\n"),
       user: JSON.stringify({
         validation_issues: issuesWithSources,
         allowed_patch_paths: allowedPatchPaths,
@@ -613,12 +626,83 @@ export function applySec8k6kValidationRepairPatches(input: {
     else ignoredPatchPaths.push(patch.path);
   }
 
+  const rationaleFallbackPaths = applySec8k6kScoreRationaleFallbacks(cloned, appliedPatchPaths);
+
   return {
     analysisResult: cloned,
     appliedPatchPaths: uniqueStrings(appliedPatchPaths),
     ignoredPatchPaths: uniqueStrings(ignoredPatchPaths),
+    rationaleFallbackPaths,
     unresolvedWarningCodes: readStringArray(input.repairResult.unresolved_warning_codes),
   };
+}
+
+function applySec8k6kScoreRationaleFallbacks(
+  analysisResult: Record<string, unknown>,
+  appliedPatchPaths: string[],
+) {
+  const analysisOutput = readRecord(analysisResult.analysis_output);
+  if (!analysisOutput) return [];
+
+  const scoreExplanation = readRecord(analysisOutput.score_explanation);
+  const candidates = [
+    {
+      path: "/analysis_output/score_reason",
+      value: stringValue(analysisOutput.score_reason),
+    },
+    {
+      path: "/analysis_output/score_explanation/summary",
+      value: stringValue(scoreExplanation?.summary),
+    },
+  ].filter((candidate) => appliedPatchPaths.includes(candidate.path));
+  const invalidPaths = candidates
+    .filter((candidate) => hasSec8k6kScoreRationaleMetaLanguage(candidate.value) || isSec8k6kScoreRationaleFilingRecap(candidate.value))
+    .map((candidate) => candidate.path);
+  if (!invalidPaths.length) return [];
+
+  const fallback = buildSec8k6kScoreRationalePrincipleFallback(analysisResult, analysisOutput);
+  return invalidPaths.filter((path) => replaceJsonPointerValue(analysisResult, path, fallback));
+}
+
+function buildSec8k6kScoreRationalePrincipleFallback(
+  analysisResult: Record<string, unknown>,
+  analysisOutput: Record<string, unknown>,
+) {
+  const eventType = stringValue(analysisOutput.event_type);
+  const displayData = readRecord(readRecord(analysisResult.display_payload)?.data) || {};
+  const capitalMode = stringValue(displayData.capital_mode);
+
+  if (eventType === "dilution_risk") {
+    if (capitalMode === "atm_capacity") {
+      return "Large actionable sale capacity raises future dilution pressure, while actual impact still depends on issuance pace.";
+    }
+    if (capitalMode === "share_linked_financing") {
+      return "Actionable share-linked supply creates material dilution risk, with financing liquidity providing only a partial offset.";
+    }
+    if (capitalMode === "capital_structure_action") {
+      return "Expanded capital flexibility increases future shareholder exposure, while no immediate issuance limits the near-term effect.";
+    }
+    return "Immediate equity supply creates meaningful ownership dilution, while added liquidity provides a partial balance-sheet offset.";
+  }
+  if (eventType === "listing_risk") {
+    return "Reduced exchange access materially weakens trading liquidity, while any remaining cure or appeal path limits immediate severity.";
+  }
+  if (eventType === "financial_risk") {
+    return "Unresolved financial pressure raises near-term creditor and reporting risk, with disclosed liquidity support providing only a partial offset.";
+  }
+  if (eventType === "strategic_transaction") {
+    return "Material value depends on closing certainty and consideration quality, while unresolved conditions preserve meaningful transaction risk.";
+  }
+  if (eventType === "earnings") {
+    return "The controlling operating trend drives the investor impact, while the strongest opposing result tempers the directional conclusion.";
+  }
+  if (eventType === "fda_clinical") {
+    return "Regulatory progress improves development certainty, while remaining review or execution steps preserve meaningful outcome risk.";
+  }
+  if (eventType === "leadership_governance" || eventType === "shareholder_vote") {
+    return "Governance impact depends on control and execution consequences, while an orderly transition or approval path limits disruption.";
+  }
+  return "Immediate investor consequences determine the impact, while the strongest source-backed offset limits the directional conclusion.";
 }
 
 function normalizeRoutePriority(value: unknown): "primary" | "secondary" | "context" {
@@ -1316,24 +1400,67 @@ function getSec8k6kSnapshotCountRepairIssues(
 function getSec8k6kScoreRationaleRepairIssues(
   analysisOutput: Record<string, unknown>,
 ): Sec8k6kValidationRepairIssue[] {
-  const scoreReason = stringValue(analysisOutput.score_reason);
-  const scoreExplanation = stringValue(readRecord(analysisOutput.score_explanation)?.summary);
-  const metaLanguage = /(?:\b(?:the|this|impact)\s+score\b|\bscore\s+(?:is|of|level|band|reflects|because)\b|\b(?:alert|feed|archive)[ -]level\b|\bwarrant(?:s|ed|ing)?\s+(?:an?\s+)?(?:alert|feed|archive)[ -]level\b|\bjustif(?:y|ies|ied|ying)\s+(?:an?\s+)?(?:high|low|alert)\b)/i;
-  if (!metaLanguage.test(`${scoreReason} ${scoreExplanation}`)) return [];
+  const fields = [
+    {
+      value: stringValue(analysisOutput.score_reason),
+      path: "/analysis_output/score_reason",
+    },
+    {
+      value: stringValue(readRecord(analysisOutput.score_explanation)?.summary),
+      path: "/analysis_output/score_explanation/summary",
+    },
+  ];
+  const metaLanguagePaths = fields
+    .filter((field) => field.value && hasSec8k6kScoreRationaleMetaLanguage(field.value))
+    .map((field) => field.path);
+  const filingRecapPaths = fields
+    .filter((field) => isSec8k6kScoreRationaleFilingRecap(field.value))
+    .map((field) => field.path);
+  const sourceBlockIds = primaryMaterialEventSourceIds(analysisOutput);
+  const issues: Sec8k6kValidationRepairIssue[] = [];
 
-  return [{
-    code: "score_rationale_meta_language",
-    warning: "Investor-facing score rationale describes the score, rating, or delivery tier instead of stating the practical investment-impact principle.",
-    field_paths: [
-      "/analysis_output/score_reason",
-      "/analysis_output/score_explanation/summary",
-    ],
-    allowed_patch_paths: [
-      "/analysis_output/score_reason",
-      "/analysis_output/score_explanation/summary",
-    ],
-    candidate_source_block_ids: primaryMaterialEventSourceIds(analysisOutput),
-  }];
+  if (metaLanguagePaths.length) {
+    issues.push({
+      code: "score_rationale_meta_language",
+      warning: "Investor-facing score rationale describes the score, rating, or delivery tier instead of stating the practical investment-impact principle.",
+      field_paths: metaLanguagePaths,
+      allowed_patch_paths: metaLanguagePaths,
+      candidate_source_block_ids: sourceBlockIds,
+    });
+  }
+
+  if (filingRecapPaths.length) {
+    issues.push({
+      code: "score_rationale_filing_recap",
+      warning: "Investor-facing score rationale repeats filing mechanics or dense transaction terms instead of explaining the practical scoring principle.",
+      field_paths: filingRecapPaths,
+      allowed_patch_paths: filingRecapPaths,
+      candidate_source_block_ids: sourceBlockIds,
+    });
+  }
+
+  return issues;
+}
+
+function hasSec8k6kScoreRationaleMetaLanguage(value: string) {
+  return /(?:\b(?:the|this|impact)\s+score\b|\bscore\s+(?:is|of|level|band|reflects|because)\b|\b(?:alert|feed|archive)[ -]level\b|\bwarrant(?:s|ed|ing)?\s+(?:an?\s+)?(?:alert|feed|archive)[ -]level\b|\bjustif(?:y|ies|ied|ying)\s+(?:an?\s+)?(?:high|low|alert)\b)/i.test(value);
+}
+
+function isSec8k6kScoreRationaleFilingRecap(value: string) {
+  const text = stringValue(value).replace(/\s+/g, " ");
+  if (!text) return false;
+
+  const transactionMechanicOpening = /^(?:the\s+)?(?:offering|issuance|sale|placement|financing|transaction|agreement)\b/i;
+  const issuerActionOpening = /^(?:the\s+)?(?:company|issuer|registrant)\s+(?:filed|announced|disclosed|issued|offered|sold|entered|completed|appointed|resigned|received|approved)\b/i;
+  const denseTransactionTerms = countSec8k6kRationaleQuantitativeFacts(text) >= 2 &&
+    /\b(?:offering|issuance|shares?|ADSs?|units?|warrants?|price|proceeds|financing|transaction)\b/i.test(text);
+
+  return transactionMechanicOpening.test(text) || issuerActionOpening.test(text) || denseTransactionTerms;
+}
+
+function countSec8k6kRationaleQuantitativeFacts(value: string) {
+  const pattern = /(?:[$€£¥]\s*\(?\d[\d,.]*(?:\s*(?:thousand|million|billion|trillion|[KMBT]))?|\b\d[\d,.]*\s*(?:%|percent|shares?|ADSs?|units?|warrants?)\b)/gi;
+  return [...String(value || "").matchAll(pattern)].length;
 }
 
 function getSec8k6kTextEncodingRepairIssues(

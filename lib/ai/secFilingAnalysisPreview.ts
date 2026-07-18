@@ -1493,6 +1493,7 @@ export async function runSecFilingAnalysisForRawRow(
     let repairRun: OpenAiPromptRun | null = null;
     let appliedPatchPaths: string[] = [];
     let ignoredPatchPaths: string[] = [];
+    let rationaleFallbackPaths: string[] = [];
     let unresolvedWarningCodes: string[] = [];
     let repairAdaptationError: string | null = null;
 
@@ -1509,6 +1510,7 @@ export async function runSecFilingAnalysisForRawRow(
         });
         appliedPatchPaths = repaired.appliedPatchPaths;
         ignoredPatchPaths = repaired.ignoredPatchPaths;
+        rationaleFallbackPaths = repaired.rationaleFallbackPaths;
         unresolvedWarningCodes = repaired.unresolvedWarningCodes;
         if (appliedPatchPaths.length) {
           const repairedAnalysis = adaptSec8k6kAnalysisPromptResultForAnalysis(
@@ -1534,6 +1536,7 @@ export async function runSecFilingAnalysisForRawRow(
           allowed_patch_paths: repairPlan.allowedPatchPaths,
           applied_patch_paths: appliedPatchPaths,
           ignored_patch_paths: ignoredPatchPaths,
+          rationale_fallback_paths: rationaleFallbackPaths,
           unresolved_warning_codes: unresolvedWarningCodes,
           adaptation_error: repairAdaptationError,
           remaining_display_warnings: sec8k6kAnalysis.ok
