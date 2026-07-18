@@ -46,9 +46,9 @@ Do not compare screenshots produced by different Chrome, font, operating-system,
 
 ## 3. Visual Principles
 
-- **Dark canonical, Light alternate.** Dark remains the default canonical presentation. Light preserves the same dense information hierarchy with a neutral gray canvas, white/near-white surfaces, explicit borders, and high-contrast semantic market tones.
+- **Dark canonical, Light alternate.** Dark remains the default canonical presentation. Light preserves the same dense information hierarchy with a clear-white canvas, restrained cool-blue grouping surfaces, crisp navy text, explicit cool borders, shallow layered elevation, and high-contrast semantic market tones.
 - **Density before decoration.** Prefer rows, bands, dividers, and compact controls over marketing cards, large empty space, gradients used as decoration, or oversized type.
-- **Orange has a job.** Orange marks product accent, active navigation, selected rows, strong calls to action, and high-priority emphasis. It is not a general decorative color.
+- **Orange has a job.** Orange is the product accent in both themes for active navigation, selection, focus, and primary actions. Light carries the existing Upgrade-button orange into its larger white-canvas CTA at 90% alpha: `rgba(255, 122, 26, 0.9)`, white text, and no CTA glow. Selected surfaces, borders, underlines, and focus treatments use translucent variants of that same Upgrade RGB; compact active text uses the deeper `#C94F00` for readability on white. Orange is not a general decorative color.
 - **Market meaning is semantic.** Positive and negative movement use their market tones. Warning, info, event, and impact meanings use their dedicated roles.
 - **Hierarchy is explicit.** Ticker, primary metric, and active state lead. Company, secondary metric, metadata, and timestamps recede.
 - **Mobile reprioritizes.** Mobile does not shrink a desktop table until every column fits. It presents the same record as a purpose-built list row and moves detail into a sheet.
@@ -149,7 +149,7 @@ Important boundaries:
 
 - Positive/negative text and chart up/down colors are distinct contracts even when they are semantically related.
 - Border and divider roles stay separate from text and icon roles.
-- Accent and selected roles stay separate so interactive emphasis can evolve without recoloring every orange surface.
+- Accent, selected, primary-action, and impact roles stay separate even when they currently share an orange family, so interaction and market meaning can evolve independently.
 - Badge text, border, and background roles stay separate by event type.
 - `MarketImpactLabel` owns impact mapping; generic `Badge` owns event presentation tones only.
 
@@ -161,7 +161,8 @@ Literal hex, RGB, HSL, or named colors are not allowed in reusable Stock Radar c
 - Dark is canonical and is always the fallback when the Stock Radar `sr-theme` storage value is absent, invalid, or unavailable. `prefers-color-scheme` does not choose the Stock Radar default.
 - Light is an alternate rendering of the same route, DOM, layout, typography, spacing, data, and interaction contracts. Do not create a parallel Light route or Light-only component tree.
 - Components use one semantic `--sr-*` vocabulary. Theme values are selected only by the token source; component modules must not contain separate Dark/Light declarations or literal colors.
-- Light uses four deliberate surface levels: luminous cool-white canvas, softly recessed blue-neutral grouping surfaces, white content, and white raised controls/data surfaces. Elevation comes from subtle tonal separation, borders, and compact shadows; broad ambient glow must remain subordinate.
+- Light uses four deliberate surface levels: clear-white canvas, softly recessed cool-blue grouping surfaces, white content, and white raised controls/data surfaces. Elevation comes from controlled tonal separation, cool borders, and shallow low-opacity shadows; it must remain crisp rather than gray, flat, or heavily card-like.
+- Light primary actions reuse the existing Upgrade orange RGB (`255, 122, 26`) at 90% alpha with white text `#FFFFFF` and no CTA glow. The slight transparency softens the larger CTA surface without changing the product hue. Selection tints, borders, underlines, and focus treatments reuse the same RGB at role-specific alpha levels, while compact active text uses `#C94F00` on white.
 - In `user-selectable` mode, the product-header theme action is available on desktop and mobile, has an action-specific accessible name, uses the shared `IconButton`, and persists the selection under `sr-theme`. New routes must opt in deliberately after both themes are verified.
 - Sheets, detail panels, menus, filters, charts, market rows, and ad placeholders stay inside the shell and inherit its theme attribute.
 - Validate both themes at 375x812, 390x844, 1440x900, and 1920x1080. Dark comparisons use the same runtime before and after a canonical visual change; Light references are stored separately under `docs/ui-reference/dashboard-v2-light/`.
