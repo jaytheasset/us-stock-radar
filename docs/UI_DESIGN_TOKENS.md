@@ -36,7 +36,7 @@ All names use the `--sr-` prefix and semantic roles:
 
 ## 3. Token Inventory
 
-There are 249 unique tokens: 129 color, 38 typography, 22 spacing, 24 sizing, 21 shape/effect, and 15 layer/motion tokens. The Light selector redefines 137 existing roles; it does not create a second token vocabulary.
+There are 251 unique tokens: 131 color, 38 typography, 22 spacing, 24 sizing, 21 shape/effect, and 15 layer/motion tokens. The Light selector redefines 139 existing roles; it does not create a second token vocabulary.
 
 ### Color: canvas, surfaces, and overlays
 
@@ -65,6 +65,7 @@ There are 249 unique tokens: 129 color, 38 typography, 22 spacing, 24 sizing, 21
 | `--sr-color-surface-overlay-footer` (source `app/stock-radar-tokens.css:23`) | `rgba(13, 17, 22, 0.96)` | Semantic surface overlay footer color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:797` |
 | `--sr-color-surface-muted-action` (source `app/stock-radar-tokens.css:24`) | `rgba(19, 24, 30, 0.96)` | Semantic surface muted action color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:811` |
 | `--sr-color-surface-emphasized-action` (source `app/stock-radar-tokens.css:25`) | `#14171b` | Semantic surface emphasized action color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:819` |
+| `--sr-color-surface-primary-action` (source `app/stock-radar-tokens.css`) | `#ff7a1a` Dark; `rgba(255, 122, 26, 0.9)` Light | Solid primary-action surface. The Light role is deliberately opaque-orange without CTA glow. | `components/premium-v2/StockRadarPremiumV2.module.css` |
 | `--sr-color-overlay-content-footer` (source `app/stock-radar-tokens.css:26`) | `rgba(3, 5, 8, 0.66)` | Overlay color for the content-footer sheet layout. | `components/ui/BottomSheetShell.module.css:27` |
 | `--sr-color-overlay-full-scroll` (source `app/stock-radar-tokens.css:27`) | `rgba(3, 5, 8, 0.68)` | Overlay color for the full-scroll sheet layout. | `components/ui/BottomSheetShell.module.css:32` |
 | `--sr-color-border` (source `app/stock-radar-tokens.css:30`) | `#2c333a` | Semantic border color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:195`<br>`components/dashboard-v2/StockRadarDashboardV2.module.css:424`<br>`components/ui/FilterTrigger.module.css:7`<br>`components/ui/FilterTrigger.module.css:24`<br>`components/ui/FilterTrigger.module.css:95`<br>`components/ui/SegmentedControl.module.css:4`<br>`components/ui/SegmentedControl.module.css:22` |
@@ -111,6 +112,7 @@ There are 249 unique tokens: 129 color, 38 typography, 22 spacing, 24 sizing, 21
 | `--sr-color-text-chart-icon` (source `app/stock-radar-tokens.css:73`) | `#c4c9d0` | Semantic text chart icon color. | `components/market/MarketResultRows.module.css:94` |
 | `--sr-color-text-detail-close` (source `app/stock-radar-tokens.css:74`) | `#ccd1d7` | Semantic text detail close color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:208` |
 | `--sr-color-text-inverse` (source `app/stock-radar-tokens.css:75`) | `#ffffff` | Semantic text inverse color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:293`<br>`components/dashboard-v2/StockRadarDashboardV2.module.css:388`<br>`components/ui/Pagination.module.css:26` |
+| `--sr-color-text-primary-action` (source `app/stock-radar-tokens.css`) | `#ffffff` | Text on the primary-action surface. | `components/premium-v2/StockRadarPremiumV2.module.css` |
 | `--sr-color-accent` (source `app/stock-radar-tokens.css:78`) | `#ff7a1a` | Semantic accent color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:302`<br>`components/dashboard-v2/StockRadarDashboardV2.module.css:499`<br>`components/market/MarketResultRows.module.css:75`<br>`components/market/MarketResultRows.module.css:119`<br>`components/market/MarketResultRows.module.css:120`<br>`components/market/MarketResultRows.module.css:126`<br>`components/market/MarketResultRows.module.css:127`<br>`components/market/MarketResultRows.module.css:132`<br>`components/market/MarketResultRows.module.css:133`<br>`components/market/MarketResultRows.module.css:134`<br>`components/market/MarketResultRows.module.css:257`<br>`components/market/MarketResultRows.module.css:258`<br>`components/market/MarketResultRows.module.css:259`<br>`components/shell/StockRadarProductHeader.module.css:47`<br>`components/shell/StockRadarProductHeader.module.css:83`<br>`components/shell/StockRadarProductHeader.module.css:242`<br>`components/shell/StockRadarProductHeader.module.css:247`<br>`components/ui/FilterOption.module.css:20`<br>`components/ui/FilterTrigger.module.css:66`<br>`components/ui/IconButton.module.css:31`<br>`components/ui/Pagination.module.css:27`<br>`components/ui/SegmentedControl.module.css:39`<br>`components/ui/SegmentedControl.module.css:41` |
 | `--sr-color-accent-strong` (source `app/stock-radar-tokens.css:79`) | `#ff8b2e` | Semantic accent strong color. | `components/dashboard-v2/StockRadarDashboardV2.module.css:510` |
 | `--sr-color-accent-highlight` (source `app/stock-radar-tokens.css:80`) | `#ffad67` | Semantic accent highlight color. | `components/ui/Pagination.module.css:27` |
@@ -313,18 +315,19 @@ The Light page glow and panel/header shadows are intentionally weaker and tighte
 | Canvas, surfaces, and overlays | 25 | Neutral page canvas, white/near-white panels, controls, table surfaces, sheet surfaces, and dim overlays. |
 | Borders and dividers | 11 | Standard, overlay, section, close-control, and action boundaries. |
 | Text hierarchy | 34 | Primary, heading, ticker, body, control, menu, metadata, mobile, inverse, and selected chart-range text. |
-| Accent and interaction | 27 | Orange accent, selected/active states, CTA tones, navigation emphasis, and focus-adjacent states. |
+| Accent and interaction | 29 | Orange accent, selected/active states, primary CTA roles, navigation emphasis, and focus-adjacent states. |
 | Market and event semantics | 16 | Positive, negative, warning, info, and all event text/background pairs. |
 | Chart | 9 | Grid, axis, bullish/bearish candles, OHLC, volume, and last-price treatment. |
 | Scrollbar and disabled state | 6 | Track, thumb, handle, and disabled text/surface. |
 | Shadows and focus effect | 9 | Header, panel, menu, sheet, CTA, pagination, delay dot, and focus ring. |
-| **Total** | **137** | Existing semantic roles overridden for Light. |
+| **Total** | **139** | Existing semantic roles overridden for Light. |
 
 Theme selector rules:
 
 - Apply `data-sr-theme` to `StockRadarAppShell` through `StockRadarThemeProvider`; do not apply it to `html`, `body`, or unrelated routes. The shell remains `fixed-dark` unless a verified route explicitly opts into `user-selectable`.
 - Component CSS consumes the same `var(--sr-*)` names in both themes. Do not add `[data-sr-theme]` branches to dashboard or shared component modules.
 - Light overrides may change semantic colors, opacity used by color rendering, shadows, and focus color. They must not redefine typography, spacing, control heights, row geometry, radii, layers, motion, or breakpoints.
+- `--sr-color-surface-primary-action` and `--sr-color-text-primary-action` are the paired roles for primary Upgrade, Subscribe, and trial CTAs. Light uses the approved orange surface and white text with `--sr-shadow-cta: none`; component modules must not add a theme-specific CTA branch.
 - New Stock Radar pages must render correctly in both themes without literal color declarations in reusable component CSS before they opt into `user-selectable`; otherwise they retain the `fixed-dark` default.
 
 ## 4. Semantic Color Rules

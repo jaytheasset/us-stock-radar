@@ -214,13 +214,14 @@
 }
 
 .primaryButton {
-  border: var(--sr-border-width) solid var(--sr-color-accent-border-strong);
-  color: var(--sr-color-text-inverse);
-  background: var(--sr-color-accent);
+  border: var(--sr-border-width) solid var(--sr-color-surface-primary-action);
+  color: var(--sr-color-text-primary-action);
+  background: var(--sr-color-surface-primary-action);
   box-shadow: var(--sr-shadow-cta);
 }
 
 .primaryButton:hover {
+  border-color: var(--sr-color-accent-strong);
   background: var(--sr-color-accent-strong);
 }
 
@@ -1090,7 +1091,7 @@
 
   .mobileComparison summary {
     display: flex;
-    min-height: var(--sr-size-control-lg);
+    min-height: var(--sr-size-control);
     align-items: center;
     justify-content: space-between;
     gap: var(--sr-space-3);

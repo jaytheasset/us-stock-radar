@@ -273,6 +273,10 @@
 
   /* Theme-dependent component text roles */
   --sr-color-text-chart-range-selected: #ffffff;
+
+  /* Color: primary action */
+  --sr-color-surface-primary-action: #ff7a1a;
+  --sr-color-text-primary-action: #ffffff;
 }
 
 [data-sr-theme="light"] {
@@ -426,6 +430,10 @@
   --sr-shadow-menu: 0 16px 36px rgba(15, 23, 42, 0.18);
   --sr-shadow-sheet-content-footer: 0 -22px 48px rgba(15, 23, 42, 0.18);
   --sr-shadow-sheet-full-scroll: 0 -28px 70px rgba(15, 23, 42, 0.22);
-  --sr-shadow-cta: inset 0 0 0 1px rgba(214, 84, 0, 0.18), 0 0 22px rgba(214, 84, 0, 0.08);
+  --sr-shadow-cta: none;
   --sr-focus-ring-color: rgba(201, 79, 0, 0.68);
+
+  /* Color: primary action */
+  --sr-color-surface-primary-action: rgba(255, 122, 26, 0.9);
+  --sr-color-text-primary-action: #ffffff;
 }

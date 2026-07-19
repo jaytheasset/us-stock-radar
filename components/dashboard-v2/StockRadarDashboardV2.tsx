@@ -142,7 +142,7 @@ export function StockRadarDashboardV2() {
   }, []);
 
   return (
-    <>
+    <div className={styles.root}>
       <div className={styles.workspace}>
         <section className="dashboard-v2-left" aria-label="Market movers dashboard">
           <div className="dashboard-v2-control-row">
@@ -195,6 +195,6 @@ export function StockRadarDashboardV2() {
         onClose={closeMobileFilters}
         openerRef={mobileFilterTriggerRef}
       />
-    </>
+    </div>
   );
 }
