@@ -1,3 +1,7 @@
+"use client";
+
+import { useSyncExternalStore } from "react";
+
 type SecFilingHtmlViewerProps = {
   html: string;
   sourceUrl?: string;
@@ -11,6 +15,12 @@ export function SecFilingHtmlViewer({
   title = "Original SEC filing document",
   emptyText = "Full source text is not available in the raw item store for this filing.",
 }: SecFilingHtmlViewerProps) {
+  const theme = useSyncExternalStore(
+    subscribeToDocumentTheme,
+    readDocumentTheme,
+    readServerTheme,
+  );
+
   if (!html.trim()) {
     return (
       <div className="full-text-content filing-text-content sec-filing-viewer-fallback">
@@ -26,18 +36,24 @@ export function SecFilingHtmlViewer({
         loading="lazy"
         referrerPolicy="no-referrer"
         sandbox="allow-popups allow-popups-to-escape-sandbox"
-        srcDoc={buildSecFilingSrcDoc(html, sourceUrl)}
+        srcDoc={buildSecFilingSrcDoc(html, sourceUrl, theme)}
         title={title}
       />
     </div>
   );
 }
 
-function buildSecFilingSrcDoc(html: string, sourceUrl?: string) {
+type SecFilingViewerTheme = "dark" | "light";
+
+function buildSecFilingSrcDoc(
+  html: string,
+  sourceUrl: string | undefined,
+  theme: SecFilingViewerTheme,
+) {
   const cleaned = sanitizeSecFilingHtml(html);
   const baseHref = sourceUrl ? `<base href="${escapeAttribute(sourceUrl)}" target="_blank" />` : "";
   const viewerHead = `${baseHref}
-  <style>${SEC_VIEWER_BASE_CSS}</style>`;
+  <style>${buildSecViewerCss(theme)}</style>`;
 
   if (hasHtmlDocumentShell(cleaned)) {
     return injectViewerHead(cleaned, viewerHead);
@@ -57,16 +73,12 @@ function buildSecFilingSrcDoc(html: string, sourceUrl?: string) {
 }
 
 const SEC_VIEWER_BASE_CSS = `
-  :root {
-    color-scheme: light;
-    background: #ffffff;
-  }
   html,
   body {
     min-height: 100%;
     margin: 0;
-    background: #ffffff;
-    color: #111111;
+    background: var(--sec-document-background);
+    color: var(--sec-document-text);
     font-family: "Times New Roman", Times, serif;
     font-size: 14px;
     line-height: 1.35;
@@ -75,7 +87,7 @@ const SEC_VIEWER_BASE_CSS = `
     padding: 18px;
   }
   a {
-    color: #1b4fb8;
+    color: var(--sec-document-link);
     text-decoration: none;
   }
   a:hover,
@@ -85,6 +97,19 @@ const SEC_VIEWER_BASE_CSS = `
   table {
     max-width: 100%;
     border-collapse: collapse;
+  }
+  table,
+  th,
+  td {
+    border-color: var(--sec-document-border);
+  }
+  th,
+  td {
+    color: inherit;
+    background-color: transparent;
+  }
+  hr {
+    border-color: var(--sec-document-border);
   }
   img {
     max-width: 100%;
@@ -100,9 +125,32 @@ const SEC_VIEWER_BASE_CSS = `
   }
 `;
 
+function buildSecViewerCss(theme: SecFilingViewerTheme) {
+  const themeCss =
+    theme === "dark"
+      ? `
+  :root {
+    color-scheme: dark;
+    --sec-document-background: #0b1017;
+    --sec-document-text: #d7dfeb;
+    --sec-document-link: #7aa7ff;
+    --sec-document-border: #2a3545;
+  }`
+      : `
+  :root {
+    color-scheme: light;
+    --sec-document-background: #ffffff;
+    --sec-document-text: #111111;
+    --sec-document-link: #1b4fb8;
+    --sec-document-border: #cbd3df;
+  }`;
+
+  return `${themeCss}\n${SEC_VIEWER_BASE_CSS}`;
+}
+
 function injectViewerHead(html: string, viewerHead: string) {
-  if (/<head[\s>]/i.test(html)) {
-    return html.replace(/<head([^>]*)>/i, `<head$1>\n${viewerHead}`);
+  if (/<\/head\s*>/i.test(html)) {
+    return html.replace(/<\/head\s*>/i, `${viewerHead}\n</head>`);
   }
 
   if (/<html[\s>]/i.test(html)) {
@@ -119,12 +167,50 @@ function sanitizeSecFilingHtml(value: string) {
     .replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe>/gi, "")
     .replace(/<object\b[^>]*>[\s\S]*?<\/object>/gi, "")
     .replace(/<embed\b[^>]*>[\s\S]*?<\/embed>/gi, "")
+    .replace(/<style\b([^>]*)>([\s\S]*?)<\/style>/gi, (_match, attributes, css) => {
+      const cleanedCss = stripColorDeclarations(css);
+      return cleanedCss.trim() ? `<style${attributes}>${cleanedCss}</style>` : "";
+    })
     .replace(/<meta\b[^>]*http-equiv=["']?refresh["']?[^>]*>/gi, "")
     .replace(/\s+on[a-z]+\s*=\s*"[^"]*"/gi, "")
     .replace(/\s+on[a-z]+\s*=\s*'[^']*'/gi, "")
     .replace(/\s+on[a-z]+\s*=\s*[^\s>]+/gi, "")
     .replace(/\s+(href|src)\s*=\s*"javascript:[^"]*"/gi, "")
-    .replace(/\s+(href|src)\s*=\s*'javascript:[^']*'/gi, "");
+    .replace(/\s+(href|src)\s*=\s*'javascript:[^']*'/gi, "")
+    .replace(/\s+(?:color|bgcolor)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(/\s+style\s*=\s*(["'])([\s\S]*?)\1/gi, (_match, quote, style) => {
+      const cleanedStyle = stripColorDeclarations(style).trim();
+      return cleanedStyle ? ` style=${quote}${cleanedStyle}${quote}` : "";
+    });
+}
+
+function stripColorDeclarations(value: string) {
+  return value.replace(
+    /(^|[;{]\s*)(?:color|background(?:-color)?)\s*:\s*[^;}]+;?/gim,
+    "$1",
+  );
+}
+
+function subscribeToDocumentTheme(onStoreChange: () => void) {
+  const observer = new MutationObserver(onStoreChange);
+  observer.observe(document.documentElement, {
+    attributeFilter: ["data-theme"],
+    attributes: true,
+  });
+  window.addEventListener("storage", onStoreChange);
+
+  return () => {
+    observer.disconnect();
+    window.removeEventListener("storage", onStoreChange);
+  };
+}
+
+function readDocumentTheme(): SecFilingViewerTheme {
+  return document.documentElement.dataset.theme === "light" ? "light" : "dark";
+}
+
+function readServerTheme(): SecFilingViewerTheme {
+  return "dark";
 }
 
 function hasHtmlDocumentShell(value: string) {

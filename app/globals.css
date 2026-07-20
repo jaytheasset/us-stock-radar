@@ -13888,7 +13888,7 @@ html[data-theme="dark"] .proxy-agenda-explanation span {
   overflow: hidden;
   border: 1px solid var(--detail-divider);
   border-radius: 8px;
-  background: #fff;
+  background: var(--background);
 }
 
 .sec-filing-viewer-frame {
@@ -13896,7 +13896,7 @@ html[data-theme="dark"] .proxy-agenda-explanation span {
   width: 100%;
   min-height: min(72vh, 760px);
   border: 0;
-  background: #fff;
+  background: var(--background);
 }
 
 .full-text-content {
