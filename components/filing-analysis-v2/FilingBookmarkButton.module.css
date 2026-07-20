@@ -1,0 +1,31 @@
+.button {
+  display: grid;
+  width: var(--sr-size-control);
+  height: var(--sr-size-control);
+  place-items: center;
+  border: 0;
+  padding: 0;
+  color: var(--sr-color-warning);
+  background: transparent;
+  cursor: pointer;
+}
+
+.button:hover,
+.button[aria-pressed="true"] {
+  color: var(--sr-color-warning);
+  background: transparent;
+}
+
+.button svg {
+  display: block;
+  stroke-width: 2;
+}
+
+.button[aria-pressed="true"] svg {
+  fill: currentColor;
+}
+
+.button:focus-visible {
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: var(--sr-focus-ring-offset);
+}

@@ -25,6 +25,16 @@ import { PriceChartCard } from "@/app/events/[id]/PriceChartCard";
 import { SectorThemeContextPanel } from "@/app/events/[id]/SectorThemeContextPanel";
 import { SecFilingHtmlViewer } from "@/app/filings/SecFilingHtmlViewer";
 import {
+  GenericFilingAnalysis,
+  type GenericFilingAnalysisData,
+} from "@/components/filing-analysis-v2/GenericFilingAnalysis";
+import {
+  ListingFinancialRiskSnapshot,
+  type ListingFinancialRiskSnapshotData,
+} from "@/components/filing-analysis-v2/ListingFinancialRiskSnapshot";
+import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
+import type { BadgeTone } from "@/components/ui/Badge";
+import {
   clipPeriodicDisplayText,
   fitPeriodicNarrativeText,
   normalizePeriodicChartNumber,
@@ -1988,6 +1998,45 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
   const { id } = await params;
   const filing = await resolveFilingEvent(id);
   const eventBadge = getEventTypeBadge(filing.eventType);
+  const useListingFinancialRiskV2 = shouldUseListingFinancialRiskV2(filing);
+
+  if (useListingFinancialRiskV2) {
+    const snapshot = buildListingFinancialRiskV2Snapshot(filing);
+    const genericFiling = buildGenericFilingV2Data(filing);
+
+    return (
+      <StockRadarAppShell activeNavigationItem="filings" themeMode="user-selectable">
+        <GenericFilingAnalysis
+          contextRenderer={
+            filing.context ? (
+              <SectorThemeContextPanel context={filing.context} ticker={filing.ticker} />
+            ) : undefined
+          }
+          detailRenderer={
+            snapshot ? <ListingFinancialRiskSnapshot snapshot={snapshot} /> : undefined
+          }
+          eventLabel={eventBadge.label}
+          eventTone={toGenericBadgeTone(eventBadge.tone)}
+          filing={{
+            ...genericFiling,
+            keyEvidence: genericFiling.keyEvidence.slice(0, 3),
+            watchNext: genericFiling.watchNext.slice(0, 3),
+          }}
+          filingId={id}
+          originalRenderer={
+            <OriginalFilingText
+              eventLabel={eventBadge.label}
+              filing={filing}
+              includeMetadataTable={false}
+            />
+          }
+          priceRenderer={
+            isRealTicker(filing.ticker) ? <FilingPriceChart filing={filing} /> : undefined
+          }
+        />
+      </StockRadarAppShell>
+    );
+  }
   const effectModel = buildEffectGatewayModel(filing);
   const useEffectDetail = Boolean(effectModel);
   const ipoModel = !useEffectDetail ? buildIpoListingModel(filing) : null;
@@ -3573,6 +3622,107 @@ function cleanContextValue(value: unknown) {
   const cleaned = value.trim();
   if (!cleaned || cleaned === "-" || /^n\/?a$/i.test(cleaned) || /^not disclosed$/i.test(cleaned)) return "";
   return cleaned;
+}
+
+function shouldUseListingFinancialRiskV2(filing: FilingEvent) {
+  if (filing.eventType !== "listing_risk" && filing.eventType !== "financial_risk") {
+    return false;
+  }
+
+  return /^(?:8-K|6-K)(?:\/A)?$/i.test(filing.formType.trim());
+}
+
+function buildListingFinancialRiskV2Snapshot(
+  filing: FilingEvent,
+): ListingFinancialRiskSnapshotData | null {
+  const validItems = (filing.listingStatusSnapshot || [])
+    .map((item) => ({
+      label: cleanDisclosureValue(item.label),
+      note: cleanDisclosureValue(item.note || "") || undefined,
+      value: cleanDisclosureValue(item.value),
+    }))
+    .filter((item) => item.label && item.value);
+
+  if (validItems.length < 4) return null;
+
+  return {
+    items: validItems.slice(0, 4),
+    title: inferListingFinancialRiskSnapshotTitle(validItems),
+  };
+}
+
+function inferListingFinancialRiskSnapshotTitle(
+  items: Array<{ label: string; value: string }>,
+) {
+  const source = items
+    .flatMap((item) => [item.label, item.value])
+    .join(" ")
+    .toLowerCase();
+
+  if (/restat|non[- ]?reliance|affected periods?|internal controls?/.test(source)) {
+    return "Restatement Status Snapshot";
+  }
+  if (/listing|delist|trading status|appeal status|nasdaq|nyse/.test(source)) {
+    return "Listing Status Snapshot";
+  }
+  if (/bankrupt|chapter 11|liquidity|debt|default|debtor|going concern|winddown|wind-down/.test(source)) {
+    return "Financial Risk Snapshot";
+  }
+
+  return "Risk Status Snapshot";
+}
+
+function buildGenericFilingV2Data(filing: FilingEvent): GenericFilingAnalysisData {
+  const contextRelatedFilings = filing.contextRelatedFilings || [];
+  const recentFilings = contextRelatedFilings.length
+    ? contextRelatedFilings.map((item) => ({
+        eventType: item.eventType,
+        filedAt: item.filedAt,
+        form: item.form,
+        id: item.id,
+        score: item.score,
+        title: item.title,
+      }))
+    : filing.recentFilings;
+  const normalizedSource = /^(?:sec|sec filing|sec edgar)$/i.test(filing.source.trim())
+    ? "SEC EDGAR"
+    : filing.source;
+
+  return {
+    bearishPoints: filing.bearishPoints,
+    bullishPoints: filing.bullishPoints,
+    company: filing.company,
+    deliveryLevel: filing.deliveryLevel,
+    exchange: filing.exchange,
+    filedAt: filing.filedAt,
+    filingBrief: filing.filingBrief,
+    formType: filing.formType,
+    impact: filing.impact,
+    keyEvidence: filing.keyEvidence,
+    recentFilings,
+    relatedNews: filing.relatedNews,
+    score: filing.score,
+    scoreRationale:
+      filing.scoreExplanation?.summary ||
+      filing.scoreExplanation?.finalRead ||
+      "",
+    signal: filing.signal,
+    source: normalizedSource,
+    sourceUrl: filing.sourceUrl,
+    summary: filing.summary,
+    ticker: filing.ticker,
+    title: filing.title,
+    watchNext: filing.watchNext,
+    whyItMatters: filing.whyItMatters,
+  };
+}
+
+function toGenericBadgeTone(tone: string): BadgeTone {
+  if (tone === "earnings") return "earnings";
+  if (tone === "risk" || tone === "dilution") return "legal";
+  if (tone === "deal") return "transaction";
+  if (tone === "clinical" || tone === "regulatory") return "product";
+  return "neutral";
 }
 
 function FilingPriceChart({ filing, tickerOverride }: { filing: FilingEvent; tickerOverride?: string }) {
@@ -6573,10 +6723,12 @@ function ShareOverhangCard({ model }: { model: ReturnType<typeof buildDilutionOf
 function OriginalFilingText({
   filing,
   eventLabel,
+  includeMetadataTable = true,
   includeTemplateStatus = false,
 }: {
   filing: FilingEvent;
   eventLabel: string;
+  includeMetadataTable?: boolean;
   includeTemplateStatus?: boolean;
 }) {
   return (
@@ -6592,26 +6744,28 @@ function OriginalFilingText({
         sourceUrl={filing.primaryDocumentUrl || filing.sourceUrl}
         title={`${filing.formType} original SEC filing`}
       />
-      <div className="full-text-content filing-text-content filing-template-table">
-        <table>
-          <tbody>
-            <tr>
-              <th>Form</th>
-              <td>{filing.formType}</td>
-            </tr>
-            <tr>
-              <th>Normalized event type</th>
-              <td>{eventLabel}</td>
-            </tr>
-            {includeTemplateStatus ? (
+      {includeMetadataTable ? (
+        <div className="full-text-content filing-text-content filing-template-table">
+          <table>
+            <tbody>
               <tr>
-                <th>Common template status</th>
-                <td>Suitable for product, governance, legal, clinical, and other non-specialized filings.</td>
+                <th>Form</th>
+                <td>{filing.formType}</td>
               </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
+              <tr>
+                <th>Normalized event type</th>
+                <td>{eventLabel}</td>
+              </tr>
+              {includeTemplateStatus ? (
+                <tr>
+                  <th>Common template status</th>
+                  <td>Suitable for product, governance, legal, clinical, and other non-specialized filings.</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
     </section>
   );
 }

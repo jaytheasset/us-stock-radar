@@ -1,0 +1,441 @@
+:root {
+  /* Color: canvas, surfaces, and overlays */
+  --sr-color-page-background: #080a0d;
+  --sr-color-page-background-top: #0b0d10;
+  --sr-color-page-glow: rgba(255, 122, 26, 0.07);
+  --sr-color-surface: #0d1014;
+  --sr-color-surface-panel: #11161b;
+  --sr-color-surface-elevated: #161b20;
+  --sr-color-surface-overlay: #0d1116;
+  --sr-color-surface-header: rgba(10, 12, 15, 0.92);
+  --sr-color-surface-control: #0e1216;
+  --sr-color-surface-control-strong: #151a1f;
+  --sr-color-surface-control-group: rgba(10, 13, 16, 0.76);
+  --sr-color-surface-table-header-start: #1a1e22;
+  --sr-color-surface-table-header-end: #15191d;
+  --sr-color-surface-table-panel: rgba(12, 15, 18, 0.95);
+  --sr-color-surface-table-row: rgba(12, 15, 18, 0.86);
+  --sr-color-surface-table-hover: #11171c;
+  --sr-color-surface-footer-start: #191e23;
+  --sr-color-surface-detail-start: #101419;
+  --sr-color-surface-option: rgba(14, 18, 22, 0.92);
+  --sr-color-surface-overlay-control: rgba(13, 17, 22, 0.72);
+  --sr-color-surface-overlay-footer: rgba(13, 17, 22, 0.96);
+  --sr-color-surface-muted-action: rgba(19, 24, 30, 0.96);
+  --sr-color-surface-emphasized-action: #14171b;
+  --sr-color-surface-primary-action: #101419;
+  --sr-color-surface-sticky-action: #11161b;
+  --sr-color-overlay-content-footer: rgba(3, 5, 8, 0.66);
+  --sr-color-overlay-full-scroll: rgba(3, 5, 8, 0.68);
+
+  /* Color: borders and dividers */
+  --sr-color-border: #2c333a;
+  --sr-color-divider: #20262c;
+  --sr-color-border-overlay: rgba(74, 82, 92, 0.78);
+  --sr-color-border-overlay-strong: rgba(74, 82, 92, 0.82);
+  --sr-color-border-overlay-soft: rgba(74, 82, 92, 0.58);
+  --sr-color-border-overlay-actions: rgba(74, 82, 92, 0.62);
+  --sr-color-border-section: rgba(52, 59, 68, 0.74);
+  --sr-color-border-control: rgba(71, 79, 90, 0.9);
+  --sr-color-border-close: rgba(104, 115, 128, 0.58);
+  --sr-color-border-close-soft: rgba(255, 255, 255, 0.13);
+  --sr-color-border-muted-action: rgba(86, 96, 108, 0.8);
+
+  /* Color: text */
+  --sr-color-text-primary: #e5e8ec;
+  --sr-color-text-bright: #f5f6f7;
+  --sr-color-text-strong: #f0f3f6;
+  --sr-color-text-ticker: #f0f2f5;
+  --sr-color-text-heading: #dadde3;
+  --sr-color-text-body: #d7dbe0;
+  --sr-color-text-menu: #d8dde4;
+  --sr-color-text-timeline: #d9dde3;
+  --sr-color-text-secondary: #c0c5cc;
+  --sr-color-text-detail-secondary: #bdc3cb;
+  --sr-color-text-control: #c8ced6;
+  --sr-color-text-control-strong: #d6d9de;
+  --sr-color-text-footer: #c9cdd3;
+  --sr-color-text-label: #cbd0d7;
+  --sr-color-text-close: #d7dce3;
+  --sr-color-text-option: #d4d8df;
+  --sr-color-text-sheet-title: #f0f3f7;
+  --sr-color-text-subtle: #aeb5be;
+  --sr-color-text-muted: #9aa2ad;
+  --sr-color-text-meta: #8a929d;
+  --sr-color-text-delay: #8a919a;
+  --sr-color-text-nav: #9ba3ad;
+  --sr-color-text-tab: #b5bac1;
+  --sr-color-text-mobile-company: #9ca4ae;
+  --sr-color-text-mobile-rank: #aab1ba;
+  --sr-color-text-mobile-value: #aeb6c0;
+  --sr-color-text-filter-label: #c4c8ce;
+  --sr-color-text-filter-value: #e0e4e8;
+  --sr-color-text-filter-icon: #b6bcc4;
+  --sr-color-text-section-label: #c8cdd4;
+  --sr-color-text-chart-icon: #c4c9d0;
+  --sr-color-text-detail-close: #ccd1d7;
+  --sr-color-text-inverse: #ffffff;
+  --sr-color-text-primary-action: #ff9a3c;
+  --sr-color-text-emphasized-action: #ff9a4a;
+
+  /* Color: accent and interaction states */
+  --sr-color-accent: #ff7a1a;
+  --sr-color-accent-strong: #ff8b2e;
+  --sr-color-accent-highlight: #ffad67;
+  --sr-color-accent-text: #ff9a3c;
+  --sr-color-accent-text-soft: #ff9a4a;
+  --sr-color-premium: #d8a068;
+  --sr-color-accent-selected: rgba(255, 122, 26, 0.1);
+  --sr-color-accent-active: rgba(255, 122, 26, 0.13);
+  --sr-color-accent-active-soft: rgba(255, 122, 26, 0.12);
+  --sr-color-accent-active-strong: rgba(255, 122, 26, 0.14);
+  --sr-color-accent-subtle: rgba(255, 122, 26, 0.04);
+  --sr-color-accent-menu: rgba(255, 122, 26, 0.032);
+  --sr-color-accent-sheet-glow: rgba(255, 122, 26, 0.06);
+  --sr-color-accent-overlay-glow: rgba(255, 122, 26, 0.07);
+  --sr-color-accent-cta-top: rgba(255, 122, 26, 0.16);
+  --sr-color-accent-cta-bottom: rgba(255, 122, 26, 0.07);
+  --sr-color-accent-cta-strong: rgba(255, 122, 26, 0.2);
+  --sr-color-accent-cta-strong-bottom: rgba(255, 122, 26, 0.08);
+  --sr-color-accent-transparent: rgba(255, 122, 26, 0);
+  --sr-color-accent-border: rgba(255, 122, 26, 0.58);
+  --sr-color-accent-border-active: rgba(255, 122, 26, 0.78);
+  --sr-color-accent-border-strong: rgba(255, 122, 26, 0.8);
+  --sr-color-accent-border-emphasis: rgba(255, 122, 26, 0.88);
+  --sr-color-accent-border-premium: rgba(255, 122, 26, 0.24);
+  --sr-color-accent-nav-line: rgba(255, 122, 26, 0.45);
+  --sr-color-accent-focus-soft: rgba(255, 122, 26, 0.5);
+  --sr-color-accent-focus-mobile: rgba(255, 122, 26, 0.56);
+
+  /* Color: market and event semantics */
+  --sr-color-positive: #50e386;
+  --sr-color-negative: #ff675f;
+  --sr-color-warning: #f4c542;
+  --sr-color-info: #5cadff;
+  --sr-color-impact-high: #ff7a1a;
+  --sr-color-event-earnings: #36d5c2;
+  --sr-color-event-earnings-surface: rgba(54, 213, 194, 0.12);
+  --sr-color-event-legal: #ff675f;
+  --sr-color-event-legal-surface: rgba(255, 103, 95, 0.13);
+  --sr-color-event-insider: #bc8cff;
+  --sr-color-event-insider-surface: rgba(188, 140, 255, 0.13);
+  --sr-color-event-transaction: #5cadff;
+  --sr-color-event-transaction-surface: rgba(92, 173, 255, 0.12);
+  --sr-color-event-product: #f4c542;
+  --sr-color-event-product-surface: rgba(244, 197, 66, 0.13);
+  --sr-color-event-neutral: #cbd1d9;
+  --sr-color-event-neutral-surface: rgba(203, 209, 217, 0.08);
+
+  /* Color: chart */
+  --sr-color-chart-bullish: #3dd985;
+  --sr-color-chart-bearish: #f45c55;
+  --sr-color-chart-grid: rgba(255, 255, 255, 0.064);
+  --sr-color-chart-axis: #b4bac2;
+  --sr-color-chart-ohlc: #50e386;
+  --sr-color-chart-last-line: rgba(80, 227, 134, 0.22);
+  --sr-color-chart-last-price: #3acb83;
+  --sr-color-chart-volume-bullish: #2be38a;
+  --sr-opacity-chart-volume: 0.28;
+
+  /* Color: scrollbar and disabled state */
+  --sr-color-scrollbar-track: #0b0f13;
+  --sr-color-scrollbar-thumb: #3a434d;
+  --sr-color-scrollbar-thumb-hover: #515c67;
+  --sr-color-sheet-handle: #65707b;
+  --sr-color-state-disabled-text: #6f7782;
+  --sr-color-state-disabled-surface: #161b20;
+  --sr-opacity-disabled: 0.6;
+
+  /* Typography */
+  --sr-font-family-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --sr-font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  --sr-font-variant-numeric: tabular-nums;
+  --sr-font-size-xs: 11px;
+  --sr-font-size-xs-plus: 11.5px;
+  --sr-font-size-sm: 12px;
+  --sr-font-size-md: 13px;
+  --sr-font-size-md-plus: 13.5px;
+  --sr-font-size-base: 14px;
+  --sr-font-size-lg: 15px;
+  --sr-font-size-lg-plus: 15.5px;
+  --sr-font-size-xl: 17px;
+  --sr-font-size-2xl: 18px;
+  --sr-font-size-heading-sm: 22px;
+  --sr-font-size-heading-md: 25px;
+  --sr-font-size-metric-sm: 26px;
+  --sr-font-size-metric-md: 29px;
+  --sr-font-size-heading-lg: 31px;
+  --sr-font-size-heading-xl: 34px;
+  --sr-font-weight-regular: 400;
+  --sr-font-weight-medium: 500;
+  --sr-font-weight-emphasis: 540;
+  --sr-font-weight-nav: 680;
+  --sr-font-weight-semibold: 700;
+  --sr-font-weight-strong: 720;
+  --sr-font-weight-display: 760;
+  --sr-font-weight-label: 780;
+  --sr-font-weight-heavy: 800;
+  --sr-line-height-tightest: 0.98;
+  --sr-line-height-none: 1;
+  --sr-line-height-compact: 1.1;
+  --sr-line-height-snug: 1.15;
+  --sr-line-height-control: 1.25;
+  --sr-line-height-body: 1.3;
+  --sr-line-height-relaxed: 1.35;
+  --sr-line-height-default: 1.45;
+  --sr-letter-spacing-default: 0;
+  --sr-letter-spacing-brand: 0.02em;
+
+  /* Spacing */
+  --sr-space-0-5: 2px;
+  --sr-space-1: 4px;
+  --sr-space-1-25: 5px;
+  --sr-space-1-5: 6px;
+  --sr-space-1-75: 7px;
+  --sr-space-2: 8px;
+  --sr-space-2-25: 9px;
+  --sr-space-2-5: 10px;
+  --sr-space-3: 12px;
+  --sr-space-3-25: 13px;
+  --sr-space-3-5: 14px;
+  --sr-space-4: 16px;
+  --sr-space-4-5: 18px;
+  --sr-space-5: 20px;
+  --sr-space-5-5: 22px;
+  --sr-space-6: 24px;
+  --sr-space-7: 28px;
+  --sr-space-8: 32px;
+  --sr-page-gutter-desktop: 28px;
+  --sr-page-gutter-mobile: 12px;
+  --sr-header-gutter-start: 30px;
+  --sr-header-gutter-end: 24px;
+
+  /* Sizing */
+  --sr-size-header: 56px;
+  --sr-size-nav-item: 30px;
+  --sr-size-icon-button: 34px;
+  --sr-size-icon-button-mobile: 32px;
+  --sr-size-header-action: 38px;
+  --sr-size-close-button: 38px;
+  --sr-size-control: 40px;
+  --sr-size-mobile-primary-tab: 42px;
+  --sr-size-mobile-session-tab: 35px;
+  --sr-size-mobile-quick-filter: 34px;
+  --sr-size-filter-option: 32px;
+  --sr-size-table-header-row: 46px;
+  --sr-size-table-row: 43px;
+  --sr-size-mobile-list-row: 48px;
+  --sr-size-table-footer: 42px;
+  --sr-size-badge: 22px;
+  --sr-size-badge-lg: 29px;
+  --sr-size-filter-chip: 28px;
+  --sr-size-analysis-cta: 58px;
+  --sr-size-chart-min-height: 250px;
+  --sr-size-market-table-min-width: 1060px;
+  --sr-size-mobile-menu-width: 216px;
+  --sr-size-sheet-handle-width: 46px;
+  --sr-size-sheet-handle-height: 4px;
+
+  /* Shape and effects */
+  --sr-border-width: 1px;
+  --sr-border-width-strong: 2px;
+  --sr-radius-sm: 4px;
+  --sr-radius-control: 5px;
+  --sr-radius-base: 6px;
+  --sr-radius-mobile-control: 7px;
+  --sr-radius-action: 8px;
+  --sr-radius-popover: 12px;
+  --sr-radius-sheet: 22px;
+  --sr-radius-pill: 999px;
+  --sr-shadow-header: 0 1px 0 rgba(255, 255, 255, 0.03);
+  --sr-shadow-delay-dot: 0 0 13px rgba(255, 122, 26, 0.65);
+  --sr-shadow-panel: 0 18px 52px rgba(0, 0, 0, 0.24);
+  --sr-shadow-pagination-active: 0 0 20px rgba(255, 122, 26, 0.34);
+  --sr-shadow-menu: 0 16px 36px rgba(0, 0, 0, 0.38);
+  --sr-shadow-sheet-content-footer: 0 -22px 48px rgba(0, 0, 0, 0.44);
+  --sr-shadow-sheet-full-scroll: 0 -28px 70px rgba(0, 0, 0, 0.56);
+  --sr-shadow-cta: inset 0 0 0 1px rgba(255, 122, 26, 0.18), 0 0 22px rgba(255, 122, 26, 0.08);
+  --sr-focus-ring-width: 2px;
+  --sr-focus-ring-color: rgba(255, 122, 26, 0.65);
+  --sr-focus-ring-offset: 2px;
+
+  /* Layers and motion */
+  --sr-z-timeline-marker: 1;
+  --sr-z-sticky-action: 2;
+  --sr-z-sheet-handle: 6;
+  --sr-z-sheet-close: 7;
+  --sr-z-sheet-full-scroll: 80;
+  --sr-z-mobile-menu: 86;
+  --sr-z-sheet-content-footer: 90;
+  --sr-motion-duration-menu: 130ms;
+  --sr-motion-duration-sheet: 170ms;
+  --sr-motion-duration-reduced: 1ms;
+  --sr-motion-distance-menu: 4px;
+  --sr-motion-distance-sheet: 24px;
+  --sr-motion-distance-drawer: 28px;
+  --sr-motion-distance-reduced: 0px;
+  --sr-motion-easing-standard: ease-out;
+
+  /* Theme-dependent component text roles */
+  --sr-color-text-chart-range-selected: #ffffff;
+}
+
+[data-sr-theme="light"] {
+  /* Color: canvas, surfaces, and overlays */
+  --sr-color-page-background: #ffffff;
+  --sr-color-page-background-top: #ffffff;
+  --sr-color-page-glow: rgba(201, 79, 0, 0.018);
+  --sr-color-surface: #ffffff;
+  --sr-color-surface-panel: #fafcff;
+  --sr-color-surface-elevated: #f2f6fc;
+  --sr-color-surface-overlay: #ffffff;
+  --sr-color-surface-header: rgba(255, 255, 255, 0.985);
+  --sr-color-surface-control: #ffffff;
+  --sr-color-surface-control-strong: #f4f8fd;
+  --sr-color-surface-control-group: rgba(242, 247, 253, 0.94);
+  --sr-color-surface-table-header-start: #f6f9fd;
+  --sr-color-surface-table-header-end: #eef4fb;
+  --sr-color-surface-table-panel: #ffffff;
+  --sr-color-surface-table-row: #ffffff;
+  --sr-color-surface-table-hover: #f5f9ff;
+  --sr-color-surface-footer-start: #f4f8fd;
+  --sr-color-surface-detail-start: #ffffff;
+  --sr-color-surface-option: #ffffff;
+  --sr-color-surface-overlay-control: rgba(251, 253, 255, 0.98);
+  --sr-color-surface-overlay-footer: rgba(253, 254, 255, 0.99);
+  --sr-color-surface-muted-action: rgba(244, 248, 253, 0.98);
+  --sr-color-surface-emphasized-action: rgba(255, 122, 26, 0.9);
+  --sr-color-surface-primary-action: rgba(255, 122, 26, 0.9);
+  --sr-color-surface-sticky-action: rgba(255, 122, 26, 0.9);
+  --sr-color-overlay-content-footer: rgba(15, 23, 42, 0.32);
+  --sr-color-overlay-full-scroll: rgba(15, 23, 42, 0.38);
+
+  /* Color: borders and dividers */
+  --sr-color-border: #d3deeb;
+  --sr-color-divider: #e2e9f2;
+  --sr-color-border-overlay: rgba(151, 168, 188, 0.76);
+  --sr-color-border-overlay-strong: rgba(137, 156, 178, 0.8);
+  --sr-color-border-overlay-soft: rgba(164, 179, 197, 0.62);
+  --sr-color-border-overlay-actions: rgba(151, 168, 188, 0.66);
+  --sr-color-border-section: rgba(164, 179, 197, 0.58);
+  --sr-color-border-control: rgba(151, 168, 188, 0.82);
+  --sr-color-border-close: rgba(151, 168, 188, 0.64);
+  --sr-color-border-close-soft: rgba(15, 23, 42, 0.13);
+  --sr-color-border-muted-action: rgba(151, 168, 188, 0.7);
+
+  /* Color: text */
+  --sr-color-text-primary: #0b1830;
+  --sr-color-text-bright: #061126;
+  --sr-color-text-strong: #0a1628;
+  --sr-color-text-ticker: #0a172b;
+  --sr-color-text-heading: #10203a;
+  --sr-color-text-body: #2d4160;
+  --sr-color-text-menu: #2d4160;
+  --sr-color-text-timeline: #334967;
+  --sr-color-text-secondary: #425674;
+  --sr-color-text-detail-secondary: #4a5e7a;
+  --sr-color-text-control: #3c506e;
+  --sr-color-text-control-strong: #263b59;
+  --sr-color-text-footer: #4a5e7a;
+  --sr-color-text-label: #425674;
+  --sr-color-text-close: #425674;
+  --sr-color-text-option: #2d4160;
+  --sr-color-text-sheet-title: #0a172b;
+  --sr-color-text-subtle: #526680;
+  --sr-color-text-muted: #5c708b;
+  --sr-color-text-meta: #5d6f88;
+  --sr-color-text-delay: #5c708b;
+  --sr-color-text-nav: #425674;
+  --sr-color-text-tab: #4a5e7a;
+  --sr-color-text-mobile-company: #526680;
+  --sr-color-text-mobile-rank: #526680;
+  --sr-color-text-mobile-value: #425674;
+  --sr-color-text-filter-label: #4a5e7a;
+  --sr-color-text-filter-value: #10203a;
+  --sr-color-text-filter-icon: #526680;
+  --sr-color-text-section-label: #4a5e7a;
+  --sr-color-text-chart-icon: #4a5e7a;
+  --sr-color-text-chart-range-selected: #101820;
+  --sr-color-text-detail-close: #4a5e7a;
+  --sr-color-text-inverse: #ffffff;
+  --sr-color-text-primary-action: #ffffff;
+  --sr-color-text-emphasized-action: #ffffff;
+
+  /* Color: accent and interaction states */
+  --sr-color-accent: #c94f00;
+  --sr-color-accent-strong: rgba(255, 139, 46, 0.9);
+  --sr-color-accent-highlight: #c94f00;
+  --sr-color-accent-text: #c94f00;
+  --sr-color-accent-text-soft: #b94a06;
+  --sr-color-premium: #8a5a14;
+  --sr-color-accent-selected: rgba(255, 122, 26, 0.09);
+  --sr-color-accent-active: rgba(255, 122, 26, 0.12);
+  --sr-color-accent-active-soft: rgba(255, 122, 26, 0.1);
+  --sr-color-accent-active-strong: rgba(255, 122, 26, 0.14);
+  --sr-color-accent-subtle: rgba(255, 122, 26, 0.05);
+  --sr-color-accent-menu: rgba(255, 122, 26, 0.06);
+  --sr-color-accent-sheet-glow: rgba(255, 122, 26, 0.07);
+  --sr-color-accent-overlay-glow: rgba(255, 122, 26, 0.08);
+  --sr-color-accent-cta-top: rgba(255, 122, 26, 0);
+  --sr-color-accent-cta-bottom: rgba(255, 122, 26, 0);
+  --sr-color-accent-cta-strong: rgba(255, 122, 26, 0);
+  --sr-color-accent-cta-strong-bottom: rgba(255, 122, 26, 0);
+  --sr-color-accent-transparent: rgba(255, 122, 26, 0);
+  --sr-color-accent-border: rgba(255, 122, 26, 0.58);
+  --sr-color-accent-border-active: rgba(255, 122, 26, 0.78);
+  --sr-color-accent-border-strong: rgba(255, 122, 26, 0.82);
+  --sr-color-accent-border-emphasis: rgba(255, 122, 26, 0.9);
+  --sr-color-accent-border-premium: rgba(138, 90, 20, 0.3);
+  --sr-color-accent-nav-line: rgba(255, 122, 26, 0.64);
+  --sr-color-accent-focus-soft: rgba(255, 122, 26, 0.58);
+  --sr-color-accent-focus-mobile: rgba(255, 122, 26, 0.64);
+
+  /* Color: market and event semantics */
+  --sr-color-positive: #0d8749;
+  --sr-color-negative: #c9362b;
+  --sr-color-warning: #946200;
+  --sr-color-info: #2563a6;
+  --sr-color-impact-high: #d65400;
+  --sr-color-event-earnings: #066b61;
+  --sr-color-event-earnings-surface: rgba(8, 127, 115, 0.16);
+  --sr-color-event-legal: #ae2c23;
+  --sr-color-event-legal-surface: rgba(201, 54, 43, 0.15);
+  --sr-color-event-insider: #7c3db2;
+  --sr-color-event-insider-surface: rgba(124, 61, 178, 0.15);
+  --sr-color-event-transaction: #2563a6;
+  --sr-color-event-transaction-surface: rgba(37, 99, 166, 0.15);
+  --sr-color-event-product: #7a5000;
+  --sr-color-event-product-surface: rgba(148, 98, 0, 0.16);
+  --sr-color-event-neutral: #596678;
+  --sr-color-event-neutral-surface: rgba(89, 102, 120, 0.12);
+
+  /* Color: chart */
+  --sr-color-chart-bullish: #0d8749;
+  --sr-color-chart-bearish: #d1433b;
+  --sr-color-chart-grid: rgba(15, 23, 42, 0.1);
+  --sr-color-chart-axis: #64748b;
+  --sr-color-chart-ohlc: #0f7a43;
+  --sr-color-chart-last-line: rgba(15, 122, 67, 0.24);
+  --sr-color-chart-last-price: #0f8a4b;
+  --sr-color-chart-volume-bullish: #16a35d;
+  --sr-opacity-chart-volume: 0.24;
+
+  /* Color: scrollbar and disabled state */
+  --sr-color-scrollbar-track: #f4f7fb;
+  --sr-color-scrollbar-thumb: #c2cedb;
+  --sr-color-scrollbar-thumb-hover: #98a9ba;
+  --sr-color-sheet-handle: #aab8c7;
+  --sr-color-state-disabled-text: #8190a4;
+  --sr-color-state-disabled-surface: #f3f6fa;
+
+  /* Theme-dependent effects */
+  --sr-shadow-header: 0 1px 0 rgba(9, 30, 66, 0.075), 0 7px 22px rgba(9, 30, 66, 0.026);
+  --sr-shadow-delay-dot: 0 0 13px rgba(255, 122, 26, 0.42);
+  --sr-shadow-panel: 0 1px 2px rgba(9, 30, 66, 0.045), 0 10px 26px rgba(9, 30, 66, 0.048);
+  --sr-shadow-pagination-active: 0 0 20px rgba(255, 122, 26, 0.2);
+  --sr-shadow-menu: 0 16px 36px rgba(15, 23, 42, 0.18);
+  --sr-shadow-sheet-content-footer: 0 -22px 48px rgba(15, 23, 42, 0.18);
+  --sr-shadow-sheet-full-scroll: 0 -28px 70px rgba(15, 23, 42, 0.22);
+  --sr-shadow-cta: none;
+  --sr-focus-ring-color: rgba(255, 122, 26, 0.68);
+}

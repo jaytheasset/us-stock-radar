@@ -1,0 +1,63 @@
+.badge {
+  display: inline-flex;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  border: var(--sr-border-width) solid currentColor;
+  font-family: var(--sr-font-family-sans);
+  font-weight: var(--sr-font-weight-label);
+  line-height: var(--sr-line-height-none);
+  letter-spacing: var(--sr-letter-spacing-default);
+}
+
+.small {
+  height: var(--sr-size-badge);
+  border-radius: var(--sr-radius-sm);
+  padding: 0 var(--sr-space-1-75);
+  font-size: var(--sr-font-size-xs);
+}
+
+.micro {
+  height: var(--sr-space-4-5);
+  border-radius: var(--sr-radius-sm);
+  padding: 0 var(--sr-space-1);
+  font-size: calc(var(--sr-font-size-xs) - var(--sr-border-width));
+}
+
+.large {
+  height: var(--sr-size-badge);
+  min-height: var(--sr-size-badge-lg);
+  border-radius: var(--sr-radius-control);
+  padding: var(--sr-border-width) var(--sr-space-2-25) 0;
+  font-size: var(--sr-font-size-md);
+}
+
+.earnings {
+  color: var(--sr-color-event-earnings);
+  background: var(--sr-color-event-earnings-surface);
+}
+
+.legal {
+  color: var(--sr-color-event-legal);
+  background: var(--sr-color-event-legal-surface);
+}
+
+.insider {
+  color: var(--sr-color-event-insider);
+  background: var(--sr-color-event-insider-surface);
+}
+
+.transaction {
+  color: var(--sr-color-event-transaction);
+  background: var(--sr-color-event-transaction-surface);
+}
+
+.product {
+  color: var(--sr-color-event-product);
+  background: var(--sr-color-event-product-surface);
+}
+
+.neutral {
+  color: var(--sr-color-event-neutral);
+  background: var(--sr-color-event-neutral-surface);
+}

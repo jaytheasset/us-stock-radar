@@ -2,6 +2,16 @@ import type { PricePoint, PriceRange } from "@/lib/marketTypes";
 
 export type DetailTone = "bullish" | "bearish" | "volatile" | "neutral";
 
+export function isRealTicker(value: string | null | undefined) {
+  const normalized = String(value || "").trim().toUpperCase();
+  return Boolean(
+    normalized &&
+      normalized !== "N/A" &&
+      normalized !== "NA" &&
+      /^[A-Z][A-Z0-9.-]{0,9}$/.test(normalized)
+  );
+}
+
 export type ContextRange = "1D" | "5D" | "30D";
 export type { PricePoint, PriceRange };
 

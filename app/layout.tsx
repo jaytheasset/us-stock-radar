@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import "./stock-radar-tokens.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
