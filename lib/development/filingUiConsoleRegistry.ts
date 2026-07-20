@@ -43,12 +43,6 @@ export const filingUiConsoleFamilies: readonly FilingUiConsoleFamily[] = [
 
 export const filingUiConsoleRegistrations: readonly FilingUiConsoleRegistration[] = [
   {
-    eventId: "7c9a30f6-bc54-48fa-ba33-16b505a91926",
-    family: "strategic-transaction",
-    label: "MORF / Merger closing",
-    notes: "Cash merger closing and procedural delisting.",
-  },
-  {
     eventId: "0bb38d44-c768-4a81-be00-0faaa0f28399",
     family: "governance-vote",
     label: "FONR / Auditor transition",
