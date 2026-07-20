@@ -1,4 +1,7 @@
-import type { FilingUiConsoleEntry } from "@/app/development/filings-ui/FilingUiConsoleClient";
+import type {
+  FilingUiConsoleContentContractItem,
+  FilingUiConsoleEntry,
+} from "@/app/development/filings-ui/FilingUiConsoleClient";
 import { filingUiConsoleRegistrations } from "@/lib/development/filingUiConsoleRegistry";
 import { fetchEventById, fetchLatestEventByAccession } from "@/lib/supabase";
 
@@ -18,6 +21,11 @@ type V2Fixture = {
   ticker: string;
 };
 
+type V2Family = {
+  contentContract?: FilingUiConsoleContentContractItem[];
+  id: string;
+};
+
 type V2ActualDbRegistration = {
   accessionNumber: string;
   family: string;
@@ -27,6 +35,7 @@ type V2ActualDbRegistration = {
 
 type V2RegistryManifest = {
   actualDbRegistrations: V2ActualDbRegistration[];
+  families?: V2Family[];
   fixtures: V2Fixture[];
   version: number;
 };
@@ -86,6 +95,7 @@ async function loadLegacyEntries() {
         signal: readString(row, ["signal"]),
         status: row ? "Ready" : result.status === 200 ? "Missing" : "Broken",
         ticker: readString(row, ["ticker", "symbol"]),
+        contentContract: [],
       } satisfies FilingUiConsoleEntry;
     }),
   );
@@ -95,6 +105,9 @@ async function loadV2Entries(): Promise<FilingUiConsoleEntry[]> {
   const origin = readV2Origin();
   const manifest = await fetchV2Manifest(origin);
   if (!manifest) return [];
+  const contractByFamily = new Map(
+    (manifest.families || []).map((family) => [family.id, family.contentContract || []]),
+  );
 
   const fixtureEntries = manifest.fixtures.map((fixture) => ({
     company: fixture.company,
@@ -111,6 +124,7 @@ async function loadV2Entries(): Promise<FilingUiConsoleEntry[]> {
     signal: fixture.signal,
     status: fixture.status,
     ticker: fixture.ticker,
+    contentContract: contractByFamily.get(fixture.family) || [],
   } satisfies FilingUiConsoleEntry));
 
   const actualEntries = await Promise.all(
@@ -141,6 +155,7 @@ async function loadV2Entries(): Promise<FilingUiConsoleEntry[]> {
         signal: readString(row, ["signal"]),
         status: row ? "Ready" : result.status === 200 ? "Missing" : "Broken",
         ticker: readString(row, ["ticker", "symbol"]),
+        contentContract: contractByFamily.get(registration.family) || [],
       } satisfies FilingUiConsoleEntry;
     }),
   );

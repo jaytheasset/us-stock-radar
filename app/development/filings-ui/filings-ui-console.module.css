@@ -43,6 +43,16 @@
 .entry dl div { min-width: 0; }
 .entry dd { margin: 4px 0 0; overflow-wrap: anywhere; }
 .entry code { display: block; margin-top: 12px; overflow-wrap: anywhere; color: var(--muted); }
+.contract { margin-top: 14px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.contractHeader, .contractRow { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(110px, .48fr) minmax(110px, .48fr); align-items: center; gap: 12px; }
+.contractHeader { padding: 10px 0; color: var(--muted); font-size: 11px; text-transform: uppercase; }
+.contractHeader strong { color: var(--text); font-size: 12px; text-transform: none; }
+.contractRow { min-height: 38px; border-top: 1px solid var(--border); font-size: 12px; }
+.contractShown, .contractConditional, .contractHidden { display: inline-flex; align-items: center; gap: 5px; }
+.contractShown { color: var(--positive); }
+.contractConditional { color: #9a6700; }
+.contractHidden { color: var(--muted); }
+.contractPending { margin: 14px 0 0; border-top: 1px solid var(--border); padding-top: 10px; color: var(--muted); font-size: 12px; }
 .actions { margin-top: 14px; }
 .empty { padding: 40px 20px; color: var(--muted); text-align: center; }
 .preview { margin-top: 16px; }
@@ -56,4 +66,6 @@
   .layout { grid-template-columns: 1fr; }
   .familyRail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .entry dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .contractHeader, .contractRow { grid-template-columns: minmax(120px, 1fr) 88px 72px; gap: 8px; }
+  .contractShown, .contractConditional, .contractHidden { font-size: 0; }
 }

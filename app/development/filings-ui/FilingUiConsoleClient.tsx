@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { Check, CircleDot, Minus } from "lucide-react";
 import type { FilingUiConsoleFamily } from "@/lib/development/filingUiConsoleRegistry";
 import styles from "./filings-ui-console.module.css";
 
@@ -20,6 +21,15 @@ export type FilingUiConsoleEntry = {
   signal: string;
   status: "Broken" | "Missing" | "Ready";
   ticker: string;
+  contentContract: FilingUiConsoleContentContractItem[];
+};
+
+export type FilingUiConsoleContentVisibility = "conditional" | "hidden" | "shown";
+
+export type FilingUiConsoleContentContractItem = {
+  fullAnalysis: FilingUiConsoleContentVisibility;
+  label: string;
+  preview: FilingUiConsoleContentVisibility;
 };
 
 type Props = {
@@ -111,6 +121,7 @@ export function FilingUiConsoleClient({ entries, families }: Props) {
                   <div><dt>Delivery</dt><dd>{entry.delivery || "Not stored"}</dd></div>
                 </dl>
                 <p>{entry.notes}</p>
+                <ContentContractTable items={entry.contentContract} />
                 <code>{entry.route}</code>
                 <div className={styles.actions}>
                   <Link href={entry.route} target="_blank">Open Full Page</Link>
@@ -137,4 +148,37 @@ export function FilingUiConsoleClient({ entries, families }: Props) {
       ) : null}
     </section>
   );
+}
+
+function ContentContractTable({ items }: { items: FilingUiConsoleContentContractItem[] }) {
+  if (!items.length) {
+    return <p className={styles.contractPending}>Display contract not defined yet.</p>;
+  }
+
+  return (
+    <section className={styles.contract} aria-label="Content display contract">
+      <div className={styles.contractHeader}>
+        <strong>Content display</strong>
+        <span>Full Analysis</span>
+        <span>Preview</span>
+      </div>
+      {items.map((item) => (
+        <div className={styles.contractRow} key={item.label}>
+          <span>{item.label}</span>
+          <VisibilityMark value={item.fullAnalysis} />
+          <VisibilityMark value={item.preview} />
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function VisibilityMark({ value }: { value: FilingUiConsoleContentVisibility }) {
+  if (value === "shown") {
+    return <span className={styles.contractShown}><Check aria-hidden="true" size={15} /> Display</span>;
+  }
+  if (value === "conditional") {
+    return <span className={styles.contractConditional}><CircleDot aria-hidden="true" size={14} /> Conditional</span>;
+  }
+  return <span className={styles.contractHidden}><Minus aria-hidden="true" size={15} /> Hidden</span>;
 }
