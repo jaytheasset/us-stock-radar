@@ -2,6 +2,8 @@
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { FilingUiConsoleClient, type FilingUiConsoleEntry } from "@/app/development/filings-ui/FilingUiConsoleClient";
+import { filingUiConsoleFamilies } from "@/lib/development/filingUiConsoleRegistry";
 import styles from "./sec-development.module.css";
 import type { SecDevRoomDetail, SecDevRoomSnapshot } from "@/lib/development/secFormDevDashboard";
 import {
@@ -12,9 +14,15 @@ import {
   type SecDevIssue,
 } from "./secDevelopmentIssues";
 
-type TabKey = "overview" | "parser" | "prompt" | "outputs" | "results" | "tests" | "live" | "issues" | "excluded";
+type TabKey = "overview" | "parser" | "prompt" | "outputs" | "results" | "tests" | "live" | "issues" | "excluded" | "filing-ui";
 
-export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoomSnapshot[] }) {
+export function SecDevelopmentClient({
+  initialFilingUiEntries,
+  initialRooms,
+}: {
+  initialFilingUiEntries: FilingUiConsoleEntry[];
+  initialRooms: SecDevRoomSnapshot[];
+}) {
   const searchParams = useSearchParams();
   const requestedRoom = searchParams.get("room") || "";
   const requestedTab = searchParams.get("tab") || "";
@@ -359,7 +367,7 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
       </aside>
 
       <section className={styles.mainPanel}>
-        <header className={styles.panelHeader}>
+        {tab !== "filing-ui" ? <header className={styles.panelHeader}>
           <div>
             <p className={styles.kicker}>Development Console</p>
             <h2>{selectedSnapshot?.label || "SEC Form Room"}</h2>
@@ -403,9 +411,9 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
               {runningLatestAnalysis ? "Analyzing..." : `Analyze ${selectedRunLabel}latest samples, no persist (${selectedRunCountLabel})`}
             </button>
           </div>
-        </header>
+        </header> : null}
 
-        <section className={styles.liveControls}>
+        {tab !== "filing-ui" ? <section className={styles.liveControls}>
           <label className={styles.compactControl}>
             <span>Form filter</span>
             <select onChange={(event) => setLiveFormFilter(event.target.value)} value={liveFormFilter}>
@@ -517,7 +525,7 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
           >
             {persisting ? "Persisting..." : resetExistingAnalysis ? "Reset + persist, alerts off" : "Persist one, alerts off"}
           </button>
-        </section>
+        </section> : null}
 
         {error ? <div className={styles.errorBox}>{error}</div> : null}
 
@@ -532,6 +540,7 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
             ["live", "Live / Persist"],
             ["issues", "Issues"],
             ["excluded", "Excluded"],
+            ["filing-ui", "Filing UI"],
           ].map(([key, label]) => (
             <button className={tab === key ? styles.activeTab : ""} key={key} onClick={() => setTab(key as TabKey)} type="button">
               {label}
@@ -539,7 +548,9 @@ export function SecDevelopmentClient({ initialRooms }: { initialRooms: SecDevRoo
           ))}
         </nav>
 
-        {loading ? (
+        {tab === "filing-ui" ? (
+          <FilingUiConsoleClient entries={initialFilingUiEntries} families={filingUiConsoleFamilies} />
+        ) : loading ? (
           <div className={styles.emptyState}>Loading room files...</div>
         ) : detail ? (
           <RoomDetail
@@ -3503,7 +3514,7 @@ function roomFromDetail(detail: SecDevRoomDetail): SecDevRoomSnapshot {
 }
 
 function isTabKey(value: string): value is TabKey {
-  return ["overview", "parser", "prompt", "outputs", "results", "tests", "live", "issues", "excluded"].includes(value);
+  return ["overview", "parser", "prompt", "outputs", "results", "tests", "live", "issues", "excluded", "filing-ui"].includes(value);
 }
 
 function formatLiveRunMode(mode: string) {

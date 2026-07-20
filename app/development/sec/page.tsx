@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SecDevelopmentClient } from "@/app/development/sec/SecDevelopmentClient";
+import { getFilingUiConsoleEntries } from "@/lib/development/filingUiConsoleData";
 import { getSecDevRoomSnapshots } from "@/lib/development/secFormDevDashboard";
 import styles from "./sec-development.module.css";
 
@@ -9,7 +10,10 @@ export const dynamic = "force-dynamic";
 export default async function SecDevelopmentPage() {
   if (process.env.NODE_ENV === "production") notFound();
 
-  const rooms = await getSecDevRoomSnapshots();
+  const [rooms, filingUiEntries] = await Promise.all([
+    getSecDevRoomSnapshots(),
+    getFilingUiConsoleEntries(),
+  ]);
 
   return (
     <main className={styles.page}>
@@ -26,7 +30,7 @@ export default async function SecDevelopmentPage() {
         </div>
       </header>
 
-      <SecDevelopmentClient initialRooms={rooms} />
+      <SecDevelopmentClient initialFilingUiEntries={filingUiEntries} initialRooms={rooms} />
     </main>
   );
 }
