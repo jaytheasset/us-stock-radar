@@ -1,4 +1,17 @@
-.embedded { min-width: 0; color: var(--text); }
+.embedded {
+  --bg: #f8fafc;
+  --border: #d6dde5;
+  --muted: #5d6977;
+  --negative: #b42318;
+  --panel: #ffffff;
+  --panel-strong: #eef5ff;
+  --positive: #00815e;
+  --text: #17202a;
+
+  min-width: 0;
+  color: var(--text);
+  background: var(--panel);
+}
 .embeddedHeader { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--border); }
 .embeddedHeader h2 { margin: 0; font-size: 20px; }
 .embeddedHeader p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
@@ -12,7 +25,7 @@
 .headerLinks a, .actions a, .actions button, .previewHeader button { border: 1px solid var(--border); border-radius: 6px; padding: 9px 12px; color: var(--text); background: var(--panel); text-decoration: none; font: inherit; }
 .controls { margin-bottom: 16px; border: 1px solid var(--border); border-radius: 8px; padding: 14px; background: var(--panel); }
 .controls label { display: grid; gap: 8px; }
-.controls input { min-height: 40px; border: 1px solid var(--border); border-radius: 6px; padding: 0 12px; color: var(--text); background: var(--bg); font: inherit; }
+.embedded .controls input { min-height: 40px; border: 1px solid var(--border); border-radius: 6px; padding: 0 12px; color: var(--text); background: var(--bg); font: inherit; }
 .layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; }
 .familyRail, .workspace, .preview { border: 1px solid var(--border); border-radius: 8px; background: var(--panel); overflow: hidden; }
 .familyRail { display: grid; padding: 8px; }

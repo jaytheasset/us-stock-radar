@@ -48,7 +48,7 @@ export function FilingUiConsoleClient({ entries, families }: Props) {
   });
 
   return (
-    <section className={styles.embedded}>
+    <section className={styles.embedded} data-sr-theme="light">
       <header className={styles.embeddedHeader}>
         <div>
           <h2>Filing UI Console</h2>
