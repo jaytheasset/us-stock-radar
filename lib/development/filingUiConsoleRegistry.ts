@@ -43,12 +43,6 @@ export const filingUiConsoleFamilies: readonly FilingUiConsoleFamily[] = [
 
 export const filingUiConsoleRegistrations: readonly FilingUiConsoleRegistration[] = [
   {
-    eventId: "0bb38d44-c768-4a81-be00-0faaa0f28399",
-    family: "governance-vote",
-    label: "FONR / Auditor transition",
-    notes: "Auditor dismissal, engagement, and disagreement status.",
-  },
-  {
     eventId: "241912b7-f9d5-4d5c-99ff-3a5fa0d94eed",
     family: "operating-legal",
     label: "MDB / Earnings and operating update",
