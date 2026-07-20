@@ -48,14 +48,16 @@ export function FilingUiConsoleClient({ entries, families }: Props) {
     () => new Map(families.map((family) => [family.id, entries.filter((entry) => entry.family === family.id).length])),
     [entries, families],
   );
-  const visibleEntries = entries.filter((entry) => {
-    if (entry.family !== activeFamily?.id) return false;
-    if (!normalizedQuery) return true;
-    return [entry.label, entry.company, entry.ticker, entry.formType, entry.eventType]
-      .join(" ")
-      .toLowerCase()
-      .includes(normalizedQuery);
-  });
+  const visibleEntries = entries
+    .filter((entry) => {
+      if (entry.family !== activeFamily?.id) return false;
+      if (!normalizedQuery) return true;
+      return [entry.label, entry.company, entry.ticker, entry.formType, entry.eventType]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedQuery);
+    })
+    .sort((left, right) => fixtureKindPriority(left) - fixtureKindPriority(right));
 
   return (
     <section className={styles.embedded} data-sr-theme="light">
@@ -181,4 +183,8 @@ function VisibilityMark({ value }: { value: FilingUiConsoleContentVisibility }) 
     return <span className={styles.contractConditional}><CircleDot aria-hidden="true" size={14} /> Conditional</span>;
   }
   return <span className={styles.contractHidden}><Minus aria-hidden="true" size={15} /> Hidden</span>;
+}
+
+function fixtureKindPriority(entry: FilingUiConsoleEntry) {
+  return entry.fixtureKind === "Fixture" ? 0 : 1;
 }
