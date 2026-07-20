@@ -147,6 +147,58 @@ assert.deepEqual(unverifiedDateIssue.allowed_patch_paths, [
   "/analysis_output/summary",
 ]);
 
+const expectedLastTradingDayResult = JSON.parse(JSON.stringify(correctResult));
+expectedLastTradingDayResult.analysis_output.quick_take =
+  "Carver filed Form 25 on November 28, 2025; its last Nasdaq trading day was expected on December 5, 2025.";
+expectedLastTradingDayResult.analysis_output.summary =
+  "Carver completed its voluntary Nasdaq delisting effective December 5, 2025, and expected OTCQX trading to begin December 8, 2025.";
+expectedLastTradingDayResult.analysis_output.why_it_matters =
+  "The company expected its last Nasdaq trading day on December 5, 2025, followed by OTCQX trading on December 8, 2025.";
+expectedLastTradingDayResult.display_payload.data = {};
+const expectedLastTradingDayIssues = inspectSecForm25ValidationRepairIssues({
+  analysisResult: expectedLastTradingDayResult,
+  parserOutput: unverifiedDateParser,
+});
+const expectedLastTradingDayIssue = expectedLastTradingDayIssues.find(
+  (issue) => issue.code === "form25_date_role_conflict",
+);
+assert.ok(expectedLastTradingDayIssue, "an expected last trading day must not become a formal removal date");
+assert.deepEqual(expectedLastTradingDayIssue.allowed_patch_paths, ["/analysis_output/summary"]);
+
+const properlyLabeledExpectedDatesResult = JSON.parse(JSON.stringify(expectedLastTradingDayResult));
+properlyLabeledExpectedDatesResult.analysis_output.summary =
+  "Carver filed Form 25 on November 28, 2025, expected its last Nasdaq trading day on December 5, 2025, and expected OTCQX trading to begin December 8, 2025.";
+const properlyLabeledExpectedDateIssues = inspectSecForm25ValidationRepairIssues({
+  analysisResult: properlyLabeledExpectedDatesResult,
+  parserOutput: unverifiedDateParser,
+});
+assert.equal(
+  properlyLabeledExpectedDateIssues.some((issue) => issue.code === "form25_date_role_conflict"),
+  false,
+  "explicitly labeled filing, last-trading, and OTC dates must remain valid",
+);
+
+const unsupportedEffectiveStatusResult = JSON.parse(JSON.stringify(properlyLabeledExpectedDatesResult));
+unsupportedEffectiveStatusResult.analysis_output.quick_take =
+  "Carver Bancorp is completing its voluntary delisting from Nasdaq as previously announced.";
+unsupportedEffectiveStatusResult.analysis_output.summary =
+  "Carver completed its voluntary Nasdaq delisting and expects its common stock to trade on OTCQX.";
+unsupportedEffectiveStatusResult.analysis_output.why_it_matters =
+  "This filing formally completes the previously announced voluntary delisting from Nasdaq.";
+const unsupportedEffectiveStatusIssues = inspectSecForm25ValidationRepairIssues({
+  analysisResult: unsupportedEffectiveStatusResult,
+  parserOutput: unverifiedDateParser,
+});
+const unsupportedEffectiveStatusIssue = unsupportedEffectiveStatusIssues.find(
+  (issue) => issue.code === "form25_date_role_conflict",
+);
+assert.ok(unsupportedEffectiveStatusIssue, "unsupported formal-removal completion language must be detected");
+assert.deepEqual(unsupportedEffectiveStatusIssue.allowed_patch_paths, [
+  "/analysis_output/quick_take",
+  "/analysis_output/summary",
+  "/analysis_output/why_it_matters",
+]);
+
 const warrantOnlyParser = JSON.parse(JSON.stringify(parserOutput)) as SecForm25ParserOutput;
 warrantOnlyParser.facts.removed_security = field("Warrant expiring 2030");
 warrantOnlyParser.facts.rule_provision = field("17 CFR 240.12d2-2(a)(1)");

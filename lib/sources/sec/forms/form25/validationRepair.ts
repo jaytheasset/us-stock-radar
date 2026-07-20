@@ -96,7 +96,7 @@ export function buildSecForm25ValidationRepairPlan(input: {
         "Removing only warrants, rights, preferred securities, notes, bonds, or other non-common securities is normally a low-impact standalone cleanup when the source shows no common-equity effect, listing-standard failure, bankruptcy, default, legal stress, or completed transaction. In that case use other, neutral, archive, and a score below 40 rather than listing_risk.",
         "A removal that follows a source-stated completed merger, acquisition, share exchange, tender offer, or cash-out is a strategic transaction consequence rather than exchange listing failure.",
         "For a completed transaction removal that only confirms delisting, cash conversion, or an effective date already inherent in the closing, keep the result neutral and archive-level with a score below 50 unless the Form 25 adds a separate material investor fact.",
-        "When a matched prior analyzed filing already disclosed the delisting decision, trading suspension, or expected Form 25, the later Form 25 filing and formal removal date alone are procedural completion, not new material information or a second alert. Use score 10-25, neutral signal, archive delivery, and a one-sentence procedural summary.",
+        "When a matched prior analyzed filing already disclosed the delisting decision, trading suspension, or expected Form 25, the later Form 25 is a procedural lifecycle update, not new material information or a second alert. If the current source does not establish completed formal removal or a formal effective date, say only that Form 25 was filed for the previously announced delisting. Use score 10-25, neutral signal, archive delivery, and a one-sentence procedural summary.",
         "standalone_event means no supplied analyzed event explains the filing; it does not imply high materiality.",
         "Use related_event_update or administrative_cleanup only when related_filing_context contains an analyzed matching event. Otherwise use standalone_event and null related identifiers.",
         "Keep trading suspension, final delisting determination, and formal removal/effectiveness dates separate. Never call the trading suspension date the formal removal effective date.",
@@ -197,7 +197,7 @@ export function inspectSecForm25ValidationRepairIssues(input: {
     issues.push({
       code: "form25_date_role_conflict",
       warning:
-        "Investor-facing text or structured display dates confuse the trading-suspension date with the formal delisting/removal effective date.",
+        "The source does not establish a formal delisting/removal effective date or completed-removal status. Do not say the delisting is effective, completed, completes, or completing. State only that Form 25 was filed for the previously announced delisting, and label any last-trading or OTC date by its actual role.",
       allowed_patch_paths: dateRoleConflictPaths,
     });
   }
@@ -482,15 +482,13 @@ function findDateRoleConflictPaths(input: {
     if (displayRemovalDate) paths.push("/display_payload/data/delisting_or_removal_date");
     if (displayEffectivenessDate) paths.push("/display_payload/data/effectiveness_date");
 
-    if (filingDate) {
-      for (const [path, value] of [
-        ["/analysis_output/quick_take", input.analysis.quick_take],
-        ["/analysis_output/summary", input.analysis.summary],
-        ["/analysis_output/why_it_matters", input.analysis.why_it_matters],
-      ] as const) {
-        if (textAssignsFormalRemovalToUnverifiedDate(stringValue(value), filingDate)) {
-          paths.push(path);
-        }
+    for (const [path, value] of [
+      ["/analysis_output/quick_take", input.analysis.quick_take],
+      ["/analysis_output/summary", input.analysis.summary],
+      ["/analysis_output/why_it_matters", input.analysis.why_it_matters],
+    ] as const) {
+      if (textAssignsFormalRemovalToUnverifiedDate(stringValue(value))) {
+        paths.push(path);
       }
     }
     return uniqueStrings(paths);
@@ -526,19 +524,17 @@ function findDateRoleConflictPaths(input: {
   return uniqueStrings(paths);
 }
 
-function textAssignsFormalRemovalToUnverifiedDate(text: string, filingDate: string) {
-  if (!text || !extractNormalizedDates(text).includes(filingDate)) return false;
+function textAssignsFormalRemovalToUnverifiedDate(text: string) {
+  if (!text) return false;
 
   return text
     .replace(/\s+/g, " ")
     .split(/[;.!?]+/)
     .map((clause) => clause.trim())
-    .filter((clause) => extractNormalizedDates(clause).includes(filingDate))
     .some((clause) => {
-      if (/\b(?:filed|submitted|filing date)\b/i.test(clause)) return false;
       return (
-        /(?:formal(?:ly)?\s+)?(?:remov(?:al|ed)?|delist(?:ing|ed)?)[^.!?]{0,100}\b(?:on|effective|became effective|takes? effect|as of)\b/i.test(clause) ||
-        /\b(?:on|effective|became effective|takes? effect|as of)\b[^.!?]{0,100}(?:formal(?:ly)?\s+)?(?:remov(?:al|ed)?|delist(?:ing|ed)?)/i.test(clause)
+        /(?:formal(?:ly)?\s+)?(?:remov(?:al|ed)?|delist(?:ing|ed)?)[^.!?]{0,100}\b(?:on|effective|became effective|takes? effect|as of|complet(?:e|ed|es|ing))\b/i.test(clause) ||
+        /\b(?:on|effective|became effective|takes? effect|as of|complet(?:e|ed|es|ing))\b[^.!?]{0,100}(?:formal(?:ly)?\s+)?(?:remov(?:al|ed)?|delist(?:ing|ed)?)/i.test(clause)
       );
     });
 }

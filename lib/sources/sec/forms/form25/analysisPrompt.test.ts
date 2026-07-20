@@ -22,7 +22,11 @@ assert.equal(
   true,
 );
 assert.equal(
-  analysisPrompt.system.includes("do not convert filing_date into that date"),
+  analysisPrompt.system.includes("do not convert filing_date or another procedural date into that date"),
+  true,
+);
+assert.equal(
+  analysisPrompt.system.includes("do not say the delisting is effective, completed, completes, or completing"),
   true,
 );
 assert.equal(

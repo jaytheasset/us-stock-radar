@@ -321,6 +321,104 @@ assert.equal(voluntaryFollowUpRoot.analysis_output.delivery_level, "archive");
 assert.equal(voluntaryFollowUpRoot.display_payload.data.effectiveness_date, null);
 assert.equal(voluntaryFollowUpRoot.display_payload.data.delisting_or_removal_date, null);
 
+const carverContext = {
+  selected_filings: [
+    {
+      event_id: "carver-voluntary-delisting",
+      accession_number: "0000943374-25-000480",
+      form_type: "8-K",
+      event_type: "listing_risk",
+      match_confidence: "high",
+      company_name: "CARVER BANCORP INC",
+      summary:
+        "Carver expected its last Nasdaq trading day on December 5, 2025, followed by OTCQX trading on December 8, 2025.",
+    },
+  ],
+};
+const unsupportedCarverRoot: Record<string, any> = {
+  analysis_output: {
+    event_type: "listing_risk",
+    score: 20,
+    signal: "neutral",
+    delivery_level: "archive",
+    quick_take: "Carver Bancorp's voluntary Nasdaq delisting is now procedurally complete.",
+    summary: "Carver filed Form 25 to formally complete its voluntary Nasdaq delisting.",
+    why_it_matters: "This filing formally completes the voluntary delisting process from Nasdaq.",
+    score_explanation: {
+      summary: "The voluntary delisting is a consequence of a strategic transaction.",
+    },
+    form25_lifecycle: {
+      disposition: "related_event_update",
+      related_event_id: "carver-voluntary-delisting",
+      related_accession_number: "0000943374-25-000480",
+      has_new_material_information: false,
+    },
+  },
+  display_payload: { data: {}, notes: [] },
+};
+const carverParserOutput = JSON.parse(JSON.stringify(voluntaryParserOutput)) as SecForm25ParserOutput;
+carverParserOutput.facts.issuer_name = {
+  value: "CARVER BANCORP INC",
+  evidence: "CARVER BANCORP INC",
+  source: "fixture",
+  confidence: "high",
+};
+carverParserOutput.facts.exchange = {
+  value: "The Nasdaq Stock Market LLC",
+  evidence: "The Nasdaq Stock Market LLC",
+  source: "fixture",
+  confidence: "high",
+};
+const unsupportedCarverResult = applySecForm25PostAnalysisGuards(
+  unsupportedCarverRoot,
+  carverParserOutput,
+  carverContext,
+);
+assert.equal(unsupportedCarverResult.changed, true);
+assert.equal(
+  unsupportedCarverRoot.analysis_output.quick_take,
+  "Carver Bancorp, Inc. filed Form 25 for its previously announced delisting from Nasdaq.",
+);
+assert.equal(
+  unsupportedCarverRoot.analysis_output.summary,
+  "Carver Bancorp, Inc. filed Form 25 for its previously announced delisting from Nasdaq. Its common stock was expected to continue trading on OTCQX.",
+);
+assert.equal(
+  unsupportedCarverRoot.analysis_output.why_it_matters,
+  "The filing is a procedural update to the previously announced delisting and does not add a new material listing event.",
+);
+assert.equal(
+  unsupportedCarverRoot.analysis_output.score_explanation.summary,
+  "This Form 25 is a procedural update to a previously announced delisting and does not add a new material listing event.",
+);
+assert.equal(
+  unsupportedCarverResult.warnings.some((warning) => /Unsupported formal-removal/.test(warning)),
+  true,
+);
+
+const missingVenueRoot: Record<string, any> = JSON.parse(JSON.stringify(unsupportedCarverRoot));
+missingVenueRoot.analysis_output.quick_take =
+  "Form 25 filed to confirm the previously announced voluntary Nasdaq delisting.";
+missingVenueRoot.analysis_output.summary =
+  "Carver Bancorp, Inc. filed Form 25 to confirm its previously announced voluntary Nasdaq delisting.";
+missingVenueRoot.analysis_output.why_it_matters =
+  "This filing is a procedural confirmation of the previously announced delisting.";
+missingVenueRoot.display_payload.data = {};
+const missingVenueResult = applySecForm25PostAnalysisGuards(
+  missingVenueRoot,
+  carverParserOutput,
+  carverContext,
+);
+assert.equal(
+  missingVenueRoot.analysis_output.summary,
+  "Carver Bancorp, Inc. filed Form 25 to confirm its previously announced voluntary Nasdaq delisting. Its common stock was expected to continue trading on OTCQX.",
+);
+assert.equal(missingVenueRoot.display_payload.data.continued_listing_or_trading_venue, "OTCQX");
+assert.equal(
+  missingVenueResult.warnings.some((warning) => /continued trading venue/.test(warning)),
+  true,
+);
+
 const proceduralRemovalParser: SecForm25ParserOutput = {
   ...baseParserOutput,
   warnings: [],
@@ -422,7 +520,7 @@ assert.deepEqual(proceduralRemovalRoot.analysis_output.key_evidence, []);
 assert.equal(proceduralRemovalRoot.analysis_output.delivery_level, "archive");
 assert.deepEqual(proceduralRemovalRoot.analysis_output.what_to_watch_next, []);
 assert.equal(
-  proceduralRemovalResult.warnings.some((warning) => /procedural completion/.test(warning)),
+  proceduralRemovalResult.warnings.some((warning) => /procedural update/.test(warning)),
   true,
 );
 

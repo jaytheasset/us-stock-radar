@@ -16,7 +16,9 @@ const FORM25_INVALID_RELATED_REFERENCE_NOTE =
 const FORM25_AMENDMENT_FOLLOW_UP_NOTE =
   "Form 25 amendment treated as an update to the matched original Form 25; duplicate alert suppressed.";
 const FORM25_PROCEDURAL_FOLLOW_UP_NOTE =
-  "Form 25 formal removal treated as procedural completion of an already analyzed listing event; duplicate alert suppressed.";
+  "Form 25 treated as a procedural update to an already analyzed listing event; duplicate alert suppressed.";
+const FORM25_PROCEDURAL_FOLLOW_UP_SCORE_SUMMARY =
+  "This Form 25 is a procedural update to a previously announced delisting and does not add a new material listing event.";
 
 export function applySecForm25PostAnalysisGuards(
   root: GuardRoot,
@@ -175,6 +177,12 @@ export function applySecForm25PostAnalysisGuards(
         analysisOutput.bearish_points = [];
         analysisOutput.key_evidence = [];
         analysisOutput.score_reason = "procedural listing removal update";
+        const scoreExplanation = readRecord(analysisOutput.score_explanation);
+        if (scoreExplanation) {
+          scoreExplanation.summary = FORM25_PROCEDURAL_FOLLOW_UP_SCORE_SUMMARY;
+        } else {
+          analysisOutput.score_explanation = { summary: FORM25_PROCEDURAL_FOLLOW_UP_SCORE_SUMMARY };
+        }
         const displayPayload = readRecord(root.display_payload);
         if (displayPayload) {
           displayPayload.notes = uniqueStrings([
@@ -194,7 +202,175 @@ export function applySecForm25PostAnalysisGuards(
     }
   }
 
+  if (replaceUnsupportedFormalRemovalClaims(root, parserOutput, relatedFilingContext)) {
+    changed = true;
+    warnings.push(
+      "Unsupported formal-removal completion language was replaced with a source-grounded Form 25 filing update.",
+    );
+  }
+
+  if (backfillContinuedTradingVenue(root, parserOutput, relatedFilingContext)) {
+    changed = true;
+    warnings.push("The source-backed continued trading venue was restored to the Form 25 summary and display data.");
+  }
+
   return { changed, warnings };
+}
+
+function backfillContinuedTradingVenue(
+  root: GuardRoot,
+  parserOutput: SecForm25ParserOutput,
+  relatedFilingContext: Record<string, unknown> | null,
+) {
+  const relatedText = relatedFilingContextText(relatedFilingContext);
+  const venue =
+    formatContinuedTradingVenue(stringValue(parserOutput.facts.continued_listing_or_trading_venue?.value)) ||
+    extractContinuedTradingVenue(relatedText);
+  if (!venue) return false;
+
+  const analysisOutput = readRecord(root.analysis_output);
+  if (!analysisOutput) return false;
+  let changed = false;
+  const summary = stringValue(analysisOutput.summary);
+  if (summary && !new RegExp(`\\b${escapeRegExp(venue)}\\b`, "i").test(summary)) {
+    analysisOutput.summary = `${summary.replace(/\s+$/, "")} Its common stock was expected to continue trading on ${venue}.`;
+    changed = true;
+  }
+
+  const displayPayload = readRecord(root.display_payload);
+  const displayData = readRecord(displayPayload?.data);
+  if (displayData && !stringValue(displayData.continued_listing_or_trading_venue)) {
+    displayData.continued_listing_or_trading_venue = venue;
+    changed = true;
+  }
+  return changed;
+}
+
+function replaceUnsupportedFormalRemovalClaims(
+  root: GuardRoot,
+  parserOutput: SecForm25ParserOutput,
+  relatedFilingContext: Record<string, unknown> | null,
+) {
+  const filingDate = normalizedDate(parserOutput.facts.filing_date?.value);
+  const removalDate = normalizedDate(parserOutput.facts.delisting_or_removal_date?.value);
+  const effectivenessDate = normalizedDate(parserOutput.facts.effectiveness_date?.value);
+  const verifiedFormalDate =
+    removalDate || (effectivenessDate && effectivenessDate !== filingDate ? effectivenessDate : "");
+  if (verifiedFormalDate) return false;
+
+  const analysisOutput = readRecord(root.analysis_output);
+  if (!analysisOutput) return false;
+  const investorText = [
+    stringValue(analysisOutput.quick_take),
+    stringValue(analysisOutput.summary),
+    stringValue(analysisOutput.why_it_matters),
+  ].join("\n");
+  if (!containsUnsupportedFormalRemovalClaim(investorText)) return false;
+
+  const relatedText = relatedFilingContextText(relatedFilingContext);
+  const company =
+    formatForm25IssuerName(readRelatedCompanyName(relatedFilingContext)) ||
+    formatForm25IssuerName(stringValue(parserOutput.facts.issuer_name?.value)) ||
+    "The company";
+  const exchange = formatForm25ExchangeName(stringValue(parserOutput.facts.exchange?.value));
+  const venue =
+    formatContinuedTradingVenue(stringValue(parserOutput.facts.continued_listing_or_trading_venue?.value)) ||
+    extractContinuedTradingVenue(relatedText);
+  const exchangePhrase = exchange ? ` from ${exchange}` : " from its exchange";
+  const filingSentence = `${company} filed Form 25 for its previously announced delisting${exchangePhrase}.`;
+
+  analysisOutput.quick_take = filingSentence;
+  analysisOutput.summary = venue
+    ? `${filingSentence} Its common stock was expected to continue trading on ${venue}.`
+    : filingSentence;
+  analysisOutput.why_it_matters =
+    "The filing is a procedural update to the previously announced delisting and does not add a new material listing event.";
+  return true;
+}
+
+function containsUnsupportedFormalRemovalClaim(text: string) {
+  if (!text) return false;
+  return (
+    /(?:remov(?:al|ed)?|delist(?:ing|ed)?)[^.!?]{0,120}\b(?:effective|became effective|takes? effect|complet(?:e|ed|es|ing))\b/i.test(
+      text,
+    ) ||
+    /\b(?:effective|became effective|takes? effect|complet(?:e|ed|es|ing))\b[^.!?]{0,120}(?:remov(?:al|ed)?|delist(?:ing|ed)?)/i.test(
+      text,
+    )
+  );
+}
+
+function readRelatedCompanyName(relatedFilingContext: Record<string, unknown> | null) {
+  for (const filing of recordArray(relatedFilingContext?.selected_filings)) {
+    const company = stringValue(filing.company_name);
+    if (company) return company;
+  }
+  return "";
+}
+
+function relatedFilingContextText(relatedFilingContext: Record<string, unknown> | null) {
+  return recordArray(relatedFilingContext?.selected_filings)
+    .map((filing) =>
+      [
+        filing.company_name,
+        filing.event_title,
+        filing.title,
+        filing.quick_take,
+        filing.summary,
+        ...readStringArray(filing.key_evidence),
+      ]
+        .map(stringValue)
+        .filter(Boolean)
+        .join(" "),
+    )
+    .join("\n");
+}
+
+function formatForm25IssuerName(value: string) {
+  if (!value) return "";
+  if (value !== value.toUpperCase()) return value;
+  return value
+    .toLowerCase()
+    .replace(/\b[a-z]/g, (letter) => letter.toUpperCase())
+    .replace(/\b(?:Inc|Corp|Llc|Ltd|Plc|N\.v)\b\.?/gi, (suffix) => {
+      const normalized = suffix.replace(/\./g, "").toLowerCase();
+      const labels: Record<string, string> = {
+        inc: "Inc.",
+        corp: "Corp.",
+        llc: "LLC",
+        ltd: "Ltd.",
+        plc: "plc",
+        nv: "N.V.",
+      };
+      return labels[normalized] || suffix;
+    })
+    .replace(/(?<![,])\s+Inc\.$/, ", Inc.");
+}
+
+function formatForm25ExchangeName(value: string) {
+  if (/nasdaq/i.test(value)) return "Nasdaq";
+  if (/new york stock exchange|\bnyse\b/i.test(value)) return "NYSE";
+  return value;
+}
+
+function formatContinuedTradingVenue(value: string) {
+  if (!value) return "";
+  const venue = extractContinuedTradingVenue(value);
+  return venue || value;
+}
+
+function extractContinuedTradingVenue(value: string) {
+  const match = value.match(/\b(OTCQX|OTCQB|OTC Pink|Pink Market|OTC)\b/i);
+  if (!match) return "";
+  const normalized = match[1].toLowerCase();
+  if (normalized === "otcqx") return "OTCQX";
+  if (normalized === "otcqb") return "OTCQB";
+  if (normalized === "otc pink" || normalized === "pink market") return "OTC Pink";
+  return "OTC";
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function backfillRemovalReasonFromAvailableContext(
