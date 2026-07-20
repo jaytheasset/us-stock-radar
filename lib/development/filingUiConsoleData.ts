@@ -3,7 +3,7 @@ import { filingUiConsoleRegistrations } from "@/lib/development/filingUiConsoleR
 import { fetchEventById } from "@/lib/supabase";
 
 export async function getFilingUiConsoleEntries(): Promise<FilingUiConsoleEntry[]> {
-  return Promise.all(
+  const entries = await Promise.all(
     filingUiConsoleRegistrations.map(async (registration) => {
       const route = resolveRoute(registration);
       if (registration.fixture) {
@@ -35,6 +35,12 @@ export async function getFilingUiConsoleEntries(): Promise<FilingUiConsoleEntry[
       } satisfies FilingUiConsoleEntry;
     }),
   );
+
+  return entries.sort((left, right) => fixtureSortOrder(left) - fixtureSortOrder(right));
+}
+
+function fixtureSortOrder(entry: FilingUiConsoleEntry) {
+  return entry.fixtureKind === "Fixture" ? 0 : 1;
 }
 
 function resolveRoute(registration: (typeof filingUiConsoleRegistrations)[number]) {

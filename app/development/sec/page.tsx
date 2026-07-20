@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SecDevelopmentClient } from "@/app/development/sec/SecDevelopmentClient";
 import { getFilingUiConsoleEntries } from "@/lib/development/filingUiConsoleData";
@@ -6,6 +7,11 @@ import { getSecDevRoomSnapshots } from "@/lib/development/secFormDevDashboard";
 import styles from "./sec-development.module.css";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "SEC Debug Console | Stock Radar",
+  robots: { follow: false, index: false },
+};
 
 export default async function SecDevelopmentPage() {
   if (process.env.NODE_ENV === "production") notFound();
