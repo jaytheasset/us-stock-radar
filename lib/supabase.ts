@@ -118,6 +118,28 @@ export async function fetchEventById(id: string) {
   };
 }
 
+export async function fetchLatestEventByAccession(accessionNumber: string) {
+  const accession = accessionNumber.trim();
+  if (!accession) {
+    return { ok: false, status: 0, data: null, error: "Accession number is missing" };
+  }
+
+  const result = await supabaseRest("events", {
+    select: "*",
+    "metadata->>accession_number": `eq.${accession}`,
+    order: "detected_at.desc",
+    limit: "1",
+  });
+  const data = Array.isArray(result.data) ? result.data[0] || null : null;
+
+  return {
+    ok: result.ok && Boolean(data),
+    status: result.status,
+    data,
+    error: result.error,
+  };
+}
+
 export async function fetchEventAnalysis(eventId: string) {
   const result = await supabaseRest("event_analysis", {
     select: "*",
