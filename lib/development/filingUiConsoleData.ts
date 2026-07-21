@@ -55,7 +55,7 @@ const V2_FAMILY_MAP: Readonly<Record<string, string>> = {
   ownership: "ownership",
   tender: "tender",
   nt: "nt",
-  "other-specialized": "generic",
+  s8: "s8",
 };
 
 export async function getFilingUiConsoleEntries(): Promise<FilingUiConsoleEntry[]> {
