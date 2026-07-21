@@ -110,7 +110,7 @@ export function FilingUiConsoleClient({ entries, families, initialFamilyId = "" 
             <span>{visibleEntries.length} results</span>
           </div>
 
-          <div className={styles.entryList}>
+          <div className={styles.entryList} key={activeFamily?.id}>
             {visibleEntries.map((entry) => (
               <article className={styles.entry} key={entry.eventId}>
                 <div className={styles.entryTitle}>
