@@ -26,6 +26,7 @@ export function SecDevelopmentClient({
   const searchParams = useSearchParams();
   const requestedRoom = searchParams.get("room") || "";
   const requestedTab = searchParams.get("tab") || "";
+  const requestedFilingUiFamily = searchParams.get("family") || "";
   const initialRoom = initialRooms.some((room) => room.key === requestedRoom) ? requestedRoom : initialRooms[0]?.key || "";
   const initialTab = isTabKey(requestedTab) ? requestedTab : "overview";
   const [rooms, setRooms] = useState(initialRooms);
@@ -549,7 +550,11 @@ export function SecDevelopmentClient({
         </nav>
 
         {tab === "filing-ui" ? (
-          <FilingUiConsoleClient entries={initialFilingUiEntries} families={filingUiConsoleFamilies} />
+          <FilingUiConsoleClient
+            entries={initialFilingUiEntries}
+            families={filingUiConsoleFamilies}
+            initialFamilyId={requestedFilingUiFamily}
+          />
         ) : loading ? (
           <div className={styles.emptyState}>Loading room files...</div>
         ) : detail ? (

@@ -67,12 +67,6 @@ export const filingUiConsoleRegistrations: readonly FilingUiConsoleRegistration[
     notes: "Material transaction communication layout.",
   },
   {
-    eventId: "23a23683-3a58-48aa-bea3-74138521669a",
-    family: "proxy",
-    label: "RNAZ / Proxy vote",
-    notes: "Shareholder meeting and vote presentation.",
-  },
-  {
     eventId: "aeb233df-1633-4f08-9f17-5876a0905724",
     family: "nt",
     label: "APUS / NT 10-K",

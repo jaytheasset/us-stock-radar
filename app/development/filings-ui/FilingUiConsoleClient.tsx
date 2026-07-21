@@ -35,11 +35,15 @@ export type FilingUiConsoleContentContractItem = {
 type Props = {
   entries: FilingUiConsoleEntry[];
   families: readonly FilingUiConsoleFamily[];
+  initialFamilyId?: string;
 };
 
-export function FilingUiConsoleClient({ entries, families }: Props) {
+export function FilingUiConsoleClient({ entries, families, initialFamilyId = "" }: Props) {
   const firstRegisteredFamilyId = families.find((family) => entries.some((entry) => entry.family === family.id))?.id;
-  const [familyId, setFamilyId] = useState(firstRegisteredFamilyId || families[0]?.id || "");
+  const requestedFamilyId = families.some((family) => family.id === initialFamilyId)
+    ? initialFamilyId
+    : "";
+  const [familyId, setFamilyId] = useState(requestedFamilyId || firstRegisteredFamilyId || families[0]?.id || "");
   const [query, setQuery] = useState("");
   const [preview, setPreview] = useState<{ route: string; mode: "desktop" | "mobile" } | null>(null);
   const normalizedQuery = query.trim().toLowerCase();
