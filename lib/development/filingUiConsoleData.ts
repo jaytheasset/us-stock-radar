@@ -64,7 +64,10 @@ export async function getFilingUiConsoleEntries(): Promise<FilingUiConsoleEntry[
     loadV2Entries(),
   ]);
 
-  return [...v2Entries, ...legacyEntries].sort(
+  const v2EventIds = new Set(v2Entries.map((entry) => entry.eventId));
+  const uniqueLegacyEntries = legacyEntries.filter((entry) => !v2EventIds.has(entry.eventId));
+
+  return [...v2Entries, ...uniqueLegacyEntries].sort(
     (left, right) => fixtureSortOrder(left) - fixtureSortOrder(right),
   );
 }
