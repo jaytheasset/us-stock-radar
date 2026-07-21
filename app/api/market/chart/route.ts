@@ -7,11 +7,11 @@ import {
   writeMarketBarCache,
   writeMarketQuoteCache,
 } from "@/lib/marketDataCache";
-import type { PricePoint, PriceRange } from "@/lib/marketTypes";
+import type { PriceChartRange as PriceRange, PricePoint } from "@/lib/marketTypes";
 
 export const dynamic = "force-dynamic";
 
-const priceRanges = ["1D", "5D", "1M", "3M", "1Y"] as const;
+const priceRanges = ["1D", "5D", "1M", "3M", "1Y", "5Y"] as const;
 
 type TimedChartPoint = PricePoint & {
   dateKey: string;
@@ -51,9 +51,9 @@ export async function GET(request: NextRequest) {
   const symbol = normalizeSymbol(request.nextUrl.searchParams.get("symbol") || "AAPL");
   const range = normalizeRange(request.nextUrl.searchParams.get("range"));
   const forceRefresh = request.nextUrl.searchParams.get("refresh") === "1";
-  const interval = chartIntervalForRange(range);
+  const interval = range === "5Y" ? "1day" : chartIntervalForRange(range) || "1day";
 
-  if (!forceRefresh) {
+  if (!forceRefresh && range !== "5Y") {
     const cachedChart = await readMarketBarCache(symbol, range, interval);
     if (cachedChart.hit && cachedChart.data) {
       return NextResponse.json({
@@ -83,22 +83,15 @@ export async function GET(request: NextRequest) {
     : await fetchFmpChart(symbol, range, env.fmpApiKey);
 
   if (!chartResult.ok || !chartResult.points.length) {
-    return NextResponse.json({
-      ok: false,
-      cache: forceRefresh ? "bypass" : "miss",
-      quoteCache: quote.cacheStatus,
-      symbol,
-      range,
-      interval,
-      provider: chartResult.provider,
-      providerLabel: chartResult.providerLabel,
-      previousClose: quote.previousClose,
-      latestPrice: quote.price,
-      changeAmount: quote.changeAmount,
-      changePercent: quote.changePercent,
-      points: [],
-      error: chartResult.error || polygonResult.error || "No chart data returned",
-    });
+    return NextResponse.json(
+      {
+        ok: false,
+        symbol,
+        range,
+        error: chartResult.error || polygonResult.error || "No chart data returned",
+      },
+      { status: 502 },
+    );
   }
 
   const latestPoint = chartResult.points[chartResult.points.length - 1];
@@ -129,23 +122,26 @@ export async function GET(request: NextRequest) {
     warning: polygonResult.ok ? undefined : polygonResult.error,
   };
 
-  const cacheWrite = await writeMarketBarCache({
-    changeAmount: responsePayload.changeAmount,
-    changePercent: responsePayload.changePercent,
-    interval,
-    latestPrice: responsePayload.latestPrice,
-    points: chartResult.points,
-    previousClose: responsePayload.previousClose,
-    provider: chartResult.provider,
-    providerLabel: chartResult.providerLabel,
-    range,
-    rawPayload: {
-      pointCount: chartResult.points.length,
-      quoteCache: quote.cacheStatus,
-      warning: responsePayload.warning,
-    },
-    symbol,
-  });
+  const cacheWrite =
+    range === "5Y"
+      ? { ok: false }
+      : await writeMarketBarCache({
+          changeAmount: responsePayload.changeAmount,
+          changePercent: responsePayload.changePercent,
+          interval,
+          latestPrice: responsePayload.latestPrice,
+          points: chartResult.points,
+          previousClose: responsePayload.previousClose,
+          provider: chartResult.provider,
+          providerLabel: chartResult.providerLabel,
+          range,
+          rawPayload: {
+            pointCount: chartResult.points.length,
+            quoteCache: quote.cacheStatus,
+            warning: responsePayload.warning,
+          },
+          symbol,
+        });
 
   return NextResponse.json({
     ...responsePayload,
@@ -278,7 +274,7 @@ async function fetchFmpChart(
       ? (result.data as { historical?: unknown }).historical
       : result.data;
   const normalized = asArray(rows)
-    .map(normalizeFmpPoint)
+    .map((row) => normalizeFmpPoint(row, range))
     .filter((point): point is TimedChartPoint => Boolean(point))
     .sort((a, b) => a.timestamp - b.timestamp)
     .slice(-config.pointLimit);
@@ -377,6 +373,8 @@ function polygonRangeConfig(range: PriceRange): PolygonRangeConfig {
       return { multiplier: 1, timespan: "day", calendarDays: 120, pointLimit: 66, label: "Polygon daily" };
     case "1Y":
       return { multiplier: 1, timespan: "day", calendarDays: 420, pointLimit: 252, label: "Polygon daily" };
+    case "5Y":
+      return { multiplier: 1, timespan: "day", calendarDays: 1900, pointLimit: 1260, label: "Polygon daily" };
   }
 }
 
@@ -391,6 +389,8 @@ function fmpRangeConfig(range: PriceRange) {
       return { calendarDays: 120, pointLimit: 66 };
     case "1Y":
       return { calendarDays: 420, pointLimit: 252 };
+    case "5Y":
+      return { calendarDays: 1900, pointLimit: 1260 };
   }
 }
 
@@ -429,7 +429,7 @@ function normalizePolygonPoint(value: unknown, range: PriceRange, config: Polygo
   };
 }
 
-function normalizeFmpPoint(value: unknown): TimedChartPoint | null {
+function normalizeFmpPoint(value: unknown, range: PriceRange): TimedChartPoint | null {
   if (!value || typeof value !== "object") return null;
 
   const item = value as Record<string, unknown>;
@@ -458,7 +458,7 @@ function normalizeFmpPoint(value: unknown): TimedChartPoint | null {
     high,
     low,
     open,
-    time: formatDateLabel(date),
+    time: formatDateLabel(date, range),
     timestamp,
     volume: Number.isFinite(volume) ? volume : 0,
     vwap: typicalPrice(high, low, close),
@@ -570,7 +570,7 @@ function formatEtDate(timestamp: number, range: PriceRange) {
   return new Intl.DateTimeFormat("en-US", {
     day: "numeric",
     month: "short",
-    year: range === "1Y" ? "numeric" : undefined,
+    year: range === "1Y" || range === "5Y" ? "numeric" : undefined,
     timeZone: "America/New_York",
   }).format(new Date(timestamp));
 }
@@ -595,13 +595,14 @@ function formatPolygonPointTime(
   return formatEtDate(timestamp, range);
 }
 
-function formatDateLabel(date: string) {
+function formatDateLabel(date: string, range: PriceRange) {
   const timestamp = Date.parse(`${date}T12:00:00Z`);
   if (!Number.isFinite(timestamp)) return date;
 
   return new Intl.DateTimeFormat("en-US", {
     day: "numeric",
     month: "short",
+    year: range === "1Y" || range === "5Y" ? "numeric" : undefined,
     timeZone: "UTC",
   }).format(new Date(timestamp));
 }

@@ -1,0 +1,98 @@
+.panel {
+  min-width: 0;
+  overflow: hidden;
+  border: var(--sr-border-width) solid var(--sr-color-divider);
+  border-radius: var(--sr-radius-control);
+  background: var(--sr-color-surface-table-panel);
+  box-shadow: var(--sr-shadow-panel);
+}
+
+.heading {
+  display: flex;
+  min-height: 54px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sr-space-4);
+  border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
+  padding: var(--sr-space-4) var(--sr-space-5);
+}
+
+.heading h2,
+.changeHeading strong {
+  margin: 0;
+  color: var(--sr-color-text-heading);
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-strong);
+  line-height: var(--sr-line-height-default);
+}
+
+.heading > span {
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  line-height: var(--sr-line-height-default);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list > li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: var(--sr-space-3);
+  padding: var(--sr-space-4) var(--sr-space-5);
+}
+
+.list > li + li {
+  border-top: var(--sr-border-width) solid var(--sr-color-divider);
+}
+
+.index {
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-semibold);
+  line-height: var(--sr-line-height-default);
+}
+
+.change {
+  display: grid;
+  min-width: 0;
+  gap: var(--sr-space-2);
+}
+
+.changeHeading {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--sr-space-2);
+}
+
+.changeHeading span {
+  color: var(--sr-color-accent-text);
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-medium);
+  line-height: var(--sr-line-height-default);
+}
+
+.changeHeading span::before {
+  margin-right: var(--sr-space-2);
+  color: var(--sr-color-text-meta);
+  content: "\00b7";
+}
+
+.change p {
+  margin: 0;
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-sm);
+  line-height: var(--sr-line-height-default);
+}
+
+@media (max-width: 700px) {
+  .heading,
+  .list > li {
+    padding-inline: var(--sr-space-4);
+  }
+}

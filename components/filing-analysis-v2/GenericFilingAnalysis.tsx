@@ -4,6 +4,7 @@ import { ExternalLink, TrendingDown, TrendingUp } from "lucide-react";
 import { MarketTickerLogo } from "@/components/market/MarketTickerLogo";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { isRealTicker, type DetailTone } from "@/app/events/[id]/detailTypes";
+import { getEventTypeBadge, type EventTypeBadgeTone } from "@/lib/eventTypeRegistry";
 import { FilingBookmarkButton } from "./FilingBookmarkButton";
 import { FilingInlineAdSlot } from "./FilingInlineAdSlot";
 import { FilingRailAdSlot } from "./FilingRailAdSlot";
@@ -22,6 +23,7 @@ type GenericFilingRecentItem = {
 type GenericFilingRelatedNewsItem = {
   age: string;
   eventId?: string;
+  eventType?: string;
   source: string;
   sourceUrl?: string;
   title: string;
@@ -53,6 +55,7 @@ export type GenericFilingAnalysisData = {
 };
 
 type GenericFilingAnalysisProps = {
+  bodyRenderer?: ReactNode;
   contextRenderer?: ReactNode;
   detailRenderer?: ReactNode;
   eventLabel: string;
@@ -61,9 +64,11 @@ type GenericFilingAnalysisProps = {
   filing: GenericFilingAnalysisData;
   originalRenderer?: ReactNode;
   priceRenderer?: ReactNode;
+  summaryAsideRenderer?: ReactNode;
 };
 
 export function GenericFilingAnalysis({
+  bodyRenderer,
   contextRenderer,
   detailRenderer,
   eventLabel,
@@ -72,6 +77,7 @@ export function GenericFilingAnalysis({
   filing,
   originalRenderer,
   priceRenderer,
+  summaryAsideRenderer,
 }: GenericFilingAnalysisProps) {
   const filingBrief = cleanText(filing.filingBrief);
   const whyItMatters = cleanText(filing.whyItMatters);
@@ -82,7 +88,8 @@ export function GenericFilingAnalysis({
     summary && normalizeCopy(summary) !== normalizeCopy(primaryAnalysis),
   );
   const hasDetailRenderer = Boolean(detailRenderer);
-  const showInlineSummary = showSummary && !hasDetailRenderer;
+  const hasSummaryAsideRenderer = Boolean(summaryAsideRenderer);
+  const showInlineSummary = showSummary && !hasDetailRenderer && !hasSummaryAsideRenderer;
   const bullishPoints = compactItems(filing.bullishPoints);
   const bearishPoints = compactItems(filing.bearishPoints);
   const keyEvidence = compactItems(filing.keyEvidence);
@@ -203,7 +210,8 @@ export function GenericFilingAnalysis({
                       </section>
                     ) : null}
                     {useNoChartDetailSplit ? null : detailRenderer}
-                    {showInlineSummary || (useNoChartDetailSplit && showSummary) ? (
+                    {showInlineSummary ||
+                    (useNoChartDetailSplit && showSummary && !hasSummaryAsideRenderer) ? (
                       <section className={`${styles.card} ${styles.analysisCopyCard}`}>
                         <SectionLabel>Summary</SectionLabel>
                         <p>{summary}</p>
@@ -214,7 +222,21 @@ export function GenericFilingAnalysis({
               </div>
             ) : null}
 
-            {hasDetailRenderer && showSummary && !useNoChartDetailSplit ? (
+            {hasSummaryAsideRenderer ? (
+              <div
+                className={`${styles.summaryCompanionGrid}${
+                  showSummary ? "" : ` ${styles.summaryCompanionGridSingle}`
+                }`}
+              >
+                {showSummary ? (
+                  <section className={`${styles.card} ${styles.analysisCopyCard}`}>
+                    <SectionLabel>Summary</SectionLabel>
+                    <p>{summary}</p>
+                  </section>
+                ) : null}
+                <div className={styles.summaryCompanion}>{summaryAsideRenderer}</div>
+              </div>
+            ) : hasDetailRenderer && showSummary && !useNoChartDetailSplit ? (
               <section className={`${styles.card} ${styles.analysisCopyCard}`}>
                 <SectionLabel>Summary</SectionLabel>
                 <p>{summary}</p>
@@ -228,6 +250,8 @@ export function GenericFilingAnalysis({
               score={filing.score}
               signal={filing.signal}
             />
+
+            {bodyRenderer ? <div className={styles.specializedBody}>{bodyRenderer}</div> : null}
 
             {bullishPoints.length || bearishPoints.length ? (
               <div className={styles.caseGrid}>
@@ -379,10 +403,19 @@ export function GenericFilingAnalysis({
 
 function RelatedNewsItem({ story }: { story: GenericFilingRelatedNewsItem }) {
   const eventId = cleanText(story.eventId);
+  const eventType = cleanText(story.eventType);
+  const eventBadge = eventType ? getEventTypeBadge(eventType) : null;
   const sourceUrl = cleanText(story.sourceUrl);
   const content = (
     <>
-      <strong>{story.title}</strong>
+      <div className={styles.newsTitleRow}>
+        {eventBadge ? (
+          <Badge size="micro" tone={toNewsBadgeTone(eventBadge.tone)}>
+            {eventBadge.label}
+          </Badge>
+        ) : null}
+        <strong>{story.title}</strong>
+      </div>
       {[story.source, story.age].filter(Boolean).length ? (
         <span>{[story.source, story.age].filter(Boolean).join(" \u00b7 ")}</span>
       ) : null}
@@ -411,6 +444,15 @@ function RelatedNewsItem({ story }: { story: GenericFilingRelatedNewsItem }) {
   }
 
   return <div className={styles.newsListItem}>{content}</div>;
+}
+
+function toNewsBadgeTone(tone: EventTypeBadgeTone): BadgeTone {
+  if (tone === "earnings") return "earnings";
+  if (tone === "risk" || tone === "dilution") return "legal";
+  if (tone === "deal") return "transaction";
+  if (tone === "clinical" || tone === "market") return "product";
+  if (tone === "regulatory") return "insider";
+  return "neutral";
 }
 
 function AnalysisList({

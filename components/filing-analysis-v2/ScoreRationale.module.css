@@ -53,7 +53,7 @@
 .headingRow h2 {
   margin: 0;
   color: var(--sr-color-text-heading);
-  font-size: var(--sr-font-size-md);
+  font-size: var(--sr-font-size-base);
   font-weight: var(--sr-font-weight-strong);
   line-height: var(--sr-line-height-none);
 }
@@ -104,6 +104,21 @@
 .neutral,
 .low {
   color: var(--sr-color-text-muted);
+}
+
+:global([data-sr-theme="light"]) .signal.bullish {
+  border-color: color-mix(in srgb, var(--sr-color-positive) 34%, transparent);
+  background: color-mix(in srgb, var(--sr-color-positive) 9%, white);
+}
+
+:global([data-sr-theme="light"]) .signal.bearish {
+  border-color: color-mix(in srgb, var(--sr-color-negative) 34%, transparent);
+  background: color-mix(in srgb, var(--sr-color-negative) 8%, white);
+}
+
+:global([data-sr-theme="light"]) .signal.volatile {
+  border-color: color-mix(in srgb, var(--sr-color-warning) 34%, transparent);
+  background: color-mix(in srgb, var(--sr-color-warning) 9%, white);
 }
 
 @media (max-width: 760px) {

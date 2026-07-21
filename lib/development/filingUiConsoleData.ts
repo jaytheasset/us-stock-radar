@@ -2,43 +2,12 @@ import type {
   FilingUiConsoleContentContractItem,
   FilingUiConsoleEntry,
 } from "@/app/development/filings-ui/FilingUiConsoleClient";
-import { filingUiConsoleRegistrations } from "@/lib/development/filingUiConsoleRegistry";
-import { fetchEventById, fetchLatestEventByAccession } from "@/lib/supabase";
-
-type V2Fixture = {
-  company: string;
-  deliveryLevel: string;
-  eventType: string;
-  family: string;
-  fixtureKind: "Actual DB" | "Fixture";
-  formType: string;
-  label: string;
-  notes: string;
-  route: string;
-  score: number | null;
-  signal: string;
-  status: "Broken" | "Missing" | "Ready";
-  ticker: string;
-};
-
-type V2Family = {
-  contentContract?: FilingUiConsoleContentContractItem[];
-  id: string;
-};
-
-type V2ActualDbRegistration = {
-  accessionNumber: string;
-  family: string;
-  label?: string;
-  notes?: string;
-};
-
-type V2RegistryManifest = {
-  actualDbRegistrations: V2ActualDbRegistration[];
-  families?: V2Family[];
-  fixtures: V2Fixture[];
-  version: number;
-};
+import {
+  actualDbFilingRegistrations,
+  filingUiFamilies,
+  registeredFilingUiFixtures,
+} from "@/lib/development/filingUiRegistry";
+import { fetchLatestEventByAccession } from "@/lib/supabase";
 
 const V2_FAMILY_MAP: Readonly<Record<string, string>> = {
   generic: "generic",
@@ -59,60 +28,14 @@ const V2_FAMILY_MAP: Readonly<Record<string, string>> = {
 };
 
 export async function getFilingUiConsoleEntries(): Promise<FilingUiConsoleEntry[]> {
-  const [legacyEntries, v2Entries] = await Promise.all([
-    loadLegacyEntries(),
-    loadV2Entries(),
-  ]);
-
-  const v2EventIds = new Set(v2Entries.map((entry) => entry.eventId));
-  const uniqueLegacyEntries = legacyEntries.filter((entry) => !v2EventIds.has(entry.eventId));
-
-  return [...v2Entries, ...uniqueLegacyEntries].sort(
-    (left, right) => fixtureSortOrder(left) - fixtureSortOrder(right),
-  );
-}
-
-async function loadLegacyEntries() {
-  return Promise.all(
-    filingUiConsoleRegistrations.map(async (registration) => {
-      const result = await fetchEventById(registration.eventId);
-      const row = asRecord(result.data);
-      const metadata = asRecord(row?.metadata);
-
-      return {
-        company:
-          readString(row, ["company", "company_name", "issuer"]) ||
-          readString(metadata, ["issuer", "company"]),
-        delivery: readString(row, ["delivery_level"]),
-        eventId: registration.eventId,
-        eventType: readString(row, ["event_type"]),
-        family: registration.family,
-        fixtureKind: "Actual DB",
-        formType:
-          readString(row, ["form_type", "form"]) ||
-          readString(metadata, ["form_type", "formType"]),
-        label: registration.label,
-        notes: registration.notes,
-        route: registration.route || `/filings/${registration.eventId}`,
-        score: readNumber(row, ["score"]),
-        signal: readString(row, ["signal"]),
-        status: row ? "Ready" : result.status === 200 ? "Missing" : "Broken",
-        ticker: readString(row, ["ticker", "symbol"]),
-        contentContract: [],
-      } satisfies FilingUiConsoleEntry;
-    }),
-  );
-}
-
-async function loadV2Entries(): Promise<FilingUiConsoleEntry[]> {
-  const origin = readV2Origin();
-  const manifest = await fetchV2Manifest(origin);
-  if (!manifest) return [];
   const contractByFamily = new Map(
-    (manifest.families || []).map((family) => [family.id, family.contentContract || []]),
+    filingUiFamilies.map((family) => [
+      family.id,
+      [...family.contentContract] satisfies FilingUiConsoleContentContractItem[],
+    ]),
   );
 
-  const fixtureEntries = manifest.fixtures.map((fixture) => ({
+  const fixtureEntries = registeredFilingUiFixtures.map((fixture) => ({
     company: fixture.company,
     delivery: fixture.deliveryLevel,
     eventId: fixture.route.replace(/^.*\/filings\//, "") || fixture.label,
@@ -122,7 +45,7 @@ async function loadV2Entries(): Promise<FilingUiConsoleEntry[]> {
     formType: fixture.formType,
     label: fixture.label,
     notes: fixture.notes,
-    route: toV2Route(origin, fixture.route),
+    route: fixture.route,
     score: fixture.score,
     signal: fixture.signal,
     status: fixture.status,
@@ -131,7 +54,7 @@ async function loadV2Entries(): Promise<FilingUiConsoleEntry[]> {
   } satisfies FilingUiConsoleEntry));
 
   const actualEntries = await Promise.all(
-    manifest.actualDbRegistrations.map(async (registration) => {
+    actualDbFilingRegistrations.map(async (registration) => {
       const result = await fetchLatestEventByAccession(registration.accessionNumber);
       const row = asRecord(result.data);
       const metadata = asRecord(row?.metadata);
@@ -153,7 +76,7 @@ async function loadV2Entries(): Promise<FilingUiConsoleEntry[]> {
         notes:
           registration.notes ||
           `Resolved from accession ${registration.accessionNumber} at request time.`,
-        route: eventId ? `${origin}/filings/${eventId}` : origin,
+        route: eventId ? `/filings/${eventId}` : "/filings",
         score: readNumber(row, ["score"]),
         signal: readString(row, ["signal"]),
         status: row ? "Ready" : result.status === 200 ? "Missing" : "Broken",
@@ -164,39 +87,6 @@ async function loadV2Entries(): Promise<FilingUiConsoleEntry[]> {
   );
 
   return [...fixtureEntries, ...actualEntries];
-}
-
-async function fetchV2Manifest(origin: string): Promise<V2RegistryManifest | null> {
-  try {
-    const response = await fetch(`${origin}/api/development/filing-ui-registry`, {
-      cache: "no-store",
-      signal: AbortSignal.timeout(5_000),
-    });
-    if (!response.ok) return null;
-
-    const value = await response.json();
-    const record = asRecord(value);
-    if (
-      !record ||
-      !Array.isArray(record.fixtures) ||
-      !Array.isArray(record.actualDbRegistrations)
-    ) {
-      return null;
-    }
-
-    return value as V2RegistryManifest;
-  } catch {
-    return null;
-  }
-}
-
-function readV2Origin() {
-  return (process.env.FILING_UI_V2_ORIGIN || "http://127.0.0.1:3700").replace(/\/$/, "");
-}
-
-function toV2Route(origin: string, route: string) {
-  if (/^https?:\/\//i.test(route)) return route;
-  return `${origin}${route.startsWith("/") ? route : `/${route}`}`;
 }
 
 function mapV2Family(family: string) {

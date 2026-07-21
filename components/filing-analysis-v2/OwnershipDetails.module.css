@@ -1,0 +1,196 @@
+.stack {
+  display: grid;
+  min-width: 0;
+  gap: var(--sr-space-5);
+}
+
+.panel {
+  min-width: 0;
+  overflow: hidden;
+  border: var(--sr-border-width) solid var(--sr-color-divider);
+  border-radius: var(--sr-radius-control);
+  background: var(--sr-color-surface-table-panel);
+  box-shadow: var(--sr-shadow-panel);
+}
+
+.heading {
+  display: flex;
+  min-height: 54px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sr-space-4);
+  border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
+  padding: var(--sr-space-4) var(--sr-space-5);
+}
+
+.heading h2 {
+  margin: 0;
+  color: var(--sr-color-text-heading);
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-strong);
+  line-height: var(--sr-line-height-default);
+}
+
+.heading span {
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  line-height: var(--sr-line-height-default);
+  text-transform: uppercase;
+}
+
+.tableWrap {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  min-width: 920px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.table th,
+.table td {
+  border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
+  padding: var(--sr-space-4);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table th {
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  text-transform: uppercase;
+}
+
+.table td {
+  overflow-wrap: anywhere;
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-sm);
+  line-height: var(--sr-line-height-default);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table td strong {
+  display: block;
+  color: var(--sr-color-text-heading);
+  font-weight: var(--sr-font-weight-strong);
+}
+
+.code,
+.plan {
+  display: inline-block;
+  margin-top: var(--sr-space-1);
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+}
+
+.code + .plan::before {
+  margin-inline: var(--sr-space-1);
+  content: "\00b7";
+}
+
+.rows {
+  margin: 0;
+  padding: 0 var(--sr-space-5);
+}
+
+.rows > div {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(150px, 28%) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sr-space-5);
+  padding-block: var(--sr-space-4);
+}
+
+.rows > div + div {
+  border-top: var(--sr-border-width) solid var(--sr-color-divider);
+}
+
+.rows dt {
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  line-height: var(--sr-line-height-default);
+  text-transform: uppercase;
+}
+
+.rows dd {
+  display: grid;
+  min-width: 0;
+  gap: var(--sr-space-1);
+  margin: 0;
+}
+
+.rows strong {
+  overflow-wrap: anywhere;
+  color: var(--sr-color-text-heading);
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-medium);
+  line-height: var(--sr-line-height-default);
+}
+
+.rows dd span {
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-sm);
+  line-height: var(--sr-line-height-default);
+}
+
+@media (max-width: 760px) {
+  .heading,
+  .rows {
+    padding-inline: var(--sr-space-4);
+  }
+
+  .tableWrap {
+    overflow: visible;
+  }
+
+  .table,
+  .table tbody,
+  .table tr,
+  .table td {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .table thead {
+    display: none;
+  }
+
+  .table tr {
+    padding: var(--sr-space-3) var(--sr-space-4);
+  }
+
+  .table tr + tr {
+    border-top: var(--sr-border-width) solid var(--sr-color-divider);
+  }
+
+  .table td {
+    display: grid;
+    grid-template-columns: 112px minmax(0, 1fr);
+    gap: var(--sr-space-3);
+    border: 0;
+    padding: var(--sr-space-2) 0;
+  }
+
+  .table td::before {
+    color: var(--sr-color-text-meta);
+    content: attr(data-label);
+    font-size: var(--sr-font-size-xs);
+    font-weight: var(--sr-font-weight-semibold);
+    text-transform: uppercase;
+  }
+
+  .rows > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sr-space-2);
+  }
+}

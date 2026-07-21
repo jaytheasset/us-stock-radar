@@ -1,11 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { ContextRange, DetailTone, SectorThemeContext, TopMover } from "./detailTypes";
+import {
+  isRealTicker,
+  type ContextRange,
+  type DetailTone,
+  type SectorThemeContext,
+  type TopMover,
+} from "./detailTypes";
 import type { PricePoint, PriceRange } from "@/lib/marketTypes";
 
 const contextRanges: ContextRange[] = ["1D", "5D", "30D"];
-const MARKET_CONTEXT_DATA_DISCLAIMER = "Market data is latest available, not necessarily as of the filing date.";
 
 type ChartApiResponse = {
   ok: boolean;
@@ -40,55 +45,87 @@ export function SectorThemeContextPanel({
   const [range, setRange] = useState<ContextRange>("1D");
   const period = context.periods[range];
   const [liveMovers, setLiveMovers] = useState<Record<string, LiveMover>>({});
-  const [marketDataStatus, setMarketDataStatus] = useState<"loading" | "ready" | "fallback">("loading");
-  const symbols = useMemo(() => period.topMovers.map((mover) => mover.symbol), [period.topMovers]);
-  const contextTitle = context.contextTitle || (isRealTicker(ticker) ? ticker : "") || context.subTheme || context.themeGroup || context.industry || context.sector || "Market";
-  const moverGroupName = context.moverGroupName || context.subTheme || context.industry || context.sector || "Market";
+  const [marketDataStatus, setMarketDataStatus] = useState<"loading" | "ready" | "unavailable">("loading");
+  const visibleMovers = useMemo(
+    () => period.topMovers.filter((mover) => isRealTicker(mover.symbol)).slice(0, 6),
+    [period.topMovers],
+  );
+  const symbols = useMemo(() => visibleMovers.map((mover) => mover.symbol), [visibleMovers]);
+  const displayedMovers = visibleMovers.filter(
+    (mover) => Boolean(liveMovers[mover.symbol]) || hasStoredMoverData(mover),
+  );
+  const contextTitle =
+    context.contextTitle ||
+    (isRealTicker(ticker) ? ticker : "") ||
+    context.subTheme ||
+    context.themeGroup ||
+    context.industry ||
+    context.sector ||
+    "";
+  const moverGroupName = context.moverGroupName || context.subTheme || context.industry || context.sector || "";
   const moverHeading = getMoverHeading(context.moverMode, moverGroupName, range);
-  const hasThemeContext = Boolean(context.themeGroup || context.subTheme);
   const metrics = [
     { label: "Sector", name: context.sector, value: period.sectorChange },
     { label: "Industry", name: context.industry, value: period.industryChange },
-    context.marketCap ? { label: "Market Cap", name: context.marketCap } : null,
-    context.sharesOutstanding ? { label: "Shares Outstanding", name: context.sharesOutstanding } : null,
-    context.publicFloat ? { label: "Public Float", name: context.publicFloat } : null,
-    context.floatPercent ? { label: "Public Float %", name: context.floatPercent } : null,
-    hasThemeContext && context.themeGroup
+    context.themeGroup
       ? { label: "Theme", name: context.themeGroup, value: period.themeChange }
       : null,
-    hasThemeContext && context.subTheme
-      ? { label: "Sub Theme", name: context.subTheme, value: period.subThemeChange }
+    context.subTheme
+      ? { label: "Sub-theme", name: context.subTheme, value: period.subThemeChange }
+      : null,
+    context.marketCap ? { label: "Market Cap", name: context.marketCap } : null,
+    context.sharesOutstanding
+      ? { label: "Shares Outstanding", name: context.sharesOutstanding }
+      : null,
+    context.publicFloat ? { label: "Public Float", name: context.publicFloat } : null,
+    context.publicFloatPercent || context.floatPercent
+      ? {
+          label: "Public Float %",
+          name: formatPublicFloatPercent(context.publicFloatPercent || context.floatPercent || ""),
+        }
       : null,
   ].filter((metric): metric is ContextMetricItem => Boolean(metric && metric.name));
+  const hasRangeData = Object.values(context.periods).some(
+    (item) =>
+      Boolean(item.sectorChange || item.industryChange || item.themeChange || item.subThemeChange) ||
+      item.topMovers.some((mover) => isRealTicker(mover.symbol)),
+  );
 
   useEffect(() => {
     const controller = new AbortController();
     const apiRange = chartRangeForContext(range);
 
+    if (!symbols.length) {
+      setLiveMovers({});
+      setMarketDataStatus("unavailable");
+      return () => controller.abort();
+    }
+
     async function loadMovers() {
+      setLiveMovers({});
       setMarketDataStatus("loading");
 
-      try {
-        const responses = await Promise.all(
-          symbols.map(async (symbol) => {
-            const data = await fetchMoverChartData(symbol, apiRange, controller.signal);
-            if (!data) {
-              return null;
+      const results = await Promise.allSettled(
+        symbols.map(async (symbol) => {
+            const response = await fetch(`/api/market/chart?symbol=${encodeURIComponent(symbol)}&range=${apiRange}`, {
+              cache: "no-store",
+              signal: controller.signal,
+            });
+            const data = (await response.json()) as ChartApiResponse;
+            if (!response.ok || !data.ok || !data.points?.length) {
+              throw new Error(`Market data failed for ${symbol}`);
             }
 
             return [symbol, toLiveMover(data)] as const;
           }),
-        );
-        if (controller.signal.aborted) return;
+      );
 
-        const liveEntries = responses.filter((item): item is readonly [string, LiveMover] => Boolean(item));
-        setLiveMovers(Object.fromEntries(liveEntries));
-        setMarketDataStatus(liveEntries.length ? "ready" : "fallback");
-      } catch {
-        if (controller.signal.aborted) return;
-        setLiveMovers({});
-        setMarketDataStatus("fallback");
-      }
+      if (controller.signal.aborted) return;
+      const responses = results.flatMap((result) =>
+        result.status === "fulfilled" ? [result.value] : [],
+      );
+      setLiveMovers(Object.fromEntries(responses));
+      setMarketDataStatus(responses.length ? "ready" : "unavailable");
     }
 
     loadMovers();
@@ -98,44 +135,49 @@ export function SectorThemeContextPanel({
   return (
     <section className="stock-detail-card sector-theme-main-card">
       <div className="card-heading-row context-heading-row">
-        <div>
-          <h2>{contextTitle} Market Context</h2>
-          <p className="market-context-data-disclaimer">{MARKET_CONTEXT_DATA_DISCLAIMER}</p>
-        </div>
-        <div className="context-range-control" aria-label="Context range">
-          {contextRanges.map((item) => (
-            <button
-              aria-pressed={range === item}
-              className={range === item ? "active" : ""}
-              key={item}
-              onClick={() => setRange(item)}
-              type="button"
-            >
-              {item}
-            </button>
+        <h2>{contextTitle ? `${contextTitle} Market Context` : "Market Context"}</h2>
+        {hasRangeData ? (
+          <div className="context-range-control" aria-label="Context range">
+            {contextRanges.map((item) => (
+              <button
+                aria-pressed={range === item}
+                className={range === item ? "active" : ""}
+                key={item}
+                onClick={() => setRange(item)}
+                type="button"
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      {metrics.length ? (
+        <div className="context-main-grid">
+          {metrics.map((metric) => (
+            <ContextMetric key={metric.label} {...metric} />
           ))}
         </div>
-      </div>
-      <div className="context-main-grid">
-        {metrics.map((metric) => (
-          <ContextMetric key={metric.label} {...metric} />
-        ))}
-      </div>
-      <div className="context-movers main">
-        <div className="context-movers-heading">
-          <span>{moverHeading}</span>
-          <em>{marketDataStatus === "ready" ? "Live market data" : marketDataStatus === "loading" ? "Updating" : "Fallback"}</em>
-        </div>
-        <div className="context-mover-list">
-          {period.topMovers.length ? (
-            period.topMovers.map((mover) => (
+      ) : null}
+      {displayedMovers.length ? (
+        <div className="context-movers main">
+          <div className="context-movers-heading">
+            <span>{moverHeading}</span>
+            <em>
+              {marketDataStatus === "ready"
+                ? "Live market data"
+                : marketDataStatus === "loading"
+                  ? "Updating"
+                  : "Stored market data"}
+            </em>
+          </div>
+          <div className="context-mover-list">
+            {displayedMovers.map((mover) => (
               <TopMoverTile key={mover.symbol} live={liveMovers[mover.symbol]} mover={mover} />
-            ))
-          ) : (
-            <p className="context-empty-state">Market mover data is not available yet.</p>
-          )}
+            ))}
+          </div>
         </div>
-      </div>
+      ) : null}
     </section>
   );
 }
@@ -161,8 +203,9 @@ function ContextMetric({
 }
 
 function TopMoverTile({ live, mover }: { live?: LiveMover; mover: TopMover }) {
-  const change = mover.change;
-  const values = live?.values && live.values.length >= 3 ? live.values : mover.trend;
+  const change = live?.change || mover.change || "";
+  const values = live?.values || mover.trend || [];
+  if (!change || !values.length) return null;
   const tone = getChangeTone(change);
 
   return (
@@ -176,44 +219,9 @@ function TopMoverTile({ live, mover }: { live?: LiveMover; mover: TopMover }) {
   );
 }
 
-async function fetchMoverChartData(
-  symbol: string,
-  range: PriceRange,
-  signal: AbortSignal,
-): Promise<ChartApiResponse | null> {
-  const primary = await fetchMoverChartRange(symbol, range, signal);
-  if (primary?.points && primary.points.length >= 3) {
-    return primary;
-  }
-
-  if (range === "1D") {
-    const fallback = await fetchMoverChartRange(symbol, "5D", signal);
-    if (fallback?.points && fallback.points.length >= 3) {
-      return fallback;
-    }
-  }
-
-  return null;
-}
-
-async function fetchMoverChartRange(
-  symbol: string,
-  range: PriceRange,
-  signal: AbortSignal,
-): Promise<ChartApiResponse | null> {
-  const response = await fetch(`/api/market/chart?symbol=${encodeURIComponent(symbol)}&range=${range}`, {
-    cache: "no-store",
-    signal,
-  });
-  const data = (await response.json()) as ChartApiResponse;
-  if (!response.ok || !data.ok || !data.points?.length) {
-    return null;
-  }
-  return data;
-}
-
 function TopMoverSparkline({ values, tone }: { values: number[]; tone: DetailTone }) {
-  const points = values.length ? values : [24, 26, 25, 28, 31, 30, 34, 36];
+  if (!values.length) return null;
+  const points = values;
   const min = Math.min(...points);
   const max = Math.max(...points);
   const range = max - min || 1;
@@ -251,18 +259,26 @@ function getMoverHeading(
   range: ContextRange,
 ) {
   if (mode === "related") {
-    return `Related Tickers in ${groupName} / ${range}`;
+    return groupName ? `Related Tickers in ${groupName} / ${range}` : `Related Tickers / ${range}`;
   }
 
   if (mode === "market_top_movers") {
-    return `Top Movers / Losers Today / ${range}`;
+    return `Top Movers Today / ${range}`;
   }
 
-  return `Top Movers / Losers in ${groupName} / ${range}`;
+  return groupName ? `Top Movers in ${groupName} / ${range}` : `Top Movers / ${range}`;
 }
 
-function isRealTicker(value: string) {
-  return Boolean(value && value !== "N/A" && value !== "NA" && /^[A-Z][A-Z0-9.-]{0,9}$/.test(value));
+function formatPublicFloatPercent(value: string) {
+  const normalized = value.trim().replace(/,/g, "").replace(/%$/, "").trim();
+  if (!/^[-+]?\d+(?:\.\d+)?$/.test(normalized)) return value.trim();
+
+  const percentage = Number(normalized);
+  return Number.isFinite(percentage) ? `${percentage.toFixed(1)}%` : value.trim();
+}
+
+function hasStoredMoverData(mover: TopMover) {
+  return Boolean(mover.change && mover.trend?.length);
 }
 
 function toLiveMover(data: ChartApiResponse): LiveMover {

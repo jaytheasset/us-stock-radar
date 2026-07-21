@@ -10,6 +10,15 @@
   cursor: pointer;
 }
 
+:global([data-sr-theme="light"]) .button {
+  color: #f4c542;
+}
+
+:global([data-sr-theme="light"]) .button:hover,
+:global([data-sr-theme="light"]) .button[aria-pressed="true"] {
+  color: #f4c542;
+}
+
 .button:hover,
 .button[aria-pressed="true"] {
   color: var(--sr-color-warning);

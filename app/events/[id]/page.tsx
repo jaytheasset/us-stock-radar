@@ -2818,6 +2818,11 @@ function buildPriceSeries({
       spread: 5,
       volumeMultiplier: 1.55,
     },
+    "5Y": {
+      labels: ["2022", "2022", "2023", "2023", "2024", "2024", "2025", "2025", "2026", "2026", "2026", "Today"],
+      spread: 8,
+      volumeMultiplier: 1.75,
+    },
   };
 
   return {
@@ -2828,6 +2833,7 @@ function buildPriceSeries({
       "1M": makePricePoints(ranges["1M"], lastClose, previousClose, trend, volumeBase),
       "3M": makePricePoints(ranges["3M"], lastClose, previousClose, trend, volumeBase),
       "1Y": makePricePoints(ranges["1Y"], lastClose, previousClose, trend, volumeBase),
+      "5Y": makePricePoints(ranges["5Y"], lastClose, previousClose, trend, volumeBase),
     },
   };
 }

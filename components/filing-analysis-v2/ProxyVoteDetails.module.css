@@ -1,0 +1,178 @@
+.panel {
+  min-width: 0;
+  overflow: hidden;
+  border: var(--sr-border-width) solid var(--sr-color-divider);
+  border-radius: var(--sr-radius-control);
+  background: var(--sr-color-surface-table-panel);
+  box-shadow: var(--sr-shadow-panel);
+}
+
+.heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sr-space-4);
+  border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
+  padding: var(--sr-space-5);
+}
+
+.heading h2 {
+  margin: 0;
+  color: var(--sr-color-text-heading);
+  font-size: var(--sr-font-size-base);
+  font-weight: var(--sr-font-weight-strong);
+  line-height: var(--sr-line-height-none);
+}
+
+.heading > span,
+.meta,
+.detail dt {
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  line-height: var(--sr-line-height-default);
+  text-transform: uppercase;
+}
+
+.list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.proposal {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(260px, 0.86fr) minmax(0, 1.14fr);
+  align-items: start;
+  gap: var(--sr-space-6);
+  padding: var(--sr-space-5);
+}
+
+.proposal + .proposal {
+  border-top: var(--sr-border-width) solid var(--sr-color-divider);
+}
+
+.proposalCopy {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: var(--sr-space-3);
+}
+
+.index {
+  color: var(--sr-color-accent-text);
+  font-size: var(--sr-font-size-base);
+  font-variant-numeric: var(--sr-font-variant-numeric);
+  font-weight: var(--sr-font-weight-heavy);
+  line-height: var(--sr-line-height-default);
+}
+
+.copyBody {
+  display: grid;
+  min-width: 0;
+  gap: var(--sr-space-2);
+}
+
+.meta {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: var(--sr-space-2) var(--sr-space-3);
+}
+
+.meta span + span::before {
+  margin-right: var(--sr-space-3);
+  color: var(--sr-color-divider-strong);
+  content: "\00b7";
+}
+
+.copyBody h3,
+.copyBody p {
+  margin: 0;
+}
+
+.copyBody h3,
+.detail strong {
+  overflow-wrap: anywhere;
+  color: var(--sr-color-text-heading);
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-strong);
+  line-height: var(--sr-line-height-default);
+}
+
+.explanation {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--sr-space-2);
+  color: var(--sr-color-text-secondary);
+}
+
+.explanation svg {
+  margin-top: 2px;
+  color: var(--sr-color-text-meta);
+}
+
+.explanation p,
+.detail span {
+  overflow-wrap: anywhere;
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-sm);
+  line-height: var(--sr-line-height-default);
+}
+
+.details {
+  display: grid;
+  min-width: 0;
+  margin: 0;
+}
+
+.detail {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(128px, 0.55fr) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--sr-space-4);
+  padding-block: var(--sr-space-3);
+}
+
+.detail:first-child {
+  padding-top: 0;
+}
+
+.detail:last-child {
+  padding-bottom: 0;
+}
+
+.detail + .detail {
+  border-top: var(--sr-border-width) solid var(--sr-color-divider);
+}
+
+.detail dd {
+  display: grid;
+  min-width: 0;
+  gap: var(--sr-space-1);
+  margin: 0;
+}
+
+@media (max-width: 960px) {
+  .proposal {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .heading,
+  .proposal {
+    padding: var(--sr-space-4);
+  }
+
+  .detail {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sr-space-1);
+  }
+}

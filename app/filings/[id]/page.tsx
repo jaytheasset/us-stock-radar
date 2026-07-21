@@ -1,62 +1,115 @@
 ﻿import Link from "next/link";
-import { headers } from "next/headers";
-import { notFound, redirect } from "next/navigation";
-import type { ReactNode } from "react";
+import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+import { ExternalLink, TrendingDown, TrendingUp } from "lucide-react";
 import {
-  CalendarCheck,
-  ChartPie,
-  CircleCheck,
-  Clock3,
-  DollarSign,
-  ExternalLink,
-  FileText,
-  Info,
-  TriangleAlert,
-  TrendingDown,
-  TrendingUp,
-} from "lucide-react";
-import { getEventTypeBadge } from "@/lib/eventTypeRegistry";
-import { getServerEnv } from "@/lib/env";
-import { fetchFmpQuotes } from "@/lib/integrations";
+  getEventTypeBadge,
+  type EventTypeBadgeTone,
+} from "@/lib/eventTypeRegistry";
 import { getLiveEventDetail, type LiveFeedItem } from "@/lib/liveFeed";
-import { readMarketGroupSnapshotCache, type MarketGroupSnapshotPayload } from "@/lib/marketDataCache";
 import { fetchEventAnalysis, fetchEventById, fetchEventsByTicker, supabaseSelect } from "@/lib/supabase";
 import { PriceChartCard } from "@/app/events/[id]/PriceChartCard";
 import { SectorThemeContextPanel } from "@/app/events/[id]/SectorThemeContextPanel";
-import { SecFilingHtmlViewer } from "@/app/filings/SecFilingHtmlViewer";
 import {
   GenericFilingAnalysis,
   type GenericFilingAnalysisData,
 } from "@/components/filing-analysis-v2/GenericFilingAnalysis";
 import {
+  FinancingDilutionDetails,
+  FinancingDilutionInstrumentDetails,
+  FinancingDilutionOfferingDetails,
+  FinancingDilutionSnapshot,
+  type FinancingDilutionCapitalStructureData,
+} from "@/components/filing-analysis-v2/FinancingDilutionCapitalStructure";
+import {
+  OfferingRegistrationDetails,
+  OfferingRegistrationInstrumentDetails,
+  OfferingRegistrationOfferingDetails,
+  OfferingRegistrationSnapshot,
+  type OfferingRegistrationData,
+} from "@/components/filing-analysis-v2/OfferingRegistration";
+import {
   ListingFinancialRiskSnapshot,
   type ListingFinancialRiskSnapshotData,
+  type ListingFinancialRiskSnapshotItem,
 } from "@/components/filing-analysis-v2/ListingFinancialRiskSnapshot";
+import {
+  StrategicTransactionSnapshot,
+  type StrategicTransactionSnapshotData,
+} from "@/components/filing-analysis-v2/StrategicTransactionSnapshot";
+import {
+  GovernanceEventChanges,
+  GovernanceEventSnapshot,
+  type GovernanceEventChange,
+  type GovernanceEventData,
+  type GovernanceEventMode,
+} from "@/components/filing-analysis-v2/GovernanceEventDetails";
+import {
+  OperatingEventDetails,
+  OperatingEventSnapshot,
+  type OperatingBusinessUpdate,
+  type OperatingDetailSection,
+  type OperatingEventMode,
+  type OperatingGuidanceMetric,
+  type OperatingLegalRoutineData,
+  type OperatingPerformanceComparison,
+  type OperatingRegulatoryStage,
+  type OperatingSecondaryUpdate,
+} from "@/components/filing-analysis-v2/OperatingLegalRoutine";
+import {
+  PeriodicReportDetails,
+  PeriodicReportSnapshot,
+  type PeriodicAmendmentChange,
+  type PeriodicReportData,
+} from "@/components/filing-analysis-v2/PeriodicReports";
+import {
+  ProxyProposalAgenda,
+  ProxyVoteSnapshot,
+  type ProxyProposal,
+  type ProxyVoteData,
+} from "@/components/filing-analysis-v2/ProxyVoteDetails";
+import {
+  OwnershipDetails,
+  OwnershipSnapshot,
+  type OwnershipData,
+  type OwnershipDetailRow,
+  type OwnershipTransaction,
+} from "@/components/filing-analysis-v2/OwnershipDetails";
+import {
+  TenderOfferDetails,
+  TenderOfferSnapshot,
+  type TenderOfferChange,
+  type TenderOfferData,
+  type TenderOfferMode,
+  type TenderOfferTerm,
+} from "@/components/filing-analysis-v2/TenderOfferDetails";
+import {
+  S8Details,
+  S8Snapshot,
+  type S8Data,
+  type S8DetailRow,
+  type S8Mode,
+} from "@/components/filing-analysis-v2/S8Details";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import type { BadgeTone } from "@/components/ui/Badge";
 import {
-  clipPeriodicDisplayText,
-  fitPeriodicNarrativeText,
-  normalizePeriodicChartNumber,
-  normalizePeriodicComparisonBasis,
-} from "@/lib/sources/sec/forms/periodic-reports/uiNormalization";
-import { matchesSecSpecializedDisplayContract } from "@/lib/sources/sec/forms/specializedDisplayContracts";
+  filingUiFamilies,
+  registeredFilingUiFixtures,
+} from "@/lib/development/filingUiRegistry";
 import {
-  CURRENT_SHARES_MARKET_CONTEXT_NOTE,
-  DILUTION_MARKET_DATA_DISCLAIMER,
   DilutionShareOverhang,
   type DilutionShareOverhangBarSegment,
   type DilutionShareOverhangBreakdownRow,
 } from "@/components/DilutionShareOverhang";
-import type {
-  ContextRange,
-  DetailTone,
-  PriceChartMarker,
-  PriceChartSeries,
-  PricePoint,
-  PriceRange,
-  SectorThemeContext,
-  TopMover,
+import {
+  isRealTicker,
+  type DetailTone,
+  type PriceChartSeries,
+  type PricePoint,
+  type PriceRange,
+  type SectorThemeContext,
+  type SectorThemePeriod,
+  type TopMover,
 } from "@/app/events/[id]/detailTypes";
 
 type FilingDetailPageProps = {
@@ -64,26 +117,6 @@ type FilingDetailPageProps = {
 };
 
 export const dynamic = "force-dynamic";
-
-type FilingContextSnapshotMap = Record<ContextRange, MarketGroupSnapshotPayload[]>;
-
-const FILING_CONTEXT_MOVER_LIMIT = 6;
-const BROAD_MARKET_MOVER_SYMBOLS = new Set(["SPY", "QQQ", "DIA", "IWM"]);
-
-let filingContextSnapshotCache:
-  | {
-      expiresAt: number;
-      snapshots: FilingContextSnapshotMap;
-    }
-  | null = null;
-
-type FilingScoreExplanation = {
-  summary: string;
-  baseBand: string;
-  upwardFactors: string[];
-  limitingFactors: string[];
-  finalRead: string;
-};
 
 type FilingEvent = {
   id: string;
@@ -95,12 +128,10 @@ type FilingEvent = {
   filedAt: string;
   source: string;
   sourceUrl: string;
-  primaryDocumentUrl?: string;
   eventType: string;
   impact: "low" | "medium" | "high";
   deliveryLevel: "archive" | "feed" | "alert";
   score: number;
-  scoreExplanation?: FilingScoreExplanation | null;
   signal: DetailTone;
   price: string;
   changeAmount: string;
@@ -114,41 +145,54 @@ type FilingEvent = {
   keyEvidence: string[];
   watchNext: string[];
   recentFilings: RecentFiling[];
-  ownershipRelatedFilings?: OwnershipRelatedFiling[];
-  contextRelatedFilings?: FilingContextRelatedFiling[];
   relatedNews: RelatedStory[];
-  context?: SectorThemeContext | null;
-  priceMarkers?: PriceChartMarker[];
-  priceSeries: PriceChartSeries;
+  scoreRationale: string;
+  context: SectorThemeContext;
+  priceSeries: PriceChartSeries | null;
   originalTextNote: string;
   originalHtml: string;
+  listingFinancialRiskSnapshot?: ListingFinancialRiskSnapshotData | null;
+  form25ListingStatus?: Form25ListingStatusData | null;
+  strategicTransactionSnapshot?: StrategicTransactionSnapshotData | null;
+  form425TransactionSnapshot?: StrategicTransactionSnapshotData | null;
+  governanceEvent?: GovernanceEventData | null;
+  operatingEvent?: OperatingLegalRoutineData | null;
+  periodicReport?: PeriodicReportData | null;
+  proxyVote?: ProxyVoteData | null;
+  ownership?: OwnershipData | null;
+  tenderOffer?: TenderOfferData | null;
+  ntLateFilingSnapshot?: ListingFinancialRiskSnapshotData | null;
+  s8?: S8Data | null;
+  financingDilution?: FinancingDilutionCapitalStructureData | null;
+  offeringRegistration?: OfferingRegistrationData | null;
   offeringDisplayModel?: Record<string, unknown> | null;
   offeringMarketContext?: Record<string, unknown> | null;
   offeringDilutionMetrics?: Record<string, unknown> | null;
   offeringTerms?: Record<string, unknown> | null;
   s3Case?: string | null;
-  displayPayload?: FilingDisplayPayload | null;
-  listingStatusSnapshot?: ListingStatusSnapshotItem[];
+  genericAvailability?: GenericFilingAvailability;
 };
 
-type FilingDisplayPayload = {
-  display_type?: string;
-  data?: Record<string, unknown>;
-  evidence?: unknown[];
-  notes?: unknown[];
-  [key: string]: unknown;
+type Form25ListingStatusData = {
+  exchange: string;
+  issuerName: string;
+  primaryTicker: string;
+  snapshot: ListingFinancialRiskSnapshotData;
 };
 
-type Form425SnapshotRow = {
-  label: string;
-  value: string;
-  note?: string;
-};
-
-type Form425TransactionModel = {
-  title: string;
-  intro: string;
-  snapshotRows: Form425SnapshotRow[];
+type GenericFilingAvailability = {
+  bearishPoints: boolean;
+  bullishPoints: boolean;
+  context: boolean;
+  filingBrief: boolean;
+  keyEvidence: boolean;
+  originalHtml: boolean;
+  recentFilings: boolean;
+  relatedNews: boolean;
+  scoreRationale: boolean;
+  summary: boolean;
+  watchNext: boolean;
+  whyItMatters: boolean;
 };
 
 type RecentFiling = {
@@ -158,752 +202,20 @@ type RecentFiling = {
   title: string;
   filedAt: string;
   score: number;
-  accession?: string;
-  deliveryLevel?: string;
-};
-
-type OwnershipRelatedFiling = RecentFiling & {
-  relation: string;
-  description: string;
-  candidate?: boolean;
-};
-
-type FilingContextRelatedFiling = OwnershipRelatedFiling & {
-  ticker?: string;
-  exchange?: string;
-  matchScore?: number | null;
-  matchConfidence?: string;
-  quickTake?: string;
-  summary?: string;
-  sourceUrl?: string;
-};
-
-type EffectGatewayModel = {
-  relatedForm: string;
-  effectiveDate: string;
-  registrationReference: string;
-  originalReference: string;
-  originalFiling: FilingContextRelatedFiling | null;
-  snapshotMetrics: Array<{
-    label: string;
-    value: string;
-    note?: string;
-  }>;
-  nextSteps: string[];
 };
 
 type RelatedStory = {
+  eventId?: string;
+  eventType?: string;
   title: string;
   source: string;
+  sourceUrl?: string;
   age: string;
 };
 
 type ShareOverhangBarSegment = DilutionShareOverhangBarSegment;
 
-type SpacStageTone = "complete" | "current" | "risk" | "pending";
-
-type SpacStageItem = {
-  label: string;
-  date: string;
-  tone: SpacStageTone;
-};
-
-type SpacSourceItem = {
-  title: string;
-  detail: string;
-  form: string;
-  url: string;
-};
-
-type SpacHistoryItem = {
-  date: string;
-  form: string;
-  title: string;
-  source: string;
-  status: string;
-  current: boolean;
-};
-
-type SpacSnapshotItem = {
-  label: string;
-  value: string;
-  note?: string;
-};
-
-type SpacTransactionStatusModel = {
-  snapshotTitle: string;
-  snapshotItems: SpacSnapshotItem[];
-  contextTitle: string;
-  contextBadge: string;
-  currentStage: SpacStageCode;
-  currentStageNumber: number;
-  currentStageLabel: string;
-  stageBadge: string;
-  dealStatus: string;
-  spacStatus: string;
-  stageSummary: string;
-  stages: SpacStageItem[];
-  targetCompany: string;
-  targetSummary: string;
-  targetCompanyStory: string;
-  expectedTicker: string;
-  dealValue: string;
-  announcedDate: string;
-  mergerAgreementDate: string;
-  sponsor: string;
-  ipoUnderwriter: string;
-  ipoDate: string;
-  ipoYear: string;
-  unitRightWarrantTerms: string;
-  voteDate: string;
-  redemptionDeadline: string;
-  redemptionResultDate: string;
-  redemptionRate: string;
-  trustCashBefore: string;
-  trustCashAfter: string;
-  redemptionPrice: string;
-  publicSharesRemaining: string;
-  minCashCondition: string;
-  minCashStatus: string;
-  cashCondition: string;
-  floatImpact: string;
-  closingDate: string;
-  tickerChangeDate: string;
-  sourceDate: string;
-  blockingIssue: string;
-  nextCheck: string;
-  riskFlags: string[];
-  watchNext: string[];
-  keyEvidence: string[];
-  sources: SpacSourceItem[];
-  eventHistory: SpacHistoryItem[];
-};
-
-type IpoStageCode = "s1_filed" | "terms_set" | "effect" | "pricing" | "listing" | "lockup";
-
-type IpoListingModel = {
-  displayMode: string;
-  isInitialTermsPending: boolean;
-  ipoKind: string;
-  currentStage: IpoStageCode;
-  currentStageLabel: string;
-  stageBadge: string;
-  displayQuickTake: string;
-  issuer: string;
-  proposedTicker: string;
-  exchange: string;
-  companyStory: string;
-  companyStage: string;
-  revenue: string;
-  netLoss: string;
-  cash: string;
-  priceRange: string;
-  midpointPrice: string;
-  sharesOffered: string;
-  offeringSize: string;
-  impliedValuation: string;
-  primarySecondaryMix: string;
-  underwriters: string;
-  underwriterOption: string;
-  floatPercent: string;
-  floatSummary: string;
-  lockupSummary: string;
-  lockupExpiration: string;
-  expectedPricingDate: string;
-  expectedListingDate: string;
-  useOfProceeds: string[];
-  snapshotMetrics: DilutionMetricItem[];
-  offeringDetailsRows: DilutionDisclosureRow[];
-  amendmentRows: DilutionDisclosureRow[];
-  stages: SpacStageItem[];
-  riskFlags: string[];
-  watchNext: string[];
-  sources: SpacSourceItem[];
-};
-
-type ListingRiskCheck = {
-  label: string;
-  value: string;
-  status: string;
-  note: string;
-};
-
-type ListingRiskTimelineItem = {
-  label: string;
-  date: string;
-  status: string;
-};
-
-type ListingRiskModel = {
-  exchange: string;
-  complianceStatus: string;
-  deficiencyNotice: string;
-  mainRiskDriver: string;
-  currentPoint: string;
-  curePeriod: string;
-  cureDeadline: string;
-  extensionEligibility: string;
-  appealHearingStatus: string;
-  extensionReviewDate: string;
-  hearingAppealDeadline: string;
-  bidPrice: string;
-  stockholdersEquity: string;
-  marketValue: string;
-  publicFloat: string;
-  publicHolders: string;
-  reverseSplitHistory: string;
-  lateFilingGovernance: string;
-  representativeThresholdsNote: string;
-  noActiveDeficiency: boolean;
-  checks: ListingRiskCheck[];
-  timeline: ListingRiskTimelineItem[];
-  riskFlags: string[];
-  watchNext: string[];
-  sources: SpacSourceItem[];
-};
-
-type Form25DetailRow = {
-  label: string;
-  value: string;
-  note?: string;
-};
-
-type Form25ListingStatusModel = {
-  title: string;
-  statusLabel: string;
-  statusSummary: string;
-  headerCompany: string;
-  removedSecurity: string;
-  exchange: string;
-  reasonLabel: string;
-  reasonDetail: string;
-  effectiveDateLabel: string;
-  effectiveDate: string;
-  tradingSuspensionDate: string;
-  filedByName: string;
-  ruleProvision: string;
-  continuedVenue: string;
-  successorOrAcquirer: string;
-  considerationSummary: string;
-  investorImpact: string;
-  detailRows: Form25DetailRow[];
-  watchNext: string[];
-  sources: SpacSourceItem[];
-  tone: "risk" | "neutral";
-};
-
-type EarningsMetric = {
-  label: string;
-  value: string;
-  comparison: string;
-  note: string;
-};
-
-type EarningsSegment = {
-  name: string;
-  revenue: string;
-  performance: string;
-  note: string;
-};
-
-type EarningsRiskSignal = {
-  label: string;
-  status: string;
-  detail: string;
-  tone: "clear" | "watch" | "risk";
-};
-
-type PeriodicReportSnapshotMetric = {
-  label: string;
-  value: string;
-  note?: string;
-};
-
-type PeriodicReportPerformanceComparison = {
-  label: string;
-  currentLabel: string;
-  currentValue: string;
-  currentNumeric: number;
-  comparisonLabel: string;
-  comparisonValue: string;
-  comparisonNumeric: number;
-  comparisonBasis: "yoy" | "qoq" | "other";
-  changeNote?: string;
-  changeTone: "improvement" | "deterioration" | "neutral";
-};
-
-type PeriodicReportGuidanceMetric = {
-  label: string;
-  guidanceLabel: string;
-  guidanceValue: string;
-  performanceRelationship: "same_basis" | "related_different_basis" | "standalone";
-  performanceLabel?: string;
-  note?: string;
-};
-
-type PeriodicReportBusinessUpdate = {
-  title: string;
-  value?: string;
-  summary: string;
-};
-
-type PeriodicReportModel = {
-  snapshotTitle: string;
-  snapshotIntro: string;
-  snapshotMetrics: PeriodicReportSnapshotMetric[];
-  performanceComparisons: PeriodicReportPerformanceComparison[];
-  guidanceMetrics: PeriodicReportGuidanceMetric[];
-  keyBusinessUpdates: PeriodicReportBusinessUpdate[];
-};
-
-type PeriodicAmendmentModel = {
-  snapshotTitle: string;
-  snapshotIntro: string;
-  snapshotMetrics: PeriodicReportSnapshotMetric[];
-  keyChanges: PeriodicReportBusinessUpdate[];
-};
-
-type NtLateFilingModel = {
-  snapshotTitle: string;
-  snapshotIntro: string;
-  snapshotMetrics: PeriodicReportSnapshotMetric[];
-};
-
-type EarningsModel = {
-  periodType: string;
-  period: string;
-  reportDate: string;
-  revenue: string;
-  revenueComparison: string;
-  eps: string;
-  netIncome: string;
-  yoyGrowth: string;
-  estimateBeatMiss: string;
-  marginSummary: string;
-  grossMargin: string;
-  operatingMargin: string;
-  ebitdaMargin: string;
-  guidanceSummary: string;
-  revenueGuidance: string;
-  epsGuidance: string;
-  marginGuidance: string;
-  guidanceTone: "Bullish" | "Neutral" | "Weak";
-  guidanceChange: string;
-  forwardCommentary: string;
-  cash: string;
-  cashBurn: string;
-  runway: string;
-  managementOutlook: string;
-  numbers: EarningsMetric[];
-  actuals: EarningsMetric[];
-  guidance: EarningsMetric[];
-  marginMetrics: EarningsMetric[];
-  marginTrend: string;
-  marginTrendNote: string;
-  segments: EarningsSegment[];
-  surprises: EarningsMetric[];
-  riskSignals: EarningsRiskSignal[];
-  riskFlags: string[];
-  watchNext: string[];
-  sources: SpacSourceItem[];
-};
-
-type ClinicalTimelineItem = {
-  label: string;
-  date: string;
-  status: string;
-  detail: string;
-};
-
-type ClinicalDataHighlight = {
-  label: string;
-  value: string;
-  note: string;
-};
-
-type FdaClinicalModel = {
-  phase: string;
-  indication: string;
-  therapy: string;
-  trialName: string;
-  eventStatus: string;
-  eventSummary: string;
-  primaryEndpoint: string;
-  patientPopulation: string;
-  dataReadout: string;
-  nextMilestone: string;
-  fdaStatus: string;
-  keyTakeaways: string[];
-  fdaTimeline: ClinicalTimelineItem[];
-  dataHighlights: ClinicalDataHighlight[];
-  risks: string[];
-  watchNext: string[];
-  marketSize: string;
-  marketSizeSource: string;
-  sources: SpacSourceItem[];
-};
-
-type ProxySampleConfig = {
-  id: string;
-  title: string;
-  formType: string;
-  eventType: string;
-  score: number;
-  signal: DetailTone;
-  filingFocus: string;
-  whyItMatters: string;
-  summary: string;
-  keyEvidence: string[];
-  watchNext: string[];
-  displayType: string;
-  displayVersion: string;
-  displayData: Record<string, unknown>;
-};
-
-function makeProxySampleFilingEvent(config: ProxySampleConfig): FilingEvent {
-  return {
-    id: config.id,
-    ticker: "PRXY",
-    exchange: "NASDAQ",
-    company: "Proxy UI Sample Corp.",
-    title: config.title,
-    formType: config.formType,
-    filedAt: "Jul 7, 2026 - 9:00 AM ET",
-    source: "SEC EDGAR",
-    sourceUrl: "https://www.sec.gov/edgar/search/",
-    eventType: config.eventType,
-    impact: config.score >= 75 ? "high" : config.score >= 50 ? "medium" : "low",
-    deliveryLevel: config.score >= 80 ? "alert" : config.score >= 50 ? "feed" : "archive",
-    score: config.score,
-    signal: config.signal,
-    price: "$10.00",
-    changeAmount: "$0.00",
-    change: "0.00%",
-    filingFocus: config.filingFocus,
-    filingBrief: "Development-only proxy UI sample. No LLM analysis, SEC ingest, or market data is used.",
-    whyItMatters: config.whyItMatters,
-    bullishPoints: [],
-    bearishPoints: [],
-    summary: config.summary,
-    keyEvidence: config.keyEvidence,
-    watchNext: config.watchNext,
-    recentFilings: [],
-    relatedNews: [],
-    context: null,
-    priceSeries: buildPriceSeries({
-      lastClose: 10,
-      previousClose: 10,
-      trend: [50, 50, 51, 50, 49, 50, 50, 51, 50, 50, 49, 50],
-      volumeBase: 25_000,
-    }),
-    originalTextNote: "Development-only proxy UI sample. This page is not a real SEC analysis.",
-    originalHtml: `
-      <h3>Proxy UI Sample</h3>
-      <p>This fallback page exists only to inspect proxy detail layouts without running LLM analysis or creating database events.</p>
-      <p>Display version: ${config.displayVersion}</p>
-    `,
-    displayPayload: {
-      display_type: config.displayType,
-      display_version: config.displayVersion,
-      data: {
-        display_version: config.displayVersion,
-        company_name: "Proxy UI Sample Corp.",
-        sec_form_type: config.formType,
-        proxy_type: "Development sample",
-        proposal_count: 2,
-        meeting_date: "Not fixed",
-        record_date: "Not fixed",
-        proposals: [
-          {
-            id: "Proposal 1",
-            title: "Elect directors named in the proxy statement",
-            category: "director election",
-            recommendation: "For",
-            is_shareholder_proposal: false,
-          },
-          {
-            id: "Proposal 2",
-            title: "Ratify the independent registered public accounting firm",
-            category: "auditor ratification",
-            recommendation: "For",
-            is_shareholder_proposal: false,
-          },
-          {
-            id: "Proposal 3",
-            title: "Approve executive compensation on an advisory basis",
-            category: "say-on-pay",
-            recommendation: "For",
-            is_shareholder_proposal: false,
-          },
-          {
-            id: "Proposal 4",
-            title: "Approve an amendment to the equity incentive plan",
-            category: "equity plan",
-            recommendation: "For",
-            is_shareholder_proposal: false,
-          },
-          {
-            id: "Proposal 5",
-            title: "Approve a reverse stock split if implemented by the board",
-            category: "capital structure",
-            recommendation: "For",
-            is_shareholder_proposal: false,
-          },
-          {
-            id: "Proposal 6",
-            title: "Approve an increase in authorized shares",
-            category: "capital structure",
-            recommendation: "For",
-            is_shareholder_proposal: false,
-          },
-          {
-            id: "Proposal 7",
-            title: "Shareholder proposal on governance reporting",
-            category: "shareholder proposal",
-            recommendation: "Against",
-            is_shareholder_proposal: true,
-          },
-          {
-            id: "Proposal 8",
-            title: "Adjourn the annual meeting if more votes are needed",
-            category: "adjournment",
-            recommendation: "For",
-            is_shareholder_proposal: false,
-          },
-        ],
-        ...config.displayData,
-      },
-      evidence: [],
-      notes: ["Development-only proxy UI sample."],
-    },
-  };
-}
-
-function makeForm25SampleFilingEvent(): FilingEvent {
-  return {
-    id: "form25-ui-listing-status",
-    ticker: "DLST",
-    exchange: "NASDAQ",
-    company: "Form 25 Sample Corp.",
-    title: "Form 25 Sample Corp. Common Stock to be Delisted from Nasdaq",
-    formType: "25-NSE",
-    filedAt: "Jul 8, 2026 - 4:30 PM ET",
-    source: "SEC EDGAR",
-    sourceUrl: "https://www.sec.gov/edgar/search/",
-    eventType: "listing_risk",
-    impact: "high",
-    deliveryLevel: "alert",
-    score: 88,
-    signal: "bearish",
-    price: "$0.42",
-    changeAmount: "-$0.08",
-    change: "-16.00%",
-    filingFocus: "Exchange delisting",
-    filingBrief: "Nasdaq filed Form 25 to remove the company's common stock from listing after a listing standards failure.",
-    whyItMatters:
-      "Common equity delisting can reduce liquidity, limit broker access, and move trading to an over-the-counter venue if available.",
-    bullishPoints: [],
-    bearishPoints: ["Common stock listing removal affects trading liquidity and market access."],
-    summary:
-      "Nasdaq filed Form 25 to remove Form 25 Sample Corp.'s common stock from exchange listing after a listing standards failure. Investors should check whether the shares continue trading on an OTC venue and whether the company appeals or pursues a relisting plan.",
-    keyEvidence: [
-      "Form 25 covers the company's common stock.",
-      "Exchange listing removal is tied to a listing standards failure.",
-      "Trading venue after removal is not confirmed in the sample.",
-    ],
-    watchNext: ["Post-delisting trading venue.", "Company appeal or relisting update.", "Any follow-up deregistration filing."],
-    recentFilings: [],
-    relatedNews: [],
-    context: null,
-    priceSeries: buildPriceSeries({
-      lastClose: 0.42,
-      previousClose: 0.5,
-      trend: [70, 58, 62, 54, 48, 50, 44, 42, 46, 39, 35, 32],
-      volumeBase: 180_000,
-    }),
-    originalTextNote: "Development-only Form 25 UI sample. This page is not a real SEC analysis.",
-    originalHtml: `
-      <h3>Form 25 UI Sample</h3>
-      <p>This sample exists only to inspect Form 25 listing-status layouts without running LLM analysis.</p>
-      <p>Display version: sec_form25_listing_removal_v1</p>
-    `,
-    displayPayload: {
-      display_type: "sec_form25_listing_removal",
-      display_version: "sec_form25_listing_removal_v1",
-      data: {
-        accession_number: "0000000000-26-000025",
-        source_url: "https://www.sec.gov/edgar/search/",
-        source_form_type: "25-NSE",
-        filing_date: "2026-07-08",
-        effectiveness_date: "2026-07-18",
-        issuer_name: "Form 25 Sample Corp.",
-        subject_company_cik: "0000000000",
-        filed_by_name: "Nasdaq Stock Market LLC",
-        filed_by_cik: "0000000000",
-        primary_ticker: "DLST",
-        primary_ticker_exchange: "NASDAQ",
-        removed_security: "Common Stock",
-        security_category: "common_stock",
-        exchange: "Nasdaq Stock Market LLC",
-        rule_provision: "Exchange Act Rule 12d2-2",
-        removal_reason: "listing_standards_failure",
-        removal_reason_text: "The exchange determined the common stock no longer qualified for listing.",
-        common_equity_affected: true,
-        delisting_or_removal_date: "Jul 18, 2026",
-        trading_suspension_date: "Jul 9, 2026",
-        continued_listing_or_trading_venue: "Not disclosed",
-        successor_or_acquirer: "Not applicable",
-        consideration_summary: "Not applicable",
-        ipo_kind: null,
-        deterministic_case: null,
-      },
-      evidence: [
-        "Form 25 filed by Nasdaq Stock Market LLC.",
-        "Covered security is common stock.",
-        "Listing standards failure is the stated sample reason.",
-      ],
-      notes: ["Development-only Form 25 UI sample."],
-    },
-  };
-}
-
 const commonFilingEvents: Record<string, FilingEvent> = {
-  "form25-ui-listing-status": makeForm25SampleFilingEvent(),
-  "proxy-ui-all-proposals": makeProxySampleFilingEvent({
-    id: "proxy-ui-all-proposals",
-    title: "Proxy UI Sample: Mixed Proposal Meeting",
-    formType: "DEF 14A",
-    eventType: "shareholder_vote",
-    score: 74,
-    signal: "volatile",
-    filingFocus: "Mixed proxy proposal sample",
-    whyItMatters: "Shows a unified proxy layout when several investor-relevant proposal types appear in one filing.",
-    summary:
-      "Shareholders are voting on a mixed agenda that includes routine annual items, share-capacity changes, an equity plan, a transaction vote, governance items, and listing-related approvals.",
-    keyEvidence: [],
-    watchNext: ["Final voting results", "Whether share-capacity and equity-plan items pass", "Any follow-up 8-K or proxy supplement"],
-    displayType: "proxy_vote",
-    displayVersion: "proxy_vote_v1",
-    displayData: {
-      summary_title: "Proxy Vote Summary",
-      summary_sentence:
-        "Shareholders are voting on multiple proposal types, including share capacity, equity plan, transaction, listing, and governance items.",
-      snapshot: [
-        { label: "Meeting Date", value: "Aug 5, 2026" },
-        { label: "Record Date", value: "Jun 12, 2026" },
-        { label: "Proposal Count", value: "11" },
-        { label: "Board View", value: "Support management items", note: "Oppose shareholder proposal" },
-      ],
-      proposals: [
-        {
-          id: "Proposal 1",
-          title: "Elect directors named in the proxy statement",
-          type: "Director election",
-          board_recommendation: "Support",
-          is_shareholder_proposal: false,
-          details: [],
-        },
-        {
-          id: "Proposal 2",
-          title: "Approve executive compensation on an advisory basis",
-          type: "Executive pay vote",
-          board_recommendation: "Support",
-          is_shareholder_proposal: false,
-          details: [],
-        },
-        {
-          id: "Proposal 3",
-          title: "Ratify the independent registered public accounting firm",
-          type: "Auditor approval",
-          board_recommendation: "Support",
-          is_shareholder_proposal: false,
-          details: [],
-        },
-        {
-          id: "Proposal 4",
-          title: "Increase authorized common shares from 150,000,000 to 500,000,000",
-          type: "Authorized shares",
-          board_recommendation: "Support",
-          is_shareholder_proposal: false,
-          details: [
-            { label: "Authorized Shares", value: "150.0M to 500.0M", note: "Raises future share capacity" },
-          ],
-        },
-        {
-          id: "Proposal 5",
-          title: "Approve a reverse stock split in a range selected by the board",
-          type: "Reverse split",
-          board_recommendation: "Support",
-          is_shareholder_proposal: false,
-          details: [
-            { label: "Split Ratio", value: "1-for-10 to 1-for-40" },
-            { label: "Timing", value: "Board discretion", note: "After approval if implemented" },
-          ],
-        },
-        {
-          id: "Proposal 6",
-          title: "Approve an amendment to the equity incentive plan",
-          type: "Equity plan",
-          board_recommendation: "Support",
-          is_shareholder_proposal: false,
-          details: [
-            { label: "Plan Shares", value: "Additional shares requested" },
-          ],
-        },
-        {
-          id: "Proposal 7",
-          title: "Approve the proposed merger agreement",
-          type: "Merger vote",
-          board_recommendation: "Support",
-          is_shareholder_proposal: false,
-          details: [
-            { label: "Consideration", value: "$12.50/share cash" },
-            { label: "Closing Conditions", value: "Vote and approvals pending" },
-          ],
-        },
-        {
-          id: "Proposal 8",
-          title: "Approve Nasdaq listing and share issuance rules for the transaction",
-          type: "Listing vote",
-          board_recommendation: "Support",
-          is_shareholder_proposal: false,
-          details: [
-            { label: "Listing Approval", value: "Nasdaq issuance rules" },
-          ],
-        },
-        {
-          id: "Proposal 9",
-          title: "Approve the SPAC business combination and related redemptions",
-          type: "SPAC / de-SPAC",
-          board_recommendation: "Support",
-          is_shareholder_proposal: false,
-          details: [
-            { label: "Target / Ticker", value: "Sample Target / SAMP" },
-            { label: "Redemptions", value: "Not known yet" },
-            { label: "Cash Condition", value: "$75.0M minimum" },
-          ],
-        },
-        {
-          id: "Proposal 10",
-          title: "Shareholder proposal requesting an independent board chair",
-          type: "Shareholder proposal",
-          board_recommendation: "Oppose",
-          is_shareholder_proposal: true,
-          details: [
-            { label: "Governance Issue", value: "Independent chair proposal" },
-          ],
-        },
-        {
-          id: "Proposal 11",
-          title: "Adjourn the meeting if more votes are needed",
-          type: "Adjournment",
-          board_recommendation: "Support",
-          is_shareholder_proposal: false,
-          details: [],
-        },
-      ],
-    },
-  }),
   "tsla-8k-operational-update": {
     id: "tsla-8k-operational-update",
     ticker: "TSLA",
@@ -913,11 +225,13 @@ const commonFilingEvents: Record<string, FilingEvent> = {
     formType: "8-K",
     filedAt: "May 16, 2026 - 8:31 AM ET",
     source: "SEC EDGAR",
-    sourceUrl: "https://www.sec.gov/edgar/search/",
+    sourceUrl: "",
     eventType: "product_update",
     impact: "medium",
     deliveryLevel: "feed",
     score: 64,
+    scoreRationale:
+      "The 8-K is relevant, but this shell does not show a confirmed financing, dilution, or transaction trigger.",
     signal: "neutral",
     price: "$176.35",
     changeAmount: "-$2.02",
@@ -980,47 +294,67 @@ const commonFilingEvents: Record<string, FilingEvent> = {
       },
     ],
     relatedNews: [
-      { title: "EV delivery expectations remain active across large-cap autos", source: "Stock Radar", age: "1h ago" },
-      { title: "Auto sector watches margin pressure after recent price adjustments", source: "Business Wire", age: "3h ago" },
-      { title: "Operational updates keep Tesla in the live filing feed", source: "Stock Radar", age: "4h ago" },
-      { title: "EV policy and demand headlines shape autos watchlist", source: "PR Newswire", age: "6h ago" },
+      { title: "EV delivery expectations remain active across large-cap autos", eventType: "sales_performance", source: "Stock Radar", age: "1h ago" },
+      { title: "Auto sector watches margin pressure after recent price adjustments", eventType: "financial_risk", source: "Business Wire", age: "3h ago" },
+      { title: "Operational updates keep Tesla in the live filing feed", eventType: "product_update", source: "Stock Radar", age: "4h ago" },
+      { title: "EV policy and demand headlines shape autos watchlist", eventType: "legal_risk", source: "PR Newswire", age: "6h ago" },
     ],
     context: {
       sector: "Consumer Cyclical",
       industry: "Autos & Mobility",
+      themeGroup: "Defense & Geopolitics",
+      subTheme: "China Risk",
       marketCap: "$565.0B",
+      sharesOutstanding: "3.22B",
+      publicFloat: "2.79B",
+      publicFloatPercent: "86.6%",
       periods: {
         "1D": {
           sectorChange: "+0.63%",
           industryChange: "-0.82%",
+          themeChange: "+0.18%",
+          subThemeChange: "-0.44%",
           themeScore: 64,
           themeSignal: "neutral",
           topMovers: [
             { symbol: "TSLA", change: "-1.13%", trend: [52, 50, 48, 47, 45, 46, 43, 42, 41, 40] },
             { symbol: "GM", change: "+0.42%", trend: [38, 39, 40, 39, 41, 42, 41, 43, 44, 45] },
             { symbol: "F", change: "-0.31%", trend: [44, 43, 42, 43, 41, 40, 39, 40, 39, 38] },
+            { symbol: "NIO", change: "-1.84%", trend: [50, 48, 49, 46, 45, 43, 44, 41, 40, 39] },
+            { symbol: "LI", change: "+0.76%", trend: [36, 37, 36, 39, 40, 41, 40, 42, 43, 44] },
+            { symbol: "XPEV", change: "-0.58%", trend: [46, 45, 43, 44, 42, 41, 40, 38, 39, 37] },
           ],
         },
         "5D": {
           sectorChange: "+1.42%",
           industryChange: "-1.76%",
+          themeChange: "+0.72%",
+          subThemeChange: "-1.12%",
           themeScore: 62,
           themeSignal: "volatile",
           topMovers: [
             { symbol: "TSLA", change: "-3.84%", trend: [56, 54, 52, 49, 50, 47, 45, 43, 42, 40] },
             { symbol: "GM", change: "+1.92%", trend: [36, 37, 39, 38, 40, 41, 42, 44, 43, 45] },
             { symbol: "RIVN", change: "+2.74%", trend: [30, 31, 34, 33, 36, 38, 40, 42, 41, 44] },
+            { symbol: "NIO", change: "-4.12%", trend: [54, 52, 50, 48, 49, 46, 44, 43, 41, 39] },
+            { symbol: "LI", change: "+2.18%", trend: [32, 34, 33, 36, 38, 37, 40, 42, 43, 45] },
+            { symbol: "XPEV", change: "-2.36%", trend: [50, 48, 47, 45, 46, 43, 42, 40, 39, 38] },
           ],
         },
         "30D": {
           sectorChange: "+4.90%",
           industryChange: "-5.18%",
+          themeChange: "+2.34%",
+          subThemeChange: "-3.46%",
           themeScore: 60,
           themeSignal: "volatile",
           topMovers: [
             { symbol: "TSLA", change: "-8.22%", trend: [64, 61, 58, 57, 53, 51, 48, 46, 43, 40] },
             { symbol: "GM", change: "+4.36%", trend: [34, 36, 38, 39, 41, 42, 44, 45, 47, 49] },
             { symbol: "F", change: "+1.18%", trend: [40, 39, 41, 42, 41, 43, 44, 43, 45, 46] },
+            { symbol: "NIO", change: "-10.64%", trend: [66, 63, 60, 57, 55, 51, 49, 46, 43, 40] },
+            { symbol: "LI", change: "+5.42%", trend: [30, 32, 34, 36, 35, 39, 41, 44, 46, 49] },
+            { symbol: "XPEV", change: "-6.78%", trend: [58, 55, 53, 50, 48, 46, 43, 41, 39, 37] },
           ],
         },
       },
@@ -1039,1223 +373,4004 @@ const commonFilingEvents: Record<string, FilingEvent> = {
       <p>Exhibit 99.1 is referenced for reader review. The eventual parser should attach exhibit text here when the filing includes substantive investor-facing materials.</p>
     `,
   },
-  "abcd-spac-transaction-status": {
-    id: "abcd-spac-transaction-status",
-    ticker: "ABCD",
-    exchange: "NASDAQ",
-    company: "ABCD Acquisition Corp.",
-    title: "ABCD Acquisition Files De-SPAC Redemption and Closing Update",
-    formType: "8-K",
-    filedAt: "Jun 19, 2026 - 7:12 AM ET",
-    source: "SEC EDGAR",
-    sourceUrl: "https://www.sec.gov/edgar/search/",
-    eventType: "strategic_transaction",
-    impact: "high",
-    deliveryLevel: "alert",
-    score: 84,
-    signal: "volatile",
-    price: "$10.42",
-    changeAmount: "-$0.08",
-    change: "-0.76%",
-    filingFocus: "SPAC transaction status",
-    filingBrief:
-      "Shareholders approved the de-SPAC, but redemptions leave minimum cash and final listing mechanics as the next closing variables.",
-    whyItMatters:
-      "High redemptions can reduce trust cash and public float before the target begins trading under the post-close ticker.",
-    bullishPoints: [
-      "Shareholder vote approval moves the transaction closer to closing.",
-      "Expected ticker-change timing gives holders a concrete follow-up marker.",
-      "Waiver or backstop financing could resolve the cash condition.",
-    ],
-    bearishPoints: [
-      "High redemption participation reduced the cash available at closing.",
-      "Minimum cash condition may require a waiver or backstop.",
-      "A smaller float can increase post-close volatility.",
-    ],
-    summary:
-      "The filing updates a SPAC business combination after the vote and redemption window. The key investor question is whether remaining trust cash, waiver language, or backstop financing is enough to close and support the ticker change.",
-    keyEvidence: [
-      "Shareholder approval and redemption results were disclosed in an 8-K.",
-      "Minimum cash condition remains the main closing variable.",
-      "The company expects a post-close ticker change after the merger closes.",
-    ],
-    watchNext: [
-      "Closing 8-K with final share count and cash position.",
-      "Any minimum cash waiver or backstop financing update.",
-      "Ticker-change date and first post-close trading session.",
-    ],
-    recentFilings: [
-      {
-        form: "8-K",
-        eventType: "Strategic Transaction",
-        title: "Vote and redemption results disclosed",
-        filedAt: "Jun 19",
-        score: 84,
-      },
-      {
-        form: "DEF 14A",
-        eventType: "Shareholder Vote",
-        title: "Merger vote proxy filed",
-        filedAt: "May 10",
-        score: 72,
-      },
-      {
-        form: "S-4",
-        eventType: "Strategic Transaction",
-        title: "Business combination registration filed",
-        filedAt: "Apr 5",
-        score: 66,
-      },
-      {
-        form: "8-K",
-        eventType: "Strategic Transaction",
-        title: "Business combination agreement signed",
-        filedAt: "Mar 18",
-        score: 70,
-      },
-    ],
-    relatedNews: [
-      { title: "SPAC redemptions keep de-SPAC float and cash conditions in focus", source: "Stock Radar", age: "1h ago" },
-      { title: "Mobility target prepares for public-company transition", source: "GlobeNewswire", age: "3h ago" },
-      { title: "Small-float de-SPACs remain volatile around ticker changes", source: "Stock Radar", age: "4h ago" },
-      { title: "Backstop financing remains a key closing tool for SPAC deals", source: "PR Newswire", age: "6h ago" },
-    ],
-    context: {
-      sector: "Industrials",
-      industry: "Mobility Technology",
-      marketCap: "$126.0M",
-      periods: {
-        "1D": {
-          sectorChange: "-0.18%",
-          industryChange: "-1.06%",
-          themeScore: 84,
-          themeSignal: "volatile",
-          topMovers: [
-            { symbol: "ABCD", change: "-0.76%", trend: [52, 51, 50, 49, 48, 46, 45, 44, 44, 43] },
-            { symbol: "SPY", change: "-0.22%", trend: [48, 48, 47, 47, 46, 46, 45, 45, 44, 44] },
-            { symbol: "QQQ", change: "+0.31%", trend: [40, 41, 42, 42, 43, 44, 45, 46, 47, 48] },
-          ],
-        },
-        "5D": {
-          sectorChange: "+0.36%",
-          industryChange: "-3.88%",
-          themeScore: 82,
-          themeSignal: "volatile",
-          topMovers: [
-            { symbol: "ABCD", change: "-4.92%", trend: [60, 58, 55, 52, 50, 48, 46, 44, 43, 42] },
-            { symbol: "SPY", change: "+1.20%", trend: [44, 45, 46, 47, 47, 48, 49, 49, 50, 51] },
-            { symbol: "QQQ", change: "+2.14%", trend: [42, 43, 45, 46, 47, 48, 49, 51, 52, 53] },
-          ],
-        },
-        "30D": {
-          sectorChange: "+2.12%",
-          industryChange: "-9.74%",
-          themeScore: 80,
-          themeSignal: "volatile",
-          topMovers: [
-            { symbol: "ABCD", change: "-10.48%", trend: [70, 68, 65, 61, 57, 53, 49, 46, 43, 41] },
-            { symbol: "SPY", change: "+4.18%", trend: [40, 42, 43, 44, 45, 47, 48, 49, 51, 52] },
-            { symbol: "QQQ", change: "+5.32%", trend: [38, 40, 42, 44, 46, 48, 50, 52, 54, 56] },
-          ],
-        },
-      },
-    },
-    priceSeries: buildPriceSeries({
-      lastClose: 10.42,
-      previousClose: 10.5,
-      trend: [54, 53, 52, 51, 50, 48, 47, 46, 46, 45, 45, 50],
-      volumeBase: 1_700_000,
-    }),
-    originalTextNote: "Mock SEC filing text for SPAC transaction status layout verification.",
-    originalHtml: `
-      <h3>Item 5.07 Submission of Matters to a Vote of Security Holders</h3>
-      <p>ABCD Acquisition Corp. announced that its shareholders approved the proposed business combination with Apex Battery Systems at a special meeting held on June 18, 2026.</p>
-      <h3>Redemption Results</h3>
-      <p>Holders of 14,800,000 public shares elected to redeem their shares for approximately $10.61 per share, representing approximately 82% of the public shares outstanding before the meeting.</p>
-      <h3>Closing Conditions</h3>
-      <p>The company expects to close the transaction on or about June 24, 2026, subject to satisfaction or waiver of closing conditions, including minimum cash and Nasdaq listing requirements.</p>
-    `,
-    displayPayload: {
-      display_type: "spac_transaction_status",
-      data: {
-        current_stage: "redemption",
-        current_stage_label: "Redemption Result",
-        deal_status: "Vote approved / closing pending",
-        spac_status: "Vote approval moved the de-SPAC toward closing, but high redemptions leave cash and listing conditions unresolved.",
-        stage_summary:
-          "Vote approval moved the transaction forward, but redemptions keep minimum cash, float, and listing conditions in focus.",
-        stages: [
-          { code: "target", label: "Deal Signed", date: "Mar 18, 2026" },
-          { code: "proxy", label: "Proxy Filed", date: "May 10, 2026" },
-          { code: "vote", label: "Vote / Redemption", date: "Jun 16-18, 2026" },
-          { code: "redemption", label: "Redemption Result", date: "Jun 19, 2026" },
-          { code: "cash", label: "Cash Conditions", date: "Before closing" },
-          { code: "closing", label: "Close / Ticker", date: "Jun 24-25, 2026" },
-        ],
-        target_company: "Apex Battery Systems",
-        target_summary: "A battery systems company expected to become public through the SPAC merger.",
-        target_company_story: "Apex Battery Systems develops commercial battery modules and energy-storage controls for fleet operators.",
-        expected_ticker: "APXB",
-        deal_value: "$515M pre-money equity value",
-        announced_date: "Feb 12, 2026",
-        merger_agreement_date: "Mar 18, 2026",
-        sponsor: "ABCD Sponsor LLC",
-        ipo_underwriter: "EF Hutton",
-        ipo_date: "Mar 18, 2025",
-        ipo_year: "2025",
-        unit_right_warrant_terms: "Units: 1 share plus 1/5 right; no public warrants",
-        vote_date: "Jun 18, 2026",
-        redemption_deadline: "Jun 16, 2026",
-        redemption_result_date: "Jun 19, 2026",
-        redemption_rate: "82%",
-        trust_cash_before: "$191.0M",
-        trust_cash_after: "$34.0M",
-        redemption_price: "$10.61",
-        public_shares_remaining: "3.2M",
-        min_cash_condition: "$50.0M",
-        min_cash_status: "At risk",
-        float_impact: "Public float reduced before closing",
-        closing_date: "Jun 24, 2026",
-        ticker_change_date: "Jun 25, 2026",
-        risk_flags: [
-          "Redemptions reduced trust cash below the stated cash condition.",
-          "Minimum cash may need a waiver, backstop, or added financing.",
-          "Small post-close float can amplify volatility.",
-        ],
-        watch_next: [
-          "Closing 8-K with final cash and share count.",
-          "Minimum cash waiver or financing backstop language.",
-          "Ticker-change confirmation and first post-close trading session.",
-        ],
-        sources: [
-          { title: "8-K vote results", detail: "Shareholder approval and redemption results", form: "8-K" },
-          { title: "Business combination agreement", detail: "Minimum cash and closing conditions", form: "Exhibit" },
-          { title: "Proxy statement", detail: "Redemption mechanics and timeline", form: "DEF 14A" },
-        ],
-        event_history: [
-          { date: "Jun 19, 2026", form: "8-K", title: "Vote and redemption results disclosed", source: "SEC", status: "Current" },
-          { date: "May 10, 2026", form: "DEF 14A", title: "Merger vote proxy filed", source: "SEC", status: "Filed" },
-          { date: "Apr 5, 2026", form: "S-4", title: "Business combination registration filed", source: "SEC", status: "Filed" },
-          { date: "Mar 18, 2026", form: "8-K", title: "Business combination agreement signed", source: "SEC", status: "Filed" },
-        ],
-      },
-      evidence: [],
-      notes: [],
-    },
-  },
-  "orion-ipo-listing": {
-    id: "orion-ipo-listing",
-    ticker: "ORIN",
-    exchange: "NASDAQ",
-    company: "Orion Data Systems, Inc.",
-    title: "Orion Data Systems Sets Terms for Proposed Initial Public Offering",
-    formType: "S-1/A",
-    filedAt: "Jun 22, 2026 - 6:42 AM ET",
-    source: "SEC EDGAR",
-    sourceUrl: "https://www.sec.gov/edgar/search/",
-    eventType: "ipo_listing",
-    impact: "medium",
-    deliveryLevel: "feed",
-    score: 72,
-    signal: "neutral",
-    price: "Not trading",
-    changeAmount: "$0.00",
-    change: "0.00%",
-    filingFocus: "IPO terms update",
-    filingBrief:
-      "Orion Data Systems updated its IPO terms with a proposed ticker, price range, proceeds plan, and underwriter lineup.",
-    whyItMatters:
-      "IPO term updates help investors judge listing timing, initial float, valuation, and first-trade supply before a new issuer begins trading.",
-    bullishPoints: [
-      "The filing discloses a proposed ticker and exchange.",
-      "IPO proceeds are earmarked for growth and working capital.",
-      "Lead underwriters and greenshoe terms are identified.",
-    ],
-    bearishPoints: [
-      "The company remains loss-making before listing.",
-      "Public float may be limited at the initial listing.",
-      "Pricing and first-trade dates remain subject to market conditions.",
-    ],
-    summary:
-      "The amended registration statement moves Orion Data Systems closer to listing by setting IPO terms and expected Nasdaq ticker context. Investors should track pricing, effectiveness, final proceeds, and lock-up supply.",
-    keyEvidence: [
-      "S-1/A discloses the IPO price range and proposed Nasdaq ticker.",
-      "The use-of-proceeds section lists growth investment and working capital.",
-      "Lock-up terms and underwriter option are disclosed in the prospectus.",
-    ],
-    watchNext: [
-      "SEC effectiveness notice and final prospectus.",
-      "IPO pricing and first Nasdaq trading session.",
-      "Lock-up expiration and post-listing float updates.",
-    ],
-    recentFilings: [
-      {
-        form: "S-1/A",
-        eventType: "IPO Listing",
-        title: "IPO price range and proposed ticker disclosed",
-        filedAt: "Jun 22",
-        score: 72,
-      },
-      {
-        form: "S-1",
-        eventType: "IPO Listing",
-        title: "Initial registration statement filed",
-        filedAt: "May 28",
-        score: 64,
-      },
-      {
-        form: "8-A12B",
-        eventType: "IPO Listing",
-        title: "Exchange Act registration for Nasdaq listing",
-        filedAt: "Pending",
-        score: 58,
-      },
-    ],
-    relatedNews: [
-      { title: "Software IPO pipeline waits for pricing windows to reopen", source: "Stock Radar", age: "2h ago" },
-      { title: "Investors watch float and lock-up terms in new listings", source: "Stock Radar", age: "4h ago" },
-      { title: "Data infrastructure issuers test public market appetite", source: "Market Desk", age: "6h ago" },
-    ],
-    context: {
-      sector: "Technology",
-      industry: "Data Infrastructure Software",
-      marketCap: "IPO pending",
-      themeGroup: "Cloud Infrastructure",
-      subTheme: "Operational Data Platforms",
-      periods: {
-        "1D": {
-          sectorChange: "+0.48%",
-          industryChange: "+0.74%",
-          themeScore: 72,
-          themeSignal: "neutral",
-          topMovers: [
-            { symbol: "ORIN", change: "IPO pending", trend: [40, 40, 41, 41, 42, 42, 43, 43, 43, 44] },
-            { symbol: "DDOG", change: "+1.12%", trend: [42, 43, 44, 44, 45, 45, 46, 47, 48, 48] },
-            { symbol: "MDB", change: "+0.64%", trend: [45, 45, 44, 46, 47, 47, 48, 49, 49, 50] },
-          ],
-        },
-        "5D": {
-          sectorChange: "+1.86%",
-          industryChange: "+2.41%",
-          themeScore: 73,
-          themeSignal: "neutral",
-          topMovers: [
-            { symbol: "ORIN", change: "IPO pending", trend: [40, 41, 41, 42, 42, 43, 43, 44, 44, 45] },
-            { symbol: "DDOG", change: "+3.18%", trend: [40, 41, 42, 43, 44, 45, 46, 48, 49, 51] },
-            { symbol: "MDB", change: "+2.07%", trend: [42, 43, 43, 44, 45, 47, 48, 48, 49, 50] },
-          ],
-        },
-        "30D": {
-          sectorChange: "+5.28%",
-          industryChange: "+6.42%",
-          themeScore: 75,
-          themeSignal: "neutral",
-          topMovers: [
-            { symbol: "ORIN", change: "IPO pending", trend: [39, 40, 41, 41, 42, 43, 44, 44, 45, 46] },
-            { symbol: "DDOG", change: "+8.44%", trend: [36, 38, 39, 41, 43, 45, 47, 49, 51, 53] },
-            { symbol: "MDB", change: "+6.15%", trend: [38, 39, 41, 42, 44, 45, 46, 48, 50, 52] },
-          ],
-        },
-      },
-    },
-    priceSeries: buildPriceSeries({
-      lastClose: 19,
-      previousClose: 19,
-      trend: [40, 40, 41, 41, 42, 42, 43, 43, 44, 44, 45, 45],
-      volumeBase: 500_000,
-    }),
-    originalTextNote: "Mock SEC filing text for IPO listing detail layout verification.",
-    originalHtml: `
-      <h3>Prospectus Summary</h3>
-      <p>Orion Data Systems, Inc. provides a cloud data operations platform for enterprise engineering and compliance teams.</p>
-      <h3>The Offering</h3>
-      <p>The company expects to offer 10,500,000 shares of common stock at an initial public offering price between $18.00 and $20.00 per share. Orion has applied to list its common stock on Nasdaq under the symbol ORIN.</p>
-      <h3>Use of Proceeds</h3>
-      <p>Net proceeds are expected to be used for sales and marketing, research and development, working capital, and general corporate purposes.</p>
-    `,
-    displayPayload: {
-      display_type: "ipo_listing",
-      data: {
-        ipo_kind: "Traditional IPO",
-        current_stage: "terms_set",
-        current_stage_label: "Terms Set",
-        display_quick_take:
-          "The amended registration statement sets the IPO range, proposed ticker, offering size, proceeds plan, and underwriter lineup.",
-        issuer: "Orion Data Systems, Inc.",
-        proposed_ticker: "ORIN",
-        exchange: "NASDAQ",
-        company_story:
-          "Orion Data Systems sells cloud software that helps enterprise teams monitor operational data flows and compliance controls.",
-        company_stage: "Growth-stage software issuer with recurring revenue and operating losses.",
-        revenue: "$118.4M trailing twelve months",
-        net_loss: "$42.8M trailing twelve months",
-        cash: "$51.6M before IPO proceeds",
-        price_range: "$18.00-$20.00",
-        midpoint_price: "$19.00",
-        shares_offered: "10.5M shares",
-        offering_size: "$199.5M at midpoint before greenshoe",
-        implied_valuation: "$1.42B at midpoint",
-        primary_secondary_mix: "Primary shares only",
-        underwriters: "Goldman Sachs, Morgan Stanley, J.P. Morgan",
-        underwriter_option: "30-day option for 1.575M additional shares",
-        float_percent: "13.8%",
-        float_summary: "Initial float expected to be limited to IPO shares plus greenshoe if exercised.",
-        lockup_summary: "Directors, officers, and major holders subject to 180-day lock-up.",
-        lockup_expiration: "180 days after final prospectus date",
-        expected_pricing_date: "Week of Jun 29, 2026",
-        expected_listing_date: "After pricing, date not disclosed",
-        use_of_proceeds: [
-          "Expand sales and marketing capacity.",
-          "Fund research and development for the data platform.",
-          "Support working capital and general corporate purposes.",
-        ],
-        stages: [
-          { code: "s1_filed", label: "S-1/F-1 Filed", date: "May 28, 2026" },
-          { code: "terms_set", label: "Terms / Range Set", date: "Jun 22, 2026" },
-          { code: "effect", label: "SEC Effective", date: "Not disclosed" },
-          { code: "pricing", label: "Pricing / 424B4", date: "Week of Jun 29, 2026" },
-          { code: "listing", label: "First Trade", date: "Not disclosed" },
-          { code: "lockup", label: "Lock-Up Expiry", date: "180 days after final prospectus date" },
-        ],
-        risk_flags: [
-          "Losses remain material before public listing.",
-          "IPO timing depends on effectiveness and market demand.",
-          "Low initial float can increase first-trade volatility.",
-        ],
-        watch_next: [
-          "SEC effectiveness notice.",
-          "Final pricing and 424B4 prospectus.",
-          "First Nasdaq trading date and initial float.",
-        ],
-        sources: [
-          { title: "S-1/A prospectus", detail: "IPO terms, proceeds, and lock-up disclosure", form: "S-1/A" },
-          { title: "The Offering", detail: "Shares offered, price range, underwriters, and greenshoe", form: "Prospectus" },
-          { title: "Use of Proceeds", detail: "Planned deployment of IPO proceeds", form: "Prospectus" },
-        ],
-      },
-      evidence: [],
-      notes: [],
-    },
-  },
-  "zenx-listing-risk": {
-    id: "zenx-listing-risk",
-    ticker: "ZENX",
-    exchange: "NASDAQ",
-    company: "Zenith Exploration Corp.",
-    title: "Zenith Exploration Discloses Nasdaq Bid Price Deficiency Notice",
-    formType: "8-K",
-    filedAt: "Jun 21, 2026 - 8:04 AM ET",
-    source: "SEC EDGAR",
-    sourceUrl: "https://www.sec.gov/edgar/search/",
-    eventType: "listing_risk",
-    impact: "medium",
-    deliveryLevel: "feed",
-    score: 68,
-    signal: "bearish",
-    price: "$0.43",
-    changeAmount: "-$0.05",
-    change: "-10.42%",
-    filingFocus: "Nasdaq compliance notice",
-    filingBrief:
-      "Zenith disclosed a Nasdaq bid-price deficiency notice and a cure period while it evaluates compliance options.",
-    whyItMatters:
-      "Listing deficiency notices can force reverse split planning, hearings, or delisting risk if the company does not regain compliance.",
-    bullishPoints: [
-      "The company says the notice does not immediately affect trading.",
-      "A cure period gives management time to regain compliance.",
-      "Extension eligibility may remain available if other listing standards are met.",
-    ],
-    bearishPoints: [
-      "The stock remains below the representative $1.00 bid-price threshold.",
-      "A reverse split may become necessary if compliance is not restored.",
-      "Hearing or appeal timing can create event risk before the deadline.",
-    ],
-    summary:
-      "The filing discloses an active Nasdaq bid-price deficiency and lays out the near-term compliance path. Investors should track the cure deadline, any extension request, and whether the board moves toward a reverse split.",
-    keyEvidence: [
-      "Nasdaq deficiency notice disclosed in an 8-K.",
-      "Bid price is the main compliance driver.",
-      "The company described a cure period and possible compliance actions.",
-    ],
-    watchNext: [
-      "Ten-day bid-price compliance period.",
-      "Cure deadline or extension determination.",
-      "Reverse split proposal or hearing request.",
-    ],
-    recentFilings: [
-      {
-        form: "8-K",
-        eventType: "Listing Risk",
-        title: "Nasdaq bid price deficiency disclosed",
-        filedAt: "Jun 21",
-        score: 68,
-      },
-      {
-        form: "DEF 14A",
-        eventType: "Shareholder Vote",
-        title: "Reverse split authorization proposal",
-        filedAt: "May 30",
-        score: 72,
-      },
-    ],
-    relatedNews: [
-      { title: "Low-priced issuers face compliance deadlines after Nasdaq notices", source: "Stock Radar", age: "1h ago" },
-      { title: "Reverse split proposals remain active among micro-cap issuers", source: "Market Desk", age: "5h ago" },
-    ],
-    context: {
-      sector: "Energy",
-      industry: "Oil & Gas Exploration",
-      marketCap: "$18.2M",
-      periods: {
-        "1D": {
-          sectorChange: "-0.22%",
-          industryChange: "-1.34%",
-          themeScore: 68,
-          themeSignal: "bearish",
-          topMovers: [
-            { symbol: "ZENX", change: "-10.42%", trend: [58, 54, 51, 47, 45, 42, 40, 38, 37, 35] },
-            { symbol: "XOP", change: "-0.84%", trend: [50, 49, 48, 48, 47, 46, 45, 45, 44, 44] },
-          ],
-        },
-        "5D": {
-          sectorChange: "-1.80%",
-          industryChange: "-4.28%",
-          themeScore: 66,
-          themeSignal: "bearish",
-          topMovers: [
-            { symbol: "ZENX", change: "-18.33%", trend: [66, 62, 58, 54, 51, 47, 43, 40, 37, 35] },
-            { symbol: "XOP", change: "-3.12%", trend: [52, 50, 49, 47, 46, 45, 44, 43, 42, 41] },
-          ],
-        },
-        "30D": {
-          sectorChange: "+0.42%",
-          industryChange: "-7.90%",
-          themeScore: 65,
-          themeSignal: "bearish",
-          topMovers: [
-            { symbol: "ZENX", change: "-34.85%", trend: [72, 68, 63, 59, 54, 49, 45, 40, 37, 34] },
-            { symbol: "XOP", change: "-2.64%", trend: [50, 49, 48, 48, 47, 46, 45, 45, 44, 43] },
-          ],
-        },
-      },
-    },
-    priceSeries: buildPriceSeries({
-      lastClose: 0.43,
-      previousClose: 0.48,
-      trend: [58, 54, 51, 47, 45, 42, 40, 38, 37, 35, 34, 33],
-      volumeBase: 4_800_000,
-    }),
-    originalTextNote: "Mock SEC filing text for listing-risk layout verification.",
-    originalHtml: `
-      <h3>Nasdaq Notice</h3>
-      <p>Zenith Exploration Corp. received a notice from Nasdaq stating that the company was not in compliance with the minimum bid price requirement for continued listing.</p>
-      <h3>Cure Period</h3>
-      <p>The company has a compliance period to regain compliance and may be eligible for an additional period if it meets other continued listing standards.</p>
-      <h3>Company Response</h3>
-      <p>The notice has no immediate effect on the listing of the company's common stock. The company intends to monitor the bid price and consider available options.</p>
-    `,
-    displayPayload: {
-      display_type: "listing_risk",
-      data: {
-        exchange: "Nasdaq",
-        compliance_status: "Active deficiency disclosed",
-        deficiency_notice: "Minimum bid price deficiency notice",
-        main_risk_driver: "Bid price below representative continued-listing threshold",
-        current_point: "Cure period active",
-        notice_date: "Jun 18, 2026",
-        cure_period: "180 calendar days",
-        cure_deadline: "Dec 15, 2026",
-        extension_eligibility: "Potentially eligible if other Nasdaq Capital Market standards are met",
-        appeal_hearing_status: "No hearing disclosed",
-        extension_review_date: "Not disclosed",
-        hearing_appeal_deadline: "Not disclosed",
-        representative_thresholds_note:
-          "Representative thresholds shown only when source-backed; verify exchange rule text before treating them as exact.",
-        bid_price: "$0.43 last close; deficiency tied to minimum bid price",
-        stockholders_equity: "Not disclosed in this filing",
-        market_value: "Not disclosed",
-        public_float: "Not disclosed",
-        public_holders: "Not disclosed",
-        reverse_split_history: "Reverse split authorization proposal previously filed",
-        late_filing_governance: "No late-filing or governance deficiency disclosed",
-        checks: [
-          { label: "Bid Price", value: "$0.43", status: "Deficient", note: "Main source-backed risk driver." },
-          { label: "Stockholders' Equity", value: "Not disclosed", status: "Unknown", note: "No equity deficiency disclosed in this filing." },
-          { label: "MVLS / Market Value", value: "Not disclosed", status: "Unknown", note: "No market-value deficiency disclosed." },
-          { label: "Public Float / Holders", value: "Not disclosed", status: "Unknown", note: "No float or holder deficiency disclosed." },
-          { label: "Reverse Split History", value: "Proposal filed", status: "Watch", note: "Possible compliance tool if bid price does not recover." },
-          { label: "Late Filing / Governance", value: "No issue disclosed", status: "Satisfied", note: "No active deficiency disclosed for this check." },
-        ],
-        timeline: [
-          { label: "Notice Date", date: "Jun 18, 2026", status: "Complete" },
-          { label: "Current Point", date: "Cure period active", status: "Current" },
-          { label: "Cure Deadline", date: "Dec 15, 2026", status: "Pending" },
-          { label: "Extension / Review", date: "Not disclosed", status: "Unknown" },
-          { label: "Hearing / Appeal Deadline", date: "Not disclosed", status: "Unknown" },
-        ],
-        risk_flags: [
-          "Bid-price deficiency is active.",
-          "Reverse split may become a compliance tool.",
-          "Extension eligibility depends on other listing standards.",
-        ],
-        watch_next: [
-          "Bid price above required level for compliance window.",
-          "Reverse split proposal, board action, or shareholder vote.",
-          "Nasdaq extension, hearing, or delisting determination.",
-        ],
-        sources: [
-          { title: "8-K Nasdaq notice", detail: "Deficiency notice and cure period", form: "8-K" },
-          { title: "Company response", detail: "Monitoring and available compliance options", form: "8-K" },
-        ],
-      },
-      evidence: [],
-      notes: [],
-    },
-  },
-  "nova-q1-earnings": {
-    id: "nova-q1-earnings",
-    ticker: "NOVA",
-    exchange: "NASDAQ",
-    company: "Nova Retail Holdings, Inc.",
-    title: "Nova Retail Reports First Quarter Results and Updates Guidance",
-    formType: "10-Q",
-    filedAt: "May 14, 2026 - 7:00 AM ET",
-    source: "SEC EDGAR",
-    sourceUrl: "https://www.sec.gov/edgar/search/",
-    eventType: "earnings",
-    impact: "medium",
-    deliveryLevel: "feed",
-    score: 66,
-    signal: "neutral",
-    price: "$24.18",
-    changeAmount: "+$0.62",
-    change: "+2.63%",
-    filingFocus: "Quarterly earnings",
-    filingBrief:
-      "Nova Retail reported first-quarter revenue growth, an EPS beat, softer margin guidance, and several small-cap risk signals in the filing.",
-    whyItMatters:
-      "The earnings page separates current quarter numbers from guidance quality, margin trend, and risk signals that often matter more for small-cap reactions.",
-    bullishPoints: [
-      "Revenue increased from the prior-year period.",
-      "Revenue and EPS came in ahead of estimates.",
-      "Management did not disclose a going-concern warning.",
-    ],
-    bearishPoints: [
-      "Management cut margin outlook despite the headline beat.",
-      "The filing references an active ATM program.",
-      "Debt costs and liquidity remain watch items.",
-    ],
-    summary:
-      "Nova Retail's quarter beat headline estimates, but the useful read is split between actual numbers, weaker guidance, compressing margins, and financing/liquidity risk signals.",
-    keyEvidence: [
-      "Quarterly revenue and net income disclosed in Form 10-Q.",
-      "Management updated full-year revenue and margin outlook.",
-      "The filing references ATM capacity and higher debt expense.",
-    ],
-    watchNext: [
-      "Whether margin compression stabilizes next quarter.",
-      "Any use of the ATM facility or additional financing.",
-      "Debt covenant and liquidity language in the next filing.",
-    ],
-    recentFilings: [
-      {
-        form: "10-Q",
-        eventType: "Earnings",
-        title: "First quarter results and updated guidance",
-        filedAt: "May 14",
-        score: 66,
-      },
-      {
-        form: "8-K",
-        eventType: "Earnings",
-        title: "Earnings release furnished",
-        filedAt: "May 14",
-        score: 68,
-      },
-    ],
-    relatedNews: [
-      { title: "Retail earnings focus shifts to margins and inventory quality", source: "Stock Radar", age: "2h ago" },
-      { title: "Department store traffic remains mixed into summer", source: "Market Desk", age: "5h ago" },
-    ],
-    context: {
-      sector: "Consumer Discretionary",
-      industry: "Specialty Retail",
-      marketCap: "$185.0M",
-      themeGroup: "Consumer Spending",
-      subTheme: "Retail Margins",
-      periods: {
-        "1D": {
-          sectorChange: "+0.28%",
-          industryChange: "+0.92%",
-          themeScore: 66,
-          themeSignal: "neutral",
-          topMovers: [
-            { symbol: "NOVA", change: "+2.63%", trend: [44, 45, 47, 48, 50, 51, 52, 53, 55, 56] },
-            { symbol: "XRT", change: "+0.58%", trend: [45, 46, 46, 47, 48, 48, 49, 50, 50, 51] },
-          ],
-        },
-        "5D": {
-          sectorChange: "+1.08%",
-          industryChange: "+2.14%",
-          themeScore: 67,
-          themeSignal: "neutral",
-          topMovers: [
-            { symbol: "NOVA", change: "+5.18%", trend: [40, 42, 43, 45, 47, 49, 51, 53, 54, 56] },
-            { symbol: "XRT", change: "+1.44%", trend: [42, 43, 44, 45, 46, 47, 48, 49, 49, 50] },
-          ],
-        },
-        "30D": {
-          sectorChange: "+3.80%",
-          industryChange: "+4.42%",
-          themeScore: 66,
-          themeSignal: "neutral",
-          topMovers: [
-            { symbol: "NOVA", change: "+7.02%", trend: [38, 40, 42, 44, 45, 47, 49, 51, 53, 55] },
-            { symbol: "XRT", change: "+3.28%", trend: [40, 41, 42, 43, 45, 46, 48, 49, 50, 51] },
-          ],
-        },
-      },
-    },
-    priceSeries: buildPriceSeries({
-      lastClose: 24.18,
-      previousClose: 23.56,
-      trend: [44, 45, 47, 48, 50, 51, 52, 53, 55, 56, 55, 57],
-      volumeBase: 2_300_000,
-    }),
-    originalTextNote: "Mock SEC filing text for earnings layout verification.",
-    originalHtml: `
-      <h3>Results of Operations</h3>
-      <p>Revenue increased to $612.4 million for the quarter, compared with $584.1 million in the prior-year period. Net income was $18.6 million, compared with $24.2 million in the prior-year period.</p>
-      <h3>Liquidity</h3>
-      <p>Cash and cash equivalents were $142.0 million as of quarter end. Operating cash flow was affected by seasonal inventory purchases.</p>
-      <h3>Outlook</h3>
-      <p>The company maintained full-year revenue guidance of $2.45 billion to $2.55 billion and expects gross margin pressure to moderate in the second half.</p>
-    `,
-    displayPayload: {
-      display_type: "earnings",
-      data: {
-        period_type: "quarterly",
-        period: "Q1 2026",
-        report_date: "May 14, 2026",
-        revenue: "$612.4M",
-        revenue_comparison: "+4.8% year over year",
-        eps: "$0.28 diluted EPS",
-        net_income: "$18.6M",
-        yoy_growth: "+4.8%",
-        estimate_beat_miss: "Beat: revenue +1.9%, EPS +$0.04 vs estimate",
-        margin_summary: "Margins compressed despite the revenue beat.",
-        gross_margin: "34.2%",
-        operating_margin: "5.1%",
-        ebitda_margin: "8.6%",
-        guidance_summary: "Revenue outlook maintained, but margin outlook cut.",
-        revenue_guidance: "$2.45B-$2.55B full-year revenue maintained",
-        eps_guidance: "$0.92-$1.02 full-year EPS, narrowed lower",
-        margin_guidance: "Gross margin outlook reduced by ~120 bps",
-        guidance_tone: "Weak",
-        guidance_change: "Mixed: revenue maintained, margin cut",
-        forward_commentary: "Management cited cautious demand, higher freight costs, and debt expense pressure.",
-        cash: "$142.0M cash and equivalents",
-        cash_burn: "$18.0M operating cash outflow",
-        runway: "More than 12 months based on current cash use",
-        management_outlook: "Headline numbers beat, but forward commentary is weak because margin and financing language matter more than the quarter itself.",
-        numbers: [
-          { label: "Revenue", value: "$612.4M", comparison: "+4.8% YoY", note: "Beat estimate by 1.9%." },
-          { label: "EPS", value: "$0.28", comparison: "+$0.04 beat", note: "Diluted EPS." },
-          { label: "Net Income", value: "$18.6M", comparison: "-23.1% YoY", note: "Profit declined year over year." },
-          { label: "YoY Growth", value: "+4.8%", comparison: "Revenue growth", note: "Current quarter sales growth." },
-          { label: "Estimate Beat/Miss", value: "Beat", comparison: "Rev +1.9%, EPS +$0.04", note: "Only shown when estimate context exists." },
-        ],
-        actuals: [
-          { label: "Revenue", value: "$612.4M", comparison: "+4.8% YoY", note: "Beat estimate by 1.9%." },
-          { label: "EPS", value: "$0.28", comparison: "+$0.04 beat", note: "Diluted EPS." },
-          { label: "Net Income", value: "$18.6M", comparison: "-23.1% YoY", note: "Profit declined year over year." },
-        ],
-        guidance: [
-          { label: "Revenue Outlook", value: "$2.45B-$2.55B", comparison: "Maintained", note: "Management kept the revenue range." },
-          { label: "EPS Outlook", value: "$0.92-$1.02", comparison: "Narrowed lower", note: "Forward EPS tone weakened." },
-          { label: "Margin Outlook", value: "Cut ~120 bps", comparison: "Weak", note: "Margin guidance is the main reaction risk." },
-        ],
-        margin_metrics: [
-          { label: "Gross Margin", value: "34.2%", comparison: "-180 bps YoY", note: "Compressing" },
-          { label: "Operating Margin", value: "5.1%", comparison: "-90 bps YoY", note: "Compressing" },
-          { label: "EBITDA Margin", value: "8.6%", comparison: "-60 bps YoY", note: "Stable to weaker" },
-        ],
-        margin_trend: "Compressing",
-        margin_trend_note: "Gross and operating margins both declined year over year despite higher revenue.",
-        segments: [
-          { name: "Stores", revenue: "$438.0M", performance: "+6.1% YoY", note: "Comparable traffic improved." },
-          { name: "E-commerce", revenue: "$174.4M", performance: "+1.9% YoY", note: "Growth slowed from prior period." },
-        ],
-        surprises: [
-          { label: "Estimate Context", value: "Beat", comparison: "Revenue and EPS", note: "Consensus context supplied by mock payload." },
-        ],
-        risk_signals: [
-          { label: "Going concern", status: "Clear", detail: "No going-concern warning disclosed.", tone: "clear" },
-          { label: "Liquidity issue", status: "Watch", detail: "$18.0M operating cash outflow; cash remains positive.", tone: "watch" },
-          { label: "Covenant risk", status: "Watch", detail: "Debt expense increased; no breach disclosed.", tone: "watch" },
-          { label: "ATM / dilution mention", status: "Risk", detail: "Active ATM program referenced in liquidity section.", tone: "risk" },
-          { label: "Financing need", status: "Watch", detail: "Working-capital needs could require financing if cash burn continues.", tone: "watch" },
-          { label: "Debt pressure", status: "Risk", detail: "Higher interest expense reduced net income.", tone: "risk" },
-          { label: "Nasdaq compliance risk", status: "Clear", detail: "No active listing deficiency disclosed.", tone: "clear" },
-        ],
-        risk_flags: [
-          "Margin guidance weakened despite the headline beat.",
-          "ATM facility is available and could create dilution if used.",
-          "Higher interest expense and cash use remain small-cap risk signals.",
-        ],
-        watch_next: [
-          "Whether gross margin stabilizes or compresses again.",
-          "Any ATM sale, debt amendment, or financing update.",
-          "Next-quarter guidance tone and cash-flow trend.",
-        ],
-        sources: [
-          { title: "Form 10-Q", detail: "Quarterly financial statements and MD&A", form: "10-Q" },
-          { title: "Management outlook", detail: "Guidance and margin commentary", form: "10-Q" },
-        ],
-      },
-      evidence: [],
-      notes: [],
-    },
-  },
-  "atlas-phase-3-readout": {
-    id: "atlas-phase-3-readout",
-    ticker: "ATLS",
-    exchange: "NASDAQ",
-    company: "Atlas Oncology, Inc.",
-    title: "Atlas Oncology Reports Phase 3 Trial Update for AT-201",
-    formType: "8-K",
-    filedAt: "May 21, 2026 - 7:15 AM ET",
-    source: "SEC EDGAR",
-    sourceUrl: "https://www.sec.gov/edgar/search/",
-    eventType: "fda_clinical",
-    impact: "high",
-    deliveryLevel: "alert",
-    score: 82,
-    signal: "volatile",
-    price: "$11.42",
-    changeAmount: "+$1.76",
-    change: "+18.22%",
-    filingFocus: "Phase 3 clinical update",
-    filingBrief:
-      "Atlas disclosed source-backed Phase 3 topline data for AT-201 in second-line ovarian cancer, with a survival endpoint update and planned FDA interaction.",
-    whyItMatters:
-      "Late-stage clinical readouts can reset regulatory probability, financing needs, and commercial expectations when endpoint detail and FDA timing are disclosed.",
-    bullishPoints: [
-      "The filing reports a statistically significant primary endpoint result.",
-      "Management expects to request an FDA meeting after the topline disclosure.",
-      "Safety was described as broadly consistent with prior studies.",
-    ],
-    bearishPoints: [
-      "Overall survival remains immature.",
-      "FDA filing timing is not yet confirmed.",
-      "The company may need additional capital before commercialization.",
-    ],
-    summary:
-      "Atlas Oncology disclosed Phase 3 topline data for AT-201, including a positive progression-free survival result, immature overall survival data, and an expected FDA meeting request.",
-    keyEvidence: [
-      "Phase 3 topline data disclosed in Form 8-K.",
-      "Primary endpoint reported as statistically significant.",
-      "FDA meeting request expected after topline data package completion.",
-    ],
-    watchNext: [
-      "FDA meeting outcome and submission timing.",
-      "Mature overall survival update.",
-      "Financing or partnership update before launch preparation.",
-    ],
-    recentFilings: [
-      {
-        form: "8-K",
-        eventType: "FDA / Clinical",
-        title: "Phase 3 topline data disclosed",
-        filedAt: "May 21",
-        score: 82,
-      },
-      {
-        form: "10-Q",
-        eventType: "Financial Risk",
-        title: "Quarterly report with runway disclosure",
-        filedAt: "May 8",
-        score: 61,
-      },
-    ],
-    relatedNews: [
-      { title: "Biotech investors watch late-stage oncology readouts", source: "Stock Radar", age: "1h ago" },
-      { title: "Small-cap oncology names move on FDA meeting timing", source: "Market Desk", age: "3h ago" },
-    ],
-    context: {
-      sector: "Healthcare",
-      industry: "Biotechnology",
-      marketCap: "$720.0M",
-      themeGroup: "Oncology",
-      subTheme: "Late-stage Clinical Readouts",
-      periods: {
-        "1D": {
-          sectorChange: "+0.36%",
-          industryChange: "+1.84%",
-          themeScore: 82,
-          themeSignal: "volatile",
-          topMovers: [
-            { symbol: "ATLS", change: "+18.22%", trend: [38, 39, 42, 45, 51, 57, 63, 68, 72, 76] },
-            { symbol: "XBI", change: "+1.12%", trend: [42, 43, 44, 45, 46, 47, 49, 50, 51, 52] },
-          ],
-        },
-        "5D": {
-          sectorChange: "+1.62%",
-          industryChange: "+4.40%",
-          themeScore: 81,
-          themeSignal: "volatile",
-          topMovers: [
-            { symbol: "ATLS", change: "+29.40%", trend: [32, 35, 37, 40, 48, 55, 63, 70, 75, 78] },
-            { symbol: "XBI", change: "+2.36%", trend: [39, 40, 42, 43, 45, 46, 48, 49, 51, 52] },
-          ],
-        },
-        "30D": {
-          sectorChange: "+2.84%",
-          industryChange: "+6.18%",
-          themeScore: 80,
-          themeSignal: "volatile",
-          topMovers: [
-            { symbol: "ATLS", change: "+34.10%", trend: [30, 31, 35, 38, 43, 49, 56, 63, 70, 76] },
-            { symbol: "XBI", change: "+5.92%", trend: [37, 38, 40, 42, 43, 45, 47, 49, 51, 53] },
-          ],
-        },
-      },
-    },
-    priceSeries: buildPriceSeries({
-      lastClose: 11.42,
-      previousClose: 9.66,
-      trend: [38, 39, 42, 45, 51, 57, 63, 68, 72, 76, 74, 78],
-      volumeBase: 5_600_000,
-    }),
-    originalTextNote: "Mock SEC filing text for FDA clinical layout verification.",
-    originalHtml: `
-      <h3>Clinical Development Update</h3>
-      <p>Atlas Oncology announced topline results from the Phase 3 AURORA-301 trial evaluating AT-201 in patients with second-line platinum-resistant ovarian cancer.</p>
-      <h3>Topline Data</h3>
-      <p>The study met its primary endpoint of progression-free survival. Overall survival data remain immature, and the safety profile was described as consistent with prior clinical experience.</p>
-      <h3>Regulatory Timing</h3>
-      <p>The company expects to request a meeting with the FDA after completing the topline data package.</p>
-    `,
-    displayPayload: {
-      display_type: "fda_clinical",
-      data: {
-        phase: "Phase 3",
-        indication: "Second-line platinum-resistant ovarian cancer",
-        therapy: "AT-201",
-        trial_name: "AURORA-301",
-        event_status: "Topline Phase 3 data disclosed",
-        event_summary: "Primary endpoint was met; overall survival remains immature and FDA timing is the next key checkpoint.",
-        primary_endpoint: "Progression-free survival",
-        patient_population: "Patients with second-line platinum-resistant ovarian cancer",
-        data_readout: "Positive PFS topline result; OS immature",
-        next_milestone: "FDA meeting request after topline package completion",
-        fda_status: "FDA meeting not yet held",
-        key_takeaways: [
-          "Phase 3 topline data are now disclosed, moving the program into regulatory-preparation mode.",
-          "The primary endpoint was met, but mature overall survival remains an important follow-up.",
-          "FDA meeting timing is the next investor-relevant checkpoint before any filing plan.",
-          "Runway and partnership updates matter because launch preparation may require additional capital.",
-        ],
-        fda_timeline: [
-          { label: "Trial readout", date: "May 2026", status: "Current", detail: "Topline Phase 3 result disclosed in the filing." },
-          { label: "FDA meeting request", date: "Expected after topline package", status: "Pending", detail: "No meeting outcome disclosed yet." },
-          { label: "Submission path", date: "Not disclosed", status: "Watch", detail: "Filing timing depends on FDA feedback and mature data package." },
-          { label: "Next data update", date: "Not disclosed", status: "Watch", detail: "Overall survival maturity remains a key follow-up." },
-        ],
-        data_highlights: [
-          { label: "Primary endpoint", value: "Met", note: "PFS result described as statistically significant." },
-          { label: "Overall survival", value: "Immature", note: "Follow-up data still needed." },
-          { label: "Safety", value: "Consistent", note: "No new safety signal highlighted in the mock filing." },
-        ],
-        risks: [
-          "Overall survival data are not mature.",
-          "FDA feedback could alter submission timing or required evidence.",
-          "Commercial preparation may require additional capital.",
-        ],
-        watch_next: [
-          "FDA meeting request and minutes.",
-          "Mature overall survival update.",
-          "Cash runway, partnership, or financing disclosure.",
-        ],
-        market_size: "Addressable market size not quantified in this filing; oncology indication is investor-relevant but should stay source-backed.",
-        market_size_source: "SEC filing did not disclose a numeric market-size estimate.",
-        sources: [
-          { title: "Form 8-K", detail: "Topline Phase 3 clinical update", form: "8-K" },
-          { title: "Clinical readout exhibit", detail: "Endpoint, safety, and regulatory timing summary", form: "EX-99.1" },
-        ],
-      },
-      evidence: [],
-      notes: [],
-    },
+};
+
+commonFilingEvents["generic-no-chart-fixture"] = {
+  ...commonFilingEvents["tsla-8k-operational-update"],
+  id: "generic-no-chart-fixture",
+  ticker: "N/A",
+  exchange: "",
+  company: "Example Corporation",
+  title: "Example Corporation Files an Operational Update Without Available Market Data",
+  price: "N/A",
+  changeAmount: "$0.00",
+  change: "+0.00%",
+  filingBrief:
+    "The filing provides a current operational update, but no reliable market chart is available for the issuer.",
+  whyItMatters:
+    "The disclosure changes the operating outlook investors need to assess even though a market-price reaction cannot be displayed.",
+  summary:
+    "Management described the current operating position, near-term execution priorities, and the next company-reported milestones without providing a usable public-market price series.",
+  recentFilings: [],
+  relatedNews: [],
+  context: emptySectorThemeContext(64, "neutral"),
+  priceSeries: null,
+  genericAvailability: {
+    bearishPoints: true,
+    bullishPoints: true,
+    context: false,
+    filingBrief: true,
+    keyEvidence: true,
+    originalHtml: true,
+    recentFilings: false,
+    relatedNews: false,
+    scoreRationale: true,
+    summary: true,
+    watchNext: true,
+    whyItMatters: true,
   },
 };
 
+commonFilingEvents["listing-financial-risk-status-fixture"] = {
+  ...commonFilingEvents["tsla-8k-operational-update"],
+  id: "listing-financial-risk-status-fixture",
+  ticker: "NKLA",
+  exchange: "NASDAQ",
+  company: "Nikola Corporation",
+  title: "Nikola Receives Nasdaq Delisting Notice Following Chapter 11 Filing",
+  formType: "8-K",
+  filedAt: "Feb 19, 2025 - 4:30 PM ET",
+  source: "SEC EDGAR",
+  sourceUrl: "https://www.sec.gov/Archives/edgar/data/1731289/000173128925000011/nkla-20250219.htm",
+  eventType: "listing_risk",
+  impact: "high",
+  deliveryLevel: "alert",
+  score: 92,
+  signal: "bearish",
+  price: "N/A",
+  changeAmount: "$0.00",
+  change: "+0.00%",
+  filingFocus: "Exchange delisting",
+  filingBrief:
+    "Nasdaq determined that Nikola's common stock would be delisted after the company filed for Chapter 11 bankruptcy protection.",
+  whyItMatters:
+    "The bankruptcy-driven delisting sharply reduces common-stock liquidity and reinforces the risk that existing equity holders recover little or no value.",
+  bullishPoints: [],
+  bearishPoints: [
+    "Nasdaq determined that the common stock would be delisted.",
+    "The delisting followed Nikola's Chapter 11 bankruptcy filing.",
+    "Nikola does not intend to appeal Nasdaq's determination.",
+  ],
+  summary:
+    "Nikola received a Nasdaq delisting notice after filing for Chapter 11 bankruptcy protection. Trading was scheduled to be suspended on February 26, 2025, and the company said it would not appeal the determination.",
+  keyEvidence: [
+    "Nasdaq based its determination on the Chapter 11 filing and related public-interest concerns.",
+    "Trading was scheduled to be suspended at the opening of business on February 26, 2025.",
+    "Nikola stated that it did not intend to appeal the delisting determination.",
+  ],
+  watchNext: [
+    "The venue and liquidity available for any post-suspension trading.",
+    "Developments in the Chapter 11 process affecting residual common-equity value.",
+    "The filing and effectiveness of Form 25-NSE and any subsequent Form 15.",
+  ],
+  recentFilings: [
+    {
+      form: "8-K",
+      eventType: "Financial Risk",
+      title: "Chapter 11 bankruptcy filing and restructuring process disclosed",
+      filedAt: "Feb 19, 2025",
+      score: 95,
+    },
+    {
+      form: "Form 25-NSE",
+      eventType: "Listing Risk",
+      title: "Nasdaq removal filing follows the announced trading suspension",
+      filedAt: "Follow-up filing",
+      score: 20,
+    },
+    {
+      form: "10-K",
+      eventType: "Periodic Report",
+      title: "Annual report provides prior liquidity and going-concern context",
+      filedAt: "Prior filing",
+      score: 75,
+    },
+  ],
+  relatedNews: [
+    {
+      title: "Bankruptcy process shifts investor focus to asset-sale recoveries",
+      eventType: "financial_risk",
+      source: "Stock Radar",
+      age: "Related coverage",
+    },
+    {
+      title: "Nasdaq suspension sharply reduces liquidity for Nikola common stock",
+      eventType: "listing_risk",
+      source: "Stock Radar",
+      age: "Related coverage",
+    },
+    {
+      title: "Common-equity recovery remains subordinate in the Chapter 11 process",
+      eventType: "financial_risk",
+      source: "Stock Radar",
+      age: "Related coverage",
+    },
+  ],
+  scoreRationale:
+    "Bankruptcy, a confirmed exchange delisting, and no planned appeal place the common equity in the highest listing-risk tier.",
+  context: {
+    sector: "Industrials",
+    industry: "Automobiles & Components",
+    themeGroup: "Automotive",
+    subTheme: "Electric Vehicles",
+    marketCap: "$227.4M",
+    sharesOutstanding: "1.31B",
+    publicFloat: "1.18B",
+    publicFloatPercent: "90.1%",
+    periods: {
+      "1D": {
+        sectorChange: "+0.11%",
+        industryChange: "-0.74%",
+        themeChange: "-0.53%",
+        subThemeChange: "-1.18%",
+        themeScore: 92,
+        themeSignal: "bearish",
+        topMovers: [
+          { symbol: "NKLA", change: "-4.84%", trend: [56, 54, 52, 49, 50, 47, 45, 43, 42, 40] },
+          { symbol: "TSLA", change: "-1.13%", trend: [52, 50, 48, 47, 45, 46, 43, 42, 41, 40] },
+          { symbol: "RIVN", change: "+0.42%", trend: [38, 39, 40, 39, 41, 42, 41, 43, 44, 45] },
+          { symbol: "LCID", change: "-0.31%", trend: [44, 43, 42, 43, 41, 40, 39, 40, 39, 38] },
+          { symbol: "NIO", change: "-1.84%", trend: [50, 48, 49, 46, 45, 43, 44, 41, 40, 39] },
+          { symbol: "XPEV", change: "+0.76%", trend: [36, 37, 36, 39, 40, 41, 40, 42, 43, 44] },
+        ],
+      },
+      "5D": {
+        sectorChange: "+1.42%",
+        industryChange: "-1.76%",
+        themeChange: "-1.32%",
+        subThemeChange: "-2.12%",
+        themeScore: 92,
+        themeSignal: "bearish",
+        topMovers: [
+          { symbol: "NKLA", change: "-12.64%", trend: [62, 59, 57, 54, 52, 49, 46, 44, 42, 39] },
+          { symbol: "TSLA", change: "-3.84%", trend: [56, 54, 52, 49, 50, 47, 45, 43, 42, 40] },
+          { symbol: "RIVN", change: "+2.74%", trend: [30, 31, 34, 33, 36, 38, 40, 42, 41, 44] },
+          { symbol: "LCID", change: "-2.36%", trend: [50, 48, 47, 45, 46, 43, 42, 40, 39, 38] },
+          { symbol: "NIO", change: "-4.12%", trend: [54, 52, 50, 48, 49, 46, 44, 43, 41, 39] },
+          { symbol: "XPEV", change: "+2.18%", trend: [32, 34, 33, 36, 38, 37, 40, 42, 43, 45] },
+        ],
+      },
+      "30D": {
+        sectorChange: "+4.90%",
+        industryChange: "-5.18%",
+        themeChange: "-4.34%",
+        subThemeChange: "-7.46%",
+        themeScore: 92,
+        themeSignal: "bearish",
+        topMovers: [
+          { symbol: "NKLA", change: "-38.22%", trend: [72, 68, 64, 60, 56, 52, 48, 45, 42, 38] },
+          { symbol: "TSLA", change: "-8.22%", trend: [64, 61, 58, 57, 53, 51, 48, 46, 43, 40] },
+          { symbol: "RIVN", change: "+4.36%", trend: [34, 36, 38, 39, 41, 42, 44, 45, 47, 49] },
+          { symbol: "LCID", change: "+1.18%", trend: [40, 39, 41, 42, 41, 43, 44, 43, 45, 46] },
+          { symbol: "NIO", change: "-10.64%", trend: [66, 63, 60, 57, 55, 51, 49, 46, 43, 40] },
+          { symbol: "XPEV", change: "-6.78%", trend: [58, 55, 53, 50, 48, 46, 43, 41, 39, 37] },
+        ],
+      },
+    },
+  },
+  priceSeries: null,
+  originalTextNote: "Fixture excerpt based on the filed 8-K.",
+  originalHtml: `
+    <h3>Item 3.01 Notice of Delisting or Failure to Satisfy a Continued Listing Rule or Standard</h3>
+    <p>Nasdaq notified the Company that its securities would be delisted following the Company's Chapter 11 bankruptcy filing. Trading was expected to be suspended at the opening of business on February 26, 2025. The Company did not intend to appeal the determination.</p>
+  `,
+  listingFinancialRiskSnapshot: {
+    title: "Listing Status Snapshot",
+    items: [
+      { label: "Current Status", value: "Delisting determined" },
+      { label: "Primary Reason", value: "Chapter 11 bankruptcy" },
+      { label: "Trading Suspension", value: "February 26, 2025" },
+      { label: "Company Response", value: "No appeal planned" },
+    ],
+  },
+  genericAvailability: {
+    bearishPoints: true,
+    bullishPoints: false,
+    context: true,
+    filingBrief: true,
+    keyEvidence: true,
+    originalHtml: true,
+    recentFilings: true,
+    relatedNews: true,
+    scoreRationale: true,
+    summary: true,
+    watchNext: true,
+    whyItMatters: true,
+  },
+};
+
+commonFilingEvents["form-25-listing-removal-fixture"] = {
+  ...commonFilingEvents["tsla-8k-operational-update"],
+  id: "form-25-listing-removal-fixture",
+  ticker: "TTOO",
+  exchange: "NASDAQ",
+  company: "T2 Biosystems, Inc.",
+  title: "T2 Biosystems Common Stock Formally Removed from Nasdaq",
+  formType: "25-NSE",
+  filedAt: "Jul 10, 2025 - 4:07 PM ET",
+  source: "SEC EDGAR",
+  sourceUrl:
+    "https://www.sec.gov/Archives/edgar/data/1492674/000135445725000634/0001354457-25-000634-index.html",
+  eventType: "listing_risk",
+  impact: "low",
+  deliveryLevel: "archive",
+  score: 20,
+  signal: "neutral",
+  price: "N/A",
+  changeAmount: "$0.00",
+  change: "+0.00%",
+  filingFocus: "Formal exchange removal",
+  filingBrief:
+    "T2 Biosystems common stock was formally removed from Nasdaq effective July 21, 2025, following the previously announced trading suspension.",
+  whyItMatters:
+    "The market-impacting delisting decision was already disclosed; this Form 25 completes the formal Nasdaq removal and confirms continued OTC trading context.",
+  bullishPoints: [],
+  bearishPoints: [],
+  summary:
+    "T2 Biosystems common stock was formally removed from Nasdaq effective July 21, 2025. Trading had been suspended on February 12, 2025, and the company expected its common stock to continue trading on OTC Markets under the TTOO symbol.",
+  keyEvidence: [
+    "Nasdaq set July 21, 2025 as the formal removal date for T2 Biosystems common stock.",
+    "Trading was suspended on February 12, 2025 after the delisting determination became final.",
+    "The company expected the common stock to continue trading on OTC Markets under TTOO.",
+  ],
+  watchNext: [],
+  recentFilings: [
+    {
+      form: "8-K",
+      eventType: "Listing Risk",
+      title: "Nasdaq delisting decision and trading suspension disclosed",
+      filedAt: "Feb 10, 2025",
+      score: 88,
+    },
+    {
+      form: "25-NSE/A",
+      eventType: "Listing Risk",
+      title: "Nasdaq files an amendment to the formal removal notice",
+      filedAt: "Jul 10, 2025",
+      score: 20,
+    },
+  ],
+  relatedNews: [
+    {
+      title: "T2 Biosystems common stock moves to OTC trading after Nasdaq suspension",
+      eventType: "listing_risk",
+      source: "Stock Radar",
+      age: "Related coverage",
+    },
+  ],
+  scoreRationale:
+    "This filing is a procedural completion of an already disclosed delisting event, so it remains a low-impact archive update.",
+  context: emptySectorThemeContext(20, "neutral"),
+  priceSeries: null,
+  originalTextNote: "Fixture excerpt based on the filed Form 25-NSE and related listing context.",
+  originalHtml: `
+    <h3>Notification of Removal from Listing</h3>
+    <p>The Nasdaq Stock Market LLC determined to remove T2 Biosystems, Inc. common stock from listing effective at the opening of trading on July 21, 2025.</p>
+    <p>The common stock was suspended on February 12, 2025 after the company no longer qualified for continued listing.</p>
+  `,
+  form25ListingStatus: {
+    exchange: "Nasdaq Stock Market LLC",
+    issuerName: "T2 Biosystems, Inc.",
+    primaryTicker: "TTOO",
+    snapshot: {
+      title: "Exchange Delisting",
+      items: [
+        { label: "Removed Security", value: "Common Stock" },
+        {
+          label: "Exchange / Venue",
+          value: "Nasdaq Stock Market LLC",
+          note: "Continued trading: OTC Markets",
+        },
+        {
+          label: "Removal Basis",
+          value: "No longer qualified for listing",
+          note: "Rule 12d2-2(b)",
+        },
+        {
+          label: "Effective / Removal Date",
+          value: "July 21, 2025",
+          note: "Trading suspended February 12, 2025",
+        },
+      ],
+    },
+  },
+  genericAvailability: {
+    bearishPoints: false,
+    bullishPoints: false,
+    context: false,
+    filingBrief: true,
+    keyEvidence: true,
+    originalHtml: true,
+    recentFilings: true,
+    relatedNews: true,
+    scoreRationale: true,
+    summary: true,
+    watchNext: false,
+    whyItMatters: true,
+  },
+};
+
+commonFilingEvents["form-25-standalone-forced-delisting-fixture"] = {
+  ...commonFilingEvents["form-25-listing-removal-fixture"],
+  id: "form-25-standalone-forced-delisting-fixture",
+  title: "Nasdaq Removes T2 Biosystems Common Stock After Listing Failure",
+  impact: "high",
+  deliveryLevel: "alert",
+  score: 88,
+  signal: "bearish",
+  filingFocus: "Standalone exchange-forced removal",
+  filingBrief:
+    "Nasdaq formally removed T2 Biosystems common stock after the security no longer qualified for continued listing.",
+  whyItMatters:
+    "Without a linked prior event, this filing establishes an active exchange-liquidity loss and the transition to OTC trading.",
+  summary:
+    "Nasdaq formally removed T2 Biosystems common stock effective July 21, 2025, after trading had been suspended on February 12. The company expected the shares to continue trading on OTC Markets under TTOO, but exchange liquidity and market access were materially reduced.",
+  watchNext: [
+    "Confirm commencement and liquidity of OTC trading under TTOO.",
+    "Watch for company disclosure on reporting status after Nasdaq removal.",
+  ],
+  recentFilings: [],
+  scoreRationale:
+    "Forced common-equity removal materially reduces exchange liquidity despite the expected continuation of OTC trading.",
+  context: emptySectorThemeContext(88, "bearish"),
+  genericAvailability: {
+    ...commonFilingEvents["form-25-listing-removal-fixture"].genericAvailability!,
+    recentFilings: false,
+    watchNext: true,
+  },
+};
+
+commonFilingEvents["form-25-despac-transition-feed-fixture"] = {
+  ...commonFilingEvents["form-25-listing-removal-fixture"],
+  id: "form-25-despac-transition-feed-fixture",
+  ticker: "JVSA",
+  company: "JVSPAC Acquisition Corp.",
+  title: "JVSPAC Legacy Securities Removed for Hotel101 Listing Transition",
+  filedAt: "Jun 30, 2025",
+  sourceUrl:
+    "https://www.sec.gov/Archives/edgar/data/1866001/000135445725000591/xslF25X02/primary_doc.xml",
+  eventType: "strategic_transaction",
+  impact: "medium",
+  deliveryLevel: "feed",
+  score: 65,
+  signal: "neutral",
+  filingFocus: "Standalone de-SPAC listing transition",
+  filingBrief:
+    "Nasdaq filed to remove JVSPAC Class A ordinary shares, rights, and units during the Hotel101 listing transition.",
+  whyItMatters:
+    "The filing removes legacy SPAC securities while investors still need confirmation of the successor listing and treatment of old instruments.",
+  summary:
+    "Nasdaq filed Form 25 to remove JVSPAC Class A ordinary shares, rights, and units under Rule 12d2-2(a)(3). In the supplied standalone state, the filing indicates a security substitution or listing transition rather than an exchange-compliance failure. Investors still need confirmation of the successor Hotel101 listing and treatment of legacy JVSPAC instruments.",
+  keyEvidence: [
+    "The removed classes are Class A ordinary shares, rights, and units.",
+    "Nasdaq relied on Rule 12d2-2(a)(3) for the removal.",
+    "Nasdaq signed the Form 25 on June 30, 2025.",
+  ],
+  watchNext: [
+    "Confirm the successor Hotel101 ticker and first trading date.",
+    "Confirm treatment of legacy JVSPAC rights and units.",
+  ],
+  recentFilings: [],
+  relatedNews: [],
+  scoreRationale:
+    "Legacy SPAC securities are being removed during a listing transition, leaving successor-trading and instrument-treatment details to confirm.",
+  context: emptySectorThemeContext(65, "neutral"),
+  originalTextNote: "Fixture excerpt based on the filed JVSPAC Form 25-NSE.",
+  originalHtml: `
+    <h3>Notification of Removal from Listing</h3>
+    <p>Issuer: JVSPAC Acquisition Corp.</p>
+    <p>Exchange: Nasdaq Stock Market LLC</p>
+    <p>Class A Ordinary Share, Right, and Unit</p>
+    <p>Rule 12d2-2(a)(3)</p>
+  `,
+  form25ListingStatus: {
+    exchange: "Nasdaq Stock Market LLC",
+    issuerName: "JVSPAC Acquisition Corp.",
+    primaryTicker: "JVSA",
+    snapshot: {
+      title: "Listing Transition",
+      items: [
+        { label: "Removed Security", value: "Class A Shares, Rights, and Units" },
+        { label: "Exchange / Venue", value: "Nasdaq Stock Market LLC" },
+        {
+          label: "Removal Basis",
+          value: "Security substitution / transition",
+          note: "Rule 12d2-2(a)(3)",
+        },
+        {
+          label: "Form 25 Date",
+          value: "June 30, 2025",
+          note: "Signed by Nasdaq",
+        },
+      ],
+    },
+  },
+  genericAvailability: {
+    ...commonFilingEvents["form-25-listing-removal-fixture"].genericAvailability!,
+    recentFilings: false,
+    relatedNews: false,
+    watchNext: true,
+  },
+};
+
+commonFilingEvents["strategic-transaction-merger-closing-fixture"] = {
+  ...commonFilingEvents["tsla-8k-operational-update"],
+  id: "strategic-transaction-merger-closing-fixture",
+  ticker: "MORF",
+  exchange: "NASDAQ",
+  company: "Morphic Holding, Inc.",
+  title: "Morphic Completes $57-Per-Share Cash Acquisition by Eli Lilly",
+  formType: "8-K",
+  filedAt: "Aug 16, 2024 - 4:15 PM ET",
+  source: "SEC EDGAR",
+  sourceUrl:
+    "https://www.sec.gov/Archives/edgar/data/1679363/000119312524202123/d877674d8k.htm",
+  eventType: "strategic_transaction",
+  impact: "high",
+  deliveryLevel: "alert",
+  score: 80,
+  signal: "neutral",
+  price: "$57.00",
+  changeAmount: "+$0.01",
+  change: "+0.02%",
+  filingFocus: "Merger closing",
+  filingBrief:
+    "Eli Lilly completed its cash acquisition of Morphic after 92.8% of outstanding shares were tendered at $57 per share.",
+  whyItMatters:
+    "The transaction is complete, the cash consideration is fixed, and Morphic common stock is moving into the delisting and deregistration process.",
+  bullishPoints: [],
+  bearishPoints: [],
+  summary:
+    "Morphic completed its previously announced cash acquisition by Eli Lilly on August 16, 2024. Rainier Acquisition Corporation accepted 46,731,511 tendered shares, representing approximately 92.8% of outstanding shares, and the remaining eligible shares converted into the right to receive $57.00 in cash. Morphic became a wholly owned Lilly subsidiary and requested Nasdaq trading suspension and a Form 25 filing.",
+  keyEvidence: [
+    "The tender offer accepted 46,731,511 shares, approximately 92.8% of outstanding shares.",
+    "Each eligible Morphic share converted into the right to receive $57.00 in cash.",
+    "Morphic requested Nasdaq trading suspension and the filing of Form 25 after the merger closed.",
+  ],
+  watchNext: [
+    "Nasdaq's Form 25 filing and the formal removal of Morphic common stock.",
+    "Morphic's planned Form 15 filing to terminate registration and suspend reporting obligations.",
+  ],
+  recentFilings: [
+    {
+      form: "8-K",
+      eventType: "Strategic Transaction",
+      title: "Eli Lilly and Morphic enter into the definitive merger agreement",
+      filedAt: "Jul 8, 2024",
+      score: 80,
+    },
+    {
+      form: "SC 14D9",
+      eventType: "Tender Offer",
+      title: "Morphic board recommends the $57-per-share tender offer",
+      filedAt: "Jul 19, 2024",
+      score: 75,
+    },
+    {
+      form: "8-K",
+      eventType: "Strategic Transaction",
+      title: "Tender offer and second-step merger are completed",
+      filedAt: "Aug 16, 2024",
+      score: 80,
+    },
+  ],
+  relatedNews: [
+    {
+      title: "Lilly completes Morphic acquisition after successful tender offer",
+      eventType: "strategic_transaction",
+      source: "Stock Radar",
+      age: "Related coverage",
+    },
+    {
+      title: "Morphic shareholders receive $57 per share in cash",
+      eventType: "strategic_transaction",
+      source: "Stock Radar",
+      age: "Related coverage",
+    },
+    {
+      title: "Nasdaq delisting follows the completed cash merger",
+      eventType: "listing_risk",
+      source: "Stock Radar",
+      age: "Related coverage",
+    },
+  ],
+  scoreRationale:
+    "The completed cash merger fixes shareholder consideration and ends Morphic's independent public-market status.",
+  context: {
+    sector: "Healthcare",
+    industry: "Biotechnology",
+    themeGroup: "Corporate Actions",
+    subTheme: "Mergers & Acquisitions",
+    periods: {
+      "1D": {
+        sectorChange: "+0.22%",
+        industryChange: "+0.34%",
+        themeChange: "+0.18%",
+        subThemeChange: "+0.41%",
+        themeScore: 80,
+        themeSignal: "neutral",
+        topMovers: [
+          { symbol: "MORF", change: "+0.02%", trend: [56, 57, 57, 58, 58, 58, 58, 58, 58, 58] },
+          { symbol: "LLY", change: "+0.58%", trend: [40, 41, 42, 42, 43, 44, 43, 45, 46, 47] },
+          { symbol: "MRNA", change: "-0.74%", trend: [48, 47, 46, 47, 45, 44, 43, 44, 42, 41] },
+          { symbol: "VRTX", change: "+0.31%", trend: [39, 40, 41, 40, 42, 43, 42, 44, 44, 45] },
+          { symbol: "REGN", change: "-0.28%", trend: [46, 45, 46, 44, 43, 44, 42, 43, 42, 41] },
+          { symbol: "BIIB", change: "+0.16%", trend: [40, 41, 40, 42, 42, 43, 42, 44, 43, 44] },
+        ],
+      },
+      "5D": {
+        sectorChange: "+1.06%",
+        industryChange: "+1.42%",
+        themeChange: "+0.88%",
+        subThemeChange: "+1.18%",
+        themeScore: 80,
+        themeSignal: "neutral",
+        topMovers: [],
+      },
+      "30D": {
+        sectorChange: "+2.74%",
+        industryChange: "+3.18%",
+        themeChange: "+2.36%",
+        subThemeChange: "+3.42%",
+        themeScore: 80,
+        themeSignal: "neutral",
+        topMovers: [],
+      },
+    },
+  },
+  priceSeries: buildPriceSeries({
+    lastClose: 57,
+    previousClose: 56.99,
+    trend: [52, 53, 54, 55, 56, 57, 57, 58, 58, 58, 58, 58],
+    volumeBase: 1_900_000,
+  }),
+  originalTextNote: "Fixture excerpt based on the filed merger-closing 8-K.",
+  originalHtml: `
+    <h3>Item 2.01 Completion of Acquisition or Disposition of Assets</h3>
+    <p>On August 16, 2024, the tendered shares were accepted for payment and the merger was completed. Morphic Holding, Inc. continued as the surviving corporation and became a wholly owned subsidiary of Eli Lilly and Company.</p>
+    <h3>Item 3.01 Notice of Delisting</h3>
+    <p>Morphic requested that Nasdaq suspend trading of its common stock after the close of business on August 16, 2024 and file Form 25 to remove the common stock from listing and registration.</p>
+  `,
+  strategicTransactionSnapshot: {
+    title: "Transaction Snapshot",
+    items: [
+      { label: "Transaction Status", value: "Closed", note: "Completed August 16, 2024" },
+      { label: "Cash Consideration", value: "$57.00 per share" },
+      { label: "Tender Result", value: "92.8% tendered", note: "46,731,511 shares accepted" },
+      { label: "Post-Close Listing", value: "Nasdaq suspension requested", note: "Form 25 and Form 15 planned" },
+    ],
+  },
+  genericAvailability: {
+    bearishPoints: false,
+    bullishPoints: false,
+    context: true,
+    filingBrief: true,
+    keyEvidence: true,
+    originalHtml: true,
+    recentFilings: true,
+    relatedNews: true,
+    scoreRationale: true,
+    summary: true,
+    watchNext: true,
+    whyItMatters: true,
+  },
+};
+
+commonFilingEvents["form-425-regulatory-approval-fixture"] = {
+  ...commonFilingEvents["strategic-transaction-merger-closing-fixture"],
+  id: "form-425-regulatory-approval-fixture",
+  ticker: "RUM",
+  exchange: "NASDAQ",
+  company: "Rumble Inc.",
+  title: "Rumble Receives Final Regulatory Approval for Northern Data Business Combination",
+  formType: "425",
+  filedAt: "May 5, 2026 - 6:13 AM ET",
+  source: "SEC EDGAR",
+  sourceUrl:
+    "https://www.sec.gov/Archives/edgar/data/1830081/000121390026052303/ea028606803-425_rumble.htm",
+  eventType: "strategic_transaction",
+  impact: "high",
+  deliveryLevel: "alert",
+  score: 75,
+  signal: "neutral",
+  price: "$5.76",
+  changeAmount: "+$0.04",
+  change: "+0.70%",
+  filingFocus: "Final regulatory approval",
+  filingBrief:
+    "Rumble secured the final regulatory approval required for its Northern Data business combination, moving the transaction toward closing.",
+  whyItMatters:
+    "The final regulatory clearance removes a remaining closing condition and materially increases transaction certainty.",
+  bullishPoints: [],
+  bearishPoints: [],
+  summary:
+    "Rumble announced that the United Arab Emirates Ministry of Economy granted the final regulatory approval for its proposed business combination with Northern Data AG on April 29, 2026. No further regulatory approvals are required, closing is expected in mid-June 2026, and 16% of Northern Data shares not covered by support agreements had been tendered.",
+  keyEvidence: [
+    "The United Arab Emirates Ministry of Economy granted the required approval on April 29, 2026.",
+    "Rumble stated that no further regulatory approvals are required for the transaction.",
+    "Sixteen percent of Northern Data shares not subject to support agreements had been tendered.",
+  ],
+  watchNext: [
+    "Completion of the exchange offer and business combination.",
+    "Final tender participation and satisfaction or waiver of the remaining offer conditions.",
+    "Post-closing Northern Data delisting and integration disclosures.",
+  ],
+  recentFilings: [
+    {
+      form: "S-4",
+      eventType: "Strategic Transaction",
+      title: "Exchange-offer registration statement declared effective",
+      filedAt: "Apr 13, 2026",
+      score: 70,
+    },
+    {
+      form: "8-K",
+      eventType: "Strategic Transaction",
+      title: "Rumble signs Northern Data business combination agreement",
+      filedAt: "Nov 10, 2025",
+      score: 75,
+    },
+  ],
+  relatedNews: [
+    {
+      title: "Final UAE approval clears a remaining condition for the Northern Data transaction",
+      eventType: "strategic_transaction",
+      source: "Stock Radar",
+      age: "Related coverage",
+    },
+    {
+      title: "Exchange-offer participation becomes the next transaction milestone",
+      eventType: "shareholder_vote",
+      source: "Stock Radar",
+      age: "Related coverage",
+    },
+  ],
+  scoreRationale:
+    "Final regulatory approval removes a material closing condition, but the transaction remains pending until the offer closes.",
+  context: {
+    sector: "Communication Services",
+    industry: "Internet Platforms",
+    marketCap: "$2.50B",
+    sharesOutstanding: "434.42M",
+    publicFloat: "299.67M",
+    publicFloatPercent: "69.0%",
+    periods: {
+      "1D": {
+        sectorChange: "N/A",
+        industryChange: "N/A",
+        themeChange: "N/A",
+        subThemeChange: "N/A",
+        themeScore: 75,
+        themeSignal: "neutral",
+        topMovers: [],
+      },
+      "5D": {
+        sectorChange: "N/A",
+        industryChange: "N/A",
+        themeChange: "N/A",
+        subThemeChange: "N/A",
+        themeScore: 75,
+        themeSignal: "neutral",
+        topMovers: [],
+      },
+      "30D": {
+        sectorChange: "N/A",
+        industryChange: "N/A",
+        themeChange: "N/A",
+        subThemeChange: "N/A",
+        themeScore: 75,
+        themeSignal: "neutral",
+        topMovers: [],
+      },
+    },
+  },
+  priceSeries: buildPriceSeries({
+    lastClose: 5.76,
+    previousClose: 5.72,
+    trend: [45, 46, 44, 47, 48, 47, 50, 51, 50, 52, 53, 54],
+    volumeBase: 2_027_077,
+  }),
+  originalTextNote: "Fixture excerpt based on the filed Form 425 transaction update.",
+  originalHtml: `
+    <h3>Rumble Announces Receipt of All Regulatory Approvals</h3>
+    <p>Rumble announced that its proposed business combination with Northern Data AG obtained the final regulatory approval. The United Arab Emirates Ministry of Economy granted the required approval on April 29, 2026, and no other regulatory approvals are required.</p>
+    <p>Based on current information, closing is anticipated in mid-June 2026. Sixteen percent of Northern Data shares not subject to transaction support agreements had been tendered.</p>
+  `,
+  strategicTransactionSnapshot: null,
+  form425TransactionSnapshot: {
+    title: "Rumble Inc. Business Combination Update",
+    items: [
+      {
+        label: "Regulatory Approval",
+        value: "Final Approval Received",
+        note: "UAE Ministry of Economy approval received April 29, 2026; no approvals remain",
+      },
+      {
+        label: "Transaction Status",
+        value: "Closing Pending",
+        note: "Final regulatory approval increases closing certainty",
+      },
+      {
+        label: "Expected Closing",
+        value: "Mid-June 2026",
+      },
+      {
+        label: "Tendered Shares",
+        value: "16%",
+        note: "Shares not subject to support agreements",
+      },
+    ],
+  },
+};
+
+commonFilingEvents["proxy-vote-reverse-split-fixture"] = {
+  ...commonFilingEvents["tsla-8k-operational-update"],
+  id: "proxy-vote-reverse-split-fixture",
+  ticker: "RNAZ",
+  exchange: "NASDAQ",
+  company: "TransCode Therapeutics, Inc.",
+  title: "TransCode Therapeutics Special Meeting: Reverse Stock Split Vote",
+  formType: "DEF 14A",
+  filedAt: "Apr 11, 2025 - 5:01 PM ET",
+  source: "SEC EDGAR",
+  sourceUrl:
+    "https://www.sec.gov/Archives/edgar/data/1829635/000110465925034266/tm252488-2_def14a.htm",
+  eventType: "shareholder_vote",
+  impact: "high",
+  deliveryLevel: "alert",
+  score: 78,
+  signal: "volatile",
+  price: "$8.43",
+  changeAmount: "+$0.16",
+  change: "+1.93%",
+  filingFocus: "Reverse stock split vote",
+  filingBrief:
+    "TransCode Therapeutics seeks shareholder approval for a reverse stock split to meet Nasdaq minimum bid price requirements and avoid delisting.",
+  whyItMatters:
+    "Shareholder approval of the reverse stock split is critical for TransCode Therapeutics to maintain its Nasdaq listing and avoid the risks associated with OTC trading.",
+  bullishPoints: [],
+  bearishPoints: [],
+  summary:
+    "TransCode Therapeutics is holding a special meeting on April 21, 2025, where shareholders will vote on a reverse stock split and an adjournment proposal. The reverse stock split aims to increase the per-share price to comply with Nasdaq listing rules and avoid potential delisting.",
+  keyEvidence: [
+    "The reverse stock split is intended to increase the common-stock price to meet Nasdaq minimum bid requirements.",
+    "The proposed split ratio ranges from 1-for-10 to 1-for-40, with the exact ratio set by the board.",
+    "The board recommends voting for the reverse stock split and adjournment proposals.",
+  ],
+  watchNext: [
+    "Voting results for the reverse stock split and adjournment proposals.",
+    "The final split ratio and effective date if shareholders approve the proposal.",
+    "Updates on Nasdaq listing compliance after the reverse stock split.",
+  ],
+  recentFilings: [],
+  relatedNews: [],
+  scoreRationale:
+    "The vote directly affects Nasdaq listing compliance and the issuer's near-term capital structure.",
+  context: buildFinancingFixtureContext({
+    marketCap: "$8.01M",
+    publicFloat: "865,763",
+    publicFloatPercent: "91.1%",
+    score: 78,
+    sharesOutstanding: "950,302",
+    signal: "volatile",
+    ticker: "RNAZ",
+  }),
+  priceSeries: buildPriceSeries({
+    lastClose: 8.43,
+    previousClose: 8.27,
+    trend: [47, 46, 48, 45, 44, 43, 45, 47, 46, 48, 49, 50],
+    volumeBase: 5_713,
+  }),
+  originalTextNote: "Fixture excerpt based on the filed definitive proxy statement.",
+  originalHtml: `
+    <h3>Proposal One: Reverse Stock Split Proposal</h3>
+    <p>Stockholders are being asked to approve an amendment that permits the board to effect a reverse stock split at a ratio ranging from one-for-ten to one-for-forty. The exact ratio may be selected by the board without further stockholder approval.</p>
+    <p>The primary goal is to increase the per-share market price of the common stock to meet Nasdaq minimum bid requirements. The number of authorized shares will remain unchanged.</p>
+    <h3>Proposal Two: Adjournment Proposal</h3>
+    <p>Stockholders are also being asked to permit an adjournment if additional votes are needed for the reverse stock split proposal.</p>
+  `,
+  proxyVote: {
+    snapshot: {
+      title: "Reverse Stock Split Vote",
+      items: [
+        {
+          label: "Meeting Date",
+          value: "April 21, 2025",
+          note: "Virtual meeting at 9:30 a.m. Eastern Time",
+        },
+        { label: "Record Date", value: "April 2, 2025" },
+        { label: "Proposal Count", value: "2" },
+        {
+          label: "Listing Issue",
+          value: "Nasdaq Minimum Bid Price",
+          note: "Reverse split aims to regain compliance",
+        },
+      ],
+    },
+    proposals: [
+      {
+        boardRecommendation: "Support",
+        category: "Reverse split",
+        details: [
+          {
+            label: "Split Ratio Range",
+            value: "1:10 to 1:40",
+            note: "Exact ratio to be set by the board",
+          },
+          {
+            label: "Board Discretion",
+            value: "Yes",
+            note: "Ratio set without further stockholder approval",
+          },
+          {
+            label: "Goal",
+            value: "Regain Nasdaq Listing Compliance",
+            note: "Avoid delisting and OTC trading risks",
+          },
+          {
+            label: "Authorized Shares",
+            value: "Unchanged",
+            note: "Authorized shares remain 300,000,000",
+          },
+        ],
+        explanation:
+          "This proposal allows the board to reduce outstanding shares and increase the per-share price to meet Nasdaq listing rules.",
+        id: "1",
+        isShareholderProposal: false,
+        title: "Approval of an Amendment to Effect a Reverse Stock Split",
+      },
+      {
+        boardRecommendation: "Support",
+        category: "Adjournment",
+        details: [],
+        explanation:
+          "This proposal permits the meeting to be delayed if additional votes are needed for the reverse stock split proposal.",
+        id: "2",
+        isShareholderProposal: false,
+        title: "Adjournment Proposal",
+      },
+    ],
+  },
+  genericAvailability: {
+    bearishPoints: false,
+    bullishPoints: false,
+    context: true,
+    filingBrief: true,
+    keyEvidence: true,
+    originalHtml: true,
+    recentFilings: false,
+    relatedNews: false,
+    scoreRationale: true,
+    summary: true,
+    watchNext: true,
+    whyItMatters: true,
+  },
+};
+
+commonFilingEvents["governance-auditor-change-fixture"] = {
+  ...commonFilingEvents["tsla-8k-operational-update"],
+  id: "governance-auditor-change-fixture",
+  ticker: "INFQ",
+  exchange: "NYSE",
+  company: "Infleqtion, Inc.",
+  title: "Infleqtion Clarifies Withum Dismissal and Conditional KPMG Engagement",
+  formType: "8-K/A",
+  filedAt: "Mar 31, 2026 - 4:27 PM ET",
+  source: "SEC EDGAR",
+  sourceUrl:
+    "https://www.sec.gov/Archives/edgar/data/2007825/000119312526134682/d108106d8ka.htm",
+  eventType: "leadership_governance",
+  impact: "medium",
+  deliveryLevel: "feed",
+  score: 55,
+  signal: "neutral",
+  price: "$9.09",
+  changeAmount: "+$0.03",
+  change: "+0.33%",
+  filingFocus: "Auditor change",
+  filingBrief:
+    "Infleqtion specified the effective dismissal date for Withum and retained KPMG subject to completion of filing and engagement conditions.",
+  whyItMatters:
+    "The amendment resolves the timing of the auditor transition, while KPMG's appointment remains conditional rather than fully effective.",
+  bullishPoints: [],
+  bearishPoints: [],
+  summary:
+    "Infleqtion dismissed WithumSmith+Brown, PC effective March 31, 2026 after completion of the 2025 audit. The Audit Committee approved KPMG LLP for the 2026 audit, but the engagement remains subject to the 2025 Form 10-K filing and execution of an engagement letter. The company reported no disagreements, reportable events, or prior consultations affecting the transition.",
+  keyEvidence: [],
+  watchNext: [],
+  recentFilings: [
+    {
+      form: "8-K",
+      eventType: "Governance Event",
+      title: "Audit Committee approves auditor transition",
+      filedAt: "Mar 26, 2026",
+      score: 55,
+    },
+    {
+      form: "8-K/A",
+      eventType: "Governance Event",
+      title: "Amendment supplies the effective dismissal date",
+      filedAt: "Mar 31, 2026",
+      score: 55,
+    },
+  ],
+  relatedNews: [
+    {
+      title: "Infleqtion completes Withum audit services before auditor transition",
+      eventType: "leadership_governance",
+      source: "Stock Radar",
+      age: "Related coverage",
+    },
+    {
+      title: "KPMG engagement remains subject to filing and acceptance conditions",
+      eventType: "leadership_governance",
+      source: "Stock Radar",
+      age: "Related coverage",
+    },
+  ],
+  scoreRationale:
+    "The filing clarifies a routine auditor transition with no disputes, while the new engagement remains conditional.",
+  context: {
+    sector: "Technology",
+    industry: "Hardware & Electronics",
+    marketCap: "$1.58B",
+    sharesOutstanding: "173.52M",
+    publicFloat: "41.40M",
+    publicFloatPercent: "23.9%",
+    themeGroup: "Corporate Governance",
+    subTheme: "Auditor Oversight",
+    periods: {
+      "1D": {
+        sectorChange: "+0.44%",
+        industryChange: "+0.18%",
+        themeChange: "+0.06%",
+        subThemeChange: "-0.12%",
+        themeScore: 55,
+        themeSignal: "neutral",
+        topMovers: [
+          { symbol: "INFQ", change: "+0.33%", trend: [41, 42, 41, 43, 44, 43, 45, 44, 46, 47] },
+          { symbol: "IONQ", change: "+1.14%", trend: [38, 40, 39, 42, 43, 45, 44, 46, 47, 49] },
+          { symbol: "RGTI", change: "-0.62%", trend: [50, 48, 49, 47, 46, 44, 45, 43, 42, 41] },
+          { symbol: "QBTS", change: "+0.48%", trend: [39, 40, 42, 41, 43, 44, 45, 44, 46, 47] },
+        ],
+      },
+      "5D": {
+        sectorChange: "+1.28%",
+        industryChange: "+0.82%",
+        themeChange: "+0.36%",
+        subThemeChange: "+0.18%",
+        themeScore: 55,
+        themeSignal: "neutral",
+        topMovers: [],
+      },
+      "30D": {
+        sectorChange: "+3.42%",
+        industryChange: "+2.18%",
+        themeChange: "+1.06%",
+        subThemeChange: "+0.72%",
+        themeScore: 55,
+        themeSignal: "neutral",
+        topMovers: [],
+      },
+    },
+  },
+  priceSeries: buildPriceSeries({
+    lastClose: 9.09,
+    previousClose: 9.06,
+    trend: [42, 43, 42, 44, 45, 44, 46, 45, 47, 48, 47, 49],
+    volumeBase: 520_000,
+  }),
+  originalTextNote: "Fixture excerpt based on the filed 8-K/A.",
+  originalHtml: `
+    <h3>Item 4.01 Changes in Registrant's Certifying Accountant</h3>
+    <p>WithumSmith+Brown, PC was dismissed effective March 31, 2026 upon completion of its audit services. There were no disagreements or reportable events.</p>
+    <p>The Audit Committee approved KPMG LLP as the Company's independent registered public accounting firm for the year ending December 31, 2026, subject to filing the 2025 Form 10-K and executing an engagement letter.</p>
+  `,
+  governanceEvent: {
+    mode: "auditor_change",
+    snapshot: {
+      title: "Auditor Change Details",
+      items: [
+        { label: "Dismissed Accountant", value: "WithumSmith+Brown, PC" },
+        { label: "New Accountant", value: "KPMG LLP" },
+        { label: "Dismissal Date", value: "March 31, 2026", note: "Effective after audit services were completed" },
+        { label: "Conditional Approval Date", value: "March 20, 2026", note: "Engagement remains subject to stated conditions" },
+      ],
+    },
+    changesTitle: "Key Changes",
+    changes: [
+      {
+        category: "Auditor Dismissal",
+        title: "Withum audit services completed and dismissal became effective",
+        explanation:
+          "Infleqtion dismissed WithumSmith+Brown, PC after completion of the audit for the year ended December 31, 2025.",
+        details: [
+          { label: "Effective Date", value: "March 31, 2026" },
+          { label: "Disagreements / Events", value: "None" },
+          { label: "Audit Scope", value: "2025 consolidated financial statements" },
+        ],
+      },
+      {
+        category: "Auditor Appointment",
+        title: "KPMG approved for the 2026 audit subject to conditions",
+        explanation:
+          "The Audit Committee approved KPMG LLP, but the appointment is not yet unconditional.",
+        details: [
+          { label: "Approval Date", value: "March 20, 2026" },
+          { label: "Engagement Condition", value: "2025 Form 10-K filing and engagement letter" },
+          { label: "Prior Consultations", value: "None" },
+        ],
+      },
+    ],
+  },
+  genericAvailability: {
+    bearishPoints: false,
+    bullishPoints: false,
+    context: true,
+    filingBrief: true,
+    keyEvidence: false,
+    originalHtml: true,
+    recentFilings: true,
+    relatedNews: true,
+    scoreRationale: true,
+    summary: true,
+    watchNext: false,
+    whyItMatters: true,
+  },
+};
+
+commonFilingEvents["operating-earnings-outlook-fixture"] = {
+  ...commonFilingEvents["tsla-8k-operational-update"],
+  id: "operating-earnings-outlook-fixture",
+  ticker: "MDB",
+  exchange: "NASDAQ",
+  company: "MongoDB, Inc.",
+  title: "MongoDB Reports Strong Q4 and Full Year Fiscal 2026 Results and Issues FY27 Guidance",
+  formType: "8-K",
+  filedAt: "Mar 2, 2026 - 4:07 PM ET",
+  source: "SEC EDGAR",
+  sourceUrl:
+    "https://www.sec.gov/Archives/edgar/data/1441816/000162828026013199/0001628280-26-013199-index.html",
+  eventType: "earnings",
+  impact: "high",
+  deliveryLevel: "alert",
+  score: 85,
+  signal: "bullish",
+  price: "$342.08",
+  changeAmount: "-$20.79",
+  change: "-5.73%",
+  filingFocus: "Earnings and outlook",
+  filingBrief:
+    "MongoDB delivered 27% Q4 revenue growth, record free cash flow, and higher fiscal 2027 revenue guidance.",
+  whyItMatters:
+    "Strong subscription growth and cash generation support the outlook, while management transitions remain a secondary execution factor.",
+  bullishPoints: [],
+  bearishPoints: [],
+  summary:
+    "MongoDB reported fourth-quarter fiscal 2026 revenue of $695.1 million, up 27% year over year, and full-year revenue of $2.46 billion, up 23%. Free cash flow increased to $176.7 million from $22.9 million. The company guided first-quarter fiscal 2027 revenue to $659 million to $664 million and full-year revenue to $2.86 billion to $2.90 billion.",
+  keyEvidence: [],
+  watchNext: [],
+  recentFilings: [
+    {
+      form: "8-K",
+      eventType: "Earnings",
+      title: "MongoDB reports fiscal 2026 fourth-quarter results",
+      filedAt: "Mar 2, 2026",
+      score: 85,
+    },
+    {
+      form: "10-K",
+      eventType: "Periodic Report",
+      title: "MongoDB files fiscal 2026 annual report",
+      filedAt: "Mar 20, 2026",
+      score: 75,
+    },
+  ],
+  relatedNews: [
+    {
+      title: "MongoDB subscription revenue rises 27% as Atlas demand remains firm",
+      eventType: "earnings",
+      source: "Stock Radar",
+      age: "Related coverage",
+    },
+    {
+      title: "Fiscal 2027 outlook points to continued double-digit revenue growth",
+      eventType: "earnings",
+      source: "Stock Radar",
+      age: "Related coverage",
+    },
+  ],
+  scoreRationale:
+    "Revenue, subscription growth, free cash flow, and fiscal 2027 guidance all support a high-impact bullish reading.",
+  context: buildOperatingFixtureContext(),
+  priceSeries: buildPriceSeries({
+    lastClose: 342.08,
+    previousClose: 362.87,
+    trend: [58, 56, 54, 55, 51, 49, 47, 48, 44, 42, 43, 40],
+    volumeBase: 1_401_270,
+  }),
+  originalTextNote: "Fixture excerpt based on MongoDB's filed earnings 8-K.",
+  originalHtml: `
+    <h3>Item 2.02 Results of Operations and Financial Condition</h3>
+    <p>MongoDB announced total revenue of $695.1 million for the fourth quarter of fiscal 2026, an increase of 27% year over year. Subscription revenue was $673.1 million.</p>
+    <p>For the first quarter of fiscal 2027, MongoDB expects revenue of $659 million to $664 million. For the full year, the company expects revenue of $2.86 billion to $2.90 billion.</p>
+  `,
+  operatingEvent: {
+    mode: "earnings",
+    regulatoryStage: "not_applicable",
+    snapshot: {
+      title: "Earnings Snapshot",
+      items: [
+        { label: "Q4 Fiscal 2026 Revenue", value: "$695.1M", note: "Up 27% year over year" },
+        { label: "Full Year Fiscal 2026 Revenue", value: "$2.46B", note: "Up 23% year over year" },
+        { label: "Q4 Fiscal 2026 GAAP Net Income", value: "$15.5M", note: "$0.18 per share" },
+        { label: "Q4 Fiscal 2026 Non-GAAP Net Income", value: "$142.7M", note: "$1.65 per share" },
+      ],
+    },
+    performanceComparisons: [
+      {
+        label: "Total Revenue",
+        currentLabel: "Q4 FY26",
+        currentValue: "$695.1M",
+        currentNumeric: 695_100_000,
+        comparisonLabel: "Q4 FY25",
+        comparisonValue: "$548.4M",
+        comparisonNumeric: 548_398_000,
+        comparisonBasis: "yoy",
+        changeNote: "Up 27%",
+      },
+      {
+        label: "Subscription Revenue",
+        currentLabel: "Q4 FY26",
+        currentValue: "$673.1M",
+        currentNumeric: 673_100_000,
+        comparisonLabel: "Q4 FY25",
+        comparisonValue: "$531.0M",
+        comparisonNumeric: 530_958_000,
+        comparisonBasis: "yoy",
+        changeNote: "Up 27%",
+      },
+      {
+        label: "Free Cash Flow",
+        currentLabel: "Q4 FY26",
+        currentValue: "$176.7M",
+        currentNumeric: 176_700_000,
+        comparisonLabel: "Q4 FY25",
+        comparisonValue: "$22.9M",
+        comparisonNumeric: 22_900_000,
+        comparisonBasis: "yoy",
+        changeNote: "Up 672%",
+      },
+    ],
+    guidanceMetrics: [
+      {
+        label: "Revenue",
+        guidanceLabel: "Q1 Fiscal 2027",
+        guidanceValue: "$659M to $664M",
+        note: "Non-GAAP EPS: $1.15 to $1.19",
+        performanceRelationship: "standalone",
+      },
+      {
+        label: "Revenue",
+        guidanceLabel: "Full Year Fiscal 2027",
+        guidanceValue: "$2.86B to $2.90B",
+        note: "Non-GAAP EPS: $5.75 to $5.93",
+        performanceRelationship: "standalone",
+      },
+    ],
+    businessUpdates: [
+      {
+        title: "Total Customers",
+        value: "Over 65,200",
+        summary: "Customer count as of January 31, 2026.",
+      },
+      {
+        title: "Atlas Revenue Growth",
+        value: "29%",
+        summary: "Atlas growth for the fourth quarter and full fiscal year 2026.",
+      },
+      {
+        title: "AI Capabilities",
+        summary: "MongoDB added Voyage AI models and an AI-assisted data operations workflow.",
+      },
+    ],
+    detailSections: [],
+    secondaryUpdates: [
+      {
+        label: "Leadership Change",
+        title: "Customer and accounting leadership transitions",
+        summary: "MongoDB appointed a Chief Customer Officer and Chief Accounting Officer as two executives departed.",
+      },
+    ],
+  },
+  genericAvailability: {
+    bearishPoints: false,
+    bullishPoints: false,
+    context: true,
+    filingBrief: true,
+    keyEvidence: false,
+    originalHtml: true,
+    recentFilings: true,
+    relatedNews: true,
+    scoreRationale: true,
+    summary: true,
+    watchNext: false,
+    whyItMatters: true,
+  },
+};
+
+commonFilingEvents["periodic-report-performance-fixture"] = {
+  ...commonFilingEvents["tsla-8k-operational-update"],
+  id: "periodic-report-performance-fixture",
+  ticker: "AMZN",
+  exchange: "NASDAQ",
+  company: "Amazon.com, Inc.",
+  title: "Amazon Reports Higher Q1 2026 Sales, Operating Income, and Net Income",
+  formType: "10-Q",
+  filedAt: "Apr 30, 2026 - 4:05 PM ET",
+  source: "SEC EDGAR",
+  sourceUrl:
+    "https://www.sec.gov/Archives/edgar/data/1018724/000101872426000014/0001018724-26-000014-index.htm",
+  eventType: "earnings",
+  impact: "high",
+  deliveryLevel: "alert",
+  score: 80,
+  signal: "bullish",
+  price: "$190.20",
+  changeAmount: "+$5.61",
+  change: "+3.04%",
+  filingFocus: "Quarterly report",
+  filingBrief:
+    "Amazon's first-quarter filing shows double-digit sales growth and a larger increase in operating income, led by AWS and international operations.",
+  whyItMatters:
+    "Sales, operating income, and net income all increased year over year, while non-operating investment gains also contributed materially to reported earnings.",
+  bullishPoints: [],
+  bearishPoints: [],
+  summary:
+    "Amazon reported first-quarter 2026 net sales of $181.5 billion, operating income of $23.9 billion, and net income of $30.3 billion. AWS sales increased 28%, international sales increased 19%, and gains tied to strategic AI investments increased non-operating income.",
+  keyEvidence: [],
+  watchNext: [],
+  recentFilings: [
+    {
+      form: "10-K",
+      eventType: "Periodic Report",
+      title: "Amazon files fiscal 2025 annual report",
+      filedAt: "Feb 6, 2026",
+      score: 78,
+    },
+    {
+      form: "8-K",
+      eventType: "Earnings",
+      title: "Amazon furnishes first-quarter earnings materials",
+      filedAt: "Apr 30, 2026",
+      score: 80,
+    },
+  ],
+  relatedNews: [
+    {
+      title: "AWS growth and operating leverage lift Amazon's quarterly results",
+      eventType: "earnings",
+      source: "Stock Radar",
+      age: "Related coverage",
+    },
+    {
+      title: "AI investment gains add a material non-operating boost to net income",
+      eventType: "earnings",
+      source: "Stock Radar",
+      age: "Related coverage",
+    },
+  ],
+  scoreRationale:
+    "Broad year-over-year growth in sales and operating income supports a high-impact bullish reading, partly offset by the contribution from investment gains.",
+  context: buildPeriodicFixtureContext(),
+  priceSeries: buildPriceSeries({
+    lastClose: 190.2,
+    previousClose: 184.59,
+    trend: [44, 46, 45, 49, 51, 50, 54, 56, 55, 59, 61, 63],
+    volumeBase: 48_600_000,
+  }),
+  originalTextNote: "Fixture excerpt based on Amazon's filed Q1 2026 Form 10-Q.",
+  originalHtml: `
+    <h3>Part I. Financial Information</h3>
+    <p>Net sales increased to $181.5 billion for the three months ended March 31, 2026. Operating income increased to $23.9 billion and net income increased to $30.3 billion.</p>
+    <p>AWS sales increased 28% compared with the prior-year quarter, while international sales increased 19%.</p>
+    <p>Second-quarter net sales are expected to be $194.0 billion to $199.0 billion, with operating income of $20.0 billion to $24.0 billion.</p>
+  `,
+  periodicReport: {
+    mode: "report",
+    snapshot: {
+      title: "Quarterly Report Snapshot",
+      items: [
+        { label: "Reporting Period End", value: "March 31, 2026" },
+        { label: "Total Net Sales", value: "$181.5 Billion" },
+        { label: "Operating Income", value: "$23.9 Billion" },
+        { label: "Cash & Cash Equivalents", value: "$101.8 Billion", note: "As of March 31, 2026" },
+      ],
+    },
+    performanceComparisons: [
+      {
+        label: "Total Net Sales",
+        currentLabel: "Q1 2026",
+        currentValue: "$181.5B",
+        currentNumeric: 181_519_000_000,
+        comparisonLabel: "Q1 2025",
+        comparisonValue: "$155.7B",
+        comparisonNumeric: 155_667_000_000,
+        comparisonBasis: "yoy",
+        changeNote: "Up 17%",
+      },
+      {
+        label: "Operating Income",
+        currentLabel: "Q1 2026",
+        currentValue: "$23.9B",
+        currentNumeric: 23_852_000_000,
+        comparisonLabel: "Q1 2025",
+        comparisonValue: "$18.4B",
+        comparisonNumeric: 18_405_000_000,
+        comparisonBasis: "yoy",
+        changeNote: "Up 30%",
+      },
+      {
+        label: "Net Income",
+        currentLabel: "Q1 2026",
+        currentValue: "$30.3B",
+        currentNumeric: 30_255_000_000,
+        comparisonLabel: "Q1 2025",
+        comparisonValue: "$17.1B",
+        comparisonNumeric: 17_127_000_000,
+        comparisonBasis: "yoy",
+        changeNote: "Up 77%",
+      },
+    ],
+    guidanceMetrics: [
+      {
+        guidanceLabel: "Guidance",
+        guidanceValue: "$194.0B to $199.0B",
+        label: "Q2 2026",
+        note: "Expected growth of 16% to 19% YoY",
+        performanceLabel: "Total Net Sales",
+        performanceRelationship: "same_basis",
+      },
+      {
+        guidanceLabel: "Guidance",
+        guidanceValue: "$20.0B to $24.0B",
+        label: "Q2 2026",
+        note: "Compared with $19.2B in Q2 2025",
+        performanceLabel: "Operating Income",
+        performanceRelationship: "same_basis",
+      },
+    ],
+    businessUpdates: [
+      {
+        title: "AWS Sales Growth",
+        value: "28% increase",
+        summary: "AWS sales increased as customer usage continued to expand.",
+      },
+      {
+        title: "International Sales Growth",
+        value: "19% increase",
+        summary: "International sales benefited from higher unit sales, advertising, and subscription services.",
+      },
+      {
+        title: "Strategic AI Investments",
+        value: "$15.6B other income",
+        summary: "Anthropic-related valuation and conversion gains materially increased non-operating income during the quarter.",
+      },
+    ],
+  },
+  genericAvailability: {
+    bearishPoints: false,
+    bullishPoints: false,
+    context: true,
+    filingBrief: true,
+    keyEvidence: false,
+    originalHtml: true,
+    recentFilings: true,
+    relatedNews: true,
+    scoreRationale: true,
+    summary: true,
+    watchNext: false,
+    whyItMatters: true,
+  },
+};
+
+commonFilingEvents["periodic-amendment-fixture"] = {
+  ...commonFilingEvents["tsla-8k-operational-update"],
+  id: "periodic-amendment-fixture",
+  ticker: "SHOP",
+  exchange: "NASDAQ",
+  company: "Shopify Inc.",
+  title: "Shopify Amends 2025 10-K to Add Part III Information and Certifications",
+  formType: "10-K/A",
+  filedAt: "Apr 29, 2026 - 4:10 PM ET",
+  source: "SEC EDGAR",
+  sourceUrl:
+    "https://www.sec.gov/Archives/edgar/data/1594805/000159480526000011/0001594805-26-000011-index.htm",
+  eventType: "other",
+  impact: "low",
+  deliveryLevel: "archive",
+  score: 30,
+  signal: "neutral",
+  price: "$147.20",
+  changeAmount: "+$0.34",
+  change: "+0.23%",
+  filingFocus: "Annual report amendment",
+  filingBrief:
+    "Shopify added previously omitted Part III disclosures and updated CEO and CFO certifications without changing its financial statements.",
+  whyItMatters:
+    "The amendment completes governance and certification disclosures but does not restate or alter Shopify's reported fiscal 2025 financial results.",
+  bullishPoints: [],
+  bearishPoints: [],
+  summary:
+    "Shopify filed a 10-K/A to include Part III information that was not incorporated through a definitive proxy statement and to add new Section 302 certifications. The amendment has no financial statement impact.",
+  keyEvidence: [],
+  watchNext: [],
+  recentFilings: [
+    {
+      form: "10-K",
+      eventType: "Periodic Report",
+      title: "Shopify files fiscal 2025 annual report",
+      filedAt: "Feb 11, 2026",
+      score: 75,
+    },
+  ],
+  relatedNews: [],
+  scoreRationale:
+    "The filing adds required governance disclosures and certifications without changing reported financial results.",
+  context: buildPeriodicFixtureContext(),
+  priceSeries: buildPriceSeries({
+    lastClose: 147.2,
+    previousClose: 146.86,
+    trend: [49, 48, 50, 51, 50, 52, 53, 52, 54, 55, 54, 55],
+    volumeBase: 6_200_000,
+  }),
+  originalTextNote: "Fixture excerpt based on Shopify's filed fiscal 2025 Form 10-K/A.",
+  originalHtml: `
+    <h3>Explanatory Note</h3>
+    <p>This amendment includes the information required by Part III of Form 10-K and adds new certifications under Section 302 of the Sarbanes-Oxley Act.</p>
+    <p>No financial statements were restated or otherwise changed.</p>
+  `,
+  periodicReport: {
+    mode: "amendment",
+    snapshot: {
+      title: "Report Amendment Snapshot",
+      items: [
+        { label: "Amendment Type", value: "Administrative Correction" },
+        { label: "Affected Period", value: "FY 2025" },
+        { label: "Amended Items", value: "Part III information, Item 15 certifications" },
+        { label: "Financial Statement Impact", value: "None" },
+      ],
+    },
+    changes: [
+      {
+        title: "Purpose of Amendment",
+        value: "Include Part III information",
+        note: "The original 10-K omitted Part III information under the permitted incorporation-by-reference process.",
+      },
+      {
+        title: "Certifications",
+        value: "New CEO/CFO certifications",
+        note: "Item 15 was amended to include new Section 302 certifications.",
+      },
+    ],
+  },
+  genericAvailability: {
+    bearishPoints: false,
+    bullishPoints: false,
+    context: true,
+    filingBrief: true,
+    keyEvidence: false,
+    originalHtml: true,
+    recentFilings: true,
+    relatedNews: false,
+    scoreRationale: true,
+    summary: true,
+    watchNext: false,
+    whyItMatters: true,
+  },
+};
+
+commonFilingEvents["financing-dilution-share-count-fixture"] = {
+  ...commonFilingEvents["tsla-8k-operational-update"],
+  id: "financing-dilution-share-count-fixture",
+  ticker: "STTK",
+  exchange: "NASDAQ",
+  company: "Shattuck Labs, Inc.",
+  title: "Shattuck Labs Announces Private Placement With Common Stock and Warrants",
+  formType: "8-K",
+  filedAt: "Aug 5, 2025 - 4:15 PM ET",
+  source: "SEC EDGAR",
+  sourceUrl:
+    "https://www.sec.gov/Archives/edgar/data/1680367/000119312525173010/0001193125-25-173010-index.htm",
+  eventType: "dilution_risk",
+  impact: "high",
+  deliveryLevel: "alert",
+  score: 84,
+  signal: "bearish",
+  price: "$7.53",
+  changeAmount: "+$0.46",
+  change: "+6.51%",
+  filingFocus: "Private placement",
+  filingBrief:
+    "The financing includes fixed common-equivalent supply that can be compared with the filing-date share base.",
+  whyItMatters:
+    "The included common stock and pre-funded warrants exceed the current share base, creating severe potential dilution before any additional common-warrant exercise.",
+  bullishPoints: [],
+  bearishPoints: [],
+  summary:
+    "Shattuck agreed to sell common stock and pre-funded warrants for $46 million upfront, with common warrants capable of providing another $57 million if exercised. The fixed common-equivalent supply alone is large relative to the filing-date share base, while the common warrants add a further conditional overhang.",
+  keyEvidence: [],
+  watchNext: [],
+  recentFilings: [
+    {
+      form: "S-3",
+      eventType: "Offering / Registration",
+      title: "Registration statement provides the resale path for placement securities",
+      filedAt: "Follow-up filing",
+      score: 72,
+    },
+    {
+      form: "8-K",
+      eventType: "FDA / Clinical",
+      title: "Clinical update describes the program milestone tied to closing",
+      filedAt: "Related filing",
+      score: 68,
+    },
+  ],
+  relatedNews: [
+    {
+      title: "Private placement materially expands Shattuck's potential common-equity supply",
+      eventType: "dilution_risk",
+      source: "Stock Radar",
+      age: "Related coverage",
+    },
+    {
+      title: "Clinical milestone remains the principal financing closing condition",
+      eventType: "fda_clinical",
+      source: "Stock Radar",
+      age: "Related coverage",
+    },
+  ],
+  scoreRationale:
+    "Fixed common-equivalent supply exceeds the filing-date share base, placing the transaction in the severe dilution tier despite the additional capital raised.",
+  context: buildFinancingFixtureContext({
+    marketCap: "$360.7M",
+    publicFloat: "45.24M",
+    publicFloatPercent: "94.4%",
+    score: 84,
+    sharesOutstanding: "47.90M",
+    signal: "bearish",
+    ticker: "STTK",
+  }),
+  priceSeries: buildPriceSeries({
+    lastClose: 7.53,
+    previousClose: 7.07,
+    trend: [47, 45, 48, 50, 49, 52, 55, 53, 57, 59, 58, 61],
+    volumeBase: 780_000,
+  }),
+  originalTextNote: "Fixture excerpt based on the filed 8-K and financing exhibit.",
+  originalHtml: `
+    <h3>Item 1.01 Entry into a Material Definitive Agreement</h3>
+    <p>The Company entered into a securities purchase agreement for a private placement of common stock, pre-funded warrants, and common warrants. Upfront gross proceeds are expected to be approximately $46 million before fees and expenses.</p>
+    <h3>Item 3.02 Unregistered Sales of Equity Securities</h3>
+    <p>The fixed common-equivalent supply includes 15,225,158 common shares and pre-funded warrants covering up to 37,410,188 shares. Common warrants covering up to 52,635,346 additional shares are conditional supply.</p>
+  `,
+  financingDilution: {
+    snapshot: {
+      title: "Financing Snapshot",
+      items: [
+        {
+          label: "Gross Proceeds",
+          value: "Up to $103 Million",
+          note: "$46M upfront plus $57M only if all common warrants are exercised",
+        },
+        { label: "Upfront Proceeds", value: "$46 Million", note: "Before fees and expenses" },
+        { label: "Common Stock Issued", value: "15,225,158 Shares" },
+        { label: "Pre-funded Warrants", value: "Up to 37,410,188", note: "To purchase Common Stock" },
+      ],
+    },
+    scale: {
+      basis: {
+        label: "Shares outstanding",
+        note: "As of latest market context",
+        numericValue: 47_903_215,
+        value: "47,903,215",
+      },
+      caption: "Fixed supply versus filing-date shares",
+      headlineLabel: "Potential Dilution",
+      headlineValue: "109.9%",
+      mode: "shares",
+      note: "Only compatible fixed common-equivalent quantities are included. Common warrants are shown separately as conditional supply.",
+      segments: [
+        {
+          label: "Common Stock Issued",
+          numericValue: 15_225_158,
+          rowRole: "counted",
+          supplyType: "common_stock",
+          tone: "supply",
+          value: "15,225,158",
+        },
+        {
+          label: "Pre-funded Warrants",
+          note: "Issuable upon exercise",
+          numericValue: 37_410_188,
+          rowRole: "counted",
+          supplyType: "pre_funded_warrant",
+          tone: "supply",
+          value: "Up to 37,410,188",
+        },
+        {
+          label: "Common Warrants",
+          note: "Issuable upon exercise",
+          numericValue: 52_635_346,
+          rowRole: "conditional",
+          supplyType: "warrant",
+          tone: "conditional",
+          value: "Up to 52,635,346",
+        },
+      ],
+      subtitle: "Fixed common-equivalent supply compared with the filing-date share base.",
+      title: "Share Overhang",
+      total: {
+        denominator: "47,903,215",
+        numerator: "52,635,346",
+        ratio: "109.9%",
+        title: "Dilution vs Current Shares",
+      },
+    },
+    offeringDetails: [
+      { label: "Purchaser", value: "Certain institutional accredited investors" },
+      { label: "Placement Agent", value: "Wedbush & Co., LLC" },
+      { label: "Agreement Date", value: "August 4, 2025" },
+      { label: "Closing Condition", value: "IND clearance for SL-325 and customary closing conditions" },
+      { label: "Use of Proceeds", value: "SL-325 clinical development and general corporate purposes" },
+      { label: "Registration Rights", value: "Resale registration for Shares and Warrant Shares" },
+    ],
+    instruments: [
+      {
+        type: "Pre-funded Warrant",
+        securities: "37,410,188 shares",
+        exerciseOrConversionPrice: "$0.0001",
+        termOrLimits: "Exercisable until fully exercised",
+      },
+      {
+        type: "Common Warrant",
+        securities: "52,635,346 shares",
+        exerciseOrConversionPrice: "$1.0846",
+        termOrLimits: "Expires 30 days after Phase 1 SL-325 data; ownership limits apply",
+      },
+    ],
+  },
+  genericAvailability: financingFixtureAvailability(),
+};
+
+commonFilingEvents["financing-dilution-extreme-scale-fixture"] = {
+  ...commonFilingEvents["tsla-8k-operational-update"],
+  id: "financing-dilution-extreme-scale-fixture",
+  ticker: "FCUV",
+  exchange: "NASDAQ",
+  company: "Focus Universal Inc.",
+  title: "Focus Universal Closes $10M Convertible Preferred Stock Private Placements",
+  formType: "8-K",
+  filedAt: "Oct 22, 2025",
+  source: "SEC EDGAR",
+  sourceUrl:
+    "https://www.sec.gov/Archives/edgar/data/1590418/000168316825007784/focus_8k.htm",
+  eventType: "dilution_risk",
+  impact: "high",
+  deliveryLevel: "alert",
+  score: 78,
+  signal: "bearish",
+  price: "$3.48",
+  changeAmount: "-$0.12",
+  change: "-3.33%",
+  filingFocus: "Convertible preferred stock financing",
+  filingBrief:
+    "Series A establishes a fixed 825,000-share common equivalent, while Series B converts under a future VWAP-based formula.",
+  whyItMatters:
+    "The fixed Series A common equivalent alone equals 409.8% of the comparison share base; the separate Series B conversion remains variable and is not added to that ratio.",
+  bullishPoints: [],
+  bearishPoints: [],
+  summary:
+    "Focus Universal completed a $3 million Series A preferred stock placement and entered into a $7 million Series B commitment funded in tranches. Series A converts into a fixed 825,000 common shares. Series B converts at 85% of the lowest 10-day VWAP, subject to its stated floor and ownership limits, so its final common-share supply is not fixed at filing.",
+  keyEvidence: [],
+  watchNext: [],
+  recentFilings: [
+    {
+      form: "S-1",
+      eventType: "Offering / Registration",
+      title: "Registration statement is a funding condition for later Series B tranches",
+      filedAt: "Related filing",
+      score: 68,
+    },
+    {
+      form: "8-K",
+      eventType: "Dilution Risk",
+      title: "Preferred stock agreements establish fixed and variable conversion terms",
+      filedAt: "Same transaction",
+      score: 78,
+    },
+  ],
+  relatedNews: [
+    {
+      title: "Fixed Series A conversion exceeds four times Focus Universal's share base",
+      eventType: "dilution_risk",
+      source: "Stock Radar",
+      age: "Related coverage",
+    },
+    {
+      title: "Series B funding remains tied to registration and information-statement conditions",
+      eventType: "capital_structure",
+      source: "Stock Radar",
+      age: "Related coverage",
+    },
+  ],
+  scoreRationale:
+    "Fixed Series A supply exceeds four times the comparison share base, while the variable-price Series B commitment adds further dilution uncertainty without a fixed share total.",
+  context: buildFinancingFixtureContext({
+    marketCap: "$70.0M",
+    publicFloat: "0.19M",
+    publicFloatPercent: "94.4%",
+    score: 78,
+    sharesOutstanding: "0.20M",
+    signal: "bearish",
+    ticker: "FCUV",
+  }),
+  priceSeries: buildPriceSeries({
+    lastClose: 3.48,
+    previousClose: 3.6,
+    trend: [58, 56, 54, 55, 51, 49, 47, 45, 46, 43, 42, 40],
+    volumeBase: 185_000,
+  }),
+  originalTextNote: "Fixture excerpt based on the filed 8-K and preferred stock agreements.",
+  originalHtml: `
+    <h3>Item 1.01 Entry into a Material Definitive Agreement</h3>
+    <p>The Company completed a Series A preferred stock placement and entered into a Series B preferred stock purchase agreement. The Series A preferred stock is convertible at 1.1 common shares per preferred share.</p>
+    <p>The Series B conversion price is based on 85% of the lowest VWAP during the ten trading days immediately before conversion, subject to the stated floor and beneficial-ownership limitation.</p>
+  `,
+  financingDilution: {
+    snapshot: {
+      title: "Financing Snapshot",
+      items: [
+        { label: "Total Commitment", value: "$10 Million" },
+        { label: "Series A Funding", value: "$3 Million", note: "Funded at closing" },
+        { label: "Series B Commitment", value: "$7 Million", note: "Funded in three tranches" },
+        { label: "Conversion Structure", value: "Fixed Series A + Variable Series B" },
+      ],
+    },
+    scale: {
+      basis: {
+        label: "Current Shares Outstanding",
+        note: "Latest market context",
+        numericValue: 201_323,
+        value: "201,323 Shares",
+      },
+      caption: "Included fixed supply versus current shares",
+      headlineLabel: "Fixed Dilution",
+      headlineValue: "409.8%",
+      mode: "shares",
+      note: "The headline ratio includes only the fixed Series A common equivalent. Series B remains separate because its future VWAP-based conversion does not establish a fixed common-share total.",
+      segments: [
+        {
+          label: "Series A Preferred Stock",
+          note: "750,000 preferred shares convertible at 1.1 common shares each",
+          numericValue: 825_000,
+          rowRole: "counted",
+          supplyType: "convertible_preferred",
+          tone: "supply",
+          value: "825,000 Common-Share Equivalent",
+        },
+        {
+          label: "Series B Preferred Stock",
+          note: "Common-share total varies with the future conversion price",
+          numericValue: 8_236,
+          rowRole: "conditional",
+          supplyType: "variable_convertible_preferred",
+          tone: "conditional",
+          value: "Up to 8,236 Preferred Shares",
+        },
+      ],
+      subtitle: "Fixed common-equivalent supply exceeds the scale of a standard proportional bar.",
+      title: "Potential Dilution from Preferred Stock",
+      total: {
+        denominator: "201,323",
+        numerator: "825,000",
+        ratio: "409.8%",
+        title: "Dilution vs Current Shares",
+      },
+    },
+    offeringDetails: [
+      { label: "Purchaser / Investor", value: "Edward Lee and other accredited investors" },
+      { label: "Placement Agent", value: "Spartan Capital Securities, LLC" },
+      { label: "Agreement Dates", value: "October 15 and October 21, 2025" },
+      { label: "Funding Structure", value: "$3M funded; $7M Series B commitment in three tranches" },
+      { label: "Closing Conditions", value: "S-1 and Information Statement effectiveness for later tranches" },
+    ],
+    instruments: [
+      {
+        type: "Series A Preferred Stock",
+        securities: "750,000 preferred shares; 825,000 common-share equivalent",
+        exerciseOrConversionPrice: "1.1 common shares per preferred share",
+        termOrLimits: "Holder conversion option; no redemption rights",
+      },
+      {
+        type: "Series B Preferred Stock",
+        securities: "Up to 8,236 preferred shares; common-share total varies",
+        exerciseOrConversionPrice: "85% of the lowest 10-day VWAP before conversion",
+        resetOrFloor: "20% of the applicable Nasdaq minimum price",
+        termOrLimits: "Holder conversion option; 4.99% ownership limit, adjustable to 9.99%",
+      },
+    ],
+  },
+  genericAvailability: financingFixtureAvailability(),
+};
+
+commonFilingEvents["financing-dilution-atm-amount-fixture"] = {
+  ...commonFilingEvents["tsla-8k-operational-update"],
+  id: "financing-dilution-atm-amount-fixture",
+  ticker: "NTLA",
+  exchange: "NASDAQ",
+  company: "Intellia Therapeutics, Inc.",
+  title: "Intellia Expands At-the-Market Program Capacity Alongside Clinical Update",
+  formType: "8-K",
+  filedAt: "Apr 7, 2026 - 4:05 PM ET",
+  source: "SEC EDGAR",
+  sourceUrl:
+    "https://www.sec.gov/Archives/edgar/data/1652130/000119312526084309/0001193125-26-084309-index.htm",
+  eventType: "dilution_risk",
+  impact: "high",
+  deliveryLevel: "feed",
+  score: 70,
+  signal: "volatile",
+  price: "$14.22",
+  changeAmount: "-$1.22",
+  change: "-7.93%",
+  filingFocus: "ATM capacity expansion",
+  filingBrief:
+    "The company expanded its at-the-market capacity while also reporting the removal of a clinical hold.",
+  whyItMatters:
+    "The ATM creates substantial future financing capacity, but the number of shares depends on future sale prices and therefore cannot be treated as fixed dilution today.",
+  bullishPoints: [],
+  bearishPoints: [],
+  summary:
+    "Intellia increased its aggregate ATM program size to approximately $1.035 billion after selling about $635.3 million, leaving $400 million of current capacity. Actual issuance, pricing, and timing remain discretionary, so the relevant scale is remaining dollar capacity versus market capitalization rather than an assumed share count.",
+  keyEvidence: [],
+  watchNext: [],
+  recentFilings: [
+    {
+      form: "S-3",
+      eventType: "Offering / Registration",
+      title: "Shelf registration supports future at-the-market sales",
+      filedAt: "Related filing",
+      score: 66,
+    },
+    {
+      form: "8-K",
+      eventType: "FDA / Clinical",
+      title: "FDA removes the clinical hold on the MAGNITUDE study",
+      filedAt: "Same filing",
+      score: 82,
+    },
+  ],
+  relatedNews: [
+    {
+      title: "Clinical-hold removal offsets part of the expanded ATM financing risk",
+      eventType: "fda_clinical",
+      source: "Stock Radar",
+      age: "Related coverage",
+    },
+    {
+      title: "ATM capacity gives Intellia flexibility but leaves issuance timing open",
+      eventType: "dilution_risk",
+      source: "Stock Radar",
+      age: "Related coverage",
+    },
+  ],
+  scoreRationale:
+    "Remaining ATM capacity equals about one quarter of market capitalization, while uncertain issuance timing and a positive clinical catalyst keep the event below the fixed-dilution alert tier.",
+  context: buildFinancingFixtureContext({
+    marketCap: "$1.595B",
+    publicFloat: "106.24M",
+    publicFloatPercent: "94.7%",
+    score: 70,
+    sharesOutstanding: "112.21M",
+    signal: "volatile",
+    ticker: "NTLA",
+  }),
+  priceSeries: buildPriceSeries({
+    lastClose: 14.215,
+    previousClose: 15.44,
+    trend: [62, 60, 61, 58, 55, 54, 51, 49, 47, 45, 46, 43],
+    volumeBase: 2_600_000,
+  }),
+  originalTextNote: "Fixture excerpt based on the filed 8-K and ATM sales agreement.",
+  originalHtml: `
+    <h3>Item 8.01 Other Events</h3>
+    <p>The Company expanded the aggregate amount available under its at-the-market sales program. Shares may be sold from time to time at prevailing market prices.</p>
+    <p>The filing also reported that the FDA removed the clinical hold on the MAGNITUDE Phase 3 study.</p>
+  `,
+  financingDilution: {
+    snapshot: {
+      title: "Financing Snapshot",
+      items: [
+        { label: "ATM Program Size", value: "$1,035,316,650", note: "Increased from $750,000,000" },
+        { label: "Sold to Date", value: "$635,316,650" },
+        { label: "Remaining Capacity", value: "$400,000,000" },
+        { label: "Capacity vs Market Cap", value: "25.1%", note: "Based on latest market context" },
+      ],
+    },
+    scale: {
+      basis: {
+        label: "Market capitalization",
+        note: "Latest market context",
+        numericValue: 1_595_072_627,
+        value: "$1.595B",
+      },
+      caption: "Program capacity versus market capitalization",
+      headlineLabel: "ATM Capacity",
+      headlineValue: "25.1%",
+      mode: "amount",
+      note: "ATM capacity measures potential financing scale. Actual dilution depends on the amount sold and the share price at each sale.",
+      segments: [
+        {
+          label: "Remaining ATM Capacity",
+          numericValue: 400_000_000,
+          rowRole: "reference",
+          roleBadge: "Capacity",
+          roleKind: "included",
+          supplyType: "atm_capacity",
+          tone: "conditional",
+          value: "$400,000,000",
+        },
+      ],
+      subtitle: "Dollar capacity is compared with market value because the future share count is not fixed.",
+      title: "ATM Capacity",
+      total: {
+        denominator: "$1,595,072,627",
+        numerator: "$400,000,000",
+        ratio: "25.1%",
+        title: "Capacity vs Market Cap",
+      },
+    },
+    offeringDetails: [
+      { label: "Agreement Date", value: "March 2, 2026", note: "Amendment No. 2" },
+      { label: "Sales Agent", value: "Jefferies LLC", note: "Best efforts basis" },
+      { label: "Compensation", value: "Up to 3.0% of gross proceeds" },
+      { label: "Use of Proceeds", value: "General corporate purposes" },
+    ],
+    instruments: [],
+  },
+  genericAvailability: financingFixtureAvailability(),
+};
+
+commonFilingEvents["financing-dilution-a-to-e-fixture"] = {
+  ...commonFilingEvents["financing-dilution-share-count-fixture"],
+  id: "financing-dilution-a-to-e-fixture",
+  ticker: "BBLG",
+  exchange: "NASDAQ",
+  company: "Bone Biologics Corporation",
+  title: "Bone Biologics Prices Private Offering of Warrants and Pre-Funded Warrants",
+  filedAt: "Jul 9, 2026 - 4:30 PM ET",
+  sourceUrl:
+    "https://www.sec.gov/Archives/edgar/data/1419554/000149315226032694/0001493152-26-032694-index.html",
+  score: 78,
+  signal: "bearish",
+  price: "$1.39",
+  changeAmount: "+$0.01",
+  change: "+0.72%",
+  filingFocus: "Private warrant offering",
+  filingBrief:
+    "Bone Biologics completed a private offering of pre-funded warrants and common stock warrants, raising $2.7 million in net proceeds with substantial conditional warrant supply.",
+  whyItMatters:
+    "The immediately exercisable pre-funded warrants exceed the current share base, while three additional warrant series create separate conditional supply subject to shareholder approval.",
+  summary:
+    "Bone Biologics sold 2,112,677 pre-funded warrants and issued Series F, Series G, and placement-agent warrants. The offering generated approximately $2.7 million in net proceeds, while the pre-funded warrants represent immediate counted supply and the other warrant series remain conditional on shareholder approval.",
+  keyEvidence: [
+    "The offering included pre-funded warrants covering 2,112,677 shares.",
+    "Series F and Series G warrants each cover 2,112,677 shares, subject to shareholder approval.",
+    "Placement-agent warrants cover an additional 126,761 shares.",
+  ],
+  watchNext: [],
+  recentFilings: [
+    {
+      id: "9c533fbd-7516-49a8-af57-ffd686b2cde7",
+      form: "S-1",
+      eventType: "Dilution Risk",
+      title: "Bone Biologics registers offering securities for resale",
+      filedAt: "Jul 17, 2026",
+      score: 88,
+    },
+  ],
+  relatedNews: [],
+  scoreRationale:
+    "Immediate pre-funded supply exceeds the current share base, and multiple additional warrant series materially increase the conditional overhang.",
+  context: buildFinancingFixtureContext({
+    marketCap: "$2.50M",
+    publicFloat: "1.79M",
+    publicFloatPercent: "100.0%",
+    score: 78,
+    sharesOutstanding: "1.80M",
+    signal: "bearish",
+    ticker: "BBLG",
+  }),
+  priceSeries: buildPriceSeries({
+    lastClose: 1.39,
+    previousClose: 1.38,
+    trend: [52, 50, 49, 51, 48, 47, 49, 50, 48, 51, 52, 53],
+    volumeBase: 23_993,
+  }),
+  originalTextNote: "Fixture excerpt based on the filed 8-K and warrant agreements.",
+  originalHtml: `
+    <h3>Private Offering</h3>
+    <p>The Company sold pre-funded warrants covering 2,112,677 shares and issued Series F and Series G warrants covering 2,112,677 shares each. Placement-agent warrants cover an additional 126,761 shares.</p>
+    <p>The common-stock warrants become exercisable upon shareholder approval. Net proceeds were approximately $2.7 million.</p>
+  `,
+  financingDilution: {
+    snapshot: {
+      title: "Financing Snapshot",
+      items: [
+        { label: "Net Proceeds", value: "$2.7 Million" },
+        { label: "Offering Size", value: "2,112,677 Pre-Funded Warrants + 4,225,354 Warrants" },
+        { label: "Combined Purchase Price", value: "$1.419 per Pre-Funded Warrant and accompanying Warrants" },
+        { label: "Potential Gross Proceeds (Warrants)", value: "$6 Million", note: "If fully exercised on a cash basis" },
+      ],
+    },
+    scale: {
+      basis: {
+        label: "Current Shares Outstanding",
+        note: "Latest market context",
+        numericValue: 1_795_260,
+        value: "1.80M Shares",
+      },
+      caption: "Counted supply versus current shares",
+      headlineLabel: "Immediate Dilution",
+      headlineValue: "117.7%",
+      mode: "shares",
+      note: "Headline ratio excludes conditional future supply from Series F, Series G, and placement-agent warrants, which require shareholder approval.",
+      segments: [
+        {
+          label: "Pre-Funded Warrants",
+          note: "Immediately exercisable at nominal price",
+          numericValue: 2_112_677,
+          rowRole: "counted",
+          supplyType: "warrant",
+          tone: "supply",
+          value: "2,112,677 Shares",
+        },
+        {
+          label: "Series F Warrants",
+          note: "Exercisable upon shareholder approval",
+          numericValue: 2_112_677,
+          rowRole: "conditional",
+          supplyType: "warrant",
+          tone: "conditional",
+          value: "2,112,677 Shares",
+        },
+        {
+          label: "Series G Warrants",
+          note: "Exercisable upon shareholder approval",
+          numericValue: 2_112_677,
+          rowRole: "conditional",
+          supplyType: "warrant",
+          tone: "conditional",
+          value: "2,112,677 Shares",
+        },
+        {
+          label: "Placement Agent Warrants",
+          note: "Exercisable upon shareholder approval",
+          numericValue: 126_761,
+          rowRole: "conditional",
+          supplyType: "warrant",
+          tone: "conditional",
+          value: "126,761 Shares",
+        },
+      ],
+      subtitle: "Immediate common-equivalent supply compared with the current share base.",
+      title: "Potential Dilution from Warrants",
+      total: {
+        denominator: "1,795,260",
+        numerator: "2,112,677",
+        ratio: "117.7%",
+        title: "Dilution vs Current Shares",
+      },
+    },
+    offeringDetails: [
+      { label: "Purchaser / Investor", value: "One investor" },
+      { label: "Placement Agent", value: "H.C. Wainwright & Co., LLC" },
+      { label: "Agreement Date", value: "July 7, 2026" },
+      { label: "Closing Date", value: "July 9, 2026" },
+      { label: "Use of Proceeds", value: "Clinical trials, patent portfolio, working capital, and general corporate purposes" },
+      { label: "Shareholder Approval", value: "Required for warrant issuance and underlying shares" },
+    ],
+    instruments: [
+      {
+        type: "Pre-Funded Warrant",
+        securities: "2,112,677 Shares",
+        exerciseOrConversionPrice: "$0.001 per share",
+        termOrLimits: "Immediately exercisable until exercised in full; ownership limitation applies",
+      },
+      {
+        type: "Series F Warrant",
+        securities: "2,112,677 Shares",
+        exerciseOrConversionPrice: "$1.42 per share",
+        termOrLimits: "Exercisable after shareholder approval; five-year term; ownership limitation applies",
+      },
+      {
+        type: "Series G Warrant",
+        securities: "2,112,677 Shares",
+        exerciseOrConversionPrice: "$1.42 per share",
+        termOrLimits: "Exercisable after shareholder approval; 18-month term; ownership limitation applies",
+      },
+      {
+        type: "Placement Agent Warrant",
+        securities: "126,761 Shares",
+        exerciseOrConversionPrice: "$1.775 per share",
+        termOrLimits: "Substantially the same terms as Series F warrants",
+      },
+    ],
+  },
+  genericAvailability: financingFixtureAvailability(),
+};
+
+commonFilingEvents["financing-dilution-variable-conversion-fixture"] = {
+  ...commonFilingEvents["tsla-8k-operational-update"],
+  id: "financing-dilution-variable-conversion-fixture",
+  ticker: "GCTS",
+  exchange: "NYSE",
+  company: "GCT Semiconductor Holding, Inc.",
+  title: "GCT Semiconductor Offers Up to $20M of Mandatory Convertible Notes",
+  formType: "424B5",
+  filedAt: "Mar 30, 2026",
+  source: "SEC EDGAR",
+  sourceUrl:
+    "https://www.sec.gov/Archives/edgar/data/1851961/000092963826001255/a424b5.htm",
+  eventType: "dilution_risk",
+  impact: "high",
+  deliveryLevel: "alert",
+  score: 80,
+  signal: "bearish",
+  price: "$2.52",
+  changeAmount: "-$0.05",
+  change: "-1.95%",
+  filingFocus: "Variable-price convertible note financing",
+  filingBrief:
+    "The notes convert at a future VWAP-based price, so the filing establishes financing principal but no fixed common-share total.",
+  whyItMatters:
+    "A standing 5% conversion discount and no stated floor make the share issuance price-sensitive: lower stock prices require more shares for the same principal.",
+  bullishPoints: [],
+  bearishPoints: [],
+  summary:
+    "GCT may issue up to $20 million of unsecured, interest-free mandatory convertible notes to Obsidian Global GP LLC in advances of up to $500,000. Each advance is funded at 96.5% of principal, and the notes mature 24 months after issuance. Common shares are issued at 95% of the three-day average VWAP measured immediately before conversion, so the final share count is not fixed at filing. The company estimates approximately $18.7 million of net proceeds for working capital, general corporate purposes, and debt repayment.",
+  keyEvidence: [],
+  watchNext: [],
+  recentFilings: [
+    {
+      form: "S-3",
+      eventType: "Offering / Registration",
+      title: "Shelf registration supports the convertible-note offering",
+      filedAt: "Apr 1, 2025",
+      score: 55,
+    },
+    {
+      form: "424B5",
+      eventType: "Dilution Risk",
+      title: "Earlier variable-price convertible-note facility",
+      filedAt: "Dec 15, 2025",
+      score: 78,
+    },
+  ],
+  relatedNews: [
+    {
+      title: "Future VWAP pricing leaves GCT's final common-share supply open",
+      eventType: "dilution_risk",
+      source: "Stock Radar",
+      age: "Related coverage",
+    },
+    {
+      title: "Ownership and exchange caps limit issuance without fixing dilution",
+      eventType: "capital_structure",
+      source: "Stock Radar",
+      age: "Related coverage",
+    },
+  ],
+  scoreRationale:
+    "A standing conversion discount with no stated floor creates price-sensitive dilution that can expand as the stock falls, while the $20 million principal cap limits financing size but not the final share count.",
+  context: {
+    industry: "Semiconductors & Compute",
+    marketCap: "$144.1M",
+    periods: {
+      "1D": {
+        industryChange: "-0.42%",
+        sectorChange: "+0.18%",
+        themeScore: 80,
+        themeSignal: "bearish",
+        topMovers: [
+          { symbol: "GCTS", change: "-1.95%", trend: [54, 52, 53, 50, 49, 48, 46, 45, 47, 44] },
+          { symbol: "QCOM", change: "+0.64%", trend: [38, 39, 41, 40, 42, 43, 42, 44, 46, 47] },
+          { symbol: "MRVL", change: "-0.71%", trend: [49, 47, 48, 46, 44, 45, 42, 41, 40, 39] },
+          { symbol: "AVGO", change: "+1.12%", trend: [34, 35, 37, 36, 39, 41, 40, 43, 45, 47] },
+          { symbol: "AMD", change: "-0.36%", trend: [48, 46, 47, 45, 43, 42, 44, 41, 40, 39] },
+          { symbol: "MU", change: "+0.82%", trend: [36, 38, 37, 40, 42, 41, 44, 45, 47, 48] },
+        ],
+      },
+      "5D": {
+        industryChange: "-1.08%",
+        sectorChange: "+0.46%",
+        themeScore: 80,
+        themeSignal: "bearish",
+        topMovers: [
+          { symbol: "GCTS", change: "-4.60%", trend: [58, 56, 55, 52, 53, 49, 47, 45, 43, 41] },
+          { symbol: "QCOM", change: "+1.34%", trend: [37, 38, 40, 39, 41, 43, 44, 45, 47, 48] },
+          { symbol: "MRVL", change: "-2.14%", trend: [52, 50, 48, 49, 46, 44, 43, 41, 40, 38] },
+          { symbol: "AVGO", change: "+2.26%", trend: [33, 35, 36, 38, 40, 42, 41, 44, 46, 48] },
+          { symbol: "AMD", change: "-1.18%", trend: [50, 48, 47, 45, 46, 43, 42, 40, 39, 38] },
+          { symbol: "MU", change: "+1.92%", trend: [34, 36, 38, 37, 40, 42, 43, 45, 46, 48] },
+        ],
+      },
+      "30D": {
+        industryChange: "-3.64%",
+        sectorChange: "+1.32%",
+        themeScore: 80,
+        themeSignal: "bearish",
+        topMovers: [
+          { symbol: "GCTS", change: "-12.40%", trend: [64, 61, 59, 56, 53, 51, 48, 45, 43, 40] },
+          { symbol: "QCOM", change: "+3.48%", trend: [35, 37, 39, 38, 41, 43, 44, 46, 48, 50] },
+          { symbol: "MRVL", change: "-5.22%", trend: [56, 53, 51, 49, 47, 45, 43, 42, 40, 38] },
+          { symbol: "AVGO", change: "+6.10%", trend: [31, 34, 36, 38, 40, 43, 45, 47, 49, 52] },
+          { symbol: "AMD", change: "-2.76%", trend: [52, 50, 48, 46, 47, 44, 42, 41, 39, 38] },
+          { symbol: "MU", change: "+4.24%", trend: [33, 35, 37, 39, 38, 42, 44, 46, 48, 50] },
+        ],
+      },
+    },
+    publicFloat: "44.08M",
+    publicFloatPercent: "77.1%",
+    sector: "Technology",
+    sharesOutstanding: "57.20M",
+  },
+  priceSeries: buildPriceSeries({
+    lastClose: 2.52,
+    previousClose: 2.57,
+    trend: [54, 52, 53, 50, 49, 48, 46, 45, 47, 44, 43, 42],
+    volumeBase: 330_000,
+  }),
+  originalTextNote: "Fixture excerpt based on the filed 424B5 prospectus supplement.",
+  originalHtml: `
+    <h3>Mandatory Convertible Promissory Notes</h3>
+    <p>The Company may issue up to $20 million aggregate principal amount of unsecured, interest-free mandatory convertible promissory notes to Obsidian Global GP LLC. Each advance may be up to $500,000 and is funded at 96.5% of principal.</p>
+    <p>The conversion price equals 95% of the average VWAP during the three trading days immediately before the conversion notice. The notes mature 24 months after issuance and are subject to beneficial-ownership and NYSE exchange limitations.</p>
+  `,
+  financingDilution: {
+    snapshot: {
+      title: "Financing Snapshot",
+      items: [
+        { label: "Financing Type", value: "Mandatory convertible notes" },
+        { label: "Maximum Principal", value: "$20M" },
+        {
+          label: "Purchase Funding",
+          value: "96.5% of principal",
+          note: "3.5% original issue discount",
+        },
+        {
+          label: "Conversion Price",
+          value: "95% of 3-day VWAP",
+          note: "Set immediately before conversion",
+        },
+      ],
+    },
+    offeringDetails: [
+      { label: "Investor", value: "Obsidian Global GP LLC" },
+      { label: "Agreement Date", value: "March 25, 2026" },
+      { label: "Draw Structure", value: "Up to $500,000 per advance" },
+      { label: "Estimated Net Proceeds", value: "Approximately $18.7M" },
+      {
+        label: "Use of Proceeds",
+        value: "Working capital, general corporate purposes, and debt repayment",
+      },
+    ],
+    instruments: [
+      {
+        type: "Convertible Note",
+        securities: "Up to $20M principal; common-share count varies",
+        exerciseOrConversionPrice: "Not fixed yet; 95% of 3-day average VWAP",
+        resetOrFloor: "No floor stated",
+        termOrLimits: "0% interest; 24-month maturity; holder option or mandatory conversion; 4.99% ownership and NYSE exchange caps",
+      },
+    ],
+  },
+  genericAvailability: financingFixtureAvailability(),
+};
+
+function offeringRegistrationFixture({
+  company,
+  data,
+  deliveryLevel,
+  eventType,
+  exchange,
+  filedAt,
+  filingBrief,
+  formType,
+  id,
+  originalHtml,
+  score,
+  signal,
+  sourceUrl,
+  summary,
+  ticker,
+  title,
+}: {
+  company: string;
+  data: OfferingRegistrationData;
+  deliveryLevel: FilingEvent["deliveryLevel"];
+  eventType: string;
+  exchange: string;
+  filedAt: string;
+  filingBrief: string;
+  formType: string;
+  id: string;
+  originalHtml: string;
+  score: number;
+  signal: DetailTone;
+  sourceUrl: string;
+  summary: string;
+  ticker: string;
+  title: string;
+}): FilingEvent {
+  return {
+    ...commonFilingEvents["tsla-8k-operational-update"],
+    bearishPoints: [],
+    bullishPoints: [],
+    change: "",
+    changeAmount: "",
+    company,
+    context: emptySectorThemeContext(score, signal),
+    deliveryLevel,
+    eventType,
+    exchange,
+    filedAt,
+    filingBrief,
+    filingFocus: "",
+    formType,
+    genericAvailability: {
+      bearishPoints: false,
+      bullishPoints: false,
+      context: false,
+      filingBrief: true,
+      keyEvidence: true,
+      originalHtml: true,
+      recentFilings: false,
+      relatedNews: false,
+      scoreRationale: true,
+      summary: true,
+      watchNext: false,
+      whyItMatters: true,
+    },
+    id,
+    impact: score >= 75 ? "high" : "medium",
+    keyEvidence: data.snapshot.items.slice(0, 3).map((item) =>
+      [item.label, item.value].filter(Boolean).join(": "),
+    ),
+    offeringRegistration: data,
+    originalHtml,
+    originalTextNote: `Fixture excerpt based on the filed ${formType}.`,
+    price: "N/A",
+    priceSeries: null,
+    recentFilings: [],
+    relatedNews: [],
+    score,
+    scoreRationale: filingBrief,
+    signal,
+    source: "SEC EDGAR",
+    sourceUrl,
+    summary,
+    ticker,
+    title,
+    watchNext: [],
+    whyItMatters: filingBrief,
+  };
+}
+
+commonFilingEvents["offering-registration-primary-offering-fixture"] = offeringRegistrationFixture({
+  company: "Red Cat Holdings, Inc.",
+  deliveryLevel: "alert",
+  eventType: "dilution_risk",
+  exchange: "Nasdaq",
+  filedAt: "May 13, 2026 - 9:02 PM ET",
+  filingBrief: "Red Cat priced 23.9 million primary shares at $9.40, creating 19.6% immediate dilution and approximately $213.9 million in net proceeds.",
+  formType: "424B5",
+  id: "offering-registration-primary-offering-fixture",
+  score: 75,
+  signal: "bearish",
+  sourceUrl: "https://www.sec.gov/Archives/edgar/data/748268/000110465926060505/0001104659-26-060505-index.html",
+  summary: "Red Cat Holdings offered 23,936,171 common shares at $9.40 per share and expects approximately $213.9 million in net proceeds. The underwriters also received a 30-day option for 3,590,425 additional shares.",
+  ticker: "RCAT",
+  title: "Red Cat Offers 23.9M Common Shares at $9.40",
+  originalHtml: "<h3>Common Stock Offering</h3><p>The company offered 23,936,171 shares of common stock at $9.40 per share. The underwriters received an option to purchase up to 3,590,425 additional shares.</p>",
+  data: {
+    snapshot: {
+      title: "Offering Snapshot",
+      items: [
+        { label: "New Shares", value: "23.9M", note: "Excludes the underwriters' option" },
+        { label: "Offer Price", value: "$9.40 per share" },
+        { label: "Company Proceeds", value: "$213.9M", note: "Estimated net proceeds" },
+        { label: "Dilution vs Current Shares", value: "19.6%" },
+      ],
+    },
+    scale: {
+      basis: { label: "Shares outstanding", value: "121,840,899 shares", numericValue: 121840899, note: "As of March 31, 2026" },
+      caption: "Primary shares offered by Red Cat Holdings",
+      headlineLabel: "Dilution",
+      headlineValue: "19.6%",
+      mode: "shares",
+      note: "Headline ratio excludes the underwriters' option shown separately.",
+      segments: [
+        { label: "Primary shares", value: "23,936,171 shares", numericValue: 23936171, note: "Excludes underwriters' option", rowRole: "counted", tone: "supply" },
+        { label: "Underwriters' option", value: "3,590,425 shares", numericValue: 3590425, note: "Exercisable for 30 days", rowRole: "conditional", tone: "conditional" },
+      ],
+      subtitle: "Shares offered versus shares outstanding as of March 31, 2026",
+      title: "Share Dilution",
+      total: { denominator: "121,840,899 shares", numerator: "23,936,171 shares", ratio: "19.6%", title: "Dilution vs Current Shares" },
+    },
+    offeringDetails: [
+      { label: "Offering Type", value: "Underwritten public offering" },
+      { label: "Offer Price", value: "$9.40 per share" },
+      { label: "Underwriters", value: "BofA Securities and Needham & Company" },
+      { label: "Closing Date", value: "May 14, 2026" },
+      { label: "Use of Proceeds", value: "General corporate purposes and strategic growth initiatives" },
+    ],
+    instruments: [
+      { type: "Common Stock", securities: "23,936,171 shares", exerciseOrConversionPrice: "$9.40 per share", resetOrFloor: "Not applicable", termOrLimits: "3,590,425-share underwriters' option" },
+    ],
+  },
+});
+
+commonFilingEvents["offering-registration-resale-fixture"] = offeringRegistrationFixture({
+  company: "Bone Biologics Corp",
+  deliveryLevel: "alert",
+  eventType: "dilution_risk",
+  exchange: "Nasdaq",
+  filedAt: "July 17, 2026 - 5:14 PM ET",
+  filingBrief: "Bone Biologics registered 6.46 million warrant-backed shares for resale, equal to 357.1% of current shares outstanding.",
+  formType: "S-3",
+  id: "offering-registration-resale-fixture",
+  score: 88,
+  signal: "bearish",
+  sourceUrl: "https://www.sec.gov/Archives/edgar/data/1419554/000149315226033789/0001493152-26-033789-index.htm",
+  summary: "Bone Biologics registered up to 6,464,792 common shares for resale by selling stockholders. The company receives no proceeds from resale transactions but could receive approximately $6.2 million from cash warrant exercises.",
+  ticker: "BBLG",
+  title: "Bone Biologics Registers 6.46M Shares for Resale",
+  originalHtml: "<h3>Resale Registration</h3><p>The prospectus covers up to 6,464,792 shares issuable upon exercise of pre-funded, Series F, Series G, and placement-agent warrants.</p>",
+  data: {
+    snapshot: {
+      title: "Resale Registration Snapshot",
+      items: [
+        { label: "Resale Shares", value: "6.46M" },
+        { label: "Overhang vs Outstanding", value: "357.1%" },
+        { label: "Company Proceeds", value: "$6.2M", note: "Only if warrants are exercised for cash" },
+        { label: "Selling Holders", value: "Registered holders" },
+      ],
+    },
+    scale: {
+      basis: { label: "Common stock outstanding", value: "1,810,380 shares", numericValue: 1810380, note: "As of July 16, 2026" },
+      caption: "Registered warrant-backed shares versus current common stock",
+      headlineLabel: "Potential Overhang",
+      headlineValue: "357.1%",
+      mode: "shares",
+      note: "Total shares registered for resale by selling stockholders upon warrant exercise.",
+      segments: [
+        { label: "Pre-funded warrants", value: "2,112,677 shares", numericValue: 2112677, note: "Immediately exercisable at $0.001", rowRole: "counted", tone: "supply" },
+        { label: "Series F warrants", value: "2,112,677 shares", numericValue: 2112677, note: "Exercisable at $1.42 after stockholder approval", rowRole: "counted", tone: "supply" },
+        { label: "Series G warrants", value: "2,112,677 shares", numericValue: 2112677, note: "Exercisable at $1.42 after stockholder approval", rowRole: "counted", tone: "supply" },
+        { label: "Placement agent warrants", value: "126,761 shares", numericValue: 126761, note: "Exercisable at $1.775 after stockholder approval", rowRole: "counted", tone: "supply" },
+      ],
+      subtitle: "6.46M shares registered for resale by selling stockholders",
+      title: "Share Overhang",
+      total: { denominator: "1,810,380 shares", numerator: "6,464,792 shares", ratio: "357.1%", title: "Overhang vs Current Shares (if all warrants exercised)" },
+    },
+    offeringDetails: [
+      { label: "Offering Type", value: "Selling stockholder resale registration" },
+      { label: "Resale Method", value: "From time to time at market or negotiated prices" },
+      { label: "Source Instruments", value: "Pre-funded, Series F, Series G, and placement-agent warrants" },
+      { label: "Company Proceeds", value: "None from resales" },
+      { label: "Registration Obligation", value: "Shares underlying July 2026 warrant financing" },
+    ],
+    instruments: [
+      { type: "Pre-Funded Warrant", securities: "2,112,677 shares", exerciseOrConversionPrice: "$0.001 per share", resetOrFloor: "Not applicable", termOrLimits: "Immediately exercisable; ownership limitation" },
+      { type: "Series F Warrant", securities: "2,112,677 shares", exerciseOrConversionPrice: "$1.42 per share", resetOrFloor: "Not applicable", termOrLimits: "Exercisable after stockholder approval" },
+      { type: "Series G Warrant", securities: "2,112,677 shares", exerciseOrConversionPrice: "$1.42 per share", resetOrFloor: "Not applicable", termOrLimits: "Exercisable after stockholder approval" },
+      { type: "Placement Agent Warrant", securities: "126,761 shares", exerciseOrConversionPrice: "$1.775 per share", resetOrFloor: "Not applicable", termOrLimits: "Substantially the same terms as Series F warrants" },
+    ],
+  },
+});
+
+commonFilingEvents["offering-registration-shelf-fixture"] = offeringRegistrationFixture({
+  company: "Energy Vault Holdings, Inc.",
+  deliveryLevel: "feed",
+  eventType: "dilution_risk",
+  exchange: "NYSE",
+  filedAt: "July 17, 2026 - 5:00 PM ET",
+  filingBrief: "Energy Vault registered $300 million of future shelf capacity, equal to 54.65% of current market capitalization, without active sale terms.",
+  formType: "S-3",
+  id: "offering-registration-shelf-fixture",
+  score: 65,
+  signal: "volatile",
+  sourceUrl: "https://www.sec.gov/Archives/edgar/data/1828536/000182853626000091/0001828536-26-000091-index.html",
+  summary: "Energy Vault filed a $300 million universal shelf registration covering common stock, preferred stock, debt securities, depositary shares, warrants, purchase contracts, and units. Actual sales require a later prospectus supplement.",
+  ticker: "NRGV",
+  title: "Energy Vault Files $300M Universal Shelf Registration",
+  originalHtml: "<h3>Universal Shelf Registration</h3><p>The registration statement covers up to $300 million of securities. No active sale terms are included.</p>",
+  data: {
+    snapshot: {
+      title: "Shelf Registration Snapshot",
+      items: [
+        { label: "Shelf Capacity", value: "$300M" },
+        { label: "Market Cap", value: "$548.92M" },
+        { label: "Capacity vs Market Cap", value: "54.65%" },
+        { label: "Sale Status", value: "No active sale terms" },
+      ],
+    },
+    scale: {
+      basis: { label: "Market cap", value: "$548,920,680", numericValue: 548920680, note: "Latest market context" },
+      caption: "Shelf capacity versus current market capitalization",
+      headlineLabel: "Capacity Scale",
+      headlineValue: "54.65%",
+      mode: "amount",
+      note: "Actual sales require a later prospectus supplement.",
+      segments: [
+        { label: "Shelf capacity", value: "$300,000,000", numericValue: 300000000, rowRole: "reference", supplyType: "shelf_capacity", tone: "supply" },
+      ],
+      subtitle: "Known registration capacity compared with current market capitalization",
+      title: "Shelf Details",
+      total: { denominator: "$548,920,680", numerator: "$300,000,000", ratio: "54.65%", title: "Shelf Capacity Scale (of current market cap)" },
+    },
+    offeringDetails: [
+      { label: "Shelf Type", value: "Universal shelf registration" },
+      { label: "Capacity", value: "$300 million" },
+      { label: "Securities Covered", value: "Common, preferred, debt, warrants, contracts, and units" },
+      { label: "Active Sale Terms", value: "None" },
+      { label: "Use of Proceeds", value: "To be specified in future prospectus supplements" },
+    ],
+    instruments: [],
+  },
+});
+
+commonFilingEvents["offering-registration-atm-fixture"] = offeringRegistrationFixture({
+  company: "Sow Good Inc.",
+  deliveryLevel: "alert",
+  eventType: "dilution_risk",
+  exchange: "Nasdaq",
+  filedAt: "April 10, 2026 - 9:48 PM ET",
+  filingBrief: "Sow Good established a $100 million ATM program equal to 87.5% of its market value at the disclosed last sale price.",
+  formType: "424B5",
+  id: "offering-registration-atm-fixture",
+  score: 75,
+  signal: "bearish",
+  sourceUrl: "https://www.sec.gov/Archives/edgar/data/1490161/0001829126-26-003423-index.html",
+  summary: "Sow Good may sell up to $100 million of common stock through Craft Capital Management. Actual share issuance and proceeds depend on future market prices and sales.",
+  ticker: "SOWG",
+  title: "Sow Good Establishes $100M ATM Program",
+  originalHtml: "<h3>At-The-Market Offering</h3><p>The company may sell common stock with an aggregate offering price of up to $100 million through Craft Capital Management LLC.</p>",
+  data: {
+    snapshot: {
+      title: "ATM Program Snapshot",
+      items: [
+        { label: "ATM Capacity", value: "Up to $100M" },
+        { label: "Market Value", value: "$114.3M" },
+        { label: "Capacity vs Market Value", value: "87.5%" },
+        { label: "Sale Method", value: "At the market" },
+      ],
+    },
+    scale: {
+      basis: { label: "Market Value at Last Sale Price", value: "$114,304,511", numericValue: 114304511, note: "300.8M shares at $0.38 on April 9, 2026" },
+      caption: "The company may sell up to $100M through its ATM program",
+      headlineLabel: "Potential ATM Capacity",
+      headlineValue: "87.5%",
+      mode: "amount",
+      note: "The actual number of shares sold and proceeds will vary with market conditions.",
+      segments: [
+        { label: "ATM Capacity", value: "Up to $100,000,000", numericValue: 100000000, note: "Future primary offerings only", rowRole: "reference", supplyType: "shelf_capacity", tone: "supply" },
+      ],
+      subtitle: "Up to $100M of common stock through an ATM program",
+      title: "ATM Program",
+      total: { denominator: "$114,304,511", numerator: "$100,000,000", ratio: "87.5%", title: "ATM Capacity Scale" },
+    },
+    offeringDetails: [
+      { label: "Offering Type", value: "At-the-market common stock program" },
+      { label: "Sales Agent", value: "Craft Capital Management LLC" },
+      { label: "Commission", value: "Up to 3.0% of gross proceeds" },
+      { label: "Agreement Date", value: "April 9, 2026" },
+      { label: "Use of Proceeds", value: "Working capital, capital expenditures, and general corporate purposes" },
+    ],
+    instruments: [],
+  },
+});
+
+commonFilingEvents["offering-registration-mixed-fixture"] = offeringRegistrationFixture({
+  company: "FuelCell Energy, Inc.",
+  deliveryLevel: "alert",
+  eventType: "dilution_risk",
+  exchange: "Nasdaq",
+  filedAt: "December 3, 2020 - 4:39 PM ET",
+  filingBrief: "FuelCell registered 19.8 million primary shares and 14.7 million resale shares at $6.50, with approximately $123.9 million of net proceeds to the company.",
+  formType: "424B5",
+  id: "offering-registration-mixed-fixture",
+  score: 75,
+  signal: "bearish",
+  sourceUrl: "https://www.sec.gov/Archives/edgar/data/886128/0001104659-20-132026-index.html",
+  summary: "FuelCell Energy offered 19,822,219 primary shares and registered 14,696,320 selling-stockholder shares at $6.50 per share. The company receives proceeds only from the primary portion.",
+  ticker: "FCEL",
+  title: "FuelCell Registers Mixed Primary and Resale Offering",
+  originalHtml: "<h3>Mixed Offering</h3><p>The prospectus covers 19,822,219 primary shares and 14,696,320 resale shares at $6.50 per share.</p>",
+  data: {
+    snapshot: {
+      title: "Offering Snapshot",
+      items: [
+        { label: "Total Shares", value: "34.5M" },
+        { label: "Offer Price", value: "$6.50 per share" },
+        { label: "Company Proceeds", value: "Approximately $123.9M" },
+        { label: "Primary / Resale Split", value: "19.8M / 14.7M" },
+      ],
+    },
+    offeringDetails: [
+      { label: "Offering Type", value: "Mixed primary and resale offering" },
+      { label: "Primary Shares", value: "19,822,219" },
+      { label: "Resale Shares", value: "14,696,320" },
+      { label: "Offer Price", value: "$6.50 per share" },
+      { label: "Company Proceeds", value: "Approximately $123.9 million" },
+    ],
+    instruments: [
+      { type: "Common Stock", securities: "34,518,539 total shares", exerciseOrConversionPrice: "$6.50 per share", resetOrFloor: "Not applicable", termOrLimits: "19.8M primary shares and 14.7M resale shares" },
+    ],
+  },
+});
+
+commonFilingEvents["offering-registration-ipo-amendment-fixture"] = offeringRegistrationFixture({
+  company: "Reddit, Inc.",
+  deliveryLevel: "feed",
+  eventType: "ipo_listing",
+  exchange: "NYSE",
+  filedAt: "March 19, 2024 - 6:04 AM ET",
+  filingBrief: "Reddit's IPO amendment set a $31-$34 price range for 22 million Class A shares, including 15.28 million primary and 6.72 million secondary shares.",
+  formType: "S-1/A",
+  id: "offering-registration-ipo-amendment-fixture",
+  score: 65,
+  signal: "neutral",
+  sourceUrl: "https://www.sec.gov/Archives/edgar/data/1713445/000162828024011789/0001628280-24-011789-index.html",
+  summary: "Reddit disclosed a $31-$34 IPO price range for 22 million Class A shares. The offering includes 15,276,527 primary shares and 6,723,473 selling-stockholder shares, plus a 3.3 million-share underwriters' option.",
+  ticker: "RDDT",
+  title: "Reddit IPO Amendment Sets $31-$34 Price Range",
+  originalHtml: "<h3>Initial Public Offering</h3><p>The offering includes 22,000,000 Class A shares at an expected price of $31.00 to $34.00 per share.</p>",
+  data: {
+    snapshot: {
+      title: "IPO Snapshot",
+      items: [
+        { label: "Class A Shares", value: "22M" },
+        { label: "Price Range", value: "$31-$34" },
+        { label: "Offering Size", value: "$682M-$748M" },
+        { label: "Listing", value: "NYSE / RDDT" },
+      ],
+    },
+    offeringDetails: [
+      { label: "Primary Shares", value: "15,276,527" },
+      { label: "Secondary Shares", value: "6,723,473" },
+      { label: "Underwriters' Option", value: "3,300,000 shares" },
+      { label: "Estimated Net Proceeds", value: "Approximately $450.9 million at the midpoint" },
+      { label: "Use of Proceeds", value: "General corporate purposes and RSU tax obligations" },
+    ],
+    instruments: [
+      { type: "Class A Common Stock", securities: "22,000,000 shares", exerciseOrConversionPrice: "$31-$34 price range", resetOrFloor: "Not applicable", termOrLimits: "Includes primary and selling-stockholder shares" },
+    ],
+  },
+});
+
+function ownershipFixture({
+  company,
+  deliveryLevel,
+  filedAt,
+  filingBrief,
+  formType,
+  id,
+  keyEvidence,
+  originalHtml,
+  ownership,
+  score,
+  scoreRationale,
+  signal,
+  summary,
+  ticker,
+  title,
+  whyItMatters,
+}: {
+  company: string;
+  deliveryLevel: FilingEvent["deliveryLevel"];
+  filedAt: string;
+  filingBrief: string;
+  formType: string;
+  id: string;
+  keyEvidence: string[];
+  originalHtml: string;
+  ownership: OwnershipData | null;
+  score: number;
+  scoreRationale: string;
+  signal: DetailTone;
+  summary: string;
+  ticker: string;
+  title: string;
+  whyItMatters: string;
+}): FilingEvent {
+  return {
+    ...commonFilingEvents["tsla-8k-operational-update"],
+    bearishPoints: [],
+    bullishPoints: [],
+    change: "+0.00%",
+    changeAmount: "$0.00",
+    company,
+    context: commonFilingEvents["tsla-8k-operational-update"].context,
+    deliveryLevel,
+    eventType: "insider_ownership",
+    exchange: "NASDAQ",
+    filedAt,
+    filingBrief,
+    filingFocus: formType.startsWith("144") ? "Proposed insider sale notice" : "Insider ownership transaction",
+    formType,
+    genericAvailability: {
+      bearishPoints: false,
+      bullishPoints: false,
+      context: false,
+      filingBrief: Boolean(filingBrief),
+      keyEvidence: keyEvidence.length > 0,
+      originalHtml: Boolean(originalHtml),
+      recentFilings: false,
+      relatedNews: false,
+      scoreRationale: Boolean(scoreRationale),
+      summary: Boolean(summary),
+      watchNext: false,
+      whyItMatters: Boolean(whyItMatters),
+    },
+    id,
+    impact: score >= 75 ? "high" : score >= 50 ? "medium" : "low",
+    keyEvidence,
+    originalHtml,
+    originalTextNote: "Fixture excerpt based on the source-backed ownership output.",
+    ownership,
+    price: "N/A",
+    priceSeries: null,
+    recentFilings: [],
+    relatedNews: [],
+    score,
+    scoreRationale,
+    signal,
+    source: "SEC EDGAR",
+    sourceUrl: "",
+    summary,
+    ticker,
+    title,
+    watchNext: [],
+    whyItMatters,
+  };
+}
+
+commonFilingEvents["ownership-form4-purchase-fixture"] = ownershipFixture({
+  company: "Atlas Robotics Inc.",
+  deliveryLevel: "feed",
+  filedAt: "May 26, 2026 - 4:05 PM ET",
+  filingBrief: "CEO Maya Chen reported an open-market purchase of 25,000 ATRB shares at $12.40.",
+  formType: "4",
+  id: "ownership-form4-purchase-fixture",
+  keyEvidence: [
+    "Transaction code P",
+    "25,000 shares acquired at $12.40",
+    "425,000 shares owned after the transaction",
+  ],
+  originalHtml: "<h3>Form 4</h3><p>Maya Chen reported transaction code P for 25,000 common shares at $12.40 per share, with 425,000 shares owned following the transaction.</p>",
+  ownership: {
+    mode: "form4_transaction",
+    snapshot: {
+      title: "Insider Transaction",
+      items: [
+        { label: "Reporting Owner", value: "Maya Chen" },
+        { label: "Relationship", value: "Chief Executive Officer" },
+        { label: "Transaction", value: "Open-market purchase", note: "Code P" },
+        { label: "Reported Value", value: "$310,000", note: "25,000 shares at $12.40" },
+      ],
+    },
+    transactions: [
+      {
+        code: "P",
+        holdingsAfter: "425,000",
+        price: "$12.40",
+        security: "Common Stock",
+        shares: "25,000",
+        type: "Purchase",
+        value: "$310,000",
+      },
+    ],
+  },
+  score: 58,
+  scoreRationale: "A source-backed CEO open-market purchase is constructive and large enough for feed visibility.",
+  signal: "bullish",
+  summary: "Maya Chen, Atlas Robotics' CEO, reported acquiring 25,000 common shares at $12.40 per share for a reported value of $310,000.",
+  ticker: "ATRB",
+  title: "Atlas Robotics CEO Reports Open-Market Share Purchase",
+  whyItMatters: "Open-market purchases by senior executives can be a positive ownership signal when price, share count, and post-transaction holdings are disclosed.",
+});
+
+commonFilingEvents["ownership-form4-10b5-sale-fixture"] = ownershipFixture({
+  company: "Northstar Chips Corp.",
+  deliveryLevel: "feed",
+  filedAt: "May 26, 2026 - 4:10 PM ET",
+  filingBrief: "CFO Daniel Ortiz reported selling 450,000 NSCP shares under a Rule 10b5-1 plan.",
+  formType: "4",
+  id: "ownership-form4-10b5-sale-fixture",
+  keyEvidence: [
+    "Transaction code S",
+    "450,000 shares disposed at $24.75",
+    "The filing footnote references a Rule 10b5-1 trading plan",
+  ],
+  originalHtml: "<h3>Form 4</h3><p>Daniel Ortiz reported transaction code S for 450,000 common shares at $24.75 per share. The footnote states that the sale was effected under a Rule 10b5-1 trading plan.</p>",
+  ownership: {
+    mode: "form4_transaction",
+    snapshot: {
+      title: "Insider Transaction",
+      items: [
+        { label: "Reporting Owner", value: "Daniel Ortiz" },
+        { label: "Relationship", value: "Chief Financial Officer" },
+        { label: "Transaction", value: "Reported sale", note: "Rule 10b5-1 plan" },
+        { label: "Reported Value", value: "$11.14 million", note: "450,000 shares at $24.75" },
+      ],
+    },
+    transactions: [
+      {
+        code: "S",
+        holdingsAfter: "1,200,000",
+        plan10b5: true,
+        price: "$24.75",
+        security: "Common Stock",
+        shares: "450,000",
+        type: "Sale",
+        value: "$11,137,500",
+      },
+    ],
+  },
+  score: 61,
+  scoreRationale: "The reported sale value is material enough for feed visibility, while the 10b5-1 plan reduces the need for alert treatment.",
+  signal: "bearish",
+  summary: "Daniel Ortiz reported selling 450,000 common shares at $24.75 per share, with the filing stating that the sale was made under a Rule 10b5-1 plan.",
+  ticker: "NSCP",
+  title: "Northstar Chips CFO Reports $11.1M 10b5-1 Sale",
+  whyItMatters: "Large executive sales can matter to investors, but a disclosed 10b5-1 plan often indicates pre-arranged selling rather than a new discretionary decision.",
+});
+
+commonFilingEvents["ownership-form144a-material-sale-fixture"] = ownershipFixture({
+  company: "Vector Therapeutics Inc.",
+  deliveryLevel: "alert",
+  filedAt: "May 28, 2026 - 4:15 PM ET",
+  filingBrief: "Executive chair Samuel Price filed a Form 144/A increasing a proposed sale from 50,000 to 2.5 million shares.",
+  formType: "144/A",
+  id: "ownership-form144a-material-sale-fixture",
+  keyEvidence: [
+    "2,500,000 shares proposed for sale",
+    "$24 million aggregate market value",
+    "The amendment increases the proposed amount from 50,000 shares",
+  ],
+  originalHtml: "<h3>Form 144/A</h3><p>The amendment increases the proposed sale from 50,000 shares to 2,500,000 shares, with an aggregate market value of $24,000,000 and an approximate sale date of May 28, 2026.</p>",
+  ownership: {
+    amendmentDetails: [
+      { label: "Previous Proposed Sale", value: "50,000 shares" },
+      { label: "Updated Proposed Sale", value: "2,500,000 shares" },
+      { label: "Increase", value: "50x" },
+    ],
+    details: [
+      { label: "Notice Status", value: "Proposed sale", note: "Form 144 is not proof of execution" },
+      { label: "Shares Proposed", value: "2,500,000" },
+      { label: "Estimated Market Value", value: "$24 million" },
+      { label: "Approximate Sale Date", value: "May 28, 2026" },
+    ],
+    mode: "form144_proposed_sale",
+    snapshot: {
+      title: "Proposed Insider Sale",
+      items: [
+        { label: "Seller", value: "Samuel Price", note: "Executive Chair" },
+        { label: "Notice Status", value: "Proposed sale", note: "Not reported as executed" },
+        { label: "Shares Proposed", value: "2,500,000" },
+        { label: "Estimated Value", value: "$24 million", note: "Approximate sale date: May 28, 2026" },
+      ],
+    },
+  },
+  score: 76,
+  scoreRationale: "The amendment increases the proposed sale to 2.5 million shares with a $24 million aggregate market value.",
+  signal: "bearish",
+  summary: "The Form 144/A reports a material increase in a proposed insider sale from 50,000 to 2.5 million shares. It is a sale notice, not confirmation that the sale occurred.",
+  ticker: "VCTX",
+  title: "Vector Therapeutics Form 144/A Raises Proposed Sale to 2.5M Shares",
+  whyItMatters: "A large increase in a proposed insider sale can create investor concern even though Form 144 reports an intention rather than an executed transaction.",
+});
+
+commonFilingEvents["ownership-routine-award-fallback-fixture"] = ownershipFixture({
+  company: "Xerox Holdings Corporation",
+  deliveryLevel: "archive",
+  filedAt: "May 20, 2026 - 4:05 PM ET",
+  filingBrief: "Form 4 reported an 87,209-unit RSU award to John G. Bruno.",
+  formType: "4",
+  id: "ownership-routine-award-fallback-fixture",
+  keyEvidence: ["Transaction code A", "87,209 restricted stock units awarded"],
+  originalHtml: "<h3>Form 4</h3><p>Transaction code A reports an award of 87,209 Restricted Stock Units to John G. Bruno.</p>",
+  ownership: null,
+  score: 28,
+  scoreRationale: "The filing contains only a routine equity-award row and no open-market purchase or sale signal.",
+  signal: "neutral",
+  summary: "Form 4 reported a routine equity award of 87,209 restricted stock units to John G. Bruno.",
+  ticker: "XRX",
+  title: "Xerox Reports Routine Insider RSU Award",
+  whyItMatters: "The filing records compensation-related ownership rather than an open-market trading decision.",
+});
+
+commonFilingEvents["ownership-routine-form144-fallback-fixture"] = ownershipFixture({
+  company: "Cobalt Cloud Software Inc.",
+  deliveryLevel: "archive",
+  filedAt: "May 27, 2026 - 4:05 PM ET",
+  filingBrief: "Priya Raman filed a Form 144 notice proposing a sale of 25,000 shares worth about $175,000.",
+  formType: "144",
+  id: "ownership-routine-form144-fallback-fixture",
+  keyEvidence: ["25,000 shares proposed for sale", "$175,000 aggregate market value"],
+  originalHtml: "<h3>Form 144</h3><p>Priya Raman filed a notice proposing the sale of 25,000 shares with an aggregate market value of $175,000 on or around May 27, 2026.</p>",
+  ownership: null,
+  score: 32,
+  scoreRationale: "The proposed sale is small by the source-backed amount and remains below the specialized ownership threshold.",
+  signal: "neutral",
+  summary: "Priya Raman filed a Form 144 notice proposing a sale of 25,000 shares worth about $175,000. The notice does not establish that the sale occurred.",
+  ticker: "CBLD",
+  title: "Cobalt Cloud Insider Files Routine Proposed Sale Notice",
+  whyItMatters: "Form 144 records a proposed sale and should not be described as an executed transaction.",
+});
+
+commonFilingEvents["ownership-admin-amendment-fallback-fixture"] = ownershipFixture({
+  company: "Horizon Battery Systems Inc.",
+  deliveryLevel: "archive",
+  filedAt: "May 27, 2026 - 4:10 PM ET",
+  filingBrief: "A Form 4/A corrected footnote text without changing transaction or ownership amounts.",
+  formType: "4/A",
+  id: "ownership-admin-amendment-fallback-fixture",
+  keyEvidence: ["Footnote text corrected", "No transaction or ownership amount changed"],
+  originalHtml: "<h3>Form 4/A</h3><p>The amendment corrects footnote text and does not change the transaction date, code, shares, price, or post-transaction ownership.</p>",
+  ownership: null,
+  score: 20,
+  scoreRationale: "The amendment is administrative and does not change reported ownership or transaction terms.",
+  signal: "neutral",
+  summary: "Horizon Battery Systems filed a Form 4/A correcting footnote text without changing transaction dates, shares, prices, or ownership amounts.",
+  ticker: "HZBS",
+  title: "Horizon Battery Systems Files Administrative Form 4/A",
+  whyItMatters: "The amendment updates the record but does not report a new ownership transaction.",
+});
+
+function tenderOfferFixture({
+  company,
+  deliveryLevel,
+  eventType,
+  filedAt,
+  filingBrief,
+  formType,
+  id,
+  keyEvidence,
+  originalHtml,
+  score,
+  scoreRationale,
+  signal,
+  summary,
+  tenderOffer,
+  ticker,
+  title,
+  watchNext,
+  whyItMatters,
+}: {
+  company: string;
+  deliveryLevel: FilingEvent["deliveryLevel"];
+  eventType: string;
+  filedAt: string;
+  filingBrief: string;
+  formType: string;
+  id: string;
+  keyEvidence: string[];
+  originalHtml: string;
+  score: number;
+  scoreRationale: string;
+  signal: DetailTone;
+  summary: string;
+  tenderOffer: TenderOfferData | null;
+  ticker: string;
+  title: string;
+  watchNext: string[];
+  whyItMatters: string;
+}): FilingEvent {
+  return {
+    ...commonFilingEvents["tsla-8k-operational-update"],
+    bearishPoints: [],
+    bullishPoints: [],
+    change: "+0.00%",
+    changeAmount: "$0.00",
+    company,
+    deliveryLevel,
+    eventType,
+    exchange: "NASDAQ",
+    filedAt,
+    filingBrief,
+    filingFocus: "Tender offer terms",
+    formType,
+    genericAvailability: {
+      bearishPoints: false,
+      bullishPoints: false,
+      context: false,
+      filingBrief: Boolean(filingBrief),
+      keyEvidence: keyEvidence.length > 0,
+      originalHtml: Boolean(originalHtml),
+      recentFilings: false,
+      relatedNews: false,
+      scoreRationale: Boolean(scoreRationale),
+      summary: Boolean(summary),
+      watchNext: watchNext.length > 0,
+      whyItMatters: Boolean(whyItMatters),
+    },
+    id,
+    impact: score >= 75 ? "high" : score >= 50 ? "medium" : "low",
+    keyEvidence,
+    originalHtml,
+    originalTextNote: "Fixture excerpt based on the Tender / CB / 13E3 room output.",
+    price: "N/A",
+    priceSeries: null,
+    recentFilings: [],
+    relatedNews: [],
+    score,
+    scoreRationale,
+    signal,
+    source: "SEC EDGAR",
+    sourceUrl: "",
+    summary,
+    tenderOffer,
+    ticker,
+    title,
+    watchNext,
+    whyItMatters,
+  };
+}
+
+commonFilingEvents["tender-issuer-repurchase-fixture"] = tenderOfferFixture({
+  company: "NovaTech Robotics Inc.",
+  deliveryLevel: "feed",
+  eventType: "capital_return",
+  filedAt: "May 22, 2026 - 4:05 PM ET",
+  filingBrief: "NovaTech is offering to buy up to 2 million shares at $25.00 in cash.",
+  formType: "SC TO-I",
+  id: "tender-issuer-repurchase-fixture",
+  keyEvidence: [
+    "Issuer tender offer to purchase up to 2,000,000 shares.",
+    "Purchase price is $25.00 per share in cash.",
+    "Maximum aggregate purchase price is $50 million.",
+  ],
+  originalHtml: "<h3>Issuer Tender Offer</h3><p>NovaTech Robotics offers to purchase up to 2,000,000 shares at $25.00 per share in cash, for a maximum aggregate purchase price of $50 million. The offer expires June 20, 2026 and is subject to proration.</p>",
+  score: 68,
+  scoreRationale: "The issuer tender provides a defined cash return and potential share-count reduction, but acceptance remains subject to the offer cap and proration.",
+  signal: "bullish",
+  summary: "The issuer tender creates a near-term capital return and potential share count reduction, with proration if tenders exceed the cap.",
+  tenderOffer: {
+    mode: "issuer_tender",
+    snapshot: {
+      title: "Issuer Tender Snapshot",
+      items: [
+        { label: "Cash Price", value: "$25.00 per share" },
+        { label: "Maximum Purchase", value: "$50 million" },
+        { label: "Shares Sought", value: "Up to 2,000,000" },
+        { label: "Expiration", value: "June 20, 2026", note: "Withdrawal deadline is the same date" },
+      ],
+    },
+    termsTitle: "Tender Terms",
+    terms: [
+      { label: "Offeror", value: "NovaTech Robotics Inc." },
+      { label: "Consideration", value: "$25.00 per share in cash" },
+      { label: "Proration", value: "Applies if tenders exceed the offer cap" },
+    ],
+  },
+  ticker: "NVT",
+  title: "NovaTech Launches $50 Million Issuer Tender Offer",
+  watchNext: ["Final shares accepted and proration factor.", "Whether the offer is extended or amended."],
+  whyItMatters: "The offer creates direct cash liquidity for participating holders and may reduce the outstanding share count, subject to the cap and proration.",
+});
+
+commonFilingEvents["tender-third-party-acquisition-fixture"] = tenderOfferFixture({
+  company: "Alpine Data Systems Inc.",
+  deliveryLevel: "alert",
+  eventType: "strategic_transaction",
+  filedAt: "June 12, 2026 - 8:30 AM ET",
+  filingBrief: "Summit is offering $18.50 per share in cash for Alpine Data.",
+  formType: "SC TO-T",
+  id: "tender-third-party-acquisition-fixture",
+  keyEvidence: [
+    "$18.50 per share net to the seller in cash.",
+    "The stated offer premium is 42% to Alpine's previous closing price.",
+    "The board recommends that stockholders tender their shares.",
+  ],
+  originalHtml: "<h3>Third-Party Tender Offer</h3><p>Summit Merger Sub Inc. offers $18.50 per share in cash for Alpine Data Systems. The offer expires July 15, 2026 and is subject to the minimum tender condition and regulatory approval, with no financing condition.</p>",
+  score: 82,
+  scoreRationale: "The actionable all-cash offer carries a source-backed 42% premium and a board recommendation, subject to minimum-tender and regulatory conditions.",
+  signal: "bullish",
+  summary: "The filing describes a control-change tender offer with a 42% premium, a July 15, 2026 expiration, and customary minimum tender and regulatory conditions.",
+  tenderOffer: {
+    mode: "third_party_tender",
+    snapshot: {
+      title: "Acquisition Tender Snapshot",
+      items: [
+        { label: "Offer Price", value: "$18.50 per share", note: "Cash, net to the seller" },
+        { label: "Stated Premium", value: "42%", note: "Versus previous closing price" },
+        { label: "Expiration", value: "July 15, 2026" },
+        { label: "Board Position", value: "Recommends tendering" },
+      ],
+    },
+    termsTitle: "Offer Conditions",
+    terms: [
+      { label: "Offeror", value: "Summit Merger Sub Inc." },
+      { label: "Target", value: "Alpine Data Systems Inc." },
+      { label: "Minimum Tender", value: "Required" },
+      { label: "Regulatory Approval", value: "Required" },
+      { label: "Financing Condition", value: "None" },
+    ],
+  },
+  ticker: "ALPN",
+  title: "Summit Starts $18.50 Cash Tender Offer for Alpine Data",
+  watchNext: ["Minimum tender condition satisfaction.", "Regulatory approval and any offer extension."],
+  whyItMatters: "The filing gives holders a defined cash exit at a stated premium, while completion still depends on tender participation and regulatory approval.",
+});
+
+commonFilingEvents["tender-going-private-13e3-fixture"] = tenderOfferFixture({
+  company: "Harbor Foods Group Inc.",
+  deliveryLevel: "alert",
+  eventType: "strategic_transaction",
+  filedAt: "June 18, 2026 - 4:20 PM ET",
+  filingBrief: "Harbor Foods' controller group proposes to cash out unaffiliated holders at $11.25 per share.",
+  formType: "SC 13E3",
+  id: "tender-going-private-13e3-fixture",
+  keyEvidence: [
+    "The filing describes a Rule 13e-3 going-private transaction.",
+    "Unaffiliated holders would receive $11.25 per share in cash.",
+    "Completion requires approval by a majority of unaffiliated shares.",
+  ],
+  originalHtml: "<h3>Schedule 13E-3</h3><p>The controller group proposes a going-private transaction at $11.25 per share in cash, subject to approval by a majority of unaffiliated shares. The special committee addresses fairness and holders retain appraisal rights.</p>",
+  score: 88,
+  scoreRationale: "The definitive cash-out would end public ownership for unaffiliated holders and depends on minority approval and the disclosed fairness process.",
+  signal: "volatile",
+  summary: "The filing describes a Rule 13e-3 going-private transaction with cash consideration, special committee fairness language, unaffiliated-holder approval, and appraisal rights.",
+  tenderOffer: {
+    mode: "going_private",
+    snapshot: {
+      title: "Going-Private Snapshot",
+      items: [
+        { label: "Cash-Out Price", value: "$11.25 per share" },
+        { label: "Affected Holders", value: "Unaffiliated shareholders" },
+        { label: "Minority Approval", value: "Required", note: "Majority of unaffiliated shares" },
+        { label: "Appraisal Rights", value: "Available" },
+      ],
+    },
+    termsTitle: "Going-Private Terms",
+    terms: [
+      { label: "Transaction", value: "Rule 13e-3 going private" },
+      { label: "Consideration", value: "$11.25 per share in cash" },
+      { label: "Special Committee", value: "Fairness process disclosed" },
+      { label: "Holder Approval", value: "Majority of unaffiliated shares" },
+    ],
+  },
+  ticker: "HBRF",
+  title: "Harbor Foods Files $11.25 Going-Private Schedule 13E-3",
+  watchNext: ["Unaffiliated-holder approval result.", "Fairness materials and any appraisal-related litigation."],
+  whyItMatters: "The transaction would cash out public minority holders and remove their continuing equity interest, making price fairness and minority approval central.",
+});
+
+commonFilingEvents["tender-cross-border-exchange-fixture"] = tenderOfferFixture({
+  company: "BioThera Inc.",
+  deliveryLevel: "feed",
+  eventType: "strategic_transaction",
+  filedAt: "July 2, 2026 - 8:15 AM ET",
+  filingBrief: "EuroMed is offering 0.75 ordinary shares for each BioThera ADS.",
+  formType: "CB",
+  id: "tender-cross-border-exchange-fixture",
+  keyEvidence: [
+    "The exchange ratio is 0.75 EuroMed ordinary shares for each BioThera ADS.",
+    "The offer expires August 3, 2026.",
+    "Acceptances are subject to proration.",
+  ],
+  originalHtml: "<h3>Schedule CB</h3><p>EuroMed plc offers 0.75 ordinary shares for each BioThera ADS. The cross-border exchange offer expires August 3, 2026, is subject to proration, and relies on the Tier II exemption.</p>",
+  score: 70,
+  scoreRationale: "The exchange offer defines holder consideration but leaves final value exposed to EuroMed's share price and possible proration.",
+  signal: "volatile",
+  summary: "The filing describes a cross-border exchange offer with stock consideration, an August 3, 2026 expiration, proration risk, and Tier II exemption language.",
+  tenderOffer: {
+    mode: "cross_border",
+    snapshot: {
+      title: "Cross-Border Offer Snapshot",
+      items: [
+        { label: "Exchange Ratio", value: "0.75 EuroMed shares", note: "For each BioThera ADS" },
+        { label: "Offeror", value: "EuroMed plc" },
+        { label: "Expiration", value: "August 3, 2026" },
+        { label: "Proration", value: "Applies" },
+      ],
+    },
+    termsTitle: "Exchange Offer Terms",
+    terms: [
+      { label: "Target Security", value: "BioThera ADS" },
+      { label: "Consideration", value: "EuroMed ordinary shares" },
+      { label: "Exchange Ratio", value: "0.75 shares per ADS" },
+      { label: "Cross-Border Exemption", value: "Tier II" },
+    ],
+  },
+  ticker: "BTHR",
+  title: "EuroMed Files 0.75-for-1 Cross-Border Exchange Offer",
+  watchNext: ["EuroMed share price movement before expiration.", "Final proration and exchange offer acceptance results."],
+  whyItMatters: "Holder value depends on the acquirer's share price through expiration, and proration may limit how much of the tendered position is accepted.",
+});
+
+commonFilingEvents["tender-material-amendment-fixture"] = tenderOfferFixture({
+  company: "Alpine Data Systems Inc.",
+  deliveryLevel: "alert",
+  eventType: "strategic_transaction",
+  filedAt: "July 10, 2026 - 8:30 AM ET",
+  filingBrief: "Summit increased the Alpine tender price to $20.00 and extended the offer to July 29, 2026.",
+  formType: "SC TO-T/A",
+  id: "tender-material-amendment-fixture",
+  keyEvidence: [
+    "The offer price increased from $18.50 to $20.00 per share in cash.",
+    "The expiration date moved from July 15 to July 29, 2026.",
+    "All other terms and conditions remain unchanged.",
+  ],
+  originalHtml: "<h3>Amendment No. 2</h3><p>The offer price increases from $18.50 to $20.00 per share in cash and the expiration date extends from July 15 to July 29, 2026. All other terms remain unchanged.</p>",
+  score: 76,
+  scoreRationale: "The amendment directly improves cash consideration and extends the decision period without changing the other offer conditions.",
+  signal: "bullish",
+  summary: "The amendment improves cash consideration from $18.50 to $20.00 per share and extends the expiration deadline to July 29, 2026, while leaving all other terms unchanged.",
+  tenderOffer: {
+    changes: [
+      { label: "Offer Price", previous: "$18.50 per share", current: "$20.00 per share" },
+      { label: "Expiration", previous: "July 15, 2026", current: "July 29, 2026" },
+    ],
+    mode: "material_amendment",
+    snapshot: {
+      title: "Tender Amendment Snapshot",
+      items: [
+        { label: "Amendment", value: "No. 2" },
+        { label: "New Offer Price", value: "$20.00 per share", note: "Previously $18.50" },
+        { label: "New Expiration", value: "July 29, 2026", note: "Previously July 15" },
+        { label: "Other Terms", value: "Unchanged" },
+      ],
+    },
+    termsTitle: "Current Offer Terms",
+    terms: [
+      { label: "Offeror", value: "Summit Merger Sub Inc." },
+      { label: "Target", value: "Alpine Data Systems Inc." },
+      { label: "Consideration", value: "$20.00 per share in cash" },
+    ],
+  },
+  ticker: "ALPN",
+  title: "Summit Raises Alpine Tender Offer to $20.00",
+  watchNext: ["Tender results at the extended deadline.", "Any additional price or condition amendments."],
+  whyItMatters: "The amendment improves holder economics by raising the cash price and gives investors two additional weeks to decide whether to tender.",
+});
+
+commonFilingEvents["tender-routine-amendment-fallback-fixture"] = tenderOfferFixture({
+  company: "NovaTech Robotics Inc.",
+  deliveryLevel: "archive",
+  eventType: "other",
+  filedAt: "May 28, 2026 - 4:05 PM ET",
+  filingBrief: "Routine tender amendment with no change to offer terms.",
+  formType: "SC TO-I/A",
+  id: "tender-routine-amendment-fallback-fixture",
+  keyEvidence: ["An exhibit was added.", "The signature page was updated.", "All offer terms remain unchanged."],
+  originalHtml: "<h3>Amendment No. 1</h3><p>This amendment adds an exhibit and updates the signature page. All other terms of the offer remain unchanged.</p>",
+  score: 20,
+  scoreRationale: "The amendment is administrative and does not change price, timing, conditions, or holder treatment.",
+  signal: "neutral",
+  summary: "The filing only adds an exhibit and updates the signature page while stating that all tender offer terms remain unchanged.",
+  tenderOffer: null,
+  ticker: "NVT",
+  title: "NovaTech Files Routine Tender-Offer Amendment",
+  watchNext: ["Any later amendment that changes price, deadline, proration, or conditions."],
+  whyItMatters: "The filing updates the tender record but does not change the offer's investor-relevant terms.",
+});
+
+function ntLateFilingFixture({
+  company,
+  deliveryLevel,
+  eventType,
+  filedAt,
+  filingBrief,
+  formType,
+  id,
+  keyEvidence,
+  score,
+  scoreRationale,
+  signal,
+  snapshot,
+  summary,
+  ticker,
+  title,
+  watchNext,
+  whyItMatters,
+}: {
+  company: string;
+  deliveryLevel: FilingEvent["deliveryLevel"];
+  eventType: string;
+  filedAt: string;
+  filingBrief: string;
+  formType: string;
+  id: string;
+  keyEvidence: string[];
+  score: number;
+  scoreRationale: string;
+  signal: DetailTone;
+  snapshot: ListingFinancialRiskSnapshotData;
+  summary: string;
+  ticker: string;
+  title: string;
+  watchNext: string[];
+  whyItMatters: string;
+}): FilingEvent {
+  return {
+    ...commonFilingEvents["tsla-8k-operational-update"],
+    bearishPoints: [],
+    bullishPoints: [],
+    change: "+0.00%",
+    changeAmount: "$0.00",
+    company,
+    deliveryLevel,
+    eventType,
+    exchange: "NASDAQ",
+    filedAt,
+    filingBrief,
+    filingFocus: "Late periodic report",
+    formType,
+    genericAvailability: {
+      bearishPoints: false,
+      bullishPoints: false,
+      context: false,
+      filingBrief: Boolean(filingBrief),
+      keyEvidence: keyEvidence.length > 0,
+      originalHtml: true,
+      recentFilings: false,
+      relatedNews: false,
+      scoreRationale: Boolean(scoreRationale),
+      summary: Boolean(summary),
+      watchNext: watchNext.length > 0,
+      whyItMatters: Boolean(whyItMatters),
+    },
+    id,
+    impact: score >= 75 ? "high" : score >= 50 ? "medium" : "low",
+    keyEvidence,
+    ntLateFilingSnapshot: snapshot,
+    originalHtml: `<h3>${formType} Notification</h3><p>${summary}</p>`,
+    originalTextNote: "Fixture excerpt based on the NT form-room expected output.",
+    price: "N/A",
+    priceSeries: null,
+    recentFilings: [],
+    relatedNews: [],
+    score,
+    scoreRationale,
+    signal,
+    source: "SEC EDGAR",
+    sourceUrl: "",
+    summary,
+    ticker,
+    title,
+    watchNext,
+    whyItMatters,
+  };
+}
+
+commonFilingEvents["nt-routine-10q-fixture"] = ntLateFilingFixture({
+  company: "Acme Robotics Inc.",
+  deliveryLevel: "archive",
+  eventType: "other",
+  filedAt: "May 12, 2026 - 4:15 PM ET",
+  filingBrief: "Acme Robotics filed a routine NT 10-Q and says no significant results change is expected.",
+  formType: "NT 10-Q",
+  id: "nt-routine-10q-fixture",
+  keyEvidence: [
+    "The delayed report is the Form 10-Q for the quarter ended March 31, 2026.",
+    "The company expects to file within the five-day extension period.",
+    "No significant change in results is expected.",
+  ],
+  score: 25,
+  scoreRationale: "The notice describes a routine review delay, expects filing within the extension, and discloses no material results change.",
+  signal: "neutral",
+  snapshot: {
+    title: "Late Filing Snapshot",
+    items: [
+      { label: "Delayed Report", value: "10-Q", note: "Period ended Mar 31, 2026" },
+      { label: "Filing Timing", value: "Expected within extension", note: "5-day extension window" },
+      { label: "Reason for Delay", value: "Quarterly review and management review" },
+      { label: "Expected Results Impact", value: "No significant change disclosed" },
+    ],
+  },
+  summary: "Acme Robotics needs additional time to complete quarterly review procedures and management review and expects to file its Form 10-Q within the five-day extension period.",
+  ticker: "ACME",
+  title: "Acme Robotics Files Routine NT 10-Q Notice",
+  watchNext: ["Whether the Form 10-Q is filed within the extension period."],
+  whyItMatters: "The notice is procedural unless the company misses the extension or later discloses an accounting issue or material results change.",
+});
+
+commonFilingEvents["nt-material-sales-change-fixture"] = ntLateFilingFixture({
+  company: "HelioGrid Storage Inc.",
+  deliveryLevel: "alert",
+  eventType: "sales_performance",
+  filedAt: "May 12, 2026 - 4:25 PM ET",
+  filingBrief: "HelioGrid's late-filing notice says quarterly revenue is expected to fall about 38% year over year.",
+  formType: "NT 10-Q",
+  id: "nt-material-sales-change-fixture",
+  keyEvidence: [
+    "Revenue is expected to decline approximately 38% year over year.",
+    "The company also expects lower gross margin.",
+    "The filing delay involves quarter-close work and analysis of customer order delays.",
+  ],
+  score: 76,
+  scoreRationale: "The notice contains a material quantified revenue decline and lower expected gross margin, making the filing delay immediately relevant.",
+  signal: "bearish",
+  snapshot: {
+    title: "Late Filing Snapshot",
+    items: [
+      { label: "Delayed Report", value: "10-Q", note: "Period ended Mar 31, 2026" },
+      { label: "Filing Timing", value: "Expected within extension", note: "5-day extension window" },
+      { label: "Reason for Delay", value: "Quarter close and customer-order analysis" },
+      { label: "Expected Results Impact", value: "Revenue down about 38%; lower gross margin" },
+    ],
+  },
+  summary: "HelioGrid needs additional time for quarter-close procedures and analysis of customer order delays. It expects revenue to decline about 38% year over year and gross margin to be lower.",
+  ticker: "HGS",
+  title: "HelioGrid NT 10-Q Flags 38% Revenue Decline",
+  watchNext: ["The filed 10-Q's final revenue and gross-margin figures.", "Whether the company meets the extension deadline."],
+  whyItMatters: "The NT notice provides material preliminary operating information before the full quarterly report, including a quantified revenue decline and margin pressure.",
+});
+
+commonFilingEvents["nt-accounting-delay-10k-fixture"] = ntLateFilingFixture({
+  company: "Northstar Components Corp.",
+  deliveryLevel: "alert",
+  eventType: "financial_risk",
+  filedAt: "March 31, 2026 - 5:10 PM ET",
+  filingBrief: "Northstar's annual report is delayed by audit work involving revenue recognition, inventory valuation, and internal controls.",
+  formType: "NT 10-K",
+  id: "nt-accounting-delay-10k-fixture",
+  keyEvidence: [
+    "Open audit procedures involve revenue recognition and inventory valuation.",
+    "Management is evaluating material adjustments and internal-control remediation testing.",
+    "The company expects a material decrease in net income.",
+  ],
+  score: 82,
+  scoreRationale: "The delay involves audit adjustments and internal-control work and is accompanied by an expected material decrease in net income.",
+  signal: "bearish",
+  snapshot: {
+    title: "Late Filing Snapshot",
+    items: [
+      { label: "Delayed Report", value: "10-K", note: "Period ended Dec 31, 2025" },
+      { label: "Filing Timing", value: "Expected within extension", note: "15-day extension window" },
+      { label: "Reason for Delay", value: "Audit and internal-control procedures" },
+      { label: "Expected Results Impact", value: "Material decrease in net income expected", note: "Financial reporting risk disclosed" },
+    ],
+  },
+  summary: "Northstar requires more time for audit procedures concerning revenue recognition, inventory valuation, and internal-control remediation. Material adjustments are under evaluation, and net income is expected to decrease materially.",
+  ticker: "NSTC",
+  title: "Northstar Delays 10-K for Audit and Control Work",
+  watchNext: ["The final audit adjustments and net-income effect.", "Any material weakness or restatement disclosure in the 10-K."],
+  whyItMatters: "The delay is tied to accounting judgments and internal controls rather than routine report preparation, increasing financial-reporting uncertainty.",
+});
+
+commonFilingEvents["nt-foreign-issuer-20f-fixture"] = ntLateFilingFixture({
+  company: "Global Meridian PLC",
+  deliveryLevel: "feed",
+  eventType: "financial_risk",
+  filedAt: "April 30, 2026 - 5:05 PM ET",
+  filingBrief: "Global Meridian delayed its 20-F while completing a subsidiary audit and consolidation schedules.",
+  formType: "NT 20-F",
+  id: "nt-foreign-issuer-20f-fixture",
+  keyEvidence: [
+    "The delayed report is the Form 20-F for the year ended December 31, 2025.",
+    "A newly acquired subsidiary requires a local statutory audit and consolidation schedules.",
+    "No significant results change was disclosed.",
+  ],
+  score: 58,
+  scoreRationale: "The acquisition-related audit and consolidation work creates filing uncertainty, but the notice discloses no significant results change.",
+  signal: "volatile",
+  snapshot: {
+    title: "Late Filing Snapshot",
+    items: [
+      { label: "Delayed Report", value: "20-F", note: "Period ended Dec 31, 2025" },
+      { label: "Filing Timing", value: "Expected within extension", note: "15-day extension window" },
+      { label: "Reason for Delay", value: "Subsidiary audit and consolidation schedules" },
+      { label: "Expected Results Impact", value: "No significant change disclosed" },
+    ],
+  },
+  summary: "Global Meridian needs additional time to complete a local statutory audit and consolidation schedules for a newly acquired non-U.S. subsidiary and expects to file within the extension period.",
+  ticker: "GMDN",
+  title: "Global Meridian Delays 20-F for Subsidiary Audit",
+  watchNext: ["Completion of the subsidiary audit and filing of the Form 20-F."],
+  whyItMatters: "The delay reflects acquisition-related consolidation work; risk rises if the extension is missed or the completed audit identifies material adjustments.",
+});
+
+function s8Fixture({
+  company,
+  deliveryLevel,
+  filedAt,
+  filingBrief,
+  formType,
+  id,
+  keyEvidence,
+  s8,
+  score,
+  scoreRationale,
+  signal,
+  summary,
+  ticker,
+  title,
+  watchNext,
+  whyItMatters,
+}: {
+  company: string;
+  deliveryLevel: FilingEvent["deliveryLevel"];
+  filedAt: string;
+  filingBrief: string;
+  formType: string;
+  id: string;
+  keyEvidence: string[];
+  s8?: S8Data | null;
+  score: number;
+  scoreRationale: string;
+  signal: DetailTone;
+  summary: string;
+  ticker: string;
+  title: string;
+  watchNext: string[];
+  whyItMatters: string;
+}): FilingEvent {
+  return {
+    ...commonFilingEvents["tsla-8k-operational-update"],
+    bearishPoints: [],
+    bullishPoints: [],
+    change: "+0.00%",
+    changeAmount: "$0.00",
+    company,
+    deliveryLevel,
+    eventType: "dilution_risk",
+    exchange: "NYSE",
+    filedAt,
+    filingBrief,
+    filingFocus: "Equity compensation registration",
+    formType,
+    genericAvailability: {
+      bearishPoints: false,
+      bullishPoints: false,
+      context: false,
+      filingBrief: true,
+      keyEvidence: keyEvidence.length > 0,
+      originalHtml: true,
+      recentFilings: false,
+      relatedNews: false,
+      scoreRationale: Boolean(scoreRationale),
+      summary: true,
+      watchNext: watchNext.length > 0,
+      whyItMatters: true,
+    },
+    id,
+    impact: score >= 75 ? "high" : score >= 50 ? "medium" : "low",
+    keyEvidence,
+    originalHtml: `<h3>${formType} Equity Compensation Registration</h3><p>${summary}</p>`,
+    originalTextNote: "Fixture excerpt based on the filed S-8 package and tested S-8 output contract.",
+    price: "N/A",
+    priceSeries: null,
+    recentFilings: [],
+    relatedNews: [],
+    s8,
+    score,
+    scoreRationale,
+    signal,
+    source: "SEC EDGAR",
+    sourceUrl: "",
+    summary,
+    ticker,
+    title,
+    watchNext,
+    whyItMatters,
+  };
+}
+
+commonFilingEvents["s8-plan-registration-fixture"] = s8Fixture({
+  company: "Douglas Elliman Inc.",
+  deliveryLevel: "feed",
+  filedAt: "April 1, 2026 - 5:12 PM ET",
+  filingBrief: "Douglas Elliman registered 4,412,397 shares for its management incentive and employee stock purchase plans.",
+  formType: "S-8",
+  id: "s8-plan-registration-fixture",
+  keyEvidence: [
+    "The filing registers 3,529,918 shares under the Management Incentive Plan.",
+    "The filing registers 882,479 shares under the Employee Stock Purchase Plan.",
+  ],
+  s8: {
+    detailsTitle: "Plan Registration Details",
+    details: [
+      { label: "Management Incentive Plan", value: "3,529,918 shares" },
+      { label: "Employee Stock Purchase Plan", value: "882,479 shares" },
+      { label: "Total Registered", value: "4,412,397 shares" },
+    ],
+    mode: "plan_registration",
+    snapshot: {
+      title: "Equity Plan Snapshot",
+      items: [
+        { label: "Shares Outstanding", value: "90,906,080" },
+        { label: "Registered plan shares", value: "4,412,397" },
+        { label: "Plan Shares / Outstanding", value: "4.87%" },
+        { label: "Plan Type", value: "Management Incentive & ESPP" },
+      ],
+    },
+  },
+  score: 55,
+  scoreRationale: "The registered plan shares equal 4.87% of shares outstanding, creating moderate potential compensation dilution without an immediate public sale.",
+  signal: "neutral",
+  summary: "Douglas Elliman registered 4,412,397 shares for employee and management equity compensation, including 3,529,918 shares under its Management Incentive Plan and 882,479 shares under its Employee Stock Purchase Plan.",
+  ticker: "DOUG",
+  title: "Douglas Elliman Registers 4.4 Million Equity Plan Shares",
+  watchNext: ["Future grants and exercises under the registered plans."],
+  whyItMatters: "The filing expands the pool of shares available for employee compensation; dilution occurs as awards are granted, vest, and are exercised.",
+});
+
+commonFilingEvents["s8-inducement-awards-fixture"] = s8Fixture({
+  company: "Tela Medical Devices, Inc.",
+  deliveryLevel: "feed",
+  filedAt: "March 18, 2026 - 4:38 PM ET",
+  filingBrief: "Tela Medical Devices registered 81,600 shares for employment inducement awards.",
+  formType: "S-8",
+  id: "s8-inducement-awards-fixture",
+  keyEvidence: [
+    "The inducement awards include options covering 75,000 shares.",
+    "The inducement awards include restricted stock units covering 6,600 shares.",
+  ],
+  s8: {
+    detailsTitle: "Inducement Award Details",
+    details: [
+      { label: "Stock Options", value: "75,000 shares" },
+      { label: "Restricted Stock Units", value: "6,600 shares" },
+      { label: "Total Inducement Awards", value: "81,600 shares" },
+    ],
+    mode: "inducement_awards",
+    snapshot: {
+      title: "Inducement Award Snapshot",
+      items: [
+        { label: "Registered inducement shares", value: "81,600" },
+        { label: "Award Type", value: "Stock options and RSUs" },
+        { label: "Stock Options", value: "75,000 shares" },
+        { label: "Restricted Stock Units", value: "6,600 shares" },
+      ],
+    },
+  },
+  score: 52,
+  scoreRationale: "The filing registers a defined inducement award pool, but the shares are tied to employment awards rather than an immediate capital raise.",
+  signal: "neutral",
+  summary: "Tela Medical Devices registered 81,600 shares for employment inducement awards, comprising options for 75,000 shares and restricted stock units for 6,600 shares.",
+  ticker: "TMDV",
+  title: "Tela Medical Devices Registers 81,600 Inducement Award Shares",
+  watchNext: ["Vesting and exercise of the inducement awards."],
+  whyItMatters: "Inducement awards can dilute existing holders as the awards vest or are exercised, but they do not represent an immediate public offering.",
+});
+
+commonFilingEvents["s8-reoffer-resale-fixture"] = s8Fixture({
+  company: "BitCompute Inc.",
+  deliveryLevel: "feed",
+  filedAt: "September 9, 2025 - 4:22 PM ET",
+  filingBrief: "BitCompute filed a reoffer prospectus covering 1,200,000 plan shares held by two selling stockholders.",
+  formType: "S-8/A",
+  id: "s8-reoffer-resale-fixture",
+  keyEvidence: [
+    "The reoffer prospectus covers 1,200,000 shares held by two selling stockholders.",
+    "The company will not receive proceeds from the selling stockholders' sales.",
+  ],
+  s8: {
+    detailsTitle: "Reoffer / Resale Details",
+    details: [
+      { label: "Reoffer Subset", value: "1,200,000 shares", note: "Shares already registered under the parent plan filing" },
+      { label: "Selling Holder", value: "Alice Lee", note: "800,000 shares" },
+      { label: "Selling Holder", value: "Brian Park", note: "400,000 shares" },
+      { label: "Company Proceeds", value: "None" },
+    ],
+    mode: "reoffer_resale",
+    snapshot: {
+      title: "Reoffer Resale Snapshot",
+      items: [
+        { label: "Reoffer resale shares", value: "1,200,000" },
+        { label: "Selling Holders", value: "2" },
+        { label: "Relationship", value: "Subset of parent plan" },
+        { label: "Company Proceeds", value: "None" },
+      ],
+    },
+  },
+  score: 48,
+  scoreRationale: "The prospectus enables resale by two holders but does not register an additional share pool or provide sale proceeds to the company.",
+  signal: "neutral",
+  summary: "BitCompute's reoffer prospectus covers 1,200,000 shares held by Alice Lee and Brian Park. The shares are a subset of the parent plan registration, and the company will not receive proceeds from their resale.",
+  ticker: "BITC",
+  title: "BitCompute Files Reoffer Prospectus for 1.2 Million Plan Shares",
+  watchNext: ["Resales reported by the named selling stockholders."],
+  whyItMatters: "The filing enables liquidity for existing plan shares; the reoffer subset must not be added to the parent registration as new supply.",
+});
+
+commonFilingEvents["s8-post-effective-amendment-fixture"] = s8Fixture({
+  company: "Delta Robotics Inc.",
+  deliveryLevel: "feed",
+  filedAt: "May 14, 2026 - 4:45 PM ET",
+  filingBrief: "Delta Robotics added 2,000,000 shares to a parent equity plan registration that previously covered 5,000,000 shares.",
+  formType: "S-8/A",
+  id: "s8-post-effective-amendment-fixture",
+  keyEvidence: [
+    "The amendment registers 2,000,000 additional shares.",
+    "The parent registration covered 5,000,000 shares.",
+  ],
+  s8: {
+    detailsTitle: "Amendment Details",
+    details: [
+      { label: "What Changed", value: "2,000,000 additional shares registered" },
+      { label: "Parent Plan Shares", value: "5,000,000 shares" },
+      { label: "Additional / Outstanding", value: "2.22%" },
+      { label: "Parent Plan / Outstanding", value: "5.56%" },
+    ],
+    mode: "post_effective_amendment",
+    snapshot: {
+      title: "Plan Amendment Snapshot",
+      items: [
+        { label: "Amendment Status", value: "Additional shares registered" },
+        { label: "Additional Shares", value: "2,000,000" },
+        { label: "Prior Shares Carried Forward", value: "5,000,000" },
+        { label: "Additional / Outstanding", value: "2.22%" },
+      ],
+    },
+  },
+  score: 58,
+  scoreRationale: "The amendment adds shares equal to 2.22% of outstanding stock to the existing compensation registration.",
+  signal: "neutral",
+  summary: "Delta Robotics registered 2,000,000 additional shares under an equity compensation plan. The related parent registration previously covered 5,000,000 shares.",
+  ticker: "DRBT",
+  title: "Delta Robotics Adds 2 Million Shares to Equity Plan Registration",
+  watchNext: ["Future grants under the expanded plan registration."],
+  whyItMatters: "Unlike an administrative amendment, this filing adds a source-backed share pool that can increase compensation dilution over time.",
+});
+
+commonFilingEvents["s8-administrative-amendment-fallback-fixture"] = s8Fixture({
+  company: "Global Pharma Inc.",
+  deliveryLevel: "archive",
+  filedAt: "June 2, 2026 - 4:10 PM ET",
+  filingBrief: "Global Pharma filed an exhibit-only post-effective amendment that registers no additional securities.",
+  formType: "S-8 POS",
+  id: "s8-administrative-amendment-fallback-fixture",
+  keyEvidence: ["The amendment adds exhibits and registers no additional securities."],
+  s8: null,
+  score: 20,
+  scoreRationale: "The amendment is administrative and does not add securities or change the registered plan share pool.",
+  signal: "neutral",
+  summary: "Global Pharma filed an exhibit-only post-effective amendment related to prior registration statements 333-210001 and 333-250002. No additional securities were registered.",
+  ticker: "GLPH",
+  title: "Global Pharma Files Administrative S-8 Amendment",
+  watchNext: [],
+  whyItMatters: "The filing updates exhibits without changing the registered securities and therefore remains a low-priority administrative event.",
+});
+
 export function generateStaticParams() {
   return Object.keys(commonFilingEvents).map((id) => ({ id }));
+}
+
+export async function generateMetadata({ params }: FilingDetailPageProps): Promise<Metadata> {
+  const { id } = await params;
+  const fixture = registeredFilingUiFixtures.find(
+    (entry) => entry.route === `/filings/${id}`,
+  );
+  const family = fixture
+    ? filingUiFamilies.find((entry) => entry.id === fixture.family)
+    : null;
+
+  return {
+    title: fixture && family
+      ? `${family.label} Fixture | Stock Radar`
+      : "Filing Analysis | Stock Radar",
+    robots: fixture ? { follow: false, index: false } : undefined,
+  };
 }
 
 export default async function FilingDetailPage({ params }: FilingDetailPageProps) {
   const { id } = await params;
   const filing = await resolveFilingEvent(id);
   const eventBadge = getEventTypeBadge(filing.eventType);
-  const useListingFinancialRiskV2 = shouldUseListingFinancialRiskV2(filing);
+  const hasRealFilingTicker = isRealTicker(filing.ticker);
+  const dilutionModel = filing.eventType === "dilution_risk" ? buildDilutionOfferingModel(filing) : null;
+  const listingFinancialRiskSnapshot = buildListingFinancialRiskSnapshot(filing);
+  const form25ListingStatus = filing.form25ListingStatus || null;
+  const strategicTransactionSnapshot = filing.strategicTransactionSnapshot || null;
+  const form425TransactionSnapshot = filing.form425TransactionSnapshot || null;
+  const governanceEvent = filing.governanceEvent || null;
+  const operatingEvent = filing.operatingEvent || null;
+  const periodicReport = filing.periodicReport || null;
+  const proxyVote = filing.proxyVote || null;
+  const ownership = filing.ownership || null;
+  const offeringRegistration = filing.offeringRegistration || null;
+  const tenderOffer = filing.tenderOffer || null;
+  const ntLateFilingSnapshot = filing.ntLateFilingSnapshot || null;
+  const s8 = filing.s8 || null;
+  const isS8Filing = isS8FormType(filing.formType);
+  const useDilutionDetail = Boolean(
+    dilutionModel && !dilutionModel.isShelfOnly && !dilutionModel.isCommonWarrantOnly
+  );
 
-  if (useListingFinancialRiskV2) {
-    const snapshot = buildListingFinancialRiskV2Snapshot(filing);
-    const genericFiling = buildGenericFilingV2Data(filing);
+  if (isS8Filing || offeringRegistration || filing.financingDilution || !useDilutionDetail || !dilutionModel) {
+    const genericFiling = buildGenericFilingAnalysisData(filing);
+    const useSummaryOfferingSplit = Boolean(
+      (offeringRegistration || filing.financingDilution) &&
+        !(offeringRegistration || filing.financingDilution)?.scale &&
+        (offeringRegistration || filing.financingDilution)?.offeringDetails.length,
+    );
+    const analysisFiling = listingFinancialRiskSnapshot || form25ListingStatus || strategicTransactionSnapshot || form425TransactionSnapshot || governanceEvent || operatingEvent || periodicReport || proxyVote || ownership || tenderOffer || ntLateFilingSnapshot || s8 || offeringRegistration || filing.financingDilution
+      ? {
+          ...genericFiling,
+          ...(offeringRegistration || filing.financingDilution
+            ? {
+                bearishPoints: [],
+                bullishPoints: [],
+                keyEvidence: [],
+                watchNext: [],
+              }
+            : governanceEvent || operatingEvent || periodicReport || ownership
+            ? {
+                bearishPoints: [],
+                bullishPoints: [],
+                keyEvidence: [],
+                watchNext: [],
+              }
+            : proxyVote
+              ? {
+                  bearishPoints: [],
+                  bullishPoints: [],
+                  keyEvidence: [],
+                  watchNext: genericFiling.watchNext.slice(0, 3),
+                }
+            : tenderOffer
+              ? {
+                  bearishPoints: [],
+                  bullishPoints: [],
+                  keyEvidence: genericFiling.keyEvidence.slice(0, 3),
+                  watchNext: genericFiling.watchNext.slice(0, 3),
+                }
+            : ntLateFilingSnapshot || s8
+              ? {
+                  bearishPoints: [],
+                  bullishPoints: [],
+                  keyEvidence: genericFiling.keyEvidence.slice(0, 3),
+                  watchNext: genericFiling.watchNext.slice(0, 3),
+                }
+            : form25ListingStatus
+              ? {
+                  bearishPoints: [],
+                  bullishPoints: [],
+                  keyEvidence: genericFiling.keyEvidence.slice(0, 3),
+                  watchNext: genericFiling.watchNext.slice(0, 3),
+                }
+            : {
+                keyEvidence: genericFiling.keyEvidence.slice(0, 3),
+                watchNext: genericFiling.watchNext.slice(0, 3),
+              }),
+        }
+      : genericFiling;
 
     return (
-      <StockRadarAppShell activeNavigationItem="filings" themeMode="user-selectable">
+      <StockRadarAppShell
+        activeNavigationItem="filings"
+        themeMode="user-selectable"
+      >
         <GenericFilingAnalysis
+          bodyRenderer={
+            offeringRegistration ? (
+              useSummaryOfferingSplit ? (
+                <OfferingRegistrationInstrumentDetails data={offeringRegistration} />
+              ) : (
+                <OfferingRegistrationDetails data={offeringRegistration} />
+              )
+            ) : filing.financingDilution ? (
+              useSummaryOfferingSplit ? (
+                <FinancingDilutionInstrumentDetails data={filing.financingDilution} />
+              ) : (
+                <FinancingDilutionDetails data={filing.financingDilution} />
+              )
+            ) : governanceEvent ? (
+              <GovernanceEventChanges data={governanceEvent} />
+            ) : operatingEvent ? (
+              <OperatingEventDetails data={operatingEvent} />
+            ) : periodicReport ? (
+              <PeriodicReportDetails data={periodicReport} />
+            ) : proxyVote ? (
+              <ProxyProposalAgenda data={proxyVote} />
+            ) : ownership ? (
+              <OwnershipDetails data={ownership} />
+            ) : tenderOffer ? (
+              <TenderOfferDetails data={tenderOffer} />
+            ) : s8 ? (
+              <S8Details data={s8} />
+            ) : undefined
+          }
           contextRenderer={
-            filing.context ? (
+            isGenericFieldAvailable(filing, "context") ? (
               <SectorThemeContextPanel context={filing.context} ticker={filing.ticker} />
             ) : undefined
           }
           detailRenderer={
-            snapshot ? <ListingFinancialRiskSnapshot snapshot={snapshot} /> : undefined
+            offeringRegistration ? (
+              <OfferingRegistrationSnapshot data={offeringRegistration} />
+            ) : filing.financingDilution ? (
+              <FinancingDilutionSnapshot data={filing.financingDilution} />
+            ) : form25ListingStatus ? (
+              <ListingFinancialRiskSnapshot snapshot={form25ListingStatus.snapshot} />
+            ) : listingFinancialRiskSnapshot ? (
+              <ListingFinancialRiskSnapshot snapshot={listingFinancialRiskSnapshot} />
+            ) : strategicTransactionSnapshot ? (
+              <StrategicTransactionSnapshot snapshot={strategicTransactionSnapshot} />
+            ) : form425TransactionSnapshot ? (
+              <StrategicTransactionSnapshot snapshot={form425TransactionSnapshot} />
+            ) : governanceEvent ? (
+              <GovernanceEventSnapshot data={governanceEvent} />
+            ) : operatingEvent ? (
+              <OperatingEventSnapshot data={operatingEvent} />
+            ) : periodicReport ? (
+              <PeriodicReportSnapshot data={periodicReport} />
+            ) : proxyVote ? (
+              <ProxyVoteSnapshot data={proxyVote} />
+            ) : ownership ? (
+              <OwnershipSnapshot data={ownership} />
+            ) : tenderOffer ? (
+              <TenderOfferSnapshot data={tenderOffer} />
+            ) : ntLateFilingSnapshot ? (
+              <ListingFinancialRiskSnapshot snapshot={ntLateFilingSnapshot} />
+            ) : s8 ? (
+              <S8Snapshot data={s8} />
+            ) : undefined
           }
           eventLabel={eventBadge.label}
           eventTone={toGenericBadgeTone(eventBadge.tone)}
-          filing={{
-            ...genericFiling,
-            keyEvidence: genericFiling.keyEvidence.slice(0, 3),
-            watchNext: genericFiling.watchNext.slice(0, 3),
-          }}
+          filing={analysisFiling}
+          summaryAsideRenderer={
+            offeringRegistration && useSummaryOfferingSplit ? (
+              <OfferingRegistrationOfferingDetails data={offeringRegistration} />
+            ) : filing.financingDilution && useSummaryOfferingSplit ? (
+              <FinancingDilutionOfferingDetails data={filing.financingDilution} />
+            ) : undefined
+          }
           filingId={id}
           originalRenderer={
-            <OriginalFilingText
-              eventLabel={eventBadge.label}
-              filing={filing}
-              includeMetadataTable={false}
+            isGenericFieldAvailable(filing, "originalHtml") ? (
+              <OriginalFilingText
+                eventLabel={eventBadge.label}
+                filing={filing}
+                includeMetadataTable={false}
+              />
+            ) : undefined
+          }
+          priceRenderer={hasRealFilingTicker ? (
+            <PriceChartCard
+              change={filing.change}
+              changeAmount={filing.changeAmount}
+              mobileCollapsible
+              price={filing.price}
+              rangeAppearance="neutral"
+              series={filing.priceSeries}
+              ticker={filing.ticker}
+              tone={filing.signal}
             />
-          }
-          priceRenderer={
-            isRealTicker(filing.ticker) ? <FilingPriceChart filing={filing} /> : undefined
-          }
+          ) : undefined}
         />
       </StockRadarAppShell>
     );
   }
-  const effectModel = buildEffectGatewayModel(filing);
-  const useEffectDetail = Boolean(effectModel);
-  const ipoModel = !useEffectDetail ? buildIpoListingModel(filing) : null;
-  const useIpoDetail = Boolean(ipoModel);
-  const spacModel = !useEffectDetail && !useIpoDetail ? buildSpacTransactionStatusModel(filing) : null;
-  const useSpacDetail = Boolean(spacModel);
-  const form425TransactionModel =
-    !useEffectDetail && !useIpoDetail && !useSpacDetail ? buildForm425TransactionModel(filing) : null;
-  const useForm425TransactionDetail = Boolean(form425TransactionModel);
-  const canUseDilutionDetail = canRenderDilutionOfferingDetail(filing);
-  const form25Model =
-    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useForm425TransactionDetail
-      ? buildForm25ListingStatusModel(filing)
-      : null;
-  const useForm25Detail = Boolean(form25Model);
-  const strategicTransactionModel =
-    !useEffectDetail && !useIpoDetail && !useSpacDetail && !useForm425TransactionDetail && !useForm25Detail
-      ? buildStrategicTransactionModel(filing)
-      : null;
-  const useStrategicTransactionDetail = Boolean(strategicTransactionModel);
-  const useProxyDetail =
-    !useEffectDetail &&
-    !useIpoDetail &&
-    !useSpacDetail &&
-    !useForm425TransactionDetail &&
-    !useForm25Detail &&
-    !useStrategicTransactionDetail &&
-    isProxyVoteDetail(filing);
-  const capitalFinancingModel =
-    !useEffectDetail &&
-    !useIpoDetail &&
-    !useSpacDetail &&
-    !useForm425TransactionDetail &&
-    !useForm25Detail &&
-    !useStrategicTransactionDetail &&
-    !useProxyDetail
-      ? buildCapitalFinancingModel(filing)
-      : null;
-  const useCapitalFinancingDetail = Boolean(capitalFinancingModel);
-  const governanceEventModel =
-    !useEffectDetail &&
-    !useIpoDetail &&
-    !useSpacDetail &&
-    !useForm425TransactionDetail &&
-    !useForm25Detail &&
-    !useStrategicTransactionDetail &&
-    !useProxyDetail &&
-    !useCapitalFinancingDetail
-      ? buildGovernanceEventModel(filing)
-      : null;
-  const useGovernanceEventDetail = Boolean(governanceEventModel);
-  const riskStatusModel =
-    !useEffectDetail &&
-    !useIpoDetail &&
-    !useSpacDetail &&
-    !useForm425TransactionDetail &&
-    !useForm25Detail &&
-    !useStrategicTransactionDetail &&
-    !useProxyDetail &&
-    !useCapitalFinancingDetail &&
-    !useGovernanceEventDetail &&
-    !canUseDilutionDetail
-      ? buildRiskStatusModel(filing)
-      : null;
-  const useRiskStatusDetail = Boolean(riskStatusModel);
-  const listingRiskModel =
-    !useEffectDetail &&
-    !useIpoDetail &&
-    !useSpacDetail &&
-    !useForm425TransactionDetail &&
-    !useForm25Detail &&
-    !useStrategicTransactionDetail &&
-    !useProxyDetail &&
-    !useCapitalFinancingDetail &&
-    !useGovernanceEventDetail &&
-    !useRiskStatusDetail &&
-    !canUseDilutionDetail
-      ? buildListingRiskModel(filing)
-      : null;
-  const useListingRiskDetail = Boolean(listingRiskModel);
-  const ntLateFilingModel =
-    !useEffectDetail &&
-    !useIpoDetail &&
-    !useSpacDetail &&
-    !useForm425TransactionDetail &&
-    !useForm25Detail &&
-    !useStrategicTransactionDetail &&
-    !useProxyDetail &&
-    !useCapitalFinancingDetail &&
-    !useGovernanceEventDetail &&
-    !useRiskStatusDetail &&
-    !useListingRiskDetail &&
-    !canUseDilutionDetail
-      ? buildNtLateFilingModel(filing)
-      : null;
-  const useNtLateFilingDetail = Boolean(ntLateFilingModel);
-  const periodicAmendmentModel =
-    !useEffectDetail &&
-    !useIpoDetail &&
-    !useSpacDetail &&
-    !useForm425TransactionDetail &&
-    !useForm25Detail &&
-    !useStrategicTransactionDetail &&
-    !useProxyDetail &&
-    !useCapitalFinancingDetail &&
-    !useGovernanceEventDetail &&
-    !useRiskStatusDetail &&
-    !useListingRiskDetail &&
-    !useNtLateFilingDetail &&
-    !canUseDilutionDetail
-      ? buildPeriodicAmendmentModel(filing)
-      : null;
-  const usePeriodicAmendmentDetail = Boolean(periodicAmendmentModel);
-  const periodicReportModel =
-    !useEffectDetail &&
-    !useIpoDetail &&
-    !useSpacDetail &&
-    !useForm425TransactionDetail &&
-    !useForm25Detail &&
-    !useStrategicTransactionDetail &&
-    !useProxyDetail &&
-    !useCapitalFinancingDetail &&
-    !useGovernanceEventDetail &&
-    !useRiskStatusDetail &&
-    !useListingRiskDetail &&
-    !useNtLateFilingDetail &&
-    !usePeriodicAmendmentDetail &&
-    !canUseDilutionDetail
-      ? buildPeriodicReportModel(filing)
-      : null;
-  const usePeriodicReportDetail = Boolean(periodicReportModel);
-  const operatingEventModel =
-    !useEffectDetail &&
-    !useIpoDetail &&
-    !useSpacDetail &&
-    !useForm425TransactionDetail &&
-    !useForm25Detail &&
-    !useStrategicTransactionDetail &&
-    !useProxyDetail &&
-    !useCapitalFinancingDetail &&
-    !useGovernanceEventDetail &&
-    !useRiskStatusDetail &&
-    !useListingRiskDetail &&
-    !useNtLateFilingDetail &&
-    !usePeriodicAmendmentDetail &&
-    !usePeriodicReportDetail
-      ? buildOperatingEventModel(filing)
-      : null;
-  const useOperatingEventDetail = Boolean(operatingEventModel);
-  const earningsModel =
-    !useEffectDetail &&
-    !useIpoDetail &&
-    !useSpacDetail &&
-    !useForm425TransactionDetail &&
-    !useForm25Detail &&
-    !useStrategicTransactionDetail &&
-    !useCapitalFinancingDetail &&
-    !useGovernanceEventDetail &&
-    !useRiskStatusDetail &&
-    !useListingRiskDetail &&
-    !useNtLateFilingDetail &&
-    !usePeriodicAmendmentDetail &&
-    !usePeriodicReportDetail &&
-    !useOperatingEventDetail
-      ? buildEarningsModel(filing)
-      : null;
-  const useEarningsDetail = Boolean(earningsModel);
-  const fdaClinicalModel =
-    !useEffectDetail &&
-    !useIpoDetail &&
-    !useSpacDetail &&
-    !useForm425TransactionDetail &&
-    !useForm25Detail &&
-    !useStrategicTransactionDetail &&
-    !useCapitalFinancingDetail &&
-    !useGovernanceEventDetail &&
-    !useRiskStatusDetail &&
-    !useListingRiskDetail &&
-    !useNtLateFilingDetail &&
-    !usePeriodicAmendmentDetail &&
-    !usePeriodicReportDetail &&
-    !useOperatingEventDetail &&
-    !useEarningsDetail
-      ? buildFdaClinicalModel(filing)
-      : null;
-  const useFdaClinicalDetail = Boolean(fdaClinicalModel);
-  const displayTicker =
-    useEffectDetail && effectModel?.originalFiling?.ticker && !isRealTicker(filing.ticker)
-      ? effectModel.originalFiling.ticker
-      : filing.ticker;
-  const displayExchange =
-    useEffectDetail && effectModel?.originalFiling?.exchange && !isRealTicker(filing.ticker)
-      ? effectModel.originalFiling.exchange
-      : filing.exchange;
-  const displayCompany = useForm25Detail && form25Model?.headerCompany ? form25Model.headerCompany : filing.company;
-  const dilutionModel =
-    !useEffectDetail &&
-    !useIpoDetail &&
-    !useSpacDetail &&
-    !useForm425TransactionDetail &&
-    !useForm25Detail &&
-    !useStrategicTransactionDetail &&
-    !useProxyDetail &&
-    !useCapitalFinancingDetail &&
-    !useGovernanceEventDetail &&
-    !useRiskStatusDetail &&
-    !useListingRiskDetail &&
-    !useNtLateFilingDetail &&
-    !usePeriodicAmendmentDetail &&
-    !usePeriodicReportDetail &&
-    !useEarningsDetail &&
-    !useFdaClinicalDetail &&
-    canUseDilutionDetail
-        ? buildDilutionOfferingModel(filing)
-        : null;
-  const useDilutionDetail = Boolean(
-    dilutionModel &&
-      (dilutionModel.isS8DetailCandidate || !dilutionModel.isCommonWarrantOnly)
-  );
 
   return (
     <main className="feed-page stock-detail-page filing-detail-page">
@@ -2311,68 +4426,16 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             <div className="stock-detail-title-block">
               <h1>{filing.title}</h1>
               <div className="stock-detail-meta">
-                <span className="ticker-chip">{displayExchange}:{displayTicker}</span>
-                <span>{displayCompany}</span>
+                <span className="ticker-chip">{filing.exchange}:{filing.ticker}</span>
+                <span>{filing.company}</span>
                 <span className="filing-form-pill">{filing.formType}</span>
                 <span className={`signal-badge ${filing.signal}`}>{filing.signal}</span>
                 <span className={`source-badge impact-badge ${filing.signal}`}>Impact {filing.score}</span>
-                {useEffectDetail ? <span className="filing-template-chip">SEC Effective</span> : null}
-                {useIpoDetail ? <span className="filing-template-chip">IPO Listing</span> : null}
-                {useSpacDetail ? <span className="filing-template-chip">SPAC Transaction Status</span> : null}
-                {useForm425TransactionDetail ? <span className="filing-template-chip">Transaction Communication</span> : null}
-                {useForm25Detail ? <span className="filing-template-chip">Listing Status Change</span> : null}
-                {useStrategicTransactionDetail ? <span className="filing-template-chip">Strategic Transaction</span> : null}
-                {useCapitalFinancingDetail ? <span className="filing-template-chip">Capital Financing</span> : null}
-                {useGovernanceEventDetail ? <span className="filing-template-chip">Governance Event</span> : null}
-                {useRiskStatusDetail ? <span className="filing-template-chip">{riskStatusChipLabel(filing)}</span> : null}
-                {useListingRiskDetail ? <span className="filing-template-chip">Listing Risk</span> : null}
-                {useNtLateFilingDetail ? <span className="filing-template-chip">Late Filing</span> : null}
-                {usePeriodicAmendmentDetail ? <span className="filing-template-chip">Report Amendment</span> : null}
-                {usePeriodicReportDetail ? <span className="filing-template-chip">Periodic Report</span> : null}
-                {useOperatingEventDetail && operatingEventModel ? (
-                  <span className="filing-template-chip">{operatingEventChipLabel(operatingEventModel.mode)}</span>
-                ) : null}
-                {useEarningsDetail ? <span className="filing-template-chip">Earnings</span> : null}
-                {useFdaClinicalDetail ? <span className="filing-template-chip">FDA Clinical</span> : null}
               </div>
             </div>
           </section>
 
-          {useEffectDetail && effectModel ? (
-            <EffectGatewayTemplate eventLabel={eventBadge.label} filing={filing} model={effectModel} />
-          ) : useIpoDetail && ipoModel ? (
-            <IpoListingTemplate eventLabel={eventBadge.label} filing={filing} model={ipoModel} />
-          ) : useSpacDetail && spacModel ? (
-            <SpacTransactionStatusTemplate eventLabel={eventBadge.label} filing={filing} model={spacModel} />
-          ) : useForm425TransactionDetail && form425TransactionModel ? (
-            <Form425TransactionTemplate eventLabel={eventBadge.label} filing={filing} model={form425TransactionModel} />
-          ) : useForm25Detail && form25Model ? (
-            <Form25ListingStatusTemplate eventLabel={eventBadge.label} filing={filing} model={form25Model} />
-          ) : useStrategicTransactionDetail && strategicTransactionModel ? (
-            <StrategicTransactionTemplate eventLabel={eventBadge.label} filing={filing} model={strategicTransactionModel} />
-          ) : useProxyDetail ? (
-            <ProxyVoteTemplate filing={filing} />
-          ) : useCapitalFinancingDetail && capitalFinancingModel ? (
-            <CapitalFinancingTemplate eventLabel={eventBadge.label} filing={filing} model={capitalFinancingModel} />
-          ) : useGovernanceEventDetail && governanceEventModel ? (
-            <GovernanceEventTemplate eventLabel={eventBadge.label} filing={filing} model={governanceEventModel} />
-          ) : useRiskStatusDetail && riskStatusModel ? (
-            <RiskStatusTemplate eventLabel={eventBadge.label} filing={filing} model={riskStatusModel} />
-          ) : useListingRiskDetail && listingRiskModel ? (
-            <ListingRiskTemplate eventLabel={eventBadge.label} filing={filing} model={listingRiskModel} />
-          ) : useNtLateFilingDetail && ntLateFilingModel ? (
-            <NtLateFilingTemplate eventLabel={eventBadge.label} filing={filing} model={ntLateFilingModel} />
-          ) : usePeriodicAmendmentDetail && periodicAmendmentModel ? (
-            <PeriodicAmendmentTemplate eventLabel={eventBadge.label} filing={filing} model={periodicAmendmentModel} />
-          ) : usePeriodicReportDetail && periodicReportModel ? (
-            <PeriodicReportTemplate eventLabel={eventBadge.label} filing={filing} model={periodicReportModel} />
-          ) : useOperatingEventDetail && operatingEventModel ? (
-            <OperatingEventTemplate eventLabel={eventBadge.label} filing={filing} model={operatingEventModel} />
-          ) : useEarningsDetail && earningsModel ? (
-            <EarningsTemplate eventLabel={eventBadge.label} filing={filing} model={earningsModel} />
-          ) : useFdaClinicalDetail && fdaClinicalModel ? (
-            <FdaClinicalTemplate eventLabel={eventBadge.label} filing={filing} model={fdaClinicalModel} />
-          ) : useDilutionDetail && dilutionModel ? (
+          {useDilutionDetail && dilutionModel ? (
             <DilutionOfferingTemplate eventLabel={eventBadge.label} filing={filing} model={dilutionModel} />
           ) : (
             <CommonFilingTemplate eventLabel={eventBadge.label} filing={filing} />
@@ -2380,33 +4443,27 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
         </article>
 
         <aside className="stock-detail-rail">
-          {filing.recentFilings.length ? (
-            <section className="stock-detail-card recent-filings-card">
-              <div className="card-heading-row">
-                <div>
-                  <h2>{useDilutionDetail || useCapitalFinancingDetail ? "Related Filings" : "Recent Filings"}</h2>
-                  <p>
-                    {useDilutionDetail || useCapitalFinancingDetail
-                      ? `${filing.ticker} related filing history`
-                      : `${filing.ticker} filing history`}
-                  </p>
-                </div>
-                <Link href="/filings">View all</Link>
+          <section className="stock-detail-card recent-filings-card">
+            <div className="card-heading-row">
+              <div>
+                <h2>{useDilutionDetail ? "Related Filings" : "Recent Filings"}</h2>
+                <p>{useDilutionDetail ? `${filing.ticker} related filing history` : `${filing.ticker} filing history`}</p>
               </div>
-              <div className="recent-filings-list">
-                {filing.recentFilings.slice(0, 4).map((item) => (
-                  <Link href={item.id ? `/filings/${item.id}` : "/filings"} key={`${item.form}-${item.title}`}>
-                    <span className="filing-form-chip">{item.form}</span>
-                    <div>
-                      <strong>{item.title}</strong>
-                      <span>{item.eventType} - {item.filedAt}</span>
-                    </div>
-                    <b>{item.score}</b>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          ) : null}
+              <Link href="/filings">View all</Link>
+            </div>
+            <div className="recent-filings-list">
+              {filing.recentFilings.slice(0, 4).map((item) => (
+                <Link href={item.id ? `/filings/${item.id}` : "/filings"} key={`${item.form}-${item.title}`}>
+                  <span className="filing-form-chip">{item.form}</span>
+                  <div>
+                    <strong>{item.title}</strong>
+                    <span>{item.eventType} - {item.filedAt}</span>
+                  </div>
+                  <b>{item.score}</b>
+                </Link>
+              ))}
+            </div>
+          </section>
 
           <section className="stock-detail-card detail-score-card">
             <h2>Event Snapshot</h2>
@@ -2418,35 +4475,22 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             <MetricRow label="Event Type" value={eventBadge.label} />
             <MetricRow label="Form Type" value={filing.formType} />
             <MetricRow label="Signal" value={filing.signal} />
-            {(useDilutionDetail ||
-              useProxyDetail ||
-              useSpacDetail ||
-              useForm425TransactionDetail ||
-              useStrategicTransactionDetail ||
-              useOperatingEventDetail) &&
-            filing.scoreExplanation ? (
-              <a className="score-rationale-link" href="#score-rationale">
-                View score rationale
-              </a>
-            ) : null}
           </section>
 
-          {filing.relatedNews.length ? (
-            <section className="stock-detail-card related-news-card">
-              <div className="card-heading-row">
-                <h2>Related News</h2>
-                <Link href="/news">View all</Link>
-              </div>
-              <div className="related-news-list">
-                {filing.relatedNews.slice(0, 4).map((story) => (
-                  <Link href="/news" key={story.title}>
-                    <strong>{story.title}</strong>
-                    <span>{story.source} - {story.age}</span>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          ) : null}
+          <section className="stock-detail-card related-news-card">
+            <div className="card-heading-row">
+              <h2>Related News</h2>
+              <Link href="/news">View all</Link>
+            </div>
+            <div className="related-news-list">
+              {filing.relatedNews.slice(0, 4).map((story) => (
+                <Link href="/news" key={story.title}>
+                  <strong>{story.title}</strong>
+                  <span>{story.source} - {story.age}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
 
           <section className="stock-detail-card alert-card">
             <span>Premium</span>
@@ -2477,11 +4521,11 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
 }
 
 async function resolveFilingEvent(id: string): Promise<FilingEvent> {
-  const fallback = commonFilingEvents[id];
+  const fixture = commonFilingEvents[id];
+  if (fixture) return fixture;
 
   if (!isUuid(id)) {
-    if (!fallback) notFound();
-    return hydrateFallbackFilingPriceSeries(fallback);
+    notFound();
   }
 
   const detailResult = await getLiveEventDetail(id);
@@ -2491,385 +4535,193 @@ async function resolveFilingEvent(id: string): Promise<FilingEvent> {
     notFound();
   }
 
-  if (item.deliveryLevel === "archive" && (await shouldUseCompactArchiveFilingPage(item.id))) {
-    redirect(`/filings/archive/${item.id}`);
-  }
-
   return buildDbFilingEvent(item);
 }
 
-async function hydrateFallbackFilingPriceSeries(filing: FilingEvent): Promise<FilingEvent> {
-  const existingPoints = filing.priceSeries.periods["1D"] || [];
-  if (existingPoints.length) return filing;
-
-  const remoteSeries = await fetchInitialFilingPriceSeries(filing.ticker);
-  return remoteSeries ? { ...filing, priceSeries: remoteSeries } : filing;
-}
-
-function canRenderDilutionOfferingDetail(filing: FilingEvent) {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  const displayType = readRowString(displayPayload, "display_type");
-  const displayData = readDisplayPayloadData(displayPayload);
-  const formType = filing.formType.trim().toUpperCase();
-  const isTenderCbForm = /^(?:CB|SC TO|SC TO-I|SC TO-T|SC 13E3|SC 14D9)(?:\/A)?$/.test(formType);
-  const isS8Form = /^S-8(?:\/A|\s+POS)?$/.test(formType);
-  const isS1F1OfferingForm = /^(?:S-1(?:\/A|MEF)?|F-1(?:\/A|MEF)?|POS AM)$/.test(formType);
-  const hasS8Mode = Boolean(readRowString(displayData, "s8_ui_mode") || readRowString(displayData, "s8UiMode"));
-
-  if (isTenderCbForm && displayType !== "offering_terms") return false;
-  if (displayType === "offering_terms" && isS1F1OfferingForm) return true;
-  if (filing.eventType !== "dilution_risk") return false;
-
-  return Boolean(
-    displayType === "offering_terms" ||
-      (isS8Form && hasS8Mode) ||
-      filing.offeringDisplayModel ||
-      filing.offeringTerms,
-  );
-}
-
-async function shouldUseCompactArchiveFilingPage(eventId: string) {
-  const result = await fetchEventById(eventId);
-  const eventRow = toRecord(result.data);
-  if (!eventRow) return true;
-
-  const metadata = toRecord(eventRow.metadata);
-  const archiveRoute = readRowString(metadata, "archive_route");
-  if (archiveRoute === "common_filing_detail") return false;
-  if (archiveRoute === "compact_archive") return true;
-
-  const runtimeSource = readRowString(metadata, "analysis_runtime_source");
-  if (runtimeSource === "llm") return false;
-  if (runtimeSource === "parser_deterministic") return true;
-
-  return !readRowString(metadata, "openai_response_id");
-}
-
 async function buildDbFilingEvent(item: LiveFeedItem): Promise<FilingEvent> {
-  const fallback = createEmptyDbFilingEvent();
-  const ticker = item.ticker.trim().toUpperCase();
+  const normalizedTicker = item.ticker.trim().toUpperCase();
+  const ticker = isRealTicker(normalizedTicker) ? normalizedTicker : "";
   const canLoadTickerContext = isRealTicker(ticker);
-  const [eventResult, analysisResult, relatedNewsResult, recentFilingsResult, offeringTermsResult] = await Promise.all([
+  const [eventResult, analysisResult, relatedNewsResult, recentFilingsResult] = await Promise.all([
     fetchEventById(item.id),
     fetchEventAnalysis(item.id),
     canLoadTickerContext
       ? fetchEventsByTicker({ ticker, sourceGroup: "news", excludeId: item.id, limit: 4 })
       : Promise.resolve({ ok: true, status: 200, data: [], error: undefined }),
     canLoadTickerContext
-      ? fetchEventsByTicker({
-          ticker,
-          sourceGroup: "filings",
-          excludeId: item.id,
-          limit: item.eventType === "insider_ownership" ? 12 : 4,
-        })
+      ? fetchEventsByTicker({ ticker, sourceGroup: "filings", excludeId: item.id, limit: 4 })
       : Promise.resolve({ ok: true, status: 200, data: [], error: undefined }),
-    item.eventType === "dilution_risk"
-      ? fetchEventOfferingTerms(item.id)
-      : Promise.resolve(null),
   ]);
   const eventRow = toRecord(eventResult.data);
   const rawItem = await loadRawItem(readRowString(eventRow, "raw_item_id"));
   const analysis = toRecord(analysisResult.data);
   const metadata = toRecord(eventRow?.metadata);
   const analysisMetadata = toRecord(analysis?.metadata);
-  const displayPayload =
-    readPlainRecord(analysis?.display_payload) ||
-    readPlainRecord(analysisMetadata?.display_payload) ||
-    readPlainRecord(metadata?.display_payload);
-  const transactionFingerprint =
-    readPlainRecord(metadata?.transaction_fingerprint) ||
-    readPlainRecord(analysisMetadata?.transaction_fingerprint) ||
-    readPlainRecord(analysis?.transaction_fingerprint);
-  const offeringTerms = readPlainRecord(offeringTermsResult);
   const rawPayload = toRecord(rawItem?.raw_payload);
-  const badge = getEventTypeBadge(item.eventType);
+  const storedMarketContext =
+    toRecord(metadata?.market_context) ||
+    toRecord(metadata?.marketContext);
   const formType = readFilingFormType(eventRow, rawPayload, item.title);
-  const filedAt = formatSecFilingDateTime(
+  const offeringTermsResult =
+    isOfferingRegistrationForm(formType) || item.eventType === "dilution_risk"
+    ? await fetchEventOfferingTerms(item.id)
+    : null;
+  const listingFinancialRiskSnapshot = readStoredListingFinancialRiskSnapshot(
+    item.eventType,
+    metadata,
+    analysisMetadata,
+  );
+  const form25ListingStatus = readStoredForm25ListingStatus(
+    metadata,
+    analysisMetadata,
+    formType,
+  );
+  const form425TransactionSnapshot = readStoredForm425TransactionSnapshot(
+    metadata,
+    analysisMetadata,
+    formType,
+    item.deliveryLevel,
+  );
+  const governanceEvent = readStoredGovernanceEvent(metadata, analysisMetadata);
+  const operatingEvent = readStoredOperatingEvent(metadata, analysisMetadata);
+  const periodicReport = readStoredPeriodicReport(metadata, analysisMetadata);
+  const proxyVote = readStoredProxyVote(metadata, analysisMetadata);
+  const ownership = readStoredOwnership(metadata, analysisMetadata, formType);
+  const tenderOffer = readStoredTenderOffer(metadata, analysisMetadata, formType);
+  const ntLateFilingSnapshot = readStoredNtLateFilingSnapshot(
+    metadata,
+    analysisMetadata,
+    formType,
+  );
+  const s8 = readStoredS8(metadata, analysisMetadata, formType);
+  const offeringRegistration = readStoredOfferingRegistration(
+    metadata,
+    analysisMetadata,
+    toRecord(offeringTermsResult),
+    formType,
+  );
+  const financingDilution = offeringRegistration
+    ? null
+    : readStoredFinancingDilution(metadata, analysisMetadata);
+  const scoreRationale = readStoredScoreRationale(
+    analysis,
+    analysisMetadata,
+    metadata,
+  );
+  const badge = getEventTypeBadge(item.eventType);
+  const filedAt = formatDetailDateTime(
     readRowString(eventRow, "published_at") || item.detectedAtRaw || readRowString(eventRow, "detected_at"),
-    rawPayload,
     `${item.time} ET`,
   );
-  const sourceUrl =
-    item.sourceUrl ||
-    readRowString(rawItem, "source_url") ||
-    readMetadataString(eventRow, "source_url") ||
-    readMetadataString(eventRow, "url") ||
-    "https://www.sec.gov/edgar/search/";
-  const rawCompany =
+  const sourceUrl = firstOriginalFilingUrl([
+    item.sourceUrl,
+    readRowString(rawItem, "source_url"),
+    readMetadataString(eventRow, "source_url"),
+    readMetadataString(eventRow, "url"),
+  ]);
+  const company =
+    form25ListingStatus?.issuerName ||
+    (formType.trim().toUpperCase() === "425"
+      ? readRowString(storedMarketContext, "name")
+      : "") ||
     readRowString(metadata, "issuer") ||
     readRowString(metadata, "company") ||
     readRowString(metadata, "company_name") ||
     readRowString(rawPayload, "issuer") ||
-    (ticker && ticker !== "N/A" ? ticker : fallback.company);
-  const form425DisplayData = formType === "425" ? readDisplayPayloadData(displayPayload) : null;
-  const company = form425DisplayData
-    ? cleanForm425CompanyName(readRowString(form425DisplayData, "subject_company") || rawCompany)
-    : rawCompany;
-  const primaryDocumentUrl = readPrimaryDocumentUrl(rawPayload, eventRow, sourceUrl);
-  const originalHtml = await readOriginalHtml(eventRow, rawItem, rawPayload, primaryDocumentUrl);
+    "";
+  const originalHtml = readOriginalHtml(eventRow, rawItem, rawPayload);
+  const relatedNewsRows = toRows(relatedNewsResult.data);
   const recentFilingRows = toRows(recentFilingsResult.data);
-  const sc13IssuerRelatedRows =
-    item.eventType === "insider_ownership" && isSc13OwnershipForm(formType)
-      ? await fetchSc13RelatedFilingRowsByIssuer({
-          currentId: item.id,
-          metadata,
-          rawPayload,
-          title: item.title,
-        })
-      : [];
-  const ownershipRelationRows = dedupeRowsById([...recentFilingRows, ...sc13IssuerRelatedRows]);
-  const recentFilings = mapRecentFilingRows(recentFilingRows, item.id, []);
-  const ownershipRelatedFilings =
-    item.eventType === "insider_ownership"
-      ? await buildOwnershipRelatedFilings({
-          currentId: item.id,
-          currentFormType: formType,
-          currentTitle: item.title,
-          displayPayload,
-          metadata,
-          rawPayload,
-          recentRows: ownershipRelationRows,
-        })
-      : undefined;
-  const contextRelatedFilings = buildFilingContextRelatedFilings({
-    currentId: item.id,
-    metadata,
-  });
+  const marketContext = buildDbMarketContext(item, eventRow);
+  const filingBrief = cleanStoredAnalysisText(item.quickTake || item.summary);
+  const whyItMatters = cleanStoredAnalysisText(readRowString(analysis, "why_it_matters"));
+  const summary = cleanStoredAnalysisText(item.summary);
+  const bullishPoints = toStringArray(analysis?.bullish_points, []);
+  const bearishPoints = toStringArray(analysis?.bearish_points, []);
+  const keyEvidence = toStringArray(analysis?.key_evidence, []);
+  const watchNext = toStringArray(analysis?.watch_next, []);
+  const recentFilings = mapRecentFilingRows(recentFilingRows, item.id);
+  const relatedNews = mapRelatedNewsRows(relatedNewsRows);
+  const genericAvailability: GenericFilingAvailability = {
+    bearishPoints: bearishPoints.length > 0,
+    bullishPoints: bullishPoints.length > 0,
+    context: Boolean(marketContext),
+    filingBrief: Boolean(filingBrief),
+    keyEvidence: keyEvidence.length > 0,
+    originalHtml: Boolean(cleanDisclosureValue(stripHtml(originalHtml))),
+    recentFilings: recentFilings.length > 0,
+    relatedNews: relatedNews.length > 0,
+    scoreRationale: Boolean(cleanDisclosureValue(scoreRationale)),
+    summary: Boolean(summary),
+    watchNext: watchNext.length > 0,
+    whyItMatters: Boolean(whyItMatters),
+  };
 
   return {
-    ...fallback,
     id: item.id,
-    ticker: ticker || fallback.ticker,
-    exchange: readRowString(eventRow, "market") || readMetadataString(eventRow, "exchange") || fallback.exchange,
+    ticker,
+    exchange:
+      readRowString(eventRow, "market") ||
+      readMetadataString(eventRow, "exchange") ||
+      form25ListingStatus?.exchange ||
+      "",
     company,
     title: item.title,
     formType,
     filedAt,
-    source: item.source || "SEC EDGAR",
+    source: formatGenericFilingSource(item.source),
     sourceUrl,
-    primaryDocumentUrl,
     eventType: item.eventType,
     impact: item.impact,
     deliveryLevel: item.deliveryLevel,
     score: item.score,
-    scoreExplanation:
-      readScoreExplanation(analysis) ||
-      readScoreExplanation(analysisMetadata) ||
-      readScoreReasonFallback(item.scoreReason),
     signal: item.signal,
     price: item.price,
     changeAmount: item.changeAmount,
     change: item.change,
-    filingFocus: readMetadataString(eventRow, "filing_focus") || `${formType} disclosure`,
-    filingBrief: item.quickTake || item.summary || fallback.filingBrief,
-    whyItMatters: readRowString(analysis, "why_it_matters") || item.scoreReason || fallback.whyItMatters,
-    bullishPoints: toStringArray(analysis?.bullish_points, []),
-    bearishPoints: toStringArray(analysis?.bearish_points, []),
-    summary: item.summary || fallback.summary,
-    keyEvidence: toStringArray(analysis?.key_evidence, []),
-    watchNext: toStringArray(analysis?.watch_next, []),
+    filingFocus: readMetadataString(eventRow, "filing_focus"),
+    filingBrief,
+    whyItMatters,
+    bullishPoints,
+    bearishPoints,
+    summary,
+    keyEvidence,
+    watchNext,
     recentFilings,
-    ownershipRelatedFilings,
-    contextRelatedFilings,
-    relatedNews: mapRelatedNewsRows(toRows(relatedNewsResult.data), []),
-    context: await buildDbMarketContext(item, eventRow),
-    priceMarkers: buildFilingPriceMarkers({
-      displayPayload,
-      filingTicker: ticker,
-      offeringTerms,
-      transactionFingerprint,
-    }),
-    priceSeries: await buildDbFilingPriceSeries(item, ticker),
-    originalTextNote: originalHtml
-      ? "SEC filing text preserved from the raw item store."
-      : "Original SEC filing text has not been parsed for this event yet.",
-    originalHtml:
-      originalHtml ||
-      `<p>Original filing text is not stored for this event yet. Use the original SEC filing link in Source & Evidence for the source document.</p>`,
+    relatedNews,
+    scoreRationale,
+    context: marketContext || emptySectorThemeContext(item.score, item.signal),
+    priceSeries: null,
+    originalTextNote: originalHtml ? "SEC filing text preserved from the raw item store." : "",
+    originalHtml,
+    listingFinancialRiskSnapshot,
+    form25ListingStatus,
+    form425TransactionSnapshot,
+    governanceEvent,
+    operatingEvent,
+    periodicReport,
+    proxyVote,
+    ownership,
+    tenderOffer,
+    ntLateFilingSnapshot,
+    s8,
+    financingDilution,
+    offeringRegistration,
     offeringDisplayModel:
+      readPlainRecord(toRecord(toRecord(offeringTermsResult)?.metadata)?.offering_display_model) ||
       readPlainRecord(analysisMetadata?.offering_display_model) ||
       readPlainRecord(metadata?.offering_display_model) ||
       null,
     offeringMarketContext: readPlainRecord(metadata?.market_context),
     offeringDilutionMetrics: readPlainRecord(metadata?.dilution_metrics),
-    offeringTerms,
+    offeringTerms: readPlainRecord(offeringTermsResult),
     s3Case:
       readRowString(analysis, "s3_case") ||
       readRowString(analysisMetadata, "s3_case") ||
       readRowString(metadata, "s3_case") ||
       null,
-    displayPayload: displayPayload as FilingDisplayPayload | null,
-    listingStatusSnapshot: normalizeListingStatusSnapshot(
-      analysisMetadata?.listing_status_snapshot ?? metadata?.listing_status_snapshot,
-    ),
+    genericAvailability,
   };
-}
-
-function createEmptyDbFilingEvent(): FilingEvent {
-  return {
-    id: "",
-    ticker: "N/A",
-    exchange: "",
-    company: "Issuer not disclosed",
-    title: "SEC filing",
-    formType: "SEC",
-    filedAt: "",
-    source: "SEC EDGAR",
-    sourceUrl: "https://www.sec.gov/edgar/search/",
-    eventType: "other",
-    impact: "low",
-    deliveryLevel: "archive",
-    score: 0,
-    scoreExplanation: null,
-    signal: "neutral",
-    price: "N/A",
-    changeAmount: "$0.00",
-    change: "+0.00%",
-    filingBrief: "SEC filing disclosure",
-    filingFocus: "SEC filing disclosure",
-    whyItMatters: "",
-    bullishPoints: [],
-    bearishPoints: [],
-    summary: "",
-    keyEvidence: [],
-    watchNext: [],
-    recentFilings: [],
-    relatedNews: [],
-    context: null,
-    priceSeries: emptyFilingPriceSeries(),
-    originalTextNote: "Original SEC filing text has not been parsed for this event yet.",
-    originalHtml: "",
-    offeringDisplayModel: null,
-    offeringMarketContext: null,
-    offeringDilutionMetrics: null,
-    offeringTerms: null,
-    s3Case: null,
-    displayPayload: null,
-    listingStatusSnapshot: [],
-  };
-}
-
-async function buildDbFilingPriceSeries(item: LiveFeedItem, ticker: string): Promise<PriceChartSeries> {
-  const chartBars = item.displayChartBars.length ? item.displayChartBars : item.chartBars;
-  const barSeries = buildDbFilingPriceSeriesFromBars(chartBars);
-  if (barSeries) return barSeries;
-
-  const remoteSeries = await fetchInitialFilingPriceSeries(ticker);
-  if (remoteSeries) return remoteSeries;
-
-  return emptyFilingPriceSeries();
-}
-
-function buildDbFilingPriceSeriesFromBars(bars: LiveFeedItem["chartBars"]): PriceChartSeries | null {
-  const points = bars
-    .map((bar) => ({
-      close: Number(bar.close),
-      high: Number(bar.high),
-      low: Number(bar.low),
-      open: Number(bar.open),
-      time: bar.date,
-      volume: Number(bar.volume) || 0,
-      vwap: Number(bar.close),
-    }))
-    .filter((point) =>
-      point.time &&
-      Number.isFinite(point.close) &&
-      Number.isFinite(point.high) &&
-      Number.isFinite(point.low) &&
-      Number.isFinite(point.open),
-    );
-
-  if (!points.length) return null;
-  const previousClose = points[0]?.open || points[0]?.close || 0;
-
-  return {
-    previousClose,
-    periods: {
-      "1D": points,
-      "5D": points,
-      "1M": points,
-      "3M": points,
-      "1Y": points,
-    },
-  };
-}
-
-function emptyFilingPriceSeries(): PriceChartSeries {
-  return {
-    previousClose: 0,
-    periods: {
-      "1D": [],
-      "5D": [],
-      "1M": [],
-      "3M": [],
-      "1Y": [],
-    },
-  };
-}
-
-type FilingChartApiResponse = {
-  ok?: boolean;
-  points?: PricePoint[];
-  previousClose?: number;
-  providerLabel?: string;
-};
-
-async function fetchInitialFilingPriceSeries(ticker: string): Promise<PriceChartSeries | null> {
-  const symbol = ticker.trim().toUpperCase();
-  if (!/^[A-Z][A-Z0-9.\-]{0,9}$/.test(symbol)) return null;
-
-  const appBaseUrl = await resolveMarketChartBaseUrl();
-
-  try {
-    const response = await fetch(
-      `${appBaseUrl}/api/market/chart?symbol=${encodeURIComponent(symbol)}&range=1D`,
-      { cache: "no-store" },
-    );
-    if (!response.ok) return null;
-
-    const data = (await response.json()) as FilingChartApiResponse;
-    const points = Array.isArray(data.points)
-      ? data.points.filter((point) =>
-          point.time &&
-          Number.isFinite(point.close) &&
-          Number.isFinite(point.high) &&
-          Number.isFinite(point.low) &&
-          Number.isFinite(point.open),
-        )
-      : [];
-    const previousClose = Number(data.previousClose);
-    if (!data.ok || !points.length || !Number.isFinite(previousClose) || previousClose <= 0) return null;
-
-    return {
-      providerLabel: data.providerLabel || "Market data",
-      previousClose,
-      periods: {
-        "1D": points,
-        "5D": points,
-        "1M": points,
-        "3M": points,
-        "1Y": points,
-      },
-    };
-  } catch {
-    return null;
-  }
-}
-
-async function resolveMarketChartBaseUrl() {
-  try {
-    const headerList = await headers();
-    const host = headerList.get("host");
-    if (host) {
-      const forwardedProto = headerList.get("x-forwarded-proto");
-      const protocol = forwardedProto || (host.startsWith("localhost") || host.startsWith("127.") ? "http" : "https");
-      return `${protocol}://${host}`;
-    }
-  } catch {
-    // Use configured app URL when this helper runs outside a request context.
-  }
-
-  return getServerEnv().appBaseUrl.replace(/\/$/, "") || "http://127.0.0.1:3002";
 }
 
 async function fetchEventOfferingTerms(eventId: string) {
@@ -2895,2877 +4747,2770 @@ async function loadRawItem(rawItemId: string) {
   return toRows(result.data)[0] || null;
 }
 
-async function readOriginalHtml(
+function readOriginalHtml(
   eventRow: Record<string, unknown> | null,
   rawItem: Record<string, unknown> | null,
   rawPayload: Record<string, unknown> | null,
-  primaryDocumentUrl: string,
 ) {
-  const storedHtml =
+  return (
     readRowString(rawPayload, "full_text_html") ||
     readRowString(rawPayload, "filing_html") ||
     readRowString(rawPayload, "primary_document_html") ||
     readMetadataString(eventRow, "full_text_html") ||
-    readMetadataString(eventRow, "filing_html");
-  if (storedHtml) return storedHtml;
-
-  const fetchedHtml = await fetchSecPrimaryDocumentHtml(primaryDocumentUrl);
-  if (fetchedHtml) return fetchedHtml;
-
-  return bodyTextToHtml(
-    readRowString(rawItem, "body_text") ||
-      readRowString(rawPayload, "body_text") ||
-      readMetadataString(eventRow, "filing_text") ||
-      readMetadataString(eventRow, "original_text"),
+    readMetadataString(eventRow, "filing_html") ||
+    bodyTextToHtml(
+      readRowString(rawItem, "body_text") ||
+        readRowString(rawPayload, "body_text") ||
+        readMetadataString(eventRow, "filing_text") ||
+        readMetadataString(eventRow, "original_text"),
+    )
   );
 }
 
-async function fetchSecPrimaryDocumentHtml(url: string) {
-  if (!isSecPrimaryDocumentUrl(url)) return "";
-
-  try {
-    const response = await fetch(url, {
-      cache: "force-cache",
-      next: { revalidate: 60 * 60 * 24 },
-      headers: {
-        Accept: "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8",
-        "User-Agent": process.env.SEC_USER_AGENT || process.env.SEC_EDGAR_USER_AGENT || "StockRadar/1.0 contact@stockradar.local",
-      },
-    });
-    if (!response.ok) return "";
-
-    const text = await response.text();
-    if (!isRenderableSecPrimaryDocument(text)) return "";
-    return text.length > 2_000_000 ? text.slice(0, 2_000_000) : text;
-  } catch {
-    return "";
-  }
-}
-
-function isRenderableSecPrimaryDocument(value: string) {
-  return /<html[\s>]/i.test(value) || /<body[\s>]/i.test(value) || /<table[\s>]/i.test(value);
-}
-
-function readPrimaryDocumentUrl(
-  rawPayload: Record<string, unknown> | null,
-  eventRow: Record<string, unknown> | null,
-  fallbackUrl: string,
-) {
-  const explicit =
-    readRowString(rawPayload, "primary_document_url") ||
-    readRowString(rawPayload, "primaryDocumentUrl") ||
-    readMetadataString(eventRow, "primary_document_url");
-  if (isSecPrimaryDocumentUrl(explicit)) return explicit;
-
-  const documentUrl = recordArray(rawPayload?.documents)
-    .filter((document) => Boolean(document.isPrimary))
-    .map((document) => readRowString(document, "url"))
-    .find(isSecPrimaryDocumentUrl);
-  if (documentUrl) return documentUrl;
-
-  return isSecPrimaryDocumentUrl(fallbackUrl) ? fallbackUrl : explicit || fallbackUrl;
-}
-
-function isSecPrimaryDocumentUrl(url: string) {
-  return /^https:\/\/www\.sec\.gov\/Archives\//i.test(url) && !/-index\.html?$/i.test(url);
-}
-
-async function buildDbMarketContext(
+function buildDbMarketContext(
   item: LiveFeedItem,
   eventRow: Record<string, unknown> | null,
-): Promise<SectorThemeContext | undefined> {
+): SectorThemeContext | undefined {
   const metadata = toRecord(eventRow?.metadata);
-  const marketContext = readPlainRecord(metadata?.market_context);
-  if (!marketContext || !hasUsableMarketContext(marketContext)) {
+  const storedContext =
+    toRecord(metadata?.market_context) ||
+    toRecord(metadata?.marketContext) ||
+    null;
+  const storedPeriods = toRecord(storedContext?.periods);
+  const sharedMovers = readStoredTopMovers(
+    storedContext?.topMovers ||
+      storedContext?.top_movers ||
+      metadata?.topMovers ||
+      metadata?.top_movers,
+  );
+  const sector = firstStoredValue([
+    item.sector,
+    readRowString(metadata, "sector"),
+    readRowString(metadata, "sector_name"),
+    readRowString(storedContext, "sector"),
+  ]);
+  const industry = firstStoredValue([
+    item.industryGroup,
+    readRowString(metadata, "industry_group"),
+    readRowString(metadata, "industry"),
+    readRowString(metadata, "sub_category"),
+    readRowString(metadata, "subCategory"),
+    readRowString(storedContext, "industry"),
+  ]);
+  const themeGroup = firstStoredValue([
+    item.themeGroup,
+    readRowString(metadata, "theme_group"),
+    readRowString(metadata, "themeGroup"),
+    readRowString(storedContext, "theme_group"),
+    readRowString(storedContext, "themeGroup"),
+  ]);
+  const subTheme = firstStoredValue([
+    item.subTheme,
+    readRowString(metadata, "sub_theme"),
+    readRowString(metadata, "subTheme"),
+    readRowString(storedContext, "sub_theme"),
+    readRowString(storedContext, "subTheme"),
+  ]);
+  const marketCap = firstStoredValue([
+    readRowString(metadata, "market_cap"),
+    readRowString(metadata, "marketCap"),
+    readRowString(storedContext, "market_cap"),
+    readRowString(storedContext, "marketCap"),
+  ]);
+  const sharesOutstanding = firstStoredValue([
+    readRowString(metadata, "shares_outstanding"),
+    readRowString(metadata, "sharesOutstanding"),
+    readRowString(storedContext, "shares_outstanding"),
+    readRowString(storedContext, "sharesOutstanding"),
+  ]);
+  const publicFloat = firstStoredValue([
+    readRowString(metadata, "public_float"),
+    readRowString(metadata, "publicFloat"),
+    readRowString(storedContext, "public_float"),
+    readRowString(storedContext, "publicFloat"),
+  ]);
+  const publicFloatPercent = firstStoredValue([
+    readRowString(metadata, "public_float_percent"),
+    readRowString(metadata, "publicFloatPercent"),
+    readRowString(storedContext, "public_float_percent"),
+    readRowString(storedContext, "publicFloatPercent"),
+  ]);
+  const periods = {
+    "1D": buildStoredContextPeriod("1D", storedPeriods, metadata, sharedMovers, item),
+    "5D": buildStoredContextPeriod("5D", storedPeriods, metadata, sharedMovers, item),
+    "30D": buildStoredContextPeriod("30D", storedPeriods, metadata, sharedMovers, item),
+  } satisfies Record<"1D" | "5D" | "30D", SectorThemePeriod>;
+  const hasMovers = Object.values(periods).some((period) => period.topMovers.length > 0);
+
+  if (
+    !sector &&
+    !industry &&
+    !themeGroup &&
+    !subTheme &&
+    !marketCap &&
+    !sharesOutstanding &&
+    !publicFloat &&
+    !publicFloatPercent &&
+    !hasMovers
+  ) {
     return undefined;
   }
 
-  const ticker = item.ticker.trim().toUpperCase();
-  if (!isRealTicker(ticker)) {
-    return undefined;
-  }
+  return {
+    sector: sector || undefined,
+    industry: industry || undefined,
+    marketCap: formatStoredMarketCap(marketCap) || undefined,
+    sharesOutstanding: formatStoredShareCount(sharesOutstanding) || undefined,
+    publicFloat: formatStoredShareCount(publicFloat) || undefined,
+    publicFloatPercent: formatStoredPercent(publicFloatPercent) || undefined,
+    themeGroup: themeGroup || undefined,
+    subTheme: subTheme || undefined,
+    contextTitle: firstStoredValue([
+      readRowString(storedContext, "context_title"),
+      readRowString(storedContext, "contextTitle"),
+    ]) || undefined,
+    moverGroupName: firstStoredValue([
+      readRowString(storedContext, "mover_group_name"),
+      readRowString(storedContext, "moverGroupName"),
+    ]) || undefined,
+    moverMode: readStoredMoverMode(storedContext),
+    periods,
+  };
+}
 
-  const contextSymbol = (
-    readRowString(marketContext, "symbol") ||
-    readRowString(marketContext, "ticker") ||
-    ticker
-  ).toUpperCase();
-  if (contextSymbol && contextSymbol !== ticker) {
-    return undefined;
-  }
+function formatStoredMarketCap(value: string) {
+  const numeric = parsePlainStoredNumber(value);
+  if (numeric === null) return value;
+  if (numeric >= 1_000_000_000_000) return `$${formatCompactStoredNumber(numeric / 1_000_000_000_000)}T`;
+  if (numeric >= 1_000_000_000) return `$${formatCompactStoredNumber(numeric / 1_000_000_000)}B`;
+  if (numeric >= 1_000_000) return `$${formatCompactStoredNumber(numeric / 1_000_000)}M`;
+  return `$${Math.round(numeric).toLocaleString("en-US")}`;
+}
 
-  const sector = readRowString(marketContext, "sector") || readRowString(metadata, "sector") || readRowString(metadata, "sector_name");
-  const industry =
-    readRowString(marketContext, "industry") ||
-    readRowString(marketContext, "industry_group") ||
-    readRowString(marketContext, "sub_category") ||
-    readRowString(metadata, "industry_group") ||
-    readRowString(metadata, "industry") ||
-    readRowString(metadata, "sub_category") ||
-    readRowString(metadata, "subCategory");
-  const fmpSector = readRowString(marketContext, "fmp_sector") || sector;
-  const fmpIndustry = readRowString(marketContext, "fmp_industry") || industry;
+function formatStoredShareCount(value: string) {
+  const numeric = parsePlainStoredNumber(value);
+  if (numeric === null) return value;
+  if (numeric >= 1_000_000_000) return `${formatCompactStoredNumber(numeric / 1_000_000_000)}B`;
+  if (numeric >= 1_000_000) return `${formatCompactStoredNumber(numeric / 1_000_000)}M`;
+  return Math.round(numeric).toLocaleString("en-US");
+}
 
-  if (!sector && !industry) {
-    return undefined;
-  }
+function formatStoredPercent(value: string) {
+  const numeric = parsePlainStoredNumber(value);
+  if (numeric === null) return value;
+  return `${numeric.toFixed(1)}%`;
+}
 
-  const topMoversByRange = await buildDbMarketContextTopMovers({
-    fmpIndustry,
-    fmpSector,
-    industry,
-    item,
-    sector,
-    ticker,
+function parsePlainStoredNumber(value: string) {
+  const normalized = value.trim().replaceAll(",", "");
+  if (!normalized || !/^-?\d+(?:\.\d+)?$/.test(normalized)) return null;
+  const numeric = Number(normalized);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function formatCompactStoredNumber(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: value < 10 ? 2 : value < 100 ? 1 : 0,
+  }).format(value);
+}
+
+function buildStoredContextPeriod(
+  range: "1D" | "5D" | "30D",
+  storedPeriods: Record<string, unknown> | null,
+  metadata: Record<string, unknown> | null,
+  sharedMovers: TopMover[],
+  item: LiveFeedItem,
+): SectorThemePeriod {
+  const storedPeriod =
+    toRecord(storedPeriods?.[range]) ||
+    toRecord(storedPeriods?.[range.toLowerCase()]) ||
+    null;
+  const suffix = range.toLowerCase();
+  const periodMovers = readStoredTopMovers(
+    storedPeriod?.topMovers || storedPeriod?.top_movers,
+  );
+
+  return {
+    sectorChange: firstStoredValue([
+      readRowString(storedPeriod, "sectorChange"),
+      readRowString(storedPeriod, "sector_change"),
+      readRowString(metadata, `sector_change_${suffix}`),
+    ]) || undefined,
+    industryChange: firstStoredValue([
+      readRowString(storedPeriod, "industryChange"),
+      readRowString(storedPeriod, "industry_change"),
+      readRowString(metadata, `industry_change_${suffix}`),
+    ]) || undefined,
+    themeChange: firstStoredValue([
+      readRowString(storedPeriod, "themeChange"),
+      readRowString(storedPeriod, "theme_change"),
+      readRowString(metadata, `theme_change_${suffix}`),
+    ]) || undefined,
+    subThemeChange: firstStoredValue([
+      readRowString(storedPeriod, "subThemeChange"),
+      readRowString(storedPeriod, "sub_theme_change"),
+      readRowString(metadata, `sub_theme_change_${suffix}`),
+    ]) || undefined,
+    themeScore: item.score,
+    themeSignal: item.signal,
+    topMovers: periodMovers.length ? periodMovers : sharedMovers,
+  };
+}
+
+function readStoredTopMovers(value: unknown): TopMover[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((entry): TopMover | null => {
+      if (typeof entry === "string") {
+        const symbol = entry.trim().toUpperCase();
+        return isRealTicker(symbol) ? { symbol } : null;
+      }
+
+      const mover = toRecord(entry);
+      const symbol = firstStoredValue([
+        readRowString(mover, "symbol"),
+        readRowString(mover, "ticker"),
+      ]).toUpperCase();
+      if (!isRealTicker(symbol)) return null;
+
+      const change = readStoredMoverChange(mover);
+      const trend = readStoredTrend(
+        mover?.trend || mover?.trend_points || mover?.trendPoints || mover?.values,
+      );
+
+      return {
+        symbol,
+        ...(change ? { change } : {}),
+        ...(trend.length ? { trend } : {}),
+      };
+    })
+    .filter((mover): mover is TopMover => Boolean(mover));
+}
+
+function readStoredMoverChange(mover: Record<string, unknown> | null) {
+  const text = firstStoredValue([
+    readRowString(mover, "change"),
+    readRowString(mover, "change_percent"),
+    readRowString(mover, "changePercent"),
+  ]);
+  if (!text) return "";
+  if (text.includes("%")) return text;
+  const numeric = Number(text);
+  if (!Number.isFinite(numeric)) return "";
+  const sign = numeric > 0 ? "+" : "";
+  return `${sign}${numeric.toFixed(2)}%`;
+}
+
+function readStoredTrend(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((point) => {
+      if (typeof point === "number" && Number.isFinite(point)) return point;
+      const record = toRecord(point);
+      const close = record?.close;
+      return typeof close === "number" && Number.isFinite(close) ? close : null;
+    })
+    .filter((point): point is number => point !== null);
+}
+
+function readStoredMoverMode(value: Record<string, unknown> | null): SectorThemeContext["moverMode"] {
+  const mode = firstStoredValue([
+    readRowString(value, "mover_mode"),
+    readRowString(value, "moverMode"),
+  ]);
+  return mode === "related" || mode === "top_movers" || mode === "market_top_movers"
+    ? mode
+    : undefined;
+}
+
+function emptySectorThemeContext(score: number, signal: DetailTone): SectorThemeContext {
+  const period = (): SectorThemePeriod => ({
+    themeScore: score,
+    themeSignal: signal,
+    topMovers: [],
   });
 
   return {
-    sector: sector || "Market",
-    industry: industry || sector || "Market",
-    marketCap: formatMarketContextNumber(marketContext.market_cap) || readRowString(marketContext, "market_cap") || undefined,
-    sharesOutstanding: formatMarketContextShares(marketContext.shares_outstanding),
-    publicFloat: formatMarketContextShares(marketContext.public_float),
-    floatPercent: formatMarketContextFloatPercent(marketContext),
-    themeGroup:
-      readRowString(marketContext, "theme_group") ||
-      readRowString(marketContext, "themeGroup") ||
-      readRowString(metadata, "theme_group") ||
-      readRowString(metadata, "themeGroup") ||
-      undefined,
-    subTheme:
-      readRowString(marketContext, "sub_theme") ||
-      readRowString(marketContext, "subTheme") ||
-      readRowString(metadata, "sub_theme") ||
-      readRowString(metadata, "subTheme") ||
-      undefined,
     periods: {
-      "1D": {
-        sectorChange: readRowString(metadata, "sector_change_1d"),
-        industryChange: readRowString(metadata, "industry_change_1d"),
-        themeScore: item.score,
-        themeSignal: item.signal,
-        topMovers: topMoversByRange["1D"],
-      },
-      "5D": {
-        sectorChange: readRowString(metadata, "sector_change_5d"),
-        industryChange: readRowString(metadata, "industry_change_5d"),
-        themeScore: item.score,
-        themeSignal: item.signal,
-        topMovers: topMoversByRange["5D"],
-      },
-      "30D": {
-        sectorChange: readRowString(metadata, "sector_change_30d"),
-        industryChange: readRowString(metadata, "industry_change_30d"),
-        themeScore: item.score,
-        themeSignal: item.signal,
-        topMovers: topMoversByRange["30D"],
-      },
+      "1D": period(),
+      "5D": period(),
+      "30D": period(),
     },
   };
 }
 
-async function buildDbMarketContextTopMovers({
-  fmpIndustry,
-  fmpSector,
-  industry,
-  item,
-  sector,
-  ticker,
-}: {
-  fmpIndustry: string;
-  fmpSector: string;
-  industry: string;
-  item: LiveFeedItem;
-  sector: string;
-  ticker: string;
-}): Promise<Record<ContextRange, TopMover[]>> {
-  const snapshots = await readFilingContextSnapshots();
-  const fallbackMover = buildCurrentTickerMover(item, ticker);
-  const peerMovers = await buildPeerVolatilityMovers({
-    fmpIndustry,
-    fmpSector,
-    fallbackMover,
-    ticker,
-  });
-
+function financingFixtureAvailability(): GenericFilingAvailability {
   return {
-    "1D": buildDbMarketContextRangeTopMovers({
-      fallbackMover,
-      industry,
-      peerMovers,
-      range: "1D",
-      sector,
-      snapshots: snapshots["1D"],
-    }),
-    "5D": buildDbMarketContextRangeTopMovers({
-      fallbackMover,
-      industry,
-      peerMovers,
-      range: "5D",
-      sector,
-      snapshots: snapshots["5D"],
-    }),
-    "30D": buildDbMarketContextRangeTopMovers({
-      fallbackMover,
-      industry,
-      peerMovers,
-      range: "30D",
-      sector,
-      snapshots: snapshots["30D"],
-    }),
+    bearishPoints: false,
+    bullishPoints: false,
+    context: true,
+    filingBrief: true,
+    keyEvidence: false,
+    originalHtml: true,
+    recentFilings: true,
+    relatedNews: true,
+    scoreRationale: true,
+    summary: true,
+    watchNext: false,
+    whyItMatters: true,
   };
 }
 
-function buildDbMarketContextRangeTopMovers({
-  fallbackMover,
-  industry,
-  peerMovers,
-  range,
-  sector,
-  snapshots,
-}: {
-  fallbackMover: TopMover | null;
-  industry: string;
-  peerMovers: TopMover[];
-  range: ContextRange;
-  sector: string;
-  snapshots: MarketGroupSnapshotPayload[];
-}) {
-  const industrySnapshot = findFilingGroupSnapshot(snapshots, "industry_group", industry);
-  const sectorSnapshot = findFilingGroupSnapshot(snapshots, "sector", sector);
-  const snapshotMovers = buildFilingSnapshotTopMovers(industrySnapshot || sectorSnapshot, range);
+function buildOperatingFixtureContext(): SectorThemeContext {
+  const topMovers: TopMover[] = [
+    { symbol: "MDB", change: "-5.73%", trend: [58, 56, 54, 55, 51, 49, 47, 48, 44, 42] },
+    { symbol: "ORCL", change: "+0.62%", trend: [38, 39, 41, 40, 42, 44, 43, 45, 46, 47] },
+    { symbol: "SNOW", change: "-1.14%", trend: [51, 49, 50, 47, 46, 44, 45, 42, 41, 40] },
+    { symbol: "DDOG", change: "+0.91%", trend: [35, 37, 36, 39, 41, 40, 43, 44, 46, 47] },
+  ];
+  const period = (
+    sectorChange: string,
+    industryChange: string,
+    themeChange: string,
+  ): SectorThemePeriod => ({
+    industryChange,
+    sectorChange,
+    themeChange,
+    themeScore: 85,
+    themeSignal: "bullish",
+    topMovers,
+  });
 
-  if (snapshotMovers.length) {
-    return snapshotMovers;
-  }
-  if (peerMovers.length) {
-    return peerMovers;
-  }
-  return fallbackMover ? [fallbackMover] : [];
+  return {
+    industry: "Software & Cloud",
+    marketCap: "$27.51B",
+    periods: {
+      "1D": period("+0.28%", "-0.36%", "-0.18%"),
+      "5D": period("+1.42%", "+0.72%", "+0.48%"),
+      "30D": period("+4.18%", "+3.26%", "+2.84%"),
+    },
+    publicFloat: "78.32M",
+    publicFloatPercent: "97.4%",
+    sector: "Technology",
+    sharesOutstanding: "80.43M",
+    themeGroup: "Software & Cloud",
+  };
 }
 
-async function buildPeerVolatilityMovers({
-  fallbackMover,
-  fmpIndustry,
-  fmpSector,
+function buildPeriodicFixtureContext(): SectorThemeContext {
+  const topMovers: TopMover[] = [
+    { symbol: "AMZN", change: "+3.04%", trend: [42, 44, 43, 47, 49, 48, 52, 54, 53, 57] },
+    { symbol: "MSFT", change: "+1.18%", trend: [38, 39, 41, 40, 43, 45, 44, 47, 48, 49] },
+    { symbol: "GOOGL", change: "+0.72%", trend: [43, 42, 44, 46, 45, 47, 49, 48, 50, 51] },
+    { symbol: "META", change: "-0.46%", trend: [52, 51, 49, 50, 47, 46, 48, 45, 44, 43] },
+  ];
+  const period = (
+    sectorChange: string,
+    industryChange: string,
+    themeChange: string,
+  ): SectorThemePeriod => ({
+    industryChange,
+    sectorChange,
+    themeChange,
+    themeScore: 80,
+    themeSignal: "bullish",
+    topMovers,
+  });
+
+  return {
+    industry: "Broadline Retail",
+    marketCap: "$2.03T",
+    periods: {
+      "1D": period("+0.84%", "+1.26%", "+1.11%"),
+      "5D": period("+2.14%", "+3.08%", "+2.72%"),
+      "30D": period("+5.62%", "+7.14%", "+6.48%"),
+    },
+    publicFloat: "10.12B",
+    publicFloatPercent: "91.8%",
+    sector: "Consumer Cyclical",
+    sharesOutstanding: "10.84B",
+    themeGroup: "Cloud & AI Infrastructure",
+  };
+}
+
+function buildFinancingFixtureContext({
+  marketCap,
+  publicFloat,
+  publicFloatPercent,
+  score,
+  sharesOutstanding,
+  signal,
   ticker,
 }: {
-  fallbackMover: TopMover | null;
-  fmpIndustry: string;
-  fmpSector: string;
+  marketCap: string;
+  publicFloat: string;
+  publicFloatPercent: string;
+  score: number;
+  sharesOutstanding: string;
+  signal: DetailTone;
   ticker: string;
-}): Promise<TopMover[]> {
-  const peerSymbols = await readFilingPeerSymbols({ fmpIndustry, fmpSector, ticker });
-  const quoteSymbols = uniqueSymbols([ticker, ...peerSymbols]).filter(isSectorMoverSymbol).slice(0, 40);
-  if (!quoteSymbols.length) {
-    return fallbackMover ? [fallbackMover] : [];
-  }
+}): SectorThemeContext {
+  const movers = (tickerChange: string): TopMover[] => [
+    { symbol: ticker, change: tickerChange, trend: [56, 53, 54, 50, 48, 46, 47, 43, 42, 40] },
+    { symbol: "MRNA", change: "+0.84%", trend: [36, 38, 37, 40, 41, 43, 42, 45, 46, 47] },
+    { symbol: "CRSP", change: "-0.52%", trend: [48, 46, 47, 44, 43, 41, 42, 40, 39, 38] },
+    { symbol: "BEAM", change: "+1.16%", trend: [32, 34, 33, 36, 38, 37, 40, 42, 43, 45] },
+    { symbol: "EDIT", change: "-1.24%", trend: [52, 50, 48, 49, 46, 44, 43, 41, 40, 38] },
+    { symbol: "VERV", change: "+0.63%", trend: [35, 36, 38, 37, 40, 41, 43, 42, 44, 46] },
+  ];
+  const period = (
+    tickerChange: string,
+    sectorChange: string,
+    industryChange: string,
+    themeChange: string,
+    subThemeChange: string,
+  ): SectorThemePeriod => ({
+    industryChange,
+    sectorChange,
+    subThemeChange,
+    themeChange,
+    themeScore: score,
+    themeSignal: signal,
+    topMovers: movers(tickerChange),
+  });
 
-  const quoteResult = await fetchFmpQuotes(quoteSymbols);
-  const quoteRows = recordArray(quoteResult.data);
-  const quoteMovers = quoteRows
-    .map((row) => {
-      const symbol = readRowString(row, "symbol").toUpperCase();
-      const changePercent = readFmpQuoteChangePercent(row);
-      if (!isSectorMoverSymbol(symbol) || changePercent === null) return null;
+  return {
+    industry: "Biotechnology",
+    marketCap,
+    periods: {
+      "1D": period("-2.18%", "+0.21%", "-0.47%", "-0.32%", "-0.64%"),
+      "5D": period("-5.62%", "+0.84%", "-1.38%", "-0.91%", "-1.72%"),
+      "30D": period("-11.46%", "+2.16%", "-4.82%", "-3.58%", "-6.14%"),
+    },
+    publicFloat,
+    publicFloatPercent,
+    sector: "Healthcare",
+    sharesOutstanding,
+    subTheme: "Clinical Stage Biotech",
+    themeGroup: "Biotech Catalysts",
+  };
+}
+
+function readStoredProxyVote(
+  eventMetadata: Record<string, unknown> | null,
+  analysisMetadata: Record<string, unknown> | null,
+): ProxyVoteData | null {
+  const displayPayload =
+    toRecord(eventMetadata?.display_payload) ||
+    toRecord(analysisMetadata?.display_payload);
+  if (readRowString(displayPayload, "display_type") !== "proxy_vote") return null;
+
+  const data = toRecord(displayPayload?.data);
+  if (!data) return null;
+
+  const snapshotItems = readStoredSnapshotItems(data.snapshot)
+    .filter((item) => isDisclosedValue(item.label) && isDisclosedValue(item.value))
+    .slice(0, 4);
+  const proposals = readStoredProxyProposals(data.proposals);
+  if (snapshotItems.length !== 4 || !proposals.length) return null;
+
+  return {
+    proposals,
+    snapshot: {
+      items: snapshotItems,
+      title: readRowString(data, "summary_title") || "Proxy Vote Snapshot",
+    },
+  };
+}
+
+function readStoredProxyProposals(value: unknown): ProxyProposal[] {
+  return recordArray(value)
+    .map((item, index): ProxyProposal | null => {
+      const title = cleanDisclosureValue(readRowString(item, "title"));
+      if (!title) return null;
+
+      const category = cleanDisclosureValue(
+        readRowString(item, "type") || readRowString(item, "category"),
+      );
+      const boardRecommendation = cleanDisclosureValue(
+        readRowString(item, "board_recommendation") ||
+          readRowString(item, "recommendation"),
+      );
+      const details = recordArray(item.details)
+        .map((detail): ProxyProposal["details"][number] | null => {
+          const label = cleanDisclosureValue(readRowString(detail, "label"));
+          const detailValue = cleanDisclosureValue(readRowString(detail, "value"));
+          if (!label || !isDisclosedValue(detailValue)) return null;
+          const note = cleanDisclosureValue(readRowString(detail, "note"));
+          return {
+            label,
+            value: detailValue,
+            ...(note ? { note } : {}),
+          };
+        })
+        .filter((detail): detail is ProxyProposal["details"][number] => Boolean(detail))
+        .slice(0, 4);
+
       return {
-        change: formatSignedPercent(changePercent),
-        changePercent,
-        symbol,
-        trend: buildFilingContextTrend(0, "1D"),
+        ...(isDisclosedValue(boardRecommendation) ? { boardRecommendation } : {}),
+        ...(isDisclosedValue(category) ? { category } : {}),
+        details,
+        explanation: cleanDisclosureValue(readRowString(item, "explanation")) || undefined,
+        id: cleanDisclosureValue(readRowString(item, "id")) || String(index + 1),
+        isShareholderProposal:
+          item.is_shareholder_proposal === true ||
+          String(item.is_shareholder_proposal || "").toLowerCase() === "true",
+        title,
       };
     })
-    .filter((mover): mover is TopMover & { changePercent: number } => Boolean(mover));
-
-  const selected = selectBalancedVolatilityMovers(quoteMovers).map(({ changePercent: _changePercent, ...mover }) => mover);
-  if (selected.length) {
-    return selected;
-  }
-  return fallbackMover ? [fallbackMover] : [];
+    .filter((item): item is ProxyProposal => Boolean(item));
 }
 
-async function readFilingPeerSymbols({
-  fmpIndustry,
-  fmpSector,
-  ticker,
-}: {
-  fmpIndustry: string;
-  fmpSector: string;
-  ticker: string;
-}) {
-  const industryRows = fmpIndustry
-    ? await readFilingPeerTickerRows({
-        column: "fmp_industry",
-        value: fmpIndustry,
-      })
-    : [];
-  const sectorRows =
-    industryRows.length >= FILING_CONTEXT_MOVER_LIMIT || !fmpSector
-      ? []
-      : await readFilingPeerTickerRows({
-          column: "fmp_sector",
-          value: fmpSector,
-        });
+function readStoredOwnership(
+  eventMetadata: Record<string, unknown> | null,
+  analysisMetadata: Record<string, unknown> | null,
+  formType: string,
+): OwnershipData | null {
+  const normalizedForm = formType.trim().toUpperCase().replaceAll(" ", "");
+  if (!["4", "4/A", "144", "144/A"].includes(normalizedForm)) return null;
 
-  return uniqueSymbols([
-    ...industryRows.map((row) => readRowString(row, "symbol")),
-    ...sectorRows.map((row) => readRowString(row, "symbol")),
-  ]).filter((symbol) => symbol !== ticker);
-}
+  const displayPayload =
+    toRecord(eventMetadata?.display_payload) ||
+    toRecord(analysisMetadata?.display_payload);
+  if (readRowString(displayPayload, "display_type") !== "candidate_special") return null;
 
-async function readFilingPeerTickerRows({ column, value }: { column: "fmp_industry" | "fmp_sector"; value: string }) {
-  const result = await supabaseSelect("tickers", {
-    select: "symbol,name,asset_type,market_cap,fmp_sector,fmp_industry,is_active",
-    [column]: `eq.${value}`,
-    is_active: "eq.true",
-    asset_type: "in.(stock,adr,adr_or_class)",
-    order: "market_cap.desc",
-    limit: "80",
-  });
+  const data = toRecord(displayPayload?.data);
+  if (!data) return null;
 
-  return recordArray(result.data).filter((row) => isSectorMoverSymbol(readRowString(row, "symbol").toUpperCase()));
-}
-
-function selectBalancedVolatilityMovers<T extends TopMover & { changePercent: number }>(movers: T[]) {
-  const sorted = uniqueTickerMoversWithChange(movers).sort(
-    (left, right) => Math.abs(right.changePercent) - Math.abs(left.changePercent),
-  );
-  const gainers = sorted.filter((mover) => mover.changePercent > 0);
-  const losers = sorted.filter((mover) => mover.changePercent < 0);
-  const selected: T[] = [];
-
-  while (selected.length < FILING_CONTEXT_MOVER_LIMIT && (gainers.length || losers.length)) {
-    const nextGainer = gainers.shift();
-    if (nextGainer) selected.push(nextGainer);
-    if (selected.length >= FILING_CONTEXT_MOVER_LIMIT) break;
-    const nextLoser = losers.shift();
-    if (nextLoser) selected.push(nextLoser);
+  if (normalizedForm === "4" || normalizedForm === "4/A") {
+    return readStoredForm4Ownership(data);
   }
 
-  for (const mover of sorted) {
-    if (selected.length >= FILING_CONTEXT_MOVER_LIMIT) break;
-    if (!selected.some((item) => item.symbol === mover.symbol)) selected.push(mover);
-  }
-
-  return selected.slice(0, FILING_CONTEXT_MOVER_LIMIT);
+  return readStoredForm144Ownership(data, normalizedForm === "144/A");
 }
 
-function uniqueTickerMoversWithChange<T extends TopMover & { changePercent: number }>(movers: T[]) {
-  const seen = new Set<string>();
-  return movers.filter((mover) => {
-    const symbol = mover.symbol.toUpperCase();
-    if (seen.has(symbol)) return false;
-    seen.add(symbol);
-    return true;
-  });
-}
+function readStoredForm4Ownership(data: Record<string, unknown>): OwnershipData | null {
+  const form4 = toRecord(data.form4);
+  if (!form4) return null;
 
-function readFmpQuoteChangePercent(row: Record<string, unknown>) {
-  const value =
-    readNullableNumber(row, "change_percent") ??
-    readNullableNumber(row, "changesPercentage") ??
-    readNullableNumber(row, "changePercentage");
-  return value !== null && Number.isFinite(value) ? value : null;
-}
-
-function readNullableNumber(row: Record<string, unknown>, key: string) {
-  const value = row[key];
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && Number.isFinite(Number(value))) return Number(value);
-  return null;
-}
-
-async function readFilingContextSnapshots(): Promise<FilingContextSnapshotMap> {
-  const now = Date.now();
-  if (filingContextSnapshotCache && filingContextSnapshotCache.expiresAt > now) {
-    return filingContextSnapshotCache.snapshots;
-  }
-
-  const [oneDay, fiveDay, thirtyDay] = await Promise.all([
-    readMarketGroupSnapshotCache("1D"),
-    readMarketGroupSnapshotCache("5D"),
-    readMarketGroupSnapshotCache("1M"),
+  const owner = toRecord(data.reporting_owner);
+  const ownerName = firstStoredValue([
+    readRowString(owner, "name"),
+    readRowString(data, "owner_name"),
   ]);
-  const snapshots = {
-    "1D": oneDay.snapshots,
-    "5D": fiveDay.snapshots,
-    "30D": thirtyDay.snapshots,
-  };
+  const relationship = firstStoredValue([
+    readRowString(owner, "title"),
+    ownershipRoleText(owner?.roles),
+    readRowString(data, "owner_title"),
+  ]);
+  if (!ownerName || !relationship) return null;
 
-  filingContextSnapshotCache = {
-    expiresAt: now + 30_000,
-    snapshots,
-  };
-  return snapshots;
-}
+  const rawTransactions = [
+    ...recordArray(form4.non_derivative_transactions),
+    ...recordArray(form4.derivative_transactions),
+  ];
+  const plan10b5 = ownershipHas10b5Reference(data);
+  const transactions = rawTransactions
+    .map((row) => readStoredOwnershipTransaction(row, plan10b5))
+    .filter((row): row is OwnershipTransaction => Boolean(row));
+  if (!transactions.length) return null;
 
-function buildFilingSnapshotTopMovers(snapshot: MarketGroupSnapshotPayload | undefined, range: ContextRange): TopMover[] {
-  if (!snapshot?.topMovers.length) {
-    return [];
-  }
+  const hasPurchase = transactions.some((transaction) => transaction.code === "P");
+  const hasSale = transactions.some((transaction) => transaction.code === "S");
+  if (!hasPurchase && !hasSale) return null;
 
-  return uniqueTickerMovers(
-    snapshot.topMovers
-      .map((mover, index) => ({
-        change: formatSignedPercent(mover.changePercent),
-        symbol: mover.symbol.toUpperCase(),
-        trend: snapshot.trendPoints.length
-          ? offsetFilingTrend(snapshot.trendPoints, index)
-          : buildFilingContextTrend(index, range),
-      }))
-      .filter((mover) => isSectorMoverSymbol(mover.symbol)),
-  ).slice(0, FILING_CONTEXT_MOVER_LIMIT);
-}
+  const shareTotal = sumOwnershipNumbers(
+    rawTransactions
+      .filter((row) => ["P", "S"].includes(readRowString(row, "transaction_code").toUpperCase()))
+      .map((row) => ownershipNumber(row.shares)),
+  );
+  const valueTotal = firstPositiveOwnershipNumber([
+    ownershipNumber(form4.total_reported_value),
+    sumOwnershipNumbers(rawTransactions.map((row) => ownershipNumber(row.transaction_value))),
+  ]);
+  const primaryType = hasPurchase && hasSale
+    ? "Purchase and sale"
+    : hasPurchase
+      ? "Open-market purchase"
+      : "Reported sale";
+  const transactionDate = firstStoredValue(
+    rawTransactions.map((row) => formatOwnershipDate(readRowString(row, "transaction_date"))),
+  );
+  const amountItem = valueTotal > 0
+    ? {
+        label: "Reported Value",
+        note: shareTotal > 0 ? `${formatOwnershipQuantity(shareTotal)} shares` : undefined,
+        value: formatOwnershipCurrency(valueTotal),
+      }
+    : shareTotal > 0
+      ? {
+          label: "Shares Reported",
+          value: formatOwnershipQuantity(shareTotal),
+        }
+      : null;
+  if (!amountItem) return null;
 
-function buildCurrentTickerMover(item: LiveFeedItem, ticker: string): TopMover | null {
-  if (!isRealTicker(ticker)) return null;
   return {
-    change: item.change,
-    symbol: ticker,
-    trend: item.trend.length ? item.trend : buildFilingContextTrend(0, "1D"),
+    mode: "form4_transaction",
+    snapshot: {
+      title: "Insider Transaction",
+      items: [
+        { label: "Reporting Owner", value: ownerName },
+        { label: "Relationship", value: relationship },
+        {
+          label: "Transaction",
+          value: primaryType,
+          ...(transactionDate || plan10b5
+            ? { note: [transactionDate, plan10b5 ? "Rule 10b5-1 plan" : ""].filter(Boolean).join(" · ") }
+            : {}),
+        },
+        amountItem,
+      ],
+    },
+    transactions,
   };
 }
 
-function uniqueSymbols(symbols: string[]) {
-  const seen = new Set<string>();
-  return symbols
-    .map((symbol) => symbol.trim().toUpperCase())
-    .filter((symbol) => {
-      if (!isRealTicker(symbol) || seen.has(symbol)) return false;
-      seen.add(symbol);
-      return true;
-    });
-}
+function readStoredOwnershipTransaction(
+  row: Record<string, unknown>,
+  plan10b5: boolean,
+): OwnershipTransaction | null {
+  const code = readRowString(row, "transaction_code").toUpperCase();
+  if (code !== "P" && code !== "S") return null;
 
-function uniqueTickerMovers(movers: TopMover[]) {
-  const seen = new Set<string>();
-  return movers.filter((mover) => {
-    const symbol = mover.symbol.toUpperCase();
-    if (seen.has(symbol)) return false;
-    seen.add(symbol);
-    return true;
-  });
-}
+  const security = readRowString(row, "security_title");
+  const shares = ownershipDisplayNumber(row.shares, readRowString(row, "shares_text"));
+  if (!security || !shares) return null;
 
-function isSectorMoverSymbol(symbol: string) {
-  return isRealTicker(symbol) && !BROAD_MARKET_MOVER_SYMBOLS.has(symbol.toUpperCase());
-}
-
-function findFilingGroupSnapshot(
-  snapshots: MarketGroupSnapshotPayload[],
-  scope: MarketGroupSnapshotPayload["scope"],
-  label: string,
-) {
-  if (!label) return undefined;
-  const normalizedLabel = normalizeFilingGroupLabel(label);
-
-  return snapshots.find(
-    (snapshot) =>
-      snapshot.scope === scope &&
-      (normalizeFilingGroupLabel(snapshot.groupName) === normalizedLabel ||
-        normalizeFilingGroupLabel(snapshot.groupKey) === normalizedLabel),
+  const price = ownershipDisplayCurrency(
+    row.price_per_share,
+    readRowString(row, "price_per_share_text"),
   );
-}
-
-function normalizeFilingGroupLabel(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-}
-
-function formatSignedPercent(value: number) {
-  const sign = value > 0 ? "+" : value < 0 ? "-" : "";
-  return `${sign}${Math.abs(value).toFixed(2)}%`;
-}
-
-function buildFilingContextTrend(offset: number, range: ContextRange): number[] {
-  const multiplier = range === "30D" ? 1.7 : range === "5D" ? 1.25 : 1;
-  return [40, 41, 40, 42, 41, 42, 43, 42, 43, 44].map((value, index) =>
-    Math.round(value * multiplier + offset * 2 + (index % 3)),
+  const value = ownershipDisplayCurrency(row.transaction_value, "");
+  const holdingsAfter = ownershipDisplayNumber(
+    row.shares_owned_following,
+    readRowString(row, "shares_owned_following_text"),
   );
+
+  return {
+    code,
+    date: formatOwnershipDate(readRowString(row, "transaction_date")) || undefined,
+    holdingsAfter: holdingsAfter || undefined,
+    plan10b5: code === "S" && plan10b5,
+    price: price || undefined,
+    security,
+    shares,
+    type: code === "P" ? "Purchase" : "Sale",
+    value: value || undefined,
+  };
 }
 
-function offsetFilingTrend(values: number[], offset: number) {
-  return values.map((value, index) => Number((value + offset * 0.35 + (index % 2) * 0.1).toFixed(2)));
-}
+function readStoredForm144Ownership(
+  data: Record<string, unknown>,
+  isAmendment: boolean,
+): OwnershipData | null {
+  const form144 = toRecord(data.form144);
+  if (!form144) return null;
 
-function FilingMarketContextPanel({
-  filing,
-  hideUnavailable = false,
-  tickerOverride,
-}: {
-  filing: FilingEvent;
-  hideUnavailable?: boolean;
-  tickerOverride?: string;
-}) {
-  const context = filing.context;
-  const relatedFilings = <FilingRelatedFilingsPanel filing={filing} />;
-  const contextTicker = isRealTicker(filing.ticker) ? filing.ticker : tickerOverride || filing.ticker;
-  const marketDataPending = isRegistrationMarketDataPending(filing);
-  if (!isRealTicker(contextTicker)) return relatedFilings;
-  if (!context || !hasRenderableFilingMarketContext(context)) {
-    if (hideUnavailable) return relatedFilings;
-    return (
-      <>
-        {relatedFilings}
-        <FilingMarketContextUnavailablePanel marketDataPending={marketDataPending} ticker={contextTicker} />
-      </>
-    );
-  }
+  const owner = toRecord(data.reporting_owner);
+  const seller = firstStoredValue([
+    readRowString(owner, "name"),
+    readRowString(form144, "seller_name"),
+    readRowString(data, "owner_name"),
+  ]);
+  const shares = ownershipNumber(form144.securities_to_be_sold);
+  const marketValue = ownershipNumber(form144.aggregate_market_value);
+  if (!seller || shares <= 0 || marketValue <= 0) return null;
 
-  return (
-    <>
-      {relatedFilings}
-      <SectorThemeContextPanel context={context} ticker={contextTicker} />
-    </>
+  const approximateSaleDate = formatOwnershipDate(
+    readRowString(form144, "approximate_sale_date"),
   );
+  const securityClass = readRowString(form144, "securities_class_title");
+  const relationship = firstStoredValue([
+    readRowString(owner, "title"),
+    ownershipRoleText(owner?.roles),
+  ]);
+  const amendment = toRecord(data.amendment);
+  const amendmentReason = firstStoredValue([
+    readRowString(amendment, "reason"),
+    readRowString(amendment, "amendment_reason"),
+    readRowString(data, "amendment_reason"),
+  ]);
+  const details: OwnershipDetailRow[] = [
+    {
+      label: "Notice Status",
+      note: "Form 144 is not proof of execution",
+      value: "Proposed sale",
+    },
+    ...(securityClass ? [{ label: "Security", value: securityClass }] : []),
+    { label: "Shares Proposed", value: formatOwnershipQuantity(shares) },
+    { label: "Estimated Market Value", value: formatOwnershipCurrency(marketValue) },
+    ...(approximateSaleDate
+      ? [{ label: "Approximate Sale Date", value: approximateSaleDate }]
+      : []),
+  ];
+  const amendmentDetails = isAmendment && amendmentReason
+    ? [{ label: "Amendment", value: amendmentReason }]
+    : undefined;
+
+  return {
+    ...(amendmentDetails ? { amendmentDetails } : {}),
+    details,
+    mode: "form144_proposed_sale",
+    snapshot: {
+      title: isAmendment ? "Proposed Insider Sale Amendment" : "Proposed Insider Sale",
+      items: [
+        {
+          label: "Seller",
+          value: seller,
+          ...(relationship ? { note: relationship } : {}),
+        },
+        {
+          label: "Notice Status",
+          note: "Not reported as executed",
+          value: "Proposed sale",
+        },
+        { label: "Shares Proposed", value: formatOwnershipQuantity(shares) },
+        {
+          label: "Estimated Value",
+          value: formatOwnershipCurrency(marketValue),
+          ...(approximateSaleDate ? { note: `Approximate sale date: ${approximateSaleDate}` } : {}),
+        },
+      ],
+    },
+  };
 }
 
-function FilingMarketContextUnavailablePanel({
-  marketDataPending,
-  ticker,
-}: {
-  marketDataPending: boolean;
-  ticker: string;
-}) {
-  return (
-    <section className="stock-detail-card sector-theme-main-card">
-      <div className="card-heading-row context-heading-row">
-        <div>
-          <h2>{ticker} Market Context</h2>
-          <p className="market-context-data-disclaimer">Market data is latest available, not necessarily as of the filing date.</p>
-        </div>
-      </div>
-      <p className="context-empty-state">
-        {marketDataPending
-          ? "Market data is pending until regular trading data becomes available."
-          : "Market context data is not available for this ticker yet."}
-      </p>
-    </section>
-  );
-}
-
-function isRegistrationMarketDataPending(filing: FilingEvent) {
-  const formType = filing.formType.trim().toUpperCase();
-  if (!/^(?:S-1|S-1\/A|F-1|F-1\/A|S-1MEF|F-1MEF|POS AM)$/.test(formType)) return false;
-
-  const sourceText = [
-    filing.title,
-    filing.filingBrief,
-    filing.summary,
-    filing.whyItMatters,
-    readRowString(readDisplayPayloadData(readPlainRecord(filing.displayPayload)), "display_mode"),
-  ]
-    .filter(Boolean)
-    .join(" ");
-  return /\b(?:ipo|initial public offering|listing|nasdaq|nyse|registration statement|post-effective amendment)\b/i.test(sourceText);
-}
-
-function hasRenderableFilingMarketContext(context: SectorThemeContext) {
-  return Boolean(
-    cleanContextValue(context.sector) ||
-      cleanContextValue(context.industry) ||
-      cleanContextValue(context.themeGroup) ||
-      cleanContextValue(context.subTheme) ||
-      cleanContextValue(context.marketCap),
-  );
-}
-
-function hasUsableMarketContext(marketContext: Record<string, unknown>) {
-  return Boolean(
-    readRowString(marketContext, "symbol") ||
-      readRowString(marketContext, "ticker") ||
-      readRowString(marketContext, "sector") ||
-      readRowString(marketContext, "industry") ||
-      readRowString(marketContext, "industry_group") ||
-      readRowString(marketContext, "sub_category") ||
-      readRowString(marketContext, "market_cap") ||
-      readRowNumber(marketContext, "market_cap"),
-  );
-}
-
-function formatMarketContextNumber(value: unknown) {
-  const numberValue = typeof value === "number" ? value : typeof value === "string" ? Number(value) : 0;
-  return Number.isFinite(numberValue) && numberValue > 0 ? formatMoneyValue(numberValue) : "";
-}
-
-function formatMarketContextShares(value: unknown) {
-  const numberValue = typeof value === "number" ? value : typeof value === "string" ? Number(value) : 0;
-  return Number.isFinite(numberValue) && numberValue > 0 ? formatCompactShareCount(numberValue) : undefined;
-}
-
-function EffectGatewayTemplate({
-  eventLabel,
-  filing,
-  model,
-}: {
-  eventLabel: string;
-  filing: FilingEvent;
-  model: EffectGatewayModel;
-}) {
-  const investorSummary = buildEffectInvestorSummary(model);
-  const chartTicker = model.originalFiling?.ticker && isRealTicker(model.originalFiling.ticker) ? model.originalFiling.ticker : filing.ticker;
-  const showPriceChart = isRealTicker(chartTicker) && Boolean(filing.context);
-
-  return (
-    <>
-      <section className="stock-detail-card-grid two-up initial-ipo-compact-grid effect-gateway-hero">
-        {showPriceChart ? <FilingPriceChart filing={filing} tickerOverride={chartTicker} /> : null}
-        <section className="stock-detail-card dilution-snapshot-panel ipo-summary-panel initial-ipo-top-panel">
-          <div className="ipo-summary-heading">
-            <h2>{model.relatedForm} registration effective</h2>
-          </div>
-
-          <div className="dilution-impact-metrics">
-            {model.snapshotMetrics.map((metric) => (
-              <DilutionMetric key={metric.label} metric={metric} />
-            ))}
-          </div>
-        </section>
-
-        {!showPriceChart ? (
-          <section className="stock-detail-card initial-ipo-side-stack">
-            <div className="initial-ipo-summary-card initial-ipo-quick-card">
-              <h2>Summary</h2>
-              <p>{investorSummary}</p>
-            </div>
-          </section>
-        ) : null}
-      </section>
-
-      {showPriceChart ? (
-        <section className="stock-detail-card initial-ipo-side-stack effect-gateway-summary">
-          <div className="initial-ipo-summary-card initial-ipo-quick-card">
-            <h2>Summary</h2>
-            <p>{investorSummary}</p>
-          </div>
-        </section>
-      ) : null}
-
-      <ScoreBasisPanel filing={filing} summaryOverride={buildEffectScoreSummary(model)} />
-
-      <FilingMarketContextPanel filing={filing} hideUnavailable tickerOverride={model.originalFiling?.ticker} />
-      <OriginalFilingText filing={filing} eventLabel={eventLabel} includeTemplateStatus />
-    </>
-  );
-}
-
-function buildEffectInvestorSummary(model: EffectGatewayModel) {
-  const form = model.relatedForm || "Registration statement";
-  const originalContext = buildEffectOriginalFilingContextSentence(model.originalFiling);
-  const isDilutionRelated = isEffectDilutionRelated(model);
-  const isIpoRegistration = /(?:S-1|F-1|IPO)/i.test(form);
-  const lead = isDilutionRelated
-    ? `${form} is now effective, and related securities can become saleable under the filing terms.`
-    : `${form} is effective now.`;
-  if (originalContext) {
-    return `${lead} ${originalContext} Use the related filing below for full terms.`;
-  }
-
-  if (isDilutionRelated) return lead;
-
-  return isIpoRegistration
-    ? `${lead} Watch for final pricing, trading, or a related prospectus update.`
-    : `${lead} Watch for the next filing or final sale terms.`;
-}
-
-function buildEffectScoreSummary(model: EffectGatewayModel) {
-  return isEffectDilutionRelated(model)
-    ? "The related dilution registration is now effective, opening the door to registered share sales or resales under the filing terms."
+function ownershipRoleText(value: unknown) {
+  return Array.isArray(value)
+    ? value.map((item) => String(item || "").trim()).filter(Boolean).join(", ")
     : "";
 }
 
-function isEffectDilutionRelated(model: EffectGatewayModel) {
-  const eventType = model.originalFiling?.eventType || "";
-  return /dilution/i.test(eventType);
+function ownershipHas10b5Reference(data: Record<string, unknown>) {
+  if (data.has_10b5_1_reference === true) return true;
+  return /10b5-?1/i.test(JSON.stringify({ footnotes: data.footnotes, remarks: data.remarks }));
 }
 
-function buildEffectOriginalFilingContextSentence(original: FilingContextRelatedFiling | null) {
-  if (!original) return "";
-
-  const source =
-    cleanDisclosureValue(original.quickTake) ||
-    cleanDisclosureValue(original.summary) ||
-    cleanDisclosureValue(original.title) ||
-    "";
-  if (!source) return "";
-
-  const normalized = source
-    .replace(/\s+/g, " ")
-    .replace(/\s+([,.;:!?])/g, "$1")
-    .trim();
-  const compact =
-    normalized.length > 180
-      ? normalized.slice(0, 180).replace(/\s+\S*$/, "").trim()
-      : normalized;
-  const sentence = /[.!?]$/.test(compact) ? compact : `${compact}.`;
-  return `Original filing: ${sentence}`;
+function ownershipNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return 0;
+  const numeric = Number(value.replaceAll(",", "").replace(/[$%]/g, "").trim());
+  return Number.isFinite(numeric) ? numeric : 0;
 }
 
-function formatMarketContextFloatPercent(marketContext: Record<string, unknown>) {
-  const directValue = readRowNumber(marketContext, "public_float_percent");
-  if (directValue > 0) {
-    return formatPercentCompact(directValue <= 1 ? directValue * 100 : directValue) || undefined;
+function sumOwnershipNumbers(values: number[]) {
+  return values.reduce((sum, value) => sum + (Number.isFinite(value) ? value : 0), 0);
+}
+
+function firstPositiveOwnershipNumber(values: number[]) {
+  return values.find((value) => Number.isFinite(value) && value > 0) || 0;
+}
+
+function ownershipDisplayNumber(value: unknown, storedText: string) {
+  const numeric = ownershipNumber(value);
+  if (numeric > 0) return formatOwnershipQuantity(numeric);
+  return cleanDisclosureValue(storedText);
+}
+
+function ownershipDisplayCurrency(value: unknown, storedText: string) {
+  const numeric = ownershipNumber(value);
+  if (numeric > 0) return formatOwnershipCurrency(numeric);
+  const cleaned = cleanDisclosureValue(storedText);
+  return cleaned ? (cleaned.startsWith("$") ? cleaned : `$${cleaned}`) : "";
+}
+
+function formatOwnershipQuantity(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: Number.isInteger(value) ? 0 : 4,
+  }).format(value);
+}
+
+function formatOwnershipCurrency(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    currency: "USD",
+    maximumFractionDigits: value < 100 ? 4 : 0,
+    style: "currency",
+  }).format(value);
+}
+
+function formatOwnershipDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return cleanDisclosureValue(value);
+  const date = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-US", {
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+    year: "numeric",
+  }).format(date);
+}
+
+function readStoredTenderOffer(
+  eventMetadata: Record<string, unknown> | null,
+  analysisMetadata: Record<string, unknown> | null,
+  formType: string,
+): TenderOfferData | null {
+  const normalizedForm = formType.trim().toUpperCase().replaceAll(" ", "");
+  if (!/^(?:SCTO-[ICT](?:\/A)?|SC13E3(?:\/A)?|CB(?:\/A)?)$/.test(normalizedForm)) {
+    return null;
   }
 
-  const publicFloat = readRowNumber(marketContext, "public_float");
-  const sharesOutstanding = readRowNumber(marketContext, "shares_outstanding");
-  if (!publicFloat || !sharesOutstanding) return undefined;
-  return formatPercentCompact((publicFloat / sharesOutstanding) * 100) || undefined;
-}
+  const displayPayload =
+    toRecord(eventMetadata?.display_payload) ||
+    toRecord(analysisMetadata?.display_payload);
+  const data = toRecord(displayPayload?.data);
+  const fingerprint =
+    toRecord(eventMetadata?.transaction_fingerprint) ||
+    toRecord(analysisMetadata?.transaction_fingerprint);
+  if (!data || !fingerprint) return null;
 
-function cleanContextValue(value: unknown) {
-  if (typeof value !== "string") return "";
-  const cleaned = value.trim();
-  if (!cleaned || cleaned === "-" || /^n\/?a$/i.test(cleaned) || /^not disclosed$/i.test(cleaned)) return "";
-  return cleaned;
-}
-
-function shouldUseListingFinancialRiskV2(filing: FilingEvent) {
-  if (filing.eventType !== "listing_risk" && filing.eventType !== "financial_risk") {
-    return false;
+  const transactionType = readRowString(fingerprint, "transaction_type");
+  const transactionFamily = readRowString(fingerprint, "transaction_family");
+  const amendmentChangeType = readRowString(fingerprint, "amendment_change_type");
+  const changedTerms = toStringArray(fingerprint.material_terms_changed, []);
+  const isAmendment = normalizedForm.endsWith("/A") || transactionType === "amendment_update";
+  if (
+    isAmendment &&
+    (amendmentChangeType === "procedural" || amendmentChangeType === "no_material_change")
+  ) {
+    return null;
   }
 
-  return /^(?:8-K|6-K)(?:\/A)?$/i.test(filing.formType.trim());
+  if (isAmendment && !changedTerms.length && amendmentChangeType === "unknown") {
+    return null;
+  }
+
+  const cashPrice = firstStoredValue([
+    readRowString(fingerprint, "cash_price"),
+    formatTenderCashPrice(data.cash_price_per_share),
+    formatTenderCashPrice(data.new_offer_price),
+  ]);
+  const expiration = formatTenderDate(firstStoredValue([
+    readRowString(fingerprint, "offer_expiration"),
+    readRowString(data, "expiration_date"),
+    readRowString(data, "new_expiration_date"),
+  ]));
+  const target = firstStoredValue([
+    readRowString(fingerprint, "target_company"),
+    readRowString(data, "target_company"),
+  ]);
+  const offeror = firstStoredValue([
+    readRowString(fingerprint, "offeror"),
+    readRowString(data, "offeror"),
+  ]);
+
+  if (isAmendment && transactionType === "amendment_update") {
+    return buildStoredTenderAmendment({
+      cashPrice,
+      data,
+      expiration,
+      fingerprint,
+      offeror,
+      target,
+    });
+  }
+
+  if (transactionType === "issuer_tender" || transactionFamily === "issuer_repurchase") {
+    return buildStoredIssuerTender({ cashPrice, data, expiration, fingerprint, offeror });
+  }
+
+  if (transactionType === "going_private_cash_out" || transactionFamily === "going_private") {
+    return buildStoredGoingPrivateTender({ cashPrice, data, fingerprint });
+  }
+
+  if (transactionType === "exchange_offer" || transactionFamily === "cross_border") {
+    return buildStoredCrossBorderTender({ data, expiration, fingerprint, offeror, target });
+  }
+
+  if (transactionType === "third_party_tender" || transactionType === "merger_tender") {
+    return buildStoredThirdPartyTender({ cashPrice, data, expiration, fingerprint, offeror, target });
+  }
+
+  return null;
 }
 
-function buildListingFinancialRiskV2Snapshot(
-  filing: FilingEvent,
-): ListingFinancialRiskSnapshotData | null {
-  const validItems = (filing.listingStatusSnapshot || [])
-    .map((item) => ({
-      label: cleanDisclosureValue(item.label),
-      note: cleanDisclosureValue(item.note || "") || undefined,
-      value: cleanDisclosureValue(item.value),
-    }))
-    .filter((item) => item.label && item.value);
-
-  if (validItems.length < 4) return null;
+function buildStoredIssuerTender({
+  cashPrice,
+  data,
+  expiration,
+  fingerprint,
+  offeror,
+}: {
+  cashPrice: string;
+  data: Record<string, unknown>;
+  expiration: string;
+  fingerprint: Record<string, unknown>;
+  offeror: string;
+}): TenderOfferData | null {
+  const offerSize = firstStoredValue([
+    readRowString(fingerprint, "offer_size"),
+    formatTenderMoney(data.aggregate_purchase_price),
+  ]);
+  const securitiesSought = firstStoredValue([
+    readRowString(fingerprint, "securities_sought"),
+    formatTenderQuantity(data.shares_sought, "shares"),
+  ]);
+  const snapshot = tenderSnapshot("Issuer Tender Snapshot", [
+    { label: "Cash Price", value: cashPrice },
+    { label: "Maximum Purchase", value: offerSize },
+    { label: "Shares Sought", value: securitiesSought },
+    { label: "Expiration", value: expiration },
+  ]);
+  if (!snapshot) return null;
 
   return {
-    items: validItems.slice(0, 4),
-    title: inferListingFinancialRiskSnapshotTitle(validItems),
+    mode: "issuer_tender",
+    snapshot,
+    termsTitle: "Tender Terms",
+    terms: tenderTerms([
+      { label: "Offeror", value: offeror },
+      { label: "Consideration", value: readRowString(fingerprint, "consideration_summary") || cashPrice },
+      {
+        label: "Proration",
+        value: tenderBoolean(data.proration) ? "Applies" : "",
+      },
+      {
+        label: "Withdrawal Deadline",
+        value: formatTenderDate(readRowString(data, "withdrawal_deadline")),
+      },
+    ]),
   };
 }
 
-function inferListingFinancialRiskSnapshotTitle(
-  items: Array<{ label: string; value: string }>,
+function buildStoredThirdPartyTender({
+  cashPrice,
+  data,
+  expiration,
+  fingerprint,
+  offeror,
+  target,
+}: {
+  cashPrice: string;
+  data: Record<string, unknown>;
+  expiration: string;
+  fingerprint: Record<string, unknown>;
+  offeror: string;
+  target: string;
+}): TenderOfferData | null {
+  const premium = formatTenderPercent(data.premium_percent);
+  const snapshot = tenderSnapshot("Acquisition Tender Snapshot", [
+    { label: "Offer Price", value: cashPrice, ...(premium ? { note: `Stated premium: ${premium}` } : {}) },
+    { label: "Target", value: target },
+    { label: "Expiration", value: expiration },
+    { label: "Offeror", value: offeror },
+  ]);
+  if (!snapshot) return null;
+
+  return {
+    mode: "third_party_tender",
+    snapshot,
+    termsTitle: "Offer Conditions",
+    terms: tenderTerms([
+      { label: "Consideration", value: readRowString(fingerprint, "consideration_summary") || cashPrice },
+      { label: "Minimum Tender", value: readRowString(fingerprint, "minimum_condition") },
+      { label: "Financing Condition", value: readRowString(fingerprint, "financing_condition") },
+      ...toStringArray(data.conditions, []).map((condition) => ({
+        label: "Condition",
+        value: formatTenderStoredLabel(condition),
+      })),
+    ]),
+  };
+}
+
+function buildStoredGoingPrivateTender({
+  cashPrice,
+  data,
+  fingerprint,
+}: {
+  cashPrice: string;
+  data: Record<string, unknown>;
+  fingerprint: Record<string, unknown>;
+}): TenderOfferData | null {
+  const affectedHolders = readRowString(fingerprint, "securities_sought");
+  const minorityApproval = readRowString(fingerprint, "minimum_condition");
+  const snapshot = tenderSnapshot("Going-Private Snapshot", [
+    { label: "Cash-Out Price", value: cashPrice },
+    { label: "Affected Holders", value: affectedHolders },
+    { label: "Minority Approval", value: minorityApproval },
+    { label: "Appraisal Rights", value: tenderBoolean(data.appraisal_rights) ? "Available" : "" },
+  ]);
+  if (!snapshot) return null;
+
+  return {
+    mode: "going_private",
+    snapshot,
+    termsTitle: "Going-Private Terms",
+    terms: tenderTerms([
+      { label: "Transaction", value: "Rule 13e-3 going private" },
+      { label: "Consideration", value: readRowString(fingerprint, "consideration_summary") || cashPrice },
+      {
+        label: "Special Committee",
+        value: tenderBoolean(data.special_committee_fairness) ? "Fairness process disclosed" : "",
+      },
+      { label: "Holder Approval", value: minorityApproval },
+    ]),
+  };
+}
+
+function buildStoredCrossBorderTender({
+  data,
+  expiration,
+  fingerprint,
+  offeror,
+  target,
+}: {
+  data: Record<string, unknown>;
+  expiration: string;
+  fingerprint: Record<string, unknown>;
+  offeror: string;
+  target: string;
+}): TenderOfferData | null {
+  const exchangeRatio = firstStoredValue([
+    readRowString(fingerprint, "exchange_ratio"),
+    readRowString(data, "exchange_ratio"),
+  ]);
+  const snapshot = tenderSnapshot("Cross-Border Offer Snapshot", [
+    { label: "Exchange Ratio", value: exchangeRatio },
+    { label: "Offeror", value: offeror },
+    { label: "Expiration", value: expiration },
+    { label: "Proration", value: tenderBoolean(data.proration) ? "Applies" : "" },
+  ]);
+  if (!snapshot) return null;
+
+  return {
+    mode: "cross_border",
+    snapshot,
+    termsTitle: "Exchange Offer Terms",
+    terms: tenderTerms([
+      { label: "Target", value: target },
+      { label: "Consideration", value: readRowString(fingerprint, "consideration_summary") || exchangeRatio },
+      { label: "Securities Sought", value: readRowString(fingerprint, "securities_sought") },
+      { label: "Cross-Border Exemption", value: readRowString(data, "cross_border_exemption") },
+    ]),
+  };
+}
+
+function buildStoredTenderAmendment({
+  cashPrice,
+  data,
+  expiration,
+  fingerprint,
+  offeror,
+  target,
+}: {
+  cashPrice: string;
+  data: Record<string, unknown>;
+  expiration: string;
+  fingerprint: Record<string, unknown>;
+  offeror: string;
+  target: string;
+}): TenderOfferData | null {
+  const previousPrice = formatTenderCashPrice(data.prior_offer_price);
+  const previousExpiration = formatTenderDate(readRowString(data, "prior_expiration_date"));
+  const amendmentNumber = readRowString(fingerprint, "amendment_number");
+  const changes: TenderOfferChange[] = [
+    ...(previousPrice && cashPrice
+      ? [{ label: "Offer Price", previous: previousPrice, current: cashPrice }]
+      : []),
+    ...(previousExpiration && expiration
+      ? [{ label: "Expiration", previous: previousExpiration, current: expiration }]
+      : []),
+  ];
+  const otherTerms = tenderBoolean(data.terms_otherwise_unchanged) ? "Unchanged" : "";
+  const snapshot = tenderSnapshot("Tender Amendment Snapshot", [
+    { label: "Amendment", value: amendmentNumber ? `No. ${amendmentNumber}` : "" },
+    { label: "New Offer Price", value: cashPrice, ...(previousPrice ? { note: `Previously ${previousPrice}` } : {}) },
+    { label: "New Expiration", value: expiration, ...(previousExpiration ? { note: `Previously ${previousExpiration}` } : {}) },
+    { label: "Other Terms", value: otherTerms },
+  ]);
+  if (!snapshot || !changes.length) return null;
+
+  return {
+    changes,
+    mode: "material_amendment",
+    snapshot,
+    termsTitle: "Current Offer Terms",
+    terms: tenderTerms([
+      { label: "Offeror", value: offeror },
+      { label: "Target", value: target },
+      { label: "Consideration", value: readRowString(fingerprint, "consideration_summary") || cashPrice },
+    ]),
+  };
+}
+
+function tenderSnapshot(
+  title: string,
+  items: ListingFinancialRiskSnapshotData["items"],
+): ListingFinancialRiskSnapshotData | null {
+  const cleaned = items
+    .map((item) => ({
+      label: cleanDisclosureValue(item.label),
+      value: cleanDisclosureValue(item.value),
+      ...(item.note && cleanDisclosureValue(item.note)
+        ? { note: cleanDisclosureValue(item.note) }
+        : {}),
+    }))
+    .filter((item) => isDisclosedValue(item.label) && isDisclosedValue(item.value));
+  return cleaned.length === 4 ? { items: cleaned, title } : null;
+}
+
+function tenderTerms(terms: TenderOfferTerm[]) {
+  return terms
+    .map((term) => ({
+      label: cleanDisclosureValue(term.label),
+      value: cleanDisclosureValue(term.value),
+      ...(term.note && cleanDisclosureValue(term.note)
+        ? { note: cleanDisclosureValue(term.note) }
+        : {}),
+    }))
+    .filter((term) => isDisclosedValue(term.label) && isDisclosedValue(term.value));
+}
+
+function formatTenderCashPrice(value: unknown) {
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return "";
+  return new Intl.NumberFormat("en-US", {
+    currency: "USD",
+    minimumFractionDigits: 2,
+    style: "currency",
+  }).format(numeric);
+}
+
+function formatTenderMoney(value: unknown) {
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return "";
+  return new Intl.NumberFormat("en-US", {
+    currency: "USD",
+    maximumFractionDigits: 1,
+    notation: "compact",
+    style: "currency",
+  }).format(numeric);
+}
+
+function formatTenderQuantity(value: unknown, suffix = "") {
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return "";
+  const formatted = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(numeric);
+  return suffix ? `${formatted} ${suffix}` : formatted;
+}
+
+function formatTenderPercent(value: unknown) {
+  const numeric = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(numeric) && numeric >= 0 ? `${numeric}%` : "";
+}
+
+function formatTenderDate(value: string) {
+  return value ? formatOwnershipDate(value) : "";
+}
+
+function tenderBoolean(value: unknown) {
+  return value === true || String(value || "").toLowerCase() === "true";
+}
+
+function formatTenderStoredLabel(value: string) {
+  return value
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function readStoredGovernanceEvent(
+  eventMetadata: Record<string, unknown> | null,
+  analysisMetadata: Record<string, unknown> | null,
+): GovernanceEventData | null {
+  const displayPayload =
+    toRecord(eventMetadata?.display_payload) ||
+    toRecord(analysisMetadata?.display_payload);
+  if (readRowString(displayPayload, "display_type") !== "governance_event") return null;
+
+  const data = toRecord(displayPayload?.data);
+  const mode = readGovernanceEventMode(readRowString(data, "governance_mode"));
+  if (!data || !mode) return null;
+
+  const snapshotItems = readStoredSnapshotItems(data.snapshot_metrics)
+    .filter((item) => cleanDisclosureValue(item.label) && cleanDisclosureValue(item.value))
+    .slice(0, 4);
+  const changes = readStoredGovernanceChanges(data.key_changes).slice(0, 4);
+
+  if (snapshotItems.length !== 4 || !changes.length) return null;
+
+  return {
+    changes,
+    changesTitle: mode === "vote_result" ? "Vote Results" : "Key Changes",
+    mode,
+    snapshot: {
+      items: snapshotItems,
+      title: firstStoredValue([
+        readRowString(data, "snapshot_title"),
+        readRowString(data, "title"),
+      ]) || governanceSnapshotTitle(mode),
+    },
+  };
+}
+
+function readGovernanceEventMode(value: string): GovernanceEventMode | null {
+  return value === "leadership_change" ||
+    value === "auditor_change" ||
+    value === "vote_result" ||
+    value === "governance_change" ||
+    value === "mixed"
+    ? value
+    : null;
+}
+
+function governanceSnapshotTitle(mode: GovernanceEventMode) {
+  if (mode === "auditor_change") return "Auditor Change";
+  if (mode === "leadership_change") return "Leadership Change";
+  if (mode === "vote_result") return "Vote Result";
+  if (mode === "governance_change") return "Governance Change";
+  return "Governance Event";
+}
+
+function readStoredGovernanceChanges(value: unknown): GovernanceEventChange[] {
+  return recordArray(value)
+    .map((item): GovernanceEventChange | null => {
+      const category = readRowString(item, "category");
+      const title = readRowString(item, "title");
+      if (!category || !title) return null;
+
+      const details = recordArray(item.details)
+        .map((detail) => {
+          const label = readRowString(detail, "label");
+          const detailValue = readRowString(detail, "value");
+          if (!label || !detailValue) return null;
+          const note = readRowString(detail, "note");
+          return {
+            label,
+            value: detailValue,
+            ...(note ? { note } : {}),
+          };
+        })
+        .filter((detail): detail is GovernanceEventChange["details"][number] => Boolean(detail))
+        .slice(0, 3);
+
+      return {
+        category,
+        details,
+        explanation: readRowString(item, "explanation"),
+        title,
+      };
+    })
+    .filter((change): change is GovernanceEventChange => Boolean(change));
+}
+
+function readStoredOperatingEvent(
+  eventMetadata: Record<string, unknown> | null,
+  analysisMetadata: Record<string, unknown> | null,
+): OperatingLegalRoutineData | null {
+  const displayPayload =
+    toRecord(eventMetadata?.display_payload) ||
+    toRecord(analysisMetadata?.display_payload);
+  if (readRowString(displayPayload, "display_type") !== "operating_event") return null;
+
+  const data = toRecord(displayPayload?.data);
+  const mode = readOperatingEventMode(readRowString(data, "operating_mode"));
+  if (!data || !mode || mode === "routine_archive") return null;
+
+  const regulatoryStage = readOperatingRegulatoryStage(
+    readRowString(data, "regulatory_stage"),
+  );
+  const snapshotItems = readStoredSnapshotItems(data.snapshot_metrics)
+    .filter((item) => cleanDisclosureValue(item.label) && cleanDisclosureValue(item.value))
+    .slice(0, 4);
+  const performanceComparisons = readStoredOperatingComparisons(
+    data.performance_comparisons,
+  );
+  const guidanceMetrics = readStoredOperatingGuidance(data.guidance_metrics);
+  const promotedGuidance = new Set<OperatingGuidanceMetric>();
+
+  if (mode === "operating_update" && snapshotItems.length < 4) {
+    for (const guidance of guidanceMetrics) {
+      if (snapshotItems.length >= 4) break;
+      const normalizedValue = guidance.guidanceValue.trim().toLowerCase();
+      if (snapshotItems.some((item) => item.value.trim().toLowerCase() === normalizedValue)) {
+        continue;
+      }
+      snapshotItems.push({
+        label: `${guidance.guidanceLabel} Guidance`,
+        value: guidance.guidanceValue,
+        note: guidance.label,
+      });
+      promotedGuidance.add(guidance);
+    }
+  }
+
+  if (snapshotItems.length !== 4) return null;
+
+  return {
+    businessUpdates: readStoredOperatingBusinessUpdates(data),
+    detailSections: mode === "earnings" ? [] : readStoredOperatingDetailSections(data.detail_sections),
+    guidanceMetrics: guidanceMetrics.filter((item) => !promotedGuidance.has(item)),
+    mode,
+    performanceComparisons,
+    regulatoryStage,
+    secondaryUpdates: readStoredOperatingSecondaryUpdates(data.secondary_updates),
+    snapshot: {
+      items: snapshotItems,
+      title:
+        readRowString(data, "snapshot_title") ||
+        operatingSnapshotTitle(mode),
+    },
+  };
+}
+
+function readOperatingEventMode(value: string): OperatingEventMode | "routine_archive" | null {
+  return value === "earnings" ||
+    value === "operating_update" ||
+    value === "product_or_regulatory" ||
+    value === "legal_or_accounting" ||
+    value === "routine_archive"
+    ? value
+    : null;
+}
+
+function readOperatingRegulatoryStage(value: string): OperatingRegulatoryStage {
+  return value === "ind_or_clinical_hold" ||
+    value === "application_review" ||
+    value === "advisory_committee" ||
+    value === "approval" ||
+    value === "crl_or_appeal" ||
+    value === "clinical_update" ||
+    value === "other_regulatory"
+    ? value
+    : "not_applicable";
+}
+
+function operatingSnapshotTitle(mode: OperatingEventMode) {
+  if (mode === "earnings") return "Earnings Snapshot";
+  if (mode === "operating_update") return "Operating Snapshot";
+  if (mode === "product_or_regulatory") return "Product / Regulatory Snapshot";
+  return "Legal / Accounting Snapshot";
+}
+
+function readStoredOperatingComparisons(value: unknown): OperatingPerformanceComparison[] {
+  return recordArray(value)
+    .map((item): OperatingPerformanceComparison | null => {
+      const label = readRowString(item, "label");
+      const currentLabel = readRowString(item, "current_label");
+      const currentValue = readRowString(item, "current_value");
+      const currentNumeric = readOptionalStoredNumber(item, "current_numeric");
+      const comparisonLabel = readRowString(item, "comparison_label");
+      const comparisonValue = readRowString(item, "comparison_value");
+      const comparisonNumeric = readOptionalStoredNumber(item, "comparison_numeric");
+      if (
+        !label ||
+        !currentLabel ||
+        !currentValue ||
+        currentNumeric === null ||
+        !comparisonLabel ||
+        !comparisonValue ||
+        comparisonNumeric === null
+      ) {
+        return null;
+      }
+
+      return {
+        changeNote: readRowString(item, "change_note") || undefined,
+        comparisonBasis: inferOperatingComparisonBasis(
+          readRowString(item, "comparison_basis"),
+          currentLabel,
+          comparisonLabel,
+        ),
+        comparisonLabel,
+        comparisonNumeric,
+        comparisonValue,
+        currentLabel,
+        currentNumeric,
+        currentValue,
+        label,
+      };
+    })
+    .filter((item): item is OperatingPerformanceComparison => Boolean(item))
+    .slice(0, 3);
+}
+
+function readStoredOperatingGuidance(value: unknown): OperatingGuidanceMetric[] {
+  return recordArray(value)
+    .map((item): OperatingGuidanceMetric | null => {
+      const label = readRowString(item, "label");
+      const guidanceLabel = readRowString(item, "guidance_label");
+      const guidanceValue = readRowString(item, "guidance_value");
+      if (!label || !guidanceLabel || !guidanceValue) return null;
+
+      const relationship = readRowString(item, "performance_relationship");
+      const performanceRelationship =
+        relationship === "same_basis" ||
+        relationship === "related_different_basis" ||
+        relationship === "standalone"
+          ? relationship
+          : "standalone";
+
+      return {
+        guidanceLabel,
+        guidanceValue,
+        label,
+        note: readRowString(item, "note") || undefined,
+        performanceLabel: readRowString(item, "performance_label") || undefined,
+        performanceRelationship,
+      };
+    })
+    .filter((item): item is OperatingGuidanceMetric => Boolean(item))
+    .slice(0, 3);
+}
+
+function readStoredOperatingBusinessUpdates(
+  data: Record<string, unknown>,
+): OperatingBusinessUpdate[] {
+  const modern = recordArray(data.business_catalysts)
+    .map((item): OperatingBusinessUpdate | null => {
+      const title = readRowString(item, "title");
+      const summary = readRowString(item, "summary");
+      if (!title || !summary) return null;
+      return {
+        summary,
+        title,
+        value: readRowString(item, "value") || undefined,
+      };
+    })
+    .filter((item): item is OperatingBusinessUpdate => Boolean(item));
+  if (modern.length) return modern.slice(0, 3);
+
+  const legacyMetrics = readStoredSnapshotItems(data.operating_metrics).map((item) => ({
+    summary: item.note || `${item.label}: ${item.value}.`,
+    title: item.label,
+    value: item.value,
+  }));
+  const legacyHighlights = recordArray(data.business_highlights)
+    .map((item): OperatingBusinessUpdate | null => {
+      const title = readRowString(item, "title");
+      const summary = readRowString(item, "summary");
+      return title && summary ? { summary, title } : null;
+    })
+    .filter((item): item is OperatingBusinessUpdate => Boolean(item));
+
+  return [...legacyMetrics, ...legacyHighlights].slice(0, 3);
+}
+
+function readStoredOperatingDetailSections(value: unknown): OperatingDetailSection[] {
+  return recordArray(value)
+    .map((section): OperatingDetailSection | null => {
+      const title = readRowString(section, "title");
+      const rows = readStoredSnapshotItems(section.rows).slice(0, 5);
+      return title && rows.length ? { rows, title } : null;
+    })
+    .filter((section): section is OperatingDetailSection => Boolean(section))
+    .slice(0, 2);
+}
+
+function readStoredOperatingSecondaryUpdates(value: unknown): OperatingSecondaryUpdate[] {
+  return recordArray(value)
+    .map((item): OperatingSecondaryUpdate | null => {
+      const label = readRowString(item, "label");
+      const title = readRowString(item, "title");
+      const summary = readRowString(item, "summary");
+      return label && title && summary ? { label, summary, title } : null;
+    })
+    .filter((item): item is OperatingSecondaryUpdate => Boolean(item))
+    .slice(0, 1);
+}
+
+function readStoredPeriodicReport(
+  eventMetadata: Record<string, unknown> | null,
+  analysisMetadata: Record<string, unknown> | null,
+): PeriodicReportData | null {
+  const displayPayload =
+    toRecord(eventMetadata?.display_payload) ||
+    toRecord(analysisMetadata?.display_payload);
+  const displayType = readRowString(displayPayload, "display_type");
+  if (displayType !== "periodic_report" && displayType !== "periodic_amendment") {
+    return null;
+  }
+
+  const data = toRecord(displayPayload?.data);
+  if (!data) return null;
+
+  const snapshotItems = readStoredSnapshotItems(data.snapshot_metrics)
+    .filter((item) => cleanDisclosureValue(item.label) && cleanDisclosureValue(item.value))
+    .slice(0, 4);
+  if (snapshotItems.length !== 4) return null;
+
+  const formType = readRowString(data, "form_type");
+  const snapshot = {
+    items: snapshotItems,
+    title:
+      readRowString(data, "snapshot_title") ||
+      periodicSnapshotTitle(formType, displayType === "periodic_amendment"),
+  };
+
+  if (displayType === "periodic_amendment") {
+    const changes = readStoredPeriodicAmendmentChanges(data);
+    if (!changes.length) return null;
+    return { changes, mode: "amendment", snapshot };
+  }
+
+  const performanceComparisons = readStoredOperatingComparisons(
+    data.performance_comparisons,
+  );
+  const guidanceMetrics = readStoredOperatingGuidance(data.guidance_metrics);
+  const businessUpdates = readStoredPeriodicBusinessUpdates(data.key_business_updates);
+  if (!performanceComparisons.length && !guidanceMetrics.length && !businessUpdates.length) {
+    return null;
+  }
+
+  return {
+    businessUpdates,
+    guidanceMetrics,
+    mode: "report",
+    performanceComparisons,
+    snapshot,
+  };
+}
+
+function periodicSnapshotTitle(formType: string, isAmendment: boolean) {
+  if (isAmendment) return "Report Amendment Snapshot";
+  const normalized = formType.toUpperCase();
+  if (normalized.startsWith("10-Q")) return "Quarterly Report Snapshot";
+  if (normalized.startsWith("20-F")) return "Annual Report Snapshot";
+  return "Annual Report Snapshot";
+}
+
+function readStoredPeriodicBusinessUpdates(value: unknown): OperatingBusinessUpdate[] {
+  return recordArray(value)
+    .map((item): OperatingBusinessUpdate | null => {
+      const title = readRowString(item, "title");
+      const summary = readRowString(item, "summary");
+      if (!title || !summary) return null;
+      return {
+        summary,
+        title,
+        value: readRowString(item, "value") || undefined,
+      };
+    })
+    .filter((item): item is OperatingBusinessUpdate => Boolean(item))
+    .slice(0, 3);
+}
+
+function readStoredPeriodicAmendmentChanges(
+  data: Record<string, unknown>,
+): PeriodicAmendmentChange[] {
+  const changes = recordArray(data.change_details)
+    .map((item): PeriodicAmendmentChange | null => {
+      const title = readRowString(item, "title");
+      const value = readRowString(item, "value");
+      if (!title || !value) return null;
+      return {
+        note: readRowString(item, "note") || undefined,
+        title,
+        value,
+      };
+    })
+    .filter((item): item is PeriodicAmendmentChange => Boolean(item));
+  if (changes.length) return changes.slice(0, 4);
+
+  return recordArray(data.changed_metrics)
+    .map((item): PeriodicAmendmentChange | null => {
+      const title = readRowString(item, "label") || readRowString(item, "title");
+      const before = readRowString(item, "before") || readRowString(item, "previous_value");
+      const after = readRowString(item, "after") || readRowString(item, "current_value");
+      if (!title || (!before && !after)) return null;
+      return {
+        note: readRowString(item, "note") || undefined,
+        title,
+        value: [before, after].filter(Boolean).join(" to "),
+      };
+    })
+    .filter((item): item is PeriodicAmendmentChange => Boolean(item))
+    .slice(0, 4);
+}
+
+const S8_MODES: readonly S8Mode[] = [
+  "plan_registration",
+  "inducement_awards",
+  "reoffer_resale",
+  "post_effective_amendment",
+];
+
+const S8_CONTEXT_LABELS = new Set([
+  "Parent filing",
+  "Parent plan shares",
+  "Reoffer subset",
+  "Relationship",
+  "Company proceeds",
+  "Selling holders",
+  "What changed",
+  "What did not change",
+]);
+
+function readStoredS8(
+  eventMetadata: Record<string, unknown> | null,
+  analysisMetadata: Record<string, unknown> | null,
+  formType: string,
+): S8Data | null {
+  if (!/^S-8(?:\s+POS|\/A)?$/i.test(formType.trim())) return null;
+
+  const displayPayloadCandidates = [
+    toRecord(eventMetadata?.display_payload),
+    toRecord(analysisMetadata?.display_payload),
+    toRecord(eventMetadata?.displayPayload),
+    toRecord(analysisMetadata?.displayPayload),
+  ].filter((candidate): candidate is Record<string, unknown> => Boolean(candidate));
+
+  const displayPayload = displayPayloadCandidates.find((candidate) => {
+    const data = toRecord(candidate.data) || candidate;
+    return Boolean(readRowString(data, "s8_ui_mode") || readRowString(data, "s8UiMode"));
+  });
+  if (!displayPayload) return null;
+
+  const data = toRecord(displayPayload.data) || displayPayload;
+  const storedMode = readRowString(data, "s8_ui_mode") || readRowString(data, "s8UiMode");
+  if (!S8_MODES.includes(storedMode as S8Mode)) return null;
+  const mode = storedMode as S8Mode;
+
+  const snapshotItems = [
+    data.snapshot_metrics,
+    data.snapshotMetrics,
+    data.snapshot,
+    eventMetadata?.snapshot_metrics,
+    analysisMetadata?.snapshot_metrics,
+  ]
+    .map((candidate) => readStoredSnapshotItems(candidate))
+    .find((items) => items.length === 4) || buildStoredS8FlatSnapshotItems(data, mode);
+  if (!snapshotItems) return null;
+
+  const details = readStoredS8ContextDetails(data);
+  const fallbackDetails = details.length ? details : buildStoredS8DetailRows(data, mode);
+  if (!fallbackDetails.length) return null;
+
+  return {
+    details: fallbackDetails.slice(0, 6),
+    detailsTitle: s8DetailsTitle(mode),
+    mode,
+    snapshot: {
+      items: snapshotItems,
+      title: s8SnapshotTitle(mode),
+    },
+  };
+}
+
+function buildStoredS8FlatSnapshotItems(
+  data: Record<string, unknown>,
+  mode: S8Mode,
+): ListingFinancialRiskSnapshotData["items"] | null {
+  if (mode !== "inducement_awards") return null;
+
+  const currentShares = firstStoredValue([
+    readStoredScalar(data.current_shares_outstanding),
+    readStoredScalar(data.currentSharesOutstanding),
+  ]);
+  const planShares = firstStoredValue([
+    readStoredScalar(data.plan_registered_shares),
+    readStoredScalar(data.planRegisteredShares),
+  ]);
+  const inducementShares = firstStoredValue([
+    readStoredScalar(data.inducement_award_shares),
+    readStoredScalar(data.inducementAwardShares),
+  ]);
+  const totalShares = firstStoredValue([
+    readStoredScalar(data.total_registered_shares),
+    readStoredScalar(data.totalRegisteredShares),
+  ]);
+  const dilutionPercent = firstStoredValue([
+    readStoredScalar(data.estimated_dilution_percent),
+    readStoredScalar(data.estimatedDilutionPercent),
+  ]);
+
+  if (!currentShares || !planShares || !inducementShares || !totalShares) return null;
+
+  return [
+    { label: "Shares Outstanding", value: formatStoredShareCount(currentShares) },
+    { label: "Plan Shares", value: formatStoredShareCount(planShares) },
+    { label: "Inducement Shares", value: formatStoredShareCount(inducementShares) },
+    {
+      label: "Total Registered",
+      value: formatStoredShareCount(totalShares),
+      ...(dilutionPercent
+        ? { note: `Estimated dilution: ${formatStoredPercent(dilutionPercent)}` }
+        : {}),
+    },
+  ];
+}
+
+function isS8FormType(formType: string) {
+  const normalized = formType.trim().toUpperCase().replace(/\s+/g, " ");
+  return normalized === "S-8" || normalized === "S-8/A" || normalized === "S-8 POS";
+}
+
+function readStoredS8ContextDetails(data: Record<string, unknown>): S8DetailRow[] {
+  return recordArray(data.s8_context_details || data.s8ContextDetails)
+    .map((row): S8DetailRow | null => {
+      const label = readRowString(row, "label");
+      const value = firstStoredValue([
+        readRowString(row, "value"),
+        readRowString(row, "status"),
+      ]);
+      if (!S8_CONTEXT_LABELS.has(label) || !value) return null;
+      const note = firstStoredValue([
+        readRowString(row, "note"),
+        readRowString(row, "detail"),
+      ]);
+      return { label, value, ...(note ? { note } : {}) };
+    })
+    .filter((row): row is S8DetailRow => Boolean(row));
+}
+
+function buildStoredS8DetailRows(data: Record<string, unknown>, mode: S8Mode) {
+  const row = (label: string, keys: string[], noteKeys: string[] = []): S8DetailRow | null => {
+    const value = firstStoredValue(keys.map((key) => readStoredScalar(data[key])));
+    if (!value) return null;
+    const note = firstStoredValue(noteKeys.map((key) => readStoredScalar(data[key])));
+    return { label, value, ...(note ? { note } : {}) };
+  };
+
+  const rowsByMode: Record<S8Mode, Array<S8DetailRow | null>> = {
+    plan_registration: [
+      row("Plan Name", ["plan_name", "planName"]),
+      row("Plan Type", ["plan_type", "planType"]),
+      row("Registered Plan Shares", ["plan_registered_shares", "planRegisteredShares", "registered_shares", "registeredShares"]),
+      row("Total Registered", ["total_registered_shares", "totalRegisteredShares"]),
+    ],
+    inducement_awards: [
+      row("Plan Shares", ["plan_registered_shares", "planRegisteredShares"]),
+      row("Inducement Shares", ["inducement_award_shares", "inducementAwardShares", "inducement_award_total_shares", "inducementAwardTotalShares"]),
+      row("Total Registered", ["total_registered_shares", "totalRegisteredShares", "registered_shares", "registeredShares"]),
+      row("Award Type", ["award_type", "awardType"]),
+      row("Grant Date", ["grant_date", "grantDate"]),
+      row("Recipient Count", ["recipient_count", "recipientCount"]),
+    ],
+    reoffer_resale: [
+      row("Parent Plan Shares", ["parent_plan_shares", "parentPlanShares", "parent_registered_shares", "parentRegisteredShares"]),
+      row("Reoffer Subset", ["reoffer_resale_shares", "reofferResaleShares", "reoffer_shares", "reofferShares"]),
+      row("Relationship", ["relationship"]),
+      row("Company Proceeds", ["company_proceeds", "companyProceeds"]),
+      row("Selling Holders", ["selling_holder_count", "sellingHolderCount", "selling_holders", "sellingHolders"]),
+    ],
+    post_effective_amendment: [
+      row("Amendment Status", ["amendment_status", "amendmentStatus", "amendment_type", "amendmentType"]),
+      row("Additional Shares", ["additional_shares", "additionalShares"]),
+      row("Prior Shares Carried Forward", ["prior_shares_carried_forward", "priorSharesCarriedForward", "parent_registered_shares", "parentRegisteredShares"]),
+      row("Remaining Plan Shares Removed", ["remaining_plan_shares_removed", "remainingPlanSharesRemoved"]),
+      row("What Changed", ["what_changed", "whatChanged"]),
+      row("What Did Not Change", ["what_did_not_change", "whatDidNotChange"]),
+    ],
+  };
+
+  return rowsByMode[mode].filter((item): item is S8DetailRow => Boolean(item));
+}
+
+function s8SnapshotTitle(mode: S8Mode) {
+  if (mode === "plan_registration") return "Equity Plan Snapshot";
+  if (mode === "inducement_awards") return "Inducement Award Snapshot";
+  if (mode === "reoffer_resale") return "Reoffer Resale Snapshot";
+  return "Plan Amendment Snapshot";
+}
+
+function s8DetailsTitle(mode: S8Mode) {
+  if (mode === "plan_registration") return "Plan Registration Details";
+  if (mode === "inducement_awards") return "Inducement Award Details";
+  if (mode === "reoffer_resale") return "Reoffer / Resale Details";
+  return "Amendment Details";
+}
+
+function readOptionalStoredNumber(
+  row: Record<string, unknown> | null | undefined,
+  key: string,
 ) {
-  const source = items
+  const value = row?.[key];
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) {
+    return Number(value);
+  }
+  return null;
+}
+
+function inferOperatingComparisonBasis(
+  supplied: string,
+  currentLabel: string,
+  comparisonLabel: string,
+): OperatingPerformanceComparison["comparisonBasis"] {
+  const currentQuarter = parseOperatingQuarterLabel(currentLabel);
+  const comparisonQuarter = parseOperatingQuarterLabel(comparisonLabel);
+  if (currentQuarter && comparisonQuarter) {
+    if (
+      currentQuarter.quarter === comparisonQuarter.quarter &&
+      currentQuarter.year === comparisonQuarter.year + 1
+    ) {
+      return "yoy";
+    }
+    const currentSequence = currentQuarter.year * 4 + currentQuarter.quarter;
+    const comparisonSequence = comparisonQuarter.year * 4 + comparisonQuarter.quarter;
+    return currentSequence === comparisonSequence + 1 ? "qoq" : "other";
+  }
+
+  const currentYear = parseOperatingFiscalYearLabel(currentLabel);
+  const comparisonYear = parseOperatingFiscalYearLabel(comparisonLabel);
+  if (currentYear !== null && comparisonYear !== null) {
+    return currentYear === comparisonYear + 1 ? "yoy" : "other";
+  }
+  return supplied === "yoy" || supplied === "qoq" ? supplied : "other";
+}
+
+function parseOperatingQuarterLabel(label: string) {
+  const normalized = label.toLowerCase().replace(/[’']/g, "").replace(/\s+/g, " ").trim();
+  const match =
+    normalized.match(/\bq([1-4])\s*(?:fy\s*)?(\d{2,4})\b/) ||
+    normalized.match(/\b([1-4])q\s*(?:fy\s*)?(\d{2,4})\b/);
+  if (!match) return null;
+  const year = Number(match[2]);
+  return { quarter: Number(match[1]), year: year < 100 ? 2000 + year : year };
+}
+
+function parseOperatingFiscalYearLabel(label: string) {
+  const match = label
+    .toLowerCase()
+    .replace(/[’']/g, "")
+    .match(/\b(?:fy|fiscal year|full year)\s*(\d{2,4})\b/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  return year < 100 ? 2000 + year : year;
+}
+
+function readStoredListingFinancialRiskSnapshot(
+  eventType: string,
+  eventMetadata: Record<string, unknown> | null,
+  analysisMetadata: Record<string, unknown> | null,
+): ListingFinancialRiskSnapshotData | null {
+  if (eventType !== "listing_risk" && eventType !== "financial_risk") return null;
+
+  const displayPayload = toRecord(eventMetadata?.display_payload);
+  const displayData = toRecord(displayPayload?.data);
+  const candidates = [
+    analysisMetadata?.listing_status_snapshot,
+    analysisMetadata?.financial_risk_snapshot,
+    analysisMetadata?.restatement_status_snapshot,
+    analysisMetadata?.risk_status_snapshot,
+    analysisMetadata?.status_snapshot,
+    eventMetadata?.listing_status_snapshot,
+    eventMetadata?.financial_risk_snapshot,
+    eventMetadata?.restatement_status_snapshot,
+    eventMetadata?.risk_status_snapshot,
+    eventMetadata?.status_snapshot,
+    displayData?.listing_status_snapshot,
+    displayData?.financial_risk_snapshot,
+    displayData?.restatement_status_snapshot,
+    displayData?.risk_status_snapshot,
+    displayData?.status_snapshot,
+  ];
+  let storedSnapshot: unknown;
+  let items: ListingFinancialRiskSnapshotItem[] = [];
+
+  for (const candidate of candidates) {
+    const candidateItems = readStoredSnapshotItems(candidate);
+    if (!candidateItems.length) continue;
+    storedSnapshot = candidate;
+    items = candidateItems;
+    break;
+  }
+
+  if (!items.length) return null;
+
+  const snapshotRecord = toRecord(storedSnapshot);
+  const explicitTitle = firstStoredValue([
+    readRowString(snapshotRecord, "title"),
+    readRowString(snapshotRecord, "heading"),
+    readRowString(analysisMetadata, "listing_status_snapshot_title"),
+    readRowString(analysisMetadata, "financial_risk_snapshot_title"),
+    readRowString(analysisMetadata, "restatement_status_snapshot_title"),
+    readRowString(analysisMetadata, "risk_status_snapshot_title"),
+    readRowString(analysisMetadata, "status_snapshot_title"),
+    readRowString(eventMetadata, "listing_status_snapshot_title"),
+    readRowString(eventMetadata, "financial_risk_snapshot_title"),
+    readRowString(eventMetadata, "restatement_status_snapshot_title"),
+    readRowString(eventMetadata, "risk_status_snapshot_title"),
+    readRowString(eventMetadata, "status_snapshot_title"),
+    readRowString(displayData, "snapshot_title"),
+  ]);
+
+  return {
+    items,
+    title: explicitTitle || inferStoredSnapshotTitle(items),
+  };
+}
+
+function readStoredNtLateFilingSnapshot(
+  eventMetadata: Record<string, unknown> | null,
+  analysisMetadata: Record<string, unknown> | null,
+  formType: string,
+): ListingFinancialRiskSnapshotData | null {
+  const normalizedForm = formType.trim().toUpperCase();
+  if (!normalizedForm.startsWith("NT ") || normalizedForm.endsWith("/A")) return null;
+
+  const displayPayload =
+    toRecord(eventMetadata?.display_payload) ||
+    toRecord(analysisMetadata?.display_payload);
+  const displayType = readRowString(displayPayload, "display_type");
+  const displayVersion = readRowString(displayPayload, "display_version");
+  if (displayType !== "nt_late_filing" && displayVersion !== "nt_late_filing_v1") {
+    return null;
+  }
+
+  const data = toRecord(displayPayload?.data);
+  if (!data) return null;
+
+  const delayedReport = cleanNtSnapshotValue(
+    readRowString(data, "delayed_report") || normalizedForm.replace(/^NT\s+/, ""),
+  );
+  const periodOfReport = formatNtSnapshotDate(readRowString(data, "period_of_report"));
+  const anticipatedWithinExtension = data.anticipated_within_extension;
+  const extensionDays = readOptionalNumber(data.extension_days);
+  const filingTiming = formatNtFilingTiming(
+    readRowString(data, "delay_status"),
+    typeof anticipatedWithinExtension === "boolean"
+      ? anticipatedWithinExtension
+      : null,
+  );
+  const reasonForDelay = firstConciseNtValue([
+    readRowString(data, "reason_for_delay_value"),
+    readRowString(data, "underlying_issue"),
+    readRowString(data, "late_filing_reason"),
+  ], 180);
+  const expectedResultsImpact = formatNtResultsImpact(
+    firstConciseNtValue([
+      readRowString(data, "expected_results_impact_value"),
+      readRowString(data, "results_change"),
+    ], 160),
+    data.significant_change_expected,
+  );
+  const reliabilityRisk = formatNtReliabilityNote(
+    readRowString(data, "financial_reliability_risk"),
+  );
+
+  const items: ListingFinancialRiskSnapshotItem[] = [
+    {
+      label: "Delayed Report",
+      value: delayedReport,
+      ...(periodOfReport ? { note: `Period ended ${periodOfReport}` } : {}),
+    },
+    {
+      label: "Filing Timing",
+      value: filingTiming,
+      ...(anticipatedWithinExtension === true && extensionDays
+        ? { note: `${extensionDays}-day extension window` }
+        : {}),
+    },
+    {
+      label: "Reason for Delay",
+      value: reasonForDelay,
+      ...(firstConciseNtValue([readRowString(data, "reason_for_delay_note")], 120)
+        ? { note: firstConciseNtValue([readRowString(data, "reason_for_delay_note")], 120) }
+        : {}),
+    },
+    {
+      label: "Expected Results Impact",
+      value: expectedResultsImpact,
+      ...(firstConciseNtValue([readRowString(data, "expected_results_impact_note")], 120) || reliabilityRisk
+        ? {
+            note:
+              firstConciseNtValue([readRowString(data, "expected_results_impact_note")], 120) ||
+              reliabilityRisk,
+          }
+        : {}),
+    },
+  ].filter((item) => item.value && !isNtSnapshotPlaceholder(item.value));
+
+  if (items.length !== 4) return null;
+
+  return {
+    title: "Late Filing Snapshot",
+    items,
+  };
+}
+
+function formatNtFilingTiming(value: string, anticipatedWithinExtension: boolean | null) {
+  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (/within_extension|extension_expected|expected_within/.test(normalized)) {
+    return "Expected within extension";
+  }
+  if (/outside_extension|extension_missed|not_expected_within/.test(normalized)) {
+    return "Extension window at risk";
+  }
+  if (/filed|completed/.test(normalized)) return "Report filed";
+  if (anticipatedWithinExtension === true) return "Expected within extension";
+  if (anticipatedWithinExtension === false) return "Extension timing at risk";
+  return cleanNtSnapshotValue(value);
+}
+
+function formatNtResultsImpact(value: string, significantChangeExpected: unknown) {
+  const normalized = value.trim().toLowerCase().replace(/[\s_-]+/g, " ");
+  if (/^(?:none|none disclosed|no significant change|unchanged)$/.test(normalized)) {
+    return "No significant change disclosed";
+  }
+  if (value) return cleanNtSnapshotValue(value);
+  if (significantChangeExpected === true) return "Significant change expected";
+  if (significantChangeExpected === false) return "No significant change disclosed";
+  return "";
+}
+
+function formatNtReliabilityNote(value: string) {
+  const normalized = value.trim().toLowerCase().replace(/[\s_-]+/g, " ");
+  if (!normalized || /^(?:none|none disclosed|not disclosed|unknown)$/.test(normalized)) {
+    return "";
+  }
+  return normalized === "explicit"
+    ? "Financial reporting risk disclosed"
+    : cleanNtSnapshotValue(value);
+}
+
+function firstConciseNtValue(values: string[], maxLength: number) {
+  for (const value of values) {
+    const cleaned = cleanNtSnapshotValue(value);
+    if (cleaned && !isNtSnapshotPlaceholder(cleaned) && cleaned.length <= maxLength) {
+      return cleaned;
+    }
+  }
+  return "";
+}
+
+function cleanNtSnapshotValue(value: string) {
+  const normalized = value.replace(/_/g, " ").replace(/\s+/g, " ").trim();
+  if (!normalized) return "";
+  return /^[a-z]/.test(normalized)
+    ? `${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`
+    : normalized;
+}
+
+function isNtSnapshotPlaceholder(value: string) {
+  return /^(?:not disclosed|not stated|unknown|n\/?a|none|-|—)$/i.test(value.trim());
+}
+
+function formatNtSnapshotDate(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!match) return value.trim();
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  return new Intl.DateTimeFormat("en-US", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+    year: "numeric",
+  }).format(date);
+}
+
+function readStoredForm425TransactionSnapshot(
+  eventMetadata: Record<string, unknown> | null,
+  analysisMetadata: Record<string, unknown> | null,
+  formType: string,
+  deliveryLevel: FilingEvent["deliveryLevel"],
+): StrategicTransactionSnapshotData | null {
+  if (deliveryLevel === "archive" || formType.trim().toUpperCase() !== "425") {
+    return null;
+  }
+
+  const displayPayload =
+    toRecord(eventMetadata?.display_payload) ||
+    toRecord(analysisMetadata?.display_payload);
+  const data = toRecord(displayPayload?.data);
+  const storedSnapshot = toRecord(data?.analysis_snapshot);
+  if (!storedSnapshot) return null;
+
+  const items = readStoredSnapshotItems(storedSnapshot)
+    .filter((item) => cleanDisclosureValue(item.label) && cleanDisclosureValue(item.value))
+    .slice(0, 4);
+  const title = firstStoredValue([
+    readRowString(storedSnapshot, "title"),
+    readRowString(data, "snapshot_title"),
+  ]);
+
+  if (!title || items.length !== 4) return null;
+
+  return { items, title };
+}
+
+function readStoredForm25ListingStatus(
+  eventMetadata: Record<string, unknown> | null,
+  analysisMetadata: Record<string, unknown> | null,
+  formType: string,
+): Form25ListingStatusData | null {
+  const displayPayload =
+    toRecord(eventMetadata?.display_payload) ||
+    toRecord(analysisMetadata?.display_payload);
+  const displayType = readRowString(displayPayload, "display_type");
+  const normalizedForm = formType.trim().toUpperCase();
+  const isForm25 =
+    normalizedForm === "25" ||
+    normalizedForm === "25/A" ||
+    normalizedForm === "25-NSE" ||
+    normalizedForm === "25-NSE/A" ||
+    normalizedForm === "FORM 25" ||
+    normalizedForm === "FORM 25-NSE";
+
+  if (displayType !== "sec_form25_listing_removal" && !isForm25) return null;
+
+  const data = toRecord(displayPayload?.data);
+  if (!data) return null;
+
+  const removedSecurity = readRowString(data, "removed_security");
+  const exchange = readRowString(data, "exchange");
+  const removalReason = firstStoredValue([
+    readRowString(data, "removal_reason"),
+    readRowString(data, "removal_reason_text"),
+  ]);
+  const ruleProvision = formatForm25RuleProvision(readRowString(data, "rule_provision"));
+  const removalBasis = removalReason || ruleProvision;
+  const filingDate = readRowString(data, "filing_date");
+  const removalDate = readRowString(data, "delisting_or_removal_date");
+  const effectivenessDate = readRowString(data, "effectiveness_date");
+  const effectiveDate = firstStoredValue([
+    removalDate,
+    effectivenessDate && normalizeStoredDate(effectivenessDate) !== normalizeStoredDate(filingDate)
+      ? effectivenessDate
+      : "",
+  ]);
+  const displayedDate = effectiveDate || filingDate;
+
+  if (!removedSecurity || !exchange || !removalBasis || !displayedDate) return null;
+
+  const continuedVenue = readRowString(data, "continued_listing_or_trading_venue");
+  const tradingSuspensionDate = readRowString(data, "trading_suspension_date");
+  const issuerName = readRowString(data, "issuer_name");
+  const primaryTicker = readRowString(data, "primary_ticker");
+  const reasonText = `${removalReason} ${readRowString(data, "removal_reason_text")}`.toLowerCase();
+  const isAmendment = normalizedForm.endsWith("/A");
+  const isCommonEquity = /common stock|ordinary shares|american depositary shares|ads\b/i.test(removedSecurity);
+  const title = isAmendment
+    ? "Listing Status Amendment"
+    : /voluntary|withdrawal|going dark/.test(reasonText)
+      ? "Voluntary Delisting"
+      : /merger|business combination|acquisition/.test(reasonText)
+        ? "Merger Completion"
+        : /redeemed|paid at maturity|retirement|matured/.test(reasonText)
+          ? "Security Removal"
+          : isCommonEquity
+            ? "Exchange Delisting"
+            : "Security Removal";
+
+  return {
+    exchange,
+    issuerName,
+    primaryTicker,
+    snapshot: {
+      title,
+      items: [
+        { label: "Removed Security", value: removedSecurity },
+        {
+          label: "Exchange / Venue",
+          value: exchange,
+          ...(continuedVenue ? { note: `Continued trading: ${continuedVenue}` } : {}),
+        },
+        {
+          label: "Removal Basis",
+          value: removalBasis,
+          ...(removalReason && ruleProvision ? { note: ruleProvision } : {}),
+        },
+        {
+          label: effectiveDate ? "Effective / Removal Date" : "Form 25 Filed",
+          value: formatForm25Date(displayedDate),
+          ...(tradingSuspensionDate
+            ? { note: `Trading suspended ${formatForm25Date(tradingSuspensionDate)}` }
+            : {}),
+        },
+      ],
+    },
+  };
+}
+
+function formatForm25RuleProvision(value: string) {
+  return value
+    .replace(/^17\s+CFR\s+240\./i, "Rule ")
+    .replace(/^240\./i, "Rule ")
+    .trim();
+}
+
+function normalizeStoredDate(value: string) {
+  return value.replace(/[^0-9]/g, "");
+}
+
+function formatForm25Date(value: string) {
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) return value;
+
+  return new Intl.DateTimeFormat("en-US", {
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+    year: "numeric",
+  }).format(new Date(parsed));
+}
+
+function isOfferingRegistrationForm(formType: string) {
+  const normalized = formType.trim().toUpperCase().replace(/\s+/g, "");
+  return (
+    /^424B\d*$/.test(normalized) ||
+    /^(S-1|S-1\/A|F-1|F-1\/A|S-3|S-3\/A|S-3ASR|S-3MEF|F-3|F-3\/A|F-3ASR|F-3MEF)$/.test(
+      normalized,
+    )
+  );
+}
+
+function readStoredOfferingRegistration(
+  eventMetadata: Record<string, unknown> | null,
+  analysisMetadata: Record<string, unknown> | null,
+  offeringTermsRow: Record<string, unknown> | null,
+  formType: string,
+): OfferingRegistrationData | null {
+  if (!isOfferingRegistrationForm(formType)) return null;
+
+  const offeringTermsMetadata = toRecord(offeringTermsRow?.metadata);
+  const displayModel =
+    toRecord(offeringTermsMetadata?.offering_display_model) ||
+    toRecord(analysisMetadata?.offering_display_model) ||
+    toRecord(eventMetadata?.offering_display_model);
+  if (!displayModel) return null;
+
+  const displayMode = readRowString(displayModel, "display_mode");
+  const snapshotItems = readStoredSnapshotItems(displayModel.snapshot_metrics).slice(0, 4);
+  const offeringDetails = readStoredFinancingDetailRows(displayModel.offering_details);
+  const instruments = readStoredFinancingInstruments(
+    displayModel.instrument_details || displayModel.warrant_details,
+  );
+  const suppressScale = ["ipo_amendment", "ipo_registration", "spac_ipo"].includes(
+    displayMode,
+  );
+  const scale = suppressScale
+    ? undefined
+    : readStoredFinancingScale(displayModel.share_overhang, displayMode);
+
+  if (!snapshotItems.length && !offeringDetails.length && !instruments.length && !scale) {
+    return null;
+  }
+
+  return {
+    instruments,
+    offeringDetails,
+    scale,
+    snapshot: {
+      items: snapshotItems,
+      title: offeringRegistrationSnapshotTitle(displayMode),
+    },
+  };
+}
+
+function offeringRegistrationSnapshotTitle(displayMode: string) {
+  if (displayMode === "shelf_capacity") return "Shelf Registration Snapshot";
+  if (displayMode === "resale_registration") return "Resale Registration Snapshot";
+  if (displayMode === "atm") return "ATM Program Snapshot";
+  if (["ipo_amendment", "ipo_registration", "spac_ipo"].includes(displayMode)) {
+    return "IPO Snapshot";
+  }
+  if (["post_effective_amendment", "routine_amendment"].includes(displayMode)) {
+    return "Registration Amendment Snapshot";
+  }
+  return "Offering Snapshot";
+}
+
+function readStoredFinancingDilution(
+  eventMetadata: Record<string, unknown> | null,
+  analysisMetadata: Record<string, unknown> | null,
+): FinancingDilutionCapitalStructureData | null {
+  const displayPayload =
+    toRecord(eventMetadata?.display_payload) ||
+    toRecord(analysisMetadata?.display_payload);
+  const displayData = toRecord(displayPayload?.data);
+  const displayType = readRowString(displayPayload, "display_type");
+  const displayVersion = readRowString(displayData, "display_version");
+  const capitalMode = readRowString(displayData, "capital_mode");
+  const offeringDisplayModel =
+    toRecord(analysisMetadata?.offering_display_model) ||
+    toRecord(eventMetadata?.offering_display_model) ||
+    (displayData && readRowString(displayData, "display_mode") ? displayData : null);
+
+  if (
+    displayType !== "capital_financing" &&
+    displayVersion !== "sec_8k_6k_capital_financing_v1"
+  ) {
+    return readStoredOfferingFinancingDilution(offeringDisplayModel);
+  }
+
+  const snapshotItems = readStoredSnapshotItems(displayData?.snapshot_metrics).slice(0, 4);
+  const offeringDetails = readStoredFinancingDetailRows(displayData?.offering_details);
+  const instruments = readStoredFinancingInstruments(displayData?.instrument_details);
+  const scale = readStoredFinancingScale(displayData?.share_overhang, capitalMode);
+
+  if (!snapshotItems.length && !offeringDetails.length && !instruments.length && !scale) {
+    return null;
+  }
+
+  return {
+    instruments,
+    offeringDetails,
+    scale,
+    snapshot: {
+      items: snapshotItems,
+      title: financingSnapshotTitle(capitalMode),
+    },
+  };
+}
+
+function readStoredOfferingFinancingDilution(
+  value: Record<string, unknown> | null,
+): FinancingDilutionCapitalStructureData | null {
+  if (!value) return null;
+
+  const offeringDetails = readStoredFinancingDetailRows(value.offering_details);
+  const instruments = readStoredFinancingInstruments(value.warrant_details);
+  const termRows = recordArray(value.warrant_details);
+  const keyCashTerms = toRecord(value.key_cash_terms);
+  const issuerCash = toRecord(keyCashTerms?.issuer_primary_or_closing_cash);
+  const termValue = (label: string) => {
+    const row = termRows.find((item) => readRowString(item, "label") === label);
+    return row ? readRowString(row, "value") : "";
+  };
+  const detailValue = (label: string) =>
+    offeringDetails.find((item) => item.label === label)?.value || "";
+
+  const snapshotItems = [
+    { label: "Financing Type", value: detailValue("Offering Type") },
+    { label: "Maximum Principal", value: termValue("Shares / Securities") },
+    {
+      label: "Expected Cash Proceeds",
+      value: readRowString(issuerCash, "value_text") || readRowString(issuerCash, "valueText"),
+    },
+    { label: "Conversion Pricing", value: termValue("Exercise / Conversion Price") },
+  ].filter((item) => item.value);
+
+  if (!snapshotItems.length && !offeringDetails.length && !instruments.length) return null;
+
+  return {
+    instruments,
+    offeringDetails,
+    snapshot: {
+      items: snapshotItems.slice(0, 4),
+      title: "Financing Snapshot",
+    },
+  };
+}
+
+function readStoredFinancingScale(
+  value: unknown,
+  capitalMode: string,
+): FinancingDilutionCapitalStructureData["scale"] {
+  const overhang = toRecord(value);
+  const basis = toRecord(overhang?.basis);
+  const basisLabel = readRowString(basis, "label");
+  const basisValue = readRowString(basis, "value");
+  const basisNumeric = readOptionalNumber(basis?.numeric_value ?? basis?.numericValue);
+  if (!basisLabel || !basisValue || !basisNumeric || basisNumeric <= 0) return undefined;
+
+  const mode =
+    ["atm", "atm_capacity", "shelf_capacity"].includes(capitalMode) ||
+    readRowString(basis, "unit").toLowerCase() === "usd"
+      ? "amount"
+      : "shares";
+  const segments = recordArray(overhang?.rows)
+    .slice(0, 7)
+    .map((row) => {
+      const rowRole = normalizeFinancingRowRole(readRowString(row, "row_role") || readRowString(row, "rowRole"));
+      const supplyType = readRowString(row, "supply_type") || readRowString(row, "supplyType");
+      const label = readRowString(row, "label");
+      const rowValue = readRowString(row, "value");
+      const numericValue = readOptionalNumber(row.numeric_value ?? row.numericValue);
+      if (!label || !rowValue || !numericValue || numericValue <= 0) return null;
+      if (
+        label.trim().toLowerCase() === basisLabel.trim().toLowerCase() &&
+        numericValue === basisNumeric
+      ) {
+        return null;
+      }
+
+      return {
+        calculationRole: readRowString(row, "calculation_role") || readRowString(row, "calculationRole") || undefined,
+        classBasis: readRowString(row, "class_basis") || readRowString(row, "classBasis") || undefined,
+        countedInRatio: readOptionalBoolean(row.counted_in_ratio ?? row.countedInRatio),
+        label,
+        note: readRowString(row, "note") || undefined,
+        numericValue,
+        poolId: readRowString(row, "pool_id") || readRowString(row, "poolId") || undefined,
+        poolRelationship: normalizeFinancingPoolRelationship(
+          readRowString(row, "pool_relationship") || readRowString(row, "poolRelationship"),
+        ),
+        rowRole,
+        supplyNature: readRowString(row, "supply_nature") || readRowString(row, "supplyNature") || undefined,
+        supplyType: supplyType || undefined,
+        tone:
+          rowRole === "counted" ||
+          (mode === "amount" && ["atm_capacity", "shelf_capacity"].includes(supplyType))
+            ? "supply"
+            : "conditional",
+        unit: readRowString(row, "unit") || undefined,
+        value: rowValue,
+      } satisfies NonNullable<FinancingDilutionCapitalStructureData["scale"]>["segments"][number];
+    })
+    .filter((segment): segment is NonNullable<typeof segment> => Boolean(segment));
+
+  const hasIncludedSupply = segments.some((segment) =>
+    segment.rowRole === "counted" ||
+    (mode === "amount" &&
+      ["atm_capacity", "shelf_capacity"].includes(segment.supplyType || "")),
+  );
+  if (!hasIncludedSupply) return undefined;
+
+  const totalNote = toRecord(overhang?.total_note) || toRecord(overhang?.totalNote);
+  const totalTitle = readRowString(totalNote, "title");
+  const totalNumerator = readStoredScalar(totalNote?.numerator);
+  const totalDenominator = readStoredScalar(totalNote?.denominator);
+  const totalRatio = readStoredScalar(totalNote?.ratio);
+  const suffix = readRowString(totalNote, "suffix");
+  const storedNote = readRowString(overhang, "note");
+
+  return {
+    basis: {
+      label: basisLabel,
+      note: readRowString(basis, "note") || undefined,
+      numericValue: basisNumeric,
+      value: basisValue,
+    },
+    caption:
+      readRowString(overhang, "caption") ||
+      (mode === "amount"
+        ? "Program capacity versus market capitalization"
+        : "Counted supply versus share basis"),
+    headlineLabel:
+      readRowString(overhang, "status_label") ||
+      readRowString(overhang, "statusLabel") ||
+      (mode === "amount" ? "Capacity Scale" : "Potential Dilution"),
+    headlineValue:
+      readRowString(overhang, "status_value") ||
+      readRowString(overhang, "statusValue") ||
+      totalRatio,
+    mode,
+    note:
+      storedNote ||
+      (mode === "amount"
+        ? "ATM capacity measures financing scale; actual dilution depends on future sales and prices."
+        : "Only rows marked Counted are included in the headline ratio; conditional supply is shown separately."),
+    segments,
+    subtitle:
+      readRowString(overhang, "subtitle") ||
+      (mode === "amount"
+        ? "Known dollar capacity compared with a compatible company-value basis."
+        : "Fixed common-equivalent supply compared with the disclosed share basis."),
+    title: readRowString(overhang, "chart_title") || readRowString(overhang, "chartTitle") || "Share Overhang",
+    ...(totalTitle && totalNumerator && totalDenominator && totalRatio
+      ? {
+          total: {
+            denominator: totalDenominator,
+            numerator: totalNumerator,
+            ratio: totalRatio,
+            title: suffix ? `${totalTitle} (${suffix})` : totalTitle,
+          },
+        }
+      : {}),
+  };
+}
+
+function readStoredFinancingDetailRows(value: unknown) {
+  return recordArray(value)
+    .slice(0, 6)
+    .map((row) => {
+      const label = readRowString(row, "label");
+      const rowValue = readRowString(row, "value");
+      if (!label || !rowValue) return null;
+      const note = readRowString(row, "note");
+      return { label, value: rowValue, ...(note ? { note } : {}) };
+    })
+    .filter((row): row is NonNullable<typeof row> => Boolean(row));
+}
+
+function readStoredFinancingInstruments(value: unknown) {
+  const instruments: FinancingDilutionCapitalStructureData["instruments"] = [];
+  let current: FinancingDilutionCapitalStructureData["instruments"][number] | null = null;
+
+  for (const row of recordArray(value)) {
+    const label = readRowString(row, "label");
+    const rowValue = readRowString(row, "value");
+    if (!label || !rowValue) continue;
+    const note = readRowString(row, "note");
+    const normalizedValue = normalizeStoredFinancingInstrumentTerm(label, rowValue);
+    const cellValue = note ? `${normalizedValue} (${note})` : normalizedValue;
+
+    if (label === "Type") {
+      if (current) instruments.push(current);
+      current = { securities: "", type: rowValue };
+      continue;
+    }
+    if (!current) continue;
+
+    if (label === "Shares / Securities") current.securities = cellValue;
+    if (label === "Exercise / Conversion Price") current.exerciseOrConversionPrice = cellValue;
+    if (label === "Reset / Floor") current.resetOrFloor = cellValue;
+    if (label === "Term / Limits") current.termOrLimits = cellValue;
+  }
+
+  if (current) instruments.push(current);
+  return instruments
+    .filter((instrument) => instrument.type)
+    .slice(0, 8);
+}
+
+function normalizeStoredFinancingInstrumentTerm(label: string, value: string) {
+  if (label !== "Reset / Floor") return value;
+
+  return value
+    .replace(/\bno floor stated\b/gi, "None")
+    .replace(/\bno reset stated\b/gi, "None")
+    .replace(/\s*,\s*/g, "; ");
+}
+
+function financingSnapshotTitle(capitalMode: string) {
+  if (capitalMode === "atm_capacity") return "ATM Program Snapshot";
+  if (capitalMode === "capital_structure_action") return "Capital Structure Snapshot";
+  if (capitalMode === "capital_return") return "Capital Return Snapshot";
+  if (capitalMode === "debt_liquidity") return "Liquidity Snapshot";
+  return "Financing Snapshot";
+}
+
+function normalizeFinancingRowRole(value: string) {
+  return ["alternative", "conditional", "counted", "reference"].includes(value)
+    ? (value as "alternative" | "conditional" | "counted" | "reference")
+    : undefined;
+}
+
+function normalizeFinancingPoolRelationship(value: string) {
+  return value === "additive" || value === "alternative_max" ? value : undefined;
+}
+
+function readOptionalNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const normalized = Number(value.replace(/[$,%\s,]/g, ""));
+    if (Number.isFinite(normalized)) return normalized;
+  }
+  return undefined;
+}
+
+function readOptionalBoolean(value: unknown) {
+  if (typeof value === "boolean") return value;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return undefined;
+}
+
+function readStoredScalar(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value.toLocaleString("en-US");
+  if (typeof value === "string") return value.trim();
+  return "";
+}
+
+function readStoredSnapshotItems(value: unknown): ListingFinancialRiskSnapshotItem[] {
+  const record = toRecord(value);
+  const source = Array.isArray(value)
+    ? value
+    : Array.isArray(record?.items)
+      ? record.items
+      : Array.isArray(record?.metrics)
+        ? record.metrics
+        : Array.isArray(record?.fields)
+          ? record.fields
+          : [];
+
+  return source
+    .map((entry): ListingFinancialRiskSnapshotItem | null => {
+      const item = toRecord(entry);
+      const label = firstStoredValue([
+        readRowString(item, "label"),
+        readRowString(item, "name"),
+      ]);
+      const itemValue = firstStoredValue([
+        readRowString(item, "value"),
+        readRowString(item, "status"),
+      ]);
+      if (!label || !itemValue) return null;
+
+      const note = firstStoredValue([
+        readRowString(item, "note"),
+        readRowString(item, "detail"),
+        readRowString(item, "description"),
+      ]);
+
+      return {
+        label,
+        value: itemValue,
+        ...(note ? { note } : {}),
+      };
+    })
+    .filter((item): item is ListingFinancialRiskSnapshotItem => Boolean(item));
+}
+
+function inferStoredSnapshotTitle(items: ListingFinancialRiskSnapshotItem[]) {
+  const storedCopy = items
     .flatMap((item) => [item.label, item.value])
     .join(" ")
     .toLowerCase();
 
-  if (/restat|non[- ]?reliance|affected periods?|internal controls?/.test(source)) {
+  if (/restat|non[- ]?reliance|affected periods?|internal controls?/.test(storedCopy)) {
     return "Restatement Status Snapshot";
   }
-  if (/listing|delist|trading status|appeal status|nasdaq|nyse/.test(source)) {
+  if (/listing|delist|trading status|appeal status|nasdaq|nyse/.test(storedCopy)) {
     return "Listing Status Snapshot";
   }
-  if (/bankrupt|chapter 11|liquidity|debt|default|debtor|going concern|winddown|wind-down/.test(source)) {
+  if (/bankrupt|chapter 11|liquidity|debt|default|debtor|going concern|winddown|wind-down/.test(storedCopy)) {
     return "Financial Risk Snapshot";
   }
 
   return "Risk Status Snapshot";
 }
 
-function buildGenericFilingV2Data(filing: FilingEvent): GenericFilingAnalysisData {
-  const contextRelatedFilings = filing.contextRelatedFilings || [];
-  const recentFilings = contextRelatedFilings.length
-    ? contextRelatedFilings.map((item) => ({
-        eventType: item.eventType,
-        filedAt: item.filedAt,
-        form: item.form,
-        id: item.id,
-        score: item.score,
-        title: item.title,
-      }))
-    : filing.recentFilings;
-  const normalizedSource = /^(?:sec|sec filing|sec edgar)$/i.test(filing.source.trim())
-    ? "SEC EDGAR"
-    : filing.source;
+function buildListingFinancialRiskSnapshot(
+  filing: FilingEvent,
+): ListingFinancialRiskSnapshotData | null {
+  if (filing.eventType !== "listing_risk" && filing.eventType !== "financial_risk") {
+    return null;
+  }
 
+  const snapshot = filing.listingFinancialRiskSnapshot;
+  if (!snapshot) return null;
+
+  const validItems = snapshot.items.filter(
+    (item) => cleanDisclosureValue(item.label) && cleanDisclosureValue(item.value),
+  );
+
+  return validItems.length >= 4
+    ? {
+        items: validItems.slice(0, 4),
+        title: snapshot.title,
+      }
+    : null;
+}
+
+function buildGenericFilingAnalysisData(
+  filing: FilingEvent,
+): GenericFilingAnalysisData {
   return {
-    bearishPoints: filing.bearishPoints,
-    bullishPoints: filing.bullishPoints,
+    bearishPoints: isGenericFieldAvailable(filing, "bearishPoints")
+      ? filing.bearishPoints
+      : [],
+    bullishPoints: isGenericFieldAvailable(filing, "bullishPoints")
+      ? filing.bullishPoints
+      : [],
     company: filing.company,
     deliveryLevel: filing.deliveryLevel,
     exchange: filing.exchange,
     filedAt: filing.filedAt,
-    filingBrief: filing.filingBrief,
+    filingBrief: isGenericFieldAvailable(filing, "filingBrief")
+      ? filing.filingBrief
+      : "",
     formType: filing.formType,
     impact: filing.impact,
-    keyEvidence: filing.keyEvidence,
-    recentFilings,
-    relatedNews: filing.relatedNews,
+    keyEvidence: isGenericFieldAvailable(filing, "keyEvidence")
+      ? filing.keyEvidence
+      : [],
+    recentFilings: isGenericFieldAvailable(filing, "recentFilings")
+      ? filing.recentFilings
+      : [],
+    relatedNews: isGenericFieldAvailable(filing, "relatedNews")
+      ? filing.relatedNews
+      : [],
     score: filing.score,
-    scoreRationale:
-      filing.scoreExplanation?.summary ||
-      filing.scoreExplanation?.finalRead ||
-      "",
+    scoreRationale: isGenericFieldAvailable(filing, "scoreRationale")
+      ? filing.scoreRationale
+      : "",
     signal: filing.signal,
-    source: normalizedSource,
+    source: filing.source,
     sourceUrl: filing.sourceUrl,
-    summary: filing.summary,
+    summary: isGenericFieldAvailable(filing, "summary")
+      ? filing.summary
+      : "",
     ticker: filing.ticker,
     title: filing.title,
-    watchNext: filing.watchNext,
-    whyItMatters: filing.whyItMatters,
+    watchNext: isGenericFieldAvailable(filing, "watchNext")
+      ? filing.watchNext
+      : [],
+    whyItMatters: isGenericFieldAvailable(filing, "whyItMatters")
+      ? filing.whyItMatters
+      : "",
   };
 }
 
-function toGenericBadgeTone(tone: string): BadgeTone {
-  if (tone === "earnings") return "earnings";
-  if (tone === "risk" || tone === "dilution") return "legal";
-  if (tone === "deal") return "transaction";
-  if (tone === "clinical" || tone === "regulatory") return "product";
-  return "neutral";
+function isGenericFieldAvailable(
+  filing: FilingEvent,
+  field: keyof GenericFilingAvailability,
+) {
+  return filing.genericAvailability?.[field] ?? true;
 }
 
-function FilingPriceChart({ filing, tickerOverride }: { filing: FilingEvent; tickerOverride?: string }) {
-  const ticker = tickerOverride && isRealTicker(tickerOverride) ? tickerOverride : filing.ticker;
+function readStoredScoreRationale(
+  analysis: Record<string, unknown> | null,
+  analysisMetadata: Record<string, unknown> | null,
+  eventMetadata: Record<string, unknown> | null,
+) {
+  const scoreExplanation =
+    toRecord(analysis?.scoreExplanation) ||
+    toRecord(analysis?.score_explanation) ||
+    toRecord(analysisMetadata?.scoreExplanation) ||
+    toRecord(analysisMetadata?.score_explanation);
+
   return (
-    <PriceChartCard
-      change={filing.change}
-      changeAmount={filing.changeAmount}
-      markers={filing.priceMarkers}
-      price={filing.price}
-      series={filing.priceSeries}
-      ticker={ticker}
-      tone={filing.signal}
-      tradingDataPending={isRegistrationMarketDataPending(filing)}
-    />
+    readRowString(scoreExplanation, "summary") ||
+    readRowString(analysis, "scoreReason") ||
+    readRowString(analysis, "score_reason") ||
+    readRowString(analysisMetadata, "scoreReason") ||
+    readRowString(analysisMetadata, "score_reason") ||
+    readRowString(eventMetadata, "scoreReason") ||
+    readRowString(eventMetadata, "score_reason")
   );
 }
 
-function CommonFilingTemplate({ eventLabel, filing }: { eventLabel: string; filing: FilingEvent }) {
-  const hasPositivePoints = filing.bullishPoints.length > 0;
-  const hasNegativePoints = filing.bearishPoints.length > 0;
-  const hasCasePoints = hasPositivePoints || hasNegativePoints;
-  const caseGridMode = hasPositivePoints && hasNegativePoints ? "two-up" : "single";
-  const casePanelTone = hasPositivePoints && !hasNegativePoints ? "bullish" : hasNegativePoints && !hasPositivePoints ? "bearish" : "";
-  const hasEvidenceOrWatch = filing.keyEvidence.length > 0 || filing.watchNext.length > 0;
+function toGenericBadgeTone(tone: EventTypeBadgeTone): BadgeTone {
+  if (tone === "earnings") return "earnings";
+  if (tone === "risk" || tone === "dilution") return "legal";
+  if (tone === "deal") return "transaction";
+  if (tone === "clinical" || tone === "market") return "product";
+  if (tone === "regulatory") return "insider";
+  return "neutral";
+}
 
+function CommonFilingTemplate({ eventLabel, filing }: { eventLabel: string; filing: FilingEvent }) {
   return (
     <>
-      <section className={`stock-detail-top-grid${hasCasePoints ? " common-overview-no-divider" : ""}`}>
-        <FilingPriceChart filing={filing} />
+      <section className="stock-detail-top-grid">
+        <PriceChartCard
+          change={filing.change}
+          changeAmount={filing.changeAmount}
+          price={filing.price}
+          series={filing.priceSeries}
+          ticker={filing.ticker}
+          tone={filing.signal}
+        />
 
         <div className="stock-detail-card quick-analysis-panel">
           <div className="quick-take-card quick-take-block">
             <div className="card-heading-row">
-              <h2>Why It Matters</h2>
+              <h2>Filing Brief</h2>
               <span>{filing.filingFocus}</span>
             </div>
-            <p>{filing.whyItMatters}</p>
+            <p>{filing.filingBrief}</p>
             <div className="detail-chip-row">
               <span>{filing.formType}</span>
               <span>{eventLabel}</span>
               <span>{filing.impact} impact</span>
               <span>{filing.deliveryLevel}</span>
             </div>
-            <div className="quick-summary-block">
-              <h3>Summary</h3>
-              <p>{filing.summary}</p>
-            </div>
+          </div>
+
+          <div className="quick-case-grid">
+            <CaseList title="Bullish" tone="bullish" items={filing.bullishPoints} />
+            <CaseList title="Bearish" tone="bearish" items={filing.bearishPoints} />
           </div>
         </div>
       </section>
 
-      {hasCasePoints ? (
-        <section className={`stock-detail-card quick-analysis-panel quick-case-panel ${caseGridMode}${casePanelTone ? ` ${casePanelTone}` : ""}`}>
-          <div className={`quick-case-grid ${caseGridMode}`}>
-            <CaseList title="Positive" tone="bullish" items={filing.bullishPoints} />
-            <CaseList title="Negative" tone="bearish" items={filing.bearishPoints} />
-          </div>
+      <section className="stock-detail-card-grid two-up insight-summary-grid">
+        <AnalysisCard title="Why It Matters" body={filing.whyItMatters} />
+        <section className="stock-detail-card summary-card">
+          <h2>Summary</h2>
+          <p>{filing.summary}</p>
         </section>
-      ) : null}
+      </section>
 
-      {hasEvidenceOrWatch ? (
-        <section className="stock-detail-card-grid two-up insight-summary-grid">
-          <AnalysisList title="Key Evidence" items={filing.keyEvidence} />
-          <AnalysisList title="What To Watch Next" items={filing.watchNext} />
-        </section>
-      ) : null}
+      <section className="stock-detail-card-grid two-up insight-summary-grid">
+        <AnalysisList title="Key Evidence" items={filing.keyEvidence} />
+        <AnalysisList title="What To Watch Next" numbered items={filing.watchNext} />
+      </section>
 
-      <FilingMarketContextPanel filing={filing} />
+      <SectorThemeContextPanel context={filing.context} ticker={filing.ticker} />
 
       <OriginalFilingText filing={filing} eventLabel={eventLabel} includeTemplateStatus />
     </>
-  );
-}
-
-function Form425TransactionTemplate({
-  eventLabel,
-  filing,
-  model,
-}: {
-  eventLabel: string;
-  filing: FilingEvent;
-  model: Form425TransactionModel;
-}) {
-  const hasEvidenceOrWatch = filing.keyEvidence.length > 0 || filing.watchNext.length > 0;
-
-  return (
-    <>
-      <section className="stock-detail-top-grid special-overview-grid">
-        <FilingPriceChart filing={filing} />
-
-        <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card">
-          <div className="quick-take-card quick-take-block">
-            <div className="card-heading-row">
-              <h2>{model.title}</h2>
-              <span>{filing.formType}</span>
-            </div>
-            <p className="proxy-summary-context">{model.intro}</p>
-            <ProxyVoteSummarySnapshot rows={model.snapshotRows} />
-          </div>
-        </section>
-      </section>
-
-      <section className="stock-detail-card filing-summary-panel">
-        <div className="card-heading-row">
-          <h2>Summary</h2>
-        </div>
-        <p>{filing.summary}</p>
-      </section>
-
-      <ScoreBasisPanel filing={filing} />
-
-      {hasEvidenceOrWatch ? (
-        <section className="stock-detail-card-grid two-up insight-summary-grid">
-          <AnalysisList title="Key Evidence" items={filing.keyEvidence} />
-          <AnalysisList title="What To Watch Next" items={filing.watchNext} />
-        </section>
-      ) : null}
-
-      <FilingMarketContextPanel filing={filing} />
-      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
-    </>
-  );
-}
-
-function ProxyVoteTemplate({ filing }: { filing: FilingEvent }) {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  const data = readDisplayPayloadData(displayPayload);
-  const displayVersion =
-    readRowString(displayPayload, "display_version") ||
-    readRowString(data, "display_version") ||
-    readRowString(data, "version");
-  const summaryRows = buildProxyUnifiedSnapshotRows(data);
-  const proposals = buildProxyProposalSummary(data);
-  const summaryTitle = buildProxySummaryTitle(data, filing, proposals, summaryRows);
-  const intro = displayString(data, "summary_sentence", "") || buildProxyVoteIntro(data, proposals, displayVersion || "proxy_vote_v1");
-  const isMinimalArchive = filing.deliveryLevel === "archive" && !proposals.length && !summaryRows.length;
-
-  return (
-    <>
-      <section className="stock-detail-top-grid proxy-vote-top-grid">
-        <FilingPriceChart filing={filing} />
-
-        <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card">
-          <div className="quick-take-card quick-take-block">
-            <div className="card-heading-row">
-              <h2>{summaryTitle}</h2>
-              <span>{filing.formType}</span>
-            </div>
-            <p className="proxy-summary-context">{intro}</p>
-            <ProxyVoteSummarySnapshot rows={summaryRows} />
-          </div>
-        </section>
-      </section>
-
-      {isMinimalArchive ? null : <ScoreBasisPanel filing={filing} />}
-
-      {proposals.length ? <ProxyProposalAgenda proposals={proposals} /> : null}
-
-      {!isMinimalArchive && filing.watchNext.length ? (
-        <section className="proxy-watch-grid">
-          <AnalysisList title="What To Watch Next" items={filing.watchNext} />
-        </section>
-      ) : null}
-
-      <FilingMarketContextPanel filing={filing} />
-
-      <OriginalFilingText filing={filing} eventLabel="Shareholder Vote" includeTemplateStatus />
-    </>
-  );
-}
-
-type ProxySummaryRow = {
-  label: string;
-  value: string;
-  note?: string;
-};
-
-function ProxyVoteSummarySnapshot({ rows }: { rows: ProxySummaryRow[] }) {
-  if (!rows.length) return null;
-  return (
-    <div className="proxy-vote-summary-snapshot">
-      {rows.slice(0, 4).map((row) => (
-        <div className="proxy-vote-summary-tile" key={row.label}>
-          <span>{row.label}</span>
-          <strong>{row.value}</strong>
-          {row.note ? <small>{row.note}</small> : null}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-type ProxyProposalItem = {
-  id: string;
-  title: string;
-  explanation: string;
-  category: string;
-  recommendation: string;
-  isShareholderProposal: boolean;
-  details: ProxyProposalDetail[];
-};
-
-type ProxyProposalDetail = {
-  label: string;
-  value: string;
-  note: string;
-};
-
-function ProxyProposalAgenda({ proposals }: { proposals: ProxyProposalItem[] }) {
-  return (
-    <section className="stock-detail-card proxy-agenda-card">
-      <div className="card-heading-row">
-        <h2>Proposal Agenda</h2>
-        <span>{proposals.length} proposals</span>
-      </div>
-      <div className="proxy-agenda-table">
-        {proposals.map((proposal) => (
-          <div className="proxy-agenda-row-group" key={`${proposal.id}-${proposal.title}`}>
-            <div className="proxy-agenda-proposal-heading">
-              <div className="proxy-agenda-proposal-main">
-                <div className="proxy-agenda-proposal-meta">
-                  <span>{proposal.category}</span>
-                  {proposal.isShareholderProposal ? <span>Shareholder proposal</span> : null}
-                  <span>Board {proposal.recommendation || "Not disclosed"}</span>
-                </div>
-                <div className="proxy-agenda-proposal-copy">
-                  <span className="proxy-agenda-proposal-number">{proposal.id}.</span>
-                  <strong>{proposal.title}</strong>
-                  {proposal.explanation ? (
-                    <div className="proxy-agenda-explanation">
-                      <span aria-label="Plain-English explanation" title="Plain-English explanation">
-                        <Info size={12} strokeWidth={2.4} aria-hidden="true" />
-                      </span>
-                      <p>{proposal.explanation}</p>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-            {proposal.details.length ? (
-              <div className="proxy-agenda-detail-list">
-                {proposal.details.map((detail) => (
-                  <div className="proxy-agenda-detail" key={`${proposal.id}-${detail.label}`}>
-                    <div className="proxy-agenda-detail-row">
-                      <span>{detail.label}</span>
-                      <span>
-                        {detail.value}
-                        {detail.note ? <small>{detail.note}</small> : null}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function isProxyVoteDetail(filing: FilingEvent) {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  const data = readDisplayPayloadData(displayPayload);
-  const displayType =
-    readRowString(displayPayload, "display_type") ||
-    readRowString(data, "display_type");
-  const displayVersion =
-    readRowString(displayPayload, "display_version") ||
-    readRowString(data, "display_version") ||
-    readRowString(data, "version");
-  return displayType === "proxy_vote" || displayVersion === "proxy_vote_v1";
-}
-
-function buildProxyUnifiedSnapshotRows(data: Record<string, unknown>) {
-  const snapshotRows = recordArray(data.snapshot)
-    .map((row): ProxySummaryRow | null => {
-      const label = readRowString(row, "label");
-      const value = readRowString(row, "value");
-      const note = readRowString(row, "note");
-      if (!label || !value) return null;
-      return { label, value, note: note || undefined };
-    })
-    .filter((row): row is ProxySummaryRow => Boolean(row));
-  return snapshotRows;
-}
-
-function buildProxySummaryTitle(
-  data: Record<string, unknown>,
-  filing: FilingEvent,
-  proposals: ProxyProposalItem[],
-  summaryRows: ProxySummaryRow[],
-) {
-  const title = displayString(data, "summary_title", "");
-  if (title) return title;
-  if (filing.deliveryLevel === "archive" && !proposals.length && !summaryRows.length) {
-    return "Proxy Materials Update";
-  }
-  return "Proxy Vote Summary";
-}
-
-function buildProxyVoteIntro(data: Record<string, unknown>, proposals: ProxyProposalItem[], displayVersion: string) {
-  const proposalText = proposals
-    .map((proposal) => `${proposal.category} ${proposal.title}`)
-    .join(" ");
-  const haystack = `${displayVersion} ${displayString(data, "key_focus", "")} ${proposalText}`;
-  const proposalCount =
-    displayString(data, "proposal_count", "") ||
-    (proposals.length ? String(proposals.length) : "");
-
-  if (hasMultipleProxyThemes(proposals)) {
-    return "Shareholders are voting on multiple proposal types.";
-  }
-  if (/spac|de-spac|business combination/i.test(haystack)) {
-    return "Shareholders are voting on a SPAC business combination or related transaction step.";
-  }
-  if (/merger|transaction|acquisition|sale agreement/i.test(haystack)) {
-    return "Shareholders are voting on a proposed merger or transaction.";
-  }
-  if (/reverse\s*(?:stock\s*)?split|authorized shares|capital structure|listing compliance/i.test(haystack)) {
-    return "Shareholders are voting on capital structure changes.";
-  }
-  if (/equity plan|incentive plan|stock option plan|share reserve/i.test(haystack)) {
-    return "Shareholders are voting on an equity plan or share reserve proposal.";
-  }
-  if (/listing|nasdaq|nyse|share issuance/i.test(haystack)) {
-    return "Shareholders are voting on a listing-related proposal.";
-  }
-  if (/contest|dissident|shareholder proposal|governance|board/i.test(haystack)) {
-    return "Shareholders are voting on governance or board-related proposals.";
-  }
-  if (proposalCount && Number(proposalCount) > 1) {
-    return "Shareholders are voting on routine annual meeting proposals.";
-  }
-  return "Shareholders are voting on a proxy proposal.";
-}
-
-function hasMultipleProxyThemes(proposals: ProxyProposalItem[]) {
-  const themes = new Set<string>();
-  for (const proposal of proposals) {
-    const text = `${proposal.category} ${proposal.title}`;
-    if (/reverse split|authorized shares|capital structure/i.test(text)) themes.add("capital");
-    if (/equity plan|incentive plan|stock option|share reserve/i.test(text)) themes.add("equity");
-    if (/merger|transaction|business combination|spac|de-spac/i.test(text)) themes.add("transaction");
-    if (/listing|nasdaq|nyse|share issuance/i.test(text)) themes.add("listing");
-    if (/shareholder proposal|contest|dissident|governance/i.test(text)) themes.add("governance");
-  }
-  return themes.size > 1;
-}
-
-function buildProxyProposalSummary(data: Record<string, unknown>) {
-  return recordArray(data.proposals)
-    .map((proposal, index) => {
-      const id = readRowString(proposal, "id") || `Proposal ${index + 1}`;
-      const title = formatProxyProposalTitle(readRowString(proposal, "title"));
-      if (!title) return null;
-      const explanation = formatProxyProposalExplanation(readRowString(proposal, "explanation"));
-      const category = readRowString(proposal, "type") || readRowString(proposal, "category");
-      const recommendation = readRowString(proposal, "board_recommendation") || readRowString(proposal, "recommendation");
-      const isShareholderProposal = Boolean(proposal.is_shareholder_proposal);
-      const details = recordArray(proposal.details)
-        .map((detail) => {
-          const label = readRowString(detail, "label");
-          const value = readRowString(detail, "value");
-          const note = readRowString(detail, "note");
-          if (!label || !value) return null;
-          if (isNonUsefulProxyDetailValue(value)) return null;
-          return { label, value, note };
-        })
-        .filter((detail): detail is ProxyProposalDetail => Boolean(detail))
-        .slice(0, 4);
-      return {
-        id,
-        title,
-        explanation,
-        category: formatProxyProposalCategory(category) || "Not disclosed",
-        recommendation: formatProxyBoardRecommendation(recommendation) || "Not disclosed",
-        isShareholderProposal,
-        details,
-      };
-    })
-    .filter((item): item is ProxyProposalItem => Boolean(item));
-}
-
-function formatProxyProposalExplanation(value: string) {
-  return value.replace(/\s+/g, " ").trim();
-}
-
-function isNonUsefulProxyDetailValue(value: string) {
-  const normalized = value.replace(/\s+/g, " ").trim();
-  return /^(?:not\s+disclosed|not\s+stated|not\s+known\s+yet|unknown|n\/a|none|-|—)$/i.test(normalized);
-}
-
-function formatProxyProposalTitle(value: string) {
-  const title = value.replace(/\s+/g, " ").trim();
-  if (!title) return "";
-  if (isMostlyUppercaseProxyTitle(title)) return toProxyProposalTitleCase(title);
-  return normalizeProxyProposalKnownTerms(title);
-}
-
-const PROXY_PROPOSAL_SMALL_TITLE_WORDS = new Set([
-  "a",
-  "an",
-  "and",
-  "as",
-  "at",
-  "by",
-  "for",
-  "from",
-  "in",
-  "into",
-  "of",
-  "on",
-  "or",
-  "per",
-  "the",
-  "to",
-  "via",
-  "with",
-]);
-
-const PROXY_PROPOSAL_ACRONYMS = new Set([
-  "ADR",
-  "ADS",
-  "CEO",
-  "CFO",
-  "COO",
-  "ESG",
-  "GAAP",
-  "IPO",
-  "LLC",
-  "LLP",
-  "LP",
-  "NASDAQ",
-  "NOL",
-  "NYSE",
-  "PLC",
-  "PSU",
-  "RSU",
-  "SEC",
-  "SPAC",
-]);
-
-function isMostlyUppercaseProxyTitle(value: string) {
-  const letters = value.replace(/[^A-Za-z]/g, "");
-  return Boolean(letters) && letters === letters.toUpperCase();
-}
-
-function toProxyProposalTitleCase(value: string) {
-  let wordIndex = 0;
-  const formatted = value.toLowerCase().replace(/[a-z0-9]+(?:['\u2019][a-z0-9]+)?(?:-[a-z0-9]+(?:['\u2019][a-z0-9]+)?)*/g, (word) => {
-    const result = formatProxyProposalTitleWord(word, wordIndex);
-    wordIndex += 1;
-    return result;
-  });
-  return normalizeProxyProposalKnownTerms(formatted);
-}
-
-function formatProxyProposalTitleWord(word: string, wordIndex: number) {
-  if (/^say-on-pay$/i.test(word)) return "Say-on-Pay";
-  return word
-    .split("-")
-    .map((part, partIndex) => formatProxyProposalTitlePart(part, wordIndex === 0 && partIndex === 0))
-    .join("-");
-}
-
-function formatProxyProposalTitlePart(part: string, isFirst: boolean): string {
-  const possessive = part.match(/^([a-z0-9]+)(['\u2019])s$/i);
-  if (possessive) {
-    const mark = possessive[2] === "\u2019" ? "\u2019" : "'";
-    return `${formatProxyProposalTitlePart(possessive[1], isFirst)}${mark}s`;
-  }
-  if (/^\d+$/.test(part)) return part;
-  const acronym = part.toUpperCase();
-  if (PROXY_PROPOSAL_ACRONYMS.has(acronym)) return acronym;
-  if (!isFirst && PROXY_PROPOSAL_SMALL_TITLE_WORDS.has(part)) return part;
-  return part.charAt(0).toUpperCase() + part.slice(1);
-}
-
-function normalizeProxyProposalKnownTerms(value: string) {
-  return value
-    .replace(/\bSay-On-Pay\b/gi, "Say-on-Pay")
-    .replace(/\bLlc\b/g, "LLC")
-    .replace(/\bLlp\b/g, "LLP")
-    .replace(/\bLp\b/g, "LP")
-    .replace(/\bPlc\b/g, "PLC")
-    .replace(/([A-Za-z])\u2019S\b/g, "$1\u2019s")
-    .replace(/([A-Za-z])'S\b/g, "$1's");
-}
-
-function formatProxyProposalCategory(value: string) {
-  const normalized = value.replace(/\s+/g, " ").trim().toLowerCase();
-  if (!normalized) return "";
-  if (/say[-\s]?on[-\s]?pay|executive compensation|compensation/.test(normalized)) return "Executive pay vote";
-  if (/auditor|accounting firm|ratification/.test(normalized)) return "Auditor approval";
-  if (/director/.test(normalized)) return "Director election";
-  return value.replace(/\s+/g, " ").trim();
-}
-
-function formatProxyBoardRecommendation(value: string) {
-  const normalized = value.replace(/\s+/g, " ").trim();
-  if (!normalized) return "";
-  if (/^for$/i.test(normalized)) return "Support";
-  if (/^against$/i.test(normalized)) return "Oppose";
-  if (/^withhold$/i.test(normalized)) return "Withhold";
-  if (/^abstain$/i.test(normalized)) return "Abstain";
-  return normalized;
-}
-
-function Form25ListingStatusTemplate({
-  eventLabel,
-  filing,
-  model,
-}: {
-  eventLabel: string;
-  filing: FilingEvent;
-  model: Form25ListingStatusModel;
-}) {
-  const hasEvidence = filing.keyEvidence.length > 0;
-  const hasWatchNext = model.watchNext.length > 0;
-  const showWatchNext = filing.deliveryLevel !== "archive" && hasWatchNext;
-
-  return (
-    <>
-      <section className="stock-detail-top-grid special-overview-grid">
-        <FilingPriceChart filing={filing} />
-
-        <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card">
-          <div className="quick-take-card quick-take-block">
-            <div className="card-heading-row">
-              <h2>{model.title}</h2>
-              <span>{filing.formType}</span>
-            </div>
-            <p className="proxy-summary-context">
-              {model.statusLabel}. {model.statusSummary}
-            </p>
-            <div className="proxy-vote-summary-snapshot">
-              <Form25SnapshotCard
-                label="Removed security"
-                note=""
-                value={model.removedSecurity}
-              />
-              <Form25SnapshotCard label="Exchange / venue" note="" value={model.exchange} />
-              <Form25SnapshotCard label="Reason" note={model.reasonDetail} value={model.reasonLabel} />
-              <Form25SnapshotCard
-                label={model.effectiveDateLabel}
-                note={model.tradingSuspensionDate ? `Trading suspension: ${model.tradingSuspensionDate}` : ""}
-                value={model.effectiveDate}
-              />
-            </div>
-          </div>
-        </section>
-      </section>
-
-      <section className="stock-detail-card spac-summary-panel form25-long-summary-panel">
-        <div className="spac-summary-heading">
-          <h2>Summary</h2>
-          <p>{model.investorImpact}</p>
-        </div>
-        {model.detailRows.length ? (
-          <div className="spac-readout-grid">
-            {model.detailRows.map((row) => (
-              <div className="detail-metric-row" key={`${row.label}-${row.value}`}>
-                <span>{row.label}</span>
-                <strong>{row.value}</strong>
-                {row.note ? <small>{row.note}</small> : null}
-              </div>
-            ))}
-          </div>
-        ) : null}
-      </section>
-
-      <ScoreBasisPanel filing={filing} />
-
-      {hasEvidence || showWatchNext ? (
-        <section className="stock-detail-card-grid two-up insight-summary-grid">
-          <AnalysisList title="Key Evidence" items={filing.keyEvidence} />
-          {showWatchNext ? <AnalysisList title="What To Watch Next" items={model.watchNext} /> : null}
-        </section>
-      ) : null}
-
-      <FilingMarketContextPanel filing={filing} />
-      <OriginalFilingText eventLabel={eventLabel} filing={filing} />
-    </>
-  );
-}
-
-function ListingRiskTemplate({
-  eventLabel,
-  filing,
-  model,
-}: {
-  eventLabel: string;
-  filing: FilingEvent;
-  model: ListingRiskModel;
-}) {
-  return (
-    <>
-      <section className="stock-detail-top-grid special-overview-grid">
-        <FilingPriceChart filing={filing} />
-
-        <section className="stock-detail-card spac-summary-panel listing-risk-summary-panel">
-          <div className="spac-summary-heading">
-            <h2>Listing Risk Snapshot</h2>
-            <p>
-              <strong>{model.complianceStatus}.</strong> {model.mainRiskDriver}
-            </p>
-          </div>
-          <div className="spac-metric-grid">
-            <SpacMetricCard icon="status" label="Exchange Status" note={model.exchange} tone={model.noActiveDeficiency ? "neutral" : "risk"} value={model.complianceStatus} />
-            <SpacMetricCard icon="closing" label="Cure Deadline" note={model.curePeriod} tone={model.noActiveDeficiency ? "neutral" : "risk"} value={model.cureDeadline} />
-            <SpacMetricCard icon="cash" label="Main Risk Driver" note="Source-backed when disclosed" tone={model.noActiveDeficiency ? "neutral" : "risk"} value={model.mainRiskDriver} />
-            <SpacMetricCard icon="status" label="Appeal / Hearing" note={model.hearingAppealDeadline} value={model.appealHearingStatus} />
-          </div>
-        </section>
-      </section>
-
-      <section className="stock-detail-card listing-risk-status-card">
-        <div className="card-heading-row">
-          <div>
-            <h2>Exchange Compliance Status</h2>
-            <p>{model.deficiencyNotice}</p>
-          </div>
-          <span>{model.currentPoint}</span>
-        </div>
-        <div className="spac-readout-grid listing-risk-readout-grid">
-          <MetricRow label="Extension Eligibility" value={model.extensionEligibility} />
-          <MetricRow label="Extension / Review Date" value={model.extensionReviewDate} />
-          <MetricRow label="Representative Thresholds Note" value={model.representativeThresholdsNote} />
-        </div>
-      </section>
-
-      <section className="stock-detail-card listing-risk-checks-card">
-        <div className="card-heading-row">
-          <div>
-            <h2>Compliance Checks</h2>
-            <p>Common listing-risk checks shown only when the filing or payload provides support.</p>
-          </div>
-        </div>
-        <div className="listing-risk-check-grid">
-          {model.checks.map((check) => (
-            <ListingRiskCheckCard check={check} key={check.label} />
-          ))}
-        </div>
-      </section>
-
-      {model.noActiveDeficiency ? (
-        <section className="stock-detail-card listing-risk-clear-card">
-          <CircleCheck size={18} aria-hidden="true" />
-          <div>
-            <h2>No Active Deficiency Disclosed</h2>
-            <p>Requirement satisfied or no active listing deficiency was disclosed in the filing payload.</p>
-          </div>
-        </section>
-      ) : (
-        <section className="stock-detail-card spac-stage-card listing-risk-timeline-card">
-          <div className="card-heading-row">
-            <div>
-              <h2>Listing Timeline</h2>
-              <p>Notice, current point, cure deadline, extension review, and appeal/hearing dates when available.</p>
-            </div>
-          </div>
-          <div className="listing-risk-timeline">
-            {model.timeline.map((item) => (
-              <div className={item.status.toLowerCase()} key={`${item.label}-${item.date}`}>
-                <span>{item.label}</span>
-                <strong>{item.date}</strong>
-                <em>{item.status}</em>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <section className="stock-detail-card-grid two-up spac-support-grid">
-        <section className="stock-detail-card spac-risk-card">
-          <h2>Key Risk Flags</h2>
-          <ul>
-            {model.riskFlags.map((flag) => (
-              <li key={flag}>
-                <TriangleAlert size={14} aria-hidden="true" />
-                <span>{flag}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-        <section className="stock-detail-card spac-watch-card">
-          <h2>What To Watch Next</h2>
-          <ol>
-            {model.watchNext.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ol>
-        </section>
-      </section>
-
-      <FilingMarketContextPanel filing={filing} />
-      <SpacSourceEvidence filing={filing} model={model} />
-      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
-    </>
-  );
-}
-
-function PeriodicAmendmentTemplate({
-  eventLabel,
-  filing,
-  model,
-}: {
-  eventLabel: string;
-  filing: FilingEvent;
-  model: PeriodicAmendmentModel;
-}) {
-  return (
-    <>
-      <section className="stock-detail-top-grid listing-risk-top-grid">
-        <FilingPriceChart filing={filing} />
-
-        <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card periodic-report-snapshot-card">
-          <div className="quick-take-card quick-take-block">
-            <div className="card-heading-row">
-              <h2>{model.snapshotTitle}</h2>
-              <span>{filing.formType}</span>
-            </div>
-            {model.snapshotIntro ? <p className="proxy-summary-context">{model.snapshotIntro}</p> : null}
-            <ProxyVoteSummarySnapshot rows={model.snapshotMetrics} />
-          </div>
-        </section>
-      </section>
-
-      <AnalysisCard title="Summary" body={fitPeriodicNarrativeText(filing.summary, 900)} />
-      <ScoreBasisPanel filing={filing} />
-
-      {model.keyChanges.length ? (
-        <PeriodicBusinessUpdatesSection items={model.keyChanges} title="Key Changes" />
-      ) : null}
-
-      <FilingMarketContextPanel filing={filing} hideUnavailable />
-      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
-    </>
-  );
-}
-
-function NtLateFilingTemplate({
-  eventLabel,
-  filing,
-  model,
-}: {
-  eventLabel: string;
-  filing: FilingEvent;
-  model: NtLateFilingModel;
-}) {
-  const hasEvidenceOrWatch = filing.keyEvidence.length > 0 || filing.watchNext.length > 0;
-
-  return (
-    <>
-      <section className="stock-detail-top-grid listing-risk-top-grid">
-        <FilingPriceChart filing={filing} />
-
-        <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card periodic-report-snapshot-card">
-          <div className="quick-take-card quick-take-block">
-            <div className="card-heading-row">
-              <h2>{model.snapshotTitle}</h2>
-              <span>{filing.formType}</span>
-            </div>
-            {model.snapshotIntro ? <p className="proxy-summary-context">{model.snapshotIntro}</p> : null}
-            <ProxyVoteSummarySnapshot rows={model.snapshotMetrics} />
-          </div>
-        </section>
-      </section>
-
-      <AnalysisCard title="Summary" body={fitPeriodicNarrativeText(filing.summary, 900)} />
-      <ScoreBasisPanel filing={filing} />
-
-      {hasEvidenceOrWatch ? (
-        <section className="stock-detail-card-grid two-up insight-summary-grid">
-          <AnalysisList title="Key Evidence" items={filing.keyEvidence} />
-          <AnalysisList title="What To Watch Next" items={filing.watchNext} />
-        </section>
-      ) : null}
-
-      <FilingMarketContextPanel filing={filing} hideUnavailable />
-      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
-    </>
-  );
-}
-
-function PeriodicReportTemplate({
-  eventLabel,
-  filing,
-  model,
-}: {
-  eventLabel: string;
-  filing: FilingEvent;
-  model: PeriodicReportModel;
-}) {
-  return (
-    <>
-      <section className="stock-detail-top-grid listing-risk-top-grid">
-        <FilingPriceChart filing={filing} />
-
-        <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card periodic-report-snapshot-card">
-          <div className="quick-take-card quick-take-block">
-            <div className="card-heading-row">
-              <h2>{model.snapshotTitle}</h2>
-              <span>{filing.formType}</span>
-            </div>
-            {model.snapshotIntro ? <p className="proxy-summary-context">{model.snapshotIntro}</p> : null}
-            <ProxyVoteSummarySnapshot rows={model.snapshotMetrics} />
-          </div>
-        </section>
-      </section>
-
-      <AnalysisCard title="Summary" body={fitPeriodicNarrativeText(filing.summary, 900)} />
-      <ScoreBasisPanel filing={filing} />
-
-      {model.performanceComparisons.length ? (
-        <PeriodicPerformanceOutlookSection
-          guidanceItems={model.guidanceMetrics}
-          performanceItems={model.performanceComparisons}
-        />
-      ) : null}
-
-      {model.keyBusinessUpdates.length ? (
-        <PeriodicBusinessUpdatesSection items={model.keyBusinessUpdates} />
-      ) : null}
-
-      <FilingMarketContextPanel filing={filing} hideUnavailable />
-      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
-    </>
-  );
-}
-
-function PeriodicPerformanceOutlookSection({
-  guidanceItems,
-  performanceItems,
-}: {
-  guidanceItems: PeriodicReportGuidanceMetric[];
-  performanceItems: PeriodicReportPerformanceComparison[];
-}) {
-  const performanceByLabel = new Map(
-    performanceItems.map((item) => [normalizePeriodicMetricKey(item.label), item]),
-  );
-  const attachedGuidance = new Map<string, PeriodicReportGuidanceMetric>();
-
-  for (const guidance of guidanceItems) {
-    if (guidance.performanceRelationship === "standalone" || !guidance.performanceLabel) continue;
-    const performance = performanceByLabel.get(normalizePeriodicMetricKey(guidance.performanceLabel));
-    if (performance && !attachedGuidance.has(performance.label)) {
-      attachedGuidance.set(performance.label, guidance);
-    }
-  }
-
-  return (
-    <section className="periodic-report-section periodic-performance-section">
-      <div className="periodic-report-section-heading">
-        <h2>Performance &amp; Outlook</h2>
-      </div>
-      <div className={`periodic-performance-list count-${Math.min(3, performanceItems.length)}`}>
-        {performanceItems.map((item) => {
-          const guidance = attachedGuidance.get(item.label);
-          return item.currentNumeric < 0 || item.comparisonNumeric < 0 ? (
-            <PeriodicSignedPerformanceItem
-              guidance={guidance}
-              item={item}
-              key={`${item.label}-${item.currentLabel}`}
-            />
-          ) : (
-            <PeriodicPositivePerformanceItem
-              guidance={guidance}
-              item={item}
-              key={`${item.label}-${item.currentLabel}`}
-            />
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-function PeriodicPositivePerformanceItem({
-  guidance,
-  item,
-}: {
-  guidance?: PeriodicReportGuidanceMetric;
-  item: PeriodicReportPerformanceComparison;
-}) {
-  const scale = Math.max(Math.abs(item.currentNumeric), Math.abs(item.comparisonNumeric));
-  const currentWidth = scale > 0 ? Math.max(4, (Math.abs(item.currentNumeric) / scale) * 100) : 0;
-  const comparisonWidth = scale > 0 ? Math.max(4, (Math.abs(item.comparisonNumeric) / scale) * 100) : 0;
-  const changeLabel = periodicPerformanceChangeLabel(item);
-
-  return (
-    <div className="periodic-performance-item">
-      <div className="periodic-performance-heading">
-        <strong>{item.label}</strong>
-        {changeLabel ? <span className={item.changeTone}>{changeLabel}</span> : null}
-      </div>
-      <div className="periodic-performance-pair">
-        <span>{item.comparisonLabel}</span>
-        <div className="periodic-performance-track" aria-hidden="true">
-          <i className="comparison" style={{ width: `${comparisonWidth}%` }} />
-        </div>
-        <b>{item.comparisonValue}</b>
-        <span>{item.currentLabel}</span>
-        <div className="periodic-performance-track" aria-hidden="true">
-          <i className="current" style={{ width: `${currentWidth}%` }} />
-        </div>
-        <b>{item.currentValue}</b>
-      </div>
-      {guidance ? <PeriodicGuidanceFooter guidance={guidance} /> : null}
-    </div>
-  );
-}
-
-function PeriodicSignedPerformanceItem({
-  guidance,
-  item,
-}: {
-  guidance?: PeriodicReportGuidanceMetric;
-  item: PeriodicReportPerformanceComparison;
-}) {
-  const scale = Math.max(Math.abs(item.currentNumeric), Math.abs(item.comparisonNumeric));
-  return (
-    <div className="periodic-performance-item signed">
-      <div className="periodic-performance-heading">
-        <strong>{item.label}</strong>
-        <span className={item.changeTone}>{periodicPerformanceChangeLabel(item)}</span>
-      </div>
-      <div className="periodic-signed-comparison">
-        <PeriodicSignedBarRow
-          comparison
-          label={item.comparisonLabel}
-          scale={scale}
-          value={item.comparisonNumeric}
-          valueText={item.comparisonValue}
-        />
-        <PeriodicSignedBarRow
-          label={item.currentLabel}
-          scale={scale}
-          value={item.currentNumeric}
-          valueText={item.currentValue}
-        />
-      </div>
-      {guidance ? <PeriodicGuidanceFooter guidance={guidance} /> : null}
-    </div>
-  );
-}
-
-function PeriodicSignedBarRow({
-  comparison = false,
-  label,
-  scale,
-  value,
-  valueText,
-}: {
-  comparison?: boolean;
-  label: string;
-  scale: number;
-  value: number;
-  valueText: string;
-}) {
-  const width = scale > 0 ? (Math.abs(value) / scale) * 50 : 0;
-  const barStyle = value < 0
-    ? { right: "50%", width: `${width}%` }
-    : { left: "50%", width: `${width}%` };
-  const tone = value < 0 ? "negative" : value > 0 ? "positive" : "neutral";
-
-  return (
-    <div className="periodic-signed-row">
-      <span>{label}</span>
-      <div className="periodic-signed-track" aria-hidden="true">
-        <i className={`periodic-signed-bar ${comparison ? "comparison" : tone}`} style={barStyle} />
-        <i className="periodic-signed-zero" />
-      </div>
-      <b className={tone}>{valueText}</b>
-    </div>
-  );
-}
-
-function PeriodicGuidanceFooter({ guidance }: { guidance: PeriodicReportGuidanceMetric }) {
-  const label = guidance.guidanceLabel || `${guidance.label} Guidance`;
-  const basisNote = guidance.performanceRelationship === "related_different_basis"
-    ? "Different accounting basis from the actual result."
-    : null;
-  return (
-    <div className="periodic-guidance-footer">
-      <div>
-        <span>{label}</span>
-        <strong>{formatPeriodicGuidanceValue(guidance.guidanceValue)}</strong>
-      </div>
-      {guidance.note || basisNote ? <small>{guidance.note || basisNote}</small> : null}
-    </div>
-  );
-}
-
-function PeriodicBusinessUpdatesSection({
-  items,
-  title = "Key Business Updates",
-}: {
-  items: PeriodicReportBusinessUpdate[];
-  title?: string;
-}) {
-  return (
-    <section className="periodic-report-section periodic-business-updates-section">
-      <div className="periodic-report-section-heading">
-        <h2>{title}</h2>
-      </div>
-      <div className="periodic-business-update-list">
-        {items.map((item, index) => (
-          <div className="periodic-business-update-row" key={`${item.title}-${item.value || ""}`}>
-            <div className="periodic-business-update-heading">
-              <span>{index + 1}.</span>
-              <strong>{item.title}</strong>
-              {item.value ? <b>{item.value}</b> : null}
-            </div>
-            <p>{item.summary}</p>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function periodicPerformanceChangeLabel(item: PeriodicReportPerformanceComparison) {
-  const previous = item.comparisonNumeric;
-  const current = item.currentNumeric;
-  const suffix = item.comparisonBasis === "yoy" ? " YoY" : item.comparisonBasis === "qoq" ? " QoQ" : "";
-  if (!suffix) return item.changeNote || "";
-  if (previous < 0 && current >= 0) return `Turned profitable${suffix}`;
-  if (previous >= 0 && current < 0) return `Swung to a loss${suffix}`;
-  if (previous === 0) return item.changeNote || "";
-  if (previous < 0 && current < 0) {
-    const magnitudeChange = ((Math.abs(current) - Math.abs(previous)) / Math.abs(previous)) * 100;
-    if (!Number.isFinite(magnitudeChange) || magnitudeChange === 0) return `Loss unchanged${suffix}`;
-    return `Loss ${magnitudeChange > 0 ? "widened" : "narrowed"} ${Math.round(Math.abs(magnitudeChange))}%${suffix}`;
-  }
-  if (item.currentValue.includes("%") && item.comparisonValue.includes("%")) {
-    const pointChange = current - previous;
-    if (!Number.isFinite(pointChange) || pointChange === 0) return `Unchanged${suffix}`;
-    return `${pointChange > 0 ? "Up" : "Down"} ${formatPeriodicPointChange(Math.abs(pointChange))} pts${suffix}`;
-  }
-  const change = ((current - previous) / Math.abs(previous)) * 100;
-  if (!Number.isFinite(change)) return item.changeNote || "";
-  return `${change >= 0 ? "Up" : "Down"} ${Math.round(Math.abs(change))}%${suffix}`;
-}
-
-function formatPeriodicPointChange(value: number) {
-  return value.toLocaleString("en-US", { maximumFractionDigits: 1 });
-}
-
-function normalizePeriodicMetricKey(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/\btotal\b/g, "")
-    .replace(/\brevenues\b/g, "revenue")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function formatPeriodicGuidanceValue(value: string) {
-  return value
-    .replace(/\$\s*([\d,]+(?:\.\d+)?)\s*(million|billion)\b/gi, (_match, rawNumber: string, unit: string) => {
-      const numeric = Number(rawNumber.replace(/,/g, ""));
-      const suffix = unit.toLowerCase() === "billion" ? "B" : "M";
-      if (!Number.isFinite(numeric)) return `$${rawNumber}${suffix}`;
-      if (suffix === "M" && numeric >= 1000) return `$${(numeric / 1000).toFixed(2)}B`;
-      return `$${numeric.toLocaleString("en-US", { maximumFractionDigits: 1 })}${suffix}`;
-    })
-    .replace(/\s+(?:to|[-–—])\s+/gi, "–");
-}
-
-function EarningsTemplate({
-  eventLabel,
-  filing,
-  model,
-}: {
-  eventLabel: string;
-  filing: FilingEvent;
-  model: EarningsModel;
-}) {
-  return (
-    <>
-      <section className="stock-detail-top-grid special-overview-grid">
-        <FilingPriceChart filing={filing} />
-
-        <section className="stock-detail-card spac-summary-panel earnings-summary-panel">
-          <div className="spac-summary-heading">
-            <h2>Earnings Snapshot</h2>
-            <p>
-              <strong>{model.period}.</strong> {model.managementOutlook}
-            </p>
-          </div>
-          <div className="spac-metric-grid">
-            <SpacMetricCard icon="cash" label="Numbers" note={model.estimateBeatMiss} value={model.revenue} />
-            <SpacMetricCard icon="status" label="Guidance" note={model.guidanceChange} tone={model.guidanceTone === "Weak" ? "risk" : "neutral"} value={model.guidanceTone} />
-            <SpacMetricCard icon="redemption" label="Margin Trend" note={model.marginTrendNote} tone={model.marginTrend === "Compressing" ? "risk" : "neutral"} value={model.marginTrend} />
-            <SpacMetricCard icon="closing" label="Risk Signals" note="Disclosure extraction" value={`${model.riskSignals.length} checks`} />
-          </div>
-        </section>
-      </section>
-
-      <section className="stock-detail-card earnings-results-card">
-        <div className="card-heading-row">
-          <div>
-            <h2>Numbers</h2>
-            <p>Current-quarter results.</p>
-          </div>
-          <span>{model.periodType}</span>
-        </div>
-        <div className="earnings-metric-grid">
-          {model.numbers.map((metric) => (
-            <EarningsMetricCard metric={metric} key={metric.label} />
-          ))}
-        </div>
-      </section>
-
-      <section className="stock-detail-card earnings-guidance-card">
-        <div className="card-heading-row">
-          <div>
-            <h2>Guidance</h2>
-            <p>Revenue, EPS, margin outlook, and forward commentary.</p>
-          </div>
-          <EarningsGuidanceToneBadge tone={model.guidanceTone} />
-        </div>
-        <div className="spac-readout-grid earnings-guidance-grid">
-          <MetricRow label="Revenue Outlook" value={model.revenueGuidance} />
-          <MetricRow label="EPS Outlook" value={model.epsGuidance} />
-          <MetricRow label="Margin Outlook" value={model.marginGuidance} />
-          <MetricRow label="Raise / Cut" value={model.guidanceChange} />
-          <MetricRow label="Forward Commentary" value={model.forwardCommentary} />
-        </div>
-      </section>
-
-      <section className="stock-detail-card earnings-margin-card">
-        <div className="card-heading-row">
-          <div>
-            <h2>Margin Trend</h2>
-            <p>Quality of earnings: gross, operating, and EBITDA margin direction.</p>
-          </div>
-          <span>{model.marginTrend}</span>
-        </div>
-        <EarningsMarginTrendChart metrics={model.marginMetrics} trend={model.marginTrend} />
-      </section>
-
-      <section className="stock-detail-card earnings-risk-signal-card">
-        <div className="card-heading-row">
-          <div>
-            <h2>Risk Signals</h2>
-            <p>Going concern, liquidity, covenant, dilution, financing, debt, and listing-pressure language.</p>
-          </div>
-        </div>
-        <div className="earnings-risk-signal-grid">
-          {model.riskSignals.map((signal) => (
-            <EarningsRiskSignalCard signal={signal} key={signal.label} />
-          ))}
-        </div>
-      </section>
-
-      <section className="stock-detail-card spac-watch-card earnings-watch-card">
-        <h2>What To Watch Next</h2>
-        <ol>
-          {model.watchNext.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ol>
-      </section>
-
-      <FilingMarketContextPanel filing={filing} />
-      <SpacSourceEvidence filing={filing} model={model} />
-      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
-    </>
-  );
-}
-
-function FdaClinicalTemplate({
-  eventLabel,
-  filing,
-  model,
-}: {
-  eventLabel: string;
-  filing: FilingEvent;
-  model: FdaClinicalModel;
-}) {
-  return (
-    <>
-      <section className="stock-detail-top-grid special-overview-grid">
-        <FilingPriceChart filing={filing} />
-
-        <section className="stock-detail-card spac-summary-panel clinical-summary-panel">
-          <div className="spac-summary-heading">
-            <h2>Event Snapshot</h2>
-            <p>
-              <strong>{model.phase}.</strong> {model.eventSummary}
-            </p>
-          </div>
-          <div className="spac-metric-grid clinical-snapshot-grid">
-            <SpacMetricCard icon="status" label="Trial / Indication" note={model.trialName} value={model.indication} />
-            <SpacMetricCard icon="redemption" label="Therapy" note={model.patientPopulation} value={model.therapy} />
-            <SpacMetricCard icon="cash" label="Event Status" note={model.dataReadout} tone="risk" value={model.eventStatus} />
-            <SpacMetricCard icon="closing" label="Next Milestone" note={model.fdaStatus} value={model.nextMilestone} />
-          </div>
-        </section>
-      </section>
-
-      <section className="stock-detail-card clinical-timeline-card">
-        <div className="card-heading-row">
-          <div>
-            <h2>FDA Timeline</h2>
-            <p>Regulatory and clinical checkpoints shown only when the filing payload provides support.</p>
-          </div>
-          <span>{model.primaryEndpoint}</span>
-        </div>
-        <div className="clinical-timeline-list">
-          {model.fdaTimeline.map((item) => (
-            <ClinicalTimelineRow item={item} key={`${item.label}-${item.date}`} />
-          ))}
-        </div>
-      </section>
-
-      <section className="stock-detail-card clinical-takeaways-card">
-        <div className="card-heading-row">
-          <div>
-            <h2>Key Takeaways</h2>
-            <p>Four source-backed points from the current filing.</p>
-          </div>
-        </div>
-        <ol className="clinical-takeaway-list">
-          {model.keyTakeaways.slice(0, 4).map((item, index) => (
-            <li key={item}>
-              <span>{index + 1}</span>
-              <p>{item}</p>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      <section className="stock-detail-card clinical-data-card">
-        <div className="card-heading-row">
-          <div>
-            <h2>Data Highlights</h2>
-            <p>Compact endpoint, survival, and safety facts without repeating the full summary.</p>
-          </div>
-        </div>
-        <div className="clinical-data-list">
-          {model.dataHighlights.map((item) => (
-            <ClinicalDataHighlightRow item={item} key={item.label} />
-          ))}
-        </div>
-      </section>
-
-      <section className="stock-detail-card-grid two-up spac-support-grid">
-        <section className="stock-detail-card spac-risk-card clinical-risk-card">
-          <h2>Risks</h2>
-          <ul>
-            {model.risks.map((risk) => (
-              <li key={risk}>
-                <TriangleAlert size={14} aria-hidden="true" />
-                <span>{risk}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-        <section className="stock-detail-card spac-watch-card clinical-watch-card">
-          <h2>What To Watch</h2>
-          <ol>
-            {model.watchNext.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ol>
-        </section>
-      </section>
-
-      <section className="stock-detail-card clinical-market-card">
-        <div className="card-heading-row">
-          <div>
-            <h2>Market Size</h2>
-            <p>{model.marketSizeSource}</p>
-          </div>
-        </div>
-        <p>{model.marketSize}</p>
-      </section>
-
-      <FilingMarketContextPanel filing={filing} />
-      <SpacSourceEvidence filing={filing} model={model} />
-      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
-    </>
-  );
-}
-
-function ClinicalTimelineRow({ item }: { item: ClinicalTimelineItem }) {
-  return (
-    <div>
-      <span>{item.status}</span>
-      <strong>{item.label}</strong>
-      <em>{item.date}</em>
-      <p>{item.detail}</p>
-    </div>
-  );
-}
-
-function ClinicalDataHighlightRow({ item }: { item: ClinicalDataHighlight }) {
-  return (
-    <div>
-      <span>{item.label}</span>
-      <strong>{item.value}</strong>
-      <p>{item.note}</p>
-    </div>
-  );
-}
-
-function ListingRiskCheckCard({ check }: { check: ListingRiskCheck }) {
-  const tone = /deficient|risk|watch|unknown/i.test(check.status) ? "risk" : "complete";
-  return (
-    <div className={`listing-risk-check ${tone}`}>
-      <span>{check.label}</span>
-      <strong>{check.value}</strong>
-      <em>{check.status}</em>
-      <p>{check.note}</p>
-    </div>
-  );
-}
-
-function EarningsMetricCard({ metric }: { metric: EarningsMetric }) {
-  return (
-    <div className="earnings-metric-card">
-      <span>{metric.label}</span>
-      <strong>{metric.value}</strong>
-      <em>{metric.comparison}</em>
-      <p>{metric.note}</p>
-    </div>
-  );
-}
-
-function EarningsGuidanceToneBadge({ tone }: { tone: EarningsModel["guidanceTone"] }) {
-  return <span className={`earnings-guidance-tone ${tone.toLowerCase()}`}>{tone}</span>;
-}
-
-function EarningsMarginTrendChart({ metrics, trend }: { metrics: EarningsMetric[]; trend: string }) {
-  return (
-    <div className="earnings-margin-trend-shell">
-      <div className="earnings-margin-chart" aria-label={`Margin trend: ${trend}`}>
-        {metrics.map((metric, index) => (
-          <div className="earnings-margin-bar-row" key={metric.label}>
-            <span>{metric.label}</span>
-            <div>
-              <i style={{ width: `${Math.max(18, 74 - index * 12)}%` }} />
-            </div>
-            <strong>{metric.value}</strong>
-            <em>{metric.comparison}</em>
-          </div>
-        ))}
-      </div>
-      <p>{metrics[0]?.note || "Margin trend is source-backed when disclosed."}</p>
-    </div>
-  );
-}
-
-function EarningsRiskSignalCard({ signal }: { signal: EarningsRiskSignal }) {
-  return (
-    <div className={`earnings-risk-signal ${signal.tone}`}>
-      <span>{signal.label}</span>
-      <strong>{signal.status}</strong>
-      <p>{signal.detail}</p>
-    </div>
-  );
-}
-
-function IpoListingTemplate({
-  eventLabel,
-  filing,
-  model,
-}: {
-  eventLabel: string;
-  filing: FilingEvent;
-  model: IpoListingModel;
-}) {
-  if (model.displayMode === "rule_462b_mef") {
-    return <Rule462bMefTemplate eventLabel={eventLabel} filing={filing} model={model} />;
-  }
-  if (model.displayMode === "spac_ipo") {
-    return <SpacIpoSummaryTemplate eventLabel={eventLabel} filing={filing} model={model} />;
-  }
-  if (model.isInitialTermsPending) {
-    return <InitialIpoFilingTemplate eventLabel={eventLabel} filing={filing} model={model} />;
-  }
-  if (model.displayMode === "ipo_amendment") {
-    return <IpoTermsUpdateTemplate eventLabel={eventLabel} filing={filing} model={model} />;
-  }
-
-  const listingNote = model.proposedTicker !== "Not disclosed" ? `${model.exchange}:${model.proposedTicker}` : model.exchange;
-
-  return (
-    <>
-      <section className="stock-detail-top-grid spac-overview-grid ipo-overview-grid">
-        <FilingPriceChart filing={filing} />
-
-        <section className="stock-detail-card spac-summary-panel ipo-summary-panel">
-          <div className="spac-summary-heading">
-            <div>
-              <h2>IPO Schedule</h2>
-              <p>
-                <strong>{model.currentStageLabel}.</strong> {model.displayQuickTake}
-              </p>
-            </div>
-          </div>
-
-          <div className="spac-metric-grid ipo-schedule-grid">
-            <SpacMetricCard icon="status" label="Current Stage" note={model.stageBadge} value={model.currentStageLabel} />
-            <SpacMetricCard icon="closing" label="Pricing Window" note="Expected IPO pricing" value={model.expectedPricingDate} />
-            <SpacMetricCard
-              icon="cash"
-              label="Price Range"
-              note={model.midpointPrice !== "Not disclosed" ? `Midpoint ${model.midpointPrice}` : "Range from filing"}
-              value={model.priceRange}
-            />
-            <SpacMetricCard icon="closing" label="Expected First Trade" note={listingNote} value={model.expectedListingDate} />
-          </div>
-        </section>
-      </section>
-
-      <section className="stock-detail-card ipo-financial-card">
-        <div className="card-heading-row">
-          <div>
-            <h2>Financial Snapshot</h2>
-            <p>Most recent issuer financial figures disclosed in the filing payload.</p>
-          </div>
-          <span>{model.ipoKind}</span>
-        </div>
-        <div className="ipo-financial-grid">
-          <IpoFactCard label="Revenue" note="Latest disclosed period" value={model.revenue} />
-          <IpoFactCard label="Net Loss" note="Latest disclosed period" value={model.netLoss} />
-          <IpoFactCard label="Balance Sheet Cash" note="Before IPO proceeds" value={model.cash} />
-          <IpoFactCard label="IPO Proceeds" note="Expected gross offering size" value={model.offeringSize} />
-        </div>
-      </section>
-
-      <section className="stock-detail-card spac-stage-card ipo-timeline-card">
-        <div className="card-heading-row">
-          <div>
-            <h2>IPO Timeline</h2>
-            <p>Follow the listing from initial filing through terms, effectiveness, pricing, first trade, and lock-up expiry.</p>
-          </div>
-          <span>{model.stageBadge}</span>
-        </div>
-        <div className="spac-stage-map ipo-stage-map" aria-label="IPO listing stage timeline">
-          {model.stages.map((stage, index) => (
-            <SpacStageStep key={`${stage.label}-${index}`} stage={stage} />
-          ))}
-        </div>
-      </section>
-
-      <section className="stock-detail-card spac-explainer-card ipo-company-card">
-        <div className="card-heading-row">
-          <div>
-            <h2>Company Overview</h2>
-            <p>Issuer business context and pre-listing investor focus from the filing payload.</p>
-          </div>
-        </div>
-        <div className="spac-explainer-grid ipo-company-grid">
-          <div>
-            <strong>What the company does</strong>
-            <p>{model.companyStory}</p>
-          </div>
-          <div>
-            <strong>Stage / business model</strong>
-            <p>{model.companyStage}</p>
-          </div>
-          <div>
-            <strong>Why investors may care</strong>
-            <p>{filing.whyItMatters}</p>
-          </div>
-        </div>
-      </section>
-
-      <section className="stock-detail-card spac-context-strip ipo-deal-context-card">
-        <div className="card-heading-row">
-          <div>
-            <h2>IPO Deal Context</h2>
-            <p>Offering terms, planned proceeds use, and post-listing supply from the IPO filing payload.</p>
-          </div>
-        </div>
-
-        <div className="spac-context-columns ipo-deal-columns">
-          <section className="spac-context-light-column">
-            <h3>IPO Offering Terms</h3>
-            <strong className="spac-context-headline">{model.issuer}</strong>
-            <div className="spac-readout-grid compact spac-card-readouts">
-              <MetricRow label="Shares Offered" value={model.sharesOffered} />
-              <MetricRow label="Implied Valuation" value={model.impliedValuation} />
-              <MetricRow label="Lead Underwriters" value={model.underwriters} />
-              <MetricRow label="Underwriter Option / Greenshoe" value={model.underwriterOption} />
-              <MetricRow label="Primary / Secondary Mix" value={model.primarySecondaryMix} />
-            </div>
-          </section>
-
-          <section className="spac-context-light-column">
-            <h3>Use of Proceeds</h3>
-            <strong className="spac-context-headline">Planned deployment</strong>
-            <ul className="ipo-use-list">
-              {model.useOfProceeds.map((item) => (
-                <li key={item}>
-                  <CircleCheck size={14} aria-hidden="true" />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          <section className="spac-context-light-column">
-            <h3>Post-Listing Supply</h3>
-            <strong className="spac-context-headline">{model.proposedTicker}</strong>
-            <div className="spac-readout-grid compact spac-card-readouts">
-              <MetricRow label="Expected Float" value={model.floatSummary} />
-              <MetricRow label="Float %" value={model.floatPercent} />
-              <MetricRow label="Lock-Up Terms" value={model.lockupSummary} />
-              <MetricRow label="Lock-Up Expiry" value={model.lockupExpiration} />
-            </div>
-          </section>
-        </div>
-      </section>
-
-      <section className="stock-detail-card-grid two-up spac-support-grid ipo-support-grid">
-        <section className="stock-detail-card spac-risk-card">
-          <h2>Key Risk Flags</h2>
-          <ul>
-            {model.riskFlags.map((flag) => (
-              <li key={flag}>
-                <TriangleAlert size={14} aria-hidden="true" />
-                <span>{flag}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="stock-detail-card spac-watch-card">
-          <h2>What To Watch Next</h2>
-          <ol>
-            {model.watchNext.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ol>
-        </section>
-      </section>
-
-      <FilingMarketContextPanel filing={filing} />
-      <SpacSourceEvidence filing={filing} model={model} />
-      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
-    </>
-  );
-}
-
-function SpacIpoSummaryTemplate({
-  eventLabel,
-  filing,
-  model,
-}: {
-  eventLabel: string;
-  filing: FilingEvent;
-  model: IpoListingModel;
-}) {
-  const watchNext =
-    model.watchNext.length > 0
-      ? model.watchNext
-      : [
-          "Final 424B4/pricing and unit trading date.",
-          "Separate trading date for shares and warrants.",
-          "Later target announcement or business-combination filing.",
-        ];
-
-  return (
-    <>
-      <section className="stock-detail-card-grid two-up initial-ipo-compact-grid">
-        <section className="stock-detail-card dilution-snapshot-panel ipo-summary-panel initial-ipo-top-panel">
-          <div className="ipo-summary-heading">
-            <h2>SPAC IPO Summary</h2>
-          </div>
-
-          <div className="dilution-impact-metrics">
-            {model.snapshotMetrics.map((metric) => (
-              <DilutionMetric key={metric.label} metric={metric} />
-            ))}
-          </div>
-        </section>
-
-        <section className="stock-detail-card initial-ipo-side-stack">
-          <div className="initial-ipo-summary-card initial-ipo-quick-card">
-            <h2>Quick Take</h2>
-            <p>{model.displayQuickTake}</p>
-          </div>
-
-          <div className="initial-ipo-summary-card initial-ipo-background-card">
-            <h2>Summary</h2>
-            <p>{model.companyStory}</p>
-          </div>
-        </section>
-      </section>
-
-      {model.offeringDetailsRows.length ? (
-        <section className="stock-detail-card initial-ipo-details-block">
-          <h2>SPAC Terms</h2>
-          <div className="initial-ipo-detail-list">
-            {model.offeringDetailsRows.map((row) => (
-              <div className="initial-ipo-detail-row" key={`${row.label}-${row.value}`}>
-                <span>{row.label}</span>
-                <div className="initial-ipo-detail-value">
-                  <strong>{row.value}</strong>
-                  {row.note ? <em>{row.note}</em> : null}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      <section className="stock-detail-card spac-watch-card ipo-watch-card">
-        <h2>What To Watch Next</h2>
-        <ol>
-          {watchNext.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ol>
-      </section>
-
-      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
-    </>
-  );
-}
-
-function InitialIpoFilingTemplate({
-  eventLabel,
-  filing,
-  model,
-}: {
-  eventLabel: string;
-  filing: FilingEvent;
-  model: IpoListingModel;
-}) {
-  const quickTake = model.displayQuickTake;
-  const watchNext =
-    model.watchNext.length > 0
-      ? model.watchNext
-      : [
-          "S-1/A or F-1/A with share count and price range.",
-          "SEC effectiveness and final 424B4 prospectus.",
-          "Pricing date and first trading date.",
-        ];
-
-  return (
-    <>
-      <section className="stock-detail-card-grid two-up initial-ipo-compact-grid">
-        <section className="stock-detail-card dilution-snapshot-panel ipo-summary-panel initial-ipo-top-panel">
-          <div className="ipo-summary-heading">
-            <h2>Initial IPO Filing</h2>
-          </div>
-
-          <div className="dilution-impact-metrics">
-            {model.snapshotMetrics.map((metric) => (
-              <DilutionMetric key={metric.label} metric={metric} />
-            ))}
-          </div>
-        </section>
-
-        <section className="stock-detail-card initial-ipo-side-stack">
-          <div className="initial-ipo-summary-card initial-ipo-quick-card">
-            <h2>Quick Take</h2>
-            <p>{quickTake}</p>
-          </div>
-
-          <div className="initial-ipo-summary-card initial-ipo-background-card">
-            <h2>Company Overview</h2>
-            <p>{model.companyStory}</p>
-          </div>
-        </section>
-      </section>
-
-      <section className="stock-detail-card spac-watch-card ipo-watch-card">
-        <h2>What To Watch Next</h2>
-        <ol>
-          {watchNext.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ol>
-      </section>
-
-      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
-    </>
-  );
-}
-
-function IpoTermsUpdateTemplate({
-  eventLabel,
-  filing,
-  model,
-}: {
-  eventLabel: string;
-  filing: FilingEvent;
-  model: IpoListingModel;
-}) {
-  const quickTake = model.displayQuickTake;
-  const watchNext =
-    model.watchNext.length > 0
-      ? model.watchNext
-      : [
-          "SEC effectiveness and final 424B4 prospectus.",
-          "Final IPO pricing and first trading date.",
-          "Any lock-up, underwriter option, or selling-shareholder updates.",
-        ];
-
-  return (
-    <>
-      <section className="stock-detail-card-grid two-up initial-ipo-compact-grid">
-        <section className="stock-detail-card dilution-snapshot-panel ipo-summary-panel initial-ipo-top-panel">
-          <div className="ipo-summary-heading">
-            <h2>IPO Terms Update</h2>
-          </div>
-
-          <div className="dilution-impact-metrics">
-            {model.snapshotMetrics.map((metric) => (
-              <DilutionMetric key={metric.label} metric={metric} />
-            ))}
-          </div>
-        </section>
-
-        <section className="stock-detail-card initial-ipo-side-stack">
-          <div className="initial-ipo-summary-card initial-ipo-quick-card">
-            <h2>Quick Take</h2>
-            <p>{quickTake}</p>
-          </div>
-
-          <div className="initial-ipo-summary-card initial-ipo-background-card">
-            <h2>Company Overview</h2>
-            <p>{model.companyStory}</p>
-          </div>
-        </section>
-      </section>
-
-      {model.offeringDetailsRows.length ? (
-        <section className="stock-detail-card initial-ipo-details-block">
-          <h2>Offering Details</h2>
-          <div className="initial-ipo-detail-list">
-            {model.offeringDetailsRows.map((row) => (
-              <div className="initial-ipo-detail-row" key={`${row.label}-${row.value}`}>
-                <span>{row.label}</span>
-                <div className="initial-ipo-detail-value">
-                  <strong>{row.value}</strong>
-                  {row.note ? <em>{row.note}</em> : null}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      <section className="stock-detail-card spac-watch-card ipo-watch-card">
-        <h2>What To Watch Next</h2>
-        <ol>
-          {watchNext.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ol>
-      </section>
-
-      <FilingMarketContextPanel filing={filing} />
-      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
-    </>
-  );
-}
-
-function Rule462bMefTemplate({
-  eventLabel,
-  filing,
-  model,
-}: {
-  eventLabel: string;
-  filing: FilingEvent;
-  model: IpoListingModel;
-}) {
-  const quickTake = model.displayQuickTake;
-  const summary = model.companyStory;
-
-  return (
-    <>
-      <section className="stock-detail-card-grid two-up initial-ipo-compact-grid">
-        <section className="stock-detail-card dilution-snapshot-panel ipo-summary-panel initial-ipo-top-panel">
-          <div className="ipo-summary-heading">
-            <h2>Rule 462(b) MEF</h2>
-          </div>
-
-          <div className="dilution-impact-metrics">
-            {model.snapshotMetrics.map((metric) => (
-              <DilutionMetric key={metric.label} metric={metric} />
-            ))}
-          </div>
-        </section>
-
-        {quickTake || summary ? (
-          <section className="stock-detail-card initial-ipo-side-stack">
-            {quickTake ? (
-              <div className="initial-ipo-summary-card initial-ipo-quick-card">
-                <h2>Quick Take</h2>
-                <p>{quickTake}</p>
-              </div>
-            ) : null}
-
-            {summary ? (
-              <div className="initial-ipo-summary-card initial-ipo-background-card">
-                <h2>Additional Registration</h2>
-                <p>{summary}</p>
-              </div>
-            ) : null}
-          </section>
-        ) : null}
-      </section>
-
-      {model.offeringDetailsRows.length ? (
-        <section className="stock-detail-card initial-ipo-details-block">
-          <h2>Registration Details</h2>
-          <div className="initial-ipo-detail-list">
-            {model.offeringDetailsRows.map((row) => (
-              <div className="initial-ipo-detail-row" key={`${row.label}-${row.value}`}>
-                <span>{row.label}</span>
-                <div className="initial-ipo-detail-value">
-                  <strong>{row.value}</strong>
-                  {row.note ? <em>{row.note}</em> : null}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      <FilingMarketContextPanel filing={filing} />
-      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
-    </>
-  );
-}
-
-function IpoFactCard({ label, note, value }: { label: string; note: string; value: string }) {
-  return (
-    <div className="ipo-fact-card">
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <em>{note}</em>
-    </div>
-  );
-}
-
-function SpacTransactionStatusTemplate({
-  eventLabel,
-  filing,
-  model,
-}: {
-  eventLabel: string;
-  filing: FilingEvent;
-  model: SpacTransactionStatusModel;
-}) {
-  const keyEvidence = model.keyEvidence.slice(0, 3);
-  const watchItems = model.watchNext.slice(0, 3);
-
-  return (
-    <>
-      <section className="stock-detail-top-grid spac-overview-grid">
-        <FilingPriceChart filing={filing} />
-
-        <section className="stock-detail-card spac-summary-panel spac-status-panel">
-          <div className="spac-summary-heading">
-            <div>
-              <h2>{model.snapshotTitle}</h2>
-              <p>{model.stageSummary}</p>
-            </div>
-          </div>
-
-          <div className="spac-status-board">
-            <div className="spac-status-readouts">
-              {model.snapshotItems.map((item) => (
-                <SpacReadoutItem key={`${item.label}-${item.value}`} label={item.label} value={item.value} note={item.note} />
-              ))}
-            </div>
-          </div>
-        </section>
-      </section>
-
-      <ScoreBasisPanel filing={filing} />
-
-      <section className="stock-detail-card spac-context-strip">
-        <div className="card-heading-row">
-          <div>
-            <h2>{model.contextTitle}</h2>
-          </div>
-          {model.contextBadge ? <span>{model.contextBadge}</span> : null}
-        </div>
-        <p className="spac-target-overview-copy">{model.targetCompanyStory}</p>
-      </section>
-
-      {keyEvidence.length || watchItems.length ? (
-        <section className="stock-detail-card spac-context-strip">
-          <div className="spac-compact-columns">
-            {keyEvidence.length ? (
-              <section className="spac-watch-card">
-                <h3>Key Evidence</h3>
-                <ol>
-                  {keyEvidence.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ol>
-              </section>
-            ) : null}
-
-            {watchItems.length ? (
-              <section className="spac-watch-card">
-                <h3>What To Watch Next</h3>
-                <ol>
-                  {watchItems.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ol>
-              </section>
-            ) : null}
-          </div>
-        </section>
-      ) : null}
-
-      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
-    </>
-  );
-}
-
-function SpacReadoutItem({ label, note, value }: { label: string; note?: string; value: string }) {
-  return (
-    <div className="spac-readout-item">
-      <span>{label}</span>
-      <strong>{value}</strong>
-      {note ? <em>{note}</em> : null}
-    </div>
-  );
-}
-
-function SpacMetricCard({
-  icon,
-  label,
-  note,
-  tone = "neutral",
-  value,
-}: {
-  icon: "status" | "redemption" | "cash" | "closing";
-  label: string;
-  note: string;
-  tone?: "neutral" | "risk";
-  value: string;
-}) {
-  const Icon = icon === "redemption" ? ChartPie : icon === "cash" ? DollarSign : icon === "closing" ? CalendarCheck : Clock3;
-
-  return (
-    <div className={`spac-metric-card ${tone}`}>
-      <span className="spac-metric-icon">
-        <Icon size={20} aria-hidden="true" />
-      </span>
-      <div>
-        <span>{label}</span>
-        <strong>{value}</strong>
-        <em>{note}</em>
-      </div>
-    </div>
-  );
-}
-
-function SpacStageStep({ stage }: { stage: SpacStageItem }) {
-  const Icon = stage.tone === "complete" ? CircleCheck : stage.tone === "risk" ? TriangleAlert : stage.tone === "current" ? Clock3 : CalendarCheck;
-
-  return (
-    <div className={`spac-stage-step ${stage.tone}`}>
-      <span className="spac-stage-dot">
-        <Icon size={14} aria-hidden="true" />
-      </span>
-      {stage.tone !== "pending" ? <span className="spac-stage-line" aria-hidden="true" /> : null}
-      <strong>{stage.label}</strong>
-      {stage.date ? <em>{stage.date}</em> : null}
-      {stage.tone === "current" ? <span className="spac-current-marker">Current filing</span> : null}
-    </div>
-  );
-}
-
-function SpacConditionItem({
-  children,
-  tone = "complete",
-}: {
-  children: ReactNode;
-  tone?: "complete" | "risk";
-}) {
-  const Icon = tone === "risk" ? TriangleAlert : CircleCheck;
-  return (
-    <li className={tone}>
-      <Icon size={14} aria-hidden="true" />
-      <span>{children}</span>
-    </li>
-  );
-}
-
-function SpacEventHistory({ items }: { items: SpacHistoryItem[] }) {
-  return (
-    <section className="stock-detail-card spac-history-card">
-      <div className="card-heading-row">
-        <h2>Filing Timeline</h2>
-        <span>{items.length} items</span>
-      </div>
-      <div className="spac-history-list">
-        {items.map((item) => (
-          <div className={item.current ? "current" : ""} key={`${item.date}-${item.title}`}>
-            <span>{item.date}</span>
-            <b>{item.form}</b>
-            <div>
-              <strong>{item.title}</strong>
-              <em>
-                {item.source} / {item.status}
-              </em>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function SpacSourceEvidence({ filing, model }: { filing: FilingEvent; model: { sources: SpacSourceItem[] } }) {
-  return (
-    <section className="stock-detail-card spac-source-card">
-      <div className="card-heading-row">
-        <h2>Source Evidence</h2>
-        <a href={filing.sourceUrl} target="_blank" rel="noreferrer">
-          Open SEC filing <ExternalLink size={13} aria-hidden="true" />
-        </a>
-      </div>
-      <div className="spac-source-grid">
-        {model.sources.map((source) => (
-          <a href={source.url || filing.sourceUrl} target="_blank" rel="noreferrer" key={`${source.form}-${source.title}`}>
-            <FileText size={17} aria-hidden="true" />
-            <strong>{source.title}</strong>
-            <span>{source.detail}</span>
-          </a>
-        ))}
-      </div>
-    </section>
   );
 }
 
@@ -5779,127 +7524,32 @@ function DilutionOfferingTemplate({
   model: ReturnType<typeof buildDilutionOfferingModel>;
 }) {
 
-  if (!model.isS8DetailCandidate && model.isCommonWarrantOnly) {
+  if (model.isShelfOnly || model.isCommonWarrantOnly) {
     return <CommonFilingTemplate eventLabel={eventLabel} filing={filing} />;
   }
 
-  const showSummaryBesideChart = model.hideSnapshotPanel;
-
   return (
     <>
-      {showSummaryBesideChart ? (
-        <section className="stock-detail-top-grid">
-          <FilingPriceChart filing={filing} />
+      <section className="stock-detail-top-grid">
+        <PriceChartCard
+          change={filing.change}
+          changeAmount={filing.changeAmount}
+          price={filing.price}
+          series={filing.priceSeries}
+          ticker={filing.ticker}
+          tone={filing.signal}
+        />
 
-          <DilutionLongSummary model={model} />
-        </section>
-      ) : (
-        <section className="stock-detail-top-grid">
-          <FilingPriceChart filing={filing} />
+        <DilutionSnapshotCard model={model} />
+      </section>
 
-          <DilutionSnapshotCard model={model} />
-        </section>
-      )}
-      {showSummaryBesideChart ? <ScoreBasisPanel filing={filing} /> : null}
+      <DilutionLongSummary model={model} />
 
-      {model.isShelfOnly ? (
-        <>
-          {showSummaryBesideChart ? null : (
-            <>
-              <DilutionLongSummary model={model} />
-              <ScoreBasisPanel filing={filing} />
-            </>
-          )}
-          <ShelfDetailsSection model={model} />
-          <ShelfWatchNext model={model} />
-        </>
-      ) : (
-        <>
-          {showSummaryBesideChart ? null : (
-            <>
-              <DilutionLongSummary model={model} />
-              <ScoreBasisPanel filing={filing} />
-            </>
-          )}
+      <ShareOverhangCard model={model} />
 
-          {model.hideStructuredDetailSections ? null : model.hideShareOverhang ? (
-            <AtmProgramDetails model={model} />
-          ) : model.isPendingPrimaryOffering ? (
-            <PendingPrimaryOfferingDetails model={model} />
-          ) : model.isMixedOffering ? (
-            <MixedOfferingDetails model={model} />
-          ) : model.isPricedPrimaryOrRegisteredDirect ? (
-            <PricedOfferingDetails model={model} />
-          ) : model.isResaleRegistration ? (
-            <ResaleRegistrationDetails model={model} />
-          ) : model.isWarrantConvertible ? (
-            <WarrantConvertibleDetails model={model} />
-          ) : model.is424bOfferingTermsPayload ? (
-            <OfferingTermsSourceDetails model={model} />
-          ) : (
-            <ShareOverhangCard model={model} />
-          )}
-        </>
-      )}
-
-      <S3AmendmentChangesSection model={model} />
-      <FilingMarketContextPanel filing={filing} />
+      <SectorThemeContextPanel context={filing.context} ticker={filing.ticker} />
       <OriginalFilingText filing={filing} eventLabel="Dilution Risk" />
     </>
-  );
-}
-
-function ShelfDetailsSection({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
-  const rows = model.offeringDetailsRows.length ? model.offeringDetailsRows : model.shelfDetailRows;
-  if (!rows.length) return null;
-
-  return (
-    <DilutionDisclosureSection
-      title="Shelf Details"
-      rows={rows}
-      emptyText="No source-backed shelf details were provided."
-      headingLabel="Registration details"
-    />
-  );
-}
-
-function PendingPrimaryOfferingDetails({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
-  const detailRows = model.offeringDetailsRows.length ? model.offeringDetailsRows : model.pricedOfferingRows;
-
-  return (
-    <>
-      <DilutionDisclosureSection
-        title="Pending Offering Terms"
-        rows={detailRows}
-        emptyText="No source-backed pending offering terms were provided."
-        headingLabel="Terms pending"
-      />
-      {model.warrantInstrumentRows.length ? (
-        <DilutionInstrumentDetailsSection
-          rows={model.warrantInstrumentRows}
-          emptyText="No source-backed instrument rows were provided."
-        />
-      ) : model.warrantDetailsRows.length ? (
-        <DilutionDisclosureSection
-          title="Instrument Details"
-          rows={model.warrantDetailsRows}
-          emptyText="No source-backed instrument rows were provided."
-        />
-      ) : null}
-    </>
-  );
-}
-
-function S3AmendmentChangesSection({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
-  if (!model.s3AmendmentChangeRows.length) return null;
-
-  return (
-    <DilutionDisclosureSection
-      title="What Changed"
-      rows={model.s3AmendmentChangeRows}
-      emptyText="No source-backed amendment changes were provided."
-      headingLabel="S-3/A updates"
-    />
   );
 }
 
@@ -5918,11 +7568,9 @@ function DilutionSnapshotCard({ model }: { model: ReturnType<typeof buildDilutio
         ))}
       </div>
 
-      {model.investorTakeaway ? (
-        <div className="dilution-warning-strip">
-          <p>{model.investorTakeaway}</p>
-        </div>
-      ) : null}
+      <div className="dilution-warning-strip">
+        <p>{model.investorTakeaway}</p>
+      </div>
 
     </section>
   );
@@ -5931,752 +7579,12 @@ function DilutionSnapshotCard({ model }: { model: ReturnType<typeof buildDilutio
 function DilutionLongSummary({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
   return (
     <section className="stock-detail-card dilution-long-summary">
-      <h2>{model.summaryTitle}</h2>
+      <h2>Dilution Summary</h2>
       {model.summaryParagraphs.map((paragraph) => (
         <p key={paragraph}>{paragraph}</p>
       ))}
     </section>
   );
-}
-
-function OfferingTermsSourceDetails({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
-  const detailRows = model.offeringDetailsRows.length ? model.offeringDetailsRows : model.termRows;
-
-  return (
-    <>
-      <DilutionDisclosureSection
-        title="Offering Details"
-        rows={detailRows}
-        emptyText="No source-backed offering detail rows were provided."
-      />
-      {model.warrantInstrumentRows.length ? (
-        <DilutionInstrumentDetailsSection
-          rows={model.warrantInstrumentRows}
-          emptyText="No source-backed instrument rows were provided."
-        />
-      ) : model.warrantDetailsRows.length ? (
-        <DilutionDisclosureSection
-          title="Instrument Details"
-          rows={model.warrantDetailsRows}
-          emptyText="No source-backed instrument rows were provided."
-        />
-      ) : null}
-    </>
-  );
-}
-
-function AtmProgramDetails({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
-  const llmAtmModel = buildAtmProgramLlmOverhangModel(model);
-  if (llmAtmModel) return <DilutionShareOverhang model={llmAtmModel} />;
-
-  const programSize = findMetricValue(model.impactMetrics, "Program size") || findDisclosureRowValue(model.atmProgramRows, "Program size");
-  const publicFloat = findMetricValue(model.impactMetrics, "Public float");
-  const publicFloatScale = findMetricValue(model.impactMetrics, "Size vs public float");
-  const marketCap =
-    findMetricValue(model.impactMetrics, "Market cap") ||
-    findMetricValue(model.impactMetrics, "Approximate Current Market Cap") ||
-    model.atmMarketCapValue;
-  const marketCapScale = findMetricValue(model.impactMetrics, "Size vs market cap") || findDisclosureRowValue(model.atmDilutionRows, "Market cap scale");
-  const denominatorLabel = publicFloat ? "Public Float" : "Market Cap";
-  const denominatorValue = publicFloat || marketCap;
-  const denominatorCaption = publicFloat ? "of public float" : "of market cap";
-  const denominatorScaleLabel = publicFloat ? "Size vs Public Float" : "Size vs Market Cap";
-  const denominatorNoteSuffix = publicFloat ? "program size vs. public float" : "program size vs. market cap";
-  const denominatorUnavailableLabel = publicFloat ? "public float" : "market cap";
-  const programAmount = parseMoneyValue(programSize);
-  const denominatorAmount = parseMoneyValue(denominatorValue);
-  const totalAmount = programAmount + denominatorAmount;
-  const canRenderScale = Boolean(programAmount && denominatorAmount && totalAmount);
-  const marketCapWidth = canRenderScale ? (denominatorAmount / totalAmount) * 100 : 0;
-  const programWidth = canRenderScale ? (programAmount / totalAmount) * 100 : 0;
-  const computedScale =
-    canRenderScale ? `${formatPercentCompact((programAmount / denominatorAmount) * 100)} ${denominatorCaption}` : "";
-  const displayedScale = publicFloatScale || marketCapScale || computedScale;
-  const scaleShort = displayedScale.replace(/\s+of\s+(?:market cap|public float)\b/i, "");
-
-  return (
-    <DilutionShareOverhang
-      model={{
-        canRenderOverhangChart: canRenderScale,
-        chartTitle: "ATM Program",
-        currentDetailLabel: denominatorLabel,
-        currentSharesCompact: denominatorValue || `${denominatorLabel} unavailable`,
-        dilutionRatioPercentValue: scaleShort || displayedScale || "Not calculated",
-        dilutionRatioValue: displayedScale || "Not calculated",
-        overhangAriaLabel: `ATM capacity compared with ${denominatorUnavailableLabel}`,
-        overhangBarSegments: canRenderScale
-          ? [
-              {
-                key: "market-cap",
-                className: "current-base",
-                label: denominatorLabel,
-                value: denominatorValue,
-                width: marketCapWidth,
-                compact: marketCapWidth < 24,
-                roleBadge: "Base",
-                roleKind: "base",
-              },
-              {
-                key: "atm-capacity",
-                className: "registered-supply",
-                label: "ATM capacity",
-                value: programSize,
-                note: displayedScale || undefined,
-                width: programWidth,
-                compact: programWidth < 24,
-                roleBadge: "Capacity",
-                roleKind: "included",
-              },
-            ]
-          : [],
-        overhangLevel: "Capacity Scale",
-        overhangLevelLabel: "Capacity Level",
-        overhangNote: "Actual dilution depends on how much stock the company sells.",
-        overhangScoreCaption: denominatorCaption,
-        overhangSubtitle: `${denominatorLabel} plus potential ATM sale capacity`,
-        overhangUnavailableMessage:
-          `ATM capacity scale could not be shown because program size or ${denominatorUnavailableLabel} was unavailable.`,
-        potentialSupplyCompact: programSize || "Not disclosed",
-        showBreakdownPanel: false,
-        showSegmentLegend: true,
-        showTotalNote: true,
-        requireProvidedSupplyDetails: true,
-        supplyDetailRows: model.offeringDetailsRows,
-        extraDetailPanels: buildWarrantExtraDetailPanels(model),
-        supplyDetailTitle: "Offering Details",
-        supplyDetailLabel: "ATM Capacity",
-        totalNoteSuffix: denominatorNoteSuffix,
-        totalNoteTitle: "ATM Capacity Scale",
-        totalOverhangLabel: denominatorScaleLabel,
-      }}
-    />
-  );
-}
-
-function buildAtmProgramLlmOverhangModel(model: ReturnType<typeof buildDilutionOfferingModel>) {
-  const overhang = model.llmShareOverhang;
-  if (!overhang) return null;
-
-  const basisSegment =
-    overhang.overhangBarSegments.find((segment) => segment.calculationRole === "denominator") ||
-    overhang.overhangBarSegments.find((segment) => segment.supplyNature === "base_shares") ||
-    overhang.overhangBarSegments[0] ||
-    null;
-  const isAtmCapacityRow = (row: LlmShareOverhangFactRow) => {
-    const text = `${row.label} ${row.note || ""}`.toLowerCase();
-    return row.rowRole === "reference" && /\batm\b|at-the-market|sales agreement/.test(text) && parseMoneyValue(row.value) > 0;
-  };
-  const isShelfCapacityRow = (row: LlmShareOverhangFactRow) => {
-    const text = `${row.label} ${row.note || ""}`.toLowerCase();
-    return /\bshelf\b|universal shelf|base shelf/.test(text);
-  };
-  const capacityRow =
-    overhang.conditionalSupplyRows.find(isAtmCapacityRow) ||
-    overhang.conditionalSupplyRows.find(
-      (row) =>
-        row.rowRole === "reference" &&
-        /\b(?:program|capacity)\b/i.test(`${row.label} ${row.note || ""}`) &&
-        !isShelfCapacityRow(row) &&
-        parseMoneyValue(row.value) > 0,
-    ) ||
-    null;
-
-  if (!basisSegment || !capacityRow) return null;
-
-  const denominatorValue = overhang.totalNoteDenominator || overhang.currentValue || basisSegment.value;
-  const numeratorValue = capacityRow.value;
-  const denominatorAmount = parseMoneyValue(denominatorValue);
-  const numeratorAmount = parseMoneyValue(numeratorValue);
-  if (!denominatorAmount || !numeratorAmount) return null;
-
-  const chartSegments = normalizeLlmShareOverhangSegmentWidths([
-    {
-      ...basisSegment,
-      key: basisSegment.key || "atm-value-basis",
-      className: "current-base",
-      label: overhang.currentLabel || basisSegment.label,
-      value: denominatorValue,
-      roleBadge: "Base",
-      roleKind: "base",
-    },
-    {
-      key: capacityRow.key || "atm-capacity",
-      className: "registered-supply",
-      rowRole: capacityRow.rowRole,
-      supplyType: capacityRow.supplyType || "atm_capacity",
-      unit: capacityRow.unit,
-      classBasis: capacityRow.classBasis,
-      label: overhang.supplyLabel || capacityRow.label,
-      value: numeratorValue,
-      note: capacityRow.note,
-      numericValue: capacityRow.numericValue ?? numeratorAmount,
-      width: 0,
-      roleBadge: "Capacity",
-      roleKind: "included",
-    },
-  ]);
-  const extraReferenceRows = overhang.conditionalSupplyRows
-    .filter((row) => row !== capacityRow)
-    .map((row) =>
-      row.rowRole === "reference"
-        ? {
-            ...row,
-            supplyType: row.supplyType || (isShelfCapacityRow(row) ? "shelf_capacity" : undefined),
-          }
-        : row,
-    );
-  const computedRatioValue = formatPercentCompact((numeratorAmount / denominatorAmount) * 100);
-  const ratioValue = computedRatioValue || overhang.totalNoteRatio || overhang.ratioValue || overhang.statusValue || "Not calculated";
-
-  return {
-    canRenderOverhangChart: true,
-    chartTitle: overhang.chartTitle || "ATM Program",
-    currentDetailLabel: overhang.currentLabel || basisSegment.label || "Market Value",
-    currentSharesCompact: denominatorValue,
-    dilutionRatioPercentValue: ratioValue,
-    dilutionRatioValue: ratioValue,
-    overhangAriaLabel: `${overhang.chartTitle || "ATM Program"}: ${ratioValue}`,
-    overhangBarSegments: chartSegments,
-    overhangLevel: overhang.statusLabel || "Capacity Scale",
-    overhangLevelLabel: "Capacity Level",
-    overhangNote: overhang.note || "Actual dilution depends on how much stock the company sells.",
-    overhangScoreCaption: overhang.totalNoteSuffix || overhang.caption || overhang.ratioLabel || "of company value",
-    overhangSubtitle: overhang.subtitle || "ATM capacity compared with source-backed company value",
-    overhangUnavailableMessage: overhang.note || "ATM capacity scale could not be shown from source-backed values.",
-    potentialSupplyCompact: numeratorValue,
-    showBreakdownPanel: false,
-    showSegmentLegend: true,
-    showTotalNote: true,
-    requireProvidedSupplyDetails: true,
-    supplyDetailRows: model.offeringDetailsRows,
-    conditionalSupplyRows: extraReferenceRows,
-    extraDetailPanels: buildWarrantExtraDetailPanels(model),
-    supplyDetailTitle: "Offering Details",
-    supplyDetailLabel: overhang.supplyLabel || capacityRow.label || "ATM Capacity",
-    totalNoteSuffix: overhang.totalNoteSuffix || "program size vs. company value",
-    totalNoteTitle: overhang.totalNoteTitle || "ATM Capacity Scale",
-    totalOverhangLabel: overhang.ratioLabel || "ATM Capacity Scale",
-  };
-}
-
-function ShelfWatchNext({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
-  if (!model.shelfWatchRows.length) return null;
-
-  return (
-    <section className="stock-detail-card dilution-section-block">
-      <div className="dilution-section-heading">
-        <div>
-          <h2>What To Watch Next</h2>
-        </div>
-        <span>Shelf registration</span>
-      </div>
-      <ul className="dilution-shelf-watch-list">
-        {model.shelfWatchRows.map((item) => (
-          <li key={item}>{item}</li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-function findDisclosureRowValue(rows: DilutionDisclosureRow[], label: string) {
-  return rows.find((row) => row.label === label)?.value || "";
-}
-
-function computeVisibleShareOverhangScale(segments: ShareOverhangBarSegment[]) {
-  if (!segments.length) return null;
-  const numericSegments = segments.filter((segment) => typeof segment.numericValue === "number" && segment.numericValue > 0);
-  if (numericSegments.length !== segments.length) return null;
-
-  const isBaseSegment = (segment: ShareOverhangBarSegment) =>
-    segment.calculationRole
-      ? segment.calculationRole === "denominator"
-      : segment.supplyNature
-        ? segment.supplyNature === "base_shares"
-        : segment.className === "current-base";
-  const isIncludedSupplySegment = (segment: ShareOverhangBarSegment) =>
-    segment.rowRole
-      ? segment.rowRole === "counted"
-      : typeof segment.countedInRatio === "boolean"
-      ? segment.countedInRatio
-      : segment.calculationRole
-      ? segment.calculationRole === "headline_numerator"
-      : segment.supplyNature
-        ? ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(segment.supplyNature)
-        : segment.className !== "current-base";
-
-  const baseSegments = numericSegments.filter((segment) => isBaseSegment(segment));
-  const basisSegment = baseSegments[0] || null;
-  const currentValue = baseSegments
-    .reduce((total, segment) => total + (segment.numericValue || 0), 0);
-  const supplyValue = collapseAlternativeShareOverhangSegments(numericSegments)
-    .filter((segment) => isIncludedSupplySegment(segment))
-    .reduce((total, segment) => total + (segment.numericValue || 0), 0);
-  if (currentValue <= 0 || supplyValue <= 0) return null;
-
-  const unit = detectShareOverhangUnit(segments);
-  return {
-    currentValue: formatShareOverhangCount(currentValue, unit),
-    ratioValue: formatPercentCompact((supplyValue / currentValue) * 100) || "Variable",
-    supplyValue: formatShareOverhangCount(supplyValue, unit),
-  };
-}
-
-function buildConditionalExerciseScaleRows(
-  segments: ShareOverhangBarSegment[],
-  conditionalRows: LlmShareOverhangFactRow[],
-): DilutionDisclosureRow[] {
-  const numericSegments = segments.filter((segment) => typeof segment.numericValue === "number" && segment.numericValue > 0);
-  const isBaseSegment = (segment: ShareOverhangBarSegment) =>
-    segment.calculationRole
-      ? segment.calculationRole === "denominator"
-      : segment.supplyNature
-        ? segment.supplyNature === "base_shares"
-        : segment.className === "current-base";
-  const isIncludedSupplySegment = (segment: ShareOverhangBarSegment) =>
-    segment.rowRole
-      ? segment.rowRole === "counted"
-      : typeof segment.countedInRatio === "boolean"
-      ? segment.countedInRatio
-      : segment.calculationRole
-      ? segment.calculationRole === "headline_numerator"
-      : segment.supplyNature
-        ? ["current_offering_supply", "registered_resale_supply", "common_equivalent_supply"].includes(segment.supplyNature)
-        : segment.className !== "current-base";
-  const isFutureExerciseRow = (row: LlmShareOverhangFactRow) =>
-    row.rowRole === "conditional" ||
-    row.supplyType === "future_exercise" ||
-    (!row.supplyType && row.supplyNature === "conditional_future_supply") ||
-    (!row.supplyType && row.calculationRole === "visible_excluded");
-
-  const basisSegment = numericSegments.find(isBaseSegment) || null;
-  const denominator = basisSegment?.numericValue || 0;
-  if (denominator <= 0) return [];
-
-  const includedSupply = collapseAlternativeShareOverhangSegments(numericSegments)
-    .filter((segment) => isIncludedSupplySegment(segment))
-    .reduce((total, segment) => total + (segment.numericValue || 0), 0);
-  if (includedSupply <= 0) return [];
-
-  const futureExerciseSegments = conditionalRows
-    .filter(isFutureExerciseRow)
-    .map(structuredRowToSegment)
-    .filter((segment) => typeof segment.numericValue === "number" && segment.numericValue > 0);
-  const futureExerciseSupply = futureExerciseSegments.reduce((total, segment) => total + (segment.numericValue || 0), 0);
-  if (futureExerciseSupply <= 0) return [];
-
-  const unit = detectShareOverhangUnit([...segments, ...futureExerciseSegments]);
-  const totalIfExercised = includedSupply + futureExerciseSupply;
-  const ratio = formatPercentCompact((totalIfExercised / denominator) * 100) || "Variable";
-
-  return [
-    {
-      label: "Conditional exercise supply",
-      value: formatShareOverhangCount(futureExerciseSupply, unit),
-    },
-    {
-      label: "Total if exercised",
-      value: `${formatShareOverhangCount(totalIfExercised, unit)} (${ratio})`,
-      note: "Headline supply plus conditional exercise rows",
-    },
-  ];
-}
-
-function collapseAlternativeShareOverhangSegments(segments: ShareOverhangBarSegment[]) {
-  const output: ShareOverhangBarSegment[] = [];
-  const alternativePools = new Map<string, ShareOverhangBarSegment[]>();
-
-  for (const segment of segments) {
-    if (segment.poolId && segment.poolRelationship === "alternative_max") {
-      const existing = alternativePools.get(segment.poolId) || [];
-      existing.push(segment);
-      alternativePools.set(segment.poolId, existing);
-    } else {
-      output.push(segment);
-    }
-  }
-
-  for (const poolSegments of alternativePools.values()) {
-    if (poolSegments.length <= 1) {
-      output.push(...poolSegments);
-      continue;
-    }
-    const representative =
-      poolSegments.reduce((selected, segment) => ((segment.numericValue || 0) > (selected.numericValue || 0) ? segment : selected), poolSegments[0]) ||
-      poolSegments[0];
-    const label = Array.from(new Set(poolSegments.map((segment) => segment.label).filter(Boolean))).join(" / ");
-    output.push({
-      ...representative,
-      label: label || representative.label,
-      note: representative.note || "Alternative maximum pool",
-    });
-  }
-
-  return output;
-}
-
-function detectShareOverhangUnit(segments: ShareOverhangBarSegment[]) {
-  const text = segments.map((segment) => segment.value).join(" ");
-  if (/\bADSs?\b/i.test(text)) return "ADSs";
-  if (/\bunits?\b/i.test(text)) return "units";
-  return "shares";
-}
-
-function formatShareOverhangCount(value: number, unit: string) {
-  return `${Math.round(value).toLocaleString("en-US")} ${unit}`;
-}
-
-function OfferingTermsShareOverhangDetails({
-  fallbackSubtitle,
-  fallbackSupplyDetailLabel,
-  fallbackTitle,
-  model,
-}: {
-  fallbackSubtitle: string;
-  fallbackSupplyDetailLabel: string;
-  fallbackTitle: string;
-  model: ReturnType<typeof buildDilutionOfferingModel>;
-}) {
-  const overhang = model.llmShareOverhang;
-  if (!overhang) return <OfferingTermsSourceDetails model={model} />;
-
-  const canRenderChart = overhang.overhangBarSegments.length > 0;
-  const computedScale = computeVisibleShareOverhangScale(overhang.overhangBarSegments);
-  const rawRatioValue = overhang.totalNoteRatio || overhang.ratioValue || overhang.statusValue || "Variable";
-  const ratioValue =
-    computedScale?.ratioValue || (/%/.test(rawRatioValue) ? rawRatioValue : /%/.test(overhang.statusValue) ? overhang.statusValue : rawRatioValue);
-  const statusValue =
-    computedScale?.ratioValue || (/%/.test(ratioValue) && !/%/.test(overhang.statusValue) ? ratioValue : overhang.statusValue || ratioValue);
-  const supplyValue = computedScale?.supplyValue || overhang.totalNoteNumerator || overhang.supplyValue || "Variable";
-  const currentValue = computedScale?.currentValue || overhang.totalNoteDenominator || overhang.currentValue || "Not fixed yet";
-  const usesComputedSegmentScale = Boolean(computedScale && canRenderChart);
-  const statusLabel = normalizeComputedShareOverhangStatusLabel(overhang.statusLabel, usesComputedSegmentScale);
-  const scoreCaption = usesComputedSegmentScale
-    ? normalizeComputedShareOverhangCaption(overhang.caption || overhang.ratioLabel, overhang.overhangBarSegments) || "of current shares"
-    : overhang.caption || overhang.ratioLabel || model.overhangScoreCaption;
-  const totalNoteSuffix =
-    overhang.totalNoteSuffix || (usesComputedSegmentScale ? "of current shares" : overhang.ratioLabel || "source-backed share scale");
-
-  return (
-    <DilutionShareOverhang
-      model={{
-        canRenderOverhangChart: canRenderChart,
-        chartTitle: overhang.chartTitle || fallbackTitle,
-        currentDetailLabel: overhang.currentLabel || "Current Shares Outstanding",
-        currentSharesCompact: currentValue,
-        dilutionRatioPercentValue: statusValue,
-        dilutionRatioValue: ratioValue,
-        overhangAriaLabel: `${overhang.chartTitle || fallbackTitle}: ${ratioValue}`,
-        overhangBarSegments: overhang.overhangBarSegments,
-        overhangLevel: statusLabel || (usesComputedSegmentScale ? "Total potential supply" : model.overhangLevel),
-        overhangLevelLabel: statusLabel ? "Status" : undefined,
-        overhangNote: overhang.note,
-        overhangScoreCaption: scoreCaption,
-        overhangSubtitle: overhang.subtitle || fallbackSubtitle,
-        overhangUnavailableMessage: overhang.note || "Final share impact depends on source-backed terms shown below.",
-        potentialSupplyCompact: supplyValue,
-        showBreakdownPanel: false,
-        showSegmentLegend: canRenderChart,
-        showTotalNote: canRenderChart && Boolean(currentValue && supplyValue && ratioValue),
-        requireProvidedSupplyDetails: true,
-        supplyDetailRows: model.offeringDetailsRows,
-        conditionalSupplyRows: overhang.conditionalSupplyRows,
-        extraDetailPanels: [
-          ...(overhang.conditionalExerciseScaleRows.length
-            ? [{ title: "If Exercised", rows: overhang.conditionalExerciseScaleRows }]
-            : []),
-          ...buildWarrantExtraDetailPanels(model),
-        ],
-        supplyDetailTitle: "Offering Details",
-        supplyDetailLabel: overhang.supplyLabel || fallbackSupplyDetailLabel,
-        totalNoteSuffix,
-        totalNoteTitle: overhang.totalNoteTitle || overhang.ratioLabel || "Total Potential Overhang",
-        totalOverhangLabel: overhang.ratioLabel || "Total Potential Overhang",
-        unavailableRows: overhang.unavailableRows.length
-          ? overhang.unavailableRows
-          : [
-              { label: overhang.currentLabel || "Current shares", value: currentValue },
-              { label: overhang.supplyLabel || fallbackSupplyDetailLabel, value: supplyValue },
-              { label: overhang.ratioLabel || "Scale", value: ratioValue, tone: "danger" },
-            ],
-      }}
-    />
-  );
-}
-
-function normalizeComputedShareOverhangStatusLabel(value: string, usesComputedSegmentScale: boolean) {
-  const label = value.trim();
-  if (!label) return "";
-  if (!usesComputedSegmentScale) return label;
-  if (/^(?:not stated|not disclosed|not fixed|variable)(?:\s+of\b.*)?$/i.test(label)) return "";
-  if (/^(?:status|scale|ratio|value|result)$/i.test(label)) return "";
-  if (/%/.test(label)) return "";
-  return label;
-}
-
-function normalizeComputedShareOverhangCaption(value: string, segments: ShareOverhangBarSegment[]) {
-  const caption = value.trim();
-  if (!caption) return "";
-  if (/^(?:not stated|not disclosed|not fixed|variable)(?:\s+of\b.*)?$/i.test(caption)) return "";
-  const includedSegments = segments.filter(isCountedInShareOverhangRatio);
-  if (/\bpre[-\s]?funded\b/i.test(caption)) {
-    const hasNonPrefundedSupply = includedSegments.some((segment) => !/\bpre[-\s]?funded\b/i.test(`${segment.label} ${segment.value}`));
-    if (hasNonPrefundedSupply) return "";
-  }
-  return caption;
-}
-
-function PricedOfferingDetails({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
-  if (model.llmShareOverhang) {
-    return (
-      <OfferingTermsShareOverhangDetails
-        model={model}
-        fallbackSupplyDetailLabel="New Shares"
-        fallbackTitle="Share Dilution"
-        fallbackSubtitle="Current shares plus new shares"
-      />
-    );
-  }
-  if (model.is424bOfferingTermsPayload) return <OfferingTermsSourceDetails model={model} />;
-
-  const pricedSegments = model.overhangBarSegments.map((segment) =>
-    /\b(?:warrants?|preferred|convertible|rights)\b/i.test(segment.label)
-      ? segment
-      : segment.key === "registered-supply" || /\b(?:common|ordinary|ads)\b/i.test(segment.label)
-      ? {
-          ...segment,
-          label: "New shares",
-        }
-      : segment,
-  );
-
-  return (
-    <DilutionShareOverhang
-      model={{
-        ...model,
-        chartTitle: "Share Dilution",
-        overhangAriaLabel: `New shares equal ${model.dilutionRatioValue} of current shares`,
-        overhangBarSegments: pricedSegments,
-        overhangSubtitle: "Current shares plus new shares",
-        overhangUnavailableMessage:
-          "Share dilution scale could not be shown because current shares or new shares were unavailable.",
-        potentialSupplyCompact: model.potentialSupplyCompact,
-        showBreakdownPanel: false,
-        showSegmentLegend: true,
-        showTotalNote: true,
-        requireProvidedSupplyDetails: true,
-        supplyDetailRows: model.offeringDetailsRows,
-        extraDetailPanels: buildWarrantExtraDetailPanels(model),
-        supplyDetailTitle: "Offering Details",
-        supplyDetailLabel: "New Shares",
-        totalNoteSuffix: "new shares vs. current shares",
-        totalNoteTitle: "Dilution vs Current Shares",
-        totalOverhangLabel: "Dilution vs Current Shares",
-      }}
-    />
-  );
-}
-
-function MixedOfferingDetails({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
-  if (model.llmShareOverhang) {
-    return (
-      <OfferingTermsShareOverhangDetails
-        model={model}
-        fallbackSupplyDetailLabel="Potential Supply"
-        fallbackTitle="Mixed Offering"
-        fallbackSubtitle="Current shares plus source-backed offering supply"
-      />
-    );
-  }
-  if (model.is424bOfferingTermsPayload) return <OfferingTermsSourceDetails model={model} />;
-
-  return (
-    <DilutionShareOverhang
-      model={{
-        ...model,
-        chartTitle: "Mixed Offering",
-        overhangAriaLabel: `Potential offering supply equals ${model.dilutionRatioValue} of current shares`,
-        overhangSubtitle: "Current shares plus new shares and instrument-linked supply",
-        overhangUnavailableMessage:
-          "Mixed offering scale could not be shown because current shares or source-backed supply counts were unavailable.",
-        potentialSupplyCompact: model.potentialSupplyCompact,
-        showBreakdownPanel: false,
-        showSegmentLegend: true,
-        showTotalNote: true,
-        requireProvidedSupplyDetails: true,
-        supplyDetailRows: model.offeringDetailsRows,
-        extraDetailPanels: buildWarrantExtraDetailPanels(model),
-        supplyDetailTitle: "Offering Details",
-        supplyDetailLabel: "Potential Supply",
-        totalNoteSuffix: "potential supply vs. current shares",
-        totalNoteTitle: "Total Potential Dilution",
-        totalOverhangLabel: "Dilution vs Current Shares",
-      }}
-    />
-  );
-}
-
-function ResaleRegistrationDetails({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
-  if (model.llmShareOverhang) {
-    return (
-      <OfferingTermsShareOverhangDetails
-        model={model}
-        fallbackSupplyDetailLabel={model.isS8ReofferResale ? model.supplyDetailLabel : "Resale Shares"}
-        fallbackTitle="Share Overhang"
-        fallbackSubtitle={`${model.currentDetailLabel || "Current shares"} plus registered resale shares`}
-      />
-    );
-  }
-  if (model.is424bOfferingTermsPayload) return <OfferingTermsSourceDetails model={model} />;
-
-  const isS8ReofferResale = model.isS8ReofferResale;
-  const resaleSegments = model.overhangBarSegments.map((segment) =>
-    /\b(?:warrants?|preferred|convertible|rights)\b/i.test(segment.label)
-      ? segment
-      : segment.key === "registered-supply" || /\b(?:resale|common|ordinary|ads)\b/i.test(segment.label)
-      ? {
-          ...segment,
-          label: isS8ReofferResale ? model.primaryExposureLabel : "Resale shares",
-        }
-      : segment,
-  );
-
-  return (
-    <DilutionShareOverhang
-      model={{
-        ...model,
-        chartTitle: "Share Overhang",
-        overhangAriaLabel: isS8ReofferResale
-          ? `Parent plan shares equal ${model.dilutionRatioValue} of current shares`
-          : `Registered resale shares equal ${model.dilutionRatioValue} of ${model.currentDetailLabel || "current shares"}`,
-        overhangBarSegments: resaleSegments,
-        overhangSubtitle: isS8ReofferResale ? model.overhangSubtitle : `${model.currentDetailLabel || "Current shares"} plus registered resale shares`,
-        overhangUnavailableMessage:
-          isS8ReofferResale
-            ? model.overhangUnavailableMessage
-            : "Resale overhang could not be shown because current shares or resale shares were unavailable.",
-        potentialSupplyCompact: model.potentialSupplyCompact,
-        showBreakdownPanel: false,
-        showSegmentLegend: true,
-        showTotalNote: true,
-        requireProvidedSupplyDetails: true,
-        supplyDetailRows: isS8ReofferResale ? model.s8ContextDetailRows : model.offeringDetailsRows,
-        extraDetailPanels: buildWarrantExtraDetailPanels(model),
-        supplyDetailTitle: isS8ReofferResale ? "What Changed" : "Offering Details",
-        supplyDetailLabel: isS8ReofferResale ? model.supplyDetailLabel : "Resale Shares",
-        totalNoteSuffix: isS8ReofferResale ? "parent plan shares vs. current shares" : `resale shares vs. ${model.currentDetailLabel || "current shares"}`,
-        totalNoteTitle: isS8ReofferResale ? "Parent Plan / Outstanding" : "Total Potential Overhang",
-        totalOverhangLabel: isS8ReofferResale ? "Parent Plan / Outstanding" : "Overhang vs Current Shares",
-      }}
-    />
-  );
-}
-
-function getWarrantConvertibleChartTitle(model: ReturnType<typeof buildDilutionOfferingModel>) {
-  const instrumentText = [
-    model.conversionBreakdownLabel,
-    model.instrumentPriceSummary,
-    model.warrantSegmentLabel,
-    ...model.warrantInstrumentRows.map((row) => row.type),
-  ].join(" ");
-  const hasPrefunded = /\bpre[-\s]?funded\b/i.test(instrumentText);
-  const nonPrefundedText = instrumentText.replace(/\bpre[-\s]?funded\s+warrants?\b/gi, "");
-  const hasWarrant = (model.hasWarrantSegment && !hasPrefunded) || /\bwarrants?\b/i.test(nonPrefundedText);
-  const hasPreferred = /\bpreferred\b/i.test(instrumentText);
-  const hasConvertible = model.hasConversionSegment || /\bconvert|debenture|notes?\b/i.test(instrumentText);
-  const hasConversionFamily = hasPreferred || hasConvertible;
-  const familyCount = [hasPrefunded, hasWarrant, hasConversionFamily].filter(Boolean).length;
-
-  if (familyCount >= 2) return "Mixed Instrument Supply";
-  if (hasPrefunded) return "Pre-Funded Warrant Supply";
-  if (hasPreferred) return "Preferred Conversion Supply";
-  if (hasConvertible) return "Convertible Share Supply";
-  return "Warrant Share Supply";
-}
-
-function WarrantConvertibleDetails({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
-  const chartTitle = getWarrantConvertibleChartTitle(model);
-  if (model.llmShareOverhang) {
-    return (
-      <OfferingTermsShareOverhangDetails
-        model={model}
-        fallbackSupplyDetailLabel="Potential Supply"
-        fallbackTitle={chartTitle}
-        fallbackSubtitle="Current shares plus warrant or conversion share supply"
-      />
-    );
-  }
-  if (model.is424bOfferingTermsPayload) return <OfferingTermsSourceDetails model={model} />;
-
-  const useVariableConversionExposure = Boolean(model.isNoFloorVariableConvertibleExposure && !model.canRenderOverhangChart);
-  const variableConvertibleInstrument = model.warrantInstrumentRows[0];
-  const variableConvertiblePrincipal = variableConvertibleInstrument?.sharesSecurities || "";
-  const variableConvertibleCash = model.companyProceeds || "";
-  const variableConvertibleAmount =
-    variableConvertiblePrincipal && variableConvertibleCash
-      ? `${variableConvertiblePrincipal.replace(/\s+principal amount$/i, " principal")} / ${variableConvertibleCash} cash`
-      : variableConvertibleCash || variableConvertiblePrincipal;
-  const variableConvertibleRows = [
-    { label: "Current shares", value: model.currentSharesCompact },
-    { label: "Conversion price", value: model.instrumentPriceSummary || "Variable" },
-    variableConvertibleAmount ? { label: "Principal / cash proceeds", value: variableConvertibleAmount } : null,
-    variableConvertibleInstrument?.termLimits
-      ? { label: "Term / limits", value: variableConvertibleInstrument.termLimits }
-      : null,
-  ].filter((row): row is { label: string; value: string } => Boolean(row));
-
-  return (
-    <DilutionShareOverhang
-      model={{
-        ...model,
-        chartTitle,
-        overhangAriaLabel: useVariableConversionExposure
-          ? "Convertible share supply is variable until the conversion price is set"
-          : `Potential warrant or conversion shares equal ${model.dilutionRatioValue} of current shares`,
-        overhangLevel: useVariableConversionExposure ? "Potential Dilution" : model.overhangLevel,
-        overhangScoreCaption: useVariableConversionExposure ? "" : model.overhangScoreCaption,
-        overhangSubtitle: useVariableConversionExposure
-          ? "Share count is variable until the conversion price is set."
-          : "Current shares plus warrant or conversion share supply",
-        overhangUnavailableMessage: useVariableConversionExposure
-          ? "No floor price was stated, so lower stock prices could require more shares for the same note principal."
-          : "Warrant or conversion share supply could not be shown because current shares or underlying securities were unavailable.",
-        dilutionRatioPercentValue: useVariableConversionExposure ? "Variable" : model.dilutionRatioPercentValue,
-        compactScore: useVariableConversionExposure,
-        potentialSupplyCompact: model.potentialSupplyCompact,
-        unavailableSupplyValue: useVariableConversionExposure ? model.instrumentPriceSummary || "Variable" : model.potentialSupplyCompact,
-        unavailableRows: useVariableConversionExposure ? variableConvertibleRows : undefined,
-        hideUnavailableRows: useVariableConversionExposure,
-        showBreakdownPanel: false,
-        showSegmentLegend: true,
-        showTotalNote: true,
-        requireProvidedSupplyDetails: true,
-        supplyDetailRows: model.offeringDetailsRows,
-        extraDetailPanels: useVariableConversionExposure ? [] : buildWarrantExtraDetailPanels(model),
-        supplyDetailTitle: "Offering Details",
-        supplyDetailLabel: useVariableConversionExposure ? "Conversion Price" : "Underlying Securities",
-        totalNoteSuffix: "underlying securities vs. current shares",
-        totalNoteTitle: "Potential Dilution",
-        totalOverhangLabel: "Dilution vs Current Shares",
-      }}
-    />
-  );
-}
-
-function findMetricValue(metrics: DilutionMetricItem[], label: string) {
-  return metrics.find((metric) => metric.label === label)?.value || "";
-}
-
-function buildWarrantExtraDetailPanels(model: ReturnType<typeof buildDilutionOfferingModel>) {
-  const panels: Array<{ title: string; rows?: DilutionDisclosureRow[]; instrumentRows?: typeof model.warrantInstrumentRows }> = [];
-  if (model.warrantInstrumentRows.length) {
-    panels.push({ title: "Instrument Details", instrumentRows: model.warrantInstrumentRows });
-    return panels;
-  }
-  if (model.warrantDetailsRows.length) {
-    panels.push({ title: "Warrant Details", rows: model.warrantDetailsRows });
-  }
-  return panels;
 }
 
 function ShareOverhangCard({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
@@ -6731,6 +7639,8 @@ function OriginalFilingText({
   includeMetadataTable?: boolean;
   includeTemplateStatus?: boolean;
 }) {
+  const embeddedHtml = isolateOriginalFilingMarkup(filing.originalHtml, filing.sourceUrl);
+
   return (
     <section className="stock-detail-card full-text-card filing-original-card">
       <div className="card-heading-row">
@@ -6739,10 +7649,9 @@ function OriginalFilingText({
           <p>{filing.originalTextNote}</p>
         </div>
       </div>
-      <SecFilingHtmlViewer
-        html={filing.originalHtml}
-        sourceUrl={filing.primaryDocumentUrl || filing.sourceUrl}
-        title={`${filing.formType} original SEC filing`}
+      <div
+        className="full-text-content filing-text-content"
+        dangerouslySetInnerHTML={{ __html: embeddedHtml }}
       />
       {includeMetadataTable ? (
         <div className="full-text-content filing-text-content filing-template-table">
@@ -6770,6 +7679,63 @@ function OriginalFilingText({
   );
 }
 
+function isolateOriginalFilingMarkup(value: string, sourceUrl?: string) {
+  const textBlock = value.match(/<TEXT>\s*([\s\S]*?)\s*<\/TEXT>/i)?.[1] || value;
+
+  const isolatedMarkup = removeOriginalFilingImageOcr(textBlock)
+    .replace(/<!doctype[^>]*>/gi, "")
+    .replace(/<(?:script|style|title)\b[^>]*>[\s\S]*?<\/(?:script|style|title)\s*>/gi, "")
+    .replace(/<(?:base|link|meta)\b[^>]*\/?\s*>/gi, "")
+    .replace(/<\/?(?:body|head|html)\b[^>]*>/gi, "")
+    .replace(/<a\b(?=[^>]*\bhref\s*=\s*["']#TOC["'])[^>]*>\s*TABLE OF CONTENTS\s*<\/a>/gi, "")
+    .replace(/\s+(?:color|bgcolor)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(/\s+style\s*=\s*(["'])([\s\S]*?)\1/gi, (_match, quote, style) => {
+      const cleanedStyle = stripOriginalFilingColors(style).trim();
+      return cleanedStyle ? ` style=${quote}${cleanedStyle}${quote}` : "";
+    });
+
+  return resolveOriginalFilingUrls(isolatedMarkup, sourceUrl);
+}
+
+function removeOriginalFilingImageOcr(value: string) {
+  return value.replace(
+    /(<div\b[^>]*>\s*<img\b[^>]*>\s*<\/div>)\s*<div\b(?=[^>]*\bstyle\s*=\s*["'][^"']*\bline-height\s*:\s*(?:[0-3](?:\.\d+)?)pt\b[^"']*["'])[^>]*>\s*(?:<font\b[^>]*>[\s\S]*?<\/font>\s*)+<\/div>/gi,
+    "$1",
+  );
+}
+
+function resolveOriginalFilingUrls(value: string, sourceUrl?: string) {
+  if (!sourceUrl) return value;
+
+  return value.replace(
+    /\s+(src|href)\s*=\s*(["'])([^"']*)\2/gi,
+    (attributeMarkup, attribute: string, _quote: string, rawUrl: string) => {
+      const url = rawUrl.trim();
+      if (!url || url.startsWith("#") || /^(?:data:|javascript:|mailto:|tel:)/i.test(url)) {
+        return attributeMarkup;
+      }
+
+      try {
+        const resolvedUrl = new URL(url, sourceUrl).toString();
+        return ` ${attribute.toLowerCase()}="${escapeOriginalFilingAttribute(resolvedUrl)}"`;
+      } catch {
+        return attributeMarkup;
+      }
+    },
+  );
+}
+
+function escapeOriginalFilingAttribute(value: string) {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+}
+
+function stripOriginalFilingColors(value: string) {
+  return value.replace(
+    /(^|[;{]\s*)(?:color|background(?:-color)?)\s*:\s*[^;}]+;?/gim,
+    "$1",
+  );
+}
+
 function DilutionTerm({ label, value }: { label: string; value: string }) {
   return (
     <div className="dilution-term">
@@ -6793,85 +7759,10 @@ type DilutionDisclosureRow = {
   note?: string;
 };
 
-type ShareOverhangSupplyNature =
-  | "base_shares"
-  | "current_offering_supply"
-  | "registered_resale_supply"
-  | "common_equivalent_supply"
-  | "conditional_future_supply"
-  | "replacement_supply";
-
-type ShareOverhangSupplyType =
-  | "current_offering_pool"
-  | "registered_resale_pool"
-  | "share_equivalent"
-  | "future_exercise"
-  | "replacement_alternative"
-  | "atm_capacity"
-  | "shelf_capacity"
-  | "public_float"
-  | "market_cap"
-  | "market_value";
-
-type ShareOverhangCalculationRole =
-  | "denominator"
-  | "headline_numerator"
-  | "visible_excluded"
-  | "note_only";
-
-type ShareOverhangRowRole = "counted" | "conditional" | "alternative" | "reference";
-
-type ShareOverhangPoolRelationship = "alternative_max" | "additive";
-
-type LlmShareOverhangFactRow = {
-  key?: string;
-  className?: string;
-  rowRole?: ShareOverhangRowRole;
-  supplyNature?: ShareOverhangSupplyNature;
-  supplyType?: ShareOverhangSupplyType;
-  countedInRatio?: boolean;
-  calculationRole?: ShareOverhangCalculationRole;
-  unit?: string;
-  classBasis?: string;
-  poolId?: string;
-  poolRelationship?: ShareOverhangPoolRelationship;
-  label: string;
-  value: string;
-  note?: string;
-  tone?: "danger" | "neutral";
-  numericValue?: number | null;
-};
-
-type LlmShareOverhangModel = {
-  chartTitle: string;
-  subtitle: string;
-  statusLabel: string;
-  statusValue: string;
-  caption: string;
-  ratioLabel: string;
-  ratioValue: string;
-  currentLabel: string;
-  currentValue: string;
-  supplyLabel: string;
-  supplyValue: string;
-  totalNoteTitle: string;
-  totalNoteNumerator: string;
-  totalNoteDenominator: string;
-  totalNoteRatio: string;
-  totalNoteSuffix: string;
-  note: string;
-  unavailableRows: LlmShareOverhangFactRow[];
-  conditionalSupplyRows: LlmShareOverhangFactRow[];
-  overhangBarSegments: ShareOverhangBarSegment[];
-  conditionalExerciseScaleRows: DilutionDisclosureRow[];
-};
-
 function DilutionMetric({ metric }: { metric: DilutionMetricItem }) {
-  const title = /current shares/i.test(metric.label) ? CURRENT_SHARES_MARKET_CONTEXT_NOTE : undefined;
-
   return (
     <div className={`dilution-metric${metric.emphasis ? " emphasis" : ""}${metric.tone ? ` ${metric.tone}` : ""}`}>
-      <span title={title}>{metric.label}</span>
+      <span>{metric.label}</span>
       <strong>{metric.value}</strong>
       {metric.note ? <em>{metric.note}</em> : null}
     </div>
@@ -6882,18 +7773,16 @@ function DilutionDisclosureSection({
   title,
   rows,
   emptyText,
-  headingLabel = "Key terms",
 }: {
   title: string;
   rows: DilutionDisclosureRow[];
   emptyText: string;
-  headingLabel?: string;
 }) {
   return (
     <section className="dilution-section-block">
       <div className="dilution-section-heading">
         <h2>{title}</h2>
-        <span>{rows.length ? headingLabel : "No parsed fields"}</span>
+        <span>{rows.length ? "Key terms" : "No parsed fields"}</span>
       </div>
       {rows.length ? (
         <div className="dilution-detail-table">
@@ -6910,63 +7799,6 @@ function DilutionDisclosureSection({
       )}
     </section>
   );
-}
-
-function DilutionInstrumentDetailsSection({
-  rows,
-  emptyText,
-}: {
-  rows: ReturnType<typeof buildDilutionOfferingModel>["warrantInstrumentRows"];
-  emptyText: string;
-}) {
-  return (
-    <section className="dilution-section-block">
-      <div className="dilution-section-heading">
-        <h2>Instrument Details</h2>
-        <span>{rows.length ? "Key terms" : "No parsed fields"}</span>
-      </div>
-      {rows.length ? (
-        <div className="dilution-instrument-table dilution-source-instrument-table">
-          <div className="dilution-instrument-row header">
-            <span>Type</span>
-            <span>Shares / Securities</span>
-            <span>Exercise / Conversion Price</span>
-            <span>Reset / Floor</span>
-            <span>Term / Limits</span>
-          </div>
-          {rows.map((item, index) => (
-            <div key={`${item.type}-${index}`} className="dilution-instrument-row">
-              <strong className="dilution-instrument-cell" data-label="Type">
-                {item.type}
-              </strong>
-              <span className="dilution-instrument-cell" data-label="Shares / Securities">
-                {displayInstrumentValue(item.sharesSecurities)}
-              </span>
-              <span className="dilution-instrument-cell" data-label="Exercise / Conversion Price">
-                {displayInstrumentValue(item.exerciseConversionPrice)}
-              </span>
-              <span className="dilution-instrument-cell" data-label="Reset / Floor">
-                {displayInstrumentValue(item.resetFloor)}
-              </span>
-              <span className="dilution-instrument-cell" data-label="Term / Limits">
-                {displayInstrumentValue(item.termLimits)}
-              </span>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="dilution-empty-note">{emptyText}</p>
-      )}
-    </section>
-  );
-}
-
-function displayInstrumentValue(value: string | undefined) {
-  const normalized = (value || "").trim();
-  if (!normalized || /^(?:null|undefined|none|n\/a|not stated)$/i.test(normalized)) {
-    return "-";
-  }
-  return normalized;
 }
 
 function RelatedFilingsTable({ filings }: { filings: RecentFiling[] }) {
@@ -7009,2615 +7841,101 @@ function RelatedFilingsTable({ filings }: { filings: RecentFiling[] }) {
   );
 }
 
-function OwnershipRelatedFilingsPanel({ filing }: { filing: FilingEvent }) {
-  const filings = filing.ownershipRelatedFilings ?? [];
-  if (filing.eventType !== "insider_ownership" || filings.length === 0) return null;
-
-  return <RelatedFilingsContextList filings={filings} heading="Related Filings" subheading="Ownership context" />;
-}
-
-function FilingRelatedFilingsPanel({ filing }: { filing: FilingEvent }) {
-  const contextFilings = filing.contextRelatedFilings ?? [];
-  if (contextFilings.length > 0) {
-    const normalizedForm = filing.formType.trim().toUpperCase();
-    const isEffect = normalizedForm === "EFFECT";
-    const isForm425 = normalizedForm === "425";
-    const isForm25 = /^25(?:-|$)/.test(normalizedForm);
-    const isCurrentReport = /^(?:8-K|8-K\/A|6-K|6-K\/A)$/i.test(normalizedForm);
-    return (
-      <RelatedFilingsContextList
-        filings={contextFilings}
-        heading="Related Filings"
-        subheading={isEffect || isForm25 || isCurrentReport ? "" : isForm425 ? "Related transaction filings" : "Transaction context"}
-        relationLabelFormatter={isEffect ? formatEffectRelatedFilingRelation : undefined}
-      />
-    );
-  }
-
-  return <OwnershipRelatedFilingsPanel filing={filing} />;
-}
-
-function RelatedFilingsContextList({
-  filings,
-  heading,
-  subheading,
-  relationLabelFormatter,
-}: {
-  filings: FilingContextRelatedFiling[];
-  heading: string;
-  subheading?: string;
-  relationLabelFormatter?: (related: FilingContextRelatedFiling) => string;
-}) {
-  if (filings.length === 0) return null;
-
-  return (
-    <section className="stock-detail-card dilution-related-filings ownership-related-filings">
-      <div className="dilution-related-heading">
-        <h2>{heading}</h2>
-        {subheading ? <span>{subheading}</span> : null}
-      </div>
-      <div className="dilution-related-list">
-        {filings.slice(0, 6).map((related) => {
-          const relationLabel = relationLabelFormatter?.(related) || related.relation;
-          const match = related.matchConfidence ? `Match ${related.matchConfidence}` : "";
-          const details = [related.filedAt, related.eventType, related.accession, match].filter(Boolean).join(" · ");
-          const content = (
-            <>
-              <span className={`ownership-related-relation${related.candidate ? " candidate" : ""}`}>
-                {relationLabel}
-              </span>
-              <span className="dilution-related-form ownership-related-form-type">{related.form}</span>
-              <span className="dilution-related-copy">
-                <strong>{related.title}</strong>
-                <small>{related.description}</small>
-                {details ? <small>{details}</small> : null}
-              </span>
-              <span className="dilution-related-impact">
-                <small>Impact</small>
-                <b>{related.score}</b>
-              </span>
-            </>
-          );
-
-          return related.id ? (
-            <Link
-              className="dilution-related-item"
-              href={`/filings/${related.id}`}
-              key={`${relationLabel}-${related.id}`}
-            >
-              {content}
-            </Link>
-          ) : (
-            <div className="dilution-related-item" key={`${relationLabel}-${related.accession}-${related.title}`}>
-              {content}
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-function formatEffectRelatedFilingRelation(related: FilingContextRelatedFiling) {
-  if (/^parent$/i.test(related.relation)) return "Original registration";
-  if (/candidate/i.test(related.relation)) return "Possible match";
-  return related.relation;
-}
-
-const SPAC_DEFAULT_STAGES = [
-  "Deal Signed",
-  "Proxy Filed",
-  "Vote / Redemption",
-  "Redemption Result",
-  "Cash Conditions",
-  "Close / Ticker",
-] as const;
-
-const SPAC_STAGE_ORDER = [
-  { code: "target", label: "Deal Signed" },
-  { code: "proxy", label: "Proxy Filed" },
-  { code: "vote", label: "Vote / Redemption" },
-  { code: "redemption", label: "Redemption Result" },
-  { code: "cash", label: "Cash Conditions" },
-  { code: "closing", label: "Close / Ticker" },
-] as const;
-
-type SpacStageCode = (typeof SPAC_STAGE_ORDER)[number]["code"];
-
-const SPAC_STAGE_LABELS = SPAC_STAGE_ORDER.reduce<Record<SpacStageCode, string>>((labels, stage) => {
-  labels[stage.code] = stage.label;
-  return labels;
-}, {} as Record<SpacStageCode, string>);
-
-function buildForm425TransactionModel(filing: FilingEvent): Form425TransactionModel | null {
-  if (filing.formType.trim().toUpperCase() !== "425") return null;
-
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  const data = readDisplayPayloadData(displayPayload);
-  const displayVersion = readRowString(data, "display_version") || readRowString(displayPayload, "display_version");
-  if (displayVersion !== "sec_425_display_v1" || readRowString(displayPayload, "display_type") !== "candidate_special") {
-    return null;
-  }
-
-  const analysisSnapshot = readSpacAnalysisSnapshot(data.analysis_snapshot);
-  if (analysisSnapshot) {
-    return {
-      title: analysisSnapshot.title,
-      intro: analysisSnapshot.summary,
-      snapshotRows: analysisSnapshot.items,
-    };
-  }
-
-  const routeCase = readRowString(data, "route_case");
-  const transactionStage = readRowString(data, "transaction_stage");
-  const deal = readPlainRecord(data.deal);
-  const vote = readPlainRecord(data.vote);
-  const offer = readPlainRecord(data.offer);
-  const amendment = readPlainRecord(data.amendment);
-  const legal = readPlainRecord(data.legal);
-  const financing = readPlainRecord(data.financing);
-  const spac = readPlainRecord(data.spac);
-  const rows: Form425SnapshotRow[] = [];
-
-  const pushRow = (label: string, value: string, note = "") => {
-    const cleanValue = cleanForm425DisplayValue(value);
-    const boundedValue = shortenForm425SnapshotValue(cleanValue);
-    if (!boundedValue || rows.some((row) => row.label === label || row.value.toLowerCase() === boundedValue.toLowerCase())) return;
-    const cleanNote = cleanForm425DisplayValue(note);
-    rows.push({ label, value: boundedValue, ...(cleanNote ? { note: shortenForm425Note(cleanNote) } : {}) });
-  };
-
-  if (routeCase === "acquisition_offer_or_proposal") {
-    pushRow(
-      "Offer",
-      formatForm425Label(readRowString(offer, "offer_type")) ||
-        (readRowString(offer, "is_hostile_or_unsolicited") === "true" ? "Unsolicited proposal" : "Acquisition proposal"),
-      readRowString(offer, "subject_company"),
-    );
-    pushRow("Consideration", buildForm425CompactConsideration(deal, offer), buildForm425ConsiderationNote(deal));
-  }
-
-  if (routeCase === "shareholder_meeting_or_vote") {
-    pushRow("Meeting Date", readRowString(vote, "meeting_date"), readRowString(vote, "reconvened_date") ? `Reconvened: ${readRowString(vote, "reconvened_date")}` : "");
-    pushRow("Record Date", readRowString(vote, "record_date"));
-    pushRow("Board Recommendation", readRowString(vote, "vote_recommendation"));
-  }
-
-  if (routeCase === "agreement_amendment") {
-    pushRow("Amendment", readRowString(amendment, "amendment_title") || "Transaction terms amended", readRowString(amendment, "amendment_date"));
-    pushRow("Key Change", selectForm425MaterialAmendmentChange(displayStringArray(amendment?.amended_sections, [])));
-    pushRow("Original Agreement", readRowString(amendment, "original_agreement_date"));
-  }
-
-  const parties = uniqueForm425PartyNames([
-    readRowString(data, "filed_by"),
-    ...displayStringArray(deal?.parties, []),
-    readRowString(spac, "target_name"),
-    readRowString(data, "subject_company"),
-  ]);
-  pushRow(
-    "Transaction",
-    formatForm425Label(readRowString(deal, "transaction_type")),
-    parties.length >= 2 ? parties.slice(0, 2).join(" / ") : "",
-  );
-  pushRow(
-    "Current Status",
-    formatForm425TransactionStage(transactionStage || readRowString(deal, "transaction_status")),
-    readRowString(deal, "expected_close") ? `Expected close: ${readRowString(deal, "expected_close")}` : "",
-  );
-  pushRow(
-    "Consideration",
-    buildForm425CompactConsideration(deal, offer),
-    buildForm425ConsiderationNote(deal),
-  );
-  pushRow("Expected Close", readRowString(deal, "expected_close"));
-
-  const legalRisks = [
-    ...displayStringArray(legal?.regulatory_risk, []),
-    ...displayStringArray(legal?.litigation_or_claims, []),
-    ...displayStringArray(legal?.injunction_or_delay_risk, []),
-  ];
-  const financingRisks = [
-    ...displayStringArray(financing?.financing_risk, []),
-    ...displayStringArray(financing?.going_concern_or_liquidity_risk, []),
-  ];
-  const financingCondition = readRowString(financing, "financing_condition");
-  const prefersFinancingCondition = routeCase === "financing_or_liquidity_risk";
-  if (legalRisks[0] && !prefersFinancingCondition) {
-    pushRow("Key Condition", "Regulatory / legal review", shortenForm425Note(legalRisks[0]));
-  } else if (financingCondition) {
-    pushRow("Key Condition", "Financing commitment", shortenForm425Note(financingCondition));
-  } else if (financingRisks[0]) {
-    pushRow("Key Condition", "Financing / liquidity risk", shortenForm425Note(financingRisks[0]));
-  }
-
-  const communicationTypes = displayStringArray(data.communication_types, []).map(formatForm425Label);
-  pushRow("Communication", communicationTypes.slice(0, 2).join(" / "));
-
-  return {
-    title: buildForm425SnapshotTitle(routeCase),
-    intro: filing.filingBrief || filing.whyItMatters || filing.summary,
-    snapshotRows: rows.slice(0, 4),
-  };
-}
-
-function buildForm425SnapshotTitle(routeCase: string) {
-  const titles: Record<string, string> = {
-    acquisition_offer_or_proposal: "Acquisition Proposal Snapshot",
-    transaction_announcement_or_terms: "Transaction Snapshot",
-    transaction_presentation_or_call: "Transaction Update",
-    stakeholder_faq_or_communication: "Transaction Communication",
-    shareholder_meeting_or_vote: "Transaction Vote Update",
-    agreement_amendment: "Transaction Amendment",
-    regulatory_or_closing_update: "Transaction Status",
-    deal_litigation_or_regulatory_risk: "Transaction Risk Snapshot",
-    financing_or_liquidity_risk: "Transaction Financing Snapshot",
-  };
-  return titles[routeCase] || "Transaction Update";
-}
-
-function formatForm425Label(value: string) {
-  return value
-    .replace(/[_-]+/g, " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase())
-    .trim();
-}
-
-function formatForm425TransactionStage(value: string) {
-  const labels: Record<string, string> = {
-    agreement_signed: "Agreement signed",
-    vote_pending: "Vote pending",
-    vote_update: "Vote updated",
-    regulatory_review: "Regulatory review",
-    closing_pending: "Closing pending",
-    opposition_or_competing_offer: "Competing proposal",
-  };
-  return labels[value] || formatForm425Label(value);
-}
-
-function cleanForm425DisplayValue(value: string) {
-  const cleaned = value.replace(/\s+/g, " ").trim();
-  if (!cleaned || /^(?:not disclosed|not stated|unknown|n\/?a|null|none)$/i.test(cleaned)) return "";
-  return cleaned;
-}
-
-function buildForm425CompactConsideration(
-  deal: Record<string, unknown> | null,
-  offer: Record<string, unknown> | null,
-) {
-  const source =
-    readRowString(offer, "consideration") ||
-    readRowString(deal, "consideration_text") ||
-    [readRowString(deal, "cash_component"), readRowString(deal, "stock_component")].filter(Boolean).join(" + ");
-  if (!source) return "";
-
-  const perShare = source.match(/\$[\d,.]+\s*(?:cash\s+)?(?:per share|a share)/i)?.[0]
-    ?.replace(/\s+a share$/i, " per share")
-    .replace(/\s+/g, " ");
-  const cashPercent = source.match(/\b(\d+(?:\.\d+)?)%\s+cash\b/i)?.[1];
-  const stockPercent = source.match(
-    /\b(\d+(?:\.\d+)?)%\s+(?:[A-Z][A-Za-z0-9&.'-]+\s+){0,3}(?:common\s+)?(?:stock|shares)\b/i,
-  )?.[1];
-  const exchangeRatio = readRowString(deal, "exchange_ratio");
-  const parts = [
-    perShare || "",
-    cashPercent && stockPercent ? `${cashPercent}% cash / ${stockPercent}% stock` : "",
-    !perShare && exchangeRatio ? `${exchangeRatio} shares per share` : "",
-  ].filter(Boolean);
-
-  return parts.length ? parts.join("; ") : source;
-}
-
-function buildForm425ConsiderationNote(deal: Record<string, unknown> | null) {
-  return uniqueForm425Strings([
-    readRowString(deal, "transaction_value"),
-    readRowString(deal, "premium"),
-  ]).join(" · ");
-}
-
-function selectForm425MaterialAmendmentChange(values: string[]) {
-  const candidates = values
-    .map(cleanForm425DisplayValue)
-    .filter(Boolean)
-    .filter((value) => !/^agreement and plan of merger,? dated\b/i.test(value))
-    .filter((value) => !/^as (?:previously )?amended\b/i.test(value))
-    .filter((value) => !/^(?:except as expressly modified|all other terms|the remainder of).*(?:remain|unchanged)/i.test(value));
-  const materialTermPattern =
-    /\b(?:consideration|exchange ratio|outside date|termination|closing|condition|financing|waiver|deadline|extended|extension|amended|modified|revised)\b/i;
-  return candidates.find((value) => materialTermPattern.test(value)) || candidates[0] || "";
-}
-
-function uniqueForm425Strings(values: string[]) {
-  const seen = new Set<string>();
-  return values.filter((value) => {
-    const cleaned = cleanForm425DisplayValue(value);
-    const key = cleaned.toLowerCase();
-    if (!key || seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
-function shortenForm425SnapshotValue(value: string) {
-  const cleaned = cleanForm425DisplayValue(value);
-  if (cleaned.length <= 55) return cleaned;
-  const shortened = cleaned.slice(0, 52).replace(/\s+\S*$/, "").trim();
-  return `${shortened || cleaned.slice(0, 52).trim()}...`;
-}
-
-function shortenForm425Note(value: string) {
-  const cleaned = cleanForm425DisplayValue(value);
-  if (cleaned.length <= 80) return cleaned;
-  const shortened = cleaned.slice(0, 77).replace(/\s+\S*$/, "").trim();
-  return `${shortened || cleaned.slice(0, 77).trim()}...`;
-}
-
-function cleanForm425CompanyName(value: string) {
-  return value
-    .replace(/\s*\/\s*or buy securities[\s\S]*$/i, "")
-    .replace(/^or buy securities[\s\S]*$/i, "")
-    .replace(/^On\s+[A-Z][a-z]+\s+\d{1,2},\s+\d{4},\s+/i, "")
-    .replace(/\s*\((?:subject|filed by)\)\s*/gi, " ")
-    .replace(/\s+CIK\s*:\s*\d+[\s\S]*$/i, "")
-    .replace(/\s+\(see all company filings\)[\s\S]*$/i, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function uniqueForm425PartyNames(values: string[]) {
-  const seen = new Set<string>();
-  const names: string[] = [];
-  for (const value of values) {
-    const name = cleanForm425CompanyName(value);
-    const key = name
-      .toLowerCase()
-      .replace(/\b(?:incorporated|inc|corporation|corp|company|co|limited|ltd)\b/g, "")
-      .replace(/[^a-z0-9]+/g, "");
-    if (!name || !key || seen.has(key)) continue;
-    seen.add(key);
-    names.push(name);
-  }
-  return names;
-}
-
-function buildForm25ListingStatusModel(filing: FilingEvent): Form25ListingStatusModel | null {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  const displayType = readRowString(displayPayload, "display_type");
-  const formType = filing.formType.trim().toUpperCase();
-  const isForm25 =
-    formType === "25" ||
-    formType === "25/A" ||
-    formType === "25-NSE" ||
-    formType === "25-NSE/A" ||
-    formType === "FORM 25" ||
-    formType === "FORM 25-NSE";
-  if (!matchesSecSpecializedDisplayContract(displayType, "form25_listing_status") && !isForm25) return null;
-
-  const data = readDisplayPayloadData(displayPayload);
-  const issuerName =
-    cleanForm25IssuerName(displayString(data, "issuer_name", "")) || extractForm25IssuerFromOriginalHtml(filing.originalHtml);
-  const removedSecurity = displayString(data, "removed_security", "Security class not disclosed");
-  const exchange = displayString(data, "exchange", filing.exchange || "Exchange not disclosed");
-  const reasonCode = readRowString(data, "removal_reason");
-  const reasonDetail = compactForm25CardNote(displayString(data, "removal_reason_text", ""));
-  const reasonLabel = formatForm25ReasonLabel(reasonCode, "", reasonDetail);
-  const statusLabel = formatForm25StatusLabel(reasonCode, "");
-  const filingDate = displayString(data, "filing_date", filing.filedAt || "Not disclosed");
-  const explicitRemovalDate = displayString(data, "delisting_or_removal_date", "");
-  const reportedEffectivenessDate = displayString(data, "effectiveness_date", "");
-  const hasDistinctEffectivenessDate =
-    Boolean(reportedEffectivenessDate) &&
-    normalizeComparableForm25Date(reportedEffectivenessDate) !== normalizeComparableForm25Date(filingDate);
-  const hasFormalRemovalDate = Boolean(explicitRemovalDate || hasDistinctEffectivenessDate);
-  const effectiveDate = formatForm25DisplayDate(
-    explicitRemovalDate || (hasDistinctEffectivenessDate ? reportedEffectivenessDate : filingDate),
-  );
-  const tradingSuspensionDate = formatForm25DisplayDate(displayString(data, "trading_suspension_date", ""));
-  const filedByName = displayString(data, "filed_by_name", "");
-  const ruleProvision = displayString(data, "rule_provision", "");
-  const continuedVenue = displayString(data, "continued_listing_or_trading_venue", "");
-  const successorOrAcquirer = displayString(data, "successor_or_acquirer", "");
-  const considerationSummary = cleanForm25ConsiderationSummary(displayString(data, "consideration_summary", ""));
-  const tone =
-    filing.score >= 75 ||
-    /listing_standards_failure|voluntary_withdrawal/i.test(reasonCode)
-      ? "risk"
-      : "neutral";
-  const statusSummary = compactInlineText(
-    filing.filingBrief || filing.summary || "Form 25 changes the exchange listing status for the covered security.",
-  );
-  const evidenceItems = displayStringArray(displayPayload?.evidence, filing.keyEvidence);
-  const sources = normalizeSpecialSources(
-    evidenceItems.map((item) => ({ title: item, detail: "", form: filing.formType })),
-    filing.sourceUrl,
-    filing.formType,
-  );
-  const detailRows: Form25DetailRow[] = [
-    { label: "Continued venue", value: continuedVenue },
-  ].filter((row) => isDisclosedValue(row.value));
-
-  return {
-    title: formatForm25PanelTitle(reasonCode, ""),
-    statusLabel,
-    statusSummary,
-    headerCompany: formatForm25HeaderCompany({ fallbackCompany: filing.company, fallbackTicker: filing.ticker, issuerName }),
-    removedSecurity,
-    exchange,
-    reasonLabel,
-    reasonDetail,
-    effectiveDateLabel: hasFormalRemovalDate ? "Effective / removal date" : "Form 25 filed",
-    effectiveDate,
-    tradingSuspensionDate,
-    filedByName,
-    ruleProvision,
-    continuedVenue,
-    successorOrAcquirer,
-    considerationSummary,
-    investorImpact: compactInlineText(filing.summary || statusSummary),
-    detailRows,
-    watchNext: filing.watchNext,
-    sources,
-    tone,
-  };
-}
-
-function formatForm25ReasonLabel(reasonCode: string, deterministicCase: string, reasonDetail = "") {
-  const text = `${reasonCode} ${deterministicCase} ${reasonDetail}`.toLowerCase();
-  if (/unit separation|separated into underlying shares|underlying shares and warrants/.test(text)) return "Unit separation";
-  if (isForm25ListingStandardsReason(text)) {
-    const statedReason = reasonCode.replace(/\s+/g, " ").trim();
-    if (isDisclosedValue(statedReason) && !statedReason.includes("_")) return statedReason;
-    return "No longer qualified for listing";
-  }
-  if (/merger|business_combination|acquisition/.test(text)) return "Merger / transaction completed";
-  if (/matured|redeemed|retired/.test(text)) return "Matured / redeemed security";
-  if (/continued_listing|transfer/.test(text)) return "Transfer / continued listing";
-  if (/voluntary|withdrawal|going_dark/.test(text)) return "Voluntary withdrawal";
-  return "Reason not disclosed";
-}
-
-function formatForm25PanelTitle(reasonCode: string, deterministicCase: string) {
-  const text = `${reasonCode} ${deterministicCase}`.toLowerCase();
-  if (isForm25ListingStandardsReason(text)) {
-    return "Exchange Delisting";
-  }
-  if (/merger|business_combination|acquisition/.test(text)) return "Merger Completion";
-  if (/continued_listing|transfer/.test(text)) return "Listing Venue Change";
-  if (/voluntary|withdrawal|going_dark/.test(text)) return "Voluntary Delisting";
-  if (/matured|redeemed|retired/.test(text)) return "Security Removal";
-  return "Listing Status";
-}
-
-function formatForm25StatusLabel(reasonCode: string, deterministicCase: string) {
-  const text = `${reasonCode} ${deterministicCase}`.toLowerCase();
-  if (isForm25ListingStandardsReason(text)) {
-    return "Exchange delisting";
-  }
-  if (/merger|business_combination|acquisition/.test(text)) return "Transaction completed";
-  if (/matured|redeemed|retired/.test(text)) return "Security removed";
-  if (/continued_listing|transfer/.test(text)) return "Listing venue changed";
-  if (/voluntary|withdrawal|going_dark/.test(text)) return "Voluntary delisting";
-  return "Listing status changed";
-}
-
-function buildListingRiskModel(filing: FilingEvent): ListingRiskModel | null {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  if (readRowString(displayPayload, "display_type") !== "listing_risk") return null;
-
-  const data = readDisplayPayloadData(displayPayload);
-  if (
-    !hasEnoughSpecialDisplayFields(
-      data,
-      [
-        "exchange",
-        "compliance_status",
-        "deficiency_notice",
-        "main_risk_driver",
-        "current_point",
-        "notice_date",
-        "cure_deadline",
-        "appeal_hearing_status",
-      ],
-      2,
-    )
-  ) {
-    return null;
-  }
-
-  const complianceStatus = displayString(data, "compliance_status", "Not disclosed");
-  const mainRiskDriver = displayString(data, "main_risk_driver", "Not disclosed");
-  const noActiveDeficiency = isNoActiveListingDeficiency(complianceStatus, mainRiskDriver, data);
-
-  return {
-    exchange: displayString(data, "exchange", filing.exchange || "Not disclosed"),
-    complianceStatus,
-    deficiencyNotice: displayString(data, "deficiency_notice", noActiveDeficiency ? "No active deficiency disclosed" : filing.filingBrief),
-    mainRiskDriver,
-    currentPoint: displayString(data, "current_point", noActiveDeficiency ? "Requirement satisfied" : "Compliance review active"),
-    curePeriod: displayString(data, "cure_period", "Not disclosed"),
-    cureDeadline: displayString(data, "cure_deadline", "Not disclosed"),
-    extensionEligibility: displayString(data, "extension_eligibility", "Not disclosed"),
-    appealHearingStatus: displayString(data, "appeal_hearing_status", "Not disclosed"),
-    extensionReviewDate: displayString(data, "extension_review_date", "Not disclosed"),
-    hearingAppealDeadline: displayString(data, "hearing_appeal_deadline", "Not disclosed"),
-    bidPrice: displayString(data, "bid_price", "Not disclosed"),
-    stockholdersEquity: displayString(data, "stockholders_equity", "Not disclosed"),
-    marketValue: displayString(data, "market_value", "Not disclosed"),
-    publicFloat: displayString(data, "public_float", "Not disclosed"),
-    publicHolders: displayString(data, "public_holders", "Not disclosed"),
-    reverseSplitHistory: displayString(data, "reverse_split_history", "Not disclosed"),
-    lateFilingGovernance: displayString(data, "late_filing_governance", "Not disclosed"),
-    representativeThresholdsNote: displayString(
-      data,
-      "representative_thresholds_note",
-      "Exchange thresholds are shown only when source-backed in the filing payload.",
-    ),
-    noActiveDeficiency,
-    checks: normalizeListingRiskChecks(data),
-    timeline: normalizeListingRiskTimeline(data, filing.filedAt),
-    riskFlags: displayStringArray(data.risk_flags, filing.bearishPoints.length ? filing.bearishPoints : ["No active deficiency disclosed."]),
-    watchNext: displayStringArray(data.watch_next, filing.watchNext.length ? filing.watchNext : ["Next exchange compliance update."]),
-    sources: normalizeSpecialSources(data.sources, filing.sourceUrl, "Listing-risk source evidence"),
-  };
-}
-
-function buildPeriodicAmendmentModel(filing: FilingEvent): PeriodicAmendmentModel | null {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  if (!matchesSecSpecializedDisplayContract(readRowString(displayPayload, "display_type"), "periodic_amendment")) return null;
-
-  const data = readDisplayPayloadData(displayPayload);
-  const snapshotMetrics = recordArray(data.snapshot_metrics)
-    .map((item) => ({
-      label: clipPeriodicDisplayText(readRowString(item, "label"), 36),
-      value: clipPeriodicDisplayText(readRowString(item, "value"), 64),
-      note: clipPeriodicDisplayText(readRowString(item, "note"), 80) || undefined,
-    }))
-    .filter((item) => item.label && item.value && !isPeriodicPlaceholder(item.value))
-    .slice(0, 4);
-  const changedMetrics = recordArray(data.changed_metrics)
-    .map((item) => {
-      const previousValue = clipPeriodicDisplayText(readRowString(item, "previous_value"), 40);
-      const amendedValue = clipPeriodicDisplayText(readRowString(item, "amended_value"), 40);
-      return {
-        title: clipPeriodicDisplayText(readRowString(item, "label"), 48),
-        value: previousValue && amendedValue ? `${previousValue} -> ${amendedValue}` : amendedValue || previousValue || undefined,
-        summary: clipPeriodicDisplayText(readRowString(item, "change_summary"), 140),
-      };
-    })
-    .filter((item) => item.title && item.summary);
-  const changeDetails = recordArray(data.change_details)
-    .map((item) => ({
-      title: clipPeriodicDisplayText(readRowString(item, "title"), 64),
-      value: clipPeriodicDisplayText(readRowString(item, "value"), 80) || undefined,
-      summary: clipPeriodicDisplayText(readRowString(item, "note"), 180),
-    }))
-    .filter((item) => item.title && item.summary);
-  const keyChanges = [...changedMetrics, ...changeDetails].slice(0, 4);
-  const accountingImpact = clipPeriodicDisplayText(readRowString(data, "accounting_or_control_impact"), 220);
-  const investorImpact = clipPeriodicDisplayText(readRowString(data, "investor_impact"), 260);
-  if (accountingImpact && keyChanges.length < 4) {
-    keyChanges.push({ title: "Accounting / Controls", value: undefined, summary: accountingImpact });
-  }
-  if (investorImpact && keyChanges.length < 4) {
-    keyChanges.push({ title: "Investor Impact", value: undefined, summary: investorImpact });
-  }
-
-  if (!snapshotMetrics.length && !keyChanges.length) return null;
-  return {
-    snapshotTitle: "Report Amendment Snapshot",
-    snapshotIntro: clipPeriodicDisplayText(readRowString(data, "snapshot_intro"), 200),
-    snapshotMetrics,
-    keyChanges,
-  };
-}
-
-function buildNtLateFilingModel(filing: FilingEvent): NtLateFilingModel | null {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  const displayType = readRowString(displayPayload, "display_type");
-  const displayVersion = readRowString(displayPayload, "display_version");
-  if (!matchesSecSpecializedDisplayContract(displayType, "nt_late_filing") && displayVersion !== "nt_late_filing_v1") return null;
-
-  const data = readDisplayPayloadData(displayPayload);
-  const delayedReport = cleanNtSnapshotText(
-    readRowString(data, "delayed_report") || filing.formType.replace(/^NT\s*/i, ""),
-    32,
-  );
-  const periodOfReport = readRowString(data, "period_of_report");
-  const extensionDays = Number(data.extension_days);
-  const anticipatedWithinExtension = data.anticipated_within_extension;
-  const delayStatus = formatNtDelayStatus(
-    readRowString(data, "delay_status"),
-    typeof anticipatedWithinExtension === "boolean" ? anticipatedWithinExtension : null,
-  );
-  const underlyingIssue = normalizeNtSnapshotText(
-    readRowString(data, "reason_for_delay_value") ||
-      readRowString(data, "underlying_issue") ||
-      readRowString(data, "late_filing_reason"),
-  );
-  const underlyingIssueNote = normalizeNtSnapshotText(readRowString(data, "reason_for_delay_note"));
-  const resultsChange = normalizeNtSnapshotText(
-    readRowString(data, "expected_results_impact_value"),
-  ) || formatNtResultsChange(
-    readRowString(data, "results_change"),
-    data.significant_change_expected,
-  );
-  const resultsChangeNote = normalizeNtSnapshotText(
-    readRowString(data, "expected_results_impact_note"),
-  );
-  const reliabilityRisk = formatNtReliabilityRisk(readRowString(data, "financial_reliability_risk"));
-  const snapshotMetrics: PeriodicReportSnapshotMetric[] = [];
-
-  if (delayedReport) {
-    snapshotMetrics.push({
-      label: "Delayed Report",
-      value: delayedReport,
-      note: periodOfReport ? `Period ended ${formatDetailDateOnly(periodOfReport, periodOfReport)}` : undefined,
-    });
-  }
-  if (delayStatus) {
-    snapshotMetrics.push({
-      label: "Filing Timing",
-      value: delayStatus,
-      note:
-        anticipatedWithinExtension === true && Number.isFinite(extensionDays)
-          ? `${extensionDays}-day extension window`
-          : undefined,
-    });
-  }
-  if (underlyingIssue && !isNtPlaceholder(underlyingIssue)) {
-    snapshotMetrics.push({
-      label: "Reason for Delay",
-      value: underlyingIssue,
-      note: underlyingIssueNote || undefined,
-    });
-  }
-  if (resultsChange && !isNtPlaceholder(resultsChange)) {
-    snapshotMetrics.push({
-      label: "Expected Results Impact",
-      value: resultsChange,
-      note: resultsChangeNote || reliabilityRisk || undefined,
-    });
-  }
-
-  if (!snapshotMetrics.length) return null;
-  return {
-    snapshotTitle: "Late Filing Snapshot",
-    snapshotIntro: clipPeriodicDisplayText(
-      readRowString(data, "snapshot_intro") || filing.filingBrief,
-      220,
-    ),
-    snapshotMetrics: snapshotMetrics.slice(0, 4),
-  };
-}
-
-function formatNtDelayStatus(value: string, anticipatedWithinExtension: boolean | null) {
-  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
-  if (/within_extension|extension_expected|expected_within/.test(normalized)) return "Expected within extension";
-  if (/outside_extension|extension_missed|not_expected_within/.test(normalized)) return "Extension window at risk";
-  if (/filed|completed/.test(normalized)) return "Report filed";
-  if (value && !isNtPlaceholder(value)) return cleanNtSnapshotText(value, 64);
-  if (anticipatedWithinExtension === true) return "Expected within extension";
-  if (anticipatedWithinExtension === false) return "Extension timing not confirmed";
-  return "";
-}
-
-function formatNtResultsChange(value: string, significantChangeExpected: unknown) {
-  const normalized = value.trim().toLowerCase().replace(/[\s_-]+/g, " ");
-  if (/^(?:none|none disclosed|no significant change|unchanged)$/.test(normalized)) {
-    return "No significant change disclosed";
-  }
-  if (value && !isNtPlaceholder(value)) return normalizeNtSnapshotText(value);
-  if (significantChangeExpected === true) return "Significant change expected";
-  if (significantChangeExpected === false) return "No significant change disclosed";
-  return "";
-}
-
-function normalizeNtSnapshotText(value: string) {
-  const normalized = value
-    .replace(/_/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!normalized) return "";
-  return /^[a-z]/.test(normalized)
-    ? `${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`
-    : normalized;
-}
-
-function formatNtReliabilityRisk(value: string) {
-  const normalized = value.trim().toLowerCase().replace(/[\s_-]+/g, " ");
-  if (!normalized || /^(?:none|none disclosed|not disclosed|unknown)$/.test(normalized)) return "";
-  if (normalized === "explicit") return "Financial reporting risk disclosed";
-  return cleanNtSnapshotText(value, 80);
-}
-
-function cleanNtSnapshotText(value: string, maxLength: number) {
-  const normalized = value
-    .replace(/_/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!normalized) return "";
-  const sentenceCase = /^[a-z]/.test(normalized)
-    ? `${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`
-    : normalized;
-  return clipPeriodicDisplayText(sentenceCase, maxLength);
-}
-
-function isNtPlaceholder(value: string) {
-  return /^(?:not disclosed|not stated|unknown|n\/?a|none|-|—)$/i.test(value.trim());
-}
-
-function buildPeriodicReportModel(filing: FilingEvent): PeriodicReportModel | null {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  if (!matchesSecSpecializedDisplayContract(readRowString(displayPayload, "display_type"), "periodic_report")) return null;
-
-  const data = readDisplayPayloadData(displayPayload);
-  const snapshotMetrics = recordArray(data.snapshot_metrics)
-    .map((item) => ({
-      label: clipPeriodicDisplayText(readRowString(item, "label"), 36),
-      value: clipPeriodicDisplayText(readRowString(item, "value"), 64),
-      note: clipPeriodicDisplayText(readRowString(item, "note"), 80) || undefined,
-    }))
-    .filter((item) => item.label && item.value && !isPeriodicPlaceholder(item.value))
-    .slice(0, 4);
-  const performanceComparisons = recordArray(data.performance_comparisons)
-    .map((item) => {
-      const currentNumeric = readOptionalPeriodicNumber(item.current_numeric);
-      const comparisonNumeric = readOptionalPeriodicNumber(item.comparison_numeric);
-      const comparisonBasis = readRowString(item, "comparison_basis");
-      const changeTone = readRowString(item, "change_tone");
-      const suppliedComparisonBasis: PeriodicReportPerformanceComparison["comparisonBasis"] =
-        comparisonBasis === "yoy" || comparisonBasis === "qoq" ? comparisonBasis : "other";
-      const normalizedChangeTone: PeriodicReportPerformanceComparison["changeTone"] =
-        changeTone === "improvement" || changeTone === "deterioration" ? changeTone : "neutral";
-      const currentLabel = clipPeriodicDisplayText(readRowString(item, "current_label"), 24);
-      const currentValue = clipPeriodicDisplayText(readRowString(item, "current_value"), 32);
-      const comparisonLabel = clipPeriodicDisplayText(readRowString(item, "comparison_label"), 24);
-      const comparisonValue = clipPeriodicDisplayText(readRowString(item, "comparison_value"), 32);
-      return {
-        label: clipPeriodicDisplayText(readRowString(item, "label"), 48),
-        currentLabel,
-        currentValue,
-        currentNumeric: currentNumeric === null ? null : normalizePeriodicChartNumber(currentValue, currentNumeric),
-        comparisonLabel,
-        comparisonValue,
-        comparisonNumeric: comparisonNumeric === null
-          ? null
-          : normalizePeriodicChartNumber(comparisonValue, comparisonNumeric),
-        comparisonBasis: normalizePeriodicComparisonBasis(
-          currentLabel,
-          comparisonLabel,
-          suppliedComparisonBasis,
-        ),
-        changeNote: clipPeriodicDisplayText(readRowString(item, "change_note"), 64) || undefined,
-        changeTone: normalizedChangeTone,
-      };
-    })
-    .filter(
-      (item) =>
-        item.label &&
-        item.currentLabel &&
-        item.currentValue &&
-        item.currentNumeric !== null &&
-        item.comparisonLabel &&
-        item.comparisonValue &&
-        item.comparisonNumeric !== null,
-    )
-    .map((item) => ({
-      ...item,
-      currentNumeric: item.currentNumeric as number,
-      comparisonNumeric: item.comparisonNumeric as number,
-    }))
-    .slice(0, 3);
-  const guidanceMetrics = recordArray(data.guidance_metrics)
-    .map((item) => {
-      const relationship = readRowString(item, "performance_relationship");
-      const performanceRelationship: PeriodicReportGuidanceMetric["performanceRelationship"] =
-        relationship === "same_basis" || relationship === "related_different_basis"
-          ? relationship
-          : "standalone";
-      return {
-        label: clipPeriodicDisplayText(readRowString(item, "label"), 48),
-        guidanceLabel: clipPeriodicDisplayText(readRowString(item, "guidance_label"), 32),
-        guidanceValue: clipPeriodicDisplayText(readRowString(item, "guidance_value"), 48),
-        performanceRelationship,
-        performanceLabel: clipPeriodicDisplayText(readRowString(item, "performance_label"), 48) || undefined,
-        note: clipPeriodicDisplayText(readRowString(item, "note"), 80) || undefined,
-      };
-    })
-    .filter((item) => item.label && item.guidanceLabel && item.guidanceValue)
-    .slice(0, 3);
-  const keyBusinessUpdates = recordArray(data.key_business_updates)
-    .map((item) => ({
-      title: clipPeriodicDisplayText(readRowString(item, "title"), 64),
-      value: clipPeriodicDisplayText(readRowString(item, "value"), 64) || undefined,
-      summary: fitPeriodicNarrativeText(readRowString(item, "summary"), 180),
-    }))
-    .filter((item) => item.title && item.summary)
-    .slice(0, 3);
-
-  if (!snapshotMetrics.length && !performanceComparisons.length && !keyBusinessUpdates.length) return null;
-
-  return {
-    snapshotTitle: periodicReportSnapshotTitle(filing.formType),
-    snapshotIntro: clipPeriodicDisplayText(readRowString(data, "snapshot_intro"), 200),
-    snapshotMetrics,
-    performanceComparisons,
-    guidanceMetrics,
-    keyBusinessUpdates,
-  };
-}
-
-function periodicReportSnapshotTitle(formType: string) {
-  const normalized = formType.trim().toUpperCase();
-  if (normalized.endsWith("/A")) return "Report Amendment Snapshot";
-  if (normalized === "10-Q") return "Quarterly Report Snapshot";
-  if (normalized === "20-F") return "Annual Report Snapshot";
-  return "Annual Report Snapshot";
-}
-
-function readOptionalPeriodicNumber(value: unknown) {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) return Number(value);
-  return null;
-}
-
-function isPeriodicPlaceholder(value: string) {
-  return /^(?:not disclosed|not available|unknown|n\/?a|-|—)$/i.test(value.trim());
-}
-
-function buildEarningsModel(filing: FilingEvent): EarningsModel | null {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  if (readRowString(displayPayload, "display_type") !== "earnings") return null;
-
-  const data = readDisplayPayloadData(displayPayload);
-  if (
-    !hasEnoughSpecialDisplayFields(
-      data,
-      ["period", "revenue", "eps", "net_income", "guidance_summary", "cash", "management_outlook"],
-      2,
-    )
-  ) {
-    return null;
-  }
-
-  return {
-    periodType: displayString(data, "period_type", "Not disclosed"),
-    period: displayString(data, "period", "Reported period"),
-    reportDate: displayString(data, "report_date", filing.filedAt || "Not disclosed"),
-    revenue: displayString(data, "revenue", "Not disclosed"),
-    revenueComparison: displayString(data, "revenue_comparison", "No comparison disclosed"),
-    eps: displayString(data, "eps", "Not disclosed"),
-    netIncome: displayString(data, "net_income", "Not disclosed"),
-    yoyGrowth: displayString(data, "yoy_growth", displayString(data, "revenue_comparison", "Not disclosed")),
-    estimateBeatMiss: displayString(data, "estimate_beat_miss", "Not disclosed"),
-    marginSummary: displayString(data, "margin_summary", "Not disclosed"),
-    grossMargin: displayString(data, "gross_margin", "Not disclosed"),
-    operatingMargin: displayString(data, "operating_margin", "Not disclosed"),
-    ebitdaMargin: displayString(data, "ebitda_margin", "Not disclosed"),
-    guidanceSummary: displayString(data, "guidance_summary", "No guidance disclosed"),
-    revenueGuidance: displayString(data, "revenue_guidance", "Not disclosed"),
-    epsGuidance: displayString(data, "eps_guidance", "Not disclosed"),
-    marginGuidance: displayString(data, "margin_guidance", displayString(data, "margin_summary", "Not disclosed")),
-    guidanceTone: normalizeGuidanceTone(displayString(data, "guidance_tone", displayString(data, "guidance_signal", "Neutral"))),
-    guidanceChange: displayString(data, "guidance_change", "Not disclosed"),
-    forwardCommentary: displayString(data, "forward_commentary", displayString(data, "management_outlook", "Not disclosed")),
-    cash: displayString(data, "cash", "Not disclosed"),
-    cashBurn: displayString(data, "cash_burn", "Not disclosed"),
-    runway: displayString(data, "runway", "Not disclosed"),
-    managementOutlook: displayString(data, "management_outlook", filing.summary || "Not disclosed"),
-    numbers: normalizeEarningsMetrics(data.numbers, [
-      { label: "Revenue", value: displayString(data, "revenue", "Not disclosed"), comparison: displayString(data, "revenue_comparison", "No comparison disclosed"), note: "Current quarter sales." },
-      { label: "EPS", value: displayString(data, "eps", "Not disclosed"), comparison: displayString(data, "estimate_beat_miss", "No estimate context"), note: "Current quarter EPS." },
-      { label: "Net Income", value: displayString(data, "net_income", "Not disclosed"), comparison: "Reported result", note: "Current quarter profitability." },
-      { label: "YoY Growth", value: displayString(data, "yoy_growth", displayString(data, "revenue_comparison", "Not disclosed")), comparison: "Revenue growth", note: "Year-over-year sales change." },
-      { label: "Estimate Beat/Miss", value: displayString(data, "estimate_beat_miss", "Not disclosed"), comparison: "Consensus context", note: "Only source-backed when estimate context exists." },
-    ]),
-    actuals: normalizeEarningsMetrics(data.actuals, [
-      { label: "Revenue", value: displayString(data, "revenue", "Not disclosed"), comparison: displayString(data, "revenue_comparison", "No comparison disclosed"), note: "Reported actual result." },
-      { label: "EPS", value: displayString(data, "eps", "Not disclosed"), comparison: "No comparison disclosed", note: "Reported actual result when disclosed." },
-      { label: "Net Income", value: displayString(data, "net_income", "Not disclosed"), comparison: "No comparison disclosed", note: "Reported actual result when disclosed." },
-    ]),
-    guidance: normalizeEarningsMetrics(data.guidance, [
-      { label: "Guidance Summary", value: displayString(data, "guidance_summary", "No guidance disclosed"), comparison: "Forward-looking", note: "Guidance is separate from actual results." },
-    ]),
-    marginMetrics: normalizeEarningsMetrics(data.margin_metrics, [
-      { label: "Gross Margin", value: displayString(data, "gross_margin", "Not disclosed"), comparison: "No comparison disclosed", note: "Margin quality check." },
-      { label: "Operating Margin", value: displayString(data, "operating_margin", "Not disclosed"), comparison: "No comparison disclosed", note: "Operating leverage check." },
-      { label: "EBITDA Margin", value: displayString(data, "ebitda_margin", "Not disclosed"), comparison: "No comparison disclosed", note: "Cash-profit proxy when disclosed." },
-    ]),
-    marginTrend: displayString(data, "margin_trend", inferEarningsMarginTrend(displayString(data, "margin_summary", ""))),
-    marginTrendNote: displayString(data, "margin_trend_note", displayString(data, "margin_summary", "Not disclosed")),
-    segments: normalizeEarningsSegments(data.segments),
-    surprises: normalizeEarningsMetrics(data.surprises, [
-      { label: "Surprise Context", value: "Not available", comparison: "No context disclosed", note: "Do not infer surprise without prior, guidance, or consensus context." },
-    ]),
-    riskSignals: normalizeEarningsRiskSignals(data.risk_signals, data, filing.bearishPoints),
-    riskFlags: displayStringArray(data.risk_flags, filing.bearishPoints),
-    watchNext: displayStringArray(data.watch_next, filing.watchNext),
-    sources: normalizeSpecialSources(data.sources, filing.sourceUrl, "Earnings source evidence"),
-  };
-}
-
-function buildFdaClinicalModel(filing: FilingEvent): FdaClinicalModel | null {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  if (readRowString(displayPayload, "display_type") !== "fda_clinical") return null;
-
-  const data = readDisplayPayloadData(displayPayload);
-  if (
-    !hasEnoughSpecialDisplayFields(
-      data,
-      [
-        "phase",
-        "indication",
-        "therapy",
-        "trial_name",
-        "event_status",
-        "primary_endpoint",
-        "next_milestone",
-        "fda_status",
-      ],
-      2,
-    )
-  ) {
-    return null;
-  }
-
-  const eventSummary = displayString(data, "event_summary", filing.summary || filing.filingBrief);
-  const phase = displayString(data, "phase", "Phase not disclosed");
-  const indication = displayString(data, "indication", "Not disclosed");
-  const therapy = displayString(data, "therapy", displayString(data, "drug_name", filing.company));
-  const trialName = displayString(data, "trial_name", "Trial name not disclosed");
-  const eventStatus = displayString(data, "event_status", filing.filingFocus || "Clinical update");
-  const primaryEndpoint = displayString(data, "primary_endpoint", "Not disclosed");
-  const dataReadout = displayString(data, "data_readout", "Not disclosed");
-  const fdaStatus = displayString(data, "fda_status", "Not disclosed");
-  const nextMilestone = displayString(data, "next_milestone", filing.watchNext[0] || "Next FDA or clinical update");
-
-  return {
-    phase,
-    indication,
-    therapy,
-    trialName,
-    eventStatus,
-    eventSummary,
-    primaryEndpoint,
-    patientPopulation: displayString(data, "patient_population", "Not disclosed"),
-    dataReadout,
-    nextMilestone,
-    fdaStatus,
-    keyTakeaways: displayStringArray(data.key_takeaways, filing.keyEvidence.length ? filing.keyEvidence : [eventSummary]).slice(0, 4),
-    fdaTimeline: normalizeClinicalTimeline(data, filing.filedAt),
-    dataHighlights: normalizeClinicalDataHighlights(data),
-    risks: displayStringArray(data.risks, filing.bearishPoints.length ? filing.bearishPoints : ["Key clinical risk not disclosed."]),
-    watchNext: displayStringArray(data.watch_next, filing.watchNext.length ? filing.watchNext : [nextMilestone]),
-    marketSize: displayString(
-      data,
-      "market_size",
-      "Market size was not quantified in the filing payload. Do not infer a numeric estimate without source support.",
-    ),
-    marketSizeSource: displayString(data, "market_size_source", "Source-backed market-size context was not disclosed."),
-    sources: normalizeSpecialSources(data.sources, filing.sourceUrl, "FDA clinical source evidence"),
-  };
-}
-
-const IPO_STAGE_ORDER: Array<{ code: IpoStageCode; label: string }> = [
-  { code: "s1_filed", label: "S-1/F-1 Filed" },
-  { code: "terms_set", label: "Terms / Range Set" },
-  { code: "effect", label: "SEC Effective" },
-  { code: "pricing", label: "Pricing / 424B4" },
-  { code: "listing", label: "First Trade" },
-  { code: "lockup", label: "Lock-Up Expiry" },
-];
-
-const IPO_STAGE_LABELS = IPO_STAGE_ORDER.reduce<Record<IpoStageCode, string>>((labels, stage) => {
-  labels[stage.code] = stage.label;
-  return labels;
-}, {} as Record<IpoStageCode, string>);
-
-function buildEffectGatewayModel(filing: FilingEvent): EffectGatewayModel | null {
-  const formType = filing.formType.trim().toUpperCase();
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  const data = readDisplayPayloadData(displayPayload);
-  const relatedForm = displayString(data, "effective_filing_form", "");
-  const effectiveDate = displayString(data, "effective_date", "");
-  const registrationReference = displayString(data, "effective_registration_reference", "");
-  const originalReference = displayString(data, "original_filing_reference", "");
-
-  if (formType !== "EFFECT" && !relatedForm && !effectiveDate && !registrationReference) return null;
-
-  const resolvedRelatedForm = relatedForm || "Registration statement";
-  const originalFiling = findEffectOriginalFiling(filing, originalReference);
-  const sourceText = stripHtml(`${filing.title} ${filing.filingBrief} ${filing.summary} ${filing.originalHtml}`);
-  const resolvedEffectiveDate = effectiveDate || findEffectivenessDate(sourceText);
-  const resolvedRegistrationReference =
-    findEffectRegistrationReference(sourceText) || registrationReference || originalReference || "";
-  const snapshotMetrics = [
-    {
-      label: "Status",
-      value: "Effective",
-      note: "SEC notice of effectiveness",
-    },
-    {
-      label: "Related registration",
-      value: resolvedRelatedForm,
-      note: originalFiling?.accession || originalReference || "Original registration statement",
-    },
-    {
-      label: "Effective date",
-      value: resolvedEffectiveDate || "Not disclosed",
-    },
-    {
-      label: "Registration reference",
-      value: resolvedRegistrationReference || "Not disclosed",
-    },
-  ];
-
-  return {
-    relatedForm: resolvedRelatedForm,
-    effectiveDate: resolvedEffectiveDate || "Not disclosed",
-    registrationReference: resolvedRegistrationReference || "Not disclosed",
-    originalReference,
-    originalFiling,
-    snapshotMetrics,
-    nextSteps: buildEffectNextSteps(filing, resolvedRelatedForm),
-  };
-}
-
-function findEffectivenessDate(sourceText: string) {
-  const match =
-    sourceText.match(
-      /\bEffectiveness Date:\s*([A-Z][a-z]+\s+\d{1,2},\s+\d{4}(?:\s+\d{1,2}:\d{2}\s*(?:A\.?M\.?|P\.?M\.?))?)/i,
-    ) ||
-    sourceText.match(
-      /\bDate of Effectiveness:\s*([A-Z][a-z]+\s+\d{1,2},\s+\d{4}(?:\s+\d{1,2}:\d{2}\s*(?:A\.?M\.?|P\.?M\.?))?)/i,
-    ) ||
-    sourceText.match(
-      /\bdeclared effective\b[^.\n]{0,120}?([A-Z][a-z]+\s+\d{1,2},\s+\d{4}(?:\s+\d{1,2}:\d{2}\s*(?:A\.?M\.?|P\.?M\.?))?)/i,
-    );
-  if (match?.[1]) return match[1].replace(/\s+/g, " ").trim();
-
-  const compactDate = sourceText.match(/\bEFFECTIVENESS DATE:\s*(20\d{6})\b/i)?.[1];
-  return compactDate ? formatCompactEffectDate(compactDate) : "";
-}
-
-function findEffectRegistrationReference(sourceText: string) {
-  const match =
-    sourceText.match(/\b(?:Registration|SEC File|File)\s+No\.?\s*[:.]?\s*(333-\d+)/i) ||
-    sourceText.match(/\bSEC FILE NUMBER:\s*((?:333|001|811)-[0-9A-Z-]+)/i) ||
-    sourceText.match(/\bRegistration\s+Statement\s+No\.?\s*[:.]?\s*(333-\d+)/i) ||
-    sourceText.match(/\b(333-\d{6}(?:-\d+)?)\b/i);
-  return match?.[1] ? `Registration No. ${match[1]}` : "";
-}
-
-function formatCompactEffectDate(value: string) {
-  return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
-}
-
-function findEffectOriginalFiling(filing: FilingEvent, originalReference: string): FilingContextRelatedFiling | null {
-  const relatedFilings = filing.contextRelatedFilings ?? [];
-  if (!relatedFilings.length) return null;
-
-  const reference = originalReference.trim();
-  const referenceWithoutPrefix = reference.replace(/^event:/i, "");
-  const normalizedReferenceAccession = normalizeAccession(reference);
-  const normalizedRegistrationReference = normalizeAccession(reference.replace(/^Registration No\.\s*/i, ""));
-
-  const directMatch =
-    relatedFilings.find((item) => referenceWithoutPrefix && item.id === referenceWithoutPrefix) ||
-    relatedFilings.find((item) => reference && item.id === reference) ||
-    relatedFilings.find((item) => normalizedReferenceAccession && normalizeAccession(item.accession || "") === normalizedReferenceAccession) ||
-    relatedFilings.find(
-      (item) => normalizedRegistrationReference && normalizeAccession(item.accession || "") === normalizedRegistrationReference,
-    );
-  if (directMatch) return directMatch;
-
-  return (
-    relatedFilings.find((item) => item.relation === "Parent" && item.id) ||
-    relatedFilings.find((item) => item.relation === "Parent") ||
-    relatedFilings.find((item) => item.id) ||
-    relatedFilings[0] ||
-    null
-  );
-}
-
-function buildEffectNextSteps(filing: FilingEvent, relatedForm: string) {
-  if (filing.watchNext.length) return filing.watchNext.slice(0, 3);
-
-  const form = relatedForm.toUpperCase();
-  if (/S-1|F-1|IPO/.test(form)) {
-    return ["Watch for final pricing or 424B4 prospectus.", "Track first trading date and ticker activation.", "Review the original IPO terms before trading."];
-  }
-  if (/S-3|F-3|424B|POS/.test(form)) {
-    return ["Watch for prospectus supplement or takedown terms.", "Check whether an ATM, resale, or registered direct sale follows.", "Use the original filing analysis for capacity and dilution context."];
-  }
-  if (/S-4|F-4/.test(form)) {
-    return ["Watch for shareholder vote timing and closing conditions.", "Track final redemption or consideration details.", "Use the original transaction analysis for deal terms."];
-  }
-  return ["Open the original filing analysis for the substantive terms.", "Watch for final prospectus, pricing, closing, or transaction updates.", "Treat this notice as effectiveness confirmation, not a full new analysis."];
-}
-
-function buildIpoListingModel(filing: FilingEvent): IpoListingModel | null {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  const displayType = readRowString(displayPayload, "display_type");
-  const data = readDisplayPayloadData(displayPayload);
-  const displayMode = readRowString(data, "display_mode") || readRowString(data, "offering_ui_mode");
-  const isOfferingTermsIpo =
-    displayType === "offering_terms" &&
-    ["ipo_registration", "ipo_amendment", "spac_ipo", "rule_462b_mef"].includes(displayMode);
-
-  if (displayType !== "ipo_listing" && !isOfferingTermsIpo) return null;
-
-  if (
-    displayType === "ipo_listing" &&
-    !hasEnoughSpecialDisplayFields(
-      data,
-      [
-        "issuer",
-        "proposed_ticker",
-        "exchange",
-        "price_range",
-        "shares_offered",
-        "offering_size",
-        "expected_pricing_date",
-        "expected_listing_date",
-        "underwriters",
-        "lead_underwriters",
-      ],
-      2,
-    )
-  ) {
-    return null;
-  }
-
-  const snapshotMetric = (...labels: string[]) => readLabeledDisplayValue(data.snapshot_metrics, labels);
-  const offeringDetail = (...labels: string[]) => readLabeledDisplayValue(data.offering_details, labels);
-  const currentStage = resolveIpoStage(data, filing.formType);
-  const stages = normalizeIpoStages(data, currentStage);
-  const currentStageIndex = Math.max(0, IPO_STAGE_ORDER.findIndex((stage) => stage.code === currentStage));
-  const currentStageLabel = displayString(data, "current_stage_label", IPO_STAGE_LABELS[currentStage]);
-  const issuer = displayString(data, "issuer", filing.company || "Not disclosed");
-  const proposedTicker = displayString(data, "proposed_ticker", isRealTicker(filing.ticker) ? filing.ticker : "Not disclosed");
-  const exchange = displayString(data, "exchange", snapshotMetric("Proposed exchange", "Exchange / ticker") || filing.exchange || "Not disclosed");
-  const useOfProceeds = displayStringArray(data.use_of_proceeds, []);
-  const useOfProceedsDetail = offeringDetail("Use of Proceeds");
-  const priceRange = displayString(data, "price_range", snapshotMetric("Price range", "Updated price range", "Unit price") || "Not disclosed");
-  const sharesOffered = displayString(data, "shares_offered", snapshotMetric("Shares offered", "Shares / ADS offered", "Updated shares / ADS", "Units offered") || "Not disclosed");
-  const offeringSize = displayString(data, "offering_size", snapshotMetric("Offering size", "Gross proceeds", "Updated offering size", "Trust amount") || "Not disclosed");
-  const underwriters = displayString(data, "underwriters", displayString(data, "lead_underwriters", offeringDetail("Underwriters") || "Pending"));
-  const termsStatus = snapshotMetric("Terms status") || deriveInitialIpoTermsStatus(priceRange, sharesOffered, offeringSize);
-  const sourceSnapshotMetrics = readSnapshotMetrics(data);
-  const initialSnapshotMetrics = buildInitialIpoSnapshotMetrics({
-    currentStageLabel,
-    exchange,
-    proposedTicker,
-    termsStatus,
-    underwriters,
-    sourceMetrics: sourceSnapshotMetrics,
-  });
-  const termsUpdateSnapshotMetrics = buildIpoTermsUpdateSnapshotMetrics({
-    exchange,
-    offeringSize,
-    priceRange,
-    proposedTicker,
-    sharesOffered,
-    sourceMetrics: sourceSnapshotMetrics,
-  });
-  const spacIpoSnapshotMetrics = buildSpacIpoSnapshotMetrics({
-    exchange,
-    offeringSize,
-    priceRange,
-    proposedTicker,
-    sharesOffered,
-    sourceMetrics: sourceSnapshotMetrics,
-  });
-  const mefSnapshotMetrics = buildMefSnapshotMetrics(sourceSnapshotMetrics);
-  const snapshotMetrics =
-    displayMode === "rule_462b_mef"
-      ? mefSnapshotMetrics
-      : displayMode === "ipo_amendment"
-        ? termsUpdateSnapshotMetrics
-        : displayMode === "spac_ipo"
-          ? spacIpoSnapshotMetrics
-          : initialSnapshotMetrics;
-  const offeringDetailsRows = filterIpoOfferingDetailsRows(
-    readOfferingDetailsRows(data),
-    snapshotMetrics,
-    displayMode,
-  );
-  const amendmentRows = readS1F1LabelValueRows(data.amendment_changes).slice(0, 6);
-  const investorTakeaway = displayString(data, "investor_takeaway", "");
-  const narrativeSummary = displayString(data, "company_story", "");
-  const isInitialTermsPending =
-    isOfferingTermsIpo &&
-    displayMode === "ipo_registration" &&
-    currentStage === "s1_filed" &&
-    hasPendingInitialIpoTerms({ offeringSize, priceRange, sharesOffered, termsStatus });
-
-  return {
-    displayMode,
-    isInitialTermsPending,
-    ipoKind: displayString(data, "ipo_kind", isOfferingTermsIpo && displayMode === "spac_ipo" ? "SPAC IPO" : "Traditional IPO"),
-    currentStage,
-    currentStageLabel,
-    stageBadge: `Stage ${currentStageIndex + 1}/${IPO_STAGE_ORDER.length} · ${currentStageLabel}`,
-    displayQuickTake: displayString(data, "display_quick_take", ""),
-    issuer,
-    proposedTicker,
-    exchange,
-    companyStory: narrativeSummary,
-    companyStage: displayString(data, "company_stage", "Not disclosed"),
-    revenue: displayString(data, "revenue", "Not disclosed"),
-    netLoss: displayString(data, "net_loss", "Not disclosed"),
-    cash: displayString(data, "cash", "Not disclosed"),
-    priceRange,
-    midpointPrice: displayString(data, "midpoint_price", "Not disclosed"),
-    sharesOffered,
-    offeringSize,
-    impliedValuation: displayString(data, "implied_valuation", "Not disclosed"),
-    primarySecondaryMix: displayString(data, "primary_secondary_mix", "Not disclosed"),
-    underwriters,
-    underwriterOption: displayString(data, "underwriter_option", "Not disclosed"),
-    floatPercent: displayString(data, "float_percent", "Not disclosed"),
-    floatSummary: displayString(data, "float_summary", "Not disclosed"),
-    lockupSummary: displayString(data, "lockup_summary", offeringDetail("Lock-up") || "Not disclosed"),
-    lockupExpiration: displayString(data, "lockup_expiration", "Not disclosed"),
-    expectedPricingDate: displayString(data, "expected_pricing_date", "Not disclosed"),
-    expectedListingDate: displayString(data, "expected_listing_date", "Not disclosed"),
-    useOfProceeds: (useOfProceeds.length ? useOfProceeds : useOfProceedsDetail ? [useOfProceedsDetail] : ["Not disclosed"]).slice(0, 4),
-    snapshotMetrics,
-    offeringDetailsRows,
-    amendmentRows,
-    stages,
-    riskFlags: displayStringArray(data.risk_flags, filing.bearishPoints),
-    watchNext: displayStringArray(data.watch_next, filing.watchNext),
-    sources: normalizeIpoSources(data.sources, filing.sourceUrl),
-  };
-}
-
-function deriveInitialIpoTermsStatus(priceRange: string, sharesOffered: string, offeringSize: string) {
-  return [priceRange, sharesOffered, offeringSize].some(isPendingIpoTermValue) ? "Price and share count pending" : "Terms partially disclosed";
-}
-
-function hasPendingInitialIpoTerms({
-  offeringSize,
-  priceRange,
-  sharesOffered,
-  termsStatus,
-}: {
-  offeringSize: string;
-  priceRange: string;
-  sharesOffered: string;
-  termsStatus: string;
-}) {
-  return [termsStatus, priceRange, sharesOffered, offeringSize].some(isPendingIpoTermValue);
-}
-
-function isPendingIpoTermValue(value: string) {
-  const normalized = cleanDisclosureValue(value).toLowerCase();
-  return (
-    !isDisclosedValue(value) ||
-    /\b(?:pending|to be determined|not yet|blank|not specified|not set)\b/i.test(normalized) ||
-    /\$\s*(?:per share|and\s+\$|\s*$)/i.test(value)
-  );
-}
-
-function buildInitialIpoSnapshotMetrics({
-  currentStageLabel,
-  exchange,
-  proposedTicker,
-  sourceMetrics,
-  termsStatus,
-  underwriters,
-}: {
-  currentStageLabel: string;
-  exchange: string;
-  proposedTicker: string;
-  sourceMetrics: DilutionMetricItem[];
-  termsStatus: string;
-  underwriters: string;
-}) {
-  const allowed = new Set(["Filing stage", "Terms status", "Proposed exchange / ticker", "Underwriters"]);
-  const normalizedRows = sourceMetrics
-    .map((metric) => normalizeInitialIpoSnapshotMetric(metric))
-    .filter((metric): metric is DilutionMetricItem => {
-      if (!metric) return false;
-      return allowed.has(metric.label);
-    });
-  const underwriterValue = compactInitialIpoUnderwriters(underwriters);
-
-  const fallbackRows: DilutionMetricItem[] = [
-    { label: "Filing stage", value: currentStageLabel, note: "Initial registration filed" },
-    { label: "Terms status", value: termsStatus, note: "Awaiting amended prospectus" },
-    {
-      label: "Proposed exchange / ticker",
-      value: formatInitialIpoListingValue(exchange, proposedTicker),
-      note: "Planned listing venue",
-    },
-    {
-      label: "Underwriters",
-      value: underwriterValue,
-      note: underwriterValue === "Pending" ? "To be named later" : "Lead banks",
-    },
-  ];
-
-  const rowsByLabel = new Map<string, DilutionMetricItem>();
-  [...normalizedRows, ...fallbackRows].forEach((metric) => {
-    if (!rowsByLabel.has(metric.label) && isDisclosedValue(metric.value)) rowsByLabel.set(metric.label, metric);
-  });
-
-  return Array.from(allowed)
-    .map((label) => rowsByLabel.get(label))
-    .filter((metric): metric is DilutionMetricItem => Boolean(metric))
-    .slice(0, 4);
-}
-
-function normalizeInitialIpoSnapshotMetric(metric: DilutionMetricItem): DilutionMetricItem | null {
-  const normalized = normalizeDisplayLookupLabel(metric.label);
-  if (/filing|stage/.test(normalized)) return { ...metric, label: "Filing stage" };
-  if (/term|status|price|share/.test(normalized) && isPendingIpoTermValue(metric.value)) {
-    return { ...metric, label: "Terms status", value: "Price and share count pending" };
-  }
-  if (/exchange|ticker|nasdaq|nyse/.test(normalized)) return { ...metric, label: "Proposed exchange / ticker" };
-  if (/underwriter|bookrunner|lead bank|lead manager/.test(normalized)) return { ...metric, label: "Underwriters" };
-  return null;
-}
-
-function buildIpoTermsUpdateSnapshotMetrics({
-  exchange,
-  offeringSize,
-  priceRange,
-  proposedTicker,
-  sharesOffered,
-  sourceMetrics,
-}: {
-  exchange: string;
-  offeringSize: string;
-  priceRange: string;
-  proposedTicker: string;
-  sharesOffered: string;
-  sourceMetrics: DilutionMetricItem[];
-}) {
-  const allowed = new Set(["Shares offered", "Price range", "Offering size", "Exchange / ticker"]);
-  const normalizedRows = sourceMetrics
-    .map((metric) => normalizeIpoTermsUpdateSnapshotMetric(metric))
-    .filter((metric): metric is DilutionMetricItem => Boolean(metric))
-    .filter((metric) => allowed.has(metric.label));
-
-  const fallbackRows: DilutionMetricItem[] = [
-    { label: "Shares offered", value: sharesOffered, note: "Current amendment terms" },
-    { label: "Price range", value: priceRange, note: "Current amendment range" },
-    { label: "Offering size", value: offeringSize, note: "Estimated or stated deal size" },
-    {
-      label: "Exchange / ticker",
-      value: formatInitialIpoListingValue(exchange, proposedTicker),
-      note: "Planned listing venue",
-    },
-  ];
-
-  const rowsByLabel = new Map<string, DilutionMetricItem>();
-  [...normalizedRows, ...fallbackRows].forEach((metric) => {
-    if (!rowsByLabel.has(metric.label) && isDisclosedValue(metric.value)) rowsByLabel.set(metric.label, metric);
-  });
-
-  return Array.from(allowed)
-    .map((label) => rowsByLabel.get(label))
-    .filter((metric): metric is DilutionMetricItem => Boolean(metric))
-    .slice(0, 4);
-}
-
-function buildSpacIpoSnapshotMetrics({
-  exchange,
-  offeringSize,
-  priceRange,
-  proposedTicker,
-  sharesOffered,
-  sourceMetrics,
-}: {
-  exchange: string;
-  offeringSize: string;
-  priceRange: string;
-  proposedTicker: string;
-  sharesOffered: string;
-  sourceMetrics: DilutionMetricItem[];
-}) {
-  const allowed = new Set(["Units offered", "Unit price", "Trust amount", "Unit components", "Exchange / ticker"]);
-  const normalizedRows = sourceMetrics
-    .map((metric) => normalizeSpacIpoSnapshotMetric(metric))
-    .filter((metric): metric is DilutionMetricItem => Boolean(metric))
-    .filter((metric) => allowed.has(metric.label));
-
-  const fallbackRows: DilutionMetricItem[] = [
-    { label: "Units offered", value: sharesOffered, note: "SPAC IPO units" },
-    { label: "Unit price", value: priceRange, note: "Per unit" },
-    { label: "Trust amount", value: offeringSize, note: "Expected gross trust size" },
-    {
-      label: "Exchange / ticker",
-      value: formatInitialIpoListingValue(exchange, proposedTicker),
-      note: "Proposed listing",
-    },
-  ];
-
-  const rowsByLabel = new Map<string, DilutionMetricItem>();
-  [...normalizedRows, ...fallbackRows].forEach((metric) => {
-    if (!rowsByLabel.has(metric.label) && isDisclosedValue(metric.value)) rowsByLabel.set(metric.label, metric);
-  });
-
-  return Array.from(allowed)
-    .map((label) => rowsByLabel.get(label))
-    .filter((metric): metric is DilutionMetricItem => Boolean(metric))
-    .slice(0, 4);
-}
-
-function normalizeSpacIpoSnapshotMetric(metric: DilutionMetricItem): DilutionMetricItem | null {
-  const normalized = normalizeDisplayLookupLabel(metric.label);
-  if (/\b(?:units?|securities)\b/.test(normalized) && /\b(?:offered|registered|ipo)\b/.test(normalized)) {
-    return { ...metric, label: "Units offered" };
-  }
-  if (/\b(?:unit price|price per unit|price)\b/.test(normalized)) return { ...metric, label: "Unit price" };
-  if (/\b(?:trust|gross proceeds|offering size|proceeds)\b/.test(normalized)) return { ...metric, label: "Trust amount" };
-  if (/\b(?:component|warrant|right)\b/.test(normalized)) return { ...metric, label: "Unit components" };
-  if (/\b(?:exchange|ticker|symbol|nasdaq|nyse)\b/.test(normalized)) return { ...metric, label: "Exchange / ticker" };
-  return null;
-}
-
-function buildMefSnapshotMetrics(sourceMetrics: DilutionMetricItem[]) {
-  const normalizedRows = sourceMetrics
-    .map((metric) => normalizeMefSnapshotMetric(metric) ?? metric)
-    .filter((metric) => isDisclosedValue(metric.value));
-
-  const rowsByLabel = new Map<string, DilutionMetricItem>();
-  normalizedRows.forEach((metric) => {
-    if (!rowsByLabel.has(metric.label)) rowsByLabel.set(metric.label, metric);
-  });
-
-  return Array.from(rowsByLabel.values()).slice(0, 4);
-}
-
-function normalizeMefSnapshotMetric(metric: DilutionMetricItem): DilutionMetricItem | null {
-  const normalized = normalizeDisplayLookupLabel(metric.label);
-  const normalizedMetricText = normalizeDisplayLookupLabel(`${metric.label} ${metric.value} ${metric.note || ""}`);
-  if (/prior/.test(normalized) && /registration/.test(normalized)) return metric;
-  if (/additional|added|new/.test(normalized) && /share|ads|unit|security|securities/.test(normalized)) {
-    const label = /\bunits?\b/.test(normalizedMetricText) ? "Additional units" : "Additional shares / ADS";
-    return { ...metric, label };
-  }
-  if ((/total|pool/.test(normalized) && /share|ads|pool|registered/.test(normalized)) || /registered\s+pool/.test(normalized)) {
-    return { ...metric, label: "Total registered pool" };
-  }
-  if (/value|amount|offering|aggregate|proceed/.test(normalized)) {
-    return { ...metric, label: "Additional offering value" };
-  }
-  if (/462|20|limit/.test(normalized)) return { ...metric, label: "Rule 462(b) limit" };
-  return null;
-}
-
-function filterIpoOfferingDetailsRows(
-  rows: DilutionDisclosureRow[],
-  snapshotMetrics: DilutionMetricItem[],
-  displayMode: string,
-) {
-  if (!rows.length) return rows;
-  const snapshotLabels = new Set(snapshotMetrics.map((metric) => normalizeDisplayLookupLabel(metric.label)));
-  const snapshotText = normalizeDisplayLookupLabel(
-    snapshotMetrics
-      .map((metric) => `${metric.label} ${metric.value} ${metric.note || ""}`)
-      .join(" "),
-  );
-  const seen = new Set<string>();
-
-  return rows.filter((row) => {
-    const normalizedLabel = normalizeDisplayLookupLabel(row.label);
-    if (!normalizedLabel || seen.has(normalizedLabel)) return false;
-    seen.add(normalizedLabel);
-
-    if (displayMode === "ipo_amendment") {
-      if (/\b(?:proposed\s+)?(?:exchange|ticker|symbol|listing venue)\b/.test(normalizedLabel)) {
-        return !snapshotLabels.has("exchange ticker");
-      }
-      if (/\b(?:shares?|ads|units?)\s+offered\b/.test(normalizedLabel)) return false;
-      if (/\bprice\s+range\b/.test(normalizedLabel)) return false;
-      if (/\b(?:offering size|gross proceeds|estimated deal size)\b/.test(normalizedLabel)) return false;
-      if (
-        /\b(?:underwriter option|greenshoe)\b/.test(normalizedLabel) &&
-        /\b(?:option|greenshoe|additional)\b/.test(snapshotText)
-      ) {
-        return false;
-      }
-    }
-
-    if (displayMode === "rule_462b_mef") {
-      if (/\b(?:additional shares|additional ads|additional offering value|rule 462|462 b limit)\b/.test(normalizedLabel)) {
-        return !snapshotText.includes(normalizedLabel);
-      }
-    }
-
-    return true;
-  });
-}
-
-function readS1F1LabelValueRows(value: unknown): DilutionDisclosureRow[] {
-  return recordArray(value)
-    .map((item) => {
-      const label = cleanDisclosureValue(readRowString(item, "label")).slice(0, 42);
-      const valueText = cleanDisclosureValue(readDisclosureValue(item.value) || readRowString(item, "value"));
-      const note = cleanDisclosureValue(readDisclosureValue(item.note) || readRowString(item, "note"));
-      if (!label || !isDisclosedValue(valueText)) return null;
-      return { label, value: valueText, ...(note ? { note } : {}) };
-    })
-    .filter((item): item is DilutionDisclosureRow => Boolean(item));
-}
-
-function normalizeIpoTermsUpdateSnapshotMetric(metric: DilutionMetricItem): DilutionMetricItem | null {
-  const normalized = normalizeDisplayLookupLabel(metric.label);
-  if (/share|ads|unit/.test(normalized) && !/price|proceed|size|value/.test(normalized)) {
-    return { ...metric, label: "Shares offered" };
-  }
-  if (/price|range/.test(normalized) && !/offering size|gross|proceed|value/.test(normalized)) {
-    return { ...metric, label: "Price range" };
-  }
-  if (/offering size|gross|proceed|value|aggregate/.test(normalized)) {
-    return { ...metric, label: "Offering size" };
-  }
-  if (/exchange|ticker|nasdaq|nyse|symbol/.test(normalized)) {
-    return { ...metric, label: "Exchange / ticker" };
-  }
-  return null;
-}
-
-function formatInitialIpoListingValue(exchange: string, proposedTicker: string) {
-  const exchangeValue = isDisclosedValue(exchange) ? exchange : "Pending";
-  return isDisclosedValue(proposedTicker) ? `${exchangeValue}: ${proposedTicker}` : exchangeValue;
-}
-
-function compactInitialIpoUnderwriters(value: string) {
-  const cleaned = cleanDisclosureValue(value);
-  if (!isDisclosedValue(cleaned)) return "Pending";
-  return cleaned
-    .replace(/\b(?:joint )?book-?running managers?\b/gi, "bookrunners")
-    .replace(/\b(?:lead )?underwriters?\b/gi, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 80);
-}
-
-function readLabeledDisplayValue(value: unknown, labels: string[]) {
-  const wanted = new Set(labels.map(normalizeDisplayLookupLabel));
-  for (const item of recordArray(value)) {
-    const label = normalizeDisplayLookupLabel(readRowString(item, "label"));
-    if (!wanted.has(label)) continue;
-    return cleanDisclosureValue(readDisclosureValue(item.value) || readRowString(item, "value"));
-  }
-  return "";
-}
-
-function normalizeDisplayLookupLabel(value: string) {
-  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-}
-
-function readDisplayPayloadData(displayPayload: Record<string, unknown> | null): Record<string, unknown> {
-  if (!displayPayload) return {};
-  const data = readPlainRecord(displayPayload.data) || {};
-  const rootData = Object.fromEntries(
-    Object.entries(displayPayload).filter(([key]) => !["display_type", "data", "evidence", "notes"].includes(key)),
-  );
-
-  return {
-    ...rootData,
-    ...data,
-  };
-}
-
-function resolveIpoStage(data: Record<string, unknown>, formType: string): IpoStageCode {
-  const explicitStage = normalizeIpoStageCode(readRowString(data, "current_stage"));
-  if (explicitStage) return explicitStage;
-
-  const normalizedForm = formType.toUpperCase().replace(/\s+/g, "");
-  if (normalizedForm.includes("424B4")) return "pricing";
-  if (normalizedForm.includes("EFFECT")) return "effect";
-  if (normalizedForm.includes("8-A")) return "listing";
-  if (displayString(data, "price_range", "") !== "") return "terms_set";
-  return "s1_filed";
-}
-
-function normalizeIpoStageCode(value: string): IpoStageCode | null {
-  const normalized = value.toLowerCase().replace(/[^a-z0-9]+/g, "_");
-  if (!normalized) return null;
-  if (normalized in IPO_STAGE_LABELS) return normalized as IpoStageCode;
-  if (normalized.includes("term") || normalized.includes("range")) return "terms_set";
-  if (normalized.includes("effect")) return "effect";
-  if (normalized.includes("price") || normalized.includes("424b4")) return "pricing";
-  if (normalized.includes("trade") || normalized.includes("listing") || normalized.includes("listed")) return "listing";
-  if (normalized.includes("lock")) return "lockup";
-  if (normalized.includes("s1") || normalized.includes("f1") || normalized.includes("file")) return "s1_filed";
-  return null;
-}
-
-function normalizeIpoStages(data: Record<string, unknown>, currentStage: IpoStageCode): SpacStageItem[] {
-  const currentIndex = IPO_STAGE_ORDER.findIndex((stage) => stage.code === currentStage);
-  const rawStages = Array.isArray(data.stages) && data.stages.length ? data.stages : buildDefaultIpoStageRows(data);
-
-  return rawStages
-    .map((item, index) => {
-      const record = readPlainRecord(item);
-      const code = record ? normalizeIpoStageCode(readRowString(record, "code") || readRowString(record, "stage")) : null;
-      const codeIndex = code ? IPO_STAGE_ORDER.findIndex((stage) => stage.code === code) : index;
-      const stageIndex = codeIndex >= 0 ? codeIndex : index;
-      const label = record
-        ? readRowString(record, "label") || readRowString(record, "title") || (code ? IPO_STAGE_LABELS[code] : "")
-        : typeof item === "string"
-          ? item.trim()
-          : IPO_STAGE_ORDER[index]?.label || "";
-      if (!label) return null;
-
-      return {
-        label,
-        date: record ? readRowString(record, "date") || readRowString(record, "window") : "",
-        tone: stageIndex === currentIndex ? "current" : stageIndex < currentIndex ? "complete" : "pending",
-      };
-    })
-    .filter((item): item is SpacStageItem => Boolean(item));
-}
-
-function buildDefaultIpoStageRows(data: Record<string, unknown>) {
-  return [
-    { code: "s1_filed", label: "S-1/F-1 Filed", date: readRowString(data, "s1_filed_date") || readRowString(data, "filing_date") },
-    { code: "terms_set", label: "Terms / Range Set", date: readRowString(data, "terms_set_date") },
-    { code: "effect", label: "SEC Effective", date: readRowString(data, "effective_date") },
-    { code: "pricing", label: "Pricing / 424B4", date: readRowString(data, "expected_pricing_date") },
-    { code: "listing", label: "First Trade", date: readRowString(data, "expected_listing_date") },
-    { code: "lockup", label: "Lock-Up Expiry", date: readRowString(data, "lockup_expiration") },
-  ];
-}
-
-function normalizeIpoSources(value: unknown, fallbackUrl: string): SpacSourceItem[] {
-  const sources = recordArray(value)
-    .map((source) => ({
-      title: readRowString(source, "title") || readRowString(source, "label") || readRowString(source, "name") || "SEC source",
-      detail: readRowString(source, "detail") || readRowString(source, "summary") || readRowString(source, "evidence") || "Source-backed IPO listing evidence",
-      form: readRowString(source, "form") || readRowString(source, "type") || "SEC",
-      url: readRowString(source, "url") || readRowString(source, "source_url") || fallbackUrl,
-    }))
-    .filter((source) => source.title);
-
-  if (sources.length) return sources;
-
-  return [
-    {
-      title: "SEC filing source",
-      detail: "Original filing and source text for the IPO listing.",
-      form: "SEC",
-      url: fallbackUrl,
-    },
-  ];
-}
-
-function buildSpacTransactionStatusModel(filing: FilingEvent): SpacTransactionStatusModel | null {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  if (readRowString(displayPayload, "display_type") !== "spac_transaction_status") return null;
-
-  const rawData = readDisplayPayloadData(displayPayload);
-  const form425SpacData = readPlainRecord(rawData.spac_transaction_status);
-  const form425Financing = readPlainRecord(rawData.financing);
-  const form425AnalysisSnapshot = form425SpacData
-    ? readSpacAnalysisSnapshot(rawData.analysis_snapshot)
-    : null;
-  if (form425SpacData && !form425AnalysisSnapshot) return null;
-  const form425TransactionStatus = readRowString(form425SpacData, "transaction_status");
-  const form425ExpectedClose = readRowString(form425SpacData, "expected_close");
-  const form425VoteDate = readRowString(form425SpacData, "meeting_date");
-  const data: Record<string, unknown> = form425SpacData
-    ? {
-        ...rawData,
-        deal_status: form425TransactionStatus || filing.filingFocus,
-        spac_status: filing.filingBrief || filing.summary,
-        stage_summary: filing.filingBrief || filing.summary,
-        current_stage: inferForm425SpacStage(form425TransactionStatus, form425VoteDate, form425ExpectedClose),
-        target_company: readRowString(form425SpacData, "target_name") || filing.company,
-        target_summary: filing.summary,
-        target_company_story: filing.summary,
-        expected_ticker: readRowString(form425SpacData, "expected_ticker"),
-        deal_value:
-          readRowString(form425SpacData, "enterprise_value") ||
-          readRowString(form425SpacData, "equity_value") ||
-          readRowString(form425SpacData, "pre_money_valuation"),
-        vote_date: form425VoteDate,
-        proxy_filing_date: filing.filedAt,
-        closing_date: form425ExpectedClose,
-        trust_cash_before: readRowString(form425SpacData, "trust_cash"),
-        min_cash_condition: readRowString(form425Financing, "financing_condition"),
-        float_impact: readRowString(form425SpacData, "redemption_risk"),
-        risk_flags: filing.bearishPoints,
-        watch_next: filing.watchNext,
-      }
-    : rawData;
-  if (
-    !form425SpacData &&
-    !hasEnoughSpecialDisplayFields(
-      data,
-      [
-        "deal_status",
-        "spac_status",
-        "target_company",
-        "expected_ticker",
-        "deal_value",
-        "announced_date",
-        "merger_agreement_date",
-        "redemption_rate",
-        "min_cash_condition",
-        "min_cash_status",
-        "closing_date",
-        "ticker_change_date",
-        "sponsor",
-        "ipo_underwriter",
-      ],
-      2,
-    )
-  ) {
-    return null;
-  }
-
-  const currentStage = resolveSpacStage(data);
-  const currentStageNumber = spacStageNumber(currentStage);
-  const rawStages = Array.isArray(data.stages) && data.stages.length ? data.stages : buildDefaultSpacStageRows(data);
-  const stages = normalizeSpacStages(rawStages, currentStage);
-  const currentStageLabel = displayString(data, "current_stage_label", SPAC_STAGE_LABELS[currentStage] || "Current SPAC status");
-  const closingDate = displayString(data, "closing_date", "Not disclosed");
-  const tickerChangeDate = displayString(data, "ticker_change_date", "Not disclosed");
-  const minCashCondition = displayString(data, "min_cash_condition", "Not disclosed");
-  const minCashStatus = displayString(data, "min_cash_status", "Not disclosed");
-  const targetCompany = displayString(data, "target_company", filing.company);
-  const expectedTicker = displayString(data, "expected_ticker", "Not disclosed");
-  const riskFlags = displayStringArray(data.risk_flags, filing.bearishPoints);
-  const watchNext = displayStringArray(data.watch_next, filing.watchNext);
-  const redemptionResultDate = displayString(data, "redemption_result_date", "Not disclosed");
-  const voteDate = displayString(data, "vote_date", "Not disclosed");
-  const redemptionDeadline = displayString(data, "redemption_deadline", "Not disclosed");
-  const sourceDate = buildSpacSourceDate(redemptionResultDate, voteDate, filing.filedAt);
-  const ipoUnderwriter = displayString(data, "ipo_underwriter", "Not disclosed");
-  const targetLine = expectedTicker === "Not disclosed" ? targetCompany : `${targetCompany} / ${expectedTicker}`;
-  const closingValues = [closingDate, tickerChangeDate].filter(
-    (value, index, values) => value !== "Not disclosed" && values.indexOf(value) === index,
-  );
-  const snapshot = form425AnalysisSnapshot || {
-    title: "de-SPAC Snapshot",
-    summary: displayString(data, "stage_summary", filing.filingBrief || filing.summary),
-    items: [
-      { label: "Current Step", value: currentStageLabel, note: displayString(data, "deal_status", filing.filingFocus || "SPAC transaction update") },
-      { label: "Target / Ticker", value: targetLine, note: displayString(data, "deal_value", "Not disclosed") },
-      { label: "Vote Date", value: voteDate, note: redemptionDeadline !== "Not disclosed" ? `Redemption deadline: ${redemptionDeadline}` : "Redemption deadline not disclosed" },
-      { label: "Closing / Listing", value: closingValues.join(" / ") || "Not disclosed", note: minCashStatus !== "Not disclosed" ? `Minimum cash: ${minCashStatus}` : "Subject to closing conditions" },
-    ],
-  };
-
-  return {
-    snapshotTitle: snapshot.title,
-    snapshotItems: snapshot.items,
-    contextTitle: form425AnalysisSnapshot ? "Transaction Update" : "Target Company Overview",
-    contextBadge: form425AnalysisSnapshot || expectedTicker === "Not disclosed" ? "" : expectedTicker,
-    currentStage,
-    currentStageNumber,
-    currentStageLabel,
-    stageBadge: `Stage ${currentStageNumber}/${stages.length} · ${currentStageLabel}`,
-    dealStatus: displayString(data, "deal_status", filing.filingFocus || "SPAC transaction update"),
-    spacStatus: displayString(data, "spac_status", filing.filingBrief || filing.summary),
-    stageSummary: snapshot.summary,
-    stages,
-    targetCompany,
-    targetSummary: displayString(data, "target_summary", filing.summary),
-    targetCompanyStory: displayString(data, "target_company_story", displayString(data, "target_summary", filing.summary)),
-    expectedTicker,
-    dealValue: displayString(data, "deal_value", "Not disclosed"),
-    announcedDate: displayString(data, "announced_date", "Not disclosed"),
-    mergerAgreementDate: displayString(data, "merger_agreement_date", "Not disclosed"),
-    sponsor: displayString(data, "sponsor", "Not disclosed"),
-    ipoUnderwriter,
-    ipoDate: displayString(data, "ipo_date", "Not disclosed"),
-    ipoYear: displayString(data, "ipo_year", ""),
-    unitRightWarrantTerms: displayString(data, "unit_right_warrant_terms", "Not disclosed"),
-    voteDate,
-    redemptionDeadline,
-    redemptionResultDate,
-    redemptionRate: displayString(data, "redemption_rate", "Not disclosed"),
-    trustCashBefore: displayString(data, "trust_cash_before", "Not disclosed"),
-    trustCashAfter: displayString(data, "trust_cash_after", "Not disclosed"),
-    redemptionPrice: displayString(data, "redemption_price", "Not disclosed"),
-    publicSharesRemaining: displayString(data, "public_shares_remaining", "Not disclosed"),
-    minCashCondition,
-    minCashStatus,
-    cashCondition: minCashStatus !== "Not disclosed" ? minCashStatus : minCashCondition,
-    floatImpact: displayString(data, "float_impact", "Not disclosed"),
-    closingDate,
-    tickerChangeDate,
-    sourceDate,
-    blockingIssue: buildSpacBlockingIssue(minCashStatus, minCashCondition, riskFlags),
-    nextCheck: buildSpacNextCheck(closingDate, tickerChangeDate, minCashStatus),
-    riskFlags,
-    watchNext,
-    keyEvidence: filing.keyEvidence,
-    sources: normalizeSpacSources(data.sources, filing.sourceUrl),
-    eventHistory: normalizeSpacEventHistory(data.event_history),
-  };
-}
-
-function readSpacAnalysisSnapshot(value: unknown) {
-  const snapshot = readPlainRecord(value);
-  const title = readRowString(snapshot, "title");
-  const summary = readRowString(snapshot, "summary");
-  const items = Array.isArray(snapshot?.items)
-    ? snapshot.items
-        .map((item) => {
-          const record = readPlainRecord(item);
-          const label = readRowString(record, "label");
-          const itemValue = readRowString(record, "value");
-          if (!label || !itemValue || /^(?:-|n\/?a|none|unknown|not\s+(?:disclosed|available|fixed)|symbol|ticker)$/i.test(itemValue)) {
-            return null;
-          }
-          const note = readRowString(record, "note");
-          return { label, value: itemValue, ...(note ? { note } : {}) };
-        })
-        .filter((item): item is SpacSnapshotItem => Boolean(item))
-    : [];
-  if (!title || !summary || items.length !== 4) return null;
-  return { title, summary, items };
-}
-
-function inferForm425SpacStage(transactionStatus: string, voteDate: string, expectedClose: string): SpacStageCode {
-  const text = `${transactionStatus} ${voteDate} ${expectedClose}`.toLowerCase();
-  if (/closed|completed|ticker change/.test(text)) return "closing";
-  if (/redemption result|redeemed/.test(text)) return "redemption";
-  if (/minimum cash|financing condition|backstop/.test(text)) return "cash";
-  if (voteDate || /vote|meeting|shareholder approval/.test(text)) return "vote";
-  if (/proxy|s-4|f-4/.test(text)) return "proxy";
-  return "target";
-}
-
-function normalizeSpacStages(items: unknown[], currentStage: SpacStageCode): SpacStageItem[] {
-  const currentStageIndex = spacStageNumber(currentStage) - 1;
-  const stages = items
-    .map((item, index) => {
-      const record = readPlainRecord(item);
-      const explicitCode = record ? normalizeSpacStageCode(readRowString(record, "code") || readRowString(record, "stage")) : null;
-      const label = record
-        ? readRowString(record, "label") || readRowString(record, "title") || readRowString(record, "name") || (explicitCode ? SPAC_STAGE_LABELS[explicitCode] : "")
-        : typeof item === "string"
-          ? item.trim()
-          : "";
-      if (!label) return null;
-
-      const explicitTone = record ? readRowString(record, "tone") || readRowString(record, "status") : "";
-      const stageIndex = explicitCode ? spacStageNumber(explicitCode) - 1 : index;
-      const lowerLabel = `${label} ${explicitTone}`.toLowerCase();
-      const tone: SpacStageTone =
-        stageIndex === currentStageIndex
-          ? "current"
-          : stageIndex < currentStageIndex
-            ? "complete"
-            : lowerLabel.includes("cash") || lowerLabel.includes("listing") || lowerLabel.includes("condition") || lowerLabel.includes("risk")
-              ? "risk"
-              : "pending";
-
-      return {
-        label,
-        date: record ? readRowString(record, "date") || readRowString(record, "window") : "",
-        tone,
-      };
-    })
-    .filter((item): item is SpacStageItem => Boolean(item));
-
-  return stages.length ? stages : normalizeSpacStages(buildDefaultSpacStageRows({}), currentStage);
-}
-
-function resolveSpacStage(data: Record<string, unknown>): SpacStageCode {
-  const explicitStage = normalizeSpacStageCode(readRowString(data, "current_stage"));
-  if (explicitStage) return explicitStage;
-
-  const numericStage = readOptionalNumber(data.current_stage);
-  if (numericStage > 0) {
-    return SPAC_STAGE_ORDER[clampSpacStage(numericStage) - 1]?.code || "target";
-  }
-
-  return inferSpacStage(data.stages);
-}
-
-function normalizeSpacStageCode(value: string): SpacStageCode | null {
-  const normalized = value.toLowerCase().replace(/[^a-z0-9]+/g, "_");
-  if (!normalized) return null;
-  if (normalized === "target" || normalized.includes("signed") || normalized.includes("announce")) return "target";
-  if (normalized === "proxy" || normalized.includes("sec_filing") || normalized.includes("s_4") || normalized.includes("f_4")) return "proxy";
-  if (normalized === "vote" || normalized.includes("shareholder") || normalized.includes("redemption_window")) return "vote";
-  if (normalized === "redemption" || normalized.includes("redemption_result")) return "redemption";
-  if (normalized === "cash" || normalized.includes("condition") || normalized.includes("backstop") || normalized.includes("pipe")) return "cash";
-  if (normalized === "closing" || normalized.includes("ticker") || normalized.includes("close")) return "closing";
-  return null;
-}
-
-function spacStageNumber(value: SpacStageCode) {
-  const index = SPAC_STAGE_ORDER.findIndex((stage) => stage.code === value);
-  return index >= 0 ? index + 1 : 1;
-}
-
-function buildDefaultSpacStageRows(data: Record<string, unknown>) {
-  return [
-    { code: "target", label: "Deal Signed", date: readRowString(data, "merger_agreement_date") || readRowString(data, "announced_date") },
-    { code: "proxy", label: "Proxy Filed", date: readRowString(data, "proxy_filing_date") },
-    { code: "vote", label: "Vote / Redemption", date: readRowString(data, "vote_date") || readRowString(data, "redemption_deadline") },
-    { code: "redemption", label: "Redemption Result", date: readRowString(data, "redemption_result_date") },
-    { code: "cash", label: "Cash Conditions", date: readRowString(data, "min_cash_status") },
-    { code: "closing", label: "Close / Ticker", date: readRowString(data, "closing_date") || readRowString(data, "ticker_change_date") },
-  ];
-}
-
-function buildSpacSourceDate(redemptionResultDate: string, voteDate: string, filedAt: string) {
-  if (redemptionResultDate !== "Not disclosed") return redemptionResultDate;
-  if (voteDate !== "Not disclosed") return voteDate;
-  return filedAt || "Not disclosed";
-}
-
-function normalizeSpacSources(value: unknown, fallbackUrl: string): SpacSourceItem[] {
-  const sources = recordArray(value)
-    .map((source) => ({
-      title: readRowString(source, "title") || readRowString(source, "label") || readRowString(source, "name") || "SEC source",
-      detail: readRowString(source, "detail") || readRowString(source, "summary") || readRowString(source, "evidence") || "Source-backed filing evidence",
-      form: readRowString(source, "form") || readRowString(source, "type") || "SEC",
-      url: readRowString(source, "url") || readRowString(source, "source_url") || fallbackUrl,
-    }))
-    .filter((source) => source.title);
-
-  if (sources.length) return sources;
-
-  return [
-    {
-      title: "SEC filing source",
-      detail: "Original filing and source text for the SPAC transaction status.",
-      form: "SEC",
-      url: fallbackUrl,
-    },
-  ];
-}
-
-function normalizeSpacEventHistory(value: unknown): SpacHistoryItem[] {
-  return recordArray(value)
-    .map((item, index) => ({
-      date: readRowString(item, "date") || "Recent",
-      form: readRowString(item, "form") || readRowString(item, "type") || "SEC",
-      title: readRowString(item, "title") || readRowString(item, "event") || "SPAC filing update",
-      source: readRowString(item, "source") || "SEC",
-      status: readRowString(item, "status") || (index === 0 ? "Current" : "Filed"),
-      current: index === 0 || /current/i.test(readRowString(item, "status")),
-    }))
-    .filter((item) => item.title);
-}
-
-function normalizeListingRiskChecks(data: Record<string, unknown>): ListingRiskCheck[] {
-  const checks = recordArray(data.checks)
-    .map((item) => ({
-      label: readRowString(item, "label") || readRowString(item, "name") || "Listing check",
-      value: readRowString(item, "value") || "Not disclosed",
-      status: readRowString(item, "status") || "Unknown",
-      note: readRowString(item, "note") || readRowString(item, "detail") || "No additional detail disclosed.",
-    }))
-    .filter((item) => item.label);
-
-  if (checks.length) return checks;
-
-  return [
-    { label: "Bid Price", value: displayString(data, "bid_price", "Not disclosed"), status: inferListingCheckStatus(data, "bid_price"), note: "Minimum bid-price context when source-backed." },
-    { label: "Stockholders' Equity", value: displayString(data, "stockholders_equity", "Not disclosed"), status: inferListingCheckStatus(data, "stockholders_equity"), note: "Equity deficiency context when disclosed." },
-    { label: "MVLS / Market Value", value: displayString(data, "market_value", "Not disclosed"), status: inferListingCheckStatus(data, "market_value"), note: "Market-value listing standard context when disclosed." },
-    { label: "Public Float / Holders", value: displayString(data, "public_float", "Not disclosed"), status: inferListingCheckStatus(data, "public_float"), note: "Float and holder counts when disclosed." },
-    { label: "Reverse Split History", value: displayString(data, "reverse_split_history", "Not disclosed"), status: inferListingCheckStatus(data, "reverse_split_history"), note: "Reverse split status or history when disclosed." },
-    { label: "Late Filing / Governance", value: displayString(data, "late_filing_governance", "Not disclosed"), status: inferListingCheckStatus(data, "late_filing_governance"), note: "Late filing or governance deficiency context when disclosed." },
-  ];
-}
-
-function normalizeListingRiskTimeline(data: Record<string, unknown>, filedAt: string): ListingRiskTimelineItem[] {
-  const timeline = recordArray(data.timeline)
-    .map((item) => ({
-      label: readRowString(item, "label") || readRowString(item, "title") || "Listing milestone",
-      date: readRowString(item, "date") || readRowString(item, "value") || "Not disclosed",
-      status: readRowString(item, "status") || "Pending",
-    }))
-    .filter((item) => item.label);
-
-  if (timeline.length) return timeline;
-
-  return [
-    { label: "Notice Date", date: displayString(data, "notice_date", filedAt || "Not disclosed"), status: "Complete" },
-    { label: "Current Point", date: displayString(data, "current_point", "Not disclosed"), status: "Current" },
-    { label: "Cure Deadline", date: displayString(data, "cure_deadline", "Not disclosed"), status: "Pending" },
-    { label: "Extension / Review", date: displayString(data, "extension_review_date", "Not disclosed"), status: "Unknown" },
-    { label: "Hearing / Appeal Deadline", date: displayString(data, "hearing_appeal_deadline", "Not disclosed"), status: "Unknown" },
-  ];
-}
-
-function normalizeEarningsMetrics(value: unknown, fallback: EarningsMetric[]): EarningsMetric[] {
-  const metrics = recordArray(value)
-    .map((item) => ({
-      label: readRowString(item, "label") || readRowString(item, "name") || "Metric",
-      value: readRowString(item, "value") || "Not disclosed",
-      comparison: readRowString(item, "comparison") || readRowString(item, "change") || "No comparison disclosed",
-      note: readRowString(item, "note") || readRowString(item, "detail") || "Source-backed when disclosed.",
-    }))
-    .filter((item) => item.label);
-
-  return metrics.length ? metrics : fallback;
-}
-
-function normalizeEarningsSegments(value: unknown): EarningsSegment[] {
-  const segments = recordArray(value)
-    .map((item) => ({
-      name: readRowString(item, "name") || readRowString(item, "segment") || "Segment",
-      revenue: readRowString(item, "revenue") || readRowString(item, "value") || "Not disclosed",
-      performance: readRowString(item, "performance") || readRowString(item, "comparison") || "No comparison disclosed",
-      note: readRowString(item, "note") || readRowString(item, "detail") || "Segment commentary was not disclosed.",
-    }))
-    .filter((item) => item.name);
-
-  return segments.length
-    ? segments
-    : [
-        {
-          name: "Segment detail",
-          revenue: "Not disclosed",
-          performance: "No segment context disclosed",
-          note: "The filing payload did not include segment-level results.",
-        },
-      ];
-}
-
-function normalizeEarningsRiskSignals(
-  value: unknown,
-  data: Record<string, unknown>,
-  fallback: string[],
-): EarningsRiskSignal[] {
-  const signals = recordArray(value)
-    .map((item) => {
-      const label = readRowString(item, "label") || readRowString(item, "name") || "Risk signal";
-      const status = readRowString(item, "status") || readRowString(item, "value") || "Watch";
-      const tone = normalizeRiskSignalTone(readRowString(item, "tone") || status);
-      return {
-        label,
-        status,
-        detail: readRowString(item, "detail") || readRowString(item, "note") || "Source-backed when disclosed.",
-        tone,
-      };
-    })
-    .filter((item) => item.label);
-
-  if (signals.length) return signals;
-
-  const atmMention = displayString(data, "atm_dilution_mention", "Not disclosed");
-  const liquidity = displayString(data, "liquidity_issue", displayString(data, "cash_burn", "Not disclosed"));
-  const debtPressure = displayString(data, "debt_pressure", "Not disclosed");
-
-  return [
-    {
-      label: "Going concern",
-      status: displayString(data, "going_concern", "Not disclosed"),
-      detail: "Going-concern language from the filing when available.",
-      tone: normalizeRiskSignalTone(displayString(data, "going_concern", "Not disclosed")),
-    },
-    {
-      label: "Liquidity issue",
-      status: liquidity,
-      detail: "Cash burn, runway, or liquidity stress language.",
-      tone: normalizeRiskSignalTone(liquidity),
-    },
-    {
-      label: "ATM / dilution mention",
-      status: atmMention,
-      detail: "ATM, shelf, equity line, or financing disclosure.",
-      tone: normalizeRiskSignalTone(atmMention),
-    },
-    {
-      label: "Debt pressure",
-      status: debtPressure,
-      detail: fallback[0] || "Debt pressure not disclosed.",
-      tone: normalizeRiskSignalTone(debtPressure),
-    },
-  ];
-}
-
-function normalizeRiskSignalTone(value: string): EarningsRiskSignal["tone"] {
-  const normalized = value.toLowerCase();
-  if (normalized.includes("risk") || normalized.includes("issue") || normalized.includes("breach") || normalized.includes("active")) {
-    return "risk";
-  }
-  if (normalized.includes("watch") || normalized.includes("not disclosed") || normalized.includes("pressure")) return "watch";
-  return "clear";
-}
-
-function normalizeGuidanceTone(value: string): EarningsModel["guidanceTone"] {
-  const normalized = value.toLowerCase();
-  if (normalized.includes("bull") || normalized.includes("strong") || normalized.includes("raise")) return "Bullish";
-  if (normalized.includes("weak") || normalized.includes("cut") || normalized.includes("lower")) return "Weak";
-  return "Neutral";
-}
-
-function inferEarningsMarginTrend(value: string) {
-  const normalized = value.toLowerCase();
-  if (normalized.includes("compress") || normalized.includes("declin") || normalized.includes("pressure")) return "Compressing";
-  if (normalized.includes("improv") || normalized.includes("expand")) return "Improving";
-  if (normalized.includes("stable") || normalized.includes("maintain")) return "Stable";
-  return "Not disclosed";
-}
-
-function normalizeClinicalTimeline(data: Record<string, unknown>, filedAt: string): ClinicalTimelineItem[] {
-  const timeline = recordArray(data.fda_timeline || data.timeline)
-    .map((item) => ({
-      label: readRowString(item, "label") || readRowString(item, "title") || "Clinical milestone",
-      date: readRowString(item, "date") || readRowString(item, "window") || "Not disclosed",
-      status: readRowString(item, "status") || "Pending",
-      detail: readRowString(item, "detail") || readRowString(item, "summary") || "Source-backed milestone when disclosed.",
-    }))
-    .filter((item) => item.label);
-
-  if (timeline.length) return timeline;
-
-  return [
-    {
-      label: "Current filing",
-      date: filedAt || "Recent",
-      status: "Current",
-      detail: displayString(data, "event_status", "Clinical filing update disclosed."),
-    },
-    {
-      label: "Next milestone",
-      date: displayString(data, "next_milestone", "Not disclosed"),
-      status: "Watch",
-      detail: displayString(data, "fda_status", "FDA status not disclosed."),
-    },
-  ];
-}
-
-function normalizeClinicalDataHighlights(data: Record<string, unknown>): ClinicalDataHighlight[] {
-  const highlights = recordArray(data.data_highlights)
-    .map((item) => ({
-      label: readRowString(item, "label") || readRowString(item, "name") || "Clinical data",
-      value: readRowString(item, "value") || "Not disclosed",
-      note: readRowString(item, "note") || readRowString(item, "detail") || "Source-backed when disclosed.",
-    }))
-    .filter((item) => item.label)
-    .slice(0, 4);
-
-  if (highlights.length) return highlights;
-
-  return [
-    {
-      label: "Primary endpoint",
-      value: displayString(data, "primary_endpoint", "Not disclosed"),
-      note: displayString(data, "data_readout", "Readout detail not disclosed."),
-    },
-    {
-      label: "Patient population",
-      value: displayString(data, "patient_population", "Not disclosed"),
-      note: displayString(data, "indication", "Indication not disclosed."),
-    },
-    {
-      label: "FDA status",
-      value: displayString(data, "fda_status", "Not disclosed"),
-      note: displayString(data, "next_milestone", "Next milestone not disclosed."),
-    },
-  ];
-}
-
-function normalizeSpecialSources(value: unknown, fallbackUrl: string, fallbackDetail: string): SpacSourceItem[] {
-  const sources = recordArray(value)
-    .map((source) => ({
-      title: readRowString(source, "title") || readRowString(source, "label") || readRowString(source, "name") || "SEC source",
-      detail: readRowString(source, "detail") || readRowString(source, "summary") || readRowString(source, "evidence") || fallbackDetail,
-      form: readRowString(source, "form") || readRowString(source, "type") || "SEC",
-      url: readRowString(source, "url") || readRowString(source, "source_url") || fallbackUrl,
-    }))
-    .filter((source) => source.title);
-
-  if (sources.length) return sources;
-
-  return [
-    {
-      title: "SEC filing source",
-      detail: fallbackDetail,
-      form: "SEC",
-      url: fallbackUrl,
-    },
-  ];
-}
-
-function isNoActiveListingDeficiency(complianceStatus: string, mainRiskDriver: string, data: Record<string, unknown>) {
-  const combined = `${complianceStatus} ${mainRiskDriver} ${displayString(data, "deficiency_notice", "")}`.toLowerCase();
-  return (
-    combined.includes("no active") ||
-    combined.includes("satisfied") ||
-    combined.includes("regained compliance") ||
-    combined.includes("compliant")
-  );
-}
-
-function inferListingCheckStatus(data: Record<string, unknown>, key: string) {
-  const value = displayString(data, key, "Not disclosed").toLowerCase();
-  if (value === "not disclosed") return "Unknown";
-  if (value.includes("deficien") || value.includes("below") || value.includes("risk")) return "Deficient";
-  if (value.includes("no issue") || value.includes("satisfied") || value.includes("compliant")) return "Satisfied";
-  return "Watch";
-}
-
-function hasEnoughSpecialDisplayFields(data: Record<string, unknown>, keys: string[], minimumCount: number) {
-  const presentCount = keys.reduce((count, key) => (readDisclosureValue(data[key]) ? count + 1 : count), 0);
-  return presentCount >= minimumCount;
-}
-
-function displayString(data: Record<string, unknown>, key: string, fallback: string) {
-  return cleanDisclosureValue(readDisclosureValue(data[key])) || fallback;
-}
-
-function readDisclosureValue(value: unknown): string {
-  if (typeof value === "string") return value.trim();
-  if (typeof value === "number" && Number.isFinite(value)) return String(value);
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => {
-        if (typeof item === "string") return item.trim();
-        if (typeof item === "number" && Number.isFinite(item)) return String(item);
-        const record = readPlainRecord(item);
-        return record
-          ? readRowString(record, "text") ||
-              readRowString(record, "title") ||
-              readRowString(record, "label") ||
-              readRowString(record, "name") ||
-              readRowString(record, "detail")
-          : "";
-      })
-      .filter(Boolean)
-      .join(", ");
-  }
-  return "";
-}
-
-function displayStringArray(value: unknown, fallback: string[]) {
-  const items = Array.isArray(value)
-    ? value
-        .map((item) => {
-          if (typeof item === "string") return item.trim();
-          const record = readPlainRecord(item);
-          return record
-            ? readRowString(record, "text") ||
-                readRowString(record, "title") ||
-                readRowString(record, "label") ||
-                readRowString(record, "point") ||
-                readRowString(record, "detail")
-            : "";
-        })
-        .filter(Boolean)
-    : [];
-
-  return items.length ? items : fallback.filter(Boolean);
-}
-
-function buildSpacBlockingIssue(minCashStatus: string, minCashCondition: string, riskFlags: string[]) {
-  if (minCashStatus !== "Not disclosed" && minCashCondition !== "Not disclosed") {
-    return `${minCashStatus} vs ${minCashCondition} minimum cash`;
-  }
-  if (minCashStatus !== "Not disclosed") return minCashStatus;
-  if (minCashCondition !== "Not disclosed") return `Minimum cash condition: ${minCashCondition}`;
-  return riskFlags[0] || "No blocking issue parsed";
-}
-
-function buildSpacNextCheck(closingDate: string, tickerChangeDate: string, minCashStatus: string) {
-  if (closingDate && closingDate !== "Not disclosed") {
-    return `Closing 8-K or waiver update around ${closingDate}`;
-  }
-  if (tickerChangeDate && tickerChangeDate !== "Not disclosed") {
-    return `Ticker-change confirmation around ${tickerChangeDate}`;
-  }
-  if (minCashStatus && minCashStatus !== "Not disclosed") {
-    return "Minimum cash waiver / PIPE / backstop update";
-  }
-  return "Closing 8-K / cash waiver / backstop update";
-}
-
-function inferSpacStage(items: unknown): SpacStageCode {
-  const sourceItems = Array.isArray(items) ? items : [];
-  const labels = sourceItems
-    .map((item) => {
-      const record = readPlainRecord(item);
-      return record
-        ? `${readRowString(record, "label")} ${readRowString(record, "title")} ${readRowString(record, "status")}`
-        : typeof item === "string"
-          ? item
-          : "";
-    })
-    .join(" ")
-    .toLowerCase();
-
-  if (labels.includes("closing") || labels.includes("ticker")) return "closing";
-  if (labels.includes("cash") || labels.includes("condition") || labels.includes("backstop") || labels.includes("pipe")) return "cash";
-  if (labels.includes("redemption result")) return "redemption";
-  if (labels.includes("vote")) return "vote";
-  if (labels.includes("proxy") || labels.includes("sec filing")) return "proxy";
-  return "target";
-}
-
-function clampSpacStage(value: number, maxStage: number = SPAC_DEFAULT_STAGES.length) {
-  return Math.max(1, Math.min(Math.max(1, maxStage), Math.round(value || 1)));
-}
-
-function readOptionalNumber(value: unknown) {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string") {
-    const parsed = Number(value.replace(/[^\d.-]/g, ""));
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-  return 0;
-}
-
-function normalize424bOfferingDisplayMode(value: string) {
-  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
-  if (normalized === "unpriced_primary_offering" || normalized === "pending_offering_terms") {
-    return "pending_primary_offering";
-  }
-  const allowed = new Set([
-    "atm",
-    "resale_registration",
-    "primary_offering",
-    "pending_primary_offering",
-    "registered_direct",
-    "warrant_convertible",
-    "rights_offering",
-    "shelf_capacity",
-    "spac_transaction_status",
-    "mixed_offering",
-    "post_effective_amendment",
-    "routine_amendment",
-    "generic",
-  ]);
-  return allowed.has(normalized) ? normalized : "";
-}
-
-function isLikelyDateDisclosure(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed || trimmed.length > 120 || /[$%]/.test(trimmed)) return false;
-  return (
-    /\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?\s+\d{1,2},\s+\d{4}\b/i.test(trimmed) ||
-    /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/.test(trimmed) ||
-    /\b\d{4}-\d{2}-\d{2}\b/.test(trimmed)
-  );
-}
-
 function buildDilutionOfferingModel(filing: FilingEvent) {
   const llmDisplayModel = readPlainRecord(filing.offeringDisplayModel);
-  const displayPayloadRecord = readPlainRecord(filing.displayPayload);
-  const displayPayloadData = readDisplayPayloadData(displayPayloadRecord);
   const offeringTerms = readPlainRecord(filing.offeringTerms);
   const offeringTermsMetadata = readPlainRecord(offeringTerms?.metadata);
   const s3Case = cleanDisclosureValue(filing.s3Case || "");
-  const displayMode = normalize424bOfferingDisplayMode(
-    readRowString(llmDisplayModel, "display_mode") ||
-      readRowString(displayPayloadData, "display_mode") ||
-      readRowString(displayPayloadData, "offering_ui_mode"),
-  );
-  const is424bS3OfferingTermsPayload =
-    /^(?:424B|S-3|F-3)/i.test(filing.formType.trim()) &&
-    readRowString(displayPayloadRecord, "display_type") === "offering_terms";
-  const isS1F1OfferingTermsPayload =
-    /^(?:S-1|F-1|EFFECT|POS AM)/i.test(filing.formType.trim()) &&
-    readRowString(displayPayloadRecord, "display_type") === "offering_terms";
-  const is424bOfferingTermsPayload = is424bS3OfferingTermsPayload || isS1F1OfferingTermsPayload;
-  const isAuthoritative424bMode = is424bOfferingTermsPayload;
-  const allowDisplayFallbacks = !is424bOfferingTermsPayload;
-  const displayPayloadSearchText = JSON.stringify({
-    displayPayloadData,
-    llmDisplayModel,
-  });
+  const displayMode = readRowString(llmDisplayModel, "display_mode");
   const sourceText = stripHtml(`${filing.title} ${filing.filingBrief} ${filing.summary} ${filing.originalHtml}`);
-  const fallbackSourceText = allowDisplayFallbacks ? sourceText : "";
   const dbOfferingType = formatOfferingEnumLabel(readRowString(offeringTerms, "offering_type"));
   const dbSecurityType = formatOfferingEnumLabel(readRowString(offeringTerms, "security_type"));
   const dbPrimaryOrResale = formatPrimaryResaleLabel(readRowString(offeringTerms, "primary_or_resale"));
   const rawOfferingType = readRowString(offeringTermsMetadata, "raw_offering_type");
   const offeringMethod = readRowString(offeringTermsMetadata, "offering_method");
-  const classificationSourceText = allowDisplayFallbacks ? sourceText : displayPayloadSearchText;
-  const classificationText = `${dbOfferingType} ${dbSecurityType} ${dbPrimaryOrResale} ${rawOfferingType} ${offeringMethod} ${classificationSourceText}`;
+  const classificationText = `${dbOfferingType} ${dbSecurityType} ${dbPrimaryOrResale} ${rawOfferingType} ${offeringMethod} ${sourceText}`;
   const structuredClassificationText = `${dbOfferingType} ${dbSecurityType} ${dbPrimaryOrResale} ${rawOfferingType} ${offeringMethod} ${filing.title} ${filing.filingBrief}`;
-  const isAtm = isAuthoritative424bMode
-    ? displayMode === "atm"
-    : displayMode === "atm" || (!displayMode && dbOfferingType === "ATM");
-  const isMixedOffering = isAuthoritative424bMode
-    ? displayMode === "mixed_offering"
-    : displayMode === "mixed_offering";
+  const isAtm = dbOfferingType === "ATM" || /\b(?:atm|at-the-market|at the market)\b/i.test(sourceText);
   const hasActionableAtmMechanism = isActionableAtmMechanism({
     dbOfferingType,
     displayMode,
     offeringTerms,
-    sourceText: fallbackSourceText,
+    sourceText,
   });
-  const isShelf = isAuthoritative424bMode
-    ? displayMode === "shelf_capacity"
-    : /\b(?:shelf|s-3|s-3asr|registration statement)\b/i.test(classificationText);
-  const isPendingPrimaryOffering = displayMode === "pending_primary_offering";
+  const isShelf = /\b(?:shelf|s-3|s-3asr|registration statement)\b/i.test(classificationText);
   const isForwardSale =
     /\bforward (?:sale|basis|purchase|transaction|contract|agreement)|physical settlement\b/i.test(structuredClassificationText) ||
-    /\bforward (?:sale|purchase) agreement\b/i.test(fallbackSourceText);
-  const isS8Form = /^S-8(?:\/A|\s+POS)?$/i.test(filing.formType.trim());
-  const s8NormalizedType =
-    readRowString(displayPayloadData, "normalized_s8_type") || readRowString(displayPayloadData, "normalizedS8Type");
-  const s8UiMode = readRowString(displayPayloadData, "s8_ui_mode") || readRowString(displayPayloadData, "s8UiMode");
-  const hasS8ResaleFacts = Boolean(
-    s8UiMode === "reoffer_resale" ||
-    displayPayloadData?.reofferProspectus === true ||
-      displayPayloadData?.resaleProspectus === true ||
-      recordArray(displayPayloadData?.sellingSecurityholders).length
-  );
-  const isS8ReofferResale = isS8Form && s8UiMode === "reoffer_resale";
-  const hasSellingHolderResale = isAtm
-    ? false
-    : isS8Form
-      ? hasS8ResaleFacts
-      : /\b(?:resale|selling stockholders?|selling shareholders?)\b/i.test(classificationText);
+    /\bforward (?:sale|purchase) agreement\b/i.test(sourceText);
+  const hasSellingHolderResale = /\b(?:resale|selling stockholders?|selling shareholders?)\b/i.test(classificationText);
   const isResale =
-    isAtm
-      ? false
-      : displayMode
-        ? displayMode === "resale_registration"
-      : isS8Form
-      ? hasS8ResaleFacts
-      : dbPrimaryOrResale === "Resale" ||
-        /\bresale\b/i.test(dbPrimaryOrResale) ||
-        dbOfferingType === "Resale registration" ||
-        /\bresale\b/i.test(dbOfferingType) ||
-        hasSellingHolderResale;
-  const isS8PlanRegistration =
-    isS8Form &&
-    (s8UiMode
-      ? ["plan_registration", "inducement_awards", "post_effective_amendment"].includes(s8UiMode)
-      : !hasS8ResaleFacts);
+    dbPrimaryOrResale === "Resale" ||
+    /\bresale\b/i.test(dbPrimaryOrResale) ||
+    dbOfferingType === "Resale registration" ||
+    /\bresale\b/i.test(dbOfferingType) ||
+    hasSellingHolderResale;
   const resaleProceedsToCompany = readDisplayCashTermValue(llmDisplayModel, "resale_proceeds_to_company");
-  const resaleProceedsSearchText = `${resaleProceedsToCompany} ${displayPayloadSearchText}`;
   const noIssuerProceeds =
     resaleProceedsToCompany === "$0" ||
-    /\b(?:no money|no proceeds|not receive any|will not receive|would not receive|receives?\s+no)\b/i.test(resaleProceedsSearchText) ||
-    /\b(?:will not|would not|do not|does not|did not|not receive any)\s+proceeds\b/i.test(fallbackSourceText) ||
-    /\breceives?\s+no\s+proceeds\b/i.test(fallbackSourceText) ||
-    /\bno\s+proceeds\s+from\b/i.test(fallbackSourceText);
-  const isRegisteredDirect = isAuthoritative424bMode
-    ? displayMode === "registered_direct"
-    : displayMode ? displayMode === "registered_direct" : /\bregistered direct\b/i.test(classificationText);
-  const isPrivatePlacement = isAuthoritative424bMode
-    ? /\bprivate placement\b/i.test(displayPayloadSearchText)
-    : /\bprivate placement\b/i.test(classificationText);
-  const hasPrefundedWarrants = isAuthoritative424bMode
-    ? /\bpre[-\s]?funded warrants?\b/i.test(displayPayloadSearchText)
-    : /\bpre[-\s]?funded warrants?\b/i.test(classificationText);
-  const hasDisplayWarrants =
-    hasVisibleWarrantDisplay(llmDisplayModel) || hasVisibleWarrantDisplay(displayPayloadData);
-  const hasWarrants = isAuthoritative424bMode
-    ? hasDisplayWarrants
-    : /\bwarrant/i.test(classificationText);
-  const hasConvertibles = isAuthoritative424bMode
-    ? /\b(?:convertible|conversion|debenture|note|preferred)\b/i.test(displayPayloadSearchText)
-    : /\b(?:convertible|debenture|note)\b/i.test(classificationText);
+    /\b(?:will not|would not|do not|does not|did not|not receive any)\s+proceeds\b/i.test(sourceText) ||
+    /\breceives?\s+no\s+proceeds\b/i.test(sourceText) ||
+    /\bno\s+proceeds\s+from\b/i.test(sourceText);
+  const isRegisteredDirect = /\bregistered direct\b/i.test(classificationText);
+  const isPrivatePlacement = /\bprivate placement\b/i.test(classificationText);
+  const hasPrefundedWarrants = /\bpre[-\s]?funded warrants?\b/i.test(classificationText);
+  const hasWarrants = /\bwarrant/i.test(classificationText);
+  const hasConvertibles = /\b(?:convertible|debenture|note)\b/i.test(classificationText);
   const isConvertibleFinancing =
-    isAuthoritative424bMode
-      ? displayMode === "warrant_convertible"
-      : (displayMode === "warrant_convertible" ||
-          /convertible[_\s-]?financing|convertible_warrant_financing|convertible notes?|conversion shares|convertible securities/i.test(
-            structuredClassificationText
-          )) &&
-        !/^Shelf registration$/i.test(dbOfferingType);
-  const offeringType = isS8PlanRegistration
-    ? formatS8PlanOfferingType(s8NormalizedType, s8UiMode)
-    : isMixedOffering
-      ? "Mixed offering"
-    : buildOfferingDisplayType({
-        dbOfferingType,
-        hasConvertibles: isConvertibleFinancing,
-        hasPrefundedWarrants,
-        hasWarrants,
-        isAtm,
-        isForwardSale,
-        isPrivatePlacement,
-        isRegisteredDirect,
-        isResale,
-        isShelf,
-        rawOfferingType,
-        securityType: dbSecurityType,
-      });
-  const securityType = dbSecurityType || findSecurityType(fallbackSourceText, { hasConvertibles, hasWarrants });
-  const primaryOrResale = dbPrimaryOrResale || (isS8PlanRegistration
-      ? "Plan registration"
-      : isResale
+    /convertible[_\s-]?financing|convertible_warrant_financing|convertible notes?|conversion shares|convertible securities/i.test(
+      structuredClassificationText
+    ) && !/^Shelf registration$/i.test(dbOfferingType);
+  const offeringType = buildOfferingDisplayType({
+    dbOfferingType,
+    hasConvertibles: isConvertibleFinancing,
+    hasPrefundedWarrants,
+    hasWarrants,
+    isAtm,
+    isForwardSale,
+    isPrivatePlacement,
+    isRegisteredDirect,
+    isResale,
+    isShelf,
+    rawOfferingType,
+    securityType: dbSecurityType,
+  });
+  const securityType = dbSecurityType || findSecurityType(sourceText, { hasConvertibles, hasWarrants });
+  const primaryOrResale = dbPrimaryOrResale || (isResale
       ? "Resale"
-      : isMixedOffering
-        ? "Mixed"
       : isAtm || isRegisteredDirect || isPrivatePlacement
         ? "Primary"
         : "Not disclosed");
-  const offeringAmount = isResale ? "" : readDbMoneyValue(offeringTerms, "offering_amount", "offering_amount_text") || findMoneyAmount(fallbackSourceText);
-  const isShelfLike = isAuthoritative424bMode ? displayMode === "shelf_capacity" : isShelf || /shelf/i.test(offeringType);
-  const salesAgent = isResale ? "" : findSalesAgent(fallbackSourceText);
-  const dbPoolBreakdown = allowDisplayFallbacks ? buildDbOfferingPoolBreakdown(offeringTerms, { isResale }) : [];
-  const sourceBackedPoolBreakdown = allowDisplayFallbacks ? buildRegisteredPoolBreakdown(sourceText) : [];
-  const llmPoolBreakdown = allowDisplayFallbacks ? buildLlmPoolBreakdown(llmDisplayModel, { isResale }) : [];
-  const payloadPoolBreakdown = allowDisplayFallbacks ? buildLlmPoolBreakdown(displayPayloadData, { isResale }) : [];
-  const poolBreakdown = payloadPoolBreakdown.length
-    ? payloadPoolBreakdown
-    : llmPoolBreakdown.length
-      ? llmPoolBreakdown
-      : dbPoolBreakdown.length
-        ? dbPoolBreakdown
-        : sourceBackedPoolBreakdown;
+  const offeringAmount = isResale ? "" : readDbMoneyValue(offeringTerms, "offering_amount", "offering_amount_text") || findMoneyAmount(sourceText);
+  const isShelfLike = isShelf || /shelf/i.test(offeringType);
+  const salesAgent = isResale ? "" : findSalesAgent(sourceText);
+  const dbPoolBreakdown = buildDbOfferingPoolBreakdown(offeringTerms, { isResale });
+  const sourceBackedPoolBreakdown = buildRegisteredPoolBreakdown(sourceText);
+  const llmPoolBreakdown = buildLlmPoolBreakdown(llmDisplayModel, { isResale });
+  const poolBreakdown = dbPoolBreakdown.length ? dbPoolBreakdown : mergePoolBreakdown(llmPoolBreakdown, sourceBackedPoolBreakdown);
   const poolBreakdownTotal = poolBreakdown.reduce((total, item) => total + item.shareCount, 0);
-  const dbPotentialSupply = allowDisplayFallbacks
-    ? readDbShareValue(offeringTerms, "total_potential_share_exposure", "total_potential_share_exposure_text") ||
-      readDbShareValue(offeringTerms, "resale_share_count", "resale_share_count_text") ||
-      readDbShareValue(offeringTerms, "shares_offered", "shares_offered_text")
-    : "";
-  const llmTotalPotentialSupplyValue =
-    readDisplayShareExposureValue(displayPayloadData) ||
-    readDisplayShareExposureValue(llmDisplayModel);
-  const llmTotalPotentialSupplyCount =
-    readDisplayShareExposureNumber(displayPayloadData) ||
-    readDisplayShareExposureNumber(llmDisplayModel);
-  const s8RegisteredPlanShares = isS8PlanRegistration ? readS8RegisteredShareValue(displayPayloadData) : "";
-  const s8ReofferResaleShares = isS8ReofferResale
-    ? readS8ShareValueFromModels(displayPayloadData, llmDisplayModel, [
-        "reoffer_resale_shares",
-        "reofferResaleShares",
-        "reoffer_shares",
-        "reofferShares",
-        "resale_shares",
-        "resaleShares",
-      ])
-    : "";
-  const s8ParentPlanShares = isS8ReofferResale
-    ? readS8ShareValueFromModels(displayPayloadData, llmDisplayModel, [
-        "parent_plan_registered_shares",
-        "parentPlanRegisteredShares",
-        "parent_s8_registered_shares",
-        "parentS8RegisteredShares",
-        "parent_registered_shares",
-        "parentRegisteredShares",
-        "prior_plan_registered_shares",
-        "priorPlanRegisteredShares",
-      ])
-    : "";
-  const sourceSharesOffered = allowDisplayFallbacks ? findSharesOffered(sourceText) : "";
-  const s8PlanSharesOffered = isS8PlanRegistration
-    ? chooseS8PlanShareValue(s8RegisteredPlanShares, "")
-    : "";
-  let sharesOffered = isS8PlanRegistration
-    ? s8PlanSharesOffered ||
-      llmTotalPotentialSupplyValue ||
-      dbPotentialSupply ||
-      ""
-    : isS8ReofferResale && s8ParentPlanShares
-      ? s8ParentPlanShares
-    : llmTotalPotentialSupplyValue ||
-      dbPotentialSupply ||
-      sourceSharesOffered ||
-      (poolBreakdownTotal ? `${poolBreakdownTotal.toLocaleString("en-US")} shares` : "");
-  const dbCurrentShares = allowDisplayFallbacks
-    ? readDbShareValue(offeringTerms, "current_shares_outstanding", "current_shares_outstanding_text")
-    : "";
-  const llmCurrentShares =
-    readDisplayFlexibleValue(displayPayloadData, "current_shares_outstanding") ||
-    readDisplayFlexibleValue(llmDisplayModel, "current_shares_outstanding") ||
-    readDisplayFlexibleValue(displayPayloadData, "current_shares") ||
-    readDisplayFlexibleValue(llmDisplayModel, "current_shares");
-  const llmCurrentSharesCount =
-    readDisplayFlexibleNumber(displayPayloadData, "current_shares_outstanding") ||
-    readDisplayFlexibleNumber(llmDisplayModel, "current_shares_outstanding") ||
-    readDisplayFlexibleNumber(displayPayloadData, "current_shares") ||
-    readDisplayFactNumber(llmDisplayModel, "current_shares");
-  const marketContextCurrentShares = readMetricShareValue(filing.offeringMarketContext, "shares_outstanding");
-  const metricCurrentShares = allowDisplayFallbacks
-    ? readMetricShareValue(filing.offeringDilutionMetrics, "current_shares_outstanding") || marketContextCurrentShares
-    : "";
-  const filingCurrentShares = allowDisplayFallbacks ? findCurrentSharesOutstanding(sourceText) : "";
+  const dbPotentialSupply =
+    readDbShareValue(offeringTerms, "total_potential_share_exposure", "total_potential_share_exposure_text") ||
+    readDbShareValue(offeringTerms, "resale_share_count", "resale_share_count_text") ||
+    readDbShareValue(offeringTerms, "shares_offered", "shares_offered_text");
+  let sharesOffered =
+    dbPotentialSupply ||
+    readDisplayFactValue(llmDisplayModel, "total_potential_supply") ||
+    findSharesOffered(sourceText) ||
+    (poolBreakdownTotal ? `${poolBreakdownTotal.toLocaleString("en-US")} shares` : "");
+  const dbCurrentShares = readDbShareValue(offeringTerms, "current_shares_outstanding", "current_shares_outstanding_text");
+  const llmCurrentShares = readDisplayFactValue(llmDisplayModel, "current_shares");
+  const metricCurrentShares =
+    readMetricShareValue(filing.offeringDilutionMetrics, "current_shares_outstanding") ||
+    readMetricShareValue(filing.offeringMarketContext, "shares_outstanding");
+  const filingCurrentShares = findCurrentSharesOutstanding(sourceText);
   const currentSharesOutstanding =
     dbCurrentShares ||
     llmCurrentShares ||
-    filingCurrentShares ||
-    metricCurrentShares;
+    metricCurrentShares ||
+    filingCurrentShares;
   const currentSharesSourceNote =
     dbCurrentShares
       ? "Outstanding share count from offering terms."
@@ -9626,162 +7944,103 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
       : metricCurrentShares
         ? "Latest available market context."
         : "Outstanding share count not disclosed.";
-  const marketContextPublicFloat = readMetricShareValue(filing.offeringMarketContext, "public_float");
-  const publicFloat = allowDisplayFallbacks
-    ? readDbShareValue(offeringTerms, "public_float", "public_float_text") ||
-      findPublicFloat(sourceText) ||
-      marketContextPublicFloat
-    : marketContextPublicFloat;
-  const authorizedShares = allowDisplayFallbacks
-    ? readDbShareValue(offeringTerms, "authorized_shares", "authorized_shares_text") || findAuthorizedShares(sourceText)
-    : "";
-  const offeringPrice = isResale
-    ? ""
-    : readDisplayOfferingPrice(displayPayloadData) || readDisplayOfferingPrice(llmDisplayModel);
-  const estimatedSupplyFromAmountAndPrice = allowDisplayFallbacks && !parseShareCount(sharesOffered)
+  const publicFloat = readDbShareValue(offeringTerms, "public_float", "public_float_text") || findPublicFloat(sourceText);
+  const authorizedShares = readDbShareValue(offeringTerms, "authorized_shares", "authorized_shares_text") || findAuthorizedShares(sourceText);
+  const offeringPrice = isResale ? "" : findPriceTerm(sourceText, /(?:offering price|purchase price|price per share|sales price|at a price of)\s*(?:of)?\s*(\$[\d,.]+)/i);
+  const estimatedSupplyFromAmountAndPrice = !parseShareCount(sharesOffered)
     ? estimateShareCountFromAmountAndPrice(offeringAmount, offeringPrice)
     : 0;
   const supplyCountEstimated = Boolean(estimatedSupplyFromAmountAndPrice);
   if (supplyCountEstimated) {
     sharesOffered = `${Math.round(estimatedSupplyFromAmountAndPrice).toLocaleString("en-US")} shares`;
   }
-  const hasS8PlanContext = Boolean(
-    recordArray(displayPayloadData?.planNames).length ||
-      recordArray(displayPayloadData?.planNameFacts).length ||
-      /\b(?:RSU|restricted stock units?|option scheme|share option|equity incentive|stock plan|award plan|incentive plan)\b/i.test(
-        sourceText,
-      ),
-  );
-  const hasMinimumS8DetailFields = Boolean(
-    isS8Form &&
-      (s8UiMode === "reoffer_resale"
-        ? hasS8ResaleFacts && (isDisclosedValue(sharesOffered) || recordArray(displayPayloadData?.sellingSecurityholders).length > 0)
-        : s8UiMode === "post_effective_amendment"
-          ? isDisclosedValue(sharesOffered) ||
-            /\b(?:post-effective|no additional securities|deregister|deregistration|unsold securities|carryover|carry over|replacement plan)\b/i.test(
-              sourceText,
-            )
-          : s8UiMode === "inducement_awards"
-            ? isDisclosedValue(sharesOffered) || /\binducement\b/i.test(sourceText)
-            : isS8PlanRegistration && (isDisclosedValue(sharesOffered) || hasS8PlanContext)),
-  );
-  const calculatedDisplayDilutionPercent = estimateDilutionPercent(sharesOffered, currentSharesOutstanding);
-  const llmEstimatedDilutionPercent =
-    readDisplayPercentValue(displayPayloadData, "estimated_dilution_percent") ||
-    readDisplayPercentValue(llmDisplayModel, "estimated_dilution_percent");
-  let estimatedDilutionPercent = isS8ReofferResale && s8ParentPlanShares && calculatedDisplayDilutionPercent
-    ? calculatedDisplayDilutionPercent
-    : allowDisplayFallbacks
-    ? llmEstimatedDilutionPercent ||
-      readDbPercentValue(offeringTerms, "total_potential_dilution_percent") ||
-      readDbPercentValue(offeringTerms, "estimated_dilution_percent") ||
-      calculatedDisplayDilutionPercent
-    : isDisclosedValue(calculatedDisplayDilutionPercent)
-      ? calculatedDisplayDilutionPercent
-      : llmEstimatedDilutionPercent || readSnapshotRatioStatusValue(displayPayloadData, llmDisplayModel);
-  const discountToMarket = findDiscountToMarket(fallbackSourceText);
-  const warrantCoverage = summarizeWarrantCoverage(fallbackSourceText, {
+  const estimatedDilutionPercent =
+    readDbPercentValue(offeringTerms, "total_potential_dilution_percent") ||
+    readDbPercentValue(offeringTerms, "estimated_dilution_percent") ||
+    estimateDilutionPercent(sharesOffered, currentSharesOutstanding);
+  const discountToMarket = findDiscountToMarket(sourceText);
+  const warrantCoverage = summarizeWarrantCoverage(sourceText, {
     hasConvertibles,
     hasWarrants,
     sharesOffered,
   });
-  const warrantExercisePrice = readDisplayInstrumentPriceByType(displayPayloadData, /warrant/i) || readDisplayInstrumentPriceByType(llmDisplayModel, /warrant/i);
+  const warrantExercisePrice =
+    readDbPriceValue(offeringTerms, "common_warrant_exercise_price", "common_warrant_exercise_price_text") ||
+    readDbPriceValue(offeringTerms, "warrant_exercise_price", "warrant_exercise_price_text") ||
+    findWarrantExercisePrice(sourceText);
   const conversionPrice =
-    readDisplayInstrumentPriceByType(displayPayloadData, /convertible|conversion|note|preferred/i) ||
-    readDisplayInstrumentPriceByType(llmDisplayModel, /convertible|conversion|note|preferred/i);
-  const displayInstrumentPriceGroups = readDisplayInstrumentPriceGroups(displayPayloadData);
-  const llmInstrumentPriceGroups = readDisplayInstrumentPriceGroups(llmDisplayModel);
-  const instrumentPriceGroups = displayInstrumentPriceGroups.length ? displayInstrumentPriceGroups : llmInstrumentPriceGroups;
-  const displayInstrumentPriceSummary =
-    readDisplayInstrumentPriceSummary(displayPayloadData) || readDisplayInstrumentPriceSummary(llmDisplayModel);
-  const useOfProceeds = isResale || noIssuerProceeds ? "" : findSentence(fallbackSourceText, /\buse of proceeds\b|\bnet proceeds\b|\bgeneral corporate purposes\b|\bworking capital\b/i);
-  const prefundedWarrantExerciseCash =
-    readDisplayCashTermValue(displayPayloadData, "prefunded_warrant_exercise_cash") ||
-    readDisplayCashTermValue(llmDisplayModel, "prefunded_warrant_exercise_cash");
+    readDbPriceValue(offeringTerms, "conversion_price", "conversion_price_text") ||
+    findPriceTerm(sourceText, /(?:conversion price|convertible at|convert into)\s*(?:of)?\s*(\$[\d,.]+)/i);
+  const useOfProceeds = isResale || noIssuerProceeds ? "" : findSentence(sourceText, /\buse of proceeds\b|\bnet proceeds\b|\bgeneral corporate purposes\b|\bworking capital\b/i);
+  const prefundedWarrantExerciseCash = readDisplayCashTermValue(llmDisplayModel, "prefunded_warrant_exercise_cash");
   const warrantCashExerciseProceeds =
-    readDisplayCashTermValue(displayPayloadData, "common_warrant_cash_exercise_proceeds") ||
-    readDisplayCashTermValue(displayPayloadData, "conditional_warrant_cash") ||
     readDisplayCashTermValue(llmDisplayModel, "common_warrant_cash_exercise_proceeds") ||
-    readDisplayCashTermValue(llmDisplayModel, "conditional_warrant_cash");
-  const atmFeeCommission = isAtm ? findAtmFeeCommission(fallbackSourceText) : "";
-  const atmAgreementDate = isAtm ? findAtmAgreementDate(fallbackSourceText) : "";
-  const atmEndDate = isAtm && allowDisplayFallbacks ? findAtmEndDate(fallbackSourceText) || "No fixed end date disclosed" : "";
-  const hasConditionalWarrantCash = isDisclosedValue(warrantCashExerciseProceeds);
-  const firstNotePrincipal = findNotePrincipal(fallbackSourceText, "First");
-  const secondNotePrincipal = findNotePrincipal(fallbackSourceText, "Second");
+    readDisplayCashTermValue(llmDisplayModel, "conditional_warrant_cash") ||
+    findWarrantCashExerciseProceeds(sourceText);
+  const firstNotePrincipal = findNotePrincipal(sourceText, "First");
+  const secondNotePrincipal = findNotePrincipal(sourceText, "Second");
   const pipePrincipalValue = formatMoneyTotal([firstNotePrincipal, secondNotePrincipal]) || "Not disclosed";
-  const firstClosingNetProceeds = findClosingNetProceeds(fallbackSourceText, "First");
-  const secondClosingNetProceeds = findClosingNetProceeds(fallbackSourceText, "Second");
-  const issuerPrimaryOrClosingCash = cleanCompanyCashDisclosure(
-    readDisplayCashTermValue(displayPayloadData, "issuer_primary_or_closing_cash") ||
-      readDisplayCashTermValue(llmDisplayModel, "issuer_primary_or_closing_cash"),
-  );
-  const isEquityLineResale =
-    isResale &&
-    /\b(?:ELOC|equity line|committed equity facility|standby purchase agreement|common stock purchase agreement|purchase agreement)\b/i.test(
-      classificationSourceText,
-    );
-  const resaleCompanyProceedsValue =
-    isEquityLineResale && isDisclosedValue(issuerPrimaryOrClosingCash)
-      ? formatResaleCompanyProceedsValue(issuerPrimaryOrClosingCash)
-      : "No money goes to the company";
-  const resaleCompanyProceedsNote =
-    isEquityLineResale && isDisclosedValue(issuerPrimaryOrClosingCash)
-      ? "Separate from resale proceeds."
-      : hasConditionalWarrantCash
-        ? `Warrant cash is separate and only if exercised: ${warrantCashExerciseProceeds}.`
-        : "No resale proceeds to company.";
+  const firstClosingNetProceeds = findClosingNetProceeds(sourceText, "First");
+  const secondClosingNetProceeds = findClosingNetProceeds(sourceText, "Second");
+  const issuerPrimaryOrClosingCash = cleanCompanyCashDisclosure(readDisplayCashTermValue(llmDisplayModel, "issuer_primary_or_closing_cash"));
   const closingNetProceedsValue =
     issuerPrimaryOrClosingCash ||
     formatMoneyTotal([firstClosingNetProceeds, secondClosingNetProceeds], "~") ||
     "Not disclosed";
-  const additionalNotesAmount = findAdditionalNotesAmount(fallbackSourceText);
-  const additionalWarrantShares = findAdditionalWarrantShares(fallbackSourceText);
-  const effectiveDate = findDateSentence(fallbackSourceText, /\beffective\b/i);
-  const closingDate = findDateSentence(fallbackSourceText, /\bclosing\b|\bclose\b/i);
-  const offeringAgreementDate = findOfferingAgreementDate(fallbackSourceText);
-  const purchaserInvestor = findPurchaserInvestor(fallbackSourceText);
-  const isShelfOnly = displayMode === "shelf_capacity";
+  const additionalNotesAmount = findAdditionalNotesAmount(sourceText);
+  const additionalWarrantShares = findAdditionalWarrantShares(sourceText);
+  const effectiveDate = findDateSentence(sourceText, /\beffective\b/i);
+  const closingDate = findDateSentence(sourceText, /\bclosing\b|\bclose\b/i);
+  const isShelfOnly =
+    !hasActionableAtmMechanism &&
+    !isResale &&
+    !isForwardSale &&
+    !isRegisteredDirect &&
+    !isPrivatePlacement &&
+    !hasPrefundedWarrants &&
+    !isConvertibleFinancing &&
+    (displayMode === "shelf_capacity" ||
+      s3Case === "base_shelf" ||
+      s3Case === "automatic_shelf" ||
+      (isShelfLike && /\b(?:base shelf|universal shelf|automatic shelf|shelf registration|from time to time)\b/i.test(classificationText)));
   const hasActionableDilutionMechanism = Boolean(
-    isMixedOffering ||
-      hasActionableAtmMechanism ||
+    hasActionableAtmMechanism ||
       isResale ||
       isForwardSale ||
       isRegisteredDirect ||
       hasPrefundedWarrants ||
       isConvertibleFinancing
   );
-  const isCommonWarrantOnly = isAuthoritative424bMode
-    ? false
-    : hasWarrants &&
-      !hasActionableDilutionMechanism &&
-      (dbSecurityType === "Warrants" ||
-        dbOfferingType === "Warrant exercise" ||
-        /\b(?:warrant indenture|warrant agreement|warrant amendment|warrant expiration|warrants? expire|warrant redemption|warrant holder)\b/i.test(
-          classificationText
-        ));
-  const llmTotalSupplyValue = llmTotalPotentialSupplyValue;
+  const isCommonWarrantOnly =
+    hasWarrants &&
+    !hasActionableDilutionMechanism &&
+    (dbSecurityType === "Warrants" ||
+      dbOfferingType === "Warrant exercise" ||
+      /\b(?:warrant indenture|warrant agreement|warrant amendment|warrant expiration|warrants? expire|warrant redemption|warrant holder)\b/i.test(
+        classificationText
+      ));
+  const llmTotalSupplyValue = readDisplayFactValue(llmDisplayModel, "total_potential_supply");
   const shelfCapacityValue =
     normalizePositiveShelfMoney(readDbMoneyValue(offeringTerms, "shelf_capacity", "shelf_capacity_text")) ||
     normalizePositiveShelfMoney(isMoneyDisclosure(llmTotalSupplyValue) ? llmTotalSupplyValue : "") ||
     normalizePositiveShelfMoney(offeringAmount) ||
-    normalizePositiveShelfMoney(findShelfCapacity(fallbackSourceText)) ||
+    normalizePositiveShelfMoney(findShelfCapacity(sourceText)) ||
     "Not disclosed";
   const shelfRegisteredSharesValue =
     (isShareDisclosure(llmTotalSupplyValue) ? formatShareCountValue(llmTotalSupplyValue) || llmTotalSupplyValue : "") ||
     (isShareDisclosure(sharesOffered) ? formatShareCountValue(sharesOffered) || sharesOffered : "") ||
     "Not disclosed";
   const shelfStatus =
-    s3Case === "automatic_shelf" || /\bautomatic shelf|Rule 462\(e\)|effective upon filing\b/i.test(fallbackSourceText)
+    s3Case === "automatic_shelf" || /\bautomatic shelf|Rule 462\(e\)|effective upon filing\b/i.test(sourceText)
       ? "Automatic shelf"
-      : /\bnot complete|may not be sold until|not be sold until|preliminary prospectus|subject to completion\b/i.test(fallbackSourceText)
+      : /\bnot complete|may not be sold until|not be sold until|preliminary prospectus|subject to completion\b/i.test(sourceText)
         ? "Filed; effectiveness pending"
         : "Filed shelf";
   const shelfSecuritiesCovered =
     securityType && securityType !== "Not disclosed"
       ? securityType
-      : findShelfSecuritiesCovered(fallbackSourceText) || "Registered securities";
-  const shelfDisplayMode = "Shelf Registration";
+      : findShelfSecuritiesCovered(sourceText) || "Registered securities";
+  const shelfDisplayMode = s3Case === "automatic_shelf" ? "Automatic shelf capacity" : "Base shelf capacity";
   const shelfIntro =
     isDisclosedValue(shelfCapacityValue)
       ? `${filing.company} registered future financing capacity of ${shelfCapacityValue}.`
@@ -9802,7 +8061,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     shelfRegisteredSharesValue,
     shelfSecuritiesCovered,
     shelfStatus,
-    summaryNarrative: filing.summary,
+    summaryNarrative: readRowString(llmDisplayModel, "narrative_summary"),
   });
   const shelfCurrentStateRows = [
     `Capacity: ${shelfCapacityValue}.`,
@@ -9812,32 +8071,10 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
       : "Registered share count is not disclosed, so share overhang is not calculated.",
     "No current offering price, closing date, or issued share count is established by the shelf alone.",
   ];
-  const shelfDetailRows: DilutionDisclosureRow[] = [
-    {
-      label: "Shelf Capacity",
-      value: shelfCapacityValue,
-      note: "Maximum future offering capacity stated in this filing.",
-    },
-    {
-      label: "Active Sale Terms",
-      value: "None in this filing",
-      note: "No price, share count, underwriter, or closing is set yet.",
-    },
-    {
-      label: "Use of Proceeds",
-      value: useOfProceeds || "To be described in future supplements",
-      note: "No immediate proceeds from the shelf alone.",
-    },
-    {
-      label: "Securities Covered",
-      value: shelfSecuritiesCovered,
-      note: "Types of securities the shelf may cover.",
-    },
-  ];
   const shelfWatchRows = [
-    "Prospectus supplement or takedown with price, shares, investors, underwriters, or sale method.",
-    "ATM, registered direct, resale, warrant, or debt terms that convert shelf capacity into an actual sale.",
-    "Updated share count, market cap, and proceeds after any sale, conversion, or warrant exercise.",
+    "Prospectus supplement with pricing, shares, underwriters, or sales agent.",
+    "ATM sale updates or takedown filings that convert shelf capacity into actual issuance.",
+    "Updated shares outstanding after any sale, conversion, or warrant exercise.",
   ];
   const scoreBand =
     formatDisplayRiskLabel(readRowString(offeringTerms, "overhang_level")) ||
@@ -9845,188 +8082,46 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     (filing.score >= 90 ? "Severe" : filing.score >= 75 ? "High" : filing.score >= 55 ? "Moderate" : "Low");
   const llmWatchItems = readDisplayStringArray(llmDisplayModel, "watch_items");
   const nextTrigger = llmWatchItems[0] || filing.watchNext[0] || "Watch for pricing, closing, or amended prospectus details.";
-  const llmWarrantInstrumentRows = readWarrantInstrumentRows(llmDisplayModel);
-  const payloadWarrantInstrumentRows = readWarrantInstrumentRows(displayPayloadData);
-  const warrantInstrumentRows = payloadWarrantInstrumentRows.length ? payloadWarrantInstrumentRows : llmWarrantInstrumentRows;
-  const llmWarrantDetailsRows = readWarrantDetailsRows(llmDisplayModel);
-  const payloadWarrantDetailsRows = readWarrantDetailsRows(displayPayloadData);
-  const warrantDetailsRows = warrantInstrumentRows.length
-    ? []
-    : payloadWarrantDetailsRows.length
-      ? payloadWarrantDetailsRows
-      : llmWarrantDetailsRows;
-  const payloadOfferingDetailsRows = readOfferingDetailsRows(displayPayloadData);
-  const llmOfferingDetailsRows = readOfferingDetailsRows(llmDisplayModel);
-  const offeringDetailsRows = payloadOfferingDetailsRows.length ? payloadOfferingDetailsRows : llmOfferingDetailsRows;
-  const parsedLlmShareOverhang = readLlmShareOverhang(displayPayloadData, llmDisplayModel);
-  const llmShareOverhang = parsedLlmShareOverhang && isS8PlanRegistration
-    ? {
-        ...parsedLlmShareOverhang,
-        note: "Registered plan shares may be issued over time as awards vest or options are exercised.",
-      }
-    : parsedLlmShareOverhang;
-  const s3AmendmentChangeRows = /^(?:S-3|F-3)\/A$/i.test(filing.formType.trim())
-    ? readS3AmendmentChangeRows(displayPayloadData, llmDisplayModel)
-    : [];
-  const s8ContextDetailRows = isS8ReofferResale
-    ? readS8ContextDetailRows(displayPayloadData, llmDisplayModel)
-    : [];
-  const resaleSellingHolderValue =
-    offeringDetailsRows.find((row) => row.label === "Selling Holders")?.value || "Named holders / investors";
-  const useCalculatedMixedOffering = isMixedOffering && !is424bOfferingTermsPayload;
-  const mixedOfferingComponents = useCalculatedMixedOffering ? readMixedOfferingComponents(displayPayloadData, llmDisplayModel) : [];
-  const mixedOfferingCurrentSaleComponent = findMixedOfferingShareComponent(mixedOfferingComponents, [
-    "new_shares",
-    "current_sale_share_equivalents",
-    "current_sale",
-  ]);
-  const mixedOfferingInstrumentComponent = findMixedOfferingShareComponent(mixedOfferingComponents, [
-    "potential_warrants",
-    "potential_instruments",
-    "additional_potential_supply",
-  ]);
-  const mixedOfferingTotalComponent = findMixedOfferingShareComponent(mixedOfferingComponents, [
-    "total_potential_supply",
-    "total_potential_dilution",
-    "total_supply",
-  ]);
-  const hasLlmMixedComponents = mixedOfferingComponents.length > 0;
-  const mixedOfferingCurrentSaleCount = useCalculatedMixedOffering
-    ? sumMixedOfferingComponentShares(mixedOfferingComponents, [
-        "new_shares",
-        "current_sale_share_equivalents",
-        "current_sale",
-      ]) ||
-      (!hasLlmMixedComponents ? sumMixedOfferingCurrentSaleShares(poolBreakdown) : 0)
-    : 0;
-  const mixedOfferingInstrumentSegmentCount = useCalculatedMixedOffering
-    ? sumMixedOfferingComponentShares(mixedOfferingComponents, [
-        "potential_warrants",
-        "potential_instruments",
-        "additional_potential_supply",
-      ]) ||
-      (!hasLlmMixedComponents ? sumMixedOfferingInstrumentShares(poolBreakdown) : 0)
-    : 0;
-  const mixedOfferingInstrumentCount = mixedOfferingInstrumentSegmentCount;
-  const mixedOfferingReconciledPotentialCount = useCalculatedMixedOffering
-    ? mixedOfferingShareCount(mixedOfferingTotalComponent) || mixedOfferingCurrentSaleCount + mixedOfferingInstrumentCount
-    : 0;
-  const offeredCount = useCalculatedMixedOffering
-    ? mixedOfferingReconciledPotentialCount || llmTotalPotentialSupplyCount || 0
-    : is424bOfferingTermsPayload
-      ? llmTotalPotentialSupplyCount || parseShareCount(sharesOffered) || 0
-    : Math.max(
-        llmTotalPotentialSupplyCount || 0,
-        parseShareCount(sharesOffered) || 0,
-        poolBreakdownTotal || 0,
-      );
-  const currentCount = llmCurrentSharesCount || parseShareCount(currentSharesOutstanding);
-  if (!allowDisplayFallbacks && currentCount && offeredCount) {
-    estimatedDilutionPercent = formatDilutionPercentFromCounts(offeredCount, currentCount) || estimatedDilutionPercent;
-  }
-  if (useCalculatedMixedOffering && currentCount && mixedOfferingReconciledPotentialCount) {
-    estimatedDilutionPercent =
-      formatDilutionPercentFromCounts(mixedOfferingReconciledPotentialCount, currentCount) || estimatedDilutionPercent;
-  }
+  const offeredCount = parseShareCount(sharesOffered);
+  const currentCount = parseShareCount(currentSharesOutstanding);
   const currentSharesValue = formatShareCountValue(currentSharesOutstanding) || "Not disclosed";
-  const currentShareBasisLabel = buildCurrentShareBasisLabel(displayPayloadData, llmDisplayModel);
-  const currentShareDetailLabel = buildCurrentShareDetailLabel(currentShareBasisLabel);
-  const currentShareComparisonLabel = currentShareBasisLabel === "Current shares" ? "current shares" : currentShareBasisLabel;
-  const potentialSupplyValue =
-    formatShareCountNumber(offeredCount) ||
-    formatShareCountValue(sharesOffered) ||
-    readSnapshotFactStatusValue(displayPayloadData, llmDisplayModel, "total_potential_supply", "Not stated");
+  const potentialSupplyValue = formatShareCountValue(sharesOffered) || "Not disclosed";
   const dilutionRatioValue = formatDilutionRatio(estimatedDilutionPercent);
-  const dilutionRatioSnapshotValue = isDisclosedValue(dilutionRatioValue)
-    ? `${dilutionRatioValue} of current shares`
-    : readSnapshotRatioStatusValue(displayPayloadData, llmDisplayModel);
-  const dilutionRatioUnavailableNote =
-    dilutionRatioSnapshotValue === "Variable"
-      ? "Dilution varies with final share count or conversion price."
-      : "Not fixed until source-backed share count is available.";
   const canRenderOverhangChart = Boolean(currentCount && offeredCount);
-  const displayOverhangLevel = canRenderOverhangChart ? scoreBand : dilutionRatioSnapshotValue;
+  const displayOverhangLevel = canRenderOverhangChart ? scoreBand : "Needs review";
   const displayLabels = buildOfferingDisplayLabels({
     hasPrefundedWarrants,
     isConvertibleFinancing,
     isForwardSale,
     isRegisteredDirect,
     isResale,
-    isS8PlanRegistration,
-    isS8ReofferResale,
     isShelfLike: isShelf || /shelf/i.test(offeringType),
-    s8UiMode,
-    hasS8ParentPlanContext: Boolean(s8ParentPlanShares),
     supplyCountEstimated,
   });
   const overhangShareRead = isDisclosedValue(dilutionRatioValue) ? `${dilutionRatioValue} of current shares` : "";
   const companyProceeds = buildCompanyProceedsValue({
     closingNetProceedsValue,
-    isAtm,
     isResale,
+    noIssuerProceeds,
     offeringAmount,
-    useOfProceeds,
   });
-  const atmProgramSize =
-    readDisplayCashTermValue(displayPayloadData, "atm_program_size") ||
-    readDisplayCashTermValue(llmDisplayModel, "atm_program_size") ||
-    (isAtm ? findAtmProgramSize(fallbackSourceText) : "") ||
-    readDbMoneyValue(offeringTerms, "atm_program_size", "atm_program_size_text") ||
-    (isAtm ? cleanCompanyCashDisclosure(offeringAmount) : "");
-  const atmProgramAmount = parseMoneyValue(atmProgramSize);
-  const marketCapAmount = readMarketCapAmount(filing.offeringMarketContext);
-  const marketCapValue = marketCapAmount ? formatMoneyValue(marketCapAmount) : "Market cap unavailable";
-  const atmSizeVsMarketCapValue =
-    atmProgramAmount && marketCapAmount ? `${formatPercentCompact((atmProgramAmount / marketCapAmount) * 100)} of market cap` : "Not calculated";
-  const isPricedPrimaryOrRegisteredDirect =
-    !isAtm &&
-    !isResale &&
-    !isMixedOffering &&
-    (displayMode === "primary_offering" ||
-      displayMode === "registered_direct" ||
-      isRegisteredDirect ||
-      (!displayMode &&
-        /\b(?:priced|fixed price|offering price|purchase price|registered direct|firm commitment|underwritten)\b/i.test(
-          classificationText,
-        )));
-  const pricedOfferingCash = isDisclosedValue(closingNetProceedsValue)
-    ? closingNetProceedsValue
-    : isDisclosedValue(offeringAmount)
-      ? offeringAmount
-      : "Not disclosed";
-  const instrumentPriceSummary = displayInstrumentPriceSummary;
-  const instrumentPriceMetric = buildSnapshotInstrumentPriceMetric({
-    fallbackValue: instrumentPriceSummary,
-    hasConvertibles,
-    hasWarrants,
-    priceGroups: instrumentPriceGroups,
+  const companyProceedsNote = buildCompanyProceedsNote({
+    closingNetProceedsValue,
+    isResale,
+    noIssuerProceeds,
+    offeringAmount,
+    prefundedWarrantExerciseCash,
+    warrantCashExerciseProceeds,
   });
-  const warrantInstrumentContext = warrantInstrumentRows
-    .map((row) =>
-      [row.type, row.sharesSecurities, row.exerciseConversionPrice, row.resetFloor, row.termLimits]
-        .filter(Boolean)
-        .join(" "),
-    )
-    .join(" ");
-  const variableConversionContext = [instrumentPriceSummary, conversionPrice, warrantInstrumentContext].join(" ");
-  const resetFloorContext = warrantInstrumentRows.map((row) => row.resetFloor).filter(Boolean).join(" ");
-  const hasVariableConversionFormula =
-    isConvertibleFinancing &&
-    /\b(?:vwap|variable|formula|floating|reset|refix|market price|average trading price|average vwap|% of)\b/i.test(
-      variableConversionContext,
-    );
-  const hasExplicitFloorPrice =
-    /\b(?:floor price|minimum conversion price|minimum price|not less than|exchange-rule price floor)\b/i.test(resetFloorContext) &&
-    /\$[\d,.]+|\d+(?:\.\d+)?%/i.test(resetFloorContext);
-  const isNoFloorVariableConvertibleExposure = Boolean(hasVariableConversionFormula && !hasExplicitFloorPrice && !offeredCount);
+  const instrumentPriceSummary = formatInstrumentPriceSummary(warrantExercisePrice, conversionPrice);
   const conversionPriceAmount = parseMoneyValue(conversionPrice);
   const warrantExercisePriceAmount = parseMoneyValue(warrantExercisePrice);
   const totalConversionSharesCount = sumPoolBreakdownShares(poolBreakdown, /\bnotes conversion\b/i);
-  const totalWarrantSharesCount = sumPoolBreakdownShares(poolBreakdown, /\bwarrants?\b/i);
+  const totalWarrantSharesCount = sumPoolBreakdownShares(poolBreakdown, /\bwarrant shares\b/i);
   const conversionSharesValue = formatShareCountNumber(totalConversionSharesCount) || "Not disclosed";
   const warrantSharesValue = formatShareCountNumber(totalWarrantSharesCount) || "Not disclosed";
   const currentSharesCompact = formatCompactShareCount(currentCount) || "Not disclosed";
-  const potentialSupplyCompact = formatCompactShareCount(offeredCount) || potentialSupplyValue;
+  const potentialSupplyCompact = formatCompactShareCount(offeredCount) || "Not disclosed";
   const combinedPotentialSharesCompact =
     formatCompactShareCount(currentCount && offeredCount ? currentCount + offeredCount : Math.max(currentCount, offeredCount)) || "Not disclosed";
   const conversionSharesCompact = formatCompactShareCount(totalConversionSharesCount) || "Not disclosed";
@@ -10064,24 +8159,23 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
   const hasWarrantSegment = Boolean(totalWarrantSharesCount && warrantScaleWidth > 0);
   const hasPoolSegments = hasConversionSegment || hasWarrantSegment;
   const supplySegmentLabel = supplyMarkerLabelFromType(isResale, isShelfLike);
+  const supplyComponentTotal = poolBreakdown.reduce((total, item) => total + item.shareCount, 0);
   const supplyComponentSegments = poolBreakdown.map((item, index) => ({
     key: `supply-component-${index}`,
     className: overhangSegmentClassName(item.label),
     label: formatOverhangComponentLabel(item.label, { isResale }),
     value: formatCompactShareCount(item.shareCount) || item.shares,
-    note: buildSupplyComponentSegmentNote(item, currentCount, instrumentPriceGroups, currentShareComparisonLabel),
+    note: currentCount ? `${formatPercentCompact((item.shareCount / currentCount) * 100) || "Not disclosed"} of current shares` : "Potential",
     width: scaleShareAmount(item.shareCount, additiveScaleBaseShares),
     compact: scaleShareAmount(item.shareCount, additiveScaleBaseShares) < 24,
   }));
-  const mixedOfferingInstrumentLabel =
-    cleanDisclosureValue(mixedOfferingInstrumentComponent?.label || "") ||
-    (poolBreakdown.some((item) => /\bwarrants?\b/i.test(item.label)) ? "Potential warrants" : "Potential instruments");
+  const remainingSupplyCount = Math.max(0, offeredCount - supplyComponentTotal);
   const overhangBarSegmentCandidates: Array<ShareOverhangBarSegment | null> = [
     currentCount
       ? {
           key: "current-base",
           className: "current-base",
-          label: currentShareBasisLabel,
+          label: "Current shares",
           value: currentSharesCompact,
           width: currentSharesBarWidth,
           compact: currentSharesBarWidth < 24,
@@ -10094,61 +8188,28 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
           className: "registered-supply",
           label: supplySegmentLabel,
           value: potentialSupplyCompact,
-          note: `${dilutionRatioValue} of ${currentShareComparisonLabel}`,
+          note: `${dilutionRatioValue} of current shares`,
           width: supplyBarWidth,
           compact: supplyBarWidth < 24,
       }
       : null,
+    remainingSupplyCount && supplyComponentSegments.length
+      ? {
+          key: "remaining-supply",
+          className: "registered-supply",
+          label: "Other potential supply",
+          value: formatCompactShareCount(remainingSupplyCount) || `${remainingSupplyCount.toLocaleString("en-US")} shares`,
+          note: currentCount ? `${formatPercentCompact((remainingSupplyCount / currentCount) * 100) || "Not disclosed"} of current shares` : "Potential",
+          width: scaleShareAmount(remainingSupplyCount, additiveScaleBaseShares),
+          compact: scaleShareAmount(remainingSupplyCount, additiveScaleBaseShares) < 24,
+        }
+      : null,
   ];
-  let overhangBarSegments = overhangBarSegmentCandidates.filter(
+  const overhangBarSegments = overhangBarSegmentCandidates.filter(
     (segment): segment is ShareOverhangBarSegment => Boolean(segment && segment.width > 0)
   );
-  if (useCalculatedMixedOffering && currentCount && mixedOfferingReconciledPotentialCount) {
-    const mixedScaleBase = currentCount + mixedOfferingReconciledPotentialCount;
-    const mixedNewSharesNote = currentCount
-      ? formatPercentCompact((mixedOfferingCurrentSaleCount / currentCount) * 100) || "Not disclosed"
-      : null;
-    const mixedInstrumentNote = currentCount
-      ? formatPercentCompact((mixedOfferingInstrumentCount / currentCount) * 100) || "Not disclosed"
-      : null;
-    const mixedOverhangBarSegmentCandidates: Array<ShareOverhangBarSegment | null> = [
-      {
-        key: "current-base",
-        className: "current-base",
-        label: currentShareBasisLabel,
-        value: currentSharesCompact,
-        width: scaleShareAmount(currentCount, mixedScaleBase),
-        compact: scaleShareAmount(currentCount, mixedScaleBase) < 24,
-      },
-      mixedOfferingCurrentSaleCount
-        ? {
-            key: "mixed-new-shares",
-            className: "registered-supply",
-            label: "New shares",
-            value: formatCompactShareCount(mixedOfferingCurrentSaleCount) || `${mixedOfferingCurrentSaleCount.toLocaleString("en-US")} shares`,
-            ...(mixedNewSharesNote ? { note: `${mixedNewSharesNote} of current shares` } : {}),
-            width: scaleShareAmount(mixedOfferingCurrentSaleCount, mixedScaleBase),
-            compact: scaleShareAmount(mixedOfferingCurrentSaleCount, mixedScaleBase) < 24,
-          }
-        : null,
-      mixedOfferingInstrumentCount
-        ? {
-            key: "mixed-instruments",
-            className: "warrant",
-            label: mixedOfferingInstrumentLabel,
-            value: formatCompactShareCount(mixedOfferingInstrumentCount) || `${mixedOfferingInstrumentCount.toLocaleString("en-US")} shares`,
-            ...(mixedInstrumentNote ? { note: `${mixedInstrumentNote} of current shares` } : {}),
-            width: scaleShareAmount(mixedOfferingInstrumentCount, mixedScaleBase),
-            compact: scaleShareAmount(mixedOfferingInstrumentCount, mixedScaleBase) < 24,
-          }
-        : null,
-    ];
-    overhangBarSegments = mixedOverhangBarSegmentCandidates.filter(
-      (segment): segment is ShareOverhangBarSegment => Boolean(segment && segment.width > 0)
-    );
-  }
   const conversionBasisValue =
-    !is424bOfferingTermsPayload && totalConversionSharesCount && conversionPriceAmount
+    totalConversionSharesCount && conversionPriceAmount
       ? formatMoneyValue(totalConversionSharesCount * conversionPriceAmount, "~")
       : "Not disclosed";
   const conversionSegmentLabel = isDisclosedValue(pipePrincipalValue) ? "Convertible Notes" : "Convertibles";
@@ -10156,7 +8217,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
   const warrantSegmentLabel = "Warrants";
   const warrantExerciseTotalValue =
     warrantCashExerciseProceeds ||
-    (!is424bOfferingTermsPayload && totalWarrantSharesCount && warrantExercisePriceAmount
+    (totalWarrantSharesCount && warrantExercisePriceAmount
       ? formatMoneyValue(totalWarrantSharesCount * warrantExercisePriceAmount, "~")
       : "");
   const warrantExerciseSummary =
@@ -10178,7 +8239,6 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     currentSharesValue,
     dilutionRatioValue,
     instrumentPriceSummary,
-    isS8PlanRegistration,
     noteConversionSummary,
     pipePrincipalValue,
     potentialSupplyValue,
@@ -10208,274 +8268,82 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     hasWarrants || poolMixSummary
       ? ` It is not ${potentialSupplyValue} plus separate warrant shares.`
       : " Do not double count registered components as separate additional supply.";
-  const investorTakeaway = readRowString(llmDisplayModel, "investor_takeaway");
+  const investorTakeaway =
+    isResale && sharesOffered
+      ? `The ${potentialSupplyValue} figure is the registered resale pool${registeredPoolDescription}.${registeredPoolDoubleCountWarning}`
+      : filing.whyItMatters;
   const poolMixValue = formatPoolMixValue({
     conversionSharesValue,
     pipePrincipalValue,
     warrantSharesValue,
   });
-  const llmNarrativeSummary = filing.summary;
-  const summaryNarrative = llmNarrativeSummary;
-  const summaryParagraphs = [llmNarrativeSummary].filter(isDisclosedValue);
-  const llmSnapshotMetrics = readSnapshotMetrics(displayPayloadData);
-  const postEffectiveText = `${displayPayloadSearchText} ${filing.title} ${filing.summary} ${summaryNarrative}`;
-  const isPostEffectiveAmendment = displayMode === "post_effective_amendment";
-  const isRoutineAmendment = displayMode === "routine_amendment";
-  const isAmendmentSummaryMode = isPostEffectiveAmendment || isRoutineAmendment;
-  const isDeregistrationPostEffective =
-    isPostEffectiveAmendment &&
-    /\b(?:deregister|deregistration|unsold securities?|removed from registration|no securities will remain|no longer being offered)\b/i.test(
-      postEffectiveText,
-    );
-  const isRoutinePostEffectiveUpdate =
-    isRoutineAmendment ||
-    (isPostEffectiveAmendment &&
-      !isDeregistrationPostEffective &&
-      /\b(?:no additional securities|updated financial|financial statements?|financials|quarter|nine months|consent|exhibit|fee table|legal opinion)\b/i.test(
-        postEffectiveText,
-      ));
-  const mixedOfferingNewSharesValue =
-    formatMixedOfferingComponentValue(mixedOfferingCurrentSaleComponent) ||
-    formatShareCountNumber(mixedOfferingCurrentSaleCount) ||
-    readSnapshotFactStatusValue(displayPayloadData, llmDisplayModel, "total_potential_supply", "Not stated");
-  const mixedOfferingInstrumentValue =
-    formatMixedOfferingComponentValue(mixedOfferingInstrumentComponent) ||
-    formatShareCountNumber(mixedOfferingInstrumentCount) ||
-    (hasDisplayWarrants ? warrantSharesValue : "") ||
-    "Not stated";
-  const s8FallbackMetricItems = isS8Form
-    ? buildS8SnapshotMetricItems({
-        currentSharesNote: currentSharesSourceNote,
+  const llmNarrativeSummary = readRowString(llmDisplayModel, "narrative_summary");
+  const summaryNarrative = llmNarrativeSummary || buildDilutionSummaryNarrative({
+    additionalNotesAmount,
+    additionalWarrantShares,
+    closingNetProceedsValue,
+    company: filing.company,
+    currentSharesValue,
+    dilutionRatioValue,
+    isResale,
+    noIssuerProceeds,
+    poolMixSummary,
+    potentialSupplyValue,
+    warrantExerciseTotalValue,
+  });
+  const summaryParagraphs = llmNarrativeSummary
+    ? [
+        llmNarrativeSummary,
+        buildDilutionFollowUpParagraph(nextTrigger),
+      ]
+        .filter(isDisclosedValue)
+    : buildDilutionSummaryParagraphs({
+        additionalNotesAmount,
+        additionalWarrantShares,
+        closingNetProceedsValue,
         currentSharesValue,
         dilutionRatioValue,
-        displayLabels,
-        displayPayloadData,
-        llmDisplayModel,
-        parentPlanSharesValue: s8ParentPlanShares,
+        nextTrigger,
+        noIssuerProceeds,
+        poolMixSummary,
         potentialSupplyValue,
-        reofferResaleSharesValue: s8ReofferResaleShares,
-        s8UiMode,
-      })
-    : [];
+        warrantExerciseTotalValue,
+      });
   const impactMetricItems: Array<DilutionMetricItem | null> = [
-    ...(isS8Form
-      ? s8FallbackMetricItems
-      : isShelfOnly
-      ? [
-          {
-            label: "Shelf Capacity",
-            value: shelfCapacityValue,
-            note: "Maximum future offering capacity stated in this filing.",
-            emphasis: true,
-            tone: "neutral",
-          } as DilutionMetricItem,
-          {
-            label: "Active Sale Terms",
-            value: "None in this filing",
-            note: "No price, share count, or closing is set yet.",
-            tone: "neutral",
-          } as DilutionMetricItem,
-          {
-            label: "Use of Proceeds",
-            value: useOfProceeds || "To be described in future supplements",
-            note: "No immediate proceeds from the shelf alone.",
-            tone: "neutral",
-          } as DilutionMetricItem,
-          {
-            label: "Securities Covered",
-            value: shelfSecuritiesCovered,
-            note: "Future securities covered by the shelf.",
-            tone: "neutral",
-          } as DilutionMetricItem,
-        ]
-      : isAtm
-      ? [
-          {
-            label: "Program size",
-            value: atmProgramSize || "Not disclosed",
-            note: "Maximum gross sale capacity stated in the filing.",
-            emphasis: true,
-            tone: scoreBand === "Severe" || scoreBand === "High" ? "danger" : "neutral",
-          } as DilutionMetricItem,
-          {
-            label: "Market cap",
-            value: marketCapValue,
-            note: marketCapAmount ? "Latest available market context." : "Market cap was not available for this filing.",
-            tone: "neutral",
-          } as DilutionMetricItem,
-          {
-            label: "Size vs market cap",
-            value: atmSizeVsMarketCapValue,
-            note: atmProgramAmount && marketCapAmount ? "ATM program size compared with company value." : "Calculated only when market cap is available.",
-            tone: scoreBand === "Severe" || scoreBand === "High" ? "danger" : "neutral",
-          } as DilutionMetricItem,
-          {
-            label: "Sale method",
-            value: "At-the-market sales over time",
-            note: "Shares may be sold gradually at market prices.",
-            tone: "neutral",
-          } as DilutionMetricItem,
-        ]
-      : isMixedOffering
-        ? [
-            {
-              label: "Company proceeds",
-              value: pricedOfferingCash,
-              note: "Cash to the company from this offering.",
-              emphasis: true,
-              tone: scoreBand === "Severe" || scoreBand === "High" ? "danger" : "neutral",
-            } as DilutionMetricItem,
-            {
-              label: "New shares",
-              value: mixedOfferingNewSharesValue,
-              note: "Common stock or share-equivalent securities sold now.",
-              tone: scoreBand === "Severe" || scoreBand === "High" ? "danger" : "neutral",
-            } as DilutionMetricItem,
-            {
-              label: "Offer price",
-              value: offeringPrice || "Multiple prices",
-              note: "Representative sale price when disclosed.",
-              tone: "neutral",
-            } as DilutionMetricItem,
-            {
-              label: mixedOfferingInstrumentLabel,
-              value: mixedOfferingInstrumentValue,
-              note: "Warrant or convertible shares, if exercised or converted.",
-              tone: scoreBand === "Severe" || scoreBand === "High" ? "danger" : "neutral",
-            } as DilutionMetricItem,
-          ]
-      : isPricedPrimaryOrRegisteredDirect
-        ? [
-            {
-              label: "New shares",
-              value: potentialSupplyValue,
-              note: "Shares added by this offering.",
-              emphasis: true,
-              tone: scoreBand === "Severe" || scoreBand === "High" ? "danger" : "neutral",
-            } as DilutionMetricItem,
-            {
-              label: "Offer price",
-              value: offeringPrice || "Not stated",
-              note: "Price per share in this deal.",
-              tone: "neutral",
-            } as DilutionMetricItem,
-            {
-              label: "Company proceeds",
-              value: pricedOfferingCash,
-              note: "Cash to the company from this offering.",
-              tone: "neutral",
-            } as DilutionMetricItem,
-            {
-              label: "Dilution vs current shares",
-              value: dilutionRatioSnapshotValue,
-              note:
-                currentSharesOutstanding && isDisclosedValue(dilutionRatioValue)
-                  ? "Estimated dilution from this sale."
-                  : dilutionRatioUnavailableNote,
-              tone: scoreBand === "Severe" || scoreBand === "High" ? "danger" : "neutral",
-            } as DilutionMetricItem,
-          ]
-      : isConvertibleFinancing
-        ? [
-            {
-              label: "Underlying shares",
-              value: potentialSupplyValue,
-              note: "Shares issuable from warrant or conversion terms.",
-              emphasis: true,
-              tone: scoreBand === "Severe" || scoreBand === "High" ? "danger" : "neutral",
-            } as DilutionMetricItem,
-            {
-              label: instrumentPriceMetric.label,
-              value: instrumentPriceMetric.value,
-              note: instrumentPriceMetric.note,
-              tone: "neutral",
-            } as DilutionMetricItem,
-            {
-              label: "Company proceeds",
-              value: companyProceeds,
-              note: "Cash to the company from this offering.",
-              tone: "neutral",
-            } as DilutionMetricItem,
-            {
-              label: "Dilution vs current shares",
-              value: dilutionRatioSnapshotValue,
-              note: isDisclosedValue(dilutionRatioValue) ? "Underlying shares vs. current shares." : dilutionRatioUnavailableNote,
-              tone: scoreBand === "Severe" || scoreBand === "High" ? "danger" : "neutral",
-            } as DilutionMetricItem,
-          ]
-      : isResale
-        ? [
-            {
-              label: "Resale shares",
-              value: potentialSupplyValue,
-              note: "Registered for resale.",
-              emphasis: true,
-              tone: scoreBand === "Severe" || scoreBand === "High" ? "danger" : "neutral",
-            } as DilutionMetricItem,
-            {
-              label: "Company proceeds",
-              value: resaleCompanyProceedsValue,
-              note: resaleCompanyProceedsNote,
-              tone: "neutral",
-            } as DilutionMetricItem,
-            {
-              label: "Selling holder",
-              value: resaleSellingHolderValue,
-              note: "Named selling holder.",
-              tone: "neutral",
-            } as DilutionMetricItem,
-            {
-              label: "Overhang",
-              value: isDisclosedValue(dilutionRatioValue) ? dilutionRatioValue : readSnapshotRatioStatusValue(displayPayloadData, llmDisplayModel),
-              note: currentSharesOutstanding ? "Resale shares vs. current shares." : "Current-share denominator not stated.",
-              tone: scoreBand === "Severe" || scoreBand === "High" ? "danger" : "neutral",
-            } as DilutionMetricItem,
-          ]
-      : [
-          {
-            label: "Current shares",
-            value: currentSharesValue,
-            note: currentSharesSourceNote,
-            tone: "neutral",
-          } as DilutionMetricItem,
-          {
-            label: displayLabels.supplyMetricLabel,
-            value: potentialSupplyValue,
-            note: supplyCountEstimated
-              ? `Estimated from ${offeringAmount} / ${offeringPrice}.`
-              : displayLabels.supplyMetricNote || (poolMixSummary || "Share count disclosed in the filing."),
-            emphasis: true,
-            tone: isResale || scoreBand === "Severe" || scoreBand === "High" ? "danger" : "neutral",
-          } as DilutionMetricItem,
-          {
-            label: displayLabels.ratioMetricLabel,
-            value: dilutionRatioValue,
-            note:
-              supplyCountEstimated
-                ? "Estimated from amount and price, then compared with current shares."
-                : overhangShareRead && currentSharesOutstanding
-                ? displayLabels.ratioMetricNote
-                : "Calculated only when share counts are disclosed.",
-            tone: scoreBand === "Severe" || scoreBand === "High" ? "danger" : "neutral",
-          } as DilutionMetricItem,
-          {
-            label: "Company proceeds",
-            value: companyProceeds,
-            note: "Cash to the company from this offering.",
-            tone: "neutral",
-          } as DilutionMetricItem,
-        ]),
+    {
+      label: "Current shares",
+      value: currentSharesValue,
+      note: currentSharesSourceNote,
+      tone: "neutral",
+    },
+    {
+      label: displayLabels.supplyMetricLabel,
+      value: potentialSupplyValue,
+      note: supplyCountEstimated
+        ? `Estimated from ${offeringAmount} / ${offeringPrice}.`
+        : displayLabels.supplyMetricNote || (poolMixSummary || "Share count disclosed in the filing."),
+      emphasis: true,
+      tone: isResale || scoreBand === "Severe" || scoreBand === "High" ? "danger" : "neutral",
+    },
+    {
+      label: displayLabels.ratioMetricLabel,
+      value: dilutionRatioValue,
+      note:
+        supplyCountEstimated
+          ? "Estimated from amount and price, then compared with current shares."
+          : overhangShareRead && currentSharesOutstanding
+          ? displayLabels.ratioMetricNote
+          : "Calculated only when share counts are disclosed.",
+      tone: scoreBand === "Severe" || scoreBand === "High" ? "danger" : "neutral",
+    },
+    {
+      label: "Company proceeds",
+      value: companyProceeds,
+      note: companyProceedsNote,
+      tone: "neutral",
+    },
   ];
-  const fallbackImpactMetrics = impactMetricItems.filter((metric): metric is DilutionMetricItem => Boolean(metric));
-  const impactMetrics = isRoutinePostEffectiveUpdate
-    ? []
-    : isS8Form && fallbackImpactMetrics.length
-    ? fallbackImpactMetrics
-    : is424bOfferingTermsPayload
-    ? llmSnapshotMetrics
-    : llmSnapshotMetrics.length
-      ? llmSnapshotMetrics
-      : fallbackImpactMetrics;
+  const impactMetrics = impactMetricItems.filter((metric): metric is DilutionMetricItem => Boolean(metric));
   const termsAndProceeds = [
     termRow("First notes principal", firstNotePrincipal),
     termRow("Second notes principal", secondNotePrincipal),
@@ -10571,13 +8439,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
           ? "The company gets $0 from those resales."
           : "Company proceeds were not clearly parsed.",
       ]
-    : isS8PlanRegistration
-      ? [
-          `The filing is an S-8 employee-plan registration.`,
-          sharesOffered ? `Registered plan shares: ${sharesOffered}.` : "Registered plan-share count was not clearly parsed.",
-          useOfProceeds || "These shares are for plan awards or exercises, not a cash offering by itself.",
-        ]
-      : [
+    : [
         `The filing is a ${plainOfferingType}.`,
         offeringAmount ? `Disclosed offering size: ${offeringAmount}.` : "Offering size was not clearly parsed.",
         useOfProceeds || "Use of proceeds was not cleanly parsed from the filing.",
@@ -10591,8 +8453,6 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
       : "The main risk is additional tradable supply.",
     isResale
       ? "If holders sell, extra supply can pressure price."
-      : isS8PlanRegistration
-        ? "Actual dilution depends on future grants, vesting, exercises, and share issuance under the plan."
       : "Actual dilution depends on pricing and shares issued.",
   ];
   const termRows = compactRows([
@@ -10621,14 +8481,14 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     closingDate,
   ].some(isDisclosedValue);
   const displayedSupplyValue =
-    isResale || isS8PlanRegistration || isForwardSale || isConvertibleFinancing || isRegisteredDirect || hasPrefundedWarrants
+    isResale || isForwardSale || isConvertibleFinancing || isRegisteredDirect || hasPrefundedWarrants
       ? sharesOffered || "Not disclosed"
       : offeringAmount || sharesOffered || "Not disclosed";
   const offeringStructureRows = compactRows([
     row("Offering Type", offeringType),
     row("Security Type", securityType),
     row("Registration Use", primaryOrResale),
-    row(isS8PlanRegistration ? "Registered Plan Shares" : isResale ? "Registered Resale Shares" : "Shares Offered", sharesOffered),
+    row(isResale ? "Registered Resale Shares" : "Shares Offered", sharesOffered),
     isResale ? null : row("Offering Amount", offeringAmount),
     isResale ? null : row("Offering Price", offeringPrice),
     isResale ? null : row("Discount to Market", discountToMarket),
@@ -10657,61 +8517,9 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     row("Warrant Exercise Price", warrantExercisePrice),
     row("Conversion Price", conversionPrice),
   ]);
-  const pricedOfferingRows = compactRows([
-    termRow("Purchaser / Investor", purchaserInvestor),
-    termRow("Placement Agent / Underwriter", salesAgent),
-    termRow("Warrant Terms", hasDisplayWarrants && warrantExercisePrice ? `Exercise price: ${warrantExercisePrice}` : ""),
-    termRow("Closing Date", isLikelyDateDisclosure(closingDate) ? closingDate : ""),
-    termRow("Agreement Date", isLikelyDateDisclosure(offeringAgreementDate) ? offeringAgreementDate : ""),
-    termRow("Use of Proceeds", useOfProceeds),
-  ]);
-  const atmProgramRows = compactRows([
-    termRow("Program size", atmProgramSize, "Maximum gross sale capacity stated in the filing."),
-    termRow("Sales agent", salesAgent),
-    termRow("Fee / commission", atmFeeCommission),
-    termRow("Use of proceeds", useOfProceeds),
-    termRow("Agreement date", atmAgreementDate),
-    termRow("End date", atmEndDate),
-  ]);
-  const atmDilutionRows = compactRows([
-    {
-      label: "Fixed share count",
-      value: "Not fixed",
-      note: "This filing sets a dollar cap, not a final share count.",
-    },
-    {
-      label: "Market cap scale",
-      value: atmSizeVsMarketCapValue,
-      note: marketCapAmount ? "ATM program size compared with company value." : "Market cap was not available.",
-    },
-    {
-      label: "Confirmed shares sold",
-      value: "None disclosed",
-      note: "Actual sales require future execution or follow-up disclosure.",
-    },
-  ]);
 
   return {
     disclosureStatus: hasParsedTerms ? "Parsed from current filing text" : "Terms require source review",
-    atmDilutionRows,
-    atmProgramRows,
-    atmMarketCapValue: marketCapValue,
-    offeringDetailsRows,
-    llmShareOverhang,
-    s3AmendmentChangeRows,
-    s8ContextDetailRows,
-    warrantDetailsRows,
-    warrantInstrumentRows,
-    is424bOfferingTermsPayload,
-    isMixedOffering,
-    isPendingPrimaryOffering,
-    isNoFloorVariableConvertibleExposure,
-    isResaleRegistration: isResale,
-    isWarrantConvertible: isConvertibleFinancing,
-    isPricedPrimaryOrRegisteredDirect,
-    pricedOfferingRows,
-    isS8ReofferResale,
-    isS8DetailCandidate: hasMinimumS8DetailFields,
     isShelfOnly,
     isCommonWarrantOnly,
     shelfCapacityValue,
@@ -10719,7 +8527,6 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     shelfCompanyProceeds,
     shelfCompanyProceedsNote,
     shelfCurrentStateRows,
-    shelfDetailRows,
     shelfDisplayMode,
     shelfIntro,
     shelfRegisteredSharesValue,
@@ -10729,7 +8536,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     shelfSummaryParagraphs,
     shelfWatchRows,
     dilutionRead: `${displayOverhangLevel} dilution watch`,
-    dilutionRatioPercentValue: canRenderOverhangChart ? estimatedDilutionPercent || dilutionRatioValue : readSnapshotRatioStatusValue(displayPayloadData, llmDisplayModel),
+    dilutionRatioPercentValue: canRenderOverhangChart ? estimatedDilutionPercent || dilutionRatioValue : "No supply count",
     estimatedDilutionPercent,
     companyProceeds,
     coreSummary,
@@ -10749,7 +8556,6 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     conversionSharesValue,
     canRenderOverhangChart,
     currentSharesCompact,
-    currentDetailLabel: currentShareDetailLabel,
     combinedPotentialSharesCompact,
     currentSharesLabelPosition: currentSharesScalePosition,
     currentSharesScalePosition,
@@ -10761,10 +8567,6 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     investorTakeaway,
     mainVariable: isResale
       ? "Registered resale shares"
-      : isS8PlanRegistration
-        ? s8UiMode === "inducement_awards"
-          ? "Plan and inducement shares"
-          : "Registered plan shares"
       : isAtm
         ? "Actual shares sold"
         : hasConvertibles
@@ -10774,9 +8576,6 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     offeringAmount,
     offeringStructureRows,
     offeringType,
-    overhangNote: isS8PlanRegistration
-      ? "Registered plan shares may be issued over time as awards vest or options are exercised."
-      : undefined,
     overhangScoreCaption: displayLabels.overhangScoreCaption,
     overhangSubtitle: displayLabels.overhangSubtitle,
     overhangUnavailableMessage: displayLabels.unavailableMessage,
@@ -10836,10 +8635,6 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     termRows,
     termsAndProceeds,
     futureOverhangRows,
-    hideShareOverhang: isAtm,
-    hideSnapshotPanel: isRoutinePostEffectiveUpdate,
-    hideStructuredDetailSections: isRoutinePostEffectiveUpdate,
-    summaryTitle: isAmendmentSummaryMode ? "Amendment Summary" : "Dilution Summary",
     hasConversionSegment,
     hasCurrentSharesMarker,
     hasPoolSegments,
@@ -10849,13 +8644,7 @@ function buildDilutionOfferingModel(filing: FilingEvent) {
     supplyBreakdownLabel: displayLabels.supplyBreakdownLabel,
     supplyDetailLabel: displayLabels.supplyDetailLabel,
     supplyRatioCaption: isDisclosedValue(dilutionRatioValue) ? `${dilutionRatioValue} of current` : "Not calculable",
-    supplyMarkerLabel: isResale
-      ? "Current + resale"
-      : isS8PlanRegistration
-        ? "Current + plan shares"
-        : isShelfLike
-          ? "Current + registered"
-          : "Current + supply",
+    supplyMarkerLabel: isResale ? "Current + resale" : isShelfLike ? "Current + registered" : "Current + supply",
     totalExposureLabel: displayLabels.totalExposureLabel,
     hasWarrantSegment,
     noteConversionSummary,
@@ -10889,233 +8678,23 @@ function compactRows(rows: Array<DilutionDisclosureRow | null>) {
   return rows.filter((item): item is DilutionDisclosureRow => Boolean(item));
 }
 
-const APPROVED_424B_SUPPLY_SEGMENT_LABELS = [
-  "Resale shares",
-  "Common shares",
-  "Pre-funded warrants",
-  "Common warrants",
-  "Placement agent warrants",
-  "Preferred stock",
-  "Convertible preferred",
-  "Convertible notes",
-  "Rights",
-  "Other registered shares",
-];
-
-function normalize424bSupplySegmentLabel(label: string) {
-  const normalized = label.trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
-  return (
-    APPROVED_424B_SUPPLY_SEGMENT_LABELS.find(
-      (approved) => approved.toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ") === normalized,
-    ) || ""
-  );
-}
-
 function buildLlmPoolBreakdown(model: Record<string, unknown> | null, options: { isResale: boolean }) {
-  const rows = recordArray(model?.supply_segments)
+  return recordArray(model?.supply_segments)
     .map((segment) => {
-      const shares = readSegmentShareExposureFact(segment);
+      const shares = readPlainRecord(segment.shares);
       const valueText = readRowString(shares, "value_text");
       const numericValue = readRowNumber(shares, "numeric_value");
       const shareCount = numericValue || parseShareCount(valueText);
       if (!shareCount) return null;
-      const priceValue = readDisplayFactRecordValue(readPlainRecord(segment.price));
-      const instrumentCountValue = readDisplayFactRecordValue(readPlainRecord(segment.instrument_count));
 
       return {
-        detail: [
-          readRowString(segment, "timing_or_condition"),
-          readRowString(segment, "evidence"),
-          instrumentCountValue,
-          valueText,
-          priceValue,
-        ].filter(Boolean).join(" ") || "LLM-selected supply component",
+        detail: readRowString(segment, "timing_or_condition") || readRowString(segment, "evidence") || "LLM-selected supply component",
         label: formatLlmPoolSegmentLabel(segment, options),
         shareCount,
         shares: `${shareCount.toLocaleString("en-US")} shares`,
       };
     })
     .filter((item): item is { label: string; shares: string; detail: string; shareCount: number } => Boolean(item));
-
-  return aggregatePoolBreakdownRows(rows);
-}
-
-type MixedOfferingComponent = {
-  evidence: string;
-  label: string;
-  numericValue: number;
-  role: string;
-  unit: string;
-  valueText: string;
-};
-
-function readMixedOfferingComponents(
-  primaryModel: Record<string, unknown> | null,
-  secondaryModel: Record<string, unknown> | null,
-): MixedOfferingComponent[] {
-  const rows = recordArray(primaryModel?.mixed_offering_components).length
-    ? recordArray(primaryModel?.mixed_offering_components)
-    : recordArray(secondaryModel?.mixed_offering_components);
-
-  return rows
-    .map((row) => {
-      const role = normalizeMixedOfferingComponentRole(
-        readRowString(row, "role") || readRowString(row, "component") || readRowString(row, "key"),
-      );
-      if (!role) return null;
-
-      const valueText = cleanDisclosureValue(
-        readRowString(row, "value_text") ||
-          readRowString(row, "valueText") ||
-          readRowString(row, "shares") ||
-          readRowString(row, "value"),
-      );
-      const numericValue =
-        readRowNumber(row, "numeric_value") || readRowNumber(row, "numericValue") || parseShareCount(valueText);
-
-      return {
-        evidence: readRowString(row, "evidence"),
-        label: cleanDisclosureValue(readRowString(row, "label")) || formatMixedOfferingComponentRole(role),
-        numericValue,
-        role,
-        unit: readRowString(row, "unit") || "shares",
-        valueText,
-      };
-    })
-    .filter((row): row is MixedOfferingComponent => Boolean(row));
-}
-
-function normalizeMixedOfferingComponentRole(role: string) {
-  const normalized = role.trim().toLowerCase().replace(/[\s-]+/g, "_");
-  if (!normalized) return "";
-  if (/^(?:new_shares|current_sale|current_sale_share_equivalents|current_share_equivalents)$/.test(normalized)) {
-    return "new_shares";
-  }
-  if (/^(?:potential_warrants|warrants|additional_warrants)$/.test(normalized)) return "potential_warrants";
-  if (/^(?:potential_instruments|additional_potential_supply|additional_instruments)$/.test(normalized)) {
-    return "potential_instruments";
-  }
-  if (/^(?:total_potential_supply|total_potential_dilution|total_supply|total)$/.test(normalized)) {
-    return "total_potential_supply";
-  }
-  return normalized;
-}
-
-function formatMixedOfferingComponentRole(role: string) {
-  if (role === "new_shares") return "New shares";
-  if (role === "potential_warrants") return "Potential warrants";
-  if (role === "potential_instruments") return "Potential instruments";
-  if (role === "total_potential_supply") return "Total potential supply";
-  return role.replace(/_/g, " ");
-}
-
-function findMixedOfferingComponent(components: MixedOfferingComponent[], roles: string[]) {
-  const normalizedRoles = roles.map(normalizeMixedOfferingComponentRole);
-  return components.find((component) => normalizedRoles.includes(component.role));
-}
-
-function findMixedOfferingShareComponent(components: MixedOfferingComponent[], roles: string[]) {
-  const normalizedRoles = roles.map(normalizeMixedOfferingComponentRole);
-  return components.find((component) => normalizedRoles.includes(component.role) && mixedOfferingShareCount(component) > 0);
-}
-
-function sumMixedOfferingComponentShares(components: MixedOfferingComponent[], roles: string[]) {
-  const normalizedRoles = roles.map(normalizeMixedOfferingComponentRole);
-  return components.reduce(
-    (total, component) => total + (normalizedRoles.includes(component.role) ? mixedOfferingShareCount(component) : 0),
-    0,
-  );
-}
-
-function mixedOfferingShareCount(component: MixedOfferingComponent | undefined) {
-  if (!component) return 0;
-  const unit = component.unit.trim().toLowerCase();
-  if (unit && !/\bshares?\b|share_equivalents?|securities/.test(unit)) return 0;
-  if (/\$/.test(component.valueText) && !/\bshares?\b/i.test(component.valueText)) return 0;
-  return component.numericValue || parseShareCount(component.valueText);
-}
-
-function formatMixedOfferingComponentValue(component: MixedOfferingComponent | undefined) {
-  if (!component) return "";
-  if (component.valueText) return component.valueText;
-  if (!component.numericValue) return "";
-  if (component.unit === "usd") return formatMoneyValue(component.numericValue);
-  if (component.unit === "percent") return `${component.numericValue.toLocaleString("en-US")}%`;
-  return `${Math.round(component.numericValue).toLocaleString("en-US")} shares`;
-}
-
-function buildSupplyComponentSegmentNote(
-  item: { label: string; detail: string; shareCount: number },
-  currentCount: number,
-  instrumentPriceGroups: Array<{ type: string; price: string; shares?: string }>,
-  currentShareComparisonLabel = "current shares",
-) {
-  const ratioNote = currentCount
-    ? `${formatPercentCompact((item.shareCount / currentCount) * 100) || "Not disclosed"} of ${currentShareComparisonLabel}`
-    : "Potential";
-  void item;
-  void instrumentPriceGroups;
-  return ratioNote;
-}
-
-function buildSupplyComponentBasisNote(
-  item: { label: string; detail: string },
-  instrumentPriceGroups: Array<{ type: string; price: string; shares?: string }>,
-) {
-  const conversionGroup = instrumentPriceGroups.find((group) => classifyInstrumentPriceFamily(group.type) === "conversion");
-  const basisText = `${item.label} ${item.detail} ${conversionGroup?.type || ""} ${conversionGroup?.shares || ""}`.replace(/\s+/g, " ").trim();
-  if (!/\b(?:convertible|conversion|notes?|preferred)\b/i.test(basisText) || /\bwarrants?\b/i.test(basisText)) return "";
-  const priceText = `${conversionGroup?.price || ""} ${item.detail}`.replace(/\s+/g, " ").trim();
-
-  const alternate = priceText.match(/\balternate(?: conversion)?(?: price)?(?: basis)?[:\s]*(?:at|of|=)?\s*(\$[\d,.]+(?:\/share)?)/i)?.[1];
-  if (alternate && /\balternate(?: conversion)?(?: price)?(?: basis)?\b/i.test(basisText)) {
-    return `based on ${alternate} alternate conversion price`;
-  }
-
-  const floor = priceText.match(/\bfloor(?: price)?[:\s]*(?:at|of|=)?\s*(\$[\d,.]+(?:\/share)?)/i)?.[1];
-  if (floor && /\bfloor(?: price)?(?: basis)?\b/i.test(basisText)) return `based on ${floor} floor price`;
-
-  const initial = priceText.match(/\binitial(?: conversion)?(?: price)?[:\s]*(?:at|of|=)?\s*(\$[\d,.]+(?:\/share)?)/i)?.[1];
-  if (initial && /\binitial(?: conversion)?(?: price)?(?: basis)?\b/i.test(basisText)) return `based on ${initial} initial conversion price`;
-
-  if (/\b(?:VWAP|variable|formula|floating|reset|refix)\b/i.test(basisText)) return "based on variable conversion formula";
-
-  return "";
-}
-
-function aggregatePoolBreakdownRows(rows: Array<{ label: string; shares: string; detail: string; shareCount: number }>) {
-  const grouped = new Map<string, { label: string; shares: string; detail: string; shareCount: number }>();
-
-  for (const row of rows) {
-    const key = row.label;
-    const existing = grouped.get(key);
-    if (!existing) {
-      grouped.set(key, { ...row });
-      continue;
-    }
-
-    existing.shareCount += row.shareCount;
-    existing.shares = `${Math.round(existing.shareCount).toLocaleString("en-US")} shares`;
-    existing.detail = [existing.detail, row.detail].filter(Boolean).join(" ");
-  }
-
-  return Array.from(grouped.values());
-}
-
-function sumMixedOfferingCurrentSaleShares(rows: Array<{ label: string; shareCount: number }>) {
-  return rows.reduce((total, row) => {
-    return /^(?:Common shares|Pre-funded warrants|Preferred stock|Convertible preferred|Rights|Other registered shares)$/i.test(row.label)
-      ? total + row.shareCount
-      : total;
-  }, 0);
-}
-
-function sumMixedOfferingInstrumentShares(rows: Array<{ label: string; shareCount: number }>) {
-  return rows.reduce((total, row) => {
-    return /^(?:Common warrants|Placement agent warrants|Convertible notes)$/i.test(row.label)
-      ? total + row.shareCount
-      : total;
-  }, 0);
 }
 
 function buildDbOfferingPoolBreakdown(terms: Record<string, unknown> | null, options: { isResale: boolean }) {
@@ -11127,7 +8706,7 @@ function buildDbOfferingPoolBreakdown(terms: Record<string, unknown> | null, opt
       options.isResale ? "Common stock registered for resale in the current pool" : "Common shares in the current offering pool"
     ),
     dbPoolComponent(
-      "Pre-funded warrants",
+      "Pre-funded warrant shares",
       readRowNumber(terms, "prefunded_warrant_shares"),
       readRowString(terms, "prefunded_warrant_shares_text"),
       "Pre-funded warrant shares in the current offering pool"
@@ -11139,7 +8718,7 @@ function buildDbOfferingPoolBreakdown(terms: Record<string, unknown> | null, opt
       "Convertible-note share exposure in the current pool"
     ),
     dbPoolComponent(
-      "Common warrants",
+      "Warrant shares",
       readRowNumber(terms, "common_warrant_shares"),
       readRowString(terms, "common_warrant_shares_text"),
       "Warrant shares in the current pool"
@@ -11195,142 +8774,16 @@ function mergePoolBreakdown(
 function formatLlmPoolSegmentLabel(segment: Record<string, unknown>, options: { isResale: boolean }) {
   const instrumentType = readRowString(segment, "instrument_type");
   const label = readRowString(segment, "label");
-  if (label) return label;
-  if (instrumentType) return instrumentType;
+  const text = `${instrumentType} ${label}`.toLowerCase();
 
-  const price = readPlainRecord(segment.price);
-  const text = [
-    readRowString(segment, "timing_or_condition"),
-    readRowString(segment, "evidence"),
-    readRowString(price, "value_text"),
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  if (/\bpre[-_\s]?funded\b/.test(text)) return "Pre-funded warrants";
-  if (/\bplacement agent\b/.test(text) && text.includes("warrant")) return "Placement agent warrants";
-  if (text.includes("warrant")) return "Common warrants";
-  if (text.includes("preferred")) return "Preferred stock";
-  if (text.includes("convertible") || text.includes("conversion") || text.includes("note")) return "Convertible notes";
+  if (text.includes("warrant")) return "Warrant shares";
+  if (text.includes("convertible") || text.includes("conversion") || text.includes("note")) return "Notes conversion";
   if (options.isResale && /\b(common|ordinary|ads|resale)\b/.test(text)) return "Resale shares";
   return label || "Other registered shares";
 }
 
-function hasVisibleWarrantDisplay(model: Record<string, unknown> | null) {
-  const shareOverhang = readPlainRecord(model?.share_overhang);
-  const shareOverhangText = [
-    readRowString(shareOverhang, "chart_title"),
-    readRowString(shareOverhang, "subtitle"),
-    ...recordArray(shareOverhang?.rows).flatMap((row) => [
-      readRowString(row, "label"),
-      readRowString(row, "value"),
-      readRowString(row, "note"),
-      readRowString(row, "supply_type"),
-    ]),
-  ].join(" ");
-  if (/\bwarrants?\b/i.test(shareOverhangText)) return true;
-
-  return readRawWarrantDetailRows(model).some((row) => /\bwarrants?\b/i.test(`${row.label} ${row.value}`));
-}
-
 function readDisplayFactValue(model: Record<string, unknown> | null, key: string) {
   return readDisplayFactRecordValue(readPlainRecord(model?.[key]));
-}
-
-function readDisplayFactNumber(model: Record<string, unknown> | null, key: string) {
-  const fact = readPlainRecord(model?.[key]);
-  return readRowNumber(fact, "numeric_value") || readRowNumber(fact, "numericValue");
-}
-
-function readDisplayFlexibleValue(model: Record<string, unknown> | null, key: string) {
-  const value = model?.[key];
-  return readDisplayFactRecordValue(readPlainRecord(value)) || cleanDisclosureValue(readDisclosureValue(value) || readRowString(model, key));
-}
-
-function readDisplayFlexibleNumber(model: Record<string, unknown> | null, key: string) {
-  const value = model?.[key];
-  const fact = readPlainRecord(value);
-  return readRowNumber(fact, "numeric_value") || readRowNumber(fact, "numericValue") || readRowNumber(model, key);
-}
-
-function buildCurrentShareBasisLabel(primaryModel: Record<string, unknown> | null, secondaryModel: Record<string, unknown> | null) {
-  const parts: string[] = [];
-  for (const model of [primaryModel, secondaryModel]) {
-    if (!model) continue;
-    for (const key of ["current_shares", "current_shares_outstanding"]) {
-      const fact = readPlainRecord(model[key]);
-      parts.push(readDisplayFactRecordValue(fact), readRowString(fact, "evidence"));
-    }
-    for (const metric of recordArray(model.snapshot_metrics)) {
-      parts.push(readRowString(metric, "label"), readDisclosureValue(metric.note), readDisclosureValue(metric.value));
-    }
-  }
-  const text = parts.filter(Boolean).join(" ");
-  if (/\bclass\s+a\b/i.test(text)) return "Class A shares";
-  if (/\bclass\s+b\b/i.test(text)) return "Class B shares";
-  if (/\bordinary shares?\b/i.test(text)) return "Ordinary shares";
-  if (/\b(?:ADSs?|American Depositary Shares?)\b/i.test(text)) return "ADSs";
-  if (/\bpublic float\b/i.test(text)) return "Public float";
-  if (/\bnon-affiliate\b/i.test(text)) return "Non-affiliate shares";
-  return "Current shares";
-}
-
-function buildCurrentShareDetailLabel(label: string) {
-  if (label === "Current shares") return "Current Shares Outstanding";
-  if (label === "Public float") return "Public Float";
-  if (label === "Non-affiliate shares") return "Non-Affiliate Shares";
-  if (/shares$/i.test(label)) return `${label} outstanding`;
-  return label;
-}
-
-function readDisplayPercentValue(model: Record<string, unknown> | null, key: string) {
-  const value = readDisplayFlexibleValue(model, key);
-  if (!value) return "";
-  const numeric = Number(value.replace(/,/g, "").replace(/%$/, "").trim());
-  if (!Number.isFinite(numeric)) return value;
-  return `${numeric.toFixed(numeric >= 10 ? 1 : 2)}%`;
-}
-
-function readDisplayShareExposureValue(model: Record<string, unknown> | null) {
-  return readDisplayFactRecordValue(readDisplayShareExposureFact(model));
-}
-
-function readDisplayShareExposureNumber(model: Record<string, unknown> | null) {
-  const fact = readDisplayShareExposureFact(model);
-  return readRowNumber(fact, "numeric_value") || readRowNumber(fact, "numericValue");
-}
-
-function readDisplayShareExposureFact(model: Record<string, unknown> | null) {
-  const adsEquivalence = readPlainRecord(model?.ads_equivalence);
-  const registeredTotals = readPlainRecord(model?.registered_security_totals);
-  return firstDisplayFact([
-    readPlainRecord(adsEquivalence?.ordinary_shares_represented),
-    readPlainRecord(registeredTotals?.ordinary_shares_represented),
-    readPlainRecord(registeredTotals?.total_distinct_share_exposure),
-    readPlainRecord(model?.total_potential_supply),
-  ]);
-}
-
-function firstDisplayFact(facts: Array<Record<string, unknown> | null>) {
-  return facts.find((fact) => Boolean(readDisplayFactRecordValue(fact) || readRowNumber(fact, "numeric_value") || readRowNumber(fact, "numericValue"))) || null;
-}
-
-function readSegmentShareExposureFact(segment: Record<string, unknown>) {
-  const ordinaryShares = readPlainRecord(segment.ordinary_shares_represented);
-  const underlyingShares = readPlainRecord(segment.underlying_shares);
-  const shares = readPlainRecord(segment.shares);
-  const instrumentCount = readPlainRecord(segment.instrument_count);
-  const text = [
-    readRowString(segment, "instrument_type"),
-    readRowString(segment, "label"),
-    readDisplayFactRecordValue(shares),
-    readDisplayFactRecordValue(instrumentCount),
-    readRowString(segment, "evidence"),
-  ].join(" ");
-  if (/\bADSs?\b|American Depositary Shares?/i.test(text)) {
-    return firstDisplayFact([ordinaryShares, underlyingShares, shares]);
-  }
-  return firstDisplayFact([shares, underlyingShares]);
 }
 
 function readDisplayCashTermValue(model: Record<string, unknown> | null, key: string) {
@@ -11353,147 +8806,11 @@ function readDisplayFactRecordValue(fact: Record<string, unknown> | null) {
   return numericValue.toLocaleString("en-US");
 }
 
-function readSnapshotFactStatusValue(
-  primaryModel: Record<string, unknown> | null,
-  secondaryModel: Record<string, unknown> | null,
-  key: string,
-  fallback: "Not stated" | "Variable" | "Not fixed yet" = "Not stated",
-) {
-  const value = readDisplayFactValue(primaryModel, key) || readDisplayFactValue(secondaryModel, key);
-  if (isDisclosedValue(value)) return value;
-
-  const context = collectSnapshotStatusContext(primaryModel, secondaryModel, key);
-  if (/\b(?:variable|vwap|formula|depends|actual sales|market prices?|conversion price|from time to time)\b/i.test(context)) {
-    return "Variable";
-  }
-  if (/\b(?:not fixed|not yet fixed|future sales|not completed|not sold yet|no shares sold)\b/i.test(context)) {
-    return "Not fixed yet";
-  }
-  if (/\b(?:not stated|not provided|not disclosed|unavailable|missing|no fixed share count)\b/i.test(context)) {
-    return "Not stated";
-  }
-  return fallback;
-}
-
-function readSnapshotRatioStatusValue(primaryModel: Record<string, unknown> | null, secondaryModel: Record<string, unknown> | null) {
-  const context = collectSnapshotStatusContext(primaryModel, secondaryModel, "total_potential_supply");
-  if (/\b(?:variable|vwap|formula|depends|actual sales|market prices?|no fixed share count)\b/i.test(context)) {
-    return "Variable";
-  }
-  if (/\b(?:not fixed|not yet fixed|future sales|not completed|not sold yet)\b/i.test(context)) {
-    return "Not fixed yet";
-  }
-  return "Not stated";
-}
-
-function collectSnapshotStatusContext(
-  primaryModel: Record<string, unknown> | null,
-  secondaryModel: Record<string, unknown> | null,
-  key: string,
-) {
-  const pieces: string[] = [];
-  for (const model of [primaryModel, secondaryModel]) {
-    if (!model) continue;
-    const fact = readPlainRecord(model[key]);
-    pieces.push(
-      readRowString(fact, "value_text"),
-      readRowString(fact, "evidence"),
-      ...readDisplayStringArray(model, "source_notes"),
-    );
-  }
-  return pieces.filter(Boolean).join(" ");
-}
-
 function readDbShareValue(terms: Record<string, unknown> | null, numberKey: string, textKey: string) {
   const textValue = cleanDisclosureValue(readRowString(terms, textKey));
   if (isDisclosedValue(textValue)) return formatShareCountValue(textValue) || textValue;
 
   return formatShareCountNumber(readRowNumber(terms, numberKey));
-}
-
-function readS8RegisteredShareValue(data: Record<string, unknown> | null) {
-  if (!data) return "";
-  const directKeys = [
-    "total_registered_shares",
-    "totalRegisteredShares",
-    "total_registered_shares_text",
-    "totalRegisteredSharesText",
-    "amount_registered",
-    "registered_shares",
-    "additional_shares",
-    "reoffer_shares",
-  ];
-
-  const directCandidate = readS8ShareCandidateFromKeys(data, directKeys);
-  const fallbackKeys = ["registeredShares", "additionalShares", "reofferShares"];
-  const fallbackCandidate = readS8ShareCandidateFromKeys(data, fallbackKeys);
-  const planCandidate = readS8ShareCandidateFromKeys(data, ["plan_registered_shares", "planRegisteredShares"]);
-  const inducementCandidate = readS8ShareCandidateFromKeys(data, [
-    "inducement_award_shares",
-    "inducementAwardShares",
-  ]);
-  const reofferCandidate = readS8ShareCandidateFromKeys(data, ["reoffer_resale_shares", "reofferResaleShares"]);
-  const combinedLlmCandidate = [planCandidate, inducementCandidate, reofferCandidate]
-    .filter((value) => value > 0)
-    .reduce((sum, value) => sum + value, 0);
-  const candidates = [
-    directCandidate,
-    fallbackCandidate,
-    combinedLlmCandidate,
-  ].filter((value) => value > 0);
-  if (!candidates.length) return "";
-
-  const largestCandidate = Math.max(...candidates);
-
-  return formatShareCountNumber(largestCandidate);
-}
-
-function readS8ShareValueFromModels(
-  primaryModel: Record<string, unknown> | null,
-  secondaryModel: Record<string, unknown> | null,
-  keys: string[],
-) {
-  for (const model of [primaryModel, secondaryModel]) {
-    if (!model) continue;
-    const candidate = readS8ShareCandidateFromKeys(model, keys);
-    if (candidate) return formatShareCountNumber(candidate);
-  }
-  return "";
-}
-
-function readS8ShareCandidateFromKeys(data: Record<string, unknown>, keys: string[]) {
-  for (const key of keys) {
-    const textValue = cleanDisclosureValue(readRowString(data, key));
-    const textCount = parseShareCount(textValue);
-    if (textCount) return textCount;
-
-    const numericValue = readRowNumber(data, key);
-    if (numericValue) return numericValue;
-  }
-
-  return 0;
-}
-
-function formatS8ShareRatio(numeratorValue: string, denominatorValue: string) {
-  const numerator = parseShareCount(numeratorValue);
-  const denominator = parseShareCount(denominatorValue);
-  if (!numerator || !denominator) return "";
-  const percent = (numerator / denominator) * 100;
-  if (!Number.isFinite(percent) || percent <= 0) return "";
-  return `${percent >= 100 ? percent.toFixed(0) : percent.toFixed(2)}%`;
-}
-
-function chooseS8PlanShareValue(displayPayloadValue: string, sourceTextValue: string) {
-  const displayCount = parseShareCount(displayPayloadValue);
-  const sourceCount = parseShareCount(sourceTextValue);
-
-  if (displayCount && sourceCount) {
-    const differenceRatio = Math.abs(displayCount - sourceCount) / Math.max(displayCount, sourceCount);
-    if (differenceRatio <= 0.02) return displayPayloadValue;
-    return displayCount > sourceCount ? displayPayloadValue : sourceTextValue;
-  }
-
-  return displayPayloadValue || sourceTextValue;
 }
 
 function readDbMoneyValue(terms: Record<string, unknown> | null, numberKey: string, textKey: string) {
@@ -11542,10 +8859,6 @@ function formatOfferingEnumLabel(value: string) {
     prefunded_warrants: "Pre-funded warrants",
     pre_funded_warrants: "Pre-funded warrants",
     convertible_notes: "Convertible notes",
-    convertible_preferred: "Convertible preferred",
-    preferred_stock: "Preferred stock",
-    preferred_shares: "Preferred shares",
-    series_a_preferred: "Series A preferred",
     debt: "Debt",
   };
   return labels[normalized] || normalized.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -11600,16 +8913,6 @@ function buildOfferingDisplayType({
   return dbOfferingType || "Equity offering";
 }
 
-function formatS8PlanOfferingType(normalizedType: string, s8UiMode = "") {
-  if (s8UiMode === "inducement_awards") return "S-8 inducement awards";
-  if (s8UiMode === "post_effective_amendment") return "S-8 post-effective amendment";
-  const normalized = normalizedType.trim().toLowerCase();
-  if (normalized.includes("post_effective")) return "S-8 post-effective amendment";
-  if (normalized.includes("general_instruction_e") || normalized.includes("additional")) return "S-8 additional plan shares";
-  if (normalized.includes("initial")) return "S-8 plan registration";
-  return "S-8 plan registration";
-}
-
 function isActionableAtmMechanism({
   dbOfferingType,
   displayMode,
@@ -11622,7 +8925,7 @@ function isActionableAtmMechanism({
   sourceText: string;
 }) {
   if (dbOfferingType === "At-the-market offering" || dbOfferingType === "ATM") return true;
-  if (displayMode === "atm") return true;
+  if (displayMode === "atm_capacity") return true;
   if (isDisclosedValue(readDbMoneyValue(offeringTerms, "atm_program_size", "atm_program_size_text"))) return true;
 
   return /\b(?:at-the-market sales agreement|equity distribution agreement|sales agreement with|sales agreement, dated|ATM program|at-the-market offering program)\b/i.test(
@@ -11636,11 +8939,7 @@ function buildOfferingDisplayLabels({
   isForwardSale,
   isRegisteredDirect,
   isResale,
-  isS8PlanRegistration,
-  isS8ReofferResale,
   isShelfLike,
-  s8UiMode,
-  hasS8ParentPlanContext,
   supplyCountEstimated,
 }: {
   hasPrefundedWarrants: boolean;
@@ -11648,11 +8947,7 @@ function buildOfferingDisplayLabels({
   isForwardSale: boolean;
   isRegisteredDirect: boolean;
   isResale: boolean;
-  isS8PlanRegistration: boolean;
-  isS8ReofferResale: boolean;
   isShelfLike: boolean;
-  s8UiMode: string;
-  hasS8ParentPlanContext: boolean;
   supplyCountEstimated: boolean;
 }) {
   if (isForwardSale) {
@@ -11693,44 +8988,6 @@ function buildOfferingDisplayLabels({
     };
   }
 
-  if (isS8ReofferResale && hasS8ParentPlanContext) {
-    return {
-      overhangSubtitle: "Current shares plus parent S-8 plan shares",
-      overhangScoreCaption: "Parent plan shares vs. current shares",
-      supplyDetailLabel: "Parent Plan Shares",
-      supplyBreakdownLabel: "Parent plan shares",
-      supplyMetricLabel: "Parent plan shares",
-      supplyMetricNote: "Original S-8 plan registration.",
-      ratioMetricLabel: "Parent Plan / Outstanding",
-      ratioMetricNote: "Parent plan shares compared with current shares.",
-      primaryExposureLabel: "Parent Plan Shares",
-      quickImpactLabel: "Parent Plan / Outstanding",
-      snapshotSupplyLabel: "Parent Plan Shares",
-      totalExposureLabel: "Potential plan-share total",
-      unavailableMessage:
-        "Parent S-8 plan share count was not supplied, so plan-share overhang is not calculated.",
-    };
-  }
-
-  if (isS8ReofferResale) {
-    return {
-      overhangSubtitle: "Current shares plus reoffer resale subset",
-      overhangScoreCaption: "Reoffer resale shares vs. current shares",
-      supplyDetailLabel: "Reoffer Resale Shares",
-      supplyBreakdownLabel: "Reoffer resale shares",
-      supplyMetricLabel: "Reoffer resale shares",
-      supplyMetricNote: "Shares covered by the reoffer prospectus.",
-      ratioMetricLabel: "Resale Shares / Outstanding",
-      ratioMetricNote: "Reoffer resale shares compared with current shares.",
-      primaryExposureLabel: "Reoffer Resale Shares",
-      quickImpactLabel: "Resale Shares / Outstanding",
-      snapshotSupplyLabel: "Reoffer Shares",
-      totalExposureLabel: "Reoffer subset",
-      unavailableMessage:
-        "Reoffer resale share count was not disclosed or mechanically calculable, so reoffer overhang is not calculated.",
-    };
-  }
-
   if (isResale) {
     return {
       overhangSubtitle: "Current shares plus potential resale supply",
@@ -11750,73 +9007,35 @@ function buildOfferingDisplayLabels({
     };
   }
 
-  if (isS8PlanRegistration) {
-    if (s8UiMode === "inducement_awards") {
-      return {
-        overhangSubtitle: "Current shares plus registered plan and inducement-award shares",
-        overhangScoreCaption: "Registered S-8 shares vs. current shares",
-        supplyDetailLabel: "Plan + Inducement Shares",
-        supplyBreakdownLabel: "Registered plan and inducement shares",
-        supplyMetricLabel: "Plan + inducement shares",
-        supplyMetricNote: supplyCountEstimated ? "Estimated S-8 share count." : "Registered plan and inducement-award shares.",
-        ratioMetricLabel: "S-8 shares / current",
-        ratioMetricNote: "Registered S-8 shares compared with current shares.",
-        primaryExposureLabel: "Plan + Inducement Shares",
-        quickImpactLabel: "S-8 Shares / Current",
-        snapshotSupplyLabel: "Plan + Inducement Shares",
-        totalExposureLabel: "Potential S-8 total",
-        unavailableMessage:
-          "Registered S-8 share count was not disclosed or mechanically calculable, so plan-share overhang is not calculated.",
-      };
-    }
-
-    return {
-      overhangSubtitle: "Current shares plus registered plan shares",
-      overhangScoreCaption: "Registered plan shares vs. current shares",
-      supplyDetailLabel: "Registered Plan Shares",
-      supplyBreakdownLabel: "Registered plan shares",
-      supplyMetricLabel: "Registered plan shares",
-      supplyMetricNote: supplyCountEstimated ? "Estimated plan-share count." : "Plan-share registration.",
-      ratioMetricLabel: "Plan shares / current",
-      ratioMetricNote: "Registered plan shares compared with current shares.",
-      primaryExposureLabel: "Registered Plan Shares",
-      quickImpactLabel: "Plan Shares / Current",
-      snapshotSupplyLabel: "Plan Shares",
-      totalExposureLabel: "Potential plan-share total",
-      unavailableMessage:
-        "Registered plan-share count was not disclosed or mechanically calculable, so plan-share overhang is not calculated.",
-    };
-  }
-
   if (hasPrefundedWarrants) {
     return {
-      overhangSubtitle: "Current shares plus pre-funded warrant supply",
-      overhangScoreCaption: "Pre-funded warrant supply vs. current shares",
-      supplyDetailLabel: "Pre-Funded Warrant Supply",
-      supplyBreakdownLabel: "Pre-funded warrant supply",
-      supplyMetricLabel: "Pre-Funded Warrant Supply",
-      supplyMetricNote: "Pre-funded warrants are treated as near-immediate common-share supply.",
-      ratioMetricLabel: "Supply / current",
-      ratioMetricNote: "Pre-funded warrant supply compared with current shares.",
-      primaryExposureLabel: "Pre-Funded Warrant Supply",
-      quickImpactLabel: "Supply / Current",
-      snapshotSupplyLabel: "Pre-Funded Warrants",
+      overhangSubtitle: "Current shares plus near-immediate common share exposure",
+      overhangScoreCaption: "Near-immediate exposure vs. current shares",
+      supplyDetailLabel: "Immediate Share Exposure",
+      supplyBreakdownLabel: "Pre-funded warrant exposure",
+      supplyMetricLabel: "Immediate Share Exposure",
+      supplyMetricNote: "Pre-funded warrants are treated as near-immediate common share exposure.",
+      ratioMetricLabel: "Exposure / current",
+      ratioMetricNote: "Near-immediate exposure compared with current shares.",
+      primaryExposureLabel: "Immediate Share Exposure",
+      quickImpactLabel: "Exposure / Current",
+      snapshotSupplyLabel: "Immediate Exposure",
       totalExposureLabel: "Potential total",
       unavailableMessage:
-        "Pre-funded warrant supply was not disclosed or mechanically calculable, so dilution is not calculated.",
+        "Immediate share exposure was not disclosed or mechanically calculable, so dilution is not calculated.",
     };
   }
 
   return {
     overhangSubtitle: "Current shares plus potential supply",
     overhangScoreCaption: "Total potential dilution vs. current shares",
-    supplyDetailLabel: isShelfLike ? "Registered Shares" : isRegisteredDirect ? "New Shares" : "Potential Supply",
+    supplyDetailLabel: isShelfLike ? "Registered Shares" : isRegisteredDirect ? "Immediate Share Exposure" : "Potential Supply",
     supplyBreakdownLabel: isShelfLike ? "Registered shares" : "Potential supply",
     supplyMetricLabel: isShelfLike && !isRegisteredDirect ? "Registered shares" : "Potential supply",
     supplyMetricNote: supplyCountEstimated ? "Estimated from amount and price." : "Potential supply.",
     ratioMetricLabel: "Supply / current",
     ratioMetricNote: "Potential supply compared with current shares.",
-    primaryExposureLabel: isShelfLike ? "Registered Shares" : "New Shares",
+    primaryExposureLabel: isShelfLike ? "Registered Shares" : "Immediate Share Exposure",
     quickImpactLabel: "Potential Dilution",
     snapshotSupplyLabel: isShelfLike ? "Registered Shares" : "Potential Supply",
     totalExposureLabel: "Potential total",
@@ -11831,988 +9050,9 @@ function readMetricShareValue(record: Record<string, unknown> | null | undefined
   return `${Math.round(value).toLocaleString("en-US")} shares`;
 }
 
-function readMarketCapAmount(record: Record<string, unknown> | null | undefined) {
-  const numericValue = readRowNumber(record, "market_cap") || readRowNumber(record, "marketCap");
-  if (numericValue) return numericValue;
-
-  const textValue =
-    readRowString(record, "market_cap") ||
-    readRowString(record, "marketCap") ||
-    readRowString(record, "market_cap_text") ||
-    readRowString(record, "marketCapText");
-  return parseMoneyValue(textValue);
-}
-
 function readDisplayStringArray(model: Record<string, unknown> | null, key: string) {
   const value = model?.[key];
   return Array.isArray(value) ? value.map((item) => cleanDisclosureValue(item)).filter(Boolean).slice(0, 3) : [];
-}
-
-function readLlmShareOverhang(
-  primaryModel: Record<string, unknown> | null,
-  secondaryModel: Record<string, unknown> | null,
-): LlmShareOverhangModel | null {
-  const primaryOverhang = readPlainRecord(primaryModel?.share_overhang);
-  const secondaryOverhang = readPlainRecord(secondaryModel?.share_overhang);
-  const overhang = hasRawShareOverhangContent(primaryOverhang)
-    ? primaryOverhang
-    : hasRawShareOverhangContent(secondaryOverhang)
-      ? secondaryOverhang
-      : null;
-  if (!overhang) return null;
-
-  const totalNote = normalizeShareOverhangTotalNoteRecord(readPlainRecord(overhang.total_note) || {});
-  const hasStructuredRows = Boolean(readPlainRecord(overhang.basis)) || recordArray(overhang.rows).length > 0;
-  const unavailableRows = readLlmShareOverhangRows(
-    hasStructuredRows ? overhang.unavailable_rows || overhang.detail_rows : overhang.unavailable_rows || overhang.detail_rows || overhang.rows,
-  );
-  const routedRows = readLlmShareOverhangRoutedRows(overhang);
-  const model: LlmShareOverhangModel = {
-    chartTitle: readOverhangString(overhang, "chart_title", "chartTitle", "title"),
-    subtitle: readOverhangString(overhang, "subtitle", "chart_subtitle", "chartSubtitle"),
-    statusLabel: readOverhangString(overhang, "status_label", "statusLabel", "level_label", "levelLabel"),
-    statusValue: readOverhangString(overhang, "status_value", "statusValue", "value"),
-    caption: readOverhangString(overhang, "caption", "score_caption", "scoreCaption"),
-    ratioLabel: readOverhangString(overhang, "ratio_label", "ratioLabel", "scale_label", "scaleLabel"),
-    ratioValue: readOverhangString(overhang, "ratio_value", "ratioValue", "percent_value", "percentValue"),
-    currentLabel: "",
-    currentValue: "",
-    supplyLabel: "",
-    supplyValue: "",
-    totalNoteTitle: readOverhangString(totalNote, "title", "label"),
-    totalNoteNumerator: readOverhangString(totalNote, "numerator"),
-    totalNoteDenominator: readOverhangString(totalNote, "denominator"),
-    totalNoteRatio: readOverhangString(totalNote, "ratio"),
-    totalNoteSuffix: readOverhangString(totalNote, "suffix", "note"),
-    note: readOverhangString(overhang, "note", "footnote"),
-    unavailableRows,
-    conditionalSupplyRows: routedRows.conditionalSupplyRows,
-    overhangBarSegments: routedRows.overhangBarSegments,
-    conditionalExerciseScaleRows: buildConditionalExerciseScaleRows(routedRows.overhangBarSegments, routedRows.conditionalSupplyRows),
-  };
-
-  const hasVisibleContent = [
-    model.statusLabel,
-    model.statusValue,
-    model.ratioLabel,
-    model.ratioValue,
-    model.currentValue,
-    model.supplyValue,
-  ].some(Boolean) || unavailableRows.length > 0 || model.conditionalSupplyRows.length > 0 || model.overhangBarSegments.length > 0;
-
-  return hasVisibleContent ? model : null;
-}
-
-function hasRawShareOverhangContent(overhang: Record<string, unknown> | null) {
-  if (!overhang) return false;
-  const totalNote = readPlainRecord(overhang.total_note);
-  if (readPlainRecord(overhang.basis) || recordArray(overhang.rows).length) return true;
-  if (totalNote && Object.keys(totalNote).length > 0) return true;
-  return [
-    overhang.status_value,
-    overhang.statusValue,
-    overhang.ratio_value,
-    overhang.ratioValue,
-  ].some((value) => Boolean(cleanDisclosureValue(readDisclosureValue(value))));
-}
-
-function readLlmShareOverhangRows(value: unknown): LlmShareOverhangModel["unavailableRows"] {
-  return recordArray(value)
-    .map((row): LlmShareOverhangFactRow | null => {
-      const label = readOverhangString(row, "label");
-      const rowValue = readOverhangString(row, "value", "value_text", "valueText");
-      if (!label || !rowValue) return null;
-      const tone = readOverhangString(row, "tone");
-      return {
-        key: readOverhangString(row, "key"),
-        className: normalizeLlmShareOverhangSegmentClass(readOverhangString(row, "class_name", "className", "role") || label),
-        rowRole: normalizeShareOverhangRowRole(readOverhangString(row, "row_role", "rowRole")),
-        supplyNature: normalizeShareOverhangSupplyNature(readOverhangString(row, "supply_nature", "supplyNature")),
-        supplyType: normalizeShareOverhangSupplyType(readOverhangString(row, "supply_type", "supplyType")),
-        countedInRatio: readOverhangBoolean(row, "counted_in_ratio", "countedInRatio"),
-        calculationRole: normalizeShareOverhangCalculationRole(readOverhangString(row, "calculation_role", "calculationRole")),
-        unit: readOverhangString(row, "unit"),
-        classBasis: readOverhangString(row, "class_basis", "classBasis"),
-        poolId: readOverhangString(row, "pool_id", "poolId"),
-        poolRelationship: normalizeShareOverhangPoolRelationship(readOverhangString(row, "pool_relationship", "poolRelationship")),
-        label,
-        value: rowValue,
-        ...(readOverhangString(row, "note") ? { note: readOverhangString(row, "note") } : {}),
-        ...(tone === "danger" || tone === "neutral" ? { tone } : {}),
-        numericValue: readOverhangSegmentStructuredAmount(row),
-      };
-    })
-    .filter((row): row is LlmShareOverhangFactRow => row !== null)
-    .slice(0, 8);
-}
-
-function readLlmShareOverhangRoutedRows(overhang: Record<string, unknown>) {
-  const structuredRows = readLlmShareOverhangStructuredRows(overhang);
-  if (structuredRows) return structuredRows;
-
-  return { conditionalSupplyRows: [], overhangBarSegments: [] };
-}
-
-function readLlmShareOverhangStructuredRows(overhang: Record<string, unknown>) {
-  const basis = readLlmShareOverhangBasis(overhang.basis);
-  const rows = readLlmShareOverhangRows(overhang.rows);
-  if (!basis && !rows.length) return null;
-
-  const candidateSegments = [basis, ...rows.map(structuredRowToSegment)].filter(
-    (segment): segment is ShareOverhangBarSegment => Boolean(segment),
-  );
-  const overhangBarSegments = normalizeLlmShareOverhangSegmentWidths(
-    collapseAlternativeShareOverhangSegments(
-      candidateSegments.filter(
-        (segment) =>
-          segment.calculationRole === "denominator" ||
-          isCountedInShareOverhangRatio(segment),
-      ),
-    ),
-  );
-  const conditionalSupplyRows = rows
-    .filter((row) => {
-      if (row.calculationRole === "denominator") return false;
-      return !isCountedInShareOverhangRatio(row);
-    })
-    .slice(0, 8);
-
-  return { conditionalSupplyRows, overhangBarSegments };
-}
-
-function readLlmShareOverhangBasis(value: unknown): ShareOverhangBarSegment | null {
-  const record = readPlainRecord(value);
-  if (!record) return null;
-  const label = readOverhangString(record, "label");
-  const rowValue = readOverhangString(record, "value", "value_text", "valueText");
-  if (!label || !rowValue) return null;
-  return {
-    key: readOverhangString(record, "key") || "share-overhang-basis",
-    className: normalizeLlmShareOverhangSegmentClass(readOverhangString(record, "class_name", "className") || "current-base"),
-    supplyNature: "base_shares",
-    calculationRole: "denominator",
-    unit: readOverhangString(record, "unit"),
-    classBasis: readOverhangString(record, "class_basis", "classBasis"),
-    label,
-    value: rowValue,
-    ...(readOverhangString(record, "note") ? { note: readOverhangString(record, "note") } : {}),
-    numericValue: readOverhangSegmentStructuredAmount(record),
-    width: 0,
-  };
-}
-
-function structuredRowToSegment(row: LlmShareOverhangFactRow): ShareOverhangBarSegment {
-  return {
-    key: row.key || `llm-share-overhang-row-${row.label}`,
-    className: row.className || normalizeLlmShareOverhangSegmentClass(row.label),
-    rowRole: row.rowRole,
-    supplyNature: row.supplyNature,
-    supplyType: row.supplyType,
-    countedInRatio: row.countedInRatio,
-    calculationRole: row.calculationRole,
-    unit: row.unit,
-    classBasis: row.classBasis,
-    poolId: row.poolId,
-    poolRelationship: row.poolRelationship,
-    label: row.label,
-    value: row.value,
-    ...(row.note ? { note: row.note } : {}),
-    numericValue: row.numericValue ?? null,
-    width: 0,
-  };
-}
-
-function isCountedInShareOverhangRatio(row: { rowRole?: string; countedInRatio?: boolean; supplyNature?: string }) {
-  if (row.rowRole) return row.rowRole === "counted";
-  if (typeof row.countedInRatio === "boolean") return row.countedInRatio;
-  return (
-    row.supplyNature === "current_offering_supply" ||
-    row.supplyNature === "registered_resale_supply" ||
-    row.supplyNature === "common_equivalent_supply"
-  );
-}
-
-function normalizeLlmShareOverhangSegmentWidths(segments: ShareOverhangBarSegment[]) {
-  if (!segments.length) return [];
-  const fallbackWidth = 100 / segments.length;
-  const canUseNumericValues = segments.every((segment) => typeof segment.numericValue === "number" && segment.numericValue > 0);
-  const displaySegments = segments.map((segment) => {
-    const width = canUseNumericValues ? segment.numericValue || 0 : fallbackWidth;
-    return {
-      ...segment,
-      width,
-      compact: width < 24 || segment.label.length > 28,
-    };
-  });
-  const totalWidth = displaySegments.reduce((total, segment) => total + segment.width, 0);
-  if (totalWidth <= 0) return displaySegments;
-  return displaySegments.map((segment) => {
-    const width = (segment.width / totalWidth) * 100;
-    return {
-      ...segment,
-      width,
-      compact: width < 24 || segment.label.length > 28,
-    };
-  });
-}
-
-function normalizeShareOverhangSupplyNature(value: string): ShareOverhangSupplyNature | undefined {
-  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
-  if (
-    normalized === "base_shares" ||
-    normalized === "current_offering_supply" ||
-    normalized === "registered_resale_supply" ||
-    normalized === "common_equivalent_supply" ||
-    normalized === "conditional_future_supply" ||
-    normalized === "replacement_supply"
-  ) {
-    return normalized;
-  }
-  return undefined;
-}
-
-function normalizeShareOverhangRowRole(value: string): ShareOverhangRowRole | undefined {
-  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
-  if (
-    normalized === "counted" ||
-    normalized === "conditional" ||
-    normalized === "alternative" ||
-    normalized === "reference"
-  ) {
-    return normalized;
-  }
-  return undefined;
-}
-
-function normalizeShareOverhangSupplyType(value: string): ShareOverhangSupplyType | undefined {
-  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
-  if (
-    normalized === "current_offering_pool" ||
-    normalized === "registered_resale_pool" ||
-    normalized === "share_equivalent" ||
-    normalized === "future_exercise" ||
-    normalized === "replacement_alternative" ||
-    normalized === "atm_capacity" ||
-    normalized === "shelf_capacity" ||
-    normalized === "public_float" ||
-    normalized === "market_cap" ||
-    normalized === "market_value"
-  ) {
-    return normalized;
-  }
-  if (
-    normalized === "market_value_at_last_sale_price" ||
-    normalized === "market_value_last_sale" ||
-    normalized === "last_sale_market_value"
-  ) {
-    return "market_value";
-  }
-  return undefined;
-}
-
-function normalizeShareOverhangCalculationRole(value: string): ShareOverhangCalculationRole | undefined {
-  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
-  if (
-    normalized === "denominator" ||
-    normalized === "headline_numerator" ||
-    normalized === "visible_excluded" ||
-    normalized === "note_only"
-  ) {
-    return normalized;
-  }
-  return undefined;
-}
-
-function normalizeShareOverhangPoolRelationship(value: string): ShareOverhangPoolRelationship | undefined {
-  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
-  if (normalized === "alternative_max" || normalized === "additive") return normalized;
-  return undefined;
-}
-
-function readOverhangSegmentStructuredAmount(record: Record<string, unknown>) {
-  for (const key of ["numeric_value", "numericValue", "amount", "share_count", "shareCount"]) {
-    if (!Object.prototype.hasOwnProperty.call(record, key)) continue;
-    const value = readRowNumber(record, key);
-    return value > 0 ? value : null;
-  }
-  return undefined;
-}
-
-function readOverhangString(record: Record<string, unknown>, ...keys: string[]) {
-  for (const key of keys) {
-    const value = cleanDisclosureValue(readDisclosureValue(record[key]) || readRowString(record, key));
-    if (value) return value;
-  }
-  return "";
-}
-
-function readOverhangBoolean(record: Record<string, unknown>, ...keys: string[]) {
-  for (const key of keys) {
-    const value = record[key];
-    if (typeof value === "boolean") return value;
-    if (typeof value === "string") {
-      const normalized = value.trim().toLowerCase();
-      if (normalized === "true") return true;
-      if (normalized === "false") return false;
-    }
-  }
-  return undefined;
-}
-
-function normalizeShareOverhangTotalNoteRecord(record: Record<string, unknown>) {
-  const rawTitle = readOverhangString(record, "title", "label");
-  const splitTitle = splitShareOverhangTotalNoteTitle(rawTitle);
-  if (!splitTitle) return record;
-  return {
-    ...record,
-    title: splitTitle.title || rawTitle,
-    numerator: readOverhangString(record, "numerator") || splitTitle.numerator,
-    denominator: readOverhangString(record, "denominator") || splitTitle.denominator,
-    ratio: readOverhangString(record, "ratio") || splitTitle.ratio,
-    suffix: readOverhangString(record, "suffix", "note") || splitTitle.suffix,
-  };
-}
-
-function splitShareOverhangTotalNoteTitle(value: string) {
-  const text = cleanDisclosureValue(value).replace(/\s+/g, " ");
-  if (!text || !text.includes("/") || !text.includes("=")) return null;
-  const formulaPattern = "((?:Up to\\s+)?[~$]?\\d[\\d,.]*(?:\\s*[MBK])?(?:\\s+[^/=]+?)?)\\s*/\\s*([^=]+?)\\s*=\\s*([\\d,.]+\\s*%)(?:\\s+(.+))?$";
-  const titledMatch = text.match(new RegExp(`^(.+?):\\s*${formulaPattern}`, "i"));
-  const directMatch = titledMatch ? null : text.match(new RegExp(`^${formulaPattern}`, "i"));
-  const match = titledMatch || directMatch;
-  if (!match) return null;
-  const titlePart = titledMatch ? match[1] : "";
-  const numerator = titledMatch ? match[2] : match[1];
-  const denominator = titledMatch ? match[3] : match[2];
-  const ratio = titledMatch ? match[4] : match[3];
-  const suffixText = titledMatch ? match[5] : match[4];
-  const condition = titlePart.match(/\(([^)]+)\)/)?.[1]?.trim() || "";
-  const title = cleanDisclosureValue(titlePart.replace(/\s*\([^)]*\)/g, "")) || "Total Potential Supply";
-  return {
-    title,
-    numerator: cleanDisclosureValue(numerator),
-    denominator: cleanDisclosureValue(denominator),
-    ratio: cleanDisclosureValue(ratio),
-    suffix: cleanDisclosureValue(suffixText) || condition,
-  };
-}
-
-function normalizeLlmShareOverhangSegmentClass(value: string) {
-  const text = value.trim().toLowerCase().replace(/[_-]+/g, " ");
-  const explicit = text.replace(/\s+/g, "-");
-  if (["current-base", "registered-supply", "warrant", "conversion", "prefunded"].includes(explicit)) {
-    return explicit;
-  }
-  if (/\bcurrent|outstanding|base|denominator\b/.test(text)) return "current-base";
-  if (/\bpre funded|prefunded\b/.test(text)) return "prefunded";
-  if (/\bwarrants?\b/.test(text)) return "warrant";
-  if (/\bconvert|notes?|preferred\b/.test(text)) return "conversion";
-  return "registered-supply";
-}
-
-function readSnapshotMetrics(model: Record<string, unknown> | null): DilutionMetricItem[] {
-  return recordArray(model?.snapshot_metrics)
-    .map((item): DilutionMetricItem | null => {
-      const label = cleanDisclosureValue(readRowString(item, "label"));
-      const value = cleanDisclosureValue(readDisclosureValue(item.value) || readRowString(item, "value"));
-      if (!label || !value) return null;
-      const tone = cleanDisclosureValue(readRowString(item, "tone"));
-      const note = cleanDisclosureValue(readDisclosureValue(item.note) || readRowString(item, "note"));
-      return {
-        label,
-        value,
-        ...(note ? { note } : {}),
-        emphasis: item.emphasis === true,
-        tone: tone === "danger" || tone === "positive" || tone === "neutral" ? tone : "neutral",
-      };
-    })
-    .filter((item): item is DilutionMetricItem => Boolean(item))
-    .slice(0, 4);
-}
-
-const S8_CONTEXT_DETAIL_LABELS = new Set([
-  "Parent filing",
-  "Parent plan shares",
-  "Reoffer subset",
-  "Relationship",
-  "Company proceeds",
-  "Selling holders",
-  "What changed",
-  "What did not change",
-]);
-
-function readS8ContextDetailRows(
-  displayPayloadData: Record<string, unknown> | null,
-  llmDisplayModel: Record<string, unknown> | null,
-): DilutionDisclosureRow[] {
-  const sourceRows = recordArray(displayPayloadData?.s8_context_details).length
-    ? recordArray(displayPayloadData?.s8_context_details)
-    : recordArray(llmDisplayModel?.s8_context_details);
-
-  return sourceRows
-    .map((item) => {
-      const label = cleanDisclosureValue(readRowString(item, "label"));
-      const value = cleanDisclosureValue(readDisclosureValue(item.value) || readRowString(item, "value"));
-      if (!S8_CONTEXT_DETAIL_LABELS.has(label) || !isDisclosedValue(value)) return null;
-      return { label, value };
-    })
-    .filter((item): item is DilutionDisclosureRow => Boolean(item))
-    .slice(0, 6);
-}
-
-function buildS8SnapshotMetricItems({
-  currentSharesNote,
-  currentSharesValue,
-  dilutionRatioValue,
-  displayLabels,
-  displayPayloadData,
-  llmDisplayModel,
-  parentPlanSharesValue,
-  potentialSupplyValue,
-  reofferResaleSharesValue,
-  s8UiMode,
-}: {
-  currentSharesNote: string;
-  currentSharesValue: string;
-  dilutionRatioValue: string;
-  displayLabels: {
-    ratioMetricNote: string;
-    supplyMetricNote: string;
-  };
-  displayPayloadData: Record<string, unknown> | null;
-  llmDisplayModel: Record<string, unknown> | null;
-  parentPlanSharesValue: string;
-  potentialSupplyValue: string;
-  reofferResaleSharesValue: string;
-  s8UiMode: string;
-}): DilutionMetricItem[] {
-  const metric = (label: string, value: string, note = "", emphasis = false): DilutionMetricItem | null =>
-    isDisclosedValue(value) ? { label, value, ...(note ? { note } : {}), emphasis, tone: "neutral" } : null;
-  const first = (...keys: string[]) => readS8MetricValue(displayPayloadData, llmDisplayModel, keys);
-  const firstOptionalMetric = (...items: Array<DilutionMetricItem | null>) => items.find(Boolean) || null;
-  const planName = first("plan_name", "planName", "plan_names", "planNames");
-  const planType = first("plan_type", "planType", "normalized_s8_type", "normalizedS8Type");
-  const vestingPeriod = first("vesting_period", "vestingPeriod", "vesting_schedule", "vestingSchedule");
-  const immediateDilution = first("immediate_dilution", "immediateDilution") || "Future grants/exercises";
-  const awardType = first("award_type", "awardType", "inducement_award_type", "inducementAwardType");
-  const grantDate = first("grant_date", "grantDate", "granted_at", "grantedAt");
-  const recipientCount = first("recipient_count", "recipientCount", "employee_count", "employeeCount");
-  const sellingHolders = first("selling_holders", "sellingHolders", "selling_securityholders", "sellingSecurityholders");
-  const amendmentStatus = first("amendment_status", "amendmentStatus") || (s8UiMode === "post_effective_amendment" ? "Post-effective amendment" : "");
-  const additionalShares = first("additional_shares", "additionalShares") || potentialSupplyValue;
-  const priorShares = first("prior_shares_carried_forward", "priorSharesCarriedForward", "parent_registered_shares", "parentRegisteredShares");
-  const removedShares = first("remaining_plan_shares_removed", "remainingPlanSharesRemoved", "deregistered_shares", "deregisteredShares");
-
-  const baseCurrent = metric("Shares Outstanding", currentSharesValue, currentSharesNote || "Share count used as the comparison base.");
-
-  if (s8UiMode === "reoffer_resale") {
-    const parentPlanShares =
-      parentPlanSharesValue ||
-      first(
-        "parent_plan_registered_shares",
-        "parentPlanRegisteredShares",
-        "parent_s8_registered_shares",
-        "parentS8RegisteredShares",
-        "parent_registered_shares",
-        "parentRegisteredShares",
-        "prior_plan_registered_shares",
-        "priorPlanRegisteredShares",
-      );
-    const reofferShares =
-      reofferResaleSharesValue ||
-      first("reoffer_resale_shares", "reofferResaleShares", "reoffer_shares", "reofferShares", "resale_shares", "resaleShares") ||
-      potentialSupplyValue;
-    const parentPlanRatio = formatS8ShareRatio(parentPlanShares, currentSharesValue);
-    const reofferVsCurrentRatio = formatS8ShareRatio(reofferShares, currentSharesValue);
-    const reofferVsParentRatio = formatS8ShareRatio(reofferShares, parentPlanShares);
-    const reofferNote = [reofferVsParentRatio ? `${reofferVsParentRatio} of parent plan` : "", reofferVsCurrentRatio ? `${reofferVsCurrentRatio} of current shares` : ""]
-      .filter(Boolean)
-      .join("; ");
-    const parentPlanRatioNote = [
-      "Original S-8 plan shares compared with shares outstanding.",
-      reofferVsParentRatio ? `Reoffer subset is ${reofferVsParentRatio} of parent plan.` : "",
-    ]
-      .filter(Boolean)
-      .join(" ");
-
-    if (isDisclosedValue(parentPlanShares)) {
-      return [
-        baseCurrent,
-        metric("Parent plan shares", parentPlanShares, "Shares registered by the original S-8 plan.", true),
-        metric("Reoffer subset", reofferShares, reofferNote ? `POS resale subset; ${reofferNote}.` : "POS resale subset from the parent plan."),
-        metric("Parent Plan / Outstanding", parentPlanRatio, parentPlanRatioNote),
-      ].filter((item): item is DilutionMetricItem => Boolean(item)).slice(0, 4);
-    }
-
-    return [
-      baseCurrent,
-      metric("Reoffer resale shares", reofferShares, "Shares covered by the reoffer prospectus.", true),
-      metric("Resale Shares / Outstanding", dilutionRatioValue, "Reoffer resale shares compared with current shares."),
-      firstOptionalMetric(
-        metric("Selling Holders", sellingHolders, "Named holders when disclosed."),
-        metric("Plan Name", planName, "Plan tied to the resale registration."),
-        metric("Vesting Period", vestingPeriod, "Source-backed vesting schedule."),
-      ),
-    ].filter((item): item is DilutionMetricItem => Boolean(item)).slice(0, 4);
-  }
-
-  if (s8UiMode === "post_effective_amendment") {
-    return [
-      metric("Amendment Status", amendmentStatus, "S-8 amendment context.", true),
-      metric("Additional Shares", additionalShares, displayLabels.supplyMetricNote),
-      metric("Prior Shares Carried Forward", priorShares, "Prior registration context when supplied."),
-      firstOptionalMetric(
-        metric("Remaining Plan Shares Removed", removedShares, "Unsold plan shares removed when disclosed."),
-        metric("Plan Name", planName, "Plan affected by the amendment."),
-      ),
-    ].filter((item): item is DilutionMetricItem => Boolean(item)).slice(0, 4);
-  }
-
-  if (s8UiMode === "inducement_awards") {
-    return [
-      baseCurrent,
-      metric("Registered inducement shares", potentialSupplyValue, displayLabels.supplyMetricNote, true),
-      metric("Inducement Shares / Outstanding", dilutionRatioValue, displayLabels.ratioMetricNote),
-      firstOptionalMetric(
-        metric("Award Type", awardType, "Source-backed award type."),
-        metric("Grant Date", grantDate, "Grant date stated in the filing."),
-        metric("Recipient Count", recipientCount, "Recipient count stated in the filing."),
-        metric("Vesting Period", vestingPeriod, "Source-backed vesting schedule."),
-      ),
-    ].filter((item): item is DilutionMetricItem => Boolean(item)).slice(0, 4);
-  }
-
-  return [
-    baseCurrent,
-    metric("Registered plan shares", potentialSupplyValue, displayLabels.supplyMetricNote, true),
-    metric("Plan Shares / Outstanding", dilutionRatioValue, displayLabels.ratioMetricNote),
-    firstOptionalMetric(
-      metric("Plan Name", planName, "Plan named in the filing."),
-      metric("Vesting Period", vestingPeriod, "Source-backed vesting schedule."),
-      metric("Plan Type", planType, "Plan category stated or clearly indicated."),
-      metric("Immediate Dilution", immediateDilution, "Registration alone does not issue all shares immediately."),
-    ),
-  ].filter((item): item is DilutionMetricItem => Boolean(item)).slice(0, 4);
-}
-
-function readS8MetricValue(
-  displayPayloadData: Record<string, unknown> | null,
-  llmDisplayModel: Record<string, unknown> | null,
-  keys: string[],
-) {
-  for (const model of [displayPayloadData, llmDisplayModel]) {
-    if (!model) continue;
-    for (const key of keys) {
-      const value = model[key];
-      const normalized = normalizeS8MetricValue(value);
-      if (normalized) return normalized;
-    }
-  }
-  return "";
-}
-
-function normalizeS8MetricValue(value: unknown): string {
-  if (Array.isArray(value)) {
-    const items = value
-      .map((item) => normalizeS8MetricValue(item))
-      .filter(Boolean);
-    if (items.length <= 2) return items.join(", ");
-    return `${items.slice(0, 2).join(", ")} + others`;
-  }
-  const record = readPlainRecord(value);
-  if (record) {
-    return (
-      cleanDisclosureValue(
-        readDisclosureValue(record.value) ||
-          readRowString(record, "name") ||
-          readRowString(record, "planName") ||
-          readRowString(record, "plan_name") ||
-          readRowString(record, "label") ||
-          readRowString(record, "text"),
-      ) || ""
-    );
-  }
-  return cleanDisclosureValue(readDisclosureValue(value) || String(value ?? ""));
-}
-
-function readOfferingDetailsRows(model: Record<string, unknown> | null): DilutionDisclosureRow[] {
-  return recordArray(model?.offering_details)
-    .map((item) => {
-      const label = normalizeOfferingDetailLabel(readRowString(item, "label"));
-      const rawValue = cleanDisclosureValue(readDisclosureValue(item.value) || readRowString(item, "value"));
-      const value = normalizeOfferingDetailValue(label, rawValue);
-      const note = cleanDisclosureValue(readDisclosureValue(item.note) || readRowString(item, "note"));
-      return label && isDisclosedValue(value) ? { label, value, ...(isDisclosedValue(note) ? { note } : {}) } : null;
-    })
-    .filter((item): item is DilutionDisclosureRow => Boolean(item));
-}
-
-function readS3AmendmentChangeRows(
-  displayPayloadData: Record<string, unknown> | null,
-  llmDisplayModel: Record<string, unknown> | null,
-): DilutionDisclosureRow[] {
-  const sourceRows = recordArray(displayPayloadData?.amendment_changes).length
-    ? recordArray(displayPayloadData?.amendment_changes)
-    : recordArray(llmDisplayModel?.amendment_changes);
-
-  return sourceRows
-    .map((item) => {
-      const label = cleanDisclosureValue(readRowString(item, "label")).slice(0, 42);
-      const value = cleanDisclosureValue(readDisclosureValue(item.value) || readRowString(item, "value"));
-      const note = cleanDisclosureValue(readDisclosureValue(item.note) || readRowString(item, "note"));
-      if (!label || !isDisclosedValue(value)) return null;
-      const compactValue = compactS3AmendmentValue(value);
-      const compactNote = compactS3AmendmentNote(note);
-      if (!isUsefulS3AmendmentChange(label, compactValue, compactNote)) return null;
-      return { label, value: compactValue, ...(compactNote ? { note: compactNote } : {}) };
-    })
-    .filter((item): item is DilutionDisclosureRow => Boolean(item))
-    .slice(0, 6);
-}
-
-function isUsefulS3AmendmentChange(label: string, value: string, note: string) {
-  const combined = `${label} ${value} ${note}`;
-  if (/\b(?:core terms unchanged|no economic change)\b/i.test(label)) return false;
-  if (/^(?:updated|revised|filed|added|amended|corrected)$/i.test(value)) return false;
-  if (/\b(?:updated section|updated list|general updates?|miscellaneous|key terms)\b/i.test(combined)) return false;
-  if (/documents? incorporated/i.test(label)) {
-    return /\b(?:Form\s+(?:10-K|10-Q|8-K|20-F|6-K|S-3|S-1|F-3|F-1)|annual report|quarterly report|current report|proxy statement|fiscal year|year ended|quarter ended)\b/i.test(
-      combined,
-    );
-  }
-  return true;
-}
-
-function compactS3AmendmentValue(value: string) {
-  const normalized = cleanDisclosureValue(value)
-    .replace(/\s+changed\s+from\s+/i, " ")
-    .replace(/\s+to\s+/i, " -> ");
-  return normalized.length > 120 ? `${normalized.slice(0, 117).trim()}...` : normalized;
-}
-
-function compactS3AmendmentNote(value: string) {
-  const normalized = compactS3AmendmentValue(value);
-  if (/^(?:updated|revised|filed|added|amended|corrected)(?:\s+in\s+this\s+amendment)?$/i.test(normalized)) return "";
-  if (/^(?:current filing|this amendment)$/i.test(normalized)) return "";
-  return normalized;
-}
-
-function readInstrumentDetailsArray(model: Record<string, unknown> | null) {
-  return recordArray(model?.instrument_details);
-}
-
-function readWarrantDetailsRows(model: Record<string, unknown> | null): DilutionDisclosureRow[] {
-  const allowed = new Set([
-    "Type",
-    "Shares / Securities",
-    "Exercise / Conversion Price",
-    "Reset / Floor",
-    "Term / Limits",
-    "Underlying Shares",
-    "Exercise Price",
-    "Exercise Status",
-  ]);
-  const rows = readInstrumentDetailsArray(model)
-    .map((item) => {
-      const label = cleanDisclosureValue(readRowString(item, "label"));
-      const value = cleanDisclosureValue(readDisclosureValue(item.value) || readRowString(item, "value"));
-      const note = cleanDisclosureValue(readDisclosureValue(item.note) || readRowString(item, "note"));
-      return label && allowed.has(label) && isDisclosedValue(value) ? { label, value, ...(isDisclosedValue(note) ? { note } : {}) } : null;
-    })
-    .filter((item): item is DilutionDisclosureRow => Boolean(item));
-
-  return rows.filter((row) => row.label !== "Type").length ? rows.slice(0, 4) : [];
-}
-
-function readWarrantInstrumentRows(model: Record<string, unknown> | null) {
-  const rows = readRawWarrantDetailRows(model);
-  const typeCount = rows.filter((row) => row.label === "Type").length;
-  if (typeCount < 1) return [];
-
-  const groups: Array<{ type: string; rows: Map<string, string> }> = [];
-  let current: { type: string; rows: Map<string, string> } | null = null;
-
-  for (const row of rows) {
-    if (row.label === "Type") {
-      current = { type: row.value, rows: new Map() };
-      groups.push(current);
-      continue;
-    }
-    if (!current) continue;
-    current.rows.set(row.label, row.value);
-  }
-
-  return groups
-    .filter((group) => !isPlainEquityInstrumentGroupType(group.type))
-    .map((group) => ({
-      type: shortWarrantTypeLabel(group.type),
-      sharesSecurities: compactInstrumentSharesValue(group.rows.get("Shares / Securities") || group.rows.get("Underlying Shares") || ""),
-      exerciseConversionPrice: compactInstrumentPriceValue(
-        group.rows.get("Exercise / Conversion Price") ||
-          group.rows.get("Exercise Price") ||
-          group.rows.get("Conversion Price") ||
-          "",
-      ),
-      resetFloor: compactInstrumentResetFloorValue(
-        group.rows.get("Reset / Floor") || group.rows.get("Reset / Repricing") || group.rows.get("Floor Price") || "",
-      ),
-      termLimits: compactInstrumentTermLimitsValue(group.rows.get("Term / Limits") || group.rows.get("Exercise Status") || ""),
-    }))
-    .filter((row) => row.type && (row.sharesSecurities || row.exerciseConversionPrice || row.resetFloor || row.termLimits))
-    .slice(0, 7);
-}
-
-function isPlainEquityInstrumentGroupType(value: string) {
-  const normalized = value
-    .replace(/[()]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  return /^(?:(?:class|series)\s+[a-z0-9-]+\s+)?(?:common stock|common shares?|ordinary shares?|ads|adss|american depositary shares?)$/i.test(
-    normalized,
-  );
-}
-
-function readDisplayInstrumentPriceGroups(model: Record<string, unknown> | null): Array<{ type: string; price: string; shares?: string }> {
-  return readInstrumentPriceGroups(readRawWarrantDetailRows(model));
-}
-
-function readDisplayInstrumentPriceSummary(model: Record<string, unknown> | null) {
-  const detailPriceGroups = readDisplayInstrumentPriceGroups(model);
-  const selectedGroup = selectSnapshotInstrumentPriceGroup(detailPriceGroups);
-  if (selectedGroup?.price) return selectedGroup.price;
-
-  const firstDetailPrice = detailPriceGroups.find((group) => group.price)?.price;
-  return firstDetailPrice || "";
-}
-
-function buildSnapshotInstrumentPriceMetric({
-  fallbackValue,
-  hasConvertibles,
-  hasWarrants,
-  priceGroups,
-}: {
-  fallbackValue: string;
-  hasConvertibles: boolean;
-  hasWarrants: boolean;
-  priceGroups: Array<{ type: string; price: string }>;
-}) {
-  const selectedGroup = selectSnapshotInstrumentPriceGroup(priceGroups);
-  const family = selectedGroup ? classifyInstrumentPriceFamily(selectedGroup.type) : hasConvertibles ? "conversion" : hasWarrants ? "warrant" : "other";
-  const value = selectedGroup?.price || fallbackValue || "Not stated";
-  const families = new Set(priceGroups.map((group) => classifyInstrumentPriceFamily(group.type)).filter((item) => item !== "other"));
-  const hasMixedPrices = families.size > 1 || priceGroups.length > 1;
-
-  if (family === "conversion") {
-    return {
-      label: hasMixedPrices ? "Key conversion price" : "Conversion price",
-      note: hasMixedPrices ? "Other instrument prices are shown below." : "Source-backed conversion price.",
-      value,
-    };
-  }
-
-  if (family === "warrant") {
-    return {
-      label: hasMixedPrices ? "Key exercise price" : "Exercise price",
-      note: hasMixedPrices ? "Other instrument prices are shown below." : "Source-backed exercise price.",
-      value,
-    };
-  }
-
-  return {
-    label: hasMixedPrices ? "Key instrument price" : "Instrument price",
-    note: hasMixedPrices ? "Other instrument prices are shown below." : "Source-backed instrument price.",
-    value,
-  };
-}
-
-function selectSnapshotInstrumentPriceGroup(groups: Array<{ type: string; price: string }>) {
-  return (
-    groups.find((group) => classifyInstrumentPriceFamily(group.type) === "conversion") ||
-    groups.find((group) => classifyInstrumentPriceFamily(group.type) === "warrant") ||
-    groups.find((group) => group.price)
-  );
-}
-
-function classifyInstrumentPriceFamily(type: string) {
-  const normalized = type.toLowerCase();
-  if (/\b(?:convertible|conversion|debenture|note)\b/.test(normalized)) return "conversion";
-  if (/\bwarrant\b/.test(normalized)) return "warrant";
-  if (/\bright\b/.test(normalized)) return "right";
-  if (/\bunit\b/.test(normalized)) return "unit";
-  return "other";
-}
-
-function readInstrumentPriceGroups(rows: DilutionDisclosureRow[]) {
-  const groups: Array<{ type: string; price: string; shares?: string }> = [];
-  let currentType = "";
-
-  for (const row of rows) {
-    if (row.label === "Type") {
-      currentType = row.value;
-      groups.push({ type: currentType, price: "" });
-      continue;
-    }
-    if (/^(?:Shares \/ Securities|Underlying Shares)$/i.test(row.label) && groups.length) {
-      const currentGroup = groups[groups.length - 1];
-      currentGroup.shares = row.value;
-      continue;
-    }
-    if (!/^(?:Exercise \/ Conversion Price|Exercise Price|Conversion Price)$/i.test(row.label)) continue;
-    const price = compactInstrumentPriceValue(row.value);
-    if (!price) continue;
-    if (!groups.length) {
-      groups.push({ type: currentType, price });
-      continue;
-    }
-    const currentGroup = groups[groups.length - 1];
-    if (!currentGroup.price) {
-      currentGroup.price = price;
-    }
-  }
-
-  return groups.filter((group) => group.price);
-}
-
-function readDisplayInstrumentPriceByType(model: Record<string, unknown> | null, typePattern: RegExp) {
-  const rows = readRawWarrantDetailRows(model);
-  let currentType = "";
-
-  for (const row of rows) {
-    if (row.label === "Type") {
-      currentType = row.value;
-      continue;
-    }
-    if (/^(?:Exercise \/ Conversion Price|Exercise Price|Conversion Price)$/i.test(row.label) && typePattern.test(currentType)) {
-      return compactInstrumentPriceValue(row.value);
-    }
-  }
-
-  return "";
-}
-
-function compactInstrumentSharesValue(value: string) {
-  const text = cleanDisclosureValue(value);
-  if (!text) return "";
-
-  const principal = text.match(/up to\s+\$[\d,.]+\s*(?:million|billion|m|bn)?\s+principal(?:\s+amount)?/i)?.[0];
-  const shares = text.match(/(?:convertible into\s+)?up to\s+[\d,.]+\s+(?:ordinary|common)?\s*shares/i)?.[0];
-  if (principal && shares) return `${principal.replace(/\s+amount$/i, "")} / ${shares.replace(/^convertible into\s+/i, "")}`;
-
-  return text
-    .replace(/\s*\([^)]*basis[^)]*\)/gi, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function compactInstrumentPriceValue(value: string) {
-  const text = cleanDisclosureValue(value);
-  if (!text) return "";
-
-  const initial = text.match(/\binitial\s+(\$[\d,.]+(?:\/share)?)/i)?.[1];
-  const alternate = text.match(/\balternate conversion price\s+(\$[\d,.]+(?:\/share)?)/i)?.[1];
-  if (initial && alternate) return `Initial conversion: ${initial}\nAlternate conversion: ${alternate}`;
-
-  return text
-    .replace(/;\s*\$[\d,.]+(?:\/share)?,?\s+subject to adjustments\.?/gi, "")
-    .replace(/;\s*variable pricing for installment payments\s*\([^)]*\)\.?/gi, "")
-    .replace(/,\s*subject to adjustments\.?/gi, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function compactInstrumentResetFloorValue(value: string) {
-  const text = cleanDisclosureValue(value);
-  if (!text) return "";
-  const vwap = text.match(/(?:80% or 95%|95% or 80%)\s+of\s+VWAP/i)?.[0];
-  if (vwap) return `Installments: ${vwap}`;
-  return text
-    .replace(/\bmonthly installment payments are based on a variable formula\s*/i, "Installments: ")
-    .replace(/,\s*and the Notes can be converted at an Alternate Conversion Price\.?/gi, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function compactInstrumentTermLimitsValue(value: string) {
-  const text = cleanDisclosureValue(value);
-  if (!text) return "";
-  const maturity = text.match(/\bmatures?\s+[A-Z][a-z]+\s+\d{1,2},\s+20\d{2}/i)?.[0];
-  const ownershipCap = text.match(/\d+(?:\.\d+)?%\s+beneficial ownership limitation/i)?.[0];
-  return [maturity, ownershipCap].filter(Boolean).join("; ") || text.replace(/;\s*monthly installment payments starting[^.;]+/i, "").trim();
-}
-
-function readRawWarrantDetailRows(model: Record<string, unknown> | null): DilutionDisclosureRow[] {
-  const allowed = new Set([
-    "Type",
-    "Shares / Securities",
-    "Exercise / Conversion Price",
-    "Reset / Floor",
-    "Term / Limits",
-    "Underlying Shares",
-    "Exercise Price",
-    "Conversion Price",
-    "Reset / Repricing",
-    "Floor Price",
-    "Exercise Status",
-  ]);
-  return readInstrumentDetailsArray(model)
-    .map((item) => {
-      const label = cleanDisclosureValue(readRowString(item, "label"));
-      const value = cleanDisclosureValue(readDisclosureValue(item.value) || readRowString(item, "value"));
-      const note = cleanDisclosureValue(readDisclosureValue(item.note) || readRowString(item, "note"));
-      return label && allowed.has(label) && isDisclosedValue(value) ? { label, value, ...(isDisclosedValue(note) ? { note } : {}) } : null;
-    })
-    .filter((item): item is DilutionDisclosureRow => Boolean(item));
-}
-
-function shortWarrantTypeLabel(value: string) {
-  const normalized = value.toLowerCase();
-  const groupedSeries = normalizeGroupedSeriesLabel(value);
-  if (groupedSeries && /\bwarrants?\b/i.test(value)) return `${groupedSeries} warrants`;
-  const series = value.match(/\bseries\s+[a-z0-9]+\b/i)?.[0];
-  if (/pre[-\s]?funded/.test(normalized)) return series ? `${series} pre-funded warrant` : "Pre-funded warrant";
-  if (/placement agent|underwriter|agent/.test(normalized)) return series ? `${series} placement agent warrant` : "Placement agent warrant";
-  if (/\bcommon\b/.test(normalized) && /\bwarrants?\b/.test(normalized)) return series ? `${series} common warrant` : "Common warrant";
-  if (series && /\bwarrants?\b/i.test(value)) return `${series} warrant`;
-  if (series) return series;
-  return value;
-}
-
-function normalizeGroupedSeriesLabel(value: string) {
-  const match = value.match(/\bseries\s+[a-z0-9]+(?:\s*(?:\/|&|\band\b)\s*(?:series\s+)?[a-z0-9]+)+/i)?.[0];
-  if (!match) return "";
-  return match
-    .replace(/\s+/g, " ")
-    .replace(/\bseries\b/gi, "Series")
-    .replace(/\s+and\s+/gi, " & ")
-    .replace(/\s*&\s*/g, " & ")
-    .replace(/\s*\/\s*/g, "/")
-    .replace(/\bSeries\s+([A-Za-z0-9]+)\s*([/&])\s*(?:Series\s+)?([A-Za-z0-9]+)\b/g, "Series $1$2$3")
-    .replace(/\bSeries\s+([A-Za-z0-9]+)\s*&\s*(?:Series\s+)?([A-Za-z0-9]+)\b/g, "Series $1 & $2")
-    .trim();
-}
-
-function normalizeOfferingDetailLabel(value: string | null | undefined) {
-  const label = cleanDisclosureValue(value);
-  if (label === "Sale Price to Purchaser" || label === "Pricing Formula") return "Sale Price";
-  if (label === "Related Private Placement / Purchase Agreement Date") return "Agreement Date";
-  return label;
-}
-
-function normalizeOfferingDetailValue(label: string, value: string) {
-  const normalized = cleanDisclosureValue(value);
-  if (label === "Offering Type" && /\bconvertible\b/i.test(normalized) && /\bnotes?\b/i.test(normalized)) {
-    return "Convertible promissory notes";
-  }
-  return normalized;
-}
-
-function formatResaleCompanyProceedsValue(value: string) {
-  return cleanDisclosureValue(value)
-    .replace(/\s*\((?:from|under|via)\s+(?:ELOC|equity line|purchase agreement)[^)]+\)/gi, "")
-    .replace(/\$([\d,.]+)\s+million\b/gi, "$$$1M")
-    .replace(/\$([\d,.]+)\s+billion\b/gi, "$$$1B")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 function formatDisplayRiskLabel(value: string) {
@@ -12826,7 +9066,7 @@ function isDisclosedValue(value: string | null | undefined) {
   return Boolean(
     normalized &&
       /[a-z0-9$]/i.test(normalized) &&
-      !normalized.startsWith("not disclosed") &&
+      normalized !== "not disclosed" &&
       normalized !== "none identified"
   );
 }
@@ -12857,24 +9097,50 @@ function cleanCompanyCashDisclosure(value: string) {
 
 function buildCompanyProceedsValue({
   closingNetProceedsValue,
-  isAtm,
   isResale,
+  noIssuerProceeds,
   offeringAmount,
-  useOfProceeds,
 }: {
   closingNetProceedsValue: string;
-  isAtm: boolean;
   isResale: boolean;
+  noIssuerProceeds: boolean;
   offeringAmount: string;
-  useOfProceeds: string;
 }) {
+  if (isResale && noIssuerProceeds) return "$0 from resale";
   if (isDisclosedValue(closingNetProceedsValue)) return closingNetProceedsValue;
-  const cleanOfferingAmount = cleanCompanyCashDisclosure(offeringAmount);
-  if (isAtm) return cleanOfferingAmount || "The total amount is not fixed yet.";
-  if (isResale) return "No money goes to the company.";
-  if (cleanOfferingAmount) return cleanOfferingAmount;
-  if (isDisclosedValue(useOfProceeds)) return "No specific amount is listed.";
-  return "No money details were found.";
+  return cleanCompanyCashDisclosure(offeringAmount) || "Not disclosed";
+}
+
+function buildCompanyProceedsNote({
+  closingNetProceedsValue,
+  isResale,
+  noIssuerProceeds,
+  offeringAmount,
+  prefundedWarrantExerciseCash,
+  warrantCashExerciseProceeds,
+}: {
+  closingNetProceedsValue: string;
+  isResale: boolean;
+  noIssuerProceeds: boolean;
+  offeringAmount: string;
+  prefundedWarrantExerciseCash: string;
+  warrantCashExerciseProceeds: string;
+}) {
+  const parts: string[] = [];
+  if (isResale && noIssuerProceeds) parts.push("Selling-holder resales send $0 to the company.");
+  if (!(isResale && noIssuerProceeds) && isDisclosedValue(closingNetProceedsValue)) {
+    parts.push("Company cash from disclosed primary or placement terms.");
+  }
+  if (isDisclosedValue(prefundedWarrantExerciseCash)) {
+    parts.push(`Pre-funded exercise cash is nominal: ${prefundedWarrantExerciseCash}.`);
+  }
+  if (isDisclosedValue(warrantCashExerciseProceeds)) {
+    parts.push(`Common warrant cash only if exercised: ${warrantCashExerciseProceeds}.`);
+  }
+  if (!parts.length && cleanCompanyCashDisclosure(offeringAmount)) {
+    parts.push("Gross proceeds from disclosed primary offering terms.");
+  }
+  return parts.join(" ") || "Company proceeds were not clearly disclosed.";
 }
 
 function findMoneyAmount(sourceText: string) {
@@ -12883,16 +9149,6 @@ function findMoneyAmount(sourceText: string) {
     sourceText.match(/\b(?:gross|net)\s+proceeds\s+(?:were|are|will be|of)?\s*(?:approximately)?\s*(\$[\d,.]+\s*(?:million|billion|m|bn)?)/i)?.[1] ||
     ""
   );
-}
-
-function findAtmProgramSize(sourceText: string) {
-  const value =
-    sourceText.match(/\baggregate offering price of up to\s*(\$[\d,.]+\s*(?:million|billion|m|bn)?)/i)?.[1] ||
-    sourceText.match(/\b(?:may|can)\s+offer\s+and\s+sell\b[^.\n]{0,180}?\bup to\s*(\$[\d,.]+\s*(?:million|billion|m|bn)?)/i)?.[1] ||
-    sourceText.match(/\bat-the-market\b[^.\n]{0,220}?\bup to\s*(\$[\d,.]+\s*(?:million|billion|m|bn)?)/i)?.[1] ||
-    "";
-
-  return value ? `Up to ${value}` : "";
 }
 
 function findShelfCapacity(sourceText: string) {
@@ -12938,52 +9194,6 @@ function findSalesAgent(sourceText: string) {
     "";
 
   return /\bOTC Markets\b/i.test(salesAgent) ? "" : salesAgent;
-}
-
-function findAtmFeeCommission(sourceText: string) {
-  const percent =
-    sourceText.match(/\b(?:commission|compensation|fee)\b[\s\S]{0,260}?\b(?:up to\s+)?(\d+(?:\.\d+)?%)\s+of\s+(?:the\s+)?gross\s+(?:sales\s+price|proceeds|offering proceeds|sales proceeds)\b/i)?.[1] ||
-    sourceText.match(/\b(?:commission|compensation|fee)\b[^.\n]{0,120}?\b(?:up to\s+)?(\d+(?:\.\d+)?%)\b[^.\n]{0,80}?\bgross\s+(?:sales\s+price|proceeds|offering proceeds|sales proceeds)\b/i)?.[1] ||
-    "";
-
-  return percent ? `${percent} of gross sales/proceeds` : "";
-}
-
-function findAtmAgreementDate(sourceText: string) {
-  const match =
-    sourceText.match(/\bsales agreement\b[^.\n]{0,120}?\bdated\s+([A-Z][a-z]+\.?\s+\d{1,2},\s+20\d{2})/i) ||
-    sourceText.match(/\bdated\s+([A-Z][a-z]+\.?\s+\d{1,2},\s+20\d{2})[^.\n]{0,120}?\bsales agreement\b/i);
-
-  return cleanDisclosureValue(match?.[1] || "");
-}
-
-function findAtmEndDate(sourceText: string) {
-  const match =
-    sourceText.match(/\b(?:sales agreement|offering|program)\b[^.\n]{0,160}?\b(?:expires?|terminates?|ends?)\s+(?:on\s+)?([A-Z][a-z]+\.?\s+\d{1,2},\s+20\d{2})/i) ||
-    sourceText.match(/\b(?:expiration|termination|end) date\b[^.\n]{0,80}?([A-Z][a-z]+\.?\s+\d{1,2},\s+20\d{2})/i);
-
-  return cleanDisclosureValue(match?.[1] || "");
-}
-
-function findOfferingAgreementDate(sourceText: string) {
-  const match =
-    sourceText.match(/\b(?:securities purchase agreement|subscription agreement|underwriting agreement|placement agency agreement)\b[^.\n]{0,160}?\bdated\s+([A-Z][a-z]+\.?\s+\d{1,2},\s+20\d{2})/i) ||
-    sourceText.match(/\bdated\s+([A-Z][a-z]+\.?\s+\d{1,2},\s+20\d{2})[^.\n]{0,160}?\b(?:securities purchase agreement|subscription agreement|underwriting agreement|placement agency agreement)\b/i);
-
-  return cleanDisclosureValue(match?.[1] || "");
-}
-
-function findPurchaserInvestor(sourceText: string) {
-  if (/\bcertain institutional investors\b/i.test(sourceText)) return "Certain institutional investors";
-  if (/\baccredited investors\b/i.test(sourceText)) return "Accredited investors";
-  if (/\bpurchasers?\b[^.\n]{0,80}?\bnamed in\b/i.test(sourceText)) return "Named purchasers";
-
-  const match = sourceText.match(
-    /\b(?:securities purchase agreement|subscription agreement)\s+with\s+([A-Z][A-Za-z0-9&.,'\-\s]+?)(?:\s+(?:for|to purchase|relating to|pursuant to)|[.;])/i,
-  );
-  const value = cleanDisclosureValue(match?.[1] || "");
-
-  return value.length > 80 || /\b(?:the company|we|us|our)\b/i.test(value) ? "" : value;
 }
 
 function findSecurityType(sourceText: string, flags: { hasConvertibles: boolean; hasWarrants: boolean }) {
@@ -13108,7 +9318,6 @@ function formatPoolMixValue({
 
 function formatCompactShareCount(value: number) {
   if (!Number.isFinite(value) || value <= 0) return "";
-  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2)}B`;
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
   return value.toLocaleString("en-US");
 }
@@ -13212,15 +9421,11 @@ function buildAdditiveOverhangAxisTicks({
 }
 
 function formatOverhangComponentLabel(label: string, options: { isResale?: boolean } = {}) {
-  const explicitLabel = cleanDisclosureValue(label);
-  if (explicitLabel) return explicitLabel;
-
-  const text = explicitLabel.toLowerCase();
+  const text = label.toLowerCase();
   if (/registered|shelf/.test(text)) return "Registered shelf shares";
   if (/resale/.test(text)) return "Registered resale shares";
   if (/pre[-_\s]?funded/.test(text)) return "Pre-funded warrants";
   if (/warrant/.test(text)) return "Warrants";
-  if (/preferred/.test(text)) return "Preferred stock";
   if (/convert|note/.test(text)) return "Convertible notes";
   if (options.isResale && /common|ordinary|ads/.test(text)) return "Resale shares";
   if (/common|ordinary|ads/.test(text)) return "Common shares";
@@ -13244,7 +9449,7 @@ function supplyMarkerLabelFromType(isResale: boolean, isShelfLike: boolean) {
 
 function formatShareCountNumber(value: number) {
   if (!Number.isFinite(value) || value <= 0) return "";
-  return `${Math.round(value).toLocaleString("en-US")} shares`;
+  return `${value.toLocaleString("en-US")} shares`;
 }
 
 function findPublicFloat(sourceText: string) {
@@ -13264,11 +9469,6 @@ function estimateDilutionPercent(sharesOffered: string, currentSharesOutstanding
   const current = parseShareCount(currentSharesOutstanding);
   if (!offered || !current) return "Not disclosed";
 
-  return formatDilutionPercentFromCounts(offered, current) || "Not disclosed";
-}
-
-function formatDilutionPercentFromCounts(offered: number, current: number) {
-  if (!Number.isFinite(offered) || !Number.isFinite(current) || offered <= 0 || current <= 0) return "";
   const percent = (offered / current) * 100;
   return `${percent.toFixed(percent >= 10 ? 1 : 2)}%`;
 }
@@ -13281,6 +9481,93 @@ function formatShareCountValue(value: string) {
 
 function formatDilutionRatio(estimatedDilutionPercent: string) {
   return isDisclosedValue(estimatedDilutionPercent) ? estimatedDilutionPercent : "Not disclosed";
+}
+
+function buildDilutionSummaryNarrative({
+  additionalNotesAmount,
+  additionalWarrantShares,
+  closingNetProceedsValue,
+  company,
+  currentSharesValue,
+  dilutionRatioValue,
+  isResale,
+  noIssuerProceeds,
+  poolMixSummary,
+  potentialSupplyValue,
+  warrantExerciseTotalValue,
+}: {
+  additionalNotesAmount: string;
+  additionalWarrantShares: string;
+  closingNetProceedsValue: string;
+  company: string;
+  currentSharesValue: string;
+  dilutionRatioValue: string;
+  isResale: boolean;
+  noIssuerProceeds: boolean;
+  poolMixSummary: string;
+  potentialSupplyValue: string;
+  warrantExerciseTotalValue: string;
+}) {
+  const issuer = company || "The company";
+  const supplySentence =
+    isResale && isDisclosedValue(potentialSupplyValue) && isDisclosedValue(currentSharesValue)
+      ? `${issuer} filed a resale registration covering ${potentialSupplyValue}, compared with a current share count of ${currentSharesValue} (${dilutionRatioValue}).`
+      : `${issuer} filed a dilution-risk registration statement.`;
+  const poolSentence = poolMixSummary
+    ? `The registered pool already includes ${poolMixSummary}; these are not separate share blocks on top of the registered amount.`
+    : "";
+  const cashSentence =
+    noIssuerProceeds || isDisclosedValue(closingNetProceedsValue) || isDisclosedValue(warrantExerciseTotalValue)
+      ? `Company cash is separate: resale sales send ${noIssuerProceeds ? "$0" : "undisclosed proceeds"} to the company${isDisclosedValue(closingNetProceedsValue) ? `, parsed closing net proceeds are ${closingNetProceedsValue}` : ""}${isDisclosedValue(warrantExerciseTotalValue) ? `, and warrants could add ${warrantExerciseTotalValue} only if exercised for cash` : ""}.`
+      : "";
+  const extraSentence =
+    isDisclosedValue(additionalNotesAmount) || isDisclosedValue(additionalWarrantShares)
+      ? `The filing also discloses possible future overhang outside the current registered pool (${[additionalNotesAmount, additionalWarrantShares].filter(isDisclosedValue).join(" / ")}).`
+      : "";
+
+  return [supplySentence, poolSentence, cashSentence, extraSentence].filter(Boolean).join(" ");
+}
+
+function buildDilutionSummaryParagraphs({
+  additionalNotesAmount,
+  additionalWarrantShares,
+  closingNetProceedsValue,
+  currentSharesValue,
+  dilutionRatioValue,
+  nextTrigger,
+  noIssuerProceeds,
+  poolMixSummary,
+  potentialSupplyValue,
+  warrantExerciseTotalValue,
+}: {
+  additionalNotesAmount: string;
+  additionalWarrantShares: string;
+  closingNetProceedsValue: string;
+  currentSharesValue: string;
+  dilutionRatioValue: string;
+  nextTrigger: string;
+  noIssuerProceeds: boolean;
+  poolMixSummary: string;
+  potentialSupplyValue: string;
+  warrantExerciseTotalValue: string;
+}) {
+  const supplyParagraph =
+    isDisclosedValue(potentialSupplyValue) && isDisclosedValue(currentSharesValue)
+      ? `The central issue is supply size: a pool of ${potentialSupplyValue} is registered against a current share count of ${currentSharesValue}, or ${dilutionRatioValue}. This does not mean every share is sold immediately, but it creates a large tradable-share overhang once resale becomes available.`
+      : "";
+  const poolParagraph = poolMixSummary
+    ? `The registered amount should be read as one pool. It includes ${poolMixSummary}, so the conversion and warrant pieces explain what is inside the pool rather than adding another full block of shares on top of it.`
+    : "";
+  const cashParagraph =
+    noIssuerProceeds || isDisclosedValue(closingNetProceedsValue) || isDisclosedValue(warrantExerciseTotalValue)
+      ? `Cash proceeds and resale pressure are separate. Selling-stockholder resale sales send ${noIssuerProceeds ? "$0" : "undisclosed proceeds"} to the company${isDisclosedValue(closingNetProceedsValue) ? `, while parsed closing net proceeds are ${closingNetProceedsValue}` : ""}${isDisclosedValue(warrantExerciseTotalValue) ? ` and warrants could add ${warrantExerciseTotalValue} only if exercised for cash` : ""}.`
+      : "";
+  const followUpParagraph =
+    isDisclosedValue(additionalNotesAmount) || isDisclosedValue(additionalWarrantShares) || nextTrigger
+      ? `The follow-up risk is whether more supply becomes eligible. The filing also points to possible overhang outside the current pool${isDisclosedValue(additionalNotesAmount) || isDisclosedValue(additionalWarrantShares) ? ` (${[additionalNotesAmount, additionalWarrantShares].filter(isDisclosedValue).join(" / ")})` : ""}. Next trigger: ${nextTrigger}`
+      : "";
+
+  return [supplyParagraph, poolParagraph, cashParagraph, followUpParagraph].filter(Boolean);
 }
 
 function buildDilutionFollowUpParagraph(nextTrigger: string) {
@@ -13332,7 +9619,6 @@ function buildDilutionCoreSummary({
   currentSharesValue,
   dilutionRatioValue,
   instrumentPriceSummary,
-  isS8PlanRegistration,
   noteConversionSummary,
   pipePrincipalValue,
   potentialSupplyValue,
@@ -13343,7 +9629,6 @@ function buildDilutionCoreSummary({
   currentSharesValue: string;
   dilutionRatioValue: string;
   instrumentPriceSummary: string;
-  isS8PlanRegistration?: boolean;
   noteConversionSummary: string;
   pipePrincipalValue: string;
   potentialSupplyValue: string;
@@ -13353,12 +9638,8 @@ function buildDilutionCoreSummary({
   const instrumentQualifier = isDisclosedValue(instrumentPriceSummary) ? " including instrument-linked shares" : "";
   const supplySentence =
     isDisclosedValue(currentSharesValue) && isDisclosedValue(potentialSupplyValue) && isDisclosedValue(dilutionRatioValue)
-      ? isS8PlanRegistration
-        ? `Current shares are ${currentSharesValue}; registered plan shares are ${potentialSupplyValue}${instrumentQualifier}, equal to ${dilutionRatioValue} of current shares.`
-        : `Current shares are ${currentSharesValue}; registered resale pool is ${potentialSupplyValue}${instrumentQualifier}, equal to ${dilutionRatioValue} of current shares.`
-      : isS8PlanRegistration
-        ? "Current share count, registered plan shares, or plan-share ratio was not fully parsed."
-        : "Current share count, registered resale pool, or dilution ratio was not fully parsed.";
+      ? `Current shares are ${currentSharesValue}; registered resale pool is ${potentialSupplyValue}${instrumentQualifier}, equal to ${dilutionRatioValue} of current shares.`
+      : "Current share count, registered resale pool, or dilution ratio was not fully parsed.";
   const instrumentSentence = isDisclosedValue(noteConversionSummary) || isDisclosedValue(warrantExerciseSummary)
     ? ` Convertible note shares: ${noteConversionSummary}; warrants: ${warrantExerciseSummary}.`
     : isDisclosedValue(instrumentPriceSummary)
@@ -13408,19 +9689,31 @@ function formatWarrantCashValue(shareCount: number, warrantExercisePriceAmount: 
 }
 
 function parseShareCount(value: string) {
-  const match = value.match(/([\d,.]+)\s*(million|billion|m|b|bn)?/i);
+  const match = value.match(/([\d,.]+)/);
   if (!match) return 0;
   const parsed = Number(match[1].replace(/,/g, ""));
-  if (!Number.isFinite(parsed)) return 0;
-
-  const unit = (match[2] || "").toLowerCase();
-  if (unit === "billion" || unit === "b" || unit === "bn") return parsed * 1_000_000_000;
-  if (unit === "million" || unit === "m") return parsed * 1_000_000;
-  return parsed;
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function findPriceTerm(sourceText: string, pattern: RegExp) {
   return sourceText.match(pattern)?.[1] || "";
+}
+
+function findWarrantExercisePrice(sourceText: string) {
+  return (
+    sourceText.match(/\bWarrants?\b[^.]{0,220}\bexercisable at (?:a price of )?(\$[\d,.]+)\s+per share/i)?.[1] ||
+    sourceText.match(/\bexercisable at (?:a price of )?(\$[\d,.]+)\s+per share[^.]{0,80}\bCommon Stock\b/i)?.[1] ||
+    sourceText.match(/\bExercise Price\)?[^.]{0,120}?(?:is|of|at)\s+(\$[\d,.]+)/i)?.[1] ||
+    ""
+  );
+}
+
+function findWarrantCashExerciseProceeds(sourceText: string) {
+  return (
+    sourceText.match(/\breceive up to an aggregate of approximately\s+(\$[\d,.]+\s*(?:million|billion|m|bn)?)\s+in cash from the exercise of the Warrants/i)?.[1] ||
+    sourceText.match(/\breceive proceeds from the exercise of the Warrants\b[^.]{0,140}?(\$[\d,.]+\s*(?:million|billion|m|bn)?)/i)?.[1] ||
+    ""
+  );
 }
 
 function findNotePrincipal(sourceText: string, closing: "First" | "Second") {
@@ -13453,16 +9746,15 @@ function formatMoneyValue(value: number, prefix = "") {
 }
 
 function parseMoneyValue(value: string) {
-  const match = cleanDisclosureValue(value).match(/\$?([\d,.]+)\s*(thousand|million|billion|k|m|b|bn)?/i);
+  const match = cleanDisclosureValue(value).match(/\$?([\d,.]+)\s*(million|billion|m|bn)?/i);
   if (!match) return 0;
 
   const amount = Number(match[1].replace(/,/g, ""));
   if (!Number.isFinite(amount)) return 0;
 
   const unit = (match[2] || "").toLowerCase();
-  if (unit === "billion" || unit === "bn" || unit === "b") return amount * 1_000_000_000;
+  if (unit === "billion" || unit === "bn") return amount * 1_000_000_000;
   if (unit === "million" || unit === "m") return amount * 1_000_000;
-  if (unit === "thousand" || unit === "k") return amount * 1_000;
   return amount;
 }
 
@@ -13589,7 +9881,6 @@ function AnalysisList({
   numbered?: boolean;
 }) {
   const ToneIcon = tone === "bullish" ? TrendingUp : tone === "bearish" ? TrendingDown : null;
-  if (!items.length) return null;
 
   return (
     <section className={`stock-detail-card analysis-card${tone ? ` ${tone}` : ""}`}>
@@ -13608,7 +9899,6 @@ function AnalysisList({
 
 function CaseList({ title, items, tone }: { title: string; items: string[]; tone: "bullish" | "bearish" }) {
   const ToneIcon = tone === "bullish" ? TrendingUp : TrendingDown;
-  if (!items.length) return null;
 
   return (
     <div className={`case-list ${tone}`}>
@@ -13625,33 +9915,6 @@ function CaseList({ title, items, tone }: { title: string; items: string[]; tone
   );
 }
 
-function ScoreBasisPanel({ filing, summaryOverride }: { filing: FilingEvent; summaryOverride?: string }) {
-  const explanation = filing.scoreExplanation;
-  if (!explanation) return null;
-  const scoreSummary = compactInlineText(summaryOverride) || buildScoreBasisHeadline(explanation);
-  if (!scoreSummary) return null;
-
-  return (
-    <section className={`stock-detail-card score-basis-card score-basis-card-main ${filing.signal}`} id="score-rationale">
-      <div className="score-basis-header">
-        <span className={`score-basis-score ${filing.signal}`}>
-          <strong>{filing.score}</strong>
-          <b>{filing.signal}</b>
-        </span>
-        <span className="score-basis-summary">{scoreSummary}</span>
-      </div>
-    </section>
-  );
-}
-
-function buildScoreBasisHeadline(explanation: FilingScoreExplanation) {
-  return compactInlineText(explanation.summary);
-}
-
-function compactInlineText(value: string | null | undefined) {
-  return String(value || "").replace(/\s+/g, " ").trim();
-}
-
 function MetricRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="detail-metric-row">
@@ -13661,547 +9924,8 @@ function MetricRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-type OwnershipRelatedFilingsInput = {
-  currentId: string;
-  currentFormType: string;
-  currentTitle: string;
-  displayPayload: Record<string, unknown> | null;
-  metadata: Record<string, unknown> | null;
-  rawPayload: Record<string, unknown> | null;
-  recentRows: Record<string, unknown>[];
-};
-
-async function buildOwnershipRelatedFilings(input: OwnershipRelatedFilingsInput): Promise<OwnershipRelatedFiling[]> {
-  const previousAccession = readOwnershipPreviousAccession(input);
-  const parentRow = previousAccession ? await fetchOwnershipEventByAccession(previousAccession) : null;
-  const rows = [parentRow, ...input.recentRows].filter((row): row is Record<string, unknown> => Boolean(row));
-  const seen = new Set<string>();
-  const related: OwnershipRelatedFiling[] = [];
-
-  for (const row of rows) {
-    const id = readRowString(row, "id");
-    if (!id || id === input.currentId || seen.has(id)) continue;
-    seen.add(id);
-
-    const item = mapOwnershipRelatedFilingRow(row, input, previousAccession);
-    if (item) related.push(item);
-  }
-
-  return related.slice(0, 6);
-}
-
-async function fetchSc13RelatedFilingRowsByIssuer(input: {
-  currentId: string;
-  metadata: Record<string, unknown> | null;
-  rawPayload: Record<string, unknown> | null;
-  title: string;
-}) {
-  const needles = readSc13IssuerSearchNeedles(input);
-  if (needles.length === 0) return [];
-
-  const rows: Record<string, unknown>[] = [];
-  const seen = new Set<string>();
-
-  for (const needle of needles) {
-    const result = await supabaseSelect("events", {
-      select: "*",
-      source_group: "eq.filings",
-      source_code: "eq.sec_edgar",
-      event_type: "eq.insider_ownership",
-      "metadata->>issuer": `ilike.*${needle}*`,
-      order: "detected_at.desc",
-      limit: "12",
-    });
-
-    for (const row of toRows(result.data)) {
-      const id = readRowString(row, "id");
-      if (!id || id === input.currentId || seen.has(id)) continue;
-      const form = readFilingFormType(row, toRecord(row.metadata), readRowString(row, "title"));
-      if (!isSc13OwnershipForm(form)) continue;
-      seen.add(id);
-      rows.push(row);
-    }
-  }
-
-  return rows;
-}
-
-function readSc13IssuerSearchNeedles(input: {
-  metadata: Record<string, unknown> | null;
-  rawPayload: Record<string, unknown> | null;
-  title: string;
-}) {
-  const issuerText = [
-    readRowString(input.metadata, "issuer"),
-    readRowString(input.rawPayload, "issuer"),
-    input.title,
-  ].join(" ");
-  const subjectCik = issuerText.match(/\bSubject\)\s*CIK\s*:?\s*0*(\d{4,10})\b/i)?.[1];
-  const metadataCik = readRowString(input.metadata, "cik") || readRowString(input.rawPayload, "cik");
-  const cik = subjectCik || metadataCik.replace(/^0+/, "");
-  const paddedCik = cik ? cik.padStart(10, "0") : "";
-  const company = issuerText
-    .split(/\(\s*Subject\s*\)/i)[0]
-    .replace(/\s+CIK\s*:.*$/i, "")
-    .trim();
-
-  return [paddedCik, cik, company]
-    .map((value) => value.trim())
-    .filter((value, index, values) => value.length >= 4 && values.indexOf(value) === index)
-    .slice(0, 3);
-}
-
-function dedupeRowsById(rows: Record<string, unknown>[]) {
-  const seen = new Set<string>();
-  return rows.filter((row) => {
-    const id = readRowString(row, "id");
-    if (!id || seen.has(id)) return false;
-    seen.add(id);
-    return true;
-  });
-}
-
-async function fetchOwnershipEventByAccession(accession: string) {
-  const normalized = normalizeAccession(accession);
-  if (!normalized) return null;
-
-  const byDedupe = await supabaseSelect("events", {
-    select: "*",
-    source_group: "eq.filings",
-    source_code: "eq.sec_edgar",
-    group_dedupe_key: `eq.sec_edgar:ownership:accession:${normalized}`,
-    limit: "1",
-  });
-  const dedupeRow = toRows(byDedupe.data)[0];
-  if (dedupeRow) return dedupeRow;
-
-  const byMetadata = await supabaseSelect("events", {
-    select: "*",
-    source_group: "eq.filings",
-    source_code: "eq.sec_edgar",
-    "metadata->>accession_number": `eq.${normalized}`,
-    limit: "1",
-  });
-  return toRows(byMetadata.data)[0] ?? null;
-}
-
-function mapOwnershipRelatedFilingRow(
-  row: Record<string, unknown>,
-  input: OwnershipRelatedFilingsInput,
-  previousAccession: string,
-): OwnershipRelatedFiling | null {
-  const title = readRowString(row, "title") || "Related ownership filing";
-  const metadata = toRecord(row.metadata);
-  const form = readFilingFormType(row, metadata, title);
-  const accession = readEventAccession(row);
-  const relatedEventType = readRowString(row, "event_type") || "other";
-  const badge = getEventTypeBadge(relatedEventType);
-  const relation = classifyOwnershipRelatedFiling({
-    currentFormType: input.currentFormType,
-    currentTitle: input.currentTitle,
-    currentOwnerName: readOwnershipCurrentOwnerName(input),
-    relatedFormType: form,
-    relatedTitle: title,
-    relatedAccession: accession,
-    relatedEventType,
-    previousAccession,
-  });
-
-  return {
-    id: readRowString(row, "id"),
-    form,
-    eventType: badge.label,
-    filedAt: formatShortDate(readRowString(row, "detected_at") || readRowString(row, "published_at")),
-    score: readRowNumber(row, "score"),
-    title,
-    accession,
-    deliveryLevel: readRowString(row, "delivery_level"),
-    relation: relation.label,
-    description: relation.description,
-    candidate: relation.candidate,
-  };
-}
-
-function classifyOwnershipRelatedFiling(input: {
-  currentFormType: string;
-  currentTitle: string;
-  currentOwnerName: string;
-  relatedFormType: string;
-  relatedTitle: string;
-  relatedAccession: string;
-  relatedEventType: string;
-  previousAccession: string;
-}) {
-  const currentForm = normalizeOwnershipForm(input.currentFormType);
-  const relatedForm = normalizeOwnershipForm(input.relatedFormType);
-  const relatedAccession = normalizeAccession(input.relatedAccession);
-  const previousAccession = normalizeAccession(input.previousAccession);
-  const sameOwner = hasSharedOwnerName(input.currentOwnerName || input.currentTitle, input.relatedTitle);
-  const currentSc13 = isSc13OwnershipForm(currentForm);
-  const relatedSc13 = isSc13OwnershipForm(relatedForm);
-  const relatedIsOwnership = input.relatedEventType === "insider_ownership";
-
-  if (previousAccession && relatedAccession === previousAccession) {
-    return {
-      label: "Parent",
-      description: "Original ownership filing matched by accession.",
-      candidate: false,
-    };
-  }
-
-  if (!relatedIsOwnership) {
-    return {
-      label: "Related SEC filing",
-      description: "Recent SEC filing for the same issuer.",
-      candidate: false,
-    };
-  }
-
-  if (currentSc13 && relatedSc13) {
-    if (isSc13AmendmentOf(currentForm, relatedForm)) {
-      return {
-        label: "Parent candidate",
-        description: "Likely original Schedule 13 filing for this amendment; candidate only.",
-        candidate: true,
-      };
-    }
-
-    if (isSc13Amendment(currentForm) && sc13BaseFamily(currentForm) === sc13BaseFamily(relatedForm)) {
-      return {
-        label: "Prior amendment",
-        description: "Earlier Schedule 13 amendment for the same issuer.",
-        candidate: false,
-      };
-    }
-
-    return {
-      label: "Schedule 13 history",
-      description: "Recent 13D/13G ownership filing for the same issuer.",
-      candidate: false,
-    };
-  }
-
-  if (sameOwner && isOwnershipAmendmentOf(currentForm, relatedForm)) {
-    return {
-      label: "Parent candidate",
-      description: "Likely original ownership filing for this amendment; candidate only.",
-      candidate: true,
-    };
-  }
-
-  if (sameOwner && isOwnershipForm144(currentForm) && isOwnershipForm4(relatedForm)) {
-    return {
-      label: "Form 4 candidate",
-      description: "Possible execution follow-up for a planned sale; candidate only.",
-      candidate: true,
-    };
-  }
-
-  if (sameOwner && isOwnershipForm4(currentForm) && isOwnershipForm144(relatedForm)) {
-    return {
-      label: "Form 144 candidate",
-      description: "Possible planned-sale context for this insider transaction.",
-      candidate: true,
-    };
-  }
-
-  if (sameOwner) {
-    return {
-      label: "Same insider",
-      description: "Recent filing appears tied to the same reporting owner or seller.",
-      candidate: false,
-    };
-  }
-
-  return {
-    label: "Company filing",
-    description: "Recent ownership filing for the same issuer.",
-    candidate: false,
-  };
-}
-
-function readOwnershipPreviousAccession(input: OwnershipRelatedFilingsInput) {
-  const data = readDisplayPayloadData(input.displayPayload);
-  const filing = readPlainRecord(data.filing);
-  const form144 = readPlainRecord(data.form144);
-  const amendment = readPlainRecord(data.amendment);
-  const parserOutput = readPlainRecord(input.metadata?.parser_output) || readPlainRecord(input.rawPayload?.parser_output);
-  const parserFacts = readPlainRecord(parserOutput?.facts);
-  const parserFiling = readPlainRecord(parserFacts?.filing);
-  const parserForm144 = readPlainRecord(parserFacts?.form144);
-  const values = [
-    readRowString(data, "previous_accession_number"),
-    readRowString(data, "previous_accession"),
-    readRowString(data, "parent_accession"),
-    readRowString(filing, "previous_accession_number"),
-    readRowString(form144, "previous_accession_number"),
-    readRowString(amendment, "previous_accession_number"),
-    readRowString(input.metadata, "previous_accession_number"),
-    readRowString(input.rawPayload, "previous_accession_number"),
-    readRowString(parserFiling, "previous_accession_number"),
-    readRowString(parserForm144, "previous_accession_number"),
-  ];
-
-  return values.map(normalizeAccession).find(Boolean) || "";
-}
-
-function readOwnershipCurrentOwnerName(input: OwnershipRelatedFilingsInput) {
-  const data = readDisplayPayloadData(input.displayPayload);
-  const reportingOwner = readPlainRecord(data.reporting_owner) || readPlainRecord(data.reportingOwner);
-  const form144 = readPlainRecord(data.form144);
-  const values = [
-    readRowString(data, "owner_name"),
-    readRowString(data, "reporting_owner_name"),
-    readRowString(data, "seller_name"),
-    readRowString(reportingOwner, "name"),
-    readRowString(form144, "seller_name"),
-    readRowString(form144, "account_person_name"),
-  ];
-
-  return values.find(Boolean) || "";
-}
-
-function readEventAccession(row: Record<string, unknown>) {
-  const metadata = toRecord(row.metadata);
-  return normalizeAccession(
-    readRowString(metadata, "accession_number") ||
-      readRowString(metadata, "accessionNumber") ||
-      readRowString(row, "source_unique_id") ||
-      readRowString(row, "dedupe_key") ||
-      readRowString(row, "raw_item_id"),
-  );
-}
-
-function normalizeAccession(value: string) {
-  const match = value.match(/\d{10}-\d{2}-\d{6}/);
-  return match?.[0] || "";
-}
-
-function normalizeOwnershipForm(value: string) {
-  return value.toUpperCase().replace(/\bSCHEDULE\b/g, "SC").replace(/\s+/g, "");
-}
-
-function isOwnershipForm4(value: string) {
-  return value === "4" || value === "4/A";
-}
-
-function isOwnershipForm144(value: string) {
-  return value === "144" || value === "144/A";
-}
-
-function isOwnershipAmendmentOf(currentForm: string, relatedForm: string) {
-  return (currentForm === "4/A" && relatedForm === "4") || (currentForm === "144/A" && relatedForm === "144");
-}
-
-function isSc13OwnershipForm(value: string) {
-  const normalized = normalizeOwnershipForm(value);
-  return normalized === "SC13D" || normalized === "SC13D/A" || normalized === "SC13G" || normalized === "SC13G/A";
-}
-
-function isSc13Amendment(value: string) {
-  return normalizeOwnershipForm(value).endsWith("/A") && isSc13OwnershipForm(value);
-}
-
-function isSc13AmendmentOf(currentForm: string, relatedForm: string) {
-  return (
-    (currentForm === "SC13D/A" && relatedForm === "SC13D") ||
-    (currentForm === "SC13G/A" && relatedForm === "SC13G")
-  );
-}
-
-function sc13BaseFamily(value: string) {
-  return normalizeOwnershipForm(value).replace(/\/A$/, "");
-}
-
-function hasSharedOwnerName(left: string, right: string) {
-  const leftTokens = personNameTokens(left);
-  const rightTokens = personNameTokens(right);
-  if (leftTokens.length < 2 || rightTokens.length < 2) return false;
-  return leftTokens.filter((token) => rightTokens.includes(token)).length >= 2;
-}
-
-function personNameTokens(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .filter((token) => token.length >= 3 && !["form", "files", "issuer", "reporting", "cik", "inc", "corp", "ltd"].includes(token))
-    .slice(0, 8);
-}
-
-function buildFilingContextRelatedFilings({
-  currentId,
-  metadata,
-}: {
-  currentId: string;
-  metadata: Record<string, unknown> | null;
-}): FilingContextRelatedFiling[] {
-  const filingContext = readPlainRecord(metadata?.filing_context);
-  const transactionHistory = readPlainRecord(filingContext?.transaction_history);
-  const priorFilings = recordArray(transactionHistory?.prior_filings);
-  const relatedTransaction = readPlainRecord(filingContext?.related_transaction);
-  const relatedTransactionFilings = recordArray(relatedTransaction?.selected_filings).map((item) => ({
-    ...item,
-    match_source: "sec_425_related_transaction",
-    match_confidence: readRowString(relatedTransaction, "confidence"),
-  }));
-  const ntLifecycle = readPlainRecord(filingContext?.nt_lifecycle);
-  const ntLifecycleFilings = recordArray(ntLifecycle?.selected_filings).map((item) => ({
-    ...item,
-    match_source: "nt_lifecycle",
-    match_method: readRowString(ntLifecycle, "match_method"),
-    match_confidence: readRowString(ntLifecycle, "match_confidence"),
-  }));
-  const parentContext = readPlainRecord(metadata?.parent_filing_context);
-  const nestedParentFiling = readPlainRecord(parentContext?.parent);
-  const parentFiling =
-    nestedParentFiling ||
-    (readRowString(parentContext, "context_kind") === "current_report_parent_filing" ? parentContext : null);
-  const parentContextItem = parentFiling
-    ? {
-        ...parentFiling,
-        match_source: "parent_filing_context",
-        match_method: readRowString(parentContext, "match_method"),
-        match_confidence: readRowString(parentContext, "match_confidence") || readRowString(parentContext, "confidence"),
-        match_score: readRowNumber(parentContext, "match_score"),
-      }
-    : null;
-  const explicitlyRelatedFilings = recordArray(metadata?.related_filing_contexts);
-  const relatedSourceItems = parentContextItem
-    ? [parentContextItem, ...explicitlyRelatedFilings, ...ntLifecycleFilings, ...relatedTransactionFilings, ...priorFilings]
-    : [...explicitlyRelatedFilings, ...ntLifecycleFilings, ...relatedTransactionFilings, ...priorFilings];
-  const seen = new Set<string>();
-
-  return relatedSourceItems
-    .map((item) => mapFilingContextRelatedFiling(item))
-    .filter((item): item is FilingContextRelatedFiling => Boolean(item))
-    .filter((item) => {
-      if (item.id && item.id === currentId) return false;
-      const key = item.id || item.accession || `${item.form}:${item.filedAt}:${item.title}`;
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .slice(0, 6);
-}
-
-function mapFilingContextRelatedFiling(item: Record<string, unknown>): FilingContextRelatedFiling | null {
-  const id = readRowString(item, "event_id");
-  const accession = readRowString(item, "accession_number");
-  const title = readRowString(item, "event_title") || readRowString(item, "title") || "Related SEC filing";
-  const form = readRowString(item, "form_type") || "SEC";
-  const eventType = readRowString(item, "event_type") || "other";
-  const badge = getEventTypeBadge(eventType);
-  const relation = classifyFilingContextRelation(item, form);
-  const confidence = readRowString(item, "match_confidence");
-  const score = readRowNumber(item, "match_score");
-  const quickTake =
-    readRowString(item, "quick_take") ||
-    readRowString(item, "quickTake") ||
-    readRowString(item, "filing_brief") ||
-    readRowString(item, "filingBrief");
-  const summary = readRowString(item, "summary") || readRowString(item, "event_summary") || readRowString(item, "analysis_summary");
-
-  return {
-    id,
-    form,
-    eventType: badge.label,
-    filedAt: formatShortDate(readRowString(item, "filed_at")),
-    score: readRowNumber(item, "score"),
-    title,
-    accession,
-    deliveryLevel: readRowString(item, "delivery_level"),
-    relation: relation.label,
-    description: relation.description,
-    candidate: relation.candidate,
-    ticker: readRowString(item, "ticker"),
-    exchange: readRowString(item, "exchange"),
-    matchScore: score || null,
-    matchConfidence: confidence,
-    quickTake,
-    summary,
-    sourceUrl: readRowString(item, "source_url") || readRowString(item, "sourceUrl") || readRowString(item, "primary_document_url"),
-  };
-}
-
-function classifyFilingContextRelation(item: Record<string, unknown>, formType: string) {
-  const source = readRowString(item, "match_source");
-  const form = formType.toUpperCase();
-  const confidence = readRowString(item, "match_confidence").toLowerCase();
-
-  if (source === "parent_filing_context") {
-    return {
-      label: "Parent",
-      description: "Original filing matched for this amendment.",
-      candidate: false,
-    };
-  }
-
-  if (source === "form25_related_filing_context") {
-    return {
-      label: "Earlier filing",
-      description: "Earlier SEC filing connected to this listing change.",
-      candidate: confidence === "low",
-    };
-  }
-
-  if (source === "amendment_lifecycle_context") {
-    return {
-      label: "Prior amendment",
-      description: "Earlier amendment in the same 8-K/6-K filing sequence.",
-      candidate: false,
-    };
-  }
-
-  if (source === "explicit_related_filing_context") {
-    return {
-      label: "Referenced filing",
-      description: "This filing is explicitly referenced by the current report.",
-      candidate: false,
-    };
-  }
-
-  if (source === "nt_lifecycle") {
-    return {
-      label: "Late filing notice",
-      description: "The delayed report was subsequently filed for the same reporting period.",
-      candidate: false,
-    };
-  }
-
-  if (source === "sec_425_related_transaction") {
-    return {
-      label: "Related transaction",
-      description: "Earlier filing associated with the same proposed transaction.",
-      candidate: confidence !== "high",
-    };
-  }
-
-  if (form.includes("14D9")) {
-    return {
-      label: "Target response",
-      description: "Target-company response tied to the same tender transaction.",
-      candidate: confidence !== "high",
-    };
-  }
-
-  if (form.endsWith("/A")) {
-    return {
-      label: "Prior amendment",
-      description: "Earlier amendment tied to the same transaction fingerprint.",
-      candidate: confidence !== "high",
-    };
-  }
-
-  return {
-    label: "Prior filing",
-    description: "Earlier filing tied to the same transaction fingerprint.",
-    candidate: confidence !== "high" && confidence !== "",
-  };
-}
-
-function mapRecentFilingRows(rows: Record<string, unknown>[], currentId: string, fallback: RecentFiling[]): RecentFiling[] {
-  const filings = rows
+function mapRecentFilingRows(rows: Record<string, unknown>[], currentId: string): RecentFiling[] {
+  return rows
     .filter((row) => readRowString(row, "id") !== currentId)
     .slice(0, 4)
     .map((row) => {
@@ -14214,219 +9938,23 @@ function mapRecentFilingRows(rows: Record<string, unknown>[], currentId: string,
         form: readFilingFormType(row, toRecord(row.metadata), readRowString(row, "title")),
         score: readRowNumber(row, "score"),
         title: readRowString(row, "title") || "Recent filing",
-        accession: readEventAccession(row),
-        deliveryLevel: readRowString(row, "delivery_level"),
       };
     });
-
-  return filings.length ? filings : fallback;
 }
 
-function mapRelatedNewsRows(rows: Record<string, unknown>[], fallback: RelatedStory[]): RelatedStory[] {
-  const stories = rows.slice(0, 4).map((row) => ({
+function mapRelatedNewsRows(rows: Record<string, unknown>[]): RelatedStory[] {
+  return rows.slice(0, 4).map((row) => ({
     age: formatShortDate(readRowString(row, "detected_at") || readRowString(row, "published_at")),
+    eventId: readRowString(row, "id") || undefined,
+    eventType: readRowString(row, "event_type") || undefined,
     source: formatSourceLabel(readRowString(row, "source_code")),
+    sourceUrl: firstHttpUrl([
+      readRowString(row, "source_url"),
+      readMetadataString(row, "source_url"),
+      readMetadataString(row, "url"),
+    ]) || undefined,
     title: readRowString(row, "title") || "Related news",
   }));
-
-  return stories.length ? stories : fallback;
-}
-
-function buildFilingPriceMarkers({
-  displayPayload,
-  filingTicker,
-  offeringTerms,
-  transactionFingerprint,
-}: {
-  displayPayload: Record<string, unknown> | null;
-  filingTicker: string;
-  offeringTerms: Record<string, unknown> | null;
-  transactionFingerprint: Record<string, unknown> | null;
-}): PriceChartMarker[] {
-  const markers: PriceChartMarker[] = [];
-  const data = readDisplayPayloadData(displayPayload);
-  const explicitMarkerSources = [
-    data.price_markers,
-    data.priceMarkers,
-    displayPayload?.price_markers,
-    displayPayload?.priceMarkers,
-  ];
-
-  for (const source of explicitMarkerSources) {
-    for (const item of recordArray(source)) {
-      pushPriceMarker(markers, {
-        label: readRowString(item, "label") || readRowString(item, "name") || "Filing Price",
-        rawValue: item.value ?? item.price ?? item.amount,
-        currency: readRowString(item, "currency") || "USD",
-        appliesToTicker:
-          readRowString(item, "applies_to_ticker") ||
-          readRowString(item, "appliesToTicker") ||
-          readRowString(item, "ticker") ||
-          filingTicker,
-        tone: normalizeMarkerTone(readRowString(item, "tone")),
-        note: readRowString(item, "note"),
-      });
-    }
-  }
-
-  const targetTicker = readRowString(transactionFingerprint, "target_ticker") || filingTicker;
-  const transactionFamily = readRowString(transactionFingerprint, "transaction_family").toLowerCase();
-  const transactionType = readRowString(transactionFingerprint, "transaction_type").toLowerCase();
-  const cashPrice = readRowString(transactionFingerprint, "cash_price");
-  const considerationSummary = readRowString(transactionFingerprint, "consideration_summary");
-  const tenderPriceText = [cashPrice, considerationSummary].filter(Boolean).join(" ");
-  if (tenderPriceText && /(?:tender|issuer|repurchase|going[_-]?private|cash[_-]?out|third[_-]?party|merger)/i.test(`${transactionFamily} ${transactionType}`)) {
-    pushPriceMarker(markers, {
-      label: transactionFamily.includes("issuer") || transactionType.includes("issuer") ? "Tender Price" : "Offer Price",
-      rawValue: tenderPriceText,
-      currency: extractPriceMarkerCurrency(tenderPriceText) || "USD",
-      appliesToTicker: targetTicker,
-      tone: "volatile",
-      note: "Source-backed tender or offer price.",
-    });
-  }
-
-  pushPriceMarker(markers, {
-    label: "Approx. Placement Price",
-    rawValue: readDisplayOfferingDetailValue(data, "Approx. Placement Price"),
-    currency: "USD",
-    appliesToTicker: filingTicker,
-    tone: "volatile",
-  });
-  pushPriceMarker(markers, {
-    label: "Offering Price",
-    rawValue: readDisplayOfferingPrice(data) || offeringTerms?.offering_price,
-    currency: "USD",
-    appliesToTicker: filingTicker,
-    tone: "bearish",
-  });
-  pushPriceMarker(markers, {
-    label: "Exercise Price",
-    rawValue:
-      offeringTerms?.exercise_price ||
-      offeringTerms?.warrant_exercise_price ||
-      offeringTerms?.common_warrant_exercise_price ||
-      offeringTerms?.prefunded_warrant_exercise_price,
-    currency: "USD",
-    appliesToTicker: filingTicker,
-    tone: "volatile",
-  });
-  pushPriceMarker(markers, {
-    label: "Conversion Price",
-    rawValue: offeringTerms?.conversion_price,
-    currency: "USD",
-    appliesToTicker: filingTicker,
-    tone: "volatile",
-  });
-
-  const seen = new Set<string>();
-  return markers.filter((marker) => {
-    const key = `${marker.label.toLowerCase()}-${marker.value.toFixed(4)}-${marker.appliesToTicker || ""}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
-function pushPriceMarker(
-  markers: PriceChartMarker[],
-  input: {
-    label: string;
-    rawValue: unknown;
-    currency?: string;
-    appliesToTicker?: string;
-    tone?: DetailTone;
-    note?: string;
-  },
-) {
-  if (isFeeTablePriceMarker(input.label, input.rawValue)) return;
-
-  const currency = normalizePriceMarkerCurrency(input.currency || extractPriceMarkerCurrency(input.rawValue) || "USD");
-  if (currency && currency !== "USD") return;
-
-  const value = parsePriceMarkerValue(input.rawValue);
-  if (!Number.isFinite(value) || value <= 0) return;
-
-  markers.push({
-    label: input.label,
-    value,
-    currency: "USD",
-    appliesToTicker: normalizeMarkerTicker(input.appliesToTicker || ""),
-    tone: input.tone || "volatile",
-    note: input.note || null,
-  });
-}
-
-function isFeeTablePriceMarker(label: string, rawValue: unknown) {
-  const text = `${label} ${typeof rawValue === "string" ? rawValue : ""}`;
-  return /\b(?:fee table|filing fee|fee calculation|calculation of fees|for calculation of fees|rule\s*457|proposed maximum offering price)\b/i.test(text);
-}
-
-function readDisplayOfferingDetailValue(data: Record<string, unknown>, label: string) {
-  const normalizedLabel = normalizeOfferingDetailLabel(label);
-  for (const item of recordArray(data.offering_details)) {
-    if (normalizeOfferingDetailLabel(readRowString(item, "label")) !== normalizedLabel) continue;
-    const value = cleanDisclosureValue(readDisclosureValue(item.value) || readRowString(item, "value"));
-    if (value) return value;
-  }
-  return "";
-}
-
-function readDisplayOfferingPrice(data: Record<string, unknown> | null) {
-  if (!data) return "";
-  const directPrice =
-    readDisclosureValue(data.offer_price) ||
-    readDisclosureValue(data.offering_price) ||
-    readDisclosureValue(data.offerPrice) ||
-    readDisclosureValue(data.offeringPrice);
-  if (directPrice) return directPrice;
-  return "";
-}
-
-function parsePriceMarkerValue(value: unknown) {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  const text = typeof value === "string" ? value : "";
-  if (!text) return 0;
-
-  const perAdsMoneyMatch = text.match(/\b(?:USD|US\$|\$)\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:in\s+cash\s*)?per\s+ADS\b/i);
-  if (perAdsMoneyMatch) return Number(perAdsMoneyMatch[1].replace(/,/g, ""));
-
-  const moneyMatch = text.match(/\b(?:USD|US\$|\$)\s*([0-9][0-9,]*(?:\.[0-9]+)?)/i);
-  if (moneyMatch) return Number(moneyMatch[1].replace(/,/g, ""));
-
-  const perShareMatch = text.match(/\b([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:per share|per ADS|per ordinary share)\b/i);
-  if (perShareMatch && !/%/.test(text.slice(Math.max(0, perShareMatch.index || 0), (perShareMatch.index || 0) + perShareMatch[0].length + 12))) {
-    return Number(perShareMatch[1].replace(/,/g, ""));
-  }
-
-  return 0;
-}
-
-function extractPriceMarkerCurrency(value: unknown) {
-  const text = typeof value === "string" ? value.trim() : "";
-  if (!text) return "";
-  if (/\b(?:USD|US\$|\$)\b/i.test(text)) return "USD";
-  const match = text.match(/\b([A-Z]{3})\s*[0-9]/);
-  return match?.[1] || "";
-}
-
-function normalizePriceMarkerCurrency(value: string) {
-  const currency = value.trim().toUpperCase();
-  if (!currency || currency === "$" || currency === "US$") return "USD";
-  return currency;
-}
-
-function normalizeMarkerTicker(value: string) {
-  const ticker = value.trim().toUpperCase();
-  return isRealTicker(ticker) ? ticker : null;
-}
-
-function normalizeMarkerTone(value: string): DetailTone {
-  const normalized = value.trim().toLowerCase();
-  if (normalized === "bullish" || normalized === "bearish" || normalized === "volatile" || normalized === "neutral") {
-    return normalized;
-  }
-  return "volatile";
 }
 
 function toStringArray(value: unknown, fallback: string[]) {
@@ -14443,30 +9971,7 @@ function toStringArray(value: unknown, fallback: string[]) {
     })
     .filter(Boolean);
 
-  return items;
-}
-
-function readScoreExplanation(analysis: Record<string, unknown> | null | undefined): FilingScoreExplanation | null {
-  const value = readPlainRecord(analysis?.score_explanation);
-  if (!value) return null;
-  const summary = readRowString(value, "summary") || readRowString(value, "rationale");
-  const baseBand = readRowString(value, "base_band") || readRowString(value, "baseBand");
-  const upwardFactors = toStringArray(value?.upward_factors || value?.upwardFactors, []).slice(0, 3);
-  const limitingFactors = toStringArray(value?.limiting_factors || value?.limitingFactors, []).slice(0, 3);
-  const finalRead = readRowString(value, "final_read") || readRowString(value, "finalRead");
-  if (!summary && !baseBand && !upwardFactors.length && !limitingFactors.length && !finalRead) return null;
-  return {
-    summary,
-    baseBand,
-    upwardFactors,
-    limitingFactors,
-    finalRead,
-  };
-}
-
-function readScoreReasonFallback(scoreReason: string): FilingScoreExplanation | null {
-  const finalRead = scoreReason.trim();
-  return finalRead ? { summary: finalRead, baseBand: "", upwardFactors: [], limitingFactors: [], finalRead } : null;
+  return items.length ? items : fallback;
 }
 
 function toRows(value: unknown): Record<string, unknown>[] {
@@ -14509,6 +10014,62 @@ function readMetadataString(row: Record<string, unknown> | null | undefined, key
   return readRowString(toRecord(row?.metadata), key);
 }
 
+function firstStoredValue(values: Array<string | null | undefined>) {
+  return values.map((value) => String(value || "").trim()).find(Boolean) || "";
+}
+
+function cleanStoredAnalysisText(value: string | null | undefined) {
+  const cleaned = cleanDisclosureValue(value);
+  return /^(?:no (?:summary|quick take) available yet|untitled event)$/i.test(cleaned)
+    ? ""
+    : cleaned;
+}
+
+function cleanSourceIdentity(value: string | null | undefined) {
+  const cleaned = cleanDisclosureValue(value);
+  return /^(?:unknown|n\/a|na)$/i.test(cleaned) ? "" : cleaned;
+}
+
+function formatGenericFilingSource(value: string | null | undefined) {
+  const source = cleanSourceIdentity(value);
+  return /^sec$/i.test(source) ? "SEC EDGAR" : source;
+}
+
+function firstOriginalFilingUrl(values: Array<string | null | undefined>) {
+  for (const value of values) {
+    const candidate = String(value || "").trim();
+    try {
+      const url = new URL(candidate);
+      if (url.protocol !== "http:" && url.protocol !== "https:") continue;
+      if (
+        /(^|\.)sec\.gov$/i.test(url.hostname) &&
+        /^\/edgar\/search\/?$/i.test(url.pathname)
+      ) {
+        continue;
+      }
+      return candidate;
+    } catch {
+      continue;
+    }
+  }
+
+  return "";
+}
+
+function firstHttpUrl(values: Array<string | null | undefined>) {
+  for (const value of values) {
+    const candidate = String(value || "").trim();
+    try {
+      const url = new URL(candidate);
+      if (url.protocol === "http:" || url.protocol === "https:") return candidate;
+    } catch {
+      continue;
+    }
+  }
+
+  return "";
+}
+
 function readFilingFormType(
   row: Record<string, unknown> | null | undefined,
   payload: Record<string, unknown> | null | undefined,
@@ -14525,7 +10086,7 @@ function readFilingFormType(
 }
 
 function inferFormType(title: string) {
-  const match = title.match(/\b(?:form\s+)?(SC\s*13D\/A|SC\s*13G\/A|SC\s*13D|SC\s*13G|SCHEDULE\s*13D\/A|SCHEDULE\s*13G\/A|SCHEDULE\s*13D|SCHEDULE\s*13G|10-K|10-Q|8-K|6-K|20-F|S-1|S-3|S-4|S-8|F-1|F-3|F-4|4|144|DEF\s+14A|PRE\s+14A)\b/i);
+  const match = title.match(/\b(?:form\s+)?(10-K|10-Q|8-K|6-K|20-F|S-1|S-3|S-4|S-8|F-1|F-3|F-4|4|144|DEF\s+14A|PRE\s+14A)\b/i);
   return match?.[1]?.toUpperCase().replace(/\s+/, " ") || "";
 }
 
@@ -14559,43 +10120,6 @@ function formatDetailDateTime(value: string, fallback = "Recent") {
   }).format(date)} ET`;
 }
 
-function formatSecFilingDateTime(
-  value: string,
-  rawPayload: Record<string, unknown> | null,
-  fallback = "Recent",
-) {
-  const acceptedAt =
-    readRowString(rawPayload, "accepted_at") ||
-    readRowString(rawPayload, "acceptance_datetime") ||
-    readRowString(rawPayload, "accepted");
-  if (acceptedAt) return formatDetailDateTime(acceptedAt, fallback);
-
-  const filingDate = normalizeDateOnlyForDisplay(readRowString(rawPayload, "filing_date"));
-  if (filingDate) {
-    return formatDetailDateOnly(filingDate, fallback);
-  }
-
-  return formatDetailDateTime(value, fallback);
-}
-
-function formatDetailDateOnly(value: string, fallback = "Recent") {
-  const dateOnly = normalizeDateOnlyForDisplay(value);
-  if (!dateOnly) return fallback;
-  const date = new Date(`${dateOnly}T12:00:00Z`);
-  if (Number.isNaN(date.getTime())) return fallback;
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(date);
-}
-
-function normalizeDateOnlyForDisplay(value: string) {
-  const match = value.match(/^(\d{4}-\d{2}-\d{2})/);
-  return match?.[1] || "";
-}
-
 function formatSourceLabel(value: string) {
   const normalized = value.toLowerCase();
   const labels: Record<string, string> = {
@@ -14608,7 +10132,7 @@ function formatSourceLabel(value: string) {
     sec_edgar: "SEC",
   };
 
-  return labels[normalized] || value || "Stock Radar";
+  return labels[normalized] || value;
 }
 
 function bodyTextToHtml(value: string) {
@@ -14628,10 +10152,6 @@ function escapeHtml(value: string) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
-}
-
-function isRealTicker(value: string) {
-  return Boolean(value && value !== "N/A" && value !== "NA" && /^[A-Z][A-Z0-9.-]{0,9}$/.test(value));
 }
 
 function isUuid(value: string) {
@@ -14675,6 +10195,11 @@ function buildPriceSeries({
       spread: 24,
       volumeMultiplier: 1.55,
     },
+    "5Y": {
+      labels: ["2021", "2021", "2022", "2022", "2023", "2023", "2024", "2024", "2025", "2025", "2026", "2026"],
+      spread: 60,
+      volumeMultiplier: 1.75,
+    },
   };
 
   return {
@@ -14685,6 +10210,7 @@ function buildPriceSeries({
       "1M": makePricePoints(ranges["1M"], lastClose, previousClose, trend, volumeBase),
       "3M": makePricePoints(ranges["3M"], lastClose, previousClose, trend, volumeBase),
       "1Y": makePricePoints(ranges["1Y"], lastClose, previousClose, trend, volumeBase),
+      "5Y": makePricePoints(ranges["5Y"], lastClose, previousClose, trend, volumeBase),
     },
   };
 }
@@ -14745,1666 +10271,4 @@ function sampleTrend(trend: number[], count: number) {
 
 function roundPrice(value: number) {
   return Number(value.toFixed(2));
-}
-
-/* Latest 8-K/6-K and Form 25 detail models integrated from their dedicated SEC rooms. */
-type ListingStatusSnapshotItem = {
-  label: string;
-  value: string;
-  note?: string;
-};
-
-type RiskStatusModel = {
-  snapshot: ListingStatusSnapshotItem[];
-};
-
-type StrategicTransactionModel = {
-  snapshot: ListingStatusSnapshotItem[];
-};
-
-type GovernanceEventMode =
-  | "leadership_change"
-  | "auditor_change"
-  | "vote_result"
-  | "governance_change"
-  | "mixed";
-
-type GovernanceChangeDetail = {
-  label: string;
-  value: string;
-  note?: string;
-};
-
-type GovernanceChangeItem = {
-  title: string;
-  category: string;
-  explanation: string;
-  details: GovernanceChangeDetail[];
-};
-
-type GovernanceEventModel = {
-  mode: GovernanceEventMode;
-  snapshotTitle: string;
-  snapshotMetrics: ListingStatusSnapshotItem[];
-  changesTitle: string;
-  changes: GovernanceChangeItem[];
-};
-
-type OperatingEventMode =
-  | "earnings"
-  | "operating_update"
-  | "product_or_regulatory"
-  | "legal_or_accounting"
-  | "routine_archive";
-
-type OperatingRegulatoryStage =
-  | "not_applicable"
-  | "ind_or_clinical_hold"
-  | "application_review"
-  | "advisory_committee"
-  | "approval"
-  | "crl_or_appeal"
-  | "clinical_update"
-  | "other_regulatory";
-
-type OperatingEventDetailSection = {
-  title: string;
-  rows: ListingStatusSnapshotItem[];
-};
-
-type OperatingEventSecondaryUpdate = {
-  label: string;
-  title: string;
-  summary: string;
-};
-
-type OperatingPerformanceComparison = {
-  label: string;
-  currentLabel: string;
-  currentValue: string;
-  currentNumeric: number;
-  comparisonLabel: string;
-  comparisonValue: string;
-  comparisonNumeric: number;
-  comparisonBasis: "yoy" | "qoq" | "other";
-  changeNote?: string;
-};
-
-type OperatingBusinessCatalyst = {
-  title: string;
-  value?: string;
-  summary: string;
-};
-
-type OperatingGuidanceMetric = {
-  label: string;
-  guidanceLabel: string;
-  guidanceValue: string;
-  guidanceKind: "numeric_range" | "point" | "qualitative";
-  guidanceLowNumeric: number | null;
-  guidanceHighNumeric: number | null;
-  performanceRelationship?: "same_basis" | "related_different_basis" | "standalone";
-  performanceLabel?: string;
-  note?: string;
-};
-
-type OperatingEventModel = {
-  mode: OperatingEventMode;
-  detailsTitle: string;
-  snapshotTitle: string;
-  snapshotMetrics: ListingStatusSnapshotItem[];
-  performanceComparisons: OperatingPerformanceComparison[];
-  guidanceMetrics: OperatingGuidanceMetric[];
-  businessCatalysts: OperatingBusinessCatalyst[];
-  detailSections: OperatingEventDetailSection[];
-  secondaryUpdates: OperatingEventSecondaryUpdate[];
-};
-
-type CapitalFinancingMode =
-  | "equity_issuance"
-  | "share_linked_financing"
-  | "atm_capacity"
-  | "debt_liquidity"
-  | "capital_structure_action"
-  | "capital_return";
-
-type CapitalFinancingModel = {
-  mode: CapitalFinancingMode;
-  snapshotMetrics: ListingStatusSnapshotItem[];
-  offeringDetails: DilutionDisclosureRow[];
-  instrumentDetails: InstrumentDetailsTableRow[];
-  shareOverhang: LlmShareOverhangModel | null;
-};
-
-type InstrumentDetailsTableRow = {
-  type: string;
-  sharesSecurities: string;
-  exerciseConversionPrice: string;
-  resetFloor: string;
-  termLimits: string;
-};
-
-function makeGovernanceSampleFilingEvent(): FilingEvent {
-  const displayVersion = "sec_8k_6k_governance_event_v1";
-  return {
-    id: "governance-ui-auditor-change",
-    ticker: "GOVR",
-    exchange: "NASDAQ",
-    company: "Governance UI Sample Corp.",
-    title: "Governance UI Sample Corp. Appoints New Independent Auditor",
-    formType: "8-K",
-    filedAt: "Dec 12, 2024 - 4:15 PM ET",
-    source: "SEC EDGAR",
-    sourceUrl: "https://www.sec.gov/edgar/search/",
-    eventType: "leadership_governance",
-    impact: "medium",
-    deliveryLevel: "feed",
-    score: 55,
-    scoreExplanation: {
-      summary:
-        "An orderly auditor transition with no disclosed accounting dispute limits immediate risk, while the new auditor's first review remains important.",
-      baseBand: "Routine governance change",
-      upwardFactors: [],
-      limitingFactors: ["No disagreement or adverse audit opinion was disclosed."],
-      finalRead: "Monitor",
-    },
-    signal: "neutral",
-    price: "$18.40",
-    changeAmount: "+$0.12",
-    change: "+0.66%",
-    filingFocus: "Independent auditor change",
-    filingBrief: "Development-only governance UI sample. No LLM analysis or SEC ingest is used.",
-    whyItMatters:
-      "Auditor changes matter most when they involve accounting disputes, adverse opinions, delayed filings, or later restatements.",
-    bullishPoints: [],
-    bearishPoints: [],
-    summary:
-      "The Audit Committee dismissed Marcum LLP and appointed CohnReznick LLP as the company's new independent auditor. The filing reports no disagreement over accounting principles, financial disclosure, or audit scope and no adverse audit opinion in the covered periods. That makes the transition look orderly, though investors should still watch the new auditor's first filed opinion and any later accounting update.",
-    keyEvidence: [],
-    watchNext: [
-      "The new auditor's first filed opinion.",
-      "Any delayed filing, restatement, or later disagreement disclosure.",
-    ],
-    recentFilings: [],
-    relatedNews: [],
-    context: null,
-    priceSeries: buildPriceSeries({
-      lastClose: 18.4,
-      previousClose: 18.28,
-      trend: [48, 49, 48, 50, 51, 50, 52, 51, 52, 53, 52, 54],
-      volumeBase: 42_000,
-    }),
-    originalTextNote: "Development-only governance UI sample. This page is not a real SEC analysis.",
-    originalHtml: `
-      <h3>Governance UI Sample</h3>
-      <p>This sample exists only to inspect the 8-K / 6-K governance event layout.</p>
-      <p>Display version: ${displayVersion}</p>
-    `,
-    displayPayload: {
-      display_type: "governance_event",
-      display_version: displayVersion,
-      data: {
-        display_version: displayVersion,
-        governance_mode: "auditor_change",
-        snapshot_title: "Governance Snapshot",
-        snapshot_metrics: [
-          { label: "Change", value: "Marcum to CohnReznick" },
-          { label: "Effective Date", value: "Dec 11, 2024" },
-          { label: "Disagreements", value: "None disclosed" },
-          { label: "Audit Opinions", value: "No adverse opinions" },
-        ],
-        key_changes: [
-          {
-            title: "Independent Auditor Changed",
-            category: "Auditor change",
-            explanation: "The company replaced its external auditor and disclosed no accounting dispute.",
-            details: [
-              { label: "Previous Auditor", value: "Marcum LLP" },
-              { label: "New Auditor", value: "CohnReznick LLP" },
-              { label: "Selection", value: "Approved by the Audit Committee" },
-            ],
-          },
-          {
-            title: "No Reportable Disagreement Disclosed",
-            category: "Accounting context",
-            explanation: "The filing does not identify a dispute over accounting, disclosure, or audit scope.",
-            details: [
-              { label: "Accounting Dispute", value: "None disclosed" },
-              { label: "Adverse Opinion", value: "None disclosed" },
-            ],
-          },
-        ],
-      },
-      evidence: [],
-      notes: ["Development-only governance UI sample."],
-    },
-  };
-}
-
-function StrategicTransactionTemplate({
-  eventLabel,
-  filing,
-  model,
-}: {
-  eventLabel: string;
-  filing: FilingEvent;
-  model: StrategicTransactionModel;
-}) {
-  const snapshotPanel = (
-    <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card transaction-snapshot-card">
-      <div className="quick-take-card quick-take-block">
-        <div className="card-heading-row">
-          <h2>Transaction Snapshot</h2>
-          <span>{filing.formType}</span>
-        </div>
-        <div className="proxy-vote-summary-snapshot">
-          {model.snapshot.map((item) => (
-            <Form25SnapshotCard key={`${item.label}-${item.value}`} label={item.label} note={item.note} value={item.value} />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-  const summaryPanel = <AnalysisCard title="Summary" body={filing.summary} />;
-  const hasChart = isRealTicker(filing.ticker);
-
-  return (
-    <>
-      {hasChart ? (
-        <>
-          <section className="stock-detail-top-grid listing-risk-top-grid">
-            <FilingPriceChart filing={filing} />
-            {snapshotPanel}
-          </section>
-          {summaryPanel}
-        </>
-      ) : (
-        <section className="stock-detail-card-grid two-up initial-ipo-compact-grid listing-risk-no-chart-grid">
-          {snapshotPanel}
-          {summaryPanel}
-        </section>
-      )}
-
-      <ScoreBasisPanel filing={filing} />
-
-      {filing.keyEvidence.length || filing.watchNext.length ? (
-        <section className="stock-detail-card-grid two-up insight-summary-grid listing-risk-support-grid">
-          {filing.keyEvidence.length ? <AnalysisList title="Key Evidence" items={filing.keyEvidence} /> : null}
-          {filing.watchNext.length ? <AnalysisList title="What To Watch Next" items={filing.watchNext} /> : null}
-        </section>
-      ) : null}
-
-      <FilingMarketContextPanel filing={filing} hideUnavailable />
-      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
-    </>
-  );
-}
-
-function GovernanceEventTemplate({
-  eventLabel,
-  filing,
-  model,
-}: {
-  eventLabel: string;
-  filing: FilingEvent;
-  model: GovernanceEventModel;
-}) {
-  const snapshotPanel = (
-    <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card governance-event-snapshot-card">
-      <div className="quick-take-card quick-take-block">
-        <div className="card-heading-row">
-          <h2>{model.snapshotTitle}</h2>
-          <span>{filing.formType}</span>
-        </div>
-        <div className="proxy-vote-summary-snapshot">
-          {model.snapshotMetrics.map((item) => (
-            <Form25SnapshotCard key={`${item.label}-${item.value}`} label={item.label} note={item.note} value={item.value} />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-  const summaryPanel = <AnalysisCard title="Summary" body={filing.summary} />;
-  const hasChart = isRealTicker(filing.ticker);
-
-  return (
-    <>
-      {hasChart ? (
-        <>
-          <section className="stock-detail-top-grid listing-risk-top-grid">
-            <FilingPriceChart filing={filing} />
-            {snapshotPanel}
-          </section>
-          {summaryPanel}
-        </>
-      ) : (
-        <section className="stock-detail-card-grid two-up initial-ipo-compact-grid listing-risk-no-chart-grid">
-          {snapshotPanel}
-          {summaryPanel}
-        </section>
-      )}
-
-      <ScoreBasisPanel filing={filing} />
-
-      {model.changes.length ? <GovernanceChangesSection model={model} /> : null}
-
-      <FilingMarketContextPanel filing={filing} hideUnavailable />
-      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
-    </>
-  );
-}
-
-function GovernanceChangesSection({ model }: { model: GovernanceEventModel }) {
-  return (
-    <section className="stock-detail-card proxy-agenda-card governance-change-card">
-      <div className="card-heading-row">
-        <h2>{model.changesTitle}</h2>
-        <span>{model.changes.length} {model.changes.length === 1 ? "item" : "items"}</span>
-      </div>
-      <div className="proxy-agenda-table">
-        {model.changes.map((change, index) => (
-          <div className="proxy-agenda-row-group" key={`${change.title}-${index}`}>
-            <div className="proxy-agenda-proposal-heading">
-              <div className="proxy-agenda-proposal-main">
-                {change.category ? (
-                  <div className="proxy-agenda-proposal-meta">
-                    <span>{change.category}</span>
-                  </div>
-                ) : null}
-                <div className="proxy-agenda-proposal-copy">
-                  <span className="proxy-agenda-proposal-number">{index + 1}.</span>
-                  <strong>{change.title}</strong>
-                  {change.explanation ? (
-                    <div className="proxy-agenda-explanation">
-                      <span aria-label="Plain-English explanation" title="Plain-English explanation">
-                        <Info size={12} strokeWidth={2.4} aria-hidden="true" />
-                      </span>
-                      <p>{change.explanation}</p>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-            {change.details.length ? (
-              <div className="proxy-agenda-detail-list">
-                {change.details.map((detail) => (
-                  <div className="proxy-agenda-detail" key={`${change.title}-${detail.label}`}>
-                    <div className="proxy-agenda-detail-row">
-                      <span>{detail.label}</span>
-                      <span>
-                        {detail.value}
-                        {detail.note ? <small>{detail.note}</small> : null}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function OperatingEventTemplate({
-  eventLabel,
-  filing,
-  model,
-}: {
-  eventLabel: string;
-  filing: FilingEvent;
-  model: OperatingEventModel;
-}) {
-  const hasChart = isRealTicker(filing.ticker);
-  const hasSnapshot = model.snapshotMetrics.length > 0;
-  const projectEconomics = model.detailSections.find(
-    (section) => section.title.trim().toLowerCase() === "project economics",
-  );
-  const remainingDetailSections = model.detailSections.filter(
-    (section) => section.title.trim().toLowerCase() !== "project economics",
-  );
-  const snapshotPanel = hasSnapshot ? (
-    <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card operating-event-snapshot-card">
-      <div className="quick-take-card quick-take-block">
-        <div className="card-heading-row">
-          <h2>{model.snapshotTitle}</h2>
-          <span>{filing.formType}</span>
-        </div>
-        <div className="proxy-vote-summary-snapshot">
-          {model.snapshotMetrics.map((item) => (
-            <Form25SnapshotCard key={`${item.label}-${item.value}`} label={item.label} note={item.note} value={item.value} />
-          ))}
-        </div>
-      </div>
-    </section>
-  ) : null;
-  const summaryPanel = <AnalysisCard title="Summary" body={filing.summary} />;
-
-  return (
-    <>
-      {hasChart && hasSnapshot ? (
-        <>
-          <section className="stock-detail-top-grid listing-risk-top-grid">
-            <FilingPriceChart filing={filing} />
-            {snapshotPanel}
-          </section>
-          {summaryPanel}
-        </>
-      ) : hasChart ? (
-        <section className="stock-detail-top-grid listing-risk-top-grid">
-          <FilingPriceChart filing={filing} />
-          {summaryPanel}
-        </section>
-      ) : hasSnapshot ? (
-        <section className="stock-detail-card-grid two-up initial-ipo-compact-grid listing-risk-no-chart-grid">
-          {snapshotPanel}
-          {summaryPanel}
-        </section>
-      ) : (
-        summaryPanel
-      )}
-
-      <ScoreBasisPanel filing={filing} />
-
-      {model.performanceComparisons.length || model.guidanceMetrics.length ? (
-        <OperatingPerformanceOutlookSection
-          guidanceItems={model.guidanceMetrics}
-          performanceItems={model.performanceComparisons}
-        />
-      ) : null}
-
-      {model.businessCatalysts.length || projectEconomics ? (
-        <OperatingKeyDetailsSection
-          businessCatalysts={model.businessCatalysts}
-          projectEconomics={projectEconomics}
-        />
-      ) : null}
-
-      {remainingDetailSections.length ? (
-        <section className="operating-event-section">
-          <div className={`operating-event-detail-grid${model.mode === "earnings" ? " single" : ""}`}>
-            {remainingDetailSections.map((section) => (
-              <div className="operating-event-detail-group" key={section.title}>
-                <h3>{section.title}</h3>
-                <div>
-                  {section.rows.map((row) => (
-                    <div className="operating-event-detail-row" key={`${section.title}-${row.label}-${row.value}`}>
-                      <span>{row.label}</span>
-                      <strong>{row.value}</strong>
-                      {row.note ? <small>{row.note}</small> : null}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {model.secondaryUpdates.length ? (
-        <section className="operating-event-section operating-secondary-updates-section">
-          <div className="operating-event-section-heading">
-            <h2>Other Material Event</h2>
-          </div>
-          <div className="operating-event-secondary-list">
-            {model.secondaryUpdates.map((update) => (
-              <div className="operating-event-secondary-row" key={`${update.label}-${update.title}`}>
-                <span>{update.label}</span>
-                <strong>{update.title}</strong>
-                <p>{update.summary}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      <FilingMarketContextPanel filing={filing} hideUnavailable />
-      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
-    </>
-  );
-}
-
-function OperatingPerformanceOutlookSection({
-  guidanceItems,
-  performanceItems,
-}: {
-  guidanceItems: OperatingGuidanceMetric[];
-  performanceItems: OperatingPerformanceComparison[];
-}) {
-  const performanceByLabel = new Map(performanceItems.map((item) => [item.label.trim().toLowerCase(), item]));
-  const attachedGuidance = new Map<string, OperatingGuidanceMetric>();
-  const relatedGuidance = new Map<string, OperatingGuidanceMetric>();
-  const standaloneGuidance: OperatingGuidanceMetric[] = [];
-
-  for (const guidance of guidanceItems) {
-    const performanceLabel = guidance.performanceLabel?.trim().toLowerCase();
-    const performance = performanceLabel ? performanceByLabel.get(performanceLabel) : undefined;
-    const relationship = guidance.performanceRelationship || (performance ? "same_basis" : "standalone");
-    if (relationship === "same_basis" && performance && !attachedGuidance.has(performance.label)) {
-      attachedGuidance.set(performance.label, guidance);
-    } else if (relationship === "related_different_basis" && performance && !relatedGuidance.has(performance.label)) {
-      relatedGuidance.set(performance.label, guidance);
-    } else {
-      standaloneGuidance.push(guidance);
-    }
-  }
-
-  return (
-    <section className="operating-event-section operating-performance-section">
-      <div className="operating-event-section-heading">
-        <h2>Performance &amp; Outlook</h2>
-      </div>
-      {performanceItems.length ? <div className="operating-performance-list">
-        {performanceItems.map((item) => {
-          const guidance = attachedGuidance.get(item.label);
-          const related = relatedGuidance.get(item.label);
-          if (item.currentNumeric < 0 || item.comparisonNumeric < 0) {
-            return (
-              <OperatingSignedPerformanceItem
-                guidance={guidance}
-                item={item}
-                key={`${item.label}-${item.currentLabel}`}
-                relatedGuidance={related}
-              />
-            );
-          }
-          const scale = Math.max(item.currentNumeric, item.comparisonNumeric);
-          const currentWidth = scale > 0 ? Math.max(4, (item.currentNumeric / scale) * 100) : 0;
-          const comparisonWidth = scale > 0 ? Math.max(4, (item.comparisonNumeric / scale) * 100) : 0;
-          const changeLabel = formatOperatingPerformanceChange(item);
-          const changeTone = operatingPerformanceChangeTone(item);
-          return (
-            <div className="operating-performance-item" key={`${item.label}-${item.currentLabel}`}>
-              <div className="operating-performance-heading">
-                <strong>{item.label}</strong>
-                {changeLabel ? <span className={changeTone}>{changeLabel}</span> : null}
-              </div>
-              <div className="operating-performance-pair">
-                <span>{item.comparisonLabel}</span>
-                <div className="operating-performance-track" aria-hidden="true">
-                  <i className="comparison" style={{ width: `${comparisonWidth}%` }} />
-                </div>
-                <b>{item.comparisonValue}</b>
-                <span>{item.currentLabel}</span>
-                <div className="operating-performance-track" aria-hidden="true">
-                  <i className="current" style={{ width: `${currentWidth}%` }} />
-                </div>
-                <b>{item.currentValue}</b>
-              </div>
-              {guidance ? <OperatingMetricGuidanceFooter guidance={guidance} /> : null}
-              {related ? <OperatingMetricGuidanceFooter guidance={related} /> : null}
-            </div>
-          );
-        })}
-      </div> : null}
-
-      {!performanceItems.length && standaloneGuidance.length ? (
-        <div className="operating-outlook-list">
-          {standaloneGuidance.map((item) => (
-            <OperatingOutlookRow item={item} key={`${item.label}-${item.guidanceValue}`} />
-          ))}
-        </div>
-      ) : null}
-    </section>
-  );
-}
-
-function OperatingSignedPerformanceItem({
-  guidance,
-  item,
-  relatedGuidance,
-}: {
-  guidance?: OperatingGuidanceMetric;
-  item: OperatingPerformanceComparison;
-  relatedGuidance?: OperatingGuidanceMetric;
-}) {
-  const transitionLabel = formatOperatingSignedTransition(item);
-  const transitionTone = operatingSignedTransitionTone(item.currentNumeric, item.comparisonNumeric);
-  const scale = Math.max(Math.abs(item.currentNumeric), Math.abs(item.comparisonNumeric));
-
-  return (
-    <div className="operating-performance-item signed" key={`${item.label}-${item.currentLabel}`}>
-      <div className="operating-performance-heading">
-        <strong>{item.label}</strong>
-        {transitionLabel ? <span className={transitionTone}>{transitionLabel}</span> : null}
-      </div>
-      <div className="operating-signed-comparison">
-        <OperatingSignedBarRow
-          period="comparison"
-          label={item.comparisonLabel}
-          scale={scale}
-          value={item.comparisonNumeric}
-          valueText={item.comparisonValue}
-        />
-        <OperatingSignedBarRow
-          period="current"
-          label={item.currentLabel}
-          scale={scale}
-          value={item.currentNumeric}
-          valueText={item.currentValue}
-        />
-      </div>
-      {guidance ? <OperatingMetricGuidanceFooter guidance={guidance} /> : null}
-      {relatedGuidance ? <OperatingMetricGuidanceFooter guidance={relatedGuidance} /> : null}
-    </div>
-  );
-}
-
-function OperatingMetricGuidanceFooter({ guidance }: { guidance: OperatingGuidanceMetric }) {
-  return (
-    <div className="operating-metric-guidance-footer">
-      <div>
-        <span>{formatMetricGuidanceFooterLabel(guidance)}</span>
-        <strong>{formatCompactGuidanceValue(guidance.guidanceValue)}</strong>
-      </div>
-    </div>
-  );
-}
-
-function OperatingSignedBarRow({
-  label,
-  period,
-  scale,
-  value,
-  valueText,
-}: {
-  label: string;
-  period: "comparison" | "current";
-  scale: number;
-  value: number;
-  valueText: string;
-}) {
-  const width = scale > 0 ? (Math.abs(value) / scale) * 50 : 0;
-  const barStyle = value < 0
-    ? { right: "50%", width: `${width}%` }
-    : { left: "50%", width: `${width}%` };
-
-  return (
-    <div className="operating-signed-row">
-      <span>{label}</span>
-      <div className="operating-signed-track" aria-hidden="true">
-        <i
-          className={`operating-signed-bar ${period === "comparison" ? "comparison" : operatingSignedValueTone(value)}`}
-          style={barStyle}
-        />
-        <i className="operating-signed-zero" />
-      </div>
-      <b className={operatingSignedValueTone(value)}>{valueText}</b>
-    </div>
-  );
-}
-
-function formatStandaloneGuidanceLabel(guidance: OperatingGuidanceMetric) {
-  const label = guidance.label.trim() || guidance.guidanceLabel.trim();
-  return /\b(?:guidance|outlook|forecast)\b/i.test(label) ? label : `${label} Guidance`;
-}
-
-function formatMetricGuidanceFooterLabel(guidance: OperatingGuidanceMetric) {
-  const period = extractGuidancePeriod(guidance) || guidance.guidanceLabel.trim();
-  const adjusted = /\b(?:adjusted|non[ -]gaap|non[ -]ifrs)\b/i.test(guidance.label);
-  return [period, adjusted ? "Adjusted" : "", "Guidance"].filter(Boolean).join(" ");
-}
-
-function extractGuidancePeriod(guidance: OperatingGuidanceMetric) {
-  return `${guidance.guidanceLabel} ${guidance.label}`.match(
-    /\b(?:Q[1-4]\s+(?:FY\s+)?20\d{2}|FY\s*20\d{2}|Full Year(?:\s+Fiscal)?\s+20\d{2})\b/i,
-  )?.[0] || "";
-}
-
-function formatCompactGuidanceValue(value: string) {
-  return value
-    .replace(/\$\s*([\d,]+(?:\.\d+)?)\s*(million|billion)\b/gi, (_match, rawNumber: string, unit: string) => {
-      return compactGuidanceAmount(rawNumber, unit.toLowerCase() === "billion" ? "B" : "M");
-    })
-    .replace(/\$\s*([\d,]+(?:\.\d+)?)\s*([MB])\b/g, (_match, rawNumber: string, unit: string) => {
-      return compactGuidanceAmount(rawNumber, unit.toUpperCase());
-    })
-    .replace(/\s+(?:to|[-–—])\s+/gi, "–");
-}
-
-function compactGuidanceAmount(rawNumber: string, unit: string) {
-  const numeric = Number(rawNumber.replace(/,/g, ""));
-  if (!Number.isFinite(numeric)) return `$${rawNumber}${unit}`;
-  if (unit === "M" && numeric >= 1000) {
-    const billions = numeric / 1000;
-    return `$${billions.toFixed(2)}B`;
-  }
-  return `$${numeric.toLocaleString("en-US", { maximumFractionDigits: 1 })}${unit}`;
-}
-
-function formatOperatingSignedTransition(item: OperatingPerformanceComparison) {
-  const { comparisonNumeric: comparison, currentNumeric: current } = item;
-  const suffix = item.comparisonBasis === "yoy" ? " YoY" : item.comparisonBasis === "qoq" ? " QoQ" : "";
-  if (comparison < 0 && current > 0) return `Turned profitable${suffix}`;
-  if (comparison > 0 && current < 0) return `Swung to a loss${suffix}`;
-  if (comparison < 0 && current === 0) return `Reached break-even${suffix}`;
-  if (comparison === 0 && current < 0) return `Moved into a loss${suffix}`;
-  if (comparison < 0 && current < 0) {
-    const percent = Math.round(Math.abs((Math.abs(current) - Math.abs(comparison)) / Math.abs(comparison)) * 100);
-    return `${Math.abs(current) < Math.abs(comparison) ? "Loss narrowed" : "Loss widened"} ${percent}%${suffix}`;
-  }
-  return "";
-}
-
-function operatingSignedValueTone(value: number) {
-  if (value < 0) return "negative";
-  if (value > 0) return "positive";
-  return "neutral";
-}
-
-function formatOperatingPerformanceChange(item: OperatingPerformanceComparison) {
-  if (item.currentNumeric <= 0 || item.comparisonNumeric <= 0) return item.changeNote || "";
-  const percentChange = ((item.currentNumeric - item.comparisonNumeric) / item.comparisonNumeric) * 100;
-  if (!Number.isFinite(percentChange)) return item.changeNote || "";
-  const rounded = Math.round(Math.abs(percentChange));
-  const suffix = item.comparisonBasis === "yoy" ? " YoY" : item.comparisonBasis === "qoq" ? " QoQ" : "";
-  if (rounded === 0) return item.comparisonBasis === "other" && item.changeNote ? item.changeNote : `Flat${suffix}`;
-  if (item.comparisonBasis === "other" && item.changeNote) return item.changeNote;
-  return `${percentChange > 0 ? "Up" : "Down"} ${rounded}%${suffix}`;
-}
-
-function operatingPerformanceChangeTone(item: OperatingPerformanceComparison) {
-  if (item.currentNumeric > item.comparisonNumeric) return "improvement";
-  if (item.currentNumeric < item.comparisonNumeric) return "deterioration";
-  return "neutral";
-}
-
-function operatingSignedTransitionTone(current: number, comparison: number) {
-  if (comparison < 0 && current >= 0) return "improvement";
-  if (comparison < 0 && current < 0) return Math.abs(current) < Math.abs(comparison) ? "improvement" : "deterioration";
-  if (comparison >= 0 && current < 0) return "deterioration";
-  return "neutral";
-}
-
-function OperatingOutlookRow({ item }: { item: OperatingGuidanceMetric }) {
-  return (
-    <div className="operating-outlook-compact-row">
-      <span>{formatStandaloneGuidanceLabel(item)}</span>
-      <strong>{formatCompactGuidanceValue(item.guidanceValue)}</strong>
-      {item.note ? <small>{item.note}</small> : null}
-    </div>
-  );
-}
-
-function OperatingKeyDetailsSection({
-  businessCatalysts,
-  projectEconomics,
-}: {
-  businessCatalysts: OperatingBusinessCatalyst[];
-  projectEconomics?: OperatingEventDetailSection;
-}) {
-  return (
-    <section className="operating-event-section operating-key-details-section">
-      <div className="operating-event-section-heading">
-        <h2>Key Business Updates</h2>
-      </div>
-
-      <div className="operating-business-highlight-list">
-        {businessCatalysts.map((item, index) => (
-          <div className="operating-business-highlight-row" key={`${item.title}-${item.value || ""}`}>
-            <div className="operating-business-highlight-heading">
-              <span className="operating-business-highlight-number">{index + 1}.</span>
-              <strong>{item.title}</strong>
-              {item.value ? <span className="operating-business-highlight-value">{item.value}</span> : null}
-            </div>
-            <p>{item.summary}</p>
-          </div>
-        ))}
-        {projectEconomics ? (
-          <div className="operating-business-highlight-row operating-project-economics-row">
-            <div className="operating-business-highlight-heading">
-              <span className="operating-business-highlight-number">{businessCatalysts.length + 1}.</span>
-              <strong>{projectEconomics.title}</strong>
-            </div>
-            <div className="operating-project-economics-list">
-              {projectEconomics.rows.map((row) => (
-                <div className="operating-project-economics-item" key={`${row.label}-${row.value}`}>
-                  <span>{row.label}</span>
-                  <strong>{row.value}</strong>
-                  {row.note ? <small>{row.note}</small> : null}
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-      </div>
-    </section>
-  );
-}
-
-function Form25SnapshotCard({
-  label,
-  note,
-  value,
-}: {
-  label: string;
-  note?: string;
-  value: string;
-}) {
-  return (
-    <div className="proxy-vote-summary-tile">
-      <span>{label}</span>
-      <strong>{value}</strong>
-      {note ? <small>{note}</small> : null}
-    </div>
-  );
-}
-
-function normalizeListingStatusSnapshot(value: unknown): ListingStatusSnapshotItem[] {
-  return recordArray(value)
-    .map((item) => ({
-      label: readRowString(item, "label"),
-      value: readRowString(item, "value"),
-      note: readRowString(item, "note") || undefined,
-    }))
-    .filter((item) => item.label && item.value)
-    .slice(0, 4);
-}
-
-function RiskStatusTemplate({
-  eventLabel,
-  filing,
-  model,
-}: {
-  eventLabel: string;
-  filing: FilingEvent;
-  model: RiskStatusModel;
-}) {
-  const snapshotPanel = (
-    <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card listing-risk-snapshot-card">
-      <div className="quick-take-card quick-take-block">
-        <div className="card-heading-row">
-          <h2>{riskStatusSnapshotTitle(filing)}</h2>
-          <span>{filing.formType}</span>
-        </div>
-        <div className="proxy-vote-summary-snapshot">
-          {model.snapshot.map((item) => (
-            <Form25SnapshotCard key={`${item.label}-${item.value}`} label={item.label} note={item.note} value={item.value} />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-  const summaryPanel = <AnalysisCard title="Summary" body={filing.summary} />;
-  const hasChart = isRealTicker(filing.ticker);
-
-  return (
-    <>
-      {hasChart ? (
-        <>
-          <section className="stock-detail-top-grid listing-risk-top-grid">
-            <FilingPriceChart filing={filing} />
-            {snapshotPanel}
-          </section>
-          {summaryPanel}
-        </>
-      ) : (
-        <section className="stock-detail-card-grid two-up initial-ipo-compact-grid listing-risk-no-chart-grid">
-          {snapshotPanel}
-          {summaryPanel}
-        </section>
-      )}
-
-      <ScoreBasisPanel filing={filing} />
-
-      {filing.keyEvidence.length || filing.watchNext.length ? (
-        <section className="stock-detail-card-grid two-up insight-summary-grid listing-risk-support-grid">
-          <AnalysisList title="Key Evidence" items={filing.keyEvidence} />
-          <AnalysisList title="What To Watch Next" items={filing.watchNext} />
-        </section>
-      ) : null}
-
-      <FilingMarketContextPanel filing={filing} />
-      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
-    </>
-  );
-}
-
-function CapitalFinancingTemplate({
-  eventLabel,
-  filing,
-  model,
-}: {
-  eventLabel: string;
-  filing: FilingEvent;
-  model: CapitalFinancingModel;
-}) {
-  const snapshotPanel = <CapitalFinancingSnapshot filing={filing} model={model} />;
-  const summaryPanel = <AnalysisCard title="Summary" body={filing.summary} />;
-  const hasChart = isRealTicker(filing.ticker);
-  const detailsTitle = capitalFinancingDetailsTitle(model.mode);
-
-  return (
-    <>
-      {hasChart ? (
-        <>
-          <section className="stock-detail-top-grid listing-risk-top-grid">
-            <FilingPriceChart filing={filing} />
-            {snapshotPanel}
-          </section>
-          {summaryPanel}
-        </>
-      ) : (
-        <section className="stock-detail-card-grid two-up initial-ipo-compact-grid listing-risk-no-chart-grid">
-          {snapshotPanel}
-          {summaryPanel}
-        </section>
-      )}
-
-      <ScoreBasisPanel filing={filing} />
-
-      {model.mode === "atm_capacity" ? (
-        <CapitalFinancingAtmCapacity filing={filing} model={model} detailsTitle={detailsTitle} />
-      ) : model.shareOverhang ? (
-        <CapitalFinancingShareOverhang
-          overhang={model.shareOverhang}
-          offeringDetails={model.offeringDetails}
-          detailsTitle={detailsTitle}
-        />
-      ) : model.offeringDetails.length ? (
-        <DilutionDisclosureSection
-          title={detailsTitle}
-          rows={model.offeringDetails}
-          emptyText=""
-        />
-      ) : null}
-
-      {model.instrumentDetails.length ? (
-        <DilutionInstrumentDetailsSection
-          rows={model.instrumentDetails}
-          emptyText=""
-        />
-      ) : null}
-
-      <FilingMarketContextPanel filing={filing} />
-      <OriginalFilingText filing={filing} eventLabel={eventLabel} />
-    </>
-  );
-}
-
-function CapitalFinancingSnapshot({ filing, model }: { filing: FilingEvent; model: CapitalFinancingModel }) {
-  return (
-    <section className="stock-detail-card quick-analysis-panel proxy-vote-summary-card listing-risk-snapshot-card">
-      <div className="quick-take-card quick-take-block">
-        <div className="card-heading-row">
-          <h2>{capitalFinancingSnapshotTitle(model.mode)}</h2>
-          <span>{filing.formType}</span>
-        </div>
-        <div className="proxy-vote-summary-snapshot">
-          {model.snapshotMetrics.map((item) => (
-            <Form25SnapshotCard key={`${item.label}-${item.value}`} label={item.label} note={item.note} value={item.value} />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function CapitalFinancingShareOverhang({
-  overhang,
-  offeringDetails,
-  detailsTitle,
-}: {
-  overhang: LlmShareOverhangModel;
-  offeringDetails: CapitalFinancingModel["offeringDetails"];
-  detailsTitle: string;
-}) {
-  const canRenderChart = overhang.overhangBarSegments.length > 0;
-  const ratioValue = overhang.totalNoteRatio || overhang.ratioValue || overhang.statusValue;
-  const currentValue = formatVisibleWholeNumber(overhang.totalNoteDenominator);
-  const supplyValue = formatVisibleWholeNumber(overhang.totalNoteNumerator);
-
-  return (
-    <DilutionShareOverhang
-      model={{
-        canRenderOverhangChart: canRenderChart,
-        chartTitle: overhang.chartTitle || "Share Overhang",
-        currentDetailLabel: overhang.currentLabel || "Current Shares Outstanding",
-        currentSharesCompact: currentValue,
-        dilutionRatioPercentValue: overhang.statusValue || ratioValue,
-        dilutionRatioValue: ratioValue,
-        overhangAriaLabel: overhang.chartTitle ? `${overhang.chartTitle}: ${ratioValue}` : undefined,
-        overhangBarSegments: overhang.overhangBarSegments,
-        overhangLevel: overhang.statusLabel,
-        overhangNote: overhang.note,
-        overhangScoreCaption: overhang.caption || overhang.ratioLabel,
-        overhangSubtitle: overhang.subtitle,
-        overhangUnavailableMessage: overhang.note || undefined,
-        potentialSupplyCompact: supplyValue,
-        showBreakdownPanel: false,
-        showSegmentLegend: canRenderChart,
-        showTotalNote: Boolean(overhang.totalNoteNumerator && overhang.totalNoteDenominator && overhang.totalNoteRatio),
-        requireProvidedSupplyDetails: true,
-        supplyDetailRows: offeringDetails,
-        conditionalSupplyRows: overhang.conditionalSupplyRows,
-        supplyDetailTitle: detailsTitle,
-        supplyDetailLabel: overhang.supplyLabel || "Included Supply",
-        totalNoteSuffix: overhang.totalNoteSuffix,
-        totalNoteTitle: overhang.totalNoteTitle,
-        totalOverhangLabel: overhang.ratioLabel,
-        unavailableRows: overhang.unavailableRows,
-      }}
-    />
-  );
-}
-
-function CapitalFinancingAtmCapacity({
-  filing,
-  model,
-  detailsTitle,
-}: {
-  filing: FilingEvent;
-  model: CapitalFinancingModel;
-  detailsTitle: string;
-}) {
-  const overhang = model.shareOverhang;
-  const monetaryBasis = overhang?.overhangBarSegments.find(
-    (segment) =>
-      segment.calculationRole === "denominator" &&
-      (segment.unit?.toLowerCase() === "usd" || /market cap|company value|public float/i.test(segment.label)),
-  );
-  const monetaryCapacity = overhang?.conditionalSupplyRows.find(
-    (row) =>
-      row.rowRole === "reference" &&
-      (row.unit?.toLowerCase() === "usd" || /\$/.test(row.value)) &&
-      /\batm\b|at-the-market|remaining capacity|sale capacity/i.test(`${row.label} ${row.note || ""}`),
-  );
-  const snapshotCapacity = findCapitalFinancingAtmCapacity(model.snapshotMetrics);
-  const denominatorAmount =
-    (monetaryBasis ? parseMoneyValue(monetaryBasis.value) : 0) ||
-    (overhang?.totalNoteDenominator && /\$/.test(overhang.totalNoteDenominator)
-      ? parseMoneyValue(overhang.totalNoteDenominator)
-      : 0) ||
-    readMarketCapAmount(filing.offeringMarketContext);
-  const numeratorAmount =
-    (monetaryCapacity ? parseMoneyValue(monetaryCapacity.value) : 0) ||
-    (overhang?.totalNoteNumerator && /\$/.test(overhang.totalNoteNumerator)
-      ? parseMoneyValue(overhang.totalNoteNumerator)
-      : 0) ||
-    parseMoneyValue(snapshotCapacity?.value || "");
-  const denominatorValue = denominatorAmount ? formatMoneyValue(denominatorAmount) : "Market cap unavailable";
-  const numeratorValue = numeratorAmount
-    ? formatMoneyValue(numeratorAmount)
-    : snapshotCapacity?.value || "ATM capacity unavailable";
-  const canRenderChart = denominatorAmount > 0 && numeratorAmount > 0;
-  const totalAmount = denominatorAmount + numeratorAmount;
-  const ratioValue = canRenderChart ? formatPercentCompact((numeratorAmount / denominatorAmount) * 100) : "Not calculated";
-
-  return (
-    <DilutionShareOverhang
-      model={{
-        canRenderOverhangChart: canRenderChart,
-        chartTitle: "ATM Program",
-        currentDetailLabel: monetaryBasis?.label || "Market Cap",
-        currentSharesCompact: denominatorValue,
-        dilutionRatioPercentValue: ratioValue,
-        dilutionRatioValue: ratioValue,
-        overhangAriaLabel: `ATM capacity compared with market cap: ${ratioValue}`,
-        overhangBarSegments: canRenderChart
-          ? [
-              {
-                key: "atm-market-cap",
-                className: "current-base",
-                label: monetaryBasis?.label || "Market Cap",
-                value: denominatorValue,
-                width: (denominatorAmount / totalAmount) * 100,
-                compact: denominatorAmount / totalAmount < 0.24,
-                roleBadge: "Base",
-                roleKind: "base",
-              },
-              {
-                key: "atm-remaining-capacity",
-                className: "registered-supply",
-                label: snapshotCapacity?.label || monetaryCapacity?.label || "Remaining ATM Capacity",
-                value: numeratorValue,
-                width: (numeratorAmount / totalAmount) * 100,
-                compact: numeratorAmount / totalAmount < 0.24,
-                roleBadge: "Capacity",
-                roleKind: "included",
-              },
-            ]
-          : [],
-        overhangLevel: "Capacity Scale",
-        overhangLevelLabel: "Capacity Level",
-        overhangNote: "Actual dilution depends on how much stock the company sells and at what prices.",
-        overhangScoreCaption: "of market cap",
-        overhangSubtitle: "Current market value plus remaining ATM sale capacity",
-        overhangUnavailableMessage: "ATM capacity scale could not be shown because capacity or market cap was unavailable.",
-        potentialSupplyCompact: numeratorValue,
-        showBreakdownPanel: false,
-        showSegmentLegend: canRenderChart,
-        showTotalNote: canRenderChart,
-        requireProvidedSupplyDetails: true,
-        supplyDetailRows: model.offeringDetails,
-        conditionalSupplyRows: [],
-        supplyDetailTitle: detailsTitle,
-        supplyDetailLabel: "ATM Capacity",
-        totalNoteSuffix: "remaining capacity vs. market cap",
-        totalNoteTitle: "ATM Capacity Scale",
-        totalOverhangLabel: "Capacity vs Market Cap",
-        unavailableRows: [],
-      }}
-    />
-  );
-}
-
-function findCapitalFinancingAtmCapacity(rows: CapitalFinancingModel["snapshotMetrics"]) {
-  const priorities = [
-    /remaining atm capacity/i,
-    /remaining capacity/i,
-    /new offering size/i,
-    /current atm capacity/i,
-    /^atm capacity$/i,
-    /new atm capacity/i,
-    /total atm capacity/i,
-    /atm program size/i,
-  ];
-
-  for (const pattern of priorities) {
-    const match = rows.find((row) => pattern.test(row.label) && !/increase/i.test(row.label) && parseMoneyValue(row.value) > 0);
-    if (match) return match;
-  }
-  return null;
-}
-
-function capitalFinancingSnapshotTitle(mode: CapitalFinancingMode) {
-  if (mode === "atm_capacity") return "ATM Program Snapshot";
-  if (mode === "equity_issuance" || mode === "share_linked_financing") return "Financing Snapshot";
-  if (mode === "debt_liquidity") return "Liquidity Snapshot";
-  if (mode === "capital_structure_action") return "Capital Structure Snapshot";
-  return "Capital Return Snapshot";
-}
-
-function capitalFinancingDetailsTitle(mode: CapitalFinancingMode) {
-  if (mode === "atm_capacity") return "Offering Details";
-  if (mode === "equity_issuance" || mode === "share_linked_financing") return "Offering Details";
-  if (mode === "debt_liquidity") return "Financing Details";
-  if (mode === "capital_structure_action") return "Capital Structure Details";
-  return "Capital Return Details";
-}
-
-function normalizeComparableForm25Date(value: string) {
-  const text = value.trim();
-  const iso = text.match(/\b\d{4}-\d{2}-\d{2}\b/);
-  if (iso) return iso[0];
-  const parsed = Date.parse(text);
-  return Number.isFinite(parsed) ? new Date(parsed).toISOString().slice(0, 10) : text.toLowerCase();
-}
-
-function formatForm25DisplayDate(value: string) {
-  const text = value.trim();
-  if (!text) return "";
-  const hasIsoDatePrefix =
-    text.length >= 10 &&
-    text[4] === "-" &&
-    text[7] === "-" &&
-    Number.isFinite(Number(text.slice(0, 4))) &&
-    Number.isFinite(Number(text.slice(5, 7))) &&
-    Number.isFinite(Number(text.slice(8, 10)));
-  return hasIsoDatePrefix ? text.slice(0, 10) : text;
-}
-
-function compactForm25CardNote(value: string) {
-  const text = value.replace(/\s+/g, " ").trim();
-  if (!text || !isDisclosedValue(text)) return "";
-  if (text.length <= 80) return text;
-  if (/mandatory.{0,80}separation|unit holders?.{0,120}receive|underlying their units/i.test(text)) {
-    return "Units separated into underlying shares and warrants.";
-  }
-  if (/12d2-2\(a\)\(3\)/i.test(text) && /\bsubstitution|immediate cash payment|other securities\b/i.test(text)) {
-    return "Security was replaced by another security or cash right.";
-  }
-  if (/\bmerger|acquisition|business combination|converted into|exchanged for\b/i.test(text)) {
-    return "Removal follows a completed transaction or exchange.";
-  }
-  if (/\bredeemed|matured|retired|expired|extinguished\b/i.test(text)) {
-    return "Security was redeemed, retired, matured, or expired.";
-  }
-  if (/\bvoluntary|withdrawal\b/i.test(text)) return "Issuer chose to remove this security from the exchange.";
-  if (isForm25ListingStandardsReason(text)) {
-    const listingRule = text.match(/\b(?:Nasdaq\s+)?Listing Rule\s+[A-Z0-9().-]+/i)?.[0];
-    if (listingRule) return `No longer qualified under ${listingRule}.`;
-    return "Delisting tied to exchange listing-standard issues.";
-  }
-  return "See source filing for full removal reason.";
-}
-
-function formatForm25HeaderCompany({
-  fallbackCompany,
-  fallbackTicker,
-  issuerName,
-}: {
-  fallbackCompany: string;
-  fallbackTicker: string;
-  issuerName: string;
-}) {
-  if (isDisclosedValue(issuerName)) return issuerName;
-  if (!/exchange|filed by|see all company filings|cik\s*:/i.test(fallbackCompany)) return fallbackCompany;
-  return isRealTicker(fallbackTicker) ? fallbackTicker : "Issuer not disclosed";
-}
-
-function cleanForm25IssuerName(value: string) {
-  const text = value.replace(/\s+/g, " ").replace(/\s+\(Filed by\).*$/i, "").trim();
-  if (!text || !isDisclosedValue(text)) return "";
-  if (/\b(?:exchange|stock market|nyse|nasdaq|cboe|nyse american)\b/i.test(text)) return "";
-  if (/\b(?:filed by|see all company filings|cik\s*:)\b/i.test(text)) return "";
-  return text.length > 90 ? "" : text;
-}
-
-function extractForm25IssuerFromOriginalHtml(html: string) {
-  const text = stripHtml(html);
-  const match = text.match(/\bIssuer:\s*([A-Z0-9][A-Za-z0-9 .,&'/-]{2,120}?)(?:\s+Exchange:|\s+Description|\s+Rule|\s+File Number|$)/i);
-  return cleanForm25IssuerName(match?.[1] || "");
-}
-
-function cleanForm25ConsiderationSummary(value: string) {
-  const text = value.replace(/\s+/g, " ").trim();
-  if (!text || !isDisclosedValue(text)) return "";
-  if (/12d2-2|17\s*CFR|NOTIFICATION OF THE REMOVAL|the exchange hereby notifies/i.test(text)) return "";
-  if (text.length > 180 && !/\$|per share|receive|converted|exchanged|consideration/i.test(text)) return "";
-  return text;
-}
-
-function isForm25ListingStandardsReason(value: string) {
-  return /listing_standards_failure|continued_listing_standards|exchange_determination|no longer qualif(?:y|ied)|listing rules?|listing standards?|minimum bid|non[- ]compliance|delisting determination/i.test(
-    value,
-  );
-}
-
-function buildCapitalFinancingModel(filing: FilingEvent): CapitalFinancingModel | null {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  if (!matchesSecSpecializedDisplayContract(readRowString(displayPayload, "display_type"), "capital_financing")) return null;
-
-  const data = readDisplayPayloadData(displayPayload);
-  const mode = normalizeCapitalFinancingMode(readRowString(data, "capital_mode"));
-  const snapshotMetrics = normalizeCapitalFinancingRows(data.snapshot_metrics, 4);
-  if (!mode || snapshotMetrics.length < 2) return null;
-
-  return {
-    mode,
-    snapshotMetrics,
-    offeringDetails: normalizeCapitalFinancingRows(data.offering_details, 6),
-    instrumentDetails: readWarrantInstrumentRows(data),
-    shareOverhang: readLlmShareOverhang(data, null),
-  };
-}
-
-function normalizeCapitalFinancingMode(value: string): CapitalFinancingMode | null {
-  if (
-    value === "equity_issuance" ||
-    value === "share_linked_financing" ||
-    value === "atm_capacity" ||
-    value === "debt_liquidity" ||
-    value === "capital_structure_action" ||
-    value === "capital_return"
-  ) {
-    return value;
-  }
-  return null;
-}
-
-function normalizeCapitalFinancingRows(value: unknown, limit: number): ListingStatusSnapshotItem[] {
-  return recordArray(value)
-    .map((item) => ({
-      label: readRowString(item, "label"),
-      value: readRowString(item, "value"),
-      note: readRowString(item, "note") || undefined,
-    }))
-    .filter((item) => item.label && item.value)
-    .slice(0, limit);
-}
-
-function buildRiskStatusModel(filing: FilingEvent): RiskStatusModel | null {
-  if (filing.eventType !== "listing_risk" && filing.eventType !== "financial_risk") return null;
-  if (!filing.listingStatusSnapshot || filing.listingStatusSnapshot.length < 2) return null;
-  return { snapshot: filing.listingStatusSnapshot.slice(0, 4) };
-}
-
-function riskStatusSnapshotTitle(filing: FilingEvent) {
-  return filing.eventType === "listing_risk" ? "Listing Status Snapshot" : "Risk Status Snapshot";
-}
-
-function riskStatusChipLabel(filing: FilingEvent) {
-  return filing.eventType === "listing_risk" ? "Listing Risk" : "Financial Risk";
-}
-
-function buildStrategicTransactionModel(filing: FilingEvent): StrategicTransactionModel | null {
-  if (filing.eventType !== "strategic_transaction") return null;
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  if (!matchesSecSpecializedDisplayContract(readRowString(displayPayload, "display_type"), "strategic_transaction")) return null;
-
-  const snapshot = normalizeCapitalFinancingRows(readDisplayPayloadData(displayPayload).snapshot_metrics, 4);
-  return snapshot.length >= 2 ? { snapshot } : null;
-}
-
-function buildGovernanceEventModel(filing: FilingEvent): GovernanceEventModel | null {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  if (!matchesSecSpecializedDisplayContract(readRowString(displayPayload, "display_type"), "governance_event")) return null;
-
-  const data = readDisplayPayloadData(displayPayload);
-  const mode = normalizeGovernanceEventMode(readRowString(data, "governance_mode"));
-  const snapshotMetrics = normalizeCapitalFinancingRows(data.snapshot_metrics, 4);
-  if (!mode || snapshotMetrics.length < 2) return null;
-
-  const changes = recordArray(data.key_changes)
-    .map((item) => ({
-      title: readRowString(item, "title"),
-      category: readRowString(item, "category"),
-      explanation: readRowString(item, "explanation"),
-      details: normalizeCapitalFinancingRows(item.details, 3),
-    }))
-    .filter((item) => item.title && item.explanation)
-    .slice(0, 4);
-
-  return {
-    mode,
-    snapshotTitle: readRowString(data, "snapshot_title") || "Governance Snapshot",
-    snapshotMetrics,
-    changesTitle: mode === "vote_result" ? "Vote Results" : "Key Changes",
-    changes,
-  };
-}
-
-function normalizeGovernanceEventMode(value: string): GovernanceEventMode | null {
-  if (
-    value === "leadership_change" ||
-    value === "auditor_change" ||
-    value === "vote_result" ||
-    value === "governance_change" ||
-    value === "mixed"
-  ) {
-    return value;
-  }
-  return null;
-}
-
-function buildOperatingEventModel(filing: FilingEvent): OperatingEventModel | null {
-  const displayPayload = readPlainRecord(filing.displayPayload);
-  if (!matchesSecSpecializedDisplayContract(readRowString(displayPayload, "display_type"), "operating_event")) return null;
-
-  const data = readDisplayPayloadData(displayPayload);
-  const mode = normalizeOperatingEventMode(readRowString(data, "operating_mode"));
-  if (!mode) return null;
-  const regulatoryStage = normalizeOperatingRegulatoryStage(readRowString(data, "regulatory_stage"));
-
-  const snapshotMetrics = normalizeCapitalFinancingRows(data.snapshot_metrics, 4);
-  if (mode !== "routine_archive" && snapshotMetrics.length < 2) return null;
-
-  const performanceComparisons = recordArray(data.performance_comparisons)
-    .map((item) => ({
-      label: readRowString(item, "label"),
-      currentLabel: readRowString(item, "current_label"),
-      currentValue: readRowString(item, "current_value"),
-      currentNumeric: readOptionalRowNumber(item, "current_numeric"),
-      comparisonLabel: readRowString(item, "comparison_label"),
-      comparisonValue: readRowString(item, "comparison_value"),
-      comparisonNumeric: readOptionalRowNumber(item, "comparison_numeric"),
-      comparisonBasis: normalizeOperatingComparisonBasisForDisplay(
-        readRowString(item, "comparison_basis"),
-        readRowString(item, "current_label"),
-        readRowString(item, "comparison_label"),
-      ),
-      changeNote: readRowString(item, "change_note") || undefined,
-    }))
-    .filter(
-      (item) =>
-        item.label &&
-        item.currentLabel &&
-        item.currentValue &&
-        item.currentNumeric !== null &&
-        item.comparisonLabel &&
-        item.comparisonValue &&
-        item.comparisonNumeric !== null,
-    )
-    .map((item) => ({
-      ...item,
-      currentNumeric: item.currentNumeric as number,
-      comparisonNumeric: item.comparisonNumeric as number,
-    }))
-    .slice(0, 3);
-  const guidanceMetrics = recordArray(data.guidance_metrics)
-    .map((item) => ({
-        label: readRowString(item, "label"),
-        guidanceLabel: readRowString(item, "guidance_label"),
-        guidanceValue: readRowString(item, "guidance_value"),
-        guidanceKind: readOperatingGuidanceKind(item.guidance_kind, item.guidance_low_numeric, item.guidance_high_numeric),
-        guidanceLowNumeric: readOptionalRowNumber(item, "guidance_low_numeric"),
-        guidanceHighNumeric: readOptionalRowNumber(item, "guidance_high_numeric"),
-        performanceRelationship: readOperatingPerformanceRelationship(item.performance_relationship),
-        performanceLabel: readRowString(item, "performance_label") || undefined,
-        note: readRowString(item, "note") || undefined,
-      }))
-    .filter(
-      (item) =>
-        item.label &&
-        item.guidanceLabel &&
-        item.guidanceValue,
-    )
-    .slice(0, 3);
-  const promotedGuidanceMetrics = new Set<OperatingGuidanceMetric>();
-  if (mode === "operating_update" && snapshotMetrics.length < 4) {
-    for (const guidance of guidanceMetrics) {
-      if (snapshotMetrics.length >= 4) break;
-      const normalizedValue = guidance.guidanceValue.trim().toLowerCase();
-      const alreadyVisible = snapshotMetrics.some(
-        (item) => item.value.trim().toLowerCase() === normalizedValue,
-      );
-      if (alreadyVisible) continue;
-
-      snapshotMetrics.push({
-        label: `${guidance.guidanceLabel} Guidance`,
-        value: guidance.guidanceValue,
-        note: guidance.label,
-      });
-      promotedGuidanceMetrics.add(guidance);
-    }
-  }
-  const businessCatalysts = recordArray(data.business_catalysts)
-    .map((item) => ({
-      title: readRowString(item, "title"),
-      value: readRowString(item, "value") || undefined,
-      summary: readRowString(item, "summary"),
-    }))
-    .filter((item) => item.title && item.summary)
-    .slice(0, 3);
-  if (!businessCatalysts.length) {
-    businessCatalysts.push(
-      ...normalizeCapitalFinancingRows(data.operating_metrics, 3).map((item) => ({
-        title: item.label,
-        value: item.value,
-        summary: item.note || "",
-      })),
-      ...recordArray(data.business_highlights).map((item) => ({
-        title: readRowString(item, "title"),
-        value: undefined,
-        summary: readRowString(item, "summary"),
-      })),
-    );
-  }
-
-  const detailSections = (mode === "earnings" ? [] : recordArray(data.detail_sections))
-    .map((section) => ({
-      title: readRowString(section, "title"),
-      rows: normalizeCapitalFinancingRows(section.rows, 5),
-    }))
-    .filter((section) => section.title && section.rows.length)
-    .slice(0, 2);
-  const secondaryUpdates = recordArray(data.secondary_updates)
-    .map((update) => ({
-      label: readRowString(update, "label"),
-      title: readRowString(update, "title"),
-      summary: readRowString(update, "summary"),
-    }))
-    .filter((update) => update.label && update.title && update.summary)
-    .slice(0, 1);
-
-  return {
-    mode,
-    detailsTitle: operatingEventDetailsTitle(mode, regulatoryStage),
-    snapshotTitle: readRowString(data, "snapshot_title") || operatingEventSnapshotTitle(mode),
-    snapshotMetrics,
-    performanceComparisons,
-    guidanceMetrics: guidanceMetrics.filter((item) => !promotedGuidanceMetrics.has(item)),
-    businessCatalysts: businessCatalysts.filter((item) => item.title && item.summary).slice(0, 3),
-    detailSections,
-    secondaryUpdates,
-  };
-}
-
-function normalizeOperatingComparisonBasisForDisplay(
-  value: string,
-  currentLabel: string,
-  comparisonLabel: string,
-): "yoy" | "qoq" | "other" {
-  const inferred = inferOperatingComparisonBasisForDisplay(currentLabel, comparisonLabel);
-  if (inferred) return inferred;
-  if (value === "yoy" || value === "qoq" || value === "other") return value;
-  return "other";
-}
-
-function inferOperatingComparisonBasisForDisplay(currentLabel: string, comparisonLabel: string) {
-  const current = parseOperatingQuarterLabelForDisplay(currentLabel);
-  const comparison = parseOperatingQuarterLabelForDisplay(comparisonLabel);
-  if (current && comparison) {
-    if (current.quarter === comparison.quarter && current.year === comparison.year + 1) return "yoy" as const;
-    const currentSequence = current.year * 4 + current.quarter;
-    const comparisonSequence = comparison.year * 4 + comparison.quarter;
-    if (currentSequence === comparisonSequence + 1) return "qoq" as const;
-    return "other" as const;
-  }
-
-  const currentYear = parseOperatingFiscalYearLabelForDisplay(currentLabel);
-  const comparisonYear = parseOperatingFiscalYearLabelForDisplay(comparisonLabel);
-  if (currentYear !== null && comparisonYear !== null && currentYear === comparisonYear + 1) return "yoy" as const;
-  return null;
-}
-
-function parseOperatingQuarterLabelForDisplay(label: string) {
-  const normalized = label.toLowerCase().replace(/[’']/g, "").replace(/\s+/g, " ").trim();
-  const quarterFirst = normalized.match(/\bq([1-4])\s*(?:fy\s*)?(\d{2,4})\b/);
-  const numberFirst = normalized.match(/\b([1-4])q\s*(?:fy\s*)?(\d{2,4})\b/);
-  const wordQuarter = normalized.match(/\b(first|second|third|fourth) quarter\s+(\d{4})\b/);
-  const match = quarterFirst || numberFirst;
-  if (match) {
-    return {
-      quarter: Number(match[1]),
-      year: normalizeOperatingPeriodYearForDisplay(Number(match[2])),
-    };
-  }
-  if (!wordQuarter) return null;
-  return {
-    quarter: { first: 1, second: 2, third: 3, fourth: 4 }[wordQuarter[1] as "first" | "second" | "third" | "fourth"],
-    year: Number(wordQuarter[2]),
-  };
-}
-
-function parseOperatingFiscalYearLabelForDisplay(label: string) {
-  const normalized = label.toLowerCase().replace(/[’']/g, "").replace(/\s+/g, " ").trim();
-  const match = normalized.match(/\b(?:fy|fiscal year|full year)\s*(\d{2,4})\b/);
-  return match ? normalizeOperatingPeriodYearForDisplay(Number(match[1])) : null;
-}
-
-function normalizeOperatingPeriodYearForDisplay(value: number) {
-  return value < 100 ? 2000 + value : value;
-}
-
-function normalizeOperatingEventMode(value: string): OperatingEventMode | null {
-  if (
-    value === "earnings" ||
-    value === "operating_update" ||
-    value === "product_or_regulatory" ||
-    value === "legal_or_accounting" ||
-    value === "routine_archive"
-  ) {
-    return value;
-  }
-  return null;
-}
-
-function normalizeOperatingRegulatoryStage(value: string): OperatingRegulatoryStage {
-  if (
-    value === "ind_or_clinical_hold" ||
-    value === "application_review" ||
-    value === "advisory_committee" ||
-    value === "approval" ||
-    value === "crl_or_appeal" ||
-    value === "clinical_update" ||
-    value === "other_regulatory"
-  ) {
-    return value;
-  }
-  return "not_applicable";
-}
-
-function operatingEventDetailsTitle(mode: OperatingEventMode, stage: OperatingRegulatoryStage) {
-  if (mode !== "product_or_regulatory") return "Key Details";
-  if (stage === "ind_or_clinical_hold") return "Key IND Details";
-  if (stage === "application_review" || stage === "advisory_committee") return "Key FDA Review Details";
-  if (stage === "approval") return "Key FDA Approval Details";
-  if (stage === "crl_or_appeal") return "Key FDA Appeal Details";
-  if (stage === "clinical_update") return "Key Clinical Details";
-  if (stage === "other_regulatory") return "Key Regulatory Details";
-  return "Key Details";
-}
-
-function operatingEventSnapshotTitle(mode: OperatingEventMode) {
-  if (mode === "earnings") return "Earnings Snapshot";
-  if (mode === "operating_update") return "Operating Snapshot";
-  if (mode === "product_or_regulatory") return "Product / Regulatory Snapshot";
-  if (mode === "legal_or_accounting") return "Legal / Accounting Snapshot";
-  return "Event Snapshot";
-}
-
-function operatingEventChipLabel(mode: OperatingEventMode) {
-  if (mode === "earnings") return "Earnings";
-  if (mode === "operating_update") return "Operating Update";
-  if (mode === "product_or_regulatory") return "Product / Regulatory";
-  if (mode === "legal_or_accounting") return "Legal / Accounting";
-  return "Filing Update";
-}
-
-function formatVisibleWholeNumber(value: string) {
-  const text = cleanDisclosureValue(value);
-  const normalized = text.replace(/,/g, "");
-  if (!/^-?\d+$/.test(normalized)) return value;
-
-  const numericValue = Number(normalized);
-  return Number.isSafeInteger(numericValue) ? numericValue.toLocaleString("en-US") : value;
-}
-
-function WatchNextItems({ items }: { items: string[] }) {
-  return (
-    <ol className="filing-watch-next-list">
-      {items.map((item) => (
-        <li key={item}>{item}</li>
-      ))}
-    </ol>
-  );
-}
-
-function readOperatingPerformanceRelationship(value: unknown): OperatingGuidanceMetric["performanceRelationship"] {
-  if (value === "same_basis" || value === "related_different_basis" || value === "standalone") return value;
-  return undefined;
-}
-
-function readOperatingGuidanceKind(
-  value: unknown,
-  lowValue: unknown,
-  highValue: unknown,
-): OperatingGuidanceMetric["guidanceKind"] {
-  if (value === "numeric_range" || value === "point" || value === "qualitative") return value;
-  const low = typeof lowValue === "number" && Number.isFinite(lowValue) ? lowValue : null;
-  const high = typeof highValue === "number" && Number.isFinite(highValue) ? highValue : null;
-  if (low !== null && high !== null) return low === high ? "point" : "numeric_range";
-  if (low !== null || high !== null) return "point";
-  return "qualitative";
-}
-
-function readOptionalRowNumber(row: Record<string, unknown> | null | undefined, key: string) {
-  if (!row || !Object.prototype.hasOwnProperty.call(row, key)) return null;
-  const value = row[key];
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) return Number(value);
-  return null;
 }
