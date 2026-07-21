@@ -512,7 +512,7 @@ A skip link was not added in 3D. Introducing its focus placement and visible foc
 | `activeNavigationItem` | `StockRadarPrimaryNavigationKey` | yes | Passed unchanged to desktop and mobile navigation renderers. |
 | `showThemeToggle` | `boolean` | no | Defaults to `false`; the app shell enables it only for `user-selectable` theme mode. |
 
-Product name `STOCK RADAR` and market status `15m delayed` are exported product constants in `stockRadarNavigation.ts`; they are not dashboard data or customizable speculative props. Header height, padding, surface, divider, brand geometry, status dot, action spacing, and the 760 px breakpoint preserve the canonical computed values.
+Product name `STOCK RADAR` and market status `15m delayed` are exported product constants in `stockRadarNavigation.ts`; they are not dashboard data or customizable speculative props. Header height, padding, surface, divider, brand geometry, status dot, action spacing, and the 760 px breakpoint preserve the canonical computed values. The product header uses the theme-invariant `--sr-*-product-*` chrome tokens: Dark and Light share the same dark surface, bright brand, muted navigation, light actions, orange active state, and distinct purple Premium treatment while the page workspace changes underneath it.
 
 ### Header actions and ARIA
 
@@ -522,6 +522,7 @@ Product name `STOCK RADAR` and market status `15m delayed` are exported product 
 - Search, Alert, and desktop Settings do not advertise `aria-haspopup`, `aria-expanded`, or `aria-controls` because no popup exists.
 - Only the mobile menu trigger exposes `aria-haspopup="menu"` and boolean `aria-expanded`. `aria-controls` is present only while the matching menu DOM exists.
 - None of the inert actions gained new search, notification, settings, auth, or Premium behavior.
+- Shared `IconButton` colors remain generic outside the header. The header action container supplies product-chrome text, notification-indicator border, and focus colors contextually without changing the generic component API or its use in other surfaces.
 
 ## 16. Navigation Configuration and Desktop Navigation
 
@@ -554,7 +555,7 @@ Desktop navigation renders native anchors and the current item uses `aria-curren
 | `menuRef` | `Ref<HTMLDivElement>` | yes | Gives ProductHeader the rendered popover boundary for outside-pointer detection. |
 | `onItemActivate` | `(item: StockRadarNavigationItem) => void` | yes | Reports one activated link/action so ProductHeader can close the popover. |
 
-The menu reuses the primary link configuration and appends Settings as an inert native button rather than the previous fake `#settings` anchor. Link and action items remain visually identical to the baseline; activating any item closes the menu.
+The menu reuses the primary link configuration and appends Settings as an inert native button rather than the previous fake `#settings` anchor. Link and action items retain the verified geometry; activating any item closes the menu. Its surface is the same theme-invariant dark product chrome as the header in both Dark and Light, with a dark border/shadow, light menu text, orange current-item marker, and no dim page overlay.
 
 ### Interaction contract
 
