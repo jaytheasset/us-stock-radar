@@ -103,6 +103,27 @@
   --sr-color-accent-focus-soft: rgba(255, 122, 26, 0.5);
   --sr-color-accent-focus-mobile: rgba(255, 122, 26, 0.56);
 
+  /* Color: theme-invariant product chrome */
+  --sr-color-surface-product-header: rgba(10, 12, 15, 0.92);
+  --sr-color-surface-product-menu: #0d1116;
+  --sr-color-border-product-header: #20262c;
+  --sr-color-border-product-menu: rgba(74, 82, 92, 0.82);
+  --sr-color-text-product-brand: #f5f6f7;
+  --sr-color-text-product-status: #8a919a;
+  --sr-color-text-product-navigation: #9ba3ad;
+  --sr-color-text-product-action: #d7dbe0;
+  --sr-color-text-product-menu: #d8dde4;
+  --sr-color-product-accent: #ff7a1a;
+  --sr-color-product-accent-selected: rgba(255, 122, 26, 0.1);
+  --sr-color-product-accent-border: rgba(255, 122, 26, 0.58);
+  --sr-color-product-accent-nav-line: rgba(255, 122, 26, 0.45);
+  --sr-color-product-accent-menu: rgba(255, 122, 26, 0.032);
+  --sr-color-product-premium: #bc8cff;
+  --sr-color-product-premium-border: rgba(188, 140, 255, 0.36);
+  --sr-color-product-premium-surface: rgba(188, 140, 255, 0.07);
+  --sr-color-product-menu-glow: rgba(255, 122, 26, 0.07);
+  --sr-color-product-indicator-border: #0b0d10;
+
   /* Color: market and event semantics */
   --sr-color-positive: #50e386;
   --sr-color-negative: #ff675f;
@@ -247,11 +268,15 @@
   --sr-shadow-panel: 0 18px 52px rgba(0, 0, 0, 0.24);
   --sr-shadow-pagination-active: 0 0 20px rgba(255, 122, 26, 0.34);
   --sr-shadow-menu: 0 16px 36px rgba(0, 0, 0, 0.38);
+  --sr-shadow-product-header: 0 1px 0 rgba(255, 255, 255, 0.03);
+  --sr-shadow-product-menu: 0 16px 36px rgba(0, 0, 0, 0.38);
+  --sr-shadow-product-delay-dot: 0 0 13px rgba(255, 122, 26, 0.65);
   --sr-shadow-sheet-content-footer: 0 -22px 48px rgba(0, 0, 0, 0.44);
   --sr-shadow-sheet-full-scroll: 0 -28px 70px rgba(0, 0, 0, 0.56);
   --sr-shadow-cta: inset 0 0 0 1px rgba(255, 122, 26, 0.18), 0 0 22px rgba(255, 122, 26, 0.08);
   --sr-focus-ring-width: 2px;
   --sr-focus-ring-color: rgba(255, 122, 26, 0.65);
+  --sr-focus-ring-product-header: rgba(255, 122, 26, 0.65);
   --sr-focus-ring-offset: 2px;
 
   /* Layers and motion */
