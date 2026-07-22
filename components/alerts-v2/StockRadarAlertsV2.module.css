@@ -25,7 +25,7 @@
   justify-content: space-between;
   gap: var(--sr-space-5);
   width: min(100%, 1320px);
-  margin: 0 auto var(--sr-space-5);
+  margin: 0 auto var(--sr-space-5) 0;
 }
 
 .header h1 {
@@ -83,7 +83,7 @@
   width: min(100%, 1320px);
   border: var(--sr-border-width) solid var(--alerts-border);
   border-radius: var(--sr-radius-base);
-  margin: 0 auto;
+  margin: 0 auto 0 0;
   background: var(--alerts-surface);
   box-shadow: var(--alerts-shadow);
 }
@@ -335,7 +335,7 @@
   grid-template-columns: minmax(0, 1fr) minmax(360px, 0.94fr);
   gap: var(--sr-space-4);
   width: min(100%, 1320px);
-  margin: var(--sr-space-4) auto 0;
+  margin: var(--sr-space-4) auto 0 0;
 }
 
 .settingsGrid .card {
