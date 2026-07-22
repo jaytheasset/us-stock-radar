@@ -118,27 +118,29 @@ export function StockRadarAlertsV2() {
 
   return (
     <div className={styles.page}>
-      <section className={styles.header} aria-labelledby="alerts-v2-title">
-        <div>
-          <h1 id="alerts-v2-title">Alerts</h1>
-          <p>Choose the stocks you want to monitor and how you receive alerts.</p>
-        </div>
-        <div className={styles.planSummary}>
-          <span>Your plan: Pro</span>
-          <Link href="/premium-v2">Manage plan</Link>
-        </div>
-      </section>
+      <div className={styles.pageShell}>
+        <main className={styles.contentColumn}>
+          <section className={styles.header} aria-labelledby="alerts-v2-title">
+            <div>
+              <h1 id="alerts-v2-title">Alerts</h1>
+              <p>Choose the stocks you want to monitor and how you receive alerts.</p>
+            </div>
+            <div className={styles.planSummary}>
+              <span>Your plan: Pro</span>
+              <Link href="/premium-v2">Manage plan</Link>
+            </div>
+          </section>
 
-      <section className={styles.notice} aria-label="Push permission notice">
-        <Bell aria-hidden="true" size={20} />
-        <p>Push notifications are disabled. Enable notifications to receive real-time alerts.</p>
-        <div>
-          <button type="button">Enable notifications</button>
-          <button type="button">Send test alert</button>
-        </div>
-      </section>
+          <section className={styles.notice} aria-label="Push permission notice">
+            <Bell aria-hidden="true" size={20} />
+            <p>Push notifications are disabled. Enable notifications to receive real-time alerts.</p>
+            <div>
+              <button type="button">Enable notifications</button>
+              <button type="button">Send test alert</button>
+            </div>
+          </section>
 
-      <section className={styles.card} aria-labelledby="alerts-v2-tickers-title">
+          <section className={styles.card} aria-labelledby="alerts-v2-tickers-title">
         <div className={styles.cardHeader}>
           <div>
             <h2 id="alerts-v2-tickers-title">Alert-enabled tickers</h2>
@@ -200,9 +202,9 @@ export function StockRadarAlertsV2() {
             </article>
           ))}
         </div>
-      </section>
+          </section>
 
-      <div className={styles.settingsGrid}>
+          <div className={styles.settingsGrid}>
         <section className={styles.card} aria-labelledby="alerts-v2-coverage-title">
           <div className={styles.cardHeader}>
             <div>
@@ -318,9 +320,9 @@ export function StockRadarAlertsV2() {
             </div>
           ) : null}
         </section>
-      </div>
+          </div>
 
-      <section className={`${styles.card} ${styles.recentCard}`} aria-labelledby="alerts-v2-recent-title">
+          <section className={`${styles.card} ${styles.recentCard}`} aria-labelledby="alerts-v2-recent-title">
         <div className={styles.cardHeader}>
           <div>
             <h2 id="alerts-v2-recent-title">Recent alerts</h2>
@@ -351,7 +353,18 @@ export function StockRadarAlertsV2() {
         <div className={styles.recentFooter}>
           <Link href="/alerts-v2">View alert history</Link>
         </div>
-      </section>
+          </section>
+        </main>
+
+        <aside className={styles.adRail} aria-label="Free member advertisement">
+          <section className={styles.adSlot}>
+            <span>Advertisement</span>
+            <strong>Free plan ad slot</strong>
+            <p>Reserved placement for monetizing free-member traffic.</p>
+            <em>300 × 250</em>
+          </section>
+        </aside>
+      </div>
 
       {isWatchlistOpen ? (
         <div className={styles.watchlistOverlay} role="presentation">

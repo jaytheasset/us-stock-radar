@@ -19,12 +19,25 @@
   font: inherit;
 }
 
+.pageShell {
+  display: grid;
+  align-items: start;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);
+  gap: var(--sr-space-4);
+  width: 100%;
+}
+
+.contentColumn {
+  min-width: 0;
+  max-width: 1320px;
+}
+
 .header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--sr-space-5);
-  width: min(100%, 1320px);
+  width: 100%;
   margin: 0 auto var(--sr-space-5) 0;
 }
 
@@ -80,12 +93,61 @@
 .notice,
 .card,
 .watchlistPanel {
-  width: min(100%, 1320px);
+  width: 100%;
   border: var(--sr-border-width) solid var(--alerts-border);
   border-radius: var(--sr-radius-base);
   margin: 0 auto 0 0;
   background: var(--alerts-surface);
   box-shadow: var(--alerts-shadow);
+}
+
+.adRail {
+  position: sticky;
+  top: calc(var(--sr-size-header) + var(--sr-space-4));
+  display: grid;
+  gap: var(--sr-space-3);
+}
+
+.adSlot {
+  display: grid;
+  align-content: center;
+  gap: var(--sr-space-2);
+  min-height: 250px;
+  border: var(--sr-border-width) dashed var(--alerts-border-strong);
+  border-radius: var(--sr-radius-base);
+  padding: var(--sr-space-5);
+  color: var(--alerts-muted);
+  background: var(--alerts-surface-soft);
+  box-shadow: var(--alerts-shadow);
+  text-align: center;
+}
+
+.adSlot span {
+  color: var(--alerts-muted);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  letter-spacing: var(--sr-letter-spacing-label);
+  text-transform: uppercase;
+}
+
+.adSlot strong {
+  color: var(--alerts-text);
+  font-size: var(--sr-font-size-lg);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.adSlot p {
+  margin: 0;
+  color: var(--alerts-muted);
+  font-size: var(--sr-font-size-sm);
+  line-height: var(--sr-line-height-body);
+}
+
+.adSlot em {
+  color: var(--sr-color-accent);
+  font-size: var(--sr-font-size-sm);
+  font-style: normal;
+  font-weight: var(--sr-font-weight-semibold);
 }
 
 .notice {
@@ -334,7 +396,7 @@
   align-items: start;
   grid-template-columns: minmax(0, 1fr) minmax(360px, 0.94fr);
   gap: var(--sr-space-4);
-  width: min(100%, 1320px);
+  width: 100%;
   margin: var(--sr-space-4) auto 0 0;
 }
 
@@ -599,6 +661,14 @@
 }
 
 @media (max-width: 1180px) {
+  .pageShell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .adRail {
+    display: none;
+  }
+
   .settingsGrid {
     grid-template-columns: minmax(0, 1fr);
   }
