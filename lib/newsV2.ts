@@ -21,11 +21,14 @@ export type NewsV2Item = {
   score: number;
   sector?: string;
   theme?: string;
+  relatedSectors: string[];
+  themes: string[];
   eventType: string;
   eventTypeCode: string;
   marketCapBand?: NewsV2MarketCapBand;
   priceLabel?: string;
   changePercent?: string;
+  trend: number[];
   deliveryLevel: "archive" | "feed" | "alert";
 };
 
@@ -64,7 +67,7 @@ export async function getNewsV2PageData(): Promise<NewsV2PageData> {
     page: 1,
     limit: newsV2PageSize,
     tab: "news",
-    includeCharts: false,
+    includeCharts: true,
     includeSharedData: false,
   });
 
@@ -145,13 +148,39 @@ function toNewsV2Item(item: LiveFeedItem, marketCapByTicker: Map<string, number>
     score: item.score,
     sector: item.sector || undefined,
     theme: item.themeGroup || item.subTheme || undefined,
+    relatedSectors: item.sector ? [item.sector] : [],
+    themes: Array.from(
+      new Set(
+        [item.themeGroup, item.subTheme].filter(
+          (value): value is string => Boolean(value),
+        ),
+      ),
+    ),
     eventType,
     eventTypeCode: item.eventType,
     marketCapBand: marketCap ? marketCapBand(marketCap) : undefined,
     priceLabel,
     changePercent: priceLabel ? usableMarketValue(item.displayChange) : undefined,
+    trend: item.displayChartBars.map((bar) => bar.close).filter(Number.isFinite),
     deliveryLevel: item.deliveryLevel,
   };
+}
+
+export function formatNewsV2PublishedAt(
+  publishedAt: string,
+  format: "full" | "time" = "full",
+) {
+  const value = new Date(publishedAt);
+  if (Number.isNaN(value.getTime())) return "";
+
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    month: format === "full" ? "short" : undefined,
+    day: format === "full" ? "numeric" : undefined,
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: format === "full" ? "short" : undefined,
+  }).format(value);
 }
 
 function timestampValue(value: string) {

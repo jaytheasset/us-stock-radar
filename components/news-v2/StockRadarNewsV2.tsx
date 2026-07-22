@@ -53,8 +53,8 @@ export function StockRadarNewsV2({
       item.source,
       item.eventType,
       ...item.relatedTickers,
-      item.sector,
-      item.theme,
+      ...item.relatedSectors,
+      ...item.themes,
     ]
       .filter(Boolean)
       .join(" ")
@@ -67,8 +67,8 @@ export function StockRadarNewsV2({
         (item.marketCapBand !== undefined && filters.marketCaps.includes(item.marketCapBand))) &&
       (!filters.eventTypes.length || filters.eventTypes.includes(item.eventType)) &&
       (!filters.sources.length || filters.sources.includes(item.source)) &&
-      (!filters.sectors.length || (item.sector && filters.sectors.includes(item.sector))) &&
-      (!filters.themes.length || (item.theme && filters.themes.includes(item.theme)))
+      (!filters.sectors.length || item.relatedSectors.some((sector) => filters.sectors.includes(sector))) &&
+      (!filters.themes.length || item.themes.some((theme) => filters.themes.includes(theme)))
     );
   });
 
@@ -141,6 +141,7 @@ export function StockRadarNewsV2({
           />
         </div>
         <NewsV2InsightRail
+          items={items}
           sectorActivity={sectorActivity}
           signalActivity={signalActivity}
           sourceActivity={sourceActivity}
@@ -169,7 +170,7 @@ function buildFilterOptions(items: NewsV2Item[]): NewsV2FilterOptions {
   return {
     eventTypes: unique(items.map((item) => item.eventType)),
     sources: unique(items.map((item) => item.source)),
-    sectors: unique(items.map((item) => item.sector)),
-    themes: unique(items.map((item) => item.theme)),
+    sectors: unique(items.flatMap((item) => item.relatedSectors)),
+    themes: unique(items.flatMap((item) => item.themes)),
   };
 }

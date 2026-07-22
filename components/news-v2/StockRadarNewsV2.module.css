@@ -3,7 +3,6 @@
   color: var(--sr-color-text-primary);
 }
 
-.listHeader h1,
 .listHeader h2,
 .detailContent h2,
 .detailContent h3,
@@ -373,9 +372,7 @@
   gap: var(--sr-space-3);
 }
 
-.listHeader h1,
 .listHeader h2 {
-  margin: 0;
   color: var(--sr-color-text-heading);
   font-size: var(--sr-font-size-base);
   font-weight: var(--sr-font-weight-display);
@@ -418,7 +415,7 @@
   min-width: 0;
   width: 100%;
   min-height: calc(var(--sr-size-table-row) + var(--sr-space-7));
-  grid-template-columns: 72px minmax(84px, 0.35fr) minmax(320px, 2.2fr) minmax(112px, 0.55fr) 58px;
+  grid-template-columns: 72px minmax(84px, 0.35fr) minmax(320px, 2.2fr) minmax(190px, 0.95fr) 58px;
   align-items: center;
   gap: var(--sr-space-2-5);
   border: 0;
@@ -430,12 +427,12 @@
   text-align: left;
 }
 
-.newsRowWithoutMarket {
-  grid-template-columns: 72px minmax(84px, 0.35fr) minmax(320px, 2.75fr) 58px;
-}
-
 .newsRow:hover {
   background: var(--sr-color-surface-table-hover);
+}
+
+.newsRowWithoutMarket {
+  grid-template-columns: 72px minmax(84px, 0.35fr) minmax(320px, 2.75fr) 58px;
 }
 
 .rowTime,
@@ -659,6 +656,15 @@
   width: 100%;
   max-width: 100px;
   justify-self: end;
+}
+
+.rowSparklinePlaceholder {
+  display: block;
+  width: 100%;
+  max-width: 100px;
+  height: var(--sr-border-width);
+  justify-self: end;
+  background: var(--sr-color-divider);
 }
 
 .rowSparkline {
@@ -1016,6 +1022,12 @@
 .sourceActivityList {
   display: grid;
   padding: 0 var(--sr-space-4);
+}
+
+.sourceActivityList > .detailEmptyMeta,
+.insightCard > .detailEmptyMeta {
+  margin: 0;
+  padding: var(--sr-space-4);
 }
 
 .sourceActivityRow {
@@ -1637,13 +1649,9 @@
 
 @media (max-width: 1320px) {
   .newsRow {
-    grid-template-columns: 58px minmax(76px, 0.35fr) minmax(242px, 2fr) minmax(96px, 0.55fr) 54px;
+    grid-template-columns: 58px minmax(76px, 0.35fr) minmax(242px, 2fr) minmax(160px, 0.9fr) 54px;
     gap: var(--sr-space-2-5);
     padding-inline: var(--sr-space-3);
-  }
-
-  .newsRowWithoutMarket {
-    grid-template-columns: 58px minmax(76px, 0.35fr) minmax(242px, 2.55fr) 54px;
   }
 
   .detailMarketSnapshot {
@@ -1712,7 +1720,6 @@
     display: none;
   }
 
-  .listHeader h1,
   .listHeader h2 {
     font-size: var(--sr-font-size-md);
   }
@@ -1725,10 +1732,6 @@
     column-gap: var(--sr-space-1-5);
     row-gap: var(--sr-space-2);
     padding: var(--sr-space-3) var(--sr-space-2-5);
-  }
-
-  .newsRowWithoutMarket {
-    grid-template-columns: auto minmax(0, 1fr) auto;
   }
 
   .newsListItem {
@@ -1784,10 +1787,6 @@
     -webkit-line-clamp: 2;
   }
 
-  .newsRowWithoutMarket .rowHeadline {
-    grid-column: 1 / 4;
-  }
-
   .rowBadges {
     grid-column: 2;
     grid-row: 1;
@@ -1795,11 +1794,6 @@
     overflow: hidden;
     flex-wrap: nowrap;
     gap: var(--sr-space-1-5);
-  }
-
-  .rowBadges > :first-child,
-  .rowSource {
-    display: none;
   }
 
   .rowCategoryBadgeDesktop,

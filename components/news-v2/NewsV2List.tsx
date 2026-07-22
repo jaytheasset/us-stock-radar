@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import { NewsV2InlineAd } from "@/components/news-v2/NewsV2InlineAd";
 import { NewsV2Row } from "@/components/news-v2/NewsV2Row";
 import { PremiumUpgradeCard } from "@/components/news-v2/PremiumUpgradeCard";
 import type { NewsV2Item } from "@/lib/newsV2";
@@ -15,6 +16,15 @@ export type NewsV2ListProps = {
   totalNews: number;
 };
 
+const minimumInlineAdItems = 10;
+const inlineAdGroupSize = 25;
+
+function shouldInsertInlineAd(index: number, itemCount: number) {
+  const groupStart = Math.floor(index / inlineAdGroupSize) * inlineAdGroupSize;
+  const groupLength = Math.min(inlineAdGroupSize, itemCount - groupStart);
+  return groupLength >= minimumInlineAdItems && index === groupStart + Math.ceil(groupLength / 2) - 1;
+}
+
 export function NewsV2List({
   error,
   items,
@@ -26,6 +36,9 @@ export function NewsV2List({
   totalNews,
 }: NewsV2ListProps) {
   const premiumInsertIndex = items.length >= 3 ? Math.min(3, items.length - 1) : -1;
+  const countLabel = totalNews > loadedTotal
+    ? `${items.length} of latest ${loadedTotal} / ${totalNews} stories`
+    : `${items.length} of ${totalItems} stories`;
 
   return (
     <section aria-labelledby="news-v2-list-title" className={styles.listPanel}>
@@ -35,12 +48,9 @@ export function NewsV2List({
             <i aria-hidden="true" />
             Live
           </span>
-          <h1 id="news-v2-list-title">Market News</h1>
+          <h2 id="news-v2-list-title">Market News</h2>
         </div>
-        <span className={styles.resultCount}>
-          {totalItems} result{totalItems === 1 ? "" : "s"}
-          {totalNews > loadedTotal ? ` · latest ${loadedTotal} of ${totalNews}` : ""}
-        </span>
+        <span className={styles.resultCount}>{countLabel}</span>
       </header>
 
       {items.length ? (
@@ -52,6 +62,12 @@ export function NewsV2List({
                 <li className={styles.premiumCtaMobileItem}>
                   <PremiumUpgradeCard className={styles.premiumCtaMobile} />
                 </li>
+              ) : null}
+              {shouldInsertInlineAd(index, items.length) ? (
+                <>
+                  <NewsV2InlineAd format="desktop" />
+                  <NewsV2InlineAd format="mobile" />
+                </>
               ) : null}
             </Fragment>
           ))}
