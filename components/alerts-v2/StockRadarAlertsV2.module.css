@@ -101,6 +101,8 @@
 }
 
 .adRail {
+  display: grid;
+  gap: var(--sr-space-4);
   position: sticky;
   top: calc(var(--sr-size-header) + var(--sr-space-4));
   width: 300px;
@@ -108,6 +110,87 @@
 
 .adRail > section {
   margin: 0;
+}
+
+.railTallAd {
+  box-sizing: border-box;
+  display: grid;
+  width: 300px;
+  height: 600px;
+  align-content: center;
+  justify-items: center;
+  gap: var(--sr-space-2);
+  border: var(--sr-border-width) dashed var(--alerts-border-strong);
+  border-radius: var(--sr-radius-control);
+  padding: var(--sr-space-5);
+  color: var(--alerts-muted);
+  background: var(--alerts-surface-soft);
+  box-shadow: var(--alerts-shadow);
+  text-align: center;
+}
+
+.railTallAd > span,
+.railUpgrade > span {
+  color: var(--alerts-muted);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  letter-spacing: var(--sr-letter-spacing-label);
+  line-height: var(--sr-line-height-control);
+}
+
+.railTallAd > strong {
+  color: var(--alerts-text);
+  font-size: var(--sr-font-size-lg);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.railTallAd > p,
+.railTallAd > small {
+  max-width: 220px;
+  margin: 0;
+  color: var(--alerts-muted);
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-medium);
+  line-height: var(--sr-line-height-body);
+}
+
+.railUpgrade {
+  display: grid;
+  gap: var(--sr-space-2);
+  border: var(--sr-border-width) solid var(--sr-color-accent-border);
+  border-radius: var(--sr-radius-base);
+  padding: var(--sr-space-4);
+  background: var(--alerts-surface);
+  box-shadow: var(--alerts-shadow);
+}
+
+.railUpgrade > h2 {
+  margin: 0;
+  color: var(--alerts-text);
+  font-size: var(--sr-font-size-lg);
+  font-weight: var(--sr-font-weight-display);
+  line-height: var(--sr-line-height-heading);
+}
+
+.railUpgrade > p {
+  margin: 0;
+  color: var(--alerts-muted);
+  font-size: var(--sr-font-size-sm);
+  line-height: var(--sr-line-height-body);
+}
+
+.railUpgradeLink {
+  display: flex;
+  min-height: var(--sr-size-control);
+  align-items: center;
+  justify-content: center;
+  border: var(--sr-border-width) solid var(--sr-color-accent-border-strong);
+  border-radius: var(--sr-radius-control);
+  color: var(--sr-color-text-inverse);
+  background: var(--sr-color-accent);
+  font-size: var(--sr-font-size-base);
+  font-weight: var(--sr-font-weight-semibold);
+  text-decoration: none;
 }
 
 .notice {

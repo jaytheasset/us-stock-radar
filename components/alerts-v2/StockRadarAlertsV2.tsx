@@ -451,7 +451,21 @@ export function StockRadarAlertsV2() {
         </main>
 
         <aside className={styles.adRail} aria-label="Advertisement">
-          <DesktopRailAdSlot note="Pro+ members do not see ads." />
+          <DesktopRailAdSlot note="Not shown to Pro+ members." />
+
+          <section className={styles.railTallAd} aria-label="Advertisement">
+            <span>Advertisement</span>
+            <strong>300 x 600</strong>
+            <p>Free-member placement</p>
+            <small>Not shown to Pro+ members.</small>
+          </section>
+
+          <section className={styles.railUpgrade} aria-labelledby="alerts-v2-rail-upgrade-title">
+            <span>ADVANCED</span>
+            <h2 id="alerts-v2-rail-upgrade-title">Unlock more signal</h2>
+            <p>Get critical risk alerts and Email delivery with Advanced.</p>
+            <Link className={styles.railUpgradeLink} href="/premium-v2">View Advanced</Link>
+          </section>
         </aside>
 
       </div>
