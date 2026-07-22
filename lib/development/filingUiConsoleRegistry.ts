@@ -2,6 +2,7 @@ import {
   filingUiFamilies,
   type FilingUiFamilyId,
 } from "@/lib/development/filingUiRegistry";
+import { newsAnalysisUiFamily } from "@/lib/development/newsUiRegistry";
 
 export type FilingUiConsoleFamily = {
   id: string;
@@ -27,12 +28,14 @@ const FAMILY_ID_MAP: Readonly<Record<FilingUiFamilyId, string>> = {
   s8: "s8",
 };
 
-export const filingUiConsoleFamilies: readonly FilingUiConsoleFamily[] =
-  filingUiFamilies.map((family) => ({
+export const filingUiConsoleFamilies: readonly FilingUiConsoleFamily[] = [
+  ...filingUiFamilies.map((family) => ({
     description: familyDescription(family.id),
     id: FAMILY_ID_MAP[family.id],
     label: family.label,
-  }));
+  })),
+  newsAnalysisUiFamily,
+];
 
 function familyDescription(family: FilingUiFamilyId) {
   const descriptions: Record<FilingUiFamilyId, string> = {

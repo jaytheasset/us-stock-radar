@@ -37,9 +37,11 @@ type ContextMetricItem = {
 
 export function SectorThemeContextPanel({
   context,
+  storedOnly = false,
   ticker,
 }: {
   context: SectorThemeContext;
+  storedOnly?: boolean;
   ticker: string;
 }) {
   const [range, setRange] = useState<ContextRange>("1D");
@@ -95,6 +97,10 @@ export function SectorThemeContextPanel({
     const controller = new AbortController();
     const apiRange = chartRangeForContext(range);
 
+    if (storedOnly) {
+      return () => controller.abort();
+    }
+
     if (!symbols.length) {
       setLiveMovers({});
       setMarketDataStatus("unavailable");
@@ -130,7 +136,7 @@ export function SectorThemeContextPanel({
 
     loadMovers();
     return () => controller.abort();
-  }, [range, symbols]);
+  }, [range, storedOnly, symbols]);
 
   return (
     <section className="stock-detail-card sector-theme-main-card">
@@ -164,7 +170,9 @@ export function SectorThemeContextPanel({
           <div className="context-movers-heading">
             <span>{moverHeading}</span>
             <em>
-              {marketDataStatus === "ready"
+              {storedOnly
+                ? "Stored market data"
+                : marketDataStatus === "ready"
                 ? "Live market data"
                 : marketDataStatus === "loading"
                   ? "Updating"

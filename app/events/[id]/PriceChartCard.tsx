@@ -16,6 +16,7 @@ type PriceChartCardProps = {
   price: string;
   rangeAppearance?: "default" | "neutral";
   series: PriceChartSeries | null;
+  storedOnly?: boolean;
   ticker: string;
   tone: DetailTone;
 };
@@ -52,6 +53,7 @@ export function PriceChartCard({
   price,
   rangeAppearance = "default",
   series,
+  storedOnly = false,
   ticker,
   tone,
 }: PriceChartCardProps) {
@@ -64,6 +66,10 @@ export function PriceChartCard({
   useEffect(() => {
     const controller = new AbortController();
     const requestedRange = range;
+
+    if (storedOnly) {
+      return () => controller.abort();
+    }
 
     async function loadChart() {
       setLoadingRange(requestedRange);
@@ -91,7 +97,7 @@ export function PriceChartCard({
 
     loadChart();
     return () => controller.abort();
-  }, [range, ticker]);
+  }, [range, storedOnly, ticker]);
 
   const activeRemoteData = remoteDataByRange[range];
   const isLoadingActiveRange = loadingRange === range;

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ExternalLink, TrendingDown, TrendingUp } from "lucide-react";
 import { PriceChartCard } from "./PriceChartCard";
 import { SectorThemeContextPanel } from "./SectorThemeContextPanel";
@@ -9,6 +9,9 @@ import { fetchFmpProfile } from "@/lib/integrations";
 import { getLiveEventDetail, type LiveFeedItem } from "@/lib/liveFeed";
 import { readMarketGroupSnapshotCache, type MarketGroupSnapshotPayload } from "@/lib/marketDataCache";
 import { parseGlobeNewswireArticleHtml } from "@/lib/sources/globe/parser";
+import { NewsAnalysisAdapter } from "@/components/news-analysis-v2/NewsAnalysisAdapter";
+import { NEWS_ANALYSIS_V2_FIXTURE_SLUG } from "@/lib/newsAnalysisConstants";
+import { loadNewsAnalysisDetail } from "@/lib/newsAnalysisDetail";
 import { fetchEventAnalysis, fetchEventTickers, fetchEventsByTicker, supabaseSelect } from "@/lib/supabase";
 import { themeGroups, themeSubThemes } from "@/lib/taxonomyRegistry";
 import {
@@ -502,15 +505,26 @@ const detailProfiles: Record<string, DetailProfile> = {
 };
 
 export function generateStaticParams() {
-  return feedItems.map((item) => ({ id: item.id }));
+  return [...feedItems.map((item) => ({ id: item.id })), { id: NEWS_ANALYSIS_V2_FIXTURE_SLUG }];
 }
 
 export default async function StockNewsDetailPage({ params }: StockDetailPageProps) {
   const { id } = await params;
+  if (id === NEWS_ANALYSIS_V2_FIXTURE_SLUG) {
+    const fixture = await loadNewsAnalysisDetail(id);
+    if (!fixture) notFound();
+    return <NewsAnalysisAdapter detail={fixture} newsId={id} />;
+  }
   const liveDetail = isUuid(id) ? await getLiveEventDetail(id) : { item: null };
   const liveItem = liveDetail.item;
+  if (isUuid(id) && !liveItem) notFound();
   if (liveItem?.sourceGroup === "filings") {
     redirect(`/filings/${liveItem.id}`);
+  }
+  if (liveItem?.sourceGroup === "news") {
+    const detail = await loadNewsAnalysisDetail(id);
+    if (!detail) notFound();
+    return <NewsAnalysisAdapter detail={detail} newsId={id} />;
   }
   const event = liveItem ? toDetailEvent(liveItem) : getFeedItem(id) || defaultEvent;
   let profile = liveItem
@@ -2778,7 +2792,7 @@ function isRealTicker(value: string) {
 }
 
 function isUuid(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
 
 function buildPriceSeries({

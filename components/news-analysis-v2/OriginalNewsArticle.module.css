@@ -1,0 +1,66 @@
+.content {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  color: var(--sr-color-text-primary);
+  background: var(--sr-color-surface);
+  color-scheme: light dark;
+}
+
+.content :global(*) {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.content :global(article),
+.content :global(section),
+.content :global(div) {
+  min-width: 0;
+}
+
+.content :global(p),
+.content :global(li),
+.content :global(a),
+.content :global(td),
+.content :global(th) {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.content :global(a) {
+  color: var(--sr-color-accent);
+}
+
+.content :global(img),
+.content :global(video) {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  object-fit: contain;
+  filter: none !important;
+}
+
+.content :global(table) {
+  width: max-content;
+  min-width: 100%;
+  max-width: none;
+  border-collapse: collapse;
+}
+
+.content :global(th),
+.content :global(td) {
+  padding: 10px 12px;
+  border: 1px solid var(--sr-color-border-subtle);
+  color: var(--sr-color-text-primary);
+  background: var(--sr-color-surface);
+  text-align: left;
+  vertical-align: top;
+}
+
+.content :global(pre) {
+  max-width: 100%;
+  overflow: auto;
+  white-space: pre-wrap;
+}

@@ -16,7 +16,7 @@ type GenericFilingRecentItem = {
   eventType: string;
   filedAt: string;
   form: string;
-  score: number;
+  score: number | null;
   title: string;
 };
 
@@ -33,18 +33,18 @@ export type GenericFilingAnalysisData = {
   bearishPoints: string[];
   bullishPoints: string[];
   company: string;
-  deliveryLevel: "alert" | "archive" | "feed";
+  deliveryLevel: "alert" | "archive" | "feed" | null;
   exchange: string;
   filedAt: string;
   filingBrief: string;
   formType: string;
-  impact: "high" | "low" | "medium";
+  impact: "high" | "low" | "medium" | null;
   keyEvidence: string[];
   recentFilings: GenericFilingRecentItem[];
   relatedNews: GenericFilingRelatedNewsItem[];
-  score: number;
+  score: number | null;
   scoreRationale: string;
-  signal: DetailTone;
+  signal: DetailTone | null;
   source: string;
   sourceUrl: string;
   summary: string;
@@ -56,33 +56,47 @@ export type GenericFilingAnalysisData = {
 
 type GenericFilingAnalysisProps = {
   bodyRenderer?: ReactNode;
+  bookmarkRenderer?: ReactNode | false;
+  briefLabel?: string;
   contextRenderer?: ReactNode;
   detailRenderer?: ReactNode;
   eventLabel: string;
   eventTone: BadgeTone;
   filingId: string;
   filing: GenericFilingAnalysisData;
+  originalBodyRenderer?: ReactNode;
+  originalLinkLabel?: string;
   originalRenderer?: ReactNode;
+  originalSectionTitle?: string;
   priceRenderer?: ReactNode;
+  sourceFooterLabel?: string;
   summaryAsideRenderer?: ReactNode;
+  timestampLabel?: string;
 };
 
 export function GenericFilingAnalysis({
   bodyRenderer,
+  bookmarkRenderer,
+  briefLabel = "Filing Brief",
   contextRenderer,
   detailRenderer,
   eventLabel,
   eventTone,
   filingId,
   filing,
+  originalBodyRenderer,
+  originalLinkLabel = "View Original Filing",
   originalRenderer,
+  originalSectionTitle,
   priceRenderer,
+  sourceFooterLabel = "Source",
   summaryAsideRenderer,
+  timestampLabel = "Filed",
 }: GenericFilingAnalysisProps) {
   const filingBrief = cleanText(filing.filingBrief);
   const whyItMatters = cleanText(filing.whyItMatters);
   const primaryAnalysis = whyItMatters || filingBrief;
-  const primaryAnalysisLabel = whyItMatters ? "Why It Matters" : "Filing Brief";
+  const primaryAnalysisLabel = whyItMatters ? "Why It Matters" : briefLabel;
   const summary = cleanText(filing.summary);
   const showSummary = Boolean(
     summary && normalizeCopy(summary) !== normalizeCopy(primaryAnalysis),
@@ -98,7 +112,9 @@ export function GenericFilingAnalysis({
   const relatedNews = filing.relatedNews.filter(hasRelatedNewsContent);
   const source = cleanText(filing.source);
   const sourceUrl = cleanText(filing.sourceUrl);
-  const hasOriginalFiling = Boolean(originalRenderer || source || sourceUrl);
+  const hasOriginalFiling = Boolean(
+    originalBodyRenderer || originalRenderer || source || sourceUrl,
+  );
   const hasRelatedContent = Boolean(recentFilings.length || relatedNews.length);
   const useNoChartDetailSplit = Boolean(
     !priceRenderer && hasDetailRenderer && (primaryAnalysis || showSummary),
@@ -115,6 +131,16 @@ export function GenericFilingAnalysis({
   const company = cleanText(filing.company);
   const exchange = cleanText(filing.exchange);
   const hasCompanyLine = Boolean(hasTicker || company || exchange);
+  const score =
+    typeof filing.score === "number" && Number.isFinite(filing.score)
+      ? filing.score
+      : null;
+  const bookmark =
+    bookmarkRenderer === false
+      ? null
+      : bookmarkRenderer === undefined
+        ? <FilingBookmarkButton filingId={filingId} />
+        : bookmarkRenderer;
 
   return (
     <div className={styles.page}>
@@ -124,14 +150,12 @@ export function GenericFilingAnalysis({
             <header className={styles.hero}>
               {cleanText(filing.filedAt) ? (
                 <div className={styles.heroTimestamp}>
-                  <span>Filed</span>
+                  <span>{timestampLabel}</span>
                   <time>{filing.filedAt}</time>
                 </div>
               ) : null}
 
-              <div className={styles.heroActions}>
-                <FilingBookmarkButton filingId={filingId} />
-              </div>
+              {bookmark ? <div className={styles.heroActions}>{bookmark}</div> : null}
 
               <div
                 className={`${styles.heroIdentity}${
@@ -157,16 +181,22 @@ export function GenericFilingAnalysis({
                         {eventLabel}
                       </Badge>
                     ) : null}
-                    <span className={`${styles.signal} ${styles[filing.signal]}`}>
-                      {filing.signal}
-                    </span>
-                    <span
-                      aria-label={`Impact score ${filing.score}`}
-                      className={`${styles.impactScore} ${styles[filing.impact]}`}
-                    >
-                      <span>Impact</span>
-                      <strong>{filing.score}</strong>
-                    </span>
+                    {filing.signal ? (
+                      <span className={`${styles.signal} ${styles[filing.signal]}`}>
+                        {filing.signal}
+                      </span>
+                    ) : null}
+                    {score !== null ? (
+                      <span
+                        aria-label={`Impact score ${score}`}
+                        className={`${styles.impactScore}${
+                          filing.impact ? ` ${styles[filing.impact]}` : ""
+                        }`}
+                      >
+                        <span>Impact</span>
+                        <strong>{score}</strong>
+                      </span>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -243,13 +273,15 @@ export function GenericFilingAnalysis({
               </section>
             ) : null}
 
-            <ScoreRationale
-              deliveryLevel={filing.deliveryLevel}
-              impact={filing.impact}
-              rationale={filing.scoreRationale}
-              score={filing.score}
-              signal={filing.signal}
-            />
+            {filing.deliveryLevel && filing.impact && score !== null && filing.signal ? (
+              <ScoreRationale
+                deliveryLevel={filing.deliveryLevel}
+                impact={filing.impact}
+                rationale={filing.scoreRationale}
+                score={score}
+                signal={filing.signal}
+              />
+            ) : null}
 
             {bodyRenderer ? <div className={styles.specializedBody}>{bodyRenderer}</div> : null}
 
@@ -324,7 +356,7 @@ export function GenericFilingAnalysis({
                             {[item.eventType, item.filedAt].filter(Boolean).join(" \u00b7 ")}
                           </span>
                         </div>
-                        <b>{item.score}</b>
+                        {item.score !== null ? <b>{item.score}</b> : null}
                       </Link>
                     ))}
                   </div>
@@ -363,9 +395,21 @@ export function GenericFilingAnalysis({
                 <FilingInlineAdSlot />
               </div>
               <section
-                aria-label="Original filing"
+                aria-label={originalSectionTitle || "Original filing"}
                 className={`${styles.rendererCard} ${styles.originalRendererCard}`}
               >
+                {originalBodyRenderer ? (
+                  <section className="stock-detail-card full-text-card filing-original-card">
+                    {originalSectionTitle ? (
+                      <div className="card-heading-row">
+                        <div>
+                          <h2>{originalSectionTitle}</h2>
+                        </div>
+                      </div>
+                    ) : null}
+                    {originalBodyRenderer}
+                  </section>
+                ) : null}
                 {originalRenderer}
                 {source || sourceUrl ? (
                   <footer
@@ -375,7 +419,7 @@ export function GenericFilingAnalysis({
                   >
                     {source ? (
                       <div className={styles.originalSourceIdentity}>
-                        <span>Source</span>
+                        <span>{sourceFooterLabel}</span>
                         <strong>{source}</strong>
                       </div>
                     ) : null}
@@ -386,7 +430,7 @@ export function GenericFilingAnalysis({
                         rel="noreferrer"
                         target="_blank"
                       >
-                        <span>View Original Filing</span>
+                        <span>{originalLinkLabel}</span>
                         <ExternalLink aria-hidden="true" size={15} />
                       </a>
                     ) : null}
