@@ -1,8 +1,10 @@
 .content {
+  box-sizing: border-box;
   width: 100%;
   max-width: 100%;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
+  padding: 24px 28px;
   color: var(--sr-color-text-primary);
   background: var(--sr-color-surface);
   color-scheme: light dark;
@@ -63,4 +65,10 @@
   max-width: 100%;
   overflow: auto;
   white-space: pre-wrap;
+}
+
+@media (max-width: 640px) {
+  .content {
+    padding: 16px;
+  }
 }
