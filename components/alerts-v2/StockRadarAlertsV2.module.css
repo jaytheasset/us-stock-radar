@@ -373,6 +373,10 @@
   font-size: var(--sr-font-size-sm);
 }
 
+.settingRow .inlineToggle {
+  grid-column: 4;
+}
+
 .settingRow[data-locked="true"] {
   cursor: pointer;
 }
