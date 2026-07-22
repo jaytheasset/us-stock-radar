@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Bell, Menu, Search, Settings } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { Bell, Menu, Moon, Search, Settings, Sun } from "lucide-react";
 import { StockRadarDesktopNavigation } from "@/components/shell/StockRadarDesktopNavigation";
 import {
   StockRadarMobileNavigationMenu,
@@ -18,10 +18,18 @@ import styles from "./StockRadarProductHeader.module.css";
 
 export type StockRadarProductHeaderProps = {
   activeNavigationItem: StockRadarPrimaryNavigationKey;
+  theme?: "dark" | "light";
+  themeMode?: "fixed-dark" | "user-selectable";
+  onThemeToggle?: () => void;
+  contentMaxWidth?: string;
 };
 
 export function StockRadarProductHeader({
   activeNavigationItem,
+  theme = "dark",
+  themeMode = "fixed-dark",
+  onThemeToggle,
+  contentMaxWidth,
 }: StockRadarProductHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
@@ -74,38 +82,52 @@ export function StockRadarProductHeader({
   return (
     <>
       <header className={styles.header}>
-        <div className={styles.brand}>
-          <span>{stockRadarProductName}</span>
-          <small>
-            {stockRadarMarketStatus}
-            <i aria-hidden="true" />
-          </small>
-        </div>
+        <div
+          className={styles.headerContent}
+          style={contentMaxWidth ? ({ maxWidth: contentMaxWidth } satisfies CSSProperties) : undefined}
+        >
+          <div className={styles.brand}>
+            <span>{stockRadarProductName}</span>
+            <small>
+              {stockRadarMarketStatus}
+              <i aria-hidden="true" />
+            </small>
+          </div>
 
-        <StockRadarDesktopNavigation activeItem={activeNavigationItem} />
+          <StockRadarDesktopNavigation activeItem={activeNavigationItem} />
 
-        <div aria-label="Dashboard actions" className={styles.actions}>
-          <button aria-label="Search" className={styles.searchButton} type="button">
-            <Search aria-hidden="true" size={18} />
-            <span>Search</span>
-          </button>
-          <IconButton aria-label="Alerts" indicator>
-            <Bell aria-hidden="true" size={18} />
-          </IconButton>
-          <IconButton aria-label="Settings" className={styles.settingsButton}>
-            <Settings aria-hidden="true" size={18} />
-          </IconButton>
-          <IconButton
-            aria-controls={isMobileMenuOpen ? stockRadarMobileMenuId : undefined}
-            aria-expanded={isMobileMenuOpen}
-            aria-haspopup="menu"
-            aria-label="Open menu"
-            className={styles.mobileMenuButton}
-            onClick={() => setIsMobileMenuOpen((current) => !current)}
-            ref={mobileMenuButtonRef}
-          >
-            <Menu aria-hidden="true" size={19} />
-          </IconButton>
+          <div aria-label="Dashboard actions" className={styles.actions}>
+            <button aria-label="Search" className={styles.searchButton} type="button">
+              <Search aria-hidden="true" size={18} />
+              <span>Search</span>
+            </button>
+            <IconButton aria-label="Alerts" indicator>
+              <Bell aria-hidden="true" size={18} />
+            </IconButton>
+            {themeMode === "user-selectable" ? (
+              <IconButton
+                aria-label={theme === "dark" ? "Switch to Light theme" : "Switch to Dark theme"}
+                className={styles.themeButton}
+                onClick={() => onThemeToggle?.()}
+              >
+                {theme === "dark" ? <Sun aria-hidden="true" size={18} /> : <Moon aria-hidden="true" size={18} />}
+              </IconButton>
+            ) : null}
+            <IconButton aria-label="Settings" className={styles.settingsButton}>
+              <Settings aria-hidden="true" size={18} />
+            </IconButton>
+            <IconButton
+              aria-controls={isMobileMenuOpen ? stockRadarMobileMenuId : undefined}
+              aria-expanded={isMobileMenuOpen}
+              aria-haspopup="menu"
+              aria-label="Open menu"
+              className={styles.mobileMenuButton}
+              onClick={() => setIsMobileMenuOpen((current) => !current)}
+              ref={mobileMenuButtonRef}
+            >
+              <Menu aria-hidden="true" size={19} />
+            </IconButton>
+          </div>
         </div>
       </header>
 

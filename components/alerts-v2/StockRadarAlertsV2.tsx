@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 import { DesktopRailAdSlot } from "@/components/dashboard-v2/DesktopRailAdSlot";
 import {
   alertIconSet,
@@ -85,6 +86,8 @@ export function StockRadarAlertsV2() {
     ),
   );
   const [isWatchlistOpen, setIsWatchlistOpen] = useState(false);
+  const [isPushEnabled, setIsPushEnabled] = useState(false);
+  const [hasSentTestAlert, setHasSentTestAlert] = useState(false);
   const [upgradeMessage, setUpgradeMessage] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved">("idle");
   const fromWatchlistButtonRef = useRef<HTMLButtonElement>(null);
@@ -92,6 +95,10 @@ export function StockRadarAlertsV2() {
   const enabledCount = useMemo(
     () => tickers.filter((ticker) => ticker.enabled).length,
     [tickers],
+  );
+  const enabledCoreCoverageCount = useMemo(
+    () => coverageItems.filter((item) => !item.locked && coverageState[item.id]).length,
+    [coverageState],
   );
 
   useEffect(() => {
@@ -104,6 +111,16 @@ export function StockRadarAlertsV2() {
   }, [mockPlan.id, mockPlan.hasRiskAlerts]);
 
   const markSettingsChanged = () => setSaveStatus("idle");
+
+  const updatePushEnabled = (enabled: boolean) => {
+    setIsPushEnabled(enabled);
+    setHasSentTestAlert(false);
+  };
+
+  const sendTestAlert = () => {
+    setIsPushEnabled(true);
+    setHasSentTestAlert(true);
+  };
 
   const addTicker = (tickerValue?: string, companyValue?: string) => {
     const ticker = (tickerValue ?? tickerInput).trim().toUpperCase();
@@ -183,14 +200,33 @@ export function StockRadarAlertsV2() {
 
           <section className={styles.notice} aria-label="Push permission notice">
             <Bell aria-hidden="true" size={20} />
-            <p>Push notifications are disabled. Enable notifications to receive real-time alerts.</p>
-            <div>
-              <button type="button">Enable notifications</button>
-              <button type="button">Send test alert</button>
+            <p>
+              {hasSentTestAlert
+                ? "Test alert sent."
+                : isPushEnabled
+                  ? "Push notifications are enabled."
+                  : "Push notifications are disabled. Enable notifications to receive real-time alerts."}
+            </p>
+            <span className={styles.noticeMobileLabel}>Push notifications</span>
+            <div className={styles.noticeMobileToggle}>
+              <ToggleSwitch
+                checked={isPushEnabled}
+                label="Toggle push notifications"
+                onChange={() => updatePushEnabled(!isPushEnabled)}
+              />
+              <em>{isPushEnabled ? "ON" : "OFF"}</em>
+            </div>
+            <div className={styles.noticeActions}>
+              <button onClick={() => updatePushEnabled(!isPushEnabled)} type="button">
+                {isPushEnabled ? "Disable notifications" : "Enable notifications"}
+              </button>
+              <button onClick={sendTestAlert} type="button">
+                {hasSentTestAlert ? "Test alert sent" : "Send test alert"}
+              </button>
             </div>
           </section>
 
-          <section className={styles.card} aria-labelledby="alerts-v2-tickers-title">
+          <section className={`${styles.card} ${styles.tickerCard}`} aria-labelledby="alerts-v2-tickers-title">
         <div className={styles.cardHeader}>
           <div>
             <h2 id="alerts-v2-tickers-title">Alert-enabled tickers</h2>
@@ -256,6 +292,23 @@ export function StockRadarAlertsV2() {
 
           <div className={styles.settingsGrid}>
         <section className={`${styles.card} ${styles.coverageCard}`} aria-labelledby="alerts-v2-coverage-title">
+          <input
+            aria-label="Toggle Alert coverage settings"
+            className={styles.mobileCoverageControl}
+            id="alerts-v2-coverage-toggle"
+            type="checkbox"
+          />
+          <label className={styles.mobileCoverageSummary} htmlFor="alerts-v2-coverage-toggle">
+            <span>
+              <strong>Alert coverage</strong>
+              <small>
+                {mockPlan.hasCoverageControls
+                  ? `${enabledCoreCoverageCount} core alerts on`
+                  : "Pro+ coverage controls"}
+              </small>
+            </span>
+            <ChevronDown aria-hidden="true" size={18} />
+          </label>
           <div className={styles.cardHeader}>
             <div>
               <h2 id="alerts-v2-coverage-title">Alert coverage</h2>
@@ -264,7 +317,7 @@ export function StockRadarAlertsV2() {
             {!mockPlan.hasCoverageControls ? <span className={styles.lockedBadge}>PRO+</span> : null}
           </div>
 
-          <div className={styles.settingList}>
+          <div className={styles.settingList} id="alerts-v2-coverage-settings">
             {coverageItems.map((item) => {
               const Icon = item.icon;
               const locked = !mockPlan.hasCoverageControls || (Boolean(item.locked) && !mockPlan.hasRiskAlerts);
@@ -476,30 +529,60 @@ export function StockRadarAlertsV2() {
           </div>
 
           <div className={styles.filingGroupList}>
-            {filingAlertGroups.map((group) => (
-              <section className={styles.filingGroup} key={group.id}>
-                <strong>{group.title}</strong>
-                <div className={styles.filingTypeGrid}>
-                  {group.items.map((item) => (
-                    <label className={styles.filingTypeOption} key={item.id}>
+            {filingAlertGroups.map((group) => {
+              const selectedItemCount = group.items.filter((item) => filingState[item.id]).length;
+              const isGroupSelected = selectedItemCount === group.items.length;
+              const isGroupPartiallySelected = selectedItemCount > 0 && !isGroupSelected;
+
+              return (
+                <section className={styles.filingGroup} key={group.id}>
+                  <div className={styles.filingGroupHeader}>
+                    <strong>{group.title}</strong>
+                    <label className={styles.filingGroupToggle}>
                       <input
-                        checked={Boolean(filingState[item.id])}
+                        aria-label={`Select all ${group.title}`}
+                        checked={isGroupSelected}
                         disabled={!mockPlan.hasFilingTypeAlerts}
                         onChange={(event) => {
+                          const checked = event.currentTarget.checked;
                           setFilingState((current) => ({
                             ...current,
-                            [item.id]: event.currentTarget.checked,
+                            ...Object.fromEntries(group.items.map((item) => [item.id, checked])),
                           }));
                           markSettingsChanged();
                         }}
+                        ref={(input) => {
+                          if (input) {
+                            input.indeterminate = isGroupPartiallySelected;
+                          }
+                        }}
                         type="checkbox"
                       />
-                      <span>{item.label}</span>
+                      <span>All</span>
                     </label>
-                  ))}
-                </div>
-              </section>
-            ))}
+                  </div>
+                  <div className={styles.filingTypeGrid}>
+                    {group.items.map((item) => (
+                      <label className={styles.filingTypeOption} key={item.id}>
+                        <input
+                          checked={Boolean(filingState[item.id])}
+                          disabled={!mockPlan.hasFilingTypeAlerts}
+                          onChange={(event) => {
+                            setFilingState((current) => ({
+                              ...current,
+                              [item.id]: event.currentTarget.checked,
+                            }));
+                            markSettingsChanged();
+                          }}
+                          type="checkbox"
+                        />
+                        <span>{item.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
           </div>
 
           {!mockPlan.hasFilingTypeAlerts ? (

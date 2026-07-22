@@ -1,13 +1,19 @@
 .header {
+  min-height: var(--sr-size-header);
+  border-bottom: var(--sr-border-width) solid var(--sr-color-border-product-header);
+  background: var(--sr-color-surface-product-header);
+  box-shadow: var(--sr-shadow-product-header);
+}
+
+.headerContent {
   display: flex;
+  width: 100%;
   min-height: var(--sr-size-header);
   align-items: center;
   justify-content: space-between;
   gap: var(--sr-space-4-5);
-  border-bottom: var(--sr-border-width) solid var(--sr-color-border-product-header);
+  margin: 0;
   padding: 0 var(--sr-header-gutter-end) 0 var(--sr-header-gutter-start);
-  background: var(--sr-color-surface-product-header);
-  box-shadow: var(--sr-shadow-product-header);
 }
 
 .brand,
@@ -126,6 +132,10 @@
   color: var(--sr-color-text-product-action);
 }
 
+.actions .themeButton {
+  cursor: pointer;
+}
+
 .actions button::after {
   border-color: var(--sr-color-product-indicator-border);
   background-color: var(--sr-color-product-accent);
@@ -149,6 +159,10 @@
 
 @media (max-width: 760px) {
   .header {
+    min-height: 0;
+  }
+
+  .headerContent {
     min-height: 0;
     align-items: center;
     flex-direction: row;

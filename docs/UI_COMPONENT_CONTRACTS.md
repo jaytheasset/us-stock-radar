@@ -455,6 +455,8 @@ These remain deferred because they combine broader layout, domain state, respons
 | Prop | Type | Required | Contract |
 | --- | --- | --- | --- |
 | `activeNavigationItem` | `StockRadarPrimaryNavigationKey` | yes | Single source of truth for the active product navigation item. |
+| `themeMode` | `"fixed-dark" \| "user-selectable"` | no | Defaults to `"fixed-dark"`. `"user-selectable"` reads and persists the `sr-theme` localStorage value, accepts only `dark` and `light`, and falls back to `dark` for all other values. |
+| `headerContentMaxWidth` | `string` | no | Optional page-owned maximum width for the header's inner content. The header background remains full-width while its brand, navigation, and actions align to the page-owned content region. |
 | `children` | `ReactNode` | yes | Full-width page-owned content rendered inside the main landmark. |
 
 The shell owns the canonical page background, minimum viewport height, Stock Radar typography inheritance, scrollbar treatment, hidden legacy theme toggle, product header, and `main#stock-radar-main-content`. It does not own page maximum width, gutters, table/detail grids, sidebars, filters, panels, sheets, or data state.
@@ -463,8 +465,8 @@ The dashboard passes its workspace and mobile sheets as the content slot. Its ta
 
 ### Server and client boundary
 
-- `StockRadarAppShell` has no `"use client"` directive and is composed by the Server Component route in `app/dashboard-v2/page.tsx`.
-- `StockRadarProductHeader` is the only shell component that declares `"use client"`; it owns the mobile-menu state, refs, document listeners, and focus restoration.
+- `StockRadarAppShell` declares `"use client"` to own the optional user-selectable theme state. Its default remains fixed Dark, so existing routes do not gain theme controls or localStorage writes.
+- `StockRadarProductHeader` owns the mobile-menu state, refs, document listeners, focus restoration, and renders the optional theme action supplied by the shell.
 - Desktop/mobile navigation renderers and the navigation configuration contain no hooks or browser APIs. They enter the client graph only through ProductHeader.
 - The `children` slot remains server-compatible. Dashboard-v2 is already a Client Component for its own market, filter, and sheet state; the shell does not move otherwise-server page content across a client boundary.
 
@@ -473,7 +475,7 @@ The dashboard passes its workspace and mobile sheets as the content slot. Its ta
 ```tsx
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 
-<StockRadarAppShell activeNavigationItem="markets">
+<StockRadarAppShell activeNavigationItem="markets" themeMode="user-selectable">
   <PageOwnedLayout />
 </StockRadarAppShell>
 ```
@@ -494,12 +496,16 @@ A skip link was not added in 3D. Introducing its focus placement and visible foc
 | Prop | Type | Required | Contract |
 | --- | --- | --- | --- |
 | `activeNavigationItem` | `StockRadarPrimaryNavigationKey` | yes | Passed unchanged to desktop and mobile navigation renderers. |
+| `theme` | `"dark" \| "light"` | no | Current shell theme; defaults to `dark`. |
+| `themeMode` | `"fixed-dark" \| "user-selectable"` | no | Shows the theme action only when user-selectable. |
+| `onThemeToggle` | `() => void` | no | Shell-owned callback for the user-selectable theme action. |
+| `contentMaxWidth` | `string` | no | Optional page-owned maximum width for the inner header content. It never changes the full-width header chrome. |
 
 Product name `STOCK RADAR` and market status `15m delayed` are exported product constants in `stockRadarNavigation.ts`; they are not dashboard data or customizable speculative props. Header height, padding, surface, divider, brand geometry, status dot, action spacing, and the 760 px breakpoint preserve the canonical computed values. The product header uses the theme-invariant `--sr-*-product-*` chrome tokens: Dark and Light share the same dark surface, bright brand, muted navigation, light actions, orange active state, and distinct purple Premium treatment while the page workspace changes underneath it.
 
 ### Header actions and ARIA
 
-- Alert, Settings, and mobile menu actions reuse `IconButton`; the alert keeps its indicator.
+- Alert, Settings, theme, and mobile menu actions reuse `IconButton`; the alert keeps its indicator. The theme action is rendered only for a user-selectable shell.
 - Search keeps its existing icon-plus-text native button because the header IconButton contract is icon-only. It remains inert.
 - Search, Alert, and desktop Settings do not advertise `aria-haspopup`, `aria-expanded`, or `aria-controls` because no popup exists.
 - Only the mobile menu trigger exposes `aria-haspopup="menu"` and boolean `aria-expanded`. `aria-controls` is present only while the matching menu DOM exists.
