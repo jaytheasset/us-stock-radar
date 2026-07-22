@@ -18,6 +18,7 @@ import {
 import styles from "./StockRadarAlertsV2.module.css";
 
 const tickerLimit = 20;
+const mockPlan = { label: "Pro", showsAds: false } as const;
 
 function ToggleSwitch({
   checked,
@@ -141,7 +142,7 @@ export function StockRadarAlertsV2() {
               <p>Choose the stocks you want to monitor and how you receive alerts.</p>
             </div>
             <div className={styles.planSummary}>
-              <span>Your plan: Pro</span>
+              <span>Your plan: {mockPlan.label}</span>
               <Link href="/premium-v2">Manage plan</Link>
             </div>
           </section>
@@ -475,15 +476,19 @@ export function StockRadarAlertsV2() {
           </section>
         </main>
 
-        <aside className={styles.adRail} aria-label="Advertisement">
-          <DesktopRailAdSlot note="Not shown to Pro+ members." />
+        <aside className={styles.adRail} aria-label="Plan and advertising">
+          {mockPlan.showsAds ? (
+            <>
+              <DesktopRailAdSlot note="Not shown to Ad-Free+ members." />
 
-          <section className={styles.railTallAd} aria-label="Advertisement">
-            <span>Advertisement</span>
-            <strong>300 x 600</strong>
-            <p>Free-member placement</p>
-            <small>Not shown to Pro+ members.</small>
-          </section>
+              <section className={styles.railTallAd} aria-label="Advertisement">
+                <span>Advertisement</span>
+                <strong>300 x 600</strong>
+                <p>Free-member placement</p>
+                <small>Not shown to Ad-Free+ members.</small>
+              </section>
+            </>
+          ) : null}
 
           <section className={styles.railUpgrade} aria-labelledby="alerts-v2-rail-upgrade-title">
             <span>ADVANCED</span>
