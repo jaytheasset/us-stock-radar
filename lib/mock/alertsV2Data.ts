@@ -43,10 +43,9 @@ export type DeliveryItem = {
   title: string;
 };
 
-export type FeedAlertSetting = {
-  description: string;
+export type AlertSource = {
   id: string;
-  title: string;
+  label: string;
 };
 
 export type FilingAlertType = {
@@ -170,22 +169,9 @@ export const deliveryItems: readonly DeliveryItem[] = [
   { id: "email", title: "Email", icon: Mail, enabled: false, lockedTier: "ADVANCED" },
 ];
 
-export const feedAlertSettings: readonly FeedAlertSetting[] = [
-  {
-    id: "feed-wide",
-    title: "Feed Alert settings",
-    description: "Receive alerts from qualifying Live Feed events, not only enabled tickers.",
-  },
-  {
-    id: "market-scan",
-    title: "Market-wide scanner",
-    description: "Scan all market tickers for high-score feed events.",
-  },
-  {
-    id: "priority-routing",
-    title: "Priority routing",
-    description: "Send urgent feed alerts to selected delivery channels first.",
-  },
+export const alertSources: readonly AlertSource[] = [
+  { id: "news", label: "News" },
+  { id: "filings", label: "SEC filings" },
 ];
 
 export const marketCapFilters: readonly MarketCapFilter[] = [

@@ -5,9 +5,9 @@ import Link from "next/link";
 import { DesktopRailAdSlot } from "@/components/dashboard-v2/DesktopRailAdSlot";
 import {
   alertIconSet,
+  alertSources,
   coverageItems,
   deliveryItems,
-  feedAlertSettings,
   filingAlertGroups,
   initialAlertTickers,
   marketCapFilters,
@@ -63,6 +63,9 @@ export function StockRadarAlertsV2() {
   const [tickerInput, setTickerInput] = useState("");
   const [coverageState, setCoverageState] = useState(
     Object.fromEntries(coverageItems.map((item) => [item.id, item.enabled])),
+  );
+  const [sourceState, setSourceState] = useState(
+    Object.fromEntries(alertSources.map((source) => [source.id, true])),
   );
   const [deliveryState, setDeliveryState] = useState(
     Object.fromEntries(deliveryItems.map((item) => [item.id, item.enabled])),
@@ -211,7 +214,7 @@ export function StockRadarAlertsV2() {
           </section>
 
           <div className={styles.settingsGrid}>
-        <section className={styles.card} aria-labelledby="alerts-v2-coverage-title">
+        <section className={`${styles.card} ${styles.coverageCard}`} aria-labelledby="alerts-v2-coverage-title">
           <div className={styles.cardHeader}>
             <div>
               <h2 id="alerts-v2-coverage-title">Alert coverage</h2>
@@ -278,7 +281,33 @@ export function StockRadarAlertsV2() {
         </section>
 
         <div className={styles.settingsSideColumn}>
-          <section className={styles.card} aria-labelledby="alerts-v2-delivery-title">
+          <section className={`${styles.card} ${styles.sourceCard}`} aria-labelledby="alerts-v2-sources-title">
+            <div className={styles.cardHeader}>
+              <div>
+                <h2 id="alerts-v2-sources-title">Alert sources</h2>
+              </div>
+            </div>
+
+            <div className={styles.sourceFilterGrid} role="group" aria-label="Alert sources">
+              {alertSources.map((source) => (
+                <label className={styles.sourceFilterOption} key={source.id}>
+                  <input
+                    checked={Boolean(sourceState[source.id])}
+                    onChange={(event) =>
+                      setSourceState((current) => ({
+                        ...current,
+                        [source.id]: event.currentTarget.checked,
+                      }))
+                    }
+                    type="checkbox"
+                  />
+                  <span>{source.label}</span>
+                </label>
+              ))}
+            </div>
+          </section>
+
+          <section className={`${styles.card} ${styles.deliveryCard}`} aria-labelledby="alerts-v2-delivery-title">
             <div className={styles.cardHeader}>
               <div>
                 <h2 id="alerts-v2-delivery-title">Delivery</h2>
@@ -326,7 +355,6 @@ export function StockRadarAlertsV2() {
             <div className={styles.cardHeader}>
               <div>
                 <h2 id="alerts-v2-market-cap-title">Market cap filters</h2>
-                <p>Choose which market-cap bands are eligible for alert discovery.</p>
               </div>
             </div>
 
@@ -353,41 +381,6 @@ export function StockRadarAlertsV2() {
           </section>
         </div>
         </div>
-
-        <section className={`${styles.card} ${styles.ultimateCard}`} aria-labelledby="alerts-v2-ultimate-title">
-          <div className={styles.cardHeader}>
-            <div>
-              <h2 id="alerts-v2-ultimate-title">Ultimate alert controls</h2>
-              <p>Preview advanced alert tools available on Ultimate.</p>
-            </div>
-            <span className={styles.lockedBadge}>
-              <Lock aria-hidden="true" size={14} />
-              ADVANCED+
-            </span>
-          </div>
-
-          <div className={styles.ultimateFeatureList}>
-            {feedAlertSettings.map((item) => (
-              <article className={styles.ultimateFeatureRow} key={item.id}>
-                <Bell aria-hidden="true" size={20} />
-                <div>
-                  <strong>{item.title}</strong>
-                  <span>{item.description}</span>
-                </div>
-                <span className={styles.lockGroup}>
-                  <Lock aria-hidden="true" size={15} />
-                  <em>ADVANCED+</em>
-                </span>
-              </article>
-            ))}
-
-          </div>
-
-          <div className={styles.ultimateFooter}>
-            <span>Unlock feed-wide alerts and priority routing with Advanced</span>
-            <Link href="/premium-v2">View Advanced</Link>
-          </div>
-        </section>
 
         <section className={`${styles.card} ${styles.filingCard}`} aria-labelledby="alerts-v2-filing-title">
           <div className={styles.cardHeader}>
