@@ -57,32 +57,70 @@ export type NewsV2PageData = {
   error?: string;
 };
 
+const newsV2PageSize = 100;
+
 export async function getNewsV2PageData(): Promise<NewsV2PageData> {
-  const viewModel = await getLiveFeedViewModel({
+  const firstPage = await getLiveFeedViewModel({
     page: 1,
-    limit: 100,
+    limit: newsV2PageSize,
     tab: "news",
     includeCharts: false,
     includeSharedData: false,
   });
 
-  if (!viewModel.ok) {
+  if (!firstPage.ok) {
     return {
       items: [],
       total: 0,
       sourceActivity: [],
       sectorActivity: [],
       signalActivity: [],
-      error: viewModel.error || "News data is currently unavailable.",
+      error: firstPage.error || "News data is currently unavailable.",
     };
   }
 
-  const marketCapByTicker = await fetchMarketCapByTicker(viewModel.feedItems);
-  const items = viewModel.feedItems.map((item) => toNewsV2Item(item, marketCapByTicker));
+  const total = firstPage.total ?? firstPage.feedItems.length;
+  const pageCount = Math.max(1, Math.ceil(total / newsV2PageSize));
+  const allFeedItems = [...firstPage.feedItems];
+
+  // Load all current feed/alert rows so search and filters do not silently stop at 100 items.
+  for (let page = 2; page <= pageCount; page += 4) {
+    const pages = await Promise.all(
+      Array.from({ length: Math.min(4, pageCount - page + 1) }, (_, index) =>
+        getLiveFeedViewModel({
+          page: page + index,
+          limit: newsV2PageSize,
+          tab: "news",
+          includeCharts: false,
+          includeSharedData: false,
+        }),
+      ),
+    );
+
+    for (const result of pages) {
+      if (!result.ok) {
+        return {
+          items: [],
+          total: 0,
+          sourceActivity: [],
+          sectorActivity: [],
+          signalActivity: [],
+          error: result.error || "News data is currently unavailable.",
+        };
+      }
+      allFeedItems.push(...result.feedItems);
+    }
+  }
+
+  const uniqueFeedItems = Array.from(new Map(allFeedItems.map((item) => [item.id, item])).values());
+  const marketCapByTicker = await fetchMarketCapByTicker(uniqueFeedItems);
+  const items = uniqueFeedItems
+    .map((item) => toNewsV2Item(item, marketCapByTicker))
+    .sort((left, right) => timestampValue(right.publishedAt) - timestampValue(left.publishedAt));
 
   return {
     items,
-    total: viewModel.total ?? items.length,
+    total,
     sourceActivity: aggregateSources(items),
     sectorActivity: aggregateSectors(items),
     signalActivity: aggregateSignals(items),
@@ -97,7 +135,7 @@ function toNewsV2Item(item: LiveFeedItem, marketCapByTicker: Map<string, number>
 
   return {
     id: item.id,
-    publishedAt: item.detectedAtRaw || new Date().toISOString(),
+    publishedAt: item.detectedAtRaw || "",
     headline: item.title,
     summary: item.quickTake || item.summary,
     source: item.source,
@@ -114,6 +152,11 @@ function toNewsV2Item(item: LiveFeedItem, marketCapByTicker: Map<string, number>
     changePercent: priceLabel ? usableMarketValue(item.displayChange) : undefined,
     deliveryLevel: item.deliveryLevel,
   };
+}
+
+function timestampValue(value: string) {
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 async function fetchMarketCapByTicker(items: LiveFeedItem[]) {

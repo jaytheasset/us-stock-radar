@@ -74,6 +74,7 @@ export function StockRadarNewsV2({
 
   const visibleItems = filteredItems.slice(0, visibleCount);
   const remainingCount = filteredItems.length - visibleItems.length;
+  const showMarketReaction = visibleItems.some((item) => item.priceLabel || item.changePercent);
 
   const toggleFilter = (group: NewsV2FilterGroup, value: string) => {
     setFilters((current) => ({
@@ -134,6 +135,7 @@ export function StockRadarNewsV2({
               ? () => setVisibleCount((count) => Math.min(count + newsBatchSize, filteredItems.length))
               : undefined}
             remainingCount={remainingCount}
+            showMarketReaction={showMarketReaction}
             totalItems={filteredItems.length}
             totalNews={total}
           />

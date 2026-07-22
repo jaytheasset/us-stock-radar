@@ -220,9 +220,6 @@ export function NewsV2FilterBar({
             <button className={styles.resetButton} disabled={!activeCount && !queryDraft} onClick={onReset} type="button">
               Reset
             </button>
-            <button className={styles.searchButton} form="news-v2-search-form" type="submit">
-              Search
-            </button>
           </div>
         </div>
       </div>

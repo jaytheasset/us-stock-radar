@@ -430,6 +430,10 @@
   text-align: left;
 }
 
+.newsRowWithoutMarket {
+  grid-template-columns: 72px minmax(84px, 0.35fr) minmax(320px, 2.75fr) 58px;
+}
+
 .newsRow:hover {
   background: var(--sr-color-surface-table-hover);
 }
@@ -844,12 +848,11 @@
   }
 
   .insightRail {
-    max-height: calc(100dvh - var(--sr-space-6));
-    overflow: hidden;
-  }
-
-  .insightRailFixed {
-    position: fixed;
+    position: sticky;
+    top: calc(var(--sr-size-header) + var(--sr-space-3));
+    max-height: calc(100dvh - var(--sr-size-header) - var(--sr-space-6));
+    overflow-y: auto;
+    scrollbar-width: thin;
   }
 }
 
@@ -1639,6 +1642,10 @@
     padding-inline: var(--sr-space-3);
   }
 
+  .newsRowWithoutMarket {
+    grid-template-columns: 58px minmax(76px, 0.35fr) minmax(242px, 2.55fr) 54px;
+  }
+
   .detailMarketSnapshot {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1720,6 +1727,10 @@
     padding: var(--sr-space-3) var(--sr-space-2-5);
   }
 
+  .newsRowWithoutMarket {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
   .newsListItem {
     position: relative;
   }
@@ -1773,6 +1784,10 @@
     -webkit-line-clamp: 2;
   }
 
+  .newsRowWithoutMarket .rowHeadline {
+    grid-column: 1 / 4;
+  }
+
   .rowBadges {
     grid-column: 2;
     grid-row: 1;
@@ -1780,6 +1795,11 @@
     overflow: hidden;
     flex-wrap: nowrap;
     gap: var(--sr-space-1-5);
+  }
+
+  .rowBadges > :first-child,
+  .rowSource {
+    display: none;
   }
 
   .rowCategoryBadgeDesktop,

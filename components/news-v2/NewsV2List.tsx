@@ -10,6 +10,7 @@ export type NewsV2ListProps = {
   loadedTotal: number;
   onLoadMore?: () => void;
   remainingCount: number;
+  showMarketReaction: boolean;
   totalItems: number;
   totalNews: number;
 };
@@ -20,6 +21,7 @@ export function NewsV2List({
   loadedTotal,
   onLoadMore,
   remainingCount,
+  showMarketReaction,
   totalItems,
   totalNews,
 }: NewsV2ListProps) {
@@ -45,7 +47,7 @@ export function NewsV2List({
         <ol className={styles.newsList}>
           {items.map((item, index) => (
             <Fragment key={item.id}>
-              <NewsV2Row item={item} />
+              <NewsV2Row item={item} showMarketReaction={showMarketReaction} />
               {index === premiumInsertIndex ? (
                 <li className={styles.premiumCtaMobileItem}>
                   <PremiumUpgradeCard className={styles.premiumCtaMobile} />

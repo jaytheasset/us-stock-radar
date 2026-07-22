@@ -6,6 +6,7 @@ import styles from "./StockRadarNewsV2.module.css";
 
 export type NewsV2RowProps = {
   item: NewsV2Item;
+  showMarketReaction: boolean;
 };
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
@@ -13,7 +14,7 @@ const timeFormatter = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute
 
 function formatRowDate(publishedAt: string) {
   const date = new Date(publishedAt);
-  if (Number.isNaN(date.getTime())) return "—";
+  if (Number.isNaN(date.getTime())) return "Date unavailable";
   const today = new Date();
   return date.toDateString() === today.toDateString() ? "Today" : dateFormatter.format(date);
 }
@@ -23,7 +24,7 @@ function formatRowTime(publishedAt: string) {
   return Number.isNaN(date.getTime()) ? "" : timeFormatter.format(date);
 }
 
-export function NewsV2Row({ item }: NewsV2RowProps) {
+export function NewsV2Row({ item, showMarketReaction }: NewsV2RowProps) {
   const visibleTickers = item.relatedTickers.slice(0, 2);
   const remainingTickerCount = Math.max(0, item.relatedTickers.length - visibleTickers.length);
   const sentimentClass = styles[`sentiment${item.sentiment}`];
@@ -42,7 +43,7 @@ export function NewsV2Row({ item }: NewsV2RowProps) {
   return (
     <li className={styles.newsListItem}>
       <Link className={styles.newsRowLink} href={`/events/${item.id}`}>
-        <article className={styles.newsRow}>
+        <article className={`${styles.newsRow}${showMarketReaction ? "" : ` ${styles.newsRowWithoutMarket}`}`}>
           <span className={styles.rowTime}>
             <span className={styles.rowDate}>{formatRowDate(item.publishedAt)}</span>
             <time dateTime={item.publishedAt}>{formatRowTime(item.publishedAt)}</time>
@@ -85,12 +86,14 @@ export function NewsV2Row({ item }: NewsV2RowProps) {
             </span>
           </span>
 
-          <span className={styles.rowMarketReaction}>
-            <span className={styles.rowQuote}>
-              <strong>{item.priceLabel ?? "—"}</strong>
-              <span className={changeClass}>{item.changePercent ?? "—"}</span>
+          {showMarketReaction ? (
+            <span className={styles.rowMarketReaction}>
+              <span className={styles.rowQuote}>
+                <strong>{item.priceLabel ?? "—"}</strong>
+                <span className={changeClass}>{item.changePercent ?? "—"}</span>
+              </span>
             </span>
-          </span>
+          ) : null}
 
           <span
             aria-label={`${item.sentiment} signal, impact score ${item.score} out of 100`}
