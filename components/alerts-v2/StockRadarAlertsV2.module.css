@@ -489,7 +489,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--sr-space-1);
-  color: var(--sr-color-positive);
+  color: var(--sr-color-chart-bullish);
   font-size: var(--sr-font-size-sm);
   font-style: normal;
   font-weight: var(--sr-font-weight-semibold);
