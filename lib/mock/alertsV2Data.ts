@@ -26,6 +26,21 @@ export type AlertTicker = {
   ticker: string;
 };
 
+export type AlertsMockPlanId = "free" | "ad-free" | "pro" | "advanced" | "ultimate";
+
+export type AlertsMockPlan = {
+  hasCoverageControls: boolean;
+  hasEmailDelivery: boolean;
+  hasFilingTypeAlerts: boolean;
+  hasMarketCapFilters: boolean;
+  hasRiskAlerts: boolean;
+  hasSourceFilters: boolean;
+  id: AlertsMockPlanId;
+  label: string;
+  showsAds: boolean;
+  tickerLimit: number | null;
+};
+
 export type CoverageItem = {
   description: string;
   enabled: boolean;
@@ -86,6 +101,77 @@ export const alertIconSet = {
   Search,
   Trash2,
 } as const;
+
+export const alertsMockPlans: Record<AlertsMockPlanId, AlertsMockPlan> = {
+  free: {
+    id: "free",
+    label: "Free",
+    tickerLimit: 1,
+    showsAds: true,
+    hasCoverageControls: false,
+    hasSourceFilters: false,
+    hasMarketCapFilters: false,
+    hasRiskAlerts: false,
+    hasEmailDelivery: false,
+    hasFilingTypeAlerts: false,
+  },
+  "ad-free": {
+    id: "ad-free",
+    label: "Ad-Free",
+    tickerLimit: 5,
+    showsAds: false,
+    hasCoverageControls: false,
+    hasSourceFilters: false,
+    hasMarketCapFilters: false,
+    hasRiskAlerts: false,
+    hasEmailDelivery: false,
+    hasFilingTypeAlerts: false,
+  },
+  pro: {
+    id: "pro",
+    label: "Pro",
+    tickerLimit: 20,
+    showsAds: false,
+    hasCoverageControls: true,
+    hasSourceFilters: true,
+    hasMarketCapFilters: true,
+    hasRiskAlerts: false,
+    hasEmailDelivery: false,
+    hasFilingTypeAlerts: false,
+  },
+  advanced: {
+    id: "advanced",
+    label: "Advanced",
+    tickerLimit: null,
+    showsAds: false,
+    hasCoverageControls: true,
+    hasSourceFilters: true,
+    hasMarketCapFilters: true,
+    hasRiskAlerts: true,
+    hasEmailDelivery: true,
+    hasFilingTypeAlerts: false,
+  },
+  ultimate: {
+    id: "ultimate",
+    label: "Ultimate",
+    tickerLimit: null,
+    showsAds: false,
+    hasCoverageControls: true,
+    hasSourceFilters: true,
+    hasMarketCapFilters: true,
+    hasRiskAlerts: true,
+    hasEmailDelivery: true,
+    hasFilingTypeAlerts: true,
+  },
+};
+
+export function getAlertsMockPlan(plan: string | null): AlertsMockPlan {
+  if (plan && plan in alertsMockPlans) {
+    return alertsMockPlans[plan as AlertsMockPlanId];
+  }
+
+  return alertsMockPlans.pro;
+}
 
 export const initialAlertTickers: readonly AlertTicker[] = [
   { id: "aapl", ticker: "AAPL", company: "Apple Inc.", enabled: true },

@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { DesktopRailAdSlot } from "@/components/dashboard-v2/DesktopRailAdSlot";
 import {
   alertIconSet,
@@ -9,6 +10,7 @@ import {
   coverageItems,
   deliveryItems,
   filingAlertGroups,
+  getAlertsMockPlan,
   initialAlertTickers,
   marketCapFilters,
   recentAlerts,
@@ -16,9 +18,6 @@ import {
   type AlertTicker,
 } from "@/lib/mock/alertsV2Data";
 import styles from "./StockRadarAlertsV2.module.css";
-
-const tickerLimit = 20;
-const mockPlan = { label: "Pro", showsAds: false } as const;
 
 function ToggleSwitch({
   checked,
@@ -59,12 +58,18 @@ function getCompanyName(ticker: string) {
   return knownCompanies[ticker] ?? `${ticker} Corp.`;
 }
 
+function getDefaultCoverageState(hasRiskAlerts: boolean) {
+  return Object.fromEntries(
+    coverageItems.map((item) => [item.id, item.enabled || (hasRiskAlerts && Boolean(item.locked))]),
+  );
+}
+
 export function StockRadarAlertsV2() {
+  const searchParams = useSearchParams();
+  const mockPlan = getAlertsMockPlan(searchParams.get("plan"));
   const [tickers, setTickers] = useState<AlertTicker[]>([...initialAlertTickers]);
   const [tickerInput, setTickerInput] = useState("");
-  const [coverageState, setCoverageState] = useState(
-    Object.fromEntries(coverageItems.map((item) => [item.id, item.enabled])),
-  );
+  const [coverageState, setCoverageState] = useState(() => getDefaultCoverageState(mockPlan.hasRiskAlerts));
   const [sourceState, setSourceState] = useState(
     Object.fromEntries(alertSources.map((source) => [source.id, true])),
   );
@@ -73,6 +78,11 @@ export function StockRadarAlertsV2() {
   );
   const [marketCapState, setMarketCapState] = useState(
     Object.fromEntries(marketCapFilters.map((item) => [item.id, true])),
+  );
+  const [filingState, setFilingState] = useState(
+    Object.fromEntries(
+      filingAlertGroups.flatMap((group) => group.items.map((item) => [item.id, true])),
+    ),
   );
   const [isWatchlistOpen, setIsWatchlistOpen] = useState(false);
   const [upgradeMessage, setUpgradeMessage] = useState("");
@@ -84,12 +94,27 @@ export function StockRadarAlertsV2() {
     [tickers],
   );
 
+  useEffect(() => {
+    const visibleTickerCount = mockPlan.tickerLimit ?? initialAlertTickers.length;
+    setTickers([...initialAlertTickers.slice(0, visibleTickerCount)]);
+  }, [mockPlan.id, mockPlan.tickerLimit]);
+
+  useEffect(() => {
+    setCoverageState(getDefaultCoverageState(mockPlan.hasRiskAlerts));
+  }, [mockPlan.id, mockPlan.hasRiskAlerts]);
+
   const markSettingsChanged = () => setSaveStatus("idle");
 
   const addTicker = (tickerValue?: string, companyValue?: string) => {
     const ticker = (tickerValue ?? tickerInput).trim().toUpperCase();
 
     if (!ticker || tickers.some((item) => item.ticker === ticker)) {
+      setTickerInput("");
+      return;
+    }
+
+    if (mockPlan.tickerLimit && tickers.length >= mockPlan.tickerLimit) {
+      setUpgradeMessage(`${mockPlan.label} supports up to ${mockPlan.tickerLimit} alert-enabled ticker${mockPlan.tickerLimit === 1 ? "" : "s"}.`);
       setTickerInput("");
       return;
     }
@@ -131,6 +156,15 @@ export function StockRadarAlertsV2() {
   const Lock = alertIconSet.Lock;
   const Search = alertIconSet.Search;
   const Trash2 = alertIconSet.Trash2;
+  const isUltimate = mockPlan.id === "ultimate";
+  const upgradeTier = mockPlan.id === "advanced" ? "Ultimate" : "Advanced";
+  const isTelegramLocked = !["pro", "advanced", "ultimate"].includes(mockPlan.id);
+  const outsideTickerCoverage = mockPlan.hasRiskAlerts
+    ? "All market tickers are eligible for the enabled Core Event and Risk & Catalyst alerts below."
+    : "Stocks outside your alert-enabled tickers receive only the enabled Core Event alerts below.";
+  const coverageDescription = mockPlan.hasCoverageControls
+    ? outsideTickerCoverage
+    : "Unlock event coverage controls with Pro.";
 
   return (
     <div className={styles.page}>
@@ -162,7 +196,7 @@ export function StockRadarAlertsV2() {
             <h2 id="alerts-v2-tickers-title">Alert-enabled tickers</h2>
             <p>Enabled tickers are covered across every category below, including Dilution &amp; Offerings, Listing Risk &amp; Delisting, Reverse Splits, and Bankruptcy &amp; Default.</p>
           </div>
-          <span>{enabledCount} / {tickerLimit} enabled</span>
+          <span>{enabledCount} / {mockPlan.tickerLimit ?? "Unlimited"} enabled</span>
         </div>
 
         <div className={styles.addTickerRow}>
@@ -225,14 +259,17 @@ export function StockRadarAlertsV2() {
           <div className={styles.cardHeader}>
             <div>
               <h2 id="alerts-v2-coverage-title">Alert coverage</h2>
-              <p>Stocks outside your alert-enabled tickers receive only the enabled Core Event alerts below.</p>
+              <p>{coverageDescription}</p>
             </div>
+            {!mockPlan.hasCoverageControls ? <span className={styles.lockedBadge}>PRO+</span> : null}
           </div>
 
           <div className={styles.settingList}>
             {coverageItems.map((item) => {
               const Icon = item.icon;
-              const locked = Boolean(item.locked);
+              const locked = !mockPlan.hasCoverageControls || (Boolean(item.locked) && !mockPlan.hasRiskAlerts);
+              const lockedTier = item.locked ? "ADVANCED" : "PRO";
+              const isEnabled = mockPlan.hasCoverageControls && Boolean(coverageState[item.id]);
 
               return (
                 <article
@@ -241,7 +278,7 @@ export function StockRadarAlertsV2() {
                   key={item.id}
                   onClick={() => {
                     if (locked) {
-                      setUpgradeMessage(`${item.title} requires Advanced.`);
+                      setUpgradeMessage(`${item.title} requires ${lockedTier}.`);
                     }
                   }}
                 >
@@ -253,12 +290,12 @@ export function StockRadarAlertsV2() {
                   {locked ? (
                     <span className={styles.lockGroup}>
                       <Lock aria-hidden="true" size={15} />
-                      <em>ADVANCED+</em>
+                      <em>{lockedTier}+</em>
                     </span>
                   ) : null}
                   <div className={styles.inlineToggle}>
                     <ToggleSwitch
-                      checked={Boolean(coverageState[item.id])}
+                      checked={isEnabled}
                       disabled={locked}
                       label={`Toggle ${item.title}`}
                       onChange={() =>
@@ -271,7 +308,7 @@ export function StockRadarAlertsV2() {
                         }
                       }
                     />
-                    <em>{coverageState[item.id] ? "ON" : "OFF"}</em>
+                    <em>{isEnabled ? "ON" : "OFF"}</em>
                   </div>
                 </article>
               );
@@ -284,10 +321,17 @@ export function StockRadarAlertsV2() {
             </div>
           ) : null}
 
-          <div className={styles.cardFooter}>
-            <span>Unlock critical risk alerts with Advanced</span>
-            <Link href="/premium-v2">View Advanced</Link>
-          </div>
+          {!mockPlan.hasCoverageControls ? (
+            <div className={styles.cardFooter}>
+              <span>Unlock event coverage controls with Pro</span>
+              <Link href="/premium-v2">View Pro</Link>
+            </div>
+          ) : !mockPlan.hasRiskAlerts ? (
+            <div className={styles.cardFooter}>
+              <span>Unlock critical risk alerts with Advanced</span>
+              <Link href="/premium-v2">View Advanced</Link>
+            </div>
+          ) : null}
         </section>
 
         <div className={styles.settingsSideColumn}>
@@ -296,6 +340,7 @@ export function StockRadarAlertsV2() {
               <div>
                 <h2 id="alerts-v2-sources-title">Alert sources</h2>
               </div>
+              {!mockPlan.hasSourceFilters ? <span className={styles.lockedBadge}>PRO+</span> : null}
             </div>
 
             <div className={styles.sourceFilterGrid} role="group" aria-label="Alert sources">
@@ -303,6 +348,7 @@ export function StockRadarAlertsV2() {
                 <label className={styles.sourceFilterOption} key={source.id}>
                   <input
                     checked={Boolean(sourceState[source.id])}
+                    disabled={!mockPlan.hasSourceFilters}
                     onChange={(event) =>
                       {
                         setSourceState((current) => ({
@@ -330,7 +376,12 @@ export function StockRadarAlertsV2() {
             <div className={styles.settingList}>
               {deliveryItems.map((item) => {
                 const Icon = item.icon;
-                const locked = Boolean(item.lockedTier);
+                const locked = item.id === "email"
+                  ? !mockPlan.hasEmailDelivery
+                  : item.id === "telegram"
+                    ? isTelegramLocked
+                    : false;
+                const lockedTier = item.id === "email" ? "ADVANCED" : "PRO";
 
                 return (
                   <article className={styles.settingRow} key={item.id}>
@@ -341,7 +392,7 @@ export function StockRadarAlertsV2() {
                     {locked ? (
                       <span className={styles.lockGroup}>
                         <Lock aria-hidden="true" size={15} />
-                        <em>{item.lockedTier}+</em>
+                      <em>{lockedTier}+</em>
                       </span>
                     ) : null}
                     <div className={styles.inlineToggle}>
@@ -372,6 +423,7 @@ export function StockRadarAlertsV2() {
               <div>
                 <h2 id="alerts-v2-market-cap-title">Market cap filters</h2>
               </div>
+              {!mockPlan.hasMarketCapFilters ? <span className={styles.lockedBadge}>PRO+</span> : null}
             </div>
 
             <div className={styles.marketCapGrid}>
@@ -379,6 +431,7 @@ export function StockRadarAlertsV2() {
                 <label className={styles.marketCapOption} key={item.id}>
                   <input
                     checked={Boolean(marketCapState[item.id])}
+                    disabled={!mockPlan.hasMarketCapFilters}
                     onChange={(event) =>
                       {
                         setMarketCapState((current) => ({
@@ -414,10 +467,12 @@ export function StockRadarAlertsV2() {
               <h2 id="alerts-v2-filing-title">Filing type alerts</h2>
               <p>Choose which SEC forms can trigger filing alerts.</p>
             </div>
-            <span className={styles.lockedBadge}>
-              <Lock aria-hidden="true" size={14} />
-              ULTIMATE+
-            </span>
+            {!mockPlan.hasFilingTypeAlerts ? (
+              <span className={styles.lockedBadge}>
+                <Lock aria-hidden="true" size={14} />
+                ULTIMATE+
+              </span>
+            ) : null}
           </div>
 
           <div className={styles.filingGroupList}>
@@ -427,7 +482,18 @@ export function StockRadarAlertsV2() {
                 <div className={styles.filingTypeGrid}>
                   {group.items.map((item) => (
                     <label className={styles.filingTypeOption} key={item.id}>
-                      <input checked disabled readOnly type="checkbox" />
+                      <input
+                        checked={Boolean(filingState[item.id])}
+                        disabled={!mockPlan.hasFilingTypeAlerts}
+                        onChange={(event) => {
+                          setFilingState((current) => ({
+                            ...current,
+                            [item.id]: event.currentTarget.checked,
+                          }));
+                          markSettingsChanged();
+                        }}
+                        type="checkbox"
+                      />
                       <span>{item.label}</span>
                     </label>
                   ))}
@@ -436,10 +502,12 @@ export function StockRadarAlertsV2() {
             ))}
           </div>
 
-          <div className={styles.ultimateFooter}>
-            <span>Unlock form-level filing alert rules with Ultimate</span>
-            <Link href="/premium-v2">View Ultimate</Link>
-          </div>
+          {!mockPlan.hasFilingTypeAlerts ? (
+            <div className={styles.ultimateFooter}>
+              <span>Unlock form-level filing alert rules with Ultimate</span>
+              <Link href="/premium-v2">View Ultimate</Link>
+            </div>
+          ) : null}
         </section>
 
         <section className={`${styles.card} ${styles.recentCard}`} aria-labelledby="alerts-v2-recent-title">
@@ -478,24 +546,26 @@ export function StockRadarAlertsV2() {
 
         <aside className={styles.adRail} aria-label="Plan and advertising">
           {mockPlan.showsAds ? (
-            <>
-              <DesktopRailAdSlot note="Not shown to Ad-Free+ members." />
-
-              <section className={styles.railTallAd} aria-label="Advertisement">
-                <span>Advertisement</span>
-                <strong>300 x 600</strong>
-                <p>Free-member placement</p>
-                <small>Not shown to Ad-Free+ members.</small>
-              </section>
-            </>
+            <DesktopRailAdSlot note="Not shown to Ad-Free+ members." />
           ) : null}
 
-          <section className={styles.railUpgrade} aria-labelledby="alerts-v2-rail-upgrade-title">
-            <span>ADVANCED</span>
-            <h2 id="alerts-v2-rail-upgrade-title">Unlock more signal</h2>
-            <p>Get critical risk alerts and Email delivery with Advanced.</p>
-            <Link className={styles.railUpgradeLink} href="/premium-v2">View Advanced</Link>
-          </section>
+          {!isUltimate ? (
+            <section className={styles.railUpgrade} aria-labelledby="alerts-v2-rail-upgrade-title">
+              <span>{upgradeTier.toUpperCase()}</span>
+              <h2 id="alerts-v2-rail-upgrade-title">Unlock more signal</h2>
+              <p>{upgradeTier === "Advanced" ? "Get critical risk alerts and Email delivery with Advanced." : "Get form-level filing filters and custom rules with Ultimate."}</p>
+              <Link className={styles.railUpgradeLink} href="/premium-v2">View {upgradeTier}</Link>
+            </section>
+          ) : null}
+
+          {mockPlan.showsAds ? (
+            <section className={styles.railTallAd} aria-label="Advertisement">
+              <span>Advertisement</span>
+              <strong>300 x 600</strong>
+              <p>Free-member placement</p>
+              <small>Not shown to Ad-Free+ members.</small>
+            </section>
+          ) : null}
         </aside>
 
       </div>

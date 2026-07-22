@@ -609,7 +609,8 @@
 }
 
 .marketCapOption input,
-.sourceFilterOption input {
+.sourceFilterOption input,
+.filingTypeOption input {
   box-sizing: border-box;
   flex: 0 0 14px;
   display: grid;
@@ -628,18 +629,20 @@
 }
 
 .marketCapOption input:checked::after,
-.sourceFilterOption input:checked::after {
+.sourceFilterOption input:checked::after,
+.filingTypeOption input:checked::after {
   display: block;
   width: var(--sr-space-1-5);
   height: var(--sr-space-1);
   border: solid var(--sr-color-accent);
-  border-width: 0 0 var(--sr-border-width) var(--sr-border-width);
+  border-width: 0 0 var(--sr-space-1) var(--sr-space-1);
   content: "";
   transform: rotate(-45deg);
 }
 
 .marketCapOption input:focus-visible,
-.sourceFilterOption input:focus-visible {
+.sourceFilterOption input:focus-visible,
+.filingTypeOption input:focus-visible {
   outline: var(--sr-border-width) solid var(--sr-color-accent-focus-soft);
   outline-offset: var(--sr-space-0-5);
 }
@@ -754,14 +757,6 @@
   background: transparent;
   font-size: var(--sr-font-size-sm);
   font-weight: var(--sr-font-weight-medium);
-}
-
-.filingTypeOption input {
-  width: 14px;
-  height: 14px;
-  margin: 0;
-  accent-color: var(--sr-color-accent);
-  opacity: 1;
 }
 
 .filingTypeOption span {
