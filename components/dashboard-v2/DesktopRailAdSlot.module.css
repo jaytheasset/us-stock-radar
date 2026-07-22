@@ -27,6 +27,17 @@
   color: var(--sr-color-text-muted);
 }
 
+.note {
+  max-width: 220px;
+  color: var(--sr-color-text-muted);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-medium);
+  letter-spacing: var(--sr-letter-spacing-default);
+  line-height: var(--sr-line-height-body);
+  text-align: center;
+  text-transform: none;
+}
+
 @media (max-width: 1180px) {
   .slot {
     display: none;

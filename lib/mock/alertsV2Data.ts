@@ -4,7 +4,6 @@ import {
   Bell,
   Building2,
   CheckCircle2,
-  Clock3,
   FlaskConical,
   Landmark,
   LineChart,
@@ -40,6 +39,7 @@ export type DeliveryItem = {
   enabled: boolean;
   icon: LucideIcon;
   id: string;
+  lockedTier?: "ADVANCED";
   title: string;
 };
 
@@ -58,6 +58,12 @@ export type FilingAlertGroup = {
   id: string;
   items: readonly FilingAlertType[];
   title: string;
+};
+
+export type MarketCapFilter = {
+  id: string;
+  label: string;
+  range: string;
 };
 
 export type RecentAlert = {
@@ -159,10 +165,9 @@ export const coverageItems: readonly CoverageItem[] = [
 
 export const deliveryItems: readonly DeliveryItem[] = [
   { id: "app", title: "App Push", icon: Smartphone, enabled: true },
-  { id: "email", title: "Email", icon: Mail, enabled: false },
   { id: "web", title: "Web Push", icon: MonitorSmartphone, enabled: true },
   { id: "telegram", title: "Telegram", icon: Send, enabled: false },
-  { id: "after-hours", title: "After-hours alerts", icon: Clock3, enabled: true },
+  { id: "email", title: "Email", icon: Mail, enabled: false, lockedTier: "ADVANCED" },
 ];
 
 export const feedAlertSettings: readonly FeedAlertSetting[] = [
@@ -181,6 +186,14 @@ export const feedAlertSettings: readonly FeedAlertSetting[] = [
     title: "Priority routing",
     description: "Send urgent feed alerts to selected delivery channels first.",
   },
+];
+
+export const marketCapFilters: readonly MarketCapFilter[] = [
+  { id: "mega", label: "Mega", range: "$50B+" },
+  { id: "large", label: "Large", range: "$10B-$50B" },
+  { id: "mid", label: "Mid", range: "$1B-$10B" },
+  { id: "small", label: "Small", range: "$50M-$1B" },
+  { id: "micro", label: "Micro", range: "<$50M" },
 ];
 
 export const filingAlertGroups: readonly FilingAlertGroup[] = [

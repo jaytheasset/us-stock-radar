@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { DesktopRailAdSlot } from "@/components/dashboard-v2/DesktopRailAdSlot";
 import {
   alertIconSet,
   coverageItems,
@@ -9,6 +10,7 @@ import {
   feedAlertSettings,
   filingAlertGroups,
   initialAlertTickers,
+  marketCapFilters,
   recentAlerts,
   watchlistCandidates,
   type AlertTicker,
@@ -65,9 +67,11 @@ export function StockRadarAlertsV2() {
   const [deliveryState, setDeliveryState] = useState(
     Object.fromEntries(deliveryItems.map((item) => [item.id, item.enabled])),
   );
+  const [marketCapState, setMarketCapState] = useState(
+    Object.fromEntries(marketCapFilters.map((item) => [item.id, true])),
+  );
   const [isWatchlistOpen, setIsWatchlistOpen] = useState(false);
   const [upgradeMessage, setUpgradeMessage] = useState("");
-  const [moreSettingsOpen, setMoreSettingsOpen] = useState(false);
   const fromWatchlistButtonRef = useRef<HTMLButtonElement>(null);
 
   const enabledCount = useMemo(
@@ -146,7 +150,7 @@ export function StockRadarAlertsV2() {
         <div className={styles.cardHeader}>
           <div>
             <h2 id="alerts-v2-tickers-title">Alert-enabled tickers</h2>
-            <p>Each enabled ticker is monitored across all filing types available in your plan.</p>
+            <p>Enabled tickers are covered across every category below, including Dilution &amp; Offerings, Listing Risk &amp; Delisting, Reverse Splits, and Bankruptcy &amp; Default.</p>
           </div>
           <span>{enabledCount} / {tickerLimit} enabled</span>
         </div>
@@ -199,7 +203,7 @@ export function StockRadarAlertsV2() {
                 onClick={() => removeTicker(ticker.id)}
                 type="button"
               >
-                <Trash2 aria-hidden="true" size={17} />
+                <Trash2 aria-hidden="true" size={20} />
               </button>
             </article>
           ))}
@@ -211,7 +215,7 @@ export function StockRadarAlertsV2() {
           <div className={styles.cardHeader}>
             <div>
               <h2 id="alerts-v2-coverage-title">Alert coverage</h2>
-              <p>Choose which events trigger alerts for your enabled tickers.</p>
+              <p>Stocks outside your alert-enabled tickers receive only the enabled Core Event alerts below.</p>
             </div>
           </div>
 
@@ -239,7 +243,7 @@ export function StockRadarAlertsV2() {
                   {locked ? (
                     <span className={styles.lockGroup}>
                       <Lock aria-hidden="true" size={15} />
-                      <em>ADVANCED</em>
+                      <em>ADVANCED+</em>
                     </span>
                   ) : null}
                   <div className={styles.inlineToggle}>
@@ -273,55 +277,81 @@ export function StockRadarAlertsV2() {
           </div>
         </section>
 
-        <section className={styles.card} aria-labelledby="alerts-v2-delivery-title">
-          <div className={styles.cardHeader}>
-            <div>
-              <h2 id="alerts-v2-delivery-title">Delivery</h2>
+        <div className={styles.settingsSideColumn}>
+          <section className={styles.card} aria-labelledby="alerts-v2-delivery-title">
+            <div className={styles.cardHeader}>
+              <div>
+                <h2 id="alerts-v2-delivery-title">Delivery</h2>
+              </div>
             </div>
-          </div>
 
-          <div className={styles.settingList}>
-            {deliveryItems.map((item) => {
-              const Icon = item.icon;
+            <div className={styles.settingList}>
+              {deliveryItems.map((item) => {
+                const Icon = item.icon;
+                const locked = Boolean(item.lockedTier);
 
-              return (
-                <article className={styles.settingRow} key={item.id}>
-                  <Icon aria-hidden="true" size={20} />
-                  <div>
-                    <strong>{item.title}</strong>
-                  </div>
-                  <div className={styles.inlineToggle}>
-                    <ToggleSwitch
-                      checked={Boolean(deliveryState[item.id])}
-                      label={`Toggle ${item.title}`}
-                      onChange={() =>
-                        setDeliveryState((current) => ({
-                          ...current,
-                          [item.id]: !current[item.id],
-                        }))
-                      }
-                    />
-                    <em>{deliveryState[item.id] ? "ON" : "OFF"}</em>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-
-          <button
-            aria-expanded={moreSettingsOpen}
-            className={styles.moreSettingsButton}
-            onClick={() => setMoreSettingsOpen((current) => !current)}
-            type="button"
-          >
-            More settings
-          </button>
-          {moreSettingsOpen ? (
-            <div className={styles.moreSettingsPanel}>
-              Additional delivery controls are collapsed in this static preview.
+                return (
+                  <article className={styles.settingRow} key={item.id}>
+                    <Icon aria-hidden="true" size={20} />
+                    <div>
+                      <strong>{item.title}</strong>
+                    </div>
+                    {locked ? (
+                      <span className={styles.lockGroup}>
+                        <Lock aria-hidden="true" size={15} />
+                        <em>{item.lockedTier}+</em>
+                      </span>
+                    ) : null}
+                    <div className={styles.inlineToggle}>
+                      <ToggleSwitch
+                        checked={Boolean(deliveryState[item.id])}
+                        disabled={locked}
+                        label={`Toggle ${item.title}`}
+                        onChange={() =>
+                          setDeliveryState((current) => ({
+                            ...current,
+                            [item.id]: !current[item.id],
+                          }))
+                        }
+                      />
+                      <em>{deliveryState[item.id] ? "ON" : "OFF"}</em>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
-          ) : null}
           </section>
+
+          <section className={`${styles.card} ${styles.marketCapCard}`} aria-labelledby="alerts-v2-market-cap-title">
+            <div className={styles.cardHeader}>
+              <div>
+                <h2 id="alerts-v2-market-cap-title">Market cap filters</h2>
+                <p>Choose which market-cap bands are eligible for alert discovery.</p>
+              </div>
+            </div>
+
+            <div className={styles.marketCapGrid}>
+              {marketCapFilters.map((item) => (
+                <label className={styles.marketCapOption} key={item.id}>
+                  <input
+                    checked={Boolean(marketCapState[item.id])}
+                    onChange={(event) =>
+                      setMarketCapState((current) => ({
+                        ...current,
+                        [item.id]: event.currentTarget.checked,
+                      }))
+                    }
+                    type="checkbox"
+                  />
+                  <div>
+                    <strong>{item.label}</strong>
+                    <small>{item.range}</small>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </section>
+        </div>
         </div>
 
         <section className={`${styles.card} ${styles.ultimateCard}`} aria-labelledby="alerts-v2-ultimate-title">
@@ -332,7 +362,7 @@ export function StockRadarAlertsV2() {
             </div>
             <span className={styles.lockedBadge}>
               <Lock aria-hidden="true" size={14} />
-              ULTIMATE
+              ADVANCED+
             </span>
           </div>
 
@@ -346,44 +376,49 @@ export function StockRadarAlertsV2() {
                 </div>
                 <span className={styles.lockGroup}>
                   <Lock aria-hidden="true" size={15} />
-                  <em>ULTIMATE</em>
+                  <em>ADVANCED+</em>
                 </span>
               </article>
             ))}
 
-            <article className={styles.ultimateFilingBlock}>
-              <div className={styles.ultimateFeatureRow}>
-                <Lock aria-hidden="true" size={20} />
-                <div>
-                  <strong>Filing type alerts</strong>
-                  <span>Select exactly which SEC filing types can trigger Ultimate alerts.</span>
-                </div>
-                <span className={styles.lockGroup}>
-                  <Lock aria-hidden="true" size={15} />
-                  <em>ULTIMATE</em>
-                </span>
-              </div>
-
-              <div className={styles.filingGroupList}>
-                {filingAlertGroups.map((group) => (
-                  <section className={styles.filingGroup} key={group.id}>
-                    <strong>{group.title}</strong>
-                    <div className={styles.filingTypeGrid}>
-                      {group.items.map((item) => (
-                        <label className={styles.filingTypeOption} key={item.id}>
-                          <input checked disabled readOnly type="checkbox" />
-                          <span>{item.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
-            </article>
           </div>
 
           <div className={styles.ultimateFooter}>
-            <span>Unlock feed-wide alerts and filing-type rules with Ultimate</span>
+            <span>Unlock feed-wide alerts and priority routing with Advanced</span>
+            <Link href="/premium-v2">View Advanced</Link>
+          </div>
+        </section>
+
+        <section className={`${styles.card} ${styles.filingCard}`} aria-labelledby="alerts-v2-filing-title">
+          <div className={styles.cardHeader}>
+            <div>
+              <h2 id="alerts-v2-filing-title">Filing type alerts</h2>
+              <p>Choose which SEC forms can trigger filing alerts.</p>
+            </div>
+            <span className={styles.lockedBadge}>
+              <Lock aria-hidden="true" size={14} />
+              ULTIMATE+
+            </span>
+          </div>
+
+          <div className={styles.filingGroupList}>
+            {filingAlertGroups.map((group) => (
+              <section className={styles.filingGroup} key={group.id}>
+                <strong>{group.title}</strong>
+                <div className={styles.filingTypeGrid}>
+                  {group.items.map((item) => (
+                    <label className={styles.filingTypeOption} key={item.id}>
+                      <input checked disabled readOnly type="checkbox" />
+                      <span>{item.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+
+          <div className={styles.ultimateFooter}>
+            <span>Unlock form-level filing alert rules with Ultimate</span>
             <Link href="/premium-v2">View Ultimate</Link>
           </div>
         </section>
@@ -422,14 +457,10 @@ export function StockRadarAlertsV2() {
           </section>
         </main>
 
-        <aside className={styles.adRail} aria-label="Free member advertisement">
-          <section className={styles.adSlot}>
-            <span>Advertisement</span>
-            <strong>Free plan ad slot</strong>
-            <p>Reserved placement for monetizing free-member traffic.</p>
-            <em>300 × 250</em>
-          </section>
+        <aside className={styles.adRail} aria-label="Advertisement">
+          <DesktopRailAdSlot note="Pro+ members do not see ads." />
         </aside>
+
       </div>
 
       {isWatchlistOpen ? (

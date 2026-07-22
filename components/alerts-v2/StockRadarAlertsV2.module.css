@@ -22,14 +22,14 @@
 .pageShell {
   display: grid;
   align-items: start;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);
+  grid-template-columns: minmax(0, 1fr) 300px;
   gap: var(--sr-space-4);
-  width: 100%;
+  width: min(100%, 1636px);
 }
 
 .contentColumn {
   min-width: 0;
-  max-width: 1320px;
+  width: 100%;
 }
 
 .header {
@@ -52,7 +52,6 @@
 .header p,
 .cardHeader p,
 .watchlistPanel p,
-.moreSettingsPanel,
 .upgradePanel {
   margin: var(--sr-space-1-5) 0 0;
   color: var(--alerts-muted);
@@ -104,50 +103,11 @@
 .adRail {
   position: sticky;
   top: calc(var(--sr-size-header) + var(--sr-space-4));
-  display: grid;
-  gap: var(--sr-space-3);
+  width: 300px;
 }
 
-.adSlot {
-  display: grid;
-  align-content: center;
-  gap: var(--sr-space-2);
-  min-height: 250px;
-  border: var(--sr-border-width) dashed var(--alerts-border-strong);
-  border-radius: var(--sr-radius-base);
-  padding: var(--sr-space-5);
-  color: var(--alerts-muted);
-  background: var(--alerts-surface-soft);
-  box-shadow: var(--alerts-shadow);
-  text-align: center;
-}
-
-.adSlot span {
-  color: var(--alerts-muted);
-  font-size: var(--sr-font-size-xs);
-  font-weight: var(--sr-font-weight-semibold);
-  letter-spacing: var(--sr-letter-spacing-label);
-  text-transform: uppercase;
-}
-
-.adSlot strong {
-  color: var(--alerts-text);
-  font-size: var(--sr-font-size-lg);
-  font-weight: var(--sr-font-weight-semibold);
-}
-
-.adSlot p {
+.adRail > section {
   margin: 0;
-  color: var(--alerts-muted);
-  font-size: var(--sr-font-size-sm);
-  line-height: var(--sr-line-height-body);
-}
-
-.adSlot em {
-  color: var(--sr-color-accent);
-  font-size: var(--sr-font-size-sm);
-  font-style: normal;
-  font-weight: var(--sr-font-weight-semibold);
 }
 
 .notice {
@@ -258,8 +218,7 @@
 }
 
 .primaryButton,
-.secondaryButton,
-.moreSettingsButton {
+.secondaryButton {
   min-height: var(--sr-size-control);
   border-radius: var(--sr-radius-control);
   padding: 0 var(--sr-space-4);
@@ -345,33 +304,38 @@
 
 .toggle {
   position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
   width: 42px;
-  height: 22px;
-  border: var(--sr-border-width) solid var(--alerts-border-strong);
+  height: 24px;
+  align-items: center;
+  border: 0;
   border-radius: var(--sr-radius-pill);
   padding: 0;
   background: color-mix(in srgb, var(--sr-color-text-meta) 34%, var(--sr-color-text-inverse));
   cursor: pointer;
+  transition: background-color var(--sr-motion-duration-menu) var(--sr-motion-easing-standard);
 }
 
 .toggle span {
   position: absolute;
-  top: var(--sr-space-0-5);
-  left: var(--sr-space-0-5);
+  top: 50%;
+  left: var(--sr-space-1);
   width: 18px;
   height: 18px;
   border-radius: var(--sr-radius-pill);
   background: var(--sr-color-text-inverse);
   box-shadow: 0 var(--sr-border-width) var(--sr-space-1) color-mix(in srgb, var(--sr-color-page-background) 20%, transparent);
+  transform: translateY(-50%);
+  transition: transform var(--sr-motion-duration-menu) var(--sr-motion-easing-standard);
 }
 
 .toggle[data-state="on"] {
-  border-color: var(--sr-color-accent);
   background: var(--sr-color-accent);
 }
 
 .toggle[data-state="on"] span {
-  left: 21px;
+  transform: translate(18px, -50%);
 }
 
 .toggle:disabled {
@@ -386,6 +350,7 @@
   justify-content: center;
   border: 0;
   border-radius: var(--sr-radius-pill);
+  padding: 0;
   color: var(--alerts-text);
   background: transparent;
   cursor: pointer;
@@ -403,6 +368,12 @@
 .settingsGrid .card {
   width: 100%;
   margin: 0;
+}
+
+.settingsSideColumn {
+  display: grid;
+  gap: var(--sr-space-4);
+  min-width: 0;
 }
 
 .settingRow {
@@ -456,15 +427,14 @@
   min-height: var(--sr-size-badge);
   border-radius: var(--sr-radius-pill);
   padding: 0 var(--sr-space-2);
-  color: var(--alerts-text);
+  color: var(--alerts-muted);
   background: color-mix(in srgb, var(--sr-color-text-meta) 14%, var(--sr-color-text-inverse));
   font-size: var(--sr-font-size-xs);
   font-style: normal;
   font-weight: var(--sr-font-weight-semibold);
 }
 
-.upgradePanel,
-.moreSettingsPanel {
+.upgradePanel {
   border: var(--sr-border-width) solid var(--alerts-border);
   border-radius: var(--sr-radius-control);
   margin-top: var(--sr-space-3);
@@ -492,24 +462,100 @@
   min-height: var(--sr-size-badge);
   border-radius: var(--sr-radius-pill);
   padding: 0 var(--sr-space-2);
-  color: var(--alerts-text);
+  color: var(--alerts-muted);
   background: color-mix(in srgb, var(--sr-color-text-meta) 14%, var(--sr-color-text-inverse));
   font-size: var(--sr-font-size-xs);
   font-weight: var(--sr-font-weight-semibold);
   white-space: nowrap;
 }
 
-.moreSettingsButton {
-  display: block;
-  min-height: 34px;
-  border: 0;
-  margin: var(--sr-space-2) auto 0;
-  color: var(--sr-color-accent);
-  background: transparent;
+.ultimateCard,
+.marketCapCard,
+.filingCard {
+  margin-top: var(--sr-space-4);
 }
 
-.ultimateCard {
-  margin-top: var(--sr-space-4);
+.marketCapGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sr-space-2);
+  margin-top: var(--sr-space-3);
+}
+
+.marketCapOption {
+  display: flex;
+  min-width: 0;
+  min-height: 30px;
+  align-items: center;
+  gap: var(--sr-space-2);
+  border: var(--sr-border-width) solid var(--alerts-border);
+  border-radius: var(--sr-radius-control);
+  padding: 0 var(--sr-space-2);
+  color: var(--alerts-text);
+  background: transparent;
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-medium);
+}
+
+.marketCapOption input {
+  box-sizing: border-box;
+  flex: 0 0 14px;
+  display: grid;
+  width: 14px;
+  height: 14px;
+  min-height: 14px;
+  max-height: 14px;
+  margin: 0;
+  padding: 0;
+  appearance: none;
+  border: var(--sr-border-width) solid var(--alerts-border-strong);
+  border-radius: var(--sr-radius-sm);
+  background: var(--sr-color-text-inverse);
+  place-content: center;
+  opacity: 1;
+}
+
+.marketCapOption input:checked::after {
+  display: block;
+  width: var(--sr-space-1-5);
+  height: var(--sr-space-1);
+  border: solid var(--sr-color-accent);
+  border-width: 0 0 var(--sr-border-width) var(--sr-border-width);
+  content: "";
+  transform: rotate(-45deg);
+}
+
+.marketCapOption input:focus-visible {
+  outline: var(--sr-border-width) solid var(--sr-color-accent-focus-soft);
+  outline-offset: var(--sr-space-0-5);
+}
+
+.marketCapOption div {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sr-space-1);
+  min-width: 0;
+}
+
+.marketCapOption strong,
+.marketCapOption small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.marketCapOption strong {
+  color: var(--alerts-text);
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-medium);
+  line-height: var(--sr-line-height-control);
+}
+
+.marketCapOption small {
+  color: var(--alerts-muted);
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-medium);
+  line-height: var(--sr-line-height-control);
 }
 
 .ultimateFeatureList {
@@ -560,18 +606,15 @@
   white-space: nowrap;
 }
 
-.ultimateFilingBlock {
-  border-top: var(--sr-border-width) solid var(--alerts-border);
-}
-
-.ultimateFilingBlock .ultimateFeatureRow {
-  border-top: 0;
-}
-
 .filingGroupList {
   display: grid;
   gap: var(--sr-space-3);
   padding: 0 0 var(--sr-space-2) 34px;
+}
+
+.filingCard .filingGroupList {
+  margin-top: var(--sr-space-3);
+  padding-left: 0;
 }
 
 .filingGroup {
@@ -805,7 +848,6 @@
 .planSummary a:focus-visible,
 .primaryButton:focus-visible,
 .secondaryButton:focus-visible,
-.moreSettingsButton:focus-visible,
 .cardFooter a:focus-visible,
 .recentFooter a:focus-visible,
 .ultimateFooter a:focus-visible,
@@ -819,7 +861,8 @@
 
 @media (max-width: 1180px) {
   .pageShell {
-    grid-template-columns: minmax(0, 1fr);
+    display: block;
+    width: 100%;
   }
 
   .adRail {
@@ -968,6 +1011,10 @@
 
   .filingGroupList {
     padding-left: 0;
+  }
+
+  .marketCapGrid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 
   .filingTypeGrid {
