@@ -43,6 +43,10 @@ function getTierColumnClass(planKey: string) {
     return styles["comparisonColumn-advanced"];
   }
 
+  if (planKey === "ultimate") {
+    return styles["comparisonColumn-ultimate"];
+  }
+
   return undefined;
 }
 

@@ -909,6 +909,12 @@
   background: var(--sr-color-accent-subtle);
 }
 
+.desktopComparison th.comparisonColumn-ultimate,
+.desktopComparison td.comparisonColumn-ultimate {
+  border-left-color: var(--sr-color-border-overlay-strong);
+  border-right: var(--sr-border-width) solid var(--sr-color-border-overlay-strong);
+}
+
 .desktopComparison thead th.comparisonColumn-pro {
   border-top: var(--sr-space-0-5) solid var(--sr-color-event-transaction);
   color: var(--sr-color-text-strong);
@@ -917,6 +923,10 @@
 .desktopComparison thead th.comparisonColumn-advanced {
   border-top: var(--sr-space-0-5) solid var(--sr-color-accent-border-active);
   color: var(--sr-color-text-strong);
+}
+
+.desktopComparison thead th.comparisonColumn-ultimate {
+  border-top: var(--sr-space-0-5) solid var(--sr-color-border-overlay-strong);
 }
 
 .comparisonTierLabel {
@@ -957,6 +967,10 @@
 
 .desktopComparison tbody tr:last-child > .comparisonColumn-advanced {
   border-bottom: var(--sr-space-0-5) solid var(--sr-color-accent-border-active);
+}
+
+.desktopComparison tbody tr:last-child > .comparisonColumn-ultimate {
+  border-bottom: var(--sr-space-0-5) solid var(--sr-color-border-overlay-strong);
 }
 
 .premiumValue {
