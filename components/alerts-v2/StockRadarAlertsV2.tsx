@@ -75,12 +75,15 @@ export function StockRadarAlertsV2() {
   );
   const [isWatchlistOpen, setIsWatchlistOpen] = useState(false);
   const [upgradeMessage, setUpgradeMessage] = useState("");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saved">("idle");
   const fromWatchlistButtonRef = useRef<HTMLButtonElement>(null);
 
   const enabledCount = useMemo(
     () => tickers.filter((ticker) => ticker.enabled).length,
     [tickers],
   );
+
+  const markSettingsChanged = () => setSaveStatus("idle");
 
   const addTicker = (tickerValue?: string, companyValue?: string) => {
     const ticker = (tickerValue ?? tickerInput).trim().toUpperCase();
@@ -100,10 +103,12 @@ export function StockRadarAlertsV2() {
       },
     ]);
     setTickerInput("");
+    markSettingsChanged();
   };
 
   const removeTicker = (id: string) => {
     setTickers((current) => current.filter((ticker) => ticker.id !== id));
+    markSettingsChanged();
   };
 
   const toggleTicker = (id: string) => {
@@ -112,6 +117,7 @@ export function StockRadarAlertsV2() {
         ticker.id === id ? { ...ticker, enabled: !ticker.enabled } : ticker,
       ),
     );
+    markSettingsChanged();
   };
 
   const closeWatchlistPanel = () => {
@@ -255,10 +261,13 @@ export function StockRadarAlertsV2() {
                       disabled={locked}
                       label={`Toggle ${item.title}`}
                       onChange={() =>
-                        setCoverageState((current) => ({
-                          ...current,
-                          [item.id]: !current[item.id],
-                        }))
+                        {
+                          setCoverageState((current) => ({
+                            ...current,
+                            [item.id]: !current[item.id],
+                          }));
+                          markSettingsChanged();
+                        }
                       }
                     />
                     <em>{coverageState[item.id] ? "ON" : "OFF"}</em>
@@ -294,10 +303,13 @@ export function StockRadarAlertsV2() {
                   <input
                     checked={Boolean(sourceState[source.id])}
                     onChange={(event) =>
-                      setSourceState((current) => ({
-                        ...current,
-                        [source.id]: event.currentTarget.checked,
-                      }))
+                      {
+                        setSourceState((current) => ({
+                          ...current,
+                          [source.id]: event.currentTarget.checked,
+                        }));
+                        markSettingsChanged();
+                      }
                     }
                     type="checkbox"
                   />
@@ -337,10 +349,13 @@ export function StockRadarAlertsV2() {
                         disabled={locked}
                         label={`Toggle ${item.title}`}
                         onChange={() =>
-                          setDeliveryState((current) => ({
-                            ...current,
-                            [item.id]: !current[item.id],
-                          }))
+                          {
+                            setDeliveryState((current) => ({
+                              ...current,
+                              [item.id]: !current[item.id],
+                            }));
+                            markSettingsChanged();
+                          }
                         }
                       />
                       <em>{deliveryState[item.id] ? "ON" : "OFF"}</em>
@@ -364,10 +379,13 @@ export function StockRadarAlertsV2() {
                   <input
                     checked={Boolean(marketCapState[item.id])}
                     onChange={(event) =>
-                      setMarketCapState((current) => ({
-                        ...current,
-                        [item.id]: event.currentTarget.checked,
-                      }))
+                      {
+                        setMarketCapState((current) => ({
+                          ...current,
+                          [item.id]: event.currentTarget.checked,
+                        }));
+                        markSettingsChanged();
+                      }
                     }
                     type="checkbox"
                   />
@@ -380,6 +398,13 @@ export function StockRadarAlertsV2() {
             </div>
           </section>
         </div>
+        </div>
+
+        <div className={styles.settingsSaveBar}>
+          {saveStatus === "saved" ? <span role="status">Saved</span> : null}
+          <button className={`${styles.primaryButton} ${styles.saveButton}`} onClick={() => setSaveStatus("saved")} type="button">
+            Save changes
+          </button>
         </div>
 
         <section className={`${styles.card} ${styles.filingCard}`} aria-labelledby="alerts-v2-filing-title">
