@@ -1,0 +1,108 @@
+import Link from "next/link";
+import { NewsV2EventBadge } from "@/components/news-v2/NewsV2EventBadge";
+import { NewsV2EventTypeBadge } from "@/components/news-v2/NewsV2EventTypeBadge";
+import type { NewsV2Item } from "@/lib/newsV2";
+import styles from "./StockRadarNewsV2.module.css";
+
+export type NewsV2RowProps = {
+  item: NewsV2Item;
+};
+
+const dateFormatter = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
+const timeFormatter = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" });
+
+function formatRowDate(publishedAt: string) {
+  const date = new Date(publishedAt);
+  if (Number.isNaN(date.getTime())) return "—";
+  const today = new Date();
+  return date.toDateString() === today.toDateString() ? "Today" : dateFormatter.format(date);
+}
+
+function formatRowTime(publishedAt: string) {
+  const date = new Date(publishedAt);
+  return Number.isNaN(date.getTime()) ? "" : timeFormatter.format(date);
+}
+
+export function NewsV2Row({ item }: NewsV2RowProps) {
+  const visibleTickers = item.relatedTickers.slice(0, 2);
+  const remainingTickerCount = Math.max(0, item.relatedTickers.length - visibleTickers.length);
+  const sentimentClass = styles[`sentiment${item.sentiment}`];
+  const primaryTicker = item.relatedTickers[0] ?? "MARKET";
+  const identityMeta = item.relatedTickers.length > 1
+    ? `${item.relatedTickers.length} related tickers`
+    : item.marketCapBand
+      ? `${item.marketCapBand} cap`
+      : item.sector ?? "Market-wide";
+  const changeClass = item.changePercent?.startsWith("-")
+    ? styles.negativeValue
+    : item.changePercent
+      ? styles.positiveValue
+      : styles.neutralValue;
+
+  return (
+    <li className={styles.newsListItem}>
+      <Link className={styles.newsRowLink} href={`/events/${item.id}`}>
+        <article className={styles.newsRow}>
+          <span className={styles.rowTime}>
+            <span className={styles.rowDate}>{formatRowDate(item.publishedAt)}</span>
+            <time dateTime={item.publishedAt}>{formatRowTime(item.publishedAt)}</time>
+          </span>
+
+          <span className={styles.rowIdentity}>
+            <strong>{primaryTicker}</strong>
+            <span>{identityMeta}</span>
+          </span>
+
+          <span className={styles.rowStory}>
+            <span className={styles.rowBadges}>
+              <NewsV2EventBadge category={item.category} size="micro" />
+              <NewsV2EventTypeBadge
+                className={styles.newsEventTypeBadge}
+                eventType={item.eventType}
+                eventTypeCode={item.eventTypeCode}
+                size="micro"
+              />
+              <time className={styles.rowMobilePublishedAt} dateTime={item.publishedAt}>
+                {formatRowDate(item.publishedAt)} {formatRowTime(item.publishedAt)}
+              </time>
+              <span className={styles.rowSource}>{item.source}</span>
+            </span>
+            <strong className={styles.rowHeadline}>{item.headline}</strong>
+            <span className={styles.rowStoryFooter}>
+              <span className={styles.rowSummary}>{item.summary}</span>
+              <span className={styles.rowTickers}>
+                {visibleTickers.length ? (
+                  <>
+                    {visibleTickers.map((ticker) => (
+                      <span className={styles.tickerChip} key={ticker}>{ticker}</span>
+                    ))}
+                    {remainingTickerCount ? <span className={styles.tickerOverflow}>+{remainingTickerCount}</span> : null}
+                  </>
+                ) : (
+                  <span className={styles.marketWide}>Market-wide</span>
+                )}
+              </span>
+            </span>
+          </span>
+
+          <span className={styles.rowMarketReaction}>
+            <span className={styles.rowQuote}>
+              <strong>{item.priceLabel ?? "—"}</strong>
+              <span className={changeClass}>{item.changePercent ?? "—"}</span>
+            </span>
+          </span>
+
+          <span
+            aria-label={`${item.sentiment} signal, impact score ${item.score} out of 100`}
+            className={styles.rowSignals}
+          >
+            <span className={`${styles.rowSentiment} ${sentimentClass}`}>{item.sentiment}</span>
+            <span className={styles.rowScore} data-score-band={item.score >= 80 ? "high" : item.score >= 60 ? "medium" : "low"}>
+              <strong>{item.score}</strong>
+            </span>
+          </span>
+        </article>
+      </Link>
+    </li>
+  );
+}
