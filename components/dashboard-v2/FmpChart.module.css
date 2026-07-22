@@ -1,0 +1,155 @@
+.root {
+  height: var(--sr-size-chart-min-height);
+  min-width: 0;
+}
+
+.chartWrap {
+  height: 100%;
+  position: relative;
+}
+
+.chart {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+.grid,
+.verticalGrid {
+  stroke: var(--sr-color-chart-grid);
+  stroke-width: 1;
+}
+
+.verticalGrid {
+  stroke-dasharray: 2 3;
+}
+
+.axis,
+.timeAxis,
+.lastPriceText,
+.volumeAxis {
+  fill: var(--sr-color-chart-axis);
+  font-family: var(--sr-font-family-mono);
+  font-size: var(--sr-font-size-xs);
+}
+
+.timeAxis {
+  dominant-baseline: alphabetic;
+}
+
+.bullish {
+  color: var(--sr-color-chart-bullish);
+}
+
+.bearish {
+  color: var(--sr-color-chart-bearish);
+}
+
+.wick,
+.body {
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+.wick {
+  stroke-width: 1;
+}
+
+.volume {
+  fill: currentColor;
+  opacity: 0.28;
+}
+
+.volumeDivider {
+  stroke: var(--sr-color-border-section);
+  stroke-width: 1;
+}
+
+.lastPriceLine {
+  stroke: var(--sr-color-chart-last-line);
+  stroke-width: 1;
+}
+
+.lastPricePill {
+  fill: var(--sr-color-chart-last-price);
+}
+
+.lastPriceText {
+  fill: var(--sr-color-text-inverse);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.hoverLine {
+  stroke: var(--sr-color-text-secondary);
+  stroke-dasharray: 2 3;
+  stroke-width: 1;
+}
+
+.hoverDot {
+  fill: var(--sr-color-surface);
+  stroke: var(--sr-color-chart-last-price);
+  stroke-width: 2;
+}
+
+.hoverZone {
+  cursor: crosshair;
+  fill: transparent;
+}
+
+.tooltip {
+  background: var(--sr-color-surface);
+  border: var(--sr-border-width) solid var(--sr-color-divider);
+  display: grid;
+  gap: var(--sr-space-0-5);
+  left: 0;
+  padding: var(--sr-space-2);
+  pointer-events: none;
+  position: absolute;
+  top: var(--sr-space-2);
+  transform: translateX(var(--sr-space-1));
+  z-index: var(--sr-z-timeline-marker);
+}
+
+.tooltipLeft {
+  transform: translateX(calc(-100% - var(--sr-space-1)));
+}
+
+.tooltip strong,
+.tooltip span {
+  color: var(--sr-color-text-secondary);
+  font-family: var(--sr-font-family-mono);
+  font-size: var(--sr-font-size-xs);
+  font-variant-numeric: var(--sr-font-variant-numeric);
+  line-height: var(--sr-line-height-compact);
+}
+
+.tooltip strong {
+  color: var(--sr-color-text-primary);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.status {
+  align-items: center;
+  color: var(--sr-color-text-muted);
+  display: flex;
+  font-size: var(--sr-font-size-sm);
+  height: var(--sr-size-chart-min-height);
+  justify-content: center;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  :global([data-sr-bottom-sheet-layout="full-scroll"]) .root {
+    height: calc(var(--sr-size-chart-min-height) + var(--sr-space-6) + var(--sr-space-8));
+  }
+
+  :global([data-sr-bottom-sheet-layout="full-scroll"]) .status {
+    height: calc(var(--sr-size-chart-min-height) + var(--sr-space-6) + var(--sr-space-8));
+  }
+
+  .mobileChart .axis,
+  .mobileChart .timeAxis,
+  .mobileChart .volumeAxis {
+    font-size: var(--sr-font-size-base);
+  }
+}

@@ -1,0 +1,11 @@
+.panel {
+  position: relative;
+  min-width: 0;
+  background: linear-gradient(180deg, var(--sr-color-surface-detail-start) 0%, var(--sr-color-surface) 100%);
+}
+
+@media (max-width: 1180px) {
+  .panel {
+    border-top: var(--sr-border-width) solid var(--sr-color-divider);
+  }
+}

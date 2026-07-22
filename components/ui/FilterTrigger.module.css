@@ -1,0 +1,100 @@
+.button {
+  box-sizing: border-box;
+  display: flex;
+  min-height: var(--sr-size-control);
+  align-items: center;
+  overflow: hidden;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-control);
+  padding: 0;
+  color: var(--sr-color-text-control-strong);
+  background: var(--sr-color-surface-control);
+  font-family: var(--sr-font-family-sans);
+  font-size: var(--sr-font-size-md);
+  font-weight: var(--sr-font-weight-regular);
+  line-height: var(--sr-line-height-default);
+  letter-spacing: var(--sr-letter-spacing-default);
+  cursor: pointer;
+}
+
+.split .label {
+  display: inline-grid;
+  min-height: var(--sr-size-control);
+  place-items: center;
+  border-right: var(--sr-border-width) solid var(--sr-color-border);
+  padding: 0 var(--sr-space-3-25);
+  color: var(--sr-color-text-filter-label);
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-display);
+}
+
+.value {
+  min-width: 56px;
+  padding: 0 var(--sr-space-2-5);
+  color: var(--sr-color-text-filter-value);
+  font-size: var(--sr-font-size-md);
+  font-weight: var(--sr-font-weight-medium);
+  text-align: left;
+}
+
+.split > svg {
+  margin-right: var(--sr-space-2-5);
+  color: var(--sr-color-text-filter-icon);
+}
+
+.split:not(.withValue) {
+  gap: var(--sr-space-3);
+  padding-right: var(--sr-space-3);
+}
+
+.split:not(.withValue) .label {
+  border-right: 0;
+  padding-right: var(--sr-space-1-25);
+}
+
+.compact {
+  min-width: 0;
+  min-height: var(--sr-size-mobile-quick-filter);
+  justify-content: center;
+  gap: var(--sr-space-0-5);
+  border-radius: var(--sr-radius-mobile-control);
+  padding: 0 var(--sr-space-1);
+}
+
+.compact.active {
+  border-color: var(--sr-color-accent-border-active);
+  color: var(--sr-color-accent);
+  background: var(--sr-color-accent-active-soft);
+}
+
+.compact .label {
+  min-width: 0;
+  overflow: visible;
+  color: inherit;
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-display);
+  line-height: var(--sr-line-height-none);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.compact > svg {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  color: currentColor;
+  opacity: 0.85;
+}
+
+.compact:focus-visible {
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: var(--sr-focus-ring-offset);
+}
+
+.button:disabled {
+  border-color: var(--sr-color-border);
+  color: var(--sr-color-state-disabled-text);
+  background: var(--sr-color-state-disabled-surface);
+  cursor: not-allowed;
+  opacity: var(--sr-opacity-disabled);
+}
