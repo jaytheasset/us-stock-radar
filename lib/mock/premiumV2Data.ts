@@ -75,7 +75,7 @@ export const premiumV2Plans: Record<PremiumV2PlanKey, PremiumV2Plan> = {
     ],
     cta: "Choose Ad-Free",
     description: "Cleaner alerts for a small ticker list.",
-    monthlyPrice: "$4.99",
+    monthlyPrice: "$6.99",
     name: "Ad-Free",
   },
   pro: {
