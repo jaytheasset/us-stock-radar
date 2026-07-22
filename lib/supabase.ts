@@ -204,6 +204,40 @@ export async function fetchEventsByTicker({
   };
 }
 
+export async function fetchRecentEventsByTickers({
+  tickers,
+  detectedAfter,
+}: {
+  tickers: string[];
+  detectedAfter: string;
+}) {
+  const normalizedTickers = [...new Set(
+    tickers
+      .map((ticker) => ticker.trim().toUpperCase())
+      .filter((ticker) => /^[A-Z0-9.-]+$/.test(ticker)),
+  )].slice(0, 50);
+
+  if (!normalizedTickers.length) {
+    return { ok: true, status: 200, data: [], error: undefined };
+  }
+
+  const result = await supabaseRest("events", {
+    select: "id,ticker,event_type,signal,impact,title,detected_at,published_at,delivery_level",
+    ticker: `in.(${normalizedTickers.join(",")})`,
+    detected_at: `gte.${detectedAfter}`,
+    delivery_level: "neq.archive",
+    order: "detected_at.desc",
+    limit: "1000",
+  });
+
+  return {
+    ok: result.ok,
+    status: result.status,
+    data: Array.isArray(result.data) ? result.data : [],
+    error: result.error,
+  };
+}
+
 function buildEventSearch(
   params: EventFilterParams,
   options: {
@@ -272,12 +306,11 @@ async function supabaseRest(table: string, search: Record<string, string>) {
   try {
     const response = await fetch(url, {
       cache: "no-store",
-      headers: {
+      headers: supabaseRequestHeaders(key, {
         apikey: key,
-        Authorization: `Bearer ${key}`,
         Accept: "application/json",
         Prefer: "count=exact",
-      },
+      }),
     });
 
     const body = await response.text();
@@ -301,6 +334,14 @@ async function supabaseRest(table: string, search: Record<string, string>) {
       error: readSupabaseFetchError(error),
     };
   }
+}
+
+function supabaseRequestHeaders(key: string, headers: Record<string, string>) {
+  if (key.startsWith("sb_secret_") || key.startsWith("sb_publishable_")) {
+    return headers;
+  }
+
+  return { ...headers, Authorization: `Bearer ${key}` };
 }
 
 export async function supabaseSelect(table: string, search: Record<string, string>) {

@@ -4,8 +4,8 @@ import type { RefObject } from "react";
 import { FilterOption } from "@/components/ui/FilterOption";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import {
-  dashboardV2FilterSections,
   type DashboardV2FilterKey,
+  type DashboardV2FilterSection,
   type DashboardV2FilterState,
 } from "@/components/dashboard-v2/dashboardV2FilterConfig";
 
@@ -16,6 +16,7 @@ type MobileFilterBottomSheetProps = {
   onClearFilters: () => void;
   onClose: () => void;
   openerRef: RefObject<HTMLElement | null>;
+  sections: DashboardV2FilterSection[];
 };
 
 export function MobileFilterBottomSheet({
@@ -25,6 +26,7 @@ export function MobileFilterBottomSheet({
   onClearFilters,
   onClose,
   openerRef,
+  sections,
 }: MobileFilterBottomSheetProps) {
   return (
     <BottomSheetShell
@@ -42,23 +44,29 @@ export function MobileFilterBottomSheet({
       </header>
 
       <div className="dashboard-v2-mobile-filter-sheet-content">
-        {dashboardV2FilterSections.map((section) => (
+        {sections.map((section) => (
           <section className="dashboard-v2-mobile-filter-section" key={section.key}>
             <h3>{section.title}</h3>
-            <div aria-label={`${section.title} options`} className="dashboard-v2-mobile-filter-options" role="group">
-              {section.options.map((option) => {
-                const isActive = filterState[section.key] === option;
+            {section.available ? (
+              <div aria-label={`${section.title} options`} className="dashboard-v2-mobile-filter-options" role="group">
+                {section.options.map((option) => {
+                  const isActive = filterState[section.key] === option;
 
-                return (
-                  <FilterOption
-                    key={option}
-                    label={option}
-                    onClick={() => onChangeFilter(section.key, option)}
-                    selected={isActive}
-                  />
-                );
-              })}
-            </div>
+                  return (
+                    <FilterOption
+                      key={option}
+                      label={option}
+                      onClick={() => onChangeFilter(section.key, option)}
+                      selected={isActive}
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="dashboard-v2-mobile-filter-unavailable">
+                Unavailable for this market view
+              </p>
+            )}
           </section>
         ))}
       </div>

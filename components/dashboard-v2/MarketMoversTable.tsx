@@ -75,7 +75,7 @@ export function MarketMoversTable({
                     company={row.company}
                     events={
                       row.events.length
-                        ? row.events.map((event) => (
+                        ? row.events.slice(0, 4).map((event) => (
                             <EventBadge event={event} key={event.id} />
                           ))
                         : undefined

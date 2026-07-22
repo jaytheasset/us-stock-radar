@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerEnv } from "@/lib/env";
 
@@ -39,6 +40,21 @@ type RangeConfig =
       startDate: string;
     };
 
+const intradayChartCacheSeconds = 60;
+const dailyChartCacheSeconds = 3_600;
+
+const loadCachedIntradayChart = unstable_cache(
+  async (symbol: string, range: DashboardChartRange) => loadChartPayload(symbol, range),
+  ["dashboard-v2-intraday-chart-v2"],
+  { revalidate: intradayChartCacheSeconds },
+);
+
+const loadCachedDailyChart = unstable_cache(
+  async (symbol: string, range: DashboardChartRange) => loadChartPayload(symbol, range),
+  ["dashboard-v2-daily-chart-v2"],
+  { revalidate: dailyChartCacheSeconds },
+);
+
 export async function GET(request: NextRequest) {
   const env = getServerEnv();
   const symbol = normalizeSymbol(request.nextUrl.searchParams.get("symbol") || "AMD");
@@ -52,6 +68,29 @@ export async function GET(request: NextRequest) {
   }
 
   const config = rangeConfig(range, new Date());
+  try {
+    const payload = await (config.kind === "intraday"
+      ? loadCachedIntradayChart(symbol, range)
+      : loadCachedDailyChart(symbol, range));
+    return NextResponse.json(payload, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: error instanceof Error ? error.message : "FMP chart data is unavailable",
+        symbol,
+        range,
+      },
+      { status: 502 },
+    );
+  }
+}
+
+async function loadChartPayload(symbol: string, range: DashboardChartRange) {
+  const env = getServerEnv();
+  if (!env.fmpApiKey) throw new Error("FMP_API_KEY is missing");
+  const fetchedAt = new Date().toISOString();
+  const config = rangeConfig(range, new Date(fetchedAt));
   const [quoteResult, barsResult] = await Promise.all([
     fetchFmpQuote(symbol, env.fmpApiKey),
     config.kind === "intraday"
@@ -60,24 +99,13 @@ export async function GET(request: NextRequest) {
   ]);
 
   if (!barsResult.ok || !barsResult.bars.length) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: barsResult.error || "FMP returned no chart bars",
-        symbol,
-        range,
-      },
-      { status: 502 },
-    );
+    throw new Error(barsResult.error || "FMP returned no chart bars");
   }
 
   const points = appendLatestQuote(barsResult.bars, quoteResult.quote?.price);
   const latest = points.at(-1);
   if (!latest) {
-    return NextResponse.json(
-      { ok: false, error: "FMP returned no usable chart bars", symbol, range },
-      { status: 502 },
-    );
+    throw new Error("FMP returned no usable chart bars");
   }
   const previousClose =
     quoteResult.quote?.previousClose ?? points[Math.max(points.length - 2, 0)]?.close ?? latest.open;
@@ -87,21 +115,20 @@ export async function GET(request: NextRequest) {
     quoteResult.quote?.changePercent ??
     (previousClose ? (changeAmount / previousClose) * 100 : 0);
 
-  return NextResponse.json(
-    {
-      ok: true,
-      changeAmount: round(changeAmount),
-      changePercent: round(changePercent),
-      latestPrice: round(latestPrice),
-      points: points.map(stripTimestamp),
-      previousClose: round(previousClose),
-      provider: "fmp",
-      providerLabel: config.providerLabel,
-      range,
-      symbol,
-    },
-    { headers: { "Cache-Control": "no-store" } },
-  );
+  return {
+    ok: true,
+    asOf: chartAsOf(latest, fetchedAt),
+    changeAmount: round(changeAmount),
+    changePercent: round(changePercent),
+    latestPrice: round(latestPrice),
+    points: points.map(stripTimestamp),
+    previousClose: round(previousClose),
+    provider: "fmp",
+    providerLabel: config.providerLabel,
+    range,
+    receivedAt: fetchedAt,
+    symbol,
+  };
 }
 
 function rangeConfig(range: DashboardChartRange, now: Date): RangeConfig {
@@ -344,6 +371,12 @@ function numberValue(value: unknown) {
 function parseTimestamp(value: string) {
   const normalized = value.includes(" ") ? value.replace(" ", "T") : `${value}T12:00:00`;
   return Date.parse(`${normalized}Z`);
+}
+
+function chartAsOf(latest: FmpBar, fetchedAt: string) {
+  if (latest.time === "Latest quote") return fetchedAt;
+  const timestamp = parseTimestamp(latest.time);
+  return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : fetchedAt;
 }
 
 function asArray(value: unknown): unknown[] {

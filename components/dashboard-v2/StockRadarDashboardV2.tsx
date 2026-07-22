@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DesktopRailAdSlot } from "@/components/dashboard-v2/DesktopRailAdSlot";
 import { FilterBar } from "@/components/dashboard-v2/FilterBar";
 import { MarketMoversTable } from "@/components/dashboard-v2/MarketMoversTable";
@@ -13,6 +13,9 @@ import { TickerDetailPanel } from "@/components/dashboard-v2/TickerDetailPanel";
 import {
   dashboardV2AllFilterValue,
   dashboardV2DefaultFilterState,
+  filterDashboardV2Rows,
+  getDashboardV2FilterSections,
+  sanitizeDashboardV2FilterState,
   type DashboardV2FilterKey,
 } from "@/components/dashboard-v2/dashboardV2FilterConfig";
 import {
@@ -29,14 +32,6 @@ import {
   type DashboardV2TickerDetail,
 } from "@/lib/dashboardV2Types";
 import styles from "@/components/dashboard-v2/StockRadarDashboardV2.module.css";
-
-const dashboardFilters = [
-  { label: "Market Cap", value: "All" },
-  { label: "Price", value: "All" },
-  { label: "Volume", value: "All" },
-  { label: "Event Type", value: "All" },
-  { label: "Signal", value: "All" },
-];
 
 const marketMoverItems: readonly SegmentedControlItem<DashboardV2Tab>[] = dashboardV2Tabs.map(
   (item) => ({ label: item.toUpperCase(), value: item }),
@@ -154,12 +149,12 @@ export function StockRadarDashboardV2() {
           status: "ready",
           tab: activeMoverTab,
         });
-        setSelectedTicker((current) => {
-          const currentRow = current
-            ? payload.rows.find((row) => row.ticker === current.ticker)
-            : undefined;
-          return getDashboardV2TickerDetail(currentRow || payload.rows[0]);
-        });
+        setFilterState((current) =>
+          sanitizeDashboardV2FilterState(
+            current,
+            getDashboardV2FilterSections(payload.rows),
+          ),
+        );
       } catch {
         if (controller.signal.aborted) return;
         setSelectedTicker(null);
@@ -208,9 +203,28 @@ export function StockRadarDashboardV2() {
   }, []);
 
   const isCurrentState = marketState.tab === activeMoverTab;
-  const rows = isCurrentState ? marketState.rows : [];
+  const sourceRows = isCurrentState ? marketState.rows : [];
   const status = isCurrentState ? marketState.status : "loading";
   const statusMessage = isCurrentState ? marketState.message : undefined;
+  const filterSections = useMemo(
+    () => getDashboardV2FilterSections(sourceRows),
+    [sourceRows],
+  );
+  const rows = useMemo(
+    () => filterDashboardV2Rows(sourceRows, filterState),
+    [filterState, sourceRows],
+  );
+
+  useEffect(() => {
+    if (status !== "ready") return;
+    setSelectedTicker((current) => {
+      if (!rows.length) return null;
+      const row = current
+        ? rows.find((candidate) => candidate.ticker === current.ticker) || rows[0]
+        : rows[0];
+      return getDashboardV2TickerDetail(row);
+    });
+  }, [rows, status]);
 
   return (
     <>
@@ -233,20 +247,32 @@ export function StockRadarDashboardV2() {
           </div>
           <FilterBar
             filterState={filterState}
-            filters={dashboardFilters}
             isMobileFilterOpen={isMobileFilterSheetOpen}
+            onChangeFilter={updateFilter}
+            onClearFilters={clearFilters}
             onOpenMoreFilters={openMobileFilters}
             onResetFilter={resetFilter}
+            sections={filterSections}
           />
           {status === "ready" ? (
             <>
-              <MarketMoversTable
-                mobileValueMode={activeMoverTab === "Top Volume" ? "volume" : "change"}
-                onOpenChart={(row) => openTickerDetail(row, "chart")}
-                onSelectRow={(row) => openTickerDetail(row, "summary")}
-                rows={rows}
-                selectedTicker={selectedTicker?.ticker}
-              />
+              <p aria-live="polite" className={styles.filterResultCount}>
+                Showing {rows.length} of {sourceRows.length} market movers
+              </p>
+              {rows.length ? (
+                <MarketMoversTable
+                  mobileValueMode={activeMoverTab === "Top Volume" ? "volume" : "change"}
+                  onOpenChart={(row) => openTickerDetail(row, "chart")}
+                  onSelectRow={(row) => openTickerDetail(row, "summary")}
+                  rows={rows}
+                  selectedTicker={selectedTicker?.ticker}
+                />
+              ) : (
+                <MarketDataState
+                  message="No market movers match the selected filters."
+                  status="empty"
+                />
+              )}
               <MarketTimestamp
                 asOf={marketState.asOf}
                 receivedAt={marketState.receivedAt}
@@ -262,7 +288,11 @@ export function StockRadarDashboardV2() {
           ) : (
             <aside className={styles.detailState} aria-label="Ticker detail availability">
               <strong>Ticker detail unavailable</strong>
-              <span>Live FMP data is required before a ticker can be selected.</span>
+              <span>
+                {status === "ready" && sourceRows.length
+                  ? "Adjust the filters to select a market mover."
+                  : "FMP market data is required before a ticker can be selected."}
+              </span>
             </aside>
           )}
           <DesktopRailAdSlot />
@@ -284,6 +314,7 @@ export function StockRadarDashboardV2() {
         onClearFilters={clearFilters}
         onClose={() => setIsMobileFilterSheetOpen(false)}
         openerRef={mobileFilterTriggerRef}
+        sections={filterSections}
       />
     </>
   );

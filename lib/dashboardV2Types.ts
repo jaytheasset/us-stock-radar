@@ -6,12 +6,14 @@ export const dashboardV2Sessions = ["Pre", "Regular", "After"] as const;
 export type DashboardV2Tab = (typeof dashboardV2Tabs)[number];
 export type DashboardV2Session = (typeof dashboardV2Sessions)[number];
 export type DashboardV2Impact = "high" | "medium" | "low";
+export type DashboardV2Signal = "bullish" | "bearish" | "volatile" | "neutral";
 
 export type DashboardV2Event = {
   code: string;
   id: string;
-  impact: DashboardV2Impact;
+  impact?: DashboardV2Impact;
   label: string;
+  signal?: DashboardV2Signal;
   timestamp: string;
   title: string;
   tone: BadgeTone;
@@ -23,11 +25,14 @@ export type DashboardV2MarketMover = {
   events: DashboardV2Event[];
   logoUrl?: string;
   marketCap: string;
+  marketCapValue?: number;
   maxImpact?: DashboardV2Impact;
   price: string;
+  priceValue: number;
   rank: number;
   ticker: string;
   volume: string;
+  volumeValue?: number;
 };
 
 export type DashboardV2TickerDetail = {

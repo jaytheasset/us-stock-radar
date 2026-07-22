@@ -19,9 +19,13 @@ export function EventTimeline({ events }: { events: DashboardV2Event[] }) {
                   <strong>{event.title}</strong>
                   <time dateTime={event.timestamp}>{formatEventTime(event.timestamp)}</time>
                 </div>
-                <span className={`dashboard-v2-timeline-impact impact-${event.impact}`}>
-                  {capitalize(event.impact)} Impact
-                </span>
+                {event.impact ? (
+                  <span className={`dashboard-v2-timeline-impact impact-${event.impact}`}>
+                    {capitalize(event.impact)} Impact
+                  </span>
+                ) : (
+                  <span className="dashboard-v2-timeline-impact">—</span>
+                )}
               </div>
             </article>
           ))}
