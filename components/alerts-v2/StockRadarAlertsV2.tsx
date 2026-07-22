@@ -6,6 +6,8 @@ import {
   alertIconSet,
   coverageItems,
   deliveryItems,
+  feedAlertSettings,
+  filingAlertGroups,
   initialAlertTickers,
   recentAlerts,
   watchlistCandidates,
@@ -319,12 +321,76 @@ export function StockRadarAlertsV2() {
               Additional delivery controls are collapsed in this static preview.
             </div>
           ) : null}
-        </section>
+          </section>
+        </div>
+
+        <section className={`${styles.card} ${styles.ultimateCard}`} aria-labelledby="alerts-v2-ultimate-title">
+          <div className={styles.cardHeader}>
+            <div>
+              <h2 id="alerts-v2-ultimate-title">Ultimate alert controls</h2>
+              <p>Preview advanced alert tools available on Ultimate.</p>
+            </div>
+            <span className={styles.lockedBadge}>
+              <Lock aria-hidden="true" size={14} />
+              ULTIMATE
+            </span>
           </div>
 
-          <section className={`${styles.card} ${styles.recentCard}`} aria-labelledby="alerts-v2-recent-title">
-        <div className={styles.cardHeader}>
-          <div>
+          <div className={styles.ultimateFeatureList}>
+            {feedAlertSettings.map((item) => (
+              <article className={styles.ultimateFeatureRow} key={item.id}>
+                <Bell aria-hidden="true" size={20} />
+                <div>
+                  <strong>{item.title}</strong>
+                  <span>{item.description}</span>
+                </div>
+                <span className={styles.lockGroup}>
+                  <Lock aria-hidden="true" size={15} />
+                  <em>ULTIMATE</em>
+                </span>
+              </article>
+            ))}
+
+            <article className={styles.ultimateFilingBlock}>
+              <div className={styles.ultimateFeatureRow}>
+                <Lock aria-hidden="true" size={20} />
+                <div>
+                  <strong>Filing type alerts</strong>
+                  <span>Select exactly which SEC filing types can trigger Ultimate alerts.</span>
+                </div>
+                <span className={styles.lockGroup}>
+                  <Lock aria-hidden="true" size={15} />
+                  <em>ULTIMATE</em>
+                </span>
+              </div>
+
+              <div className={styles.filingGroupList}>
+                {filingAlertGroups.map((group) => (
+                  <section className={styles.filingGroup} key={group.id}>
+                    <strong>{group.title}</strong>
+                    <div className={styles.filingTypeGrid}>
+                      {group.items.map((item) => (
+                        <label className={styles.filingTypeOption} key={item.id}>
+                          <input checked disabled readOnly type="checkbox" />
+                          <span>{item.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            </article>
+          </div>
+
+          <div className={styles.ultimateFooter}>
+            <span>Unlock feed-wide alerts and filing-type rules with Ultimate</span>
+            <Link href="/premium-v2">View Ultimate</Link>
+          </div>
+        </section>
+
+        <section className={`${styles.card} ${styles.recentCard}`} aria-labelledby="alerts-v2-recent-title">
+          <div className={styles.cardHeader}>
+            <div>
             <h2 id="alerts-v2-recent-title">Recent alerts</h2>
           </div>
         </div>

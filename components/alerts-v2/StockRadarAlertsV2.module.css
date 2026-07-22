@@ -485,6 +485,20 @@
   font-weight: var(--sr-font-weight-semibold);
 }
 
+.lockedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sr-space-1);
+  min-height: var(--sr-size-badge);
+  border-radius: var(--sr-radius-pill);
+  padding: 0 var(--sr-space-2);
+  color: var(--alerts-text);
+  background: color-mix(in srgb, var(--sr-color-text-meta) 14%, var(--sr-color-text-inverse));
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  white-space: nowrap;
+}
+
 .moreSettingsButton {
   display: block;
   min-height: 34px;
@@ -492,6 +506,148 @@
   margin: var(--sr-space-2) auto 0;
   color: var(--sr-color-accent);
   background: transparent;
+}
+
+.ultimateCard {
+  margin-top: var(--sr-space-4);
+}
+
+.ultimateFeatureList {
+  display: grid;
+  margin-top: var(--sr-space-3);
+}
+
+.ultimateFeatureRow {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sr-space-3);
+  border-top: var(--sr-border-width) solid var(--alerts-border);
+  padding: var(--sr-space-2) 0;
+}
+
+.ultimateFeatureRow:first-child {
+  border-top: 0;
+}
+
+.ultimateFeatureRow > svg {
+  color: var(--alerts-muted);
+  stroke-width: 1.8;
+}
+
+.ultimateFeatureRow div {
+  display: grid;
+  gap: var(--sr-space-0-5);
+  min-width: 0;
+}
+
+.ultimateFeatureRow strong {
+  overflow: hidden;
+  color: var(--alerts-text);
+  font-size: var(--sr-font-size-base);
+  font-weight: var(--sr-font-weight-medium);
+  line-height: var(--sr-line-height-control);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ultimateFeatureRow span:not(.lockGroup) {
+  overflow: hidden;
+  color: var(--alerts-muted);
+  font-size: var(--sr-font-size-sm);
+  line-height: var(--sr-line-height-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ultimateFilingBlock {
+  border-top: var(--sr-border-width) solid var(--alerts-border);
+}
+
+.ultimateFilingBlock .ultimateFeatureRow {
+  border-top: 0;
+}
+
+.filingGroupList {
+  display: grid;
+  gap: var(--sr-space-3);
+  padding: 0 0 var(--sr-space-2) 34px;
+}
+
+.filingGroup {
+  display: grid;
+  gap: var(--sr-space-2);
+  min-width: 0;
+  border-top: var(--sr-border-width) solid var(--alerts-border);
+  padding-top: var(--sr-space-2);
+}
+
+.filingGroup:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.filingGroup > strong {
+  overflow: hidden;
+  color: var(--alerts-text);
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-semibold);
+  line-height: var(--sr-line-height-control);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filingTypeGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--sr-space-2);
+}
+
+.filingTypeOption {
+  display: flex;
+  min-width: 0;
+  min-height: 30px;
+  align-items: center;
+  gap: var(--sr-space-2);
+  border: var(--sr-border-width) solid var(--alerts-border);
+  border-radius: var(--sr-radius-control);
+  padding: 0 var(--sr-space-2);
+  color: var(--alerts-text);
+  background: transparent;
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-medium);
+}
+
+.filingTypeOption input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--sr-color-accent);
+  opacity: 1;
+}
+
+.filingTypeOption span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ultimateFooter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sr-space-3);
+  border-top: var(--sr-border-width) solid var(--alerts-border);
+  margin-top: var(--sr-space-3);
+  padding-top: var(--sr-space-3);
+  color: var(--sr-color-accent);
+  font-size: var(--sr-font-size-base);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.ultimateFooter a {
+  color: var(--sr-color-accent);
+  text-decoration: none;
 }
 
 .recentCard {
@@ -652,6 +808,7 @@
 .moreSettingsButton:focus-visible,
 .cardFooter a:focus-visible,
 .recentFooter a:focus-visible,
+.ultimateFooter a:focus-visible,
 .toggle:focus-visible,
 .removeButton:focus-visible,
 .panelTitle button:focus-visible,
@@ -671,6 +828,10 @@
 
   .settingsGrid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .filingTypeGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -790,6 +951,34 @@
 
   .recentHead {
     display: none;
+  }
+
+  .lockedBadge {
+    width: fit-content;
+  }
+
+  .ultimateFeatureRow {
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    gap: var(--sr-space-2);
+  }
+
+  .ultimateFeatureRow span:not(.lockGroup) {
+    white-space: normal;
+  }
+
+  .filingGroupList {
+    padding-left: 0;
+  }
+
+  .filingTypeGrid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .ultimateFooter {
+    display: grid;
+    justify-items: center;
+    gap: var(--sr-space-2);
+    text-align: center;
   }
 
   .recentRow {

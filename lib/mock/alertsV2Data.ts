@@ -15,6 +15,7 @@ import {
   MonitorSmartphone,
   RotateCcw,
   Search,
+  Send,
   Smartphone,
   Trash2,
 } from "lucide-react";
@@ -39,6 +40,23 @@ export type DeliveryItem = {
   enabled: boolean;
   icon: LucideIcon;
   id: string;
+  title: string;
+};
+
+export type FeedAlertSetting = {
+  description: string;
+  id: string;
+  title: string;
+};
+
+export type FilingAlertType = {
+  id: string;
+  label: string;
+};
+
+export type FilingAlertGroup = {
+  id: string;
+  items: readonly FilingAlertType[];
   title: string;
 };
 
@@ -143,7 +161,99 @@ export const deliveryItems: readonly DeliveryItem[] = [
   { id: "app", title: "App Push", icon: Smartphone, enabled: true },
   { id: "email", title: "Email", icon: Mail, enabled: false },
   { id: "web", title: "Web Push", icon: MonitorSmartphone, enabled: true },
+  { id: "telegram", title: "Telegram", icon: Send, enabled: false },
   { id: "after-hours", title: "After-hours alerts", icon: Clock3, enabled: true },
+];
+
+export const feedAlertSettings: readonly FeedAlertSetting[] = [
+  {
+    id: "feed-wide",
+    title: "Feed Alert settings",
+    description: "Receive alerts from qualifying Live Feed events, not only enabled tickers.",
+  },
+  {
+    id: "market-scan",
+    title: "Market-wide scanner",
+    description: "Scan all market tickers for high-score feed events.",
+  },
+  {
+    id: "priority-routing",
+    title: "Priority routing",
+    description: "Send urgent feed alerts to selected delivery channels first.",
+  },
+];
+
+export const filingAlertGroups: readonly FilingAlertGroup[] = [
+  {
+    id: "current-periodic",
+    title: "Current & periodic reports",
+    items: [
+      { id: "8-k", label: "8-K" },
+      { id: "10-q", label: "10-Q" },
+      { id: "10-k", label: "10-K" },
+      { id: "6-k", label: "6-K" },
+      { id: "20-f", label: "20-F" },
+    ],
+  },
+  {
+    id: "registration-offering",
+    title: "Registration & offerings",
+    items: [
+      { id: "s-1", label: "S-1" },
+      { id: "s-3", label: "S-3" },
+      { id: "s-4", label: "S-4" },
+      { id: "s-8", label: "S-8" },
+      { id: "f-1", label: "F-1" },
+      { id: "f-3", label: "F-3" },
+      { id: "f-4", label: "F-4" },
+      { id: "424b", label: "424B" },
+      { id: "424b3", label: "424B3" },
+      { id: "424b4", label: "424B4" },
+      { id: "424b5", label: "424B5" },
+    ],
+  },
+  {
+    id: "proxy-vote",
+    title: "Proxy & shareholder vote",
+    items: [
+      { id: "def-14a", label: "DEF 14A" },
+      { id: "pre-14a", label: "PRE 14A" },
+      { id: "defa14a", label: "DEFA14A" },
+    ],
+  },
+  {
+    id: "ownership-insider",
+    title: "Ownership & insider",
+    items: [
+      { id: "sc-13d", label: "SC 13D" },
+      { id: "sc-13g", label: "SC 13G" },
+      { id: "form-4", label: "Form 4" },
+      { id: "144", label: "144" },
+    ],
+  },
+  {
+    id: "tender-listing-admin",
+    title: "Tender, listing & SEC admin",
+    items: [
+      { id: "sc-to-i", label: "SC TO-I" },
+      { id: "sc-to-t", label: "SC TO-T" },
+      { id: "sc-14d9", label: "SC 14D9" },
+      { id: "25-nse", label: "25-NSE" },
+      { id: "pos-am", label: "POS AM" },
+      { id: "effect", label: "EFFECT" },
+    ],
+  },
+  {
+    id: "amendments-late",
+    title: "Amendments & late notices",
+    items: [
+      { id: "8-k-a", label: "8-K/A" },
+      { id: "10-q-a", label: "10-Q/A" },
+      { id: "10-k-a", label: "10-K/A" },
+      { id: "nt-10-k", label: "NT 10-K" },
+      { id: "nt-10-q", label: "NT 10-Q" },
+    ],
+  },
 ];
 
 export const recentAlerts: readonly RecentAlert[] = [
@@ -167,5 +277,26 @@ export const recentAlerts: readonly RecentAlert[] = [
     category: "Major Company Update",
     event: "New material filing detected",
     time: "Yesterday",
+  },
+  {
+    id: "msft-company",
+    ticker: "MSFT",
+    category: "Major Company Update",
+    event: "Leadership update identified",
+    time: "Yesterday",
+  },
+  {
+    id: "tsla-strategic",
+    ticker: "TSLA",
+    category: "M&A & Strategic Events",
+    event: "Strategic partnership filing detected",
+    time: "2 days ago",
+  },
+  {
+    id: "amd-earnings",
+    ticker: "AMD",
+    category: "Earnings & Guidance",
+    event: "Earnings date confirmed",
+    time: "2 days ago",
   },
 ];
