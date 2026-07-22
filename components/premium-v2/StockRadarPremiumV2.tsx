@@ -14,12 +14,6 @@ import {
 } from "@/lib/mock/premiumV2Data";
 import styles from "./StockRadarPremiumV2.module.css";
 
-function getDisplayedPrice(planKey: PremiumV2PlanKey) {
-  const plan = premiumV2Plans[planKey];
-
-  return { price: plan.monthlyPrice, suffix: "/ mo" };
-}
-
 export function StockRadarPremiumV2() {
   const [selectionMessage, setSelectionMessage] = useState("");
 
@@ -86,9 +80,6 @@ export function StockRadarPremiumV2() {
                 </article>
               ))}
             </div>
-            <p className={styles.alertNote}>
-              Advanced scans beyond your watchlist for dilution filings, delisting notices, and FDA catalysts.
-            </p>
           </aside>
         </section>
 
@@ -104,7 +95,6 @@ export function StockRadarPremiumV2() {
           <div className={styles.planGrid}>
             {premiumV2PlanOrder.map((planKey) => {
               const plan = premiumV2Plans[planKey];
-              const displayedPrice = getDisplayedPrice(planKey);
               const isCurrent = planKey === premiumV2CurrentPlan;
               const isRecommended = planKey === premiumV2RecommendedPlan;
 
@@ -122,8 +112,8 @@ export function StockRadarPremiumV2() {
                       ) : null}
                     </div>
                     <div className={styles.price}>
-                      <strong>{displayedPrice.price}</strong>
-                      <span>{displayedPrice.suffix}</span>
+                      <strong>{plan.monthlyPrice}</strong>
+                      <span>/ mo</span>
                     </div>
                   </header>
                   <p className={styles.planDescription}>{plan.description}</p>

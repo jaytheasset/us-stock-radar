@@ -72,16 +72,10 @@
   gap: var(--sr-space-2);
 }
 
-.currentPlanLine span,
-.billingFieldset legend {
+.currentPlanLine span {
   color: var(--sr-color-text-meta);
   font-size: var(--sr-font-size-sm);
   line-height: var(--sr-line-height-none);
-}
-
-.billingFieldset legend {
-  font-size: var(--sr-font-size-xs);
-  text-transform: uppercase;
 }
 
 .currentPlanLine strong {
@@ -95,62 +89,6 @@
   font-size: var(--sr-font-size-md);
   font-weight: var(--sr-font-weight-semibold);
   line-height: var(--sr-line-height-none);
-}
-
-.billingFieldset {
-  min-width: 0;
-  margin: 0;
-  border: 0;
-  padding: 0;
-}
-
-.billingFieldset legend {
-  margin-bottom: var(--sr-space-1-5);
-}
-
-.billingControl {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(96px, 1fr));
-  overflow: hidden;
-  border: var(--sr-border-width) solid var(--sr-color-border);
-  border-radius: var(--sr-radius-control);
-  background: var(--sr-color-surface-control-group);
-}
-
-.billingOption {
-  position: relative;
-  display: grid;
-  min-height: var(--sr-size-control);
-  place-items: center;
-  border-left: var(--sr-border-width) solid var(--sr-color-border);
-  color: var(--sr-color-text-tab);
-  font-size: var(--sr-font-size-md);
-  font-weight: var(--sr-font-weight-semibold);
-  line-height: var(--sr-line-height-control);
-  cursor: pointer;
-}
-
-.billingOption:first-child {
-  border-left: 0;
-}
-
-.billingOption input {
-  position: absolute;
-  width: var(--sr-border-width);
-  height: var(--sr-border-width);
-  opacity: 0;
-}
-
-.billingOption:has(input:focus-visible) {
-  z-index: 1;
-  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
-  outline-offset: calc(var(--sr-focus-ring-offset) * -1);
-}
-
-.billingOptionSelected {
-  color: var(--sr-color-accent);
-  background: var(--sr-color-accent-active);
-  box-shadow: inset 0 0 0 var(--sr-border-width) var(--sr-color-accent);
 }
 
 .heroSection {
@@ -750,34 +688,6 @@
   border-radius: var(--sr-radius-control);
 }
 
-.categoryLegend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sr-space-3);
-  margin-bottom: var(--sr-space-3);
-}
-
-.categoryLegend span {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sr-space-1-5);
-  color: var(--sr-color-text-secondary);
-  font-size: var(--sr-font-size-xs);
-  line-height: var(--sr-line-height-control);
-}
-
-.categoryLegend i {
-  width: var(--sr-space-1-5);
-  height: var(--sr-space-1-5);
-  border-radius: var(--sr-radius-pill);
-  background: var(--sr-color-accent);
-}
-
-.categoryLegend strong {
-  color: var(--sr-color-text-strong);
-  font-variant-numeric: var(--sr-font-variant-numeric);
-}
-
 .categoryList {
   display: flex;
   flex-wrap: wrap;
@@ -839,12 +749,6 @@
   border-color: var(--sr-color-event-product);
   color: var(--sr-color-event-product);
   background: var(--sr-color-event-product-surface);
-}
-
-.categoryList > .category-neutral {
-  border-color: var(--sr-color-event-neutral);
-  color: var(--sr-color-event-neutral);
-  background: var(--sr-color-event-neutral-surface);
 }
 
 .desktopComparison {
@@ -971,11 +875,6 @@
 
 .desktopComparison tbody tr:last-child > .comparisonColumn-ultimate {
   border-bottom: var(--sr-space-0-5) solid var(--sr-color-border-overlay-strong);
-}
-
-.premiumValue {
-  color: var(--sr-color-text-secondary) !important;
-  font-weight: var(--sr-font-weight-regular);
 }
 
 .comparisonValue {
@@ -1240,10 +1139,6 @@
     font-size: var(--sr-font-size-sm);
   }
 
-  .billingControl {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .heroSection {
     grid-template-columns: 1fr;
     gap: var(--sr-space-5);
@@ -1333,12 +1228,6 @@
 
   .planDescription {
     min-height: auto;
-  }
-
-  .categoryLegend {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--sr-space-2);
   }
 
   .categoryList > span {

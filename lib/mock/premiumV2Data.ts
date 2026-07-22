@@ -5,7 +5,6 @@ export type PremiumV2PlanKey =
   | "advanced"
   | "ultimate";
 
-export type PremiumV2BillingCycle = "monthly";
 export type PremiumV2CategoryTone =
   | "earnings"
   | "insider"

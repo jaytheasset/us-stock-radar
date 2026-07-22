@@ -15,25 +15,6 @@ const categoryBadgeTones: Record<PremiumV2CategoryTone, BadgeTone> = {
   transaction: "transaction",
 };
 
-function isPremiumValue(value: string, planKey: string) {
-  if (planKey === "free" || planKey === "adFree") {
-    return false;
-  }
-
-  return ![
-    "No",
-    "—",
-    "No market alerts",
-    "No personalized alerts",
-    "1",
-    "5",
-    "5 min",
-    "Web + App",
-    "All alert categories",
-    "All 5 types · selected tickers",
-  ].includes(value);
-}
-
 function getTierColumnClass(planKey: string) {
   if (planKey === "pro") {
     return styles["comparisonColumn-pro"];
@@ -89,10 +70,7 @@ export function PremiumFeatureComparison() {
 
                   return (
                     <td
-                      className={[
-                        isPremiumValue(value, planKey) ? styles.premiumValue : undefined,
-                        getTierColumnClass(planKey),
-                      ].filter(Boolean).join(" ") || undefined}
+                      className={getTierColumnClass(planKey)}
                       key={planKey}
                     >
                       <div className={styles.comparisonValue}>
@@ -130,12 +108,7 @@ export function PremiumFeatureComparison() {
                 return (
                   <div className={getTierColumnClass(planKey)} key={planKey}>
                     <dt>{premiumV2Plans[planKey].name}</dt>
-                    <dd
-                      className={[
-                        isPremiumValue(value, planKey) ? styles.premiumValue : undefined,
-                        getTierColumnClass(planKey),
-                      ].filter(Boolean).join(" ") || undefined}
-                    >
+                    <dd className={getTierColumnClass(planKey)}>
                       <span>{value}</span>
                       {detailItems ? (
                         <ul className={styles.comparisonDetailList}>
