@@ -13,7 +13,7 @@
 .pageHeader {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
+  align-items: start;
   gap: var(--sr-space-6);
   padding-bottom: var(--sr-space-4);
   border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
@@ -62,7 +62,7 @@
 
 .headerControls {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: var(--sr-space-4);
 }
 
@@ -1137,6 +1137,10 @@
 
   .titleBlock > span {
     padding-right: calc(var(--sr-space-8) + var(--sr-space-7));
+  }
+
+  .guestHeader .titleBlock > span {
+    padding-right: 0;
   }
 
   .titleBlock h1 {
