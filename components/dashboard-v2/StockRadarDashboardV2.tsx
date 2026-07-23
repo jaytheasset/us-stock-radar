@@ -51,6 +51,7 @@ type FmpMarketMoversResponse = {
   asOf: string | null;
   available: boolean;
   error?: string;
+  message?: string;
   ok: boolean;
   reason: "ready" | "empty" | "session_unavailable" | "missing_key" | "upstream_error";
   receivedAt: string;
@@ -85,19 +86,6 @@ export function StockRadarDashboardV2() {
   const mobileFilterTriggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    if (activeSession !== "Regular") {
-      setSelectedTicker(null);
-      setMarketState({
-        asOf: null,
-        message: `${activeSession}-market rankings are unavailable from the configured FMP feed.`,
-        receivedAt: null,
-        rows: [],
-        status: "unavailable",
-        tab: activeMoverTab,
-      });
-      return;
-    }
-
     const controller = new AbortController();
     setMarketState({
       asOf: null,
@@ -110,7 +98,7 @@ export function StockRadarDashboardV2() {
     async function loadMarketMovers() {
       try {
         const response = await fetch(
-          `/api/dashboard-v2/movers?session=Regular&mode=${fmpModeByMoverTab[activeMoverTab]}`,
+          `/api/dashboard-v2/movers?session=${encodeURIComponent(activeSession)}&mode=${fmpModeByMoverTab[activeMoverTab]}`,
           { cache: "no-store", signal: controller.signal },
         );
         const payload = (await response.json()) as FmpMarketMoversResponse;
@@ -120,10 +108,13 @@ export function StockRadarDashboardV2() {
           setSelectedTicker(null);
           setMarketState({
             asOf: null,
-            message: payload.error || "FMP market data is unavailable.",
+            message: payload.message || payload.error || "FMP market data is unavailable.",
             receivedAt: payload.receivedAt || null,
             rows: [],
-            status: payload.reason === "missing_key" ? "unavailable" : "error",
+            status:
+              payload.reason === "missing_key" || payload.reason === "session_unavailable"
+                ? "unavailable"
+                : "error",
             tab: activeMoverTab,
           });
           return;
