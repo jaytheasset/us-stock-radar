@@ -1,6 +1,7 @@
 import { getEventTypeBadge } from "@/lib/eventTypeRegistry";
 import { getLiveFeedViewModel, type FeedTone, type LiveFeedItem } from "@/lib/liveFeed";
 import { supabaseSelect } from "@/lib/supabase";
+import { themeGroups, themeSubThemes } from "@/lib/taxonomyRegistry";
 
 export const newsV2Signals = ["Bullish", "Bearish", "Neutral", "Volatile"] as const;
 export const newsV2MarketCapBands = ["Mega", "Large", "Mid", "Small", "Micro"] as const;
@@ -21,6 +22,8 @@ export type NewsV2Item = {
   score: number;
   sector?: string;
   theme?: string;
+  themeGroupSlug?: string;
+  subThemeSlug?: string;
   relatedSectors: string[];
   themes: string[];
   eventType: string;
@@ -135,6 +138,8 @@ function toNewsV2Item(item: LiveFeedItem, marketCapByTicker: Map<string, number>
   const eventType = getEventTypeBadge(item.eventType).label;
   const marketCap = ticker ? marketCapByTicker.get(ticker) : undefined;
   const priceLabel = usableMarketValue(item.displayPrice);
+  const themeGroupSlug = canonicalThemeGroupSlug(item.themeGroup);
+  const subThemeSlug = canonicalSubThemeSlug(item.subTheme);
 
   return {
     id: item.id,
@@ -148,6 +153,8 @@ function toNewsV2Item(item: LiveFeedItem, marketCapByTicker: Map<string, number>
     score: item.score,
     sector: item.sector || undefined,
     theme: item.themeGroup || item.subTheme || undefined,
+    themeGroupSlug,
+    subThemeSlug,
     relatedSectors: item.sector ? [item.sector] : [],
     themes: Array.from(
       new Set(
@@ -164,6 +171,31 @@ function toNewsV2Item(item: LiveFeedItem, marketCapByTicker: Map<string, number>
     trend: item.displayChartBars.map((bar) => bar.close).filter(Number.isFinite),
     deliveryLevel: item.deliveryLevel,
   };
+}
+
+function canonicalThemeGroupSlug(value?: string | null) {
+  const normalized = normalizeTaxonomyValue(value);
+  if (!normalized) return undefined;
+  return themeGroups.find(
+    (group) => normalizeTaxonomyValue(group.slug) === normalized || normalizeTaxonomyValue(group.name) === normalized,
+  )?.slug;
+}
+
+function canonicalSubThemeSlug(value?: string | null) {
+  const normalized = normalizeTaxonomyValue(value);
+  if (!normalized) return undefined;
+  return themeSubThemes.find(
+    (subTheme) => normalizeTaxonomyValue(subTheme.slug) === normalized || normalizeTaxonomyValue(subTheme.name) === normalized,
+  )?.slug;
+}
+
+function normalizeTaxonomyValue(value?: string | null) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 }
 
 export function formatNewsV2PublishedAt(

@@ -7,6 +7,7 @@ import {
   type MarketGroupSnapshotPayload,
 } from "@/lib/marketDataCache";
 import type { PricePoint, PriceRange } from "@/lib/marketTypes";
+import { fetchFmpQuotes } from "@/lib/integrations";
 import { supabaseSelect } from "@/lib/supabase";
 import { sectorMappings } from "@/lib/taxonomyRegistry";
 
@@ -18,6 +19,7 @@ const groupSnapshotMinMarketCap = 300_000_000;
 const minIndustryConstituents = 8;
 const maxIndustryConstituents = 75;
 const snapshotConcurrency = 6;
+const rangeCalculationVersion = 3;
 
 type SectorRange = (typeof supportedRanges)[number];
 type SectorMoverTone = "bullish" | "warm" | "flat" | "bearish";
@@ -80,6 +82,13 @@ type ChartApiResponse = {
   points?: PricePoint[];
 };
 
+type FmpQuoteRow = {
+  symbol?: unknown;
+  changePercentage?: unknown;
+  changePercent?: unknown;
+  price?: unknown;
+};
+
 const sectorEtfSymbols: Record<string, string> = {
   Technology: "XLK",
   "Communication Services": "XLC",
@@ -95,86 +104,24 @@ const sectorEtfSymbols: Record<string, string> = {
   Other: "SPY",
 };
 
-const sectorFallbacks: Record<string, { change: string; tone: SectorMoverTone; volume: string }> = {
-  Technology: { change: "+2.84%", tone: "bullish", volume: "1.34x volume" },
-  "Communication Services": { change: "+1.21%", tone: "bullish", volume: "1.12x volume" },
-  "Consumer Cyclical": { change: "+0.63%", tone: "warm", volume: "0.98x volume" },
-  "Consumer Defensive": { change: "+0.22%", tone: "flat", volume: "0.91x volume" },
-  Healthcare: { change: "+1.96%", tone: "bullish", volume: "1.18x volume" },
-  "Financial Services": { change: "+0.88%", tone: "warm", volume: "0.96x volume" },
-  Industrials: { change: "+1.05%", tone: "bullish", volume: "1.03x volume" },
-  Energy: { change: "+1.42%", tone: "bullish", volume: "1.09x volume" },
-  Utilities: { change: "+0.18%", tone: "flat", volume: "0.86x volume" },
-  "Basic Materials": { change: "-0.72%", tone: "bearish", volume: "0.89x volume" },
-  "Real Estate": { change: "-0.31%", tone: "bearish", volume: "0.84x volume" },
-  Other: { change: "+0.04%", tone: "flat", volume: "0.61x volume" },
-};
-
-const sectorTickerFallbacks: Record<string, string[]> = {
-  Technology: ["NVDA", "MSFT", "AAPL"],
-  "Communication Services": ["META", "GOOGL", "NFLX"],
-  "Consumer Cyclical": ["TSLA", "AMZN", "HD"],
-  "Consumer Defensive": ["WMT", "COST", "KO"],
-  Healthcare: ["LLY", "UNH", "MRK"],
-  "Financial Services": ["JPM", "BAC", "V"],
-  Industrials: ["GE", "CAT", "BA"],
-  Energy: ["XOM", "CVX", "COP"],
-  Utilities: ["NEE", "DUK", "SO"],
-  "Basic Materials": ["FCX", "NEM", "DOW"],
-  "Real Estate": ["PLD", "AMT", "SPG"],
-  Other: ["SPY", "QQQ", "IWM"],
-};
-
-const industrySeeds: Record<
-  string,
-  {
-    change: string;
-    marketCap: string;
-    tickers: string[];
-    trend: number[];
-  }
-> = {
-  "Semiconductors & Compute": {
-    change: "+4.32%",
-    marketCap: "$2.56T",
-    tickers: ["NVDA", "AMD", "AVGO", "MU"],
-    trend: [26, 31, 29, 36, 42, 40, 48, 52, 50, 58, 63, 67],
-  },
-  "Software & Cloud": {
-    change: "+2.18%",
-    marketCap: "$1.89T",
-    tickers: ["MSFT", "ORCL", "SNOW", "DDOG"],
-    trend: [32, 35, 34, 39, 42, 44, 43, 48, 50, 54, 55, 59],
-  },
-  Cybersecurity: {
-    change: "+0.41%",
-    marketCap: "$420B",
-    tickers: ["CRWD", "PANW", "ZS"],
-    trend: [42, 41, 43, 45, 44, 46, 47, 49, 48, 50, 51, 52],
-  },
-  "IT Services": {
-    change: "+0.74%",
-    marketCap: "$820B",
-    tickers: ["ACN", "IBM", "INFY"],
-    trend: [38, 39, 40, 41, 43, 42, 44, 45, 47, 46, 48, 49],
-  },
-  "Hardware & Electronics": {
-    change: "+1.07%",
-    marketCap: "$1.24T",
-    tickers: ["AAPL", "DELL", "HPQ"],
-    trend: [45, 44, 46, 47, 49, 48, 50, 53, 52, 55, 57, 58],
-  },
-};
-
 export async function GET(request: NextRequest) {
   const range = normalizeRange(request.nextUrl.searchParams.get("range"));
   const interval = chartIntervalForRange(range);
   const forceRefresh = request.nextUrl.searchParams.get("refresh") === "1";
+  const sectorOrder = Array.from(new Set(sectorMappings.map((item) => item.sector)));
+  const requestedSector = sectorOrder.includes(String(request.nextUrl.searchParams.get("sector") || ""))
+    ? String(request.nextUrl.searchParams.get("sector"))
+    : sectorOrder[0] || "Technology";
 
   if (!forceRefresh) {
     const cached = await readMarketGroupSnapshotCache(range, interval);
     const cachedSectors = hydrateCachedSectors(cached.snapshots);
-    if (cached.hit && cachedSectors.length && cachedSectors[0]?.industries.length) {
+    if (
+      cached.hit &&
+      hasCurrentRangeCalculation(cached.snapshots) &&
+      cachedSectors.length &&
+      cachedSectors.find((sector) => sector.sector === requestedSector)?.industries.length
+    ) {
       return NextResponse.json({
         ok: true,
         cache: "hit",
@@ -185,7 +132,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const sectors = await buildLiveSectors(range, request.nextUrl.origin);
+  const sectors = await buildLiveSectors(range, request.nextUrl.origin, requestedSector);
   const snapshots = flattenSnapshots(sectors, range, interval);
   const cacheWrite = await writeMarketGroupSnapshots(snapshots);
 
@@ -200,26 +147,42 @@ export async function GET(request: NextRequest) {
   });
 }
 
-async function buildLiveSectors(range: SectorRange, origin: string): Promise<ApiSector[]> {
+async function buildLiveSectors(range: SectorRange, origin: string, requestedSector: string): Promise<ApiSector[]> {
   const sectorOrder = Array.from(new Set(sectorMappings.map((item) => item.sector)));
-  const selectedSector = sectorOrder[0] || "Technology";
 
-  return Promise.all(
-    sectorOrder.map(async (sector, sectorIndex) => {
-      const fallback = sectorFallbacks[sector] || { change: "+0.00%", tone: "flat" as const, volume: "0.80x volume" };
-      const proxySymbol = sectorEtfSymbols[sector] || sectorTickerFallbacks[sector]?.[0] || "SPY";
-      const sectorSnapshot = await loadSymbolSnapshot(proxySymbol, range, origin);
-      const sectorChange = sectorSnapshot?.changePercent ?? parsePercent(fallback.change);
+  if (range === "1D") {
+    const sectorSymbols = sectorOrder.map((sector) => sectorEtfSymbols[sector] || "SPY");
+    const [sectorSnapshots, industries] = await Promise.all([
+      loadQuoteSnapshots(sectorSymbols),
+      buildLiveIndustriesFromQuotes(requestedSector),
+    ]);
+
+    return sectorOrder.map((sector) => {
+      const proxySymbol = sectorEtfSymbols[sector] || "SPY";
+      const sectorChange = sectorSnapshots.get(proxySymbol)?.changePercent;
 
       return {
-        change: formatSignedPercent(sectorChange),
-        industries:
-          sector === selectedSector
-            ? await buildLiveIndustries(sector, range, origin)
-            : buildFallbackIndustries(sector, sectorIndex),
+        change: sectorChange === undefined ? "\u2014" : formatSignedPercent(sectorChange),
+        industries: sector === requestedSector ? industries : [],
         sector,
-        tone: toneFromNumber(sectorChange),
-        volume: fallback.volume,
+        tone: sectorChange === undefined ? "flat" as const : toneFromNumber(sectorChange),
+        volume: "Live market data",
+      };
+    });
+  }
+
+  return Promise.all(
+    sectorOrder.map(async (sector) => {
+      const proxySymbol = sectorEtfSymbols[sector] || "SPY";
+      const sectorSnapshot = await loadSymbolSnapshot(proxySymbol, range, origin);
+      const sectorChange = sectorSnapshot?.changePercent;
+
+      return {
+        change: sectorChange === undefined ? "—" : formatSignedPercent(sectorChange),
+        industries: sector === requestedSector ? await buildLiveIndustries(sector, range, origin) : [],
+        sector,
+        tone: sectorChange === undefined ? "flat" as const : toneFromNumber(sectorChange),
+        volume: "Live market data",
       };
     }),
   );
@@ -227,49 +190,43 @@ async function buildLiveSectors(range: SectorRange, origin: string): Promise<Api
 
 async function buildLiveIndustries(sector: string, range: SectorRange, origin: string): Promise<ApiIndustry[]> {
   const mappings = sectorMappings.filter((item) => item.sector === sector);
-  const fallbackSymbols = sectorTickerFallbacks[sector] || ["SPY", "QQQ", "IWM"];
 
-  return Promise.all(
-    mappings.map(async (mapping, index) => {
-      const seed = industrySeeds[mapping.subCategory];
+  const industries: Array<ApiIndustry | null> = await Promise.all(
+    mappings.map(async (mapping) => {
       const coverage = await loadIndustryCoverage(mapping.slug);
-      const symbols = coverage?.constituents.map((item) => item.symbol) || (seed?.tickers || fallbackSymbols).slice(0, 4);
+      if (!coverage?.constituents.length) return null;
+      const symbols = coverage.constituents.map((item) => item.symbol);
       const marketCapBySymbol = new Map(
-        coverage?.constituents.map((item) => [item.symbol, item.marketCap] as const) || [],
+        coverage.constituents.map((item) => [item.symbol, item.marketCap] as const),
       );
       const symbolSnapshots = (await mapWithConcurrency(symbols, snapshotConcurrency, (symbol) => loadSymbolSnapshot(symbol, range, origin)))
         .filter((item): item is SymbolSnapshot => Boolean(item));
-      const changePercent = symbolSnapshots.length
-        ? weightedAverage(
-            symbolSnapshots.map((item) => ({
-              value: item.changePercent,
-              weight: marketCapBySymbol.get(item.symbol) || 1,
-            })),
-          )
-        : parsePercent(seed?.change || "+0.00%");
-      const trend = symbolSnapshots.length
-        ? weightedAverageSeries(
-            symbolSnapshots.map((item) => ({
-              values: item.trend,
-              weight: marketCapBySymbol.get(item.symbol) || 1,
-            })),
-          )
-        : seed?.trend || buildMiniTrend(index, changePercent < 0 ? "bearish" : "bullish");
-      const topMovers = symbolSnapshots.length
-        ? symbolSnapshots
-            .slice()
-            .sort((a, b) => b.changePercent - a.changePercent)
-            .map((item) => ({
-              change: formatSignedPercent(item.changePercent),
-              symbol: item.symbol,
-            }))
-        : buildTickerMovers(symbols, seed?.change || "+0.00%", index);
+      if (!symbolSnapshots.length) return null;
+      const changePercent = weightedAverage(
+        symbolSnapshots.map((item) => ({
+          value: item.changePercent,
+          weight: marketCapBySymbol.get(item.symbol) || 1,
+        })),
+      );
+      const trend = weightedAverageSeries(
+        symbolSnapshots.map((item) => ({
+          values: item.trend,
+          weight: marketCapBySymbol.get(item.symbol) || 1,
+        })),
+      );
+      const topMovers = symbolSnapshots
+        .slice()
+        .sort((a, b) => b.changePercent - a.changePercent)
+        .map((item) => ({
+          change: formatSignedPercent(item.changePercent),
+          symbol: item.symbol,
+        }));
 
       return {
         change: formatSignedPercent(changePercent),
-        coverageLabel: coverage ? formatCoverageLabel(coverage) : undefined,
-        coverageMeta: coverage ? toCoverageMeta(coverage) : undefined,
-        marketCap: coverage ? formatMarketCap(coverage.totalMarketCap) : seed?.marketCap || estimateMarketCap(index, mappings.length),
+        coverageLabel: formatCoverageLabel(coverage),
+        coverageMeta: toCoverageMeta(coverage),
+        marketCap: formatMarketCap(coverage.totalMarketCap),
         name: mapping.subCategory,
         tickerMovers: topMovers,
         tickers: symbols,
@@ -278,27 +235,7 @@ async function buildLiveIndustries(sector: string, range: SectorRange, origin: s
       };
     }),
   );
-}
-
-function buildFallbackIndustries(sector: string, sectorIndex: number): ApiIndustry[] {
-  const mappings = sectorMappings.filter((item) => item.sector === sector);
-  const fallbackSymbols = sectorTickerFallbacks[sector] || ["SPY", "QQQ", "IWM"];
-  const sectorBase = parsePercent(sectorFallbacks[sector]?.change || "+0.00%");
-
-  return mappings.map((mapping, index) => {
-    const generatedChange = sectorBase - index * 0.27 + 0.38;
-    const change = formatSignedPercent(generatedChange);
-
-    return {
-      change,
-        marketCap: estimateMarketCap(index, mappings.length),
-        name: mapping.subCategory,
-        tickerMovers: buildTickerMovers(fallbackSymbols, change, sectorIndex + index),
-        tickers: fallbackSymbols,
-        tone: toneFromNumber(generatedChange),
-      trend: buildMiniTrend(index, generatedChange < 0 ? "bearish" : "bullish"),
-    };
-  });
+  return industries.filter((industry): industry is ApiIndustry => industry !== null);
 }
 
 async function loadSymbolSnapshot(symbol: string, range: SectorRange, origin: string): Promise<SymbolSnapshot | null> {
@@ -309,7 +246,8 @@ async function loadSymbolSnapshot(symbol: string, range: SectorRange, origin: st
   const cached = await readMarketBarCache(normalizedSymbol, range, interval);
   if (cached.hit && cached.data) {
     return {
-      changePercent: cached.data.changePercent,
+      changePercent:
+        range === "1D" ? cached.data.changePercent : changeFromPoints(cached.data.points),
       latestPrice: cached.data.latestPrice,
       symbol: normalizedSymbol,
       trend: normalizeCloseSeries(cached.data.points, 18),
@@ -327,7 +265,7 @@ async function loadSymbolSnapshot(symbol: string, range: SectorRange, origin: st
 
     return {
       changePercent:
-        typeof data.changePercent === "number" && Number.isFinite(data.changePercent)
+        range === "1D" && typeof data.changePercent === "number" && Number.isFinite(data.changePercent)
           ? data.changePercent
           : changeFromPoints(data.points),
       latestPrice: typeof data.latestPrice === "number" ? data.latestPrice : undefined,
@@ -344,7 +282,7 @@ function hydrateCachedSectors(snapshots: MarketGroupSnapshotPayload[]): ApiSecto
     .filter((item) => item.scope === "sector")
     .sort((a, b) => a.sortOrder - b.sortOrder);
   const industryRows = snapshots
-    .filter((item) => item.scope === "industry_group")
+    .filter((item) => item.scope === "industry_group" && hasSnapshotCalculationVersion(item))
     .sort((a, b) => a.sortOrder - b.sortOrder);
 
   return sectorRows.map((sector) => ({
@@ -377,6 +315,7 @@ function flattenSnapshots(
   interval: string,
 ): MarketGroupSnapshotPayload[] {
   return sectors.flatMap((sector, sectorIndex) => {
+    if (sector.change === "—") return [];
     const sectorKey = slugify(sector.sector);
     const sectorSnapshot: MarketGroupSnapshotPayload = {
       changePercent: parsePercent(sector.change),
@@ -386,7 +325,7 @@ function flattenSnapshots(
       interval,
       providerLabel: "Polygon/FMP aggregate",
       range,
-      rawPayload: { volume: sector.volume },
+      rawPayload: { calculationVersion: rangeCalculationVersion, volume: sector.volume },
       scope: "sector",
       sortOrder: sectorIndex * 100,
       topMovers: [],
@@ -404,6 +343,7 @@ function flattenSnapshots(
       providerLabel: "Polygon/FMP aggregate",
       range,
       rawPayload: {
+        calculationVersion: rangeCalculationVersion,
         coverage: industry.coverageMeta,
         coverageLabel: industry.coverageLabel,
         minMarketCap: groupSnapshotMinMarketCap,
@@ -420,6 +360,101 @@ function flattenSnapshots(
 
     return [sectorSnapshot, ...industrySnapshots];
   });
+}
+
+function hasCurrentRangeCalculation(snapshots: MarketGroupSnapshotPayload[]) {
+  const sectorSnapshots = snapshots.filter((snapshot) => snapshot.scope === "sector");
+  return (
+    sectorSnapshots.length > 0 &&
+    sectorSnapshots.every((snapshot) => {
+      return hasSnapshotCalculationVersion(snapshot);
+    })
+  );
+}
+
+async function buildLiveIndustriesFromQuotes(sector: string): Promise<ApiIndustry[]> {
+  const mappings = sectorMappings.filter((item) => item.sector === sector);
+  const coverageRows = await Promise.all(
+    mappings.map(async (mapping) => ({
+      coverage: await loadIndustryCoverage(mapping.slug),
+      mapping,
+    })),
+  );
+  const symbols = Array.from(
+    new Set(
+      coverageRows.flatMap((row) =>
+        row.coverage?.constituents.map((item) => item.symbol) || [],
+      ),
+    ),
+  );
+  const snapshots = await loadQuoteSnapshots(symbols);
+
+  return coverageRows.flatMap(({ coverage, mapping }) => {
+    if (!coverage?.constituents.length) return [];
+    const marketCapBySymbol = new Map(
+      coverage.constituents.map((item) => [item.symbol, item.marketCap] as const),
+    );
+    const symbolSnapshots = coverage.constituents
+      .map((item) => snapshots.get(item.symbol))
+      .filter((item): item is SymbolSnapshot => Boolean(item));
+    if (!symbolSnapshots.length) return [];
+    const changePercent = weightedAverage(
+      symbolSnapshots.map((item) => ({
+        value: item.changePercent,
+        weight: marketCapBySymbol.get(item.symbol) || 1,
+      })),
+    );
+    const topMovers = symbolSnapshots
+      .slice()
+      .sort((left, right) => right.changePercent - left.changePercent)
+      .map((item) => ({
+        change: formatSignedPercent(item.changePercent),
+        symbol: item.symbol,
+      }));
+
+    return [{
+      change: formatSignedPercent(changePercent),
+      coverageLabel: formatCoverageLabel(coverage),
+      coverageMeta: toCoverageMeta(coverage),
+      marketCap: formatMarketCap(coverage.totalMarketCap),
+      name: mapping.subCategory,
+      tickerMovers: topMovers,
+      tickers: coverage.constituents.map((item) => item.symbol),
+      tone: toneFromNumber(changePercent),
+      trend: [],
+    }];
+  });
+}
+
+async function loadQuoteSnapshots(symbols: string[]) {
+  const snapshots = new Map<string, SymbolSnapshot>();
+  const normalizedSymbols = Array.from(
+    new Set(symbols.map((symbol) => symbol.trim().toUpperCase()).filter(Boolean)),
+  );
+  if (!normalizedSymbols.length) return snapshots;
+
+  const result = await fetchFmpQuotes(normalizedSymbols);
+  if (!Array.isArray(result.data)) return snapshots;
+
+  for (const raw of result.data as FmpQuoteRow[]) {
+    const symbol = stringOrEmpty(raw.symbol).toUpperCase();
+    const changePercent = numberOrUndefined(raw.changePercentage) ??
+      numberOrUndefined(raw.changePercent);
+    if (!symbol || changePercent === undefined) continue;
+    snapshots.set(symbol, {
+      changePercent,
+      latestPrice: numberOrUndefined(raw.price),
+      symbol,
+      trend: [],
+    });
+  }
+
+  return snapshots;
+}
+
+function hasSnapshotCalculationVersion(snapshot: MarketGroupSnapshotPayload) {
+  if (!snapshot.rawPayload || typeof snapshot.rawPayload !== "object") return false;
+  return (snapshot.rawPayload as { calculationVersion?: unknown }).calculationVersion === rangeCalculationVersion;
 }
 
 async function loadIndustryCoverage(subCategorySlug: string): Promise<IndustryCoverage | null> {
@@ -600,6 +635,11 @@ function numberOrZero(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function numberOrUndefined(value: unknown) {
+  const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 function stringOrEmpty(value: unknown) {
   return typeof value === "string" ? value : "";
 }
@@ -622,27 +662,6 @@ function toneFromNumber(value: number): SectorMoverTone {
   if (value < 0.5) return "flat";
   if (value < 1.2) return "warm";
   return "bullish";
-}
-
-function buildMiniTrend(index: number, tone: "bullish" | "bearish") {
-  const start = tone === "bearish" ? 58 - index * 2 : 28 + index * 3;
-  const direction = tone === "bearish" ? -1 : 1;
-  return Array.from({ length: 12 }, (_, point) => start + direction * point * 2 + ((point + index) % 3) * 1.4);
-}
-
-function buildTickerMovers(symbols: string[], industryChange: string, index: number) {
-  const base = parsePercent(industryChange);
-  return symbols
-    .map((symbol, tickerIndex) => ({
-      change: formatSignedPercent(base + 0.72 - tickerIndex * 0.46 - index * 0.08),
-      symbol,
-    }))
-    .sort((a, b) => parsePercent(b.change) - parsePercent(a.change));
-}
-
-function estimateMarketCap(index: number, total: number) {
-  const base = Math.max(120, 980 - index * Math.max(70, 460 / Math.max(total, 1)));
-  return base >= 1000 ? `$${(base / 1000).toFixed(2)}T` : `$${Math.round(base)}B`;
 }
 
 function formatMarketCap(value: number) {

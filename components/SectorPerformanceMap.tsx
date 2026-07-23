@@ -42,19 +42,22 @@ const rangeOptions: Array<{ label: string; value: SectorRange }> = [
 
 export function SectorPerformanceMap({ sectors }: SectorPerformanceMapProps) {
   const [range, setRange] = useState<SectorRange>("1D");
+  const [selectedSectorName, setSelectedSectorName] = useState(sectors[0]?.sector || "");
   const [liveSectorsByRange, setLiveSectorsByRange] = useState<
     Partial<Record<SectorRange, SectorPerformanceMapProps["sectors"]>>
   >({});
   const [isLoading, setIsLoading] = useState(false);
-  const [cacheLabel, setCacheLabel] = useState("Fallback data");
+  const [cacheLabel, setCacheLabel] = useState("Loading market data");
   const visibleSectors = liveSectorsByRange[range] || sectors;
-  const selectedSector = visibleSectors[0];
+  const selectedSector =
+    visibleSectors.find((sector) => sector.sector === selectedSectorName) || visibleSectors[0];
 
   useEffect(() => {
     const controller = new AbortController();
     setIsLoading(true);
 
-    fetch(`/api/market/sector-performance?range=${range}`, {
+    const query = new URLSearchParams({ range, sector: selectedSectorName });
+    fetch(`/api/market/sector-performance?${query.toString()}`, {
       cache: "no-store",
       signal: controller.signal,
     })
@@ -64,19 +67,19 @@ export function SectorPerformanceMap({ sectors }: SectorPerformanceMapProps) {
 
         setLiveSectorsByRange((current) => ({
           ...current,
-          [range]: data.sectors || [],
+          [range]: mergeSectorResults(current[range] || [], data.sectors || []),
         }));
         setCacheLabel(data.cache === "hit" ? "Cached market data" : "Live market data");
       })
       .catch(() => {
-        if (!controller.signal.aborted) setCacheLabel("Fallback data");
+        if (!controller.signal.aborted) setCacheLabel("Market data unavailable");
       })
       .finally(() => {
         if (!controller.signal.aborted) setIsLoading(false);
       });
 
     return () => controller.abort();
-  }, [range]);
+  }, [range, selectedSectorName]);
 
   if (!selectedSector) return null;
 
@@ -84,7 +87,7 @@ export function SectorPerformanceMap({ sectors }: SectorPerformanceMapProps) {
     <section className="sector-movers-card">
       <div className="news-insight-header sector-map-header">
         <div>
-          <h2>Sector Performance Map</h2>
+          <h2>Sector Performance Radar</h2>
         </div>
         <div className="map-range-controls" aria-label="Sector value map range">
           {rangeOptions.map((option) => (
@@ -102,15 +105,18 @@ export function SectorPerformanceMap({ sectors }: SectorPerformanceMapProps) {
 
       <div className="sector-map-grid">
         {visibleSectors.map((sector) => (
-          <article
+          <button
+            aria-pressed={sector.sector === selectedSector.sector}
             className={`sector-map-tile ${sector.tone}${sector.sector === selectedSector.sector ? " active" : ""}`}
             key={sector.sector}
+            onClick={() => setSelectedSectorName(sector.sector)}
+            type="button"
           >
             <div className="sector-map-title">
               <strong>{sector.sector}</strong>
               <b>{sector.change}</b>
             </div>
-          </article>
+          </button>
         ))}
       </div>
 
@@ -122,7 +128,7 @@ export function SectorPerformanceMap({ sectors }: SectorPerformanceMapProps) {
         <div className="sector-detail-table">
           <div className="sector-detail-row head">
             <span>Industry Group</span>
-            <span>Daily Change</span>
+            <span>{range === "1D" ? "Daily Change" : `${range} Change`}</span>
             <span>Market Cap</span>
             <span>Trend</span>
           </div>
@@ -150,6 +156,11 @@ export function SectorPerformanceMap({ sectors }: SectorPerformanceMapProps) {
               </div>
             </div>
           ))}
+          {!selectedSector.industries.length ? (
+            <div className="sector-detail-empty">
+              {isLoading ? "Loading industry data..." : "Industry data unavailable."}
+            </div>
+          ) : null}
         </div>
 
         <div className="sector-detail-foot">
@@ -159,6 +170,20 @@ export function SectorPerformanceMap({ sectors }: SectorPerformanceMapProps) {
       </div>
     </section>
   );
+}
+
+function mergeSectorResults(
+  current: SectorPerformanceMapProps["sectors"],
+  incoming: SectorPerformanceMapProps["sectors"],
+) {
+  const currentByName = new Map(current.map((sector) => [sector.sector, sector]));
+  return incoming.map((sector) => {
+    const previous = currentByName.get(sector.sector);
+    return {
+      ...sector,
+      industries: sector.industries.length ? sector.industries : previous?.industries || [],
+    };
+  });
 }
 
 function TrendMini({

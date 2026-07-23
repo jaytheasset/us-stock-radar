@@ -51,6 +51,7 @@ export async function GET(request: NextRequest) {
   const symbol = normalizeSymbol(request.nextUrl.searchParams.get("symbol") || "AAPL");
   const range = normalizeRange(request.nextUrl.searchParams.get("range"));
   const forceRefresh = request.nextUrl.searchParams.get("refresh") === "1";
+  const softUnavailable = request.nextUrl.searchParams.get("soft") === "1";
   const interval = range === "5Y" ? "1day" : chartIntervalForRange(range) || "1day";
 
   if (!forceRefresh && range !== "5Y") {
@@ -90,7 +91,7 @@ export async function GET(request: NextRequest) {
         range,
         error: chartResult.error || polygonResult.error || "No chart data returned",
       },
-      { status: 502 },
+      { status: softUnavailable ? 200 : 502 },
     );
   }
 

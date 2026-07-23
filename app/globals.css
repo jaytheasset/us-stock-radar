@@ -5127,6 +5127,7 @@ td {
 }
 
 .sector-map-tile {
+  appearance: none;
   position: relative;
   overflow: hidden;
   display: flex;
@@ -5137,7 +5138,11 @@ td {
   border: 1px solid #d8e2ef;
   border-radius: 8px;
   padding: 9px 10px;
+  color: inherit;
   background: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
 }
 
 .sector-map-tile.active {
@@ -5260,6 +5265,12 @@ td {
 
 .sector-detail-table {
   display: grid;
+}
+
+.sector-detail-empty {
+  padding: 18px 0 10px;
+  color: #728097;
+  font-size: 11px;
 }
 
 .sector-detail-row {
@@ -5879,10 +5890,15 @@ td {
   background: #fff1f2;
 }
 
+.theme-subtheme-tickers span.flat {
+  color: #728097;
+  background: #f3f6fa;
+}
+
 .theme-score {
   position: absolute;
   right: 0;
-  top: 13px;
+  top: -9px;
   display: grid;
   place-items: center;
   width: 34px;
@@ -18093,6 +18109,11 @@ html[data-theme="dark"] .theme-subtheme-tickers span {
 html[data-theme="dark"] .theme-subtheme-tickers span.bearish {
   color: #ff8a91;
   background: #33151a;
+}
+
+html[data-theme="dark"] .theme-subtheme-tickers span.flat {
+  color: #9ba8ba;
+  background: #202733;
 }
 
 html[data-theme="dark"] .industry-map-tile.bullish {

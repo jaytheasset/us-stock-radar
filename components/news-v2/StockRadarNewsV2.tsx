@@ -74,7 +74,9 @@ export function StockRadarNewsV2({
 
   const visibleItems = filteredItems.slice(0, visibleCount);
   const remainingCount = filteredItems.length - visibleItems.length;
-  const showMarketReaction = visibleItems.some((item) => item.priceLabel || item.changePercent);
+  const showMarketReaction = visibleItems.some(
+    (item) => item.priceLabel || item.changePercent || item.trend.length >= 2 || item.relatedTickers.length > 0,
+  );
 
   const toggleFilter = (group: NewsV2FilterGroup, value: string) => {
     setFilters((current) => ({
