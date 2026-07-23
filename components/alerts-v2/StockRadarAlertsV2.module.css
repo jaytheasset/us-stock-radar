@@ -20,6 +20,10 @@
   --alerts-toggle-on-surface: var(--sr-color-accent-active-strong);
   --alerts-toggle-on-border: var(--sr-color-accent-border-active);
   --alerts-toggle-on-knob: var(--sr-color-accent);
+  --alerts-ultimate-surface: linear-gradient(180deg, #e2e6eb 0%, #b8c0c9 100%);
+  --alerts-ultimate-surface-hover: linear-gradient(180deg, #edf0f3 0%, #c5ccd4 100%);
+  --alerts-ultimate-border: rgba(255, 255, 255, 0.62);
+  --alerts-ultimate-text: #111820;
 
   min-height: calc(100vh - var(--sr-size-header));
   padding: var(--sr-space-6) var(--sr-page-gutter-desktop) var(--sr-space-5);
@@ -726,6 +730,19 @@
   white-space: nowrap;
 }
 
+.cardFooter .advancedUpgradeButton {
+  border-color: rgba(255, 255, 255, 0.34);
+  color: var(--sr-color-text-inverse);
+  background: linear-gradient(180deg, #ff9a4a 0%, #ff7a1a 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    0 2px 7px rgba(0, 0, 0, 0.18);
+}
+
+.cardFooter .advancedUpgradeButton:hover {
+  background: linear-gradient(180deg, #ffa35a 0%, #ff8429 100%);
+}
+
 .lockedBadge {
   display: inline-flex;
   align-items: center;
@@ -970,12 +987,19 @@
   min-height: var(--sr-size-control);
   align-items: center;
   justify-content: center;
-  border: var(--sr-border-width) solid var(--sr-color-accent);
+  border: var(--sr-border-width) solid var(--alerts-ultimate-border);
   border-radius: var(--sr-radius-control);
   padding: 0 var(--sr-space-4);
-  color: var(--sr-color-text-inverse);
-  background: var(--sr-color-accent);
+  color: var(--alerts-ultimate-text);
+  background: var(--alerts-ultimate-surface);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 2px 7px rgba(0, 0, 0, 0.2);
   text-decoration: none;
+}
+
+.ultimateFooter a:hover {
+  background: var(--alerts-ultimate-surface-hover);
 }
 
 .recentCard {

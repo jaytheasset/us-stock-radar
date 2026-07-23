@@ -762,7 +762,9 @@ export function StockRadarAlertsV2() {
           ) : !mockPlan.hasRiskAlerts ? (
             <div className={styles.cardFooter}>
               <span>Unlock critical risk alerts with Advanced</span>
-              <Link href="/premium">Upgrade to Advanced</Link>
+              <Link className={styles.advancedUpgradeButton} href="/premium">
+                Upgrade to Advanced
+              </Link>
             </div>
           ) : null}
         </section>
