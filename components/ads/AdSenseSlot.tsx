@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   useEffect,
   useRef,
@@ -15,37 +16,44 @@ import styles from "./AdSenseSlot.module.css";
 
 type AdSenseSlotProps = {
   className?: string;
+  enabledForViewer?: boolean;
   format?: "fixed" | "horizontal";
   height: number;
   inventory: AdSenseInventory;
   mediaQuery: string;
   placeholderSize: string;
+  removeAdsHref?: string;
+  showRemoveAdsLink?: boolean;
   width: number;
 };
 
 export function AdSenseSlot({
   className,
+  enabledForViewer = true,
   format = "fixed",
   height,
   inventory,
   mediaQuery,
   placeholderSize,
+  removeAdsHref = "/premium",
+  showRemoveAdsLink = true,
   width,
 }: AdSenseSlotProps) {
-  const containerRef = useRef<HTMLElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const requestStartedRef = useRef(false);
   const hasPushedRef = useRef(false);
   const [isMediaActive, setIsMediaActive] = useState(false);
   const slotId = adsenseConfig.slotIds[inventory];
   const isManualSlotEnabled = adsenseConfig.manualSlotEnabled[inventory];
-  const canRequestAd = isManualSlotEnabled && isMediaActive;
+  const canRequestAd =
+    enabledForViewer && isManualSlotEnabled && isMediaActive;
   const slotStyle = {
     "--adsense-slot-height": `${height}px`,
     "--adsense-slot-width": `${width}px`,
   } as CSSProperties;
 
   useEffect(() => {
-    if (!isManualSlotEnabled) return;
+    if (!enabledForViewer || !isManualSlotEnabled) return;
 
     const media = window.matchMedia(mediaQuery);
     const updateMediaState = () => setIsMediaActive(media.matches);
@@ -53,7 +61,7 @@ export function AdSenseSlot({
     media.addEventListener("change", updateMediaState);
 
     return () => media.removeEventListener("change", updateMediaState);
-  }, [isManualSlotEnabled, mediaQuery]);
+  }, [enabledForViewer, isManualSlotEnabled, mediaQuery]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -100,26 +108,42 @@ export function AdSenseSlot({
     };
   }, [canRequestAd]);
 
+  if (!enabledForViewer) return null;
+
   return (
     <section
       aria-label="Advertisement"
       className={[styles.slot, className].filter(Boolean).join(" ")}
-      ref={containerRef}
       style={slotStyle}
     >
-      {canRequestAd ? (
-        <ins
-          className={`adsbygoogle ${styles.ad}`}
-          data-ad-client={adsenseConfig.publisherId}
-          data-ad-format={format === "horizontal" ? "horizontal" : undefined}
-          data-ad-slot={slotId}
-          data-full-width-responsive={format === "horizontal" ? "true" : undefined}
-        />
-      ) : (
-        <>
-          <span className={styles.placeholderLabel}>Advertisement</span>
-          <span className={styles.placeholderSize}>{placeholderSize}</span>
-        </>
+      <div className={styles.adSurface} ref={containerRef}>
+        {canRequestAd ? (
+          <ins
+            className={`adsbygoogle ${styles.ad}`}
+            data-ad-client={adsenseConfig.publisherId}
+            data-ad-format={format === "horizontal" ? "horizontal" : undefined}
+            data-ad-slot={slotId}
+            data-full-width-responsive={format === "horizontal" ? "true" : undefined}
+          />
+        ) : (
+          <>
+            <span className={styles.placeholderLabel}>Advertisement</span>
+            <span className={styles.placeholderSize}>{placeholderSize}</span>
+          </>
+        )}
+      </div>
+      {showRemoveAdsLink && (
+        <div className={styles.footer}>
+          <span className={styles.footerLabel}>Advertisement</span>
+          <span aria-hidden="true" className={styles.footerDivider} />
+          <Link
+            aria-label="Remove ads with Stock Radar Premium"
+            className={styles.removeAdsLink}
+            href={removeAdsHref}
+          >
+            Remove ads
+          </Link>
+        </div>
       )}
     </section>
   );

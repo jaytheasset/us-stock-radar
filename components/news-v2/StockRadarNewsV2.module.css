@@ -909,7 +909,6 @@
 
 .desktopInlineAdSlot {
   width: min(728px, 100%);
-  height: 90px;
 }
 
 .mobileInlineAdItem {
@@ -922,7 +921,6 @@
 
 .mobileInlineAdSlot {
   width: min(320px, 100%);
-  height: 100px;
 }
 
 .insightRailAnchor {

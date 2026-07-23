@@ -2,12 +2,23 @@
   box-sizing: border-box;
   display: flex;
   width: min(var(--adsense-slot-width), 100%);
+  flex: 0 0 auto;
+  min-width: 0;
+  align-items: stretch;
+  flex-direction: column;
+  justify-content: center;
+  margin-inline: auto;
+}
+
+.adSurface {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
   height: var(--adsense-slot-height);
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
   gap: var(--sr-space-2);
-  margin-inline: auto;
   overflow: hidden;
   border: var(--sr-border-width) solid var(--sr-color-divider);
   border-radius: var(--sr-radius-control);
@@ -32,4 +43,54 @@
 
 .placeholderSize {
   color: var(--sr-color-text-muted);
+}
+
+.footer {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sr-space-2);
+  margin-top: var(--sr-space-2);
+  border-top: var(--sr-border-width) solid var(--sr-color-divider);
+  padding: var(--sr-space-2) var(--sr-space-2) 0;
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  line-height: var(--sr-line-height-default);
+}
+
+.footerLabel {
+  min-width: 0;
+}
+
+.footerDivider {
+  width: var(--sr-border-width);
+  height: var(--sr-space-3);
+  flex: 0 0 auto;
+  background: var(--sr-color-divider);
+}
+
+.removeAdsLink {
+  border-radius: var(--sr-radius-control);
+  color: var(--sr-color-text-muted);
+  font-weight: var(--sr-font-weight-medium);
+  text-decoration: underline;
+  text-decoration-color: var(--sr-color-divider);
+  text-underline-offset: 0.2em;
+}
+
+.removeAdsLink:hover {
+  color: var(--sr-color-accent-text);
+  text-decoration-color: currentColor;
+}
+
+.removeAdsLink:active {
+  color: var(--sr-color-accent);
+}
+
+.removeAdsLink:focus-visible {
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: var(--sr-focus-ring-offset);
 }

@@ -110,6 +110,17 @@ const scriptLoaderSource = await readFile(
   new URL("../components/ads/adsenseScriptLoader.ts", import.meta.url),
   "utf8",
 );
+const slotStylesSource = await readFile(
+  new URL("../components/ads/AdSenseSlot.module.css", import.meta.url),
+  "utf8",
+);
+const manualPlacementSources = await Promise.all(
+  [
+    "../components/news-v2/NewsV2RailAdSlot.tsx",
+    "../components/news-v2/NewsV2InlineAd.tsx",
+    "../components/news-v2/NewsV2InsightInlineAd.tsx",
+  ].map((file) => readFile(new URL(file, import.meta.url), "utf8")),
+);
 const advertisingSource = `${slotSource}\n${publisherLoaderSource}\n${scriptLoaderSource}`;
 
 assert.equal(
@@ -121,6 +132,30 @@ assert.match(slotSource, /hasPushedRef\.current/);
 assert.doesNotMatch(advertisingSource, /setInterval|auto.?refresh/i);
 assert.doesNotMatch(publisherLoaderSource, /<ins|data-ad-slot|position:\s*fixed/i);
 assert.match(publisherLoaderSource, /return null/);
+assert.match(slotSource, /import Link from "next\/link"/);
+assert.match(slotSource, /removeAdsHref = "\/premium"/);
+assert.match(slotSource, /showRemoveAdsLink = true/);
+assert.match(slotSource, /enabledForViewer = true/);
+assert.match(slotSource, /if \(!enabledForViewer\) return null/);
+assert.match(
+  slotSource,
+  /<ins[\s\S]*?\/>[\s\S]*?<div className=\{styles\.footer\}>/,
+  "manual footer follows the self-closing AdSense element as a sibling",
+);
+assert.match(slotSource, /href=\{removeAdsHref\}/);
+assert.match(slotSource, />\s*Remove ads\s*<\/Link>/);
+assert.doesNotMatch(
+  publisherLoaderSource,
+  /Remove ads|removeAdsHref|styles\.footer/,
+  "Anchor loader has no custom conversion footer",
+);
+assert.match(slotStylesSource, /\.adSurface[\s\S]*height:\s*var\(--adsense-slot-height\)/);
+assert.match(slotStylesSource, /\.footer[\s\S]*border-top:/);
+assert.match(slotStylesSource, /\.removeAdsLink:focus-visible/);
+assert.ok(
+  manualPlacementSources.every((source) => source.includes("<AdSenseSlot")),
+  "all News V2 manual placement owners use the shared slot footer",
+);
 
 console.log(
   JSON.stringify({
@@ -129,7 +164,10 @@ console.log(
     C: summarize(scenarios.C),
     D: summarize(scenarios.D),
     duplicateScriptGuard: "passed",
+    manualFooterBoundary: "passed",
+    manualFooterPremiumHref: "/premium",
     manualPushGuard: "passed",
+    anchorCustomFooter: "absent",
     refreshTimer: "absent",
     scriptCounts,
   }),
