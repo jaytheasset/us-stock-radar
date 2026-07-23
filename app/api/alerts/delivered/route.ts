@@ -12,11 +12,17 @@ const NO_STORE_HEADERS = {
 export async function GET(request: NextRequest) {
   const userId = await getOptionalCurrentUserId();
   if (!userId) {
-    return NextResponse.json([], { headers: NO_STORE_HEADERS });
+    return NextResponse.json([], {
+      headers: {
+        ...NO_STORE_HEADERS,
+        "X-Total-Count": "0",
+      },
+    });
   }
 
   const searchParams = request.nextUrl.searchParams;
   const limit = clampLimit(Number(searchParams.get("limit") || 20));
+  const offset = clampOffset(Number(searchParams.get("offset") || 0));
   const lane = normalizeLane(searchParams.get("lane"));
   const category = normalizeCategory(searchParams.get("category"));
   const status = normalizeStatus(searchParams.get("status"));
@@ -57,6 +63,7 @@ export async function GET(request: NextRequest) {
   const result = await getDeliveredAlertsForUser({
     userId,
     limit,
+    offset,
     lane,
     category,
     status: status || "sent",
@@ -73,7 +80,12 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  return NextResponse.json(result.data, { headers: NO_STORE_HEADERS });
+  return NextResponse.json(result.data, {
+    headers: {
+      ...NO_STORE_HEADERS,
+      "X-Total-Count": String(result.total),
+    },
+  });
 }
 
 function normalizeLane(value: string | null) {
@@ -97,4 +109,9 @@ function normalizeStatus(value: string | null): DeliveryStatusFilter | undefined
 function clampLimit(value: number) {
   if (!Number.isFinite(value)) return 20;
   return Math.max(1, Math.min(Math.floor(value), 100));
+}
+
+function clampOffset(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.floor(value));
 }

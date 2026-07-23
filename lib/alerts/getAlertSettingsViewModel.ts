@@ -166,12 +166,14 @@ export function getGuestAlertSettingsViewModel(): AlertSettingsViewModel {
 export async function getDeliveredAlertsForUser({
   userId,
   limit = 20,
+  offset = 0,
   lane,
   category,
   status = "sent",
 }: {
   userId: string;
   limit?: number;
+  offset?: number;
   lane?: "watchlist" | "market_discovery";
   category?: AlertCategory;
   status?: DeliveryStatusFilter;
@@ -181,6 +183,7 @@ export async function getDeliveredAlertsForUser({
     user_id: `eq.${userId}`,
     order: "delivered_at.desc",
     limit: String(Math.max(1, Math.min(limit, 100))),
+    offset: String(Math.max(0, Math.floor(offset))),
   };
 
   if (lane) query.alert_lane = `eq.${lane}`;
@@ -193,6 +196,7 @@ export async function getDeliveredAlertsForUser({
     ok: result.ok,
     status: result.status,
     data: mapDeliveredAlerts(Array.isArray(result.data) ? result.data : []),
+    total: result.count ?? 0,
     error: result.error,
   };
 }

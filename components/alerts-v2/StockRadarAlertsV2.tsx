@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { DesktopRailAdSlot } from "@/components/dashboard-v2/DesktopRailAdSlot";
+import type { DeliveredAlertItem } from "@/lib/alerts/types";
 import {
   alertIconSet,
   alertSources,
@@ -14,7 +15,6 @@ import {
   getAlertsMockPlan,
   initialAlertTickers,
   marketCapFilters,
-  recentAlerts,
   watchlistCandidates,
   type AlertTicker,
 } from "@/lib/mock/alertsV2Data";
@@ -22,6 +22,37 @@ import styles from "./StockRadarAlertsV2.module.css";
 
 const INITIAL_RECENT_ALERT_COUNT = 6;
 const ALERT_HISTORY_PAGE_SIZE = 20;
+
+async function fetchDeliveredAlertPage({
+  limit,
+  offset,
+  signal,
+}: {
+  limit: number;
+  offset: number;
+  signal?: AbortSignal;
+}) {
+  const response = await fetch(
+    `/api/alerts/delivered?limit=${limit}&offset=${offset}&status=all`,
+    {
+      cache: "no-store",
+      signal,
+    },
+  );
+  const payload = (await response.json().catch(() => null)) as DeliveredAlertItem[] | null;
+
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error("Failed to load delivered alerts.");
+  }
+
+  const totalValue = response.headers.get("X-Total-Count");
+  const totalHeader = totalValue === null ? Number.NaN : Number(totalValue);
+
+  return {
+    alerts: payload,
+    total: Number.isFinite(totalHeader) ? Math.max(payload.length, totalHeader) : payload.length,
+  };
+}
 
 function ToggleSwitch({
   checked,
@@ -93,9 +124,11 @@ export function StockRadarAlertsV2() {
   const [hasSentTestAlert, setHasSentTestAlert] = useState(false);
   const [upgradeMessage, setUpgradeMessage] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved">("idle");
-  const [visibleRecentAlertCount, setVisibleRecentAlertCount] = useState(
-    INITIAL_RECENT_ALERT_COUNT,
-  );
+  const [recentAlerts, setRecentAlerts] = useState<DeliveredAlertItem[]>([]);
+  const [recentAlertTotal, setRecentAlertTotal] = useState(0);
+  const [recentAlertsLoading, setRecentAlertsLoading] = useState(true);
+  const [recentAlertsError, setRecentAlertsError] = useState("");
+  const [hasExpandedAlertHistory, setHasExpandedAlertHistory] = useState(false);
   const fromWatchlistButtonRef = useRef<HTMLButtonElement>(null);
 
   const enabledCount = useMemo(
@@ -106,9 +139,35 @@ export function StockRadarAlertsV2() {
     () => coverageItems.filter((item) => !item.locked && coverageState[item.id]).length,
     [coverageState],
   );
-  const visibleRecentAlerts = recentAlerts.slice(0, visibleRecentAlertCount);
-  const hasExpandedAlertHistory = visibleRecentAlertCount > INITIAL_RECENT_ALERT_COUNT;
-  const hasMoreAlertHistory = visibleRecentAlertCount < recentAlerts.length;
+  const visibleRecentAlerts = hasExpandedAlertHistory
+    ? recentAlerts
+    : recentAlerts.slice(0, INITIAL_RECENT_ALERT_COUNT);
+  const hasMoreAlertHistory = recentAlerts.length < recentAlertTotal;
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    setRecentAlertsLoading(true);
+    fetchDeliveredAlertPage({
+      limit: INITIAL_RECENT_ALERT_COUNT,
+      offset: 0,
+      signal: controller.signal,
+    })
+      .then(({ alerts, total }) => {
+        setRecentAlerts(alerts);
+        setRecentAlertTotal(total);
+        setRecentAlertsError("");
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setRecentAlertsError(error instanceof Error ? error.message : "Failed to load delivered alerts.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setRecentAlertsLoading(false);
+      });
+
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     const visibleTickerCount = mockPlan.tickerLimit ?? initialAlertTickers.length;
@@ -175,6 +234,71 @@ export function StockRadarAlertsV2() {
   const closeWatchlistPanel = () => {
     setIsWatchlistOpen(false);
     requestAnimationFrame(() => fromWatchlistButtonRef.current?.focus({ preventScroll: true }));
+  };
+
+  const loadAlertHistory = async ({
+    limit,
+    offset,
+    replace,
+  }: {
+    limit: number;
+    offset: number;
+    replace: boolean;
+  }) => {
+    setRecentAlertsLoading(true);
+
+    try {
+      const { alerts, total } = await fetchDeliveredAlertPage({ limit, offset });
+      setRecentAlerts((current) => {
+        if (replace) return alerts;
+
+        const knownIds = new Set(current.map((alert) => alert.id));
+        return [...current, ...alerts.filter((alert) => !knownIds.has(alert.id))];
+      });
+      setRecentAlertTotal(total);
+      setRecentAlertsError("");
+    } catch (error) {
+      setRecentAlertsError(error instanceof Error ? error.message : "Failed to load delivered alerts.");
+    } finally {
+      setRecentAlertsLoading(false);
+    }
+  };
+
+  const updateAlertHistory = async () => {
+    if (recentAlertsLoading) return;
+
+    if (recentAlertsError && recentAlerts.length === 0) {
+      await loadAlertHistory({
+        limit: INITIAL_RECENT_ALERT_COUNT,
+        offset: 0,
+        replace: true,
+      });
+      return;
+    }
+
+    if (!hasExpandedAlertHistory) {
+      setHasExpandedAlertHistory(true);
+      const firstPageSize = Math.min(ALERT_HISTORY_PAGE_SIZE, recentAlertTotal);
+      if (recentAlerts.length < firstPageSize) {
+        await loadAlertHistory({
+          limit: ALERT_HISTORY_PAGE_SIZE,
+          offset: 0,
+          replace: true,
+        });
+      }
+      return;
+    }
+
+    if (hasMoreAlertHistory) {
+      await loadAlertHistory({
+        limit: ALERT_HISTORY_PAGE_SIZE,
+        offset: recentAlerts.length,
+        replace: false,
+      });
+      return;
+    }
+
+    setHasExpandedAlertHistory(false);
   };
 
   const Bell = alertIconSet.Bell;
@@ -617,15 +741,26 @@ export function StockRadarAlertsV2() {
             <span role="columnheader">Time</span>
             <span role="columnheader">Status</span>
           </div>
+          {recentAlertsLoading && recentAlerts.length === 0 ? (
+            <p className={styles.recentEmpty}>Loading delivered alerts...</p>
+          ) : null}
+          {!recentAlertsLoading && recentAlertsError && recentAlerts.length === 0 ? (
+            <p className={styles.recentError}>{recentAlertsError}</p>
+          ) : null}
+          {!recentAlertsLoading && !recentAlertsError && recentAlerts.length === 0 ? (
+            <p className={styles.recentEmpty}>No delivered alerts yet.</p>
+          ) : null}
           {visibleRecentAlerts.map((alert) => (
             <article className={styles.recentRow} key={alert.id} role="row">
-              <strong role="cell">{alert.ticker}</strong>
-              <span role="cell">{alert.category}</span>
-              <p role="cell">{alert.event}</p>
-              <time role="cell">{alert.time}</time>
-              <em role="cell">
+              <strong role="cell">{alert.ticker || "MARKET"}</strong>
+              <span role="cell">{getDeliveredAlertType(alert)}</span>
+              <p role="cell">{alert.title}</p>
+              <time dateTime={alert.deliveredAt} role="cell">
+                {formatRelativeTime(alert.deliveredAt)}
+              </time>
+              <em data-status={alert.deliveryStatus} role="cell">
                 <CheckCircle2 aria-hidden="true" size={16} />
-                Delivered
+                {getDeliveryStatusLabel(alert.deliveryStatus)}
               </em>
             </article>
           ))}
@@ -633,35 +768,28 @@ export function StockRadarAlertsV2() {
         <div className={styles.recentFooter}>
           {hasExpandedAlertHistory ? (
             <span aria-live="polite">
-              Showing {visibleRecentAlerts.length} of {recentAlerts.length}
+              Showing {visibleRecentAlerts.length} of {recentAlertTotal}
             </span>
           ) : (
             <span />
           )}
-          <button
-            onClick={() => {
-              if (!hasMoreAlertHistory) {
-                setVisibleRecentAlertCount(INITIAL_RECENT_ALERT_COUNT);
-                return;
-              }
-
-              setVisibleRecentAlertCount((current) =>
-                Math.min(
-                  current === INITIAL_RECENT_ALERT_COUNT
-                    ? ALERT_HISTORY_PAGE_SIZE
-                    : current + ALERT_HISTORY_PAGE_SIZE,
-                  recentAlerts.length,
-                ),
-              );
-            }}
-            type="button"
-          >
-            {!hasExpandedAlertHistory
-              ? "View alert history"
-              : hasMoreAlertHistory
-                ? `Load more (${Math.min(ALERT_HISTORY_PAGE_SIZE, recentAlerts.length - visibleRecentAlerts.length)})`
-                : "Show recent"}
-          </button>
+          {recentAlertsError || recentAlertTotal > INITIAL_RECENT_ALERT_COUNT || hasExpandedAlertHistory ? (
+            <button
+              disabled={recentAlertsLoading}
+              onClick={() => void updateAlertHistory()}
+              type="button"
+            >
+              {recentAlertsLoading
+                ? "Loading..."
+                : recentAlertsError && recentAlerts.length === 0
+                  ? "Retry"
+                  : !hasExpandedAlertHistory
+                    ? "View alert history"
+                    : hasMoreAlertHistory
+                      ? `Load more (${Math.min(ALERT_HISTORY_PAGE_SIZE, recentAlertTotal - recentAlerts.length)})`
+                      : "Show recent"}
+            </button>
+          ) : null}
         </div>
           </section>
         </main>
@@ -735,4 +863,41 @@ export function StockRadarAlertsV2() {
       ) : null}
     </div>
   );
+}
+
+function getDeliveredAlertType(alert: DeliveredAlertItem) {
+  if (alert.categoryLabel) return alert.categoryLabel;
+  if (alert.sourceLabel) return alert.sourceLabel;
+  return alert.alertLane === "watchlist" ? "Watchlist" : "Market discovery";
+}
+
+function getDeliveryStatusLabel(status: DeliveredAlertItem["deliveryStatus"]) {
+  if (status === "sent") return "Delivered";
+  if (status === "failed") return "Failed";
+  if (status === "suppressed") return "Suppressed";
+  return "Queued";
+}
+
+function formatRelativeTime(value: string) {
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return value;
+
+  const elapsedMilliseconds = Math.max(0, Date.now() - timestamp);
+  const elapsedMinutes = Math.floor(elapsedMilliseconds / 60_000);
+
+  if (elapsedMinutes < 1) return "Just now";
+  if (elapsedMinutes < 60) return `${elapsedMinutes} min ago`;
+
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+  if (elapsedHours < 24) return `${elapsedHours} hr ago`;
+
+  const elapsedDays = Math.floor(elapsedHours / 24);
+  if (elapsedDays === 1) return "Yesterday";
+  if (elapsedDays < 7) return `${elapsedDays} days ago`;
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: new Date(timestamp).getFullYear() === new Date().getFullYear() ? undefined : "numeric",
+  }).format(timestamp);
 }

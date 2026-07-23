@@ -134,6 +134,11 @@
   cursor: pointer;
 }
 
+.recentFooter button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
 .notice,
 .card,
 .watchlistPanel {
@@ -877,6 +882,20 @@
   margin-top: var(--sr-space-2);
 }
 
+.recentEmpty,
+.recentError {
+  margin: 0;
+  border-top: var(--sr-border-width) solid var(--alerts-border);
+  padding: var(--sr-space-5) 0;
+  color: var(--alerts-muted);
+  font-size: var(--sr-font-size-base);
+  text-align: center;
+}
+
+.recentError {
+  color: var(--sr-color-negative);
+}
+
 .recentFooter {
   display: flex;
   align-items: center;
@@ -936,6 +955,15 @@
   font-size: var(--sr-font-size-sm);
   font-style: normal;
   font-weight: var(--sr-font-weight-semibold);
+}
+
+.recentRow em[data-status="failed"] {
+  color: var(--sr-color-negative);
+}
+
+.recentRow em[data-status="queued"],
+.recentRow em[data-status="suppressed"] {
+  color: var(--alerts-muted);
 }
 
 .watchlistOverlay {
