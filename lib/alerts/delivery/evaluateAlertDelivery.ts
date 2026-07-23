@@ -135,7 +135,7 @@ async function fetchUsers() {
 }
 
 async function fetchUserContext(userId: string) {
-  const [planResult, preferencesResult, watchlistResult, categoriesResult, channelsResult] = await Promise.all([
+  const [planResult, preferencesResult, alertTickersResult, categoriesResult, channelsResult] = await Promise.all([
     supabaseSelect("user_plan_subscriptions", {
       select: "*",
       user_id: `eq.${userId}`,
@@ -147,9 +147,10 @@ async function fetchUserContext(userId: string) {
       user_id: `eq.${userId}`,
       limit: "1",
     }),
-    supabaseSelect("watchlist_tickers", {
+    supabaseSelect("user_alert_tickers", {
       select: "ticker",
       user_id: `eq.${userId}`,
+      enabled: "eq.true",
       limit: "1000",
     }),
     supabaseSelect("user_discovery_categories", {
@@ -169,7 +170,7 @@ async function fetchUserContext(userId: string) {
     plan: readPlan(Array.isArray(planResult.data) ? (planResult.data[0] as UserPlanSubscriptionRow | undefined) : undefined),
     preferences: readPreferences(Array.isArray(preferencesResult.data) ? (preferencesResult.data[0] as PreferenceRow | undefined) : undefined),
     watchlistTickers: new Set(
-      (Array.isArray(watchlistResult.data) ? (watchlistResult.data as WatchlistRow[]) : [])
+      (Array.isArray(alertTickersResult.data) ? (alertTickersResult.data as WatchlistRow[]) : [])
         .map((row) => readTicker(row.ticker))
         .filter(Boolean),
     ),

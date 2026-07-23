@@ -26,6 +26,7 @@ export type AlertCategory =
 
 export type PlanLimits = {
   watchlistLimit: PlanLimitValue;
+  alertTickerLimit: PlanLimitValue;
   discoveryCategoryLimit: number;
   alertDelayMinutes: number;
   channels: readonly AlertChannel[];
@@ -38,6 +39,7 @@ export type PlanLimits = {
 export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   free: {
     watchlistLimit: 3,
+    alertTickerLimit: 1,
     discoveryCategoryLimit: 1,
     alertDelayMinutes: 5,
     channels: ["web"],
@@ -48,6 +50,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   },
   ad_free: {
     watchlistLimit: 5,
+    alertTickerLimit: 5,
     discoveryCategoryLimit: 2,
     alertDelayMinutes: 5,
     channels: ["web"],
@@ -58,6 +61,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   },
   pro: {
     watchlistLimit: 30,
+    alertTickerLimit: 20,
     discoveryCategoryLimit: 6,
     alertDelayMinutes: 0,
     channels: ["web", "telegram"],
@@ -68,6 +72,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   },
   advanced: {
     watchlistLimit: 150,
+    alertTickerLimit: null,
     discoveryCategoryLimit: 18,
     alertDelayMinutes: 0,
     channels: ["web", "telegram", "email"],
@@ -78,6 +83,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   },
   ultimate: {
     watchlistLimit: null,
+    alertTickerLimit: null,
     discoveryCategoryLimit: 18,
     alertDelayMinutes: 0,
     channels: ["web", "telegram", "email", "webhook", "api"],

@@ -62,8 +62,8 @@ export async function getAlertSettingsViewModel(userId: string): Promise<AlertSe
   const plan = planState.effectivePlan;
   const limits = getPlanLimits(plan);
 
-  const [watchlistResult, preferencesResult, categoriesResult, channelsResult, deliveriesResult] = await Promise.all([
-    supabaseSelect("watchlist_tickers", {
+  const [alertTickersResult, preferencesResult, categoriesResult, channelsResult, deliveriesResult] = await Promise.all([
+    supabaseSelect("user_alert_tickers", {
       select: "id",
       user_id: `eq.${userId}`,
       limit: "1000",
@@ -94,8 +94,8 @@ export async function getAlertSettingsViewModel(userId: string): Promise<AlertSe
     }),
   ]);
 
-  const watchlistTickers = Array.isArray(watchlistResult.data)
-    ? watchlistResult.count ?? watchlistResult.data.length
+  const alertTickers = Array.isArray(alertTickersResult.data)
+    ? alertTickersResult.count ?? alertTickersResult.data.length
     : 0;
   const preferencesRow = Array.isArray(preferencesResult.data)
     ? (preferencesResult.data[0] as AlertPreferencesRow | undefined)
@@ -113,7 +113,7 @@ export async function getAlertSettingsViewModel(userId: string): Promise<AlertSe
     trial: planState.trial,
     limits,
     usage: {
-      watchlistTickers,
+      watchlistTickers: alertTickers,
       discoveryCategories: selectedCategories.length,
     },
     preferences: mapPreferences(preferencesRow),

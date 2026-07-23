@@ -326,8 +326,12 @@
   margin-top: var(--sr-space-4);
 }
 
-.searchBox {
+.tickerSearch {
   position: relative;
+  min-width: 0;
+}
+
+.searchBox {
   display: flex;
   align-items: center;
   min-width: 0;
@@ -358,6 +362,78 @@
   outline: 0;
 }
 
+.tickerSuggestions {
+  position: absolute;
+  z-index: var(--sr-z-sheet-handle);
+  top: calc(100% + var(--sr-space-1));
+  right: 0;
+  left: 0;
+  display: grid;
+  max-height: 300px;
+  overflow-y: auto;
+  border: var(--sr-border-width) solid var(--alerts-border-strong);
+  border-radius: var(--sr-radius-control);
+  padding: var(--sr-space-1);
+  background: var(--alerts-surface-emphasized);
+  box-shadow: var(--sr-shadow-panel);
+}
+
+.tickerSuggestion {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sr-space-2);
+  min-height: 42px;
+  border: 0;
+  border-radius: var(--sr-radius-control);
+  padding: var(--sr-space-2) var(--sr-space-3);
+  color: var(--alerts-text);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tickerSuggestion:hover,
+.tickerSuggestion[data-active="true"] {
+  background: var(--alerts-surface-soft);
+}
+
+.tickerSuggestion strong {
+  color: var(--alerts-text);
+  font-size: var(--sr-font-size-base);
+}
+
+.tickerSuggestion span,
+.tickerSuggestion small {
+  overflow: hidden;
+  color: var(--alerts-muted);
+  font-size: var(--sr-font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tickerSearchStatus,
+.tickerMessage,
+.tickerEmpty,
+.watchlistStatus {
+  margin: 0;
+  color: var(--alerts-muted);
+  font-size: var(--sr-font-size-sm);
+  line-height: var(--sr-line-height-body);
+}
+
+.tickerSearchStatus {
+  padding: var(--sr-space-3);
+}
+
+.tickerMessage {
+  margin-top: var(--sr-space-2);
+}
+
+.tickerEmpty {
+  padding: var(--sr-space-4) 0 var(--sr-space-2);
+}
+
 .primaryButton,
 .secondaryButton {
   min-height: var(--sr-size-control);
@@ -366,6 +442,14 @@
   font-size: var(--sr-font-size-base);
   font-weight: var(--sr-font-weight-semibold);
   cursor: pointer;
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.removeButton:disabled,
+.watchlistItems button:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
 }
 
 .primaryButton {
@@ -620,13 +704,26 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--sr-space-3);
-  border-top: var(--sr-border-width) solid var(--alerts-border);
-  margin-top: var(--sr-space-3);
-  padding-top: var(--sr-space-3);
-  color: var(--sr-color-accent);
+  gap: var(--sr-space-4);
+  border-top: var(--sr-border-width) solid var(--alerts-border-strong);
+  margin-top: var(--sr-space-4);
+  padding-top: var(--sr-space-4);
+  color: var(--alerts-text);
   font-size: var(--sr-font-size-base);
   font-weight: var(--sr-font-weight-semibold);
+}
+
+.cardFooter a {
+  display: inline-flex;
+  min-height: var(--sr-size-control);
+  align-items: center;
+  justify-content: center;
+  border: var(--sr-border-width) solid var(--sr-color-accent);
+  border-radius: var(--sr-radius-control);
+  padding: 0 var(--sr-space-4);
+  color: var(--sr-color-text-inverse);
+  background: var(--sr-color-accent);
+  white-space: nowrap;
 }
 
 .lockedBadge {
@@ -859,17 +956,25 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--sr-space-3);
-  border-top: var(--sr-border-width) solid var(--alerts-border);
-  margin-top: var(--sr-space-3);
-  padding-top: var(--sr-space-3);
-  color: var(--sr-color-accent);
+  gap: var(--sr-space-4);
+  border-top: var(--sr-border-width) solid var(--alerts-border-strong);
+  margin-top: var(--sr-space-4);
+  padding-top: var(--sr-space-4);
+  color: var(--alerts-text);
   font-size: var(--sr-font-size-base);
   font-weight: var(--sr-font-weight-semibold);
 }
 
 .ultimateFooter a {
-  color: var(--sr-color-accent);
+  display: inline-flex;
+  min-height: var(--sr-size-control);
+  align-items: center;
+  justify-content: center;
+  border: var(--sr-border-width) solid var(--sr-color-accent);
+  border-radius: var(--sr-radius-control);
+  padding: 0 var(--sr-space-4);
+  color: var(--sr-color-text-inverse);
+  background: var(--sr-color-accent);
   text-decoration: none;
 }
 
@@ -1020,6 +1125,10 @@
   display: grid;
   gap: var(--sr-space-2);
   margin-top: var(--sr-space-3);
+}
+
+.watchlistStatus {
+  padding: var(--sr-space-3) 0;
 }
 
 .watchlistItems button {
