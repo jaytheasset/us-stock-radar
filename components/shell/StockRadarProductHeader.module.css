@@ -116,6 +116,67 @@
   display: none;
 }
 
+.desktopAccount {
+  display: flex;
+  align-items: center;
+  padding-left: var(--sr-space-1);
+}
+
+.header .desktopAccount :global(.auth-status) {
+  gap: var(--sr-space-1-5);
+}
+
+.header .desktopAccount :global(.auth-status-loading) {
+  width: 92px;
+  height: 30px;
+  border-color: var(--sr-color-border-product-menu);
+  background: var(--sr-color-product-premium-surface);
+}
+
+.header .desktopAccount :global(.auth-link-secondary),
+.header .desktopAccount :global(.auth-link-primary),
+.header .desktopAccount :global(.auth-logout-button) {
+  min-height: 30px;
+  border-radius: var(--sr-radius-control);
+  padding-inline: var(--sr-space-2-25);
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-strong);
+}
+
+.header .desktopAccount :global(.auth-link-secondary),
+.header .desktopAccount :global(.auth-logout-button) {
+  border-color: transparent;
+  color: var(--sr-color-text-product-action);
+  background: transparent;
+}
+
+.header .desktopAccount :global(.auth-link-primary) {
+  border-color: var(--sr-color-product-accent-border);
+  color: var(--sr-color-text-product-brand);
+  background: var(--sr-color-product-accent);
+}
+
+.header .desktopAccount :global(.auth-user-pill) {
+  max-width: 150px;
+  min-height: 30px;
+  border-color: var(--sr-color-border-product-menu);
+  border-radius: var(--sr-radius-control);
+  padding: 0 var(--sr-space-2) 0 var(--sr-space-1);
+  color: var(--sr-color-text-product-action);
+  background: transparent;
+}
+
+.header .desktopAccount :global(.auth-user-pill span) {
+  width: 22px;
+  height: 22px;
+  color: var(--sr-color-text-product-brand);
+  background: var(--sr-color-product-accent);
+}
+
+.header .desktopAccount :global(.auth-user-pill strong) {
+  font-size: var(--sr-font-size-sm);
+}
+
 .actions .mobileMenuButton {
   display: none;
 }
@@ -189,6 +250,10 @@
     display: none;
   }
 
+  .desktopAccount {
+    display: none;
+  }
+
   .actions .mobileMenuButton {
     display: flex;
   }
@@ -254,5 +319,60 @@
 
   .mobileMenuList .mobileMenuPremium {
     color: var(--sr-color-product-premium);
+  }
+
+  .mobileMenuAccount {
+    border-top: var(--sr-border-width) solid var(--sr-color-border-product-menu);
+    padding: var(--sr-space-2-5);
+  }
+
+  .mobileMenuAccount :global(.auth-status) {
+    width: 100%;
+    align-items: stretch;
+    justify-content: stretch;
+    gap: var(--sr-space-2);
+  }
+
+  .mobileMenuAccount :global(.auth-status-loading) {
+    width: 100%;
+    height: 34px;
+    border-color: var(--sr-color-border-product-menu);
+    background: var(--sr-color-product-premium-surface);
+  }
+
+  .mobileMenuAccount :global(.auth-link-secondary),
+  .mobileMenuAccount :global(.auth-link-primary),
+  .mobileMenuAccount :global(.auth-logout-button) {
+    min-height: 34px;
+    flex: 1 1 0;
+    border-radius: var(--sr-radius-action);
+    padding-inline: var(--sr-space-2);
+    font-size: var(--sr-font-size-sm);
+  }
+
+  .mobileMenuAccount :global(.auth-link-secondary),
+  .mobileMenuAccount :global(.auth-logout-button) {
+    border-color: var(--sr-color-border-product-menu);
+    color: var(--sr-color-text-product-menu);
+    background: transparent;
+  }
+
+  .mobileMenuAccount :global(.auth-link-primary) {
+    border-color: var(--sr-color-product-accent-border);
+    color: var(--sr-color-text-product-brand);
+    background: var(--sr-color-product-accent);
+  }
+
+  .mobileMenuAccount :global(.auth-user-pill) {
+    max-width: 100%;
+    flex: 1 1 auto;
+    border-color: var(--sr-color-border-product-menu);
+    color: var(--sr-color-text-product-menu);
+    background: transparent;
+  }
+
+  .mobileMenuAccount :global(.auth-user-pill span) {
+    color: var(--sr-color-text-product-brand);
+    background: var(--sr-color-product-accent);
   }
 }

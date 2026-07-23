@@ -11,10 +11,6 @@
 }
 
 .pageHeader {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-  gap: var(--sr-space-6);
   padding-bottom: var(--sr-space-4);
   border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
 }
@@ -58,45 +54,6 @@
   color: var(--sr-color-text-subtle);
   font-size: var(--sr-font-size-base);
   line-height: var(--sr-line-height-default);
-}
-
-.headerControls {
-  display: flex;
-  align-items: center;
-  gap: var(--sr-space-4);
-}
-
-.accountControls {
-  min-width: 0;
-}
-
-.accountControls :global(.auth-status) {
-  min-width: 0;
-}
-
-.currentPlanLine {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sr-space-2);
-}
-
-.currentPlanLine span {
-  color: var(--sr-color-text-meta);
-  font-size: var(--sr-font-size-sm);
-  line-height: var(--sr-line-height-none);
-}
-
-.currentPlanLine strong {
-  display: inline-flex;
-  min-height: var(--sr-size-badge);
-  align-items: center;
-  border: var(--sr-border-width) solid var(--sr-color-border-control);
-  border-radius: var(--sr-radius-control);
-  padding: 0 var(--sr-space-2);
-  color: var(--sr-color-text-strong);
-  font-size: var(--sr-font-size-md);
-  font-weight: var(--sr-font-weight-semibold);
-  line-height: var(--sr-line-height-none);
 }
 
 .heroSection {
@@ -998,14 +955,6 @@
 }
 
 @media (max-width: 1180px) {
-  .pageHeader {
-    grid-template-columns: 1fr;
-  }
-
-  .headerControls {
-    justify-content: space-between;
-  }
-
   .heroSection {
     grid-template-columns: minmax(0, 1fr) minmax(340px, 0.8fr);
   }
@@ -1132,49 +1081,10 @@
 
   .pageHeader {
     position: relative;
-    gap: var(--sr-space-4);
-  }
-
-  .titleBlock > span {
-    padding-right: calc(var(--sr-space-8) + var(--sr-space-7));
-  }
-
-  .guestHeader .titleBlock > span {
-    padding-right: 0;
   }
 
   .titleBlock h1 {
     font-size: var(--sr-font-size-heading-md);
-  }
-
-  .headerControls {
-    position: absolute;
-    top: 0;
-    right: 0;
-    display: flex;
-    align-items: center;
-    gap: var(--sr-space-2);
-  }
-
-  .accountControls {
-    display: none;
-  }
-
-  .currentPlanLine {
-    min-height: var(--sr-size-badge-lg);
-    align-items: center;
-    gap: var(--sr-space-1-5);
-  }
-
-  .currentPlanLine span {
-    font-size: var(--sr-font-size-xs);
-    text-transform: uppercase;
-  }
-
-  .currentPlanLine strong {
-    min-height: var(--sr-size-badge-lg);
-    padding-inline: var(--sr-space-2);
-    font-size: var(--sr-font-size-sm);
   }
 
   .heroSection {

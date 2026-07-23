@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Bell, Menu, Search, Settings } from "lucide-react";
+import { AuthStatus } from "@/components/AuthStatus";
 import { StockRadarDesktopNavigation } from "@/components/shell/StockRadarDesktopNavigation";
 import { StockRadarThemeToggle } from "@/components/shell/StockRadarThemeToggle";
 import {
@@ -94,6 +95,9 @@ export function StockRadarProductHeader({
           <IconButton aria-label="Settings" className={styles.settingsButton}>
             <Settings aria-hidden="true" size={18} />
           </IconButton>
+          <div className={styles.desktopAccount}>
+            <AuthStatus />
+          </div>
           <IconButton
             aria-controls={isMobileMenuOpen ? stockRadarMobileMenuId : undefined}
             aria-expanded={isMobileMenuOpen}

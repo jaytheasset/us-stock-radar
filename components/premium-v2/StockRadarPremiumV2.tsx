@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { AuthStatus } from "@/components/AuthStatus";
 import { PremiumFeatureComparison } from "@/components/premium-v2/PremiumFeatureComparison";
 import { ProTrialCta } from "@/components/ProTrialCta";
 import {
@@ -122,24 +121,11 @@ export function StockRadarPremiumV2({ accountState }: StockRadarPremiumV2Props) 
   return (
     <div className={styles.root}>
       <div className={styles.workspace}>
-        <header
-          className={`${styles.pageHeader} ${accountState.authenticated ? "" : styles.guestHeader}`}
-        >
+        <header className={styles.pageHeader}>
           <div className={styles.titleBlock}>
             <span>Account / Plan</span>
             <h1>Premium</h1>
             <p>Choose the alert coverage and delivery level that fits how you trade.</p>
-          </div>
-          <div className={styles.headerControls}>
-            {accountState.authenticated ? (
-              <div className={styles.currentPlanLine}>
-                <span>Current plan</span>
-                <strong>{premiumV2Plans[accountState.currentPlan].name}</strong>
-              </div>
-            ) : null}
-            <div className={styles.accountControls}>
-              <AuthStatus />
-            </div>
           </div>
         </header>
 

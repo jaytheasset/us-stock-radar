@@ -1,4 +1,5 @@
 import type { Ref } from "react";
+import { AuthStatus } from "@/components/AuthStatus";
 import {
   stockRadarMobileNavigationItems,
   type StockRadarNavigationItem,
@@ -59,6 +60,9 @@ export function StockRadarMobileNavigationMenu({
           );
         })}
       </nav>
+      <div className={styles.mobileMenuAccount}>
+        <AuthStatus />
+      </div>
     </div>
   );
 }
