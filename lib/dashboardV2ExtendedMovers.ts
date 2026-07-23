@@ -1,5 +1,5 @@
 import type { DashboardV2Session } from "./dashboardV2Types";
-import { classifyUsEquityMarketMinute } from "./usEquityMarketCalendar";
+import { classifyUsEquityMarketMinute } from "./usEquityMarketCalendar.ts";
 
 export const dashboardV2MoverModes = ["gainers", "losers", "volume"] as const;
 

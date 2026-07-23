@@ -13,6 +13,7 @@ const serverKeys = [
   "TELEGRAM_CHAT_ID",
   "ALERT_DELIVERY_CRON_SECRET",
   "ALERT_DELIVERY_CRON_WRITE_ENABLED",
+  "DASHBOARD_MOVERS_CRON_SECRET",
   "CRON_SECRET",
   "OPENAI_API_KEY",
   "OPENAI_MODEL",
@@ -51,6 +52,8 @@ export function getServerEnv() {
     alertDeliveryCronSecret: process.env.ALERT_DELIVERY_CRON_SECRET || "",
     alertDeliveryCronWriteEnabled:
       (process.env.ALERT_DELIVERY_CRON_WRITE_ENABLED || "false").toLowerCase() === "true",
+    dashboardMoversCronSecret:
+      process.env.DASHBOARD_MOVERS_CRON_SECRET || "",
     cronSecret: process.env.CRON_SECRET || "",
     openAiApiKey: process.env.OPENAI_API_KEY || "",
     openAiModel: process.env.OPENAI_MODEL || "gpt-5-mini",
@@ -90,6 +93,7 @@ export function envStatus() {
     TELEGRAM_CHAT_ID: values.telegramChatId,
     ALERT_DELIVERY_CRON_SECRET: values.alertDeliveryCronSecret,
     ALERT_DELIVERY_CRON_WRITE_ENABLED: String(values.alertDeliveryCronWriteEnabled),
+    DASHBOARD_MOVERS_CRON_SECRET: values.dashboardMoversCronSecret,
     CRON_SECRET: values.cronSecret,
     OPENAI_API_KEY: values.openAiApiKey,
     OPENAI_MODEL: values.openAiModel,

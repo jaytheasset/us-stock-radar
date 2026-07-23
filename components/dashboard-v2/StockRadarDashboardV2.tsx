@@ -51,12 +51,13 @@ type FmpMarketMoversResponse = {
   asOf: string | null;
   available: boolean;
   error?: string;
-  freshness?: "fresh" | "stale" | "closed";
+  freshness?: "fresh" | "stale" | "finalizing" | "final" | "closed";
   marketSessionOpen?: boolean;
   message?: string;
   ok: boolean;
   reason: "ready" | "empty" | "session_unavailable" | "missing_key" | "upstream_error";
   receivedAt: string;
+  refreshAfterSeconds?: number | null;
   rows: DashboardV2MarketMover[];
   stale?: boolean;
 };
@@ -92,6 +93,7 @@ export function StockRadarDashboardV2() {
 
   useEffect(() => {
     const controller = new AbortController();
+    let refreshTimer: number | null = null;
     setMarketState({
       asOf: null,
       freshness: null,
@@ -101,6 +103,20 @@ export function StockRadarDashboardV2() {
       tab: activeMoverTab,
     });
 
+    function scheduleRefresh(seconds?: number | null) {
+      if (refreshTimer !== null) window.clearTimeout(refreshTimer);
+      refreshTimer = null;
+      if (!seconds || seconds <= 0 || controller.signal.aborted) return;
+
+      refreshTimer = window.setTimeout(() => {
+        if (document.visibilityState === "visible") {
+          void loadMarketMovers(true);
+        } else {
+          scheduleRefresh(seconds);
+        }
+      }, seconds * 1000);
+    }
+
     async function loadMarketMovers(isBackgroundRefresh = false) {
       try {
         const response = await fetch(
@@ -109,6 +125,7 @@ export function StockRadarDashboardV2() {
         );
         const payload = (await response.json()) as FmpMarketMoversResponse;
         if (controller.signal.aborted) return;
+        scheduleRefresh(payload.refreshAfterSeconds);
 
         if (!response.ok || !payload.ok || !payload.available) {
           if (isBackgroundRefresh) {
@@ -129,7 +146,7 @@ export function StockRadarDashboardV2() {
           setMarketState({
             asOf: null,
             freshness: null,
-            message: payload.message || payload.error || "FMP market data is unavailable.",
+            message: payload.message || payload.error || "Market data is unavailable.",
             receivedAt: payload.receivedAt || null,
             rows: [],
             status:
@@ -172,6 +189,7 @@ export function StockRadarDashboardV2() {
         );
       } catch {
         if (controller.signal.aborted) return;
+        scheduleRefresh(60);
         if (isBackgroundRefresh) {
           setMarketState((current) =>
             current.status === "ready"
@@ -187,7 +205,7 @@ export function StockRadarDashboardV2() {
         setMarketState({
           asOf: null,
           freshness: null,
-          message: "Unable to load FMP market data.",
+          message: "Unable to load market data.",
           receivedAt: null,
           rows: [],
           status: "error",
@@ -197,16 +215,10 @@ export function StockRadarDashboardV2() {
     }
 
     void loadMarketMovers();
-    const refreshTimer =
-      activeSession === "Regular"
-        ? window.setInterval(() => {
-            if (document.visibilityState === "visible") void loadMarketMovers(true);
-          }, 3 * 60 * 1000)
-        : null;
 
     return () => {
       controller.abort();
-      if (refreshTimer !== null) window.clearInterval(refreshTimer);
+      if (refreshTimer !== null) window.clearTimeout(refreshTimer);
     };
   }, [activeMoverTab, activeSession]);
 
@@ -314,6 +326,7 @@ export function StockRadarDashboardV2() {
                 asOf={marketState.asOf}
                 freshness={marketState.freshness}
                 receivedAt={marketState.receivedAt}
+                session={activeSession}
               />
             </>
           ) : (
@@ -329,7 +342,7 @@ export function StockRadarDashboardV2() {
               <span>
                 {status === "ready" && sourceRows.length
                   ? "Adjust the filters to select a market mover."
-                  : "FMP market data is required before a ticker can be selected."}
+                  : "Market data is required before a ticker can be selected."}
               </span>
             </aside>
           )}
@@ -361,7 +374,7 @@ export function StockRadarDashboardV2() {
 function MarketDataState({ message, status }: { message?: string; status: MarketStatus }) {
   const copy =
     status === "loading"
-      ? "Loading FMP market movers…"
+      ? "Loading market movers…"
       : message || (status === "empty" ? "No market movers returned." : "Market data unavailable.");
 
   return (
@@ -381,10 +394,12 @@ function MarketTimestamp({
   asOf,
   freshness,
   receivedAt,
+  session,
 }: {
   asOf: string | null;
   freshness: FmpMarketMoversResponse["freshness"] | null;
   receivedAt: string | null;
+  session: DashboardV2Session;
 }) {
   const value = asOf || receivedAt;
   if (!value) return null;
@@ -393,13 +408,7 @@ function MarketTimestamp({
 
   return (
     <p className={styles.marketTimestamp}>
-      {freshness === "stale"
-        ? "Last successful regular-session snapshot"
-        : freshness === "closed"
-          ? "Latest regular-session snapshot"
-          : asOf
-            ? "Market data as of"
-            : "Market data received"}{" "}
+      {marketTimestampLabel(freshness, session, Boolean(asOf))}{" "}
       <time dateTime={date.toISOString()}>
         {new Intl.DateTimeFormat("en-US", {
           dateStyle: "medium",
@@ -410,4 +419,22 @@ function MarketTimestamp({
       </time>
     </p>
   );
+}
+
+function marketTimestampLabel(
+  freshness: FmpMarketMoversResponse["freshness"] | null,
+  session: DashboardV2Session,
+  hasProviderTimestamp: boolean,
+) {
+  const sessionLabel =
+    session === "Pre"
+      ? "pre-market"
+      : session === "After"
+        ? "after-hours"
+        : "regular-session";
+  if (freshness === "final") return `Final ${sessionLabel} snapshot`;
+  if (freshness === "finalizing") return `Finalizing ${sessionLabel} snapshot`;
+  if (freshness === "stale") return `Last successful ${sessionLabel} snapshot`;
+  if (freshness === "closed") return `Latest ${sessionLabel} snapshot`;
+  return hasProviderTimestamp ? "Market data as of" : "Market data received";
 }

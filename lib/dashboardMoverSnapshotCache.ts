@@ -8,6 +8,9 @@ export type DashboardMoverSnapshot = {
   asOf: string | null;
   dataAvailability: Record<"events" | "marketCap" | "volume", DataStatus>;
   fetchedAt: string;
+  finalizedAt: string | null;
+  isFinal: boolean;
+  marketDate: string;
   rows: DashboardV2MarketMover[];
   sourceCount: number;
 };
@@ -16,7 +19,8 @@ export async function readDashboardMoverSnapshot(
   mode: DashboardV2MoverMode,
 ): Promise<DashboardMoverSnapshot | null> {
   const result = await supabaseSelect("dashboard_mover_snapshots", {
-    select: "mode,provider_as_of,captured_at,rows,data_availability,source_count",
+    select:
+      "mode,market_date,provider_as_of,captured_at,is_final,finalized_at,rows,data_availability,source_count",
     mode: `eq.${mode}`,
     limit: "1",
   });
@@ -33,6 +37,9 @@ export async function writeDashboardMoverSnapshot(
     {
       captured_at: snapshot.fetchedAt,
       data_availability: snapshot.dataAvailability,
+      finalized_at: snapshot.finalizedAt,
+      is_final: snapshot.isFinal,
+      market_date: snapshot.marketDate,
       mode,
       provider_as_of: snapshot.asOf,
       rows: snapshot.rows,
@@ -47,14 +54,18 @@ function normalizeSnapshot(value: unknown): DashboardMoverSnapshot | null {
   if (!value || typeof value !== "object") return null;
   const row = value as Record<string, unknown>;
   const fetchedAt = stringValue(row.captured_at);
+  const marketDate = stringValue(row.market_date);
   const sourceCount = numberValue(row.source_count);
   const rows = normalizeRows(row.rows);
-  if (!fetchedAt || sourceCount === null || !rows) return null;
+  if (!fetchedAt || !marketDate || sourceCount === null || !rows) return null;
 
   return {
     asOf: stringValue(row.provider_as_of) || null,
     dataAvailability: normalizeAvailability(row.data_availability),
     fetchedAt,
+    finalizedAt: stringValue(row.finalized_at) || null,
+    isFinal: row.is_final === true,
+    marketDate,
     rows,
     sourceCount,
   };

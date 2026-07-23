@@ -34,6 +34,7 @@
     "deliver:queued": "node scripts/process-queued-alert-deliveries.mjs",
     "deliver:batch": "node scripts/run-alert-delivery-batch.mjs",
     "deliver:scheduler": "node scripts/run-alert-delivery-scheduler.mjs",
+    "dashboard:movers-finalize": "node scripts/run-dashboard-mover-finalizer.mjs",
     "sec:live-test": "node scripts/sec-room-live-test.mjs",
     "sec:ingest-production": "node scripts/run-sec-production-ingest.mjs",
     "typecheck": "tsc --noEmit"

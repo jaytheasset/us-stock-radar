@@ -11,106 +11,119 @@ import {
 } from "@/lib/dashboardV2Types";
 import {
   dashboardV2MoverModes,
-  getNewYorkMarketSession,
   rankExtendedMovers,
   type DashboardV2MoverMode,
 } from "@/lib/dashboardV2ExtendedMovers";
+import {
+  readDashboardExtendedMoverSnapshot,
+  type DashboardExtendedMoverSnapshot,
+  writeDashboardExtendedMoverSnapshot,
+} from "@/lib/dashboardExtendedMoverSnapshotCache";
 import {
   readDashboardMoverSnapshot,
   type DashboardMoverSnapshot,
   writeDashboardMoverSnapshot,
 } from "@/lib/dashboardMoverSnapshotCache";
+import {
+  buildMassiveExtendedCandidates,
+  type DashboardV2ExtendedSession,
+} from "@/lib/dashboardV2MassiveMovers";
+import {
+  getDashboardMoverLifecycle,
+  isDashboardMoverFinalizationEligible,
+  shouldFinalizeDashboardMoverSnapshot,
+  type DashboardMoverLifecycle,
+} from "@/lib/dashboardV2MoverLifecycle";
 import { getServerEnv } from "@/lib/env";
 import { getEventTypeBadge, type EventTypeBadgeTone } from "@/lib/eventTypeRegistry";
-import { fetchRecentEventsByTickers } from "@/lib/supabase";
+import { fetchRecentEventsByTickers, supabaseSelect } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
 const rowLimit = 25;
 const regularMoverCacheSeconds = 3 * 60;
-const extendedMoverCacheSeconds = 60;
+const extendedMoverCacheSeconds = 3 * 60;
 const regularMoverRetryDelayMs = 250;
 const regularMoverStaleAfterMs = regularMoverCacheSeconds * 2 * 1000;
-const extendedFetchConcurrency = 6;
+const extendedMoverStaleAfterMs = extendedMoverCacheSeconds * 2 * 1000;
 const fmpRequestTimeoutMs = 8_000;
+const massiveRequestTimeoutMs = 20_000;
 
 type MoverMode = DashboardV2MoverMode;
 type Session = DashboardV2Session;
-type ExtendedSession = Exclude<Session, "Regular">;
+type ExtendedSession = DashboardV2ExtendedSession;
 type EventRow = Record<string, unknown>;
 type DataStatus = "ready" | "partial" | "empty" | "unavailable";
 type BaseMover = Omit<DashboardV2MarketMover, "rank" | "events" | "maxImpact">;
 type RegularMoverResult = Awaited<ReturnType<typeof loadRegularMarketMovers>>;
+type ExtendedUniverse = Awaited<ReturnType<typeof loadMassiveExtendedUniverse>>;
 
-const regularMoverRequests = new Map<MoverMode, Promise<RegularMoverResult>>();
+const regularMoverRequests = new Map<string, Promise<RegularMoverResult>>();
+const regularFinalizationRequests = new Map<
+  string,
+  Promise<Map<MoverMode, DashboardMoverSnapshot>>
+>();
 const lastGoodRegularMovers = new Map<MoverMode, RegularMoverResult>();
+const extendedMoverRequests = new Map<string, Promise<DashboardExtendedMoverSnapshot>>();
+const extendedFinalizationRequests = new Map<
+  string,
+  Promise<Map<MoverMode, DashboardExtendedMoverSnapshot>>
+>();
+const extendedUniverseRequests = new Map<
+  string,
+  Promise<Awaited<ReturnType<typeof loadMassiveExtendedUniverse>>>
+>();
+const lastGoodExtendedMovers = new Map<string, DashboardExtendedMoverSnapshot>();
 
 const loadCachedRegularMovers = unstable_cache(
-  async (mode: MoverMode) => loadRegularMarketMovers(mode),
-  ["dashboard-v2-regular-movers-v4"],
+  async (mode: MoverMode, marketDate: string) =>
+    loadRegularMarketMovers(mode, marketDate),
+  ["dashboard-v2-regular-movers-v5"],
   { revalidate: regularMoverCacheSeconds },
 );
 
-const loadCachedExtendedCandidateUniverse = unstable_cache(
-  async () => loadExtendedCandidateUniverse(),
-  ["dashboard-v2-extended-candidate-universe-v1"],
-  { revalidate: extendedMoverCacheSeconds },
-);
-
-const loadCachedAftermarketSymbol = unstable_cache(
-  async (symbol: string) => loadAftermarketSymbol(symbol),
-  ["dashboard-v2-aftermarket-symbol-v1"],
-  { revalidate: extendedMoverCacheSeconds },
-);
-
 const loadCachedExtendedMovers = unstable_cache(
-  async (session: ExtendedSession, mode: MoverMode) => loadExtendedMarketMovers(session, mode),
-  ["dashboard-v2-extended-movers-v1"],
+  async (session: ExtendedSession, mode: MoverMode, marketDate: string) =>
+    loadExtendedMarketMovers(session, mode, marketDate),
+  ["dashboard-v2-massive-extended-movers-v2"],
+  { revalidate: extendedMoverCacheSeconds },
+);
+
+const loadCachedMassiveExtendedUniverse = unstable_cache(
+  async (session: ExtendedSession, marketDate: string) =>
+    loadMassiveExtendedUniverse(session, marketDate),
+  ["dashboard-v2-massive-extended-universe-v2"],
   { revalidate: extendedMoverCacheSeconds },
 );
 
 export async function GET(request: NextRequest) {
   const session = normalizeSession(request.nextUrl.searchParams.get("session"));
   const mode = normalizeMode(request.nextUrl.searchParams.get("mode"));
-
-  const { fmpApiKey } = getServerEnv();
-  if (!fmpApiKey) {
-    return json(
-      {
-        asOf: null,
-        available: false,
-        dataAvailability: unavailableData(),
-        error: "FMP_API_KEY is not configured",
-        mode,
-        ok: false,
-        reason: "missing_key",
-        receivedAt: new Date().toISOString(),
-        rows: [],
-        session,
-        sourceCount: 0,
-      },
-      503,
-    );
-  }
+  const lifecycle = getDashboardMoverLifecycle(session);
 
   try {
     if (session === "Regular") {
-      const marketSessionOpen = getNewYorkMarketSession(Date.now())?.session === "Regular";
+      const { fmpApiKey } = getServerEnv();
+      if (!fmpApiKey) {
+        return missingKeyResponse("FMP_API_KEY", session, mode);
+      }
       const { fallback, result } = await loadRegularMoversWithFallback(
         mode,
-        marketSessionOpen,
+        lifecycle,
       );
       const capturedAtMilliseconds = new Date(result.fetchedAt).getTime();
       const stale =
         fallback ||
         !Number.isFinite(capturedAtMilliseconds) ||
-        Date.now() - capturedAtMilliseconds > regularMoverStaleAfterMs;
+        (lifecycle.phase === "active" &&
+          Date.now() - capturedAtMilliseconds > regularMoverStaleAfterMs);
       return json({
         ...result,
         available: true,
         capturedAt: result.fetchedAt,
-        freshness: marketSessionOpen ? (stale ? "stale" : "fresh") : "closed",
-        marketSessionOpen,
+        freshness: moverFreshness(result.isFinal, lifecycle, stale),
+        lifecyclePhase: lifecycle.phase,
+        marketSessionOpen: lifecycle.phase === "active",
         message: fallback
           ? "Showing the last successful regular-session snapshot while FMP is unavailable."
           : undefined,
@@ -118,25 +131,81 @@ export async function GET(request: NextRequest) {
         ok: true,
         reason: result.rows.length ? "ready" : "empty",
         receivedAt: result.fetchedAt,
+        refreshAfterSeconds: result.isFinal
+          ? null
+          : lifecycle.refreshAfterSeconds,
         session,
         source: "fmp_stable_movers",
         stale,
       });
     }
 
-    const { matchingCount, ...result } = await loadCachedExtendedMovers(session, mode);
-    const available = matchingCount > 0;
+    const { polygonApiKey } = getServerEnv();
+    if (!polygonApiKey) {
+      return missingKeyResponse("POLYGON_API_KEY", session, mode);
+    }
+
+    const loaded = await loadExtendedMoversWithFallback(
+      session,
+      mode,
+      lifecycle,
+    );
+    if (!loaded) {
+      return json({
+        asOf: null,
+        available: false,
+        capturedAt: null,
+        dataAvailability: unavailableData(),
+        freshness:
+          lifecycle.phase === "finalizing" ? "finalizing" : "closed",
+        lifecyclePhase: lifecycle.phase,
+        marketSessionOpen: lifecycle.phase === "active",
+        message: `No saved ${session.toLowerCase()}-market snapshot is available yet.`,
+        mode,
+        ok: true,
+        providerDelayMinutes: 15,
+        reason: "session_unavailable",
+        receivedAt: new Date().toISOString(),
+        refreshAfterSeconds: lifecycle.refreshAfterSeconds,
+        rows: [],
+        session,
+        source: "massive_full_market_snapshot",
+        sourceCount: 0,
+        stale: false,
+      });
+    }
+
+    const { fallback, result } = loaded;
+    const capturedAtMilliseconds = new Date(result.fetchedAt).getTime();
+    const stale =
+      fallback ||
+      !Number.isFinite(capturedAtMilliseconds) ||
+      (lifecycle.phase === "active" &&
+        Date.now() - capturedAtMilliseconds > extendedMoverStaleAfterMs);
+    const available = result.matchingCount > 0;
     return json({
       ...result,
       available,
-      message: available
-        ? undefined
-        : `No ${session.toLowerCase()}-market trades match the latest FMP data.`,
+      capturedAt: result.fetchedAt,
+      freshness: moverFreshness(result.isFinal, lifecycle, stale),
+      lifecyclePhase: lifecycle.phase,
+      marketSessionOpen: lifecycle.phase === "active",
+      message: fallback
+        ? `Showing the last successful ${session.toLowerCase()}-market snapshot while Massive is unavailable.`
+        : available
+          ? undefined
+          : `No ${session.toLowerCase()}-market aggregate trades are available in the latest Massive snapshot.`,
       mode,
       ok: true,
+      providerDelayMinutes: 15,
       reason: available ? (result.rows.length ? "ready" : "empty") : "session_unavailable",
       receivedAt: result.fetchedAt,
+      refreshAfterSeconds: result.isFinal
+        ? null
+        : lifecycle.refreshAfterSeconds,
       session,
+      source: "massive_full_market_snapshot",
+      stale,
     });
   } catch {
     return json(
@@ -144,11 +213,16 @@ export async function GET(request: NextRequest) {
         asOf: null,
         available: false,
         dataAvailability: unavailableData(),
-        error: "FMP market movers are unavailable",
+        error: "Market movers are unavailable",
+        freshness:
+          lifecycle.phase === "finalizing" ? "finalizing" : "stale",
+        lifecyclePhase: lifecycle.phase,
+        marketSessionOpen: lifecycle.phase === "active",
         mode,
         ok: false,
         reason: "upstream_error",
         receivedAt: new Date().toISOString(),
+        refreshAfterSeconds: lifecycle.refreshAfterSeconds ?? 60,
         rows: [],
         session,
         sourceCount: 0,
@@ -158,38 +232,121 @@ export async function GET(request: NextRequest) {
   }
 }
 
-async function loadRegularMoversWithFallback(mode: MoverMode, allowRefresh: boolean) {
-  if (!allowRefresh) {
-    const snapshot = await loadLastGoodRegularMovers(mode);
-    if (snapshot) return { fallback: false, result: snapshot };
-    throw new Error("No completed regular-session snapshot is available");
-  }
-
-  const existing = regularMoverRequests.get(mode);
-  if (existing) {
-    try {
-      return { fallback: false, result: await existing };
-    } catch (error) {
-      const fallback = await loadLastGoodRegularMovers(mode);
-      if (fallback) return { fallback: true, result: fallback };
-      throw error;
-    }
-  }
-
-  const request = loadCachedRegularMovers(mode);
-  regularMoverRequests.set(mode, request);
-
+async function loadRegularMoversWithFallback(
+  mode: MoverMode,
+  lifecycle: DashboardMoverLifecycle,
+) {
   try {
-    const result = await request;
-    lastGoodRegularMovers.set(mode, result);
-    await writeDashboardMoverSnapshot(mode, result).catch(() => undefined);
-    return { fallback: false, result };
+    if (
+      lifecycle.phase === "finalizing" &&
+      isDashboardMoverFinalizationEligible("Regular", lifecycle)
+    ) {
+      const finalized = await finalizeRegularMovers(lifecycle);
+      return { fallback: false, result: finalized.get(mode)! };
+    }
+
+    const saved = await loadLastGoodRegularMovers(mode);
+    if (
+      saved &&
+      (lifecycle.phase === "closed" ||
+        saved.marketDate === lifecycle.marketDate)
+    ) {
+      if (lifecycle.phase !== "active") {
+        return { fallback: false, result: saved };
+      }
+    }
+
+    if (lifecycle.phase === "closed") {
+      throw new Error("No completed regular-session snapshot is available");
+    }
+
+    return {
+      fallback: false,
+      result: await loadActiveRegularMovers(mode, lifecycle.marketDate),
+    };
   } catch (error) {
     const fallback = await loadLastGoodRegularMovers(mode);
     if (fallback) return { fallback: true, result: fallback };
     throw error;
+  }
+}
+
+async function loadActiveRegularMovers(mode: MoverMode, marketDate: string) {
+  const key = `${marketDate}:${mode}`;
+  const existing = regularMoverRequests.get(key);
+  if (existing) return existing;
+
+  const request = loadCachedRegularMovers(mode, marketDate);
+  regularMoverRequests.set(key, request);
+  try {
+    const result = await request;
+    lastGoodRegularMovers.set(mode, result);
+    await writeDashboardMoverSnapshot(mode, result).catch(() => undefined);
+    return result;
   } finally {
-    regularMoverRequests.delete(mode);
+    regularMoverRequests.delete(key);
+  }
+}
+
+async function finalizeRegularMovers(lifecycle: DashboardMoverLifecycle) {
+  const existing = regularFinalizationRequests.get(lifecycle.marketDate);
+  if (existing) return existing;
+
+  const request = (async () => {
+    const saved = await Promise.all(
+      dashboardV2MoverModes.map(async (mode) => [
+        mode,
+        await readDashboardMoverSnapshot(mode).catch(() => null),
+      ] as const),
+    );
+    if (
+      saved.every(
+        ([, snapshot]) =>
+          snapshot?.marketDate === lifecycle.marketDate && snapshot.isFinal,
+      )
+    ) {
+      return new Map(
+        saved.map(([mode, snapshot]) => [mode, snapshot!] as const),
+      );
+    }
+
+    const snapshots = await Promise.all(
+      dashboardV2MoverModes.map(async (mode) => [
+        mode,
+        await loadRegularMarketMovers(mode, lifecycle.marketDate),
+      ] as const),
+    );
+    const finalizedAt = new Date().toISOString();
+    const isFinal = snapshots.every(([, snapshot]) =>
+      shouldFinalizeDashboardMoverSnapshot({
+        asOf: snapshot.asOf,
+        fetchedAt: snapshot.fetchedAt,
+        lifecycle,
+        session: "Regular",
+      }),
+    );
+    const results = new Map<MoverMode, DashboardMoverSnapshot>();
+
+    await Promise.all(
+      snapshots.map(async ([mode, snapshot]) => {
+        const result = {
+          ...snapshot,
+          finalizedAt: isFinal ? finalizedAt : null,
+          isFinal,
+        };
+        results.set(mode, result);
+        lastGoodRegularMovers.set(mode, result);
+        await writeDashboardMoverSnapshot(mode, result);
+      }),
+    );
+    return results;
+  })();
+
+  regularFinalizationRequests.set(lifecycle.marketDate, request);
+  try {
+    return await request;
+  } finally {
+    regularFinalizationRequests.delete(lifecycle.marketDate);
   }
 }
 
@@ -202,7 +359,10 @@ async function loadLastGoodRegularMovers(mode: MoverMode) {
   return persisted;
 }
 
-async function loadRegularMarketMovers(mode: MoverMode): Promise<DashboardMoverSnapshot> {
+async function loadRegularMarketMovers(
+  mode: MoverMode,
+  marketDate: string,
+): Promise<DashboardMoverSnapshot> {
   const { fmpApiKey } = getServerEnv();
   if (!fmpApiKey) throw new Error("FMP_API_KEY is not configured");
 
@@ -217,109 +377,304 @@ async function loadRegularMarketMovers(mode: MoverMode): Promise<DashboardMoverS
     asOf: readProviderAsOf(payload),
     ...enriched,
     fetchedAt: new Date().toISOString(),
+    finalizedAt: null,
+    isFinal: false,
+    marketDate,
     sourceCount: payload.length,
   };
 }
 
-async function loadExtendedCandidateUniverse() {
-  const { fmpApiKey } = getServerEnv();
-  if (!fmpApiKey) throw new Error("FMP_API_KEY is not configured");
-
-  const payloads = await Promise.all(
-    dashboardV2MoverModes.map((mode) =>
-      loadRegularMoverPayload(mode, fmpApiKey, { retryTransient: false }),
-    ),
-  );
-  const candidates = new Map<string, BaseMover>();
-  for (const payload of payloads) {
-    const rows = payload
-      .map(normalizeMover)
-      .filter((value): value is BaseMover => value !== null)
-      .slice(0, rowLimit);
-    for (const row of rows) {
-      if (!candidates.has(row.ticker)) candidates.set(row.ticker, row);
+async function loadExtendedMoversWithFallback(
+  session: ExtendedSession,
+  mode: MoverMode,
+  lifecycle: DashboardMoverLifecycle,
+) {
+  const key = extendedMoverKey(session, mode);
+  try {
+    if (
+      lifecycle.phase === "finalizing" &&
+      isDashboardMoverFinalizationEligible(session, lifecycle)
+    ) {
+      const finalized = await finalizeExtendedMovers(session, lifecycle);
+      return { fallback: false, result: finalized.get(mode)! };
     }
+
+    const saved = await loadLastGoodExtendedMovers(session, mode);
+    if (
+      saved &&
+      (lifecycle.phase === "closed" ||
+        saved.marketDate === lifecycle.marketDate)
+    ) {
+      if (lifecycle.phase !== "active") {
+        return { fallback: false, result: saved };
+      }
+    }
+
+    if (lifecycle.phase === "closed") {
+      return saved ? { fallback: false, result: saved } : null;
+    }
+
+    return {
+      fallback: false,
+      result: await loadActiveExtendedMovers(
+        session,
+        mode,
+        lifecycle.marketDate,
+      ),
+    };
+  } catch (error) {
+    const fallback = await loadLastGoodExtendedMovers(session, mode);
+    if (fallback) return { fallback: true, result: fallback };
+    throw error;
   }
-  return [...candidates.values()];
 }
 
-async function loadExtendedMarketMovers(session: ExtendedSession, mode: MoverMode) {
-  const { fmpApiKey } = getServerEnv();
-  if (!fmpApiKey) throw new Error("FMP_API_KEY is not configured");
+async function loadActiveExtendedMovers(
+  session: ExtendedSession,
+  mode: MoverMode,
+  marketDate: string,
+) {
+  const key = `${extendedMoverKey(session, mode)}:${marketDate}`;
+  const existing = extendedMoverRequests.get(key);
+  if (existing) return existing;
 
-  const candidates = await loadCachedExtendedCandidateUniverse();
-  const fetched = await mapWithConcurrency(
-    candidates,
-    extendedFetchConcurrency,
-    async (candidate) => {
-      try {
-        return {
-          candidate,
-          data: await loadCachedAftermarketSymbol(candidate.ticker),
-          ok: true as const,
-        };
-      } catch {
-        return { candidate, ok: false as const };
-      }
-    },
-  );
-  const successful = fetched.filter((result) => result.ok);
-  if (candidates.length && !successful.length) {
-    throw new Error("FMP aftermarket requests failed");
+  const request = loadCachedExtendedMovers(session, mode, marketDate);
+  extendedMoverRequests.set(key, request);
+  try {
+    const result = await request;
+    lastGoodExtendedMovers.set(extendedMoverKey(session, mode), result);
+    await writeDashboardExtendedMoverSnapshot(session, mode, result).catch(
+      () => undefined,
+    );
+    return result;
+  } finally {
+    extendedMoverRequests.delete(key);
   }
+}
 
-  const sessionRows = successful.flatMap(({ candidate, data }) => {
-    if (candidate.priceValue <= 0) return [];
-    const trade = newestSessionRecord(data.trades, session);
-    if (!trade) return [];
+async function finalizeExtendedMovers(
+  session: ExtendedSession,
+  lifecycle: DashboardMoverLifecycle,
+) {
+  const key = `${session}:${lifecycle.marketDate}`;
+  const existing = extendedFinalizationRequests.get(key);
+  if (existing) return existing;
 
-    const extendedPrice = numberValue(trade.record.price);
-    if (!Number.isFinite(extendedPrice) || extendedPrice < 0) return [];
-    const changePercentage =
-      ((extendedPrice - candidate.priceValue) / candidate.priceValue) * 100;
-    const quote = newestSessionRecord(data.quotes, session, trade.session.date);
-    const volumeValue = quote ? optionalNumber(quote.record.volume) : undefined;
+  const request = (async () => {
+    const saved = await Promise.all(
+      dashboardV2MoverModes.map(async (mode) => [
+        mode,
+        await readDashboardExtendedMoverSnapshot(session, mode).catch(
+          () => null,
+        ),
+      ] as const),
+    );
+    if (
+      saved.every(
+        ([, snapshot]) =>
+          snapshot?.marketDate === lifecycle.marketDate && snapshot.isFinal,
+      )
+    ) {
+      return new Map(
+        saved.map(([mode, snapshot]) => [mode, snapshot!] as const),
+      );
+    }
 
-    return [{
-      asOfMilliseconds: Math.max(
-        trade.session.epochMilliseconds,
-        quote?.session.epochMilliseconds || 0,
-      ),
-      changePercentage,
-      row: {
-        ...candidate,
-        changePercent: formatSignedPercent(changePercentage),
-        price: formatCurrency(extendedPrice),
-        priceValue: extendedPrice,
-        volume: volumeValue === undefined ? "—" : formatVolume(volumeValue),
-        volumeValue,
-      } satisfies BaseMover,
-      sessionDate: trade.session.date,
+    const universe = await loadMassiveExtendedUniverse(
+      session,
+      lifecycle.marketDate,
+    );
+    const snapshots = await Promise.all(
+      dashboardV2MoverModes.map(async (mode) => [
+        mode,
+        await buildExtendedMarketMovers(universe, mode),
+      ] as const),
+    );
+    const finalizedAt = new Date().toISOString();
+    const isFinal = snapshots.every(([, snapshot]) =>
+      shouldFinalizeDashboardMoverSnapshot({
+        asOf: snapshot.asOf,
+        fetchedAt: snapshot.fetchedAt,
+        lifecycle,
+        session,
+      }),
+    );
+    const results = new Map<MoverMode, DashboardExtendedMoverSnapshot>();
+
+    await Promise.all(
+      snapshots.map(async ([mode, snapshot]) => {
+        const result = {
+          ...snapshot,
+          finalizedAt: isFinal ? finalizedAt : null,
+          isFinal,
+        };
+        results.set(mode, result);
+        lastGoodExtendedMovers.set(extendedMoverKey(session, mode), result);
+        await writeDashboardExtendedMoverSnapshot(session, mode, result);
+      }),
+    );
+    return results;
+  })();
+
+  extendedFinalizationRequests.set(key, request);
+  try {
+    return await request;
+  } finally {
+    extendedFinalizationRequests.delete(key);
+  }
+}
+
+async function loadLastGoodExtendedMovers(
+  session: ExtendedSession,
+  mode: MoverMode,
+) {
+  const key = extendedMoverKey(session, mode);
+  const inMemory = lastGoodExtendedMovers.get(key);
+  if (inMemory) return inMemory;
+
+  const persisted = await readDashboardExtendedMoverSnapshot(session, mode).catch(() => null);
+  if (persisted) lastGoodExtendedMovers.set(key, persisted);
+  return persisted;
+}
+
+async function loadExtendedMarketMovers(
+  session: ExtendedSession,
+  mode: MoverMode,
+  marketDate: string,
+): Promise<DashboardExtendedMoverSnapshot> {
+  const universe = await loadMassiveExtendedUniverseWithDedup(
+    session,
+    marketDate,
+  );
+  return buildExtendedMarketMovers(universe, mode);
+}
+
+async function buildExtendedMarketMovers(
+  universe: ExtendedUniverse,
+  mode: MoverMode,
+): Promise<DashboardExtendedMoverSnapshot> {
+  const ranked = rankExtendedMovers(universe.candidates, mode).slice(0, rowLimit);
+  const tickerMetadata = await loadTickerMetadata(ranked.map((row) => row.ticker));
+  const baseRows = ranked.map((candidate) => {
+    const metadata = tickerMetadata.get(candidate.ticker);
+    return {
+      changePercent: formatSignedPercent(candidate.changePercentage),
+      company: metadata?.name || candidate.ticker,
+      logoUrl: `https://financialmodelingprep.com/image-stock/${encodeURIComponent(candidate.ticker)}.png`,
+      marketCap:
+        metadata?.marketCap === undefined ? "—" : formatMarketCap(metadata.marketCap),
+      marketCapValue: metadata?.marketCap,
+      price: formatCurrency(candidate.priceValue),
+      priceValue: candidate.priceValue,
       ticker: candidate.ticker,
-      volumeValue,
-    }];
+      volume:
+        candidate.volumeValue === undefined ? "—" : formatVolume(candidate.volumeValue),
+      volumeValue: candidate.volumeValue,
+    } satisfies BaseMover;
   });
-  const latestSessionDate = sessionRows.reduce(
-    (latest, row) => row.sessionDate > latest ? row.sessionDate : latest,
-    "",
-  );
-  const latestSessionRows = sessionRows.filter((row) => row.sessionDate === latestSessionDate);
-  const rankedRows = rankExtendedMovers(latestSessionRows, mode)
-    .slice(0, rowLimit)
-    .map((item) => item.row);
-  const enriched = await enrichMoverRows(rankedRows, fmpApiKey);
-  const asOfMilliseconds = latestSessionRows.reduce(
-    (latest, row) => Math.max(latest, row.asOfMilliseconds),
-    0,
-  );
+  const enriched = await enrichMoverRows(baseRows, "", false);
+  const marketCapCount = enriched.rows.filter(
+    (row) => row.marketCapValue !== undefined,
+  ).length;
 
   return {
-    asOf: asOfMilliseconds ? new Date(asOfMilliseconds).toISOString() : null,
-    ...enriched,
+    asOf: universe.asOfMilliseconds
+      ? new Date(universe.asOfMilliseconds).toISOString()
+      : null,
+    dataAvailability: {
+      ...enriched.dataAvailability,
+      marketCap:
+        marketCapCount === enriched.rows.length && enriched.rows.length
+          ? "ready"
+          : marketCapCount
+            ? "partial"
+            : "unavailable",
+    },
     fetchedAt: new Date().toISOString(),
-    matchingCount: latestSessionRows.length,
-    sourceCount: candidates.length,
+    finalizedAt: null,
+    isFinal: false,
+    marketDate: universe.marketDate,
+    matchingCount: universe.candidates.length,
+    rows: enriched.rows,
+    sourceCount: universe.sourceCount,
   };
+}
+
+async function loadMassiveExtendedUniverseWithDedup(
+  session: ExtendedSession,
+  marketDate: string,
+) {
+  const key = `${session}:${marketDate}`;
+  const existing = extendedUniverseRequests.get(key);
+  if (existing) return existing;
+
+  const request = loadCachedMassiveExtendedUniverse(session, marketDate);
+  extendedUniverseRequests.set(key, request);
+  try {
+    return await request;
+  } finally {
+    extendedUniverseRequests.delete(key);
+  }
+}
+
+async function loadMassiveExtendedUniverse(
+  session: ExtendedSession,
+  marketDate: string,
+) {
+  const { polygonApiKey } = getServerEnv();
+  if (!polygonApiKey) throw new Error("POLYGON_API_KEY is not configured");
+
+  const snapshotUrl = new URL(
+    "https://api.massive.com/v2/snapshot/locale/us/markets/stocks/tickers",
+  );
+  const [snapshotPayload, dailyPayload] = await Promise.all([
+    loadMassiveObject(snapshotUrl, polygonApiKey),
+    session === "After"
+      ? loadMassiveObject(
+          new URL(
+            `https://api.massive.com/v2/aggs/grouped/locale/us/market/stocks/${marketDate}`,
+          ),
+          polygonApiKey,
+        )
+      : Promise.resolve(undefined),
+  ]);
+  const universe = buildMassiveExtendedCandidates({
+    dailyPayload,
+    session,
+    snapshotPayload,
+  });
+  if (
+    universe.marketDate !== marketDate ||
+    !universe.candidates.length
+  ) {
+    throw new Error(`Massive returned no ${session} aggregate candidates`);
+  }
+  return universe;
+}
+
+async function loadTickerMetadata(tickers: string[]) {
+  const values = new Map<string, { marketCap?: number; name?: string }>();
+  if (!tickers.length) return values;
+
+  const result = await supabaseSelect("tickers", {
+    limit: String(tickers.length),
+    select: "symbol,name,market_cap",
+    symbol: `in.(${tickers.join(",")})`,
+  });
+  if (!result.ok || !Array.isArray(result.data)) return values;
+
+  for (const value of result.data) {
+    if (!value || typeof value !== "object") continue;
+    const row = value as Record<string, unknown>;
+    const ticker = textValue(row.symbol).toUpperCase();
+    const marketCap = optionalNumber(row.market_cap);
+    if (!ticker) continue;
+    values.set(ticker, {
+      marketCap,
+      name: textValue(row.name) || undefined,
+    });
+  }
+  return values;
 }
 
 async function enrichMoverRows(
@@ -379,26 +734,6 @@ async function loadRegularMoverPayload(
   );
 }
 
-async function loadAftermarketSymbol(symbol: string) {
-  const { fmpApiKey } = getServerEnv();
-  if (!fmpApiKey) throw new Error("FMP_API_KEY is not configured");
-
-  const tradeUrl = new URL("https://financialmodelingprep.com/stable/aftermarket-trade");
-  tradeUrl.searchParams.set("symbol", symbol);
-  const quoteUrl = new URL("https://financialmodelingprep.com/stable/aftermarket-quote");
-  quoteUrl.searchParams.set("symbol", symbol);
-  const [trades, quotes] = await Promise.allSettled([
-    loadFmpArray(tradeUrl, fmpApiKey),
-    loadFmpArray(quoteUrl, fmpApiKey),
-  ]);
-  if (trades.status === "rejected") throw trades.reason;
-
-  return {
-    quotes: quotes.status === "fulfilled" ? quotes.value : [],
-    trades: trades.value,
-  };
-}
-
 async function loadFmpArray(
   url: string | URL,
   fmpApiKey: string,
@@ -444,59 +779,50 @@ class FmpRequestError extends Error {
   }
 }
 
+async function loadMassiveObject(url: URL, apiKey: string) {
+  const attempts = 2;
+  url.searchParams.set("apiKey", apiKey);
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(massiveRequestTimeoutMs),
+      });
+      const payload = await response.json().catch(() => null);
+      if (response.ok && payload && typeof payload === "object") return payload;
+
+      const retryable =
+        response.status === 408 ||
+        response.status === 425 ||
+        response.status === 429 ||
+        response.status >= 500;
+      if (!retryable || attempt + 1 >= attempts) {
+        throw new MassiveRequestError(response.status, retryable);
+      }
+    } catch (error) {
+      if (error instanceof MassiveRequestError && !error.retryable) throw error;
+      if (attempt + 1 >= attempts) throw error;
+    }
+
+    await delay(regularMoverRetryDelayMs);
+  }
+
+  throw new Error("Massive request failed");
+}
+
+class MassiveRequestError extends Error {
+  constructor(
+    readonly status: number,
+    readonly retryable: boolean,
+  ) {
+    super(`Massive request failed with status ${status}`);
+  }
+}
+
 function delay(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
-
-function newestSessionRecord(
-  values: unknown[],
-  session: ExtendedSession,
-  sessionDate?: string,
-) {
-  let latest:
-    | {
-        record: Record<string, unknown>;
-        session: NonNullable<ReturnType<typeof getNewYorkMarketSession>>;
-      }
-    | undefined;
-
-  for (const value of values) {
-    if (!value || typeof value !== "object") continue;
-    const record = value as Record<string, unknown>;
-    const classified = getNewYorkMarketSession(record.timestamp);
-    if (
-      !classified ||
-      classified.session !== session ||
-      (sessionDate && classified.date !== sessionDate)
-    ) {
-      continue;
-    }
-    if (!latest || classified.epochMilliseconds > latest.session.epochMilliseconds) {
-      latest = { record, session: classified };
-    }
-  }
-  return latest;
-}
-
-async function mapWithConcurrency<T, R>(
-  values: readonly T[],
-  concurrency: number,
-  callback: (value: T, index: number) => Promise<R>,
-) {
-  const results = new Array<R>(values.length);
-  let nextIndex = 0;
-  const workers = Array.from(
-    { length: Math.min(Math.max(1, concurrency), values.length) },
-    async () => {
-      while (nextIndex < values.length) {
-        const index = nextIndex;
-        nextIndex += 1;
-        results[index] = await callback(values[index], index);
-      }
-    },
-  );
-  await Promise.all(workers);
-  return results;
 }
 
 async function loadBatchMarketCaps(tickers: string[], apiKey: string) {
@@ -642,6 +968,10 @@ function normalizeSession(value: string | null): Session {
   return dashboardV2Sessions.includes(value as Session) ? (value as Session) : "Regular";
 }
 
+function extendedMoverKey(session: ExtendedSession, mode: MoverMode) {
+  return `${session}:${mode}`;
+}
+
 function textValue(value: unknown) {
   return typeof value === "string" || typeof value === "number" ? String(value).trim() : "";
 }
@@ -687,6 +1017,36 @@ function unavailableData() {
   return { events: "unavailable", marketCap: "unavailable", volume: "unavailable" } as const;
 }
 
+function moverFreshness(
+  isFinal: boolean,
+  lifecycle: DashboardMoverLifecycle,
+  stale: boolean,
+) {
+  if (isFinal) return "final";
+  if (lifecycle.phase === "finalizing") return "finalizing";
+  if (lifecycle.phase === "closed") return "closed";
+  return stale ? "stale" : "fresh";
+}
+
 function json(data: Record<string, unknown>, status = 200) {
   return NextResponse.json(data, { headers: { "Cache-Control": "no-store" }, status });
+}
+
+function missingKeyResponse(key: string, session: Session, mode: MoverMode) {
+  return json(
+    {
+      asOf: null,
+      available: false,
+      dataAvailability: unavailableData(),
+      error: `${key} is not configured`,
+      mode,
+      ok: false,
+      reason: "missing_key",
+      receivedAt: new Date().toISOString(),
+      rows: [],
+      session,
+      sourceCount: 0,
+    },
+    503,
+  );
 }

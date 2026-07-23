@@ -21,6 +21,8 @@ services:
         sync: false
       - key: POLYGON_API_KEY
         sync: false
+      - key: DASHBOARD_MOVERS_CRON_SECRET
+        sync: false
       - key: NAS_BASE_URL
         sync: false
       - key: NAS_INGEST_TOKEN
@@ -47,4 +49,17 @@ services:
       - key: NODE_VERSION
         value: "22"
       - key: APP_BASE_URL
+        sync: false
+  - type: cron
+    name: us-stock-radar-dashboard-mover-finalizer
+    runtime: node
+    schedule: "* * * * 1-5"
+    buildCommand: npm ci
+    startCommand: npm run dashboard:movers-finalize
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: APP_BASE_URL
+        sync: false
+      - key: DASHBOARD_MOVERS_CRON_SECRET
         sync: false
