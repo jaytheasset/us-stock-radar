@@ -39,7 +39,6 @@ export function StockRadarFilingsV2() {
   const [selectedId, setSelectedId] = useState(filingsV2Records[0].id);
   const [isDetailSheetOpen, setIsDetailSheetOpen] = useState(false);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
-  const [detailNotice, setDetailNotice] = useState("");
   const [previewRequestId, setPreviewRequestId] = useState(0);
   const detailOpenerRef = useRef<HTMLElement | null>(null);
   const detailSelectionAnchorRef = useRef<HTMLDivElement | null>(null);
@@ -216,7 +215,6 @@ export function StockRadarFilingsV2() {
     const usesDesktopRail = window.matchMedia("(min-width: 1181px)").matches;
 
     setSelectedId(record.id);
-    setDetailNotice("");
     if (usesDesktopRail) {
       setPreviewRequestId((current) => current + 1);
     }
@@ -229,9 +227,6 @@ export function StockRadarFilingsV2() {
   const openMobileFilters = () => {
     setIsDetailSheetOpen(false);
     setIsFilterSheetOpen(true);
-  };
-  const showMockDetailNotice = () => {
-    setDetailNotice("Mock only — the filing analysis route is not connected.");
   };
 
   return (
@@ -271,8 +266,6 @@ export function StockRadarFilingsV2() {
         </div>
         <div className={styles.detailRailPreview}>
           <FilingsV2DetailPanel
-            detailNotice={detailNotice}
-            onMockDetails={showMockDetailNotice}
             record={selectedRecord}
             relatedRecords={relatedRecords}
           />
@@ -283,10 +276,8 @@ export function StockRadarFilingsV2() {
       </aside>
 
       <MobileFilingsV2DetailSheet
-        detailNotice={detailNotice}
         isOpen={isDetailSheetOpen}
         onDismiss={() => setIsDetailSheetOpen(false)}
-        onMockDetails={showMockDetailNotice}
         openerRef={detailOpenerRef}
         record={selectedRecord}
         relatedRecords={relatedRecords}

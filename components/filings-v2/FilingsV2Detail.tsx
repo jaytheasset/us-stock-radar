@@ -1,4 +1,5 @@
 import type { RefObject } from "react";
+import Link from "next/link";
 import { Bookmark, ChevronRight, FileText } from "lucide-react";
 import { FilingsV2EventBadge } from "@/components/filings-v2/FilingsV2EventBadge";
 import { FilingsV2ImpactScore } from "@/components/filings-v2/FilingsV2ImpactScore";
@@ -12,15 +13,11 @@ import {
 import styles from "./StockRadarFilingsV2.module.css";
 
 type FilingsV2DetailContentProps = {
-  detailNotice: string;
-  onMockDetails: () => void;
   record: FilingsV2Record;
   relatedRecords: readonly FilingsV2Record[];
 };
 
 export function FilingsV2DetailContent({
-  detailNotice,
-  onMockDetails,
   record,
   relatedRecords,
 }: FilingsV2DetailContentProps) {
@@ -97,12 +94,11 @@ export function FilingsV2DetailContent({
       ) : null}
 
       <div className={styles.detailActionArea}>
-        <button className={styles.detailCta} onClick={onMockDetails} type="button">
+        <Link className={styles.detailCta} href={`/filings/${record.id}`}>
           <FileText aria-hidden="true" size={17} />
           View Filing Details
           <ChevronRight aria-hidden="true" size={18} />
-        </button>
-        <p aria-live="polite">{detailNotice}</p>
+        </Link>
       </div>
     </div>
   );
