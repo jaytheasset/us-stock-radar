@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { AdSensePublisherLoader } from "@/components/ads/AdSensePublisherLoader";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import "./stock-radar-tokens.css";
 import "./globals.css";
@@ -38,6 +39,7 @@ export default function RootLayout({
         />
       </head>
       <body>
+        <AdSensePublisherLoader enabledForViewer />
         {children}
         <ThemeToggle />
       </body>

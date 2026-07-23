@@ -786,11 +786,16 @@ The components have no props, advertising SDK, network request, ad-unit identifi
 
 ### Purpose and files
 
-- Shared provider boundary: `components/ads/AdSenseSlot.tsx` and `components/ads/AdSenseSlot.module.css`
+- Shared provider boundary: `components/ads/adsenseConfig.ts`, `components/ads/adsenseScriptLoader.ts`, `components/ads/AdSensePublisherLoader.tsx`, `components/ads/AdSenseSlot.tsx`, and `components/ads/AdSenseSlot.module.css`
 - News V2 placement owners: `components/news-v2/NewsV2InsightRail.tsx`, `components/news-v2/NewsV2List.tsx`, `components/news-v2/NewsV2RailAdSlot.tsx`, `components/news-v2/NewsV2InlineAd.tsx`, and `components/news-v2/NewsV2InsightInlineAd.tsx`
 - Responsive geometry and visibility owner: `components/news-v2/StockRadarNewsV2.module.css`
+- Site-wide Anchor opt-in owner: `app/layout.tsx`
 
-`AdSenseSlot` is the only News V2 component that knows the Google publisher configuration, official `ins.adsbygoogle` attributes, script URL, lazy-request lifecycle, or `adsbygoogle.push` call. It loads `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js` at most once per page, only after an eligible slot is within the IntersectionObserver preload margin. Each mounted slot guards its push independently and pushes exactly once. A slot is not requested when its rendered width or height is zero, and no automatic refresh timer or repeat push is permitted.
+`adsenseScriptLoader` is the single owner of the official `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js` script ID and DOM insertion. It stores the in-flight or completed promise on `window`, also checks the stable script element ID, and therefore inserts at most one script across Anchor opt-in, manual slots, React rerenders, and App Router navigation. It does not create an ad container, call `adsbygoogle.push`, or schedule refreshes.
+
+`AdSenseSlot` owns the manual News V2 `ins.adsbygoogle` attributes, lazy-request lifecycle, and per-mounted-slot `adsbygoogle.push` guard. Each manual inventory type checks only the production publisher ID and its own slot ID; a missing unrelated slot ID does not disable it. The existing IntersectionObserver preload margin, media-query activation, zero-dimension guard, stable reservation, and one-push-per-slot behavior remain unchanged. No automatic refresh timer or repeat push is permitted.
+
+`AdSensePublisherLoader` is a non-visual root-layout client component for Google Auto ads Anchor opt-in. It returns `null` and only asks the shared loader for the publisher script when production, publisher, Anchor flag, and viewer-level `enabledForViewer` conditions all pass. Google Auto ads and the AdSense site settings own the actual Anchor DOM, dismissal behavior, responsive behavior, and placement; the application must not create a fixed-position imitation, placeholder, or Anchor `data-ad-slot`.
 
 ### Inventory and responsive placement
 
@@ -799,14 +804,27 @@ The components have no props, advertising SDK, network request, ad-unit identifi
 - At 980 px and below, right-rail and desktop-inline inventory is hidden. Mobile/tablet `320 x 100` inline inventory appears after every eleven news rows and retains the existing insight-section reservation.
 - Desktop and mobile placements have mutually exclusive media-query activation. An inactive placement never renders an `ins.adsbygoogle` element and therefore cannot request a hidden ad. All shells reserve fixed height before provider activation to prevent layout shift.
 
-### Configuration and fallback
+### Configuration, fallback, and activation
 
-AdSense is all-or-nothing for News V2 and activates only in a production build when every variable below is present:
+The publisher script is eligible only in a production build with `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` and at least one enabled consumer: `NEXT_PUBLIC_ADSENSE_ANCHOR_ENABLED=true` or an individually configured manual slot. Manual inventory is independently enabled by its own slot variable:
 
 - `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID`
+- `NEXT_PUBLIC_ADSENSE_ANCHOR_ENABLED` (default `false`)
 - `NEXT_PUBLIC_ADSENSE_NEWS_V2_RAIL_300X250_SLOT_ID`
 - `NEXT_PUBLIC_ADSENSE_NEWS_V2_RAIL_300X600_SLOT_ID`
 - `NEXT_PUBLIC_ADSENSE_NEWS_V2_DESKTOP_INLINE_SLOT_ID`
 - `NEXT_PUBLIC_ADSENSE_NEWS_V2_MOBILE_INLINE_SLOT_ID`
 
-The publisher value must be the AdSense client identifier (for example, a value with the `ca-pub-` prefix), and each inventory variable must contain its matching AdSense ad-unit slot ID. These public identifiers are documented in `.env.local.example`; real account values must be supplied by the production environment and must not be committed. In development, or when any required production value is absent, every eligible placement renders the existing `Advertisement` placeholder and no Google script, ad element, or provider request is created.
+The publisher value must be the AdSense client identifier (for example, a value with the `ca-pub-` prefix), and each manual inventory variable must contain its matching AdSense ad-unit slot ID. These public identifiers are documented in `.env.local.example`; real account values must be supplied by the production environment and must not be committed. In development, manual positions retain their established `Advertisement` placeholders, while the Anchor loader renders nothing and does not load the Google script. In production, a missing manual slot ID leaves only that manual position on its placeholder path and does not block another configured slot or Anchor.
+
+### Required AdSense console settings for the bottom Anchor
+
+Code only opts the site into the official publisher script. Production operators must configure the corresponding site in AdSense:
+
+1. Enable Auto ads.
+2. In **Overlay formats**, enable **Anchor ads** and disable unwanted **Vignette ads** and **Side rail ads**.
+3. In the Anchor advanced position setting, select **Bottom only**. Google documents the available Anchor positions and the site editor path in [New settings for anchor ads and side rail ads](https://support.google.com/adsense/answer/16242705).
+4. Disable unwanted in-page Auto ads formats. The application supplies its own manual News V2 inventory and does not opt into or imitate Auto ads in-page placement.
+5. Confirm the deployed site behavior against Google's [Anchor ads contract](https://support.google.com/adsense/answer/15484692), including Google-owned dismissal and responsive behavior.
+
+`enabledForViewer` is the future viewer-policy boundary for Ad-Free subscriptions. The current application does not expose a settled auth/subscription advertising contract, so root layout passes the general enabled state without fabricating plan checks. Before enabling Anchor ads for a real deployment, the team must separately confirm the intended exposure scope until Ad-Free membership enforcement is implemented.
