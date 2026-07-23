@@ -795,6 +795,8 @@ The components have no props, advertising SDK, network request, ad-unit identifi
 
 `AdSenseSlot` owns the manual News V2 `ins.adsbygoogle` attributes, lazy-request lifecycle, and per-mounted-slot `adsbygoogle.push` guard. Each manual inventory type checks only the production publisher ID and its own slot ID; a missing unrelated slot ID does not disable it. The existing IntersectionObserver preload margin, media-query activation, zero-dimension guard, stable reservation, and one-push-per-slot behavior remain unchanged. No automatic refresh timer or repeat push is permitted.
 
+Every rendered manual slot, including its development placeholder path, includes a low-emphasis site-owned footer with the inert label `Advertisement`, a divider, and a `Remove ads` link to the canonical `/premium` route. The footer is a sibling after the fixed-size ad surface: it is never a child of `ins.adsbygoogle`, never overlays the creative, and has explicit spacing plus a border separating its link target from the Google ad click area. This separation follows Google's [ad placement policy](https://support.google.com/adsense/answer/1346295?hl=en) guidance for avoiding accidental clicks near ads. `showRemoveAdsLink` can suppress this footer for a manual placement, while `enabledForViewer=false` suppresses both the manual ad and its footer without inventing a current subscription state.
+
 `AdSensePublisherLoader` is a non-visual root-layout client component for Google Auto ads Anchor opt-in. It returns `null` and only asks the shared loader for the publisher script when production, publisher, Anchor flag, and viewer-level `enabledForViewer` conditions all pass. Google Auto ads and the AdSense site settings own the actual Anchor DOM, dismissal behavior, responsive behavior, and placement; the application must not create a fixed-position imitation, placeholder, or Anchor `data-ad-slot`.
 
 ### Inventory and responsive placement
@@ -828,3 +830,5 @@ Code only opts the site into the official publisher script. Production operators
 5. Confirm the deployed site behavior against Google's [Anchor ads contract](https://support.google.com/adsense/answer/15484692), including Google-owned dismissal and responsive behavior.
 
 `enabledForViewer` is the future viewer-policy boundary for Ad-Free subscriptions. The current application does not expose a settled auth/subscription advertising contract, so root layout passes the general enabled state without fabricating plan checks. Before enabling Anchor ads for a real deployment, the team must separately confirm the intended exposure scope until Ad-Free membership enforcement is implemented.
+
+The manual-slot `Remove ads` link is conversion navigation only. It does not assert or persist Ad-Free entitlement, does not start checkout, and does not alter the Google-owned Auto ads Anchor. Auth, billing, subscription storage, and viewer-level enforcement remain separately scoped work.
