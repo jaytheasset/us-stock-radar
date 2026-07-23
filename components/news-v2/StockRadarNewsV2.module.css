@@ -459,6 +459,7 @@
 .rowTime {
   color: var(--sr-color-text-meta);
   font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-regular);
   font-variant-numeric: var(--sr-font-variant-numeric);
   line-height: var(--sr-line-height-none);
   white-space: nowrap;
@@ -562,6 +563,7 @@
 .mobileTickerOverflow,
 .rowMobilePublishedAt {
   display: none;
+  font-weight: var(--sr-font-weight-regular);
 }
 
 .tickerChip,
@@ -591,7 +593,6 @@
   display: grid;
   justify-items: center;
   gap: var(--sr-space-1);
-  border-left: var(--sr-border-width) solid var(--sr-color-divider);
   padding-left: var(--sr-space-3);
 }
 

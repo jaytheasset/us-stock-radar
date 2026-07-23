@@ -612,6 +612,7 @@
   gap: var(--sr-space-1);
   color: var(--sr-color-text-meta);
   font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-regular);
   font-variant-numeric: var(--sr-font-variant-numeric);
   line-height: var(--sr-line-height-none);
   white-space: nowrap;
@@ -619,7 +620,7 @@
 
 .filingItemTime span:last-child {
   color: var(--sr-color-text-primary);
-  font-weight: var(--sr-font-weight-semibold);
+  font-weight: var(--sr-font-weight-regular);
 }
 
 .desktopInlineAdItem {
@@ -760,6 +761,7 @@
 
 .mobileFiledAt {
   display: none;
+  font-weight: var(--sr-font-weight-regular);
 }
 
 .filingTitle {
@@ -830,9 +832,11 @@
 
 .filingPrice {
   display: grid;
+  justify-items: end;
   gap: var(--sr-space-1);
   font-variant-numeric: var(--sr-font-variant-numeric);
   line-height: var(--sr-line-height-none);
+  text-align: right;
 }
 
 .filingPrice strong {
@@ -868,7 +872,6 @@
   display: grid;
   justify-items: center;
   gap: var(--sr-space-1);
-  border-left: var(--sr-border-width) solid var(--sr-color-divider);
   padding-left: var(--sr-space-3);
 }
 

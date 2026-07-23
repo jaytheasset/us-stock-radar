@@ -43,14 +43,12 @@ const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
   minute: "2-digit",
   month: "short",
   timeZone: "America/New_York",
-  timeZoneName: "short",
   year: "numeric",
 });
 const timeFormatter = new Intl.DateTimeFormat("en-US", {
   hour: "numeric",
   minute: "2-digit",
   timeZone: "America/New_York",
-  timeZoneName: "short",
 });
 
 export async function loadFilingsV2Data(): Promise<FilingsV2Data> {
@@ -209,7 +207,7 @@ function mapEventRow(row: UnknownRecord): FilingsV2Record | null {
     filedAt,
     filedDate: dateFormatter.format(new Date(filedAt)),
     filedDateTime: formatDateTime(filedAt),
-    filedTime: timeFormatter.format(new Date(filedAt)),
+    filedTime: `${timeFormatter.format(new Date(filedAt))} ET`,
     formType:
       firstString(contexts, ["form_type", "form", "filing_type"]) || "SEC filing",
     id,
@@ -479,9 +477,10 @@ function clampScore(value: number) {
 }
 
 function formatDateTime(value: string) {
-  return dateTimeFormatter
+  const formatted = dateTimeFormatter
     .format(new Date(value))
     .replace(/, (?=\d{1,2}:\d{2})/, " - ");
+  return `${formatted} ET`;
 }
 
 function cleanText(value: string) {

@@ -205,14 +205,14 @@ export function formatNewsV2PublishedAt(
   const value = new Date(publishedAt);
   if (Number.isNaN(value.getTime())) return "";
 
-  return new Intl.DateTimeFormat("en-US", {
+  const formatted = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York",
     month: format === "full" ? "short" : undefined,
     day: format === "full" ? "numeric" : undefined,
     hour: "numeric",
     minute: "2-digit",
-    timeZoneName: format === "full" ? "short" : undefined,
   }).format(value);
+  return `${formatted} ET`;
 }
 
 function timestampValue(value: string) {
