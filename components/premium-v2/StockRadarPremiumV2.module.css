@@ -1,6 +1,24 @@
 .root {
+  --premium-primary-surface:
+    linear-gradient(
+      180deg,
+      var(--sr-color-accent-cta-strong),
+      var(--sr-color-accent-cta-strong-bottom)
+    ),
+    var(--sr-color-surface-emphasized-action);
+  --premium-primary-border: var(--sr-color-accent-border-emphasis);
+  --premium-primary-text: var(--sr-color-accent-text-soft);
+  --premium-primary-shadow: var(--sr-shadow-cta);
+
   min-width: 0;
   padding: var(--sr-space-5) var(--sr-page-gutter-desktop) var(--sr-space-8);
+}
+
+:global([data-sr-theme="light"]) .root {
+  --premium-primary-surface: var(--sr-color-accent);
+  --premium-primary-border: var(--sr-color-accent-border-strong);
+  --premium-primary-text: var(--sr-color-text-inverse);
+  --premium-primary-shadow: none;
 }
 
 .workspace {
@@ -117,15 +135,15 @@
 }
 
 .primaryButton {
-  border: var(--sr-border-width) solid var(--sr-color-surface-primary-action);
-  color: var(--sr-color-text-primary-action);
-  background: var(--sr-color-surface-primary-action);
-  box-shadow: var(--sr-shadow-cta);
+  border: var(--sr-border-width) solid var(--premium-primary-border);
+  color: var(--premium-primary-text);
+  background: var(--premium-primary-surface);
+  box-shadow: var(--premium-primary-shadow);
 }
 
 .primaryButton:hover {
-  border-color: var(--sr-color-accent-strong);
-  background: var(--sr-color-accent-strong);
+  border-color: var(--sr-color-accent);
+  color: var(--sr-color-accent);
 }
 
 .secondaryButton {
