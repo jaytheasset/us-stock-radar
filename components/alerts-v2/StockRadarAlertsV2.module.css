@@ -120,11 +120,18 @@
 
 .planSummary a,
 .cardFooter a,
-.recentFooter a {
+.recentFooter button {
   color: var(--sr-color-accent);
   font-size: var(--sr-font-size-md);
   font-weight: var(--sr-font-weight-semibold);
   text-decoration: none;
+}
+
+.recentFooter button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
 }
 
 .notice,
@@ -872,10 +879,17 @@
 
 .recentFooter {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sr-space-3);
   border-top: var(--sr-border-width) solid var(--alerts-border);
   margin-top: var(--sr-space-2);
   padding-top: var(--sr-space-2);
+}
+
+.recentFooter span {
+  color: var(--alerts-muted);
+  font-size: var(--sr-font-size-sm);
 }
 
 .recentHead,
@@ -1018,7 +1032,7 @@
 .primaryButton:focus-visible,
 .secondaryButton:focus-visible,
 .cardFooter a:focus-visible,
-.recentFooter a:focus-visible,
+.recentFooter button:focus-visible,
 .ultimateFooter a:focus-visible,
 .toggle:focus-visible,
 .removeButton:focus-visible,

@@ -341,7 +341,7 @@ export const filingAlertGroups: readonly FilingAlertGroup[] = [
   },
 ];
 
-export const recentAlerts: readonly RecentAlert[] = [
+const recentAlertTemplates: readonly RecentAlert[] = [
   {
     id: "rxrx-clinical",
     ticker: "RXRX",
@@ -384,4 +384,66 @@ export const recentAlerts: readonly RecentAlert[] = [
     event: "Earnings date confirmed",
     time: "2 days ago",
   },
+  {
+    id: "meta-company",
+    ticker: "META",
+    category: "Major Company Update",
+    event: "Material operating update detected",
+    time: "3 days ago",
+  },
+  {
+    id: "googl-strategic",
+    ticker: "GOOGL",
+    category: "M&A & Strategic Events",
+    event: "Strategic transaction update filed",
+    time: "3 days ago",
+  },
+  {
+    id: "msft-guidance",
+    ticker: "MSFT",
+    category: "Earnings & Guidance",
+    event: "Outlook revision detected",
+    time: "4 days ago",
+  },
+  {
+    id: "tsla-company",
+    ticker: "TSLA",
+    category: "Major Company Update",
+    event: "Material company update detected",
+    time: "4 days ago",
+  },
+  {
+    id: "aapl-guidance",
+    ticker: "AAPL",
+    category: "Earnings & Guidance",
+    event: "Quarterly guidance update detected",
+    time: "5 days ago",
+  },
+  {
+    id: "nvda-company",
+    ticker: "NVDA",
+    category: "Major Company Update",
+    event: "New product update detected",
+    time: "5 days ago",
+  },
 ];
+
+const ALERT_HISTORY_TOTAL = 46;
+
+export const recentAlerts: readonly RecentAlert[] = Array.from(
+  { length: ALERT_HISTORY_TOTAL },
+  (_, index) => {
+    const template = recentAlertTemplates[index % recentAlertTemplates.length];
+    const repetition = Math.floor(index / recentAlertTemplates.length);
+
+    if (repetition === 0) {
+      return template;
+    }
+
+    return {
+      ...template,
+      id: `${template.id}-${repetition + 1}`,
+      time: repetition === 1 ? "Last week" : `${repetition + 1} weeks ago`,
+    };
+  },
+);

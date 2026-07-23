@@ -20,6 +20,9 @@ import {
 } from "@/lib/mock/alertsV2Data";
 import styles from "./StockRadarAlertsV2.module.css";
 
+const INITIAL_RECENT_ALERT_COUNT = 6;
+const ALERT_HISTORY_PAGE_SIZE = 20;
+
 function ToggleSwitch({
   checked,
   disabled = false,
@@ -90,6 +93,9 @@ export function StockRadarAlertsV2() {
   const [hasSentTestAlert, setHasSentTestAlert] = useState(false);
   const [upgradeMessage, setUpgradeMessage] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved">("idle");
+  const [visibleRecentAlertCount, setVisibleRecentAlertCount] = useState(
+    INITIAL_RECENT_ALERT_COUNT,
+  );
   const fromWatchlistButtonRef = useRef<HTMLButtonElement>(null);
 
   const enabledCount = useMemo(
@@ -100,6 +106,9 @@ export function StockRadarAlertsV2() {
     () => coverageItems.filter((item) => !item.locked && coverageState[item.id]).length,
     [coverageState],
   );
+  const visibleRecentAlerts = recentAlerts.slice(0, visibleRecentAlertCount);
+  const hasExpandedAlertHistory = visibleRecentAlertCount > INITIAL_RECENT_ALERT_COUNT;
+  const hasMoreAlertHistory = visibleRecentAlertCount < recentAlerts.length;
 
   useEffect(() => {
     const visibleTickerCount = mockPlan.tickerLimit ?? initialAlertTickers.length;
@@ -608,7 +617,7 @@ export function StockRadarAlertsV2() {
             <span role="columnheader">Time</span>
             <span role="columnheader">Status</span>
           </div>
-          {recentAlerts.map((alert) => (
+          {visibleRecentAlerts.map((alert) => (
             <article className={styles.recentRow} key={alert.id} role="row">
               <strong role="cell">{alert.ticker}</strong>
               <span role="cell">{alert.category}</span>
@@ -622,7 +631,37 @@ export function StockRadarAlertsV2() {
           ))}
         </div>
         <div className={styles.recentFooter}>
-          <Link href="/alerts">View alert history</Link>
+          {hasExpandedAlertHistory ? (
+            <span aria-live="polite">
+              Showing {visibleRecentAlerts.length} of {recentAlerts.length}
+            </span>
+          ) : (
+            <span />
+          )}
+          <button
+            onClick={() => {
+              if (!hasMoreAlertHistory) {
+                setVisibleRecentAlertCount(INITIAL_RECENT_ALERT_COUNT);
+                return;
+              }
+
+              setVisibleRecentAlertCount((current) =>
+                Math.min(
+                  current === INITIAL_RECENT_ALERT_COUNT
+                    ? ALERT_HISTORY_PAGE_SIZE
+                    : current + ALERT_HISTORY_PAGE_SIZE,
+                  recentAlerts.length,
+                ),
+              );
+            }}
+            type="button"
+          >
+            {!hasExpandedAlertHistory
+              ? "View alert history"
+              : hasMoreAlertHistory
+                ? `Load more (${Math.min(ALERT_HISTORY_PAGE_SIZE, recentAlerts.length - visibleRecentAlerts.length)})`
+                : "Show recent"}
+          </button>
         </div>
           </section>
         </main>
