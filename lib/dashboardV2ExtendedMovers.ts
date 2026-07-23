@@ -1,4 +1,5 @@
 import type { DashboardV2Session } from "./dashboardV2Types";
+import { classifyUsEquityMarketMinute } from "./usEquityMarketCalendar";
 
 export const dashboardV2MoverModes = ["gainers", "losers", "volume"] as const;
 
@@ -40,26 +41,18 @@ export function getNewYorkMarketSession(value: unknown): NewYorkMarketSession | 
       .filter((part) => part.type !== "literal")
       .map((part) => [part.type, part.value]),
   );
-  if (parts.weekday === "Sat" || parts.weekday === "Sun") return null;
-
   const hour = Number(parts.hour);
   const minute = Number(parts.minute);
   const second = Number(parts.second);
   if (![hour, minute, second].every(Number.isFinite)) return null;
 
-  const time = hour * 60 * 60 + minute * 60 + second;
-  let session: DashboardV2Session | null = null;
-  if (time >= 4 * 60 * 60 && time < 9 * 60 * 60 + 30 * 60) {
-    session = "Pre";
-  } else if (time >= 9 * 60 * 60 + 30 * 60 && time < 16 * 60 * 60) {
-    session = "Regular";
-  } else if (time >= 16 * 60 * 60 && time < 20 * 60 * 60) {
-    session = "After";
-  }
+  const date = `${parts.year}-${parts.month}-${parts.day}`;
+  const time = hour * 60 + minute + second / 60;
+  const session: DashboardV2Session | null = classifyUsEquityMarketMinute(date, time);
   if (!session) return null;
 
   return {
-    date: `${parts.year}-${parts.month}-${parts.day}`,
+    date,
     epochMilliseconds,
     session,
   };

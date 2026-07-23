@@ -15,6 +15,11 @@ import {
   rankExtendedMovers,
   type DashboardV2MoverMode,
 } from "@/lib/dashboardV2ExtendedMovers";
+import {
+  readDashboardMoverSnapshot,
+  type DashboardMoverSnapshot,
+  writeDashboardMoverSnapshot,
+} from "@/lib/dashboardMoverSnapshotCache";
 import { getServerEnv } from "@/lib/env";
 import { getEventTypeBadge, type EventTypeBadgeTone } from "@/lib/eventTypeRegistry";
 import { fetchRecentEventsByTickers } from "@/lib/supabase";
@@ -22,7 +27,10 @@ import { fetchRecentEventsByTickers } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 
 const rowLimit = 25;
-const moverCacheSeconds = 60;
+const regularMoverCacheSeconds = 3 * 60;
+const extendedMoverCacheSeconds = 60;
+const regularMoverRetryDelayMs = 250;
+const regularMoverStaleAfterMs = regularMoverCacheSeconds * 2 * 1000;
 const extendedFetchConcurrency = 6;
 const fmpRequestTimeoutMs = 8_000;
 
@@ -32,29 +40,33 @@ type ExtendedSession = Exclude<Session, "Regular">;
 type EventRow = Record<string, unknown>;
 type DataStatus = "ready" | "partial" | "empty" | "unavailable";
 type BaseMover = Omit<DashboardV2MarketMover, "rank" | "events" | "maxImpact">;
+type RegularMoverResult = Awaited<ReturnType<typeof loadRegularMarketMovers>>;
+
+const regularMoverRequests = new Map<MoverMode, Promise<RegularMoverResult>>();
+const lastGoodRegularMovers = new Map<MoverMode, RegularMoverResult>();
 
 const loadCachedRegularMovers = unstable_cache(
   async (mode: MoverMode) => loadRegularMarketMovers(mode),
-  ["dashboard-v2-regular-movers-v3"],
-  { revalidate: moverCacheSeconds },
+  ["dashboard-v2-regular-movers-v4"],
+  { revalidate: regularMoverCacheSeconds },
 );
 
 const loadCachedExtendedCandidateUniverse = unstable_cache(
   async () => loadExtendedCandidateUniverse(),
   ["dashboard-v2-extended-candidate-universe-v1"],
-  { revalidate: moverCacheSeconds },
+  { revalidate: extendedMoverCacheSeconds },
 );
 
 const loadCachedAftermarketSymbol = unstable_cache(
   async (symbol: string) => loadAftermarketSymbol(symbol),
   ["dashboard-v2-aftermarket-symbol-v1"],
-  { revalidate: moverCacheSeconds },
+  { revalidate: extendedMoverCacheSeconds },
 );
 
 const loadCachedExtendedMovers = unstable_cache(
   async (session: ExtendedSession, mode: MoverMode) => loadExtendedMarketMovers(session, mode),
   ["dashboard-v2-extended-movers-v1"],
-  { revalidate: moverCacheSeconds },
+  { revalidate: extendedMoverCacheSeconds },
 );
 
 export async function GET(request: NextRequest) {
@@ -83,15 +95,32 @@ export async function GET(request: NextRequest) {
 
   try {
     if (session === "Regular") {
-      const result = await loadCachedRegularMovers(mode);
+      const marketSessionOpen = getNewYorkMarketSession(Date.now())?.session === "Regular";
+      const { fallback, result } = await loadRegularMoversWithFallback(
+        mode,
+        marketSessionOpen,
+      );
+      const capturedAtMilliseconds = new Date(result.fetchedAt).getTime();
+      const stale =
+        fallback ||
+        !Number.isFinite(capturedAtMilliseconds) ||
+        Date.now() - capturedAtMilliseconds > regularMoverStaleAfterMs;
       return json({
         ...result,
         available: true,
+        capturedAt: result.fetchedAt,
+        freshness: marketSessionOpen ? (stale ? "stale" : "fresh") : "closed",
+        marketSessionOpen,
+        message: fallback
+          ? "Showing the last successful regular-session snapshot while FMP is unavailable."
+          : undefined,
         mode,
         ok: true,
         reason: result.rows.length ? "ready" : "empty",
         receivedAt: result.fetchedAt,
         session,
+        source: "fmp_stable_movers",
+        stale,
       });
     }
 
@@ -129,7 +158,51 @@ export async function GET(request: NextRequest) {
   }
 }
 
-async function loadRegularMarketMovers(mode: MoverMode) {
+async function loadRegularMoversWithFallback(mode: MoverMode, allowRefresh: boolean) {
+  if (!allowRefresh) {
+    const snapshot = await loadLastGoodRegularMovers(mode);
+    if (snapshot) return { fallback: false, result: snapshot };
+    throw new Error("No completed regular-session snapshot is available");
+  }
+
+  const existing = regularMoverRequests.get(mode);
+  if (existing) {
+    try {
+      return { fallback: false, result: await existing };
+    } catch (error) {
+      const fallback = await loadLastGoodRegularMovers(mode);
+      if (fallback) return { fallback: true, result: fallback };
+      throw error;
+    }
+  }
+
+  const request = loadCachedRegularMovers(mode);
+  regularMoverRequests.set(mode, request);
+
+  try {
+    const result = await request;
+    lastGoodRegularMovers.set(mode, result);
+    await writeDashboardMoverSnapshot(mode, result).catch(() => undefined);
+    return { fallback: false, result };
+  } catch (error) {
+    const fallback = await loadLastGoodRegularMovers(mode);
+    if (fallback) return { fallback: true, result: fallback };
+    throw error;
+  } finally {
+    regularMoverRequests.delete(mode);
+  }
+}
+
+async function loadLastGoodRegularMovers(mode: MoverMode) {
+  const inMemory = lastGoodRegularMovers.get(mode);
+  if (inMemory) return inMemory;
+
+  const persisted = await readDashboardMoverSnapshot(mode).catch(() => null);
+  if (persisted) lastGoodRegularMovers.set(mode, persisted);
+  return persisted;
+}
+
+async function loadRegularMarketMovers(mode: MoverMode): Promise<DashboardMoverSnapshot> {
   const { fmpApiKey } = getServerEnv();
   if (!fmpApiKey) throw new Error("FMP_API_KEY is not configured");
 
@@ -138,7 +211,7 @@ async function loadRegularMarketMovers(mode: MoverMode) {
     .map(normalizeMover)
     .filter((row): row is BaseMover => row !== null)
     .slice(0, rowLimit);
-  const enriched = await enrichMoverRows(baseRows, fmpApiKey);
+  const enriched = await enrichMoverRows(baseRows, fmpApiKey, false);
 
   return {
     asOf: readProviderAsOf(payload),
@@ -153,7 +226,9 @@ async function loadExtendedCandidateUniverse() {
   if (!fmpApiKey) throw new Error("FMP_API_KEY is not configured");
 
   const payloads = await Promise.all(
-    dashboardV2MoverModes.map((mode) => loadRegularMoverPayload(mode, fmpApiKey)),
+    dashboardV2MoverModes.map((mode) =>
+      loadRegularMoverPayload(mode, fmpApiKey, { retryTransient: false }),
+    ),
   );
   const candidates = new Map<string, BaseMover>();
   for (const payload of payloads) {
@@ -247,10 +322,19 @@ async function loadExtendedMarketMovers(session: ExtendedSession, mode: MoverMod
   };
 }
 
-async function enrichMoverRows(baseRows: BaseMover[], fmpApiKey: string) {
+async function enrichMoverRows(
+  baseRows: BaseMover[],
+  fmpApiKey: string,
+  includeMarketCaps = true,
+) {
   const tickers = baseRows.map((row) => row.ticker);
   const [marketCaps, recentEvents] = await Promise.all([
-    loadBatchMarketCaps(tickers, fmpApiKey),
+    includeMarketCaps
+      ? loadBatchMarketCaps(tickers, fmpApiKey)
+      : Promise.resolve({
+          status: "unavailable" as const,
+          values: new Map<string, number>(),
+        }),
     loadRecentEventsByTicker(tickers),
   ]);
   const rows = baseRows.map((row, index) => {
@@ -283,8 +367,16 @@ async function enrichMoverRows(baseRows: BaseMover[], fmpApiKey: string) {
   };
 }
 
-async function loadRegularMoverPayload(mode: MoverMode, fmpApiKey: string) {
-  return loadFmpArray(`https://financialmodelingprep.com/stable/${endpointFor(mode)}`, fmpApiKey);
+async function loadRegularMoverPayload(
+  mode: MoverMode,
+  fmpApiKey: string,
+  options: { retryTransient?: boolean } = { retryTransient: true },
+) {
+  return loadFmpArray(
+    `https://financialmodelingprep.com/stable/${endpointFor(mode)}`,
+    fmpApiKey,
+    options,
+  );
 }
 
 async function loadAftermarketSymbol(symbol: string) {
@@ -307,15 +399,53 @@ async function loadAftermarketSymbol(symbol: string) {
   };
 }
 
-async function loadFmpArray(url: string | URL, fmpApiKey: string) {
-  const response = await fetch(url, {
-    cache: "no-store",
-    headers: { Accept: "application/json", apikey: fmpApiKey },
-    signal: AbortSignal.timeout(fmpRequestTimeoutMs),
-  });
-  const payload = await response.json().catch(() => null);
-  if (!response.ok || !Array.isArray(payload)) throw new Error("FMP request failed");
-  return payload;
+async function loadFmpArray(
+  url: string | URL,
+  fmpApiKey: string,
+  options: { retryTransient?: boolean } = {},
+) {
+  const attempts = options.retryTransient ? 2 : 1;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        cache: "no-store",
+        headers: { Accept: "application/json", apikey: fmpApiKey },
+        signal: AbortSignal.timeout(fmpRequestTimeoutMs),
+      });
+      const payload = await response.json().catch(() => null);
+      if (response.ok && Array.isArray(payload)) return payload;
+
+      const retryable =
+        response.status === 408 ||
+        response.status === 425 ||
+        response.status === 429 ||
+        response.status >= 500;
+      if (!retryable || attempt + 1 >= attempts) {
+        throw new FmpRequestError(response.status, retryable);
+      }
+    } catch (error) {
+      if (error instanceof FmpRequestError && !error.retryable) throw error;
+      if (attempt + 1 >= attempts) throw error;
+    }
+
+    await delay(regularMoverRetryDelayMs);
+  }
+
+  throw new Error("FMP request failed");
+}
+
+class FmpRequestError extends Error {
+  constructor(
+    readonly status: number,
+    readonly retryable: boolean,
+  ) {
+    super(`FMP request failed with status ${status}`);
+  }
+}
+
+function delay(milliseconds: number) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function newestSessionRecord(

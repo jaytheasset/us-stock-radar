@@ -748,19 +748,23 @@ Inert actions must not advertise nonexistent `aria-haspopup`, `aria-expanded`, o
 - Controller: `components/dashboard-v2/StockRadarDashboardV2.tsx`
 - Presentation: `components/dashboard-v2/MarketMoversTable.tsx`, `components/market/DesktopMarketRow.tsx`, and `components/market/MobileMarketRow.tsx`
 
-The dashboard controller requests live market movers only for the `Regular` session. The server route keeps `FMP_API_KEY` server-side, calls FMP's `biggest-gainers`, `biggest-losers`, or `most-actives` endpoint for the selected mover tab, and normalizes the provider payload into the existing `DashboardV2MarketMover` presentation shape. The response can contain 50 ranked provider results; the route exposes all 50 as one continuous dashboard list. The generic market-result components remain provider-neutral and receive only normalized display props.
+The dashboard controller requests the dashboard-local server route for each market session. For `Regular`, the route keeps `FMP_API_KEY` server-side and calls FMP Stable `biggest-gainers`, `biggest-losers`, or `most-actives` for the selected mover tab. The Stable response is normalized into the existing `DashboardV2MarketMover` presentation shape without re-ranking a separate candidate universe. The route exposes the first 25 provider-ranked results and caches each mover mode for 180 seconds. Concurrent cache misses for the same mode share one request, and the visible Regular view refreshes on the same three-minute cadence while the page is active.
+
+Regular requests receive `capturedAt`, `freshness`, `marketSessionOpen`, and `stale` metadata. Outside the New York Regular window, the route reuses the last successful snapshot rather than refreshing FMP. Each successful result is stored by mover mode in `dashboard_mover_snapshots`, so a restarted or newly deployed server can restore the latest completed Regular session without calling FMP while the market is closed.
+
+The Regular-session boundary uses the U.S. equity-market calendar rather than weekdays alone. Full-day NYSE holidays are excluded, and the scheduled 1:00 p.m. Eastern early close plus 5:00 p.m. extended-session close are applied to the day after Thanksgiving, eligible July 3 dates, and Christmas Eve. Extraordinary one-off exchange closures still require an explicit calendar update.
 
 ### Availability and missing metadata
 
-- FMP's current mover payload supplies ticker, company name, price, and change percentage. It does not supply the per-row market cap, event history, impact level, or a usable per-row volume figure for this dashboard access level.
-- For live Regular rows, the dashboard therefore displays a muted dash for unavailable desktop volume, market-cap, event, and impact metadata. It does not merge corresponding mock values into a real ticker row.
+- FMP's current Stable mover payload supplies ticker, company name, exchange, price, absolute change, and change percentage. It does not supply per-row market cap, event history, a provider timestamp, or a usable per-row volume figure for this dashboard access level.
+- For live Regular rows, the dashboard therefore displays a muted dash for unavailable desktop volume and market cap. Recent StockRadar events and impact remain a separate database enrichment and are never fabricated from mock data.
 - `Top Volume` uses FMP's real `most-actives` ranking. Its rank is live, but the unavailable individual volume value is displayed as a muted dash rather than fabricated.
-- FMP market-wide Pre and After ranking feeds are not available to the currently configured dashboard key. Those sessions retain the existing deterministic mock rows. This is a provider/access limitation, not a reusable session-design rule.
-- The dashboard does not render pagination or rows-per-page controls for these capped result lists. It renders every available ranked row in one continuous list, up to the provider's 50-row response limit.
+- Pre and After keep their separate aftermarket collection and 60-second cache. Regular Stable Movers changes must not be used as extended-hours rankings.
+- The dashboard does not render pagination or rows-per-page controls for these capped result lists. It renders every available ranked row in one continuous list, up to the route's 25-row limit.
 
 ### Failure behavior
 
-If the key is missing, FMP is unavailable, the response is not a list, or the request is aborted during a tab/session change, the controller retains the established mock rows. The route emits `Cache-Control: no-store`, and no FMP key, provider response, or fallback DOM manipulation reaches the browser.
+Regular Stable requests have an eight-second timeout and one retry for network errors, timeouts, HTTP 408/425/429, and HTTP 5xx responses. Permission and other non-transient failures are not retried. When a refresh fails after a successful request, the server returns the last successful in-memory or database snapshot with stale freshness metadata; the controller keeps the previous visible rows if a background refresh fails entirely. A database read or write failure does not block a successful live FMP response. If the key is missing or no successful snapshot exists, the route returns an unavailable response without mock rows. The route emits `Cache-Control: no-store`, and the FMP key never reaches the browser.
 
 ## 27. Dashboard Desktop Rail Ad Slot
 

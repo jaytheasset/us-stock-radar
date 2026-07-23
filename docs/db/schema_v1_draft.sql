@@ -402,6 +402,17 @@ create index if not exists market_group_snapshots_expires_idx
 create index if not exists market_group_snapshots_parent_idx
   on market_group_snapshots(parent_key, range, interval, sort_order);
 
+create table if not exists dashboard_mover_snapshots (
+  mode text primary key check (mode in ('gainers', 'losers', 'volume')),
+  provider_as_of timestamptz,
+  captured_at timestamptz not null,
+  rows jsonb not null default '[]'::jsonb check (jsonb_typeof(rows) = 'array'),
+  data_availability jsonb not null default '{}'::jsonb
+    check (jsonb_typeof(data_availability) = 'object'),
+  source_count integer not null default 0 check (source_count >= 0),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists tickers (
   symbol text primary key,
   name text,

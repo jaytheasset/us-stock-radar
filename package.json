@@ -24,6 +24,7 @@
     "verify:doj-parser": "node --experimental-strip-types scripts/verify-doj-parser.mjs",
     "verify:globe-parser": "node --experimental-strip-types scripts/verify-globe-parser.mjs",
     "verify:news-article-sanitizer": "node --test --experimental-strip-types lib/newsArticleSanitizer.test.ts",
+    "verify:us-equity-calendar": "node --test --experimental-strip-types lib/usEquityMarketCalendar.test.ts",
     "verify:newsfile-parser": "node --experimental-strip-types scripts/verify-newsfile-parser.mjs",
     "verify:nasdaq-trader-parser": "node --experimental-strip-types scripts/verify-nasdaq-trader-parser.mjs",
     "verify:ofac-parser": "node --experimental-strip-types scripts/verify-ofac-parser.mjs",
