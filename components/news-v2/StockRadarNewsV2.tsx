@@ -148,6 +148,7 @@ export function StockRadarNewsV2({
           signalActivity={signalActivity}
           sourceActivity={sourceActivity}
           total={total}
+          visibleItemCount={visibleItems.length}
         />
       </div>
 

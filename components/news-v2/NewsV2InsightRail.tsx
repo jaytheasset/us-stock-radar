@@ -54,12 +54,14 @@ type NewsV2InsightRailProps = {
   signalActivity: NewsV2SignalActivity[];
   sourceActivity: NewsV2SourceActivity[];
   total: number;
+  visibleItemCount: number;
 };
 
 export function NewsV2InsightRail({
   items,
   sourceActivity,
   total,
+  visibleItemCount,
 }: NewsV2InsightRailProps) {
   const [sourceRange, setSourceRange] = useState<NewsV2Range>("Today");
   const [showAllSources, setShowAllSources] = useState(false);
@@ -86,6 +88,7 @@ export function NewsV2InsightRail({
     () => mergeThemeMarketData(rawTrendingThemes, themeMarketData),
     [rawTrendingThemes, themeMarketData],
   );
+  const tallRailAdCount = Math.max(1, Math.ceil(visibleItemCount / 12) - 1);
 
   useEffect(() => {
     if (!activeSector) return;
@@ -213,6 +216,12 @@ export function NewsV2InsightRail({
 
           <PremiumUpgradeCard className={styles.premiumCtaDesktop} />
 
+          <div
+            className={`${styles.contextRailAdAnchor} ${styles.contextRailAdAnchorCompact}`}
+          >
+            <NewsV2RailAdSlot size="300x250" />
+          </div>
+
           <section className={styles.insightCard}>
             <header className={styles.insightHeader}>
               <div>
@@ -269,6 +278,10 @@ export function NewsV2InsightRail({
               )}
             </div>
           </section>
+
+          <div className={styles.contextRailAdAnchor}>
+            <NewsV2RailAdSlot size="300x600" />
+          </div>
 
           <NewsV2InsightInlineAd />
 
@@ -365,12 +378,16 @@ export function NewsV2InsightRail({
               )}
             </div>
           </section>
-        </div>
 
-        <div className={styles.contextRailAdAnchor}>
-          <div className={styles.contextRailAdFill}>
-            <NewsV2RailAdSlot />
-          </div>
+          {tallRailAdCount > 1 ? (
+            <div className={styles.contextRailAdContinuation}>
+              {Array.from({ length: tallRailAdCount - 1 }, (_, index) => (
+                <div className={styles.contextRailAdAnchor} key={`rail-ad-${index + 2}`}>
+                  <NewsV2RailAdSlot size="300x600" />
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       </aside>
     </div>

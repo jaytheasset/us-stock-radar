@@ -907,20 +907,6 @@
   list-style: none;
 }
 
-.inlineAdSlot {
-  box-sizing: border-box;
-  display: flex;
-  max-width: 100%;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sr-space-2);
-  margin: 0 auto;
-  border: var(--sr-border-width) solid var(--sr-color-divider);
-  border-radius: var(--sr-radius-control);
-  color: var(--sr-color-text-subtle);
-  background: var(--sr-color-surface);
-}
-
 .desktopInlineAdSlot {
   width: min(728px, 100%);
   height: 90px;
@@ -935,21 +921,8 @@
 }
 
 .mobileInlineAdSlot {
-  width: 320px;
+  width: min(320px, 100%);
   height: 100px;
-}
-
-.inlineAdLabel,
-.inlineAdSize {
-  font-size: var(--sr-font-size-xs);
-  font-weight: var(--sr-font-weight-label);
-  letter-spacing: var(--sr-letter-spacing-brand);
-  line-height: var(--sr-line-height-default);
-  text-transform: uppercase;
-}
-
-.inlineAdSize {
-  color: var(--sr-color-text-muted);
 }
 
 .insightRailAnchor {
@@ -979,11 +952,15 @@
 
 .contextRailAdAnchor {
   min-height: 600px;
-  margin-top: var(--sr-space-4);
 }
 
-.contextRailAdFill {
-  width: 100%;
+.contextRailAdAnchorCompact {
+  min-height: 250px;
+}
+
+.contextRailAdContinuation {
+  display: grid;
+  gap: clamp(280px, 28vw, 440px);
 }
 
 @media (min-width: 981px) {
@@ -1792,6 +1769,13 @@
   }
 }
 
+@media (max-width: 1180px) {
+  .contextRailAdAnchor,
+  .contextRailAdContinuation {
+    display: none;
+  }
+}
+
 @media (max-width: 980px) {
   .workspace {
     grid-template-columns: minmax(0, 1fr);
@@ -1828,6 +1812,28 @@
   }
 
   .contextRailAdAnchor {
+    display: none;
+  }
+
+  .mobileInlineAdItem {
+    display: flex;
+    min-height: 120px;
+    align-items: center;
+    justify-content: center;
+    border-top: var(--sr-border-width) solid var(--sr-color-divider);
+    border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
+    background: var(--sr-color-surface-table-row);
+    list-style: none;
+  }
+
+  .mobileInsightAdItem {
+    display: flex;
+    min-height: 120px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .desktopInlineAdItem {
     display: none;
   }
 
@@ -2095,7 +2101,7 @@
 
   .mobileInlineAdItem {
     display: flex;
-    min-height: 100px;
+    min-height: 120px;
     align-items: center;
     justify-content: center;
     border-top: var(--sr-border-width) solid var(--sr-color-divider);
@@ -2106,7 +2112,7 @@
 
   .mobileInsightAdItem {
     display: flex;
-    min-height: 100px;
+    min-height: 120px;
     align-items: center;
     justify-content: center;
   }

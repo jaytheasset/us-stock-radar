@@ -781,3 +781,32 @@ If the key is missing, FMP is unavailable, the response is not a list, or the re
 `MobileInlineAdSlot` is a separate `320 x 100` reservation visible only at 760 px and below. It appears after rank 25 only when the current list has 50 results. It stays in the mobile result-list flow and is intentionally excluded from the page header, quick filters, ticker sheet, filter sheet, and the end of the list.
 
 The components have no props, advertising SDK, network request, ad-unit identifier, auto-refresh behavior, or provider-specific logic. A future AdSense integration must be a separately scoped change that replaces only the placeholder content while preserving the reserved geometry. They are not a generic `AdSlot` primitive because provider loading, consent, responsive inventory, and page-level monetization policy have not been established.
+
+## 28. News V2 Advertising and AdSense Boundary
+
+### Purpose and files
+
+- Shared provider boundary: `components/ads/AdSenseSlot.tsx` and `components/ads/AdSenseSlot.module.css`
+- News V2 placement owners: `components/news-v2/NewsV2InsightRail.tsx`, `components/news-v2/NewsV2List.tsx`, `components/news-v2/NewsV2RailAdSlot.tsx`, `components/news-v2/NewsV2InlineAd.tsx`, and `components/news-v2/NewsV2InsightInlineAd.tsx`
+- Responsive geometry and visibility owner: `components/news-v2/StockRadarNewsV2.module.css`
+
+`AdSenseSlot` is the only News V2 component that knows the Google publisher configuration, official `ins.adsbygoogle` attributes, script URL, lazy-request lifecycle, or `adsbygoogle.push` call. It loads `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js` at most once per page, only after an eligible slot is within the IntersectionObserver preload margin. Each mounted slot guards its push independently and pushes exactly once. A slot is not requested when its rendered width or height is zero, and no automatic refresh timer or repeat push is permitted.
+
+### Inventory and responsive placement
+
+- Above 1180 px, the right column uses normal document scrolling and reserves an initial `300 x 250` unit followed by `300 x 600` units. The number of tall continuation units grows with the visible news-list length, at roughly one rail inventory position per twelve visible rows, and continuation units retain vertical separation.
+- Desktop inline inventory uses the existing `728 x 90` reservation above 980 px. It is a horizontal responsive AdSense unit capped by the established 728 px shell so narrower desktop content does not overflow.
+- At 980 px and below, right-rail and desktop-inline inventory is hidden. Mobile/tablet `320 x 100` inline inventory appears after every eleven news rows and retains the existing insight-section reservation.
+- Desktop and mobile placements have mutually exclusive media-query activation. An inactive placement never renders an `ins.adsbygoogle` element and therefore cannot request a hidden ad. All shells reserve fixed height before provider activation to prevent layout shift.
+
+### Configuration and fallback
+
+AdSense is all-or-nothing for News V2 and activates only in a production build when every variable below is present:
+
+- `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID`
+- `NEXT_PUBLIC_ADSENSE_NEWS_V2_RAIL_300X250_SLOT_ID`
+- `NEXT_PUBLIC_ADSENSE_NEWS_V2_RAIL_300X600_SLOT_ID`
+- `NEXT_PUBLIC_ADSENSE_NEWS_V2_DESKTOP_INLINE_SLOT_ID`
+- `NEXT_PUBLIC_ADSENSE_NEWS_V2_MOBILE_INLINE_SLOT_ID`
+
+The publisher value must be the AdSense client identifier (for example, a value with the `ca-pub-` prefix), and each inventory variable must contain its matching AdSense ad-unit slot ID. These public identifiers are documented in `.env.local.example`; real account values must be supplied by the production environment and must not be committed. In development, or when any required production value is absent, every eligible placement renders the existing `Advertisement` placeholder and no Google script, ad element, or provider request is created.

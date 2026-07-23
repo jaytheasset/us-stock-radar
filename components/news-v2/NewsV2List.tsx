@@ -16,13 +16,22 @@ export type NewsV2ListProps = {
   totalNews: number;
 };
 
-const minimumInlineAdItems = 10;
-const inlineAdGroupSize = 25;
+const minimumDesktopInlineAdItems = 10;
+const desktopInlineAdGroupSize = 25;
+const mobileInlineAdInterval = 11;
 
-function shouldInsertInlineAd(index: number, itemCount: number) {
-  const groupStart = Math.floor(index / inlineAdGroupSize) * inlineAdGroupSize;
-  const groupLength = Math.min(inlineAdGroupSize, itemCount - groupStart);
-  return groupLength >= minimumInlineAdItems && index === groupStart + Math.ceil(groupLength / 2) - 1;
+function shouldInsertDesktopInlineAd(index: number, itemCount: number) {
+  const groupStart =
+    Math.floor(index / desktopInlineAdGroupSize) * desktopInlineAdGroupSize;
+  const groupLength = Math.min(desktopInlineAdGroupSize, itemCount - groupStart);
+  return (
+    groupLength >= minimumDesktopInlineAdItems &&
+    index === groupStart + Math.ceil(groupLength / 2) - 1
+  );
+}
+
+function shouldInsertMobileInlineAd(index: number) {
+  return (index + 1) % mobileInlineAdInterval === 0;
 }
 
 export function NewsV2List({
@@ -63,11 +72,11 @@ export function NewsV2List({
                   <PremiumUpgradeCard className={styles.premiumCtaMobile} />
                 </li>
               ) : null}
-              {shouldInsertInlineAd(index, items.length) ? (
-                <>
-                  <NewsV2InlineAd format="desktop" />
-                  <NewsV2InlineAd format="mobile" />
-                </>
+              {shouldInsertDesktopInlineAd(index, items.length) ? (
+                <NewsV2InlineAd format="desktop" />
+              ) : null}
+              {shouldInsertMobileInlineAd(index) ? (
+                <NewsV2InlineAd format="mobile" />
               ) : null}
             </Fragment>
           ))}
