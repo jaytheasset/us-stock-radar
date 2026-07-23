@@ -1,0 +1,8 @@
+.route > :global([data-sr-theme]) {
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
+.route + :global(.theme-toggle) {
+  display: none;
+}
