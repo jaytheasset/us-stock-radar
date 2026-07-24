@@ -3,11 +3,12 @@ import { ChevronDown, Search, SlidersHorizontal, X } from "lucide-react";
 import { FilterOption } from "@/components/ui/FilterOption";
 import { FilterTrigger } from "@/components/ui/FilterTrigger";
 import { NewsV2MarketCapOption } from "@/components/news-v2/NewsV2MarketCapOption";
+import { getEventTypeBadge } from "@/lib/eventTypeRegistry";
 import {
   newsV2MarketCapBands,
-  type NewsV2MarketCapBand,
   newsV2Signals,
-  type NewsV2Signal,
+  type NewsV2FilterOptions,
+  type NewsV2FilterState,
 } from "@/lib/newsV2";
 import styles from "./StockRadarNewsV2.module.css";
 
@@ -19,21 +20,8 @@ export type NewsV2FilterGroup =
   | "sectors"
   | "themes";
 
-export type NewsV2Filters = {
-  sentiments: NewsV2Signal[];
-  marketCaps: NewsV2MarketCapBand[];
-  eventTypes: string[];
-  sources: string[];
-  sectors: string[];
-  themes: string[];
-};
-
-export type NewsV2FilterOptions = {
-  eventTypes: string[];
-  sources: string[];
-  sectors: string[];
-  themes: string[];
-};
+export type NewsV2Filters = NewsV2FilterState;
+export type { NewsV2FilterOptions };
 
 export type NewsV2FilterBarProps = {
   filterOptions: NewsV2FilterOptions;
@@ -200,7 +188,7 @@ export function NewsV2FilterBar({
                       <FilterOption
                         className={styles.filterMenuOption}
                         key={option}
-                        label={option}
+                        label={getNewsV2FilterLabel(group, option)}
                         onClick={() => onToggleFilter(group, option)}
                         selected={filters[group].includes(option as never)}
                       />
@@ -220,8 +208,8 @@ export function NewsV2FilterBar({
                 <button
                   aria-label={`Remove ${filter.label} filter`}
                   className={styles.activeFilterChip}
-                  key={`${filter.group}-${filter.label}`}
-                  onClick={() => onRemoveFilter(filter.group, filter.label)}
+                  key={`${filter.group}-${filter.value}`}
+                  onClick={() => onRemoveFilter(filter.group, filter.value)}
                   type="button"
                 >
                   {filter.label}
@@ -246,6 +234,15 @@ export function NewsV2FilterBar({
 
 export function getActiveFilters(filters: NewsV2Filters) {
   return (Object.entries(filters) as Array<[NewsV2FilterGroup, string[]]>).flatMap(
-    ([group, values]) => values.map((label) => ({ group, label })),
+    ([group, values]) =>
+      values.map((value) => ({
+        group,
+        label: getNewsV2FilterLabel(group, value),
+        value,
+      })),
   );
+}
+
+export function getNewsV2FilterLabel(group: NewsV2FilterGroup, value: string) {
+  return group === "eventTypes" ? getEventTypeBadge(value).label : value;
 }

@@ -442,6 +442,7 @@ function buildSourceRows(
   const rangedItems = itemsInRange(items, range);
   const totalCounts = countBy(items, (item) => item.source);
   const rangeCounts = countBy(rangedItems, (item) => item.source);
+  const fallbackBySource = new Map(fallback.map((item) => [item.source, item]));
   const labels = new Set([
     ...totalCounts.keys(),
     ...fallback.map((item) => item.source),
@@ -449,11 +450,17 @@ function buildSourceRows(
   ]);
 
   return Array.from(labels)
-    .map((label) => ({
-      label,
-      rangeCount: rangeCounts.get(label) ?? 0,
-      totalCount: totalCounts.get(label) ?? 0,
-    }))
+    .map((label) => {
+      const fallbackItem = fallbackBySource.get(label);
+      return {
+        label,
+        rangeCount:
+          fallbackItem?.rangeCounts?.[range] ??
+          rangeCounts.get(label) ??
+          0,
+        totalCount: fallbackItem?.count ?? totalCounts.get(label) ?? 0,
+      };
+    })
     .sort(
       (left, right) =>
         right.rangeCount - left.rangeCount ||

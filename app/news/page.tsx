@@ -4,7 +4,7 @@ import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import { getServerEnv } from "@/lib/env";
 import { buildGooglePreferredSourceUrl } from "@/lib/googlePreferredSource";
-import { getNewsV2PageData } from "@/lib/newsV2";
+import { getNewsV2PageData } from "@/lib/newsV2Data";
 import { getEffectiveUserPlan } from "@/lib/subscription/effectivePlan";
 
 export const metadata: Metadata = {

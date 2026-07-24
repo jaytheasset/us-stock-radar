@@ -7,6 +7,7 @@ import type {
   NewsV2FilterOptions,
   NewsV2Filters,
 } from "@/components/news-v2/NewsV2FilterBar";
+import { getNewsV2FilterLabel } from "@/components/news-v2/NewsV2FilterBar";
 import {
   newsV2MarketCapBands,
   newsV2Signals,
@@ -86,7 +87,7 @@ export function MobileNewsV2FilterSheet({
                 : options.map((option) => (
                     <FilterOption
                       key={option}
-                      label={option}
+                      label={getNewsV2FilterLabel(group, option)}
                       onClick={() => onToggleFilter(group, option)}
                       selected={filters[group].includes(option as never)}
                     />

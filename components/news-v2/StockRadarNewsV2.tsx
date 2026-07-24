@@ -1,24 +1,23 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MobileNewsV2FilterSheet } from "@/components/news-v2/MobileNewsV2FilterSheet";
 import {
   NewsV2FilterBar,
   type NewsV2FilterGroup,
-  type NewsV2FilterOptions,
   type NewsV2Filters,
 } from "@/components/news-v2/NewsV2FilterBar";
 import { NewsV2InsightRail } from "@/components/news-v2/NewsV2InsightRail";
 import { NewsV2List } from "@/components/news-v2/NewsV2List";
 import { useLiveReferenceDate } from "@/components/ui/useLiveReferenceDate";
 import type {
+  NewsV2Cursor,
   NewsV2Item,
   NewsV2PageData,
+  NewsV2PageResponse,
 } from "@/lib/newsV2";
 import type { Plan } from "@/lib/subscriptionPolicy";
 import styles from "./StockRadarNewsV2.module.css";
-
-const newsBatchSize = 25;
 
 const emptyFilters: NewsV2Filters = {
   sentiments: [],
@@ -29,6 +28,35 @@ const emptyFilters: NewsV2Filters = {
   themes: [],
 };
 
+function buildNewsV2RequestUrl(
+  filters: NewsV2Filters,
+  query: string,
+  cursor: NewsV2Cursor | null,
+  includeTotal: boolean,
+) {
+  const searchParams = new URLSearchParams();
+  const filterParams: Array<[string, readonly string[]]> = [
+    ["sentiments", filters.sentiments],
+    ["market_caps", filters.marketCaps],
+    ["event_types", filters.eventTypes],
+    ["sources", filters.sources],
+    ["sectors", filters.sectors],
+    ["themes", filters.themes],
+  ];
+
+  for (const [name, values] of filterParams) {
+    for (const value of values) searchParams.append(name, value);
+  }
+  if (query.trim()) searchParams.set("query", query.trim());
+  if (cursor) {
+    searchParams.set("cursor_id", cursor.id);
+    searchParams.set("cursor_published_at", cursor.publishedAt);
+  }
+  searchParams.set("include_total", String(includeTotal));
+
+  return `/api/news-v2?${searchParams.toString()}`;
+}
+
 type StockRadarNewsV2Props = NewsV2PageData & {
   preferredSourceUrl?: string | null;
   referenceDate: string;
@@ -38,6 +66,9 @@ type StockRadarNewsV2Props = NewsV2PageData & {
 export function StockRadarNewsV2({
   items,
   total,
+  hasMore,
+  nextCursor,
+  filterOptions,
   sourceActivity,
   sectorActivity,
   signalActivity,
@@ -50,43 +81,71 @@ export function StockRadarNewsV2({
   const [queryDraft, setQueryDraft] = useState("");
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<NewsV2Filters>(emptyFilters);
-  const [visibleCount, setVisibleCount] = useState(newsBatchSize);
+  const [pageItems, setPageItems] = useState<NewsV2Item[]>(items);
+  const [pageTotal, setPageTotal] = useState(total);
+  const [pageHasMore, setPageHasMore] = useState(hasMore);
+  const [pageCursor, setPageCursor] = useState<NewsV2Cursor | null>(nextCursor);
+  const [pageError, setPageError] = useState(error);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const mobileFilterOpenerRef = useRef<HTMLButtonElement | null>(null);
-  const normalizedQuery = query.trim().toLowerCase();
-  const filterOptions = useMemo(() => buildFilterOptions(items), [items]);
-
-  const filteredItems = items.filter((item) => {
-    const queryTarget = [
-      item.headline,
-      item.summary,
-      item.source,
-      item.eventType,
-      ...item.relatedTickers,
-      ...item.relatedSectors,
-      ...item.themes,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-
-    return (
-      (!normalizedQuery || queryTarget.includes(normalizedQuery)) &&
-      (!filters.sentiments.length || filters.sentiments.includes(item.sentiment)) &&
-      (!filters.marketCaps.length ||
-        (item.marketCapBand !== undefined && filters.marketCaps.includes(item.marketCapBand))) &&
-      (!filters.eventTypes.length || filters.eventTypes.includes(item.eventType)) &&
-      (!filters.sources.length || filters.sources.includes(item.source)) &&
-      (!filters.sectors.length || item.relatedSectors.some((sector) => filters.sectors.includes(sector))) &&
-      (!filters.themes.length || item.themes.some((theme) => filters.themes.includes(theme)))
-    );
-  });
-
-  const visibleItems = filteredItems.slice(0, visibleCount);
-  const remainingCount = filteredItems.length - visibleItems.length;
-  const showMarketReaction = visibleItems.some(
-    (item) => item.priceLabel || item.changePercent || item.trend.length >= 2 || item.relatedTickers.length > 0,
+  const loadMoreControllerRef = useRef<AbortController | null>(null);
+  const requestKey = useMemo(() => JSON.stringify({ filters, query }), [filters, query]);
+  const lastRequestKeyRef = useRef(requestKey);
+  const remainingCount = Math.max(pageTotal - pageItems.length, 0);
+  const showMarketReaction = pageItems.some(
+    (item) =>
+      item.priceLabel ||
+      item.changePercent ||
+      item.trend.length >= 2 ||
+      item.relatedTickers.length > 0,
   );
+
+  useEffect(() => {
+    if (lastRequestKeyRef.current === requestKey) return;
+    lastRequestKeyRef.current = requestKey;
+
+    loadMoreControllerRef.current?.abort();
+    loadMoreControllerRef.current = null;
+    setIsLoadingMore(false);
+    const controller = new AbortController();
+    setIsRefreshing(true);
+    setPageError(undefined);
+
+    void fetch(buildNewsV2RequestUrl(filters, query, null, true), {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const payload = await response.json() as NewsV2PageResponse;
+        if (!response.ok || payload.error) {
+          throw new Error(payload.error || "News data unavailable");
+        }
+
+        setPageItems(payload.items);
+        setPageTotal(payload.totalCount ?? payload.items.length);
+        setPageHasMore(payload.hasMore);
+        setPageCursor(payload.nextCursor);
+      })
+      .catch((requestError: unknown) => {
+        if (requestError instanceof DOMException && requestError.name === "AbortError") return;
+        setPageItems([]);
+        setPageTotal(0);
+        setPageHasMore(false);
+        setPageCursor(null);
+        setPageError("News data is currently unavailable.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsRefreshing(false);
+      });
+
+    return () => controller.abort();
+  }, [filters, query, requestKey]);
+
+  useEffect(() => {
+    return () => loadMoreControllerRef.current?.abort();
+  }, []);
 
   const toggleFilter = (group: NewsV2FilterGroup, value: string) => {
     setFilters((current) => ({
@@ -95,7 +154,6 @@ export function StockRadarNewsV2({
         ? current[group].filter((item) => item !== value)
         : [...current[group], value],
     }) as NewsV2Filters);
-    setVisibleCount(newsBatchSize);
   };
 
   const removeFilter = (group: NewsV2FilterGroup, value: string) => {
@@ -103,19 +161,53 @@ export function StockRadarNewsV2({
       ...current,
       [group]: current[group].filter((item) => item !== value),
     }) as NewsV2Filters);
-    setVisibleCount(newsBatchSize);
   };
 
   const clearFilterGroup = (group: NewsV2FilterGroup) => {
     setFilters((current) => ({ ...current, [group]: [] }));
-    setVisibleCount(newsBatchSize);
   };
 
   const resetFilters = () => {
     setQueryDraft("");
     setQuery("");
     setFilters(emptyFilters);
-    setVisibleCount(newsBatchSize);
+  };
+
+  const showMoreNews = () => {
+    if (!pageHasMore || !pageCursor || isLoadingMore) return;
+
+    loadMoreControllerRef.current?.abort();
+    const controller = new AbortController();
+    loadMoreControllerRef.current = controller;
+    setIsLoadingMore(true);
+
+    void fetch(buildNewsV2RequestUrl(filters, query, pageCursor, false), {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const payload = await response.json() as NewsV2PageResponse;
+        if (!response.ok || payload.error) {
+          throw new Error(payload.error || "Additional news unavailable");
+        }
+
+        setPageItems((current) => {
+          const knownIds = new Set(current.map((item) => item.id));
+          return [...current, ...payload.items.filter((item) => !knownIds.has(item.id))];
+        });
+        setPageHasMore(payload.hasMore);
+        setPageCursor(payload.nextCursor);
+      })
+      .catch((requestError: unknown) => {
+        if (requestError instanceof DOMException && requestError.name === "AbortError") return;
+        setPageError("Additional news is currently unavailable.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoadingMore(false);
+        if (loadMoreControllerRef.current === controller) {
+          loadMoreControllerRef.current = null;
+        }
+      });
   };
 
   return (
@@ -131,37 +223,32 @@ export function StockRadarNewsV2({
             onQueryDraftChange={setQueryDraft}
             onRemoveFilter={removeFilter}
             onReset={resetFilters}
-            onSearch={() => {
-              setQuery(queryDraft);
-              setVisibleCount(newsBatchSize);
-            }}
+            onSearch={() => setQuery(queryDraft.trim())}
             onToggleFilter={toggleFilter}
             queryDraft={queryDraft}
           />
 
-          <NewsV2List
-            error={error}
-            items={visibleItems}
-            loadedTotal={items.length}
-            onLoadMore={remainingCount > 0
-              ? () => setVisibleCount((count) => Math.min(count + newsBatchSize, filteredItems.length))
-              : undefined}
-            preferredSourceUrl={preferredSourceUrl}
-            referenceDate={liveReferenceDate}
-            remainingCount={remainingCount}
-            showMarketReaction={showMarketReaction}
-            totalItems={filteredItems.length}
-            totalNews={total}
-            viewerPlan={viewerPlan}
-          />
+          <div aria-busy={isRefreshing || isLoadingMore}>
+            <NewsV2List
+              error={pageError}
+              items={pageItems}
+              onLoadMore={pageHasMore && pageCursor ? showMoreNews : undefined}
+              preferredSourceUrl={preferredSourceUrl}
+              referenceDate={liveReferenceDate}
+              remainingCount={remainingCount}
+              showMarketReaction={showMarketReaction}
+              totalItems={pageTotal}
+              viewerPlan={viewerPlan}
+            />
+          </div>
         </div>
         <NewsV2InsightRail
-          items={items}
+          items={pageItems}
           sectorActivity={sectorActivity}
           signalActivity={signalActivity}
           sourceActivity={sourceActivity}
-          total={total}
-          visibleItemCount={visibleItems.length}
+          total={pageTotal}
+          visibleItemCount={pageItems.length}
           viewerPlan={viewerPlan}
         />
       </div>
@@ -178,16 +265,4 @@ export function StockRadarNewsV2({
       />
     </div>
   );
-}
-
-function buildFilterOptions(items: NewsV2Item[]): NewsV2FilterOptions {
-  const unique = (values: Array<string | undefined>) =>
-    Array.from(new Set(values.filter((value): value is string => Boolean(value)))).sort();
-
-  return {
-    eventTypes: unique(items.map((item) => item.eventType)),
-    sources: unique(items.map((item) => item.source)),
-    sectors: unique(items.flatMap((item) => item.relatedSectors)),
-    themes: unique(items.flatMap((item) => item.themes)),
-  };
 }

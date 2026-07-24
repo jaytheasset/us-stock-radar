@@ -10,14 +10,12 @@ import styles from "./StockRadarNewsV2.module.css";
 export type NewsV2ListProps = {
   error?: string;
   items: readonly NewsV2Item[];
-  loadedTotal: number;
   onLoadMore?: () => void;
   preferredSourceUrl?: string | null;
   referenceDate: string;
   remainingCount: number;
   showMarketReaction: boolean;
   totalItems: number;
-  totalNews: number;
   viewerPlan: Plan;
 };
 
@@ -42,20 +40,16 @@ function shouldInsertMobileInlineAd(index: number) {
 export function NewsV2List({
   error,
   items,
-  loadedTotal,
   onLoadMore,
   preferredSourceUrl,
   referenceDate,
   remainingCount,
   showMarketReaction,
   totalItems,
-  totalNews,
   viewerPlan,
 }: NewsV2ListProps) {
   const premiumInsertIndex = items.length >= 3 ? Math.min(3, items.length - 1) : -1;
-  const countLabel = totalNews > loadedTotal
-    ? `${items.length} of latest ${loadedTotal} / ${totalNews} stories`
-    : `${items.length} of ${totalItems} stories`;
+  const countLabel = `${items.length} of ${totalItems} stories`;
 
   return (
     <section aria-labelledby="news-v2-list-title" className={styles.listPanel}>
@@ -109,7 +103,7 @@ export function NewsV2List({
       {onLoadMore ? (
         <div className={styles.loadMoreRow}>
           <button className={styles.loadMoreButton} onClick={onLoadMore} type="button">
-            <span>View more events</span>
+            <span>View more news</span>
             <small>{Math.min(25, remainingCount)} more</small>
           </button>
         </div>
