@@ -41,12 +41,10 @@ function cleanSupabaseUrl(value: string) {
 
 function getSupabaseAuth() {
   const env = getServerEnv();
-  const serviceKey = env.supabaseServiceRoleKey;
-  const key = serviceKey || env.supabaseAnonKey;
 
   return {
     baseUrl: cleanSupabaseUrl(env.supabaseUrl),
-    key,
+    key: env.supabaseServiceRoleKey,
   };
 }
 
@@ -294,7 +292,7 @@ async function supabaseRest(table: string, search: Record<string, string>) {
       status: 0,
       data: null,
       count: null,
-      error: "A Supabase API key is missing",
+      error: "SUPABASE_SERVICE_ROLE_KEY is missing",
     };
   }
 
@@ -364,7 +362,7 @@ export async function supabaseUpsert(
       ok: false,
       status: 0,
       data: null,
-      error: "A Supabase API key is missing",
+      error: "SUPABASE_SERVICE_ROLE_KEY is missing",
     };
   }
 
@@ -377,13 +375,12 @@ export async function supabaseUpsert(
     const response = await fetch(url, {
       method: "POST",
       cache: "no-store",
-      headers: {
+      headers: supabaseRequestHeaders(key, {
         apikey: key,
-        Authorization: `Bearer ${key}`,
         Accept: "application/json",
         "Content-Type": "application/json",
         Prefer: options.prefer || "resolution=merge-duplicates,return=representation",
-      },
+      }),
       body: JSON.stringify(payload),
     });
 
@@ -423,7 +420,7 @@ export async function supabaseUpdate(
       ok: false,
       status: 0,
       data: null,
-      error: "A Supabase API key is missing",
+      error: "SUPABASE_SERVICE_ROLE_KEY is missing",
     };
   }
 
@@ -436,13 +433,12 @@ export async function supabaseUpdate(
     const response = await fetch(url, {
       method: "PATCH",
       cache: "no-store",
-      headers: {
+      headers: supabaseRequestHeaders(key, {
         apikey: key,
-        Authorization: `Bearer ${key}`,
         Accept: "application/json",
         "Content-Type": "application/json",
         Prefer: options.prefer || "return=representation",
-      },
+      }),
       body: JSON.stringify(payload),
     });
 
@@ -477,7 +473,7 @@ export async function supabaseDelete(table: string, search: Record<string, strin
       ok: false,
       status: 0,
       data: null,
-      error: "A Supabase API key is missing",
+      error: "SUPABASE_SERVICE_ROLE_KEY is missing",
     };
   }
 
@@ -490,12 +486,11 @@ export async function supabaseDelete(table: string, search: Record<string, strin
     const response = await fetch(url, {
       method: "DELETE",
       cache: "no-store",
-      headers: {
+      headers: supabaseRequestHeaders(key, {
         apikey: key,
-        Authorization: `Bearer ${key}`,
         Accept: "application/json",
         Prefer: "return=representation",
-      },
+      }),
     });
 
     const body = await response.text();
@@ -529,7 +524,7 @@ export async function supabaseRpc(functionName: string, payload: Record<string, 
       ok: false,
       status: 0,
       data: null,
-      error: "A Supabase API key is missing",
+      error: "SUPABASE_SERVICE_ROLE_KEY is missing",
     };
   }
 
@@ -537,12 +532,11 @@ export async function supabaseRpc(functionName: string, payload: Record<string, 
     const response = await fetch(`${baseUrl}/rest/v1/rpc/${functionName}`, {
       method: "POST",
       cache: "no-store",
-      headers: {
+      headers: supabaseRequestHeaders(key, {
         apikey: key,
-        Authorization: `Bearer ${key}`,
         Accept: "application/json",
         "Content-Type": "application/json",
-      },
+      }),
       body: JSON.stringify(payload),
     });
 

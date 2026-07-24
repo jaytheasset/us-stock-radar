@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
+import { supabaseServiceHeaders } from "./supabase-service-headers.mjs";
 
 const args = parseArgs(process.argv.slice(2));
 const write = args.has("write");
@@ -24,10 +25,10 @@ const recordRunLog = write || args.has("record-run-log") || args.has("recordRunL
 const env = readLocalEnv();
 const supabaseUrl = cleanSupabaseUrl(env.SUPABASE_URL || "");
 const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
-const key = serviceKey && !serviceKey.startsWith("sb_secret_") ? serviceKey : env.SUPABASE_ANON_KEY || "";
+const key = serviceKey;
 
 if (!supabaseUrl || !key) {
-  console.error("Supabase env is missing. Check SUPABASE_URL and Supabase API key env values.");
+  console.error("Supabase env is missing. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
   process.exitCode = 1;
 } else {
   let locked = false;
@@ -149,12 +150,10 @@ async function releaseLock() {
 async function rpc(functionName, payload) {
   const response = await fetch(`${supabaseUrl}/rest/v1/rpc/${functionName}`, {
     method: "POST",
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
+    headers: supabaseServiceHeaders(key, {
       Accept: "application/json",
       "Content-Type": "application/json",
-    },
+    }),
     body: JSON.stringify(payload),
   });
   const body = await response.text();
@@ -241,13 +240,11 @@ async function tableRequest(method, table, query, payload, prefer = "return=repr
   }
   const response = await fetch(url, {
     method,
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
+    headers: supabaseServiceHeaders(key, {
       Accept: "application/json",
       "Content-Type": "application/json",
       Prefer: prefer,
-    },
+    }),
     body: payload === undefined ? undefined : JSON.stringify(payload),
   });
   const body = await response.text();

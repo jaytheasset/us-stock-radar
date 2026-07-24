@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { supabaseServiceHeaders } from "./supabase-service-headers.mjs";
 
 const args = new Map(
   process.argv
@@ -17,7 +18,7 @@ const baseUrl = String(args.get("base") || process.env.APP_LOCAL_URL || "http://
 const env = readLocalEnv();
 const supabaseUrl = cleanSupabaseUrl(env.SUPABASE_URL || "");
 const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
-const key = serviceKey && !serviceKey.startsWith("sb_secret_") ? serviceKey : env.SUPABASE_ANON_KEY || "";
+const key = serviceKey;
 const qaId = randomUUID();
 const now = new Date().toISOString();
 const rawUniqueId = `qa-alert-route:${qaId}`;
@@ -32,7 +33,7 @@ const checks = [];
 
 try {
   requireEnv("SUPABASE_URL", supabaseUrl);
-  requireEnv("SUPABASE_API_KEY", key);
+  requireEnv("SUPABASE_SERVICE_ROLE_KEY", key);
 
   const eventType = await pickEventType();
   const rawItem = await insertOne("raw_items", {
@@ -265,13 +266,11 @@ async function supabaseRequest(table, { method, search, body, prefer }) {
 
   const response = await fetch(url, {
     method,
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
+    headers: supabaseServiceHeaders(key, {
       Accept: "application/json",
       "Content-Type": "application/json",
       Prefer: prefer || "return=representation",
-    },
+    }),
     body: body ? JSON.stringify(body) : undefined,
   });
 

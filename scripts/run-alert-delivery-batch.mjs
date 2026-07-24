@@ -3,6 +3,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { supabaseServiceHeaders } from "./supabase-service-headers.mjs";
 
 const args = parseArgs(process.argv.slice(2));
 const write = args.has("write");
@@ -13,10 +14,10 @@ const lookbackHours = normalizeLookbackHours(args.get("lookback-hours") || args.
 const env = readLocalEnv();
 const supabaseUrl = cleanSupabaseUrl(env.SUPABASE_URL || "");
 const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
-const key = serviceKey && !serviceKey.startsWith("sb_secret_") ? serviceKey : env.SUPABASE_ANON_KEY || "";
+const key = serviceKey;
 
 if (!supabaseUrl || !key) {
-  console.error("Supabase env is missing. Check SUPABASE_URL and Supabase API key env values.");
+  console.error("Supabase env is missing. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
   process.exitCode = 1;
 } else {
   try {
@@ -264,13 +265,11 @@ async function supabaseRequest(method, table, query, payload) {
   }
   const response = await fetch(url, {
     method,
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
+    headers: supabaseServiceHeaders(key, {
       Accept: "application/json",
       "Content-Type": "application/json",
       Prefer: "return=representation",
-    },
+    }),
     body: payload === undefined ? undefined : JSON.stringify(payload),
   });
   const body = await response.text();

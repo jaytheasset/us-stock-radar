@@ -3,6 +3,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseSecS3Filing } from "../lib/sources/sec/forms/s3-f3/parser.ts";
+import { supabaseServiceHeaders } from "./supabase-service-headers.mjs";
 
 const args = new Map(
   process.argv
@@ -16,7 +17,7 @@ const args = new Map(
 const env = readLocalEnv();
 const supabaseUrl = cleanSupabaseUrl(env.SUPABASE_URL || "");
 const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
-const key = serviceKey && !serviceKey.startsWith("sb_secret_") ? serviceKey : env.SUPABASE_ANON_KEY || "";
+const key = serviceKey;
 const baseUrl = String(args.get("base") || process.env.APP_LOCAL_URL || "http://127.0.0.1:3001").replace(/\/$/, "");
 const sourceMode = String(args.get("source") || args.get("mode") || "both").toLowerCase();
 const rawItemId = String(args.get("rawItemId") || "").trim();
@@ -31,7 +32,7 @@ const checks = [];
 
 try {
   requireEnv("SUPABASE_URL", supabaseUrl);
-  requireEnv("SUPABASE_API_KEY", key);
+  requireEnv("SUPABASE_SERVICE_ROLE_KEY", key);
 
   const rawItems = await collectRawItems();
   check("S-3 raw samples found", rawItems.length > 0, { sourceMode, limit, formTypes });
@@ -382,11 +383,9 @@ async function fetchRows(table, search) {
 
   const response = await fetch(url, {
     cache: "no-store",
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
+    headers: supabaseServiceHeaders(key, {
       Accept: "application/json",
-    },
+    }),
   });
   const text = await response.text();
   const data = text ? JSON.parse(text) : null;

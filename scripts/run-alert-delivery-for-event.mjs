@@ -2,6 +2,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { supabaseServiceHeaders } from "./supabase-service-headers.mjs";
 
 const PLAN_LIMITS = {
   free: { alertDelayMinutes: 5, channels: ["web"] },
@@ -47,13 +48,13 @@ const dryRun = !write;
 const env = readLocalEnv();
 const supabaseUrl = cleanSupabaseUrl(env.SUPABASE_URL || "");
 const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
-const key = serviceKey && !serviceKey.startsWith("sb_secret_") ? serviceKey : env.SUPABASE_ANON_KEY || "";
+const key = serviceKey;
 
 if (!eventId) {
   console.error("Usage: npm run deliver:event -- --event-id <event-id> [--write]");
   process.exitCode = 1;
 } else if (!supabaseUrl || !key) {
-  console.error("Supabase env is missing. Check SUPABASE_URL and Supabase API key env values.");
+  console.error("Supabase env is missing. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
   process.exitCode = 1;
 } else {
   let result;
@@ -404,11 +405,9 @@ async function supabaseGet(table, query) {
     if (value !== undefined && value !== null && value !== "") url.searchParams.set(name, String(value));
   }
   const response = await fetch(url, {
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
+    headers: supabaseServiceHeaders(key, {
       Accept: "application/json",
-    },
+    }),
   });
   const data = await response.json().catch(() => null);
   return { ok: response.ok, status: response.status, data, error: response.ok ? undefined : readError(data, response.statusText) };
@@ -417,13 +416,11 @@ async function supabaseGet(table, query) {
 async function supabasePost(table, payload) {
   const response = await fetch(`${supabaseUrl}/rest/v1/${table}`, {
     method: "POST",
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
+    headers: supabaseServiceHeaders(key, {
       Accept: "application/json",
       "Content-Type": "application/json",
       Prefer: "return=representation",
-    },
+    }),
     body: JSON.stringify(payload),
   });
   const data = await response.json().catch(() => null);
