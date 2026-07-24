@@ -71,6 +71,7 @@ type GenericFilingAnalysisProps = {
   priceRenderer?: ReactNode;
   sourceFooterActionRenderer?: ReactNode;
   sourceFooterLabel?: string;
+  summaryHeaderActionRenderer?: ReactNode;
   summaryAsideRenderer?: ReactNode;
   timestampLabel?: string;
 };
@@ -92,6 +93,7 @@ export function GenericFilingAnalysis({
   priceRenderer,
   sourceFooterActionRenderer,
   sourceFooterLabel = "Source",
+  summaryHeaderActionRenderer,
   summaryAsideRenderer,
   timestampLabel = "Filed",
 }: GenericFilingAnalysisProps) {
@@ -245,7 +247,10 @@ export function GenericFilingAnalysis({
                     {showInlineSummary ||
                     (useNoChartDetailSplit && showSummary && !hasSummaryAsideRenderer) ? (
                       <section className={`${styles.card} ${styles.analysisCopyCard}`}>
-                        <SectionLabel>Summary</SectionLabel>
+                        <div className={styles.summaryHeader}>
+                          <SectionLabel>Summary</SectionLabel>
+                          {summaryHeaderActionRenderer}
+                        </div>
                         <p>{summary}</p>
                       </section>
                     ) : null}
@@ -262,7 +267,10 @@ export function GenericFilingAnalysis({
               >
                 {showSummary ? (
                   <section className={`${styles.card} ${styles.analysisCopyCard}`}>
-                    <SectionLabel>Summary</SectionLabel>
+                    <div className={styles.summaryHeader}>
+                      <SectionLabel>Summary</SectionLabel>
+                      {summaryHeaderActionRenderer}
+                    </div>
                     <p>{summary}</p>
                   </section>
                 ) : null}
@@ -270,7 +278,10 @@ export function GenericFilingAnalysis({
               </div>
             ) : hasDetailRenderer && showSummary && !useNoChartDetailSplit ? (
               <section className={`${styles.card} ${styles.analysisCopyCard}`}>
-                <SectionLabel>Summary</SectionLabel>
+                <div className={styles.summaryHeader}>
+                  <SectionLabel>Summary</SectionLabel>
+                  {summaryHeaderActionRenderer}
+                </div>
                 <p>{summary}</p>
               </section>
             ) : null}

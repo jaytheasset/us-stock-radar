@@ -4371,8 +4371,10 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
               tone={filing.signal}
             />
           ) : undefined}
-          sourceFooterActionRenderer={
-            preferredSourceUrl ? <GooglePreferredSourceLink href={preferredSourceUrl} /> : undefined
+          summaryHeaderActionRenderer={
+            preferredSourceUrl ? (
+              <GooglePreferredSourceLink href={preferredSourceUrl} summary />
+            ) : undefined
           }
         />
       </StockRadarAppShell>
@@ -4443,9 +4445,18 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
           </section>
 
           {useDilutionDetail && dilutionModel ? (
-            <DilutionOfferingTemplate eventLabel={eventBadge.label} filing={filing} model={dilutionModel} />
+            <DilutionOfferingTemplate
+              eventLabel={eventBadge.label}
+              filing={filing}
+              model={dilutionModel}
+              preferredSourceUrl={preferredSourceUrl}
+            />
           ) : (
-            <CommonFilingTemplate eventLabel={eventBadge.label} filing={filing} />
+            <CommonFilingTemplate
+              eventLabel={eventBadge.label}
+              filing={filing}
+              preferredSourceUrl={preferredSourceUrl}
+            />
           )}
         </article>
 
@@ -4520,9 +4531,6 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
               <span>View Original Filing</span>
               <ExternalLink size={14} aria-hidden="true" />
             </a>
-            {preferredSourceUrl ? (
-              <GooglePreferredSourceLink href={preferredSourceUrl} />
-            ) : null}
           </section>
         </aside>
       </div>
@@ -7469,7 +7477,15 @@ function toGenericBadgeTone(tone: EventTypeBadgeTone): BadgeTone {
   return "neutral";
 }
 
-function CommonFilingTemplate({ eventLabel, filing }: { eventLabel: string; filing: FilingEvent }) {
+function CommonFilingTemplate({
+  eventLabel,
+  filing,
+  preferredSourceUrl,
+}: {
+  eventLabel: string;
+  filing: FilingEvent;
+  preferredSourceUrl: string | null;
+}) {
   return (
     <>
       <section className="stock-detail-top-grid">
@@ -7507,7 +7523,12 @@ function CommonFilingTemplate({ eventLabel, filing }: { eventLabel: string; fili
       <section className="stock-detail-card-grid two-up insight-summary-grid">
         <AnalysisCard title="Why It Matters" body={filing.whyItMatters} />
         <section className="stock-detail-card summary-card">
-          <h2>Summary</h2>
+          <div className="card-heading-row">
+            <h2>Summary</h2>
+            {preferredSourceUrl ? (
+              <GooglePreferredSourceLink href={preferredSourceUrl} summary />
+            ) : null}
+          </div>
           <p>{filing.summary}</p>
         </section>
       </section>
@@ -7528,14 +7549,22 @@ function DilutionOfferingTemplate({
   eventLabel,
   filing,
   model,
+  preferredSourceUrl,
 }: {
   eventLabel: string;
   filing: FilingEvent;
   model: ReturnType<typeof buildDilutionOfferingModel>;
+  preferredSourceUrl: string | null;
 }) {
 
   if (model.isShelfOnly || model.isCommonWarrantOnly) {
-    return <CommonFilingTemplate eventLabel={eventLabel} filing={filing} />;
+    return (
+      <CommonFilingTemplate
+        eventLabel={eventLabel}
+        filing={filing}
+        preferredSourceUrl={preferredSourceUrl}
+      />
+    );
   }
 
   return (
@@ -7553,7 +7582,7 @@ function DilutionOfferingTemplate({
         <DilutionSnapshotCard model={model} />
       </section>
 
-      <DilutionLongSummary model={model} />
+      <DilutionLongSummary model={model} preferredSourceUrl={preferredSourceUrl} />
 
       <ShareOverhangCard model={model} />
 
@@ -7586,10 +7615,21 @@ function DilutionSnapshotCard({ model }: { model: ReturnType<typeof buildDilutio
   );
 }
 
-function DilutionLongSummary({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
+function DilutionLongSummary({
+  model,
+  preferredSourceUrl,
+}: {
+  model: ReturnType<typeof buildDilutionOfferingModel>;
+  preferredSourceUrl: string | null;
+}) {
   return (
     <section className="stock-detail-card dilution-long-summary">
-      <h2>Dilution Summary</h2>
+      <div className="card-heading-row">
+        <h2>Dilution Summary</h2>
+        {preferredSourceUrl ? (
+          <GooglePreferredSourceLink href={preferredSourceUrl} summary />
+        ) : null}
+      </div>
       {model.summaryParagraphs.map((paragraph) => (
         <p key={paragraph}>{paragraph}</p>
       ))}
