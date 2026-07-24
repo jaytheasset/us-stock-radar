@@ -2,6 +2,7 @@ import { Fragment } from "react";
 import { NewsV2InlineAd } from "@/components/news-v2/NewsV2InlineAd";
 import { NewsV2Row } from "@/components/news-v2/NewsV2Row";
 import { PremiumUpgradeCard } from "@/components/news-v2/PremiumUpgradeCard";
+import { GooglePreferredSourceLink } from "@/components/ui/GooglePreferredSourceLink";
 import type { NewsV2Item } from "@/lib/newsV2";
 import styles from "./StockRadarNewsV2.module.css";
 
@@ -10,6 +11,7 @@ export type NewsV2ListProps = {
   items: readonly NewsV2Item[];
   loadedTotal: number;
   onLoadMore?: () => void;
+  preferredSourceUrl?: string | null;
   remainingCount: number;
   showMarketReaction: boolean;
   totalItems: number;
@@ -39,6 +41,7 @@ export function NewsV2List({
   items,
   loadedTotal,
   onLoadMore,
+  preferredSourceUrl,
   remainingCount,
   showMarketReaction,
   totalItems,
@@ -59,7 +62,12 @@ export function NewsV2List({
           </span>
           <h2 id="news-v2-list-title">Market News</h2>
         </div>
-        <span className={styles.resultCount}>{countLabel}</span>
+        <span className={styles.listHeaderActions}>
+          <span className={styles.resultCount}>{countLabel}</span>
+          {preferredSourceUrl ? (
+            <GooglePreferredSourceLink header href={preferredSourceUrl} />
+          ) : null}
+        </span>
       </header>
 
       {items.length ? (

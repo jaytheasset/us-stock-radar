@@ -635,6 +635,14 @@
   white-space: nowrap;
 }
 
+.listHeaderActions {
+  display: flex;
+  min-width: 0;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--sr-space-3);
+}
+
 .filingItemTime span:last-child {
   color: var(--sr-color-text-primary);
   font-weight: var(--sr-font-weight-regular);
@@ -1432,7 +1440,16 @@
   }
 
   .listHeader {
+    min-height: auto;
+    flex-wrap: wrap;
+    row-gap: var(--sr-space-1);
+    padding-block: var(--sr-space-2);
     padding-inline: var(--sr-space-2-5);
+  }
+
+  .listHeaderActions {
+    width: 100%;
+    justify-content: flex-end;
   }
 
   .listHeaderTitle h2 {

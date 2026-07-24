@@ -4,6 +4,7 @@ import { FilingsV2ImpactScore } from "@/components/filings-v2/FilingsV2ImpactSco
 import { FilingsV2InlineAd } from "@/components/filings-v2/FilingsV2InlineAd";
 import { FilingsV2MarketReaction } from "@/components/filings-v2/FilingsV2MarketReaction";
 import { PremiumUpgradeCard } from "@/components/filings-v2/PremiumUpgradeCard";
+import { GooglePreferredSourceLink } from "@/components/ui/GooglePreferredSourceLink";
 import {
   filingsV2SignalLabels,
   isFilingsV2Today,
@@ -20,6 +21,7 @@ const mobilePremiumCtaInsertIndex = 3;
 type FilingsV2ListProps = {
   onLoadMore?: () => void;
   onSelect: (record: FilingsV2Record, opener: HTMLElement) => void;
+  preferredSourceUrl?: string | null;
   records: readonly FilingsV2Record[];
   referenceDate: string;
   remainingCount: number;
@@ -85,6 +87,7 @@ function EmptyState({ unavailable = false }: { unavailable?: boolean }) {
 export function FilingsV2List({
   onLoadMore,
   onSelect,
+  preferredSourceUrl,
   records,
   referenceDate,
   remainingCount,
@@ -118,7 +121,12 @@ export function FilingsV2List({
           <span className={styles.liveLabel}><i aria-hidden="true" />Live</span>
           <h2>SEC Filings</h2>
         </div>
-        <span className={styles.listHeaderCount}>{records.length} of {totalCount} filings</span>
+        <span className={styles.listHeaderActions}>
+          <span className={styles.listHeaderCount}>{records.length} of {totalCount} filings</span>
+          {preferredSourceUrl ? (
+            <GooglePreferredSourceLink header href={preferredSourceUrl} />
+          ) : null}
+        </span>
       </header>
 
       {records.length === 0 ? <EmptyState /> : (

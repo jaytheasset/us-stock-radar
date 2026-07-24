@@ -30,6 +30,7 @@ function daysForRange(range: FilingsV2DateRange) {
 
 type StockRadarFilingsV2Props = {
   formOptions: readonly string[];
+  preferredSourceUrl?: string | null;
   records: readonly FilingsV2Record[];
   referenceDate: string;
   state: FilingsV2ListState;
@@ -37,6 +38,7 @@ type StockRadarFilingsV2Props = {
 
 export function StockRadarFilingsV2({
   formOptions,
+  preferredSourceUrl,
   records,
   referenceDate,
   state,
@@ -275,6 +277,7 @@ export function StockRadarFilingsV2({
         <FilingsV2List
           onLoadMore={remainingCount > 0 ? showMoreRecords : undefined}
           onSelect={selectRecord}
+          preferredSourceUrl={preferredSourceUrl}
           records={visibleRecords}
           referenceDate={referenceDate}
           remainingCount={remainingCount}

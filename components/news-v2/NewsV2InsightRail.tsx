@@ -9,7 +9,6 @@ import { ChevronDown, ChevronRight, X } from "lucide-react";
 import { NewsV2InsightInlineAd } from "@/components/news-v2/NewsV2InsightInlineAd";
 import { NewsV2RailAdSlot } from "@/components/news-v2/NewsV2RailAdSlot";
 import { PremiumUpgradeCard } from "@/components/news-v2/PremiumUpgradeCard";
-import { GooglePreferredSourceLink } from "@/components/ui/GooglePreferredSourceLink";
 import type {
   NewsV2Item,
   NewsV2SectorActivity,
@@ -58,7 +57,6 @@ type NewsV2InsightRailProps = {
   sourceActivity: NewsV2SourceActivity[];
   total: number;
   visibleItemCount: number;
-  preferredSourceUrl?: string | null;
 };
 
 export function NewsV2InsightRail({
@@ -66,7 +64,6 @@ export function NewsV2InsightRail({
   sourceActivity,
   total,
   visibleItemCount,
-  preferredSourceUrl,
 }: NewsV2InsightRailProps) {
   const [sourceRange, setSourceRange] = useState<NewsV2Range>("Today");
   const [showAllSources, setShowAllSources] = useState(false);
@@ -218,11 +215,6 @@ export function NewsV2InsightRail({
                     </>
                   )}
                 </button>
-              </div>
-            ) : null}
-            {preferredSourceUrl ? (
-              <div className={styles.preferredSourceAction}>
-                <GooglePreferredSourceLink compact href={preferredSourceUrl} />
               </div>
             ) : null}
           </section>

@@ -40,6 +40,19 @@
   font-size: var(--sr-font-size-xs);
 }
 
+.header {
+  min-height: var(--sr-size-filter-chip);
+  border: 0;
+  padding: 0;
+  color: var(--sr-color-text-meta);
+  background: transparent;
+  font-size: var(--sr-font-size-xs);
+}
+
+.headerMobileMessage {
+  display: none;
+}
+
 .summary {
   min-height: var(--sr-size-filter-chip);
   border-color: var(--sr-color-divider);
@@ -55,6 +68,18 @@
 }
 
 @media (max-width: 760px) {
+  .header {
+    gap: var(--sr-space-1);
+  }
+
+  .headerDesktopMessage {
+    display: none;
+  }
+
+  .headerMobileMessage {
+    display: inline;
+  }
+
   .summary {
     width: fit-content;
     max-width: 100%;

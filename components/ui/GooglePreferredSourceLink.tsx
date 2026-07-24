@@ -4,15 +4,19 @@ import styles from "./GooglePreferredSourceLink.module.css";
 export function GooglePreferredSourceLink({
   href,
   compact = false,
+  header = false,
   summary = false,
 }: {
   href: string;
   compact?: boolean;
+  header?: boolean;
   summary?: boolean;
 }) {
   return (
     <a
       className={`${styles.link}${compact ? ` ${styles.compact}` : ""}${
+        header ? ` ${styles.header}` : ""
+      }${
         summary ? ` ${styles.summary}` : ""
       }`}
       href={href}
@@ -24,6 +28,13 @@ export function GooglePreferredSourceLink({
         <span className={styles.summaryMessage}>
           Add Stock Radar as a preferred source on Google
         </span>
+      ) : header ? (
+        <>
+          <span className={styles.headerDesktopMessage}>
+            Add Stock Radar as a preferred source
+          </span>
+          <span className={styles.headerMobileMessage}>Preferred source</span>
+        </>
       ) : (
         <span>Prefer Stock Radar on Google</span>
       )}

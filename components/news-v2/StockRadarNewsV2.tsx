@@ -139,6 +139,7 @@ export function StockRadarNewsV2({
             onLoadMore={remainingCount > 0
               ? () => setVisibleCount((count) => Math.min(count + newsBatchSize, filteredItems.length))
               : undefined}
+            preferredSourceUrl={preferredSourceUrl}
             remainingCount={remainingCount}
             showMarketReaction={showMarketReaction}
             totalItems={filteredItems.length}
@@ -152,7 +153,6 @@ export function StockRadarNewsV2({
           sourceActivity={sourceActivity}
           total={total}
           visibleItemCount={visibleItems.length}
-          preferredSourceUrl={preferredSourceUrl}
         />
       </div>
 

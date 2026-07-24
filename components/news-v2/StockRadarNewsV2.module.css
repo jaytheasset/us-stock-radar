@@ -395,6 +395,14 @@
   white-space: nowrap;
 }
 
+.listHeaderActions {
+  display: flex;
+  min-width: 0;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--sr-space-3);
+}
+
 .newsList {
   margin: 0;
   border: 0;
@@ -1210,11 +1218,6 @@
   outline-offset: var(--sr-focus-ring-offset);
 }
 
-.preferredSourceAction {
-  border-top: var(--sr-border-width) solid var(--sr-color-divider);
-  padding: var(--sr-space-2) var(--sr-space-4) var(--sr-space-3);
-}
-
 .detailContent {
   min-width: 0;
   padding: var(--sr-space-5);
@@ -1908,7 +1911,16 @@
   }
 
   .listHeader {
-    padding: 0 var(--sr-space-2-5);
+    min-height: auto;
+    flex-wrap: wrap;
+    row-gap: var(--sr-space-1);
+    padding-block: var(--sr-space-2);
+    padding-inline: var(--sr-space-2-5);
+  }
+
+  .listHeaderActions {
+    width: 100%;
+    justify-content: flex-end;
   }
 
   .sectionEyebrow {
