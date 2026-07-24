@@ -13,7 +13,7 @@ import {
 import type { Plan } from "@/lib/subscriptionPolicy";
 import styles from "./StockRadarFilingsV2.module.css";
 
-export type FilingsV2ListState = "loading" | "ready" | "unavailable";
+export type FilingsV2ListState = "loading" | "partial" | "ready" | "unavailable";
 
 const minimumInlineAdRecords = 10;
 const inlineAdGroupSize = 25;
@@ -129,6 +129,12 @@ export function FilingsV2List({
         </div>
         <span className={styles.listHeaderCount}>{records.length} of {totalCount} filings</span>
       </header>
+
+      {state === "partial" ? (
+        <div className={styles.partialDataNotice} role="status">
+          Some filing data could not be loaded. Results may be incomplete.
+        </div>
+      ) : null}
 
       {records.length === 0 ? <EmptyState /> : (
         <div aria-label="SEC filings" className={styles.filingList}>

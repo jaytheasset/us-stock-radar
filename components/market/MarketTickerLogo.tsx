@@ -41,17 +41,19 @@ export function MarketTickerLogo({
       aria-hidden="true"
       className={`${styles.tickerLogo} ${sizeClass} ${appearanceClass}`}
     >
+      <span className={styles.tickerMonogram}>{monogram}</span>
       {showLogo ? (
         <img
           alt=""
           decoding="async"
           loading="lazy"
-          onError={() => setFailedUrl(resolvedLogoUrl ?? null)}
+          onError={(event) => {
+            event.currentTarget.style.display = "none";
+            setFailedUrl(resolvedLogoUrl ?? null);
+          }}
           src={resolvedLogoUrl}
         />
-      ) : (
-        <span className={styles.tickerMonogram}>{monogram}</span>
-      )}
+      ) : null}
     </span>
   );
 }

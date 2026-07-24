@@ -8,6 +8,7 @@ import { FilingsRailAdSlot } from "@/components/filings-v2/FilingsRailAdSlot";
 import { FilingsV2Summary } from "@/components/filings-v2/FilingsV2Summary";
 import { MobileFilingsV2FilterSheet } from "@/components/filings-v2/MobileFilingsV2FilterSheet";
 import { PremiumUpgradeCard } from "@/components/filings-v2/PremiumUpgradeCard";
+import { resolveFilingsV2SelectedRecord } from "@/components/filings-v2/filingsV2Selection";
 import {
   filingsV2DefaultFilters,
   filingsV2EventLabels,
@@ -104,7 +105,7 @@ export function StockRadarFilingsV2({
   const visibleRecords = filteredRecords.slice(0, visibleCount);
   const remainingCount = Math.max(filteredRecords.length - visibleRecords.length, 0);
   const tallRailAdCount = Math.max(1, Math.ceil(visibleRecords.length / 12) - 1);
-  const selectedRecord = records.find((record) => record.id === selectedId) ?? records[0];
+  const selectedRecord = resolveFilingsV2SelectedRecord(filteredRecords, selectedId);
   const relatedRecords = selectedRecord?.relatedFilings ?? [];
 
   useEffect(() => {

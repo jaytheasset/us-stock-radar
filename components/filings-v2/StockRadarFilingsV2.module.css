@@ -366,8 +366,7 @@
 .marketCapFilterOption:focus-visible,
 .activeFilterChip:focus-visible,
 .filterMenuTrigger:focus-visible,
-.resetButton:focus-visible,
-.mobileResetButton:focus-visible {
+.resetButton:focus-visible {
   outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
   outline-offset: var(--sr-focus-ring-offset);
 }
@@ -469,8 +468,7 @@
   padding-top: var(--sr-space-1-5);
 }
 
-.resetButton,
-.mobileResetButton {
+.resetButton {
   min-height: var(--sr-size-filter-option);
   border: var(--sr-border-width) solid var(--sr-color-border-muted-action);
   border-radius: var(--sr-radius-control);
@@ -561,6 +559,16 @@
   font-size: var(--sr-font-size-sm);
   font-variant-numeric: var(--sr-font-variant-numeric);
   white-space: nowrap;
+}
+
+.partialDataNotice {
+  border-top: var(--sr-border-width) solid var(--sr-color-divider);
+  border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
+  padding: var(--sr-space-2) var(--sr-space-4);
+  color: var(--sr-color-warning);
+  background: var(--sr-color-surface-control);
+  font-size: var(--sr-font-size-sm);
+  line-height: var(--sr-line-height-snug);
 }
 
 .filingList {
@@ -1605,10 +1613,6 @@
   .mobileFilterActions .mobileFilterTrigger {
     min-height: var(--sr-size-control);
     padding-inline: var(--sr-space-3);
-  }
-
-  .mobileResetButton {
-    min-height: var(--sr-size-mobile-quick-filter);
   }
 
   .listHeader {

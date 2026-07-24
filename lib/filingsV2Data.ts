@@ -10,13 +10,17 @@ import {
   type FilingsV2Record,
   type FilingsV2Signal,
 } from "@/lib/filingsV2Model";
+import {
+  resolveFilingsV2LoadState,
+  type FilingsV2LoadState,
+} from "@/lib/filingsV2LoadState";
 import { fetchEvents } from "@/lib/supabase";
 
 type FilingsV2Data = {
   formOptions: string[];
   records: FilingsV2Record[];
   referenceDate: string;
-  state: "ready" | "unavailable";
+  state: FilingsV2LoadState;
 };
 
 type UnknownRecord = Record<string, unknown>;
@@ -82,7 +86,8 @@ async function buildFilingsV2Data(): Promise<FilingsV2Data> {
   );
 
   const successfulResults = results.filter((result) => result.ok);
-  if (!successfulResults.length) {
+  const state = resolveFilingsV2LoadState(successfulResults.length, results.length);
+  if (state === "unavailable") {
     return {
       formOptions: [],
       records: [],
@@ -129,7 +134,7 @@ async function buildFilingsV2Data(): Promise<FilingsV2Data> {
     formOptions,
     records,
     referenceDate,
-    state: "ready",
+    state,
   };
 }
 
@@ -157,15 +162,15 @@ function mapEventRow(row: UnknownRecord): FilingsV2Record | null {
     marketContext,
   ].filter((value): value is UnknownRecord => Boolean(value));
 
-  const filedAt =
-    firstDateString(contexts, [
-      "published_at",
-      "detected_at",
-      "event_date",
-      "filed_at",
-      "filing_date",
-      "filed_date",
-    ]) || new Date().toISOString();
+  const filedAt = firstDateString(contexts, [
+    "published_at",
+    "detected_at",
+    "event_date",
+    "filed_at",
+    "filing_date",
+    "filed_date",
+  ]);
+  if (!filedAt) return null;
   const ticker = normalizeTicker(firstString(contexts, ["ticker", "symbol"]));
   const eventTypes = collectEventTypes(row, metadata);
   const score = clampScore(
