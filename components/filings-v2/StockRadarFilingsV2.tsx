@@ -12,47 +12,81 @@ import { resolveFilingsV2SelectedRecord } from "@/components/filings-v2/filingsV
 import { useLiveReferenceDate } from "@/components/ui/useLiveReferenceDate";
 import {
   filingsV2DefaultFilters,
-  filingsV2EventLabels,
-  matchesFilingsV2ImpactFilter,
-  type FilingsV2DateRange,
+  type FilingsV2Cursor,
   type FilingsV2FilterGroup,
   type FilingsV2FilterState,
+  type FilingsV2PageResponse,
   type FilingsV2Record,
+  type FilingsV2SummaryMetrics,
 } from "@/lib/filingsV2Model";
 import type { Plan } from "@/lib/subscriptionPolicy";
 import styles from "./StockRadarFilingsV2.module.css";
 
-const loadMoreSize = 25;
+function buildFilingsV2RequestUrl(
+  filters: FilingsV2FilterState,
+  query: string,
+  cursor: FilingsV2Cursor | null,
+  includeTotal: boolean,
+) {
+  const searchParams = new URLSearchParams();
+  const filterParams: Array<[string, readonly string[]]> = [
+    ["signals", filters.signals],
+    ["market_caps", filters.marketCaps],
+    ["form_types", filters.formTypes],
+    ["event_types", filters.eventTypes],
+    ["impacts", filters.impacts],
+    ["date_ranges", filters.dateRanges],
+  ];
 
-function daysForRange(range: FilingsV2DateRange) {
-  if (range === "24 Hours") return 1;
-  if (range === "7 Days") return 7;
-  if (range === "30 Days") return 30;
-  return null;
+  for (const [name, values] of filterParams) {
+    for (const value of values) searchParams.append(name, value);
+  }
+  if (query.trim()) searchParams.set("query", query.trim());
+  if (cursor) {
+    searchParams.set("cursor_id", cursor.id);
+    searchParams.set("cursor_published_at", cursor.publishedAt);
+  }
+  searchParams.set("include_total", String(includeTotal));
+
+  return `/api/filings-v2?${searchParams.toString()}`;
 }
 
 type StockRadarFilingsV2Props = {
   formOptions: readonly string[];
+  hasMore: boolean;
+  nextCursor: FilingsV2Cursor | null;
   preferredSourceUrl?: string | null;
   records: readonly FilingsV2Record[];
   referenceDate: string;
   state: FilingsV2ListState;
+  summary: FilingsV2SummaryMetrics;
+  totalCount: number;
   viewerPlan: Plan;
 };
 
 export function StockRadarFilingsV2({
   formOptions,
+  hasMore,
+  nextCursor,
   preferredSourceUrl,
   records,
   referenceDate,
   state,
+  summary,
+  totalCount,
   viewerPlan,
 }: StockRadarFilingsV2Props) {
   const liveReferenceDate = useLiveReferenceDate(referenceDate);
   const [filters, setFilters] = useState<FilingsV2FilterState>(filingsV2DefaultFilters);
   const [searchInput, setSearchInput] = useState("");
   const [query, setQuery] = useState("");
-  const [visibleCount, setVisibleCount] = useState(loadMoreSize);
+  const [pageRecords, setPageRecords] = useState<FilingsV2Record[]>([...records]);
+  const [pageTotalCount, setPageTotalCount] = useState(totalCount);
+  const [pageHasMore, setPageHasMore] = useState(hasMore);
+  const [pageCursor, setPageCursor] = useState<FilingsV2Cursor | null>(nextCursor);
+  const [listState, setListState] = useState<FilingsV2ListState>(state);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [selectedId, setSelectedId] = useState(records[0]?.id ?? "");
   const [isDetailSheetOpen, setIsDetailSheetOpen] = useState(false);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
@@ -62,58 +96,65 @@ export function StockRadarFilingsV2({
   const detailRailRef = useRef<HTMLElement | null>(null);
   const detailRailScrollProgressRef = useRef(0);
   const filterOpenerRef = useRef<HTMLButtonElement | null>(null);
-
-  const filteredRecords = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    const referenceTime = new Date(liveReferenceDate).getTime();
-
-    return records
-      .filter((record) => {
-        if (filters.formTypes.length && !filters.formTypes.includes(record.formType)) return false;
-        if (filters.eventTypes.length && !filters.eventTypes.some((event) => record.events.includes(event))) return false;
-        if (filters.impacts.length && !filters.impacts.some((impact) => matchesFilingsV2ImpactFilter(record.impact, impact))) return false;
-        if (filters.signals.length && !filters.signals.includes(record.signal)) return false;
-        if (
-          filters.marketCaps.length &&
-          (!record.marketCap || !filters.marketCaps.includes(record.marketCap))
-        ) return false;
-        if (filters.dateRanges.length) {
-          const age = referenceTime - new Date(record.filedAt).getTime();
-          const isInSelectedRange = filters.dateRanges.some((range) => {
-            const rangeDays = daysForRange(range);
-            return rangeDays !== null && age >= 0 && age <= rangeDays * 24 * 60 * 60 * 1000;
-          });
-          if (!isInSelectedRange) return false;
-        }
-        if (!normalizedQuery) return true;
-
-        const searchText = [
-          record.ticker,
-          record.company,
-          record.formType,
-          record.title,
-          record.summary,
-          record.accession,
-          ...record.events.map((event) => filingsV2EventLabels[event]),
-        ].filter(Boolean).join(" ").toLowerCase();
-        return searchText.includes(normalizedQuery);
-      })
-      .sort((left, right) => {
-        return new Date(right.filedAt).getTime() - new Date(left.filedAt).getTime();
-      });
-  }, [filters, liveReferenceDate, query, records]);
-
-  const visibleRecords = filteredRecords.slice(0, visibleCount);
-  const remainingCount = Math.max(filteredRecords.length - visibleRecords.length, 0);
-  const tallRailAdCount = Math.max(1, Math.ceil(visibleRecords.length / 12) - 1);
-  const selectedRecord = resolveFilingsV2SelectedRecord(filteredRecords, selectedId);
+  const loadMoreControllerRef = useRef<AbortController | null>(null);
+  const requestKey = useMemo(() => JSON.stringify({ filters, query }), [filters, query]);
+  const lastRequestKeyRef = useRef(requestKey);
+  const remainingCount = Math.max(pageTotalCount - pageRecords.length, 0);
+  const tallRailAdCount = Math.max(1, Math.ceil(pageRecords.length / 12) - 1);
+  const selectedRecord = resolveFilingsV2SelectedRecord(pageRecords, selectedId);
   const relatedRecords = selectedRecord?.relatedFilings ?? [];
 
   useEffect(() => {
-    if (filteredRecords.length > 0 && !filteredRecords.some((record) => record.id === selectedId)) {
-      setSelectedId(filteredRecords[0].id);
+    if (pageRecords.length > 0 && !pageRecords.some((record) => record.id === selectedId)) {
+      setSelectedId(pageRecords[0].id);
     }
-  }, [filteredRecords, selectedId]);
+  }, [pageRecords, selectedId]);
+
+  useEffect(() => {
+    if (lastRequestKeyRef.current === requestKey) return;
+    lastRequestKeyRef.current = requestKey;
+
+    loadMoreControllerRef.current?.abort();
+    const controller = new AbortController();
+    setIsRefreshing(true);
+    setIsDetailSheetOpen(false);
+
+    void fetch(buildFilingsV2RequestUrl(filters, query, null, true), {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const payload = await response.json() as FilingsV2PageResponse;
+        if (!response.ok || payload.state !== "ready") {
+          throw new Error("Filing data unavailable");
+        }
+
+        setPageRecords(payload.records);
+        setPageTotalCount(payload.totalCount ?? payload.records.length);
+        setPageHasMore(payload.hasMore);
+        setPageCursor(payload.nextCursor);
+        setListState("ready");
+        setSelectedId(payload.records[0]?.id ?? "");
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setPageRecords([]);
+        setPageTotalCount(0);
+        setPageHasMore(false);
+        setPageCursor(null);
+        setListState("unavailable");
+        setSelectedId("");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsRefreshing(false);
+      });
+
+    return () => controller.abort();
+  }, [filters, query, requestKey]);
+
+  useEffect(() => {
+    return () => loadMoreControllerRef.current?.abort();
+  }, []);
 
   useEffect(() => {
     if (previewRequestId === 0) return;
@@ -200,36 +241,64 @@ export function StockRadarFilingsV2({
         ? current[group].filter((item) => item !== value)
         : [...current[group], value],
     }) as FilingsV2FilterState);
-    setVisibleCount(loadMoreSize);
   };
   const removeFilter = (group: FilingsV2FilterGroup, value: string) => {
     setFilters((current) => ({
       ...current,
       [group]: current[group].filter((item) => item !== value),
     }) as FilingsV2FilterState);
-    setVisibleCount(loadMoreSize);
   };
   const clearFilterGroup = (group: FilingsV2FilterGroup) => {
     setFilters((current) => ({ ...current, [group]: [] }));
-    setVisibleCount(loadMoreSize);
   };
   const resetFilters = () => {
     setFilters(filingsV2DefaultFilters);
     setSearchInput("");
     setQuery("");
-    setVisibleCount(loadMoreSize);
   };
   const clearSearch = () => {
     setSearchInput("");
     setQuery("");
-    setVisibleCount(loadMoreSize);
   };
   const showMoreRecords = () => {
-    setVisibleCount((current) => Math.min(current + loadMoreSize, filteredRecords.length));
+    if (!pageHasMore || !pageCursor || isLoadingMore) return;
+
+    loadMoreControllerRef.current?.abort();
+    const controller = new AbortController();
+    loadMoreControllerRef.current = controller;
+    setIsLoadingMore(true);
+
+    void fetch(buildFilingsV2RequestUrl(filters, query, pageCursor, false), {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const payload = await response.json() as FilingsV2PageResponse;
+        if (!response.ok || payload.state !== "ready") {
+          throw new Error("Additional filings unavailable");
+        }
+
+        setPageRecords((current) => {
+          const knownIds = new Set(current.map((record) => record.id));
+          return [...current, ...payload.records.filter((record) => !knownIds.has(record.id))];
+        });
+        setPageHasMore(payload.hasMore);
+        setPageCursor(payload.nextCursor);
+        setListState("ready");
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setListState("partial");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoadingMore(false);
+        if (loadMoreControllerRef.current === controller) {
+          loadMoreControllerRef.current = null;
+        }
+      });
   };
   const searchFilings = () => {
     setQuery(searchInput.trim());
-    setVisibleCount(loadMoreSize);
   };
   const closeMobileFilters = () => {
     setIsFilterSheetOpen(false);
@@ -256,7 +325,7 @@ export function StockRadarFilingsV2({
     <div className={styles.root}>
       <section className={styles.primaryColumn}>
         <h1 className={styles.visuallyHidden}>Filings</h1>
-        <FilingsV2Summary records={records} referenceDate={liveReferenceDate} />
+        <FilingsV2Summary summary={summary} />
         <div className={styles.controlBand}>
           <FilingsV2FilterBar
             appliedQuery={query}
@@ -276,15 +345,16 @@ export function StockRadarFilingsV2({
           />
         </div>
         <FilingsV2List
-          onLoadMore={remainingCount > 0 ? showMoreRecords : undefined}
+          isLoadingMore={isLoadingMore}
+          onLoadMore={pageHasMore && remainingCount > 0 ? showMoreRecords : undefined}
           onSelect={selectRecord}
           preferredSourceUrl={preferredSourceUrl}
-          records={visibleRecords}
+          records={pageRecords}
           referenceDate={liveReferenceDate}
           remainingCount={remainingCount}
           selectedId={selectedId}
-          state={state}
-          totalCount={filteredRecords.length}
+          state={isRefreshing ? "loading" : listState}
+          totalCount={pageTotalCount}
           viewerPlan={viewerPlan}
         />
       </section>

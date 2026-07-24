@@ -51,6 +51,28 @@ export type FilingsV2Record = {
   watchlist?: boolean;
 };
 
+export type FilingsV2Cursor = {
+  id: string;
+  publishedAt: string;
+};
+
+export type FilingsV2SummaryMetrics = {
+  alerts: number;
+  earnings: number;
+  filedToday: number;
+  insider: number;
+  listing: number;
+  offering: number;
+};
+
+export type FilingsV2PageResponse = {
+  hasMore: boolean;
+  nextCursor: FilingsV2Cursor | null;
+  records: FilingsV2Record[];
+  state: "ready" | "unavailable";
+  totalCount: number | null;
+};
+
 export type FilingsV2FilterGroup =
   | "signals"
   | "marketCaps"

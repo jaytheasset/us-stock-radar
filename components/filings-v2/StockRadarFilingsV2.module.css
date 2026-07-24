@@ -936,6 +936,15 @@
   background: var(--sr-color-surface-table-hover);
 }
 
+.loadMoreButton:disabled {
+  cursor: wait;
+  opacity: var(--sr-opacity-disabled);
+}
+
+.loadMoreButton:disabled:hover {
+  background: var(--sr-color-surface-control);
+}
+
 .loadMoreButton:focus-visible {
   outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
   outline-offset: var(--sr-focus-ring-offset);

@@ -20,6 +20,7 @@ const inlineAdGroupSize = 25;
 const mobilePremiumCtaInsertIndex = 3;
 
 type FilingsV2ListProps = {
+  isLoadingMore?: boolean;
   onLoadMore?: () => void;
   onSelect: (record: FilingsV2Record, opener: HTMLElement) => void;
   preferredSourceUrl?: string | null;
@@ -89,6 +90,7 @@ function EmptyState({ unavailable = false }: { unavailable?: boolean }) {
 }
 
 export function FilingsV2List({
+  isLoadingMore = false,
   onLoadMore,
   onSelect,
   preferredSourceUrl,
@@ -200,8 +202,13 @@ export function FilingsV2List({
 
       <footer className={styles.listFooter}>
         {onLoadMore ? (
-          <button className={styles.loadMoreButton} onClick={onLoadMore} type="button">
-            View more filings
+          <button
+            className={styles.loadMoreButton}
+            disabled={isLoadingMore}
+            onClick={onLoadMore}
+            type="button"
+          >
+            {isLoadingMore ? "Loading filings" : "View more filings"}
             <span>{remainingCount} more</span>
           </button>
         ) : (

@@ -5,28 +5,40 @@ import {
   readMarketQuoteCacheMap,
 } from "@/lib/marketDataCache";
 import {
+  type FilingsV2Cursor,
   type FilingsV2EventType,
+  type FilingsV2FilterState,
   type FilingsV2MarketCap,
+  type FilingsV2PageResponse,
   type FilingsV2Record,
   type FilingsV2Signal,
+  type FilingsV2SummaryMetrics,
 } from "@/lib/filingsV2Model";
-import {
-  resolveFilingsV2LoadState,
-  type FilingsV2LoadState,
-} from "@/lib/filingsV2LoadState";
-import { fetchEvents } from "@/lib/supabase";
+import type { FilingsV2LoadState } from "@/lib/filingsV2LoadState";
+import { supabaseRpc } from "@/lib/supabase";
 
 type FilingsV2Data = {
   formOptions: string[];
+  hasMore: boolean;
+  nextCursor: FilingsV2Cursor | null;
   records: FilingsV2Record[];
   referenceDate: string;
   state: FilingsV2LoadState;
+  summary: FilingsV2SummaryMetrics;
+  totalCount: number;
+};
+
+type LoadFilingsV2PageParams = {
+  cursor?: FilingsV2Cursor | null;
+  filters?: FilingsV2FilterState;
+  includeTotal?: boolean;
+  query?: string;
+  referenceDate?: string;
 };
 
 type UnknownRecord = Record<string, unknown>;
 
-const PAGE_SIZE = 100;
-const PAGE_COUNT = 3;
+export const filingsV2PageSize = 25;
 const CACHE_TTL_MS = 30_000;
 const quoteLimit = 40;
 const chartLimit = 20;
@@ -74,33 +86,105 @@ export async function loadFilingsV2Data(): Promise<FilingsV2Data> {
 
 async function buildFilingsV2Data(): Promise<FilingsV2Data> {
   const referenceDate = new Date().toISOString();
-  const results = await Promise.all(
-    Array.from({ length: PAGE_COUNT }, (_, index) =>
-      fetchEvents({
-        excludeDeliveryLevel: "archive",
-        limit: PAGE_SIZE,
-        page: index + 1,
-        sourceGroup: "filings",
-      }),
-    ),
-  );
+  const [page, facets] = await Promise.all([
+    loadFilingsV2Page({ includeTotal: true, referenceDate }),
+    loadFilingsV2Facets(),
+  ]);
 
-  const successfulResults = results.filter((result) => result.ok);
-  const state = resolveFilingsV2LoadState(successfulResults.length, results.length);
-  if (state === "unavailable") {
+  if (page.state === "unavailable") {
     return {
       formOptions: [],
+      hasMore: false,
+      nextCursor: null,
       records: [],
       referenceDate,
       state: "unavailable",
+      summary: emptySummary(),
+      totalCount: 0,
     };
   }
 
-  const rows = successfulResults.flatMap((result) => result.data).filter(isRecord);
+  return {
+    formOptions: facets?.formOptions ?? [],
+    hasMore: page.hasMore,
+    nextCursor: page.nextCursor,
+    records: page.records,
+    referenceDate,
+    state: facets ? "ready" : "partial",
+    summary: facets?.summary ?? summarizeRecords(page.records, referenceDate),
+    totalCount: page.totalCount ?? page.records.length,
+  };
+}
+
+export async function loadFilingsV2Page({
+  cursor,
+  filters,
+  includeTotal = true,
+  query = "",
+  referenceDate = new Date().toISOString(),
+}: LoadFilingsV2PageParams = {}): Promise<FilingsV2PageResponse> {
+  const publishedAfter = readPublishedAfter(filters, referenceDate);
+  const result = await supabaseRpc("search_filings_v2", {
+    p_cursor_id: cursor?.id ?? null,
+    p_cursor_published_at: cursor?.publishedAt ?? null,
+    p_event_types: filters?.eventTypes ?? [],
+    p_form_types: filters?.formTypes ?? [],
+    p_impacts: filters?.impacts ?? [],
+    p_include_total: includeTotal,
+    p_limit: filingsV2PageSize,
+    p_market_caps: filters?.marketCaps ?? [],
+    p_published_after: publishedAfter,
+    p_query: query.trim() || null,
+    p_signals: filters?.signals ?? [],
+  });
+
+  const payload = asRecord(result.data);
+  if (!result.ok || !payload) {
+    return {
+      hasMore: false,
+      nextCursor: null,
+      records: [],
+      state: "unavailable",
+      totalCount: null,
+    };
+  }
+
+  const rows = Array.isArray(payload.records) ? payload.records.filter(isRecord) : [];
   const baseRecords = rows
     .map(mapEventRow)
-    .filter((record): record is FilingsV2Record => Boolean(record))
-    .sort((left, right) => Date.parse(right.filedAt) - Date.parse(left.filedAt));
+    .filter((record): record is FilingsV2Record => Boolean(record));
+  const records = await enrichRecordsWithMarketData(baseRecords);
+  const cursorPayload = asRecord(payload.next_cursor);
+  const nextCursor = readCursor(cursorPayload);
+
+  return {
+    hasMore: payload.has_more === true,
+    nextCursor,
+    records,
+    state: "ready",
+    totalCount: finiteNumber(payload.total) ?? null,
+  };
+}
+
+async function loadFilingsV2Facets() {
+  const result = await supabaseRpc("get_filings_v2_facets", {});
+  const payload = asRecord(result.data);
+  if (!result.ok || !payload) return null;
+
+  const formOptions = Array.isArray(payload.form_options)
+    ? payload.form_options
+      .map(readString)
+      .filter((value): value is string => Boolean(value))
+    : [];
+  const summaryPayload = asRecord(payload.summary);
+
+  return {
+    formOptions,
+    summary: readSummary(summaryPayload),
+  };
+}
+
+async function enrichRecordsWithMarketData(baseRecords: FilingsV2Record[]) {
   const symbols = Array.from(
     new Set(baseRecords.map((record) => record.ticker).filter(isUsableTicker)),
   );
@@ -111,7 +195,7 @@ async function buildFilingsV2Data(): Promise<FilingsV2Data> {
     readMarketBarCacheMap(chartSymbols, "1D"),
   ]);
 
-  const records = baseRecords.map((record) => {
+  return baseRecords.map((record) => {
     const symbol = record.ticker;
     if (!symbol) return record;
 
@@ -126,16 +210,6 @@ async function buildFilingsV2Data(): Promise<FilingsV2Data> {
       price: finiteNumber(quote?.price) ?? record.price,
     };
   });
-  const formOptions = Array.from(
-    new Set(records.map((record) => record.formType).filter(Boolean)),
-  ).sort((left, right) => left.localeCompare(right, undefined, { numeric: true }));
-
-  return {
-    formOptions,
-    records,
-    referenceDate,
-    state,
-  };
 }
 
 function mapEventRow(row: UnknownRecord): FilingsV2Record | null {
@@ -186,11 +260,11 @@ function mapEventRow(row: UnknownRecord): FilingsV2Record | null {
       "investor_takeaway",
     ]) || "";
   const storedPrice = firstFiniteNumber(
-    [marketContext, metadata].filter((value): value is UnknownRecord => Boolean(value)),
+    [row, marketContext, metadata].filter((value): value is UnknownRecord => Boolean(value)),
     ["price", "latest_price", "current_price"],
   );
   const storedChange = firstFiniteNumber(
-    [marketContext, metadata].filter((value): value is UnknownRecord => Boolean(value)),
+    [row, marketContext, metadata].filter((value): value is UnknownRecord => Boolean(value)),
     ["change_percent", "change_percentage", "changes_percentage"],
   );
 
@@ -242,7 +316,12 @@ function collectEventTypes(
   row: UnknownRecord,
   metadata: UnknownRecord | null,
 ): FilingsV2EventType[] {
-  const candidates: unknown[] = [row.event_type, metadata?.event_type, metadata?.category];
+  const candidates: unknown[] = [
+    row.event_type,
+    metadata?.event_type,
+    metadata?.category,
+    ...(Array.isArray(row.event_tags) ? row.event_tags : []),
+  ];
   const materialEvents = Array.isArray(metadata?.material_events)
     ? metadata.material_events
     : [];
@@ -375,6 +454,77 @@ function classifyMarketCap(value: unknown): FilingsV2MarketCap | undefined {
   if (marketCap >= 1_000_000_000) return "Mid";
   if (marketCap >= 50_000_000) return "Small";
   return "Micro";
+}
+
+function readPublishedAfter(
+  filters: FilingsV2FilterState | undefined,
+  referenceDate: string,
+) {
+  const rangeDays = filters?.dateRanges.reduce((largest, range) => {
+    if (range === "30 Days") return Math.max(largest, 30);
+    if (range === "7 Days") return Math.max(largest, 7);
+    if (range === "24 Hours") return Math.max(largest, 1);
+    return largest;
+  }, 0) ?? 0;
+  if (!rangeDays) return null;
+
+  const referenceTime = Date.parse(referenceDate);
+  if (!Number.isFinite(referenceTime)) return null;
+  return new Date(referenceTime - rangeDays * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function readCursor(value: UnknownRecord | null): FilingsV2Cursor | null {
+  if (!value) return null;
+  const id = readString(value.id);
+  const publishedAt = firstDateString([value], ["published_at"]);
+  if (!id || !uuidPattern.test(id) || !publishedAt) return null;
+  return { id, publishedAt };
+}
+
+function emptySummary(): FilingsV2SummaryMetrics {
+  return {
+    alerts: 0,
+    earnings: 0,
+    filedToday: 0,
+    insider: 0,
+    listing: 0,
+    offering: 0,
+  };
+}
+
+function readSummary(value: UnknownRecord | null): FilingsV2SummaryMetrics {
+  return {
+    alerts: finiteNumber(value?.alerts) ?? 0,
+    earnings: finiteNumber(value?.earnings) ?? 0,
+    filedToday: finiteNumber(value?.filedToday) ?? 0,
+    insider: finiteNumber(value?.insider) ?? 0,
+    listing: finiteNumber(value?.listing) ?? 0,
+    offering: finiteNumber(value?.offering) ?? 0,
+  };
+}
+
+function summarizeRecords(
+  records: readonly FilingsV2Record[],
+  referenceDate: string,
+): FilingsV2SummaryMetrics {
+  const referenceFormatter = new Intl.DateTimeFormat("en-CA", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "America/New_York",
+    year: "numeric",
+  });
+  const referenceMarketDate = referenceFormatter.format(new Date(referenceDate));
+
+  return {
+    alerts: records.filter((record) => record.impact >= 75).length,
+    earnings: records.filter((record) => record.events.includes("earnings")).length,
+    filedToday: records.filter(
+      (record) => referenceFormatter.format(new Date(record.filedAt)) === referenceMarketDate,
+    ).length,
+    insider: records.filter((record) => record.events.includes("insider")).length,
+    listing: records.filter((record) => record.events.includes("listing")).length,
+    offering: records.filter((record) => record.events.includes("offering")).length,
+  };
 }
 
 function parseMagnitude(value: unknown) {

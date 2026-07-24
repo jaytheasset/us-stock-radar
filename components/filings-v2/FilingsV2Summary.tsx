@@ -1,25 +1,19 @@
-import {
-  filingsV2HighImpactMinimum,
-  isFilingsV2Today,
-  type FilingsV2Record,
-} from "@/lib/filingsV2Model";
+import type { FilingsV2SummaryMetrics } from "@/lib/filingsV2Model";
 import { ChevronDown } from "lucide-react";
 import styles from "./StockRadarFilingsV2.module.css";
 
 export function FilingsV2Summary({
-  records,
-  referenceDate,
+  summary,
 }: {
-  records: readonly FilingsV2Record[];
-  referenceDate: string;
+  summary: FilingsV2SummaryMetrics;
 }) {
   const metrics = [
-    { label: "Filed Today", value: records.filter((record) => isFilingsV2Today(record.filedAt, referenceDate)).length },
-    { label: "Alerts", value: records.filter((record) => record.impact >= filingsV2HighImpactMinimum).length },
-    { label: "Earnings", value: records.filter((record) => record.events.includes("earnings")).length },
-    { label: "Insider", value: records.filter((record) => record.events.includes("insider")).length },
-    { label: "Offering", value: records.filter((record) => record.events.includes("offering")).length },
-    { label: "Listing Risk", value: records.filter((record) => record.events.includes("listing")).length },
+    { label: "Filed Today", value: summary.filedToday },
+    { label: "Alerts", value: summary.alerts },
+    { label: "Earnings", value: summary.earnings },
+    { label: "Insider", value: summary.insider },
+    { label: "Offering", value: summary.offering },
+    { label: "Listing Risk", value: summary.listing },
   ];
   const primaryMetrics = metrics.slice(0, 2);
   const additionalMetrics = metrics.slice(2);
