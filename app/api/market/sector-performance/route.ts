@@ -19,6 +19,8 @@ const groupSnapshotMinMarketCap = 300_000_000;
 const minIndustryConstituents = 8;
 const maxIndustryConstituents = 75;
 const snapshotConcurrency = 6;
+const quoteBatchSize = 50;
+const quoteBatchConcurrency = 3;
 const rangeCalculationVersion = 3;
 
 type SectorRange = (typeof supportedRanges)[number];
@@ -433,10 +435,16 @@ async function loadQuoteSnapshots(symbols: string[]) {
   );
   if (!normalizedSymbols.length) return snapshots;
 
-  const result = await fetchFmpQuotes(normalizedSymbols);
-  if (!Array.isArray(result.data)) return snapshots;
+  const results = await mapWithConcurrency(
+    chunk(normalizedSymbols, quoteBatchSize),
+    quoteBatchConcurrency,
+    (batch) => fetchFmpQuotes(batch),
+  );
+  const rows = results.flatMap((result) =>
+    Array.isArray(result.data) ? result.data : result.data ? [result.data] : [],
+  );
 
-  for (const raw of result.data as FmpQuoteRow[]) {
+  for (const raw of rows as FmpQuoteRow[]) {
     const symbol = stringOrEmpty(raw.symbol).toUpperCase();
     const changePercent = numberOrUndefined(raw.changePercentage) ??
       numberOrUndefined(raw.changePercent);
