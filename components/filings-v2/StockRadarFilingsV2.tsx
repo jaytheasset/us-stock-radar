@@ -17,6 +17,7 @@ import {
   type FilingsV2FilterState,
   type FilingsV2Record,
 } from "@/lib/filingsV2Model";
+import type { Plan } from "@/lib/subscriptionPolicy";
 import styles from "./StockRadarFilingsV2.module.css";
 
 const loadMoreSize = 25;
@@ -34,6 +35,7 @@ type StockRadarFilingsV2Props = {
   records: readonly FilingsV2Record[];
   referenceDate: string;
   state: FilingsV2ListState;
+  viewerPlan: Plan;
 };
 
 export function StockRadarFilingsV2({
@@ -42,6 +44,7 @@ export function StockRadarFilingsV2({
   records,
   referenceDate,
   state,
+  viewerPlan,
 }: StockRadarFilingsV2Props) {
   const [draftFilters, setDraftFilters] = useState<FilingsV2FilterState>(filingsV2DefaultFilters);
   const [appliedFilters, setAppliedFilters] = useState<FilingsV2FilterState>(filingsV2DefaultFilters);
@@ -284,15 +287,24 @@ export function StockRadarFilingsV2({
           selectedId={selectedId}
           state={state}
           totalCount={filteredRecords.length}
+          viewerPlan={viewerPlan}
         />
       </section>
 
       <aside className={styles.detailRail} ref={detailRailRef}>
-        <div ref={detailSelectionAnchorRef}>
-          <PremiumUpgradeCard className={styles.premiumCtaDesktop} />
-        </div>
+        {viewerPlan !== "ultimate" ? (
+          <div ref={detailSelectionAnchorRef}>
+            <PremiumUpgradeCard
+              className={styles.premiumCtaDesktop}
+              viewerPlan={viewerPlan}
+            />
+          </div>
+        ) : null}
         {selectedRecord ? (
-          <div className={styles.detailRailPreview}>
+          <div
+            className={styles.detailRailPreview}
+            ref={viewerPlan === "ultimate" ? detailSelectionAnchorRef : undefined}
+          >
             <FilingsV2DetailPanel
               record={selectedRecord}
               relatedRecords={relatedRecords}

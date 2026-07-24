@@ -10,6 +10,7 @@ import {
   isFilingsV2Today,
   type FilingsV2Record,
 } from "@/lib/filingsV2Model";
+import type { Plan } from "@/lib/subscriptionPolicy";
 import styles from "./StockRadarFilingsV2.module.css";
 
 export type FilingsV2ListState = "loading" | "ready" | "unavailable";
@@ -28,6 +29,7 @@ type FilingsV2ListProps = {
   selectedId: string;
   state: FilingsV2ListState;
   totalCount: number;
+  viewerPlan: Plan;
 };
 
 function shouldInsertInlineAd(index: number, recordCount: number) {
@@ -94,6 +96,7 @@ export function FilingsV2List({
   selectedId,
   state,
   totalCount,
+  viewerPlan,
 }: FilingsV2ListProps) {
   if (state === "loading") {
     return (
@@ -172,8 +175,11 @@ export function FilingsV2List({
                 </div>
                 {showInlineAd ? <FilingsV2InlineAd format="desktop" /> : null}
                 {showInlineAd ? <FilingsV2InlineAd format="mobile" /> : null}
-                {index === mobilePremiumCtaInsertIndex ? (
-                  <PremiumUpgradeCard className={styles.premiumCtaMobile} />
+                {viewerPlan !== "ultimate" && index === mobilePremiumCtaInsertIndex ? (
+                  <PremiumUpgradeCard
+                    className={styles.premiumCtaMobile}
+                    viewerPlan={viewerPlan}
+                  />
                 ) : null}
               </Fragment>
             );

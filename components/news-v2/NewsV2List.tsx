@@ -4,6 +4,7 @@ import { NewsV2Row } from "@/components/news-v2/NewsV2Row";
 import { PremiumUpgradeCard } from "@/components/news-v2/PremiumUpgradeCard";
 import { GooglePreferredSourceLink } from "@/components/ui/GooglePreferredSourceLink";
 import type { NewsV2Item } from "@/lib/newsV2";
+import type { Plan } from "@/lib/subscriptionPolicy";
 import styles from "./StockRadarNewsV2.module.css";
 
 export type NewsV2ListProps = {
@@ -16,6 +17,7 @@ export type NewsV2ListProps = {
   showMarketReaction: boolean;
   totalItems: number;
   totalNews: number;
+  viewerPlan: Plan;
 };
 
 const minimumDesktopInlineAdItems = 10;
@@ -46,6 +48,7 @@ export function NewsV2List({
   showMarketReaction,
   totalItems,
   totalNews,
+  viewerPlan,
 }: NewsV2ListProps) {
   const premiumInsertIndex = items.length >= 3 ? Math.min(3, items.length - 1) : -1;
   const countLabel = totalNews > loadedTotal
@@ -73,9 +76,12 @@ export function NewsV2List({
           {items.map((item, index) => (
             <Fragment key={item.id}>
               <NewsV2Row item={item} showMarketReaction={showMarketReaction} />
-              {index === premiumInsertIndex ? (
+              {viewerPlan !== "ultimate" && index === premiumInsertIndex ? (
                 <li className={styles.premiumCtaMobileItem}>
-                  <PremiumUpgradeCard className={styles.premiumCtaMobile} />
+                  <PremiumUpgradeCard
+                    className={styles.premiumCtaMobile}
+                    viewerPlan={viewerPlan}
+                  />
                 </li>
               ) : null}
               {shouldInsertDesktopInlineAd(index, items.length) ? (

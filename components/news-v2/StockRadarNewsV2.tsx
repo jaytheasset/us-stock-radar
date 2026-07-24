@@ -14,6 +14,7 @@ import type {
   NewsV2Item,
   NewsV2PageData,
 } from "@/lib/newsV2";
+import type { Plan } from "@/lib/subscriptionPolicy";
 import styles from "./StockRadarNewsV2.module.css";
 
 const newsBatchSize = 25;
@@ -29,6 +30,7 @@ const emptyFilters: NewsV2Filters = {
 
 type StockRadarNewsV2Props = NewsV2PageData & {
   preferredSourceUrl?: string | null;
+  viewerPlan: Plan;
 };
 
 export function StockRadarNewsV2({
@@ -39,6 +41,7 @@ export function StockRadarNewsV2({
   signalActivity,
   error,
   preferredSourceUrl,
+  viewerPlan,
 }: StockRadarNewsV2Props) {
   const [queryDraft, setQueryDraft] = useState("");
   const [query, setQuery] = useState("");
@@ -144,6 +147,7 @@ export function StockRadarNewsV2({
             showMarketReaction={showMarketReaction}
             totalItems={filteredItems.length}
             totalNews={total}
+            viewerPlan={viewerPlan}
           />
         </div>
         <NewsV2InsightRail
@@ -153,6 +157,7 @@ export function StockRadarNewsV2({
           sourceActivity={sourceActivity}
           total={total}
           visibleItemCount={visibleItems.length}
+          viewerPlan={viewerPlan}
         />
       </div>
 

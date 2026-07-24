@@ -22,6 +22,7 @@ import {
   type NewsSectorRadarItem,
   type NewsThemeMarketData,
 } from "@/lib/newsV2MarketRadar";
+import type { Plan } from "@/lib/subscriptionPolicy";
 import styles from "./StockRadarNewsV2.module.css";
 
 type NewsV2Range = "Today" | "5D" | "1M" | "3M";
@@ -57,6 +58,7 @@ type NewsV2InsightRailProps = {
   sourceActivity: NewsV2SourceActivity[];
   total: number;
   visibleItemCount: number;
+  viewerPlan: Plan;
 };
 
 export function NewsV2InsightRail({
@@ -64,6 +66,7 @@ export function NewsV2InsightRail({
   sourceActivity,
   total,
   visibleItemCount,
+  viewerPlan,
 }: NewsV2InsightRailProps) {
   const [sourceRange, setSourceRange] = useState<NewsV2Range>("Today");
   const [showAllSources, setShowAllSources] = useState(false);
@@ -219,7 +222,12 @@ export function NewsV2InsightRail({
             ) : null}
           </section>
 
-          <PremiumUpgradeCard className={styles.premiumCtaDesktop} />
+          {viewerPlan !== "ultimate" ? (
+            <PremiumUpgradeCard
+              className={styles.premiumCtaDesktop}
+              viewerPlan={viewerPlan}
+            />
+          ) : null}
 
           <div
             className={`${styles.contextRailAdAnchor} ${styles.contextRailAdAnchorCompact}`}
