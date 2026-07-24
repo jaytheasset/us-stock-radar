@@ -16892,8 +16892,7 @@ html[data-theme="dark"] .proxy-agenda-explanation span {
   .dilution-snapshot-grid,
   .dilution-overhang-layout,
   .dilution-overhang-body,
-  .dilution-overhang-detail-grid,
-  .context-main-grid {
+  .dilution-overhang-detail-grid {
     grid-template-columns: 1fr;
   }
 
@@ -21358,8 +21357,7 @@ html[data-theme="dark"] .premium-category-grid span.tone-governance {
     .dilution-snapshot-grid,
     .dilution-overhang-layout,
     .dilution-overhang-body,
-    .dilution-overhang-detail-grid,
-    .context-main-grid {
+    .dilution-overhang-detail-grid {
       grid-template-columns: 1fr;
     }
 }
