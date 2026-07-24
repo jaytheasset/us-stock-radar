@@ -55,19 +55,17 @@ export function NewsV2List({
   return (
     <section aria-labelledby="news-v2-list-title" className={styles.listPanel}>
       <header className={styles.listHeader}>
-        <div>
+        <div className={styles.listHeaderTitle}>
           <span className={styles.liveListIndicator}>
             <i aria-hidden="true" />
             Live
           </span>
           <h2 id="news-v2-list-title">Market News</h2>
-        </div>
-        <span className={styles.listHeaderActions}>
-          <span className={styles.resultCount}>{countLabel}</span>
           {preferredSourceUrl ? (
             <GooglePreferredSourceLink header href={preferredSourceUrl} />
           ) : null}
-        </span>
+        </div>
+        <span className={styles.resultCount}>{countLabel}</span>
       </header>
 
       {items.length ? (

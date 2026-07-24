@@ -374,7 +374,7 @@
   );
 }
 
-.listHeader > div {
+.listHeaderTitle {
   display: flex;
   min-width: 0;
   align-items: baseline;
@@ -393,14 +393,6 @@
   font-size: var(--sr-font-size-sm);
   font-variant-numeric: var(--sr-font-variant-numeric);
   white-space: nowrap;
-}
-
-.listHeaderActions {
-  display: flex;
-  min-width: 0;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: var(--sr-space-3);
 }
 
 .newsList {
@@ -1912,15 +1904,25 @@
 
   .listHeader {
     min-height: auto;
-    flex-wrap: wrap;
+    align-items: flex-start;
     row-gap: var(--sr-space-1);
     padding-block: var(--sr-space-2);
     padding-inline: var(--sr-space-2-5);
   }
 
-  .listHeaderActions {
-    width: 100%;
-    justify-content: flex-end;
+  .listHeaderTitle {
+    display: grid;
+    min-width: 0;
+    flex: 1 1 auto;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: var(--sr-space-2);
+    row-gap: var(--sr-space-1);
+  }
+
+  .listHeaderTitle > a {
+    grid-column: 1 / -1;
+    justify-self: start;
   }
 
   .sectionEyebrow {

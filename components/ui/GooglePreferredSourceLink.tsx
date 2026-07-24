@@ -33,7 +33,9 @@ export function GooglePreferredSourceLink({
           <span className={styles.headerDesktopMessage}>
             Add Stock Radar as a preferred source
           </span>
-          <span className={styles.headerMobileMessage}>Preferred source</span>
+          <span className={styles.headerMobileMessage}>
+            Add Stock Radar on Google
+          </span>
         </>
       ) : (
         <span>Prefer Stock Radar on Google</span>

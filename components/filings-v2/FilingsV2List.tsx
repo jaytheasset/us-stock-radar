@@ -120,13 +120,11 @@ export function FilingsV2List({
         <div className={styles.listHeaderTitle}>
           <span className={styles.liveLabel}><i aria-hidden="true" />Live</span>
           <h2>SEC Filings</h2>
-        </div>
-        <span className={styles.listHeaderActions}>
-          <span className={styles.listHeaderCount}>{records.length} of {totalCount} filings</span>
           {preferredSourceUrl ? (
             <GooglePreferredSourceLink header href={preferredSourceUrl} />
           ) : null}
-        </span>
+        </div>
+        <span className={styles.listHeaderCount}>{records.length} of {totalCount} filings</span>
       </header>
 
       {records.length === 0 ? <EmptyState /> : (
