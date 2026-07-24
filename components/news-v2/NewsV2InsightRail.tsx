@@ -48,6 +48,8 @@ const monitoredNewsSources = [
   "DEA",
   "White House",
 ] as const;
+const newsItemsPerTallRailAd = 12;
+
 type NewsV2InsightRailProps = {
   items: NewsV2Item[];
   sectorActivity: NewsV2SectorActivity[];
@@ -88,7 +90,10 @@ export function NewsV2InsightRail({
     () => mergeThemeMarketData(rawTrendingThemes, themeMarketData),
     [rawTrendingThemes, themeMarketData],
   );
-  const tallRailAdCount = Math.max(1, Math.ceil(visibleItemCount / 12) - 1);
+  const tallRailAdCount = Math.max(
+    0,
+    Math.ceil((visibleItemCount - newsItemsPerTallRailAd) / newsItemsPerTallRailAd),
+  );
 
   useEffect(() => {
     if (!activeSector) return;
@@ -279,9 +284,11 @@ export function NewsV2InsightRail({
             </div>
           </section>
 
-          <div className={styles.contextRailAdAnchor}>
-            <NewsV2RailAdSlot size="300x600" />
-          </div>
+          {tallRailAdCount > 0 ? (
+            <div className={styles.contextRailAdAnchor}>
+              <NewsV2RailAdSlot size="300x600" />
+            </div>
+          ) : null}
 
           <NewsV2InsightInlineAd />
 
