@@ -78,6 +78,11 @@
 
 .tickerLogo img {
   object-fit: contain;
+  opacity: 0;
+}
+
+.tickerLogoImage img {
+  opacity: 1;
 }
 
 .tickerMonogram {
