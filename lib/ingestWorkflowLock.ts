@@ -1,5 +1,6 @@
 import "server-only";
 
+import { WORKFLOW_STEP_LEASE_TTL_SECONDS } from "@/lib/sourceWorkflowConfig";
 import { supabaseRpc } from "@/lib/supabase";
 
 export type IngestWorkflowLock = {
@@ -55,6 +56,13 @@ export async function releaseIngestWorkflowLock(lock: IngestWorkflowLock) {
 }
 
 function normalizeTtl(value: number) {
-  const fallback = 60 * 60;
-  return Math.max(60, Math.min(Number.isFinite(value) ? Math.trunc(value) : fallback, 6 * 60 * 60));
+  return Math.max(
+    60,
+    Math.min(
+      Number.isFinite(value)
+        ? Math.trunc(value)
+        : WORKFLOW_STEP_LEASE_TTL_SECONDS,
+      WORKFLOW_STEP_LEASE_TTL_SECONDS,
+    ),
+  );
 }

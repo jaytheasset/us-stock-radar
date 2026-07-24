@@ -50,20 +50,47 @@ SEC 그룹 주기와 offset은 계속
 `vercel.json`은 모든 함수와 Workflow backend에 가까운 미국 동부
 Washington, D.C. 리전 `iad1`을 사용한다.
 
-## 재시도, timeout, 중복 방지
+## 재시도, 실행 상한, 중복 방지
 
 - 모든 수집·분석·lock step은 최대 3회 재시도한다.
 - retry backoff는 15초부터 지수 증가하며 최대 5분이다.
-- source 1개와 SEC 분석 1건의 durable timeout은 12분이다.
-- SEC raw 그룹 수집 timeout은 8분이다.
 - Cron 시작 함수 자체 `maxDuration`은 60초다.
-- Workflow SDK가 생성하는 step consumer는 Vercel에서 허용되는 최대
-  function duration을 요청한다. 실제 상한은 Vercel plan과 Fluid Compute
-  설정을 따른다.
+- `workflow@4.6.1`에서는 실행 중인 step을
+  `Promise.race(step, sleep)`로 취소할 수 없다. timeout 쪽이 먼저 끝나도
+  기존 step은 계속 실행될 수 있으므로 이 패턴을 사용하지 않고 각 step 완료를
+  끝까지 기다린다. `AbortSignal` 기반
+  [in-flight cancellation](https://vercel.com/changelog/workflow-sdk-now-supports-inflight-cancellation)은
+  Workflow 5 beta 기능이므로 이 구현에는 사용하지 않는다.
+- Workflow SDK가 생성하는 step consumer는 Vercel에서
+  `maxDuration: max`인 별도 함수로 실행된다. 실제 함수 timeout이 발생하면
+  실행 프로세스가 종료되고 같은 durable step이 retry된다. 실제 상한은 Vercel
+  plan과 Fluid Compute 설정을 따른다.
+- 외부 수집기의 기존 요청 timeout은 그대로 적용된다. 별도 timeout이 없는
+  호출은 Vercel step 함수의 실제 max duration이 최종 강제 종료 경계다.
 
 Cron 중복 호출과 장시간 중첩 실행은
 `public.ingest_workflow_locks`의 원자적 lease로 막는다. migration
 `20260725050000_ingest_workflow_locks.sql`을 먼저 적용해야 한다.
+lease는 step retry 사이에 workflow 제어가 돌아오지 않는 Workflow 4.x 의미를
+고려해 2시간으로 잡는다. 안정 Vercel의
+[최대 800초 함수 실행](https://examples.vercel.com/kb/guide/what-can-i-do-about-vercel-serverless-functions-timing-out)이
+최초 1회와
+retry 3회 모두 소진되고 backoff까지 더해져도 약 55분이므로 한 시간 이상 여유가
+남는다. 각 새 source/SEC 분석 step 직전에 같은 owner로 갱신하며, workflow의
+`finally`가 lease를 해제할 때 실행 중인 step이 남지 않는다.
+
+다른 잠금·재시도 의미:
+
+- 함수 timeout이나 결과 보고 직전 crash는 같은 step을 다시 실행할 수 있다.
+  DB 쓰기는 기존 dedupe/upsert와 SEC 분석 disposition으로 안전하지만, 저장 전에
+  끝난 LLM·외부 provider 요청 비용까지 exactly-once로 만들 수는 없다.
+- lease는 실행 중 중첩을 막는다. 정상 완료로 lease를 반납한 뒤 같은 minute의
+  늦은 중복 Cron이 도착하면 새 run이 시작될 수 있으나 기존 DB dedupe 계약이
+  중복 row를 막는다. 이 경우 소스 fetch는 한 번 더 발생할 수 있다.
+- run을 수동 cancel하거나 `finally`가 영구적으로 실행되지 못하면 lock은 삭제되지
+  않고 최대 2시간 뒤 만료된다. 이는 겹친 write보다 일시 중단을 택한 fail-safe다.
+  실행 중 invocation이 없고 owner가 확인되지 않은 상태에서 lock row를 수동
+  삭제하지 않는다.
 
 Workflow step 재시도는 기존 저장 계약을 그대로 쓴다.
 
@@ -184,8 +211,10 @@ Render 설정 자체는 삭제하지 않는다.
   Workflow 전환과 분리된 변경으로 Next.js 및 lockfile을 수정 버전으로 올리고 전체
   회귀 검증한 뒤 Production에 배포한다.
 - 5분 Cron은 Vercel plan의 Cron 빈도 제한을 확인해야 한다.
-- 12분 step은 Hobby의 짧은 function duration과 맞지 않을 수 있다.
-  Production은 Fluid Compute와 충분한 max duration이 있는 plan을 권장한다.
+- 소스별 세부 deadline 대신 Vercel 함수 max duration을 최종 경계로 사용한다.
+  응답이 느린 외부 소스는 함수 timeout까지 점유할 수 있으므로 Production은
+  Fluid Compute와 충분한 max duration이 있는 plan을 권장하며, 반복 timeout은
+  Workflow step 로그에서 감시한다.
 - Workflow step과 storage는 사용량 과금 대상이다. 특히 SEC raw ID별
   분석 step 수와 LLM 비용을 첫 주에 확인한다.
 - FDA/Accesswire는 NAS bridge가 없으면 direct fetch 실패 시 해당 source

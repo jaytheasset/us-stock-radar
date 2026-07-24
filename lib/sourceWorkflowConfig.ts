@@ -1,9 +1,16 @@
+/**
+ * Workflow 4.x retries a failed step without returning to workflow orchestration
+ * between attempts. Two hours covers four 800-second Vercel invocations plus
+ * the configured retry backoff with more than an hour of additional margin.
+ */
+export const WORKFLOW_STEP_LEASE_TTL_SECONDS = 2 * 60 * 60;
+
 export const SOURCE_INGEST_WORKFLOW_LANES = {
   news_fast: {
     cronSchedule: "*/5 * * * *",
     label: "Fast news and exchange sources",
     limit: 5,
-    lockTtlSeconds: 60 * 60,
+    lockTtlSeconds: WORKFLOW_STEP_LEASE_TTL_SECONDS,
     sourceIds: [
       "globe",
       "businesswire",
@@ -13,15 +20,13 @@ export const SOURCE_INGEST_WORKFLOW_LANES = {
       "nasdaq_trader",
       "nasdaq_corporate_actions",
     ],
-    stepTimeout: "12m",
   },
   news_slow: {
     cronSchedule: "2,32 * * * *",
     label: "Government and regulatory news sources",
     limit: 10,
-    lockTtlSeconds: 60 * 60,
+    lockTtlSeconds: WORKFLOW_STEP_LEASE_TTL_SECONDS,
     sourceIds: ["ofac", "doj", "dea", "whitehouse", "fda"],
-    stepTimeout: "12m",
   },
 } as const;
 
@@ -31,9 +36,7 @@ export type WorkflowNewsSource =
 
 export const SEC_WORKFLOW_CONFIG = {
   cronSchedule: "*/5 * * * *",
-  lockTtlSeconds: 2 * 60 * 60,
-  rawStepTimeout: "8m",
-  analysisStepTimeout: "12m",
+  lockTtlSeconds: WORKFLOW_STEP_LEASE_TTL_SECONDS,
 } as const;
 
 export type SourceIngestCronLane = "sec" | NewsWorkflowLane;

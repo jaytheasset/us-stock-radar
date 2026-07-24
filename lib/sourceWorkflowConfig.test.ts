@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   SEC_WORKFLOW_CONFIG,
   SOURCE_INGEST_WORKFLOW_LANES,
+  WORKFLOW_STEP_LEASE_TTL_SECONDS,
   isSourceIngestCronLane,
   newsWorkflowLaneForSource,
 } from "./sourceWorkflowConfig.ts";
@@ -29,6 +30,27 @@ test("only supported cron lanes validate", () => {
   assert.equal(isSourceIngestCronLane("news_fast"), true);
   assert.equal(isSourceIngestCronLane("news_slow"), true);
   assert.equal(isSourceIngestCronLane("news"), false);
+});
+
+test("every lane keeps the lock for the complete Workflow 4.x step retry window", () => {
+  assert.equal(WORKFLOW_STEP_LEASE_TTL_SECONDS, 2 * 60 * 60);
+  assert.equal(
+    SEC_WORKFLOW_CONFIG.lockTtlSeconds,
+    WORKFLOW_STEP_LEASE_TTL_SECONDS,
+  );
+  for (const config of Object.values(SOURCE_INGEST_WORKFLOW_LANES)) {
+    assert.equal(config.lockTtlSeconds, WORKFLOW_STEP_LEASE_TTL_SECONDS);
+  }
+});
+
+test("Workflow 4.x never races an in-flight step against a durable sleep", () => {
+  const workflowSource = readFileSync(
+    new URL("../workflows/source-ingest.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.equal(workflowSource.includes("Promise.race"), false);
+  assert.equal(workflowSource.includes("withStepTimeout"), false);
 });
 
 test("Vercel cron schedules and region match the workflow configuration", () => {

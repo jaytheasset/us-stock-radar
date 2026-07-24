@@ -2,7 +2,6 @@ import {
   FatalError,
   RetryableError,
   getStepMetadata,
-  sleep,
 } from "workflow";
 import {
   renewIngestWorkflowLock,
@@ -51,11 +50,6 @@ export type NewsIngestWorkflowInput = WorkflowTrigger & {
   lane: NewsWorkflowLane;
 };
 
-type StepTimeout =
-  | (typeof SEC_WORKFLOW_CONFIG)["rawStepTimeout"]
-  | (typeof SEC_WORKFLOW_CONFIG)["analysisStepTimeout"]
-  | (typeof SOURCE_INGEST_WORKFLOW_LANES)[NewsWorkflowLane]["stepTimeout"];
-
 export async function secSourceIngestWorkflow(input: SecIngestWorkflowInput) {
   "use workflow";
 
@@ -65,11 +59,7 @@ export async function secSourceIngestWorkflow(input: SecIngestWorkflowInput) {
 
   try {
     await ensureWorkflowLockStep(input, SEC_WORKFLOW_CONFIG.lockTtlSeconds);
-    const raw = await withStepTimeout(
-      runSecGroupRawIngestStep(input.groupId),
-      SEC_WORKFLOW_CONFIG.rawStepTimeout,
-      `SEC raw ingest group ${input.groupId}`,
-    );
+    const raw = await runSecGroupRawIngestStep(input.groupId);
     console.log(
       `[secSourceIngestWorkflow] RAW_DONE groupId=${input.groupId} pendingAnalysis=${raw.rawItemIds.length}`,
     );
@@ -78,11 +68,7 @@ export async function secSourceIngestWorkflow(input: SecIngestWorkflowInput) {
     for (const rawItemId of raw.rawItemIds) {
       await ensureWorkflowLockStep(input, SEC_WORKFLOW_CONFIG.lockTtlSeconds);
       analyses.push(
-        await withStepTimeout(
-          runSecRawAnalysisStep(input.groupId, rawItemId),
-          SEC_WORKFLOW_CONFIG.analysisStepTimeout,
-          `SEC analysis raw item ${rawItemId}`,
-        ),
+        await runSecRawAnalysisStep(input.groupId, rawItemId),
       );
     }
 
@@ -116,11 +102,7 @@ export async function newsSourceIngestWorkflow(input: NewsIngestWorkflowInput) {
     for (const source of config.sourceIds) {
       await ensureWorkflowLockStep(input, config.lockTtlSeconds);
       try {
-        const result = await withStepTimeout(
-          runNewsSourceIngestStep(source, config.limit),
-          config.stepTimeout,
-          `news ingest source ${source}`,
-        );
+        const result = await runNewsSourceIngestStep(source, config.limit);
         results.push(result);
         console.log(
           `[newsSourceIngestWorkflow] SOURCE_DONE lane=${input.lane} source=${source}`,
@@ -152,22 +134,6 @@ export async function newsSourceIngestWorkflow(input: NewsIngestWorkflowInput) {
   } finally {
     await releaseWorkflowLockStep(input);
   }
-}
-
-async function withStepTimeout<T>(
-  promise: Promise<T>,
-  timeout: StepTimeout,
-  label: string,
-): Promise<T> {
-  const result = await Promise.race([
-    promise.then((value) => ({ kind: "value" as const, value })),
-    sleep(timeout).then(() => ({ kind: "timeout" as const })),
-  ]);
-
-  if (result.kind === "timeout") {
-    throw new Error(`${label} timed out after ${String(timeout)}`);
-  }
-  return result.value;
 }
 
 async function ensureWorkflowLockStep(

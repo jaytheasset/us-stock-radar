@@ -40,7 +40,7 @@ begin
   values (
     p_lock_key,
     p_lock_owner,
-    now() + make_interval(secs => greatest(60, least(coalesce(p_ttl_seconds, 3600), 21600))),
+    now() + make_interval(secs => greatest(60, least(coalesce(p_ttl_seconds, 7200), 21600))),
     now()
   )
   on conflict (lock_key) do update
@@ -70,7 +70,7 @@ declare
 begin
   update public.ingest_workflow_locks
   set
-    locked_until = now() + make_interval(secs => greatest(60, least(coalesce(p_ttl_seconds, 3600), 21600))),
+    locked_until = now() + make_interval(secs => greatest(60, least(coalesce(p_ttl_seconds, 7200), 21600))),
     updated_at = now()
   where lock_key = p_lock_key
     and lock_owner = p_lock_owner
