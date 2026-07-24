@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BellRing } from "lucide-react";
 import type { Plan } from "@/lib/subscriptionPolicy";
 import styles from "./StockRadarFilingsV2.module.css";
 
@@ -15,27 +16,35 @@ export function PremiumUpgradeCard({
     return null;
   }
 
-  const managesAlerts = viewerPlan === "advanced";
+  const isAdvanced = viewerPlan === "advanced";
+  const copy = isAdvanced
+    ? {
+        eyebrow: "Ultimate",
+        title: "Tailor Stock Radar to your workflow",
+        description:
+          "Create precisely filtered alert streams and connect real-time filing through our API.",
+        action: "Unlock Ultimate",
+      }
+    : {
+        eyebrow: "Real-time alerts",
+        title: "Never miss a material filing",
+        description:
+          "Unlock real-time alerts for Dilution, Listing risk and other material filings",
+        action: "Upgrade your plan",
+      };
 
   return (
     <aside
-      aria-label="Advanced filing alerts"
+      aria-label="Filing alerts upgrade"
       className={`${styles.premiumCta}${className ? ` ${className}` : ""}`}
     >
       <div className={styles.premiumCtaCopy}>
-        <span>Premium</span>
-        <strong>Unlock the full filing intelligence</strong>
-        <p>Real-time SEC alerts, advanced filters, and filing signals.</p>
-      </div>
-      <div className={styles.premiumCtaAction}>
-        <span aria-hidden="true" className={styles.premiumCtaProBadge}>
-          ADV
-        </span>
-        <Link
-          className={styles.premiumCtaLink}
-          href={managesAlerts ? "/alerts" : "/premium"}
-        >
-          {managesAlerts ? "Manage Alerts" : "Upgrade"}
+        <span>{copy.eyebrow}</span>
+        <strong>{copy.title}</strong>
+        <p>{copy.description}</p>
+        <Link className={styles.premiumCtaLink} href="/premium">
+          <BellRing aria-hidden="true" size={16} strokeWidth={2} />
+          {copy.action}
         </Link>
       </div>
     </aside>
