@@ -85,11 +85,9 @@
   display: block;
   margin-top: var(--sr-space-1-5);
   color: var(--sr-color-text-strong);
-  font-size: var(--sr-font-size-2xl);
-  font-weight: var(--sr-font-weight-heavy);
-  line-height: var(--sr-line-height-snug);
-  letter-spacing: -0.025em;
-  text-wrap: balance;
+  font: var(--sr-font-weight-display) var(--sr-font-size-base) /
+    var(--sr-line-height-compact) var(--sr-font-family-sans);
+  letter-spacing: -0.02em;
 }
 
 .premiumCtaCopy p {
@@ -1439,13 +1437,6 @@
   .premiumCtaMobile .premiumCtaCopy strong,
   .premiumCtaMobile .premiumCtaCopy p {
     margin-top: var(--sr-space-1);
-  }
-
-  .premiumCtaMobile .premiumCtaCopy strong {
-    font-size: var(--sr-font-size-md);
-    font-weight: var(--sr-font-weight-heavy);
-    line-height: var(--sr-line-height-compact);
-    letter-spacing: var(--sr-letter-spacing-default);
   }
 
   .premiumCtaMobile .premiumCtaCopy p {

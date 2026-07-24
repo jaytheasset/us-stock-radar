@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BellRing } from "lucide-react";
 import type { Plan } from "@/lib/subscriptionPolicy";
 import styles from "./StockRadarNewsV2.module.css";
 
@@ -15,27 +16,41 @@ export function PremiumUpgradeCard({
     return null;
   }
 
-  const managesAlerts = viewerPlan === "advanced";
+  const isAdvanced = viewerPlan === "advanced";
+  const copy = isAdvanced
+    ? {
+        eyebrow: "Ultimate",
+        title: "Tailor Stock Radar to your workflow",
+        description:
+          "Create precisely filtered news alert streams and connect real-time news through our API.",
+        action: "Unlock Ultimate",
+      }
+    : {
+        eyebrow: "Real-time alerts",
+        title: "Never miss market-moving news",
+        description:
+          "Unlock real-time alerts for Earnings, FDA decisions and other major company news.",
+        action: "Upgrade your plan",
+      };
 
   return (
     <aside
-      aria-label="Advanced news alerts"
+      aria-label="News alerts upgrade"
       className={`${styles.premiumCta}${className ? ` ${className}` : ""}`}
     >
       <div className={styles.premiumCtaCopy}>
-        <span>Premium</span>
-        <strong>Unlock the full news intelligence</strong>
-        <p>Real-time market news, advanced filters, and watchlist signals.</p>
-      </div>
-      <div className={styles.premiumCtaAction}>
-        <span aria-hidden="true" className={styles.premiumCtaProBadge}>
-          ADV
-        </span>
-        <Link
-          className={styles.premiumCtaLink}
-          href={managesAlerts ? "/alerts" : "/premium"}
-        >
-          {managesAlerts ? "Manage Alerts" : "Upgrade"}
+        <span>{copy.eyebrow}</span>
+        <strong>{copy.title}</strong>
+        <p>{copy.description}</p>
+        <Link className={styles.premiumCtaLink} href="/premium">
+          <BellRing
+            aria-hidden="true"
+            className={styles.premiumCtaLinkIcon}
+            size={16}
+            strokeWidth={2}
+          />
+          <span className={styles.premiumCtaLinkDesktopLabel}>{copy.action}</span>
+          <span className={styles.premiumCtaLinkMobileLabel}>Upgrade</span>
         </Link>
       </div>
     </aside>
