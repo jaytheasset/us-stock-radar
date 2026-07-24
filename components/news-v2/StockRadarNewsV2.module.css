@@ -657,6 +657,18 @@
   text-align: right;
 }
 
+.rowQuote.rowQuoteUnavailable {
+  justify-items: end;
+  padding-right: var(--sr-space-2);
+}
+
+.rowDataUnavailable {
+  color: var(--sr-color-text-muted);
+  font-size: var(--sr-font-size-md);
+  font-weight: var(--sr-font-weight-regular);
+  line-height: var(--sr-line-height-none);
+}
+
 .rowQuote strong {
   color: var(--sr-color-text-body);
   font-size: var(--sr-font-size-md);
@@ -664,7 +676,7 @@
   white-space: nowrap;
 }
 
-.rowQuote span {
+.rowQuote > span:not(.rowDataUnavailable) {
   font-size: var(--sr-font-size-md);
   font-weight: var(--sr-font-weight-semibold);
   line-height: var(--sr-line-height-none);
@@ -677,13 +689,13 @@
   justify-self: end;
 }
 
-.rowSparklinePlaceholder {
-  display: block;
+.rowSparklineUnavailable {
+  display: grid;
   width: 100%;
   max-width: 100px;
-  height: var(--sr-border-width);
+  height: 38px;
+  place-items: center;
   justify-self: end;
-  background: var(--sr-color-divider);
 }
 
 .rowSparkline {
@@ -2097,7 +2109,7 @@
     font-size: var(--sr-font-size-md);
   }
 
-  .rowQuote span {
+  .rowQuote > span:not(.rowDataUnavailable) {
     font-size: var(--sr-font-size-xs);
   }
 

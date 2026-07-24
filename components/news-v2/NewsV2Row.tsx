@@ -43,7 +43,8 @@ export function NewsV2Row({
   const visibleTickers = item.relatedTickers.slice(0, 2);
   const remainingTickerCount = Math.max(0, item.relatedTickers.length - visibleTickers.length);
   const sentimentClass = styles[`sentiment${item.sentiment}`];
-  const primaryTicker = isCompanyNews ? item.relatedTickers[0] ?? "MARKET" : "MARKET";
+  const tickerUnavailable = isCompanyNews && !item.relatedTickers[0];
+  const primaryTicker = isCompanyNews ? item.relatedTickers[0] ?? "N/A" : "MARKET";
   const identityMeta = item.relatedTickers.length > 1
     ? `${item.relatedTickers.length} related tickers`
     : item.marketCapBand
@@ -59,6 +60,9 @@ export function NewsV2Row({
     : marketReaction.changePercent
       ? styles.positiveValue
       : styles.neutralValue;
+  const hasPrice = Boolean(marketReaction.priceLabel);
+  const hasChange = Boolean(marketReaction.changePercent);
+  const hasQuote = hasPrice || hasChange;
   const hasSparkline = marketReaction.trend.length >= 2;
 
   useEffect(() => {
@@ -112,7 +116,9 @@ export function NewsV2Row({
           </span>
 
           <span className={styles.rowIdentity}>
-            <strong>{primaryTicker}</strong>
+            <strong title={tickerUnavailable ? "Ticker unavailable" : undefined}>
+              {primaryTicker}
+            </strong>
             <span>{identityMeta}</span>
           </span>
 
@@ -175,14 +181,33 @@ export function NewsV2Row({
 
           {showMarketReaction ? (
             <span className={styles.rowMarketReaction}>
-              <span className={styles.rowQuote}>
-                <strong>{marketReaction.priceLabel ?? "—"}</strong>
-                <span className={changeClass}>{marketReaction.changePercent ?? "—"}</span>
+              <span
+                className={`${styles.rowQuote}${hasQuote ? "" : ` ${styles.rowQuoteUnavailable}`}`}
+              >
+                {hasQuote ? (
+                  <>
+                    {hasPrice ? <strong>{marketReaction.priceLabel}</strong> : null}
+                    {hasChange ? (
+                      <span className={changeClass}>{marketReaction.changePercent}</span>
+                    ) : null}
+                  </>
+                ) : (
+                  <span className={styles.rowDataUnavailable} title="Quote unavailable">
+                    <span aria-hidden="true">—</span>
+                    <span className={styles.visuallyHidden}>Quote unavailable</span>
+                  </span>
+                )}
               </span>
               {hasSparkline ? (
                 <NewsV2Sparkline changePercent={marketReaction.changePercent} values={marketReaction.trend} />
               ) : (
-                <span aria-hidden="true" className={styles.rowSparklinePlaceholder} />
+                <span
+                  className={`${styles.rowSparklineCell} ${styles.rowDataUnavailable} ${styles.rowSparklineUnavailable}`}
+                  title="Chart unavailable"
+                >
+                  <span aria-hidden="true">—</span>
+                  <span className={styles.visuallyHidden}>Chart unavailable</span>
+                </span>
               )}
             </span>
           ) : null}
