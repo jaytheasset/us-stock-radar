@@ -1454,8 +1454,8 @@
   }
 
   .summaryDisclosure > summary {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) var(--sr-size-control);
+    display: block;
+    position: relative;
     min-height: var(--sr-size-filter-option);
     align-items: center;
     padding: 0;
@@ -1491,12 +1491,19 @@
     border-left: var(--sr-border-width) solid var(--sr-color-divider);
   }
 
+  .summaryMobilePrimaryMetrics .summaryCell:last-child {
+    padding-right: calc(var(--sr-space-3) + var(--sr-space-5));
+  }
+
   .summaryChevron {
     display: grid;
-    align-self: stretch;
+    position: absolute;
+    inset-block: 0;
+    right: 0;
+    width: var(--sr-space-5);
     place-items: center;
     color: var(--sr-color-text-control);
-    border-left: var(--sr-border-width) solid var(--sr-color-divider);
+    pointer-events: none;
   }
 
   .summaryChevron svg {
