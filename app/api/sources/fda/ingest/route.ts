@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerEnv, redactUrl } from "@/lib/env";
-import { runFdaNewsIngestWithRawFetcher } from "@/lib/newsIngest";
-import { fetchFdaRawItems, type FdaRawFetchResult } from "@/lib/sources/fda/parser";
+import { runFdaNewsIngestWithFallback } from "@/lib/newsIngestFallbacks";
 
 export const dynamic = "force-dynamic";
 
@@ -31,146 +29,6 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(result, {
     status: responseStatus(result),
   });
-}
-
-type FdaIngestOptions = {
-  limit: number;
-  dryRun: boolean;
-  force: boolean;
-  sourceUniqueId?: string;
-};
-
-type FdaRawFetchOptions = {
-  limit: number;
-  sourceUniqueId?: string;
-  includeArticleBody: boolean;
-  articleBodyLimit: number;
-};
-
-async function runFdaNewsIngestWithFallback(options: FdaIngestOptions) {
-  let nasFallback: Record<string, unknown> | null = null;
-
-  const result = await runFdaNewsIngestWithRawFetcher(async (rawOptions) => {
-    const directResult = await fetchFdaRawItems(rawOptions);
-    if (!shouldUseNasFallback(directResult, rawOptions)) return directResult;
-
-    const fallbackResult = await runFdaNasBridge(rawOptions, directResult);
-    nasFallback = {
-      attempted: true,
-      used: Boolean(fallbackResult.ok && fallbackResult.data),
-      source: "FDA_INGEST_URL",
-      url: fallbackResult.redactedUrl,
-      direct_stage: "raw_fetch",
-      direct_status: readRecord(directResult)?.status || null,
-      direct_article_bodies_requested: readRecord(readRecord(directResult)?.diagnostics)?.articleBodiesRequested || null,
-      direct_article_bodies_fetched: readRecord(readRecord(directResult)?.diagnostics)?.articleBodiesFetched || null,
-      bridge_status: fallbackResult.status,
-      ...(fallbackResult.error ? { bridge_error: fallbackResult.error } : {}),
-    };
-
-    return fallbackResult.ok && fallbackResult.data ? fallbackResult.data : directResult;
-  }, options);
-
-  return nasFallback ? { ...readRecord(result), nas_fallback: nasFallback } : result;
-}
-
-function shouldUseNasFallback(result: FdaRawFetchResult, options: FdaRawFetchOptions) {
-  if (!result.ok) return true;
-  if (options.sourceUniqueId && result.count === 0) return true;
-
-  const diagnostics = readRecord(result.diagnostics);
-  const requested = readNumberValue(diagnostics?.articleBodiesRequested);
-  const fetched = readNumberValue(diagnostics?.articleBodiesFetched);
-  if (options.includeArticleBody && requested > 0 && fetched < requested) return true;
-
-  return result.items.some((item) => {
-    const rawPayload = readRecord(item.raw_payload);
-    return Boolean(
-      rawPayload?.article_fetch_error ||
-        (options.includeArticleBody && !item.body_text && !rawPayload?.analysis_text),
-    );
-  });
-}
-
-async function runFdaNasBridge(options: FdaRawFetchOptions, directResult: unknown) {
-  const env = getServerEnv();
-  const redactedUrl = redactUrl(env.fdaIngestUrl);
-  if (!env.fdaIngestUrl) {
-    return {
-      ok: false,
-      status: 0,
-      redactedUrl,
-      error: "FDA_INGEST_URL is not configured",
-    };
-  }
-
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-    "Content-Type": "application/json",
-  };
-  if (env.nasIngestToken) {
-    headers.Authorization = `Bearer ${env.nasIngestToken}`;
-    headers["X-Ingest-Token"] = env.nasIngestToken;
-  }
-
-  try {
-    const response = await timedFetch(env.fdaIngestUrl, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        ...options,
-        source: "fda",
-        fallbackFrom: "next_fda_direct_raw_fetch",
-        directStatus: readRecord(directResult)?.status || null,
-        directError: readRecord(directResult)?.error || null,
-      }),
-    });
-    const data = await response.json().catch(() => null);
-    const record = normalizeBridgeData(readRecord(data));
-    const ok = response.ok && bridgePayloadOk(record);
-
-    return {
-      ok,
-      status: response.status,
-      redactedUrl,
-      data: record as FdaRawFetchResult | null,
-      error: ok ? undefined : readBridgeError(record, response.statusText || "FDA NAS bridge failed"),
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      status: 0,
-      redactedUrl,
-      error: error instanceof Error ? error.message : "FDA NAS bridge request failed",
-    };
-  }
-}
-
-function bridgePayloadOk(data: Record<string, unknown> | null) {
-  if (!data) return false;
-  if (data.ok === false) return false;
-  if (data.status === "failed" || data.status === "error") return false;
-  return Array.isArray(data.items);
-}
-
-function normalizeBridgeData(data: Record<string, unknown> | null) {
-  const nestedResult = readRecord(data?.result);
-  return nestedResult || data;
-}
-
-async function timedFetch(input: string, init: RequestInit, timeoutMs = 120000) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    return await fetch(input, {
-      ...init,
-      cache: "no-store",
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
 }
 
 function responseStatus(result: unknown) {
@@ -207,13 +65,6 @@ function readString(queryValue: string | null, bodyValue: unknown) {
 function readNumberValue(value: unknown) {
   const parsed = typeof value === "number" ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function readBridgeError(data: Record<string, unknown> | null, fallback: string) {
-  if (!data) return fallback;
-  if (typeof data.message === "string" && data.message.trim()) return data.message;
-  if (typeof data.error === "string" && data.error.trim()) return data.error;
-  return fallback;
 }
 
 function readRecord(value: unknown): Record<string, unknown> | null {

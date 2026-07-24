@@ -5,7 +5,7 @@ Source job configuration lives in `lib/sourceJobs.ts`.
 ## Job Routes
 
 Most routes are hosted by the existing `APP_BASE_URL` server. GlobeNewswire,
-Business Wire, PR Newswire, Newsfile, Access Newswire, OFAC, DOJ, DEA, White House, FDA, and Nasdaq Trader are the current exceptions
+Business Wire, PR Newswire, Newsfile, Access Newswire, OFAC, DOJ, DEA, White House, FDA, Nasdaq Trader, and Nasdaq Corporate Actions are the current exceptions
 and use canonical Next.js ingest routes. The Next.js app exposes wrapper routes under
 `/api/source-jobs/:source/run`, but these are not called automatically because
 they can trigger collection.
@@ -23,6 +23,34 @@ they can trigger collection.
 | White House | `POST /api/sources/whitehouse/ingest` |
 | FDA | `POST /api/sources/fda/ingest` |
 | Nasdaq Trader | `POST /api/sources/nasdaq-trader/ingest` |
+| Nasdaq Corporate Actions | `POST /api/sources/nasdaq-corporate-actions/ingest` |
+
+## Vercel Workflow Scheduling
+
+Production Vercel Cron routes only authenticate, acquire a distributed lease,
+and start a Workflow run. Collection, analysis, and Supabase persistence happen
+inside durable Workflow steps.
+
+| Lane | Vercel Cron (UTC) | Sources |
+| --- | --- | --- |
+| `sec` | every 5 minutes | Due groups from `SEC_PRODUCTION_INGEST_SCHEDULE` |
+| `news_fast` | every 5 minutes | GlobeNewswire, Business Wire, PR Newswire, Newsfile, Access Newswire, Nasdaq Trader, Nasdaq Corporate Actions |
+| `news_slow` | minute 2 and 32 | OFAC, DOJ, DEA, White House, FDA |
+
+Start endpoints:
+
+```text
+GET /api/cron/source-ingest/sec
+GET /api/cron/source-ingest/news_fast
+GET /api/cron/source-ingest/news_slow
+```
+
+Vercel sends `Authorization: Bearer <CRON_SECRET>`. The routes also accept the
+same bearer header for authenticated manual checks. No lane runs until its ID is
+present in `SOURCE_INGEST_WORKFLOW_ENABLED_LANES`.
+
+See `docs/VERCEL_WORKFLOW_INGEST.md` for deployment, observation, parallel-run,
+and rollback procedures.
 
 ## Health Routes
 
@@ -58,7 +86,7 @@ The wrapper defaults to:
 
 Do not add automatic polling from the Next.js UI without explicit approval.
 
-GlobeNewswire, Business Wire, PR Newswire, Newsfile, Access Newswire, OFAC, DOJ, DEA, White House, FDA, and Nasdaq Trader wrappers execute
+GlobeNewswire, Business Wire, PR Newswire, Newsfile, Access Newswire, OFAC, DOJ, DEA, White House, FDA, Nasdaq Trader, and Nasdaq Corporate Actions wrappers execute
 against the current Next.js request origin so local dry-run checks hit their
 canonical routes. Other sources still use their configured `APP_BASE_URL` job
 routes.

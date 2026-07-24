@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runSourceJob } from "@/lib/sourceJobs";
+import { getSourceJob, runSourceJob } from "@/lib/sourceJobs";
 
 export const dynamic = "force-dynamic";
 
@@ -9,15 +9,7 @@ export async function POST(
 ) {
   const { source } = await context.params;
   const body = await request.json().catch(() => ({}));
-  const useRequestOrigin =
-    source === "globe" ||
-    source === "businesswire" ||
-    source === "prnewswire" ||
-    source === "newsfile" ||
-    source === "ofac" ||
-    source === "doj" ||
-    source === "dea" ||
-    source === "whitehouse";
+  const useRequestOrigin = Boolean(getSourceJob(source)?.workflowLane);
   const result = await runSourceJob(source, body, {
     baseUrlOverride: useRequestOrigin ? request.nextUrl.origin : undefined,
   });

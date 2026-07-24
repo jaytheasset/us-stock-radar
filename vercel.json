@@ -1,0 +1,18 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["iad1"],
+  "crons": [
+    {
+      "path": "/api/cron/source-ingest/sec",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/source-ingest/news_fast",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/source-ingest/news_slow",
+      "schedule": "2,32 * * * *"
+    }
+  ]
+}
