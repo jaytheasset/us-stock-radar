@@ -124,6 +124,22 @@ export function FilingsV2FilterBar({
           <button className={styles.searchButton} type="submit">Search</button>
         </form>
 
+        <div className={styles.mobileFilterActions}>
+          <FilterTrigger
+            active={activeCount > 0}
+            aria-controls={isMobileSheetOpen ? "filings-v2-filter-sheet" : undefined}
+            aria-haspopup="dialog"
+            aria-label={`Open filing filters${activeCount ? `, ${activeCount} active` : ""}`}
+            className={styles.mobileFilterTrigger}
+            expanded={isMobileSheetOpen}
+            label="Filters"
+            onClick={onOpenMobileFilters}
+            ref={mobileFilterOpenerRef}
+            trailingIcon={<SlidersHorizontal aria-hidden="true" size={15} />}
+            value={activeCount ? String(activeCount) : undefined}
+            variant="compact"
+          />
+        </div>
       </div>
 
       <div className={styles.desktopFilterMatrix}>
@@ -237,25 +253,6 @@ export function FilingsV2FilterBar({
         </div>
       </div>
 
-      <div className={styles.mobileFilterActions}>
-        <FilterTrigger
-          active={activeCount > 0}
-          aria-controls={isMobileSheetOpen ? "filings-v2-filter-sheet" : undefined}
-          aria-haspopup="dialog"
-          aria-label={`Open filing filters${activeCount ? `, ${activeCount} active` : ""}`}
-          className={styles.mobileFilterTrigger}
-          expanded={isMobileSheetOpen}
-          label="Filters"
-          onClick={onOpenMobileFilters}
-          ref={mobileFilterOpenerRef}
-          trailingIcon={<SlidersHorizontal aria-hidden="true" size={15} />}
-          value={activeCount ? String(activeCount) : undefined}
-          variant="compact"
-        />
-        {hasResettableState ? (
-          <button className={styles.mobileResetButton} onClick={onReset} type="button">Reset</button>
-        ) : null}
-      </div>
     </section>
   );
 }

@@ -21,7 +21,7 @@
   height: var(--sr-space-4-5);
   border-radius: var(--sr-radius-sm);
   padding: 0 var(--sr-space-1);
-  font-size: calc(var(--sr-font-size-xs) - var(--sr-border-width));
+  font-size: var(--sr-font-size-xs);
 }
 
 .large {

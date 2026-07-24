@@ -1424,7 +1424,8 @@
 
   .filterUtilityRow {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: stretch;
   }
 
   .searchControl {
@@ -1439,27 +1440,27 @@
     display: none;
   }
 
-  .summaryMobileGrid,
-  .summaryExpandedGrid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--sr-space-2);
+  .summaryMobileGrid {
+    display: block;
   }
 
   .summaryDisclosure {
-    grid-column: 1 / -1;
     min-width: 0;
+    overflow: hidden;
+    border: var(--sr-border-width) solid var(--sr-color-divider);
+    border-radius: var(--sr-radius-base);
+    background: var(--sr-color-surface-panel);
+    box-shadow: var(--sr-shadow-panel);
   }
 
   .summaryDisclosure > summary {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--sr-size-control);
     min-height: var(--sr-size-filter-option);
     align-items: center;
-    justify-content: center;
-    border: var(--sr-border-width) solid var(--sr-color-border-muted-action);
-    border-radius: var(--sr-radius-control);
+    padding: 0;
     color: var(--sr-color-text-control);
-    background: var(--sr-color-surface-muted-action);
+    background: transparent;
     cursor: pointer;
     font-size: var(--sr-font-size-xs);
     font-weight: var(--sr-font-weight-semibold);
@@ -1475,32 +1476,74 @@
     outline-offset: var(--sr-focus-ring-offset);
   }
 
-  .summaryShowLess,
-  .summaryDisclosure[open] .summaryShowMore {
-    display: none;
+  .summaryMobilePrimaryMetrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .summaryDisclosure[open] .summaryShowLess {
-    display: inline;
+  .summaryMobilePrimaryMetrics .summaryCell {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .summaryMobilePrimaryMetrics .summaryCell + .summaryCell {
+    border-left: var(--sr-border-width) solid var(--sr-color-divider);
+  }
+
+  .summaryChevron {
+    display: grid;
+    align-self: stretch;
+    place-items: center;
+    color: var(--sr-color-text-control);
+    border-left: var(--sr-border-width) solid var(--sr-color-divider);
+  }
+
+  .summaryChevron svg {
+    display: block;
+  }
+
+  .summaryDisclosure[open] .summaryChevron svg {
+    transform: rotate(180deg);
   }
 
   .summaryExpandedGrid {
-    margin-top: var(--sr-space-2);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border-top: var(--sr-border-width) solid var(--sr-color-divider);
+  }
+
+  .summaryExpandedGrid .summaryCell {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .summaryExpandedGrid .summaryCell:nth-child(even) {
+    border-left: var(--sr-border-width) solid var(--sr-color-divider);
+  }
+
+  .summaryExpandedGrid .summaryCell:nth-child(n + 3) {
+    border-top: var(--sr-border-width) solid var(--sr-color-divider);
   }
 
   .summaryCell {
-    min-height: calc(var(--sr-size-control) + var(--sr-space-2));
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: center;
-    gap: 0;
-    padding: var(--sr-space-2) var(--sr-space-3);
+    min-height: var(--sr-size-control);
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sr-space-2);
+    padding: 0 var(--sr-space-3);
   }
 
   .summaryCell span {
-    overflow: visible;
-    text-overflow: clip;
-    white-space: normal;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .summaryCell strong {
+    flex: 0 0 auto;
   }
 
   .desktopFilterMatrix {
@@ -1510,8 +1553,11 @@
   .mobileFilterActions {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: var(--sr-space-2);
+  }
+
+  .mobileFilterActions .mobileFilterTrigger {
+    min-height: var(--sr-size-control);
+    padding-inline: var(--sr-space-3);
   }
 
   .mobileFilterActions .mobileFilterTrigger {

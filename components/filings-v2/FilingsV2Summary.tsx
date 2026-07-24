@@ -3,6 +3,7 @@ import {
   isFilingsV2Today,
   type FilingsV2Record,
 } from "@/lib/filingsV2Model";
+import { ChevronDown } from "lucide-react";
 import styles from "./StockRadarFilingsV2.module.css";
 
 export function FilingsV2Summary({
@@ -35,18 +36,21 @@ export function FilingsV2Summary({
       </div>
 
       <div className={styles.summaryMobileGrid}>
-        {primaryMetrics.map((metric) => (
-          <div className={styles.summaryCell} key={metric.label}>
-            <span>{metric.label}</span>
-            <strong>{metric.value}</strong>
-          </div>
-        ))}
-
         <details className={styles.summaryDisclosure}>
-          <summary>
-            <span className={styles.summaryShowMore}>Show {additionalMetrics.length} more</span>
-            <span className={styles.summaryShowLess}>Show less</span>
+          <summary aria-label="Toggle additional filing summary metrics">
+            <div className={styles.summaryMobilePrimaryMetrics}>
+              {primaryMetrics.map((metric) => (
+                <div className={styles.summaryCell} key={metric.label}>
+                  <span>{metric.label}</span>
+                  <strong>{metric.value}</strong>
+                </div>
+              ))}
+            </div>
+            <span aria-hidden="true" className={styles.summaryChevron}>
+              <ChevronDown size={18} strokeWidth={2} />
+            </span>
           </summary>
+
           <div className={styles.summaryExpandedGrid}>
             {additionalMetrics.map((metric) => (
               <div className={styles.summaryCell} key={metric.label}>

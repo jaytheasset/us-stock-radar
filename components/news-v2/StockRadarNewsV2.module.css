@@ -52,6 +52,10 @@
   padding: var(--sr-space-4);
 }
 
+.filterUtilityRow {
+  min-width: 0;
+}
+
 .searchForm {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1882,6 +1886,13 @@
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
+  .filterUtilityRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: stretch;
+    gap: var(--sr-space-2);
+  }
+
   .searchButton {
     padding: 0 var(--sr-space-3);
   }
@@ -1893,8 +1904,11 @@
   .mobileFilterActions {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: var(--sr-space-2);
+  }
+
+  .mobileFilterActions .mobileFilterTrigger {
+    min-height: var(--sr-size-control);
+    padding-inline: var(--sr-space-3);
   }
 
   .mobileResetButton {

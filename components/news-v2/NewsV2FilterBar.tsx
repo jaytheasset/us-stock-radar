@@ -108,19 +108,35 @@ export function NewsV2FilterBar({
 
   return (
     <section aria-label="News filters" className={styles.filterBar}>
-      <form className={styles.searchForm} id="news-v2-search-form" onSubmit={submitSearch}>
-        <label className={styles.searchField}>
-          <Search aria-hidden="true" size={17} />
-          <span className={styles.visuallyHidden}>Search news</span>
-          <input
-            onChange={(event) => onQueryDraftChange(event.target.value)}
-            placeholder="Search ticker, company, source or headline"
-            type="search"
-            value={queryDraft}
+      <div className={styles.filterUtilityRow}>
+        <form className={styles.searchForm} id="news-v2-search-form" onSubmit={submitSearch}>
+          <label className={styles.searchField}>
+            <Search aria-hidden="true" size={17} />
+            <span className={styles.visuallyHidden}>Search news</span>
+            <input
+              onChange={(event) => onQueryDraftChange(event.target.value)}
+              placeholder="Search ticker, company, source or headline"
+              type="search"
+              value={queryDraft}
+            />
+          </label>
+          <button className={styles.searchButton} type="submit">Search</button>
+        </form>
+
+        <div className={styles.mobileFilterActions}>
+          <FilterTrigger
+            active={activeCount > 0}
+            aria-label={`Open news filters${activeCount ? `, ${activeCount} active` : ""}`}
+            className={styles.mobileFilterTrigger}
+            label="Filters"
+            onClick={onOpenMobileFilters}
+            ref={mobileFilterOpenerRef}
+            trailingIcon={<SlidersHorizontal aria-hidden="true" size={15} />}
+            value={activeCount ? String(activeCount) : undefined}
+            variant="compact"
           />
-        </label>
-        <button className={styles.searchButton} type="submit">Search</button>
-      </form>
+        </div>
+      </div>
 
       <div className={styles.desktopFilterMatrix}>
         <div className={styles.filterGroupRow}>
@@ -224,21 +240,6 @@ export function NewsV2FilterBar({
         </div>
       </div>
 
-      <div className={styles.mobileFilterActions}>
-        <FilterTrigger
-          active={activeCount > 0}
-          aria-label={`Open news filters${activeCount ? `, ${activeCount} active` : ""}`}
-          label="Filters"
-          onClick={onOpenMobileFilters}
-          ref={mobileFilterOpenerRef}
-          trailingIcon={<SlidersHorizontal aria-hidden="true" size={15} />}
-          value={activeCount ? String(activeCount) : undefined}
-          variant="compact"
-        />
-        {activeCount || queryDraft ? (
-          <button className={styles.mobileResetButton} onClick={onReset} type="button">Reset</button>
-        ) : null}
-      </div>
     </section>
   );
 }
