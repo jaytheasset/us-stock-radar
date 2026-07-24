@@ -40,10 +40,10 @@ export function NewsAnalysisAdapter({ detail, newsId }: { detail: NewsAnalysisDe
             tone={chartTone}
           />
         ) : undefined}
-        sourceFooterActionRenderer={
-          preferredSourceUrl ? <GooglePreferredSourceLink href={preferredSourceUrl} /> : undefined
-        }
         sourceFooterLabel="Source"
+        summaryHeaderActionRenderer={
+          preferredSourceUrl ? <GooglePreferredSourceLink href={preferredSourceUrl} summary /> : undefined
+        }
         timestampLabel={detail.timestampLabel}
         contextRenderer={detail.marketContext ? <SectorThemeContextPanel context={detail.marketContext} storedOnly ticker={filing.ticker} /> : undefined}
       />

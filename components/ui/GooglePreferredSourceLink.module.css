@@ -62,9 +62,14 @@
   font-size: var(--sr-font-size-xs);
 }
 
-.summaryMessage {
+.summaryDesktopMessage,
+.summaryMobileMessage {
   color: var(--sr-color-accent-text-soft);
   font-weight: var(--sr-font-weight-semibold);
+}
+
+.summaryMobileMessage {
+  display: none;
 }
 
 @media (max-width: 760px) {
@@ -85,5 +90,13 @@
     max-width: 100%;
     justify-content: flex-start;
     white-space: normal;
+  }
+
+  .summaryDesktopMessage {
+    display: none;
+  }
+
+  .summaryMobileMessage {
+    display: inline;
   }
 }

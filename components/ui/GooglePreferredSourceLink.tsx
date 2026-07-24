@@ -25,9 +25,14 @@ export function GooglePreferredSourceLink({
     >
       <GoogleIcon />
       {summary ? (
-        <span className={styles.summaryMessage}>
-          Add Stock Radar as a preferred source on Google
-        </span>
+        <>
+          <span className={styles.summaryDesktopMessage}>
+            Add Stock Radar as a preferred source on Google
+          </span>
+          <span className={styles.summaryMobileMessage}>
+            Add Stock Radar on Google
+          </span>
+        </>
       ) : header ? (
         <>
           <span className={styles.headerDesktopMessage}>

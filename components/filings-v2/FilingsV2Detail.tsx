@@ -87,6 +87,15 @@ export function FilingsV2DetailContent({
         <div><span>Accession</span><strong>{record.accession || "—"}</strong></div>
       </section>
 
+      <div className={styles.detailActionArea}>
+        <Link className={styles.detailCta} href={`/filings/${record.id}`}>
+          <FileText aria-hidden="true" size={17} />
+          View Filing Details
+          <ChevronRight aria-hidden="true" size={18} />
+        </Link>
+      </div>
+      </div>
+
       {relatedRecords.length ? (
         <section className={styles.relatedSection}>
           <span className={styles.sectionLabel}>Related filings</span>
@@ -101,15 +110,6 @@ export function FilingsV2DetailContent({
           ))}
         </section>
       ) : null}
-
-      <div className={styles.detailActionArea}>
-        <Link className={styles.detailCta} href={`/filings/${record.id}`}>
-          <FileText aria-hidden="true" size={17} />
-          View Filing Details
-          <ChevronRight aria-hidden="true" size={18} />
-        </Link>
-      </div>
-      </div>
 
       <section className={styles.detailAdArea}>
         <FilingsRailAdSlot size="300x250" />
