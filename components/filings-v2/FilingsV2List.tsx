@@ -44,7 +44,9 @@ function shouldInsertInlineAd(index: number, recordCount: number) {
 function FilingIdentity({ record }: { record: FilingsV2Record }) {
   return (
     <span className={styles.identity}>
-      <strong>{record.ticker ?? "No ticker"}</strong>
+      <strong title={record.ticker ? undefined : "Ticker unavailable"}>
+        {record.ticker ?? "N/A"}
+      </strong>
       <span title={record.company}>{record.company}</span>
     </span>
   );

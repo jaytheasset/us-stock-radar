@@ -69,6 +69,7 @@ export function FilingsV2MarketReaction({ record }: FilingsV2MarketReactionProps
   const hasPrice = Number.isFinite(price);
   const hasChange = Number.isFinite(changePercent);
   const hasChart = chartPoints.length >= 2;
+  const hasQuote = hasPrice || hasChange;
   const change = changePercent ?? 0;
   const marketToneClass = hasChange
     ? change >= 0
@@ -80,9 +81,20 @@ export function FilingsV2MarketReaction({ record }: FilingsV2MarketReactionProps
 
   return (
     <span className={styles.filingMarketReaction}>
-      <span className={styles.filingPrice}>
-        <strong>{priceLabel}</strong>
-        <span className={marketToneClass}>{changeLabel}</span>
+      <span
+        className={`${styles.filingPrice}${hasQuote ? "" : ` ${styles.filingPriceUnavailable}`}`}
+      >
+        {hasQuote ? (
+          <>
+            {hasPrice ? <strong>{priceLabel}</strong> : null}
+            {hasChange ? <span className={marketToneClass}>{changeLabel}</span> : null}
+          </>
+        ) : (
+          <span className={styles.filingDataUnavailable} title="Quote unavailable">
+            <span aria-hidden="true">—</span>
+            <span className={styles.visuallyHidden}>Quote unavailable</span>
+          </span>
+        )}
       </span>
       {hasChart ? (
         <svg
@@ -95,7 +107,13 @@ export function FilingsV2MarketReaction({ record }: FilingsV2MarketReactionProps
           <polyline points={createSparklinePoints(chartPoints)} />
         </svg>
       ) : (
-        <span aria-hidden="true" className={styles.filingSparkline} />
+        <span
+          className={`${styles.filingSparkline} ${styles.filingDataUnavailable} ${styles.filingSparklineUnavailable}`}
+          title="Chart unavailable"
+        >
+          <span aria-hidden="true">—</span>
+          <span className={styles.visuallyHidden}>Chart unavailable</span>
+        </span>
       )}
     </span>
   );

@@ -34,7 +34,9 @@ export function FilingsV2DetailContent({
             <span aria-hidden="true" className={styles.noTickerMark}>SEC</span>
           )}
           <div>
-            <h2>{record.ticker ?? "No ticker"}</h2>
+            <h2 title={record.ticker ? undefined : "Ticker unavailable"}>
+              {record.ticker ?? "N/A"}
+            </h2>
             <p>{record.company}</p>
           </div>
           {record.watchlist !== undefined ? (

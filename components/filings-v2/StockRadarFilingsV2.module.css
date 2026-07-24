@@ -825,6 +825,18 @@
   gap: var(--sr-space-2);
 }
 
+.filingDataUnavailable {
+  color: var(--sr-color-text-muted);
+  font-size: var(--sr-font-size-md);
+  font-weight: var(--sr-font-weight-regular);
+  line-height: var(--sr-line-height-none);
+}
+
+.filingSparklineUnavailable {
+  display: grid;
+  place-items: center;
+}
+
 .filingPrice {
   display: grid;
   justify-items: end;
@@ -834,13 +846,18 @@
   text-align: right;
 }
 
+.filingPrice.filingPriceUnavailable {
+  justify-items: end;
+  padding-right: var(--sr-space-2);
+}
+
 .filingPrice strong {
   color: var(--sr-color-text-primary);
   font-size: var(--sr-font-size-md);
   font-weight: var(--sr-font-weight-emphasis);
 }
 
-.filingPrice span {
+.filingPrice > span:not(.filingDataUnavailable) {
   font-size: var(--sr-font-size-md);
   font-weight: var(--sr-font-weight-semibold);
   white-space: nowrap;
