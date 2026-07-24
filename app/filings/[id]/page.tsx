@@ -92,10 +92,13 @@ import {
 } from "@/components/filing-analysis-v2/S8Details";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import type { BadgeTone } from "@/components/ui/Badge";
+import { GooglePreferredSourceLink } from "@/components/ui/GooglePreferredSourceLink";
 import {
   filingUiFamilies,
   registeredFilingUiFixtures,
 } from "@/lib/development/filingUiRegistry";
+import { getServerEnv } from "@/lib/env";
+import { buildGooglePreferredSourceUrl } from "@/lib/googlePreferredSource";
 import {
   DilutionShareOverhang,
   type DilutionShareOverhangBarSegment,
@@ -4184,6 +4187,7 @@ export async function generateMetadata({ params }: FilingDetailPageProps): Promi
 export default async function FilingDetailPage({ params }: FilingDetailPageProps) {
   const { id } = await params;
   const filing = await resolveFilingEvent(id);
+  const preferredSourceUrl = buildGooglePreferredSourceUrl(getServerEnv().appBaseUrl);
   const eventBadge = getEventTypeBadge(filing.eventType);
   const hasRealFilingTicker = isRealTicker(filing.ticker);
   const dilutionModel = filing.eventType === "dilution_risk" ? buildDilutionOfferingModel(filing) : null;
@@ -4367,6 +4371,9 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
               tone={filing.signal}
             />
           ) : undefined}
+          sourceFooterActionRenderer={
+            preferredSourceUrl ? <GooglePreferredSourceLink href={preferredSourceUrl} /> : undefined
+          }
         />
       </StockRadarAppShell>
     );
@@ -4513,6 +4520,9 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
               <span>View Original Filing</span>
               <ExternalLink size={14} aria-hidden="true" />
             </a>
+            {preferredSourceUrl ? (
+              <GooglePreferredSourceLink href={preferredSourceUrl} />
+            ) : null}
           </section>
         </aside>
       </div>
