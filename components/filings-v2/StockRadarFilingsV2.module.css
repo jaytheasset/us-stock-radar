@@ -205,8 +205,12 @@
   border: var(--sr-border-width) solid var(--sr-color-accent-border);
   border-radius: var(--sr-radius-control);
   padding: 0 var(--sr-space-4);
-  color: var(--sr-color-accent);
-  background: var(--sr-color-accent-active-soft);
+  color: var(--sr-color-text-bright);
+  background: linear-gradient(
+    180deg,
+    var(--sr-color-accent-cta-top),
+    var(--sr-color-accent-cta-bottom)
+  );
   font: var(--sr-font-weight-semibold) var(--sr-font-size-sm) / var(--sr-line-height-none)
     var(--sr-font-family-sans);
 }
@@ -1426,6 +1430,7 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: stretch;
+    gap: var(--sr-space-2);
   }
 
   .searchControl {
@@ -1565,17 +1570,6 @@
   .mobileFilterActions .mobileFilterTrigger {
     min-height: var(--sr-size-control);
     padding-inline: var(--sr-space-3);
-  }
-
-  .mobileFilterActions .mobileFilterTrigger {
-    border-color: var(--sr-color-accent-border);
-    color: var(--sr-color-accent);
-    background: var(--sr-color-accent-active-soft);
-  }
-
-  .mobileFilterActions .mobileFilterTrigger:hover {
-    border-color: var(--sr-color-accent-border-active);
-    background: var(--sr-color-accent-active-strong);
   }
 
   .mobileResetButton {
