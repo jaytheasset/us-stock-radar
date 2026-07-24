@@ -95,12 +95,30 @@
   line-height: var(--sr-line-height-body);
 }
 
+.premiumCtaAction {
+  display: grid;
+  justify-items: center;
+  gap: var(--sr-space-2);
+}
+
+.premiumCtaProBadge {
+  display: grid;
+  width: var(--sr-size-icon-button);
+  height: var(--sr-size-icon-button);
+  place-items: center;
+  border: var(--sr-border-width) solid var(--sr-color-accent-border);
+  border-radius: var(--sr-radius-pill);
+  color: var(--sr-color-accent-text);
+  background: var(--sr-color-accent-active);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-heavy);
+}
+
 .premiumCtaLink {
   display: inline-flex;
   min-height: var(--sr-size-control);
   align-items: center;
   justify-content: center;
-  gap: var(--sr-space-2);
   border: var(--sr-border-width) solid var(--sr-color-accent-strong);
   border-radius: var(--sr-radius-control);
   padding: 0 var(--sr-space-3);
@@ -1404,8 +1422,6 @@
 
   .premiumCtaMobile {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    justify-items: start;
     margin: var(--sr-space-2-5);
     padding: var(--sr-space-3);
   }

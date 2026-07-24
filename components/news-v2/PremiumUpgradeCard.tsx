@@ -1,4 +1,3 @@
-import { BellRing } from "lucide-react";
 import Link from "next/link";
 import type { Plan } from "@/lib/subscriptionPolicy";
 import styles from "./StockRadarNewsV2.module.css";
@@ -24,21 +23,21 @@ export function PremiumUpgradeCard({
       className={`${styles.premiumCta}${className ? ` ${className}` : ""}`}
     >
       <div className={styles.premiumCtaCopy}>
-        <span>Advanced alerts</span>
-        <strong>Never miss a market-moving update</strong>
-        <p>
-          Get instant alerts for earnings, FDA decisions, strategic events,
-          and major company news.
-        </p>
+        <span>Premium</span>
+        <strong>Unlock the full news intelligence</strong>
+        <p>Real-time market news, advanced filters, and watchlist signals.</p>
       </div>
-
-      <Link
-        className={styles.premiumCtaLink}
-        href={managesAlerts ? "/alerts" : "/premium"}
-      >
-        <BellRing aria-hidden="true" size={16} strokeWidth={1.8} />
-        <span>{managesAlerts ? "Manage Alerts" : "Upgrade to Advanced"}</span>
-      </Link>
+      <div className={styles.premiumCtaAction}>
+        <span aria-hidden="true" className={styles.premiumCtaProBadge}>
+          ADV
+        </span>
+        <Link
+          className={styles.premiumCtaLink}
+          href={managesAlerts ? "/alerts" : "/premium"}
+        >
+          {managesAlerts ? "Manage Alerts" : "Upgrade"}
+        </Link>
+      </div>
     </aside>
   );
 }
