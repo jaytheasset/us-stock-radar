@@ -3,7 +3,10 @@ import { SectorThemeContextPanel } from "@/app/events/[id]/SectorThemeContextPan
 import { GenericFilingAnalysis } from "@/components/filing-analysis-v2/GenericFilingAnalysis";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import type { BadgeTone } from "@/components/ui/Badge";
+import { GooglePreferredSourceLink } from "@/components/ui/GooglePreferredSourceLink";
+import { getServerEnv } from "@/lib/env";
 import { getEventTypeBadge, type EventTypeBadgeTone } from "@/lib/eventTypeRegistry";
+import { buildGooglePreferredSourceUrl } from "@/lib/googlePreferredSource";
 import type { NewsAnalysisDetail } from "@/lib/newsAnalysisDetail";
 import { OriginalNewsArticle } from "./OriginalNewsArticle";
 
@@ -13,6 +16,7 @@ export function NewsAnalysisAdapter({ detail, newsId }: { detail: NewsAnalysisDe
   const badge = detail.eventType ? getEventTypeBadge(detail.eventType) : null;
   const chartTone = filing.signal || toneFromStoredChange(detail.priceChange);
   const hasStoredChart = Boolean(filing.ticker && detail.priceSeries && Object.values(detail.priceSeries.periods).some((points) => points?.length));
+  const preferredSourceUrl = buildGooglePreferredSourceUrl(getServerEnv().appBaseUrl);
 
   return (
     <StockRadarAppShell activeNavigationItem="news" themeMode="user-selectable">
@@ -36,6 +40,9 @@ export function NewsAnalysisAdapter({ detail, newsId }: { detail: NewsAnalysisDe
             tone={chartTone}
           />
         ) : undefined}
+        sourceFooterActionRenderer={
+          preferredSourceUrl ? <GooglePreferredSourceLink href={preferredSourceUrl} /> : undefined
+        }
         sourceFooterLabel="Source"
         timestampLabel={detail.timestampLabel}
         contextRenderer={detail.marketContext ? <SectorThemeContextPanel context={detail.marketContext} storedOnly ticker={filing.ticker} /> : undefined}

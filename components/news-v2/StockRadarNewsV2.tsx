@@ -27,7 +27,9 @@ const emptyFilters: NewsV2Filters = {
   themes: [],
 };
 
-type StockRadarNewsV2Props = NewsV2PageData;
+type StockRadarNewsV2Props = NewsV2PageData & {
+  preferredSourceUrl?: string | null;
+};
 
 export function StockRadarNewsV2({
   items,
@@ -36,6 +38,7 @@ export function StockRadarNewsV2({
   sectorActivity,
   signalActivity,
   error,
+  preferredSourceUrl,
 }: StockRadarNewsV2Props) {
   const [queryDraft, setQueryDraft] = useState("");
   const [query, setQuery] = useState("");
@@ -149,6 +152,7 @@ export function StockRadarNewsV2({
           sourceActivity={sourceActivity}
           total={total}
           visibleItemCount={visibleItems.length}
+          preferredSourceUrl={preferredSourceUrl}
         />
       </div>
 

@@ -69,6 +69,7 @@ type GenericFilingAnalysisProps = {
   originalRenderer?: ReactNode;
   originalSectionTitle?: string;
   priceRenderer?: ReactNode;
+  sourceFooterActionRenderer?: ReactNode;
   sourceFooterLabel?: string;
   summaryAsideRenderer?: ReactNode;
   timestampLabel?: string;
@@ -89,6 +90,7 @@ export function GenericFilingAnalysis({
   originalRenderer,
   originalSectionTitle,
   priceRenderer,
+  sourceFooterActionRenderer,
   sourceFooterLabel = "Source",
   summaryAsideRenderer,
   timestampLabel = "Filed",
@@ -411,7 +413,7 @@ export function GenericFilingAnalysis({
                   </section>
                 ) : null}
                 {originalRenderer}
-                {source || sourceUrl ? (
+                {source || sourceUrl || sourceFooterActionRenderer ? (
                   <footer
                     className={`${styles.originalSourceFooter}${
                       originalRenderer ? "" : ` ${styles.originalSourceFooterOnly}`
@@ -423,16 +425,21 @@ export function GenericFilingAnalysis({
                         <strong>{source}</strong>
                       </div>
                     ) : null}
-                    {sourceUrl ? (
-                      <a
-                        className={styles.originalSourceLink}
-                        href={sourceUrl}
-                        rel="noreferrer"
-                        target="_blank"
-                      >
-                        <span>{originalLinkLabel}</span>
-                        <ExternalLink aria-hidden="true" size={15} />
-                      </a>
+                    {sourceUrl || sourceFooterActionRenderer ? (
+                      <div className={styles.originalSourceActions}>
+                        {sourceFooterActionRenderer}
+                        {sourceUrl ? (
+                          <a
+                            className={styles.originalSourceLink}
+                            href={sourceUrl}
+                            rel="noreferrer"
+                            target="_blank"
+                          >
+                            <span>{originalLinkLabel}</span>
+                            <ExternalLink aria-hidden="true" size={15} />
+                          </a>
+                        ) : null}
+                      </div>
                     ) : null}
                   </footer>
                 ) : null}

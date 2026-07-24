@@ -1210,6 +1210,11 @@
   outline-offset: var(--sr-focus-ring-offset);
 }
 
+.preferredSourceAction {
+  border-top: var(--sr-border-width) solid var(--sr-color-divider);
+  padding: var(--sr-space-2) var(--sr-space-4) var(--sr-space-3);
+}
+
 .detailContent {
   min-width: 0;
   padding: var(--sr-space-5);

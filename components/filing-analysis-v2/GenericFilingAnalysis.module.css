@@ -460,6 +460,14 @@
   font-weight: var(--sr-font-weight-strong);
 }
 
+.originalSourceActions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sr-space-2);
+}
+
 .originalSourceLink {
   display: inline-flex;
   min-height: var(--sr-size-control);
@@ -1016,6 +1024,11 @@
 
   .originalSourceLink {
     width: 100%;
+  }
+
+  .originalSourceActions {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .rendererCard :global(.context-range-control) {
