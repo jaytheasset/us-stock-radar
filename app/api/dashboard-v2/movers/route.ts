@@ -28,6 +28,7 @@ import {
   buildMassiveExtendedCandidates,
   type DashboardV2ExtendedSession,
 } from "@/lib/dashboardV2MassiveMovers";
+import { companyLogoPath } from "@/lib/companyLogoCache";
 import {
   getDashboardMoverLifecycle,
   isDashboardMoverFinalizationEligible,
@@ -560,7 +561,7 @@ async function buildExtendedMarketMovers(
     return {
       changePercent: formatSignedPercent(candidate.changePercentage),
       company: metadata?.name || candidate.ticker,
-      logoUrl: `https://financialmodelingprep.com/image-stock/${encodeURIComponent(candidate.ticker)}.png`,
+      logoUrl: companyLogoPath(candidate.ticker),
       marketCap:
         metadata?.marketCap === undefined ? "—" : formatMarketCap(metadata.marketCap),
       marketCapValue: metadata?.marketCap,
@@ -939,7 +940,7 @@ function normalizeMover(value: unknown): BaseMover | null {
   return {
     changePercent: formatSignedPercent(numberValue(row.changesPercentage)),
     company: textValue(row.name) || ticker,
-    logoUrl: `https://financialmodelingprep.com/image-stock/${encodeURIComponent(ticker)}.png`,
+    logoUrl: companyLogoPath(ticker),
     marketCap: marketCapValue === undefined ? "—" : formatMarketCap(marketCapValue),
     marketCapValue,
     price: formatCurrency(priceValue),

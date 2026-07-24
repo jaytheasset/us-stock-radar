@@ -14,8 +14,17 @@ export function MarketTickerLogo({
   size,
   ticker,
 }: MarketTickerLogoProps) {
+  const normalizedTicker = ticker.trim().toUpperCase();
+  const defaultLogoUrl =
+    normalizedTicker &&
+    normalizedTicker !== "N/A" &&
+    normalizedTicker !== "MARKET" &&
+    /^[A-Z0-9][A-Z0-9.-]{0,14}$/.test(normalizedTicker)
+      ? `/api/market/logo/${encodeURIComponent(normalizedTicker)}`
+      : undefined;
+  const resolvedLogoUrl = logoUrl || defaultLogoUrl;
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
-  const showLogo = Boolean(logoUrl && failedUrl !== logoUrl);
+  const showLogo = Boolean(resolvedLogoUrl && failedUrl !== resolvedLogoUrl);
   const monogram = ticker.trim().slice(0, 2).toUpperCase();
   const sizeClass =
     size === "desktop"
@@ -37,8 +46,8 @@ export function MarketTickerLogo({
           alt=""
           decoding="async"
           loading="lazy"
-          onError={() => setFailedUrl(logoUrl ?? null)}
-          src={logoUrl}
+          onError={() => setFailedUrl(resolvedLogoUrl ?? null)}
+          src={resolvedLogoUrl}
         />
       ) : (
         <span className={styles.tickerMonogram}>{monogram}</span>

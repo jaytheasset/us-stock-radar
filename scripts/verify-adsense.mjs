@@ -119,6 +119,8 @@ const manualPlacementSources = await Promise.all(
     "../components/news-v2/NewsV2RailAdSlot.tsx",
     "../components/news-v2/NewsV2InlineAd.tsx",
     "../components/news-v2/NewsV2InsightInlineAd.tsx",
+    "../components/filings-v2/FilingsRailAdSlot.tsx",
+    "../components/filings-v2/FilingsV2InlineAd.tsx",
   ].map((file) => readFile(new URL(file, import.meta.url), "utf8")),
 );
 const advertisingSource = `${slotSource}\n${publisherLoaderSource}\n${scriptLoaderSource}`;
@@ -154,7 +156,7 @@ assert.match(slotStylesSource, /\.footer[\s\S]*border-top:/);
 assert.match(slotStylesSource, /\.removeAdsLink:focus-visible/);
 assert.ok(
   manualPlacementSources.every((source) => source.includes("<AdSenseSlot")),
-  "all News V2 manual placement owners use the shared slot footer",
+  "all manual placement owners use the shared slot footer",
 );
 
 console.log(

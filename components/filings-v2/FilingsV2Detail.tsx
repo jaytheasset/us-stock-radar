@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Bookmark, ChevronRight, FileText } from "lucide-react";
 import { FilingsV2EventBadge } from "@/components/filings-v2/FilingsV2EventBadge";
 import { FilingsV2ImpactScore } from "@/components/filings-v2/FilingsV2ImpactScore";
+import { FilingsRailAdSlot } from "@/components/filings-v2/FilingsRailAdSlot";
 import { MarketTickerLogo } from "@/components/market/MarketTickerLogo";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import { DetailPanelShell } from "@/components/ui/DetailPanelShell";
@@ -24,6 +25,7 @@ export function FilingsV2DetailContent({
 }: FilingsV2DetailContentProps) {
   return (
     <div className={styles.detailContent}>
+      <div className={styles.detailPreviewCard}>
       <header className={styles.detailHeader}>
         <div className={styles.detailIdentity}>
           {record.ticker ? (
@@ -80,14 +82,6 @@ export function FilingsV2DetailContent({
         </section>
       ) : null}
 
-      <section aria-label="Advertisement" className={styles.detailAdArea}>
-        <div className={styles.detailAdSlot}>
-          <span className={styles.detailAdLabel}>Advertisement</span>
-          <span className={`${styles.detailAdSize} ${styles.detailAdSizeDesktop}`}>300 x 250</span>
-          <span className={`${styles.detailAdSize} ${styles.detailAdSizeMobile}`}>320 x 100</span>
-        </div>
-      </section>
-
       <section className={styles.sourceMetadata}>
         <div><span>Source</span><strong>{record.source} EDGAR</strong></div>
         <div><span>Accession</span><strong>{record.accession || "—"}</strong></div>
@@ -115,6 +109,12 @@ export function FilingsV2DetailContent({
           <ChevronRight aria-hidden="true" size={18} />
         </Link>
       </div>
+      </div>
+
+      <section className={styles.detailAdArea}>
+        <FilingsRailAdSlot size="300x250" />
+        <FilingsRailAdSlot size="320x100" />
+      </section>
     </div>
   );
 }

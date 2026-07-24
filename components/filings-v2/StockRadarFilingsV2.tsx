@@ -98,6 +98,7 @@ export function StockRadarFilingsV2({
 
   const visibleRecords = filteredRecords.slice(0, visibleCount);
   const remainingCount = Math.max(filteredRecords.length - visibleRecords.length, 0);
+  const tallRailAdCount = Math.max(1, Math.ceil(visibleRecords.length / 12) - 1);
   const selectedRecord = records.find((record) => record.id === selectedId) ?? records[0];
   const relatedRecords = selectedRecord?.relatedFilings ?? [];
 
@@ -285,7 +286,11 @@ export function StockRadarFilingsV2({
           </div>
         ) : null}
         <div className={styles.detailRailAdFill}>
-          <FilingsRailAdSlot />
+          {Array.from({ length: tallRailAdCount }, (_, index) => (
+            <div className={styles.detailRailAdAnchor} key={`filings-rail-ad-${index}`}>
+              <FilingsRailAdSlot size="300x600" />
+            </div>
+          ))}
         </div>
       </aside>
 

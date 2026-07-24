@@ -3,6 +3,15 @@
   min-height: calc(100vh - var(--sr-size-header));
   grid-template-columns: minmax(0, 72fr) minmax(0, 28fr);
   align-items: start;
+  color: var(--sr-color-text-primary);
+  background: var(--sr-color-page-background);
+}
+
+.summaryStrip,
+.listPanel,
+.detailContent {
+  font-family:
+    Arial, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
 }
 
 .primaryColumn {
@@ -32,6 +41,13 @@
 }
 
 .detailRailAdFill {
+  display: grid;
+  min-width: 0;
+  min-height: 600px;
+  gap: clamp(280px, 28vw, 440px);
+}
+
+.detailRailAdAnchor {
   min-width: 0;
   min-height: 600px;
 }
@@ -266,7 +282,7 @@
   border: var(--sr-border-width) solid var(--sr-color-divider);
   border-radius: var(--sr-radius-base);
   padding: var(--sr-space-3);
-  background: var(--sr-color-surface-control-group);
+  background: var(--sr-color-surface-panel);
 }
 
 .filterGroupRow,
@@ -632,36 +648,8 @@
   background: var(--sr-color-surface-table-row);
 }
 
-.inlineAdSlot {
-  box-sizing: border-box;
-  display: flex;
-  max-width: 100%;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sr-space-2);
-  margin: 0 auto;
-  border: var(--sr-border-width) solid var(--sr-color-divider);
-  border-radius: var(--sr-radius-control);
-  background: var(--sr-color-surface);
-  color: var(--sr-color-text-subtle);
-}
-
 .desktopInlineAdSlot {
-  width: min(728px, 100%);
-  height: 90px;
-}
-
-.inlineAdLabel,
-.inlineAdSize {
-  font-size: var(--sr-font-size-xs);
-  font-weight: var(--sr-font-weight-label);
-  letter-spacing: var(--sr-letter-spacing-brand);
-  line-height: var(--sr-line-height-default);
-  text-transform: uppercase;
-}
-
-.inlineAdSize {
-  color: var(--sr-color-text-muted);
+  max-width: 728px;
 }
 
 .mobileInlineAdItem {
@@ -961,12 +949,30 @@
 }
 
 .detailContent {
+  display: grid;
   min-width: 0;
+  gap: var(--sr-space-4);
+  padding: var(--sr-space-4);
+}
+
+.detailPreviewCard {
+  overflow: hidden;
+  border: var(--sr-border-width) solid var(--sr-color-divider);
+  border-radius: var(--sr-radius-base);
+  background: var(--sr-color-surface-panel);
+  box-shadow: var(--sr-shadow-panel);
+}
+
+.detailHeader,
+.detailSection,
+.sourceMetadata,
+.relatedSection,
+.detailActionArea {
+  border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
 }
 
 .detailHeader {
-  border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
-  padding: var(--sr-space-6) var(--sr-space-5);
+  padding: var(--sr-space-5);
 }
 
 .detailIdentity {
@@ -1048,48 +1054,13 @@
 .sourceMetadata,
 .relatedSection,
 .detailActionArea {
-  border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
   padding: var(--sr-space-5);
 }
 
 .detailAdArea {
   display: flex;
   justify-content: center;
-  border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
-  padding: var(--sr-space-5);
-}
-
-.detailAdSlot {
-  box-sizing: border-box;
-  display: flex;
-  width: 300px;
-  max-width: 100%;
-  height: 250px;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sr-space-2);
-  border: var(--sr-border-width) solid var(--sr-color-divider);
-  border-radius: var(--sr-radius-control);
-  background: var(--sr-color-surface);
-  color: var(--sr-color-text-subtle);
-}
-
-.detailAdLabel,
-.detailAdSize {
-  font-size: var(--sr-font-size-xs);
-  font-weight: var(--sr-font-weight-label);
-  letter-spacing: var(--sr-letter-spacing-brand);
-  line-height: var(--sr-line-height-default);
-  text-transform: uppercase;
-}
-
-.detailAdSize {
-  color: var(--sr-color-text-muted);
-}
-
-.detailAdSizeMobile {
-  display: none;
+  padding: 0;
 }
 
 .sectionLabel {
@@ -1480,11 +1451,6 @@
     background: var(--sr-color-surface-table-row);
   }
 
-  .mobileInlineAdSlot {
-    width: 320px;
-    height: 100px;
-  }
-
   .filingItem {
     min-height: calc(var(--sr-size-table-row) + var(--sr-space-8));
     grid-template-columns: auto minmax(0, 1fr) auto;
@@ -1646,20 +1612,6 @@
 
   .detailAdArea {
     padding: var(--sr-space-4);
-  }
-
-  .detailAdSlot {
-    width: 320px;
-    height: 100px;
-    flex-direction: row;
-  }
-
-  .detailAdSizeDesktop {
-    display: none;
-  }
-
-  .detailAdSizeMobile {
-    display: inline;
   }
 
   .detailActionArea {

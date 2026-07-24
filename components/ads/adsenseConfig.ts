@@ -3,6 +3,10 @@ export const adSenseInventories = [
   "news-rail-300x600",
   "news-desktop-inline",
   "news-mobile-inline",
+  "filings-rail-300x250",
+  "filings-rail-300x600",
+  "filings-desktop-inline",
+  "filings-mobile-inline",
 ] as const;
 
 export type AdSenseInventory = (typeof adSenseInventories)[number];
@@ -37,6 +41,10 @@ export function resolveAdSenseConfig(input: AdSenseConfigInput): AdSenseConfig {
     "news-rail-300x600": normalize(input.slotIds?.["news-rail-300x600"]),
     "news-desktop-inline": normalize(input.slotIds?.["news-desktop-inline"]),
     "news-mobile-inline": normalize(input.slotIds?.["news-mobile-inline"]),
+    "filings-rail-300x250": normalize(input.slotIds?.["filings-rail-300x250"]),
+    "filings-rail-300x600": normalize(input.slotIds?.["filings-rail-300x600"]),
+    "filings-desktop-inline": normalize(input.slotIds?.["filings-desktop-inline"]),
+    "filings-mobile-inline": normalize(input.slotIds?.["filings-mobile-inline"]),
   };
   const isProductionPublisher =
     input.nodeEnv === "production" && Boolean(publisherId);
@@ -51,6 +59,14 @@ export function resolveAdSenseConfig(input: AdSenseConfigInput): AdSenseConfig {
       isProductionPublisher && Boolean(slotIds["news-desktop-inline"]),
     "news-mobile-inline":
       isProductionPublisher && Boolean(slotIds["news-mobile-inline"]),
+    "filings-rail-300x250":
+      isProductionPublisher && Boolean(slotIds["filings-rail-300x250"]),
+    "filings-rail-300x600":
+      isProductionPublisher && Boolean(slotIds["filings-rail-300x600"]),
+    "filings-desktop-inline":
+      isProductionPublisher && Boolean(slotIds["filings-desktop-inline"]),
+    "filings-mobile-inline":
+      isProductionPublisher && Boolean(slotIds["filings-mobile-inline"]),
   };
 
   return {
@@ -77,5 +93,13 @@ export const adsenseConfig = resolveAdSenseConfig({
       process.env.NEXT_PUBLIC_ADSENSE_NEWS_V2_DESKTOP_INLINE_SLOT_ID,
     "news-mobile-inline":
       process.env.NEXT_PUBLIC_ADSENSE_NEWS_V2_MOBILE_INLINE_SLOT_ID,
+    "filings-rail-300x250":
+      process.env.NEXT_PUBLIC_ADSENSE_FILINGS_RAIL_300X250_SLOT_ID,
+    "filings-rail-300x600":
+      process.env.NEXT_PUBLIC_ADSENSE_FILINGS_RAIL_300X600_SLOT_ID,
+    "filings-desktop-inline":
+      process.env.NEXT_PUBLIC_ADSENSE_FILINGS_DESKTOP_INLINE_SLOT_ID,
+    "filings-mobile-inline":
+      process.env.NEXT_PUBLIC_ADSENSE_FILINGS_MOBILE_INLINE_SLOT_ID,
   },
 });

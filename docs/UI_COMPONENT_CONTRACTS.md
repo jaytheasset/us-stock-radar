@@ -786,18 +786,19 @@ Regular Stable requests have an eight-second timeout and one retry for network e
 
 The components have no props, advertising SDK, network request, ad-unit identifier, auto-refresh behavior, or provider-specific logic. A future AdSense integration must be a separately scoped change that replaces only the placeholder content while preserving the reserved geometry. They are not a generic `AdSlot` primitive because provider loading, consent, responsive inventory, and page-level monetization policy have not been established.
 
-## 28. News V2 Advertising and AdSense Boundary
+## 28. News and Filings V2 Advertising and AdSense Boundary
 
 ### Purpose and files
 
 - Shared provider boundary: `components/ads/adsenseConfig.ts`, `components/ads/adsenseScriptLoader.ts`, `components/ads/AdSensePublisherLoader.tsx`, `components/ads/AdSenseSlot.tsx`, and `components/ads/AdSenseSlot.module.css`
 - News V2 placement owners: `components/news-v2/NewsV2InsightRail.tsx`, `components/news-v2/NewsV2List.tsx`, `components/news-v2/NewsV2RailAdSlot.tsx`, `components/news-v2/NewsV2InlineAd.tsx`, and `components/news-v2/NewsV2InsightInlineAd.tsx`
+- Filings V2 placement owners: `components/filings-v2/StockRadarFilingsV2.tsx`, `components/filings-v2/FilingsV2Detail.tsx`, `components/filings-v2/FilingsV2List.tsx`, `components/filings-v2/FilingsRailAdSlot.tsx`, and `components/filings-v2/FilingsV2InlineAd.tsx`
 - Responsive geometry and visibility owner: `components/news-v2/StockRadarNewsV2.module.css`
 - Site-wide Anchor opt-in owner: `app/layout.tsx`
 
 `adsenseScriptLoader` is the single owner of the official `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js` script ID and DOM insertion. It stores the in-flight or completed promise on `window`, also checks the stable script element ID, and therefore inserts at most one script across Anchor opt-in, manual slots, React rerenders, and App Router navigation. It does not create an ad container, call `adsbygoogle.push`, or schedule refreshes.
 
-`AdSenseSlot` owns the manual News V2 `ins.adsbygoogle` attributes, lazy-request lifecycle, and per-mounted-slot `adsbygoogle.push` guard. Each manual inventory type checks only the production publisher ID and its own slot ID; a missing unrelated slot ID does not disable it. The existing IntersectionObserver preload margin, media-query activation, zero-dimension guard, stable reservation, and one-push-per-slot behavior remain unchanged. No automatic refresh timer or repeat push is permitted.
+`AdSenseSlot` owns the manual News and Filings V2 `ins.adsbygoogle` attributes, lazy-request lifecycle, and per-mounted-slot `adsbygoogle.push` guard. Each manual inventory type checks only the production publisher ID and its own slot ID; a missing unrelated slot ID does not disable it. The existing IntersectionObserver preload margin, media-query activation, zero-dimension guard, stable reservation, and one-push-per-slot behavior remain unchanged. No automatic refresh timer or repeat push is permitted.
 
 Every rendered manual slot, including its development placeholder path, includes a low-emphasis site-owned footer with the inert label `Advertisement`, a divider, and a `Remove ads` link to the canonical `/premium` route. The footer is a sibling after the fixed-size ad surface: it is never a child of `ins.adsbygoogle`, never overlays the creative, and has explicit spacing plus a border separating its link target from the Google ad click area. This separation follows Google's [ad placement policy](https://support.google.com/adsense/answer/1346295?hl=en) guidance for avoiding accidental clicks near ads. `showRemoveAdsLink` can suppress this footer for a manual placement, while `enabledForViewer=false` suppresses both the manual ad and its footer without inventing a current subscription state.
 
@@ -808,6 +809,8 @@ Every rendered manual slot, including its development placeholder path, includes
 - Above 1180 px, the right column uses normal document scrolling and reserves an initial `300 x 250` unit followed by `300 x 600` units. The number of tall continuation units grows with the visible news-list length, at roughly one rail inventory position per twelve visible rows, and continuation units retain vertical separation.
 - Desktop inline inventory uses the existing `728 x 90` reservation above 980 px. It is a horizontal responsive AdSense unit capped by the established 728 px shell so narrower desktop content does not overflow.
 - At 980 px and below, right-rail and desktop-inline inventory is hidden. Mobile/tablet `320 x 100` inline inventory appears after every eleven news rows and retains the existing insight-section reservation.
+- Above 1180 px, Filings V2 places one `300 x 250` unit directly below the selected filing preview, then adds `300 x 600` continuation inventory at roughly one position per twelve visible filing rows. Loading more filings mounts new continuation positions; existing ads are not refreshed.
+- Filings V2 preserves its existing `728 x 90` desktop list inventory and `320 x 100` mobile list inventory. The mobile filing preview uses the same mobile inventory contract below the preview card.
 - Desktop and mobile placements have mutually exclusive media-query activation. An inactive placement never renders an `ins.adsbygoogle` element and therefore cannot request a hidden ad. All shells reserve fixed height before provider activation to prevent layout shift.
 
 ### Configuration, fallback, and activation
@@ -820,6 +823,10 @@ The publisher script is eligible only in a production build with `NEXT_PUBLIC_AD
 - `NEXT_PUBLIC_ADSENSE_NEWS_V2_RAIL_300X600_SLOT_ID`
 - `NEXT_PUBLIC_ADSENSE_NEWS_V2_DESKTOP_INLINE_SLOT_ID`
 - `NEXT_PUBLIC_ADSENSE_NEWS_V2_MOBILE_INLINE_SLOT_ID`
+- `NEXT_PUBLIC_ADSENSE_FILINGS_RAIL_300X250_SLOT_ID`
+- `NEXT_PUBLIC_ADSENSE_FILINGS_RAIL_300X600_SLOT_ID`
+- `NEXT_PUBLIC_ADSENSE_FILINGS_DESKTOP_INLINE_SLOT_ID`
+- `NEXT_PUBLIC_ADSENSE_FILINGS_MOBILE_INLINE_SLOT_ID`
 
 The publisher value must be the AdSense client identifier (for example, a value with the `ca-pub-` prefix), and each manual inventory variable must contain its matching AdSense ad-unit slot ID. These public identifiers are documented in `.env.local.example`; real account values must be supplied by the production environment and must not be committed. In development, manual positions retain their established `Advertisement` placeholders, while the Anchor loader renders nothing and does not load the Google script. In production, a missing manual slot ID leaves only that manual position on its placeholder path and does not block another configured slot or Anchor.
 
