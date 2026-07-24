@@ -28,6 +28,7 @@ export default async function NewsPage() {
       <StockRadarNewsV2
         {...data}
         preferredSourceUrl={preferredSourceUrl}
+        referenceDate={new Date().toISOString()}
         viewerPlan={viewerPlan}
       />
     </StockRadarAppShell>

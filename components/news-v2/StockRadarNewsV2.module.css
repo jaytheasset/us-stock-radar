@@ -479,7 +479,12 @@
 }
 
 .rowDate {
-  color: var(--sr-color-text-secondary);
+  color: var(--sr-color-text-meta);
+  font-weight: var(--sr-font-weight-regular);
+}
+
+.rowTime time {
+  color: var(--sr-color-text-primary);
   font-weight: var(--sr-font-weight-semibold);
 }
 
@@ -2043,13 +2048,24 @@
   }
 
   .rowMobilePublishedAt {
-    display: inline;
+    display: inline-flex;
     flex: 0 0 auto;
-    color: var(--sr-color-text-meta);
+    align-items: center;
+    gap: var(--sr-space-1);
     font-size: var(--sr-font-size-xs);
     font-variant-numeric: var(--sr-font-variant-numeric);
     line-height: var(--sr-line-height-none);
     white-space: nowrap;
+  }
+
+  .rowMobileDate {
+    color: var(--sr-color-text-meta);
+    font-weight: var(--sr-font-weight-regular);
+  }
+
+  .rowMobileTime {
+    color: var(--sr-color-text-primary);
+    font-weight: var(--sr-font-weight-semibold);
   }
 
   .rowStoryFooter {

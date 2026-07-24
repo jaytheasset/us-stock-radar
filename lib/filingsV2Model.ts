@@ -1,3 +1,5 @@
+import { isSameMarketDate } from "@/lib/marketDate";
+
 export type FilingsV2EventType =
   | "earnings"
   | "insider"
@@ -66,18 +68,8 @@ export type FilingsV2FilterState = {
   dateRanges: FilingsV2DateRange[];
 };
 
-const filingsV2DateKeyFormatter = new Intl.DateTimeFormat("en-US", {
-  day: "2-digit",
-  month: "2-digit",
-  timeZone: "America/New_York",
-  year: "numeric",
-});
-
 export function isFilingsV2Today(filedAt: string, referenceDate: string) {
-  return (
-    filingsV2DateKeyFormatter.format(new Date(filedAt)) ===
-    filingsV2DateKeyFormatter.format(new Date(referenceDate))
-  );
+  return isSameMarketDate(filedAt, referenceDate);
 }
 
 export const filingsV2DefaultFilters: FilingsV2FilterState = {

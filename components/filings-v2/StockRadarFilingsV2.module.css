@@ -644,7 +644,7 @@
 
 .filingItemTime span:last-child {
   color: var(--sr-color-text-primary);
-  font-weight: var(--sr-font-weight-regular);
+  font-weight: var(--sr-font-weight-semibold);
 }
 
 .desktopInlineAdItem {
@@ -757,7 +757,6 @@
 
 .mobileFiledAt {
   display: none;
-  font-weight: var(--sr-font-weight-regular);
 }
 
 .filingTitle {
@@ -1713,7 +1712,23 @@
   }
 
   .mobileFiledAt {
-    display: inline;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sr-space-1);
+    font-size: var(--sr-font-size-xs);
+    font-variant-numeric: var(--sr-font-variant-numeric);
+    line-height: var(--sr-line-height-none);
+    white-space: nowrap;
+  }
+
+  .mobileFiledDate {
+    color: var(--sr-color-text-meta);
+    font-weight: var(--sr-font-weight-regular);
+  }
+
+  .mobileFiledTime {
+    color: var(--sr-color-text-primary);
+    font-weight: var(--sr-font-weight-semibold);
   }
 
   .filingTitle {

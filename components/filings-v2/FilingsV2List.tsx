@@ -165,7 +165,10 @@ export function FilingsV2List({
                         <span className={styles.formLabel}>{record.formType}</span>
                         <span className={styles.desktopFilingEvents}><FilingEvents record={record} /></span>
                         <span className={styles.mobileFilingEvents}><FilingEvents mobile record={record} /></span>
-                        <span className={styles.mobileFiledAt}>{filingDateLabel} {record.filedTime}</span>
+                        <time className={styles.mobileFiledAt} dateTime={record.filedAt}>
+                          <span className={styles.mobileFiledDate}>{filingDateLabel}</span>
+                          <span className={styles.mobileFiledTime}>{record.filedTime}</span>
+                        </time>
                         <span className={styles.filingSource}>{record.source}</span>
                       </span>
                       <span className={styles.filingTitle} title={record.title}>{record.title}</span>

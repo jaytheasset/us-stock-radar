@@ -5,11 +5,13 @@ import { useEffect, useRef, useState } from "react";
 import { NewsV2EventBadge } from "@/components/news-v2/NewsV2EventBadge";
 import { NewsV2EventTypeBadge } from "@/components/news-v2/NewsV2EventTypeBadge";
 import { NewsV2Sparkline } from "@/components/news-v2/NewsV2Sparkline";
+import { formatMarketDateLabel } from "@/lib/marketDate";
 import { formatNewsV2PublishedAt, type NewsV2Item } from "@/lib/newsV2";
 import styles from "./StockRadarNewsV2.module.css";
 
 export type NewsV2RowProps = {
   item: NewsV2Item;
+  referenceDate: string;
   showMarketReaction: boolean;
 };
 
@@ -31,27 +33,11 @@ const rowMarketReactionQueue: Array<() => void> = [];
 const maxConcurrentMarketRequests = 4;
 let activeMarketRequests = 0;
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  timeZone: "America/New_York",
-});
-const dateKeyFormatter = new Intl.DateTimeFormat("en-CA", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  timeZone: "America/New_York",
-});
-
-function formatRowDate(publishedAt: string) {
-  const date = new Date(publishedAt);
-  if (Number.isNaN(date.getTime())) return "Date unavailable";
-  return dateKeyFormatter.format(date) === dateKeyFormatter.format(new Date())
-    ? "Today"
-    : dateFormatter.format(date);
-}
-
-export function NewsV2Row({ item, showMarketReaction }: NewsV2RowProps) {
+export function NewsV2Row({
+  item,
+  referenceDate,
+  showMarketReaction,
+}: NewsV2RowProps) {
   const rowRef = useRef<HTMLElement | null>(null);
   const isCompanyNews = item.category === "Company";
   const visibleTickers = item.relatedTickers.slice(0, 2);
@@ -119,7 +105,9 @@ export function NewsV2Row({ item, showMarketReaction }: NewsV2RowProps) {
       <Link className={styles.newsRowLink} href={`/events/${item.id}`}>
         <article className={`${styles.newsRow}${showMarketReaction ? "" : ` ${styles.newsRowWithoutMarket}`}`} ref={rowRef}>
           <span className={styles.rowTime}>
-            <span className={styles.rowDate}>{formatRowDate(item.publishedAt)}</span>
+            <span className={styles.rowDate}>
+              {formatMarketDateLabel(item.publishedAt, referenceDate)}
+            </span>
             <time dateTime={item.publishedAt}>{formatNewsV2PublishedAt(item.publishedAt, "time")}</time>
           </span>
 
@@ -156,7 +144,12 @@ export function NewsV2Row({ item, showMarketReaction }: NewsV2RowProps) {
                 <span className={styles.mobileTickerOverflow}>+{item.relatedTickers.length - 1}</span>
               ) : null}
               <time className={styles.rowMobilePublishedAt} dateTime={item.publishedAt}>
-                {formatRowDate(item.publishedAt)} {formatNewsV2PublishedAt(item.publishedAt, "time")}
+                <span className={styles.rowMobileDate}>
+                  {formatMarketDateLabel(item.publishedAt, referenceDate)}
+                </span>
+                <span className={styles.rowMobileTime}>
+                  {formatNewsV2PublishedAt(item.publishedAt, "time")}
+                </span>
               </time>
               <span className={styles.rowSource}>{item.source}</span>
             </span>

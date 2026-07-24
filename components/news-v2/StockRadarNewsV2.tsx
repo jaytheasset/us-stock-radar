@@ -10,6 +10,7 @@ import {
 } from "@/components/news-v2/NewsV2FilterBar";
 import { NewsV2InsightRail } from "@/components/news-v2/NewsV2InsightRail";
 import { NewsV2List } from "@/components/news-v2/NewsV2List";
+import { useLiveReferenceDate } from "@/components/ui/useLiveReferenceDate";
 import type {
   NewsV2Item,
   NewsV2PageData,
@@ -30,6 +31,7 @@ const emptyFilters: NewsV2Filters = {
 
 type StockRadarNewsV2Props = NewsV2PageData & {
   preferredSourceUrl?: string | null;
+  referenceDate: string;
   viewerPlan: Plan;
 };
 
@@ -41,8 +43,10 @@ export function StockRadarNewsV2({
   signalActivity,
   error,
   preferredSourceUrl,
+  referenceDate,
   viewerPlan,
 }: StockRadarNewsV2Props) {
+  const liveReferenceDate = useLiveReferenceDate(referenceDate);
   const [queryDraft, setQueryDraft] = useState("");
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<NewsV2Filters>(emptyFilters);
@@ -143,6 +147,7 @@ export function StockRadarNewsV2({
               ? () => setVisibleCount((count) => Math.min(count + newsBatchSize, filteredItems.length))
               : undefined}
             preferredSourceUrl={preferredSourceUrl}
+            referenceDate={liveReferenceDate}
             remainingCount={remainingCount}
             showMarketReaction={showMarketReaction}
             totalItems={filteredItems.length}

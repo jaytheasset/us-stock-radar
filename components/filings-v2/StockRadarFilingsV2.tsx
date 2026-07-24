@@ -9,6 +9,7 @@ import { FilingsV2Summary } from "@/components/filings-v2/FilingsV2Summary";
 import { MobileFilingsV2FilterSheet } from "@/components/filings-v2/MobileFilingsV2FilterSheet";
 import { PremiumUpgradeCard } from "@/components/filings-v2/PremiumUpgradeCard";
 import { resolveFilingsV2SelectedRecord } from "@/components/filings-v2/filingsV2Selection";
+import { useLiveReferenceDate } from "@/components/ui/useLiveReferenceDate";
 import {
   filingsV2DefaultFilters,
   filingsV2EventLabels,
@@ -47,6 +48,7 @@ export function StockRadarFilingsV2({
   state,
   viewerPlan,
 }: StockRadarFilingsV2Props) {
+  const liveReferenceDate = useLiveReferenceDate(referenceDate);
   const [draftFilters, setDraftFilters] = useState<FilingsV2FilterState>(filingsV2DefaultFilters);
   const [appliedFilters, setAppliedFilters] = useState<FilingsV2FilterState>(filingsV2DefaultFilters);
   const [searchInput, setSearchInput] = useState("");
@@ -64,7 +66,7 @@ export function StockRadarFilingsV2({
 
   const filteredRecords = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    const referenceTime = new Date(referenceDate).getTime();
+    const referenceTime = new Date(liveReferenceDate).getTime();
 
     return records
       .filter((record) => {
@@ -100,7 +102,7 @@ export function StockRadarFilingsV2({
       .sort((left, right) => {
         return new Date(right.filedAt).getTime() - new Date(left.filedAt).getTime();
       });
-  }, [appliedFilters, query, records, referenceDate]);
+  }, [appliedFilters, liveReferenceDate, query, records]);
 
   const visibleRecords = filteredRecords.slice(0, visibleCount);
   const remainingCount = Math.max(filteredRecords.length - visibleRecords.length, 0);
@@ -259,7 +261,7 @@ export function StockRadarFilingsV2({
     <div className={styles.root}>
       <section className={styles.primaryColumn}>
         <h1 className={styles.visuallyHidden}>Filings</h1>
-        <FilingsV2Summary records={records} referenceDate={referenceDate} />
+        <FilingsV2Summary records={records} referenceDate={liveReferenceDate} />
         <div className={styles.controlBand}>
           <FilingsV2FilterBar
             appliedQuery={query}
@@ -283,7 +285,7 @@ export function StockRadarFilingsV2({
           onSelect={selectRecord}
           preferredSourceUrl={preferredSourceUrl}
           records={visibleRecords}
-          referenceDate={referenceDate}
+          referenceDate={liveReferenceDate}
           remainingCount={remainingCount}
           selectedId={selectedId}
           state={state}
