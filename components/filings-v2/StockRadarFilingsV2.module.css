@@ -44,7 +44,7 @@
   display: grid;
   min-width: 0;
   min-height: 600px;
-  gap: clamp(280px, 28vw, 440px);
+  gap: var(--sr-space-8);
 }
 
 .detailRailAdAnchor {
@@ -326,17 +326,18 @@
 
 .marketCapFilterOption {
   box-sizing: border-box;
-  display: grid;
-  min-height: var(--sr-size-control);
-  align-content: center;
-  justify-items: start;
-  gap: var(--sr-space-0-5);
+  display: inline-flex;
+  min-height: var(--sr-size-filter-option);
+  align-items: center;
+  justify-content: center;
+  gap: var(--sr-space-1);
   border: var(--sr-border-width) solid var(--sr-color-border-control);
   border-radius: var(--sr-radius-pill);
-  padding: var(--sr-space-1) var(--sr-space-3);
+  padding: 0 var(--sr-space-3);
   color: var(--sr-color-text-option);
   background: var(--sr-color-surface-option);
   font-family: var(--sr-font-family-sans);
+  white-space: nowrap;
   cursor: pointer;
 }
 
