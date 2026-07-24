@@ -296,7 +296,7 @@ export function StockRadarFilingsV2({
 
       <aside className={styles.detailRail} ref={detailRailRef}>
         {viewerPlan !== "ultimate" ? (
-          <div ref={detailSelectionAnchorRef}>
+          <div>
             <PremiumUpgradeCard
               className={styles.premiumCtaDesktop}
               viewerPlan={viewerPlan}
@@ -306,7 +306,7 @@ export function StockRadarFilingsV2({
         {selectedRecord ? (
           <div
             className={styles.detailRailPreview}
-            ref={viewerPlan === "ultimate" ? detailSelectionAnchorRef : undefined}
+            ref={detailSelectionAnchorRef}
           >
             <FilingsV2DetailPanel
               record={selectedRecord}
