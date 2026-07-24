@@ -96,6 +96,11 @@ export function FilingsV2DetailContent({
       </div>
       </div>
 
+      <section className={styles.detailAdArea}>
+        <FilingsRailAdSlot size="300x250" />
+        <FilingsRailAdSlot size="320x100" />
+      </section>
+
       {relatedRecords.length ? (
         <section className={styles.relatedSection}>
           <span className={styles.sectionLabel}>Related filings</span>
@@ -111,10 +116,6 @@ export function FilingsV2DetailContent({
         </section>
       ) : null}
 
-      <section className={styles.detailAdArea}>
-        <FilingsRailAdSlot size="300x250" />
-        <FilingsRailAdSlot size="320x100" />
-      </section>
     </div>
   );
 }
