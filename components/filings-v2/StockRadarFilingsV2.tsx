@@ -49,8 +49,7 @@ export function StockRadarFilingsV2({
   viewerPlan,
 }: StockRadarFilingsV2Props) {
   const liveReferenceDate = useLiveReferenceDate(referenceDate);
-  const [draftFilters, setDraftFilters] = useState<FilingsV2FilterState>(filingsV2DefaultFilters);
-  const [appliedFilters, setAppliedFilters] = useState<FilingsV2FilterState>(filingsV2DefaultFilters);
+  const [filters, setFilters] = useState<FilingsV2FilterState>(filingsV2DefaultFilters);
   const [searchInput, setSearchInput] = useState("");
   const [query, setQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(loadMoreSize);
@@ -70,17 +69,17 @@ export function StockRadarFilingsV2({
 
     return records
       .filter((record) => {
-        if (appliedFilters.formTypes.length && !appliedFilters.formTypes.includes(record.formType)) return false;
-        if (appliedFilters.eventTypes.length && !appliedFilters.eventTypes.some((event) => record.events.includes(event))) return false;
-        if (appliedFilters.impacts.length && !appliedFilters.impacts.some((impact) => matchesFilingsV2ImpactFilter(record.impact, impact))) return false;
-        if (appliedFilters.signals.length && !appliedFilters.signals.includes(record.signal)) return false;
+        if (filters.formTypes.length && !filters.formTypes.includes(record.formType)) return false;
+        if (filters.eventTypes.length && !filters.eventTypes.some((event) => record.events.includes(event))) return false;
+        if (filters.impacts.length && !filters.impacts.some((impact) => matchesFilingsV2ImpactFilter(record.impact, impact))) return false;
+        if (filters.signals.length && !filters.signals.includes(record.signal)) return false;
         if (
-          appliedFilters.marketCaps.length &&
-          (!record.marketCap || !appliedFilters.marketCaps.includes(record.marketCap))
+          filters.marketCaps.length &&
+          (!record.marketCap || !filters.marketCaps.includes(record.marketCap))
         ) return false;
-        if (appliedFilters.dateRanges.length) {
+        if (filters.dateRanges.length) {
           const age = referenceTime - new Date(record.filedAt).getTime();
-          const isInSelectedRange = appliedFilters.dateRanges.some((range) => {
+          const isInSelectedRange = filters.dateRanges.some((range) => {
             const rangeDays = daysForRange(range);
             return rangeDays !== null && age >= 0 && age <= rangeDays * 24 * 60 * 60 * 1000;
           });
@@ -102,17 +101,13 @@ export function StockRadarFilingsV2({
       .sort((left, right) => {
         return new Date(right.filedAt).getTime() - new Date(left.filedAt).getTime();
       });
-  }, [appliedFilters, liveReferenceDate, query, records]);
+  }, [filters, liveReferenceDate, query, records]);
 
   const visibleRecords = filteredRecords.slice(0, visibleCount);
   const remainingCount = Math.max(filteredRecords.length - visibleRecords.length, 0);
   const tallRailAdCount = Math.max(1, Math.ceil(visibleRecords.length / 12) - 1);
   const selectedRecord = resolveFilingsV2SelectedRecord(filteredRecords, selectedId);
   const relatedRecords = selectedRecord?.relatedFilings ?? [];
-
-  useEffect(() => {
-    setVisibleCount(loadMoreSize);
-  }, [appliedFilters, query]);
 
   useEffect(() => {
     if (filteredRecords.length > 0 && !filteredRecords.some((record) => record.id === selectedId)) {
@@ -199,25 +194,27 @@ export function StockRadarFilingsV2({
   }, []);
 
   const toggleFilter = (group: FilingsV2FilterGroup, value: string) => {
-    setDraftFilters((current) => ({
+    setFilters((current) => ({
       ...current,
       [group]: current[group].includes(value as never)
         ? current[group].filter((item) => item !== value)
         : [...current[group], value],
     }) as FilingsV2FilterState);
+    setVisibleCount(loadMoreSize);
   };
   const removeFilter = (group: FilingsV2FilterGroup, value: string) => {
-    setDraftFilters((current) => ({
+    setFilters((current) => ({
       ...current,
       [group]: current[group].filter((item) => item !== value),
     }) as FilingsV2FilterState);
+    setVisibleCount(loadMoreSize);
   };
   const clearFilterGroup = (group: FilingsV2FilterGroup) => {
-    setDraftFilters((current) => ({ ...current, [group]: [] }));
+    setFilters((current) => ({ ...current, [group]: [] }));
+    setVisibleCount(loadMoreSize);
   };
   const resetFilters = () => {
-    setDraftFilters(filingsV2DefaultFilters);
-    setAppliedFilters(filingsV2DefaultFilters);
+    setFilters(filingsV2DefaultFilters);
     setSearchInput("");
     setQuery("");
     setVisibleCount(loadMoreSize);
@@ -232,11 +229,9 @@ export function StockRadarFilingsV2({
   };
   const searchFilings = () => {
     setQuery(searchInput.trim());
-    setAppliedFilters(draftFilters);
     setVisibleCount(loadMoreSize);
   };
-  const showMobileFilterResults = () => {
-    searchFilings();
+  const closeMobileFilters = () => {
     setIsFilterSheetOpen(false);
   };
   const selectRecord = (record: FilingsV2Record, opener: HTMLElement) => {
@@ -265,7 +260,7 @@ export function StockRadarFilingsV2({
         <div className={styles.controlBand}>
           <FilingsV2FilterBar
             appliedQuery={query}
-            filters={draftFilters}
+            filters={filters}
             formOptions={formOptions}
             isMobileSheetOpen={isFilterSheetOpen}
             mobileFilterOpenerRef={filterOpenerRef}
@@ -333,10 +328,10 @@ export function StockRadarFilingsV2({
         />
       ) : null}
       <MobileFilingsV2FilterSheet
-        filters={draftFilters}
+        filters={filters}
         formOptions={formOptions}
         isOpen={isFilterSheetOpen}
-        onApply={showMobileFilterResults}
+        onApply={closeMobileFilters}
         onClearFilterGroup={clearFilterGroup}
         onDismiss={() => setIsFilterSheetOpen(false)}
         onReset={resetFilters}

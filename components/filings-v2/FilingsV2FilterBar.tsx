@@ -248,7 +248,6 @@ export function FilingsV2FilterBar({
             <button className={styles.resetButton} disabled={!hasResettableState} onClick={onReset} type="button">
               Reset
             </button>
-            <button className={styles.searchButton} onClick={onSearch} type="button">Search</button>
           </div>
         </div>
       </div>
