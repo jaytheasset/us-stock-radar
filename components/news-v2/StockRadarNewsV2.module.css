@@ -1452,6 +1452,25 @@
   font-size: var(--sr-font-size-xs);
 }
 
+.industryMoverChips {
+  display: flex;
+  min-width: 0;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  gap: var(--sr-space-1);
+}
+
+.industryMoverChips span {
+  border: var(--sr-border-width) solid var(--sr-color-divider);
+  border-radius: var(--sr-radius-pill);
+  padding: var(--sr-space-1) var(--sr-space-1-5);
+  background: var(--sr-color-surface-control-strong);
+  font-size: var(--sr-font-size-xs);
+  font-variant-numeric: var(--sr-font-variant-numeric);
+  line-height: var(--sr-line-height-none);
+  white-space: nowrap;
+}
+
 .themeSignalList {
   display: grid;
   padding: 0 var(--sr-space-4);

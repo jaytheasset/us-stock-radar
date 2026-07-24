@@ -291,7 +291,23 @@ export function NewsV2InsightRail({
                       {industry.change}
                     </span>
                     <span>{industry.marketCap || "\u2014"}</span>
-                    <small>{formatIndustryMovers(industry.tickerMovers)}</small>
+                    {industry.tickerMovers.length ? (
+                      <div
+                        aria-label={`${industry.name} top movers`}
+                        className={styles.industryMoverChips}
+                      >
+                        {industry.tickerMovers.slice(0, 4).map((ticker) => (
+                          <span
+                            className={valueClassName(ticker.change)}
+                            key={`${industry.name}-${ticker.symbol}`}
+                          >
+                            {ticker.symbol} {ticker.change}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <small>Top movers unavailable</small>
+                    )}
                   </article>
                 ))
               ) : (
@@ -526,16 +542,6 @@ function mergeSectorResults(
         : previous?.industries || [],
     };
   });
-}
-
-function formatIndustryMovers(
-  tickers: Array<{ symbol: string; change: string }>,
-) {
-  if (!tickers.length) return "Top movers unavailable";
-  return `Top movers ${tickers
-    .slice(0, 4)
-    .map((ticker) => `${ticker.symbol} ${ticker.change}`)
-    .join(" \u00b7 ")}`;
 }
 
 function valueClassName(value: string) {
