@@ -43,8 +43,14 @@ export function PremiumUpgradeCard({
         <strong>{copy.title}</strong>
         <p>{copy.description}</p>
         <Link className={styles.premiumCtaLink} href="/premium">
-          <BellRing aria-hidden="true" size={16} strokeWidth={2} />
-          {copy.action}
+          <BellRing
+            aria-hidden="true"
+            className={styles.premiumCtaLinkIcon}
+            size={16}
+            strokeWidth={2}
+          />
+          <span className={styles.premiumCtaLinkDesktopLabel}>{copy.action}</span>
+          <span className={styles.premiumCtaLinkMobileLabel}>Upgrade</span>
         </Link>
       </div>
     </aside>
