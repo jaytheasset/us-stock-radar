@@ -205,26 +205,24 @@ export function expandNewsV2SectorFilterValues(values: string[]) {
 }
 
 export function normalizeNewsV2ThemeFilterOptions(values: string[]) {
-  const unique = new Map<string, string>();
+  const availableThemeGroups = new Set<string>();
   for (const value of values) {
-    const canonical =
-      canonicalNewsThemeGroupSlug(value) ||
-      canonicalNewsSubThemeSlug(value) ||
-      value.trim();
-    const key = normalizeTaxonomyValue(canonical);
-    if (key && !unique.has(key)) unique.set(key, canonical);
+    const groupSlug = canonicalNewsThemeGroupSlug(value);
+    if (groupSlug) {
+      availableThemeGroups.add(groupSlug);
+      continue;
+    }
+    const subThemeSlug = canonicalNewsSubThemeSlug(value);
+    const parentGroupSlug = themeSubThemes.find(
+      (subTheme) => subTheme.slug === subThemeSlug,
+    )?.themeGroupSlug;
+    if (parentGroupSlug) availableThemeGroups.add(parentGroupSlug);
   }
 
-  return Array.from(unique.values()).sort((left, right) => {
-    const leftGroup = themeGroups.find((group) => group.slug === left);
-    const rightGroup = themeGroups.find((group) => group.slug === right);
-    if (leftGroup || rightGroup) {
-      if (!leftGroup) return 1;
-      if (!rightGroup) return -1;
-      return leftGroup.sortOrder - rightGroup.sortOrder;
-    }
-    return getNewsV2TaxonomyLabel(left).localeCompare(getNewsV2TaxonomyLabel(right));
-  });
+  return themeGroups
+    .filter((group) => availableThemeGroups.has(group.slug))
+    .sort((left, right) => left.sortOrder - right.sortOrder)
+    .map((group) => group.slug);
 }
 
 export function expandNewsV2ThemeFilterValues(values: string[]) {
@@ -232,7 +230,12 @@ export function expandNewsV2ThemeFilterValues(values: string[]) {
     new Set(
       values.flatMap((value) => {
         const group = themeGroups.find((item) => item.slug === value);
-        if (group) return [group.slug, group.name];
+        if (group) {
+          const childValues = themeSubThemes
+            .filter((subTheme) => subTheme.themeGroupSlug === group.slug)
+            .flatMap((subTheme) => [subTheme.slug, subTheme.name]);
+          return [group.slug, group.name, ...childValues];
+        }
         const subTheme = themeSubThemes.find((item) => item.slug === value);
         if (subTheme) return [subTheme.slug, subTheme.name];
         return [value];
