@@ -859,6 +859,11 @@
 }
 
 @media (max-width: 760px) {
+  .summaryHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .workspace {
     padding: var(--sr-space-3) var(--sr-page-gutter-mobile) var(--sr-space-6);
   }

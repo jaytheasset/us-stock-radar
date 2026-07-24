@@ -20,7 +20,16 @@ export function GooglePreferredSourceLink({
       target="_blank"
     >
       <GoogleIcon />
-      <span>{summary ? "Prefer on Google" : "Prefer Stock Radar on Google"}</span>
+      {summary ? (
+        <>
+          <span className={styles.summaryMessage}>
+            See more Stock Radar in Google Search
+          </span>
+          <span className={styles.summaryAction}>Add on Google</span>
+        </>
+      ) : (
+        <span>Prefer Stock Radar on Google</span>
+      )}
       <ExternalLink aria-hidden="true" size={14} />
     </a>
   );

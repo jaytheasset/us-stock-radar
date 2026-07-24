@@ -48,3 +48,26 @@
   background: var(--sr-color-surface-control);
   font-size: var(--sr-font-size-xs);
 }
+
+.summaryMessage {
+  color: var(--sr-color-text-meta);
+  font-weight: var(--sr-font-weight-regular);
+}
+
+.summaryAction {
+  color: var(--sr-color-accent-text-soft);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+@media (max-width: 760px) {
+  .summary {
+    width: 100%;
+    justify-content: flex-start;
+    white-space: normal;
+  }
+
+  .summaryAction {
+    margin-left: auto;
+    white-space: nowrap;
+  }
+}
