@@ -72,6 +72,7 @@ export function StockRadarNewsV2({
   sourceActivity,
   sectorActivity,
   signalActivity,
+  themeActivity,
   error,
   preferredSourceUrl,
   referenceDate,
@@ -247,6 +248,7 @@ export function StockRadarNewsV2({
           sectorActivity={sectorActivity}
           signalActivity={signalActivity}
           sourceActivity={sourceActivity}
+          themeActivity={themeActivity}
           total={pageTotal}
           visibleItemCount={pageItems.length}
           viewerPlan={viewerPlan}

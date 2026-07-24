@@ -14,9 +14,11 @@ import type {
   NewsV2SectorActivity,
   NewsV2SignalActivity,
   NewsV2SourceActivity,
+  NewsV2ThemeActivity,
 } from "@/lib/newsV2";
 import {
   buildNewsTrendingSignals,
+  buildNewsTrendingSignalsFromActivity,
   mergeThemeMarketData,
   newsSectorRadarFallbacks,
   type NewsSectorRadarItem,
@@ -56,6 +58,7 @@ type NewsV2InsightRailProps = {
   sectorActivity: NewsV2SectorActivity[];
   signalActivity: NewsV2SignalActivity[];
   sourceActivity: NewsV2SourceActivity[];
+  themeActivity: NewsV2ThemeActivity[];
   total: number;
   visibleItemCount: number;
   viewerPlan: Plan;
@@ -64,6 +67,7 @@ type NewsV2InsightRailProps = {
 export function NewsV2InsightRail({
   items,
   sourceActivity,
+  themeActivity,
   total,
   visibleItemCount,
   viewerPlan,
@@ -88,7 +92,13 @@ export function NewsV2InsightRail({
   const selectedSector =
     visibleSectors.find((sector) => sector.sector === activeSector) ||
     visibleSectors[0];
-  const rawTrendingThemes = useMemo(() => buildNewsTrendingSignals(items), [items]);
+  const rawTrendingThemes = useMemo(
+    () =>
+      themeActivity.length
+        ? buildNewsTrendingSignalsFromActivity(themeActivity)
+        : buildNewsTrendingSignals(items),
+    [items, themeActivity],
+  );
   const trendingThemes = useMemo(
     () => mergeThemeMarketData(rawTrendingThemes, themeMarketData),
     [rawTrendingThemes, themeMarketData],

@@ -73,6 +73,21 @@ export type NewsV2SignalActivity = {
   sentiment: NewsV2Signal;
 };
 
+export type NewsV2ThemeActivity = {
+  themeGroup: string;
+  count: number;
+  averageScore: number;
+  highImpactCount: number;
+  signalCounts: Record<NewsV2Signal, number>;
+  subThemes: Array<{
+    subTheme: string;
+    count: number;
+    averageScore: number;
+    highImpactCount: number;
+    signalCounts: Record<NewsV2Signal, number>;
+  }>;
+};
+
 export type NewsV2PageResponse = {
   error?: string;
   hasMore: boolean;
@@ -90,6 +105,7 @@ export type NewsV2PageData = {
   sourceActivity: NewsV2SourceActivity[];
   sectorActivity: NewsV2SectorActivity[];
   signalActivity: NewsV2SignalActivity[];
+  themeActivity: NewsV2ThemeActivity[];
   error?: string;
 };
 

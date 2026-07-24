@@ -1,4 +1,10 @@
-import type { NewsV2Item, NewsV2Signal } from "@/lib/newsV2";
+import {
+  canonicalNewsSubThemeSlug,
+  canonicalNewsThemeGroupSlug,
+  type NewsV2Item,
+  type NewsV2Signal,
+  type NewsV2ThemeActivity,
+} from "@/lib/newsV2";
 import { sectorMappings, themeGroups, themeSubThemes } from "@/lib/taxonomyRegistry";
 
 export type NewsSectorMoverTone = "bullish" | "warm" | "flat" | "bearish";
@@ -96,6 +102,66 @@ export function buildNewsTrendingSignals(items: NewsV2Item[]): NewsTrendingSigna
     .slice(0, 5);
 }
 
+export function buildNewsTrendingSignalsFromActivity(
+  activity: NewsV2ThemeActivity[],
+): NewsTrendingSignal[] {
+  const byGroup = new Map(
+    activity.flatMap((item) => {
+      const slug = canonicalNewsThemeGroupSlug(item.themeGroup);
+      return slug ? [[slug, item] as const] : [];
+    }),
+  );
+
+  return themeGroups
+    .flatMap((group) => {
+      const groupActivity = byGroup.get(group.slug);
+      if (!groupActivity?.count) return [];
+
+      const bySubTheme = new Map(
+        groupActivity.subThemes.flatMap((item) => {
+          const slug = canonicalNewsSubThemeSlug(item.subTheme);
+          return slug ? [[slug, item] as const] : [];
+        }),
+      );
+      const subThemes = themeSubThemes
+        .filter((subTheme) => subTheme.themeGroupSlug === group.slug)
+        .map((subTheme) => {
+          const item = bySubTheme.get(subTheme.slug);
+          return {
+            name: subTheme.name,
+            slug: subTheme.slug,
+            newsCount: item?.count ?? 0,
+            score: item?.count ? signalStrengthFromActivity(item) : null,
+            tickers: subTheme.seedSymbols
+              .slice(0, 3)
+              .map((symbol) => ({ symbol, change: "\u2014" })),
+          };
+        })
+        .sort(
+          (left, right) =>
+            (right.score || 0) - (left.score || 0) ||
+            right.newsCount - left.newsCount ||
+            left.name.localeCompare(right.name),
+        )
+        .slice(0, 6);
+      const signal = dominantSignalFromCounts(groupActivity.signalCounts);
+
+      return [{
+        theme: group.name,
+        themeGroupSlug: group.slug,
+        score: signalStrengthFromActivity(groupActivity),
+        signal,
+        newsCount: groupActivity.count,
+        avgScore: Math.round(groupActivity.averageScore),
+        momentum: "\u2014",
+        tone: toneFromSignal(signal),
+        subThemes,
+      } satisfies NewsTrendingSignal];
+    })
+    .sort((left, right) => right.score - left.score || right.newsCount - left.newsCount)
+    .slice(0, 5);
+}
+
 export function mergeThemeMarketData(
   themes: NewsTrendingSignal[],
   marketData?: NewsThemeMarketData | null,
@@ -140,8 +206,31 @@ function signalStrength(items: NewsV2Item[]) {
   return Math.max(0, Math.min(100, Math.round(avgImpact * 0.75 + highImpactShare * 15 + consensus * 10)));
 }
 
+function signalStrengthFromActivity(
+  activity: Pick<
+    NewsV2ThemeActivity,
+    "averageScore" | "count" | "highImpactCount" | "signalCounts"
+  >,
+) {
+  if (!activity.count) return 0;
+  const highImpactShare = activity.highImpactCount / activity.count;
+  const consensus = Math.max(...Object.values(activity.signalCounts)) / activity.count;
+  return Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round(activity.averageScore * 0.75 + highImpactShare * 15 + consensus * 10),
+    ),
+  );
+}
+
 function dominantSignal(items: NewsV2Item[]): NewsV2Signal {
   return Array.from(signalCounts(items).entries()).sort((left, right) => right[1] - left[1])[0]?.[0] || "Neutral";
+}
+
+function dominantSignalFromCounts(counts: Record<NewsV2Signal, number>): NewsV2Signal {
+  return (Object.entries(counts) as Array<[NewsV2Signal, number]>)
+    .sort((left, right) => right[1] - left[1])[0]?.[0] || "Neutral";
 }
 
 function signalCounts(items: NewsV2Item[]) {

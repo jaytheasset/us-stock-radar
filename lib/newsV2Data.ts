@@ -17,6 +17,7 @@ import {
   type NewsV2PageData,
   type NewsV2PageResponse,
   type NewsV2SourceActivity,
+  type NewsV2ThemeActivity,
 } from "@/lib/newsV2";
 import { supabaseRpc } from "@/lib/supabase";
 
@@ -53,6 +54,7 @@ export async function getNewsV2PageData(): Promise<NewsV2PageData> {
     sourceActivity: facets?.sourceActivity ?? [],
     sectorActivity: [],
     signalActivity: [],
+    themeActivity: facets?.themeActivity ?? [],
     error: page.error,
   };
 }
@@ -112,6 +114,11 @@ async function loadNewsV2Facets() {
       .map(mapSourceActivity)
       .filter((item): item is NewsV2SourceActivity => Boolean(item))
     : [];
+  const themeActivity = Array.isArray(payload.theme_activity)
+    ? payload.theme_activity
+      .map(mapThemeActivity)
+      .filter((item): item is NewsV2ThemeActivity => Boolean(item))
+    : [];
 
   return {
     filterOptions: {
@@ -121,6 +128,7 @@ async function loadNewsV2Facets() {
       themes: readStringArray(payload.themes),
     } satisfies NewsV2FilterOptions,
     sourceActivity,
+    themeActivity,
   };
 }
 
@@ -210,6 +218,48 @@ function mapSourceActivity(value: unknown): NewsV2SourceActivity | null {
       "1M": finiteNumber(rangeCounts?.["1M"]) ?? 0,
       "3M": finiteNumber(rangeCounts?.["3M"]) ?? 0,
     },
+  };
+}
+
+function mapThemeActivity(value: unknown): NewsV2ThemeActivity | null {
+  const row = asRecord(value);
+  const themeGroup = readString(row?.theme_group);
+  if (!row || !themeGroup) return null;
+
+  const subThemes = Array.isArray(row.sub_themes)
+    ? row.sub_themes
+      .map((subTheme): NewsV2ThemeActivity["subThemes"][number] | null => {
+        const subThemeRow = asRecord(subTheme);
+        const subThemeName = readString(subThemeRow?.sub_theme);
+        if (!subThemeRow || !subThemeName) return null;
+        return {
+          subTheme: subThemeName,
+          count: finiteNumber(subThemeRow.count) ?? 0,
+          averageScore: finiteNumber(subThemeRow.average_score) ?? 0,
+          highImpactCount: finiteNumber(subThemeRow.high_impact_count) ?? 0,
+          signalCounts: readSignalCounts(subThemeRow.signal_counts),
+        };
+      })
+      .filter((item): item is NewsV2ThemeActivity["subThemes"][number] => Boolean(item))
+    : [];
+
+  return {
+    themeGroup,
+    count: finiteNumber(row.count) ?? 0,
+    averageScore: finiteNumber(row.average_score) ?? 0,
+    highImpactCount: finiteNumber(row.high_impact_count) ?? 0,
+    signalCounts: readSignalCounts(row.signal_counts),
+    subThemes,
+  };
+}
+
+function readSignalCounts(value: unknown): Record<NewsV2Item["sentiment"], number> {
+  const row = asRecord(value);
+  return {
+    Bullish: finiteNumber(row?.bullish) ?? 0,
+    Bearish: finiteNumber(row?.bearish) ?? 0,
+    Neutral: finiteNumber(row?.neutral) ?? 0,
+    Volatile: finiteNumber(row?.volatile) ?? 0,
   };
 }
 
