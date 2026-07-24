@@ -50,11 +50,6 @@
 }
 
 .summaryMessage {
-  color: var(--sr-color-text-meta);
-  font-weight: var(--sr-font-weight-regular);
-}
-
-.summaryAction {
   color: var(--sr-color-accent-text-soft);
   font-weight: var(--sr-font-weight-semibold);
 }
@@ -64,10 +59,5 @@
     width: 100%;
     justify-content: flex-start;
     white-space: normal;
-  }
-
-  .summaryAction {
-    margin-left: auto;
-    white-space: nowrap;
   }
 }

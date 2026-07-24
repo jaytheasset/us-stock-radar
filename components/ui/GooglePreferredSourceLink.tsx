@@ -21,12 +21,9 @@ export function GooglePreferredSourceLink({
     >
       <GoogleIcon />
       {summary ? (
-        <>
-          <span className={styles.summaryMessage}>
-            See more Stock Radar in Google Search
-          </span>
-          <span className={styles.summaryAction}>Add on Google</span>
-        </>
+        <span className={styles.summaryMessage}>
+          Add Stock Radar as a preferred source on Google
+        </span>
       ) : (
         <span>Prefer Stock Radar on Google</span>
       )}
