@@ -8,8 +8,12 @@ import {
 import {
   canonicalNewsSubThemeSlug,
   canonicalNewsThemeGroupSlug,
+  expandNewsV2SectorFilterValues,
+  expandNewsV2ThemeFilterValues,
   newsMarketScopeToCategory,
+  normalizeNewsV2SectorFilterOptions,
   normalizeNewsV2Signal,
+  normalizeNewsV2ThemeFilterOptions,
   type NewsV2Cursor,
   type NewsV2FilterOptions,
   type NewsV2FilterState,
@@ -73,10 +77,10 @@ export async function loadNewsV2Page({
     p_limit: newsV2PageSize,
     p_market_caps: filters?.marketCaps ?? [],
     p_query: query.trim() || null,
-    p_sectors: filters?.sectors ?? [],
+    p_sectors: expandNewsV2SectorFilterValues(filters?.sectors ?? []),
     p_signals: filters?.sentiments.map((value) => value.toLowerCase()) ?? [],
     p_sources: filters?.sources ?? [],
-    p_themes: filters?.themes ?? [],
+    p_themes: expandNewsV2ThemeFilterValues(filters?.themes ?? []),
   });
   const payload = asRecord(result.data);
 
@@ -124,8 +128,8 @@ async function loadNewsV2Facets() {
     filterOptions: {
       eventTypes: readStringArray(payload.event_types),
       sources: readStringArray(payload.sources),
-      sectors: readStringArray(payload.sectors),
-      themes: readStringArray(payload.themes),
+      sectors: normalizeNewsV2SectorFilterOptions(readStringArray(payload.sectors)),
+      themes: normalizeNewsV2ThemeFilterOptions(readStringArray(payload.themes)),
     } satisfies NewsV2FilterOptions,
     sourceActivity,
     themeActivity,

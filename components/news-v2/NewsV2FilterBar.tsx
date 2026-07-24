@@ -7,6 +7,8 @@ import { getEventTypeBadge } from "@/lib/eventTypeRegistry";
 import {
   newsV2MarketCapBands,
   newsV2Signals,
+  getNewsV2SectorFilterLabel,
+  getNewsV2ThemeFilterLabel,
   type NewsV2FilterOptions,
   type NewsV2FilterState,
 } from "@/lib/newsV2";
@@ -244,5 +246,8 @@ export function getActiveFilters(filters: NewsV2Filters) {
 }
 
 export function getNewsV2FilterLabel(group: NewsV2FilterGroup, value: string) {
-  return group === "eventTypes" ? getEventTypeBadge(value).label : value;
+  if (group === "eventTypes") return getEventTypeBadge(value).label;
+  if (group === "sectors") return getNewsV2SectorFilterLabel(value);
+  if (group === "themes") return getNewsV2ThemeFilterLabel(value);
+  return value;
 }
