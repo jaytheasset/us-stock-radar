@@ -137,7 +137,9 @@
   padding-inline: 0;
 }
 
-.resetButton:disabled {
+.resetButton:disabled,
+.secondaryAction:disabled {
+  cursor: not-allowed;
   opacity: var(--sr-opacity-disabled);
 }
 

@@ -15,7 +15,10 @@ import type {
   NewsV2Item,
   NewsV2PageData,
   NewsV2PageResponse,
+  NewsV2SourceActivity,
+  NewsV2ThemeActivity,
 } from "@/lib/newsV2";
+import { hasResettableNewsV2State } from "@/lib/newsV2FilterState";
 import type { Plan } from "@/lib/subscriptionPolicy";
 import styles from "./StockRadarNewsV2.module.css";
 
@@ -86,15 +89,21 @@ export function StockRadarNewsV2({
   const [pageTotal, setPageTotal] = useState(total);
   const [pageHasMore, setPageHasMore] = useState(hasMore);
   const [pageCursor, setPageCursor] = useState<NewsV2Cursor | null>(nextCursor);
+  const [pageSourceActivity, setPageSourceActivity] =
+    useState<NewsV2SourceActivity[]>(sourceActivity);
+  const [pageThemeActivity, setPageThemeActivity] =
+    useState<NewsV2ThemeActivity[]>(themeActivity);
   const [pageError, setPageError] = useState(error);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const mobileFilterOpenerRef = useRef<HTMLButtonElement | null>(null);
   const loadMoreControllerRef = useRef<AbortController | null>(null);
+  const refreshRequestIdRef = useRef(0);
   const requestKey = useMemo(() => JSON.stringify({ filters, query }), [filters, query]);
   const lastRequestKeyRef = useRef(requestKey);
   const remainingCount = Math.max(pageTotal - pageItems.length, 0);
+  const canReset = hasResettableNewsV2State(filters, queryDraft, query);
   const showMarketReaction = pageItems.some(
     (item) =>
       item.priceLabel ||
@@ -111,6 +120,7 @@ export function StockRadarNewsV2({
     loadMoreControllerRef.current = null;
     setIsLoadingMore(false);
     const controller = new AbortController();
+    const requestId = ++refreshRequestIdRef.current;
     setIsRefreshing(true);
     setPageError(undefined);
 
@@ -123,22 +133,46 @@ export function StockRadarNewsV2({
         if (!response.ok || payload.error) {
           throw new Error(payload.error || "News data unavailable");
         }
+        if (
+          controller.signal.aborted ||
+          refreshRequestIdRef.current !== requestId ||
+          lastRequestKeyRef.current !== requestKey
+        ) {
+          return;
+        }
 
         setPageItems(payload.items);
         setPageTotal(payload.totalCount ?? payload.items.length);
         setPageHasMore(payload.hasMore);
         setPageCursor(payload.nextCursor);
+        setPageSourceActivity(payload.statistics?.sourceActivity ?? []);
+        setPageThemeActivity(payload.statistics?.themeActivity ?? []);
       })
       .catch((requestError: unknown) => {
-        if (requestError instanceof DOMException && requestError.name === "AbortError") return;
+        if (
+          controller.signal.aborted ||
+          refreshRequestIdRef.current !== requestId ||
+          lastRequestKeyRef.current !== requestKey ||
+          (requestError instanceof DOMException && requestError.name === "AbortError")
+        ) {
+          return;
+        }
         setPageItems([]);
         setPageTotal(0);
         setPageHasMore(false);
         setPageCursor(null);
+        setPageSourceActivity([]);
+        setPageThemeActivity([]);
         setPageError("News data is currently unavailable.");
       })
       .finally(() => {
-        if (!controller.signal.aborted) setIsRefreshing(false);
+        if (
+          !controller.signal.aborted &&
+          refreshRequestIdRef.current === requestId &&
+          lastRequestKeyRef.current === requestKey
+        ) {
+          setIsRefreshing(false);
+        }
       });
 
     return () => controller.abort();
@@ -179,6 +213,7 @@ export function StockRadarNewsV2({
 
     loadMoreControllerRef.current?.abort();
     const controller = new AbortController();
+    const loadMoreRequestKey = requestKey;
     loadMoreControllerRef.current = controller;
     setIsLoadingMore(true);
 
@@ -191,6 +226,12 @@ export function StockRadarNewsV2({
         if (!response.ok || payload.error) {
           throw new Error(payload.error || "Additional news unavailable");
         }
+        if (
+          controller.signal.aborted ||
+          lastRequestKeyRef.current !== loadMoreRequestKey
+        ) {
+          return;
+        }
 
         setPageItems((current) => {
           const knownIds = new Set(current.map((item) => item.id));
@@ -200,7 +241,13 @@ export function StockRadarNewsV2({
         setPageCursor(payload.nextCursor);
       })
       .catch((requestError: unknown) => {
-        if (requestError instanceof DOMException && requestError.name === "AbortError") return;
+        if (
+          controller.signal.aborted ||
+          lastRequestKeyRef.current !== loadMoreRequestKey ||
+          (requestError instanceof DOMException && requestError.name === "AbortError")
+        ) {
+          return;
+        }
         setPageError("Additional news is currently unavailable.");
       })
       .finally(() => {
@@ -220,6 +267,7 @@ export function StockRadarNewsV2({
             filters={filters}
             mobileFilterOpenerRef={mobileFilterOpenerRef}
             onClearFilterGroup={clearFilterGroup}
+            canReset={canReset}
             onOpenMobileFilters={() => setIsMobileFilterOpen(true)}
             onQueryDraftChange={setQueryDraft}
             onRemoveFilter={removeFilter}
@@ -244,11 +292,10 @@ export function StockRadarNewsV2({
           </div>
         </div>
         <NewsV2InsightRail
-          items={pageItems}
           sectorActivity={sectorActivity}
           signalActivity={signalActivity}
-          sourceActivity={sourceActivity}
-          themeActivity={themeActivity}
+          sourceActivity={pageSourceActivity}
+          themeActivity={pageThemeActivity}
           total={pageTotal}
           visibleItemCount={pageItems.length}
           viewerPlan={viewerPlan}
@@ -258,6 +305,7 @@ export function StockRadarNewsV2({
       <MobileNewsV2FilterSheet
         filterOptions={filterOptions}
         filters={filters}
+        canReset={canReset}
         isOpen={isMobileFilterOpen}
         onClearFilterGroup={clearFilterGroup}
         onDismiss={() => setIsMobileFilterOpen(false)}

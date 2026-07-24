@@ -1,5 +1,6 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
 import { getEventTypeBadge } from "@/lib/eventTypeRegistry";
 import {
   readMarketBarCacheMap,
@@ -23,6 +24,12 @@ import {
   type NewsV2SourceActivity,
   type NewsV2ThemeActivity,
 } from "@/lib/newsV2";
+import {
+  parseNewsV2Statistics,
+  parseSourceActivity,
+  parseThemeActivity,
+} from "@/lib/newsV2ApiContract";
+import { hydrateNewsV2ItemMarketData } from "@/lib/newsV2MarketHydration";
 import { supabaseRpc } from "@/lib/supabase";
 
 type UnknownRecord = Record<string, unknown>;
@@ -35,6 +42,7 @@ type LoadNewsV2PageParams = {
 };
 
 export const newsV2PageSize = 25;
+const newsV2StatisticsCacheSeconds = 15;
 
 const emptyFilterOptions: NewsV2FilterOptions = {
   eventTypes: [],
@@ -46,7 +54,7 @@ const emptyFilterOptions: NewsV2FilterOptions = {
 export async function getNewsV2PageData(): Promise<NewsV2PageData> {
   const [page, facets] = await Promise.all([
     loadNewsV2Page({ includeTotal: true }),
-    loadNewsV2Facets(),
+    loadNewsV2FacetsWithCache(),
   ]);
 
   return {
@@ -55,10 +63,10 @@ export async function getNewsV2PageData(): Promise<NewsV2PageData> {
     hasMore: page.hasMore,
     nextCursor: page.nextCursor,
     filterOptions: facets?.filterOptions ?? emptyFilterOptions,
-    sourceActivity: facets?.sourceActivity ?? [],
+    sourceActivity: page.statistics?.sourceActivity ?? facets?.sourceActivity ?? [],
     sectorActivity: [],
     signalActivity: [],
-    themeActivity: facets?.themeActivity ?? [],
+    themeActivity: page.statistics?.themeActivity ?? facets?.themeActivity ?? [],
     error: page.error,
   };
 }
@@ -69,7 +77,7 @@ export async function loadNewsV2Page({
   includeTotal = true,
   query = "",
 }: LoadNewsV2PageParams = {}): Promise<NewsV2PageResponse> {
-  const result = await supabaseRpc("search_news_v2", {
+  const rpcPayload = {
     p_cursor_id: cursor?.id ?? null,
     p_cursor_published_at: cursor?.publishedAt ?? null,
     p_event_types: filters?.eventTypes ?? [],
@@ -81,7 +89,10 @@ export async function loadNewsV2Page({
     p_signals: filters?.sentiments.map((value) => value.toLowerCase()) ?? [],
     p_sources: filters?.sources ?? [],
     p_themes: expandNewsV2ThemeFilterValues(filters?.themes ?? []),
-  });
+  };
+  const result = includeTotal && !cursor
+    ? await loadNewsV2FirstPageWithCache(rpcPayload)
+    : await supabaseRpc("search_news_v2", rpcPayload);
   const payload = asRecord(result.data);
 
   if (!result.ok || !payload) {
@@ -90,6 +101,7 @@ export async function loadNewsV2Page({
       hasMore: false,
       items: [],
       nextCursor: null,
+      statistics: null,
       totalCount: null,
     };
   }
@@ -104,6 +116,7 @@ export async function loadNewsV2Page({
     hasMore: payload.has_more === true,
     items,
     nextCursor: readCursor(asRecord(payload.next_cursor)),
+    statistics: parseNewsV2Statistics(payload.statistics),
     totalCount: finiteNumber(payload.total),
   };
 }
@@ -115,12 +128,12 @@ async function loadNewsV2Facets() {
 
   const sourceActivity = Array.isArray(payload.source_activity)
     ? payload.source_activity
-      .map(mapSourceActivity)
+      .map(parseSourceActivity)
       .filter((item): item is NewsV2SourceActivity => Boolean(item))
     : [];
   const themeActivity = Array.isArray(payload.theme_activity)
     ? payload.theme_activity
-      .map(mapThemeActivity)
+      .map(parseThemeActivity)
       .filter((item): item is NewsV2ThemeActivity => Boolean(item))
     : [];
 
@@ -134,6 +147,48 @@ async function loadNewsV2Facets() {
     sourceActivity,
     themeActivity,
   };
+}
+
+const loadCachedNewsV2Facets = unstable_cache(
+  async () => {
+    const facets = await loadNewsV2Facets();
+    if (!facets) throw new Error("News filter facets are unavailable.");
+    return facets;
+  },
+  ["news-v2-filter-options-v2"],
+  { revalidate: 300, tags: ["news-v2-facets"] },
+);
+
+const loadCachedNewsV2FirstPage = unstable_cache(
+  async (serializedPayload: string) => {
+    const result = await supabaseRpc(
+      "search_news_v2",
+      JSON.parse(serializedPayload) as Record<string, unknown>,
+    );
+    if (!result.ok) throw new Error(result.error || "News search is unavailable.");
+    return result;
+  },
+  ["news-v2-filtered-first-page-v1"],
+  { revalidate: newsV2StatisticsCacheSeconds },
+);
+
+async function loadNewsV2FirstPageWithCache(
+  payload: Record<string, unknown>,
+) {
+  const serializedPayload = JSON.stringify(payload);
+  try {
+    return await loadCachedNewsV2FirstPage(serializedPayload);
+  } catch {
+    return supabaseRpc("search_news_v2", payload);
+  }
+}
+
+async function loadNewsV2FacetsWithCache() {
+  try {
+    return await loadCachedNewsV2Facets();
+  } catch {
+    return loadNewsV2Facets();
+  }
 }
 
 function mapNewsRow(row: UnknownRecord): NewsV2Item | null {
@@ -182,7 +237,7 @@ async function enrichNewsItems(items: NewsV2Item[]) {
   );
   const [quoteMap, chartMap] = await Promise.all([
     readMarketQuoteCacheMap(symbols),
-    readMarketBarCacheMap(symbols.slice(0, 20), "1D"),
+    readMarketBarCacheMap(symbols, "1D"),
   ]);
 
   return items.map((item) => {
@@ -191,80 +246,8 @@ async function enrichNewsItems(items: NewsV2Item[]) {
 
     const quote = quoteMap.get(symbol);
     const chart = chartMap.get(symbol);
-    const price = quote?.price ?? chart?.latestPrice;
-    const changePercent = quote?.changePercent ?? chart?.changePercent;
-
-    return {
-      ...item,
-      priceLabel: finiteNumber(price) === null ? undefined : formatPrice(price!),
-      changePercent:
-        finiteNumber(changePercent) === null
-          ? undefined
-          : formatChangePercent(changePercent!),
-      trend: chart?.points.map((point) => point.close).filter(Number.isFinite) ?? [],
-    };
+    return hydrateNewsV2ItemMarketData(item, quote, chart);
   });
-}
-
-function mapSourceActivity(value: unknown): NewsV2SourceActivity | null {
-  const row = asRecord(value);
-  const source = readString(row?.source);
-  if (!row || !source) return null;
-  const rangeCounts = asRecord(row.range_counts);
-
-  return {
-    source,
-    count: finiteNumber(row.count) ?? 0,
-    averageScore: finiteNumber(row.average_score) ?? 0,
-    rangeCounts: {
-      Today: finiteNumber(rangeCounts?.Today) ?? 0,
-      "5D": finiteNumber(rangeCounts?.["5D"]) ?? 0,
-      "1M": finiteNumber(rangeCounts?.["1M"]) ?? 0,
-      "3M": finiteNumber(rangeCounts?.["3M"]) ?? 0,
-    },
-  };
-}
-
-function mapThemeActivity(value: unknown): NewsV2ThemeActivity | null {
-  const row = asRecord(value);
-  const themeGroup = readString(row?.theme_group);
-  if (!row || !themeGroup) return null;
-
-  const subThemes = Array.isArray(row.sub_themes)
-    ? row.sub_themes
-      .map((subTheme): NewsV2ThemeActivity["subThemes"][number] | null => {
-        const subThemeRow = asRecord(subTheme);
-        const subThemeName = readString(subThemeRow?.sub_theme);
-        if (!subThemeRow || !subThemeName) return null;
-        return {
-          subTheme: subThemeName,
-          count: finiteNumber(subThemeRow.count) ?? 0,
-          averageScore: finiteNumber(subThemeRow.average_score) ?? 0,
-          highImpactCount: finiteNumber(subThemeRow.high_impact_count) ?? 0,
-          signalCounts: readSignalCounts(subThemeRow.signal_counts),
-        };
-      })
-      .filter((item): item is NewsV2ThemeActivity["subThemes"][number] => Boolean(item))
-    : [];
-
-  return {
-    themeGroup,
-    count: finiteNumber(row.count) ?? 0,
-    averageScore: finiteNumber(row.average_score) ?? 0,
-    highImpactCount: finiteNumber(row.high_impact_count) ?? 0,
-    signalCounts: readSignalCounts(row.signal_counts),
-    subThemes,
-  };
-}
-
-function readSignalCounts(value: unknown): Record<NewsV2Item["sentiment"], number> {
-  const row = asRecord(value);
-  return {
-    Bullish: finiteNumber(row?.bullish) ?? 0,
-    Bearish: finiteNumber(row?.bearish) ?? 0,
-    Neutral: finiteNumber(row?.neutral) ?? 0,
-    Volatile: finiteNumber(row?.volatile) ?? 0,
-  };
 }
 
 function readCursor(value: UnknownRecord | null): NewsV2Cursor | null {
@@ -299,18 +282,6 @@ function normalizeTicker(value?: string) {
 
 function clampScore(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
-}
-
-function formatPrice(value: number) {
-  return `$${value.toLocaleString("en-US", {
-    maximumFractionDigits: 2,
-    minimumFractionDigits: 2,
-  })}`;
-}
-
-function formatChangePercent(value: number) {
-  const prefix = value > 0 ? "+" : "";
-  return `${prefix}${value.toFixed(2)}%`;
 }
 
 function asRecord(value: unknown): UnknownRecord | null {

@@ -57,8 +57,10 @@ export type NewsV2SourceActivity = {
   source: string;
   count: number;
   averageScore: number;
-  rangeCounts?: Partial<Record<"Today" | "5D" | "1M" | "3M", number>>;
+  rangeCounts: Record<NewsV2StatisticsRange, number>;
 };
+
+export type NewsV2StatisticsRange = "Today" | "5D" | "1M" | "3M";
 
 export type NewsV2SectorActivity = {
   sector: string;
@@ -88,11 +90,19 @@ export type NewsV2ThemeActivity = {
   }>;
 };
 
+export type NewsV2Statistics = {
+  asOf: string;
+  rangeTimeZone: "America/New_York";
+  sourceActivity: NewsV2SourceActivity[];
+  themeActivity: NewsV2ThemeActivity[];
+};
+
 export type NewsV2PageResponse = {
   error?: string;
   hasMore: boolean;
   items: NewsV2Item[];
   nextCursor: NewsV2Cursor | null;
+  statistics: NewsV2Statistics | null;
   totalCount: number | null;
 };
 

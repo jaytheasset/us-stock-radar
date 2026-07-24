@@ -1,7 +1,4 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
 import { NewsV2EventBadge } from "@/components/news-v2/NewsV2EventBadge";
 import { NewsV2EventTypeBadge } from "@/components/news-v2/NewsV2EventTypeBadge";
 import { NewsV2Sparkline } from "@/components/news-v2/NewsV2Sparkline";
@@ -15,30 +12,11 @@ export type NewsV2RowProps = {
   showMarketReaction: boolean;
 };
 
-type RowMarketReaction = {
-  changePercent?: string;
-  priceLabel?: string;
-  trend: number[];
-};
-
-type MarketChartPayload = {
-  changePercent?: unknown;
-  latestPrice?: unknown;
-  ok?: unknown;
-  points?: unknown;
-};
-
-const rowMarketReactionCache = new Map<string, Promise<RowMarketReaction | null>>();
-const rowMarketReactionQueue: Array<() => void> = [];
-const maxConcurrentMarketRequests = 4;
-let activeMarketRequests = 0;
-
 export function NewsV2Row({
   item,
   referenceDate,
   showMarketReaction,
 }: NewsV2RowProps) {
-  const rowRef = useRef<HTMLElement | null>(null);
   const isCompanyNews = item.category === "Company";
   const visibleTickers = item.relatedTickers.slice(0, 2);
   const remainingTickerCount = Math.max(0, item.relatedTickers.length - visibleTickers.length);
@@ -50,11 +28,11 @@ export function NewsV2Row({
     : item.marketCapBand
       ? `${item.marketCapBand} cap`
       : item.sector ?? "Market-wide";
-  const [marketReaction, setMarketReaction] = useState<RowMarketReaction>({
+  const marketReaction = {
     changePercent: item.changePercent,
     priceLabel: item.priceLabel,
     trend: item.trend,
-  });
+  };
   const changeClass = marketReaction.changePercent?.startsWith("-")
     ? styles.negativeValue
     : marketReaction.changePercent
@@ -65,49 +43,10 @@ export function NewsV2Row({
   const hasQuote = hasPrice || hasChange;
   const hasSparkline = marketReaction.trend.length >= 2;
 
-  useEffect(() => {
-    setMarketReaction({
-      changePercent: item.changePercent,
-      priceLabel: item.priceLabel,
-      trend: item.trend,
-    });
-
-    const ticker = isCompanyNews ? item.relatedTickers[0]?.trim().toUpperCase() : "";
-    const hasCompleteMarketData = Boolean(item.priceLabel && item.changePercent && item.trend.length >= 2);
-    if (!showMarketReaction || !ticker || hasCompleteMarketData) return;
-
-    let cancelled = false;
-    let observer: IntersectionObserver | undefined;
-    const loadMarketReaction = () => {
-      getRowMarketReaction(ticker).then((reaction) => {
-        if (!cancelled && reaction) setMarketReaction(reaction);
-      });
-    };
-
-    if (typeof IntersectionObserver === "undefined" || !rowRef.current) {
-      loadMarketReaction();
-    } else {
-      observer = new IntersectionObserver(
-        (entries) => {
-          if (!entries.some((entry) => entry.isIntersecting)) return;
-          observer?.disconnect();
-          loadMarketReaction();
-        },
-        { rootMargin: "240px 0px" },
-      );
-      observer.observe(rowRef.current);
-    }
-
-    return () => {
-      cancelled = true;
-      observer?.disconnect();
-    };
-  }, [isCompanyNews, item.changePercent, item.id, item.priceLabel, item.relatedTickers, item.trend, showMarketReaction]);
-
   return (
     <li className={styles.newsListItem}>
       <Link className={styles.newsRowLink} href={`/events/${item.id}`}>
-        <article className={`${styles.newsRow}${showMarketReaction ? "" : ` ${styles.newsRowWithoutMarket}`}`} ref={rowRef}>
+        <article className={`${styles.newsRow}${showMarketReaction ? "" : ` ${styles.newsRowWithoutMarket}`}`}>
           <span className={styles.rowTime}>
             <span className={styles.rowDate}>
               {formatMarketDateLabel(item.publishedAt, referenceDate)}
@@ -235,68 +174,4 @@ export function NewsV2Row({
       </Link>
     </li>
   );
-}
-
-function getRowMarketReaction(ticker: string) {
-  const cached = rowMarketReactionCache.get(ticker);
-  if (cached) return cached;
-
-  const request = scheduleMarketRequest(() => fetchRowMarketReaction(ticker));
-
-  rowMarketReactionCache.set(ticker, request);
-  return request;
-}
-
-function scheduleMarketRequest<T>(task: () => Promise<T>) {
-  return new Promise<T>((resolve) => {
-    const run = () => {
-      activeMarketRequests += 1;
-      task()
-        .then(resolve)
-        .finally(() => {
-          activeMarketRequests -= 1;
-          rowMarketReactionQueue.shift()?.();
-        });
-    };
-
-    if (activeMarketRequests < maxConcurrentMarketRequests) run();
-    else rowMarketReactionQueue.push(run);
-  });
-}
-
-async function fetchRowMarketReaction(ticker: string) {
-  try {
-    const response = await fetch(
-      `/api/market/chart?symbol=${encodeURIComponent(ticker)}&range=1D&soft=1`,
-      { cache: "force-cache" },
-    );
-    if (!response.ok) return null;
-    return normalizeRowMarketReaction(await response.json() as MarketChartPayload);
-  } catch {
-    return null;
-  }
-}
-
-function normalizeRowMarketReaction(payload: MarketChartPayload): RowMarketReaction | null {
-  if (payload.ok !== true) return null;
-
-  const latestPrice = Number(payload.latestPrice);
-  const changePercent = Number(payload.changePercent);
-  const trend = Array.isArray(payload.points)
-    ? payload.points
-      .map((point) => Number((point as { close?: unknown }).close))
-      .filter(Number.isFinite)
-    : [];
-
-  if (!Number.isFinite(latestPrice) && !Number.isFinite(changePercent) && trend.length < 2) return null;
-
-  return {
-    priceLabel: Number.isFinite(latestPrice)
-      ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(latestPrice)
-      : undefined,
-    changePercent: Number.isFinite(changePercent)
-      ? `${changePercent >= 0 ? "+" : ""}${changePercent.toFixed(2)}%`
-      : undefined,
-    trend,
-  };
 }

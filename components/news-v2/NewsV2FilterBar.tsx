@@ -26,6 +26,7 @@ export type NewsV2Filters = NewsV2FilterState;
 export type { NewsV2FilterOptions };
 
 export type NewsV2FilterBarProps = {
+  canReset: boolean;
   filterOptions: NewsV2FilterOptions;
   filters: NewsV2Filters;
   mobileFilterOpenerRef: RefObject<HTMLButtonElement | null>;
@@ -42,6 +43,7 @@ export type NewsV2FilterBarProps = {
 type NewsV2MenuGroup = "eventTypes" | "sources" | "sectors" | "themes";
 
 export function NewsV2FilterBar({
+  canReset,
   filterOptions,
   filters,
   mobileFilterOpenerRef,
@@ -223,7 +225,7 @@ export function NewsV2FilterBar({
             )}
           </div>
           <div className={styles.filterRowActions}>
-            <button className={styles.resetButton} disabled={!activeCount && !queryDraft} onClick={onReset} type="button">
+            <button className={styles.resetButton} disabled={!canReset} onClick={onReset} type="button">
               Reset
             </button>
           </div>
