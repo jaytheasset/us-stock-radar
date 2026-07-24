@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerEnv, redactUrl } from "@/lib/env";
-import { runAccesswireNewsIngestWithRawFetcher } from "@/lib/newsIngest";
-import { fetchAccesswireRawItems, type AccesswireRawFetchResult } from "@/lib/sources/accesswire/parser";
+import { runAccesswireNewsIngestWithFallback } from "@/lib/newsIngestFallbacks";
 
 export const dynamic = "force-dynamic";
 
@@ -31,119 +29,6 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(result, {
     status: responseStatus(result),
   });
-}
-
-type AccesswireIngestOptions = {
-  limit: number;
-  dryRun: boolean;
-  force: boolean;
-  sourceUniqueId?: string;
-};
-
-type AccesswireRawFetchOptions = {
-  limit: number;
-  sourceUniqueId?: string;
-  includeArticleBody: boolean;
-  articleBodyLimit: number;
-};
-
-async function runAccesswireNewsIngestWithFallback(options: AccesswireIngestOptions) {
-  let nasFallback: Record<string, unknown> | null = null;
-
-  const result = await runAccesswireNewsIngestWithRawFetcher(async (rawOptions) => {
-    const directResult = await fetchAccesswireRawItems(rawOptions);
-    if (!shouldUseNasFallback(directResult)) return directResult;
-
-    const fallbackResult = await runAccesswireNasBridge(rawOptions, directResult);
-    nasFallback = {
-      attempted: true,
-      used: Boolean(fallbackResult.ok && fallbackResult.data),
-      source: "ACCESSWIRE_INGEST_URL",
-      url: fallbackResult.redactedUrl,
-      direct_stage: "raw_fetch",
-      direct_status: readRecord(directResult)?.status || null,
-      bridge_status: fallbackResult.status,
-      ...(fallbackResult.error ? { bridge_error: fallbackResult.error } : {}),
-    };
-
-    return fallbackResult.ok && fallbackResult.data ? fallbackResult.data : directResult;
-  }, options);
-
-  return nasFallback ? { ...readRecord(result), nas_fallback: nasFallback } : result;
-}
-
-function shouldUseNasFallback(result: unknown) {
-  const record = readRecord(result);
-  return record?.ok === false;
-}
-
-async function runAccesswireNasBridge(options: AccesswireRawFetchOptions, directResult: unknown) {
-  const env = getServerEnv();
-  const redactedUrl = redactUrl(env.accesswireIngestUrl);
-  if (!env.accesswireIngestUrl) {
-    return {
-      ok: false,
-      status: 0,
-      redactedUrl,
-      error: "ACCESSWIRE_INGEST_URL is not configured",
-    };
-  }
-
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-    "Content-Type": "application/json",
-  };
-  if (env.nasIngestToken) {
-    headers.Authorization = `Bearer ${env.nasIngestToken}`;
-    headers["X-Ingest-Token"] = env.nasIngestToken;
-  }
-
-  try {
-    const response = await timedFetch(env.accesswireIngestUrl, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        ...options,
-        source: "accesswire",
-        fallbackFrom: "next_accesswire_direct_raw_fetch",
-        directStatus: readRecord(directResult)?.status || null,
-        directError: readRecord(directResult)?.error || null,
-      }),
-    });
-    const data = await response.json().catch(() => null);
-    const record = normalizeBridgeData(readRecord(data));
-    const ok = response.ok && bridgePayloadOk(record);
-
-    return {
-      ok,
-      status: response.status,
-      redactedUrl,
-      data: record as AccesswireRawFetchResult | null,
-      error: ok ? undefined : readBridgeError(record, response.statusText || "Accesswire NAS bridge failed"),
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      status: 0,
-      redactedUrl,
-      error: error instanceof Error ? error.message : "Accesswire NAS bridge request failed",
-    };
-  }
-}
-
-async function timedFetch(input: string, init: RequestInit, timeoutMs = 120000) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    return await fetch(input, {
-      ...init,
-      cache: "no-store",
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
 }
 
 function responseStatus(result: unknown) {
@@ -180,25 +65,6 @@ function readString(queryValue: string | null, bodyValue: unknown) {
 function readNumberValue(value: unknown) {
   const parsed = typeof value === "number" ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function readBridgeError(data: Record<string, unknown> | null, fallback: string) {
-  if (!data) return fallback;
-  if (typeof data.message === "string" && data.message.trim()) return data.message;
-  if (typeof data.error === "string" && data.error.trim()) return data.error;
-  return fallback;
-}
-
-function bridgePayloadOk(data: Record<string, unknown> | null) {
-  if (!data) return false;
-  if (data.ok === false) return false;
-  if (data.status === "failed" || data.status === "error") return false;
-  return Array.isArray(data.items);
-}
-
-function normalizeBridgeData(data: Record<string, unknown> | null) {
-  const nestedResult = readRecord(data?.result);
-  return nestedResult || data;
 }
 
 function readRecord(value: unknown): Record<string, unknown> | null {

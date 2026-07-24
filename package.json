@@ -28,6 +28,8 @@
     "verify:market-date": "node --test --experimental-strip-types lib/marketDate.test.ts",
     "verify:us-equity-calendar": "node --test --experimental-strip-types lib/usEquityMarketCalendar.test.ts",
     "verify:newsfile-parser": "node --experimental-strip-types scripts/verify-newsfile-parser.mjs",
+    "verify:source-workflow-config": "node --test --experimental-strip-types lib/sourceWorkflowConfig.test.ts",
+    "verify:workflows": "workflow validate --strict --dir workflows",
     "verify:nasdaq-trader-parser": "node --experimental-strip-types scripts/verify-nasdaq-trader-parser.mjs",
     "verify:ofac-parser": "node --experimental-strip-types scripts/verify-ofac-parser.mjs",
     "verify:prnewswire-parser": "node --experimental-strip-types scripts/verify-prnewswire-parser.mjs",
@@ -47,7 +49,8 @@
     "next": "^16.0.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "sanitize-html": "2.17.0"
+    "sanitize-html": "2.17.0",
+    "workflow": "^4.6.1"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

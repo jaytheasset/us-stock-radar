@@ -53,3 +53,8 @@ API and writes `market_group_snapshots`.
 - Read `docs/READOUTS.md` before adding admin/API registry surfaces.
 - Do not create page-specific DB tables.
 - Schema changes require explicit approval.
+
+## Source Ingest Operations
+
+Vercel Workflow scheduling, staged rollout, Render coexistence, and rollback are
+documented in `docs/VERCEL_WORKFLOW_INGEST.md`.

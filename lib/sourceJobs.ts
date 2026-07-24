@@ -1,9 +1,11 @@
 import { getServerEnv } from "@/lib/env";
+import type { SourceIngestCronLane } from "@/lib/sourceWorkflowConfig";
 
 export type SourceJob = {
   source: string;
   label: string;
   jobRoute: string;
+  workflowLane?: SourceIngestCronLane;
   sourceUrls: Array<{
     label: string;
     url: string;
@@ -16,6 +18,7 @@ export const sourceJobs: SourceJob[] = [
     source: "sec_edgar",
     label: "SEC EDGAR",
     jobRoute: "/api/sources/sec/ingest",
+    workflowLane: "sec",
     sourceUrls: [
       {
         label: "SEC EDGAR current filings Atom feed",
@@ -28,6 +31,7 @@ export const sourceJobs: SourceJob[] = [
     source: "globe",
     label: "GlobeNewswire",
     jobRoute: "/api/sources/globe/ingest",
+    workflowLane: "news_fast",
     sourceUrls: [
       {
         label: "GlobeNewswire exchange search",
@@ -40,6 +44,7 @@ export const sourceJobs: SourceJob[] = [
     source: "businesswire",
     label: "Business Wire",
     jobRoute: "/api/sources/businesswire/ingest",
+    workflowLane: "news_fast",
     sourceUrls: [
       businessWireFeed("Earnings News", "G1QFDERJXkJeEF9YXA==", true),
       businessWireFeed("IPO News", "G1QFDERJXkJeEF9YXQ=="),
@@ -66,6 +71,7 @@ export const sourceJobs: SourceJob[] = [
     source: "prnewswire",
     label: "PR Newswire",
     jobRoute: "/api/sources/prnewswire/ingest",
+    workflowLane: "news_fast",
     sourceUrls: [
       prNewswireFeed("Earnings", "financial-services-latest-news/earnings-list.rss", true),
       prNewswireFeed("Dividends", "financial-services-latest-news/dividends-list.rss"),
@@ -88,6 +94,7 @@ export const sourceJobs: SourceJob[] = [
     source: "newsfile",
     label: "Newsfile",
     jobRoute: "/api/sources/newsfile/ingest",
+    workflowLane: "news_fast",
     sourceUrls: [
       {
         label: "Newsfile Last 25 Stories",
@@ -100,6 +107,7 @@ export const sourceJobs: SourceJob[] = [
     source: "accesswire",
     label: "Access Newswire",
     jobRoute: "/api/sources/accesswire/ingest",
+    workflowLane: "news_fast",
     sourceUrls: [
       {
         label: "Access Newswire public newsroom",
@@ -116,6 +124,7 @@ export const sourceJobs: SourceJob[] = [
     source: "ofac",
     label: "OFAC",
     jobRoute: "/api/sources/ofac/ingest",
+    workflowLane: "news_slow",
     sourceUrls: [
       {
         label: "OFAC recent actions",
@@ -128,6 +137,7 @@ export const sourceJobs: SourceJob[] = [
     source: "doj",
     label: "DOJ",
     jobRoute: "/api/sources/doj/ingest",
+    workflowLane: "news_slow",
     sourceUrls: [
       {
         label: "DOJ press release API",
@@ -140,6 +150,7 @@ export const sourceJobs: SourceJob[] = [
     source: "dea",
     label: "DEA",
     jobRoute: "/api/sources/dea/ingest",
+    workflowLane: "news_slow",
     sourceUrls: [
       {
         label: "DOJ press release API filtered client-side for DEA component",
@@ -156,6 +167,7 @@ export const sourceJobs: SourceJob[] = [
     source: "whitehouse",
     label: "White House",
     jobRoute: "/api/sources/whitehouse/ingest",
+    workflowLane: "news_slow",
     sourceUrls: [
       {
         label: "Presidential actions",
@@ -176,6 +188,7 @@ export const sourceJobs: SourceJob[] = [
     source: "fda",
     label: "FDA",
     jobRoute: "/api/sources/fda/ingest",
+    workflowLane: "news_slow",
     sourceUrls: [
       {
         label: "FDA press releases RSS",
@@ -200,6 +213,7 @@ export const sourceJobs: SourceJob[] = [
     source: "nasdaq_trader",
     label: "Nasdaq Trader",
     jobRoute: "/api/sources/nasdaq-trader/ingest",
+    workflowLane: "news_fast",
     sourceUrls: [
       {
         label: "Nasdaq Trader trade halts RSS",
@@ -209,6 +223,19 @@ export const sourceJobs: SourceJob[] = [
       {
         label: "Nasdaq Trader trade halt code definitions",
         url: "https://classic.nasdaqtrader.com/Trader.aspx?id=tradehaltcodes",
+      },
+    ],
+  },
+  {
+    source: "nasdaq_corporate_actions",
+    label: "Nasdaq Corporate Actions",
+    jobRoute: "/api/sources/nasdaq-corporate-actions/ingest",
+    workflowLane: "news_fast",
+    sourceUrls: [
+      {
+        label: "Nasdaq Trader current headlines corporate actions feed",
+        primary: true,
+        url: "https://www.nasdaqtrader.com/rss.aspx?feed=currentheadlines&categorylist=0",
       },
     ],
   },
@@ -322,17 +349,7 @@ export async function runSourceJob(
         },
         body: JSON.stringify(safeBody),
       },
-      source === "globe" ||
-        source === "businesswire" ||
-        source === "prnewswire" ||
-        source === "newsfile" ||
-        source === "accesswire" ||
-        source === "ofac" ||
-        source === "doj" ||
-        source === "dea" ||
-        source === "whitehouse" ||
-        source === "fda" ||
-        source === "nasdaq_trader"
+      Boolean(job.workflowLane)
         ? 120000
         : undefined,
     );

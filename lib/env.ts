@@ -15,6 +15,7 @@ const serverKeys = [
   "ALERT_DELIVERY_CRON_WRITE_ENABLED",
   "DASHBOARD_MOVERS_CRON_SECRET",
   "CRON_SECRET",
+  "SOURCE_INGEST_WORKFLOW_ENABLED_LANES",
   "OPENAI_API_KEY",
   "OPENAI_MODEL",
   "GEMINI_API_KEY",
@@ -55,6 +56,8 @@ export function getServerEnv() {
     dashboardMoversCronSecret:
       process.env.DASHBOARD_MOVERS_CRON_SECRET || "",
     cronSecret: process.env.CRON_SECRET || "",
+    sourceIngestWorkflowEnabledLanes:
+      process.env.SOURCE_INGEST_WORKFLOW_ENABLED_LANES || "",
     openAiApiKey: process.env.OPENAI_API_KEY || "",
     openAiModel: process.env.OPENAI_MODEL || "gpt-5-mini",
     geminiApiKey: process.env.GEMINI_API_KEY || "",
@@ -95,6 +98,8 @@ export function envStatus() {
     ALERT_DELIVERY_CRON_WRITE_ENABLED: String(values.alertDeliveryCronWriteEnabled),
     DASHBOARD_MOVERS_CRON_SECRET: values.dashboardMoversCronSecret,
     CRON_SECRET: values.cronSecret,
+    SOURCE_INGEST_WORKFLOW_ENABLED_LANES:
+      values.sourceIngestWorkflowEnabledLanes,
     OPENAI_API_KEY: values.openAiApiKey,
     OPENAI_MODEL: values.openAiModel,
     GEMINI_API_KEY: values.geminiApiKey,
