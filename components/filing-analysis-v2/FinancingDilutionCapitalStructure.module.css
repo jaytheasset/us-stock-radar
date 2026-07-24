@@ -431,6 +431,7 @@
 .role_base .legendValue i {
   border-color: color-mix(in srgb, var(--fd-baseline-ink) 48%, var(--sr-color-divider));
   color: var(--fd-baseline-ink);
+  background: transparent;
 }
 
 .role_conditional .legendValue i,
