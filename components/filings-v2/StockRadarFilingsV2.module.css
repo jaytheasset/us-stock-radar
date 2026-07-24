@@ -1433,25 +1433,30 @@
 
   .listHeader {
     min-height: auto;
-    align-items: flex-start;
+    flex-wrap: wrap;
+    align-items: center;
     row-gap: var(--sr-space-1);
     padding-block: var(--sr-space-2);
     padding-inline: var(--sr-space-2-5);
   }
 
   .listHeaderTitle {
-    display: grid;
+    display: flex;
+    width: 100%;
     min-width: 0;
-    flex: 1 1 auto;
-    grid-template-columns: auto minmax(0, 1fr);
+    flex: 0 0 100%;
     align-items: center;
-    column-gap: var(--sr-space-2);
-    row-gap: var(--sr-space-1);
+    gap: var(--sr-space-2);
+    white-space: nowrap;
   }
 
   .listHeaderTitle > a {
-    grid-column: 1 / -1;
-    justify-self: start;
+    margin-left: auto;
+  }
+
+  .listHeaderCount {
+    width: 100%;
+    text-align: right;
   }
 
   .listHeaderTitle h2 {
