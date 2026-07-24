@@ -209,6 +209,15 @@ export function StockRadarFilingsV2({
   };
   const resetFilters = () => {
     setDraftFilters(filingsV2DefaultFilters);
+    setAppliedFilters(filingsV2DefaultFilters);
+    setSearchInput("");
+    setQuery("");
+    setVisibleCount(loadMoreSize);
+  };
+  const clearSearch = () => {
+    setSearchInput("");
+    setQuery("");
+    setVisibleCount(loadMoreSize);
   };
   const showMoreRecords = () => {
     setVisibleCount((current) => Math.min(current + loadMoreSize, filteredRecords.length));
@@ -247,10 +256,12 @@ export function StockRadarFilingsV2({
         <FilingsV2Summary records={records} referenceDate={referenceDate} />
         <div className={styles.controlBand}>
           <FilingsV2FilterBar
+            appliedQuery={query}
             filters={draftFilters}
             formOptions={formOptions}
             isMobileSheetOpen={isFilterSheetOpen}
             mobileFilterOpenerRef={filterOpenerRef}
+            onClearQuery={clearSearch}
             onClearFilterGroup={clearFilterGroup}
             onOpenMobileFilters={openMobileFilters}
             onQueryChange={setSearchInput}

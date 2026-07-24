@@ -19,10 +19,12 @@ import {
 import styles from "./StockRadarFilingsV2.module.css";
 
 type FilingsV2FilterBarProps = {
+  appliedQuery: string;
   filters: FilingsV2FilterState;
   formOptions: readonly string[];
   isMobileSheetOpen: boolean;
   mobileFilterOpenerRef: RefObject<HTMLButtonElement | null>;
+  onClearQuery: () => void;
   onClearFilterGroup: (group: FilingsV2FilterGroup) => void;
   onOpenMobileFilters: () => void;
   onQueryChange: (value: string) => void;
@@ -52,10 +54,12 @@ export function getActiveFilingsV2Filters(filters: FilingsV2FilterState) {
 }
 
 export function FilingsV2FilterBar({
+  appliedQuery,
   filters,
   formOptions,
   isMobileSheetOpen,
   mobileFilterOpenerRef,
+  onClearQuery,
   onClearFilterGroup,
   onOpenMobileFilters,
   onQueryChange,
@@ -74,7 +78,9 @@ export function FilingsV2FilterBar({
   const [openMenu, setOpenMenu] = useState<FilingsV2MenuGroup | null>(null);
   const filterMenusRef = useRef<HTMLDivElement>(null);
   const activeFilters = getActiveFilingsV2Filters(filters);
-  const activeCount = activeFilters.length;
+  const normalizedAppliedQuery = appliedQuery.trim();
+  const activeCount = activeFilters.length + (normalizedAppliedQuery ? 1 : 0);
+  const hasResettableState = activeCount > 0 || query.trim().length > 0;
 
   useEffect(() => {
     if (!openMenu) return;
@@ -197,7 +203,18 @@ export function FilingsV2FilterBar({
         <div className={styles.activeFilterRow}>
           <span className={styles.filterGroupLabel}>Active</span>
           <div className={styles.activeFilterChips}>
-            {activeFilters.length ? activeFilters.map((filter) => (
+            {normalizedAppliedQuery ? (
+              <button
+                aria-label={`Remove ${normalizedAppliedQuery} search`}
+                className={styles.activeFilterChip}
+                onClick={onClearQuery}
+                type="button"
+              >
+                Search: {normalizedAppliedQuery}
+                <X aria-hidden="true" size={12} />
+              </button>
+            ) : null}
+            {activeFilters.map((filter) => (
               <button
                 aria-label={`Remove ${filter.label} filter`}
                 className={styles.activeFilterChip}
@@ -208,10 +225,11 @@ export function FilingsV2FilterBar({
                 {filter.label}
                 <X aria-hidden="true" size={12} />
               </button>
-            )) : <span className={styles.noActiveFilters}>No active filters</span>}
+            ))}
+            {!activeCount ? <span className={styles.noActiveFilters}>No active filters</span> : null}
           </div>
           <div className={styles.filterRowActions}>
-            <button className={styles.resetButton} disabled={!activeCount} onClick={onReset} type="button">
+            <button className={styles.resetButton} disabled={!hasResettableState} onClick={onReset} type="button">
               Reset
             </button>
             <button className={styles.searchButton} onClick={onSearch} type="button">Search</button>
@@ -234,7 +252,7 @@ export function FilingsV2FilterBar({
           value={activeCount ? String(activeCount) : undefined}
           variant="compact"
         />
-        {activeCount ? (
+        {hasResettableState ? (
           <button className={styles.mobileResetButton} onClick={onReset} type="button">Reset</button>
         ) : null}
       </div>
