@@ -32,6 +32,16 @@
   height: 100%;
 }
 
+.slot[data-responsive="true"] .adSurface {
+  height: auto;
+  min-height: var(--adsense-slot-height);
+}
+
+.slot[data-responsive="true"] .ad {
+  height: auto;
+  min-height: var(--adsense-slot-height);
+}
+
 .placeholderLabel,
 .placeholderSize {
   font-size: var(--sr-font-size-xs);

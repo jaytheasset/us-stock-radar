@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ChevronDown } from "lucide-react";
-import { DesktopRailAdSlot } from "@/components/dashboard-v2/DesktopRailAdSlot";
+import { AdSenseSlot } from "@/components/ads/AdSenseSlot";
 import type { DeliveredAlertItem } from "@/lib/alerts/types";
 import type {
   AlertTickerItem,
@@ -1045,7 +1045,15 @@ export function StockRadarAlertsV2() {
 
         <aside className={styles.adRail} aria-label="Plan and advertising">
           {mockPlan.showsAds ? (
-            <DesktopRailAdSlot />
+            <AdSenseSlot
+              className={styles.railAdSlot}
+              format="responsive"
+              height={250}
+              inventory="alerts-rail-300x250"
+              mediaQuery="(min-width: 1181px)"
+              placeholderSize="Responsive display"
+              width={336}
+            />
           ) : null}
 
           {!isUltimate ? (
@@ -1058,12 +1066,15 @@ export function StockRadarAlertsV2() {
           ) : null}
 
           {mockPlan.showsAds ? (
-            <section className={styles.railTallAd} aria-label="Advertisement">
-              <span>Advertisement</span>
-              <strong>300 x 600</strong>
-              <p>Free-member placement</p>
-              <small>Not shown to Ad-Free+ members.</small>
-            </section>
+            <AdSenseSlot
+              className={styles.railAdSlot}
+              format="responsive"
+              height={250}
+              inventory="alerts-rail-300x600"
+              mediaQuery="(min-width: 1181px)"
+              placeholderSize="Responsive display"
+              width={336}
+            />
           ) : null}
         </aside>
 

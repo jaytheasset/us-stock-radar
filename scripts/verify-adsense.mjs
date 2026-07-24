@@ -121,6 +121,12 @@ const manualPlacementSources = await Promise.all(
     "../components/news-v2/NewsV2InsightInlineAd.tsx",
     "../components/filings-v2/FilingsRailAdSlot.tsx",
     "../components/filings-v2/FilingsV2InlineAd.tsx",
+    "../components/dashboard-v2/DesktopInlineAdSlot.tsx",
+    "../components/dashboard-v2/DesktopRailAdSlot.tsx",
+    "../components/dashboard-v2/MobileInlineAdSlot.tsx",
+    "../components/filing-analysis-v2/FilingInlineAdSlot.tsx",
+    "../components/filing-analysis-v2/FilingRailAdSlot.tsx",
+    "../components/alerts-v2/StockRadarAlertsV2.tsx",
   ].map((file) => readFile(new URL(file, import.meta.url), "utf8")),
 );
 const advertisingSource = `${slotSource}\n${publisherLoaderSource}\n${scriptLoaderSource}`;
@@ -152,6 +158,9 @@ assert.doesNotMatch(
   "Anchor loader has no custom conversion footer",
 );
 assert.match(slotStylesSource, /\.adSurface[\s\S]*height:\s*var\(--adsense-slot-height\)/);
+assert.match(slotSource, /data-responsive=\{isResponsiveFormat \? "true" : undefined\}/);
+assert.match(slotSource, /data-ad-format=\{isResponsiveFormat \? "auto" : undefined\}/);
+assert.match(slotStylesSource, /\.slot\[data-responsive="true"\] \.adSurface/);
 assert.match(slotStylesSource, /\.footer[\s\S]*border-top:/);
 assert.match(slotStylesSource, /\.removeAdsLink:focus-visible/);
 assert.ok(

@@ -1,13 +1,19 @@
+import { AdSenseSlot } from "@/components/ads/AdSenseSlot";
 import styles from "./MobileInlineAdSlot.module.css";
 
 export function MobileInlineAdSlot() {
   return (
     <tr className={styles.row}>
       <td colSpan={6}>
-        <section aria-label="Advertisement" className={styles.slot}>
-          <span className={styles.label}>Advertisement</span>
-          <span className={styles.size}>320 x 100</span>
-        </section>
+        <AdSenseSlot
+          className={styles.slot}
+          format="responsive"
+          height={100}
+          inventory="dashboard-mobile-inline"
+          mediaQuery="(max-width: 760px)"
+          placeholderSize="Responsive display"
+          width={480}
+        />
       </td>
     </tr>
   );

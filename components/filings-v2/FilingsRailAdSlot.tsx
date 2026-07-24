@@ -12,7 +12,8 @@ export function FilingsRailAdSlot({ size }: FilingsRailAdSlotProps) {
   return (
     <AdSenseSlot
       className={`${styles.slot} ${isMobile ? styles.mobileSlot : styles.desktopSlot}`}
-      height={isMobile ? 100 : isRectangle ? 250 : 600}
+      format="responsive"
+      height={isMobile ? 100 : 250}
       inventory={
         isMobile
           ? "filings-mobile-inline"
@@ -21,8 +22,8 @@ export function FilingsRailAdSlot({ size }: FilingsRailAdSlotProps) {
             : "filings-rail-300x600"
       }
       mediaQuery={isMobile ? "(max-width: 760px)" : "(min-width: 1181px)"}
-      placeholderSize={isMobile ? "320 x 100" : isRectangle ? "300 x 250" : "300 x 600"}
-      width={isMobile ? 320 : 300}
+      placeholderSize="Responsive display"
+      width={isMobile ? 480 : 336}
     />
   );
 }

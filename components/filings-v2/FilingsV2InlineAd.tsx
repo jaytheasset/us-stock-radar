@@ -10,12 +10,12 @@ export function FilingsV2InlineAd({ format }: FilingsV2InlineAdProps) {
   const slot = (
     <AdSenseSlot
       className={isDesktop ? styles.desktopInlineAdSlot : styles.mobileInlineAdSlot}
-      format={isDesktop ? "horizontal" : "fixed"}
+      format={isDesktop ? "horizontal" : "responsive"}
       height={isDesktop ? 90 : 100}
       inventory={isDesktop ? "filings-desktop-inline" : "filings-mobile-inline"}
       mediaQuery={isDesktop ? "(min-width: 761px)" : "(max-width: 760px)"}
-      placeholderSize={isDesktop ? "728 x 90" : "320 x 100"}
-      width={isDesktop ? 728 : 320}
+      placeholderSize="Responsive display"
+      width={isDesktop ? 970 : 480}
     />
   );
 

@@ -1,30 +1,6 @@
 .slot {
-  box-sizing: border-box;
-  display: flex;
-  width: 300px;
-  height: 250px;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sr-space-2);
+  max-width: 336px;
   margin: var(--sr-space-6) auto 0;
-  border: var(--sr-border-width) solid var(--sr-color-divider);
-  border-radius: var(--sr-radius-control);
-  background: var(--sr-color-surface);
-  color: var(--sr-color-text-subtle);
-}
-
-.label,
-.size {
-  font-size: var(--sr-font-size-xs);
-  font-weight: var(--sr-font-weight-label);
-  letter-spacing: var(--sr-letter-spacing-brand);
-  line-height: var(--sr-line-height-default);
-  text-transform: uppercase;
-}
-
-.size {
-  color: var(--sr-color-text-muted);
 }
 
 @media (max-width: 1180px) {

@@ -1,39 +1,11 @@
 .slot {
-  box-sizing: border-box;
-  display: flex;
-  width: min(300px, 100%);
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: var(--sr-space-2);
+  max-width: 336px;
   margin: 0 auto;
-  border: var(--sr-border-width) solid var(--sr-color-divider);
-  border-radius: var(--sr-radius-control);
-  color: var(--sr-color-text-subtle);
-  background: var(--sr-color-surface);
-}
-
-.rectangle {
-  height: 250px;
 }
 
 .skyscraper {
   position: sticky;
   top: calc(var(--sr-size-header) + var(--sr-space-5));
-  height: 600px;
-}
-
-.label,
-.size {
-  font-size: var(--sr-font-size-xs);
-  font-weight: var(--sr-font-weight-label);
-  letter-spacing: var(--sr-letter-spacing-brand);
-  line-height: var(--sr-line-height-default);
-  text-transform: uppercase;
-}
-
-.size {
-  color: var(--sr-color-text-muted);
 }
 
 @media (max-width: 1180px) {

@@ -1,10 +1,16 @@
+import { AdSenseSlot } from "@/components/ads/AdSenseSlot";
 import styles from "./DesktopRailAdSlot.module.css";
 
 export function DesktopRailAdSlot() {
   return (
-    <section aria-label="Advertisement" className={styles.slot}>
-      <span className={styles.label}>Advertisement</span>
-      <span className={styles.size}>300 x 250</span>
-    </section>
+    <AdSenseSlot
+      className={styles.slot}
+      format="responsive"
+      height={250}
+      inventory="dashboard-rail"
+      mediaQuery="(min-width: 1181px)"
+      placeholderSize="Responsive display"
+      width={336}
+    />
   );
 }

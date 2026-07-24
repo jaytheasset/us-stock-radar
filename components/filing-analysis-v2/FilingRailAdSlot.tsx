@@ -1,3 +1,4 @@
+import { AdSenseSlot } from "@/components/ads/AdSenseSlot";
 import styles from "./FilingRailAdSlot.module.css";
 
 type FilingRailAdSlotProps = {
@@ -8,14 +9,16 @@ export function FilingRailAdSlot({
   format = "skyscraper",
 }: FilingRailAdSlotProps) {
   return (
-    <section
-      aria-label="Advertisement"
+    <AdSenseSlot
       className={`${styles.slot} ${styles[format]}`}
-    >
-      <span className={styles.label}>Advertisement</span>
-      <span className={styles.size}>
-        {format === "rectangle" ? "300 x 250" : "300 x 600"}
-      </span>
-    </section>
+      format="responsive"
+      height={250}
+      inventory={
+        format === "rectangle" ? "filings-rail-300x250" : "filings-rail-300x600"
+      }
+      mediaQuery="(min-width: 1181px)"
+      placeholderSize="Responsive display"
+      width={336}
+    />
   );
 }

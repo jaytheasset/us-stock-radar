@@ -5,7 +5,6 @@
 @media (max-width: 760px) {
   .row {
     display: block;
-    height: 100px;
     min-width: 0;
     border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
     background: var(--sr-color-surface-table-row);
@@ -14,7 +13,6 @@
   .row.row > td {
     display: flex;
     width: auto;
-    height: 100%;
     align-items: center;
     justify-content: center;
     border: 0;
@@ -23,32 +21,7 @@
   }
 
   .slot {
-    box-sizing: border-box;
-    display: flex;
-    width: 320px;
+    width: 480px;
     max-width: 100%;
-    height: 100px;
-    align-items: center;
-    justify-content: center;
-    gap: var(--sr-space-2);
-    margin: 0;
-    transform: translateX(calc((100cqi - 320px) / 2));
-    border: var(--sr-border-width) solid var(--sr-color-divider);
-    border-radius: var(--sr-radius-control);
-    background: var(--sr-color-surface);
-    color: var(--sr-color-text-subtle);
-  }
-
-  .label,
-  .size {
-    font-size: var(--sr-font-size-xs);
-    font-weight: var(--sr-font-weight-label);
-    letter-spacing: var(--sr-letter-spacing-brand);
-    line-height: var(--sr-line-height-default);
-    text-transform: uppercase;
-  }
-
-  .size {
-    color: var(--sr-color-text-muted);
   }
 }

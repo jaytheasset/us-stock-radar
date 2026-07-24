@@ -1,11 +1,27 @@
+import { AdSenseSlot } from "@/components/ads/AdSenseSlot";
 import styles from "./FilingInlineAdSlot.module.css";
 
 export function FilingInlineAdSlot() {
   return (
-    <section aria-label="Advertisement" className={styles.slot}>
-      <span className={styles.label}>Advertisement</span>
-      <span className={styles.desktopSize}>728 x 90</span>
-      <span className={styles.mobileSize}>320 x 100</span>
-    </section>
+    <>
+      <AdSenseSlot
+        className={`${styles.slot} ${styles.desktopSlot}`}
+        format="horizontal"
+        height={90}
+        inventory="filings-desktop-inline"
+        mediaQuery="(min-width: 761px)"
+        placeholderSize="Responsive display"
+        width={970}
+      />
+      <AdSenseSlot
+        className={`${styles.slot} ${styles.mobileSlot}`}
+        format="responsive"
+        height={100}
+        inventory="filings-mobile-inline"
+        mediaQuery="(max-width: 760px)"
+        placeholderSize="Responsive display"
+        width={480}
+      />
+    </>
   );
 }

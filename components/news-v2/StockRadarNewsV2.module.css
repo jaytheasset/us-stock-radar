@@ -918,7 +918,7 @@
 }
 
 .desktopInlineAdSlot {
-  width: min(728px, 100%);
+  width: min(970px, 100%);
 }
 
 .mobileInlineAdItem {
@@ -930,7 +930,7 @@
 }
 
 .mobileInlineAdSlot {
-  width: min(320px, 100%);
+  width: min(480px, 100%);
 }
 
 .insightRailAnchor {
@@ -959,11 +959,11 @@
 }
 
 .contextRailAdAnchor {
-  min-height: 600px;
+  min-height: 0;
 }
 
 .contextRailAdAnchorCompact {
-  min-height: 250px;
+  min-height: 0;
 }
 
 .contextRailAdContinuation {

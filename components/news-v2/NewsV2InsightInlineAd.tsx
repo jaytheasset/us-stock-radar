@@ -6,11 +6,12 @@ export function NewsV2InsightInlineAd() {
     <div className={styles.mobileInsightAdItem}>
       <AdSenseSlot
         className={styles.mobileInlineAdSlot}
+        format="responsive"
         height={100}
         inventory="news-mobile-inline"
         mediaQuery="(max-width: 980px)"
-        placeholderSize="320 x 100"
-        width={320}
+        placeholderSize="Responsive display"
+        width={480}
       />
     </div>
   );

@@ -17,7 +17,7 @@ import styles from "./AdSenseSlot.module.css";
 type AdSenseSlotProps = {
   className?: string;
   enabledForViewer?: boolean;
-  format?: "fixed" | "horizontal";
+  format?: "fixed" | "horizontal" | "responsive";
   height: number;
   inventory: AdSenseInventory;
   mediaQuery: string;
@@ -47,6 +47,7 @@ export function AdSenseSlot({
   const isManualSlotEnabled = adsenseConfig.manualSlotEnabled[inventory];
   const canRequestAd =
     enabledForViewer && isManualSlotEnabled && isMediaActive;
+  const isResponsiveFormat = format !== "fixed";
   const slotStyle = {
     "--adsense-slot-height": `${height}px`,
     "--adsense-slot-width": `${width}px`,
@@ -114,6 +115,7 @@ export function AdSenseSlot({
     <section
       aria-label="Advertisement"
       className={[styles.slot, className].filter(Boolean).join(" ")}
+      data-responsive={isResponsiveFormat ? "true" : undefined}
       style={slotStyle}
     >
       <div className={styles.adSurface} ref={containerRef}>
@@ -121,7 +123,7 @@ export function AdSenseSlot({
           <ins
             className={`adsbygoogle ${styles.ad}`}
             data-ad-client={adsenseConfig.publisherId}
-            data-ad-format={format === "horizontal" ? "horizontal" : undefined}
+            data-ad-format={isResponsiveFormat ? "auto" : undefined}
             data-ad-slot={slotId}
             data-full-width-responsive={format === "horizontal" ? "true" : undefined}
           />

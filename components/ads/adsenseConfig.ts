@@ -7,6 +7,11 @@ export const adSenseInventories = [
   "filings-rail-300x600",
   "filings-desktop-inline",
   "filings-mobile-inline",
+  "dashboard-rail",
+  "dashboard-desktop-inline",
+  "dashboard-mobile-inline",
+  "alerts-rail-300x250",
+  "alerts-rail-300x600",
 ] as const;
 
 export type AdSenseInventory = (typeof adSenseInventories)[number];
@@ -45,6 +50,19 @@ export function resolveAdSenseConfig(input: AdSenseConfigInput): AdSenseConfig {
     "filings-rail-300x600": normalize(input.slotIds?.["filings-rail-300x600"]),
     "filings-desktop-inline": normalize(input.slotIds?.["filings-desktop-inline"]),
     "filings-mobile-inline": normalize(input.slotIds?.["filings-mobile-inline"]),
+    "dashboard-rail": normalize(input.slotIds?.["dashboard-rail"]),
+    "dashboard-desktop-inline": normalize(
+      input.slotIds?.["dashboard-desktop-inline"],
+    ),
+    "dashboard-mobile-inline": normalize(
+      input.slotIds?.["dashboard-mobile-inline"],
+    ),
+    "alerts-rail-300x250": normalize(
+      input.slotIds?.["alerts-rail-300x250"],
+    ),
+    "alerts-rail-300x600": normalize(
+      input.slotIds?.["alerts-rail-300x600"],
+    ),
   };
   const isProductionPublisher =
     input.nodeEnv === "production" && Boolean(publisherId);
@@ -67,6 +85,16 @@ export function resolveAdSenseConfig(input: AdSenseConfigInput): AdSenseConfig {
       isProductionPublisher && Boolean(slotIds["filings-desktop-inline"]),
     "filings-mobile-inline":
       isProductionPublisher && Boolean(slotIds["filings-mobile-inline"]),
+    "dashboard-rail":
+      isProductionPublisher && Boolean(slotIds["dashboard-rail"]),
+    "dashboard-desktop-inline":
+      isProductionPublisher && Boolean(slotIds["dashboard-desktop-inline"]),
+    "dashboard-mobile-inline":
+      isProductionPublisher && Boolean(slotIds["dashboard-mobile-inline"]),
+    "alerts-rail-300x250":
+      isProductionPublisher && Boolean(slotIds["alerts-rail-300x250"]),
+    "alerts-rail-300x600":
+      isProductionPublisher && Boolean(slotIds["alerts-rail-300x600"]),
   };
 
   return {
@@ -101,5 +129,14 @@ export const adsenseConfig = resolveAdSenseConfig({
       process.env.NEXT_PUBLIC_ADSENSE_FILINGS_DESKTOP_INLINE_SLOT_ID,
     "filings-mobile-inline":
       process.env.NEXT_PUBLIC_ADSENSE_FILINGS_MOBILE_INLINE_SLOT_ID,
+    "dashboard-rail": process.env.NEXT_PUBLIC_ADSENSE_DASHBOARD_V2_RAIL_SLOT_ID,
+    "dashboard-desktop-inline":
+      process.env.NEXT_PUBLIC_ADSENSE_DASHBOARD_V2_DESKTOP_INLINE_SLOT_ID,
+    "dashboard-mobile-inline":
+      process.env.NEXT_PUBLIC_ADSENSE_DASHBOARD_V2_MOBILE_INLINE_SLOT_ID,
+    "alerts-rail-300x250":
+      process.env.NEXT_PUBLIC_ADSENSE_ALERTS_RAIL_300X250_SLOT_ID,
+    "alerts-rail-300x600":
+      process.env.NEXT_PUBLIC_ADSENSE_ALERTS_RAIL_300X600_SLOT_ID,
   },
 });
