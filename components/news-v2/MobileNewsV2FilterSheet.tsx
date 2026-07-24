@@ -15,6 +15,7 @@ import {
 import styles from "./StockRadarNewsV2.module.css";
 
 export type MobileNewsV2FilterSheetProps = {
+  canReset: boolean;
   filterOptions: NewsV2FilterOptions;
   filters: NewsV2Filters;
   isOpen: boolean;
@@ -28,6 +29,7 @@ export type MobileNewsV2FilterSheetProps = {
 const mobileFilterHeadingId = "news-v2-mobile-filter-title";
 
 export function MobileNewsV2FilterSheet({
+  canReset,
   filterOptions,
   filters,
   isOpen,
@@ -97,8 +99,15 @@ export function MobileNewsV2FilterSheet({
         ))}
 
         <footer className={styles.mobileFilterSheetActions}>
-          <button className={styles.secondaryAction} onClick={onReset} type="button">Reset all</button>
-          <button className={styles.primaryAction} onClick={onDismiss} type="button">Show results</button>
+          <button
+            className={styles.secondaryAction}
+            disabled={!canReset}
+            onClick={onReset}
+            type="button"
+          >
+            Reset all
+          </button>
+          <button className={styles.primaryAction} onClick={onDismiss} type="button">Done</button>
         </footer>
       </div>
     </BottomSheetShell>

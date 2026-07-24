@@ -10,14 +10,12 @@ import { NewsV2InsightInlineAd } from "@/components/news-v2/NewsV2InsightInlineA
 import { NewsV2RailAdSlot } from "@/components/news-v2/NewsV2RailAdSlot";
 import { PremiumUpgradeCard } from "@/components/news-v2/PremiumUpgradeCard";
 import type {
-  NewsV2Item,
   NewsV2SectorActivity,
   NewsV2SignalActivity,
   NewsV2SourceActivity,
   NewsV2ThemeActivity,
 } from "@/lib/newsV2";
 import {
-  buildNewsTrendingSignals,
   buildNewsTrendingSignalsFromActivity,
   mergeThemeMarketData,
   newsSectorRadarFallbacks,
@@ -54,7 +52,6 @@ const monitoredNewsSources = [
 const newsItemsPerTallRailAd = 12;
 
 type NewsV2InsightRailProps = {
-  items: NewsV2Item[];
   sectorActivity: NewsV2SectorActivity[];
   signalActivity: NewsV2SignalActivity[];
   sourceActivity: NewsV2SourceActivity[];
@@ -65,7 +62,6 @@ type NewsV2InsightRailProps = {
 };
 
 export function NewsV2InsightRail({
-  items,
   sourceActivity,
   themeActivity,
   total,
@@ -84,8 +80,8 @@ export function NewsV2InsightRail({
   const [themeMarketData, setThemeMarketData] = useState<NewsThemeMarketData | null>(null);
 
   const sourceRows = useMemo(
-    () => buildSourceRows(items, sourceRange, sourceActivity),
-    [items, sourceActivity, sourceRange],
+    () => buildSourceRows(sourceRange, sourceActivity),
+    [sourceActivity, sourceRange],
   );
   const visibleSourceRows = showAllSources ? sourceRows : sourceRows.slice(0, 3);
   const visibleSectors = sectorDataByRange[sectorRange] || newsSectorRadarFallbacks;
@@ -93,11 +89,8 @@ export function NewsV2InsightRail({
     visibleSectors.find((sector) => sector.sector === activeSector) ||
     visibleSectors[0];
   const rawTrendingThemes = useMemo(
-    () =>
-      themeActivity.length
-        ? buildNewsTrendingSignalsFromActivity(themeActivity)
-        : buildNewsTrendingSignals(items),
-    [items, themeActivity],
+    () => buildNewsTrendingSignalsFromActivity(themeActivity),
+    [themeActivity],
   );
   const trendingThemes = useMemo(
     () => mergeThemeMarketData(rawTrendingThemes, themeMarketData),
@@ -461,30 +454,22 @@ function RangeTabs({
 }
 
 function buildSourceRows(
-  items: NewsV2Item[],
   range: NewsV2Range,
-  fallback: NewsV2SourceActivity[],
+  activity: NewsV2SourceActivity[],
 ) {
-  const rangedItems = itemsInRange(items, range);
-  const totalCounts = countBy(items, (item) => item.source);
-  const rangeCounts = countBy(rangedItems, (item) => item.source);
-  const fallbackBySource = new Map(fallback.map((item) => [item.source, item]));
+  const activityBySource = new Map(activity.map((item) => [item.source, item]));
   const labels = new Set([
-    ...totalCounts.keys(),
-    ...fallback.map((item) => item.source),
+    ...activity.map((item) => item.source),
     ...monitoredNewsSources,
   ]);
 
   return Array.from(labels)
     .map((label) => {
-      const fallbackItem = fallbackBySource.get(label);
+      const sourceActivity = activityBySource.get(label);
       return {
         label,
-        rangeCount:
-          fallbackItem?.rangeCounts?.[range] ??
-          rangeCounts.get(label) ??
-          0,
-        totalCount: fallbackItem?.count ?? totalCounts.get(label) ?? 0,
+        rangeCount: sourceActivity?.rangeCounts[range] ?? 0,
+        totalCount: sourceActivity?.count ?? 0,
       };
     })
     .sort(
@@ -493,29 +478,6 @@ function buildSourceRows(
         right.totalCount - left.totalCount ||
         left.label.localeCompare(right.label),
     );
-}
-
-function itemsInRange(items: NewsV2Item[], range: NewsV2Range) {
-  const timestamps = items
-    .map((item) => Date.parse(item.publishedAt))
-    .filter(Number.isFinite);
-  const latestTimestamp = timestamps.length ? Math.max(...timestamps) : Date.now();
-  const days = range === "Today" ? 1 : range === "5D" ? 5 : range === "1M" ? 30 : 90;
-  const cutoff = latestTimestamp - days * 86_400_000;
-
-  return items.filter((item) => {
-    const timestamp = Date.parse(item.publishedAt);
-    return Number.isFinite(timestamp) && timestamp >= cutoff;
-  });
-}
-
-function countBy(items: NewsV2Item[], labelFor: (item: NewsV2Item) => string) {
-  const counts = new Map<string, number>();
-  for (const item of items) {
-    const label = labelFor(item).trim();
-    if (label) counts.set(label, (counts.get(label) ?? 0) + 1);
-  }
-  return counts;
 }
 
 function sourceCategory(source: string) {
