@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runSecFilingAnalysisIngest } from "@/lib/secFilingAnalysisIngest";
+import { sourceIngestAuthResponse } from "@/lib/sourceIngestRouteAuth";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
+  const unauthorized = sourceIngestAuthResponse(request);
+  if (unauthorized) return unauthorized;
+
   const body = await request.json().catch(() => null);
   const bodyRecord =
     body && typeof body === "object" && !Array.isArray(body) ? (body as Record<string, unknown>) : {};
@@ -31,6 +35,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const unauthorized = sourceIngestAuthResponse(request);
+  if (unauthorized) return unauthorized;
+
   const params = request.nextUrl.searchParams;
   const result = await runSecFilingAnalysisIngest({
     rawItemId: params.get("rawItemId") || undefined,

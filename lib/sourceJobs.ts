@@ -1,5 +1,6 @@
 import { getServerEnv } from "@/lib/env";
 import type { SourceIngestCronLane } from "@/lib/sourceWorkflowConfig";
+import { sourceIngestAuthorizationHeaders } from "@/lib/sourceIngestRouteAuth";
 
 export type SourceJob = {
   source: string;
@@ -346,6 +347,7 @@ export async function runSourceJob(
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
+          ...sourceIngestAuthorizationHeaders(),
         },
         body: JSON.stringify(safeBody),
       },

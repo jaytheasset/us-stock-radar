@@ -1,6 +1,8 @@
 import { XMLParser } from "fast-xml-parser";
 
 const BUSINESSWIRE_BASE_URL = "https://www.businesswire.com";
+const DEFAULT_ARTICLE_TIMEOUT_MS = 12_000;
+const DEFAULT_ARTICLE_CONCURRENCY = 2;
 
 const PARSER_VERSION = "businesswire_raw_parser_v1";
 const ANALYSIS_TEXT_VERSION = "businesswire_analysis_text_v1";
@@ -11,6 +13,8 @@ type FetchOptions = {
   sourceUniqueId?: string;
   includeArticleBody?: boolean;
   articleBodyLimit?: number;
+  articleTimeoutMs?: number;
+  articleConcurrency?: number;
 };
 
 type BusinessWireFeedConfig = {
@@ -73,6 +77,18 @@ export type BusinessWireRawFetchResult = {
     }>;
   };
   error?: string;
+};
+
+export type BusinessWireHydrationResult = {
+  items: BusinessWireParsedRawItem[];
+  diagnostics: {
+    articleBodiesRequested: number;
+    articleBodiesFetched: number;
+    articleBodiesFailed: number;
+    articleBodiesTimedOut: number;
+    articleConcurrency: number;
+    articleTimeoutMs: number;
+  };
 };
 
 export const BUSINESSWIRE_FEEDS: BusinessWireFeedConfig[] = [
@@ -168,61 +184,133 @@ export async function fetchBusinessWireRawItems(
     }
   }
 
-  let articleBodiesFetched = 0;
-  const hydrated: BusinessWireParsedRawItem[] = [];
-
-  for (let index = 0; index < items.length; index += 1) {
-    const item = items[index];
-    if (index >= articleBodyLimit) {
-      hydrated.push(item);
-      continue;
-    }
-
-    try {
-      const articleResponse = await fetchBusinessWireArticleHtml(item.source_url);
-      if (!articleResponse.ok) {
-        hydrated.push({
-          ...item,
-          raw_payload: {
-            ...item.raw_payload,
-            article_fetch_error: articleResponse.error || `HTTP ${articleResponse.status}`,
-            article_fetch_status: articleResponse.status,
-          },
-        });
-        continue;
-      }
-
-      const article = parseBusinessWireArticleHtml(articleResponse.html, articleResponse.url);
-      articleBodiesFetched += article.bodyText ? 1 : 0;
-      hydrated.push(mergeArticleIntoRawItem(item, article));
-    } catch (error) {
-      hydrated.push({
-        ...item,
-        raw_payload: {
-          ...item.raw_payload,
-          article_fetch_error: error instanceof Error ? error.message : "Article fetch failed",
+  const hydration = articleBodyLimit > 0
+    ? await hydrateBusinessWireRawItems(items, {
+        limit: articleBodyLimit,
+        timeoutMs: options.articleTimeoutMs,
+        concurrency: options.articleConcurrency,
+      })
+    : {
+        items,
+        diagnostics: {
+          articleBodiesRequested: 0,
+          articleBodiesFetched: 0,
+          articleBodiesFailed: 0,
+          articleBodiesTimedOut: 0,
+          articleConcurrency: 0,
+          articleTimeoutMs: 0,
         },
-      });
-    }
-  }
+      };
 
   const ok = feedStats.some((feed) => feed.ok);
   return {
     ok,
     status: ok ? 200 : 0,
     fetchedAt,
-    count: hydrated.length,
-    items: hydrated,
+    count: hydration.items.length,
+    items: hydration.items,
     diagnostics: {
       feedCount: feeds.length,
       parsedFromFeeds: items.length,
-      articleBodiesRequested: articleBodyLimit,
-      articleBodiesFetched,
+      articleBodiesRequested: hydration.diagnostics.articleBodiesRequested,
+      articleBodiesFetched: hydration.diagnostics.articleBodiesFetched,
       parserVersion: PARSER_VERSION,
       skippedNonEnglish,
       feedStats,
     },
     error: ok ? undefined : "No Business Wire feeds could be fetched",
+  };
+}
+
+export async function hydrateBusinessWireRawItems(
+  items: BusinessWireParsedRawItem[],
+  options: {
+    limit?: number;
+    timeoutMs?: number;
+    concurrency?: number;
+  } = {},
+): Promise<BusinessWireHydrationResult> {
+  const limit = clampNumber(options.limit ?? items.length, 0, items.length);
+  const timeoutMs = clampNumber(
+    options.timeoutMs ?? DEFAULT_ARTICLE_TIMEOUT_MS,
+    100,
+    60_000,
+  );
+  const concurrency = clampNumber(
+    options.concurrency ?? DEFAULT_ARTICLE_CONCURRENCY,
+    1,
+    4,
+  );
+  const requested = items.slice(0, limit);
+  const untouched = items.slice(limit);
+  let articleBodiesFetched = 0;
+  let articleBodiesFailed = 0;
+  let articleBodiesTimedOut = 0;
+
+  const hydrated = await mapWithConcurrency(
+    requested,
+    concurrency,
+    async (item) => {
+      const attemptedAt = new Date().toISOString();
+      try {
+        const articleResponse = await fetchBusinessWireArticleHtml(
+          item.source_url,
+          timeoutMs,
+        );
+        if (!articleResponse.ok) {
+          articleBodiesFailed += 1;
+          articleBodiesTimedOut += articleResponse.timedOut ? 1 : 0;
+          return withArticleFetchFailure(item, {
+            error: articleResponse.error || `HTTP ${articleResponse.status}`,
+            status: articleResponse.status,
+            attempts: articleResponse.attempts,
+            timedOut: articleResponse.timedOut,
+            attemptedAt,
+          });
+        }
+
+        const article = parseBusinessWireArticleHtml(
+          articleResponse.html,
+          articleResponse.url,
+        );
+        if (!article.bodyText) {
+          articleBodiesFailed += 1;
+          return withArticleFetchFailure(item, {
+            error: "Business Wire article body was not found",
+            status: articleResponse.status,
+            attempts: articleResponse.attempts,
+            timedOut: false,
+            attemptedAt,
+          });
+        }
+
+        articleBodiesFetched += 1;
+        return mergeArticleIntoRawItem(item, article);
+      } catch (error) {
+        articleBodiesFailed += 1;
+        const timedOut = isAbortError(error);
+        articleBodiesTimedOut += timedOut ? 1 : 0;
+        return withArticleFetchFailure(item, {
+          error: error instanceof Error ? error.message : "Article fetch failed",
+          status: 0,
+          attempts: 0,
+          timedOut,
+          attemptedAt,
+        });
+      }
+    },
+  );
+
+  return {
+    items: [...hydrated, ...untouched],
+    diagnostics: {
+      articleBodiesRequested: requested.length,
+      articleBodiesFetched,
+      articleBodiesFailed,
+      articleBodiesTimedOut,
+      articleConcurrency: concurrency,
+      articleTimeoutMs: timeoutMs,
+    },
   };
 }
 
@@ -367,36 +455,68 @@ export function stripBusinessWireAnalysisBoilerplate(bodyText: string | null) {
   };
 }
 
-async function fetchBusinessWireArticleHtml(sourceUrl: string) {
+async function fetchBusinessWireArticleHtml(
+  sourceUrl: string,
+  timeoutMs: number,
+) {
   const candidates = articleUrlCandidates(sourceUrl);
   const seenCandidates = new Set(candidates);
+  const deadline = Date.now() + timeoutMs;
   let lastStatus = 0;
   let lastError = "";
+  let attempts = 0;
+  let timedOut = false;
 
   for (let index = 0; index < candidates.length; index += 1) {
-    const candidate = candidates[index];
-    const response = await fetch(candidate, {
-      cache: "no-store",
-      redirect: "follow",
-      headers: businessWireFetchHeaders("html"),
-    });
-    lastStatus = response.status;
-
-    const html = await response.text();
-    if (response.ok && !html.includes("__next_error__")) {
-      return {
-        ok: true,
-        status: response.status,
-        url: response.url || candidate,
-        html,
-      };
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) {
+      timedOut = true;
+      lastError = `Business Wire article request timed out after ${timeoutMs}ms`;
+      break;
     }
 
-    lastError = response.statusText || "Business Wire article request failed";
-    const nextRedirectUrl = readNextRedirectUrl(html, candidate);
-    if (nextRedirectUrl && !seenCandidates.has(nextRedirectUrl)) {
-      seenCandidates.add(nextRedirectUrl);
-      candidates.push(nextRedirectUrl);
+    const candidate = candidates[index];
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), remainingMs);
+    attempts += 1;
+    try {
+      const response = await fetch(candidate, {
+        cache: "no-store",
+        redirect: "follow",
+        headers: businessWireFetchHeaders("html"),
+        signal: controller.signal,
+      });
+      lastStatus = response.status;
+
+      const html = await response.text();
+      if (response.ok && !html.includes("__next_error__")) {
+        return {
+          ok: true,
+          status: response.status,
+          url: response.url || candidate,
+          html,
+          attempts,
+          timedOut: false,
+        };
+      }
+
+      lastError = response.statusText || "Business Wire article request failed";
+      const nextRedirectUrl = readNextRedirectUrl(html, candidate);
+      if (nextRedirectUrl && !seenCandidates.has(nextRedirectUrl)) {
+        seenCandidates.add(nextRedirectUrl);
+        candidates.push(nextRedirectUrl);
+      }
+    } catch (error) {
+      if (isAbortError(error) || controller.signal.aborted) {
+        timedOut = true;
+        lastError = `Business Wire article request timed out after ${timeoutMs}ms`;
+        break;
+      }
+      lastError = error instanceof Error
+        ? error.message
+        : "Business Wire article request failed";
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
@@ -406,7 +526,67 @@ async function fetchBusinessWireArticleHtml(sourceUrl: string) {
     url: sourceUrl,
     html: "",
     error: lastError,
+    attempts,
+    timedOut,
   };
+}
+
+function withArticleFetchFailure(
+  item: BusinessWireParsedRawItem,
+  failure: {
+    error: string;
+    status: number;
+    attempts: number;
+    timedOut: boolean;
+    attemptedAt: string;
+  },
+): BusinessWireParsedRawItem {
+  return {
+    ...item,
+    raw_payload: {
+      ...item.raw_payload,
+      article_fetch_error: failure.error,
+      article_fetch_status: failure.status,
+      article_fetch_attempts: failure.attempts,
+      article_fetch_timed_out: failure.timedOut,
+      article_fetch_retryable: true,
+      article_fetch_attempted_at: failure.attemptedAt,
+    },
+  };
+}
+
+async function mapWithConcurrency<T, U>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<U>,
+) {
+  const results = new Array<U>(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(items[index], index);
+    }
+  }
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(concurrency, items.length) },
+      () => worker(),
+    ),
+  );
+  return results;
+}
+
+function isAbortError(error: unknown) {
+  return (
+    (error instanceof Error && error.name === "AbortError") ||
+    (typeof DOMException !== "undefined" &&
+      error instanceof DOMException &&
+      error.name === "AbortError")
+  );
 }
 
 function mergeArticleIntoRawItem(

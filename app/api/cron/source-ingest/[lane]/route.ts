@@ -10,7 +10,12 @@ import { SEC_PRODUCTION_INGEST_SCHEDULE } from "@/lib/sources/sec/forms/common/f
 import {
   SEC_WORKFLOW_CONFIG,
   SOURCE_INGEST_WORKFLOW_LANES,
-  isSourceIngestCronLane,
+  SOURCE_INGEST_WORKFLOW_SOURCES,
+  isNewsWorkflowLane,
+  isSourceIngestCronTarget,
+  isWorkflowNewsSource,
+  isWorkflowNewsSourceEnabled,
+  type WorkflowNewsSource,
 } from "@/lib/sourceWorkflowConfig";
 import {
   newsSourceIngestWorkflow,
@@ -47,23 +52,29 @@ async function startSourceWorkflows(request: NextRequest, context: RouteContext)
     );
   }
 
-  const { lane } = await context.params;
-  if (!isSourceIngestCronLane(lane)) {
+  const { lane: target } = await context.params;
+  if (!isSourceIngestCronTarget(target)) {
     return NextResponse.json(
-      { ok: false, error: "UNKNOWN_INGEST_LANE", lane },
+      {
+        ok: false,
+        error: "UNKNOWN_INGEST_TARGET",
+        lane: target,
+        target,
+      },
       { status: 404, headers: NO_STORE_HEADERS },
     );
   }
 
-  const enabledLanes = readEnabledLanes();
-  if (!enabledLanes.has(lane)) {
+  const enabledTargets = readEnabledTargets();
+  if (!isTargetEnabled(target, enabledTargets)) {
     return NextResponse.json(
       {
         ok: true,
-        lane,
+        lane: target,
+        target,
         status: "disabled",
         message:
-          "Add this lane to SOURCE_INGEST_WORKFLOW_ENABLED_LANES after the migration and environment checks pass.",
+          "Add this source or its legacy lane to SOURCE_INGEST_WORKFLOW_ENABLED_LANES after the migration and environment checks pass.",
       },
       { status: 200, headers: NO_STORE_HEADERS },
     );
@@ -71,20 +82,27 @@ async function startSourceWorkflows(request: NextRequest, context: RouteContext)
 
   const now = new Date();
   const triggerMinute = now.toISOString().slice(0, 16);
-  const results = lane === "sec"
+  const results = target === "sec"
     ? await startDueSecWorkflows(request, triggerMinute, now)
-    : [await startNewsWorkflow(lane, triggerMinute)];
+    : isNewsWorkflowLane(target)
+      ? await Promise.all(
+          SOURCE_INGEST_WORKFLOW_LANES[target].sourceIds.map((source) =>
+            startNewsWorkflow(source, triggerMinute),
+          ),
+        )
+      : [await startNewsWorkflow(target, triggerMinute)];
   const failed = results.filter((result) => result.status === "failed");
   const started = results.filter((result) => result.status === "started");
 
   console.log(
-    `[source-ingest-cron] lane=${lane} triggerMinute=${triggerMinute} started=${started.length} failed=${failed.length}`,
+    `[source-ingest-cron] target=${target} triggerMinute=${triggerMinute} started=${started.length} failed=${failed.length}`,
   );
 
   return NextResponse.json(
     {
       ok: failed.length === 0,
-      lane,
+      lane: target,
+      target,
       triggeredAt: now.toISOString(),
       status:
         failed.length > 0
@@ -177,44 +195,47 @@ async function startDueSecWorkflows(
 }
 
 async function startNewsWorkflow(
-  lane: keyof typeof SOURCE_INGEST_WORKFLOW_LANES,
+  source: WorkflowNewsSource,
   triggerMinute: string,
 ) {
-  const config = SOURCE_INGEST_WORKFLOW_LANES[lane];
-  const lock = createLock(`source-ingest:${lane}`);
+  const config = SOURCE_INGEST_WORKFLOW_SOURCES[source];
+  const lock = createLock(`source-ingest:news:${source}`);
   const lockResult = await acquireIngestWorkflowLock(lock, config.lockTtlSeconds);
   if (!lockResult.ok) {
     return {
       status: "failed" as const,
+      source,
       error: lockResult.error || "INGEST_LOCK_UNAVAILABLE",
     };
   }
   if (!lockResult.acquired) {
     return {
       status: "locked" as const,
+      source,
       reason: "DUPLICATE_OR_OVERLAPPING_RUN",
     };
   }
 
-  const triggerId = `${lane}:${triggerMinute}Z`;
+  const triggerId = `news:${source}:${triggerMinute}Z`;
   try {
     const run = await start(newsSourceIngestWorkflow, [
       {
         ...lock,
         triggerId,
-        lane,
+        source,
       },
     ]);
     return {
       status: "started" as const,
+      source,
       triggerId,
       runId: run.runId,
-      sourceCount: config.sourceIds.length,
     };
   } catch (error) {
     await releaseIngestWorkflowLock(lock);
     return {
       status: "failed" as const,
+      source,
       triggerId,
       error: error instanceof Error ? error.message : "WORKFLOW_START_FAILED",
     };
@@ -266,11 +287,23 @@ function isTruthy(value: string | null) {
   return value === "true" || value === "1" || value === "yes";
 }
 
-function readEnabledLanes() {
+function readEnabledTargets() {
   return new Set(
     (process.env.SOURCE_INGEST_WORKFLOW_ENABLED_LANES || "")
       .split(",")
       .map((value) => value.trim())
-      .filter(isSourceIngestCronLane),
+      .filter(isSourceIngestCronTarget),
   );
+}
+
+function isTargetEnabled(
+  target: string,
+  enabledTargets: ReadonlySet<string>,
+) {
+  if (target === "sec" || isNewsWorkflowLane(target)) {
+    return enabledTargets.has(target);
+  }
+  return isWorkflowNewsSource(target)
+    ? isWorkflowNewsSourceEnabled(target, enabledTargets)
+    : false;
 }

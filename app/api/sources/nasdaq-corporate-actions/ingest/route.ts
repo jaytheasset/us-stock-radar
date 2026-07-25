@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runNasdaqCorporateActionsNewsIngest } from "@/lib/newsIngest";
+import { sourceIngestAuthResponse } from "@/lib/sourceIngestRouteAuth";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
+  const unauthorized = sourceIngestAuthResponse(request);
+  if (unauthorized) return unauthorized;
+
   try {
     const body = await request.json().catch(() => null);
     const bodyRecord = body && typeof body === "object" && !Array.isArray(body) ? body as Record<string, unknown> : {};
@@ -30,6 +34,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const unauthorized = sourceIngestAuthResponse(request);
+  if (unauthorized) return unauthorized;
+
   try {
     const limit = readNumber(request.nextUrl.searchParams.get("limit"), undefined, 1, 20, 1);
     const dryRun = request.nextUrl.searchParams.get("dryRun") !== "false";
