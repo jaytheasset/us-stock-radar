@@ -155,7 +155,7 @@ const loadCachedNewsV2Facets = unstable_cache(
     if (!facets) throw new Error("News filter facets are unavailable.");
     return facets;
   },
-  ["news-v2-filter-options-v2"],
+  ["news-v2-filter-options-v3-market-score-75"],
   { revalidate: 300, tags: ["news-v2-facets"] },
 );
 
@@ -168,7 +168,7 @@ const loadCachedNewsV2FirstPage = unstable_cache(
     if (!result.ok) throw new Error(result.error || "News search is unavailable.");
     return result;
   },
-  ["news-v2-filtered-first-page-v1"],
+  ["news-v2-filtered-first-page-v2-market-score-75"],
   { revalidate: newsV2StatisticsCacheSeconds },
 );
 
