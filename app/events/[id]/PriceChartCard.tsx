@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { PointerEvent } from "react";
 import { ChevronDown } from "lucide-react";
+import { selectPriceChartXAxisIndexes } from "@/lib/priceChartAxis";
 import type { DetailTone, PriceChartSeries, PricePoint, PriceRange } from "./detailTypes";
 
 const priceRanges: PriceRange[] = ["1D", "5D", "1M", "3M", "1Y", "5Y"];
@@ -277,7 +278,10 @@ function PriceVolumeChart({
   const priceMax = rawMax + padding;
   const volumeMax = Math.max(...chartPoints.map((point) => point.volume), 1);
   const ticks = [priceMax, priceMin + (priceMax - priceMin) / 2, priceMin];
-  const xTickIndexes = xAxisIndexes(chartPoints.length);
+  const xTickIndexes = selectPriceChartXAxisIndexes(
+    chartPoints.length,
+    chartBox.plotRight - chartBox.plotLeft,
+  );
   const linePoints = chartPoints
     .map(
       (point, index) =>
@@ -428,19 +432,6 @@ function volumeBarWidth(count: number) {
   if (count > 70) return 2.4;
   if (count > 30) return 4.2;
   return 8.4;
-}
-
-function xAxisIndexes(count: number) {
-  const targetCount = Math.min(count, 6);
-  if (targetCount <= 1) return [0];
-
-  return Array.from(
-    new Set(
-      Array.from({ length: targetCount }, (_, index) =>
-        Math.round((index / (targetCount - 1)) * (count - 1)),
-      ),
-    ),
-  );
 }
 
 function textAnchorForIndex(index: number, count: number) {

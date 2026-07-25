@@ -4,6 +4,8 @@ import test from "node:test";
 import { parseNewsV2Statistics } from "./newsV2ApiContract.ts";
 import { hasResettableNewsV2State } from "./newsV2FilterState.ts";
 import { hydrateNewsV2ItemMarketData } from "./newsV2MarketHydration.ts";
+import { buildGooglePreferredSourceUrl } from "./googlePreferredSource.ts";
+import { selectPriceChartXAxisIndexes } from "./priceChartAxis.ts";
 import type { NewsV2FilterState, NewsV2Item } from "./newsV2.ts";
 
 const emptyFilters: NewsV2FilterState = {
@@ -144,6 +146,74 @@ test("10k+ tuple cursor pagination is stable with tied timestamps", () => {
 
   assert.equal(visited.length, rows.length);
   assert.equal(new Set(visited).size, rows.length);
+});
+
+test("Google preferred-source links always use the public Stock Radar domain", () => {
+  assert.equal(
+    buildGooglePreferredSourceUrl(),
+    "https://google.com/preferences/source?q=us-stock-radar.com",
+  );
+
+  for (const path of [
+    "../app/news/page.tsx",
+    "../components/news-analysis-v2/NewsAnalysisAdapter.tsx",
+    "../app/filings/page.tsx",
+    "../app/filings/[id]/page.tsx",
+  ]) {
+    const source = readFileSync(new URL(path, import.meta.url), "utf8");
+    assert.match(source, /buildGooglePreferredSourceUrl\(\)/, path);
+    assert.doesNotMatch(source, /getServerEnv\(\)\.appBaseUrl/, path);
+  }
+});
+
+test("news archive rejects missing data without exposing development fixtures", () => {
+  const source = readFileSync(
+    new URL("../app/news/archive/[id]/page.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /if \(!isUuid\(id\)\) notFound\(\)/);
+  assert.match(source, /if \(!dbPayload\) notFound\(\)/);
+  assert.match(source, /series=\{null\}/);
+  assert.match(source, /original article text is currently unavailable/i);
+  assert.doesNotMatch(source, /mockArchiveEvent|buildMockPriceSeries|Trinity Bank/);
+});
+
+test("mobile news metadata uses a dedicated readable row", () => {
+  const rowSource = readFileSync(
+    new URL("../components/news-v2/NewsV2Row.tsx", import.meta.url),
+    "utf8",
+  );
+  const styles = readFileSync(
+    new URL(
+      "../components/news-v2/StockRadarNewsV2.module.css",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(rowSource, /className=\{styles\.rowMobileBadges\}/);
+  assert.match(styles, /\.newsRow \{[\s\S]*grid-template-rows: auto auto auto;/);
+  assert.match(
+    styles,
+    /\.rowSource \{[\s\S]*grid-column: 2 \/ 4;[\s\S]*grid-row: 2;/,
+  );
+  assert.match(
+    styles,
+    /\.rowMobilePublishedAt \{[\s\S]*grid-column: 1;[\s\S]*grid-row: 2;/,
+  );
+});
+
+test("price chart reduces time ticks only for narrow plots", () => {
+  assert.deepEqual(
+    selectPriceChartXAxisIndexes(100, 260),
+    [0, 33, 66, 99],
+  );
+  assert.deepEqual(
+    selectPriceChartXAxisIndexes(100, 320),
+    [0, 20, 40, 59, 79, 99],
+  );
+  assert.deepEqual(selectPriceChartXAxisIndexes(0, 260), []);
 });
 
 test("news migration keeps page bounds, indexed search, real-time ET ranges, and service-only RPCs", () => {

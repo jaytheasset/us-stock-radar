@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { StockRadarNewsV2 } from "@/components/news-v2/StockRadarNewsV2";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
-import { getServerEnv } from "@/lib/env";
 import { buildGooglePreferredSourceUrl } from "@/lib/googlePreferredSource";
 import { getNewsV2PageData } from "@/lib/newsV2Data";
 import { getEffectiveUserPlan } from "@/lib/subscription/effectivePlan";
@@ -21,7 +20,7 @@ export default async function NewsPage() {
   const viewerPlan = userId
     ? (await getEffectiveUserPlan(userId)).effectivePlan
     : "free";
-  const preferredSourceUrl = buildGooglePreferredSourceUrl(getServerEnv().appBaseUrl);
+  const preferredSourceUrl = buildGooglePreferredSourceUrl();
 
   return (
     <StockRadarAppShell activeNavigationItem="news" themeMode="user-selectable">

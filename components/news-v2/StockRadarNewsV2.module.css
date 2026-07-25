@@ -580,6 +580,7 @@
 
 .rowCategoryBadgeMobile,
 .rowEventTypeBadgeMobile,
+.rowMobileBadges,
 .mobileTickerOverflow,
 .rowMobilePublishedAt {
   display: none;
@@ -1987,7 +1988,7 @@
   .newsRow {
     min-height: calc(var(--sr-size-table-row) + var(--sr-space-8));
     grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-rows: auto auto;
+    grid-template-rows: auto auto auto;
     align-items: start;
     column-gap: var(--sr-space-1-5);
     row-gap: var(--sr-space-2);
@@ -2036,7 +2037,7 @@
 
   .rowHeadline {
     grid-column: 1 / 3;
-    grid-row: 2;
+    grid-row: 3;
     display: -webkit-box;
     overflow: hidden;
     color: var(--sr-color-text-secondary);
@@ -2048,11 +2049,17 @@
   }
 
   .rowBadges {
+    display: contents;
+  }
+
+  .rowMobileBadges {
+    display: flex;
+    min-width: 0;
     grid-column: 2;
     grid-row: 1;
+    align-items: center;
     align-self: center;
     overflow: hidden;
-    flex-wrap: nowrap;
     gap: var(--sr-space-1-5);
   }
 
@@ -2064,6 +2071,12 @@
   .rowCategoryBadgeMobile,
   .rowEventTypeBadgeMobile {
     display: inline-flex;
+    min-width: 0;
+  }
+
+  .rowEventTypeBadgeMobile {
+    flex: 1 1 auto;
+    overflow: hidden;
   }
 
   .mobileTickerOverflow {
@@ -2077,13 +2090,19 @@
   .rowSource {
     overflow: hidden;
     min-width: 0;
+    grid-column: 2 / 4;
+    grid-row: 2;
+    align-self: center;
     text-overflow: ellipsis;
   }
 
   .rowMobilePublishedAt {
     display: inline-flex;
     flex: 0 0 auto;
+    grid-column: 1;
+    grid-row: 2;
     align-items: center;
+    align-self: center;
     gap: var(--sr-space-1);
     font-size: var(--sr-font-size-xs);
     font-variant-numeric: var(--sr-font-variant-numeric);
@@ -2119,7 +2138,7 @@
 
   .rowQuote {
     grid-column: 3;
-    grid-row: 2;
+    grid-row: 3;
     align-self: start;
     justify-items: end;
     gap: var(--sr-space-1);
