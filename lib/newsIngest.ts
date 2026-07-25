@@ -9,10 +9,7 @@ import { evaluateCalendarItemPolicy } from "@/lib/calendarPolicy";
 import { getCalendarEventGroup, normalizeCalendarEventType } from "@/lib/calendarEventRegistry";
 import { runNewsEventAnalysisForRawItem } from "@/lib/ai/newsEventAnalysisPreview";
 import { runNasdaqCorporateActionAnalysisForRawItem } from "@/lib/ai/nasdaqCorporateActionAnalysisPreview";
-import {
-  buildBusinessWireIngestPlan,
-  partitionBusinessWireHydrationItems,
-} from "@/lib/businessWireIngestPlan";
+import { prepareSourceHydrationBatch } from "@/lib/sourceHydrationIngestPlan";
 import { fetchGlobeNewswireRawItems, type GlobeParsedRawItem } from "@/lib/sources/globe/parser";
 import {
   fetchBusinessWireRawItems,
@@ -21,7 +18,11 @@ import {
 } from "@/lib/sources/businesswire/parser";
 import { fetchPRNewswireRawItems } from "@/lib/sources/prnewswire/parser";
 import { fetchNewsfileRawItems } from "@/lib/sources/newsfile/parser";
-import { fetchAccesswireRawItems } from "@/lib/sources/accesswire/parser";
+import {
+  fetchAccesswireRawItems,
+  hydrateAccesswireRawItems,
+  type AccesswireParsedRawItem,
+} from "@/lib/sources/accesswire/parser";
 import { fetchOfacRawItems } from "@/lib/sources/ofac/parser";
 import { fetchDojRawItems } from "@/lib/sources/doj/parser";
 import { fetchDeaRawItems } from "@/lib/sources/dea/parser";
@@ -211,6 +212,15 @@ export async function runAccesswireNewsIngestWithRawFetcher(
       fetchErrorLabel: "Access Newswire raw fetch failed",
       ingestErrorLabel: "Access Newswire ingest error",
       fetchRawItems,
+      hydrateRawItems: (items, hydrateOptions) =>
+        hydrateAccesswireRawItems(
+          items as AccesswireParsedRawItem[],
+          {
+            limit: hydrateOptions.limit,
+            timeoutMs: 12_000,
+            concurrency: 2,
+          },
+        ) as Promise<NewsRawHydrationResult>,
     },
     options,
   );
@@ -426,21 +436,31 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
     let hydrationDiagnostics: Record<string, unknown> = {};
 
     if (config.hydrateRawItems) {
-      const plan = await buildBusinessWireIngestPlan(
-        rawResult.items,
-        async (rawItem) => {
+      const batch = await prepareSourceHydrationBatch({
+        items: rawResult.items,
+        sourceCode: config.sourceCode,
+        loadExistingState: async (rawItem) => {
           const [raw, event] = await Promise.all([
             findExistingRawItem(rawItem),
             findExistingEvent(buildGroupDedupeKey(rawItem)),
           ]);
           return { raw: raw || null, event: event || null };
         },
-        { force },
-      );
+        hydrateItems: (items) =>
+          config.hydrateRawItems!(items, { limit: items.length }),
+        mergeExistingRaw: mergeListingWithExistingRaw,
+        force,
+      });
 
-      for (const skipped of plan.skipped) {
+      stats.preexisting_count = batch.stats.preexistingCount;
+      stats.hydration_requested_count =
+        batch.stats.hydrationRequestedCount;
+      stats.hydration_reused_count = batch.stats.hydrationReusedCount;
+      stats.hydration_failed_count = batch.stats.hydrationFailedCount;
+      hydrationDiagnostics = batch.hydrationDiagnostics;
+
+      for (const skipped of batch.skipped) {
         stats.skipped_count += 1;
-        stats.preexisting_count += 1;
         resultItems.push({
           ok: true,
           skipped: true,
@@ -456,37 +476,12 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
         });
       }
 
-      const reusedItems = plan.reused.map(({ item, raw }) =>
-        mergeBusinessWireListingWithExistingRaw(item, raw),
-      );
-      stats.hydration_reused_count = reusedItems.length;
-      stats.hydration_requested_count = plan.hydrate.length;
-
-      const hydration = plan.hydrate.length
-        ? await config.hydrateRawItems(plan.hydrate, {
-            limit: plan.hydrate.length,
-          })
-        : {
-            items: [] as NewsRawItem[],
-            diagnostics: {
-              articleBodiesRequested: 0,
-              articleBodiesFetched: 0,
-              articleBodiesFailed: 0,
-              articleBodiesTimedOut: 0,
-            },
-          };
-      hydrationDiagnostics = hydration.diagnostics;
-
-      const hydrationPartition = partitionBusinessWireHydrationItems(
-        hydration.items,
-      );
-      for (const rawItem of hydrationPartition.retryableFailures) {
+      for (const rawItem of batch.retryableFailures) {
         const persistedRaw = dryRun
           ? null
           : await persistRawItem(config, rawItem, runId);
         if (persistedRaw) stats.raw_upserted_count += 1;
         stats.skipped_count += 1;
-        stats.hydration_failed_count += 1;
         resultItems.push({
           ok: true,
           skipped: true,
@@ -496,15 +491,14 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
           raw_item_id: persistedRaw?.id || null,
           source_unique_id: rawItem.source_unique_id,
           title: rawItem.title,
-          error: rawItem.raw_payload.article_fetch_error,
+          error:
+            rawItem.raw_payload.article_fetch_error ||
+            `${config.sourceName} hydration returned no usable article text`,
           timed_out: rawItem.raw_payload.article_fetch_timed_out === true,
         });
       }
 
-      itemsForProcessing = [
-        ...reusedItems,
-        ...hydrationPartition.ready,
-      ];
+      itemsForProcessing = batch.processingItems;
     }
 
     for (const rawItem of itemsForProcessing) {
@@ -526,10 +520,22 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
           continue;
         }
 
-        const persistedRaw = dryRun ? null : await persistRawItem(config, rawItem, runId);
+        const rawSkipDecision = readRawItemPrefilterSkipDecision(rawItem);
+        const terminalPrefilterDecision =
+          rawSkipDecision?.decision === "low_value_raw_prefilter" ||
+          rawSkipDecision?.decision === "trading_halt_status_log_only"
+            ? rawSkipDecision
+            : null;
+        const persistedRaw = dryRun
+          ? null
+          : await persistRawItem(
+              config,
+              rawItem,
+              runId,
+              terminalPrefilterDecision,
+            );
         if (persistedRaw) stats.raw_upserted_count += 1;
 
-        const rawSkipDecision = readRawItemPrefilterSkipDecision(rawItem);
         if (rawSkipDecision) {
           stats.skipped_count += 1;
           incrementSkipStats(stats, rawSkipDecision.decision);
@@ -900,7 +906,7 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
   }
 }
 
-function mergeBusinessWireListingWithExistingRaw(
+function mergeListingWithExistingRaw(
   listing: NewsRawItem,
   existing: Record<string, unknown>,
 ): NewsRawItem {
@@ -918,6 +924,14 @@ function mergeBusinessWireListingWithExistingRaw(
   delete rawPayload.article_fetch_attempts;
   delete rawPayload.article_fetch_timed_out;
   delete rawPayload.article_fetch_retryable;
+  delete rawPayload.article_fetch_attempted_at;
+
+  const existingAnalysisText =
+    nullableString(existing.analysis_text) ||
+    nullableString(existingPayload.analysis_text);
+  if (existingAnalysisText) {
+    rawPayload.analysis_text = existingAnalysisText;
+  }
 
   return {
     ...listing,
@@ -934,7 +948,15 @@ function mergeBusinessWireListingWithExistingRaw(
   };
 }
 
-async function persistRawItem(config: NewsSourceConfig, rawItem: NewsRawItem, runId: string) {
+async function persistRawItem(
+  config: NewsSourceConfig,
+  rawItem: NewsRawItem,
+  runId: string,
+  terminalPrefilterDecision: {
+    decision: string;
+    reason: string;
+  } | null = null,
+) {
   const existing = await findExistingRawItem(rawItem);
   const id = stringValue(existing?.id) || randomUUID();
   const existingMetadata = toRecord(existing?.metadata) || {};
@@ -968,6 +990,15 @@ async function persistRawItem(config: NewsSourceConfig, rawItem: NewsRawItem, ru
         rawItem.raw_payload.article_fetch_retryable === true,
       article_fetch_attempted_at:
         rawItem.raw_payload.article_fetch_attempted_at || null,
+      ...(terminalPrefilterDecision
+        ? {
+            ingest_decision: terminalPrefilterDecision.decision,
+            coverage_reason: terminalPrefilterDecision.reason,
+            event_created: false,
+            workflow_analysis_status: "skipped",
+            workflow_analysis_updated_at: new Date().toISOString(),
+          }
+        : {}),
     },
     dedupe_key: rawItem.dedupe_key,
   };
