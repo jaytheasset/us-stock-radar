@@ -1,0 +1,114 @@
+export const liveFeedV2BatchSize = 25;
+
+export const liveFeedV2Filters = [
+  { label: "All", value: "all" },
+  { label: "News", value: "news" },
+  { label: "Filings", value: "filings" },
+  { label: "Market", value: "market" },
+  { label: "Alerts", value: "alerts" },
+  { label: "Watchlist", value: "watchlist" },
+] as const;
+
+export type LiveFeedV2Filter = (typeof liveFeedV2Filters)[number]["value"];
+export type LiveFeedV2Kind = "news" | "filings" | "market";
+export type LiveFeedV2Sentiment =
+  | "Bearish"
+  | "Bullish"
+  | "Neutral"
+  | "Volatile";
+
+export type LiveFeedV2Item = {
+  category: string;
+  changePercent: number | null;
+  company: string;
+  detailHref: string;
+  feedType: LiveFeedV2Kind;
+  headline: string;
+  id: string;
+  impactScore: number;
+  price: string;
+  sentiment: LiveFeedV2Sentiment;
+  source: string;
+  sparkline: readonly number[];
+  summary: string;
+  ticker: string;
+  timestamp: string;
+  timeDateLabel: string;
+  timeLabel: string;
+};
+
+export type LiveFeedV2Page = {
+  availability: "available" | "unavailable";
+  emptyMessage?: string;
+  error?: string;
+  filter: LiveFeedV2Filter;
+  items: readonly LiveFeedV2Item[];
+  nextCursor: string | null;
+  totalCount: number | null;
+};
+
+export function normalizeLiveFeedV2Filter(
+  value: string | null | undefined,
+): LiveFeedV2Filter {
+  return liveFeedV2Filters.some((filter) => filter.value === value)
+    ? (value as LiveFeedV2Filter)
+    : "all";
+}
+
+export function encodeLiveFeedV2Cursor(page: number) {
+  return `page:${Math.max(1, Math.trunc(page))}`;
+}
+
+export function decodeLiveFeedV2Cursor(cursor: string | null | undefined) {
+  const match = /^page:(\d{1,5})$/.exec(cursor || "");
+  if (!match) return 1;
+
+  const page = Number(match[1]);
+  return Number.isSafeInteger(page) && page > 0 ? page : 1;
+}
+
+export function formatLiveFeedV2Timestamp(
+  value: string,
+  now = new Date(),
+): { dateLabel: string; timeLabel: string } {
+  const date = new Date(value);
+  if (!value || Number.isNaN(date.getTime())) {
+    return { dateLabel: "Date unavailable", timeLabel: "Time unavailable" };
+  }
+
+  const dateKey = formatNewYorkDateKey(date);
+  const todayKey = formatNewYorkDateKey(now);
+  const dateLabel =
+    dateKey === todayKey
+      ? "Today"
+      : new Intl.DateTimeFormat("en-US", {
+          day: "numeric",
+          month: "short",
+          timeZone: "America/New_York",
+        }).format(date);
+
+  return {
+    dateLabel,
+    timeLabel: new Intl.DateTimeFormat("en-US", {
+      hour: "numeric",
+      hour12: true,
+      minute: "2-digit",
+      timeZone: "America/New_York",
+    }).format(date),
+  };
+}
+
+function formatNewYorkDateKey(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "America/New_York",
+    year: "numeric",
+  }).formatToParts(date);
+  const values = Object.fromEntries(
+    parts
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value]),
+  );
+  return `${values.year}-${values.month}-${values.day}`;
+}

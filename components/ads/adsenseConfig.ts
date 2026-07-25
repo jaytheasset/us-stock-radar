@@ -9,6 +9,9 @@ export const adSenseInventories = [
   "filings-mobile-inline",
   "analysis-signal-companion",
   "analysis-collapsed-rail-inline",
+  "feed-rail-300x250",
+  "feed-desktop-inline",
+  "feed-mobile-inline",
   "dashboard-rail",
   "dashboard-desktop-inline",
   "dashboard-mobile-inline",
@@ -58,6 +61,15 @@ export function resolveAdSenseConfig(input: AdSenseConfigInput): AdSenseConfig {
     "analysis-collapsed-rail-inline": normalize(
       input.slotIds?.["analysis-collapsed-rail-inline"],
     ),
+    "feed-rail-300x250": normalize(
+      input.slotIds?.["feed-rail-300x250"],
+    ),
+    "feed-desktop-inline": normalize(
+      input.slotIds?.["feed-desktop-inline"],
+    ),
+    "feed-mobile-inline": normalize(
+      input.slotIds?.["feed-mobile-inline"],
+    ),
     "dashboard-rail": normalize(input.slotIds?.["dashboard-rail"]),
     "dashboard-desktop-inline": normalize(
       input.slotIds?.["dashboard-desktop-inline"],
@@ -98,6 +110,12 @@ export function resolveAdSenseConfig(input: AdSenseConfigInput): AdSenseConfig {
     "analysis-collapsed-rail-inline":
       isProductionPublisher &&
       Boolean(slotIds["analysis-collapsed-rail-inline"]),
+    "feed-rail-300x250":
+      isProductionPublisher && Boolean(slotIds["feed-rail-300x250"]),
+    "feed-desktop-inline":
+      isProductionPublisher && Boolean(slotIds["feed-desktop-inline"]),
+    "feed-mobile-inline":
+      isProductionPublisher && Boolean(slotIds["feed-mobile-inline"]),
     "dashboard-rail":
       isProductionPublisher && Boolean(slotIds["dashboard-rail"]),
     "dashboard-desktop-inline":
@@ -146,6 +164,12 @@ export const adsenseConfig = resolveAdSenseConfig({
       process.env.NEXT_PUBLIC_ADSENSE_ANALYSIS_SIGNAL_COMPANION_SLOT_ID,
     "analysis-collapsed-rail-inline":
       process.env.NEXT_PUBLIC_ADSENSE_ANALYSIS_COLLAPSED_RAIL_INLINE_SLOT_ID,
+    "feed-rail-300x250":
+      process.env.NEXT_PUBLIC_ADSENSE_FEED_RAIL_300X250_SLOT_ID,
+    "feed-desktop-inline":
+      process.env.NEXT_PUBLIC_ADSENSE_FEED_DESKTOP_INLINE_SLOT_ID,
+    "feed-mobile-inline":
+      process.env.NEXT_PUBLIC_ADSENSE_FEED_MOBILE_INLINE_SLOT_ID,
     "dashboard-rail": process.env.NEXT_PUBLIC_ADSENSE_DASHBOARD_V2_RAIL_SLOT_ID,
     "dashboard-desktop-inline":
       process.env.NEXT_PUBLIC_ADSENSE_DASHBOARD_V2_DESKTOP_INLINE_SLOT_ID,
