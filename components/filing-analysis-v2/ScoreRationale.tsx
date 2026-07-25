@@ -12,6 +12,17 @@ export type ScoreRationaleProps = {
   signal: ScoreRationaleSignal;
 };
 
+export function isScoreRationaleVisible({
+  deliveryLevel,
+  rationale,
+}: Pick<ScoreRationaleProps, "deliveryLevel" | "rationale">) {
+  return (
+    deliveryLevel !== "archive" &&
+    typeof rationale === "string" &&
+    Boolean(rationale.trim())
+  );
+}
+
 export function ScoreRationale({
   deliveryLevel,
   impact,
@@ -19,9 +30,7 @@ export function ScoreRationale({
   score,
   signal,
 }: ScoreRationaleProps) {
-  const hasStoredRationale = typeof rationale === "string" && Boolean(rationale.trim());
-
-  if (deliveryLevel === "archive" || !hasStoredRationale) {
+  if (!isScoreRationaleVisible({ deliveryLevel, rationale })) {
     return null;
   }
 

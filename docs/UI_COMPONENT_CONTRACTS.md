@@ -794,7 +794,7 @@ Dashboard inventory is independently configured through `dashboard-rail`, `dashb
 - News V2 placement owners: `components/news-v2/NewsV2InsightRail.tsx`, `components/news-v2/NewsV2List.tsx`, `components/news-v2/NewsV2RailAdSlot.tsx`, `components/news-v2/NewsV2InlineAd.tsx`, and `components/news-v2/NewsV2InsightInlineAd.tsx`
 - Filings V2 placement owners: `components/filings-v2/StockRadarFilingsV2.tsx`, `components/filings-v2/FilingsV2Detail.tsx`, `components/filings-v2/FilingsV2List.tsx`, `components/filings-v2/FilingsRailAdSlot.tsx`, and `components/filings-v2/FilingsV2InlineAd.tsx`
 - Dashboard V2 placement owners: `components/dashboard-v2/DesktopRailAdSlot.tsx`, `components/dashboard-v2/DesktopInlineAdSlot.tsx`, and `components/dashboard-v2/MobileInlineAdSlot.tsx`
-- Filing analysis placement owners: `components/filing-analysis-v2/FilingRailAdSlot.tsx`, `components/filing-analysis-v2/FilingInlineAdSlot.tsx`, and `components/filing-analysis-v2/AnalysisSignalCompanionAd.tsx`
+- Filing analysis placement owners: `components/filing-analysis-v2/FilingRailAdSlot.tsx`, `components/filing-analysis-v2/FilingInlineAdSlot.tsx`, `components/filing-analysis-v2/AnalysisSignalCompanionAd.tsx`, and `components/filing-analysis-v2/AnalysisCollapsedRailInlineAd.tsx`
 - Alerts placement owner: `components/alerts-v2/StockRadarAlertsV2.tsx`
 - Responsive geometry and visibility owner: `components/news-v2/StockRadarNewsV2.module.css`
 - Site-wide Anchor opt-in owner: `app/layout.tsx`
@@ -816,6 +816,7 @@ Viewer eligibility for News and Filings list/detail manual placements is resolve
 - At the mobile/tablet breakpoint, rail and desktop-inline inventory is hidden. Mobile inline inventory uses a responsive request capped at 480 px with a 100 px minimum reservation.
 - Dashboard V2, filing analysis, and Alerts use this same shared responsive contract. Their desktop rail positions are capped at 336 px; their desktop inline positions are capped at 970 px; their mobile inline positions are capped at 480 px. Alerts retains two independently configured rail positions but no longer hard-reserves the legacy 600 px block.
 - A free-viewer news or filing analysis with exactly one non-empty Bullish/Bearish card places the independently configured analysis-signal companion unit in the other desktop grid cell. Both-card and no-card analyses do not mount it. At 760 px and below, the existing one-column analysis grid stacks the companion unit after the signal card.
+- When a free-viewer analysis has no related-content rail and a visible Score Rationale, the ad-only desktop rail collapses at 1180 px and an independently configured horizontal fallback appears immediately above Score Rationale. It is capped at 970 x 90 from 761 through 1180 px and adapts to a 480 x 100 reservation at 760 px and below. Above 1180 px the fallback remains hidden and its media query prevents an AdSense request; related-content rails and analyses without Score Rationale never mount it.
 - Desktop and mobile placements have mutually exclusive media-query activation. An inactive placement never renders an `ins.adsbygoogle` element and therefore cannot request a hidden ad. Minimum reservations prevent layout shift without forcing an oversized empty rectangle.
 
 ### Configuration, fallback, and activation
@@ -833,6 +834,7 @@ The publisher script is eligible only in a production build with `NEXT_PUBLIC_AD
 - `NEXT_PUBLIC_ADSENSE_FILINGS_DESKTOP_INLINE_SLOT_ID`
 - `NEXT_PUBLIC_ADSENSE_FILINGS_MOBILE_INLINE_SLOT_ID`
 - `NEXT_PUBLIC_ADSENSE_ANALYSIS_SIGNAL_COMPANION_SLOT_ID`
+- `NEXT_PUBLIC_ADSENSE_ANALYSIS_COLLAPSED_RAIL_INLINE_SLOT_ID`
 - `NEXT_PUBLIC_ADSENSE_DASHBOARD_V2_RAIL_SLOT_ID`
 - `NEXT_PUBLIC_ADSENSE_DASHBOARD_V2_DESKTOP_INLINE_SLOT_ID`
 - `NEXT_PUBLIC_ADSENSE_DASHBOARD_V2_MOBILE_INLINE_SLOT_ID`
