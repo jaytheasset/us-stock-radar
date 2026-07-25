@@ -32,6 +32,7 @@
     "verify:filings-v2": "node --test --experimental-strip-types components/filings-v2/filingsV2Regression.test.ts",
     "verify:market-date": "node --test --experimental-strip-types lib/marketDate.test.ts",
     "verify:market-cache-workflow": "node --test --experimental-strip-types lib/marketCacheWorkflow.test.ts",
+    "verify:prelaunch": "node --test --experimental-strip-types lib/prelaunch.test.ts",
     "verify:news-v2": "node --test --experimental-strip-types lib/newsV2Regression.test.ts",
     "verify:us-equity-calendar": "node --test --experimental-strip-types lib/usEquityMarketCalendar.test.ts",
     "verify:newsfile-parser": "node --experimental-strip-types scripts/verify-newsfile-parser.mjs",
