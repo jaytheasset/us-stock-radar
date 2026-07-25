@@ -17,6 +17,71 @@ export type LiveFeedV2Sentiment =
   | "Neutral"
   | "Volatile";
 
+export type LiveFeedV2RelatedItem = {
+  href: string;
+  label: string;
+  metadata: string;
+  title: string;
+};
+
+export type LiveFeedV2RelatedCompany = {
+  company: string | null;
+  context: string | null;
+  ticker: string;
+};
+
+type LiveFeedV2PreviewBase = {
+  detailHref: string;
+  id: string;
+  impact: number;
+  publishedAt: string;
+  signal: LiveFeedV2Sentiment;
+  source: string;
+  sourceUrl: string | null;
+  title: string;
+};
+
+export type LiveFeedV2FilingPreview = LiveFeedV2PreviewBase & {
+  accession: string | null;
+  company: string | null;
+  events: readonly string[];
+  filingBrief: string | null;
+  formType: string | null;
+  keyPoints: readonly string[];
+  kind: "filing";
+  relatedFilings: readonly LiveFeedV2RelatedItem[];
+  ticker: string;
+  watchlist: boolean | null;
+};
+
+export type LiveFeedV2CompanyNewsPreview = LiveFeedV2PreviewBase & {
+  brief: string | null;
+  category: string;
+  company: string | null;
+  coverage: "Company";
+  keyPoints: readonly string[];
+  kind: "company-news";
+  relatedNews: readonly LiveFeedV2RelatedItem[];
+  ticker: string;
+  watchlist: boolean | null;
+};
+
+export type LiveFeedV2MarketNewsPreview = LiveFeedV2PreviewBase & {
+  company: string | null;
+  coverage: string;
+  drivers: readonly string[];
+  kind: "market-news";
+  marketBrief: string | null;
+  relatedCompanies: readonly LiveFeedV2RelatedCompany[];
+  theme: string;
+  ticker: string | null;
+};
+
+export type LiveFeedV2Preview =
+  | LiveFeedV2FilingPreview
+  | LiveFeedV2CompanyNewsPreview
+  | LiveFeedV2MarketNewsPreview;
+
 export type LiveFeedV2Item = {
   category: string;
   changePercent: number | null;
@@ -35,6 +100,7 @@ export type LiveFeedV2Item = {
   timestamp: string;
   timeDateLabel: string;
   timeLabel: string;
+  preview: LiveFeedV2Preview;
 };
 
 export type LiveFeedV2MarketData = Pick<

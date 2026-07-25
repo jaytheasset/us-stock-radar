@@ -1,15 +1,9 @@
 "use client";
 
-import {
-  useEffect,
-  useRef,
-  type MutableRefObject,
-} from "react";
-import { X } from "lucide-react";
+import type { MutableRefObject } from "react";
 import { FeedPreviewPanel } from "@/components/feed-v2/FeedPreviewPanel";
-import { IconButton } from "@/components/ui/IconButton";
+import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import type { LiveFeedV2Item } from "@/lib/liveFeedV2Contract";
-import styles from "./StockRadarFeedV2.module.css";
 
 type MobileFeedPreviewSheetProps = {
   isOpen: boolean;
@@ -24,54 +18,27 @@ export function MobileFeedPreviewSheet({
   onClose,
   openerRef,
 }: MobileFeedPreviewSheetProps) {
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  if (!item) return null;
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    closeButtonRef.current?.focus();
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", handleKeyDown);
-      openerRef.current?.focus();
-    };
-  }, [isOpen, onClose, openerRef]);
-
-  if (!isOpen || !item) return null;
+  const previewName =
+    item.preview.kind === "filing"
+      ? `${item.preview.formType || item.preview.ticker} filing detail`
+      : item.preview.kind === "market-news"
+        ? `${item.preview.theme} market news detail`
+        : `${item.preview.ticker} company news detail`;
 
   return (
-    <div className={styles.sheetLayer}>
-      <button
-        aria-label="Close event preview"
-        className={styles.sheetBackdrop}
-        onClick={onClose}
-        type="button"
-      />
-      <section
-        aria-label={`${item.ticker} event preview`}
-        aria-modal="true"
-        className={styles.mobileSheet}
-        role="dialog"
-      >
-        <div className={styles.sheetHandle} />
-        <IconButton
-          aria-label="Close event preview"
-          className={styles.sheetClose}
-          onClick={onClose}
-          ref={closeButtonRef}
-        >
-          <X aria-hidden="true" size={18} />
-        </IconButton>
-        <FeedPreviewPanel item={item} variant="mobile" />
-      </section>
-    </div>
+    <BottomSheetShell
+      aria-label={previewName}
+      closeLabel="Close event preview"
+      id={`feed-v2-${item.preview.kind}-detail-sheet`}
+      isOpen={isOpen}
+      layout="full-scroll"
+      onDismiss={onClose}
+      openerRef={openerRef}
+      overlayLabel="Close event preview"
+    >
+      <FeedPreviewPanel item={item} variant="mobile" />
+    </BottomSheetShell>
   );
 }
