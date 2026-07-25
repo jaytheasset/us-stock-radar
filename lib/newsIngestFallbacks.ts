@@ -5,6 +5,7 @@ import {
   runNasBridge,
   type NasBridgeFetchOptions,
 } from "@/lib/nasIngestBridge";
+import { findMatchingAccesswireItem } from "@/lib/accesswireNasFallbackMatch";
 import {
   runAccesswireNewsIngestWithRawFetcher,
   runFdaNewsIngestWithRawFetcher,
@@ -171,22 +172,6 @@ function fallbackDiagnostics(
     bridge_status: fallbackResult.status,
     ...(fallbackResult.error ? { bridge_error: fallbackResult.error } : {}),
   };
-}
-
-function findMatchingAccesswireItem(
-  result: AccesswireRawFetchResult | null,
-  listing: AccesswireParsedRawItem,
-) {
-  if (!result?.items?.length) return null;
-  const sourceUniqueId = listing.source_unique_id?.trim() || "";
-  return (
-    result.items.find(
-      (item) =>
-        sourceUniqueId &&
-        item.source_unique_id?.trim() === sourceUniqueId,
-    ) ||
-    (result.items.length === 1 ? result.items[0] : null)
-  );
 }
 
 function readRecord(value: unknown): Record<string, unknown> | null {

@@ -7,6 +7,7 @@ import {
   type AccesswireParsedRawItem,
 } from "./parser.ts";
 import { partitionSourceHydrationItems } from "../../sourceHydrationIngestPlan.ts";
+import { findMatchingAccesswireItem } from "../../accesswireNasFallbackMatch.ts";
 
 test("AccessWire hydration limits article request concurrency to two", async (t) => {
   const originalFetch = globalThis.fetch;
@@ -298,6 +299,57 @@ test("direct 403 and NAS failure remains retryable and cannot be processed", asy
   assert.equal(result.diagnostics.nasFallbackFailed, 1);
 });
 
+test("mismatched single NAS result remains a retryable hydration failure", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  globalThis.fetch = (async () =>
+    new Response("Forbidden", {
+      status: 403,
+      statusText: "Forbidden",
+    })) as typeof fetch;
+
+  const listing = rawItem(1);
+  const wrongItem = {
+    ...rawItem(2),
+    body_text: "body for the wrong release",
+    raw_payload: {
+      ...rawItem(2).raw_payload,
+      analysis_text: "body for the wrong release",
+    },
+  };
+  const result = await hydrateAccesswireRawItems([listing], {
+    concurrency: 1,
+    timeoutMs: 1_000,
+    fallbackHydrator: async () => {
+      const matched = findMatchingAccesswireItem(
+        accesswireResult([wrongItem]),
+        listing,
+      );
+      return {
+        ok: Boolean(matched),
+        status: 200,
+        item: matched,
+        error: matched
+          ? undefined
+          : "NAS bridge returned no matching hydrated item",
+      };
+    },
+  });
+  const partition = partitionSourceHydrationItems(
+    result.items,
+    "accesswire",
+  );
+
+  assert.equal(partition.ready.length, 0);
+  assert.equal(partition.retryableFailures.length, 1);
+  assert.equal(result.items[0].raw_payload.article_fetch_retryable, true);
+  assert.equal(result.diagnostics.nasFallbackSucceeded, 0);
+  assert.equal(result.diagnostics.nasFallbackFailed, 1);
+});
+
 test("direct timeout exhausts the article budget without calling NAS", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
@@ -451,6 +503,25 @@ function rawItem(index: number): AccesswireParsedRawItem {
     raw_payload: {
       source_name: "ACCESS Newswire",
       ticker_source: "newsroom_listing",
+    },
+  };
+}
+
+function accesswireResult(items: AccesswireParsedRawItem[]) {
+  return {
+    ok: true,
+    status: 200,
+    fetchedAt: "2026-07-25T12:00:00.000Z",
+    count: items.length,
+    items,
+    diagnostics: {
+      feedCount: 0,
+      parsedFromFeeds: items.length,
+      articleBodiesRequested: items.length,
+      articleBodiesFetched: items.length,
+      parserVersion: "test",
+      skippedNonEnglish: 0,
+      feedStats: [],
     },
   };
 }
