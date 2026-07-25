@@ -194,9 +194,26 @@
 }
 
 .impactScore strong {
+  color: var(--sr-color-text-heading);
   font-size: var(--sr-font-size-md);
   font-variant-numeric: var(--sr-font-variant-numeric);
   font-weight: var(--sr-font-weight-heavy);
+}
+
+.impactScore strong[data-score-tone="bullish"] {
+  color: var(--sr-color-positive);
+}
+
+.impactScore strong[data-score-tone="bearish"] {
+  color: var(--sr-color-negative);
+}
+
+.impactScore strong[data-score-tone="volatile"] {
+  color: var(--sr-color-warning);
+}
+
+.impactScore strong[data-score-tone="neutral"] {
+  color: var(--sr-color-event-neutral);
 }
 
 .layout {

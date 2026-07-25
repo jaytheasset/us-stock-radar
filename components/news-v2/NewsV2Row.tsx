@@ -2,6 +2,7 @@ import Link from "next/link";
 import { NewsV2EventBadge } from "@/components/news-v2/NewsV2EventBadge";
 import { NewsV2EventTypeBadge } from "@/components/news-v2/NewsV2EventTypeBadge";
 import { NewsV2Sparkline } from "@/components/news-v2/NewsV2Sparkline";
+import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import { formatMarketDateLabel } from "@/lib/marketDate";
 import { formatNewsV2PublishedAt, type NewsV2Item } from "@/lib/newsV2";
 import styles from "./StockRadarNewsV2.module.css";
@@ -156,20 +157,12 @@ export function NewsV2Row({
           <span
             aria-label={`${item.sentiment} signal, impact score ${item.score} out of 100`}
             className={styles.rowSignals}
-            data-score-band={
-              item.score >= 90
-                ? "critical"
-                : item.score >= 75
-                  ? "high"
-                  : item.score >= 50
-                    ? "medium"
-                    : "low"
-            }
-            data-signal={item.sentiment}
           >
             <span className={`${styles.rowSentiment} ${sentimentClass}`}>{item.sentiment}</span>
             <span className={styles.rowScore}>
-              <strong>{item.score}</strong>
+              <strong data-score-tone={getDirectionalScoreTone(item.score, item.sentiment)}>
+                {item.score}
+              </strong>
             </span>
           </span>
         </article>

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { PriceChartCard } from "../../../events/[id]/PriceChartCard";
 import { SectorThemeContextPanel } from "../../../events/[id]/SectorThemeContextPanel";
+import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import { getEventTypeBadge } from "@/lib/eventTypeRegistry";
 import { getLiveEventDetail, type LiveFeedItem } from "@/lib/liveFeed";
 import { parseGlobeNewswireArticleHtml } from "@/lib/sources/globe/parser";
@@ -126,7 +127,10 @@ export default async function NewsArchiveDetailPage({ params }: NewsArchiveDetai
                 <span>{archiveEvent.company}</span>
                 <span className="delivery-badge archive">Archive</span>
                 <span className={`source-badge impact-badge ${archiveEvent.signal}`}>
-                  Impact {archiveEvent.impact}
+                  Impact{" "}
+                  <span data-score-tone={getDirectionalScoreTone(archiveEvent.impact, archiveEvent.signal)}>
+                    {archiveEvent.impact}
+                  </span>
                 </span>
               </div>
             </div>
@@ -204,8 +208,10 @@ export default async function NewsArchiveDetailPage({ params }: NewsArchiveDetai
 
           <section className="stock-detail-card detail-score-card">
             <h2>Event Snapshot</h2>
-            <div className={`detail-score-main ${archiveEvent.signal}`}>
-              <strong>{archiveEvent.impact}</strong>
+            <div className="detail-score-main">
+              <strong data-score-tone={getDirectionalScoreTone(archiveEvent.impact, archiveEvent.signal)}>
+                {archiveEvent.impact}
+              </strong>
               <span>Impact</span>
             </div>
             <MetricRow label="Source Group" value={archiveEvent.sourceGroup} />

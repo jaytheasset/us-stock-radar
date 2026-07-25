@@ -747,137 +747,24 @@
   font-weight: var(--sr-font-weight-heavy);
 }
 
-.rowSignals[data-signal="Bullish"][data-score-band="low"] {
-  --row-signal-color: #688073;
+.rowScore strong[data-score-tone="default"] {
+  color: var(--sr-color-text-heading);
 }
 
-.rowSignals[data-signal="Bullish"][data-score-band="medium"] {
-  --row-signal-color: #2fa85e;
+.rowScore strong[data-score-tone="bullish"] {
+  color: var(--sr-color-positive);
 }
 
-.rowSignals[data-signal="Bullish"][data-score-band="high"] {
-  --row-signal-color: #20c765;
+.rowScore strong[data-score-tone="bearish"] {
+  color: var(--sr-color-negative);
 }
 
-.rowSignals[data-signal="Bullish"][data-score-band="critical"] {
-  --row-signal-color: #5df08f;
+.rowScore strong[data-score-tone="volatile"] {
+  color: var(--sr-color-warning);
 }
 
-.rowSignals[data-signal="Bearish"][data-score-band="low"] {
-  --row-signal-color: #8f706e;
-}
-
-.rowSignals[data-signal="Bearish"][data-score-band="medium"] {
-  --row-signal-color: #cf4942;
-}
-
-.rowSignals[data-signal="Bearish"][data-score-band="high"] {
-  --row-signal-color: #f04a43;
-}
-
-.rowSignals[data-signal="Bearish"][data-score-band="critical"] {
-  --row-signal-color: #ff756d;
-}
-
-.rowSignals[data-signal="Neutral"][data-score-band="low"] {
-  --row-signal-color: #6f7784;
-}
-
-.rowSignals[data-signal="Neutral"][data-score-band="medium"] {
-  --row-signal-color: #7f91a4;
-}
-
-.rowSignals[data-signal="Neutral"][data-score-band="high"] {
-  --row-signal-color: #91aac0;
-}
-
-.rowSignals[data-signal="Neutral"][data-score-band="critical"] {
-  --row-signal-color: #b0cade;
-}
-
-.rowSignals[data-signal="Volatile"][data-score-band="low"] {
-  --row-signal-color: #8a8066;
-}
-
-.rowSignals[data-signal="Volatile"][data-score-band="medium"] {
-  --row-signal-color: #c89a24;
-}
-
-.rowSignals[data-signal="Volatile"][data-score-band="high"] {
-  --row-signal-color: #f3a314;
-}
-
-.rowSignals[data-signal="Volatile"][data-score-band="critical"] {
-  --row-signal-color: #ffd45c;
-}
-
-.rowSignals .rowSentiment,
-.rowSignals .rowScore strong {
-  color: var(--row-signal-color, var(--sr-color-text-secondary));
-}
-
-:global([data-sr-theme="light"]) .rowSignals[data-signal="Bullish"][data-score-band="low"] {
-  --row-signal-color: #6f766f;
-}
-
-:global([data-sr-theme="light"]) .rowSignals[data-signal="Bullish"][data-score-band="medium"] {
-  --row-signal-color: #3f7f58;
-}
-
-:global([data-sr-theme="light"]) .rowSignals[data-signal="Bullish"][data-score-band="high"] {
-  --row-signal-color: #15803d;
-}
-
-:global([data-sr-theme="light"]) .rowSignals[data-signal="Bullish"][data-score-band="critical"] {
-  --row-signal-color: #066a34;
-}
-
-:global([data-sr-theme="light"]) .rowSignals[data-signal="Bearish"][data-score-band="low"] {
-  --row-signal-color: #807170;
-}
-
-:global([data-sr-theme="light"]) .rowSignals[data-signal="Bearish"][data-score-band="medium"] {
-  --row-signal-color: #b64a43;
-}
-
-:global([data-sr-theme="light"]) .rowSignals[data-signal="Bearish"][data-score-band="high"] {
-  --row-signal-color: #d92d20;
-}
-
-:global([data-sr-theme="light"]) .rowSignals[data-signal="Bearish"][data-score-band="critical"] {
-  --row-signal-color: #a91f16;
-}
-
-:global([data-sr-theme="light"]) .rowSignals[data-signal="Neutral"][data-score-band="low"] {
-  --row-signal-color: #737782;
-}
-
-:global([data-sr-theme="light"]) .rowSignals[data-signal="Neutral"][data-score-band="medium"] {
-  --row-signal-color: #5d748a;
-}
-
-:global([data-sr-theme="light"]) .rowSignals[data-signal="Neutral"][data-score-band="high"] {
-  --row-signal-color: #406c92;
-}
-
-:global([data-sr-theme="light"]) .rowSignals[data-signal="Neutral"][data-score-band="critical"] {
-  --row-signal-color: #285c87;
-}
-
-:global([data-sr-theme="light"]) .rowSignals[data-signal="Volatile"][data-score-band="low"] {
-  --row-signal-color: #7d7461;
-}
-
-:global([data-sr-theme="light"]) .rowSignals[data-signal="Volatile"][data-score-band="medium"] {
-  --row-signal-color: #a66b10;
-}
-
-:global([data-sr-theme="light"]) .rowSignals[data-signal="Volatile"][data-score-band="high"] {
-  --row-signal-color: #d97706;
-}
-
-:global([data-sr-theme="light"]) .rowSignals[data-signal="Volatile"][data-score-band="critical"] {
-  --row-signal-color: #a94906;
+.rowScore strong[data-score-tone="neutral"] {
+  color: var(--sr-color-event-neutral);
 }
 
 .emptyState {

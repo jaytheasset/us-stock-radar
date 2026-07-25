@@ -1,3 +1,4 @@
+import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import styles from "./ScoreRationale.module.css";
 
 export type ScoreRationaleDeliveryLevel = "alert" | "archive" | "feed";
@@ -38,7 +39,7 @@ export function ScoreRationale({
     <section aria-label="Score Rationale" className={styles.band}>
       <div className={styles.scoreBlock}>
         <span>Score</span>
-        <strong className={styles[impact]}>{score}</strong>
+        <strong data-score-tone={getDirectionalScoreTone(score, signal)}>{score}</strong>
       </div>
       <div className={styles.copy}>
         <div className={styles.headingRow}>

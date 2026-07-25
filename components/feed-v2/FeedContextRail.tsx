@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { FeedPremiumCard } from "@/components/feed-v2/FeedPremiumCard";
 import { FeedPreviewPanel } from "@/components/feed-v2/FeedPreviewPanel";
 import { FeedRailAdSlot } from "@/components/feed-v2/FeedRailAdSlot";
+import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import type { LiveFeedV2RailEvent } from "@/lib/liveFeedV2";
 import type { LiveFeedV2Item } from "@/lib/liveFeedV2Contract";
 import type { MarketPulseItem } from "@/lib/liveFeed";
@@ -178,7 +179,12 @@ function RailEventSection({
                 <small>{item.timeLabel}</small>
               </div>
               <p>{item.headline}</p>
-              <strong>Impact {item.impactScore}</strong>
+              <strong>
+                Impact{" "}
+                <span data-score-tone={getDirectionalScoreTone(item.impactScore, item.sentiment)}>
+                  {item.impactScore}
+                </span>
+              </strong>
             </article>
           ))}
         </div>

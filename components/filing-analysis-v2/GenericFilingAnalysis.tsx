@@ -4,6 +4,7 @@ import { ExternalLink, TrendingDown, TrendingUp } from "lucide-react";
 import { MarketTickerLogo } from "@/components/market/MarketTickerLogo";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { isRealTicker, type DetailTone } from "@/app/events/[id]/detailTypes";
+import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import { getEventTypeBadge, type EventTypeBadgeTone } from "@/lib/eventTypeRegistry";
 import {
   shouldShowAnalysisCollapsedRailInlineAd,
@@ -238,7 +239,9 @@ export function GenericFilingAnalysis({
                         }`}
                       >
                         <span>Impact</span>
-                        <strong>{score}</strong>
+                        <strong data-score-tone={getDirectionalScoreTone(score, filing.signal)}>
+                          {score}
+                        </strong>
                       </span>
                     ) : null}
                   </div>

@@ -81,7 +81,7 @@ function FeedFilingPreviewContent({
           </span>
           <span>
             <b>Impact</b>
-            <FeedPreviewImpactScore score={filing.impact} />
+            <FeedPreviewImpactScore score={filing.impact} signal={filing.signal} />
           </span>
         </div>
       </header>

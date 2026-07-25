@@ -4,6 +4,7 @@ import { ExternalLink, TrendingDown, TrendingUp } from "lucide-react";
 import { PriceChartCard } from "./PriceChartCard";
 import { SectorThemeContextPanel } from "./SectorThemeContextPanel";
 import { feedItems, getFeedItem, type FeedItem } from "@/lib/feedMock";
+import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import { getEventTypeBadge } from "@/lib/eventTypeRegistry";
 import { fetchFmpProfile } from "@/lib/integrations";
 import { getLiveEventDetail, type LiveFeedItem } from "@/lib/liveFeed";
@@ -610,7 +611,12 @@ export default async function StockNewsDetailPage({ params }: StockDetailPagePro
                   </span>
                 ))}
                 <span className={`signal-badge ${event.signal}`}>{event.signal}</span>
-                <span className={`source-badge impact-badge ${event.signal}`}>Impact {event.score}</span>
+                <span className={`source-badge impact-badge ${event.signal}`}>
+                  Impact{" "}
+                  <span data-score-tone={getDirectionalScoreTone(event.score, event.signal)}>
+                    {event.score}
+                  </span>
+                </span>
               </div>
             </div>
           </section>
@@ -698,8 +704,10 @@ export default async function StockNewsDetailPage({ params }: StockDetailPagePro
 
           <section className="stock-detail-card detail-score-card">
             <h2>Event Snapshot</h2>
-            <div className={`detail-score-main ${event.signal}`}>
-              <strong>{event.score}</strong>
+            <div className="detail-score-main">
+              <strong data-score-tone={getDirectionalScoreTone(event.score, event.signal)}>
+                {event.score}
+              </strong>
               <span>Impact</span>
             </div>
             <MetricRow label="Source Group" value={event.sourceGroup} />
