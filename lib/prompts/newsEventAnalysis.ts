@@ -1,7 +1,7 @@
 import { CALENDAR_EVENT_TYPE_VALUES } from "@/lib/calendarEventRegistry";
 
 export const NEWS_EVENT_ANALYSIS_PROMPT_KEY = "news_event_analysis";
-export const NEWS_EVENT_ANALYSIS_PROMPT_VERSION = "v24";
+export const NEWS_EVENT_ANALYSIS_PROMPT_VERSION = "v25";
 
 export const SOURCE_GROUP_VALUES = ["news"] as const;
 export const MARKET_SCOPE_VALUES = ["company", "sector", "theme", "macro"] as const;
@@ -105,8 +105,7 @@ export const newsEventAnalysisInputTemplate = `{
 }`;
 
 export const newsEventAnalysisSystemPrompt = [
-  "Analyze one U.S. market company news item and return only strict JSON matching the response schema.",
-  "Read the full article. The first-pass route is only a hint; correct it if the full article points elsewhere.",
+  "Analyze one U.S. stock-market news item and return one complete strict JSON object matching output_contract.",
   "Use article body text as the source of truth for article-specific facts. Do not use metadata, SEO keywords, snippets, or parser hints as evidence.",
   "Separate boilerplate from evidence. Ignore legal disclaimers and safe-harbor language, but use concrete business facts that appear near them.",
   "Decide the core market event by asking what changed for investors now: value, risk, liquidity, timing, rights, probability, or attention.",
@@ -114,12 +113,19 @@ export const newsEventAnalysisSystemPrompt = [
   "Do not overfit to the headline. If several facts appear, classify and score the development most likely to move investor attention.",
   "Use company scope when the investable question is about one issuer or a small named issuer set, even if customers, suppliers, or counterparties are named.",
   "Use broad sector/theme/macro scope only if the full article is mainly about a wider market exposure rather than an issuer development.",
+  "A broad-market item matters when it changes expectations for a sector, theme, policy exposure, macro condition, supply chain, commodity, public-health risk, geopolitical risk, or shock transmission path.",
+  "Do not treat a generic industry mention as a broad-market event; it must change a tradable U.S. stock exposure.",
+  "For broad-market items, identify sector, industry_group, theme_group, and sub_theme. Put directly affected U.S.-listed stocks or ADRs in related_tickers, not tickers, unless the issuer is explicitly identified in the article.",
+  "Do not output ETFs, funds, indexes, futures, or commodity trusts in tickers or related_tickers.",
   "When the article's primary issuer is clear, actively identify its ticker and exchange for primary_ticker even if body_tickers is empty.",
   "When market_context is provided, use price, previous_close, market_cap, shares_outstanding, public_float, volume, avg_volume, sector, industry, data_quality, and as_of as market background.",
   "For related_tickers, you may use reliable market knowledge to connect named products, drugs, assets, owners, licensees, co-commercialization partners, customers, suppliers, counterparties, or directly exposed U.S.-listed/ADR issuers.",
   "Do not add weak comparable tickers just to fill related_tickers; if a relationship is uncertain, leave it empty or mark needs_human_review.",
   "Choose event_type from the core development, not from the release format.",
   "Use fda_clinical for FDA approvals, clearances, CRLs, safety-label changes, clinical results, PDUFA dates, or advisory committee catalysts.",
+  "For clinical, FDA, drug, device, diagnostic, or biopharma news, identify material sponsors, applicants, rights holders, licensees, manufacturers, and commercial partners with U.S.-listed, ADR, or OTC exposure.",
+  "Do not reduce a multi-company clinical/FDA catalyst to one ticker, and do not lower an otherwise investable catalyst only because the article omits a ticker.",
+  "For clinical/FDA events, judge what changed in approval probability, label scope, safety risk, market access, clinical validity, timeline, competitive position, revenue opportunity, or regulatory risk.",
   "Use capital_return only when the core development is an actual share repurchase, buyback authorization, repurchase allocation increase, or announced capital return program centered on repurchases.",
   "Do not use capital_return for financing, capital markets activity, capital allocation commentary, strategy updates, liquidity improvement, or transformation plans unless the article discloses a concrete repurchase/buyback action.",
   "For dividends use dividends. If buybacks and dividends both appear, follow the core development.",
@@ -535,7 +541,6 @@ export const newsEventAnalysisResponseSchema = {
 
 export function buildNewsEventAnalysisPrompt(
   input: NewsEventAnalysisInput,
-  routeClassification?: Record<string, unknown> | null,
 ) {
   return {
     key: NEWS_EVENT_ANALYSIS_PROMPT_KEY,
@@ -543,7 +548,7 @@ export function buildNewsEventAnalysisPrompt(
     system: newsEventAnalysisSystemPrompt,
     user: JSON.stringify({
       ...input,
-      route_classification: routeClassification || null,
+      output_contract: newsEventAnalysisResponseSchema,
     }),
     responseFormat: {
       type: "json_schema",

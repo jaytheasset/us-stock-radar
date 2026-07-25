@@ -6,24 +6,6 @@ import {
   newsEventAnalysisSystemPrompt,
 } from "@/lib/prompts/newsEventAnalysis";
 import {
-  NEWS_CLINICAL_FDA_ANALYSIS_PROMPT_KEY,
-  NEWS_CLINICAL_FDA_ANALYSIS_PROMPT_VERSION,
-  newsClinicalFdaAnalysisInputTemplate,
-  newsClinicalFdaAnalysisSystemPrompt,
-} from "@/lib/prompts/newsClinicalFdaAnalysis";
-import {
-  NEWS_ROUTE_CLASSIFICATION_PROMPT_KEY,
-  NEWS_ROUTE_CLASSIFICATION_PROMPT_VERSION,
-  newsRouteClassificationResponseSchema,
-  newsRouteClassificationSystemPrompt,
-} from "@/lib/prompts/newsRouteClassification";
-import {
-  NEWS_SECTOR_THEME_POLICY_ANALYSIS_PROMPT_KEY,
-  NEWS_SECTOR_THEME_POLICY_ANALYSIS_PROMPT_VERSION,
-  newsSectorThemePolicyAnalysisInputTemplate,
-  newsSectorThemePolicyAnalysisSystemPrompt,
-} from "@/lib/prompts/newsSectorThemePolicyAnalysis";
-import {
   SEC_FILING_ANALYSIS_PROMPT_KEY,
   SEC_FILING_ANALYSIS_PROMPT_VERSION,
   secFilingAnalysisInputTemplate,
@@ -61,23 +43,6 @@ export type PromptTemplateDraft = {
 
 export const promptTemplates: PromptTemplateDraft[] = [
   {
-    key: NEWS_ROUTE_CLASSIFICATION_PROMPT_KEY,
-    version: NEWS_ROUTE_CLASSIFICATION_PROMPT_VERSION,
-    task: "News route classification",
-    model: "gemini-2.5-flash-lite",
-    status: "draft",
-    owner: "ai",
-    inputTables: ["raw_items"],
-    outputTarget: "runtime route: company vs offering/dilution vs insider/ownership vs clinical/FDA vs sector/theme/policy",
-    notes:
-      "First-pass classifier that decides whether a news item should be skipped or use company, offering/dilution, insider/ownership, clinical/FDA, or broad-market analysis.",
-    systemPrompt: newsRouteClassificationSystemPrompt,
-    userInputTemplate: newsEventAnalysisInputTemplate,
-    responseSchema: newsRouteClassificationResponseSchema,
-    runtimeNotes:
-      "Gemini call runs before detailed analysis. Runtime skips low-value items before second-pass analysis when route=skip.",
-  },
-  {
     key: NEWS_EVENT_ANALYSIS_PROMPT_KEY,
     version: NEWS_EVENT_ANALYSIS_PROMPT_VERSION,
     task: "Newswire event analysis",
@@ -87,46 +52,12 @@ export const promptTemplates: PromptTemplateDraft[] = [
     inputTables: ["raw_items"],
     outputTarget: "events + event_analysis + event_tickers + event_calendar_items",
     notes:
-      "Structured news analysis contract. Runtime sends system instructions, article JSON input, and strict JSON schema separately.",
+      "Single-call structured news analysis for company, clinical/FDA, and broad-market events after parser and deterministic filtering.",
     systemPrompt: newsEventAnalysisSystemPrompt,
     userInputTemplate: newsEventAnalysisInputTemplate,
     responseSchema: newsEventAnalysisResponseSchema,
     runtimeNotes:
-      "Gemini call: systemInstruction = systemPrompt, contents = article JSON input, generationConfig.responseSchema = responseSchema.",
-  },
-  {
-    key: NEWS_SECTOR_THEME_POLICY_ANALYSIS_PROMPT_KEY,
-    version: NEWS_SECTOR_THEME_POLICY_ANALYSIS_PROMPT_VERSION,
-    task: "Broad-market news analysis",
-    model: "gemini-2.5-flash-lite",
-    status: "draft",
-    owner: "ai",
-    inputTables: ["raw_items"],
-    outputTarget: "events + event_analysis + event_tickers",
-    notes:
-      "Dedicated broad-market news analysis. The LLM identifies the exposure path; runtime may map that sector/theme classification to cached ticker proxies.",
-    systemPrompt: newsSectorThemePolicyAnalysisSystemPrompt,
-    userInputTemplate: newsSectorThemePolicyAnalysisInputTemplate,
-    responseSchema: newsEventAnalysisResponseSchema,
-    runtimeNotes:
-      "Used after news_route_classification returns broad_market. Runtime does not inspect article keywords for proxies; it maps only LLM sector/theme fields against cached taxonomy/FMP data.",
-  },
-  {
-    key: NEWS_CLINICAL_FDA_ANALYSIS_PROMPT_KEY,
-    version: NEWS_CLINICAL_FDA_ANALYSIS_PROMPT_VERSION,
-    task: "Clinical and FDA news analysis",
-    model: "gemini-2.5-flash-lite",
-    status: "draft",
-    owner: "ai",
-    inputTables: ["raw_items"],
-    outputTarget: "events + event_analysis + event_tickers + event_calendar_items",
-    notes:
-      "Dedicated source-neutral clinical/FDA analysis. Any news source can route here when the article's market question is clinical, FDA, drug, device, diagnostic, or biopharma.",
-    systemPrompt: newsClinicalFdaAnalysisSystemPrompt,
-    userInputTemplate: newsClinicalFdaAnalysisInputTemplate,
-    responseSchema: newsEventAnalysisResponseSchema,
-    runtimeNotes:
-      "Used after news_route_classification returns clinical_fda. Ticker linkage is useful for navigation but not the reason an investable clinical/FDA catalyst exists.",
+      "One Gemini JSON-mode call. The response contract is included in prompt contents; generationConfig.responseSchema is omitted to avoid provider schema state limits.",
   },
   {
     key: "press_release_event_enrichment",
