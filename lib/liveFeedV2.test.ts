@@ -14,6 +14,11 @@ import {
   createLiveFeedV2Preview,
   type LiveFeedV2PreviewSource,
 } from "./liveFeedV2Preview.ts";
+import {
+  hasValidLiveFeedPrimaryTicker,
+  liveFeedEventVisibilityOrFilter,
+  shouldIncludeLiveFeedEvent,
+} from "./liveFeedEventPolicy.ts";
 
 const projectRoot = process.cwd();
 
@@ -34,6 +39,141 @@ test("feed v2 filters reject unknown values", () => {
   assert.equal(normalizeLiveFeedV2Filter("watchlist"), "watchlist");
   assert.equal(normalizeLiveFeedV2Filter("mock"), "all");
   assert.equal(normalizeLiveFeedV2Filter(null), "all");
+});
+
+test("tickerless non-alert market news is excluded while alerts and unrelated events remain", () => {
+  for (const marketScope of ["sector", "theme", "macro"]) {
+    assert.equal(
+      shouldIncludeLiveFeedEvent({
+        deliveryLevel: "feed",
+        marketScope,
+        sourceGroup: "news",
+        ticker: null,
+      }),
+      false,
+    );
+    assert.equal(
+      shouldIncludeLiveFeedEvent({
+        deliveryLevel: "alert",
+        marketScope,
+        sourceGroup: "news",
+        ticker: null,
+      }),
+      true,
+    );
+  }
+
+  assert.equal(
+    shouldIncludeLiveFeedEvent({
+      deliveryLevel: "feed",
+      marketScope: "company",
+      sourceGroup: "news",
+      ticker: null,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldIncludeLiveFeedEvent({
+      deliveryLevel: "feed",
+      marketScope: "company",
+      sourceGroup: "filings",
+      ticker: null,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldIncludeLiveFeedEvent({
+      deliveryLevel: "feed",
+      marketScope: "sector",
+      sourceGroup: "news",
+      ticker: "XLK",
+    }),
+    true,
+  );
+});
+
+test("primary ticker validity preserves the existing Live Feed sentinel contract", () => {
+  for (const value of [null, undefined, "", " ", "N/A", "na", "UNKNOWN", "-", "TOO_LONG_123"]) {
+    assert.equal(hasValidLiveFeedPrimaryTicker(value), false);
+  }
+
+  for (const value of ["AAPL", "brk.b", "BTC-USD"]) {
+    assert.equal(hasValidLiveFeedPrimaryTicker(value), true);
+  }
+});
+
+test("server query policy protects exact pagination and count before rows reach the client", () => {
+  const feedSource = readSource("lib/liveFeed.ts");
+  const supabaseSource = readSource("lib/supabase.ts");
+  const fixtures = Array.from({ length: 63 }, (_, index) => ({
+    deliveryLevel: index % 17 === 0 ? "alert" : "feed",
+    marketScope: index % 3 === 0 ? "sector" : "company",
+    sourceGroup: index % 2 === 0 ? "news" : "filings",
+    ticker: index % 5 === 0 ? null : `T${index}`,
+  }));
+  const visible = fixtures.filter(shouldIncludeLiveFeedEvent);
+  const pages = Array.from(
+    { length: Math.ceil(visible.length / liveFeedV2BatchSize) },
+    (_, index) =>
+      visible.slice(
+        index * liveFeedV2BatchSize,
+        (index + 1) * liveFeedV2BatchSize,
+      ),
+  );
+
+  assert.equal(pages[0]?.length, Math.min(liveFeedV2BatchSize, visible.length));
+  assert.equal(
+    pages.flat().length,
+    visible.length,
+    "filtered total and paginated rows should describe the same result set",
+  );
+  assert.match(
+    liveFeedEventVisibilityOrFilter,
+    /delivery_level\.eq\.alert/,
+  );
+  assert.match(
+    liveFeedEventVisibilityOrFilter,
+    /ticker\.imatch\."\^\[A-Z\]/,
+  );
+  assert.match(
+    feedSource,
+    /fetchEvents\(\{[\s\S]*excludeTickerlessNonAlertMarketNews: true,[\s\S]*\.\.\.feedFilters/,
+  );
+  assert.match(
+    supabaseSource,
+    /if \(params\.excludeTickerlessNonAlertMarketNews\)[\s\S]*search\.or = `\(\$\{liveFeedEventVisibilityOrFilter\}\)`/,
+  );
+  assert.doesNotMatch(
+    feedSource,
+    /feedRows\s*=\s*toRows\(feedResult\.data\)\.filter/,
+  );
+});
+
+test("Market-Moving News uses the same tickerless market policy and preserves alerts", () => {
+  const feedSource = readSource("lib/liveFeed.ts");
+  const marketMovingQuery = /fetchEvents\(\{\s*page: 1,\s*limit: 30,[\s\S]*?}\),/.exec(
+    feedSource,
+  )?.[0];
+
+  assert.ok(marketMovingQuery);
+  assert.match(marketMovingQuery, /sourceGroup: "news"/);
+  assert.match(
+    marketMovingQuery,
+    /marketScopes: \["sector", "theme", "macro"\]/,
+  );
+  assert.match(
+    marketMovingQuery,
+    /excludeTickerlessNonAlertMarketNews: true/,
+  );
+  assert.equal(
+    shouldIncludeLiveFeedEvent({
+      deliveryLevel: "alert",
+      marketScope: "macro",
+      sourceGroup: "news",
+      ticker: null,
+    }),
+    true,
+  );
 });
 
 test("feed timestamps use America/New_York for Today and clock labels", () => {

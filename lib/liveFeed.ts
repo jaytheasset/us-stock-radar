@@ -13,6 +13,7 @@ import {
   fetchEvents,
   supabaseSelect,
 } from "@/lib/supabase";
+import { hasValidLiveFeedPrimaryTicker } from "@/lib/liveFeedEventPolicy";
 import { resolveCanonicalMarketGroup } from "@/lib/taxonomyRegistry";
 
 export type FeedTone = "bullish" | "bearish" | "volatile" | "neutral";
@@ -197,7 +198,13 @@ async function buildLiveFeedViewModel({
   const activeTab = normalizeFeedTab(tab);
   const feedFilters = feedTabToEventFilters(activeTab);
   const [feedResult, sharedFeedData] = await Promise.all([
-    fetchEvents({ page, limit, excludeDeliveryLevel: "archive", ...feedFilters }),
+    fetchEvents({
+      page,
+      limit,
+      excludeDeliveryLevel: "archive",
+      excludeTickerlessNonAlertMarketNews: true,
+      ...feedFilters,
+    }),
     includeSharedData ? fetchSharedFeedData() : Promise.resolve(emptySharedFeedData()),
   ]);
 
@@ -272,6 +279,7 @@ async function fetchSharedFeedData(): Promise<SharedFeedData> {
       sourceGroup: "news",
       marketScopes: ["sector", "theme", "macro"],
       excludeDeliveryLevel: "archive",
+      excludeTickerlessNonAlertMarketNews: true,
     }),
     fetchMarketPulseItems(),
     fetchSituationCards(),
@@ -301,7 +309,11 @@ export async function getRankingViewModel(sourceGroup: "news" | "filings") {
   const items = rows
     .map((row) => mapEventRow(row, quotes))
     .filter((item) => item.sourceGroup === sourceGroup)
-    .filter((item) => sourceGroup !== "news" || hasIndividualTicker(item.ticker))
+    .filter(
+      (item) =>
+        sourceGroup !== "news" ||
+        hasValidLiveFeedPrimaryTicker(item.ticker),
+    )
     .sort((a, b) => b.score - a.score)
     .map(toRankedEvent);
 
@@ -718,16 +730,11 @@ function formatMarketScopeLabel(value: MarketScope) {
 }
 
 function isIndividualStockNews(item: LiveFeedItem) {
-  return item.sourceGroup === "news" && item.marketScope === "company" && hasIndividualTicker(item.ticker);
-}
-
-function hasIndividualTicker(value: string) {
-  const ticker = value.trim().toUpperCase();
-  if (!ticker || ticker === "N/A" || ticker === "NA" || ticker === "UNKNOWN" || ticker === "-") {
-    return false;
-  }
-
-  return /^[A-Z][A-Z0-9.-]{0,9}$/.test(ticker);
+  return (
+    item.sourceGroup === "news" &&
+    item.marketScope === "company" &&
+    hasValidLiveFeedPrimaryTicker(item.ticker)
+  );
 }
 
 export function normalizeFeedTab(value: string | undefined): FeedTab {
