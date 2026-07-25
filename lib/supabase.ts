@@ -1,4 +1,5 @@
 import { getServerEnv } from "@/lib/env";
+import { liveFeedEventVisibilityOrFilter } from "@/lib/liveFeedEventPolicy";
 
 type FetchEventsParams = {
   limit: number;
@@ -17,6 +18,7 @@ type FetchEventsParams = {
   alertOnly?: boolean;
   detectedAfter?: string;
   keywordIlike?: string;
+  excludeTickerlessNonAlertMarketNews?: boolean;
 };
 
 type FetchEventCountParams = Omit<FetchEventsParams, "limit" | "page">;
@@ -277,6 +279,9 @@ function applyEventFilters(search: Record<string, string>, params: EventFilterPa
   if (params.alertOnly) search.delivery_level = "eq.alert";
   if (params.detectedAfter) search.detected_at = `gte.${params.detectedAfter}`;
   if (params.keywordIlike) search.keyword = `ilike.${params.keywordIlike}`;
+  if (params.excludeTickerlessNonAlertMarketNews) {
+    search.or = `(${liveFeedEventVisibilityOrFilter})`;
+  }
 }
 
 async function supabaseRest(table: string, search: Record<string, string>) {
