@@ -12,6 +12,7 @@ import {
   MARKET_CACHE_WORKFLOW_LOCK_TTL_SECONDS,
   type MarketCacheRefreshPlan,
 } from "@/lib/marketCacheSchedule";
+import { refreshMarketPulseCache } from "@/lib/marketPulseRefresh";
 
 export type MarketCacheRefreshWorkflowInput = IngestWorkflowLock & {
   origin: string;
@@ -23,7 +24,7 @@ export type MarketCacheRefreshWorkflowInput = IngestWorkflowLock & {
 type RefreshStepResult = {
   cache: string;
   count: number;
-  kind: "sector" | "themes";
+  kind: "pulse" | "sector" | "themes";
   range: string;
   target: string;
 };
@@ -40,6 +41,10 @@ export async function marketCacheRefreshWorkflow(
   const results: RefreshStepResult[] = [];
   try {
     await ensureMarketCacheLockStep(input);
+
+    if (input.plan.refreshMarketPulse) {
+      results.push(await refreshMarketPulseStep());
+    }
 
     if (input.plan.oneDaySector) {
       results.push(
@@ -84,6 +89,41 @@ export async function marketCacheRefreshWorkflow(
     await holdMarketCacheLockStep(input);
   }
 }
+async function refreshMarketPulseStep(): Promise<RefreshStepResult> {
+  "use step";
+
+  const metadata = getStepMetadata();
+  console.log(
+    `[refreshMarketPulseStep] START stepId=${metadata.stepId} attempt=${metadata.attempt}`,
+  );
+  try {
+    const result = await refreshMarketPulseCache();
+    if (!result.ok) {
+      throw new Error(
+        `Market pulse refresh returned no cache writes: ${result.unavailable.map((item) => `${item.symbol}:${item.error}`).join(", ")}`,
+      );
+    }
+    console.log(
+      `[refreshMarketPulseStep] DONE stepId=${metadata.stepId} refreshed=${result.refreshed.length} unavailable=${result.unavailable.length}`,
+    );
+    return {
+      cache: "write",
+      count: result.refreshed.length,
+      kind: "pulse",
+      range: "1D",
+      target: result.refreshed.join(","),
+    };
+  } catch (error) {
+    console.error(
+      `[refreshMarketPulseStep] FAIL stepId=${metadata.stepId} error=${error instanceof Error ? error.message : String(error)}`,
+    );
+    throw retryableError(
+      error instanceof Error ? error.message : "Market pulse refresh failed",
+      metadata.attempt,
+    );
+  }
+}
+refreshMarketPulseStep.maxRetries = 3;
 
 async function ensureMarketCacheLockStep(lock: IngestWorkflowLock) {
   "use step";

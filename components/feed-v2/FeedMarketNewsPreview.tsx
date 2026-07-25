@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, TrendingUp } from "lucide-react";
-import { MarketTickerLogo } from "@/components/market/MarketTickerLogo";
+import { ChevronRight, Globe2, TrendingUp } from "lucide-react";
 import { DetailPanelShell } from "@/components/ui/DetailPanelShell";
 import {
   FeedPreviewEventBadge,
@@ -44,21 +43,15 @@ function FeedMarketNewsPreviewContent({
     <div className={styles.detailContent} data-preview-kind="market-news">
       <header className={styles.detailHeader}>
         <div className={styles.detailIdentity}>
-          {news.ticker ? (
-            <MarketTickerLogo size="detail" ticker={news.ticker} />
-          ) : (
-            <span
-              aria-label="Ticker unavailable"
-              className={styles.logoUnavailable}
-            >
-              —
-            </span>
-          )}
+          <span
+            aria-label={`${news.coverage} market`}
+            className={styles.logoUnavailable}
+          >
+            <Globe2 aria-hidden="true" size={18} />
+          </span>
           <div>
             <h2>{news.theme}</h2>
-            <p>
-              {previewValue(news.ticker)} · {previewValue(news.company)}
-            </p>
+            <p>{news.coverage}</p>
           </div>
         </div>
 

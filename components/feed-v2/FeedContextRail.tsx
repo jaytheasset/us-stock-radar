@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { FeedPremiumCard } from "@/components/feed-v2/FeedPremiumCard";
 import { FeedPreviewPanel } from "@/components/feed-v2/FeedPreviewPanel";
 import { FeedRailAdSlot } from "@/components/feed-v2/FeedRailAdSlot";
+import { FeedSparkline } from "@/components/feed-v2/FeedSparkline";
 import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import type { LiveFeedV2RailEvent } from "@/lib/liveFeedV2";
 import type { LiveFeedV2Item } from "@/lib/liveFeedV2Contract";
@@ -33,6 +34,8 @@ export function FeedContextRail({
   const previewRef = useRef<HTMLDivElement>(null);
   const railScrollProgressRef = useRef(0);
   const railRef = useRef<HTMLElement>(null);
+  const cashPulse = marketPulse.filter((item) => item.group === "cash");
+  const futuresPulse = marketPulse.filter((item) => item.group === "futures");
 
   useEffect(() => {
     if (!previewRequestId || !window.matchMedia("(min-width: 1181px)").matches) {
@@ -121,15 +124,11 @@ export function FeedContextRail({
           <span>New York session</span>
         </div>
         {marketPulse.length ? (
-          <div className={styles.marketPulseGrid}>
-            {marketPulse.map((item) => (
-              <article data-tone={item.tone} key={item.label}>
-                <span>{item.label}</span>
-                <strong>{item.value}</strong>
-                <small>{item.detail}</small>
-              </article>
-            ))}
-          </div>
+          <>
+            <MarketPulseGrid items={cashPulse} />
+            <h3 className={styles.marketPulseGroupTitle}>US Index Futures</h3>
+            <MarketPulseGrid items={futuresPulse} />
+          </>
         ) : (
           <RailEmpty message="Market pulse cache is unavailable." />
         )}
@@ -152,6 +151,27 @@ export function FeedContextRail({
         title="Alert Filings"
       />
     </aside>
+  );
+}
+
+function MarketPulseGrid({
+  items,
+}: {
+  items: readonly MarketPulseItem[];
+}) {
+  return (
+    <div className={styles.marketPulseGrid}>
+      {items.map((item) => (
+        <article data-tone={item.tone} key={item.cacheSymbol}>
+          <span>{item.label}</span>
+          <strong>{item.value}</strong>
+          <small>{item.detail}</small>
+          <div className={styles.marketPulseChart}>
+            <FeedSparkline closes={item.trend} />
+          </div>
+        </article>
+      ))}
+    </div>
   );
 }
 

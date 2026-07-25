@@ -6,6 +6,11 @@ import {
   readMarketQuoteCacheMap,
   type MarketGroupSnapshotPayload,
 } from "@/lib/marketDataCache";
+import {
+  buildMarketPulseItems,
+  marketPulseDefinitions,
+  type MarketPulseItem,
+} from "@/lib/marketPulse";
 import { type RankedEvent } from "@/lib/radarRankings";
 import {
   fetchEventById,
@@ -14,6 +19,7 @@ import {
   supabaseSelect,
 } from "@/lib/supabase";
 import { hasValidLiveFeedPrimaryTicker } from "@/lib/liveFeedEventPolicy";
+import { liveFeedRailQueries } from "@/lib/liveFeedRailPolicy";
 import { resolveCanonicalMarketGroup } from "@/lib/taxonomyRegistry";
 
 export type FeedTone = "bullish" | "bearish" | "volatile" | "neutral";
@@ -68,14 +74,11 @@ export type LiveFeedItem = {
   watchNext: string[];
 };
 
-export type MarketPulseItem = {
-  label: string;
-  value: string;
-  detail: string;
-  tone: FeedTone;
-};
+export type { MarketPulseItem } from "@/lib/marketPulse";
 
 export type MarketMovingNewsItem = {
+  detectedAt: string;
+  id: string;
   label: string;
   title: string;
   score: number;
@@ -104,17 +107,9 @@ type EventClassification = {
   subTheme: string;
 };
 
-const marketPulseSymbols = [
-  { symbol: "SPY", label: "SPY", detail: "Large caps" },
-  { symbol: "QQQ", label: "QQQ", detail: "Growth" },
-  { symbol: "IWM", label: "IWM", detail: "Small caps" },
-  { symbol: "DIA", label: "DIA", detail: "Dow" },
-  { symbol: "TLT", label: "TLT", detail: "Treasury bonds" },
-  { symbol: "GLD", label: "GLD", detail: "Gold" },
-];
-
 type SharedFeedData = {
-  rankingRows: DbEventRow[];
+  alertFilingRows: DbEventRow[];
+  highImpactNewsRows: DbEventRow[];
   marketMovingRows: DbEventRow[];
   marketPulseItems: MarketPulseItem[];
   situationCards: SituationCardItem[];
@@ -209,9 +204,16 @@ async function buildLiveFeedViewModel({
   ]);
 
   const feedRows = toRows(feedResult.data);
-  const { rankingRows, marketMovingRows, marketPulseItems, situationCards } = sharedFeedData;
+  const {
+    alertFilingRows,
+    highImpactNewsRows,
+    marketMovingRows,
+    marketPulseItems,
+    situationCards,
+  } = sharedFeedData;
+  const rankedRows = [...highImpactNewsRows, ...alertFilingRows];
   const [quotes, charts, groupSnapshots, previewContext] = await Promise.all([
-    fetchQuoteMap([...feedRows, ...rankingRows]),
+    fetchQuoteMap([...feedRows, ...rankedRows]),
     includeCharts === false ? Promise.resolve(new Map<string, ChartResult>()) : fetchChartMap(feedRows),
     fetchFeedGroupSnapshotLookup(feedRows),
     fetchFeedPreviewContext(feedRows),
@@ -220,7 +222,8 @@ async function buildLiveFeedViewModel({
   const feedItems = feedRows.map((row) =>
     mapEventRow(row, quotes, charts, groupSnapshots, previewContext),
   );
-  const rankingItems = rankingRows.map((row) => mapEventRow(row, quotes));
+  const highImpactNewsItems = highImpactNewsRows.map((row) => mapEventRow(row, quotes));
+  const alertFilingItems = alertFilingRows.map((row) => mapEventRow(row, quotes));
 
   return {
     ok: feedResult.ok,
@@ -233,19 +236,9 @@ async function buildLiveFeedViewModel({
     hasNext:
       typeof feedResult.total === "number" ? page * limit < feedResult.total : feedRows.length === limit,
     feedItems,
-    highImpactNews: rankingItems
-      .filter(isIndividualStockNews)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 4)
-      .map(toRankedEvent),
-    alertFilings: rankingItems
-      .filter((item) => item.sourceGroup === "filings")
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 4)
-      .map(toRankedEvent),
+    highImpactNews: highImpactNewsItems.map(toRankedEvent),
+    alertFilings: alertFilingItems.map(toRankedEvent),
     marketMovingNews: marketMovingRows
-      .sort((a, b) => readNumber(b, ["score"]) - readNumber(a, ["score"]))
-      .slice(0, 8)
       .map(toMarketMovingNewsItem),
     marketPulseItems,
     situationCards,
@@ -254,9 +247,10 @@ async function buildLiveFeedViewModel({
 
 function emptySharedFeedData(): SharedFeedData {
   return {
+    alertFilingRows: [],
+    highImpactNewsRows: [],
     marketMovingRows: [],
     marketPulseItems: [],
-    rankingRows: [],
     situationCards: [],
   };
 }
@@ -272,22 +266,23 @@ async function fetchSharedFeedData(): Promise<SharedFeedData> {
   }
 
   sharedFeedDataCache.promise = Promise.all([
-    fetchEvents({ page: 1, limit: 100, excludeDeliveryLevel: "archive" }),
-    fetchEvents({
-      page: 1,
-      limit: 30,
-      sourceGroup: "news",
-      marketScopes: ["sector", "theme", "macro"],
-      excludeDeliveryLevel: "archive",
-      excludeTickerlessNonAlertMarketNews: true,
-    }),
+    fetchEvents(liveFeedRailQueries.highImpactNews),
+    fetchEvents(liveFeedRailQueries.alertFilings),
+    fetchEvents(liveFeedRailQueries.marketMoving),
     fetchMarketPulseItems(),
     fetchSituationCards(),
   ])
-    .then(([rankingResult, marketMovingResult, marketPulseItems, situationCards]) => ({
+    .then(([
+      highImpactNewsResult,
+      alertFilingResult,
+      marketMovingResult,
+      marketPulseItems,
+      situationCards,
+    ]) => ({
+      alertFilingRows: toRows(alertFilingResult.data),
+      highImpactNewsRows: toRows(highImpactNewsResult.data),
       marketMovingRows: toRows(marketMovingResult.data),
       marketPulseItems,
-      rankingRows: toRows(rankingResult.data),
       situationCards,
     }))
     .catch(() => ({
@@ -690,6 +685,8 @@ function toMarketMovingNewsItem(row: DbEventRow): MarketMovingNewsItem {
   const canonical = resolveCanonicalEventFields(row);
 
   return {
+    detectedAt: readString(row, ["detected_at", "published_at"]),
+    id: readString(row, ["id"]),
     label: readMarketMovingLabel(row, canonical.marketScope),
     title: readString(row, ["title"]) || "Untitled market-moving event",
     score: canonical.score,
@@ -727,14 +724,6 @@ function formatMarketScopeLabel(value: MarketScope) {
   if (value === "sector") return "Sector";
   if (value === "theme") return "Theme";
   return "Company";
-}
-
-function isIndividualStockNews(item: LiveFeedItem) {
-  return (
-    item.sourceGroup === "news" &&
-    item.marketScope === "company" &&
-    hasValidLiveFeedPrimaryTicker(item.ticker)
-  );
 }
 
 export function normalizeFeedTab(value: string | undefined): FeedTab {
@@ -821,20 +810,13 @@ async function fetchQuoteMap(rows: DbEventRow[]) {
 }
 
 async function fetchMarketPulseItems(): Promise<MarketPulseItem[]> {
-  const quoteMap = await readMarketQuoteCacheMap(marketPulseSymbols.map((item) => item.symbol));
+  const symbols = marketPulseDefinitions.map((item) => item.cacheSymbol);
+  const [quoteMap, barMap] = await Promise.all([
+    readMarketQuoteCacheMap(symbols),
+    readMarketBarCacheMap(symbols, "1D"),
+  ]);
 
-  return marketPulseSymbols.map((item) => {
-    const quote = quoteMap.get(item.symbol);
-    const changePct = quote?.changePercent ?? Number.NaN;
-    const tone = deriveMarketPulseTone(changePct);
-
-    return {
-      label: item.label,
-      value: Number.isFinite(changePct) ? formatSignedPercent(changePct) : "N/A",
-      detail: item.detail,
-      tone,
-    };
-  });
+  return buildMarketPulseItems(quoteMap, barMap);
 }
 
 async function fetchFeedGroupSnapshotLookup(rows: DbEventRow[]): Promise<GroupSnapshotLookup> {
@@ -921,13 +903,6 @@ function formatQuote(quote?: QuoteRow) {
     change: Number.isFinite(changePct) ? `${sign}${Math.abs(changePct).toFixed(2)}%` : "+0.00%",
     updatedAt: timestamp ? formatDetectedTime(new Date(timestamp * 1000).toISOString()) : "",
   };
-}
-
-function deriveMarketPulseTone(changePct: number): FeedTone {
-  if (!Number.isFinite(changePct)) return "neutral";
-  if (changePct > 0.05) return "bullish";
-  if (changePct < -0.05) return "bearish";
-  return "neutral";
 }
 
 function formatSignedPercent(value: number) {

@@ -184,14 +184,25 @@ function mapPreviewSource(item: LiveFeedItem): LiveFeedV2PreviewSource {
     source: item.source,
     sourceUrl: item.sourceUrl,
     summary: item.quickTake || item.summary,
-    themeLabel:
+    themeLabel: formatMarketThemeLabel(
       item.subTheme ||
-      item.themeGroup ||
-      item.industryGroup ||
-      item.sector ||
-      item.displayTicker,
+        item.themeGroup ||
+        item.industryGroup ||
+        item.sector ||
+        item.displayTicker,
+    ),
     ticker: item.displayTicker,
   };
+}
+
+function formatMarketThemeLabel(value: string) {
+  return value
+    .trim()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+    .replace(/\bAi\b/g, "AI")
+    .replace(/\bUs\b/g, "US");
 }
 
 function mapRankedEvent(item: RankedEvent): LiveFeedV2RailEvent {
@@ -207,15 +218,16 @@ function mapRankedEvent(item: RankedEvent): LiveFeedV2RailEvent {
 
 function mapMarketMovingEvent(
   item: MarketMovingNewsItem,
-  index: number,
 ): LiveFeedV2RailEvent {
   return {
     headline: item.title,
-    id: `market-moving-${index}-${item.label}`,
+    id: item.id || `market-moving-${item.label}-${item.title}`,
     impactScore: item.score,
     label: item.label,
     sentiment: formatSentiment(item.signal),
-    timeLabel: "Latest",
+    timeLabel: item.detectedAt
+      ? formatLiveFeedV2Timestamp(item.detectedAt).timeLabel
+      : "Latest",
   };
 }
 

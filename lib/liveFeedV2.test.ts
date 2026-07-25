@@ -19,6 +19,15 @@ import {
   liveFeedEventVisibilityOrFilter,
   shouldIncludeLiveFeedEvent,
 } from "./liveFeedEventPolicy.ts";
+import {
+  buildMarketPulseItems,
+  marketPulseDefinitions,
+} from "./marketPulse.ts";
+import {
+  liveFeedRailMinimumScore,
+  liveFeedRailQueries,
+} from "./liveFeedRailPolicy.ts";
+import { buildEventAlertScoreFilters } from "./supabaseEventFilters.ts";
 
 const projectRoot = process.cwd();
 
@@ -149,21 +158,52 @@ test("server query policy protects exact pagination and count before rows reach 
   );
 });
 
-test("Market-Moving News uses the same tickerless market policy and preserves alerts", () => {
+test("three rail queries enforce alert delivery, score floor, category, and bounded results", () => {
   const feedSource = readSource("lib/liveFeed.ts");
-  const marketMovingQuery = /fetchEvents\(\{\s*page: 1,\s*limit: 30,[\s\S]*?}\),/.exec(
-    feedSource,
-  )?.[0];
+  const supabaseSource = readSource("lib/supabase.ts");
 
-  assert.ok(marketMovingQuery);
-  assert.match(marketMovingQuery, /sourceGroup: "news"/);
+  assert.equal(liveFeedRailMinimumScore, 75);
+  for (const query of Object.values(liveFeedRailQueries)) {
+    assert.equal(query.deliveryLevel, "alert");
+    assert.equal(query.minimumScore, 75);
+    assert.equal(query.limit, 4);
+    assert.equal(query.order, "score.desc,detected_at.desc");
+  }
+  assert.deepEqual(liveFeedRailQueries.marketMoving.marketScopes, [
+    "sector",
+    "theme",
+    "macro",
+  ]);
+  assert.equal(liveFeedRailQueries.highImpactNews.marketScope, "company");
+  assert.equal(liveFeedRailQueries.highImpactNews.sourceGroup, "news");
+  assert.equal(liveFeedRailQueries.alertFilings.sourceGroup, "filings");
   assert.match(
-    marketMovingQuery,
-    /marketScopes: \["sector", "theme", "macro"\]/,
+    supabaseSource,
+    /Object\.assign\(search, buildEventAlertScoreFilters\(params\)\)/,
+  );
+  assert.deepEqual(
+    buildEventAlertScoreFilters({ alertOnly: true, minimumScore: 75 }),
+    { delivery_level: "eq.alert", score: "gte.75" },
+  );
+  assert.deepEqual(
+    buildEventAlertScoreFilters({
+      deliveryLevel: "alert",
+      minimumScore: 74.6,
+    }),
+    { delivery_level: "eq.alert", score: "gte.75" },
   );
   assert.match(
-    marketMovingQuery,
-    /excludeTickerlessNonAlertMarketNews: true/,
+    feedSource,
+    /fetchEvents\(liveFeedRailQueries\.highImpactNews\)/,
+  );
+  assert.match(feedSource, /fetchEvents\(liveFeedRailQueries\.alertFilings\)/);
+  assert.match(feedSource, /fetchEvents\(liveFeedRailQueries\.marketMoving\)/);
+  assert.doesNotMatch(
+    feedSource.slice(
+      feedSource.indexOf("async function fetchSharedFeedData"),
+      feedSource.indexOf("export async function getRankingViewModel"),
+    ),
+    /limit:\s*100/,
   );
   assert.equal(
     shouldIncludeLiveFeedEvent({
@@ -565,6 +605,83 @@ test("feed preview mapper preserves market fields independently", () => {
   );
 });
 
+test("tickerless market preview uses scope and theme without fake security identity", () => {
+  const market = createLiveFeedV2Preview({
+    ...basePreviewSource,
+    companyName: null,
+    feedType: "market",
+    marketScopeLabel: "Macro",
+    primaryTicker: null,
+    themeLabel: "Monetary Policy",
+    ticker: "N/A",
+  });
+  const marketPreviewSource = readSource(
+    "components/feed-v2/FeedMarketNewsPreview.tsx",
+  );
+
+  assert.equal(market.kind, "market-news");
+  assert.equal(market.theme, "Monetary Policy");
+  assert.equal(market.coverage, "Macro");
+  assert.equal(market.ticker, null);
+  assert.match(marketPreviewSource, /Globe2/);
+  assert.match(marketPreviewSource, /<h2>\{news\.theme\}<\/h2>/);
+  assert.match(marketPreviewSource, /<p>\{news\.coverage\}<\/p>/);
+  assert.doesNotMatch(marketPreviewSource, /MarketTickerLogo/);
+  assert.doesNotMatch(marketPreviewSource, /previewValue\(news\.ticker\)/);
+  assert.doesNotMatch(marketPreviewSource, /previewValue\(news\.company\)/);
+  assert.doesNotMatch(marketPreviewSource, /N\/A|—\s*·\s*—/);
+});
+
+test("market pulse is exactly six cash indicators plus three futures in product order", () => {
+  assert.equal(marketPulseDefinitions.length, 9);
+  assert.deepEqual(
+    marketPulseDefinitions.map((item) => item.label),
+    [
+      "S&P 500",
+      "Nasdaq 100",
+      "Russell 2000",
+      "SOX",
+      "VIX",
+      "US 10Y",
+      "S&P 500 Fut.",
+      "Nasdaq Fut.",
+      "Russell Fut.",
+    ],
+  );
+  assert.equal(
+    marketPulseDefinitions.filter((item) => item.group === "cash").length,
+    6,
+  );
+  assert.equal(
+    marketPulseDefinitions.filter((item) => item.group === "futures").length,
+    3,
+  );
+});
+
+test("market pulse preserves safe cache misses and formats US 10Y in percent and basis points", () => {
+  const empty = buildMarketPulseItems(new Map(), new Map());
+  assert.equal(empty.length, 9);
+  assert.ok(empty.every((item) => item.value === "—"));
+  assert.ok(empty.every((item) => item.trend.length === 0));
+
+  const quotes = new Map([
+    [
+      "US10Y",
+      {
+        changeAmount: 0.021,
+        changePercent: 0.45,
+        price: 4.69,
+        provider: "fmp",
+      },
+    ],
+  ]);
+  const items = buildMarketPulseItems(quotes, new Map());
+  const treasury = items.find((item) => item.cacheSymbol === "US10Y");
+  assert.equal(treasury?.value, "4.690%");
+  assert.equal(treasury?.detail, "+2.1 bp");
+  assert.equal(treasury?.tone, "volatile");
+});
+
 test("desktop and mobile preview dispatchers wire all three V2 preview types", () => {
   const dispatcherSource = readSource(
     "components/feed-v2/FeedPreviewPanel.tsx",
@@ -587,7 +704,7 @@ test("desktop and mobile preview dispatchers wire all three V2 preview types", (
   assert.match(combinedPreviewSource, /data-preview-kind="filing"/);
   assert.match(combinedPreviewSource, /data-preview-kind="company-news"/);
   assert.match(combinedPreviewSource, /data-preview-kind="market-news"/);
-  assert.match(combinedPreviewSource, /aria-label="Ticker unavailable"/);
+  assert.match(combinedPreviewSource, /aria-label=\{`\$\{news\.coverage\} market`\}/);
   assert.doesNotMatch(combinedPreviewSource, /ticker=\{news\.ticker \|\| "MARKET"\}/);
   assert.doesNotMatch(
     `${dispatcherSource}\n${sheetSource}\n${combinedPreviewSource}`,

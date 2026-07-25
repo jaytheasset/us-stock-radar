@@ -183,13 +183,16 @@ export async function readMarketQuoteCacheMap(symbols: string[]) {
   );
 }
 
-export async function writeMarketQuoteCache(payload: MarketQuoteCachePayload) {
+export async function writeMarketQuoteCache(
+  payload: MarketQuoteCachePayload,
+  ttlSeconds = quoteTtlSeconds(),
+) {
   return supabaseUpsert(
     "market_quotes",
     {
       change_amount: payload.changeAmount ?? null,
       change_percent: payload.changePercent ?? null,
-      expires_at: expiresAt(quoteTtlSeconds()),
+      expires_at: expiresAt(ttlSeconds),
       fetched_at: new Date().toISOString(),
       previous_close: payload.previousClose ?? null,
       price: payload.price ?? null,
@@ -300,14 +303,17 @@ export async function readMarketBarCacheMap(
   );
 }
 
-export async function writeMarketBarCache(payload: MarketBarCachePayload) {
+export async function writeMarketBarCache(
+  payload: MarketBarCachePayload,
+  ttlSeconds = barTtlSeconds(payload.range),
+) {
   return supabaseUpsert(
     "market_bars",
     {
       bars: payload.points,
       change_amount: payload.changeAmount,
       change_percent: payload.changePercent,
-      expires_at: expiresAt(barTtlSeconds(payload.range)),
+      expires_at: expiresAt(ttlSeconds),
       fetched_at: new Date().toISOString(),
       interval: payload.interval,
       latest_price: payload.latestPrice,

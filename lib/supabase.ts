@@ -1,17 +1,19 @@
 import { getServerEnv } from "@/lib/env";
 import { liveFeedEventVisibilityOrFilter } from "@/lib/liveFeedEventPolicy";
+import { buildEventAlertScoreFilters } from "@/lib/supabaseEventFilters";
 
-type FetchEventsParams = {
+export type FetchEventsParams = {
   limit: number;
   page?: number;
+  order?: "detected_at.desc" | "score.desc,detected_at.desc";
   ticker?: string;
   sourceCode?: string;
   impact?: string;
   eventType?: string;
-  eventTypes?: string[];
+  eventTypes?: readonly string[];
   sourceGroup?: "news" | "filings" | "market";
   marketScope?: "company" | "sector" | "theme" | "macro";
-  marketScopes?: Array<"company" | "sector" | "theme" | "macro">;
+  marketScopes?: ReadonlyArray<"company" | "sector" | "theme" | "macro">;
   deliveryLevel?: "archive" | "feed" | "alert";
   excludeDeliveryLevel?: "archive" | "feed" | "alert";
   signal?: "bullish" | "bearish" | "volatile" | "neutral";
@@ -19,6 +21,7 @@ type FetchEventsParams = {
   detectedAfter?: string;
   keywordIlike?: string;
   excludeTickerlessNonAlertMarketNews?: boolean;
+  minimumScore?: number;
 };
 
 type FetchEventCountParams = Omit<FetchEventsParams, "limit" | "page">;
@@ -248,7 +251,7 @@ function buildEventSearch(
 ) {
   const search: Record<string, string> = {
     select: options.select || "*",
-    order: "detected_at.desc",
+    order: params.order || "detected_at.desc",
     limit: options.limit,
   };
 
@@ -269,14 +272,10 @@ function applyEventFilters(search: Record<string, string>, params: EventFilterPa
   if (params.marketScopes?.length) search.market_scope = `in.(${params.marketScopes.join(",")})`;
   if (params.impact) search.impact = `eq.${params.impact}`;
   if (params.signal) search.signal = `eq.${params.signal}`;
-  if (params.deliveryLevel) {
-    const deliveryFilter = params.deliveryLevel === "alert" ? "eq.alert" : `eq.${params.deliveryLevel}`;
-    search.delivery_level = deliveryFilter;
-  }
-  if (!params.deliveryLevel && params.excludeDeliveryLevel) {
+  Object.assign(search, buildEventAlertScoreFilters(params));
+  if (!params.deliveryLevel && !params.alertOnly && params.excludeDeliveryLevel) {
     search.delivery_level = `neq.${params.excludeDeliveryLevel}`;
   }
-  if (params.alertOnly) search.delivery_level = "eq.alert";
   if (params.detectedAfter) search.detected_at = `gte.${params.detectedAfter}`;
   if (params.keywordIlike) search.keyword = `ilike.${params.keywordIlike}`;
   if (params.excludeTickerlessNonAlertMarketNews) {

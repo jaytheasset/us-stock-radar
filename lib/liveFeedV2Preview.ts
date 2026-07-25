@@ -83,7 +83,6 @@ export function createLiveFeedV2Preview(
   if (item.feedType === "market") {
     const theme =
       availableText(item.themeLabel) ||
-      availableText(item.ticker) ||
       availableText(item.marketScopeLabel) ||
       "Market";
 

@@ -26,6 +26,7 @@ test("uses New York regular hours across DST and skips weekends", () => {
   assert.equal(summerOpen.marketPhase, "regular");
   assert.equal(summerOpen.oneDaySector, "Technology");
   assert.equal(summerOpen.refreshOneDayThemes, true);
+  assert.equal(summerOpen.refreshMarketPulse, true);
   assert.ok(summerOpen.rotatingTarget);
 
   const winterOpen = getMarketCacheRefreshPlan(
@@ -43,6 +44,7 @@ test("uses New York regular hours across DST and skips weekends", () => {
   assert.equal(weekend.marketPhase, "closed");
   assert.equal(weekend.oneDaySector, null);
   assert.equal(weekend.refreshOneDayThemes, false);
+  assert.equal(weekend.refreshMarketPulse, false);
   assert.equal(weekend.rotatingTarget, null);
 });
 
@@ -54,6 +56,7 @@ test("runs one post-close 1D slot and respects exchange holidays", () => {
   assert.equal(close.marketPhase, "post_close");
   assert.ok(close.oneDaySector);
   assert.equal(close.refreshOneDayThemes, true);
+  assert.equal(close.refreshMarketPulse, true);
 
   const afterFinalSlot = getMarketCacheRefreshPlan(
     new Date("2026-07-23T20:05:00.000Z"),
@@ -61,6 +64,7 @@ test("runs one post-close 1D slot and respects exchange holidays", () => {
   );
   assert.equal(afterFinalSlot.marketPhase, "closed");
   assert.equal(afterFinalSlot.oneDaySector, null);
+  assert.equal(afterFinalSlot.refreshMarketPulse, false);
 
   const holiday = getMarketCacheRefreshPlan(
     new Date("2026-12-25T15:00:00.000Z"),
@@ -229,6 +233,8 @@ test("workflow and cron wiring use durable retry steps and one minimal cron", ()
   const workflow = readProjectFile("workflows/market-cache-refresh.ts");
   const cronRoute = readProjectFile("app/api/cron/market-cache/route.ts");
   const marketCache = readProjectFile("lib/marketDataCache.ts");
+  const marketPulse = readProjectFile("lib/marketPulse.ts");
+  const marketPulseRefresh = readProjectFile("lib/marketPulseRefresh.ts");
   const sectorRoute = readProjectFile(
     "app/api/market/sector-performance/route.ts",
   );
@@ -246,6 +252,8 @@ test("workflow and cron wiring use durable retry steps and one minimal cron", ()
   assert.ok((workflow.match(/"use step"/g) || []).length >= 4);
   assert.match(workflow, /refreshSectorPerformanceStep\.maxRetries = 3/);
   assert.match(workflow, /refreshThemePerformanceStep\.maxRetries = 3/);
+  assert.match(workflow, /refreshMarketPulseStep\.maxRetries = 3/);
+  assert.match(workflow, /if \(input\.plan\.refreshMarketPulse\)/);
   assert.match(workflow, /ensureMarketCacheLockStep\(input\)/);
   assert.match(cronRoute, /authorizeMarketCacheCron\(request\)/);
   assert.match(cronRoute, /start\(marketCacheRefreshWorkflow/);
@@ -263,6 +271,20 @@ test("workflow and cron wiring use durable retry steps and one minimal cron", ()
   assert.match(themeRoute, /authorizeMarketCacheRefresh\(/);
   assert.match(sectorRoute, /forceRefresh \? "bypass" : "miss"/);
   assert.match(themeRoute, /forceRefresh \? "bypass" : "miss"/);
+  assert.match(marketPulse, /label: "US 10Y"[\s\S]*unit: "yield"/);
+  assert.match(marketPulseRefresh, /providerSymbol: "I:SOX"/);
+  assert.match(marketPulseRefresh, /providerSymbol: "I:NDX"/);
+  assert.match(
+    marketPulseRefresh,
+    /unavailableWithCurrentProviderPlan: \["NQUSD", "RTYUSD"\]/,
+  );
+  assert.match(
+    marketPulseRefresh,
+    /marketPulseCacheTtlSeconds = 4 \* 24 \* 60 \* 60/,
+  );
+  assert.match(marketCache, /ttlSeconds = quoteTtlSeconds\(\)/);
+  assert.match(marketCache, /ttlSeconds = barTtlSeconds\(payload\.range\)/);
+  assert.match(marketPulse, /changeAmount \* 100/);
   assert.ok(
     (workflow.match(/process\.env\.CRON_SECRET/g) || []).length >= 2,
   );
