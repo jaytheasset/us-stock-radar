@@ -122,7 +122,9 @@ test("Vercel cron schedules contain SEC and every source exactly once", () => {
   assert.equal(schedules.has("/api/cron/source-ingest/news_fast"), false);
   assert.equal(schedules.has("/api/cron/source-ingest/news_slow"), false);
   assert.equal(
-    crons.length,
+    crons.filter((cron) =>
+      cron.path.startsWith("/api/cron/source-ingest/"),
+    ).length,
     Object.keys(SOURCE_INGEST_WORKFLOW_SOURCES).length + 1,
   );
 });

@@ -8,6 +8,7 @@ import {
 } from "@/lib/marketDataCache";
 import type { PricePoint, PriceRange } from "@/lib/marketTypes";
 import { fetchFmpQuotes } from "@/lib/integrations";
+import { resolveSnapshotCache } from "@/lib/marketGroupCachePolicy";
 import { supabaseSelect } from "@/lib/supabase";
 import { sectorMappings } from "@/lib/taxonomyRegistry";
 
@@ -117,19 +118,25 @@ export async function GET(request: NextRequest) {
 
   if (!forceRefresh) {
     const cached = await readMarketGroupSnapshotCache(range, interval);
-    const cachedSectors = hydrateCachedSectors(cached.snapshots);
-    if (
-      cached.hit &&
-      hasCurrentRangeCalculation(cached.snapshots) &&
-      cachedSectors.length &&
-      cachedSectors.find((sector) => sector.sector === requestedSector)?.industries.length
-    ) {
+    const resolution = resolveSnapshotCache(
+      cached.freshSnapshots,
+      cached.snapshots,
+      hydrateCachedSectors,
+      (cachedSectors, snapshots) =>
+        hasCurrentRangeCalculation(snapshots) &&
+        cachedSectors.length === sectorOrder.length &&
+        Boolean(
+          cachedSectors.find((sector) => sector.sector === requestedSector)
+            ?.industries.length,
+        ),
+    );
+    if (resolution.state !== "miss") {
       return NextResponse.json({
         ok: true,
-        cache: "hit",
+        cache: resolution.state,
         range,
         interval,
-        sectors: cachedSectors,
+        sectors: resolution.value,
       });
     }
   }

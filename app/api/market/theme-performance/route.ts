@@ -8,6 +8,7 @@ import {
 } from "@/lib/marketDataCache";
 import type { PricePoint, PriceRange } from "@/lib/marketTypes";
 import { fetchFmpQuotes } from "@/lib/integrations";
+import { resolveSnapshotCache } from "@/lib/marketGroupCachePolicy";
 import { themeGroups, themeSubThemes } from "@/lib/taxonomyRegistry";
 
 export const dynamic = "force-dynamic";
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
   if (!selectedDefinitions.length) {
     return NextResponse.json({
       ok: true,
-      cache: "empty",
+      cache: "miss",
       range,
       groups: [],
       subThemes: [],
@@ -56,14 +57,20 @@ export async function GET(request: NextRequest) {
 
   if (!forceRefresh) {
     const cached = await readMarketGroupSnapshotCache(range as PriceRange, interval);
-    const hydrated = hydrateCachedThemePerformance(cached.snapshots, selectedDefinitions);
-    if (cached.hit && hydrated) {
+    const resolution = resolveSnapshotCache(
+      cached.freshSnapshots,
+      cached.snapshots,
+      (snapshots) =>
+        hydrateCachedThemePerformance(snapshots, selectedDefinitions),
+      (hydrated) => Boolean(hydrated),
+    );
+    if (resolution.state !== "miss" && resolution.value) {
       return NextResponse.json({
         ok: true,
-        cache: "hit",
+        cache: resolution.state,
         range,
         interval,
-        ...hydrated,
+        ...resolution.value,
       });
     }
   }

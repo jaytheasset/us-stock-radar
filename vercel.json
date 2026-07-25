@@ -53,6 +53,10 @@
     {
       "path": "/api/cron/source-ingest/fda",
       "schedule": "10,40 * * * *"
+    },
+    {
+      "path": "/api/cron/market-cache",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
