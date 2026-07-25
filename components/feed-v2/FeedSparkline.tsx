@@ -10,7 +10,14 @@ const inset = 3;
 
 export function FeedSparkline({ closes }: FeedSparklineProps) {
   if (closes.length < 2) {
-    return <span className={styles.sparklineUnavailable}>No chart</span>;
+    return (
+      <span
+        aria-label="Chart unavailable"
+        className={styles.sparklineUnavailable}
+      >
+        —
+      </span>
+    );
   }
 
   const minimum = Math.min(...closes);

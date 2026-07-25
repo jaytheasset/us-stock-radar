@@ -91,5 +91,42 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   assert.match(sheetSource, /event\.key === "Escape"/);
   assert.match(styleSource, /@media \(max-width: 1180px\)/);
   assert.match(styleSource, /@media \(max-width: 760px\)/);
-  assert.match(styleSource, /grid-template-columns: minmax\(0, 1fr\) minmax\(360px, 420px\)/);
+  assert.match(styleSource, /minmax\(0, 72fr\)[\s\S]*minmax\(calc\(300px \+ var\(--sr-space-3\)\), 28fr\)/);
+});
+
+test("feed v2 surfaces follow the News and Filings product design tokens", () => {
+  const styleSource = readSource(
+    "components/feed-v2/StockRadarFeedV2.module.css",
+  );
+
+  assert.match(
+    styleSource,
+    /padding: var\(--sr-space-4-5\) var\(--sr-page-gutter-desktop\) var\(--sr-space-7\)/,
+  );
+  assert.match(styleSource, /box-shadow: var\(--sr-shadow-panel\)/);
+  assert.match(styleSource, /\.feedColumn[\s\S]*border-radius: var\(--sr-radius-control\)/);
+  assert.match(
+    styleSource,
+    /var\(--sr-color-surface-table-header-start\)[\s\S]*var\(--sr-color-surface-table-header-end\)/,
+  );
+  assert.match(
+    styleSource,
+    /\.liveIndicator::before[\s\S]*background: var\(--sr-color-accent\)/,
+  );
+  assert.match(
+    styleSource,
+    /\.premiumCard[\s\S]*var\(--sr-color-accent-cta-top\)[\s\S]*var\(--sr-shadow-cta\)/,
+  );
+  assert.match(
+    styleSource,
+    /grid-template-columns:\s*auto minmax\(0, 1fr\) auto/,
+  );
+  assert.match(
+    styleSource,
+    /border-radius: var\(--sr-radius-sheet\) var\(--sr-radius-sheet\) 0 0/,
+  );
+  assert.match(
+    styleSource,
+    /\.mobileSheet \.sheetClose\s*\{[\s\S]*position: absolute/,
+  );
 });
