@@ -123,20 +123,29 @@ export function FeedEventList({
               </div>
 
               <div className={styles.marketReaction}>
-                <div className={styles.quote}>
-                  <strong>{item.price}</strong>
+                {item.price === null ? (
                   <span
-                    className={
-                      item.changePercent === null
-                        ? styles.sentimentNeutral
-                        : negative
-                          ? styles.sentimentNegative
-                          : styles.sentimentPositive
-                    }
+                    aria-label="Quote unavailable"
+                    className={styles.quoteUnavailable}
                   >
-                    {formatChangePercent(item.changePercent)}
+                    —
                   </span>
-                </div>
+                ) : (
+                  <div className={styles.quote}>
+                    <strong>{item.price}</strong>
+                    <span
+                      className={
+                        item.changePercent === null
+                          ? styles.sentimentNeutral
+                          : negative
+                            ? styles.sentimentNegative
+                            : styles.sentimentPositive
+                      }
+                    >
+                      {formatChangePercent(item.changePercent)}
+                    </span>
+                  </div>
+                )}
                 <FeedSparkline closes={item.sparkline} />
               </div>
 

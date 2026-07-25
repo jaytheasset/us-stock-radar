@@ -57,11 +57,18 @@ export function FeedPreviewPanel({
       <p>{item.summary}</p>
 
       <section className={styles.previewMarket}>
-        <div>
-          <span>Market reaction</span>
-          <strong>{item.price}</strong>
-          <small>{formatChangePercent(item.changePercent)}</small>
-        </div>
+        {item.price === null ? (
+          <div className={styles.previewQuoteUnavailable}>
+            <span>Market reaction</span>
+            <strong aria-label="Quote unavailable">—</strong>
+          </div>
+        ) : (
+          <div>
+            <span>Market reaction</span>
+            <strong>{item.price}</strong>
+            <small>{formatChangePercent(item.changePercent)}</small>
+          </div>
+        )}
         <FeedSparkline closes={item.sparkline} />
       </section>
 
@@ -74,6 +81,6 @@ export function FeedPreviewPanel({
 }
 
 function formatChangePercent(value: number | null) {
-  if (value === null) return "Price change unavailable";
+  if (value === null) return "—";
   return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
 }

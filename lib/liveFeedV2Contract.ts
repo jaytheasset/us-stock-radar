@@ -26,7 +26,7 @@ export type LiveFeedV2Item = {
   headline: string;
   id: string;
   impactScore: number;
-  price: string;
+  price: string | null;
   sentiment: LiveFeedV2Sentiment;
   source: string;
   sparkline: readonly number[];
@@ -36,6 +36,38 @@ export type LiveFeedV2Item = {
   timeDateLabel: string;
   timeLabel: string;
 };
+
+export type LiveFeedV2MarketData = Pick<
+  LiveFeedV2Item,
+  "changePercent" | "price" | "sparkline"
+>;
+
+export function resolveLiveFeedV2MarketData({
+  changeLabel,
+  chartCloses,
+  priceLabel,
+}: {
+  changeLabel: string | null | undefined;
+  chartCloses: readonly number[];
+  priceLabel: string | null | undefined;
+}): LiveFeedV2MarketData {
+  const normalizedPrice = priceLabel?.trim() || "";
+  const price =
+    /^(?:n\/a|no data|unavailable|-{1,2}|—)$/i.test(normalizedPrice)
+      ? null
+      : normalizedPrice || null;
+  const normalizedChange = changeLabel?.trim() || "";
+  const parsedChange = normalizedChange.endsWith("%")
+    ? Number(normalizedChange.replace(/[%+,]/g, ""))
+    : Number.NaN;
+  const finiteCloses = chartCloses.filter(Number.isFinite);
+
+  return {
+    changePercent: Number.isFinite(parsedChange) ? parsedChange : null,
+    price,
+    sparkline: finiteCloses.length >= 2 ? finiteCloses : [],
+  };
+}
 
 export type LiveFeedV2Page = {
   availability: "available" | "unavailable";

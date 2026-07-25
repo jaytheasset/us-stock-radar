@@ -8,6 +8,7 @@ import {
   formatLiveFeedV2Timestamp,
   liveFeedV2BatchSize,
   normalizeLiveFeedV2Filter,
+  resolveLiveFeedV2MarketData,
 } from "./liveFeedV2Contract.ts";
 
 const projectRoot = process.cwd();
@@ -44,6 +45,41 @@ test("feed timestamps use America/New_York for Today and clock labels", () => {
   );
 });
 
+test("feed market data keeps quote and chart availability independent", () => {
+  assert.deepEqual(
+    resolveLiveFeedV2MarketData({
+      changeLabel: "+1.25%",
+      chartCloses: [],
+      priceLabel: "$123.45",
+    }),
+    { changePercent: 1.25, price: "$123.45", sparkline: [] },
+  );
+  assert.deepEqual(
+    resolveLiveFeedV2MarketData({
+      changeLabel: "N/A",
+      chartCloses: [10, 11, 12],
+      priceLabel: "N/A",
+    }),
+    { changePercent: null, price: null, sparkline: [10, 11, 12] },
+  );
+  assert.deepEqual(
+    resolveLiveFeedV2MarketData({
+      changeLabel: "",
+      chartCloses: [],
+      priceLabel: "—",
+    }),
+    { changePercent: null, price: null, sparkline: [] },
+  );
+  assert.equal(
+    resolveLiveFeedV2MarketData({
+      changeLabel: "+0.00%",
+      chartCloses: [1, 1],
+      priceLabel: "$1.00",
+    }).changePercent,
+    0,
+  );
+});
+
 test("production feed is wired to real server data without mock repositories", () => {
   const pageSource = readSource("app/feed/page.tsx");
   const adapterSource = readSource("lib/liveFeedV2.ts");
@@ -59,8 +95,10 @@ test("production feed is wired to real server data without mock repositories", (
   assert.match(adapterSource, /getLiveFeedViewModel/);
   assert.match(adapterSource, /filter === "watchlist"/);
   assert.match(adapterSource, /availability: "unavailable"/);
-  assert.match(adapterSource, /item\.displayPrice === "N\/A"/);
-  assert.match(adapterSource, /value\.trim\(\)\.endsWith\("%"\)/);
+  assert.match(adapterSource, /resolveLiveFeedV2MarketData/);
+  assert.match(adapterSource, /priceLabel: item\.displayPrice/);
+  assert.match(adapterSource, /changeLabel: item\.displayChange/);
+  assert.match(adapterSource, /chartCloses: chartBars\.map/);
   assert.doesNotMatch(
     `${pageSource}\n${adapterSource}\n${clientSource}`,
     /lib\/mock|feedV2Data|feedV2Repository|feedMock/,
@@ -74,6 +112,10 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   );
   const listSource = readSource("components/feed-v2/FeedEventList.tsx");
   const railSource = readSource("components/feed-v2/FeedContextRail.tsx");
+  const inlineAdSource = readSource(
+    "components/feed-v2/FeedInlineAdSlots.tsx",
+  );
+  const railAdSource = readSource("components/feed-v2/FeedRailAdSlot.tsx");
   const sheetSource = readSource(
     "components/feed-v2/MobileFeedPreviewSheet.tsx",
   );
@@ -87,11 +129,50 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   assert.match(listSource, /aria-pressed=\{selected\}/);
   assert.match(listSource, /viewerPlan === "free"/);
   assert.match(railSource, /viewerPlan === "free" \? <FeedRailAdSlot \/>/);
+  assert.match(railSource, /items\.slice\(0, 4\)/);
+  assert.match(railSource, /window\.addEventListener\("scroll"/);
+  assert.match(inlineAdSource, /inlineAdDesktopPlacement/);
+  assert.match(inlineAdSource, /inlineAdMobilePlacement/);
+  assert.match(inlineAdSource, /height=\{90\}/);
+  assert.match(railAdSource, /railAdPlacement/);
   assert.match(sheetSource, /role="dialog"/);
   assert.match(sheetSource, /event\.key === "Escape"/);
   assert.match(styleSource, /@media \(max-width: 1180px\)/);
   assert.match(styleSource, /@media \(max-width: 760px\)/);
+  assert.match(
+    styleSource,
+    /\.contextRail\s*\{[\s\S]*display: grid[\s\S]*grid-auto-rows: max-content[\s\S]*overflow-y: hidden/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 1180px\)[\s\S]*\.railAdPlacement\s*\{[\s\S]*display: none/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.inlineAdDesktopPlacement\s*\{[\s\S]*display: none[\s\S]*\.inlineAdMobilePlacement\s*\{[\s\S]*display: block/,
+  );
   assert.match(styleSource, /minmax\(0, 72fr\)[\s\S]*minmax\(calc\(300px \+ var\(--sr-space-3\)\), 28fr\)/);
+});
+
+test("feed rows use one centered dash for unavailable quote and chart", () => {
+  const listSource = readSource("components/feed-v2/FeedEventList.tsx");
+  const previewSource = readSource(
+    "components/feed-v2/FeedPreviewPanel.tsx",
+  );
+  const sparklineSource = readSource(
+    "components/feed-v2/FeedSparkline.tsx",
+  );
+
+  assert.match(listSource, /item\.price === null/);
+  assert.match(listSource, /aria-label="Quote unavailable"/);
+  assert.doesNotMatch(listSource, />N\/A</);
+  assert.match(previewSource, /item\.price === null/);
+  assert.match(previewSource, /if \(value === null\) return "—"/);
+  assert.match(sparklineSource, /aria-label="Chart unavailable"/);
+  assert.doesNotMatch(
+    `${listSource}\n${previewSource}\n${sparklineSource}`,
+    /No chart|Price change unavailable/,
+  );
 });
 
 test("feed v2 surfaces follow the News and Filings product design tokens", () => {
