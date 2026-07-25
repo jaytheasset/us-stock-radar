@@ -19,6 +19,9 @@ export type LiveFeedV2Sentiment =
 
 export type LiveFeedV2RailDestination = "events" | "filings";
 
+const liveFeedV2EventUuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export function createLiveFeedV2RailEventIdentity({
   destination,
   eventId,
@@ -28,7 +31,10 @@ export function createLiveFeedV2RailEventIdentity({
   eventId?: string | null;
   fallbackId: string;
 }) {
-  const persistentEventId = eventId?.trim() || null;
+  const eventIdCandidate = eventId?.trim() || "";
+  const persistentEventId = liveFeedV2EventUuidPattern.test(eventIdCandidate)
+    ? eventIdCandidate.toLowerCase()
+    : null;
 
   return {
     detailHref: persistentEventId
