@@ -6,6 +6,7 @@ import {
   type NasBridgeFetchOptions,
 } from "@/lib/nasIngestBridge";
 import { findMatchingAccesswireItem } from "@/lib/accesswireNasFallbackMatch";
+import { findMatchingFdaItem } from "@/lib/fdaNasFallbackMatch";
 import {
   runAccesswireNewsIngestWithRawFetcher,
   runFdaNewsIngestWithRawFetcher,
@@ -17,7 +18,13 @@ import {
   type AccesswireParsedRawItem,
   type AccesswireRawFetchResult,
 } from "@/lib/sources/accesswire/parser";
-import { fetchFdaRawItems, type FdaRawFetchResult } from "@/lib/sources/fda/parser";
+import {
+  fetchFdaRawItems,
+  hydrateFdaRawItems,
+  type FdaHydrationFallback,
+  type FdaParsedRawItem,
+  type FdaRawFetchResult,
+} from "@/lib/sources/fda/parser";
 
 type NewsIngestOptions = {
   limit: number;
@@ -89,7 +96,17 @@ export async function runFdaNewsIngestWithFallback(options: NewsIngestOptions) {
     };
 
     return fallbackResult.ok && fallbackResult.data ? fallbackResult.data : directResult;
-  }, options);
+  }, options, (items, hydrateOptions) =>
+    hydrateFdaRawItems(
+      items as FdaParsedRawItem[],
+      {
+        limit: hydrateOptions.limit,
+        timeoutMs: 12_000,
+        concurrency: 2,
+        fallbackHydrator: createFdaNasHydrationFallback(),
+      },
+    ),
+  );
 
   return nasFallback ? { ...readRecord(result), nas_fallback: nasFallback } : result;
 }
@@ -145,6 +162,45 @@ function createAccesswireNasHydrationFallback(): AccesswireHydrationFallback {
         result.error ||
         (result.ok && !fallbackItem
           ? "Access Newswire NAS bridge returned no matching hydrated item"
+          : undefined),
+      timedOut: result.timedOut,
+    };
+  };
+}
+
+function createFdaNasHydrationFallback(): FdaHydrationFallback {
+  const env = getServerEnv();
+  return async (item, context) => {
+    const result = await runNasBridge<FdaRawFetchResult>({
+      bridgeUrl: env.fdaIngestUrl,
+      directResult: {
+        status: context.directStatus,
+        error: context.directError,
+      },
+      fallbackFrom: "next_fda_direct_article_hydration",
+      missingError: "FDA_INGEST_URL is not configured",
+      options: {
+        limit: 1,
+        sourceUniqueId: item.source_unique_id || item.source_url,
+        includeArticleBody: true,
+        articleBodyLimit: 1,
+      },
+      source: "fda",
+      token: env.nasIngestToken,
+      timeoutMs: context.timeoutMs,
+      signal: context.signal,
+    });
+    const fallbackItem = result.ok
+      ? findMatchingFdaItem(result.data, item)
+      : null;
+    return {
+      ok: Boolean(result.ok && fallbackItem),
+      status: result.status,
+      item: fallbackItem,
+      error:
+        result.error ||
+        (result.ok && !fallbackItem
+          ? "FDA NAS bridge returned no matching hydrated item"
           : undefined),
       timedOut: result.timedOut,
     };

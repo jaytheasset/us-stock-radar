@@ -24,6 +24,7 @@
     "verify:businesswire-ingest": "node --test --experimental-strip-types lib/businessWireIngestPlan.test.ts lib/sources/businesswire/parser.test.ts",
     "verify:dea-parser": "node --experimental-strip-types scripts/verify-dea-parser.mjs",
     "verify:doj-parser": "node --experimental-strip-types scripts/verify-doj-parser.mjs",
+    "verify:fda-ingest": "node --test --experimental-strip-types lib/fdaIngestPlan.test.ts lib/fdaNasFallbackMatch.test.ts lib/sources/fda/parser.test.ts",
     "verify:globe-parser": "node --experimental-strip-types scripts/verify-globe-parser.mjs",
     "verify:news-article-sanitizer": "node --test --experimental-strip-types lib/newsArticleSanitizer.test.ts",
     "verify:news-gemini": "node --test --experimental-strip-types lib/ai/newsGeminiAnalysis.test.ts",

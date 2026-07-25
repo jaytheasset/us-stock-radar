@@ -27,7 +27,11 @@ import { fetchOfacRawItems } from "@/lib/sources/ofac/parser";
 import { fetchDojRawItems } from "@/lib/sources/doj/parser";
 import { fetchDeaRawItems } from "@/lib/sources/dea/parser";
 import { fetchWhiteHouseRawItems } from "@/lib/sources/whitehouse/parser";
-import { fetchFdaRawItems } from "@/lib/sources/fda/parser";
+import {
+  fetchFdaRawItems,
+  hydrateFdaRawItems,
+  type FdaParsedRawItem,
+} from "@/lib/sources/fda/parser";
 import { fetchNasdaqTraderRawItems } from "@/lib/sources/nasdaqtrader/parser";
 import { fetchNasdaqCorporateActionsRawItems } from "@/lib/sources/nasdaqtrader/corporateActionsParser";
 import { canonicalizeAnalysisTickersWithCache } from "@/lib/tickerCanonicalizer";
@@ -296,6 +300,18 @@ export async function runFdaNewsIngest(options: NewsIngestOptions = {}) {
 export async function runFdaNewsIngestWithRawFetcher(
   fetchRawItems: NewsSourceConfig["fetchRawItems"],
   options: NewsIngestOptions = {},
+  hydrateRawItems: NonNullable<NewsSourceConfig["hydrateRawItems"]> = (
+    items,
+    hydrateOptions,
+  ) =>
+    hydrateFdaRawItems(
+      items as FdaParsedRawItem[],
+      {
+        limit: hydrateOptions.limit,
+        timeoutMs: 12_000,
+        concurrency: 2,
+      },
+    ) as Promise<NewsRawHydrationResult>,
 ) {
   return runNewsIngestForSource(
     {
@@ -305,6 +321,7 @@ export async function runFdaNewsIngestWithRawFetcher(
       fetchErrorLabel: "FDA raw fetch failed",
       ingestErrorLabel: "FDA ingest error",
       fetchRawItems,
+      hydrateRawItems,
     },
     options,
   );

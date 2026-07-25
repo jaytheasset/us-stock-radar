@@ -4,6 +4,8 @@ const FDA_BASE_URL = "https://www.fda.gov";
 
 const PARSER_VERSION = "fda_raw_parser_v1";
 const ANALYSIS_TEXT_VERSION = "fda_analysis_text_v1";
+const DEFAULT_ARTICLE_TIMEOUT_MS = 12_000;
+const DEFAULT_ARTICLE_CONCURRENCY = 2;
 
 type FetchOptions = {
   feeds?: FdaFeedConfig[];
@@ -11,6 +13,8 @@ type FetchOptions = {
   sourceUniqueId?: string;
   includeArticleBody?: boolean;
   articleBodyLimit?: number;
+  articleTimeoutMs?: number;
+  articleConcurrency?: number;
 };
 
 type FdaFeedConfig = {
@@ -63,6 +67,14 @@ export type FdaRawFetchResult = {
     parsedFromFeeds: number;
     articleBodiesRequested: number;
     articleBodiesFetched: number;
+    articleBodiesFailed?: number;
+    articleBodiesTimedOut?: number;
+    directArticleBodiesFailed?: number;
+    nasFallbackRequested?: number;
+    nasFallbackSucceeded?: number;
+    nasFallbackFailed?: number;
+    articleConcurrency?: number;
+    articleTimeoutMs?: number;
     parserVersion: string;
     skippedNonEnglish: number;
     feedStats: Array<{
@@ -75,6 +87,41 @@ export type FdaRawFetchResult = {
   };
   error?: string;
 };
+
+export type FdaHydrationResult = {
+  items: FdaParsedRawItem[];
+  diagnostics: {
+    articleBodiesRequested: number;
+    articleBodiesFetched: number;
+    articleBodiesFailed: number;
+    articleBodiesTimedOut: number;
+    directArticleBodiesFailed: number;
+    nasFallbackRequested: number;
+    nasFallbackSucceeded: number;
+    nasFallbackFailed: number;
+    articleConcurrency: number;
+    articleTimeoutMs: number;
+  };
+};
+
+export type FdaHydrationFallbackResult = {
+  ok: boolean;
+  status: number;
+  item: FdaParsedRawItem | null;
+  error?: string;
+  timedOut?: boolean;
+};
+
+export type FdaHydrationFallback = (
+  item: FdaParsedRawItem,
+  context: {
+    timeoutMs: number;
+    signal: AbortSignal;
+    directError: string;
+    directStatus: number;
+    directTimedOut: boolean;
+  },
+) => Promise<FdaHydrationFallbackResult>;
 
 export const FDA_FEEDS: FdaFeedConfig[] = [
   fdaFeed(
@@ -109,6 +156,11 @@ export async function fetchFdaRawItems(options: FetchOptions = {}): Promise<FdaR
   const articleBodyLimit = includeArticleBody
     ? clampNumber(options.articleBodyLimit ?? limit, 0, limit)
     : 0;
+  const articleTimeoutMs = clampNumber(
+    options.articleTimeoutMs ?? DEFAULT_ARTICLE_TIMEOUT_MS,
+    100,
+    60_000,
+  );
   const items: FdaParsedRawItem[] = [];
   const seen = new Set<string>();
   const feedStats: FdaRawFetchResult["diagnostics"]["feedStats"] = [];
@@ -168,61 +220,210 @@ export async function fetchFdaRawItems(options: FetchOptions = {}): Promise<FdaR
     .sort((a, b) => candidatePriority(b) - candidatePriority(a) || dateMs(b.published_at) - dateMs(a.published_at))
     .filter((item) => !sourceUniqueId || normalizeSourceUniqueId(item.source_unique_id) === sourceUniqueId)
     .slice(0, limit);
-  let articleBodiesFetched = 0;
-  const hydrated: FdaParsedRawItem[] = [];
-
-  for (let index = 0; index < selectedItems.length; index += 1) {
-    const item = selectedItems[index];
-    if (index >= articleBodyLimit) {
-      hydrated.push(item);
-      continue;
-    }
-
-    try {
-      const articleResponse = await fetchFdaArticleHtml(item.source_url);
-      if (!articleResponse.ok) {
-        hydrated.push({
-          ...item,
-          raw_payload: {
-            ...item.raw_payload,
-            article_fetch_error: articleResponse.error || `HTTP ${articleResponse.status}`,
-            article_fetch_status: articleResponse.status,
-          },
-        });
-        continue;
-      }
-
-      const article = parseFdaArticleHtml(articleResponse.html, articleResponse.url);
-      articleBodiesFetched += article.bodyText ? 1 : 0;
-      hydrated.push(mergeArticleIntoRawItem(item, article));
-    } catch (error) {
-      hydrated.push({
-        ...item,
-        raw_payload: {
-          ...item.raw_payload,
-          article_fetch_error: error instanceof Error ? error.message : "FDA article fetch failed",
-        },
-      });
-    }
-  }
+  const hydration = articleBodyLimit > 0
+    ? await hydrateFdaRawItems(selectedItems, {
+        limit: articleBodyLimit,
+        timeoutMs: articleTimeoutMs,
+        concurrency: options.articleConcurrency,
+      })
+    : {
+        items: selectedItems,
+        diagnostics: emptyFdaHydrationDiagnostics(),
+      };
 
   const ok = feedStats.some((feed) => feed.ok);
   return {
     ok,
     status: ok ? 200 : 0,
     fetchedAt,
-    count: hydrated.length,
-    items: hydrated,
+    count: hydration.items.length,
+    items: hydration.items,
     diagnostics: {
       feedCount: feeds.length,
       parsedFromFeeds: items.length,
-      articleBodiesRequested: articleBodyLimit,
-      articleBodiesFetched,
+      articleBodiesRequested: hydration.diagnostics.articleBodiesRequested,
+      articleBodiesFetched: hydration.diagnostics.articleBodiesFetched,
+      articleBodiesFailed: hydration.diagnostics.articleBodiesFailed,
+      articleBodiesTimedOut: hydration.diagnostics.articleBodiesTimedOut,
+      directArticleBodiesFailed:
+        hydration.diagnostics.directArticleBodiesFailed,
+      nasFallbackRequested: hydration.diagnostics.nasFallbackRequested,
+      nasFallbackSucceeded: hydration.diagnostics.nasFallbackSucceeded,
+      nasFallbackFailed: hydration.diagnostics.nasFallbackFailed,
+      articleConcurrency: hydration.diagnostics.articleConcurrency,
+      articleTimeoutMs: hydration.diagnostics.articleTimeoutMs,
       parserVersion: PARSER_VERSION,
       skippedNonEnglish,
       feedStats,
     },
     error: ok ? undefined : "No FDA feeds could be fetched",
+  };
+}
+
+export async function hydrateFdaRawItems(
+  items: FdaParsedRawItem[],
+  options: {
+    limit?: number;
+    timeoutMs?: number;
+    concurrency?: number;
+    fallbackHydrator?: FdaHydrationFallback;
+  } = {},
+): Promise<FdaHydrationResult> {
+  const limit = clampNumber(options.limit ?? items.length, 0, items.length);
+  const timeoutMs = clampNumber(
+    options.timeoutMs ?? DEFAULT_ARTICLE_TIMEOUT_MS,
+    100,
+    60_000,
+  );
+  const concurrency = clampNumber(
+    options.concurrency ?? DEFAULT_ARTICLE_CONCURRENCY,
+    1,
+    4,
+  );
+  const requested = items.slice(0, limit);
+  const untouched = items.slice(limit);
+  let articleBodiesFetched = 0;
+  let articleBodiesFailed = 0;
+  let articleBodiesTimedOut = 0;
+  let directArticleBodiesFailed = 0;
+  let nasFallbackRequested = 0;
+  let nasFallbackSucceeded = 0;
+  let nasFallbackFailed = 0;
+
+  const hydrated = await mapWithConcurrency(
+    requested,
+    concurrency,
+    async (item) => {
+      const attemptedAt = new Date().toISOString();
+      const deadline = Date.now() + timeoutMs;
+      const budgetController = new AbortController();
+      const budgetTimeout = setTimeout(
+        () => budgetController.abort(),
+        timeoutMs,
+      );
+
+      try {
+        const response = await fetchFdaArticleHtml(
+          item.source_url,
+          timeoutMs,
+          budgetController.signal,
+        );
+        const direct = resolveDirectFdaHydration(
+          item,
+          response,
+          attemptedAt,
+        );
+        if (direct.ok) {
+          articleBodiesFetched += 1;
+          return direct.item;
+        }
+
+        directArticleBodiesFailed += 1;
+        articleBodiesTimedOut += direct.timedOut ? 1 : 0;
+        const remainingMs = deadline - Date.now();
+        if (!options.fallbackHydrator || remainingMs <= 0) {
+          articleBodiesFailed += 1;
+          return options.fallbackHydrator
+            ? withFdaNasFallbackSkipped(
+                direct.item,
+                "time_budget_exhausted",
+              )
+            : direct.item;
+        }
+
+        nasFallbackRequested += 1;
+        let fallback: FdaHydrationFallbackResult;
+        try {
+          fallback = await options.fallbackHydrator(item, {
+            timeoutMs: remainingMs,
+            signal: budgetController.signal,
+            directError: direct.error,
+            directStatus: direct.status,
+            directTimedOut: direct.timedOut,
+          });
+        } catch (error) {
+          fallback = {
+            ok: false,
+            status: 0,
+            item: null,
+            error:
+              error instanceof Error
+                ? error.message
+                : "FDA NAS bridge failed",
+            timedOut:
+              isAbortError(error) ||
+              budgetController.signal.aborted,
+          };
+        }
+        if (budgetController.signal.aborted || Date.now() > deadline) {
+          fallback = {
+            ok: false,
+            status: fallback.status,
+            item: null,
+            error:
+              "FDA NAS bridge exceeded the shared article timeout budget",
+            timedOut: true,
+          };
+        }
+
+        if (
+          fallback.ok &&
+          fallback.item &&
+          hasUsableFdaRawItemText(fallback.item)
+        ) {
+          nasFallbackSucceeded += 1;
+          articleBodiesFetched += 1;
+          return mergeFdaNasFallbackItem(item, fallback.item, {
+            directError: direct.error,
+            directStatus: direct.status,
+            directTimedOut: direct.timedOut,
+            fallbackStatus: fallback.status,
+          });
+        }
+
+        nasFallbackFailed += 1;
+        articleBodiesFailed += 1;
+        articleBodiesTimedOut += fallback.timedOut ? 1 : 0;
+        return withFdaNasFallbackFailure(direct.item, {
+          status: fallback.status,
+          error:
+            fallback.error ||
+            "FDA NAS bridge returned no usable article text",
+          timedOut: Boolean(fallback.timedOut),
+        });
+      } catch (error) {
+        articleBodiesFailed += 1;
+        const timedOut = isAbortError(error);
+        articleBodiesTimedOut += timedOut ? 1 : 0;
+        return withFdaArticleFetchFailure(item, {
+          error:
+            error instanceof Error
+              ? error.message
+              : "FDA article fetch failed",
+          status: 0,
+          timedOut,
+          attemptedAt,
+        });
+      } finally {
+        clearTimeout(budgetTimeout);
+      }
+    },
+  );
+
+  return {
+    items: [...hydrated, ...untouched],
+    diagnostics: {
+      articleBodiesRequested: requested.length,
+      articleBodiesFetched,
+      articleBodiesFailed,
+      articleBodiesTimedOut,
+      directArticleBodiesFailed,
+      nasFallbackRequested,
+      nasFallbackSucceeded,
+      nasFallbackFailed,
+      articleConcurrency: concurrency,
+      articleTimeoutMs: timeoutMs,
+    },
   };
 }
 
@@ -363,20 +564,224 @@ export function stripFdaAnalysisBoilerplate(bodyText: string | null) {
   };
 }
 
-async function fetchFdaArticleHtml(sourceUrl: string) {
-  const response = await fetch(sourceUrl, {
-    cache: "no-store",
-    headers: fdaFetchHeaders("html"),
-  });
-  const html = await response.text();
+async function fetchFdaArticleHtml(
+  sourceUrl: string,
+  timeoutMs = DEFAULT_ARTICLE_TIMEOUT_MS,
+  externalSignal?: AbortSignal,
+) {
+  const controller = externalSignal ? null : new AbortController();
+  const signal = externalSignal || controller!.signal;
+  const timeout = controller
+    ? setTimeout(() => controller.abort(), Math.max(1, timeoutMs))
+    : null;
+
+  try {
+    const response = await fetch(sourceUrl, {
+      cache: "no-store",
+      redirect: "follow",
+      headers: fdaFetchHeaders("html"),
+      signal,
+    });
+    const html = await response.text();
+
+    return {
+      ok: response.ok,
+      status: response.status,
+      url: response.url || sourceUrl,
+      html: response.ok ? html : "",
+      error: response.ok
+        ? undefined
+        : response.statusText || "FDA article request failed",
+      timedOut: false,
+    };
+  } catch (error) {
+    const timedOut = isAbortError(error) || signal.aborted;
+    return {
+      ok: false,
+      status: 0,
+      url: sourceUrl,
+      html: "",
+      error: timedOut
+        ? `FDA article request timed out after ${timeoutMs}ms`
+        : error instanceof Error
+          ? error.message
+          : "FDA article request failed",
+      timedOut,
+    };
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
+
+function resolveDirectFdaHydration(
+  item: FdaParsedRawItem,
+  response: Awaited<ReturnType<typeof fetchFdaArticleHtml>>,
+  attemptedAt: string,
+):
+  | { ok: true; item: FdaParsedRawItem }
+  | {
+      ok: false;
+      item: FdaParsedRawItem;
+      error: string;
+      status: number;
+      timedOut: boolean;
+    } {
+  if (!response.ok) {
+    const error =
+      response.error ||
+      `FDA article request failed: HTTP ${response.status}`;
+    return {
+      ok: false,
+      item: withFdaArticleFetchFailure(item, {
+        error,
+        status: response.status,
+        timedOut: response.timedOut,
+        attemptedAt,
+      }),
+      error,
+      status: response.status,
+      timedOut: response.timedOut,
+    };
+  }
+
+  const article = parseFdaArticleHtml(response.html, response.url);
+  if (!article.bodyText && !readString(article.rawPayload.analysis_text)) {
+    const error = "FDA article body was not found";
+    return {
+      ok: false,
+      item: withFdaArticleFetchFailure(item, {
+        error,
+        status: response.status,
+        timedOut: false,
+        attemptedAt,
+      }),
+      error,
+      status: response.status,
+      timedOut: false,
+    };
+  }
 
   return {
-    ok: response.ok,
-    status: response.status,
-    url: response.url || sourceUrl,
-    html: response.ok ? html : "",
-    error: response.ok ? undefined : response.statusText || "FDA article request failed",
+    ok: true,
+    item: mergeArticleIntoRawItem(item, article),
   };
+}
+
+function withFdaArticleFetchFailure(
+  item: FdaParsedRawItem,
+  failure: {
+    error: string;
+    status: number;
+    timedOut: boolean;
+    attemptedAt: string;
+  },
+): FdaParsedRawItem {
+  return {
+    ...item,
+    raw_payload: {
+      ...item.raw_payload,
+      article_fetch_error: failure.error,
+      article_fetch_status: failure.status,
+      article_fetch_timed_out: failure.timedOut,
+      article_fetch_retryable: true,
+      article_fetch_attempted_at: failure.attemptedAt,
+    },
+  };
+}
+
+function mergeFdaNasFallbackItem(
+  listing: FdaParsedRawItem,
+  fallbackItem: FdaParsedRawItem,
+  context: {
+    directError: string;
+    directStatus: number;
+    directTimedOut: boolean;
+    fallbackStatus: number;
+  },
+): FdaParsedRawItem {
+  const rawPayload: Record<string, unknown> = {
+    ...listing.raw_payload,
+    ...fallbackItem.raw_payload,
+    article_hydration_source: "nas_bridge",
+    direct_article_fetch_error: context.directError,
+    direct_article_fetch_status: context.directStatus,
+    direct_article_fetch_timed_out: context.directTimedOut,
+    nas_fallback_attempted: true,
+    nas_fallback_status: context.fallbackStatus,
+  };
+  delete rawPayload.article_fetch_error;
+  delete rawPayload.article_fetch_status;
+  delete rawPayload.article_fetch_timed_out;
+  delete rawPayload.article_fetch_retryable;
+
+  return {
+    ...listing,
+    ...fallbackItem,
+    source_code: "fda",
+    source_group: "news",
+    source_unique_id:
+      fallbackItem.source_unique_id || listing.source_unique_id,
+    source_url: fallbackItem.source_url || listing.source_url,
+    title: fallbackItem.title || listing.title,
+    published_at: fallbackItem.published_at || listing.published_at,
+    fetched_at: fallbackItem.fetched_at || listing.fetched_at,
+    body_text: fallbackItem.body_text,
+    dedupe_key: fallbackItem.dedupe_key || listing.dedupe_key,
+    raw_payload: rawPayload,
+  };
+}
+
+function withFdaNasFallbackFailure(
+  directFailure: FdaParsedRawItem,
+  fallback: {
+    status: number;
+    error: string;
+    timedOut: boolean;
+  },
+): FdaParsedRawItem {
+  return {
+    ...directFailure,
+    raw_payload: {
+      ...directFailure.raw_payload,
+      direct_article_fetch_error:
+        directFailure.raw_payload.article_fetch_error || null,
+      direct_article_fetch_status:
+        directFailure.raw_payload.article_fetch_status || 0,
+      direct_article_fetch_timed_out:
+        directFailure.raw_payload.article_fetch_timed_out === true,
+      nas_fallback_attempted: true,
+      nas_fallback_status: fallback.status,
+      nas_fallback_error: fallback.error,
+      nas_fallback_timed_out: fallback.timedOut,
+    },
+  };
+}
+
+function withFdaNasFallbackSkipped(
+  directFailure: FdaParsedRawItem,
+  reason: string,
+): FdaParsedRawItem {
+  return {
+    ...directFailure,
+    raw_payload: {
+      ...directFailure.raw_payload,
+      direct_article_fetch_error:
+        directFailure.raw_payload.article_fetch_error || null,
+      direct_article_fetch_status:
+        directFailure.raw_payload.article_fetch_status || 0,
+      direct_article_fetch_timed_out:
+        directFailure.raw_payload.article_fetch_timed_out === true,
+      nas_fallback_attempted: false,
+      nas_fallback_skipped_reason: reason,
+    },
+  };
+}
+
+function hasUsableFdaRawItemText(item: FdaParsedRawItem) {
+  return Boolean(
+    readString(item.body_text) ||
+      readString(item.raw_payload.analysis_text),
+  );
 }
 
 function mergeArticleIntoRawItem(item: FdaParsedRawItem, article: FdaParsedArticle): FdaParsedRawItem {
@@ -782,6 +1187,55 @@ function decodeHtml(value: string) {
     .replace(/&gt;/gi, ">")
     .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
     .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCharCode(parseInt(code, 16)));
+}
+
+function emptyFdaHydrationDiagnostics() {
+  return {
+    articleBodiesRequested: 0,
+    articleBodiesFetched: 0,
+    articleBodiesFailed: 0,
+    articleBodiesTimedOut: 0,
+    directArticleBodiesFailed: 0,
+    nasFallbackRequested: 0,
+    nasFallbackSucceeded: 0,
+    nasFallbackFailed: 0,
+    articleConcurrency: 0,
+    articleTimeoutMs: 0,
+  };
+}
+
+async function mapWithConcurrency<T, U>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<U>,
+) {
+  const results = new Array<U>(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(items[index], index);
+    }
+  }
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(concurrency, items.length) },
+      () => worker(),
+    ),
+  );
+  return results;
+}
+
+function isAbortError(error: unknown) {
+  return (
+    (error instanceof Error && error.name === "AbortError") ||
+    (typeof DOMException !== "undefined" &&
+      error instanceof DOMException &&
+      error.name === "AbortError")
+  );
 }
 
 function readRecord(value: unknown): Record<string, unknown> | null {
