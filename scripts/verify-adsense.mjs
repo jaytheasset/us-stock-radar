@@ -163,6 +163,8 @@ const manualPlacementSources = await Promise.all(
     "../components/filing-analysis-v2/FilingRailAdSlot.tsx",
     "../components/filing-analysis-v2/AnalysisSignalCompanionAd.tsx",
     "../components/filing-analysis-v2/AnalysisCollapsedRailInlineAd.tsx",
+    "../components/feed-v2/FeedInlineAdSlots.tsx",
+    "../components/feed-v2/FeedRailAdSlot.tsx",
     "../components/alerts-v2/StockRadarAlertsV2.tsx",
   ].map((file) => readFile(new URL(file, import.meta.url), "utf8")),
 );
