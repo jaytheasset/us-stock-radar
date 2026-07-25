@@ -6,12 +6,17 @@ import {
   writeMarketGroupSnapshots,
   type MarketGroupSnapshotPayload,
 } from "@/lib/marketDataCache";
+import { authorizeMarketCacheRefresh } from "@/lib/marketCacheCronAuth";
 import type { PricePoint, PriceRange } from "@/lib/marketTypes";
 import { fetchFmpQuotes } from "@/lib/integrations";
+import { resolveSnapshotCache } from "@/lib/marketGroupCachePolicy";
 import { themeGroups, themeSubThemes } from "@/lib/taxonomyRegistry";
 
 export const dynamic = "force-dynamic";
 
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
+};
 const supportedRanges = ["1D", "5D", "1M", "3M"] as const;
 const maxSubThemes = 30;
 const symbolConcurrency = 6;
@@ -30,6 +35,19 @@ export async function GET(request: NextRequest) {
   const range = normalizeRange(request.nextUrl.searchParams.get("range"));
   const interval = chartIntervalForRange(range as PriceRange);
   const forceRefresh = request.nextUrl.searchParams.get("refresh") === "1";
+  const refreshAuthorization = authorizeMarketCacheRefresh(
+    request,
+    forceRefresh,
+  );
+  if (!refreshAuthorization.ok) {
+    return NextResponse.json(
+      { ok: false, error: refreshAuthorization.error },
+      {
+        status: refreshAuthorization.status,
+        headers: NO_STORE_HEADERS,
+      },
+    );
+  }
   const requested = Array.from(
     new Set(
       String(request.nextUrl.searchParams.get("subthemes") || "")
@@ -47,7 +65,7 @@ export async function GET(request: NextRequest) {
   if (!selectedDefinitions.length) {
     return NextResponse.json({
       ok: true,
-      cache: "empty",
+      cache: "miss",
       range,
       groups: [],
       subThemes: [],
@@ -56,14 +74,20 @@ export async function GET(request: NextRequest) {
 
   if (!forceRefresh) {
     const cached = await readMarketGroupSnapshotCache(range as PriceRange, interval);
-    const hydrated = hydrateCachedThemePerformance(cached.snapshots, selectedDefinitions);
-    if (cached.hit && hydrated) {
+    const resolution = resolveSnapshotCache(
+      cached.freshSnapshots,
+      cached.snapshots,
+      (snapshots) =>
+        hydrateCachedThemePerformance(snapshots, selectedDefinitions),
+      (hydrated) => Boolean(hydrated),
+    );
+    if (resolution.state !== "miss" && resolution.value) {
       return NextResponse.json({
         ok: true,
-        cache: "hit",
+        cache: resolution.state,
         range,
         interval,
-        ...hydrated,
+        ...resolution.value,
       });
     }
   }

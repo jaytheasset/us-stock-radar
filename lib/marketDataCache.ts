@@ -62,6 +62,8 @@ export type MarketBarCacheHit = {
 export type MarketGroupSnapshotCacheHit = {
   hit: boolean;
   snapshots: MarketGroupSnapshotPayload[];
+  freshSnapshots: MarketGroupSnapshotPayload[];
+  stale: boolean;
   error?: string;
 };
 
@@ -324,25 +326,60 @@ export async function readMarketGroupSnapshotCache(
   range: PriceRange,
   interval = chartIntervalForRange(range),
 ): Promise<MarketGroupSnapshotCacheHit> {
+  const now = Date.now();
   const result = await supabaseSelect("market_group_snapshots", {
     select:
       "scope,group_key,group_name,parent_key,range,interval,provider_label,change_percent,market_cap_label,trend_points,top_movers,constituent_symbols,sort_order,raw_payload,expires_at",
     range: `eq.${range}`,
     interval: `eq.${interval}`,
-    expires_at: `gt.${new Date().toISOString()}`,
     order: "sort_order.asc",
   });
 
   if (!result.ok) {
-    return { hit: false, snapshots: [], error: result.error };
+    return {
+      hit: false,
+      snapshots: [],
+      freshSnapshots: [],
+      stale: false,
+      error: result.error,
+    };
   }
 
   const rows = Array.isArray(result.data) ? result.data : [];
-  const snapshots = rows
-    .map(normalizeGroupSnapshot)
-    .filter((snapshot): snapshot is MarketGroupSnapshotPayload => Boolean(snapshot));
+  const normalizedRows = rows
+    .map((row) => {
+      const snapshot = normalizeGroupSnapshot(row);
+      if (!snapshot || !row || typeof row !== "object") return null;
+      const expiresAt = Date.parse(
+        stringOrFallback(
+          (row as Record<string, unknown>).expires_at,
+          "",
+        ),
+      );
+      return {
+        fresh: Number.isFinite(expiresAt) && expiresAt > now,
+        snapshot,
+      };
+    })
+    .filter(
+      (
+        row,
+      ): row is {
+        fresh: boolean;
+        snapshot: MarketGroupSnapshotPayload;
+      } => Boolean(row),
+    );
+  const snapshots = normalizedRows.map((row) => row.snapshot);
+  const freshSnapshots = normalizedRows
+    .filter((row) => row.fresh)
+    .map((row) => row.snapshot);
 
-  return { hit: snapshots.length > 0, snapshots };
+  return {
+    hit: freshSnapshots.length > 0,
+    snapshots,
+    freshSnapshots,
+    stale: snapshots.length > freshSnapshots.length,
+  };
 }
 
 export async function writeMarketGroupSnapshots(payloads: MarketGroupSnapshotPayload[]) {

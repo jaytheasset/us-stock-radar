@@ -24,7 +24,15 @@ async function main() {
 
     const started = Date.now();
     try {
-      const response = await fetch(url, { headers: { Accept: "application/json" } });
+      const headers = { Accept: "application/json" };
+      if (options.refresh) {
+        const cronSecret = process.env.CRON_SECRET || "";
+        if (!cronSecret) {
+          throw new Error("CRON_SECRET is required when refresh is enabled");
+        }
+        headers.Authorization = `Bearer ${cronSecret}`;
+      }
+      const response = await fetch(url, { headers });
       const data = await response.json().catch(() => null);
       const sectorCount = Array.isArray(data?.sectors) ? data.sectors.length : 0;
       const industryCount = Array.isArray(data?.sectors)
