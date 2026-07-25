@@ -318,3 +318,55 @@ test("news migration keeps page bounds, indexed search, real-time ET ranges, and
   assert.match(dataSource, /newsV2StatisticsCacheSeconds = 15/);
   assert.match(dataSource, /includeTotal && !cursor/);
 });
+
+test("News V2 market score policy is shared by rows, stats, and facets", () => {
+  const migration = readFileSync(
+    new URL(
+      "../supabase/migrations/20260725215500_news_v2_market_score_threshold.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const dataSource = readFileSync(new URL("./newsV2Data.ts", import.meta.url), "utf8");
+  const isVisible = (marketScope: string | null, score: number | null) => {
+    const normalizedScope = marketScope?.trim().toLowerCase() || "company";
+    return (
+      !["sector", "theme", "macro"].includes(normalizedScope) ||
+      (score ?? 50) >= 75
+    );
+  };
+
+  assert.equal(isVisible("company", 50), true);
+  assert.equal(isVisible("company", 74), true);
+  for (const marketScope of ["sector", "theme", "macro"]) {
+    assert.equal(isVisible(marketScope, 74), false);
+    assert.equal(isVisible(marketScope, 75), true);
+    assert.equal(isVisible(marketScope, null), false);
+  }
+
+  assert.match(migration, /pg_get_functiondef\(p\.oid\)/i);
+  assert.match(migration, /p\.proname = 'search_news_v2'/i);
+  assert.match(migration, /p\.proname = 'get_news_v2_facets'/i);
+  assert.match(
+    migration,
+    /not in \('sector', 'theme', 'macro'\)[\s\S]*or coalesce\(e\.score, 50\) >= 75/i,
+  );
+  assert.equal(
+    (migration.match(/execute replace\([^;]+visible_anchor\)/gi) || []).length,
+    2,
+  );
+  assert.match(
+    migration,
+    /revoke all on function public\.search_news_v2[\s\S]+from public, anon, authenticated/i,
+  );
+  assert.match(
+    migration,
+    /grant execute on function public\.get_news_v2_facets\(\)[\s\S]+to service_role/i,
+  );
+  assert.doesNotMatch(
+    migration,
+    /\b(?:delete\s+from|update|truncate|alter\s+table)\s+public\.events\b/i,
+  );
+  assert.match(dataSource, /news-v2-filter-options-v3-market-score-75/);
+  assert.match(dataSource, /news-v2-filtered-first-page-v2-market-score-75/);
+});
