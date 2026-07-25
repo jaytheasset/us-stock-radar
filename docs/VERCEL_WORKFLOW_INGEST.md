@@ -140,8 +140,9 @@ Production에 먼저 설정:
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SEC_USER_AGENT`
-- `OPENAI_API_KEY` 또는 현재 뉴스 분석 provider 설정
-- `GEMINI_API_KEY`와 현재 SEC provider/model 설정
+- `GEMINI_API_KEY`: 뉴스와 SEC Gemini 호출에 공통 사용
+- `NEWS_GEMINI_MODEL`: 뉴스 1차 분류와 2차 분석 전용 모델
+  (`gemini-2.5-flash-lite` 권장). SEC의 `GEMINI_MODEL`과는 별도 설정
 - `FMP_API_KEY`, 필요 시 `POLYGON_API_KEY`
 - `NAS_INGEST_TOKEN`, `FDA_INGEST_URL`, `ACCESSWIRE_INGEST_URL`
 - 기존 Telegram/alert 전달 환경변수

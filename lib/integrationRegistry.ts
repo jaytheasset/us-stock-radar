@@ -38,6 +38,12 @@ export const integrationRegistry = [
     envKeys: ["OPENAI_API_KEY", "OPENAI_MODEL"],
   },
   {
+    key: "gemini",
+    label: "Gemini",
+    category: "ai",
+    envKeys: ["GEMINI_API_KEY", "GEMINI_MODEL", "NEWS_GEMINI_MODEL"],
+  },
+  {
     key: "telegram",
     label: "Telegram",
     category: "notification",

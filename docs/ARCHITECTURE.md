@@ -39,6 +39,7 @@ External providers:
 - SEC EDGAR
 - FMP
 - Polygon
+- Gemini
 - OpenAI
 - Telegram
 - Web Push provider endpoints
