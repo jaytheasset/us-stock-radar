@@ -680,9 +680,24 @@
 }
 
 .contextEvent {
+  display: block;
   position: relative;
   padding: var(--sr-space-3) 54px var(--sr-space-3) 0;
   border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
+}
+
+.contextEventLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.contextEventLink:hover {
+  background: var(--sr-color-surface-table-hover);
+}
+
+.contextEventLink:focus-visible {
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: calc(var(--sr-focus-ring-offset) * -1);
 }
 
 .contextEvent:last-child {

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { FeedPremiumCard } from "@/components/feed-v2/FeedPremiumCard";
 import { FeedPreviewPanel } from "@/components/feed-v2/FeedPreviewPanel";
@@ -192,21 +193,42 @@ function RailEventSection({
       </div>
       {items.length ? (
         <div className={styles.contextEventList}>
-          {items.slice(0, 4).map((item) => (
-            <article className={styles.contextEvent} key={item.id}>
-              <div>
-                <span>{item.label}</span>
-                <small>{item.timeLabel}</small>
-              </div>
-              <p>{item.headline}</p>
-              <strong>
-                Impact{" "}
-                <span data-score-tone={getDirectionalScoreTone(item.impactScore, item.sentiment)}>
-                  {item.impactScore}
-                </span>
-              </strong>
-            </article>
-          ))}
+          {items.slice(0, 4).map((item) => {
+            const content = (
+              <>
+                <div>
+                  <span>{item.label}</span>
+                  <small>{item.timeLabel}</small>
+                </div>
+                <p>{item.headline}</p>
+                <strong>
+                  Impact{" "}
+                  <span
+                    data-score-tone={getDirectionalScoreTone(
+                      item.impactScore,
+                      item.sentiment,
+                    )}
+                  >
+                    {item.impactScore}
+                  </span>
+                </strong>
+              </>
+            );
+
+            return item.detailHref ? (
+              <Link
+                className={`${styles.contextEvent} ${styles.contextEventLink}`}
+                href={item.detailHref}
+                key={item.id}
+              >
+                {content}
+              </Link>
+            ) : (
+              <article className={styles.contextEvent} key={item.id}>
+                {content}
+              </article>
+            );
+          })}
         </div>
       ) : (
         <RailEmpty message={`No ${title.toLowerCase()} are available.`} />

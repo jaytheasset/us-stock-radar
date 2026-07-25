@@ -17,6 +17,27 @@ export type LiveFeedV2Sentiment =
   | "Neutral"
   | "Volatile";
 
+export type LiveFeedV2RailDestination = "events" | "filings";
+
+export function createLiveFeedV2RailEventIdentity({
+  destination,
+  eventId,
+  fallbackId,
+}: {
+  destination: LiveFeedV2RailDestination;
+  eventId?: string | null;
+  fallbackId: string;
+}) {
+  const persistentEventId = eventId?.trim() || null;
+
+  return {
+    detailHref: persistentEventId
+      ? `/${destination}/${encodeURIComponent(persistentEventId)}`
+      : null,
+    id: persistentEventId || fallbackId,
+  };
+}
+
 export type LiveFeedV2RelatedItem = {
   href: string;
   label: string;
