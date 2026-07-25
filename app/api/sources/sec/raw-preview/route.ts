@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchSecEdgarRawItems } from "@/lib/sources/sec/parser";
+import { sourceDiagnosticAuthResponse } from "@/lib/sourceIngestRouteAuth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  const unauthorized = sourceDiagnosticAuthResponse(request);
+  if (unauthorized) return unauthorized;
+
   const params = request.nextUrl.searchParams;
   const limit = readNumber(params.get("limit"), 3, 1, 20);
   const countPerForm = readNumber(params.get("countPerForm"), 5, 1, 40);

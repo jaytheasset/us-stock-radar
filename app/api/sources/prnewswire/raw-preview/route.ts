@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchPRNewswireRawItems } from "@/lib/sources/prnewswire/parser";
+import { sourceDiagnosticAuthResponse } from "@/lib/sourceIngestRouteAuth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  const unauthorized = sourceDiagnosticAuthResponse(request);
+  if (unauthorized) return unauthorized;
+
   const params = request.nextUrl.searchParams;
   const limit = readNumber(params.get("limit"), 10, 1, 50);
   const sourceUniqueId = params.get("sourceUniqueId")?.trim() || undefined;

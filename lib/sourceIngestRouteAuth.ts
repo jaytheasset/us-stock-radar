@@ -8,6 +8,8 @@ export type SourceIngestAuthorization =
   | { ok: true }
   | { ok: false; status: 401 | 500; error: "UNAUTHORIZED" | "SOURCE_INGEST_SECRET_MISSING" };
 
+export type SourceDiagnosticAuthorization = SourceIngestAuthorization;
+
 export function authorizeSourceIngestRequest(
   request: HeaderRequest,
   secret = readSourceIngestSecret(),
@@ -35,6 +37,41 @@ export function authorizeSourceIngestRequest(
 
 export function sourceIngestAuthResponse(request: HeaderRequest) {
   const authorization = authorizeSourceIngestRequest(request);
+  return authorization.ok
+    ? null
+    : Response.json(
+        { ok: false, error: authorization.error },
+        {
+          status: authorization.status,
+          headers: {
+            "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
+          },
+        },
+      );
+}
+
+export function authorizeSourceDiagnosticRequest(
+  request: HeaderRequest,
+  options: {
+    secret?: string;
+    nodeEnv?: string;
+  } = {},
+): SourceDiagnosticAuthorization {
+  const secret =
+    options.secret === undefined
+      ? readSourceIngestSecret()
+      : options.secret;
+  const nodeEnv = options.nodeEnv ?? process.env.NODE_ENV ?? "";
+
+  if (!secret && nodeEnv !== "production") {
+    return { ok: true };
+  }
+
+  return authorizeSourceIngestRequest(request, secret);
+}
+
+export function sourceDiagnosticAuthResponse(request: HeaderRequest) {
+  const authorization = authorizeSourceDiagnosticRequest(request);
   return authorization.ok
     ? null
     : Response.json(

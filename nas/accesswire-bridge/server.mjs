@@ -1,4 +1,5 @@
 import http from "node:http";
+import { pathToFileURL } from "node:url";
 
 const ACCESSWIRE_BASE_URL = "https://www.accessnewswire.com";
 const ACCESSWIRE_NEWSROOM_API_URL = `${ACCESSWIRE_BASE_URL}/newsroom/api`;
@@ -10,6 +11,8 @@ const FDA_PARSER_VERSION = "fda_nas_raw_bridge_v1";
 const FDA_ANALYSIS_TEXT_VERSION = "fda_analysis_text_v1";
 const PORT = clampNumber(process.env.PORT || 3000, 1, 65535, 3000);
 const NAS_INGEST_TOKEN = String(process.env.NAS_INGEST_TOKEN || "").trim();
+const ACCESSWIRE_LISTING_TIMEOUT_MS = 12_000;
+const ACCESSWIRE_BROWSER_TIMEOUT_MS = 8_000;
 
 const ACCESSWIRE_FEEDS = [
   accesswireFeed("All Newsroom Releases", undefined, true),
@@ -94,9 +97,14 @@ function isRawEndpoint(url) {
   return Boolean(url?.startsWith("/api/accesswire/raw") || url?.startsWith("/api/fda/raw"));
 }
 
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`accesswire-raw-bridge listening on ${PORT}`);
-});
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
+  server.listen(PORT, "0.0.0.0", () => {
+    console.log(`accesswire-raw-bridge listening on ${PORT}`);
+  });
+}
 
 function isAuthorized(request) {
   const auth = String(request.headers.authorization || "");
@@ -121,7 +129,10 @@ function sendJson(response, status, data) {
   response.end(JSON.stringify(data));
 }
 
-async function fetchAccesswireRawItems(options = {}) {
+export async function fetchAccesswireRawItems(
+  options = {},
+  dependencies = {},
+) {
   const fetchedAt = new Date().toISOString();
   const rawSourceUniqueId = String(options.sourceUniqueId || "").trim();
   const sourceUniqueId = normalizeSourceUniqueId(rawSourceUniqueId);
@@ -131,6 +142,18 @@ async function fetchAccesswireRawItems(options = {}) {
   const limit = directArticleUrl || sourceUniqueId ? 1 : clampNumber(options.limit ?? 50, 1, 100, 50);
   const includeArticleBody = options.includeArticleBody ?? false;
   const articleBodyLimit = includeArticleBody ? clampNumber(options.articleBodyLimit ?? limit, 0, limit, limit) : 0;
+  const listTimeoutMs = clampNumber(
+    options.listTimeoutMs ?? ACCESSWIRE_LISTING_TIMEOUT_MS,
+    100,
+    60_000,
+    ACCESSWIRE_LISTING_TIMEOUT_MS,
+  );
+  const browserFetcher =
+    dependencies.browserFetcher ||
+    fetchAccesswireBrowserItems;
+  const rssFetcher =
+    dependencies.rssFetcher ||
+    fetchAccesswireRssItems;
 
   if (directArticleUrl) {
     return fetchDirectArticleRawItem(directArticleUrl, fetchedAt);
@@ -141,15 +164,21 @@ async function fetchAccesswireRawItems(options = {}) {
   const feedStats = [];
   let discoveryMethod = "newsroom_api";
   let skippedNonEnglish = 0;
+  let apiFeedsAttempted = 0;
+  let apiChallengeDetected = false;
+  const listingDeadline = Date.now() + listTimeoutMs;
 
   for (const feed of ACCESSWIRE_FEEDS) {
     if (items.length >= limit) break;
+    const remainingMs = remainingBudgetMs(listingDeadline);
+    if (remainingMs <= 0) break;
 
     try {
+      apiFeedsAttempted += 1;
       const apiResponse = await fetchAccesswireNewsroomApi(feed, {
         pageIndex: 0,
         pageSize: Math.min(50, Math.max(limit, 20)),
-      });
+      }, remainingMs);
       if (!apiResponse.ok) {
         feedStats.push({
           label: feed.label,
@@ -158,6 +187,10 @@ async function fetchAccesswireRawItems(options = {}) {
           itemCount: 0,
           error: apiResponse.error || "Access Newswire newsroom API request failed",
         });
+        if (apiResponse.challenged) {
+          apiChallengeDetected = true;
+          break;
+        }
         continue;
       }
 
@@ -196,7 +229,24 @@ async function fetchAccesswireRawItems(options = {}) {
   if (items.length === 0) {
     discoveryMethod = "browser";
     try {
-      const browserResult = await fetchAccesswireBrowserItems({ fetchedAt, limit, sourceUniqueId });
+      const remainingMs = remainingBudgetMs(listingDeadline);
+      if (remainingMs <= 0) {
+        throw new Error("Access Newswire listing timeout budget exhausted before browser fallback");
+      }
+      const browserTimeoutMs = Math.min(
+        ACCESSWIRE_BROWSER_TIMEOUT_MS,
+        remainingMs,
+      );
+      const browserResult = await withAccesswireListingTimeout(
+        browserFetcher({
+          fetchedAt,
+          limit,
+          sourceUniqueId,
+          timeoutMs: browserTimeoutMs,
+        }),
+        browserTimeoutMs,
+        "browser fallback",
+      );
       feedStats.push(browserResult.feedStat);
       for (const item of browserResult.items) {
         if (sourceUniqueId && normalizeSourceUniqueId(item.source_unique_id) !== sourceUniqueId) continue;
@@ -224,7 +274,20 @@ async function fetchAccesswireRawItems(options = {}) {
   if (items.length === 0) {
     discoveryMethod = "rss";
     try {
-      const rssResult = await fetchAccesswireRssItems({ fetchedAt, limit, sourceUniqueId });
+      const remainingMs = remainingBudgetMs(listingDeadline);
+      if (remainingMs <= 0) {
+        throw new Error("Access Newswire listing timeout budget exhausted before RSS fallback");
+      }
+      const rssResult = await withAccesswireListingTimeout(
+        rssFetcher({
+          fetchedAt,
+          limit,
+          sourceUniqueId,
+          timeoutMs: remainingMs,
+        }),
+        remainingMs,
+        "RSS fallback",
+      );
       feedStats.push(rssResult.feedStat);
       for (const item of rssResult.items) {
         if (sourceUniqueId && normalizeSourceUniqueId(item.source_unique_id) !== sourceUniqueId) continue;
@@ -303,6 +366,12 @@ async function fetchAccesswireRawItems(options = {}) {
       articleBodiesFetched,
       parserVersion: PARSER_VERSION,
       discoveryMethod,
+      listTimeoutMs,
+      apiFeedsAttempted,
+      apiFeedsSkippedAfterChallenge: apiChallengeDetected
+        ? Math.max(0, ACCESSWIRE_FEEDS.length - apiFeedsAttempted)
+        : 0,
+      apiChallengeDetected,
       skippedNonEnglish,
       feedStats,
     },
@@ -310,14 +379,22 @@ async function fetchAccesswireRawItems(options = {}) {
   };
 }
 
-async function fetchAccesswireBrowserItems({ fetchedAt, limit, sourceUniqueId }) {
+async function fetchAccesswireBrowserItems({
+  fetchedAt,
+  limit,
+  sourceUniqueId,
+  timeoutMs = ACCESSWIRE_BROWSER_TIMEOUT_MS,
+}) {
   const { chromium } = await import("playwright");
+  const deadline = Date.now() + Math.max(100, timeoutMs);
   const browser = await chromium.launch({
     headless: true,
     args: ["--no-sandbox", "--disable-dev-shm-usage"],
+    timeout: Math.max(100, timeoutMs),
   });
 
   try {
+    assertAccesswireListingBudget(deadline, "browser launch");
     const context = await browser.newContext({
       userAgent:
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36",
@@ -325,6 +402,9 @@ async function fetchAccesswireBrowserItems({ fetchedAt, limit, sourceUniqueId })
       viewport: { width: 1365, height: 900 },
     });
     const page = await context.newPage();
+    page.setDefaultTimeout(
+      Math.max(100, remainingBudgetMs(deadline)),
+    );
     const articlesFromResponse = [];
 
     page.on("response", async (response) => {
@@ -341,12 +421,16 @@ async function fetchAccesswireBrowserItems({ fetchedAt, limit, sourceUniqueId })
       }
     });
 
+    assertAccesswireListingBudget(deadline, "browser navigation");
     await page.goto(`${ACCESSWIRE_BASE_URL}/newsroom`, {
       waitUntil: "domcontentloaded",
-      timeout: 60000,
+      timeout: remainingBudgetMs(deadline),
     });
-    await page.waitForLoadState("networkidle", { timeout: 45000 }).catch(() => null);
-    await page.waitForSelector("a[href*='/newsroom/']", { timeout: 45000 }).catch(() => null);
+    await waitForAccesswireBrowserDiscovery({
+      page,
+      articlesFromResponse,
+      deadline,
+    });
 
     const domItems = await page.evaluate(() => {
       const links = Array.from(document.querySelectorAll("a[href*='/newsroom/']"));
@@ -394,6 +478,36 @@ async function fetchAccesswireBrowserItems({ fetchedAt, limit, sourceUniqueId })
   }
 }
 
+export async function waitForAccesswireBrowserDiscovery({
+  page,
+  articlesFromResponse,
+  deadline,
+}) {
+  while (remainingBudgetMs(deadline) > 0) {
+    if (articlesFromResponse.length > 0) {
+      return "api_response";
+    }
+
+    const hasReleaseLink = await page
+      .locator("a[href*='/newsroom/']")
+      .evaluateAll((links) =>
+        links.some((link) =>
+          /-\d+(?:[/?#]|$)/.test(link.href),
+        ),
+      )
+      .catch(() => false);
+    if (hasReleaseLink) {
+      return "release_dom";
+    }
+
+    await page.waitForTimeout(
+      Math.min(100, remainingBudgetMs(deadline)),
+    );
+  }
+
+  return "timeout";
+}
+
 function buildBrowserRawItem(item, fetchedAt) {
   const sourceUrl = normalizeAccesswireUrl(item.href);
   if (!sourceUrl || !/^https:\/\/www\.accessnewswire\.com\/newsroom\//i.test(sourceUrl)) return null;
@@ -439,24 +553,41 @@ function buildBrowserRawItem(item, fetchedAt) {
   };
 }
 
-async function fetchAccesswireRssItems({ fetchedAt, limit, sourceUniqueId }) {
-  const response = await fetch(ACCESSWIRE_RSS_URL, {
-    method: "GET",
-    cache: "no-store",
-    headers: accesswireRssHeaders(),
-  });
-  const xml = await response.text();
-  if (!response.ok || looksLikeCloudflareChallenge(xml)) {
-    return {
-      items: [],
-      feedStat: {
-        label: "ACCESS Newswire RSS",
-        ok: false,
-        status: response.status,
-        itemCount: 0,
-        error: response.ok ? "Access Newswire RSS returned Cloudflare challenge" : response.statusText,
-      },
-    };
+async function fetchAccesswireRssItems({
+  fetchedAt,
+  limit,
+  sourceUniqueId,
+  timeoutMs,
+}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    Math.max(1, timeoutMs),
+  );
+  let response;
+  let xml;
+  try {
+    response = await fetch(ACCESSWIRE_RSS_URL, {
+      method: "GET",
+      cache: "no-store",
+      headers: accesswireRssHeaders(),
+      signal: controller.signal,
+    });
+    xml = await response.text();
+    if (!response.ok || looksLikeCloudflareChallenge(xml)) {
+      return {
+        items: [],
+        feedStat: {
+          label: "ACCESS Newswire RSS",
+          ok: false,
+          status: response.status,
+          itemCount: 0,
+          error: response.ok ? "Access Newswire RSS returned Cloudflare challenge" : response.statusText,
+        },
+      };
+    }
+  } finally {
+    clearTimeout(timeout);
   }
 
   const rssItems = parseAccesswireRss(xml, fetchedAt)
@@ -646,37 +777,71 @@ function parseAccesswireNewsroomApi(data, { feed, fetchedAt }) {
     .filter(Boolean);
 }
 
-async function fetchAccesswireNewsroomApi(feed, options) {
+async function fetchAccesswireNewsroomApi(
+  feed,
+  options,
+  timeoutMs,
+) {
   const url = new URL(feed.url || ACCESSWIRE_NEWSROOM_API_URL);
   url.searchParams.set("pageindex", String(options.pageIndex));
   url.searchParams.set("pageSize", String(options.pageSize));
   if (feed.industry) url.searchParams.set("articleindustry", feed.industry);
   if (feed.topic) url.searchParams.set("topic", feed.topic);
 
-  const response = await fetch(url, {
-    method: "POST",
-    cache: "no-store",
-    headers: accesswireFetchHeaders("api", feed),
-  });
-  const text = await response.text();
-  if (!response.ok) {
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    Math.max(1, timeoutMs),
+  );
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      cache: "no-store",
+      headers: accesswireFetchHeaders("api", feed),
+      signal: controller.signal,
+    });
+    const text = await response.text();
+    const challenged =
+      response.status === 403 ||
+      looksLikeCloudflareChallenge(text);
+    if (!response.ok || challenged) {
+      return {
+        ok: false,
+        status: response.status,
+        data: null,
+        challenged,
+        error: challenged
+          ? "Access Newswire newsroom API returned Cloudflare challenge"
+          : response.statusText || "Access Newswire newsroom API request failed",
+      };
+    }
+
+    const data = safeJsonParse(text);
+    return {
+      ok: Boolean(data),
+      status: response.status,
+      data,
+      challenged: false,
+      error: data ? undefined : "Access Newswire newsroom API returned non-JSON response",
+    };
+  } catch (error) {
+    const timedOut =
+      isAbortError(error) ||
+      controller.signal.aborted;
     return {
       ok: false,
-      status: response.status,
+      status: 0,
       data: null,
-      error: looksLikeCloudflareChallenge(text)
-        ? "Access Newswire newsroom API returned Cloudflare challenge"
-        : response.statusText || "Access Newswire newsroom API request failed",
+      challenged: false,
+      error: timedOut
+        ? `Access Newswire newsroom API timed out after ${timeoutMs}ms`
+        : error instanceof Error
+          ? error.message
+          : "Access Newswire newsroom API request failed",
     };
+  } finally {
+    clearTimeout(timeout);
   }
-
-  const data = safeJsonParse(text);
-  return {
-    ok: Boolean(data),
-    status: response.status,
-    data,
-    error: data ? undefined : "Access Newswire newsroom API returned non-JSON response",
-  };
 }
 
 async function fetchAccesswireArticleHtml(sourceUrl) {
@@ -1782,6 +1947,52 @@ function firstNonZeroStatus(feedStats) {
 function dateMs(value) {
   const parsed = Date.parse(value || "");
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function remainingBudgetMs(deadline) {
+  return Math.max(0, deadline - Date.now());
+}
+
+function assertAccesswireListingBudget(deadline, stage) {
+  if (remainingBudgetMs(deadline) > 0) return;
+  throw new Error(
+    `Access Newswire listing timeout budget exhausted after ${stage}`,
+  );
+}
+
+async function withAccesswireListingTimeout(
+  promise,
+  timeoutMs,
+  stage,
+) {
+  let timeout;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timeout = setTimeout(
+          () =>
+            reject(
+              new Error(
+                `Access Newswire ${stage} timed out after ${timeoutMs}ms`,
+              ),
+            ),
+          Math.max(1, timeoutMs),
+        );
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
+
+function isAbortError(error) {
+  return (
+    (error instanceof Error && error.name === "AbortError") ||
+    (typeof DOMException !== "undefined" &&
+      error instanceof DOMException &&
+      error.name === "AbortError")
+  );
 }
 
 function readRecord(value) {

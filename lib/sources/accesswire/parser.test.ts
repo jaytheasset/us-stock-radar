@@ -177,6 +177,105 @@ test("AccessWire newsroom listing uses one bounded timeout budget", async (t) =>
   );
 });
 
+test("AccessWire stops remaining APIs after the first Cloudflare challenge", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls += 1;
+    return new Response(
+      "<html><title>Just a moment</title>Cloudflare challenge-platform</html>",
+      {
+        status: 403,
+        statusText: "Forbidden",
+      },
+    );
+  }) as typeof fetch;
+
+  const result = await fetchAccesswireRawItems({
+    feeds: [
+      {
+        label: "Primary",
+        url: "https://www.accessnewswire.com/newsroom/api",
+        primary: true,
+      },
+      {
+        label: "Must not run",
+        url: "https://www.accessnewswire.com/newsroom/api",
+      },
+    ],
+    limit: 5,
+    includeArticleBody: false,
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(calls, 1);
+  assert.equal(result.diagnostics.apiChallengeDetected, true);
+  assert.equal(result.diagnostics.apiFeedsAttempted, 1);
+  assert.equal(
+    result.diagnostics.apiFeedsSkippedAfterChallenge,
+    1,
+  );
+});
+
+test("AccessWire keeps normal multi-feed discovery when APIs are not challenged", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls += 1;
+    const articles =
+      calls === 1
+        ? []
+        : [
+            {
+              id: "1167002",
+              title: "Example Corp reports FDA milestone",
+              releaseurl:
+                "https://www.accessnewswire.com/newsroom/en/healthcare/example-corp-reports-fda-milestone-1167002",
+              description: "NASDAQ: EXMP announced an FDA milestone.",
+              adate: "Jul 25, 2026 9:30 AM ET",
+              company: "Example Corp",
+            },
+          ];
+    return new Response(
+      JSON.stringify({ data: { articles } }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }) as typeof fetch;
+
+  const result = await fetchAccesswireRawItems({
+    feeds: [
+      {
+        label: "Primary",
+        url: "https://www.accessnewswire.com/newsroom/api",
+        primary: true,
+      },
+      {
+        label: "Healthcare",
+        url: "https://www.accessnewswire.com/newsroom/api",
+      },
+    ],
+    limit: 5,
+    includeArticleBody: false,
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(calls, 2);
+  assert.equal(result.count, 1);
+  assert.equal(result.diagnostics.apiChallengeDetected, false);
+  assert.equal(result.diagnostics.apiFeedsAttempted, 2);
+});
+
 test("AccessWire newsroom parser keeps the existing listing contract", () => {
   const items = parseAccesswireNewsroomApi(
     {

@@ -34,13 +34,19 @@ type NewsIngestOptions = {
 };
 
 type RawFetchOptions = NasBridgeFetchOptions;
+const ACCESSWIRE_LISTING_TOTAL_BUDGET_MS = 12_000;
 
 export async function runAccesswireNewsIngestWithFallback(options: NewsIngestOptions) {
   let nasFallback: Record<string, unknown> | null = null;
 
   const result = await runAccesswireNewsIngestWithRawFetcher(async (rawOptions) => {
+    const listingStartedAt = Date.now();
     const directResult = await fetchAccesswireRawItems(rawOptions);
     if (readRecord(directResult)?.ok !== false) return directResult;
+    const remainingMs =
+      ACCESSWIRE_LISTING_TOTAL_BUDGET_MS -
+      (Date.now() - listingStartedAt);
+    if (remainingMs <= 0) return directResult;
 
     const env = getServerEnv();
     const fallbackResult = await runNasBridge<AccesswireRawFetchResult>({
@@ -51,6 +57,7 @@ export async function runAccesswireNewsIngestWithFallback(options: NewsIngestOpt
       options: rawOptions,
       source: "accesswire",
       token: env.nasIngestToken,
+      timeoutMs: remainingMs,
     });
     nasFallback = fallbackDiagnostics("ACCESSWIRE_INGEST_URL", directResult, fallbackResult);
 
