@@ -6,6 +6,7 @@ import {
   writeMarketGroupSnapshots,
   type MarketGroupSnapshotPayload,
 } from "@/lib/marketDataCache";
+import { authorizeMarketCacheRefresh } from "@/lib/marketCacheCronAuth";
 import type { PricePoint, PriceRange } from "@/lib/marketTypes";
 import { fetchFmpQuotes } from "@/lib/integrations";
 import { resolveSnapshotCache } from "@/lib/marketGroupCachePolicy";
@@ -14,6 +15,9 @@ import { sectorMappings } from "@/lib/taxonomyRegistry";
 
 export const dynamic = "force-dynamic";
 
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
+};
 const supportedRanges = ["1D", "5D", "1M", "3M"] as const;
 const industryCoverageTarget = 0.85;
 const groupSnapshotMinMarketCap = 300_000_000;
@@ -111,6 +115,19 @@ export async function GET(request: NextRequest) {
   const range = normalizeRange(request.nextUrl.searchParams.get("range"));
   const interval = chartIntervalForRange(range);
   const forceRefresh = request.nextUrl.searchParams.get("refresh") === "1";
+  const refreshAuthorization = authorizeMarketCacheRefresh(
+    request,
+    forceRefresh,
+  );
+  if (!refreshAuthorization.ok) {
+    return NextResponse.json(
+      { ok: false, error: refreshAuthorization.error },
+      {
+        status: refreshAuthorization.status,
+        headers: NO_STORE_HEADERS,
+      },
+    );
+  }
   const sectorOrder = Array.from(new Set(sectorMappings.map((item) => item.sector)));
   const requestedSector = sectorOrder.includes(String(request.nextUrl.searchParams.get("sector") || ""))
     ? String(request.nextUrl.searchParams.get("sector"))

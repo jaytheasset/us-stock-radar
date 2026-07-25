@@ -154,9 +154,16 @@ async function refreshSectorPerformanceStep(
   );
 
   try {
+    const cronSecret = process.env.CRON_SECRET || "";
+    if (!cronSecret) {
+      throw new FatalError("CRON_SECRET is missing in the Workflow step environment");
+    }
     const response = await fetch(url, {
       cache: "no-store",
-      headers: { Accept: "application/json" },
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${cronSecret}`,
+      },
     });
     const body = await readJsonRecord(response);
     const sectors = Array.isArray(body?.sectors) ? body.sectors : [];
@@ -224,9 +231,16 @@ async function refreshThemePerformanceStep(
   );
 
   try {
+    const cronSecret = process.env.CRON_SECRET || "";
+    if (!cronSecret) {
+      throw new FatalError("CRON_SECRET is missing in the Workflow step environment");
+    }
     const response = await fetch(url, {
       cache: "no-store",
-      headers: { Accept: "application/json" },
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${cronSecret}`,
+      },
     });
     const body = await readJsonRecord(response);
     const subThemes = Array.isArray(body?.subThemes) ? body.subThemes : [];

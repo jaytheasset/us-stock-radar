@@ -27,6 +27,16 @@ export function authorizeMarketCacheCron(
     : { ok: false, status: 401, error: "UNAUTHORIZED" };
 }
 
+export function authorizeMarketCacheRefresh(
+  request: HeaderRequest,
+  refreshRequested: boolean,
+  secret = process.env.CRON_SECRET || "",
+): MarketCacheCronAuthorization {
+  return refreshRequested
+    ? authorizeMarketCacheCron(request, secret)
+    : { ok: true };
+}
+
 function safeSecretEqual(candidate: string, expected: string) {
   if (!candidate) return false;
   const candidateBuffer = Buffer.from(candidate);

@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { authorizeMarketCacheCron } from "./marketCacheCronAuth.ts";
+import {
+  authorizeMarketCacheCron,
+  authorizeMarketCacheRefresh,
+} from "./marketCacheCronAuth.ts";
 import {
   MARKET_CACHE_ROTATING_RANGES,
   getMarketCacheRefreshPlan,
@@ -159,6 +162,34 @@ test("cron authorization is timing-safe, bearer-only, and fails closed", () => {
   );
 });
 
+test("market refresh authorization protects bypass writes but keeps reads public", () => {
+  const secret = "market-refresh-secret";
+  const authorized = requestWithHeaders({
+    authorization: `Bearer ${secret}`,
+  });
+
+  assert.deepEqual(
+    authorizeMarketCacheRefresh(requestWithHeaders({}), false, ""),
+    { ok: true },
+  );
+  assert.deepEqual(
+    authorizeMarketCacheRefresh(authorized, true, secret),
+    { ok: true },
+  );
+  assert.deepEqual(
+    authorizeMarketCacheRefresh(requestWithHeaders({}), true, ""),
+    { ok: false, status: 500, error: "CRON_SECRET_MISSING" },
+  );
+  assert.deepEqual(
+    authorizeMarketCacheRefresh(
+      requestWithHeaders({ authorization: "Bearer wrong-secret" }),
+      true,
+      secret,
+    ),
+    { ok: false, status: 401, error: "UNAUTHORIZED" },
+  );
+});
+
 test("a duplicate or overlapping lock never starts another workflow", async () => {
   let startCalls = 0;
   let releaseCalls = 0;
@@ -204,6 +235,9 @@ test("workflow and cron wiring use durable retry steps and one minimal cron", ()
   const themeRoute = readProjectFile(
     "app/api/market/theme-performance/route.ts",
   );
+  const refreshScript = readProjectFile(
+    "scripts/refresh-market-group-snapshots.js",
+  );
   const vercelConfig = JSON.parse(readProjectFile("vercel.json")) as {
     crons?: Array<{ path?: string; schedule?: string }>;
   };
@@ -225,8 +259,33 @@ test("workflow and cron wiring use durable retry steps and one minimal cron", ()
   );
   assert.match(sectorRoute, /resolveSnapshotCache\(/);
   assert.match(themeRoute, /resolveSnapshotCache\(/);
+  assert.match(sectorRoute, /authorizeMarketCacheRefresh\(/);
+  assert.match(themeRoute, /authorizeMarketCacheRefresh\(/);
   assert.match(sectorRoute, /forceRefresh \? "bypass" : "miss"/);
   assert.match(themeRoute, /forceRefresh \? "bypass" : "miss"/);
+  assert.ok(
+    (workflow.match(/process\.env\.CRON_SECRET/g) || []).length >= 2,
+  );
+  assert.ok(
+    (
+      workflow.match(
+        /new FatalError\("CRON_SECRET is missing in the Workflow step environment"\)/g,
+      ) || []
+    ).length >= 2,
+  );
+  assert.ok(
+    (workflow.match(/Authorization:\s*`Bearer \$\{cronSecret\}`/g) || [])
+      .length >= 2,
+  );
+  const workflowInput = workflow.match(
+    /export type MarketCacheRefreshWorkflowInput[\s\S]*?\n};/,
+  )?.[0] || "";
+  assert.doesNotMatch(workflowInput, /secret/i);
+  assert.match(refreshScript, /process\.env\.CRON_SECRET/);
+  assert.match(
+    refreshScript,
+    /headers\.Authorization = `Bearer \$\{cronSecret\}`/,
+  );
   assert.deepEqual(
     vercelConfig.crons?.filter(
       (cron) => cron.path === "/api/cron/market-cache",
