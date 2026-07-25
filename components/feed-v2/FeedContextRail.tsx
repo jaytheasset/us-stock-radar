@@ -103,6 +103,17 @@ export function FeedContextRail({
       className={styles.contextRail}
       ref={railRef}
     >
+      <div className={styles.contextRailPreview} ref={previewRef}>
+        <FeedPreviewPanel item={selectedItem} variant="desktop" />
+      </div>
+
+      <FeedPremiumCard
+        className={styles.premiumCardDesktop}
+        viewerPlan={viewerPlan}
+      />
+
+      {viewerPlan === "free" ? <FeedRailAdSlot /> : null}
+
       <section className={styles.contextPanel}>
         <div className={styles.contextPanelHeading}>
           <h2>Market Pulse</h2>
@@ -123,15 +134,6 @@ export function FeedContextRail({
         )}
       </section>
 
-      <div className={styles.contextRailPreview} ref={previewRef}>
-        <FeedPreviewPanel item={selectedItem} variant="desktop" />
-      </div>
-
-      <FeedPremiumCard
-        className={styles.premiumCardDesktop}
-        viewerPlan={viewerPlan}
-      />
-
       <RailEventSection
         eyebrow="Top signals"
         items={marketMovingNews}
@@ -143,21 +145,11 @@ export function FeedContextRail({
         title="High-Impact News"
       />
 
-      {viewerPlan === "free" ? <FeedRailAdSlot /> : null}
-
       <RailEventSection
         eyebrow="SEC monitor"
         items={alertFilings}
         title="Alert Filings"
       />
-
-      <section className={styles.contextPanel}>
-        <div className={styles.contextPanelHeading}>
-          <h2>Watchlist Activity</h2>
-          <span>Not connected</span>
-        </div>
-        <RailEmpty message="Live Feed watchlist activity does not have a production data contract yet." />
-      </section>
     </aside>
   );
 }
