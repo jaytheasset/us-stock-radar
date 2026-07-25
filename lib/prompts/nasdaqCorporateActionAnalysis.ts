@@ -5,7 +5,7 @@ import {
 } from "@/lib/prompts/newsEventAnalysis";
 
 export const NASDAQ_CORPORATE_ACTION_ANALYSIS_PROMPT_KEY = "nasdaq_corporate_action_analysis";
-export const NASDAQ_CORPORATE_ACTION_ANALYSIS_PROMPT_VERSION = "v5";
+export const NASDAQ_CORPORATE_ACTION_ANALYSIS_PROMPT_VERSION = "v6";
 
 export type NasdaqCorporateActionAnalysisInput = NewsEventAnalysisInput & {
   corporate_action: Record<string, unknown> | null;
@@ -46,7 +46,10 @@ export function buildNasdaqCorporateActionAnalysisPrompt(input: NasdaqCorporateA
     key: NASDAQ_CORPORATE_ACTION_ANALYSIS_PROMPT_KEY,
     version: NASDAQ_CORPORATE_ACTION_ANALYSIS_PROMPT_VERSION,
     system: systemPrompt,
-    user: JSON.stringify(input),
+    user: JSON.stringify({
+      ...input,
+      output_contract: newsEventAnalysisResponseSchema,
+    }),
     responseFormat: {
       type: "json_schema",
       json_schema: {
