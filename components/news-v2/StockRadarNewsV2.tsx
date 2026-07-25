@@ -277,7 +277,10 @@ export function StockRadarNewsV2({
             queryDraft={queryDraft}
           />
 
-          <div aria-busy={isRefreshing || isLoadingMore}>
+          <div
+            aria-busy={isRefreshing || isLoadingMore}
+            className={styles.listPanelAnchor}
+          >
             <NewsV2List
               error={pageError}
               items={pageItems}
