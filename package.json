@@ -19,6 +19,7 @@
     "qa:sec-form-workers": "node scripts/qa-sec-form-workers.mjs",
     "qa:sec-s3-offering-analysis": "node scripts/qa-sec-s3-offering-analysis.mjs",
     "verify:adsense": "node --no-warnings --experimental-strip-types scripts/verify-adsense.mjs",
+    "verify:analysis-ads": "node --test --experimental-strip-types lib/advertisingPolicy.test.ts",
     "verify:accesswire-ingest": "node --test --experimental-strip-types lib/sourceHydrationIngestPlan.test.ts lib/accesswireNasFallbackMatch.test.ts lib/nasIngestBridge.test.ts lib/sources/accesswire/parser.test.ts nas/accesswire-bridge/server.test.mjs",
     "verify:businesswire-parser": "node --experimental-strip-types scripts/verify-businesswire-parser.mjs",
     "verify:businesswire-ingest": "node --test --experimental-strip-types lib/businessWireIngestPlan.test.ts lib/sources/businesswire/parser.test.ts",

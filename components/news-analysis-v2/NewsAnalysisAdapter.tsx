@@ -9,7 +9,17 @@ import { buildGooglePreferredSourceUrl } from "@/lib/googlePreferredSource";
 import type { NewsAnalysisDetail } from "@/lib/newsAnalysisDetail";
 import { OriginalNewsArticle } from "./OriginalNewsArticle";
 
-export function NewsAnalysisAdapter({ detail, newsId }: { detail: NewsAnalysisDetail; newsId: string }) {
+type NewsAnalysisAdapterProps = {
+  allowAds: boolean;
+  detail: NewsAnalysisDetail;
+  newsId: string;
+};
+
+export function NewsAnalysisAdapter({
+  allowAds,
+  detail,
+  newsId,
+}: NewsAnalysisAdapterProps) {
   const { filing } = detail;
   const analysisFiling = { ...filing, filingBrief: "" };
   const badge = detail.eventType ? getEventTypeBadge(detail.eventType) : null;
@@ -20,6 +30,7 @@ export function NewsAnalysisAdapter({ detail, newsId }: { detail: NewsAnalysisDe
   return (
     <StockRadarAppShell activeNavigationItem="news" themeMode="user-selectable">
       <GenericFilingAnalysis
+        allowAds={allowAds}
         bookmarkRenderer={false}
         eventLabel={badge?.label || ""}
         eventTone={badge ? toBadgeTone(badge.tone) : "neutral"}

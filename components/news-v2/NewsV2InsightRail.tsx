@@ -232,11 +232,13 @@ export function NewsV2InsightRail({
             />
           ) : null}
 
-          <div
-            className={`${styles.contextRailAdAnchor} ${styles.contextRailAdAnchorCompact}`}
-          >
-            <NewsV2RailAdSlot size="300x250" />
-          </div>
+          {viewerPlan === "free" ? (
+            <div
+              className={`${styles.contextRailAdAnchor} ${styles.contextRailAdAnchorCompact}`}
+            >
+              <NewsV2RailAdSlot size="300x250" />
+            </div>
+          ) : null}
 
           <section className={`${styles.insightCard} ${styles.sectorRailCard}`}>
             <header className={styles.insightHeader}>
@@ -311,13 +313,13 @@ export function NewsV2InsightRail({
             </div>
           </section>
 
-          {tallRailAdCount > 0 ? (
+          {viewerPlan === "free" && tallRailAdCount > 0 ? (
             <div className={styles.contextRailAdAnchor}>
               <NewsV2RailAdSlot size="300x600" />
             </div>
           ) : null}
 
-          <NewsV2InsightInlineAd />
+          {viewerPlan === "free" ? <NewsV2InsightInlineAd /> : null}
 
           <section className={`${styles.insightCard} ${styles.themeRailCard}`}>
             <header className={styles.insightHeader}>
@@ -413,7 +415,7 @@ export function NewsV2InsightRail({
             </div>
           </section>
 
-          {tallRailAdCount > 1 ? (
+          {viewerPlan === "free" && tallRailAdCount > 1 ? (
             <div className={styles.contextRailAdContinuation}>
               {Array.from({ length: tallRailAdCount - 1 }, (_, index) => (
                 <div className={styles.contextRailAdAnchor} key={`rail-ad-${index + 2}`}>

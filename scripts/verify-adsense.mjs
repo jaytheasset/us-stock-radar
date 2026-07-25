@@ -33,6 +33,14 @@ const scenarios = {
       "news-rail-300x250": "manual-slot",
     },
   }),
+  E: resolveAdSenseConfig({
+    anchorEnabled: "false",
+    nodeEnv: "production",
+    publisherId: "ca-pub-test",
+    slotIds: {
+      "analysis-signal-companion": "analysis-companion-slot",
+    },
+  }),
 };
 
 assert.equal(scenarios.A.publisherScriptEnabled, false);
@@ -56,9 +64,17 @@ assert.equal(scenarios.D.publisherScriptEnabled, true);
 assert.equal(scenarios.D.anchorEnabled, true);
 assert.equal(scenarios.D.manualSlotEnabled["news-rail-300x250"], true);
 
+assert.equal(scenarios.E.publisherScriptEnabled, true);
+assert.equal(scenarios.E.anchorEnabled, false);
+assert.equal(scenarios.E.manualSlotEnabled["analysis-signal-companion"], true);
+assert.equal(
+  Object.values(scenarios.E.manualSlotEnabled).filter(Boolean).length,
+  1,
+);
+
 const scriptCounts = {};
 
-for (const scenarioName of ["A", "B", "C", "D"]) {
+for (const scenarioName of ["A", "B", "C", "D", "E"]) {
   const fakeDom = installFakeDom();
   const scenario = scenarios[scenarioName];
   const loaderCalls = [];
@@ -126,8 +142,16 @@ const manualPlacementSources = await Promise.all(
     "../components/dashboard-v2/MobileInlineAdSlot.tsx",
     "../components/filing-analysis-v2/FilingInlineAdSlot.tsx",
     "../components/filing-analysis-v2/FilingRailAdSlot.tsx",
+    "../components/filing-analysis-v2/AnalysisSignalCompanionAd.tsx",
     "../components/alerts-v2/StockRadarAlertsV2.tsx",
   ].map((file) => readFile(new URL(file, import.meta.url), "utf8")),
+);
+const analysisCompanionSource = await readFile(
+  new URL(
+    "../components/filing-analysis-v2/AnalysisSignalCompanionAd.tsx",
+    import.meta.url,
+  ),
+  "utf8",
 );
 const advertisingSource = `${slotSource}\n${publisherLoaderSource}\n${scriptLoaderSource}`;
 
@@ -167,6 +191,15 @@ assert.ok(
   manualPlacementSources.every((source) => source.includes("<AdSenseSlot")),
   "all manual placement owners use the shared slot footer",
 );
+assert.equal(
+  (
+    analysisCompanionSource.match(
+      /inventory="analysis-signal-companion"/g,
+    ) || []
+  ).length,
+  1,
+  "analysis companion owns one independently configured inventory",
+);
 
 console.log(
   JSON.stringify({
@@ -174,6 +207,7 @@ console.log(
     B: summarize(scenarios.B),
     C: summarize(scenarios.C),
     D: summarize(scenarios.D),
+    E: summarize(scenarios.E),
     duplicateScriptGuard: "passed",
     manualFooterBoundary: "passed",
     manualFooterPremiumHref: "/premium",

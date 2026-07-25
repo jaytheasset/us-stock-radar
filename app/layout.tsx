@@ -46,6 +46,7 @@ export default function RootLayout({
         />
       </head>
       <body>
+        {/* Anchor is disabled by configuration. Add a viewer-aware boundary before enabling it. */}
         <AdSensePublisherLoader enabledForViewer />
         {children}
         <ThemeToggle />

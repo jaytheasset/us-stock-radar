@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { StockRadarNewsV2 } from "@/components/news-v2/StockRadarNewsV2";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
-import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import { buildGooglePreferredSourceUrl } from "@/lib/googlePreferredSource";
 import { getNewsV2PageData } from "@/lib/newsV2Data";
-import { getEffectiveUserPlan } from "@/lib/subscription/effectivePlan";
+import { getCurrentViewerPlan } from "@/lib/currentViewerPlan";
 
 export const metadata: Metadata = {
   title: "News | Stock Radar",
@@ -13,13 +12,10 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function NewsPage() {
-  const [data, userId] = await Promise.all([
+  const [data, viewerPlan] = await Promise.all([
     getNewsV2PageData(),
-    getOptionalCurrentUserId(),
+    getCurrentViewerPlan(),
   ]);
-  const viewerPlan = userId
-    ? (await getEffectiveUserPlan(userId)).effectivePlan
-    : "free";
   const preferredSourceUrl = buildGooglePreferredSourceUrl();
 
   return (

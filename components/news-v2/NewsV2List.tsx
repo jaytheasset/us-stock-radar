@@ -84,10 +84,11 @@ export function NewsV2List({
                   />
                 </li>
               ) : null}
-              {shouldInsertDesktopInlineAd(index, items.length) ? (
+              {viewerPlan === "free" &&
+              shouldInsertDesktopInlineAd(index, items.length) ? (
                 <NewsV2InlineAd format="desktop" />
               ) : null}
-              {shouldInsertMobileInlineAd(index) ? (
+              {viewerPlan === "free" && shouldInsertMobileInlineAd(index) ? (
                 <NewsV2InlineAd format="mobile" />
               ) : null}
             </Fragment>
