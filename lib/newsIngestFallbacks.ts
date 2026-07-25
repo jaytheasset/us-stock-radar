@@ -1,12 +1,20 @@
 import "server-only";
 
-import { getServerEnv, redactUrl } from "@/lib/env";
+import { getServerEnv } from "@/lib/env";
+import {
+  runNasBridge,
+  type NasBridgeFetchOptions,
+} from "@/lib/nasIngestBridge";
+import { findMatchingAccesswireItem } from "@/lib/accesswireNasFallbackMatch";
 import {
   runAccesswireNewsIngestWithRawFetcher,
   runFdaNewsIngestWithRawFetcher,
 } from "@/lib/newsIngest";
 import {
   fetchAccesswireRawItems,
+  hydrateAccesswireRawItems,
+  type AccesswireHydrationFallback,
+  type AccesswireParsedRawItem,
   type AccesswireRawFetchResult,
 } from "@/lib/sources/accesswire/parser";
 import { fetchFdaRawItems, type FdaRawFetchResult } from "@/lib/sources/fda/parser";
@@ -18,12 +26,7 @@ type NewsIngestOptions = {
   sourceUniqueId?: string;
 };
 
-type RawFetchOptions = {
-  limit: number;
-  sourceUniqueId?: string;
-  includeArticleBody: boolean;
-  articleBodyLimit: number;
-};
+type RawFetchOptions = NasBridgeFetchOptions;
 
 export async function runAccesswireNewsIngestWithFallback(options: NewsIngestOptions) {
   let nasFallback: Record<string, unknown> | null = null;
@@ -32,18 +35,30 @@ export async function runAccesswireNewsIngestWithFallback(options: NewsIngestOpt
     const directResult = await fetchAccesswireRawItems(rawOptions);
     if (readRecord(directResult)?.ok !== false) return directResult;
 
+    const env = getServerEnv();
     const fallbackResult = await runNasBridge<AccesswireRawFetchResult>({
-      bridgeUrl: getServerEnv().accesswireIngestUrl,
+      bridgeUrl: env.accesswireIngestUrl,
       directResult,
       fallbackFrom: "next_accesswire_direct_raw_fetch",
       missingError: "ACCESSWIRE_INGEST_URL is not configured",
       options: rawOptions,
       source: "accesswire",
+      token: env.nasIngestToken,
     });
     nasFallback = fallbackDiagnostics("ACCESSWIRE_INGEST_URL", directResult, fallbackResult);
 
     return fallbackResult.ok && fallbackResult.data ? fallbackResult.data : directResult;
-  }, options);
+  }, options, (items, hydrateOptions) =>
+    hydrateAccesswireRawItems(
+      items as AccesswireParsedRawItem[],
+      {
+        limit: hydrateOptions.limit,
+        timeoutMs: 12_000,
+        concurrency: 2,
+        fallbackHydrator: createAccesswireNasHydrationFallback(),
+      },
+    ),
+  );
 
   return nasFallback ? { ...readRecord(result), nas_fallback: nasFallback } : result;
 }
@@ -55,13 +70,15 @@ export async function runFdaNewsIngestWithFallback(options: NewsIngestOptions) {
     const directResult = await fetchFdaRawItems(rawOptions);
     if (!shouldUseFdaNasFallback(directResult, rawOptions)) return directResult;
 
+    const env = getServerEnv();
     const fallbackResult = await runNasBridge<FdaRawFetchResult>({
-      bridgeUrl: getServerEnv().fdaIngestUrl,
+      bridgeUrl: env.fdaIngestUrl,
       directResult,
       fallbackFrom: "next_fda_direct_raw_fetch",
       missingError: "FDA_INGEST_URL is not configured",
       options: rawOptions,
       source: "fda",
+      token: env.nasIngestToken,
     });
     nasFallback = {
       ...fallbackDiagnostics("FDA_INGEST_URL", directResult, fallbackResult),
@@ -95,67 +112,43 @@ function shouldUseFdaNasFallback(result: FdaRawFetchResult, options: RawFetchOpt
   });
 }
 
-async function runNasBridge<T>({
-  bridgeUrl,
-  directResult,
-  fallbackFrom,
-  missingError,
-  options,
-  source,
-}: {
-  bridgeUrl: string;
-  directResult: unknown;
-  fallbackFrom: string;
-  missingError: string;
-  options: RawFetchOptions;
-  source: string;
-}) {
-  const redactedUrl = redactUrl(bridgeUrl);
-  if (!bridgeUrl) {
-    return { ok: false, status: 0, redactedUrl, error: missingError, data: null as T | null };
-  }
-
+function createAccesswireNasHydrationFallback(): AccesswireHydrationFallback {
   const env = getServerEnv();
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-    "Content-Type": "application/json",
-  };
-  if (env.nasIngestToken) {
-    headers.Authorization = `Bearer ${env.nasIngestToken}`;
-    headers["X-Ingest-Token"] = env.nasIngestToken;
-  }
-
-  try {
-    const response = await timedFetch(bridgeUrl, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        ...options,
-        source,
-        fallbackFrom,
-        directStatus: readRecord(directResult)?.status || null,
-        directError: readRecord(directResult)?.error || null,
-      }),
+  return async (item, context) => {
+    const result = await runNasBridge<AccesswireRawFetchResult>({
+      bridgeUrl: env.accesswireIngestUrl,
+      directResult: {
+        status: context.directStatus,
+        error: context.directError,
+      },
+      fallbackFrom: "next_accesswire_direct_article_hydration",
+      missingError: "ACCESSWIRE_INGEST_URL is not configured",
+      options: {
+        limit: 1,
+        sourceUniqueId: item.source_unique_id || undefined,
+        includeArticleBody: true,
+        articleBodyLimit: 1,
+      },
+      source: "accesswire",
+      token: env.nasIngestToken,
+      timeoutMs: context.timeoutMs,
+      signal: context.signal,
     });
-    const data = normalizeBridgeData(readRecord(await response.json().catch(() => null)));
-    const ok = response.ok && bridgePayloadOk(data);
-
+    const fallbackItem = result.ok
+      ? findMatchingAccesswireItem(result.data, item)
+      : null;
     return {
-      ok,
-      status: response.status,
-      redactedUrl,
-      data: data as T | null,
-      error: ok ? undefined : readBridgeError(data, response.statusText || `${source} NAS bridge failed`),
+      ok: Boolean(result.ok && fallbackItem),
+      status: result.status,
+      item: fallbackItem,
+      error:
+        result.error ||
+        (result.ok && !fallbackItem
+          ? "Access Newswire NAS bridge returned no matching hydrated item"
+          : undefined),
+      timedOut: result.timedOut,
     };
-  } catch (error) {
-    return {
-      ok: false,
-      status: 0,
-      redactedUrl,
-      data: null as T | null,
-      error: error instanceof Error ? error.message : `${source} NAS bridge request failed`,
-    };
-  }
+  };
 }
 
 function fallbackDiagnostics(
@@ -179,37 +172,6 @@ function fallbackDiagnostics(
     bridge_status: fallbackResult.status,
     ...(fallbackResult.error ? { bridge_error: fallbackResult.error } : {}),
   };
-}
-
-async function timedFetch(input: string, init: RequestInit, timeoutMs = 120_000) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    return await fetch(input, {
-      ...init,
-      cache: "no-store",
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-function bridgePayloadOk(data: Record<string, unknown> | null) {
-  if (!data || data.ok === false || data.status === "failed" || data.status === "error") return false;
-  return Array.isArray(data.items);
-}
-
-function normalizeBridgeData(data: Record<string, unknown> | null) {
-  return readRecord(data?.result) || data;
-}
-
-function readBridgeError(data: Record<string, unknown> | null, fallback: string) {
-  if (!data) return fallback;
-  if (typeof data.message === "string" && data.message.trim()) return data.message;
-  if (typeof data.error === "string" && data.error.trim()) return data.error;
-  return fallback;
 }
 
 function readRecord(value: unknown): Record<string, unknown> | null {

@@ -52,7 +52,7 @@ test("stored bodies are reused while failed hydration is retried", async () => {
         return {
           raw: {
             id: "raw-terminal",
-            body_text: null,
+            body_text: "completed terminal body",
             metadata: { ingest_decision: "outside_coverage" },
           },
           event: null,
