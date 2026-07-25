@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { StockRadarFilingsV2 } from "@/components/filings-v2/StockRadarFilingsV2";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
-import { getServerEnv } from "@/lib/env";
 import { loadFilingsV2Data } from "@/lib/filingsV2Data";
 import { buildGooglePreferredSourceUrl } from "@/lib/googlePreferredSource";
 import { getEffectiveUserPlan } from "@/lib/subscription/effectivePlan";
@@ -23,7 +22,7 @@ export default async function FilingsPage() {
   const viewerPlan = userId
     ? (await getEffectiveUserPlan(userId)).effectivePlan
     : "free";
-  const preferredSourceUrl = buildGooglePreferredSourceUrl(getServerEnv().appBaseUrl);
+  const preferredSourceUrl = buildGooglePreferredSourceUrl();
 
   return (
     <div className={styles.route}>

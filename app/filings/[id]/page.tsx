@@ -97,7 +97,6 @@ import {
   filingUiFamilies,
   registeredFilingUiFixtures,
 } from "@/lib/development/filingUiRegistry";
-import { getServerEnv } from "@/lib/env";
 import { buildGooglePreferredSourceUrl } from "@/lib/googlePreferredSource";
 import {
   DilutionShareOverhang,
@@ -4187,7 +4186,7 @@ export async function generateMetadata({ params }: FilingDetailPageProps): Promi
 export default async function FilingDetailPage({ params }: FilingDetailPageProps) {
   const { id } = await params;
   const filing = await resolveFilingEvent(id);
-  const preferredSourceUrl = buildGooglePreferredSourceUrl(getServerEnv().appBaseUrl);
+  const preferredSourceUrl = buildGooglePreferredSourceUrl();
   const eventBadge = getEventTypeBadge(filing.eventType);
   const hasRealFilingTicker = isRealTicker(filing.ticker);
   const dilutionModel = filing.eventType === "dilution_risk" ? buildDilutionOfferingModel(filing) : null;

@@ -66,9 +66,6 @@ export function NewsV2Row({
               <span className={styles.rowCategoryBadgeDesktop}>
                 <NewsV2EventBadge category={item.category} size="micro" />
               </span>
-              <span className={styles.rowCategoryBadgeMobile}>
-                <NewsV2EventBadge category={item.category} size="micro" />
-              </span>
               <span className={styles.rowEventTypeBadgeDesktop}>
                 <NewsV2EventTypeBadge
                   className={styles.newsEventTypeBadge}
@@ -77,17 +74,22 @@ export function NewsV2Row({
                   size="micro"
                 />
               </span>
-              <span className={styles.rowEventTypeBadgeMobile}>
-                <NewsV2EventTypeBadge
-                  className={styles.newsEventTypeBadge}
-                  eventType={item.eventType}
-                  eventTypeCode={item.eventTypeCode}
-                  size="micro"
-                />
+              <span className={styles.rowMobileBadges}>
+                <span className={styles.rowCategoryBadgeMobile}>
+                  <NewsV2EventBadge category={item.category} size="micro" />
+                </span>
+                <span className={styles.rowEventTypeBadgeMobile}>
+                  <NewsV2EventTypeBadge
+                    className={styles.newsEventTypeBadge}
+                    eventType={item.eventType}
+                    eventTypeCode={item.eventTypeCode}
+                    size="micro"
+                  />
+                </span>
+                {item.relatedTickers.length > 1 ? (
+                  <span className={styles.mobileTickerOverflow}>+{item.relatedTickers.length - 1}</span>
+                ) : null}
               </span>
-              {item.relatedTickers.length > 1 ? (
-                <span className={styles.mobileTickerOverflow}>+{item.relatedTickers.length - 1}</span>
-              ) : null}
               <time className={styles.rowMobilePublishedAt} dateTime={item.publishedAt}>
                 <span className={styles.rowMobileDate}>
                   {formatMarketDateLabel(item.publishedAt, referenceDate)}

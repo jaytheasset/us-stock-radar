@@ -4,7 +4,6 @@ import { GenericFilingAnalysis } from "@/components/filing-analysis-v2/GenericFi
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import type { BadgeTone } from "@/components/ui/Badge";
 import { GooglePreferredSourceLink } from "@/components/ui/GooglePreferredSourceLink";
-import { getServerEnv } from "@/lib/env";
 import { getEventTypeBadge, type EventTypeBadgeTone } from "@/lib/eventTypeRegistry";
 import { buildGooglePreferredSourceUrl } from "@/lib/googlePreferredSource";
 import type { NewsAnalysisDetail } from "@/lib/newsAnalysisDetail";
@@ -16,7 +15,7 @@ export function NewsAnalysisAdapter({ detail, newsId }: { detail: NewsAnalysisDe
   const badge = detail.eventType ? getEventTypeBadge(detail.eventType) : null;
   const chartTone = filing.signal || toneFromStoredChange(detail.priceChange);
   const hasStoredChart = Boolean(filing.ticker && detail.priceSeries && Object.values(detail.priceSeries.periods).some((points) => points?.length));
-  const preferredSourceUrl = buildGooglePreferredSourceUrl(getServerEnv().appBaseUrl);
+  const preferredSourceUrl = buildGooglePreferredSourceUrl();
 
   return (
     <StockRadarAppShell activeNavigationItem="news" themeMode="user-selectable">
