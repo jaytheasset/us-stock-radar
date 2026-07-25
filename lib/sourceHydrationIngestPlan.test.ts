@@ -126,6 +126,65 @@ test("completed low-value AccessWire raw is skipped before hydration and re-upse
   );
 });
 
+test("terminal raw without body or analysis is skipped before hydration", async () => {
+  const terminalRawById: Record<string, Raw> = {
+    completed: {
+      id: "raw-completed",
+      body_text: null,
+      analysis_text: null,
+      metadata: { workflow_analysis_status: "completed" },
+    },
+    skipped: {
+      id: "raw-skipped",
+      body_text: null,
+      analysis_text: null,
+      metadata: { workflow_analysis_status: "skipped" },
+    },
+    decision: {
+      id: "raw-decision",
+      body_text: null,
+      analysis_text: null,
+      metadata: { ingest_decision: "outside_coverage" },
+    },
+    lowValue: {
+      id: "raw-low-value-empty",
+      body_text: null,
+      analysis_text: null,
+      raw_payload: { candidate_class: "low_value_filtered" },
+    },
+  };
+  let hydrationCalls = 0;
+  let mergeCalls = 0;
+
+  const batch = await prepareSourceHydrationBatch<Item, Raw, Event>({
+    items: Object.keys(terminalRawById).map(item),
+    sourceCode: "accesswire",
+    loadExistingState: async (current) => ({
+      raw: terminalRawById[current.id],
+      event: null,
+    }),
+    hydrateItems: async () => {
+      hydrationCalls += 1;
+      return { items: [], diagnostics: {} };
+    },
+    mergeExistingRaw: (current) => {
+      mergeCalls += 1;
+      return current;
+    },
+  });
+
+  assert.equal(hydrationCalls, 0);
+  assert.equal(mergeCalls, 0);
+  assert.equal(batch.skipped.length, 4);
+  assert.equal(batch.processingItems.length, 0);
+  assert.equal(batch.stats.preexistingCount, 4);
+  assert.equal(batch.stats.hydrationRequestedCount, 0);
+  assert.deepEqual(
+    batch.skipped.map(({ reason }) => reason),
+    Array(4).fill("existing_raw_terminal"),
+  );
+});
+
 test("AccessWire hydration failure cannot reach event processing and retries next run", async () => {
   const listing = item("retry");
   let firstHydrationCalls = 0;
