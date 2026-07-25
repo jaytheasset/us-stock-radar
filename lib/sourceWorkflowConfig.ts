@@ -5,12 +5,87 @@
  */
 export const WORKFLOW_STEP_LEASE_TTL_SECONDS = 2 * 60 * 60;
 
-export const SOURCE_INGEST_WORKFLOW_LANES = {
-  news_fast: {
-    cronSchedule: "*/5 * * * *",
-    label: "Fast news and exchange sources",
+export const SOURCE_INGEST_WORKFLOW_SOURCES = {
+  globe: {
+    lane: "news_fast",
+    cronSchedule: "* * * * *",
     limit: 5,
     lockTtlSeconds: WORKFLOW_STEP_LEASE_TTL_SECONDS,
+  },
+  businesswire: {
+    lane: "news_fast",
+    cronSchedule: "* * * * *",
+    limit: 5,
+    lockTtlSeconds: WORKFLOW_STEP_LEASE_TTL_SECONDS,
+  },
+  prnewswire: {
+    lane: "news_fast",
+    cronSchedule: "* * * * *",
+    limit: 5,
+    lockTtlSeconds: WORKFLOW_STEP_LEASE_TTL_SECONDS,
+  },
+  newsfile: {
+    lane: "news_fast",
+    cronSchedule: "* * * * *",
+    limit: 5,
+    lockTtlSeconds: WORKFLOW_STEP_LEASE_TTL_SECONDS,
+  },
+  accesswire: {
+    lane: "news_fast",
+    cronSchedule: "* * * * *",
+    limit: 5,
+    lockTtlSeconds: WORKFLOW_STEP_LEASE_TTL_SECONDS,
+  },
+  nasdaq_trader: {
+    lane: "news_fast",
+    cronSchedule: "* * * * *",
+    limit: 5,
+    lockTtlSeconds: WORKFLOW_STEP_LEASE_TTL_SECONDS,
+  },
+  nasdaq_corporate_actions: {
+    lane: "news_fast",
+    cronSchedule: "* * * * *",
+    limit: 5,
+    lockTtlSeconds: WORKFLOW_STEP_LEASE_TTL_SECONDS,
+  },
+  ofac: {
+    lane: "news_slow",
+    cronSchedule: "2,32 * * * *",
+    limit: 10,
+    lockTtlSeconds: WORKFLOW_STEP_LEASE_TTL_SECONDS,
+  },
+  doj: {
+    lane: "news_slow",
+    cronSchedule: "4,34 * * * *",
+    limit: 10,
+    lockTtlSeconds: WORKFLOW_STEP_LEASE_TTL_SECONDS,
+  },
+  dea: {
+    lane: "news_slow",
+    cronSchedule: "6,36 * * * *",
+    limit: 10,
+    lockTtlSeconds: WORKFLOW_STEP_LEASE_TTL_SECONDS,
+  },
+  whitehouse: {
+    lane: "news_slow",
+    cronSchedule: "8,38 * * * *",
+    limit: 10,
+    lockTtlSeconds: WORKFLOW_STEP_LEASE_TTL_SECONDS,
+  },
+  fda: {
+    lane: "news_slow",
+    cronSchedule: "10,40 * * * *",
+    limit: 10,
+    lockTtlSeconds: WORKFLOW_STEP_LEASE_TTL_SECONDS,
+  },
+} as const;
+
+export type WorkflowNewsSource = keyof typeof SOURCE_INGEST_WORKFLOW_SOURCES;
+export type NewsWorkflowLane = "news_fast" | "news_slow";
+
+export const SOURCE_INGEST_WORKFLOW_LANES = {
+  news_fast: {
+    label: "Fast news and exchange sources",
     sourceIds: [
       "globe",
       "businesswire",
@@ -19,20 +94,13 @@ export const SOURCE_INGEST_WORKFLOW_LANES = {
       "accesswire",
       "nasdaq_trader",
       "nasdaq_corporate_actions",
-    ],
+    ] satisfies WorkflowNewsSource[],
   },
   news_slow: {
-    cronSchedule: "2,32 * * * *",
     label: "Government and regulatory news sources",
-    limit: 10,
-    lockTtlSeconds: WORKFLOW_STEP_LEASE_TTL_SECONDS,
-    sourceIds: ["ofac", "doj", "dea", "whitehouse", "fda"],
+    sourceIds: ["ofac", "doj", "dea", "whitehouse", "fda"] satisfies WorkflowNewsSource[],
   },
 } as const;
-
-export type NewsWorkflowLane = keyof typeof SOURCE_INGEST_WORKFLOW_LANES;
-export type WorkflowNewsSource =
-  (typeof SOURCE_INGEST_WORKFLOW_LANES)[NewsWorkflowLane]["sourceIds"][number];
 
 export const SEC_WORKFLOW_CONFIG = {
   cronSchedule: "*/5 * * * *",
@@ -40,20 +108,34 @@ export const SEC_WORKFLOW_CONFIG = {
 } as const;
 
 export type SourceIngestCronLane = "sec" | NewsWorkflowLane;
+export type SourceIngestCronTarget = SourceIngestCronLane | WorkflowNewsSource;
 
 export function isNewsWorkflowLane(value: string): value is NewsWorkflowLane {
   return value in SOURCE_INGEST_WORKFLOW_LANES;
+}
+
+export function isWorkflowNewsSource(value: string): value is WorkflowNewsSource {
+  return value in SOURCE_INGEST_WORKFLOW_SOURCES;
 }
 
 export function isSourceIngestCronLane(value: string): value is SourceIngestCronLane {
   return value === "sec" || isNewsWorkflowLane(value);
 }
 
+export function isSourceIngestCronTarget(value: string): value is SourceIngestCronTarget {
+  return isSourceIngestCronLane(value) || isWorkflowNewsSource(value);
+}
+
 export function newsWorkflowLaneForSource(source: string): NewsWorkflowLane | null {
-  for (const [lane, config] of Object.entries(SOURCE_INGEST_WORKFLOW_LANES)) {
-    if ((config.sourceIds as readonly string[]).includes(source)) {
-      return lane as NewsWorkflowLane;
-    }
-  }
-  return null;
+  return isWorkflowNewsSource(source)
+    ? SOURCE_INGEST_WORKFLOW_SOURCES[source].lane
+    : null;
+}
+
+export function isWorkflowNewsSourceEnabled(
+  source: WorkflowNewsSource,
+  enabledTargets: ReadonlySet<string>,
+) {
+  const config = SOURCE_INGEST_WORKFLOW_SOURCES[source];
+  return enabledTargets.has(source) || enabledTargets.has(config.lane);
 }

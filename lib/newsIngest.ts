@@ -9,8 +9,16 @@ import { evaluateCalendarItemPolicy } from "@/lib/calendarPolicy";
 import { getCalendarEventGroup, normalizeCalendarEventType } from "@/lib/calendarEventRegistry";
 import { runNewsEventAnalysisForRawItem } from "@/lib/ai/newsEventAnalysisPreview";
 import { runNasdaqCorporateActionAnalysisForRawItem } from "@/lib/ai/nasdaqCorporateActionAnalysisPreview";
+import {
+  buildBusinessWireIngestPlan,
+  partitionBusinessWireHydrationItems,
+} from "@/lib/businessWireIngestPlan";
 import { fetchGlobeNewswireRawItems, type GlobeParsedRawItem } from "@/lib/sources/globe/parser";
-import { fetchBusinessWireRawItems } from "@/lib/sources/businesswire/parser";
+import {
+  fetchBusinessWireRawItems,
+  hydrateBusinessWireRawItems,
+  type BusinessWireParsedRawItem,
+} from "@/lib/sources/businesswire/parser";
 import { fetchPRNewswireRawItems } from "@/lib/sources/prnewswire/parser";
 import { fetchNewsfileRawItems } from "@/lib/sources/newsfile/parser";
 import { fetchAccesswireRawItems } from "@/lib/sources/accesswire/parser";
@@ -63,6 +71,11 @@ type NewsRawFetchResult = {
   diagnostics: Record<string, unknown>;
 };
 
+type NewsRawHydrationResult = {
+  items: NewsRawItem[];
+  diagnostics: Record<string, unknown>;
+};
+
 type NewsSourceConfig = {
   sourceCode: string;
   sourceName: string;
@@ -77,6 +90,10 @@ type NewsSourceConfig = {
     includeArticleBody: boolean;
     articleBodyLimit: number;
   }) => Promise<NewsRawFetchResult>;
+  hydrateRawItems?: (
+    items: NewsRawItem[],
+    options: { limit: number },
+  ) => Promise<NewsRawHydrationResult>;
 };
 
 type EventDedupe = {
@@ -133,6 +150,15 @@ export async function runBusinessWireNewsIngest(options: NewsIngestOptions = {})
       fetchErrorLabel: "Business Wire raw fetch failed",
       ingestErrorLabel: "Business Wire ingest error",
       fetchRawItems: fetchBusinessWireRawItems as NewsSourceConfig["fetchRawItems"],
+      hydrateRawItems: (items, hydrateOptions) =>
+        hydrateBusinessWireRawItems(
+          items as BusinessWireParsedRawItem[],
+          {
+            limit: hydrateOptions.limit,
+            timeoutMs: 12_000,
+            concurrency: 2,
+          },
+        ) as Promise<NewsRawHydrationResult>,
     },
     options,
   );
@@ -341,6 +367,10 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
     skipped_route_classifier_count: 0,
     deterministic_archive_count: 0,
     deterministic_event_count: 0,
+    preexisting_count: 0,
+    hydration_requested_count: 0,
+    hydration_reused_count: 0,
+    hydration_failed_count: 0,
   };
 
   if (!dryRun) {
@@ -370,7 +400,7 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
       sourceUniqueId: sourceUniqueId || undefined,
       haltDate: nullableString(options.haltDate) || undefined,
       resumptionDate: nullableString(options.resumptionDate) || undefined,
-      includeArticleBody: true,
+      includeArticleBody: !config.hydrateRawItems,
       articleBodyLimit: limit,
     });
 
@@ -392,8 +422,92 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
 
     stats.checked_count = rawResult.items.length;
     stats.skipped_non_english_count = numberValue(rawResult.diagnostics.skippedNonEnglish);
+    let itemsForProcessing = rawResult.items;
+    let hydrationDiagnostics: Record<string, unknown> = {};
 
-    for (const rawItem of rawResult.items) {
+    if (config.hydrateRawItems) {
+      const plan = await buildBusinessWireIngestPlan(
+        rawResult.items,
+        async (rawItem) => {
+          const [raw, event] = await Promise.all([
+            findExistingRawItem(rawItem),
+            findExistingEvent(buildGroupDedupeKey(rawItem)),
+          ]);
+          return { raw: raw || null, event: event || null };
+        },
+        { force },
+      );
+
+      for (const skipped of plan.skipped) {
+        stats.skipped_count += 1;
+        stats.preexisting_count += 1;
+        resultItems.push({
+          ok: true,
+          skipped: true,
+          reason: skipped.reason,
+          raw_item_id: skipped.raw?.id || null,
+          event_id: toRecord(skipped.event)?.id || null,
+          source_unique_id: skipped.item.source_unique_id,
+          title:
+            toRecord(skipped.event)?.title ||
+            skipped.item.title,
+          score: toRecord(skipped.event)?.score,
+          delivery_level: toRecord(skipped.event)?.delivery_level,
+        });
+      }
+
+      const reusedItems = plan.reused.map(({ item, raw }) =>
+        mergeBusinessWireListingWithExistingRaw(item, raw),
+      );
+      stats.hydration_reused_count = reusedItems.length;
+      stats.hydration_requested_count = plan.hydrate.length;
+
+      const hydration = plan.hydrate.length
+        ? await config.hydrateRawItems(plan.hydrate, {
+            limit: plan.hydrate.length,
+          })
+        : {
+            items: [] as NewsRawItem[],
+            diagnostics: {
+              articleBodiesRequested: 0,
+              articleBodiesFetched: 0,
+              articleBodiesFailed: 0,
+              articleBodiesTimedOut: 0,
+            },
+          };
+      hydrationDiagnostics = hydration.diagnostics;
+
+      const hydrationPartition = partitionBusinessWireHydrationItems(
+        hydration.items,
+      );
+      for (const rawItem of hydrationPartition.retryableFailures) {
+        const persistedRaw = dryRun
+          ? null
+          : await persistRawItem(config, rawItem, runId);
+        if (persistedRaw) stats.raw_upserted_count += 1;
+        stats.skipped_count += 1;
+        stats.hydration_failed_count += 1;
+        resultItems.push({
+          ok: true,
+          skipped: true,
+          dryRun,
+          reason: "article_body_fetch_failed",
+          retryable: true,
+          raw_item_id: persistedRaw?.id || null,
+          source_unique_id: rawItem.source_unique_id,
+          title: rawItem.title,
+          error: rawItem.raw_payload.article_fetch_error,
+          timed_out: rawItem.raw_payload.article_fetch_timed_out === true,
+        });
+      }
+
+      itemsForProcessing = [
+        ...reusedItems,
+        ...hydrationPartition.ready,
+      ];
+    }
+
+    for (const rawItem of itemsForProcessing) {
       try {
         const groupDedupeKey = buildGroupDedupeKey(rawItem);
         const existingEvent = !force && !dryRun ? await findExistingEvent(groupDedupeKey) : null;
@@ -742,7 +856,10 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
         stats,
         ok ? undefined : `One or more ${config.sourceName} items failed`,
         {
-          raw_diagnostics: rawResult.diagnostics,
+          raw_diagnostics: {
+            ...rawResult.diagnostics,
+            ...hydrationDiagnostics,
+          },
           partial,
         },
       );
@@ -755,7 +872,10 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
       runId: dryRun ? null : runId,
       stats,
       items: resultItems,
-      diagnostics: rawResult.diagnostics,
+      diagnostics: {
+        ...rawResult.diagnostics,
+        ...hydrationDiagnostics,
+      },
     };
   } catch (error) {
     if (!dryRun) {
@@ -778,6 +898,40 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
       items: resultItems,
     };
   }
+}
+
+function mergeBusinessWireListingWithExistingRaw(
+  listing: NewsRawItem,
+  existing: Record<string, unknown>,
+): NewsRawItem {
+  const existingPayload = toRecord(existing.raw_payload) || {};
+  const rawPayload: Record<string, unknown> = {
+    ...listing.raw_payload,
+    ...existingPayload,
+    ticker_source:
+      existingPayload.ticker_source ||
+      listing.raw_payload.ticker_source ||
+      null,
+  };
+  delete rawPayload.article_fetch_error;
+  delete rawPayload.article_fetch_status;
+  delete rawPayload.article_fetch_attempts;
+  delete rawPayload.article_fetch_timed_out;
+  delete rawPayload.article_fetch_retryable;
+
+  return {
+    ...listing,
+    source_url: stringValue(existing.source_url) || listing.source_url,
+    title: nullableString(existing.title) || listing.title,
+    published_at:
+      nullableString(existing.published_at) ||
+      listing.published_at,
+    body_text: nullableString(existing.body_text),
+    dedupe_key:
+      stringValue(existing.dedupe_key) ||
+      listing.dedupe_key,
+    raw_payload: rawPayload,
+  };
 }
 
 async function persistRawItem(config: NewsSourceConfig, rawItem: NewsRawItem, runId: string) {
@@ -805,6 +959,15 @@ async function persistRawItem(config: NewsSourceConfig, rawItem: NewsRawItem, ru
       candidate_class: rawItem.raw_payload.candidate_class || null,
       candidate_reason: rawItem.raw_payload.candidate_reason || null,
       candidate_signals: rawItem.raw_payload.candidate_signals || [],
+      article_fetch_error: rawItem.raw_payload.article_fetch_error || null,
+      article_fetch_status: rawItem.raw_payload.article_fetch_status || null,
+      article_fetch_attempts: rawItem.raw_payload.article_fetch_attempts || null,
+      article_fetch_timed_out:
+        rawItem.raw_payload.article_fetch_timed_out === true,
+      article_fetch_retryable:
+        rawItem.raw_payload.article_fetch_retryable === true,
+      article_fetch_attempted_at:
+        rawItem.raw_payload.article_fetch_attempted_at || null,
     },
     dedupe_key: rawItem.dedupe_key,
   };
@@ -1468,6 +1631,11 @@ async function findExistingRawItem(rawItem: NewsRawItem) {
       };
 
   const result = await supabaseSelect("raw_items", search);
+  if (!result.ok) {
+    throw new Error(
+      `Could not check existing ${rawItem.source_code} raw item: ${result.error || `HTTP ${result.status}`}`,
+    );
+  }
   return firstRow(result.data);
 }
 
@@ -1478,6 +1646,11 @@ async function findExistingEvent(groupDedupeKey: string) {
     group_dedupe_key: `eq.${groupDedupeKey}`,
     limit: "1",
   });
+  if (!result.ok) {
+    throw new Error(
+      `Could not check existing news event: ${result.error || `HTTP ${result.status}`}`,
+    );
+  }
   return firstRow(result.data);
 }
 

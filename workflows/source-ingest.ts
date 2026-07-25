@@ -32,8 +32,7 @@ import {
 } from "@/lib/sources/sec/forms/common/forms";
 import {
   SEC_WORKFLOW_CONFIG,
-  SOURCE_INGEST_WORKFLOW_LANES,
-  type NewsWorkflowLane,
+  SOURCE_INGEST_WORKFLOW_SOURCES,
   type WorkflowNewsSource,
 } from "@/lib/sourceWorkflowConfig";
 import { supabaseSelect, supabaseUpdate } from "@/lib/supabase";
@@ -47,7 +46,7 @@ export type SecIngestWorkflowInput = WorkflowTrigger & {
 };
 
 export type NewsIngestWorkflowInput = WorkflowTrigger & {
-  lane: NewsWorkflowLane;
+  source: WorkflowNewsSource;
 };
 
 export async function secSourceIngestWorkflow(input: SecIngestWorkflowInput) {
@@ -90,46 +89,22 @@ export async function secSourceIngestWorkflow(input: SecIngestWorkflowInput) {
 export async function newsSourceIngestWorkflow(input: NewsIngestWorkflowInput) {
   "use workflow";
 
-  const config = SOURCE_INGEST_WORKFLOW_LANES[input.lane];
+  const config = SOURCE_INGEST_WORKFLOW_SOURCES[input.source];
   console.log(
-    `[newsSourceIngestWorkflow] START triggerId=${input.triggerId} lane=${input.lane}`,
+    `[newsSourceIngestWorkflow] START triggerId=${input.triggerId} source=${input.source}`,
   );
 
   try {
-    const results = [];
-    const failures: string[] = [];
-
-    for (const source of config.sourceIds) {
-      await ensureWorkflowLockStep(input, config.lockTtlSeconds);
-      try {
-        const result = await runNewsSourceIngestStep(source, config.limit);
-        results.push(result);
-        console.log(
-          `[newsSourceIngestWorkflow] SOURCE_DONE lane=${input.lane} source=${source}`,
-        );
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        failures.push(`${source}: ${message}`);
-        console.error(
-          `[newsSourceIngestWorkflow] SOURCE_FAIL lane=${input.lane} source=${source} error=${message}`,
-        );
-      }
-    }
-
-    if (failures.length) {
-      throw new Error(
-        `News workflow ${input.lane} failed for ${failures.length} source(s): ${failures.join("; ")}`,
-      );
-    }
-
+    await ensureWorkflowLockStep(input, config.lockTtlSeconds);
+    const result = await runNewsSourceIngestStep(input.source, config.limit);
     console.log(
-      `[newsSourceIngestWorkflow] DONE triggerId=${input.triggerId} lane=${input.lane} sources=${results.length}`,
+      `[newsSourceIngestWorkflow] DONE triggerId=${input.triggerId} source=${input.source}`,
     );
     return {
       ok: true,
       triggerId: input.triggerId,
-      lane: input.lane,
-      results,
+      source: input.source,
+      result,
     };
   } finally {
     await releaseWorkflowLockStep(input);
