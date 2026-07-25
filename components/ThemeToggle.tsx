@@ -4,13 +4,17 @@ import { useEffect, useState } from "react";
 
 type ThemeMode = "light" | "dark";
 
-const storageKey = "stock-radar-theme";
+const storageKey = "sr-theme";
+const legacyStorageKey = "stock-radar-theme";
 
 function getPreferredTheme(): ThemeMode {
   if (typeof window === "undefined") return "light";
 
   const stored = window.localStorage.getItem(storageKey);
   if (stored === "dark" || stored === "light") return stored;
+
+  const legacyTheme = window.localStorage.getItem(legacyStorageKey);
+  if (legacyTheme === "dark" || legacyTheme === "light") return legacyTheme;
 
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
@@ -34,6 +38,7 @@ export function ThemeToggle() {
     setTheme(nextTheme);
     applyTheme(nextTheme);
     window.localStorage.setItem(storageKey, nextTheme);
+    window.localStorage.setItem(legacyStorageKey, nextTheme);
   }
 
   return (

@@ -9,6 +9,24 @@ import {
 import "./stock-radar-tokens.css";
 import "./globals.css";
 
+const themeScript = `
+  try {
+    const primaryTheme = localStorage.getItem("sr-theme");
+    const legacyTheme = localStorage.getItem("stock-radar-theme");
+    const storedTheme =
+      primaryTheme === "dark" || primaryTheme === "light"
+        ? primaryTheme
+        : (legacyTheme === "dark" || legacyTheme === "light" ? legacyTheme : null);
+    const theme = storedTheme ??
+      (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+  } catch (_) {
+    document.documentElement.dataset.theme = "light";
+    document.documentElement.style.colorScheme = "light";
+  }
+`;
+
 export function generateMetadata(): Metadata {
   return {
     title: "US Stock Radar",
@@ -22,20 +40,6 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const themeScript = `
-    try {
-      const key = "stock-radar-theme";
-      const stored = localStorage.getItem(key);
-      const theme = stored === "dark" || stored === "light"
-        ? stored
-        : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-      document.documentElement.dataset.theme = theme;
-      document.documentElement.style.colorScheme = theme;
-    } catch (_) {
-      document.documentElement.dataset.theme = "light";
-    }
-  `;
-
   return (
     <html lang="en" suppressHydrationWarning>
       <head>

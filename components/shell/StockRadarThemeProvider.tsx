@@ -4,7 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -33,16 +33,27 @@ const StockRadarThemeContext = createContext<StockRadarThemeContextValue | null>
   null,
 );
 
-const initialThemeScript = `
-  try {
-    const root = document.currentScript?.parentElement;
-    const storedTheme = localStorage.getItem("${stockRadarThemeStorageKey}");
+function isStockRadarTheme(
+  value: string | null | undefined,
+): value is StockRadarTheme {
+  return value === "dark" || value === "light";
+}
 
-    if (root) {
-      root.dataset.srTheme = storedTheme === "light" ? "light" : "dark";
-    }
-  } catch (_) {}
-`;
+function readStoredTheme(): StockRadarTheme | null {
+  const storedTheme = localStorage.getItem(stockRadarThemeStorageKey);
+
+  if (isStockRadarTheme(storedTheme)) {
+    return storedTheme;
+  }
+
+  const legacyTheme = localStorage.getItem(legacyThemeStorageKey);
+  return isStockRadarTheme(legacyTheme) ? legacyTheme : null;
+}
+
+function applyDocumentTheme(theme: StockRadarTheme) {
+  document.documentElement.dataset.theme = theme;
+  document.documentElement.style.colorScheme = theme;
+}
 
 export function StockRadarThemeProvider({
   children,
@@ -51,23 +62,27 @@ export function StockRadarThemeProvider({
 }: StockRadarThemeProviderProps) {
   const [theme, setTheme] = useState<StockRadarTheme>(defaultTheme);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (mode !== "user-selectable") {
       setTheme(defaultTheme);
       return;
     }
 
+    let nextTheme = defaultTheme;
+
     try {
-      const storedTheme =
-        localStorage.getItem(stockRadarThemeStorageKey) ||
-        localStorage.getItem(legacyThemeStorageKey);
-      const nextTheme = storedTheme === "light" ? "light" : defaultTheme;
-      document.documentElement.dataset.theme = nextTheme;
-      document.documentElement.style.colorScheme = nextTheme;
-      setTheme(nextTheme);
-    } catch (_) {
-      setTheme(defaultTheme);
-    }
+      const storedTheme = readStoredTheme();
+      const documentTheme = document.documentElement.dataset.theme;
+      nextTheme =
+        storedTheme ??
+        (isStockRadarTheme(documentTheme) ? documentTheme : defaultTheme);
+
+      localStorage.setItem(stockRadarThemeStorageKey, nextTheme);
+      localStorage.setItem(legacyThemeStorageKey, nextTheme);
+    } catch (_) {}
+
+    applyDocumentTheme(nextTheme);
+    setTheme(nextTheme);
   }, [mode]);
 
   const toggleTheme = useCallback(() => {
@@ -81,10 +96,9 @@ export function StockRadarThemeProvider({
       try {
         localStorage.setItem(stockRadarThemeStorageKey, nextTheme);
         localStorage.setItem(legacyThemeStorageKey, nextTheme);
-        document.documentElement.dataset.theme = nextTheme;
-        document.documentElement.style.colorScheme = nextTheme;
       } catch (_) {}
 
+      applyDocumentTheme(nextTheme);
       return nextTheme;
     });
   }, [mode]);
@@ -101,9 +115,6 @@ export function StockRadarThemeProvider({
         data-sr-theme={theme}
         suppressHydrationWarning
       >
-        {mode === "user-selectable" ? (
-          <script dangerouslySetInnerHTML={{ __html: initialThemeScript }} />
-        ) : null}
         {children}
       </div>
     </StockRadarThemeContext.Provider>
