@@ -5,6 +5,13 @@
  */
 export const WORKFLOW_STEP_LEASE_TTL_SECONDS = 2 * 60 * 60;
 
+/**
+ * Source ingest routes and Workflows remain available for authenticated manual
+ * verification, but no source-ingest paths are scheduled in vercel.json during
+ * prelaunch.
+ */
+export const SOURCE_INGEST_AUTOMATIC_CRONS_ENABLED = false;
+
 export const SOURCE_INGEST_WORKFLOW_SOURCES = {
   globe: {
     lane: "news_fast",

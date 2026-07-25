@@ -3,58 +3,6 @@
   "regions": ["iad1"],
   "crons": [
     {
-      "path": "/api/cron/source-ingest/sec",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron/source-ingest/globe",
-      "schedule": "* * * * *"
-    },
-    {
-      "path": "/api/cron/source-ingest/businesswire",
-      "schedule": "* * * * *"
-    },
-    {
-      "path": "/api/cron/source-ingest/prnewswire",
-      "schedule": "* * * * *"
-    },
-    {
-      "path": "/api/cron/source-ingest/newsfile",
-      "schedule": "* * * * *"
-    },
-    {
-      "path": "/api/cron/source-ingest/accesswire",
-      "schedule": "* * * * *"
-    },
-    {
-      "path": "/api/cron/source-ingest/nasdaq_trader",
-      "schedule": "* * * * *"
-    },
-    {
-      "path": "/api/cron/source-ingest/nasdaq_corporate_actions",
-      "schedule": "* * * * *"
-    },
-    {
-      "path": "/api/cron/source-ingest/ofac",
-      "schedule": "2,32 * * * *"
-    },
-    {
-      "path": "/api/cron/source-ingest/doj",
-      "schedule": "4,34 * * * *"
-    },
-    {
-      "path": "/api/cron/source-ingest/dea",
-      "schedule": "6,36 * * * *"
-    },
-    {
-      "path": "/api/cron/source-ingest/whitehouse",
-      "schedule": "8,38 * * * *"
-    },
-    {
-      "path": "/api/cron/source-ingest/fda",
-      "schedule": "10,40 * * * *"
-    },
-    {
       "path": "/api/cron/market-cache",
       "schedule": "*/5 * * * *"
     }
