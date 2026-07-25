@@ -322,7 +322,7 @@ test("news migration keeps page bounds, indexed search, real-time ET ranges, and
 test("News V2 market score policy is shared by rows, stats, and facets", () => {
   const migration = readFileSync(
     new URL(
-      "../supabase/migrations/20260725215500_news_v2_market_score_threshold.sql",
+      "../supabase/migrations/20260725215634_news_v2_market_score_threshold.sql",
       import.meta.url,
     ),
     "utf8",
