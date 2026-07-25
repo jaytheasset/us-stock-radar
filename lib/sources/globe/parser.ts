@@ -1,4 +1,6 @@
 const GLOBE_BASE_URL = "https://www.globenewswire.com";
+const DEFAULT_ARTICLE_TIMEOUT_MS = 12_000;
+const DEFAULT_ARTICLE_CONCURRENCY = 2;
 
 export const GLOBE_EXCHANGE_SEARCH_URL =
   "https://www.globenewswire.com/en/search/exchange/AMEX,Nasdaq,NYSE,OTC%2520Markets,Pink%2520Sheets,Other%2520OTC?pageSize=50";
@@ -12,6 +14,8 @@ type FetchOptions = {
   limit?: number;
   includeArticleBody?: boolean;
   articleBodyLimit?: number;
+  articleTimeoutMs?: number;
+  articleConcurrency?: number;
 };
 
 export type GlobeTickerMention = {
@@ -67,9 +71,25 @@ export type GlobeRawFetchResult = {
     skippedNonEnglish: number;
     articleBodiesRequested: number;
     articleBodiesFetched: number;
+    articleBodiesFailed?: number;
+    articleBodiesTimedOut?: number;
+    articleConcurrency?: number;
+    articleTimeoutMs?: number;
     parserVersion: string;
   };
   error?: string;
+};
+
+export type GlobeHydrationResult = {
+  items: GlobeParsedRawItem[];
+  diagnostics: {
+    articleBodiesRequested: number;
+    articleBodiesFetched: number;
+    articleBodiesFailed: number;
+    articleBodiesTimedOut: number;
+    articleConcurrency: number;
+    articleTimeoutMs: number;
+  };
 };
 
 export async function fetchGlobeNewswireRawItems(
@@ -120,60 +140,28 @@ export async function fetchGlobeNewswireRawItems(
       : englishItems;
     const searchItems = filteredItems.slice(0, sourceUniqueId ? 1 : limit);
 
-    let articleBodiesFetched = 0;
-    const items: GlobeParsedRawItem[] = [];
-
-    for (let index = 0; index < searchItems.length; index += 1) {
-      const item = searchItems[index];
-      if (index >= articleBodyLimit) {
-        items.push(item);
-        continue;
-      }
-
-      try {
-        const articleResponse = await fetch(item.source_url, {
-          cache: "no-store",
-          headers: globeFetchHeaders(),
-        });
-        const articleHtml = await articleResponse.text();
-        if (!articleResponse.ok) {
-          items.push({
-            ...item,
-            raw_payload: {
-              ...item.raw_payload,
-              article_fetch_error: articleResponse.statusText || `HTTP ${articleResponse.status}`,
-              article_fetch_status: articleResponse.status,
-            },
-          });
-          continue;
-        }
-
-        const article = parseGlobeNewswireArticleHtml(articleHtml, item.source_url);
-        articleBodiesFetched += article.bodyText ? 1 : 0;
-        items.push(mergeArticleIntoRawItem(item, article));
-      } catch (error) {
-        items.push({
-          ...item,
-          raw_payload: {
-            ...item.raw_payload,
-            article_fetch_error: error instanceof Error ? error.message : "Article fetch failed",
-          },
-        });
-      }
-    }
+    const hydration = articleBodyLimit > 0
+      ? await hydrateGlobeNewswireRawItems(searchItems, {
+          limit: articleBodyLimit,
+          timeoutMs: options.articleTimeoutMs,
+          concurrency: options.articleConcurrency,
+        })
+      : {
+          items: searchItems,
+          diagnostics: emptyGlobeHydrationDiagnostics(),
+        };
 
     return {
       ok: true,
       status: response.status,
       searchUrl,
       fetchedAt,
-      count: items.length,
-      items,
+      count: hydration.items.length,
+      items: hydration.items,
       diagnostics: {
         parsedFromSearch: parsedItems.length,
         skippedNonEnglish: parsedItems.length - englishItems.length,
-        articleBodiesRequested: articleBodyLimit,
-        articleBodiesFetched,
+        ...hydration.diagnostics,
         parserVersion: PARSER_VERSION,
       },
     };
@@ -195,6 +183,222 @@ export async function fetchGlobeNewswireRawItems(
       error: error instanceof Error ? error.message : "GlobeNewswire raw fetch failed",
     };
   }
+}
+
+export async function hydrateGlobeNewswireRawItems(
+  items: GlobeParsedRawItem[],
+  options: {
+    limit?: number;
+    timeoutMs?: number;
+    concurrency?: number;
+  } = {},
+): Promise<GlobeHydrationResult> {
+  const limit = clampNumber(options.limit ?? items.length, 0, items.length);
+  const timeoutMs = clampNumber(
+    options.timeoutMs ?? DEFAULT_ARTICLE_TIMEOUT_MS,
+    100,
+    60_000,
+  );
+  const concurrency = clampNumber(
+    options.concurrency ?? DEFAULT_ARTICLE_CONCURRENCY,
+    1,
+    4,
+  );
+  const requested = items.slice(0, limit);
+  const untouched = items.slice(limit);
+  let articleBodiesFetched = 0;
+  let articleBodiesFailed = 0;
+  let articleBodiesTimedOut = 0;
+
+  const hydrated = await mapWithConcurrency(
+    requested,
+    concurrency,
+    async (item) => {
+      const attemptedAt = new Date().toISOString();
+      try {
+        const articleResponse = await fetchGlobeNewswireArticleHtml(
+          item.source_url,
+          timeoutMs,
+        );
+        if (!articleResponse.ok) {
+          articleBodiesFailed += 1;
+          articleBodiesTimedOut += articleResponse.timedOut ? 1 : 0;
+          return withGlobeArticleFetchFailure(item, {
+            error:
+              articleResponse.error ||
+              `HTTP ${articleResponse.status}`,
+            status: articleResponse.status,
+            timedOut: articleResponse.timedOut,
+            attemptedAt,
+          });
+        }
+
+        const article = parseGlobeNewswireArticleHtml(
+          articleResponse.html,
+          articleResponse.url,
+        );
+        if (!article.bodyText) {
+          articleBodiesFailed += 1;
+          return withGlobeArticleFetchFailure(item, {
+            error: "GlobeNewswire article body was not found",
+            status: articleResponse.status,
+            timedOut: false,
+            attemptedAt,
+          });
+        }
+
+        articleBodiesFetched += 1;
+        return mergeArticleIntoRawItem(item, article);
+      } catch (error) {
+        articleBodiesFailed += 1;
+        const timedOut = isAbortError(error);
+        articleBodiesTimedOut += timedOut ? 1 : 0;
+        return withGlobeArticleFetchFailure(item, {
+          error:
+            error instanceof Error
+              ? error.message
+              : "GlobeNewswire article hydration failed",
+          status: 0,
+          timedOut,
+          attemptedAt,
+        });
+      }
+    },
+  );
+
+  return {
+    items: [...hydrated, ...untouched],
+    diagnostics: {
+      articleBodiesRequested: requested.length,
+      articleBodiesFetched,
+      articleBodiesFailed,
+      articleBodiesTimedOut,
+      articleConcurrency: concurrency,
+      articleTimeoutMs: timeoutMs,
+    },
+  };
+}
+
+async function fetchGlobeNewswireArticleHtml(
+  sourceUrl: string,
+  timeoutMs: number,
+) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(sourceUrl, {
+      cache: "no-store",
+      redirect: "follow",
+      headers: globeFetchHeaders(),
+      signal: controller.signal,
+    });
+    const html = await response.text();
+    if (!response.ok) {
+      return {
+        ok: false,
+        status: response.status,
+        url: response.url || sourceUrl,
+        html: "",
+        error:
+          response.statusText ||
+          "GlobeNewswire article request failed",
+        timedOut: false,
+      };
+    }
+
+    return {
+      ok: true,
+      status: response.status,
+      url: response.url || sourceUrl,
+      html,
+      timedOut: false,
+    };
+  } catch (error) {
+    const timedOut =
+      isAbortError(error) ||
+      controller.signal.aborted;
+    return {
+      ok: false,
+      status: 0,
+      url: sourceUrl,
+      html: "",
+      error: timedOut
+        ? `GlobeNewswire article request timed out after ${timeoutMs}ms`
+        : error instanceof Error
+          ? error.message
+          : "GlobeNewswire article request failed",
+      timedOut,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function withGlobeArticleFetchFailure(
+  item: GlobeParsedRawItem,
+  failure: {
+    error: string;
+    status: number;
+    timedOut: boolean;
+    attemptedAt: string;
+  },
+): GlobeParsedRawItem {
+  return {
+    ...item,
+    raw_payload: {
+      ...item.raw_payload,
+      article_fetch_error: failure.error,
+      article_fetch_status: failure.status,
+      article_fetch_timed_out: failure.timedOut,
+      article_fetch_retryable: true,
+      article_fetch_attempted_at: failure.attemptedAt,
+    },
+  };
+}
+
+async function mapWithConcurrency<T, U>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<U>,
+) {
+  const results = new Array<U>(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(items[index], index);
+    }
+  }
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(concurrency, items.length) },
+      () => worker(),
+    ),
+  );
+  return results;
+}
+
+function emptyGlobeHydrationDiagnostics() {
+  return {
+    articleBodiesRequested: 0,
+    articleBodiesFetched: 0,
+    articleBodiesFailed: 0,
+    articleBodiesTimedOut: 0,
+    articleConcurrency: 0,
+    articleTimeoutMs: 0,
+  };
+}
+
+function isAbortError(error: unknown) {
+  return (
+    (error instanceof Error && error.name === "AbortError") ||
+    (typeof DOMException !== "undefined" &&
+      error instanceof DOMException &&
+      error.name === "AbortError")
+  );
 }
 
 function isEnglishGlobeNewswireItem(item: GlobeParsedRawItem) {
