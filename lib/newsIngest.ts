@@ -14,7 +14,11 @@ import {
   prepareSourceHydrationBatch,
   type SourceHydrationExistingState,
 } from "@/lib/sourceHydrationIngestPlan";
-import { fetchGlobeNewswireRawItems, type GlobeParsedRawItem } from "@/lib/sources/globe/parser";
+import {
+  fetchGlobeNewswireRawItems,
+  hydrateGlobeNewswireRawItems,
+  type GlobeParsedRawItem,
+} from "@/lib/sources/globe/parser";
 import {
   fetchBusinessWireRawItems,
   hydrateBusinessWireRawItems,
@@ -145,6 +149,15 @@ export async function runGlobeNewsIngest(options: NewsIngestOptions = {}) {
       fetchErrorLabel: "Globe raw fetch failed",
       ingestErrorLabel: "Globe ingest error",
       fetchRawItems: fetchGlobeNewswireRawItems as NewsSourceConfig["fetchRawItems"],
+      hydrateRawItems: (items, hydrateOptions) =>
+        hydrateGlobeNewswireRawItems(
+          items as GlobeParsedRawItem[],
+          {
+            limit: hydrateOptions.limit,
+            timeoutMs: 12_000,
+            concurrency: 2,
+          },
+        ) as Promise<NewsRawHydrationResult>,
     },
     options,
   );
