@@ -597,6 +597,21 @@
   gap: var(--sr-space-1);
 }
 
+.marketPulseGrid + .marketPulseGroupTitle {
+  margin-top: 0;
+}
+
+.marketPulseGroupTitle {
+  margin: 0;
+  padding: var(--sr-space-2) var(--sr-space-3) 0;
+  border-top: var(--sr-border-width) solid var(--sr-color-divider);
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-label);
+  letter-spacing: var(--sr-letter-spacing-wide);
+  text-transform: uppercase;
+}
+
 .marketPulseGrid article {
   min-width: 0;
   padding: var(--sr-space-2);
@@ -629,6 +644,20 @@
 
 .marketPulseGrid article[data-tone="bearish"] strong {
   color: var(--sr-color-negative);
+}
+
+.marketPulseGrid article[data-tone="volatile"] strong {
+  color: var(--sr-color-warning);
+}
+
+.marketPulseChart {
+  height: 26px;
+  margin-top: var(--sr-space-1);
+}
+
+.marketPulseChart > svg,
+.marketPulseChart > span {
+  height: 26px;
 }
 
 .contextRailPreview {

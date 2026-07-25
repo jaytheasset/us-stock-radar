@@ -26,6 +26,7 @@ export type MarketCacheRefreshPlan = {
   marketMinute: number;
   marketPhase: "regular" | "post_close" | "closed";
   oneDaySector: string | null;
+  refreshMarketPulse: boolean;
   refreshOneDayThemes: boolean;
   rotatingTarget: MarketCacheRefreshTarget | null;
   slotId: string;
@@ -81,6 +82,10 @@ export function getMarketCacheRefreshPlan(
     normalizedSectors.length > 0 &&
     inRegularSession &&
     marketMinute % MARKET_CACHE_LONG_RANGE_INTERVAL_MINUTES === 0;
+  const refreshMarketPulse =
+    inPostCloseRefresh ||
+    (inRegularSession &&
+      marketMinute % MARKET_CACHE_LONG_RANGE_INTERVAL_MINUTES === 0);
   const absoluteLongRangeSlot = Math.floor(
     timestamp / (MARKET_CACHE_LONG_RANGE_INTERVAL_MINUTES * 60_000),
   );
@@ -108,6 +113,7 @@ export function getMarketCacheRefreshPlan(
         ? "post_close"
         : "closed",
     oneDaySector,
+    refreshMarketPulse,
     refreshOneDayThemes: oneDayDue,
     rotatingTarget,
     slotId: `${marketDate}T${String(parts.hour).padStart(2, "0")}:${String(parts.minute).padStart(2, "0")}[America/New_York]`,

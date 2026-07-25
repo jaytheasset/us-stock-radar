@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
   const plan = getMarketCacheRefreshPlan(now, sectors);
   if (
     !plan.oneDaySector &&
+    !plan.refreshMarketPulse &&
     !plan.refreshOneDayThemes &&
     !plan.rotatingTarget
   ) {
