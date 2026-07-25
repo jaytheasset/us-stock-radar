@@ -30,6 +30,7 @@ export function FeedContextRail({
   viewerPlan,
 }: FeedContextRailProps) {
   const previewRef = useRef<HTMLDivElement>(null);
+  const railScrollProgressRef = useRef(0);
   const railRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -45,6 +46,7 @@ export function FeedContextRail({
       rail.scrollTop +
       preview.getBoundingClientRect().top -
       rail.getBoundingClientRect().top;
+    railScrollProgressRef.current = Math.max(0, target);
     rail.scrollTo({
       behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
         ? "auto"
@@ -52,6 +54,48 @@ export function FeedContextRail({
       top: Math.max(0, target),
     });
   }, [previewRequestId]);
+
+  useEffect(() => {
+    const desktopRailQuery = window.matchMedia("(min-width: 1181px)");
+    let previousPageScrollY = window.scrollY;
+
+    const syncRailToPageScroll = () => {
+      const rail = railRef.current;
+      if (!rail || !desktopRailQuery.matches) {
+        previousPageScrollY = window.scrollY;
+        return;
+      }
+
+      const maxRailScroll = Math.max(0, rail.scrollHeight - rail.clientHeight);
+      if (maxRailScroll === 0) {
+        railScrollProgressRef.current = 0;
+        previousPageScrollY = window.scrollY;
+        return;
+      }
+
+      const railTop = rail.getBoundingClientRect().top;
+      const pageScrollDelta = window.scrollY - previousPageScrollY;
+      previousPageScrollY = window.scrollY;
+
+      if (window.scrollY === 0 || railTop > 16) {
+        railScrollProgressRef.current = 0;
+        rail.scrollTo({ behavior: "auto", top: 0 });
+        return;
+      }
+
+      const nextScrollTop = Math.min(
+        maxRailScroll,
+        Math.max(0, railScrollProgressRef.current + pageScrollDelta),
+      );
+      railScrollProgressRef.current = nextScrollTop;
+      rail.scrollTo({ behavior: "auto", top: nextScrollTop });
+    };
+
+    window.addEventListener("scroll", syncRailToPageScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", syncRailToPageScroll);
+    };
+  }, []);
 
   return (
     <aside
@@ -135,7 +179,7 @@ function RailEventSection({
       </div>
       {items.length ? (
         <div className={styles.contextEventList}>
-          {items.map((item) => (
+          {items.slice(0, 4).map((item) => (
             <article className={styles.contextEvent} key={item.id}>
               <div>
                 <span>{item.label}</span>

@@ -13,6 +13,7 @@ import {
   encodeLiveFeedV2Cursor,
   formatLiveFeedV2Timestamp,
   liveFeedV2BatchSize,
+  resolveLiveFeedV2MarketData,
   type LiveFeedV2Filter,
   type LiveFeedV2Item,
   type LiveFeedV2Kind,
@@ -113,13 +114,15 @@ function mapLiveFeedItem(item: LiveFeedItem): LiveFeedV2Item {
   const chartBars = item.displayChartBars.length
     ? item.displayChartBars
     : item.chartBars;
+  const marketData = resolveLiveFeedV2MarketData({
+    changeLabel: item.displayChange,
+    chartCloses: chartBars.map((bar) => bar.close),
+    priceLabel: item.displayPrice,
+  });
 
   return {
     category: normalizeCategory(item.eventType, feedType),
-    changePercent:
-      item.displayPrice === "N/A"
-        ? null
-        : parsePercent(item.displayChange),
+    changePercent: marketData.changePercent,
     company:
       item.displayKind === "ticker"
         ? item.source
@@ -130,10 +133,10 @@ function mapLiveFeedItem(item: LiveFeedItem): LiveFeedV2Item {
     headline: item.title,
     id: item.id || `${item.ticker}-${item.title}`,
     impactScore: item.score,
-    price: item.displayPrice,
+    price: marketData.price,
     sentiment: formatSentiment(item.signal),
     source: item.source,
-    sparkline: chartBars.map((bar) => bar.close).filter(Number.isFinite),
+    sparkline: marketData.sparkline,
     summary: item.quickTake || item.summary,
     ticker: item.displayTicker,
     timestamp,
@@ -179,12 +182,6 @@ function formatSentiment(
   if (signal === "bearish") return "Bearish";
   if (signal === "volatile") return "Volatile";
   return "Neutral";
-}
-
-function parsePercent(value: string) {
-  if (!value.trim().endsWith("%")) return null;
-  const parsed = Number(value.replace(/[%+,]/g, ""));
-  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function normalizeCategory(value: string, feedType: LiveFeedV2Kind) {
