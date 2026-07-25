@@ -6,6 +6,7 @@ import {
   runStructuredGeminiJson,
   type GeminiStructuredJsonRun,
 } from "./geminiStructuredJson.ts";
+import { sanitizeNasdaqCorporateActionAnalysis } from "./nasdaqCorporateActionAnalysis.ts";
 import { runNewsGeminiAnalysis } from "./newsGeminiAnalysis.ts";
 
 const prompt = {
@@ -194,6 +195,55 @@ test("news runtime wires the existing final normalizer into the single Gemini an
     previewSource,
     /runNewsGeminiAnalysis\(\{[\s\S]*?normalizeAnalysis: normalizeNewsAnalysis,[\s\S]*?\}\);/,
   );
+});
+
+test("Nasdaq Corporate Actions uses the shared single-call Flash-Lite path without OpenAI", () => {
+  const previewSource = readFileSync(
+    new URL("./nasdaqCorporateActionAnalysisPreview.ts", import.meta.url),
+    "utf8",
+  );
+  const promptSource = readFileSync(
+    new URL("../prompts/nasdaqCorporateActionAnalysis.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.equal(
+    previewSource.match(/runNewsGeminiAnalysis\(\{/g)?.length,
+    1,
+  );
+  assert.match(previewSource, /model = env\.newsGeminiModel/);
+  assert.match(previewSource, /apiKey: env\.geminiApiKey/);
+  assert.doesNotMatch(
+    previewSource,
+    /env\.openAi|OPENAI_API_KEY|OPENAI_MODEL|api\.openai\.com|runStructuredOpenAiJson/,
+  );
+  assert.match(promptSource, /output_contract: newsEventAnalysisResponseSchema/);
+});
+
+test("Nasdaq Corporate Actions preserves analysis fields while removing CUSIP administration", () => {
+  const analysis = sanitizeNasdaqCorporateActionAnalysis({
+    score: 62,
+    signal: "volatile",
+    quick_take: "Trading terms changed. CUSIP 123456789 was assigned.",
+    summary: "The merger closed. The new CUSIP is an administrative identifier.",
+    why_it_matters: "Holders face a forced conversion.",
+    score_reason: "CUSIP update and conversion mechanics.",
+    bullish_points: ["Defined cash consideration"],
+    bearish_points: ["CUSIP processing may take time", "Trading liquidity may be interrupted"],
+    key_evidence: ["CUSIP 123456789", "Conversion becomes effective Monday"],
+    what_to_watch_next: ["Settlement timing"],
+  });
+
+  assert.equal(analysis.score, 62);
+  assert.equal(analysis.signal, "volatile");
+  assert.equal(analysis.quick_take, "Trading terms changed.");
+  assert.equal(analysis.summary, "The merger closed.");
+  assert.equal(analysis.why_it_matters, "Holders face a forced conversion.");
+  assert.equal(analysis.score_reason, "");
+  assert.deepEqual(analysis.bullish_points, ["Defined cash consideration"]);
+  assert.deepEqual(analysis.bearish_points, ["Trading liquidity may be interrupted"]);
+  assert.deepEqual(analysis.key_evidence, ["Conversion becomes effective Monday"]);
+  assert.deepEqual(analysis.what_to_watch_next, ["Settlement timing"]);
 });
 
 function successfulRun(

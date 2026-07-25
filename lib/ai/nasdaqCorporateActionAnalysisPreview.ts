@@ -1,4 +1,6 @@
 import { getServerEnv } from "@/lib/env";
+import { sanitizeNasdaqCorporateActionAnalysis } from "@/lib/ai/nasdaqCorporateActionAnalysis";
+import { runNewsGeminiAnalysis } from "@/lib/ai/newsGeminiAnalysis";
 import { resolveNewsPromptMarketContext } from "@/lib/newsMarketContext";
 import { buildNasdaqCorporateActionAnalysisPrompt } from "@/lib/prompts/nasdaqCorporateActionAnalysis";
 import {
@@ -15,36 +17,6 @@ type PreviewOptions = {
 type AnalysisOptions = {
   persistMarketContext?: boolean;
   refreshMarketContext?: boolean;
-};
-
-type OpenAIResponseBody = {
-  id?: string;
-  status?: string;
-  output_text?: string;
-  usage?: OpenAIUsage;
-  output?: Array<{
-    type?: string;
-    content?: Array<{
-      type?: string;
-      text?: string;
-    }>;
-  }>;
-  error?: {
-    message?: string;
-  };
-};
-
-type OpenAIUsage = {
-  input_tokens?: number;
-  output_tokens?: number;
-  total_tokens?: number;
-  input_tokens_details?: {
-    cached_tokens?: number;
-  };
-  output_tokens_details?: {
-    reasoning_tokens?: number;
-  };
-  [key: string]: unknown;
 };
 
 const MAX_OUTPUT_TOKENS = 5000;
@@ -69,13 +41,12 @@ export async function runNasdaqCorporateActionAnalysisPreview(options: PreviewOp
     };
   }
 
-  const input = await buildInput(rawItem, {
-    persistMarketContext: false,
-    refreshMarketContext: true,
-  });
-  const prompt = buildNasdaqCorporateActionAnalysisPrompt(input);
-
   if (options.dryRun) {
+    const input = await buildInput(rawItem, {
+      persistMarketContext: false,
+      refreshMarketContext: true,
+    });
+    const prompt = buildNasdaqCorporateActionAnalysisPrompt(input);
     return {
       ok: true,
       stage: "dry_run",
@@ -104,95 +75,69 @@ export async function runNasdaqCorporateActionAnalysisForRawItem(
   rawItem: NasdaqCorporateActionParsedRawItem,
   options: AnalysisOptions = {},
 ) {
-  const input = await buildInput(rawItem, options);
-  const prompt = buildNasdaqCorporateActionAnalysisPrompt(input);
   const env = getServerEnv();
-  if (!env.openAiApiKey) {
+  if (!env.geminiApiKey) {
     return {
       ok: false,
       stage: "openai",
       status: 0,
-      error: "OPENAI_API_KEY is missing",
+      error: "GEMINI_API_KEY is missing",
       sourceItem: summarizeRawItem(rawItem),
-      input,
+      input: await buildInput(rawItem, {
+        ...options,
+        refreshMarketContext: false,
+      }),
     };
   }
 
-  const openAiResult = await runStructuredOpenAiJson({
-    apiKey: env.openAiApiKey,
-    model: env.openAiModel,
+  const input = await buildInput(rawItem, options);
+  const prompt = buildNasdaqCorporateActionAnalysisPrompt(input);
+  const model = env.newsGeminiModel;
+  const result = await runNewsGeminiAnalysis({
+    apiKey: env.geminiApiKey,
+    model,
     prompt,
+    input,
     maxOutputTokens: MAX_OUTPUT_TOKENS,
+    normalizeAnalysis: (value) =>
+      value ? sanitizeNasdaqCorporateActionAnalysis(value) : null,
   });
 
-  if (!openAiResult.response.ok) {
+  if (result.stage === "analysis_error") {
     return {
       ok: false,
       stage: "openai",
-      status: openAiResult.response.status,
-      error: openAiResult.body?.error?.message || openAiResult.response.statusText,
+      status: result.run.responseOk ? 502 : result.run.status,
+      error: result.error,
       sourceItem: summarizeRawItem(rawItem),
       input,
-      rawOpenAIResponse: openAiResult.body,
+      outputText: result.run.outputText,
+      usage: result.run.usage,
+      rawOpenAIResponse: result.run.body,
     };
   }
 
-  const outputText = readResponseOutputText(openAiResult.body);
-  const parsedAnalysis = parseAnalysisJson(outputText);
-  const analysis = parsedAnalysis ? sanitizeNasdaqCorporateActionAnalysis(parsedAnalysis) : null;
-  const usage = openAiResult.body?.usage || null;
+  const outputText = result.run.outputText;
+  const analysis = result.analysis;
+  const usage = result.run.usage;
 
   return {
-    ok: Boolean(analysis),
+    ok: true,
     stage: "complete",
-    status: analysis ? openAiResult.response.status : 502,
-    model: env.openAiModel,
-    openAiResponseId: openAiResult.body?.id || null,
+    status: result.run.status,
+    model,
+    openAiResponseId: result.run.responseId,
     sourceItem: summarizeRawItem(rawItem),
     input,
     analysis,
     outputText,
     usage,
-    costEstimate: estimateCost(env.openAiModel, usage),
+    costEstimate: null,
     prompt: {
       key: prompt.key,
       version: prompt.version,
     },
-    error: analysis ? undefined : "OpenAI response did not contain parseable JSON",
   };
-}
-
-function sanitizeNasdaqCorporateActionAnalysis(analysis: Record<string, unknown>) {
-  return {
-    ...analysis,
-    quick_take: removeCusipAdministrativeText(readString(analysis.quick_take) || ""),
-    summary: removeCusipAdministrativeText(readString(analysis.summary) || ""),
-    why_it_matters: removeCusipAdministrativeText(readString(analysis.why_it_matters) || ""),
-    score_reason: removeCusipAdministrativeText(readString(analysis.score_reason) || ""),
-    bullish_points: removeCusipItems(analysis.bullish_points),
-    bearish_points: removeCusipItems(analysis.bearish_points),
-    key_evidence: removeCusipItems(analysis.key_evidence),
-    what_to_watch_next: removeCusipItems(analysis.what_to_watch_next),
-  };
-}
-
-function removeCusipItems(value: unknown) {
-  if (!Array.isArray(value)) return value;
-  return value
-    .map((item) => removeCusipAdministrativeText(String(item || "")))
-    .filter((item) => item && !/\bCUSIP\b/i.test(item));
-}
-
-function removeCusipAdministrativeText(value: string) {
-  const text = value.trim();
-  if (!text || !/\bCUSIP\b/i.test(text)) return text;
-  const withoutCusipSentences = text
-    .split(/(?<=[.!?])\s+/)
-    .filter((sentence) => sentence && !/\bCUSIP\b/i.test(sentence))
-    .join(" ")
-    .trim();
-
-  return withoutCusipSentences || text.replace(/\b[^.!?]*CUSIP[^.!?]*[.!?]?/gi, "").replace(/\s+/g, " ").trim();
 }
 
 async function buildInput(rawItem: NasdaqCorporateActionParsedRawItem, options: AnalysisOptions = {}) {
@@ -216,48 +161,6 @@ async function buildInput(rawItem: NasdaqCorporateActionParsedRawItem, options: 
     corporate_action: readRecord(payload.corporate_action),
     corporate_action_event_family: readString(payload.corporate_action_event_family),
   };
-}
-
-async function runStructuredOpenAiJson({
-  apiKey,
-  model,
-  prompt,
-  maxOutputTokens,
-}: {
-  apiKey: string;
-  model: string;
-  prompt: {
-    system: string;
-    user: string;
-    responseFormat: {
-      json_schema: Record<string, unknown>;
-    };
-  };
-  maxOutputTokens: number;
-}) {
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    cache: "no-store",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      instructions: prompt.system,
-      input: prompt.user,
-      max_output_tokens: maxOutputTokens,
-      text: {
-        format: {
-          ...prompt.responseFormat.json_schema,
-          type: "json_schema",
-        },
-      },
-    }),
-  });
-
-  const body = (await response.json().catch(() => null)) as OpenAIResponseBody | null;
-  return { response, body };
 }
 
 function summarizeRawItem(rawItem: NasdaqCorporateActionParsedRawItem) {
@@ -290,88 +193,6 @@ function readTickerMentions(value: unknown) {
   });
 }
 
-function readResponseOutputText(body: OpenAIResponseBody | null) {
-  if (!body) return "";
-  if (typeof body.output_text === "string") return body.output_text;
-
-  const parts: string[] = [];
-  for (const item of body.output || []) {
-    for (const content of item.content || []) {
-      if (typeof content.text === "string") parts.push(content.text);
-    }
-  }
-
-  return parts.join("");
-}
-
-function parseAnalysisJson(value: string) {
-  if (!value) return null;
-  try {
-    return JSON.parse(value) as Record<string, unknown>;
-  } catch {
-    const extracted = extractJsonObject(value);
-    if (!extracted) return null;
-    try {
-      return JSON.parse(extracted) as Record<string, unknown>;
-    } catch {
-      return null;
-    }
-  }
-}
-
-function extractJsonObject(value: string) {
-  const start = value.indexOf("{");
-  const end = value.lastIndexOf("}");
-  if (start < 0 || end <= start) return null;
-  return value.slice(start, end + 1);
-}
-
-function estimateCost(model: string, usage: OpenAIUsage | null) {
-  const pricing = getPricing(model);
-  if (!pricing || !usage) return null;
-
-  const inputTokens = numberValue(usage.input_tokens);
-  const outputTokens = numberValue(usage.output_tokens);
-  const cachedInputTokens = Math.min(
-    inputTokens,
-    numberValue(usage.input_tokens_details?.cached_tokens),
-  );
-  const billedInputTokens = Math.max(0, inputTokens - cachedInputTokens);
-  const estimatedUsd =
-    (billedInputTokens * pricing.inputUsdPerMillion +
-      cachedInputTokens * pricing.cachedInputUsdPerMillion +
-      outputTokens * pricing.outputUsdPerMillion) /
-    1_000_000;
-
-  return {
-    model,
-    currency: "USD" as const,
-    estimatedUsd: Number(estimatedUsd.toFixed(8)),
-    inputTokens,
-    cachedInputTokens,
-    billedInputTokens,
-    outputTokens,
-    inputUsdPerMillion: pricing.inputUsdPerMillion,
-    cachedInputUsdPerMillion: pricing.cachedInputUsdPerMillion,
-    outputUsdPerMillion: pricing.outputUsdPerMillion,
-    pricing: pricing.label,
-  };
-}
-
-function getPricing(model: string) {
-  const normalized = model.trim().toLowerCase();
-  if (normalized === "gpt-5-mini") {
-    return {
-      inputUsdPerMillion: 0.25,
-      cachedInputUsdPerMillion: 0.025,
-      outputUsdPerMillion: 2,
-      label: "OpenAI API pricing for gpt-5-mini checked 2026-05-17",
-    };
-  }
-
-  return null;
-}
-
 function trimForModel(value: string) {
   const normalized = value.replace(/\r\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
   return normalized.length > 18000 ? `${normalized.slice(0, 18000)}\n[TRUNCATED]` : normalized;
@@ -388,10 +209,6 @@ function readString(value: unknown) {
 function sanitizeTickerSymbol(value: unknown) {
   const text = String(value || "").trim().toUpperCase().replace(/[^A-Z0-9.-]/g, "");
   return /^[A-Z][A-Z0-9.-]{0,9}$/.test(text) ? text : null;
-}
-
-function numberValue(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
 function clampInt(value: number | undefined, min: number, max: number, fallback: number) {
