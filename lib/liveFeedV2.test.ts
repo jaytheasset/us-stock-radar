@@ -210,4 +210,28 @@ test("feed v2 surfaces follow the News and Filings product design tokens", () =>
     styleSource,
     /\.mobileSheet \.sheetClose\s*\{[\s\S]*position: absolute/,
   );
+  assert.match(
+    styleSource,
+    /\.previewPanel header div > strong\s*\{[\s\S]*font-size: var\(--sr-font-size-xl\)[\s\S]*font-weight: var\(--sr-font-weight-heavy\)[\s\S]*line-height: var\(--sr-line-height-none\)/,
+  );
+  assert.match(
+    styleSource,
+    /\.previewPanel\s*\{[\s\S]*font-family:\s*[\s\S]*Arial,[\s\S]*"Segoe UI"[\s\S]*sans-serif/,
+  );
+  assert.match(
+    styleSource,
+    /\.previewPanel h2\s*\{[\s\S]*font-size: var\(--sr-font-size-xl\)[\s\S]*font-weight: var\(--sr-font-weight-heavy\)[\s\S]*line-height: var\(--sr-line-height-body\)[\s\S]*-webkit-line-clamp: 3/,
+  );
+  assert.match(
+    styleSource,
+    /\.previewPanel > p\s*\{[\s\S]*font-size: var\(--sr-font-size-md\)[\s\S]*font-weight: var\(--sr-font-weight-regular\)[\s\S]*line-height: var\(--sr-line-height-default\)[\s\S]*-webkit-line-clamp: 3/,
+  );
+  assert.match(
+    styleSource,
+    /\.previewMeta\s*\{[\s\S]*font-size: var\(--sr-font-size-xs\)[\s\S]*line-height: var\(--sr-line-height-default\)/,
+  );
+  assert.match(
+    styleSource,
+    /\.previewMarket strong\s*\{[\s\S]*font-size: var\(--sr-font-size-sm\)[\s\S]*font-weight: var\(--sr-font-weight-semibold\)[\s\S]*line-height: var\(--sr-line-height-body\)/,
+  );
 });
