@@ -17,11 +17,13 @@ import styles from "./StockRadarFilingsV2.module.css";
 type FilingsV2DetailContentProps = {
   record: FilingsV2Record;
   relatedRecords: readonly FilingsV2RelatedFiling[];
+  showAds: boolean;
 };
 
 export function FilingsV2DetailContent({
   record,
   relatedRecords,
+  showAds,
 }: FilingsV2DetailContentProps) {
   return (
     <div className={styles.detailContent}>
@@ -98,10 +100,12 @@ export function FilingsV2DetailContent({
       </div>
       </div>
 
-      <section className={styles.detailAdArea}>
-        <FilingsRailAdSlot size="300x250" />
-        <FilingsRailAdSlot size="320x100" />
-      </section>
+      {showAds ? (
+        <section className={styles.detailAdArea}>
+          <FilingsRailAdSlot size="300x250" />
+          <FilingsRailAdSlot size="320x100" />
+        </section>
+      ) : null}
 
       {relatedRecords.length ? (
         <section className={styles.relatedSection}>

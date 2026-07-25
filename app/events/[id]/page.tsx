@@ -12,6 +12,8 @@ import { parseGlobeNewswireArticleHtml } from "@/lib/sources/globe/parser";
 import { NewsAnalysisAdapter } from "@/components/news-analysis-v2/NewsAnalysisAdapter";
 import { NEWS_ANALYSIS_V2_FIXTURE_SLUG } from "@/lib/newsAnalysisConstants";
 import { loadNewsAnalysisDetail } from "@/lib/newsAnalysisDetail";
+import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
+import { getCurrentViewerPlan } from "@/lib/currentViewerPlan";
 import { fetchEventAnalysis, fetchEventTickers, fetchEventsByTicker, supabaseSelect } from "@/lib/supabase";
 import { themeGroups, themeSubThemes } from "@/lib/taxonomyRegistry";
 import {
@@ -509,11 +511,15 @@ export function generateStaticParams() {
 }
 
 export default async function StockNewsDetailPage({ params }: StockDetailPageProps) {
-  const { id } = await params;
+  const [{ id }, viewerPlan] = await Promise.all([
+    params,
+    getCurrentViewerPlan(),
+  ]);
+  const allowAds = areAdsEnabledForPlan(viewerPlan);
   if (id === NEWS_ANALYSIS_V2_FIXTURE_SLUG) {
     const fixture = await loadNewsAnalysisDetail(id);
     if (!fixture) notFound();
-    return <NewsAnalysisAdapter detail={fixture} newsId={id} />;
+    return <NewsAnalysisAdapter allowAds={allowAds} detail={fixture} newsId={id} />;
   }
   const liveDetail = isUuid(id) ? await getLiveEventDetail(id) : { item: null };
   const liveItem = liveDetail.item;
@@ -524,7 +530,7 @@ export default async function StockNewsDetailPage({ params }: StockDetailPagePro
   if (liveItem?.sourceGroup === "news") {
     const detail = await loadNewsAnalysisDetail(id);
     if (!detail) notFound();
-    return <NewsAnalysisAdapter detail={detail} newsId={id} />;
+    return <NewsAnalysisAdapter allowAds={allowAds} detail={detail} newsId={id} />;
   }
   const event = liveItem ? toDetailEvent(liveItem) : getFeedItem(id) || defaultEvent;
   let profile = liveItem

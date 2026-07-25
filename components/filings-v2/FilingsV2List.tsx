@@ -186,8 +186,12 @@ export function FilingsV2List({
                     </span>
                   </button>
                 </div>
-                {showInlineAd ? <FilingsV2InlineAd format="desktop" /> : null}
-                {showInlineAd ? <FilingsV2InlineAd format="mobile" /> : null}
+                {viewerPlan === "free" && showInlineAd ? (
+                  <FilingsV2InlineAd format="desktop" />
+                ) : null}
+                {viewerPlan === "free" && showInlineAd ? (
+                  <FilingsV2InlineAd format="mobile" />
+                ) : null}
                 {viewerPlan !== "ultimate" && index === mobilePremiumCtaInsertIndex ? (
                   <PremiumUpgradeCard
                     className={styles.premiumCtaMobile}

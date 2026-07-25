@@ -98,6 +98,8 @@ import {
   registeredFilingUiFixtures,
 } from "@/lib/development/filingUiRegistry";
 import { buildGooglePreferredSourceUrl } from "@/lib/googlePreferredSource";
+import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
+import { getCurrentViewerPlan } from "@/lib/currentViewerPlan";
 import {
   DilutionShareOverhang,
   type DilutionShareOverhangBarSegment,
@@ -4184,7 +4186,11 @@ export async function generateMetadata({ params }: FilingDetailPageProps): Promi
 }
 
 export default async function FilingDetailPage({ params }: FilingDetailPageProps) {
-  const { id } = await params;
+  const [{ id }, viewerPlan] = await Promise.all([
+    params,
+    getCurrentViewerPlan(),
+  ]);
+  const allowAds = areAdsEnabledForPlan(viewerPlan);
   const filing = await resolveFilingEvent(id);
   const preferredSourceUrl = buildGooglePreferredSourceUrl();
   const eventBadge = getEventTypeBadge(filing.eventType);
@@ -4273,6 +4279,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
         themeMode="user-selectable"
       >
         <GenericFilingAnalysis
+          allowAds={allowAds}
           bodyRenderer={
             offeringRegistration ? (
               useSummaryOfferingSplit ? (

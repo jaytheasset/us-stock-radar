@@ -5,6 +5,8 @@ import { MarketTickerLogo } from "@/components/market/MarketTickerLogo";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { isRealTicker, type DetailTone } from "@/app/events/[id]/detailTypes";
 import { getEventTypeBadge, type EventTypeBadgeTone } from "@/lib/eventTypeRegistry";
+import { shouldShowAnalysisSignalCompanionAd } from "@/lib/advertisingPolicy";
+import { AnalysisSignalCompanionAd } from "./AnalysisSignalCompanionAd";
 import { FilingBookmarkButton } from "./FilingBookmarkButton";
 import { FilingInlineAdSlot } from "./FilingInlineAdSlot";
 import { FilingRailAdSlot } from "./FilingRailAdSlot";
@@ -55,6 +57,7 @@ export type GenericFilingAnalysisData = {
 };
 
 type GenericFilingAnalysisProps = {
+  allowAds: boolean;
   bodyRenderer?: ReactNode;
   bookmarkRenderer?: ReactNode | false;
   briefLabel?: string;
@@ -77,6 +80,7 @@ type GenericFilingAnalysisProps = {
 };
 
 export function GenericFilingAnalysis({
+  allowAds,
   bodyRenderer,
   bookmarkRenderer,
   briefLabel = "Filing Brief",
@@ -114,12 +118,18 @@ export function GenericFilingAnalysis({
   const watchNext = compactItems(filing.watchNext);
   const recentFilings = filing.recentFilings.filter(hasRecentFilingContent);
   const relatedNews = filing.relatedNews.filter(hasRelatedNewsContent);
+  const showSignalCompanionAd = shouldShowAnalysisSignalCompanionAd({
+    adsAllowed: allowAds,
+    bearishCount: bearishPoints.length,
+    bullishCount: bullishPoints.length,
+  });
   const source = cleanText(filing.source);
   const sourceUrl = cleanText(filing.sourceUrl);
   const hasOriginalFiling = Boolean(
     originalBodyRenderer || originalRenderer || source || sourceUrl,
   );
   const hasRelatedContent = Boolean(recentFilings.length || relatedNews.length);
+  const showRail = hasRelatedContent || allowAds;
   const useNoChartDetailSplit = Boolean(
     !priceRenderer && hasDetailRenderer && (primaryAnalysis || showSummary),
   );
@@ -149,7 +159,11 @@ export function GenericFilingAnalysis({
   return (
     <div className={styles.page}>
       <div className={styles.workspace}>
-        <div className={styles.layout}>
+        <div
+          className={`${styles.layout}${
+            showRail ? "" : ` ${styles.layoutWithoutRail}`
+          }`}
+        >
           <article className={styles.mainColumn}>
             <header className={styles.hero}>
               {cleanText(filing.filedAt) ? (
@@ -314,6 +328,7 @@ export function GenericFilingAnalysis({
                     tone="bearish"
                   />
                 ) : null}
+                {showSignalCompanionAd ? <AnalysisSignalCompanionAd /> : null}
               </div>
             ) : null}
 
@@ -330,7 +345,7 @@ export function GenericFilingAnalysis({
 
             {contextRenderer ? (
               <>
-                <FilingInlineAdSlot />
+                {allowAds ? <FilingInlineAdSlot /> : null}
                 <section
                   aria-label={`${filing.ticker || company || "Filing"} market context`}
                   className={styles.rendererCard}
@@ -342,12 +357,13 @@ export function GenericFilingAnalysis({
 
           </article>
 
-          <aside
-            aria-label="Related filing content"
-            className={`${styles.rail}${
-              hasRelatedContent ? "" : ` ${styles.railAdsOnly}`
-            }`}
-          >
+          {showRail ? (
+            <aside
+              aria-label="Related filing content"
+              className={`${styles.rail}${
+                hasRelatedContent ? "" : ` ${styles.railAdsOnly}`
+              }`}
+            >
               {recentFilings.length ? (
                 <section className={styles.railCard}>
                   <div className={styles.railHeadingRow}>
@@ -376,7 +392,7 @@ export function GenericFilingAnalysis({
                 </section>
               ) : null}
 
-              <FilingRailAdSlot format="rectangle" />
+              {allowAds ? <FilingRailAdSlot format="rectangle" /> : null}
 
               {relatedNews.length ? (
                 <section className={styles.railCard}>
@@ -395,8 +411,9 @@ export function GenericFilingAnalysis({
                 </section>
               ) : null}
 
-              <FilingRailAdSlot format="skyscraper" />
-          </aside>
+              {allowAds ? <FilingRailAdSlot format="skyscraper" /> : null}
+            </aside>
+          ) : null}
 
           {hasOriginalFiling ? (
             <div
@@ -404,9 +421,11 @@ export function GenericFilingAnalysis({
                 hasRelatedContent ? "" : ` ${styles.originalColumnWithoutRelatedContent}`
               }`}
             >
-              <div className={styles.collapsedRailOnlyAd}>
-                <FilingInlineAdSlot />
-              </div>
+              {allowAds ? (
+                <div className={styles.collapsedRailOnlyAd}>
+                  <FilingInlineAdSlot />
+                </div>
+              ) : null}
               <section
                 aria-label={originalSectionTitle || "Original filing"}
                 className={`${styles.rendererCard} ${styles.originalRendererCard}`}

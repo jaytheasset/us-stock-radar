@@ -376,16 +376,19 @@ export function StockRadarFilingsV2({
             <FilingsV2DetailPanel
               record={selectedRecord}
               relatedRecords={relatedRecords}
+              showAds={viewerPlan === "free"}
             />
           </div>
         ) : null}
-        <div className={styles.detailRailAdFill}>
-          {Array.from({ length: tallRailAdCount }, (_, index) => (
-            <div className={styles.detailRailAdAnchor} key={`filings-rail-ad-${index}`}>
-              <FilingsRailAdSlot size="300x600" />
-            </div>
-          ))}
-        </div>
+        {viewerPlan === "free" ? (
+          <div className={styles.detailRailAdFill}>
+            {Array.from({ length: tallRailAdCount }, (_, index) => (
+              <div className={styles.detailRailAdAnchor} key={`filings-rail-ad-${index}`}>
+                <FilingsRailAdSlot size="300x600" />
+              </div>
+            ))}
+          </div>
+        ) : null}
       </aside>
 
       {selectedRecord ? (
@@ -395,6 +398,7 @@ export function StockRadarFilingsV2({
           openerRef={detailOpenerRef}
           record={selectedRecord}
           relatedRecords={relatedRecords}
+          showAds={viewerPlan === "free"}
         />
       ) : null}
       <MobileFilingsV2FilterSheet

@@ -794,7 +794,7 @@ Dashboard inventory is independently configured through `dashboard-rail`, `dashb
 - News V2 placement owners: `components/news-v2/NewsV2InsightRail.tsx`, `components/news-v2/NewsV2List.tsx`, `components/news-v2/NewsV2RailAdSlot.tsx`, `components/news-v2/NewsV2InlineAd.tsx`, and `components/news-v2/NewsV2InsightInlineAd.tsx`
 - Filings V2 placement owners: `components/filings-v2/StockRadarFilingsV2.tsx`, `components/filings-v2/FilingsV2Detail.tsx`, `components/filings-v2/FilingsV2List.tsx`, `components/filings-v2/FilingsRailAdSlot.tsx`, and `components/filings-v2/FilingsV2InlineAd.tsx`
 - Dashboard V2 placement owners: `components/dashboard-v2/DesktopRailAdSlot.tsx`, `components/dashboard-v2/DesktopInlineAdSlot.tsx`, and `components/dashboard-v2/MobileInlineAdSlot.tsx`
-- Filing analysis placement owners: `components/filing-analysis-v2/FilingRailAdSlot.tsx` and `components/filing-analysis-v2/FilingInlineAdSlot.tsx`
+- Filing analysis placement owners: `components/filing-analysis-v2/FilingRailAdSlot.tsx`, `components/filing-analysis-v2/FilingInlineAdSlot.tsx`, and `components/filing-analysis-v2/AnalysisSignalCompanionAd.tsx`
 - Alerts placement owner: `components/alerts-v2/StockRadarAlertsV2.tsx`
 - Responsive geometry and visibility owner: `components/news-v2/StockRadarNewsV2.module.css`
 - Site-wide Anchor opt-in owner: `app/layout.tsx`
@@ -807,12 +807,15 @@ Every rendered manual slot, including its development placeholder path, includes
 
 `AdSensePublisherLoader` is a non-visual root-layout client component for Google Auto ads Anchor opt-in. It returns `null` and only asks the shared loader for the publisher script when production, publisher, Anchor flag, and viewer-level `enabledForViewer` conditions all pass. Google Auto ads and the AdSense site settings own the actual Anchor DOM, dismissal behavior, responsive behavior, and placement; the application must not create a fixed-position imitation, placeholder, or Anchor `data-ad-slot`.
 
+Viewer eligibility for News and Filings list/detail manual placements is resolved on the server through the request-cached current-viewer plan helper. Only the `free` plan may render those manual placements; `ad_free`, `pro`, `advanced`, and `ultimate` suppress them before hydration. The site-wide Anchor remains disabled by configuration and does not perform a root-layout plan lookup, preserving static rendering for unrelated routes. A separate viewer-aware boundary is required before Anchor is enabled in the future.
+
 ### Inventory and responsive placement
 
 - Above 1180 px, News V2 and Filings V2 continuation rail positions use normal document scrolling and a responsive unit capped at 336 px. A rail placement reserves a 250 px minimum, but never hard-reserves a 600 px rectangle; Google may choose a taller eligible creative when inventory and the available width allow it. New continuation positions mount as more rows become visible; existing ads are not refreshed.
 - Desktop inline inventory uses a horizontal responsive AdSense request capped at 970 px, with a 90 px minimum reservation. It may use a smaller eligible creative when the shell is narrower.
 - At the mobile/tablet breakpoint, rail and desktop-inline inventory is hidden. Mobile inline inventory uses a responsive request capped at 480 px with a 100 px minimum reservation.
 - Dashboard V2, filing analysis, and Alerts use this same shared responsive contract. Their desktop rail positions are capped at 336 px; their desktop inline positions are capped at 970 px; their mobile inline positions are capped at 480 px. Alerts retains two independently configured rail positions but no longer hard-reserves the legacy 600 px block.
+- A free-viewer news or filing analysis with exactly one non-empty Bullish/Bearish card places the independently configured analysis-signal companion unit in the other desktop grid cell. Both-card and no-card analyses do not mount it. At 760 px and below, the existing one-column analysis grid stacks the companion unit after the signal card.
 - Desktop and mobile placements have mutually exclusive media-query activation. An inactive placement never renders an `ins.adsbygoogle` element and therefore cannot request a hidden ad. Minimum reservations prevent layout shift without forcing an oversized empty rectangle.
 
 ### Configuration, fallback, and activation
@@ -829,6 +832,7 @@ The publisher script is eligible only in a production build with `NEXT_PUBLIC_AD
 - `NEXT_PUBLIC_ADSENSE_FILINGS_RAIL_300X600_SLOT_ID`
 - `NEXT_PUBLIC_ADSENSE_FILINGS_DESKTOP_INLINE_SLOT_ID`
 - `NEXT_PUBLIC_ADSENSE_FILINGS_MOBILE_INLINE_SLOT_ID`
+- `NEXT_PUBLIC_ADSENSE_ANALYSIS_SIGNAL_COMPANION_SLOT_ID`
 - `NEXT_PUBLIC_ADSENSE_DASHBOARD_V2_RAIL_SLOT_ID`
 - `NEXT_PUBLIC_ADSENSE_DASHBOARD_V2_DESKTOP_INLINE_SLOT_ID`
 - `NEXT_PUBLIC_ADSENSE_DASHBOARD_V2_MOBILE_INLINE_SLOT_ID`

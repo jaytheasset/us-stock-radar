@@ -207,6 +207,10 @@
   gap: var(--sr-space-5);
 }
 
+.layoutWithoutRail {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .mainColumn,
 .originalColumn,
 .rail {

@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { StockRadarFilingsV2 } from "@/components/filings-v2/StockRadarFilingsV2";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
-import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import { loadFilingsV2Data } from "@/lib/filingsV2Data";
 import { buildGooglePreferredSourceUrl } from "@/lib/googlePreferredSource";
-import { getEffectiveUserPlan } from "@/lib/subscription/effectivePlan";
+import { getCurrentViewerPlan } from "@/lib/currentViewerPlan";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -15,13 +14,10 @@ export const metadata: Metadata = {
 };
 
 export default async function FilingsPage() {
-  const [data, userId] = await Promise.all([
+  const [data, viewerPlan] = await Promise.all([
     loadFilingsV2Data(),
-    getOptionalCurrentUserId(),
+    getCurrentViewerPlan(),
   ]);
-  const viewerPlan = userId
-    ? (await getEffectiveUserPlan(userId)).effectivePlan
-    : "free";
   const preferredSourceUrl = buildGooglePreferredSourceUrl();
 
   return (
