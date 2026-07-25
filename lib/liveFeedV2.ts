@@ -20,6 +20,10 @@ import {
   type LiveFeedV2Page,
   type LiveFeedV2Sentiment,
 } from "@/lib/liveFeedV2Contract";
+import {
+  createLiveFeedV2Preview,
+  type LiveFeedV2PreviewSource,
+} from "@/lib/liveFeedV2Preview";
 import type { RankedEvent } from "@/lib/radarRankings";
 
 export type LiveFeedV2RailEvent = {
@@ -99,7 +103,9 @@ function mapViewModelPage(
     emptyMessage: emptyMessageForFilter(filter),
     error: viewModel.ok ? undefined : viewModel.error,
     filter,
-    items: viewModel.feedItems.map(mapLiveFeedItem),
+    items: viewModel.feedItems.map((item) =>
+      mapLiveFeedItem(item, viewModel.feedItems),
+    ),
     nextCursor: viewModel.hasNext
       ? encodeLiveFeedV2Cursor(page + 1)
       : null,
@@ -107,8 +113,12 @@ function mapViewModelPage(
   };
 }
 
-function mapLiveFeedItem(item: LiveFeedItem): LiveFeedV2Item {
-  const feedType = resolveFeedType(item);
+function mapLiveFeedItem(
+  item: LiveFeedItem,
+  relatedItems: readonly LiveFeedItem[],
+): LiveFeedV2Item {
+  const previewSource = mapPreviewSource(item);
+  const feedType = previewSource.feedType;
   const timestamp = item.detectedAtRaw;
   const formattedTime = formatLiveFeedV2Timestamp(timestamp);
   const chartBars = item.displayChartBars.length
@@ -121,14 +131,13 @@ function mapLiveFeedItem(item: LiveFeedItem): LiveFeedV2Item {
   });
 
   return {
-    category: normalizeCategory(item.eventType, feedType),
+    category: previewSource.category,
     changePercent: marketData.changePercent,
     company:
       item.displayKind === "ticker"
         ? item.source
         : `${formatMarketScope(item.marketScope)} market event`,
-    detailHref:
-      feedType === "filings" ? `/filings/${item.id}` : `/events/${item.id}`,
+    detailHref: previewSource.detailHref,
     feedType,
     headline: item.title,
     id: item.id || `${item.ticker}-${item.title}`,
@@ -142,6 +151,46 @@ function mapLiveFeedItem(item: LiveFeedItem): LiveFeedV2Item {
     timestamp,
     timeDateLabel: formattedTime.dateLabel,
     timeLabel: formattedTime.timeLabel,
+    preview: createLiveFeedV2Preview(
+      previewSource,
+      relatedItems.map(mapPreviewSource),
+    ),
+  };
+}
+
+function mapPreviewSource(item: LiveFeedItem): LiveFeedV2PreviewSource {
+  const feedType = resolveFeedType(item);
+
+  return {
+    accessionNumber: item.accessionNumber,
+    category: normalizeCategory(item.eventType, feedType),
+    companyName: item.companyName,
+    detailHref:
+      feedType === "filings" ? `/filings/${item.id}` : `/events/${item.id}`,
+    feedType,
+    formType: item.formType,
+    headline: item.title,
+    id: item.id || `${item.ticker}-${item.title}`,
+    impactScore: item.score,
+    keyEvidence:
+      feedType === "market"
+        ? [...item.keyEvidence, ...item.watchNext]
+        : item.keyEvidence,
+    marketScopeLabel: formatMarketScope(item.marketScope),
+    primaryTicker: item.ticker,
+    publishedAt: item.detectedAtRaw,
+    relatedTickers: item.relatedTickers,
+    sentiment: formatSentiment(item.signal),
+    source: item.source,
+    sourceUrl: item.sourceUrl,
+    summary: item.quickTake || item.summary,
+    themeLabel:
+      item.subTheme ||
+      item.themeGroup ||
+      item.industryGroup ||
+      item.sector ||
+      item.displayTicker,
+    ticker: item.displayTicker,
   };
 }
 

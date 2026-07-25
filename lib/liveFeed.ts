@@ -7,7 +7,12 @@ import {
   type MarketGroupSnapshotPayload,
 } from "@/lib/marketDataCache";
 import { type RankedEvent } from "@/lib/radarRankings";
-import { fetchEventById, fetchEventCount, fetchEvents } from "@/lib/supabase";
+import {
+  fetchEventById,
+  fetchEventCount,
+  fetchEvents,
+  supabaseSelect,
+} from "@/lib/supabase";
 import { resolveCanonicalMarketGroup } from "@/lib/taxonomyRegistry";
 
 export type FeedTone = "bullish" | "bearish" | "volatile" | "neutral";
@@ -16,6 +21,8 @@ export type MarketScope = "company" | "sector" | "theme" | "macro";
 export type FeedTab = "all" | "news" | "filings" | "market" | "alerts" | "watchlist";
 
 export type LiveFeedItem = {
+  accessionNumber: string;
+  companyName: string;
   id: string;
   rawItemId: string;
   time: string;
@@ -33,6 +40,7 @@ export type LiveFeedItem = {
   subTheme?: string;
   source: string;
   sourceUrl: string;
+  formType: string;
   eventType: string;
   title: string;
   quickTake: string;
@@ -50,6 +58,13 @@ export type LiveFeedItem = {
   displayChange: string;
   displayKind: "ticker" | "group" | "macro";
   displayChartBars: MarketBar[];
+  keyEvidence: string[];
+  relatedTickers: Array<{
+    companyName: string;
+    context: string;
+    ticker: string;
+  }>;
+  watchNext: string[];
 };
 
 export type MarketPulseItem = {
@@ -75,6 +90,11 @@ export type SituationCardItem = {
 type DbEventRow = Record<string, unknown>;
 type QuoteRow = Record<string, unknown>;
 type GroupSnapshotLookup = Map<string, MarketGroupSnapshotPayload>;
+type FeedPreviewContext = {
+  analyses: Map<string, DbEventRow>;
+  rawItems: Map<string, DbEventRow>;
+  relatedTickers: Map<string, LiveFeedItem["relatedTickers"]>;
+};
 
 type EventClassification = {
   sector: string;
@@ -183,13 +203,16 @@ async function buildLiveFeedViewModel({
 
   const feedRows = toRows(feedResult.data);
   const { rankingRows, marketMovingRows, marketPulseItems, situationCards } = sharedFeedData;
-  const [quotes, charts, groupSnapshots] = await Promise.all([
+  const [quotes, charts, groupSnapshots, previewContext] = await Promise.all([
     fetchQuoteMap([...feedRows, ...rankingRows]),
     includeCharts === false ? Promise.resolve(new Map<string, ChartResult>()) : fetchChartMap(feedRows),
     fetchFeedGroupSnapshotLookup(feedRows),
+    fetchFeedPreviewContext(feedRows),
   ]);
 
-  const feedItems = feedRows.map((row) => mapEventRow(row, quotes, charts, groupSnapshots));
+  const feedItems = feedRows.map((row) =>
+    mapEventRow(row, quotes, charts, groupSnapshots, previewContext),
+  );
   const rankingItems = rankingRows.map((row) => mapEventRow(row, quotes));
 
   return {
@@ -315,7 +338,12 @@ function mapEventRow(
   quotes: Map<string, QuoteRow>,
   charts = new Map<string, ChartResult>(),
   groupSnapshots: GroupSnapshotLookup = new Map(),
+  previewContext?: FeedPreviewContext,
 ): LiveFeedItem {
+  const id = readString(row, ["id"]);
+  const rawItemId = readString(row, ["raw_item_id"]);
+  const analysis = previewContext?.analyses.get(id);
+  const rawItem = previewContext?.rawItems.get(rawItemId);
   const ticker = readString(row, ["ticker", "symbol"]) || "N/A";
   const quote = quotes.get(ticker.toUpperCase());
   const chart = charts.get(ticker.toUpperCase());
@@ -332,10 +360,27 @@ function mapEventRow(
     readString(row, ["reason"]) ||
     "No summary available yet.";
   const quickTake = canonical.quickTake || summary;
+  const sourceUniqueId = readString(rawItem, ["source_unique_id"]);
+  const metadataAccession =
+    readMetadataString(row, ["accession_number", "accessionNumber", "accession"]) ||
+    readMetadataString(rawItem, ["accession_number", "accessionNumber", "accession"]);
+  const accessionNumber =
+    metadataAccession ||
+    (canonical.sourceGroup === "filings" && isSecAccession(sourceUniqueId)
+      ? sourceUniqueId
+      : "");
+  const companyName =
+    readMetadataString(row, ["company_name", "companyName", "issuer_name", "issuerName", "company"]) ||
+    readMetadataString(rawItem, ["company_name", "companyName", "issuer_name", "issuerName", "company"]);
+  const formType =
+    readMetadataString(row, ["form_type", "formType", "form"]) ||
+    readMetadataString(rawItem, ["form_type", "formType", "form"]);
 
   return {
-    id: readString(row, ["id"]) || `${ticker}-${detectedAt || "event"}`,
-    rawItemId: readString(row, ["raw_item_id"]),
+    accessionNumber,
+    companyName,
+    id: id || `${ticker}-${detectedAt || "event"}`,
+    rawItemId,
     time: formatDetectedTime(detectedAt),
     detectedAtRaw: sourcePublishedAt || detectedAt,
     ticker,
@@ -351,6 +396,7 @@ function mapEventRow(
     subTheme: classification.subTheme,
     source: formatSource(readString(row, ["source_code", "source", "source_channel"])),
     sourceUrl: readString(row, ["source_url", "source_link", "url"]) || readMetadataString(row, ["source_url"]),
+    formType,
     eventType: readString(row, ["event_type"]) || "event",
     title: readString(row, ["title"]) || "Untitled event",
     quickTake,
@@ -371,7 +417,80 @@ function mapEventRow(
     displayChange: groupDisplay ? groupDisplay.change : quoteValues.change,
     displayKind: groupDisplay ? groupDisplay.kind : "ticker",
     displayChartBars: groupDisplay ? groupDisplay.bars : chart?.bars || [],
+    keyEvidence: readStringArray(analysis, ["key_evidence"]),
+    relatedTickers: previewContext?.relatedTickers.get(id) || [],
+    watchNext: readStringArray(analysis, ["watch_next"]),
   };
+}
+
+async function fetchFeedPreviewContext(
+  rows: DbEventRow[],
+): Promise<FeedPreviewContext> {
+  const eventIds = uniqueUuidValues(rows.map((row) => readString(row, ["id"])));
+  const rawItemIds = uniqueUuidValues(
+    rows.map((row) => readString(row, ["raw_item_id"])),
+  );
+  if (!eventIds.length) {
+    return {
+      analyses: new Map(),
+      rawItems: new Map(),
+      relatedTickers: new Map(),
+    };
+  }
+
+  const [analysisResult, rawItemResult, tickerResult] = await Promise.all([
+    supabaseSelect("event_analysis", {
+      select: "event_id,key_evidence,watch_next",
+      event_id: `in.(${eventIds.join(",")})`,
+      limit: String(eventIds.length),
+    }),
+    rawItemIds.length
+      ? supabaseSelect("raw_items", {
+          select: "id,source_unique_id,metadata",
+          id: `in.(${rawItemIds.join(",")})`,
+          limit: String(rawItemIds.length),
+        })
+      : Promise.resolve({ data: [] }),
+    supabaseSelect("event_tickers", {
+      select: "event_id,symbol,role,reason,metadata",
+      event_id: `in.(${eventIds.join(",")})`,
+      order: "sort_order.asc",
+      limit: String(Math.min(eventIds.length * 8, 200)),
+    }),
+  ]);
+
+  const analyses = new Map(
+    toRows(analysisResult.data)
+      .map((row) => [readString(row, ["event_id"]), row] as const)
+      .filter(([eventId]) => Boolean(eventId)),
+  );
+  const rawItems = new Map(
+    toRows(rawItemResult.data)
+      .map((row) => [readString(row, ["id"]), row] as const)
+      .filter(([rawItemId]) => Boolean(rawItemId)),
+  );
+  const relatedTickers = new Map<string, LiveFeedItem["relatedTickers"]>();
+
+  for (const row of toRows(tickerResult.data)) {
+    const eventId = readString(row, ["event_id"]);
+    const ticker = readString(row, ["symbol"]).toUpperCase();
+    if (!eventId || !ticker) continue;
+
+    const current = relatedTickers.get(eventId) || [];
+    if (current.some((item) => item.ticker === ticker)) continue;
+    current.push({
+      companyName: readMetadataString(row, [
+        "company_name",
+        "companyName",
+        "issuer_name",
+      ]),
+      context: readString(row, ["reason", "role"]),
+      ticker,
+    });
+    relatedTickers.set(eventId, current);
+  }
+
+  return { analyses, rawItems, relatedTickers };
 }
 
 function toRankedEvent(item: LiveFeedItem): RankedEvent {
@@ -951,7 +1070,43 @@ function readNumber(row: DbEventRow | QuoteRow | undefined, keys: string[]) {
   return Number.NaN;
 }
 
+function readStringArray(row: DbEventRow | undefined, keys: string[]) {
+  if (!row) return [];
+
+  for (const key of keys) {
+    const value = row[key];
+    if (!Array.isArray(value)) continue;
+
+    return Array.from(
+      new Set(
+        value
+          .filter((item): item is string => typeof item === "string")
+          .map((item) => item.trim())
+          .filter(Boolean),
+      ),
+    ).slice(0, 8);
+  }
+
+  return [];
+}
+
 function readMetadataString(row: DbEventRow | undefined, keys: string[]) {
   if (!row || !row.metadata || typeof row.metadata !== "object") return "";
   return readString(row.metadata as Record<string, unknown>, keys);
+}
+
+function uniqueUuidValues(values: string[]) {
+  return Array.from(
+    new Set(
+      values.filter((value) =>
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+          value,
+        ),
+      ),
+    ),
+  );
+}
+
+function isSecAccession(value: string) {
+  return /^\d{10}-\d{2}-\d{6}$/.test(value);
 }

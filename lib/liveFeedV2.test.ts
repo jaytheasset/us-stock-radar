@@ -10,6 +10,10 @@ import {
   normalizeLiveFeedV2Filter,
   resolveLiveFeedV2MarketData,
 } from "./liveFeedV2Contract.ts";
+import {
+  createLiveFeedV2Preview,
+  type LiveFeedV2PreviewSource,
+} from "./liveFeedV2Preview.ts";
 
 const projectRoot = process.cwd();
 
@@ -83,6 +87,7 @@ test("feed market data keeps quote and chart availability independent", () => {
 test("production feed is wired to real server data without mock repositories", () => {
   const pageSource = readSource("app/feed/page.tsx");
   const adapterSource = readSource("lib/liveFeedV2.ts");
+  const feedSource = readSource("lib/liveFeed.ts");
   const clientSource = readSource(
     "components/feed-v2/StockRadarFeedV2.tsx",
   );
@@ -96,13 +101,20 @@ test("production feed is wired to real server data without mock repositories", (
   assert.match(adapterSource, /filter === "watchlist"/);
   assert.match(adapterSource, /availability: "unavailable"/);
   assert.match(adapterSource, /resolveLiveFeedV2MarketData/);
+  assert.match(adapterSource, /createLiveFeedV2Preview/);
+  assert.match(adapterSource, /preview: createLiveFeedV2Preview/);
   assert.match(adapterSource, /priceLabel: item\.displayPrice/);
   assert.match(adapterSource, /changeLabel: item\.displayChange/);
   assert.match(adapterSource, /chartCloses: chartBars\.map/);
   assert.doesNotMatch(
-    `${pageSource}\n${adapterSource}\n${clientSource}`,
+    `${pageSource}\n${adapterSource}\n${feedSource}\n${clientSource}`,
     /lib\/mock|feedV2Data|feedV2Repository|feedMock/,
   );
+  assert.match(feedSource, /fetchFeedPreviewContext/);
+  assert.match(feedSource, /event_analysis/);
+  assert.match(feedSource, /raw_items/);
+  assert.match(feedSource, /event_tickers/);
+  assert.doesNotMatch(feedSource, /select: "id,source_unique_id,metadata,raw_payload"/);
   assert.match(redirectSource, /redirect\("\/feed"\)/);
 });
 
@@ -119,6 +131,7 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   const sheetSource = readSource(
     "components/feed-v2/MobileFeedPreviewSheet.tsx",
   );
+  const bottomSheetSource = readSource("components/ui/BottomSheetShell.tsx");
   const styleSource = readSource(
     "components/feed-v2/StockRadarFeedV2.module.css",
   );
@@ -135,8 +148,10 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   assert.match(inlineAdSource, /inlineAdMobilePlacement/);
   assert.match(inlineAdSource, /height=\{90\}/);
   assert.match(railAdSource, /railAdPlacement/);
-  assert.match(sheetSource, /role="dialog"/);
-  assert.match(sheetSource, /event\.key === "Escape"/);
+  assert.match(sheetSource, /BottomSheetShell/);
+  assert.match(sheetSource, /layout="full-scroll"/);
+  assert.match(bottomSheetSource, /role="dialog"/);
+  assert.match(bottomSheetSource, /event\.key === "Escape"/);
   assert.match(styleSource, /@media \(max-width: 1180px\)/);
   assert.match(styleSource, /@media \(max-width: 760px\)/);
   assert.match(
@@ -183,9 +198,6 @@ test("feed context rail keeps the product order without an unconnected watchlist
 
 test("feed rows use one centered dash for unavailable quote and chart", () => {
   const listSource = readSource("components/feed-v2/FeedEventList.tsx");
-  const previewSource = readSource(
-    "components/feed-v2/FeedPreviewPanel.tsx",
-  );
   const sparklineSource = readSource(
     "components/feed-v2/FeedSparkline.tsx",
   );
@@ -193,11 +205,9 @@ test("feed rows use one centered dash for unavailable quote and chart", () => {
   assert.match(listSource, /item\.price === null/);
   assert.match(listSource, /aria-label="Quote unavailable"/);
   assert.doesNotMatch(listSource, />N\/A</);
-  assert.match(previewSource, /item\.price === null/);
-  assert.match(previewSource, /if \(value === null\) return "—"/);
   assert.match(sparklineSource, /aria-label="Chart unavailable"/);
   assert.doesNotMatch(
-    `${listSource}\n${previewSource}\n${sparklineSource}`,
+    `${listSource}\n${sparklineSource}`,
     /No chart|Price change unavailable/,
   );
 });
@@ -205,6 +215,12 @@ test("feed rows use one centered dash for unavailable quote and chart", () => {
 test("feed v2 surfaces follow the News and Filings product design tokens", () => {
   const styleSource = readSource(
     "components/feed-v2/StockRadarFeedV2.module.css",
+  );
+  const previewStyleSource = readSource(
+    "components/feed-v2/FeedFilingPreview.module.css",
+  );
+  const bottomSheetStyleSource = readSource(
+    "components/ui/BottomSheetShell.module.css",
   );
 
   assert.match(
@@ -230,35 +246,152 @@ test("feed v2 surfaces follow the News and Filings product design tokens", () =>
     /grid-template-columns:\s*auto minmax\(0, 1fr\) auto/,
   );
   assert.match(
-    styleSource,
+    bottomSheetStyleSource,
     /border-radius: var\(--sr-radius-sheet\) var\(--sr-radius-sheet\) 0 0/,
   );
   assert.match(
-    styleSource,
-    /\.mobileSheet \.sheetClose\s*\{[\s\S]*position: absolute/,
+    bottomSheetStyleSource,
+    /\.close\s*\{[\s\S]*position: absolute/,
   );
   assert.match(
-    styleSource,
-    /\.previewPanel header div > strong\s*\{[\s\S]*font-size: var\(--sr-font-size-xl\)[\s\S]*font-weight: var\(--sr-font-weight-heavy\)[\s\S]*line-height: var\(--sr-line-height-none\)/,
+    previewStyleSource,
+    /\.detailIdentity h2\s*\{[\s\S]*font-size: var\(--sr-font-size-xl\)[\s\S]*font-weight: var\(--sr-font-weight-heavy\)[\s\S]*line-height: var\(--sr-line-height-none\)/,
   );
   assert.match(
-    styleSource,
-    /\.previewPanel\s*\{[\s\S]*font-family:\s*[\s\S]*Arial,[\s\S]*"Segoe UI"[\s\S]*sans-serif/,
+    previewStyleSource,
+    /\.detailSection h3\s*\{[\s\S]*font-size: var\(--sr-font-size-lg\)[\s\S]*font-weight: var\(--sr-font-weight-strong\)[\s\S]*line-height: var\(--sr-line-height-relaxed\)/,
   );
   assert.match(
-    styleSource,
-    /\.previewPanel h2\s*\{[\s\S]*font-size: var\(--sr-font-size-xl\)[\s\S]*font-weight: var\(--sr-font-weight-heavy\)[\s\S]*line-height: var\(--sr-line-height-body\)[\s\S]*-webkit-line-clamp: 3/,
+    previewStyleSource,
+    /\.detailSection p,[\s\S]*\.detailSection li\s*\{[\s\S]*font-size: var\(--sr-font-size-md\)[\s\S]*line-height: var\(--sr-line-height-default\)/,
   );
   assert.match(
-    styleSource,
-    /\.previewPanel > p\s*\{[\s\S]*font-size: var\(--sr-font-size-md\)[\s\S]*font-weight: var\(--sr-font-weight-regular\)[\s\S]*line-height: var\(--sr-line-height-default\)[\s\S]*-webkit-line-clamp: 3/,
+    previewStyleSource,
+    /\.detailFacts\s*\{[\s\S]*font-size: var\(--sr-font-size-sm\)/,
   );
   assert.match(
-    styleSource,
-    /\.previewMeta\s*\{[\s\S]*font-size: var\(--sr-font-size-xs\)[\s\S]*line-height: var\(--sr-line-height-default\)/,
+    previewStyleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.detailContent\s*\{[\s\S]*padding: var\(--sr-space-5\) var\(--sr-space-4\)/,
   );
-  assert.match(
-    styleSource,
-    /\.previewMarket strong\s*\{[\s\S]*font-size: var\(--sr-font-size-sm\)[\s\S]*font-weight: var\(--sr-font-weight-semibold\)[\s\S]*line-height: var\(--sr-line-height-body\)/,
+});
+
+const basePreviewSource: LiveFeedV2PreviewSource = {
+  category: "legal_risk",
+  detailHref: "/events/event-1",
+  feedType: "news",
+  headline: "A real headline",
+  id: "event-1",
+  impactScore: 65,
+  keyEvidence: ["Evidence one", "Evidence two"],
+  primaryTicker: "ELWT",
+  publishedAt: "2026-07-26T14:05:00.000Z",
+  sentiment: "Bearish",
+  source: "PR Newswire",
+  summary: "A real summary",
+  ticker: "ELWT",
+};
+
+test("feed preview mapper preserves filing-specific fields and related filings", () => {
+  const filing = createLiveFeedV2Preview(
+    {
+      ...basePreviewSource,
+      accessionNumber: "0001193125-26-134682",
+      companyName: "Infleqtion, Inc.",
+      detailHref: "/events/filing-1",
+      feedType: "filings",
+      formType: "8-K/A",
+      id: "filing-1",
+      primaryTicker: "INFQ",
+      ticker: "INFQ",
+    },
+    [
+      {
+        ...basePreviewSource,
+        detailHref: "/events/filing-2",
+        feedType: "filings",
+        formType: "8-K",
+        id: "filing-2",
+        primaryTicker: "INFQ",
+        ticker: "INFQ",
+      },
+    ],
+  );
+
+  assert.equal(filing.kind, "filing");
+  assert.equal(filing.company, "Infleqtion, Inc.");
+  assert.equal(filing.formType, "8-K/A");
+  assert.equal(filing.accession, "0001193125-26-134682");
+  assert.deepEqual(filing.keyPoints, ["Evidence one", "Evidence two"]);
+  assert.equal(filing.relatedFilings.length, 1);
+  assert.equal(filing.relatedFilings[0]?.href, "/events/filing-2");
+});
+
+test("feed preview mapper preserves company-news hierarchy without fake values", () => {
+  const news = createLiveFeedV2Preview({
+    ...basePreviewSource,
+    companyName: null,
+  });
+
+  assert.equal(news.kind, "company-news");
+  assert.equal(news.company, null);
+  assert.equal(news.brief, "A real summary");
+  assert.deepEqual(news.keyPoints, ["Evidence one", "Evidence two"]);
+  assert.equal(news.coverage, "Company");
+  assert.equal(news.watchlist, null);
+});
+
+test("feed preview mapper preserves market fields independently", () => {
+  const market = createLiveFeedV2Preview({
+    ...basePreviewSource,
+    companyName: null,
+    feedType: "market",
+    marketScopeLabel: "Sector",
+    primaryTicker: null,
+    relatedTickers: [
+      { context: "Mentioned in analysis", ticker: "NVDA" },
+      { context: null, ticker: "AMD" },
+    ],
+    themeLabel: "Semiconductors",
+    ticker: "MARKET",
+  });
+
+  assert.equal(market.kind, "market-news");
+  assert.equal(market.theme, "Semiconductors");
+  assert.equal(market.coverage, "Sector");
+  assert.equal(market.ticker, null);
+  assert.deepEqual(market.drivers, ["Evidence one", "Evidence two"]);
+  assert.deepEqual(
+    market.relatedCompanies.map((company) => company.ticker),
+    ["NVDA", "AMD"],
+  );
+});
+
+test("desktop and mobile preview dispatchers wire all three V2 preview types", () => {
+  const dispatcherSource = readSource(
+    "components/feed-v2/FeedPreviewPanel.tsx",
+  );
+  const sheetSource = readSource(
+    "components/feed-v2/MobileFeedPreviewSheet.tsx",
+  );
+  const combinedPreviewSource = [
+    "components/feed-v2/FeedFilingPreview.tsx",
+    "components/feed-v2/FeedCompanyNewsPreview.tsx",
+    "components/feed-v2/FeedMarketNewsPreview.tsx",
+  ]
+    .map(readSource)
+    .join("\n");
+
+  assert.match(dispatcherSource, /item\.preview\.kind === "filing"/);
+  assert.match(dispatcherSource, /item\.preview\.kind === "market-news"/);
+  assert.match(dispatcherSource, /FeedCompanyNewsPreview/);
+  assert.match(sheetSource, /FeedPreviewPanel item=\{item\} variant="mobile"/);
+  assert.match(combinedPreviewSource, /data-preview-kind="filing"/);
+  assert.match(combinedPreviewSource, /data-preview-kind="company-news"/);
+  assert.match(combinedPreviewSource, /data-preview-kind="market-news"/);
+  assert.match(combinedPreviewSource, /aria-label="Ticker unavailable"/);
+  assert.doesNotMatch(combinedPreviewSource, /ticker=\{news\.ticker \|\| "MARKET"\}/);
+  assert.doesNotMatch(
+    `${dispatcherSource}\n${sheetSource}\n${combinedPreviewSource}`,
+    /lib\/mock|feedV2Data|feedV2Repository|fake chart/i,
   );
 });
