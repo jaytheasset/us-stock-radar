@@ -35,6 +35,10 @@ services:
         sync: false
       - key: OPENAI_MODEL
         value: gpt-5-mini
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: NEWS_GEMINI_MODEL
+        value: gemini-2.5-flash-lite
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: TELEGRAM_CHAT_ID

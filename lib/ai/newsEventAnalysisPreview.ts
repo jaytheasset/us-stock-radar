@@ -1,5 +1,10 @@
 import { getServerEnv } from "@/lib/env";
 import { evaluateCalendarItemPolicy } from "@/lib/calendarPolicy";
+import {
+  type GeminiResponseBody,
+  type GeminiUsage,
+} from "@/lib/ai/geminiStructuredJson";
+import { runNewsGeminiPipeline } from "@/lib/ai/newsGeminiPipeline";
 import { resolveNewsPromptMarketContext } from "@/lib/newsMarketContext";
 import {
   buildNewsEventAnalysisPrompt,
@@ -34,35 +39,7 @@ export type NewsAnalysisRawItem = Omit<GlobeParsedRawItem, "source_code"> & {
 const NEWS_ROUTE_CLASSIFICATION_MAX_OUTPUT_TOKENS = 700;
 const NEWS_EVENT_ANALYSIS_MAX_OUTPUT_TOKENS = 6000;
 
-type OpenAIResponseBody = {
-  id?: string;
-  status?: string;
-  output_text?: string;
-  usage?: OpenAIUsage;
-  output?: Array<{
-    type?: string;
-    content?: Array<{
-      type?: string;
-      text?: string;
-    }>;
-  }>;
-  error?: {
-    message?: string;
-  };
-};
-
-type OpenAIUsage = {
-  input_tokens?: number;
-  output_tokens?: number;
-  total_tokens?: number;
-  input_tokens_details?: {
-    cached_tokens?: number;
-  };
-  output_tokens_details?: {
-    reasoning_tokens?: number;
-  };
-  [key: string]: unknown;
-};
+type LlmUsage = GeminiUsage;
 
 type CostEstimate = {
   model: string;
@@ -92,8 +69,8 @@ export type NewsEventAnalysisRunResult = {
   analysis?: Record<string, unknown> | null;
   outputText?: string;
   routeOutputText?: string;
-  usage?: OpenAIUsage | null;
-  routingUsage?: OpenAIUsage | null;
+  usage?: LlmUsage | null;
+  routingUsage?: LlmUsage | null;
   costEstimate?: CostEstimate | null;
   routingCostEstimate?: CostEstimate | null;
   prompt?: {
@@ -103,7 +80,7 @@ export type NewsEventAnalysisRunResult = {
     routeVersion?: string;
   };
   error?: string;
-  rawOpenAIResponse?: OpenAIResponseBody | null;
+  rawOpenAIResponse?: GeminiResponseBody | null;
 };
 
 export async function runNewsEventAnalysisPreview(options: PreviewOptions = {}) {
@@ -171,12 +148,12 @@ export async function runNewsEventAnalysisPreview(options: PreviewOptions = {}) 
   }
 
   const env = getServerEnv();
-  if (!env.openAiApiKey) {
+  if (!env.geminiApiKey) {
     return {
       ok: false,
       stage: "openai",
       status: 0,
-      error: "OPENAI_API_KEY is missing",
+      error: "GEMINI_API_KEY is missing",
       sourceItem: summarizeRawItem(rawItem),
       input,
     };
@@ -197,86 +174,72 @@ export async function runNewsEventAnalysisForRawItem(
   const routeInput = buildInputFromGlobeRawItem(rawItem);
   const env = getServerEnv();
 
-  if (!env.openAiApiKey) {
+  if (!env.geminiApiKey) {
     return {
       ok: false,
       stage: "openai",
       status: 0,
-      error: "OPENAI_API_KEY is missing",
+      error: "GEMINI_API_KEY is missing",
       sourceItem: summarizeRawItem(rawItem),
       input: routeInput,
     };
   }
 
   const routePrompt = buildNewsRouteClassificationPrompt(routeInput);
-  let routeResponse = await runStructuredOpenAiJson({
-    apiKey: env.openAiApiKey,
-    model: env.openAiModel,
-    prompt: routePrompt,
-    maxOutputTokens: NEWS_ROUTE_CLASSIFICATION_MAX_OUTPUT_TOKENS,
+  const model = env.newsGeminiModel;
+  const pipeline = await runNewsGeminiPipeline({
+    apiKey: env.geminiApiKey,
+    model,
+    routePrompt,
+    routeMaxOutputTokens: NEWS_ROUTE_CLASSIFICATION_MAX_OUTPUT_TOKENS,
+    analysisMaxOutputTokens: NEWS_EVENT_ANALYSIS_MAX_OUTPUT_TOKENS,
+    normalizeRoute: normalizeNewsRouteClassification,
+    buildSecondPass: async (routeClassification) => {
+      const input = await buildInputFromNewsRawItem(rawItem, {
+        persistMarketContext: Boolean(options.persistMarketContext),
+        refreshMarketContext: options.refreshMarketContext ?? true,
+        marketContextSymbols: routeClassification.candidate_tickers.map((ticker) => ticker.ticker),
+      });
+      return {
+        input,
+        prompt: buildSecondPassNewsAnalysisPrompt(input, routeClassification),
+      };
+    },
+    normalizeAnalysis: normalizeNewsAnalysis,
   });
 
-  if (!routeResponse.response.ok) {
+  if (pipeline.stage === "route_error") {
     return {
       ok: false,
       stage: "openai",
-      status: routeResponse.response.status,
-      error: routeResponse.body?.error?.message || routeResponse.response.statusText,
+      status: pipeline.routeRun.responseOk ? 502 : pipeline.routeRun.status,
+      error: pipeline.error,
       sourceItem: summarizeRawItem(rawItem),
       input: routeInput,
-      rawOpenAIResponse: routeResponse.body,
+      routeOutputText: pipeline.routeRun.outputText,
+      rawOpenAIResponse: pipeline.routeRun.body,
     };
   }
 
-  let routeOutputText = readResponseOutputText(routeResponse.body);
-  let routeClassification = normalizeNewsRouteClassification(parseAnalysisJson(routeOutputText));
-  if (!routeClassification) {
-    const retryResponse = await runStructuredOpenAiJson({
-      apiKey: env.openAiApiKey,
-      model: env.openAiModel,
-      prompt: routePrompt,
-      maxOutputTokens: NEWS_ROUTE_CLASSIFICATION_MAX_OUTPUT_TOKENS,
-    });
-    if (retryResponse.response.ok) {
-      const retryOutputText = readResponseOutputText(retryResponse.body);
-      const retryClassification = normalizeNewsRouteClassification(parseAnalysisJson(retryOutputText));
-      if (retryClassification) {
-        routeResponse = retryResponse;
-        routeOutputText = retryOutputText;
-        routeClassification = retryClassification;
-      }
-    }
-  }
-  if (!routeClassification) {
-    return {
-      ok: false,
-      stage: "openai",
-      status: 502,
-      error: "OpenAI route classification did not contain parseable JSON",
-      sourceItem: summarizeRawItem(rawItem),
-      input: routeInput,
-      routeOutputText,
-      rawOpenAIResponse: routeResponse.body,
-    };
-  }
-
-  if (routeClassification.route === "skip") {
-    const routingUsage = routeResponse.body?.usage || null;
+  const routeClassification = pipeline.routeClassification;
+  const routeOutputText = pipeline.routeRun.outputText;
+  const routingUsage = pipeline.routeRun.usage;
+  if (pipeline.stage === "skipped") {
     return {
       ok: true,
       skipped: true,
       skipReason: routeClassification.reason,
       stage: "complete",
-      status: routeResponse.response.status,
-      model: env.openAiModel,
-      openAiResponseId: routeResponse.body?.id || null,
+      status: pipeline.routeRun.status,
+      model,
+      openAiResponseId: pipeline.routeRun.responseId,
       sourceItem: summarizeRawItem(rawItem),
       input: routeInput,
       routeClassification,
       analysis: null,
       routeOutputText,
       routingUsage,
-      routingCostEstimate: estimateCost(env.openAiModel, routingUsage),
+      routingCostEstimate: estimateCost(model, routingUsage),
       prompt: {
         key: routePrompt.key,
         version: routePrompt.version,
@@ -286,47 +249,33 @@ export async function runNewsEventAnalysisForRawItem(
     };
   }
 
-  const input = await buildInputFromNewsRawItem(rawItem, {
-    persistMarketContext: Boolean(options.persistMarketContext),
-    refreshMarketContext: options.refreshMarketContext ?? true,
-    marketContextSymbols: routeClassification.candidate_tickers.map((ticker) => ticker.ticker),
-  });
-  const prompt = buildSecondPassNewsAnalysisPrompt(input, routeClassification);
-
-  const analysisResponse = await runStructuredOpenAiJson({
-    apiKey: env.openAiApiKey,
-    model: env.openAiModel,
-    prompt,
-    maxOutputTokens: NEWS_EVENT_ANALYSIS_MAX_OUTPUT_TOKENS,
-  });
-
-  if (!analysisResponse.response.ok) {
+  const { input, prompt, analysisRun } = pipeline;
+  if (pipeline.stage === "analysis_error") {
     return {
       ok: false,
       stage: "openai",
-      status: analysisResponse.response.status,
-      error: analysisResponse.body?.error?.message || analysisResponse.response.statusText,
+      status: analysisRun.responseOk ? 502 : analysisRun.status,
+      error: pipeline.error,
       sourceItem: summarizeRawItem(rawItem),
       input,
       routeClassification,
       routeOutputText,
-      routingUsage: routeResponse.body?.usage || null,
-      routingCostEstimate: estimateCost(env.openAiModel, routeResponse.body?.usage || null),
-      rawOpenAIResponse: analysisResponse.body,
+      routingUsage,
+      routingCostEstimate: estimateCost(model, routingUsage),
+      rawOpenAIResponse: analysisRun.body,
     };
   }
 
-  const outputText = readResponseOutputText(analysisResponse.body);
-  const analysis = normalizeNewsAnalysis(parseAnalysisJson(outputText), input);
-  const usage = analysisResponse.body?.usage || null;
-  const routingUsage = routeResponse.body?.usage || null;
+  const outputText = analysisRun.outputText;
+  const analysis = pipeline.analysis;
+  const usage = analysisRun.usage;
 
   return {
-    ok: Boolean(analysis),
+    ok: true,
     stage: "complete",
-    status: analysis ? analysisResponse.response.status : 502,
-    model: env.openAiModel,
-    openAiResponseId: analysisResponse.body?.id || null,
+    status: analysisRun.status,
+    model,
+    openAiResponseId: analysisRun.responseId,
     sourceItem: summarizeRawItem(rawItem),
     input,
     routeClassification,
@@ -335,58 +284,15 @@ export async function runNewsEventAnalysisForRawItem(
     routeOutputText,
     usage,
     routingUsage,
-    costEstimate: estimateCost(env.openAiModel, usage),
-    routingCostEstimate: estimateCost(env.openAiModel, routingUsage),
+    costEstimate: estimateCost(model, usage),
+    routingCostEstimate: estimateCost(model, routingUsage),
     prompt: {
       key: prompt.key,
       version: prompt.version,
       routeKey: routePrompt.key,
       routeVersion: routePrompt.version,
     },
-    error: analysis ? undefined : "OpenAI response did not contain parseable JSON",
   };
-}
-
-async function runStructuredOpenAiJson({
-  apiKey,
-  model,
-  prompt,
-  maxOutputTokens,
-}: {
-  apiKey: string;
-  model: string;
-  prompt: {
-    system: string;
-    user: string;
-    responseFormat: {
-      json_schema: Record<string, unknown>;
-    };
-  };
-  maxOutputTokens: number;
-}) {
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    cache: "no-store",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      instructions: prompt.system,
-      input: prompt.user,
-      max_output_tokens: maxOutputTokens,
-      text: {
-        format: {
-          ...prompt.responseFormat.json_schema,
-          type: "json_schema",
-        },
-      },
-    }),
-  });
-
-  const body = (await response.json().catch(() => null)) as OpenAIResponseBody | null;
-  return { response, body };
 }
 
 export function buildInputFromGlobeRawItem(item: NewsAnalysisRawItem): NewsEventAnalysisInput {
@@ -461,83 +367,14 @@ function sourceItemNotFoundMessage(sourceUniqueId: string | undefined, searchLim
   return `GlobeNewswire raw item ${sourceUniqueId} was not found in the latest ${searchLimit} items`;
 }
 
-function estimateCost(model: string, usage: OpenAIUsage | null): CostEstimate | null {
-  const pricing = getPricing(model);
-  if (!pricing || !usage) return null;
-
-  const inputTokens = numberValue(usage.input_tokens);
-  const outputTokens = numberValue(usage.output_tokens);
-  const cachedInputTokens = Math.min(
-    inputTokens,
-    numberValue(usage.input_tokens_details?.cached_tokens),
-  );
-  const billedInputTokens = Math.max(0, inputTokens - cachedInputTokens);
-  const estimatedUsd =
-    (billedInputTokens * pricing.inputUsdPerMillion +
-      cachedInputTokens * pricing.cachedInputUsdPerMillion +
-      outputTokens * pricing.outputUsdPerMillion) /
-    1_000_000;
-
-  return {
-    model,
-    currency: "USD",
-    estimatedUsd: Number(estimatedUsd.toFixed(8)),
-    inputTokens,
-    cachedInputTokens,
-    billedInputTokens,
-    outputTokens,
-    inputUsdPerMillion: pricing.inputUsdPerMillion,
-    cachedInputUsdPerMillion: pricing.cachedInputUsdPerMillion,
-    outputUsdPerMillion: pricing.outputUsdPerMillion,
-    pricing: pricing.label,
-  };
-}
-
-function getPricing(model: string) {
-  const normalized = model.trim().toLowerCase();
-  if (normalized === "gpt-5-mini") {
-    return {
-      inputUsdPerMillion: 0.25,
-      cachedInputUsdPerMillion: 0.025,
-      outputUsdPerMillion: 2,
-      label: "OpenAI API pricing for gpt-5-mini checked 2026-05-17",
-    };
-  }
-
+function estimateCost(_model: string, _usage: LlmUsage | null): CostEstimate | null {
+  // Usage remains available in the existing result contract. A Gemini pricing
+  // estimate can be added independently once this runtime has a maintained rate table.
   return null;
 }
 
 function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
-}
-
-function readResponseOutputText(body: OpenAIResponseBody | null) {
-  if (!body) return "";
-  if (typeof body.output_text === "string") return body.output_text;
-
-  const parts: string[] = [];
-  for (const item of body.output || []) {
-    for (const content of item.content || []) {
-      if (typeof content.text === "string") parts.push(content.text);
-    }
-  }
-
-  return parts.join("");
-}
-
-function parseAnalysisJson(value: string) {
-  if (!value) return null;
-  try {
-    return JSON.parse(value) as Record<string, unknown>;
-  } catch {
-    const extracted = extractJsonObject(value);
-    if (!extracted) return null;
-    try {
-      return JSON.parse(extracted) as Record<string, unknown>;
-    } catch {
-      return null;
-    }
-  }
 }
 
 function normalizeNewsRouteClassification(value: Record<string, unknown> | null): NewsRouteClassification | null {
@@ -1030,16 +867,6 @@ function sanitizeTickerSymbol(value: unknown) {
   const raw = value.trim().replace(/^\$/, "");
   const symbol = (raw.includes(":") ? raw.split(":").pop() || "" : raw).trim().toUpperCase();
   return /^[A-Z][A-Z0-9.-]{0,5}$/.test(symbol) ? symbol : null;
-}
-
-function extractJsonObject(value: string) {
-  const fenced = value.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim();
-  if (fenced?.startsWith("{") && fenced.endsWith("}")) return fenced;
-
-  const start = value.indexOf("{");
-  const end = value.lastIndexOf("}");
-  if (start < 0 || end <= start) return "";
-  return value.slice(start, end + 1);
 }
 
 function readTickerMentions(value: unknown): GlobeTickerMention[] {
