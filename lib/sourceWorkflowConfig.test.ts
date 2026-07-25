@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   SEC_WORKFLOW_CONFIG,
+  SOURCE_INGEST_AUTOMATIC_CRONS_ENABLED,
   SOURCE_INGEST_WORKFLOW_LANES,
   SOURCE_INGEST_WORKFLOW_SOURCES,
   WORKFLOW_STEP_LEASE_TTL_SECONDS,
@@ -94,7 +95,7 @@ test("news workflow emits structured source duration and outcome logs", () => {
   assert.match(workflowSource, /success:/);
 });
 
-test("Vercel cron schedules contain SEC and every source exactly once", () => {
+test("Vercel keeps source ingest automation disabled during prelaunch", () => {
   const vercelConfig = JSON.parse(
     readFileSync(new URL("../vercel.json", import.meta.url), "utf8"),
   ) as {
@@ -102,29 +103,19 @@ test("Vercel cron schedules contain SEC and every source exactly once", () => {
     crons?: Array<{ path: string; schedule: string }>;
   };
   const crons = vercelConfig.crons || [];
-  const schedules = new Map(crons.map((cron) => [cron.path, cron.schedule]));
+  const sourceCrons = crons.filter((cron) =>
+    cron.path.startsWith("/api/cron/source-ingest/"),
+  );
+  const marketCacheCrons = crons.filter(
+    (cron) => cron.path === "/api/cron/market-cache",
+  );
 
   assert.deepEqual(vercelConfig.regions, ["iad1"]);
-  assert.equal(
-    schedules.get("/api/cron/source-ingest/sec"),
-    SEC_WORKFLOW_CONFIG.cronSchedule,
+  assert.equal(SOURCE_INGEST_AUTOMATIC_CRONS_ENABLED, false);
+  assert.deepEqual(sourceCrons, []);
+  assert.deepEqual(
+    marketCacheCrons,
+    [{ path: "/api/cron/market-cache", schedule: "*/5 * * * *" }],
   );
-  for (const [source, config] of Object.entries(SOURCE_INGEST_WORKFLOW_SOURCES)) {
-    const path = `/api/cron/source-ingest/${source}`;
-    assert.equal(
-      schedules.get(path),
-      config.cronSchedule,
-    );
-    assert.equal(crons.filter((cron) => cron.path === path).length, 1);
-    assert.equal(config.cronSchedule.trim().split(/\s+/).length, 5);
-  }
-
-  assert.equal(schedules.has("/api/cron/source-ingest/news_fast"), false);
-  assert.equal(schedules.has("/api/cron/source-ingest/news_slow"), false);
-  assert.equal(
-    crons.filter((cron) =>
-      cron.path.startsWith("/api/cron/source-ingest/"),
-    ).length,
-    Object.keys(SOURCE_INGEST_WORKFLOW_SOURCES).length + 1,
-  );
+  assert.equal(crons.length, 1);
 });

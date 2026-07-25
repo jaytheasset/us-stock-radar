@@ -2,13 +2,20 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { AdSensePublisherLoader } from "@/components/ads/AdSensePublisherLoader";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import {
+  isPrelaunchMode,
+  prelaunchRobotsMetadata,
+} from "@/lib/prelaunch";
 import "./stock-radar-tokens.css";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "US Stock Radar",
-  description: "US stock alert radar dashboard",
-};
+export function generateMetadata(): Metadata {
+  return {
+    title: "US Stock Radar",
+    description: "US stock alert radar dashboard",
+    robots: prelaunchRobotsMetadata(isPrelaunchMode()),
+  };
+}
 
 export default function RootLayout({
   children,
