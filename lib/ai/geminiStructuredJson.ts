@@ -41,6 +41,8 @@ export type StructuredJsonPrompt = {
   };
 };
 
+export type GeminiResponseSchemaPolicy = "prompt" | "omit";
+
 export type GeminiStructuredJsonRun = {
   ok: boolean;
   responseOk: boolean;
@@ -60,15 +62,21 @@ export async function runStructuredGeminiJson({
   model,
   prompt,
   maxOutputTokens,
+  responseSchemaPolicy = "prompt",
   fetchImpl = fetch,
 }: {
   apiKey: string;
   model: string;
   prompt: StructuredJsonPrompt;
   maxOutputTokens: number;
+  responseSchemaPolicy?: GeminiResponseSchemaPolicy;
   fetchImpl?: typeof fetch;
 }): Promise<GeminiStructuredJsonRun> {
   try {
+    const responseSchema =
+      responseSchemaPolicy === "prompt"
+        ? readGeminiResponseSchema(prompt)
+        : undefined;
     const response = await fetchImpl(buildGeminiGenerateContentUrl(apiKey, model), {
       method: "POST",
       cache: "no-store",
@@ -87,7 +95,7 @@ export async function runStructuredGeminiJson({
         ],
         generationConfig: {
           responseMimeType: "application/json",
-          responseSchema: readGeminiResponseSchema(prompt),
+          ...(responseSchema ? { responseSchema } : {}),
           maxOutputTokens,
           temperature: 0,
           ...readGeminiThinkingConfig(model),

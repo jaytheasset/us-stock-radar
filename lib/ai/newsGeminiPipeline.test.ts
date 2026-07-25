@@ -104,8 +104,43 @@ test("Gemini structured JSON uses the selected model, schema, parsed output, and
   });
 });
 
+test("Gemini JSON mode can omit provider responseSchema entirely", async () => {
+  let requestBody: Record<string, any> = {};
+  const run = await runStructuredGeminiJson({
+    apiKey: "test-key",
+    model: "gemini-2.5-flash-lite",
+    prompt,
+    maxOutputTokens: 6000,
+    responseSchemaPolicy: "omit",
+    fetchImpl: (async (_input, init) => {
+      requestBody = JSON.parse(String(init?.body || "{}"));
+      return new Response(
+        JSON.stringify({
+          candidates: [
+            {
+              finishReason: "STOP",
+              content: {
+                parts: [{ text: '{"score":80}' }],
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }) as typeof fetch,
+  });
+
+  assert.equal(requestBody.generationConfig.responseMimeType, "application/json");
+  assert.equal("responseSchema" in requestBody.generationConfig, false);
+  assert.deepEqual(run.parsed, { score: 80 });
+});
+
 test("a first-pass skip never builds or calls the second pass", async () => {
-  const calls: Array<{ model: string; maxOutputTokens: number }> = [];
+  const calls: Array<{
+    model: string;
+    maxOutputTokens: number;
+    responseSchemaPolicy: string | undefined;
+  }> = [];
   let secondPassBuilt = false;
   const result = await runNewsGeminiPipeline({
     apiKey: "test-key",
@@ -120,8 +155,8 @@ test("a first-pass skip never builds or calls the second pass", async () => {
       return { input: {}, prompt };
     },
     normalizeAnalysis: (value) => value,
-    runPrompt: async ({ model, maxOutputTokens }) => {
-      calls.push({ model, maxOutputTokens });
+    runPrompt: async ({ model, maxOutputTokens, responseSchemaPolicy }) => {
+      calls.push({ model, maxOutputTokens, responseSchemaPolicy });
       return successfulRun(model, { route: "skip" });
     },
   });
@@ -129,12 +164,20 @@ test("a first-pass skip never builds or calls the second pass", async () => {
   assert.equal(result.stage, "skipped");
   assert.equal(secondPassBuilt, false);
   assert.deepEqual(calls, [
-    { model: "gemini-2.5-flash-lite", maxOutputTokens: 700 },
+    {
+      model: "gemini-2.5-flash-lite",
+      maxOutputTokens: 700,
+      responseSchemaPolicy: "prompt",
+    },
   ]);
 });
 
-test("both news passes use Gemini 2.5 Flash-Lite", async () => {
-  const calls: Array<{ model: string; maxOutputTokens: number }> = [];
+test("route sends its small schema while detail omits schema on the same Flash-Lite model", async () => {
+  const calls: Array<{
+    model: string;
+    maxOutputTokens: number;
+    responseSchemaPolicy: string | undefined;
+  }> = [];
   const result = await runNewsGeminiPipeline({
     apiKey: "test-key",
     model: "gemini-2.5-flash-lite",
@@ -145,8 +188,8 @@ test("both news passes use Gemini 2.5 Flash-Lite", async () => {
       value?.route === "company" ? { route: "company" } : null,
     buildSecondPass: async () => ({ input: { ticker: "ACME" }, prompt }),
     normalizeAnalysis: (value) => value,
-    runPrompt: async ({ model, maxOutputTokens }) => {
-      calls.push({ model, maxOutputTokens });
+    runPrompt: async ({ model, maxOutputTokens, responseSchemaPolicy }) => {
+      calls.push({ model, maxOutputTokens, responseSchemaPolicy });
       return successfulRun(
         model,
         calls.length === 1 ? { route: "company" } : { score: 80 },
@@ -156,8 +199,16 @@ test("both news passes use Gemini 2.5 Flash-Lite", async () => {
 
   assert.equal(result.stage, "complete");
   assert.deepEqual(calls, [
-    { model: "gemini-2.5-flash-lite", maxOutputTokens: 700 },
-    { model: "gemini-2.5-flash-lite", maxOutputTokens: 6000 },
+    {
+      model: "gemini-2.5-flash-lite",
+      maxOutputTokens: 700,
+      responseSchemaPolicy: "prompt",
+    },
+    {
+      model: "gemini-2.5-flash-lite",
+      maxOutputTokens: 6000,
+      responseSchemaPolicy: "omit",
+    },
   ]);
 });
 

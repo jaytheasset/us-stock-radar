@@ -1,5 +1,6 @@
 import {
   runStructuredGeminiJson,
+  type GeminiResponseSchemaPolicy,
   type GeminiStructuredJsonRun,
   type StructuredJsonPrompt,
 } from "./geminiStructuredJson.ts";
@@ -65,10 +66,20 @@ export async function runNewsGeminiPipeline<Route extends RouteDecision, Analysi
   normalizeAnalysis: (value: Record<string, unknown> | null, input: Input) => Analysis | null;
   runPrompt?: typeof runStructuredGeminiJson;
 }): Promise<NewsGeminiPipelineResult<Route, Analysis, Input>> {
-  const run = (prompt: StructuredJsonPrompt, maxOutputTokens: number) =>
-    runPrompt({ apiKey, model, prompt, maxOutputTokens });
+  const run = (
+    prompt: StructuredJsonPrompt,
+    maxOutputTokens: number,
+    responseSchemaPolicy: GeminiResponseSchemaPolicy,
+  ) =>
+    runPrompt({
+      apiKey,
+      model,
+      prompt,
+      maxOutputTokens,
+      responseSchemaPolicy,
+    });
 
-  let routeRun = await run(routePrompt, routeMaxOutputTokens);
+  let routeRun = await run(routePrompt, routeMaxOutputTokens, "prompt");
   if (!routeRun.responseOk) {
     return {
       stage: "route_error",
@@ -80,7 +91,7 @@ export async function runNewsGeminiPipeline<Route extends RouteDecision, Analysi
 
   let routeClassification = normalizeRoute(routeRun.parsed);
   if (!routeClassification) {
-    const retryRun = await run(routePrompt, routeMaxOutputTokens);
+    const retryRun = await run(routePrompt, routeMaxOutputTokens, "prompt");
     const retryClassification = retryRun.responseOk ? normalizeRoute(retryRun.parsed) : null;
     if (retryClassification) {
       routeRun = retryRun;
@@ -106,7 +117,9 @@ export async function runNewsGeminiPipeline<Route extends RouteDecision, Analysi
   }
 
   const { input, prompt } = await buildSecondPass(routeClassification);
-  const analysisRun = await run(prompt, analysisMaxOutputTokens);
+  // The detail contract is too large for Gemini's provider-side schema state
+  // limit. JSON mode plus the existing prompt and normalization preserve it.
+  const analysisRun = await run(prompt, analysisMaxOutputTokens, "omit");
   if (!analysisRun.responseOk) {
     return {
       stage: "analysis_error",
