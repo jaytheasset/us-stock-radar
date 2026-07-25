@@ -59,12 +59,7 @@ export async function buildSourceHydrationIngestPlan<
       continue;
     }
 
-    if (!existing.raw || !hasReusableAnalysis(existing.raw)) {
-      plan.hydrate.push(item);
-      continue;
-    }
-
-    if (isTerminalRawItem(existing.raw)) {
+    if (existing.raw && isTerminalRawItem(existing.raw)) {
       plan.skipped.push({
         item,
         raw: existing.raw,
@@ -74,7 +69,12 @@ export async function buildSourceHydrationIngestPlan<
       continue;
     }
 
-    plan.reused.push({ item, raw: existing.raw });
+    if (existing.raw && hasReusableAnalysis(existing.raw)) {
+      plan.reused.push({ item, raw: existing.raw });
+      continue;
+    }
+
+    plan.hydrate.push(item);
   }
 
   return plan;
