@@ -359,6 +359,10 @@
   box-shadow: var(--sr-shadow-panel);
 }
 
+.listPanelAnchor {
+  min-width: 0;
+}
+
 .listPanel {
   min-width: 0;
   padding: 0;
@@ -1844,16 +1848,44 @@
     grid-row: 1;
   }
 
-  .insightRailAnchor {
+  .listPanelAnchor {
     grid-row: 2;
   }
 
-  .listPanel {
+  .insightRailAnchor {
     grid-row: 3;
   }
 
   .insightRailContent {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .insightRailContent:not(:has(> .premiumCtaDesktop)) > .marketNewsRailCard,
+  .sectorRailCard,
+  .mobileInsightAdItem,
+  .themeRailCard {
+    grid-column: 1 / -1;
+  }
+
+  .filterUtilityRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: stretch;
+    gap: var(--sr-space-2);
+  }
+
+  .desktopFilterMatrix {
+    display: none;
+  }
+
+  .mobileFilterActions {
+    display: flex;
+    align-items: center;
+  }
+
+  .mobileFilterActions .mobileFilterTrigger {
+    min-height: var(--sr-size-control);
+    padding-inline: var(--sr-space-3);
   }
 
   .contextRailAdAnchor {
@@ -1919,29 +1951,8 @@
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .filterUtilityRow {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: stretch;
-    gap: var(--sr-space-2);
-  }
-
   .searchButton {
     padding: 0 var(--sr-space-3);
-  }
-
-  .desktopFilterMatrix {
-    display: none;
-  }
-
-  .mobileFilterActions {
-    display: flex;
-    align-items: center;
-  }
-
-  .mobileFilterActions .mobileFilterTrigger {
-    min-height: var(--sr-size-control);
-    padding-inline: var(--sr-space-3);
   }
 
   .mobileResetButton {

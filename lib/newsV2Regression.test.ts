@@ -216,6 +216,64 @@ test("price chart reduces time ticks only for narrow plots", () => {
   assert.deepEqual(selectPriceChartXAxisIndexes(0, 260), []);
 });
 
+test("news mid-width layout keeps compact filters, feed, then a stable rail grid", () => {
+  const layoutSource = readFileSync(
+    new URL("../components/news-v2/StockRadarNewsV2.tsx", import.meta.url),
+    "utf8",
+  );
+  const railSource = readFileSync(
+    new URL("../components/news-v2/NewsV2InsightRail.tsx", import.meta.url),
+    "utf8",
+  );
+  const styles = readFileSync(
+    new URL(
+      "../components/news-v2/StockRadarNewsV2.module.css",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(layoutSource, /className=\{styles\.listPanelAnchor\}/);
+  assert.match(railSource, /styles\.marketNewsRailCard/);
+  assert.match(railSource, /styles\.sectorRailCard/);
+  assert.match(railSource, /styles\.themeRailCard/);
+  assert.match(
+    styles,
+    /@media \(max-width: 980px\) \{[\s\S]*?\.filterBar \{[\s\S]*?grid-row: 1;[\s\S]*?\.listPanelAnchor \{[\s\S]*?grid-row: 2;[\s\S]*?\.insightRailAnchor \{[\s\S]*?grid-row: 3;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 980px\) \{[\s\S]*?\.desktopFilterMatrix \{[\s\S]*?display: none;[\s\S]*?\.mobileFilterActions \{[\s\S]*?display: flex;/,
+  );
+  assert.match(
+    styles,
+    /\.sectorRailCard,\s*\.mobileInsightAdItem,\s*\.themeRailCard \{[\s\S]*?grid-column: 1 \/ -1;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.insightRailContent \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);/,
+  );
+});
+
+test("product header switches to its mobile navigation before mid-width clipping", () => {
+  const styles = readFileSync(
+    new URL(
+      "../components/shell/StockRadarProductHeader.module.css",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(
+    styles,
+    /@media \(max-width: 1120px\) \{[\s\S]*?\.primaryNavigation \{[\s\S]*?display: none;[\s\S]*?\.actions \.mobileMenuButton \{[\s\S]*?display: flex;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.header \{[\s\S]*?padding: var\(--sr-space-3-5\);/,
+  );
+});
+
 test("news migration keeps page bounds, indexed search, real-time ET ranges, and service-only RPCs", () => {
   const migration = readFileSync(
     new URL(

@@ -206,25 +206,7 @@
   }
 }
 
-@media (max-width: 760px) {
-  .header {
-    min-height: 0;
-    align-items: center;
-    flex-direction: row;
-    gap: var(--sr-space-2);
-    padding: var(--sr-space-3-5);
-  }
-
-  .brand {
-    min-width: 0;
-    width: auto;
-    align-items: center;
-  }
-
-  .brand span {
-    font-size: var(--sr-font-size-heading-sm);
-  }
-
+@media (max-width: 1120px) {
   .primaryNavigation {
     display: none;
   }
@@ -261,7 +243,7 @@
   .mobileMenuPopover {
     position: fixed;
     z-index: var(--sr-z-mobile-menu);
-    top: 68px;
+    top: var(--sr-size-header);
     right: 0;
     display: block;
     width: min(var(--sr-size-mobile-menu-width), calc(100vw - var(--sr-space-8)));
@@ -374,5 +356,25 @@
   .mobileMenuAccount :global(.auth-user-pill span) {
     color: var(--sr-color-text-product-brand);
     background: var(--sr-color-product-accent);
+  }
+}
+
+@media (max-width: 760px) {
+  .header {
+    min-height: 0;
+    align-items: center;
+    flex-direction: row;
+    gap: var(--sr-space-2);
+    padding: var(--sr-space-3-5);
+  }
+
+  .brand {
+    min-width: 0;
+    width: auto;
+    align-items: center;
+  }
+
+  .brand span {
+    font-size: var(--sr-font-size-heading-sm);
   }
 }

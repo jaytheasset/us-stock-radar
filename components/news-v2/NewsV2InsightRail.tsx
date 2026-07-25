@@ -170,7 +170,7 @@ export function NewsV2InsightRail({
         className={styles.insightRail}
       >
         <div className={styles.insightRailContent}>
-          <section className={styles.insightCard}>
+          <section className={`${styles.insightCard} ${styles.marketNewsRailCard}`}>
             <header className={styles.insightHeader}>
               <div>
                 <h2>Market News Radar</h2>
@@ -238,7 +238,7 @@ export function NewsV2InsightRail({
             <NewsV2RailAdSlot size="300x250" />
           </div>
 
-          <section className={styles.insightCard}>
+          <section className={`${styles.insightCard} ${styles.sectorRailCard}`}>
             <header className={styles.insightHeader}>
               <div>
                 <span>MARKET BREADTH</span>
@@ -319,7 +319,7 @@ export function NewsV2InsightRail({
 
           <NewsV2InsightInlineAd />
 
-          <section className={styles.insightCard}>
+          <section className={`${styles.insightCard} ${styles.themeRailCard}`}>
             <header className={styles.insightHeader}>
               <div>
                 <h2>Trending Signal Map</h2>
