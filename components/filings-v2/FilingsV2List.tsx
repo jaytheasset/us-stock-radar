@@ -182,7 +182,7 @@ export function FilingsV2List({
                       <span className={`${styles.signal} ${styles[record.signal]}`}>
                         {filingsV2SignalLabels[record.signal]}
                       </span>
-                      <FilingsV2ImpactScore score={record.impact} />
+                      <FilingsV2ImpactScore score={record.impact} signal={record.signal} />
                     </span>
                   </button>
                 </div>

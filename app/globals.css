@@ -13995,25 +13995,34 @@ html[data-theme="dark"] .proxy-agenda-explanation span {
 }
 
 .detail-score-main strong {
-  color: #1458ff;
+  color: var(--sr-color-text-heading);
   font-size: 42px;
   line-height: 1;
 }
 
-.detail-score-main.bullish strong {
-  color: #16803c;
+.source-badge.impact-badge > span[data-score-tone="default"],
+.detail-score-main strong[data-score-tone="default"] {
+  color: var(--sr-color-text-heading);
 }
 
-.detail-score-main.bearish strong {
-  color: #e3272f;
+.source-badge.impact-badge > span[data-score-tone="bullish"],
+.detail-score-main strong[data-score-tone="bullish"] {
+  color: var(--sr-color-positive);
 }
 
-.detail-score-main.volatile strong {
-  color: #a05a00;
+.source-badge.impact-badge > span[data-score-tone="bearish"],
+.detail-score-main strong[data-score-tone="bearish"] {
+  color: var(--sr-color-negative);
 }
 
-.detail-score-main.neutral strong {
-  color: #52627f;
+.source-badge.impact-badge > span[data-score-tone="volatile"],
+.detail-score-main strong[data-score-tone="volatile"] {
+  color: var(--sr-color-warning);
+}
+
+.source-badge.impact-badge > span[data-score-tone="neutral"],
+.detail-score-main strong[data-score-tone="neutral"] {
+  color: var(--sr-color-event-neutral);
 }
 
 .detail-score-main span {
@@ -18726,22 +18735,6 @@ html[data-theme="dark"] .source-badge.impact-badge.neutral {
   border-color: var(--border);
   color: var(--muted);
   background: var(--surface-muted);
-}
-
-html[data-theme="dark"] .detail-score-main.bullish strong {
-  color: #6ee7a1;
-}
-
-html[data-theme="dark"] .detail-score-main.bearish strong {
-  color: #ff8a91;
-}
-
-html[data-theme="dark"] .detail-score-main.volatile strong {
-  color: #f3c16c;
-}
-
-html[data-theme="dark"] .detail-score-main.neutral strong {
-  color: var(--muted);
 }
 
 html[data-theme="dark"] .market-label,

@@ -67,7 +67,10 @@ export function FilingsV2DetailContent({
               {filingsV2SignalLabels[record.signal]}
             </i>
           </span>
-          <span><b>Impact</b><FilingsV2ImpactScore score={record.impact} /></span>
+          <span>
+            <b>Impact</b>
+            <FilingsV2ImpactScore score={record.impact} signal={record.signal} />
+          </span>
         </div>
       </header>
 

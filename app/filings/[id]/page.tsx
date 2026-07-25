@@ -6,6 +6,7 @@ import {
   getEventTypeBadge,
   type EventTypeBadgeTone,
 } from "@/lib/eventTypeRegistry";
+import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import { getLiveEventDetail, type LiveFeedItem } from "@/lib/liveFeed";
 import { fetchEventAnalysis, fetchEventById, fetchEventsByTicker, supabaseSelect } from "@/lib/supabase";
 import { PriceChartCard } from "@/app/events/[id]/PriceChartCard";
@@ -4445,7 +4446,12 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
                 <span>{filing.company}</span>
                 <span className="filing-form-pill">{filing.formType}</span>
                 <span className={`signal-badge ${filing.signal}`}>{filing.signal}</span>
-                <span className={`source-badge impact-badge ${filing.signal}`}>Impact {filing.score}</span>
+                <span className={`source-badge impact-badge ${filing.signal}`}>
+                  Impact{" "}
+                  <span data-score-tone={getDirectionalScoreTone(filing.score, filing.signal)}>
+                    {filing.score}
+                  </span>
+                </span>
               </div>
             </div>
           </section>
@@ -4491,8 +4497,10 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
 
           <section className="stock-detail-card detail-score-card">
             <h2>Event Snapshot</h2>
-            <div className={`detail-score-main ${filing.signal}`}>
-              <strong>{filing.score}</strong>
+            <div className="detail-score-main">
+              <strong data-score-tone={getDirectionalScoreTone(filing.score, filing.signal)}>
+                {filing.score}
+              </strong>
               <span>Impact</span>
             </div>
             <MetricRow label="Source Group" value="filings" />

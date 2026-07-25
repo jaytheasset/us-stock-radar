@@ -29,10 +29,27 @@
 }
 
 .scoreBlock > strong {
+  color: var(--sr-color-text-heading);
   font-size: var(--sr-font-size-heading-lg);
   font-variant-numeric: var(--sr-font-variant-numeric);
   font-weight: var(--sr-font-weight-heavy);
   line-height: var(--sr-line-height-none);
+}
+
+.scoreBlock > strong[data-score-tone="bullish"] {
+  color: var(--sr-color-positive);
+}
+
+.scoreBlock > strong[data-score-tone="bearish"] {
+  color: var(--sr-color-negative);
+}
+
+.scoreBlock > strong[data-score-tone="volatile"] {
+  color: var(--sr-color-warning);
+}
+
+.scoreBlock > strong[data-score-tone="neutral"] {
+  color: var(--sr-color-event-neutral);
 }
 
 .copy {
@@ -88,21 +105,15 @@
   color: var(--sr-color-positive);
 }
 
-.high {
-  color: var(--sr-color-impact-high);
-}
-
 .bearish {
   color: var(--sr-color-negative);
 }
 
-.volatile,
-.medium {
+.volatile {
   color: var(--sr-color-warning);
 }
 
-.neutral,
-.low {
+.neutral {
   color: var(--sr-color-text-muted);
 }
 

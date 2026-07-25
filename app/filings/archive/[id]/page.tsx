@@ -12,6 +12,7 @@ import type {
   SectorThemeContext,
   TopMover,
 } from "@/app/events/[id]/detailTypes";
+import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import { getEventTypeBadge } from "@/lib/eventTypeRegistry";
 import { getLiveEventDetail, type LiveFeedItem } from "@/lib/liveFeed";
 import { readMarketGroupSnapshotCache, type MarketGroupSnapshotPayload } from "@/lib/marketDataCache";
@@ -167,7 +168,10 @@ export default async function FilingArchiveDetailPage({ params }: FilingArchiveD
                 <span className="filing-form-pill">{archiveEvent.formType}</span>
                 <span className="delivery-badge archive">Archive</span>
                 <span className={`source-badge impact-badge ${archiveEvent.signal}`}>
-                  Impact {archiveEvent.score}
+                  Impact{" "}
+                  <span data-score-tone={getDirectionalScoreTone(archiveEvent.score, archiveEvent.signal)}>
+                    {archiveEvent.score}
+                  </span>
                 </span>
               </div>
             </div>
@@ -300,8 +304,10 @@ export default async function FilingArchiveDetailPage({ params }: FilingArchiveD
         <aside className="stock-detail-rail">
           <section className="stock-detail-card detail-score-card">
             <h2>Filing Snapshot</h2>
-            <div className={`detail-score-main ${archiveEvent.signal}`}>
-              <strong>{archiveEvent.score}</strong>
+            <div className="detail-score-main">
+              <strong data-score-tone={getDirectionalScoreTone(archiveEvent.score, archiveEvent.signal)}>
+                {archiveEvent.score}
+              </strong>
               <span>Impact</span>
             </div>
             <MetricRow label="Source Group" value="filings" />

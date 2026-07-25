@@ -135,22 +135,27 @@
   line-height: var(--sr-line-height-none);
 }
 
-.impactScoreHigh {
-  color: var(--sr-color-impact-high);
+.impactScore[data-score-tone="default"] {
+  color: var(--sr-color-text-heading);
 }
 
-.impactScoreMedium,
-.volatile {
-  color: var(--sr-color-warning);
-}
-
-.impactScoreLow,
+.impactScore[data-score-tone="bullish"],
 .bullish {
   color: var(--sr-color-positive);
 }
 
+.impactScore[data-score-tone="bearish"],
 .bearish {
   color: var(--sr-color-negative);
+}
+
+.impactScore[data-score-tone="volatile"],
+.volatile {
+  color: var(--sr-color-warning);
+}
+
+.impactScore[data-score-tone="neutral"] {
+  color: var(--sr-color-event-neutral);
 }
 
 .neutral {

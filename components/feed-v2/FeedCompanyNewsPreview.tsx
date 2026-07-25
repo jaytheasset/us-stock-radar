@@ -76,7 +76,7 @@ function FeedCompanyNewsPreviewContent({
           </span>
           <span>
             <b>Impact</b>
-            <FeedPreviewImpactScore score={news.impact} />
+            <FeedPreviewImpactScore score={news.impact} signal={news.signal} />
           </span>
         </div>
       </header>

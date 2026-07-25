@@ -6,6 +6,7 @@ import type {
   LiveFeedV2Item,
   LiveFeedV2Sentiment,
 } from "@/lib/liveFeedV2Contract";
+import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import type { Plan } from "@/lib/subscriptionPolicy";
 import styles from "./StockRadarFeedV2.module.css";
 
@@ -171,7 +172,9 @@ export function FeedEventList({
                 <span className={sentimentClassNames[item.sentiment]}>
                   {item.sentiment}
                 </span>
-                <strong>{item.impactScore}</strong>
+                <strong data-score-tone={getDirectionalScoreTone(item.impactScore, item.sentiment)}>
+                  {item.impactScore}
+                </strong>
               </div>
             </button>
 

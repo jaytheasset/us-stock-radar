@@ -1,4 +1,5 @@
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import type { LiveFeedV2Sentiment } from "@/lib/liveFeedV2Contract";
 import styles from "./FeedFilingPreview.module.css";
 
@@ -31,18 +32,18 @@ export function FeedPreviewEventBadge({ category }: { category: string }) {
   );
 }
 
-export function FeedPreviewImpactScore({ score }: { score: number }) {
-  const toneClass =
-    score >= 70
-      ? styles.impactScoreHigh
-      : score >= 40
-        ? styles.impactScoreMedium
-        : styles.impactScoreLow;
-
+export function FeedPreviewImpactScore({
+  score,
+  signal,
+}: {
+  score: number;
+  signal: LiveFeedV2Sentiment;
+}) {
   return (
     <span
       aria-label={`Impact score ${score} out of 99`}
-      className={`${styles.impactScore} ${toneClass}`}
+      className={styles.impactScore}
+      data-score-tone={getDirectionalScoreTone(score, signal)}
     >
       {score}
     </span>
