@@ -96,10 +96,33 @@ export type AccesswireHydrationResult = {
     articleBodiesFetched: number;
     articleBodiesFailed: number;
     articleBodiesTimedOut: number;
+    directArticleBodiesFailed: number;
+    nasFallbackRequested: number;
+    nasFallbackSucceeded: number;
+    nasFallbackFailed: number;
     articleConcurrency: number;
     articleTimeoutMs: number;
   };
 };
+
+export type AccesswireHydrationFallbackResult = {
+  ok: boolean;
+  status: number;
+  item: AccesswireParsedRawItem | null;
+  error?: string;
+  timedOut?: boolean;
+};
+
+export type AccesswireHydrationFallback = (
+  item: AccesswireParsedRawItem,
+  context: {
+    timeoutMs: number;
+    signal: AbortSignal;
+    directError: string;
+    directStatus: number;
+    directTimedOut: boolean;
+  },
+) => Promise<AccesswireHydrationFallbackResult>;
 
 export const ACCESSWIRE_FEEDS: AccesswireFeedConfig[] = [
   accesswireFeed("All Newsroom Releases", undefined, true),
@@ -281,6 +304,10 @@ export async function fetchAccesswireRawItems(
           articleBodiesFetched: 0,
           articleBodiesFailed: 0,
           articleBodiesTimedOut: 0,
+          directArticleBodiesFailed: 0,
+          nasFallbackRequested: 0,
+          nasFallbackSucceeded: 0,
+          nasFallbackFailed: 0,
           articleConcurrency: 0,
           articleTimeoutMs: 0,
         },
@@ -319,6 +346,7 @@ export async function hydrateAccesswireRawItems(
     limit?: number;
     timeoutMs?: number;
     concurrency?: number;
+    fallbackHydrator?: AccesswireHydrationFallback;
   } = {},
 ): Promise<AccesswireHydrationResult> {
   const limit = clampNumber(options.limit ?? items.length, 0, items.length);
@@ -337,48 +365,106 @@ export async function hydrateAccesswireRawItems(
   let articleBodiesFetched = 0;
   let articleBodiesFailed = 0;
   let articleBodiesTimedOut = 0;
+  let directArticleBodiesFailed = 0;
+  let nasFallbackRequested = 0;
+  let nasFallbackSucceeded = 0;
+  let nasFallbackFailed = 0;
 
   const hydrated = await mapWithConcurrency(
     requested,
     concurrency,
     async (item) => {
       const attemptedAt = new Date().toISOString();
+      const deadline = Date.now() + timeoutMs;
+      const budgetController = new AbortController();
+      const budgetTimeout = setTimeout(
+        () => budgetController.abort(),
+        timeoutMs,
+      );
       try {
         const articleResponse = await fetchAccesswireArticleHtml(
           item.source_url,
           timeoutMs,
+          budgetController.signal,
         );
-        if (!articleResponse.ok) {
+        const directResult = resolveDirectHydration(
+          item,
+          articleResponse,
+          attemptedAt,
+        );
+        if (directResult.ok) {
+          articleBodiesFetched += 1;
+          return directResult.item;
+        }
+
+        directArticleBodiesFailed += 1;
+        articleBodiesTimedOut += directResult.timedOut ? 1 : 0;
+        const remainingMs = deadline - Date.now();
+        if (!options.fallbackHydrator || remainingMs <= 0) {
           articleBodiesFailed += 1;
-          articleBodiesTimedOut += articleResponse.timedOut ? 1 : 0;
-          return withArticleFetchFailure(item, {
+          return options.fallbackHydrator
+            ? withNasFallbackSkipped(
+                directResult.item,
+                "time_budget_exhausted",
+              )
+            : directResult.item;
+        }
+
+        nasFallbackRequested += 1;
+        let fallback: AccesswireHydrationFallbackResult;
+        try {
+          fallback = await options.fallbackHydrator(item, {
+            timeoutMs: remainingMs,
+            signal: budgetController.signal,
+            directError: directResult.error,
+            directStatus: directResult.status,
+            directTimedOut: directResult.timedOut,
+          });
+        } catch (error) {
+          fallback = {
+            ok: false,
+            status: 0,
+            item: null,
             error:
-              articleResponse.error ||
-              `Access Newswire article request failed: HTTP ${articleResponse.status}`,
-            status: articleResponse.status,
-            attempts: articleResponse.attempts,
-            timedOut: articleResponse.timedOut,
-            attemptedAt,
+              error instanceof Error
+                ? error.message
+                : "Access Newswire NAS bridge failed",
+            timedOut:
+              isAbortError(error) ||
+              budgetController.signal.aborted,
+          };
+        }
+        if (budgetController.signal.aborted || Date.now() > deadline) {
+          fallback = {
+            ok: false,
+            status: fallback.status,
+            item: null,
+            error:
+              "Access Newswire NAS bridge exceeded the shared article timeout budget",
+            timedOut: true,
+          };
+        }
+        if (fallback.ok && fallback.item && hasUsableRawItemText(fallback.item)) {
+          nasFallbackSucceeded += 1;
+          articleBodiesFetched += 1;
+          return mergeNasFallbackItem(item, fallback.item, {
+            directError: directResult.error,
+            directStatus: directResult.status,
+            directTimedOut: directResult.timedOut,
+            fallbackStatus: fallback.status,
           });
         }
 
-        const article = parseAccesswireArticleHtml(
-          articleResponse.html,
-          articleResponse.url,
-        );
-        if (!article.bodyText && !readString(article.rawPayload.analysis_text)) {
-          articleBodiesFailed += 1;
-          return withArticleFetchFailure(item, {
-            error: "Access Newswire article body was not found",
-            status: articleResponse.status,
-            attempts: articleResponse.attempts,
-            timedOut: false,
-            attemptedAt,
-          });
-        }
-
-        articleBodiesFetched += 1;
-        return mergeArticleIntoRawItem(item, article);
+        nasFallbackFailed += 1;
+        articleBodiesFailed += 1;
+        articleBodiesTimedOut += fallback.timedOut ? 1 : 0;
+        return withNasFallbackFailure(directResult.item, {
+          status: fallback.status,
+          error:
+            fallback.error ||
+            "Access Newswire NAS bridge returned no usable article text",
+          timedOut: Boolean(fallback.timedOut),
+        });
       } catch (error) {
         articleBodiesFailed += 1;
         const timedOut = isAbortError(error);
@@ -393,6 +479,8 @@ export async function hydrateAccesswireRawItems(
           timedOut,
           attemptedAt,
         });
+      } finally {
+        clearTimeout(budgetTimeout);
       }
     },
   );
@@ -404,6 +492,10 @@ export async function hydrateAccesswireRawItems(
       articleBodiesFetched,
       articleBodiesFailed,
       articleBodiesTimedOut,
+      directArticleBodiesFailed,
+      nasFallbackRequested,
+      nasFallbackSucceeded,
+      nasFallbackFailed,
       articleConcurrency: concurrency,
       articleTimeoutMs: timeoutMs,
     },
@@ -701,21 +793,20 @@ async function fetchAccesswireNewsroomApi(
 async function fetchAccesswireArticleHtml(
   sourceUrl: string,
   timeoutMs: number,
+  externalSignal?: AbortSignal,
 ) {
-  const deadline = Date.now() + timeoutMs;
-  const remainingMs = deadline - Date.now();
-  const controller = new AbortController();
-  const timeout = setTimeout(
-    () => controller.abort(),
-    Math.max(1, remainingMs),
-  );
+  const controller = externalSignal ? null : new AbortController();
+  const signal = externalSignal || controller!.signal;
+  const timeout = controller
+    ? setTimeout(() => controller.abort(), Math.max(1, timeoutMs))
+    : null;
 
   try {
     const response = await fetch(sourceUrl, {
       cache: "no-store",
       redirect: "follow",
       headers: accesswireFetchHeaders("html"),
-      signal: controller.signal,
+      signal,
     });
     const html = await response.text();
     const challenged = looksLikeCloudflareChallenge(html);
@@ -734,7 +825,7 @@ async function fetchAccesswireArticleHtml(
       timedOut: false,
     };
   } catch (error) {
-    const timedOut = isAbortError(error) || controller.signal.aborted;
+    const timedOut = isAbortError(error) || signal.aborted;
     return {
       ok: false,
       status: 0,
@@ -749,7 +840,7 @@ async function fetchAccesswireArticleHtml(
       timedOut,
     };
   } finally {
-    clearTimeout(timeout);
+    if (timeout) clearTimeout(timeout);
   }
 }
 
@@ -775,6 +866,161 @@ function withArticleFetchFailure(
       article_fetch_attempted_at: failure.attemptedAt,
     },
   };
+}
+
+function resolveDirectHydration(
+  item: AccesswireParsedRawItem,
+  response: Awaited<ReturnType<typeof fetchAccesswireArticleHtml>>,
+  attemptedAt: string,
+):
+  | {
+      ok: true;
+      item: AccesswireParsedRawItem;
+    }
+  | {
+      ok: false;
+      item: AccesswireParsedRawItem;
+      error: string;
+      status: number;
+      timedOut: boolean;
+    } {
+  if (!response.ok) {
+    const error =
+      response.error ||
+      `Access Newswire article request failed: HTTP ${response.status}`;
+    return {
+      ok: false,
+      item: withArticleFetchFailure(item, {
+        error,
+        status: response.status,
+        attempts: response.attempts,
+        timedOut: response.timedOut,
+        attemptedAt,
+      }),
+      error,
+      status: response.status,
+      timedOut: response.timedOut,
+    };
+  }
+
+  const article = parseAccesswireArticleHtml(response.html, response.url);
+  if (!article.bodyText && !readString(article.rawPayload.analysis_text)) {
+    const error = "Access Newswire article body was not found";
+    return {
+      ok: false,
+      item: withArticleFetchFailure(item, {
+        error,
+        status: response.status,
+        attempts: response.attempts,
+        timedOut: false,
+        attemptedAt,
+      }),
+      error,
+      status: response.status,
+      timedOut: false,
+    };
+  }
+
+  return {
+    ok: true,
+    item: mergeArticleIntoRawItem(item, article),
+  };
+}
+
+function mergeNasFallbackItem(
+  listing: AccesswireParsedRawItem,
+  fallbackItem: AccesswireParsedRawItem,
+  context: {
+    directError: string;
+    directStatus: number;
+    directTimedOut: boolean;
+    fallbackStatus: number;
+  },
+): AccesswireParsedRawItem {
+  const rawPayload: Record<string, unknown> = {
+    ...listing.raw_payload,
+    ...fallbackItem.raw_payload,
+    article_hydration_source: "nas_bridge",
+    direct_article_fetch_error: context.directError,
+    direct_article_fetch_status: context.directStatus,
+    direct_article_fetch_timed_out: context.directTimedOut,
+    nas_fallback_attempted: true,
+    nas_fallback_status: context.fallbackStatus,
+  };
+  delete rawPayload.article_fetch_error;
+  delete rawPayload.article_fetch_status;
+  delete rawPayload.article_fetch_attempts;
+  delete rawPayload.article_fetch_timed_out;
+  delete rawPayload.article_fetch_retryable;
+
+  return {
+    ...listing,
+    ...fallbackItem,
+    source_code: "accesswire",
+    source_group: "news",
+    source_unique_id:
+      fallbackItem.source_unique_id || listing.source_unique_id,
+    source_url: fallbackItem.source_url || listing.source_url,
+    title: fallbackItem.title || listing.title,
+    published_at: fallbackItem.published_at || listing.published_at,
+    fetched_at: fallbackItem.fetched_at || listing.fetched_at,
+    body_text: fallbackItem.body_text,
+    dedupe_key: fallbackItem.dedupe_key || listing.dedupe_key,
+    raw_payload: rawPayload,
+  };
+}
+
+function withNasFallbackFailure(
+  directFailure: AccesswireParsedRawItem,
+  fallback: {
+    status: number;
+    error: string;
+    timedOut: boolean;
+  },
+): AccesswireParsedRawItem {
+  return {
+    ...directFailure,
+    raw_payload: {
+      ...directFailure.raw_payload,
+      direct_article_fetch_error:
+        directFailure.raw_payload.article_fetch_error || null,
+      direct_article_fetch_status:
+        directFailure.raw_payload.article_fetch_status || 0,
+      direct_article_fetch_timed_out:
+        directFailure.raw_payload.article_fetch_timed_out === true,
+      nas_fallback_attempted: true,
+      nas_fallback_status: fallback.status,
+      nas_fallback_error: fallback.error,
+      nas_fallback_timed_out: fallback.timedOut,
+    },
+  };
+}
+
+function withNasFallbackSkipped(
+  directFailure: AccesswireParsedRawItem,
+  reason: string,
+): AccesswireParsedRawItem {
+  return {
+    ...directFailure,
+    raw_payload: {
+      ...directFailure.raw_payload,
+      direct_article_fetch_error:
+        directFailure.raw_payload.article_fetch_error || null,
+      direct_article_fetch_status:
+        directFailure.raw_payload.article_fetch_status || 0,
+      direct_article_fetch_timed_out:
+        directFailure.raw_payload.article_fetch_timed_out === true,
+      nas_fallback_attempted: false,
+      nas_fallback_skipped_reason: reason,
+    },
+  };
+}
+
+function hasUsableRawItemText(item: AccesswireParsedRawItem) {
+  return Boolean(
+    readString(item.body_text) ||
+      readString(item.raw_payload.analysis_text),
+  );
 }
 
 async function mapWithConcurrency<T, U>(

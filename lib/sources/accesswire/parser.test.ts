@@ -6,6 +6,7 @@ import {
   parseAccesswireNewsroomApi,
   type AccesswireParsedRawItem,
 } from "./parser.ts";
+import { partitionSourceHydrationItems } from "../../sourceHydrationIngestPlan.ts";
 
 test("AccessWire hydration limits article request concurrency to two", async (t) => {
   const originalFetch = globalThis.fetch;
@@ -207,6 +208,218 @@ test("AccessWire newsroom parser keeps the existing listing contract", () => {
   assert.equal(items[0].source_unique_id, "1167001");
   assert.equal(items[0].body_text, null);
   assert.equal(items[0].raw_payload.ticker_source, "newsroom_metadata_debug_only");
+});
+
+test("direct 403 falls back to NAS and returns usable article text", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  globalThis.fetch = (async () =>
+    new Response("Forbidden", {
+      status: 403,
+      statusText: "Forbidden",
+    })) as typeof fetch;
+
+  let fallbackCalls = 0;
+  const result = await hydrateAccesswireRawItems([rawItem(1)], {
+    concurrency: 1,
+    timeoutMs: 1_000,
+    fallbackHydrator: async (listing) => {
+      fallbackCalls += 1;
+      return {
+        ok: true,
+        status: 200,
+        item: {
+          ...listing,
+          body_text: "NAS hydrated material article body",
+          raw_payload: {
+            ...listing.raw_payload,
+            analysis_text: "NAS hydrated material article body",
+          },
+        },
+      };
+    },
+  });
+
+  assert.equal(fallbackCalls, 1);
+  assert.equal(result.items[0].body_text, "NAS hydrated material article body");
+  assert.equal(result.items[0].raw_payload.article_hydration_source, "nas_bridge");
+  assert.equal(result.items[0].raw_payload.direct_article_fetch_status, 403);
+  assert.equal(result.items[0].raw_payload.article_fetch_error, undefined);
+  assert.equal(result.diagnostics.directArticleBodiesFailed, 1);
+  assert.equal(result.diagnostics.nasFallbackRequested, 1);
+  assert.equal(result.diagnostics.nasFallbackSucceeded, 1);
+  assert.equal(result.diagnostics.nasFallbackFailed, 0);
+});
+
+test("direct 403 and NAS failure remains retryable and cannot be processed", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  globalThis.fetch = (async () =>
+    new Response("Forbidden", {
+      status: 403,
+      statusText: "Forbidden",
+    })) as typeof fetch;
+
+  let fallbackCalls = 0;
+  const result = await hydrateAccesswireRawItems([rawItem(1)], {
+    concurrency: 1,
+    timeoutMs: 1_000,
+    fallbackHydrator: async () => {
+      fallbackCalls += 1;
+      return {
+        ok: false,
+        status: 502,
+        item: null,
+        error: "NAS article fetch failed",
+      };
+    },
+  });
+  const partition = partitionSourceHydrationItems(
+    result.items,
+    "accesswire",
+  );
+
+  assert.equal(fallbackCalls, 1);
+  assert.equal(partition.ready.length, 0);
+  assert.equal(partition.retryableFailures.length, 1);
+  assert.equal(result.items[0].raw_payload.article_fetch_retryable, true);
+  assert.equal(result.items[0].raw_payload.direct_article_fetch_status, 403);
+  assert.equal(result.items[0].raw_payload.nas_fallback_status, 502);
+  assert.equal(
+    result.items[0].raw_payload.nas_fallback_error,
+    "NAS article fetch failed",
+  );
+  assert.equal(result.diagnostics.nasFallbackFailed, 1);
+});
+
+test("direct timeout exhausts the article budget without calling NAS", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  globalThis.fetch = ((_: RequestInfo | URL, init?: RequestInit) =>
+    new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener(
+        "abort",
+        () =>
+          reject(
+            new DOMException("The operation was aborted", "AbortError"),
+          ),
+        { once: true },
+      );
+    })) as typeof fetch;
+
+  let fallbackCalls = 0;
+  const result = await hydrateAccesswireRawItems([rawItem(1)], {
+    concurrency: 1,
+    timeoutMs: 100,
+    fallbackHydrator: async () => {
+      fallbackCalls += 1;
+      return { ok: false, status: 0, item: null };
+    },
+  });
+
+  assert.equal(fallbackCalls, 0);
+  assert.equal(result.items[0].raw_payload.article_fetch_timed_out, true);
+  assert.equal(
+    result.items[0].raw_payload.nas_fallback_skipped_reason,
+    "time_budget_exhausted",
+  );
+  assert.equal(result.diagnostics.nasFallbackRequested, 0);
+});
+
+test("direct and NAS share one abort-enforced article budget", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  globalThis.fetch = (async () => {
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    return new Response("Forbidden", {
+      status: 403,
+      statusText: "Forbidden",
+    });
+  }) as typeof fetch;
+
+  const startedAt = Date.now();
+  const result = await hydrateAccesswireRawItems([rawItem(1)], {
+    concurrency: 1,
+    timeoutMs: 100,
+    fallbackHydrator: async (_listing, context) =>
+      new Promise((resolve) => {
+        context.signal.addEventListener(
+          "abort",
+          () =>
+            resolve({
+              ok: false,
+              status: 0,
+              item: null,
+              error: "NAS timed out",
+              timedOut: true,
+            }),
+          { once: true },
+        );
+      }),
+  });
+  const elapsedMs = Date.now() - startedAt;
+
+  assert.ok(
+    elapsedMs < 250,
+    `direct + NAS exceeded the shared budget: ${elapsedMs}ms`,
+  );
+  assert.equal(result.diagnostics.nasFallbackRequested, 1);
+  assert.equal(result.diagnostics.nasFallbackFailed, 1);
+  assert.equal(result.items[0].raw_payload.nas_fallback_timed_out, true);
+});
+
+test("NAS fallback stays inside the overall hydration concurrency of two", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  globalThis.fetch = (async () =>
+    new Response("Forbidden", {
+      status: 403,
+      statusText: "Forbidden",
+    })) as typeof fetch;
+
+  let active = 0;
+  let maxActive = 0;
+  const result = await hydrateAccesswireRawItems(
+    Array.from({ length: 5 }, (_, index) => rawItem(index + 1)),
+    {
+      concurrency: 2,
+      timeoutMs: 1_000,
+      fallbackHydrator: async (listing) => {
+        active += 1;
+        maxActive = Math.max(maxActive, active);
+        await new Promise((resolve) => setTimeout(resolve, 15));
+        active -= 1;
+        return {
+          ok: true,
+          status: 200,
+          item: {
+            ...listing,
+            body_text: `NAS body ${listing.source_unique_id}`,
+          },
+        };
+      },
+    },
+  );
+
+  assert.equal(maxActive, 2);
+  assert.equal(result.diagnostics.nasFallbackRequested, 5);
+  assert.equal(result.diagnostics.nasFallbackSucceeded, 5);
+  assert.equal(result.diagnostics.articleBodiesFetched, 5);
 });
 
 function articleResponse() {

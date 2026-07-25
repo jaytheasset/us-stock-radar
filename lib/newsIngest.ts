@@ -203,6 +203,18 @@ export async function runAccesswireNewsIngest(options: NewsIngestOptions = {}) {
 export async function runAccesswireNewsIngestWithRawFetcher(
   fetchRawItems: NewsSourceConfig["fetchRawItems"],
   options: NewsIngestOptions = {},
+  hydrateRawItems: NonNullable<NewsSourceConfig["hydrateRawItems"]> = (
+    items,
+    hydrateOptions,
+  ) =>
+    hydrateAccesswireRawItems(
+      items as AccesswireParsedRawItem[],
+      {
+        limit: hydrateOptions.limit,
+        timeoutMs: 12_000,
+        concurrency: 2,
+      },
+    ) as Promise<NewsRawHydrationResult>,
 ) {
   return runNewsIngestForSource(
     {
@@ -212,15 +224,7 @@ export async function runAccesswireNewsIngestWithRawFetcher(
       fetchErrorLabel: "Access Newswire raw fetch failed",
       ingestErrorLabel: "Access Newswire ingest error",
       fetchRawItems,
-      hydrateRawItems: (items, hydrateOptions) =>
-        hydrateAccesswireRawItems(
-          items as AccesswireParsedRawItem[],
-          {
-            limit: hydrateOptions.limit,
-            timeoutMs: 12_000,
-            concurrency: 2,
-          },
-        ) as Promise<NewsRawHydrationResult>,
+      hydrateRawItems,
     },
     options,
   );
@@ -381,6 +385,10 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
     hydration_requested_count: 0,
     hydration_reused_count: 0,
     hydration_failed_count: 0,
+    direct_hydration_failed_count: 0,
+    nas_fallback_requested_count: 0,
+    nas_fallback_succeeded_count: 0,
+    nas_fallback_failed_count: 0,
   };
 
   if (!dryRun) {
@@ -458,6 +466,18 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
       stats.hydration_reused_count = batch.stats.hydrationReusedCount;
       stats.hydration_failed_count = batch.stats.hydrationFailedCount;
       hydrationDiagnostics = batch.hydrationDiagnostics;
+      stats.direct_hydration_failed_count = numberValue(
+        hydrationDiagnostics.directArticleBodiesFailed,
+      );
+      stats.nas_fallback_requested_count = numberValue(
+        hydrationDiagnostics.nasFallbackRequested,
+      );
+      stats.nas_fallback_succeeded_count = numberValue(
+        hydrationDiagnostics.nasFallbackSucceeded,
+      );
+      stats.nas_fallback_failed_count = numberValue(
+        hydrationDiagnostics.nasFallbackFailed,
+      );
 
       for (const skipped of batch.skipped) {
         stats.skipped_count += 1;

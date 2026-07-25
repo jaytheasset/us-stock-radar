@@ -9,11 +9,12 @@ type Item = SourceHydrationItem & { id: string };
 type Raw = Record<string, unknown> & { id: string };
 type Event = { id: string };
 
-test("five existing AccessWire events do zero hydration and yield no processing work", async () => {
+test("five existing AccessWire events do zero direct or NAS hydration and yield no processing work", async () => {
   const items = Array.from({ length: 5 }, (_, index) =>
     item(`existing-${index + 1}`),
   );
-  let hydrationCalls = 0;
+  let directHydrationCalls = 0;
+  let nasFallbackCalls = 0;
   let mergeCalls = 0;
 
   const batch = await prepareSourceHydrationBatch<Item, Raw, Event>({
@@ -27,7 +28,8 @@ test("five existing AccessWire events do zero hydration and yield no processing 
       event: { id: `event-${current.id}` },
     }),
     hydrateItems: async () => {
-      hydrationCalls += 1;
+      directHydrationCalls += 1;
+      nasFallbackCalls += 1;
       return { items: [], diagnostics: {} };
     },
     mergeExistingRaw: (current) => {
@@ -36,7 +38,8 @@ test("five existing AccessWire events do zero hydration and yield no processing 
     },
   });
 
-  assert.equal(hydrationCalls, 0);
+  assert.equal(directHydrationCalls, 0);
+  assert.equal(nasFallbackCalls, 0);
   assert.equal(mergeCalls, 0);
   assert.equal(batch.skipped.length, 5);
   assert.equal(batch.processingItems.length, 0);
@@ -90,7 +93,8 @@ test("existing AccessWire body or analysis text is reused without article hydrat
 });
 
 test("completed low-value AccessWire raw is skipped before hydration and re-upsert", async () => {
-  let hydrationCalls = 0;
+  let directHydrationCalls = 0;
+  let nasFallbackCalls = 0;
   const batch = await prepareSourceHydrationBatch<Item, Raw, Event>({
     items: [item("low-value")],
     sourceCode: "accesswire",
@@ -105,13 +109,15 @@ test("completed low-value AccessWire raw is skipped before hydration and re-upse
       event: null,
     }),
     hydrateItems: async () => {
-      hydrationCalls += 1;
+      directHydrationCalls += 1;
+      nasFallbackCalls += 1;
       return { items: [], diagnostics: {} };
     },
     mergeExistingRaw: (current) => current,
   });
 
-  assert.equal(hydrationCalls, 0);
+  assert.equal(directHydrationCalls, 0);
+  assert.equal(nasFallbackCalls, 0);
   assert.equal(batch.processingItems.length, 0);
   assert.equal(batch.retryableFailures.length, 0);
   assert.deepEqual(
