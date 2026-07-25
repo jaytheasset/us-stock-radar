@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import {
+  createLiveFeedV2RailEventIdentity,
   decodeLiveFeedV2Cursor,
   encodeLiveFeedV2Cursor,
   formatLiveFeedV2Timestamp,
@@ -216,6 +217,81 @@ test("three rail queries enforce alert delivery, score floor, category, and boun
   );
 });
 
+test("rail event identities only link canonical Supabase event UUIDs", () => {
+  const eventId = "40026237-af5a-4162-9821-5307f526f320";
+  const filingId = "0fc0c9db-ceaa-4bf1-9223-62ebc82acd78";
+  const uppercaseEventId = "B8117FB7-FCDC-4194-89CD-78F5604E02FF";
+
+  assert.deepEqual(
+    createLiveFeedV2RailEventIdentity({
+      destination: "events",
+      eventId,
+      fallbackId: "synthetic-market-event",
+    }),
+    {
+      detailHref: `/events/${eventId}`,
+      id: eventId,
+    },
+  );
+  assert.deepEqual(
+    createLiveFeedV2RailEventIdentity({
+      destination: "filings",
+      eventId: filingId,
+      fallbackId: "synthetic-filing",
+    }),
+    {
+      detailHref: `/filings/${filingId}`,
+      id: filingId,
+    },
+  );
+
+  assert.deepEqual(
+    createLiveFeedV2RailEventIdentity({
+      destination: "events",
+      eventId: `  ${uppercaseEventId}  `,
+      fallbackId: "synthetic-uppercase-event",
+    }),
+    {
+      detailHref: `/events/${uppercaseEventId.toLowerCase()}`,
+      id: uppercaseEventId.toLowerCase(),
+    },
+  );
+
+  for (const invalidEventId of [
+    "",
+    "not-a-uuid",
+    "40026237-af5a-4162-7821-5307f526f320",
+    "AAPL-2026-07-26T10:45:00.000Z",
+    "market-moving-Macro-policy-update",
+    "synthetic-filing",
+    "  arbitrary event id  ",
+  ]) {
+    assert.deepEqual(
+      createLiveFeedV2RailEventIdentity({
+        destination: "events",
+        eventId: invalidEventId,
+        fallbackId: "synthetic-market-event",
+      }),
+      {
+        detailHref: null,
+        id: "synthetic-market-event",
+      },
+    );
+  }
+
+  assert.deepEqual(
+    createLiveFeedV2RailEventIdentity({
+      destination: "events",
+      eventId: null,
+      fallbackId: "synthetic-market-event",
+    }),
+    {
+      detailHref: null,
+      id: "synthetic-market-event",
+    },
+  );
+});
+
 test("feed timestamps use America/New_York for Today and clock labels", () => {
   const now = new Date("2026-07-26T15:00:00.000Z");
 
@@ -396,6 +472,38 @@ test("feed context rail keeps the product order without an unconnected watchlist
     "context rail sections should preserve the product order",
   );
   assert.doesNotMatch(railSource, /Watchlist Activity|Not connected/);
+});
+
+test("feed context rail renders navigable events as Next links with a non-link fallback", () => {
+  const adapterSource = readSource("lib/liveFeedV2.ts");
+  const railSource = readSource("components/feed-v2/FeedContextRail.tsx");
+  const styleSource = readSource(
+    "components/feed-v2/StockRadarFeedV2.module.css",
+  );
+
+  assert.match(adapterSource, /mapRankedEvent\(item, "filings"\)/);
+  assert.match(adapterSource, /mapRankedEvent\(item, "events"\)/);
+  assert.match(
+    adapterSource,
+    /destination: "events",[\s\S]*eventId: item\.id,[\s\S]*fallbackId: `market-moving-/,
+  );
+  assert.match(railSource, /import Link from "next\/link"/);
+  assert.match(
+    railSource,
+    /item\.detailHref \? \([\s\S]*<Link[\s\S]*href=\{item\.detailHref\}[\s\S]*\{content\}[\s\S]*<\/Link>/,
+  );
+  assert.match(
+    railSource,
+    /:\s*\([\s\S]*<article className=\{styles\.contextEvent\}[\s\S]*\{content\}[\s\S]*<\/article>/,
+  );
+  assert.match(
+    styleSource,
+    /\.contextEventLink\s*\{[\s\S]*color: inherit;[\s\S]*text-decoration: none;/,
+  );
+  assert.match(
+    styleSource,
+    /\.contextEventLink:focus-visible\s*\{[\s\S]*var\(--sr-focus-ring-color\)/,
+  );
 });
 
 test("feed rows use one centered dash for unavailable quote and chart", () => {

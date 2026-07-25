@@ -9,6 +9,7 @@ import {
   type SituationCardItem,
 } from "@/lib/liveFeed";
 import {
+  createLiveFeedV2RailEventIdentity,
   decodeLiveFeedV2Cursor,
   encodeLiveFeedV2Cursor,
   formatLiveFeedV2Timestamp,
@@ -18,6 +19,7 @@ import {
   type LiveFeedV2Item,
   type LiveFeedV2Kind,
   type LiveFeedV2Page,
+  type LiveFeedV2RailDestination,
   type LiveFeedV2Sentiment,
 } from "@/lib/liveFeedV2Contract";
 import {
@@ -27,6 +29,7 @@ import {
 import type { RankedEvent } from "@/lib/radarRankings";
 
 export type LiveFeedV2RailEvent = {
+  detailHref: string | null;
   headline: string;
   id: string;
   impactScore: number;
@@ -53,8 +56,12 @@ export async function getLiveFeedV2InitialData(): Promise<LiveFeedV2InitialData>
   });
 
   return {
-    alertFilings: viewModel.alertFilings.map(mapRankedEvent),
-    highImpactNews: viewModel.highImpactNews.map(mapRankedEvent),
+    alertFilings: viewModel.alertFilings.map((item) =>
+      mapRankedEvent(item, "filings"),
+    ),
+    highImpactNews: viewModel.highImpactNews.map((item) =>
+      mapRankedEvent(item, "events"),
+    ),
     marketMovingNews: viewModel.marketMovingNews.map(mapMarketMovingEvent),
     marketPulse: viewModel.marketPulseItems,
     page: mapViewModelPage(viewModel, "all", 1),
@@ -205,10 +212,17 @@ function formatMarketThemeLabel(value: string) {
     .replace(/\bUs\b/g, "US");
 }
 
-function mapRankedEvent(item: RankedEvent): LiveFeedV2RailEvent {
+function mapRankedEvent(
+  item: RankedEvent,
+  destination: LiveFeedV2RailDestination,
+): LiveFeedV2RailEvent {
   return {
+    ...createLiveFeedV2RailEventIdentity({
+      destination,
+      eventId: item.id,
+      fallbackId: `${item.ticker}-${item.title}`,
+    }),
     headline: item.title,
-    id: item.id || `${item.ticker}-${item.title}`,
     impactScore: item.score,
     label: item.ticker,
     sentiment: formatSentiment(item.signal),
@@ -220,8 +234,12 @@ function mapMarketMovingEvent(
   item: MarketMovingNewsItem,
 ): LiveFeedV2RailEvent {
   return {
+    ...createLiveFeedV2RailEventIdentity({
+      destination: "events",
+      eventId: item.id,
+      fallbackId: `market-moving-${item.label}-${item.title}`,
+    }),
     headline: item.title,
-    id: item.id || `market-moving-${item.label}-${item.title}`,
     impactScore: item.score,
     label: item.label,
     sentiment: formatSentiment(item.signal),
