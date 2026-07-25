@@ -154,6 +154,33 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   assert.match(styleSource, /minmax\(0, 72fr\)[\s\S]*minmax\(calc\(300px \+ var\(--sr-space-3\)\), 28fr\)/);
 });
 
+test("feed context rail keeps the product order without an unconnected watchlist card", () => {
+  const railSource = readSource("components/feed-v2/FeedContextRail.tsx");
+  const orderedMarkers = [
+    "<FeedPreviewPanel",
+    "<FeedPremiumCard",
+    'viewerPlan === "free" ? <FeedRailAdSlot />',
+    "<h2>Market Pulse</h2>",
+    'title="Market-Moving News"',
+    'title="High-Impact News"',
+    'title="Alert Filings"',
+  ];
+  const markerPositions = orderedMarkers.map((marker) =>
+    railSource.indexOf(marker),
+  );
+
+  assert.ok(
+    markerPositions.every((position) => position >= 0),
+    "every context rail section should be present",
+  );
+  assert.deepEqual(
+    markerPositions,
+    [...markerPositions].sort((left, right) => left - right),
+    "context rail sections should preserve the product order",
+  );
+  assert.doesNotMatch(railSource, /Watchlist Activity|Not connected/);
+});
+
 test("feed rows use one centered dash for unavailable quote and chart", () => {
   const listSource = readSource("components/feed-v2/FeedEventList.tsx");
   const previewSource = readSource(
