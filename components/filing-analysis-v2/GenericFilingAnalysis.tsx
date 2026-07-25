@@ -5,12 +5,16 @@ import { MarketTickerLogo } from "@/components/market/MarketTickerLogo";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { isRealTicker, type DetailTone } from "@/app/events/[id]/detailTypes";
 import { getEventTypeBadge, type EventTypeBadgeTone } from "@/lib/eventTypeRegistry";
-import { shouldShowAnalysisSignalCompanionAd } from "@/lib/advertisingPolicy";
+import {
+  shouldShowAnalysisCollapsedRailInlineAd,
+  shouldShowAnalysisSignalCompanionAd,
+} from "@/lib/advertisingPolicy";
+import { AnalysisCollapsedRailInlineAd } from "./AnalysisCollapsedRailInlineAd";
 import { AnalysisSignalCompanionAd } from "./AnalysisSignalCompanionAd";
 import { FilingBookmarkButton } from "./FilingBookmarkButton";
 import { FilingInlineAdSlot } from "./FilingInlineAdSlot";
 import { FilingRailAdSlot } from "./FilingRailAdSlot";
-import { ScoreRationale } from "./ScoreRationale";
+import { isScoreRationaleVisible, ScoreRationale } from "./ScoreRationale";
 import styles from "./GenericFilingAnalysis.module.css";
 
 type GenericFilingRecentItem = {
@@ -149,6 +153,28 @@ export function GenericFilingAnalysis({
     typeof filing.score === "number" && Number.isFinite(filing.score)
       ? filing.score
       : null;
+  const scoreRationaleProps =
+    filing.deliveryLevel &&
+    filing.impact &&
+    score !== null &&
+    filing.signal &&
+    isScoreRationaleVisible({
+      deliveryLevel: filing.deliveryLevel,
+      rationale: filing.scoreRationale,
+    })
+      ? {
+          deliveryLevel: filing.deliveryLevel,
+          impact: filing.impact,
+          rationale: filing.scoreRationale,
+          score,
+          signal: filing.signal,
+        }
+      : null;
+  const showCollapsedRailInlineAd = shouldShowAnalysisCollapsedRailInlineAd({
+    adsAllowed: allowAds,
+    hasRelatedContent,
+    scoreRationaleVisible: Boolean(scoreRationaleProps),
+  });
   const bookmark =
     bookmarkRenderer === false
       ? null
@@ -300,15 +326,13 @@ export function GenericFilingAnalysis({
               </section>
             ) : null}
 
-            {filing.deliveryLevel && filing.impact && score !== null && filing.signal ? (
-              <ScoreRationale
-                deliveryLevel={filing.deliveryLevel}
-                impact={filing.impact}
-                rationale={filing.scoreRationale}
-                score={score}
-                signal={filing.signal}
-              />
+            {showCollapsedRailInlineAd ? (
+              <div className={styles.scoreRationaleRailFallback}>
+                <AnalysisCollapsedRailInlineAd />
+              </div>
             ) : null}
+
+            {scoreRationaleProps ? <ScoreRationale {...scoreRationaleProps} /> : null}
 
             {bodyRenderer ? <div className={styles.specializedBody}>{bodyRenderer}</div> : null}
 

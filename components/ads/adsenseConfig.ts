@@ -8,6 +8,7 @@ export const adSenseInventories = [
   "filings-desktop-inline",
   "filings-mobile-inline",
   "analysis-signal-companion",
+  "analysis-collapsed-rail-inline",
   "dashboard-rail",
   "dashboard-desktop-inline",
   "dashboard-mobile-inline",
@@ -54,6 +55,9 @@ export function resolveAdSenseConfig(input: AdSenseConfigInput): AdSenseConfig {
     "analysis-signal-companion": normalize(
       input.slotIds?.["analysis-signal-companion"],
     ),
+    "analysis-collapsed-rail-inline": normalize(
+      input.slotIds?.["analysis-collapsed-rail-inline"],
+    ),
     "dashboard-rail": normalize(input.slotIds?.["dashboard-rail"]),
     "dashboard-desktop-inline": normalize(
       input.slotIds?.["dashboard-desktop-inline"],
@@ -91,6 +95,9 @@ export function resolveAdSenseConfig(input: AdSenseConfigInput): AdSenseConfig {
       isProductionPublisher && Boolean(slotIds["filings-mobile-inline"]),
     "analysis-signal-companion":
       isProductionPublisher && Boolean(slotIds["analysis-signal-companion"]),
+    "analysis-collapsed-rail-inline":
+      isProductionPublisher &&
+      Boolean(slotIds["analysis-collapsed-rail-inline"]),
     "dashboard-rail":
       isProductionPublisher && Boolean(slotIds["dashboard-rail"]),
     "dashboard-desktop-inline":
@@ -137,6 +144,8 @@ export const adsenseConfig = resolveAdSenseConfig({
       process.env.NEXT_PUBLIC_ADSENSE_FILINGS_MOBILE_INLINE_SLOT_ID,
     "analysis-signal-companion":
       process.env.NEXT_PUBLIC_ADSENSE_ANALYSIS_SIGNAL_COMPANION_SLOT_ID,
+    "analysis-collapsed-rail-inline":
+      process.env.NEXT_PUBLIC_ADSENSE_ANALYSIS_COLLAPSED_RAIL_INLINE_SLOT_ID,
     "dashboard-rail": process.env.NEXT_PUBLIC_ADSENSE_DASHBOARD_V2_RAIL_SLOT_ID,
     "dashboard-desktop-inline":
       process.env.NEXT_PUBLIC_ADSENSE_DASHBOARD_V2_DESKTOP_INLINE_SLOT_ID,

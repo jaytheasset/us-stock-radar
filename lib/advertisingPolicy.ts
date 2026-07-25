@@ -6,8 +6,22 @@ export type AnalysisSignalCompanionAdInput = {
   bullishCount: number;
 };
 
+export type AnalysisCollapsedRailInlineAdInput = {
+  adsAllowed: boolean;
+  hasRelatedContent: boolean;
+  scoreRationaleVisible: boolean;
+};
+
 export function areAdsEnabledForPlan(plan: Plan) {
   return plan === "free";
+}
+
+export function shouldShowAnalysisCollapsedRailInlineAd({
+  adsAllowed,
+  hasRelatedContent,
+  scoreRationaleVisible,
+}: AnalysisCollapsedRailInlineAdInput) {
+  return adsAllowed && !hasRelatedContent && scoreRationaleVisible;
 }
 
 export function shouldShowAnalysisSignalCompanionAd({

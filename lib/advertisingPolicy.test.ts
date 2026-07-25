@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   areAdsEnabledForPlan,
+  shouldShowAnalysisCollapsedRailInlineAd,
   shouldShowAnalysisSignalCompanionAd,
 } from "./advertisingPolicy.ts";
 import type { Plan } from "./subscriptionPolicy.ts";
@@ -54,6 +55,15 @@ test("all ad-free and paid plans disable advertising", () => {
   for (const plan of plans) {
     assert.equal(areAdsEnabledForPlan(plan), false, plan);
     assert.equal(
+      shouldShowAnalysisCollapsedRailInlineAd({
+        adsAllowed: areAdsEnabledForPlan(plan),
+        hasRelatedContent: false,
+        scoreRationaleVisible: true,
+      }),
+      false,
+      plan,
+    );
+    assert.equal(
       shouldShowAnalysisSignalCompanionAd({
         adsAllowed: areAdsEnabledForPlan(plan),
         bearishCount: 0,
@@ -65,8 +75,44 @@ test("all ad-free and paid plans disable advertising", () => {
   }
 });
 
+test("free viewers see the collapsed rail fallback before a score rationale", () => {
+  assert.equal(
+    shouldShowAnalysisCollapsedRailInlineAd({
+      adsAllowed: areAdsEnabledForPlan("free"),
+      hasRelatedContent: false,
+      scoreRationaleVisible: true,
+    }),
+    true,
+  );
+});
+
+test("related content suppresses the collapsed rail fallback", () => {
+  assert.equal(
+    shouldShowAnalysisCollapsedRailInlineAd({
+      adsAllowed: true,
+      hasRelatedContent: true,
+      scoreRationaleVisible: true,
+    }),
+    false,
+  );
+});
+
+test("a missing score rationale suppresses the collapsed rail fallback", () => {
+  assert.equal(
+    shouldShowAnalysisCollapsedRailInlineAd({
+      adsAllowed: true,
+      hasRelatedContent: false,
+      scoreRationaleVisible: false,
+    }),
+    false,
+  );
+});
+
 test("news and filing detail routes wire the shared analysis ad contract", () => {
   const genericSource = read("../components/filing-analysis-v2/GenericFilingAnalysis.tsx");
+  const genericStyles = read(
+    "../components/filing-analysis-v2/GenericFilingAnalysis.module.css",
+  );
   const newsAdapterSource = read("../components/news-analysis-v2/NewsAnalysisAdapter.tsx");
   const newsRouteSource = read("../app/events/[id]/page.tsx");
   const filingRouteSource = read("../app/filings/[id]/page.tsx");
@@ -79,6 +125,11 @@ test("news and filing detail routes wire the shared analysis ad contract", () =>
   const companionSource = read(
     "../components/filing-analysis-v2/AnalysisSignalCompanionAd.tsx",
   );
+  const collapsedRailSource = read(
+    "../components/filing-analysis-v2/AnalysisCollapsedRailInlineAd.tsx",
+  );
+  const sharedSlotSource = read("../components/ads/AdSenseSlot.tsx");
+  const sharedSlotStyles = read("../components/ads/AdSenseSlot.module.css");
   const existingAnalysisAdSources = [
     read("../components/filing-analysis-v2/FilingInlineAdSlot.tsx"),
     read("../components/filing-analysis-v2/FilingRailAdSlot.tsx"),
@@ -87,6 +138,11 @@ test("news and filing detail routes wire the shared analysis ad contract", () =>
   assert.match(genericSource, /allowAds: boolean/);
   assert.match(genericSource, /shouldShowAnalysisSignalCompanionAd/);
   assert.match(genericSource, /<AnalysisSignalCompanionAd \/>/);
+  assert.match(genericSource, /shouldShowAnalysisCollapsedRailInlineAd/);
+  assert.match(
+    genericSource,
+    /showCollapsedRailInlineAd[\s\S]*<AnalysisCollapsedRailInlineAd \/>[\s\S]*scoreRationaleProps[\s\S]*<ScoreRationale/,
+  );
   assert.match(genericSource, /allowAds \? <FilingInlineAdSlot \/> : null/);
   assert.match(genericSource, /allowAds \? <FilingRailAdSlot format="rectangle" \/> : null/);
   assert.match(genericSource, /allowAds \? <FilingRailAdSlot format="skyscraper" \/> : null/);
@@ -104,9 +160,31 @@ test("news and filing detail routes wire the shared analysis ad contract", () =>
   assert.match(filingsRailSource, /showAds=\{viewerPlan === "free"\}/);
   assert.match(filingsDetailSource, /showAds \? \([\s\S]*<FilingsRailAdSlot/);
   assert.match(companionSource, /inventory="analysis-signal-companion"/);
+  assert.match(
+    collapsedRailSource,
+    /inventory="analysis-collapsed-rail-inline"/,
+  );
+  assert.match(collapsedRailSource, /mediaQuery="\(max-width: 1180px\)"/);
+  assert.match(collapsedRailSource, /height=\{90\}/);
+  assert.match(collapsedRailSource, /width=\{970\}/);
+  assert.match(collapsedRailSource, /mobileHeight=\{100\}/);
+  assert.match(collapsedRailSource, /mobileWidth=\{480\}/);
+  assert.match(
+    genericStyles,
+    /\.scoreRationaleRailFallback\s*\{\s*display:\s*none;[\s\S]*@media \(max-width: 1180px\)[\s\S]*\.scoreRationaleRailFallback\s*\{\s*display:\s*block;/,
+  );
+  assert.match(sharedSlotSource, /data-mobile-size=\{hasMobileSize \? "true" : undefined\}/);
+  assert.match(
+    sharedSlotStyles,
+    /@media \(max-width: 760px\)[\s\S]*\.slot\[data-mobile-size="true"\][\s\S]*--adsense-slot-mobile-height/,
+  );
+  assert.match(newsAdapterSource, /<GenericFilingAnalysis/);
+  assert.match(filingRouteSource, /<GenericFilingAnalysis/);
   assert.ok(
     existingAnalysisAdSources.every(
-      (source) => !source.includes("analysis-signal-companion"),
+      (source) =>
+        !source.includes("analysis-signal-companion") &&
+        !source.includes("analysis-collapsed-rail-inline"),
     ),
   );
 });

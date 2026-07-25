@@ -21,6 +21,8 @@ type AdSenseSlotProps = {
   height: number;
   inventory: AdSenseInventory;
   mediaQuery: string;
+  mobileHeight?: number;
+  mobileWidth?: number;
   placeholderSize: string;
   removeAdsHref?: string;
   showRemoveAdsLink?: boolean;
@@ -34,6 +36,8 @@ export function AdSenseSlot({
   height,
   inventory,
   mediaQuery,
+  mobileHeight,
+  mobileWidth,
   placeholderSize,
   removeAdsHref = "/premium",
   showRemoveAdsLink = true,
@@ -51,7 +55,14 @@ export function AdSenseSlot({
   const slotStyle = {
     "--adsense-slot-height": `${height}px`,
     "--adsense-slot-width": `${width}px`,
+    ...(mobileHeight
+      ? { "--adsense-slot-mobile-height": `${mobileHeight}px` }
+      : {}),
+    ...(mobileWidth
+      ? { "--adsense-slot-mobile-width": `${mobileWidth}px` }
+      : {}),
   } as CSSProperties;
+  const hasMobileSize = Boolean(mobileHeight && mobileWidth);
 
   useEffect(() => {
     if (!enabledForViewer || !isManualSlotEnabled) return;
@@ -115,6 +126,7 @@ export function AdSenseSlot({
     <section
       aria-label="Advertisement"
       className={[styles.slot, className].filter(Boolean).join(" ")}
+      data-mobile-size={hasMobileSize ? "true" : undefined}
       data-responsive={isResponsiveFormat ? "true" : undefined}
       style={slotStyle}
     >

@@ -41,6 +41,14 @@ const scenarios = {
       "analysis-signal-companion": "analysis-companion-slot",
     },
   }),
+  F: resolveAdSenseConfig({
+    anchorEnabled: "false",
+    nodeEnv: "production",
+    publisherId: "ca-pub-test",
+    slotIds: {
+      "analysis-collapsed-rail-inline": "analysis-collapsed-rail-slot",
+    },
+  }),
 };
 
 assert.equal(scenarios.A.publisherScriptEnabled, false);
@@ -72,9 +80,20 @@ assert.equal(
   1,
 );
 
+assert.equal(scenarios.F.publisherScriptEnabled, true);
+assert.equal(scenarios.F.anchorEnabled, false);
+assert.equal(
+  scenarios.F.manualSlotEnabled["analysis-collapsed-rail-inline"],
+  true,
+);
+assert.equal(
+  Object.values(scenarios.F.manualSlotEnabled).filter(Boolean).length,
+  1,
+);
+
 const scriptCounts = {};
 
-for (const scenarioName of ["A", "B", "C", "D", "E"]) {
+for (const scenarioName of ["A", "B", "C", "D", "E", "F"]) {
   const fakeDom = installFakeDom();
   const scenario = scenarios[scenarioName];
   const loaderCalls = [];
@@ -143,12 +162,20 @@ const manualPlacementSources = await Promise.all(
     "../components/filing-analysis-v2/FilingInlineAdSlot.tsx",
     "../components/filing-analysis-v2/FilingRailAdSlot.tsx",
     "../components/filing-analysis-v2/AnalysisSignalCompanionAd.tsx",
+    "../components/filing-analysis-v2/AnalysisCollapsedRailInlineAd.tsx",
     "../components/alerts-v2/StockRadarAlertsV2.tsx",
   ].map((file) => readFile(new URL(file, import.meta.url), "utf8")),
 );
 const analysisCompanionSource = await readFile(
   new URL(
     "../components/filing-analysis-v2/AnalysisSignalCompanionAd.tsx",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const analysisCollapsedRailSource = await readFile(
+  new URL(
+    "../components/filing-analysis-v2/AnalysisCollapsedRailInlineAd.tsx",
     import.meta.url,
   ),
   "utf8",
@@ -200,6 +227,15 @@ assert.equal(
   1,
   "analysis companion owns one independently configured inventory",
 );
+assert.equal(
+  (
+    analysisCollapsedRailSource.match(
+      /inventory="analysis-collapsed-rail-inline"/g,
+    ) || []
+  ).length,
+  1,
+  "analysis collapsed rail fallback owns one independently configured inventory",
+);
 
 console.log(
   JSON.stringify({
@@ -208,6 +244,7 @@ console.log(
     C: summarize(scenarios.C),
     D: summarize(scenarios.D),
     E: summarize(scenarios.E),
+    F: summarize(scenarios.F),
     duplicateScriptGuard: "passed",
     manualFooterBoundary: "passed",
     manualFooterPremiumHref: "/premium",

@@ -259,6 +259,10 @@
   display: none;
 }
 
+.scoreRationaleRailFallback {
+  display: none;
+}
+
 .detailColumn {
   min-width: 0;
 }
@@ -857,6 +861,10 @@
   }
 
   .collapsedRailOnlyAd {
+    display: block;
+  }
+
+  .scoreRationaleRailFallback {
     display: block;
   }
 
