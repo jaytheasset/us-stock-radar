@@ -24,7 +24,7 @@
     "verify:doj-parser": "node --experimental-strip-types scripts/verify-doj-parser.mjs",
     "verify:globe-parser": "node --experimental-strip-types scripts/verify-globe-parser.mjs",
     "verify:news-article-sanitizer": "node --test --experimental-strip-types lib/newsArticleSanitizer.test.ts",
-    "verify:news-gemini": "node --test --experimental-strip-types lib/ai/newsGeminiPipeline.test.ts",
+    "verify:news-gemini": "node --test --experimental-strip-types lib/ai/newsGeminiAnalysis.test.ts",
     "verify:filings-v2": "node --test --experimental-strip-types components/filings-v2/filingsV2Regression.test.ts",
     "verify:market-date": "node --test --experimental-strip-types lib/marketDate.test.ts",
     "verify:news-v2": "node --test --experimental-strip-types lib/newsV2Regression.test.ts",

@@ -4,20 +4,13 @@ import {
   type GeminiResponseBody,
   type GeminiUsage,
 } from "@/lib/ai/geminiStructuredJson";
-import { runNewsGeminiPipeline } from "@/lib/ai/newsGeminiPipeline";
+import { runNewsGeminiAnalysis } from "@/lib/ai/newsGeminiAnalysis";
 import { resolveNewsPromptMarketContext } from "@/lib/newsMarketContext";
 import {
   buildNewsEventAnalysisPrompt,
   type NewsEventAnalysisInput,
   type NewsPromptMarketContext,
 } from "@/lib/prompts/newsEventAnalysis";
-import { buildNewsClinicalFdaAnalysisPrompt } from "@/lib/prompts/newsClinicalFdaAnalysis";
-import {
-  buildNewsRouteClassificationPrompt,
-  NEWS_ROUTE_VALUES,
-  type NewsRouteClassification,
-} from "@/lib/prompts/newsRouteClassification";
-import { buildNewsSectorThemePolicyAnalysisPrompt } from "@/lib/prompts/newsSectorThemePolicyAnalysis";
 import { fetchGlobeNewswireRawItems, type GlobeParsedRawItem, type GlobeTickerMention } from "@/lib/sources/globe/parser";
 
 type PreviewOptions = {
@@ -29,14 +22,12 @@ type PreviewOptions = {
 type NewsAnalysisOptions = {
   persistMarketContext?: boolean;
   refreshMarketContext?: boolean;
-  marketContextSymbols?: string[];
 };
 
 export type NewsAnalysisRawItem = Omit<GlobeParsedRawItem, "source_code"> & {
   source_code: string;
 };
 
-const NEWS_ROUTE_CLASSIFICATION_MAX_OUTPUT_TOKENS = 700;
 const NEWS_EVENT_ANALYSIS_MAX_OUTPUT_TOKENS = 6000;
 
 type LlmUsage = GeminiUsage;
@@ -59,25 +50,17 @@ export type NewsEventAnalysisRunResult = {
   ok: boolean;
   stage: "openai" | "complete";
   status: number;
-  skipped?: boolean;
-  skipReason?: string;
   model?: string;
   openAiResponseId?: string | null;
   sourceItem: ReturnType<typeof summarizeRawItem>;
   input: NewsEventAnalysisInput;
-  routeClassification?: NewsRouteClassification | null;
   analysis?: Record<string, unknown> | null;
   outputText?: string;
-  routeOutputText?: string;
   usage?: LlmUsage | null;
-  routingUsage?: LlmUsage | null;
   costEstimate?: CostEstimate | null;
-  routingCostEstimate?: CostEstimate | null;
   prompt?: {
     key: string;
     version: string;
-    routeKey?: string;
-    routeVersion?: string;
   };
   error?: string;
   rawOpenAIResponse?: GeminiResponseBody | null;
@@ -105,57 +88,21 @@ export async function runNewsEventAnalysisPreview(options: PreviewOptions = {}) 
     };
   }
 
-  const input = await buildInputFromNewsRawItem(rawItem);
-  const routePrompt = buildNewsRouteClassificationPrompt(input);
-  const prompt = buildNewsEventAnalysisPrompt(input);
-  const clinicalFdaPrompt = buildNewsClinicalFdaAnalysisPrompt(input, null);
-  const sectorThemePolicyPrompt = buildNewsSectorThemePolicyAnalysisPrompt(input, null);
-
   if (options.dryRun) {
+    const input = await buildInputFromNewsRawItem(rawItem);
+    const prompt = buildNewsEventAnalysisPrompt(input);
     return {
       ok: true,
       stage: "dry_run",
       sourceItem: summarizeRawItem(rawItem),
       input,
       prompt: {
-        route: {
-          key: routePrompt.key,
-          version: routePrompt.version,
-          system: routePrompt.system,
-          responseFormat: routePrompt.responseFormat,
-        },
-        company: {
-          key: prompt.key,
-          version: prompt.version,
-          system: prompt.system,
-          responseFormat: prompt.responseFormat,
-        },
-        clinical_fda: {
-          key: clinicalFdaPrompt.key,
-          version: clinicalFdaPrompt.version,
-          system: clinicalFdaPrompt.system,
-          responseFormat: clinicalFdaPrompt.responseFormat,
-        },
-        broad_market: {
-          key: sectorThemePolicyPrompt.key,
-          version: sectorThemePolicyPrompt.version,
-          system: sectorThemePolicyPrompt.system,
-          responseFormat: sectorThemePolicyPrompt.responseFormat,
-        },
+        key: prompt.key,
+        version: prompt.version,
+        system: prompt.system,
+        responseFormat: prompt.responseFormat,
       },
       analysis: null,
-    };
-  }
-
-  const env = getServerEnv();
-  if (!env.geminiApiKey) {
-    return {
-      ok: false,
-      stage: "openai",
-      status: 0,
-      error: "GEMINI_API_KEY is missing",
-      sourceItem: summarizeRawItem(rawItem),
-      input,
     };
   }
 
@@ -171,7 +118,7 @@ export async function runNewsEventAnalysisForRawItem(
   rawItem: NewsAnalysisRawItem,
   options: NewsAnalysisOptions = {},
 ): Promise<NewsEventAnalysisRunResult> {
-  const routeInput = buildInputFromGlobeRawItem(rawItem);
+  const baseInput = buildInputFromGlobeRawItem(rawItem);
   const env = getServerEnv();
 
   if (!env.geminiApiKey) {
@@ -181,116 +128,58 @@ export async function runNewsEventAnalysisForRawItem(
       status: 0,
       error: "GEMINI_API_KEY is missing",
       sourceItem: summarizeRawItem(rawItem),
-      input: routeInput,
+      input: baseInput,
     };
   }
 
-  const routePrompt = buildNewsRouteClassificationPrompt(routeInput);
+  const input = await buildInputFromNewsRawItem(rawItem, {
+    persistMarketContext: Boolean(options.persistMarketContext),
+    refreshMarketContext: options.refreshMarketContext ?? true,
+  });
+  const prompt = buildNewsEventAnalysisPrompt(input);
   const model = env.newsGeminiModel;
-  const pipeline = await runNewsGeminiPipeline({
+  const result = await runNewsGeminiAnalysis({
     apiKey: env.geminiApiKey,
     model,
-    routePrompt,
-    routeMaxOutputTokens: NEWS_ROUTE_CLASSIFICATION_MAX_OUTPUT_TOKENS,
-    analysisMaxOutputTokens: NEWS_EVENT_ANALYSIS_MAX_OUTPUT_TOKENS,
-    normalizeRoute: normalizeNewsRouteClassification,
-    buildSecondPass: async (routeClassification) => {
-      const input = await buildInputFromNewsRawItem(rawItem, {
-        persistMarketContext: Boolean(options.persistMarketContext),
-        refreshMarketContext: options.refreshMarketContext ?? true,
-        marketContextSymbols: routeClassification.candidate_tickers.map((ticker) => ticker.ticker),
-      });
-      return {
-        input,
-        prompt: buildSecondPassNewsAnalysisPrompt(input, routeClassification),
-      };
-    },
+    prompt,
+    input,
+    maxOutputTokens: NEWS_EVENT_ANALYSIS_MAX_OUTPUT_TOKENS,
     normalizeAnalysis: normalizeNewsAnalysis,
   });
 
-  if (pipeline.stage === "route_error") {
+  if (result.stage === "analysis_error") {
     return {
       ok: false,
       stage: "openai",
-      status: pipeline.routeRun.responseOk ? 502 : pipeline.routeRun.status,
-      error: pipeline.error,
-      sourceItem: summarizeRawItem(rawItem),
-      input: routeInput,
-      routeOutputText: pipeline.routeRun.outputText,
-      rawOpenAIResponse: pipeline.routeRun.body,
-    };
-  }
-
-  const routeClassification = pipeline.routeClassification;
-  const routeOutputText = pipeline.routeRun.outputText;
-  const routingUsage = pipeline.routeRun.usage;
-  if (pipeline.stage === "skipped") {
-    return {
-      ok: true,
-      skipped: true,
-      skipReason: routeClassification.reason,
-      stage: "complete",
-      status: pipeline.routeRun.status,
-      model,
-      openAiResponseId: pipeline.routeRun.responseId,
-      sourceItem: summarizeRawItem(rawItem),
-      input: routeInput,
-      routeClassification,
-      analysis: null,
-      routeOutputText,
-      routingUsage,
-      routingCostEstimate: estimateCost(model, routingUsage),
-      prompt: {
-        key: routePrompt.key,
-        version: routePrompt.version,
-        routeKey: routePrompt.key,
-        routeVersion: routePrompt.version,
-      },
-    };
-  }
-
-  const { input, prompt, analysisRun } = pipeline;
-  if (pipeline.stage === "analysis_error") {
-    return {
-      ok: false,
-      stage: "openai",
-      status: analysisRun.responseOk ? 502 : analysisRun.status,
-      error: pipeline.error,
+      status: result.run.responseOk ? 502 : result.run.status,
+      error: result.error,
       sourceItem: summarizeRawItem(rawItem),
       input,
-      routeClassification,
-      routeOutputText,
-      routingUsage,
-      routingCostEstimate: estimateCost(model, routingUsage),
-      rawOpenAIResponse: analysisRun.body,
+      outputText: result.run.outputText,
+      usage: result.run.usage,
+      rawOpenAIResponse: result.run.body,
     };
   }
 
-  const outputText = analysisRun.outputText;
-  const analysis = pipeline.analysis;
-  const usage = analysisRun.usage;
+  const outputText = result.run.outputText;
+  const analysis = result.analysis;
+  const usage = result.run.usage;
 
   return {
     ok: true,
     stage: "complete",
-    status: analysisRun.status,
+    status: result.run.status,
     model,
-    openAiResponseId: analysisRun.responseId,
+    openAiResponseId: result.run.responseId,
     sourceItem: summarizeRawItem(rawItem),
     input,
-    routeClassification,
     analysis,
     outputText,
-    routeOutputText,
     usage,
-    routingUsage,
     costEstimate: estimateCost(model, usage),
-    routingCostEstimate: estimateCost(model, routingUsage),
     prompt: {
       key: prompt.key,
       version: prompt.version,
-      routeKey: routePrompt.key,
-      routeVersion: routePrompt.version,
     },
   };
 }
@@ -329,16 +218,15 @@ async function buildInputFromNewsRawItem(
   options: NewsAnalysisOptions = {},
 ): Promise<NewsEventAnalysisInput> {
   const input = buildInputFromGlobeRawItem(item);
-  const symbols = [
-    ...input.body_tickers.map((ticker) => ticker.ticker),
-    ...(options.marketContextSymbols || []),
-  ];
   return {
     ...input,
-    market_context: await resolveNewsPromptMarketContext(symbols, {
-      refresh: options.refreshMarketContext ?? true,
-      persist: Boolean(options.persistMarketContext),
-    }),
+    market_context: await resolveNewsPromptMarketContext(
+      input.body_tickers.map((ticker) => ticker.ticker),
+      {
+        refresh: options.refreshMarketContext ?? true,
+        persist: Boolean(options.persistMarketContext),
+      },
+    ),
   };
 }
 
@@ -375,46 +263,6 @@ function estimateCost(_model: string, _usage: LlmUsage | null): CostEstimate | n
 
 function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
-}
-
-function normalizeNewsRouteClassification(value: Record<string, unknown> | null): NewsRouteClassification | null {
-  if (!value) return null;
-  const route = readString(value.route);
-  const confidence = readString(value.confidence);
-  return {
-    route: NEWS_ROUTE_VALUES.includes(route as NewsRouteClassification["route"])
-      ? (route as NewsRouteClassification["route"])
-      : "company",
-    confidence: confidence === "high" || confidence === "low" ? confidence : "medium",
-    reason: readString(value.reason) || "",
-    candidate_tickers: sanitizeRouteCandidateTickers(value.candidate_tickers),
-  };
-}
-
-function sanitizeRouteCandidateTickers(value: unknown): NewsRouteClassification["candidate_tickers"] {
-  if (!Array.isArray(value)) return [];
-  const seen = new Set<string>();
-  return value.flatMap((item) => {
-    const record = readRecord(item);
-    const ticker = sanitizeTickerSymbol(record?.ticker);
-    if (!record || !ticker || seen.has(ticker)) return [];
-    seen.add(ticker);
-    return [{
-      ticker,
-      exchange: readString(record.exchange),
-      reason: readString(record.reason) || "",
-    }];
-  }).slice(0, 6);
-}
-
-function buildSecondPassNewsAnalysisPrompt(input: NewsEventAnalysisInput, routeClassification: NewsRouteClassification) {
-  if (routeClassification.route === "clinical_fda") {
-    return buildNewsClinicalFdaAnalysisPrompt(input, routeClassification);
-  }
-  if (routeClassification.route === "broad_market") {
-    return buildNewsSectorThemePolicyAnalysisPrompt(input, routeClassification);
-  }
-  return buildNewsEventAnalysisPrompt(input, routeClassification);
 }
 
 function normalizeNewsAnalysis(analysis: Record<string, unknown> | null, input: NewsEventAnalysisInput) {

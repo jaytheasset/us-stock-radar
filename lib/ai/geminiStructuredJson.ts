@@ -41,8 +41,6 @@ export type StructuredJsonPrompt = {
   };
 };
 
-export type GeminiResponseSchemaPolicy = "prompt" | "omit";
-
 export type GeminiStructuredJsonRun = {
   ok: boolean;
   responseOk: boolean;
@@ -62,21 +60,15 @@ export async function runStructuredGeminiJson({
   model,
   prompt,
   maxOutputTokens,
-  responseSchemaPolicy = "prompt",
   fetchImpl = fetch,
 }: {
   apiKey: string;
   model: string;
   prompt: StructuredJsonPrompt;
   maxOutputTokens: number;
-  responseSchemaPolicy?: GeminiResponseSchemaPolicy;
   fetchImpl?: typeof fetch;
 }): Promise<GeminiStructuredJsonRun> {
   try {
-    const responseSchema =
-      responseSchemaPolicy === "prompt"
-        ? readGeminiResponseSchema(prompt)
-        : undefined;
     const response = await fetchImpl(buildGeminiGenerateContentUrl(apiKey, model), {
       method: "POST",
       cache: "no-store",
@@ -95,7 +87,6 @@ export async function runStructuredGeminiJson({
         ],
         generationConfig: {
           responseMimeType: "application/json",
-          ...(responseSchema ? { responseSchema } : {}),
           maxOutputTokens,
           temperature: 0,
           ...readGeminiThinkingConfig(model),
@@ -163,47 +154,6 @@ export function parseStructuredJson(value: string) {
   }
 }
 
-export function toGeminiResponseSchema(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map((item) => toGeminiResponseSchema(item));
-  const record = readRecord(value);
-  if (!record) return value;
-
-  const output: Record<string, unknown> = {};
-  for (const [key, childValue] of Object.entries(record)) {
-    if (key === "additionalProperties") continue;
-    if (key === "maxLength") continue;
-    if (key === "maxItems") {
-      if (isGeminiProviderBoundedArraySchema(record)) output[key] = childValue;
-      continue;
-    }
-    if (key === "type" && Array.isArray(childValue)) {
-      const nonNullType = childValue.find((item) => item !== "null");
-      if (typeof nonNullType === "string") {
-        output.type = nonNullType;
-        if (childValue.includes("null")) output.nullable = true;
-      }
-      continue;
-    }
-    output[key] = toGeminiResponseSchema(childValue);
-  }
-
-  const maxLength = finiteNumber(record.maxLength);
-  if (maxLength !== null && maxLength > 0) {
-    const existingDescription = stringValue(output.description);
-    const lengthGuidance = `Keep this string within ${maxLength} characters.`;
-    output.description = existingDescription
-      ? `${existingDescription} ${lengthGuidance}`
-      : lengthGuidance;
-  }
-
-  return output;
-}
-
-function readGeminiResponseSchema(prompt: StructuredJsonPrompt) {
-  const schema = readRecord(prompt.responseFormat.json_schema.schema);
-  return schema ? toGeminiResponseSchema(schema) : undefined;
-}
-
 function readGeminiThinkingConfig(model: string) {
   if (!/^gemini-2\.5-flash/.test(model.trim().toLowerCase())) return {};
   return {
@@ -211,20 +161,6 @@ function readGeminiThinkingConfig(model: string) {
       thinkingBudget: 0,
     },
   };
-}
-
-function isGeminiProviderBoundedArraySchema(record: Record<string, unknown>) {
-  if (record.type !== "array") return false;
-
-  const description = stringValue(record.description);
-  const limits = new Map<number, RegExp>([
-    [1, /never return more than one item/i],
-    [2, /never return more than two items/i],
-    [3, /never return more than three items/i],
-    [4, /never return more than four items/i],
-  ]);
-  const maxItems = finiteNumber(record.maxItems);
-  return maxItems !== null && Boolean(limits.get(maxItems)?.test(description));
 }
 
 function buildGeminiGenerateContentUrl(apiKey: string, model: string) {
@@ -267,18 +203,4 @@ function extractJsonObject(value: string) {
   const end = value.lastIndexOf("}");
   if (start < 0 || end <= start) return "";
   return value.slice(start, end + 1);
-}
-
-function readRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
-function stringValue(value: unknown) {
-  return typeof value === "string" && value.trim() ? value.trim() : "";
-}
-
-function finiteNumber(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }

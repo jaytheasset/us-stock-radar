@@ -539,84 +539,6 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
           persistMarketContext: !dryRun,
           refreshMarketContext: true,
         });
-        if (analysisRun.skipped || analysisRun.routeClassification?.route === "skip") {
-          const decision = {
-            dropEvent: true,
-            decision: "route_classifier_skip",
-            reason:
-              analysisRun.skipReason ||
-              analysisRun.routeClassification?.reason ||
-              "First-pass LLM classified the item as not useful for U.S. stock investors.",
-          };
-          stats.skipped_count += 1;
-          incrementSkipStats(stats, decision.decision);
-
-          if (dryRun) {
-            resultItems.push({
-              ok: true,
-              skipped: true,
-              dryRun: true,
-              reason: decision.decision,
-              raw_item: summarizeRaw(rawItem),
-              route_classification: analysisRun.routeClassification || null,
-              analysis: null,
-              storage_decision: {
-                action: "skip_before_analysis",
-                reason: decision.reason,
-                decision: decision.decision,
-              },
-              prompt: {
-                route_key: analysisRun.prompt?.routeKey || analysisRun.prompt?.key || null,
-                route_version: analysisRun.prompt?.routeVersion || analysisRun.prompt?.version || null,
-                analysis_key: null,
-                analysis_version: null,
-              },
-              usage: {
-                routing: analysisRun.routingUsage || null,
-                analysis: null,
-              },
-              costEstimate: {
-                routing: analysisRun.routingCostEstimate || null,
-                analysis: null,
-              },
-            });
-            continue;
-          }
-
-          if (!persistedRaw) {
-            throw new Error("Raw item was not persisted");
-          }
-
-          await markRawItemSkippedForEventStorage(config, persistedRaw, rawItem, decision);
-          await persistAiTrace({
-            rawItemId: stringValue(persistedRaw.id),
-            eventId: null,
-            analysis: {
-              llm_skipped: true,
-              analysis_source: "news_route_classification",
-              archive_reason: decision.decision,
-              route_classification: analysisRun.routeClassification || null,
-            },
-            outputText: analysisRun.routeOutputText || "",
-            model: analysisRun.model || "",
-            openAiResponseId: analysisRun.openAiResponseId || null,
-            usage: analysisRun.routingUsage || null,
-            promptKey: analysisRun.prompt?.routeKey || analysisRun.prompt?.key || NEWS_EVENT_ANALYSIS_PROMPT_KEY,
-            promptVersion:
-              analysisRun.prompt?.routeVersion || analysisRun.prompt?.version || NEWS_EVENT_ANALYSIS_PROMPT_VERSION,
-            routeClassification: analysisRun.routeClassification || null,
-          });
-          resultItems.push({
-            ok: true,
-            skipped: true,
-            reason: decision.decision,
-            raw_item_id: persistedRaw.id,
-            source_unique_id: rawItem.source_unique_id,
-            title: rawItem.title,
-          });
-          continue;
-        }
-
         if (!analysisRun.ok || !analysisRun.analysis) {
           stats.failed_count += 1;
           resultItems.push({
@@ -673,7 +595,7 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
             dryRun: true,
             skipped: effectiveCoverage.dropEvent,
             raw_item: summarizeRaw(rawItem),
-            route_classification: analysisRun.routeClassification || null,
+            route_classification: null,
             analysis,
             event_dedupe: eventDedupe.key
               ? {
@@ -709,18 +631,18 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
               lookup_error: tickerCanonicalization.lookup_error || null,
             },
             prompt: {
-              route_key: analysisRun.prompt?.routeKey || null,
-              route_version: analysisRun.prompt?.routeVersion || null,
+              route_key: null,
+              route_version: null,
               analysis_key: analysisPromptKey,
               analysis_version: analysisPromptVersion,
             },
             market_context: analysisRun.input.market_context,
             usage: {
-              routing: analysisRun.routingUsage || null,
+              routing: null,
               analysis: analysisRun.usage || null,
             },
             costEstimate: {
-              routing: analysisRun.routingCostEstimate || null,
+              routing: null,
               analysis: analysisRun.costEstimate || null,
             },
           });
@@ -746,7 +668,6 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
             usage: analysisRun.usage || null,
             promptKey: analysisPromptKey,
             promptVersion: analysisPromptVersion,
-            routeClassification: analysisRun.routeClassification || null,
           });
           resultItems.push({
             ok: true,
@@ -782,7 +703,6 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
           usage: analysisRun.usage || null,
           promptKey: analysisPromptKey,
           promptVersion: analysisPromptVersion,
-          routeClassification: analysisRun.routeClassification || null,
         });
 
         stats.event_upserted_count += 1;
@@ -1426,7 +1346,6 @@ async function persistAiTrace({
   usage,
   promptKey,
   promptVersion,
-  routeClassification,
 }: {
   rawItemId: string;
   eventId: string | null;
@@ -1437,7 +1356,6 @@ async function persistAiTrace({
   usage: Record<string, unknown> | null;
   promptKey: string;
   promptVersion: string;
-  routeClassification?: Record<string, unknown> | null;
 }) {
   const aiRunId = randomUUID();
   const now = new Date().toISOString();
@@ -1457,7 +1375,7 @@ async function persistAiTrace({
         usage: usage || {},
         metadata: {
           openai_response_id: openAiResponseId,
-          route_classification: routeClassification || null,
+          route_classification: null,
         },
       },
       { onConflict: "id" },
