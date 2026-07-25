@@ -376,6 +376,12 @@
   font-weight: var(--sr-font-weight-emphasis);
 }
 
+.quote .quotePriceUnavailable {
+  color: var(--sr-color-text-muted);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-regular);
+}
+
 .quote span {
   margin: 0;
   font-size: var(--sr-font-size-md);

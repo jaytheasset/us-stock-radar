@@ -84,6 +84,28 @@ test("feed market data keeps quote and chart availability independent", () => {
   );
 });
 
+test("group market data never exposes classification labels as prices", () => {
+  for (const scopeLabel of ["Industry", "Theme", "Sector", "Sub Theme"]) {
+    assert.deepEqual(
+      resolveLiveFeedV2MarketData({
+        changeLabel: null,
+        chartCloses: [],
+        priceLabel: scopeLabel,
+      }),
+      { changePercent: null, price: null, sparkline: [] },
+    );
+  }
+
+  assert.deepEqual(
+    resolveLiveFeedV2MarketData({
+      changeLabel: "+1.75%",
+      chartCloses: [100, 101, 102],
+      priceLabel: "Industry",
+    }),
+    { changePercent: 1.75, price: null, sparkline: [100, 101, 102] },
+  );
+});
+
 test("production feed is wired to real server data without mock repositories", () => {
   const pageSource = readSource("app/feed/page.tsx");
   const adapterSource = readSource("lib/liveFeedV2.ts");
@@ -198,14 +220,51 @@ test("feed context rail keeps the product order without an unconnected watchlist
 
 test("feed rows use one centered dash for unavailable quote and chart", () => {
   const listSource = readSource("components/feed-v2/FeedEventList.tsx");
+  const adapterSource = readSource("lib/liveFeed.ts");
+  const styleSource = readSource(
+    "components/feed-v2/StockRadarFeedV2.module.css",
+  );
   const sparklineSource = readSource(
     "components/feed-v2/FeedSparkline.tsx",
   );
 
-  assert.match(listSource, /item\.price === null/);
+  assert.match(
+    listSource,
+    /const quoteUnavailable =[\s\S]*item\.price === null &&[\s\S]*item\.changePercent === null \|\| item\.feedType !== "market"/,
+  );
   assert.match(listSource, /aria-label="Quote unavailable"/);
+  assert.match(listSource, /item\.price \?\? "—"/);
+  assert.match(listSource, /styles\.quotePriceUnavailable/);
   assert.doesNotMatch(listSource, />N\/A</);
   assert.match(sparklineSource, /aria-label="Chart unavailable"/);
+  assert.match(
+    adapterSource,
+    /displayPrice: groupDisplay \? groupDisplay\.price : quoteValues\.price/,
+  );
+  assert.match(
+    adapterSource,
+    /kind: marketScope === "macro" && !snapshot \? "macro" : "group",[\s\S]*price: ""/,
+  );
+  assert.match(
+    adapterSource,
+    /bars: snapshot \? groupSnapshotToBars\(snapshot\) : \[\]/,
+  );
+  assert.match(
+    adapterSource,
+    /change = snapshot \? formatSignedPercent\(snapshot\.changePercent\) : ""/,
+  );
+  assert.doesNotMatch(
+    adapterSource,
+    /formatGroupScope|price = snapshot \?|fallback\.scopeLabel/,
+  );
+  assert.match(
+    styleSource,
+    /\.quoteUnavailable\s*\{[\s\S]*place-items: center[\s\S]*color: var\(--sr-color-text-muted\)/,
+  );
+  assert.match(
+    styleSource,
+    /\.sparklineUnavailable\s*\{[\s\S]*place-items: center/,
+  );
   assert.doesNotMatch(
     `${listSource}\n${sparklineSource}`,
     /No chart|Price change unavailable/,
