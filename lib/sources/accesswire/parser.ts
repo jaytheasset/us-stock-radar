@@ -76,6 +76,9 @@ export type AccesswireRawFetchResult = {
     articleConcurrency?: number;
     articleTimeoutMs?: number;
     listTimeoutMs?: number;
+    apiFeedsAttempted?: number;
+    apiFeedsSkippedAfterChallenge?: number;
+    apiChallengeDetected?: boolean;
     parserVersion: string;
     skippedNonEnglish: number;
     feedStats: Array<{
@@ -232,6 +235,8 @@ export async function fetchAccesswireRawItems(
   const feedStats: AccesswireRawFetchResult["diagnostics"]["feedStats"] = [];
   let skippedNonEnglish = 0;
   const listingDeadline = Date.now() + listTimeoutMs;
+  let apiFeedsAttempted = 0;
+  let apiChallengeDetected = false;
 
   for (const feed of feeds) {
     if (items.length >= limit) break;
@@ -239,6 +244,7 @@ export async function fetchAccesswireRawItems(
     if (remainingMs <= 0) break;
 
     try {
+      apiFeedsAttempted += 1;
       const response = await fetchAccesswireNewsroomApi(feed, {
         pageIndex: 0,
         pageSize: Math.min(50, Math.max(limit, 20)),
@@ -251,6 +257,10 @@ export async function fetchAccesswireRawItems(
           itemCount: 0,
           error: response.error || "Access Newswire newsroom API request failed",
         });
+        if (response.challenged) {
+          apiChallengeDetected = true;
+          break;
+        }
         continue;
       }
 
@@ -330,6 +340,11 @@ export async function fetchAccesswireRawItems(
       articleConcurrency: hydration.diagnostics.articleConcurrency,
       articleTimeoutMs: hydration.diagnostics.articleTimeoutMs,
       listTimeoutMs,
+      apiFeedsAttempted,
+      apiFeedsSkippedAfterChallenge: apiChallengeDetected
+        ? Math.max(0, feeds.length - apiFeedsAttempted)
+        : 0,
+      apiChallengeDetected,
       parserVersion: PARSER_VERSION,
       skippedNonEnglish,
       feedStats,
@@ -400,7 +415,12 @@ export async function hydrateAccesswireRawItems(
         directArticleBodiesFailed += 1;
         articleBodiesTimedOut += directResult.timedOut ? 1 : 0;
         const remainingMs = deadline - Date.now();
-        if (!options.fallbackHydrator || remainingMs <= 0) {
+        if (
+          !options.fallbackHydrator ||
+          directResult.timedOut ||
+          budgetController.signal.aborted ||
+          remainingMs <= 0
+        ) {
           articleBodiesFailed += 1;
           return options.fallbackHydrator
             ? withNasFallbackSkipped(
@@ -753,12 +773,16 @@ async function fetchAccesswireNewsroomApi(
       signal: controller.signal,
     });
     const text = await response.text();
-    if (!response.ok) {
+    const challenged =
+      response.status === 403 ||
+      looksLikeCloudflareChallenge(text);
+    if (!response.ok || challenged) {
       return {
         ok: false,
         status: response.status,
         data: null,
-        error: looksLikeCloudflareChallenge(text)
+        challenged,
+        error: challenged
           ? "Access Newswire newsroom API returned Cloudflare challenge"
           : response.statusText || "Access Newswire newsroom API request failed",
       };
@@ -769,6 +793,7 @@ async function fetchAccesswireNewsroomApi(
       ok: Boolean(data),
       status: response.status,
       data,
+      challenged: false,
       error: data
         ? undefined
         : "Access Newswire newsroom API returned non-JSON response",
@@ -779,6 +804,7 @@ async function fetchAccesswireNewsroomApi(
       ok: false,
       status: 0,
       data: null,
+      challenged: false,
       error: timedOut
         ? `Access Newswire newsroom API timed out after ${timeoutMs}ms`
         : error instanceof Error

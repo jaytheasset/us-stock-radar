@@ -78,6 +78,22 @@ test("Workflow 4.x never races an in-flight step against a durable sleep", () =>
   assert.equal(workflowSource.includes("runNewsSourceIngestStep(input.source"), true);
 });
 
+test("news workflow emits structured source duration and outcome logs", () => {
+  const workflowSource = readFileSync(
+    new URL("../workflows/source-ingest.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(workflowSource, /event:\s*"news_source_ingest_step"/);
+  assert.match(workflowSource, /phase:\s*"START"/);
+  assert.match(workflowSource, /phase:\s*"DONE"/);
+  assert.match(workflowSource, /phase:\s*"FAIL"/);
+  assert.match(workflowSource, /duration_ms:/);
+  assert.match(workflowSource, /run_id:/);
+  assert.match(workflowSource, /stats:/);
+  assert.match(workflowSource, /success:/);
+});
+
 test("Vercel cron schedules contain SEC and every source exactly once", () => {
   const vercelConfig = JSON.parse(
     readFileSync(new URL("../vercel.json", import.meta.url), "utf8"),

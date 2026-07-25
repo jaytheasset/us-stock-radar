@@ -76,6 +76,15 @@ Use this command:
 sh -c "cd /app && npm install --omit=dev && node server.mjs"
 ```
 
+The bridge stops the remaining newsroom API feed requests after the first
+Cloudflare `403`/challenge and moves immediately to browser discovery.
+Browser discovery uses a bounded listing deadline and does not wait for
+Playwright `networkidle`; it returns as soon as a newsroom API response or
+release link is available.
+
+After changing `server.mjs`, restart or redeploy the NAS container. Updating
+the Vercel application alone does not update the NAS bridge process.
+
 After it is running:
 
 ```text

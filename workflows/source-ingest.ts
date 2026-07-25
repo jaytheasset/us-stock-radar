@@ -90,22 +90,53 @@ export async function newsSourceIngestWorkflow(input: NewsIngestWorkflowInput) {
   "use workflow";
 
   const config = SOURCE_INGEST_WORKFLOW_SOURCES[input.source];
-  console.log(
-    `[newsSourceIngestWorkflow] START triggerId=${input.triggerId} source=${input.source}`,
-  );
+  const startedAtMs = Date.now();
+  console.log(JSON.stringify({
+    event: "news_source_ingest_workflow",
+    phase: "START",
+    success: null,
+    duration_ms: 0,
+    trigger_id: input.triggerId,
+    source: input.source,
+    run_id: null,
+    stats: {},
+  }));
 
   try {
     await ensureWorkflowLockStep(input, config.lockTtlSeconds);
     const result = await runNewsSourceIngestStep(input.source, config.limit);
-    console.log(
-      `[newsSourceIngestWorkflow] DONE triggerId=${input.triggerId} source=${input.source}`,
-    );
+    console.log(JSON.stringify({
+      event: "news_source_ingest_workflow",
+      phase: "DONE",
+      success: true,
+      duration_ms: Math.max(0, Date.now() - startedAtMs),
+      trigger_id: input.triggerId,
+      source: input.source,
+      run_id: result.runId,
+      stats: result.stats,
+    }));
     return {
       ok: true,
       triggerId: input.triggerId,
       source: input.source,
       result,
     };
+  } catch (error) {
+    console.error(JSON.stringify({
+      event: "news_source_ingest_workflow",
+      phase: "FAIL",
+      success: false,
+      duration_ms: Math.max(0, Date.now() - startedAtMs),
+      trigger_id: input.triggerId,
+      source: input.source,
+      run_id: null,
+      stats: {},
+      error:
+        error instanceof Error
+          ? error.message
+          : String(error),
+    }));
+    throw error;
   } finally {
     await releaseWorkflowLockStep(input);
   }
@@ -165,9 +196,21 @@ async function runNewsSourceIngestStep(
   "use step";
 
   const metadata = getStepMetadata();
-  console.log(
-    `[runNewsSourceIngestStep] START stepId=${metadata.stepId} attempt=${metadata.attempt} source=${source} limit=${limit}`,
-  );
+  const startedAtMs = Date.now();
+  let runId: string | null = null;
+  let stats: Record<string, number> = {};
+  console.log(JSON.stringify({
+    event: "news_source_ingest_step",
+    phase: "START",
+    success: null,
+    duration_ms: 0,
+    step_id: metadata.stepId,
+    attempt: metadata.attempt,
+    source,
+    limit,
+    run_id: runId,
+    stats,
+  }));
 
   const runner = NEWS_SOURCE_RUNNERS[source];
   if (!runner) {
@@ -181,6 +224,8 @@ async function runNewsSourceIngestStep(
       force: false,
     });
     const record = readRecord(result);
+    runId = nullableString(record?.runId);
+    stats = numericStats(record?.stats);
     if (!isSuccessfulIngestResult(record)) {
       throwStepFailure(
         `${source} ingest failed at ${stringValue(record?.stage) || "unknown"}: ${readResultError(record)}`,
@@ -192,20 +237,42 @@ async function runNewsSourceIngestStep(
     const summary = {
       ok: true,
       source,
-      runId: nullableString(record?.runId),
+      runId,
       stage: stringValue(record?.stage) || "complete",
-      stats: numericStats(record?.stats),
+      stats,
+      durationMs: Math.max(0, Date.now() - startedAtMs),
       eventIds: uniqueStrings(readRecords(record?.items).map((item) => item.event_id)),
       rawItemIds: uniqueStrings(readRecords(record?.items).map((item) => item.raw_item_id)),
     };
-    console.log(
-      `[runNewsSourceIngestStep] DONE stepId=${metadata.stepId} source=${source} stats=${JSON.stringify(summary.stats)}`,
-    );
+    console.log(JSON.stringify({
+      event: "news_source_ingest_step",
+      phase: "DONE",
+      success: true,
+      duration_ms: summary.durationMs,
+      step_id: metadata.stepId,
+      attempt: metadata.attempt,
+      source,
+      run_id: summary.runId,
+      stage: summary.stage,
+      stats: summary.stats,
+    }));
     return summary;
   } catch (error) {
-    console.error(
-      `[runNewsSourceIngestStep] FAIL stepId=${metadata.stepId} source=${source} error=${error instanceof Error ? error.message : String(error)}`,
-    );
+    console.error(JSON.stringify({
+      event: "news_source_ingest_step",
+      phase: "FAIL",
+      success: false,
+      duration_ms: Math.max(0, Date.now() - startedAtMs),
+      step_id: metadata.stepId,
+      attempt: metadata.attempt,
+      source,
+      run_id: runId,
+      stats,
+      error:
+        error instanceof Error
+          ? error.message
+          : String(error),
+    }));
     if (error instanceof FatalError || error instanceof RetryableError) throw error;
     throw retryableStepError(
       error instanceof Error ? error.message : `${source} ingest failed`,
@@ -514,7 +581,7 @@ function numericStats(value: unknown) {
   if (!record) return {};
   return Object.fromEntries(
     Object.entries(record).filter(([, item]) => typeof item === "number" && Number.isFinite(item)),
-  );
+  ) as Record<string, number>;
 }
 
 function readRecords(value: unknown): Record<string, unknown>[] {

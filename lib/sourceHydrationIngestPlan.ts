@@ -14,6 +14,15 @@ export type SourceHydrationIngestPlan<TItem, TRaw, TEvent> = {
   hydrate: TItem[];
 };
 
+export type SourcePreexistingIngestPlan<TItem, TRaw, TEvent> = {
+  skipped: SourceHydrationIngestPlan<TItem, TRaw, TEvent>["skipped"];
+  processing: Array<{
+    item: TItem;
+    raw: TRaw | null;
+    event: TEvent | null;
+  }>;
+};
+
 export type SourceHydrationItem = {
   source_code: string;
   body_text: string | null;
@@ -36,15 +45,48 @@ export async function buildSourceHydrationIngestPlan<
   ) => Promise<SourceHydrationExistingState<TRaw, TEvent>>,
   options: { force?: boolean } = {},
 ): Promise<SourceHydrationIngestPlan<TItem, TRaw, TEvent>> {
+  const preexistingPlan = await buildSourcePreexistingIngestPlan(
+    items,
+    loadExistingState,
+    options,
+  );
   const plan: SourceHydrationIngestPlan<TItem, TRaw, TEvent> = {
-    skipped: [],
+    skipped: preexistingPlan.skipped,
     reused: [],
     hydrate: [],
   };
 
+  for (const { item, raw } of preexistingPlan.processing) {
+    if (raw && hasReusableAnalysis(raw)) {
+      plan.reused.push({ item, raw });
+      continue;
+    }
+
+    plan.hydrate.push(item);
+  }
+
+  return plan;
+}
+
+export async function buildSourcePreexistingIngestPlan<
+  TItem,
+  TRaw extends Record<string, unknown>,
+  TEvent,
+>(
+  items: TItem[],
+  loadExistingState: (
+    item: TItem,
+  ) => Promise<SourceHydrationExistingState<TRaw, TEvent>>,
+  options: { force?: boolean } = {},
+): Promise<SourcePreexistingIngestPlan<TItem, TRaw, TEvent>> {
+  const plan: SourcePreexistingIngestPlan<TItem, TRaw, TEvent> = {
+    skipped: [],
+    processing: [],
+  };
+
   for (const item of items) {
     if (options.force) {
-      plan.hydrate.push(item);
+      plan.processing.push({ item, raw: null, event: null });
       continue;
     }
 
@@ -59,7 +101,7 @@ export async function buildSourceHydrationIngestPlan<
       continue;
     }
 
-    if (existing.raw && isTerminalRawItem(existing.raw)) {
+    if (existing.raw && isTerminalSourceRawItem(existing.raw)) {
       plan.skipped.push({
         item,
         raw: existing.raw,
@@ -69,12 +111,11 @@ export async function buildSourceHydrationIngestPlan<
       continue;
     }
 
-    if (existing.raw && hasReusableAnalysis(existing.raw)) {
-      plan.reused.push({ item, raw: existing.raw });
-      continue;
-    }
-
-    plan.hydrate.push(item);
+    plan.processing.push({
+      item,
+      raw: existing.raw,
+      event: null,
+    });
   }
 
   return plan;
@@ -169,16 +210,26 @@ function hasUsableItemAnalysis(item: SourceHydrationItem) {
   );
 }
 
-function isTerminalRawItem(raw: Record<string, unknown>) {
+export function isTerminalSourceRawItem(raw: Record<string, unknown>) {
   const metadata = readRecord(raw.metadata);
   const rawPayload = readRecord(raw.raw_payload);
-  const workflowStatus = stringValue(metadata?.workflow_analysis_status);
+  const workflowStatus =
+    stringValue(metadata?.workflow_analysis_status) ||
+    stringValue(raw.workflow_analysis_status);
+  const ingestDecision =
+    stringValue(metadata?.ingest_decision) ||
+    stringValue(raw.ingest_decision);
+  const candidateClass =
+    stringValue(rawPayload?.candidate_class) ||
+    stringValue(metadata?.candidate_class) ||
+    stringValue(raw.candidate_class);
   return (
-    Boolean(stringValue(metadata?.ingest_decision)) ||
+    Boolean(ingestDecision) ||
     workflowStatus === "completed" ||
     workflowStatus === "skipped" ||
     metadata?.event_created === true ||
-    stringValue(rawPayload?.candidate_class) === "low_value_filtered"
+    raw.event_created === true ||
+    candidateClass === "low_value_filtered"
   );
 }
 

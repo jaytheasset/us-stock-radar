@@ -9,7 +9,11 @@ import { evaluateCalendarItemPolicy } from "@/lib/calendarPolicy";
 import { getCalendarEventGroup, normalizeCalendarEventType } from "@/lib/calendarEventRegistry";
 import { runNewsEventAnalysisForRawItem } from "@/lib/ai/newsEventAnalysisPreview";
 import { runNasdaqCorporateActionAnalysisForRawItem } from "@/lib/ai/nasdaqCorporateActionAnalysisPreview";
-import { prepareSourceHydrationBatch } from "@/lib/sourceHydrationIngestPlan";
+import {
+  buildSourcePreexistingIngestPlan,
+  prepareSourceHydrationBatch,
+  type SourceHydrationExistingState,
+} from "@/lib/sourceHydrationIngestPlan";
 import { fetchGlobeNewswireRawItems, type GlobeParsedRawItem } from "@/lib/sources/globe/parser";
 import {
   fetchBusinessWireRawItems,
@@ -459,18 +463,32 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
     stats.skipped_non_english_count = numberValue(rawResult.diagnostics.skippedNonEnglish);
     let itemsForProcessing = rawResult.items;
     let hydrationDiagnostics: Record<string, unknown> = {};
+    const existingStateByKey = new Map<
+      string,
+      SourceHydrationExistingState<PersistedRow, PersistedRow>
+    >();
+    const loadExistingState = async (rawItem: NewsRawItem) => {
+      const identityKey = buildRawItemIdentityKey(rawItem);
+      const cached = existingStateByKey.get(identityKey);
+      if (cached) return cached;
+
+      const [raw, event] = await Promise.all([
+        findExistingRawItem(rawItem),
+        findExistingEvent(buildGroupDedupeKey(rawItem)),
+      ]);
+      const state = {
+        raw: raw || null,
+        event: event || null,
+      };
+      existingStateByKey.set(identityKey, state);
+      return state;
+    };
 
     if (config.hydrateRawItems) {
       const batch = await prepareSourceHydrationBatch({
         items: rawResult.items,
         sourceCode: config.sourceCode,
-        loadExistingState: async (rawItem) => {
-          const [raw, event] = await Promise.all([
-            findExistingRawItem(rawItem),
-            findExistingEvent(buildGroupDedupeKey(rawItem)),
-          ]);
-          return { raw: raw || null, event: event || null };
-        },
+        loadExistingState,
         hydrateItems: (items) =>
           config.hydrateRawItems!(items, { limit: items.length }),
         mergeExistingRaw: mergeListingWithExistingRaw,
@@ -514,9 +532,18 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
       }
 
       for (const rawItem of batch.retryableFailures) {
+        const existingState = existingStateByKey.get(
+          buildRawItemIdentityKey(rawItem),
+        );
         const persistedRaw = dryRun
           ? null
-          : await persistRawItem(config, rawItem, runId);
+          : await persistRawItem(
+              config,
+              rawItem,
+              runId,
+              null,
+              existingState?.raw,
+            );
         if (persistedRaw) stats.raw_upserted_count += 1;
         stats.skipped_count += 1;
         resultItems.push({
@@ -536,14 +563,50 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
       }
 
       itemsForProcessing = batch.processingItems;
+    } else {
+      const batch = await buildSourcePreexistingIngestPlan(
+        rawResult.items,
+        loadExistingState,
+        {
+          force: force || dryRun,
+        },
+      );
+
+      stats.preexisting_count = batch.skipped.length;
+      for (const skipped of batch.skipped) {
+        stats.skipped_count += 1;
+        resultItems.push({
+          ok: true,
+          skipped: true,
+          reason: skipped.reason,
+          raw_item_id: skipped.raw?.id || null,
+          event_id: toRecord(skipped.event)?.id || null,
+          source_unique_id: skipped.item.source_unique_id,
+          title:
+            toRecord(skipped.event)?.title ||
+            skipped.item.title,
+          score: toRecord(skipped.event)?.score,
+          delivery_level: toRecord(skipped.event)?.delivery_level,
+        });
+      }
+      itemsForProcessing = batch.processing.map(({ item }) => item);
     }
 
     for (const rawItem of itemsForProcessing) {
       try {
         const groupDedupeKey = buildGroupDedupeKey(rawItem);
-        const existingEvent = !force && !dryRun ? await findExistingEvent(groupDedupeKey) : null;
+        const identityKey = buildRawItemIdentityKey(rawItem);
+        const hasExistingState = existingStateByKey.has(identityKey);
+        const existingState = existingStateByKey.get(identityKey);
+        const existingEvent =
+          !force && !dryRun
+            ? hasExistingState
+              ? existingState?.event || null
+              : await findExistingEvent(groupDedupeKey)
+            : null;
         if (existingEvent) {
           stats.skipped_count += 1;
+          stats.preexisting_count += 1;
           resultItems.push({
             ok: true,
             skipped: true,
@@ -570,6 +633,7 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
               rawItem,
               runId,
               terminalPrefilterDecision,
+              hasExistingState ? existingState?.raw || null : undefined,
             );
         if (persistedRaw) stats.raw_upserted_count += 1;
 
@@ -993,8 +1057,12 @@ async function persistRawItem(
     decision: string;
     reason: string;
   } | null = null,
+  existingRaw: PersistedRow | null | undefined = undefined,
 ) {
-  const existing = await findExistingRawItem(rawItem);
+  const existing =
+    existingRaw === undefined
+      ? await findExistingRawItem(rawItem)
+      : existingRaw;
   const id = stringValue(existing?.id) || randomUUID();
   const existingMetadata = toRecord(existing?.metadata) || {};
   const payload = {
@@ -1705,6 +1773,13 @@ async function findExistingRawItem(rawItem: NewsRawItem) {
     );
   }
   return firstRow(result.data);
+}
+
+function buildRawItemIdentityKey(rawItem: NewsRawItem) {
+  return [
+    rawItem.source_code,
+    rawItem.source_unique_id || rawItem.dedupe_key,
+  ].join(":");
 }
 
 async function findExistingEvent(groupDedupeKey: string) {

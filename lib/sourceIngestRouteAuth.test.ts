@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import {
+  authorizeSourceDiagnosticRequest,
   authorizeSourceIngestRequest,
   readSourceIngestDryRun,
   sourceIngestAuthorizationHeaders,
@@ -46,6 +47,51 @@ test("source ingest authorization fails closed", () => {
       requestWithHeaders({ authorization: "Bearer éééééé" }),
       "secret",
     ),
+    { ok: false, status: 401, error: "UNAUTHORIZED" },
+  );
+});
+
+test("source diagnostics require a secret in production", () => {
+  const request = requestWithHeaders({});
+
+  assert.deepEqual(
+    authorizeSourceDiagnosticRequest(request, {
+      secret: "",
+      nodeEnv: "production",
+    }),
+    {
+      ok: false,
+      status: 500,
+      error: "SOURCE_INGEST_SECRET_MISSING",
+    },
+  );
+  assert.deepEqual(
+    authorizeSourceDiagnosticRequest(
+      requestWithHeaders({
+        authorization: "Bearer diagnostic-secret",
+      }),
+      {
+        secret: "diagnostic-secret",
+        nodeEnv: "production",
+      },
+    ),
+    { ok: true },
+  );
+});
+
+test("source diagnostics allow local QA only when no secret is configured", () => {
+  assert.deepEqual(
+    authorizeSourceDiagnosticRequest(requestWithHeaders({}), {
+      secret: "",
+      nodeEnv: "development",
+    }),
+    { ok: true },
+  );
+  assert.deepEqual(
+    authorizeSourceDiagnosticRequest(requestWithHeaders({}), {
+      secret: "configured-secret",
+      nodeEnv: "development",
+    }),
     { ok: false, status: 401, error: "UNAUTHORIZED" },
   );
 });
@@ -151,6 +197,27 @@ test("SEC analysis mutation route enforces the same authorization", () => {
   );
 });
 
+test("raw previews and external source health require diagnostic authorization", () => {
+  const sourcesRoot = path.resolve(process.cwd(), "app", "api", "sources");
+  const rawPreviewRoutes = findNamedRouteFiles(
+    sourcesRoot,
+    "raw-preview",
+  );
+  assert.ok(rawPreviewRoutes.length >= 13);
+
+  for (const routeFile of rawPreviewRoutes) {
+    const source = readFileSync(routeFile, "utf8");
+    assert.match(source, /sourceDiagnosticAuthResponse/);
+    assert.match(source, /sourceDiagnosticAuthResponse\(request\)/);
+  }
+
+  const healthRoute = readFileSync(
+    path.resolve(sourcesRoot, "health", "route.ts"),
+    "utf8",
+  );
+  assert.match(healthRoute, /sourceDiagnosticAuthResponse\(request\)/);
+});
+
 function requestWithHeaders(values: HeadersInit) {
   return { headers: new Headers(values) };
 }
@@ -171,6 +238,25 @@ function findIngestRouteFiles(directory: string): string[] {
       continue;
     }
     files.push(...findIngestRouteFiles(fullPath));
+  }
+  return files;
+}
+
+function findNamedRouteFiles(
+  directory: string,
+  routeDirectoryName: string,
+): string[] {
+  const files: string[] = [];
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const fullPath = path.join(directory, entry.name);
+    if (!entry.isDirectory()) continue;
+    if (entry.name === routeDirectoryName) {
+      files.push(path.join(fullPath, "route.ts"));
+      continue;
+    }
+    files.push(
+      ...findNamedRouteFiles(fullPath, routeDirectoryName),
+    );
   }
   return files;
 }
