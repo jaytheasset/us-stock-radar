@@ -81,6 +81,9 @@ export function FeedEventList({
         const selected = item.id === selectedEventId;
         const negative =
           item.changePercent !== null && item.changePercent < 0;
+        const quoteUnavailable =
+          item.price === null &&
+          (item.changePercent === null || item.feedType !== "market");
         const position = index + 1;
         const insertAd = viewerPlan === "free" && position % 20 === 10;
 
@@ -123,7 +126,7 @@ export function FeedEventList({
               </div>
 
               <div className={styles.marketReaction}>
-                {item.price === null ? (
+                {quoteUnavailable ? (
                   <span
                     aria-label="Quote unavailable"
                     className={styles.quoteUnavailable}
@@ -132,7 +135,18 @@ export function FeedEventList({
                   </span>
                 ) : (
                   <div className={styles.quote}>
-                    <strong>{item.price}</strong>
+                    <strong
+                      aria-label={
+                        item.price === null ? "Quote unavailable" : undefined
+                      }
+                      className={
+                        item.price === null
+                          ? styles.quotePriceUnavailable
+                          : undefined
+                      }
+                    >
+                      {item.price ?? "—"}
+                    </strong>
                     <span
                       className={
                         item.changePercent === null

@@ -119,7 +119,9 @@ export function resolveLiveFeedV2MarketData({
 }): LiveFeedV2MarketData {
   const normalizedPrice = priceLabel?.trim() || "";
   const price =
-    /^(?:n\/a|no data|unavailable|-{1,2}|—)$/i.test(normalizedPrice)
+    /^(?:n\/a|no data|unavailable|industry|macro|sector|sub theme|theme|-{1,2}|—)$/i.test(
+      normalizedPrice,
+    )
       ? null
       : normalizedPrice || null;
   const normalizedChange = changeLabel?.trim() || "";

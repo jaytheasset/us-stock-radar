@@ -534,7 +534,7 @@ function buildGroupDisplay(
 ):
   | {
       ticker: string;
-      price: string;
+      price: "";
       change: string;
       kind: "group" | "macro";
       bars: MarketBar[];
@@ -545,14 +545,13 @@ function buildGroupDisplay(
   const snapshot = resolveFeedGroupSnapshot(marketScope, classification, snapshots);
   const fallback = resolveFallbackGroupDisplay(row, marketScope, classification);
   const ticker = snapshot?.groupName || fallback.label;
-  const price = snapshot ? formatGroupScope(snapshot.scope) : fallback.scopeLabel;
   const change = snapshot ? formatSignedPercent(snapshot.changePercent) : "";
 
   return {
     bars: snapshot ? groupSnapshotToBars(snapshot) : [],
     change,
     kind: marketScope === "macro" && !snapshot ? "macro" : "group",
-    price,
+    price: "",
     ticker,
   };
 }
@@ -657,13 +656,6 @@ function groupSnapshotToBars(snapshot: MarketGroupSnapshotPayload): MarketBar[] 
       volume: 1000 + index * 120,
     };
   });
-}
-
-function formatGroupScope(value: MarketGroupSnapshotPayload["scope"]) {
-  if (value === "industry_group") return "Industry";
-  if (value === "sub_theme") return "Sub Theme";
-  if (value === "theme") return "Theme";
-  return "Sector";
 }
 
 function formatGroupLabel(value: string) {
