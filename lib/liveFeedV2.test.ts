@@ -172,8 +172,8 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
 test("feed context rail keeps the product order without an unconnected watchlist card", () => {
   const railSource = readSource("components/feed-v2/FeedContextRail.tsx");
   const orderedMarkers = [
-    "<FeedPreviewPanel",
     "<FeedPremiumCard",
+    "<FeedPreviewPanel",
     'viewerPlan === "free" ? <FeedRailAdSlot />',
     "<h2>Market Pulse</h2>",
     'title="Market-Moving News"',

@@ -103,14 +103,14 @@ export function FeedContextRail({
       className={styles.contextRail}
       ref={railRef}
     >
-      <div className={styles.contextRailPreview} ref={previewRef}>
-        <FeedPreviewPanel item={selectedItem} variant="desktop" />
-      </div>
-
       <FeedPremiumCard
         className={styles.premiumCardDesktop}
         viewerPlan={viewerPlan}
       />
+
+      <div className={styles.contextRailPreview} ref={previewRef}>
+        <FeedPreviewPanel item={selectedItem} variant="desktop" />
+      </div>
 
       {viewerPlan === "free" ? <FeedRailAdSlot /> : null}
 
