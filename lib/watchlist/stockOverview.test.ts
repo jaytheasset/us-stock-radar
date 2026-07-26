@@ -162,6 +162,7 @@ test("watchlist page preserves auth/API contracts and uses the current product s
     pageSource,
     stockPageSource,
     componentSource,
+    componentCss,
     headerSource,
     headerSearchSource,
     headerCss,
@@ -176,6 +177,13 @@ test("watchlist page preserves auth/API contracts and uses the current product s
     readFile(
       new URL(
         "../../components/watchlist-v2/StockRadarWatchlistV2.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+    readFile(
+      new URL(
+        "../../components/watchlist-v2/StockRadarWatchlistV2.module.css",
         import.meta.url,
       ),
       "utf8",
@@ -221,6 +229,17 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   assert.match(componentSource, /getStockRouteHref\(ticker\)/);
   assert.match(componentSource, /isSaved \? "Watching" : "Add to Watchlist"/);
   assert.match(componentSource, /Ticker unavailable/);
+  assert.match(componentSource, /"Stock research workspace"/);
+  assert.match(componentSource, /"Stock Overview"/);
+  assert.match(componentSource, /"Personal market workspace"/);
+  assert.match(
+    componentCss,
+    /@media \(max-width: 760px\) \{[\s\S]*\.stockActions \{[\s\S]*display: grid;[\s\S]*grid-column: 1 \/ -1;/,
+  );
+  assert.doesNotMatch(
+    componentCss,
+    /\.stockActions,\s*\.stockIdentity p\s*\{\s*display: none;/,
+  );
   assert.match(stockPageSource, /normalizeStockTicker/);
   assert.match(stockPageSource, /selectionMode="stock"/);
   assert.match(stockPageSource, /notFound\(\)/);
@@ -238,6 +257,10 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   assert.match(headerCss, /@media \(max-width: 1120px\)/);
   assert.match(headerCss, /\.globalSearchPanel \{[\s\S]*position: fixed/);
   assert.match(headerCss, /left: var\(--sr-space-3\)/);
+  assert.match(
+    headerCss,
+    /\.globalSearchClose svg \{[\s\S]*width: 17px;[\s\S]*flex: 0 0 17px;/,
+  );
   assert.match(addRoute, /persisted: false/);
   assert.match(addRoute, /DUPLICATE_TICKER/);
   assert.match(addRoute, /assertWatchlistLimit/);

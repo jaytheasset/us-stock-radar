@@ -510,8 +510,14 @@ export function StockRadarWatchlistV2({
       <div className={styles.page}>
         <div className={styles.pageTopline}>
           <div>
-            <span>Personal market workspace</span>
-            <h1>Watchlist</h1>
+            <span>
+              {selectionMode === "stock"
+                ? "Stock research workspace"
+                : "Personal market workspace"}
+            </span>
+            <h1>
+              {selectionMode === "stock" ? "Stock Overview" : "Watchlist"}
+            </h1>
           </div>
           <button
             aria-controls="watchlist-ticker-sheet"
