@@ -1446,6 +1446,56 @@
   to { transform: rotate(1turn); }
 }
 
+@media (min-width: 761px) {
+  .filingTitle {
+    font-size: var(--sr-font-size-sm);
+    font-weight: 600;
+    line-height: var(--sr-line-height-snug);
+  }
+
+  .identity strong {
+    font-size: var(--sr-font-size-sm);
+  }
+
+  .filingItemTime {
+    font-size: var(--sr-font-size-xs);
+    line-height: var(--sr-line-height-default);
+  }
+
+  .filingItemTime span:first-child {
+    font-weight: var(--sr-font-weight-heavy);
+  }
+
+  .filingItemTime span:last-child {
+    font-weight: var(--sr-font-weight-regular);
+  }
+
+  .identity > span:last-child,
+  .filingMeta,
+  .eventOverflow,
+  .metadataEmpty {
+    font-size: var(--sr-font-size-xs);
+  }
+
+  .formLabel,
+  .eventBadges .filingEventMeta {
+    font-size: var(--sr-font-size-xs);
+    font-weight: 600;
+    line-height: var(--sr-line-height-default);
+  }
+
+  .filingImpact .signal {
+    font-size: var(--sr-font-size-xs);
+    font-weight: var(--sr-font-weight-regular);
+    line-height: var(--sr-line-height-default);
+  }
+
+  .filingImpact .impactScore {
+    font-weight: 600;
+    line-height: var(--sr-line-height-default);
+  }
+}
+
 @media (max-width: 1440px) and (min-width: 761px) {
   .filingItem {
     grid-template-columns:

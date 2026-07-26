@@ -1793,6 +1793,60 @@
   white-space: nowrap;
 }
 
+@media (min-width: 761px) {
+  .rowHeadline {
+    font-size: var(--sr-font-size-sm);
+    font-weight: 600;
+    line-height: var(--sr-line-height-snug);
+  }
+
+  .rowIdentity strong {
+    font-size: var(--sr-font-size-sm);
+  }
+
+  .rowTime {
+    font-size: var(--sr-font-size-xs);
+    line-height: var(--sr-line-height-default);
+  }
+
+  .rowDate {
+    font-weight: var(--sr-font-weight-heavy);
+  }
+
+  .rowTime time {
+    font-weight: var(--sr-font-weight-regular);
+  }
+
+  .rowIdentity span,
+  .rowSource,
+  .rowSummary {
+    font-size: var(--sr-font-size-xs);
+  }
+
+  .rowSource,
+  .rowSummary,
+  .rowBadges .newsEventTypeBadge,
+  .rowBadges .newsScopeBadge {
+    line-height: var(--sr-line-height-default);
+  }
+
+  .rowBadges .newsEventTypeBadge,
+  .rowBadges .newsScopeBadge {
+    font-size: var(--sr-font-size-xs);
+    font-weight: 600;
+  }
+
+  .rowSentiment {
+    font-size: var(--sr-font-size-xs);
+    font-weight: var(--sr-font-weight-regular);
+    line-height: var(--sr-line-height-default);
+  }
+
+  .rowScore strong {
+    font-weight: 600;
+  }
+}
+
 @media (max-width: 1440px) and (min-width: 761px) {
   .newsRow {
     grid-template-columns: 72px minmax(84px, 0.35fr) minmax(320px, 2.65fr) minmax(84px, 0.45fr) 58px;
