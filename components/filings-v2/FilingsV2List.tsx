@@ -47,9 +47,9 @@ function FilingIdentity({ record }: { record: FilingsV2Record }) {
     <span className={styles.identity}>
       <strong title={record.ticker ? undefined : "Ticker unavailable"}>
         <span className={styles.desktopIdentityTicker}>{record.ticker ?? "N/A"}</span>
-        <span className={styles.mobileIdentityTicker}>
-          {record.ticker ?? record.formType}
-        </span>
+        {record.ticker ? (
+          <span className={styles.mobileIdentityTicker}>{record.ticker}</span>
+        ) : null}
       </strong>
       <span title={record.company}>{record.company}</span>
     </span>

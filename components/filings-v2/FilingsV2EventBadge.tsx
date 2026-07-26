@@ -7,7 +7,7 @@ import {
 
 const eventTones: Record<FilingsV2EventType, BadgeTone> = {
   capital_return: "transaction",
-  dilution: "neutral",
+  dilution: "legal",
   earnings: "earnings",
   fda: "product",
   governance: "neutral",
@@ -29,7 +29,12 @@ export function FilingsV2EventBadge({
   size?: "micro" | "small" | "large";
 }) {
   return (
-    <Badge className={className} size={size} tone={eventTones[event]}>
+    <Badge
+      className={className}
+      data-event-emphasis={event === "dilution" ? "dilution" : undefined}
+      size={size}
+      tone={eventTones[event]}
+    >
       {filingsV2EventLabels[event]}
     </Badge>
   );

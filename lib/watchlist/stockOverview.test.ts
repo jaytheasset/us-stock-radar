@@ -252,11 +252,11 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   assert.match(componentSource, /className=\{styles\.eventMobileSource\}/);
   assert.match(
     componentCss,
-    /@media \(max-width: 760px\) \{[\s\S]*\.eventRow \{[\s\S]*min-height: 96px;[\s\S]*grid-template-rows: auto auto auto;[\s\S]*gap: var\(--sr-space-1-5\);[\s\S]*padding: var\(--sr-space-3\);/,
+    /@media \(max-width: 760px\) \{[\s\S]*\.eventRow \{[\s\S]*min-height: 96px;[\s\S]*grid-template-columns: auto minmax\(0, 1fr\) 58px;[\s\S]*grid-template-rows: auto auto auto;[\s\S]*gap: var\(--sr-space-1-5\);[\s\S]*padding: var\(--sr-space-3\);/,
   );
   assert.match(
     componentCss,
-    /@media \(max-width: 760px\) \{[\s\S]*\.eventCopy > strong \{[\s\S]*grid-column: 1 \/ -1;[\s\S]*grid-row: 2;[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: 600;[\s\S]*line-height: 1\.35;/,
+    /@media \(max-width: 760px\) \{[\s\S]*\.eventCopy > strong \{[\s\S]*grid-column: 1 \/ 3;[\s\S]*grid-row: 2;[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: 600;[\s\S]*line-height: 1\.35;/,
   );
   assert.match(
     componentCss,

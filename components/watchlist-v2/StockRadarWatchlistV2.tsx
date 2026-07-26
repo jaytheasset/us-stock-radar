@@ -1357,7 +1357,15 @@ function EventList({
             >
               <span className={styles.eventMobileIdentity}>
                 <strong>{event.ticker || ticker}</strong>
-                <b>{event.category}</b>
+                <b
+                  data-event-emphasis={
+                    event.category.toLowerCase().includes("dilution")
+                      ? "dilution"
+                      : undefined
+                  }
+                >
+                  {event.category}
+                </b>
               </span>
               <time className={styles.eventTime} dateTime={event.detectedAt}>
                 <span>{formatStockOverviewEt(event.detectedAt, "date")}</span>
@@ -1365,7 +1373,15 @@ function EventList({
               </time>
               <span className={styles.eventCopy}>
                 <span>
-                  <b>{event.category}</b>
+                  <b
+                    data-event-emphasis={
+                      event.category.toLowerCase().includes("dilution")
+                        ? "dilution"
+                        : undefined
+                    }
+                  >
+                    {event.category}
+                  </b>
                   <small className={styles.eventDesktopMeta}>
                     {event.formType || event.source}
                   </small>

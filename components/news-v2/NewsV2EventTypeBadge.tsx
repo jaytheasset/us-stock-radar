@@ -25,13 +25,18 @@ export function NewsV2EventTypeBadge({
   eventTypeCode,
   size = "small",
 }: NewsV2EventTypeBadgeProps) {
+  const badgeDefinition = getEventTypeBadge(eventTypeCode || eventType);
+
   return (
     <Badge
       aria-label={eventType}
       className={className}
+      data-event-emphasis={
+        badgeDefinition.tone === "dilution" ? "dilution" : undefined
+      }
       size={size}
       title={eventType}
-      tone={eventTypeTones[getEventTypeBadge(eventTypeCode || eventType).tone] || "neutral"}
+      tone={eventTypeTones[badgeDefinition.tone] || "neutral"}
     >
       {eventType}
     </Badge>

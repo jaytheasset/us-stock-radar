@@ -116,14 +116,25 @@ export function FeedEventList({
 
               <div className={styles.eventCopy}>
                 <div className={styles.eventMeta}>
-                  <span className={styles.eventBadge}>{item.category}</span>
-                  <time
-                    className={styles.eventTimeMobile}
-                    dateTime={item.timestamp}
+                  <span
+                    className={styles.eventBadge}
+                    data-event-emphasis={
+                      item.category.toLowerCase().includes("dilution")
+                        ? "dilution"
+                        : undefined
+                    }
                   >
-                    {item.timeDateLabel} · {item.timeLabel} ET
-                  </time>
-                  <span className={styles.source}>{item.source}</span>
+                    {item.category}
+                  </span>
+                  <span className={styles.eventMobileFooter}>
+                    <time
+                      className={styles.eventTimeMobile}
+                      dateTime={item.timestamp}
+                    >
+                      {item.timeDateLabel} · {item.timeLabel} ET
+                    </time>
+                    <span className={styles.source}>{item.source}</span>
+                  </span>
                 </div>
                 <h2>{item.headline}</h2>
                 <p>{item.summary}</p>

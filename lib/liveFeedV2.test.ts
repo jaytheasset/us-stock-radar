@@ -591,7 +591,7 @@ test("feed v2 surfaces follow the News and Filings product design tokens", () =>
   );
   assert.match(
     styleSource,
-    /grid-template-columns:\s*auto minmax\(0, 1fr\) auto/,
+    /grid-template-columns:\s*auto minmax\(0, 1fr\) 58px/,
   );
   assert.match(
     bottomSheetStyleSource,
@@ -725,7 +725,11 @@ test("desktop feed rows follow the Watchlist typography and selection hierarchy"
   );
   assert.match(
     styleSource,
-    /@media \(max-width: 760px\)[\s\S]*\.eventCopy h2 \{[\s\S]*grid-column: 1 \/ -1;[\s\S]*grid-row: 2;[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: 600;[\s\S]*line-height: 1\.35;/,
+    /@media \(max-width: 760px\)[\s\S]*\.eventCopy h2 \{[\s\S]*grid-column: 1 \/ 3;[\s\S]*grid-row: 2;[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: 600;[\s\S]*line-height: 1\.35;/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.quote,[\s\S]*\.quoteUnavailable \{[\s\S]*grid-column: 3;[\s\S]*grid-row: 2 \/ 4;[\s\S]*\.quote \{[\s\S]*flex-direction: column;[\s\S]*align-items: flex-end;/,
   );
   assert.match(
     styleSource,

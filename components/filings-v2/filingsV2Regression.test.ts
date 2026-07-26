@@ -31,6 +31,8 @@ test("filing feed rows use watchlist density and plain representative event meta
   assert.match(listSource, /className=\{styles\.filingEventMeta\}/);
   assert.match(listSource, /data-ticker-available=\{record\.ticker \? "true" : "false"\}/);
   assert.match(listSource, /className=\{styles\.mobileIdentityTicker\}/);
+  assert.match(listSource, /record\.ticker \? \([\s\S]*styles\.mobileIdentityTicker/);
+  assert.doesNotMatch(listSource, /record\.ticker \?\? record\.formType/);
   assert.match(listSource, /className=\{styles\.mobileFilingClassification\}/);
   assert.match(listSource, /className=\{styles\.mobileFilingFooter\}/);
   assert.match(
@@ -87,11 +89,19 @@ test("filing feed rows use watchlist density and plain representative event meta
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*?\.filingItem \{[\s\S]*?min-height: 96px;[\s\S]*?grid-template-rows: auto auto auto;[\s\S]*?gap: var\(--sr-space-1-5\);[\s\S]*?padding: var\(--sr-space-3\);/,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.filingItem \{[\s\S]*?min-height: 96px;[\s\S]*?grid-template-columns: auto minmax\(0, 1fr\) 58px;[\s\S]*?grid-template-rows: auto auto auto;[\s\S]*?gap: var\(--sr-space-1-5\);[\s\S]*?padding: var\(--sr-space-3\);/,
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*?\.filingTitle \{[\s\S]*?grid-column: 1 \/ -1;[\s\S]*?grid-row: 2;[\s\S]*?font-size: var\(--sr-font-size-base\);[\s\S]*?font-weight: 600;[\s\S]*?line-height: 1\.35;/,
+    /\.filingItem\[data-ticker-available="false"\] \.mobileFilingClassification \{[\s\S]*grid-column: 1 \/ 3;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.filingTitle \{[\s\S]*?grid-column: 1 \/ 3;[\s\S]*?grid-row: 2;[\s\S]*?font-size: var\(--sr-font-size-base\);[\s\S]*?font-weight: 600;[\s\S]*?line-height: 1\.35;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.filingPrice \{[\s\S]*?grid-column: 3;[\s\S]*?grid-row: 2 \/ 4;[\s\S]*?flex-direction: column;[\s\S]*?align-items: flex-end;/,
   );
   assert.match(
     styles,

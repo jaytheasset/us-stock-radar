@@ -5,6 +5,7 @@
   padding: var(--sr-space-4-5) var(--sr-page-gutter-desktop) var(--sr-space-7);
   color: var(--sr-color-text-primary);
   background: var(--sr-color-page-background);
+  font-family: var(--sr-font-family-sans);
 }
 
 .situationSection,
@@ -20,8 +21,7 @@
 .situationSection,
 .feedColumn,
 .contextRail {
-  font-family:
-    Arial, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  font-family: var(--sr-font-family-sans);
 }
 
 .situationSection {
@@ -265,6 +265,7 @@
   min-width: 0;
   gap: var(--sr-space-1);
   color: var(--sr-color-text-meta);
+  font-family: var(--sr-font-family-mono);
   font-size: var(--sr-font-size-xs);
   font-weight: var(--sr-font-weight-regular);
   font-variant-numeric: var(--sr-font-variant-numeric);
@@ -332,6 +333,7 @@
   padding: 0;
   color: var(--sr-color-text-control-strong);
   background: transparent;
+  font-family: var(--sr-font-family-mono);
   font-size: var(--sr-font-size-xs);
   font-weight: var(--sr-font-weight-label);
   line-height: var(--sr-line-height-none);
@@ -373,6 +375,10 @@
   display: none;
 }
 
+.eventMobileFooter {
+  display: contents;
+}
+
 .marketReaction {
   display: grid;
   min-width: 0;
@@ -385,7 +391,9 @@
   display: grid;
   justify-items: end;
   gap: var(--sr-space-1);
+  font-family: var(--sr-font-family-mono);
   font-variant-numeric: var(--sr-font-variant-numeric);
+  line-height: var(--sr-line-height-none);
   text-align: right;
 }
 
@@ -482,9 +490,11 @@
 
 .impactScore strong {
   color: var(--sr-color-text-heading);
+  font-family: var(--sr-font-family-mono);
   font-size: var(--sr-font-size-xl);
   font-weight: var(--sr-font-weight-heavy);
   font-variant-numeric: var(--sr-font-variant-numeric);
+  line-height: var(--sr-line-height-none);
 }
 
 .impactScore strong[data-score-tone="bullish"],
@@ -1007,7 +1017,7 @@
 
   .feedItem {
     min-height: 96px;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) 58px;
     grid-template-rows: auto auto auto;
     align-items: start;
     gap: var(--sr-space-1-5);
@@ -1062,11 +1072,10 @@
 
   .eventTimeMobile {
     display: inline-flex;
-    grid-column: 1;
-    grid-row: 3;
     align-items: center;
     align-self: center;
     color: var(--sr-color-text-meta);
+    font-family: var(--sr-font-family-mono);
     font-size: var(--sr-font-size-xs);
     font-variant-numeric: var(--sr-font-variant-numeric);
     line-height: var(--sr-line-height-none);
@@ -1076,10 +1085,18 @@
   .source {
     display: block;
     min-width: 0;
-    grid-column: 2 / 3;
-    grid-row: 3;
     align-self: center;
     font-size: var(--sr-font-size-xs);
+  }
+
+  .eventMobileFooter {
+    display: flex;
+    min-width: 0;
+    grid-column: 1 / 3;
+    grid-row: 3;
+    align-items: center;
+    align-self: center;
+    overflow: hidden;
   }
 
   .source::before {
@@ -1089,7 +1106,7 @@
   }
 
   .eventCopy h2 {
-    grid-column: 1 / -1;
+    grid-column: 1 / 3;
     grid-row: 2;
     display: -webkit-box;
     margin: 0;
@@ -1113,25 +1130,29 @@
   .quote,
   .quoteUnavailable {
     grid-column: 3;
-    grid-row: 3;
+    grid-row: 2 / 4;
     align-self: center;
   }
 
   .quote {
     display: flex;
-    align-items: baseline;
-    justify-items: end;
-    gap: var(--sr-space-1);
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 2px;
+    text-align: right;
   }
 
   .quote strong {
     font-size: var(--sr-font-size-md);
     font-weight: 600;
+    line-height: var(--sr-line-height-tight);
   }
 
   .quote span {
     margin-top: 0;
     font-size: var(--sr-font-size-xs);
+    line-height: var(--sr-line-height-tight);
   }
 
   .marketReaction > .sparkline,

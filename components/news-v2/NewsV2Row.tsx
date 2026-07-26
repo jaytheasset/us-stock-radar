@@ -118,15 +118,17 @@ export function NewsV2Row({
                   <span className={styles.mobileTickerOverflow}>+{item.relatedTickers.length - 1}</span>
                 ) : null}
               </span>
-              <time className={styles.rowMobilePublishedAt} dateTime={item.publishedAt}>
-                <span className={styles.rowMobileDate}>
-                  {formatMarketDateLabel(item.publishedAt, referenceDate)}
-                </span>
-                <span className={styles.rowMobileTime}>
-                  {formatNewsV2PublishedAt(item.publishedAt, "time")}
-                </span>
-              </time>
-              <span className={styles.rowSource}>{item.source}</span>
+              <span className={styles.rowMobileFooter}>
+                <time className={styles.rowMobilePublishedAt} dateTime={item.publishedAt}>
+                  <span className={styles.rowMobileDate}>
+                    {formatMarketDateLabel(item.publishedAt, referenceDate)}
+                  </span>
+                  <span className={styles.rowMobileTime}>
+                    {formatNewsV2PublishedAt(item.publishedAt, "time")}
+                  </span>
+                </time>
+                <span className={styles.rowSource}>{item.source}</span>
+              </span>
             </span>
             <strong className={styles.rowHeadline}>{item.headline}</strong>
             <span className={styles.rowStoryFooter}>

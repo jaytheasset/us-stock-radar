@@ -305,6 +305,10 @@
   --sr-color-text-chart-range-selected: #ffffff;
 }
 
+html [data-event-emphasis="dilution"] {
+  color: var(--sr-color-event-legal);
+}
+
 [data-sr-theme="light"] {
   /* Color: canvas, surfaces, and overlays */
   --sr-color-page-background: #ffffff;
