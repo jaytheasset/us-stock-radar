@@ -383,7 +383,7 @@
 .workspace {
   display: grid;
   min-width: 0;
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 390px);
+  grid-template-columns: minmax(0, 1fr) 320px;
   gap: var(--sr-space-4);
   align-items: start;
   padding: var(--sr-space-4) var(--sr-page-gutter-desktop) var(--sr-space-8);
@@ -477,10 +477,10 @@
   display: grid;
   min-width: 0;
   width: 100%;
-  min-height: calc(var(--sr-size-table-row) + var(--sr-space-7));
+  min-height: 82px;
   grid-template-columns: 72px minmax(84px, 0.35fr) minmax(320px, 2.2fr) minmax(190px, 0.95fr) 58px;
   align-items: center;
-  gap: var(--sr-space-2-5);
+  gap: var(--sr-space-3);
   border: 0;
   border-radius: 0;
   padding: var(--sr-space-2) var(--sr-space-4);
@@ -522,7 +522,7 @@
 .rowTime {
   color: var(--sr-color-text-meta);
   font-family: var(--sr-font-family-mono);
-  font-size: var(--sr-font-size-xs);
+  font-size: var(--sr-font-size-sm);
   font-weight: var(--sr-font-weight-regular);
   font-variant-numeric: var(--sr-font-variant-numeric);
   line-height: var(--sr-line-height-none);
@@ -543,14 +543,14 @@
   color: var(--sr-color-text-ticker);
   font-family: var(--sr-font-family-mono);
   font-size: var(--sr-font-size-base);
-  font-weight: var(--sr-font-weight-display);
+  font-weight: var(--sr-font-weight-heavy);
   line-height: var(--sr-line-height-none);
 }
 
 .rowIdentity span {
   overflow: hidden;
   color: var(--sr-color-text-secondary);
-  font-size: var(--sr-font-size-xs);
+  font-size: var(--sr-font-size-sm);
   line-height: var(--sr-line-height-snug);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -577,16 +577,44 @@
   justify-content: flex-end;
 }
 
-.newsEventTypeBadge {
+.rowBadges {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.rowBadges .newsEventTypeBadge {
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  justify-content: flex-start;
   overflow: hidden;
   max-width: 160px;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  font-family: var(--sr-font-family-mono);
+  font-size: var(--sr-font-size-sm);
+  line-height: var(--sr-line-height-none);
   text-overflow: ellipsis;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
-.newsScopeBadge {
+.rowBadges .newsScopeBadge {
   min-width: 0;
+  height: auto;
+  min-height: 0;
   max-width: 176px;
+  justify-content: flex-start;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  font-family: var(--sr-font-family-mono);
+  font-size: var(--sr-font-size-sm);
+  line-height: var(--sr-line-height-none);
+  text-transform: uppercase;
 }
 
 .newsScopeBadge > span {
@@ -599,7 +627,7 @@
 .rowSource {
   overflow: hidden;
   color: var(--sr-color-text-meta);
-  font-size: var(--sr-font-size-xs);
+  font-size: var(--sr-font-size-sm);
   line-height: var(--sr-line-height-none);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -609,7 +637,7 @@
   overflow: hidden;
   color: var(--sr-color-text-primary);
   font-size: var(--sr-font-size-base);
-  font-weight: var(--sr-font-weight-medium);
+  font-weight: var(--sr-font-weight-semibold);
   line-height: var(--sr-line-height-body);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -625,7 +653,7 @@
 .rowSummary {
   overflow: hidden;
   color: var(--sr-color-text-meta);
-  font-size: var(--sr-font-size-xs);
+  font-size: var(--sr-font-size-sm);
   line-height: var(--sr-line-height-relaxed);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -804,7 +832,7 @@
 }
 
 .rowScore strong {
-  font-size: var(--sr-font-size-xl);
+  font-size: var(--sr-font-size-md);
   font-weight: var(--sr-font-weight-heavy);
 }
 
@@ -1765,11 +1793,25 @@
   white-space: nowrap;
 }
 
+@media (max-width: 1440px) and (min-width: 761px) {
+  .newsRow {
+    grid-template-columns: 72px minmax(84px, 0.35fr) minmax(320px, 2.65fr) minmax(84px, 0.45fr) 58px;
+  }
+
+  .rowMarketReaction {
+    grid-template-columns: minmax(68px, 1fr);
+  }
+
+  .rowSparklineCell {
+    display: none;
+  }
+}
+
 @media (max-width: 1320px) {
   .newsRow {
-    grid-template-columns: 58px minmax(76px, 0.35fr) minmax(242px, 2fr) minmax(160px, 0.9fr) 54px;
-    gap: var(--sr-space-2-5);
-    padding-inline: var(--sr-space-3);
+    grid-template-columns: 58px minmax(76px, 0.35fr) minmax(242px, 2.65fr) minmax(84px, 0.45fr) 54px;
+    gap: var(--sr-space-3);
+    padding-inline: var(--sr-space-4);
   }
 
   .detailMarketSnapshot {
@@ -2050,7 +2092,7 @@
     overflow: hidden;
   }
 
-  .newsScopeBadge {
+  .rowMobileBadges .newsScopeBadge {
     max-width: 112px;
   }
 
@@ -2085,7 +2127,7 @@
     align-self: center;
     gap: var(--sr-space-1);
     font-family: var(--sr-font-family-mono);
-    font-size: var(--sr-font-size-xs);
+    font-size: var(--sr-font-size-sm);
     font-variant-numeric: var(--sr-font-variant-numeric);
     line-height: var(--sr-line-height-none);
     white-space: nowrap;

@@ -344,6 +344,49 @@ test("news mid-width layout keeps compact filters, feed, then a stable rail grid
   );
 });
 
+test("news feed rows use watchlist density, plain metadata, and a compact rail", () => {
+  const styles = readFileSync(
+    new URL(
+      "../components/news-v2/StockRadarNewsV2.module.css",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(
+    styles,
+    /\.workspace \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) 320px;/,
+  );
+  assert.match(
+    styles,
+    /\.newsRow \{[\s\S]*min-height: 82px;[\s\S]*gap: var\(--sr-space-3\);[\s\S]*padding: var\(--sr-space-2\) var\(--sr-space-4\);/,
+  );
+  assert.match(
+    styles,
+    /\.rowHeadline \{[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: var\(--sr-font-weight-semibold\);/,
+  );
+  assert.match(
+    styles,
+    /\.rowIdentity strong \{[\s\S]*font-family: var\(--sr-font-family-mono\);[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: var\(--sr-font-weight-heavy\);/,
+  );
+  assert.match(
+    styles,
+    /\.rowScore strong \{[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*font-weight: var\(--sr-font-weight-heavy\);/,
+  );
+  for (const className of ["newsEventTypeBadge", "newsScopeBadge"]) {
+    assert.match(
+      styles,
+      new RegExp(
+        `\\.rowBadges \\.${className} \\{[\\s\\S]*border: 0;[\\s\\S]*border-radius: 0;[\\s\\S]*padding: 0;[\\s\\S]*background: transparent;`,
+      ),
+    );
+  }
+  assert.match(
+    styles,
+    /@media \(max-width: 1440px\) and \(min-width: 761px\) \{[\s\S]*?\.rowSparklineCell \{[\s\S]*?display: none;/,
+  );
+});
+
 test("product header switches to its mobile navigation before mid-width clipping", () => {
   const styles = readFileSync(
     new URL(

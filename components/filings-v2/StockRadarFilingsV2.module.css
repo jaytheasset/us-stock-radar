@@ -2,7 +2,7 @@
   display: grid;
   width: min(100%, 1600px);
   min-height: calc(100vh - var(--sr-size-header));
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 390px);
+  grid-template-columns: minmax(0, 1fr) 320px;
   align-items: start;
   gap: var(--sr-space-4);
   margin: 0 auto;
@@ -622,11 +622,12 @@
 }
 
 .filingItem {
+  position: relative;
   width: 100%;
   appearance: none;
   display: grid;
   min-width: 0;
-  min-height: calc(var(--sr-size-table-row) + var(--sr-space-7));
+  min-height: 82px;
   grid-template-columns:
     72px
     minmax(84px, 0.35fr)
@@ -634,7 +635,7 @@
     minmax(190px, 0.95fr)
     58px;
   align-items: center;
-  gap: var(--sr-space-2-5);
+  gap: var(--sr-space-3);
   border: 0;
   border-radius: 0;
   padding: var(--sr-space-2) var(--sr-space-4);
@@ -655,10 +656,24 @@
   outline-offset: calc(var(--sr-focus-ring-offset) * -1);
 }
 
-.filingItem.selectedFilingItem,
+.filingItem.selectedFilingItem {
+  background: var(--sr-color-surface-table-row);
+  box-shadow: none;
+}
+
 .filingItem.selectedFilingItem:hover {
-  background: var(--sr-color-accent-selected);
-  box-shadow: inset var(--sr-border-width-strong) 0 0 var(--sr-color-accent);
+  background: var(--sr-color-surface-table-hover);
+}
+
+.filingItem.selectedFilingItem::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  border-radius: 0;
+  background: var(--sr-color-accent);
+  content: "";
 }
 
 .filingItemTime {
@@ -666,7 +681,7 @@
   gap: var(--sr-space-1);
   color: var(--sr-color-text-meta);
   font-family: var(--sr-font-family-mono);
-  font-size: var(--sr-font-size-xs);
+  font-size: var(--sr-font-size-sm);
   font-weight: var(--sr-font-weight-regular);
   font-variant-numeric: var(--sr-font-variant-numeric);
   line-height: var(--sr-line-height-none);
@@ -697,16 +712,16 @@
 
 .formLabel {
   display: inline-flex;
-  min-height: var(--sr-size-badge);
+  min-height: 0;
   align-items: center;
-  justify-content: center;
-  border: var(--sr-border-width) solid var(--sr-color-border-control);
-  border-radius: var(--sr-radius-sm);
-  padding: 0 var(--sr-space-1-5);
+  justify-content: flex-start;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
   color: var(--sr-color-text-control-strong);
-  background: var(--sr-color-surface-control-strong);
+  background: transparent;
   font-family: var(--sr-font-family-mono);
-  font-size: var(--sr-font-size-xs);
+  font-size: var(--sr-font-size-sm);
   font-weight: var(--sr-font-weight-label);
   line-height: var(--sr-line-height-none);
   white-space: nowrap;
@@ -732,7 +747,7 @@
   color: var(--sr-color-text-ticker);
   font-family: var(--sr-font-family-mono);
   font-size: var(--sr-font-size-base);
-  font-weight: var(--sr-font-weight-display);
+  font-weight: var(--sr-font-weight-heavy);
   line-height: var(--sr-line-height-none);
   white-space: nowrap;
 }
@@ -740,7 +755,7 @@
 .identity > span:last-child {
   grid-row: 2;
   color: var(--sr-color-text-secondary);
-  font-size: var(--sr-font-size-xs);
+  font-size: var(--sr-font-size-sm);
   line-height: var(--sr-line-height-snug);
   white-space: nowrap;
 }
@@ -771,7 +786,7 @@
   gap: var(--sr-space-1-5);
   margin-bottom: var(--sr-space-1);
   color: var(--sr-color-text-meta);
-  font-size: var(--sr-font-size-xs);
+  font-size: var(--sr-font-size-sm);
   white-space: nowrap;
 }
 
@@ -797,7 +812,7 @@
   display: block;
   color: var(--sr-color-text-primary);
   font-size: var(--sr-font-size-base);
-  font-weight: var(--sr-font-weight-medium);
+  font-weight: var(--sr-font-weight-semibold);
   line-height: var(--sr-line-height-body);
   white-space: nowrap;
 }
@@ -806,14 +821,34 @@
   display: flex;
   min-width: 0;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: var(--sr-space-1);
+  overflow: hidden;
+}
+
+.eventBadges .filingEventMeta {
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  justify-content: flex-start;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  font-family: var(--sr-font-family-mono);
+  font-size: var(--sr-font-size-sm);
+  line-height: var(--sr-line-height-none);
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .eventOverflow,
 .metadataEmpty {
   color: var(--sr-color-text-muted);
-  font-size: var(--sr-font-size-xs);
+  font-family: var(--sr-font-family-mono);
+  font-size: var(--sr-font-size-sm);
   font-weight: var(--sr-font-weight-semibold);
   white-space: nowrap;
 }
@@ -926,13 +961,13 @@
 }
 
 .filingImpact .signal {
-  font-size: var(--sr-font-size-xs);
+  font-size: var(--sr-font-size-sm);
   line-height: var(--sr-line-height-none);
 }
 
 .filingImpact .impactScore {
   height: auto;
-  font-size: var(--sr-font-size-xl);
+  font-size: var(--sr-font-size-md);
 }
 
 .listFooter {
@@ -1411,16 +1446,35 @@
   to { transform: rotate(1turn); }
 }
 
+@media (max-width: 1440px) and (min-width: 761px) {
+  .filingItem {
+    grid-template-columns:
+      72px
+      minmax(84px, 0.35fr)
+      minmax(320px, 2.65fr)
+      minmax(84px, 0.45fr)
+      58px;
+  }
+
+  .filingMarketReaction {
+    grid-template-columns: minmax(68px, 1fr);
+  }
+
+  .filingSparkline {
+    display: none;
+  }
+}
+
 @media (max-width: 1320px) and (min-width: 761px) {
   .filingItem {
     grid-template-columns:
       58px
       minmax(76px, 0.35fr)
-      minmax(242px, 2fr)
-      minmax(160px, 0.9fr)
+      minmax(242px, 2.65fr)
+      minmax(84px, 0.45fr)
       54px;
-    gap: var(--sr-space-2-5);
-    padding-inline: var(--sr-space-3);
+    gap: var(--sr-space-3);
+    padding-inline: var(--sr-space-4);
   }
 }
 
@@ -1780,7 +1834,7 @@
     align-items: center;
     gap: var(--sr-space-1);
     font-family: var(--sr-font-family-mono);
-    font-size: var(--sr-font-size-xs);
+    font-size: var(--sr-font-size-sm);
     font-variant-numeric: var(--sr-font-variant-numeric);
     line-height: var(--sr-line-height-none);
     white-space: nowrap;
@@ -1845,7 +1899,7 @@
   }
 
   .filingImpact .signal {
-    font-size: var(--sr-font-size-xs);
+    font-size: var(--sr-font-size-sm);
   }
 
   .filingImpact .impactScore {
