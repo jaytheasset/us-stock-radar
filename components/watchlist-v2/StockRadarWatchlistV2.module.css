@@ -1077,6 +1077,7 @@
 }
 
 .eventRow {
+  position: relative;
   display: grid;
   min-height: 82px;
   grid-template-columns: 92px minmax(0, 1fr) 90px;
@@ -1095,8 +1096,23 @@
 }
 
 .eventRow[aria-pressed="true"] {
-  box-shadow: inset 3px 0 0 var(--sr-color-accent);
-  background: var(--sr-color-accent-selected);
+  box-shadow: none;
+  background: var(--sr-color-surface-table-row);
+}
+
+.eventRow[aria-pressed="true"]::before {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 0;
+  width: 3px;
+  border-radius: 0;
+  background: var(--sr-color-accent);
+  content: "";
+}
+
+.eventRow[aria-pressed="true"]:hover {
+  background: var(--sr-color-surface-table-hover);
 }
 
 .eventRow time,
