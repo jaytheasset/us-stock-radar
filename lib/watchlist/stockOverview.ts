@@ -64,6 +64,8 @@ export type TickerSearchResult = {
   ticker: string;
 };
 
+export type StockOverviewSelectionMode = "stock" | "watchlist";
+
 const eventUuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -97,9 +99,9 @@ export function resolveWatchlistTicker(
   requestedTicker: string | null | undefined,
   savedTickers: readonly string[],
 ) {
-  const normalized = normalizeTicker(requestedTicker);
+  const normalized = normalizeStockTicker(requestedTicker);
   const normalizedSaved = savedTickers
-    .map(normalizeTicker)
+    .map(normalizeStockTicker)
     .filter((ticker): ticker is string => Boolean(ticker));
 
   if (normalized && normalizedSaved.includes(normalized)) {
@@ -107,6 +109,44 @@ export function resolveWatchlistTicker(
   }
 
   return normalizedSaved[0] ?? null;
+}
+
+export function resolveStockOverviewTicker(
+  requestedTicker: string | null | undefined,
+  savedTickers: readonly string[],
+  mode: StockOverviewSelectionMode,
+) {
+  return mode === "stock"
+    ? normalizeStockTicker(requestedTicker)
+    : resolveWatchlistTicker(requestedTicker, savedTickers);
+}
+
+export function normalizeStockTicker(value: unknown) {
+  if (typeof value !== "string") return null;
+  const ticker = value.trim().toUpperCase();
+  return /^[A-Z0-9.-]{1,12}$/.test(ticker) ? ticker : null;
+}
+
+export function getStockRouteHref(value: unknown) {
+  const ticker = normalizeStockTicker(value);
+  return ticker ? `/stocks/${encodeURIComponent(ticker)}` : null;
+}
+
+export function hasStockOverviewData(
+  profile: StockOverviewProfile,
+  quote: StockOverviewQuote,
+  events: readonly StockOverviewEvent[],
+) {
+  return Boolean(
+    profile.companyName ||
+      profile.exchange ||
+      profile.description ||
+      profile.industry ||
+      profile.sector ||
+      profile.marketCap !== null ||
+      Object.values(quote).some((value) => value !== null) ||
+      events.length,
+  );
 }
 
 export function mapStockOverviewProfile(
@@ -188,7 +228,7 @@ export function mapTickerSearchResults(payload: unknown): TickerSearchResult[] {
   return rows
     .map((value) => {
       const row = asRecord(value);
-      const ticker = normalizeTicker(readString(row, ["ticker"]));
+      const ticker = normalizeStockTicker(readString(row, ["ticker"]));
       const companyName = readString(row, ["companyName"]);
       if (!ticker || !companyName) return null;
       return {
@@ -249,7 +289,8 @@ function mapStockOverviewEvent(value: unknown): StockOverviewEvent | null {
   const row = asRecord(value);
   if (!row) return null;
   const id = readString(row, ["id"]);
-  const ticker = normalizeTicker(readString(row, ["ticker", "symbol"])) ?? "";
+  const ticker =
+    normalizeStockTicker(readString(row, ["ticker", "symbol"])) ?? "";
   const sourceGroup = normalizeSourceGroup(readString(row, ["source_group"]));
   const detectedAt =
     readString(row, ["published_at", "detected_at", "created_at", "event_date"]);
@@ -318,12 +359,6 @@ function humanizeEventType(value: string) {
   return value
     .replace(/[_-]+/g, " ")
     .replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
-function normalizeTicker(value: unknown) {
-  if (typeof value !== "string") return null;
-  const ticker = value.trim().toUpperCase();
-  return /^[A-Z0-9.-]{1,12}$/.test(ticker) ? ticker : null;
 }
 
 function readMetadataString(row: Record<string, unknown>, keys: string[]) {
