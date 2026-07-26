@@ -31,7 +31,15 @@
 }
 
 .content :global(a) {
-  color: var(--sr-color-accent);
+  color: var(--sr-color-text-secondary);
+  text-decoration-line: underline;
+  text-decoration-thickness: var(--sr-border-width);
+  text-underline-offset: var(--sr-space-1);
+}
+
+.content :global(a:hover),
+.content :global(a:focus-visible) {
+  color: var(--sr-color-accent-text);
 }
 
 .content :global(img),

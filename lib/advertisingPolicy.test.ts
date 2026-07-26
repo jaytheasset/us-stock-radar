@@ -125,6 +125,9 @@ test("news and filing detail routes wire the shared analysis ad contract", () =>
   const companionSource = read(
     "../components/filing-analysis-v2/AnalysisSignalCompanionAd.tsx",
   );
+  const companionStyles = read(
+    "../components/filing-analysis-v2/AnalysisSignalCompanionAd.module.css",
+  );
   const collapsedRailSource = read(
     "../components/filing-analysis-v2/AnalysisCollapsedRailInlineAd.tsx",
   );
@@ -160,6 +163,11 @@ test("news and filing detail routes wire the shared analysis ad contract", () =>
   assert.match(filingsRailSource, /showAds=\{viewerPlan === "free"\}/);
   assert.match(filingsDetailSource, /showAds \? \([\s\S]*<FilingsRailAdSlot/);
   assert.match(companionSource, /inventory="analysis-signal-companion"/);
+  assert.match(companionSource, /mediaQuery="\(min-width: 1181px\)"/);
+  assert.match(
+    companionStyles,
+    /@media \(max-width: 1180px\)[\s\S]*\.companion\s*\{\s*display:\s*none;/,
+  );
   assert.match(
     collapsedRailSource,
     /inventory="analysis-collapsed-rail-inline"/,
@@ -172,6 +180,11 @@ test("news and filing detail routes wire the shared analysis ad contract", () =>
   assert.match(
     genericStyles,
     /\.scoreRationaleRailFallback\s*\{\s*display:\s*none;[\s\S]*@media \(max-width: 1180px\)[\s\S]*\.scoreRationaleRailFallback\s*\{\s*display:\s*block;/,
+  );
+  assert.match(genericSource, /caseGridWithCompanion/);
+  assert.match(
+    genericStyles,
+    /@media \(max-width: 1180px\)[\s\S]*\.caseGridWithCompanion\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\);/,
   );
   assert.match(sharedSlotSource, /data-mobile-size=\{hasMobileSize \? "true" : undefined\}/);
   assert.match(

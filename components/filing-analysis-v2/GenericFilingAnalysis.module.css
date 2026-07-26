@@ -283,7 +283,7 @@
 
 .sectionLabel {
   margin: 0 0 var(--sr-space-3);
-  color: var(--sr-color-accent-text);
+  color: var(--sr-color-text-heading);
   font-size: var(--sr-font-size-xs);
   font-weight: var(--sr-font-weight-heavy);
   letter-spacing: var(--sr-letter-spacing-wide, 0.05em);
@@ -423,6 +423,14 @@
 }
 
 .originalRendererCard :global(.full-text-content a) {
+  color: var(--sr-color-text-secondary);
+  text-decoration-line: underline;
+  text-decoration-thickness: var(--sr-border-width);
+  text-underline-offset: var(--sr-space-1);
+}
+
+.originalRendererCard :global(.full-text-content a:hover),
+.originalRendererCard :global(.full-text-content a:focus-visible) {
   color: var(--sr-color-accent-text);
 }
 
@@ -839,6 +847,10 @@
 }
 
 @media (max-width: 1180px) {
+  .caseGridWithCompanion {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .layout {
     grid-template-columns: minmax(0, 1fr);
   }

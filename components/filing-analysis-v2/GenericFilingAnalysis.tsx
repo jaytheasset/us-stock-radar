@@ -340,7 +340,11 @@ export function GenericFilingAnalysis({
             {bodyRenderer ? <div className={styles.specializedBody}>{bodyRenderer}</div> : null}
 
             {bullishPoints.length || bearishPoints.length ? (
-              <div className={styles.caseGrid}>
+              <div
+                className={`${styles.caseGrid}${
+                  showSignalCompanionAd ? ` ${styles.caseGridWithCompanion}` : ""
+                }`}
+              >
                 {bullishPoints.length ? (
                   <AnalysisList
                     items={bullishPoints}

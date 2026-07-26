@@ -31,6 +31,7 @@
     "verify:globe-parser": "node --experimental-strip-types scripts/verify-globe-parser.mjs",
     "verify:news-article-sanitizer": "node --test --experimental-strip-types lib/newsArticleSanitizer.test.ts",
     "verify:news-gemini": "node --test --experimental-strip-types lib/ai/newsGeminiAnalysis.test.ts",
+    "verify:price-chart": "node --test --experimental-strip-types lib/priceChartPresentation.test.ts",
     "verify:filings-v2": "node --test --experimental-strip-types components/filings-v2/filingsV2Regression.test.ts",
     "verify:feed-v2": "node --test --experimental-strip-types lib/liveFeedV2.test.ts",
     "verify:market-date": "node --test --experimental-strip-types lib/marketDate.test.ts",

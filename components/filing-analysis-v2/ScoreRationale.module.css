@@ -21,7 +21,7 @@
 }
 
 .scoreBlock > span {
-  color: var(--sr-color-accent-text);
+  color: var(--sr-color-text-meta);
   font-size: var(--sr-font-size-xs);
   font-weight: var(--sr-font-weight-heavy);
   letter-spacing: var(--sr-letter-spacing-wide, 0.05em);
