@@ -52,6 +52,17 @@ export function StockRadarProductHeader({
       return;
     }
 
+    const body = document.body;
+    const previousBodyOverflow = body.style.overflow;
+    const previousBodyPaddingRight = body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
+    if (scrollbarWidth > 0) {
+      const bodyPaddingRight = window.getComputedStyle(body).paddingRight;
+      body.style.paddingRight = `calc(${bodyPaddingRight} + ${scrollbarWidth}px)`;
+    }
+    body.style.overflow = "hidden";
+
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
 
@@ -74,6 +85,8 @@ export function StockRadarProductHeader({
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown);
       window.removeEventListener("keydown", handleKeyDown);
+      body.style.overflow = previousBodyOverflow;
+      body.style.paddingRight = previousBodyPaddingRight;
     };
   }, [closeMobileMenu, isMobileMenuOpen]);
 
