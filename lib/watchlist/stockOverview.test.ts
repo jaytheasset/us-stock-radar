@@ -255,8 +255,43 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   assert.match(headerSearchSource, /moveTickerSearchIndex/);
   assert.match(headerSearchSource, /router\.push\(href\)/);
   assert.match(headerCss, /@media \(max-width: 1120px\)/);
+  assert.match(
+    headerCss,
+    /@media \(max-width: 1120px\) \{[\s\S]*\.header \{[\s\S]*position: sticky;[\s\S]*top: 0;[\s\S]*background: var\(--sr-color-surface-product-menu\);/,
+  );
   assert.match(headerCss, /\.globalSearchPanel \{[\s\S]*position: fixed/);
   assert.match(headerCss, /left: var\(--sr-space-3\)/);
+  assert.match(
+    headerCss,
+    /\.mobileMenuPopover \{[\s\S]*top: var\(--sr-size-header\);[\s\S]*max-height: calc\(100dvh - var\(--sr-size-header\) - var\(--sr-space-3\)\);[\s\S]*overflow-y: auto;[\s\S]*overscroll-behavior: contain;/,
+  );
+  assert.match(
+    headerCss,
+    /@media \(max-width: 760px\) \{[\s\S]*\.header \{[\s\S]*height: var\(--sr-size-header\);[\s\S]*padding: 0 var\(--sr-space-3-5\);/,
+  );
+  assert.match(
+    headerSource,
+    /const previousBodyOverflow = body\.style\.overflow;/,
+  );
+  assert.match(
+    headerSource,
+    /const previousBodyPaddingRight = body\.style\.paddingRight;/,
+  );
+  assert.match(
+    headerSource,
+    /const scrollbarWidth = window\.innerWidth - document\.documentElement\.clientWidth;/,
+  );
+  assert.match(
+    headerSource,
+    /body\.style\.paddingRight = `calc\(\$\{bodyPaddingRight\} \+ \$\{scrollbarWidth\}px\)`;/,
+  );
+  assert.match(headerSource, /body\.style\.overflow = "hidden";/);
+  assert.match(headerSource, /body\.style\.overflow = previousBodyOverflow;/);
+  assert.match(
+    headerSource,
+    /body\.style\.paddingRight = previousBodyPaddingRight;/,
+  );
+  assert.doesNotMatch(headerSource, /documentElement\.style\.overflow = "hidden"/);
   assert.match(
     headerCss,
     /\.globalSearchClose svg \{[\s\S]*width: 17px;[\s\S]*flex: 0 0 17px;/,

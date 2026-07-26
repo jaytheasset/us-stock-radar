@@ -270,7 +270,7 @@ test("product header switches to its mobile navigation before mid-width clipping
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*?\.header \{[\s\S]*?padding: var\(--sr-space-3-5\);/,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.header \{[\s\S]*?height: var\(--sr-size-header\);[\s\S]*?padding: 0 var\(--sr-space-3-5\);/,
   );
 });
 
