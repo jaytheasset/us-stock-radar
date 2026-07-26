@@ -28,7 +28,16 @@ export async function loadNewsAnalysisDetail(id: string): Promise<NewsAnalysisDe
 
   const ticker = normalizeTicker(readString(event, "ticker"));
   const rawItemId = readString(event, "raw_item_id");
-  const [analysisResult, tickersResult, rawResult, relatedNewsResult, relatedFilingsResult, quote, chart] = await Promise.all([
+  const [
+    analysisResult,
+    tickersResult,
+    rawResult,
+    relatedNewsResult,
+    relatedFilingsResult,
+    quote,
+    chart,
+    tickerCatalogResult,
+  ] = await Promise.all([
     fetchEventAnalysis(id),
     fetchEventTickers(id),
     fetchRawItem(rawItemId),
@@ -36,6 +45,14 @@ export async function loadNewsAnalysisDetail(id: string): Promise<NewsAnalysisDe
     ticker ? fetchEventsByTicker({ ticker, sourceGroup: "filings", excludeId: id, limit: 4 }) : emptyRowsResult(),
     ticker ? fetchStoredQuote(ticker) : Promise.resolve(null),
     ticker ? fetchStoredChart(ticker) : Promise.resolve(null),
+    ticker
+      ? supabaseSelect("tickers", {
+          select: "symbol,name,exchange",
+          symbol: `eq.${ticker}`,
+          is_active: "eq.true",
+          limit: "1",
+        })
+      : emptyRowsResult(),
   ]);
   const analysis = asRecord(analysisResult.data);
   const rawItem = asRecord(rawResult.data);
@@ -46,6 +63,7 @@ export async function loadNewsAnalysisDetail(id: string): Promise<NewsAnalysisDe
   const primaryTickerRow = tickerRows.find((row) => readString(row, "role") === "primary") ||
     tickerRows.find((row) => normalizeTicker(readString(row, "symbol")) === ticker) || null;
   const tickerMetadata = asRecord(primaryTickerRow?.metadata);
+  const tickerCatalog = asRecord(toRows(tickerCatalogResult.data)[0]);
   const sourceUrl = firstString(
     readString(event, "source_url"),
     readString(rawItem, "source_url"),
@@ -65,28 +83,33 @@ export async function loadNewsAnalysisDetail(id: string): Promise<NewsAnalysisDe
     readString(articlePayload, "published_at"),
   );
   const detectedAt = readString(event, "detected_at");
-  const company = firstString(
-    readString(event, "company"),
-    readString(event, "company_name"),
-    readString(event, "issuer"),
-    readString(metadata, "company"),
-    readString(metadata, "company_name"),
-    readString(metadata, "issuer"),
-    readString(tickerMetadata, "company_name"),
-    readString(tickerMetadata, "company"),
-    readString(tickerMetadata, "name"),
-    readString(tickerMetadata, "issuer"),
-    readString(rawItem, "company"),
-    readString(rawItem, "company_name"),
-    readString(rawItem, "issuer"),
-    readString(rawPayload, "company"),
-    readString(rawPayload, "company_name"),
-    readString(rawPayload, "issuer"),
-    readString(articlePayload, "company"),
-    readString(articlePayload, "company_name"),
-    readString(articlePayload, "issuer"),
+  const company = cleanCompanyName(
+    firstString(
+      readString(tickerCatalog, "name"),
+      readString(event, "company"),
+      readString(event, "company_name"),
+      readString(event, "issuer"),
+      readString(metadata, "company"),
+      readString(metadata, "company_name"),
+      readString(metadata, "issuer"),
+      readString(tickerMetadata, "company_name"),
+      readString(tickerMetadata, "company"),
+      readString(tickerMetadata, "name"),
+      readString(tickerMetadata, "issuer"),
+      readString(rawItem, "company"),
+      readString(rawItem, "company_name"),
+      readString(rawItem, "issuer"),
+      readString(rawPayload, "company"),
+      readString(rawPayload, "company_name"),
+      readString(rawPayload, "issuer"),
+      readString(articlePayload, "company"),
+      readString(articlePayload, "company_name"),
+      readString(articlePayload, "issuer"),
+    ),
+    source,
   );
   const exchange = firstString(
+    readString(tickerCatalog, "exchange"),
     readString(event, "exchange"),
     readString(metadata, "exchange"),
     readString(tickerMetadata, "exchange"),
@@ -403,6 +426,14 @@ function readSignal(row: DbRow): DetailTone | null { const value = readString(ro
 function isPriceRange(value: string): value is keyof PriceChartSeries["periods"] { return value === "1D" || value === "5D" || value === "1M" || value === "3M" || value === "1Y"; }
 function normalizeTicker(value: string) { const ticker = value.trim().toUpperCase(); return /^[A-Z][A-Z0-9.-]{0,9}$/.test(ticker) ? ticker : ""; }
 function normalizeLabel(value: string) { return value.toLowerCase().replace(/[^a-z0-9]+/g, ""); }
+function cleanCompanyName(value: string, source: string) {
+  if (!value || normalizeLabel(value) === normalizeLabel(source)) return "";
+  return value
+    .replace(/^Control of\s+/i, "")
+    .replace(/\s+(?:Class\s+[A-Z]\s+)?(?:Common Stock|Common Shares|Ordinary Shares|American Depositary Shares)$/i, "")
+    .replace(/\s+(?:Rights?|Units?|Warrants?)$/i, "")
+    .trim();
+}
 function formatStoredSourceCode(value: string) {
   const normalized = value.trim().toLowerCase();
   if (!normalized) return "";

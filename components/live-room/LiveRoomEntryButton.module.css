@@ -39,9 +39,17 @@
   flex: 0 0 auto;
 }
 
+.mobileLabel {
+  display: none;
+}
+
 @media (max-width: 760px) {
-  .desktopPrefix {
+  .desktopLabel {
     display: none;
+  }
+
+  .mobileLabel {
+    display: inline;
   }
 }
 

@@ -5,23 +5,58 @@ import { Bookmark } from "lucide-react";
 import styles from "./FilingBookmarkButton.module.css";
 
 export const filingBookmarkStorageKey = "sr-filing-bookmarks";
+export const newsBookmarkStorageKey = "sr-news-bookmarks";
 
 type FilingBookmarkButtonProps = {
   filingId: string;
 };
 
 export function FilingBookmarkButton({ filingId }: FilingBookmarkButtonProps) {
+  return (
+    <AnalysisBookmarkButton
+      itemId={filingId}
+      itemLabel="filing"
+      storageKey={filingBookmarkStorageKey}
+    />
+  );
+}
+
+type NewsBookmarkButtonProps = {
+  newsId: string;
+};
+
+export function NewsBookmarkButton({ newsId }: NewsBookmarkButtonProps) {
+  return (
+    <AnalysisBookmarkButton
+      itemId={newsId}
+      itemLabel="news"
+      storageKey={newsBookmarkStorageKey}
+    />
+  );
+}
+
+type AnalysisBookmarkButtonProps = {
+  itemId: string;
+  itemLabel: "filing" | "news";
+  storageKey: string;
+};
+
+function AnalysisBookmarkButton({
+  itemId,
+  itemLabel,
+  storageKey,
+}: AnalysisBookmarkButtonProps) {
   const [isBookmarked, setIsBookmarked] = useState(false);
 
   const syncBookmarkState = useCallback(() => {
-    setIsBookmarked(readBookmarkIds().includes(filingId));
-  }, [filingId]);
+    setIsBookmarked(readBookmarkIds(storageKey).includes(itemId));
+  }, [itemId, storageKey]);
 
   useEffect(() => {
     syncBookmarkState();
 
     const handleStorage = (event: StorageEvent) => {
-      if (event.key === filingBookmarkStorageKey) {
+      if (event.key === storageKey) {
         syncBookmarkState();
       }
     };
@@ -33,20 +68,22 @@ export function FilingBookmarkButton({ filingId }: FilingBookmarkButtonProps) {
   const toggleBookmark = () => {
     setIsBookmarked((current) => {
       const next = !current;
-      const bookmarkIds = new Set(readBookmarkIds());
+      const bookmarkIds = new Set(readBookmarkIds(storageKey));
 
       if (next) {
-        bookmarkIds.add(filingId);
+        bookmarkIds.add(itemId);
       } else {
-        bookmarkIds.delete(filingId);
+        bookmarkIds.delete(itemId);
       }
 
-      writeBookmarkIds([...bookmarkIds]);
+      writeBookmarkIds(storageKey, [...bookmarkIds]);
       return next;
     });
   };
 
-  const actionLabel = isBookmarked ? "Remove filing bookmark" : "Bookmark filing";
+  const actionLabel = isBookmarked
+    ? `Remove ${itemLabel} bookmark`
+    : `Bookmark ${itemLabel}`;
 
   return (
     <button
@@ -62,9 +99,9 @@ export function FilingBookmarkButton({ filingId }: FilingBookmarkButtonProps) {
   );
 }
 
-function readBookmarkIds() {
+function readBookmarkIds(storageKey: string) {
   try {
-    const value = window.localStorage.getItem(filingBookmarkStorageKey);
+    const value = window.localStorage.getItem(storageKey);
     const parsed: unknown = value ? JSON.parse(value) : [];
 
     return Array.isArray(parsed)
@@ -75,9 +112,9 @@ function readBookmarkIds() {
   }
 }
 
-function writeBookmarkIds(bookmarkIds: string[]) {
+function writeBookmarkIds(storageKey: string, bookmarkIds: string[]) {
   try {
-    window.localStorage.setItem(filingBookmarkStorageKey, JSON.stringify(bookmarkIds));
+    window.localStorage.setItem(storageKey, JSON.stringify(bookmarkIds));
   } catch {
     // Keep the in-session pressed state when storage is unavailable.
   }

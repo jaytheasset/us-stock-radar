@@ -1,5 +1,6 @@
 import { PriceChartCard } from "@/app/events/[id]/PriceChartCard";
 import { SectorThemeContextPanel } from "@/app/events/[id]/SectorThemeContextPanel";
+import { NewsBookmarkButton } from "@/components/filing-analysis-v2/FilingBookmarkButton";
 import { GenericFilingAnalysis } from "@/components/filing-analysis-v2/GenericFilingAnalysis";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import type { BadgeTone } from "@/components/ui/Badge";
@@ -31,7 +32,7 @@ export function NewsAnalysisAdapter({
     <StockRadarAppShell activeNavigationItem="news" themeMode="user-selectable">
       <GenericFilingAnalysis
         allowAds={allowAds}
-        bookmarkRenderer={false}
+        bookmarkRenderer={<NewsBookmarkButton newsId={newsId} />}
         eventLabel={badge?.label || ""}
         eventTone={badge ? toBadgeTone(badge.tone) : "neutral"}
         filing={analysisFiling}

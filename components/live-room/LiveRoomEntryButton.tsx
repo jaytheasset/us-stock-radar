@@ -41,16 +41,16 @@ export function LiveRoomEntryButton({
       type="button"
     >
       <MessageCircle aria-hidden="true" size={15} />
-      <span>
+      <span className={styles.desktopLabel}>
         {label === "Discuss in Live Room" ? (
           <>
-            <span className={styles.desktopPrefix}>Discuss in </span>
-            Live Room
+            Discuss in Live Room
           </>
         ) : (
           label
         )}
       </span>
+      <span className={styles.mobileLabel}>Live</span>
     </button>
   );
 }

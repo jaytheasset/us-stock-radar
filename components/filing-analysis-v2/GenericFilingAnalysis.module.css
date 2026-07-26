@@ -21,6 +21,7 @@
 }
 
 .hero {
+  position: relative;
   display: grid;
   min-width: 0;
   grid-template-columns: minmax(0, 1fr);
@@ -33,16 +34,33 @@
   box-shadow: var(--sr-shadow-panel);
 }
 
-.heroTimestamp {
+.heroMetaRow {
   display: flex;
   min-width: 0;
   grid-column: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sr-space-2);
+  padding-right: calc(var(--sr-size-control) + var(--sr-space-2));
+}
+
+.heroTimestamp {
+  display: flex;
+  min-width: 0;
   align-self: center;
   align-items: center;
   justify-content: flex-start;
   gap: var(--sr-space-2);
   color: var(--sr-color-text-meta);
   font-size: var(--sr-font-size-xs);
+}
+
+.bookmarkAction {
+  position: absolute;
+  top: var(--sr-space-4);
+  right: var(--sr-space-5);
+  display: flex;
+  flex: none;
 }
 
 .heroActions {
@@ -64,6 +82,7 @@
 .heroTimestamp time {
   font-family: var(--sr-font-family-mono);
   font-variant-numeric: var(--sr-font-variant-numeric);
+  white-space: nowrap;
 }
 
 .heroIdentity {
@@ -85,28 +104,53 @@
 }
 
 .heroTitleGroup,
+.classificationActionRow,
 .companyActionRow,
 .companyLine {
   min-width: 0;
 }
 
+.heroTitleGroup {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
+  column-gap: var(--sr-space-3);
+}
+
 .companyActionRow {
+  grid-column: 1;
+  grid-row: 1;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--sr-space-3);
+}
+
+.classificationActionRow {
+  display: contents;
+}
+
+.heroActions {
+  grid-column: 2;
+  grid-row: 1;
 }
 
 .companyLine {
   display: flex;
   flex: 1 1 auto;
-  align-items: center;
-  gap: var(--sr-space-2);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sr-space-1);
   color: var(--sr-color-text-detail-secondary);
   font-size: var(--sr-font-size-sm);
 }
 
-.companyLine strong {
+.tickerLine {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--sr-space-2);
+}
+
+.tickerLine strong {
   color: var(--sr-color-text-ticker);
   font-family: var(--sr-font-family-mono);
   font-size: var(--sr-font-size-xl);
@@ -114,18 +158,27 @@
   line-height: var(--sr-line-height-none);
 }
 
-.companyLine span {
+.tickerLine span,
+.companyName,
+.exchangeOnly {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.companyLine span + span {
-  flex: none;
+.tickerLine span,
+.exchangeOnly {
   color: var(--sr-color-text-meta);
 }
 
+.companyName {
+  display: block;
+  max-width: 100%;
+}
+
 .hero h1 {
+  grid-column: 1 / -1;
+  grid-row: 2;
   max-width: 980px;
   margin: var(--sr-space-3) 0 0;
   overflow-wrap: anywhere;
@@ -136,6 +189,8 @@
 }
 
 .classification {
+  grid-column: 1 / -1;
+  grid-row: 3;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -207,6 +262,10 @@
 
 .impactScore strong[data-score-tone="neutral"] {
   color: var(--sr-color-event-neutral);
+}
+
+.signalScore {
+  text-transform: capitalize;
 }
 
 .layout {
@@ -911,8 +970,11 @@
   }
 
   .heroTimestamp {
-    grid-column: 1;
-    grid-row: 1;
+    overflow: hidden;
+  }
+
+  .bookmarkAction {
+    right: var(--sr-space-4);
   }
 
   .heroIdentity {
@@ -932,12 +994,25 @@
     display: contents;
   }
 
-  .heroIdentity:not(.heroIdentityWithoutTicker) .companyActionRow {
+  .companyActionRow {
+    display: contents;
+  }
+
+  .classificationActionRow {
+    display: flex;
+    min-width: 0;
+    grid-column: 1 / -1;
+    grid-row: 3;
+    align-items: center;
+    gap: var(--sr-space-2);
+  }
+
+  .heroIdentity:not(.heroIdentityWithoutTicker) .companyLine {
     grid-column: 2;
     grid-row: 1;
   }
 
-  .heroIdentityWithoutTicker .companyActionRow {
+  .heroIdentityWithoutTicker .companyLine {
     grid-column: 1;
     grid-row: 1;
   }
@@ -958,10 +1033,16 @@
   }
 
   .classification {
-    grid-column: 1 / -1;
-    grid-row: 3;
+    min-width: 0;
+    flex: 1 1 auto;
     justify-content: flex-start;
     margin-top: 0;
+  }
+
+  .heroActions {
+    flex: none;
+    margin-left: auto;
+    justify-content: flex-end;
   }
 
   .layout,

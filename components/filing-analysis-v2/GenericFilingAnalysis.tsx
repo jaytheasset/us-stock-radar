@@ -200,10 +200,17 @@ export function GenericFilingAnalysis({
         >
           <article className={styles.mainColumn}>
             <header className={styles.hero}>
-              {cleanText(filing.filedAt) ? (
-                <div className={styles.heroTimestamp}>
-                  <span>{timestampLabel}</span>
-                  <time>{filing.filedAt}</time>
+              {cleanText(filing.filedAt) || bookmark ? (
+                <div className={styles.heroMetaRow}>
+                  {cleanText(filing.filedAt) ? (
+                    <div className={styles.heroTimestamp}>
+                      <span>{timestampLabel}</span>
+                      <time>{filing.filedAt}</time>
+                    </div>
+                  ) : null}
+                  {bookmark ? (
+                    <div className={styles.bookmarkAction}>{bookmark}</div>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -217,11 +224,60 @@ export function GenericFilingAnalysis({
                   <div className={styles.companyActionRow}>
                     {hasCompanyLine ? (
                       <div className={styles.companyLine}>
-                        {hasTicker ? <strong>{filing.ticker}</strong> : null}
-                        {company ? <span>{company}</span> : null}
-                        {exchange ? <span>{exchange}</span> : null}
+                        {hasTicker ? (
+                          <div className={styles.tickerLine}>
+                            <strong>{filing.ticker}</strong>
+                            {exchange ? <span>{exchange}</span> : null}
+                          </div>
+                        ) : null}
+                        {company ? <span className={styles.companyName}>{company}</span> : null}
+                        {!hasTicker && exchange ? (
+                          <span className={styles.exchangeOnly}>{exchange}</span>
+                        ) : null}
                       </div>
                     ) : null}
+                  </div>
+                  <h1>{filing.title}</h1>
+                  <div className={styles.classificationActionRow}>
+                    <div className={styles.classification}>
+                      {cleanText(filing.formType) ? (
+                        <span className={styles.formLabel}>{filing.formType}</span>
+                      ) : null}
+                      {cleanText(eventLabel) ? (
+                        <Badge size="small" tone={eventTone}>
+                          {eventLabel}
+                        </Badge>
+                      ) : null}
+                      {filing.signal && score !== null ? (
+                        <span
+                          aria-label={`${filing.signal} impact score ${score}`}
+                          className={`${styles.impactScore} ${styles.signalScore} ${
+                            styles[filing.signal]
+                          }`}
+                        >
+                          <span>{filing.signal}</span>
+                          <strong data-score-tone={getDirectionalScoreTone(score, filing.signal)}>
+                            {score}
+                          </strong>
+                        </span>
+                      ) : filing.signal ? (
+                        <span className={`${styles.signal} ${styles[filing.signal]}`}>
+                          {filing.signal}
+                        </span>
+                      ) : score !== null ? (
+                        <span
+                          aria-label={`Impact score ${score}`}
+                          className={`${styles.impactScore}${
+                            filing.impact ? ` ${styles[filing.impact]}` : ""
+                          }`}
+                        >
+                          <span>Impact</span>
+                          <strong data-score-tone={getDirectionalScoreTone(score, filing.signal)}>
+                            {score}
+                          </strong>
+                        </span>
+                      ) : null}
+                    </div>
                     <div className={styles.heroActions}>
                       <LiveRoomEntryButton
                         event={liveRoomEvent}
@@ -229,37 +285,7 @@ export function GenericFilingAnalysis({
                         label="Discuss in Live Room"
                         ticker={filing.ticker}
                       />
-                      {bookmark}
                     </div>
-                  </div>
-                  <h1>{filing.title}</h1>
-                  <div className={styles.classification}>
-                    {cleanText(filing.formType) ? (
-                      <span className={styles.formLabel}>{filing.formType}</span>
-                    ) : null}
-                    {cleanText(eventLabel) ? (
-                      <Badge size="small" tone={eventTone}>
-                        {eventLabel}
-                      </Badge>
-                    ) : null}
-                    {filing.signal ? (
-                      <span className={`${styles.signal} ${styles[filing.signal]}`}>
-                        {filing.signal}
-                      </span>
-                    ) : null}
-                    {score !== null ? (
-                      <span
-                        aria-label={`Impact score ${score}`}
-                        className={`${styles.impactScore}${
-                          filing.impact ? ` ${styles[filing.impact]}` : ""
-                        }`}
-                      >
-                        <span>Impact</span>
-                        <strong data-score-tone={getDirectionalScoreTone(score, filing.signal)}>
-                          {score}
-                        </strong>
-                      </span>
-                    ) : null}
                   </div>
                 </div>
               </div>
