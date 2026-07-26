@@ -8,7 +8,10 @@ import {
   formatNewsV2PublishedAt,
   type NewsV2Item,
 } from "@/lib/newsV2";
-import { getNewsV2ScopeBadgeLabel } from "@/lib/newsV2ScopeBadge";
+import {
+  getNewsV2MobileIdentityLabel,
+  getNewsV2ScopeBadgeLabel,
+} from "@/lib/newsV2ScopeBadge";
 import styles from "./StockRadarNewsV2.module.css";
 
 export type NewsV2RowProps = {
@@ -29,6 +32,7 @@ export function NewsV2Row({
   const sentimentClass = styles[`sentiment${item.sentiment}`];
   const tickerUnavailable = isCompanyNews && !item.relatedTickers[0];
   const primaryTicker = isCompanyNews ? item.relatedTickers[0] ?? "N/A" : "MARKET";
+  const mobileIdentityLabel = getNewsV2MobileIdentityLabel(item);
   const identityMeta = item.relatedTickers.length > 1
     ? `${item.relatedTickers.length} related tickers`
     : item.marketCapBand
@@ -61,9 +65,13 @@ export function NewsV2Row({
           </span>
 
           <span className={styles.rowIdentity}>
-            <strong title={tickerUnavailable ? "Ticker unavailable" : undefined}>
+            <strong
+              className={styles.rowIdentityDesktop}
+              title={tickerUnavailable ? "Ticker unavailable" : undefined}
+            >
               {primaryTicker}
             </strong>
+            <strong className={styles.rowIdentityMobile}>{mobileIdentityLabel}</strong>
             <span>{identityMeta}</span>
           </span>
 

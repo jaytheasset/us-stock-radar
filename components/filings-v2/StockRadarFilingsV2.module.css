@@ -760,6 +760,12 @@
   white-space: nowrap;
 }
 
+.mobileIdentityTicker,
+.mobileFilingClassification,
+.mobileFilingFooter {
+  display: none;
+}
+
 .noTickerMark {
   display: inline-grid;
   width: var(--sr-space-8);
@@ -1828,13 +1834,12 @@
   }
 
   .filingItem {
-    min-height: calc(var(--sr-size-table-row) + var(--sr-space-8));
+    min-height: 96px;
     grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-rows: auto auto;
+    grid-template-rows: auto auto auto;
     align-items: start;
-    column-gap: var(--sr-space-1-5);
-    row-gap: var(--sr-space-2);
-    padding: var(--sr-space-3) var(--sr-space-2-5);
+    gap: var(--sr-space-1-5);
+    padding: var(--sr-space-3);
   }
 
   .filingItemTime {
@@ -1855,19 +1860,36 @@
     grid-row: 1;
     align-self: center;
     font-size: var(--sr-font-size-base);
+    font-weight: var(--sr-font-weight-heavy);
+  }
+
+  .desktopIdentityTicker {
+    display: none;
+  }
+
+  .mobileIdentityTicker {
+    display: inline;
   }
 
   .filingMeta {
-    grid-column: 2;
-    grid-row: 1;
-    align-self: center;
-    gap: var(--sr-space-1-5);
-    margin: 0;
-    overflow: hidden;
+    display: contents;
   }
 
+  .filingMeta > .formLabel,
   .desktopFilingEvents {
     display: none;
+  }
+
+  .mobileFilingClassification {
+    display: inline-flex;
+    min-width: 0;
+    grid-column: 2;
+    grid-row: 1;
+    align-items: center;
+    align-self: center;
+    gap: var(--sr-space-1-5);
+    overflow: hidden;
+    font-size: var(--sr-font-size-xs);
   }
 
   .mobileFilingEvents {
@@ -1875,8 +1897,30 @@
     min-width: 0;
   }
 
+  .mobileFilingClassification .formLabel,
+  .mobileFilingClassification .filingEventMeta,
+  .mobileFilingClassification .eventOverflow {
+    font-size: var(--sr-font-size-xs);
+  }
+
   .filingSource {
     display: none;
+  }
+
+  .filingItem[data-ticker-available="false"] .mobileFilingClassification > .formLabel {
+    display: none;
+  }
+
+  .mobileFilingFooter {
+    display: flex;
+    min-width: 0;
+    grid-column: 1 / 3;
+    grid-row: 3;
+    align-items: center;
+    align-self: center;
+    overflow: hidden;
+    color: var(--sr-color-text-meta);
+    font-size: var(--sr-font-size-xs);
   }
 
   .mobileFiledAt {
@@ -1884,7 +1928,7 @@
     align-items: center;
     gap: var(--sr-space-1);
     font-family: var(--sr-font-family-mono);
-    font-size: var(--sr-font-size-sm);
+    font-size: var(--sr-font-size-xs);
     font-variant-numeric: var(--sr-font-variant-numeric);
     line-height: var(--sr-line-height-none);
     white-space: nowrap;
@@ -1895,18 +1939,39 @@
     font-weight: var(--sr-font-weight-regular);
   }
 
+  .mobileFiledDate::after {
+    margin-left: var(--sr-space-1);
+    color: var(--sr-color-text-muted);
+    content: "·";
+  }
+
   .mobileFiledTime {
     color: var(--sr-color-text-primary);
-    font-weight: var(--sr-font-weight-semibold);
+    font-weight: var(--sr-font-weight-regular);
+  }
+
+  .mobileFilingSource {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobileFilingSource::before {
+    margin: 0 var(--sr-space-1);
+    color: var(--sr-color-text-muted);
+    content: "·";
   }
 
   .filingTitle {
-    grid-column: 1 / 3;
+    grid-column: 1 / -1;
     grid-row: 2;
     display: -webkit-box;
     overflow: hidden;
-    color: var(--sr-color-text-secondary);
-    line-height: var(--sr-line-height-control);
+    color: var(--sr-color-text-heading);
+    font-size: var(--sr-font-size-base);
+    font-weight: 600;
+    line-height: 1.35;
     white-space: normal;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -1917,9 +1982,11 @@
   }
 
   .filingPrice {
+    display: flex;
     grid-column: 3;
-    grid-row: 2;
-    align-self: start;
+    grid-row: 3;
+    align-items: baseline;
+    align-self: center;
     justify-items: end;
     gap: var(--sr-space-1);
     text-align: right;
@@ -1927,10 +1994,15 @@
 
   .filingPrice strong {
     font-size: var(--sr-font-size-md);
+    font-weight: 600;
   }
 
   .filingPrice span {
     font-size: var(--sr-font-size-xs);
+  }
+
+  .filingPriceUnavailable {
+    display: none;
   }
 
   .filingSparkline {
@@ -1949,13 +2021,15 @@
   }
 
   .filingImpact .signal {
-    font-size: var(--sr-font-size-sm);
+    font-size: var(--sr-font-size-xs);
+    font-weight: var(--sr-font-weight-regular);
   }
 
   .filingImpact .impactScore {
     min-width: auto;
     height: auto;
-    font-size: var(--sr-font-size-base);
+    font-size: var(--sr-font-size-md);
+    font-weight: 600;
   }
 
   .detailContent {

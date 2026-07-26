@@ -46,7 +46,10 @@ function FilingIdentity({ record }: { record: FilingsV2Record }) {
   return (
     <span className={styles.identity}>
       <strong title={record.ticker ? undefined : "Ticker unavailable"}>
-        {record.ticker ?? "N/A"}
+        <span className={styles.desktopIdentityTicker}>{record.ticker ?? "N/A"}</span>
+        <span className={styles.mobileIdentityTicker}>
+          {record.ticker ?? record.formType}
+        </span>
       </strong>
       <span title={record.company}>{record.company}</span>
     </span>
@@ -161,6 +164,7 @@ export function FilingsV2List({
                     aria-label={`${record.formType} filing for ${record.ticker ?? record.company}`}
                     aria-pressed={selected}
                     className={`${styles.filingItem}${selected ? ` ${styles.selectedFilingItem}` : ""}`}
+                    data-ticker-available={record.ticker ? "true" : "false"}
                     onClick={(event) => onSelect(record, event.currentTarget)}
                     type="button"
                   >
@@ -173,11 +177,19 @@ export function FilingsV2List({
                       <span className={styles.filingMeta}>
                         <span className={styles.formLabel}>{record.formType}</span>
                         <span className={styles.desktopFilingEvents}><FilingEvents record={record} /></span>
-                        <span className={styles.mobileFilingEvents}><FilingEvents mobile record={record} /></span>
-                        <time className={styles.mobileFiledAt} dateTime={record.filedAt}>
-                          <span className={styles.mobileFiledDate}>{filingDateLabel}</span>
-                          <span className={styles.mobileFiledTime}>{record.filedTime}</span>
-                        </time>
+                        <span className={styles.mobileFilingClassification}>
+                          <span className={styles.formLabel}>{record.formType}</span>
+                          <span className={styles.mobileFilingEvents}>
+                            <FilingEvents mobile record={record} />
+                          </span>
+                        </span>
+                        <span className={styles.mobileFilingFooter}>
+                          <time className={styles.mobileFiledAt} dateTime={record.filedAt}>
+                            <span className={styles.mobileFiledDate}>{filingDateLabel}</span>
+                            <span className={styles.mobileFiledTime}>{record.filedTime}</span>
+                          </time>
+                          <span className={styles.mobileFilingSource}>{record.source}</span>
+                        </span>
                         <span className={styles.filingSource}>{record.source}</span>
                       </span>
                       <span className={styles.filingTitle} title={record.title}>{record.title}</span>

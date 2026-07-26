@@ -7,7 +7,10 @@ import { hydrateNewsV2ItemMarketData } from "./newsV2MarketHydration.ts";
 import { buildGooglePreferredSourceUrl } from "./googlePreferredSource.ts";
 import { selectPriceChartXAxisIndexes } from "./priceChartAxis.ts";
 import type { NewsV2FilterState, NewsV2Item } from "./newsV2.ts";
-import { getNewsV2ScopeBadgeLabel } from "./newsV2ScopeBadge.ts";
+import {
+  getNewsV2MobileIdentityLabel,
+  getNewsV2ScopeBadgeLabel,
+} from "./newsV2ScopeBadge.ts";
 
 const emptyFilters: NewsV2FilterState = {
   sentiments: [],
@@ -123,6 +126,34 @@ test("news scope badges hide company scope and use source-backed market taxonomy
   assert.equal(
     getNewsV2ScopeBadgeLabel({
       category: "Theme",
+      theme: "AI Infrastructure",
+      subThemeSlug: "ai_infrastructure",
+    }),
+    "AI & Data Center",
+  );
+  assert.equal(getNewsV2MobileIdentityLabel(baseItem), "TEST");
+  assert.equal(
+    getNewsV2MobileIdentityLabel({
+      ...baseItem,
+      category: "Macro",
+      relatedTickers: [],
+    }),
+    "MACRO",
+  );
+  assert.equal(
+    getNewsV2MobileIdentityLabel({
+      ...baseItem,
+      category: "Sector",
+      relatedTickers: [],
+      sector: "Technology",
+    }),
+    "SECTOR",
+  );
+  assert.equal(
+    getNewsV2MobileIdentityLabel({
+      ...baseItem,
+      category: "Theme",
+      relatedTickers: [],
       theme: "AI Infrastructure",
       subThemeSlug: "ai_infrastructure",
     }),
@@ -285,11 +316,11 @@ test("mobile news metadata uses a dedicated readable row", () => {
   assert.match(styles, /\.newsRow \{[\s\S]*grid-template-rows: auto auto auto;/);
   assert.match(
     styles,
-    /\.rowSource \{[\s\S]*grid-column: 2 \/ 4;[\s\S]*grid-row: 2;/,
+    /\.rowSource \{[\s\S]*grid-column: 2 \/ 3;[\s\S]*grid-row: 3;/,
   );
   assert.match(
     styles,
-    /\.rowMobilePublishedAt \{[\s\S]*grid-column: 1;[\s\S]*grid-row: 2;/,
+    /\.rowMobilePublishedAt \{[\s\S]*grid-column: 1;[\s\S]*grid-row: 3;/,
   );
 });
 
@@ -345,6 +376,10 @@ test("news mid-width layout keeps compact filters, feed, then a stable rail grid
 });
 
 test("news feed rows use watchlist density, plain metadata, and a compact rail", () => {
+  const rowSource = readFileSync(
+    new URL("../components/news-v2/NewsV2Row.tsx", import.meta.url),
+    "utf8",
+  );
   const styles = readFileSync(
     new URL(
       "../components/news-v2/StockRadarNewsV2.module.css",
@@ -400,6 +435,20 @@ test("news feed rows use watchlist density, plain metadata, and a compact rail",
   assert.match(
     styles,
     /@media \(max-width: 1440px\) and \(min-width: 761px\) \{[\s\S]*?\.rowSparklineCell \{[\s\S]*?display: none;/,
+  );
+  assert.match(rowSource, /getNewsV2MobileIdentityLabel\(item\)/);
+  assert.match(rowSource, /className=\{styles\.rowIdentityMobile\}/);
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.newsRow \{[\s\S]*?min-height: 96px;[\s\S]*?grid-template-rows: auto auto auto;[\s\S]*?gap: var\(--sr-space-1-5\);[\s\S]*?padding: var\(--sr-space-3\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.rowHeadline \{[\s\S]*?grid-column: 1 \/ -1;[\s\S]*?grid-row: 2;[\s\S]*?font-size: var\(--sr-font-size-base\);[\s\S]*?font-weight: 600;[\s\S]*?line-height: 1\.35;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.rowQuoteUnavailable \{[\s\S]*?display: none;/,
   );
 });
 

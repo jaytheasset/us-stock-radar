@@ -29,6 +29,10 @@ test("filing feed rows use watchlist density and plain representative event meta
 
   assert.match(listSource, /const visibleEvents = record\.events\.slice\(0, 1\);/);
   assert.match(listSource, /className=\{styles\.filingEventMeta\}/);
+  assert.match(listSource, /data-ticker-available=\{record\.ticker \? "true" : "false"\}/);
+  assert.match(listSource, /className=\{styles\.mobileIdentityTicker\}/);
+  assert.match(listSource, /className=\{styles\.mobileFilingClassification\}/);
+  assert.match(listSource, /className=\{styles\.mobileFilingFooter\}/);
   assert.match(
     styles,
     /\.root \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) 320px;/,
@@ -80,5 +84,17 @@ test("filing feed rows use watchlist density and plain representative event meta
   assert.match(
     styles,
     /@media \(max-width: 1440px\) and \(min-width: 761px\) \{[\s\S]*?\.filingSparkline \{[\s\S]*?display: none;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.filingItem \{[\s\S]*?min-height: 96px;[\s\S]*?grid-template-rows: auto auto auto;[\s\S]*?gap: var\(--sr-space-1-5\);[\s\S]*?padding: var\(--sr-space-3\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.filingTitle \{[\s\S]*?grid-column: 1 \/ -1;[\s\S]*?grid-row: 2;[\s\S]*?font-size: var\(--sr-font-size-base\);[\s\S]*?font-weight: 600;[\s\S]*?line-height: 1\.35;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.filingPriceUnavailable \{[\s\S]*?display: none;/,
   );
 });

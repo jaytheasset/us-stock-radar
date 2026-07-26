@@ -7,6 +7,7 @@ import {
   decodeLiveFeedV2Cursor,
   encodeLiveFeedV2Cursor,
   formatLiveFeedV2Timestamp,
+  getLiveFeedV2MobileIdentityLabel,
   liveFeedV2BatchSize,
   normalizeLiveFeedV2Filter,
   resolveLiveFeedV2MarketData,
@@ -622,7 +623,59 @@ test("feed v2 surfaces follow the News and Filings product design tokens", () =>
   );
 });
 
+test("tickerless mobile market alerts use real scope identities", () => {
+  const marketPreviewSource: LiveFeedV2PreviewSource = {
+    category: "Market",
+    detailHref: "/events/market-1",
+    feedType: "market",
+    headline: "Market alert",
+    id: "market-1",
+    impactScore: 80,
+    marketScopeLabel: "Macro",
+    primaryTicker: null,
+    publishedAt: "2026-07-26T14:05:00.000Z",
+    sentiment: "Volatile",
+    source: "Market News",
+    themeLabel: "Monetary Policy",
+    ticker: "N/A",
+  };
+
+  assert.equal(
+    getLiveFeedV2MobileIdentityLabel({
+      category: "Macro Alert",
+      preview: createLiveFeedV2Preview(marketPreviewSource),
+      ticker: "N/A",
+    }),
+    "MACRO",
+  );
+  assert.equal(
+    getLiveFeedV2MobileIdentityLabel({
+      category: "Sector Alert",
+      preview: createLiveFeedV2Preview({
+        ...marketPreviewSource,
+        marketScopeLabel: "Sector",
+        themeLabel: "Technology",
+      }),
+      ticker: "N/A",
+    }),
+    "SECTOR",
+  );
+  assert.equal(
+    getLiveFeedV2MobileIdentityLabel({
+      category: "Theme Alert",
+      preview: createLiveFeedV2Preview({
+        ...marketPreviewSource,
+        marketScopeLabel: "Theme",
+        themeLabel: "AI Infrastructure",
+      }),
+      ticker: "N/A",
+    }),
+    "AI Infrastructure",
+  );
+});
+
 test("desktop feed rows follow the Watchlist typography and selection hierarchy", () => {
+  const listSource = readSource("components/feed-v2/FeedEventList.tsx");
   const styleSource = readSource(
     "components/feed-v2/StockRadarFeedV2.module.css",
   );
@@ -662,6 +715,21 @@ test("desktop feed rows follow the Watchlist typography and selection hierarchy"
   assert.match(
     styleSource,
     /@media \(min-width: 761px\)[\s\S]*\.impactScore span\s*\{[\s\S]*font-size: var\(--sr-font-size-xs\);[\s\S]*font-weight: var\(--sr-font-weight-regular\);[\s\S]*\.impactScore strong\s*\{[\s\S]*font-family: var\(--sr-font-family-mono\);[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*font-weight: 600;/,
+  );
+  assert.match(listSource, /getLiveFeedV2MobileIdentityLabel\(item\)/);
+  assert.match(listSource, /className=\{styles\.identityMobile\}/);
+  assert.match(listSource, /\{item\.timeDateLabel\} · \{item\.timeLabel\} ET/);
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.feedItem \{[\s\S]*min-height: 96px;[\s\S]*grid-template-rows: auto auto auto;[\s\S]*gap: var\(--sr-space-1-5\);[\s\S]*padding: var\(--sr-space-3\);/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.eventCopy h2 \{[\s\S]*grid-column: 1 \/ -1;[\s\S]*grid-row: 2;[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: 600;[\s\S]*line-height: 1\.35;/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.quoteUnavailable,[\s\S]*\.quote \.quotePriceUnavailable,[\s\S]*\.quote > \.sentimentNeutral \{[\s\S]*display: none;/,
   );
 });
 
