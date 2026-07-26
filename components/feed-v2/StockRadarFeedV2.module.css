@@ -320,14 +320,14 @@
 
 .eventBadge {
   display: inline-flex;
-  min-height: var(--sr-size-badge);
+  min-height: 0;
   align-items: center;
-  justify-content: center;
-  border: var(--sr-border-width) solid var(--sr-color-border-control);
-  border-radius: var(--sr-radius-sm);
-  padding: 0 var(--sr-space-1-5);
+  justify-content: flex-start;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
   color: var(--sr-color-text-control-strong);
-  background: var(--sr-color-surface-control-strong);
+  background: transparent;
   font-size: var(--sr-font-size-xs);
   font-weight: var(--sr-font-weight-label);
   line-height: var(--sr-line-height-none);
@@ -1245,11 +1245,6 @@
   }
 
   .eventBadge {
-    min-height: 0;
-    border: 0;
-    border-radius: 0;
-    padding: 0;
-    background: transparent;
     font-size: var(--sr-font-size-xs);
     font-weight: 600;
     line-height: var(--sr-line-height-default);
