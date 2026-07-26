@@ -95,6 +95,20 @@ const sectionItems = [
   { id: "watchlist-dilution", label: "Dilution" },
 ] as const;
 
+type StockSectionId = (typeof sectionItems)[number]["id"];
+
+function getStockSectionIdFromHash(hash: string): StockSectionId | null {
+  let candidate = hash.replace(/^#/, "");
+
+  try {
+    candidate = decodeURIComponent(candidate);
+  } catch {
+    return null;
+  }
+
+  return sectionItems.find((item) => item.id === candidate)?.id ?? null;
+}
+
 export function StockRadarWatchlistV2({
   initialSelectedTicker,
   initialWatchlist,
@@ -124,10 +138,13 @@ export function StockRadarWatchlistV2({
   const [mutationTicker, setMutationTicker] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("");
   const [statusTone, setStatusTone] = useState<"neutral" | "error">("neutral");
+  const [activeSectionId, setActiveSectionId] =
+    useState<StockSectionId>("watchlist-events");
   const tickerSheetOpenerRef = useRef<HTMLButtonElement>(null);
   const previewOpenerRef = useRef<HTMLElement>(null);
   const sortTriggerRef = useRef<HTMLButtonElement>(null);
   const sortMenuRef = useRef<HTMLDivElement>(null);
+  const sectionNavigationRef = useRef<HTMLElement>(null);
 
   const requestedTicker =
     selectionMode === "watchlist"
@@ -314,6 +331,110 @@ export function StockRadarWatchlistV2({
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [isSortOpen]);
+
+  useEffect(() => {
+    const navigation = sectionNavigationRef.current;
+    if (!selectedTicker || !navigation) return;
+
+    const sections = sectionItems
+      .map((item) => {
+        const element = document.getElementById(item.id);
+        return element ? { element, id: item.id } : null;
+      })
+      .filter(
+        (
+          section,
+        ): section is { element: HTMLElement; id: StockSectionId } =>
+          section !== null,
+      );
+
+    if (sections.length === 0) return;
+
+    let animationFrameId: number | null = null;
+
+    const updateActiveSection = () => {
+      animationFrameId = null;
+      const scrollMarginTop =
+        Number.parseFloat(
+          window.getComputedStyle(sections[0].element).scrollMarginTop,
+        ) || 0;
+      const activationLine = scrollMarginTop + 1;
+      let nextSectionId = sections[0].id;
+
+      for (const section of sections) {
+        if (section.element.getBoundingClientRect().top <= activationLine) {
+          nextSectionId = section.id;
+        }
+      }
+
+      const atDocumentEnd =
+        Math.ceil(window.scrollY + window.innerHeight) >=
+        document.documentElement.scrollHeight - 2;
+      if (atDocumentEnd) {
+        nextSectionId = sections.at(-1)?.id ?? nextSectionId;
+      }
+
+      setActiveSectionId((current) =>
+        current === nextSectionId ? current : nextSectionId,
+      );
+    };
+
+    const scheduleActiveSectionUpdate = () => {
+      if (animationFrameId !== null) return;
+      animationFrameId = window.requestAnimationFrame(updateActiveSection);
+    };
+
+    const handleHashChange = () => {
+      const hashSectionId = getStockSectionIdFromHash(window.location.hash);
+      if (hashSectionId) {
+        setActiveSectionId(hashSectionId);
+        return;
+      }
+      scheduleActiveSectionUpdate();
+    };
+
+    const initialHashSectionId = getStockSectionIdFromHash(
+      window.location.hash,
+    );
+    if (initialHashSectionId) {
+      setActiveSectionId(initialHashSectionId);
+    } else {
+      scheduleActiveSectionUpdate();
+    }
+
+    window.addEventListener("scroll", scheduleActiveSectionUpdate, {
+      passive: true,
+    });
+    window.addEventListener("resize", scheduleActiveSectionUpdate);
+    window.addEventListener("hashchange", handleHashChange);
+
+    return () => {
+      window.removeEventListener("scroll", scheduleActiveSectionUpdate);
+      window.removeEventListener("resize", scheduleActiveSectionUpdate);
+      window.removeEventListener("hashchange", handleHashChange);
+      if (animationFrameId !== null) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [selectedTicker]);
+
+  useEffect(() => {
+    if (!window.matchMedia("(max-width: 1120px)").matches) return;
+
+    const navigation = sectionNavigationRef.current;
+    const activeLink = navigation?.querySelector<HTMLElement>(
+      `a[href="#${activeSectionId}"]`,
+    );
+    if (!navigation || !activeLink) return;
+
+    const linkStart = activeLink.offsetLeft;
+    const linkEnd = linkStart + activeLink.offsetWidth;
+    if (linkStart < navigation.scrollLeft) {
+      navigation.scrollTo({ left: linkStart });
+    } else if (linkEnd > navigation.scrollLeft + navigation.clientWidth) {
+      navigation.scrollTo({ left: linkEnd - navigation.clientWidth });
+    }
+  }, [activeSectionId]);
 
   function navigateToTicker(ticker: string, replace = false) {
     const href =
@@ -589,9 +710,17 @@ export function StockRadarWatchlistV2({
                 <nav
                   aria-label="Watchlist stock sections"
                   className={styles.sectionNavigation}
+                  ref={sectionNavigationRef}
                 >
                   {sectionItems.map((item, index) => (
-                    <a href={`#${item.id}`} key={item.id}>
+                    <a
+                      aria-current={
+                        activeSectionId === item.id ? "location" : undefined
+                      }
+                      href={`#${item.id}`}
+                      key={item.id}
+                      onClick={() => setActiveSectionId(item.id)}
+                    >
                       <span>{String(index + 1).padStart(2, "0")}</span>
                       {item.label}
                     </a>

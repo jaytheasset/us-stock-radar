@@ -559,6 +559,17 @@
   background: var(--sr-color-surface-control);
 }
 
+.sectionNavigation a[aria-current="location"] {
+  color: var(--sr-color-text-heading);
+  background: var(--sr-color-accent-selected);
+  box-shadow: inset 0 -2px 0 var(--sr-color-accent);
+}
+
+.sectionNavigation a:focus-visible {
+  outline: var(--sr-focus-ring-width) solid var(--sr-color-accent-focus-mobile);
+  outline-offset: var(--sr-focus-ring-offset);
+}
+
 .sectionNavigation a span {
   color: var(--sr-color-accent-text);
   font-family: var(--sr-font-family-mono);
@@ -1486,6 +1497,38 @@
 
   .desktopInlineAd {
     display: block;
+  }
+}
+
+@media (max-width: 1120px) {
+  .overviewContent {
+    --watchlist-section-navigation-height: 44px;
+  }
+
+  .sectionNavigation {
+    position: sticky;
+    z-index: var(--sr-z-sticky-action);
+    top: var(--sr-size-header);
+    width: 100%;
+    max-width: 100%;
+    height: var(--watchlist-section-navigation-height);
+    min-height: var(--watchlist-section-navigation-height);
+    overscroll-behavior-inline: contain;
+    background: var(--sr-color-surface-panel);
+    scrollbar-width: none;
+  }
+
+  .sectionNavigation::-webkit-scrollbar {
+    display: none;
+  }
+
+  .section {
+    scroll-margin-top:
+      calc(
+        var(--sr-size-header) +
+          var(--watchlist-section-navigation-height) +
+          var(--sr-space-3)
+      );
   }
 }
 

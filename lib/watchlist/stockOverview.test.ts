@@ -236,6 +236,31 @@ test("watchlist page preserves auth/API contracts and uses the current product s
     componentCss,
     /@media \(max-width: 760px\) \{[\s\S]*\.stockActions \{[\s\S]*display: grid;[\s\S]*grid-column: 1 \/ -1;/,
   );
+  assert.match(
+    componentCss,
+    /@media \(max-width: 1120px\) \{[\s\S]*\.sectionNavigation \{[\s\S]*position: sticky;[\s\S]*top: var\(--sr-size-header\);[\s\S]*background: var\(--sr-color-surface-panel\);/,
+  );
+  assert.match(
+    componentCss,
+    /\.section \{[\s\S]*scroll-margin-top:[\s\S]*var\(--sr-size-header\)[\s\S]*var\(--watchlist-section-navigation-height\)[\s\S]*var\(--sr-space-3\)/,
+  );
+  assert.match(
+    componentCss,
+    /\.sectionNavigation a\[aria-current="location"\] \{[\s\S]*var\(--sr-color-accent-selected\)[\s\S]*var\(--sr-color-accent\)/,
+  );
+  assert.match(componentSource, /aria-current=\{[\s\S]*"location"/);
+  assert.match(componentSource, /getStockSectionIdFromHash/);
+  assert.match(componentSource, /window\.location\.hash/);
+  assert.match(componentSource, /window\.requestAnimationFrame/);
+  assert.match(
+    componentSource,
+    /window\.addEventListener\("scroll", scheduleActiveSectionUpdate, \{[\s\S]*passive: true/,
+  );
+  assert.match(
+    componentSource,
+    /window\.addEventListener\("hashchange", handleHashChange\)/,
+  );
+  assert.match(componentSource, /window\.cancelAnimationFrame/);
   assert.doesNotMatch(
     componentCss,
     /\.stockActions,\s*\.stockIdentity p\s*\{\s*display: none;/,
