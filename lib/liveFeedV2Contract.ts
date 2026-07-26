@@ -130,6 +130,27 @@ export type LiveFeedV2Item = {
   preview: LiveFeedV2Preview;
 };
 
+export function getLiveFeedV2MobileIdentityLabel(
+  item: Pick<LiveFeedV2Item, "category" | "preview" | "ticker">,
+) {
+  const ticker = item.ticker.trim();
+  const tickerUnavailable = !ticker || /^(?:n\/a|market)$/i.test(ticker);
+
+  if (item.preview.kind === "market-news" && !item.preview.ticker) {
+    const coverage = item.preview.coverage.trim().toLowerCase();
+    if (coverage === "macro") return "MACRO";
+    if (coverage === "sector") return "SECTOR";
+
+    const theme = item.preview.theme.trim();
+    if (theme && !/^(?:market|theme)$/i.test(theme)) return theme;
+    if (coverage === "theme") return "THEME";
+
+    return item.category.trim().toUpperCase();
+  }
+
+  return tickerUnavailable ? item.category.trim().toUpperCase() : ticker;
+}
+
 export type LiveFeedV2MarketData = Pick<
   LiveFeedV2Item,
   "changePercent" | "price" | "sparkline"

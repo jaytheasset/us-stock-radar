@@ -248,6 +248,16 @@ test("watchlist page preserves auth/API contracts and uses the current product s
     componentCss,
     /@media \(max-width: 1120px\) \{[\s\S]*\.sectionNavigation \{[\s\S]*top: var\(--sr-size-header\);[\s\S]*\.section \{[\s\S]*scroll-margin-top:[\s\S]*var\(--sr-size-header\)[\s\S]*var\(--watchlist-section-navigation-height\)[\s\S]*var\(--sr-space-3\)/,
   );
+  assert.match(componentSource, /className=\{styles\.eventMobileIdentity\}/);
+  assert.match(componentSource, /className=\{styles\.eventMobileSource\}/);
+  assert.match(
+    componentCss,
+    /@media \(max-width: 760px\) \{[\s\S]*\.eventRow \{[\s\S]*min-height: 96px;[\s\S]*grid-template-rows: auto auto auto;[\s\S]*gap: var\(--sr-space-1-5\);[\s\S]*padding: var\(--sr-space-3\);/,
+  );
+  assert.match(
+    componentCss,
+    /@media \(max-width: 760px\) \{[\s\S]*\.eventCopy > strong \{[\s\S]*grid-column: 1 \/ -1;[\s\S]*grid-row: 2;[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: 600;[\s\S]*line-height: 1\.35;/,
+  );
   assert.match(
     componentCss,
     /\.sectionNavigation a\[aria-current="location"\],[\s\S]*\.sectionNavigation a\[aria-current="location"\]:hover \{[\s\S]*border-color: transparent;[\s\S]*background: transparent;[\s\S]*box-shadow: none;/,

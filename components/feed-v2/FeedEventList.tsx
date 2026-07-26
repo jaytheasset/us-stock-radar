@@ -6,6 +6,7 @@ import type {
   LiveFeedV2Item,
   LiveFeedV2Sentiment,
 } from "@/lib/liveFeedV2Contract";
+import { getLiveFeedV2MobileIdentityLabel } from "@/lib/liveFeedV2Contract";
 import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import type { Plan } from "@/lib/subscriptionPolicy";
 import styles from "./StockRadarFeedV2.module.css";
@@ -87,6 +88,7 @@ export function FeedEventList({
           (item.changePercent === null || item.feedType !== "market");
         const position = index + 1;
         const insertAd = viewerPlan === "free" && position % 20 === 10;
+        const mobileIdentityLabel = getLiveFeedV2MobileIdentityLabel(item);
 
         return (
           <Fragment key={item.id}>
@@ -107,7 +109,8 @@ export function FeedEventList({
               </time>
 
               <div className={styles.identity}>
-                <strong>{item.ticker}</strong>
+                <strong className={styles.identityDesktop}>{item.ticker}</strong>
+                <strong className={styles.identityMobile}>{mobileIdentityLabel}</strong>
                 <span>{item.company}</span>
               </div>
 
@@ -118,7 +121,7 @@ export function FeedEventList({
                     className={styles.eventTimeMobile}
                     dateTime={item.timestamp}
                   >
-                    {item.timeDateLabel} · {item.timeLabel}
+                    {item.timeDateLabel} · {item.timeLabel} ET
                   </time>
                   <span className={styles.source}>{item.source}</span>
                 </div>

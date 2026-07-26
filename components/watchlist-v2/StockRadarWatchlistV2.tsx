@@ -1355,14 +1355,21 @@ function EventList({
               onClick={(clickEvent) => onSelect(event, clickEvent.currentTarget)}
               type="button"
             >
-              <time dateTime={event.detectedAt}>
+              <span className={styles.eventMobileIdentity}>
+                <strong>{event.ticker || ticker}</strong>
+                <b>{event.category}</b>
+              </span>
+              <time className={styles.eventTime} dateTime={event.detectedAt}>
                 <span>{formatStockOverviewEt(event.detectedAt, "date")}</span>
                 <small>{formatStockOverviewEt(event.detectedAt, "time")}</small>
               </time>
               <span className={styles.eventCopy}>
                 <span>
                   <b>{event.category}</b>
-                  <small>{event.formType || event.source}</small>
+                  <small className={styles.eventDesktopMeta}>
+                    {event.formType || event.source}
+                  </small>
+                  <small className={styles.eventMobileSource}>{event.source}</small>
                 </span>
                 <strong>{event.title}</strong>
               </span>
