@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { AdvancedTrialCta } from "@/components/AdvancedTrialCta";
 import { PremiumFeatureComparison } from "@/components/premium-v2/PremiumFeatureComparison";
-import { ProTrialCta } from "@/components/ProTrialCta";
 import {
   premiumV2FaqItems,
   premiumV2MarketCoverageGroups,
@@ -23,6 +23,7 @@ export type PremiumV2AccountState = {
   trial: {
     active: boolean;
     daysRemaining?: number;
+    plan?: "pro" | "advanced";
     used: boolean;
   };
 };
@@ -52,29 +53,29 @@ export function StockRadarPremiumV2({ accountState }: StockRadarPremiumV2Props) 
           <Link className={styles.currentPlanAction} href="/alerts">
             Manage alerts
           </Link>
-          {accountState.planSource === "trial" && planKey === "pro" ? (
+          {accountState.planSource === "trial" ? (
             <small className={styles.trialNote}>
-              Pro trial ends in {accountState.trial.daysRemaining ?? 14} days
+              {accountState.trial.plan === "pro" ? "Legacy Pro" : "Advanced"} trial ends in{" "}
+              {accountState.trial.daysRemaining ?? 14} days
             </small>
           ) : null}
         </div>
       );
     }
 
-    if (planKey === "pro") {
+    if (planKey === "advanced") {
       if (!accountState.authenticated) {
         return (
-          <ProTrialCta
+          <AdvancedTrialCta
             className={isRecommended ? styles.primaryButton : styles.secondaryButton}
             guestMode
           >
-            Start 14-day Pro Trial
-          </ProTrialCta>
+            Start 14-day Advanced Trial
+          </AdvancedTrialCta>
         );
       }
 
       if (
-        accountState.basePlan === "pro" ||
         accountState.basePlan === "advanced" ||
         accountState.basePlan === "ultimate"
       ) {
@@ -93,17 +94,17 @@ export function StockRadarPremiumV2({ accountState }: StockRadarPremiumV2Props) 
               onClick={() => previewPlan(planKey)}
               type="button"
             >
-              Upgrade to Pro
+              Upgrade to Advanced
             </button>
-            <small className={styles.trialNote}>Your Pro trial has ended.</small>
+            <small className={styles.trialNote}>Your free trial has ended.</small>
           </div>
         );
       }
 
       return (
-        <ProTrialCta className={isRecommended ? styles.primaryButton : styles.secondaryButton}>
-          Start 14-day Pro Trial
-        </ProTrialCta>
+        <AdvancedTrialCta className={isRecommended ? styles.primaryButton : styles.secondaryButton}>
+          Start 14-day Advanced Trial
+        </AdvancedTrialCta>
       );
     }
 
@@ -141,9 +142,12 @@ export function StockRadarPremiumV2({ accountState }: StockRadarPremiumV2Props) 
               <button className={styles.secondaryButton} onClick={() => previewPlan("free")} type="button">
                 Start Free
               </button>
-              <button className={styles.primaryButton} onClick={() => previewPlan("advanced")} type="button">
-                Go Advanced
-              </button>
+              <AdvancedTrialCta
+                className={styles.primaryButton}
+                guestMode={!accountState.authenticated}
+              >
+                Start Advanced Trial
+              </AdvancedTrialCta>
             </div>
           </div>
 

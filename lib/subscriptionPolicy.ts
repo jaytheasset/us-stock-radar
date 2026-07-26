@@ -4,9 +4,7 @@ export type PlanLimitValue = number | null;
 
 export type AlertChannel = "web" | "telegram" | "email" | "webhook" | "api";
 
-export type AlertCategory =
-  | "listing_risk"
-  | "dilution_risk"
+export type CoreAlertCategory =
   | "earnings"
   | "sales_performance"
   | "product_update"
@@ -14,20 +12,33 @@ export type AlertCategory =
   | "insider_ownership"
   | "shareholder_vote"
   | "strategic_transaction"
-  | "financial_risk"
-  | "legal_risk"
   | "dividends"
   | "capital_return"
   | "ipo_listing"
-  | "fda_clinical"
   | "policy_regulation"
-  | "macro_market"
-  | "other";
+  | "macro_market";
+
+export type RiskCatalystAlertCategory =
+  | "dilution_risk"
+  | "listing_risk"
+  | "financial_risk"
+  | "legal_risk"
+  | "fda_clinical";
+
+export type PublicAlertCategory = CoreAlertCategory | RiskCatalystAlertCategory;
+export type InternalAlertCategory = "other";
+export type AlertCategory = PublicAlertCategory | InternalAlertCategory;
+
+export type AlertCategoryDefinition<TCategory extends AlertCategory = AlertCategory> = {
+  code: TCategory;
+  label: string;
+  description: string;
+};
 
 export type PlanLimits = {
   watchlistLimit: PlanLimitValue;
   alertTickerLimit: PlanLimitValue;
-  discoveryCategoryLimit: number;
+  discoveryCategories: readonly PublicAlertCategory[];
   alertDelayMinutes: number;
   channels: readonly AlertChannel[];
   realTime: boolean;
@@ -36,87 +47,7 @@ export type PlanLimits = {
   webhookApi: boolean;
 };
 
-export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
-  free: {
-    watchlistLimit: 3,
-    alertTickerLimit: 1,
-    discoveryCategoryLimit: 1,
-    alertDelayMinutes: 5,
-    channels: ["web"],
-    realTime: false,
-    advancedFilters: false,
-    customRules: false,
-    webhookApi: false,
-  },
-  ad_free: {
-    watchlistLimit: 5,
-    alertTickerLimit: 5,
-    discoveryCategoryLimit: 2,
-    alertDelayMinutes: 5,
-    channels: ["web"],
-    realTime: false,
-    advancedFilters: false,
-    customRules: false,
-    webhookApi: false,
-  },
-  pro: {
-    watchlistLimit: 30,
-    alertTickerLimit: 20,
-    discoveryCategoryLimit: 6,
-    alertDelayMinutes: 0,
-    channels: ["web", "telegram"],
-    realTime: true,
-    advancedFilters: false,
-    customRules: false,
-    webhookApi: false,
-  },
-  advanced: {
-    watchlistLimit: 150,
-    alertTickerLimit: null,
-    discoveryCategoryLimit: 18,
-    alertDelayMinutes: 0,
-    channels: ["web", "telegram", "email"],
-    realTime: true,
-    advancedFilters: true,
-    customRules: false,
-    webhookApi: false,
-  },
-  ultimate: {
-    watchlistLimit: null,
-    alertTickerLimit: null,
-    discoveryCategoryLimit: 18,
-    alertDelayMinutes: 0,
-    channels: ["web", "telegram", "email", "webhook", "api"],
-    realTime: true,
-    advancedFilters: true,
-    customRules: true,
-    webhookApi: true,
-  },
-} as const;
-
-export const PLAN_DISPLAY_NAMES: Record<Plan, string> = {
-  free: "Free",
-  ad_free: "Ad-Free",
-  pro: "Pro",
-  advanced: "Advanced",
-  ultimate: "Ultimate",
-} as const;
-
-export const ALERT_CATEGORIES: readonly {
-  code: AlertCategory;
-  label: string;
-  description: string;
-}[] = [
-  {
-    code: "listing_risk",
-    label: "Listing Risk",
-    description: "Delisting notices, compliance issues, exchange warnings.",
-  },
-  {
-    code: "dilution_risk",
-    label: "Dilution Risk",
-    description: "Offerings, ATM programs, shelf registrations, warrants.",
-  },
+export const CORE_ALERT_CATEGORIES: readonly AlertCategoryDefinition<CoreAlertCategory>[] = [
   {
     code: "earnings",
     label: "Earnings",
@@ -153,16 +84,6 @@ export const ALERT_CATEGORIES: readonly {
     description: "M&A, mergers, asset sales, strategic investments, and major deal activity.",
   },
   {
-    code: "financial_risk",
-    label: "Financial Risk",
-    description: "Liquidity issues, going-concern language, restatements, and accounting risk.",
-  },
-  {
-    code: "legal_risk",
-    label: "Legal Risk",
-    description: "Lawsuits, investigations, settlements, enforcement actions, and legal exposure.",
-  },
-  {
     code: "dividends",
     label: "Dividends",
     description: "Dividend declarations, changes, record dates, and payment dates.",
@@ -178,11 +99,6 @@ export const ALERT_CATEGORIES: readonly {
     description: "Traditional IPOs, SPAC IPOs, direct listings, IPO pricing, and first-trading updates.",
   },
   {
-    code: "fda_clinical",
-    label: "FDA / Clinical",
-    description: "FDA approvals, rejections, CRLs, trial updates, and clinical milestones.",
-  },
-  {
     code: "policy_regulation",
     label: "Policy & Regulation",
     description: "Policy decisions, agency actions, regulation changes, and official rulings.",
@@ -192,17 +108,145 @@ export const ALERT_CATEGORIES: readonly {
     label: "Macro Market",
     description: "Rates, inflation, jobs, sanctions, geopolitics, and market-wide catalysts.",
   },
+] as const;
+
+export const RISK_CATALYST_ALERT_CATEGORIES: readonly AlertCategoryDefinition<RiskCatalystAlertCategory>[] = [
+  {
+    code: "dilution_risk",
+    label: "Dilution Risk",
+    description: "Offerings, ATM programs, shelf registrations, warrants.",
+  },
+  {
+    code: "listing_risk",
+    label: "Listing Risk",
+    description: "Delisting notices, compliance issues, exchange warnings.",
+  },
+  {
+    code: "financial_risk",
+    label: "Financial Risk",
+    description: "Liquidity issues, going-concern language, restatements, and accounting risk.",
+  },
+  {
+    code: "legal_risk",
+    label: "Legal Risk",
+    description: "Lawsuits, investigations, settlements, enforcement actions, and legal exposure.",
+  },
+  {
+    code: "fda_clinical",
+    label: "FDA / Clinical",
+    description: "FDA approvals, rejections, CRLs, trial updates, and clinical milestones.",
+  },
+] as const;
+
+export const PUBLIC_ALERT_CATEGORIES: readonly AlertCategoryDefinition<PublicAlertCategory>[] = [
+  ...CORE_ALERT_CATEGORIES,
+  ...RISK_CATALYST_ALERT_CATEGORIES,
+] as const;
+
+export const INTERNAL_ALERT_CATEGORIES: readonly AlertCategoryDefinition<InternalAlertCategory>[] = [
   {
     code: "other",
     label: "Other",
-    description: "Important events that do not fit a primary category.",
+    description: "Internal parser fallback for events that do not fit a public alert category.",
   },
 ] as const;
+
+/**
+ * User-facing alert categories. Internal parser fallbacks intentionally do not
+ * belong in Premium, Alerts settings, category counts, or entitlement checks.
+ */
+export const ALERT_CATEGORIES = PUBLIC_ALERT_CATEGORIES;
+
+const CORE_CATEGORY_VALUES = CORE_ALERT_CATEGORIES.map((category) => category.code);
+const PUBLIC_CATEGORY_VALUES = PUBLIC_ALERT_CATEGORIES.map((category) => category.code);
+
+export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
+  free: {
+    watchlistLimit: null,
+    alertTickerLimit: 1,
+    discoveryCategories: CORE_CATEGORY_VALUES,
+    alertDelayMinutes: 5,
+    channels: ["web"],
+    realTime: false,
+    advancedFilters: false,
+    customRules: false,
+    webhookApi: false,
+  },
+  ad_free: {
+    watchlistLimit: null,
+    alertTickerLimit: 5,
+    discoveryCategories: CORE_CATEGORY_VALUES,
+    alertDelayMinutes: 5,
+    channels: ["web"],
+    realTime: false,
+    advancedFilters: false,
+    customRules: false,
+    webhookApi: false,
+  },
+  pro: {
+    watchlistLimit: null,
+    alertTickerLimit: 15,
+    discoveryCategories: CORE_CATEGORY_VALUES,
+    alertDelayMinutes: 0,
+    channels: ["web", "telegram"],
+    realTime: true,
+    advancedFilters: false,
+    customRules: false,
+    webhookApi: false,
+  },
+  advanced: {
+    watchlistLimit: null,
+    alertTickerLimit: null,
+    discoveryCategories: PUBLIC_CATEGORY_VALUES,
+    alertDelayMinutes: 0,
+    channels: ["web", "telegram", "email"],
+    realTime: true,
+    advancedFilters: true,
+    customRules: false,
+    webhookApi: false,
+  },
+  ultimate: {
+    watchlistLimit: null,
+    alertTickerLimit: null,
+    discoveryCategories: PUBLIC_CATEGORY_VALUES,
+    alertDelayMinutes: 0,
+    channels: ["web", "telegram", "email", "webhook", "api"],
+    realTime: true,
+    advancedFilters: true,
+    customRules: true,
+    webhookApi: true,
+  },
+} as const;
+
+export const PLAN_DISPLAY_NAMES: Record<Plan, string> = {
+  free: "Free",
+  ad_free: "Ad-Free",
+  pro: "Pro",
+  advanced: "Advanced",
+  ultimate: "Ultimate",
+} as const;
+
+export const ADVANCED_TRIAL_POLICY = {
+  plan: "advanced",
+  durationDays: 14,
+  paymentMethodRequired: true,
+  autoConvertsToPaid: true,
+  oncePerAccount: true,
+  cancellationKeepsAccessUntilEnd: true,
+  failedPaymentFallbackPlan: "free",
+  preservesUserDataOnFallback: true,
+  reminderDaysBeforeCharge: [3, 1],
+} as const;
+
+export const LEGACY_TRIAL_PLAN = "pro" as const;
 
 export type PlanKey = Plan;
 export type AlertCategoryKey = AlertCategory;
 
-const CATEGORY_BY_CODE = new Map(ALERT_CATEGORIES.map((category) => [category.code, category]));
+const CATEGORY_BY_CODE = new Map(
+  [...PUBLIC_ALERT_CATEGORIES, ...INTERNAL_ALERT_CATEGORIES].map((category) => [category.code, category]),
+);
+const PUBLIC_CATEGORY_CODES = new Set(PUBLIC_CATEGORY_VALUES);
 
 const CHANNEL_LABELS: Record<AlertChannel, string> = {
   web: "Web",
@@ -232,8 +276,27 @@ export function isValidAlertCategory(category: string): category is AlertCategor
   return CATEGORY_BY_CODE.has(category as AlertCategory);
 }
 
-export function getAllAlertCategoryValues(): AlertCategory[] {
-  return ALERT_CATEGORIES.map((category) => category.code);
+export function isValidPublicAlertCategory(category: string): category is PublicAlertCategory {
+  return PUBLIC_CATEGORY_CODES.has(category as PublicAlertCategory);
+}
+
+export function getAllAlertCategoryValues(): PublicAlertCategory[] {
+  return [...PUBLIC_CATEGORY_VALUES];
+}
+
+export function getAllPublicAlertCategoryValues(): PublicAlertCategory[] {
+  return getAllAlertCategoryValues();
+}
+
+export function getDiscoveryCategoriesForPlan(plan: Plan): PublicAlertCategory[] {
+  return [...PLAN_LIMITS[plan].discoveryCategories];
+}
+
+export function isDiscoveryCategoryAllowed(plan: Plan, category: string): category is PublicAlertCategory {
+  return (
+    isValidPublicAlertCategory(category) &&
+    PLAN_LIMITS[plan].discoveryCategories.includes(category)
+  );
 }
 
 export function getAvailablePlanChannels(plan: Plan): AlertChannel[] {

@@ -3,6 +3,7 @@ import "server-only";
 import {
   type AlertCategory,
   type AlertChannel,
+  type PublicAlertCategory,
   formatChannels,
   getAllAlertCategoryValues,
   getCategoryDescription,
@@ -100,7 +101,10 @@ export async function getAlertSettingsViewModel(userId: string): Promise<AlertSe
   const preferencesRow = Array.isArray(preferencesResult.data)
     ? (preferencesResult.data[0] as AlertPreferencesRow | undefined)
     : undefined;
-  const selectedCategories = readSelectedCategories(categoriesResult.data);
+  const allowedDiscoveryCategories = new Set(limits.discoveryCategories);
+  const selectedCategories = readSelectedCategories(categoriesResult.data).filter((category) =>
+    allowedDiscoveryCategories.has(category),
+  );
   const channels = buildDeliveryChannels(plan, Array.isArray(channelsResult.data) ? channelsResult.data : []);
   const recentDeliveredAlerts = mapDeliveredAlerts(Array.isArray(deliveriesResult.data) ? deliveriesResult.data : []);
 
@@ -215,17 +219,17 @@ function mapPreferences(row?: AlertPreferencesRow): AlertPreferences {
   };
 }
 
-function readSelectedCategories(data: unknown): AlertCategory[] {
+function readSelectedCategories(data: unknown): PublicAlertCategory[] {
   if (!Array.isArray(data)) return [];
   const allowed = new Set(getAllAlertCategoryValues());
-  const selected: AlertCategory[] = [];
+  const selected: PublicAlertCategory[] = [];
 
   for (const row of data as DiscoveryCategoryRow[]) {
     const category = stringValue(row.category);
-    if (!allowed.has(category as AlertCategory)) continue;
+    if (!allowed.has(category as PublicAlertCategory)) continue;
     if (row.enabled !== true) continue;
-    if (!selected.includes(category as AlertCategory)) {
-      selected.push(category as AlertCategory);
+    if (!selected.includes(category as PublicAlertCategory)) {
+      selected.push(category as PublicAlertCategory);
     }
   }
 

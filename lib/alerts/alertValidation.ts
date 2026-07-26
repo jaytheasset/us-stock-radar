@@ -2,15 +2,14 @@ import "server-only";
 
 import {
   ALERT_CATEGORIES,
-  type AlertCategory,
   type AlertChannel,
   type Plan,
-  formatLimit,
+  type PublicAlertCategory,
   getAllAlertCategoryValues,
+  getDiscoveryCategoriesForPlan,
   getPlanDisplayName,
   getPlanLimits,
-  getPlanUpgradeTarget,
-  isValidAlertCategory,
+  isValidPublicAlertCategory,
 } from "@/lib/subscriptionPolicy";
 import { getEffectiveUserPlan } from "@/lib/subscription/effectivePlan";
 
@@ -41,18 +40,18 @@ export async function getUserPlan(userId: string): Promise<Plan> {
   return state.effectivePlan;
 }
 
-export function assertValidCategories(categories: unknown): AlertCategory[] {
+export function assertValidCategories(categories: unknown): PublicAlertCategory[] {
   if (!Array.isArray(categories)) {
     throw new AlertValidationError("INVALID_CATEGORIES", "categories must be an array.");
   }
 
-  const normalized: AlertCategory[] = [];
+  const normalized: PublicAlertCategory[] = [];
   for (const item of categories) {
     if (typeof item !== "string") {
       throw new AlertValidationError("INVALID_CATEGORY", "Each category must be a string.");
     }
     const category = item.trim();
-    if (!isValidAlertCategory(category)) {
+    if (!isValidPublicAlertCategory(category)) {
       throw new AlertValidationError("INVALID_CATEGORY", `${category || "Empty category"} is not a supported alert category.`);
     }
     if (!normalized.includes(category)) {
@@ -63,21 +62,24 @@ export function assertValidCategories(categories: unknown): AlertCategory[] {
   return normalized;
 }
 
-export function assertDiscoveryCategoryLimit(plan: Plan, categories: AlertCategory[]) {
-  const limit = getPlanLimits(plan).discoveryCategoryLimit;
-  if (categories.length > limit) {
-    throw new AlertValidationError("CATEGORY_LIMIT_EXCEEDED", buildCategoryLimitMessage(plan, limit), {
-      limit,
-      selected: categories.length,
+export function assertDiscoveryCategoriesAllowed(plan: Plan, categories: PublicAlertCategory[]) {
+  const allowed = new Set(getDiscoveryCategoriesForPlan(plan));
+  const unavailable = categories.filter((category) => !allowed.has(category));
+  if (unavailable.length > 0) {
+    throw new AlertValidationError("CATEGORY_NOT_AVAILABLE_ON_PLAN", buildCategoryAvailabilityMessage(plan), {
+      unavailable,
+      allowed: [...allowed],
     });
   }
 }
 
-export function buildCategoryLimitMessage(plan: Plan, limit: number) {
+export function buildCategoryAvailabilityMessage(plan: Plan) {
   const planName = getPlanDisplayName(plan);
-  const upgradeTarget = getPlanUpgradeTarget(plan);
-  const upgradeText = upgradeTarget ? ` Upgrade to ${getPlanDisplayName(upgradeTarget)} to unlock more coverage.` : "";
-  return `${planName} includes ${formatLimit(limit)} active Discovery categories.${upgradeText}`;
+  const upgradeText =
+    plan === "free" || plan === "ad_free" || plan === "pro"
+      ? " Upgrade to Advanced to unlock all 17 market-wide Discovery categories."
+      : "";
+  return `${planName} includes the approved Discovery category set for this plan.${upgradeText}`;
 }
 
 export function getChannelLockState(plan: Plan, channel: AlertChannel) {
@@ -140,7 +142,7 @@ export function normalizeChannelPatch(body: unknown) {
   };
 }
 
-export function getAllCategoryRowsForUser(userId: string, enabledCategories: AlertCategory[]) {
+export function getAllCategoryRowsForUser(userId: string, enabledCategories: PublicAlertCategory[]) {
   const enabled = new Set(enabledCategories);
   return getAllAlertCategoryValues().map((category) => ({
     user_id: userId,

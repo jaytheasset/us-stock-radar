@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAlertSettingsViewModel, getGuestAlertSettingsViewModel } from "@/lib/alerts/getAlertSettingsViewModel";
 import {
   AlertValidationError,
-  assertDiscoveryCategoryLimit,
+  assertDiscoveryCategoriesAllowed,
   assertValidCategories,
   getAllCategoryRowsForUser,
   getUserPlan,
@@ -36,7 +36,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const plan = await getUserPlan(userId);
-    assertDiscoveryCategoryLimit(plan, categories);
+    assertDiscoveryCategoriesAllowed(plan, categories);
 
     const result = await supabaseUpsert("user_discovery_categories", getAllCategoryRowsForUser(userId, categories), {
       onConflict: "user_id,category",
@@ -71,7 +71,7 @@ export async function PATCH(request: NextRequest) {
           message: error.message,
           ...error.details,
         },
-        { status: error.code === "CATEGORY_LIMIT_EXCEEDED" ? 409 : 400, headers: NO_STORE_HEADERS },
+        { status: error.code === "CATEGORY_NOT_AVAILABLE_ON_PLAN" ? 403 : 400, headers: NO_STORE_HEADERS },
       );
     }
 

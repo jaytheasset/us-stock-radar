@@ -4,13 +4,14 @@ import { Check, Search } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { AuthStatus } from "@/components/AuthStatus";
-import { ProTrialCta } from "@/components/ProTrialCta";
+import { AdvancedTrialCta } from "@/components/AdvancedTrialCta";
 import type { AlertPreferences, AlertSettingsViewModel, DeliveredAlertItem } from "@/lib/alerts/types";
 import {
   ALERT_CATEGORIES,
   type AlertCategory,
   type AlertChannel,
   type Plan,
+  type PublicAlertCategory,
   formatAlertSpeed,
   formatLimit,
   getCategoryDescription,
@@ -91,8 +92,8 @@ const categoryTone: Record<AlertCategory, string> = {
 
 const alertLanes = [
   {
-    label: "Watchlist Alerts",
-    detail: "For tickers you saved directly. These do not use your Market Discovery category limit.",
+    label: "Ticker Alerts",
+    detail: "Every alert-enabled ticker is covered across all 17 public event categories.",
   },
   {
     label: "Market Discovery Alerts",
@@ -121,19 +122,22 @@ export default function AlertsClient({ initialSettings }: AlertsClientProps) {
   const [telegramConnectMessage, setTelegramConnectMessage] = useState<string | null>(null);
 
   const selectedCategorySet = useMemo(() => new Set(settings.selectedCategories), [settings.selectedCategories]);
-  const categorySlotsRemaining = Math.max(0, settings.limits.discoveryCategoryLimit - settings.usage.discoveryCategories);
+  const availableDiscoveryCategories = useMemo(
+    () => new Set(settings.limits.discoveryCategories),
+    [settings.limits.discoveryCategories],
+  );
   const enabledChannels = settings.channels.filter((channel) => channel.enabled);
   const availableChannels = settings.channels.filter((channel) => !channel.locked);
   const statusCards = [
     {
-      label: "Watchlist usage",
-      value: `${settings.usage.watchlistTickers} / ${formatLimit(settings.limits.watchlistLimit)}`,
-      detail: "tickers saved",
+      label: "Alert tickers",
+      value: `${settings.usage.watchlistTickers} / ${formatLimit(settings.limits.alertTickerLimit)}`,
+      detail: "enabled for all 17 event types",
     },
     {
       label: "Discovery alert categories",
-      value: `${settings.usage.discoveryCategories} / ${settings.limits.discoveryCategoryLimit}`,
-      detail: "active for delivery",
+      value: `${settings.usage.discoveryCategories} selected`,
+      detail: `${settings.limits.discoveryCategories.length} available on this plan`,
     },
     {
       label: "Alert speed",
@@ -196,19 +200,17 @@ export default function AlertsClient({ initialSettings }: AlertsClientProps) {
     void savePreferences(nextPreferences, previousSettings);
   }
 
-  function toggleDiscoveryCategory(category: AlertCategory) {
+  function toggleDiscoveryCategory(category: PublicAlertCategory) {
     const previousSettings = settings;
     const isSelected = selectedCategorySet.has(category);
     const nextCategories = isSelected
       ? settings.selectedCategories.filter((selectedCategory) => selectedCategory !== category)
       : [...settings.selectedCategories, category];
 
-    if (!isSelected && nextCategories.length > settings.limits.discoveryCategoryLimit) {
+    if (!isSelected && !availableDiscoveryCategories.has(category)) {
       setSaveState("failed");
       setErrorMessage(
-        `${getPlanDisplayName(settings.plan)} includes ${settings.limits.discoveryCategoryLimit} active Discovery categories. Upgrade to ${getPlanDisplayName(
-          getPlanUpgradeTarget(settings.plan) ?? settings.plan,
-        )} to unlock more coverage.`,
+        `${getPlanDisplayName(settings.plan)} includes the 12 Core Market Events for market-wide Discovery. Advanced unlocks all 17 public categories.`,
       );
       return;
     }
@@ -218,7 +220,7 @@ export default function AlertsClient({ initialSettings }: AlertsClientProps) {
     void saveDiscoveryCategories(nextCategories, previousSettings);
   }
 
-  async function saveDiscoveryCategories(categories: AlertCategory[], previousSettings: AlertSettingsViewModel) {
+  async function saveDiscoveryCategories(categories: PublicAlertCategory[], previousSettings: AlertSettingsViewModel) {
     setSaveState("saving");
 
     if (previousSettings.guestMode) {
@@ -365,7 +367,10 @@ export default function AlertsClient({ initialSettings }: AlertsClientProps) {
               {settings.planLabel || getPlanDisplayName(settings.plan)} - {formatAlertSpeed(settings.plan)}
             </strong>
             {settings.trial?.active ? (
-              <small className="alerts-trial-note">Pro Trial Active - {settings.trial.daysRemaining ?? 14} days remaining</small>
+              <small className="alerts-trial-note">
+                {getPlanDisplayName(settings.trial.plan ?? "advanced")} Trial Active - {settings.trial.daysRemaining ?? 14} days
+                remaining
+              </small>
             ) : null}
             <Link href="/premium">Manage Plan</Link>
           </div>
@@ -421,7 +426,7 @@ export default function AlertsClient({ initialSettings }: AlertsClientProps) {
                         <h2>Alerts for tickers you added to your watchlist.</h2>
                       </div>
                       <b>
-                        {settings.usage.watchlistTickers} / {formatLimit(settings.limits.watchlistLimit)} tickers
+                        {settings.usage.watchlistTickers} / {formatLimit(settings.limits.alertTickerLimit)} alert tickers
                       </b>
                     </div>
                     <p className="alerts-inline-note">
@@ -447,7 +452,7 @@ export default function AlertsClient({ initialSettings }: AlertsClientProps) {
                     </div>
                     <div className="alerts-panel-footer">
                       <span>
-                        Watchlist usage: {settings.usage.watchlistTickers} / {formatLimit(settings.limits.watchlistLimit)} tickers
+                        Alert ticker usage: {settings.usage.watchlistTickers} / {formatLimit(settings.limits.alertTickerLimit)}
                       </span>
                       <Link href="/watchlist">Manage Watchlist</Link>
                     </div>
@@ -460,24 +465,19 @@ export default function AlertsClient({ initialSettings }: AlertsClientProps) {
                         <h2>Choose event categories to deliver alerts for stocks outside your watchlist.</h2>
                       </div>
                       <div className="alerts-quota-badge">
-                        <strong>
-                          Selected: {settings.usage.discoveryCategories} / {settings.limits.discoveryCategoryLimit}
-                        </strong>
-                        <span>
-                          {categorySlotsRemaining > 0
-                            ? `${categorySlotsRemaining} category slots available`
-                            : `Category limit reached on ${getPlanDisplayName(settings.plan)}`}
-                        </span>
+                        <strong>{settings.usage.discoveryCategories} selected</strong>
+                        <span>{settings.limits.discoveryCategories.length} categories available</span>
                       </div>
                     </div>
                     <div className="alerts-category-grid" aria-label="Market Discovery categories">
                       {ALERT_CATEGORIES.map((category) => {
                         const selected = selectedCategorySet.has(category.code);
+                        const available = availableDiscoveryCategories.has(category.code);
                         const tone = categoryTone[category.code];
                         return (
                           <button
                             aria-pressed={selected}
-                            className={`${selected ? "selected" : ""} tone-${tone}`}
+                            className={`${selected ? "selected" : ""} ${available ? "" : "locked"} tone-${tone}`}
                             key={category.code}
                             onClick={() => toggleDiscoveryCategory(category.code)}
                             title={getCategoryDescription(category.code)}
@@ -495,11 +495,9 @@ export default function AlertsClient({ initialSettings }: AlertsClientProps) {
                       })}
                     </div>
                     <p className="alerts-limit-note">
-                      {categorySlotsRemaining > 0
-                        ? `You can activate ${categorySlotsRemaining} more Discovery categories on ${getPlanDisplayName(
-                            settings.plan,
-                          )}. Advanced unlocks all 17 plus advanced filters.`
-                        : `${getPlanDisplayName(settings.plan)} category slots are full. Advanced unlocks all 17 plus advanced filters.`}
+                      {settings.limits.discoveryCategories.length === 17
+                        ? "All 17 public categories are available for market-wide Discovery."
+                        : "Core 12 categories are available for market-wide Discovery. Advanced unlocks all 17 plus advanced filters."}
                     </p>
                   </article>
                 </section>
@@ -763,7 +761,7 @@ type TelegramConnectApiResponse =
       message?: string;
     };
 
-function applySelectedCategories(settings: AlertSettingsViewModel, categories: AlertCategory[]): AlertSettingsViewModel {
+function applySelectedCategories(settings: AlertSettingsViewModel, categories: PublicAlertCategory[]): AlertSettingsViewModel {
   return {
     ...settings,
     selectedCategories: categories,
@@ -790,37 +788,40 @@ function getUpgradeCard(settings: AlertSettingsViewModel) {
   const plan = settings.plan;
   if (settings.guestMode) {
     return {
-      title: "Try Pro free for 14 days",
-      body: "Create an account to start a no-card Pro trial with real-time delivery and Telegram alerts.",
-      cta: "Create account to start Pro trial",
-      items: ["30 watchlist tickers", "6 Discovery categories", "No delivery delay"],
+      title: "Try Advanced free for 14 days",
+      body: "Create an account to access the card-backed Advanced trial when checkout is available.",
+      cta: "Create account for Advanced trial",
+      items: ["Unlimited alert tickers", "All 17 Discovery categories", "Email alerts"],
     };
   }
 
   if (settings.trial?.active) {
     return {
-      title: "Pro Trial Active",
-      body: `Real-time alerts are enabled until ${formatDate(settings.trial.endsAt)}.`,
+      title: `${getPlanDisplayName(settings.trial.plan ?? "advanced")} Trial Active`,
+      body: `Trial access remains active until ${formatDate(settings.trial.endsAt)}, including after cancellation.`,
       cta: "Manage alerts",
-      items: ["30 watchlist tickers", "6 Discovery categories", "Telegram included in Pro"],
+      items:
+        settings.trial.plan === "pro"
+          ? ["15 alert tickers", "Core 12 Discovery categories", "Telegram included"]
+          : ["Unlimited alert tickers", "All 17 Discovery categories", "Email alerts"],
     };
   }
 
   if ((plan === "free" || plan === "ad_free") && settings.trial?.used) {
     return {
-      title: "Your Pro trial has ended",
-      body: "Upgrade to Pro to keep real-time delivery, Telegram alerts, and higher watchlist limits.",
-      cta: "Upgrade to Pro",
-      items: ["No delivery delay", "Telegram alerts", "30 watchlist tickers"],
+      title: "Your free trial has ended",
+      body: "Choose a paid plan to restore real-time delivery and additional channels.",
+      cta: "View plans",
+      items: ["Unlimited watchlist", "Real-time paid alerts", "Plan-based delivery channels"],
     };
   }
 
   if (plan === "free" || plan === "ad_free") {
     return {
-      title: "Try Pro free for 14 days",
-      body: "Unlock real-time delivery, Telegram alerts, 30 watchlist tickers, and 6 Discovery categories.",
-      cta: "Start Pro Trial",
-      items: ["30 watchlist tickers", "6 Discovery categories", "No delivery delay"],
+      title: "Try Advanced free for 14 days",
+      body: "A card is required. The trial auto-converts to monthly Advanced unless cancelled before it ends.",
+      cta: "Start Advanced Trial",
+      items: ["Unlimited alert tickers", "All 17 Discovery categories", "Email alerts"],
     };
   }
 
@@ -852,11 +853,11 @@ function getUpgradeCard(settings: AlertSettingsViewModel) {
 
 function renderUpgradeAction(settings: AlertSettingsViewModel, label: string) {
   if (settings.guestMode) {
-    return <ProTrialCta guestMode>{label}</ProTrialCta>;
+    return <AdvancedTrialCta guestMode>{label}</AdvancedTrialCta>;
   }
 
   if ((settings.plan === "free" || settings.plan === "ad_free") && !settings.trial?.used) {
-    return <ProTrialCta>{label}</ProTrialCta>;
+    return <AdvancedTrialCta>{label}</AdvancedTrialCta>;
   }
 
   if (settings.trial?.active) {

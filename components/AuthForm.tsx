@@ -222,7 +222,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                   </span>
                   <div>
                     <strong>Upgrade anytime for real-time delivery</strong>
-                    <p>Start free now. Pro trial is available anytime after signup.</p>
+                    <p>Advanced includes a 14-day card-backed trial when checkout becomes available.</p>
                   </div>
                 </div>
               </div>

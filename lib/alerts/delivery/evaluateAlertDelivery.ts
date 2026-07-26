@@ -1,6 +1,12 @@
 import "server-only";
 
-import { getPlanLimits, type AlertCategory, type AlertChannel, type Plan } from "@/lib/subscriptionPolicy";
+import {
+  getPlanLimits,
+  isDiscoveryCategoryAllowed,
+  type AlertCategory,
+  type AlertChannel,
+  type Plan,
+} from "@/lib/subscriptionPolicy";
 import { getEffectivePlanFromSubscription, type UserPlanSubscriptionRow } from "@/lib/subscription/effectivePlan";
 import { supabaseSelect } from "@/lib/supabase";
 import type {
@@ -65,6 +71,14 @@ const RISK_CATEGORIES = new Set<AlertCategory>([
 const ALL_CHANNELS: AlertChannel[] = ["web", "telegram", "email", "webhook", "api"];
 
 export async function evaluateAlertDeliveryForEvent(event: NormalizedAlertEvent): Promise<AlertDeliveryEvaluation> {
+  if (event.category === "other") {
+    return {
+      event,
+      candidates: [],
+      skipped: [{ reason: "DISCOVERY_CATEGORY_NOT_ACTIVE", detail: "Internal fallback categories are not user alerts." }],
+    };
+  }
+
   if (!event.tickers.length) {
     return {
       event,
@@ -106,6 +120,15 @@ export async function evaluateAlertDeliveryForEvent(event: NormalizedAlertEvent)
 
     if (!context.discoveryCategories.has(event.category)) {
       skipped.push({ userId, reason: "DISCOVERY_CATEGORY_NOT_ACTIVE", detail: event.category });
+      continue;
+    }
+
+    if (!isDiscoveryCategoryAllowed(context.plan, event.category)) {
+      skipped.push({
+        userId,
+        reason: "DISCOVERY_CATEGORY_NOT_ACTIVE",
+        detail: `${event.category} is not available for ${context.plan} market-wide Discovery.`,
+      });
       continue;
     }
 

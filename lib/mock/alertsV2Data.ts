@@ -12,12 +12,17 @@ import {
   Megaphone,
   Merge,
   MonitorSmartphone,
-  RotateCcw,
   Search,
   Send,
   Smartphone,
   Trash2,
 } from "lucide-react";
+import {
+  ALERT_CATEGORIES,
+  getPlanLimits,
+  type AlertCategory,
+  type Plan,
+} from "@/lib/subscriptionPolicy";
 
 export type AlertTicker = {
   company: string;
@@ -54,7 +59,7 @@ export type DeliveryItem = {
   enabled: boolean;
   icon: LucideIcon;
   id: string;
-  lockedTier?: "ADVANCED";
+  lockedTier?: "ADVANCED" | "ULTIMATE";
   title: string;
 };
 
@@ -94,13 +99,25 @@ export const alertIconSet = {
   Trash2,
 } as const;
 
+const CANONICAL_PLAN_BY_MOCK_ID: Record<AlertsMockPlanId, Plan> = {
+  free: "free",
+  "ad-free": "ad_free",
+  pro: "pro",
+  advanced: "advanced",
+  ultimate: "ultimate",
+};
+
+function alertTickerLimit(plan: AlertsMockPlanId) {
+  return getPlanLimits(CANONICAL_PLAN_BY_MOCK_ID[plan]).alertTickerLimit;
+}
+
 export const alertsMockPlans: Record<AlertsMockPlanId, AlertsMockPlan> = {
   free: {
     id: "free",
     label: "Free",
-    tickerLimit: 1,
+    tickerLimit: alertTickerLimit("free"),
     showsAds: true,
-    hasCoverageControls: false,
+    hasCoverageControls: true,
     hasSourceFilters: false,
     hasMarketCapFilters: false,
     hasRiskAlerts: false,
@@ -110,9 +127,9 @@ export const alertsMockPlans: Record<AlertsMockPlanId, AlertsMockPlan> = {
   "ad-free": {
     id: "ad-free",
     label: "Ad-Free",
-    tickerLimit: 5,
+    tickerLimit: alertTickerLimit("ad-free"),
     showsAds: false,
-    hasCoverageControls: false,
+    hasCoverageControls: true,
     hasSourceFilters: false,
     hasMarketCapFilters: false,
     hasRiskAlerts: false,
@@ -122,7 +139,7 @@ export const alertsMockPlans: Record<AlertsMockPlanId, AlertsMockPlan> = {
   pro: {
     id: "pro",
     label: "Pro",
-    tickerLimit: 20,
+    tickerLimit: alertTickerLimit("pro"),
     showsAds: false,
     hasCoverageControls: true,
     hasSourceFilters: true,
@@ -134,7 +151,7 @@ export const alertsMockPlans: Record<AlertsMockPlanId, AlertsMockPlan> = {
   advanced: {
     id: "advanced",
     label: "Advanced",
-    tickerLimit: null,
+    tickerLimit: alertTickerLimit("advanced"),
     showsAds: false,
     hasCoverageControls: true,
     hasSourceFilters: true,
@@ -146,7 +163,7 @@ export const alertsMockPlans: Record<AlertsMockPlanId, AlertsMockPlan> = {
   ultimate: {
     id: "ultimate",
     label: "Ultimate",
-    tickerLimit: null,
+    tickerLimit: alertTickerLimit("ultimate"),
     showsAds: false,
     hasCoverageControls: true,
     hasSourceFilters: true,
@@ -177,74 +194,52 @@ export const watchlistCandidates: readonly WatchlistCandidate[] = [
   { id: "amd", ticker: "AMD", company: "Advanced Micro Devices" },
 ];
 
-export const coverageItems: readonly CoverageItem[] = [
-  {
-    id: "earnings",
-    title: "Earnings & Guidance",
-    description: "Earnings dates, results, outlook updates, and guidance changes.",
-    icon: LineChart,
-    enabled: true,
-  },
-  {
-    id: "clinical",
-    title: "FDA & Clinical",
-    description: "Clinical trial updates, FDA decisions, and regulatory milestones.",
-    icon: FlaskConical,
-    enabled: true,
-  },
-  {
-    id: "strategic",
-    title: "M&A & Strategic Events",
-    description: "Acquisitions, partnerships, strategic reviews, and major deals.",
-    icon: Merge,
-    enabled: true,
-  },
-  {
-    id: "company",
-    title: "Major Company Updates",
-    description: "Material filings, leadership changes, launches, and company news.",
-    icon: Megaphone,
-    enabled: true,
-  },
-  {
-    id: "dilution",
-    title: "Dilution & Offerings",
-    description: "Equity offerings, shelf registrations, ATM programs, and warrant risk.",
-    icon: Building2,
-    enabled: false,
-    locked: true,
-  },
-  {
-    id: "listing",
-    title: "Listing Risk & Delisting",
-    description: "Exchange notices, compliance failures, delisting, and listing risk.",
-    icon: AlertTriangle,
-    enabled: false,
-    locked: true,
-  },
-  {
-    id: "reverse",
-    title: "Reverse Splits",
-    description: "Reverse split proposals, approvals, and effective date filings.",
-    icon: RotateCcw,
-    enabled: false,
-    locked: true,
-  },
-  {
-    id: "bankruptcy",
-    title: "Bankruptcy & Default",
-    description: "Default notices, restructuring events, bankruptcy filings, and distress.",
-    icon: Landmark,
-    enabled: false,
-    locked: true,
-  },
-];
+const RISK_CATALYST_CATEGORY_CODES = new Set<AlertCategory>([
+  "dilution_risk",
+  "listing_risk",
+  "financial_risk",
+  "legal_risk",
+  "fda_clinical",
+]);
+
+const COVERAGE_ICON_BY_CATEGORY: Partial<Record<AlertCategory, LucideIcon>> = {
+  earnings: LineChart,
+  sales_performance: LineChart,
+  product_update: Megaphone,
+  leadership_governance: Landmark,
+  insider_ownership: Building2,
+  shareholder_vote: Building2,
+  strategic_transaction: Merge,
+  dividends: LineChart,
+  capital_return: LineChart,
+  ipo_listing: Building2,
+  policy_regulation: Landmark,
+  macro_market: Landmark,
+  dilution_risk: AlertTriangle,
+  listing_risk: AlertTriangle,
+  financial_risk: AlertTriangle,
+  legal_risk: AlertTriangle,
+  fda_clinical: FlaskConical,
+};
+
+export const coverageItems: readonly CoverageItem[] = ALERT_CATEGORIES.map((category) => {
+  const locked = RISK_CATALYST_CATEGORY_CODES.has(category.code);
+  return {
+    id: category.code,
+    title: category.label,
+    description: category.description,
+    icon: COVERAGE_ICON_BY_CATEGORY[category.code] ?? Bell,
+    enabled: !locked,
+    ...(locked ? { locked: true } : {}),
+  };
+});
 
 export const deliveryItems: readonly DeliveryItem[] = [
-  { id: "app", title: "App Push", icon: Smartphone, enabled: true },
-  { id: "web", title: "Web Push", icon: MonitorSmartphone, enabled: true },
+  { id: "web", title: "Web", icon: MonitorSmartphone, enabled: true },
   { id: "telegram", title: "Telegram", icon: Send, enabled: false },
   { id: "email", title: "Email", icon: Mail, enabled: false, lockedTier: "ADVANCED" },
+  { id: "webhook", title: "Webhook", icon: Smartphone, enabled: false, lockedTier: "ULTIMATE" },
+  { id: "api", title: "API", icon: Bell, enabled: false, lockedTier: "ULTIMATE" },
 ];
 
 export const alertSources: readonly AlertSource[] = [
