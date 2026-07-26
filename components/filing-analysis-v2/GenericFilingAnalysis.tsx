@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { ExternalLink, TrendingDown, TrendingUp } from "lucide-react";
 import { MarketTickerLogo } from "@/components/market/MarketTickerLogo";
+import { LiveRoomEntryButton } from "@/components/live-room/LiveRoomEntryButton";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { isRealTicker, type DetailTone } from "@/app/events/[id]/detailTypes";
 import { getDirectionalScoreTone } from "@/lib/directionalScore";
@@ -182,6 +183,12 @@ export function GenericFilingAnalysis({
       : bookmarkRenderer === undefined
         ? <FilingBookmarkButton filingId={filingId} />
         : bookmarkRenderer;
+  const liveRoomEvent = {
+    id: filingId,
+    source: filing.source,
+    title: filing.title,
+    type: eventLabel,
+  };
 
   return (
     <div className={styles.page}>
@@ -200,8 +207,6 @@ export function GenericFilingAnalysis({
                 </div>
               ) : null}
 
-              {bookmark ? <div className={styles.heroActions}>{bookmark}</div> : null}
-
               <div
                 className={`${styles.heroIdentity}${
                   hasTicker ? "" : ` ${styles.heroIdentityWithoutTicker}`
@@ -209,13 +214,24 @@ export function GenericFilingAnalysis({
               >
                 {hasTicker ? <MarketTickerLogo size="detail" ticker={filing.ticker} /> : null}
                 <div className={styles.heroTitleGroup}>
-                  {hasCompanyLine ? (
-                    <div className={styles.companyLine}>
-                      {hasTicker ? <strong>{filing.ticker}</strong> : null}
-                      {company ? <span>{company}</span> : null}
-                      {exchange ? <span>{exchange}</span> : null}
+                  <div className={styles.companyActionRow}>
+                    {hasCompanyLine ? (
+                      <div className={styles.companyLine}>
+                        {hasTicker ? <strong>{filing.ticker}</strong> : null}
+                        {company ? <span>{company}</span> : null}
+                        {exchange ? <span>{exchange}</span> : null}
+                      </div>
+                    ) : null}
+                    <div className={styles.heroActions}>
+                      <LiveRoomEntryButton
+                        event={liveRoomEvent}
+                        issuer={company}
+                        label="Discuss in Live Room"
+                        ticker={filing.ticker}
+                      />
+                      {bookmark}
                     </div>
-                  ) : null}
+                  </div>
                   <h1>{filing.title}</h1>
                   <div className={styles.classification}>
                     {cleanText(filing.formType) ? (

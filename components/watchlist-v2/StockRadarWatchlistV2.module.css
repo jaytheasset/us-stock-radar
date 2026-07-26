@@ -1667,6 +1667,10 @@
     white-space: nowrap;
   }
 
+  .stockActions > :last-child {
+    grid-column: 1 / -1;
+  }
+
   .sectionNavigation {
     margin-bottom: var(--sr-space-3);
   }

@@ -23,6 +23,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import { AdSenseSlot } from "@/components/ads/AdSenseSlot";
+import { LiveRoomEntryButton } from "@/components/live-room/LiveRoomEntryButton";
 import { ProTrialCta } from "@/components/ProTrialCta";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
@@ -1218,6 +1219,7 @@ function StockHeader({
           )}
           {isSaved ? "Watching" : "Add to Watchlist"}
         </button>
+        <LiveRoomEntryButton issuer={companyName} ticker={ticker} />
         <Link href="/alerts">
           <Bell aria-hidden="true" size={15} />
           Set Alert

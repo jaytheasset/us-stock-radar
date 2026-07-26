@@ -1,0 +1,52 @@
+.button {
+  display: inline-flex;
+  min-height: var(--sr-size-control);
+  align-items: center;
+  justify-content: center;
+  gap: var(--sr-space-2);
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-action);
+  padding: 0 var(--sr-space-3);
+  color: var(--sr-color-text-control-strong);
+  background: var(--sr-color-surface-control);
+  font: inherit;
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-semibold);
+  line-height: var(--sr-line-height-none);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color var(--sr-motion-duration-menu) var(--sr-motion-easing-standard),
+    background var(--sr-motion-duration-menu) var(--sr-motion-easing-standard),
+    border-color var(--sr-motion-duration-menu) var(--sr-motion-easing-standard);
+}
+
+.button[data-variant="quiet"] {
+  background: transparent;
+}
+
+.button:hover {
+  color: var(--sr-color-text-heading);
+  background: var(--sr-color-surface-control-strong);
+}
+
+.button:focus-visible {
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: var(--sr-focus-ring-offset);
+}
+
+.button svg {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 760px) {
+  .desktopPrefix {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button {
+    transition-duration: var(--sr-motion-duration-reduced);
+  }
+}

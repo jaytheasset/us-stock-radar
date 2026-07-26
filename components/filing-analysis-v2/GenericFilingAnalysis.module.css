@@ -23,7 +23,7 @@
 .hero {
   display: grid;
   min-width: 0;
-  grid-template-columns: minmax(0, 1fr) max-content;
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: var(--sr-space-3);
   border: var(--sr-border-width) solid var(--sr-color-border);
@@ -47,13 +47,15 @@
 
 .heroActions {
   display: flex;
-  grid-column: 2;
-  grid-row: 1;
+  flex: none;
+  margin-left: auto;
+  align-items: center;
   justify-content: flex-end;
+  gap: var(--sr-space-1);
 }
 
 .heroTimestamp span {
-  color: var(--sr-color-accent-text);
+  color: var(--sr-color-text-meta);
   font-weight: var(--sr-font-weight-heavy);
   letter-spacing: var(--sr-letter-spacing-wide, 0.05em);
   text-transform: uppercase;
@@ -83,12 +85,21 @@
 }
 
 .heroTitleGroup,
+.companyActionRow,
 .companyLine {
   min-width: 0;
 }
 
+.companyActionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sr-space-3);
+}
+
 .companyLine {
   display: flex;
+  flex: 1 1 auto;
   align-items: center;
   gap: var(--sr-space-2);
   color: var(--sr-color-text-detail-secondary);
@@ -894,7 +905,7 @@
   }
 
   .hero {
-    grid-template-columns: minmax(0, 1fr) max-content;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--sr-space-4);
     padding: var(--sr-space-4);
   }
@@ -921,20 +932,14 @@
     display: contents;
   }
 
-  .heroIdentity:not(.heroIdentityWithoutTicker) .companyLine {
+  .heroIdentity:not(.heroIdentityWithoutTicker) .companyActionRow {
     grid-column: 2;
     grid-row: 1;
   }
 
-  .heroIdentityWithoutTicker .companyLine {
+  .heroIdentityWithoutTicker .companyActionRow {
     grid-column: 1;
     grid-row: 1;
-  }
-
-  .heroActions {
-    grid-column: 2;
-    grid-row: 1;
-    justify-content: flex-end;
   }
 
   .hero h1 {
@@ -945,7 +950,7 @@
   }
 
   .companyLine {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 
   .companyLine span {
