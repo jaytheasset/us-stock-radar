@@ -373,6 +373,22 @@ test("news feed rows use watchlist density, plain metadata, and a compact rail",
     styles,
     /\.rowScore strong \{[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*font-weight: var\(--sr-font-weight-heavy\);/,
   );
+  assert.match(
+    styles,
+    /@media \(min-width: 761px\) \{[\s\S]*?\.rowHeadline \{[\s\S]*?font-size: var\(--sr-font-size-sm\);[\s\S]*?font-weight: 600;[\s\S]*?line-height: var\(--sr-line-height-snug\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(min-width: 761px\) \{[\s\S]*?\.rowTime \{[\s\S]*?font-size: var\(--sr-font-size-xs\);[\s\S]*?line-height: var\(--sr-line-height-default\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(min-width: 761px\) \{[\s\S]*?\.rowBadges \.newsEventTypeBadge,[\s\S]*?\.rowBadges \.newsScopeBadge \{[\s\S]*?font-size: var\(--sr-font-size-xs\);[\s\S]*?font-weight: 600;/,
+  );
+  assert.match(
+    styles,
+    /@media \(min-width: 761px\) \{[\s\S]*?\.rowSentiment \{[\s\S]*?font-size: var\(--sr-font-size-xs\);[\s\S]*?font-weight: var\(--sr-font-weight-regular\);[\s\S]*?\.rowScore strong \{[\s\S]*?font-weight: 600;/,
+  );
   for (const className of ["newsEventTypeBadge", "newsScopeBadge"]) {
     assert.match(
       styles,
