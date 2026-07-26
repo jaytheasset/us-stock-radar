@@ -622,6 +622,45 @@ test("feed v2 surfaces follow the News and Filings product design tokens", () =>
   );
 });
 
+test("desktop feed rows follow the Watchlist typography and selection hierarchy", () => {
+  const styleSource = readSource(
+    "components/feed-v2/StockRadarFeedV2.module.css",
+  );
+
+  assert.match(
+    styleSource,
+    /\.feedItemSelected\s*\{[\s\S]*box-shadow: none;[\s\S]*background: var\(--sr-color-surface-table-row\);/,
+  );
+  assert.match(
+    styleSource,
+    /\.feedItemSelected::before\s*\{[\s\S]*top: 0;[\s\S]*bottom: 0;[\s\S]*width: 3px;[\s\S]*border-radius: 0;[\s\S]*background: var\(--sr-color-accent\);/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(min-width: 761px\)[\s\S]*\.feedList\s*\{[\s\S]*font-family: var\(--sr-font-family-sans\);[\s\S]*\.feedItem\s*\{[\s\S]*min-height: 82px;[\s\S]*gap: var\(--sr-space-3\);/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(min-width: 761px\)[\s\S]*\.time\s*\{[\s\S]*font-family: var\(--sr-font-family-mono\);[\s\S]*font-size: var\(--sr-font-size-xs\);[\s\S]*\.time span\s*\{[\s\S]*font-weight: var\(--sr-font-weight-heavy\);[\s\S]*\.time strong\s*\{[\s\S]*font-weight: var\(--sr-font-weight-regular\);/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(min-width: 761px\)[\s\S]*\.identity strong\s*\{[\s\S]*font-family: var\(--sr-font-family-mono\);[\s\S]*font-size: var\(--sr-font-size-sm\);[\s\S]*font-weight: var\(--sr-font-weight-heavy\);/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(min-width: 761px\)[\s\S]*\.eventBadge\s*\{[\s\S]*border: 0;[\s\S]*border-radius: 0;[\s\S]*padding: 0;[\s\S]*background: transparent;[\s\S]*font-size: var\(--sr-font-size-xs\);[\s\S]*font-weight: 600;/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(min-width: 761px\)[\s\S]*\.eventCopy h2\s*\{[\s\S]*font-size: var\(--sr-font-size-sm\);[\s\S]*font-weight: 600;[\s\S]*line-height: var\(--sr-line-height-snug\);/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(min-width: 761px\)[\s\S]*\.impactScore span\s*\{[\s\S]*font-size: var\(--sr-font-size-xs\);[\s\S]*font-weight: var\(--sr-font-weight-regular\);[\s\S]*\.impactScore strong\s*\{[\s\S]*font-family: var\(--sr-font-family-mono\);[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*font-weight: 600;/,
+  );
+});
+
 const basePreviewSource: LiveFeedV2PreviewSource = {
   category: "legal_risk",
   detailHref: "/events/event-1",

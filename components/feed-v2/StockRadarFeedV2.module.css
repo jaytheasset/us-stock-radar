@@ -212,6 +212,7 @@
 }
 
 .feedItem {
+  position: relative;
   display: grid;
   width: 100%;
   min-width: 0;
@@ -239,10 +240,24 @@
   background: var(--sr-color-surface-table-hover);
 }
 
-.feedItemSelected,
+.feedItemSelected {
+  box-shadow: none;
+  background: var(--sr-color-surface-table-row);
+}
+
+.feedItemSelected::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  border-radius: 0;
+  background: var(--sr-color-accent);
+  content: "";
+}
+
 .feedItemSelected:hover {
-  box-shadow: inset var(--sr-border-width-strong) 0 0 var(--sr-color-accent);
-  background: var(--sr-color-accent-selected);
+  background: var(--sr-color-surface-table-hover);
 }
 
 .time {
@@ -1188,5 +1203,88 @@
 
   .feedItem {
     column-gap: var(--sr-space-1);
+  }
+}
+
+@media (min-width: 761px) {
+  .feedList {
+    font-family: var(--sr-font-family-sans);
+  }
+
+  .feedItem {
+    min-height: 82px;
+    gap: var(--sr-space-3);
+    padding: var(--sr-space-2) var(--sr-space-4);
+  }
+
+  .time {
+    font-family: var(--sr-font-family-mono);
+    font-size: var(--sr-font-size-xs);
+    line-height: var(--sr-line-height-default);
+  }
+
+  .time span {
+    font-weight: var(--sr-font-weight-heavy);
+  }
+
+  .time strong {
+    font-size: var(--sr-font-size-xs);
+    font-weight: var(--sr-font-weight-regular);
+  }
+
+  .identity strong {
+    font-family: var(--sr-font-family-mono);
+    font-size: var(--sr-font-size-sm);
+    font-weight: var(--sr-font-weight-heavy);
+  }
+
+  .identity span,
+  .source,
+  .eventCopy p {
+    font-size: var(--sr-font-size-xs);
+  }
+
+  .eventBadge {
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    background: transparent;
+    font-size: var(--sr-font-size-xs);
+    font-weight: 600;
+    line-height: var(--sr-line-height-default);
+  }
+
+  .source,
+  .eventCopy p {
+    line-height: var(--sr-line-height-default);
+  }
+
+  .eventCopy h2 {
+    color: var(--sr-color-text-heading);
+    font-size: var(--sr-font-size-sm);
+    font-weight: 600;
+    line-height: var(--sr-line-height-snug);
+  }
+
+  .quote {
+    font-family: var(--sr-font-family-mono);
+  }
+
+  .impactScore {
+    gap: var(--sr-space-1);
+  }
+
+  .impactScore span {
+    font-size: var(--sr-font-size-xs);
+    font-weight: var(--sr-font-weight-regular);
+    line-height: var(--sr-line-height-default);
+  }
+
+  .impactScore strong {
+    font-family: var(--sr-font-family-mono);
+    font-size: var(--sr-font-size-md);
+    font-weight: 600;
+    line-height: var(--sr-line-height-default);
   }
 }
