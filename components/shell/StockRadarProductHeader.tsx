@@ -20,7 +20,7 @@ import { IconButton } from "@/components/ui/IconButton";
 import styles from "./StockRadarProductHeader.module.css";
 
 export type StockRadarProductHeaderProps = {
-  activeNavigationItem: StockRadarPrimaryNavigationKey;
+  activeNavigationItem: StockRadarPrimaryNavigationKey | null;
   showThemeToggle?: boolean;
 };
 

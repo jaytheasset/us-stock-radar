@@ -38,7 +38,7 @@ export function CompanyRoomHeader({
           <strong>{identity.ticker}</strong>
           <h1>{identity.companyName}</h1>
         </div>
-        <small>{identity.exchange} · Company room · {identity.ticker}</small>
+        <small>{identity.exchange} · Company room</small>
       </div>
 
       <div className={styles.roomActions}>

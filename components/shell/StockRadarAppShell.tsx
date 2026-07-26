@@ -8,7 +8,7 @@ import type { StockRadarPrimaryNavigationKey } from "@/components/shell/stockRad
 import styles from "./StockRadarAppShell.module.css";
 
 export type StockRadarAppShellProps = {
-  activeNavigationItem: StockRadarPrimaryNavigationKey;
+  activeNavigationItem: StockRadarPrimaryNavigationKey | null;
   children: ReactNode;
   themeMode?: StockRadarThemeMode;
 };

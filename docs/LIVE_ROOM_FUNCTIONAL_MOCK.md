@@ -15,8 +15,14 @@
 ## Adapter and persistence decisions
 
 - Existing read-only profile and event APIs provide company metadata and
-  events when available. Deterministic Mock data keeps local development
-  usable when those APIs or environment variables are unavailable.
+  events when available. A successful event response is authoritative,
+  including a zero-event response, so API and Mock events are never combined.
+  Deterministic Mock event fallback is used only when the event request fails.
+- The development `New company update` control switches the whole event list
+  to a labeled Mock scenario instead of adding a Mock event to API data.
+- The company-room request intentionally omits `include_archive=true`.
+  Archived events stay out of the room history; changing that is not part of
+  this Mock.
 - `LiveRoomMessageRepository` is the UI boundary for a future Supabase
   Realtime or other transport. The current in-memory adapter resets all
   messages on refresh and does not write to a database or browser storage.

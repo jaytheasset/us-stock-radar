@@ -5,6 +5,8 @@ import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import {
   createCompanyRoomKey,
   createEventReference,
+  getCompanyEventsApiHref,
+  resolveCompanyEventSnapshot,
   selectLatestCompanyEvent,
   sortCompanyEvents,
   toCompanyEvent,
@@ -26,6 +28,7 @@ import {
 import type {
   CompanyEvent,
   CompanyEventReference,
+  CompanyEventSource,
   CompanyRoomIdentity,
   LiveRoomProfile,
   LiveRoomTimelineItem,
@@ -78,9 +81,9 @@ export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
     roomKey,
     ticker,
   });
-  const [events, setEvents] = useState<CompanyEvent[]>(() =>
-    getMockCompanyEvents(ticker),
-  );
+  const [events, setEvents] = useState<CompanyEvent[]>([]);
+  const [eventSource, setEventSource] =
+    useState<CompanyEventSource>("loading");
   const [timeline, setTimeline] = useState<LiveRoomTimelineItem[]>([]);
   const [scenario, setScenario] = useState<MockScenario>("loading");
   const [body, setBody] = useState("");
@@ -96,6 +99,7 @@ export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
   const [sending, setSending] = useState(false);
   const [newUpdateId, setNewUpdateId] = useState<string | null>(null);
   const updateSequenceRef = useRef(0);
+  const mockSimulationActiveRef = useRef(false);
   const historyOpenerRef = useRef<HTMLButtonElement>(null);
   const messageRepositoryRef =
     useRef<InMemoryLiveRoomMessageRepository | null>(null);
@@ -150,43 +154,26 @@ export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
 
   useEffect(() => {
     const controller = new AbortController();
-    void Promise.all([
-      fetch(
-        `/api/market/fmp/profile?symbol=${encodeURIComponent(ticker)}`,
-        { cache: "no-store", signal: controller.signal },
-      ).then(readJsonResponse),
-      fetch(`/api/events?ticker=${encodeURIComponent(ticker)}&limit=30`, {
-        cache: "no-store",
-        signal: controller.signal,
-      }).then(readJsonResponse),
-    ])
-      .then(([profilePayload, eventsPayload]) => {
+    void fetch(
+      `/api/market/fmp/profile?symbol=${encodeURIComponent(ticker)}`,
+      { cache: "no-store", signal: controller.signal },
+    )
+      .then(readJsonResponse)
+      .then((profilePayload) => {
         if (controller.signal.aborted) return;
         const mappedProfile = mapStockOverviewProfile(
           profilePayload,
           fallbackCompany.name,
         );
-        const mappedEvents = mapStockOverviewEvents(eventsPayload)
-          .filter((event) => event.ticker === ticker)
-          .map(toCompanyEvent);
         setIdentity({
           companyName: mappedProfile.companyName || fallbackCompany.name,
           exchange: mappedProfile.exchange || fallbackCompany.exchange,
           roomKey,
           ticker,
         });
-        if (mappedEvents.length) {
-          setEvents((currentEvents) => {
-            const simulatedUpdates = currentEvents.filter((event) =>
-              event.eventId.startsWith(`mock-${ticker}-new-`),
-            );
-            return sortCompanyEvents([...simulatedUpdates, ...mappedEvents]);
-          });
-        }
       })
       .catch(() => {
-        // The functional Mock intentionally keeps deterministic fallback data
-        // when the existing read-only APIs are unavailable locally.
+        // Company identity already has deterministic local fallback metadata.
       });
     return () => controller.abort();
   }, [
@@ -195,6 +182,53 @@ export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
     roomKey,
     ticker,
   ]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    mockSimulationActiveRef.current = false;
+    setEvents([]);
+    setEventSource("loading");
+
+    void fetch(getCompanyEventsApiHref(ticker), {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(readJsonResponse)
+      .then((eventsPayload) => {
+        if (
+          controller.signal.aborted ||
+          mockSimulationActiveRef.current
+        ) {
+          return;
+        }
+        const mappedEvents = mapStockOverviewEvents(eventsPayload)
+          .filter((event) => event.ticker === ticker)
+          .map(toCompanyEvent);
+        const snapshot = resolveCompanyEventSnapshot({
+          apiEvents: mappedEvents,
+          fallbackEvents: getMockCompanyEvents(ticker),
+          requestSucceeded: true,
+        });
+        setEvents(snapshot.events);
+        setEventSource(snapshot.source);
+      })
+      .catch(() => {
+        if (
+          controller.signal.aborted ||
+          mockSimulationActiveRef.current
+        ) {
+          return;
+        }
+        const snapshot = resolveCompanyEventSnapshot({
+          apiEvents: [],
+          fallbackEvents: getMockCompanyEvents(ticker),
+          requestSucceeded: false,
+        });
+        setEvents(snapshot.events);
+        setEventSource(snapshot.source);
+      });
+    return () => controller.abort();
+  }, [ticker]);
 
   const handleProfileChange = (nextProfile: LiveRoomProfile) => {
     setProfile(nextProfile);
@@ -276,8 +310,17 @@ export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
     const update = createMockCompanyUpdate(
       ticker,
       updateSequenceRef.current,
+      latestEvent?.occurredAt,
     );
-    setEvents((current) => sortCompanyEvents([update, ...current]));
+    mockSimulationActiveRef.current = true;
+    setEvents((current) => {
+      const mockBaseEvents =
+        eventSource === "api" || eventSource === "loading"
+          ? getMockCompanyEvents(ticker)
+          : current;
+      return sortCompanyEvents([update, ...mockBaseEvents]);
+    });
+    setEventSource("mock-simulation");
     setNewUpdateId(update.eventId);
     setScenario("ready");
     await messageRepositoryRef.current?.publishCompanyUpdate(roomKey, update);
@@ -292,7 +335,7 @@ export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
 
   return (
     <StockRadarAppShell
-      activeNavigationItem="watchlist"
+      activeNavigationItem={null}
       themeMode="user-selectable"
     >
       <div className={styles.page}>
@@ -324,6 +367,12 @@ export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
               <p>
                 This always follows the newest news or filing for the company.
               </p>
+              <small
+                className={styles.eventSource}
+                data-event-source={eventSource}
+              >
+                {getEventSourceLabel(eventSource, events.length)}
+              </small>
             </div>
             <div className={styles.mockControls}>
               <label>
@@ -350,7 +399,9 @@ export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
             <CompanyEventCard event={latestEvent} latest />
           ) : (
             <p className={styles.panelEmpty}>
-              No company news or filing is available.
+              {eventSource === "loading"
+                ? "Loading company events…"
+                : "No current company news or filing is available."}
             </p>
           )}
         </section>
@@ -429,4 +480,20 @@ export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
 async function readJsonResponse(response: Response) {
   if (!response.ok) throw new Error(`Request failed: ${response.status}`);
   return response.json() as Promise<unknown>;
+}
+
+function getEventSourceLabel(
+  source: CompanyEventSource,
+  eventCount: number,
+) {
+  if (source === "loading") return "Checking the company events API";
+  if (source === "mock-fallback") {
+    return "Development Mock fallback · events API unavailable";
+  }
+  if (source === "mock-simulation") {
+    return "Mock scenario · API events replaced, not combined";
+  }
+  return eventCount
+    ? "Company events API"
+    : "Company events API · no current events";
 }

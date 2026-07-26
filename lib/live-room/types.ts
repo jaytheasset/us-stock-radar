@@ -32,6 +32,12 @@ export type CompanyEvent = CompanyEventReference & {
   source: string;
 };
 
+export type CompanyEventSource =
+  | "api"
+  | "loading"
+  | "mock-fallback"
+  | "mock-simulation";
+
 export type LiveRoomProfile = {
   displayName: string;
   emoji: string;

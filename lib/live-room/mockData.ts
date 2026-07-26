@@ -45,7 +45,7 @@ export function getMockCompanyEvents(ticker: string): CompanyEvent[] {
       eventId: `mock-${ticker}-news-older`,
       kind: "news",
       occurredAt: "2026-07-23T13:45:00.000Z",
-      score: -36,
+      score: 36,
       signal: "volatile",
       source: "Market Wire",
       title: `Investors weigh new demand signals for ${ticker}`,
@@ -56,13 +56,26 @@ export function getMockCompanyEvents(ticker: string): CompanyEvent[] {
 export function createMockCompanyUpdate(
   ticker: string,
   sequence: number,
+  afterOccurredAt?: string | null,
 ): CompanyEvent {
+  const afterTimestamp = afterOccurredAt
+    ? new Date(afterOccurredAt).getTime()
+    : Number.NaN;
+  const occurredAt = new Date(
+    Math.max(
+      Date.now(),
+      Number.isFinite(afterTimestamp)
+        ? afterTimestamp + Math.max(sequence, 1)
+        : 0,
+    ),
+  ).toISOString();
+
   return {
     detailHref: null,
     eventId: `mock-${ticker}-new-${Date.now()}-${sequence}`,
     kind: sequence % 2 === 0 ? "filing" : "news",
-    occurredAt: new Date().toISOString(),
-    score: sequence % 2 === 0 ? -58 : 82,
+    occurredAt,
+    score: sequence % 2 === 0 ? 58 : 82,
     signal: sequence % 2 === 0 ? "bearish" : "bullish",
     source: sequence % 2 === 0 ? "SEC" : "Company Newswire",
     title:

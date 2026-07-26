@@ -5,7 +5,7 @@ import {
 import styles from "./StockRadarProductHeader.module.css";
 
 export type StockRadarDesktopNavigationProps = {
-  activeItem: StockRadarPrimaryNavigationKey;
+  activeItem: StockRadarPrimaryNavigationKey | null;
 };
 
 export function StockRadarDesktopNavigation({

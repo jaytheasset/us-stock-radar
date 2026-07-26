@@ -10,7 +10,7 @@ import styles from "./StockRadarProductHeader.module.css";
 export const stockRadarMobileMenuId = "stock-radar-mobile-navigation-menu";
 
 export type StockRadarMobileNavigationMenuProps = {
-  activeItem: StockRadarPrimaryNavigationKey;
+  activeItem: StockRadarPrimaryNavigationKey | null;
   menuRef: Ref<HTMLDivElement>;
   onItemActivate: (item: StockRadarNavigationItem) => void;
 };

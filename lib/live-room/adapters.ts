@@ -2,6 +2,7 @@ import type { StockOverviewEvent } from "../watchlist/stockOverview.ts";
 import type {
   CompanyEvent,
   CompanyEventReference,
+  CompanyEventSource,
   CompanyRoomKey,
 } from "./types.ts";
 
@@ -16,6 +17,10 @@ export function normalizeLiveRoomTicker(value: unknown) {
 export function getLiveRoomHref(value: unknown) {
   const ticker = normalizeLiveRoomTicker(value);
   return ticker ? `/live/${encodeURIComponent(ticker)}` : null;
+}
+
+export function getCompanyEventsApiHref(ticker: string) {
+  return `/api/events?ticker=${encodeURIComponent(ticker)}&limit=30`;
 }
 
 export function createCompanyRoomKey(input: {
@@ -59,6 +64,25 @@ export function selectLatestCompanyEvent(
   events: readonly CompanyEvent[],
 ): CompanyEvent | null {
   return sortCompanyEvents(events)[0] ?? null;
+}
+
+export function resolveCompanyEventSnapshot(input: {
+  apiEvents: readonly CompanyEvent[];
+  fallbackEvents: readonly CompanyEvent[];
+  requestSucceeded: boolean;
+}): {
+  events: CompanyEvent[];
+  source: Extract<CompanyEventSource, "api" | "mock-fallback">;
+} {
+  return input.requestSucceeded
+    ? {
+        events: sortCompanyEvents(input.apiEvents),
+        source: "api",
+      }
+    : {
+        events: sortCompanyEvents(input.fallbackEvents),
+        source: "mock-fallback",
+      };
 }
 
 export function createEventReference(
