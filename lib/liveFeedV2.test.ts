@@ -742,6 +742,7 @@ test("desktop feed rows follow the Watchlist typography and selection hierarchy"
   );
   assert.match(listSource, /getLiveFeedV2MobileIdentityLabel\(item\)/);
   assert.match(listSource, /className=\{styles\.identityMobile\}/);
+  assert.match(styleSource, /\.identity \.identityMobile\s*\{\s*display: none;/);
   assert.match(listSource, /\{item\.timeDateLabel\} · \{item\.timeLabel\} ET/);
   assert.match(
     styleSource,
