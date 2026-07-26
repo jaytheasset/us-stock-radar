@@ -20,14 +20,16 @@ const eventTones: Record<FilingsV2EventType, BadgeTone> = {
 };
 
 export function FilingsV2EventBadge({
+  className,
   event,
   size = "small",
 }: {
+  className?: string;
   event: FilingsV2EventType;
   size?: "micro" | "small" | "large";
 }) {
   return (
-    <Badge size={size} tone={eventTones[event]}>
+    <Badge className={className} size={size} tone={eventTones[event]}>
       {filingsV2EventLabels[event]}
     </Badge>
   );

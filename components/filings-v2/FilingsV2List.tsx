@@ -58,11 +58,16 @@ function FilingEvents({ record, mobile = false }: { mobile?: boolean; record: Fi
     return <span className={styles.metadataEmpty}>No event</span>;
   }
 
-  const visibleEvents = record.events.slice(0, mobile ? 1 : 2);
+  const visibleEvents = record.events.slice(0, 1);
   return (
     <span className={styles.eventBadges}>
       {visibleEvents.map((event) => (
-        <FilingsV2EventBadge event={event} key={event} size={mobile ? "micro" : "small"} />
+        <FilingsV2EventBadge
+          className={styles.filingEventMeta}
+          event={event}
+          key={event}
+          size={mobile ? "micro" : "small"}
+        />
       ))}
       {record.events.length > visibleEvents.length ? (
         <span
