@@ -56,7 +56,7 @@ function FeedMarketNewsPreviewContent({
         </div>
 
         <div className={styles.detailClassification}>
-          <FeedPreviewEventBadge category="MARKET" />
+          <FeedPreviewEventBadge category="Market" feedType="market" />
         </div>
 
         <div className={styles.detailFacts}>

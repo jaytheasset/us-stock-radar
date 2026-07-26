@@ -66,7 +66,11 @@ function FeedFilingPreviewContent({
             {previewValue(filing.formType)}
           </span>
           {filing.events.map((event) => (
-            <FeedPreviewEventBadge category={event} key={event} />
+            <FeedPreviewEventBadge
+              category={event}
+              feedType="filings"
+              key={event}
+            />
           ))}
         </div>
 

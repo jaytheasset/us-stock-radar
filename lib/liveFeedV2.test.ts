@@ -16,6 +16,7 @@ import {
   createLiveFeedV2Preview,
   type LiveFeedV2PreviewSource,
 } from "./liveFeedV2Preview.ts";
+import { getLiveFeedV2EventPresentation } from "./liveFeedV2EventType.ts";
 import {
   hasValidLiveFeedPrimaryTicker,
   liveFeedEventVisibilityOrFilter,
@@ -50,6 +51,29 @@ test("feed v2 filters reject unknown values", () => {
   assert.equal(normalizeLiveFeedV2Filter("watchlist"), "watchlist");
   assert.equal(normalizeLiveFeedV2Filter("mock"), "all");
   assert.equal(normalizeLiveFeedV2Filter(null), "all");
+});
+
+test("live feed preserves news and filing event labels without dashboard abbreviations", () => {
+  assert.deepEqual(
+    getLiveFeedV2EventPresentation("legal_risk", "news"),
+    { label: "Legal Risk", tone: "legal" },
+  );
+  assert.deepEqual(
+    getLiveFeedV2EventPresentation("legal", "filings"),
+    { label: "Legal", tone: "legal" },
+  );
+  assert.deepEqual(
+    getLiveFeedV2EventPresentation("dilution", "filings"),
+    { emphasis: "dilution", label: "Dilution", tone: "legal" },
+  );
+  assert.deepEqual(
+    getLiveFeedV2EventPresentation("fda_clinical", "news"),
+    { label: "FDA / Clinical", tone: "product" },
+  );
+  assert.deepEqual(
+    getLiveFeedV2EventPresentation("event", "news"),
+    { label: "Other", tone: "neutral" },
+  );
 });
 
 test("tickerless non-alert market news is excluded while alerts and unrelated events remain", () => {

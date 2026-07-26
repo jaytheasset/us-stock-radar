@@ -1,20 +1,11 @@
-import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/Badge";
 import { getDirectionalScoreTone } from "@/lib/directionalScore";
-import type { LiveFeedV2Sentiment } from "@/lib/liveFeedV2Contract";
+import type {
+  LiveFeedV2Kind,
+  LiveFeedV2Sentiment,
+} from "@/lib/liveFeedV2Contract";
+import { getLiveFeedV2EventPresentation } from "@/lib/liveFeedV2EventType";
 import styles from "./FeedFilingPreview.module.css";
-
-const categoryTones: Record<string, BadgeTone> = {
-  DILUTION: "neutral",
-  DIVIDEND: "neutral",
-  EARN: "earnings",
-  FDA: "product",
-  FILING: "neutral",
-  INSIDER: "insider",
-  LEGAL: "legal",
-  LISTING: "neutral",
-  MARKET: "neutral",
-  NEWS: "neutral",
-};
 
 const signalClassNames: Record<LiveFeedV2Sentiment, string> = {
   Bearish: styles.bearish,
@@ -23,11 +14,21 @@ const signalClassNames: Record<LiveFeedV2Sentiment, string> = {
   Volatile: styles.volatile,
 };
 
-export function FeedPreviewEventBadge({ category }: { category: string }) {
-  const normalized = category.trim().toUpperCase() || "NEWS";
+export function FeedPreviewEventBadge({
+  category,
+  feedType,
+}: {
+  category: string;
+  feedType: LiveFeedV2Kind;
+}) {
+  const eventPresentation = getLiveFeedV2EventPresentation(category, feedType);
   return (
-    <Badge size="small" tone={categoryTones[normalized] || "neutral"}>
-      {formatCategory(normalized)}
+    <Badge
+      data-event-emphasis={eventPresentation.emphasis}
+      size="small"
+      tone={eventPresentation.tone}
+    >
+      {eventPresentation.label}
     </Badge>
   );
 }
@@ -78,17 +79,4 @@ export function formatPreviewTimestamp(timestamp: string) {
 
 export function previewValue(value: string | null | undefined) {
   return value?.trim() || "—";
-}
-
-function formatCategory(value: string) {
-  if (value === "EARN") return "Earnings";
-  if (value === "FDA") return "FDA";
-  if (value === "DILUTION") return "Dilution";
-  if (value === "DIVIDEND") return "Dividend";
-  if (value === "INSIDER") return "Insider";
-  if (value === "LEGAL") return "Legal";
-  if (value === "LISTING") return "Listing";
-  if (value === "MARKET") return "Market";
-  if (value === "FILING") return "Filing";
-  return "News";
 }

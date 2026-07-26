@@ -26,6 +26,7 @@ import {
   createLiveFeedV2Preview,
   type LiveFeedV2PreviewSource,
 } from "@/lib/liveFeedV2Preview";
+import { getLiveFeedV2EventPresentation } from "@/lib/liveFeedV2EventType";
 import type { RankedEvent } from "@/lib/radarRankings";
 
 export type LiveFeedV2RailEvent = {
@@ -167,10 +168,14 @@ function mapLiveFeedItem(
 
 function mapPreviewSource(item: LiveFeedItem): LiveFeedV2PreviewSource {
   const feedType = resolveFeedType(item);
+  const eventPresentation = getLiveFeedV2EventPresentation(
+    item.eventType,
+    feedType,
+  );
 
   return {
     accessionNumber: item.accessionNumber,
-    category: normalizeCategory(item.eventType, feedType),
+    category: eventPresentation.label,
     companyName: item.companyName,
     detailHref:
       feedType === "filings" ? `/filings/${item.id}` : `/events/${item.id}`,
@@ -261,29 +266,6 @@ function formatSentiment(
   if (signal === "bearish") return "Bearish";
   if (signal === "volatile") return "Volatile";
   return "Neutral";
-}
-
-function normalizeCategory(value: string, feedType: LiveFeedV2Kind) {
-  const normalized = value.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ");
-  if (feedType === "market") return "MARKET";
-  if (normalized.includes("earn")) return "EARN";
-  if (normalized.includes("fda") || normalized.includes("clinical")) return "FDA";
-  if (normalized.includes("dilution") || normalized.includes("offering")) {
-    return "DILUTION";
-  }
-  if (normalized.includes("listing") || normalized.includes("ipo")) {
-    return "LISTING";
-  }
-  if (normalized.includes("insider") || normalized.includes("ownership")) {
-    return "INSIDER";
-  }
-  if (normalized.includes("dividend") || normalized.includes("capital return")) {
-    return "DIVIDEND";
-  }
-  if (normalized.includes("legal") || normalized.includes("regulation")) {
-    return "LEGAL";
-  }
-  return feedType === "filings" ? "FILING" : "NEWS";
 }
 
 function formatMarketScope(value: LiveFeedItem["marketScope"]) {

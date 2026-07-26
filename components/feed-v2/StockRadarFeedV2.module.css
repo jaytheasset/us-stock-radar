@@ -331,13 +331,34 @@
   border: 0;
   border-radius: 0;
   padding: 0;
-  color: var(--sr-color-text-control-strong);
+  color: var(--sr-color-event-neutral);
   background: transparent;
   font-family: var(--sr-font-family-mono);
   font-size: var(--sr-font-size-xs);
   font-weight: var(--sr-font-weight-label);
   line-height: var(--sr-line-height-none);
+  text-transform: uppercase;
   white-space: nowrap;
+}
+
+.eventBadge[data-event-tone="earnings"] {
+  color: var(--sr-color-event-earnings);
+}
+
+.eventBadge[data-event-tone="legal"] {
+  color: var(--sr-color-event-legal);
+}
+
+.eventBadge[data-event-tone="insider"] {
+  color: var(--sr-color-event-insider);
+}
+
+.eventBadge[data-event-tone="transaction"] {
+  color: var(--sr-color-event-transaction);
+}
+
+.eventBadge[data-event-tone="product"] {
+  color: var(--sr-color-event-product);
 }
 
 .source {

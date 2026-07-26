@@ -7,6 +7,7 @@ import type {
   LiveFeedV2Sentiment,
 } from "@/lib/liveFeedV2Contract";
 import { getLiveFeedV2MobileIdentityLabel } from "@/lib/liveFeedV2Contract";
+import { getLiveFeedV2EventPresentation } from "@/lib/liveFeedV2EventType";
 import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import type { Plan } from "@/lib/subscriptionPolicy";
 import styles from "./StockRadarFeedV2.module.css";
@@ -89,6 +90,10 @@ export function FeedEventList({
         const position = index + 1;
         const insertAd = viewerPlan === "free" && position % 20 === 10;
         const mobileIdentityLabel = getLiveFeedV2MobileIdentityLabel(item);
+        const eventPresentation = getLiveFeedV2EventPresentation(
+          item.category,
+          item.feedType,
+        );
 
         return (
           <Fragment key={item.id}>
@@ -118,13 +123,10 @@ export function FeedEventList({
                 <div className={styles.eventMeta}>
                   <span
                     className={styles.eventBadge}
-                    data-event-emphasis={
-                      item.category.toLowerCase().includes("dilution")
-                        ? "dilution"
-                        : undefined
-                    }
+                    data-event-emphasis={eventPresentation.emphasis}
+                    data-event-tone={eventPresentation.tone}
                   >
-                    {item.category}
+                    {eventPresentation.label}
                   </span>
                   <span className={styles.eventMobileFooter}>
                     <time
