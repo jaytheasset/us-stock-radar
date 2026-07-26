@@ -73,6 +73,25 @@
   background: var(--sr-color-surface-control);
 }
 
+.searchIconCell {
+  position: relative;
+  display: flex;
+  height: 100%;
+  flex: 0 0 28px;
+  align-items: center;
+  justify-content: center;
+}
+
+.searchIconCell::after {
+  position: absolute;
+  top: 7px;
+  right: 0;
+  bottom: 7px;
+  width: var(--sr-border-width);
+  background: var(--sr-color-divider);
+  content: "";
+}
+
 .sectorMap button:focus-visible,
 .rangeTabs button:focus-visible,
 .insightActionButton:focus-visible,
@@ -561,6 +580,18 @@
 .newsEventTypeBadge {
   overflow: hidden;
   max-width: 160px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.newsScopeBadge {
+  min-width: 0;
+  max-width: 176px;
+}
+
+.newsScopeBadge > span {
+  overflow: hidden;
+  min-width: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2012,6 +2043,15 @@
   .rowEventTypeBadgeMobile {
     display: inline-flex;
     min-width: 0;
+  }
+
+  .rowCategoryBadgeMobile {
+    flex: 0 1 auto;
+    overflow: hidden;
+  }
+
+  .newsScopeBadge {
+    max-width: 112px;
   }
 
   .rowEventTypeBadgeMobile {

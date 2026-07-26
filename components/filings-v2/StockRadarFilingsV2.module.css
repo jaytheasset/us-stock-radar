@@ -165,6 +165,25 @@
   width: 100%;
 }
 
+.searchIconCell {
+  position: relative;
+  display: flex;
+  height: 100%;
+  flex: 0 0 28px;
+  align-items: center;
+  justify-content: center;
+}
+
+.searchIconCell::after {
+  position: absolute;
+  top: 7px;
+  right: 0;
+  bottom: 7px;
+  width: var(--sr-border-width);
+  background: var(--sr-color-divider);
+  content: "";
+}
+
 .searchControl input {
   min-width: 0;
   width: 100%;

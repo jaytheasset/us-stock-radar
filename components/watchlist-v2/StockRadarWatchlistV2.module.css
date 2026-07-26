@@ -326,6 +326,25 @@
   box-shadow: 0 0 0 2px var(--sr-color-accent-active-soft);
 }
 
+.searchIconCell {
+  position: relative;
+  display: flex;
+  height: 100%;
+  flex: 0 0 28px;
+  align-items: center;
+  justify-content: center;
+}
+
+.searchIconCell::after {
+  position: absolute;
+  top: 7px;
+  right: 0;
+  bottom: 7px;
+  width: var(--sr-border-width);
+  background: var(--sr-color-divider);
+  content: "";
+}
+
 .tickerSearch input {
   width: 100%;
   min-width: 0;

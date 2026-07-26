@@ -4,7 +4,11 @@ import { NewsV2EventTypeBadge } from "@/components/news-v2/NewsV2EventTypeBadge"
 import { NewsV2Sparkline } from "@/components/news-v2/NewsV2Sparkline";
 import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import { formatMarketDateLabel } from "@/lib/marketDate";
-import { formatNewsV2PublishedAt, type NewsV2Item } from "@/lib/newsV2";
+import {
+  formatNewsV2PublishedAt,
+  type NewsV2Item,
+} from "@/lib/newsV2";
+import { getNewsV2ScopeBadgeLabel } from "@/lib/newsV2ScopeBadge";
 import styles from "./StockRadarNewsV2.module.css";
 
 export type NewsV2RowProps = {
@@ -19,6 +23,7 @@ export function NewsV2Row({
   showMarketReaction,
 }: NewsV2RowProps) {
   const isCompanyNews = item.category === "Company";
+  const scopeBadgeLabel = getNewsV2ScopeBadgeLabel(item);
   const visibleTickers = item.relatedTickers.slice(0, 2);
   const remainingTickerCount = Math.max(0, item.relatedTickers.length - visibleTickers.length);
   const sentimentClass = styles[`sentiment${item.sentiment}`];
@@ -64,9 +69,16 @@ export function NewsV2Row({
 
           <span className={styles.rowStory}>
             <span className={styles.rowBadges}>
-              <span className={styles.rowCategoryBadgeDesktop}>
-                <NewsV2EventBadge category={item.category} size="micro" />
-              </span>
+              {scopeBadgeLabel ? (
+                <span className={styles.rowCategoryBadgeDesktop}>
+                  <NewsV2EventBadge
+                    category={item.category}
+                    className={styles.newsScopeBadge}
+                    label={scopeBadgeLabel}
+                    size="micro"
+                  />
+                </span>
+              ) : null}
               <span className={styles.rowEventTypeBadgeDesktop}>
                 <NewsV2EventTypeBadge
                   className={styles.newsEventTypeBadge}
@@ -76,9 +88,16 @@ export function NewsV2Row({
                 />
               </span>
               <span className={styles.rowMobileBadges}>
-                <span className={styles.rowCategoryBadgeMobile}>
-                  <NewsV2EventBadge category={item.category} size="micro" />
-                </span>
+                {scopeBadgeLabel ? (
+                  <span className={styles.rowCategoryBadgeMobile}>
+                    <NewsV2EventBadge
+                      category={item.category}
+                      className={styles.newsScopeBadge}
+                      label={scopeBadgeLabel}
+                      size="micro"
+                    />
+                  </span>
+                ) : null}
                 <span className={styles.rowEventTypeBadgeMobile}>
                   <NewsV2EventTypeBadge
                     className={styles.newsEventTypeBadge}

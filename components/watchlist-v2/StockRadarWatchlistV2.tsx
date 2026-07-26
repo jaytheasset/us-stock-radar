@@ -1031,7 +1031,9 @@ function WatchlistRail({
       </div>
 
       <label className={styles.tickerSearch}>
-        <Search aria-hidden="true" size={15} />
+        <span aria-hidden="true" className={styles.searchIconCell}>
+          <Search size={15} />
+        </span>
         <input
           aria-label="Search stocks to add"
           autoCapitalize="characters"
