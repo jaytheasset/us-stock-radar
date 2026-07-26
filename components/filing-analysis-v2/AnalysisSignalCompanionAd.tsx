@@ -9,7 +9,7 @@ export function AnalysisSignalCompanionAd() {
         format="responsive"
         height={250}
         inventory="analysis-signal-companion"
-        mediaQuery="(min-width: 0px)"
+        mediaQuery="(min-width: 1181px)"
         placeholderSize="Responsive display"
         width={970}
       />

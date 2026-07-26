@@ -4,6 +4,10 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { PointerEvent } from "react";
 import { ChevronDown } from "lucide-react";
 import { selectPriceChartXAxisIndexes } from "@/lib/priceChartAxis";
+import {
+  derivePriceChartMovement,
+  resolvePriceChartTone,
+} from "@/lib/priceChartPresentation";
 import type { DetailTone, PriceChartSeries, PricePoint, PriceRange } from "./detailTypes";
 
 const priceRanges: PriceRange[] = ["1D", "5D", "1M", "3M", "1Y", "5Y"];
@@ -56,7 +60,6 @@ export function PriceChartCard({
   series,
   storedOnly = false,
   ticker,
-  tone,
 }: PriceChartCardProps) {
   const mobileChartRegionId = useId();
   const [isMobileChartExpanded, setIsMobileChartExpanded] = useState(false);
@@ -105,10 +108,20 @@ export function PriceChartCard({
 
   const chartData = useMemo<ActiveChartData | null>(() => {
     if (activeRemoteData?.range === range && activeRemoteData.points?.length && activeRemoteData.previousClose) {
+      const remoteMovement = derivePriceChartMovement(
+        activeRemoteData.points,
+        activeRemoteData.previousClose,
+      );
       return {
-        changeAmount: activeRemoteData.changeAmount,
-        changePercent: activeRemoteData.changePercent,
-        latestPrice: activeRemoteData.latestPrice,
+        changeAmount:
+          finiteNumber(activeRemoteData.changeAmount) ??
+          remoteMovement?.changeAmount,
+        changePercent:
+          finiteNumber(activeRemoteData.changePercent) ??
+          remoteMovement?.changePercent,
+        latestPrice:
+          finiteNumber(activeRemoteData.latestPrice) ??
+          remoteMovement?.latestPrice,
         points: activeRemoteData.points,
         previousClose: activeRemoteData.previousClose,
         providerLabel: activeRemoteData.providerLabel || "Market data",
@@ -120,8 +133,15 @@ export function PriceChartCard({
 
     const storedPoints = series?.periods[range] || [];
     if (!series || !storedPoints.length) return null;
+    const storedMovement = derivePriceChartMovement(
+      storedPoints,
+      series.previousClose,
+    );
 
     return {
+      changeAmount: storedMovement?.changeAmount,
+      changePercent: storedMovement?.changePercent,
+      latestPrice: storedMovement?.latestPrice,
       points: storedPoints,
       previousClose: series.previousClose,
       providerLabel: "Stored market data",
@@ -129,7 +149,7 @@ export function PriceChartCard({
     };
   }, [activeRemoteData, isLoadingActiveRange, range, series]);
 
-  const displayTone = chartData?.changePercent === undefined ? tone : toneFromPercent(chartData.changePercent);
+  const displayTone = resolvePriceChartTone(chartData?.changePercent, change);
   const displayPrice = chartData?.latestPrice === undefined ? price : formatCurrency(chartData.latestPrice);
   const displayChange =
     chartData?.changeAmount === undefined || chartData.changePercent === undefined
@@ -440,14 +460,14 @@ function textAnchorForIndex(index: number, count: number) {
   return "middle";
 }
 
-function toneFromPercent(value: number): DetailTone {
-  if (value > 0.05) return "bullish";
-  if (value < -0.05) return "bearish";
-  return "neutral";
-}
-
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
+}
+
+function finiteNumber(value: number | undefined) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
 }
 
 function formatCurrency(value: number) {
