@@ -649,7 +649,11 @@ test("desktop feed rows follow the Watchlist typography and selection hierarchy"
   );
   assert.match(
     styleSource,
-    /@media \(min-width: 761px\)[\s\S]*\.eventBadge\s*\{[\s\S]*border: 0;[\s\S]*border-radius: 0;[\s\S]*padding: 0;[\s\S]*background: transparent;[\s\S]*font-size: var\(--sr-font-size-xs\);[\s\S]*font-weight: 600;/,
+    /\.eventBadge\s*\{[\s\S]*min-height: 0;[\s\S]*justify-content: flex-start;[\s\S]*border: 0;[\s\S]*border-radius: 0;[\s\S]*padding: 0;[\s\S]*background: transparent;/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(min-width: 761px\)[\s\S]*\.eventBadge\s*\{[\s\S]*font-size: var\(--sr-font-size-xs\);[\s\S]*font-weight: 600;/,
   );
   assert.match(
     styleSource,
