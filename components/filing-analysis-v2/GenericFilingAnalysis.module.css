@@ -39,9 +39,6 @@
   min-width: 0;
   grid-column: 1;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--sr-space-2);
-  padding-right: calc(var(--sr-size-control) + var(--sr-space-2));
 }
 
 .heroTimestamp {
@@ -56,9 +53,6 @@
 }
 
 .bookmarkAction {
-  position: absolute;
-  top: var(--sr-space-4);
-  right: var(--sr-space-5);
   display: flex;
   flex: none;
 }
@@ -111,15 +105,10 @@
 }
 
 .heroTitleGroup {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
-  align-items: center;
-  column-gap: var(--sr-space-3);
+  display: block;
 }
 
 .companyActionRow {
-  grid-column: 1;
-  grid-row: 1;
   display: flex;
   align-items: center;
 }
@@ -129,8 +118,10 @@
 }
 
 .heroActions {
-  grid-column: 2;
-  grid-row: 1;
+  position: absolute;
+  top: var(--sr-space-4);
+  right: var(--sr-space-5);
+  margin-left: 0;
 }
 
 .companyLine {
@@ -174,6 +165,27 @@
 .companyName {
   display: block;
   max-width: 100%;
+}
+
+.companyNameRow {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--sr-space-1);
+}
+
+.companyNameRow .companyName {
+  flex: 0 1 auto;
+}
+
+.companyNameRow .bookmarkAction > button {
+  width: var(--sr-size-badge);
+  height: var(--sr-size-badge);
+}
+
+.companyNameRow .bookmarkAction svg {
+  width: var(--sr-font-size-sm);
+  height: var(--sr-font-size-sm);
 }
 
 .hero h1 {
@@ -974,7 +986,13 @@
   }
 
   .bookmarkAction {
+    position: absolute;
+    top: var(--sr-space-4);
     right: var(--sr-space-4);
+  }
+
+  .heroMetaRow {
+    padding-right: calc(var(--sr-size-control) + var(--sr-space-2));
   }
 
   .heroIdentity {
@@ -1028,6 +1046,16 @@
     flex-wrap: nowrap;
   }
 
+  .companyNameRow .bookmarkAction > button {
+    width: var(--sr-size-control);
+    height: var(--sr-size-control);
+  }
+
+  .companyNameRow .bookmarkAction svg {
+    width: 18px;
+    height: 18px;
+  }
+
   .companyLine span {
     max-width: 100%;
   }
@@ -1040,6 +1068,7 @@
   }
 
   .heroActions {
+    position: static;
     flex: none;
     margin-left: auto;
     justify-content: flex-end;

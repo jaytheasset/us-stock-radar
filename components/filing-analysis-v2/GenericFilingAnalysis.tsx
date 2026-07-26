@@ -200,17 +200,12 @@ export function GenericFilingAnalysis({
         >
           <article className={styles.mainColumn}>
             <header className={styles.hero}>
-              {cleanText(filing.filedAt) || bookmark ? (
+              {cleanText(filing.filedAt) ? (
                 <div className={styles.heroMetaRow}>
-                  {cleanText(filing.filedAt) ? (
-                    <div className={styles.heroTimestamp}>
-                      <span>{timestampLabel}</span>
-                      <time>{filing.filedAt}</time>
-                    </div>
-                  ) : null}
-                  {bookmark ? (
-                    <div className={styles.bookmarkAction}>{bookmark}</div>
-                  ) : null}
+                  <div className={styles.heroTimestamp}>
+                    <span>{timestampLabel}</span>
+                    <time>{filing.filedAt}</time>
+                  </div>
                 </div>
               ) : null}
 
@@ -230,9 +225,19 @@ export function GenericFilingAnalysis({
                             {exchange ? <span>{exchange}</span> : null}
                           </div>
                         ) : null}
-                        {company ? <span className={styles.companyName}>{company}</span> : null}
+                        {company ? (
+                          <div className={styles.companyNameRow}>
+                            <span className={styles.companyName}>{company}</span>
+                            {bookmark ? (
+                              <div className={styles.bookmarkAction}>{bookmark}</div>
+                            ) : null}
+                          </div>
+                        ) : null}
                         {!hasTicker && exchange ? (
                           <span className={styles.exchangeOnly}>{exchange}</span>
+                        ) : null}
+                        {!company && bookmark ? (
+                          <div className={styles.bookmarkAction}>{bookmark}</div>
                         ) : null}
                       </div>
                     ) : null}
