@@ -3,11 +3,11 @@
   min-width: 0;
   grid-template-columns: max-content minmax(0, 1fr);
   align-items: stretch;
-  gap: var(--sr-space-5);
-  border: var(--sr-border-width) solid var(--sr-color-divider);
-  border-radius: var(--sr-radius-control);
-  padding: var(--sr-space-5);
-  background: var(--sr-color-surface-table-panel);
+  gap: var(--sr-space-4);
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-base);
+  padding: var(--sr-space-4);
+  background: var(--sr-color-surface-panel);
   box-shadow: var(--sr-shadow-panel);
 }
 
@@ -17,19 +17,21 @@
   align-content: center;
   gap: var(--sr-space-1);
   border-right: var(--sr-border-width) solid var(--sr-color-divider);
-  padding-right: var(--sr-space-5);
+  padding-right: var(--sr-space-4);
 }
 
 .scoreBlock > span {
-  color: var(--sr-color-text-meta);
+  color: var(--sr-color-accent-text);
   font-size: var(--sr-font-size-xs);
-  font-weight: var(--sr-font-weight-label);
+  font-weight: var(--sr-font-weight-heavy);
+  letter-spacing: var(--sr-letter-spacing-wide, 0.05em);
   line-height: var(--sr-line-height-none);
   text-transform: uppercase;
 }
 
 .scoreBlock > strong {
   color: var(--sr-color-text-heading);
+  font-family: var(--sr-font-family-mono);
   font-size: var(--sr-font-size-heading-lg);
   font-variant-numeric: var(--sr-font-variant-numeric);
   font-weight: var(--sr-font-weight-heavy);
