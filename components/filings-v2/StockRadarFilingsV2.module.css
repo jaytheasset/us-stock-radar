@@ -148,15 +148,16 @@
 }
 
 .searchControl {
+  box-sizing: border-box;
   display: flex;
   min-width: 0;
-  min-height: var(--sr-size-control);
+  height: 38px;
   align-items: center;
   gap: var(--sr-space-2);
-  border: var(--sr-border-width) solid var(--sr-color-border);
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
   border-radius: var(--sr-radius-control);
   padding: 0 var(--sr-space-3);
-  color: var(--sr-color-text-filter-icon);
+  color: var(--sr-color-text-muted);
   background: var(--sr-color-surface-control);
 }
 
@@ -172,8 +173,8 @@
   padding: 0;
   color: var(--sr-color-text-primary);
   background: transparent;
-  font: var(--sr-font-weight-regular) var(--sr-font-size-md) / var(--sr-line-height-control)
-    var(--sr-font-family-sans);
+  font: inherit;
+  font-size: var(--sr-font-size-xs);
 }
 
 .searchControl input::placeholder {
@@ -181,22 +182,23 @@
 }
 
 .searchControl:focus-within {
-  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
-  outline-offset: var(--sr-focus-ring-offset);
+  border-color: var(--sr-color-accent-border-active);
+  box-shadow: 0 0 0 2px var(--sr-color-accent-active-soft);
 }
 
 .searchButton {
-  min-height: var(--sr-size-control);
+  height: 38px;
+  min-height: 38px;
   border: var(--sr-border-width) solid var(--sr-color-accent-border);
-  border-radius: var(--sr-radius-control);
-  padding: 0 var(--sr-space-4);
+  border-radius: var(--sr-radius-action);
+  padding: 0 var(--sr-space-3);
   color: var(--sr-color-text-bright);
   background: linear-gradient(
     180deg,
     var(--sr-color-accent-cta-top),
     var(--sr-color-accent-cta-bottom)
   );
-  font: var(--sr-font-weight-semibold) var(--sr-font-size-sm) / var(--sr-line-height-none)
+  font: var(--sr-font-weight-semibold) var(--sr-font-size-xs) / var(--sr-line-height-none)
     var(--sr-font-family-sans);
 }
 
@@ -212,7 +214,7 @@
 
 .searchForm > .searchButton {
   width: calc(var(--sr-size-control) * 2);
-  min-height: var(--sr-size-control);
+  min-height: 38px;
   padding-inline: 0;
 }
 
@@ -276,7 +278,7 @@
 .desktopFilterMatrix {
   border: var(--sr-border-width) solid var(--sr-color-border);
   border-radius: var(--sr-radius-base);
-  padding: var(--sr-space-2) var(--sr-space-3);
+  padding: var(--sr-space-1-5) var(--sr-space-2-5);
   background: var(--sr-color-surface-panel);
   box-shadow: var(--sr-shadow-panel);
 }
@@ -288,19 +290,19 @@
   min-width: 0;
   grid-template-columns: 76px minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--sr-space-3);
+  gap: var(--sr-space-2);
 }
 
 .filterGroupRow + .filterGroupRow,
 .filterMenuRow,
 .activeFilterRow {
-  margin-top: var(--sr-space-1-5);
+  margin-top: var(--sr-space-1);
 }
 
 .filterMenuRow,
 .activeFilterRow {
   border-top: var(--sr-border-width) solid var(--sr-color-divider);
-  padding-top: var(--sr-space-1-5);
+  padding-top: var(--sr-space-1);
 }
 
 .filterGroupLabel {
@@ -317,7 +319,14 @@
   min-width: 0;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--sr-space-1-5);
+  gap: var(--sr-space-1);
+}
+
+.desktopFilterMatrix .filterOptionRow > button {
+  min-height: 30px;
+  border-radius: var(--sr-radius-action);
+  padding-inline: var(--sr-space-2-5);
+  font-size: var(--sr-font-size-xs);
 }
 
 .marketCapFilterOption {
@@ -374,16 +383,16 @@
 
 .filterMenuTrigger {
   display: flex;
-  min-height: var(--sr-size-filter-option);
+  min-height: 30px;
   align-items: center;
   gap: var(--sr-space-2);
   border: var(--sr-border-width) solid var(--sr-color-border-control);
-  border-radius: var(--sr-radius-control);
-  padding: 0 var(--sr-space-3);
+  border-radius: var(--sr-radius-action);
+  padding: 0 var(--sr-space-2-5);
   color: var(--sr-color-text-control);
   background: var(--sr-color-surface-control);
   font-family: var(--sr-font-family-sans);
-  font-size: var(--sr-font-size-sm);
+  font-size: var(--sr-font-size-xs);
   cursor: pointer;
 }
 
@@ -480,9 +489,12 @@
   opacity: var(--sr-opacity-disabled);
 }
 
+.filterRowActions .resetButton,
 .filterRowActions .searchButton {
-  min-height: var(--sr-size-filter-option);
-  padding-inline: var(--sr-space-3);
+  min-height: 30px;
+  border-radius: var(--sr-radius-action);
+  padding-inline: var(--sr-space-2-5);
+  font-size: var(--sr-font-size-xs);
 }
 
 .mobileFilterActions {
