@@ -30,17 +30,20 @@ import { formatLimit } from "@/lib/subscriptionPolicy";
 import {
   formatCompactMarketValue,
   formatStockOverviewEt,
+  getStockRouteHref,
+  hasStockOverviewData,
   mapStockOverviewChart,
   mapStockOverviewEvents,
   mapStockOverviewProfile,
   mapStockOverviewQuote,
   mapTickerSearchResults,
-  resolveWatchlistTicker,
+  resolveStockOverviewTicker,
   selectStockOverviewEvents,
   type StockOverviewChartPoint,
   type StockOverviewEvent,
   type StockOverviewProfile,
   type StockOverviewQuote,
+  type StockOverviewSelectionMode,
   type TickerSearchResult,
 } from "@/lib/watchlist/stockOverview";
 import type {
@@ -53,6 +56,7 @@ import styles from "./StockRadarWatchlistV2.module.css";
 type StockRadarWatchlistV2Props = {
   initialSelectedTicker: string | null;
   initialWatchlist: WatchlistViewModel;
+  selectionMode?: StockOverviewSelectionMode;
 };
 
 type LoadState = "idle" | "loading" | "ready" | "unavailable";
@@ -94,6 +98,7 @@ const sectionItems = [
 export function StockRadarWatchlistV2({
   initialSelectedTicker,
   initialWatchlist,
+  selectionMode = "watchlist",
 }: StockRadarWatchlistV2Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -102,6 +107,7 @@ export function StockRadarWatchlistV2({
   const [quote, setQuote] = useState(emptyQuote);
   const [chartPoints, setChartPoints] = useState<StockOverviewChartPoint[]>([]);
   const [events, setEvents] = useState<StockOverviewEvent[]>([]);
+  const [overviewState, setOverviewState] = useState<LoadState>("idle");
   const [chartState, setChartState] = useState<LoadState>("idle");
   const [eventsState, setEventsState] = useState<LoadState>("idle");
   const [chartRange, setChartRange] = useState<ChartRange>("1D");
@@ -123,10 +129,14 @@ export function StockRadarWatchlistV2({
   const sortTriggerRef = useRef<HTMLButtonElement>(null);
   const sortMenuRef = useRef<HTMLDivElement>(null);
 
-  const requestedTicker = searchParams.get("ticker") ?? initialSelectedTicker;
-  const selectedTicker = resolveWatchlistTicker(
+  const requestedTicker =
+    selectionMode === "watchlist"
+      ? searchParams.get("ticker") ?? initialSelectedTicker
+      : initialSelectedTicker;
+  const selectedTicker = resolveStockOverviewTicker(
     requestedTicker,
     watchlist.items.map((item) => item.ticker),
+    selectionMode,
   );
   const selectedWatchlistItem =
     watchlist.items.find((item) => item.ticker === selectedTicker) ?? null;
@@ -159,6 +169,7 @@ export function StockRadarWatchlistV2({
 
   useEffect(() => {
     if (!selectedTicker) {
+      setOverviewState("idle");
       setEvents([]);
       setProfile(emptyProfile);
       setQuote(emptyQuote);
@@ -166,7 +177,8 @@ export function StockRadarWatchlistV2({
     }
 
     const controller = new AbortController();
-    const fallbackCompanyName = selectedWatchlistItem?.companyName || selectedTicker;
+    const fallbackCompanyName = selectedWatchlistItem?.companyName || "";
+    setOverviewState("loading");
     setEventsState("loading");
     setProfile({ ...emptyProfile, companyName: fallbackCompanyName });
     setQuote(emptyQuote);
@@ -189,10 +201,14 @@ export function StockRadarWatchlistV2({
       ).then(readJsonResponse),
     ]).then(([profileResult, quoteResult, eventResult]) => {
       if (controller.signal.aborted) return;
-      const nextProfile =
+      const mappedProfile =
         profileResult.status === "fulfilled"
-          ? mapStockOverviewProfile(profileResult.value, fallbackCompanyName)
-          : { ...emptyProfile, companyName: fallbackCompanyName };
+          ? mapStockOverviewProfile(profileResult.value)
+          : emptyProfile;
+      const nextProfile = {
+        ...mappedProfile,
+        companyName: mappedProfile.companyName || fallbackCompanyName,
+      };
       const nextQuote =
         quoteResult.status === "fulfilled"
           ? mapStockOverviewQuote(quoteResult.value)
@@ -205,6 +221,11 @@ export function StockRadarWatchlistV2({
       setQuote(nextQuote);
       setEvents(nextEvents);
       setSelectedEventId(nextEvents[0]?.id ?? null);
+      setOverviewState(
+        hasStockOverviewData(mappedProfile, nextQuote, nextEvents)
+          ? "ready"
+          : "unavailable",
+      );
       setEventsState(
         eventResult.status === "fulfilled" ? "ready" : "unavailable",
       );
@@ -295,7 +316,11 @@ export function StockRadarWatchlistV2({
   }, [isSortOpen]);
 
   function navigateToTicker(ticker: string, replace = false) {
-    const href = `/watchlist?ticker=${encodeURIComponent(ticker)}`;
+    const href =
+      selectionMode === "stock"
+        ? getStockRouteHref(ticker)
+        : `/watchlist?ticker=${encodeURIComponent(ticker)}`;
+    if (!href) return;
     if (replace) router.replace(href, { scroll: false });
     else router.push(href, { scroll: false });
   }
@@ -379,7 +404,11 @@ export function StockRadarWatchlistV2({
       items: nextItems,
       usage: Math.max(0, watchlist.usage - 1),
     });
-    if (selectedTicker === ticker && nextItems[0]) {
+    if (
+      selectionMode === "watchlist" &&
+      selectedTicker === ticker &&
+      nextItems[0]
+    ) {
       navigateToTicker(nextItems[0].ticker, true);
     }
 
@@ -510,15 +539,40 @@ export function StockRadarWatchlistV2({
               : `${watchlist.usage} of ${formatLimit(watchlist.limit)} watchlist slots used on ${watchlist.planLabel}.`)}
         </p>
 
-        {selectedTicker && selectedWatchlistItem ? (
+        {selectedTicker &&
+        (selectionMode === "stock" || selectedWatchlistItem) ? (
           <>
             <StockHeader
               companyName={
-                profile.companyName ||
-                selectedWatchlistItem.companyName ||
-                selectedTicker
+                overviewState === "unavailable"
+                  ? "Ticker unavailable"
+                  : profile.companyName ||
+                    selectedWatchlistItem?.companyName ||
+                    (overviewState === "loading" || overviewState === "idle"
+                      ? "Loading company profile…"
+                      : "Company profile unavailable")
               }
               exchange={profile.exchange}
+              isSaved={Boolean(selectedWatchlistItem)}
+              isUnavailable={overviewState === "unavailable"}
+              isQuoteUnavailable={
+                !Object.values(quote).some((value) => value !== null)
+              }
+              limitReached={limitReached}
+              mutationTicker={mutationTicker}
+              onToggleWatchlist={() => {
+                if (selectedWatchlistItem) {
+                  void removeTicker(selectedTicker);
+                  return;
+                }
+                void addTicker({
+                  assetType: null,
+                  companyName: profile.companyName,
+                  exchange: profile.exchange || null,
+                  marketCap: profile.marketCap,
+                  ticker: selectedTicker,
+                });
+              }}
               quote={quote}
               ticker={selectedTicker}
             />
@@ -945,11 +999,23 @@ function WatchlistRail({
 function StockHeader({
   companyName,
   exchange,
+  isSaved,
+  isQuoteUnavailable,
+  isUnavailable,
+  limitReached,
+  mutationTicker,
+  onToggleWatchlist,
   quote,
   ticker,
 }: {
   companyName: string;
   exchange: string;
+  isSaved: boolean;
+  isQuoteUnavailable: boolean;
+  isUnavailable: boolean;
+  limitReached: boolean;
+  mutationTicker: string | null;
+  onToggleWatchlist: () => void;
   quote: StockOverviewQuote;
   ticker: string;
 }) {
@@ -982,13 +1048,38 @@ function StockHeader({
         </small>
       </div>
       <div className={styles.stockStatus}>
-        <span>MARKET DATA</span>
-        <small>Latest available quote</small>
+        <span>
+          {isUnavailable
+            ? "TICKER UNAVAILABLE"
+            : isQuoteUnavailable
+              ? "QUOTE UNAVAILABLE"
+              : "MARKET DATA"}
+        </span>
+        <small>
+          {isUnavailable
+            ? "No profile, quote, news, or filing data found"
+            : isQuoteUnavailable
+              ? "Other available stock data remains visible"
+              : "Latest available quote"}
+        </small>
       </div>
       <div className={styles.stockActions}>
-        <button aria-pressed="true" type="button">
-          <Check aria-hidden="true" size={15} />
-          Watching
+        <button
+          aria-pressed={isSaved}
+          disabled={
+            mutationTicker === ticker || (!isSaved && limitReached)
+          }
+          onClick={onToggleWatchlist}
+          type="button"
+        >
+          {mutationTicker === ticker ? (
+            <LoaderCircle aria-hidden="true" size={15} />
+          ) : isSaved ? (
+            <Check aria-hidden="true" size={15} />
+          ) : (
+            <Plus aria-hidden="true" size={15} />
+          )}
+          {isSaved ? "Watching" : "Add to Watchlist"}
         </button>
         <Link href="/alerts">
           <Bell aria-hidden="true" size={15} />

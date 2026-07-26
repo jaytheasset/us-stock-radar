@@ -1,9 +1,11 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bell, Menu, Search, Settings } from "lucide-react";
+import { Bell, Menu, Settings } from "lucide-react";
 import { AuthStatus } from "@/components/AuthStatus";
 import { StockRadarDesktopNavigation } from "@/components/shell/StockRadarDesktopNavigation";
+import { StockRadarTickerSearch } from "@/components/shell/StockRadarTickerSearch";
 import { StockRadarThemeToggle } from "@/components/shell/StockRadarThemeToggle";
 import {
   StockRadarMobileNavigationMenu,
@@ -26,6 +28,7 @@ export function StockRadarProductHeader({
   activeNavigationItem,
   showThemeToggle = false,
 }: StockRadarProductHeaderProps) {
+  const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
@@ -39,6 +42,10 @@ export function StockRadarProductHeader({
       });
     }
   }, []);
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     if (!isMobileMenuOpen) {
@@ -84,10 +91,7 @@ export function StockRadarProductHeader({
         <StockRadarDesktopNavigation activeItem={activeNavigationItem} />
 
         <div aria-label="Dashboard actions" className={styles.actions}>
-          <button aria-label="Search" className={styles.searchButton} type="button">
-            <Search aria-hidden="true" size={18} />
-            <span>Search</span>
-          </button>
+          <StockRadarTickerSearch onOpen={() => closeMobileMenu()} />
           <IconButton aria-label="Alerts" indicator>
             <Bell aria-hidden="true" size={18} />
           </IconButton>

@@ -1,11 +1,16 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { moveTickerSearchIndex } from "../tickerSearchNavigation.ts";
 import {
+  getStockRouteHref,
+  hasStockOverviewData,
   mapStockOverviewChart,
   mapStockOverviewEvents,
   mapStockOverviewProfile,
   mapStockOverviewQuote,
+  normalizeStockTicker,
+  resolveStockOverviewTicker,
   resolveWatchlistTicker,
   selectStockOverviewEvents,
 } from "./stockOverview.ts";
@@ -15,6 +20,54 @@ test("URL ticker selects a saved item and otherwise falls back to the first save
   assert.equal(resolveWatchlistTicker("TSLA", ["NVDA", "AMD"]), "NVDA");
   assert.equal(resolveWatchlistTicker(undefined, ["NVDA", "AMD"]), "NVDA");
   assert.equal(resolveWatchlistTicker("AMD", []), null);
+});
+
+test("stock routes accept safe tickers without requiring a saved watchlist item", () => {
+  assert.equal(normalizeStockTicker(" amd "), "AMD");
+  assert.equal(normalizeStockTicker("BRK.B"), "BRK.B");
+  assert.equal(normalizeStockTicker("NVDA<script>"), null);
+  assert.equal(normalizeStockTicker("A/B"), null);
+  assert.equal(normalizeStockTicker("A".repeat(13)), null);
+  assert.equal(getStockRouteHref(" brk.b "), "/stocks/BRK.B");
+  assert.equal(getStockRouteHref("A/B"), null);
+  assert.equal(
+    resolveStockOverviewTicker("TSLA", ["NVDA", "AMD"], "stock"),
+    "TSLA",
+  );
+  assert.equal(
+    resolveStockOverviewTicker("TSLA", ["NVDA", "AMD"], "watchlist"),
+    "NVDA",
+  );
+});
+
+test("header search arrow navigation wraps without selecting an invalid index", () => {
+  assert.equal(moveTickerSearchIndex(-1, 3, "ArrowDown"), 0);
+  assert.equal(moveTickerSearchIndex(-1, 3, "ArrowUp"), 2);
+  assert.equal(moveTickerSearchIndex(2, 3, "ArrowDown"), 0);
+  assert.equal(moveTickerSearchIndex(0, 3, "ArrowUp"), 2);
+  assert.equal(moveTickerSearchIndex(0, 0, "ArrowDown"), -1);
+});
+
+test("overview availability requires real profile, quote, or event data", () => {
+  const emptyProfile = mapStockOverviewProfile({});
+  const emptyQuote = mapStockOverviewQuote({});
+  assert.equal(hasStockOverviewData(emptyProfile, emptyQuote, []), false);
+  assert.equal(
+    hasStockOverviewData(
+      mapStockOverviewProfile({ data: [{ companyName: "AMD" }] }),
+      emptyQuote,
+      [],
+    ),
+    true,
+  );
+  assert.equal(
+    hasStockOverviewData(
+      emptyProfile,
+      mapStockOverviewQuote({ data: [{ price: 100 }] }),
+      [],
+    ),
+    true,
+  );
 });
 
 test("profile and quote mappers keep real values and preserve missing values as null", () => {
@@ -105,11 +158,45 @@ test("event mapper creates real analysis routes only for persistent UUIDs and ap
 });
 
 test("watchlist page preserves auth/API contracts and uses the current product shell", async () => {
-  const [pageSource, componentSource, addRoute, deleteRoute] = await Promise.all([
+  const [
+    pageSource,
+    stockPageSource,
+    componentSource,
+    headerSource,
+    headerSearchSource,
+    headerCss,
+    addRoute,
+    deleteRoute,
+  ] = await Promise.all([
     readFile(new URL("../../app/watchlist/page.tsx", import.meta.url), "utf8"),
+    readFile(
+      new URL("../../app/stocks/[ticker]/page.tsx", import.meta.url),
+      "utf8",
+    ),
     readFile(
       new URL(
         "../../components/watchlist-v2/StockRadarWatchlistV2.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+    readFile(
+      new URL(
+        "../../components/shell/StockRadarProductHeader.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+    readFile(
+      new URL(
+        "../../components/shell/StockRadarTickerSearch.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+    readFile(
+      new URL(
+        "../../components/shell/StockRadarProductHeader.module.css",
         import.meta.url,
       ),
       "utf8",
@@ -130,6 +217,27 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   assert.match(componentSource, /payload\.persisted === false/);
   assert.match(componentSource, /viewport="tablet"/);
   assert.match(componentSource, /viewerPlan|watchlist\.plan === "free"/);
+  assert.match(componentSource, /selectionMode === "stock"/);
+  assert.match(componentSource, /getStockRouteHref\(ticker\)/);
+  assert.match(componentSource, /isSaved \? "Watching" : "Add to Watchlist"/);
+  assert.match(componentSource, /Ticker unavailable/);
+  assert.match(stockPageSource, /normalizeStockTicker/);
+  assert.match(stockPageSource, /selectionMode="stock"/);
+  assert.match(stockPageSource, /notFound\(\)/);
+  assert.match(stockPageSource, /alternates: \{ canonical:/);
+  assert.match(headerSource, /StockRadarTickerSearch/);
+  assert.match(headerSearchSource, /220/);
+  assert.match(headerSearchSource, /AbortController/);
+  assert.match(headerSearchSource, /role="combobox"/);
+  assert.match(headerSearchSource, /role="listbox"/);
+  assert.match(headerSearchSource, /ArrowDown/);
+  assert.match(headerSearchSource, /ArrowUp/);
+  assert.match(headerSearchSource, /event\.key === "Escape"/);
+  assert.match(headerSearchSource, /moveTickerSearchIndex/);
+  assert.match(headerSearchSource, /router\.push\(href\)/);
+  assert.match(headerCss, /@media \(max-width: 1120px\)/);
+  assert.match(headerCss, /\.globalSearchPanel \{[\s\S]*position: fixed/);
+  assert.match(headerCss, /left: var\(--sr-space-3\)/);
   assert.match(addRoute, /persisted: false/);
   assert.match(addRoute, /DUPLICATE_TICKER/);
   assert.match(addRoute, /assertWatchlistLimit/);
