@@ -36,6 +36,7 @@ export default async function PremiumPage() {
         planSource: planState.planSource,
         trial: {
           active: planState.trial.active,
+          ...(planState.trial.plan ? { plan: planState.trial.plan } : {}),
           used: planState.trial.used,
           ...(planState.trial.daysRemaining
             ? { daysRemaining: planState.trial.daysRemaining }

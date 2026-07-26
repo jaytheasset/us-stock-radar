@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { AdSenseSlot } from "@/components/ads/AdSenseSlot";
 import type { DeliveredAlertItem } from "@/lib/alerts/types";
@@ -120,8 +119,8 @@ function getDefaultCoverageState(hasRiskAlerts: boolean) {
 }
 
 export function StockRadarAlertsV2() {
-  const searchParams = useSearchParams();
-  const mockPlan = getAlertsMockPlan(searchParams.get("plan"));
+  const [accountPlanId, setAccountPlanId] = useState("free");
+  const mockPlan = getAlertsMockPlan(accountPlanId);
   const [tickers, setTickers] = useState<AlertTickerItem[]>([]);
   const [alertTickerLimit, setAlertTickerLimit] = useState<number | null>(null);
   const [tickersLoading, setTickersLoading] = useState(true);
@@ -214,6 +213,7 @@ export function StockRadarAlertsV2() {
       .then((data) => {
         setTickers(data.items);
         setAlertTickerLimit(data.limit);
+        setAccountPlanId(data.plan === "ad_free" ? "ad-free" : data.plan);
         setTickerMessage("");
       })
       .catch((error: unknown) => {
@@ -811,12 +811,16 @@ export function StockRadarAlertsV2() {
             <div className={styles.settingList}>
               {deliveryItems.map((item) => {
                 const Icon = item.icon;
-                const locked = item.id === "email"
-                  ? !mockPlan.hasEmailDelivery
-                  : item.id === "telegram"
-                    ? isTelegramLocked
-                    : false;
-                const lockedTier = item.id === "email" ? "ADVANCED" : "PRO";
+                const locked =
+                  item.id === "email"
+                    ? !mockPlan.hasEmailDelivery
+                    : item.id === "telegram"
+                      ? isTelegramLocked
+                      : item.id === "webhook" || item.id === "api"
+                        ? !isUltimate
+                        : false;
+                const lockedTier =
+                  item.id === "email" ? "ADVANCED" : item.id === "webhook" || item.id === "api" ? "ULTIMATE" : "PRO";
 
                 return (
                   <article className={styles.settingRow} key={item.id}>

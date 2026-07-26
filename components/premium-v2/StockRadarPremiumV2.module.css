@@ -118,6 +118,16 @@
   grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr);
 }
 
+.actionRow :global(.advanced-trial-cta-wrap) {
+  display: grid;
+  min-width: 0;
+  gap: var(--sr-space-1);
+}
+
+.actionRow :global(.advanced-trial-cta-wrap) > button {
+  width: 100%;
+}
+
 .primaryButton,
 .secondaryButton,
 .currentPlanAction {
@@ -531,7 +541,7 @@
 }
 
 .planActionGroup,
-.planCard :global(.pro-trial-cta-wrap) {
+.planCard :global(.advanced-trial-cta-wrap) {
   display: grid;
   width: 100%;
   gap: var(--sr-space-1-5);
@@ -539,8 +549,8 @@
 
 .planActionGroup > .primaryButton,
 .planActionGroup > .secondaryButton,
-.planCard :global(.pro-trial-cta-wrap) > .primaryButton,
-.planCard :global(.pro-trial-cta-wrap) > .secondaryButton {
+.planCard :global(.advanced-trial-cta-wrap) > .primaryButton,
+.planCard :global(.advanced-trial-cta-wrap) > .secondaryButton {
   width: 100%;
 }
 

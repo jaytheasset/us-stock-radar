@@ -1,16 +1,17 @@
-export type PremiumV2PlanKey =
-  | "free"
-  | "adFree"
-  | "pro"
-  | "advanced"
-  | "ultimate";
+import {
+  ADVANCED_TRIAL_POLICY,
+  CORE_ALERT_CATEGORIES,
+  RISK_CATALYST_ALERT_CATEGORIES,
+  formatChannels,
+  formatLimit,
+  getPlanLimits,
+  type AlertCategory,
+  type Plan,
+} from "@/lib/subscriptionPolicy";
 
-export type PremiumV2CategoryTone =
-  | "earnings"
-  | "insider"
-  | "legal"
-  | "product"
-  | "transaction";
+export type PremiumV2PlanKey = "free" | "adFree" | "pro" | "advanced" | "ultimate";
+
+export type PremiumV2CategoryTone = "earnings" | "insider" | "legal" | "product" | "transaction";
 
 export type PremiumV2Plan = {
   badge?: string;
@@ -22,10 +23,15 @@ export type PremiumV2Plan = {
 };
 
 export type PremiumV2ComparisonRow = {
-  details?: Partial<Record<PremiumV2PlanKey, readonly {
-    label: string;
-    tone: PremiumV2CategoryTone;
-  }[]>>;
+  details?: Partial<
+    Record<
+      PremiumV2PlanKey,
+      readonly {
+        label: string;
+        tone: PremiumV2CategoryTone;
+      }[]
+    >
+  >;
   emphasized?: boolean;
   feature: string;
   values: Record<PremiumV2PlanKey, string>;
@@ -42,51 +48,65 @@ export type PremiumV2MarketCoverageGroup = {
   title: string;
 };
 
-export const premiumV2PlanOrder = [
-  "free",
-  "adFree",
-  "pro",
-  "advanced",
-  "ultimate",
-] as const satisfies readonly PremiumV2PlanKey[];
+export const premiumV2PlanOrder = ["free", "adFree", "pro", "advanced", "ultimate"] as const satisfies readonly PremiumV2PlanKey[];
+
+const CANONICAL_PLAN_BY_KEY: Record<PremiumV2PlanKey, Plan> = {
+  free: "free",
+  adFree: "ad_free",
+  pro: "pro",
+  advanced: "advanced",
+  ultimate: "ultimate",
+};
+
+function tickerLimit(planKey: PremiumV2PlanKey) {
+  return formatLimit(getPlanLimits(CANONICAL_PLAN_BY_KEY[planKey]).alertTickerLimit);
+}
+
+function channels(planKey: PremiumV2PlanKey) {
+  return formatChannels(getPlanLimits(CANONICAL_PLAN_BY_KEY[planKey]).channels);
+}
+
+function discoveryCount(planKey: PremiumV2PlanKey) {
+  return getPlanLimits(CANONICAL_PLAN_BY_KEY[planKey]).discoveryCategories.length;
+}
 
 export const premiumV2Plans: Record<PremiumV2PlanKey, PremiumV2Plan> = {
   free: {
     benefits: [
-      "Ticker Alerts for 1 ticker",
+      `Ticker Alerts for ${tickerLimit("free")} ticker`,
+      "All 17 event types for that alert ticker",
       "5-minute delivery delay",
-      "Web + App alerts",
-      "Unlimited watchlist",
-      "Ads included",
+      channels("free"),
+      "Unlimited watchlist · Ads included",
     ],
     cta: "Start Free",
-    description: "Experience alerts for one company.",
+    description: "Follow one company with complete event coverage.",
     monthlyPrice: "$0",
     name: "Free",
   },
   adFree: {
     benefits: [
-      "Ticker Alerts for 5 tickers",
+      `Ticker Alerts for ${tickerLimit("adFree")} tickers`,
+      "All 17 event types for enabled tickers",
       "5-minute delivery delay",
-      "Web + App alerts",
-      "Unlimited watchlist",
-      "Ads removed",
+      channels("adFree"),
+      "Unlimited watchlist · No ads",
     ],
     cta: "Choose Ad-Free",
-    description: "Cleaner alerts for a small ticker list.",
+    description: "Cleaner alerts for a focused ticker list.",
     monthlyPrice: "$6.99",
     name: "Ad-Free",
   },
   pro: {
     benefits: [
-      "Ticker Alerts for 15 tickers",
-      "12 core event types for selected tickers",
-      "5 risk & catalyst types for selected tickers",
-      "Market alerts scoring 75+",
-      "Web + App + Telegram",
+      `Ticker Alerts for ${tickerLimit("pro")} tickers`,
+      "All 17 event types for enabled tickers",
+      `${discoveryCount("pro")} Core categories for market-wide Discovery`,
+      "Real-time alerts",
+      channels("pro"),
     ],
     cta: "Upgrade to Pro",
-    description: "Twelve core and five risk & catalyst event types for your selected tickers.",
+    description: "Real-time company alerts with Telegram delivery.",
     monthlyPrice: "$19",
     name: "Pro",
   },
@@ -94,21 +114,22 @@ export const premiumV2Plans: Record<PremiumV2PlanKey, PremiumV2Plan> = {
     badge: "Full Market Scanner",
     benefits: [
       "Unlimited Ticker Alerts",
-      "12 core + 5 risk & catalyst types across all market tickers",
-      "Dilution, listing, financial, legal, and FDA / Clinical",
+      "All 17 event types for enabled tickers",
+      `${discoveryCount("advanced")} categories across market-wide Discovery`,
       "Advanced filters",
-      "Web + App + Telegram + Email",
+      channels("advanced"),
     ],
-    cta: "Go Advanced",
+    cta: "Start Advanced Trial",
     description: "Full-market risk and catalyst detection for active traders.",
     monthlyPrice: "$49",
     name: "Advanced",
   },
   ultimate: {
     benefits: [
-      "12 core + 5 risk & catalyst types across all market tickers",
-      "Custom Rules",
-      "API / Webhook delivery",
+      "Unlimited Ticker Alerts",
+      "All 17 market-wide Discovery categories",
+      "Custom rules",
+      channels("ultimate"),
       "Professional configuration",
     ],
     cta: "Contact Sales",
@@ -145,136 +166,155 @@ export const premiumV2SampleAlerts = [
   },
 ] as const;
 
+function toneForCategory(category: AlertCategory): PremiumV2CategoryTone {
+  if (category === "earnings" || category === "sales_performance" || category === "dividends" || category === "capital_return") {
+    return "earnings";
+  }
+  if (
+    category === "leadership_governance" ||
+    category === "insider_ownership" ||
+    category === "shareholder_vote"
+  ) {
+    return "insider";
+  }
+  if (
+    category === "dilution_risk" ||
+    category === "listing_risk" ||
+    category === "financial_risk" ||
+    category === "legal_risk"
+  ) {
+    return "legal";
+  }
+  if (category === "product_update" || category === "fda_clinical") return "product";
+  return "transaction";
+}
+
+const coreCoverageItems = CORE_ALERT_CATEGORIES.map((category) => ({
+  label: category.label,
+  tone: toneForCategory(category.code),
+}));
+const riskCoverageItems = RISK_CATALYST_ALERT_CATEGORIES.map((category) => ({
+  label: category.label,
+  tone: toneForCategory(category.code),
+}));
+
 export const premiumV2MarketCoverageGroups: readonly PremiumV2MarketCoverageGroup[] = [
   {
-    badge: "Pro+",
-    description: "Twelve core event types for your selected ticker alerts.",
-    items: [
-      { label: "Earnings", tone: "earnings" },
-      { label: "Sales Performance", tone: "earnings" },
-      { label: "Product Updates", tone: "product" },
-      { label: "Leadership & Governance", tone: "insider" },
-      { label: "Insider Ownership", tone: "insider" },
-      { label: "Shareholder Vote", tone: "insider" },
-      { label: "Strategic Transactions", tone: "transaction" },
-      { label: "Dividends", tone: "earnings" },
-      { label: "Capital Return", tone: "earnings" },
-      { label: "IPO / Listing", tone: "transaction" },
-      { label: "Policy & Regulation", tone: "transaction" },
-      { label: "Macro Market", tone: "transaction" },
-    ],
+    badge: "Pro and below",
+    description: "Twelve Core event types available for market-wide Discovery.",
+    items: coreCoverageItems,
     planKey: "pro",
     title: "Core Market Events",
   },
   {
     badge: "Advanced+",
-    description: "Full-market risk and catalyst coverage.",
-    items: [
-      { label: "Dilution Risk", tone: "legal" },
-      { label: "Listing Risk", tone: "legal" },
-      { label: "Financial Risk", tone: "legal" },
-      { label: "Legal Risk", tone: "legal" },
-      { label: "FDA / Clinical", tone: "product" },
-    ],
+    description: "All five Risk & Catalyst types added to market-wide Discovery.",
+    items: riskCoverageItems,
     planKey: "advanced",
     title: "Risk & Catalyst Events",
   },
 ];
 
+const riskDetails = riskCoverageItems;
+
 export const premiumV2ComparisonRows: readonly PremiumV2ComparisonRow[] = [
   {
     feature: "Ticker Alerts",
-    values: { free: "1", adFree: "5", pro: "15", advanced: "Unlimited", ultimate: "Unlimited" },
+    values: {
+      free: tickerLimit("free"),
+      adFree: tickerLimit("adFree"),
+      pro: tickerLimit("pro"),
+      advanced: tickerLimit("advanced"),
+      ultimate: tickerLimit("ultimate"),
+    },
   },
   {
-    feature: "Core Event Alerts",
+    feature: "Enabled Ticker Coverage",
     values: {
-      free: "12 types · selected 1 ticker only",
-      adFree: "12 types · selected 5 tickers only",
-      pro: "12 types · selected 15 tickers",
-      advanced: "12 types · all market tickers",
-      ultimate: "12 types · all market tickers + rules",
+      free: "All 17 types",
+      adFree: "All 17 types",
+      pro: "All 17 types",
+      advanced: "All 17 types",
+      ultimate: "All 17 types + rules",
     },
   },
   {
     details: {
-      pro: [
-        { label: "Dilution Risk", tone: "legal" },
-        { label: "Listing Risk", tone: "legal" },
-        { label: "Financial Risk", tone: "legal" },
-        { label: "Legal Risk", tone: "legal" },
-        { label: "FDA / Clinical", tone: "product" },
-      ],
-      advanced: [
-        { label: "Dilution Risk", tone: "legal" },
-        { label: "Listing Risk", tone: "legal" },
-        { label: "Financial Risk", tone: "legal" },
-        { label: "Legal Risk", tone: "legal" },
-        { label: "FDA / Clinical", tone: "product" },
-      ],
-      ultimate: [
-        { label: "Dilution Risk", tone: "legal" },
-        { label: "Listing Risk", tone: "legal" },
-        { label: "Financial Risk", tone: "legal" },
-        { label: "Legal Risk", tone: "legal" },
-        { label: "FDA / Clinical", tone: "product" },
-      ],
+      advanced: riskDetails,
+      ultimate: riskDetails,
     },
-    feature: "Risk & Catalyst Alerts",
     emphasized: true,
+    feature: "Market-Wide Discovery",
     values: {
-      free: "5 types · selected 1 ticker only",
-      adFree: "5 types · selected 5 tickers only",
-      pro: "5 types · selected 15 tickers",
-      advanced: "5 types · all market tickers",
-      ultimate: "5 types · all market tickers + rules",
+      free: "12 Core types",
+      adFree: "12 Core types",
+      pro: "12 Core types",
+      advanced: "All 17 types",
+      ultimate: "All 17 types + rules",
     },
   },
   {
-    feature: "Alert Score",
-    values: { free: "75+", adFree: "75+", pro: "75+", advanced: "75+", ultimate: "75+" },
+    feature: "Watchlist",
+    values: { free: "Unlimited", adFree: "Unlimited", pro: "Unlimited", advanced: "Unlimited", ultimate: "Unlimited" },
   },
   {
     feature: "Filter Controls",
-    values: { free: "—", adFree: "—", pro: "Standard", advanced: "Advanced", ultimate: "Custom" },
+    values: { free: "Basic", adFree: "Basic", pro: "Standard", advanced: "Advanced", ultimate: "Custom" },
   },
   {
     feature: "Delivery Delay",
-    values: { free: "5 min", adFree: "5 min", pro: "No delay", advanced: "No delay", ultimate: "No delay" },
+    values: { free: "5 min", adFree: "5 min", pro: "Real-time", advanced: "Real-time", ultimate: "Real-time" },
   },
   {
     feature: "Delivery Channels",
-    values: { free: "Web + App", adFree: "Web + App", pro: "+ Telegram", advanced: "+ Telegram + Email", ultimate: "All + Webhook/API" },
+    values: {
+      free: channels("free"),
+      adFree: channels("adFree"),
+      pro: channels("pro"),
+      advanced: channels("advanced"),
+      ultimate: channels("ultimate"),
+    },
   },
   {
     feature: "Custom Rules",
-    values: { free: "—", adFree: "—", pro: "—", advanced: "—", ultimate: "Included" },
+    values: { free: "No", adFree: "No", pro: "No", advanced: "No", ultimate: "Included" },
   },
 ];
 
 export const premiumV2FaqItems = [
   {
-    answer: "Ticker Alerts cover the companies you choose. Pro covers 12 Core Event types and 5 Risk & Catalyst types for up to 15 selected tickers. Advanced extends that coverage across all market tickers.",
-    question: "What is the difference between Ticker Alerts and Market-Wide Alerts?",
+    answer:
+      "Ticker Alerts cover companies you choose and include all 17 public event types on every plan. Market-wide Discovery scans companies outside that list: Free through Pro include the 12 Core types, while Advanced and Ultimate include all 17.",
+    question: "What is the difference between Ticker Alerts and Market-Wide Discovery?",
   },
   {
-    answer: "No. Watchlist storage is unlimited on every plan. Your plan only limits how many tickers can have alerts enabled at the same time.",
+    answer:
+      "No. Watchlist storage is unlimited for every logged-in plan. Your plan only limits how many tickers can have alerts enabled at once.",
     question: "Is my watchlist limited?",
   },
   {
-    answer: "Pro covers 12 Core Event types and 5 Risk & Catalyst types for 15 selected tickers. Advanced scans those same event types across all market tickers, with unlimited ticker alerts, advanced filters, and email delivery.",
+    answer:
+      "Pro includes 15 real-time alert tickers, the 12 Core Discovery types, and Telegram. Advanced adds unlimited alert tickers, all 17 Discovery types, advanced filters, and email.",
     question: "Why choose Advanced instead of Pro?",
   },
   {
-    answer: "Yes. Enabled tickers receive all 12 Core Event types and all 5 Risk & Catalyst types available for their plan.",
-    question: "Do selected tickers receive Risk & Catalyst Alerts?",
+    answer: "Yes. Every enabled ticker receives all 12 Core and all 5 Risk & Catalyst event types.",
+    question: "Do enabled tickers receive Risk & Catalyst Alerts?",
   },
   {
-    answer: "No artificial delay means Stock Radar does not intentionally hold the alert after it is generated. Source publication, ingestion, analysis, processing, network, and third-party delivery may add latency.",
-    question: "What does no artificial delivery delay mean?",
+    answer:
+      "The Advanced trial lasts 14 days, requires a card, and converts to monthly Advanced unless cancelled. Cancellation keeps access through the trial end. Checkout is not connected in this preview.",
+    question: "How does the Advanced trial work?",
   },
   {
-    answer: "Not in this preview. Selecting a plan only updates the local page state and does not start checkout.",
+    answer:
+      "No artificial delay means Stock Radar does not intentionally hold the alert after it is generated. Source publication, ingestion, analysis, network, and third-party delivery may still add latency.",
+    question: "What does real-time delivery mean?",
+  },
+  {
+    answer: ADVANCED_TRIAL_POLICY.paymentMethodRequired
+      ? "No. Plan buttons remain a preview until card-backed checkout is connected."
+      : "No. Selecting a plan only updates the local preview.",
     question: "Does the upgrade button start payment?",
   },
 ] as const;

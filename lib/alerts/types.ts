@@ -1,4 +1,4 @@
-import type { AlertCategory, AlertChannel, Plan, PlanLimits } from "@/lib/subscriptionPolicy";
+import type { AlertCategory, AlertChannel, Plan, PlanLimits, PublicAlertCategory } from "@/lib/subscriptionPolicy";
 import type { PlanSource, TrialState } from "@/lib/subscription/effectivePlan";
 
 export type AlertPreferences = {
@@ -23,7 +23,7 @@ export type DeliveryChannelState = {
 };
 
 export type SelectedAlertCategory = {
-  category: AlertCategory;
+  category: PublicAlertCategory;
   label: string;
   description: string;
 };
@@ -57,7 +57,7 @@ export type AlertSettingsViewModel = {
     discoveryCategories: number;
   };
   preferences: AlertPreferences;
-  selectedCategories: AlertCategory[];
+  selectedCategories: PublicAlertCategory[];
   selectedCategoryDetails: SelectedAlertCategory[];
   channels: DeliveryChannelState[];
   recentDeliveredAlerts: DeliveredAlertItem[];

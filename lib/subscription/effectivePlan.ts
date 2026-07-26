@@ -9,7 +9,7 @@ export type TrialState = {
   active: boolean;
   used: boolean;
   expired?: boolean;
-  plan?: "pro";
+  plan?: "pro" | "advanced";
   startedAt?: string | null;
   endsAt?: string | null;
   endedAt?: string | null;
@@ -59,12 +59,12 @@ export function getEffectivePlanFromSubscription(
 ): EffectiveUserPlan {
   const basePlan = readBasePlan(subscription);
   const trial = getTrialState(subscription, now);
-  const paidPlanTakesPriority = PLAN_RANK[basePlan] >= PLAN_RANK.pro;
+  const trialPlan = trial.plan;
 
-  if (!paidPlanTakesPriority && trial.active) {
+  if (trial.active && trialPlan && PLAN_RANK[trialPlan] > PLAN_RANK[basePlan]) {
     return {
       basePlan,
-      effectivePlan: "pro",
+      effectivePlan: trialPlan,
       planSource: "trial",
       trial,
     };
@@ -93,16 +93,16 @@ export function getTrialState(subscription?: UserPlanSubscriptionRow | null, now
   const usedAt = readString(subscription?.trial_used_at) || null;
   const cancelledAt = readString(subscription?.trial_cancelled_at) || null;
   const endsTime = endsAt ? Date.parse(endsAt) : NaN;
-  const isProTrial = trialPlan === "pro";
-  const active = Boolean(isProTrial && startedAt && Number.isFinite(endsTime) && endsTime > now.getTime() && !cancelledAt);
+  const isRecognizedTrial = trialPlan === "pro" || trialPlan === "advanced";
+  const active = Boolean(isRecognizedTrial && startedAt && Number.isFinite(endsTime) && endsTime > now.getTime());
   const used = Boolean(usedAt);
-  const expired = Boolean(isProTrial && used && Number.isFinite(endsTime) && endsTime <= now.getTime());
+  const expired = Boolean(isRecognizedTrial && used && Number.isFinite(endsTime) && endsTime <= now.getTime());
 
   if (active) {
     return {
       active: true,
       used: true,
-      plan: "pro",
+      plan: trialPlan as "pro" | "advanced",
       startedAt,
       endsAt,
       cancelledAt,
@@ -114,7 +114,7 @@ export function getTrialState(subscription?: UserPlanSubscriptionRow | null, now
     active: false,
     used,
     expired,
-    plan: isProTrial ? "pro" : undefined,
+    plan: isRecognizedTrial ? (trialPlan as "pro" | "advanced") : undefined,
     startedAt,
     endsAt,
     endedAt: expired ? endsAt : null,

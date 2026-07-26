@@ -2306,18 +2306,18 @@ html[data-theme="dark"] .alerts-nav-actions button:last-child {
   font: inherit;
 }
 
-.watchlist-upgrade .pro-trial-cta-wrap {
+.watchlist-upgrade .advanced-trial-cta-wrap {
   display: grid;
   gap: 6px;
 }
 
-.premium-plan-card .pro-trial-cta-wrap {
+.premium-plan-card .advanced-trial-cta-wrap {
   display: grid;
   gap: 6px;
   align-self: end;
 }
 
-.pro-trial-cta-wrap small,
+.advanced-trial-cta-wrap small,
 .premium-trial-note,
 .alerts-trial-note,
 .watchlist-trial-note {

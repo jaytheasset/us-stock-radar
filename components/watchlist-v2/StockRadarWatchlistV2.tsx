@@ -24,7 +24,6 @@ import {
 } from "react";
 import { AdSenseSlot } from "@/components/ads/AdSenseSlot";
 import { LiveRoomEntryButton } from "@/components/live-room/LiveRoomEntryButton";
-import { ProTrialCta } from "@/components/ProTrialCta";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import { formatLimit } from "@/lib/subscriptionPolicy";
@@ -664,7 +663,7 @@ export function StockRadarWatchlistV2({
           {statusMessage ||
             (watchlist.guestMode
               ? "Preview mode. Create an account to save tickers and sync alerts."
-              : `${watchlist.usage} of ${formatLimit(watchlist.limit)} watchlist slots used on ${watchlist.planLabel}.`)}
+              : `${watchlist.usage} saved · Unlimited watchlist on ${watchlist.planLabel}.`)}
         </p>
 
         {selectedTicker &&
@@ -982,7 +981,7 @@ function WatchlistRail({
         <div>
           <strong>Watchlist</strong>
           <span>
-            {watchlist.usage}/{formatLimit(watchlist.limit)}
+            {watchlist.guestMode ? "Account required" : `${watchlist.usage}/${formatLimit(watchlist.limit)}`}
           </span>
         </div>
         <div className={styles.sortControl}>
@@ -1602,25 +1601,13 @@ function WatchlistUpgradeCard({
 }: {
   watchlist: WatchlistViewModel;
 }) {
-  if (watchlist.plan === "ultimate") return null;
+  if (!watchlist.guestMode) return null;
   return (
     <aside className={styles.upgradeCard}>
-      <span>{watchlist.guestMode ? "WATCHLIST PREVIEW" : watchlist.planLabel}</span>
-      <strong>
-        {watchlist.guestMode
-          ? "Save your market workspace"
-          : "Expand your watchlist coverage"}
-      </strong>
-      <p>
-        {watchlist.guestMode
-          ? "Create an account to save tickers and keep Watchlist Alerts in sync."
-          : `${watchlist.usage} of ${formatLimit(watchlist.limit)} ticker slots are in use.`}
-      </p>
-      {watchlist.guestMode ? (
-        <ProTrialCta guestMode>Create account</ProTrialCta>
-      ) : (
-        <Link href="/premium">Manage plan</Link>
-      )}
+      <span>WATCHLIST PREVIEW</span>
+      <strong>Save your market workspace</strong>
+      <p>Create an account to save unlimited tickers and keep Watchlist Alerts in sync.</p>
+      <Link href="/signup">Create account</Link>
     </aside>
   );
 }
