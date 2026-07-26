@@ -283,14 +283,16 @@ export function GenericFilingAnalysis({
                         </span>
                       ) : null}
                     </div>
-                    <div className={styles.heroActions}>
-                      <LiveRoomEntryButton
-                        event={liveRoomEvent}
-                        issuer={company}
-                        label="Discuss in Live Room"
-                        ticker={filing.ticker}
-                      />
-                    </div>
+                    {hasTicker ? (
+                      <div className={styles.heroActions}>
+                        <LiveRoomEntryButton
+                          event={liveRoomEvent}
+                          issuer={company}
+                          label="Discuss in Live Room"
+                          ticker={filing.ticker}
+                        />
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </div>

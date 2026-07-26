@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { MessageCircle } from "lucide-react";
+import { getLiveRoomHref } from "@/lib/live-room/adapters";
 import styles from "./LiveRoomEntryButton.module.css";
 
 export type LiveRoomEntryLabel = "Live Room" | "Discuss in Live Room";
@@ -26,8 +28,11 @@ export function LiveRoomEntryButton({
   ticker,
   variant = "outline",
 }: LiveRoomEntryButtonProps) {
+  const href = getLiveRoomHref(ticker);
+  if (!href) return null;
+
   return (
-    <button
+    <Link
       aria-label={label}
       className={styles.button}
       data-live-room-event-id={event?.id || undefined}
@@ -37,8 +42,8 @@ export function LiveRoomEntryButton({
       data-live-room-issuer={issuer || undefined}
       data-live-room-ticker={ticker || undefined}
       data-variant={variant}
+      href={href}
       title={label}
-      type="button"
     >
       <MessageCircle aria-hidden="true" size={15} />
       <span className={styles.desktopLabel}>
@@ -51,6 +56,6 @@ export function LiveRoomEntryButton({
         )}
       </span>
       <span className={styles.mobileLabel}>Live</span>
-    </button>
+    </Link>
   );
 }

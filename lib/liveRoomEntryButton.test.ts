@@ -6,7 +6,7 @@ function read(relativePath: string) {
   return readFileSync(new URL(`../${relativePath}`, import.meta.url), "utf8");
 }
 
-test("shared Live Room entry button stays presentational and accepts future context", () => {
+test("shared Live Room entry button routes ticker context to one company room", () => {
   const source = read("components/live-room/LiveRoomEntryButton.tsx");
   const styles = read("components/live-room/LiveRoomEntryButton.module.css");
 
@@ -16,7 +16,11 @@ test("shared Live Room entry button stays presentational and accepts future cont
   assert.match(source, /data-live-room-issuer/);
   assert.match(source, /data-live-room-event-id/);
   assert.match(source, /data-live-room-event-type/);
-  assert.doesNotMatch(source, /onClick=|href=|router\.push|toast/);
+  assert.match(source, /getLiveRoomHref\(ticker\)/);
+  assert.match(source, /if \(!href\) return null/);
+  assert.match(source, /<Link/);
+  assert.match(source, /href=\{href\}/);
+  assert.doesNotMatch(source, /router\.push|toast/);
   assert.match(styles, /var\(--sr-color-border-control\)/);
   assert.match(styles, /var\(--sr-size-control\)/);
   assert.match(styles, /@media \(max-width: 760px\)/);
@@ -37,6 +41,7 @@ test("stock and analysis surfaces use the shared entry button without list-row d
   );
   assert.match(analysis, /label="Discuss in Live Room"/);
   assert.match(analysis, /event=\{liveRoomEvent\}/);
+  assert.match(analysis, /\{hasTicker \? \(/);
   assert.doesNotMatch(newsList, /LiveRoomEntryButton/);
   assert.doesNotMatch(filingsList, /LiveRoomEntryButton/);
   assert.doesNotMatch(feedList, /LiveRoomEntryButton/);

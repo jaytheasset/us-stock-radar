@@ -454,7 +454,7 @@ These remain deferred because they combine broader layout, domain state, respons
 
 | Prop | Type | Required | Contract |
 | --- | --- | --- | --- |
-| `activeNavigationItem` | `StockRadarPrimaryNavigationKey` | yes | Single source of truth for the active product navigation item. |
+| `activeNavigationItem` | `StockRadarPrimaryNavigationKey \| null` | yes | Single source of truth for the active product navigation item. `null` means the current route is outside the primary product menu. |
 | `children` | `ReactNode` | yes | Full-width page-owned content rendered inside the main landmark. |
 | `themeMode` | `"fixed-dark" \| "user-selectable"` | no | Defaults to `"fixed-dark"`. A route must explicitly opt in to the persisted Light control. |
 
@@ -510,7 +510,7 @@ A skip link was not added in 3D. Introducing its focus placement and visible foc
 
 | Prop | Type | Required | Contract |
 | --- | --- | --- | --- |
-| `activeNavigationItem` | `StockRadarPrimaryNavigationKey` | yes | Passed unchanged to desktop and mobile navigation renderers. |
+| `activeNavigationItem` | `StockRadarPrimaryNavigationKey \| null` | yes | Passed unchanged to desktop and mobile navigation renderers; `null` renders no current item. |
 | `showThemeToggle` | `boolean` | no | Defaults to `false`; the app shell enables it only for `user-selectable` theme mode. |
 
 Product name `STOCK RADAR` and market status `15m delayed` are exported product constants in `stockRadarNavigation.ts`; they are not dashboard data or customizable speculative props. Header height, padding, surface, divider, brand geometry, status dot, action spacing, and the 760 px breakpoint preserve the canonical computed values. The product header uses the theme-invariant `--sr-*-product-*` chrome tokens: Dark and Light share the same dark surface, bright brand, muted navigation, light actions, orange active state, and distinct purple Premium treatment while the page workspace changes underneath it.
@@ -536,11 +536,11 @@ Product name `STOCK RADAR` and market status `15m delayed` are exported product 
 - Link item: `{ kind: "link", key, label, href, premium? }`.
 - Inert mobile action: `{ kind: "action", key: "settings", label: "Settings" }`.
 
-The shared primary list retains Markets, Live Feed, Watchlist, News, Filings, Alerts, Calendar, and Premium in that order. Every primary href corresponds to an existing route. Active state is derived only from `activeNavigationItem`; it is not duplicated in configuration. Premium retains its separate accent contract.
+The shared primary list retains Markets, Live Feed, Watchlist, News, Filings, Alerts, Calendar, and Premium in that order. Every primary href corresponds to an existing route. Active state is derived only from `activeNavigationItem`; it is not duplicated in configuration. A `null` active item is allowed for product routes such as a company Live Room that are not represented in the list. Premium retains its separate accent contract.
 
 Desktop navigation renders native anchors and the current item uses `aria-current="page"`. Labels and hrefs are declared once and shared with mobile rendering. The configuration contains no React nodes, route creation, dashboard selection state, or mock market data.
 
-`StockRadarDesktopNavigation` accepts one required prop: `activeItem: StockRadarPrimaryNavigationKey`.
+`StockRadarDesktopNavigation` accepts one required prop: `activeItem: StockRadarPrimaryNavigationKey | null`.
 
 ## 17. Mobile Product Navigation
 
@@ -552,7 +552,7 @@ Desktop navigation renders native anchors and the current item uses `aria-curren
 
 | Prop | Type | Required | Contract |
 | --- | --- | --- | --- |
-| `activeItem` | `StockRadarPrimaryNavigationKey` | yes | Applies `aria-current="page"` to the matching link. |
+| `activeItem` | `StockRadarPrimaryNavigationKey \| null` | yes | Applies `aria-current="page"` to the matching link; `null` leaves every item unselected. |
 | `menuRef` | `Ref<HTMLDivElement>` | yes | Gives ProductHeader the rendered popover boundary for outside-pointer detection. |
 | `onItemActivate` | `(item: StockRadarNavigationItem) => void` | yes | Reports one activated link/action so ProductHeader can close the popover. |
 

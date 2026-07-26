@@ -35,6 +35,7 @@
     "verify:filings-v2": "node --test --experimental-strip-types components/filings-v2/filingsV2Regression.test.ts",
     "verify:feed-v2": "node --test --experimental-strip-types lib/liveFeedV2.test.ts",
     "verify:market-date": "node --test --experimental-strip-types lib/marketDate.test.ts",
+    "verify:live-room": "node --test --experimental-strip-types lib/live-room/liveRoom.test.ts lib/liveRoomEntryButton.test.ts",
     "verify:market-cache-workflow": "node --test --experimental-strip-types lib/marketCacheWorkflow.test.ts",
     "verify:prelaunch": "node --test --experimental-strip-types lib/prelaunch.test.ts",
     "verify:news-v2": "node --test --experimental-strip-types lib/newsV2Regression.test.ts",
