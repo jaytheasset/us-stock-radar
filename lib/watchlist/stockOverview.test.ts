@@ -238,11 +238,15 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   );
   assert.match(
     componentCss,
-    /@media \(max-width: 1120px\) \{[\s\S]*\.sectionNavigation \{[\s\S]*position: sticky;[\s\S]*top: var\(--sr-size-header\);[\s\S]*background: var\(--sr-color-surface-panel\);/,
+    /\.sectionNavigation \{[\s\S]*position: sticky;[\s\S]*top: 0;[\s\S]*width: 100%;[\s\S]*max-width: 100%;[\s\S]*height: var\(--watchlist-section-navigation-height\);[\s\S]*background: var\(--sr-color-surface-panel\);[\s\S]*box-shadow: var\(--sr-shadow-header\);/,
   );
   assert.match(
     componentCss,
-    /\.section \{[\s\S]*scroll-margin-top:[\s\S]*var\(--sr-size-header\)[\s\S]*var\(--watchlist-section-navigation-height\)[\s\S]*var\(--sr-space-3\)/,
+    /\.section \{[\s\S]*scroll-margin-top:[\s\S]*var\(--watchlist-section-navigation-height\)[\s\S]*var\(--sr-space-3\)/,
+  );
+  assert.match(
+    componentCss,
+    /@media \(max-width: 1120px\) \{[\s\S]*\.sectionNavigation \{[\s\S]*top: var\(--sr-size-header\);[\s\S]*\.section \{[\s\S]*scroll-margin-top:[\s\S]*var\(--sr-size-header\)[\s\S]*var\(--watchlist-section-navigation-height\)[\s\S]*var\(--sr-space-3\)/,
   );
   assert.match(
     componentCss,
