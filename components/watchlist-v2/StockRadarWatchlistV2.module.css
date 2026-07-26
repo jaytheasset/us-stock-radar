@@ -576,6 +576,7 @@
 }
 
 .sectionNavigation a {
+  position: relative;
   display: inline-flex;
   min-height: 34px;
   align-items: center;
@@ -594,10 +595,22 @@
   background: var(--sr-color-surface-control);
 }
 
-.sectionNavigation a[aria-current="location"] {
+.sectionNavigation a[aria-current="location"],
+.sectionNavigation a[aria-current="location"]:hover {
+  border-color: transparent;
   color: var(--sr-color-text-heading);
-  background: var(--sr-color-accent-selected);
-  box-shadow: inset 0 -2px 0 var(--sr-color-accent);
+  background: transparent;
+  box-shadow: none;
+}
+
+.sectionNavigation a[aria-current="location"]::after {
+  position: absolute;
+  right: var(--sr-space-3);
+  bottom: 0;
+  left: var(--sr-space-3);
+  height: 2px;
+  background: var(--sr-color-accent);
+  content: "";
 }
 
 .sectionNavigation a:focus-visible {
@@ -820,11 +833,32 @@
   font-weight: var(--sr-font-weight-semibold);
 }
 
-.rangeControl button[aria-checked="true"],
-.eventToolbar [role="tab"][aria-selected="true"] {
+.rangeControl button[aria-checked="true"] {
   border-color: var(--sr-color-accent-border-active);
   color: var(--sr-color-accent-text);
   background: var(--sr-color-accent-selected);
+}
+
+.eventToolbar [role="tab"] {
+  position: relative;
+}
+
+.eventToolbar [role="tab"][aria-selected="true"],
+.eventToolbar [role="tab"][aria-selected="true"]:hover {
+  border-color: transparent;
+  color: var(--sr-color-accent-text);
+  background: transparent;
+  box-shadow: none;
+}
+
+.eventToolbar [role="tab"][aria-selected="true"]::after {
+  position: absolute;
+  right: var(--sr-space-3);
+  bottom: 0;
+  left: var(--sr-space-3);
+  height: 2px;
+  background: var(--sr-color-accent);
+  content: "";
 }
 
 .chartViewport {

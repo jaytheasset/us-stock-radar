@@ -250,7 +250,23 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   );
   assert.match(
     componentCss,
-    /\.sectionNavigation a\[aria-current="location"\] \{[\s\S]*var\(--sr-color-accent-selected\)[\s\S]*var\(--sr-color-accent\)/,
+    /\.sectionNavigation a\[aria-current="location"\],[\s\S]*\.sectionNavigation a\[aria-current="location"\]:hover \{[\s\S]*border-color: transparent;[\s\S]*background: transparent;[\s\S]*box-shadow: none;/,
+  );
+  assert.match(
+    componentCss,
+    /\.sectionNavigation a\[aria-current="location"\]::after \{[\s\S]*height: 2px;[\s\S]*background: var\(--sr-color-accent\);/,
+  );
+  assert.match(
+    componentCss,
+    /\.eventToolbar \[role="tab"\]\[aria-selected="true"\],[\s\S]*\.eventToolbar \[role="tab"\]\[aria-selected="true"\]:hover \{[\s\S]*border-color: transparent;[\s\S]*background: transparent;[\s\S]*box-shadow: none;/,
+  );
+  assert.match(
+    componentCss,
+    /\.eventToolbar \[role="tab"\]\[aria-selected="true"\]::after \{[\s\S]*height: 2px;[\s\S]*background: var\(--sr-color-accent\);/,
+  );
+  assert.match(
+    componentCss,
+    /\.rangeControl button\[aria-checked="true"\] \{[\s\S]*border-color: var\(--sr-color-accent-border-active\);[\s\S]*background: var\(--sr-color-accent-selected\);/,
   );
   assert.match(componentSource, /aria-current=\{[\s\S]*"location"/);
   assert.match(componentSource, /getStockSectionIdFromHash/);
