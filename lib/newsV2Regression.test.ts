@@ -7,6 +7,7 @@ import { hydrateNewsV2ItemMarketData } from "./newsV2MarketHydration.ts";
 import { buildGooglePreferredSourceUrl } from "./googlePreferredSource.ts";
 import { selectPriceChartXAxisIndexes } from "./priceChartAxis.ts";
 import type { NewsV2FilterState, NewsV2Item } from "./newsV2.ts";
+import { getNewsV2ScopeBadgeLabel } from "./newsV2ScopeBadge.ts";
 
 const emptyFilters: NewsV2FilterState = {
   sentiments: [],
@@ -115,6 +116,94 @@ test("reset stays enabled for an applied search after the draft is cleared", () 
     hasResettableNewsV2State({ ...emptyFilters, sources: ["SEC"] }, "", ""),
     true,
   );
+});
+
+test("news scope badges hide company scope and use source-backed market taxonomy", () => {
+  assert.equal(getNewsV2ScopeBadgeLabel(baseItem), undefined);
+  assert.equal(
+    getNewsV2ScopeBadgeLabel({
+      category: "Theme",
+      theme: "AI Infrastructure",
+      subThemeSlug: "ai_infrastructure",
+    }),
+    "AI & Data Center",
+  );
+  assert.equal(
+    getNewsV2ScopeBadgeLabel({
+      category: "Theme",
+      theme: "Semiconductor Supply Chain",
+    }),
+    "Semiconductor Supply Chain",
+  );
+  assert.equal(
+    getNewsV2ScopeBadgeLabel({
+      category: "Sector",
+      sector: "Communication Services",
+    }),
+    "Communication Services",
+  );
+  assert.equal(getNewsV2ScopeBadgeLabel({ category: "Sector" }), undefined);
+  assert.equal(getNewsV2ScopeBadgeLabel({ category: "Theme" }), undefined);
+  assert.equal(
+    getNewsV2ScopeBadgeLabel({
+      category: "Macro",
+      sector: "Technology",
+      theme: "AI Infrastructure",
+    }),
+    "MACRO",
+  );
+
+  const rowSource = readFileSync(
+    new URL("../components/news-v2/NewsV2Row.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(rowSource, /const scopeBadgeLabel = getNewsV2ScopeBadgeLabel\(item\)/);
+  assert.match(rowSource, /scopeBadgeLabel \? \(/);
+  assert.match(rowSource, /label=\{scopeBadgeLabel\}/);
+});
+
+test("news, filings, and watchlist searches share the inset icon divider contract", () => {
+  const searchFields = [
+    {
+      component: "../components/news-v2/NewsV2FilterBar.tsx",
+      styles: "../components/news-v2/StockRadarNewsV2.module.css",
+      fieldClass: "searchField",
+    },
+    {
+      component: "../components/filings-v2/FilingsV2FilterBar.tsx",
+      styles: "../components/filings-v2/StockRadarFilingsV2.module.css",
+      fieldClass: "searchControl",
+    },
+    {
+      component: "../components/watchlist-v2/StockRadarWatchlistV2.tsx",
+      styles: "../components/watchlist-v2/StockRadarWatchlistV2.module.css",
+      fieldClass: "tickerSearch",
+    },
+  ];
+
+  for (const searchField of searchFields) {
+    const componentSource = readFileSync(
+      new URL(searchField.component, import.meta.url),
+      "utf8",
+    );
+    const styles = readFileSync(new URL(searchField.styles, import.meta.url), "utf8");
+
+    assert.match(componentSource, /className=\{styles\.searchIconCell\}/);
+    assert.match(
+      styles,
+      new RegExp(
+        `\\.${searchField.fieldClass} \\{[\\s\\S]*?height: 38px;[\\s\\S]*?gap: var\\(--sr-space-2\\);`,
+      ),
+    );
+    assert.match(
+      styles,
+      /\.searchIconCell \{[\s\S]*?height: 100%;[\s\S]*?flex: 0 0 28px;/,
+    );
+    assert.match(
+      styles,
+      /\.searchIconCell::after \{[\s\S]*?top: 7px;[\s\S]*?bottom: 7px;[\s\S]*?width: var\(--sr-border-width\);[\s\S]*?background: var\(--sr-color-divider\);/,
+    );
+  }
 });
 
 test("10k+ tuple cursor pagination is stable with tied timestamps", () => {

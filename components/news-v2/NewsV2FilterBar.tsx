@@ -103,7 +103,9 @@ export function NewsV2FilterBar({
       <div className={styles.filterUtilityRow}>
         <form className={styles.searchForm} id="news-v2-search-form" onSubmit={submitSearch}>
           <label className={styles.searchField}>
-            <Search aria-hidden="true" size={17} />
+            <span aria-hidden="true" className={styles.searchIconCell}>
+              <Search size={17} />
+            </span>
             <span className={styles.visuallyHidden}>Search news</span>
             <input
               onChange={(event) => onQueryDraftChange(event.target.value)}

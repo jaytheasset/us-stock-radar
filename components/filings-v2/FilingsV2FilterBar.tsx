@@ -112,7 +112,9 @@ export function FilingsV2FilterBar({
           role="search"
         >
           <label className={styles.searchControl}>
-            <Search aria-hidden="true" size={17} />
+            <span aria-hidden="true" className={styles.searchIconCell}>
+              <Search size={17} />
+            </span>
             <span className={styles.visuallyHidden}>Search filings</span>
             <input
               onChange={(event) => onQueryChange(event.target.value)}
