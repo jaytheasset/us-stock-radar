@@ -188,7 +188,8 @@ export function StockRadarPremiumV2({ accountState }: StockRadarPremiumV2Props) 
 
               return (
                 <article
-                  className={`${styles.planCard}${planKey === "pro" ? ` ${styles.planCardPro}` : ""}${planKey === "advanced" ? ` ${styles.planCardAdvanced}` : ""}${planKey === "ultimate" ? ` ${styles.planCardUltimate}` : ""}${isRecommended ? ` ${styles.recommendedCard}` : ""}`}
+                  className={`${styles.planCard}${planKey === "ultimate" ? ` ${styles.planCardUltimate}` : ""}${isCurrent ? ` ${styles.currentCard}` : ""}${isRecommended ? ` ${styles.recommendedCard}` : ""}`}
+                  data-current-plan={isCurrent ? "true" : undefined}
                   key={planKey}
                 >
                   <header className={styles.planCardHeader}>
