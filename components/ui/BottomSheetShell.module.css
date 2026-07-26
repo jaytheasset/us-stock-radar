@@ -14,8 +14,9 @@
   }
 }
 
-@media (max-width: 760px) {
-  .root {
+@media (max-width: 1180px) {
+  .mobileRoot,
+  .tabletRoot {
     position: fixed;
     display: block;
     inset: 0;
@@ -134,5 +135,11 @@
   .close:focus-visible {
     outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
     outline-offset: var(--sr-focus-ring-offset);
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1180px) {
+  .mobileRoot {
+    display: none;
   }
 }

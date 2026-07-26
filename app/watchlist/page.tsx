@@ -1,12 +1,33 @@
-import WatchlistClient from "@/app/watchlist/WatchlistClient";
+import { StockRadarWatchlistV2 } from "@/components/watchlist-v2/StockRadarWatchlistV2";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import { getGuestWatchlistViewModel, getWatchlistViewModel } from "@/lib/watchlist/getWatchlistViewModel";
+import { resolveWatchlistTicker } from "@/lib/watchlist/stockOverview";
 
 export const dynamic = "force-dynamic";
 
-export default async function WatchlistPage() {
-  const userId = await getOptionalCurrentUserId();
-  const initialWatchlist = userId ? await getWatchlistViewModel(userId) : getGuestWatchlistViewModel();
+type WatchlistPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
-  return <WatchlistClient initialWatchlist={initialWatchlist} />;
+export default async function WatchlistPage({
+  searchParams,
+}: WatchlistPageProps) {
+  const userId = await getOptionalCurrentUserId();
+  const [initialWatchlist, params] = await Promise.all([
+    userId ? getWatchlistViewModel(userId) : getGuestWatchlistViewModel(),
+    searchParams,
+  ]);
+  const requestedTicker =
+    typeof params.ticker === "string" ? params.ticker : params.ticker?.[0];
+  const initialSelectedTicker = resolveWatchlistTicker(
+    requestedTicker,
+    initialWatchlist.items.map((item) => item.ticker),
+  );
+
+  return (
+    <StockRadarWatchlistV2
+      initialSelectedTicker={initialSelectedTicker}
+      initialWatchlist={initialWatchlist}
+    />
+  );
 }

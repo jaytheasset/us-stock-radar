@@ -21,6 +21,7 @@ type BottomSheetAccessibleName =
     };
 
 export type BottomSheetShellLayout = "content-footer" | "full-scroll";
+export type BottomSheetShellViewport = "mobile" | "tablet";
 
 export type BottomSheetShellProps = BottomSheetAccessibleName & {
   children: ReactNode;
@@ -31,6 +32,7 @@ export type BottomSheetShellProps = BottomSheetAccessibleName & {
   onDismiss: () => void;
   openerRef: RefObject<HTMLElement | null>;
   overlayLabel: string;
+  viewport?: BottomSheetShellViewport;
 };
 
 const focusableSelector = [
@@ -101,6 +103,7 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
     onDismiss,
     openerRef,
     overlayLabel,
+    viewport = "mobile",
   } = props;
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const overlayRef = useRef<HTMLButtonElement>(null);
@@ -120,7 +123,10 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
   }, []);
 
   useEffect(() => {
-    if (!isOpen || !window.matchMedia("(max-width: 760px)").matches) {
+    const viewportQuery =
+      viewport === "tablet" ? "(max-width: 1180px)" : "(max-width: 760px)";
+
+    if (!isOpen || !window.matchMedia(viewportQuery).matches) {
       dismissPendingRef.current = false;
       return;
     }
@@ -204,7 +210,7 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
         }
       });
     };
-  }, [isOpen, layout, openerRef, requestDismiss]);
+  }, [isOpen, layout, openerRef, requestDismiss, viewport]);
 
   if (!isOpen) {
     return null;
@@ -213,7 +219,7 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
   const ariaLabel = "aria-label" in props ? props["aria-label"] : undefined;
   const ariaLabelledBy = "aria-labelledby" in props ? props["aria-labelledby"] : undefined;
   const usesContentFooter = layout === "content-footer";
-  const rootClasses = `${styles.root} ${usesContentFooter ? styles.contentFooterRoot : styles.fullScrollRoot}`;
+  const rootClasses = `${styles.root} ${viewport === "tablet" ? styles.tabletRoot : styles.mobileRoot} ${usesContentFooter ? styles.contentFooterRoot : styles.fullScrollRoot}`;
   const overlayClasses = `${styles.overlay} ${usesContentFooter ? styles.contentFooterOverlay : styles.fullScrollOverlay}`;
   const surfaceClasses = `${styles.surface} ${usesContentFooter ? styles.contentFooterSurface : styles.fullScrollSurface}`;
   const closeClasses = `${styles.close} ${usesContentFooter ? styles.contentFooterClose : styles.fullScrollClose}`;
@@ -247,6 +253,7 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
         aria-modal="true"
         className={surfaceClasses}
         data-sr-bottom-sheet-layout={layout}
+        data-sr-bottom-sheet-viewport={viewport}
         id={id}
         ref={surfaceRef}
         role="dialog"

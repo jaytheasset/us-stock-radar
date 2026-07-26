@@ -38,6 +38,7 @@
     "verify:prelaunch": "node --test --experimental-strip-types lib/prelaunch.test.ts",
     "verify:news-v2": "node --test --experimental-strip-types lib/newsV2Regression.test.ts",
     "verify:theme": "node --test --experimental-strip-types lib/themeRegression.test.ts",
+    "verify:watchlist-v2": "node --test --experimental-strip-types lib/watchlist/stockOverview.test.ts",
     "verify:us-equity-calendar": "node --test --experimental-strip-types lib/usEquityMarketCalendar.test.ts",
     "verify:newsfile-parser": "node --experimental-strip-types scripts/verify-newsfile-parser.mjs",
     "verify:source-workflow-config": "node --test --experimental-strip-types lib/sourceWorkflowConfig.test.ts",
