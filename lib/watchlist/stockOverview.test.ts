@@ -274,7 +274,7 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   );
   assert.match(
     componentCss,
-    /\.eventRow\[aria-pressed="true"\]::before \{[\s\S]*top: 8px;[\s\S]*bottom: 8px;[\s\S]*width: 3px;[\s\S]*border-radius: 0;[\s\S]*background: var\(--sr-color-accent\);/,
+    /\.eventRow\[aria-pressed="true"\]::before \{[\s\S]*top: 0;[\s\S]*bottom: 0;[\s\S]*width: 3px;[\s\S]*border-radius: 0;[\s\S]*background: var\(--sr-color-accent\);/,
   );
   assert.match(
     componentCss,
