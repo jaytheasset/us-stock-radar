@@ -268,6 +268,19 @@ test("watchlist page preserves auth/API contracts and uses the current product s
     componentCss,
     /\.rangeControl button\[aria-checked="true"\] \{[\s\S]*border-color: var\(--sr-color-accent-border-active\);[\s\S]*background: var\(--sr-color-accent-selected\);/,
   );
+  assert.match(
+    componentCss,
+    /\.eventRow\[aria-pressed="true"\] \{[\s\S]*box-shadow: none;[\s\S]*background: var\(--sr-color-surface-table-row\);/,
+  );
+  assert.match(
+    componentCss,
+    /\.eventRow\[aria-pressed="true"\]::before \{[\s\S]*top: 8px;[\s\S]*bottom: 8px;[\s\S]*width: 3px;[\s\S]*border-radius: 0;[\s\S]*background: var\(--sr-color-accent\);/,
+  );
+  assert.match(
+    componentCss,
+    /\.eventRow\[aria-pressed="true"\]:hover \{[\s\S]*background: var\(--sr-color-surface-table-hover\);/,
+  );
+  assert.match(componentSource, /aria-pressed=\{event\.id === selectedEventId\}/);
   assert.match(componentSource, /aria-current=\{[\s\S]*"location"/);
   assert.match(componentSource, /getStockSectionIdFromHash/);
   assert.match(componentSource, /window\.location\.hash/);
