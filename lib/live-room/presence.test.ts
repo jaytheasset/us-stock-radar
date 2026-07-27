@@ -21,7 +21,7 @@ import type {
 
 const projectRoot = process.cwd();
 const migration = read(
-  "supabase/migrations/20260728000000_live_room_member_presence.sql",
+  "supabase/migrations/20260727181214_live_room_member_presence.sql",
 );
 const client = read("components/live-room/LiveRoomClient.tsx");
 const composer = read("components/live-room/MessageComposer.tsx");
