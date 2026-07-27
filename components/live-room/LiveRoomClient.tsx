@@ -21,6 +21,10 @@ import {
   type ModerationDecision,
   type ModerationReason,
 } from "@/lib/live-room/moderation";
+import {
+  shareLiveRoomInvite,
+  type LiveRoomInviteUiState,
+} from "@/lib/live-room/inviteShare";
 import type {
   CompanyEvent,
   CompanyEventReference,
@@ -96,8 +100,8 @@ export function LiveRoomClient({
   const [profileOpen, setProfileOpen] = useState(false);
   const [followed, setFollowed] = useState(false);
   const [roomNotice, setRoomNotice] = useState<string | null>(null);
-  const [copyState, setCopyState] =
-    useState<"copied" | "error" | "idle">("idle");
+  const [inviteState, setInviteState] =
+    useState<LiveRoomInviteUiState>("idle");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [blocks, setBlocks] = useState<LiveRoomBlockedActor[]>([]);
@@ -114,6 +118,7 @@ export function LiveRoomClient({
   const latestEventIdRef = useRef<string | null>(null);
   const followedRef = useRef(false);
   const historyOpenerRef = useRef<HTMLButtonElement>(null);
+  const inviteResetTimerRef = useRef<number | null>(null);
   const markReadTimerRef = useRef<number | null>(null);
   const markedActivityMessageRef = useRef<string | null>(null);
   const profileSaveTimerRef = useRef<number | null>(null);
@@ -122,6 +127,15 @@ export function LiveRoomClient({
   const historicalEvents = latestEvent
     ? events.filter((event) => event.eventId !== latestEvent.eventId)
     : events;
+
+  useEffect(
+    () => () => {
+      if (inviteResetTimerRef.current !== null) {
+        window.clearTimeout(inviteResetTimerRef.current);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     let active = true;
@@ -454,14 +468,25 @@ export function LiveRoomClient({
     }
   };
 
-  const handleCopyInvite = async () => {
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      setCopyState("copied");
-    } catch {
-      setCopyState("error");
+  const handleInvite = async () => {
+    if (inviteState === "working") return;
+    if (inviteResetTimerRef.current !== null) {
+      window.clearTimeout(inviteResetTimerRef.current);
+      inviteResetTimerRef.current = null;
     }
-    window.setTimeout(() => setCopyState("idle"), 2_000);
+
+    setInviteState("working");
+    const result = await shareLiveRoomInvite({ identity });
+    if (result === "cancelled") {
+      setInviteState("idle");
+      return;
+    }
+
+    setInviteState(result);
+    inviteResetTimerRef.current = window.setTimeout(() => {
+      setInviteState("idle");
+      inviteResetTimerRef.current = null;
+    }, 2_000);
   };
 
   const handleMention = (nextReference: CompanyEventReference) => {
@@ -676,11 +701,11 @@ export function LiveRoomClient({
     >
       <div className={styles.page}>
         <CompanyRoomHeader
-          copyState={copyState}
           followed={followed}
           historyButtonRef={historyOpenerRef}
           identity={identity}
-          onCopyInvite={handleCopyInvite}
+          inviteState={inviteState}
+          onInvite={handleInvite}
           onOpenHistory={() => setHistoryOpen(true)}
           onToggleFollow={handleToggleFollow}
         />
