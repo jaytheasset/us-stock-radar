@@ -3,13 +3,17 @@
 import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
+import { AuthShell } from "@/components/AuthShell";
 import styles from "@/components/AuthForm.module.css";
 
 export function UpdatePasswordForm() {
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [status, setStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [status, setStatus] = useState<
+    "idle" | "saving" | "success" | "error"
+  >("idle");
   const [message, setMessage] = useState("");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -56,55 +60,69 @@ export function UpdatePasswordForm() {
   }
 
   return (
-    <main className={styles.authUtilityPage}>
-      <section className={styles.authUtilityPanel}>
-        <Link className={`brand-lockup ${styles.brand}`} href="/account">
-          <span className="brand-mark">SR</span>
-          <span>STOCK RADAR</span>
-        </Link>
-        <span className={styles.eyebrow}>Account security</span>
-        <h1>Choose a new password</h1>
-        <p>Use at least 8 characters and avoid passwords used on other sites.</p>
-        <form className={styles.form} onSubmit={handleSubmit}>
-          <PasswordField
-            label="New password"
-            value={password}
-            visible={showPassword}
-            onChange={setPassword}
-            onToggle={() => setShowPassword((current) => !current)}
-          />
-          <PasswordField
-            label="Confirm new password"
-            value={confirmation}
-            visible={showPassword}
-            onChange={setConfirmation}
-            onToggle={() => setShowPassword((current) => !current)}
-          />
-          {message ? (
-            <p className={`${styles.message} ${styles[status] || ""}`}>{message}</p>
-          ) : null}
-          <button className={styles.primaryButton} disabled={status === "saving"} type="submit">
-            {status === "saving" ? "Updating..." : "Update password"}
-          </button>
-        </form>
-        {status === "success" ? (
-          <Link className={styles.inlineAction} href="/account">
-            Return to account
-          </Link>
+    <AuthShell
+      description="Use at least 8 characters and avoid passwords used on other sites."
+      eyebrow="Account security"
+      footer={
+        status === "success" ? (
+          <Link href="/account">Return to your account</Link>
+        ) : (
+          <Link href="/login">Back to login</Link>
+        )
+      }
+      title="Choose a new password"
+    >
+      <form
+        aria-busy={status === "saving"}
+        className={styles.form}
+        onSubmit={handleSubmit}
+      >
+        <PasswordField
+          label="New password"
+          name="password"
+          value={password}
+          visible={showPassword}
+          onChange={setPassword}
+          onToggle={() => setShowPassword((current) => !current)}
+        />
+        <PasswordField
+          label="Confirm new password"
+          name="passwordConfirmation"
+          value={confirmation}
+          visible={showConfirmation}
+          onChange={setConfirmation}
+          onToggle={() => setShowConfirmation((current) => !current)}
+        />
+        {message ? (
+          <p
+            className={`${styles.message} ${styles[status] || ""}`}
+            role={status === "error" ? "alert" : "status"}
+          >
+            {message}
+          </p>
         ) : null}
-      </section>
-    </main>
+        <button
+          className={styles.primaryButton}
+          disabled={status === "saving"}
+          type="submit"
+        >
+          {status === "saving" ? "Updating..." : "Update password"}
+        </button>
+      </form>
+    </AuthShell>
   );
 }
 
 function PasswordField({
   label,
+  name,
   value,
   visible,
   onChange,
   onToggle,
 }: {
   label: string;
+  name: string;
   value: string;
   visible: boolean;
   onChange: (value: string) => void;
@@ -116,20 +134,26 @@ function PasswordField({
       <span className={styles.passwordField}>
         <input
           autoComplete="new-password"
-          minLength={8}
           maxLength={256}
+          minLength={8}
+          name={name}
+          placeholder="At least 8 characters"
           required
           type={visible ? "text" : "password"}
           value={value}
           onChange={(event) => onChange(event.target.value)}
         />
         <button
-          aria-label={visible ? "Hide password" : "Show password"}
+          aria-label={visible ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
           className={styles.passwordToggle}
           type="button"
           onClick={onToggle}
         >
-          {visible ? <EyeOff size={17} /> : <Eye size={17} />}
+          {visible ? (
+            <EyeOff aria-hidden="true" size={17} />
+          ) : (
+            <Eye aria-hidden="true" size={17} />
+          )}
         </button>
       </span>
     </label>

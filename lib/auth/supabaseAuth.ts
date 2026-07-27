@@ -65,6 +65,37 @@ export async function signInWithEmail(email: string, password: string) {
   return payload;
 }
 
+export async function exchangeSupabaseAuthCode(
+  authCode: string,
+  codeVerifier: string,
+) {
+  const payload = await callSupabaseAuth<SupabaseAuthSession>(
+    "/auth/v1/token?grant_type=pkce",
+    {
+      method: "POST",
+      body: {
+        auth_code: authCode,
+        code_verifier: codeVerifier,
+      },
+    },
+  );
+
+  if (
+    !payload.access_token ||
+    !payload.refresh_token ||
+    !payload.user?.id
+  ) {
+    throw new AuthError(
+      "OAUTH_EXCHANGE_INVALID",
+      "OAuth exchange did not return a valid session.",
+      401,
+    );
+  }
+
+  await ensureUserBootstrap(payload.user);
+  return payload;
+}
+
 export async function refreshSupabaseSession(refreshToken: string) {
   if (!refreshToken) {
     throw new AuthError("REFRESH_TOKEN_MISSING", "Refresh token is missing.", 401);
