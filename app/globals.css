@@ -3726,6 +3726,7 @@ td {
   padding: 0 10px 0 5px;
   color: #162242;
   background: #ffffff;
+  text-decoration: none;
 }
 
 .auth-user-pill span {

@@ -11,6 +11,10 @@ import { POST as logout } from "../app/api/prelaunch/logout/route.ts";
 import { GET as comingSoon } from "../app/coming-soon/route.ts";
 import { config, proxy } from "../proxy.ts";
 import {
+  AUTH_ACCESS_COOKIE,
+  AUTH_REFRESH_COOKIE,
+} from "./auth/authCookies.ts";
+import {
   PRELAUNCH_ACCESS_COOKIE,
   PRELAUNCH_ACCESS_MAX_AGE_SECONDS,
   createPrelaunchAccessProof,
@@ -75,6 +79,7 @@ test("bypass path contract keeps operational and asset requests outside the gate
     "/.well-known/workflow",
     "/.well-known/workflow/v1/step",
     "/_next/static/chunk.js",
+    "/auth/callback",
     "/coming-soon",
     "/favicon.ico",
     "/images/radar.svg",
@@ -83,6 +88,8 @@ test("bypass path contract keeps operational and asset requests outside the gate
   }
 
   assert.equal(isPrelaunchBypassPath("/news"), false);
+  assert.equal(isPrelaunchBypassPath("/auth/callback/extra"), false);
+  assert.equal(isPrelaunchBypassPath("/auth/callbacks"), false);
   assert.equal(isPrelaunchBypassPath("/coming-soon/details"), false);
   assert.equal(isPrelaunchBypassPath("/apiary"), false);
   assert.equal(isComingSoonPath("/coming-soon"), true);
@@ -121,14 +128,14 @@ test("proxy matcher covers page, API, and Workflow paths", () => {
   }
 });
 
-test("proxy is off by default and redirects ordinary pages when enabled", () => {
+test("proxy is off by default and redirects ordinary pages when enabled", async () => {
   delete process.env.PRELAUNCH_MODE;
-  let response = proxy(new NextRequest("https://radar.example/news"));
+  let response = await proxy(new NextRequest("https://radar.example/news"));
   assert.equal(getRedirectUrl(response), null);
 
   process.env.PRELAUNCH_MODE = "1";
   process.env.PRELAUNCH_PASSWORD = "preview-secret";
-  response = proxy(
+  response = await proxy(
     new NextRequest("https://radar.example/news?range=1D"),
   );
   assert.equal(
@@ -138,11 +145,11 @@ test("proxy is off by default and redirects ordinary pages when enabled", () => 
   assert.equal(response.headers.get("x-robots-tag"), "noindex, nofollow");
 });
 
-test("proxy accepts a valid proof and bypasses API and Workflow requests", () => {
+test("proxy accepts a valid proof and bypasses API and Workflow requests", async () => {
   process.env.PRELAUNCH_MODE = "1";
   process.env.PRELAUNCH_PASSWORD = "preview-secret";
   const proof = createPrelaunchAccessProof("preview-secret");
-  const authenticated = proxy(
+  const authenticated = await proxy(
     new NextRequest("https://radar.example/news", {
       headers: {
         cookie: `${PRELAUNCH_ACCESS_COOKIE}=${proof}`,
@@ -161,16 +168,58 @@ test("proxy accepts a valid proof and bypasses API and Workflow requests", () =>
     "/_next/static/chunk.js",
     "/favicon.ico",
   ]) {
-    const response = proxy(
+    const response = await proxy(
       new NextRequest(`https://radar.example${path}`),
     );
     assert.equal(getRedirectUrl(response), null, path);
   }
 });
 
-test("coming-soon request passes through with noindex", () => {
+test("email auth callback bypasses prelaunch gate without prefix overreach", async () => {
   process.env.PRELAUNCH_MODE = "1";
-  const response = proxy(
+  process.env.PRELAUNCH_PASSWORD = "preview-secret";
+
+  const callbackResponse = await proxy(
+    new NextRequest(
+      "https://radar.example/auth/callback?type=signup&next=%2Faccount",
+    ),
+  );
+  assert.equal(getRedirectUrl(callbackResponse), null);
+
+  const nestedResponse = await proxy(
+    new NextRequest("https://radar.example/auth/callback/extra"),
+  );
+  assert.equal(
+    getRedirectUrl(nestedResponse),
+    "https://radar.example/coming-soon?next=%2Fauth%2Fcallback%2Fextra",
+  );
+});
+
+test("authenticated static assets keep shared cache headers and skip auth refresh", async () => {
+  delete process.env.PRELAUNCH_MODE;
+  const cookie = [
+    `${AUTH_ACCESS_COOKIE}=malformed-access-token`,
+    `${AUTH_REFRESH_COOKIE}=refresh-token-that-must-not-be-used`,
+  ].join("; ");
+
+  for (const path of [
+    "/_next/static/chunks/app.js",
+    "/styles/site.css",
+    "/images/radar.svg",
+  ]) {
+    const response = await proxy(
+      new NextRequest(`https://radar.example${path}`, {
+        headers: { cookie },
+      }),
+    );
+    assert.equal(response.headers.get("cache-control"), null, path);
+    assert.equal(response.headers.get("set-cookie"), null, path);
+  }
+});
+
+test("coming-soon request passes through with noindex", async () => {
+  process.env.PRELAUNCH_MODE = "1";
+  const response = await proxy(
     new NextRequest("https://radar.example/coming-soon"),
   );
 

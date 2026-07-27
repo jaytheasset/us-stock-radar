@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
 import { AuthStatus } from "@/components/AuthStatus";
 import styles from "@/components/AuthForm.module.css";
+import { sanitizeAuthRedirect } from "@/lib/auth/authPolicy";
 
 type AuthMode = "login" | "signup";
 
@@ -20,17 +21,20 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [status, setStatus] = useState<"idle" | "saving" | "error" | "success">("idle");
   const [message, setMessage] = useState("");
+  const [resendStatus, setResendStatus] = useState<"idle" | "saving" | "sent">("idle");
+  const [confirmationPending, setConfirmationPending] = useState(false);
 
   const nextPath = useMemo(() => {
     if (typeof window === "undefined") return "/alerts";
-    const value = new URLSearchParams(window.location.search).get("next") || "/alerts";
-    return value.startsWith("/") ? value : "/alerts";
+    const value = new URLSearchParams(window.location.search).get("next");
+    return sanitizeAuthRedirect(value, "/alerts");
   }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setStatus("saving");
     setMessage("");
+    setConfirmationPending(false);
 
     if (mode === "signup" && password !== confirmPassword) {
       setStatus("error");
@@ -49,10 +53,14 @@ export function AuthForm({ mode }: AuthFormProps) {
       const payload = await response.json();
 
       if (!response.ok || !payload.ok) {
+        if (payload.error === "EMAIL_NOT_CONFIRMED") {
+          setConfirmationPending(true);
+        }
         throw new Error(payload.message || "Authentication failed.");
       }
 
       if (mode === "signup" && payload.emailConfirmationRequired) {
+        setConfirmationPending(true);
         setStatus("success");
         setMessage("Check your email to confirm your account, then log in to continue.");
         return;
@@ -62,6 +70,24 @@ export function AuthForm({ mode }: AuthFormProps) {
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Authentication failed.");
+    }
+  }
+
+  async function handleResendConfirmation() {
+    if (!email || resendStatus === "saving") return;
+    setResendStatus("saving");
+    try {
+      await fetch("/api/auth/resend", {
+        method: "POST",
+        cache: "no-store",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
+    } finally {
+      setResendStatus("sent");
     }
   }
 
@@ -136,10 +162,26 @@ export function AuthForm({ mode }: AuthFormProps) {
       ) : null}
 
       {message ? <p className={`${styles.message} ${styles[status] || ""}`}>{message}</p> : null}
-      {isSignup && status === "success" ? (
-        <Link className={styles.inlineAction} href={loginHref}>
-          Go to login
-        </Link>
+      {confirmationPending ? (
+        <div className={styles.confirmationActions}>
+          <button
+            className={styles.textButton}
+            disabled={resendStatus === "saving" || resendStatus === "sent"}
+            type="button"
+            onClick={handleResendConfirmation}
+          >
+            {resendStatus === "saving"
+              ? "Sending..."
+              : resendStatus === "sent"
+                ? "Confirmation sent"
+                : "Resend confirmation email"}
+          </button>
+          {isSignup ? (
+            <Link className={styles.inlineAction} href={loginHref}>
+              Go to login
+            </Link>
+          ) : null}
+        </div>
       ) : null}
 
       <button className={styles.primaryButton} disabled={status === "saving"} type="submit">
@@ -157,6 +199,11 @@ export function AuthForm({ mode }: AuthFormProps) {
             Not ready yet? <Link href="/feed">Continue browsing</Link>
           </p>
         </div>
+      ) : null}
+      {!isSignup ? (
+        <Link className={styles.forgotPasswordLink} href="/forgot-password">
+          Forgot your password?
+        </Link>
       ) : null}
     </form>
   );

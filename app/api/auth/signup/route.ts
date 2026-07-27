@@ -1,25 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AuthError, signUpWithEmail } from "@/lib/auth/supabaseAuth";
+import {
+  AuthError,
+  ensureUserBootstrap,
+  signUpWithEmail,
+} from "@/lib/auth/supabaseAuth";
 import { setAuthSessionCookies } from "@/lib/auth/sessionCookies";
+import { AUTH_PRIVATE_HEADERS } from "@/lib/auth/authPolicy";
+import {
+  assertSameOriginAuthRequest,
+  buildAuthCallbackUrl,
+} from "@/lib/auth/authRequest";
 
 export const dynamic = "force-dynamic";
 
-const NO_STORE_HEADERS = {
-  "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
-};
-
 export async function POST(request: NextRequest) {
   try {
+    assertSameOriginAuthRequest(request);
     const body = await request.json().catch(() => null);
     const { email, password } = normalizeAuthBody(body);
-    const session = await signUpWithEmail(email, password);
+    const callbackUrl = buildAuthCallbackUrl(request, "signup", "/account");
+    const session = await signUpWithEmail(email, password, callbackUrl);
+    if (session.access_token && session.user?.id) {
+      await ensureUserBootstrap(session.user);
+    }
 
     const response = NextResponse.json(
       {
         ok: true,
         emailConfirmationRequired: !session.access_token,
       },
-      { headers: NO_STORE_HEADERS },
+      { headers: AUTH_PRIVATE_HEADERS },
     );
 
     if (session.access_token) {
@@ -63,7 +73,7 @@ function signupErrorResponse(error: unknown) {
       error: normalized.code,
       message: normalized.message,
     },
-    { status: normalized.status, headers: NO_STORE_HEADERS },
+    { status: normalized.status, headers: AUTH_PRIVATE_HEADERS },
   );
 }
 

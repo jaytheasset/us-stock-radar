@@ -3,12 +3,14 @@ import "server-only";
 import { getServerEnv } from "@/lib/env";
 import { supabaseUpsert } from "@/lib/supabase";
 
-type SupabaseAuthUser = {
+export type SupabaseAuthUser = {
   id: string;
   email?: string | null;
+  email_confirmed_at?: string | null;
+  confirmed_at?: string | null;
 };
 
-type SupabaseAuthSession = {
+export type SupabaseAuthSession = {
   access_token?: string;
   refresh_token?: string;
   expires_in?: number;
@@ -27,14 +29,17 @@ export class AuthError extends Error {
   }
 }
 
-export async function signUpWithEmail(email: string, password: string) {
-  const payload = await callSupabaseAuth<SupabaseAuthSession>("/auth/v1/signup", {
+export async function signUpWithEmail(email: string, password: string, redirectTo: string) {
+  const payload = await callSupabaseAuth<SupabaseAuthSession>(
+    `/auth/v1/signup?redirect_to=${encodeURIComponent(redirectTo)}`,
+    {
     method: "POST",
     body: {
       email,
       password,
     },
-  });
+    },
+  );
 
   if (payload.user) {
     await ensureUserBootstrap(payload.user);
@@ -60,17 +65,93 @@ export async function signInWithEmail(email: string, password: string) {
   return payload;
 }
 
+export async function refreshSupabaseSession(refreshToken: string) {
+  if (!refreshToken) {
+    throw new AuthError("REFRESH_TOKEN_MISSING", "Refresh token is missing.", 401);
+  }
+
+  const payload = await callSupabaseAuth<SupabaseAuthSession>(
+    "/auth/v1/token?grant_type=refresh_token",
+    {
+      method: "POST",
+      body: {
+        refresh_token: refreshToken,
+      },
+    },
+  );
+
+  if (!payload.access_token || !payload.refresh_token || !payload.user?.id) {
+    throw new AuthError(
+      "REFRESH_RESPONSE_INVALID",
+      "Session refresh returned an invalid response.",
+      503,
+    );
+  }
+
+  return payload;
+}
+
+export async function resendSignupConfirmation(email: string, redirectTo: string) {
+  await callSupabaseAuth<Record<string, unknown>>("/auth/v1/resend", {
+    method: "POST",
+    body: {
+      type: "signup",
+      email,
+      options: {
+        email_redirect_to: redirectTo,
+      },
+    },
+  });
+}
+
+export async function requestPasswordRecovery(email: string, redirectTo: string) {
+  await callSupabaseAuth<Record<string, unknown>>(
+    `/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`,
+    {
+      method: "POST",
+      body: {
+        email,
+      },
+    },
+  );
+}
+
+export async function updateSupabasePassword(accessToken: string, password: string) {
+  return callSupabaseAuth<SupabaseAuthUser>("/auth/v1/user", {
+    method: "PUT",
+    accessToken,
+    body: {
+      password,
+    },
+  });
+}
+
+export async function revokeSupabaseSession(accessToken: string) {
+  if (!accessToken) return;
+  await callSupabaseAuth<Record<string, unknown>>("/auth/v1/logout?scope=local", {
+    method: "POST",
+    accessToken,
+  });
+}
+
 export async function getSupabaseAuthUser(accessToken: string): Promise<SupabaseAuthUser | null> {
   if (!accessToken) return null;
 
   try {
-    return await callSupabaseAuth<SupabaseAuthUser>("/auth/v1/user", {
-      method: "GET",
-      accessToken,
-    });
+    return await getSupabaseAuthUserStrict(accessToken);
   } catch {
     return null;
   }
+}
+
+export async function getSupabaseAuthUserStrict(
+  accessToken: string,
+): Promise<SupabaseAuthUser | null> {
+  if (!accessToken) return null;
+  return callSupabaseAuth<SupabaseAuthUser>("/auth/v1/user", {
+    method: "GET",
+    accessToken,
+  });
 }
 
 export async function ensureUserBootstrap(user: SupabaseAuthUser) {
@@ -144,7 +225,7 @@ function getAuthEnv() {
 async function callSupabaseAuth<T>(
   path: string,
   options: {
-    method: "GET" | "POST";
+    method: "GET" | "POST" | "PUT";
     body?: Record<string, unknown>;
     accessToken?: string;
   },
