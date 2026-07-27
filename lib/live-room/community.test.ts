@@ -15,9 +15,14 @@ import {
 } from "./community.ts";
 
 const root = process.cwd();
-const migration = read("supabase/migrations/20260727205629_live_room_community_rooms.sql");
+const communityMigrationPath =
+  "supabase/migrations/20260727231500_live_room_community_rooms.sql";
+const migration = read(communityMigrationPath);
 const foundationMigration = read(
   "supabase/migrations/20260727081914_live_room_realtime_foundation.sql",
+);
+const blockModerationMigration = read(
+  "supabase/migrations/20260727211500_fix_live_room_block_moderation.sql",
 );
 const communityRepository = read(
   "lib/live-room/communityServerRepository.ts",
@@ -252,6 +257,62 @@ test("migration preserves company ticker uniqueness while adding nullable commun
   );
 });
 
+test("Community migration runs after the existing Live Room function migrations", () => {
+  const migrationName = path.basename(communityMigrationPath);
+  for (const priorMigration of [
+    "20260727211500_fix_live_room_block_moderation.sql",
+    "20260727220000_live_room_chat_follows_and_member_follows.sql",
+    "20260727230000_live_room_member_activity.sql",
+  ]) {
+    assert.equal(
+      migrationName > priorMigration,
+      true,
+      `${migrationName} must sort after ${priorMigration}`,
+    );
+  }
+});
+
+test("company Rooms and People activity exclude Community messages after room_kind exists", () => {
+  const unreadFunction =
+    migration.match(
+      /function public\.get_live_room_unread_summary\([\s\S]+?\$\$;/i,
+    )?.[0] ?? "";
+  const setMemberFollowFunction =
+    migration.match(
+      /function public\.set_live_room_member_follow\([\s\S]+?\$\$;/i,
+    )?.[0] ?? "";
+  const markMemberReadFunction =
+    migration.match(
+      /function public\.mark_live_room_member_activity_read\([\s\S]+?\$\$;/i,
+    )?.[0] ?? "";
+  const activityFunction =
+    migration.match(
+      /function public\.get_live_room_activity_summary\([\s\S]+?\$\$;/i,
+    )?.[0] ?? "";
+
+  assert.match(unreadFunction, /where room\.room_kind = 'company'/i);
+  assert.match(
+    setMemberFollowFunction,
+    /join public\.live_room_rooms as room[\s\S]+where room\.room_kind = 'company'/i,
+  );
+  assert.match(
+    markMemberReadFunction,
+    /join public\.live_room_rooms as room[\s\S]+where room\.room_kind = 'company'/i,
+  );
+  assert.equal(
+    (activityFunction.match(/room\.room_kind = 'company'/gi) ?? []).length,
+    3,
+  );
+  assert.doesNotMatch(activityFunction, /room\.room_kind = 'community'/i);
+
+  // The 211500 functions are intentionally room-id scoped so block and
+  // moderation behavior is shared by Company and Community Rooms.
+  assert.doesNotMatch(
+    blockModerationMigration,
+    /join public\.live_room_rooms as room/i,
+  );
+});
+
 test("Community Room metadata is default-deny with owner FK and covering indexes", () => {
   assert.match(
     migration,
@@ -408,10 +469,13 @@ test("public pg_catalog qualifications are actual functions, not SQL syntax elem
     "char_length",
     "count",
     "hashtextextended",
+    "jsonb_agg",
     "jsonb_build_object",
+    "left",
     "lower",
     "now",
     "pg_advisory_xact_lock",
+    "regexp_replace",
     "regconfig",
     "setweight",
     "to_tsvector",
