@@ -199,10 +199,10 @@ set search_path = ''
 as $$
   with actor_context as (
     select
-      pg_catalog.coalesce(p_member_user_id, p_guest_session_id) as actor_id,
-      pg_catalog.greatest(
+      coalesce(p_member_user_id, p_guest_session_id) as actor_id,
+      greatest(
         1,
-        pg_catalog.least(pg_catalog.coalesce(p_people_limit, 30), 50)
+        least(coalesce(p_people_limit, 30), 50)
       ) as people_limit
     where (
       p_actor_kind = 'member'
@@ -373,7 +373,7 @@ as $$
         where follow.follower_user_id = p_member_user_id
       ),
     'followedPeople',
-    pg_catalog.coalesce(
+    coalesce(
       (
         select pg_catalog.jsonb_agg(
           pg_catalog.jsonb_build_object(
@@ -389,7 +389,7 @@ as $$
       '[]'::jsonb
     ),
     'rooms',
-    pg_catalog.coalesce(
+    coalesce(
       (
         select pg_catalog.jsonb_agg(
           pg_catalog.jsonb_build_object(
@@ -403,7 +403,7 @@ as $$
       '[]'::jsonb
     ),
     'people',
-    pg_catalog.coalesce(
+    coalesce(
       (
         select pg_catalog.jsonb_agg(
           pg_catalog.jsonb_build_object(

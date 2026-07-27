@@ -913,6 +913,36 @@ test("member activity cursors exclude history, hidden messages, self, and blocke
   );
 });
 
+test("member activity migration only schema-qualifies real pg_catalog functions", () => {
+  const migrationName = readdirSync(
+    path.join(projectRoot, "supabase", "migrations"),
+  ).find((name) =>
+    name.endsWith("_live_room_member_activity.sql"),
+  );
+  assert.ok(migrationName);
+  const migration = readSource(
+    path.join("supabase", "migrations", migrationName),
+  );
+  const qualifiedCatalogCalls = [
+    ...migration.matchAll(/\bpg_catalog\.([a-z_][a-z0-9_]*)\s*\(/gi),
+  ].map((match) => match[1].toLowerCase());
+
+  assert.doesNotMatch(
+    migration,
+    /\bpg_catalog\.(?:coalesce|greatest|least|nullif)\s*\(/i,
+  );
+  assert.deepEqual(
+    [...new Set(qualifiedCatalogCalls)].sort(),
+    [
+      "count",
+      "jsonb_agg",
+      "jsonb_build_object",
+      "left",
+      "regexp_replace",
+    ],
+  );
+});
+
 test("member activity read and message anchors validate room ownership before advancing an exact follower cursor", () => {
   const migrationName = readdirSync(
     path.join(projectRoot, "supabase", "migrations"),
