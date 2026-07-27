@@ -45,6 +45,7 @@ import { MessageComposer } from "./MessageComposer";
 import styles from "./LiveRoom.module.css";
 
 type LiveRoomClientProps = {
+  activityMessageId: string | null;
   realtimeConfig: LiveRoomRealtimeConfig | null;
   ticker: string;
 };
@@ -60,6 +61,7 @@ const defaultProfile: LiveRoomProfile = {
 };
 
 export function LiveRoomClient({
+  activityMessageId,
   realtimeConfig,
   ticker,
 }: LiveRoomClientProps) {
@@ -107,10 +109,13 @@ export function LiveRoomClient({
   const [messageActionId, setMessageActionId] =
     useState<string | null>(null);
   const [newUpdateId, setNewUpdateId] = useState<string | null>(null);
+  const [highlightedMessageId, setHighlightedMessageId] =
+    useState<string | null>(null);
   const latestEventIdRef = useRef<string | null>(null);
   const followedRef = useRef(false);
   const historyOpenerRef = useRef<HTMLButtonElement>(null);
   const markReadTimerRef = useRef<number | null>(null);
+  const markedActivityMessageRef = useRef<string | null>(null);
   const profileSaveTimerRef = useRef<number | null>(null);
 
   const latestEvent = selectLatestCompanyEvent(events);
@@ -129,6 +134,8 @@ export function LiveRoomClient({
     setRoomNotice(null);
     setBlocks([]);
     setHiddenMessages([]);
+    setHighlightedMessageId(null);
+    markedActivityMessageRef.current = null;
 
     void (async () => {
       try {
@@ -149,9 +156,27 @@ export function LiveRoomClient({
               : Promise.resolve([]),
           ]);
         if (!active) return;
-        setTimeline(page.items);
+        let initialItems: LiveRoomTimelineItem[] = page.items;
+        if (activityMessageId) {
+          try {
+            const anchor =
+              page.items.find(
+                (item) =>
+                  item.kind === "message" &&
+                  item.id === activityMessageId,
+              ) ||
+              (await repository.readMessageAnchor(activityMessageId));
+            if (!active) return;
+            initialItems = mergeMessages(initialItems, [anchor]);
+            setHighlightedMessageId(anchor.id);
+          } catch (error) {
+            if (!active) return;
+            setRoomNotice(toLiveRoomApiError(error).message);
+          }
+        }
+        setTimeline(initialItems);
         setOlderCursor(page.nextCursor);
-        setTimelineState(page.items.length ? "ready" : "empty");
+        setTimelineState(initialItems.length ? "ready" : "empty");
         setFollowed(preference.followed);
         followedRef.current = preference.followed;
         setBlocks(nextBlocks);
@@ -235,7 +260,68 @@ export function LiveRoomClient({
         markReadTimerRef.current = null;
       }
     };
-  }, [reloadKey, repository]);
+  }, [activityMessageId, reloadKey, repository]);
+
+  useEffect(() => {
+    if (
+      !highlightedMessageId ||
+      profile.isGuest ||
+      markedActivityMessageRef.current === highlightedMessageId
+    ) {
+      return;
+    }
+    const element = document.getElementById(
+      `live-room-message-${highlightedMessageId}`,
+    );
+    if (!element) return;
+
+    let active = true;
+    const scrollFrame = window.requestAnimationFrame(() => {
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    const markWhenVisible = () => {
+      if (
+        !active ||
+        markedActivityMessageRef.current === highlightedMessageId
+      ) {
+        return;
+      }
+      const rect = element.getBoundingClientRect();
+      if (rect.bottom <= 0 || rect.top >= window.innerHeight) return;
+      markedActivityMessageRef.current = highlightedMessageId;
+      void repository
+        .markMemberActivityRead(highlightedMessageId)
+        .then(requestLiveRoomUnreadRefresh)
+        .catch(() => {
+          if (active) {
+            markedActivityMessageRef.current = null;
+          }
+        });
+    };
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          markWhenVisible();
+        }
+      },
+      { threshold: 0.1 },
+    );
+    observer.observe(element);
+    const visibilityFrame =
+      window.requestAnimationFrame(markWhenVisible);
+
+    return () => {
+      active = false;
+      window.cancelAnimationFrame(scrollFrame);
+      window.cancelAnimationFrame(visibilityFrame);
+      observer.disconnect();
+    };
+  }, [
+    highlightedMessageId,
+    profile.isGuest,
+    repository,
+    timeline,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -747,6 +833,7 @@ export function LiveRoomClient({
               <ChatTimeline
                 canModerate={profile.canModerate === true}
                 currentProfileName={profile.displayName.trim() || "Guest"}
+                highlightedMessageId={highlightedMessageId}
                 items={timeline}
                 messageActionId={messageActionId}
                 onBlock={handleBlock}

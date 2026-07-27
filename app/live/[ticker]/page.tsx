@@ -9,6 +9,7 @@ import { getLiveRoomRealtimeConfig } from "@/lib/live-room/realtimeServerConfig"
 
 type LiveRoomPageProps = {
   params: Promise<{ ticker: string }>;
+  searchParams: Promise<{ message?: string | string[] }>;
 };
 
 export function generateMetadata({
@@ -29,8 +30,12 @@ export function generateMetadata({
   });
 }
 
-export default async function LiveRoomPage({ params }: LiveRoomPageProps) {
+export default async function LiveRoomPage({
+  params,
+  searchParams,
+}: LiveRoomPageProps) {
   const { ticker: routeTicker } = await params;
+  const query = await searchParams;
   const ticker = normalizeLiveRoomTicker(routeTicker);
 
   if (!ticker) notFound();
@@ -40,6 +45,9 @@ export default async function LiveRoomPage({ params }: LiveRoomPageProps) {
 
   return (
     <LiveRoomClient
+      activityMessageId={
+        typeof query.message === "string" ? query.message : null
+      }
       realtimeConfig={getLiveRoomRealtimeConfig()}
       ticker={ticker}
     />
