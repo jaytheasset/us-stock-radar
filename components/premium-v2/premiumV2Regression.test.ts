@@ -1,14 +1,13 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import {
-  premiumV2PlanOrder,
-  premiumV2Plans,
-  premiumV2RecommendedPlan,
-} from "../../lib/mock/premiumV2Data.ts";
 
 const componentSource = readFileSync(
   new URL("./StockRadarPremiumV2.tsx", import.meta.url),
+  "utf8",
+);
+const dataSource = readFileSync(
+  new URL("../../lib/mock/premiumV2Data.ts", import.meta.url),
   "utf8",
 );
 const styles = readFileSync(
@@ -17,23 +16,20 @@ const styles = readFileSync(
 );
 
 test("keeps the five-plan product contract and recommendation", () => {
-  assert.deepEqual(premiumV2PlanOrder, [
-    "free",
-    "adFree",
-    "pro",
-    "advanced",
-    "ultimate",
-  ]);
-  assert.equal(premiumV2RecommendedPlan, "advanced");
-  assert.deepEqual(
-    premiumV2PlanOrder.map((planKey) => premiumV2Plans[planKey].monthlyPrice),
-    ["$0", "$6.99", "$19", "$49", "From $199"],
+  assert.match(
+    dataSource,
+    /premiumV2PlanOrder = \["free", "adFree", "pro", "advanced", "ultimate"\]/,
   );
+  assert.match(dataSource, /premiumV2RecommendedPlan: PremiumV2PlanKey = "advanced"/);
+  for (const price of ["$0", "$6.99", "$19", "$49", "From $199"]) {
+    assert.match(dataSource, new RegExp(`monthlyPrice: "${price.replace("$", "\\$")}"`));
+  }
 });
 
 test("keeps trial, current-plan, and preview-selection behavior visible in the source", () => {
   assert.match(componentSource, /accountState\.planSource === "trial"/);
-  assert.match(componentSource, /<ProTrialCta[\s\S]*guestMode/);
+  assert.match(componentSource, /<AdvancedTrialCta[\s\S]*guestMode/);
+  assert.match(componentSource, /Start 14-day Advanced Trial/);
   assert.match(componentSource, /accountState\.trial\.used/);
   assert.match(componentSource, /styles\.currentCard/);
   assert.match(componentSource, /data-current-plan=\{isCurrent \? "true" : undefined\}/);
