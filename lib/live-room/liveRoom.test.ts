@@ -656,6 +656,28 @@ test("reports, blocks, and moderator tables stay service-only and RLS default-de
   );
 });
 
+test("Live Room block and moderation RPC correction uses SQL COALESCE and preserves service-only grants", () => {
+  const migrationName = readdirSync(
+    path.join(projectRoot, "supabase", "migrations"),
+  ).find((name) => name.endsWith("_fix_live_room_block_moderation.sql"));
+  assert.ok(migrationName);
+  const migration = readSource(
+    path.join("supabase", "migrations", migrationName),
+  );
+
+  assert.match(
+    migration,
+    /function public\.block_live_room_message_author[\s\S]+security invoker[\s\S]+set search_path = ''/i,
+  );
+  assert.match(
+    migration,
+    /function public\.moderate_live_room_message[\s\S]+security invoker[\s\S]+set search_path = ''/i,
+  );
+  assert.doesNotMatch(migration, /pg_catalog\.coalesce/i);
+  assert.match(migration, /from public, anon, authenticated/i);
+  assert.match(migration, /to service_role/i);
+});
+
 test("message APIs resolve moderation targets server-side and never return actor IDs", () => {
   const reportsRoute = readSource(
     "app/api/live-room/[ticker]/reports/route.ts",
