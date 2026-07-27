@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import { AuthError } from "@/lib/auth/supabaseAuth";
 import {
   isSameOriginAuthRequest,
+  resolveAuthRequestUrl,
   sanitizeAuthRedirect,
   type AuthCallbackType,
 } from "@/lib/auth/authPolicy";
@@ -11,7 +12,12 @@ import { getServerEnv } from "@/lib/env";
 
 export function assertSameOriginAuthRequest(request: NextRequest) {
   const allowed = isSameOriginAuthRequest({
-    requestUrl: request.url,
+    requestUrl: resolveAuthRequestUrl({
+      requestUrl: request.url,
+      host: request.headers.get("host"),
+      forwardedHost: request.headers.get("x-forwarded-host"),
+      forwardedProto: request.headers.get("x-forwarded-proto"),
+    }),
     origin: request.headers.get("origin"),
     secFetchSite: request.headers.get("sec-fetch-site"),
   });

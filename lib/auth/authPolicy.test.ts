@@ -15,8 +15,13 @@ import {
   shouldClearAuthSessionForStatus,
 } from "./authFailure.ts";
 import {
+  AUTH_LOCAL_CALLBACK_ORIGIN,
+  AUTH_PRODUCTION_CALLBACK_ORIGIN,
+  buildGoogleOAuthAuthorizeUrl,
+  buildGoogleOAuthCallbackUrl,
   isSameOriginAuthRequest,
   normalizeAuthCallbackType,
+  resolveAuthRequestUrl,
   sanitizeAuthRedirect,
   shouldRefreshAuthSession,
 } from "./authPolicy.ts";
@@ -43,7 +48,61 @@ test("auth redirect sanitizer accepts only internal non-callback destinations", 
   assert.equal(sanitizeAuthRedirect("/auth/callback?next=/account"), "/account");
   assert.equal(sanitizeAuthRedirect(null, "/alerts"), "/alerts");
   const authForm = readProjectFile("components/AuthForm.tsx");
-  assert.match(authForm, /sanitizeAuthRedirect\(value, "\/alerts"\)/);
+  const loginPage = readProjectFile("app/login/page.tsx");
+  const signupPage = readProjectFile("app/signup/page.tsx");
+  assert.match(authForm, /sanitizeAuthRedirect\(next, "\/alerts"\)/);
+  assert.doesNotMatch(authForm, /window\.location\.search/);
+  assert.match(loginPage, /<AuthForm mode="login" next=\{next\}/);
+  assert.match(signupPage, /<AuthForm mode="signup" next=\{next\}/);
+});
+
+test("Google OAuth uses the canonical callback contract and preserves only safe next paths", () => {
+  const productionCallback = new URL(
+    buildGoogleOAuthCallbackUrl({
+      next: "/watchlist?view=events",
+      production: true,
+    }),
+  );
+  assert.equal(productionCallback.origin, AUTH_PRODUCTION_CALLBACK_ORIGIN);
+  assert.equal(productionCallback.pathname, "/auth/callback");
+  assert.equal(
+    productionCallback.searchParams.get("next"),
+    "/watchlist?view=events",
+  );
+
+  const localCallback = new URL(
+    buildGoogleOAuthCallbackUrl({
+      next: "https://evil.example/steal",
+      production: false,
+    }),
+  );
+  assert.equal(localCallback.origin, AUTH_LOCAL_CALLBACK_ORIGIN);
+  assert.equal(localCallback.pathname, "/auth/callback");
+  assert.equal(localCallback.searchParams.get("next"), "/alerts");
+
+  const authorizeUrl = new URL(
+    buildGoogleOAuthAuthorizeUrl({
+      codeChallenge: "pkce_challenge",
+      redirectTo: productionCallback.toString(),
+      supabaseUrl: "https://project.supabase.co/rest/v1",
+    }),
+  );
+  assert.equal(
+    authorizeUrl.toString().startsWith(
+      "https://project.supabase.co/auth/v1/authorize?",
+    ),
+    true,
+  );
+  assert.equal(authorizeUrl.searchParams.get("provider"), "google");
+  assert.equal(
+    authorizeUrl.searchParams.get("redirect_to"),
+    productionCallback.toString(),
+  );
+  assert.equal(
+    authorizeUrl.searchParams.get("code_challenge"),
+    "pkce_challenge",
+  );
+  assert.equal(authorizeUrl.searchParams.get("code_challenge_method"), "s256");
 });
 
 test("callback type and same-origin request policy reject untrusted input", () => {
@@ -74,6 +133,25 @@ test("callback type and same-origin request policy reject untrusted input", () =
       secFetchSite: null,
     }),
     false,
+  );
+
+  assert.equal(
+    resolveAuthRequestUrl({
+      requestUrl: "http://localhost:3110/api/auth/oauth/google",
+      host: "127.0.0.1:3110",
+      forwardedHost: null,
+      forwardedProto: null,
+    }),
+    "http://127.0.0.1:3110/api/auth/oauth/google",
+  );
+  assert.equal(
+    resolveAuthRequestUrl({
+      requestUrl: "http://localhost:3000/api/auth/login",
+      host: "us-stock-radar.com",
+      forwardedHost: null,
+      forwardedProto: "https",
+    }),
+    "https://us-stock-radar.com/api/auth/login",
   );
 });
 
@@ -224,6 +302,13 @@ test("auth route contract covers callback verification, revoke, reset, and priva
   const callbackClient = readProjectFile("components/AuthCallbackClient.tsx");
   const supabaseAuth = readProjectFile("lib/auth/supabaseAuth.ts");
   const signupRoute = readProjectFile("app/api/auth/signup/route.ts");
+  const oauthStartRoute = readProjectFile(
+    "app/api/auth/oauth/google/route.ts",
+  );
+  const oauthCallbackRoute = readProjectFile(
+    "app/api/auth/oauth/callback/route.ts",
+  );
+  const oauthPkce = readProjectFile("lib/auth/oauthPkce.ts");
   const sessionResolution = readProjectFile("lib/auth/sessionResolution.ts");
 
   for (const stateChangingRoute of [
@@ -234,6 +319,8 @@ test("auth route contract covers callback verification, revoke, reset, and priva
     resetRequestRoute,
     updateRoute,
     logoutRoute,
+    oauthStartRoute,
+    oauthCallbackRoute,
   ]) {
     assert.match(stateChangingRoute, /assertSameOriginAuthRequest/);
   }
@@ -259,6 +346,9 @@ test("auth route contract covers callback verification, revoke, reset, and priva
   assert.match(logoutRoute, /status: 403/);
   assert.match(supabaseAuth, /\/auth\/v1\/logout\?scope=local/);
   assert.match(supabaseAuth, /grant_type=refresh_token/);
+  assert.match(supabaseAuth, /grant_type=pkce/);
+  assert.match(supabaseAuth, /auth_code: authCode/);
+  assert.match(supabaseAuth, /code_verifier: codeVerifier/);
   assert.match(signupRoute, /ensureUserBootstrap\(session\.user\)/);
   assert.match(sessionResolution, /shouldClearAuthSessionForError/);
   assert.match(
@@ -276,15 +366,51 @@ test("auth route contract covers callback verification, revoke, reset, and priva
   assert.match(updateRoute, /password\.length < 8/);
 
   const historyPosition = callbackClient.indexOf("window.history.replaceState");
-  const fetchPosition = callbackClient.indexOf('fetch("/api/auth/session"');
+  const fetchPosition = callbackClient.indexOf(
+    "const response = await fetch(request.endpoint",
+  );
   assert.ok(historyPosition >= 0 && historyPosition < fetchPosition);
+  assert.match(callbackClient, /endpoint: "\/api\/auth\/oauth\/callback"/);
+  assert.match(callbackClient, /endpoint: "\/api\/auth\/session"/);
   assert.equal(callbackClient.includes("console."), false);
+
+  assert.match(oauthStartRoute, /buildGoogleOAuthCallbackUrl/);
+  assert.match(oauthStartRoute, /buildGoogleOAuthAuthorizeUrl/);
+  assert.match(oauthStartRoute, /setOAuthPkceCookie/);
+  assert.doesNotMatch(oauthStartRoute, /SUPABASE_SERVICE_ROLE_KEY/);
+  assert.doesNotMatch(oauthStartRoute, /GOOGLE_CLIENT_SECRET/);
+  assert.match(oauthCallbackRoute, /exchangeSupabaseAuthCode/);
+  assert.match(oauthCallbackRoute, /setAuthSessionCookies/);
+  assert.match(oauthCallbackRoute, /clearOAuthPkceCookie/);
+  const oauthCallbackOriginCheck = oauthCallbackRoute.indexOf(
+    "assertSameOriginAuthRequest(request)",
+  );
+  const oauthCallbackCookieClear = oauthCallbackRoute.indexOf(
+    "clearOAuthPkceCookie(response)",
+  );
+  assert.ok(
+    oauthCallbackOriginCheck >= 0 &&
+      oauthCallbackOriginCheck < oauthCallbackCookieClear,
+    "cross-site OAuth callback requests must be rejected before the PKCE cookie is cleared",
+  );
+  assert.match(oauthPkce, /httpOnly: true/);
+  assert.match(oauthPkce, /sameSite: "lax"/);
+  assert.match(oauthPkce, /randomBytes\(32\)/);
+  assert.match(oauthPkce, /createHash\("sha256"\)/);
+
+  const authForm = readProjectFile("components/AuthForm.tsx");
+  assert.match(authForm, /Continue with Google/);
+  assert.match(authForm, /fetch\("\/api\/auth\/oauth\/google"/);
+  assert.match(authForm, /JSON\.stringify\(\{ next: nextPath \}\)/);
+  assert.match(authForm, /mode === "signup"/);
 
   for (const source of [
     sessionRoute,
     logoutRoute,
     resetRequestRoute,
     updateRoute,
+    oauthStartRoute,
+    oauthCallbackRoute,
   ]) {
     assert.match(source, /AUTH_PRIVATE_HEADERS/);
   }
