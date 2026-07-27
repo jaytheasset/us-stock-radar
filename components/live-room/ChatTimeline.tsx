@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Ban,
   EyeOff,
@@ -8,6 +8,8 @@ import {
   MoreHorizontal,
   ShieldAlert,
   Sparkles,
+  UserCheck,
+  UserPlus,
 } from "lucide-react";
 import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import { getPlanDisplayName } from "@/lib/subscriptionPolicy";
@@ -30,6 +32,10 @@ type ChatTimelineProps = {
     messageId: string,
     reason: LiveRoomReportReason,
   ) => Promise<void>;
+  onToggleMemberFollow?: (
+    messageId: string,
+    followed: boolean,
+  ) => Promise<void>;
   onRetry?: () => void;
   state: "empty" | "error" | "loading" | "ready";
 };
@@ -42,6 +48,7 @@ export function ChatTimeline({
   onBlock,
   onHide,
   onReport,
+  onToggleMemberFollow,
   onRetry,
   state,
 }: ChatTimelineProps) {
@@ -137,9 +144,15 @@ export function ChatTimeline({
                 <MessageActions
                   busy={messageActionId === item.id}
                   canBlock={!mine && Boolean(onBlock)}
+                  canFollowMember={
+                    item.canFollowMember === true &&
+                    Boolean(onToggleMemberFollow)
+                  }
                   canHide={canModerate && Boolean(onHide)}
+                  memberFollowed={item.isMemberFollowed === true}
                   messageId={item.id}
                   onBlock={onBlock}
+                  onMemberFollow={onToggleMemberFollow}
                   onHide={onHide}
                   onReport={onReport}
                 />
@@ -164,17 +177,26 @@ export function ChatTimeline({
 function MessageActions({
   busy,
   canBlock,
+  canFollowMember,
   canHide,
+  memberFollowed,
   messageId,
   onBlock,
+  onMemberFollow,
   onHide,
   onReport,
 }: {
   busy: boolean;
   canBlock: boolean;
+  canFollowMember: boolean;
   canHide: boolean;
+  memberFollowed: boolean;
   messageId: string;
   onBlock?: (messageId: string) => Promise<void>;
+  onMemberFollow?: (
+    messageId: string,
+    followed: boolean,
+  ) => Promise<void>;
   onHide?: (messageId: string) => Promise<void>;
   onReport?: (
     messageId: string,
@@ -183,6 +205,29 @@ function MessageActions({
 }) {
   const [open, setOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const actionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!actionsRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+        setReportOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        setReportOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
 
   const run = async (action: () => Promise<void>) => {
     try {
@@ -195,7 +240,7 @@ function MessageActions({
   };
 
   return (
-    <div className={styles.messageActions}>
+    <div className={styles.messageActions} ref={actionsRef}>
       <button
         aria-expanded={open}
         aria-label="Message actions"
@@ -252,6 +297,25 @@ function MessageActions({
             >
               <Ban aria-hidden="true" size={14} />
               Block author
+            </button>
+          ) : null}
+          {canFollowMember && onMemberFollow ? (
+            <button
+              disabled={busy}
+              onClick={() =>
+                void run(() =>
+                  onMemberFollow(messageId, !memberFollowed),
+                )
+              }
+              role="menuitem"
+              type="button"
+            >
+              {memberFollowed ? (
+                <UserCheck aria-hidden="true" size={14} />
+              ) : (
+                <UserPlus aria-hidden="true" size={14} />
+              )}
+              {memberFollowed ? "Following" : "Follow member"}
             </button>
           ) : null}
           {canHide && onHide ? (

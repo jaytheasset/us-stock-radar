@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
@@ -13,6 +12,7 @@ import {
 } from "@/lib/live-room/adapters";
 import {
   LiveRoomApiRepository,
+  requestLiveRoomUnreadRefresh,
   toLiveRoomApiError,
   type LiveRoomRealtimeConfig,
 } from "@/lib/live-room/apiRepository";
@@ -108,7 +108,9 @@ export function LiveRoomClient({
     useState<string | null>(null);
   const [newUpdateId, setNewUpdateId] = useState<string | null>(null);
   const latestEventIdRef = useRef<string | null>(null);
+  const followedRef = useRef(false);
   const historyOpenerRef = useRef<HTMLButtonElement>(null);
+  const markReadTimerRef = useRef<number | null>(null);
   const profileSaveTimerRef = useRef<number | null>(null);
 
   const latestEvent = selectLatestCompanyEvent(events);
@@ -151,14 +153,38 @@ export function LiveRoomClient({
         setOlderCursor(page.nextCursor);
         setTimelineState(page.items.length ? "ready" : "empty");
         setFollowed(preference.followed);
+        followedRef.current = preference.followed;
         setBlocks(nextBlocks);
         setHiddenMessages(nextHiddenMessages);
+        if (preference.followed) {
+          const latestMessageId = getLatestChatMessageId(page.items);
+          void repository
+            .markRead(latestMessageId)
+            .then(requestLiveRoomUnreadRefresh)
+            .catch(() => {
+              // The next focus/poll refresh retries unread reconciliation.
+            });
+        }
         updates = repository.updates.subscribe({
           afterChange: page.latestChangeCursor,
           onMessages: (messages) => {
             if (!active) return;
             setTimeline((current) => mergeMessages(current, messages));
             setTimelineState("ready");
+            if (followedRef.current) {
+              if (markReadTimerRef.current !== null) {
+                window.clearTimeout(markReadTimerRef.current);
+              }
+              markReadTimerRef.current = window.setTimeout(() => {
+                markReadTimerRef.current = null;
+                void repository
+                  .markRead(getLatestChatMessageId(messages))
+                  .then(requestLiveRoomUnreadRefresh)
+                  .catch(() => {
+                    // The next focus/poll refresh retries unread reconciliation.
+                  });
+              }, 800);
+            }
           },
           onRemoved: (messageIds) => {
             if (!active || !messageIds.length) return;
@@ -204,6 +230,10 @@ export function LiveRoomClient({
     return () => {
       active = false;
       updates?.close();
+      if (markReadTimerRef.current !== null) {
+        window.clearTimeout(markReadTimerRef.current);
+        markReadTimerRef.current = null;
+      }
     };
   }, [reloadKey, repository]);
 
@@ -321,15 +351,19 @@ export function LiveRoomClient({
     const previous = followed;
     const nextFollowed = !previous;
     setFollowed(nextFollowed);
+    followedRef.current = nextFollowed;
     setRoomNotice(null);
     try {
       const saved = await repository.writeFollow({
         followed: nextFollowed,
-        notificationScope: "company_updates_only",
+        notificationScope: "new_chat_messages",
       });
       setFollowed(saved.followed);
+      followedRef.current = saved.followed;
+      requestLiveRoomUnreadRefresh();
     } catch (error) {
       setFollowed(previous);
+      followedRef.current = previous;
       setRoomNotice(toLiveRoomApiError(error).message);
     }
   };
@@ -458,6 +492,39 @@ export function LiveRoomClient({
     }
   };
 
+  const handleMemberFollow = async (
+    messageId: string,
+    nextFollowed: boolean,
+  ) => {
+    setMessageActionId(messageId);
+    setRoomNotice(null);
+    try {
+      const result = await repository.writeMemberFollow({
+        followed: nextFollowed,
+        messageId,
+      });
+      setTimeline((current) =>
+        current.map((item) =>
+          item.kind === "message" && item.id === result.messageId
+            ? { ...item, isMemberFollowed: result.followed }
+            : item,
+        ),
+      );
+      const refreshedPage = await repository.list();
+      setTimeline((current) =>
+        mergeMessages(current, refreshedPage.items),
+      );
+      setRoomNotice(
+        result.followed ? "Member followed." : "Member unfollowed.",
+      );
+    } catch (error) {
+      setRoomNotice(toLiveRoomApiError(error).message);
+      throw error;
+    } finally {
+      setMessageActionId(null);
+    }
+  };
+
   const handleUnblock = async (blockId: string) => {
     setMessageActionId(blockId);
     setRoomNotice(null);
@@ -535,14 +602,9 @@ export function LiveRoomClient({
         {followed ? (
           <div className={styles.followNote}>
             <p>
-              Room saved. New company updates will appear here. To receive
-              push, Telegram, or email alerts, turn them on in Alerts.
+              Room saved. New chat messages from other people will be shown
+              as unread.
             </p>
-            <Link
-              href={`/alerts?ticker=${encodeURIComponent(ticker)}`}
-            >
-              Turn on alerts
-            </Link>
           </div>
         ) : null}
 
@@ -692,6 +754,7 @@ export function LiveRoomClient({
                   handleModerate(messageId, "hide")
                 }
                 onReport={handleReport}
+                onToggleMemberFollow={handleMemberFollow}
                 onRetry={() => setReloadKey((value) => value + 1)}
                 state={timelineState}
               />
@@ -783,4 +846,14 @@ function getModerationReason(code: string): ModerationReason {
   if (code.includes("EXCESSIVE_LINKS")) return "excessive_links";
   if (code.includes("BLOCKED_WORD")) return "blocked_word";
   return "empty";
+}
+
+function getLatestChatMessageId(
+  items: readonly LiveRoomTimelineItem[],
+) {
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    const item = items[index];
+    if (item?.kind === "message") return item.id;
+  }
+  return null;
 }

@@ -50,9 +50,11 @@ export type LiveRoomProfile = {
 export type LiveRoomChatMessage = {
   author: LiveRoomProfile;
   body: string;
+  canFollowMember?: boolean;
   createdAt: string;
   eventReference: CompanyEventReference | null;
   id: string;
+  isMemberFollowed?: boolean;
   isMine?: boolean;
   kind: "message";
 };
@@ -117,14 +119,27 @@ export interface LiveRoomMessageRepository {
   ): () => void;
 }
 
-export type LiveRoomNotificationScope =
-  | "all_room_messages"
-  | "company_updates_only";
+export type LiveRoomNotificationScope = "new_chat_messages";
 
 export type LiveRoomFollowPreference = {
   followed: boolean;
   notificationScope: LiveRoomNotificationScope;
   roomKey: CompanyRoomKey;
+};
+
+export type LiveRoomUnreadRoom = {
+  ticker: string;
+  unreadCount: number;
+};
+
+export type LiveRoomUnreadSummary = {
+  rooms: LiveRoomUnreadRoom[];
+  totalUnreadCount: number;
+};
+
+export type LiveRoomMemberFollowResult = {
+  followed: boolean;
+  messageId: string;
 };
 
 export interface LiveRoomFollowRepository {
