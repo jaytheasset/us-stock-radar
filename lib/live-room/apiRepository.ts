@@ -43,6 +43,11 @@ export type LiveRoomUpdateSubscription = {
   close: () => void;
 };
 
+export type LiveRoomLocation =
+  | string
+  | { kind: "company"; ticker: string }
+  | { kind: "community"; slug: string };
+
 export interface LiveRoomUpdateTransport {
   subscribe(options: {
     afterChange: string | null;
@@ -74,14 +79,29 @@ export class LiveRoomApiError extends Error {
 
 export class LiveRoomApiRepository {
   readonly updates: LiveRoomUpdateTransport;
+  private readonly apiPath: string;
+  private readonly realtimeTopicKey: string;
 
   constructor(
-    private readonly ticker: string,
+    location: LiveRoomLocation,
     realtimeConfig: LiveRoomRealtimeConfig | null = null,
   ) {
+    const normalizedLocation =
+      typeof location === "string"
+        ? { kind: "company" as const, ticker: location }
+        : location;
+    if (normalizedLocation.kind === "community") {
+      const slug = encodeURIComponent(normalizedLocation.slug);
+      this.apiPath = `/api/live-room/community/${slug}`;
+      this.realtimeTopicKey = `community:${normalizedLocation.slug}`;
+    } else {
+      const ticker = encodeURIComponent(normalizedLocation.ticker);
+      this.apiPath = `/api/live-room/${ticker}`;
+      this.realtimeTopicKey = normalizedLocation.ticker;
+    }
     this.updates = new RealtimeLiveRoomUpdateTransport(
       this,
-      ticker,
+      this.realtimeTopicKey,
       realtimeConfig,
     );
   }
@@ -276,7 +296,7 @@ export class LiveRoomApiRepository {
   }
 
   private roomApiPath() {
-    return `/api/live-room/${encodeURIComponent(this.ticker)}`;
+    return this.apiPath;
   }
 }
 
@@ -295,7 +315,7 @@ class RealtimeLiveRoomUpdateTransport
 {
   constructor(
     private readonly repository: LiveRoomApiRepository,
-    private readonly ticker: string,
+    private readonly topicKey: string,
     private readonly realtimeConfig: LiveRoomRealtimeConfig | null,
   ) {}
 
@@ -399,7 +419,7 @@ class RealtimeLiveRoomUpdateTransport
               );
             }
           },
-          topic: `live-room:${this.ticker}`,
+          topic: `live-room:${this.topicKey}`,
         })
         .then((lease) => {
           if (active) {
@@ -445,7 +465,10 @@ function isUsableRealtimeConfig(
   }
 }
 
-async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
+export async function requestJson<T>(
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
   const response = await fetch(path, {
     ...init,
     cache: "no-store",

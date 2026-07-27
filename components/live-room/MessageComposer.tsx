@@ -26,6 +26,7 @@ type MessageComposerProps = {
   onSend: () => void;
   profile: LiveRoomProfile | null;
   profileOpen: boolean;
+  placeholder?: string;
   presenceSettingBusy: boolean;
   sending: boolean;
   setProfileOpen: (open: boolean) => void;
@@ -44,6 +45,7 @@ export function MessageComposer({
   onSend,
   profile,
   profileOpen,
+  placeholder = "Share a company view…",
   presenceSettingBusy,
   sending,
   setProfileOpen,
@@ -196,7 +198,7 @@ export function MessageComposer({
                 onSend();
               }
             }}
-            placeholder="Share a company view…"
+            placeholder={placeholder}
             rows={2}
             value={body}
           />

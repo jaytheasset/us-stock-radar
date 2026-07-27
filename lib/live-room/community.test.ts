@@ -1,0 +1,444 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import test from "node:test";
+import {
+  COMMUNITY_ROOM_DIRECTORY_PAGE_SIZE,
+  COMMUNITY_ROOM_FOCUS_TAGS,
+  COMMUNITY_ROOM_LANGUAGES,
+  COMMUNITY_ROOM_STYLES,
+  COMMUNITY_ROOM_TOPICS,
+  createCommunityRoomSlug,
+  getCommunityRoomSlugOrNull,
+  normalizeCommunityRoomCreateInput,
+  normalizeCommunityRoomDirectoryFilters,
+} from "./community.ts";
+
+const root = process.cwd();
+const migration = read("supabase/migrations/20260727205629_live_room_community_rooms.sql");
+const foundationMigration = read(
+  "supabase/migrations/20260727081914_live_room_realtime_foundation.sql",
+);
+const communityRepository = read(
+  "lib/live-room/communityServerRepository.ts",
+);
+const liveRoomRepository = read("lib/live-room/serverRepository.ts");
+const communityRoute = read("app/api/live-room/community/route.ts");
+const communityMessagesRoute = read(
+  "app/api/live-room/community/[slug]/messages/route.ts",
+);
+const communityReportsRoute = read(
+  "app/api/live-room/community/[slug]/reports/route.ts",
+);
+const communityBlocksRoute = read(
+  "app/api/live-room/community/[slug]/blocks/route.ts",
+);
+const communityModerationRoute = read(
+  "app/api/live-room/community/[slug]/moderation/route.ts",
+);
+const directoryPage = read("app/live/page.tsx");
+const createDialog = read(
+  "components/live-room/CommunityRoomCreateDialog.tsx",
+);
+const communityClient = read(
+  "components/live-room/CommunityRoomClient.tsx",
+);
+const unreadMenu = read("components/shell/LiveRoomUnreadMenu.tsx");
+
+test("Community Room classification values are closed canonical allowlists", () => {
+  assert.deepEqual(
+    COMMUNITY_ROOM_TOPICS.map(({ value }) => value),
+    [
+      "market_macro",
+      "sector_industry",
+      "events_catalysts",
+      "trading_strategy",
+      "learning_qna",
+      "creator_community",
+    ],
+  );
+  assert.deepEqual(
+    COMMUNITY_ROOM_STYLES.map(({ value }) => value),
+    [
+      "live_reaction",
+      "deep_research",
+      "beginner_friendly",
+      "open_discussion",
+    ],
+  );
+  assert.deepEqual(
+    COMMUNITY_ROOM_LANGUAGES.map(({ value }) => value),
+    ["en", "ko", "ja"],
+  );
+  assert.deepEqual(
+    COMMUNITY_ROOM_FOCUS_TAGS.map(({ value }) => value),
+    [
+      "company_news",
+      "sec_filings",
+      "earnings",
+      "fda_clinical",
+      "dilution_listing",
+      "legal_financial_risk",
+      "macro_policy",
+      "mna_strategy",
+      "product_leadership",
+    ],
+  );
+});
+
+test("create validation requires structure, trims copy, and canonicalizes tickers", () => {
+  assert.deepEqual(
+    normalizeCommunityRoomCreateInput({
+      focusTags: ["earnings", "macro_policy"],
+      language: "en",
+      name: "  Earnings desk  ",
+      relatedTickers: [" aapl ", "MSFT", "AAPL"],
+      roomStyle: "deep_research",
+      summary: "  Compare earnings quality across large caps.  ",
+      topic: "events_catalysts",
+    }),
+    {
+      focusTags: ["earnings", "macro_policy"],
+      language: "en",
+      name: "Earnings desk",
+      relatedTickers: ["AAPL", "MSFT"],
+      roomStyle: "deep_research",
+      summary: "Compare earnings quality across large caps.",
+      topic: "events_catalysts",
+    },
+  );
+
+  for (const missing of ["topic", "roomStyle", "language"] as const) {
+    const input: Record<string, unknown> = {
+      focusTags: ["earnings"],
+      language: "en",
+      name: "Earnings desk",
+      relatedTickers: [],
+      roomStyle: "deep_research",
+      summary: "Compare earnings quality across large caps.",
+      topic: "events_catalysts",
+    };
+    delete input[missing];
+    assert.throws(() => normalizeCommunityRoomCreateInput(input));
+  }
+});
+
+test("create validation rejects free tags, cardinality overflow, links, HTML, and multiline copy", () => {
+  const valid = {
+    focusTags: ["earnings"],
+    language: "en",
+    name: "Earnings desk",
+    relatedTickers: [],
+    roomStyle: "deep_research",
+    summary: "Compare earnings quality across large caps.",
+    topic: "events_catalysts",
+  };
+  assert.throws(() =>
+    normalizeCommunityRoomCreateInput({
+      ...valid,
+      focusTags: [],
+    }),
+  );
+  assert.throws(() =>
+    normalizeCommunityRoomCreateInput({
+      ...valid,
+      focusTags: [
+        "earnings",
+        "macro_policy",
+        "company_news",
+        "sec_filings",
+      ],
+    }),
+  );
+  assert.throws(() =>
+    normalizeCommunityRoomCreateInput({
+      ...valid,
+      focusTags: ["custom_tag"],
+    }),
+  );
+  assert.throws(() =>
+    normalizeCommunityRoomCreateInput({
+      ...valid,
+      name: "<b>Join here</b>",
+    }),
+  );
+  assert.throws(() =>
+    normalizeCommunityRoomCreateInput({
+      ...valid,
+      summary: "Read https://example.com before joining.",
+    }),
+  );
+  assert.throws(() =>
+    normalizeCommunityRoomCreateInput({
+      ...valid,
+      summary: "Join the room at community.example.xyz now.",
+    }),
+  );
+  assert.throws(() =>
+    normalizeCommunityRoomCreateInput({
+      ...valid,
+      summary: "Open javascript:alert(1) to continue.",
+    }),
+  );
+  assert.throws(() =>
+    normalizeCommunityRoomCreateInput({
+      ...valid,
+      summary: "First line\nSecond line",
+    }),
+  );
+  assert.throws(() =>
+    normalizeCommunityRoomCreateInput({
+      ...valid,
+      relatedTickers: ["A", "B", "C", "D", "E", "F"],
+    }),
+  );
+});
+
+test("slugs are opaque canonical room identity rather than ticker identity", () => {
+  const slug = createCommunityRoomSlug(
+    "Market & Macro",
+    "A1B2C3D4",
+  );
+  assert.equal(slug, "market-macro-a1b2c3d4");
+  assert.equal(getCommunityRoomSlugOrNull(slug), slug);
+  assert.equal(getCommunityRoomSlugOrNull("AAPL"), null);
+  assert.equal(getCommunityRoomSlugOrNull("../admin"), null);
+});
+
+test("directory filters are closed, shareable, and page size is bounded to 20", () => {
+  assert.equal(COMMUNITY_ROOM_DIRECTORY_PAGE_SIZE, 20);
+  assert.deepEqual(
+    normalizeCommunityRoomDirectoryFilters({
+      q: "  macro data ",
+      sort: "newest",
+      style: "open_discussion",
+      tag: "macro_policy",
+      language: "ko",
+      topic: "market_macro",
+    }),
+    {
+      cursor: null,
+      focusTag: "macro_policy",
+      language: "ko",
+      roomStyle: "open_discussion",
+      search: "macro data",
+      sort: "newest",
+      topic: "market_macro",
+    },
+  );
+  assert.throws(() =>
+    normalizeCommunityRoomDirectoryFilters({ topic: "anything" }),
+  );
+  assert.throws(() =>
+    normalizeCommunityRoomDirectoryFilters({ sort: "popular" }),
+  );
+});
+
+test("migration preserves company ticker uniqueness while adding nullable community identity", () => {
+  assert.match(foundationMigration, /ticker text not null[\s\S]*unique \(ticker\)/i);
+  assert.match(migration, /add column if not exists room_kind text not null default 'company'/i);
+  assert.match(migration, /alter column ticker drop not null/i);
+  assert.match(
+    migration,
+    /room_kind = 'company'[\s\S]*ticker is not null[\s\S]*room_kind = 'community'[\s\S]*ticker is null[\s\S]*issuer_id is null/i,
+  );
+  assert.match(
+    liveRoomRepository,
+    /room_kind: "eq\.company"[\s\S]*onConflict: "ticker"/,
+  );
+  assert.match(
+    liveRoomRepository,
+    /\{ room_kind: "company", ticker \}/,
+  );
+});
+
+test("Community Room metadata is default-deny with owner FK and covering indexes", () => {
+  assert.match(
+    migration,
+    /owner_user_id uuid not null[\s\S]*references public\.user_profiles\(id\) on delete restrict/i,
+  );
+  assert.match(
+    migration,
+    /alter table public\.live_room_community_rooms enable row level security/i,
+  );
+  assert.match(
+    migration,
+    /revoke all privileges[\s\S]*on table public\.live_room_community_rooms[\s\S]*from public, anon, authenticated/i,
+  );
+  assert.match(
+    migration,
+    /grant select, insert, update, delete[\s\S]*to service_role/i,
+  );
+  assert.match(
+    migration,
+    /live_room_community_rooms_owner_created_idx[\s\S]*\(owner_user_id, created_at desc\)/i,
+  );
+  assert.match(
+    migration,
+    /live_room_community_rooms_(activity|created)_idx/i,
+  );
+  assert.match(
+    migration,
+    /using gin \(focus_tags\)[\s\S]*using gin \(search_document\)/i,
+  );
+});
+
+test("migration validates tag/ticker cardinality and plain text again inside PostgreSQL", () => {
+  assert.match(migration, /cardinality\(p_values\) between 1 and 3/i);
+  assert.match(migration, /cardinality\(p_values\) between 0 and 5/i);
+  assert.match(migration, /count\(distinct tag\)/i);
+  assert.match(migration, /count\(distinct ticker\)/i);
+  assert.match(migration, /name !~\* '\(<\[\^>\]\*>/i);
+  assert.match(migration, /summary !~ '\[\[:cntrl:\]\]'/i);
+  assert.match(migration, /topic in \([\s\S]*'creator_community'/i);
+  assert.match(migration, /language in \('en', 'ko', 'ja'\)/i);
+});
+
+test("creation is member-only, transactionally rate-limited, and collision-safe", () => {
+  assert.match(communityRoute, /assertSameOriginAuthRequest\(request\)/);
+  assert.match(communityRoute, /resolveLiveRoomActor\(request\)/);
+  assert.match(communityRepository, /actor\.kind !== "member"/);
+  assert.match(migration, /pg_advisory_xact_lock/i);
+  assert.match(migration, /interval '5 minutes'/i);
+  assert.match(migration, /interval '24 hours'/i);
+  assert.match(migration, />= 5/);
+  assert.match(migration, /when unique_violation[\s\S]*COMMUNITY_ROOM_SLUG_TAKEN/i);
+  assert.match(communityRepository, /attempt < 4/);
+  assert.doesNotMatch(communityRepository, /ownerUserId|owner_user_id[^:]/);
+});
+
+test("directory query uses FTS, stable cursors, filters, and a bounded one-query RPC", () => {
+  assert.match(migration, /search_document tsvector generated always/i);
+  assert.match(migration, /websearch_to_tsquery/i);
+  assert.match(migration, /room\.focus_tags @> array\[p_focus_tag\]::text\[\]/i);
+  assert.match(migration, /\(room\.created_at, room\.slug\) </i);
+  assert.match(migration, /\(room\.last_activity_at, room\.slug\) </i);
+  assert.match(migration, /limit v_limit \+ 1/gi);
+  assert.match(
+    communityRepository,
+    /supabaseRpc\([\s\S]*"list_live_room_community_rooms"/,
+  );
+  assert.doesNotMatch(communityRepository, /\.map\([^)]*supabase/i);
+  assert.match(directoryPage, /name="topic"/);
+  assert.match(directoryPage, /name="style"/);
+  assert.match(directoryPage, /name="tag"/);
+  assert.match(directoryPage, /name="language"/);
+  assert.match(directoryPage, /name="sort"/);
+});
+
+test("Community messages reuse message moderation, report, and block server contracts", () => {
+  assert.match(communityMessagesRoute, /getLiveRoomMessagePage/);
+  assert.match(communityMessagesRoute, /getLiveRoomMessageChanges/);
+  assert.match(communityMessagesRoute, /sendLiveRoomMessage/);
+  assert.match(communityMessagesRoute, /eventId: null/);
+  assert.match(communityReportsRoute, /reportLiveRoomMessage/);
+  assert.match(communityBlocksRoute, /blockLiveRoomMessageAuthor/);
+  assert.match(
+    communityModerationRoute,
+    /listHiddenLiveRoomMessages/,
+  );
+  assert.match(communityModerationRoute, /moderateLiveRoomMessage/);
+  assert.match(communityClient, /evaluateLiveRoomMessage/);
+  assert.match(communityClient, /repository\.report/);
+  assert.match(communityClient, /repository\.block/);
+  assert.match(
+    liveRoomRepository,
+    /Community Room messages cannot attach company event cards/,
+  );
+  assert.match(
+    liveRoomRepository,
+    /LIVE_ROOM_INVALID_MODERATION_ACTION[\s\S]*resolveLiveRoom\(\{ slug, ticker: rawTicker \}\)/,
+  );
+});
+
+test("Community realtime topics stay separate while preserving company topics", () => {
+  assert.match(
+    migration,
+    /when room\.room_kind = 'company' then room\.ticker/i,
+  );
+  assert.match(
+    migration,
+    /when room\.room_kind = 'community' then[\s\S]*'community:' \|\| community\.slug/i,
+  );
+  assert.match(migration, /'live-room:' \|\| v_room_topic/i);
+  assert.match(
+    communityClient,
+    /\{ kind: "community", slug: room\.slug \}/,
+  );
+});
+
+test("public API presentation omits owner and internal room identifiers", () => {
+  assert.doesNotMatch(
+    read("lib/live-room/community.ts"),
+    /ownerUserId|owner_user_id|roomId|room_id/,
+  );
+  assert.doesNotMatch(
+    migration.match(/return pg_catalog\.jsonb_build_object\([\s\S]*?\n  \);/)?.[0] ?? "",
+    /owner_user_id|room_id/,
+  );
+  assert.match(
+    migration,
+    /'slug', v_slug[\s\S]*'createdAt', v_now/,
+  );
+});
+
+test("directory creation UI enforces required fields without free-form tags", () => {
+  assert.match(createDialog, /Room name/);
+  assert.match(createDialog, /One-line introduction/);
+  assert.match(createDialog, /Topic/);
+  assert.match(createDialog, /Room style/);
+  assert.match(createDialog, /Language/);
+  assert.match(createDialog, /Focus tags/);
+  assert.match(createDialog, /Free-form tags are not supported/);
+  assert.match(createDialog, /Up to 5 tickers/);
+  assert.match(createDialog, /required/);
+});
+
+test("header adds one deliberate Community Room directory entry", () => {
+  const matches = unreadMenu.match(/Browse Community Rooms/g) ?? [];
+  assert.equal(matches.length, 1);
+  assert.match(unreadMenu, /href="\/live"/);
+});
+
+test("public pg_catalog qualifications are actual functions, not SQL syntax elements", () => {
+  const allowed = new Set([
+    "array_position",
+    "btrim",
+    "cardinality",
+    "char_length",
+    "count",
+    "hashtextextended",
+    "jsonb_build_object",
+    "lower",
+    "now",
+    "pg_advisory_xact_lock",
+    "regconfig",
+    "setweight",
+    "to_tsvector",
+    "unnest",
+    "upper",
+    "websearch_to_tsquery",
+  ]);
+  const qualified = [
+    ...migration.matchAll(/pg_catalog\.([a-z_][a-z0-9_]*)/gi),
+  ].map((match) => match[1]!.toLowerCase());
+  assert.equal(
+    qualified.every((name) => allowed.has(name)),
+    true,
+    `Unexpected pg_catalog symbol: ${qualified
+      .filter((name) => !allowed.has(name))
+      .join(", ")}`,
+  );
+  assert.doesNotMatch(
+    migration,
+    /pg_catalog\.(coalesce|greatest|least|nullif)\s*\(/i,
+  );
+  assert.match(migration, /\bcoalesce\(/i);
+  assert.match(migration, /\bgreatest\(/i);
+  assert.match(migration, /\bleast\(/i);
+  assert.match(migration, /\bnullif\(/i);
+});
+
+function read(relativePath: string) {
+  return readFileSync(path.join(root, relativePath), "utf8");
+}
