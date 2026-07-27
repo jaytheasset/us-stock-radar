@@ -1,3 +1,5 @@
+import { shouldClearAuthSessionForStatus } from "./authFailure.ts";
+
 export type ProxyAuthSession = {
   access_token: string;
   refresh_token: string;
@@ -7,6 +9,18 @@ export type ProxyAuthSession = {
   } | null;
 };
 
+export class ProxyAuthRefreshError extends Error {
+  readonly status: number | null;
+  readonly clearSession: boolean;
+
+  constructor(message: string, status: number | null = null) {
+    super(message);
+    this.name = "ProxyAuthRefreshError";
+    this.status = status;
+    this.clearSession = shouldClearAuthSessionForStatus(status);
+  }
+}
+
 export async function refreshProxyAuthSession(
   refreshToken: string,
 ): Promise<ProxyAuthSession> {
@@ -15,29 +29,37 @@ export async function refreshProxyAuthSession(
     .replace(/\/$/, "");
   const anonKey = process.env.SUPABASE_ANON_KEY || "";
 
-  if (!baseUrl || !anonKey || !refreshToken) {
-    throw new Error("Auth refresh is unavailable.");
+  if (!baseUrl || !anonKey) {
+    throw new ProxyAuthRefreshError("Auth refresh is unavailable.");
+  }
+  if (!refreshToken) {
+    throw new ProxyAuthRefreshError("Refresh token is missing.", 401);
   }
 
-  const response = await fetch(
-    `${baseUrl}/auth/v1/token?grant_type=refresh_token`,
-    {
-      method: "POST",
-      cache: "no-store",
-      headers: {
-        apikey: anonKey,
-        Authorization: `Bearer ${anonKey}`,
-        Accept: "application/json",
-        "Content-Type": "application/json",
+  let response: Response;
+  try {
+    response = await fetch(
+      `${baseUrl}/auth/v1/token?grant_type=refresh_token`,
+      {
+        method: "POST",
+        cache: "no-store",
+        headers: {
+          apikey: anonKey,
+          Authorization: `Bearer ${anonKey}`,
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          refresh_token: refreshToken,
+        }),
       },
-      body: JSON.stringify({
-        refresh_token: refreshToken,
-      }),
-    },
-  );
+    );
+  } catch {
+    throw new ProxyAuthRefreshError("Auth refresh is temporarily unavailable.");
+  }
 
   if (!response.ok) {
-    throw new Error("Auth refresh failed.");
+    throw new ProxyAuthRefreshError("Auth refresh failed.", response.status);
   }
 
   const session = (await response.json()) as Partial<ProxyAuthSession>;
@@ -46,7 +68,9 @@ export async function refreshProxyAuthSession(
     !session.refresh_token ||
     !session.user?.id
   ) {
-    throw new Error("Auth refresh returned an invalid session.");
+    throw new ProxyAuthRefreshError(
+      "Auth refresh returned an invalid session.",
+    );
   }
 
   return session as ProxyAuthSession;

@@ -2,11 +2,12 @@ import "server-only";
 
 import {
   ensureUserBootstrap,
-  getSupabaseAuthUser,
+  getSupabaseAuthUserStrict,
   refreshSupabaseSession,
   type SupabaseAuthSession,
   type SupabaseAuthUser,
 } from "@/lib/auth/supabaseAuth";
+import { shouldClearAuthSessionForError } from "@/lib/auth/authFailure";
 
 export type ResolvedAuthSession = {
   user: SupabaseAuthUser | null;
@@ -23,9 +24,16 @@ export async function resolveAuthSession({
   refreshToken: string;
   bootstrap?: boolean;
 }): Promise<ResolvedAuthSession> {
-  const currentUser = accessToken
-    ? await getSupabaseAuthUser(accessToken)
-    : null;
+  let currentUser: SupabaseAuthUser | null = null;
+  if (accessToken) {
+    try {
+      currentUser = await getSupabaseAuthUserStrict(accessToken);
+    } catch (error) {
+      if (!shouldClearAuthSessionForError(error)) {
+        return unavailableSession();
+      }
+    }
+  }
 
   if (currentUser?.id) {
     if (bootstrap) await ensureUserBootstrap(currentUser);
@@ -46,16 +54,19 @@ export async function resolveAuthSession({
 
   try {
     const refreshedSession = await refreshSupabaseSession(refreshToken);
-    const refreshedUser = refreshedSession.access_token
-      ? await getSupabaseAuthUser(refreshedSession.access_token)
-      : null;
+    let refreshedUser: SupabaseAuthUser | null = null;
+    try {
+      refreshedUser = refreshedSession.access_token
+        ? await getSupabaseAuthUserStrict(refreshedSession.access_token)
+        : null;
+    } catch (error) {
+      return shouldClearAuthSessionForError(error)
+        ? invalidSession()
+        : unavailableSession();
+    }
 
     if (!refreshedUser?.id || refreshedUser.id !== refreshedSession.user?.id) {
-      return {
-        user: null,
-        refreshedSession: null,
-        shouldClearCookies: true,
-      };
+      return invalidSession();
     }
 
     if (bootstrap) await ensureUserBootstrap(refreshedUser);
@@ -64,11 +75,25 @@ export async function resolveAuthSession({
       refreshedSession,
       shouldClearCookies: false,
     };
-  } catch {
-    return {
-      user: null,
-      refreshedSession: null,
-      shouldClearCookies: true,
-    };
+  } catch (error) {
+    return shouldClearAuthSessionForError(error)
+      ? invalidSession()
+      : unavailableSession();
   }
+}
+
+function invalidSession(): ResolvedAuthSession {
+  return {
+    user: null,
+    refreshedSession: null,
+    shouldClearCookies: true,
+  };
+}
+
+function unavailableSession(): ResolvedAuthSession {
+  return {
+    user: null,
+    refreshedSession: null,
+    shouldClearCookies: false,
+  };
 }

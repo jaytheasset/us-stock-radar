@@ -10,12 +10,19 @@ import {
   setAuthSessionCookies,
 } from "./authCookies.ts";
 import {
+  shouldClearAuthSessionForError,
+  shouldClearAuthSessionForStatus,
+} from "./authFailure.ts";
+import {
   isSameOriginAuthRequest,
   normalizeAuthCallbackType,
   sanitizeAuthRedirect,
   shouldRefreshAuthSession,
 } from "./authPolicy.ts";
-import { refreshProxyAuthSession } from "./proxySession.ts";
+import {
+  ProxyAuthRefreshError,
+  refreshProxyAuthSession,
+} from "./proxySession.ts";
 
 const originalSupabaseUrl = process.env.SUPABASE_URL;
 const originalSupabaseAnonKey = process.env.SUPABASE_ANON_KEY;
@@ -79,6 +86,7 @@ test("JWT timing policy refreshes missing, malformed, expired, and near-expiry a
 });
 
 test("auth cookies are HttpOnly, Lax, rotated, and locally clearable", () => {
+  assert.equal(AUTH_REFRESH_COOKIE_MAX_AGE, 60 * 60 * 24 * 30);
   const response = NextResponse.json({ ok: true });
   setAuthSessionCookies(response, {
     accessToken: "access-value",
@@ -121,8 +129,61 @@ test("proxy refresh grant returns and preserves rotated tokens without logging t
   });
 });
 
+test("refresh failures clear only invalid sessions and preserve transient failures", async () => {
+  process.env.SUPABASE_URL = "https://project.supabase.co";
+  process.env.SUPABASE_ANON_KEY = "public-anon-key";
+
+  assert.equal(shouldClearAuthSessionForStatus(401), true);
+  assert.equal(shouldClearAuthSessionForStatus(503), false);
+  assert.equal(shouldClearAuthSessionForError({ status: 401 }), true);
+  assert.equal(shouldClearAuthSessionForError({ status: 503 }), false);
+  assert.equal(shouldClearAuthSessionForError({ status: 403 }), true);
+  assert.equal(shouldClearAuthSessionForError(new TypeError("network")), false);
+
+  await assert.rejects(
+    refreshProxyAuthSession(""),
+    (error: unknown) => {
+      assert.ok(error instanceof ProxyAuthRefreshError);
+      assert.equal(error.status, 401);
+      assert.equal(error.clearSession, true);
+      return true;
+    },
+  );
+
+  for (const expectation of [
+    { status: 401, clearSession: true },
+    { status: 503, clearSession: false },
+  ]) {
+    globalThis.fetch = (async () =>
+      new Response("{}", { status: expectation.status })) as typeof fetch;
+    await assert.rejects(
+      refreshProxyAuthSession("current-refresh"),
+      (error: unknown) => {
+        assert.ok(error instanceof ProxyAuthRefreshError);
+        assert.equal(error.status, expectation.status);
+        assert.equal(error.clearSession, expectation.clearSession);
+        return true;
+      },
+    );
+  }
+
+  globalThis.fetch = (async () => {
+    throw new TypeError("network unavailable");
+  }) as typeof fetch;
+  await assert.rejects(
+    refreshProxyAuthSession("current-refresh"),
+    (error: unknown) => {
+      assert.ok(error instanceof ProxyAuthRefreshError);
+      assert.equal(error.status, null);
+      assert.equal(error.clearSession, false);
+      return true;
+    },
+  );
+});
+
 test("auth route contract covers callback verification, revoke, reset, and private responses", () => {
   const sessionRoute = readProjectFile("app/api/auth/session/route.ts");
+  const meRoute = readProjectFile("app/api/auth/me/route.ts");
   const logoutRoute = readProjectFile("app/api/auth/logout/route.ts");
   const resetRequestRoute = readProjectFile(
     "app/api/auth/password/reset-request/route.ts",
@@ -133,6 +194,7 @@ test("auth route contract covers callback verification, revoke, reset, and priva
   const callbackClient = readProjectFile("components/AuthCallbackClient.tsx");
   const supabaseAuth = readProjectFile("lib/auth/supabaseAuth.ts");
   const signupRoute = readProjectFile("app/api/auth/signup/route.ts");
+  const sessionResolution = readProjectFile("lib/auth/sessionResolution.ts");
 
   for (const stateChangingRoute of [
     signupRoute,
@@ -168,6 +230,15 @@ test("auth route contract covers callback verification, revoke, reset, and priva
   assert.match(supabaseAuth, /\/auth\/v1\/logout\?scope=local/);
   assert.match(supabaseAuth, /grant_type=refresh_token/);
   assert.match(signupRoute, /ensureUserBootstrap\(session\.user\)/);
+  assert.match(sessionResolution, /shouldClearAuthSessionForError/);
+  assert.match(
+    sessionResolution,
+    /function unavailableSession\(\)[\s\S]*shouldClearCookies: false/,
+  );
+  assert.match(
+    meRoute,
+    /else if \(resolved\.shouldClearCookies\)[\s\S]*clearAuthSessionCookies/,
+  );
 
   assert.match(resetRequestRoute, /account exists/);
   assert.match(resetRequestRoute, /catch\(\(\) => undefined\)/);

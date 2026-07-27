@@ -81,7 +81,11 @@ export async function refreshSupabaseSession(refreshToken: string) {
   );
 
   if (!payload.access_token || !payload.refresh_token || !payload.user?.id) {
-    throw new AuthError("REFRESH_FAILED", "Session refresh did not return a valid session.", 401);
+    throw new AuthError(
+      "REFRESH_RESPONSE_INVALID",
+      "Session refresh returned an invalid response.",
+      503,
+    );
   }
 
   return payload;
@@ -134,13 +138,20 @@ export async function getSupabaseAuthUser(accessToken: string): Promise<Supabase
   if (!accessToken) return null;
 
   try {
-    return await callSupabaseAuth<SupabaseAuthUser>("/auth/v1/user", {
-      method: "GET",
-      accessToken,
-    });
+    return await getSupabaseAuthUserStrict(accessToken);
   } catch {
     return null;
   }
+}
+
+export async function getSupabaseAuthUserStrict(
+  accessToken: string,
+): Promise<SupabaseAuthUser | null> {
+  if (!accessToken) return null;
+  return callSupabaseAuth<SupabaseAuthUser>("/auth/v1/user", {
+    method: "GET",
+    accessToken,
+  });
 }
 
 export async function ensureUserBootstrap(user: SupabaseAuthUser) {

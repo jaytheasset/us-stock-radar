@@ -17,7 +17,10 @@ import {
   AUTH_PRIVATE_HEADERS,
   shouldRefreshAuthSession,
 } from "./lib/auth/authPolicy.ts";
-import { refreshProxyAuthSession } from "./lib/auth/proxySession.ts";
+import {
+  ProxyAuthRefreshError,
+  refreshProxyAuthSession,
+} from "./lib/auth/proxySession.ts";
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
@@ -57,13 +60,16 @@ function noIndexResponse(response: NextResponse) {
 
 async function refreshAuthSessionForRequest(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+  if (shouldSkipAuthRefresh(pathname)) {
+    return NextResponse.next();
+  }
+
   const accessToken = request.cookies.get(AUTH_ACCESS_COOKIE)?.value || "";
   const refreshToken = request.cookies.get(AUTH_REFRESH_COOKIE)?.value || "";
   const hasAuthCookies = Boolean(accessToken || refreshToken);
 
   if (
     !hasAuthCookies ||
-    shouldSkipAuthRefresh(pathname) ||
     !shouldRefreshAuthSession(accessToken)
   ) {
     return withPrivateAuthHeaders(NextResponse.next(), hasAuthCookies);
@@ -85,9 +91,14 @@ async function refreshAuthSessionForRequest(request: NextRequest) {
       expiresIn: session.expires_in,
     });
     return withPrivateAuthHeaders(response, true);
-  } catch {
+  } catch (error) {
     const response = NextResponse.next();
-    clearAuthSessionCookies(response);
+    if (
+      error instanceof ProxyAuthRefreshError &&
+      error.clearSession
+    ) {
+      clearAuthSessionCookies(response);
+    }
     return withPrivateAuthHeaders(response, true);
   }
 }

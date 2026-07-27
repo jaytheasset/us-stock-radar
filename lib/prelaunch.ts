@@ -53,6 +53,7 @@ export function isPrelaunchBypassPath(pathname: string) {
     matchesPathPrefix(pathname, "/api") ||
     matchesPathPrefix(pathname, "/.well-known/workflow") ||
     matchesPathPrefix(pathname, "/_next") ||
+    pathname === "/auth/callback" ||
     isComingSoonPath(pathname) ||
     staticAssetPattern.test(pathname)
   );

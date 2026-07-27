@@ -2,7 +2,7 @@ import type { NextResponse } from "next/server.js";
 
 export const AUTH_ACCESS_COOKIE = "sr_access_token";
 export const AUTH_REFRESH_COOKIE = "sr_refresh_token";
-export const AUTH_REFRESH_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+export const AUTH_REFRESH_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
