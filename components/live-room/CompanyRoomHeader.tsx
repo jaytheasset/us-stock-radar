@@ -4,29 +4,30 @@ import {
   Bookmark,
   BookmarkCheck,
   Check,
-  Copy,
   History,
+  Share2,
 } from "lucide-react";
 import type { RefObject } from "react";
+import type { LiveRoomInviteUiState } from "@/lib/live-room/inviteShare";
 import type { CompanyRoomIdentity } from "@/lib/live-room/types";
 import styles from "./LiveRoom.module.css";
 
 type CompanyRoomHeaderProps = {
-  copyState: "copied" | "error" | "idle";
   followed: boolean;
   historyButtonRef: RefObject<HTMLButtonElement | null>;
   identity: CompanyRoomIdentity;
-  onCopyInvite: () => void;
+  inviteState: LiveRoomInviteUiState;
+  onInvite: () => void;
   onOpenHistory: () => void;
   onToggleFollow: () => void;
 };
 
 export function CompanyRoomHeader({
-  copyState,
   followed,
   historyButtonRef,
   identity,
-  onCopyInvite,
+  inviteState,
+  onInvite,
   onOpenHistory,
   onToggleFollow,
 }: CompanyRoomHeaderProps) {
@@ -55,17 +56,27 @@ export function CompanyRoomHeader({
           )}
           {followed ? "Following" : "Follow"}
         </button>
-        <button onClick={onCopyInvite} type="button">
-          {copyState === "copied" ? (
+        <button
+          disabled={inviteState === "working"}
+          onClick={onInvite}
+          type="button"
+        >
+          {inviteState === "copied" || inviteState === "shared" ? (
             <Check aria-hidden="true" size={15} />
           ) : (
-            <Copy aria-hidden="true" size={15} />
+            <Share2 aria-hidden="true" size={15} />
           )}
-          {copyState === "copied"
-            ? "Copied"
-            : copyState === "error"
-              ? "Copy failed"
-              : "Invite"}
+          <span aria-live="polite">
+            {inviteState === "copied"
+              ? "Copied"
+              : inviteState === "shared"
+                ? "Shared"
+                : inviteState === "error"
+                  ? "Share failed"
+                  : inviteState === "working"
+                    ? "Sharing…"
+                    : "Invite"}
+          </span>
         </button>
         <button
           aria-controls="live-room-history-sheet"

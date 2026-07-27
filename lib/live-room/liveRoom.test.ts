@@ -212,6 +212,54 @@ test("Live Room uses the shared wide shell and no selected product navigation", 
   );
 });
 
+test("public Live Room entry preserves the guest cookie actor contract without invite tokens", () => {
+  const page = readSource("app/live/[ticker]/page.tsx");
+  const messagesRoute = readSource(
+    "app/api/live-room/[ticker]/messages/route.ts",
+  );
+  const serverActor = readSource("lib/live-room/serverActor.ts");
+  const migrations = readdirSync(
+    path.join(projectRoot, "supabase", "migrations"),
+  )
+    .map((name) =>
+      readFileSync(
+        path.join(projectRoot, "supabase", "migrations", name),
+        "utf8",
+      ),
+    )
+    .join("\n");
+
+  assert.match(page, /<LiveRoomClient/);
+  assert.doesNotMatch(page, /\/(?:auth|login|sign-in)/i);
+  assert.match(
+    messagesRoute,
+    /resolution = await resolveLiveRoomActor\(request\)/,
+  );
+  assert.match(serverActor, /actor: \{ kind: "guest", guestSessionId \}/);
+  assert.match(
+    serverActor,
+    /response\.cookies\.set\(\s*LIVE_ROOM_GUEST_COOKIE/,
+  );
+  assert.doesNotMatch(
+    migrations,
+    /\blive_room_invites?\b|\binvite_token\b|\binvite_expires_at\b/i,
+  );
+});
+
+test("Live Room Invite keeps short result states and never copies the current message URL", () => {
+  const client = readSource(
+    "components/live-room/LiveRoomClient.tsx",
+  );
+  const header = readSource(
+    "components/live-room/CompanyRoomHeader.tsx",
+  );
+
+  assert.match(client, /shareLiveRoomInvite\(\{ identity \}\)/);
+  assert.match(client, /setInviteState\("idle"\)[\s\S]+2_000/);
+  assert.doesNotMatch(client, /window\.location\.href/);
+  assert.match(header, /"Copied"[\s\S]+"Shared"[\s\S]+"Share failed"/);
+});
+
 test("moderation accepts a normal message and trims outer whitespace", () => {
   assert.deepEqual(
     evaluateLiveRoomMessage("  Useful context  ", {
