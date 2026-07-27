@@ -29,6 +29,7 @@ type ChatTimelineProps = {
   messageActionId?: string | null;
   onBlock?: (messageId: string) => Promise<void>;
   onHide?: (messageId: string) => Promise<void>;
+  onMessageMember?: (messageId: string) => Promise<void>;
   onReport?: (
     messageId: string,
     reason: LiveRoomReportReason,
@@ -49,6 +50,7 @@ export function ChatTimeline({
   messageActionId,
   onBlock,
   onHide,
+  onMessageMember,
   onReport,
   onToggleMemberFollow,
   onRetry,
@@ -156,11 +158,16 @@ export function ChatTimeline({
                     Boolean(onToggleMemberFollow)
                   }
                   canHide={canModerate && Boolean(onHide)}
+                  canMessageMember={
+                    item.canMessageMember === true &&
+                    Boolean(onMessageMember)
+                  }
                   memberFollowed={item.isMemberFollowed === true}
                   messageId={item.id}
                   onBlock={onBlock}
                   onMemberFollow={onToggleMemberFollow}
                   onHide={onHide}
+                  onMessageMember={onMessageMember}
                   onReport={onReport}
                 />
               </header>
@@ -186,17 +193,20 @@ function MessageActions({
   canBlock,
   canFollowMember,
   canHide,
+  canMessageMember,
   memberFollowed,
   messageId,
   onBlock,
   onMemberFollow,
   onHide,
+  onMessageMember,
   onReport,
 }: {
   busy: boolean;
   canBlock: boolean;
   canFollowMember: boolean;
   canHide: boolean;
+  canMessageMember: boolean;
   memberFollowed: boolean;
   messageId: string;
   onBlock?: (messageId: string) => Promise<void>;
@@ -205,6 +215,7 @@ function MessageActions({
     followed: boolean,
   ) => Promise<void>;
   onHide?: (messageId: string) => Promise<void>;
+  onMessageMember?: (messageId: string) => Promise<void>;
   onReport?: (
     messageId: string,
     reason: LiveRoomReportReason,
@@ -323,6 +334,19 @@ function MessageActions({
                 <UserPlus aria-hidden="true" size={14} />
               )}
               {memberFollowed ? "Following" : "Follow member"}
+            </button>
+          ) : null}
+          {canMessageMember && onMessageMember ? (
+            <button
+              disabled={busy}
+              onClick={() =>
+                void run(() => onMessageMember(messageId))
+              }
+              role="menuitem"
+              type="button"
+            >
+              <MessageCircle aria-hidden="true" size={14} />
+              Message member
             </button>
           ) : null}
           {canHide && onHide ? (

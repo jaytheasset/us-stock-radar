@@ -1211,26 +1211,69 @@ async function mapMessageRows(
     return rows.map((row) => mapMessageRow(row, actor));
   }
 
-  const result = await supabaseSelect("live_room_member_follows", {
-    select: "followed_user_id",
-    follower_user_id: `eq.${actor.userId}`,
-    followed_user_id: `in.(${targetUserIds.join(",")})`,
-    limit: String(targetUserIds.length),
-  });
-  if (!result.ok) {
+  const [outgoing, incoming, blocks] = await Promise.all([
+    supabaseSelect("live_room_member_follows", {
+      select: "followed_user_id",
+      follower_user_id: `eq.${actor.userId}`,
+      followed_user_id: `in.(${targetUserIds.join(",")})`,
+      limit: String(targetUserIds.length),
+    }),
+    supabaseSelect("live_room_member_follows", {
+      select: "follower_user_id",
+      follower_user_id: `in.(${targetUserIds.join(",")})`,
+      followed_user_id: `eq.${actor.userId}`,
+      limit: String(targetUserIds.length),
+    }),
+    supabaseSelect("live_room_actor_blocks", {
+      select: "blocker_member_user_id,blocked_member_user_id",
+      blocker_kind: "eq.member",
+      blocked_kind: "eq.member",
+      or: `(and(blocker_member_user_id.eq.${actor.userId},blocked_member_user_id.in.(${targetUserIds.join(",")})),and(blocker_member_user_id.in.(${targetUserIds.join(",")}),blocked_member_user_id.eq.${actor.userId}))`,
+      limit: String(targetUserIds.length * 2),
+    }),
+  ]);
+  if (!outgoing.ok || !incoming.ok || !blocks.ok) {
     throw new LiveRoomPolicyError(
       "LIVE_ROOM_MEMBER_FOLLOW_STATE_UNAVAILABLE",
-      result.error || "Member follow state could not be loaded.",
-      result.status || 502,
+      outgoing.error ||
+        incoming.error ||
+        blocks.error ||
+        "Member follow state could not be loaded.",
+      outgoing.status || incoming.status || blocks.status || 502,
     );
   }
   const followedUserIds = new Set(
-    readRows(result.data)
+    readRows(outgoing.data)
       .map((row) => readString(row.followed_user_id))
       .filter(Boolean),
   );
+  const followerUserIds = new Set(
+    readRows(incoming.data)
+      .map((row) => readString(row.follower_user_id))
+      .filter(Boolean),
+  );
+  const blockedUserIds = new Set(
+    readRows(blocks.data).flatMap((row) => [
+      readString(row.blocker_member_user_id),
+      readString(row.blocked_member_user_id),
+    ]),
+  );
+  blockedUserIds.delete(actor.userId);
+  const messageableUserIds = new Set(
+    targetUserIds.filter(
+      (userId) =>
+        followedUserIds.has(userId) &&
+        followerUserIds.has(userId) &&
+        !blockedUserIds.has(userId),
+    ),
+  );
   return rows.map((row) =>
-    mapMessageRow(row, actor, followedUserIds),
+    mapMessageRow(
+      row,
+      actor,
+      followedUserIds,
+      messageableUserIds,
+    ),
   );
 }
 
@@ -1238,6 +1281,7 @@ function mapMessageRow(
   row: MessageRow,
   actor: LiveRoomActor,
   followedUserIds: ReadonlySet<string> = new Set(),
+  messageableUserIds: ReadonlySet<string> = new Set(),
 ): LiveRoomChatMessage {
   const eventId = readString(row.referenced_event_id);
   const eventKind = readString(row.referenced_event_kind);
@@ -1265,6 +1309,8 @@ function mapMessageRow(
     },
     body: readString(row.body),
     canFollowMember,
+    canMessageMember:
+      canFollowMember && messageableUserIds.has(memberUserId),
     createdAt: readString(row.created_at),
     eventReference,
     id: readString(row.id),

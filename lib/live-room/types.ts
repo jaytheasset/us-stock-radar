@@ -51,6 +51,7 @@ export type LiveRoomChatMessage = {
   author: LiveRoomProfile;
   body: string;
   canFollowMember?: boolean;
+  canMessageMember?: boolean;
   createdAt: string;
   eventReference: CompanyEventReference | null;
   id: string;

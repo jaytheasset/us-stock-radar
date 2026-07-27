@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import {
@@ -16,6 +17,7 @@ import {
   toLiveRoomApiError,
   type LiveRoomRealtimeConfig,
 } from "@/lib/live-room/apiRepository";
+import { DirectMessageApiRepository } from "@/lib/direct-messages/apiRepository";
 import {
   evaluateLiveRoomMessage,
   type ModerationDecision,
@@ -67,6 +69,7 @@ export function LiveRoomClient({
   realtimeConfig,
   ticker,
 }: LiveRoomClientProps) {
+  const router = useRouter();
   const roomKey = useMemo(
     () => createCompanyRoomKey({ ticker }),
     [ticker],
@@ -124,6 +127,10 @@ export function LiveRoomClient({
   const timelineGenerationRef = useRef(0);
   const updatesSubscriptionRef = useRef<{ close: () => void } | null>(
     null,
+  );
+  const directMessageRepository = useMemo(
+    () => new DirectMessageApiRepository(),
+    [],
   );
 
   const latestEvent = selectLatestCompanyEvent(events);
@@ -671,6 +678,22 @@ export function LiveRoomClient({
     }
   };
 
+  const handleMessageMember = async (messageId: string) => {
+    setMessageActionId(messageId);
+    setRoomNotice(null);
+    try {
+      const result = await directMessageRepository.start(messageId);
+      router.push(
+        `/messages/${encodeURIComponent(result.conversationId)}`,
+      );
+    } catch (error) {
+      setRoomNotice(toLiveRoomApiError(error).message);
+      throw error;
+    } finally {
+      setMessageActionId(null);
+    }
+  };
+
   const handleUnblock = async (blockId: string) => {
     setMessageActionId(blockId);
     setRoomNotice(null);
@@ -932,6 +955,7 @@ export function LiveRoomClient({
                 onHide={(messageId) =>
                   handleModerate(messageId, "hide")
                 }
+                onMessageMember={handleMessageMember}
                 onReport={handleReport}
                 onToggleMemberFollow={handleMemberFollow}
                 onRetry={() => setReloadKey((value) => value + 1)}
