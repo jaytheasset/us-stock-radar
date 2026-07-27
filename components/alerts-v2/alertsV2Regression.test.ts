@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { normalizeAlertTickerSearchParam } from "../../lib/alerts/tickers/query.ts";
 
 const componentSource = readFileSync(
   new URL("./StockRadarAlertsV2.tsx", import.meta.url),
@@ -8,6 +9,18 @@ const componentSource = readFileSync(
 );
 const styles = readFileSync(
   new URL("./StockRadarAlertsV2.module.css", import.meta.url),
+  "utf8",
+);
+const pageSource = readFileSync(
+  new URL("../../app/alerts/page.tsx", import.meta.url),
+  "utf8",
+);
+const liveRoomClientSource = readFileSync(
+  new URL("../live-room/LiveRoomClient.tsx", import.meta.url),
+  "utf8",
+);
+const liveRoomHeaderSource = readFileSync(
+  new URL("../live-room/CompanyRoomHeader.tsx", import.meta.url),
   "utf8",
 );
 
@@ -84,5 +97,54 @@ test("alerts preserves the plan-aware rail and mobile settings flow", () => {
   assert.match(
     styles,
     /@media \(max-width: 760px\) \{[\s\S]*\.filingTypeGrid \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1fr\);/,
+  );
+});
+
+test("Live Room Follow is a saved-room action with a separate Alerts entry point", () => {
+  assert.match(liveRoomHeaderSource, /BookmarkCheck/);
+  assert.match(liveRoomHeaderSource, /Bookmark/);
+  assert.doesNotMatch(liveRoomHeaderSource, /Bell(?:Off)?/);
+  assert.match(liveRoomClientSource, /Room saved\./);
+  assert.match(
+    liveRoomClientSource,
+    /push, Telegram, or email alerts, turn them on in Alerts\./,
+  );
+  assert.match(
+    liveRoomClientSource,
+    /href=\{`\/alerts\?ticker=\$\{encodeURIComponent\(ticker\)\}`\}/,
+  );
+  assert.match(liveRoomClientSource, />\s*Turn on alerts\s*</);
+  assert.match(liveRoomClientSource, /15_000/);
+  assert.match(liveRoomClientSource, /New company update/);
+});
+
+test("alerts ticker query prepares search selection without adding a ticker", () => {
+  assert.equal(normalizeAlertTickerSearchParam(" brk.b "), "BRK.B");
+  assert.equal(normalizeAlertTickerSearchParam(["msft", "aapl"]), "MSFT");
+  assert.equal(normalizeAlertTickerSearchParam("not a ticker"), "");
+  assert.equal(normalizeAlertTickerSearchParam("AAPL<script>"), "");
+
+  assert.match(pageSource, /await searchParams/);
+  assert.match(
+    pageSource,
+    /normalizeAlertTickerSearchParam\(params\.ticker\)/,
+  );
+  assert.match(
+    pageSource,
+    /<StockRadarAlertsV2 initialTicker=\{initialTicker\}/,
+  );
+  assert.match(componentSource, /pendingInitialTickerRef/);
+  assert.match(componentSource, /exactInitialMatch/);
+  assert.match(
+    componentSource,
+    /fetch\(`\/api\/tickers\/search\?q=\$\{encodeURIComponent\(query\)\}`/,
+  );
+  assert.match(
+    componentSource,
+    /onClick=\{\(\) => void addTicker\(\)\}/,
+  );
+  assert.doesNotMatch(
+    componentSource,
+    /exactInitialMatch[\s\S]{0,500}(?:addTicker|method:\s*"POST")/,
   );
 });

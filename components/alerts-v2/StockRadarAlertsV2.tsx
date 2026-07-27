@@ -118,14 +118,21 @@ function getDefaultCoverageState(hasRiskAlerts: boolean) {
   );
 }
 
-export function StockRadarAlertsV2() {
+type StockRadarAlertsV2Props = {
+  initialTicker?: string;
+};
+
+export function StockRadarAlertsV2({
+  initialTicker = "",
+}: StockRadarAlertsV2Props) {
+  const normalizedInitialTicker = initialTicker.trim().toUpperCase();
   const [accountPlanId, setAccountPlanId] = useState("free");
   const mockPlan = getAlertsMockPlan(accountPlanId);
   const [tickers, setTickers] = useState<AlertTickerItem[]>([]);
   const [alertTickerLimit, setAlertTickerLimit] = useState<number | null>(null);
   const [tickersLoading, setTickersLoading] = useState(true);
   const [tickerAction, setTickerAction] = useState("");
-  const [tickerInput, setTickerInput] = useState("");
+  const [tickerInput, setTickerInput] = useState(normalizedInitialTicker);
   const [selectedTicker, setSelectedTicker] = useState<TickerSearchResult | null>(null);
   const [tickerSuggestions, setTickerSuggestions] = useState<TickerSearchResult[]>([]);
   const [tickerSearchLoading, setTickerSearchLoading] = useState(false);
@@ -162,6 +169,8 @@ export function StockRadarAlertsV2() {
   const [hasExpandedAlertHistory, setHasExpandedAlertHistory] = useState(false);
   const fromWatchlistButtonRef = useRef<HTMLButtonElement>(null);
   const tickerSearchRef = useRef<HTMLDivElement>(null);
+  const lastInitialTickerRef = useRef(normalizedInitialTicker);
+  const pendingInitialTickerRef = useRef(normalizedInitialTicker);
 
   const enabledCount = useMemo(
     () => tickers.filter((ticker) => ticker.enabled).length,
@@ -228,6 +237,23 @@ export function StockRadarAlertsV2() {
   }, []);
 
   useEffect(() => {
+    if (
+      !normalizedInitialTicker ||
+      normalizedInitialTicker === lastInitialTickerRef.current
+    ) {
+      return;
+    }
+
+    lastInitialTickerRef.current = normalizedInitialTicker;
+    pendingInitialTickerRef.current = normalizedInitialTicker;
+    setTickerInput(normalizedInitialTicker);
+    setSelectedTicker(null);
+    setTickerSuggestions([]);
+    setTickerSearchOpen(false);
+    setTickerMessage("");
+  }, [normalizedInitialTicker]);
+
+  useEffect(() => {
     const query = tickerInput.trim();
     if (
       !query ||
@@ -249,6 +275,28 @@ export function StockRadarAlertsV2() {
           const payload = await readApiPayload<TickerSearchResult[]>(response);
           if (!response.ok || !Array.isArray(payload?.data)) {
             throw new Error(payload?.message || "Failed to search tickers.");
+          }
+          const requestedInitialTicker = pendingInitialTickerRef.current;
+          const exactInitialMatch =
+            requestedInitialTicker === query.toUpperCase()
+              ? payload.data.find(
+                  (suggestion) =>
+                    suggestion.ticker === requestedInitialTicker,
+                )
+              : undefined;
+
+          if (exactInitialMatch) {
+            pendingInitialTickerRef.current = "";
+            setSelectedTicker(exactInitialMatch);
+            setTickerInput(exactInitialMatch.ticker);
+            setTickerSuggestions([]);
+            setTickerSearchOpen(false);
+            setTickerMessage("");
+            return;
+          }
+
+          if (requestedInitialTicker === query.toUpperCase()) {
+            pendingInitialTickerRef.current = "";
           }
           setTickerSuggestions(payload.data);
           setActiveSuggestionIndex(0);
@@ -551,6 +599,7 @@ export function StockRadarAlertsV2() {
                 aria-expanded={tickerSearchOpen}
                 autoComplete="off"
                 onChange={(event) => {
+                  pendingInitialTickerRef.current = "";
                   setTickerInput(event.target.value);
                   setSelectedTicker(null);
                   setTickerMessage("");
