@@ -527,6 +527,120 @@
   text-decoration: none;
 }
 
+:global(html[data-theme="dark"]) .signupPage {
+  color: var(--text);
+  background:
+    radial-gradient(circle at 14% 8%, rgba(15, 85, 255, 0.12), transparent 30%),
+    linear-gradient(180deg, #070b12 0%, #0a1019 48%, #070b12 100%);
+}
+
+:global(html[data-theme="dark"]) .signupHeader {
+  border-bottom-color: var(--border);
+}
+
+:global(html[data-theme="dark"]) .headerNav a,
+:global(html[data-theme="dark"]) .headerLogin {
+  color: #c6d1e1;
+}
+
+:global(html[data-theme="dark"]) .signupPanel {
+  border-color: var(--border);
+  background: rgba(16, 23, 34, 0.95);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.34);
+}
+
+:global(html[data-theme="dark"]) .valueColumn {
+  background:
+    radial-gradient(circle at 12% 10%, rgba(15, 85, 255, 0.15), transparent 32%),
+    linear-gradient(180deg, #101722 0%, #0b111b 100%);
+}
+
+:global(html[data-theme="dark"]) .formColumn {
+  border-color: var(--border);
+  background: var(--surface);
+}
+
+:global(html[data-theme="dark"]) .valueColumn h1,
+:global(html[data-theme="dark"]) .panel h1,
+:global(html[data-theme="dark"]) .formHeader h2,
+:global(html[data-theme="dark"]) .form label {
+  color: var(--text);
+}
+
+:global(html[data-theme="dark"]) .lede,
+:global(html[data-theme="dark"]) .benefitItem p,
+:global(html[data-theme="dark"]) .formHeader p,
+:global(html[data-theme="dark"]) .noPaymentNote,
+:global(html[data-theme="dark"]) .legalNote,
+:global(html[data-theme="dark"]) .browseNote,
+:global(html[data-theme="dark"]) .switch {
+  color: var(--muted);
+}
+
+:global(html[data-theme="dark"]) .benefitIcon {
+  border-color: rgba(91, 141, 255, 0.38);
+  color: #7ba3ff;
+  background: rgba(15, 85, 255, 0.14);
+}
+
+:global(html[data-theme="dark"]) .benefitItem strong {
+  color: var(--text);
+}
+
+:global(html[data-theme="dark"]) .freeNote {
+  border-color: rgba(91, 141, 255, 0.4);
+  color: #adc5ff;
+  background: rgba(15, 85, 255, 0.13);
+}
+
+:global(html[data-theme="dark"]) .form input {
+  border-color: var(--border);
+  color: var(--text);
+  background: #0b111b;
+}
+
+:global(html[data-theme="dark"]) .form input::placeholder {
+  color: #77859a;
+}
+
+:global(html[data-theme="dark"]) .passwordToggle {
+  color: var(--muted);
+}
+
+:global(html[data-theme="dark"]) .passwordToggle:hover {
+  color: #7ba3ff;
+  background: rgba(15, 85, 255, 0.14);
+}
+
+:global(html[data-theme="dark"]) .noPaymentNote,
+:global(html[data-theme="dark"]) .browseNote a,
+:global(html[data-theme="dark"]) .inlineAction,
+:global(html[data-theme="dark"]) .textButton,
+:global(html[data-theme="dark"]) .forgotPasswordLink,
+:global(html[data-theme="dark"]) .switch a {
+  color: #7ba3ff;
+}
+
+:global(html[data-theme="dark"]) .legalNote a {
+  color: #b6c4d8;
+}
+
+:global(html[data-theme="dark"]) .formColumn > .switch {
+  border-top-color: var(--border);
+}
+
+:global(html[data-theme="dark"]) .error {
+  border-color: rgba(251, 113, 133, 0.42);
+  color: #fda4af;
+  background: rgba(159, 18, 57, 0.22);
+}
+
+:global(html[data-theme="dark"]) .success {
+  border-color: rgba(74, 222, 128, 0.38);
+  color: #86efac;
+  background: rgba(22, 101, 52, 0.22);
+}
+
 @media (max-width: 900px) {
   .signupHeader {
     grid-template-columns: 1fr auto;
