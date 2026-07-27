@@ -10,6 +10,7 @@ import {
   setAuthSessionCookies,
 } from "./authCookies.ts";
 import {
+  getResolvedAuthSessionState,
   shouldClearAuthSessionForError,
   shouldClearAuthSessionForStatus,
 } from "./authFailure.ts";
@@ -178,6 +179,35 @@ test("refresh failures clear only invalid sessions and preserve transient failur
       assert.equal(error.clearSession, false);
       return true;
     },
+  );
+});
+
+test("password update distinguishes invalid and temporarily unavailable sessions", () => {
+  assert.equal(
+    getResolvedAuthSessionState({
+      hasUser: false,
+      shouldClearCookies: true,
+    }),
+    "invalid",
+  );
+  assert.equal(
+    getResolvedAuthSessionState({
+      hasUser: false,
+      shouldClearCookies: false,
+    }),
+    "unavailable",
+  );
+
+  const updateRoute = readProjectFile(
+    "app/api/auth/password/update/route.ts",
+  );
+  assert.match(
+    updateRoute,
+    /authSessionState === "invalid"[\s\S]*clearAuthSessionCookies\(response\)/,
+  );
+  assert.match(
+    updateRoute,
+    /authSessionState === "unavailable"[\s\S]*errorResponse\(\s*503,\s*"AUTH_TEMPORARILY_UNAVAILABLE"/,
   );
 });
 

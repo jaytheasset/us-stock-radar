@@ -13,3 +13,19 @@ export function shouldClearAuthSessionForError(error: unknown) {
     typeof status === "number" ? status : null,
   );
 }
+
+export type ResolvedAuthSessionState =
+  | "authenticated"
+  | "invalid"
+  | "unavailable";
+
+export function getResolvedAuthSessionState({
+  hasUser,
+  shouldClearCookies,
+}: {
+  hasUser: boolean;
+  shouldClearCookies: boolean;
+}): ResolvedAuthSessionState {
+  if (hasUser) return "authenticated";
+  return shouldClearCookies ? "invalid" : "unavailable";
+}

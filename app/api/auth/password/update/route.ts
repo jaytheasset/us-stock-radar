@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AUTH_PRIVATE_HEADERS } from "@/lib/auth/authPolicy";
 import { assertSameOriginAuthRequest } from "@/lib/auth/authRequest";
+import { getResolvedAuthSessionState } from "@/lib/auth/authFailure";
 import {
   clearAuthSessionCookies,
   getAuthTokensFromCookies,
@@ -18,8 +19,12 @@ export async function POST(request: NextRequest) {
     const password = readPassword(body);
     const tokens = await getAuthTokensFromCookies();
     const resolved = await resolveAuthSession(tokens);
+    const authSessionState = getResolvedAuthSessionState({
+      hasUser: Boolean(resolved.user),
+      shouldClearCookies: resolved.shouldClearCookies,
+    });
 
-    if (!resolved.user) {
+    if (authSessionState === "invalid") {
       const response = errorResponse(
         401,
         "AUTH_REQUIRED",
@@ -27,6 +32,14 @@ export async function POST(request: NextRequest) {
       );
       clearAuthSessionCookies(response);
       return response;
+    }
+
+    if (authSessionState === "unavailable") {
+      return errorResponse(
+        503,
+        "AUTH_TEMPORARILY_UNAVAILABLE",
+        "Authentication is temporarily unavailable. Please try again.",
+      );
     }
 
     const accessToken =
