@@ -362,6 +362,23 @@
   padding: var(--sr-space-3) var(--sr-space-2) var(--sr-space-5) 0;
 }
 
+.loadOlderButton {
+  display: block;
+  min-height: 32px;
+  margin: 0 auto var(--sr-space-4);
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-action);
+  padding: 0 var(--sr-space-3);
+  color: var(--sr-color-text-secondary);
+  background: var(--sr-color-surface-control);
+  cursor: pointer;
+}
+
+.loadOlderButton:disabled {
+  cursor: wait;
+  opacity: var(--sr-opacity-disabled);
+}
+
 .timelineList {
   display: grid;
   gap: var(--sr-space-4);

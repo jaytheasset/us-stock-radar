@@ -34,6 +34,7 @@ export type CompanyEvent = CompanyEventReference & {
 
 export type CompanyEventSource =
   | "api"
+  | "error"
   | "loading"
   | "mock-fallback"
   | "mock-simulation";
@@ -51,6 +52,7 @@ export type LiveRoomChatMessage = {
   createdAt: string;
   eventReference: CompanyEventReference | null;
   id: string;
+  isMine?: boolean;
   kind: "message";
 };
 

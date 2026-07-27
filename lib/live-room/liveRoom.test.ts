@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { getDirectionalScoreTone } from "../directionalScore.ts";
@@ -20,6 +20,19 @@ import {
   evaluateLiveRoomMessage,
   LIVE_ROOM_MESSAGE_MAX_LENGTH,
 } from "./moderation.ts";
+import {
+  createLiveRoomGuestToken,
+  hashLiveRoomGuestToken,
+  isValidLiveRoomGuestToken,
+  LIVE_ROOM_GUEST_COOKIE,
+} from "./guestIdentity.ts";
+import {
+  createServerOwnedAuthorSnapshot,
+  isLiveRoomMessageMine,
+  LiveRoomPolicyError,
+  normalizeLiveRoomProfileInput,
+  validateLiveRoomEventReference,
+} from "./policy.ts";
 import type { CompanyEvent } from "./types.ts";
 
 const events: CompanyEvent[] = [
@@ -184,6 +197,10 @@ test("Live Room uses the shared wide shell and no selected product navigation", 
     styleSource,
     /padding:\s*var\(--sr-space-3\)\s+var\(--sr-page-gutter-mobile\)/,
   );
+  assert.doesNotMatch(
+    clientSource,
+    /InMemoryLiveRoomMessageRepository|BrowserLiveRoomFollowRepository|Mock states/,
+  );
 });
 
 test("moderation accepts a normal message and trims outer whitespace", () => {
@@ -236,4 +253,203 @@ test("moderation explains every required client-side block result", () => {
     "excessive_links",
   );
   assert.equal(rateLimit.allowed ? null : rateLimit.reason, "rate_limit");
+});
+
+test("guest identity uses an unguessable HttpOnly-cookie token shape and stores only its hash", () => {
+  const token = createLiveRoomGuestToken();
+  const secondToken = createLiveRoomGuestToken();
+  const hash = hashLiveRoomGuestToken(token);
+
+  assert.equal(LIVE_ROOM_GUEST_COOKIE, "sr_live_room_guest");
+  assert.equal(isValidLiveRoomGuestToken(token), true);
+  assert.notEqual(token, secondToken);
+  assert.match(hash, /^[0-9a-f]{64}$/);
+  assert.notEqual(hash, token);
+  assert.equal(hashLiveRoomGuestToken(token), hash);
+  assert.equal(isValidLiveRoomGuestToken("chosen-by-a-client"), false);
+});
+
+test("server-owned actor identity prevents guest and member impersonation", () => {
+  const guest = {
+    kind: "guest" as const,
+    guestSessionId: "11111111-1111-4111-8111-111111111111",
+  };
+  const member = {
+    kind: "member" as const,
+    userId: "22222222-2222-4222-8222-222222222222",
+    email: "member@example.com",
+  };
+  const profile = {
+    displayName: "Server profile",
+    emoji: "🧭",
+    isGuest: true,
+    plan: "free" as const,
+  };
+
+  assert.deepEqual(
+    createServerOwnedAuthorSnapshot({ actor: guest, profile }),
+    {
+      actorKind: "guest",
+      memberUserId: null,
+      guestSessionId: guest.guestSessionId,
+      displayName: "Server profile",
+      emoji: "🧭",
+      plan: "free",
+    },
+  );
+  assert.equal(
+    isLiveRoomMessageMine(
+      {
+        author_kind: "guest",
+        guest_session_id: "33333333-3333-4333-8333-333333333333",
+      },
+      guest,
+    ),
+    false,
+  );
+  assert.equal(
+    isLiveRoomMessageMine(
+      {
+        author_kind: "member",
+        member_user_id: member.userId,
+      },
+      member,
+    ),
+    true,
+  );
+});
+
+test("profile policy rejects arbitrary emoji and control-character names", () => {
+  assert.deepEqual(
+    normalizeLiveRoomProfileInput({
+      displayName: "  RadarFox  ",
+      emoji: "🦊",
+    }),
+    { displayName: "RadarFox", emoji: "🦊" },
+  );
+  assert.throws(
+    () =>
+      normalizeLiveRoomProfileInput({
+        displayName: "Imposter",
+        emoji: "💳",
+      }),
+    (error) =>
+      error instanceof LiveRoomPolicyError &&
+      error.code === "LIVE_ROOM_INVALID_EMOJI",
+  );
+  assert.throws(
+    () =>
+      normalizeLiveRoomProfileInput({
+        displayName: "bad\u0000name",
+        emoji: "👋",
+      }),
+    LiveRoomPolicyError,
+  );
+});
+
+test("event mentions must belong to the room and cannot reference archive events", () => {
+  const valid = {
+    deliveryLevel: "feed",
+    eventId: "33333333-3333-4333-8333-333333333333",
+    eventTicker: "AAPL",
+    kind: "news" as const,
+    roomTicker: "AAPL",
+    title: "Company update",
+  };
+  assert.deepEqual(validateLiveRoomEventReference(valid), {
+    eventId: valid.eventId,
+    kind: "news",
+    title: "Company update",
+  });
+  assert.throws(
+    () =>
+      validateLiveRoomEventReference({
+        ...valid,
+        eventTicker: "MSFT",
+      }),
+    (error) =>
+      error instanceof LiveRoomPolicyError &&
+      error.code === "LIVE_ROOM_INVALID_EVENT_REFERENCE",
+  );
+  assert.throws(
+    () =>
+      validateLiveRoomEventReference({
+        ...valid,
+        deliveryLevel: "archive",
+      }),
+    LiveRoomPolicyError,
+  );
+});
+
+test("Live Room API accepts only message content and event ID from the browser", () => {
+  const routeSource = readSource(
+    "app/api/live-room/[ticker]/messages/route.ts",
+  );
+  const repositorySource = readSource(
+    "lib/live-room/serverRepository.ts",
+  );
+  const actorSource = readSource("lib/live-room/serverActor.ts");
+  const clientSource = readSource("lib/live-room/apiRepository.ts");
+
+  assert.match(routeSource, /body\?: unknown/);
+  assert.match(routeSource, /eventId\?: unknown/);
+  assert.match(routeSource, /assertSameOriginAuthRequest\(request\)/);
+  assert.doesNotMatch(routeSource, /input\?\.author|input\?\.plan/);
+  assert.match(repositorySource, /getEffectiveUserPlan\(actor\.userId\)/);
+  assert.match(repositorySource, /createServerOwnedAuthorSnapshot/);
+  assert.match(actorSource, /request\.cookies\.get\(LIVE_ROOM_GUEST_COOKIE\)/);
+  assert.match(actorSource, /httpOnly:\s*true/);
+  assert.doesNotMatch(actorSource, /request\.json/);
+  assert.doesNotMatch(clientSource, /SUPABASE_(?:SERVICE_ROLE|ANON)_KEY/);
+  assert.match(clientSource, /transport interface|LiveRoomUpdateTransport/i);
+});
+
+test("Live Room migration is server-only, RLS-enabled, and atomically moderates writes", () => {
+  const migrationName = readdirSync(
+    path.join(projectRoot, "supabase", "migrations"),
+  ).find((name) => name.endsWith("_live_room_realtime_foundation.sql"));
+  assert.ok(migrationName);
+  const migration = readSource(
+    path.join("supabase", "migrations", migrationName),
+  );
+  const tables = [
+    "live_room_rooms",
+    "live_room_guest_sessions",
+    "live_room_member_profiles",
+    "live_room_guest_profiles",
+    "live_room_messages",
+    "live_room_follows",
+  ];
+
+  tables.forEach((table) => {
+    assert.match(
+      migration,
+      new RegExp(
+        `alter table public\\.${table} enable row level security`,
+        "i",
+      ),
+    );
+  });
+  assert.match(
+    migration,
+    /from public, anon, authenticated/i,
+  );
+  assert.match(migration, /to service_role/i);
+  assert.match(
+    migration,
+    /referenced_event_id uuid\s+references public\.events\(id\) on delete set null/i,
+  );
+  assert.match(
+    migration,
+    /function public\.insert_live_room_message[\s\S]+security invoker/i,
+  );
+  assert.doesNotMatch(
+    migration,
+    /function public\.insert_live_room_message[\s\S]{0,300}security definer/i,
+  );
+  assert.match(migration, /pg_advisory_xact_lock/i);
+  assert.match(migration, /LIVE_ROOM_DUPLICATE/);
+  assert.match(migration, /LIVE_ROOM_RATE_LIMIT/);
+  assert.match(migration, /LIVE_ROOM_INVALID_EVENT_REFERENCE/);
+  assert.match(migration, /token_hash text not null unique/i);
 });

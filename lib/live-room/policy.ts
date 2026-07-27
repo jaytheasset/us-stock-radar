@@ -1,0 +1,170 @@
+import type { CompanyEventReference, LiveRoomProfile } from "./types.ts";
+
+export const LIVE_ROOM_ALLOWED_EMOJIS = [
+  "👋",
+  "🦊",
+  "🐻",
+  "🦉",
+  "🚀",
+  "🧭",
+  "📊",
+  "🌱",
+] as const;
+
+export type LiveRoomActor =
+  | {
+      kind: "member";
+      userId: string;
+      email: string | null;
+    }
+  | {
+      kind: "guest";
+      guestSessionId: string;
+    };
+
+export type LiveRoomEventValidationInput = {
+  deliveryLevel: string | null;
+  eventId: string;
+  eventTicker: string | null;
+  kind: CompanyEventReference["kind"];
+  roomTicker: string;
+  title: string;
+};
+
+export class LiveRoomPolicyError extends Error {
+  readonly code: string;
+  readonly status: number;
+  readonly retryAfterSeconds?: number;
+
+  constructor(
+    code: string,
+    message: string,
+    status = 400,
+    retryAfterSeconds?: number,
+  ) {
+    super(message);
+    this.name = "LiveRoomPolicyError";
+    this.code = code;
+    this.status = status;
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
+}
+
+export function normalizeLiveRoomTicker(value: unknown) {
+  const ticker =
+    typeof value === "string" ? value.trim().toUpperCase() : "";
+  if (!/^[A-Z0-9][A-Z0-9.-]{0,14}$/.test(ticker)) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_INVALID_TICKER",
+      "This company room is unavailable.",
+      400,
+    );
+  }
+  return ticker;
+}
+
+export function normalizeLiveRoomProfileInput(value: unknown) {
+  const input =
+    value && typeof value === "object"
+      ? (value as Record<string, unknown>)
+      : {};
+  const displayName =
+    typeof input.displayName === "string" ? input.displayName.trim() : "";
+  const emoji = typeof input.emoji === "string" ? input.emoji : "";
+
+  if (
+    !displayName ||
+    displayName.length > 24 ||
+    /[\u0000-\u001f\u007f]/.test(displayName)
+  ) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_INVALID_DISPLAY_NAME",
+      "Display names must be between 1 and 24 visible characters.",
+      400,
+    );
+  }
+
+  if (
+    !LIVE_ROOM_ALLOWED_EMOJIS.includes(
+      emoji as (typeof LIVE_ROOM_ALLOWED_EMOJIS)[number],
+    )
+  ) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_INVALID_EMOJI",
+      "Choose one of the available profile emojis.",
+      400,
+    );
+  }
+
+  return { displayName, emoji };
+}
+
+export function validateLiveRoomEventReference(
+  input: LiveRoomEventValidationInput,
+): CompanyEventReference {
+  if (
+    !input.eventId ||
+    input.deliveryLevel === "archive" ||
+    input.eventTicker?.trim().toUpperCase() !==
+      input.roomTicker.trim().toUpperCase()
+  ) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_INVALID_EVENT_REFERENCE",
+      "That event cannot be mentioned in this company room.",
+      400,
+    );
+  }
+
+  return {
+    eventId: input.eventId,
+    kind: input.kind,
+    title: input.title,
+  };
+}
+
+export function getLiveRoomActorFilter(
+  actor: LiveRoomActor,
+): Record<string, string> {
+  return actor.kind === "member"
+    ? {
+        actor_kind: "eq.member",
+        member_user_id: `eq.${actor.userId}`,
+      }
+    : {
+        actor_kind: "eq.guest",
+        guest_session_id: `eq.${actor.guestSessionId}`,
+      };
+}
+
+export function isLiveRoomMessageMine(
+  row: {
+    author_kind?: unknown;
+    member_user_id?: unknown;
+    guest_session_id?: unknown;
+  },
+  actor: LiveRoomActor,
+) {
+  return actor.kind === "member"
+    ? row.author_kind === "member" &&
+        row.member_user_id === actor.userId
+    : row.author_kind === "guest" &&
+        row.guest_session_id === actor.guestSessionId;
+}
+
+export function createServerOwnedAuthorSnapshot({
+  actor,
+  profile,
+}: {
+  actor: LiveRoomActor;
+  profile: LiveRoomProfile;
+}) {
+  return {
+    actorKind: actor.kind,
+    memberUserId: actor.kind === "member" ? actor.userId : null,
+    guestSessionId:
+      actor.kind === "guest" ? actor.guestSessionId : null,
+    displayName: profile.displayName,
+    emoji: profile.emoji,
+    plan: profile.plan,
+  };
+}

@@ -1,0 +1,657 @@
+import "server-only";
+
+import { ensureUserBootstrap } from "@/lib/auth/supabaseAuth";
+import { getEffectiveUserPlan } from "@/lib/subscription/effectivePlan";
+import {
+  supabaseRpc,
+  supabaseSelect,
+  supabaseUpsert,
+} from "@/lib/supabase";
+import type { Plan } from "@/lib/subscriptionPolicy";
+import { evaluateLiveRoomMessage } from "./moderation";
+import {
+  createServerOwnedAuthorSnapshot,
+  getLiveRoomActorFilter,
+  isLiveRoomMessageMine,
+  LiveRoomPolicyError,
+  normalizeLiveRoomProfileInput,
+  normalizeLiveRoomTicker,
+  validateLiveRoomEventReference,
+  type LiveRoomActor,
+} from "./policy";
+import type {
+  CompanyEventReference,
+  LiveRoomChatMessage,
+  LiveRoomFollowPreference,
+  LiveRoomNotificationScope,
+  LiveRoomProfile,
+} from "./types";
+
+const defaultPageSize = 50;
+const maxPageSize = 100;
+
+type CursorValue = {
+  createdAt: string;
+  id: string;
+};
+
+type RoomRow = {
+  id: string;
+  ticker: string;
+};
+
+type MessageRow = {
+  id?: unknown;
+  author_kind?: unknown;
+  member_user_id?: unknown;
+  guest_session_id?: unknown;
+  author_display_name?: unknown;
+  author_emoji?: unknown;
+  author_plan?: unknown;
+  body?: unknown;
+  referenced_event_id?: unknown;
+  referenced_event_kind?: unknown;
+  referenced_event_title?: unknown;
+  created_at?: unknown;
+};
+
+export type LiveRoomMessagePage = {
+  items: LiveRoomChatMessage[];
+  latestCursor: string | null;
+  nextCursor: string | null;
+};
+
+export async function getLiveRoomMessagePage({
+  actor,
+  after,
+  before,
+  limit,
+  ticker: rawTicker,
+}: {
+  actor: LiveRoomActor;
+  after?: string | null;
+  before?: string | null;
+  limit?: number;
+  ticker: string;
+}): Promise<LiveRoomMessagePage> {
+  if (after && before) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_INVALID_CURSOR",
+      "Use either an older-page cursor or an update cursor.",
+    );
+  }
+
+  const ticker = normalizeLiveRoomTicker(rawTicker);
+  const room = await getOrCreateLiveRoom(ticker);
+  const pageSize = Math.max(
+    1,
+    Math.min(Number(limit) || defaultPageSize, maxPageSize),
+  );
+  const cursor = decodeMessageCursor(after || before || null);
+  const ascending = Boolean(after);
+  const search: Record<string, string> = {
+    select:
+      "id,author_kind,member_user_id,guest_session_id,author_display_name,author_emoji,author_plan,body,referenced_event_id,referenced_event_kind,referenced_event_title,created_at",
+    room_id: `eq.${room.id}`,
+    visibility_status: "eq.visible",
+    order: ascending
+      ? "created_at.asc,id.asc"
+      : "created_at.desc,id.desc",
+    limit: String(pageSize + 1),
+  };
+
+  if (cursor) {
+    search.or = ascending
+      ? `(created_at.gt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.gt.${cursor.id}))`
+      : `(created_at.lt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.lt.${cursor.id}))`;
+  }
+
+  const result = await supabaseSelect("live_room_messages", search);
+  if (!result.ok) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_MESSAGES_UNAVAILABLE",
+      result.error || "Messages could not be loaded.",
+      result.status || 502,
+    );
+  }
+
+  const fetchedRows = readRows(result.data) as MessageRow[];
+  const hasMore = fetchedRows.length > pageSize;
+  const pageRows = fetchedRows.slice(0, pageSize);
+  const chronologicalRows = ascending ? pageRows : [...pageRows].reverse();
+  const items = chronologicalRows.map((row) =>
+    mapMessageRow(row, actor),
+  );
+  const oldest = chronologicalRows[0];
+  const latest = chronologicalRows[chronologicalRows.length - 1];
+
+  return {
+    items,
+    latestCursor: latest ? encodeMessageCursor(readCursor(latest)) : null,
+    nextCursor:
+      !ascending && hasMore && oldest
+        ? encodeMessageCursor(readCursor(oldest))
+        : null,
+  };
+}
+
+export async function sendLiveRoomMessage({
+  actor,
+  body,
+  eventId,
+  ticker: rawTicker,
+}: {
+  actor: LiveRoomActor;
+  body: string;
+  eventId?: string | null;
+  ticker: string;
+}) {
+  const ticker = normalizeLiveRoomTicker(rawTicker);
+  const room = await getOrCreateLiveRoom(ticker);
+  const profile = await getLiveRoomProfile(actor);
+  const history = await getRecentActorMessages(actor);
+  const decision = evaluateLiveRoomMessage(
+    typeof body === "string" ? body : "",
+    {
+      history,
+      now: new Date().toISOString(),
+    },
+  );
+
+  if (!decision.allowed) {
+    throw new LiveRoomPolicyError(
+      `LIVE_ROOM_${decision.reason.toUpperCase()}`,
+      decision.message,
+      decision.reason === "duplicate" ||
+        decision.reason === "rate_limit"
+        ? 429
+        : 400,
+      decision.retryAfterSeconds,
+    );
+  }
+
+  const reference = eventId
+    ? await getValidatedEventReference(ticker, eventId)
+    : null;
+  const author = createServerOwnedAuthorSnapshot({ actor, profile });
+  const result = await supabaseRpc("insert_live_room_message", {
+    p_room_id: room.id,
+    p_actor_kind: author.actorKind,
+    p_member_user_id: author.memberUserId,
+    p_guest_session_id: author.guestSessionId,
+    p_author_display_name: author.displayName,
+    p_author_emoji: author.emoji,
+    p_author_plan: author.plan,
+    p_body: decision.normalizedBody,
+    p_referenced_event_id: reference?.eventId || null,
+  });
+
+  if (!result.ok) {
+    throw mapDatabaseModerationError(result.error, result.status);
+  }
+
+  const row = readSingleRow(result.data) as MessageRow | null;
+  if (!row) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_SEND_FAILED",
+      "The message was not saved.",
+      502,
+    );
+  }
+
+  return mapMessageRow(row, actor);
+}
+
+export async function getLiveRoomProfile(
+  actor: LiveRoomActor,
+): Promise<LiveRoomProfile> {
+  const table =
+    actor.kind === "member"
+      ? "live_room_member_profiles"
+      : "live_room_guest_profiles";
+  const key =
+    actor.kind === "member" ? "user_id" : "guest_session_id";
+  const id =
+    actor.kind === "member" ? actor.userId : actor.guestSessionId;
+  const selected = await supabaseSelect(table, {
+    select: "display_name,emoji",
+    [key]: `eq.${id}`,
+    limit: "1",
+  });
+  let row = readSingleRow(selected.data);
+
+  if (!selected.ok) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_PROFILE_UNAVAILABLE",
+      selected.error || "The Live Room profile could not be loaded.",
+      selected.status || 502,
+    );
+  }
+
+  if (!row) {
+    if (actor.kind === "member") {
+      await ensureUserBootstrap({
+        id: actor.userId,
+        email: actor.email,
+      });
+    }
+    const defaults = {
+      display_name: getDefaultDisplayName(actor),
+      emoji: "👋",
+      [key]: id,
+    };
+    const created = await supabaseUpsert(table, defaults, {
+      onConflict: key,
+      prefer: "resolution=merge-duplicates,return=representation",
+    });
+    row = readSingleRow(created.data);
+    if (!created.ok || !row) {
+      throw new LiveRoomPolicyError(
+        "LIVE_ROOM_PROFILE_UNAVAILABLE",
+        created.error || "The Live Room profile could not be created.",
+        created.status || 502,
+      );
+    }
+  }
+
+  return {
+    displayName: readString(row.display_name) || getDefaultDisplayName(actor),
+    emoji: readString(row.emoji) || "👋",
+    isGuest: actor.kind === "guest",
+    plan:
+      actor.kind === "member"
+        ? (await getEffectiveUserPlan(actor.userId)).effectivePlan
+        : "free",
+  };
+}
+
+export async function updateLiveRoomProfile(
+  actor: LiveRoomActor,
+  input: unknown,
+) {
+  const profile = normalizeLiveRoomProfileInput(input);
+  const table =
+    actor.kind === "member"
+      ? "live_room_member_profiles"
+      : "live_room_guest_profiles";
+  const key =
+    actor.kind === "member" ? "user_id" : "guest_session_id";
+  const id =
+    actor.kind === "member" ? actor.userId : actor.guestSessionId;
+
+  if (actor.kind === "member") {
+    await ensureUserBootstrap({
+      id: actor.userId,
+      email: actor.email,
+    });
+  }
+
+  const result = await supabaseUpsert(
+    table,
+    {
+      [key]: id,
+      display_name: profile.displayName,
+      emoji: profile.emoji,
+    },
+    {
+      onConflict: key,
+      prefer: "resolution=merge-duplicates,return=representation",
+    },
+  );
+
+  if (!result.ok) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_PROFILE_UPDATE_FAILED",
+      result.error || "The Live Room profile could not be saved.",
+      result.status || 502,
+    );
+  }
+
+  return getLiveRoomProfile(actor);
+}
+
+export async function getLiveRoomFollow(
+  actor: LiveRoomActor,
+  rawTicker: string,
+): Promise<LiveRoomFollowPreference> {
+  const ticker = normalizeLiveRoomTicker(rawTicker);
+  const room = await getOrCreateLiveRoom(ticker);
+  const result = await supabaseSelect("live_room_follows", {
+    select: "followed,notification_scope",
+    room_id: `eq.${room.id}`,
+    ...getLiveRoomActorFilter(actor),
+    limit: "1",
+  });
+
+  if (!result.ok) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_FOLLOW_UNAVAILABLE",
+      result.error || "Follow status could not be loaded.",
+      result.status || 502,
+    );
+  }
+
+  const row = readSingleRow(result.data);
+  return {
+    followed: row?.followed === true,
+    notificationScope: normalizeNotificationScope(
+      row?.notification_scope,
+    ),
+    roomKey: { kind: "ticker_fallback", value: ticker },
+  };
+}
+
+export async function updateLiveRoomFollow(
+  actor: LiveRoomActor,
+  rawTicker: string,
+  input: unknown,
+) {
+  const data =
+    input && typeof input === "object"
+      ? (input as Record<string, unknown>)
+      : {};
+  if (typeof data.followed !== "boolean") {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_INVALID_FOLLOW",
+      "Follow status must be true or false.",
+    );
+  }
+
+  const ticker = normalizeLiveRoomTicker(rawTicker);
+  const room = await getOrCreateLiveRoom(ticker);
+  const notificationScope = normalizeNotificationScope(
+    data.notificationScope,
+  );
+  if (actor.kind === "member") {
+    await ensureUserBootstrap({
+      id: actor.userId,
+      email: actor.email,
+    });
+  }
+  const result = await supabaseUpsert(
+    "live_room_follows",
+    {
+      room_id: room.id,
+      actor_kind: actor.kind,
+      member_user_id: actor.kind === "member" ? actor.userId : null,
+      guest_session_id:
+        actor.kind === "guest" ? actor.guestSessionId : null,
+      followed: data.followed,
+      notification_scope: notificationScope,
+    },
+    {
+      onConflict: "room_id,actor_kind,actor_id",
+      prefer: "resolution=merge-duplicates,return=representation",
+    },
+  );
+
+  if (!result.ok) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_FOLLOW_UPDATE_FAILED",
+      result.error || "Follow status could not be saved.",
+      result.status || 502,
+    );
+  }
+
+  return {
+    followed: data.followed,
+    notificationScope,
+    roomKey: { kind: "ticker_fallback" as const, value: ticker },
+  };
+}
+
+async function getOrCreateLiveRoom(ticker: string): Promise<RoomRow> {
+  const selected = await supabaseSelect("live_room_rooms", {
+    select: "id,ticker",
+    ticker: `eq.${ticker}`,
+    limit: "1",
+  });
+  let row = readSingleRow(selected.data);
+  if (selected.ok && row) return readRoom(row);
+
+  const created = await supabaseUpsert(
+    "live_room_rooms",
+    { ticker },
+    {
+      onConflict: "ticker",
+      prefer: "resolution=merge-duplicates,return=representation",
+    },
+  );
+  row = readSingleRow(created.data);
+  if (!created.ok || !row) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_UNAVAILABLE",
+      created.error || selected.error || "The company room is unavailable.",
+      created.status || selected.status || 502,
+    );
+  }
+  return readRoom(row);
+}
+
+async function getRecentActorMessages(actor: LiveRoomActor) {
+  const result = await supabaseSelect("live_room_messages", {
+    select: "body,created_at",
+    ...getLiveRoomActorFilter(actor),
+    visibility_status: "eq.visible",
+    created_at: `gte.${new Date(Date.now() - 120_000).toISOString()}`,
+    order: "created_at.desc",
+    limit: "20",
+  });
+
+  if (!result.ok) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_MODERATION_UNAVAILABLE",
+      "The message could not be checked safely. Try again.",
+      503,
+    );
+  }
+
+  return readRows(result.data).map((row) => ({
+    body: readString(row.body),
+    createdAt: readString(row.created_at),
+  }));
+}
+
+async function getValidatedEventReference(
+  ticker: string,
+  eventId: string,
+) {
+  if (!isUuid(eventId)) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_INVALID_EVENT_REFERENCE",
+      "That event cannot be mentioned in this company room.",
+    );
+  }
+  const result = await supabaseSelect("events", {
+    select: "id,ticker,title,source_group,delivery_level",
+    id: `eq.${eventId}`,
+    limit: "1",
+  });
+  const row = readSingleRow(result.data);
+  if (!result.ok || !row) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_INVALID_EVENT_REFERENCE",
+      "That event cannot be mentioned in this company room.",
+    );
+  }
+
+  return validateLiveRoomEventReference({
+    deliveryLevel: readString(row.delivery_level) || null,
+    eventId: readString(row.id),
+    eventTicker: readString(row.ticker) || null,
+    kind: readString(row.source_group) === "filings" ? "filing" : "news",
+    roomTicker: ticker,
+    title: readString(row.title),
+  });
+}
+
+function mapMessageRow(
+  row: MessageRow,
+  actor: LiveRoomActor,
+): LiveRoomChatMessage {
+  const eventId = readString(row.referenced_event_id);
+  const eventKind = readString(row.referenced_event_kind);
+  const eventTitle = readString(row.referenced_event_title);
+  const eventReference: CompanyEventReference | null =
+    eventId &&
+    (eventKind === "filing" || eventKind === "news") &&
+    eventTitle
+      ? { eventId, kind: eventKind, title: eventTitle }
+      : null;
+
+  return {
+    author: {
+      displayName: readString(row.author_display_name) || "Member",
+      emoji: readString(row.author_emoji) || "👋",
+      isGuest: row.author_kind === "guest",
+      plan: normalizePlan(row.author_plan),
+    },
+    body: readString(row.body),
+    createdAt: readString(row.created_at),
+    eventReference,
+    id: readString(row.id),
+    isMine: isLiveRoomMessageMine(row, actor),
+    kind: "message",
+  };
+}
+
+function mapDatabaseModerationError(error: string | undefined, status: number) {
+  const value = error || "";
+  const mappings: Record<string, [string, string, number]> = {
+    LIVE_ROOM_EMPTY: [
+      "LIVE_ROOM_EMPTY",
+      "Write a message before sending.",
+      400,
+    ],
+    LIVE_ROOM_MAX_LENGTH: [
+      "LIVE_ROOM_MAX_LENGTH",
+      "Messages can be up to 600 characters.",
+      400,
+    ],
+    LIVE_ROOM_BLOCKED_WORD: [
+      "LIVE_ROOM_BLOCKED_WORD",
+      "This wording is blocked. Rephrase the message.",
+      400,
+    ],
+    LIVE_ROOM_EXCESSIVE_LINKS: [
+      "LIVE_ROOM_EXCESSIVE_LINKS",
+      "A message can include up to 2 links.",
+      400,
+    ],
+    LIVE_ROOM_DUPLICATE: [
+      "LIVE_ROOM_DUPLICATE",
+      "The same message was sent recently. Add something new before trying again.",
+      429,
+    ],
+    LIVE_ROOM_RATE_LIMIT: [
+      "LIVE_ROOM_RATE_LIMIT",
+      "Too many messages in a short time. Try again shortly.",
+      429,
+    ],
+    LIVE_ROOM_INVALID_EVENT_REFERENCE: [
+      "LIVE_ROOM_INVALID_EVENT_REFERENCE",
+      "That event cannot be mentioned in this company room.",
+      400,
+    ],
+  };
+  const match = Object.entries(mappings).find(([code]) =>
+    value.includes(code),
+  );
+  if (match) {
+    const [code, message, mappedStatus] = match[1];
+    return new LiveRoomPolicyError(code, message, mappedStatus);
+  }
+  return new LiveRoomPolicyError(
+    "LIVE_ROOM_SEND_FAILED",
+    "The message could not be saved.",
+    status || 502,
+  );
+}
+
+function encodeMessageCursor(value: CursorValue) {
+  return Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
+}
+
+function decodeMessageCursor(value: string | null): CursorValue | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(
+      Buffer.from(value, "base64url").toString("utf8"),
+    ) as Partial<CursorValue>;
+    if (
+      typeof parsed.createdAt !== "string" ||
+      !Number.isFinite(Date.parse(parsed.createdAt)) ||
+      typeof parsed.id !== "string" ||
+      !isUuid(parsed.id)
+    ) {
+      throw new Error("invalid cursor");
+    }
+    return { createdAt: parsed.createdAt, id: parsed.id };
+  } catch {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_INVALID_CURSOR",
+      "The message cursor is invalid.",
+    );
+  }
+}
+
+function readCursor(row: MessageRow): CursorValue {
+  return {
+    createdAt: readString(row.created_at),
+    id: readString(row.id),
+  };
+}
+
+function readRoom(row: Record<string, unknown>): RoomRow {
+  return { id: readString(row.id), ticker: readString(row.ticker) };
+}
+
+function readRows(value: unknown): Array<Record<string, unknown>> {
+  return Array.isArray(value)
+    ? value.filter(
+        (row): row is Record<string, unknown> =>
+          Boolean(row) && typeof row === "object",
+      )
+    : [];
+}
+
+function readSingleRow(value: unknown): Record<string, unknown> | null {
+  if (Array.isArray(value)) return readRows(value)[0] || null;
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function readString(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
+function normalizePlan(value: unknown): Plan {
+  return value === "ad_free" ||
+    value === "pro" ||
+    value === "advanced" ||
+    value === "ultimate"
+    ? value
+    : "free";
+}
+
+function normalizeNotificationScope(
+  value: unknown,
+): LiveRoomNotificationScope {
+  return value === "all_room_messages"
+    ? value
+    : "company_updates_only";
+}
+
+function getDefaultDisplayName(actor: LiveRoomActor) {
+  if (actor.kind === "guest") return "Guest";
+  const prefix = actor.email?.split("@", 1)[0]?.trim() || "Member";
+  const sanitized = prefix.replace(/[\u0000-\u001f\u007f]/g, "").trim();
+  return sanitized.slice(0, 24) || "Member";
+}

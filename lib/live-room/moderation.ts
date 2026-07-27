@@ -62,14 +62,14 @@ export function evaluateLiveRoomMessage(
   ) {
     return block(
       "blocked_word",
-      "This wording is blocked in the Mock policy. Rephrase the message.",
+      "This wording is blocked. Rephrase the message.",
     );
   }
 
   if (countLinks(normalizedBody) > maxLinks) {
     return block(
       "excessive_links",
-      `A message can include up to ${maxLinks} links in this Mock.`,
+      `A message can include up to ${maxLinks} links.`,
     );
   }
 

@@ -8,12 +8,14 @@ import styles from "./LiveRoom.module.css";
 type ChatTimelineProps = {
   currentProfileName: string;
   items: readonly LiveRoomTimelineItem[];
+  onRetry?: () => void;
   state: "empty" | "error" | "loading" | "ready";
 };
 
 export function ChatTimeline({
   currentProfileName,
   items,
+  onRetry,
   state,
 }: ChatTimelineProps) {
   if (state === "loading") {
@@ -32,7 +34,12 @@ export function ChatTimeline({
       <div className={styles.timelineState} role="alert">
         <MessageCircle aria-hidden="true" size={22} />
         <strong>Messages could not be loaded.</strong>
-        <span>Choose Ready in Mock states to continue testing.</span>
+        <span>Check the connection and try again.</span>
+        {onRetry ? (
+          <button onClick={onRetry} type="button">
+            Retry
+          </button>
+        ) : null}
       </div>
     );
   }
@@ -80,8 +87,10 @@ export function ChatTimeline({
         }
 
         const mine =
-          item.author.isGuest &&
-          item.author.displayName === currentProfileName;
+          item.isMine === true ||
+          (item.isMine === undefined &&
+            item.author.isGuest &&
+            item.author.displayName === currentProfileName);
         return (
           <li
             className={mine ? styles.myMessage : styles.otherMessage}
