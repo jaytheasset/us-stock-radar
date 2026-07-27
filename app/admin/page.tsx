@@ -41,6 +41,11 @@ const adminSections = [
     title: "Integrations",
     description: "External API/env registry without exposing secrets.",
   },
+  {
+    href: "/admin/creator-verifications",
+    title: "Creator Verifications",
+    description: "Review public proof of X, YouTube, and Instagram account ownership.",
+  },
 ];
 
 export default function AdminHome() {

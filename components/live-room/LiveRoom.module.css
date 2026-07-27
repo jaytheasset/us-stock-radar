@@ -1402,3 +1402,26 @@
     transition-duration: var(--sr-motion-duration-reduced);
   }
 }
+.socialVerificationBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  max-width: 170px;
+  overflow: hidden;
+  border: 1px solid var(--sr-color-border);
+  border-radius: var(--sr-radius-control);
+  padding: 0 var(--sr-space-1-5);
+  color: var(--sr-color-text-secondary);
+  background: transparent;
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-strong);
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.socialVerificationBadge:hover,
+.socialVerificationBadge:focus-visible {
+  border-color: var(--sr-color-product-accent-border);
+  color: var(--sr-color-product-accent);
+}

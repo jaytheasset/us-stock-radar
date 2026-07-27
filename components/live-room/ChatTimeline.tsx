@@ -153,6 +153,18 @@ export function ChatTimeline({
                     Online
                   </span>
                 ) : null}
+                {item.author.socialBadges?.map((badge) => (
+                  <a
+                    aria-label={`${badge.label} profile for ${item.author.displayName}`}
+                    className={styles.socialVerificationBadge}
+                    href={badge.profileUrl}
+                    key={badge.platform}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    {badge.label}
+                  </a>
+                ))}
                 <time dateTime={item.createdAt}>
                   {formatMessageTime(item.createdAt)}
                 </time>
