@@ -9,7 +9,7 @@ const requestMigration = read(
   "supabase/migrations/20260727202901_live_room_message_requests.sql",
 );
 const reportForeignKeyIndexMigration = read(
-  "supabase/migrations/20260727204500_add_direct_message_report_fk_index.sql",
+  "supabase/migrations/20260727204014_add_direct_message_report_fk_index.sql",
 );
 const socialVerificationMigration = read(
   "supabase/migrations/20260727185802_live_room_social_account_verification.sql",
