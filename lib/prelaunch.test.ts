@@ -121,14 +121,14 @@ test("proxy matcher covers page, API, and Workflow paths", () => {
   }
 });
 
-test("proxy is off by default and redirects ordinary pages when enabled", () => {
+test("proxy is off by default and redirects ordinary pages when enabled", async () => {
   delete process.env.PRELAUNCH_MODE;
-  let response = proxy(new NextRequest("https://radar.example/news"));
+  let response = await proxy(new NextRequest("https://radar.example/news"));
   assert.equal(getRedirectUrl(response), null);
 
   process.env.PRELAUNCH_MODE = "1";
   process.env.PRELAUNCH_PASSWORD = "preview-secret";
-  response = proxy(
+  response = await proxy(
     new NextRequest("https://radar.example/news?range=1D"),
   );
   assert.equal(
@@ -138,11 +138,11 @@ test("proxy is off by default and redirects ordinary pages when enabled", () => 
   assert.equal(response.headers.get("x-robots-tag"), "noindex, nofollow");
 });
 
-test("proxy accepts a valid proof and bypasses API and Workflow requests", () => {
+test("proxy accepts a valid proof and bypasses API and Workflow requests", async () => {
   process.env.PRELAUNCH_MODE = "1";
   process.env.PRELAUNCH_PASSWORD = "preview-secret";
   const proof = createPrelaunchAccessProof("preview-secret");
-  const authenticated = proxy(
+  const authenticated = await proxy(
     new NextRequest("https://radar.example/news", {
       headers: {
         cookie: `${PRELAUNCH_ACCESS_COOKIE}=${proof}`,
@@ -161,16 +161,16 @@ test("proxy accepts a valid proof and bypasses API and Workflow requests", () =>
     "/_next/static/chunk.js",
     "/favicon.ico",
   ]) {
-    const response = proxy(
+    const response = await proxy(
       new NextRequest(`https://radar.example${path}`),
     );
     assert.equal(getRedirectUrl(response), null, path);
   }
 });
 
-test("coming-soon request passes through with noindex", () => {
+test("coming-soon request passes through with noindex", async () => {
   process.env.PRELAUNCH_MODE = "1";
-  const response = proxy(
+  const response = await proxy(
     new NextRequest("https://radar.example/coming-soon"),
   );
 

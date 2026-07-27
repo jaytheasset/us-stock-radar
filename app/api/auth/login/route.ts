@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AuthError, signInWithEmail } from "@/lib/auth/supabaseAuth";
 import { setAuthSessionCookies } from "@/lib/auth/sessionCookies";
+import { AUTH_PRIVATE_HEADERS } from "@/lib/auth/authPolicy";
+import { assertSameOriginAuthRequest } from "@/lib/auth/authRequest";
 
 export const dynamic = "force-dynamic";
 
-const NO_STORE_HEADERS = {
-  "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
-};
-
 export async function POST(request: NextRequest) {
   try {
+    assertSameOriginAuthRequest(request);
     const body = await request.json().catch(() => null);
     const { email, password } = normalizeAuthBody(body);
     const session = await signInWithEmail(email, password);
@@ -18,7 +17,7 @@ export async function POST(request: NextRequest) {
       {
         ok: true,
       },
-      { headers: NO_STORE_HEADERS },
+      { headers: AUTH_PRIVATE_HEADERS },
     );
 
     setAuthSessionCookies(response, {
@@ -36,7 +35,7 @@ export async function POST(request: NextRequest) {
         error: normalized.code,
         message: normalized.message,
       },
-      { status: normalized.status, headers: NO_STORE_HEADERS },
+      { status: normalized.status, headers: AUTH_PRIVATE_HEADERS },
     );
   }
 }

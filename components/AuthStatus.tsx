@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 type AuthUser = {
   id: string;
   email: string | null;
+  emailConfirmed?: boolean;
 };
 
 type AuthMeResponse = {
@@ -82,10 +83,10 @@ export function AuthStatus({ loginHref = "/login", signupHref = "/signup", showC
 
   return (
     <div className="auth-status" aria-label="Account actions">
-      <span className="auth-user-pill" title={label}>
+      <Link className="auth-user-pill" href="/account" title={label}>
         <span aria-hidden="true">{initial}</span>
         <strong>{label}</strong>
-      </span>
+      </Link>
       <button className="auth-logout-button" disabled={loggingOut} type="button" onClick={handleLogout}>
         {loggingOut ? "Logging out..." : "Logout"}
       </button>

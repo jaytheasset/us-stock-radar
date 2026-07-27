@@ -1,22 +1,43 @@
 import { NextResponse } from "next/server";
-import { getAuthAccessTokenFromCookies } from "@/lib/auth/sessionCookies";
-import { getSupabaseAuthUser } from "@/lib/auth/supabaseAuth";
+import {
+  clearAuthSessionCookies,
+  getAuthTokensFromCookies,
+  setAuthSessionCookies,
+} from "@/lib/auth/sessionCookies";
+import { AUTH_PRIVATE_HEADERS } from "@/lib/auth/authPolicy";
+import { resolveAuthSession } from "@/lib/auth/sessionResolution";
 
 export const dynamic = "force-dynamic";
 
-const NO_STORE_HEADERS = {
-  "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
-};
-
 export async function GET() {
-  const token = await getAuthAccessTokenFromCookies();
-  const user = token ? await getSupabaseAuthUser(token) : null;
+  const tokens = await getAuthTokensFromCookies();
+  const resolved = await resolveAuthSession(tokens);
 
-  return NextResponse.json(
+  const response = NextResponse.json(
     {
       ok: true,
-      user: user ? { id: user.id, email: user.email || null } : null,
+      user: resolved.user
+        ? {
+            id: resolved.user.id,
+            email: resolved.user.email || null,
+            emailConfirmed: Boolean(
+              resolved.user.email_confirmed_at || resolved.user.confirmed_at,
+            ),
+          }
+        : null,
     },
-    { headers: NO_STORE_HEADERS },
+    { headers: AUTH_PRIVATE_HEADERS },
   );
+
+  if (resolved.refreshedSession?.access_token) {
+    setAuthSessionCookies(response, {
+      accessToken: resolved.refreshedSession.access_token,
+      refreshToken: resolved.refreshedSession.refresh_token,
+      expiresIn: resolved.refreshedSession.expires_in,
+    });
+  } else if (resolved.shouldClearCookies) {
+    clearAuthSessionCookies(response);
+  }
+
+  return response;
 }
