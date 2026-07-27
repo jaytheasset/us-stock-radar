@@ -8,6 +8,9 @@ const baseMigration = read(
 const requestMigration = read(
   "supabase/migrations/20260727202901_live_room_message_requests.sql",
 );
+const reportForeignKeyIndexMigration = read(
+  "supabase/migrations/20260727204014_add_direct_message_report_fk_index.sql",
+);
 const socialVerificationMigration = read(
   "supabase/migrations/20260727185802_live_room_social_account_verification.sql",
 );
@@ -611,6 +614,16 @@ test("every new FK and inbox/status access path has a covering index", () => {
   ]) {
     assert.match(requestMigration, new RegExp(`create index ${index}`, "i"));
   }
+  assert.equal(
+    reportForeignKeyIndexMigration.replace(/\s+/g, " ").trim().toLowerCase(),
+    [
+      "begin;",
+      "create index if not exists",
+      "live_room_direct_message_reports_conversation_message_idx",
+      "on public.live_room_direct_message_reports (conversation_id, message_id);",
+      "commit;",
+    ].join(" "),
+  );
 });
 
 test("Messages remains in Live Room activity and separate from paid Alerts", () => {
