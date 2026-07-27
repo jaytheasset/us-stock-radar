@@ -55,9 +55,25 @@ export type LiveRoomChatMessage = {
   createdAt: string;
   eventReference: CompanyEventReference | null;
   id: string;
+  isOnline?: boolean;
   isMemberFollowed?: boolean;
   isMine?: boolean;
   kind: "message";
+};
+
+export type LiveRoomPresenceMessage = {
+  isOnline: boolean;
+  messageId: string;
+};
+
+export type LiveRoomPresenceSummary = {
+  messages: LiveRoomPresenceMessage[];
+  onlineMemberCount: number;
+};
+
+export type LiveRoomPresenceSetting = {
+  isAuthenticated: true;
+  showPresence: boolean;
 };
 
 export type LiveRoomSystemUpdate = {

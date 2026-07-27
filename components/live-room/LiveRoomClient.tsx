@@ -49,6 +49,13 @@ import {
   removeLiveRoomTimelineItems,
   replaceLiveRoomTimeline,
 } from "@/lib/live-room/timeline";
+import {
+  applyLiveRoomPresence,
+  clearLiveRoomPresence,
+  getLiveRoomPresenceMessageIds,
+  LIVE_ROOM_PRESENCE_POLL_INTERVAL_MS,
+  shouldRunLiveRoomPresence,
+} from "@/lib/live-room/presence";
 import { ChatTimeline } from "./ChatTimeline";
 import { CompanyEventCard } from "./CompanyEventCard";
 import { CompanyRoomHeader } from "./CompanyRoomHeader";
@@ -99,6 +106,11 @@ export function LiveRoomClient({
   const [decision, setDecision] = useState<ModerationDecision | null>(null);
   const [profile, setProfile] = useState<LiveRoomProfile | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [showPresence, setShowPresence] = useState<boolean | null>(null);
+  const [presenceSettingBusy, setPresenceSettingBusy] = useState(false);
+  const [onlineMemberCount, setOnlineMemberCount] = useState<
+    number | null
+  >(null);
   const [followed, setFollowed] = useState<boolean | null>(null);
   const [roomNotice, setRoomNotice] = useState<string | null>(null);
   const [inviteState, setInviteState] =
@@ -125,6 +137,7 @@ export function LiveRoomClient({
   const profileSaveTimerRef = useRef<number | null>(null);
   const loadedTickerRef = useRef<string | null>(null);
   const timelineGenerationRef = useRef(0);
+  const presenceMessageIdsRef = useRef<string[]>([]);
   const updatesSubscriptionRef = useRef<{ close: () => void } | null>(
     null,
   );
@@ -167,6 +180,8 @@ export function LiveRoomClient({
       setOlderCursor(null);
       setProfile(null);
       setProfileOpen(false);
+      setShowPresence(null);
+      setOnlineMemberCount(null);
       setFollowed(null);
     }
     setRoomNotice(null);
@@ -186,7 +201,16 @@ export function LiveRoomClient({
         if (!isCurrent()) return;
         setProfile(nextProfile);
 
-        const [page, preference, nextBlocks, nextHiddenMessages] =
+        const presenceSettingPromise = nextProfile.isGuest
+          ? Promise.resolve(null)
+          : repository.readPresenceSetting().catch(() => null);
+        const [
+          page,
+          preference,
+          nextBlocks,
+          nextHiddenMessages,
+          nextPresenceSetting,
+        ] =
           await Promise.all([
             repository.list(),
             repository.readFollow(),
@@ -194,6 +218,7 @@ export function LiveRoomClient({
             nextProfile.canModerate
               ? repository.listHiddenMessages()
               : Promise.resolve([]),
+            presenceSettingPromise,
           ]);
         if (!isCurrent()) return;
         let initialItems: LiveRoomTimelineItem[] = page.items;
@@ -219,6 +244,11 @@ export function LiveRoomClient({
         setOlderCursor(page.nextCursor);
         setTimelineState(initialItems.length ? "ready" : "empty");
         setFollowed(preference.followed);
+        setShowPresence(
+          nextProfile.isGuest
+            ? false
+            : nextPresenceSetting?.showPresence ?? null,
+        );
         followedRef.current = preference.followed;
         setBlocks(nextBlocks);
         setHiddenMessages(nextHiddenMessages);
@@ -311,6 +341,96 @@ export function LiveRoomClient({
       }
     };
   }, [activityMessageId, reloadKey, repository, ticker]);
+
+  useEffect(() => {
+    presenceMessageIdsRef.current =
+      getLiveRoomPresenceMessageIds(timeline);
+  }, [timeline]);
+
+  useEffect(() => {
+    const canRun =
+      (timelineState === "ready" || timelineState === "empty") &&
+      shouldRunLiveRoomPresence({
+        documentVisible: true,
+        isGuest: profile?.isGuest ?? null,
+        showPresence,
+      });
+    if (!canRun) {
+      setOnlineMemberCount(null);
+      setTimeline((current) => clearLiveRoomPresence(current));
+      return;
+    }
+
+    let active = true;
+    let requestInFlight = false;
+    const refreshPresence = async () => {
+      if (
+        !active ||
+        requestInFlight ||
+        document.visibilityState !== "visible"
+      ) {
+        return;
+      }
+      requestInFlight = true;
+      try {
+        const heartbeat = await repository.heartbeatPresence();
+        if (!active) return;
+        if (!heartbeat.recorded) {
+          setShowPresence(false);
+          return;
+        }
+        const summary = await repository.readPresence(
+          presenceMessageIdsRef.current,
+        );
+        if (!active || document.visibilityState !== "visible") return;
+        setOnlineMemberCount(summary.onlineMemberCount);
+        setTimeline((current) =>
+          applyLiveRoomPresence(current, summary),
+        );
+      } catch {
+        if (active) {
+          setOnlineMemberCount(null);
+          setTimeline((current) => clearLiveRoomPresence(current));
+        }
+      } finally {
+        requestInFlight = false;
+      }
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void refreshPresence();
+      }
+    };
+    const handleFocus = () => {
+      void refreshPresence();
+    };
+
+    void refreshPresence();
+    const timer = window.setInterval(
+      () => void refreshPresence(),
+      LIVE_ROOM_PRESENCE_POLL_INTERVAL_MS,
+    );
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange,
+    );
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange,
+      );
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [
+    profile?.isGuest,
+    repository,
+    showPresence,
+    timelineState,
+  ]);
 
   useEffect(() => {
     if (
@@ -502,6 +622,30 @@ export function LiveRoomClient({
       setFollowed(previous);
       followedRef.current = previous;
       setRoomNotice(toLiveRoomApiError(error).message);
+    }
+  };
+
+  const handlePresenceSettingChange = async (
+    nextShowPresence: boolean,
+  ) => {
+    if (presenceSettingBusy || profile?.isGuest !== false) return;
+    const previous = showPresence;
+    setPresenceSettingBusy(true);
+    setRoomNotice(null);
+    try {
+      const setting = await repository.writePresenceSetting(
+        nextShowPresence,
+      );
+      setShowPresence(setting.showPresence);
+      if (!setting.showPresence) {
+        setOnlineMemberCount(null);
+        setTimeline((current) => clearLiveRoomPresence(current));
+      }
+    } catch (error) {
+      setShowPresence(previous);
+      setRoomNotice(toLiveRoomApiError(error).message);
+    } finally {
+      setPresenceSettingBusy(false);
     }
   };
 
@@ -795,6 +939,7 @@ export function LiveRoomClient({
           historyButtonRef={historyOpenerRef}
           identity={identity}
           inviteState={inviteState}
+          onlineMemberCount={onlineMemberCount}
           onInvite={handleInvite}
           onOpenHistory={() => setHistoryOpen(true)}
           onToggleFollow={handleToggleFollow}
@@ -977,11 +1122,14 @@ export function LiveRoomClient({
               }}
               onClearReference={() => setReference(null)}
               onProfileChange={handleProfileChange}
+              onPresenceSettingChange={handlePresenceSettingChange}
               onSend={handleSend}
               profile={profile}
               profileOpen={profileOpen}
+              presenceSettingBusy={presenceSettingBusy}
               sending={sending}
               setProfileOpen={setProfileOpen}
+              showPresence={showPresence}
             />
           </section>
 

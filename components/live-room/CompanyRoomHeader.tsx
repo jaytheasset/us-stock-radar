@@ -18,6 +18,7 @@ type CompanyRoomHeaderProps = {
   historyButtonRef: RefObject<HTMLButtonElement | null>;
   identity: CompanyRoomIdentity;
   inviteState: LiveRoomInviteUiState;
+  onlineMemberCount: number | null;
   onInvite: () => void;
   onOpenHistory: () => void;
   onToggleFollow: () => void;
@@ -28,6 +29,7 @@ export function CompanyRoomHeader({
   historyButtonRef,
   identity,
   inviteState,
+  onlineMemberCount,
   onInvite,
   onOpenHistory,
   onToggleFollow,
@@ -41,6 +43,12 @@ export function CompanyRoomHeader({
           <h1>{identity.companyName}</h1>
         </div>
         <small>{identity.exchange} · Company room</small>
+        {onlineMemberCount !== null && onlineMemberCount > 0 ? (
+          <small className={styles.onlineCount}>
+            <span aria-hidden="true" />
+            {onlineMemberCount} online
+          </small>
+        ) : null}
       </div>
 
       <div className={styles.roomActions}>

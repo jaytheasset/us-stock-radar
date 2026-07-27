@@ -6,6 +6,8 @@ import type {
   LiveRoomMemberFollowResult,
   LiveRoomModerationItem,
   LiveRoomProfile,
+  LiveRoomPresenceSetting,
+  LiveRoomPresenceSummary,
   LiveRoomReportReason,
   LiveRoomUnreadSummary,
 } from "./types";
@@ -238,6 +240,39 @@ export class LiveRoomApiRepository {
       method: "PUT",
       body: JSON.stringify(input),
     });
+  }
+
+  readPresence(messageIds: readonly string[]) {
+    return requestJson<LiveRoomPresenceSummary>(
+      `${this.roomApiPath()}/presence`,
+      {
+        method: "POST",
+        body: JSON.stringify({ messageIds: messageIds.slice(0, 50) }),
+      },
+    );
+  }
+
+  heartbeatPresence() {
+    return requestJson<{ recorded: boolean }>(
+      `${this.roomApiPath()}/presence`,
+      { method: "PUT" },
+    );
+  }
+
+  readPresenceSetting() {
+    return requestJson<LiveRoomPresenceSetting>(
+      "/api/live-room/presence/settings",
+    );
+  }
+
+  writePresenceSetting(showPresence: boolean) {
+    return requestJson<LiveRoomPresenceSetting>(
+      "/api/live-room/presence/settings",
+      {
+        method: "PUT",
+        body: JSON.stringify({ showPresence }),
+      },
+    );
   }
 
   private roomApiPath() {
