@@ -433,7 +433,7 @@ async function getOrCreateLiveRoom(ticker: string): Promise<RoomRow> {
 async function getRecentActorMessages(actor: LiveRoomActor) {
   const result = await supabaseSelect("live_room_messages", {
     select: "body,created_at",
-    ...getLiveRoomActorFilter(actor),
+    ...getLiveRoomActorFilter(actor, "author_kind"),
     visibility_status: "eq.visible",
     created_at: `gte.${new Date(Date.now() - 120_000).toISOString()}`,
     order: "created_at.desc",

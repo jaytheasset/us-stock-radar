@@ -29,6 +29,7 @@ import {
 import {
   createServerOwnedAuthorSnapshot,
   getDefaultLiveRoomDisplayName,
+  getLiveRoomActorFilter,
   isLiveRoomMessageMine,
   LIVE_ROOM_GUEST_LAST_SEEN_INTERVAL_MS,
   LiveRoomPolicyError,
@@ -322,6 +323,22 @@ test("server-owned actor identity prevents guest and member impersonation", () =
   );
 });
 
+test("actor filters use each table's discriminator column", () => {
+  const guest = {
+    kind: "guest" as const,
+    guestSessionId: "33333333-3333-4333-8333-333333333333",
+  };
+
+  assert.deepEqual(getLiveRoomActorFilter(guest), {
+    actor_kind: "eq.guest",
+    guest_session_id: `eq.${guest.guestSessionId}`,
+  });
+  assert.deepEqual(getLiveRoomActorFilter(guest, "author_kind"), {
+    author_kind: "eq.guest",
+    guest_session_id: `eq.${guest.guestSessionId}`,
+  });
+});
+
 test("guest last-seen writes are throttled to one update per five minutes", () => {
   const now = new Date("2026-07-27T10:05:00.000Z");
 
@@ -502,4 +519,20 @@ test("Live Room migration is server-only, RLS-enabled, and atomically moderates 
   assert.match(migration, /LIVE_ROOM_INVALID_EVENT_REFERENCE/);
   assert.match(migration, /token_hash text not null unique/i);
   assert.doesNotMatch(migration, /all sequences in schema public/i);
+});
+
+test("Live Room hardening migration is encoding-safe and covers actor foreign keys", () => {
+  const migrationName = readdirSync(
+    path.join(projectRoot, "supabase", "migrations"),
+  ).find((name) => name.endsWith("_live_room_foundation_hardening.sql"));
+  assert.ok(migrationName);
+  const migration = readSource(
+    path.join("supabase", "migrations", migrationName),
+  );
+
+  assert.match(migration, /chr\(128075\)/);
+  assert.match(migration, /live_room_messages_member_user_idx/i);
+  assert.match(migration, /live_room_messages_guest_session_idx/i);
+  assert.match(migration, /live_room_follows_member_user_idx/i);
+  assert.match(migration, /live_room_follows_guest_session_idx/i);
 });

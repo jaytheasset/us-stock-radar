@@ -126,14 +126,15 @@ export function validateLiveRoomEventReference(
 
 export function getLiveRoomActorFilter(
   actor: LiveRoomActor,
+  kindColumn: "actor_kind" | "author_kind" = "actor_kind",
 ): Record<string, string> {
   return actor.kind === "member"
     ? {
-        actor_kind: "eq.member",
+        [kindColumn]: "eq.member",
         member_user_id: `eq.${actor.userId}`,
       }
     : {
-        actor_kind: "eq.guest",
+        [kindColumn]: "eq.guest",
         guest_session_id: `eq.${actor.guestSessionId}`,
       };
 }
